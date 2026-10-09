@@ -37,6 +37,20 @@ describe('commands: roads', () => {
     w.terrain[idx(w.size, 20, 20)] = 3;
     expect(previewRoad(w, 18, 20, 22, 20).reason).toBe('water');
   });
+  it('bumps roadVersion on draw and again on undo', () => {
+    const w = makeTestWorld({ gold: 100 });
+    const v0 = w.roadVersion;
+    drawRoad(w, 0, 5, 3, 5);
+    const v1 = w.roadVersion;
+    expect(v1).toBeGreaterThan(v0);
+    undo(w);
+    expect(w.roadVersion).toBeGreaterThan(v1);
+  });
+  it('rejects non-integer and off-map endpoints without hanging', () => {
+    const w = makeTestWorld();
+    expect(previewRoad(w, 0.5, 5, 3, 5).reason).toBe('out_of_bounds');
+    expect(previewRoad(w, 0, 5, 99, 5).reason).toBe('out_of_bounds');
+  });
 });
 
 describe('commands: area painting', () => {
@@ -58,6 +72,19 @@ describe('commands: area painting', () => {
     const w = makeTestWorld();
     setRoad(w, 0, 10, 31, 10);
     expect(paintHouses(w, 0, 10, 5, 10).reason).toBe('nothing_to_place');
+  });
+  it('warns needs_road when painted plots are away from any road', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    const r = paintHouses(w, 20, 20, 21, 21);
+    expect(r.ok).toBe(true);
+    expect(r.warnings).toContain('needs_road');
+  });
+  it('paints with no warnings when the rectangle is fully beside a road', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    setRoad(w, 0, 10, 31, 10);
+    const r = paintHouses(w, 10, 9, 14, 9);
+    expect(r.ok).toBe(true);
+    expect(r.warnings).toEqual([]);
   });
   it('demolishes an area with one undo that restores everything', () => {
     const w = makeTestWorld({ gold: 1000 });
