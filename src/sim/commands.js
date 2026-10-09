@@ -87,6 +87,9 @@ export function demolishAt(world, x, y) {
 export function setPaused(world, id, paused) {
   const b = world.buildings[id];
   if (!b) return fail('nothing_here');
+  // Pausing stops staffing and upkeep, so a building with neither (a housing plot) has nothing to pause.
+  const def = BUILDINGS[b.type];
+  if (!def.workers && !def.upkeep) return fail('not_pausable');
   b.paused = Boolean(paused);
   if (b.paused) b.staff = 0;
   return { ok: true, warnings: [] };
