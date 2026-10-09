@@ -14,7 +14,9 @@ export function adjacentRoadTiles(world, b) {
 
 export const touchesRoad = (world, b) => adjacentRoadTiles(world, b).length > 0;
 
+// The returned Map is cached and shared, so callers must treat it as read-only.
 export function roadReach(world, b, maxDist) {
+  if (maxDist < 1) return new Map();
   let c = cache.get(world);
   if (!c || c.version !== world.roadVersion) {
     c = { version: world.roadVersion, map: new Map() };

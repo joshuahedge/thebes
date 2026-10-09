@@ -1,6 +1,7 @@
 import { describe, it, expect } from '../harness.js';
 import { touchesRoad, roadReach, buildingsInReach, adjacentRoadTiles } from '../../src/sim/reach.js';
 import { idx } from '../../src/sim/grid.js';
+import { makeBuilding, insertBuilding } from '../../src/sim/world.js';
 import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
 
 describe('reach', () => {
@@ -40,5 +41,38 @@ describe('reach', () => {
     expect(roadReach(w, well, 10).has(idx(w.size, 7, 4))).toBe(false);
     setRoad(w, 6, 4, 8, 4);
     expect(roadReach(w, well, 10).has(idx(w.size, 7, 4))).toBe(true);
+  });
+  it('sorts by distance then id and never lists itself, whatever the insertion order', () => {
+    const w = makeTestWorld();
+    setRoad(w, 0, 4, 25, 4);
+    const far = addRaw(w, 'granary', 14, 5);
+    const self = addRaw(w, 'granary', 2, 5);
+    const near = addRaw(w, 'granary', 8, 5);
+    // Off the road: its footprint's nearest row is y=19 and y=22, so it is never reachable.
+    addRaw(w, 'granary', 2, 20);
+    const found = buildingsInReach(w, self, 16, (o) => o.type === 'granary');
+    expect(found.map((f) => f.b.id)).toEqual([near.id, far.id]);
+    expect(found.some((f) => f.b.id === self.id)).toBe(false);
+  });
+  it('breaks equal distances by id', () => {
+    const w = makeTestWorld();
+    setRoad(w, 0, 4, 20, 4);
+    const well = addRaw(w, 'well', 10, 5);
+    // Road distances from the well's road tile (10,4), along y=4:
+    // west granary (7,5): nearest road tile (8,4) is 3 steps away.
+    // east granary (12,5): nearest road tile (12,4) is 3 steps away. A tie, so the id decides.
+    const west = makeBuilding(w, 'granary', 7, 5);
+    const east = makeBuilding(w, 'granary', 12, 5);
+    insertBuilding(w, east);
+    insertBuilding(w, west);
+    const found = buildingsInReach(w, well, 16, (o) => o.type === 'granary');
+    expect(found.map((f) => f.dist)).toEqual([3, 3]);
+    expect(found.map((f) => f.b.id)).toEqual([west.id, east.id]);
+  });
+  it('reaches nothing when maxDist is below 1', () => {
+    const w = makeTestWorld();
+    setRoad(w, 0, 4, 5, 4);
+    const well = addRaw(w, 'well', 1, 5);
+    expect(roadReach(w, well, 0).size).toBe(0);
   });
 });
