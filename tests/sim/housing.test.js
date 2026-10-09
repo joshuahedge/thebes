@@ -153,4 +153,81 @@ describe('housing', () => {
     expect(s.missingNow).toEqual([]);
     expect(s.downgradeIn).toBe(null);
   });
+  it('shows an empty plot beside a road as road met', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11);
+    const s = houseStatus(w, h);
+    expect(s.tier).toBe(0);
+    expect(s.checklist).toEqual([{ need: 'road', met: true }]);
+    expect(s.missingNow).toEqual([]);
+  });
+  it('judges a hut that has just arrived live, before any monthly tick', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 1, residents: 5 });
+    addRaw(w, 'well', 13, 9);
+    expect(h.met).toEqual({});
+    const s = houseStatus(w, h);
+    expect(s.next).toEqual({ tier: 2, name: 'Shack' });
+    expect(s.checklist).toEqual([{ need: 'road', met: true }, { need: 'water', met: true }]);
+    expect(s.missingNow).toEqual([]);
+  });
+  it('shows a house with no road as road not met and missing now', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 20, { tier: 1, residents: 5 });
+    const s = houseStatus(w, h);
+    expect(s.checklist[0]).toEqual({ need: 'road', met: false });
+    expect(s.missingNow).toEqual(['road']);
+  });
+  it('follows a well built, or a road cut, after the last monthly tick', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 2, residents: 8 });
+    monthlyHousing(w);
+    expect(houseStatus(w, h).missingNow).toEqual(['water']);
+    addRaw(w, 'well', 13, 9);
+    expect(houseStatus(w, h).missingNow).toEqual([]);
+    for (let x = 0; x < w.size; x++) w.road[10 * w.size + x] = 0;
+    w.roadVersion++;
+    expect(houseStatus(w, h).missingNow).toEqual(['road', 'water']);
+  });
+  it('counts religion only from a working temple in reach', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 3, residents: 12 });
+    const temple = addRaw(w, 'temple', 15, 8);
+    const religion = () => houseStatus(w, h).checklist.find((c) => c.need === 'religion').met;
+    expect(religion()).toBe(false); // unstaffed
+    staffAll(w);
+    expect(religion()).toBe(true);
+    temple.paused = true;
+    expect(religion()).toBe(false);
+  });
+  it('reads food from the live stock against what the house was stocked for', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 3, residents: 12, stockedFor: 8, stock: { grain: 2 } });
+    const food = () => houseStatus(w, h).checklist.find((c) => c.need === 'food').met;
+    expect(food()).toBe(true); // two grain feeds the eight it was stocked for
+    h.stock.grain = 1;
+    expect(food()).toBe(false);
+    h.stockedFor = 0; // nothing recorded: judged on all twelve, who need three
+    h.stock.grain = 2;
+    expect(food()).toBe(false);
+    h.stock.grain = 3;
+    expect(food()).toBe(true);
+  });
+  it('never counts food as met for a house with no residents', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 3, residents: 0, stock: { grain: 5 } });
+    expect(houseStatus(w, h).checklist.find((c) => c.need === 'food').met).toBe(false);
+  });
+  it('agrees with the monthly tick about water and religion coverage', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 3, residents: 12 });
+    addRaw(w, 'well', 13, 9);
+    addRaw(w, 'temple', 15, 8);
+    staffAll(w);
+    monthlyHousing(w);
+    const s = houseStatus(w, h);
+    for (const need of ['water', 'religion']) {
+      expect(s.checklist.find((c) => c.need === need).met).toBe(h.met[need]);
+    }
+  });
 });
