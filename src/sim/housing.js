@@ -38,6 +38,7 @@ export function removeResidents(house, n) {
     house.stock = {};
     house.downTimer = 0;
     house.met = {};
+    house.stockedFor = 0;
   }
 }
 
@@ -46,15 +47,22 @@ export function leaveCap(house) {
   return Math.max(1, Math.floor(house.residents * LEAVE_CAP));
 }
 
+// A house is judged on the residents it was stocked for: newcomers who arrived since the last delivery
+// eat from the household's stock (so it may run out early) but do not make the house count as unfed.
+// stockedFor 0 means no delivery has been recorded yet, so the house is judged on its current residents.
 function consumeFood(house) {
-  let need = monthlyNeed(house, FOOD_GOODS[0]);
-  if (need === 0) return false;
+  const needAll = monthlyNeed(house, FOOD_GOODS[0]);
+  if (needAll === 0) return false;
+  const stocked = house.stockedFor || house.residents;
+  const needMet = monthlyNeed({ residents: Math.min(house.residents, stocked) }, FOOD_GOODS[0]);
+  const available = FOOD_GOODS.reduce((s, g) => s + (house.stock[g] || 0), 0);
+  let need = needAll;
   for (const g of FOOD_GOODS) {
     const take = Math.min(need, house.stock[g] || 0);
     house.stock[g] = (house.stock[g] || 0) - take;
     need -= take;
   }
-  return need === 0;
+  return needMet > 0 && available >= needMet;
 }
 
 export function monthlyHousing(world) {
@@ -71,6 +79,7 @@ export function monthlyHousing(world) {
     };
     h.met = met;
     topUpHouse(world, h, wantedGoods(h), bazaars.get(h.id));
+    h.stockedFor = h.residents;
 
     const currentOk = met.road && needsOf(h.tier).every((n) => met[n]);
     if (currentOk) {

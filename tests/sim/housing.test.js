@@ -60,6 +60,23 @@ describe('housing', () => {
     monthlyHousing(w);
     expect(h.tier).toBe(2);
   });
+  it('covers newcomers for their first month', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 3, residents: 8, stockedFor: 8, stock: { grain: 2 } });
+    addRaw(w, 'well', 13, 9);
+    h.residents = 12; // arrivals came mid-month
+    monthlyHousing(w);
+    expect(h.met.food).toBe(true);
+    expect(h.tier).toBe(3);
+    expect(h.downTimer).toBe(0);
+  });
+  it('still goes hungry when the stocked amount runs short', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 3, residents: 12, stockedFor: 12, stock: { grain: 2 } });
+    addRaw(w, 'well', 13, 9);
+    monthlyHousing(w);
+    expect(h.met.food).toBe(false);
+  });
   it('caps leavers at a quarter of residents per month', () => {
     const w = street();
     const h = addRaw(w, 'house', 12, 20, { tier: 1, residents: 5 });
