@@ -13,3 +13,4 @@ import './sim/labour.test.js';
 import './sim/production.test.js';
 import './sim/housing.test.js';
 import './sim/immigration.test.js';
+import './sim/economy.test.js';
