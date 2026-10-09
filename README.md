@@ -2,9 +2,13 @@
 
 A city builder for phone and desktop browsers, inspired by classic Egyptian city builders. It's a personal hobby project.
 
+## Requirements
+
+Python 3 on your PATH, and Microsoft Edge for the command-line tests.
+
 ## Run it locally
 
-    python -m http.server 8000
+    python tests/serve.py 8000 .
 
 Then open http://localhost:8000/.
 

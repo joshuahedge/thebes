@@ -14,25 +14,32 @@ function fmt(v) {
   try { return JSON.stringify(v); } catch (e) { return String(v); }
 }
 
-function stable(v) {
-  if (Array.isArray(v)) return v.map(stable);
-  if (v && typeof v === 'object') {
-    const out = {};
-    for (const k of Object.keys(v).sort()) out[k] = stable(v[k]);
-    return out;
+function sameKeys(a, b) {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((k) => Object.prototype.hasOwnProperty.call(b, k) && deepEqual(a[k], b[k]));
+}
+
+function deepEqual(a, b) {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Object.getPrototypeOf(a) !== Object.getPrototypeOf(b)) return false;
+  if (Array.isArray(a)) return a.length === b.length && a.every((v, i) => deepEqual(v, b[i]));
+  if (a instanceof Map) {
+    return a.size === b.size && [...a].every(([k, v]) => b.has(k) && deepEqual(v, b.get(k)));
   }
-  return v;
+  if (a instanceof Set) {
+    return a.size === b.size && [...a].every((v) =>
+      b.has(v) || (typeof v === 'object' && v !== null && [...b].some((w) => deepEqual(v, w))));
+  }
+  return sameKeys(a, b);
 }
 
 export function expect(actual) {
   const fail = (msg) => { throw new Error(msg); };
   return {
     toBe(e) { if (!Object.is(actual, e)) fail(`expected ${fmt(actual)} to be ${fmt(e)}`); },
-    toEqual(e) {
-      const a = JSON.stringify(stable(actual));
-      const b = JSON.stringify(stable(e));
-      if (a !== b) fail(`expected ${a} to equal ${b}`);
-    },
+    toEqual(e) { if (!deepEqual(actual, e)) fail(`expected ${fmt(actual)} to equal ${fmt(e)}`); },
     toBeTruthy() { if (!actual) fail(`expected ${fmt(actual)} to be truthy`); },
     toBeFalsy() { if (actual) fail(`expected ${fmt(actual)} to be falsy`); },
     toBeGreaterThan(n) { if (!(actual > n)) fail(`expected ${fmt(actual)} > ${n}`); },
