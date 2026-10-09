@@ -78,6 +78,21 @@ describe('commands: demolish, pause, speed', () => {
     expect(w.road[idx(w.size, 3, 10)]).toBe(0);
     expect(demolishAt(w, 3, 3).reason).toBe('nothing_here');
   });
+  it('bumps roadVersion when a road is demolished and undo restores the road', () => {
+    const w = makeTestWorld();
+    setRoad(w, 0, 10, 31, 10);
+    const before = w.roadVersion;
+    demolishAt(w, 3, 10);
+    expect(w.roadVersion).toBeGreaterThan(before);
+    undo(w);
+    expect(w.road[idx(w.size, 3, 10)]).toBe(1);
+  });
+  it('refunds nothing for a demolished housing plot', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    place(w, 'house', 20, 20);
+    const r = demolishAt(w, 20, 20);
+    expect(r.refund).toBe(0);
+  });
   it('pauses buildings and sets speed', () => {
     const w = makeTestWorld();
     setRoad(w, 0, 10, 31, 10);

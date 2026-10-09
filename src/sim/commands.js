@@ -93,3 +93,95 @@ export function setSpeed(world, speed) {
   world.speed = speed;
   return { ok: true, warnings: [] };
 }
+
+function lineInto(ax, ay, bx, by, out) {
+  const dx = Math.sign(bx - ax), dy = Math.sign(by - ay);
+  let x = ax, y = ay;
+  for (;;) {
+    if (!out.some((p) => p[0] === x && p[1] === y)) out.push([x, y]);
+    if (x === bx && y === by) break;
+    x += dx; y += dy;
+  }
+}
+
+export function roadPath(x0, y0, x1, y1, flip = false) {
+  const out = [];
+  if (!flip) { lineInto(x0, y0, x1, y0, out); lineInto(x1, y0, x1, y1, out); }
+  else { lineInto(x0, y0, x0, y1, out); lineInto(x0, y1, x1, y1, out); }
+  return out;
+}
+
+export function previewRoad(world, x0, y0, x1, y1, flip = false) {
+  const tiles = [];
+  for (const [x, y] of roadPath(x0, y0, x1, y1, flip)) {
+    if (!inBounds(world.size, x, y)) return fail('out_of_bounds', { tiles: [], cost: 0 });
+    const i = idx(world.size, x, y);
+    if (world.terrain[i] === T.WATER) return fail('water', { tiles: [], cost: 0 });
+    if (world.occ[i]) return fail('blocked', { tiles: [], cost: 0 });
+    if (!world.road[i]) tiles.push(i);
+  }
+  const cost = tiles.length * ECONOMY.roadCost;
+  if (!canAfford(world, cost)) return fail('no_gold', { tiles, cost });
+  return { ok: true, warnings: [], tiles, cost };
+}
+
+export function drawRoad(world, x0, y0, x1, y1, flip = false) {
+  const p = previewRoad(world, x0, y0, x1, y1, flip);
+  if (!p.ok || p.tiles.length === 0) return p;
+  for (const t of p.tiles) world.road[t] = 1;
+  world.roadVersion++;
+  spend(world, p.cost);
+  pushUndo(world, { kind: 'road', tiles: p.tiles.slice(), cost: p.cost });
+  return p;
+}
+
+export function rectTiles(x0, y0, x1, y1) {
+  const out = [];
+  const [ax, bx] = [Math.min(x0, x1), Math.max(x0, x1)];
+  const [ay, by] = [Math.min(y0, y1), Math.max(y0, y1)];
+  for (let y = ay; y <= by; y++) for (let x = ax; x <= bx; x++) out.push([x, y]);
+  return out;
+}
+
+export function previewHouses(world, x0, y0, x1, y1) {
+  const positions = rectTiles(x0, y0, x1, y1).filter(([x, y]) => checkTiles(world, 'house', x, y) === null);
+  const cost = positions.length * BUILDINGS.house.cost;
+  if (!positions.length) return fail('nothing_to_place', { positions, cost: 0 });
+  if (!canAfford(world, cost)) return fail('no_gold', { positions, cost });
+  return { ok: true, warnings: [], positions, cost };
+}
+
+export function paintHouses(world, x0, y0, x1, y1) {
+  const p = previewHouses(world, x0, y0, x1, y1);
+  if (!p.ok) return { ...p, ids: [] };
+  const ids = p.positions.map(([x, y]) => insertBuilding(world, makeBuilding(world, 'house', x, y)).id);
+  spend(world, p.cost);
+  pushUndo(world, { kind: 'place', ids, cost: p.cost });
+  return { ok: true, warnings: [], ids, cost: p.cost };
+}
+
+export function previewDemolishArea(world, x0, y0, x1, y1) {
+  const buildingIds = [];
+  const roadTiles = [];
+  for (const [x, y] of rectTiles(x0, y0, x1, y1)) {
+    if (!inBounds(world.size, x, y)) continue;
+    const i = idx(world.size, x, y);
+    if (world.occ[i] && !buildingIds.includes(world.occ[i])) buildingIds.push(world.occ[i]);
+    if (world.road[i]) roadTiles.push(i);
+  }
+  const refundTotal = buildingIds.reduce((s, id) => s + demolishRefundFor(world.buildings[id]), 0);
+  return { buildingIds, roadTiles, refund: refundTotal };
+}
+
+export function demolishArea(world, x0, y0, x1, y1) {
+  const p = previewDemolishArea(world, x0, y0, x1, y1);
+  const count = p.buildingIds.length + p.roadTiles.length;
+  if (!count) return fail('nothing_here', { count: 0, refund: 0 });
+  const snaps = p.buildingIds.map((id) => JSON.parse(JSON.stringify(world.buildings[id])));
+  for (const id of p.buildingIds) removeBuilding(world, id);
+  for (const t of p.roadTiles) world.road[t] = 0;
+  if (p.roadTiles.length) world.roadVersion++;
+  refund(world, p.refund);
+  pushUndo(world, { kind: 'demolish', buildings: snaps, roads: p.roadTiles, refund: p.refund });
+  return { ok: true, warnings: [], count, refund: p.refund };
+}
