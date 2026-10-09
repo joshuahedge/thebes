@@ -10,3 +10,4 @@ import './sim/undo.test.js';
 import './sim/commands.test.js';
 import './sim/areaCommands.test.js';
 import './sim/labour.test.js';
+import './sim/production.test.js';
