@@ -5,14 +5,17 @@ export const CURRENT_VERSION = WORLD_VERSION;
 // Each entry upgrades a world from version N to N + 1. Add one whenever WORLD_VERSION goes up.
 const MIGRATIONS = {};
 
-export function migrate(obj) {
-  if (!obj || typeof obj.version !== 'number') throw new Error('not_a_save');
-  if (obj.version > CURRENT_VERSION) throw new Error('newer_version');
+// table and target are parameters so tests can drive a synthetic chain; production calls use the defaults.
+export function migrate(obj, table = MIGRATIONS, target = CURRENT_VERSION) {
+  if (!obj || !Number.isInteger(obj.version)) throw new Error('not_a_save');
+  if (obj.version > target) throw new Error('newer_version');
   let w = obj;
-  while (w.version < CURRENT_VERSION) {
-    const step = MIGRATIONS[w.version];
+  while (w.version < target) {
+    const step = table[w.version];
     if (!step) throw new Error('no_migration_' + w.version);
-    w = step(w);
+    const next = step(w);
+    if (!next || !(next.version > w.version)) throw new Error('bad_migration_' + w.version);
+    w = next;
   }
   return w;
 }
