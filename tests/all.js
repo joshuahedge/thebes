@@ -7,3 +7,4 @@ import './sim/world.test.js';
 import './sim/reach.test.js';
 import './sim/progression.test.js';
 import './sim/undo.test.js';
+import './sim/commands.test.js';
