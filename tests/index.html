@@ -21,6 +21,9 @@
     out.textContent = 'LOAD ERROR\n' + (e && e.stack ? e.stack : String(e));
     document.title = 'FAIL';
   }
+  // Hand the result text to tests/serve.py, which the command-line runner polls. Opening the page by
+  // hand still shows it above, and a failed POST (another server, no server) is ignored.
+  try { await fetch('/__results', { method: 'POST', body: out.textContent }); } catch (e) { /* ignore */ }
 </script>
 </body>
 </html>
