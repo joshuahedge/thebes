@@ -109,6 +109,26 @@ describe('commands: demolish, pause, speed', () => {
     const r = demolishAt(w, 20, 20);
     expect(r.refund).toBe(0);
   });
+  it('refuses to pause a housing plot, which has no staff and no upkeep to save', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    const { id } = place(w, 'house', 20, 20);
+    const r = setPaused(w, id, true);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe('not_pausable');
+    expect(w.buildings[id].paused).toBe(false);
+  });
+  it('still pauses an unstaffed building that costs upkeep, such as a well', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    setRoad(w, 0, 10, 31, 10);
+    const { id } = place(w, 'well', 12, 9);
+    expect(setPaused(w, id, true).ok).toBe(true);
+    expect(w.buildings[id].paused).toBe(true);
+    expect(setPaused(w, id, false).ok).toBe(true);
+    expect(w.buildings[id].paused).toBe(false);
+  });
+  it('reports nothing_here when pausing a building that does not exist', () => {
+    expect(setPaused(makeTestWorld(), 999, true).reason).toBe('nothing_here');
+  });
   it('pauses buildings and sets speed', () => {
     const w = makeTestWorld();
     setRoad(w, 0, 10, 31, 10);

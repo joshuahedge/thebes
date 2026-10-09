@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { serialize, deserialize } from '../../src/save/serialize.js';
+import { serialize, deserialize, REQUIRED } from '../../src/save/serialize.js';
 import { migrate, CURRENT_VERSION } from '../../src/save/migrate.js';
 import { createWorld, population } from '../../src/sim/world.js';
 import { advanceDays } from '../../src/sim/clock.js';
@@ -42,6 +42,9 @@ describe('save', () => {
   });
   it('reports corrupt_save for a current-version save with missing fields', () => {
     expect(code(() => deserialize(JSON.stringify({ version: 1 })))).toBe('corrupt_save');
+  });
+  it('lists exactly the fields createWorld produces as required', () => {
+    expect(Object.keys(createWorld({ seed: 1 })).sort()).toEqual([...REQUIRED].sort());
   });
   it('reports corrupt_save for a terrain length mismatch', () => {
     const bad = JSON.parse(serialize(createWorld({ seed: 3 })));

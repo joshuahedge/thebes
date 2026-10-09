@@ -1,7 +1,7 @@
 import { migrate } from './migrate.js';
 
 // Every top-level field createWorld produces (src/sim/world.js).
-const REQUIRED = [
+export const REQUIRED = [
   'version', 'seed', 'size', 'day', 'speed', 'gold', 'terrain', 'road', 'occ', 'buildings', 'nextId',
   'mood', 'moodBreakdown', 'milestone', 'labour', 'alerts', 'undo', 'roadVersion', 'tradeEntry',
   'raiderEntries', 'focus', 'stats',
