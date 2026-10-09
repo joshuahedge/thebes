@@ -9,3 +9,4 @@ import './sim/progression.test.js';
 import './sim/undo.test.js';
 import './sim/commands.test.js';
 import './sim/areaCommands.test.js';
+import './sim/labour.test.js';
