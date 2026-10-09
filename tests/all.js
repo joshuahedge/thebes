@@ -16,3 +16,4 @@ import './sim/immigration.test.js';
 import './sim/economy.test.js';
 import './sim/clock.test.js';
 import './sim/integration.test.js';
+import './save/serialize.test.js';
