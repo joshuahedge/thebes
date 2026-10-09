@@ -4,7 +4,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") |
   Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $edge) { Write-Output 'Microsoft Edge not found'; exit 2 }
-$profileDir = Join-Path $env:TEMP 'thebes-test-edge-profile'
+$profileDir = Join-Path $env:TEMP ("thebes-edge-" + [guid]::NewGuid().ToString('N'))
 $outFile = Join-Path $env:TEMP 'thebes-test-dom.html'
 $errFile = Join-Path $env:TEMP 'thebes-test-edge-stderr.txt'
 if (Test-Path $outFile) { Remove-Item $outFile -Force }
@@ -30,6 +30,15 @@ try {
   }
 } finally {
   Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+  # Stop only the Edge processes that use this run's profile (root and children), then remove the profile.
+  # Cleanup must never fail the run, so errors here are ignored.
+  try {
+    Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -like "*$profileDir*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    for ($try = 0; $try -lt 5 -and (Test-Path -LiteralPath $profileDir); $try++) {
+      if ($try -gt 0) { Start-Sleep -Milliseconds 200 }
+      Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+  } catch { }
 }
 if (-not $ready) { Write-Output 'SERVER NOT READY'; exit 1 }
 $dom = ''
