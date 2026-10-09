@@ -1,10 +1,10 @@
 import { TIERS, MAX_TIER, LEAVE_CAP, DOWNGRADE_AFTER_MONTHS } from '../data/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { GOODS, FOOD_GOODS } from '../data/goods.js';
+import { FOOD_GOODS } from '../data/goods.js';
 import { allBuildings, housesOf } from './world.js';
 import { touchesRoad, roadReach, reachDistance } from './reach.js';
 import { isWorking } from './labour.js';
-import { bazaarsByHouse, topUpHouse } from './distribution.js';
+import { bazaarsByHouse, topUpHouse, monthlyNeed } from './distribution.js';
 
 export const needsOf = (tier) => (tier >= 1 && tier <= MAX_TIER ? TIERS[tier].needs : []);
 
@@ -37,11 +37,17 @@ export function removeResidents(house, n) {
     house.tier = 0;
     house.stock = {};
     house.downTimer = 0;
+    house.met = {};
   }
 }
 
+// Most residents who can leave in one month: a quarter, but at least one so tiny houses can still empty.
+export function leaveCap(house) {
+  return Math.max(1, Math.floor(house.residents * LEAVE_CAP));
+}
+
 function consumeFood(house) {
-  let need = Math.ceil(house.residents * GOODS[FOOD_GOODS[0]].perResidentPerMonth);
+  let need = monthlyNeed(house, FOOD_GOODS[0]);
   if (need === 0) return false;
   for (const g of FOOD_GOODS) {
     const take = Math.min(need, house.stock[g] || 0);
@@ -81,7 +87,7 @@ export function monthlyHousing(world) {
 
     const cap = TIERS[h.tier].capacity;
     let leave = met.road ? Math.max(0, h.residents - cap) : h.residents;
-    leave = Math.min(leave, Math.ceil(h.residents * LEAVE_CAP));
+    leave = Math.min(leave, leaveCap(h));
     if (leave > 0) removeResidents(h, leave);
   }
 }
@@ -102,6 +108,6 @@ export function houseStatus(world, house) {
     next,
     checklist,
     missingNow,
-    downgradeIn: house.downTimer > 0 ? DOWNGRADE_AFTER_MONTHS - house.downTimer : null,
+    downgradeIn: tier > 1 && house.downTimer > 0 ? DOWNGRADE_AFTER_MONTHS - house.downTimer : null,
   };
 }

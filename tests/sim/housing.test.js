@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { monthlyHousing, houseStatus, wantedNeeds, removeResidents } from '../../src/sim/housing.js';
+import { monthlyHousing, houseStatus, wantedNeeds, removeResidents, leaveCap } from '../../src/sim/housing.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 
 // Road along y=10; houses sit on y=11 so they touch it.
@@ -64,8 +64,42 @@ describe('housing', () => {
     const w = street();
     const h = addRaw(w, 'house', 12, 20, { tier: 1, residents: 5 });
     monthlyHousing(w);
-    expect(h.residents).toBe(3);
+    expect(h.residents).toBe(4);
+    expect(h.leftThisMonth).toBe(1);
+  });
+  it('caps leavers at a quarter of residents but never below one', () => {
+    expect(leaveCap({ residents: 3 })).toBe(1);
+    expect(leaveCap({ residents: 9 })).toBe(2);
+    expect(leaveCap({ residents: 16 })).toBe(4);
+  });
+  it('sends a roadside hut over capacity down to its size, within the leave cap', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 1, residents: 8 });
+    monthlyHousing(w);
+    expect(h.residents).toBe(6);
     expect(h.leftThisMonth).toBe(2);
+  });
+  it('resets the downgrade timer once water returns', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 2, residents: 8 });
+    monthlyHousing(w);
+    expect(h.downTimer).toBe(1);
+    addRaw(w, 'well', 13, 9);
+    monthlyHousing(w);
+    expect(h.downTimer).toBe(0);
+    expect(h.tier).toBe(2);
+  });
+  it('clears the timer and ticks of an emptied house', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 2, residents: 2, downTimer: 1, met: { road: true, water: true } });
+    removeResidents(h, 2);
+    expect(h.downTimer).toBe(0);
+    expect(h.met).toEqual({});
+  });
+  it('shows no downgrade countdown for a hut, which cannot drop a tier', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 20, { tier: 1, residents: 5, downTimer: 1 });
+    expect(houseStatus(w, h).downgradeIn).toBe(null);
   });
   it('turns an emptied house back into a plot', () => {
     const w = street();
