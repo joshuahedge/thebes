@@ -112,6 +112,11 @@ export function roadPath(x0, y0, x1, y1, flip = false) {
 }
 
 export function previewRoad(world, x0, y0, x1, y1, flip = false) {
+  // Non-integer or NaN endpoints would make lineInto never reach its end, so reject them first.
+  const integers = [x0, y0, x1, y1].every(Number.isInteger);
+  if (!integers || !inBounds(world.size, x0, y0) || !inBounds(world.size, x1, y1)) {
+    return fail('out_of_bounds', { tiles: [], cost: 0 });
+  }
   const tiles = [];
   for (const [x, y] of roadPath(x0, y0, x1, y1, flip)) {
     if (!inBounds(world.size, x, y)) return fail('out_of_bounds', { tiles: [], cost: 0 });
@@ -147,8 +152,9 @@ export function previewHouses(world, x0, y0, x1, y1) {
   const positions = rectTiles(x0, y0, x1, y1).filter(([x, y]) => checkTiles(world, 'house', x, y) === null);
   const cost = positions.length * BUILDINGS.house.cost;
   if (!positions.length) return fail('nothing_to_place', { positions, cost: 0 });
-  if (!canAfford(world, cost)) return fail('no_gold', { positions, cost });
-  return { ok: true, warnings: [], positions, cost };
+  const warnings = positions.some(([x, y]) => !touchesRoad(world, { x, y, w: 1, d: 1 })) ? ['needs_road'] : [];
+  if (!canAfford(world, cost)) return fail('no_gold', { positions, cost, warnings });
+  return { ok: true, warnings, positions, cost };
 }
 
 export function paintHouses(world, x0, y0, x1, y1) {
@@ -157,7 +163,7 @@ export function paintHouses(world, x0, y0, x1, y1) {
   const ids = p.positions.map(([x, y]) => insertBuilding(world, makeBuilding(world, 'house', x, y)).id);
   spend(world, p.cost);
   pushUndo(world, { kind: 'place', ids, cost: p.cost });
-  return { ok: true, warnings: [], ids, cost: p.cost };
+  return { ok: true, warnings: p.warnings, ids, cost: p.cost };
 }
 
 export function previewDemolishArea(world, x0, y0, x1, y1) {
