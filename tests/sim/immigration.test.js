@@ -32,6 +32,14 @@ describe('mood', () => {
     updateMood(w);
     expect(w.moodBreakdown.jobs).toBe(-35);
   });
+  it('keeps zero breakdown values as +0 when there is no unemployment', () => {
+    const w = street();
+    addRaw(w, 'house', 2, 11, { tier: 1, residents: 5 });
+    w.milestone = 'town';
+    w.labour = { workforce: 100, employed: 100, jobs: 100, shortLevels: [] };
+    updateMood(w);
+    expect(Object.is(w.moodBreakdown.jobs, 0)).toBe(true); // toBe also uses Object.is, so -0 would fail here
+  });
   it('drops with debt, capped at 20', () => {
     const w = street();
     w.gold = -250;
@@ -78,5 +86,14 @@ describe('immigration', () => {
     expect(left).toBe(4);
     expect(low.residents).toBe(4);
     expect(high.residents).toBe(13);
+  });
+  it('respects the monthly leave budget already used by a house', () => {
+    const w = street();
+    const first = addRaw(w, 'house', 2, 11, { tier: 1, residents: 5, leftThisMonth: 1 }); // leaveCap 1, already used
+    const second = addRaw(w, 'house', 3, 11, { tier: 1, residents: 5 });
+    w.mood = 10; // population 10, so 1 leaves
+    expect(departures(w)).toBe(1);
+    expect(first.residents).toBe(5);
+    expect(second.residents).toBe(4);
   });
 });
