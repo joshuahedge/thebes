@@ -1,12 +1,13 @@
 import { describe, it, expect } from '../harness.js';
 import { advanceDays } from '../../src/sim/clock.js';
+import { ECONOMY } from '../../src/data/economy.js';
 import { drawRoad, paintHouses, place } from '../../src/sim/commands.js';
 import { housesOf, population, allBuildings } from '../../src/sim/world.js';
 import { makeTestWorld } from '../helpers/testWorld.js';
 
 // A realistic Stage 1 village built from the real starting treasury.
 function realVillage() {
-  const w = makeTestWorld({ size: 48, fertile: [[0, 0, 8, 48]], gold: 2000 });
+  const w = makeTestWorld({ size: 48, fertile: [[0, 0, 8, 48]], gold: ECONOMY.startGold });
   const steps = [
     () => drawRoad(w, 0, 12, 27, 12),
     () => paintHouses(w, 10, 13, 26, 13),
@@ -38,7 +39,7 @@ function checkSane(w) {
 }
 
 describe('longrun', () => {
-  it('stays sane and solvent for ten years from 2,000 gold', () => {
+  it('stays sane and solvent for ten years from the starting treasury', () => {
     const w = realVillage();
     const started = performance.now();
     let lowestGold = w.gold;
@@ -49,7 +50,9 @@ describe('longrun', () => {
     }
     const elapsed = performance.now() - started;
     expect(lowestGold).toBeGreaterThan(-500);
-    expect(w.gold).toBeGreaterThan(2000);
+    // The treasury must grow, but a runaway money loop would also pass a lower bound alone.
+    expect(w.gold).toBeGreaterThan(ECONOMY.startGold);
+    expect(w.gold).toBeLessThan(60000);
     expect(population(w)).toBeGreaterThanOrEqual(220);
     expect(housesOf(w).filter((h) => h.tier === 4).length).toBeGreaterThanOrEqual(15);
     expect(elapsed).toBeLessThan(3000);
