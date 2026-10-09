@@ -23,4 +23,29 @@ describe('harness', () => {
   it('supports toThrow', () => {
     expect(() => { throw new Error('boom'); }).toThrow();
   });
+  it('toEqual fails for different Sets', () => {
+    let threw = false;
+    try { expect(new Set([1])).toEqual(new Set([2])); } catch (e) { threw = true; }
+    expect(threw).toBe(true);
+  });
+  it('toEqual fails for different Maps', () => {
+    let threw = false;
+    try { expect(new Map([['a', 1]])).toEqual(new Map([['a', 2]])); } catch (e) { threw = true; }
+    expect(threw).toBe(true);
+  });
+  it('toEqual treats an undefined-valued key as a difference', () => {
+    let threw = false;
+    try { expect({ a: undefined }).toEqual({}); } catch (e) { threw = true; }
+    expect(threw).toBe(true);
+  });
+  it('toEqual tells NaN apart from null', () => {
+    let threw = false;
+    try { expect(NaN).toEqual(null); } catch (e) { threw = true; }
+    expect(threw).toBe(true);
+  });
+  it('toEqual passes for equal Sets, Maps and nested structures', () => {
+    expect(new Set([1, 2])).toEqual(new Set([2, 1]));
+    expect(new Map([['a', { x: 1 }]])).toEqual(new Map([['a', { x: 1 }]]));
+    expect({ s: new Set([{ id: 1 }]), m: new Map([[1, [2]]]) }).toEqual({ s: new Set([{ id: 1 }]), m: new Map([[1, [2]]]) });
+  });
 });

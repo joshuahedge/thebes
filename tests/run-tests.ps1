@@ -6,11 +6,15 @@ $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$en
 if (-not $edge) { Write-Output 'Microsoft Edge not found'; exit 2 }
 $profileDir = Join-Path $env:TEMP 'thebes-test-edge-profile'
 $outFile = Join-Path $env:TEMP 'thebes-test-dom.html'
+$errFile = Join-Path $env:TEMP 'thebes-test-edge-stderr.txt'
 if (Test-Path $outFile) { Remove-Item $outFile -Force }
-$server = Start-Process -FilePath python -ArgumentList '-m', 'http.server', "$Port", '--bind', '127.0.0.1', '--directory', "`"$root`"" -PassThru -WindowStyle Hidden
+if (Test-Path $errFile) { Remove-Item $errFile -Force }
+$serve = Join-Path $PSScriptRoot 'serve.py'
+$server = Start-Process -FilePath python -ArgumentList "`"$serve`"", "$Port", "`"$root`"" -PassThru -WindowStyle Hidden
 $ready = $false
 try {
   for ($i = 0; $i -lt 40; $i++) {
+    if ($server.HasExited) { break }
     try {
       $r = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$Port/tests/index.html" -TimeoutSec 2
       if ($r.StatusCode -eq 200) { $ready = $true; break }
@@ -19,9 +23,9 @@ try {
   if ($ready) {
     $url = "http://127.0.0.1:$Port/tests/index.html"
     if ($Grep) { $url += '?grep=' + [uri]::EscapeDataString($Grep) }
-    $edgeArgs = @('--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+    $edgeArgs = @('--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disk-cache-size=1',
       "--user-data-dir=`"$profileDir`"", "--virtual-time-budget=$BudgetMs", '--dump-dom', $url)
-    $p = Start-Process -FilePath $edge -ArgumentList $edgeArgs -RedirectStandardOutput $outFile -PassThru -WindowStyle Hidden
+    $p = Start-Process -FilePath $edge -ArgumentList $edgeArgs -RedirectStandardOutput $outFile -RedirectStandardError $errFile -PassThru -WindowStyle Hidden
     if (-not $p.WaitForExit(180000)) { Stop-Process -Id $p.Id -Force; Write-Output 'TIMEOUT: tests did not finish'; exit 1 }
   }
 } finally {
@@ -29,7 +33,7 @@ try {
 }
 if (-not $ready) { Write-Output 'SERVER NOT READY'; exit 1 }
 $dom = ''
-if (Test-Path $outFile) { $dom = [string](Get-Content -Raw $outFile) }
+if (Test-Path $outFile) { $dom = [string](Get-Content -Raw -Encoding UTF8 $outFile) }
 $m = [regex]::Match($dom, '<pre id="results">([\s\S]*?)</pre>')
 if (-not $m.Success) { Write-Output 'NO RESULTS: the test page did not render results'; exit 1 }
 $text = [System.Net.WebUtility]::HtmlDecode($m.Groups[1].Value)
