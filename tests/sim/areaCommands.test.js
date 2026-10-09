@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { roadPath, previewRoad, drawRoad, previewHouses, paintHouses, previewDemolishArea, demolishArea, place } from '../../src/sim/commands.js';
+import { roadPath, previewRoad, drawRoad, previewHouses, paintHouses, previewDemolishArea, demolishArea, place, rectTiles } from '../../src/sim/commands.js';
 import { buildingAt, housesOf } from '../../src/sim/world.js';
 import { undo } from '../../src/sim/undo.js';
 import { idx } from '../../src/sim/grid.js';
@@ -51,6 +51,11 @@ describe('commands: roads', () => {
     expect(previewRoad(w, 0.5, 5, 3, 5).reason).toBe('out_of_bounds');
     expect(previewRoad(w, 0, 5, 99, 5).reason).toBe('out_of_bounds');
   });
+  it('returns no path for non-integer endpoints instead of looping forever', () => {
+    expect(roadPath(0.5, 0, 3, 0)).toEqual([]);
+    expect(roadPath(0, 0, 3, 0.5)).toEqual([]);
+    expect(roadPath(0, 0, 3, 3, true)).toEqual([[0, 0], [0, 1], [0, 2], [0, 3], [1, 3], [2, 3], [3, 3]]);
+  });
 });
 
 describe('commands: area painting', () => {
@@ -67,6 +72,38 @@ describe('commands: area painting', () => {
     undo(w);
     expect(housesOf(w).length).toBe(0);
     expect(w.gold).toBe(1000);
+  });
+  it('ignores non-integer rectangles and never writes ghost tiles', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    expect(rectTiles(0.5, 6, 2.5, 6)).toEqual([]);
+    expect(paintHouses(w, 0.5, 6, 2.5, 6).reason).toBe('nothing_to_place');
+    expect(paintHouses(w, 1, 6, 2, 6.5).reason).toBe('nothing_to_place');
+    for (const b of Object.values(w.buildings)) {
+      expect(Number.isInteger(b.x)).toBe(true);
+      expect(Number.isInteger(b.y)).toBe(true);
+    }
+    expect(Object.keys(w.occ).length).toBe(w.size * w.size);
+    expect(w.gold).toBe(1000);
+  });
+  it('clamps a rectangle to the map so a huge drag cannot run unbounded', () => {
+    const w = makeTestWorld({ gold: 100000 });
+    expect(rectTiles(-100, -100, 1000, 1000, w.size).length).toBe(w.size * w.size);
+    expect(rectTiles(-5, -5, 1, 1, w.size).length).toBe(4);
+    expect(rectTiles(-100, -100, -50, -50, w.size)).toEqual([]);
+    const pv = previewHouses(w, -100, -100, 1000, 1000);
+    expect(pv.positions.length).toBeLessThanOrEqual(w.size * w.size);
+    expect(pv.positions.every(([x, y]) => x >= 0 && y >= 0 && x < w.size && y < w.size)).toBe(true);
+  });
+  it('copes with an absurdly large rectangle straight away', () => {
+    const w = makeTestWorld({ gold: 100000 });
+    expect(previewHouses(w, -1e9, -1e9, 1e9, 1e9).positions.length).toBe(w.size * w.size);
+    expect(previewDemolishArea(w, -1e9, -1e9, 1e9, 1e9).buildingIds).toEqual([]);
+    expect(demolishArea(w, -1e9, -1e9, 1e9, 1e9).reason).toBe('nothing_here');
+  });
+  it('treats a rectangle wholly off the map as nothing to place or demolish', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    expect(previewHouses(w, 100, 100, 120, 120).reason).toBe('nothing_to_place');
+    expect(demolishArea(w, 100, 100, 120, 120).reason).toBe('nothing_here');
   });
   it('reports nothing to place', () => {
     const w = makeTestWorld();

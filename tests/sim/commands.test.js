@@ -56,6 +56,15 @@ describe('commands: place', () => {
     w.milestone = 'nowhere';
     expect(canPlace(w, 'well', 1, 1).reason).toBe('locked');
   });
+  it('rejects non-integer coordinates so no ghost tiles reach the save', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    expect(place(w, 'house', 2.5, 3).reason).toBe('out_of_bounds');
+    expect(place(w, 'house', 2, 3.5).reason).toBe('out_of_bounds');
+    expect(place(w, 'house', NaN, 3).reason).toBe('out_of_bounds');
+    expect(Object.keys(w.occ).length).toBe(w.size * w.size);
+    expect(Object.keys(w.buildings).length).toBe(0);
+    expect(w.gold).toBe(1000);
+  });
 });
 
 describe('commands: demolish, pause, speed', () => {
@@ -85,6 +94,13 @@ describe('commands: demolish, pause, speed', () => {
     demolishAt(w, 3, 10);
     expect(w.roadVersion).toBeGreaterThan(before);
     undo(w);
+    expect(w.road[idx(w.size, 3, 10)]).toBe(1);
+  });
+  it('rejects non-integer demolish coordinates', () => {
+    const w = makeTestWorld();
+    setRoad(w, 0, 10, 31, 10);
+    expect(demolishAt(w, 3.5, 10).reason).toBe('out_of_bounds');
+    expect(demolishAt(w, 3, 10.5).reason).toBe('out_of_bounds');
     expect(w.road[idx(w.size, 3, 10)]).toBe(1);
   });
   it('refunds nothing for a demolished housing plot', () => {
