@@ -1,80 +1,109 @@
 # Thebes: design spec
 
-**Date:** 2026-10-09
-**Status:** Approved in brainstorming, awaiting written-spec review
+**Date:** 2026-10-09 (revised the same day after a three-reviewer pass covering game design, interface, and onboarding and accessibility)
+**Status:** Awaiting Joshua's review of the written spec
 **Owner:** Joshua Hedge (personal project, not work)
 
 ## 1. Summary
 
-Thebes is a city builder for mobile web browsers, inspired by Sierra/Impressions' *Pharaoh* (1999).
-It aims to be simple to pick up, with real depth: lay out roads and housing, keep people supplied
-with water, food, faith, goods and entertainment, and watch homes climb a nine-tier ladder from
-mud hut to grand estate. Production chains, trade, raids with automatic defence, and multi-year
-monuments (obelisks, mastabas, pyramids) give the city long-term goals.
+Thebes is a city builder for phone and desktop web browsers, inspired by Sierra/Impressions' *Pharaoh* (1999) and the look of *Pharaoh: A New Era* (2023). The aim is a game that's simple to pick up but has real depth. You lay out roads and housing and keep people supplied with water, food, faith, goods and entertainment, and their homes climb a nine-tier ladder from mud hut to grand estate. Production chains, trade, raids with automatic defence, and long-running monuments (obelisks, a colossus, mastabas, pyramids) give the city goals over many sessions.
 
-It is a plain web page that installs to a phone's home screen, works offline, and saves on the
-device. People play it from one link: `https://joshuahedge.github.io/thebes/`.
+It's a plain web page that installs to a phone's home screen, works offline, and saves on the device. People play it from one link: `https://joshuahedge.github.io/thebes/`.
 
-## 2. Decisions taken in brainstorming
+## 2. Decisions
 
 | Topic | Decision |
 |---|---|
-| Persistence | **Save and resume.** The city is saved on the device and is frozen while the game is closed. No offline progress, no server. |
-| Structure | **Endless city with unlocks first**, then a **mission campaign** later. Missions are data on top of the same engine. |
-| Challenge | **City troubles plus automatic defence.** Raiders arrive; walls, towers and soldiers fight on their own. No direct unit control. |
-| Core systems | Housing upgrades, production chains, trade. River flooding is deferred. |
-| Service coverage | **Reach along roads** decides coverage. **Walkers are drawn for looks only.** |
-| Theme and art | Ancient Egypt in an isometric view in the style of Pharaoh, **drawn in code, fully original**. No Pharaoh assets. |
-| Phone layout | **Portrait, build dock at the bottom**, with collapsible states (see section 6). |
-| Extra depth | Nine housing tiers with beer, linen and jewellery; monuments of several sizes. |
-| Hosting | **Public repo `joshuahedge/thebes` + GitHub Pages.** |
-| Separation | Personal GitHub account, personal commit identity, no work org, not a Claude artifact. |
+| Persistence | **Save and resume.** The city is saved on the device and is frozen while the game is closed. It always reopens paused. There's no server. |
+| Structure | **Endless city with milestones** first, then a **mission campaign** built as data on the same engine. |
+| Challenge | City troubles plus **automatic defence**. Raiders arrive; walls, towers and soldiers fight on their own; players can pay **tribute** to avoid a raid. |
+| Core systems | Housing upgrades, production chains, trade, desirability, monuments. River flooding is deferred. |
+| Service coverage | **Reach along roads** decides coverage; **walkers are drawn for looks only**. |
+| Housing | Nine tiers. Tiers 6–9 are 2×2 with **capacities 100 / 125 / 150 / 180**, so an upgrade never shrinks the city. |
+| Art | An **original, code-drawn style inspired by Pharaoh: A New Era** (cool shadows, smooth whitewash, stacked houses, rugs, mosaics, painted monuments), with **blended, continuous terrain**. No Pharaoh assets. |
+| Layouts | **Portrait phone**: build dock at the bottom. **Wide screens**: a Pharaoh-style side panel. **Short landscape screens**: a compact rail. |
+| Input | Touch, mouse and keyboard are first-class. Controls follow the input in use, not the screen size. |
+| Onboarding | A goals list with "Show me" replaces a tutorial. Houses explain why they won't upgrade. |
+| Sound | About eight synthesised sound effects, **off by default**, no music. |
+| Hosting | **Public repo `joshuahedge/thebes` + GitHub Pages**. |
+| Separation | Personal GitHub account and commit identity. No work org, and not a Claude artifact. |
 
 ## 3. Goals and non-goals
 
 **Goals**
-- Fun in five-minute phone sessions as well as longer ones.
+- Someone who has never played a city builder understands what to do within a minute of opening the link.
+- Fun in five-minute phone sessions and in long desktop sessions.
 - Depth from a few interlocking systems, not from a huge building list.
-- One shareable link, no installs, no accounts, no ads, no tracking.
+- One shareable link, with no installs, accounts, ads or tracking.
 - Smooth on a mid-range phone with a full 64×64 city.
-- Saves that survive updates and don't get lost.
+- Saves survive updates, reinstalls and switching between Safari and the home-screen app.
+- WCAG 2.2 AA for all interface outside the map itself.
 
-**Non-goals for the first version** (each may come later)
+**Non-goals for now** (each may come later)
 - Mission campaign (stage 5, its own spec).
-- River flooding seasons, disease and healers, crime, extra foods beyond grain and figs.
-- Multiplayer, cloud saves, playing one city across several devices.
+- River flooding seasons, disease and healers, crime, foods beyond grain and figs.
+- A tax-rate setting.
+- Music.
+- Multiplayer, cloud saves, and one city playable across devices (export and import covers moving a city).
 - Direct control of soldiers.
-- Real-time progress while the game is closed.
+- Progress while the game is closed.
+- Screen-reader access to the map itself. The interface around it is accessible (section 6.8).
 
 ## 4. Gameplay
 
-### 4.1 Core loop
+### 4.1 Opening and goals
+
+- **Title card:**
+  - Buttons: **Continue** (when a save exists), **New city**, **Play with sound** / **Play muted**, and **Install** (where the platform allows).
+  - A paused, slowly drifting view of a sample city sits behind the buttons.
+- **A new city starts:**
+  - **paused**, with **2,000 gold**;
+  - with the camera on fertile land;
+  - with a **short road already running in from the trade edge** of the map.
+- First arrivals walk in about 10 real seconds after the first housing plot is placed (at 1×).
+- **Goals list:** shows up to **three goals at a time**.
+  - Each goal has a **Show me** button. It opens the right build card and pulses the target area on the map.
+  - Finishing a goal pays a small gold reward and reveals the next one.
+  - The opening chain:
+    1. Lay a road
+    2. Place 6 housing plots
+    3. Build a well so huts become shacks
+    4. Farm, granary and bazaar
+    5. Build a temple
+    6. Reach 100 people
+  - After the opening chain, goals come from the next milestone (for example "Reach 150 people to become a Town", "Build a booth so homes can grow into Manors").
+  - The goal list is data (`data/goals.js`). Missions will reuse it later.
+- First-time events add one-off goals instead of a separate tutorial: the first fire, the first raid warning, the first labour shortage, the first empty bazaar.
+
+### 4.2 Core loop
 
 1. Lay roads and housing plots. People move into plots that touch a road.
-2. Houses upgrade one tier at a time as each need is met. Unmet needs make them downgrade, and some residents leave.
+2. Houses upgrade one tier at a time as their needs are met. Unmet needs make them downgrade.
 3. Bigger houses hold more people and pay more tax.
-4. Population milestones unlock new buildings. Money pays for production, services, defence and monuments.
+4. Population milestones unlock buildings. Money pays for production, services, defence and monuments.
 
-### 4.2 Time
+### 4.3 Time
 
 - The simulation advances one **game-day** per tick. There are 30 days to a month and 12 months to a year.
 - Speeds are pause, 1×, 2× and 3×. At 1×, a month is 20 seconds and a year is 4 minutes.
-- Economy steps (taxes, wages, consumption, upkeep, immigration) run monthly. Fire risk, production and movement run daily.
-- When raiders appear, the game drops back to 1×.
+- Economy steps (taxes, wages, consumption, upkeep, immigration, mood) run monthly. Production, movement and fire risk run daily.
+- The game **pauses when the page is hidden** (another app or tab, or the phone is locked) and **always reopens paused** (section 4.17).
+- A raid warning or a fire drops the speed to 1×. The first raid warning pauses the game.
 
-### 4.3 Map
+### 4.4 Map
 
-- Each endless city gets a **64×64 tile map generated from a seed**. The same seed always gives the same map.
-- Terrain types are river (impassable water), riverbank, **fertile land** (needed for farms) near the river, plain desert, **rocky ground** (needed for the quarry and gem mine), and scrub and rocks as decoration.
-- Each map has one or two **raider entry points** on its edges and one **trade entry point** on an edge road.
-- Generation guarantees enough fertile land, at least one patch of rocky ground, and a buildable connected area.
+- Each endless city gets a **64×64 tile map from a seed**. The same seed always gives the same map.
+- Terrain types are river (impassable), riverbank, **fertile land** (needed for farms), desert, **rocky ground** (needed for the quarry and gem mine), and meadow, scrub and rocks as decoration.
+- Each map has one **trade entry** on an edge road and one or two **raider entry points** on other edges.
+- Generation guarantees enough fertile land near the start, at least one rocky patch within reach, and a connected buildable area.
 
-### 4.4 Roads and reach
+### 4.5 Roads and reach
 
-- Roads are drawn by dragging. Buildings work only if they touch a road.
+- Roads are placed by **tapping a start and an end** (the game picks an L-shaped path, which the player can flip) or by dragging. Both show a preview and the total cost before ✓.
+- Buildings work only if they touch a road.
 - **Reach**: a service building covers every tile reachable within its reach distance by walking along connected roads, starting from the road tiles next to it. A house is covered if any road tile next to it is covered.
-- Tapping a building shows its reach as highlighted roads and homes. The same highlight previews while placing.
-- Walkers (priests, water carriers, porters, carts) move along roads inside the building's reach for atmosphere only. They never affect the simulation.
+- Tapping a building highlights its reach. **Placing a service automatically shows the matching overlay** together with the reach preview.
+- Walkers move along roads inside each building's reach, for atmosphere only.
 
 Starting reach values, all tunable in data:
 
@@ -88,43 +117,65 @@ Starting reach values, all tunable in data:
 | Producer → storage | 12 |
 | Bazaar ← storage (supply) | 16 |
 
-### 4.5 Housing ladder
+### 4.6 Housing ladder
 
-| Tier | Name | Size | Needs (cumulative) | Starting max residents |
-|---|---|---|---|---|
-| 1 | Hut | 1×1 | Road access | 5 |
-| 2 | Shack | 1×1 | Water | 8 |
-| 3 | Cottage | 1×1 | Food | 12 |
-| 4 | House | 1×1 | Temple | 16 |
-| 5 | Townhouse | 1×1 | Pottery | 22 |
-| 6 | Manor | 2×2 | Entertainment, desirability ≥ 20 | 60 |
-| 7 | Fine manor | 2×2 | Beer, two kinds of food, desirability ≥ 35 | 75 |
-| 8 | Villa | 2×2 | Linen, desirability ≥ 50 | 90 |
-| 9 | Estate | 2×2 | Jewellery, desirability ≥ 65 | 110 |
+| Tier | Name | Size | Needs (cumulative) | Starting max residents | Tax per resident per month |
+|---|---|---|---|---|---|
+| 1 | Hut | 1×1 | Road access | 5 | 1 |
+| 2 | Shack | 1×1 | Water | 8 | 1 |
+| 3 | Cottage | 1×1 | Food | 12 | 2 |
+| 4 | House | 1×1 | Temple | 16 | 2 |
+| 5 | Townhouse | 1×1 | Pottery | 22 | 3 |
+| 6 | Manor | 2×2 | Entertainment, desirability ≥ 20 | 100 | 4 |
+| 7 | Fine manor | 2×2 | Beer, two kinds of food, desirability ≥ 35 | 125 | 5 |
+| 8 | Villa | 2×2 | Linen, desirability ≥ 50 | 150 | 6 |
+| 9 | Estate | 2×2 | Jewellery, desirability ≥ 65 | 180 | 8 |
 
-- **Upgrading** is checked monthly. A house rises one tier when all needs for that tier have been met for a full month.
-- **Downgrading** happens when a need has been unmet for two months in a row. Residents above the new maximum leave.
-- **Merging to 2×2**: a tier-5 house becomes a Manor only if the three plots next to it (forming a 2×2 square) are housing plots at tier 5 or higher, or housing plots with no residents yet. If more than one 2×2 square qualifies, a fixed order (north-west square first, clockwise) picks one, so the result is deterministic. The merged house takes the combined residents, capped at the Manor maximum.
-- **Splitting back**: a 2×2 house that drops below tier 6 splits into four tier-5 plots, with residents shared out evenly.
-- Each tier has its own code-drawn look. Higher tiers get grander, with whitewash, then painted trim, columns, courtyards, a pool and statues.
-- Tax per resident per month rises with tier (starting values: 1, 1, 2, 2, 3, 4, 5, 6, 8).
+**Rules:**
+- **No upgrade lowers capacity or tax per tile.** A data test enforces this (section 9).
+- **Household stock.** Each house holds up to **one month** of each good it uses: food, pottery, beer, linen, jewellery. A need counts as met while stock lasts. When a delivery is missed, stock is used up first.
+- **Upgrading** is checked monthly. A house rises one tier when every need for the next tier has been met for a full month.
+- **Downgrading** starts when a need's stock has run out. If it's still unmet one month later, the house drops a tier. The house sheet shows the countdown (section 6.4).
+- **Leaving.** At most a quarter of a house's residents can leave in one month, whatever the cause.
+- **Merging to 2×2.** A tier-5 house becomes a Manor only if the three plots next to it, forming a 2×2 square, are housing plots at tier 5 or higher, or plots with no residents yet.
+  - If more than one square qualifies, a fixed order picks one: north-west first, then clockwise.
+  - The merged house takes the combined residents.
+- **Splitting back.** A 2×2 house that drops below tier 6 splits into four tier-5 plots, with residents shared out evenly.
+- **Looks.** Each tier has its own silhouette, height and tone so tiers can be told apart at phone zoom (section 5.3).
 
-### 4.6 Desirability
+### 4.7 Desirability
 
 - Every tile has a desirability score from nearby buildings, falling off with distance.
-- **Positive sources:** gardens, statues, temples, monuments.
+- **Positive sources:** gardens, statues, temples, monuments, plazas.
 - **Negative sources:** workshops, clay pits, quarries, brickworks, barracks.
-- Tiers 6 to 9 need minimum desirability (see the table in 4.5). This is what makes monuments and beautification worth building.
-- **Gardens** (1×1) and **statues** (1×1) are cheap buildings that need no workers.
+- Tiers 6–9 need minimum desirability (section 4.6).
+- **Gardens** (1×1) and **statues** (1×1) are cheap and need no workers.
+- The house sheet breaks the score down, for example "14 of 20: −6 from potter".
 
-### 4.7 Workers
+### 4.8 Workers
 
-- About 40% of residents are workers (tunable).
-- Each workplace needs a set number of workers. Available workers are shared out proportionally across all workplaces.
-- An understaffed building works at a proportionally lower rate. Below 25% staffing, it stops.
-- **Unemployment** above 15% and **labour shortage** both show as alerts. High unemployment drives people out.
+- About **40%** of residents are workers (tunable).
+- Workers fill workplaces in **priority order**:
+  1. water and food
+  2. safety (firehouse, defence)
+  3. services (temple, bazaar, booth)
+  4. industry and trade
+  5. monuments
+- Within a priority level, workers are shared proportionally.
+- An understaffed building works at a proportionally lower rate. Below 25% staffing it stops.
+- Labour shortage and unemployment above 15% show as alerts. The alert names which priority level is short.
 
-### 4.8 Goods and production chains
+### 4.9 Immigration, emigration and mood
+
+- **Mood** is one city-wide value from 0 to 100, recalculated monthly and shown in the top bar and the city summary.
+  - **Raised by:** homes fed in full, employment, prestige (section 4.16).
+  - **Lowered by:** unemployment above 15%, debt, a raid in the last six months (paying tribute avoids this), buildings burned in the last six months.
+- **Arrivals per month** = the smaller of the empty housing capacity and `round((6 + 0.05 × population) × mood / 60)`. There are no arrivals while mood is below 30.
+- **Departures.** While mood is below 30, up to 2% of the population leaves each month, starting from the lowest tiers. The per-house cap in section 4.6 still applies.
+- Unemployment does not drive emigration before Town.
+- All constants live in `data/` and are tuned during stage 1.
+
+### 4.10 Goods and production chains
 
 | Chain | Steps | Used by |
 |---|---|---|
@@ -137,124 +188,295 @@ Starting reach values, all tunable in data:
 | Stone | Quarry (rocky) → storehouse | Monuments |
 | Bricks | Clay pit → brickworks → storehouse | Monuments |
 
-Rules:
-- A producer makes output daily, scaled by staffing. Output goes to the nearest storage with space within producer reach (granary for food, storehouse for everything else). If there is none, production stops and a "No storage nearby" alert appears.
-- A workshop takes its raw material from storage within its producer reach.
-- A bazaar restocks monthly from storage within its supply reach, up to its capacity.
-- Each month, a home takes what it needs from the covering bazaar it can reach most quickly that has stock. Consumption per resident per month is set per good in data.
-- Food: a home counts as fed if its full monthly food need was met, from any mix of foods. "Two kinds of food" also needs both grain and figs to be among what it received that month.
+- **Producers** make output daily, scaled by staffing. Output goes to the nearest storage with space within producer reach. If there's none, production stops and an alert says "No storage nearby".
+- **Workshops** take raw materials from storage within producer reach.
+- **Bazaars** restock monthly from storage within supply reach. Each month, a home tops up its household stock from the covering bazaar it can reach most quickly that has stock.
+- **Fed** means the home's full monthly food need was met from stock, from any mix of foods. "Two kinds of food" also needs both grain and figs in stock.
 
-### 4.9 Money
+### 4.11 Money
 
-- **Income:** taxes (section 4.5), trade sales.
-- **Spending:** building costs, monthly upkeep per building, wages per employed worker, soldiers' pay, trade purchases, monument work.
-- The treasury can go into debt down to −500. Below that, nothing new can be built until it recovers.
+- **Income:** taxes (section 4.6), trade sales, goal rewards.
+- **Spending:** building costs, monthly upkeep, wages per employed worker, soldiers' pay, trade purchases, monument work, tribute.
+- **Balance target:** in a steady tier-4 town, wages plus upkeep come to about 60–70% of tax income. Building costs and wages in `data/` are tuned to this.
+- **Pausing a building** stops its wages and upkeep.
+- **Demolishing** refunds 25% of a building's cost. Roads and plots refund nothing. Undo (section 6.5) refunds in full.
+- **Debt.** The treasury can go down to −500. Any debt lowers mood, scaled with the debt. Below −500, nothing new can be built until it recovers.
 
-### 4.10 Fire
+### 4.12 Fire
 
-- Fire risk only starts building up once the city reaches Town tier. The firehouse unlocks at Village tier, so it can be built ahead of time.
-- After that, every building except roads, gardens and statues builds up fire risk daily. The rate depends on building type.
-- Firehouse coverage resets risk to zero for the buildings it reaches.
-- When risk reaches its threshold, the building catches fire. It burns for a few game-days, turns to rubble, and has a set chance of spreading to each neighbouring building.
-- Rubble is cleared for a small cost.
+- Fire risk only builds up once the city reaches **Town**. The firehouse is available from Village tier, so it can be built ahead.
+- Every building except roads, gardens, statues and plazas builds up risk daily, at a rate that depends on its type.
+- A **firehouse lowers risk** daily for the buildings it reaches, by an amount scaled with its staffing.
+- **Above the risk threshold,** a building has a seeded daily chance of catching fire (starting value 3%). That way uncovered buildings don't all ignite at once.
+- A fire burns for a few game-days and has a set chance of spreading to each neighbour.
+  - Burned houses become empty housing plots.
+  - Other burned buildings become rubble, which costs a little to clear.
+- The **first fire** adds a goal: "Build a firehouse near …", with Show me.
 
-### 4.11 Raids and defence
+### 4.13 Raids and defence
 
-- Raids start once the city reaches Town tier (section 4.12). Size grows with the treasury and population.
-- **Warning**: two game-months before a raid, an alert names the direction it will come from. The entry point gets a marker on the minimap.
-- Raiders are real simulation units. They move by A* pathfinding across walkable ground and roads towards the most valuable buildings nearby.
-- **Walls** block raiders and must be broken through. **Gates** let citizens through and stop raiders.
-- **Towers**, built on walls, shoot arrows automatically at raiders within 4 tiles.
-- **Barracks** train soldiers (up to a cap per barracks). Soldiers intercept raiders within a patrol radius automatically and return when the raid ends.
-- Raiders that reach a building set it on fire and steal gold from the treasury.
-- A raid ends when every raider is killed or has retreated (after losing half their number).
-- Soldiers and raiders are drawn as figures. Fights resolve by simple strength and health rules held in data.
+- Raids become possible at **250 population**.
+- The **first raid** comes no sooner than **two game-years** after that. It's sized so one staffed tower can beat it, and its warning pauses the game and adds the goal "Build a tower facing <direction>".
+- Later raids come every two to four game-years (seeded).
+- **Raid size** depends on population and prestige. It's fixed when the warning appears, so spending or saving gold during the warning doesn't change it.
+- **Warning:** two game-months ahead. An alert banner names the direction, and the entry point gets a minimap pin.
+- **Tribute:** the warning offers **"Pay tribute"**, costing gold in proportion to the raid's size, which cancels the raid.
+- Raiders are real simulation units. They move by A* pathfinding over walkable ground and roads towards the most valuable buildings nearby.
+- **Defences:**
+  - **Walls** block raiders and must be broken through.
+  - **Gates** let citizens through and stop raiders.
+  - **Towers** on walls shoot raiders within 4 tiles automatically.
+  - **Barracks** train soldiers, up to a cap per barracks. Soldiers intercept raiders within a patrol radius and come back afterwards.
+- Raiders that reach a building set it on fire and steal gold.
+- A raid ends when all raiders are dead or have retreated after losing half their number. Combat strength and health values live in data.
 
-### 4.12 Progression
+### 4.14 Progression
 
-| Tier | Population | Unlocks (summary) |
+| Milestone | Population | Unlocks |
 |---|---|---|
 | Village | 0 | Roads, housing, well, grain farm, granary, bazaar, temple, garden, firehouse |
-| Town | 150 | Figs, clay pit, potter, storehouse, booth, statue, trading post (first partner), walls, gate, tower, barracks |
-| City | 400 | Barley and brewery, flax and weaver, gem mine and jeweller, quarry, brickworks, builders' guild, small monuments, second trade partner |
-| Prestige | Monument prestige points | Large obelisk, large mastaba, small pyramid, great pyramid |
+| Town | 150 | Figs, clay pit, potter, storehouse, booth, statue. Fire risk begins. |
+| Market town | 250 | Trading post (first partner), walls, gate, tower, barracks. Raids become possible. |
+| City | 400 | Barley and brewery, quarry, brickworks, builders' guild, small and large obelisks |
+| Great city | 650 | Flax and weaver, colossus, small mastaba, second trade partner |
+| Capital | 1,000 | Gem mine and jeweller, large mastaba |
+| Prestige | Prestige points | Small pyramid, great pyramid |
 
-- Locked buildings show in the build tray, greyed out with their unlock condition (for example "150 pop").
-- Exact thresholds are tuned during the build. These are the starting values.
+- Locked buildings show in the build tray, greyed out with their unlock condition.
+- Reaching a milestone shows a banner ("Your village is now a Town"), and newly unlocked build cards get "New" badges.
+- The thresholds are starting values for tuning.
 
-### 4.13 Trade
+### 4.15 Trade
 
 - The **trading post** is built next to the trade entry road.
-- For each good, the player sets **buy / sell / ignore** and a **stock level to keep**. The post only sells what's above that level, and only buys up to it.
-- Each open partner sends a caravan every three game-months with fixed buy and sell prices per good (in data).
-- Partners unlock at Town (first) and City (second). Opening a route has a one-off cost.
+- For each good, the player sets **buy / sell / ignore** and a **stock level to keep**.
+- Each open partner sends a caravan every three game-months. A caravan carries **at most a set number of units of each good per visit** (in data), at that partner's prices.
+- **No arbitrage:** a data check ensures no partner sells a good for less than another partner pays for it. Prices **drift by up to ±10% a year** (seeded).
+- Partners unlock at Market town and Great city. Opening a route has a one-off cost.
 
-### 4.14 Monuments
+### 4.16 Monuments
 
-- Monuments are **long-term construction projects**. The player places the footprint, then it rises **layer by layer** as the builders' guild delivers stone and bricks from storage and supplies labour. Gold is spent as work happens.
-- Work can be paused and resumed.
-- Finished monuments give **desirability** around them and **prestige** points. Prestige unlocks larger monuments and, later, serves as mission goals.
+- Monuments are **long-term construction projects**:
+  - The player places the footprint, rotating it if it isn't square.
+  - The monument rises **layer by layer** as builders' guild crews deliver stone and bricks from storage.
+  - Gold is spent as work happens.
+  - Work can be paused.
+- **Build speed scales** with the number of guild crews assigned (each guild supplies one crew, up to four per site) and with how steadily materials arrive. The times below are for **one crew with full supply**.
+- **Prestige** is awarded for each finished layer and in full on completion. It unlocks the pyramids, adds to mood and serves as a mission goal later.
+- Finished monuments give **desirability** around them.
 
-| Monument | Footprint | Materials | Rough build time at 1× |
+| Monument | Footprint | Materials | Time with one crew at 1× |
 |---|---|---|---|
 | Small obelisk | 1×1 | Stone | ~3 game-months (~1 min) |
 | Large obelisk (gilded top) | 1×1 | Stone, extra gold | ~1 game-year (~4 min) |
+| Colossus (seated statue) | 2×2 | Stone | ~4 game-years (~15 min) |
 | Small mastaba | 3×2 | Bricks, stone facing | ~15 game-years (~1 hour) |
 | Large mastaba | 4×3 | Bricks, stone facing | ~25 game-years (~1 h 40) |
 | Small pyramid | 4×4 | Stone | ~40 game-years (~2 h 40) |
-| Great pyramid (gold capstone) | 7×7 | Stone, extra gold | ~100 game-years (~6–7 hours), the long-term goal |
+| Great pyramid (gold capstone) | 7×7 | Stone, extra gold | ~100 game-years (~6–7 h; ~2 h with four crews) |
 
-These are build times with full materials and labour. Shortages slow them down.
+### 4.17 Saving and returning
 
-### 4.15 Saving
+- **Autosave** runs every game-month and whenever the page is hidden. There's one city slot plus the previous autosave as a backup.
+- **Returning:** the game always reopens **paused**, with a **Welcome back** card showing:
+  - the date and how long ago the last session was
+  - trends in population, treasury and mood
+  - open goals
+  - alerts, each with **View**
 
-- Saving is automatic every game-month and whenever the page is hidden (switching apps, locking the phone).
-- There is **one city slot** plus the **previous autosave** as a backup.
-- **Export / import**: the player can download the save as a `.json` file and load one back in.
-- Starting a new city asks for confirmation and offers to export the current one first.
+  **Carry on** restores the last speed.
+- **Export / import:**
+  - Export produces a `.json` save through the share sheet (Web Share API with a file), falling back to a download.
+  - Import accepts a file.
+  - Starting a new city asks for confirmation and offers to export first.
+- **Phones and saved data:**
+  - **iOS keeps a home-screen app's storage separate from Safari's.** So the home-screen install guide appears **at first launch, before a city exists**.
+  - If a city already exists in Safari when the player installs, the game exports it first. The installed app, finding no save, offers **"Bring a city from Safari"** (import).
+  - Safari may delete website data that hasn't been visited for 7 days. The home-screen app is exempt. The game also requests persistent storage (`navigator.storage.persist()`) where supported.
+  - In **in-app browsers** (Messenger, Instagram and the like), the game shows "Open in Safari/Chrome to keep your city", because those browsers can't install apps and keep separate storage.
+  - If storage fails (private browsing, full storage), a persistent banner warns that progress won't be saved.
 
-## 5. Art direction
+## 5. Art and feel
 
-- **An original, Pharaoh-inspired isometric style.** 2:1 diamond tiles, a warm sand and mudbrick palette, whitewashed homes, painted temple gateways (blue, red and gold bands), palms, a deep blue river, green and golden fields, and soft shadows cast to the right.
-- **No Pharaoh assets, ever.** Pharaoh is owned by Activision and still sold. Its screenshots may be studied for reference only (proportions, palette, building types). Every pixel in Thebes is drawn by our own code.
-- **Drawn in code.** Every building, tier, terrain tile and figure is drawn by a function from simple shapes: tapered blocks, faces with brick courses, domes, awnings, fronds. The mock-ups made in brainstorming are the baseline look.
-- **Art slots.** Each visual is registered under a key (for example `house.t4`, `temple`, `monument.pyramid.small.stage12`). At run time, each key is drawn once into an off-screen image and reused. A key can later be pointed at a PNG instead, with no other code changes.
-- Monuments are drawn per construction stage, so they visibly rise as work progresses.
-- Overlay colours (blue = has it, coral = missing) are paired with a shape cue so they work for colour-blind players.
+### 5.1 Style
 
-## 6. Interface (portrait, layout A)
+- **Original and code-drawn, in the spirit of Pharaoh: A New Era.** Every building, tier, terrain type and figure is drawn by a function from simple shapes. Pharaoh and New Era screenshots are visual reference only. No files from either game are ever used.
+- **Light:** warm sunlit faces against **cool lavender-grey shaded faces**. Ground shadows are a soft violet, in two layers. There's a faint highlight on top edges and a darker line where walls meet the ground.
+- **Whitewash:** smooth plaster with no brick courses. Houses are **stacked uneven blocks** with outside staircases, ladders and roof terraces.
+- **Colour comes from use:**
+  - coloured roof mats and rugs, orange pots, green and teal striped reed canopies, woven reed fences;
+  - patterned **mosaic** plazas, with blue-and-white checks for temple courts;
+  - painted **teal columns** and **painted figures** on temple gateways, with banded cornices in teal, red and gold;
+  - flags.
+- **Landscape:** textured grass meadows, a teal river with depth shading, dark mud flats on the floodplain, palms and acacias, fields with distinct crops (green grain, golden barley, flax with blue flowers).
+- **People:** small figures in kilts and dresses with coloured collars and role props (water jar, basket, hoe, fishing pole, priest's sash, spear and shield).
+- **Monuments:** the pyramid under construction shows **individual blocks**, a mudbrick ramp, sleds and workers. The finished pyramid has a white casing and a gold capstone.
+- The mock-ups made during brainstorming (art passes 3 and 4) are the baseline look.
+
+### 5.2 Blended, continuous terrain
+
+The ground reads as one painted landscape, not a grid of diamonds. Gameplay still uses the tile grid; only the visuals blend.
+
+- **Terrain layers** (sand, meadow, fertile soil, mud flats, rocky ground) are blended with **noise-perturbed masks** built from per-corner terrain weights. Edges wander and fade over about a third of a tile, and grass tufts, pebbles and scrub are scattered across the borders.
+- **Roads** are drawn as **continuous paths** through tile centres, with rounded joins and ends, soft worn edges, wheel ruts and pebbles. Plazas and mosaics stay crisp, because they're built surfaces.
+- The **river** is a smooth curve with depth shading, a foam line, a wet-sand fringe and reeds.
+- **Building plots** fade into the ground around them. **Fields** keep straight furrows with slightly irregular edges.
+- **While placing,** a faint tile grid fades in around the cursor for precision, then fades out.
+- **Implementation:** terrain is baked into chunk images (16×16 tiles each) and re-baked only when something under that chunk changes.
+
+### 5.3 Readability at phone zoom
+
+- At default zoom on phones, a 1×1 tile is at least **64 CSS px wide**. A building's tap area covers its footprint plus its drawn height, so even a hut is at least 44 pt tall to tap. Taps between buildings, and every tap at minimum zoom, go to the nearest building's centre.
+- Each housing tier has a distinct **height, roof shape and tone**, not just finer detail.
+- Each service carries a small **coloured banner or emblem matching its build-dock icon** (for example the well is blue, the temple gold, the firehouse red).
+
+### 5.4 Feedback and motion
+
+- **Placing:** a dust puff on ✓.
+- **Upgrading:** a short glow and a rising "+Shack" label.
+- **Downgrading:** a coral pulse and "−Cottage".
+- **Milestones:** a banner, plus "New" badges on unlocked cards.
+- Walkers, carts, boats and smoke animate gently.
+- **Respects `prefers-reduced-motion`.** With it on, there are no puffs or pulses, and walkers move but the camera never auto-pans.
+- Fire flicker stays under 3 flashes per second (WCAG 2.3.1).
+
+### 5.5 Sound and haptics
+
+- About eight **synthesised Web Audio** effects: place, road, demolish, upgrade, milestone, alert, goal complete, and (from stage 3) a raid horn. There's no music.
+- **Off by default.** The title card offers "Play with sound", and the choice is remembered. It's also in settings.
+- The game sets `navigator.audioSession.type = 'ambient'` where supported and never uses the silent-switch unlock hack, so the iPhone silent switch is respected.
+- Short `navigator.vibrate` pulses on ✓ and milestones where supported (Android). There's a setting to turn them off.
+
+## 6. Interface
 
 ### 6.1 Principles
 
-- **Things you read sit at the top, things you tap sit at the bottom**, in thumb reach.
-- **Nothing floats over the middle of the map.**
-- **Only one panel is open at a time.** Opening one closes any other.
-- Touch targets are at least 44 pt. Layouts respect the notch and the home-bar safe areas.
-- Labels use sentence case and plain words.
+- **Things you read sit at the top, things you tap sit at the bottom** (or in the side panel on wide screens).
+- **Nothing floats over the middle of the map.** Corner buttons are fine.
+- **One panel open at a time.**
+- **Every mode has a visible exit.** ✕, Back, Esc and right-click all go back one step.
+- **Meaning is never carried by colour alone.**
+- **Text** uses dark ink on parchment at 4.5:1 contrast or better. Body text is 16 px and nothing is below 12 px. There's a text-size setting (100%, 125% or 150%).
+- **Touch targets** are at least 44 × 44 pt, and layouts respect safe areas (notch, home bar).
 
-### 6.2 Screen elements
+### 6.2 Layouts
 
-- **Top bar**: gold, population, date and speed controls. Tapping it opens a **city summary sheet** with income against spending, food in store, unemployment and how happy people are.
-- **Build dock** (bottom), one panel with three heights:
-  1. **Slim bar** (default): category icons (Roads, Homes, Food, Industry, Services, Defence, Monuments). Labels appear when there is room.
-  2. **Tray**: tapping a category or swiping up shows its buildings as cards with cost. Locked cards show their unlock condition. The tray scrolls sideways and remembers the last category.
-  3. **Tucked away**: swiping down or starting to pan the map shrinks the dock to a single **Build** pill.
-- **Bottom row when tucked away**: the overlay button (left), the Build pill (centre), and the minimap button (right). Alerts show as a red dot on the minimap button.
-- **Overlays**: water, food, religion, goods, fire risk, desirability. While one is active, a slim legend strip attaches under the top bar with a close button. Homes show a has-it or missing marker.
-- **Minimap sheet**: a bottom sheet with the whole map, the current view outlined and alert pins. Tapping the map jumps there. Below the map is the alert list with **View** buttons.
-- **Building info sheet**: tapping a building opens a bottom sheet with its name, reach (highlighted on the map), staffing, stock, problems, and Pause and Demolish actions.
+The layout depends on the available space; controls depend on the input in use (section 6.7).
 
-### 6.3 Placing things
+- **Portrait layout** (viewport taller than it is wide, and under 900 px wide). Used on phones held upright: a top bar, a **build dock at the bottom**, and corner buttons just above the dock.
+- **Wide layout** (viewport at least **900 × 520 px**). Used on laptops, desktops and tablets: a full-width top bar and a **Pharaoh-style right-hand panel**. The panel holds:
+  - the minimap
+  - category tabs
+  - the building grid
+  - a details card for the selected or hovered item, with ✕ and ✓ when placing on touch
 
-- Choosing a building collapses the dock to a **confirm bar** (name, cost, preview of what it would reach, ✕ and ✓).
-- A see-through version of the building follows the player's finger. The footprint shows green when valid and red when invalid, and the homes it would reach light up.
-- **Nothing is built until ✓ is tapped.**
-- Roads and walls are **dragged out as a line**, showing the total cost as the finger moves.
-- **Undo**: for 5 seconds after any placement, an Undo toast gives a full refund.
+  It can fold to a thin strip. The top bar shows more: income per month, jobless, months of food, mood, full date and speed buttons.
+- **Compact landscape layout** (every other viewport: wider than tall, but under 900 × 520 px). Used on phones held sideways and small tablets: a slim **vertical rail on the right** with category icons, trays opening as a side drawer, ✕ and ✓ at the bottom of the rail, and a condensed top bar.
+- **Rotating** keeps the camera position and any placement in progress.
 
-### 6.4 Gestures
+### 6.3 Screen elements
 
-One finger pans, pinch zooms (0.5× to 2×), a tap selects, a long-press on a build card shows its details, and dragging places roads and walls.
+- **Top bar:** gold, population, mood, date and the ☰ menu. Tapping it opens the **city summary** sheet: income against spending, food in store, employment, the mood breakdown and goals.
+- **Speed controls:**
+  - Portrait: pause and speed sit in the **bottom-left corner button** (tap to pause or resume, long-press or tap the chevron for 1×, 2× or 3×).
+  - Wide: the speed controls are in the top bar.
+- **Build dock (portrait),** one panel with three heights:
+  1. **Slim bar** (default): category icons with labels (Roads, Homes, Food, Industry, Services, Defence, Monuments).
+  2. **Tray**: tapping a category or swiping up shows its buildings as cards with cost. Unaffordable costs show in coral with a coin-slash icon, and locked cards show a lock and their condition. The tray scrolls sideways and remembers the last category.
+  3. **Tucked away**: swiping down or panning the map shrinks the dock to a single **Build** pill.
+- **Corner buttons** show at **every dock height**, never in the middle:
+  - bottom-left: pause and speed
+  - bottom-right: the **minimap** button with an **alert count badge**, and the **overlay** button
+- **Alerts:**
+  - Ordinary alerts (labour shortage, an empty bazaar, no storage) go into the count badge and the minimap sheet's list.
+  - **Critical alerts** (raid warning, fire, debt, save failing) appear as a **banner under the top bar**, with **View** and, for raids, **Pay tribute**.
+  - Alerts are also announced to screen readers through an `aria-live` region.
+- **Overlays:** water, food, religion, goods, entertainment, desirability, fire risk and **Housing**.
+  - Housing shows each home's next blocking need.
+  - Has-it versus missing is shown as a **filled dot versus a hollow ring**. Graded overlays (desirability, fire risk) use a single-hue light-to-dark scale with a legend.
+  - The legend strip attaches under the top bar. A critical alert banner takes priority and shrinks the legend to an icon.
+- **Minimap sheet:** the whole map, the current view outlined, and alert pins. Tapping the map jumps there. It also holds the alert list with View buttons and **+/− zoom buttons**, the zoom alternative that doesn't need pinching.
+- **Info sheets.** Selecting a building moves the camera so the building stays visible above the sheet.
+  - **Buildings:** name, reach (highlighted), staffing, stock, and problems. Every problem names the **cause and the fix** with **View** ("Bazaar empty: no granary within 16 road tiles").
+  - **Houses:** a **next-tier checklist** with a tick or cross for each need, timers ("upgrades in 1 month", "loses water in 1 month"), the desirability breakdown and residents.
+  - **Actions:** Pause, Demolish, and Rotate where it applies.
+- **☰ menu:** Continue, New city, Export city, Import city, Settings, How to play (goal history and short explanations), About.
+  - **Settings:** sound, vibration, text size, left-handed controls (mirrors ✕ and ✓ and the corner buttons), keyboard shortcuts on or off, and reduced motion (follows the system by default).
+- **"Update ready" toast:** appears only when no placement or raid is in progress. It saves first, then reloads.
+
+### 6.4 Modes
+
+| Mode | Bottom (portrait) / panel (wide) shows | A tap or click on the map | How to leave |
+|---|---|---|---|
+| Browse | Dock or panel | Selects a building or house → info sheet | n/a |
+| Selected | Info sheet | Selects another; tapping empty ground closes | ✕, Back, Esc, tap empty |
+| Placing | **Confirm bar**: name, cost, **reason if blocked**, ⟳ rotate, Undo, ✕, ✓ | Moves the ghost to the tapped tile | ✕, Back, Esc, right-click |
+| Drawing (roads, walls, area paint) | Confirm bar with length or count and total cost | First tap sets the start, second sets the end | Same as Placing |
+| Demolishing | Red **Demolish** bar with count and refund | Marks a building or an area | Same as Placing |
+| Overlay (combines with Browse) | Legend strip at the top | As Browse | ✕ on the strip, O |
+
+- The confirm bar never tucks away.
+- Only one mode is active at a time, except overlays, which combine with Browse.
+- Each open sheet or mode adds a browser-history entry, so the phone's Back gesture closes it instead of leaving the game.
+
+### 6.5 Placing and tools
+
+- **Touch placing:**
+  - The ghost appears mid-screen, snapped to the nearest valid tile.
+  - **Tapping** a tile moves it there. A **drag that starts on the ghost** moves it, drawn just above the finger so it isn't hidden. Every other one-finger drag pans, and **two fingers always pan or zoom**.
+  - Nothing is built until ✓.
+- **Mouse placing:**
+  - The ghost follows the cursor and **a click places it**. The game stays in placing mode so the player can place repeatedly, and Esc or right-click stops.
+  - Hovering a card or building shows a tooltip with cost, needs and reach.
+- **Validity shown three ways:**
+  - **Can place:** a blue outline and a ✓ mark.
+  - **Can't place:** coral hatching with a ✕ and a **reason** in the confirm bar ("Needs fertile land", "Not enough gold", "Must touch a road").
+  - **"Won't work yet":** an amber state, for example no storage in reach. Placing is allowed, with a warning.
+- **Area painting:** housing plots, gardens and demolition are painted as a rectangle (tap the start and end, or drag), with a count and total cost and **one ✓**. Demolishing occupied homes at tier 5 or above asks first.
+- **Rotate** (⟳ in the confirm bar, or R) for non-square footprints such as mastabas.
+- **Undo:**
+  - The last **10 actions** (placing, drawing, painting, demolishing) can be undone with a full refund, **until the current game-month ends**. The monthly tick clears the undo history, which closes the refund loophole at high speed.
+  - Undo sits in the confirm bar and in a toast after each action, and works with Ctrl+Z or Cmd+Z.
+
+### 6.6 Gestures (touch)
+
+| Gesture | Effect |
+|---|---|
+| One-finger drag | Pans (except a drag that starts on the ghost while placing) |
+| Two-finger drag or pinch | Pans or zooms, always |
+| Tap | Selects, or moves the ghost / sets a start or end point |
+| Double-tap | Zooms in |
+| Long-press a build card | Shows building details |
+| Swipe on the dock handle | Changes the dock height |
+
+- Every pinch and drag action also has a **single-tap alternative** (WCAG 2.5.1 and 2.5.7): +/− zoom, tap start then tap end for lines and areas.
+- The canvas uses `touch-action: none` and the page uses `overscroll-behavior: none`, so pull-to-refresh and overscroll can't fire. The dock's grab handle sits above the home-bar safe area.
+
+### 6.7 Mouse, keyboard and switching between inputs
+
+- **Mouse:**
+  - The wheel zooms towards the cursor.
+  - Dragging empty ground pans; while drawing, right-drag or middle-drag pans.
+  - Hover shows tooltips and reach.
+- **Keyboard:**
+  - Space pauses or resumes; + and − change speed; 1–7 pick a category.
+  - Arrow keys or WASD pan.
+  - R rotates; M opens the minimap; O cycles overlays.
+  - Enter confirms; Esc goes back one step; Ctrl+Z or Cmd+Z undoes; ? lists shortcuts.
+  - Focus is visible and the tab order follows the screen layout.
+  - Single-key shortcuts switch off while a text field has focus, and can be turned off in settings (WCAG 2.1.4).
+- **Switching between inputs:**
+  - The input type is decided **when each press starts** (pointer type), never partway through an action.
+  - On any device with a touchscreen, buttons keep touch sizes even when a mouse is in use.
+  - Pens behave like a mouse for hover and like touch for confirming.
+
+### 6.8 Accessibility summary
+
+- Interface elements are real DOM buttons with labels, so the menus, sheets, dock and panel all work with screen readers and keyboards. The map canvas has a text summary (city stats and alerts) instead of tile-by-tile access.
+- Colour is never the only signal: dots versus rings, ✓ and ✕ marks, hatching, icons.
+- Contrast and text size follow section 6.1. Motion follows section 5.4.
+- Pausing is always available, with no forced timers. The first raid warning pauses the game automatically.
+- Left-handed controls are in settings.
 
 ## 7. Technical architecture
 
@@ -262,104 +484,171 @@ One finger pans, pinch zooms (0.5× to 2×), a tap selects, a long-press on a bu
 
 - Plain **HTML, CSS and JavaScript (ES modules)**. No build step, no frameworks, nothing to install.
 - Drawn on an HTML **canvas**, sharp on high-resolution screens.
-- Runs as an **installable, offline-capable web app** (PWA): a manifest, icons, and a service worker that caches all files. When a new version is cached, an "Update ready, tap to reload" toast appears.
+- An **installable, offline-capable web app** (PWA):
+  - a manifest, icons including `apple-touch-icon`, and `theme-color`;
+  - a service worker that caches all files.
+- **Link preview:** `og:title`, `og:description` and a **1200×630 `og:image`**, a city scene rendered once by the art code and committed as a PNG.
 - Target browsers: iOS Safari 16+, current Android Chrome, current desktop Chrome, Edge, Firefox and Safari.
 
 ### 7.2 Folder layout
 
 ```
 thebes/
-  index.html                  page shell and UI containers
+  index.html                  page shell, UI containers, OG tags
   manifest.webmanifest        home-screen install data
   sw.js                       service worker (offline cache, updates)
-  icons/                      app icons
+  icons/  og-image.png
   src/
     main.js                   start-up, game loop, wiring
     data/                     everything numeric or descriptive
-      buildings.js  goods.js  housing.js  monuments.js  progression.js  trade.js  raids.js
+      buildings.js  goods.js  housing.js  monuments.js  progression.js
+      goals.js  trade.js  raids.js  mood.js  sounds.js
     sim/                      game rules; no DOM, no canvas
-      rng.js  world.js  mapgen.js  reach.js  housing.js  labour.js  production.js
-      distribution.js  economy.js  desirability.js  fire.js  raids.js  combat.js
-      pathfinding.js  trade.js  monuments.js  progression.js  clock.js  commands.js
+      rng.js  world.js  mapgen.js  reach.js  housing.js  labour.js  immigration.js
+      production.js  distribution.js  economy.js  desirability.js  fire.js
+      raids.js  combat.js  pathfinding.js  trade.js  monuments.js
+      progression.js  goals.js  clock.js  commands.js  undo.js
     render/                   drawing only; reads sim state, never changes it
-      iso.js  spriteCache.js  renderer.js  walkers.js  overlays.js
-      art/  terrain.js  housing.js  services.js  industry.js  defence.js  monuments.js  figures.js
+      iso.js  terrainBaker.js  spriteCache.js  renderer.js  walkers.js
+      overlays.js  effects.js
+      art/  terrain.js  housing.js  services.js  industry.js  defence.js
+            monuments.js  figures.js  decor.js
     ui/                       DOM interface and input
-      hud.js  dock.js  sheets.js  minimap.js  input.js  placement.js  alerts.js  toasts.js
+      layout.js  hud.js  dock.js  sidePanel.js  rail.js  sheets.js  minimap.js
+      input.js  gestures.js  keyboard.js  placement.js  modes.js  alerts.js
+      toasts.js  menu.js  settings.js  titleCard.js  welcomeBack.js  goalsList.js
+    audio/
+      sfx.js
     save/
-      store.js  migrate.js  exportImport.js
+      store.js  migrate.js  exportImport.js  installFlow.js
   tests/
     index.html                test runner page
-    harness.js                tiny test helper (describe/it/expect)
-    sim/*.test.js  save/*.test.js
+    harness.js                small test helper (describe/it/expect)
+    sim/*.test.js  save/*.test.js  data/*.test.js  ui/*.test.js
   docs/superpowers/specs/     this spec
   README.md
 ```
 
 ### 7.3 Boundaries
 
-- **`data/`** holds plain objects: costs, workers, reach, needs, consumption, prices, unlocks and art keys. Balancing means editing these. Missions will add data, not code.
-- **`sim/`** owns the world state and the rules. It is **deterministic**: all randomness comes from a seeded generator in `rng.js`, and nothing reads the clock or `Math.random`. The UI changes the world only through **commands** (`place`, `demolish`, `drawRoad`, `setTradeOrder`, `pause`…), which check that they're valid and either apply or return a reason they can't.
-- **`render/`** reads the world state and draws it. Cosmetic walkers live here, outside the simulation.
-- **`ui/`** turns touches into commands and shows state. It never changes the world directly.
-- **`save/`** turns the world into a versioned JSON document and back, and migrates older versions.
+- **`data/`** holds plain objects: costs, workers, reach, needs, consumption, prices, unlocks, goals, sounds and art keys. Balancing means editing these.
+- **`sim/`** owns the world state and the rules.
+  - It is **deterministic**: all randomness (fire ignition, raid timing, price drift, map generation) comes from the seeded generator in `rng.js`.
+  - The UI changes the world only through **commands** (`place`, `paintArea`, `demolish`, `drawLine`, `rotate`, `undo`, `setTradeOrder`, `payTribute`, `setSpeed`…). Each one validates and either applies or returns a **reason code**, which the UI turns into the blocked-placement text.
+- **`render/`** reads the world and draws it, including the blended terrain chunks and cosmetic walkers.
+- **`ui/`** turns input into commands, manages the modes and layouts, and never changes the world directly.
+- **`save/`** turns the world into versioned JSON and back, migrates old versions, and runs the install and import flow.
 
-### 7.4 Game loop
+### 7.4 Game loop and rendering
 
 - `requestAnimationFrame` drives drawing.
-- The simulation runs on a **fixed timestep**: it advances whole game-days according to speed and elapsed time, catching up at most a capped number of days per frame. That way the rules behave the same on any device.
-- Drawing covers only tiles inside the camera view, depth-sorted. Building and terrain images come from the sprite cache. Figures are drawn each frame.
+- The simulation runs on a **fixed timestep** of whole game-days, capped per frame, so the rules behave the same on every device.
+- Each frame draws:
+  1. the baked terrain chunks in view
+  2. depth-sorted buildings from the sprite cache
+  3. animated figures and effects
+  4. the overlays
+- A terrain chunk is re-baked when a road, plot or building changes under it.
 
 ### 7.5 Saves and storage
 
 - Saves are stored in **IndexedDB**, with a `localStorage` fallback.
-- **Safe writes:** the new save goes into a staging record, is checked, then replaces the current slot. The current slot first moves to the backup slot.
-- **Loading:** if the current slot fails to read or validate, the game offers the backup.
-- Every save holds a `version` number. `migrate.js` upgrades older saves step by step. Saves from a newer version than the game are refused politely instead of corrupted.
-- **iOS 7-day storage limit:** Safari can delete the stored data of a website that isn't visited for 7 days, unless the site was added to the home screen. On iOS Safari outside home-screen mode, the game shows a one-time **"Add to Home Screen to keep your city safe"** guide, and export stays available.
-- If storage fails (private browsing, full storage), a persistent banner warns that progress won't be saved.
+- **Safe writes:** the new save goes to a staging record, is validated, then replaces the current slot. The previous one moves to the backup slot.
+- **Loading:** if the current slot fails, the game offers the backup.
+- Every save carries a `version`. `migrate.js` upgrades older saves step by step. A save from a newer version is refused politely.
+- The install and import flow follows section 4.17.
 
 ## 8. Hosting, sharing and separation from work
 
-- Repo: **`C:\dev\thebes`** (outside OneDrive), git branch `main`.
-- Commit identity **for this repo only**: `Joshua Hedge <181878008+joshuahedge@users.noreply.github.com>`. The global identity (work email) is unchanged.
-- Remote: **public** repo `joshuahedge/thebes` on the personal account, not the work organisation. It gets created when stage 1 is ready to publish.
-- Hosting: **GitHub Pages** from `main` → `https://joshuahedge.github.io/thebes/`.
-- Not hosted as a Claude artifact, because those belong to the work Claude account.
-- Local running: Python's built-in web server (`python -m http.server`) from the repo folder, since browsers block ES modules opened straight from disk.
+- **Repo:** `C:\dev\thebes` (outside OneDrive), branch `main`.
+- **Commit identity for this repo only:** `Joshua Hedge <181878008+joshuahedge@users.noreply.github.com>`. The global identity (work email) is unchanged.
+- **Remote:** a **public** repo, `joshuahedge/thebes`, on the personal account, created when stage 1 is ready to publish.
+- **Hosting:** **GitHub Pages** from `main` → `https://joshuahedge.github.io/thebes/`.
+- It isn't hosted as a Claude artifact, because those sit on the work Claude account.
+- **Local running:** `python -m http.server` from the repo folder.
 
 ## 9. Testing and quality
 
-- **Unit tests for `sim/` and `save/`**, run from `tests/index.html` in a browser. Required cases include:
-  - Reach: coverage follows connected roads only and respects the distance.
-  - Housing: upgrades after a full month of met needs, downgrades after two months unmet, and merges to 2×2 only when the three neighbouring plots qualify.
-  - Production and distribution: no storage means no production; bazaars only restock from storage in reach; homes take from the reachable bazaar that has stock.
-  - Labour: proportional sharing, slowdown when short-staffed, stop below 25%.
-  - Determinism: the same seed gives the same map, and the same seed plus the same commands give the same world after N days.
-  - Saving: save then load gives an identical world; old versions migrate; corrupt saves fall back to the backup.
-  - Fire, raids, pathfinding, trade and monuments each get rule tests as their stage lands.
-- **Long-run sanity test:** a scripted city simulated for 10 game-years at full speed. It asserts there's no negative population or stock, no runaway treasury, no stuck supply chain, and that run time stays under budget.
-- **Play-test at phone size** in the built-in browser at an iPhone-sized viewport, checking every screen state in section 6.
-- **Performance budget:** a smooth frame rate while panning and zooming a crowded 64×64 stress city on a mid-range phone.
-- **Real-device check:** Joshua plays each stage on his phone before it's published.
+- **Unit tests** run from `tests/index.html` in a browser. Required cases include:
+  - **Reach:** follows connected roads only and respects the distance.
+  - **Housing:**
+    - upgrades after a full month of met needs
+    - household stock delays downgrades
+    - downgrades one month after stock runs out
+    - leavers are capped
+    - merge and split rules work
+    - **no upgrade lowers capacity or tax per tile** (data check)
+  - **Labour:** workplaces fill in priority order and share proportionally within a level; slowdown when short-staffed; a building stops below 25%.
+  - **Immigration and mood:** arrivals formula, no arrivals below mood 30, departures, and no unemployment-driven emigration before Town.
+  - **Production and distribution:** no storage means no production; bazaars restock only from storage in reach; homes top up their stock from the nearest stocked bazaar.
+  - **Undo:** 10-action history, full refund, cleared at the monthly tick.
+  - **Fire:** risk lowered by staffing, seeded ignition, spread, burned houses becoming empty plots.
+  - **Raids:** grace period, first-raid size, size fixed at the warning, tribute cancels the raid.
+  - **Trade:** caravan caps, and the no-arbitrage data check.
+  - **Monuments:** speed scales with crews and supply, prestige per layer.
+  - **Determinism:** the same seed gives the same map; the same seed and commands give the same world after N days.
+  - **Saving:** save then load gives an identical world; old versions migrate; a corrupt save falls back to the backup.
+  - **Modes** (`ui/`): enter and exit transitions, and one mode at a time.
+- **Long-run sanity test:** a scripted city simulated for 10 game-years, checking that there's no negative population or stock, no runaway treasury and no stuck supply chain, and that it runs within a time budget.
+- **Play-testing in the built-in browser** at:
+  - iPhone portrait
+  - iPhone landscape (compact rail)
+  - tablet
+  - laptop (side panel)
+
+  It covers every mode in section 6.4, mouse and keyboard on the laptop size, and the first-session flow from the title card to the first goals.
+- **Accessibility checks:** contrast on every text style, a colour-blind simulation of overlays and placement states, reduced motion, keyboard-only play of the interface, and screen-reader labels.
+- **Performance budget:** a smooth frame rate while panning and zooming a crowded 64×64 stress city on a mid-range phone, with terrain re-baking off the critical path.
+- **Real-device checks by Joshua before each publish:**
+  - iPhone Safari → install → import flow
+  - Android Chrome install
+  - opening the link from a chat app's in-app browser
+  - the link preview in a messaging app
 
 ## 10. Delivery stages
 
 Each stage ends playable and shareable at the link, and each gets its own step-by-step implementation plan.
 
-1. **Core city.** Map generation, camera and gestures, roads, housing tiers 1–4, well, grain farm, granary, bazaar, temple, workers, money, time controls, the full build dock (all three heights, placing, undo), info sheet, minimap sheet, overlays (water, food, religion), autosave with backup, export and import, the PWA install and the iOS guide, and the first GitHub Pages publish.
-2. **Economy.** Figs, pottery, beer, linen and jewellery chains, storehouse, housing tiers 5–9 with 2×2 merging, desirability with gardens and statues, booth, trading post and partners, and the Town and City unlocks.
-3. **Danger.** Fire with spreading, firehouse and rubble (the firehouse appears in the build tray from this stage on); raids with warnings; walls, gates, towers, barracks and soldiers; combat; alerts.
-4. **Monuments.** Quarry, brickworks, builders' guild, staged construction of all six monuments, prestige and the prestige unlocks.
-5. **Missions.** A separate spec: hand-made maps, starting conditions, limited building sets and goals, all as data.
+1. **Core city:**
+   - title card, opening, goals list and welcome-back card
+   - map generation with **blended terrain**; camera, gestures, mouse and keyboard
+   - roads (tap or drag) and area painting; housing tiers 1–4 with household stock and the house checklist
+   - well, grain farm, granary, bazaar, temple (the firehouse arrives with fire in stage 3)
+   - workers with priorities; immigration and mood; money
+   - time controls with pause-on-hide
+   - all three layouts with the modes table, placing, demolishing, undo, info sheets, minimap and alerts
+   - overlays for water, food, religion and housing
+   - the ☰ menu and settings, sound and haptics, feedback effects
+   - autosave with a backup, export and import, the iOS and Android install flow, the in-app browser notice, link preview tags
+   - the first GitHub Pages publish
+2. **Economy:**
+   - figs, pottery, beer, linen and jewellery chains; storehouse
+   - housing tiers 5–9 with 2×2 merging and splitting
+   - desirability with gardens and statues; booth
+   - goods, entertainment and desirability overlays
+   - trading post and partners
+   - milestones up to Capital (with defences still locked until stage 3)
+3. **Danger:**
+   - fire with seeded ignition and spreading, the firehouse, rubble
+   - raids with warnings, tribute and the first-raid goal
+   - walls, gates, towers, barracks, soldiers and combat
+   - critical alert banners, the fire-risk overlay, the raid horn
+4. **Monuments:**
+   - quarry, brickworks, builders' guild and crews
+   - staged construction with rotation
+   - obelisks, colossus, mastabas and pyramids
+   - prestige and its effects
+5. **Missions:** a separate spec covering hand-made maps, starting conditions, limited building sets and goals, all as data.
 
 ## 11. Risks
 
 | Risk | Mitigation |
 |---|---|
-| Scope keeps growing | Fixed stages; anything new goes to a later stage unless it replaces something. |
-| Slow on older phones | Sprite cache, drawing only what's on screen, fixed-timestep simulation, stress-city test from stage 1. |
-| Saves lost on iPhone | Home-screen install guide, export and import, backup slot. |
-| Balance feels off | All numbers in `data/`, long-run sanity test, quick tuning between stages. |
-| Code-drawn art looks flat | Shading, brick courses, shadows and per-tier detail from the mock-ups; art slots allow upgrading to PNGs later. |
-| Accidental copyright exposure | Original art only; Pharaoh used as visual reference, never as a source of files. The name "Pharaoh" isn't used in the game or the repo. |
+| Stage 1 is large (onboarding, three layouts, gestures) | Build the interface in thin, tested slices. Modes and layouts share one command layer, so each new layout is mostly arrangement. |
+| Scope keeps growing | Fixed stages: anything new goes to a later stage unless it replaces something. |
+| Slow on older phones | Baked terrain chunks, a sprite cache, drawing only what's on screen, a fixed-timestep simulation, the stress-city test from stage 1. |
+| Saves lost on iPhone | Install guide before the first city, export and import with "Bring a city from Safari", persistent storage, a backup slot, the in-app browser notice. |
+| Balance feels off | All numbers in `data/`, data checks (capacity, arbitrage), the long-run test, goal rewards as an easy tuning lever. |
+| New players bounce | Goals list with Show me, house checklist, blocked-placement reasons, the paused start and welcome back. |
+| Art looks flat or tiled | New Era-inspired lighting and detail, blended terrain, art slots that can take PNGs later. |
+| Accidental copyright exposure | Original art only; Pharaoh and New Era used as visual reference, never as file sources. The name "Pharaoh" isn't used in the game or the repo. |
