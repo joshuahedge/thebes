@@ -5,6 +5,8 @@ import { TIERS, MAX_TIER } from '../../src/data/housing.js';
 import { BUILDINGS } from '../../src/data/buildings.js';
 import { PRIORITY_LEVELS } from '../../src/data/labour.js';
 import { MILESTONES } from '../../src/data/progression.js';
+import { MOOD } from '../../src/data/mood.js';
+import { DAYS_PER_MONTH } from '../../src/sim/time.js';
 
 describe('data', () => {
   it('never lets an upgrade lower capacity or tax per tile', () => {
@@ -50,5 +52,8 @@ describe('data', () => {
     expect(ECONOMY.debtFloor).toBe(-500);
     expect(ECONOMY.workerShare).toBeGreaterThan(0);
     expect(ECONOMY.workerShare).toBeLessThan(1);
+  });
+  it('divides the month into whole arrival batches', () => {
+    expect(DAYS_PER_MONTH % MOOD.arrivalBatchesPerMonth).toBe(0);
   });
 });

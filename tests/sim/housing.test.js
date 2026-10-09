@@ -77,6 +77,20 @@ describe('housing', () => {
     monthlyHousing(w);
     expect(h.met.food).toBe(false);
   });
+  it('judges a growing house on what it was stocked for', () => {
+    const w = street();
+    const h = addRaw(w, 'house', 12, 11, { tier: 3, residents: 12, stock: { grain: 3 } });
+    addRaw(w, 'well', 13, 9);
+    addRaw(w, 'bazaar', 9, 8, { store: { grain: 100 } });
+    staffAll(w);
+    monthlyHousing(w);
+    expect(h.stockedFor).toBe(12);
+    expect(h.met.food).toBe(true);
+    h.residents = 16; // arrivals came mid-month, past the tier-3 capacity; the leave cap trims it
+    monthlyHousing(w);
+    expect(h.met.food).toBe(true);
+    expect(h.downTimer).toBe(0);
+  });
   it('caps leavers at a quarter of residents per month', () => {
     const w = street();
     const h = addRaw(w, 'house', 12, 20, { tier: 1, residents: 5 });
