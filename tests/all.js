@@ -5,3 +5,4 @@ import './data/data.test.js';
 import './sim/mapgen.test.js';
 import './sim/world.test.js';
 import './sim/reach.test.js';
+import './sim/progression.test.js';
