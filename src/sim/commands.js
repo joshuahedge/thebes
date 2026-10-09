@@ -11,10 +11,14 @@ import { pushUndo } from './undo.js';
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 const storesAny = (o, goods) => (BUILDINGS[o.type].stores || []).some((g) => goods.includes(g));
 
+const isTile = (x, y) => Number.isInteger(x) && Number.isInteger(y);
+
 export function checkTiles(world, type, x, y) {
   const def = BUILDINGS[type];
   if (!def) return 'unknown';
   if (!isUnlocked(world, type)) return 'locked';
+  // A fractional tile would index between cells and leave ghost entries in occ and the save.
+  if (!isTile(x, y)) return 'out_of_bounds';
   for (const [tx, ty] of footprint(x, y, def.w, def.d)) {
     if (!inBounds(world.size, tx, ty)) return 'out_of_bounds';
     const i = idx(world.size, tx, ty);
@@ -60,7 +64,7 @@ export function place(world, type, x, y) {
 export const demolishRefundFor = (b) => (b.type === 'house' ? 0 : Math.floor(BUILDINGS[b.type].cost * ECONOMY.demolishRefund));
 
 export function demolishAt(world, x, y) {
-  if (!inBounds(world.size, x, y)) return fail('out_of_bounds', { refund: 0 });
+  if (!isTile(x, y) || !inBounds(world.size, x, y)) return fail('out_of_bounds', { refund: 0 });
   const b = buildingAt(world, x, y);
   if (b) {
     const snap = JSON.parse(JSON.stringify(b));
@@ -106,6 +110,8 @@ function lineInto(ax, ay, bx, by, out) {
 
 export function roadPath(x0, y0, x1, y1, flip = false) {
   const out = [];
+  // lineInto steps by whole tiles, so a fractional or NaN endpoint would never be reached.
+  if (![x0, y0, x1, y1].every(Number.isInteger)) return out;
   if (!flip) { lineInto(x0, y0, x1, y0, out); lineInto(x1, y0, x1, y1, out); }
   else { lineInto(x0, y0, x0, y1, out); lineInto(x0, y1, x1, y1, out); }
   return out;
@@ -140,16 +146,20 @@ export function drawRoad(world, x0, y0, x1, y1, flip = false) {
   return p;
 }
 
-export function rectTiles(x0, y0, x1, y1) {
+// Tiles of the rectangle between two corners. Non-integer corners give no tiles. With a map size the
+// rectangle is clamped to the map first, so a huge drag costs at most size * size steps.
+export function rectTiles(x0, y0, x1, y1, size = Infinity) {
   const out = [];
-  const [ax, bx] = [Math.min(x0, x1), Math.max(x0, x1)];
-  const [ay, by] = [Math.min(y0, y1), Math.max(y0, y1)];
+  if (![x0, y0, x1, y1].every(Number.isInteger)) return out;
+  const last = size - 1;
+  const ax = Math.max(0, Math.min(x0, x1)), bx = Math.min(last, Math.max(x0, x1));
+  const ay = Math.max(0, Math.min(y0, y1)), by = Math.min(last, Math.max(y0, y1));
   for (let y = ay; y <= by; y++) for (let x = ax; x <= bx; x++) out.push([x, y]);
   return out;
 }
 
 export function previewHouses(world, x0, y0, x1, y1) {
-  const positions = rectTiles(x0, y0, x1, y1).filter(([x, y]) => checkTiles(world, 'house', x, y) === null);
+  const positions = rectTiles(x0, y0, x1, y1, world.size).filter(([x, y]) => checkTiles(world, 'house', x, y) === null);
   const cost = positions.length * BUILDINGS.house.cost;
   if (!positions.length) return fail('nothing_to_place', { positions, cost: 0 });
   const warnings = positions.some(([x, y]) => !touchesRoad(world, { x, y, w: 1, d: 1 })) ? ['needs_road'] : [];
@@ -169,7 +179,7 @@ export function paintHouses(world, x0, y0, x1, y1) {
 export function previewDemolishArea(world, x0, y0, x1, y1) {
   const buildingIds = [];
   const roadTiles = [];
-  for (const [x, y] of rectTiles(x0, y0, x1, y1)) {
+  for (const [x, y] of rectTiles(x0, y0, x1, y1, world.size)) {
     if (!inBounds(world.size, x, y)) continue;
     const i = idx(world.size, x, y);
     if (world.occ[i] && !buildingIds.includes(world.occ[i])) buildingIds.push(world.occ[i]);
