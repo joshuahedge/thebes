@@ -10,6 +10,8 @@ import { makeDraw } from './art/ctx.js';
 import { TERRAIN } from './art/palette.js';
 import { rock, scrub, dune, tufts } from './art/nature.js';
 import { defaultCreateCanvas, bucketFor } from './spriteCache.js';
+import { drawRiver } from './terrainWater.js';
+import { drawRoads } from './terrainRoads.js';
 
 export { CHUNK };
 export const CHUNK_MARGIN = 24;   // art px of canvas around the chunk diamond
@@ -203,7 +205,9 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
     return [v[0] + dx / len * e, v[1] + dy / len * e];
   }));
   drawGround(g, world, range);
+  drawRiver(g, world, range);
   drawPlots(g, world, range);
+  drawRoads(g, world, range);
   g.restore();
   return { canvas, ax, ay, scale, cx, cy };
 }

@@ -29,3 +29,4 @@ import './render/natureArt.test.js';
 import './render/figuresArt.test.js';
 import './render/spriteCache.test.js';
 import './render/terrainBaker.test.js';
+import './render/terrainRoads.test.js';
