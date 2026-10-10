@@ -13,7 +13,7 @@ function harness(speed) {
   return { w, loop, frames, batches };
 }
 
-// Real frames arrive well inside MAX_FRAME_SECONDS (0.25 s), so a longer span is fed as several frames.
+// A frame's dt is capped at MAX_FRAME_SECONDS (0.25 s), so a longer span is fed as several frames of exactly the cap.
 function advance(loop, fromMs, toMs, stepMs = 250) {
   for (let t = fromMs + stepMs; t <= toMs; t += stepMs) loop.tick(t);
 }
@@ -47,6 +47,14 @@ describe('game loop', () => {
     loop.tick(120000);
     expect(w.day).toBeLessThanOrEqual(Math.ceil(MAX_FRAME_SECONDS * 1.5 * 3));
     expect(w.day).toBeLessThanOrEqual(MAX_DAYS_PER_FRAME);
+  });
+  it('caps the days stepped in one frame', () => {
+    const { w, loop } = harness(1);
+    w.speed = 100;
+    loop.tick(0);
+    loop.tick(250);
+    expect(w.day).toBe(MAX_DAYS_PER_FRAME);
+    expect(loop.accumulator < 1).toBe(true);
   });
   it('hands sim events to onEvents and never keeps them', () => {
     const { w, loop, batches } = harness(3);
