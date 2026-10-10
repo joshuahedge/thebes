@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { createRenderer, decorAt, collectObjects } from '../../src/render/renderer.js';
-import { createCamera } from '../../src/render/camera.js';
+import { createCamera, visibleTileRange } from '../../src/render/camera.js';
 import { createSpriteCache } from '../../src/render/spriteCache.js';
 import { createTerrainBaker } from '../../src/render/terrainBaker.js';
 import { riverWorld } from '../helpers/renderWorld.js';
@@ -89,7 +89,8 @@ describe('renderer', () => {
     const real = createSpriteCache();
     const cache = { get: (...a) => { calls.push('sprite'); return real.get(...a); } };
     const renderer = createRenderer({ canvas, dpr: 1, spriteCache: cache, baker: createTerrainBaker(), maxBakesPerFrame: Infinity });
-    renderer.renderFrame(w, createCamera({ x: 18, y: 14, zoom: 1 }), {
+    const cam = createCamera({ x: 18, y: 14, zoom: 1 });
+    renderer.renderFrame(w, cam, {
       view: { width: 400, height: 300 },
       effects: { draw: (g, now) => calls.push(['effects', typeof g.poly, now]) },
       drawOverlay: (g, range) => calls.push(['overlay', range]),
@@ -106,7 +107,7 @@ describe('renderer', () => {
     expect(calls[fx][1]).toBe('function');
     expect(calls[fx][2]).toBe(1234);
     expect(ov > fx).toBe(true);
-    expect(calls[ov][1].x0 <= calls[ov][1].x1).toBe(true);
+    expect(calls[ov][1]).toEqual(visibleTileRange(cam, { width: 400, height: 300 }, 32));
   });
   it('sizes the canvas for dpr 2', () => {
     const w = riverWorld();
