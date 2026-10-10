@@ -1,6 +1,6 @@
 // Saves (spec 7.5): staging -> validate -> current, previous current -> backup. IndexedDB holds the three
 // records in one object store; localStorage holds the same three keys when IndexedDB is missing or fails.
-// Loading reads the current record and falls back to the backup only when the current one is corrupt.
+// Loading reads the current record and falls back to the backup whenever the current one fails, except a newer version's save.
 import { unpackSave } from './serialize.js';
 
 const SLOTS = { staging: 'staging', current: 'current', backup: 'backup' };
@@ -33,7 +33,7 @@ function inTx(db, mode, fn) {
   });
 }
 
-const isCorrupt = (e) => e && e.message === 'corrupt_save';
+const isNewer = (e) => e && e.message === 'newer_version';
 const quotaCode = (e) => (e && (e.name === 'QuotaExceededError' || /quota/i.test(e.message || '')) ? 'storage_full' : 'write_failed');
 
 export function createSaveStore({ idb = defaultIdb(), local = defaultLocal(), dbName = 'thebes', key = 'thebes.save' } = {}) {
@@ -94,10 +94,10 @@ export function createSaveStore({ idb = defaultIdb(), local = defaultLocal(), db
     const current = await readSlot(SLOTS.current);
     if (typeof current !== 'string') return null;
     try { unpackSave(current); return { text: current, backend: api.backend, usedBackup: false }; } catch (e) {
-      if (!isCorrupt(e)) throw e;                            // newer_version and friends are refused, nothing is touched
+      if (isNewer(e)) throw e;                               // a newer version's save is refused, nothing is touched; any other failure offers the backup
       const backup = await readSlot(SLOTS.backup);
       if (typeof backup !== 'string') throw e;
-      unpackSave(backup);                                    // a corrupt backup throws its own corrupt_save
+      unpackSave(backup);                                    // a bad backup throws its own code
       return { text: backup, backend: api.backend, usedBackup: true };
     }
   };

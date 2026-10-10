@@ -20,7 +20,7 @@ function fakeSw({ controlled = true } = {}) {
   const sw = {
     controller: controlled ? {} : null, registered: [],
     addEventListener(t, fn) { (listeners[t] = listeners[t] || []).push(fn); },
-    async register(p) { sw.registered.push(p); return reg; },
+    async register(p, options) { sw.registered.push([p, options]); return reg; },
     fire(t) { for (const fn of listeners[t] || []) fn(); },
   };
   return { sw, reg, fireReg: (t) => { for (const fn of reg.listeners[t] || []) fn(); } };
@@ -68,13 +68,14 @@ describe('ui pwa', () => {
     expect(sw).toContain('skipWaiting');
     expect(sw).toContain('THEBES_FILES');
     expect(sw).toContain('ignoreSearch');
+    expect(sw).toContain("cache: 'reload'");                                    // the precache skips the HTTP cache (Pages max-age)
     expect(/clients\.claim\(\)/.test(sw)).toBe(true);
   });
   it('registers the worker, offers a waiting one only when the page is controlled, and the restart saves then reloads', async () => {
     const { sw, reg, fireReg } = fakeSw();
     const offered = [];
     expect(await registerServiceWorker({ sw, path: './sw.js', onWaiting: (w) => offered.push(w) })).toBe(reg);
-    expect(sw.registered).toEqual(['./sw.js']);
+    expect(sw.registered).toEqual([['./sw.js', { updateViaCache: 'none' }]]);
     expect(offered).toEqual([]);
     const worker = fakeWorker();
     reg.installing = worker;
@@ -86,6 +87,12 @@ describe('ui pwa', () => {
     await applyUpdate(worker, sw, { save: async () => { log.push('save'); return true; }, reload: () => log.push('reload') });
     expect(log).toEqual(['save']);
     expect(worker.posted).toEqual(['skipWaiting']);
+    const waiting = fakeWorker();
+    const failed = fakeSw();
+    expect(await applyUpdate(waiting, failed.sw, { save: async () => false, reload: () => log.push('reload?') })).toBe(false);
+    expect(waiting.posted).toEqual([]);                                        // a failed save keeps the update waiting
+    failed.sw.fire('controllerchange');
+    expect(log).toEqual(['save']);
     sw.fire('controllerchange'); sw.fire('controllerchange');
     expect(log).toEqual(['save', 'reload']);                                   // once
     const already = fakeSw();
@@ -116,6 +123,27 @@ describe('ui pwa', () => {
     fire(toast.querySelector('button'), 'click');
     expect(applied).toEqual([1]);
     expect(r.root.querySelector('#toasts .toast')).toBe(null);
+    r.cleanup();
+  });
+  it('says so when Restart cannot save, and offers the update again at the next browse moment', async () => {
+    const r = await rigUI();
+    let ok = false, runs = 0;
+    r.ui.offerUpdate(async () => { runs++; return ok; });
+    fire(r.root.querySelector('#toasts .toast button'), 'click');
+    await new Promise((res) => setTimeout(res, 0));
+    expect(runs).toBe(1);
+    expect(r.root.querySelector('#toasts .toast').textContent).toContain(T.updateSaveFailed);
+    expect(r.root.querySelector('#toasts .toast button')).toBe(null);          // the failure line has no Restart
+    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');                   // a tool starts and ends: the offer returns
+    fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');
+    fire(r.root.querySelector('#confirm .cancel'), 'click');
+    const again = [...r.root.querySelectorAll('#toasts .toast')].find((t) => t.textContent.includes(T.updateReady));
+    expect(Boolean(again)).toBe(true);
+    ok = true;
+    fire(again.querySelector('button'), 'click');
+    await new Promise((res) => setTimeout(res, 0));
+    expect(runs).toBe(2);
+    expect([...r.root.querySelectorAll('#toasts .toast')].some((t) => t.textContent.includes(T.updateReady))).toBe(false);
     r.cleanup();
   });
 });

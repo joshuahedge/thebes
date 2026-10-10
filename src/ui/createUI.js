@@ -59,7 +59,7 @@ export function createUI({
 
   const settings = givenSettings || createSettings({ storage, root });
   const sfx = givenSfx || createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
-  const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height) });
+  const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
   const toasts = createToasts({ container: $('toasts') });
   const effects = createEffects({
     reducedMotion: settings.reducedMotion,
@@ -216,7 +216,16 @@ export function createUI({
     if (!pendingUpdate || isToolMode(store.get().mode)) return;
     const apply = pendingUpdate;
     pendingUpdate = null;
-    toasts.show(T.updateReady, { action: T.restart, onAction: apply, ms: UPDATE_TOAST_MS });
+    toasts.show(T.updateReady, {
+      action: T.restart, ms: UPDATE_TOAST_MS,
+      onAction: async () => {
+        let ok = true;
+        try { ok = (await apply()) !== false; } catch (e) { ok = false; }
+        if (ok || destroyed) return;
+        toasts.show(T.updateSaveFailed);                // the update waits; a later browse moment offers it again
+        pendingUpdate = apply;
+      },
+    });
   }
   function offerUpdate(apply) { pendingUpdate = apply; showUpdateToast(); }
   // Registered after the speed control's own listener, so the game is already paused when this save is taken.

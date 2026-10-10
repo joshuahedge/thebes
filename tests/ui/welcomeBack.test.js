@@ -45,6 +45,7 @@ describe('ui welcome back', () => {
     r.cleanup();
     const stay = await rigUI({ welcome: { savedAt: null, lastSpeed: 3 } });
     expect(stay.root.querySelector('#sheet').textContent).toContain(T.aWhileAgo);
+    expect(stay.store.get().lastSpeed).toBe(3);                                // the saved speed survives Stay paused and a later autosave
     fire(stay.root.querySelector('#sheet .stay-paused'), 'click');
     expect(stay.world.speed).toBe(0);
     expect(stay.store.get().sheet).toBe(null);
