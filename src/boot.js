@@ -1,0 +1,127 @@
+// Boot in two phases (spec 4.1, 4.17): the title card over a drifting sample city, then the game. Saves go
+// through the save store; a loaded world is used as it is (never assigned into a live world) and the game
+// always reopens paused. ?skipTitle=1 boots straight into a new city; ?welcome=1 shows the Welcome back card.
+import { createWorld } from './sim/world.js';
+import { setSpeed } from './sim/commands.js';
+import { createCamera } from './render/camera.js';
+import { createRenderer } from './render/renderer.js';
+import { createGameLoop } from './render/loop.js';
+import { buildSampleCity, buildStressCity } from './dev/sampleCity.js';
+import { createUI } from './ui/createUI.js';
+import { createSettings } from './ui/settings.js';
+import { createCameraControl } from './ui/cameraControl.js';
+import { createTitleCard, createBackdrop } from './ui/titleCard.js';
+import { createSaveStore } from './save/store.js';
+import { packSave, unpackSave } from './save/serialize.js';
+import { TITLE_SEED } from './data/ui.js';
+import { T } from './ui/text.js';
+
+const HOUR = 3600 * 1000;
+
+// What the slot holds, as the title card needs it. Load errors are reported, never repaired here.
+export async function loadSave(store) {
+  let loaded;
+  try { loaded = await store.load(); } catch (e) { return { state: 'error', code: (e && e.message) || 'corrupt_save' }; }
+  if (!loaded) return { state: 'none' };
+  try { return { state: 'ok', ...unpackSave(loaded.text), usedBackup: Boolean(loaded.usedBackup) }; }
+  catch (e) { return { state: 'error', code: (e && e.message) || 'corrupt_save' }; }
+}
+
+export async function boot(doc, win, {
+  root = doc.body, store = createSaveStore(), params = new URLSearchParams(win.location.search),
+  now = () => performance.now(), clock = () => Date.now(), storage = undefined, uiOptions = {}, loopOptions = {},
+} = {}) {
+  const canvas = root.querySelector('#map');
+  const renderer = createRenderer({ canvas });
+  const settings = createSettings({ storage, root });
+  const view = uiOptions.getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
+  const stress = params.get('stress') === '1', sample = params.get('sample') === '1';
+  const seedOf = () => Number(params.get('seed')) || Math.floor(Math.random() * 1e9);
+
+  function freshWorld() {
+    const world = createWorld({ seed: seedOf() });
+    if (stress) buildStressCity(world); else if (sample) buildSampleCity(world);
+    if (params.has('speed')) setSpeed(world, Number(params.get('speed')));
+    return world;
+  }
+
+  let current = null;        // { world, ui, loop, cam } while the game runs
+  let title = null;          // { card, loop, backdrop } while the title shows
+  let saveBlocked = false;   // a newer version's save sits in the slot: never overwrite it (spec 7.5)
+  let persisted = false;
+
+  const hooks = {
+    async save() {
+      if (!current || saveBlocked) return false;
+      const text = packSave(current.world, { savedAt: clock(), lastSpeed: current.ui.store.get().lastSpeed });
+      const r = await store.save(text);
+      if (r.ok && !persisted) {                         // spec 4.17: ask to keep the data once a city exists
+        persisted = true;
+        try { const s = win.navigator && win.navigator.storage; if (s && s.persist) s.persist().catch(() => {}); } catch (e) { /* not offered */ }
+      }
+      return r.ok;
+    },
+    newCity() { startGame(freshWorld()); },
+  };
+
+  function stopGame() { if (!current) return; current.loop.stop(); current.ui.destroy(); current = null; }
+
+  function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null } = {}) {
+    leaveTitle();
+    stopGame();
+    if (fromSave) setSpeed(world, 0);                   // the game always reopens paused (spec 4.17)
+    const cam = createCamera({ x: stress ? 32 : world.focus.x, y: stress ? 32 : world.focus.y, zoom: 1 });
+    const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings, hooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null, ...uiOptions });
+    const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: ui.render, ...loopOptions });
+    current = { world, ui, loop, cam };
+    if (notice) ui.toasts.show(notice);
+    if (!fromSave) ui.autosave('new');                  // the previous city becomes the backup at once
+    loop.start();
+    win.__thebes = { world, cam, renderer, loop, ui };
+    return current;
+  }
+
+  function showTitle(loaded) {
+    const world = buildSampleCity(createWorld({ seed: TITLE_SEED }));
+    const cam = createCamera({ x: world.tradeEntry.x, y: world.size - 22, zoom: 1 });
+    const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
+    const backdrop = createBackdrop({ world, cam, cameraControl, reducedMotion: settings.reducedMotion });
+    const loop = createGameLoop({ world, render: ({ now: t }) => { backdrop.tick(t); cameraControl.tick(t); renderer.renderFrame(world, cam, { view: view() }); }, ...loopOptions });
+    let message = null;
+    if (loaded.state === 'error') {
+      saveBlocked = loaded.code === 'newer_version';
+      message = saveBlocked ? T.saveNewer : T.saveUnreadable;
+      console.warn('Thebes: the saved city was not loaded:', loaded.code);
+    }
+    root.classList.add('on-title');
+    const card = createTitleCard({
+      container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: false, sound: settings.get().sound, message,
+      onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
+      onNewCity: () => startGame(freshWorld()),
+      onSound: (on) => settings.set({ sound: on }),
+    });
+    title = { card, loop, backdrop };
+    loop.start();
+  }
+
+  function leaveTitle() {
+    if (!title) return;
+    title.loop.stop(); title.backdrop.stop(); title.card.destroy();
+    root.classList.remove('on-title');
+    title = null;
+  }
+
+  if (params.get('skipTitle') === '1') startGame(freshWorld());
+  else if (params.get('welcome') === '1') {
+    const world = freshWorld();
+    if (!sample && !stress) buildSampleCity(world);
+    startGame(world, { fromSave: true, savedAt: clock() - 2 * HOUR, lastSpeed: 2 });
+  } else showTitle(await loadSave(store));
+
+  return {
+    phase: () => (title ? 'title' : 'game'),
+    game: () => current,
+    startGame, hooks,
+    destroy() { leaveTitle(); stopGame(); },
+  };
+}

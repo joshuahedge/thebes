@@ -196,3 +196,12 @@ body[data-layout="wide"] #goals { max-width: 440px; }
 body[data-layout="compact"] #under-bar { right: calc(var(--rail-w) + var(--safe-right) + 8px); }
 .goals { list-style: none; padding: 0; }
 .goals .goal { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+
+/* The title card (spec 4.1) over the drifting sample city. While it shows, the game chrome stays hidden. */
+#title { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(43, 31, 14, 0.25); }
+.title-card { background: var(--parchment); border-radius: 16px; box-shadow: var(--shadow); padding: 24px; width: min(360px, 100%); display: flex; flex-direction: column; gap: 8px; text-align: center; box-sizing: border-box; }
+.title-card h1 { margin: 0; font-size: calc(32px * var(--ui-scale)); letter-spacing: 0.08em; }
+.title-card .tagline { margin: 0 0 8px; }
+.title-card .message { margin: 0 0 8px; }
+.title-buttons { display: flex; flex-direction: column; gap: 8px; }
+body.on-title #ui > :not(#title) { display: none !important; }
