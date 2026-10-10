@@ -99,6 +99,7 @@ export function monthlyHousing(world, events = null) {
       if (next <= MAX_TIER && needsOf(next).every((n) => met[n])) {
         if (events) events.push({ type: 'upgrade', id: h.id, from: h.tier, to: next });
         h.tier = next;
+        world.tally.upgrades += 1;
       }
     } else {
       h.downTimer++;

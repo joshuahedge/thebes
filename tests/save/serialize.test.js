@@ -41,7 +41,7 @@ describe('save', () => {
     expect(code(() => deserialize(JSON.stringify({ version: CURRENT_VERSION + 1, totally: 'different' })))).toBe('newer_version');
   });
   it('reports corrupt_save for a current-version save with missing fields', () => {
-    expect(code(() => deserialize(JSON.stringify({ version: 1 })))).toBe('corrupt_save');
+    expect(code(() => deserialize(JSON.stringify({ version: CURRENT_VERSION })))).toBe('corrupt_save');
   });
   it('lists exactly the fields createWorld produces as required', () => {
     expect(Object.keys(createWorld({ seed: 1 })).sort()).toEqual([...REQUIRED].sort());
