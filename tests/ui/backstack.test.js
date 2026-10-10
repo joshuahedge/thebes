@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
-import { select, startTool, openSheet, back } from '../../src/ui/modes.js';
+import { select, deselect, startTool, openSheet, back } from '../../src/ui/modes.js';
 import { createBackStack } from '../../src/ui/backstack.js';
 
 function fakeHistory() {
@@ -50,5 +50,21 @@ describe('ui back stack', () => {
     expect(store.get().mode).toBe('browse');
     bs.stop();
     expect(h.listeners.length).toBe(0);
+  });
+  it('closes the open step on Back even after an earlier step was closed by other means', () => {
+    const store = createStore(INITIAL_UI_STATE);
+    const h = fakeHistory();
+    const bs = createBackStack({ store, history: h, addListener: h.addListener, removeListener: h.removeListener });
+    bs.start();
+    store.set(select(store.get(), 1));
+    store.set(deselect(store.get()));          // tapped empty ground: closed by other means
+    store.set(select(store.get(), 2));
+    expect(bs.depth()).toBe(1);
+    h.back();                                  // the phone's Back closes the open selection, not the stale entry
+    expect(store.get().mode).toBe('browse');
+    expect(store.get().selectedId).toBe(null);
+    h.back();                                  // now the stale entry expires with nothing open
+    expect(store.get().mode).toBe('browse');
+    expect(bs.depth()).toBe(0);
   });
 });

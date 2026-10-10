@@ -27,13 +27,17 @@ export function createBackStack({
   }
 
   function onPop() {
-    if (stale > 0) { stale--; return; }      // a step closed by other means; the entry just expires
-    if (depth <= 0) return;                  // nothing open: let the browser go where it was going
-    depth--;
-    applying = true;
-    const patch = back(store.get());
-    if (patch) store.set(patch);
-    applying = false;
+    if (depth > 0) {                         // an open step: Back closes it first
+      depth--;
+      applying = true;
+      try {
+        const patch = back(store.get());
+        if (patch) store.set(patch);
+      } finally { applying = false; }
+      return;
+    }
+    if (stale > 0) { stale--; return; }      // nothing open: a step closed by other means, its entry just expires
+    // otherwise nothing of ours is left: the browser goes where it was going
   }
 
   return {

@@ -11,8 +11,13 @@ const VALID = {
   reducedMotion: (v) => ['system', 'on', 'off'].includes(v),
 };
 
+// Reading the localStorage global itself throws when storage is blocked, so the default is resolved in a guard.
+function defaultStorage() {
+  try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch (e) { return null; }
+}
+
 export function createSettings({
-  storage = typeof localStorage !== 'undefined' ? localStorage : null, key = 'thebes.settings',
+  storage = defaultStorage(), key = 'thebes.settings',
   root = document.body, systemReducedMotion = prefersReducedMotion,
 } = {}) {
   const subs = new Set();
