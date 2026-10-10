@@ -19,6 +19,7 @@ import { T, importErrorText } from './ui/text.js';
 import { detectEnvironment, readEnvironment, createInstallFlow } from './save/installFlow.js';
 import { installGuide, noticeText, showNotice } from './ui/installUi.js';
 import { openSheet } from './ui/modes.js';
+import { registerServiceWorker, applyUpdate } from './pwa.js';
 
 const HOUR = 3600 * 1000;
 
@@ -34,6 +35,7 @@ export async function loadSave(store) {
 export async function boot(doc, win, {
   root = doc.body, store = createSaveStore(), params = new URLSearchParams(win.location.search),
   now = () => performance.now(), clock = () => Date.now(), storage = undefined, uiOptions = {}, loopOptions = {}, platform = {}, envInput = readEnvironment(win),
+  sw = (win.navigator && win.navigator.serviceWorker) || null,
 } = {}) {
   const canvas = root.querySelector('#map');
   const renderer = createRenderer({ canvas });
@@ -45,6 +47,7 @@ export async function boot(doc, win, {
     canShare: typeof nav.canShare === 'function' ? (d) => nav.canShare(d) : null,
     download: (file) => downloadFile(file, doc),
     pick: () => pickFile(doc),
+    reload: () => win.location.reload(),
     ...platform,
   };
   // The install prompt arrives on its own time (Android, desktop Chrome and Edge): keep it for the button.
@@ -55,6 +58,7 @@ export async function boot(doc, win, {
   let loadedOk = false;
   let current = null;        // { world, ui, loop, cam } while the game runs
   let title = null;          // { card, loop, backdrop } while the title shows
+  let pendingUpdate = null;  // a waiting worker's restart, kept through the title and offered once the game runs
   const flow = createInstallFlow({ env: detectEnvironment(envInput), hasSave: () => loadedOk || Boolean(current), getPrompt: io.installPrompt });
   showNotice(root.querySelector('#notice'), noticeText(flow.notice()));
   const view = uiOptions.getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
@@ -126,6 +130,7 @@ export async function boot(doc, win, {
     if (notice) ui.toasts.show(notice);
     if (saveNow) ui.autosave(fromSave ? 'import' : 'new');   // the previous city becomes the backup at once
     loop.start();
+    if (pendingUpdate) { ui.offerUpdate(pendingUpdate); pendingUpdate = null; }
     win.__thebes = { world, cam, renderer, loop, ui };
     return current;
   }
@@ -163,6 +168,15 @@ export async function boot(doc, win, {
     title.loop.stop(); title.backdrop.stop(); title.card.destroy();
     root.classList.remove('on-title');
     title = null;
+  }
+
+  // The offline cache (spec 7.1). ?nosw=1 drops it while developing, so edits show without a restart.
+  if (params.get('nosw') === '1') { if (sw && sw.getRegistrations) sw.getRegistrations().then((regs) => regs.forEach((r) => r.unregister())).catch(() => {}); }
+  else {
+    registerServiceWorker({ sw, onWaiting: (worker) => {
+      const apply = () => applyUpdate(worker, sw, { save: () => hooks.save('update'), reload: io.reload });
+      if (current) current.ui.offerUpdate(apply); else pendingUpdate = apply;
+    } });
   }
 
   if (params.get('skipTitle') === '1') startGame(freshWorld());

@@ -16,11 +16,11 @@ const noStorage = { getItem: () => null, setItem: () => {} };
 const until = async (cond) => { for (let i = 0; i < 50 && !cond(); i++) await flush(); };
 
 // The real page shell, a fake store and no animation frames: loops never run, so every frame is explicit.
-async function bootRig({ params = '', store = createSaveStore({ idb: fakeIndexedDB(), local: null }), clock = () => 1760000000000, platform = {}, envInput = { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' } } = {}) {
+async function bootRig({ params = '', store = createSaveStore({ idb: fakeIndexedDB(), local: null }), clock = () => 1760000000000, platform = {}, sw = null, envInput = { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' } } = {}) {
   const shell = await mountShell(1280, 800);
   const history = fakeHistory();
   const api = await boot(document, window, {
-    root: document.body, store, params: new URLSearchParams(params), now: () => 0, clock, storage: noStorage, platform, envInput,
+    root: document.body, store, params: new URLSearchParams(params), now: () => 0, clock, storage: noStorage, platform, envInput, sw,
     uiOptions: { getSize: () => ({ width: 1280, height: 800 }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage: noStorage },
     loopOptions: { raf: () => 0, caf: () => {} },
   });
@@ -259,6 +259,25 @@ describe('ui boot', () => {
     fire(title.querySelector('.install'), 'click');
     await flush();
     expect(prompts[prompts.length - 1]).toBe('late');
+    r.cleanup();
+  });
+  it('offers a waiting worker once the game runs; Restart saves, hands over and reloads', async () => {
+    const listeners = {};
+    const worker = { state: 'installed', posted: [], addEventListener() {}, postMessage(m) { worker.posted.push(m); } };
+    const reg = { waiting: worker, installing: null, addEventListener() {} };
+    const sw = { controller: {}, async register() { return reg; }, addEventListener(t, fn) { (listeners[t] = listeners[t] || []).push(fn); } };
+    const store = createSaveStore({ idb: fakeIndexedDB(), local: null });
+    const reloads = [];
+    const r = await bootRig({ store, params: 'skipTitle=1&seed=3', sw, platform: { reload: () => reloads.push(1) } });
+    await flush(); await flush();
+    const toast = r.root.querySelector('#toasts .toast');
+    expect(toast.textContent).toContain(T.updateReady);
+    fire(toast.querySelector('button'), 'click');
+    await flush(); await flush();
+    expect((await loadSave(store)).world.seed).toBe(3);
+    expect(worker.posted).toEqual(['skipWaiting']);
+    for (const fn of listeners.controllerchange) fn();
+    expect(reloads).toEqual([1]);
     r.cleanup();
   });
 });

@@ -3,7 +3,7 @@
 import { MILESTONES } from '../data/progression.js';
 import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { CATEGORIES, toolForItem, UNDO_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
+import { CATEGORIES, toolForItem, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
 import { goalById } from '../sim/goals.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
@@ -210,6 +210,15 @@ export function createUI({
       else if (e.type === 'milestone') { sfx.play('milestone'); sfx.buzz(40); }
     }
   }
+  // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js).
+  let pendingUpdate = null;
+  function showUpdateToast() {
+    if (!pendingUpdate || isToolMode(store.get().mode)) return;
+    const apply = pendingUpdate;
+    pendingUpdate = null;
+    toasts.show(T.updateReady, { action: T.restart, onAction: apply, ms: UPDATE_TOAST_MS });
+  }
+  function offerUpdate(apply) { pendingUpdate = apply; showUpdateToast(); }
   // Registered after the speed control's own listener, so the game is already paused when this save is taken.
   const onVisibility = () => { if (doc.hidden) autosave('hidden'); };
   doc.addEventListener('visibilitychange', onVisibility);
@@ -289,6 +298,7 @@ export function createUI({
   let lastSelected = null;
   store.subscribe((s) => {
     root.dataset.mode = s.mode;
+    if (pendingUpdate && !isToolMode(s.mode)) showUpdateToast();
     root.classList.toggle('has-overlay', Boolean(s.overlay));
     if (s.selectedId !== lastSelected) {
       lastSelected = s.selectedId;
@@ -329,7 +339,7 @@ export function createUI({
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
-    store, settings, sfx, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh, onEvents, autosave, setSaveFailed,
+    store, settings, sfx, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
     destroy() {
       if (destroyed) return;
       destroyed = true;
