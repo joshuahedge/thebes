@@ -79,7 +79,7 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 
 /* Portrait build dock: slim bar, tray, or tucked to a pill (spec 6.3). */
 #dock { position: fixed; left: 0; right: 0; bottom: 0; background: var(--parchment); border-top: 1px solid var(--parchment-3); border-radius: 16px 16px 0 0; box-shadow: var(--shadow); padding-bottom: var(--safe-bottom); display: flex; flex-direction: column; }
-#dock .handle { align-self: center; width: 44px; height: auto; margin: -10px 0; border: none; background: transparent; min-width: 0; min-height: var(--tap); padding: 0; box-shadow: none; }
+#dock .handle { align-self: center; width: 44px; height: auto; margin: -10px 0; border: none; background: transparent; min-width: 0; min-height: var(--tap); padding: 0; box-shadow: none; touch-action: none; }
 #dock .handle::before { content: ""; display: block; width: 40px; height: 5px; border-radius: 3px; background: var(--parchment-3); margin: 8px auto; }
 #dock .cats { display: flex; justify-content: space-around; padding: 0 4px 6px; }
 #dock .cat { display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; min-width: var(--tap); padding: 2px 4px; font-size: calc(12px * var(--ui-scale)); border-radius: 8px; box-shadow: none; }

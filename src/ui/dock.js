@@ -25,7 +25,14 @@ export function createDock({ container, store, world, onPick }) {
   cats.append(...catButtons);
   handle.addEventListener('click', () => { const s = store.get(); store.set(setDock(s, s.dock === 'tray' ? 'slim' : 'tray')); });
   let swipeStart = null;
-  handle.addEventListener('pointerdown', (ev) => { swipeStart = ev.clientY; });
+  handle.addEventListener('pointerdown', (ev) => {
+    swipeStart = ev.clientY;
+    // Keep the drag on the handle even if the finger strays; synthetic events have no active pointer to capture.
+    try { handle.setPointerCapture(ev.pointerId); } catch {}
+  });
+  // A browser that takes a vertical drag for scrolling fires pointercancel, not pointerup: drop the swipe.
+  handle.addEventListener('pointercancel', () => { swipeStart = null; });
+  handle.addEventListener('pointerleave', () => { swipeStart = null; });
   handle.addEventListener('pointerup', (ev) => {
     if (swipeStart === null) return;
     const dy = ev.clientY - swipeStart;

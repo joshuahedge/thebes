@@ -47,4 +47,15 @@ describe('ui dock', () => {
     expect(store.get().dock).toBe('tray');
     cleanup();
   });
+  it('ignores a swipe that the browser cancels', () => {
+    const { root, cleanup } = mount();
+    const store = createStore({ ...INITIAL_UI_STATE, layout: 'portrait' });
+    createDock({ container: root, store, world: makeTestWorld(), onPick: () => {} });
+    const handle = root.querySelector('.handle');
+    fire(handle, 'pointerdown', { clientX: 10, clientY: 300, pointerId: 4, pointerType: 'touch' });
+    fire(handle, 'pointercancel', { clientX: 10, clientY: 300, pointerId: 4, pointerType: 'touch' });
+    fire(handle, 'pointerup', { clientX: 10, clientY: 360, pointerId: 4, pointerType: 'touch' });
+    expect(store.get().dock).toBe('slim');
+    cleanup();
+  });
 });
