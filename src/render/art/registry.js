@@ -5,9 +5,10 @@
 // replacing `draw` with `png: { src, ax, ay, scale }` (see spriteCache.js); nothing else changes.
 import { HOUSE_ART } from './housing.js';
 import { SERVICE_ART } from './services.js';
+import { NATURE_ART } from './nature.js';
 
 export { boundsFor } from '../iso.js';
 
-export const ART = { ...HOUSE_ART, ...SERVICE_ART };
+export const ART = { ...HOUSE_ART, ...SERVICE_ART, ...NATURE_ART };
 
 export const slotFor = (b) => (b.type === 'house' ? `house.t${b.tier}` : b.type);
