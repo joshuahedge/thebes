@@ -48,7 +48,7 @@ export const TERRAIN = {
   rocky: '#D3B582', rockySecond: '#C4A574', rockySoft: '#E0C898', pebble: '#B39C82', pebbleLight: '#D9C7A8',
   water: '#2E8C96', waterDeep: '#1E6A7C', waterLight: '#86CBC4', foam: '#DDF4F1', ripple: '#B8E6E2',
   road: '#DCC08C', roadEdge: '#C2A274', roadPebble: '#B39466', roadPebbleLight: '#F2E2BC',
-  plot: '#F2DFB5', field: '#7FAA45', fieldEdge: '#6A5A40', grid: '#3E3260',
+  plot: '#E3CFA0', field: '#7FAA45', fieldEdge: '#6A5A40', grid: '#3E3260',
 };
 
 export const UI = {

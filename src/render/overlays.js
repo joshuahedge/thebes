@@ -6,7 +6,7 @@ import { houseStatus } from '../sim/housing.js';
 import { roadReach } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
 import { p, U, tileDiamond, quad } from './iso.js';
-import { UI } from './art/palette.js';
+import { UI, INK } from './art/palette.js';
 
 export const OVERLAYS = ['water', 'food', 'religion', 'housing'];
 export const OVERLAY_HUE = { water: UI.water, food: UI.food, religion: UI.religion, housing: UI.housing };
@@ -22,16 +22,34 @@ export function houseMark(world, house, kind) {
   return item ? { has: item.met, need: kind } : null;
 }
 
-const inRange = (b, r) => !r || (b.x <= r.x1 && b.x + b.w - 1 >= r.x0 && b.y <= r.y1 && b.y + b.d - 1 >= r.y0);
+const markCache = new WeakMap(); // world -> { key, marks }
 
-export function overlayMarks(world, kind, range = null) {
-  const out = [];
+// Cheap per-frame signature of what can change a mark between days: which buildings exist and their
+// staff, paused and tier. O(n) over buildings; the expensive part (houseStatus per house) stays memoised.
+function buildingSignature(world) {
+  let sig = 0, n = 0;
+  for (const b of allBuildings(world)) { n++; sig = (sig * 31 + b.id * 13 + (b.staff || 0) * 3 + (b.paused ? 7 : 0) + (b.tier || 0) * 11) | 0; }
+  return `${n}:${sig}`;
+}
+
+function allMarks(world, kind) {
+  const key = `${kind}|${world.day}|${world.roadVersion}|${world.nextId}|${buildingSignature(world)}`;
+  const c = markCache.get(world);
+  if (c && c.key === key) return c.marks;
+  const marks = [];
   for (const h of housesOf(world)) {
-    if (!inRange(h, range)) continue;
     const m = houseMark(world, h, kind);
-    if (m) out.push({ id: h.id, x: h.x + h.w / 2, y: h.y + h.d / 2, has: m.has, need: m.need });
+    if (m) marks.push({ id: h.id, x: h.x + h.w / 2, y: h.y + h.d / 2, has: m.has, need: m.need });
   }
-  return out;
+  markCache.set(world, { key, marks });
+  return marks;
+}
+
+// Memoised per tick: marks only change when the world does. The same array comes back until then.
+export function overlayMarks(world, kind, range = null) {
+  const marks = allMarks(world, kind);
+  if (!range) return marks;
+  return marks.filter((m) => m.x >= range.x0 && m.x <= range.x1 + 1 && m.y >= range.y0 && m.y <= range.y1 + 1);
 }
 
 const reachOf = (def) => def.reach || def.supplyReach || def.producerReach || 0;
@@ -51,19 +69,28 @@ function tintTiles(g, world, tiles, color, alpha) {
 function mark(g, m, color) {
   const c = U(p(m.x, m.y), 6);
   if (m.has) {
+    g.circ(c, 4.8, INK, { alpha: 0.6 });
     g.circ(c, 4.2, UI.halo, { alpha: 0.9 });
     g.circ(c, 3, color);
   } else {
+    g.circ(c, 4.4, 'none', { stroke: INK, strokeWidth: 1, strokeAlpha: 0.6 });
     g.circ(c, 3.6, 'none', { stroke: UI.halo, strokeWidth: 3.2, strokeAlpha: 0.9 });
     g.circ(c, 3.6, 'none', { stroke: color, strokeWidth: 1.6 });
   }
 }
 
 export function drawOverlay(g, world, kind, range) {
+  if (!SERVICE_TYPES[kind]) return;
   const color = OVERLAY_HUE[kind];
+  const tiles = new Set();
   for (const b of allBuildings(world)) {
     if (!SERVICE_TYPES[kind].includes(b.type) || !isWorking(world, b)) continue;
-    tintTiles(g, world, reachTiles(world, b), color, 0.16);
+    for (const t of reachTiles(world, b)) tiles.add(t);
+  }
+  for (const t of tiles) {
+    const x = t % world.size, y = (t - x) / world.size;
+    if (range && (x < range.x0 || x > range.x1 || y < range.y0 || y > range.y1)) continue;
+    g.poly(tileDiamond(x, y), color, { alpha: 0.16 });
   }
   for (const m of overlayMarks(world, kind, range)) mark(g, m, color);
 }
@@ -79,7 +106,7 @@ export function drawGhost(g, ghost) {
   const { x, y, w, d, state } = ghost;
   const pts = quad(x, y, w, d, 0);
   const centre = p(x + w / 2, y + d / 2);
-  if (state === 'bad') {
+  if (state === 'bad' || state === 'demolish') {
     g.save();
     g.clip(pts);
     g.poly(pts, UI.bad, { alpha: 0.18 });
@@ -87,7 +114,7 @@ export function drawGhost(g, ghost) {
     for (let k = left - (bottom - top); k < right; k += 4) g.line([k, bottom], [k + (bottom - top), top], UI.bad, 1, 0.8);
     g.restore();
     g.poly(pts, 'none', { stroke: UI.bad, strokeWidth: 1.4 });
-    g.text(centre, '✕', { size: 9, color: UI.bad });
+    if (state === 'bad') g.text(centre, '✕', { size: 9, color: UI.bad });
     return;
   }
   const color = state === 'warn' ? UI.warn : UI.ok;

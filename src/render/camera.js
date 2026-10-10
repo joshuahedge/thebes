@@ -4,7 +4,7 @@ export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 2;
 export const CHUNK = 16;
 
-export const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+export const clampZoom = (z) => (Number.isNaN(+z) ? 1 : Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z)));
 
 // x, y: the tile coordinates (fractional) shown at the centre of the view.
 export function createCamera({ x = 0, y = 0, zoom = 1 } = {}) {
@@ -59,7 +59,9 @@ export function zoomAt(cam, view, factor, sx, sy) {
 
 // Inclusive tile bounds that cover the view. Tall buildings rise towards smaller x + y on screen, so
 // footprints just past the bottom edge can still show: `bottom` pads +x and +y further than the rest.
-export function visibleTileRange(cam, view, size, pad = { side: 1, top: 1, bottom: 4 }) {
+const DEFAULT_PAD = { side: 1, top: 1, bottom: 4 };
+export function visibleTileRange(cam, view, size, padIn = {}) {
+  const pad = { ...DEFAULT_PAD, ...padIn };
   const corners = [[0, 0], [view.width, 0], [0, view.height], [view.width, view.height]]
     .map(([sx, sy]) => screenToTile(cam, view, sx, sy));
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;

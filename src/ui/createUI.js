@@ -1,0 +1,271 @@
+// Wires every component to the store, the world, the camera and the renderer (spec 6). The world changes
+// only through placement.js, speed.js and the sheets, which call src/sim/commands.js then assignLabour.
+import { MILESTONES } from '../data/progression.js';
+import { BUILDINGS } from '../data/buildings.js';
+import { CATEGORIES, toolForItem, UNDO_TOAST_MS } from '../data/ui.js';
+import { screenToTile, visibleTileRange } from '../render/camera.js';
+import { walkersAt } from '../render/walkers.js';
+import { drawOverlay, drawReachHighlight, drawGhost } from '../render/overlays.js';
+import { createEffects } from '../render/effects.js';
+import { createStore, INITIAL_UI_STATE } from './store.js';
+import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode } from './modes.js';
+import { pickLayout, watchLayout } from './layout.js';
+import { createBackStack } from './backstack.js';
+import { createSettings } from './settings.js';
+import { createCameraControl } from './cameraControl.js';
+import { createMapInput } from './input.js';
+import { createKeyboard } from './keyboard.js';
+import { pickBuilding } from './pick.js';
+import { createPlacement, snapGhost } from './placement.js';
+import { createHud } from './hud.js';
+import { createSpeedControl } from './speed.js';
+import { cardInfo, activeItemOf } from './cards.js';
+import { createDock } from './dock.js';
+import { createConfirmBar } from './confirmBar.js';
+import { createSidePanel } from './sidePanel.js';
+import { createRail } from './rail.js';
+import { createCorners } from './corners.js';
+import { createSheets } from './sheets.js';
+import { createMinimap } from './minimap.js';
+import { createAlerts, mapSummaryText } from './alerts.js';
+import { createOverlayLegend } from './overlayUi.js';
+import { createToasts } from './toasts.js';
+import { createMenuSheets, createDialog } from './menu.js';
+import { el, setText } from './components.js';
+import { buildingName, reasonText, milestoneText, T } from './text.js';
+
+const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
+const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
+
+export function createUI({
+  world, canvas, cam, renderer,
+  root = document.body, doc = document, win = window,
+  getSize = null, subscribeResize = undefined, history = win.history,
+  addListener = (type, fn) => win.addEventListener(type, fn), removeListener = (type, fn) => win.removeEventListener(type, fn),
+  keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(),
+}) {
+  const $ = (id) => root.querySelector(`#${id}`);
+  const view = getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
+
+  // Ghost and day bookkeeping lives up here: afterCommand is hoisted and may run during construction.
+  let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [];
+
+  const settings = createSettings({ storage, root });
+  const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height) });
+  const toasts = createToasts({ container: $('toasts') });
+  const effects = createEffects({
+    reducedMotion: settings.reducedMotion(),
+    onMilestone: (id) => { const m = MILESTONES.find((x) => x.id === id); toasts.show(milestoneText(m ? m.name : id)); },
+  });
+  const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
+  const placement = createPlacement({ world, store, afterCommand, effects, now });
+  const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
+  const alerts = createAlerts({ world, banner: $('banner'), live: $('live'), onView: viewAlert, root });
+  const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr });
+  const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr });
+
+  const speedBar = el('div', { class: 'speed-bar' });
+  speedControl.mountBar(speedBar);
+  const hud = createHud({ world, store, container: $('topbar'), speedBar, onOpenSummary: () => toggleSheet('summary'), onOpenMenu: () => toggleSheet('menu') });
+  const dock = createDock({ container: $('dock'), store, world, onPick: pick });
+  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: confirm, onUndo: undo });
+  const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas });
+  const rail = createRail({ container: $('rail'), store, world, onPick: pick, onConfirm: confirm, onCancel: () => placement.cancel(), placement });
+  const legend = createOverlayLegend({ container: $('legend'), store });
+  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count() });
+  const menus = createMenuSheets({ store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {} });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, afterCommand, custom: menus });
+  createDialog({ container: $('dialog'), store });
+  const backStack = createBackStack({ store, history, addListener, removeListener });
+  backStack.start();
+  const stopLayout = watchLayout({ root, getSize: view, subscribe: subscribeResize, onChange: (layout) => store.set({ layout }) });
+  const stopVisibility = speedControl.watchVisibility();
+
+  // Screen point -> tile, clamped onto the map, so drags past the edge still mean the edge tile.
+  const tileUnder = (x, y) => {
+    const t = screenToTile(cam, view(), x, y);
+    const c = (v) => Math.max(0, Math.min(world.size - 1, Math.floor(v)));
+    return { x: c(t.x), y: c(t.y) };
+  };
+  const reachOf = (def) => def.reach || def.supplyReach || def.producerReach || 0;
+  function tooltipText(b) {
+    const def = BUILDINGS[b.type];
+    const parts = [buildingName(b.type)];
+    if (def.workers) parts.push(`${T.workers.toLowerCase()} ${b.staff} of ${def.workers}`);
+    if (reachOf(def)) parts.push(`${T.reach.toLowerCase()} ${reachOf(def)}`);
+    return parts.join(', ');
+  }
+
+  // A card was picked: the ghost appears a little above mid-screen, snapped onto the map (spec 6.5).
+  function pick(item) {
+    const v = view();
+    const c = screenToTile(cam, v, v.width / 2, v.height * 0.4);
+    placement.start(toolForItem(item), { x: c.x, y: c.y });
+  }
+  function confirm() {
+    const r = placement.confirm();
+    if (!r.ok) toasts.show(reasonText(r.reason));
+    return r;
+  }
+  function undo() {
+    if (!placement.canUndo()) return;
+    if (placement.undoNeedsConfirm()) store.set({ confirmDialog: { text: T.undoOccupiedConfirm, confirmLabel: T.undo, onConfirm: () => placement.undo() } });
+    else placement.undo();
+  }
+  function toggleSheet(kind) {
+    const s = store.get();
+    store.set(s.sheet && s.sheet.kind === kind ? closeSheet(s) : openSheet(s, kind));
+  }
+  function goBack() { const p = back(store.get()); if (p) store.set(p); }
+  // View on an alert: a building's alert selects it and pans there; a city-wide one opens the summary.
+  function viewAlert(alert) {
+    const b = alert.id ? world.buildings[alert.id] : null;
+    if (b) { store.set(select(store.get(), b.id)); cameraControl.panTo(b.x + b.w / 2, b.y + b.d / 2); }
+    else store.set(openSheet(store.get(), 'summary'));
+  }
+  function afterCommand(e) {
+    if (e.undoable) toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
+    else if (e.kind === 'undo') toasts.show(T.undone);
+    ghostsDirty = true;
+    refresh();
+  }
+  // After a command: alerts, numbers, cards (affordability) and the open sheet all reflect the new world.
+  function refresh() {
+    refreshChrome();
+    sheets.render();
+  }
+  // Once per game day: the same, so an open sheet's numbers keep up with the game. The sheet is rebuilt
+  // unless keyboard focus is inside it (a rebuild would drop that focus); it catches up on the next command.
+  function refreshDaily() {
+    refreshChrome();
+    const sheet = $('sheet');
+    if (sheet && !sheet.contains(doc.activeElement)) sheets.render();
+  }
+  function refreshChrome() {
+    alerts.refresh();
+    hud.render(); dock.render(); sidePanel.render(); rail.render(); confirmBar.render(); corners.render();
+    setText($('map-summary'), mapSummaryText(world, alerts.list()));
+  }
+
+  const actions = {
+    tap({ x, y, type }) {
+      const s = store.get();
+      const t = tileUnder(x, y);
+      if (isToolMode(s.mode)) {
+        if (s.tool.kind === 'building' && type === 'mouse') { placement.moveGhost(t.x, t.y); confirm(); }   // a click places (spec 6.5)
+        else placement.pointAt(t.x, t.y);                                                                      // a tap moves the ghost or sets a point
+        return;
+      }
+      const b = pickBuilding(world, cam, view(), x, y);
+      if (b) store.set(select(s, b.id));
+      else if (s.mode === 'selected') store.set(deselect(s));
+    },
+    secondary: goBack,
+    hover(p) {
+      const s = store.get();
+      if (s.mode === 'placing' && p) {                 // the ghost follows the mouse, re-set only when it moves a tile
+        const t = tileUnder(p.x, p.y);
+        const g = snapGhost(world, s.tool, t.x, t.y);
+        if (!s.ghost || g.x !== s.ghost.x || g.y !== s.ghost.y) placement.moveGhost(t.x, t.y);
+        return;
+      }
+      const b = p ? pickBuilding(world, cam, view(), p.x, p.y) : null;
+      const id = b ? b.id : null;
+      if (id !== s.hoverId) { store.set({ hoverId: id }); canvas.title = b ? tooltipText(b) : ''; }
+    },
+    ghostDragStart({ x, y }) {
+      const s = store.get();
+      if (!s.ghost || !s.tool || s.tool.kind !== 'building') return false;
+      const def = BUILDINGS[s.tool.type];
+      const t = screenToTile(cam, view(), x, y);
+      return t.x >= s.ghost.x - 0.5 && t.x < s.ghost.x + def.w + 0.5 && t.y >= s.ghost.y - 0.5 && t.y < s.ghost.y + def.d + 0.5;
+    },
+    ghostDrag({ x, y }) { const t = tileUnder(x, y); placement.moveGhost(t.x, t.y); },
+    ghostDragEnd() {},
+    drawDrag({ x, y, phase }) { const t = tileUnder(x, y); placement.dragTo(t.x, t.y, phase); },
+    panStarted() {                                     // panning tucks the dock (spec 6.3); the confirm bar never tucks
+      const s = store.get();
+      if (s.layout === 'portrait' && !isToolMode(s.mode) && s.dock !== 'tucked') store.set(setDock(s, 'tucked'));
+    },
+  };
+
+  const keyActions = {
+    pause: () => speedControl.toggle(), speedUp: () => speedControl.faster(), speedDown: () => speedControl.slower(),
+    category: (i) => { const s = store.get(); const category = CATEGORIES[i].id; store.set(s.layout === 'wide' ? { category } : { category, dock: 'tray' }); },
+    rotate: () => {},                                  // nothing rotates in Stage 1 (mastabas come with monuments)
+    minimap: () => toggleSheet('minimap'), overlay: () => legend.cycle(),
+    confirm: () => {
+      const s = store.get();
+      if (s.confirmDialog) return;                     // a dialog's Enter belongs to its focused button (keyboard.js); never place behind the modal
+      if (isToolMode(s.mode)) confirm();
+    },
+    back: goBack, undo, help: () => toggleSheet('help'),
+  };
+  const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
+  const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions });
+
+  // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free.
+  function sheetInsets(s) {
+    const v = view();
+    if (s.layout === 'portrait') return { top: TOPBAR_PX, right: 0, bottom: v.height * 0.6, left: 0 };
+    if (s.layout === 'compact') return { top: TOPBAR_PX, right: RAIL_PX + DRAWER_PX, bottom: 0, left: 0 };
+    return { top: TOPBAR_PX, right: PANEL_PX, bottom: 0, left: 0 };
+  }
+  function panelDetails() {
+    const s = store.get();
+    const b = s.hoverId !== null ? world.buildings[s.hoverId] : null;
+    let text = T.hoverHint;
+    if (b) text = tooltipText(b);
+    else if (s.tool) { const c = cardInfo(world, activeItemOf(s.tool)); text = `${c.name}: ${c.costText}`; }
+    setText(sidePanel.details, text);
+  }
+  let lastSelected = null;
+  store.subscribe((s) => {
+    root.dataset.mode = s.mode;
+    if (s.selectedId !== lastSelected) {
+      lastSelected = s.selectedId;
+      const b = s.selectedId !== null ? world.buildings[s.selectedId] : null;
+      if (b) cameraControl.keepVisible(b.x + b.w / 2, b.y + b.d / 2, sheetInsets(s));   // spec 6.3
+    }
+    panelDetails();
+  });
+  root.dataset.mode = store.get().mode;
+
+  // Ghosts are recomputed only when the UI state object changes or a command ran (previews call canPlace).
+  function ghosts() {
+    const s = store.get();
+    if (s !== ghostState || ghostsDirty) { ghostState = s; ghostsDirty = false; ghostList = isToolMode(s.mode) ? placement.ghosts() : []; }
+    return ghostList;
+  }
+
+  function render({ timeDays, now: t }) {
+    cameraControl.tick(t);
+    const s = store.get();
+    const v = view();
+    const range = visibleTileRange(cam, v, world.size);
+    const selected = s.selectedId !== null ? world.buildings[s.selectedId] : null;
+    renderer.renderFrame(world, cam, {
+      view: v, walkers: walkersAt(world, timeDays, range), effects, now: t, grid: isToolMode(s.mode),
+      drawOverlay: (g, r) => {
+        if (s.overlay) drawOverlay(g, world, s.overlay, r);
+        if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
+        for (const ghost of ghosts()) drawGhost(g, ghost);
+      },
+    });
+    hud.render();
+    if (s.layout === 'wide' && !s.panelFolded) panelMinimap.render(alerts.list());
+    if (s.sheet && s.sheet.kind === 'minimap') sheetMinimap.render(alerts.list());
+    if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; refreshDaily(); }
+  }
+
+  let destroyed = false;
+  refreshDaily();
+  return {
+    store, settings, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh,
+    destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear();
+    },
+  };
+}

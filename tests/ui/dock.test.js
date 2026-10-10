@@ -1,0 +1,61 @@
+import { describe, it, expect } from '../harness.js';
+import { createDock } from '../../src/ui/dock.js';
+import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
+import { makeTestWorld } from '../helpers/testWorld.js';
+import { mount, fire } from '../helpers/dom.js';
+
+describe('ui dock', () => {
+  it('opens the tray for a category, shows its cards and remembers it', () => {
+    const { root, cleanup } = mount();
+    const store = createStore({ ...INITIAL_UI_STATE, layout: 'portrait' });
+    const picked = [];
+    createDock({ container: root, store, world: makeTestWorld(), onPick: (i) => picked.push(i) });
+    expect(root.dataset.height).toBe('slim');
+    expect(root.querySelectorAll('.cat').length).toBe(7);
+    fire(root.querySelectorAll('.cat')[2], 'click');
+    expect(store.get().dock).toBe('tray');
+    expect(store.get().category).toBe('food');
+    expect(root.dataset.height).toBe('tray');
+    expect(document.body.dataset.dock).toBe('tray');
+    const cards = root.querySelectorAll('.tray .card');
+    expect(cards.length).toBe(2);
+    fire(cards[1], 'click');
+    expect(picked).toEqual(['granary']);
+    fire(root.querySelectorAll('.cat')[2], 'click');
+    expect(store.get().dock).toBe('slim');
+    expect(store.get().category).toBe('food');
+    cleanup();
+  });
+  it('changes height with the handle, swipes and the pill', () => {
+    const { root, cleanup } = mount();
+    const store = createStore({ ...INITIAL_UI_STATE, layout: 'portrait' });
+    createDock({ container: root, store, world: makeTestWorld(), onPick: () => {} });
+    const handle = root.querySelector('.handle');
+    fire(handle, 'click');
+    expect(store.get().dock).toBe('tray');
+    fire(handle, 'pointerdown', { clientX: 10, clientY: 300, pointerId: 1, pointerType: 'touch' });
+    fire(handle, 'pointerup', { clientX: 10, clientY: 360, pointerId: 1, pointerType: 'touch' });
+    expect(store.get().dock).toBe('slim');
+    fire(handle, 'pointerdown', { clientX: 10, clientY: 300, pointerId: 2, pointerType: 'touch' });
+    fire(handle, 'pointerup', { clientX: 10, clientY: 360, pointerId: 2, pointerType: 'touch' });
+    expect(store.get().dock).toBe('tucked');
+    expect(root.dataset.height).toBe('tucked');
+    fire(root.querySelector('.pill'), 'click');
+    expect(store.get().dock).toBe('slim');
+    fire(handle, 'pointerdown', { clientX: 10, clientY: 300, pointerId: 3, pointerType: 'touch' });
+    fire(handle, 'pointerup', { clientX: 10, clientY: 240, pointerId: 3, pointerType: 'touch' });
+    expect(store.get().dock).toBe('tray');
+    cleanup();
+  });
+  it('ignores a swipe that the browser cancels', () => {
+    const { root, cleanup } = mount();
+    const store = createStore({ ...INITIAL_UI_STATE, layout: 'portrait' });
+    createDock({ container: root, store, world: makeTestWorld(), onPick: () => {} });
+    const handle = root.querySelector('.handle');
+    fire(handle, 'pointerdown', { clientX: 10, clientY: 300, pointerId: 4, pointerType: 'touch' });
+    fire(handle, 'pointercancel', { clientX: 10, clientY: 300, pointerId: 4, pointerType: 'touch' });
+    fire(handle, 'pointerup', { clientX: 10, clientY: 360, pointerId: 4, pointerType: 'touch' });
+    expect(store.get().dock).toBe('slim');
+    cleanup();
+  });
+});
