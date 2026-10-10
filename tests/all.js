@@ -32,3 +32,4 @@ import './render/terrainBaker.test.js';
 import './render/terrainRoads.test.js';
 import './render/renderer.test.js';
 import './render/loop.test.js';
+import './render/walkers.test.js';
