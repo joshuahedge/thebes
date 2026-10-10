@@ -48,3 +48,5 @@ import './ui/text.test.js';
 import './ui/backstack.test.js';
 import './ui/settings.test.js';
 import './ui/cameraControl.test.js';
+import './ui/gestures.test.js';
+import './ui/pick.test.js';
