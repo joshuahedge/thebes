@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Thebes assets</title>
+<style>body { font: 14px/1.5 ui-monospace, Consolas, monospace; margin: 16px; } canvas { display: block; margin: 8px 0; max-width: 100%; border: 1px solid #ccc; }</style>
+</head>
+<body>
+<pre id="log">RUNNING</pre>
+<script type="module">
+  // Draws every asset with the art code and POSTs the PNG bytes to tests/serve.py, which writes them to disk.
+  import { ASSETS, renderAsset } from './assets.js';
+  const log = document.getElementById('log');
+  const lines = [];
+  try {
+    for (const asset of ASSETS) {
+      const canvas = renderAsset(asset);
+      document.body.append(canvas);
+      const data = canvas.toDataURL('image/png').split(',')[1];
+      const r = await fetch(`/__file?name=${encodeURIComponent(asset.name)}`, { method: 'POST', body: data });
+      lines.push(`${r.status === 204 ? 'WROTE' : 'FAILED ' + r.status} ${asset.name} ${canvas.width}x${canvas.height}`);
+    }
+    lines.push('DONE');
+  } catch (e) {
+    lines.push('ERROR ' + (e && e.stack ? e.stack : String(e)));
+  }
+  log.textContent = lines.join('\n');
+  document.title = lines[lines.length - 1] === 'DONE' ? 'DONE' : 'FAIL';
+  try { await fetch('/__results', { method: 'POST', body: log.textContent }); } catch (e) { /* no server */ }
+</script>
+</body>
+</html>

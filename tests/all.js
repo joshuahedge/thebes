@@ -78,3 +78,4 @@ import './save/exportImport.test.js';
 import './audio/sfx.test.js';
 import './save/installFlow.test.js';
 import './ui/installUi.test.js';
+import './render/assets.test.js';
