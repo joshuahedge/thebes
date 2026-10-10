@@ -157,3 +157,12 @@ body[data-layout="compact"] #toasts { bottom: 64px; left: calc(50% - var(--rail-
 #dialog .box { background: var(--parchment); border-radius: var(--radius); padding: 16px; max-width: 360px; width: calc(100% - 32px); box-shadow: var(--shadow); }
 #dialog .buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* The confirm bar replaces the dock while a tool is active and never tucks (spec 6.4). */
+#confirm { position: fixed; z-index: 3; }
+body[data-layout="portrait"] #confirm { left: 0; right: 0; bottom: 0; }
+body[data-layout="wide"] #confirm { right: 0; bottom: 0; width: var(--panel-w); }
+body[data-layout="compact"] #confirm { right: calc(var(--rail-w) + var(--safe-right)); bottom: 0; width: var(--drawer-w); }
+body[data-mode="placing"] #dock, body[data-mode="drawing"] #dock, body[data-mode="demolishing"] #dock { display: none; }
+body[data-mode="placing"] #corners, body[data-mode="drawing"] #corners, body[data-mode="demolishing"] #corners { bottom: calc(var(--safe-bottom) + 104px); }
+.speed-corner { position: relative; }
+.speed-options { position: absolute; bottom: calc(100% + 6px); left: 0; display: flex; gap: 6px; }
