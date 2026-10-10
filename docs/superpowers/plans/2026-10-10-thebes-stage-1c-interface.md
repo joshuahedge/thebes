@@ -4671,7 +4671,6 @@ function rig(hooks = {}) {
 }
 const buttonNamed = (node, text) => [...node.querySelectorAll('button')].find((b) => b.textContent.trim() === text);
 
-```js
 describe('ui menu', () => {
   it('menu: continue closes, new city asks first, export and import fall back to a toast, others open sheets', () => {
     const r = rig();
@@ -5014,6 +5013,7 @@ export async function mountShell(width = 390, height = 844) {
     },
   };
 }
+```
 
 Continue `tests/helpers/uiWorld.js`:
 ```js
