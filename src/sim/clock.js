@@ -41,6 +41,7 @@ export function tickDay(world, events = null) {
     if (count > 0 && events) events.push({ type: 'arrivals', count });
   }
   if (world.day % DAYS_PER_MONTH === 0) runMonth(world, events);
+  world.tally.peakPeople = Math.max(world.tally.peakPeople, population(world));
   checkGoals(world, events);
 }
 

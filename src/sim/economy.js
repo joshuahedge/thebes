@@ -16,4 +16,5 @@ export function monthlyEconomy(world) {
   const net = taxes - wages - upkeep;
   world.gold += net;
   world.stats.lastMonth = { taxes, wages, upkeep, net };
+  if (net > 0) world.tally.profitMonths += 1;
 }
