@@ -59,3 +59,5 @@ import './ui/cards.test.js';
 import './ui/dock.test.js';
 import './ui/confirmBar.test.js';
 import './ui/panels.test.js';
+import './ui/minimap.test.js';
+import './ui/sheets.test.js';

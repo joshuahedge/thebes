@@ -26,6 +26,7 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, no
       begin(target.x, target.y, target.zoom, ms);
     },
     jumpTo(x, y) { tween = null; cam.x = x; cam.y = y; },
+    centre() { const v = view(); return { x: v.width / 2, y: v.height / 2 }; },
     cancel() { tween = null; },
     tick(t = now()) {
       if (!tween) return false;

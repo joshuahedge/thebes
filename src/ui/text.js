@@ -88,4 +88,5 @@ export const T = {
   tapStart: 'Tap where it starts', tapEnd: 'Tap where it ends', tapCorner: 'Tap the far corner', refund: 'Refund',
   shortcuts: 'Keyboard shortcuts', openSummary: 'Open the city summary',
   rotate: 'Rotate', housingPlots: 'Housing plots',
+  noWorkersNeeded: 'No workers needed', help: 'How to play',
 };
