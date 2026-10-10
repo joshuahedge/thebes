@@ -10,14 +10,15 @@
   --radius: 12px; --tap: 44px;
   --ui-scale: 1;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --topbar-h: calc(48px * var(--ui-scale));
-  --dock-slim: calc(76px * var(--ui-scale)); --dock-tray: calc(232px * var(--ui-scale)); --dock-tucked: 52px;
+  --dock-tucked: 52px;
   --panel-w: 320px; --rail-w: 56px; --drawer-w: 268px;
   --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px); --safe-right: env(safe-area-inset-right, 0px);
 }
 [data-text-size="125"] { --ui-scale: 1.25; }
 [data-text-size="150"] { --ui-scale: 1.5; }
+/* Derived sizes live on body, where --ui-scale is set, so they scale with the text-size setting. */
+body { --topbar-h: calc(48px * var(--ui-scale)); --dock-slim: calc(76px * var(--ui-scale)); --dock-tray: calc(232px * var(--ui-scale)); }
 
 html, body { margin: 0; height: 100%; background: var(--parchment-3); color: var(--ink); overflow: hidden; overscroll-behavior: none; -webkit-text-size-adjust: 100%; }
 body { font: calc(16px * var(--ui-scale)) / 1.4 var(--font); }
@@ -46,17 +47,17 @@ h2, h3 { margin: 0; }
 .noscript { margin: 24px; }
 
 /* Top bar: things you read sit at the top. */
-#topbar { position: fixed; top: 0; left: 0; right: 0; padding: var(--safe-top) 8px 0; min-height: var(--topbar-h); background: var(--parchment); border-bottom: 1px solid var(--parchment-3); box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; }
+#topbar { position: fixed; top: 0; left: 0; right: 0; padding: var(--safe-top) max(8px, var(--safe-right)) 0 max(8px, var(--safe-left)); min-height: var(--topbar-h); background: var(--parchment); border-bottom: 1px solid var(--parchment-3); box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; }
 #topbar .stat { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
 #topbar .stat .label { font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
 #topbar .spacer { flex: 1; }
 #topbar .speed { display: flex; gap: 4px; }
-#topbar button { min-height: 40px; }
+#topbar button { min-height: var(--tap); }
 body[data-layout="portrait"] .wide-only, body[data-layout="compact"] .wide-only { display: none; }
-body[data-layout="compact"] #topbar { --topbar-h: calc(40px * var(--ui-scale)); }
+body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
 
 /* Critical banner and overlay legend, under the top bar. The banner wins; the legend shrinks to its icon. */
-#banner, #legend { position: fixed; left: 8px; right: 8px; top: calc(var(--safe-top) + var(--topbar-h) + 6px); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
+#banner, #legend { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + var(--topbar-h) + 6px); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
 #banner > *, #legend > * { pointer-events: auto; }
 #banner .critical { background: var(--coral-soft); border: 1px solid var(--coral-text); border-radius: var(--radius); padding: 6px 8px 6px 12px; display: flex; align-items: center; gap: 8px; max-width: 100%; }
 #legend .strip { display: inline-flex; align-items: center; gap: 10px; background: var(--parchment); border-radius: var(--radius); padding: 4px 6px 4px 12px; box-shadow: var(--shadow); }
@@ -78,7 +79,7 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 
 /* Portrait build dock: slim bar, tray, or tucked to a pill (spec 6.3). */
 #dock { position: fixed; left: 0; right: 0; bottom: 0; background: var(--parchment); border-top: 1px solid var(--parchment-3); border-radius: 16px 16px 0 0; box-shadow: var(--shadow); padding-bottom: var(--safe-bottom); display: flex; flex-direction: column; }
-#dock .handle { align-self: center; width: 44px; height: 24px; border: none; background: transparent; min-width: 0; min-height: 0; padding: 0; box-shadow: none; }
+#dock .handle { align-self: center; width: 44px; height: auto; margin: -10px 0; border: none; background: transparent; min-width: 0; min-height: var(--tap); padding: 0; box-shadow: none; }
 #dock .handle::before { content: ""; display: block; width: 40px; height: 5px; border-radius: 3px; background: var(--parchment-3); margin: 8px auto; }
 #dock .cats { display: flex; justify-content: space-around; padding: 0 4px 6px; }
 #dock .cat { display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; min-width: var(--tap); padding: 2px 4px; font-size: calc(12px * var(--ui-scale)); border-radius: 8px; box-shadow: none; }
@@ -113,7 +114,7 @@ body[data-layout="wide"] .confirm, body[data-layout="compact"] .confirm { paddin
 #panel .foldbar { display: flex; justify-content: flex-start; padding: 6px; border-bottom: 1px solid var(--parchment-3); }
 #panel .minimap { align-self: center; margin: 8px; }
 #panel .tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 8px; }
-#panel .tab { min-height: 36px; min-width: 0; padding: 0 10px; font-size: calc(12px * var(--ui-scale)); }
+#panel .tab { min-height: var(--tap); min-width: 0; padding: 0 10px; font-size: calc(12px * var(--ui-scale)); }
 #panel .tab[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); box-shadow: none; }
 #panel .cards { overflow-y: auto; flex: 1; }
 #panel .details { border-top: 1px solid var(--parchment-3); padding: 8px 12px; min-height: 64px; }
@@ -146,10 +147,12 @@ body[data-layout="compact"] #corners { right: calc(var(--rail-w) + var(--safe-ri
 
 /* Toasts and the confirm dialog. */
 #toasts { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + var(--dock-slim) + 64px); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+body[data-dock="tray"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tray) + 64px); }
+body[data-dock="tucked"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + 64px); }
 body[data-layout="wide"] #toasts { bottom: 24px; left: calc(50% - var(--panel-w) / 2); }
 body[data-layout="compact"] #toasts { bottom: 64px; left: calc(50% - var(--rail-w) / 2); }
 .toast { background: var(--ink); color: var(--parchment); border-radius: var(--radius); padding: 6px 8px 6px 14px; display: flex; gap: 12px; align-items: center; box-shadow: var(--shadow); }
-.toast button { min-height: 36px; background: transparent; color: var(--gold); border: none; font-weight: 600; }
+.toast button { min-height: var(--tap); background: transparent; color: var(--gold); border: none; font-weight: 600; }
 #dialog { position: fixed; inset: 0; background: rgba(43, 31, 14, 0.45); display: flex; align-items: center; justify-content: center; }
 #dialog .box { background: var(--parchment); border-radius: var(--radius); padding: 16px; max-width: 360px; width: calc(100% - 32px); box-shadow: var(--shadow); }
 #dialog .buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
