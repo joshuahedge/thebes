@@ -52,6 +52,24 @@ describe('ui menu', () => {
     expect(hooked.shown).toEqual([]);
     hooked.cleanup();
   });
+  it('new city offers Export first when a hook can export, and the dialog runs the extra action', () => {
+    const plain = rig();
+    plain.menus.menu(plain.body, { close: plain.close });
+    fire(buttonNamed(plain.body, T.newCity), 'click');
+    expect(plain.dialogNode.querySelector('.extra')).toBe(null);
+    plain.cleanup();
+    const r = rig({ exportCity: () => r.log.push('export') });
+    r.menus.menu(r.body, { close: r.close });
+    fire(buttonNamed(r.body, T.newCity), 'click');
+    const extra = r.dialogNode.querySelector('.extra');
+    expect(extra.textContent).toBe(T.exportFirst);
+    expect([...r.dialogNode.querySelectorAll('button')].map((b) => b.className.split(' ')[0])).toEqual(['cancel', 'extra', 'ok']);
+    fire(extra, 'click');
+    expect(r.log).toEqual(['export']);
+    expect(r.store.get().confirmDialog).toBe(null);
+    expect(r.dialogNode.hidden).toBe(true);
+    r.cleanup();
+  });
   it('settings: switches and choices write through the settings store', () => {
     const r = rig();
     r.menus.settings(r.body, { close: r.close });

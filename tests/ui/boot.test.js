@@ -9,16 +9,18 @@ import { T } from '../../src/ui/text.js';
 import { fakeIndexedDB } from '../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../helpers/uiWorld.js';
 import { fire } from '../helpers/dom.js';
+import { openSheet } from '../../src/ui/modes.js';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 const noStorage = { getItem: () => null, setItem: () => {} };
+const until = async (cond) => { for (let i = 0; i < 50 && !cond(); i++) await flush(); };
 
 // The real page shell, a fake store and no animation frames: loops never run, so every frame is explicit.
-async function bootRig({ params = '', store = createSaveStore({ idb: fakeIndexedDB(), local: null }), clock = () => 1760000000000 } = {}) {
+async function bootRig({ params = '', store = createSaveStore({ idb: fakeIndexedDB(), local: null }), clock = () => 1760000000000, platform = {} } = {}) {
   const shell = await mountShell(1280, 800);
   const history = fakeHistory();
   const api = await boot(document, window, {
-    root: document.body, store, params: new URLSearchParams(params), now: () => 0, clock, storage: noStorage,
+    root: document.body, store, params: new URLSearchParams(params), now: () => 0, clock, storage: noStorage, platform,
     uiOptions: { getSize: () => ({ width: 1280, height: 800 }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage: noStorage },
     loopOptions: { raf: () => 0, caf: () => {} },
   });
@@ -133,6 +135,56 @@ describe('ui boot', () => {
     expect(r.root.querySelector('#topbar').children.length).toBe(0);
     expect(r.root.querySelector('#dock').children.length).toBe(0);
     expect(r.root.querySelectorAll('#confirm').length).toBe(0);
+    r.cleanup();
+  });
+  it('exports after saving, imports a file after confirming, and offers Export first before a new city', async () => {
+    const store = createSaveStore({ idb: fakeIndexedDB(), local: null });
+    const shared = [], downloaded = [];
+    let nextFile = null, canShare = true;
+    const platform = { share: async (d) => { shared.push(d); }, canShare: () => canShare, download: (f) => downloaded.push(f), pick: async () => nextFile };
+    const r = await bootRig({ store, params: 'skipTitle=1&seed=8', platform });
+    const g = r.api.game();
+    const menuButton = (text) => [...r.root.querySelectorAll('#sheet button')].find((b) => b.textContent.trim() === text);
+    g.ui.store.set(openSheet(g.ui.store.get(), 'menu'));
+    fire(menuButton(T.exportCity), 'click');
+    await flush(); await flush();
+    expect(shared.length).toBe(1);
+    expect(shared[0].files[0].name.startsWith('thebes-city-')).toBe(true);
+    expect((await loadSave(store)).world.seed).toBe(8);                        // saved before sharing
+    canShare = false;
+    fire(menuButton(T.exportCity), 'click');
+    await flush(); await flush();
+    expect(downloaded.length).toBe(1);
+    expect(r.root.querySelector('#toasts .toast').textContent).toContain(T.exported);
+    const w = createWorld({ seed: 9 });
+    nextFile = new File([packSave(w, { savedAt: 1, lastSpeed: 2 })], 'c.json', { type: 'application/json' });
+    fire(menuButton(T.importCity), 'click');
+    await flush(); await flush();
+    await until(() => g.ui.store.get().confirmDialog);                         // reading the file takes a few ticks
+    expect(g.ui.store.get().confirmDialog.text).toBe(T.replaceCityConfirm);
+    fire(r.root.querySelector('#dialog .ok'), 'click');
+    const g2 = r.api.game();
+    expect(g2 === g).toBe(false);                                              // a fresh game around the imported world
+    expect(g2.world.seed).toBe(9);
+    expect(g2.world.speed).toBe(0);
+    expect(g2.ui.store.get().sheet.kind).toBe('welcome');
+    await flush(); await flush();
+    expect((await loadSave(store)).world.seed).toBe(9);                        // an imported city is saved at once
+    nextFile = new File(['{nope'], 'x.json');
+    g2.ui.store.set(openSheet(g2.ui.store.get(), 'menu'));
+    fire(menuButton(T.importCity), 'click');
+    await flush(); await flush();
+    expect(r.api.game()).toBe(g2);
+    await until(() => r.root.querySelector('#toasts').textContent.includes(T.saveUnreadable));
+    expect(r.root.querySelector('#toasts .toast').textContent).toContain(T.saveUnreadable);
+    fire(menuButton(T.newCity), 'click');
+    const extra = r.root.querySelector('#dialog .extra');
+    expect(extra.textContent).toBe(T.exportFirst);
+    fire(extra, 'click');
+    await flush(); await flush();
+    expect(downloaded.length).toBe(2);
+    expect(g2.ui.store.get().confirmDialog).toBe(null);
+    expect(r.api.game()).toBe(g2);                                             // export first does not start the new city
     r.cleanup();
   });
 });
