@@ -1,5 +1,5 @@
 // Feedback effects (spec 5.4): a dust puff on placing, a glow and "+Shack" on upgrade, a coral pulse and
-// "-Cottage" on downgrade, and a hook for the milestone banner (the banner itself is 1c's DOM). Under
+// "−Cottage" on downgrade, and a hook for the milestone banner (the banner itself is 1c's DOM). Under
 // prefers-reduced-motion there are no puffs, glows or pulses, and labels stay still.
 import { TIERS } from '../data/housing.js';
 import { p, U, quad } from './iso.js';
@@ -32,9 +32,10 @@ export function createEffects({ reducedMotion = prefersReducedMotion(), onMilest
         const b = world.buildings[ev.id];
         if (!b) continue;
         const cx = b.x + b.w / 2, cy = b.y + b.d / 2;
-        const name = TIERS[ev.to] ? TIERS[ev.to].name : '';
-        if (ev.type === 'upgrade') { fx.glow(cx, cy, now); fx.label(cx, cy, '+' + name, GOLD, now); }
-        else { fx.pulse(cx, cy, now); fx.label(cx, cy, '−' + name, UI.bad, now); }
+        const toName = TIERS[ev.to] ? TIERS[ev.to].name : '';
+        const fromName = TIERS[ev.from] ? TIERS[ev.from].name : '';
+        if (ev.type === 'upgrade') { fx.glow(cx, cy, now); fx.label(cx, cy, '+' + toName, GOLD, now); }
+        else { fx.pulse(cx, cy, now); fx.label(cx, cy, '−' + fromName, UI.bad, now); }
       }
     },
     active(now) { prune(now); return list.slice(); },
