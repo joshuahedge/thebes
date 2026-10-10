@@ -34,3 +34,4 @@ import './render/renderer.test.js';
 import './render/loop.test.js';
 import './render/walkers.test.js';
 import './render/overlays.test.js';
+import './render/effects.test.js';
