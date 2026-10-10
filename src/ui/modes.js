@@ -51,4 +51,4 @@ export function cycleOverlay(state, list) {
 
 export const setDock = (state, height) => ({ dock: height });
 
-export const pickCategory = (state, category) => ({ category, dock: state.layout === 'portrait' ? 'tray' : state.dock });
+export const pickCategory = (state, category) => ({ category, dock: state.layout === 'wide' ? state.dock : 'tray' });

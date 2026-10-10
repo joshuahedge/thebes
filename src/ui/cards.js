@@ -26,6 +26,7 @@ export function activeItemOf(tool) {
 }
 
 export function renderCards(container, { world, category, activeItem = null, onPick, grid = false }) {
+  const focusedItem = container.contains(document.activeElement) && document.activeElement.dataset ? document.activeElement.dataset.item : null;
   clear(container);
   container.classList.toggle('grid', grid);
   const cat = CATEGORIES.find((c) => c.id === category);
@@ -35,12 +36,13 @@ export function renderCards(container, { world, category, activeItem = null, onP
     const info = cardInfo(world, item);
     const cls = ['card', info.affordable ? '' : 'unaffordable', info.locked ? 'locked' : ''].filter(Boolean).join(' ');
     const costLine = info.locked ? `\u{1F512} ${info.lockText}` : (info.affordable ? info.costText : `⊘ ${info.costText}`);
-    const b = el('button', { type: 'button', class: cls, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null }, [
+    const b = el('button', { type: 'button', class: cls, dataset: { item }, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null }, [
       el('span', { class: 'name', text: info.name }), el('span', { class: 'cost', text: costLine }),
     ]);
     if (!info.locked) b.addEventListener('click', () => onPick(item));
     return b;
   });
   container.append(...buttons);
+  if (focusedItem) { const again = buttons.find((b) => b.dataset.item === focusedItem); if (again) again.focus(); }
   return buttons;
 }
