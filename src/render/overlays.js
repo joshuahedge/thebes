@@ -106,7 +106,7 @@ export function drawGhost(g, ghost) {
   const { x, y, w, d, state } = ghost;
   const pts = quad(x, y, w, d, 0);
   const centre = p(x + w / 2, y + d / 2);
-  if (state === 'bad') {
+  if (state === 'bad' || state === 'demolish') {
     g.save();
     g.clip(pts);
     g.poly(pts, UI.bad, { alpha: 0.18 });
@@ -114,7 +114,7 @@ export function drawGhost(g, ghost) {
     for (let k = left - (bottom - top); k < right; k += 4) g.line([k, bottom], [k + (bottom - top), top], UI.bad, 1, 0.8);
     g.restore();
     g.poly(pts, 'none', { stroke: UI.bad, strokeWidth: 1.4 });
-    g.text(centre, '✕', { size: 9, color: UI.bad });
+    if (state === 'bad') g.text(centre, '✕', { size: 9, color: UI.bad });
     return;
   }
   const color = state === 'warn' ? UI.warn : UI.ok;

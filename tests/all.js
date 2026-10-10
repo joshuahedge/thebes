@@ -51,3 +51,4 @@ import './ui/cameraControl.test.js';
 import './ui/gestures.test.js';
 import './ui/pick.test.js';
 import './ui/input.test.js';
+import './ui/placement.test.js';
