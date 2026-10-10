@@ -75,4 +75,35 @@ describe('ui goals', () => {
     expect(document.body.classList.contains('has-overlay')).toBe(true);
     r.cleanup();
   });
+  it('keeps keyboard focus on the strip across refreshes', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    const btn = r.root.querySelector('#goals .show-me');
+    btn.focus();
+    expect(document.activeElement).toBe(btn);
+    r.ui.refresh();
+    expect(document.activeElement).toBe(r.root.querySelector('#goals .show-me'));
+    r.world.goals.completed.push('road');         // a new goal rebuilds the strip; focus goes back to the same button
+    r.ui.refresh();
+    expect(r.root.querySelector('#goals').textContent).toContain(GOALS[1].text);
+    expect(document.activeElement).toBe(r.root.querySelector('#goals .show-me'));
+    r.cleanup();
+  });
+  it('stacks under the banner and the legend, and Show me puts a building ghost on the target', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    r.world.gold = -30; r.ui.alerts.refresh();
+    r.store.set({ overlay: 'water' });
+    const top = (sel) => r.root.querySelector(sel).getBoundingClientRect().top;
+    const bottom = (sel) => r.root.querySelector(sel).getBoundingClientRect().bottom;
+    expect(bottom('#banner')).toBeGreaterThan(top('#banner'));
+    expect(bottom('#legend')).toBeGreaterThan(top('#legend'));
+    expect(top('#legend') >= bottom('#banner')).toBe(true);
+    expect(top('#goals .goal-strip') >= bottom('#legend')).toBe(true);
+    r.world.goals.completed.push('road', 'plots');
+    r.ui.refresh();
+    fire(r.root.querySelector('#goals .show-me'), 'click');
+    const t = showMeTarget(r.world, goalById('well'));
+    expect(r.store.get().tool.type).toBe('well');
+    expect(r.store.get().ghost).toEqual({ x: Math.floor(t.x), y: Math.floor(t.y) });
+    r.cleanup();
+  });
 });

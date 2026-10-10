@@ -4,7 +4,7 @@ import { GOALS } from '../data/goals.js';
 import { openGoals } from '../sim/goals.js';
 import { housesOf } from '../sim/world.js';
 import { el, button, clear } from './components.js';
-import { T } from './text.js';
+import { T, goalsProgressText } from './text.js';
 
 const rewardText = (goal) => `+${goal.reward}`;
 
@@ -34,10 +34,16 @@ function goalRow(goal, onShowMe) {
 export function createGoalsStrip({ container, world, onShowMe, onOpen }) {
   const strip = el('div', { class: 'goal-strip', hidden: true });
   container.append(strip);
+  let shownId = null;
   function render() {
     const [goal] = openGoals(world, 1);
-    clear(strip);
+    const id = goal ? goal.id : null;
     strip.hidden = !goal;
+    if (id === shownId) return;                       // refreshChrome runs every day and command: keep the buttons (and their focus) unless the goal changed
+    shownId = id;
+    // The strip rebuilds when the goal changes, so remember which button had focus and put it back (spec 6.8).
+    const focusedClass = strip.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => c === 'show-me' || c === 'open-goals') : null;
+    clear(strip);
     if (!goal) return;
     strip.append(
       el('span', { class: 'label small muted', text: T.goal }),
@@ -45,6 +51,7 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen }) {
       button(T.showMe, { class: 'show-me quiet', onClick: () => onShowMe(goal) }),
       button(T.goals, { class: 'open-goals quiet', onClick: onOpen }),
     );
+    if (focusedClass) strip.querySelector(`.${focusedClass}`).focus();
   }
   render();
   return { render };
@@ -53,7 +60,7 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen }) {
 export function goalsSheet(world, { onShowMe }) {
   return (body) => {
     const open = openGoals(world, 3);
-    body.append(el('p', { class: 'muted', text: `${world.goals.completed.length} of ${GOALS.length} done` }));
+    body.append(el('p', { class: 'muted', text: goalsProgressText(world.goals.completed.length, GOALS.length) }));
     if (!open.length) { body.append(el('p', { text: T.goalsDone })); return; }
     body.append(el('ul', { class: 'goals' }, open.map((g) => goalRow(g, onShowMe))));
   };

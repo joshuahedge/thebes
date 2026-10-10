@@ -57,15 +57,16 @@ h2, h3 { margin: 0; }
 body[data-layout="portrait"] .wide-only, body[data-layout="compact"] .wide-only { display: none !important; }
 body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
 
-/* Critical banner and overlay legend, under the top bar. The banner wins; the legend shrinks to its icon. */
-#banner, #legend { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + var(--topbar-h) + 6px); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
+/* Critical banner, overlay legend and goals strip stack under the top bar in one column, so nothing overlaps whatever the text size. The banner wins; the legend shrinks to its icon. */
+#under-bar { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + var(--topbar-h) + 6px); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
+#banner, #legend { position: static; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; max-width: 100%; }
+#under-bar > :empty { display: none; }
 #banner > *, #legend > * { pointer-events: auto; }
 #banner .critical { background: var(--coral-soft); border: 1px solid var(--coral-text); border-radius: var(--radius); padding: 6px 8px 6px 12px; display: flex; align-items: center; gap: 8px; max-width: 100%; }
 #legend .strip { display: inline-flex; align-items: center; gap: 10px; background: var(--parchment); border-radius: var(--radius); padding: 4px 6px 4px 12px; box-shadow: var(--shadow); }
 #legend .dot, #legend .ring { display: inline-block; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; }
 #legend .dot { background: currentColor; }
 #legend .ring { border: 2px solid currentColor; }
-body.has-banner #legend { top: calc(var(--safe-top) + var(--topbar-h) + 56px); }
 body.has-banner #legend .strip .text { display: none; }
 
 /* Corner buttons: speed bottom-left, minimap and overlay bottom-right. Never in the middle. */
@@ -186,16 +187,12 @@ body[data-layout="portrait"][data-mode="placing"] #corners, body[data-layout="po
 .shortcuts td, .shortcuts th { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--parchment-2); vertical-align: top; }
 kbd { font: inherit; background: var(--parchment-2); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
 
-/* The goals strip sits under the top bar, below the banner and the legend when they show. */
-#goals { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + var(--topbar-h) + 6px); display: flex; pointer-events: none; }
+/* The goals strip is the last row of #under-bar, below the banner and the legend when they show. */
+#goals { position: static; display: flex; max-width: 100%; pointer-events: none; }
 #goals > * { pointer-events: auto; }
 .goal-strip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; background: var(--parchment); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); }
 .goal-strip .text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.goal-strip button { min-height: 40px; }
-body.has-banner #goals { top: calc(var(--safe-top) + var(--topbar-h) + 62px); }
-body.has-overlay #goals { top: calc(var(--safe-top) + var(--topbar-h) + 56px); }
-body.has-banner.has-overlay #goals { top: calc(var(--safe-top) + var(--topbar-h) + 112px); }
-body[data-layout="wide"] #goals { right: auto; max-width: 440px; }
-body[data-layout="compact"] #goals { right: calc(var(--rail-w) + var(--safe-right) + 8px); }
+body[data-layout="wide"] #goals { max-width: 440px; }
+body[data-layout="compact"] #under-bar { right: calc(var(--rail-w) + var(--safe-right) + 8px); }
 .goals { list-style: none; padding: 0; }
 .goals .goal { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
