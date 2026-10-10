@@ -113,4 +113,26 @@ describe('ui boot', () => {
     expect(r.api.game().ui.store.get().sheet.kind).toBe('welcome');
     r.cleanup();
   });
+  it('builds a clean second game when a new city replaces the first, and leaves the shell empty on destroy', async () => {
+    const r = await bootRig({ params: 'skipTitle=1&seed=8' });
+    const first = r.api.game();
+    r.api.hooks.newCity();
+    const second = r.api.game();
+    expect(second === first).toBe(false);
+    expect(second.world === first.world).toBe(false);
+    expect(r.root.querySelectorAll('#topbar .menu').length).toBe(1);
+    expect(r.root.querySelectorAll('#dock .handle').length).toBe(1);
+    expect(r.root.querySelectorAll('#confirm').length).toBe(1);
+    expect(r.root.querySelectorAll('.goal-strip').length).toBe(1);
+    expect(r.root.querySelector('#sheet').hidden).toBe(true);
+    expect(document.body.dataset.mode).toBe('browse');
+    r.api.startGame(createWorld({ seed: 9 }));                                 // and once more, to be sure
+    expect(r.root.querySelectorAll('#topbar .menu').length).toBe(1);
+    expect(r.root.querySelectorAll('#confirm').length).toBe(1);
+    r.api.destroy();
+    expect(r.root.querySelector('#topbar').children.length).toBe(0);
+    expect(r.root.querySelector('#dock').children.length).toBe(0);
+    expect(r.root.querySelectorAll('#confirm').length).toBe(0);
+    r.cleanup();
+  });
 });

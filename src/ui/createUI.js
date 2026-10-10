@@ -35,7 +35,7 @@ import { createToasts } from './toasts.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget } from './goalsList.js';
 import { welcomeSheet } from './welcomeBack.js';
-import { el, setText } from './components.js';
+import { el, setText, clear } from './components.js';
 import { buildingName, reasonText, milestoneText, T } from './text.js';
 
 const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
@@ -54,7 +54,7 @@ export function createUI({
 
   // Ghost and day bookkeeping lives up here: afterCommand is hoisted and may run during construction.
   let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [];
-  let saveFailed = false;
+  let saveFailed = false, destroyed = false;
 
   const settings = givenSettings || createSettings({ storage, root });
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height) });
@@ -178,16 +178,16 @@ export function createUI({
   // Autosave (spec 4.17): every game month and whenever the page is hidden. A failing save shows the
   // "save failing" banner (spec 6.3) until a save succeeds again.
   function setSaveFailed(flag) {
-    if (flag === saveFailed) return;
+    if (destroyed || flag === saveFailed) return;
     saveFailed = flag;
     alerts.refresh();
     corners.render();
   }
   async function autosave(reason) {
-    if (typeof hooks.save !== 'function') return;
+    if (destroyed || typeof hooks.save !== 'function') return;
     let ok = false;
     try { ok = await hooks.save(reason); } catch (e) { ok = false; }
-    setSaveFailed(!ok);
+    setSaveFailed(!ok);                 // a no-op if the UI was destroyed while the save was in flight
   }
   function onEvents(events) {
     for (const e of events) if (e.type === 'month') { autosave('month'); break; }
@@ -309,7 +309,6 @@ export function createUI({
     if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; refreshDaily(); }
   }
 
-  let destroyed = false;
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
@@ -319,6 +318,12 @@ export function createUI({
       destroyed = true;
       doc.removeEventListener('visibilitychange', onVisibility);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear();
+      // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
+      for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
+      for (const id of ['sheet', 'dialog']) { const c = $(id); clear(c); c.hidden = true; }
+      confirmBar.element.remove();
+      delete root.dataset.mode;
+      root.classList.remove('has-banner', 'has-overlay');
     },
   };
 }
