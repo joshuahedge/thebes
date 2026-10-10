@@ -3,6 +3,7 @@ import { rigUI } from '../helpers/uiWorld.js';
 import { fire, key } from '../helpers/dom.js';
 import { buildingAt } from '../../src/sim/world.js';
 import { tickDay } from '../../src/sim/clock.js';
+import { select } from '../../src/ui/modes.js';
 
 describe('ui createUI', () => {
   it('places a well from the dock: card, ghost, tap, tick, building, then Undo from the toast', async () => {
@@ -112,6 +113,45 @@ describe('ui createUI', () => {
     expect(r.root.querySelector('#live').textContent).toContain('alert');
     fire(r.root.querySelector('#banner .view'), 'click');                     // View: the summary sheet for city-wide alerts
     expect(r.store.get().sheet.kind).toBe('summary');
+    // An open sheet keeps up with the game: the next day's frame rebuilds it (nothing inside has focus).
+    const granary = Object.values(r.world.buildings).find((b) => b.type === 'granary');
+    const before = r.root.querySelector('#sheet').textContent;
+    granary.store.grain = 4242;
+    tickDay(r.world);
+    r.frame(48);
+    const after = r.root.querySelector('#sheet').textContent;
+    expect(after === before).toBe(false);
+    expect(after).toContain('4242');
     r.cleanup();
+  });
+  it('pans a selection into view, tucks the dock on a pan, places on a mouse click, and detaches on destroy', async () => {
+    const r = await rigUI();
+    const temple = buildingAt(r.world, 24, 11);
+    expect(r.screenOf(24.5, 11.5).x).toBeGreaterThan(390);                    // off the right edge of a phone view
+    r.ui.settings.set({ reducedMotion: 'off' });                              // the test browser may ask for reduced motion
+    expect(r.ui.cameraControl.animating).toBe(false);
+    r.store.set(select(r.store.get(), temple.id));
+    expect(r.ui.cameraControl.animating).toBe(true);                          // a tween to bring it into view began
+    r.store.set({ mode: 'browse', selectedId: null, sheet: null });
+    expect(r.store.get().dock).toBe('slim');
+    r.ui.actions.panStarted();
+    expect(r.store.get().dock).toBe('tucked');
+    expect(document.body.dataset.dock).toBe('tucked');
+    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');                  // Services (a tucked dock reopens as a tray)
+    fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');           // Well
+    expect(r.store.get().mode).toBe('placing');
+    r.ui.cameraControl.cancel(); r.cam.x = 12; r.cam.y = 10;                  // no frame ran the tween; put the view back
+    r.tap(5, 9, 'mouse');                                                     // a mouse click places at once
+    expect(buildingAt(r.world, 5, 9).type).toBe('well');
+    expect(r.store.get().mode).toBe('placing');
+    r.store.set({ mode: 'browse', tool: null, ghost: null });
+    r.ui.destroy();
+    key(r.root, ' ');
+    expect(r.world.speed).toBe(0);                                            // the key is no longer listened to
+    const before = r.store.get();
+    fire(r.canvas, 'pointerdown', { ...r.at(100, 300), pointerType: 'mouse', button: 0, buttons: 1 });
+    fire(r.canvas, 'pointerup', { ...r.at(100, 300), pointerType: 'mouse', button: 0, buttons: 0 });
+    expect(r.store.get()).toBe(before);
+    r.cleanup();                                                              // destroy again: idempotent
   });
 });
