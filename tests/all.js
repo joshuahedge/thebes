@@ -27,3 +27,4 @@ import './render/housingArt.test.js';
 import './render/servicesArt.test.js';
 import './render/natureArt.test.js';
 import './render/figuresArt.test.js';
+import './render/spriteCache.test.js';
