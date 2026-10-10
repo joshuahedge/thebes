@@ -9,7 +9,7 @@ import { buildingAt } from '../../src/sim/world.js';
 function fakeAudio() {
   const ctx = {
     state: 'suspended', currentTime: 0, destination: { name: 'out' }, oscillators: [], gains: [], resumed: 0,
-    resume() { ctx.resumed++; ctx.state = 'running'; return Promise.resolve(); },
+    resume() { ctx.resumed++; if (ctx.resumed > 1) ctx.state = 'running'; return Promise.resolve(); },   // the first resume has not settled yet
     createOscillator() {
       const o = { type: 'sine', freq: [], started: null, stopped: null, to: null, connect: (n) => { o.to = n; }, start: (t) => { o.started = t; }, stop: (t) => { o.stopped = t; } };
       o.frequency = { setValueAtTime: (v, t) => o.freq.push([v, t]), exponentialRampToValueAtTime: (v, t) => o.freq.push([v, t]) };
@@ -37,12 +37,18 @@ describe('audio sfx', () => {
     expect(created).toBe(0);
     on = true;
     expect(sfx.play('place')).toBe(false);                 // no gesture yet
-    expect(sfx.unlock()).toBe(true);
+    expect(sfx.unlock()).toBe(false);                      // the context exists but has not resumed: not unlocked yet
     expect(created).toBe(1);
     expect(ctx.resumed).toBe(1);
+    expect(ctx.state).toBe('suspended');
+    expect(sfx.play('place')).toBe(false);                 // nothing is queued into a suspended context
+    expect(ctx.oscillators.length).toBe(0);
+    expect(sfx.unlock()).toBe(true);                       // the next gesture finds it running
+    expect(ctx.resumed).toBe(2);
     expect(ctx.state).toBe('running');
     expect(sfx.unlock()).toBe(true);
     expect(created).toBe(1);
+    expect(ctx.resumed).toBe(2);
     expect(sfx.context).toBe(ctx);
     expect(sfx.play('place')).toBe(true);
     expect(ctx.oscillators.length).toBe(SFX.place.length);
@@ -89,7 +95,8 @@ describe('audio sfx', () => {
     expect(r.ui.sfx).toBe(sfx);
     fire(r.root.querySelector('#topbar'), 'pointerdown');
     fire(r.root.querySelector('#topbar'), 'pointerdown');
-    expect(played).toEqual(['unlock']);                                       // detached after the first success
+    fire(r.root.querySelector('#topbar'), 'pointerup');
+    expect(played).toEqual(['unlock']);                                       // all three listeners detached after the first success
     const c = screenToTile(r.cam, { width: 1280, height: 800 }, 640, 320);
     r.cam.x += 5.2 - c.x; r.cam.y += 9.2 - c.y;
     key(r.root, '5');

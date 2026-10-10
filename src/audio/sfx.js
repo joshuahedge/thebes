@@ -50,16 +50,17 @@ export function createSfx({
   return {
     names: Object.keys(SFX),
     get context() { return ctx; },
-    // The first user gesture: create or resume the context, but only once the player asked for sound.
+    // A user gesture: create or resume the context, but only once the player asked for sound. True only once
+    // the context is running: resume() settles later, so a touch's first event may return false and the next true.
     unlock() {
       if (!enabled()) return false;
       if (!ctx) { try { ctx = create(); } catch (e) { ctx = null; return false; } }
       if (ctx.state === 'suspended' && typeof ctx.resume === 'function') { try { ctx.resume().catch(() => {}); } catch (e) { /* stays suspended */ } }
-      return true;
+      return ctx.state === 'running';
     },
     play(name) {
       const notes = SFX[name];
-      if (!notes || !enabled() || !ctx) return false;
+      if (!notes || !enabled() || !ctx || ctx.state !== 'running') return false;   // a suspended context would queue the notes and burst them out on resume
       const t0 = ctx.currentTime;
       try { for (const n of notes) note(n, t0); } catch (e) { return false; }
       return true;
