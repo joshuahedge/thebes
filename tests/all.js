@@ -76,3 +76,5 @@ import './ui/titleCard.test.js';
 import './ui/boot.test.js';
 import './save/exportImport.test.js';
 import './audio/sfx.test.js';
+import './save/installFlow.test.js';
+import './ui/installUi.test.js';

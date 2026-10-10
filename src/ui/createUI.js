@@ -47,7 +47,7 @@ export function createUI({
   root = document.body, doc = document, win = window,
   getSize = null, subscribeResize = undefined, history = win.history,
   addListener = (type, fn) => win.addEventListener(type, fn), removeListener = (type, fn) => win.removeEventListener(type, fn),
-  keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(), welcome = null,
+  keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(), welcome = null, extraSheets = {},
   settings: givenSettings = null, clock = () => Date.now(), sfx: givenSfx = null,
 }) {
   const $ = (id) => root.querySelector(`#${id}`);
@@ -97,6 +97,7 @@ export function createUI({
       onStayPaused: () => store.set(closeSheet(store.get())),
     });
   }
+  Object.assign(customSheets, extraSheets);
   const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, afterCommand, custom: customSheets });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });

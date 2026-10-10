@@ -14,7 +14,7 @@ describe('ui title card', () => {
     const card = createTitleCard({ container, hasSave: false, canInstall: false, sound: false, onContinue: () => log.push('continue'), onNewCity: () => log.push('new'), onSound: (on) => log.push(`sound:${on}`) });
     expect(container.hidden).toBe(false);
     expect(container.querySelector('.continue')).toBe(null);
-    expect(container.querySelector('.install')).toBe(null);
+    expect(container.querySelector('.install').hidden).toBe(true);
     expect(container.querySelector('.new-city').classList.contains('primary')).toBe(true);
     expect(document.activeElement).toBe(container.querySelector('.new-city'));
     const sound = container.querySelector('.sound');
@@ -33,6 +33,7 @@ describe('ui title card', () => {
     expect(document.activeElement).toBe(container.querySelector('.continue'));
     expect(container.querySelector('.sound').textContent).toBe(T.playMuted);
     expect(container.querySelector('.message').textContent).toBe('hello');
+    expect(container.querySelector('.install').hidden).toBe(false);
     fire(container.querySelector('.install'), 'click');
     fire(container.querySelector('.continue'), 'click');
     expect(log).toEqual(['sound:true', 'new', 'install', 'continue']);

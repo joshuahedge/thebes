@@ -16,11 +16,11 @@ const noStorage = { getItem: () => null, setItem: () => {} };
 const until = async (cond) => { for (let i = 0; i < 50 && !cond(); i++) await flush(); };
 
 // The real page shell, a fake store and no animation frames: loops never run, so every frame is explicit.
-async function bootRig({ params = '', store = createSaveStore({ idb: fakeIndexedDB(), local: null }), clock = () => 1760000000000, platform = {} } = {}) {
+async function bootRig({ params = '', store = createSaveStore({ idb: fakeIndexedDB(), local: null }), clock = () => 1760000000000, platform = {}, envInput = { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' } } = {}) {
   const shell = await mountShell(1280, 800);
   const history = fakeHistory();
   const api = await boot(document, window, {
-    root: document.body, store, params: new URLSearchParams(params), now: () => 0, clock, storage: noStorage, platform,
+    root: document.body, store, params: new URLSearchParams(params), now: () => 0, clock, storage: noStorage, platform, envInput,
     uiOptions: { getSize: () => ({ width: 1280, height: 800 }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage: noStorage },
     loopOptions: { raf: () => 0, caf: () => {} },
   });
@@ -185,6 +185,73 @@ describe('ui boot', () => {
     expect(downloaded.length).toBe(2);
     expect(g2.ui.store.get().confirmDialog).toBe(null);
     expect(r.api.game()).toBe(g2);                                             // export first does not start the new city
+    r.cleanup();
+  });
+  it('shows the install guide first on iOS Safari, the notice in an in-app browser, prompts on Android, and brings a city into the home-screen app', async () => {
+    const IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1';
+    const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36';
+    let r = await bootRig({ envInput: { ua: IOS } });
+    let title = r.root.querySelector('#title');
+    expect(title.querySelector('.guide')).toBeTruthy();                                 // first launch, no city: the guide
+    expect(title.querySelector('.guide').textContent).toContain(T.installIosSteps[0]);
+    expect(r.root.querySelector('#notice').hidden).toBe(true);
+    fire(title.querySelector('.guide-back'), 'click');
+    expect(title.querySelector('.install').hidden).toBe(false);
+    fire(title.querySelector('.install'), 'click');
+    await flush();
+    expect(title.querySelector('.guide')).toBeTruthy();                                 // iOS: Install opens the guide again
+    r.cleanup();
+    r = await bootRig({ envInput: { ua: `${IOS} [FBAN/FBIOS;FBAV/400.0]` } });
+    title = r.root.querySelector('#title');
+    expect(title.querySelector('.guide')).toBe(null);
+    expect(title.querySelector('.install').hidden).toBe(true);
+    expect(r.root.querySelector('#notice').hidden).toBe(false);
+    expect(r.root.querySelector('#notice').textContent).toContain(T.openInSafari);
+    expect(getComputedStyle(r.root.querySelector('#notice')).display === 'none').toBe(false);   // visible over the title
+    r.cleanup();
+    expect(r.root.querySelector('#notice').hidden).toBe(true);
+    const prompts = [];
+    const event = { prompt() { prompts.push('prompt'); }, userChoice: Promise.resolve({ outcome: 'accepted' }) };
+    r = await bootRig({ envInput: { ua: ANDROID }, platform: { installPrompt: () => event } });
+    title = r.root.querySelector('#title');
+    expect(title.querySelector('.guide')).toBe(null);
+    expect(title.querySelector('.install').hidden).toBe(false);
+    fire(title.querySelector('.install'), 'click');
+    await flush();
+    expect(prompts).toEqual(['prompt']);
+    expect(title.querySelector('.guide')).toBe(null);                                    // the browser's own sheet did the work
+    fire(title.querySelector('.new-city'), 'click');
+    const g = r.api.game();
+    g.ui.store.set(openSheet(g.ui.store.get(), 'menu'));
+    const installItem = [...r.root.querySelectorAll('#sheet button')].find((b) => b.textContent.trim() === T.installMenu);
+    expect(installItem).toBeTruthy();
+    fire(installItem, 'click');
+    await flush();
+    expect(prompts).toEqual(['prompt', 'prompt']);
+    r.cleanup();
+    const w = createWorld({ seed: 12 });
+    const platform = { pick: async () => new File([packSave(w, { savedAt: 1, lastSpeed: 1 })], 'c.json', { type: 'application/json' }) };
+    r = await bootRig({ envInput: { ua: IOS, standalone: true }, platform });
+    title = r.root.querySelector('#title');
+    expect(title.querySelector('.install').hidden).toBe(true);
+    const bring = title.querySelector('.bring');
+    expect(bring.textContent).toBe(T.bringCity);
+    fire(bring, 'click');
+    await until(() => r.api.phase() === 'game');
+    expect(r.api.phase()).toBe('game');
+    expect(r.api.game().world.seed).toBe(12);
+    expect(r.api.game().ui.store.get().sheet.kind).toBe('welcome');
+    r.cleanup();
+    r = await bootRig({ envInput: { ua: ANDROID } });                                   // no prompt yet
+    title = r.root.querySelector('#title');
+    expect(title.querySelector('.install').hidden).toBe(true);
+    const late = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), { prompt() { prompts.push('late'); }, userChoice: Promise.resolve({ outcome: 'dismissed' }) });
+    window.dispatchEvent(late);
+    expect(late.defaultPrevented).toBe(true);
+    expect(title.querySelector('.install').hidden).toBe(false);
+    fire(title.querySelector('.install'), 'click');
+    await flush();
+    expect(prompts[prompts.length - 1]).toBe('late');
     r.cleanup();
   });
 });

@@ -16,6 +16,9 @@ import { packSave, unpackSave } from './save/serialize.js';
 import { TITLE_SEED } from './data/ui.js';
 import { exportSave, downloadFile, pickFile, importSaveFile } from './save/exportImport.js';
 import { T, importErrorText } from './ui/text.js';
+import { detectEnvironment, readEnvironment, createInstallFlow } from './save/installFlow.js';
+import { installGuide, noticeText, showNotice } from './ui/installUi.js';
+import { openSheet } from './ui/modes.js';
 
 const HOUR = 3600 * 1000;
 
@@ -30,7 +33,7 @@ export async function loadSave(store) {
 
 export async function boot(doc, win, {
   root = doc.body, store = createSaveStore(), params = new URLSearchParams(win.location.search),
-  now = () => performance.now(), clock = () => Date.now(), storage = undefined, uiOptions = {}, loopOptions = {}, platform = {},
+  now = () => performance.now(), clock = () => Date.now(), storage = undefined, uiOptions = {}, loopOptions = {}, platform = {}, envInput = readEnvironment(win),
 } = {}) {
   const canvas = root.querySelector('#map');
   const renderer = createRenderer({ canvas });
@@ -44,6 +47,16 @@ export async function boot(doc, win, {
     pick: () => pickFile(doc),
     ...platform,
   };
+  // The install prompt arrives on its own time (Android, desktop Chrome and Edge): keep it for the button.
+  let promptEvent = null;
+  const onPrompt = (e) => { e.preventDefault(); promptEvent = e; if (title) title.card.setCanInstall(flow.canInstall()); };
+  win.addEventListener('beforeinstallprompt', onPrompt);
+  if (!io.installPrompt) io.installPrompt = () => promptEvent;
+  let loadedOk = false;
+  let current = null;        // { world, ui, loop, cam } while the game runs
+  let title = null;          // { card, loop, backdrop } while the title shows
+  const flow = createInstallFlow({ env: detectEnvironment(envInput), hasSave: () => loadedOk || Boolean(current), getPrompt: io.installPrompt });
+  showNotice(root.querySelector('#notice'), noticeText(flow.notice()));
   const view = uiOptions.getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
   const stress = params.get('stress') === '1', sample = params.get('sample') === '1';
   const seedOf = () => Number(params.get('seed')) || Math.floor(Math.random() * 1e9);
@@ -55,12 +68,18 @@ export async function boot(doc, win, {
     return world;
   }
 
-  let current = null;        // { world, ui, loop, cam } while the game runs
-  let title = null;          // { card, loop, backdrop } while the title shows
   let saveBlocked = false;   // a newer version's save sits in the slot: never overwrite it (spec 7.5)
   let persisted = false;
 
   const hooks = {
+    canInstall: () => flow.canInstall(),
+    async install() {
+      const r = await flow.promptInstall();
+      if (r !== 'guide' || !current) return;
+      const s = current.ui.store.get();
+      if (s.sheet && s.sheet.kind === 'install') current.ui.toasts.show(T.installNotOffered);
+      else current.ui.store.set(openSheet(s, 'install'));
+    },
     async save() {
       if (!current || saveBlocked) return false;
       const text = packSave(current.world, { savedAt: clock(), lastSpeed: current.ui.store.get().lastSpeed });
@@ -89,7 +108,7 @@ export async function boot(doc, win, {
       try { save = await importSaveFile(file); } catch (e) { if (current) current.ui.toasts.show(importErrorText(e && e.message)); return; }
       const go = () => startGame(save.world, { fromSave: true, savedAt: save.savedAt, lastSpeed: save.lastSpeed, saveNow: true });
       if (current) current.ui.store.set({ confirmDialog: { text: T.replaceCityConfirm, confirmLabel: T.importCity, onConfirm: go } });
-      else go();                                        // the title phase has no city to replace (Task 9)
+      else go();                                        // the title phase has no city to replace
     },
   };
 
@@ -100,7 +119,8 @@ export async function boot(doc, win, {
     stopGame();
     if (fromSave) setSpeed(world, 0);                   // the game always reopens paused (spec 4.17)
     const cam = createCamera({ x: stress ? 32 : world.focus.x, y: stress ? 32 : world.focus.y, zoom: 1 });
-    const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings, hooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null, ...uiOptions });
+    const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings, hooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
+      extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install(), onBring: () => hooks.importCity() }) }, ...uiOptions });
     const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: ui.render, ...loopOptions });
     current = { world, ui, loop, cam };
     if (notice) ui.toasts.show(notice);
@@ -111,6 +131,7 @@ export async function boot(doc, win, {
   }
 
   function showTitle(loaded) {
+    loadedOk = loaded.state === 'ok';
     const world = buildSampleCity(createWorld({ seed: TITLE_SEED }));
     const cam = createCamera({ x: world.tradeEntry.x, y: world.size - 22, zoom: 1 });
     const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
@@ -123,13 +144,17 @@ export async function boot(doc, win, {
       console.warn('Thebes: the saved city was not loaded:', loaded.code);
     }
     root.classList.add('on-title');
+    const guide = installGuide(flow, { hasCity: false, onPrompt: () => flow.promptInstall(), onBring: () => hooks.importCity() });
     const card = createTitleCard({
-      container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: false, sound: settings.get().sound, message,
+      container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), canBring: flow.canBring(), sound: settings.get().sound, message,
       onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
       onNewCity: () => startGame(freshWorld()),
       onSound: (on) => settings.set({ sound: on }),
+      onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); },
+      onBring: () => hooks.importCity(),
     });
     title = { card, loop, backdrop };
+    if (flow.shouldShowGuide()) card.showGuide(guide);
     loop.start();
   }
 
@@ -151,6 +176,6 @@ export async function boot(doc, win, {
     phase: () => (title ? 'title' : 'game'),
     game: () => current,
     startGame, hooks,
-    destroy() { leaveTitle(); stopGame(); },
+    destroy() { win.removeEventListener('beforeinstallprompt', onPrompt); showNotice(root.querySelector('#notice'), null); leaveTitle(); stopGame(); },
   };
 }
