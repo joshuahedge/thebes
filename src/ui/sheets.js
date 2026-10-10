@@ -3,6 +3,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { houseStatus } from '../sim/housing.js';
 import { setPaused } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
+import { openGoals } from '../sim/goals.js';
 import { closeSheet } from './modes.js';
 import { summaryData } from './hud.js';
 import { ZOOM_STEP } from '../data/ui.js';
@@ -73,7 +74,9 @@ export function createSheets({ container, store, world, placement, cameraControl
     body.append(el('h3', { text: T.employment }), row('Working', `${d.working} of ${d.workforce}`), row(T.jobless, `${d.jobless}`), row('Jobs', `${d.jobs}`));
     body.append(el('h3', { text: T.moodBreakdown }), row(T.mood, `${d.mood}`));
     for (const [k, v] of Object.entries(d.moodBreakdown || {})) body.append(row(k, (v >= 0 ? '+' : '') + v));
-    body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsLater }));
+    body.append(el('h3', { text: T.goals }));
+    const open = openGoals(world, 3);
+    body.append(open.length ? el('ul', { class: 'goals' }, open.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
     return [head(T.summary), body];
   }
 

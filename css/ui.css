@@ -185,3 +185,17 @@ body[data-layout="portrait"][data-mode="placing"] #corners, body[data-layout="po
 .shortcuts { border-collapse: collapse; width: 100%; }
 .shortcuts td, .shortcuts th { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--parchment-2); vertical-align: top; }
 kbd { font: inherit; background: var(--parchment-2); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
+
+/* The goals strip sits under the top bar, below the banner and the legend when they show. */
+#goals { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + var(--topbar-h) + 6px); display: flex; pointer-events: none; }
+#goals > * { pointer-events: auto; }
+.goal-strip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; background: var(--parchment); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); }
+.goal-strip .text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-strip button { min-height: 40px; }
+body.has-banner #goals { top: calc(var(--safe-top) + var(--topbar-h) + 62px); }
+body.has-overlay #goals { top: calc(var(--safe-top) + var(--topbar-h) + 56px); }
+body.has-banner.has-overlay #goals { top: calc(var(--safe-top) + var(--topbar-h) + 112px); }
+body[data-layout="wide"] #goals { right: auto; max-width: 440px; }
+body[data-layout="compact"] #goals { right: calc(var(--rail-w) + var(--safe-right) + 8px); }
+.goals { list-style: none; padding: 0; }
+.goals .goal { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }

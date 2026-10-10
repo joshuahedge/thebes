@@ -3,13 +3,14 @@
 import { MILESTONES } from '../data/progression.js';
 import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { CATEGORIES, toolForItem, UNDO_TOAST_MS } from '../data/ui.js';
+import { CATEGORIES, toolForItem, UNDO_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
+import { goalById } from '../sim/goals.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { drawOverlay, drawReachHighlight, drawGhost } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
-import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode } from './modes.js';
+import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode, pickCategory } from './modes.js';
 import { pickLayout, watchLayout } from './layout.js';
 import { createBackStack } from './backstack.js';
 import { createSettings } from './settings.js';
@@ -32,6 +33,7 @@ import { createAlerts, mapSummaryText } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
 import { createToasts } from './toasts.js';
 import { createMenuSheets, createDialog } from './menu.js';
+import { createGoalsStrip, goalsSheet, showMeTarget } from './goalsList.js';
 import { el, setText } from './components.js';
 import { buildingName, reasonText, milestoneText, T } from './text.js';
 
@@ -75,8 +77,10 @@ export function createUI({
   const rail = createRail({ container: $('rail'), store, world, onPick: pick, onConfirm: confirm, onCancel: () => placement.cancel(), placement });
   const legend = createOverlayLegend({ container: $('legend'), store });
   const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count() });
+  const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals') });
   const menus = createMenuSheets({ store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {} });
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, afterCommand, custom: menus });
+  const customSheets = { ...menus, goals: goalsSheet(world, { onShowMe: showMe }) };
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, afterCommand, custom: customSheets });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -103,6 +107,17 @@ export function createUI({
     const v = view();
     const c = screenToTile(cam, v, v.width / 2, v.height * 0.4);
     placement.start(toolForItem(item), { x: c.x, y: c.y });
+  }
+  // Show me (spec 4.1): open the right card, then pan to and pulse the place the goal is about.
+  function showMe(goal) {
+    const s = store.get();
+    if (s.sheet) store.set(closeSheet(s));
+    store.set(pickCategory(store.get(), goal.showMe.category));
+    pick(goal.showMe.item);
+    const t = showMeTarget(world, goal);
+    cameraControl.panTo(t.x, t.y);
+    const at = now();
+    for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(t.x, t.y, at + i * SHOW_ME_PULSE_MS);
   }
   function confirm() {
     const r = placement.confirm();
@@ -146,7 +161,7 @@ export function createUI({
   }
   function refreshChrome() {
     alerts.refresh();
-    hud.render(); dock.render(); sidePanel.render(); rail.render(); confirmBar.render(); corners.render();
+    hud.render(); dock.render(); sidePanel.render(); rail.render(); confirmBar.render(); corners.render(); goalsStrip.render();
     setText($('map-summary'), mapSummaryText(world, alerts.list()));
   }
 
@@ -166,6 +181,7 @@ export function createUI({
   }
   function onEvents(events) {
     for (const e of events) if (e.type === 'month') { autosave('month'); break; }
+    for (const e of events) if (e.type === 'goal') { const g = goalById(e.id); if (g) toasts.show(`${T.goalDone}: ${g.text} (+${e.reward} ${T.gold.toLowerCase()})`); }
   }
   // Registered after the speed control's own listener, so the game is already paused when this save is taken.
   const onVisibility = () => { if (doc.hidden) autosave('hidden'); };
@@ -246,6 +262,7 @@ export function createUI({
   let lastSelected = null;
   store.subscribe((s) => {
     root.dataset.mode = s.mode;
+    root.classList.toggle('has-overlay', Boolean(s.overlay));
     if (s.selectedId !== lastSelected) {
       lastSelected = s.selectedId;
       const b = s.selectedId !== null ? world.buildings[s.selectedId] : null;

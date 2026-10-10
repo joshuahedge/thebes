@@ -91,7 +91,7 @@ describe('ui menu', () => {
     expect(keyLabel('speedUp')).toBe('+ or =');
     expect(keyLabel('minimap')).toBe('M');
     expect(r.body.textContent).toContain('right-click');
-    expect(r.body.textContent).toContain(T.goalsLater);
+    expect(r.body.textContent).toContain(T.goalsHelp);
     r.menus.about(r.body, { close: r.close });
     expect(r.body.textContent).toContain('0.1-test');
     const src = await (await fetch('/src/ui/menu.js')).text();

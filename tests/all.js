@@ -70,3 +70,4 @@ import './ui/a11y.test.js';
 import './save/store.test.js';
 import './sim/goals.test.js';
 import './ui/autosave.test.js';
+import './ui/goalsList.test.js';
