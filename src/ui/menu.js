@@ -29,6 +29,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       } }) }),
       button(T.exportCity, { onClick: hookOr('exportCity') }),
       button(T.importCity, { onClick: hookOr('importCity') }),
+      typeof hooks.install === 'function' && (typeof hooks.canInstall !== 'function' || hooks.canInstall()) ? button(T.installMenu, { class: 'install', onClick: () => hooks.install() }) : null,
       button(T.settings, { onClick: () => open('settings') }),
       button(T.howToPlay, { onClick: () => open('help') }),
       button(T.about, { onClick: () => open('about') }),

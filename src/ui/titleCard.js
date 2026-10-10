@@ -4,26 +4,46 @@ import { TITLE_DRIFT_MS } from '../data/ui.js';
 import { el, button, clear } from './components.js';
 import { T } from './text.js';
 
-export function createTitleCard({ container, hasSave, canInstall = false, sound = false, message = null, onContinue, onNewCity, onSound, onInstall = () => {} }) {
+export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, sound = false, message = null, onContinue, onNewCity, onSound, onInstall = () => {}, onBring = () => {} }) {
   let on = Boolean(sound);
   const soundButton = button(on ? T.playMuted : T.playWithSound, { class: 'sound' });
   soundButton.addEventListener('click', () => { on = !on; soundButton.textContent = on ? T.playMuted : T.playWithSound; onSound(on); });
+  const install = button(T.install, { class: 'install', hidden: !canInstall, onClick: onInstall });
   const buttons = [];
   if (hasSave) buttons.push(button(T.continueGame, { class: 'continue primary', onClick: onContinue }));
   buttons.push(button(T.newCity, { class: hasSave ? 'new-city' : 'new-city primary', onClick: onNewCity }));
-  buttons.push(soundButton);
-  if (canInstall) buttons.push(button(T.install, { class: 'install', onClick: onInstall }));
+  if (canBring) buttons.push(button(T.bringCity, { class: 'bring', onClick: onBring }));
+  buttons.push(soundButton, install);
+  const buttonBox = el('div', { class: 'title-buttons' }, buttons);
   const element = el('div', { class: 'title-card', role: 'dialog', 'aria-labelledby': 'title-name' }, [
     el('h1', { id: 'title-name', text: 'Thebes' }),
     el('p', { class: 'tagline muted', text: T.tagline }),
     message ? el('p', { class: 'message coral', text: message }) : null,
-    el('div', { class: 'title-buttons' }, buttons),
+    buttonBox,
   ]);
+  let guide = null;
+  const showCard = () => { if (guide) { guide.remove(); guide = null; } buttonBox.hidden = false; buttons[0].focus(); };
   clear(container);
   container.append(element);
   container.hidden = false;
   buttons[0].focus();
-  return { element, destroy() { clear(container); container.hidden = true; } };
+  return {
+    element,
+    setCanInstall(flag) { install.hidden = !flag; },
+    // The install guide takes the buttons' place until Back (iOS, or a browser without the install prompt).
+    showGuide(render) {
+      showCard();
+      const body = el('div', { class: 'guide-body' });
+      render(body);
+      const back = button(T.back, { class: 'guide-back', onClick: showCard });
+      guide = el('div', { class: 'guide' }, [body, el('div', { class: 'actions' }, [back])]);
+      buttonBox.hidden = true;
+      element.append(guide);
+      back.focus();
+    },
+    showCard,
+    destroy() { clear(container); container.hidden = true; },
+  };
 }
 
 // Four points around the sample city's centre; the camera drifts from one to the next.
