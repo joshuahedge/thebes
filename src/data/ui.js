@@ -50,3 +50,6 @@ export const CAMERA_PAN_MS = 350;
 export const TOAST_MS = 4000;
 export const UNDO_TOAST_MS = 6000;
 export const GHOST_FINGER_OFFSET_PX = 48;
+
+// The version the about sheet shows.
+export const APP_VERSION = '0.1';
