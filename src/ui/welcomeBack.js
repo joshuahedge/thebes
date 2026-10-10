@@ -40,7 +40,7 @@ export function welcomeSheet({ world, savedAt, lastSpeed, now = () => Date.now()
     body.append(el('h3', { text: T.alerts }));
     if (!alerts.length) body.append(el('p', { class: 'muted', text: T.noAlerts }));
     else body.append(el('ul', { class: 'alert-list' }, alerts.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', onClick: () => onView(a) })]); })));
-    body.append(el('div', { class: 'actions' }, [
+    body.append(el('div', { class: 'actions welcome-actions' }, [
       button(T.carryOn, { class: 'carry-on primary', onClick: () => onCarryOn(lastSpeed) }),
       button(T.stayPaused, { class: 'stay-paused', onClick: () => onStayPaused() }),
     ]));
