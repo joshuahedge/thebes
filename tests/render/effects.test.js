@@ -40,7 +40,7 @@ describe('effects', () => {
     const live = fx.active(0);
     expect(live.filter((e) => e.kind === 'glow').length).toBe(1);
     expect(live.filter((e) => e.kind === 'pulse').length).toBe(1);
-    expect(live.filter((e) => e.kind === 'label').map((e) => e.text)).toEqual(['+Shack', '−Shack']);
+    expect(live.filter((e) => e.kind === 'label').map((e) => e.text)).toEqual(['+Shack', '−Cottage']);
     expect(milestones).toEqual(['town']);
     expect(prefersReducedMotion() === true || prefersReducedMotion() === false).toBe(true);
   });
