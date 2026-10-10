@@ -58,6 +58,7 @@ describe('draw helper', () => {
     g.clip([[0, 0], [10, 0], [10, 10], [0, 10]]);
     g.poly(square, '#000000');
     g.restore();
+    expect(pixelAt(c, 30, 30)[3]).toBe(0);
     expect(pixelAt(c, 10, 10)[3]).toBe(255);
     expect(nearColour(pixelAt(c, 5, 5), '#000000', 4)).toBe(true);
   });
