@@ -12,6 +12,14 @@ describe('render assets', () => {
     expect(px(icon, 96, 96)[3]).toBe(255);
     expect(px(icon, 1, 1)[3]).toBe(0);                                       // rounded corners are clear
     expect(distinct(icon, [[96, 60], [96, 96], [96, 130], [40, 96], [150, 96]])).toBeGreaterThan(2);
+    // the temple is framed by its measured ink, so its ink fills most of the icon's width
+    const data = icon.getContext('2d').getImageData(0, 0, 192, 192).data;
+    let x0 = 192, x1 = -1;
+    for (let y = 0; y < 192; y++) for (let x = 0; x < 192; x++) {
+      const k = (y * 192 + x) * 4, rgb = `${data[k]},${data[k + 1]},${data[k + 2]}`;
+      if (data[k + 3] > 0 && rgb !== '243,231,203' && rgb !== '220,201,160') { x0 = Math.min(x0, x); x1 = Math.max(x1, x); }   // not parchment, not the ground band
+    }
+    expect(x1 - x0 + 1).toBeGreaterThan(0.6 * 192);
     const mask = renderIcon({ size: 512, maskable: true });
     expect(px(mask, 1, 1)[3]).toBe(255);                                      // full-bleed for the mask
     expect(px(mask, 1, 1).slice(0, 3)).toEqual(px(mask, 510, 1).slice(0, 3));   // the same ground right across the top edge
