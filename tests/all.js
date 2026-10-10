@@ -23,3 +23,4 @@ import './render/iso.test.js';
 import './render/camera.test.js';
 import './render/ctx.test.js';
 import './render/primitives.test.js';
+import './render/housingArt.test.js';

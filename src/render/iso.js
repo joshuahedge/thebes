@@ -25,3 +25,8 @@ export function hs(x, y, k) {
 
 export const depthKey = (x, y, w, d) => x + w / 2 + y + d / 2;
 export const compareDepth = (a, b) => a.key - b.key || a.id - b.id;
+
+// Art px bounds [left, top, right, bottom] of a sprite whose footprint origin sits at p(0, 0).
+export function boundsFor(w, d, height, m = 8) {
+  return [-16 * d - m, -height - m, 16 * w + m, 8 * (w + d) + m];
+}
