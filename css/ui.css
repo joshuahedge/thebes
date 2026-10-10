@@ -178,7 +178,7 @@ body[data-mode="placing"] #corners, body[data-mode="drawing"] #corners, body[dat
 .switch { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; }
 .switch[aria-checked="true"] { background: var(--teal-soft); border-color: var(--teal); }
 .choices { display: flex; gap: 4px; flex-wrap: wrap; }
-.choice { min-height: 36px; padding: 0 10px; font-size: calc(14px * var(--ui-scale)); }
+.choice { min-height: var(--tap); padding: 0 10px; font-size: calc(14px * var(--ui-scale)); }
 .choice[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); box-shadow: none; }
 .shortcuts { border-collapse: collapse; width: 100%; }
 .shortcuts td, .shortcuts th { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--parchment-2); vertical-align: top; }
