@@ -24,8 +24,9 @@ function rig() {
   const view = () => ({ width: 400, height: 300 });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: () => true });
   const log = [];
+  const placement = createPlacement({ world, store, afterCommand: (e) => log.push(e.kind) });
   const sheets = createSheets({
-    container: root, store, world, placement: createPlacement({ world, store }), cameraControl,
+    container: root, store, world, placement, cameraControl,
     minimap: createMinimap({ world, cam, view, size: 100 }), getAlerts: () => alertsFor(world),
     onView: (a) => log.push(['view', a.code]), afterCommand: (e) => log.push(e.kind),
     custom: { menu: (body) => { body.textContent = 'menu here'; } },

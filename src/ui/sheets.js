@@ -43,7 +43,7 @@ export function createSheets({ container, store, world, placement, cameraControl
         if (r.ok) { assignLabour(world); afterCommand({ kind: 'pause', result: r, text: b.paused ? T.paused : T.resume, undoable: false }); render(); }
       } }));
     }
-    actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(b.x, b.y); if (r.ok) { afterCommand({ kind: 'demolish', result: r, text: T.demolished, undoable: true }); close(); } } }));
+    actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(b.x, b.y); if (r.ok) close(); } }));
     body.append(actions);
     return [head(buildingName(b.type)), body];
   }
@@ -62,7 +62,7 @@ export function createSheets({ container, store, world, placement, cameraControl
       if (s.tier >= 1 && s.checklist.every((c) => c.met)) body.append(el('p', { class: 'teal', text: T.upgradesAtMonthEnd }));
     }
     if (s.downgradeIn !== null && s.missingNow.length) body.append(el('p', { class: 'coral', text: `Loses ${NEED_NAMES[s.missingNow[0]].toLowerCase()} in ${plural(s.downgradeIn, 'month', 'months')}` }));
-    body.append(el('div', { class: 'actions' }, [button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(h.x, h.y); if (r.ok) { afterCommand({ kind: 'demolish', result: r, text: T.demolished, undoable: true }); close(); } } })]));
+    body.append(el('div', { class: 'actions' }, [button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(h.x, h.y); if (r.ok) close(); } })]));
     return [head(tierName(s.tier)), body];
   }
 
