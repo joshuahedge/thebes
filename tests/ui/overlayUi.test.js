@@ -17,6 +17,8 @@ describe('ui overlay legend', () => {
     expect(strip.textContent).toContain(OVERLAY_LEGEND.water[1]);
     expect(strip.querySelector('.dot')).toBeTruthy();
     expect(strip.querySelector('.ring')).toBeTruthy();
+    store.set({ dock: 'tray' });                              // an unrelated store write must not rebuild the strip
+    expect(root.querySelector('.strip') === strip).toBe(true);
     fire(strip.querySelector('.close'), 'click');
     expect(store.get().overlay).toBe(null);
     expect(root.querySelector('.strip')).toBe(null);

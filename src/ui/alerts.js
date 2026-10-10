@@ -25,6 +25,7 @@ export function mapSummaryText(world, alerts) {
 export function createAlerts({ world, banner, live, onView = () => {}, root = document.body, getAlerts = () => alertsFor(world) }) {
   let current = { all: [], critical: [], ordinary: [] };
   let lastKeys = null;
+  let lastCriticalKeys = null;
 
   function announce() {
     const keys = current.all.map(keyOf).sort().join('|');
@@ -38,7 +39,7 @@ export function createAlerts({ world, banner, live, onView = () => {}, root = do
     clear(banner);
     for (const a of current.critical) {
       const t = alertText(a, world);
-      banner.append(el('div', { class: 'critical', role: 'alert' }, [
+      banner.append(el('div', { class: 'critical' }, [
         el('span', { class: 'icon', 'aria-hidden': 'true', text: '⚠' }),
         el('span', { class: 'text' }, [el('strong', { text: t.title }), ' ', el('span', { class: 'small', text: t.fix })]),
         button(T.view, { class: 'view', onClick: () => onView(a) }),
@@ -48,7 +49,12 @@ export function createAlerts({ world, banner, live, onView = () => {}, root = do
   }
 
   return {
-    refresh() { current = triage(world, getAlerts()); renderBanner(); announce(); },
+    refresh() {
+      current = triage(world, getAlerts());
+      const criticalKeys = current.critical.map(keyOf).sort().join('|');
+      if (criticalKeys !== lastCriticalKeys) { lastCriticalKeys = criticalKeys; renderBanner(); }
+      announce();
+    },
     count: () => current.ordinary.length,
     list: () => current.all,
     critical: () => current.critical,

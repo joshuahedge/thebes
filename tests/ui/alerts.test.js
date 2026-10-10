@@ -52,6 +52,15 @@ describe('ui alerts', () => {
     expect(r.live.textContent).toContain('2 alerts');
     fire(row.querySelector('.view'), 'click');
     expect(seen).toEqual(['debt']);
+    a.refresh();                                              // same critical set: the row is kept, not rebuilt
+    expect(r.banner.querySelector('.critical') === row).toBe(true);
+    expect(r.banner.querySelector('[role]')).toBe(null);       // #live is the one announcer; rows carry no role
+    alerts = [{ code: 'no_storage', id: r.farm.id }];
+    a.refresh();
+    expect(row.isConnected).toBe(false);                       // debt left the critical set: the row is removed
+    alerts = [{ code: 'debt' }];
+    a.refresh();
+    expect(r.banner.querySelector('.critical') !== row).toBe(true);   // debt came back: a fresh row
     alerts = [];
     a.refresh();
     expect(r.root.classList.contains('has-banner')).toBe(false);
