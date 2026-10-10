@@ -67,7 +67,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     ]));
     body.append(el('p', { class: 'small muted', text: T.shortcutsOff }));
     body.append(el('h3', { text: T.gestures }), el('p', { text: T.gesturesHelp }));
-    body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsLater }));
+    body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsHelp }));
   }
 
   function about(body) {

@@ -62,7 +62,7 @@ export async function mountShell(width = 390, height = 844) {
     cleanup() {
       root.remove();
       for (const k of BODY_KEYS) delete document.body.dataset[k];
-      document.body.classList.remove('has-banner', 'panel-folded', 'reduce-motion');
+      document.body.classList.remove('has-banner', 'has-overlay', 'panel-folded', 'reduce-motion');
     },
   };
 }

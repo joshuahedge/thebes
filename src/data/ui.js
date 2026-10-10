@@ -19,6 +19,8 @@ export function toolForItem(item) {
 }
 
 // Placing a service shows its overlay together with the reach preview (spec 4.5).
+export const SHOW_ME_PULSES = 2;
+export const SHOW_ME_PULSE_MS = 400;
 export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion' };
 
 // Spec 6.7. Letters are listed in both cases; `undo` needs Ctrl or Cmd.
