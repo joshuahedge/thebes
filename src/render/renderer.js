@@ -56,7 +56,7 @@ export function createRenderer({
   dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1, registry = ART, maxBakesPerFrame = 2,
 }) {
   const ctx = canvas.getContext('2d');
-  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, ms: 0, frames: 0 };
+  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, ms: 0, frames: 0, stale: 0 };
 
   function renderFrame(world, cam, opts = {}) {
     const started = performance.now();
@@ -71,10 +71,12 @@ export function createRenderer({
     const toDevice = (ax, ay) => { const [sx, sy] = artToScreen(cam, view, ax, ay); return [sx * dpr, sy * dpr]; };
 
     // 1. Terrain chunks. Stale or missing chunks bake a few per frame; the rest show next frame.
-    let bakes = 0, chunks = 0;
+    let bakes = 0, chunks = 0, stale = 0;
     for (const { cx, cy } of visibleChunks(range)) {
-      let sprite = baker.get(world, cx, cy, zoom, dpr, false);
+      const peeked = baker.peek(world, cx, cy, zoom, dpr);
+      let sprite = peeked.fresh ? peeked.sprite : null;
       if (!sprite && bakes < maxBakesPerFrame) { sprite = baker.get(world, cx, cy, zoom, dpr, true); bakes++; }
+      if (!sprite && peeked.sprite) { sprite = peeked.sprite; stale++; }   // stale beats a sand hole
       if (!sprite) continue;
       const o = p(cx * CHUNK, cy * CHUNK);
       const [px, py] = toDevice(o[0], o[1]);
@@ -111,7 +113,7 @@ export function createRenderer({
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    stats.chunks = chunks; stats.bakes = bakes; stats.objects = objects.length; stats.sprites = sprites;
+    stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.objects = objects.length; stats.sprites = sprites;
     stats.ms = performance.now() - started; stats.frames++;
     return stats;
   }
