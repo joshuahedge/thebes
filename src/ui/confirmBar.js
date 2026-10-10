@@ -12,6 +12,8 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
 
   function render() {
     const s = store.get();
+    // The bar rebuilds on every change, so remember which control had focus and put it back (spec 6.8).
+    const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'ok'].includes(c)) : null;
     clear(element);
     if (!isToolMode(s.mode) || !s.tool) { element.hidden = true; return; }
     element.hidden = false;
@@ -29,6 +31,10 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     controls.push(iconButton(T.cancel, '✕', { class: 'cancel', onClick: onCancel }));
     controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onClick: onConfirm }));
     element.append(el('div', { class: `confirm${demolish ? ' demolish' : ''}` }, [info, ...controls]));
+    if (focusedClass) {
+      const again = element.querySelector(`.${focusedClass}`);
+      if (again && !again.disabled) again.focus();
+    }
   }
   render();
   store.subscribe(render);

@@ -61,4 +61,14 @@ describe('ui confirm bar', () => {
     expect(r.root.querySelector('.reason').textContent).toContain('1 item');
     r.cleanup();
   });
+  it('keeps keyboard focus on the same control when the bar rebuilds', () => {
+    const r = rig();
+    r.placement.start({ kind: 'road' });
+    r.placement.pointAt(10, 12); r.placement.pointAt(14, 14);
+    r.bar.render();
+    r.root.querySelector('.flip').focus();
+    r.placement.flip();
+    expect(document.activeElement.classList.contains('flip')).toBe(true);
+    r.cleanup();
+  });
 });
