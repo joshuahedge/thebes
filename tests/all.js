@@ -47,3 +47,4 @@ import './ui/modes.test.js';
 import './ui/text.test.js';
 import './ui/backstack.test.js';
 import './ui/settings.test.js';
+import './ui/cameraControl.test.js';
