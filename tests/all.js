@@ -41,3 +41,5 @@ import './render/stress.test.js';
 import './ui/layout.test.js';
 import './ui/theme.test.js';
 import './ui/components.test.js';
+import './ui/store.test.js';
+import './ui/modes.test.js';
