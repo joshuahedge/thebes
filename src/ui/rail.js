@@ -23,7 +23,7 @@ export function createRail({ container, store, world, onPick, onConfirm, onCance
   let lastCards = null;
   function render() {
     const s = store.get();
-    const open = s.dock === 'tray';
+    const open = s.dock === 'tray' && !isToolMode(s.mode) && !s.sheet;
     drawer.hidden = !open;
     catButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(open && s.category === CATEGORIES[i].id)));
     const tool = isToolMode(s.mode);

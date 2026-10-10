@@ -89,6 +89,7 @@ describe('ui modes', () => {
   it('opens the tray when a category is picked in portrait only', () => {
     expect(pickCategory(S0, 'food')).toEqual({ category: 'food', dock: 'tray' });
     expect(pickCategory({ ...S0, layout: 'wide', dock: 'slim' }, 'food')).toEqual({ category: 'food', dock: 'slim' });
+    expect(pickCategory({ ...S0, layout: 'compact', dock: 'slim' }, 'food')).toEqual({ category: 'food', dock: 'tray' });
   });
   it('never has a tool and a selection at once', () => {
     const steps = [(s) => select(s, 1), (s) => startTool(s, { kind: 'road' }), (s) => openSheet(s, 'summary'), (s) => back(s), (s) => select(s, 2), (s) => cancelTool(s), (s) => startTool(s, { kind: 'demolish' }), (s) => back(s), (s) => back(s)];

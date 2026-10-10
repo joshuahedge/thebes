@@ -33,4 +33,15 @@ describe('ui cards', () => {
     expect(root.querySelector('.empty').textContent).toBe('Coming later');
     cleanup();
   });
+  it('keeps keyboard focus on the same card when the grid rebuilds', () => {
+    const { root, cleanup } = mount();
+    const w = makeTestWorld({ gold: 100000 });
+    renderCards(root, { world: w, category: 'services', activeItem: null, onPick: () => {} });
+    root.querySelectorAll('.card')[1].focus();
+    expect(document.activeElement.dataset.item).toBe('bazaar');
+    renderCards(root, { world: w, category: 'services', activeItem: 'bazaar', onPick: () => {} });
+    expect(document.activeElement.dataset.item).toBe('bazaar');
+    expect(document.activeElement.getAttribute('aria-pressed')).toBe('true');
+    cleanup();
+  });
 });

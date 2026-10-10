@@ -5,7 +5,7 @@ import { createCorners } from '../../src/ui/corners.js';
 import { createSpeedControl } from '../../src/ui/speed.js';
 import { createPlacement } from '../../src/ui/placement.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
-import { startTool } from '../../src/ui/modes.js';
+import { startTool, openSheet } from '../../src/ui/modes.js';
 import { makeTestWorld, setRoad } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 
@@ -56,6 +56,16 @@ describe('ui panels', () => {
     fire(root.querySelector('.ok'), 'click');
     fire(root.querySelector('.cancel'), 'click');
     expect(log).toEqual(['ok', 'cancel']);
+    placement.cancel();
+    fire(cats[1], 'click');
+    expect(root.querySelector('.drawer').hidden).toBe(false);
+    placement.start({ kind: 'building', type: 'well' }, { x: 5, y: 20 });
+    expect(root.querySelector('.drawer').hidden).toBe(true);
+    placement.cancel();
+    expect(root.querySelector('.drawer').hidden).toBe(false);
+    expect(store.get().dock).toBe('tray');
+    store.set(openSheet(store.get(), 'menu'));
+    expect(root.querySelector('.drawer').hidden).toBe(true);
     cleanup();
   });
   it('corners: speed on the left, minimap with a badge and overlay on the right', () => {
@@ -71,6 +81,14 @@ describe('ui panels', () => {
     corners.render();
     expect(root.querySelector('.badge').hidden).toBe(false);
     expect(root.querySelector('.badge').textContent).toBe('3');
+    alerts = 1;
+    corners.render();
+    const label = root.querySelector('.minimap-button').getAttribute('aria-label');
+    expect(label).toContain('1 alert');
+    expect(label.includes('1 alerts')).toBe(false);
+    alerts = 3;
+    corners.render();
+    expect(root.querySelector('.minimap-button').getAttribute('aria-label')).toContain('3 alerts');
     fire(root.querySelector('.minimap-button'), 'click');
     fire(root.querySelector('.overlay-button'), 'click');
     expect(log).toEqual(['minimap', 'overlay']);

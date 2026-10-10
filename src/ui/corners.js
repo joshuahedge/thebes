@@ -1,7 +1,7 @@
 // Corner buttons (spec 6.3): pause and speed bottom-left; minimap with the alert badge and the overlay
 // toggle bottom-right. They show at every dock height and never sit in the middle of the map.
 import { el, iconButton } from './components.js';
-import { T } from './text.js';
+import { T, plural } from './text.js';
 
 export function createCorners({ container, store, speedControl, onMinimap, onOverlay, alertCount = () => 0 }) {
   const left = el('div', { class: 'group left' });
@@ -17,7 +17,7 @@ export function createCorners({ container, store, speedControl, onMinimap, onOve
     const n = alertCount();
     badge.hidden = n === 0;
     badge.textContent = String(n);
-    minimap.setAttribute('aria-label', n ? `${T.minimap}, ${n} ${T.alerts.toLowerCase()}` : T.minimap);
+    minimap.setAttribute('aria-label', n ? `${T.minimap}, ${plural(n, 'alert', 'alerts')}` : T.minimap);
     overlay.setAttribute('aria-pressed', String(Boolean(store.get().overlay)));
     speedControl.render();
   }
