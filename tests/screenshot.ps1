@@ -1,7 +1,7 @@
 # Saves a PNG of a page at an exact viewport size. Uses headless Edge over the DevTools protocol, because
 # --window-size includes the window chrome (a 1280x800 window gives a 1254x707 page and nothing narrower than ~496 px).
 # -BudgetMs is the settle time after the page has loaded, so a few frames have run before the capture.
-param([string]$Url = '/dev.html', [string]$Out = 'shot.png', [int]$Width = 1280, [int]$Height = 800, [int]$BudgetMs = 1500)
+param([string]$Url = '/', [string]$Out = 'shot.png', [int]$Width = 1280, [int]$Height = 800, [int]$BudgetMs = 1500)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") |
@@ -19,7 +19,7 @@ $socket = $null
 try {
   $up = $false
   for ($i = 0; $i -lt 40 -and -not $up; $i++) {
-    try { $up = (Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$port/dev.html" -TimeoutSec 2).StatusCode -eq 200 } catch { $up = $false }
+    try { $up = (Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$port/index.html" -TimeoutSec 2).StatusCode -eq 200 } catch { $up = $false }
     if (-not $up) { Start-Sleep -Milliseconds 250 }
   }
   if (-not $up) { Write-Output "Server did not answer on port $port"; exit 1 }

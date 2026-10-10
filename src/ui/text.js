@@ -70,6 +70,7 @@ export const OVERLAY_LEGEND = {
 
 export const dateText = ({ year, month, day }) => `Year ${year}, month ${month}, day ${day}`;
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+export const milestoneText = (name) => `Your city is now a ${name}`;
 
 export const T = {
   fold: 'Fold the panel', unfold: 'Unfold the panel',
