@@ -62,7 +62,7 @@ export function createUI({
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height) });
   const toasts = createToasts({ container: $('toasts') });
   const effects = createEffects({
-    reducedMotion: settings.reducedMotion(),
+    reducedMotion: settings.reducedMotion,
     onMilestone: (id) => { const m = MILESTONES.find((x) => x.id === id); toasts.show(milestoneText(m ? m.name : id)); },
   });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });

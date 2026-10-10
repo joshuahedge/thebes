@@ -80,3 +80,4 @@ import './save/installFlow.test.js';
 import './ui/installUi.test.js';
 import './render/assets.test.js';
 import './ui/pwa.test.js';
+import './ui/carryovers.test.js';

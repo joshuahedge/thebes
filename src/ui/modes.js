@@ -42,6 +42,7 @@ export function back(state) {
   if (state.sheet && state.sheet.kind !== 'info') return afterPanel(state);
   if (isToolMode(state.mode)) return cancelTool(state);
   if (state.mode === 'selected') return { mode: 'browse', selectedId: null, sheet: null };
+  if (state.dock === 'tray' && state.layout !== 'wide') return { dock: 'slim' };   // Esc closes an open tray or drawer; never a history step
   return null;
 }
 
