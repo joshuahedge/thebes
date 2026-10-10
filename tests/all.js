@@ -36,3 +36,4 @@ import './render/walkers.test.js';
 import './render/overlays.test.js';
 import './render/effects.test.js';
 import './dev/sampleCity.test.js';
+import './render/stress.test.js';
