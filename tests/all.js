@@ -67,3 +67,4 @@ import './ui/toasts.test.js';
 import './ui/menu.test.js';
 import './ui/createUI.test.js';
 import './ui/a11y.test.js';
+import './save/store.test.js';
