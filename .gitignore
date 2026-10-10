@@ -1,3 +1,6 @@
 *.log
 .DS_Store
 Thumbs.db
+
+# Raw before/after screenshots (the repo keeps contact sheets)
+docs/superpowers/notes/screenshots/raw/
