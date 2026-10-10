@@ -171,3 +171,15 @@ body[data-mode="placing"] #corners, body[data-mode="drawing"] #corners, body[dat
 #banner .critical .text { flex: 1; min-width: 0; }
 #banner .critical .icon { color: var(--coral-text); }
 .toast .text { flex: 1; }
+
+/* Menu, settings and help sheets. */
+.menu-list { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+.menu-list button { text-align: left; }
+.switch { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+.switch[aria-checked="true"] { background: var(--teal-soft); border-color: var(--teal); }
+.choices { display: flex; gap: 4px; flex-wrap: wrap; }
+.choice { min-height: 36px; padding: 0 10px; font-size: calc(14px * var(--ui-scale)); }
+.choice[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); box-shadow: none; }
+.shortcuts { border-collapse: collapse; width: 100%; }
+.shortcuts td, .shortcuts th { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--parchment-2); vertical-align: top; }
+kbd { font: inherit; background: var(--parchment-2); border-radius: 6px; padding: 0 6px; white-space: nowrap; }

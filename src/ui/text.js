@@ -89,4 +89,19 @@ export const T = {
   shortcuts: 'Keyboard shortcuts', openSummary: 'Open the city summary', overlayOff: 'Turn the overlay off',
   rotate: 'Rotate', housingPlots: 'Housing plots',
   noWorkersNeeded: 'No workers needed', help: 'How to play',
+  on: 'On', off: 'Off', version: 'Version', keyHead: 'Key', doesHead: 'Does', gestures: 'Touch',
+  leaveMode: 'To leave any mode: ✕, Back, Esc or right-click.',
+  shortcutsOff: 'Single-key shortcuts can be turned off in settings. Esc, Enter and Ctrl+Z always work.',
+  gesturesHelp: 'One finger pans. Two fingers pan or zoom. Tap to select, or to move the ghost. Double-tap zooms in. Tap a start and an end to draw a road or paint plots.',
+  aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
+  undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
+  hoverHint: 'Hover a building or pick a card',
 };
+
+// The help sheet's shortcut table: [KEYS name, what it does, optional display override].
+export const HELP_ROWS = [
+  ['pause', 'Pause or resume'], ['speedUp', 'Faster'], ['speedDown', 'Slower'],
+  ['category', 'Pick a build category', '1 to 7'], ['panLeft', 'Move the view', 'Arrows or WASD'],
+  ['rotate', 'Rotate, once something can rotate'], ['minimap', 'Open the minimap'], ['overlay', 'Cycle the overlays'],
+  ['confirm', 'Confirm'], ['back', 'Back one step'], ['undo', 'Undo', 'Ctrl+Z or Cmd+Z'], ['help', 'Show this list'],
+];

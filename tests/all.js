@@ -64,3 +64,4 @@ import './ui/sheets.test.js';
 import './ui/alerts.test.js';
 import './ui/overlayUi.test.js';
 import './ui/toasts.test.js';
+import './ui/menu.test.js';
