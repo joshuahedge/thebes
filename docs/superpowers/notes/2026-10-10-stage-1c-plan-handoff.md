@@ -20,3 +20,7 @@ The Stage 1b rendering branch is merged to main (259 tests). The Stage 1c plan i
 - Loop tests must respect `MAX_FRAME_SECONDS` (0.25 s per frame).
 - A visible-range filter on the rotated-rectangle bounding box is too coarse; sort by distance to the view centre.
 - The brief's commit trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` is kept on every commit; ask Josh whether later plans should name the model actually used.
+
+## Update, later the same evening
+
+Tasks 15–18, the spec coverage table, the 1d follow-ups and the next-plan note are now in the plan; the self-review (label, placeholder and name scans) passed. Execution starts with Task 1.

@@ -4306,3 +4306,1402 @@ git commit -m "Add info sheets, the city summary and the minimap`n`nCo-Authored-
 ```
 
 ---
+
+### Task 15: Alerts, the overlay legend and toasts
+
+**Files:**
+- Create: `src/ui/alerts.js`, `src/ui/overlayUi.js`, `src/ui/toasts.js`
+- Modify: `src/ui/text.js` (a few labels), `css/ui.css` (toast action, legend colour)
+- Test: `tests/ui/alerts.test.js`, `tests/ui/overlayUi.test.js`, `tests/ui/toasts.test.js`
+- Modify: `tests/all.js`
+
+**Interfaces:**
+- Consumes: `alertsFor` (Task 5), `alertText`, `plural`, `OVERLAY_NAMES`, `OVERLAY_LEGEND`, `T` (Task 3), `summaryData` (Task 11), `dateText`; `toggleOverlay`, `cycleOverlay` (Task 2); `OVERLAYS`, `OVERLAY_HUE` (render/overlays.js); `TOAST_MS` (data/ui.js); `el`, `button`, `iconButton`, `clear`, `setText`.
+- Produces (`alerts.js`): `CRITICAL` (a `Set` of alert codes shown as a banner; `debt` for now, raids and fire join in Stage 3); `triage(world, alerts = alertsFor(world)) → { all, critical, ordinary }` which drops alerts whose `id` names a building that no longer exists (1a follow-up: alerts are a month-old snapshot) and splits the rest; `mapSummaryText(world, alerts) → string` (the canvas's text summary, spec 6.8: gold, people, mood, date, then the alert titles); `createAlerts({ world, banner, live, onView, root = document.body, getAlerts = () => alertsFor(world) }) → { refresh(), count(), list(), critical() }`. `refresh()` re-triages, renders one `.critical` row per critical alert in `banner` (title, fix, a **View** button calling `onView(alert)`), toggles `root.classList` `has-banner`, and writes an announcement into `live` only when the set of alerts changed (so screen readers hear each change once, spec 6.3/6.8). `count()` is the number of ordinary alerts (the badge, spec 6.3); `list()` is every alert (the minimap sheet's list); `critical()` the banner ones.
+- Produces (`overlayUi.js`): `createOverlayLegend({ container, store }) → { render(), cycle() }`: when `store.overlay` is set, a `.strip` with the overlay name, a filled `.dot` + the has-it label, a hollow `.ring` + the missing label (spec 6.3: dot versus ring, never colour alone) and a ✕ (`.close`) that turns the overlay off; nothing when no overlay. `cycle()` applies `cycleOverlay(state, OVERLAYS)` (null → water → food → religion → housing → null; the O key and the corner button).
+- Produces (`toasts.js`): `createToasts({ container, setTimer = setTimeout, clearTimer = clearTimeout }) → { show(text, { action, onAction, ms = TOAST_MS } = {}) → element, clear() }`. A `.toast` with the text and, when `action` is given, a button labelled `action` that calls `onAction()` and removes the toast. At most two toasts are visible; a third removes the oldest. Timers are injectable so tests control time.
+
+- [ ] **Step 1: Write the failing tests**
+
+`tests/ui/alerts.test.js`:
+```js
+import { describe, it, expect } from '../harness.js';
+import { CRITICAL, triage, mapSummaryText, createAlerts } from '../../src/ui/alerts.js';
+import { alertsFor } from '../../src/sim/alerts.js';
+import { alertText, T } from '../../src/ui/text.js';
+import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
+import { mount, fire } from '../helpers/dom.js';
+
+function rig() {
+  const { root, cleanup } = mount('<div id="banner"></div><p id="live"></p>');
+  const world = makeTestWorld({ gold: 1000 });
+  setRoad(world, 0, 10, 31, 10);
+  const farm = addRaw(world, 'farm_grain', 2, 11, { blocked: 'no_storage' });
+  staffAll(world);
+  return { root, world, farm, banner: root.querySelector('#banner'), live: root.querySelector('#live'), cleanup };
+}
+
+describe('ui alerts', () => {
+  it('drops alerts for buildings that are gone and splits critical from ordinary', () => {
+    const { world, farm, cleanup } = rig();
+    world.gold = -1;
+    const stale = [...alertsFor(world), { code: 'no_road', id: 999 }];
+    const t = triage(world, stale);
+    expect(t.all.map((a) => a.code)).toEqual(['no_storage', 'debt']);
+    expect(t.critical.map((a) => a.code)).toEqual(['debt']);
+    expect(t.ordinary.map((a) => a.code)).toEqual(['no_storage']);
+    expect(t.ordinary[0].id).toBe(farm.id);
+    expect(CRITICAL.has('debt')).toBe(true);
+    expect(mapSummaryText(world, t.all)).toContain(alertText(t.all[0], world).title);
+    expect(mapSummaryText(world, [])).toContain(T.noAlerts);
+    cleanup();
+  });
+  it('renders the banner for critical alerts, counts the rest, and announces each change once', () => {
+    const r = rig();
+    let alerts = [{ code: 'no_storage', id: r.farm.id }];
+    const seen = [];
+    const a = createAlerts({ world: r.world, banner: r.banner, live: r.live, root: r.root, onView: (x) => seen.push(x.code), getAlerts: () => alerts });
+    a.refresh();
+    expect(a.count()).toBe(1);
+    expect(a.critical().length).toBe(0);
+    expect(r.root.classList.contains('has-banner')).toBe(false);
+    expect(r.live.textContent).toContain(alertText(alerts[0], r.world).title);
+    r.live.textContent = 'unchanged';
+    a.refresh();
+    expect(r.live.textContent).toBe('unchanged');           // same alerts: nothing new to announce
+    alerts = [...alerts, { code: 'debt' }];
+    a.refresh();
+    expect(r.root.classList.contains('has-banner')).toBe(true);
+    const row = r.banner.querySelector('.critical');
+    expect(row.textContent).toContain(alertText({ code: 'debt' }, r.world).title);
+    expect(a.count()).toBe(1);
+    expect(a.list().length).toBe(2);
+    expect(r.live.textContent).toContain('2 alerts');
+    fire(row.querySelector('.view'), 'click');
+    expect(seen).toEqual(['debt']);
+    alerts = [];
+    a.refresh();
+    expect(r.root.classList.contains('has-banner')).toBe(false);
+    expect(r.banner.children.length).toBe(0);
+    expect(r.live.textContent).toBe(T.noAlerts);
+    r.cleanup();
+  });
+});
+```
+
+`tests/ui/overlayUi.test.js`:
+```js
+import { describe, it, expect } from '../harness.js';
+import { createOverlayLegend } from '../../src/ui/overlayUi.js';
+import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
+import { OVERLAY_NAMES, OVERLAY_LEGEND } from '../../src/ui/text.js';
+import { mount, fire } from '../helpers/dom.js';
+
+describe('ui overlay legend', () => {
+  it('shows name, dot, ring and a close button for the current overlay, and cycles through all four', () => {
+    const { root, cleanup } = mount();
+    const store = createStore(INITIAL_UI_STATE);
+    const legend = createOverlayLegend({ container: root, store });
+    expect(root.querySelector('.strip')).toBe(null);
+    store.set({ overlay: 'water' });
+    const strip = root.querySelector('.strip');
+    expect(strip.textContent).toContain(OVERLAY_NAMES.water);
+    expect(strip.textContent).toContain(OVERLAY_LEGEND.water[0]);
+    expect(strip.textContent).toContain(OVERLAY_LEGEND.water[1]);
+    expect(strip.querySelector('.dot')).toBeTruthy();
+    expect(strip.querySelector('.ring')).toBeTruthy();
+    fire(strip.querySelector('.close'), 'click');
+    expect(store.get().overlay).toBe(null);
+    expect(root.querySelector('.strip')).toBe(null);
+    const seen = [];
+    for (let i = 0; i < 5; i++) { legend.cycle(); seen.push(store.get().overlay); }
+    expect(seen).toEqual(['water', 'food', 'religion', 'housing', null]);
+    cleanup();
+  });
+});
+```
+
+`tests/ui/toasts.test.js`:
+```js
+import { describe, it, expect } from '../harness.js';
+import { createToasts } from '../../src/ui/toasts.js';
+import { TOAST_MS } from '../../src/data/ui.js';
+import { mount, fire } from '../helpers/dom.js';
+
+function fakeTimers() {
+  const timers = [];
+  return {
+    timers,
+    setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
+    clearTimer: (id) => { timers[id - 1] = null; },
+    fire: (id) => { const t = timers[id - 1]; if (t) { timers[id - 1] = null; t.fn(); } },
+  };
+}
+
+describe('ui toasts', () => {
+  it('shows a toast that times out, an action that runs and dismisses, and keeps at most two', () => {
+    const { root, cleanup } = mount();
+    const ft = fakeTimers();
+    const toasts = createToasts({ container: root, setTimer: ft.setTimer, clearTimer: ft.clearTimer });
+    toasts.show('Placed');
+    expect(root.querySelectorAll('.toast').length).toBe(1);
+    expect(ft.timers[0].ms).toBe(TOAST_MS);
+    ft.fire(1);
+    expect(root.querySelectorAll('.toast').length).toBe(0);
+    let undone = 0;
+    const t = toasts.show('Road laid', { action: 'Undo', onAction: () => undone++, ms: 6000 });
+    expect(t.querySelector('button').textContent).toBe('Undo');
+    expect(ft.timers[1].ms).toBe(6000);
+    fire(t.querySelector('button'), 'click');
+    expect(undone).toBe(1);
+    expect(root.querySelectorAll('.toast').length).toBe(0);
+    expect(ft.timers[1]).toBe(null);                 // the timer was cleared with the toast
+    toasts.show('one'); toasts.show('two'); toasts.show('three');
+    const texts = [...root.querySelectorAll('.toast')].map((n) => n.textContent);
+    expect(texts).toEqual(['two', 'three']);
+    toasts.clear();
+    expect(root.querySelectorAll('.toast').length).toBe(0);
+    cleanup();
+  });
+});
+```
+
+Append to `tests/all.js`:
+```js
+import './ui/alerts.test.js';
+import './ui/overlayUi.test.js';
+import './ui/toasts.test.js';
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1 -Grep "ui alerts"`
+Expected: `LOAD ERROR` naming `tests/all.js`.
+
+- [ ] **Step 3: Write the alert triage, banner and announcer**
+
+`src/ui/alerts.js`:
+```js
+// Alert triage (spec 6.3): critical alerts become a banner under the top bar; the rest feed the badge and
+// the minimap sheet's list. Every change is announced once through the aria-live region (spec 6.8).
+import { alertsFor } from '../sim/alerts.js';
+import { summaryData } from './hud.js';
+import { alertText, dateText, plural, T } from './text.js';
+import { el, button, clear, setText } from './components.js';
+
+// The sim has no severity field, so the UI decides (1a follow-up). Raids and fire join this set in Stage 3.
+export const CRITICAL = new Set(['debt']);
+
+const keyOf = (a) => `${a.code}:${a.id === undefined ? '' : a.id}:${a.level || ''}`;
+
+export function triage(world, alerts = alertsFor(world)) {
+  const all = alerts.filter((a) => a.id === undefined || a.id === null || Boolean(world.buildings[a.id]));
+  return { all, critical: all.filter((a) => CRITICAL.has(a.code)), ordinary: all.filter((a) => !CRITICAL.has(a.code)) };
+}
+
+export function mapSummaryText(world, alerts) {
+  const d = summaryData(world);
+  const head = `${T.gold} ${d.gold}. ${plural(d.people, 'person', 'people')}. ${T.mood} ${d.mood}. ${dateText(d.date)}.`;
+  if (!alerts.length) return `${head} ${T.noAlerts}.`;
+  return `${head} ${plural(alerts.length, 'alert', 'alerts')}: ${alerts.map((a) => alertText(a, world).title).join('. ')}.`;
+}
+
+export function createAlerts({ world, banner, live, onView = () => {}, root = document.body, getAlerts = () => alertsFor(world) }) {
+  let current = { all: [], critical: [], ordinary: [] };
+  let lastKeys = null;
+
+  function announce() {
+    const keys = current.all.map(keyOf).sort().join('|');
+    if (keys === lastKeys) return;
+    lastKeys = keys;
+    if (!current.all.length) { setText(live, T.noAlerts); return; }
+    setText(live, `${plural(current.all.length, 'alert', 'alerts')}: ${current.all.map((a) => alertText(a, world).title).join('. ')}`);
+  }
+
+  function renderBanner() {
+    clear(banner);
+    for (const a of current.critical) {
+      const t = alertText(a, world);
+      banner.append(el('div', { class: 'critical', role: 'alert' }, [
+        el('span', { class: 'icon', 'aria-hidden': 'true', text: '⚠' }),
+        el('span', { class: 'text' }, [el('strong', { text: t.title }), ' ', el('span', { class: 'small', text: t.fix })]),
+        button(T.view, { class: 'view', onClick: () => onView(a) }),
+      ]));
+    }
+    root.classList.toggle('has-banner', current.critical.length > 0);
+  }
+
+  return {
+    refresh() { current = triage(world, getAlerts()); renderBanner(); announce(); },
+    count: () => current.ordinary.length,
+    list: () => current.all,
+    critical: () => current.critical,
+  };
+}
+```
+
+- [ ] **Step 4: Write the legend strip and the toasts**
+
+`src/ui/overlayUi.js`:
+```js
+// The overlay legend strip under the top bar (spec 6.3): name, filled dot = has it, hollow ring = missing,
+// and a x that turns the overlay off. Overlays combine with browsing, so the strip never changes the mode.
+import { OVERLAYS, OVERLAY_HUE } from '../render/overlays.js';
+import { toggleOverlay, cycleOverlay } from './modes.js';
+import { OVERLAY_NAMES, OVERLAY_LEGEND, T } from './text.js';
+import { el, iconButton, clear } from './components.js';
+
+export function createOverlayLegend({ container, store }) {
+  function render() {
+    const kind = store.get().overlay;
+    clear(container);
+    if (!kind) return;
+    const [has, missing] = OVERLAY_LEGEND[kind];
+    const colour = { color: OVERLAY_HUE[kind] };
+    container.append(el('div', { class: 'strip', role: 'group', 'aria-label': `${OVERLAY_NAMES[kind]} ${T.overlay.toLowerCase()}` }, [
+      el('strong', { class: 'text', text: OVERLAY_NAMES[kind] }),
+      el('span', { class: 'key' }, [el('span', { class: 'dot', style: colour, 'aria-hidden': 'true' }), ' ', el('span', { class: 'text small', text: has })]),
+      el('span', { class: 'key' }, [el('span', { class: 'ring', style: colour, 'aria-hidden': 'true' }), ' ', el('span', { class: 'text small', text: missing })]),
+      iconButton(T.overlayOff, '✕', { class: 'close quiet', onClick: () => store.set(toggleOverlay(store.get(), kind)) }),
+    ]));
+  }
+  render();
+  store.subscribe(render);
+  return { render, cycle: () => store.set(cycleOverlay(store.get(), OVERLAYS)) };
+}
+```
+
+`src/ui/toasts.js`:
+```js
+// Toasts (spec 6.5): a short line, optionally with one action such as Undo. Two at most; the oldest goes.
+import { TOAST_MS } from '../data/ui.js';
+import { el, button } from './components.js';
+
+const MAX_TOASTS = 2;
+
+export function createToasts({ container, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id) }) {
+  const live = [];      // { node, timer }
+
+  function remove(entry) {
+    const i = live.indexOf(entry);
+    if (i < 0) return;
+    live.splice(i, 1);
+    if (entry.timer !== null) clearTimer(entry.timer);
+    entry.node.remove();
+  }
+
+  return {
+    show(text, { action = null, onAction = null, ms = TOAST_MS } = {}) {
+      const entry = { node: null, timer: null };
+      const parts = [el('span', { class: 'text', text })];
+      if (action) parts.push(button(action, { class: 'action', onClick: () => { remove(entry); if (onAction) onAction(); } }));
+      entry.node = el('div', { class: 'toast' }, parts);
+      while (live.length >= MAX_TOASTS) remove(live[0]);
+      live.push(entry);
+      container.append(entry.node);
+      entry.timer = setTimer(() => remove(entry), ms);
+      return entry.node;
+    },
+    clear() { while (live.length) remove(live[0]); },
+  };
+}
+```
+
+Add to `src/ui/text.js`'s `T`: `overlayOff: 'Turn the overlay off',`.
+
+Append to `css/ui.css`:
+```css
+/* Legend keys and the banner's warning glyph. */
+#legend .key { display: inline-flex; align-items: center; gap: 4px; }
+#banner .critical .text { flex: 1; min-width: 0; }
+#banner .critical .icon { color: var(--coral-text); }
+.toast .text { flex: 1; }
+```
+
+- [ ] **Step 5: Run the tests**
+
+Run: `powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1`
+Expected: `ui alerts`, `ui overlay legend`, `ui toasts` PASS, then `ALL PASSED`. In the alerts test, `triage` keeps `no_storage` because the farm exists and drops the `no_road` for id 999; `debt` appears once `world.gold` is negative.
+
+- [ ] **Step 6: Commit**
+
+```powershell
+git add src/ui/alerts.js src/ui/overlayUi.js src/ui/toasts.js src/ui/text.js css/ui.css tests/ui/alerts.test.js tests/ui/overlayUi.test.js tests/ui/toasts.test.js tests/all.js
+git commit -m "Add alert triage with the banner and announcer, the overlay legend and toasts`n`nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 16: The ☰ menu, settings, help, about and the confirm dialog
+
+**Files:**
+- Create: `src/ui/menu.js`
+- Modify: `src/ui/text.js` (help rows, about text, switch labels), `src/data/ui.js` (`APP_VERSION`), `css/ui.css` (switches, choices, menu list)
+- Test: `tests/ui/menu.test.js`
+- Modify: `tests/all.js`
+
+**Interfaces:**
+- Consumes: `KEYS`, `APP_VERSION` (data/ui.js); `openSheet` (Task 2); the settings (Task 4); the toasts (Task 15); `T`, `HELP_ROWS` (text.js); `el`, `button`, `clear`, `setText`.
+- Produces (`menu.js`):
+  - `keyLabel(name) → string`: how a `KEYS` entry is shown (`' '` → `Space`, `Escape` → `Esc`, arrows as glyphs, letters upper-case once, joined with " or ").
+  - `createMenuSheets({ store, settings, toasts, hooks = {}, onNewCity, version = APP_VERSION }) → { menu, settings, help, about }`: four renderers with the `custom[kind](body, { close })` signature `sheets.js` (Task 14) expects. **menu** (spec 6.3): Continue (`close()`), New city (opens the confirm dialog, whose confirm calls `onNewCity()`), Export city and Import city (call `hooks.exportCity()` / `hooks.importCity()` when present, else `toasts.show(T.notYet)`; 1d fills the hooks), Settings, How to play and About (each `openSheet`). **settings**: `role="switch"` buttons for sound, vibration, keyboard shortcuts and left-handed controls (`aria-checked` plus an On/Off word), three-way choices for text size (100, 125, 150) and reduced motion (follow the system, on, off), every change through `settings.set`. **help**: the shortcut table from `HELP_ROWS` and `KEYS`, how to leave a mode (✕, Back, Esc, right-click), the touch gestures, and a note that goals arrive in the next update. **about**: name, version, "a personal hobby project", original art. The word "Pharaoh" appears nowhere.
+  - `createDialog({ container, store }) → { render() }`: renders `store.confirmDialog` (`{ text, confirmLabel, onConfirm }`) into `container` as a `.box` with the text, a Cancel button (`.cancel`, focused when the dialog opens) and the confirm button (`.ok`), hidden when null. Cancel clears the dialog; confirm clears it then calls `onConfirm()`. Esc closes it through `modes.back` (Task 2) and the keyboard's `back` action.
+
+- [ ] **Step 1: Write the failing test**
+
+`tests/ui/menu.test.js`:
+```js
+import { describe, it, expect } from '../harness.js';
+import { createMenuSheets, createDialog, keyLabel } from '../../src/ui/menu.js';
+import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
+import { createSettings, DEFAULT_SETTINGS } from '../../src/ui/settings.js';
+import { KEYS } from '../../src/data/ui.js';
+import { T, HELP_ROWS } from '../../src/ui/text.js';
+import { mount, fire } from '../helpers/dom.js';
+
+function rig(hooks = {}) {
+  const { root, cleanup } = mount('<div id="body"></div><div id="dialog" hidden></div>');
+  const store = createStore(INITIAL_UI_STATE);
+  const settings = createSettings({ storage: { getItem: () => null, setItem: () => {} }, root, systemReducedMotion: () => false });
+  const shown = [];
+  const log = [];
+  const menus = createMenuSheets({ store, settings, toasts: { show: (t) => shown.push(t) }, hooks, onNewCity: () => log.push('new'), version: '0.1-test' });
+  const dialog = createDialog({ container: root.querySelector('#dialog'), store });
+  return { root, body: root.querySelector('#body'), dialogNode: root.querySelector('#dialog'), store, settings, menus, dialog, shown, log, close: () => log.push('close'), cleanup };
+}
+const buttonNamed = (node, text) => [...node.querySelectorAll('button')].find((b) => b.textContent.trim() === text);
+
+```js
+describe('ui menu', () => {
+  it('menu: continue closes, new city asks first, export and import fall back to a toast, others open sheets', () => {
+    const r = rig();
+    r.menus.menu(r.body, { close: r.close });
+    fire(buttonNamed(r.body, T.continueGame), 'click');
+    expect(r.log).toEqual(['close']);
+    fire(buttonNamed(r.body, T.newCity), 'click');
+    expect(r.store.get().confirmDialog.text).toBe(T.newCityConfirm);
+    expect(r.dialogNode.hidden).toBe(false);
+    expect(r.dialogNode.querySelector('.box').textContent).toContain(T.newCityConfirm);
+    fire(r.dialogNode.querySelector('.cancel'), 'click');
+    expect(r.store.get().confirmDialog).toBe(null);
+    expect(r.dialogNode.hidden).toBe(true);
+    fire(buttonNamed(r.body, T.newCity), 'click');
+    fire(r.dialogNode.querySelector('.ok'), 'click');
+    expect(r.log).toEqual(['close', 'new']);
+    expect(r.store.get().confirmDialog).toBe(null);
+    fire(buttonNamed(r.body, T.exportCity), 'click');
+    expect(r.shown).toEqual([T.notYet]);
+    fire(buttonNamed(r.body, T.settings), 'click');
+    expect(r.store.get().sheet).toEqual({ kind: 'settings', id: null });
+    fire(buttonNamed(r.body, T.howToPlay), 'click');
+    expect(r.store.get().sheet.kind).toBe('help');
+    fire(buttonNamed(r.body, T.about), 'click');
+    expect(r.store.get().sheet.kind).toBe('about');
+    r.cleanup();
+    const hooked = rig({ exportCity: () => hooked.log.push('export'), importCity: () => hooked.log.push('import') });
+    hooked.menus.menu(hooked.body, { close: hooked.close });
+    fire(buttonNamed(hooked.body, T.exportCity), 'click');
+    fire(buttonNamed(hooked.body, T.importCity), 'click');
+    expect(hooked.log).toEqual(['export', 'import']);
+    expect(hooked.shown).toEqual([]);
+    hooked.cleanup();
+  });
+  it('settings: switches and choices write through the settings store', () => {
+    const r = rig();
+    r.menus.settings(r.body, { close: r.close });
+    expect(r.settings.get()).toEqual(DEFAULT_SETTINGS);
+    const sound = r.body.querySelector('.switch.sound');
+    expect(sound.getAttribute('role')).toBe('switch');
+    expect(sound.getAttribute('aria-checked')).toBe('false');
+    expect(sound.textContent).toContain(T.off);
+    fire(sound, 'click');
+    expect(r.settings.get().sound).toBe(true);
+    expect(sound.getAttribute('aria-checked')).toBe('true');
+    expect(sound.textContent).toContain(T.on);
+    fire(r.body.querySelector('.choice.textSize[data-value="150"]'), 'click');
+    expect(r.settings.get().textSize).toBe(150);
+    expect(r.root.dataset.textSize).toBe('150');
+    expect(r.body.querySelector('.choice.textSize[data-value="150"]').getAttribute('aria-pressed')).toBe('true');
+    expect(r.body.querySelector('.choice.textSize[data-value="100"]').getAttribute('aria-pressed')).toBe('false');
+    fire(r.body.querySelector('.choice.reducedMotion[data-value="on"]'), 'click');
+    expect(r.settings.reducedMotion()).toBe(true);
+    fire(r.body.querySelector('.switch.leftHanded'), 'click');
+    expect(r.root.dataset.hand).toBe('left');
+    fire(r.body.querySelector('.switch.keyboardShortcuts'), 'click');
+    expect(r.settings.get().keyboardShortcuts).toBe(false);
+    r.cleanup();
+  });
+  it('help lists every shortcut with its keys and the ways out of a mode; about names the version', async () => {
+    const r = rig();
+    r.menus.help(r.body, { close: r.close });
+    const rows = [...r.body.querySelectorAll('.shortcuts tbody tr')];
+    expect(rows.length).toBe(HELP_ROWS.length);
+    for (const [name, text, keys] of HELP_ROWS) {
+      const row = rows.find((tr) => tr.textContent.includes(text));
+      expect(row.textContent).toContain(keys || keyLabel(name));
+    }
+    expect(keyLabel('pause')).toBe('Space');
+    expect(keyLabel('back')).toBe('Esc');
+    expect(keyLabel('speedUp')).toBe('+ or =');
+    expect(keyLabel('minimap')).toBe('M');
+    expect(r.body.textContent).toContain('right-click');
+    expect(r.body.textContent).toContain(T.goalsLater);
+    r.menus.about(r.body, { close: r.close });
+    expect(r.body.textContent).toContain('0.1-test');
+    const src = await (await fetch('/src/ui/menu.js')).text();
+    expect(/pharaoh/i.test(src)).toBe(false);
+    expect(KEYS.help).toContain('?');
+    r.cleanup();
+  });
+});
+```
+
+Append to `tests/all.js`:
+```js
+import './ui/menu.test.js';
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1 -Grep "ui menu"`
+Expected: `LOAD ERROR` naming `tests/all.js`.
+
+- [ ] **Step 3: Add the copy and the version**
+
+Add to `src/data/ui.js`:
+```js
+export const APP_VERSION = '0.1';
+```
+
+Add to `src/ui/text.js` (after `T`):
+```js
+// The help sheet's shortcut table: [KEYS name, what it does, optional display override].
+export const HELP_ROWS = [
+  ['pause', 'Pause or resume'], ['speedUp', 'Faster'], ['speedDown', 'Slower'],
+  ['category', 'Pick a build category', '1 to 7'], ['panLeft', 'Move the view', 'Arrows or WASD'],
+  ['rotate', 'Rotate, once something can rotate'], ['minimap', 'Open the minimap'], ['overlay', 'Cycle the overlays'],
+  ['confirm', 'Confirm'], ['back', 'Back one step'], ['undo', 'Undo', 'Ctrl+Z or Cmd+Z'], ['help', 'Show this list'],
+];
+```
+
+Add to `src/ui/text.js`'s `T`:
+```js
+  on: 'On', off: 'Off', version: 'Version', keyHead: 'Key', doesHead: 'Does', gestures: 'Touch',
+  leaveMode: 'To leave any mode: ✕, Back, Esc or right-click.',
+  shortcutsOff: 'Single-key shortcuts can be turned off in settings. Esc, Enter and Ctrl+Z always work.',
+  gesturesHelp: 'One finger pans. Two fingers pan or zoom. Tap to select, or to move the ghost. Double-tap zooms in. Tap a start and an end to draw a road or paint plots.',
+  aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
+  undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
+  hoverHint: 'Hover a building or pick a card',
+```
+
+- [ ] **Step 4: Write the menu sheets and the dialog**
+
+`src/ui/menu.js`:
+```js
+// The menu, settings, help and about sheets (spec 6.3) as custom renderers for sheets.js, plus the
+// confirm dialog that store.confirmDialog drives (New city, undoing an occupied area).
+import { KEYS, APP_VERSION } from '../data/ui.js';
+import { openSheet } from './modes.js';
+import { HELP_ROWS, T } from './text.js';
+import { el, button, clear } from './components.js';
+
+const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
+
+export function keyLabel(name) {
+  const seen = [];
+  for (const k of KEYS[name] || []) {
+    const label = KEY_NAMES[k] || (k.length === 1 ? k.toUpperCase() : k);
+    if (!seen.includes(label)) seen.push(label);
+  }
+  return seen.join(' or ');
+}
+
+export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCity = () => {}, version = APP_VERSION }) {
+  const open = (kind) => store.set(openSheet(store.get(), kind));
+  const hookOr = (name) => () => { if (typeof hooks[name] === 'function') hooks[name](); else toasts.show(T.notYet); };
+
+  function menu(body, { close }) {
+    body.append(el('div', { class: 'menu-list' }, [
+      button(T.continueGame, { class: 'primary', onClick: close }),
+      button(T.newCity, { onClick: () => store.set({ confirmDialog: { text: T.newCityConfirm, confirmLabel: T.newCity, onConfirm: onNewCity } }) }),
+      button(T.exportCity, { onClick: hookOr('exportCity') }),
+      button(T.importCity, { onClick: hookOr('importCity') }),
+      button(T.settings, { onClick: () => open('settings') }),
+      button(T.howToPlay, { onClick: () => open('help') }),
+      button(T.about, { onClick: () => open('about') }),
+    ]));
+  }
+
+  function switchRow(label, key) {
+    const state = el('span', { class: 'state small muted' });
+    const b = el('button', { type: 'button', role: 'switch', class: `switch ${key}` }, [el('span', { text: label }), ' ', state]);
+    const sync = () => { const on = Boolean(settings.get()[key]); b.setAttribute('aria-checked', String(on)); state.textContent = on ? T.on : T.off; };
+    b.addEventListener('click', () => { settings.set({ [key]: !settings.get()[key] }); sync(); });
+    sync();
+    return el('div', { class: 'row' }, [b]);
+  }
+
+  function choiceRow(label, key, options) {
+    const buttons = options.map(([value, text]) => button(text, { class: `choice ${key}`, dataset: { value: String(value) } }));
+    const sync = () => buttons.forEach((b, i) => b.setAttribute('aria-pressed', String(settings.get()[key] === options[i][0])));
+    buttons.forEach((b, i) => b.addEventListener('click', () => { settings.set({ [key]: options[i][0] }); sync(); }));
+    sync();
+    return el('div', { class: 'row' }, [el('span', { text: label }), el('span', { class: 'choices', role: 'group', 'aria-label': label }, buttons)]);
+  }
+
+  function settingsSheet(body) {
+    body.append(
+      switchRow(T.sound, 'sound'), switchRow(T.vibration, 'vibration'),
+      switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'),
+      choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%']]),
+      choiceRow(T.reducedMotion, 'reducedMotion', [['system', T.followSystem], ['on', T.on], ['off', T.off]]),
+    );
+  }
+```
+
+Continue `src/ui/menu.js` (still inside `createMenuSheets`, then the dialog):
+```js
+  function help(body) {
+    body.append(el('p', { text: T.leaveMode }));
+    body.append(el('h3', { text: T.shortcuts }));
+    body.append(el('table', { class: 'shortcuts' }, [
+      el('thead', {}, [el('tr', {}, [el('th', { text: T.keyHead }), el('th', { text: T.doesHead })])]),
+      el('tbody', {}, HELP_ROWS.map(([name, text, keys]) => el('tr', {}, [el('td', {}, [el('kbd', { text: keys || keyLabel(name) })]), el('td', { text })]))),
+    ]));
+    body.append(el('p', { class: 'small muted', text: T.shortcutsOff }));
+    body.append(el('h3', { text: T.gestures }), el('p', { text: T.gesturesHelp }));
+    body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsLater }));
+  }
+
+  function about(body) {
+    body.append(el('h3', { text: 'Thebes' }), el('p', { text: `${T.version} ${version}` }), el('p', { text: T.aboutText }));
+  }
+
+  return { menu, settings: settingsSheet, help, about };
+}
+
+// The confirm dialog: store.confirmDialog = { text, confirmLabel, onConfirm } shows it; null hides it.
+// Cancel gets focus so a stray Enter never confirms; Esc reaches it through modes.back.
+export function createDialog({ container, store }) {
+  function render() {
+    const d = store.get().confirmDialog;
+    clear(container);
+    if (!d) { container.hidden = true; return; }
+    const cancel = button(T.cancel, { class: 'cancel', onClick: () => store.set({ confirmDialog: null }) });
+    const ok = button(d.confirmLabel || T.confirm, { class: 'ok danger', onClick: () => { store.set({ confirmDialog: null }); d.onConfirm(); } });
+    container.append(el('div', { class: 'box', role: 'document' }, [el('p', { text: d.text }), el('div', { class: 'buttons' }, [cancel, ok])]));
+    container.hidden = false;
+    cancel.focus();
+  }
+  render();
+  store.subscribe(render);
+  return { render };
+}
+```
+
+Append to `css/ui.css`:
+```css
+/* Menu, settings and help sheets. */
+.menu-list { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+.menu-list button { text-align: left; }
+.switch { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+.switch[aria-checked="true"] { background: var(--teal-soft); border-color: var(--teal); }
+.choices { display: flex; gap: 4px; flex-wrap: wrap; }
+.choice { min-height: 36px; padding: 0 10px; font-size: calc(14px * var(--ui-scale)); }
+.choice[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); box-shadow: none; }
+.shortcuts { border-collapse: collapse; width: 100%; }
+.shortcuts td, .shortcuts th { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--parchment-2); vertical-align: top; }
+kbd { font: inherit; background: var(--parchment-2); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
+```
+
+- [ ] **Step 5: Run the tests**
+
+Run: `powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1`
+Expected: `ui menu` PASS, then `ALL PASSED`. The sheets test from Task 14 still passes: its `custom.menu` stub is unaffected.
+
+- [ ] **Step 6: Commit**
+
+```powershell
+git add src/ui/menu.js src/ui/text.js src/data/ui.js css/ui.css tests/ui/menu.test.js tests/all.js
+git commit -m "Add the menu, settings, help and about sheets and the confirm dialog`n`nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 17: `createUI` wiring, the real `main.js`, and integration tests
+
+**Files:**
+- Create: `src/ui/createUI.js`, `tests/helpers/uiWorld.js`, `tests/ui/createUI.test.js`
+- Modify: `src/main.js` (replace the Task 1 boot), `src/ui/text.js` (`milestoneText`), `tests/screenshot.ps1` (probe `/index.html`, default URL `/`), `tests/all.js`
+- Delete: `dev.html`, `src/dev/devControls.js` (`index.html?seed=N&stress=1`, `&sample=1`, `&speed=0` cover them)
+
+**Interfaces:**
+- Consumes: everything Tasks 1–16 produce, plus `MILESTONES`, `BUILDINGS`, `screenToTile`, `tileToScreen`, `visibleTileRange`, `walkersAt`, `drawOverlay`, `drawReachHighlight`, `drawGhost`, `createEffects`, `createGameLoop`, `setSpeed`, `buildSampleCity`, `buildStressCity`.
+- Produces (`createUI.js`): `createUI({ world, canvas, cam, renderer, root = document.body, doc = document, win = window, getSize = null, subscribeResize = undefined, history = win.history, addListener, removeListener, keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now() }) → ui` with `ui.store`, `ui.settings`, `ui.placement`, `ui.cameraControl`, `ui.alerts`, `ui.toasts`, `ui.effects`, `ui.speedControl`, `ui.actions` (the map actions, for tests), `ui.render({ timeDays, now })` (the loop's render callback: ticks the camera tween, draws the frame with overlay, reach highlight, ghosts and the grid, refreshes the top bar, redraws a visible minimap, and once per game day refreshes alerts, the badge, the cards and the canvas summary), `ui.afterCommand(e)`, `ui.refresh()`, `ui.destroy()`. `hooks` = `{ newCity, exportCity, importCity }` (1d fills the last two; `newCity` reloads with a fresh seed in `main.js`). Every option with a window or document default exists so tests can inject a size source, a history, a key target and a storage.
+- Produces (`tests/helpers/uiWorld.js`): `uiWorld()` (a 32×32 world with a road along y = 10, two huts north of it and a well, farm, granary, bazaar and temple south of it), `fakeHistory()` (as in the back-stack test), `mountShell(width, height)` (loads `css/ui.css` once, fetches `index.html`, mounts its body without scripts into an off-screen, transformed container so fixed chrome stays inside it) and `rigUI({ width, height })` (mounts the shell, builds the world, camera and renderer, calls `createUI` with injected size, history, keyboard target and storage, and returns `tap(tx, ty, type)`, `resize(w, h)`, `frame(t)` helpers).
+- Produces (`main.js`): the real boot; `window.__thebes = { world, cam, renderer, loop, ui }` for play-testing in the console.
+
+- [ ] **Step 1: Write the test helpers and the failing integration tests**
+
+`tests/helpers/uiWorld.js`:
+```js
+// A small city, a fake browser history, and a mounted copy of the real page shell for interface tests.
+import { makeTestWorld, setRoad, addRaw, staffAll } from './testWorld.js';
+import { fire } from './dom.js';
+import { createCamera, tileToScreen } from '../../src/render/camera.js';
+import { createRenderer } from '../../src/render/renderer.js';
+import { createUI } from '../../src/ui/createUI.js';
+
+// Road along y = 10; huts north of it; services south of it. Fertile land is x < 8 (makeTestWorld's default).
+export function uiWorld() {
+  const world = makeTestWorld({ gold: 1000 });
+  setRoad(world, 0, 10, 31, 10);
+  addRaw(world, 'house', 12, 9, { tier: 1, residents: 4 });
+  addRaw(world, 'house', 13, 9, { tier: 1, residents: 4 });
+  addRaw(world, 'farm_grain', 2, 11);
+  addRaw(world, 'granary', 6, 11);
+  addRaw(world, 'bazaar', 9, 11);
+  addRaw(world, 'well', 15, 11);
+  addRaw(world, 'temple', 24, 11);
+  staffAll(world);
+  return world;
+}
+
+export function fakeHistory() {
+  const entries = [{ state: null }];
+  let index = 0;
+  const listeners = [];
+  return {
+    entries, listeners,
+    get length() { return entries.length; },
+    get state() { return entries[index].state; },
+    pushState(state) { entries.splice(index + 1); entries.push({ state }); index = entries.length - 1; },
+    back() { if (index > 0) { index--; for (const fn of listeners) fn({ state: entries[index].state }); } },
+    addListener(type, fn) { if (type === 'popstate') listeners.push(fn); },
+    removeListener(type, fn) { const i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); },
+  };
+}
+
+let cssLoaded = null;
+const BODY_KEYS = ['layout', 'mode', 'input', 'dock', 'hand', 'textSize'];
+
+// The real shell from index.html, inside an off-screen box. The transform makes the box the containing
+// block for the shell's position: fixed chrome, so the top bar, dock and sheets lay out inside it.
+export async function mountShell(width = 390, height = 844) {
+  if (!cssLoaded) {
+    cssLoaded = new Promise((resolve, reject) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet'; link.href = '/css/ui.css'; link.onload = resolve; link.onerror = reject;
+      document.head.append(link);
+    });
+  }
+  await cssLoaded;
+  const html = await (await fetch('/index.html')).text();
+  const parsed = new DOMParser().parseFromString(html, 'text/html');
+  for (const n of parsed.querySelectorAll('script, noscript')) n.remove();
+  const root = document.createElement('div');
+  root.className = 'test-mount shell';
+  root.style.cssText = `position:fixed;left:-10000px;top:0;width:${width}px;height:${height}px;transform:translateZ(0);overflow:hidden;`;
+  root.innerHTML = parsed.body.innerHTML;
+  document.body.append(root);
+  return {
+    root,
+    cleanup() {
+      root.remove();
+      for (const k of BODY_KEYS) delete document.body.dataset[k];
+      document.body.classList.remove('has-banner', 'panel-folded', 'reduce-motion');
+    },
+  };
+}
+
+Continue `tests/helpers/uiWorld.js`:
+```js
+// The whole interface on the mounted shell, with the window-facing parts injected: size, resize source,
+// history, keyboard target and storage. `root` is document.body so the stylesheet's body[data-...] rules apply.
+export async function rigUI({ width = 390, height = 844 } = {}) {
+  const shell = await mountShell(width, height);
+  const world = uiWorld();
+  const canvas = shell.root.querySelector('#map');
+  const cam = createCamera({ x: 12, y: 10, zoom: 1 });
+  const renderer = createRenderer({ canvas, dpr: 1 });
+  let size = { width, height };
+  const resizeListeners = [];
+  const history = fakeHistory();
+  const ui = createUI({
+    world, canvas, cam, renderer, root: document.body, getSize: () => size,
+    subscribeResize: (fn) => { resizeListeners.push(fn); return () => resizeListeners.splice(resizeListeners.indexOf(fn), 1); },
+    history, addListener: history.addListener, removeListener: history.removeListener,
+    keyTarget: shell.root, storage: { getItem: () => null, setItem: () => {} }, now: () => 0,
+  });
+  const at = (x, y) => { const r = canvas.getBoundingClientRect(); return { clientX: r.left + x, clientY: r.top + y }; };
+  const screenOf = (tx, ty) => { const [sx, sy] = tileToScreen(cam, size, tx, ty); return { x: sx, y: sy }; };
+  // A tap on the centre of tile (tx, ty). Two touch taps on the same spot within 300 ms are a double tap
+  // (zoom), so tests that tap one place twice pass type 'mouse'.
+  const tap = (tx, ty, type = 'touch') => {
+    const p = screenOf(tx + 0.5, ty + 0.5);
+    fire(canvas, 'pointerdown', { ...at(p.x, p.y), pointerId: 9, pointerType: type, button: 0, buttons: 1 });
+    fire(canvas, 'pointerup', { ...at(p.x, p.y), pointerId: 9, pointerType: type, button: 0, buttons: 0 });
+  };
+  const resize = (w, h) => { size = { width: w, height: h }; shell.root.style.width = `${w}px`; shell.root.style.height = `${h}px`; for (const fn of resizeListeners) fn(); };
+  const frame = (t = 0) => ui.render({ timeDays: world.day, now: t });
+  return {
+    root: shell.root, world, canvas, cam, ui, store: ui.store, history, at, screenOf, tap, resize, frame,
+    cleanup() { ui.destroy(); shell.cleanup(); },
+  };
+}
+```
+
+`tests/ui/createUI.test.js`:
+```js
+import { describe, it, expect } from '../harness.js';
+import { rigUI } from '../helpers/uiWorld.js';
+import { fire, key } from '../helpers/dom.js';
+import { buildingAt } from '../../src/sim/world.js';
+import { tickDay } from '../../src/sim/clock.js';
+
+describe('ui createUI', () => {
+  it('places a well from the dock: card, ghost, tap, tick, building, then Undo from the toast', async () => {
+    const r = await rigUI();
+    expect(r.store.get().layout).toBe('portrait');
+    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');                 // Services
+    const cards = r.root.querySelectorAll('#dock .tray .card');
+    expect(cards[0].querySelector('.name').textContent).toBe('Well');
+    fire(cards[0], 'click');
+    const s = r.store.get();
+    expect(s.mode).toBe('placing');
+    expect(s.overlay).toBe('water');                                          // spec 4.5: the service's overlay comes on
+    expect(s.ghost).toBeTruthy();
+    expect(document.body.dataset.mode).toBe('placing');
+    expect(r.root.querySelector('#confirm').hidden).toBe(false);
+    r.frame(0);                                                               // draws the ghost, the grid and the overlay
+    r.tap(5, 9);                                                              // touch: moves the ghost, builds nothing
+    expect(r.store.get().ghost).toEqual({ x: 5, y: 9 });
+    expect(buildingAt(r.world, 5, 9)).toBe(null);
+    fire(r.root.querySelector('#confirm .ok'), 'click');
+    expect(buildingAt(r.world, 5, 9).type).toBe('well');
+    expect(r.store.get().mode).toBe('placing');                               // placing repeats until the x
+    const toast = r.root.querySelector('#toasts .toast');
+    expect(toast.textContent).toContain('Well placed');
+    fire(toast.querySelector('button'), 'click');                             // Undo
+    expect(buildingAt(r.world, 5, 9)).toBe(null);
+    expect(r.world.gold).toBe(1000);
+    fire(r.root.querySelector('#confirm .cancel'), 'click');
+    expect(r.store.get().mode).toBe('browse');
+    expect(r.root.querySelector('#confirm').hidden).toBe(true);
+    r.cleanup();
+  });
+  it('switches chrome with the viewport and keeps the camera and a placement through a rotation', async () => {
+    const r = await rigUI({ width: 390, height: 844 });
+    const shown = (id) => getComputedStyle(r.root.querySelector(`#${id}`)).display !== 'none';
+    expect([shown('dock'), shown('panel'), shown('rail')]).toEqual([true, false, false]);
+    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');
+    fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');
+    r.tap(5, 9);
+    r.cam.x = 7;
+    r.resize(844, 390);                                                       // phone held sideways
+    expect(document.body.dataset.layout).toBe('compact');
+    expect([shown('dock'), shown('panel'), shown('rail')]).toEqual([false, false, true]);
+    expect(r.store.get().mode).toBe('placing');
+    expect(r.store.get().ghost).toEqual({ x: 5, y: 9 });
+    expect(r.cam.x).toBe(7);
+    expect(r.root.querySelector('#rail .bottom').hidden).toBe(false);          // x and tick on the rail
+    r.resize(1280, 800);                                                      // laptop
+    expect(document.body.dataset.layout).toBe('wide');
+    expect([shown('dock'), shown('panel'), shown('rail')]).toEqual([false, true, false]);
+    expect(r.root.querySelectorAll('#topbar .speed button').length).toBe(4);
+    expect(r.root.querySelectorAll('#panel .cards .card').length).toBe(3);    // the services grid
+    expect(r.root.querySelector('#panel .minimap canvas')).toBeTruthy();
+    r.cleanup();
+  });
+  it('keeps one mode at a time, and Back, Esc and right-click close one thing each', async () => {
+    const r = await rigUI();
+    const h = r.history;
+    r.tap(15, 11, 'mouse');                                                   // the well
+    let s = r.store.get();
+    expect(s.mode).toBe('selected');
+    expect(s.sheet).toEqual({ kind: 'info', id: buildingAt(r.world, 15, 11).id });
+    expect(r.root.querySelector('#sheet h2').textContent).toBe('Well');
+    key(r.root, 'm');
+    s = r.store.get();
+    expect(s.sheet.kind).toBe('minimap');
+    expect(s.mode).toBe('selected');
+    expect(h.length).toBe(3);                                                 // one entry per open step
+    h.back();                                                                 // the phone's Back gesture
+    s = r.store.get();
+    expect(s.sheet).toBe(null);
+    expect(s.mode).toBe('selected');
+    key(r.root, '1');                                                         // Roads
+    expect(r.store.get().dock).toBe('tray');
+    fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');          // Road
+    s = r.store.get();
+    expect(s.mode).toBe('drawing');
+    expect(s.selectedId).toBe(null);
+    expect(s.sheet).toBe(null);
+    r.tap(20, 12, 'mouse'); r.tap(20, 14, 'mouse');
+    expect(r.store.get().line.x1).toBe(20);
+    key(r.root, 'Enter');
+    expect(r.world.road[14 * r.world.size + 20]).toBe(1);
+    expect(r.store.get().mode).toBe('drawing');
+    fire(r.canvas, 'contextmenu');                                            // right-click: back one step
+    expect(r.store.get().mode).toBe('browse');
+    key(r.root, 'Escape');                                                    // nothing open: nothing changes
+    expect(r.store.get().mode).toBe('browse');
+    key(r.root, '?');
+    expect(r.store.get().sheet.kind).toBe('help');
+    key(r.root, 'Escape');
+    expect(r.store.get().sheet).toBe(null);
+    r.cleanup();
+  });
+  it('refreshes alerts, the banner, the badge and the canvas summary when the day changes', async () => {
+    const r = await rigUI();
+    r.frame(0);
+    expect(r.root.querySelector('#map-summary').textContent).toContain('Gold 1000');
+    r.world.gold = -5;
+    r.frame(16);
+    expect(document.body.classList.contains('has-banner')).toBe(false);     // not until a day passes
+    tickDay(r.world);
+    r.frame(32);
+    expect(document.body.classList.contains('has-banner')).toBe(true);
+    expect(r.root.querySelector('#banner .critical').textContent).toContain('debt');
+    expect(r.root.querySelector('#map-summary').textContent).toContain('alert');
+    expect(r.root.querySelector('#live').textContent).toContain('alert');
+    fire(r.root.querySelector('#banner .view'), 'click');                     // View: the summary sheet for city-wide alerts
+    expect(r.store.get().sheet.kind).toBe('summary');
+    r.cleanup();
+  });
+});
+```
+
+Append to `tests/all.js` (before the stress test, which stays last):
+```js
+import './ui/createUI.test.js';
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1 -Grep "ui createUI"`
+Expected: `LOAD ERROR` naming `tests/all.js` (`src/ui/createUI.js` does not exist).
+
+- [ ] **Step 3: Write `createUI` (part 1: components)**
+
+`src/ui/createUI.js`:
+```js
+// Wires every component to the store, the world, the camera and the renderer (spec 6). The world changes
+// only through placement.js, speed.js and the sheets, which call src/sim/commands.js then assignLabour.
+import { MILESTONES } from '../data/progression.js';
+import { BUILDINGS } from '../data/buildings.js';
+import { CATEGORIES, toolForItem, UNDO_TOAST_MS } from '../data/ui.js';
+import { screenToTile, visibleTileRange } from '../render/camera.js';
+import { walkersAt } from '../render/walkers.js';
+import { drawOverlay, drawReachHighlight, drawGhost } from '../render/overlays.js';
+import { createEffects } from '../render/effects.js';
+import { createStore, INITIAL_UI_STATE } from './store.js';
+import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode } from './modes.js';
+import { pickLayout, watchLayout } from './layout.js';
+import { createBackStack } from './backstack.js';
+import { createSettings } from './settings.js';
+import { createCameraControl } from './cameraControl.js';
+import { createMapInput } from './input.js';
+import { createKeyboard } from './keyboard.js';
+import { pickBuilding } from './pick.js';
+import { createPlacement, snapGhost } from './placement.js';
+import { createHud } from './hud.js';
+import { createSpeedControl } from './speed.js';
+import { cardInfo, activeItemOf } from './cards.js';
+import { createDock } from './dock.js';
+import { createConfirmBar } from './confirmBar.js';
+import { createSidePanel } from './sidePanel.js';
+import { createRail } from './rail.js';
+import { createCorners } from './corners.js';
+import { createSheets } from './sheets.js';
+import { createMinimap } from './minimap.js';
+import { createAlerts, mapSummaryText } from './alerts.js';
+import { createOverlayLegend } from './overlayUi.js';
+import { createToasts } from './toasts.js';
+import { createMenuSheets, createDialog } from './menu.js';
+import { el, setText } from './components.js';
+import { buildingName, reasonText, milestoneText, T } from './text.js';
+
+const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
+const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
+
+export function createUI({
+  world, canvas, cam, renderer,
+  root = document.body, doc = document, win = window,
+  getSize = null, subscribeResize = undefined, history = win.history,
+  addListener = (type, fn) => win.addEventListener(type, fn), removeListener = (type, fn) => win.removeEventListener(type, fn),
+  keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(),
+}) {
+  const $ = (id) => root.querySelector(`#${id}`);
+  const view = getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
+
+  const settings = createSettings({ storage, root });
+  const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height) });
+  const toasts = createToasts({ container: $('toasts') });
+  const effects = createEffects({
+    reducedMotion: settings.reducedMotion(),
+    onMilestone: (id) => { const m = MILESTONES.find((x) => x.id === id); toasts.show(milestoneText(m ? m.name : id)); },
+  });
+  const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
+  const placement = createPlacement({ world, store, afterCommand, effects, now });
+  const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
+  const alerts = createAlerts({ world, banner: $('banner'), live: $('live'), onView: viewAlert, root });
+  const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr });
+  const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr });
+
+  const speedBar = el('div', { class: 'speed-bar' });
+  speedControl.mountBar(speedBar);
+  const hud = createHud({ world, store, container: $('topbar'), speedBar, onOpenSummary: () => toggleSheet('summary'), onOpenMenu: () => toggleSheet('menu') });
+  const dock = createDock({ container: $('dock'), store, world, onPick: pick });
+  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: confirm, onUndo: undo });
+  const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas });
+  const rail = createRail({ container: $('rail'), store, world, onPick: pick, onConfirm: confirm, onCancel: () => placement.cancel(), placement });
+  const legend = createOverlayLegend({ container: $('legend'), store });
+  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count() });
+  const menus = createMenuSheets({ store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {} });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, afterCommand, custom: menus });
+  createDialog({ container: $('dialog'), store });
+  const backStack = createBackStack({ store, history, addListener, removeListener });
+  backStack.start();
+  const stopLayout = watchLayout({ root, getSize: view, subscribe: subscribeResize, onChange: (layout) => store.set({ layout }) });
+  const stopVisibility = speedControl.watchVisibility();
+```
+
+- [ ] **Step 4: Write `createUI` (part 2: actions)**
+
+Continue `src/ui/createUI.js` (still inside `createUI`):
+```js
+  // Screen point -> tile, clamped onto the map, so drags past the edge still mean the edge tile.
+  const tileUnder = (x, y) => {
+    const t = screenToTile(cam, view(), x, y);
+    const c = (v) => Math.max(0, Math.min(world.size - 1, Math.floor(v)));
+    return { x: c(t.x), y: c(t.y) };
+  };
+  const reachOf = (def) => def.reach || def.supplyReach || def.producerReach || 0;
+  function tooltipText(b) {
+    const def = BUILDINGS[b.type];
+    const parts = [buildingName(b.type)];
+    if (def.workers) parts.push(`${T.workers.toLowerCase()} ${b.staff} of ${def.workers}`);
+    if (reachOf(def)) parts.push(`${T.reach.toLowerCase()} ${reachOf(def)}`);
+    return parts.join(', ');
+  }
+
+  // A card was picked: the ghost appears a little above mid-screen, snapped onto the map (spec 6.5).
+  function pick(item) {
+    const v = view();
+    const c = screenToTile(cam, v, v.width / 2, v.height * 0.4);
+    placement.start(toolForItem(item), { x: c.x, y: c.y });
+  }
+  function confirm() {
+    const r = placement.confirm();
+    if (!r.ok) toasts.show(reasonText(r.reason));
+    return r;
+  }
+  function undo() {
+    if (!placement.canUndo()) return;
+    if (placement.undoNeedsConfirm()) store.set({ confirmDialog: { text: T.undoOccupiedConfirm, confirmLabel: T.undo, onConfirm: () => placement.undo() } });
+    else placement.undo();
+  }
+  function toggleSheet(kind) {
+    const s = store.get();
+    store.set(s.sheet && s.sheet.kind === kind ? closeSheet(s) : openSheet(s, kind));
+  }
+  function goBack() { const p = back(store.get()); if (p) store.set(p); }
+  // View on an alert: a building's alert selects it and pans there; a city-wide one opens the summary.
+  function viewAlert(alert) {
+    const b = alert.id ? world.buildings[alert.id] : null;
+    if (b) { store.set(select(store.get(), b.id)); cameraControl.panTo(b.x + b.w / 2, b.y + b.d / 2); }
+    else store.set(openSheet(store.get(), 'summary'));
+  }
+  function afterCommand(e) {
+    if (e.undoable) toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
+    else if (e.kind === 'undo') toasts.show(T.undone);
+    ghostsDirty = true;
+    refresh();
+  }
+  // After a command: alerts, numbers, cards (affordability) and the open sheet all reflect the new world.
+  function refresh() {
+    refreshDaily();
+    sheets.render();
+  }
+  // Once per game day (and after commands): nothing here rebuilds an open sheet, so focus inside it survives.
+  function refreshDaily() {
+    alerts.refresh();
+    hud.render(); dock.render(); sidePanel.render(); rail.render(); confirmBar.render(); corners.render();
+    setText($('map-summary'), mapSummaryText(world, alerts.list()));
+  }
+
+  const actions = {
+    tap({ x, y, type }) {
+      const s = store.get();
+      const t = tileUnder(x, y);
+      if (isToolMode(s.mode)) {
+        if (s.tool.kind === 'building' && type === 'mouse') { placement.moveGhost(t.x, t.y); confirm(); }   // a click places (spec 6.5)
+        else placement.pointAt(t.x, t.y);                                                                      // a tap moves the ghost or sets a point
+        return;
+      }
+      const b = pickBuilding(world, cam, view(), x, y);
+      if (b) store.set(select(s, b.id));
+      else if (s.mode === 'selected') store.set(deselect(s));
+    },
+    secondary: goBack,
+    hover(p) {
+      const s = store.get();
+      if (s.mode === 'placing' && p) {                 // the ghost follows the mouse, re-set only when it moves a tile
+        const t = tileUnder(p.x, p.y);
+        const g = snapGhost(world, s.tool, t.x, t.y);
+        if (!s.ghost || g.x !== s.ghost.x || g.y !== s.ghost.y) placement.moveGhost(t.x, t.y);
+        return;
+      }
+      const b = p ? pickBuilding(world, cam, view(), p.x, p.y) : null;
+      const id = b ? b.id : null;
+      if (id !== s.hoverId) { store.set({ hoverId: id }); canvas.title = b ? tooltipText(b) : ''; }
+    },
+    ghostDragStart({ x, y }) {
+      const s = store.get();
+      if (!s.ghost || !s.tool || s.tool.kind !== 'building') return false;
+      const def = BUILDINGS[s.tool.type];
+      const t = screenToTile(cam, view(), x, y);
+      return t.x >= s.ghost.x - 0.5 && t.x < s.ghost.x + def.w + 0.5 && t.y >= s.ghost.y - 0.5 && t.y < s.ghost.y + def.d + 0.5;
+    },
+    ghostDrag({ x, y }) { const t = tileUnder(x, y); placement.moveGhost(t.x, t.y); },
+    ghostDragEnd() {},
+    drawDrag({ x, y, phase }) { const t = tileUnder(x, y); placement.dragTo(t.x, t.y, phase); },
+    panStarted() {                                     // panning tucks the dock (spec 6.3); the confirm bar never tucks
+      const s = store.get();
+      if (s.layout === 'portrait' && !isToolMode(s.mode) && s.dock !== 'tucked') store.set(setDock(s, 'tucked'));
+    },
+  };
+```
+
+- [ ] **Step 5: Write `createUI` (part 3: keyboard, selection, the frame, teardown)**
+
+Continue `src/ui/createUI.js` (still inside `createUI`):
+```js
+  const keyActions = {
+    pause: () => speedControl.toggle(), speedUp: () => speedControl.faster(), speedDown: () => speedControl.slower(),
+    category: (i) => { const s = store.get(); const category = CATEGORIES[i].id; store.set(s.layout === 'wide' ? { category } : { category, dock: 'tray' }); },
+    rotate: () => {},                                  // nothing rotates in Stage 1 (mastabas come with monuments)
+    minimap: () => toggleSheet('minimap'), overlay: () => legend.cycle(),
+    confirm: () => {
+      const s = store.get();
+      if (s.confirmDialog) { const d = s.confirmDialog; store.set({ confirmDialog: null }); d.onConfirm(); }
+      else if (isToolMode(s.mode)) confirm();
+    },
+    back: goBack, undo, help: () => toggleSheet('help'),
+  };
+  const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
+  const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions });
+
+  // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free.
+  function sheetInsets(s) {
+    const v = view();
+    if (s.layout === 'portrait') return { top: TOPBAR_PX, right: 0, bottom: v.height * 0.6, left: 0 };
+    if (s.layout === 'compact') return { top: TOPBAR_PX, right: RAIL_PX + DRAWER_PX, bottom: 0, left: 0 };
+    return { top: TOPBAR_PX, right: PANEL_PX, bottom: 0, left: 0 };
+  }
+  function panelDetails() {
+    const s = store.get();
+    const b = s.hoverId !== null ? world.buildings[s.hoverId] : null;
+    let text = T.hoverHint;
+    if (b) text = tooltipText(b);
+    else if (s.tool) { const c = cardInfo(world, activeItemOf(s.tool)); text = `${c.name}: ${c.costText}`; }
+    setText(sidePanel.details, text);
+  }
+  let lastSelected = null;
+  store.subscribe((s) => {
+    root.dataset.mode = s.mode;
+    if (s.selectedId !== lastSelected) {
+      lastSelected = s.selectedId;
+      const b = s.selectedId !== null ? world.buildings[s.selectedId] : null;
+      if (b) cameraControl.keepVisible(b.x + b.w / 2, b.y + b.d / 2, sheetInsets(s));   // spec 6.3
+    }
+    panelDetails();
+  });
+  root.dataset.mode = store.get().mode;
+
+  // Ghosts are recomputed only when the UI state object changes or a command ran (previews call canPlace).
+  let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [];
+  function ghosts() {
+    const s = store.get();
+    if (s !== ghostState || ghostsDirty) { ghostState = s; ghostsDirty = false; ghostList = isToolMode(s.mode) ? placement.ghosts() : []; }
+    return ghostList;
+  }
+
+  function render({ timeDays, now: t }) {
+    cameraControl.tick(t);
+    const s = store.get();
+    const v = view();
+    const range = visibleTileRange(cam, v, world.size);
+    const selected = s.selectedId !== null ? world.buildings[s.selectedId] : null;
+    renderer.renderFrame(world, cam, {
+      view: v, walkers: walkersAt(world, timeDays, range), effects, now: t, grid: isToolMode(s.mode),
+      drawOverlay: (g, r) => {
+        if (s.overlay) drawOverlay(g, world, s.overlay, r);
+        if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
+        for (const ghost of ghosts()) drawGhost(g, ghost);
+      },
+    });
+    hud.render();
+    if (s.layout === 'wide' && !s.panelFolded) panelMinimap.render(alerts.list());
+    if (s.sheet && s.sheet.kind === 'minimap') sheetMinimap.render(alerts.list());
+    if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; refreshDaily(); }
+  }
+
+  refreshDaily();
+  return {
+    store, settings, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh,
+    destroy() { mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); },
+  };
+}
+```
+
+Add to `src/ui/text.js` (after `plural`):
+```js
+export const milestoneText = (name) => `Your city is now a ${name}`;
+```
+
+- [ ] **Step 6: Write the real boot and retire the dev page**
+
+`src/main.js` (replace the whole file):
+```js
+// Boot: the world from the URL's seed, the renderer, the interface and the loop (spec 4.1: a new city
+// starts paused with its start road; createWorld does both). ?seed=N picks a map, ?stress=1 a full city,
+// ?sample=1 the sample city, ?speed=1 starts running.
+import { createWorld } from './sim/world.js';
+import { setSpeed } from './sim/commands.js';
+import { createCamera } from './render/camera.js';
+import { createRenderer } from './render/renderer.js';
+import { createGameLoop } from './render/loop.js';
+import { buildSampleCity, buildStressCity } from './dev/sampleCity.js';
+import { createUI } from './ui/createUI.js';
+
+const params = new URLSearchParams(location.search);
+const seed = Number(params.get('seed')) || Math.floor(Math.random() * 1e9);
+const world = createWorld({ seed });
+const stress = params.get('stress') === '1';
+if (stress) buildStressCity(world);
+else if (params.get('sample') === '1') buildSampleCity(world);
+if (params.has('speed')) setSpeed(world, Number(params.get('speed')));
+
+const canvas = document.getElementById('map');
+const cam = createCamera({ x: stress ? 32 : world.focus.x, y: stress ? 32 : world.focus.y, zoom: 1 });
+const renderer = createRenderer({ canvas });
+const ui = createUI({
+  world, canvas, cam, renderer,
+  hooks: {
+    newCity() {
+      const url = new URL(location.href);
+      url.searchParams.set('seed', String(Math.floor(Math.random() * 1e9)));
+      url.searchParams.delete('stress'); url.searchParams.delete('sample'); url.searchParams.delete('speed');
+      location.href = url.href;
+    },
+  },
+});
+const loop = createGameLoop({ world, onEvents: (events) => ui.effects.fromEvents(world, events, performance.now()), render: ui.render });
+loop.start();
+window.__thebes = { world, cam, renderer, loop, ui };
+```
+
+Then retire the dev page, which `index.html` now covers:
+```powershell
+git rm dev.html src/dev/devControls.js
+```
+`src/dev/sampleCity.js` and `tests/dev/sampleCity.test.js` stay (the sample city feeds `?sample=1`, the tests and 1d's title card).
+
+In `tests/screenshot.ps1`, two lines reference the dev page. Change the default URL in the `param(...)` line from `'/dev.html'` to `'/'`, and the readiness probe from `"http://127.0.0.1:$port/dev.html"` to `"http://127.0.0.1:$port/index.html"`. Nothing else changes.
+
+- [ ] **Step 7: Run the tests, then play**
+
+Run: `powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1`
+Expected: `ui createUI` PASS, every earlier group still PASS, then `ALL PASSED`. Notes for failures:
+- "places a well": the ghost lands at (5, 9) only if the tap maps there; `tap` converts through `tileToScreen` with the injected size, and `input.js` subtracts the canvas rect, so both use the same origin. If the ghost is one tile off, the camera moved: the rig's `now` is fixed at 0, so no tween runs, but a `keepVisible` from an earlier selection would.
+- "switches chrome": `getComputedStyle` needs `css/ui.css` loaded; `mountShell` awaits the link's `load`. If every element reports `display: none`, the link failed to load (check the test server serves `/css/ui.css`).
+- "Back closes one thing": `h.length` is 3 because the back stack pushes once for the selection and once for the minimap sheet; an extra entry means a step was counted twice (compare `stepsOf` in `backstack.js`).
+
+Then `python tests/serve.py 8000 .` and open `http://127.0.0.1:8000/?seed=1&sample=1`. Check by hand: the top bar shows numbers; tapping a category opens the tray; picking Well shows a ghost with the water overlay; a click (mouse) or tap-then-✓ (touch emulation in DevTools) builds it; the toast offers Undo; selecting a building opens its sheet and the camera keeps it visible; ☰ opens the menu; resizing the window moves between the three layouts without losing the ghost.
+
+- [ ] **Step 8: Commit**
+
+```powershell
+git add src/ui/createUI.js src/main.js src/ui/text.js tests/helpers/uiWorld.js tests/ui/createUI.test.js tests/all.js tests/screenshot.ps1
+git commit -m "Wire the interface together, boot the real page and retire the dev page`n`nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 18: Accessibility checks, play-test screenshots and the README
+
+**Files:**
+- Create: `tests/ui/a11y.test.js`, `docs/superpowers/notes/screenshots/1c-phone-portrait.png`, `1c-phone-landscape.png`, `1c-tablet.png`, `1c-laptop.png`
+- Modify: `README.md`, `tests/all.js`
+
+**Interfaces:**
+- Consumes: `rigUI` (Task 17), `select`, `openSheet` (Task 2), `screenToTile` (camera.js), `buildingAt`.
+- Produces: the spec 9 accessibility checks that a test can make (every control has a name; keyboard-only placement; reduced motion means the camera jumps; the canvas has a text summary), the four play-test screenshots at the spec's sizes, and a README that describes playing the game.
+
+- [ ] **Step 1: Write the failing accessibility tests**
+
+`tests/ui/a11y.test.js`:
+```js
+import { describe, it, expect } from '../harness.js';
+import { rigUI } from '../helpers/uiWorld.js';
+import { fire, key } from '../helpers/dom.js';
+import { select, openSheet } from '../../src/ui/modes.js';
+import { screenToTile } from '../../src/render/camera.js';
+import { buildingAt } from '../../src/sim/world.js';
+
+const nameOf = (b) => (b.getAttribute('aria-label') || b.textContent || '').trim();
+
+describe('ui accessibility', () => {
+  it('gives every control a name, in every layout and sheet (spec 6.8)', async () => {
+    const r = await rigUI({ width: 390, height: 844 });
+    const unnamed = () => [...r.root.querySelectorAll('button')].filter((b) => !nameOf(b)).map((b) => b.className);
+    expect(unnamed()).toEqual([]);
+    for (const kind of ['summary', 'minimap', 'menu', 'settings', 'help', 'about']) {
+      r.store.set(openSheet(r.store.get(), kind));
+      expect(unnamed()).toEqual([]);
+    }
+    r.store.set(select(r.store.get(), buildingAt(r.world, 15, 11).id));
+    expect(unnamed()).toEqual([]);
+    r.resize(1280, 800);
+    expect(unnamed()).toEqual([]);
+    expect(r.canvas.getAttribute('aria-describedby')).toBe('map-summary');
+    expect(r.root.querySelector('#map-summary').textContent.length).toBeGreaterThan(0);
+    r.cleanup();
+  });
+  it('places a building with the keyboard alone and leaves with Esc (spec 9: keyboard-only play)', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    // The ghost appears under the point (width / 2, height * 0.4). Aim the camera so that point is tile (5, 9),
+    // beside the road: camera tile coordinates shift every screen point by the same amount.
+    const c = screenToTile(r.cam, { width: 1280, height: 800 }, 640, 320);
+    r.cam.x += 5.2 - c.x; r.cam.y += 9.2 - c.y;
+    key(r.root, '5');                                                         // Services tab (wide layout: no tray)
+    expect(r.store.get().category).toBe('services');
+    const card = r.root.querySelector('#panel .cards .card');                 // Tab reaches it; Enter clicks a focused button
+    card.focus();
+    fire(card, 'click');
+    expect(r.store.get().mode).toBe('placing');
+    expect(r.store.get().ghost).toEqual({ x: 5, y: 9 });
+    const x0 = r.cam.x;
+    key(r.root, 'ArrowLeft');                                                 // arrows move the view, not the ghost
+    expect(r.cam.x === x0).toBe(false);
+    expect(r.store.get().ghost).toEqual({ x: 5, y: 9 });
+    key(r.root, 'Enter');
+    expect(buildingAt(r.world, 5, 9).type).toBe('well');
+    key(r.root, 'z', { ctrlKey: true });
+    expect(buildingAt(r.world, 5, 9)).toBe(null);
+    key(r.root, 'Escape');
+    expect(r.store.get().mode).toBe('browse');
+    key(r.root, ' ');
+    expect(r.world.speed).toBe(1);
+    key(r.root, ' ');
+    expect(r.world.speed).toBe(0);
+    r.cleanup();
+  });
+  it('jumps instead of panning under reduced motion (spec 5.4)', async () => {
+    const r = await rigUI({ width: 390, height: 844 });
+    r.ui.settings.set({ reducedMotion: 'on' });
+    expect(document.body.classList.contains('reduce-motion')).toBe(true);
+    const temple = buildingAt(r.world, 24, 11);                                // off the right edge of a phone view
+    r.store.set(select(r.store.get(), temple.id));
+    expect(r.ui.cameraControl.animating).toBe(false);
+    expect(r.cam.x === 12 && r.cam.y === 10).toBe(false);                     // it moved, at once
+    r.ui.settings.set({ reducedMotion: 'off' });
+    r.store.set(select(r.store.get(), buildingAt(r.world, 2, 11).id));        // the farm, off the left edge
+    expect(r.ui.cameraControl.animating).toBe(true);                          // now it tweens
+    r.cleanup();
+  });
+});
+```
+
+Append to `tests/all.js` (after `createUI.test.js`, before the stress test):
+```js
+import './ui/a11y.test.js';
+```
+
+- [ ] **Step 2: Run the tests to verify the new group fails, then make it pass**
+
+Run: `powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1 -Grep "ui accessibility"`
+Expected: FAIL only where a control lacks a name or a step above is unmet; the implementation is already in place, so fix the named component (add the `aria-label` or the `T` label it needs) rather than the test. Then the full run: `powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1` prints `ALL PASSED`.
+
+- [ ] **Step 3: Take the play-test screenshots at the four spec sizes (spec 9)**
+
+Run, from the repo root:
+```powershell
+powershell -ExecutionPolicy Bypass -File tests/screenshot.ps1 -Url '/?seed=1&sample=1' -Out docs/superpowers/notes/screenshots/1c-phone-portrait.png -Width 390 -Height 844
+powershell -ExecutionPolicy Bypass -File tests/screenshot.ps1 -Url '/?seed=1&sample=1' -Out docs/superpowers/notes/screenshots/1c-phone-landscape.png -Width 844 -Height 390
+powershell -ExecutionPolicy Bypass -File tests/screenshot.ps1 -Url '/?seed=1&sample=1' -Out docs/superpowers/notes/screenshots/1c-tablet.png -Width 1024 -Height 768
+powershell -ExecutionPolicy Bypass -File tests/screenshot.ps1 -Url '/?seed=1&sample=1' -Out docs/superpowers/notes/screenshots/1c-laptop.png -Width 1280 -Height 800
+```
+Expected: four PNGs. Open each: portrait shows the top bar, the slim dock with seven categories and the two corner groups above it; landscape shows the condensed top bar and the rail on the right; the tablet (1024×768 is wide: at least 900×520) and the laptop show the full top bar with speed buttons and the right-hand panel with the minimap, tabs and the card grid. Nothing floats over the middle of the map; no text is clipped; the parchment chrome reads against the sand. The controller then drives the game in the built-in browser at these sizes through every mode of spec 6.4 (browse, selected, placing, drawing, demolishing, overlay) and shows Josh the results.
+
+- [ ] **Step 4: Update the README**
+
+Replace the "Dev view" section of `README.md` with:
+```markdown
+## Play it
+
+    python tests/serve.py 8000 .
+
+Then open http://localhost:8000/. Add `?seed=7` for another map, `?sample=1` for a small ready-made city, `?stress=1` for a full 64×64 city, or `?speed=1` to start running (a city starts paused).
+
+Keys: Space pauses, + and − change the speed, 1–7 pick a build category, arrows or WASD move the view, M opens the minimap, O cycles the overlays, Enter confirms, Esc goes back one step, Ctrl+Z (Cmd+Z) undoes, ? lists the shortcuts. With a mouse: drag to pan, wheel to zoom, click to place. On a phone: one finger pans, two fingers zoom, tap to select or to move the ghost, then ✓.
+
+`tests/screenshot.ps1 -Url '/?seed=1&sample=1' -Out shot.png -Width 390 -Height 844` saves a PNG of the page from headless Edge at that size.
+```
+
+- [ ] **Step 5: Run the whole suite one last time**
+
+Run: `powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1`
+Expected: every group PASS, then `ALL PASSED`, exit code 0.
+
+- [ ] **Step 6: Commit**
+
+```powershell
+git add tests/ui/a11y.test.js tests/all.js README.md docs/superpowers/notes/screenshots/1c-phone-portrait.png docs/superpowers/notes/screenshots/1c-phone-landscape.png docs/superpowers/notes/screenshots/1c-tablet.png docs/superpowers/notes/screenshots/1c-laptop.png
+git commit -m "Add accessibility tests, play-test screenshots at the four spec sizes, and a README for playing`n`nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+## Spec coverage for this plan
+
+| Spec section | Covered by |
+|---|---|
+| 4.1 A new city starts paused, camera on fertile land, start road in from the trade edge | Task 17 (`createWorld` already does the road and speed 0; `main.js` puts the camera on `world.focus`) |
+| 4.3 Pause, 1×, 2×, 3×; pause when the page is hidden | Tasks 11, 17 |
+| 4.5 Tap start and end for roads, L-path with Flip, reach highlight on selection, the matching overlay when placing a service | Tasks 9, 12, 17 |
+| 4.8 "Employed" means assigned, so the HUD says working and jobless | Task 11 |
+| 4.11 Gold in the top bar, costs on cards, refunds on demolish and undo | Tasks 11, 12, 9 |
+| 5.3 Tap areas: nearest building centre, tall sprites, everything at minimum zoom | Task 7 |
+| 5.4 Reduced motion: the camera jumps, no puffs | Tasks 6, 17, 18 |
+| 6.1 Principles: top reads, bottom taps, nothing mid-map, one panel, exits everywhere, no colour-only meaning, 4.5:1, 16 px body, 12 px floor, text size 100/125/150, 44 px targets, safe areas | Tasks 1 (tokens, contrast test, CSS), 4 and 16 (text size), 14 and 15 (✓/✕, dot/ring) |
+| 6.2 Portrait, wide and compact layouts with the exact breakpoints; rotation keeps camera and placement | Tasks 1, 12, 13, 17 (resize test) |
+| 6.3 Top bar and city summary; speed corner and bar; three-height dock with cards; corner buttons; alerts (badge, banner, aria-live); overlays with legend; minimap sheet with +/−; info sheets with cause, fix and View; ☰ menu; settings | Tasks 11, 12, 13, 15, 14, 16 |
+| 6.4 Modes table, one mode at a time, overlays combine with browse, confirm bar never tucks, a history entry per open step | Tasks 2, 4, 12, 17 |
+| 6.5 Touch and mouse placing, validity three ways with reasons, area painting by taps or drag, undo (10, month end, Ctrl+Z, bar and toast) | Tasks 8, 9, 12, 15, 17 |
+| 6.6 Gestures: one-finger pan, ghost drag, two-finger pan/zoom, tap, double-tap, dock swipe; single-tap alternatives | Tasks 7, 8, 12, 14 |
+| 6.7 Wheel, drag, right/middle-drag, hover; the keyboard map; input type per press; shortcuts off in fields and in settings | Tasks 8, 10, 16, 17 |
+| 6.8 Real buttons with labels, canvas text summary, aria-live alerts, visible focus, tab order by layout | Tasks 1, 15, 17, 18 |
+| 7.2 `src/ui/` module names | File Structure (every spec-named module exists; `titleCard`, `welcomeBack`, `goalsList` are 1d) |
+| 7.3 The UI changes the world only through commands | Tasks 9, 11, 14 (checked in their tests: gold and buildings change only after a command) |
+| 7.4 rAF loop, fixed timestep, draw order with overlays last | Task 17 (`render` is the loop's callback; overlay, reach and ghosts draw through the renderer's overlay hook) |
+| 9 Modes tests; play-testing at iPhone portrait, iPhone landscape, tablet, laptop; contrast, reduced motion, keyboard-only play, screen-reader labels | Tasks 2, 17, 18 (Task 1 for contrast) |
+
+Not in this plan, on purpose: tier 5+ demolish confirmation, rotation and desirability (Stage 2 and 4 content), raid and fire banners (Stage 3), the title card, goals, welcome back, saves, export/import, PWA, sound and haptics (Plan 1d).
+
+## Follow-ups for Plan 1d
+
+- **Long-press a build card** should show the building's details (spec 6.6); cards have no long-press yet. Give cards a `title` tooltip at the same time (spec 6.5 mentions hovering a card).
+- **Ghost snapping.** `pick` puts the ghost on the map tile under the upper-middle of the view, not "the nearest valid tile" (spec 6.5). Search outwards from that tile for the first `canPlace` ok when 1d polishes onboarding.
+- **Open sheets go stale between commands.** `refreshDaily` does not rebuild an open sheet (so keyboard focus inside it survives), so a building sheet's workers and stock update only on the next store change. Update the numbers in place if it shows.
+- **`tests/serve.py` binds 127.0.0.1 only** (1a follow-up, still open). Add a bind argument before real-phone testing.
+- **`storage_full` is unreachable** in the sim (1a follow-up); the text exists, the alert never fires.
+- **Screenshot tool** still deletes the previous PNG before capturing and cannot drive the UI; the controller takes mode screenshots in the built-in browser by hand.
+- **Commit trailer.** Every commit keeps `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` as the brief asks; Josh decides whether later plans name the model actually used.
+
+## Next plans
+
+Plan 1d (onboarding, saving, shipping): the title card over a drifting sample city, the goals list with Show me, the welcome-back card, autosave with a backup and the load-error cases from the 1a notes, export and import through the menu hooks, the install flows and the in-app browser notice, sound and haptics behind the settings already here, the "update ready" toast, `manifest.webmanifest`, `sw.js`, icons, the OG image, and the first GitHub Pages publish (ask Josh before creating the public repo).
