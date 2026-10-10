@@ -1,6 +1,7 @@
 // Wires every component to the store, the world, the camera and the renderer (spec 6). The world changes
 // only through placement.js, speed.js and the sheets, which call src/sim/commands.js then assignLabour.
 import { MILESTONES } from '../data/progression.js';
+import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { CATEGORIES, toolForItem, UNDO_TOAST_MS } from '../data/ui.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
@@ -49,6 +50,7 @@ export function createUI({
 
   // Ghost and day bookkeeping lives up here: afterCommand is hoisted and may run during construction.
   let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [];
+  let saveFailed = false;
 
   const settings = createSettings({ storage, root });
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height) });
@@ -60,7 +62,7 @@ export function createUI({
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
   const placement = createPlacement({ world, store, afterCommand, effects, now });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
-  const alerts = createAlerts({ world, banner: $('banner'), live: $('live'), onView: viewAlert, root });
+  const alerts = createAlerts({ world, banner: $('banner'), live: $('live'), onView: viewAlert, root, getAlerts: () => (saveFailed ? [...alertsFor(world), { code: 'save_failed' }] : alertsFor(world)) });
   const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr });
   const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr });
 
@@ -119,6 +121,7 @@ export function createUI({
   function goBack() { const p = back(store.get()); if (p) store.set(p); }
   // View on an alert: a building's alert selects it and pans there; a city-wide one opens the summary.
   function viewAlert(alert) {
+    if (alert.code === 'save_failed') { store.set(openSheet(store.get(), 'menu')); return; }
     const b = alert.id ? world.buildings[alert.id] : null;
     if (b) { store.set(select(store.get(), b.id)); cameraControl.panTo(b.x + b.w / 2, b.y + b.d / 2); }
     else store.set(openSheet(store.get(), 'summary'));
@@ -146,6 +149,27 @@ export function createUI({
     hud.render(); dock.render(); sidePanel.render(); rail.render(); confirmBar.render(); corners.render();
     setText($('map-summary'), mapSummaryText(world, alerts.list()));
   }
+
+  // Autosave (spec 4.17): every game month and whenever the page is hidden. A failing save shows the
+  // "save failing" banner (spec 6.3) until a save succeeds again.
+  function setSaveFailed(flag) {
+    if (flag === saveFailed) return;
+    saveFailed = flag;
+    alerts.refresh();
+    corners.render();
+  }
+  async function autosave(reason) {
+    if (typeof hooks.save !== 'function') return;
+    let ok = false;
+    try { ok = await hooks.save(reason); } catch (e) { ok = false; }
+    setSaveFailed(!ok);
+  }
+  function onEvents(events) {
+    for (const e of events) if (e.type === 'month') { autosave('month'); break; }
+  }
+  // Registered after the speed control's own listener, so the game is already paused when this save is taken.
+  const onVisibility = () => { if (doc.hidden) autosave('hidden'); };
+  doc.addEventListener('visibilitychange', onVisibility);
 
   const actions = {
     tap({ x, y, type }) {
@@ -261,10 +285,11 @@ export function createUI({
   let destroyed = false;
   refreshDaily();
   return {
-    store, settings, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh,
+    store, settings, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh, onEvents, autosave, setSaveFailed,
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      doc.removeEventListener('visibilitychange', onVisibility);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear();
     },
   };

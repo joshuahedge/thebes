@@ -6,7 +6,7 @@ import { alertText, dateText, plural, T } from './text.js';
 import { el, button, clear, setText } from './components.js';
 
 // The sim has no severity field, so the UI decides (1a follow-up). Raids and fire join this set in Stage 3.
-export const CRITICAL = new Set(['debt']);
+export const CRITICAL = new Set(['debt', 'save_failed']);
 
 const keyOf = (a) => `${a.code}:${a.id === undefined ? '' : a.id}:${a.level || ''}`;
 
