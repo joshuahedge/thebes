@@ -14,7 +14,7 @@ import { drawRiver } from './terrainWater.js';
 import { drawRoads } from './terrainRoads.js';
 
 export { CHUNK };
-export const CHUNK_MARGIN = 24;   // art px of canvas around the chunk diamond
+export const CHUNK_MARGIN = 4;  // art px of canvas around the chunk diamond
 export const CHUNK_MAX_SCALE = 3; // device px per art px; terrain is soft, so a little upscaling is fine
 export const BLEND = 0.33;        // edges wander by about a third of a tile
 
@@ -173,7 +173,7 @@ export function drawPlots(g, world, range) {
     const b = world.buildings[id];
     if (!b) return;
     const c = p(b.x + b.w / 2, b.y + b.d / 2);
-    g.radial(c, 15 * (b.w + b.d) / 2, 7.5 * (b.w + b.d) / 2, TERRAIN.plot, 0.9);
+    g.radial(c, 15 * (b.w + b.d) / 2, 7.5 * (b.w + b.d) / 2, TERRAIN.plot, 0.6);
   });
 }
 
@@ -212,36 +212,49 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
   return { canvas, ax, ay, scale, cx, cy };
 }
 
-export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter = null, maxChunks = 48 } = {}) {
-  const perWorld = new WeakMap(); // world -> Map(key -> { sig, sprite, used })
+export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter = null, maxChunks = 32 } = {}) {
+  const perWorld = new WeakMap(); // world -> { map: Map(key -> { sig, sprite, used }), scale }
   let tick = 0;
-  const mapFor = (world) => {
-    let m = perWorld.get(world);
-    if (!m) { m = new Map(); perWorld.set(world, m); }
-    return m;
+  const entryFor = (world) => {
+    let e = perWorld.get(world);
+    if (!e) { e = { map: new Map(), scale: null }; perWorld.set(world, e); }
+    return e;
   };
-  return {
-    get(world, cx, cy, zoom, dpr, allowBake = true) {
-      const scale = chunkScaleFor(zoom, dpr);
-      const m = mapFor(world);
-      const key = `${cx},${cy}@${scale}`;
-      const sig = chunkSignature(world, cx, cy);
-      let e = m.get(key);
-      if (!e || e.sig !== sig) {
-        if (!allowBake) return null;
-        if (counter) counter.bakes = (counter.bakes || 0) + 1;
-        e = { sig, sprite: bakeChunk(world, cx, cy, scale, createCanvas), used: ++tick };
-        m.set(key, e);
-        if (m.size > maxChunks) {
-          let oldest = null;
-          for (const [k, v] of m) if (k !== key && (oldest === null || v.used < m.get(oldest).used)) oldest = k;
-          if (oldest !== null) m.delete(oldest);
-        }
+  const key = (cx, cy, scale) => `${cx},${cy}@${scale}`;
+
+  // The cached sprite for the chunk and whether it is still fresh (signature unchanged). Never bakes.
+  function peek(world, cx, cy, zoom, dpr) {
+    const scale = chunkScaleFor(zoom, dpr);
+    const e = entryFor(world).map.get(key(cx, cy, scale));
+    if (!e) return { sprite: null, fresh: false };
+    e.used = ++tick;
+    return { sprite: e.sprite, fresh: e.sig === chunkSignature(world, cx, cy) };
+  }
+
+  function get(world, cx, cy, zoom, dpr, allowBake = true) {
+    const scale = chunkScaleFor(zoom, dpr);
+    const w = entryFor(world);
+    const k = key(cx, cy, scale);
+    const sig = chunkSignature(world, cx, cy);
+    let e = w.map.get(k);
+    if (!e || e.sig !== sig) {
+      if (!allowBake) return null;
+      if (counter) counter.bakes = (counter.bakes || 0) + 1;
+      if (w.scale !== scale) {
+        for (const [otherKey] of w.map) if (!otherKey.endsWith(`@${scale}`)) w.map.delete(otherKey);
+        w.scale = scale;
       }
-      e.used = ++tick;
-      return e.sprite;
-    },
-    size(world) { return mapFor(world).size; },
-    clear(world) { perWorld.delete(world); },
-  };
+      e = { sig, sprite: bakeChunk(world, cx, cy, scale, createCanvas), used: ++tick };
+      w.map.set(k, e);
+      if (w.map.size > maxChunks) {
+        let oldest = null;
+        for (const [ok, v] of w.map) if (ok !== k && (oldest === null || v.used < w.map.get(oldest).used)) oldest = ok;
+        if (oldest !== null) w.map.delete(oldest);
+      }
+    }
+    e.used = ++tick;
+    return e.sprite;
+  }
+
+  return { get, peek, size: (world) => entryFor(world).map.size, clear: (world) => perWorld.delete(world) };
 }

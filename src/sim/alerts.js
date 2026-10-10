@@ -5,7 +5,7 @@ import { touchesRoad } from './reach.js';
 import { atLeast } from './progression.js';
 import { isWorking } from './labour.js';
 
-export function computeAlerts(world) {
+export function alertsFor(world) {
   const alerts = [];
   for (const b of allBuildings(world)) {
     const def = BUILDINGS[b.type];
@@ -23,6 +23,10 @@ export function computeAlerts(world) {
     alerts.push({ code: 'unemployment' });
   }
   if (world.gold < 0) alerts.push({ code: 'debt' });
-  world.alerts = alerts;
   return alerts;
+}
+
+export function computeAlerts(world) {
+  world.alerts = alertsFor(world);
+  return world.alerts;
 }
