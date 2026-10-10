@@ -68,4 +68,18 @@ describe('walkers', () => {
     expect(JSON.stringify(near) === JSON.stringify(far)).toBe(false);
     expect(JSON.stringify(walkersAt(w, 0.5, { x0: 40, y0: 40, x1: 63, y1: 63 }))).toBe(JSON.stringify(far));
   });
+  it('picks the walkers nearest the middle of the view, not the oldest buildings', () => {
+    const w = makeTestWorld({ size: 64 });
+    for (let y = 2; y < 62; y += 4) setRoad(w, 0, y, 63, y);
+    for (let y = 2; y < 62; y += 4) for (let x = 1; x < 63; x += 6) addRaw(w, 'well', x, y + 1);
+    staffAll(w);
+    const view = { x0: 20, y0: 20, x1: 44, y1: 44 };
+    const list = walkersAt(w, 0.5, view);
+    expect(list.length).toBe(WALKER_CAP);
+    // Wells sit 6 apart in x and 4 in y, so the nearest 40 lie within ~22 tiles of the centre; a loop adds up to 5.
+    // The id-order crowd (first rows, y < 10) would be at least 22 further out in y alone.
+    for (const wk of list) expect(Math.abs(wk.x - 32) + Math.abs(wk.y - 32) <= 28).toBe(true);
+    expect(JSON.stringify(walkersAt(w, 0.5, view))).toBe(JSON.stringify(list));
+    expect(walkersAt(w, 0.5, null).some((wk) => wk.y < 10)).toBe(true);
+  });
 });

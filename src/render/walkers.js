@@ -76,24 +76,39 @@ const outOfRange = (b, maxDist, range) => Boolean(range) && (
   b.x + b.w - 1 + maxDist < range.x0 || b.x - maxDist > range.x1 ||
   b.y + b.d - 1 + maxDist < range.y0 || b.y - maxDist > range.y1);
 
+// Fills `out` from `cands` ({ b, kind, maxDist }) up to the cap. With a range, the candidates nearest the
+// centre of the view go first (ties by id), because the range is a bounding box that can cover most of the map.
+function fill(world, timeDays, range, cands, out) {
+  if (range) {
+    const cx = (range.x0 + range.x1) / 2, cy = (range.y0 + range.y1) / 2;
+    for (const c of cands) c.d = Math.abs(c.b.x + c.b.w / 2 - cx) + Math.abs(c.b.y + c.b.d / 2 - cy);
+    cands.sort((a, b) => a.d - b.d || a.b.id - b.b.id);
+  }
+  for (const c of cands) {
+    if (out.length >= WALKER_CAP) break;
+    const w = positionOn(loopFor(world, c.b, c.maxDist), timeDays, c.b.id, c.kind);
+    if (w) out.push(w);
+  }
+}
+
 export function walkersAt(world, timeDays, range = null) {
   const out = [];
+  const services = [];
   for (const b of allBuildings(world)) {
-    if (out.length >= WALKER_CAP) break;
     const kind = KIND_BY_TYPE[b.type];
     if (!kind || !isWorking(world, b)) continue;
     const maxDist = reachFor(BUILDINGS[b.type]);
     if (outOfRange(b, maxDist, range)) continue;
-    const w = positionOn(loopFor(world, b, maxDist), timeDays, b.id, kind);
-    if (w) out.push(w);
+    services.push({ b, kind, maxDist });
   }
+  fill(world, timeDays, range, services, out);
+  if (out.length >= WALKER_CAP) return out;
+  const homes = [];
   for (const h of housesOf(world)) {
-    if (out.length >= WALKER_CAP) break;
     if (h.residents <= 0 || hash2(h.x, h.y, world.seed + 13) >= CITIZEN_SHARE) continue;
     if (outOfRange(h, CITIZEN_RANGE, range)) continue;
-    const kind = hash2(h.x, h.y, world.seed + 14) < 0.5 ? 'citizen' : 'woman';
-    const w = positionOn(loopFor(world, h, CITIZEN_RANGE), timeDays, h.id, kind);
-    if (w) out.push(w);
+    homes.push({ b: h, kind: hash2(h.x, h.y, world.seed + 14) < 0.5 ? 'citizen' : 'woman', maxDist: CITIZEN_RANGE });
   }
+  fill(world, timeDays, range, homes, out);
   return out;
 }
