@@ -34,6 +34,7 @@ import { createOverlayLegend } from './overlayUi.js';
 import { createToasts } from './toasts.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget } from './goalsList.js';
+import { welcomeSheet } from './welcomeBack.js';
 import { el, setText } from './components.js';
 import { buildingName, reasonText, milestoneText, T } from './text.js';
 
@@ -45,7 +46,7 @@ export function createUI({
   root = document.body, doc = document, win = window,
   getSize = null, subscribeResize = undefined, history = win.history,
   addListener = (type, fn) => win.addEventListener(type, fn), removeListener = (type, fn) => win.removeEventListener(type, fn),
-  keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(),
+  keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(), welcome = null,
 }) {
   const $ = (id) => root.querySelector(`#${id}`);
   const view = getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
@@ -80,6 +81,13 @@ export function createUI({
   const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals') });
   const menus = createMenuSheets({ store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {} });
   const customSheets = { ...menus, goals: goalsSheet(world, { onShowMe: showMe }) };
+  if (welcome) {
+    customSheets.welcome = welcomeSheet({
+      world, savedAt: welcome.savedAt, lastSpeed: welcome.lastSpeed, now: () => Date.now(), getAlerts: () => alerts.list(), onView: viewAlert,
+      onCarryOn: (speed) => { store.set(closeSheet(store.get())); speedControl.set(speed); },
+      onStayPaused: () => store.set(closeSheet(store.get())),
+    });
+  }
   const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, afterCommand, custom: customSheets });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
@@ -302,6 +310,7 @@ export function createUI({
 
   let destroyed = false;
   refreshDaily();
+  if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
     store, settings, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh, onEvents, autosave, setSaveFailed,
     destroy() {
