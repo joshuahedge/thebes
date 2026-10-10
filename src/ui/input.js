@@ -8,9 +8,10 @@ import { WHEEL_ZOOM_STEP, ZOOM_STEP, GHOST_FINGER_OFFSET_PX } from '../data/ui.j
 export function createMapInput({ canvas, cam, view, cameraControl, store, actions, root = document.body }) {
   const local = (ev) => { const r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
   let dragKind = null; // 'pan' | 'ghost' | 'draw'
+  let cancelling = false; // true while gestures.cancel runs, so a cancelled draw drag does not commit
 
   const gestures = createGestures({
-    onTap: (e) => { if (e.button !== 2) actions.tap(e); },   // right-click reaches us through contextmenu
+    onTap: (e) => { if (e.button === 0) actions.tap(e); },   // only a primary tap or click; right-click reaches us through contextmenu
     onDoubleTap: (e) => cameraControl.zoomStep(ZOOM_STEP, e.x, e.y),
     onDragStart: (e) => {
       const mode = store.get().mode;
@@ -32,7 +33,7 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
     },
     onDragEnd: (e) => {
       if (dragKind === 'ghost') actions.ghostDragEnd();
-      else if (dragKind === 'draw') actions.drawDrag({ x: e.x, y: e.y, phase: 'end' });
+      else if (dragKind === 'draw' && !cancelling) actions.drawDrag({ x: e.x, y: e.y, phase: 'end' });
       dragKind = null;
     },
     onPinchStart: () => { cameraControl.cancel(); actions.panStarted(); },
@@ -54,15 +55,19 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
     gestures.pointerMove(ev.pointerId, x, y);
   };
   const onUp = (ev) => { const { x, y } = local(ev); gestures.pointerUp(ev.pointerId, x, y); };
-  const onCancel = (ev) => gestures.cancel(ev.pointerId);
+  // gestures.cancel ends an active drag through onDragEnd; flag it so a cancelled draw drag is not committed.
+  const onCancel = (ev) => { cancelling = true; try { gestures.cancel(ev.pointerId); } finally { cancelling = false; } };
   const onLeave = () => { if (gestures.pointerCount === 0) actions.hover(null); };
   const onWheel = (ev) => {
+    ev.preventDefault();
+    if (!ev.deltaY) return; // horizontal or shift-wheel: no zoom
     const { x, y } = local(ev);
     cameraControl.cancel();
     zoomAt(cam, view(), ev.deltaY < 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP, x, y);
-    ev.preventDefault();
   };
-  const onContext = (ev) => { ev.preventDefault(); actions.secondary(); };
+  // Android Chrome fires contextmenu on a touch long-press; that must not count as a right-click (Back).
+  // Every press records its input type first, so a touch long-press is seen as touch here.
+  const onContext = (ev) => { ev.preventDefault(); if (store.get().inputType === 'touch') return; actions.secondary(); };
 
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointermove', onMove);
