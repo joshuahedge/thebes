@@ -74,3 +74,4 @@ import './ui/goalsList.test.js';
 import './ui/welcomeBack.test.js';
 import './ui/titleCard.test.js';
 import './ui/boot.test.js';
+import './save/exportImport.test.js';

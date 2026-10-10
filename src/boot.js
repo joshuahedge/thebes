@@ -14,7 +14,8 @@ import { createTitleCard, createBackdrop } from './ui/titleCard.js';
 import { createSaveStore } from './save/store.js';
 import { packSave, unpackSave } from './save/serialize.js';
 import { TITLE_SEED } from './data/ui.js';
-import { T } from './ui/text.js';
+import { exportSave, downloadFile, pickFile, importSaveFile } from './save/exportImport.js';
+import { T, importErrorText } from './ui/text.js';
 
 const HOUR = 3600 * 1000;
 
@@ -29,11 +30,20 @@ export async function loadSave(store) {
 
 export async function boot(doc, win, {
   root = doc.body, store = createSaveStore(), params = new URLSearchParams(win.location.search),
-  now = () => performance.now(), clock = () => Date.now(), storage = undefined, uiOptions = {}, loopOptions = {},
+  now = () => performance.now(), clock = () => Date.now(), storage = undefined, uiOptions = {}, loopOptions = {}, platform = {},
 } = {}) {
   const canvas = root.querySelector('#map');
   const renderer = createRenderer({ canvas });
   const settings = createSettings({ storage, root });
+  // The share sheet, the download and the file picker, replaceable by tests.
+  const nav = win.navigator || {};
+  const io = {
+    share: typeof nav.share === 'function' ? (d) => nav.share(d) : null,
+    canShare: typeof nav.canShare === 'function' ? (d) => nav.canShare(d) : null,
+    download: (file) => downloadFile(file, doc),
+    pick: () => pickFile(doc),
+    ...platform,
+  };
   const view = uiOptions.getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
   const stress = params.get('stress') === '1', sample = params.get('sample') === '1';
   const seedOf = () => Number(params.get('seed')) || Math.floor(Math.random() * 1e9);
@@ -62,11 +72,30 @@ export async function boot(doc, win, {
       return r.ok;
     },
     newCity() { startGame(freshWorld()); },
+    async exportCity() {
+      if (!current) return;
+      const { ui, world } = current;
+      await ui.autosave('export');                      // the slot is current before the file leaves
+      const text = packSave(world, { savedAt: clock(), lastSpeed: ui.store.get().lastSpeed });
+      try {
+        const r = await exportSave(text, { share: io.share, canShare: io.canShare, download: io.download, date: new Date(clock()) });
+        if (r === 'downloaded') ui.toasts.show(T.exported);
+      } catch (e) { ui.toasts.show(T.exportFailed); }
+    },
+    async importCity() {
+      const file = await io.pick();
+      if (!file) return;
+      let save;
+      try { save = await importSaveFile(file); } catch (e) { if (current) current.ui.toasts.show(importErrorText(e && e.message)); return; }
+      const go = () => startGame(save.world, { fromSave: true, savedAt: save.savedAt, lastSpeed: save.lastSpeed, saveNow: true });
+      if (current) current.ui.store.set({ confirmDialog: { text: T.replaceCityConfirm, confirmLabel: T.importCity, onConfirm: go } });
+      else go();                                        // the title phase has no city to replace (Task 9)
+    },
   };
 
   function stopGame() { if (!current) return; current.loop.stop(); current.ui.destroy(); current = null; }
 
-  function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null } = {}) {
+  function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null, saveNow = !fromSave } = {}) {
     leaveTitle();
     stopGame();
     if (fromSave) setSpeed(world, 0);                   // the game always reopens paused (spec 4.17)
@@ -75,7 +104,7 @@ export async function boot(doc, win, {
     const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: ui.render, ...loopOptions });
     current = { world, ui, loop, cam };
     if (notice) ui.toasts.show(notice);
-    if (!fromSave) ui.autosave('new');                  // the previous city becomes the backup at once
+    if (saveNow) ui.autosave(fromSave ? 'import' : 'new');   // the previous city becomes the backup at once
     loop.start();
     win.__thebes = { world, cam, renderer, loop, ui };
     return current;
