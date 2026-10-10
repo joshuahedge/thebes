@@ -61,3 +61,6 @@ import './ui/confirmBar.test.js';
 import './ui/panels.test.js';
 import './ui/minimap.test.js';
 import './ui/sheets.test.js';
+import './ui/alerts.test.js';
+import './ui/overlayUi.test.js';
+import './ui/toasts.test.js';

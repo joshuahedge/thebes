@@ -86,7 +86,7 @@ export const T = {
   sound: 'Sound', vibration: 'Vibration', textSize: 'Text size', leftHanded: 'Left-handed controls', keyboardShortcuts: 'Keyboard shortcuts', reducedMotion: 'Reduce motion', followSystem: 'Follow the system',
   paused: 'Paused', pausedHidden: 'Paused while you were away', placed: 'Placed', demolished: 'Demolished', roadLaid: 'Road laid', plotsPainted: 'Plots painted',
   tapStart: 'Tap where it starts', tapEnd: 'Tap where it ends', tapCorner: 'Tap the far corner', refund: 'Refund',
-  shortcuts: 'Keyboard shortcuts', openSummary: 'Open the city summary',
+  shortcuts: 'Keyboard shortcuts', openSummary: 'Open the city summary', overlayOff: 'Turn the overlay off',
   rotate: 'Rotate', housingPlots: 'Housing plots',
   noWorkersNeeded: 'No workers needed', help: 'How to play',
 };

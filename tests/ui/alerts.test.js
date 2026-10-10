@@ -1,0 +1,62 @@
+import { describe, it, expect } from '../harness.js';
+import { CRITICAL, triage, mapSummaryText, createAlerts } from '../../src/ui/alerts.js';
+import { alertsFor } from '../../src/sim/alerts.js';
+import { alertText, T } from '../../src/ui/text.js';
+import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
+import { mount, fire } from '../helpers/dom.js';
+
+function rig() {
+  const { root, cleanup } = mount('<div id="banner"></div><p id="live"></p>');
+  const world = makeTestWorld({ gold: 1000 });
+  setRoad(world, 0, 10, 31, 10);
+  const farm = addRaw(world, 'farm_grain', 2, 11, { blocked: 'no_storage' });
+  staffAll(world);
+  return { root, world, farm, banner: root.querySelector('#banner'), live: root.querySelector('#live'), cleanup };
+}
+
+describe('ui alerts', () => {
+  it('drops alerts for buildings that are gone and splits critical from ordinary', () => {
+    const { world, farm, cleanup } = rig();
+    world.gold = -1;
+    const stale = [...alertsFor(world), { code: 'no_road', id: 999 }];
+    const t = triage(world, stale);
+    expect(t.all.map((a) => a.code)).toEqual(['no_storage', 'debt']);
+    expect(t.critical.map((a) => a.code)).toEqual(['debt']);
+    expect(t.ordinary.map((a) => a.code)).toEqual(['no_storage']);
+    expect(t.ordinary[0].id).toBe(farm.id);
+    expect(CRITICAL.has('debt')).toBe(true);
+    expect(mapSummaryText(world, t.all)).toContain(alertText(t.all[0], world).title);
+    expect(mapSummaryText(world, [])).toContain(T.noAlerts);
+    cleanup();
+  });
+  it('renders the banner for critical alerts, counts the rest, and announces each change once', () => {
+    const r = rig();
+    let alerts = [{ code: 'no_storage', id: r.farm.id }];
+    const seen = [];
+    const a = createAlerts({ world: r.world, banner: r.banner, live: r.live, root: r.root, onView: (x) => seen.push(x.code), getAlerts: () => alerts });
+    a.refresh();
+    expect(a.count()).toBe(1);
+    expect(a.critical().length).toBe(0);
+    expect(r.root.classList.contains('has-banner')).toBe(false);
+    expect(r.live.textContent).toContain(alertText(alerts[0], r.world).title);
+    r.live.textContent = 'unchanged';
+    a.refresh();
+    expect(r.live.textContent).toBe('unchanged');           // same alerts: nothing new to announce
+    alerts = [...alerts, { code: 'debt' }];
+    a.refresh();
+    expect(r.root.classList.contains('has-banner')).toBe(true);
+    const row = r.banner.querySelector('.critical');
+    expect(row.textContent).toContain(alertText({ code: 'debt' }, r.world).title);
+    expect(a.count()).toBe(1);
+    expect(a.list().length).toBe(2);
+    expect(r.live.textContent).toContain('2 alerts');
+    fire(row.querySelector('.view'), 'click');
+    expect(seen).toEqual(['debt']);
+    alerts = [];
+    a.refresh();
+    expect(r.root.classList.contains('has-banner')).toBe(false);
+    expect(r.banner.children.length).toBe(0);
+    expect(r.live.textContent).toBe(T.noAlerts);
+    r.cleanup();
+  });
+});
