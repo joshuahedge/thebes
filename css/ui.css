@@ -67,7 +67,10 @@ body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
 #legend .dot, #legend .ring { display: inline-block; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; }
 #legend .dot { background: currentColor; }
 #legend .ring { border: 2px solid currentColor; }
-body.has-banner #legend .strip .text { display: none; }
+/* Under a banner the legend shrinks to its dot and ring; the words stay for screen readers (sr-only). */
+body.has-banner #legend .strip .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body[data-hand="left"] .confirm { flex-direction: row-reverse; }
+body[data-hand="left"] #rail .bottom { flex-direction: column-reverse; }
 
 /* Corner buttons: speed bottom-left, minimap and overlay bottom-right. Never in the middle. */
 #corners { position: fixed; left: var(--safe-left); right: var(--safe-right); bottom: calc(var(--safe-bottom) + var(--dock-slim) + 8px); display: flex; justify-content: space-between; padding: 0 8px; pointer-events: none; }
