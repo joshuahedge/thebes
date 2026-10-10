@@ -12,6 +12,16 @@ Python 3 on your PATH, and Microsoft Edge for the command-line tests.
 
 Then open http://localhost:8000/.
 
+## Dev view
+
+While the real interface is being built, `dev.html` shows the simulation running with the renderer:
+
+    python tests/serve.py 8000 .
+
+Then open http://localhost:8000/dev.html. Add `?seed=7` for another map, `?stress=1` for a full 64×64 city, or `&speed=0` to start paused. Keys: arrows or WASD pan, + and − zoom, 0–3 set the speed, O cycles the overlays, G toggles the tile grid, R reloads with the next seed. Drag to pan and use the wheel to zoom with a mouse.
+
+`tests/screenshot.ps1 -Url '/dev.html?seed=1' -Out shot.png -Width 1280 -Height 800` saves a PNG of the page from headless Edge.
+
 ## Run the tests
 
     powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1
