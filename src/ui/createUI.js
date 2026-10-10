@@ -47,6 +47,9 @@ export function createUI({
   const $ = (id) => root.querySelector(`#${id}`);
   const view = getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
 
+  // Ghost and day bookkeeping lives up here: afterCommand is hoisted and may run during construction.
+  let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [];
+
   const settings = createSettings({ storage, root });
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height) });
   const toasts = createToasts({ container: $('toasts') });
@@ -128,11 +131,17 @@ export function createUI({
   }
   // After a command: alerts, numbers, cards (affordability) and the open sheet all reflect the new world.
   function refresh() {
-    refreshDaily();
+    refreshChrome();
     sheets.render();
   }
-  // Once per game day (and after commands): nothing here rebuilds an open sheet, so focus inside it survives.
+  // Once per game day: the same, so an open sheet's numbers keep up with the game. The sheet is rebuilt
+  // unless keyboard focus is inside it (a rebuild would drop that focus); it catches up on the next command.
   function refreshDaily() {
+    refreshChrome();
+    const sheet = $('sheet');
+    if (sheet && !sheet.contains(doc.activeElement)) sheets.render();
+  }
+  function refreshChrome() {
     alerts.refresh();
     hud.render(); dock.render(); sidePanel.render(); rail.render(); confirmBar.render(); corners.render();
     setText($('map-summary'), mapSummaryText(world, alerts.list()));
@@ -186,9 +195,7 @@ export function createUI({
     rotate: () => {},                                  // nothing rotates in Stage 1 (mastabas come with monuments)
     minimap: () => toggleSheet('minimap'), overlay: () => legend.cycle(),
     confirm: () => {
-      const s = store.get();
-      if (s.confirmDialog) { const d = s.confirmDialog; store.set({ confirmDialog: null }); d.onConfirm(); }
-      else if (isToolMode(s.mode)) confirm();
+      if (isToolMode(store.get().mode)) confirm();     // a dialog's Enter belongs to its focused button (keyboard.js)
     },
     back: goBack, undo, help: () => toggleSheet('help'),
   };
@@ -223,7 +230,6 @@ export function createUI({
   root.dataset.mode = store.get().mode;
 
   // Ghosts are recomputed only when the UI state object changes or a command ran (previews call canPlace).
-  let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [];
   function ghosts() {
     const s = store.get();
     if (s !== ghostState || ghostsDirty) { ghostState = s; ghostsDirty = false; ghostList = isToolMode(s.mode) ? placement.ghosts() : []; }
@@ -250,9 +256,14 @@ export function createUI({
     if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; refreshDaily(); }
   }
 
+  let destroyed = false;
   refreshDaily();
   return {
     store, settings, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh,
-    destroy() { mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); },
+    destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear();
+    },
   };
 }
