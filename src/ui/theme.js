@@ -12,7 +12,7 @@ export const TOKENS = {
 export const TEXT_PAIRS = [
   ['ink', 'parchment'], ['inkSoft', 'parchment'], ['ink', 'parchment2'], ['ink', 'parchment3'],
   ['coralText', 'parchment'], ['amberText', 'parchment'], ['teal', 'parchment'], ['tealInk', 'teal'],
-  ['ink', 'coralSoft'], ['ink', 'amberSoft'], ['ink', 'tealSoft'], ['parchment', 'ink'], ['gold', 'ink'],
+  ['ink', 'coralSoft'], ['ink', 'amberSoft'], ['ink', 'tealSoft'], ['inkSoft', 'tealSoft'], ['parchment', 'ink'], ['gold', 'ink'],
 ];
 
 export const cssName = (name) => '--' + name.replace(/[A-Z0-9]/g, (c) => '-' + c.toLowerCase());
