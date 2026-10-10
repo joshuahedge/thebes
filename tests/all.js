@@ -71,3 +71,4 @@ import './save/store.test.js';
 import './sim/goals.test.js';
 import './ui/autosave.test.js';
 import './ui/goalsList.test.js';
+import './ui/welcomeBack.test.js';
