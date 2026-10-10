@@ -69,11 +69,12 @@ export function createUI({
   const placement = createPlacement({ world, store, afterCommand, effects, now });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
   const alerts = createAlerts({ world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root, getAlerts: () => (saveFailed ? [...alertsFor(world), { code: 'save_failed' }] : alertsFor(world)) });
-  // Web Audio needs a user gesture before it plays (spec 5.5): the first pointer or key does it, then the
-  // listeners go. While sound is off, unlock() declines and the listeners stay for a later switch-on.
-  const onGesture = () => { if (sfx.unlock()) { root.removeEventListener('pointerdown', onGesture); root.removeEventListener('keydown', onGesture); } };
-  root.addEventListener('pointerdown', onGesture);
-  root.addEventListener('keydown', onGesture);
+  // Web Audio needs a user gesture before it plays (spec 5.5). A touch pointerdown is not an activation event
+  // (pointerup and keydown are), so all three listen; they go once the context is running. While sound is off,
+  // or the context has not resumed yet, unlock() returns false and they stay for the next gesture.
+  const GESTURES = ['pointerdown', 'pointerup', 'keydown'];
+  const onGesture = () => { if (sfx.unlock()) for (const t of GESTURES) root.removeEventListener(t, onGesture); };
+  for (const t of GESTURES) root.addEventListener(t, onGesture);
   const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr });
   const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr });
 
@@ -162,9 +163,8 @@ export function createUI({
     if (e.undoable) {                                  // a ✓ outcome: place, road, plots or demolish
       sfx.play(e.kind === 'road' ? 'road' : e.kind === 'demolish' ? 'demolish' : 'place');
       sfx.buzz(20);
-    }
-    if (e.undoable) toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
-    else if (e.kind === 'undo') toasts.show(T.undone);
+      toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
+    } else if (e.kind === 'undo') toasts.show(T.undone);
     ghostsDirty = true;
     refresh();
   }
@@ -333,7 +333,7 @@ export function createUI({
       if (destroyed) return;
       destroyed = true;
       doc.removeEventListener('visibilitychange', onVisibility);
-      root.removeEventListener('pointerdown', onGesture); root.removeEventListener('keydown', onGesture);
+      for (const t of GESTURES) root.removeEventListener(t, onGesture);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
