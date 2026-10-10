@@ -24,8 +24,16 @@ export function houseMark(world, house, kind) {
 
 const markCache = new WeakMap(); // world -> { key, marks }
 
+// Cheap per-frame signature of what can change a mark between days: which buildings exist and their
+// staff, paused and tier. O(n) over buildings; the expensive part (houseStatus per house) stays memoised.
+function buildingSignature(world) {
+  let sig = 0, n = 0;
+  for (const b of allBuildings(world)) { n++; sig = (sig * 31 + b.id * 13 + (b.staff || 0) * 3 + (b.paused ? 7 : 0) + (b.tier || 0) * 11) | 0; }
+  return `${n}:${sig}`;
+}
+
 function allMarks(world, kind) {
-  const key = `${kind}|${world.day}|${world.roadVersion}|${world.nextId}`;
+  const key = `${kind}|${world.day}|${world.roadVersion}|${world.nextId}|${buildingSignature(world)}`;
   const c = markCache.get(world);
   if (c && c.key === key) return c.marks;
   const marks = [];
