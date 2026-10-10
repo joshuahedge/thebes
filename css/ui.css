@@ -137,6 +137,7 @@ body.panel-folded #panel > :not(.foldbar) { display: none; }
 #sheet .head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; position: sticky; top: 0; background: var(--parchment); border-bottom: 1px solid var(--parchment-3); }
 #sheet .head h2 { flex: 1; font-size: calc(18px * var(--ui-scale)); }
 #sheet .body { padding: 8px 16px calc(16px + var(--safe-bottom)); }
+#sheet .welcome-actions { position: sticky; bottom: 0; background: var(--parchment); border-top: 1px solid var(--parchment-3); margin: 12px -16px calc(-16px - var(--safe-bottom)); padding: 10px 16px calc(10px + var(--safe-bottom)); }   /* Carry on stays in view however many alerts there are */
 #sheet ul { padding-left: 20px; margin: 6px 0; }
 #sheet .tick { color: var(--teal); }
 #sheet .cross { color: var(--coral-text); }
