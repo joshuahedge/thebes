@@ -166,3 +166,8 @@ body[data-mode="placing"] #dock, body[data-mode="drawing"] #dock, body[data-mode
 body[data-mode="placing"] #corners, body[data-mode="drawing"] #corners, body[data-mode="demolishing"] #corners { bottom: calc(var(--safe-bottom) + 104px); }
 .speed-corner { position: relative; }
 .speed-options { position: absolute; bottom: calc(100% + 6px); left: 0; display: flex; gap: 6px; }
+/* Legend keys and the banner's warning glyph. */
+#legend .key { display: inline-flex; align-items: center; gap: 4px; }
+#banner .critical .text { flex: 1; min-width: 0; }
+#banner .critical .icon { color: var(--coral-text); }
+.toast .text { flex: 1; }
