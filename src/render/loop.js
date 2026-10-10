@@ -10,6 +10,7 @@ export function createGameLoop({ world, render, onEvents = null, raf = (fn) => r
   const events = [];
 
   function frame(t) {
+    if (running) handle = raf(frame);   // queue the next frame first so an exception below cannot stall the loop
     const dt = last === null ? 0 : Math.min(MAX_FRAME_SECONDS, Math.max(0, (t - last) / 1000));
     last = t;
     acc += daysForSeconds(world.speed, dt);
@@ -20,13 +21,11 @@ export function createGameLoop({ world, render, onEvents = null, raf = (fn) => r
       steps++;
     }
     if (acc >= 1) acc %= 1;          // the cap left a backlog: drop it instead of spiralling
-    if (world.speed === 0) acc = 0;
     if (events.length) {
       if (onEvents) onEvents(events.slice());
       events.length = 0;
     }
     render({ timeDays: world.day + acc, dt, steps, now: t });
-    if (running) handle = raf(frame);
   }
 
   return {

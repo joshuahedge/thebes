@@ -42,7 +42,7 @@ export function walkerLoop(world, b, maxDist) {
   return tiles.concat(tiles.slice(1, -1).reverse());
 }
 
-const cache = new WeakMap(); // world -> { version, loops: Map<buildingId, loop> }
+const cache = new WeakMap(); // world -> { version, loops: Map<"id:maxDist", loop> }
 
 function loopFor(world, b, maxDist) {
   let c = cache.get(world);
@@ -70,18 +70,27 @@ function positionOn(loop, timeDays, id, kind) {
   return { id, kind, x: a.x + (b.x - a.x) * f + 0.5, y: a.y + (b.y - a.y) * f + 0.5, dir };
 }
 
-export function walkersAt(world, timeDays) {
+// `range` ({ x0, y0, x1, y1 } in tiles, the renderer's visible range) keeps the capped crowd where the
+// player looks: a building whose loop reach cannot touch the range is skipped before the cap applies.
+const outOfRange = (b, maxDist, range) => Boolean(range) && (
+  b.x + b.w - 1 + maxDist < range.x0 || b.x - maxDist > range.x1 ||
+  b.y + b.d - 1 + maxDist < range.y0 || b.y - maxDist > range.y1);
+
+export function walkersAt(world, timeDays, range = null) {
   const out = [];
   for (const b of allBuildings(world)) {
     if (out.length >= WALKER_CAP) break;
     const kind = KIND_BY_TYPE[b.type];
     if (!kind || !isWorking(world, b)) continue;
-    const w = positionOn(loopFor(world, b, reachFor(BUILDINGS[b.type])), timeDays, b.id, kind);
+    const maxDist = reachFor(BUILDINGS[b.type]);
+    if (outOfRange(b, maxDist, range)) continue;
+    const w = positionOn(loopFor(world, b, maxDist), timeDays, b.id, kind);
     if (w) out.push(w);
   }
   for (const h of housesOf(world)) {
     if (out.length >= WALKER_CAP) break;
     if (h.residents <= 0 || hash2(h.x, h.y, world.seed + 13) >= CITIZEN_SHARE) continue;
+    if (outOfRange(h, CITIZEN_RANGE, range)) continue;
     const kind = hash2(h.x, h.y, world.seed + 14) < 0.5 ? 'citizen' : 'woman';
     const w = positionOn(loopFor(world, h, CITIZEN_RANGE), timeDays, h.id, kind);
     if (w) out.push(w);

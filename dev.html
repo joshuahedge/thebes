@@ -19,7 +19,7 @@
   import { createWorld, population } from './src/sim/world.js';
   import { dateParts } from './src/sim/clock.js';
   import { MILESTONES } from './src/data/progression.js';
-  import { createCamera } from './src/render/camera.js';
+  import { createCamera, visibleTileRange } from './src/render/camera.js';
   import { createRenderer } from './src/render/renderer.js';
   import { createGameLoop } from './src/render/loop.js';
   import { walkersAt } from './src/render/walkers.js';
@@ -52,9 +52,11 @@
     world,
     onEvents: (events) => effects.fromEvents(world, events, performance.now()),
     render: ({ timeDays, now }) => {
+      const v = view();
+      const range = visibleTileRange(cam, v, world.size);
       const stats = renderer.renderFrame(world, cam, {
-        view: view(),
-        walkers: walkersAt(world, timeDays),
+        view: v,
+        walkers: walkersAt(world, timeDays, range),
         effects,
         now,
         grid: state.grid,

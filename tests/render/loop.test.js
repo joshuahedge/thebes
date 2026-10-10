@@ -76,4 +76,17 @@ describe('game loop', () => {
     expect(cancelled).toBe(1);
     expect(loop.running).toBe(false);
   });
+  it('keeps scheduling frames after render throws', () => {
+    const w = makeTestWorld();
+    let fn = null, calls = 0, survived = 0;
+    const render = () => { calls++; if (calls === 1) throw new Error('boom'); survived++; };
+    const loop = createGameLoop({ world: w, render, raf: (f) => { fn = f; return 1; }, caf: () => {} });
+    loop.start();
+    let threw = false;
+    try { fn(0); } catch { threw = true; }
+    expect(threw).toBe(true);
+    fn(250);
+    expect(survived).toBe(1);
+    expect(loop.running).toBe(true);
+  });
 });

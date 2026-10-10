@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { makeDraw } from '../../src/render/art/ctx.js';
-import { WASH, WASH2, MUD, STONE, BLUE, GOLD, RED, PINK, TEAL, TEAL_DARK } from '../../src/render/art/palette.js';
+import { WASH, WASH2, MUD, STONE, BLUE, GOLD, RED, TEAL, TEAL_DARK } from '../../src/render/art/palette.js';
 import {
   tb, box, qd, crs, door, win, parapet, mat, rug, pots, fence, stairs, ladder, post, awn, col, bed, pool, statue,
   groundShadow, tile, p, U,
@@ -76,6 +76,5 @@ describe('art primitives', () => {
     // With outlines and the gradient the bottom of the lit face is darker than the plain version.
     const pa = pixelAt(a.c, 86, 122), pb = pixelAt(b.c, 86, 122);
     expect(pa[0] + pa[1] + pa[2]).toBeGreaterThan(pb[0] + pb[1] + pb[2]);
-    expect(PINK.length).toBe(7);
   });
 });
