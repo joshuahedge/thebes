@@ -26,7 +26,7 @@ Then open http://localhost:8000/. The title card shows a sample city; **New city
 
 **Sound and vibration** are off by default: **Play with sound** on the title card or the Settings sheet turns them on. The iPhone silent switch is respected.
 
-Add `?seed=7` for another map, `?sample=1` for a small ready-made city, `?stress=1` for a full 64×64 city, `?speed=1` to start running, `?skipTitle=1` to skip the title card, `?welcome=1` to see the Welcome back card, or `?nosw=1` to drop the offline cache while developing.
+Add `?seed=7` for another map, `?sample=1` for a small ready-made city, `?stress=1` for a full 64×64 city, or `?speed=1` to start running.
 
 Keys: Space pauses, + and − change the speed, 1–7 pick a build category, arrows or WASD move the view, M opens the minimap, O cycles the overlays, Enter confirms, Esc goes back one step (it also closes an open tray), Ctrl+Z (Cmd+Z) undoes, ? lists the shortcuts. With a mouse: drag to pan, wheel to zoom, click to place. On a phone: one finger pans, two fingers zoom, tap to select or to move the ghost, then ✓.
 
@@ -45,6 +45,8 @@ Add `-Grep "reach"` to run only tests whose full name contains that text. You ca
 ## Tools
 
 `tools/render-assets.ps1` redraws the app icons and `og-image.png` with the art code (commit the PNGs). `tools/sw-files.ps1` rewrites `sw-files.js`, the list of files the offline cache holds, with a build stamp; run it after adding or changing files, before a publish (the test suite fails when it is stale).
+
+For development, `?skipTitle=1` starts a fresh city without the title card, `?welcome=1` starts a sample city behind the Welcome back card, and `?nosw=1` drops the offline cache so edits show without a restart. Neither of the first two writes anything at once, but the next autosave replaces the saved city, so use them on a scratch browser profile.
 
 ## Publishing
 

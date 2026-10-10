@@ -22,8 +22,8 @@ export function validateWorld(w) {
   for (const k of ['terrain', 'road', 'occ']) if (!Array.isArray(w[k]) || w[k].length !== cells) return false;
   if (!w.buildings || typeof w.buildings !== 'object') return false;
   if (!Number.isInteger(w.day) || !Number.isInteger(w.nextId) || !Number.isFinite(w.gold)) return false;
-  for (const b of Object.values(w.buildings)) if (!b || !BUILDINGS[b.type]) return false;   // 1a note: unknown types
-  for (const id of w.occ) if (id !== 0 && !w.buildings[id]) return false;                   // 1a note: stray occupancy
+  for (const b of Object.values(w.buildings)) if (!b || !Object.hasOwn(BUILDINGS, b.type)) return false;   // 1a note: unknown types
+  for (const id of w.occ) if (id !== 0 && !Object.hasOwn(w.buildings, id)) return false;                   // 1a note: stray occupancy
   if (!Array.isArray(w.startRoad) || !w.goals || !Array.isArray(w.goals.completed) || !Array.isArray(w.history)) return false;
   return true;
 }

@@ -22,6 +22,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
     buttonBox,
   ]);
   let guide = null;
+  const showPanelNode = (children) => { guide = el('div', { class: 'guide' }, children); buttonBox.hidden = true; element.append(guide); };
   const showCard = () => { if (guide) { guide.remove(); guide = null; } buttonBox.hidden = false; buttons[0].focus(); };
   clear(container);
   container.append(element);
@@ -36,10 +37,24 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
       const body = el('div', { class: 'guide-body' });
       render(body);
       const back = button(T.back, { class: 'guide-back', onClick: showCard });
-      guide = el('div', { class: 'guide' }, [body, el('div', { class: 'actions' }, [back])]);
-      buttonBox.hidden = true;
-      element.append(guide);
+      showPanelNode([body, el('div', { class: 'actions' }, [back])]);
       back.focus();
+    },
+    // A panel with its own buttons (the new-city confirmation): render(body, back) fills it and wires Back itself.
+    showPanel(render) {
+      showCard();
+      const body = el('div', { class: 'guide-body' });
+      render(body, showCard);
+      showPanelNode([body]);
+      const first = body.querySelector('button');
+      if (first) first.focus();
+    },
+    // The line under the tagline: save and import problems the player needs to see on the title.
+    setMessage(text) {
+      let node = element.querySelector('.message');
+      if (!node) { node = el('p', { class: 'message coral' }); element.insertBefore(node, buttonBox); }
+      node.textContent = text || '';
+      node.hidden = !text;
     },
     showCard,
     destroy() { clear(container); container.hidden = true; },

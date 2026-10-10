@@ -39,6 +39,10 @@ describe('save envelope', () => {
     expect(validateWorld(JSON.parse(JSON.stringify(w)))).toBe(true);
     const unknown = JSON.parse(JSON.stringify(w)); Object.values(unknown.buildings)[0].type = 'pyramid';
     expect(validateWorld(unknown)).toBe(false);
+    const proto = JSON.parse(JSON.stringify(w)); Object.values(proto.buildings)[0].type = 'constructor';
+    expect(validateWorld(proto)).toBe(false);                                  // prototype keys are not building types
+    const strayProto = JSON.parse(JSON.stringify(w)); strayProto.occ[0] = 'toString';
+    expect(validateWorld(strayProto)).toBe(false);
     const stray = JSON.parse(JSON.stringify(w)); stray.occ[0] = 999;
     expect(validateWorld(stray)).toBe(false);
     const noGoals = JSON.parse(JSON.stringify(w)); noGoals.goals = { completed: 'none' };
@@ -72,7 +76,7 @@ describe('save store', () => {
     expect(loaded.text).toBe(b);
     expect(loaded.usedBackup).toBe(false);
   });
-  it('falls back to the backup only when the current save is corrupt, and refuses newer saves', async () => {
+  it('falls back to the backup whenever the current save fails, and refuses newer saves', async () => {
     const idb = fakeIndexedDB();
     const store = createSaveStore({ idb, local: null });
     const a = packSave(city(1));
@@ -84,6 +88,10 @@ describe('save store', () => {
     idb.records.set('current', JSON.stringify({ version: 99, world: {} }));
     expect(await code(store.load())).toBe('newer_version');
     expect(idb.records.get('backup')).toBe(a);
+    idb.records.set('current', JSON.stringify({ version: 1, world: {} }));        // not_a_save: the backup is offered too
+    const second = await store.load();
+    expect(second.text).toBe(a);
+    expect(second.usedBackup).toBe(true);
     expect(await code(createSaveStore({ idb, local: null }).save('{nope'))).toBe(null);
     expect((await createSaveStore({ idb, local: null }).save('{nope')).code).toBe('corrupt_save');
   });

@@ -281,3 +281,97 @@ describe('ui boot', () => {
     r.cleanup();
   });
 });
+
+describe('ui boot, final review', () => {
+  it('asks before a new city replaces a saved one: Export first leaves the slot alone, Back returns, Start new city begins afresh', async () => {
+    const idb = fakeIndexedDB();
+    const store = createSaveStore({ idb, local: null });
+    const saved = packSave(createWorld({ seed: 4 }), { savedAt: 1760000000000 - 7200000, lastSpeed: 2 });
+    await store.save(saved);
+    const downloaded = [];
+    const r = await bootRig({ store, platform: { share: null, canShare: null, download: (f) => downloaded.push(f) } });
+    const title = r.root.querySelector('#title');
+    fire(title.querySelector('.new-city'), 'click');
+    await flush(); await flush();
+    expect(r.api.phase()).toBe('title');                                       // nothing started, nothing demoted
+    expect(title.querySelector('.guide').textContent).toContain(T.newCityConfirm);
+    expect(title.querySelector('.title-buttons').hidden).toBe(true);
+    fire(title.querySelector('.panel-back'), 'click');
+    expect(title.querySelector('.guide')).toBe(null);
+    expect(title.querySelector('.title-buttons').hidden).toBe(false);
+    fire(title.querySelector('.new-city'), 'click');
+    fire(title.querySelector('.export-first'), 'click');
+    await flush(); await flush();
+    expect(downloaded.length).toBe(1);
+    expect(await downloaded[0].text()).toBe(saved);                            // the saved city, byte for byte
+    expect(title.querySelector('.message').textContent).toBe(T.exported);
+    expect(r.api.phase()).toBe('title');
+    expect(idb.records.get('current')).toBe(saved);
+    expect(idb.records.has('backup')).toBe(false);
+    fire(title.querySelector('.start-new'), 'click');
+    expect(r.api.phase()).toBe('game');
+    expect(r.api.game().world.seed === 4).toBe(false);
+    await flush(); await flush();
+    expect((await loadSave(store)).world.seed).toBe(r.api.game().world.seed);
+    expect(idb.records.get('backup')).toBe(saved);                             // only now does the old city become the backup
+    r.cleanup();
+  });
+  it('lets the development flags look in the slot but never write to it, and never overwrite a newer save', async () => {
+    const idb = fakeIndexedDB();
+    const store = createSaveStore({ idb, local: null });
+    let r = await bootRig({ store, params: 'skipTitle=1&seed=8' });
+    await flush(); await flush();
+    expect(idb.records.has('current')).toBe(false);                            // nothing is written before an autosave
+    r.cleanup();
+    r = await bootRig({ store, params: 'welcome=1&seed=8' });
+    await flush(); await flush();
+    expect(idb.records.has('current')).toBe(false);
+    r.cleanup();
+    const newer = JSON.stringify({ version: 99, world: {} });
+    idb.records.set('current', newer);
+    for (const params of ['skipTitle=1&seed=8', 'welcome=1&seed=8']) {
+      r = await bootRig({ store, params });
+      await r.api.game().ui.autosave('month');
+      expect(idb.records.get('current')).toBe(newer);
+      expect(idb.records.has('backup')).toBe(false);
+      r.cleanup();
+    }
+  });
+  it('shares one audio context across games', async () => {
+    const r = await bootRig({ params: 'skipTitle=1&seed=8' });
+    const first = r.api.game().ui.sfx;
+    r.api.hooks.newCity();
+    expect(r.api.game().ui.sfx).toBe(first);
+    r.cleanup();
+  });
+  it('shows a failed import on the title card, and the export-first note in the install guide when a city is saved', async () => {
+    const IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1';
+    let r = await bootRig({ envInput: { ua: IOS, standalone: true }, platform: { pick: async () => new File(['{nope'], 'x.json') } });
+    fire(r.root.querySelector('#title .bring'), 'click');
+    await until(() => r.root.querySelector('#title .message'));
+    expect(r.api.phase()).toBe('title');
+    expect(r.root.querySelector('#title .message').textContent).toBe(T.saveUnreadable);
+    r.cleanup();
+    const store = createSaveStore({ idb: fakeIndexedDB(), local: null });
+    await store.save(packSave(createWorld({ seed: 4 })));
+    r = await bootRig({ store, envInput: { ua: IOS } });
+    const title = r.root.querySelector('#title');
+    if (!title.querySelector('.guide')) { fire(title.querySelector('.install'), 'click'); await flush(); }
+    expect(title.querySelector('.guide').textContent).toContain(T.installExportFirst);
+    r.cleanup();
+  });
+  it('keeps the update waiting and says so when the restart cannot save', async () => {
+    const worker = { state: 'installed', posted: [], addEventListener() {}, postMessage(m) { worker.posted.push(m); } };
+    const reg = { waiting: worker, installing: null, addEventListener() {} };
+    const sw = { controller: {}, async register() { return reg; }, addEventListener() {} };
+    const idb = fakeIndexedDB();
+    idb.records.set('current', JSON.stringify({ version: 99, world: {} }));      // saving is off, so the restart's save fails
+    const r = await bootRig({ store: createSaveStore({ idb, local: null }), params: 'skipTitle=1&seed=3', sw });
+    await flush(); await flush();
+    fire(r.root.querySelector('#toasts .toast button'), 'click');
+    await flush(); await flush();
+    expect(worker.posted).toEqual([]);
+    expect(r.root.querySelector('#toasts').textContent).toContain(T.updateSaveFailed);
+    r.cleanup();
+  });
+});
