@@ -9,7 +9,7 @@ import { el, button, icon } from './components.js';
 const SWIPE_PX = 30;
 
 export function createDock({ container, store, world, onPick }) {
-  const handle = el('button', { type: 'button', class: 'handle', 'aria-label': T.build });
+  const handle = el('button', { type: 'button', class: 'handle', 'aria-label': T.buildTray, 'aria-expanded': 'false' });
   const cats = el('div', { class: 'cats' });
   const tray = el('div', { class: 'tray cards' });
   const pill = button(T.build, { class: 'pill primary' });
@@ -49,6 +49,7 @@ export function createDock({ container, store, world, onPick }) {
     const s = store.get();
     container.dataset.height = s.dock;
     document.body.dataset.dock = s.dock;
+    handle.setAttribute('aria-expanded', String(s.dock === 'tray'));
     catButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(s.dock === 'tray' && s.category === CATEGORIES[i].id)));
     const key = `${s.category}|${activeItemOf(s.tool)}|${world.gold}|${world.milestone}`;
     if (s.dock === 'tray' && key !== lastCards) {

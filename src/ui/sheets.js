@@ -1,6 +1,5 @@
 // Info sheets, the city summary and the minimap sheet (spec 6.3). One sheet at a time, every one with an x.
 import { BUILDINGS } from '../data/buildings.js';
-import { TIERS } from '../data/housing.js';
 import { houseStatus } from '../sim/housing.js';
 import { setPaused } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
@@ -40,7 +39,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (def.workers || def.upkeep) {
       actions.append(button(b.paused ? T.resume : T.pause, { class: 'pause', onClick: () => {
         const r = setPaused(world, b.id, !b.paused);
-        if (r.ok) { assignLabour(world); afterCommand({ kind: 'pause', result: r, text: b.paused ? T.paused : T.resume, undoable: false }); render(); }
+        if (r.ok) { assignLabour(world); afterCommand({ kind: 'pause', result: r, text: b.paused ? T.paused : T.resumed, undoable: false }); render(); }
       } }));
     }
     actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(b.x, b.y); if (r.ok) close(); } }));

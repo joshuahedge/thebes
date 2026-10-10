@@ -154,6 +154,7 @@ body[data-layout="wide"] #toasts { bottom: 24px; left: calc(50% - var(--panel-w)
 body[data-layout="compact"] #toasts { bottom: 64px; left: calc(50% - var(--rail-w) / 2); }
 .toast { background: var(--ink); color: var(--parchment); border-radius: var(--radius); padding: 6px 8px 6px 14px; display: flex; gap: 12px; align-items: center; box-shadow: var(--shadow); }
 .toast button { min-height: var(--tap); background: transparent; color: var(--gold); border: none; font-weight: 600; }
+.toast button:focus-visible { outline-color: var(--gold); }
 #dialog { position: fixed; inset: 0; background: rgba(43, 31, 14, 0.45); display: flex; align-items: center; justify-content: center; }
 #dialog .box { background: var(--parchment); border-radius: var(--radius); padding: 16px; max-width: 360px; width: calc(100% - 32px); box-shadow: var(--shadow); }
 #dialog .buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
@@ -164,7 +165,7 @@ body[data-layout="portrait"] #confirm { left: 0; right: 0; bottom: 0; }
 body[data-layout="wide"] #confirm { right: 0; bottom: 0; width: var(--panel-w); }
 body[data-layout="compact"] #confirm { right: calc(var(--rail-w) + var(--safe-right)); bottom: 0; width: var(--drawer-w); }
 body[data-mode="placing"] #dock, body[data-mode="drawing"] #dock, body[data-mode="demolishing"] #dock { display: none; }
-body[data-mode="placing"] #corners, body[data-mode="drawing"] #corners, body[data-mode="demolishing"] #corners { bottom: calc(var(--safe-bottom) + 104px); }
+body[data-layout="portrait"][data-mode="placing"] #corners, body[data-layout="portrait"][data-mode="drawing"] #corners, body[data-layout="portrait"][data-mode="demolishing"] #corners { bottom: calc(var(--safe-bottom) + 104px); }
 .speed-corner { position: relative; }
 .speed-options { position: absolute; bottom: calc(100% + 6px); left: 0; display: flex; gap: 6px; }
 /* Legend keys and the banner's warning glyph. */

@@ -195,7 +195,9 @@ export function createUI({
     rotate: () => {},                                  // nothing rotates in Stage 1 (mastabas come with monuments)
     minimap: () => toggleSheet('minimap'), overlay: () => legend.cycle(),
     confirm: () => {
-      if (isToolMode(store.get().mode)) confirm();     // a dialog's Enter belongs to its focused button (keyboard.js)
+      const s = store.get();
+      if (s.confirmDialog) return;                     // a dialog's Enter belongs to its focused button (keyboard.js); never place behind the modal
+      if (isToolMode(s.mode)) confirm();
     },
     back: goBack, undo, help: () => toggleSheet('help'),
   };

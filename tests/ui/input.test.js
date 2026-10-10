@@ -88,7 +88,7 @@ describe('ui map input', () => {
     expect(r.log.some((e) => e[0] === 'tap')).toBe(false);
     r.input.detach(); r.cleanup();
   });
-  it('hovers with the mouse, goes back on right-click, and drags a line while drawing', () => {
+  it('hovers with the mouse, goes back on a right-button press and release, and drags a line while drawing', () => {
     const r = rig({ mode: 'drawing' });
     fire(r.canvas, 'pointermove', { ...r.at(30, 40), pointerId: 1, pointerType: 'mouse', buttons: 0 });
     fire(r.canvas, 'pointerleave', { pointerId: 1, pointerType: 'mouse' });
@@ -96,8 +96,11 @@ describe('ui map input', () => {
     // A real right-click presses the button first (which also records the input type as mouse).
     fire(r.canvas, 'pointerdown', { ...r.at(30, 40), pointerId: 5, pointerType: 'mouse', button: 2, buttons: 2 });
     fire(r.canvas, 'pointerup', { ...r.at(30, 40), pointerId: 5, pointerType: 'mouse', button: 2 });
-    fire(r.canvas, 'contextmenu', r.at(30, 40));
     expect(r.log[2]).toEqual(['secondary']);
+    expect(r.log.length).toBe(3);
+    const ctx = fire(r.canvas, 'contextmenu', r.at(30, 40));                  // the context menu event alone is only suppressed
+    expect(ctx.defaultPrevented).toBe(true);
+    expect(r.log.length).toBe(3);
     const before = r.cam.x;
     fire(r.canvas, 'pointerdown', { ...r.at(100, 100), pointerId: 3, pointerType: 'mouse', button: 0 });
     fire(r.canvas, 'pointermove', { ...r.at(160, 100), pointerId: 3, pointerType: 'mouse', buttons: 1 });
@@ -110,16 +113,30 @@ describe('ui map input', () => {
     expect(r.cam.x === before).toBe(false);
     r.input.detach(); r.cleanup();
   });
-  it('ignores a touch long-press context menu but not a mouse right-click', () => {
+  it('ignores a touch long-press context menu, and a context menu on its own', () => {
     const r = rig();
     fire(r.canvas, 'pointerdown', { ...r.at(100, 100), pointerId: 1, pointerType: 'touch' });
-    fire(r.canvas, 'pointerup', { ...r.at(100, 100), pointerId: 1, pointerType: 'touch' });
+    fire(r.canvas, 'pointercancel', { pointerId: 1, pointerType: 'touch' });   // Android cancels the touch when it opens the menu
     fire(r.canvas, 'contextmenu', r.at(100, 100));
     expect(r.log.some((e) => e[0] === 'secondary')).toBe(false);
-    fire(r.canvas, 'pointerdown', { ...r.at(100, 100), pointerId: 2, pointerType: 'mouse', button: 2, buttons: 2 });
-    fire(r.canvas, 'pointerup', { ...r.at(100, 100), pointerId: 2, pointerType: 'mouse', button: 2 });
+    fire(r.canvas, 'pointerdown', { ...r.at(100, 100), pointerId: 2, pointerType: 'touch' });
+    fire(r.canvas, 'pointerup', { ...r.at(100, 100), pointerId: 2, pointerType: 'touch' });
     fire(r.canvas, 'contextmenu', r.at(100, 100));
-    expect(r.log.some((e) => e[0] === 'secondary')).toBe(true);
+    expect(r.log.some((e) => e[0] === 'secondary')).toBe(false);
+    fire(r.canvas, 'pointerdown', { ...r.at(100, 100), pointerId: 3, pointerType: 'mouse', button: 2, buttons: 2 });
+    fire(r.canvas, 'pointerup', { ...r.at(100, 100), pointerId: 3, pointerType: 'mouse', button: 2 });
+    expect(r.log.filter((e) => e[0] === 'secondary').length).toBe(1);
+    r.input.detach(); r.cleanup();
+  });
+  it('does not go back when a right-button drag pans, even though the browser then fires contextmenu', () => {
+    const r = rig();
+    const before = { x: r.cam.x, y: r.cam.y };
+    fire(r.canvas, 'pointerdown', { ...r.at(100, 100), pointerId: 1, pointerType: 'mouse', button: 2, buttons: 2 });
+    fire(r.canvas, 'pointermove', { ...r.at(100 + DRAG_THRESHOLD_PX + 40, 100), pointerId: 1, pointerType: 'mouse', buttons: 2 });
+    fire(r.canvas, 'pointerup', { ...r.at(100 + DRAG_THRESHOLD_PX + 40, 100), pointerId: 1, pointerType: 'mouse', button: 2 });
+    fire(r.canvas, 'contextmenu', r.at(100 + DRAG_THRESHOLD_PX + 40, 100));
+    expect(r.log.some((e) => e[0] === 'secondary')).toBe(false);
+    expect(r.cam.x === before.x && r.cam.y === before.y).toBe(false);
     r.input.detach(); r.cleanup();
   });
   it('ignores a wheel with no vertical delta', () => {

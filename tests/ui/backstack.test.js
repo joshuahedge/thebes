@@ -30,10 +30,11 @@ describe('ui back stack', () => {
     store.set(openSheet(store.get(), 'menu'));
     expect(h.length).toBe(3);
     h.back();
-    expect(store.get().sheet).toBe(null);
+    expect(store.get().sheet).toEqual({ kind: 'info', id: 1 });   // the info sheet comes back under the closed panel
     expect(store.get().mode).toBe('selected');
     h.back();
     expect(store.get().mode).toBe('browse');
+    expect(store.get().sheet).toBe(null);
     expect(bs.depth()).toBe(0);
   });
   it('does not push twice for the same step and absorbs steps left by other means', () => {

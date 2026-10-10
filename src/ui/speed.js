@@ -31,11 +31,11 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
     },
     mountCorner(container) {
       const main = button(SPEED_LABELS[world.speed], { class: 'speed-main primary', 'aria-label': `${T.speed}: ${SPEED_LABELS[world.speed]}` });
-      const chevron = iconButton(T.speed, '⌄', { class: 'speed-chevron' });
+      const chevron = iconButton(T.speed, '⌄', { class: 'speed-chevron', 'aria-expanded': 'false' });
       const options = el('div', { class: 'speed-options', hidden: true });
-      for (const s of [1, 2, 3]) options.append(button(SPEED_LABELS[s], { onClick: () => { api.set(s); options.hidden = true; } }));
+      for (const s of [1, 2, 3]) options.append(button(SPEED_LABELS[s], { onClick: () => { api.set(s); options.hidden = true; chevron.setAttribute('aria-expanded', 'false'); } }));
       main.addEventListener('click', () => api.toggle());
-      chevron.addEventListener('click', () => { options.hidden = !options.hidden; });
+      chevron.addEventListener('click', () => { options.hidden = !options.hidden; chevron.setAttribute('aria-expanded', String(!options.hidden)); });
       container.append(el('div', { class: 'speed-corner group' }, [main, chevron, options]));
       mounted.push(() => { setText(main, SPEED_LABELS[world.speed]); main.setAttribute('aria-label', `${T.speed}: ${SPEED_LABELS[world.speed]}`); });
     },

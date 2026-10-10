@@ -74,8 +74,15 @@ describe('ui createUI', () => {
     expect(h.length).toBe(3);                                                 // one entry per open step
     h.back();                                                                 // the phone's Back gesture
     s = r.store.get();
-    expect(s.sheet).toBe(null);
+    expect(s.sheet.kind).toBe('info');                                        // the info sheet is restored under the closed panel
     expect(s.mode).toBe('selected');
+    expect(h.length).toBe(3);                                                 // restoring it pushes nothing: an info sheet is not a step
+    h.back();                                                                 // the next Back leaves the selection
+    s = r.store.get();
+    expect(s.mode).toBe('browse');
+    expect(s.sheet).toBe(null);
+    r.tap(15, 11, 'mouse');                                                   // select the well again so a tool can start from a selection
+    expect(r.store.get().mode).toBe('selected');
     key(r.root, '1');                                                         // Roads
     expect(r.store.get().dock).toBe('tray');
     fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');          // Road
@@ -88,7 +95,9 @@ describe('ui createUI', () => {
     key(r.root, 'Enter');
     expect(r.world.road[14 * r.world.size + 20]).toBe(1);
     expect(r.store.get().mode).toBe('drawing');
-    fire(r.canvas, 'contextmenu');                                            // right-click: back one step
+    const right = { ...r.at(60, 60), pointerId: 11, pointerType: 'mouse', button: 2, buttons: 2 };
+    fire(r.canvas, 'pointerdown', right);                                     // right-click: back one step
+    fire(r.canvas, 'pointerup', { ...right, buttons: 0 });
     expect(r.store.get().mode).toBe('browse');
     key(r.root, 'Escape');                                                    // nothing open: nothing changes
     expect(r.store.get().mode).toBe('browse');

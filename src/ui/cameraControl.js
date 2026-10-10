@@ -30,7 +30,7 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, no
     cancel() { tween = null; },
     tick(t = now()) {
       if (!tween) return false;
-      const k = Math.min(1, (t - tween.start) / tween.ms);
+      const k = Math.max(0, Math.min(1, (t - tween.start) / tween.ms));
       const e = easeOut(k);
       cam.x = tween.fromX + (tween.toX - tween.fromX) * e;
       cam.y = tween.fromY + (tween.toY - tween.fromY) * e;
