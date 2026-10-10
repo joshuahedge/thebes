@@ -8,12 +8,12 @@ import { idx } from '../sim/grid.js';
 import { TERRAIN } from './art/palette.js';
 import { reeds } from './art/nature.js';
 
-const spanCache = new WeakMap(); // world -> spans; terrain never changes in Stage 1
+const spanCache = new WeakMap(); // world -> { spans, minWidth }; terrain never changes in Stage 1
 
-export function riverSpans(world) {
-  let spans = spanCache.get(world);
-  if (spans) return spans;
-  spans = [];
+function riverData(world) {
+  let data = spanCache.get(world);
+  if (data) return data;
+  const spans = [];
   for (let y = 0; y < world.size; y++) {
     let a = -1, b = -1;
     for (let x = 0; x < world.size; x++) {
@@ -21,9 +21,14 @@ export function riverSpans(world) {
     }
     spans.push(a < 0 ? null : [a, b]);
   }
-  spanCache.set(world, spans);
-  return spans;
+  let minWidth = Infinity;
+  for (const s of spans) if (s) minWidth = Math.min(minWidth, s[1] - s[0] + 1);
+  data = { spans, minWidth };
+  spanCache.set(world, data);
+  return data;
 }
+
+export const riverSpans = (world) => riverData(world).spans;
 
 const wobble = (y) => Math.sin(y * 1.3) * 0.12 + Math.sin(y * 0.47) * 0.18;
 
@@ -68,7 +73,7 @@ export function drawRiver(g, world, range) {
   g.path(bandPath(left, right, 0.35), TERRAIN.bank, { alpha: 0.85 });
   g.path(bandPath(left, right, 0.15), '#CDBE8E', { alpha: 0.7 });
   g.path(bandPath(left, right, 0), TERRAIN.water);
-  const minWidth = Math.min(...centre.map((c) => c[2]));
+  const { minWidth } = riverData(world); // over the whole river, so the deep band never steps at a chunk border
   const mid = smoothPath(centre);
   g.stroke(mid, TERRAIN.waterDeep, minWidth * 16 * 0.55, 0.85);
   g.stroke(mid, '#17596A', minWidth * 16 * 0.2, 0.5);

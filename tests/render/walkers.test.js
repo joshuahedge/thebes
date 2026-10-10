@@ -55,4 +55,17 @@ describe('walkers', () => {
     staffAll(w);
     expect(walkersAt(w, 0.5).length).toBe(WALKER_CAP);
   });
+  it('sends the capped crowd to the visible range', () => {
+    const w = makeTestWorld({ size: 64 });
+    for (let y = 2; y < 62; y += 4) setRoad(w, 0, y, 63, y);
+    for (let y = 2; y < 62; y += 4) for (let x = 1; x < 63; x += 6) addRaw(w, 'well', x, y + 1);
+    staffAll(w);
+    const far = walkersAt(w, 0.5, { x0: 40, y0: 40, x1: 63, y1: 63 });
+    expect(far.length).toBeGreaterThan(0);
+    // A well reaches 5 tiles, and its loop can run 5 more tiles past the range edge: 40 - 2 * 5.
+    for (const wk of far) expect(wk.x >= 40 - 10 && wk.y >= 40 - 10).toBe(true);
+    const near = walkersAt(w, 0.5, { x0: 0, y0: 0, x1: 20, y1: 20 });
+    expect(JSON.stringify(near) === JSON.stringify(far)).toBe(false);
+    expect(JSON.stringify(walkersAt(w, 0.5, { x0: 40, y0: 40, x1: 63, y1: 63 }))).toBe(JSON.stringify(far));
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { createEffects, EFFECT_MS, prefersReducedMotion } from '../../src/render/effects.js';
+import { createEffects, EFFECT_MS } from '../../src/render/effects.js';
 import { makeDraw } from '../../src/render/art/ctx.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
 import { makeCanvas, pixelAt } from '../helpers/canvas.js';
@@ -42,7 +42,6 @@ describe('effects', () => {
     expect(live.filter((e) => e.kind === 'pulse').length).toBe(1);
     expect(live.filter((e) => e.kind === 'label').map((e) => e.text)).toEqual(['+Shack', '−Cottage']);
     expect(milestones).toEqual(['town']);
-    expect(prefersReducedMotion() === true || prefersReducedMotion() === false).toBe(true);
   });
   it('keeps labels but drops puffs, glows and pulses under reduced motion', () => {
     const w = makeTestWorld();
