@@ -116,6 +116,7 @@ export function createUI({
     pick(goal.showMe.item);
     const t = showMeTarget(world, goal);
     cameraControl.panTo(t.x, t.y);
+    placement.moveGhost(Math.floor(t.x), Math.floor(t.y));   // a building ghost lands on the target, not at the old screen centre (ignored for road and plot tools)
     const at = now();
     for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(t.x, t.y, at + i * SHOW_ME_PULSE_MS);
   }
