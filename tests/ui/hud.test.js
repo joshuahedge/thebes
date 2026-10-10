@@ -4,6 +4,7 @@ import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { advanceDays } from '../../src/sim/clock.js';
 import { mount, fire } from '../helpers/dom.js';
+import { T } from '../../src/ui/text.js';
 
 function town(opts) {
   const w = makeTestWorld(opts);
@@ -41,6 +42,10 @@ describe('ui hud', () => {
     const hud = createHud({ world: w, store, container: root, speedBar, onOpenSummary: () => opened.push('summary'), onOpenMenu: () => opened.push('menu') });
     expect(root.textContent).toContain('2000');
     expect(root.textContent).toContain('12');
+    const statsBtn = root.querySelector('.stats');
+    expect(statsBtn.hasAttribute('aria-label')).toBe(false);
+    expect(statsBtn.textContent).toContain('2000');
+    expect(statsBtn.textContent).toContain(T.openSummary);
     expect(root.querySelectorAll('.wide-only').length).toBeGreaterThan(0);
     expect(root.contains(speedBar)).toBe(true);
     w.gold = 1234;

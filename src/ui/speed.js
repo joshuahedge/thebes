@@ -23,7 +23,7 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
     watchVisibility() {
       let pausedByUs = false;
       const onChange = () => {
-        if (doc.hidden) { pausedByUs = api.pauseForHidden(); return; }
+        if (doc.hidden) { pausedByUs = api.pauseForHidden() || pausedByUs; return; }
         if (pausedByUs) { pausedByUs = false; onPausedHidden(); }
       };
       doc.addEventListener('visibilitychange', onChange);

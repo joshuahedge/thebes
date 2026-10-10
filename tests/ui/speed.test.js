@@ -48,6 +48,18 @@ describe('ui speed', () => {
     stop();
     expect(doc.listeners.length).toBe(0);
   });
+  it('keeps the paused-while-hidden report when the page is hidden twice before it comes back', () => {
+    const w = makeTestWorld();
+    w.speed = 1;
+    const doc = fakeDoc();
+    const said = [];
+    const ctl = createSpeedControl({ world: w, store: createStore(INITIAL_UI_STATE), doc, onPausedHidden: () => said.push('paused') });
+    ctl.watchVisibility();
+    doc.hidden = true; doc.fireVisibility();
+    doc.fireVisibility();                      // a second hidden event: already paused, so nothing new to pause
+    doc.hidden = false; doc.fireVisibility();
+    expect(said).toEqual(['paused']);
+  });
   it('mounts the corner button and the wide bar as labelled buttons', () => {
     const { root, cleanup } = mount('<div id="c"></div><div id="b"></div>');
     const w = makeTestWorld();

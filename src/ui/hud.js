@@ -32,7 +32,8 @@ const stat = (label, cls) => el('span', { class: `stat ${cls}` }, [el('span', { 
 export function createHud({ world, store, container, speedBar = null, onOpenSummary = () => {}, onOpenMenu = () => {} }) {
   const gold = stat(T.gold, 'gold'), people = stat(T.people, 'people'), mood = stat(T.mood, 'mood'), date = stat(T.date, 'date');
   const income = stat(T.income, 'income wide-only'), jobless = stat(T.jobless, 'jobless wide-only'), food = stat(T.food, 'food wide-only');
-  const stats = el('button', { type: 'button', class: 'stats quiet', 'aria-label': T.summary, onClick: onOpenSummary }, [gold, people, mood, date, income, jobless, food]);
+  // No aria-label here: it would replace the visible numbers as the accessible name (spec 6.8). The hint is read as part of the name.
+  const stats = el('button', { type: 'button', class: 'stats quiet', title: T.summary, onClick: onOpenSummary }, [gold, people, mood, date, income, jobless, food, el('span', { class: 'sr-only', text: T.openSummary })]);
   const menu = iconButton(T.menu, '☰', { class: 'menu' });
   menu.addEventListener('click', onOpenMenu);
   const bar = el('div', { class: 'speed wide-only' });
