@@ -204,9 +204,11 @@ body[data-layout="compact"] #under-bar { right: calc(var(--rail-w) + var(--safe-
 .title-card .tagline { margin: 0 0 8px; }
 .title-card .message { margin: 0 0 8px; }
 .title-buttons { display: flex; flex-direction: column; gap: 8px; }
-/* The in-app browser notice (spec 4.17): persistent, above everything, visible on the title card too. */
-#notice { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + 8px); z-index: 4; display: flex; justify-content: center; pointer-events: none; }
-#notice .notice { pointer-events: auto; display: inline-flex; align-items: center; gap: 8px; background: var(--amber-soft); color: var(--amber-text); border: 1px solid var(--amber-text); border-radius: var(--radius); padding: 8px 12px; box-shadow: var(--shadow); }
-body.on-title #ui > :not(#title):not(#notice) { display: none !important; }
+/* The in-app browser notice (spec 4.17): persistent, the first row of #under-bar so the top bar stays usable. */
+#notice { position: static; display: flex; max-width: 100%; pointer-events: none; }
+#notice > * { pointer-events: auto; }
+#notice .notice { display: inline-flex; align-items: center; gap: 8px; background: var(--amber-soft); color: var(--amber-text); border: 1px solid var(--amber-text); border-radius: var(--radius); padding: 8px 12px; box-shadow: var(--shadow); }
+body.on-title #ui > :not(#title):not(#under-bar) { display: none !important; }
+body.on-title #under-bar > :not(#notice) { display: none !important; }
 .guide { text-align: left; }
 .guide .steps { padding-left: 20px; margin: 8px 0; }

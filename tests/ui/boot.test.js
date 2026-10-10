@@ -208,6 +208,13 @@ describe('ui boot', () => {
     expect(r.root.querySelector('#notice').hidden).toBe(false);
     expect(r.root.querySelector('#notice').textContent).toContain(T.openInSafari);
     expect(getComputedStyle(r.root.querySelector('#notice')).display === 'none').toBe(false);   // visible over the title
+    fire(title.querySelector('.new-city'), 'click');
+    const gi = r.api.game();
+    const notice = r.root.querySelector('#notice');
+    expect(getComputedStyle(notice).display === 'none').toBe(false);                    // and during play, under the top bar
+    expect(notice.getBoundingClientRect().top >= r.root.querySelector('#topbar').getBoundingClientRect().bottom).toBe(true);
+    gi.world.gold = -30; gi.ui.alerts.refresh();
+    expect(r.root.querySelector('#banner').getBoundingClientRect().top >= notice.getBoundingClientRect().bottom).toBe(true);
     r.cleanup();
     expect(r.root.querySelector('#notice').hidden).toBe(true);
     const prompts = [];
