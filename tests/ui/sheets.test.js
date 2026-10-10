@@ -1,5 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { createSheets } from '../../src/ui/sheets.js';
+import { GOALS } from '../../src/data/goals.js';
 import { createMinimap } from '../../src/ui/minimap.js';
 import { createPlacement } from '../../src/ui/placement.js';
 import { createCameraControl } from '../../src/ui/cameraControl.js';
@@ -73,7 +74,7 @@ describe('ui sheets', () => {
     const r = rig();
     r.store.set(openSheet(r.store.get(), 'summary'));
     expect(r.root.textContent).toContain(T.taxes);
-    expect(r.root.textContent).toContain(T.goalsLater);
+    expect(r.root.textContent).toContain(GOALS[0].text);
     r.store.set(openSheet(r.store.get(), 'minimap'));
     expect(r.root.querySelector('canvas')).toBeTruthy();
     fire(r.root.querySelector('.zoom-in'), 'click');

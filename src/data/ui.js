@@ -19,6 +19,8 @@ export function toolForItem(item) {
 }
 
 // Placing a service shows its overlay together with the reach preview (spec 4.5).
+export const SHOW_ME_PULSES = 2;
+export const SHOW_ME_PULSE_MS = 400;
 export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion' };
 
 // Spec 6.7. Letters are listed in both cases; `undo` needs Ctrl or Cmd.
@@ -53,3 +55,10 @@ export const GHOST_FINGER_OFFSET_PX = 48;
 
 // The version the about sheet shows.
 export const APP_VERSION = '0.1';
+
+// The offline cache's worker (spec 7.1) and how long the "update ready" toast stays up (spec 6.3).
+export const SW_PATH = './sw.js';
+export const UPDATE_TOAST_MS = 20000;
+
+export const TITLE_SEED = 11;          // the sample city behind the title card
+export const TITLE_DRIFT_MS = 9000;    // one slow camera drift between two points of it

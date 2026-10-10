@@ -61,6 +61,6 @@ describe('sim events', () => {
     const w = street();
     const events = [];
     tickDay(w, events);
-    expect(events).toEqual([]);
+    expect(events).toEqual([{ type: 'goal', id: 'road', reward: 25 }]);   // the street is a road, so the first goal lands on day one
   });
 });

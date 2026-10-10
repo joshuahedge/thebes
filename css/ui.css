@@ -57,16 +57,20 @@ h2, h3 { margin: 0; }
 body[data-layout="portrait"] .wide-only, body[data-layout="compact"] .wide-only { display: none !important; }
 body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
 
-/* Critical banner and overlay legend, under the top bar. The banner wins; the legend shrinks to its icon. */
-#banner, #legend { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + var(--topbar-h) + 6px); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
+/* Critical banner, overlay legend and goals strip stack under the top bar in one column, so nothing overlaps whatever the text size. The banner wins; the legend shrinks to its icon. */
+#under-bar { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + var(--topbar-h) + 6px); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
+#banner, #legend { position: static; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; max-width: 100%; }
+#under-bar > :empty { display: none; }
 #banner > *, #legend > * { pointer-events: auto; }
 #banner .critical { background: var(--coral-soft); border: 1px solid var(--coral-text); border-radius: var(--radius); padding: 6px 8px 6px 12px; display: flex; align-items: center; gap: 8px; max-width: 100%; }
 #legend .strip { display: inline-flex; align-items: center; gap: 10px; background: var(--parchment); border-radius: var(--radius); padding: 4px 6px 4px 12px; box-shadow: var(--shadow); }
 #legend .dot, #legend .ring { display: inline-block; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; }
 #legend .dot { background: currentColor; }
 #legend .ring { border: 2px solid currentColor; }
-body.has-banner #legend { top: calc(var(--safe-top) + var(--topbar-h) + 56px); }
-body.has-banner #legend .strip .text { display: none; }
+/* Under a banner the legend shrinks to its dot and ring; the words stay for screen readers (sr-only). */
+body.has-banner #legend .strip .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body[data-hand="left"] .confirm { flex-direction: row-reverse; }
+body[data-hand="left"] #rail .bottom { flex-direction: column-reverse; }
 
 /* Corner buttons: speed bottom-left, minimap and overlay bottom-right. Never in the middle. */
 #corners { position: fixed; left: var(--safe-left); right: var(--safe-right); bottom: calc(var(--safe-bottom) + var(--dock-slim) + 8px); display: flex; justify-content: space-between; padding: 0 8px; pointer-events: none; }
@@ -133,6 +137,7 @@ body.panel-folded #panel > :not(.foldbar) { display: none; }
 #sheet .head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; position: sticky; top: 0; background: var(--parchment); border-bottom: 1px solid var(--parchment-3); }
 #sheet .head h2 { flex: 1; font-size: calc(18px * var(--ui-scale)); }
 #sheet .body { padding: 8px 16px calc(16px + var(--safe-bottom)); }
+#sheet .welcome-actions { position: sticky; bottom: 0; background: var(--parchment); border-top: 1px solid var(--parchment-3); margin: 12px -16px calc(-16px - var(--safe-bottom)); padding: 10px 16px calc(10px + var(--safe-bottom)); }   /* Carry on stays in view however many alerts there are */
 #sheet ul { padding-left: 20px; margin: 6px 0; }
 #sheet .tick { color: var(--teal); }
 #sheet .cross { color: var(--coral-text); }
@@ -185,3 +190,29 @@ body[data-layout="portrait"][data-mode="placing"] #corners, body[data-layout="po
 .shortcuts { border-collapse: collapse; width: 100%; }
 .shortcuts td, .shortcuts th { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--parchment-2); vertical-align: top; }
 kbd { font: inherit; background: var(--parchment-2); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
+
+/* The goals strip is the last row of #under-bar, below the banner and the legend when they show. */
+#goals { position: static; display: flex; max-width: 100%; pointer-events: none; }
+#goals > * { pointer-events: auto; }
+.goal-strip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; background: var(--parchment); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); }
+.goal-strip .text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body[data-layout="wide"] #goals { max-width: 440px; }
+body[data-layout="compact"] #under-bar { right: calc(var(--rail-w) + var(--safe-right) + 8px); }
+.goals { list-style: none; padding: 0; }
+.goals .goal { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+
+/* The title card (spec 4.1) over the drifting sample city. While it shows, the game chrome stays hidden. */
+#title { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(43, 31, 14, 0.25); }
+.title-card { background: var(--parchment); border-radius: 16px; box-shadow: var(--shadow); padding: 24px; width: min(360px, 100%); display: flex; flex-direction: column; gap: 8px; text-align: center; box-sizing: border-box; }
+.title-card h1 { margin: 0; font-size: calc(32px * var(--ui-scale)); letter-spacing: 0.08em; }
+.title-card .tagline { margin: 0 0 8px; }
+.title-card .message { margin: 0 0 8px; }
+.title-buttons { display: flex; flex-direction: column; gap: 8px; }
+/* The in-app browser notice (spec 4.17): persistent, the first row of #under-bar so the top bar stays usable. */
+#notice { position: static; display: flex; max-width: 100%; pointer-events: none; }
+#notice > * { pointer-events: auto; }
+#notice .notice { display: inline-flex; align-items: center; gap: 8px; background: var(--amber-soft); color: var(--amber-text); border: 1px solid var(--amber-text); border-radius: var(--radius); padding: 8px 12px; box-shadow: var(--shadow); }
+body.on-title #ui > :not(#title):not(#under-bar) { display: none !important; }
+body.on-title #under-bar > :not(#notice) { display: none !important; }
+.guide { text-align: left; }
+.guide .steps { padding-left: 20px; margin: 8px 0; }

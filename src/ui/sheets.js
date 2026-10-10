@@ -3,6 +3,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { houseStatus } from '../sim/housing.js';
 import { setPaused } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
+import { openGoals } from '../sim/goals.js';
 import { closeSheet } from './modes.js';
 import { summaryData } from './hud.js';
 import { ZOOM_STEP } from '../data/ui.js';
@@ -69,11 +70,13 @@ export function createSheets({ container, store, world, placement, cameraControl
     const d = summaryData(world);
     const body = el('div', { class: 'body' });
     body.append(el('h3', { text: T.incomeVsSpending }), row(T.taxes, `+${d.taxes}`), row(T.wages, `−${d.wages}`), row(T.upkeep, `−${d.upkeep}`), row(T.net, (d.net >= 0 ? '+' : '') + d.net));
-    body.append(el('h3', { text: T.foodInStore }), row('Grain', `${d.foodStored}`), row('Lasts', d.monthsOfFood === null ? '–' : plural(d.monthsOfFood, 'month', 'months')));
-    body.append(el('h3', { text: T.employment }), row('Working', `${d.working} of ${d.workforce}`), row(T.jobless, `${d.jobless}`), row('Jobs', `${d.jobs}`));
+    body.append(el('h3', { text: T.foodInStore }), row(T.grain, `${d.foodStored}`), row(T.lasts, d.monthsOfFood === null ? '–' : plural(d.monthsOfFood, 'month', 'months')));
+    body.append(el('h3', { text: T.employment }), row(T.working, `${d.working} of ${d.workforce}`), row(T.jobless, `${d.jobless}`), row(T.jobs, `${d.jobs}`));
     body.append(el('h3', { text: T.moodBreakdown }), row(T.mood, `${d.mood}`));
     for (const [k, v] of Object.entries(d.moodBreakdown || {})) body.append(row(k, (v >= 0 ? '+' : '') + v));
-    body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsLater }));
+    body.append(el('h3', { text: T.goals }));
+    const open = openGoals(world, 3);
+    body.append(open.length ? el('ul', { class: 'goals' }, open.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
     return [head(T.summary), body];
   }
 
@@ -94,6 +97,10 @@ export function createSheets({ container, store, world, placement, cameraControl
 
   function render() {
     const s = store.get();
+    // A rebuild drops keyboard focus: put it back on the button at the same position when its class matches (spec 6.8).
+    const buttons = [...container.querySelectorAll('button')];
+    const focusIndex = buttons.indexOf(document.activeElement);
+    const focusClass = focusIndex >= 0 ? buttons[focusIndex].className : null;
     clear(container);
     if (!s.sheet) { container.hidden = true; return; }
     let parts;
@@ -107,6 +114,10 @@ export function createSheets({ container, store, world, placement, cameraControl
     else { container.hidden = true; return; }
     container.hidden = false;
     container.append(...parts);
+    if (focusIndex >= 0) {
+      const again = container.querySelectorAll('button')[focusIndex];
+      if (again && again.className === focusClass && !again.disabled) again.focus();
+    }
   }
 
   render();

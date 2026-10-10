@@ -13,8 +13,9 @@ export function migrate(obj, table = MIGRATIONS, target = CURRENT_VERSION) {
   while (w.version < target) {
     const step = table[w.version];
     if (!step) throw new Error('no_migration_' + w.version);
-    const next = step(w);
-    if (!next || !(next.version > w.version)) throw new Error('bad_migration_' + w.version);
+    let next;
+    try { next = step(w); } catch (e) { throw new Error('bad_migration_' + w.version); }
+    if (!next || !(next.version > w.version) || next.version > target) throw new Error('bad_migration_' + w.version);
     w = next;
   }
   return w;

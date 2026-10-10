@@ -10,6 +10,8 @@ import { updateMood } from './mood.js';
 import { updateMilestone } from './progression.js';
 import { computeAlerts } from './alerts.js';
 import { clearUndo } from './undo.js';
+import { checkGoals } from './goals.js';
+import { population, HISTORY_MONTHS } from './world.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
 
@@ -25,6 +27,9 @@ export function runMonth(world, events = null) {
   if (milestoneChanged && events) events.push({ type: 'milestone', id: world.milestone });
   computeAlerts(world);
   clearUndo(world);
+  world.history.push({ day: world.day, people: population(world), gold: world.gold, mood: world.mood });
+  if (world.history.length > HISTORY_MONTHS) world.history.splice(0, world.history.length - HISTORY_MONTHS);
+  if (events) events.push({ type: 'month' });
 }
 
 export function tickDay(world, events = null) {
@@ -36,6 +41,7 @@ export function tickDay(world, events = null) {
     if (count > 0 && events) events.push({ type: 'arrivals', count });
   }
   if (world.day % DAYS_PER_MONTH === 0) runMonth(world, events);
+  checkGoals(world, events);
 }
 
 export function advanceDays(world, n, events = null) {

@@ -23,9 +23,13 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
   function menu(body, { close }) {
     body.append(el('div', { class: 'menu-list' }, [
       button(T.continueGame, { class: 'primary', onClick: close }),
-      button(T.newCity, { onClick: () => store.set({ confirmDialog: { text: T.newCityConfirm, confirmLabel: T.newCity, onConfirm: onNewCity } }) }),
+      button(T.newCity, { onClick: () => store.set({ confirmDialog: {
+        text: T.newCityConfirm, confirmLabel: T.newCity, onConfirm: onNewCity,
+        extraLabel: typeof hooks.exportCity === 'function' ? T.exportFirst : null, onExtra: hookOr('exportCity'),
+      } }) }),
       button(T.exportCity, { onClick: hookOr('exportCity') }),
       button(T.importCity, { onClick: hookOr('importCity') }),
+      typeof hooks.install === 'function' && (typeof hooks.canInstall !== 'function' || hooks.canInstall()) ? button(T.installMenu, { class: 'install', onClick: () => hooks.install() }) : null,
       button(T.settings, { onClick: () => open('settings') }),
       button(T.howToPlay, { onClick: () => open('help') }),
       button(T.about, { onClick: () => open('about') }),
@@ -67,7 +71,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     ]));
     body.append(el('p', { class: 'small muted', text: T.shortcutsOff }));
     body.append(el('h3', { text: T.gestures }), el('p', { text: T.gesturesHelp }));
-    body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsLater }));
+    body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsHelp }));
   }
 
   function about(body) {
@@ -77,7 +81,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
   return { menu, settings: settingsSheet, help, about };
 }
 
-// The confirm dialog: store.confirmDialog = { text, confirmLabel, onConfirm } shows it; null hides it.
+// The confirm dialog: store.confirmDialog = { text, confirmLabel, onConfirm, extraLabel?, onExtra? } shows it; null hides it.
 // Cancel gets focus so a stray Enter never confirms; Esc reaches it through modes.back.
 export function createDialog({ container, store }) {
   container.setAttribute('aria-labelledby', 'dialog-text');
@@ -86,8 +90,9 @@ export function createDialog({ container, store }) {
     clear(container);
     if (!d) { container.hidden = true; return; }
     const cancel = button(T.cancel, { class: 'cancel', onClick: () => store.set({ confirmDialog: null }) });
+    const extra = d.extraLabel ? button(d.extraLabel, { class: 'extra', onClick: () => { store.set({ confirmDialog: null }); if (typeof d.onExtra === 'function') d.onExtra(); } }) : null;
     const ok = button(d.confirmLabel || T.confirm, { class: 'ok danger', onClick: () => { store.set({ confirmDialog: null }); if (typeof d.onConfirm === 'function') d.onConfirm(); } });
-    container.append(el('div', { class: 'box', role: 'document' }, [el('p', { id: 'dialog-text', text: d.text }), el('div', { class: 'buttons' }, [cancel, ok])]));
+    container.append(el('div', { class: 'box', role: 'document' }, [el('p', { id: 'dialog-text', text: d.text }), el('div', { class: 'buttons' }, [cancel, extra, ok])]));
     container.hidden = false;
     cancel.focus();
   }

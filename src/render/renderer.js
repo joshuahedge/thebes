@@ -51,15 +51,22 @@ export function collectObjects(world, range, walkers = [], registry = ART) {
   return out;
 }
 
+const defaultDpr = () => (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+
 export function createRenderer({
   canvas, spriteCache = createSpriteCache(), baker = createTerrainBaker(),
-  dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1, registry = ART, maxBakesPerFrame = 2,
+  dpr = defaultDpr, registry = ART, maxBakesPerFrame = 2,
 }) {
+  const dprOf = typeof dpr === 'function' ? dpr : () => dpr;
+  let currentDpr = dprOf();
   const ctx = canvas.getContext('2d');
   const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, ms: 0, frames: 0, stale: 0 };
 
   function renderFrame(world, cam, opts = {}) {
     const started = performance.now();
+    const nextDpr = dprOf();
+    if (nextDpr !== currentDpr) { currentDpr = nextDpr; spriteCache.clear(); }   // browser zoom changed: sprites at the old ratio would only pile up
+    const dpr = currentDpr;
     const view = opts.view || { width: canvas.clientWidth || canvas.width / dpr, height: canvas.clientHeight || canvas.height / dpr };
     const W = Math.round(view.width * dpr), H = Math.round(view.height * dpr);
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
@@ -118,5 +125,5 @@ export function createRenderer({
     return stats;
   }
 
-  return { renderFrame, stats, spriteCache, baker, dpr };
+  return { renderFrame, stats, spriteCache, baker, get dpr() { return currentDpr; } };
 }
