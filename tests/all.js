@@ -53,3 +53,5 @@ import './ui/pick.test.js';
 import './ui/input.test.js';
 import './ui/placement.test.js';
 import './ui/keyboard.test.js';
+import './ui/hud.test.js';
+import './ui/speed.test.js';
