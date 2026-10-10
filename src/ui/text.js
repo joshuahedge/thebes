@@ -72,6 +72,7 @@ export const dateText = ({ year, month, day }) => `Year ${year}, month ${month},
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 export const T = {
+  fold: 'Fold the panel', unfold: 'Unfold the panel',
   place: 'Place', cancel: 'Cancel', undo: 'Undo', back: 'Back', close: 'Close', demolish: 'Demolish', pause: 'Pause', resume: 'Resume',
   confirm: 'Confirm', flip: 'Flip', build: 'Build', menu: 'Menu', minimap: 'Minimap', overlay: 'Overlay', speed: 'Speed',
   gold: 'Gold', people: 'People', mood: 'Mood', date: 'Date', income: 'Income', jobless: 'Jobless', food: 'Food',

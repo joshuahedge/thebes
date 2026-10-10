@@ -58,3 +58,4 @@ import './ui/speed.test.js';
 import './ui/cards.test.js';
 import './ui/dock.test.js';
 import './ui/confirmBar.test.js';
+import './ui/panels.test.js';
