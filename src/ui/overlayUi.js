@@ -6,8 +6,12 @@ import { OVERLAY_NAMES, OVERLAY_LEGEND, T } from './text.js';
 import { el, iconButton, clear } from './components.js';
 
 export function createOverlayLegend({ container, store }) {
+  let lastKind = undefined;
+
   function render() {
     const kind = store.get().overlay;
+    if (kind === lastKind) return;
+    lastKind = kind;
     clear(container);
     if (!kind) return;
     const [has, missing] = OVERLAY_LEGEND[kind];
