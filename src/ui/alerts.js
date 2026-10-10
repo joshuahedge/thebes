@@ -22,7 +22,7 @@ export function mapSummaryText(world, alerts) {
   return `${head} ${plural(alerts.length, 'alert', 'alerts')}: ${alerts.map((a) => alertText(a, world).title).join('. ')}.`;
 }
 
-export function createAlerts({ world, banner, live, onView = () => {}, root = document.body, getAlerts = () => alertsFor(world) }) {
+export function createAlerts({ world, banner, live, onView = () => {}, onNewCritical = () => {}, root = document.body, getAlerts = () => alertsFor(world) }) {
   let current = { all: [], critical: [], ordinary: [] };
   let lastKeys = null;
   let lastCriticalKeys = null;
@@ -52,7 +52,12 @@ export function createAlerts({ world, banner, live, onView = () => {}, root = do
     refresh() {
       current = triage(world, getAlerts());
       const criticalKeys = current.critical.map(keyOf).sort().join('|');
-      if (criticalKeys !== lastCriticalKeys) { lastCriticalKeys = criticalKeys; renderBanner(); }
+      if (criticalKeys !== lastCriticalKeys) {
+        const before = new Set((lastCriticalKeys || '').split('|').filter(Boolean));
+        if (current.critical.some((a) => !before.has(keyOf(a)))) onNewCritical();   // a fresh problem, not a cleared one
+        lastCriticalKeys = criticalKeys;
+        renderBanner();
+      }
       announce();
     },
     count: () => current.ordinary.length,

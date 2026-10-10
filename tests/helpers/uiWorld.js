@@ -82,7 +82,7 @@ export function fakeDoc() {
 
 // The whole interface on the mounted shell, with the window-facing parts injected: size, resize source,
 // history, keyboard target and storage. `root` is document.body so the stylesheet's body[data-...] rules apply.
-export async function rigUI({ width = 390, height = 844, hooks = {}, doc = fakeDoc(), welcome = null } = {}) {
+export async function rigUI({ width = 390, height = 844, hooks = {}, doc = fakeDoc(), welcome = null, sfx = null } = {}) {
   const shell = await mountShell(width, height);
   const world = uiWorld();
   const canvas = shell.root.querySelector('#map');
@@ -95,7 +95,7 @@ export async function rigUI({ width = 390, height = 844, hooks = {}, doc = fakeD
     world, canvas, cam, renderer, root: document.body, getSize: () => size,
     subscribeResize: (fn) => { resizeListeners.push(fn); return () => resizeListeners.splice(resizeListeners.indexOf(fn), 1); },
     history, addListener: history.addListener, removeListener: history.removeListener,
-    keyTarget: shell.root, storage: { getItem: () => null, setItem: () => {} }, now: () => 0, hooks, doc, welcome,
+    keyTarget: shell.root, storage: { getItem: () => null, setItem: () => {} }, now: () => 0, hooks, doc, welcome, sfx,
   });
   const at = (x, y) => { const r = canvas.getBoundingClientRect(); return { clientX: r.left + x, clientY: r.top + y }; };
   const screenOf = (tx, ty) => { const [sx, sy] = tileToScreen(cam, size, tx, ty); return { x: sx, y: sy }; };
