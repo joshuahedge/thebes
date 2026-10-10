@@ -213,11 +213,11 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
 }
 
 export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter = null, maxChunks = 32 } = {}) {
-  const perWorld = new WeakMap(); // world -> { map: Map(key -> { sig, sprite, used }), scale }
+  const perWorld = new WeakMap(); // world -> { map: Map(key -> { sig, sprite, used }) }
   let tick = 0;
   const entryFor = (world) => {
     let e = perWorld.get(world);
-    if (!e) { e = { map: new Map(), scale: null }; perWorld.set(world, e); }
+    if (!e) { e = { map: new Map() }; perWorld.set(world, e); }
     return e;
   };
   const key = (cx, cy, scale) => `${cx},${cy}@${scale}`;
@@ -225,10 +225,18 @@ export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter
   // The cached sprite for the chunk and whether it is still fresh (signature unchanged). Never bakes.
   function peek(world, cx, cy, zoom, dpr) {
     const scale = chunkScaleFor(zoom, dpr);
-    const e = entryFor(world).map.get(key(cx, cy, scale));
-    if (!e) return { sprite: null, fresh: false };
-    e.used = ++tick;
-    return { sprite: e.sprite, fresh: e.sig === chunkSignature(world, cx, cy) };
+    const map = entryFor(world).map;
+    const e = map.get(key(cx, cy, scale));
+    if (e) {
+      e.used = ++tick;
+      return { sprite: e.sprite, fresh: e.sig === chunkSignature(world, cx, cy) };
+    }
+    // Nothing at this scale yet (a zoom-bucket change): the same chunk at another scale beats a hole.
+    // drawSprite rescales by sprite.scale, so the renderer draws it correctly.
+    for (const v of map.values()) {
+      if (v.sprite.cx === cx && v.sprite.cy === cy) { v.used = ++tick; return { sprite: v.sprite, fresh: false }; }
+    }
+    return { sprite: null, fresh: false };
   }
 
   function get(world, cx, cy, zoom, dpr, allowBake = true) {
@@ -240,12 +248,10 @@ export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter
     if (!e || e.sig !== sig) {
       if (!allowBake) return null;
       if (counter) counter.bakes = (counter.bakes || 0) + 1;
-      if (w.scale !== scale) {
-        for (const [otherKey] of w.map) if (!otherKey.endsWith(`@${scale}`)) w.map.delete(otherKey);
-        w.scale = scale;
-      }
       e = { sig, sprite: bakeChunk(world, cx, cy, scale, createCanvas), used: ++tick };
       w.map.set(k, e);
+      // Drop only this chunk's entries at other scales; the rest stay as fallbacks until their own re-bake.
+      for (const [otherKey, v] of w.map) if (otherKey !== k && v.sprite.cx === cx && v.sprite.cy === cy) w.map.delete(otherKey);
       if (w.map.size > maxChunks) {
         let oldest = null;
         for (const [ok, v] of w.map) if (ok !== k && (oldest === null || v.used < w.map.get(oldest).used)) oldest = ok;
