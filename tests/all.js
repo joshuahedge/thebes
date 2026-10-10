@@ -55,3 +55,6 @@ import './ui/placement.test.js';
 import './ui/keyboard.test.js';
 import './ui/hud.test.js';
 import './ui/speed.test.js';
+import './ui/cards.test.js';
+import './ui/dock.test.js';
+import './ui/confirmBar.test.js';
