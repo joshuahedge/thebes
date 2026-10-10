@@ -5,12 +5,21 @@ import { select, openSheet } from '../../src/ui/modes.js';
 import { screenToTile } from '../../src/render/camera.js';
 import { buildingAt } from '../../src/sim/world.js';
 
-const nameOf = (b) => (b.getAttribute('aria-label') || b.textContent || '').trim();
+// A control's name is its aria-label, else its visible text with aria-hidden glyphs removed (an icon-only button
+// whose only text is a hidden glyph has no name). Scans buttons and role=button; there are no bare inputs, selects
+// or textareas in the shell today (settings use buttons), so those are left out.
+const nameOf = (b) => {
+  const label = b.getAttribute('aria-label');
+  if (label && label.trim()) return label.trim();
+  const clone = b.cloneNode(true);
+  for (const n of clone.querySelectorAll('[aria-hidden="true"]')) n.remove();
+  return clone.textContent.trim();
+};
 
 describe('ui accessibility', () => {
   it('gives every control a name, in every layout and sheet (spec 6.8)', async () => {
     const r = await rigUI({ width: 390, height: 844 });
-    const unnamed = () => [...r.root.querySelectorAll('button')].filter((b) => !nameOf(b)).map((b) => b.className);
+    const unnamed = () => [...r.root.querySelectorAll('button, [role="button"]')].filter((b) => !nameOf(b)).map((b) => b.className);
     expect(unnamed()).toEqual([]);
     for (const kind of ['summary', 'minimap', 'menu', 'settings', 'help', 'about']) {
       r.store.set(openSheet(r.store.get(), kind));
