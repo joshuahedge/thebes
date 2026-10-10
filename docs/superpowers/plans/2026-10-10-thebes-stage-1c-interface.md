@@ -5700,6 +5700,7 @@ Not in this plan, on purpose: tier 5+ demolish confirmation, rotation and desira
 - **`tests/serve.py` binds 127.0.0.1 only** (1a follow-up, still open). Add a bind argument before real-phone testing.
 - **`storage_full` is unreachable** in the sim (1a follow-up); the text exists, the alert never fires.
 - **Screenshot tool** still deletes the previous PNG before capturing and cannot drive the UI; the controller takes mode screenshots in the built-in browser by hand.
+- **The Stage 1c review follow-ups** (accessibility, motion, cards and money, camera and gestures, performance, tests) are collected in `docs/superpowers/notes/2026-10-10-stage-1c-followups.md`.
 - **Commit trailer.** Every commit keeps `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` as the brief asks; Josh decides whether later plans name the model actually used.
 
 ## Next plans
