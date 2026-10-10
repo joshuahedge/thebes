@@ -26,14 +26,15 @@ export function chunkScaleFor(zoom, dpr) {
   return 1;
 }
 
-// FNV-style hash of terrain, road, occupancy, building type and house tier for the chunk plus a one-tile
-// ring: blending and road joins look across chunk edges, so a change next door must re-bake this chunk too.
+// FNV-style hash of terrain, road, occupancy, building type and house tier for the chunk plus a two-tile
+// ring (bakeChunk draws two tiles deep): blending and road joins look across chunk edges, so a change next
+// door must re-bake this chunk too.
 export function chunkSignature(world, cx, cy) {
   let h = (2166136261 ^ (world.seed | 0)) >>> 0;
   const mix = (v) => { h = Math.imul(h ^ (v | 0), 16777619) >>> 0; };
   mix(world.size);
-  for (let y = cy * CHUNK - 1; y <= cy * CHUNK + CHUNK; y++) {
-    for (let x = cx * CHUNK - 1; x <= cx * CHUNK + CHUNK; x++) {
+  for (let y = cy * CHUNK - 2; y <= cy * CHUNK + CHUNK + 1; y++) {
+    for (let x = cx * CHUNK - 2; x <= cx * CHUNK + CHUNK + 1; x++) {
       if (!inBounds(world.size, x, y)) { mix(255); continue; }
       const i = idx(world.size, x, y);
       mix(world.terrain[i]);
@@ -120,11 +121,13 @@ const nearType = (world, x, y, code) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(
 export function drawGround(g, world, range) {
   const a = p(range.x0, range.y0), b = p(range.x1 + 1, range.y0), c = p(range.x1 + 1, range.y1 + 1), d = p(range.x0, range.y1 + 1);
   g.poly([a, b, c, d], TERRAIN.sand);
-  const left = d[0], right = b[0], top = a[1], bottom = c[1];
-  for (let i = 0; i < 24; i++) {
-    const q = [left + hash2(i, 1, world.seed) * (right - left), top + hash2(i, 2, world.seed) * (bottom - top)];
-    const rx = 14 + hash2(i, 3, world.seed) * 30;
-    g.ell(q, rx, rx * 0.45, TERRAIN.blotches[i % 5], { alpha: 0.5 });
+  // Blotches are keyed off absolute 4 x 4-tile cells, so neighbouring chunks draw the same ones at a border.
+  for (let gy = Math.floor(range.y0 / 4); gy <= Math.floor(range.y1 / 4); gy++) {
+    for (let gx = Math.floor(range.x0 / 4); gx <= Math.floor(range.x1 / 4); gx++) {
+      const q = p(gx * 4 + hash2(gx, gy, world.seed + 41) * 4, gy * 4 + hash2(gx, gy, world.seed + 42) * 4);
+      const rx = 14 + hash2(gx, gy, world.seed + 43) * 30;
+      g.ell(q, rx, rx * 0.45, TERRAIN.blotches[Math.abs(gx * 7 + gy * 13) % 5], { alpha: 0.5 });
+    }
   }
   forTiles(world, range, (x, y, i) => {
     if (world.terrain[i] === T.WATER) return;
@@ -191,7 +194,14 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
   const g = makeDraw(ctx, scale);
   const range = { x0: ox - 2, y0: oy - 2, x1: ox + CHUNK + 1, y1: oy + CHUNK + 1 };
   g.save();
-  g.clip([p(ox, oy), p(ox + CHUNK, oy), p(ox + CHUNK, oy + CHUNK), p(ox, oy + CHUNK)]);
+  // Dilate the clip by about one device pixel so anti-aliased diamond edges leave no hairline seam; both
+  // chunks draw identical content in the overlap, so the overdraw is harmless.
+  const e = 1.5 / scale;
+  const mid = p(ox + CHUNK / 2, oy + CHUNK / 2);
+  g.clip([p(ox, oy), p(ox + CHUNK, oy), p(ox + CHUNK, oy + CHUNK), p(ox, oy + CHUNK)].map((v) => {
+    const dx = v[0] - mid[0], dy = v[1] - mid[1], len = Math.hypot(dx, dy) || 1;
+    return [v[0] + dx / len * e, v[1] + dy / len * e];
+  }));
   drawGround(g, world, range);
   drawPlots(g, world, range);
   g.restore();
@@ -216,12 +226,12 @@ export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter
       if (!e || e.sig !== sig) {
         if (!allowBake) return null;
         if (counter) counter.bakes = (counter.bakes || 0) + 1;
-        e = { sig, sprite: bakeChunk(world, cx, cy, scale, createCanvas), used: 0 };
+        e = { sig, sprite: bakeChunk(world, cx, cy, scale, createCanvas), used: ++tick };
         m.set(key, e);
         if (m.size > maxChunks) {
           let oldest = null;
-          for (const [k, v] of m) if (!oldest || v.used < m.get(oldest).used) oldest = k;
-          m.delete(oldest);
+          for (const [k, v] of m) if (k !== key && (oldest === null || v.used < m.get(oldest).used)) oldest = k;
+          if (oldest !== null) m.delete(oldest);
         }
       }
       e.used = ++tick;

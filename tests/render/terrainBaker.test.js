@@ -19,13 +19,13 @@ describe('terrain baker', () => {
   it('changes the signature only for the chunk a change touches', () => {
     const w = riverWorld();
     const before = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([cx, cy]) => chunkSignature(w, cx, cy));
-    addRaw(w, 'house', 14, 21);
+    addRaw(w, 'house', 12, 21);
     const after = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([cx, cy]) => chunkSignature(w, cx, cy));
     expect(after[2] === before[2]).toBe(false);
     expect(after[0]).toBe(before[0]);
     expect(after[1]).toBe(before[1]);
     expect(after[3]).toBe(before[3]);
-    w.buildings[w.occ[21 * 32 + 14]].tier = 3;
+    w.buildings[w.occ[21 * 32 + 12]].tier = 3;
     expect(chunkSignature(w, 0, 1) === after[2]).toBe(false);
   });
   it('weights corners by how many of their tiles share the terrain', () => {
@@ -55,7 +55,7 @@ describe('terrain baker', () => {
     baker.get(w, 1, 1, 1, 1);
     baker.get(w, 0, 1, 1, 1);
     expect(counter.bakes).toBe(2);
-    addRaw(w, 'house', 14, 21);
+    addRaw(w, 'house', 12, 21);
     const again = baker.get(w, 0, 1, 1, 1);
     baker.get(w, 1, 1, 1, 1);
     expect(counter.bakes).toBe(3);
@@ -63,6 +63,27 @@ describe('terrain baker', () => {
     expect(baker.get(w, 1, 0, 1, 1, false)).toBe(null);
     expect(counter.bakes).toBe(3);
     expect(baker.size(w)).toBe(2);
+  });
+  it('keeps the newest chunk and evicts the least recently used one', () => {
+    const w = riverWorld();
+    const counter = { bakes: 0 };
+    const baker = createTerrainBaker({ counter, maxChunks: 2 });
+    baker.get(w, 0, 0, 1, 1);
+    baker.get(w, 1, 0, 1, 1);
+    baker.get(w, 0, 1, 1, 1);
+    expect(baker.size(w)).toBe(2);
+    expect(counter.bakes).toBe(3);
+    baker.get(w, 0, 1, 1, 1);
+    expect(counter.bakes).toBe(3);
+    baker.get(w, 0, 0, 1, 1);
+    expect(counter.bakes).toBe(4);
+  });
+  it('includes the two-tile ring a bake draws in the signature', () => {
+    const w = riverWorld();
+    const before = [chunkSignature(w, 0, 1), chunkSignature(w, 1, 1)];
+    addRaw(w, 'house', 15, 21);
+    expect(chunkSignature(w, 0, 1) === before[0]).toBe(false);
+    expect(chunkSignature(w, 1, 1) === before[1]).toBe(false);
   });
   it('draws the placement grid hook', () => {
     const c = makeCanvas(200, 200);
