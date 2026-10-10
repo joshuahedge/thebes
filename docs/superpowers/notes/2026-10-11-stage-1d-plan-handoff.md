@@ -22,3 +22,7 @@ Header, Global Constraints, File Structure, Conventions (save envelope, save sto
 - Headless Edge reports prefers-reduced-motion, so tests that expect a camera tween set the setting off first.
 - Every 1c task needed a fix round; the reviewers earn their cost. Keep the task reviewer's named risks concrete.
 - The commit trailer stays `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` (Josh's rule); amend any implementer commit that uses its own model's line.
+
+## Update, later the same morning
+
+Tasks 6-13, the spec coverage table, the self-review fixes (Task 4 help text, assets before the PWA, the build-stamp check) and the execution notes are now in the plan. Execution starts with Task 1.
