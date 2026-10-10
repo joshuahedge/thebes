@@ -47,6 +47,7 @@ export function createUI({
   getSize = null, subscribeResize = undefined, history = win.history,
   addListener = (type, fn) => win.addEventListener(type, fn), removeListener = (type, fn) => win.removeEventListener(type, fn),
   keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(), welcome = null,
+  settings: givenSettings = null, clock = () => Date.now(),
 }) {
   const $ = (id) => root.querySelector(`#${id}`);
   const view = getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
@@ -55,7 +56,7 @@ export function createUI({
   let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [];
   let saveFailed = false;
 
-  const settings = createSettings({ storage, root });
+  const settings = givenSettings || createSettings({ storage, root });
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height) });
   const toasts = createToasts({ container: $('toasts') });
   const effects = createEffects({
@@ -83,7 +84,7 @@ export function createUI({
   const customSheets = { ...menus, goals: goalsSheet(world, { onShowMe: showMe }) };
   if (welcome) {
     customSheets.welcome = welcomeSheet({
-      world, savedAt: welcome.savedAt, lastSpeed: welcome.lastSpeed, now: () => Date.now(), getAlerts: () => alerts.list(), onView: viewAlert,
+      world, savedAt: welcome.savedAt, lastSpeed: welcome.lastSpeed, now: clock, getAlerts: () => alerts.list(), onView: viewAlert,
       onCarryOn: (speed) => { store.set(closeSheet(store.get())); speedControl.set(speed); },
       onStayPaused: () => store.set(closeSheet(store.get())),
     });

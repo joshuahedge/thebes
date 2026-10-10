@@ -55,3 +55,6 @@ export const GHOST_FINGER_OFFSET_PX = 48;
 
 // The version the about sheet shows.
 export const APP_VERSION = '0.1';
+
+export const TITLE_SEED = 11;          // the sample city behind the title card
+export const TITLE_DRIFT_MS = 9000;    // one slow camera drift between two points of it
