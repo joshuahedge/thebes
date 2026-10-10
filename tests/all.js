@@ -75,3 +75,4 @@ import './ui/welcomeBack.test.js';
 import './ui/titleCard.test.js';
 import './ui/boot.test.js';
 import './save/exportImport.test.js';
+import './audio/sfx.test.js';

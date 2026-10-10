@@ -14,6 +14,7 @@ import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode, pic
 import { pickLayout, watchLayout } from './layout.js';
 import { createBackStack } from './backstack.js';
 import { createSettings } from './settings.js';
+import { createSfx } from '../audio/sfx.js';
 import { createCameraControl } from './cameraControl.js';
 import { createMapInput } from './input.js';
 import { createKeyboard } from './keyboard.js';
@@ -47,7 +48,7 @@ export function createUI({
   getSize = null, subscribeResize = undefined, history = win.history,
   addListener = (type, fn) => win.addEventListener(type, fn), removeListener = (type, fn) => win.removeEventListener(type, fn),
   keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(), welcome = null,
-  settings: givenSettings = null, clock = () => Date.now(),
+  settings: givenSettings = null, clock = () => Date.now(), sfx: givenSfx = null,
 }) {
   const $ = (id) => root.querySelector(`#${id}`);
   const view = getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
@@ -57,6 +58,7 @@ export function createUI({
   let saveFailed = false, destroyed = false;
 
   const settings = givenSettings || createSettings({ storage, root });
+  const sfx = givenSfx || createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height) });
   const toasts = createToasts({ container: $('toasts') });
   const effects = createEffects({
@@ -66,7 +68,12 @@ export function createUI({
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
   const placement = createPlacement({ world, store, afterCommand, effects, now });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
-  const alerts = createAlerts({ world, banner: $('banner'), live: $('live'), onView: viewAlert, root, getAlerts: () => (saveFailed ? [...alertsFor(world), { code: 'save_failed' }] : alertsFor(world)) });
+  const alerts = createAlerts({ world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root, getAlerts: () => (saveFailed ? [...alertsFor(world), { code: 'save_failed' }] : alertsFor(world)) });
+  // Web Audio needs a user gesture before it plays (spec 5.5): the first pointer or key does it, then the
+  // listeners go. While sound is off, unlock() declines and the listeners stay for a later switch-on.
+  const onGesture = () => { if (sfx.unlock()) { root.removeEventListener('pointerdown', onGesture); root.removeEventListener('keydown', onGesture); } };
+  root.addEventListener('pointerdown', onGesture);
+  root.addEventListener('keydown', onGesture);
   const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr });
   const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr });
 
@@ -152,6 +159,10 @@ export function createUI({
     else store.set(openSheet(store.get(), 'summary'));
   }
   function afterCommand(e) {
+    if (e.undoable) {                                  // a ✓ outcome: place, road, plots or demolish
+      sfx.play(e.kind === 'road' ? 'road' : e.kind === 'demolish' ? 'demolish' : 'place');
+      sfx.buzz(20);
+    }
     if (e.undoable) toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
     else if (e.kind === 'undo') toasts.show(T.undone);
     ghostsDirty = true;
@@ -192,6 +203,11 @@ export function createUI({
   function onEvents(events) {
     for (const e of events) if (e.type === 'month') { autosave('month'); break; }
     for (const e of events) if (e.type === 'goal') { const g = goalById(e.id); if (g) toasts.show(`${T.goalDone}: ${g.text} (+${e.reward} ${T.gold.toLowerCase()})`); }
+    for (const e of events) {
+      if (e.type === 'upgrade') sfx.play('upgrade');
+      else if (e.type === 'goal') sfx.play('goal');
+      else if (e.type === 'milestone') { sfx.play('milestone'); sfx.buzz(40); }
+    }
   }
   // Registered after the speed control's own listener, so the game is already paused when this save is taken.
   const onVisibility = () => { if (doc.hidden) autosave('hidden'); };
@@ -312,11 +328,12 @@ export function createUI({
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
-    store, settings, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh, onEvents, autosave, setSaveFailed,
+    store, settings, sfx, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh, onEvents, autosave, setSaveFailed,
     destroy() {
       if (destroyed) return;
       destroyed = true;
       doc.removeEventListener('visibilitychange', onVisibility);
+      root.removeEventListener('pointerdown', onGesture); root.removeEventListener('keydown', onGesture);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
