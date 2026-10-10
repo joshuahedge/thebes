@@ -49,11 +49,12 @@ h2, h3 { margin: 0; }
 /* Top bar: things you read sit at the top. */
 #topbar { position: fixed; top: 0; left: 0; right: 0; padding: var(--safe-top) max(8px, var(--safe-right)) 0 max(8px, var(--safe-left)); min-height: var(--topbar-h); background: var(--parchment); border-bottom: 1px solid var(--parchment-3); box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; }
 #topbar .stat { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+#topbar .stats { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; overflow: hidden; padding: 0; min-height: 0; }
 #topbar .stat .label { font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
-#topbar .spacer { flex: 1; }
+#topbar .spacer { flex: 0 0 0; }
 #topbar .speed { display: flex; gap: 4px; }
 #topbar button { min-height: var(--tap); }
-body[data-layout="portrait"] .wide-only, body[data-layout="compact"] .wide-only { display: none; }
+body[data-layout="portrait"] .wide-only, body[data-layout="compact"] .wide-only { display: none !important; }
 body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
 
 /* Critical banner and overlay legend, under the top bar. The banner wins; the legend shrinks to its icon. */
@@ -97,7 +98,7 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 .card .cost { font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
 .card.unaffordable .cost { color: var(--coral-text); }
 .card.locked { opacity: 0.75; }
-.cards.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 8px; }
+.cards.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 8px; grid-auto-rows: max-content; align-content: start; }
 .cards.grid .card { width: auto; }
 .cards .empty { padding: 12px; color: var(--ink-soft); }
 
