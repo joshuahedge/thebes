@@ -11,7 +11,9 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
   let cancelling = false; // true while gestures.cancel runs, so a cancelled draw drag does not commit
 
   const gestures = createGestures({
-    onTap: (e) => { if (e.button === 0) actions.tap(e); },   // only a primary tap or click; right-click reaches us through contextmenu
+    // A primary tap or click is a tap; a right-button press-and-release is Back. A right-button drag is a pan and
+    // produces no tap, so panning never goes Back (the DOM contextmenu event fires after a drag too).
+    onTap: (e) => { if (e.button === 0) actions.tap(e); else if (e.button === 2) actions.secondary(); },
     onDoubleTap: (e) => cameraControl.zoomStep(ZOOM_STEP, e.x, e.y),
     onDragStart: (e) => {
       const mode = store.get().mode;
@@ -65,9 +67,8 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
     cameraControl.cancel();
     zoomAt(cam, view(), ev.deltaY < 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP, x, y);
   };
-  // Android Chrome fires contextmenu on a touch long-press; that must not count as a right-click (Back).
-  // Every press records its input type first, so a touch long-press is seen as touch here.
-  const onContext = (ev) => { ev.preventDefault(); if (store.get().inputType === 'touch') return; actions.secondary(); };
+  // The browser's context menu is only suppressed; Back comes from the recogniser's right-button tap above.
+  const onContext = (ev) => { ev.preventDefault(); };
 
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointermove', onMove);

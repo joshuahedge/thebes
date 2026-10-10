@@ -50,8 +50,18 @@ describe('ui modes', () => {
     expect(s.sheet.kind).toBe('minimap');
     expect(s.mode).toBe('selected');
     s = apply(s, closeSheet(s));
-    expect(s.sheet).toBe(null);
+    expect(s.sheet).toEqual({ kind: 'info', id: 2 });                       // the info sheet comes back under a closed panel
     expect(s.mode).toBe('selected');
+    s = apply(s, openSheet(s, 'minimap'));
+    s = apply(s, back(s));
+    expect(s.sheet).toEqual({ kind: 'info', id: 2 });
+    expect(s.mode).toBe('selected');
+    s = apply(s, closeSheet(s));                                            // closing the info sheet itself still deselects
+    expect(s.mode).toBe('browse');
+    expect(s.sheet).toBe(null);
+    s = apply(s, openSheet(s, 'menu'));
+    s = apply(s, closeSheet(s));
+    expect(s.sheet).toBe(null);
     s = apply(s, select(s, 2));
     s = apply(s, closeSheet(s));
     expect(s.mode).toBe('browse');

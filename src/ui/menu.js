@@ -80,13 +80,14 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
 // The confirm dialog: store.confirmDialog = { text, confirmLabel, onConfirm } shows it; null hides it.
 // Cancel gets focus so a stray Enter never confirms; Esc reaches it through modes.back.
 export function createDialog({ container, store }) {
+  container.setAttribute('aria-labelledby', 'dialog-text');
   function render() {
     const d = store.get().confirmDialog;
     clear(container);
     if (!d) { container.hidden = true; return; }
     const cancel = button(T.cancel, { class: 'cancel', onClick: () => store.set({ confirmDialog: null }) });
-    const ok = button(d.confirmLabel || T.confirm, { class: 'ok danger', onClick: () => { store.set({ confirmDialog: null }); d.onConfirm(); } });
-    container.append(el('div', { class: 'box', role: 'document' }, [el('p', { text: d.text }), el('div', { class: 'buttons' }, [cancel, ok])]));
+    const ok = button(d.confirmLabel || T.confirm, { class: 'ok danger', onClick: () => { store.set({ confirmDialog: null }); if (typeof d.onConfirm === 'function') d.onConfirm(); } });
+    container.append(el('div', { class: 'box', role: 'document' }, [el('p', { id: 'dialog-text', text: d.text }), el('div', { class: 'buttons' }, [cancel, ok])]));
     container.hidden = false;
     cancel.focus();
   }
