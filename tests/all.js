@@ -25,3 +25,4 @@ import './render/ctx.test.js';
 import './render/primitives.test.js';
 import './render/housingArt.test.js';
 import './render/servicesArt.test.js';
+import './render/natureArt.test.js';
