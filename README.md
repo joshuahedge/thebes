@@ -12,15 +12,15 @@ Python 3 on your PATH, and Microsoft Edge for the command-line tests.
 
 Then open http://localhost:8000/.
 
-## Dev view
-
-While the real interface is being built, `dev.html` shows the simulation running with the renderer:
+## Play it
 
     python tests/serve.py 8000 .
 
-Then open http://localhost:8000/dev.html. Add `?seed=7` for another map, `?stress=1` for a full 64×64 city, or `&speed=0` to start paused. Keys: arrows or WASD pan, + and − zoom, 0–3 set the speed, O cycles the overlays, G toggles the tile grid, R reloads with the next seed. Drag to pan and use the wheel to zoom with a mouse.
+Then open http://localhost:8000/. Add `?seed=7` for another map, `?sample=1` for a small ready-made city, `?stress=1` for a full 64×64 city, or `?speed=1` to start running (a city starts paused).
 
-`tests/screenshot.ps1 -Url '/dev.html?seed=1' -Out shot.png -Width 1280 -Height 800` saves a PNG of the page from headless Edge.
+Keys: Space pauses, + and − change the speed, 1–7 pick a build category, arrows or WASD move the view, M opens the minimap, O cycles the overlays, Enter confirms, Esc goes back one step, Ctrl+Z (Cmd+Z) undoes, ? lists the shortcuts. With a mouse: drag to pan, wheel to zoom, click to place. On a phone: one finger pans, two fingers zoom, tap to select or to move the ghost, then ✓.
+
+`tests/screenshot.ps1 -Url '/?seed=1&sample=1' -Out shot.png -Width 390 -Height 844` saves a PNG of the page from headless Edge at that size.
 
 ## Run the tests
 
