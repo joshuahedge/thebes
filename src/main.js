@@ -31,6 +31,6 @@ const ui = createUI({
     },
   },
 });
-const loop = createGameLoop({ world, onEvents: (events) => ui.effects.fromEvents(world, events, performance.now()), render: ui.render });
+const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, performance.now()); ui.onEvents(events); }, render: ui.render });
 loop.start();
 window.__thebes = { world, cam, renderer, loop, ui };
