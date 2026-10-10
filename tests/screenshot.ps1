@@ -1,7 +1,9 @@
 # Saves a PNG of a page at an exact viewport size. Uses headless Edge over the DevTools protocol, because
 # --window-size includes the window chrome (a 1280x800 window gives a 1254x707 page and nothing narrower than ~496 px).
 # -BudgetMs is the settle time after the page has loaded, so a few frames have run before the capture.
-param([string]$Url = '/', [string]$Out = 'shot.png', [int]$Width = 1280, [int]$Height = 800, [int]$BudgetMs = 1500)
+# -Eval is page JavaScript run after the load and before the settle time (awaited if it returns a promise),
+# for driving the interface into a state: open a sheet, pick a tool. -Dpr sets the device pixel ratio.
+param([string]$Url = '/', [string]$Out = 'shot.png', [int]$Width = 1280, [int]$Height = 800, [int]$BudgetMs = 1500, [string]$Eval = '', [double]$Dpr = 1)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") |
@@ -66,7 +68,7 @@ try {
     }
   }
 
-  Invoke-Cdp 'Emulation.setDeviceMetricsOverride' @{ width = $Width; height = $Height; deviceScaleFactor = 1; mobile = $false } | Out-Null
+  Invoke-Cdp 'Emulation.setDeviceMetricsOverride' @{ width = $Width; height = $Height; deviceScaleFactor = $Dpr; mobile = $false } | Out-Null
   Invoke-Cdp 'Page.navigate' @{ url = "http://127.0.0.1:$port$Url" } | Out-Null
   $loaded = $false
   for ($i = 0; $i -lt 120 -and -not $loaded; $i++) {
@@ -75,6 +77,11 @@ try {
     if (-not $loaded) { Start-Sleep -Milliseconds 250 }
   }
   if (-not $loaded) { Write-Output 'TIMEOUT waiting for the page to load'; exit 1 }
+  if ($Eval) {
+    Start-Sleep -Milliseconds 800                     # the boot is async: let the game (and window.__thebes) exist first
+    $r = Invoke-Cdp 'Runtime.evaluate' @{ expression = $Eval; awaitPromise = $true }
+    if ($r.result.exceptionDetails) { Write-Output "Eval threw: $($r.result.exceptionDetails.exception.description)"; exit 1 }
+  }
   Start-Sleep -Milliseconds $BudgetMs
   $shot = Invoke-Cdp 'Page.captureScreenshot' @{ format = 'png' }
   [IO.File]::WriteAllBytes($outPath, [Convert]::FromBase64String($shot.result.data))
