@@ -43,3 +43,4 @@ import './ui/theme.test.js';
 import './ui/components.test.js';
 import './ui/store.test.js';
 import './ui/modes.test.js';
+import './ui/text.test.js';
