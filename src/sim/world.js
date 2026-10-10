@@ -4,6 +4,7 @@ import { generateMap } from './mapgen.js';
 import { idx, footprint } from './grid.js';
 
 export const WORLD_VERSION = 1;
+export const HISTORY_MONTHS = 12;   // month-end rows kept for the Welcome back trends
 
 export function createWorld({ seed = 1, size = 64, map = null } = {}) {
   const m = map || generateMap(seed, size);
@@ -31,6 +32,9 @@ export function createWorld({ seed = 1, size = 64, map = null } = {}) {
     raiderEntries: m.raiderEntries.map((e) => ({ ...e })),
     focus: { ...m.focus },
     stats: { lastMonth: null },
+    startRoad: m.startRoad.map(([x, y]) => [x, y]),   // the generator's road in from the trade edge (goals, Show me)
+    goals: { completed: [] },                           // ids of finished goals, in order
+    history: [],                                        // { day, people, gold, mood } per month end, newest last
   };
   for (const [x, y] of m.startRoad) world.road[idx(world.size, x, y)] = 1;
   return world;

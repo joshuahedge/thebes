@@ -11,20 +11,21 @@ export function prefersReducedMotion() {
   try { return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
 }
 
-export function createEffects({ reducedMotion = prefersReducedMotion(), onMilestone = null } = {}) {
+export function createEffects({ reducedMotion = prefersReducedMotion, onMilestone = null } = {}) {
+  const reduced = () => (typeof reducedMotion === 'function' ? Boolean(reducedMotion()) : Boolean(reducedMotion));
   let list = [];
   const age = (e, now) => (now - e.start) / EFFECT_MS[e.kind];
   const prune = (now) => { list = list.filter((e) => age(e, now) < 1); };
   const add = (e) => { list.push(e); return e; };
 
   const fx = {
-    reducedMotion,
-    puff(x, y, now) { if (!reducedMotion) add({ kind: 'puff', x, y, start: now }); },
-    glow(x, y, now) { if (!reducedMotion) add({ kind: 'glow', x, y, start: now }); },
-    pulse(x, y, now) { if (!reducedMotion) add({ kind: 'pulse', x, y, start: now }); },
+    get reducedMotion() { return reduced(); },
+    puff(x, y, now) { if (!reduced()) add({ kind: 'puff', x, y, start: now }); },
+    glow(x, y, now) { if (!reduced()) add({ kind: 'glow', x, y, start: now }); },
+    pulse(x, y, now) { if (!reduced()) add({ kind: 'pulse', x, y, start: now }); },
     label(x, y, text, color, now) { add({ kind: 'label', x, y, text, color, start: now }); },
     // How far (art px) a label has risen at progress t in 0..1. Still under reduced motion.
-    labelLift(t) { return reducedMotion ? 0 : 10 * t; },
+    labelLift(t) { return reduced() ? 0 : 10 * t; },
     fromEvents(world, events, now) {
       for (const ev of events) {
         if (ev.type === 'milestone') { if (onMilestone) onMilestone(ev.id); continue; }

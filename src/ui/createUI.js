@@ -1,17 +1,20 @@
 // Wires every component to the store, the world, the camera and the renderer (spec 6). The world changes
 // only through placement.js, speed.js and the sheets, which call src/sim/commands.js then assignLabour.
 import { MILESTONES } from '../data/progression.js';
+import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { CATEGORIES, toolForItem, UNDO_TOAST_MS } from '../data/ui.js';
+import { CATEGORIES, toolForItem, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
+import { goalById } from '../sim/goals.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { drawOverlay, drawReachHighlight, drawGhost } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
-import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode } from './modes.js';
+import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode, pickCategory } from './modes.js';
 import { pickLayout, watchLayout } from './layout.js';
 import { createBackStack } from './backstack.js';
 import { createSettings } from './settings.js';
+import { createSfx } from '../audio/sfx.js';
 import { createCameraControl } from './cameraControl.js';
 import { createMapInput } from './input.js';
 import { createKeyboard } from './keyboard.js';
@@ -31,7 +34,9 @@ import { createAlerts, mapSummaryText } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
 import { createToasts } from './toasts.js';
 import { createMenuSheets, createDialog } from './menu.js';
-import { el, setText } from './components.js';
+import { createGoalsStrip, goalsSheet, showMeTarget } from './goalsList.js';
+import { welcomeSheet } from './welcomeBack.js';
+import { el, setText, clear } from './components.js';
 import { buildingName, reasonText, milestoneText, T } from './text.js';
 
 const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
@@ -42,25 +47,34 @@ export function createUI({
   root = document.body, doc = document, win = window,
   getSize = null, subscribeResize = undefined, history = win.history,
   addListener = (type, fn) => win.addEventListener(type, fn), removeListener = (type, fn) => win.removeEventListener(type, fn),
-  keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(),
+  keyTarget = win, storage = undefined, hooks = {}, now = () => performance.now(), welcome = null, extraSheets = {},
+  settings: givenSettings = null, clock = () => Date.now(), sfx: givenSfx = null,
 }) {
   const $ = (id) => root.querySelector(`#${id}`);
   const view = getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
 
   // Ghost and day bookkeeping lives up here: afterCommand is hoisted and may run during construction.
   let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [];
+  let saveFailed = false, destroyed = false;
 
-  const settings = createSettings({ storage, root });
-  const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height) });
+  const settings = givenSettings || createSettings({ storage, root });
+  const sfx = givenSfx || createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
+  const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
   const toasts = createToasts({ container: $('toasts') });
   const effects = createEffects({
-    reducedMotion: settings.reducedMotion(),
+    reducedMotion: settings.reducedMotion,
     onMilestone: (id) => { const m = MILESTONES.find((x) => x.id === id); toasts.show(milestoneText(m ? m.name : id)); },
   });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
   const placement = createPlacement({ world, store, afterCommand, effects, now });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
-  const alerts = createAlerts({ world, banner: $('banner'), live: $('live'), onView: viewAlert, root });
+  const alerts = createAlerts({ world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root, getAlerts: () => (saveFailed ? [...alertsFor(world), { code: 'save_failed' }] : alertsFor(world)) });
+  // Web Audio needs a user gesture before it plays (spec 5.5). A touch pointerdown is not an activation event
+  // (pointerup and keydown are), so all three listen; they go once the context is running. While sound is off,
+  // or the context has not resumed yet, unlock() returns false and they stay for the next gesture.
+  const GESTURES = ['pointerdown', 'pointerup', 'keydown'];
+  const onGesture = () => { if (sfx.unlock()) for (const t of GESTURES) root.removeEventListener(t, onGesture); };
+  for (const t of GESTURES) root.addEventListener(t, onGesture);
   const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr });
   const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr });
 
@@ -73,8 +87,18 @@ export function createUI({
   const rail = createRail({ container: $('rail'), store, world, onPick: pick, onConfirm: confirm, onCancel: () => placement.cancel(), placement });
   const legend = createOverlayLegend({ container: $('legend'), store });
   const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count() });
+  const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals') });
   const menus = createMenuSheets({ store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {} });
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, afterCommand, custom: menus });
+  const customSheets = { ...menus, goals: goalsSheet(world, { onShowMe: showMe }) };
+  if (welcome) {
+    customSheets.welcome = welcomeSheet({
+      world, savedAt: welcome.savedAt, lastSpeed: welcome.lastSpeed, now: clock, getAlerts: () => alerts.list(), onView: viewAlert,
+      onCarryOn: (speed) => { store.set(closeSheet(store.get())); speedControl.set(speed); },
+      onStayPaused: () => store.set(closeSheet(store.get())),
+    });
+  }
+  Object.assign(customSheets, extraSheets);
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, afterCommand, custom: customSheets });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -102,6 +126,18 @@ export function createUI({
     const c = screenToTile(cam, v, v.width / 2, v.height * 0.4);
     placement.start(toolForItem(item), { x: c.x, y: c.y });
   }
+  // Show me (spec 4.1): open the right card, then pan to and pulse the place the goal is about.
+  function showMe(goal) {
+    const s = store.get();
+    if (s.sheet) store.set(closeSheet(s));
+    store.set(pickCategory(store.get(), goal.showMe.category));
+    pick(goal.showMe.item);
+    const t = showMeTarget(world, goal);
+    cameraControl.panTo(t.x, t.y);
+    placement.moveGhost(Math.floor(t.x), Math.floor(t.y));   // a building ghost lands on the target, not at the old screen centre (ignored for road and plot tools)
+    const at = now();
+    for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(t.x, t.y, at + i * SHOW_ME_PULSE_MS);
+  }
   function confirm() {
     const r = placement.confirm();
     if (!r.ok) toasts.show(reasonText(r.reason));
@@ -119,13 +155,17 @@ export function createUI({
   function goBack() { const p = back(store.get()); if (p) store.set(p); }
   // View on an alert: a building's alert selects it and pans there; a city-wide one opens the summary.
   function viewAlert(alert) {
+    if (alert.code === 'save_failed') { store.set(openSheet(store.get(), 'menu')); return; }
     const b = alert.id ? world.buildings[alert.id] : null;
     if (b) { store.set(select(store.get(), b.id)); cameraControl.panTo(b.x + b.w / 2, b.y + b.d / 2); }
     else store.set(openSheet(store.get(), 'summary'));
   }
   function afterCommand(e) {
-    if (e.undoable) toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
-    else if (e.kind === 'undo') toasts.show(T.undone);
+    if (e.undoable) {                                  // a ✓ outcome: place, road, plots or demolish
+      sfx.play(e.kind === 'road' ? 'road' : e.kind === 'demolish' ? 'demolish' : 'place');
+      sfx.buzz(20);
+      toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
+    } else if (e.kind === 'undo') toasts.show(T.undone);
     ghostsDirty = true;
     refresh();
   }
@@ -143,9 +183,54 @@ export function createUI({
   }
   function refreshChrome() {
     alerts.refresh();
-    hud.render(); dock.render(); sidePanel.render(); rail.render(); confirmBar.render(); corners.render();
+    hud.render(); dock.render(); sidePanel.render(); rail.render(); confirmBar.render(); corners.render(); goalsStrip.render();
     setText($('map-summary'), mapSummaryText(world, alerts.list()));
   }
+
+  // Autosave (spec 4.17): every game month and whenever the page is hidden. A failing save shows the
+  // "save failing" banner (spec 6.3) until a save succeeds again.
+  function setSaveFailed(flag) {
+    if (destroyed || flag === saveFailed) return;
+    saveFailed = flag;
+    alerts.refresh();
+    corners.render();
+  }
+  async function autosave(reason) {
+    if (destroyed || typeof hooks.save !== 'function') return;
+    let ok = false;
+    try { ok = await hooks.save(reason); } catch (e) { ok = false; }
+    setSaveFailed(!ok);                 // a no-op if the UI was destroyed while the save was in flight
+  }
+  function onEvents(events) {
+    for (const e of events) if (e.type === 'month') { autosave('month'); break; }
+    for (const e of events) if (e.type === 'goal') { const g = goalById(e.id); if (g) toasts.show(`${T.goalDone}: ${g.text} (+${e.reward} ${T.gold.toLowerCase()})`); }
+    for (const e of events) {
+      if (e.type === 'upgrade') sfx.play('upgrade');
+      else if (e.type === 'goal') sfx.play('goal');
+      else if (e.type === 'milestone') { sfx.play('milestone'); sfx.buzz(40); }
+    }
+  }
+  // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js).
+  let pendingUpdate = null;
+  function showUpdateToast() {
+    if (!pendingUpdate || isToolMode(store.get().mode)) return;
+    const apply = pendingUpdate;
+    pendingUpdate = null;
+    toasts.show(T.updateReady, {
+      action: T.restart, ms: UPDATE_TOAST_MS,
+      onAction: async () => {
+        let ok = true;
+        try { ok = (await apply()) !== false; } catch (e) { ok = false; }
+        if (ok || destroyed) return;
+        toasts.show(T.updateSaveFailed);                // the update waits; a later browse moment offers it again
+        pendingUpdate = apply;
+      },
+    });
+  }
+  function offerUpdate(apply) { pendingUpdate = apply; showUpdateToast(); }
+  // Registered after the speed control's own listener, so the game is already paused when this save is taken.
+  const onVisibility = () => { if (doc.hidden) autosave('hidden'); };
+  doc.addEventListener('visibilitychange', onVisibility);
 
   const actions = {
     tap({ x, y, type }) {
@@ -222,6 +307,8 @@ export function createUI({
   let lastSelected = null;
   store.subscribe((s) => {
     root.dataset.mode = s.mode;
+    if (pendingUpdate && !isToolMode(s.mode)) showUpdateToast();
+    root.classList.toggle('has-overlay', Boolean(s.overlay));
     if (s.selectedId !== lastSelected) {
       lastSelected = s.selectedId;
       const b = s.selectedId !== null ? world.buildings[s.selectedId] : null;
@@ -258,14 +345,22 @@ export function createUI({
     if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; refreshDaily(); }
   }
 
-  let destroyed = false;
   refreshDaily();
+  if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
-    store, settings, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh,
+    store, settings, sfx, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      doc.removeEventListener('visibilitychange', onVisibility);
+      for (const t of GESTURES) root.removeEventListener(t, onGesture);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear();
+      // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
+      for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
+      for (const id of ['sheet', 'dialog']) { const c = $(id); clear(c); c.hidden = true; }
+      confirmBar.element.remove();
+      delete root.dataset.mode;
+      root.classList.remove('has-banner', 'has-overlay');
     },
   };
 }
