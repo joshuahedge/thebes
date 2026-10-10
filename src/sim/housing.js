@@ -76,7 +76,7 @@ function consumeFood(house) {
   return needMet > 0 && available >= needMet;
 }
 
-export function monthlyHousing(world) {
+export function monthlyHousing(world, events = null) {
   const cov = computeCoverage(world);
   const bazaars = bazaarsByHouse(world);
   for (const h of housesOf(world)) {
@@ -96,11 +96,17 @@ export function monthlyHousing(world) {
     if (currentOk) {
       h.downTimer = 0;
       const next = h.tier + 1;
-      if (next <= MAX_TIER && needsOf(next).every((n) => met[n])) h.tier = next;
+      if (next <= MAX_TIER && needsOf(next).every((n) => met[n])) {
+        if (events) events.push({ type: 'upgrade', id: h.id, from: h.tier, to: next });
+        h.tier = next;
+      }
     } else {
       h.downTimer++;
       if (h.downTimer >= DOWNGRADE_AFTER_MONTHS) {
-        if (h.tier > 1) h.tier--;
+        if (h.tier > 1) {
+          if (events) events.push({ type: 'downgrade', id: h.id, from: h.tier, to: h.tier - 1 });
+          h.tier--;
+        }
         h.downTimer = 0;
       }
     }

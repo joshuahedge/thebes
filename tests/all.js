@@ -18,3 +18,4 @@ import './sim/clock.test.js';
 import './sim/integration.test.js';
 import './save/serialize.test.js';
 import './sim/longrun.test.js';
+import './sim/events.test.js';

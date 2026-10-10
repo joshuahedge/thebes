@@ -13,27 +13,33 @@ import { clearUndo } from './undo.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
 
-export function runMonth(world) {
+// events is an optional array. When given, the sim pushes plain objects into it so the renderer can
+// react (effects, banners). It is never read by the sim and never saved.
+export function runMonth(world, events = null) {
   restockBazaars(world);
-  monthlyHousing(world);
+  monthlyHousing(world, events);
   departures(world);
   monthlyEconomy(world);
   updateMood(world);
-  updateMilestone(world);
+  const milestoneChanged = updateMilestone(world);
+  if (milestoneChanged && events) events.push({ type: 'milestone', id: world.milestone });
   computeAlerts(world);
   clearUndo(world);
 }
 
-export function tickDay(world) {
+export function tickDay(world, events = null) {
   assignLabour(world);
   produceDay(world);
   world.day += 1;
-  if (world.day % ARRIVAL_EVERY === 0) arrivalsBatch(world);
-  if (world.day % DAYS_PER_MONTH === 0) runMonth(world);
+  if (world.day % ARRIVAL_EVERY === 0) {
+    const count = arrivalsBatch(world);
+    if (count > 0 && events) events.push({ type: 'arrivals', count });
+  }
+  if (world.day % DAYS_PER_MONTH === 0) runMonth(world, events);
 }
 
-export function advanceDays(world, n) {
-  for (let i = 0; i < n; i++) tickDay(world);
+export function advanceDays(world, n, events = null) {
+  for (let i = 0; i < n; i++) tickDay(world, events);
 }
 
 export const monthIndex = (world) => Math.floor(world.day / DAYS_PER_MONTH);
