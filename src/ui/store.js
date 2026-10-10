@@ -1,0 +1,39 @@
+// The one UI state object. Components read it and subscribe; writes go through modes.js patches or a
+// component's own set(). Nothing from the world lives here: the world is read through the sim's functions.
+export const INITIAL_UI_STATE = {
+  layout: 'portrait',
+  inputType: 'touch',
+  mode: 'browse',
+  selectedId: null,
+  hoverId: null,
+  tool: null,
+  ghost: null,
+  line: null,
+  area: null,
+  overlay: null,
+  sheet: null,
+  dock: 'slim',
+  category: 'roads',
+  panelFolded: false,
+  lastSpeed: 1,
+  confirmDialog: null,
+};
+
+export function createStore(initial) {
+  let state = { ...initial };
+  const subs = new Set();
+  return {
+    get: () => state,
+    set(patch) {
+      const p = typeof patch === 'function' ? patch(state) : patch;
+      if (!p) return state;
+      let changed = false;
+      for (const k of Object.keys(p)) if (p[k] !== state[k]) { changed = true; break; }
+      if (!changed) return state;
+      state = { ...state, ...p };
+      for (const fn of [...subs]) fn(state);
+      return state;
+    },
+    subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
+  };
+}
