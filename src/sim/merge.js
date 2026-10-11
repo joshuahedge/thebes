@@ -36,19 +36,20 @@ export function mergeSquare(world, house) {
 }
 
 // Joins the square at origin into one Manor: the plot with the lowest id stays (its id, now 2x2), the other three
-// go, and their residents and household stock are added together. Returns the merged home, or null when the square
-// at origin cannot form.
+// go, and their residents and household stock are added together, and so are the residents each was stocked for (see
+// stockedFor in housing.js). Returns the merged home, or null when the square at origin cannot form.
 export function mergeHouses(world, house, origin) {
   if (!origin) return null;
   const parts = CORNERS.map(([cx, cy]) => (inBounds(world.size, origin.x + cx, origin.y + cy) ? buildingAt(world, origin.x + cx, origin.y + cy) : null));
   if (!parts.every(isPlot) || new Set(parts.map((b) => b.id)).size !== 4) return null;
   const keep = parts.reduce((a, b) => (b.id < a.id ? b : a));
   const residents = parts.reduce((n, b) => n + b.residents, 0);
+  const stockedFor = parts.reduce((n, b) => n + (b.stockedFor || b.residents), 0);   // newcomers since a delivery stay newcomers
   const stock = {};
   for (const b of parts) for (const [good, n] of Object.entries(b.stock || {})) if (n > 0) stock[good] = (stock[good] || 0) + n;
   for (const b of parts) removeBuilding(world, b.id);
   Object.assign(keep, {
-    x: origin.x, y: origin.y, w: 2, d: 2, tier: MERGE_TIER, residents, stock, stockedFor: residents,
+    x: origin.x, y: origin.y, w: 2, d: 2, tier: MERGE_TIER, residents, stock, stockedFor,
     downTimer: 0, leftThisMonth: 0, met: { ...(house && house.met) },
   });
   return insertBuilding(world, keep);

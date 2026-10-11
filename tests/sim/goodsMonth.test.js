@@ -1,6 +1,7 @@
 import { describe, it, expect } from '../harness.js';
 import { runMonth } from '../../src/sim/clock.js';
 import { goodsMonthStart, homeGoodsHeld, recordGoodsMonth } from '../../src/sim/goodsMonth.js';
+import { setTradeOrder } from '../../src/sim/trade.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 
 describe('sim goods month', () => {
@@ -35,5 +36,24 @@ describe('sim goods month', () => {
     expect(m.tradeIncome).toBe(0);
     runMonth(w);
     expect(w.stats.lastMonth.used.grain).toBe(3);
+  });
+  it("records what the month's caravans paid the city and what the city paid them", () => {
+    const w = makeTestWorld({ gold: 1000 });
+    setRoad(w, 0, 10, 31, 10);
+    setRoad(w, 31, 10, 31, 31);                                       // to the trade entry
+    w.milestone = 'market_town';
+    const store = addRaw(w, 'storehouse', 16, 8, { store: { pottery: 60, clay: 10 } });
+    addRaw(w, 'trading_post', 20, 8);
+    staffAll(w);
+    w.trade.routes.memphis = { since: 0, gifted: true };
+    setTradeOrder(w, 'pottery', 'sell', 20);
+    setTradeOrder(w, 'clay', 'buy', 30);
+    w.day = 89;
+    runMonth(w);                                                      // not a caravan month
+    expect([w.stats.lastMonth.tradeIncome, w.stats.lastMonth.tradeSpent]).toEqual([0, 0]);
+    w.day = 90;
+    runMonth(w);
+    expect(store.store).toEqual({ pottery: 20, clay: 30 });
+    expect([w.stats.lastMonth.tradeIncome, w.stats.lastMonth.tradeSpent]).toEqual([320, 40]);   // 40 pots at 8, 20 clay at 2
   });
 });

@@ -2,7 +2,8 @@
 // month's rise in tally.made, against the totals kept at the last month end (stats.lastMonth.madeTotal). Used is what
 // left homes' stock and the bazaars' stalls during the monthly housing check (homes eat and use their goods; a delivery
 // only moves goods from a stall to a home), and, for a raw good, what the workshops took to make theirs, one for one.
-// Trade income is the month's rise in tally.tradeIncome. runMonth (clock.js) stores it all in stats.lastMonth.
+// Trade income is the month's rise in tally.tradeIncome, and trade spent what the month's caravans were paid (from
+// tradeMonth). runMonth (clock.js) stores it all in stats.lastMonth.
 import { BUILDINGS } from '../data/buildings.js';
 import { FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { allBuildings } from './world.js';
@@ -26,8 +27,9 @@ export function homeGoodsHeld(world) {
   return out;
 }
 
-// Writes made, used, madeTotal and tradeIncome into stats.lastMonth (set by monthlyEconomy earlier in the month's run).
-export function recordGoodsMonth(world, start, heldBefore, heldAfter) {
+// Writes made, used, madeTotal, tradeIncome and tradeSpent into stats.lastMonth (set by monthlyEconomy earlier in the
+// month's run).
+export function recordGoodsMonth(world, start, heldBefore, heldAfter, tradeSpent = 0) {
   const totals = world.tally.made || {};
   const made = {};
   for (const [g, n] of Object.entries(totals)) if (n - (start.made[g] || 0) > 0) made[g] = n - (start.made[g] || 0);
@@ -37,6 +39,6 @@ export function recordGoodsMonth(world, start, heldBefore, heldAfter) {
     if (def.consumes && def.produces && made[def.produces.good]) used[def.consumes] = (used[def.consumes] || 0) + made[def.produces.good];
   }
   const record = world.stats.lastMonth || {};
-  Object.assign(record, { made, used, madeTotal: { ...totals }, tradeIncome: (world.tally.tradeIncome || 0) - start.tradeIncome });
+  Object.assign(record, { made, used, madeTotal: { ...totals }, tradeIncome: (world.tally.tradeIncome || 0) - start.tradeIncome, tradeSpent });
   world.stats.lastMonth = record;
 }

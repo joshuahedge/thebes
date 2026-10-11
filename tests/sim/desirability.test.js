@@ -159,6 +159,16 @@ describe('desirability', () => {
     expect(desirabilityAt(w, 12, 10)).toBe(2);
     expect(desirabilityAt(w, 13, 10)).toBe(2);
   });
+  it('rebuilds the field when one building gives way to another whose id and place once packed to the same number', () => {
+    const w = makeTestWorld({ size: 64 });
+    w.nextId = 2;
+    const far = addRaw(w, 'garden', 61, 12);                // id 2 at (61, 12) ...
+    expect(desirabilityAt(w, 62, 12)).toBe(3);
+    removeBuilding(w, far.id);
+    w.nextId = 3;
+    addRaw(w, 'garden', 0, 0);                              // ... and id 3 at (0, 0): 2*4099 + 61*67 + 12 = 3*4099
+    expect([desirabilityAt(w, 62, 12), desirabilityAt(w, 1, 0)]).toEqual([0, 3]);
+  });
   it('judges every home against one field when given it, the same as asking one by one', () => {
     const w = world();
     const homes = [home(w, 10, 10, 1), manor(w, 12, 10), home(w, 15, 10, 4)];

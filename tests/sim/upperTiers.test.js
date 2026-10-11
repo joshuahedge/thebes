@@ -55,6 +55,26 @@ describe('sim upper tiers and merges', () => {
     expect(m.residents * TIERS[6].tax).toBeGreaterThan(taxBefore);         // the same people pay more as a Manor
     expect(TIERS[6].capacity / 4).toBeGreaterThanOrEqual(TIERS[5].capacity);   // and no tile holds fewer
   });
+  it('judges a merged Manor on the people its plots were stocked for, so newcomers do not make it look unfed', () => {
+    const w = makeTestWorld();
+    setRoad(w, 0, 10, 31, 10);
+    const a = townhouse(w, 12, 11, 20, 2);                                 // eats one month, brings the other
+    townhouse(w, 13, 11, 21);
+    townhouse(w, 12, 12, 22);
+    addRaw(w, 'house', 13, 12, { tier: 5, residents: 22, stockedFor: 12, stock: { grain: 3, pottery: 1 } });   // 10 newcomers since its delivery
+    addRaw(w, 'well', 12, 9);
+    addRaw(w, 'temple', 15, 8);
+    addRaw(w, 'booth', 14, 9);
+    addRaw(w, 'statue', 11, 11);
+    addRaw(w, 'statue', 11, 12);
+    staffAll(w);
+    monthlyHousing(w);
+    const m = w.buildings[a.id];
+    expect([m.tier, m.residents, m.stock.grain]).toEqual([6, 85, 20]);   // grain for the 75 people the plots were stocked for
+    expect(rows(w, m).find((r) => r.need === 'food').met).toBe(true);
+    monthlyHousing(w);
+    expect(m.met.food).toBe(true);
+  });
   it('picks the square to the north-west first, then clockwise', () => {
     const w = makeTestWorld();
     for (let y = 11; y <= 13; y++) for (let x = 11; x <= 13; x++) if (x !== 12 || y !== 12) plot(w, x, y);

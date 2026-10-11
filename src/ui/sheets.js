@@ -49,11 +49,12 @@ const CAUSE_FIX = {
   // No store for the good near the bazaar: Show me that store beside the bazaar. Nothing makes it there: Show me the
   // first of its makers the city has none of (a clay pit, then a potter), else the workshop, beside the bazaar; a maker
   // that needs fertile or rocky ground aims at the nearest free tile of it instead (at: 'terrain'), which can lie well
-  // beyond the ghost's search around the bazaar. Neither while the building is not unlocked yet (the words then name the
-  // milestone).
+  // beyond the ghost's search around the bazaar. Neither while the building, or any of the good's makers, is not
+  // unlocked yet (the words then name the milestone; a store would stay empty).
   no_good: (cause, world) => {
     const item = storeFor(cause.good);
-    return item && isUnlocked(world, item) ? { category: categoryOfItem(item), item, at: 'building' } : null;
+    const usable = item && isUnlocked(world, item) && goodMakers(cause.good).every((t) => isUnlocked(world, t));
+    return usable ? { category: categoryOfItem(item), item, at: 'building' } : null;
   },
   good_unmade: (cause, world) => {
     const makers = goodMakers(cause.good);
@@ -215,7 +216,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     const body = el('div', { class: 'body' });
     body.append(row(T.difficulty, DIFFICULTY_NAMES[d.difficulty] || d.difficulty));
     body.append(el('h3', { text: T.incomeVsSpending }), row(T.taxes, `+${d.taxes}`), row(T.wages, `−${d.wages}`), row(T.upkeep, `−${d.upkeep}`), row(T.net, (d.net >= 0 ? '+' : '') + d.net));
-    body.append(row(T.tradeIncome, `+${d.tradeIncome}`));
+    // Trade under its own heading, as Net above leaves it out: what caravans paid the city and what it paid them.
+    body.append(el('h3', { text: T.tradeLastMonth }), row(T.tradeSales, `+${d.tradeIncome}`), row(T.tradeBought, `−${d.tradeSpent}`));
     // Food in store by kind: grain always, other foods once there are some.
     body.append(el('h3', { text: T.foodInStore }), ...FOOD_GOODS.filter((g, i) => i === 0 || d.foodByGood[g] > 0).map((g) => row(goodName(g), `${d.foodByGood[g]}`)));
     body.append(row(T.lasts, d.monthsOfFood === null ? '–' : plural(d.monthsOfFood, 'month', 'months')));
