@@ -8,7 +8,8 @@
 //   tier       homes at that tier or above                           tier, n
 //   people     the most people the city has had                      n
 //   tally      a running tally in world.tally                        key, n
-//   goals      goals completed (event goals included)                n
+//   made       units of a good produced (world.tally.made)            good, n
+//   goals     goals completed (event goals included)                n
 //   fedAll     every home at Cottage or above fed last month, in a city of at least `people` people
 //   waterAll   every lived-in home reached by a working well, at least `homes` of them
 //   jobs       at least `people` people and unemployment at most `rate`
@@ -37,4 +38,12 @@ export const ACHIEVEMENTS = [
   { id: 'busy_hands', measure: { kind: 'jobs', people: 150, rate: 0.05 } },
   { id: 'on_course', measure: { kind: 'goals', n: 9 } },
   { id: 'day_by_day', measure: { kind: 'tally', key: 'dailyDone', n: 10 } },
+  { id: 'potters_wheel', measure: { kind: 'made', good: 'pottery', n: 500 } },
+  { id: 'merchant_city', measure: { kind: 'tally', key: 'tradeIncome', n: 2000 } },
+  { id: 'townhouse_terrace', measure: { kind: 'tier', tier: 5, n: 20 } },
+  { id: 'manor_row', measure: { kind: 'tier', tier: 6, n: 5 } },
+  { id: 'green_city', measure: { kind: 'buildings', type: 'garden', n: 20 } },
+  { id: 'sculpture_garden', measure: { kind: 'buildings', type: 'statue', n: 10 } },
+  { id: 'estate_life', measure: { kind: 'tier', tier: 9, n: 1 } },
+  { id: 'thousand', measure: { kind: 'people', n: 1000 } },
 ];

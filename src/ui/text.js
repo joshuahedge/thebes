@@ -5,6 +5,7 @@ import { MILESTONES } from '../data/progression.js';
 import { TIERS } from '../data/housing.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { FIRSTS } from '../data/firsts.js';
+import { GOODS } from '../data/goods.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -136,12 +137,13 @@ export const showMeLabel = (text) => `${T.showMe}: ${text}`;   // a goal's Show 
 export const viewLabel = (what) => `${T.view}: ${what}`;         // a View names its alert or building, so several of them stay apart
 
 // Goal chapters for the goals sheet (early-game pass 3.3); triggered first-time events come first.
-export const CHAPTER_NAMES = { first_homes: 'First homes', feed: 'Feed the village', grow: 'Grow', event: 'Needs attention' };
+export const CHAPTER_NAMES = { first_homes: 'First homes', feed: 'Feed the village', grow: 'Grow', goods: 'Goods', grand: 'A grand city', event: 'Needs attention' };
 // Daily goals (early-game pass 3.7), keyed by DAILY_POOL ids.
 export const DAILY_TEXT = {
   plots4: 'Place 4 housing plots', roads10: 'Lay 10 road tiles', upgrades3: 'Grow 3 homes a tier', well1: 'Build a well',
   bazaar1: 'Build a bazaar', temple1: 'Build a temple', farm1: 'Build a grain farm', people20: 'Gain 20 people',
   profit1: 'Have a month in profit', harvest100: 'Harvest 100 grain',
+  pottery30: 'Make 30 pottery', gardens3: 'Build 3 gardens', sell20: 'Sell 20 goods to caravans', statue1: 'Build a statue', booth1: 'Build a booth',
 };
 export const milestoneText = (name) => `Your city is now a ${name}`;
 
@@ -213,6 +215,13 @@ export const FIRST_TEXT = {
   first_house: { head: `First ${TIERS[4].name}`, why: `A temple let a home grow. ${TIERS[4].name}s hold ${TIERS[4].capacity} people.` },
   first_profit: { head: 'First month in profit', why: 'Taxes covered wages and upkeep, with gold to spare.' },
   people_100: { head: `${PEOPLE_FIRST} people live here`, why: `At ${TOWN.population} people the city becomes a ${TOWN.name}.` },
+  first_pottery: { head: 'First pottery', why: `A potter turned clay into pots. ${TIERS[5].name}s need pottery.` },
+  first_townhouse: { head: `First ${TIERS[5].name}`, why: `Pottery let a home grow. ${TIERS[5].name}s hold ${TIERS[5].capacity} people.` },
+  first_manor: { head: `First ${TIERS[6].name}`, why: `Four homes became one. ${TIERS[6].name}s hold ${TIERS[6].capacity} people.` },
+  first_caravan: { head: 'First caravan', why: 'Traders came to the trading post. Set what they buy and sell there.' },
+  first_fine_manor: { head: `First ${TIERS[7].name}`, why: `Beer and two kinds of food let a ${TIERS[6].name.toLowerCase()} grow.` },
+  first_villa: { head: `First ${TIERS[8].name}`, why: `Linen let a home grow. ${TIERS[8].name}s hold ${TIERS[8].capacity} people.` },
+  first_estate: { head: `First ${TIERS[9].name}`, why: 'Jewellery let a home grow into the finest home in the city.' },
 };
 
 export const ACHIEVEMENT_NAMES = {
@@ -224,6 +233,8 @@ export const ACHIEVEMENT_NAMES = {
   steady_books: 'Steady books', prosperous: 'Prosperous',
   no_one_hungry: 'No one hungry', water_for_all: 'Water for all', busy_hands: 'Busy hands',
   on_course: 'On course', day_by_day: 'Day by day',
+  potters_wheel: "Potter's wheel", merchant_city: 'Merchant city', townhouse_terrace: 'Townhouse terrace', manor_row: 'Manor row',
+  green_city: 'Green city', sculpture_garden: 'Sculpture garden', estate_life: 'Estate life', thousand: 'A thousand souls',
 };
 
 const BUILDING_PLURALS = { well: 'wells', farm_grain: 'grain farms', granary: 'granaries', bazaar: 'bazaars', temple: 'temples' };
@@ -232,6 +243,10 @@ const TALLY_CONDITIONS = {
   profitMonths: (n) => `End ${n} months in profit`,
   upgrades: (n) => `Grow homes ${n} times`,
   dailyDone: (n) => `Finish ${n} daily goals`,
+  tradeIncome: (n) => `Earn ${n} gold from trade`,
+  sold: (n) => `Sell ${n} goods to caravans`,
+  bought: (n) => `Buy ${n} goods from caravans`,
+  caravans: (n) => `Welcome ${n} caravans`,
 };
 
 // An achievement's exact condition, from its declarative measure ("Have 25 homes").
@@ -243,9 +258,10 @@ export function achievementCondition(m) {
       const one = buildingName(m.type).toLowerCase();
       return `Have ${plural(m.n, one, BUILDING_PLURALS[m.type] || `${one}s`)}`;
     }
-    case 'tier': return `Have ${m.n} homes at ${tierName(m.tier)} or better`;
+    case 'tier': return `Have ${plural(m.n, 'home', 'homes')} at ${tierName(m.tier)} or better`;
     case 'people': return `Reach ${m.n} people`;
     case 'tally': return TALLY_CONDITIONS[m.key] ? TALLY_CONDITIONS[m.key](m.n) : '';
+    case 'made': return `Make ${m.n} ${GOODS[m.good].name.toLowerCase()}`;
     case 'goals': return `Finish ${m.n} goals`;
     case 'fedAll': return `Reach ${m.people} people with every ${tierName(3)} or better home fed`;
     case 'waterAll': return `Have ${m.homes} lived-in homes, all with water`;
@@ -271,6 +287,10 @@ export const TIP_TEXT = {
   undo_demolish: 'Press Undo to bring back what you just removed, if you change your mind.',
   goals_list: 'Open Goals to see what comes next, your progress and the gold each pays.',
   overlay_keys: 'Read the overlay: a filled dot has it, a hollow ring lacks it. Tap ✕ to close.',
+  nicer_streets: 'Place gardens and statues near homes: Manors and up need a pleasant street.',
+  storehouse_choices: 'Tap a storehouse to choose its goods: a refused good goes to other storage.',
+  trade_orders: 'Tap the trading post, open a route, then pick what to buy, sell and keep.',
+  merging_homes: 'Keep the plots beside a Townhouse free: four in a square become a Manor.',
 };
 
 // Achievements on the summary and the Welcome back card (early-game pass 3.8, 3.9). Counts read as progressText does.

@@ -5,6 +5,7 @@ import { GOALS, EVENT_GOALS, GUIDE_GOALS, GUIDE_REWARD } from '../data/goals.js'
 import { housesOf, population, allBuildings } from './world.js';
 import { alertsFor } from './alerts.js';
 import { idx } from './grid.js';
+import { openRoutes } from './trade.js';
 
 const SETTLE_MAX = 20;   // settleGoals stops after this many completions in one go
 
@@ -30,6 +31,7 @@ export function goalMet(world, need) {
     case 'building': return countOf(world, need.type) >= (need.n || 1);
     case 'people': return population(world) >= need.n;
     case 'tier': return homesAtTier(world, need.tier) >= need.n;
+    case 'routes': return openRoutes(world) >= need.n;
     case 'noAlert': return !hasAlert(world, need.code);
     case 'gold': return world.gold >= need.n;
     case 'all': return need.of.every((x) => goalMet(world, x));
@@ -45,6 +47,7 @@ export function goalProgress(world, goal) {
     case 'building': { const of = need.n || 1; return { n: Math.min(countOf(world, need.type), of), of }; }
     case 'people': return { n: Math.min(population(world), need.n), of: need.n };
     case 'tier': return { n: Math.min(homesAtTier(world, need.tier), need.n), of: need.n };
+    case 'routes': return { n: Math.min(openRoutes(world), need.n), of: need.n };
     case 'all': return { n: need.of.filter((x) => goalMet(world, x)).length, of: need.of.length };
     default: return null;
   }
