@@ -173,7 +173,7 @@ Starting reach values, all tunable in data:
 - Tiers 6-9 need minimum desirability (section 4.6), with a lower value to keep the tier.
 - The house sheet shows the score and its three biggest causes, for example "14 of 20: +6 temple, +3 garden, −4 potter".
 - **While placing** any building, the ground it would change is tinted (a teal wash where homes get nicer, coral hatching where they get worse) and the confirm bar says "Makes 6 homes nicer" or "Makes 4 homes less pleasant".
-- The desirability overlay is a single-hue light-to-dark scale with a five-step legend.
+- The desirability overlay is a single-hue light-to-dark scale with a five-step legend whose steps start at the tiers' "to rise" values (20, 35, 50, 65), plus coral hatching below zero.
 
 ### 4.8 Workers
 
@@ -216,7 +216,7 @@ Starting reach values, all tunable in data:
 - **Monthly yields at full staff** (in `data/buildings.js`, tunable; a 30-day month): grain 30, figs 24, clay 40, pottery 30, barley 30, beer 25, flax 24, linen 20, gems 15, jewellery 15. A potter feeds about 13 Townhouses.
 - **Household use per resident per month:** food 0.25 (any mix of grain and figs), pottery 0.05, beer 0.05, linen 0.04, jewellery 0.03, rounded up per home.
 - **Storage:** the granary holds grain and figs (600 units); the **storehouse** (2×2, Town) holds everything else (800 units in total), with **accept or refuse** per good. Both show their fill on the map in four steps. There are no "get" orders.
-- **Bazaars** sell every good homes use, restocking monthly from storage within supply reach (up to 200 of each good). Each month, a home tops up its household stock from the covering bazaar it can reach most quickly that has stock.
+- **Bazaars** sell every good homes use, restocking monthly from storage within supply reach (up to 300 grain, 200 figs and 100 of each household good). Each month, a home tops up its household stock from the covering bazaar it can reach most quickly that has stock.
 - **Fed** means the home's full monthly food need was met from stock, from any mix of foods. "Two kinds of food" also needs both grain and figs in stock at the start of the month. A home that wants two foods tops up half of its need from each and fills any gap from whichever food is there.
 - **The city summary** shows each good as made against used last month, and every good's sheet line says what makes it and what uses it ("Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis").
 
