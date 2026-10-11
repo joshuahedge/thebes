@@ -136,9 +136,9 @@ describe('s3 contract raid seams', () => {
     expect(tributeQuote(w)).toBe(null);
     expect(payTribute(w)).toEqual({ ok: false, reason: 'no_warning', warnings: [] });
     raidDay(w, []); raidMonth(w, []); trainSoldiers(w, []); combatDay(w, []);
-    expect([raidAlerts(w), raidMood(w), flowField(w, [[1, 1]])]).toEqual([[], {}, null]);
-    expect(previewWall(w, 1, 1, 5, 1)).toEqual({ ok: false, reason: 'locked', warnings: [], tiles: [], gates: [], cost: 0 });
-    expect(drawWall(w, 1, 1, 5, 1).ok).toBe(false);
+    expect([raidAlerts(w), raidMood(w)]).toEqual([[], {}]);
+    expect(typeof flowField(w, [[1, 1]]).next).toBe('function');                       // Track B: the real field (tests/stage3/raids/walls.test.js)
+    expect(previewWall(w, 1, 1, 5, 1)).toEqual({ ok: true, reason: null, warnings: [], tiles: [33, 34, 35, 36, 37], gates: [], cost: 40 });   // a preview changes nothing
     expect(checkFeats(w, [])).toEqual([]);
     expect(JSON.stringify(w)).toBe(before);
   });

@@ -615,7 +615,54 @@ Object.assign(MOOD_NAMES, { fire: 'A fire last month', burned: 'Buildings burned
 //
 // ── s3 raids (Track B) ──────────────────────────────────────────────────────────────────────────────────────────
 // Track B's words for raids: alert titles for raid_warning and raid, directions, the report, tribute and festival reasons, mood rows raid and festival. Add new lines just above the end marker.
-export const RAID_TEXT = {};
+// Track B imports under its own names (import declarations are hoisted, so they may sit in this section).
+import * as raidsData from '../data/raids.js';
+import * as raidsSim from '../sim/raids.js';
+import * as raidsTime from '../sim/time.js';
+export const RAID_TEXT = {
+  // The edge a raid comes from, as the words say it: "Raiders from the east", "facing east".
+  dirs: { north: 'north', east: 'east', south: 'south', west: 'west' },
+  // What a raid is after, in the plural: "storehouses", "trading posts"; "buildings" for a raid after any building.
+  targets: (kind) => (kind === 'building' ? 'buildings' : pluralName(kind)),
+  // The defence that would beat the warned raid (spec 4.13, ruling 108), from tributeQuote: N is the towers it needs less
+  // the working towers the city has, priced at this city's tower: "Build 2 towers facing east (≈ 300 gold)"; at 0 "Your
+  // towers can beat this raid". '' with no warning up. The banner puts it beside Pay tribute (Track D).
+  towers(world) {
+    const q = raidsSim.tributeQuote(world);
+    if (!q) return '';
+    if (q.buildN === 0) return 'Your towers can beat this raid';
+    return `Build ${plural(q.buildN, 'tower', 'towers')} facing ${RAID_TEXT.dirs[world.raid.warning.dir]} (≈ ${q.buildCost} gold)`;
+  },
+};
+// The raid alerts (raidAlerts). raid_warning: what is coming and the defence that would beat it. raid: the band on the map
+// by its phase (raid.active.phase): fighting its way in or striking, leaving after its strikes, or falling back once half
+// have fallen; towers (DEFENCE.towerRange tiles of a tower) and soldiers (DEFENCE.patrol tiles of their barracks) fight it
+// in every phase.
+Object.assign(ALERT_TEXT, {
+  raid_warning: (alert, world) => {
+    const w = world.raid.warning;
+    return { title: `Raiders from the ${RAID_TEXT.dirs[alert.dir]} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: RAID_TEXT.towers(world) };
+  },
+  raid: (alert, world) => {
+    const a = world.raid.active;
+    const dir = RAID_TEXT.dirs[a ? a.dir : ''] || '';
+    const phase = a ? a.phase : 'attack';
+    const raiders = plural(alert.left, 'raider', 'raiders');
+    if (phase === 'retreat') return { title: `Raid from the ${dir}: ${raiders} falling back`, fix: 'Towers keep shooting as they go' };
+    const fix = `Towers hit raiders within ${raidsData.DEFENCE.towerRange} tiles; soldiers fight within ${raidsData.DEFENCE.patrol} tiles of their barracks`;
+    return { title: phase === 'leave' ? `Raid from the ${dir}: ${raiders} leaving` : `Raid from the ${dir}: ${raiders}`, fix };
+  },
+});
+// The mood rows (spec 4.9): a raid in the last six months (raidMood), a festival (festivalMood).
+Object.assign(MOOD_NAMES, { raid: 'Recent raid', festival: 'Festival' });
+// payTribute's and holdFestival's refusals (spec 4.13).
+Object.assign(REASONS, {
+  no_warning: 'No raid is on its way',
+  first_raid: "The first raid can't be paid off",
+  below_zero: "Tribute can't put the treasury below 0",
+  no_temple: 'Needs a working temple',
+  too_soon: `One festival every ${Math.round(raidsData.FESTIVAL.every / raidsTime.DAYS_PER_MONTH)} months`,
+});
 // ── end s3 raids ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //
