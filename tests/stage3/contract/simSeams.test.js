@@ -411,12 +411,13 @@ describe('s3 contract commands', () => {
 });
 
 describe('s3 contract score seams', () => {
-  it('scores zero until Track E fills in the parts, with the version, factor, medals and next medal per level', () => {
+  it('scores with the version, factor, medals and next medal per level (Track E fills in the parts: tests/stage3/score)', () => {
     const w = street();
     const s = scoreOf(w);
-    expect(s).toEqual({ version: 1, total: 0, raw: 0, factor: 1, parts: { people: 0, prosperity: 0, culture: 0, safety: 0 },
-      reasons: { people: null, prosperity: null, culture: null, safety: null }, medal: null, next: { medal: 'bronze', points: 160 } });
-    expect(scorePreview(w, 'well', 3, 9)).toEqual({ people: 0, prosperity: 0, culture: 0, safety: 0 });
+    expect([s.version, s.factor, s.raw, s.total]).toEqual([1, 1, Object.values(s.parts).reduce((a, b) => a + b, 0), Math.round(s.raw * s.factor)]);
+    expect([s.medal, s.next]).toEqual([medalFor(s.raw), nextMedal(w, s.raw)]);
+    expect([Object.keys(s.parts), Object.keys(s.reasons)]).toEqual([['people', 'prosperity', 'culture', 'safety'], ['people', 'prosperity', 'culture', 'safety']]);
+    expect(Object.keys(scorePreview(w, 'well', 3, 9))).toEqual(['people', 'prosperity', 'culture', 'safety']);
     expect([159, 160, 239, 240, 320, 400].map(medalFor)).toEqual([null, 'bronze', 'bronze', 'silver', 'gold', 'gold']);
     w.difficulty = 'relaxed';
     expect([scoreFactor(w), nextMedal(w, 200)]).toEqual([0.8, { medal: 'silver', points: 192 - 160 }]);
@@ -426,8 +427,9 @@ describe('s3 contract score seams', () => {
   it('seals a reign in the world, as often as asked', () => {
     const w = street();
     w.day = 400;
+    const s = scoreOf(w);
     const r = sealReign(w);
-    expect(r).toEqual({ ok: true, warnings: [], seal: { day: 400, score: 0, parts: { people: 0, prosperity: 0, culture: 0, safety: 0 }, medal: null, version: 1 } });
+    expect(r).toEqual({ ok: true, warnings: [], seal: { day: 400, score: s.total, parts: s.parts, medal: s.medal, version: 1 } });
     sealReign(w);
     expect(w.seals.length).toBe(2);
   });

@@ -806,7 +806,169 @@ Object.assign(DANGER_UI_TEXT, {
 //
 // ── s3 score (Track E) ──────────────────────────────────────────────────────────────────────────────────────────
 // Track E's words for scoring: parts, reasons, medals, splits, records, sharing, feats, remarks, and the danger goals, firsts, achievements, daily goals and tips. Add new lines just above the end marker.
-export const SCORE_TEXT = {};
+// Imports for this section only, aliased so no other section's names can clash (import declarations are hoisted).
+import { DAYS_PER_MONTH as SCORE_DAYS_PER_MONTH, MONTHS_PER_YEAR as SCORE_MONTHS_PER_YEAR } from '../sim/time.js';
+import { DEFENCE as SCORE_DEFENCE } from '../data/raids.js';
+import { DAILY_POOL as SCORE_DAILY_POOL } from '../data/daily.js';
+import { FEATS as SCORE_FEATS } from '../data/feats.js';
+// The score (spec 4.19): parts, reasons, medals, the chip, the confirm bar's "+3 Culture" and the summary's section. Every
+// number comes from scoreOf (src/sim/score.js); the reason codes and their fields are listed there.
+export const SCORE_TEXT = {
+  score: 'Score', cityScore: 'City score', splits: 'Milestones', noSplits: 'No milestones yet',
+  parts: { people: 'People', prosperity: 'Prosperity', culture: 'Culture', safety: 'Safety' },
+  medals: { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' },
+  noMedal: 'No medal yet', topMedal: 'The highest medal',
+  noHomes: 'No one lives here yet', noRoute: 'No trade route yet', raidLost: 'A raid was lost in the last year',
+  scoreHelp: 'The score measures the city as it stands now. It never changes what you can build.',
+};
+const SCORE_SIDE_STREETS = { east: 'the east streets', west: 'the west streets', north: 'the north streets', south: 'the south streets' };
+const scoreMilestoneName = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
+// One part's reason line, from scoreOf's reasons[part] ({ code, ... }); '' for none.
+export function scoreReasonText(r) {
+  if (!r) return '';
+  switch (r.code) {
+    case 'growth': return `${scoreMilestoneName(r.milestone)}: ${progressText(r.people, r.of)} people`;
+    case 'homes': return `Most homes are ${TIERS[r.tier].name}s`;
+    case 'no_homes': return SCORE_TEXT.noHomes;
+    case 'taxes': return `Taxes bring ${r.perPerson} gold a person: bigger homes pay more`;
+    case 'jobless': return `${r.percent}% of workers have no job`;
+    case 'debt': return `The treasury is ${r.gold} gold in debt`;
+    case 'routes': return r.n === 0 ? SCORE_TEXT.noRoute : `Only ${plural(r.n, 'trade route is', 'trade routes are')} open`;
+    case 'no_temple': return `${plural(r.n, 'home has', 'homes have')} no temple`;
+    case 'no_booth': return `${plural(r.n, 'home has', 'homes have')} no entertainment`;
+    case 'no_bazaar': return `${plural(r.n, 'home has', 'homes have')} no bazaar`;
+    case 'plain': return `Homes average ${r.value} of 50 desirability`;
+    case 'fire_cover': return `No staffed firehouse reaches ${r.dir ? SCORE_SIDE_STREETS[r.dir] : plural(r.n, 'building', 'buildings')}`;
+    case 'towers': return `A raid this size needs ${plural(r.need, 'tower', 'towers')}; you have ${r.towers} working${r.soldiers ? ` and ${plural(r.soldiers, 'soldier', 'soldiers')}` : ''}`;
+    case 'burned': return `${plural(r.n, 'building', 'buildings')} burned in the last year`;
+    case 'raid_lost': return SCORE_TEXT.raidLost;
+    default: return '';
+  }
+}
+export const scoreChipText = (total) => `${SCORE_TEXT.score} ${total}`;
+export const medalText = (medal) => (medal ? `${SCORE_TEXT.medals[medal]} medal` : SCORE_TEXT.noMedal);
+export const nextMedalText = (next) => (next ? `${plural(next.points, 'point', 'points')} to ${SCORE_TEXT.medals[next.medal]}` : SCORE_TEXT.topMedal);
+export const partBarLabel = (part, n) => `${SCORE_TEXT.parts[part]}: ${progressText(n, 100)}`;
+export const factorText = (raw, factor, level) => `Parts ${raw} × ${factor} on ${DIFFICULTY_NAMES[level] || level}`;
+// The confirm bar's score line: the parts that would change by a whole point or more ("+3 Culture, −1 Safety"); '' for none.
+export const scoreLineText = (delta) => Object.keys(SCORE_TEXT.parts).filter((p) => Math.abs(delta[p] || 0) >= 1)
+  .map((p) => `${delta[p] > 0 ? '+' : '−'}${Math.abs(delta[p])} ${SCORE_TEXT.parts[p]}`).join(', ');
+// A milestone split as a game date: "Town in year 2, month 3" (day 0 is year 1, month 1).
+const SCORE_YEAR_DAYS = SCORE_DAYS_PER_MONTH * SCORE_MONTHS_PER_YEAR;
+export const splitDateText = (id, day) => `${scoreMilestoneName(id)} in year ${Math.floor(day / SCORE_YEAR_DAYS) + 1}, month ${Math.floor((day % SCORE_YEAR_DAYS) / SCORE_DAYS_PER_MONTH) + 1}`;
+// A split against the personal best on this seed and level (records' bestFor: the earliest day another city reached it),
+// in whole game-months; just the date when no other city got there.
+export function splitCompareText(id, day, bestDay) {
+  const base = splitDateText(id, day);
+  if (!Number.isInteger(bestDay)) return base;
+  const diff = Math.floor(bestDay / SCORE_DAYS_PER_MONTH) - Math.floor(day / SCORE_DAYS_PER_MONTH);
+  if (diff === 0) return `${base}: level with your best`;
+  return `${base}: ${plural(Math.abs(diff), 'month', 'months')} ${diff > 0 ? 'faster' : 'slower'} than your best`;
+}
+// Seal this reign (spec 4.19): the confirmation says exactly what sealReign records and what it does not change.
+Object.assign(SCORE_TEXT, { sealReign: 'Seal this reign', sealConfirm: 'Seal reign', notYet: 'Not yet', shareScore: 'Share score', stampNote: 'Its stamp shows on the title card.' });
+export const sealQuestion = (total, medal) => `Seal this reign? Your chronicle gets score ${total}${medal ? ` (${SCORE_TEXT.medals[medal]})` : ''} for this city. The city carries on.`;
+export const sealedText = (seal) => `Reign sealed with score ${seal.score}`;
+// Sharing (spec 4.19): opt-in, and every shared score says friends' honour.
+export const SHARE_TEXT = {
+  honour: "Friends' honour", honourHelp: "Friends' honour: a link can't be checked without a server.",
+  sharePicture: 'Share picture', shareLink: 'Share link', linkLabel: 'Link to this score', making: 'Making the picture…',
+  pictureSaved: 'Picture downloaded', copied: 'Copied', fileName: 'thebes-score.png',
+  seedLine: (seed, level) => `Seed ${seed} · ${level}`,
+  text: (total, rows, link) => `Thebes: score ${total}, friends' honour\n${rows}\n${link}`,
+};
+Object.assign(T, { sealReign: SCORE_TEXT.sealReign, shareScore: SCORE_TEXT.shareScore });   // the two sheets' headings
+// The title card (spec 4.1, 4.19): the device's bests and stamps, This week's Nile and a friend's shared score.
+export const TITLE_SCORE_TEXT = {
+  weekly: "This week's Nile", records: 'Your records', friend: "A friend's score", startSeed: 'Start this seed',
+  badLink: "This score link can't be read", newerLink: 'This score link is from a newer version of Thebes',
+  weeklyHint: (seed) => `Seed ${seed}: the same river for everyone this week`,
+  bestLine: (b) => `Best: ${b.score}${b.medal ? `, ${SCORE_TEXT.medals[b.medal].toLowerCase()}` : ''}, seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.older ? ', older scoring' : ''}`,
+  stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}`,
+  moreStamps: (n) => `+${n} more`,
+  friendLine: (total, seed, level) => `${total} on seed ${seed}, ${DIFFICULTY_NAMES[level] || level}. ${SHARE_TEXT.honour}`,
+  partsLine: (parts) => Object.keys(SCORE_TEXT.parts).map((p) => `${SCORE_TEXT.parts[p]} ${parts[p]}`).join(' · '),
+  yourBest: (score) => (score === null ? 'You have no score on this seed and level yet' : `Your best here: ${score}`),
+  beat: (total) => `Beat ${total}?`,
+  startOn: (level) => `It starts on ${DIFFICULTY_NAMES[level] || level}, the level of the shared score.`,
+};
+// Danger in the goals and rewards (spec 4.19): the chapter, five firsts, four achievements, three daily goals and six
+// tips. Every number comes from the data, and every claim follows the rules of fire (spec 4.12) and raids (spec 4.13).
+const scoreAchievement = (id) => ACHIEVEMENTS.find((a) => a.id === id).measure;
+const scoreDaily = (id) => SCORE_DAILY_POOL.find((d) => d.id === id);
+Object.assign(CHAPTER_NAMES, { danger: 'Danger' });
+Object.assign(FIRST_TEXT, {
+  // A staffed firehouse (coverage of half or more) puts blazes out; any working one in road reach slows the risk.
+  first_firehouse: { head: 'First firehouse', why: `Staffed, it puts out blazes and slows fire risk up to ${BUILDINGS.firehouse.reach} road tiles away.` },
+  // A blaze goes out only with a staffed firehouse in reach, a fire only with one reaching it: either way one reached it.
+  first_fire_out: { head: 'First fire put out', why: 'A firehouse that reaches the building saved it.' },
+  first_wall: { head: 'First wall', why: 'Raiders must break through a wall before they can pass it.' },
+  first_tower: { head: 'First tower', why: `Staffed, it shoots raiders up to ${SCORE_DEFENCE.towerRange} tiles away.` },
+  first_raid_beaten: { head: 'First raid beaten', why: 'Your defences turned the raiders back.' },
+});
+Object.assign(ACHIEVEMENT_NAMES, { fire_brigade: 'Fire brigade', safe_streets: 'Safe streets', wall_builder: 'Wall builder', raid_breaker: 'Raid breaker' });
+Object.assign(ACHIEVEMENT_TEXT, {
+  safe_streets: `Reach ${scoreAchievement('safe_streets').people} people with no building burned for a year`,
+  wall_builder: `Draw ${scoreAchievement('wall_builder').n} wall tiles`,
+  raid_breaker: `Beat ${scoreAchievement('raid_breaker').n} raids`,
+});
+Object.assign(DAILY_TEXT, { firehouse1: 'Build a firehouse', wall10: `Draw ${scoreDaily('wall10').n} wall tiles`, tower1: 'Build a tower' });
+Object.assign(TIP_TEXT, {
+  fire_risk: `Watch fire risk from Town: a staffed firehouse within ${BUILDINGS.firehouse.reach} road tiles slows it.`,
+  firebreaks: 'Leave roads between buildings: fire spreads only to buildings that touch.',
+  clearing_rubble: 'Clear rubble with Demolish: tap it or drag over it. Clearing costs gold.',
+  raider_targets: 'Guard trading posts, storehouses, bazaars and temples: raiders want those.',
+  tribute_once: 'Pay tribute only if you must: it cancels this raid, not the next one.',
+  wall_ring: 'Close your wall into a ring and set towers on it: raiders must break through.',
+});
+// Feats (spec 4.19): a name and the exact condition each, numbers from the data (src/data/feats.js, src/sim/feats.js).
+const scoreFeatCheck = (id) => SCORE_FEATS.find((f) => f.id === id).check;
+const scoreFeatMilestone = (id) => scoreMilestoneName(scoreFeatCheck(id).milestone);
+export const FEAT_TEXT = {
+  debt_free: { name: 'Debt-free founder', condition: `Become a ${scoreFeatMilestone('debt_free')} without the treasury ever going below 0` },
+  well_fed: { name: 'Well fed', condition: `Feed every home at ${tierName(3)} or better for ${scoreFeatCheck('well_fed').months} months in a row, with ${scoreFeatCheck('well_fed').people} people or more` },
+  grain_alone: { name: 'Grain alone', condition: `Become a ${scoreFeatMilestone('grain_alone')} without building a ${buildingName(scoreFeatCheck('grain_alone').type).toLowerCase()}` },
+  firewise: { name: 'Firewise', condition: `Lose no building to fire for ${scoreFeatCheck('firewise').days / SCORE_YEAR_DAYS} years after becoming a ${scoreFeatMilestone('firewise')}` },
+  untouched: { name: 'Untouched', condition: 'Beat a raid with no building burned and no gold stolen' },
+  never_bowed: { name: 'Never bowed', condition: `Become the ${scoreFeatMilestone('never_bowed')} without paying tribute` },
+  garden_city: { name: 'Garden city', condition: `Have ${scoreFeatCheck('garden_city').n} gardens and statues at once` },
+  full_hands: { name: 'Full hands', condition: `Have ${scoreFeatCheck('full_hands').people} people or more with ${Math.round(scoreFeatCheck('full_hands').rate * 100)}% or fewer out of work` },
+  merchant_prince: { name: 'Merchant prince', condition: `Sell ${scoreFeatCheck('merchant_prince').n.toLocaleString('en-GB')} goods to caravans` },
+  swift_town: { name: 'Swift Town', condition: `Become a ${scoreFeatMilestone('swift_town')} before year ${scoreFeatCheck('swift_town').day / SCORE_YEAR_DAYS + 1} begins` },
+};
+Object.assign(SCORE_TEXT, { feats: 'Feats', featEarned: 'Earned', featMissed: 'Missed', featOpen: 'Open', feat: 'Feat', noFeats: 'No feats yet.', featsHelp: 'Feats are optional: they pay nothing and never hold anything back.' });
+export const featsHeading = (done, total) => `${SCORE_TEXT.feats}, ${progressText(done, total)}`;
+export const sealFeatsText = (names) => (names.length ? `Feats this reign: ${listText(names)}.` : SCORE_TEXT.noFeats);
+// The opening chain and the next-threshold bar (spec 4.1).
+export const thresholdMilestoneText = (name, n, of) => `${name}: ${progressText(n, of)} people`;
+export const thresholdMedalText = (next) => `${SCORE_TEXT.medals[next.medal]}: ${plural(next.points, 'point', 'points')} to go`;
+// Citizen remarks (spec 4.19): at least 24, by season, each heard only in a city with its building (`type`).
+export const CITIZEN_REMARKS = [
+  { season: 'akhet', type: 'potter', text: 'The potters say the clay is good this year' },
+  { season: 'akhet', type: 'farm_grain', text: 'The farmers say the flood left rich black soil' },
+  { season: 'akhet', type: 'well', text: 'The water carriers say the wells are full and sweet' },
+  { season: 'akhet', type: 'granary', text: 'The granary keepers are sweeping out the bins' },
+  { season: 'akhet', type: 'temple', text: 'The priests say the river rose just as it should' },
+  { season: 'akhet', type: 'bazaar', text: 'At the bazaar they talk of how high the river came' },
+  { season: 'akhet', type: 'house', text: 'Families mend their roofs while the fields lie under water' },
+  { season: 'akhet', type: 'booth', text: 'The players at the booth are learning a flood song' },
+  { season: 'peret', type: 'farm_grain', text: 'The young grain stands green and even in the fields' },
+  { season: 'peret', type: 'farm_fig', text: 'The fig trees are heavy with fruit' },
+  { season: 'peret', type: 'clay_pit', text: 'The diggers at the clay pit sing to keep time' },
+  { season: 'peret', type: 'garden', text: 'Neighbours sit in the gardens in the cool of the evening' },
+  { season: 'peret', type: 'weaver', text: 'The weavers say the flax is long and fine this year' },
+  { season: 'peret', type: 'brewery', text: 'The brewers are trying a sweeter beer' },
+  { season: 'peret', type: 'house', text: 'Children chase each other between the houses at dusk' },
+  { season: 'peret', type: 'storehouse', text: 'The storehouse clerks count every jar twice' },
+  { season: 'shemu', type: 'farm_grain', text: 'The harvesters are singing in the fields' },
+  { season: 'shemu', type: 'granary', text: 'The granaries are filling with the new harvest' },
+  { season: 'shemu', type: 'well', text: 'The water carriers rest in the shade at noon' },
+  { season: 'shemu', type: 'trading_post', text: 'A trader says caravans pay well for Theban goods' },
+  { season: 'shemu', type: 'jeweller', text: 'The jewellers are cutting stones for a wedding' },
+  { season: 'shemu', type: 'temple', text: 'The priests watch the river for the first rise' },
+  { season: 'shemu', type: 'statue', text: 'People leave flowers at the foot of the statues' },
+  { season: 'shemu', type: 'firehouse', text: 'The firefighters keep their jars full in the dry heat' },
+];
 // ── end s3 score ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

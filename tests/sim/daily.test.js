@@ -31,13 +31,13 @@ function dayWith(w, picks) {
 }
 
 describe('sim daily goals', () => {
-  it('offers fifteen small goals, three a day, 25 gold each, once the temple goal is done', () => {
+  it('offers eighteen small goals, three a day, 25 gold each, once the temple goal is done', () => {
     expect(DAILY_COUNT).toBe(3);
     expect(DAILY_REWARD).toBe(25);
     expect(DAILY_AFTER).toBe('temple');
     expect(DAILY_POOL.map((d) => d.id)).toEqual([
       'plots4', 'roads10', 'upgrades3', 'well1', 'bazaar1', 'temple1', 'farm1', 'people20', 'profit1', 'harvest100',
-      'pottery30', 'gardens3', 'sell20', 'statue1', 'booth1',
+      'pottery30', 'gardens3', 'sell20', 'statue1', 'booth1', 'firehouse1', 'wall10', 'tower1',
     ]);
     const tallyKeys = Object.keys(makeTestWorld().tally);
     for (const d of DAILY_POOL) {
