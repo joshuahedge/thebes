@@ -1,17 +1,23 @@
 import { BUILDINGS } from '../data/buildings.js';
-import { GOODS } from '../data/goods.js';
+import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { allBuildings, housesOf } from './world.js';
 import { buildingsInReach, roadReach, reachDistance } from './reach.js';
 import { isWorking } from './labour.js';
 
+// A home's use of a good in a month, rounded up per home (spec 4.10). Every food has the same rate, so a home's
+// food need is monthlyNeed(house, FOOD_GOODS[0]) whatever mix of foods meets it.
 export const monthlyNeed = (house, good) => Math.ceil(house.residents * GOODS[good].perResidentPerMonth);
 
+const foodOnHand = (house) => FOOD_GOODS.reduce((s, g) => s + (house.stock[g] || 0), 0);
+
+// Each working bazaar tops up every good it sells to its stock level for that good (data: bazaar.stock), from the
+// stores within its supply reach that hold the good, nearest first (spec 4.10).
 export function restockBazaars(world) {
   for (const bz of allBuildings(world)) {
     const def = BUILDINGS[bz.type];
     if (!def.sells || !isWorking(world, bz)) continue;
     for (const good of def.sells) {
-      let need = def.capacity - (bz.store[good] || 0);
+      let need = (def.stock[good] || 0) - (bz.store[good] || 0);
       if (need <= 0) continue;
       const sources = buildingsInReach(world, bz, def.supplyReach,
         (o) => (BUILDINGS[o.type].stores || []).includes(good) && (o.store[good] || 0) > 0);
@@ -44,17 +50,44 @@ export function bazaarsByHouse(world) {
   return map;
 }
 
-export function topUpHouse(world, house, goods, bazaars) {
-  for (const good of goods) {
-    let need = monthlyNeed(house, good) - (house.stock[good] || 0);
-    for (const { b: bz } of bazaars || []) {
-      if (need <= 0) break;
-      const take = Math.min(need, bz.store[good] || 0);
-      if (take > 0) {
-        bz.store[good] -= take;
-        house.stock[good] = (house.stock[good] || 0) + take;
-        need -= take;
-      }
+// Moves up to n of a good from the bazaars (nearest first) into the home's stock; returns how many moved.
+function takeFrom(bazaars, house, good, n) {
+  if (n <= 0) return 0;
+  let left = n;
+  for (const { b: bz } of bazaars || []) {
+    if (left <= 0) break;
+    const take = Math.min(left, bz.store[good] || 0);
+    if (take > 0) {
+      bz.store[good] -= take;
+      house.stock[good] = (house.stock[good] || 0) + take;
+      left -= take;
     }
+  }
+  return n - left;
+}
+
+const heldBy = (bazaars, good) => (bazaars || []).reduce((s, { b }) => s + (b.store[good] || 0), 0);
+
+// Tops a home up to one month of each good in `goods` from the bazaars reaching it, nearest first (spec 4.10).
+// Foods share one month's need, met by any mix, and topping up never takes the food on hand past that need. A home
+// that wants two foods (twoFoods) first takes each food up to half the need (rounded up), then fills what is still
+// short from whichever food is there, grain first. Any other home fills its need from the food its bazaars hold
+// most of (ties go to grain), then from the other, so a surplus of one food is eaten down rather than left to fill
+// the stores. Each household good is topped up to its own month's need.
+export function topUpHouse(world, house, goods, bazaars, { twoFoods = false } = {}) {
+  let foods = goods.filter((g) => FOOD_GOODS.includes(g));
+  if (foods.length) {
+    const need = monthlyNeed(house, FOOD_GOODS[0]);
+    if (twoFoods) {
+      const half = Math.ceil(need / 2);
+      for (const g of foods) takeFrom(bazaars, house, g, Math.min(half - (house.stock[g] || 0), need - foodOnHand(house)));
+    } else {
+      foods = foods.slice().sort((a, b) => heldBy(bazaars, b) - heldBy(bazaars, a));   // stable: ties keep grain first
+    }
+    let gap = need - foodOnHand(house);
+    for (const g of foods) gap -= takeFrom(bazaars, house, g, gap);
+  }
+  for (const good of goods) {
+    if (!FOOD_GOODS.includes(good)) takeFrom(bazaars, house, good, monthlyNeed(house, good) - (house.stock[good] || 0));
   }
 }

@@ -1,5 +1,6 @@
 import { migrate } from './migrate.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { DIFFICULTIES } from '../data/difficulty.js';
 
 // Every top-level field createWorld produces (src/sim/world.js).
 export const REQUIRED = [
@@ -7,10 +8,15 @@ export const REQUIRED = [
   'mood', 'moodBreakdown', 'milestone', 'labour', 'alerts', 'undo', 'roadVersion', 'tradeEntry',
   'raiderEntries', 'focus', 'stats', 'startRoad', 'goals', 'history',
   'firsts', 'achievements', 'daily', 'guide', 'tally',
+  'difficulty', 'trade', 'newItems',
 ];
 
-const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone'];
+const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans'];
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const isCounts = (v) => isRecord(v) && Object.values(v).every(Number.isFinite);       // tally.made: good -> units
+const isStrings = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
+// The trade state's shape (version 3); what each map holds is the trade code's business.
+const isTrade = (t) => isRecord(t) && ['routes', 'orders', 'drift', 'used'].every((k) => isRecord(t[k])) && Number.isInteger(t.year) && t.year >= 1;
 // Firsts and achievements: ids, or null for "mark what is already true without celebrating" (a v1 save).
 const isIdList = (v) => v === null || (Array.isArray(v) && v.every((id) => typeof id === 'string'));
 const isDaily = (d) => d === null || (isRecord(d) && typeof d.date === 'string' && Array.isArray(d.picks)
@@ -35,7 +41,9 @@ export function validateWorld(w) {
   if (!Array.isArray(w.startRoad) || !w.goals || !Array.isArray(w.goals.completed) || !Array.isArray(w.history)) return false;
   if (!Array.isArray(w.goals.triggered) || !isIdList(w.firsts) || !isIdList(w.achievements) || !isDaily(w.daily)) return false;
   if (!isRecord(w.guide) || typeof w.guide.on !== 'boolean' || typeof w.guide.done !== 'boolean') return false;
-  if (!isRecord(w.tally) || !TALLY_KEYS.every((k) => Number.isFinite(w.tally[k]))) return false;
+  if (!isRecord(w.tally) || !TALLY_KEYS.every((k) => Number.isFinite(w.tally[k])) || !isCounts(w.tally.made)) return false;
+  if (typeof w.difficulty !== 'string' || !Object.hasOwn(DIFFICULTIES, w.difficulty)) return false;
+  if (!isTrade(w.trade) || !isStrings(w.newItems)) return false;
   return true;
 }
 

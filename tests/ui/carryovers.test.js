@@ -90,7 +90,7 @@ describe('ui carry-overs', () => {
   it('names the fix for an empty bazaar, keeps every summary label in T, and clears sprites when the pixel ratio changes', async () => {
     const w = makeTestWorld();
     const bazaar = addRaw(w, 'bazaar', 10, 10);
-    expect(alertText({ code: 'bazaar_empty', id: bazaar.id }, w).fix).toBe(`Build a granary with grain within ${BUILDINGS.bazaar.supplyReach} road tiles`);
+    expect(alertText({ code: 'bazaar_empty', id: bazaar.id }, w)).toEqual({ title: 'Bazaar has no food', fix: `Build a granary with grain within ${BUILDINGS.bazaar.supplyReach} road tiles` });   // it may still sell goods
     for (const k of ['grain', 'lasts', 'working', 'jobs']) expect(typeof T[k]).toBe('string');
     const src = await (await fetch('/src/ui/sheets.js')).text();
     expect(/row\('[A-Z]/.test(src)).toBe(false);                               // no literal labels left in the sheets

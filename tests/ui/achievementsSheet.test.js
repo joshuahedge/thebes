@@ -92,8 +92,8 @@ describe('ui achievements sheet', () => {
       setGuide(r.world, false);
       r.world.achievements = [];
       r.store.set(openSheet(r.store.get(), 'summary'));
-      const counted = ACHIEVEMENTS.filter((a) => !['fedAll', 'waterAll', 'jobs'].includes(a.measure.kind));
-      expect(counted.length).toBe(ACHIEVEMENTS.length - 3);
+      const counted = ACHIEVEMENTS.filter((a) => !['fedAll', 'waterAll', 'jobs'].includes(a.measure.kind) && a.measure.n > 1);   // a count of one (an Estate) reads as yes or no
+      expect(counted.length).toBe(ACHIEVEMENTS.length - 4);
       for (const a of counted) {
         const p = achievementProgress(r.world, a);
         const row = rowOf(r, a.id);

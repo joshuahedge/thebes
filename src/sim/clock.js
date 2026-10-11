@@ -6,6 +6,7 @@ import { restockBazaars } from './distribution.js';
 import { monthlyHousing } from './housing.js';
 import { arrivalsBatch, departures } from './immigration.js';
 import { monthlyEconomy } from './economy.js';
+import { tradeMonth } from './trade.js';
 import { updateMood } from './mood.js';
 import { updateMilestone } from './progression.js';
 import { computeAlerts } from './alerts.js';
@@ -15,22 +16,28 @@ import { checkDaily } from './daily.js';
 import { clearUndo } from './undo.js';
 import { checkGoals, triggerEventGoals } from './goals.js';
 import { population, HISTORY_MONTHS } from './world.js';
+import { goodsMonthStart, homeGoodsHeld, recordGoodsMonth } from './goodsMonth.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
 
 // events is an optional array. When given, the sim pushes plain objects into it so the renderer can
 // react (effects, banners). It is never read by the sim and never saved.
 export function runMonth(world, events = null) {
+  const goods = goodsMonthStart(world);               // the month's goods record for the summary (goodsMonth.js)
   restockBazaars(world);
+  const held = homeGoodsHeld(world);
   monthlyHousing(world, events);
+  const heldAfter = homeGoodsHeld(world);
   departures(world);
   monthlyEconomy(world);
+  const tradeSpent = tradeMonth(world, events);
   updateMood(world);
   const milestoneChanged = updateMilestone(world);
   if (milestoneChanged && events) events.push({ type: 'milestone', id: world.milestone });
   computeAlerts(world);
   checkAchievements(world, events);
   clearUndo(world);
+  recordGoodsMonth(world, goods, held, heldAfter, tradeSpent);   // after monthlyEconomy (it starts stats.lastMonth) and tradeMonth
   world.history.push({ day: world.day, people: population(world), gold: world.gold, mood: world.mood });
   if (world.history.length > HISTORY_MONTHS) world.history.splice(0, world.history.length - HISTORY_MONTHS);
   if (events) events.push({ type: 'month' });

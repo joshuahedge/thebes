@@ -1,10 +1,11 @@
 // Interface data: what the build dock shows and in what order, key bindings, and gesture and timing tunables.
+import { TIERS } from './housing.js';
 export const CATEGORIES = [
   { id: 'roads', items: ['road', 'demolish'] },
-  { id: 'homes', items: ['house'] },
-  { id: 'food', items: ['farm_grain', 'granary'] },
-  { id: 'industry', items: [] },
-  { id: 'services', items: ['well', 'bazaar', 'temple'] },
+  { id: 'homes', items: ['house', 'garden', 'statue'] },
+  { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
+  { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'] },
+  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth'] },
   { id: 'defence', items: [] },
   { id: 'monuments', items: [] },
 ];
@@ -14,7 +15,8 @@ export const CATEGORY_ICONS = { roads: '═', homes: '⌂', food: '❋', industr
 // A thin band on each category button and tab in its buildings' emblem colour (early-game pass 2.5).
 export const CATEGORY_TINT = { roads: '#B39466', homes: '#C9552F', food: '#6AA83A', industry: '#8E7470', services: '#2F6FA8', defence: '#9A3A30', monuments: '#E2B13C' };
 
-// Categories with nothing to build stay hidden until a stage fills them; the number keys keep their own mapping.
+// The categories a stage has filled. Which of them show in a city, and which of their cards, depends on its
+// milestone (src/ui/cards.js: shownCategories, shownItems); the number keys keep their own mapping.
 export const visibleCategories = () => CATEGORIES.filter((c) => c.items.length > 0);
 
 export function toolForItem(item) {
@@ -35,11 +37,19 @@ export const SHOW_ME_PULSES = 2;
 export const SHOW_ME_PULSE_MS = 400;
 export const GUIDE_PULSES = 2;          // the guide's map ring pulses twice when its step changes, then stays still (spec 3.2)
 export const GUIDE_PULSE_MS = 600;      // one pulse: under 3 flashes a second, done well within 5 s (spec 5.4)
-export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion' };
+export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion', booth: 'entertainment', garden: 'desirability', statue: 'desirability' };
+
+// The desirability overlay's bands (spec 4.7, 6.3): where each starts. Below the first is unpleasant (hatched); the
+// rest are the "to rise" values of the tiers that need desirability (Manor 20, Fine manor 35, Villa 50, Estate 65), so a
+// band says which home a tile is pleasant enough for, and the overlay follows the data when those are tuned.
+export const DESIRABILITY_STEPS = [0, ...TIERS.filter((t) => t && t.desirability).map((t) => t.desirability.rise)];
 
 // Picking a card or Show me puts a building ghost on the nearest tile where it fits, at most this many tiles
 // out (early-game pass 2.6). Only when nothing fits does it stay on the point itself.
 export const NEAREST_FIT_RADIUS = 10;
+
+// The trade sheet's level to keep moves in steps of this many units (spec 4.15).
+export const TRADE_KEEP_STEP = 10;
 
 // Spec 6.7. Letters are listed in both cases; `undo` needs Ctrl or Cmd.
 export const KEYS = {

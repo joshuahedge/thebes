@@ -26,6 +26,7 @@ export const WOOD = '#6B4A3A';
 export const LEAF = '#4F8A2E';
 export const LEAF2 = '#6AA83A';
 export const LEAF3 = '#3F7526';
+export const INDUSTRY_TINT = '#8E7470';   // the industry category's tint (CATEGORY_TINT.industry in data/ui.js), for its pennants
 
 export const OUTLINE = '#5A4A6A';   // 32% opacity, 0.6 px, where a face meets another
 export const SHADOW = '#3E3260';    // ground shadows, two layers at 12% and 8%
@@ -58,4 +59,7 @@ export const UI = {
   ok: '#2F6FA8', warn: '#E0A030', bad: '#E2604C', label: '#3B2A14', halo: '#FFFFFF',
   water: '#2F6FA8', food: '#E2B13C', religion: '#7A5AA0', housing: '#2E8C83',
   problem: '#A33624',   // the map's problem badge (early-game pass 2.8): white "!" on it reads at 6.8:1
+  // Stage 2 overlays (spec 6.3): goods in kiln orange, entertainment in a deep rose, desirability as one indigo graded light
+  // to dark; and the placement preview's wash where homes would get nicer (spec 4.7).
+  goods: '#B5562A', entertainment: '#A8436B', desirability: '#3D3A8C', nicer: '#2E8C83',
 };

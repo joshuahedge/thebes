@@ -5,8 +5,10 @@ import { T, TERRAIN_BY_NAME } from './terrain.js';
 import { makeBuilding, insertBuilding, removeBuilding, buildingAt } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { canAfford, spend, refund } from './money.js';
+import { costOf, roadCostOf } from './costs.js';
 import { isUnlocked } from './progression.js';
 import { pushUndo } from './undo.js';
+import { storeAccepts } from './production.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 const storesAny = (o, goods) => (BUILDINGS[o.type].stores || []).some((g) => goods.includes(g));
@@ -34,8 +36,9 @@ function placementWarnings(world, type, x, y) {
   const def = BUILDINGS[type];
   const probe = { id: -1, x, y, w: def.w, d: def.d };
   const warnings = [];
-  if (!def.needsRoad && !touchesRoad(world, probe)) warnings.push('needs_road');
-  if (def.produces && !buildingsInReach(world, probe, def.producerReach, (o) => storesAny(o, [def.produces.good])).length) {
+  // A plot can be placed off the road but no one moves in until one touches it; gardens and statues need none.
+  if (type === 'house' && !touchesRoad(world, probe)) warnings.push('needs_road');
+  if (def.produces && !buildingsInReach(world, probe, def.producerReach, (o) => storeAccepts(o, def.produces.good)).length) {
     warnings.push('no_storage');
   }
   if (def.sells && !buildingsInReach(world, probe, def.supplyReach, (o) => storesAny(o, def.sells)).length) {
@@ -47,21 +50,24 @@ function placementWarnings(world, type, x, y) {
 export function canPlace(world, type, x, y) {
   const reason = checkTiles(world, type, x, y);
   if (reason) return fail(reason);
-  if (!canAfford(world, BUILDINGS[type].cost)) return fail('no_gold');
+  if (!canAfford(world, costOf(world, type))) return fail('no_gold');
   return { ok: true, warnings: placementWarnings(world, type, x, y) };
 }
 
 export function place(world, type, x, y) {
   const check = canPlace(world, type, x, y);
   if (!check.ok) return check;
-  const cost = BUILDINGS[type].cost;
+  const cost = costOf(world, type);
   const b = insertBuilding(world, makeBuilding(world, type, x, y));
   spend(world, cost);
   pushUndo(world, { kind: 'place', ids: [b.id], cost });
+  const fresh = world.newItems.indexOf(type);       // its card stops saying "New" (spec 4.14)
+  if (fresh >= 0) world.newItems.splice(fresh, 1);
   return { ok: true, id: b.id, warnings: check.warnings };
 }
 
-export const demolishRefundFor = (b) => (b.type === 'house' ? 0 : Math.floor(BUILDINGS[b.type].cost * ECONOMY.demolishRefund));
+// A quarter of what the building costs in this city (difficulty included); plots refund nothing (spec 4.11).
+export const demolishRefundFor = (world, b) => (b.type === 'house' ? 0 : Math.floor(costOf(world, b.type) * ECONOMY.demolishRefund));
 
 export function demolishAt(world, x, y) {
   if (!isTile(x, y) || !inBounds(world.size, x, y)) return fail('out_of_bounds', { refund: 0 });
@@ -69,7 +75,7 @@ export function demolishAt(world, x, y) {
   if (b) {
     const snap = JSON.parse(JSON.stringify(b));
     removeBuilding(world, b.id);
-    const amount = demolishRefundFor(b);
+    const amount = demolishRefundFor(world, b);
     refund(world, amount);
     pushUndo(world, { kind: 'demolish', buildings: [snap], roads: [], refund: amount });
     return { ok: true, refund: amount, warnings: [] };
@@ -107,6 +113,19 @@ export function setGuide(world, on) {
   return { ok: true, warnings: [] };
 }
 
+// A storehouse's switch for one good (spec 4.10). Refused, producers send the good to other stores or stop with
+// no_storage; what the storehouse already holds stays and can still be drawn on. Only a storehouse has the switches,
+// and only for the goods it stores. Accepting deletes the entry, so a storehouse that takes everything has accepts {}.
+export function setAccept(world, id, good, accept) {
+  const b = world.buildings[id];
+  if (!b) return fail('nothing_here');
+  if (b.type !== 'storehouse' || !(BUILDINGS[b.type].stores || []).includes(good)) return fail('not_storage');
+  if (!b.accepts) b.accepts = {};
+  if (accept) delete b.accepts[good];
+  else b.accepts[good] = false;
+  return { ok: true, warnings: [] };
+}
+
 function lineInto(ax, ay, bx, by, out) {
   const dx = Math.sign(bx - ax), dy = Math.sign(by - ay);
   let x = ax, y = ay;
@@ -140,7 +159,7 @@ export function previewRoad(world, x0, y0, x1, y1, flip = false) {
     if (world.occ[i]) return fail('blocked', { tiles: [], cost: 0 });
     if (!world.road[i]) tiles.push(i);
   }
-  const cost = tiles.length * ECONOMY.roadCost;
+  const cost = tiles.length * roadCostOf(world);
   if (!canAfford(world, cost)) return fail('no_gold', { tiles, cost });
   return { ok: true, warnings: [], tiles, cost };
 }
@@ -169,7 +188,7 @@ export function rectTiles(x0, y0, x1, y1, size = Infinity) {
 
 export function previewHouses(world, x0, y0, x1, y1) {
   const positions = rectTiles(x0, y0, x1, y1, world.size).filter(([x, y]) => checkTiles(world, 'house', x, y) === null);
-  const cost = positions.length * BUILDINGS.house.cost;
+  const cost = positions.length * costOf(world, 'house');
   if (!positions.length) return fail('nothing_to_place', { positions, cost: 0 });
   const warnings = positions.some(([x, y]) => !touchesRoad(world, { x, y, w: 1, d: 1 })) ? ['needs_road'] : [];
   if (!canAfford(world, cost)) return fail('no_gold', { positions, cost, warnings });
@@ -194,7 +213,7 @@ export function previewDemolishArea(world, x0, y0, x1, y1) {
     if (world.occ[i] && !buildingIds.includes(world.occ[i])) buildingIds.push(world.occ[i]);
     if (world.road[i]) roadTiles.push(i);
   }
-  const refundTotal = buildingIds.reduce((s, id) => s + demolishRefundFor(world.buildings[id]), 0);
+  const refundTotal = buildingIds.reduce((s, id) => s + demolishRefundFor(world, world.buildings[id]), 0);
   return { buildingIds, roadTiles, refund: refundTotal };
 }
 

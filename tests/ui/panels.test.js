@@ -8,6 +8,7 @@ import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
 import { startTool, openSheet } from '../../src/ui/modes.js';
 import { makeTestWorld, setRoad } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
+import { rigUI } from '../helpers/uiWorld.js';
 
 describe('ui panels', () => {
   it('side panel: tabs pick the category, the grid shows cards, the fold button folds', () => {
@@ -16,11 +17,11 @@ describe('ui panels', () => {
     const picked = [];
     const panel = createSidePanel({ container: root, store, world: makeTestWorld(), onPick: (i) => picked.push(i) });
     const tabs = root.querySelectorAll('.tab');
-    expect(tabs.length).toBe(4);                                   // empty categories are hidden
-    fire(tabs[3], 'click');
+    expect(tabs.length).toBe(5);                                   // categories with no card to show are hidden
+    fire(tabs[4], 'click');
     expect(store.get().category).toBe('services');
-    expect(tabs[3].getAttribute('aria-pressed')).toBe('true');
-    expect(root.querySelectorAll('.cards .card').length).toBe(3);
+    expect(tabs[4].getAttribute('aria-pressed')).toBe('true');
+    expect(root.querySelectorAll('.cards .card').length).toBe(4);
     fire(root.querySelectorAll('.cards .card')[2], 'click');
     expect(picked).toEqual(['temple']);
     fire(root.querySelector('.fold'), 'click');
@@ -31,6 +32,25 @@ describe('ui panels', () => {
     expect(panel.details.classList.contains('details')).toBe(true);
     cleanup();
   });
+  it('side panel: five tabs on one row at 100% text, and an open sheet below the tabs at any text size', async () => {
+    for (const [width, height] of [[1024, 768], [1280, 800]]) {
+      const r = await rigUI({ width, height });
+      try {
+        expect(r.store.get().layout).toBe('wide');
+        const tabs = () => [...r.root.querySelectorAll('#panel .tab')].map((t) => t.getBoundingClientRect());
+        expect(tabs().length).toBe(5);
+        expect([width, new Set(tabs().map((t) => t.top)).size]).toEqual([width, 1]);   // one row
+        for (const size of [100, 125, 150]) {
+          r.ui.settings.set({ textSize: size });
+          r.store.set(openSheet(r.store.get(), 'summary'));                 // a sheet tall enough to reach its full height
+          const top = r.root.querySelector('#sheet').getBoundingClientRect().top;
+          const rows = new Set(tabs().map((t) => t.top)).size;
+          for (const t of tabs()) expect([`${width} at ${size}%, ${rows} rows`, t.bottom <= top + 0.5]).toEqual([`${width} at ${size}%, ${rows} rows`, true]);
+          r.store.set({ sheet: null });
+        }
+      } finally { r.cleanup(); }
+    }
+  });
   it('rail: category icons open and close the drawer; tick and cross appear in tool modes', () => {
     const { root, cleanup } = mount();
     const world = makeTestWorld({ gold: 1000 });
@@ -40,11 +60,11 @@ describe('ui panels', () => {
     const log = [];
     createRail({ container: root, store, world, onPick: (i) => log.push(i), onConfirm: () => log.push('ok'), onCancel: () => log.push('cancel'), placement });
     const cats = root.querySelectorAll('.cat');
-    expect(cats.length).toBe(4);
+    expect(cats.length).toBe(5);
     expect(root.querySelector('.drawer').hidden).toBe(true);
     fire(cats[1], 'click');
     expect(root.querySelector('.drawer').hidden).toBe(false);
-    expect(root.querySelectorAll('.drawer .card').length).toBe(1);
+    expect(root.querySelectorAll('.drawer .card').length).toBe(3);   // plots, garden, statue (locked until Town)
     fire(cats[1], 'click');
     expect(root.querySelector('.drawer').hidden).toBe(true);
     expect(root.querySelector('.bottom').hidden).toBe(true);

@@ -60,7 +60,7 @@ describe('ui createUI', () => {
     expect(document.body.dataset.layout).toBe('wide');
     expect([shown('dock'), shown('panel'), shown('rail')]).toEqual([false, true, false]);
     expect(r.root.querySelectorAll('#topbar .speed button').length).toBe(4);
-    expect(r.root.querySelectorAll('#panel .cards .card').length).toBe(3);    // the services grid
+    expect(r.root.querySelectorAll('#panel .cards .card').length).toBe(4);    // the services grid, the booth locked until Town
     expect(r.root.querySelector('#panel .minimap canvas')).toBeTruthy();
     r.cleanup();
   });
@@ -144,7 +144,7 @@ describe('ui createUI', () => {
     const settings = { ...real, subscribe(fn) { live++; const off = real.subscribe(fn); let on = true; return () => { if (on) { on = false; live--; } off(); }; } };
     const r = await rigUI({ settings });
     try {
-      expect(live).toBe(1);                                                   // the help watch
+      expect(live).toBe(1);                                                   // the settings watch (help, text size)
       expect(r.store.subscribers()).toBeGreaterThan(5);                       // the components and the guide
       expect(r.world.guide.on).toBe(true);
       r.store.set(openSheet(r.store.get(), 'summary'));

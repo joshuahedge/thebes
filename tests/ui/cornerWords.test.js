@@ -82,7 +82,7 @@ describe('ui corner words', () => {
           try {
             r.ui.settings.set({ textSize: size });
             if (speed) r.ui.speedControl.set(speed);                              // "❚❚ 3×" as well as "▶ Play"
-            r.store.set({ overlay: 'religion' });                                 // the longest overlay word
+            r.store.set({ overlay: 'entertainment' });                            // the longest overlay word
             fire(r.root.querySelector('#rail .cat[data-category="services"]'), 'click');
             expect(r.root.querySelector('#rail .drawer').hidden).toBe(false);
             expect(document.body.classList.contains('narrow')).toBe(true);
@@ -94,7 +94,7 @@ describe('ui corner words', () => {
               const b = box(r, `#corners ${sel}`);
               expect([at, sel, b.width >= 44, b.height >= 44]).toEqual([at, sel, true, true]);
             }
-            for (const [sel, word] of [['.minimap-button', T.mapButton], ['.overlay-button', OVERLAY_NAMES.religion]]) {
+            for (const [sel, word] of [['.minimap-button', T.mapButton], ['.overlay-button', OVERLAY_NAMES.entertainment]]) {
               const b = r.root.querySelector(`#corners ${sel}`);
               expect(b.querySelector('.label').getBoundingClientRect().width).toBeLessThan(2);   // the word leaves the screen
               expect(b.querySelector('.label').textContent).toBe(word);
@@ -120,7 +120,7 @@ describe('ui corner words', () => {
     try {
       r.ui.settings.set({ textSize: 150 });
       r.ui.speedControl.set(3);
-      r.store.set({ overlay: 'religion' });                                       // the longest overlay word
+      r.store.set({ overlay: 'entertainment' });                                  // the longest overlay word
       const left = box(r, '#corners .left'), right = box(r, '#corners .right'), shell = r.root.getBoundingClientRect();
       expect(left.right).toBeLessThanOrEqual(right.left);
       expect(left.left).toBeGreaterThanOrEqual(shell.left);

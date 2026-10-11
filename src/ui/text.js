@@ -5,6 +5,14 @@ import { MILESTONES } from '../data/progression.js';
 import { TIERS } from '../data/housing.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { FIRSTS } from '../data/firsts.js';
+import { GOODS } from '../data/goods.js';
+import { PARTNERS } from '../data/trade.js';
+import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
+import { ECONOMY } from '../data/economy.js';
+import { DIFFICULTIES } from '../data/difficulty.js';
+import { roadCostOf } from '../sim/costs.js';
+import { producerRefused } from '../sim/production.js';
+import { isUnlocked } from '../sim/progression.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -14,7 +22,62 @@ export function buildingName(type) {
   return BUILDINGS[type] ? BUILDINGS[type].name : type;
 }
 
-export const NEED_NAMES = { road: 'Road access', water: 'Water', food: 'Food', religion: 'Temple' };
+export const NEED_NAMES = {
+  road: 'Road access', water: 'Water', food: 'Food', religion: 'Temple',
+  pottery: 'Pottery', entertainment: 'Entertainment', beer: 'Beer', twoFoods: 'Two kinds of food', linen: 'Linen', jewellery: 'Jewellery',
+  desirability: 'Desirability', merge: `Room to become a ${TIERS[6].name}`,
+};
+
+// Goods' names come from the data (GOODS[good].name), as buildings' do; inside a sentence they are lower case.
+export const goodName = (good) => (GOODS[good] ? GOODS[good].name : good);
+const goodWord = (good) => goodName(good).toLowerCase();
+
+// Trade partners, keyed by the ids in src/data/trade.js.
+export const PARTNER_NAMES = { memphis: 'Memphis', byblos: 'Byblos' };
+export const partnerName = (id) => PARTNER_NAMES[id] || id;
+
+// "a", "a and b", "a, b and c".
+export function listText(items) {
+  if (items.length <= 1) return items.join('');
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
+// The building that makes a good and the one that stores it, from the data (null when there is none).
+export const makerOf = (good) => Object.keys(BUILDINGS).find((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good) || null;
+export const storeFor = (good) => Object.keys(BUILDINGS).find((t) => (BUILDINGS[t].stores || []).includes(good)) || null;
+const pluralName = (type) => BUILDING_PLURALS[type] || `${buildingName(type).toLowerCase()}s`;
+
+// Every good's line (spec 4.10): what makes it, what uses it and who trades it, built from the data so it never
+// drifts: "Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis and Byblos".
+export function goodLine(good) {
+  const types = Object.keys(BUILDINGS);
+  const makers = types.filter((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good);
+  const users = types.filter((t) => BUILDINGS[t].consumes === good);
+  const need = GOODS[good] && GOODS[good].kind === 'food' ? 'food' : good;
+  const tier = TIERS.findIndex((t) => t && t.needs.includes(need));
+  const parts = [];
+  if (makers.length) {
+    const from = BUILDINGS[makers[0]].consumes;
+    parts.push(`made by ${listText(makers.map(pluralName))}${from ? ` from ${goodWord(from)}` : ''}`);
+  }
+  if (users.length) parts.push(`used by ${listText(users.map(pluralName))}`);
+  else if (tier > 0) parts.push(`used by ${TIERS[tier].name}s and up`);
+  const buyers = Object.keys(PARTNERS).filter((id) => PARTNERS[id].buys[good]).map(partnerName);
+  const sellers = Object.keys(PARTNERS).filter((id) => PARTNERS[id].sells[good]).map(partnerName);
+  if (buyers.length) parts.push(`sold to ${listText(buyers)}`);
+  if (sellers.length) parts.push(`bought from ${listText(sellers)}`);
+  return parts.length ? `${goodName(good)}: ${parts.join('; ')}` : goodName(good);
+}
+
+// A producer's status line on its sheet: "Making pottery from clay", "Growing figs", "Digging clay", or, when a
+// workshop has nothing to work, "Waiting for clay".
+const MAKE_VERBS = { clay: 'Digging', gems: 'Mining' };
+export function workingText(type) {
+  const def = BUILDINGS[type];
+  const good = goodWord(def.produces.good);
+  return def.consumes ? `Making ${good} from ${goodWord(def.consumes)}` : `${MAKE_VERBS[def.produces.good] || 'Growing'} ${good}`;
+}
+export const waitingText = (good) => `Waiting for ${goodWord(good)}`;
 
 // The house sheet's causes and fixes (early-game pass 2.10), keyed by needCause codes. Reaches come from the data.
 // A provider in reach that is not working (well_idle, bazaar_idle, temple_idle, granary_idle) words itself by the building's own
@@ -43,15 +106,72 @@ export const CAUSE_TEXT = {
   well_no_road: roadlessWords('well'),
   bazaar_no_road: roadlessWords('bazaar'),
   temple_no_road: roadlessWords('temple'),
+  no_booth: { cause: `No booth within ${BUILDINGS.booth.reach} road tiles`, fix: 'Build a booth near it' },
+  booth_idle: idleWords('booth'),
+  booth_no_road: roadlessWords('booth'),
+  low_desirability: { cause: 'The street is not pleasant enough', fix: 'Place gardens or statues near it, or move workshops away' },
+  no_square: { cause: 'No 2×2 square of plots around it', fix: `Make a square with three plots beside it, empty or ${TIERS[5].name}s` },
 };
 
-// The words for one needCause result: { cause, fix }. An idle provider reads its own building's state.
-export function causeText(cause, world) {
+// The buildings that make a good, in the order they are built: the raw producer, then the workshop ("clay pit,
+// potter"; figs: "fig orchard").
+export function goodMakers(good) {
+  const maker = makerOf(good);
+  if (!maker) return [];
+  const input = BUILDINGS[maker].consumes;
+  return [input ? makerOf(input) : null, maker].filter(Boolean);
+}
+const milestoneOf = (type) => MILESTONES.find((m) => m.unlocks.includes(type)) || null;
+const capitalised = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Words for the goods codes (spec 4.10), read as the food codes are: no_good, no store for the good within the
+// bazaar's supply reach (like bazaar_empty), so the fix is that store; good_unmade, stores there but none holds any
+// (like granary_empty), so the fix is what makes it. Buildings not unlocked yet are named with the milestone that
+// brings them, so the fix is never a card the player cannot use; while the good's makers are locked, that is the fix
+// for both codes, as a store would stay empty.
+const comeWith = (types) => `${capitalised(listText(types.map(pluralName)))} come with ${milestoneOf(types[0]).name}`;
+function goodWords(code, good, world) {
+  const name = goodWord(good);
+  const makers = goodMakers(good);
+  const locked = makers.filter((t) => !isUnlocked(world, t));
+  if (code === 'no_good') {
+    const store = storeFor(good);
+    const fix = locked.length ? comeWith(locked)
+      : isUnlocked(world, store) ? `Build a ${buildingName(store).toLowerCase()} within ${BUILDINGS.bazaar.supplyReach} road tiles of it` : comeWith([store]);
+    return { cause: `The bazaar has no ${name}`, fix };
+  }
+  const verb = makers.some((t) => BUILDINGS[t].consumes) ? 'Make' : 'Grow';
+  return {
+    cause: `Nothing ${verb.toLowerCase()}s ${name} near the bazaar`,
+    fix: locked.length ? comeWith(locked) : `${verb} ${name} near it: ${listText(makers.map((t) => `a ${buildingName(t).toLowerCase()}`))}`,
+  };
+}
+
+// The words for one needCause result: { cause, fix }, or null for a code with no words. An idle provider reads its own
+// building's state; the goods codes word themselves by the good (cause.good, else the need when it is a good), and a
+// delivery on its way names the good it brings.
+export function causeText(cause, world, need = null) {
+  const good = cause.good || (need && GOODS[need] ? need : null);
+  if (cause.code === 'next_delivery' && need !== 'food' && (good || need === 'twoFoods')) return { cause: good ? `The next delivery brings ${goodWord(good)}` : T.bothFoodsComing, fix: '' };
+  if ((cause.code === 'no_good' || cause.code === 'good_unmade') && good) return goodWords(cause.code, good, world);
   const t = CAUSE_TEXT[cause.code];
+  if (!t) return null;
   if (!t.paused) return t;
   const b = world.buildings[cause.id];
   return b && b.paused ? t.paused : t.short;
 }
+
+// The desirability row (spec 4.7): "14 of 20: +6 temple, +3 garden, −4 potter", and the warning before a home drops a
+// tier for it (spec 4.6): "Loses Manor in 1 month: the street is not pleasant enough".
+export const contributorText = (value, name) => `${value > 0 ? '+' : '−'}${Math.abs(value)} ${name}`;
+export const desirabilityText = (value, target, parts = []) => `${progressText(Math.round(value), target)}${parts.length ? `: ${parts.join(', ')}` : ''}`;
+export const keepWarningText = (tier, months) => (months === null || months === undefined
+  ? `The street is not pleasant enough to keep a ${tier}`
+  : `Loses ${tier} in ${plural(months, 'month', 'months')}: the street is not pleasant enough`);
+
+// The city summary's economy (spec 4.10, 4.18): the difficulty, each good made against used last month.
+export const DIFFICULTY_NAMES = { relaxed: 'Relaxed', normal: 'Normal', hard: 'Hard' };
+export const madeUsedText = (made, used) => `${made} made, ${used} used`;
 
 // The city summary's mood rows, keyed by world.moodBreakdown.
 export const MOOD_NAMES = { base: 'Starting mood', food: 'Food', jobs: 'Jobs', debt: 'Debt' };
@@ -78,10 +198,19 @@ const REASONS = {
 export const reasonText = (code) => REASONS[code] || "Can't place here";
 
 const WARNINGS = { needs_road: 'No road touches it yet', no_storage: 'No granary within reach', no_supply: 'No granary to supply it' };
-export const warningText = (code) => WARNINGS[code] || "Won't work yet";
+// A producer's warnings name its own storage and input: a potter's ghost says "No storehouse within reach". When a
+// store in reach is built to hold the good but refuses it, the ghost says so instead (store_refuses, a wording of
+// no_storage chosen by the placement preview): "No storehouse in reach accepts pottery".
+export function warningText(code, type = null) {
+  const def = type ? BUILDINGS[type] : null;
+  if (code === 'no_storage' && def && def.produces) return `No ${buildingName(storeFor(def.produces.good)).toLowerCase()} within reach`;
+  if (code === 'store_refuses' && def && def.produces) return `No ${buildingName(storeFor(def.produces.good)).toLowerCase()} in reach accepts ${goodWord(def.produces.good)}`;
+  if (code === 'no_input' && def && def.consumes) return `No ${goodWord(def.consumes)} in reach yet`;
+  return WARNINGS[code] || "Won't work yet";
+}
 
 // What a service will do from the ghost's spot (early-game pass 2.6), counted by homesServedFrom.
-const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}` };
+const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}`, booth: (homes) => `Entertains ${homes}` };
 export function effectText(type, n) {
   if (!EFFECTS[type]) return '';
   return n > 0 ? EFFECTS[type](plural(n, 'home', 'homes')) : T.noHomesInReach;
@@ -100,10 +229,32 @@ export function alertText(alert, world) {
   const name = b ? buildingName(b.type) : 'A building';
   switch (alert.code) {
     case 'no_road': return { title: `${name} has no road`, fix: 'Lay a road beside it' };
-    case 'no_storage': return { title: `${name} has nowhere to store its grain`, fix: `Build a granary within ${b ? BUILDINGS[b.type].producerReach : 12} road tiles` };
-    case 'storage_full': return { title: `${name} has no room left in storage`, fix: 'Build another granary nearby' };
+    case 'no_storage': {
+      const def = b ? BUILDINGS[b.type] : null;
+      const good = def && def.produces ? def.produces.good : 'grain';
+      const store = buildingName(storeFor(good)).toLowerCase();
+      // A store in reach that refuses the good is the likelier cause than a missing one: say how to let it accept.
+      const fix = b && producerRefused(world, b) ? `Let a ${store} in reach accept ${goodWord(good)}, or build another` : `Build a ${store} within ${def ? def.producerReach : 12} road tiles`;
+      return { title: `${name} has nowhere to store its ${goodWord(good)}`, fix };
+    }
+    case 'storage_full': {
+      // Raised on a producer whose stores filled up, and on a store that is full itself.
+      const def = b ? BUILDINGS[b.type] : null;
+      const store = def && def.stores ? b.type : storeFor(def && def.produces ? def.produces.good : 'grain');
+      return { title: def && def.stores ? `${name} is full` : `${name} has no room left in storage`, fix: `Build another ${buildingName(store).toLowerCase()} nearby` };
+    }
+    case 'no_input': {
+      const def = b ? BUILDINGS[b.type] : null;
+      const input = def && def.consumes ? def.consumes : null;
+      if (!input) return { title: `${name} has nothing to work`, fix: 'Bring what it needs within reach' };
+      const maker = makerOf(input), store = storeFor(input);
+      return {
+        title: `${name} has no ${goodWord(input)} in reach`,
+        fix: `Store ${goodWord(input)} within ${def.producerReach} road tiles: a ${buildingName(maker).toLowerCase()} fills a ${buildingName(store).toLowerCase()}`,
+      };
+    }
     case 'understaffed': return { title: `${name} is short of workers`, fix: 'More homes bring more workers' };
-    case 'bazaar_empty': return { title: 'Bazaar is empty', fix: `Build a granary with grain within ${BUILDINGS.bazaar.supplyReach} road tiles` };
+    case 'bazaar_empty': return { title: 'Bazaar has no food', fix: `Build a granary with grain within ${BUILDINGS.bazaar.supplyReach} road tiles` };
     case 'labour_shortage': return { title: `Not enough workers for ${LEVEL_NAMES[alert.level] || alert.level}`, fix: "More homes, or pause buildings you don't need" };
     case 'unemployment': return { title: 'Too many people have no work', fix: 'Build farms, granaries, bazaars or temples' };
     case 'debt': return { title: 'The treasury is in debt', fix: "Pause buildings you don't need; taxes rise as homes grow" };
@@ -115,13 +266,35 @@ export function alertText(alert, world) {
 export const SPEED_LABELS = ['Paused', '1×', '2×', '3×'];
 // The Help setting (early-game pass 3.1), keyed by settings.help.
 export const HELP_NAMES = { full: 'Guide and tips', tips: 'Tips only', off: 'Off' };
-export const OVERLAY_NAMES = { water: 'Water', food: 'Food', religion: 'Religion', housing: 'Housing' };
+export const OVERLAY_NAMES = { water: 'Water', food: 'Food', religion: 'Religion', goods: 'Goods', entertainment: 'Entertainment', desirability: 'Desirability', housing: 'Housing' };
 // The corner buttons' accessible names (early-game pass 2.9); each starts with or contains the word it shows.
 export const pauseSpeedText = (speed) => `${T.pause}, ${T.speed.toLowerCase()} ${SPEED_LABELS[speed]}`;
 export const layersText = (kind) => (kind ? `${T.layers}: ${OVERLAY_NAMES[kind]}` : T.layers);
 export const OVERLAY_LEGEND = {
-  water: ['Has water', 'No water'], food: ['Has food', 'No food'], religion: ['Has a temple', 'No temple'], housing: ['Ready to grow', 'Next need missing'],
+  water: ['Has water', 'No water'], food: ['Has food', 'No food'], religion: ['Has a temple', 'No temple'],
+  goods: ['Has its goods', 'Goods missing'], entertainment: ['Has entertainment', 'No entertainment'], housing: ['Ready to grow', 'Next need missing'],
 };
+
+// The desirability legend (spec 4.7, 6.3): a short label under each band's swatch, and words for screen readers that say
+// what the band is pleasant enough for. Band -1 is below zero; the others follow DESIRABILITY_STEPS (src/data/ui.js).
+const PLEASANT_TIERS = TIERS.filter((t) => t && t.desirability);
+export function desirabilityBand(k) {
+  const s = DESIRABILITY_STEPS;
+  if (k < 0) return { label: `<${s[0]}`, words: `Below ${s[0]}: unpleasant` };
+  const last = k + 1 >= s.length;
+  const label = last ? `${s[k]}+` : `${s[k]}–${s[k + 1] - 1}`;
+  const spoken = last ? `${s[k]} or more` : `${s[k]} to ${s[k + 1] - 1}`;
+  return { label, words: k === 0 ? `${spoken}: plain` : `${spoken}: pleasant enough for a ${PLEASANT_TIERS[k - 1].name}` };
+}
+
+// What a building would do to the homes around it while it is placed (spec 4.7), from desirabilityPreview's counts.
+export function nicerText(better, worse) {
+  const homes = (n) => plural(n, 'home', 'homes');
+  if (better && worse) return `Makes ${homes(better)} nicer and ${worse} less pleasant`;
+  if (better) return `Makes ${homes(better)} nicer`;
+  if (worse) return `Makes ${homes(worse)} less pleasant`;
+  return '';
+}
 
 export const dateText = ({ year, month, day }) => `Year ${year}, month ${month}, day ${day}`;
 export const shortDateText = ({ year, month }) => `Y${year} M${month}`;   // the top bar's date where room is short
@@ -136,14 +309,76 @@ export const showMeLabel = (text) => `${T.showMe}: ${text}`;   // a goal's Show 
 export const viewLabel = (what) => `${T.view}: ${what}`;         // a View names its alert or building, so several of them stay apart
 
 // Goal chapters for the goals sheet (early-game pass 3.3); triggered first-time events come first.
-export const CHAPTER_NAMES = { first_homes: 'First homes', feed: 'Feed the village', grow: 'Grow', event: 'Needs attention' };
+export const CHAPTER_NAMES = { first_homes: 'First homes', feed: 'Feed the village', grow: 'Grow', goods: 'Goods', grand: 'A grand city', event: 'Needs attention' };
 // Daily goals (early-game pass 3.7), keyed by DAILY_POOL ids.
 export const DAILY_TEXT = {
   plots4: 'Place 4 housing plots', roads10: 'Lay 10 road tiles', upgrades3: 'Grow 3 homes a tier', well1: 'Build a well',
   bazaar1: 'Build a bazaar', temple1: 'Build a temple', farm1: 'Build a grain farm', people20: 'Gain 20 people',
   profit1: 'Have a month in profit', harvest100: 'Harvest 100 grain',
+  pottery30: 'Make 30 pottery', gardens3: 'Build 3 gardens', sell20: 'Sell 20 goods to caravans', statue1: 'Build a statue', booth1: 'Build a booth',
 };
 export const milestoneText = (name) => `Your city is now a ${name}`;
+
+// Difficulty on the title card (spec 4.18): what the chosen level changes, from the data. Buildings and trade routes
+// scale by the level's cost multiplier ("about": each price is rounded to whole gold); a road is only 2 gold, so its
+// rounded price per tile is given as it is, on a line of its own (the title card shows the hint with white-space:
+// pre-line). Fire and raids (the risk multiplier) arrive in Stage 3 and are not promised.
+export function difficultyHint(level) {
+  const pct = Math.round((DIFFICULTIES[level].cost - 1) * 100);
+  const roads = `Roads: ${roadCostOf({ difficulty: level })} gold a tile.`;
+  const rest = pct === 0 ? 'at their usual cost' : `cost about ${Math.abs(pct)}% ${pct < 0 ? 'less' : 'more'}`;
+  return `Buildings and trade routes ${rest}.\n${roads}`;
+}
+
+// The trade sheet (spec 4.15): routes and why one cannot open yet, each good's prices, the three choices and the
+// level to keep; then a caravan's caption.
+export const TRADE_MODE_NAMES = { buy: 'Buy', sell: 'Sell', ignore: 'Ignore' };
+export const openRouteText = (cost) => `Open route, ${cost} gold`;
+export function routeBlockText(id, block) {
+  if (block === 'locked') {
+    const m = MILESTONES.find((x) => x.id === PARTNERS[id].milestone);
+    return `Opens at ${m ? m.name : PARTNERS[id].milestone}`;
+  }
+  if (block === 'no_post') return 'Needs a trading post';
+  if (block === 'no_gold') return `Would put the treasury over ${-ECONOMY.debtFloor} gold in debt`;   // the rule every purchase follows (canAfford)
+  return '';
+}
+export const paysText = (name, price) => `${name} pays ${price}`;
+export const asksText = (name, price) => `${name} asks ${price}`;
+// Caravans count the stores within reach of the trading post, not every store in the city.
+export const inStorageText = (n) => `${n} in storage near the post`;
+export const keepText = (n) => `Keep ${n}`;
+export const keepHelpText = (mode, n) => (mode === 'buy' ? `Buys until ${n} are in storage near the post` : `Sells what is over ${n} in storage near the post`);
+export const keepStepText = (sign) => `${sign > 0 ? '+' : '−'}${TRADE_KEEP_STEP}`;
+export const keepStepLabel = (sign, name) => `${keepStepText(sign)}: keep ${sign > 0 ? 'more' : 'less'} ${name.toLowerCase()}`;
+export const tradeChoiceLabel = (name) => `${name}: buy, sell or ignore`;
+const TRADE_REASONS = { no_post: 'Build a trading post first', already_open: 'That route is already open', locked: 'That partner trades with bigger cities', no_gold: 'Not enough gold' };
+export const tradeReasonText = (code) => TRADE_REASONS[code] || "Can't do that yet";
+// Why no caravan will come (caravanBlocker); a post no road joins to the trade entry has its own warning, T.postNotJoined.
+const NO_CARAVAN = {
+  no_post: 'No caravan will come without a trading post',
+  paused: 'No caravan will come while the trading post is paused',
+  short_staffed: 'No caravan will come while the trading post is short of workers',
+};
+export const noCaravanText = (code) => NO_CARAVAN[code] || '';
+
+// A caravan's caption (spec 4.15): what it bought from the city and sold it, any first-visit gift, and the gold the
+// treasury gained or lost: "A caravan from Memphis bought 30 pottery: +240 gold". A visit that both paid and charged
+// says the net ("net +200 gold"), so the caption always matches the treasury. One that found nothing says so and why.
+const goldChangeText = (n) => (n > 0 ? rewardText(n) : n < 0 ? `−${-n} gold` : '0 gold');
+export function caravanText(e) {
+  const goods = (m) => listText(Object.entries(m || {}).filter(([, n]) => n > 0).map(([g, n]) => `${n} ${goodWord(g)}`));
+  const from = partnerName(e.partner);
+  const sold = goods(e.sold), bought = goods(e.bought);
+  const parts = [];
+  if (sold) parts.push(`bought ${sold}`);
+  if (bought) parts.push(`sold you ${bought}`);
+  if (e.gift && e.gift.n > 0) parts.push(`brought a gift of ${e.gift.n} ${goodWord(e.gift.good)}`);
+  if (!parts.length) return { text: `A caravan from ${from} found nothing to trade`, why: T.caravanIdleWhy };
+  const income = e.income || 0, spent = e.spent || 0;
+  const gold = income > 0 && spent > 0 ? `net ${goldChangeText(income - spent)}` : goldChangeText(income - spent);
+  return { text: `A caravan from ${from} ${listText(parts)}${income > 0 || spent > 0 ? `: ${gold}` : ''}`, why: '' };
+}
 
 export const T = {
   fold: 'Fold the panel', unfold: 'Unfold the panel',
@@ -164,6 +399,7 @@ export const T = {
   startNewCity: 'Start new city', newCityConfirm: 'Start a new city? The current one will be lost.', notYet: 'Not available yet', comingLater: 'Coming later',
   sound: 'Sound', vibration: 'Vibration', textSize: 'Text size', leftHanded: 'Left-handed controls', keyboardShortcuts: 'Keyboard shortcuts', reducedMotion: 'Reduce motion', followSystem: 'Follow the system',
   helpLevel: 'Help', suggested: 'Suggested', resumeGuide: 'Resume guide',
+  difficultyForNewCities: 'Difficulty for new cities', difficultyNote: 'A city keeps the level it started with. This one changes the next new city.',
   guideHelp: 'While the guide runs, the card for the next step says Suggested and a ring marks the place. Skip guide in the goals strip turns it off.',
   updateReady: 'Update ready', restart: 'Restart', updateSaveFailed: "Couldn't save, so the update will wait",
   playWithSound: 'Play with sound', playMuted: 'Play muted', install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',
@@ -186,6 +422,13 @@ export const T = {
   achievement: 'Achievement', dailyDone: 'Daily goal done', guideDone: "You've got the basics",
   tip: 'Tip', gotIt: 'Got it', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals. Help in Settings turns them off.', next: 'Next',
   achievements: 'Achievements', achievementsLater: 'Achievements show here once the guide is done.', notYetMet: 'Not yet', closestAchievement: 'Closest achievement',
+  newBadge: 'New', stored: 'Stored', accepted: 'Accepted', refused: 'Refused', notWorking: 'Not working',
+  acceptHelp: 'Tap a good to accept or refuse it here. A refused good goes to other storage, or production stops.',
+  trade: 'Trade', routes: 'Trade routes', routeOpen: 'Route open', tradeGoods: 'Goods', nextCaravan: 'Next caravan', openRouteFirst: 'Open a route to trade goods.',
+  tradeHelp: 'Choose what each caravan buys from you or sells you, and how many to keep in storage.',
+  postNotJoined: "Caravans can't reach the trading post: no road joins it to the trade entry.", postNotJoinedFix: 'Lay a road from it to the trade entry',
+  caravanIdleWhy: 'Set what to buy and sell at the trading post.',
+  difficulty: 'Difficulty', tradeLastMonth: 'Trade last month', tradeSales: 'Sold to caravans', tradeBought: 'Bought from caravans', goodsLastMonth: 'Goods last month', noGoodsYet: 'Nothing made yet', bothFoodsComing: 'The next delivery brings both kinds of food',
 };
 
 export const importErrorText = (code) => (code === 'newer_version' ? T.saveNewer : code === 'read_failed' ? T.fileUnreadable : T.saveUnreadable);
@@ -213,6 +456,13 @@ export const FIRST_TEXT = {
   first_house: { head: `First ${TIERS[4].name}`, why: `A temple let a home grow. ${TIERS[4].name}s hold ${TIERS[4].capacity} people.` },
   first_profit: { head: 'First month in profit', why: 'Taxes covered wages and upkeep, with gold to spare.' },
   people_100: { head: `${PEOPLE_FIRST} people live here`, why: `At ${TOWN.population} people the city becomes a ${TOWN.name}.` },
+  first_pottery: { head: 'First pottery', why: `A potter turned clay into pots. ${TIERS[5].name}s need pottery.` },
+  first_townhouse: { head: `First ${TIERS[5].name}`, why: `Pottery let a home grow. ${TIERS[5].name}s hold ${TIERS[5].capacity} people.` },
+  first_manor: { head: `First ${TIERS[6].name}`, why: `Four homes became one. ${TIERS[6].name}s hold ${TIERS[6].capacity} people.` },
+  first_caravan: { head: 'First caravan', why: 'Traders came to the trading post. Set what they buy and sell there.' },
+  first_fine_manor: { head: `First ${TIERS[7].name}`, why: `Beer and two kinds of food let a ${TIERS[6].name.toLowerCase()} grow.` },
+  first_villa: { head: `First ${TIERS[8].name}`, why: `Linen let a home grow. ${TIERS[8].name}s hold ${TIERS[8].capacity} people.` },
+  first_estate: { head: `First ${TIERS[9].name}`, why: 'Jewellery let a home grow into the finest home in the city.' },
 };
 
 export const ACHIEVEMENT_NAMES = {
@@ -224,14 +474,20 @@ export const ACHIEVEMENT_NAMES = {
   steady_books: 'Steady books', prosperous: 'Prosperous',
   no_one_hungry: 'No one hungry', water_for_all: 'Water for all', busy_hands: 'Busy hands',
   on_course: 'On course', day_by_day: 'Day by day',
+  potters_wheel: "Potter's wheel", merchant_city: 'Merchant city', townhouse_terrace: 'Townhouse terrace', manor_row: 'Manor row',
+  green_city: 'Green city', sculpture_garden: 'Sculpture garden', estate_life: 'Estate life', thousand: 'A thousand souls',
 };
 
-const BUILDING_PLURALS = { well: 'wells', farm_grain: 'grain farms', granary: 'granaries', bazaar: 'bazaars', temple: 'temples' };
+const BUILDING_PLURALS = { well: 'wells', farm_grain: 'grain farms', granary: 'granaries', bazaar: 'bazaars', temple: 'temples', brewery: 'breweries' };
 const TALLY_CONDITIONS = {
   harvested: (n) => `Harvest ${n} grain`,
   profitMonths: (n) => `End ${n} months in profit`,
   upgrades: (n) => `Grow homes ${n} times`,
   dailyDone: (n) => `Finish ${n} daily goals`,
+  tradeIncome: (n) => `Earn ${n} gold from trade`,
+  sold: (n) => `Sell ${n} goods to caravans`,
+  bought: (n) => `Buy ${n} goods from caravans`,
+  caravans: (n) => `Welcome ${n} caravans`,
 };
 
 // An achievement's exact condition, from its declarative measure ("Have 25 homes").
@@ -243,9 +499,10 @@ export function achievementCondition(m) {
       const one = buildingName(m.type).toLowerCase();
       return `Have ${plural(m.n, one, BUILDING_PLURALS[m.type] || `${one}s`)}`;
     }
-    case 'tier': return `Have ${m.n} homes at ${tierName(m.tier)} or better`;
+    case 'tier': return `Have ${plural(m.n, 'home', 'homes')} at ${tierName(m.tier)} or better`;
     case 'people': return `Reach ${m.n} people`;
     case 'tally': return TALLY_CONDITIONS[m.key] ? TALLY_CONDITIONS[m.key](m.n) : '';
+    case 'made': return `Make ${m.n} ${GOODS[m.good].name.toLowerCase()}`;
     case 'goals': return `Finish ${m.n} goals`;
     case 'fedAll': return `Reach ${m.people} people with every ${tierName(3)} or better home fed`;
     case 'waterAll': return `Have ${m.homes} lived-in homes, all with water`;
@@ -271,6 +528,10 @@ export const TIP_TEXT = {
   undo_demolish: 'Press Undo to bring back what you just removed, if you change your mind.',
   goals_list: 'Open Goals to see what comes next, your progress and the gold each pays.',
   overlay_keys: 'Read the overlay: a filled dot has it, a hollow ring lacks it. Tap ✕ to close.',
+  nicer_streets: 'Place gardens and statues near homes: Manors and up need a pleasant street.',
+  storehouse_choices: 'Tap a storehouse to refuse goods. If no store takes one, production stops.',
+  trade_orders: 'Tap the trading post, open a route, then pick what to buy, sell and keep.',
+  merging_homes: 'Add three plots beside a Townhouse in a square: it can become a Manor.',
 };
 
 // Achievements on the summary and the Welcome back card (early-game pass 3.8, 3.9). Counts read as progressText does.

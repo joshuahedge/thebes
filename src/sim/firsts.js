@@ -9,10 +9,16 @@ import { allBuildings, housesOf, population } from './world.js';
 const centre = (b) => (b ? { x: b.x + b.w / 2, y: b.y + b.d / 2 } : { x: null, y: null });
 const isFull = (h) => h.tier >= 1 && h.residents >= TIERS[h.tier].capacity;
 const holdsFood = (b) => (BUILDINGS[b.type].stores || []).some((g) => FOOD_GOODS.includes(g) && (b.store[g] || 0) > 0);
+const holds = (good) => (b) => (BUILDINGS[b.type].stores || []).includes(good) && (b.store[good] || 0) > 0;
+const makes = (good) => (b) => Boolean(BUILDINGS[b.type].produces && BUILDINGS[b.type].produces.good === good);
+// The building a tally's first shows on: the first granary holding food for a harvest, the trading post for a caravan.
+const TALLY_PLACE = { harvested: holdsFood, caravans: (b) => b.type === 'trading_post' };
 
 // null when the first has not happened; otherwise where it happened: the centre of the building that shows
 // it (the first lived-in home, the first full home, the first granary holding food, the first home at the
-// tier), or { x: null, y: null } when nothing on the map shows it (a month in profit). def is a FIRSTS entry.
+// tier, the first trading post for a caravan, the first store holding a good made, else the first building
+// that makes it), or { x: null, y: null } when nothing on the map shows it (a month in profit). def is a
+// FIRSTS entry.
 export function firstMet(world, def) {
   const c = def.check || def;
   switch (c.kind) {
@@ -29,7 +35,12 @@ export function firstMet(world, def) {
     }
     case 'tally':
       if ((world.tally[c.key] || 0) < c.n) return null;
-      return centre(c.key === 'harvested' ? allBuildings(world).find(holdsFood) : null);
+      return centre(TALLY_PLACE[c.key] ? allBuildings(world).find(TALLY_PLACE[c.key]) : null);
+    case 'made': {
+      if (((world.tally.made || {})[c.good] || 0) < c.n) return null;
+      const all = allBuildings(world);
+      return centre(all.find(holds(c.good)) || all.find(makes(c.good)));
+    }
     default:
       return null;
   }

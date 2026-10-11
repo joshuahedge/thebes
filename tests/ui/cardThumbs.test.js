@@ -24,12 +24,13 @@ const inkBox = (c) => {
   return x1 < 0 ? null : { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 };
 };
 const ids = (nodes) => [...nodes].map((n) => n.dataset.category);
-const SHOWN = ['roads', 'homes', 'food', 'services'];
+const SHOWN = ['roads', 'homes', 'food', 'industry', 'services'];
 
 describe('ui card pictures', () => {
-  it('draws a picture for every Stage 1 card, sized for the screen', () => {
+  it('draws a picture for every card, sized for the screen', () => {
     const items = visibleCategories().flatMap((c) => c.items);
-    expect(items).toEqual(['road', 'demolish', 'house', 'farm_grain', 'granary', 'well', 'bazaar', 'temple']);
+    expect(items).toEqual(['road', 'demolish', 'house', 'garden', 'statue', 'farm_grain', 'farm_fig', 'granary', 'clay_pit', 'potter', 'farm_barley', 'brewery',
+      'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'well', 'bazaar', 'temple', 'booth']);
     for (const item of items) {
       const c = drawThumb(document.createElement('canvas'), item, 1);
       expect([item, c.width, c.height]).toEqual([item, THUMB_W, THUMB_H]);
@@ -128,10 +129,12 @@ describe('ui card pictures', () => {
       expect(r.store.get().dock).toBe('tray');
       key(r.root, '3');
       expect(r.store.get().category).toBe('food');
-      key(r.root, '4');                                                           // Industry is hidden in Stage 1: ignored
-      expect(r.store.get().category).toBe('food');
+      key(r.root, '4');                                                           // Industry shows at Village: its Town cards, locked
+      expect(r.store.get().category).toBe('industry');
+      key(r.root, '6');                                                           // Defence has nothing to show in Stage 2: ignored
+      expect(r.store.get().category).toBe('industry');
       key(r.root, '7');                                                           // Monuments too
-      expect(r.store.get().category).toBe('food');
+      expect(r.store.get().category).toBe('industry');
     } finally { r.cleanup(); }
   });
   it('fits every tray of picture cards under the corner buttons at 100% and 150% text', async () => {
@@ -170,7 +173,7 @@ describe('ui card pictures', () => {
       try {
         fire(r.root.querySelector(`${width === 844 ? '#rail' : '#panel'} ${width === 844 ? '.cat' : '.tab'}[data-category="services"]`), 'click');
         const cards = [...r.root.querySelectorAll(`${host} .card`)];
-        expect([width, cards.length]).toEqual([width, 3]);
+        expect([width, cards.length]).toEqual([width, 4]);
         for (const c of cards) {
           const box = c.getBoundingClientRect();
           const pic = c.querySelector('.thumb').getBoundingClientRect();

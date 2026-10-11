@@ -39,7 +39,7 @@ describe('sim events', () => {
     expect(arrivals.length).toBe(1);
     expect(arrivals[0].count).toBeGreaterThan(0);
     w.mood = 100;
-    for (const b of Object.values(w.buildings)) if (b.type === 'house') b.residents = 16;
+    for (const b of Object.values(w.buildings)) if (b.type === 'house') b.residents = 6;   // 180 people: a Town, short of Market town at 250
     advanceDays(w, 20, events);
     expect(events.some((e) => e.type === 'milestone' && e.id === 'town')).toBe(true);
   });

@@ -20,6 +20,7 @@ function count(world, m) {
     case 'tier': return housesOf(world).filter((h) => h.tier >= m.tier).length;
     case 'people': return Math.max(world.tally.peakPeople, population(world));
     case 'tally': return world.tally[m.key] || 0;
+    case 'made': return (world.tally.made || {})[m.good] || 0;
     case 'goals': return world.goals.completed.length;
     default: return null;
   }

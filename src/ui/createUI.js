@@ -10,10 +10,10 @@ import { startDaily } from '../sim/daily.js';
 import { setGuide } from '../sim/commands.js';
 import { checkFirsts } from '../sim/firsts.js';
 import { checkAchievements } from '../sim/achievements.js';
-import { population, housesOf } from '../sim/world.js';
+import { population, housesOf, allBuildings } from '../sim/world.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
-import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker } from '../render/overlays.js';
+import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
@@ -29,7 +29,7 @@ import { pickBuilding } from './pick.js';
 import { createPlacement, snapGhost } from './placement.js';
 import { createHud } from './hud.js';
 import { createSpeedControl } from './speed.js';
-import { cardInfo, activeItemOf } from './cards.js';
+import { cardInfo, activeItemOf, shownItems } from './cards.js';
 import { createDock } from './dock.js';
 import { createConfirmBar } from './confirmBar.js';
 import { createSidePanel } from './sidePanel.js';
@@ -47,9 +47,10 @@ import { TIP_AUTO_CLOSE_MS } from '../data/tips.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { welcomeSheet } from './welcomeBack.js';
+import { tradeSheet } from './tradeSheet.js';
 import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
-import { buildingName, reasonText, milestoneText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, T } from './text.js';
 
 const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
@@ -67,7 +68,7 @@ export function createUI({
   const view = getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
 
   // Ghost and day bookkeeping lives up here: afterCommand is hoisted and may run during construction.
-  let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [];
+  let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [], tintList = [];
   let saveFailed = false, destroyed = false;
   // Daily goals (spec 3.7) come from the device's local date, read once when this game starts, so nothing expires
   // mid-session (a session that crosses midnight keeps its goals; the next start draws the new day).
@@ -143,14 +144,19 @@ export function createUI({
     canResumeGuide: () => canResumeGuide(world, settings.get().help), onResumeGuide: () => { setGuide(world, true); refresh(); },
   });
   // Choosing Tips only or Off turns a running guide off at once (spec 3.1: all of it can be switched off).
-  // Choosing Guide and tips again does not restart it; Resume guide in How to play does.
+  // Choosing Guide and tips again does not restart it; Resume guide in How to play does. A new text size can wrap the
+  // side panel's tabs to more rows, so the panel measures them again.
   let lastHelp = settings.get().help;
-  const stopHelpWatch = settings.subscribe((v) => {
+  const stopSettingsWatch = settings.subscribe((v) => {
+    sidePanel.render();
     if (v.help === lastHelp) return;
     lastHelp = v.help;
     if (v.help !== 'full' && world.guide.on) { setGuide(world, false); refresh(); }
   });
-  const customSheets = { ...menus, goals: goalsSheet(world, { onShowMe: showMe }) };
+  const customSheets = {
+    ...menus, goals: goalsSheet(world, { onShowMe: showMe }),
+    trade: tradeSheet({ world, afterCommand, onShowMe: showMeAt, toast: (text) => toasts.show(text) }),
+  };
   if (welcome) {
     customSheets.welcome = welcomeSheet({
       world, savedAt: welcome.savedAt, lastSpeed: welcome.lastSpeed, now: clock, getAlerts: () => alerts.list(), onView: viewAlert,
@@ -212,8 +218,13 @@ export function createUI({
     for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(x, y, at + i * SHOW_ME_PULSE_MS);
   }
   // A goal's Show me: the next building it still needs, at its target. A goal with nowhere to point (debt)
-  // opens the city summary instead.
+  // opens the city summary instead, and the trade route goal, once a trading post stands, opens that post's trade
+  // sheet: the route is opened there, not by placing another post.
   function showMe(goal) {
+    if (goal.id === 'trade_route') {
+      const post = allBuildings(world).find((b) => b.type === 'trading_post');
+      if (post) { selectBuilding(post.id); store.set(openSheet(store.get(), 'trade', post.id)); return; }
+    }
     if (!goal.showMe) { closeAnySheet(); store.set(openSheet(store.get(), 'summary')); return; }
     const item = nextItemFor(world, goal) || goal.showMe.item;
     const t = showMeTarget(world, goal);
@@ -262,8 +273,10 @@ export function createUI({
     }
     nudge.noteAction();                                // a command is a meaningful action (early-game pass 3.5)
     if (e.undoable && e.kind === 'houses' && world.speed === 0) fireTip('plotsPaused');
-    if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type]) fireTip('servicePlaced');
+    if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type] && BUILDINGS[store.get().tool.type].reach) fireTip('servicePlaced');   // a reach tip: a garden has none
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
+    if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
+    if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'trading_post') fireTip('tradingPostPlaced');
     if (e.kind === 'speed' && world.speed > 0 && tips.current() === 'press_play') tips.dismiss();   // its condition has cleared
     ghostsDirty = true;
     // Goals, firsts, achievements and daily goals settle after every command (undo and speed included), so a
@@ -359,6 +372,7 @@ export function createUI({
     }
     if (e.type === 'daily') return DAILY_TEXT[e.id] ? { tier: 'first', text: `${T.dailyDone}: ${DAILY_TEXT[e.id]}`, reward: e.reward, onShow: cheerSound } : null;
     if (e.type === 'guide_done') return { tier: 'first', text: T.guideDone, reward: e.reward, onShow: cheerSound };
+    if (e.type === 'caravan') { const c = caravanText(e); return { tier: 'first', text: c.text, why: c.why, onShow: cheerSound }; }
     return null;
   }
   // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js).
@@ -427,9 +441,9 @@ export function createUI({
 
   const keyActions = {
     pause: () => speedControl.toggle(), speedUp: () => speedControl.faster(), speedDown: () => speedControl.slower(),
-    category: (i) => {                                 // keys 1-7 keep their categories; a hidden one does nothing (early-game pass 2.5)
+    category: (i) => {                                 // keys 1-7 keep their categories; one with no card to show does nothing (early-game pass 2.5, spec 4.14)
       const c = CATEGORIES[i];
-      if (!c || !c.items.length) return;
+      if (!c || !shownItems(world, c.id).length) return;
       const s = store.get();
       store.set(s.layout === 'wide' ? { category: c.id } : { category: c.id, dock: 'tray' });
     },
@@ -484,7 +498,14 @@ export function createUI({
   store.subscribe((s) => {
     const opened = Boolean(s.sheet) && s.sheet !== seenSheet;
     if ((isToolMode(s.mode) && !isToolMode(seenMode)) || opened) nudge.noteAction();
-    if (opened && s.sheet.kind === 'info') { const b = world.buildings[s.sheet.id]; if (b && b.type === 'house') fireTip('houseSheet'); }
+    if (opened && s.sheet.kind === 'info') {
+      const b = world.buildings[s.sheet.id];
+      if (b && b.type === 'house') {
+        fireTip('houseSheet');
+        if (b.tier >= 5) fireTip('desirabilityShown');   // its next tier needs a pleasant street (spec 4.7)
+        if (b.tier === 5) fireTip('townhouseSheet');      // it grows by joining three plots beside it (spec 4.6)
+      }
+    }
     if (s.overlay && s.overlay !== seenOverlay && !isToolMode(s.mode)) fireTip('overlayOn');
     if (!isToolMode(s.mode)) tips.flush({ busy: false });
     seenMode = s.mode; seenSheet = s.sheet; seenOverlay = s.overlay;
@@ -493,7 +514,11 @@ export function createUI({
   // Ghosts are recomputed only when the UI state object changes or a command ran (previews call canPlace).
   function ghosts() {
     const s = store.get();
-    if (s !== ghostState || ghostsDirty) { ghostState = s; ghostsDirty = false; ghostList = isToolMode(s.mode) ? placement.ghosts() : []; }
+    if (s !== ghostState || ghostsDirty) {
+      ghostState = s; ghostsDirty = false;
+      ghostList = isToolMode(s.mode) ? placement.ghosts() : [];
+      tintList = isToolMode(s.mode) ? placement.tint() : [];   // the desirability the ghost would change (spec 4.7)
+    }
     return ghostList;
   }
 
@@ -517,7 +542,9 @@ export function createUI({
         if (s.overlay) drawOverlay(g, world, s.overlay, r);
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
         if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change
-        for (const ghost of ghosts()) drawGhost(g, ghost);
+        const shapes = ghosts();                                                // refreshes the tint as well
+        drawDesirabilityTint(g, tintList);                                     // spec 4.7: teal wash nicer, coral hatching worse, under the ghost
+        for (const ghost of shapes) drawGhost(g, ghost);
         drawProblemMarkers(g, world, alerts.list(), r);                        // early-game pass 2.8: one badge per building with a problem
       },
     });
@@ -558,7 +585,7 @@ export function createUI({
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      guide.destroy(); stopHelpWatch();                // the guide's store subscription and the shared settings' help watch
+      guide.destroy(); stopSettingsWatch();            // the guide's store subscription and the shared settings' watch
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); celebrations.clear();
@@ -567,7 +594,8 @@ export function createUI({
       $('goals').hidden = false;                       // the strip hides its row when no goal is open; the next UI decides again
       for (const id of ['sheet', 'dialog']) { const c = $(id); clear(c); c.hidden = true; }
       confirmBar.element.remove();
-      document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it
+      document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it, and the tabs' edge
+      document.body.style.removeProperty('--panel-tabs-bottom');
       delete root.dataset.mode;
       root.classList.remove('has-banner', 'has-overlay', 'nudge-play');
       store.dispose();                                 // last: every component's subscription to this interface's store

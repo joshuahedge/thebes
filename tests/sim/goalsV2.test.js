@@ -27,8 +27,8 @@ function readyCity() {
 
 describe('goals v2', () => {
   it('lists the chain in chapters, the guide goals and the event goals', () => {
-    expect(ids(GOALS)).toEqual(['road', 'plots', 'well', 'food', 'temple', 'homes_cottage', 'people100', 'homes_house', 'town']);
-    expect(GOALS.map((g) => g.chapter)).toEqual(['first_homes', 'first_homes', 'first_homes', 'feed', 'feed', 'grow', 'grow', 'grow', 'grow']);
+    expect(ids(GOALS.slice(0, 9))).toEqual(['road', 'plots', 'well', 'food', 'temple', 'homes_cottage', 'people100', 'homes_house', 'town']);
+    expect(GOALS.slice(0, 9).map((g) => g.chapter)).toEqual(['first_homes', 'first_homes', 'first_homes', 'feed', 'feed', 'grow', 'grow', 'grow', 'grow']);
     expect(goalById('homes_cottage').need).toEqual({ kind: 'tier', tier: 3, n: 8 });
     expect(goalById('homes_cottage').text).toBe('Grow 8 homes to Cottage or better');
     expect(goalById('homes_house').need).toEqual({ kind: 'tier', tier: 4, n: 8 });
@@ -47,7 +47,8 @@ describe('goals v2', () => {
     expect(goalById('fix_bazaar').showMe).toEqual({ category: 'food', item: 'granary', target: 'alert', code: 'bazaar_empty' });
     expect(goalById('out_of_debt').showMe).toBe(null);
     for (const g of [...GOALS, ...EVENT_GOALS]) {
-      if (g.showMe) expect([g.id, CATEGORIES.find((c) => c.id === g.showMe.category).items.includes(g.showMe.item)]).toEqual([g.id, true]);
+      if (!g.showMe) continue;
+      expect([g.id, CATEGORIES.find((c) => c.id === g.showMe.category).items.includes(g.showMe.item)]).toEqual([g.id, true]);
     }
     const all = ids([...GOALS, ...EVENT_GOALS]);
     expect(new Set(all).size).toBe(all.length);
@@ -117,6 +118,18 @@ describe('goals v2', () => {
     expect(triggerEventGoals(w)).toEqual([]);
     expect(w.goals.triggered).toEqual(['fix_bazaar']);
     expect(ids(openGoals(w))).toEqual(['plots', 'well', 'food']);
+  });
+  it('calls a bazaar empty when it has no food, even with household goods in stock', () => {
+    const w = makeTestWorld();
+    setRoad(w, 0, 10, 31, 10);
+    const bz = addRaw(w, 'bazaar', 9, 11);
+    staffAll(w);
+    bz.store.pottery = 5;
+    bz.store.beer = 3;
+    expect(alertsFor(w).map((a) => a.code)).toEqual(['bazaar_empty']);
+    expect(triggerEventGoals(w)).toEqual(['fix_bazaar']);
+    bz.store.figs = 1;                                            // any food clears it
+    expect(alertsFor(w).map((a) => a.code)).toEqual([]);
   });
   it('puts triggered event goals first, in their listed order', () => {
     const w = makeTestWorld({ gold: -10 });
