@@ -1,10 +1,12 @@
 // Stage 1 service buildings, ported from the approved mock-up (well, granary, bazaar, temple, fieldTile).
 // The grain farm is new: a fenced 2x2 field of grain rows with a small farmhouse in the near corner.
 // Each service carries a small pennant in its emblem colour (spec 5.3) so it reads at phone zoom.
+// Granaries and bazaars show their stock and farms their crop (early-game pass 2.2, 2.3): each draws a stage
+// chosen by stages.js, and SERVICE_ART registers one slot per stage beside the plain type slot.
 import { box, tb, qd, crs, door, fence, pots, awn, col, tile, p, U, quad, hs } from './primitives.js';
 import {
-  WASH, MUD2, STONE, THATCH, TEAL, TEAL_DARK, BLUE, RED, GOLD, PINK, GREEN, GREEN_DARK, LEAF2, WOOD, DOOR,
-  TERRAIN,
+  WASH, MUD2, STONE, THATCH, GOLDC, TEAL, TEAL_DARK, BLUE, RED, GOLD, PINK, ORANGE, GREEN, GREEN_DARK, LEAF2, WOOD, DOOR,
+  SHADOW, TERRAIN,
 } from './palette.js';
 import { boundsFor } from '../iso.js';
 
@@ -51,29 +53,77 @@ export function well(g, x, y) {
   pennant(g, U(b, 8), 6, SERVICE_EMBLEM.well);
 }
 
-// Granary: a whitewashed block with a teal band, four domed silos and grain sacks by the door.
-export function granary(g, X, Y) {
+// Granary: a whitewashed block with a teal band, four domed silos and grain sacks by the door. `stage`
+// (granaryStage) shows the stock so it reads at map zoom on a phone: 0 empty, dark hatches and a bare yard;
+// 1 grain in the front silo and two sacks; 2 grain in two silos, a row of sacks and a small heap at the door;
+// 3 every silo heaped, six sacks and a big heap, about a quarter of a tile across, at the door.
+const GRAIN = GOLD, GRAIN_LIGHT = GOLDC[0], GRAIN_SHADE = GOLDC[2], GRAIN_SPECK = ORANGE;
+const SACKS = ['#D8B47A', '#C8A068'], SACK_TIE = '#9C7A54';
+const SILO_RANK = [1, 2, 3, 0];                    // each silo's turn to fill (back, right, left, front): front first
+const SILOS_FILLED = [0, 1, 2, 4];
+const SACK_SPOTS = [0.46, 0.6, 0.74, 1.4, 1.53, 1.66]; // tile x along the lit face's foot, left then right of the door
+const SACKS_AT = [0, 2, 3, 6];
+const YARD_HEAP = [null, null, [3.2, 2.8], [5, 4.6]];   // [half-width, height] in art px of the heap at the door
+
+// A heap of loose grain standing on the art point q, rx half-width and h tall, lit from the upper left.
+function grainHeap(g, q, rx, h) {
+  const [x, y] = q, ry = rx * 0.45, left = [x - rx, y], right = [x + rx, y], peak = [x - rx * 0.1, y - h];
+  g.ell([x + rx * 0.3, y + ry * 0.3], rx * 1.1, ry * 1.2, SHADOW, { alpha: 0.18 });             // its shadow on the ground
+  g.path([['M', left], ['Q', [x - rx * 0.6, y - h * 1.05], peak], ['Q', [x + rx * 0.45, y - h * 1.05], right], ['Q', [x, y + ry * 2], left], ['Z']], GRAIN, { outline: true });
+  g.path([['M', peak], ['Q', [x + rx * 0.45, y - h * 1.05], right], ['Q', [x + rx * 0.6, y + ry * 1.6], [x + rx * 0.25, y + ry * 0.9]], ['Q', [x + rx * 0.15, y - h * 0.35], peak], ['Z']], GRAIN_SHADE, { alpha: 0.5 });
+  g.ell([x - rx * 0.4, y - h * 0.45], rx * 0.28, h * 0.2, GRAIN_LIGHT, { alpha: 0.9 });
+  for (const [a, b] of [[-0.5, -0.1], [0.05, -0.55], [0.35, 0.1], [-0.15, 0.3]]) g.circ([x + a * rx, y + b * h * 0.6], 0.35, GRAIN_SPECK, { alpha: 0.7 });
+}
+
+function sack(g, q, color) {
+  g.ell(U(q, 1.4), 1.8, 1.5, color, { outline: true });
+  g.ell(U(q, 3), 0.8, 0.45, SACK_TIE);
+}
+
+export function granary(g, X, Y, stage = 3) {
   const F = box(g, X + 0.1, Y + 0.1, 1.8, 1.8, 9, 0, WASH);
   door(g, F, 0.42, 0.58, 6);
   qd(g, F.L, 0, 1, 7.4, 8.4, TEAL);
   qd(g, F.R, 0, 1, 7.4, 8.4, TEAL_DARK);
-  for (const [u, v] of [[0.6, 0.6], [1.4, 0.6], [0.6, 1.4], [1.4, 1.4]]) {
+  [[0.6, 0.6], [1.4, 0.6], [0.6, 1.4], [1.4, 1.4]].forEach(([u, v], i) => {
     const c = U(p(X + u, Y + v), 9);
     g.dome(c, 8, 8.5, 4, { outline: true });
-    g.circ([c[0], c[1] - 8.2], 1.3, '#5A4A5A');
-  }
-  [0.42, 0.52, 0.62].forEach((u, i) => g.ell(U(p(X + u + 0.1, Y + 2.08), 1.2), 1.7, 1.3, i % 2 ? '#E2C990' : '#EED6A0', { outline: true }));
+    const top = [c[0], c[1] - 8.2];
+    if (SILO_RANK[i] >= SILOS_FILLED[stage]) { g.circ(top, 1.3, '#5A4A5A'); return; }
+    g.ell(top, 4.4, 2.2, GRAIN_SHADE, { outline: true });                   // the open hatch, full of grain
+    if (stage === 3) { grainHeap(g, [top[0], top[1] + 0.3], 4, 3.8); return; }     // heaped above the brim
+    g.ell([top[0] - 0.2, top[1] - 0.2], 3.8, 1.8, GRAIN);
+    g.ell([top[0] - 1.2, top[1] - 0.7], 1.8, 0.7, GRAIN_LIGHT);
+  });
+  SACK_SPOTS.slice(0, SACKS_AT[stage]).forEach((x, i) => sack(g, p(X + x, Y + 2.06), SACKS[i % 2]));
+  if (YARD_HEAP[stage]) grainHeap(g, p(X + 1, Y + 2.16), ...YARD_HEAP[stage]);   // spilling from the door
   pennant(g, U(p(X + 1.85, Y + 0.15), 9), 7, SERVICE_EMBLEM.granary);
 }
 
-// Bazaar: four stalls, each a counter of goods under a striped awning in its own colour.
-export function bazaar(g, X, Y) {
+// Bazaar: four stalls, each a counter of goods under a striped awning in its own colour. The awnings hide the
+// counter tops at map zoom, so the stock shows on the ground in front of each counter. `stage` (bazaarStage):
+// 0 bare, with an empty basket by each stall; 1 a heaped basket in front of each counter; 2 piled: two heaped
+// baskets and a jar in front of each counter and full baskets beside them.
+const GOODS = [[0.3, '#C9552F'], [0.55, GOLD], [0.8, '#6E9E3A']];
+const BASKET = '#B08436';
+function heapedBasket(g, q, color) {
+  g.ell(U(q, 0.9), 2.3, 1.35, BASKET, { outline: true });
+  g.ell(U(q, 1.9), 1.8, 1.05, color, { outline: true });
+}
+export function bazaar(g, X, Y, stage = 2) {
   const cs = [[RED, '#933E2B'], [GOLD, '#B08436'], [BLUE, '#245A88'], [GREEN, GREEN_DARK]];
   [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([i, j], k) => {
     const x = X + i, y = Y + j;
     box(g, x + 0.24, y + 0.3, 0.52, 0.4, 3.2, 0, ['#D9B47A', '#C49E66', '#A08478']);
-    for (const [u, c] of [[0.3, '#C9552F'], [0.55, GOLD], [0.8, '#6E9E3A']]) g.ell(U(p(x + 0.24 + 0.52 * u, y + 0.55), 3.4), 1.4, 0.9, c, { outline: true });
-    g.ell(U(p(x + 0.88, y + 0.5), 1), 1.6, 1, '#D9B060', { outline: true });
+    if (stage > 0) for (const [u, c] of GOODS) g.ell(U(p(x + 0.24 + 0.52 * u, y + 0.55), 3.4), 1.4, 0.9, c, { outline: true });
+    const side = U(p(x + 0.88, y + 0.5), 1);
+    if (stage === 2) g.ell(side, 1.6, 1, '#D9B060', { outline: true });
+    else g.ell(side, 1.6, 1, 'none', { stroke: '#A08478', strokeWidth: 0.6 });
+    if (stage >= 1) heapedBasket(g, p(x + 0.5, y + 0.9), GOODS[k % 3][1]);
+    if (stage === 2) {
+      heapedBasket(g, p(x + 0.74, y + 0.9), GOODS[(k + 1) % 3][1]);
+      pots(g, p(x + 0.24, y + 0.88), 1);
+    }
     awn(g, x + 0.1, y + 0.1, 0.8, 0.8, 7.5, cs[k][0], cs[k][1]);
   });
   pennant(g, U(p(X + 1.9, Y + 0.1), 8.7), 7, SERVICE_EMBLEM.bazaar);
@@ -127,10 +177,46 @@ export function temple(g, X, Y) {
   pyl(X + 1.15);
 }
 
-// Grain farm: four field tiles with straight rows, a reed fence round the edge that stops at the
-// farmhouse, and a small thatched farmhouse in the near corner with pots and a green pennant.
-export function farmGrain(g, X, Y) {
-  for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) fieldTile(g, X + i, Y + j, 'grain');
+// One field tile of the grain farm at a growth stage: 0 fallow (ploughed furrows), 1 sprouting, 2 green
+// grain (fieldTile), 3 golden grain.
+const LOAM = '#8A6A42', FURROW = '#6E5234', RIDGE = '#B49268', SPROUT = '#7FB04A', SPROUT_TIP = '#B4D86A';
+const RIPE = '#D4AE4E', RIPE_STALK = '#A88E3A', RIPE_HEAD = '#F2DE90';
+export function cropTile(g, x, y, stage) {
+  if (stage === 2) { fieldTile(g, x, y, 'grain'); return; }
+  const edge = { stroke: TERRAIN.fieldEdge, strokeWidth: 0.6, strokeAlpha: 0.35 };
+  if (stage === 3) {
+    tile(g, x, y, RIPE, edge);
+    for (let v = 0.14; v < 0.95; v += 0.18) {
+      for (let u = 0.08; u < 0.98; u += 0.11) {
+        const q = p(x + u, y + v), hh = 2.6 + hs(x * 7 + u, y * 3 + v, 1) * 1.2;
+        g.line(q, [q[0] + 0.3, q[1] - hh], RIPE_STALK, 0.7);
+        g.circ([q[0] + 0.3, q[1] - hh], 0.6, RIPE_HEAD);
+      }
+    }
+    return;
+  }
+  tile(g, x, y, LOAM, edge);
+  for (let v = 0.14; v < 0.95; v += 0.18) {                 // a furrow per crop row, a pale ridge beside it
+    g.line(p(x + 0.04, y + v), p(x + 0.96, y + v), FURROW, 0.8, 0.55);
+    g.line(p(x + 0.04, y + v + 0.06), p(x + 0.96, y + v + 0.06), RIDGE, 0.6, 0.6);
+  }
+  if (stage !== 1) return;
+  for (let v = 0.14; v < 0.95; v += 0.18) {
+    for (let u = 0.08; u < 0.98; u += 0.11) {
+      const q = p(x + u, y + v), hh = 0.9 + hs(x * 7 + u, y * 3 + v, 1) * 0.6;
+      g.line(q, [q[0] - 0.3, q[1] - hh], SPROUT, 0.6);
+      g.circ([q[0] - 0.3, q[1] - hh], 0.35, SPROUT_TIP);
+    }
+  }
+}
+
+// Grain farm: four crop tiles, a reed fence round the edge that stops at the farmhouse, and a small thatched
+// farmhouse in the near corner with pots and a green pennant. `stage` (farmStage): 0 fallow, 1 sprouting,
+// 2 green, 3 golden; the back row (the two tiles at j = 0) runs one stage ahead, capped at golden, so a
+// working field shows two stages at once.
+export function farmGrain(g, X, Y, stage = 2) {
+  const back = stage === 0 ? 0 : Math.min(3, stage + 1);
+  for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) cropTile(g, X + i, Y + j, j === 0 ? back : stage);
   fence(g, X + 0.02, Y + 0.02, 1.96, 0.06);
   fence(g, X + 0.02, Y + 0.02, 0.06, 1.96);
   fence(g, X + 0.02, Y + 1.92, 1.3, 0.06);
@@ -144,14 +230,24 @@ export function farmGrain(g, X, Y) {
   pennant(g, U(p(a + w, b + 0.06), 0), 9, SERVICE_EMBLEM.farm_grain);
 }
 
+// The plain type slots are what cards and assets show: a full granary, a piled bazaar, a green field.
+export const PLAIN_STAGE = { granary: 3, bazaar: 2, farm_grain: 2 };
+
+const FARM_SLOT = { w: 2, d: 2, height: 12, bounds: boundsFor(2, 2, 12), shadows: [[1.4, 1.4, 0.52, 0.52, 9]] };
+const GRANARY_SLOT = { w: 2, d: 2, height: 22, bounds: boundsFor(2, 2, 22), shadows: [[0.1, 0.1, 1.8, 1.8, 16]] };
+const BAZAAR_SLOT = {
+  w: 2, d: 2, height: 16, bounds: boundsFor(2, 2, 16),
+  shadows: [[0.12, 0.12, 0.76, 0.76, 9], [1.12, 0.12, 0.76, 0.76, 9], [0.12, 1.12, 0.76, 0.76, 9], [1.12, 1.12, 0.76, 0.76, 9]],
+};
+
 export const SERVICE_ART = {
   well: { w: 1, d: 1, height: 18, bounds: boundsFor(1, 1, 18), shadows: [[0.28, 0.28, 0.44, 0.44, 6]], draw: well },
-  farm_grain: { w: 2, d: 2, height: 12, bounds: boundsFor(2, 2, 12), shadows: [[1.4, 1.4, 0.52, 0.52, 9]], draw: farmGrain },
-  granary: { w: 2, d: 2, height: 22, bounds: boundsFor(2, 2, 22), shadows: [[0.1, 0.1, 1.8, 1.8, 16]], draw: granary },
-  bazaar: {
-    w: 2, d: 2, height: 16, bounds: boundsFor(2, 2, 16),
-    shadows: [[0.12, 0.12, 0.76, 0.76, 9], [1.12, 0.12, 0.76, 0.76, 9], [0.12, 1.12, 0.76, 0.76, 9], [1.12, 1.12, 0.76, 0.76, 9]],
-    draw: bazaar,
-  },
+  farm_grain: { ...FARM_SLOT, draw: (g, x, y) => farmGrain(g, x, y, PLAIN_STAGE.farm_grain) },
+  granary: { ...GRANARY_SLOT, draw: (g, x, y) => granary(g, x, y, PLAIN_STAGE.granary) },
+  bazaar: { ...BAZAAR_SLOT, draw: (g, x, y) => bazaar(g, x, y, PLAIN_STAGE.bazaar) },
   temple: { w: 2, d: 2, height: 40, bounds: boundsFor(2, 2, 40), shadows: [[0.25, 0.2, 1.5, 1, 15], [0.1, 1.2, 1.8, 0.7, 23]], draw: temple },
 };
+// One slot per stage, named as slotFor (registry.js) names them: granary.s0-s3, bazaar.s0-s2, farm_grain.g0-g3.
+for (let s = 0; s < 4; s++) SERVICE_ART[`granary.s${s}`] = { ...GRANARY_SLOT, draw: (g, x, y) => granary(g, x, y, s) };
+for (let s = 0; s < 3; s++) SERVICE_ART[`bazaar.s${s}`] = { ...BAZAAR_SLOT, draw: (g, x, y) => bazaar(g, x, y, s) };
+for (let s = 0; s < 4; s++) SERVICE_ART[`farm_grain.g${s}`] = { ...FARM_SLOT, draw: (g, x, y) => farmGrain(g, x, y, s) };
