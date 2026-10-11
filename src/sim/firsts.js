@@ -41,6 +41,12 @@ export function firstMet(world, def) {
       const all = allBuildings(world);
       return centre(all.find(holds(c.good)) || all.find(makes(c.good)));
     }
+    case 'building': {                                                   // Stage 3: the first one of a type, where it stands
+      const b = allBuildings(world).find((x) => x.type === c.type);
+      return b ? centre(b) : null;
+    }
+    case 'tallies':                                                      // Stage 3: tallies added together (blazes and fires put out)
+      return c.keys.reduce((s, k) => s + (world.tally[k] || 0), 0) >= c.n ? centre(null) : null;
     default:
       return null;
   }

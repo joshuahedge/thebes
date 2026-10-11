@@ -8,6 +8,7 @@ import { alertsFor } from './alerts.js';
 import { idx } from './grid.js';
 import { atLeast, milestoneIndex } from './progression.js';
 import { openRoutes } from './trade.js';
+import { raidsOn } from './costs.js';
 
 const SETTLE_MAX = 20;   // settleGoals stops after this many completions in one go
 
@@ -55,13 +56,21 @@ export function goalProgress(world, goal) {
   }
 }
 
-// The first time an alert with an event goal's trigger code appears, that goal joins the list (once per city).
-export function triggerEventGoals(world) {
+// Stage 3: a goal about raids (raids: true) is not for a Peaceful city (spec 4.18).
+const forCity = (world, g) => !g.raids || raidsOn(world);
+
+// The chain this city plays: every goal but the raid goals on Peaceful.
+export const chainGoals = (world) => GOALS.filter((g) => forCity(world, g));
+
+// The first time an alert with one of an event goal's trigger codes appears, that goal joins the list (once per city).
+// A goal whose building already stands is not news (a covered first fire means a firehouse is there): it waits for a
+// later trouble, if the building has gone by then. alerts: the city's alerts when the caller has them (alertsFor's).
+export function triggerEventGoals(world, alerts = null) {
   const { completed, triggered } = world.goals;
-  const waiting = EVENT_GOALS.filter((g) => !triggered.includes(g.id) && !completed.includes(g.id));
+  const waiting = EVENT_GOALS.filter((g) => !triggered.includes(g.id) && !completed.includes(g.id) && forCity(world, g));
   if (!waiting.length) return [];
-  const codes = new Set(alertsFor(world).map((a) => a.code));
-  const fired = waiting.filter((g) => codes.has(g.trigger)).map((g) => g.id);
+  const codes = new Set((alerts || alertsFor(world)).map((a) => a.code));
+  const fired = waiting.filter((g) => [].concat(g.trigger).some((c) => codes.has(c)) && !goalMet(world, g.need)).map((g) => g.id);
   triggered.push(...fired);
   return fired;
 }
@@ -79,17 +88,26 @@ function unfinished(world) {
   const done = new Set(world.goals.completed);
   const triggered = new Set(world.goals.triggered);
   return {
-    events: EVENT_GOALS.filter((g) => triggered.has(g.id) && !done.has(g.id)),
-    chain: GOALS.filter((g) => !done.has(g.id)),
+    events: EVENT_GOALS.filter((g) => triggered.has(g.id) && !done.has(g.id) && forCity(world, g)),
+    chain: chainGoals(world).filter((g) => !done.has(g.id)),
   };
 }
+
+// The direction raids come from now: the warning's, the band's, else the last raid's; null before any.
+function raidDir(world) {
+  const r = world.raid;
+  const x = r.warning || r.active || r.last;
+  return x ? x.dir : null;
+}
+// A goal worded for this city: one with dirText names the raiders' direction ("Build a tower facing the east").
+const worded = (world, g) => (g.dirText && g.dirText[raidDir(world)] ? { ...g, text: g.dirText[raidDir(world)] } : g);
 
 // The goals the player sees: triggered event goals first, then the chain, both without the completed ones. The
 // chain stops before its first goal that waits for a milestone, so no later goal shows ahead of it.
 export function openGoals(world, limit = 3) {
   const { events, chain } = unfinished(world);
   const stop = chain.findIndex((g) => waits(world, g));
-  return [...events, ...(stop < 0 ? chain : chain.slice(0, stop))].slice(0, limit);
+  return [...events, ...(stop < 0 ? chain : chain.slice(0, stop))].slice(0, limit).map((g) => worded(world, g));
 }
 
 // Every goal checkGoals can complete: all that are not done, in the same order, except those waiting for a

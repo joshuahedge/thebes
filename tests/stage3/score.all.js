@@ -6,3 +6,4 @@ import './score/records.test.js';
 import './score/share.test.js';
 import './score/sealShare.test.js';
 import './score/titleDecor.test.js';
+import './score/dangerGoals.test.js';

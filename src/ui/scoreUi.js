@@ -163,6 +163,23 @@ export function createScoreUi(ctx) {
     ]);
   }
 
+  // Danger's six tips (spec 4.19, src/data/tips.js), each asked for when its lesson becomes news. The tips row decides
+  // whether one shows (once per device, the gaps, Help: Off).
+  const tip = (key) => { if (typeof ctx.fireTip === 'function') ctx.fireTip(key); };
+  function tipsFor(events) {
+    for (const e of events) {
+      if (e.type === 'milestone' && e.id === 'town') tip('fireRisk');                // fire risk builds from Town
+      else if (e.type === 'fire_grow') tip('fireGrew');                               // a fire can spread
+      else if (e.type === 'burned' && e.kind !== 'house') tip('rubbleLeft');          // a burned home leaves empty plots, the rest rubble
+      else if (e.type === 'raid_warning') { tip('raidWarned'); if (!e.first) tip('tributeOffered'); }   // the first raid cannot be paid off
+    }
+  }
+  function tipsForCommand(e) {
+    const built = e.kind === 'building' && e.result && world.buildings[e.result.id];
+    if (built && built.type === 'firehouse') tip('fireRisk');
+    if (e.kind === 'wall') tip('wallDrawn');
+  }
+
   // The chip on the summary button (hud.js makes the empty node): the live total, refreshed with the chrome.
   function renderChip() {
     const chip = root.querySelector('#topbar .score-chip');
@@ -175,11 +192,11 @@ export function createScoreUi(ctx) {
     sheets: { sealReign: sealSheet, shareScore: shareSheet },
     // Made without a world (the contract's shape test), it has no parts.
     sheetParts: { building: () => [], house: () => [], actions: () => [], summary: () => (world ? [summarySection()] : []) },
-    onEvents(events) { if (events.length) version++; },
+    onEvents(events) { if (!events.length) return; version++; if (world) tipsFor(events); },
     refresh() { if (world) { version++; renderChip(); } },
     onAlertAction() {},
-    onCommand() { version++; },
-    destroy() {},
+    onCommand(e) { version++; if (world && e) tipsForCommand(e); },
+    destroy() { picture = null; },                      // a picture still being made never touches a later interface's sheet
   };
 }
 

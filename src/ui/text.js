@@ -594,6 +594,8 @@ export const DANGER_UI_TEXT = {};
 // Track E's words for scoring: parts, reasons, medals, splits, records, sharing, feats, remarks, and the danger goals, firsts, achievements, daily goals and tips. Add new lines just above the end marker.
 // Imports for this section only, aliased so no other section's names can clash (import declarations are hoisted).
 import { DAYS_PER_MONTH as SCORE_DAYS_PER_MONTH, MONTHS_PER_YEAR as SCORE_MONTHS_PER_YEAR } from '../sim/time.js';
+import { DEFENCE as SCORE_DEFENCE } from '../data/raids.js';
+import { DAILY_POOL as SCORE_DAILY_POOL } from '../data/daily.js';
 // The score (spec 4.19): parts, reasons, medals, the chip, the confirm bar's "+3 Culture" and the summary's section. Every
 // number comes from scoreOf (src/sim/score.js); the reason codes and their fields are listed there.
 export const SCORE_TEXT = {
@@ -675,6 +677,35 @@ export const TITLE_SCORE_TEXT = {
   beat: (total) => `Beat ${total}?`,
   startOn: (level) => `It starts on ${DIFFICULTY_NAMES[level] || level}, the level of the shared score.`,
 };
+// Danger in the goals and rewards (spec 4.19): the chapter, five firsts, four achievements, three daily goals and six
+// tips. Every number comes from the data, and every claim follows the rules of fire (spec 4.12) and raids (spec 4.13).
+const scoreAchievement = (id) => ACHIEVEMENTS.find((a) => a.id === id).measure;
+const scoreDaily = (id) => SCORE_DAILY_POOL.find((d) => d.id === id);
+Object.assign(CHAPTER_NAMES, { danger: 'Danger' });
+Object.assign(FIRST_TEXT, {
+  // A staffed firehouse (coverage of half or more) puts blazes out; any working one in road reach slows the risk.
+  first_firehouse: { head: 'First firehouse', why: `Staffed, it puts out blazes and slows fire risk up to ${BUILDINGS.firehouse.reach} road tiles away.` },
+  // A blaze goes out only with a staffed firehouse in reach, a fire only with one reaching it: either way one reached it.
+  first_fire_out: { head: 'First fire put out', why: 'A firehouse that reaches the building saved it.' },
+  first_wall: { head: 'First wall', why: 'Raiders must break through a wall before they can pass it.' },
+  first_tower: { head: 'First tower', why: `Staffed, it shoots raiders up to ${SCORE_DEFENCE.towerRange} tiles away.` },
+  first_raid_beaten: { head: 'First raid beaten', why: 'Your defences turned the raiders back.' },
+});
+Object.assign(ACHIEVEMENT_NAMES, { fire_brigade: 'Fire brigade', safe_streets: 'Safe streets', wall_builder: 'Wall builder', raid_breaker: 'Raid breaker' });
+Object.assign(ACHIEVEMENT_TEXT, {
+  safe_streets: `Reach ${scoreAchievement('safe_streets').people} people with no building burned for a year`,
+  wall_builder: `Draw ${scoreAchievement('wall_builder').n} wall tiles`,
+  raid_breaker: `Beat ${scoreAchievement('raid_breaker').n} raids`,
+});
+Object.assign(DAILY_TEXT, { firehouse1: 'Build a firehouse', wall10: `Draw ${scoreDaily('wall10').n} wall tiles`, tower1: 'Build a tower' });
+Object.assign(TIP_TEXT, {
+  fire_risk: `Watch fire risk from Town: a staffed firehouse within ${BUILDINGS.firehouse.reach} road tiles slows it.`,
+  firebreaks: 'Leave roads between buildings: fire spreads only to buildings that touch.',
+  clearing_rubble: 'Clear rubble with Demolish: tap it or drag over it. Clearing costs gold.',
+  raider_targets: 'Guard trading posts, storehouses, bazaars and temples: raiders want those.',
+  tribute_once: 'Pay tribute only if you must: it cancels this raid, not the next one.',
+  wall_ring: 'Close your wall into a ring and set towers on it: raiders must break through.',
+});
 // ── end s3 score ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

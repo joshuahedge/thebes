@@ -13,6 +13,8 @@
 //   fedAll     every home at Cottage or above fed last month, in a city of at least `people` people
 //   waterAll   every lived-in home reached by a working well, at least `homes` of them
 //   jobs       at least `people` people and unemployment at most `rate`
+//   safeYear   at least `people` people and no building burned for `days` days (counted from Town where its day is known)
+// raids: true marks an achievement about raids, which a Peaceful city (no raids, spec 4.18) never earns or lists.
 export const ACHIEVEMENTS = [
   { id: 'way_in', measure: { kind: 'roads', n: 10 } },
   { id: 'neighbours', measure: { kind: 'homes', n: 10 } },
@@ -46,4 +48,9 @@ export const ACHIEVEMENTS = [
   { id: 'sculpture_garden', measure: { kind: 'buildings', type: 'statue', n: 10 } },
   { id: 'estate_life', measure: { kind: 'tier', tier: 9, n: 1 } },
   { id: 'thousand', measure: { kind: 'people', n: 1000 } },
+  // Stage 3 (spec 4.19): danger's four.
+  { id: 'fire_brigade', measure: { kind: 'buildings', type: 'firehouse', n: 3 } },
+  { id: 'safe_streets', measure: { kind: 'safeYear', people: 500, days: 360 } },
+  { id: 'wall_builder', measure: { kind: 'tally', key: 'wallTiles', n: 50 } },
+  { id: 'raid_breaker', raids: true, measure: { kind: 'tally', key: 'raidsBeaten', n: 3 } },
 ];

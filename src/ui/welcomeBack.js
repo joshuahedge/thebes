@@ -4,8 +4,7 @@ import { population } from '../sim/world.js';
 import { dateParts } from '../sim/clock.js';
 import { openGoals, guideActive } from '../sim/goals.js';
 import { dailyProgress } from '../sim/daily.js';
-import { achievementProgress } from '../sim/achievements.js';
-import { ACHIEVEMENTS } from '../data/achievements.js';
+import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { CRITICAL } from './alerts.js';
 import { scoreOf } from '../sim/score.js';
 import { el, button } from './components.js';
@@ -52,7 +51,7 @@ function trendRow(label, current, history, key) {
 export function closestAchievement(world) {
   const done = new Set(world.achievements || []);
   let best = null;
-  for (const def of ACHIEVEMENTS) {
+  for (const def of achievementsFor(world)) {      // Stage 3: none about raids on Peaceful
     if (done.has(def.id)) continue;
     const p = achievementProgress(world, def);
     if (p.n <= 0 || p.n >= p.of) continue;
