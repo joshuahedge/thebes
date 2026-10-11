@@ -127,17 +127,20 @@ const capitalised = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // Words for the goods codes (spec 4.10), read as the food codes are: no_good, no store for the good within the
 // bazaar's supply reach (like bazaar_empty), so the fix is that store; good_unmade, stores there but none holds any
 // (like granary_empty), so the fix is what makes it. Buildings not unlocked yet are named with the milestone that
-// brings them, so the fix is never a card the player cannot use.
+// brings them, so the fix is never a card the player cannot use; while the good's makers are locked, that is the fix
+// for both codes, as a store would stay empty.
 const comeWith = (types) => `${capitalised(listText(types.map(pluralName)))} come with ${milestoneOf(types[0]).name}`;
 function goodWords(code, good, world) {
   const name = goodWord(good);
+  const makers = goodMakers(good);
+  const locked = makers.filter((t) => !isUnlocked(world, t));
   if (code === 'no_good') {
     const store = storeFor(good);
-    return { cause: `The bazaar has no ${name}`, fix: isUnlocked(world, store) ? `Build a ${buildingName(store).toLowerCase()} within ${BUILDINGS.bazaar.supplyReach} road tiles of it` : comeWith([store]) };
+    const fix = locked.length ? comeWith(locked)
+      : isUnlocked(world, store) ? `Build a ${buildingName(store).toLowerCase()} within ${BUILDINGS.bazaar.supplyReach} road tiles of it` : comeWith([store]);
+    return { cause: `The bazaar has no ${name}`, fix };
   }
-  const makers = goodMakers(good);
   const verb = makers.some((t) => BUILDINGS[t].consumes) ? 'Make' : 'Grow';
-  const locked = makers.filter((t) => !isUnlocked(world, t));
   return {
     cause: `Nothing ${verb.toLowerCase()}s ${name} near the bazaar`,
     fix: locked.length ? comeWith(locked) : `${verb} ${name} near it: ${listText(makers.map((t) => `a ${buildingName(t).toLowerCase()}`))}`,
@@ -425,7 +428,7 @@ export const T = {
   tradeHelp: 'Choose what each caravan buys from you or sells you, and how many to keep in storage.',
   postNotJoined: "Caravans can't reach the trading post: no road joins it to the trade entry.", postNotJoinedFix: 'Lay a road from it to the trade entry',
   caravanIdleWhy: 'Set what to buy and sell at the trading post.',
-  difficulty: 'Difficulty', tradeIncome: 'Trade income', goodsLastMonth: 'Goods last month', noGoodsYet: 'Nothing made yet', bothFoodsComing: 'The next delivery brings both kinds of food',
+  difficulty: 'Difficulty', tradeLastMonth: 'Trade last month', tradeSales: 'Sold to caravans', tradeBought: 'Bought from caravans', goodsLastMonth: 'Goods last month', noGoodsYet: 'Nothing made yet', bothFoodsComing: 'The next delivery brings both kinds of food',
 };
 
 export const importErrorText = (code) => (code === 'newer_version' ? T.saveNewer : code === 'read_failed' ? T.fileUnreadable : T.saveUnreadable);

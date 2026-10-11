@@ -177,7 +177,7 @@ function putNear(world, post, good, n) {
   return n - left;
 }
 
-// One caravan from an open route, at the given post.
+// One caravan from an open route, at the given post. Returns the gold the city paid it.
 function caravan(world, partnerId, post, events) {
   const p = PARTNERS[partnerId];
   const route = world.trade.routes[partnerId];
@@ -221,10 +221,12 @@ function caravan(world, partnerId, post, events) {
   t.tradeIncome += income;
   t.caravans += 1;
   if (events) events.push({ type: 'caravan', partner: partnerId, sold, bought, income, spent, gift });
+  return spent;
 }
 
 // The month-end trade step (runMonth): a new year resets the quotas used and redraws the drift; on a caravan
 // month every open route sends a caravan, in PARTNERS order, if a working trading post is joined to the trade entry.
+// Returns the gold the city paid caravans this month (the summary's purchases).
 export function tradeMonth(world, events = null) {
   const t = world.trade;
   const year = yearOf(world.day);
@@ -233,10 +235,10 @@ export function tradeMonth(world, events = null) {
     t.used = {};
     t.drift = drawDrift(world.seed, year);
   }
-  if (world.day % CARAVAN_DAYS !== 0) return;
+  if (world.day % CARAVAN_DAYS !== 0) return 0;
   const open = Object.keys(PARTNERS).filter((id) => t.routes[id]);
-  if (!open.length) return;
+  if (!open.length) return 0;
   const post = activePost(world);
-  if (!post) return;
-  for (const id of open) caravan(world, id, post, events);
+  if (!post) return 0;
+  return open.reduce((spent, id) => spent + caravan(world, id, post, events), 0);
 }

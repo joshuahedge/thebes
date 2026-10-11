@@ -81,16 +81,44 @@ describe('ui house sheet for the economy', () => {
   });
   it('words makers or a store that are not unlocked yet by the milestone that brings them, and a food as grown', () => {
     const w = makeTestWorld();
-    expect(causeText({ code: 'no_good', id: null, good: 'pottery' }, w, 'pottery')).toEqual({ cause: 'The bazaar has no pottery', fix: 'Storehouses come with Town' });
+    expect(causeText({ code: 'no_good', id: null, good: 'pottery' }, w, 'pottery')).toEqual({ cause: 'The bazaar has no pottery', fix: 'Clay pits and potters come with Town' });
     w.milestone = 'town';
+    expect(causeText({ code: 'no_good', id: null, good: 'pottery' }, w, 'pottery').fix).toBe('Build a storehouse within 16 road tiles of it');
+    w.milestone = 'market_town';                                                       // a storehouse is no help while nothing can make beer
+    expect(causeText({ code: 'no_good', id: null, good: 'beer' }, w, 'beer')).toEqual({ cause: 'The bazaar has no beer', fix: 'Barley farms and breweries come with City' });
     expect(causeText({ code: 'good_unmade', id: null, good: 'beer' }, w, 'beer')).toEqual({ cause: 'Nothing makes beer near the bazaar', fix: 'Barley farms and breweries come with City' });
     w.milestone = 'city';
     expect(causeText({ code: 'good_unmade', id: null, good: 'beer' }, w, 'beer').fix).toBe('Make beer near it: a barley farm and a brewery');
+    expect(causeText({ code: 'no_good', id: null, good: 'beer' }, w, 'beer').fix).toBe('Build a storehouse within 16 road tiles of it');
     expect(causeText({ code: 'good_unmade', id: null, good: 'figs' }, w, 'twoFoods')).toEqual({ cause: 'Nothing grows figs near the bazaar', fix: 'Grow figs near it: a fig orchard' });
     expect(causeText({ code: 'no_good', id: null, good: 'figs' }, w, 'twoFoods').fix).toBe('Build a granary within 16 road tiles of it');
     expect(causeText({ code: 'next_delivery', id: null, good: 'figs' }, w, 'twoFoods').cause).toBe('The next delivery brings figs');
     expect(causeText({ code: 'next_delivery', id: null }, w, 'food')).toBe(CAUSE_TEXT.next_delivery);   // food keeps its words
     expect(causeText({ code: 'no_such_code', id: null }, w, 'water')).toBe(null);
+  });
+  it('offers no store for a good nothing can make yet, and names the milestone that brings its makers', async () => {
+    const w = makeTestWorld({ gold: 5000 });
+    w.milestone = 'market_town';
+    setRoad(w, 0, 10, 31, 10);
+    const manor = addRaw(w, 'house', 22, 8, { w: 2, d: 2, tier: 6, residents: 60, stock: { grain: 30, pottery: 10 }, stockedFor: 60 });
+    addRaw(w, 'bazaar', 24, 11);
+    addRaw(w, 'granary', 28, 11, { store: { grain: 100 } });
+    staffAll(w);
+    const r = await rigUI({ world: w });
+    try {
+      r.store.set(select(r.store.get(), manor.id));
+      let beer = rowOf(r, 'beer');
+      expect(words(beer, '.cause')).toBe('The bazaar has no beer');
+      expect(words(beer, '.fix span')).toBe('Barley farms and breweries come with City');
+      expect(beer.querySelector('button')).toBe(null);                                // no storehouse card: it would not bring beer
+      sheetTellsTheTruth(r);
+      w.milestone = 'city';
+      r.ui.refresh();
+      beer = rowOf(r, 'beer');
+      expect(words(beer, '.fix span')).toBe('Build a storehouse within 16 road tiles of it');
+      fire(beer.querySelector('.show-me'), 'click');
+      expect(r.store.get().tool).toEqual({ kind: 'building', type: 'storehouse' });
+    } finally { r.cleanup(); }
   });
   it('aims Show me for a terrain-bound maker at fertile land, even when it lies beyond the search around the bazaar', async () => {
     const w = makeTestWorld({ gold: 5000 });                                          // fertile land is the columns x < 8
@@ -206,7 +234,7 @@ describe('ui house sheet for the economy', () => {
       sheetTellsTheTruth(r);
     } finally { r.cleanup(); }
   });
-  it('sums up the economy: the difficulty, trade income, food by kind and each good made against used last month', async () => {
+  it('sums up the economy: the difficulty, trade sales and purchases, food by kind and each good made against used last month', async () => {
     const r = await rigUI();
     try {
       const rows = () => [...r.root.querySelectorAll('#sheet .row')].map((row) => [row.firstChild.textContent, row.lastChild.textContent]);
@@ -215,16 +243,21 @@ describe('ui house sheet for the economy', () => {
       expect(rows()[0]).toEqual([T.difficulty, 'Hard']);
       expect(r.root.querySelector('#sheet').textContent).toContain(T.noGoodsYet);
       r.store.set({ sheet: null });
-      r.world.stats.lastMonth = { taxes: 10, wages: 4, upkeep: 2, net: 4, made: { pottery: 30, clay: 40, grain: 25 }, used: { pottery: 26, clay: 30, grain: 18 }, tradeIncome: 240 };
+      r.world.stats.lastMonth = { taxes: 10, wages: 4, upkeep: 2, net: 4, made: { pottery: 30, clay: 40, grain: 25 }, used: { pottery: 26, clay: 30, grain: 18 }, tradeIncome: 240, tradeSpent: 40 };
       r.world.buildings[Object.keys(r.world.buildings).find((id) => r.world.buildings[id].type === 'granary')].store = { grain: 50, figs: 12 };
       r.store.set(openSheet(r.store.get(), 'summary'));
       const all = rows();
-      expect(all.some(([k, v]) => k === T.tradeIncome && v === '+240')).toBe(true);
+      // Trade has its own heading after Net (which leaves it out): what caravans paid and what the city paid them.
+      const section = (text) => {
+        const out = [];
+        const h = [...r.root.querySelectorAll('#sheet h3')].find((x) => x.textContent === text);
+        for (let n = h.nextElementSibling; n && n.tagName !== 'H3'; n = n.nextElementSibling) out.push([n.firstChild.textContent, n.lastChild.textContent]);
+        return out;
+      };
+      expect(section(T.incomeVsSpending).map(([k]) => k)).toEqual([T.taxes, T.wages, T.upkeep, T.net]);
+      expect(section(T.tradeLastMonth)).toEqual([[T.tradeSales, '+240'], [T.tradeBought, '−40']]);
       expect(all.some(([k, v]) => k === goodName('figs') && v === '12')).toBe(true);
-      const head = [...r.root.querySelectorAll('#sheet h3')].find((h) => h.textContent === T.goodsLastMonth);
-      const goods = [];
-      for (let n = head.nextElementSibling; n && n.tagName !== 'H3'; n = n.nextElementSibling) goods.push([n.firstChild.textContent, n.lastChild.textContent]);
-      expect(goods).toEqual([[goodName('grain'), '25 made, 18 used'], [goodName('pottery'), '30 made, 26 used'], [goodName('clay'), '40 made, 30 used']]);
+      expect(section(T.goodsLastMonth)).toEqual([[goodName('grain'), '25 made, 18 used'], [goodName('pottery'), '30 made, 26 used'], [goodName('clay'), '40 made, 30 used']]);
     } finally { r.cleanup(); }
   });
   it('has words for every code the housing check can give as a cause, so no row is left silent', async () => {

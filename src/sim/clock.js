@@ -30,14 +30,14 @@ export function runMonth(world, events = null) {
   const heldAfter = homeGoodsHeld(world);
   departures(world);
   monthlyEconomy(world);
-  tradeMonth(world, events);
+  const tradeSpent = tradeMonth(world, events);
   updateMood(world);
   const milestoneChanged = updateMilestone(world);
   if (milestoneChanged && events) events.push({ type: 'milestone', id: world.milestone });
   computeAlerts(world);
   checkAchievements(world, events);
   clearUndo(world);
-  recordGoodsMonth(world, goods, held, heldAfter);   // after monthlyEconomy (it starts stats.lastMonth) and tradeMonth
+  recordGoodsMonth(world, goods, held, heldAfter, tradeSpent);   // after monthlyEconomy (it starts stats.lastMonth) and tradeMonth
   world.history.push({ day: world.day, people: population(world), gold: world.gold, mood: world.mood });
   if (world.history.length > HISTORY_MONTHS) world.history.splice(0, world.history.length - HISTORY_MONTHS);
   if (events) events.push({ type: 'month' });

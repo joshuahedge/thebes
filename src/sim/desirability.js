@@ -41,7 +41,9 @@ function signature(world) {
   let h = 0x811c9dc5;
   for (let i = 0; i < list.length; i++) {
     const b = list[i];
-    h = Math.imul(h ^ (b.id * 4099 + b.x * 67 + b.y), 16777619);
+    h = Math.imul(h ^ b.id, 16777619);                    // one step each, so no two (id, x, y) pack to the same input
+    h = Math.imul(h ^ b.x, 16777619);
+    h = Math.imul(h ^ b.y, 16777619);
     h = Math.imul(h ^ ((b.tier | 0) * 16 + b.w * 4 + b.d), 16777619);
   }
   return `${list.length}:${h}`;
