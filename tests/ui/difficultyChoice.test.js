@@ -8,7 +8,8 @@ import { boot, loadSave } from '../../src/boot.js';
 import { createSaveStore } from '../../src/save/store.js';
 import { packSave } from '../../src/save/serialize.js';
 import { createWorld } from '../../src/sim/world.js';
-import { DIFFICULTY_ORDER } from '../../src/data/difficulty.js';
+import { roadCostOf } from '../../src/sim/costs.js';
+import { DIFFICULTIES, DIFFICULTY_ORDER } from '../../src/data/difficulty.js';
 import { T, DIFFICULTY_NAMES, difficultyHint } from '../../src/ui/text.js';
 import { fakeIndexedDB } from '../helpers/fakeStorage.js';
 import { mountShell, fakeHistory, rigUI } from '../helpers/uiWorld.js';
@@ -62,9 +63,21 @@ describe('ui difficulty choice', () => {
     } finally { cleanup(); }
   });
   it('says what each level changes, from the data', () => {
-    expect(difficultyHint('relaxed')).toBe('Buildings, roads and trade routes cost 20% less');
-    expect(difficultyHint('normal')).toBe('Buildings, roads and trade routes at their usual cost');
-    expect(difficultyHint('hard')).toBe('Buildings, roads and trade routes cost 25% more');
+    expect(difficultyHint('relaxed')).toBe('Buildings and trade routes cost about 20% less.\nRoads: 2 gold a tile.');
+    expect(difficultyHint('normal')).toBe('Buildings and trade routes at their usual cost.\nRoads: 2 gold a tile.');
+    expect(difficultyHint('hard')).toBe('Buildings and trade routes cost about 25% more.\nRoads: 3 gold a tile.');
+  });
+  it('ties the hint to the sim: the road price is the one a city of that level charges, the percentage is the level\'s', () => {
+    for (const level of DIFFICULTY_ORDER) {
+      const hint = difficultyHint(level);
+      const road = Number(/Roads: (\d+) gold a tile\.$/.exec(hint)[1]);
+      expect([level, road]).toEqual([level, roadCostOf(createWorld({ seed: 1, difficulty: level }))]);
+      const pct = /about (\d+)% (less|more)/.exec(hint);
+      const multiplier = DIFFICULTIES[level].cost;
+      if (multiplier === 1) expect(pct).toBe(null);                                   // Normal: "at their usual cost", no percentage
+      else expect([level, 100 + Number(pct[1]) * (pct[2] === 'less' ? -1 : 1)]).toEqual([level, Math.round(multiplier * 100)]);
+    }
+    expect(roadCostOf(createWorld({ seed: 1, difficulty: 'relaxed' }))).toBe(roadCostOf(createWorld({ seed: 1, difficulty: 'normal' })));   // the rounding the hint owns up to: Relaxed roads cost no less
   });
   it('preselects the setting on the title card, keeps a new choice, and starts New city with it', async () => {
     const storage = storageWith({ difficulty: 'hard' });
@@ -97,7 +110,7 @@ describe('ui difficulty choice', () => {
     } finally { r.cleanup(); }
   });
   it('keeps every title button and choice 44 px and the card on a small phone at 150% text', async () => {
-    const r = await bootAt({ width: 360, height: 640, storage: storageWith({ textSize: 150 }) });
+    const r = await bootAt({ width: 360, height: 640, storage: storageWith({ textSize: 150, difficulty: 'hard' }) });
     try {
       const card = r.root.querySelector('.title-card');
       const shell = r.root.getBoundingClientRect();
