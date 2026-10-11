@@ -5,6 +5,8 @@ export function rgba(hex, alpha) {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
 }
 
+const stripeMemo = new WeakMap();   // context -> Map: a hatching's colour, strengths, width and size -> CanvasPattern
+
 // Wraps a Canvas 2D context so the art code can draw in art px (a tile is 32 x 16). `scale` is device px
 // per art px. The options object mirrors the SVG mock-ups' extras: { alpha } is fill-opacity,
 // { outline: true } is their standard thin outline, { stroke, strokeWidth, strokeAlpha } a custom stroke.
@@ -26,6 +28,32 @@ export function makeDraw(ctx, scale) {
       for (let i = 1; i < pts.length; i++) ctx.lineTo(s(pts[i][0]), s(pts[i][1]));
       ctx.closePath();
     }
+  }
+
+  // Hatching as a repeating pattern: the colour at `fill` strength with diagonal stripes of it at `line` strength, `gap` art px
+  // apart along x and y (lines at x + y = a multiple of `gap`). The pattern starts at the origin of the caller's transform
+  // (the art origin), so the stripes stay put on the map as the camera, the shape or the ghost moves, and one fill hatches
+  // any shape. One tile is drawn per context and size.
+  function hatching(color, fill, line, width, gap) {
+    const unit = s(gap), px = Math.max(2, Math.round(unit));
+    const key = `${color}|${fill}|${line}|${width}|${gap}|${unit}`;
+    let byKey = stripeMemo.get(ctx);
+    if (!byKey) { byKey = new Map(); stripeMemo.set(ctx, byKey); }
+    let pattern = byKey.get(key);
+    if (pattern) return pattern;
+    const tile = document.createElement('canvas');
+    tile.width = tile.height = px;
+    const t = tile.getContext('2d');
+    t.fillStyle = rgba(color, fill);
+    t.fillRect(0, 0, px, px);
+    t.strokeStyle = rgba(color, line);
+    t.lineWidth = (width * px) / gap;
+    for (const c of [0, px, 2 * px]) { t.beginPath(); t.moveTo(c + px, -px); t.lineTo(c - px, px); t.stroke(); }   // x + y = c, past the tile's edges
+    pattern = ctx.createPattern(tile, 'repeat');
+    if (px !== unit) pattern.setTransform(new DOMMatrix().scale(unit / px));
+    if (byKey.size >= 16) byKey.clear();   // a pinch zoom walks through many sizes: keep only the latest
+    byKey.set(key, pattern);
+    return pattern;
   }
 
   function tracePath(segs) {
@@ -66,6 +94,10 @@ export function makeDraw(ctx, scale) {
     scale,
     poly(pts, fill, o = {}) { trace(pts); fillStroke(fill, o); },
     polys(list, fill, o = {}) { if (list.length) { traceAll(list); fillStroke(fill, o); } },
+    // Many polygons hatched in one fill: the colour at `fill` strength with diagonal stripes of it at `line` strength.
+    hatchPolys(list, color, { fill = 0.12, line = 0.8, width = 1, gap = 4 } = {}) {
+      if (list.length) { traceAll(list); fillStroke(hatching(color, fill, line, width, gap), {}); }
+    },
     circ(q, r, fill, o = {}) {
       ctx.beginPath();
       ctx.arc(s(q[0]), s(q[1]), s(Math.max(0, r)), 0, Math.PI * 2);
@@ -149,7 +181,6 @@ export function makeDraw(ctx, scale) {
       ctx.globalAlpha = 1;
     },
     clip(pts) { trace(pts); ctx.clip(); },
-    clipPolys(list) { traceAll(list); ctx.clip(); },
     save() { ctx.save(); },
     restore() { ctx.restore(); },
   };

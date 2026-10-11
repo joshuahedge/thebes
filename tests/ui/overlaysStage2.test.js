@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { OVERLAYS, OVERLAY_HUE, GRADED_OVERLAYS, DESIRABILITY_ALPHA, houseMark, drawOverlay, drawDesirabilityTint, desirabilityStep, desirabilityBands } from '../../src/render/overlays.js';
+import { OVERLAYS, OVERLAY_HUE, GRADED_OVERLAYS, DESIRABILITY_ALPHA, houseMark, drawOverlay, drawDesirabilityTint, hatchTiles, desirabilityStep, desirabilityBands } from '../../src/render/overlays.js';
 import { AUTO_OVERLAY, DESIRABILITY_STEPS } from '../../src/data/ui.js';
 import { TIERS } from '../../src/data/housing.js';
 import { createOverlayLegend } from '../../src/ui/overlayUi.js';
@@ -144,6 +144,29 @@ describe('stage 2 overlays', () => {
     expect(Math.max(...hatch) - Math.min(...hatch)).toBeGreaterThan(100);     // stripes: a pattern, readable without colour
     expect(rowAcross(s, 0, 3).every((px) => px[3] === 0)).toBe(true);         // no change, no tint
   });
+  it('hatches every tile with the same stripes, whatever else is hatched with it, and leaves no seam where tiles meet', () => {
+    const alphas = (s, x, y) => rowAcross(s, x, y).map((px) => px[3]);
+    const alone = scene(3, 0);
+    hatchTiles(alone.g, [[3, 0]], UI.bad);
+    const crowd = scene(3, 0);
+    hatchTiles(crowd.g, [[3, 0], [4, 0], [5, 0], [3, 1], [2, 2]], UI.bad);
+    const stripes = alphas(alone, 3, 0);
+    expect(Math.max(...stripes) - Math.min(...stripes)).toBeGreaterThan(100);
+    expect(alphas(crowd, 3, 0)).toEqual(stripes);                              // the stripes sit on the map, so they do not crawl as the set changes
+    expect(alphas(crowd, 5, 0)).toEqual(stripes);
+    expect(alphas(crowd, 2, 2)).toEqual(stripes);                              // and every tile in it has the same stripes
+    // The lines lie on the art grid: along x + y = a multiple of 4 art px (here 8, the middle of tile (0, 0)), clear between them.
+    const grid = scene(0, 0);
+    hatchTiles(grid.g, [[0, 0]], UI.bad);
+    expect([pixelAt(grid.c, 120, 76)[3] > 150, pixelAt(grid.c, 122, 78)[3] < 60]).toEqual([true, true]);
+    // Along art y = 12 three tiles meet (0, 1), (0, 0) and (1, 0): one run, one edge between runs. The wash is one strength across both.
+    const joined = scene(0, 0);
+    drawDesirabilityTint(joined.g, [{ x: 0, y: 0, v: 3 }, { x: 1, y: 0, v: 3 }, { x: 0, y: 1, v: 3 }]);
+    const across = [];
+    for (let ax = -22; ax <= 22; ax++) across.push(pixelAt(joined.c, 120 + 2 * ax, 60 + 2 * 12)[3]);
+    expect(Math.min(...across)).toBeGreaterThan(0);
+    expect(Math.max(...across) - Math.min(...across)).toBeLessThanOrEqual(6);
+  });
 });
 
 describe('stage 2 overlay legend', () => {
@@ -185,6 +208,27 @@ describe('stage 2 overlay legend', () => {
       const close = r.root.querySelector('#legend .close').getBoundingClientRect();
       expect([close.width >= 44, close.height >= 44]).toEqual([true, true]);
       for (const b of r.root.querySelectorAll('#legend .band')) expect(b.getBoundingClientRect().right).toBeLessThanOrEqual(shell.right + 0.5);
+    } finally { r.cleanup(); }
+  });
+  it('keeps the scale\'s name and labels readable under a critical banner, and out of the middle of the map', async () => {
+    const r = await rigUI({ width: 360, height: 640 });
+    try {
+      r.ui.settings.set({ textSize: 150 });
+      r.store.set({ overlay: 'desirability' });
+      r.world.gold = -5;                                                       // debt: a critical alert, so a banner
+      r.ui.alerts.refresh();
+      expect(document.body.classList.contains('has-banner')).toBe(true);
+      const shell = r.root.getBoundingClientRect();
+      const strip = r.root.querySelector('#legend .strip');
+      const words = [...strip.querySelectorAll('.text')];
+      expect(words.map((w) => w.textContent)).toEqual([OVERLAY_NAMES.desirability, '<0', '0–19', '20–34', '35–49', '50–64', '65+']);
+      for (const w of words) {
+        const box = w.getBoundingClientRect();                                 // not the 1 px of a screen-reader-only word
+        expect([w.textContent, box.width > 1, box.height > 1]).toEqual([w.textContent, true, true]);
+        expect([w.textContent, box.left >= shell.left, box.right <= shell.right + 0.5]).toEqual([w.textContent, true, true]);
+      }
+      expect(r.root.querySelector('#banner .critical') === null).toBe(false);
+      expect(strip.getBoundingClientRect().bottom - shell.top).toBeLessThan(shell.height / 2);
     } finally { r.cleanup(); }
   });
 });

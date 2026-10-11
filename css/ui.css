@@ -70,8 +70,9 @@ body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
 #legend .dot, #legend .ring { display: inline-block; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; }
 #legend .dot { background: currentColor; }
 #legend .ring { border: 2px solid currentColor; }
-/* Under a banner the legend shrinks to its dot and ring; the words stay for screen readers (sr-only). */
-body.has-banner #legend .strip .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Under a banner the legend shrinks to its dot and ring; the words stay for screen readers (sr-only). A graded scale (the
+   desirability bands) keeps its name and labels: swatches alone would be colour alone (spec 6.1). */
+body.has-banner #legend .strip:not(.graded) .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body[data-hand="left"] .confirm { flex-direction: row-reverse; }
 body[data-hand="left"] #rail .bottom { flex-direction: column-reverse; }
 
@@ -415,8 +416,8 @@ body.reduce-motion .goal-strip .show-me.glow, body.reduce-motion.nudge-play .spe
 #legend .scale { display: inline-flex; flex-wrap: wrap; align-items: flex-start; gap: 2px 6px; }
 #legend .band { display: inline-flex; flex-direction: column; align-items: center; min-width: 32px; }
 #legend .swatch { display: block; width: 26px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(43, 31, 14, 0.35); }
-#legend .band .text { line-height: 1.25; white-space: nowrap; }
-body:not([data-layout="wide"]) #legend .strip.graded .scale { order: 3; flex-basis: 100%; padding-bottom: 4px; }
+#legend .band .text { line-height: 1.1; white-space: nowrap; }
+body:not([data-layout="wide"]) #legend .strip.graded .scale { order: 3; flex-basis: 100%; }
 body:not([data-layout="wide"]) #legend .strip.graded .close { margin-left: auto; }
 /* A building that changes desirability has a fourth line in the confirm bar ("Makes 6 homes nicer"): in portrait the bar
    keeps room for it from the start (title 1.4em, three small lines of 1.05em; at 125% and 150% one of them may wrap). */
