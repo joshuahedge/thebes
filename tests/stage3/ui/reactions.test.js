@@ -5,6 +5,8 @@ import { createMenuSheets } from '../../../src/ui/menu.js';
 import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { createEffects, EFFECT_MS } from '../../../src/render/effects.js';
+import { createCelebrations } from '../../../src/ui/celebrate.js';
+import { CHEER_MS } from '../../../src/data/ui.js';
 import { DIFFICULTY_ORDER } from '../../../src/data/difficulty.js';
 import { DANGER_UI_TEXT as D, DIFFICULTY_NAMES, T } from '../../../src/ui/text.js';
 import { addRaw, staffAll } from '../../helpers/testWorld.js';
@@ -67,6 +69,18 @@ describe('s3 ui speed reactions', () => {
       expect([r.world.speed, r.cam.x, r.cam.y]).toEqual([0, ...before]);
     } finally { r.cleanup(); }
   });
+
+  it('reacts no second time when the city\'s first blaze grows into a fire after the player resumes (spec 4.3: once per fire)', async () => {
+    const r = await rigUI({ settings: settingsWith({ fireReaction: 'pause' }) });
+    try {
+      const potter = addRaw(r.world, 'potter', 26, 4);
+      r.ui.speedControl.set(0);                                                        // the sim paused for the city's first
+      r.ui.onEvents([{ type: 'fire', id: potter.id, covered: false, first: true }]);
+      r.ui.speedControl.set(2);                                                        // the player resumes
+      r.ui.onEvents([{ type: 'fire_grow', id: potter.id, covered: false }]);           // the same blaze grows (firePaused used: no first)
+      expect(r.world.speed).toBe(2);
+    } finally { r.cleanup(); }
+  });
 });
 
 describe('s3 ui sound and captions', () => {
@@ -100,6 +114,22 @@ describe('s3 ui sound and captions', () => {
       r.ui.onEvents([{ type: 'raid_end', won: true, report }]);
       expect(shown[2].text).toBe('Raid from the east beaten: 2 towers stopped 9 of 12, soldiers stopped 3; 1 building burned, 40 gold stolen.');
     } finally { r.cleanup(); }
+  });
+
+  it('keeps an info caption (a raid report runs to about 100 characters) up long enough to read at 150% text', () => {
+    const { root, cleanup } = mount();
+    try {
+      let t = 0;
+      const timers = [];
+      const cheers = createCelebrations({ container: root, setTimer: (fn, ms) => { timers.push({ fn, at: t + ms }); return timers.length; }, clearTimer: () => {} });
+      const advance = (ms) => { t += ms; for (const x of timers) if (!x.done && x.at <= t) { x.done = true; x.fn(); } };
+      expect(CHEER_MS.info >= 5000 && CHEER_MS.info <= 6000).toBe(true);
+      cheers.show({ tier: 'info', text: 'Raid from the east beaten: 2 towers stopped 9 of 12, soldiers stopped 3; 1 building burned, 40 gold stolen.' });
+      advance(CHEER_MS.first);
+      expect(root.querySelectorAll('.cheer.info').length).toBe(1);                     // still up after a first's 2.5 s
+      advance(CHEER_MS.info - CHEER_MS.first);
+      expect(root.querySelectorAll('.cheer.info').length).toBe(0);
+    } finally { cleanup(); }
   });
 
   it('words every raid report from its numbers: beaten or lost, with and without towers, soldiers and losses', () => {
