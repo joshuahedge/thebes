@@ -16,8 +16,6 @@ import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
 
-const YES_NO = new Set(['fedAll', 'waterAll', 'jobs']);   // achievements that are met or not: no count to show
-
 // What each cause's button does. Show me opens a card and aims at the home or at the building the cause names (an
 // empty bazaar wants a granary beside it, an empty granary a farm beside it); View selects the building that is in
 // reach but not working, or near but without a road (its own sheet then says how to fix it). next_delivery needs
@@ -154,14 +152,15 @@ export function createSheets({ container, store, world, placement, cameraControl
     ];
   }
 
-  // The status is words first (Done, "n of m", Not yet); the bar repeats a count and never stands alone.
+  // The status is words first (Done, "n of m", Not yet); the bar repeats a count and never stands alone. An
+  // achievement whose progress is out of 1 is met or not (every home fed, say), so it has no count to show.
   function achievementRow(a, isDone) {
     const name = ACHIEVEMENT_NAMES[a.id];
+    const p = isDone ? null : achievementProgress(world, a);
     let status;
     if (isDone) status = el('span', { class: 'status' }, [el('span', { class: 'tick', 'aria-hidden': 'true', text: `${T.doneMark} ` }), T.done]);
-    else if (YES_NO.has(a.measure.kind)) status = el('span', { class: 'status muted', text: T.notYetMet });
+    else if (p.of === 1) status = el('span', { class: 'status muted', text: T.notYetMet });
     else {
-      const p = achievementProgress(world, a);
       const words = progressText(p.n, p.of);
       status = el('span', { class: 'status' }, [
         el('span', { class: 'ach-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(p.of), 'aria-valuenow': String(p.n), 'aria-label': achievementBarLabel(name, p.n, p.of) }, [

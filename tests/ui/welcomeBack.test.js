@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { elapsedText, trendText, trendDirection, closestAchievement } from '../../src/ui/welcomeBack.js';
-import { T, alertText, ACHIEVEMENT_NAMES, DAILY_TEXT, closestAchievementText, progressText } from '../../src/ui/text.js';
+import { T, alertText, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, closestAchievementText, progressText } from '../../src/ui/text.js';
 import { GOALS, GUIDE_GOALS } from '../../src/data/goals.js';
 import { startDaily, dailyProgress } from '../../src/sim/daily.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
@@ -105,7 +105,24 @@ describe('ui welcome back', () => {
       expect(today.querySelector('li').textContent).toContain(progressText(p.n, p.of));
       const c = closestAchievement(r.world);
       expect(c === null).toBe(false);
-      expect(sheet.querySelector('.closest').textContent).toBe(closestAchievementText(ACHIEVEMENT_NAMES[c.def.id], c.n, c.of));
+      expect(sheet.querySelector('.closest').textContent).toBe(closestAchievementText(ACHIEVEMENT_NAMES[c.def.id], c.n, c.of, ACHIEVEMENT_TEXT[c.def.id]));
+      expect(sheet.querySelector('.closest').textContent).toContain(ACHIEVEMENT_TEXT[c.def.id]);   // what it takes, not only how far along
+      expect(closestAchievementText('Neighbours', 7, 10, 'Have 10 homes')).toBe('Closest achievement: Neighbours, 7 of 10. Have 10 homes');
+    } finally { r.cleanup(); }
+  });
+  it('still opens when a saved daily goal is no longer in the pool, showing its row without a count', async () => {
+    const r = await rigUI({ welcome: { savedAt: Date.now() - H, lastSpeed: 1 } });
+    try {
+      for (const id of GUIDE_GOALS) if (!r.world.goals.completed.includes(id)) r.world.goals.completed.push(id);
+      expect(startDaily(r.world, '2026-10-11')).toBe(true);
+      r.world.daily.picks[1] = 'retired_goal';                                  // a pick a later version dropped from DAILY_POOL
+      expect(dailyProgress(r.world, 'retired_goal')).toBe(null);
+      r.ui.refresh();
+      const items = [...r.root.querySelectorAll('#sheet .today li')];
+      expect(items.length).toBe(3);
+      expect(items[1].textContent).toBe('retired_goal');
+      expect(items[1].querySelector('.status')).toBe(null);
+      expect(r.root.querySelector('#sheet .carry-on')).toBeTruthy();            // the rest of the card is there
     } finally { r.cleanup(); }
   });
   it('shows a finished daily goal as Done in words and an unfinished one as its count in words', async () => {

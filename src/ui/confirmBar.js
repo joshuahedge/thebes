@@ -46,8 +46,9 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
       el('div', { class: 'title', text: titleOf(s.tool) }),
       el('div', { class: 'cost small muted', text: costText }),
       el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' ? 'amber' : 'muted'}`, text: p.text }),
-      // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line.
-      p.state === 'ok' && p.effect ? el('div', { class: 'effect small teal', text: p.effect }) : null,
+      // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line. Homes
+      // served read in teal; "no homes in reach yet" is not a gain, so it reads muted.
+      p.state === 'ok' && p.effect ? el('div', { class: `effect small ${p.effect === T.noHomesInReach ? 'muted' : 'teal'}`, text: p.effect }) : null,
     ]);
     const controls = [];
     if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', disabled: true }));

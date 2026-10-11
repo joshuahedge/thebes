@@ -8,6 +8,9 @@ import { goalById, nextItemFor, guideActive, openGoals, goalProgress } from '../
 import { settle } from '../sim/settle.js';
 import { startDaily } from '../sim/daily.js';
 import { setGuide } from '../sim/commands.js';
+import { checkFirsts } from '../sim/firsts.js';
+import { checkAchievements } from '../sim/achievements.js';
+import { population, housesOf } from '../sim/world.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker } from '../render/overlays.js';
@@ -70,6 +73,13 @@ export function createUI({
   const sessionDate = dateKeyOf(clock());
 
   const settings = givenSettings || createSettings({ storage, root });
+  // A loaded or imported city follows this device's Help setting: under Tips only or Off its guide is turned off
+  // (an exported city carries guide.on to another device). A new city already starts that way (boot.js).
+  if (settings.get().help !== 'full' && world.guide.on) setGuide(world, false);
+  // A city migrated from version 1 has null firsts and achievements until they are checked: mark the ones already met
+  // now, silently (no gold, no captions), so the summary and Welcome back count them from the first look.
+  if (world.firsts === null) checkFirsts(world);
+  if (world.achievements === null) checkAchievements(world);
   const sfx = givenSfx || createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
   const toasts = createToasts({ container: $('toasts') });
@@ -77,11 +87,12 @@ export function createUI({
   // Tips and the idle nudge (early-game pass 3.4, 3.5): quiet, never over the map, both off under Help: Off. frameNow is
   // the latest frame's time, so the nudge counts only time the player actually watched. The tips' 3-minute gap and
   // five-an-hour cap count play time (playMs), which runs only while the game does. A phone at 125% or 150% text has
-  // no room for a tip to stay (it would cover the middle of the map), so there it closes itself.
-  let frameNow = now(), lastFrameAt = null, playMs = 0;
+  // no room for a tip to stay (it would cover the middle of the map), so there it closes itself, timed on seenMs: the
+  // frames actually drawn (a stalled frame counts a second at most), so a hidden tab never closes an unread tip.
+  let frameNow = now(), lastFrameAt = null, playMs = 0, seenMs = 0;
   const tipsTight = () => store.get().layout !== 'wide' && settings.get().textSize >= 125;
   const tips = createTips({
-    container: $('tip'), settings, now, playNow: () => playMs, autoCloseMs: () => (tipsTight() ? TIP_AUTO_CLOSE_MS : 0),
+    container: $('tip'), settings, now, playNow: () => playMs, frameNow: () => seenMs, autoCloseMs: () => (tipsTight() ? TIP_AUTO_CLOSE_MS : 0),
     restoreFocus: () => { const b = $('goals').querySelector('.show-me'); if (b && !$('goals').hidden) b.focus(); },
   });
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
@@ -480,7 +491,11 @@ export function createUI({
   }
 
   function render({ timeDays, now: t }) {
-    if (lastFrameAt !== null && world.speed > 0) playMs += Math.min(NUDGE_MAX_STEP_MS, Math.max(0, t - lastFrameAt));   // a stalled frame counts a second at most
+    if (lastFrameAt !== null) {                         // a stalled frame (a hidden tab, a long hitch) counts a second at most
+      const dt = Math.min(NUDGE_MAX_STEP_MS, Math.max(0, t - lastFrameAt));
+      seenMs += dt;
+      if (world.speed > 0) playMs += dt;
+    }
     lastFrameAt = t;
     frameNow = t;
     cameraControl.tick(t);
@@ -494,7 +509,7 @@ export function createUI({
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r);
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
-        if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, t);         // under the ghost, so the ghost stays readable
+        if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change
         for (const ghost of ghosts()) drawGhost(g, ghost);
         drawProblemMarkers(g, world, alerts.list(), r);                        // early-game pass 2.8: one badge per building with a problem
       },
@@ -506,13 +521,18 @@ export function createUI({
     tickNudge(s);
   }
   // Once a frame (early-game pass 3.5): the nudge's glow on Show me, then its one line, then nothing more. The Play tip's
-  // pulse on the speed control lasts while that tip shows and the game is paused. Help: Off silences both.
+  // pulse on the speed control lasts while that tip shows and the game is paused. Where the tip closed itself unread
+  // (a phone at larger text), the pulse stays on while the game is still paused with plots and no family yet, and
+  // goes for good once that is no longer so. Help: Off silences all of it.
+  let playRingHeld = false;
   function tickNudge(s) {
     const on = helpOn();
     if (!on && tips.current()) tips.dismiss();
-    tips.tick();
+    const showing = tips.current();
+    if (tips.tick() && showing === 'press_play') playRingHeld = true;
+    if (playRingHeld && !(on && world.speed === 0 && population(world) === 0 && housesOf(world).length > 0)) playRingHeld = false;
     celebrations.resume();                             // a caption held while a tip showed goes up once the tip has closed
-    root.classList.toggle('nudge-play', tips.current() === 'press_play' && world.speed === 0);
+    root.classList.toggle('nudge-play', world.speed === 0 && (tips.current() === 'press_play' || playRingHeld));
     const state = on ? nudge.tick({ running: world.speed > 0, busy: isToolMode(s.mode) || Boolean(s.sheet) || Boolean(s.confirmDialog) }) : 'none';
     if (state === nudgeState) return;
     nudgeState = state;

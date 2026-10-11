@@ -5,7 +5,8 @@
 // A tip triggered while a tool is active waits in a one-tip slot until flush() runs with no tool active; a tip that
 // has waited longer than TIP_HELD_MAX_MS is dropped (it described something that is no longer news).
 // The priority tip (Press Play) skips the delay, the gap and the tool rule. Nothing shows under Help: Off.
-// autoCloseMs() is how long a tip may stay before tick() closes it (0: until Got it). A closed tip stays seen.
+// autoCloseMs() is how long a tip may stay before tick() closes it (0: until Got it), measured on frameNow(), a clock
+// that runs only while the game is drawn (createUI), so a tip never closes unseen in a hidden tab. A closed tip stays seen.
 // #tip is a polite live region: a tip is read once as it appears, and it never takes focus (Got it hands focus on if it had it).
 import { TIPS, TIP_GAP_MS, TIP_HOURLY_MAX, TIP_FIRST_DELAY_MS, TIP_HELD_MAX_MS } from '../data/tips.js';
 import { el, button, clear } from './components.js';
@@ -13,11 +14,11 @@ import { TIP_TEXT, T } from './text.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 
-export function createTips({ container, settings, now = () => performance.now(), playNow = now, autoCloseMs = () => 0, restoreFocus = () => {} }) {
+export function createTips({ container, settings, now = () => performance.now(), playNow = now, frameNow = now, autoCloseMs = () => 0, restoreFocus = () => {} }) {
   const started = now();
   const shownAt = [];      // the play time at which each tip of this session appeared
   let showing = null;      // the id on screen
-  let shownWall = 0;       // the wall time it appeared
+  let shownFrame = 0;      // the frame-clock time it appeared
   let waiting = null;      // { tip, at }: a tip held back by an active tool, and when
 
   const seen = () => (Array.isArray(settings.get().seenTips) ? settings.get().seenTips : []);
@@ -52,7 +53,7 @@ export function createTips({ container, settings, now = () => performance.now(),
     }
     if (!allowed(tip, t)) return false;
     showing = tip.id;
-    shownWall = t;
+    shownFrame = frameNow();
     shownAt.push(playNow());
     settings.set({ seenTips: [...seen(), tip.id] });
     render();
@@ -75,7 +76,7 @@ export function createTips({ container, settings, now = () => performance.now(),
     tick() {
       if (!showing) return false;
       const ms = autoCloseMs();
-      if (!(ms > 0) || now() - shownWall < ms) return false;
+      if (!(ms > 0) || frameNow() - shownFrame < ms) return false;
       api.dismiss();
       return true;
     },
