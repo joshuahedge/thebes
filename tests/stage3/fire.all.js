@@ -2,3 +2,5 @@
 // with "s3 fire", so tests/run-tests.ps1 -Grep "s3 fire" runs the track alone. Only Track A edits this file.
 import './fire/ignition.test.js';
 import './fire/stages.test.js';
+import './fire/alertsMood.test.js';
+import './fire/screenWords.test.js';
