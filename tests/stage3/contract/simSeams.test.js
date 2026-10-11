@@ -297,6 +297,32 @@ describe('s3 contract commands', () => {
     w.wall[idx(w.size, 16, 10)] = 40;                                                  // a gate: the road through it stays usable
     expect(drawRoad(w, 16, 9, 16, 10).ok).toBe(true);
   });
+  it('gives a tower on a wall tile its 80 hit points, drops the tile to plain wall hit points on Demolish and restores both on undo', () => {
+    const w = street();
+    const t = idx(w.size, 12, 9), other = idx(w.size, 13, 9);
+    w.wall[t] = 40; w.wall[other] = 40;
+    const v = w.wallVersion;
+    expect(place(w, 'tower', 12, 9).ok).toBe(true);
+    expect([w.wall[t], w.wall[other], w.wallVersion]).toEqual([DEFENCE.towerOnWallHp, 40, v + 1]);
+    expect(tileCost(w, 12, 9)).toBe(1 + DEFENCE.towerOnWallHp / 2);
+    expect(undo(w).ok).toBe(true);                                                     // the placement: the tile goes back to 40
+    expect([w.wall[t], buildingAt(w, 12, 9)]).toEqual([40, null]);
+    place(w, 'tower', 12, 9);
+    expect(undo(w).ok).toBe(true);
+    place(w, 'tower', 12, 9);
+    w.wall[t] = 25;                                                                    // damaged since: an undo never heals it
+    undo(w);
+    expect(w.wall[t]).toBe(25);
+    w.wall[t] = 40;
+    place(w, 'tower', 12, 9);
+    expect(demolishAt(w, 12, 9).ok).toBe(true);                                        // the tower goes, the wall stays at a wall's hit points
+    expect([w.wall[t], buildingAt(w, 12, 9)]).toEqual([DEFENCE.wallHp, null]);
+    expect(undo(w).ok).toBe(true);
+    expect([w.wall[t], buildingAt(w, 12, 9).type]).toEqual([DEFENCE.towerOnWallHp, 'tower']);
+    const open = street();
+    place(open, 'tower', 12, 9);                                                       // a tower on open ground leaves the wall layer alone
+    expect([open.wall[idx(open.size, 12, 9)], open.wallVersion]).toEqual([0, 0]);
+  });
   it('clears rubble through Demolish at its price, refuses below the debt floor, counts it and undoes it', () => {
     const w = street(100);
     const r = addRaw(w, 'rubble', 12, 9);
