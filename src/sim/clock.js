@@ -6,6 +6,7 @@ import { restockBazaars } from './distribution.js';
 import { monthlyHousing } from './housing.js';
 import { arrivalsBatch, departures } from './immigration.js';
 import { monthlyEconomy } from './economy.js';
+import { tradeMonth } from './trade.js';
 import { updateMood } from './mood.js';
 import { updateMilestone } from './progression.js';
 import { computeAlerts } from './alerts.js';
@@ -25,6 +26,7 @@ export function runMonth(world, events = null) {
   monthlyHousing(world, events);
   departures(world);
   monthlyEconomy(world);
+  tradeMonth(world, events);
   updateMood(world);
   const milestoneChanged = updateMilestone(world);
   if (milestoneChanged && events) events.push({ type: 'milestone', id: world.milestone });

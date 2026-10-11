@@ -22,6 +22,7 @@ import './sim/desirability.test.js';
 import './sim/housing.test.js';
 import './sim/needCause.test.js';
 import './sim/upperTiers.test.js';
+import './sim/trade.test.js';
 import './sim/immigration.test.js';
 import './sim/economy.test.js';
 import './sim/clock.test.js';
