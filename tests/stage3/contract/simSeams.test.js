@@ -65,14 +65,15 @@ describe('s3 contract fire seams', () => {
     expect(rubbleClearCost(w, 4)).toBe(24);
     expect(clearRubbleFromFire).toBe(clearRubble);
   });
-  it('starts as safe stubs with their final signatures (Track A fills them in)', () => {
+  it('keeps its final signatures, and changes nothing where nothing can burn (Track A filled them in)', () => {
     const w = street();
     const potter = addRaw(w, 'potter', 2, 11);
+    w.milestone = 'village';                                                          // before Town no risk builds up (Track A)
     const before = JSON.stringify(w);
     expect(fireCoverage(w) instanceof Map).toBe(true);
     expect([coverageOf(w, potter), staffedCover(w, potter), typeof dailyRiskOf(w, potter)]).toEqual([0, false, 'number']);
     fireDay(w, []);
-    expect(typeof igniteBuilding(w, potter.id, [], 'raid')).toBe('boolean');
+    expect(igniteBuilding(w, 999, [], 'raid')).toBe(false);                          // no such building (Track A)
     expect(Array.isArray(burnBuilding(w, 999, []))).toBe(true);
     expect([Array.isArray(fireAlerts(w)), typeof fireMood(w)]).toEqual([true, 'object']);
     expect(JSON.stringify(w)).toBe(before);
