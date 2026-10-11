@@ -150,12 +150,14 @@ function roofPool(g, x, y, z) {
 
 // The 2x2 homes, Manor and up: a main block at the back with a roof mat and pots, a walled courtyard in front of
 // it and an annexe down the right side with an awning on its roof. O picks each tier's look, as in the mock-up:
-// the block heights hA and hB, painted bands, columns, a pool, a rug and a flower bed, a statue, palms, a flag,
-// the annexe awning's colours and the courtyard floor. Every big home has the pergola (the tier-6 tell); O.tier
-// adds the roof garden from 7 and the roof pool at 9 (the bands and the flag are the mock-up's own options).
+// the block heights hA and hB, the wall tones of the main block (and courtyard walls) and the annexe, painted
+// bands, columns, a pool, a rug and a flower bed, a statue, palms, a flag, the annexe awning's colours and the
+// courtyard floor. Every big home has the pergola (the tier-6 tell); O.tier adds the roof garden from 7 and the
+// roof pool at 9 (the bands and the flag are the mock-up's own options). A main block over 15 has a second row of
+// windows and one over 20 a third.
 export function big(g, x, y, O) {
   const tier = O.tier || 6;
-  const A = box(g, x + 0.1, y + 0.1, 1.2, 0.82, O.hA, 0, WASH);
+  const A = box(g, x + 0.1, y + 0.1, 1.2, 0.82, O.hA, 0, O.wall);
   parapet(g, x + 0.1, y + 0.1, 1.2, 0.82, O.hA);
   for (const [s0, s1, c] of O.bands || [[O.hA - 1.4, O.hA - 0.6, TEAL]]) {
     qd(g, A.L, 0, 1, s0, s1, c);
@@ -164,6 +166,7 @@ export function big(g, x, y, O) {
   door(g, A, 0.42, 0.56, 7);
   for (const u of [0.1, 0.24, 0.72, 0.86]) win(g, A.L, u, u + 0.07, 4, 7);
   if (O.hA > 15) for (const u of [0.1, 0.24, 0.72, 0.86]) win(g, A.L, u, u + 0.07, 9.5, 12);
+  if (O.hA > 20) for (const u of [0.1, 0.24, 0.72, 0.86]) win(g, A.L, u, u + 0.07, 15, 17.5);
   win(g, A.R, 0.3, 0.5, 4, 7);
   mat(g, x + 0.25, y + 0.2, 0.4, 0.35, O.hA, BLUE, GOLD);
   if (tier >= 9) roofPool(g, x, y, O.hA);
@@ -175,7 +178,7 @@ export function big(g, x, y, O) {
     g.poly([U(q, 14), [q[0] + 7, q[1] - 12.5], U(q, 11)], PINK);
   }
   g.poly(quad(x + 0.15, y + 0.95, 1.07, 0.91, 0), O.floor || '#EEE2CA');
-  box(g, x + 0.1, y + 0.95, 0.08, 0.9, 3.5, 0, WASH, 0);
+  box(g, x + 0.1, y + 0.95, 0.08, 0.9, 3.5, 0, O.wall, 0);
   if (O.cols) {
     for (const u of O.cols) col(g, x + u, y + 1.02, O.colH || 9, 0, O.cap);
     box(g, x + 0.18, y + 0.9, 1.08, 0.22, 1.2, (O.colH || 9) + 1.6, STONE, 0);
@@ -184,7 +187,7 @@ export function big(g, x, y, O) {
   if (O.rug) rug(g, x + 0.28, y + 1.2, 0.5, 0.3, 0, RED, '#F2D7A8', GOLD);
   if (O.bed) bed(g, x + 0.3, y + 1.56, 0.55, 0.22);
   if (O.statue) statue(g, x + 0.28, y + 1.66);
-  const B = box(g, x + 1.25, y + 0.1, 0.65, 1.25, O.hB, 0, WASH2);
+  const B = box(g, x + 1.25, y + 0.1, 0.65, 1.25, O.hB, 0, O.wall2);
   parapet(g, x + 1.25, y + 0.1, 0.65, 1.25, O.hB);
   door(g, B, 0.35, 0.65, 5.5);
   win(g, B.R, 0.2, 0.35, 4, 6.5);
@@ -196,24 +199,38 @@ export function big(g, x, y, O) {
   awn(g, x + 1.32, y + 0.18, 0.5, 0.55, O.hB + 4.2, O.awn || ORANGE, O.awn2 || '#B45F2A');
   if (tier >= 7) roofGarden(g, x, y, O.hB);
   for (const [u, v] of O.palms || []) palmAt(g, x + u, y + v, 0.72);
-  box(g, x + 1.82, y + 1.35, 0.08, 0.5, 3.5, 0, WASH, 0);
-  box(g, x + 0.1, y + 1.8, 0.72, 0.1, 3.5, 0, WASH, 0);
-  box(g, x + 0.74, y + 1.76, 0.1, 0.18, 5.5, 0, WASH, 0);
-  box(g, x + 1.16, y + 1.76, 0.1, 0.18, 5.5, 0, WASH, 0);
-  box(g, x + 1.18, y + 1.8, 0.72, 0.1, 3.5, 0, WASH, 0);
+  box(g, x + 1.82, y + 1.35, 0.08, 0.5, 3.5, 0, O.wall, 0);
+  box(g, x + 0.1, y + 1.8, 0.72, 0.1, 3.5, 0, O.wall, 0);
+  box(g, x + 0.74, y + 1.76, 0.1, 0.18, 5.5, 0, O.wall, 0);
+  box(g, x + 1.16, y + 1.76, 0.1, 0.18, 5.5, 0, O.wall, 0);
+  box(g, x + 1.18, y + 1.8, 0.72, 0.1, 3.5, 0, O.wall, 0);
 }
 
-// The mock-up's four variants (H6-H9), keyed by tier.
+// Wall tones for the big homes above the Manor, [top, lit, shaded] as in the palette, each with a slightly deeper
+// second for the annexe as WASH2 is to WASH. Spec 5.3 gives every tier its own tone: the Manor keeps the mock-up's
+// whitewash and the tiers above warm through cream and pale ochre to a rose plaster, the shaded faces staying a
+// cool lavender.
+const CREAM = ['#FCF0D6', '#F4DCB0', '#CFB7BD'], CREAM2 = ['#F8EBCD', '#EED5A7', '#C8AFB6'];
+const OCHRE = ['#F6DFAC', '#E9C484', '#C2A2A0'], OCHRE2 = ['#F2D8A2', '#E2BC7B', '#BB9A9A'];
+const ROSE = ['#F6D6C4', '#E4AE94', '#B48E9E'], ROSE2 = ['#F2CFBC', '#DDA68B', '#AD8798'];
+
+// The mock-up's four variants (H6-H9), keyed by tier, with the main block 3 art px and the annexe 2 taller at
+// each tier and a wall tone per tier so the four tell apart by height and tone alone (spec 5.3). The bands sit
+// where the mock-up put them, under the parapet.
 export const BIG = {
-  6: { hA: 13, hB: 10, rug: 1, bed: 1, palms: [[1.02, 1.6]] },
-  7: { hA: 14, hB: 11, cols: [0.35, 0.65, 0.95], rug: 1, bed: 1, palms: [[1.05, 1.62]], awn: GREEN, awn2: GREEN_DARK },
+  6: { hA: 13, hB: 10, wall: WASH, wall2: WASH2, rug: 1, bed: 1, palms: [[1.02, 1.6]] },
+  7: {
+    hA: 16, hB: 12, wall: CREAM, wall2: CREAM2, cols: [0.35, 0.65, 0.95], rug: 1, bed: 1, palms: [[1.05, 1.62]],
+    awn: GREEN, awn2: GREEN_DARK,
+  },
   8: {
-    hA: 15, hB: 12, cols: [0.35, 0.65, 0.95], pool: 1, palms: [[0.22, 1.7], [1.05, 1.62]], awn: TEAL, awn2: TEAL_DARK,
-    bands: [[13.6, 14.4, TEAL], [12.8, 13.6, RED]],
+    hA: 19, hB: 14, wall: OCHRE, wall2: OCHRE2, cols: [0.35, 0.65, 0.95], pool: 1, palms: [[0.22, 1.7], [1.05, 1.62]],
+    awn: TEAL, awn2: TEAL_DARK, bands: [[17.6, 18.4, TEAL], [16.8, 17.6, RED]],
   },
   9: {
-    hA: 18, hB: 14, cols: [0.3, 0.55, 0.8, 1.05], colH: 11, cap: GOLDC, pool: 1, statue: 1, palms: [[1.08, 1.62]],
-    bands: [[16.6, 17.4, GOLD], [15.8, 16.6, TEAL], [15, 15.8, RED]], flag: 1, awn: PURP, awn2: '#563E78', floor: '#F2E8D2',
+    hA: 22, hB: 16, wall: ROSE, wall2: ROSE2, cols: [0.3, 0.55, 0.8, 1.05], colH: 11, cap: GOLDC, pool: 1, statue: 1,
+    palms: [[1.08, 1.62]], bands: [[20.6, 21.4, GOLD], [19.8, 20.6, TEAL], [19, 19.8, RED]], flag: 1, awn: PURP,
+    awn2: '#563E78', floor: '#F2E8D2',
   },
 };
 export const H6 = (g, x, y) => big(g, x, y, { ...BIG[6], tier: 6 });
@@ -236,7 +253,7 @@ export const HOUSE_ART = {
   'house.t4': { w: 1, d: 1, height: 18, bounds: boundsFor(1, 1, 18), shadows: [[0.08, 0.08, 0.62, 0.58, 16], [0.55, 0.42, 0.38, 0.5, 9]], draw: H4 },
   'house.t5': { w: 1, d: 1, height: 23, bounds: boundsFor(1, 1, 23), shadows: [[0.08, 0.08, 0.6, 0.56, 21], [0.52, 0.44, 0.4, 0.48, 13]], draw: H5 },
   'house.t6': bigSlot(6, 21, H6),
-  'house.t7': bigSlot(7, 22, H7),
-  'house.t8': bigSlot(8, 23, H8),
-  'house.t9': bigSlot(9, 32, H9),
+  'house.t7': bigSlot(7, 24, H7),
+  'house.t8': bigSlot(8, 27, H8),
+  'house.t9': bigSlot(9, 36, H9),
 };
