@@ -5,6 +5,9 @@ import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { CATEGORIES, toolForItem, categoryOfItem, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
 import { goalById, nextItemFor } from '../sim/goals.js';
+import { settle } from '../sim/settle.js';
+import { startDaily } from '../sim/daily.js';
+import { setGuide } from '../sim/commands.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers } from '../render/overlays.js';
@@ -34,7 +37,7 @@ import { createAlerts, mapSummaryText } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
 import { createToasts } from './toasts.js';
 import { createMenuSheets, createDialog } from './menu.js';
-import { createGoalsStrip, goalsSheet, showMeTarget } from './goalsList.js';
+import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { welcomeSheet } from './welcomeBack.js';
 import { el, setText, clear } from './components.js';
 import { buildingName, reasonText, milestoneText, T } from './text.js';
@@ -56,6 +59,9 @@ export function createUI({
   // Ghost and day bookkeeping lives up here: afterCommand is hoisted and may run during construction.
   let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [];
   let saveFailed = false, destroyed = false;
+  // Daily goals (spec 3.7) come from the device's local date, read once when this game starts, so nothing expires
+  // mid-session (a session that crosses midnight keeps its goals; the next start draws the new day).
+  const sessionDate = dateKeyOf(clock());
 
   const settings = givenSettings || createSettings({ storage, root });
   const sfx = givenSfx || createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
@@ -87,7 +93,7 @@ export function createUI({
   const rail = createRail({ container: $('rail'), store, world, onPick: pick, onConfirm: confirm, onCancel: () => placement.cancel(), placement });
   const legend = createOverlayLegend({ container: $('legend'), store });
   const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count() });
-  const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals') });
+  const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals'), onSkipGuide: skipGuide });
   const menus = createMenuSheets({ store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {} });
   const customSheets = { ...menus, goals: goalsSheet(world, { onShowMe: showMe }) };
   if (welcome) {
@@ -168,6 +174,11 @@ export function createUI({
     if (placement.undoNeedsConfirm()) store.set({ confirmDialog: { text: T.undoOccupiedConfirm, confirmLabel: T.undo, onConfirm: () => placement.undo() } });
     else placement.undo();
   }
+  // Skip guide (spec 3.2): one tap, no confirm. Resume guide in How to play brings it back.
+  function skipGuide() { setGuide(world, false); refresh(); }
+  // startDaily does nothing before the opening chain is done or once that date's goals exist, so calling it at
+  // start, after every command and on every new game day is cheap: it draws the moment the chain finishes.
+  function syncDaily() { startDaily(world, sessionDate); }
   function toggleSheet(kind) {
     const s = store.get();
     store.set(s.sheet && s.sheet.kind === kind ? closeSheet(s) : openSheet(s, kind));
@@ -190,9 +201,16 @@ export function createUI({
     if (e.undoable) {                                  // a ✓ outcome: place, road, plots or demolish
       sfx.play(e.kind === 'road' ? 'road' : e.kind === 'demolish' ? 'demolish' : 'place');
       sfx.buzz(20);
-      toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
-    } else if (e.kind === 'undo') toasts.show(T.undone);
+    }
     ghostsDirty = true;
+    // Goals, firsts, achievements and daily goals settle after every command (undo and speed included), so a
+    // guided step finishes while the game is paused (early-game pass 3.2).
+    const events = settle(world, []);
+    if (events.length) { effects.fromEvents(world, events, now()); onEvents(events); }
+    syncDaily();
+    // The command's own toast goes last: two toasts at most, so goal lines from the same command never push its Undo out.
+    if (e.undoable) toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
+    else if (e.kind === 'undo') toasts.show(T.undone);
     refresh();
   }
   // After a command: alerts, numbers, cards (affordability) and the open sheet all reflect the new world.
@@ -379,9 +397,10 @@ export function createUI({
     hud.render();
     if (s.layout === 'wide' && !s.panelFolded) panelMinimap.render(alerts.list());
     if (s.sheet && s.sheet.kind === 'minimap') sheetMinimap.render(alerts.list());
-    if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; refreshDaily(); }
+    if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; syncDaily(); refreshDaily(); }
   }
 
+  syncDaily();
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
@@ -394,6 +413,7 @@ export function createUI({
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
+      $('goals').hidden = false;                       // the strip hides its row when no goal is open; the next UI decides again
       for (const id of ['sheet', 'dialog']) { const c = $(id); clear(c); c.hidden = true; }
       confirmBar.element.remove();
       document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it

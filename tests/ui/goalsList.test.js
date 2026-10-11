@@ -1,22 +1,23 @@
 import { describe, it, expect } from '../harness.js';
 import { nearestFit } from '../../src/ui/placement.js';
 import { createGoalsStrip, goalsSheet, showMeTarget } from '../../src/ui/goalsList.js';
-import { GOALS } from '../../src/data/goals.js';
+import { GOALS, GOAL_REWARD } from '../../src/data/goals.js';
 import { goalById } from '../../src/sim/goals.js';
-import { T } from '../../src/ui/text.js';
+import { canPlace } from '../../src/sim/commands.js';
+import { T, CHAPTER_NAMES, goalsProgressText, rewardText } from '../../src/ui/text.js';
 import { openSheet } from '../../src/ui/modes.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 import { rigUI } from '../helpers/uiWorld.js';
 
 describe('ui goals', () => {
-  it('shows the first open goal in the strip with Show me, and hides when all are done', () => {
+  it('shows the first open goal in the strip with Show me, and hides the row when all are done', () => {
     const { root, cleanup } = mount();
     const world = makeTestWorld();
     const shown = [], opened = [];
     const strip = createGoalsStrip({ container: root, world, onShowMe: (g) => shown.push(g.id), onOpen: () => opened.push(1) });
     expect(root.textContent).toContain(GOALS[0].text);
-    expect(root.textContent).toContain('+25');
+    expect(root.textContent).toContain(rewardText(GOAL_REWARD));
     fire(root.querySelector('.show-me'), 'click');
     expect(shown).toEqual(['road']);
     fire(root.querySelector('.open-goals'), 'click');
@@ -27,15 +28,17 @@ describe('ui goals', () => {
     world.goals.completed = GOALS.map((g) => g.id);
     strip.render();
     expect(root.querySelector('.goal-strip').hidden).toBe(true);
+    expect(root.hidden).toBe(true);                                  // the whole row goes, so #under-bar keeps no gap for it
     cleanup();
   });
-  it('renders the goals sheet with progress and up to three goals', () => {
+  it('renders the goals sheet by chapter with the count and up to three goals', () => {
     const { root, cleanup } = mount();
     const world = makeTestWorld();
     world.goals.completed.push('road');
     const shown = [];
     goalsSheet(world, { onShowMe: (g) => shown.push(g.id) })(root, { close: () => {} });
-    expect(root.textContent).toContain('1 of 9 done');
+    expect(root.textContent).toContain(goalsProgressText(1, GOALS.length));
+    expect([...root.querySelectorAll('h3')].map((h) => h.textContent)).toEqual([CHAPTER_NAMES.first_homes, CHAPTER_NAMES.feed]);
     const rows = root.querySelectorAll('.goal');
     expect(rows.length).toBe(3);
     expect(rows[0].textContent).toContain(GOALS[1].text);
@@ -89,7 +92,7 @@ describe('ui goals', () => {
     expect(document.activeElement).toBe(r.root.querySelector('#goals .show-me'));
     r.cleanup();
   });
-  it('stacks under the banner and the legend, and Show me puts a building ghost on the target', async () => {
+  it('stacks under the banner and the legend, and Show me puts a building ghost on a free tile near the target', async () => {
     const r = await rigUI({ width: 1280, height: 800 });
     r.world.gold = -30; r.ui.alerts.refresh();
     r.store.set({ overlay: 'water' });
@@ -99,12 +102,16 @@ describe('ui goals', () => {
     expect(bottom('#legend')).toBeGreaterThan(top('#legend'));
     expect(top('#legend') >= bottom('#banner')).toBe(true);
     expect(top('#goals .goal-strip') >= bottom('#legend')).toBe(true);
+    r.world.gold = 1000;                                              // out of debt, so the ghost's tile can be judged a fit
     r.world.goals.completed.push('road', 'plots');
     r.ui.refresh();
     fire(r.root.querySelector('#goals .show-me'), 'click');
     const t = showMeTarget(r.world, goalById('well'));
+    const ghost = r.store.get().ghost;
     expect(r.store.get().tool.type).toBe('well');
-    expect(r.store.get().ghost).toEqual(nearestFit(r.world, { kind: 'building', type: 'well' }, Math.floor(t.x), Math.floor(t.y)));
+    expect(ghost).toEqual(nearestFit(r.world, { kind: 'building', type: 'well' }, Math.floor(t.x), Math.floor(t.y)));
+    expect(Math.abs(ghost.x + 0.5 - t.x) <= 2 && Math.abs(ghost.y + 0.5 - t.y) <= 2).toBe(true);   // beside the homes, not on them
+    expect(canPlace(r.world, 'well', ghost.x, ghost.y).ok).toBe(true);
     expect(r.ui.placement.preview().state).toBe('ok');             // the hut on the target tile is stepped around
     r.cleanup();
   });

@@ -86,6 +86,7 @@ import './sim/achievements.test.js';
 import './sim/daily.test.js';
 import './ui/autosave.test.js';
 import './ui/goalsList.test.js';
+import './ui/goalsV2.test.js';
 import './ui/welcomeBack.test.js';
 import './ui/titleCard.test.js';
 import './ui/boot.test.js';
