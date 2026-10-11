@@ -1,5 +1,5 @@
-// Which drawing a building shows (early-game pass 2.2 and 2.3): granaries and bazaars by how full they are,
-// farms by how far the crop has grown. Pure functions of the building (and, for farms, the game day);
+// Which drawing a building shows (early-game pass 2.2 and 2.3): granaries, storehouses and bazaars by how full they
+// are, farms by how far the crop has grown. Pure functions of the building (and, for farms, the game day);
 // the renderer turns them into art slots through slotFor in registry.js.
 import { BUILDINGS } from '../../data/buildings.js';
 
@@ -11,6 +11,15 @@ const stored = (b) => { let n = 0; for (const v of Object.values(b.store || {}))
 // 0 empty, 1 under a third full, 2 under two thirds, 3 the rest.
 export function granaryStage(b) {
   const n = stored(b), cap = BUILDINGS.granary.capacity;
+  if (n <= 0) return 0;
+  if (n * 3 < cap) return 1;
+  if (n * 3 < cap * 2) return 2;
+  return 3;
+}
+
+// The storehouse's yard (Stage 2), like the granary: 0 empty, 1 under a third full, 2 under two thirds, 3 the rest.
+export function storehouseStage(b) {
+  const n = stored(b), cap = BUILDINGS.storehouse.capacity;
   if (n <= 0) return 0;
   if (n * 3 < cap) return 1;
   if (n * 3 < cap * 2) return 2;

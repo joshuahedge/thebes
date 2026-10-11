@@ -40,6 +40,7 @@ import './render/housingArt.test.js';
 import './render/housingTiersArt.test.js';
 import './render/servicesArt.test.js';
 import './render/farmsDecorArt.test.js';
+import './render/industryArt.test.js';
 import './render/lifeArt.test.js';
 import './render/natureArt.test.js';
 import './render/figuresArt.test.js';
