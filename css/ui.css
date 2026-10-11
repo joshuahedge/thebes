@@ -465,6 +465,42 @@ body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
 
 /* ── s3 ui (Track D) ── Track D's styles for the danger interface. Add new rules just above the end marker. */
+/* D1: the one banner (spec 6.3). Words first, then the buttons; on a narrow phone the buttons wrap under the words and
+   keep their 44 px. A raid warning's defence line sits on its own line; its countdown chip is the same row, one line. */
+#banner .critical { flex-wrap: wrap; row-gap: 4px; }
+#banner .critical .icon { flex: none; }
+#banner .critical .text { flex: 1 1 6em; }
+#banner .critical .defence { display: block; }
+#banner .critical .buttons { flex: 0 1 auto; max-width: 100%; display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+#banner .critical .more { white-space: nowrap; }
+#banner .critical.chip .expand { font-weight: 700; text-align: left; padding: 0 4px; }
+/* A phone at larger text keeps the banner to its title and buttons: the fix stays for screen readers and in the alert
+   list (the minimap sheet), so the banner and the goals strip end above the middle of the screen (ruling 111). */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #banner .critical .text > .small:not(.defence) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* The legend under a banner on a phone (ruling 111): one 44 px icon at the right end of the banner's row, so the goals
+   strip keeps its place; tapped, the full legend opens in its own row. Wide screens keep the full strip. */
+#legend .legend-icon { display: none; }
+body.has-banner:not([data-layout="wide"]) #legend .legend-icon { display: inline-flex; align-items: center; justify-content: center; padding: 0; box-shadow: var(--shadow); }
+body.has-banner:not([data-layout="wide"]) #legend:not(.open) .strip { display: none; }
+body.has-banner:not([data-layout="wide"]) #legend.open { flex-direction: row-reverse; align-items: center; }   /* open: the icon ends the strip's row */
+body.has-banner:not([data-layout="wide"]) #legend:not(.open):not(:empty) { position: absolute; top: 0; right: 0; }
+body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:empty)) { max-width: calc(100% - var(--tap) - 6px); }
+/* D2: an info caption (a blaze put out, a raid's report) is news, not a celebration: no star, a plain edge. */
+#cheer .cheer.info { border-color: var(--parchment-3); }
+#cheer .cheer.info .icon { display: none; }
+#sheet .fire-note, #sheet .ambient-note { margin: 0 0 6px; }
+/* D3: the danger sheets. The fire row's words wrap under its label; its Show me or View sits right under it. The
+   festival and rubble groups keep their reason beside the button they explain; the tribute sheet's two outcome
+   buttons share a row, neither styled as the default. */
+#sheet .fire-row > :last-child { text-align: right; }
+#sheet .fire-fix { display: flex; justify-content: flex-end; padding: 4px 0; }
+#sheet .festival-group { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex-basis: 100%; }
+#sheet .festival-group p { margin: 0; }
+#sheet .tribute-cost { font-weight: 700; margin: 0 0 6px; }
+#sheet .cancels, #sheet .why-not { margin: 8px 0 4px; }
+#sheet .tribute-actions button { flex: 1 1 10em; }
+/* D4: the fire-risk legend: the four bands, then the dot and ring and what never burns on a row of their own. */
+#legend .fire-keys { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; order: 4; flex-basis: 100%; }
 /* ── end s3 ui ── */
 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */

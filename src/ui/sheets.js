@@ -142,7 +142,8 @@ export function createSheets({ container, store, world, placement, cameraControl
         if (r.ok) { assignLabour(world); afterCommand({ kind: 'pause', result: r, text: b.paused ? T.paused : T.resumed, undoable: false }); render(); }
       } }));
     }
-    actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(b.x, b.y); if (r.ok) close(); } }));
+    // Rubble's Clear (Stage 3, src/ui/dangerSheets.js) is its demolish, with the price in its name.
+    if (b.type !== 'rubble') actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(b.x, b.y); if (r.ok) close(); } }));
     body.append(actions);
     return [head(buildingName(b.type)), body];
   }
@@ -288,9 +289,25 @@ export function createSheets({ container, store, world, placement, cameraControl
     const list = getAlerts();
     body.append(el('h3', { text: T.alerts }));
     if (!list.length) body.append(el('p', { class: 'muted', text: T.noAlerts }));
-    else body.append(el('ul', { class: 'alert-list' }, list.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => onView(a) })]); })));
+    else body.append(el('ul', { class: 'alert-list' }, list.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) })]); })));
     minimap.render(list);
     return [head(T.minimap), body];
+  }
+
+  // View in the alert list: a building's alert goes through onView (it selects the building); a raid's alert sits at a
+  // map point (Stage 3), so the sheet closes and the camera goes there.
+  function viewInList(a) {
+    if ((a.id === undefined || a.id === null) && Number.isFinite(a.x) && Number.isFinite(a.y)) { close(); cameraControl.panTo(a.x + 0.5, a.y + 0.5); return; }
+    onView(a);
+  }
+
+  // Store re-entrancy (1c follow-up, Stage 3): a building can vanish on the daily tick (it burned down). When the sheet
+  // is rebuilt inside a store notification, closing it there would hand the subscribers after this one an older state,
+  // so the close waits for a microtask and checks again; outside a notification it closes at once.
+  let notifying = false;
+  function closeGone() {
+    const now = store.get();
+    if (now.sheet && now.sheet.kind === 'info' && !world.buildings[now.sheet.id]) store.set(closeSheet(now));
   }
 
   function render() {
@@ -304,7 +321,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     let parts;
     if (s.sheet.kind === 'info') {
       const b = world.buildings[s.sheet.id];
-      if (!b) { store.set(closeSheet(s)); container.hidden = true; return; }
+      if (!b) { container.hidden = true; if (notifying) queueMicrotask(closeGone); else closeGone(); return; }
       parts = b.type === 'house' ? houseSheet(b) : buildingSheet(b);
     } else if (s.sheet.kind === 'summary') parts = summarySheet();
     else if (s.sheet.kind === 'minimap') parts = minimapSheet();
@@ -319,6 +336,6 @@ export function createSheets({ container, store, world, placement, cameraControl
   }
 
   render();
-  store.subscribe(render);
+  store.subscribe(() => { notifying = true; try { render(); } finally { notifying = false; } });
   return { render };
 }

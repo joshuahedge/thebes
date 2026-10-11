@@ -681,6 +681,124 @@ export const ART_TEXT = {
 // ── s3 ui (Track D) ──────────────────────────────────────────────────────────────────────────────────────────
 // Track D's words for the danger interface: banners, the countdown chip, the tribute sheet, settings rows, the fire overlay and its legend. Add new lines just above the end marker.
 export const DANGER_UI_TEXT = {};
+// Every track's section shares this module's top-level scope, so Track D's own names start with "dui" (its imports too,
+// renamed with "as"; imports are hoisted, so they sit here in the section and the shared lines at the top stay as they are).
+import { DAYS_PER_MONTH as duiMonthDays } from '../sim/time.js';
+// Directions as raids name them (src/sim/raids.js entryDir), and a span of game days in words ("2 months 12 days") and
+// as the countdown chip writes it ("2 m 12 d"). A game month is DAYS_PER_MONTH days (src/sim/time.js).
+const duiDirWords = { north: 'north', east: 'east', south: 'south', west: 'west' };
+const duiDir = (dir) => duiDirWords[dir] || dir;
+function duiDuration(days) {
+  const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
+  const parts = [m ? plural(m, 'month', 'months') : '', d || !m ? plural(d, 'day', 'days') : ''];
+  return parts.filter(Boolean).join(' ');
+}
+const duiCountdown = (days) => {
+  const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
+  return m ? `${m} m ${d} d` : `${d} d`;
+};
+// D1: the one banner (spec 6.3). The defence line follows tributeQuote (src/sim/raids.js): buildN is the towers needed
+// for the warned raid less the working towers, buildCost their price in this city; at 0 the towers can beat it (ruling 108).
+Object.assign(DANGER_UI_TEXT, {
+  dir: duiDir, duration: duiDuration, countdown: duiCountdown,
+  firesTitle: (n) => `${n} buildings on fire`,
+  firesFix: 'No staffed firehouse reaches them',             // the 'fire' code: a blaze or fire no staffed firehouse reaches
+  more: (n) => `+${n} more`,
+  moreLabel: (n) => `${plural(n, 'more critical alert', 'more critical alerts')}: open the alert list`,
+  payTribute: 'Pay tribute',
+  collapse: 'Shrink', collapseLabel: 'Shrink the raid warning to its countdown', expand: 'Show the whole warning',
+  chip: (dir, days) => `Raid from the ${duiDir(dir)} · ${duiCountdown(days)}`,
+  defenceLine: (q, dir) => (q.buildN > 0
+    ? `${q.hidden ? 'Build' : 'or build'} ${plural(q.buildN, 'tower', 'towers')} facing ${duiDir(dir)} (≈ ${q.buildCost} gold)`
+    : 'Your towers can beat this raid'),
+  legendOpen: (name) => `Show the legend: ${name}`, legendClose: 'Hide the legend',
+});
+// D2: captions, the raid report and the Settings rows. A blaze or a fire goes out only where a firehouse reaches it
+// (src/sim/fire.js: a covered and staffed blaze, a covered fire at 25% x coverage a day), so the caption names the
+// firehouse. The report reads raid.last's fields (src/sim/raids.js): size, towers, byTowers, bySoldiers, burned, stolen.
+const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.stolen ? `${r.stolen} gold stolen` : ''].filter(Boolean).join(', ') || 'nothing lost';
+function duiRaidReport(r) {
+  const from = `Raid from the ${duiDir(r.dir)}`;
+  if (r.won) {
+    const stopped = [r.towers || r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : ''].filter(Boolean);
+    return `${from} beaten: ${stopped.length ? `${stopped.join(', ')}; ` : ''}${duiLosses(r)}.`;
+  }
+  const did = listText([r.burned ? `burned ${plural(r.burned, 'building', 'buildings')}` : '', r.stolen ? `took ${r.stolen} gold` : ''].filter(Boolean));
+  const stopped = [r.byTowers ? `Towers stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `${r.byTowers ? 'soldiers' : 'Soldiers'} stopped ${r.bySoldiers}` : ''].filter(Boolean);
+  return `${from}: ${did ? `raiders ${did}` : 'the raiders struck and left'}.${stopped.length ? ` ${stopped.join(', ')}.` : ''}`;
+}
+Object.assign(DANGER_UI_TEXT, {
+  putOut: (stage, name) => `The firehouse put out a ${stage === 'fire' ? 'fire' : 'blaze'} at the ${name}`,
+  raidReport: duiRaidReport,
+  onAFire: 'On a fire', fireReactions: { pause: 'Pause', goto: 'Go to it', inform: 'Just tell me' },
+  onAFireNote: "For a fire no staffed firehouse reaches. The city's first one always pauses the game.",
+  ambient: 'Ambient motion', ambientReduced: 'Off while Reduce motion is on',
+});
+// D3: the danger sheets (src/ui/dangerSheets.js). The fire row reads src/sim/fire.js: "a firehouse reaches it" is
+// staffedCover (coverage of FIRE.staffedAt or more); "short of workers" and "paused" name a firehouse whose road reach
+// takes the building in but which does not cover it enough; the band is fireBand's. A blaze goes out only on covered and
+// staffed days, so a firehouse under FIRE.staffedAt of its workers puts none out. The tribute words read tributeQuote and
+// payTribute (src/sim/raids.js), the festival's festivalStatus (src/sim/festival.js).
+import { FIRE as duiFire } from '../data/fire.js';
+const duiFireFrom = MILESTONES.find((m) => m.id === duiFire.startsAt);
+const duiBands = ['low', 'rising', 'high', 'can catch fire'];
+Object.assign(T, { tribute: 'Pay tribute' });                     // the tribute sheet's heading (sheets use T[kind])
+Object.assign(DANGER_UI_TEXT, {
+  fireLabel: 'Fire', neverBurns: 'Never catches fire', riskStartsAtTown: `Fire risk starts at ${duiFireFrom ? duiFireFrom.name : duiFire.startsAt}`,
+  riskLine: (band, tail) => (band >= 3 ? `Can catch fire, ${tail}` : `Fire risk: ${duiBands[band]}, ${tail}`),
+  reaches: 'a firehouse reaches it', whyNone: `no firehouse within ${duiFire.reach} road tiles`, noneReaches: 'no firehouse reaches it',
+  whyShort: 'the firehouse is short of workers', whyPaused: 'the firehouse is paused',
+  blaze: 'Blaze', burningFor: (left) => `Burning, ${plural(left, 'day', 'days')} left`, puttingOut: 'the firehouse is putting it out', fighting: 'the firehouse is fighting it',
+  buildFirehouse: 'Build a firehouse near it',
+  covers: (n) => `Covers ${plural(n, 'building that can burn', 'buildings that can burn')}`,
+  coversNothingPaused: 'Covers nothing while it is paused',
+  coversNothingUntil: (n, of) => `Covers nothing until it has ${n} of ${of} workers`,
+  tooShortToFight: (n, of) => `Puts out blazes only with ${n} of ${of} workers or more`,
+  range: 'Range', patrol: 'Patrol', soldiers: 'Soldiers', onTheWall: 'On the wall',
+  tiles: (n) => plural(n, 'tile', 'tiles'), hitPoints: (hp, of) => `${hp} of ${of} hit points`, fullHitPoints: (hp) => `${hp} hit points`,
+  towerDoes: (r) => `Shoots the nearest raider within ${r} tiles once a day`,
+  notShootingPaused: 'Not shooting while it is paused', notShootingUntil: (n, of) => `Not shooting until it has ${n} of ${of} workers`,
+  barracksFull: (n, of) => `Full: ${n} of ${of} soldiers; it trains another when one is wounded`,
+  trains: (days) => `Trains one soldier every ${days} days at full staff, slower when short of workers`,
+  notTrainingPaused: 'Not training while it is paused', notTrainingUntil: (n, of) => `Not training until it has ${n} of ${of} workers`,
+  soldiersPay: (n) => `Each soldier is paid ${n} gold a month, in peace too`,
+  lastRaidTowers: (r) => `Last raid: towers stopped ${r.byTowers} of ${r.size}`,
+  lastRaidSoldiers: (r) => `Last raid: soldiers stopped ${r.bySoldiers} of ${r.size}`,
+  rubbleRow: (cost) => `Rubble: clear it for ${cost} gold a tile`, rubbleDrag: 'Drag Demolish over rubble to clear many at once',
+  clearFor: (cost) => `Clear, ${cost} gold`, cleared: 'Rubble cleared',
+  holdFestival: (cost) => `Hold a festival, ${cost} gold`, festivalHeld: 'Festival held',
+  festivalDoes: (mood, days, every) => `+${mood} mood for ${duiDuration(days)}; the next can follow ${duiDuration(every)} later`,
+  festivalOn: (mood, days) => `Festival: +${mood} mood for ${duiDuration(days)} more`,
+  nextFestival: (days) => `Next festival in ${duiDuration(days)}`,
+  festivalNeedsTemple: 'A festival needs a working temple',
+  wouldPassDebt: (n) => `Would put the treasury over ${n} gold in debt`,       // canAfford's floor (src/sim/money.js)
+  lastRaid: 'Last raid', endedOn: (date) => `Ended ${date}`,
+  noWarning: 'Tribute can be paid only while a raid is on its way', firstRaid: "The first raid can't be paid off.",
+  capital: (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s),
+  tributeCost: (cost) => `Pay ${cost} gold of tribute`, goldNow: 'Gold now', goldAfter: 'Gold afterwards',
+  cancels: (dir, size) => `Cancels the raid from the ${duiDir(dir)} (${plural(size, 'raider', 'raiders')}). The next raid still comes.`,
+  tributeBelowZero: (gold) => `You have ${gold} gold. Tribute can't put the treasury below 0.`,
+  payGold: (cost) => `Pay ${cost} gold`, keepGold: 'Keep gold, defend', tributePaid: (cost) => `Tribute paid: ${cost} gold`,
+});
+// D4: tools and the fire-risk overlay. The bands start at FIRE_BANDS (src/data/fire.js); the dot is staffedCover, as on
+// the fire row. The firehouse's line counts what fireCoverage would reach from the ghost (src/ui/placement.js); the wall
+// line counts previewWall's tiles and gates (src/sim/defence.js); clearing rubble costs rubbleCostOf a tile and is
+// refused below the debt floor (src/sim/commands.js previewDemolishArea).
+import { FIRE_BANDS as duiBandStarts } from '../data/fire.js';
+const duiBandNames = ['Low', 'Rising', 'High', 'Can catch fire'];
+Object.assign(OVERLAY_NAMES, { fire: 'Fire risk' });
+Object.assign(OVERLAY_LEGEND, { fire: ['A staffed firehouse reaches it', 'No staffed firehouse reaches it'] });
+Object.assign(DANGER_UI_TEXT, {
+  fireBand: (k) => {
+    const from = duiBandStarts[k], next = duiBandStarts[k + 1];
+    return { label: duiBandNames[k], words: `${duiBandNames[k]}: fire risk ${next === undefined ? `${from} or more` : `${from} to ${next - 1}`}` };
+  },
+  neverBurnNote: 'Roads, gardens, statues, wells and walls never burn',
+  firehouseCovers: (n) => (n > 0 ? DANGER_UI_TEXT.covers(n) : 'No buildings that can burn in reach yet'),   // as the sheet's covers line
+  wallCount: (tiles, gates) => `${plural(tiles, 'tile', 'tiles')}${gates ? `, ${plural(gates, 'gate', 'gates')} on roads` : ''}`,
+  clearRubble: (n, cost) => `Clear ${n} rubble: ${cost} gold`,
+  demolishCost: (gold) => `${gold} gold`,
+});
 // ── end s3 ui ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

@@ -13,8 +13,12 @@ import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
 import { costOf } from '../sim/costs.js';
 import { refusingStores } from '../sim/production.js';
 import { previewWall, drawWall } from '../sim/defence.js';
+import { canBurn } from '../sim/fire.js';
+import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
+import { FIRE } from '../data/fire.js';
+import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
-import { buildingName, reasonText, warningText, effectText, plural, nicerText, T } from './text.js';
+import { buildingName, reasonText, warningText, effectText, plural, nicerText, T, DANGER_UI_TEXT } from './text.js';
 
 const footprintOf = (tool) => (tool.kind === 'building' ? { w: BUILDINGS[tool.type].w, d: BUILDINGS[tool.type].d } : { w: 1, d: 1 });
 
@@ -57,7 +61,19 @@ export function nearestFit(world, tool, x, y, maxR = NEAREST_FIT_RADIUS) {
 }
 
 const idle = (text, tiles = []) => ({ state: 'idle', reason: null, warnings: [], text, effect: '', cost: 0, count: 0, tiles, refund: 0 });
-const bad = (reason, cost, count, tiles = []) => ({ state: 'bad', reason, warnings: [], text: reasonText(reason), effect: '', cost, count, tiles, refund: 0 });
+const bad = (reason, cost, count, tiles = [], text = reasonText(reason)) => ({ state: 'bad', reason, warnings: [], text, effect: '', cost, count, tiles, refund: 0 });
+
+// Stage 3 (Track D, spec 4.12): the buildings that can burn a firehouse at (x, y) would reach: fireCoverage's own test
+// (src/sim/fire.js: a road tile next to the building within FIRE.reach road tiles of the firehouse), counted as if it
+// were staffed. Uncached, like homesServedFrom, so a moving ghost leaves nothing in the reach cache.
+export function firehouseReachFrom(world, x, y) {
+  const def = BUILDINGS.firehouse;
+  const reach = roadReach(world, { x, y, w: def.w, d: def.d }, FIRE.reach, { cache: false });
+  if (!reach.size) return 0;
+  let n = 0;
+  for (const b of Object.values(world.buildings)) if (canBurn(b) && adjacentRoadTiles(world, b).some((t) => reach.has(t))) n++;
+  return n;
+}
 
 // A ghost's first warning in words. A producer with no store in reach that takes its good names the store it needs; when a
 // store there is built to hold the good but refuses it, the line says so, so the accept switch is not hidden.
@@ -91,8 +107,10 @@ function basePreview(world, state) {
     const r = canPlace(world, tool.type, x, y);
     if (!r.ok) return bad(r.reason, cost, 1);
     const warn = r.warnings.length > 0;
-    // A service says how many homes it would reach from here (early-game pass 2.6); other buildings say nothing.
-    const effect = def.reach ? effectText(tool.type, homesServedFrom(world, tool.type, x, y)) : '';
+    // A service says how many homes it would reach from here (early-game pass 2.6); a firehouse, how many buildings that
+    // can burn (Stage 3); other buildings say nothing.
+    const effect = tool.type === 'firehouse' ? DANGER_UI_TEXT.firehouseCovers(firehouseReachFrom(world, x, y))
+      : def.reach ? effectText(tool.type, homesServedFrom(world, tool.type, x, y)) : '';
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningLine(world, tool.type, x, y, r.warnings[0]) : '', effect, cost, count: 1, tiles: [], refund: 0 };
   }
   if (isLine(tool)) {
@@ -103,6 +121,13 @@ function basePreview(world, state) {
     const r = (tool.kind === 'road' ? previewRoad : previewWall)(world, l.x0, l.y0, l.x1, l.y1, l.flip);
     if (!r.ok) return bad(r.reason, r.cost, r.tiles.length, tiles);
     if (!r.tiles.length) return bad('nothing_to_place', 0, 0, tiles);
+    if (tool.kind === 'wall') {
+      // Stage 3 (spec 4.13, 6.4): only the tiles that get wall (standing wall is skipped), the gates among them marked, and
+      // the count says how many are gates on roads (previewWall: tiles and gates are map indices).
+      const at = (i) => [i % world.size, Math.floor(i / world.size)];
+      const gates = r.gates || [];
+      return { state: 'ok', reason: null, warnings: [], text: DANGER_UI_TEXT.wallCount(r.tiles.length, gates.length), effect: '', cost: r.cost, count: r.tiles.length, tiles: r.tiles.map(at), gates, refund: 0 };
+    }
     return { state: 'ok', reason: null, warnings: [], text: plural(r.tiles.length, 'tile', 'tiles'), effect: '', cost: r.cost, count: r.tiles.length, tiles, refund: 0 };
   }
   const a = state.area;
@@ -119,8 +144,14 @@ function basePreview(world, state) {
   const count = r.buildingIds.length + r.roadTiles.length + r.wallTiles.length;
   const tiles = rectTiles(a.x0, a.y0, a.x1, a.y1, world.size);
   if (!count) return bad('nothing_here', 0, 0, tiles);
-  if (!r.ok) return bad(r.reason, -r.refund, count, tiles);                     // clearing rubble would cross the debt floor
-  return { state: 'ok', reason: null, warnings: [], text: `${plural(count, 'item', 'items')} · ${T.refund} ${r.refund}`, effect: '', cost: -r.refund, count, tiles, refund: r.refund };
+  // Clearing rubble would cross the debt floor (Stage 3, spec 4.12): the bar says so in the rule's words.
+  if (!r.ok) return bad(r.reason, -r.refund, count, tiles, DANGER_UI_TEXT.wouldPassDebt(-ECONOMY.debtFloor));
+  // Rubble is cleared, not refunded: "Clear 4 rubble: 20 gold", beside the other items when there are any.
+  const others = count - r.rubble;
+  const text = r.rubble
+    ? [others ? plural(others, 'item', 'items') : '', DANGER_UI_TEXT.clearRubble(r.rubble, r.clearCost)].filter(Boolean).join(' · ')
+    : `${plural(count, 'item', 'items')} · ${T.refund} ${r.refund}`;
+  return { state: 'ok', reason: null, warnings: [], text, effect: '', cost: -r.refund, count, tiles, refund: r.refund };
 }
 
 // The preview a tool shows. A building that can go where its ghost is also says what it would do to the homes around it
@@ -152,8 +183,12 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
   }
   if (tool.kind === 'demolish') {
     return preview.tiles
-      .filter(([x, y]) => world.occ[y * world.size + x] || world.road[y * world.size + x])
+      .filter(([x, y]) => world.occ[y * world.size + x] || world.road[y * world.size + x] || world.wall[y * world.size + x])
       .map(([x, y]) => ({ x, y, w: 1, d: 1, state: 'demolish' }));
+  }
+  if (tool.kind === 'wall' && preview.gates && preview.gates.length) {
+    const gates = new Set(preview.gates);
+    return preview.tiles.map(([x, y]) => ({ x, y, w: 1, d: 1, state: gates.has(y * world.size + x) ? 'gate' : visual }));
   }
   return preview.tiles.map(([x, y]) => ({ x, y, w: 1, d: 1, state: visual }));
 }
