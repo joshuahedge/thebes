@@ -617,6 +617,27 @@ Object.assign(DANGER_UI_TEXT, {
     : 'Your towers can beat this raid'),
   legendOpen: (name) => `Show the legend: ${name}`, legendClose: 'Hide the legend',
 });
+// D2: captions, the raid report and the Settings rows. A blaze or a fire goes out only where a firehouse reaches it
+// (src/sim/fire.js: a covered and staffed blaze, a covered fire at 25% x coverage a day), so the caption names the
+// firehouse. The report reads raid.last's fields (src/sim/raids.js): size, towers, byTowers, bySoldiers, burned, stolen.
+const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.stolen ? `${r.stolen} gold stolen` : ''].filter(Boolean).join(', ') || 'nothing lost';
+function duiRaidReport(r) {
+  const from = `Raid from the ${duiDir(r.dir)}`;
+  if (r.won) {
+    const stopped = [r.towers || r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : ''].filter(Boolean);
+    return `${from} beaten: ${stopped.length ? `${stopped.join(', ')}; ` : ''}${duiLosses(r)}.`;
+  }
+  const did = listText([r.burned ? `burned ${plural(r.burned, 'building', 'buildings')}` : '', r.stolen ? `took ${r.stolen} gold` : ''].filter(Boolean));
+  const stopped = [r.byTowers ? `Towers stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `${r.byTowers ? 'soldiers' : 'Soldiers'} stopped ${r.bySoldiers}` : ''].filter(Boolean);
+  return `${from}: ${did ? `raiders ${did}` : 'the raiders struck and left'}.${stopped.length ? ` ${stopped.join(', ')}.` : ''}`;
+}
+Object.assign(DANGER_UI_TEXT, {
+  putOut: (stage, name) => `The firehouse put out a ${stage === 'fire' ? 'fire' : 'blaze'} at the ${name}`,
+  raidReport: duiRaidReport,
+  onAFire: 'On a fire', fireReactions: { pause: 'Pause', goto: 'Go to it', inform: 'Just tell me' },
+  onAFireNote: "For a fire no staffed firehouse reaches. The city's first one always pauses the game.",
+  ambient: 'Ambient motion', ambientReduced: 'Off while Reduce motion is on',
+});
 // ── end s3 ui ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //
