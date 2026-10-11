@@ -90,7 +90,7 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 #dock .cat { display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; min-width: var(--tap); padding: 2px 4px; font-size: calc(12px * var(--ui-scale)); border-radius: 8px; box-shadow: none; }
 #dock .cat[aria-pressed="true"] { color: var(--teal); font-weight: 600; box-shadow: none; }
 #dock .cat .icon { font-size: calc(20px * var(--ui-scale)); }
-#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 4px 12px 10px; scroll-snap-type: x proximity; }
+#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 4px 12px 10px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; }
 #dock .pill { align-self: center; margin: 6px 0 8px; }
 #dock[data-height="slim"] .tray, #dock[data-height="slim"] .pill { display: none; }
 #dock[data-height="tray"] .pill { display: none; }
@@ -224,10 +224,13 @@ body[data-layout="compact"] .confirm { flex-wrap: wrap; justify-content: flex-en
 body[data-layout="compact"] .confirm .info { flex: 1 0 100%; }
 
 /* Cards with pictures (early-game pass 2.5): the building's drawing over its name and cost; the coin is decoration. */
-.card .thumb { display: block; width: 56px; height: 40px; flex: 0 0 auto; }
+/* The picture is drawn at its own size (THUMB_W x THUMB_H in src/ui/thumbs.js); where a scrollbar narrows a card it shrinks, never stretches. */
+.card .thumb { display: block; align-self: center; width: 104px; max-width: 100%; height: 52px; object-fit: contain; flex: 0 0 auto; }
 .card .coin { display: inline-block; width: 0.75em; height: 0.75em; margin-right: 4px; border-radius: 50%; background: var(--gold); box-shadow: inset 0 0 0 1px #B98A4A; vertical-align: -0.05em; }
 /* Category bands: a thin stripe in the category's emblem colour (--tint, set on each button). A background image, so
-   it survives the dock's background: none and the pressed tab's teal fill; it adds no height. */
+   it survives the dock's background: none and the pressed tab's teal fill; it adds no height. The teal fill would
+   swallow most tints, so the pressed tab's band turns white. */
 #dock .cat, #rail .cat, #panel .tab, #panel .tab[aria-pressed="true"] { background-image: linear-gradient(var(--tint, transparent), var(--tint, transparent)); background-repeat: no-repeat; background-position: 50% 100%; background-size: 60% 3px; }
+#panel .tab[aria-pressed="true"] { background-image: linear-gradient(var(--teal-ink), var(--teal-ink)); }
 /* The rail's pressed button wears a 2 px teal ring inside its edge; lift the band clear of it so it still shows. */
 #rail .cat { background-position: 50% calc(100% - 4px); }

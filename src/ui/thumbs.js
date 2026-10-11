@@ -1,13 +1,18 @@
 // Card pictures (early-game pass 2.5): each build card shows its building's own drawing, rendered from the art
-// registry and fitted into a small canvas. Roads and demolish get small drawn icons of their own. Each picture
-// is painted once per item and pixel ratio, then copied onto every card that shows it.
+// registry and fitted into a small canvas. Roads and demolish get small drawn icons of their own. The drawing is
+// measured first and fitted by the pixels it really inks, so a small building fills the box as a big one does.
+// Each picture is painted once per item and pixel ratio, then copied onto every card that shows it.
 import { ART } from '../render/art/registry.js';
 import { makeDraw } from '../render/art/ctx.js';
 import { p } from '../render/iso.js';
 import { TERRAIN, SHADOW, ROCK, RED, UI } from '../render/art/palette.js';
 
-export const THUMB_W = 56;    // CSS px; css/ui.css sizes .card .thumb to match
-export const THUMB_H = 40;
+export const THUMB_W = 104;   // CSS px; css/ui.css sizes .card .thumb to match
+export const THUMB_H = 52;
+const INSET = 2;              // CSS px of clear border around the picture
+const PROBE = 4;              // device px per art px for the measuring pass
+const SLACK = 4;              // art px past a slot's bounds the measuring pass also looks at
+const INK_ALPHA = 24;         // pixels fainter than this (a soft ground shadow) do not count as drawn
 
 // A short stretch of road, drawn the way terrainRoads.js draws roads: shadow, edge, top, ruts and pebbles.
 const ROAD_ICON = {
@@ -34,20 +39,47 @@ const DEMOLISH_ICON = {
   },
 };
 
+// Only `draw`-based art slots get a picture; a slot that later points at a PNG would need handling here.
 function artFor(item) {
   if (item === 'road') return ROAD_ICON;
   if (item === 'demolish') return DEMOLISH_ICON;
-  const def = ART[item === 'house' ? 'house.t3' : item];      // a plot shows a Cottage, what it grows into
+  const def = ART[item === 'house' ? 'house.t1' : item];      // a plot shows a Hut, the home it starts as
   return def && def.draw ? def : null;
 }
 
-// Fit the art's bounds into the canvas, keeping its aspect ratio, centred.
+// The box the art really inks, in art px: draw it big once and scan for pixels that are clearly there.
+function inkBounds(art) {
+  const [l, t, r, b] = art.bounds;
+  const w = Math.ceil((r - l + 2 * SLACK) * PROBE), h = Math.ceil((b - t + 2 * SLACK) * PROBE);
+  const probe = document.createElement('canvas');
+  probe.width = w; probe.height = h;
+  const ctx = probe.getContext('2d', { willReadFrequently: true });
+  ctx.translate((SLACK - l) * PROBE, (SLACK - t) * PROBE);
+  art.draw(makeDraw(ctx, PROBE), 0, 0);
+  const px = ctx.getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (px[(y * w + x) * 4 + 3] <= INK_ALPHA) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  }
+  if (x1 < 0) return null;
+  return [l - SLACK + x0 / PROBE, t - SLACK + y0 / PROBE, l - SLACK + (x1 + 1) / PROBE, t - SLACK + (y1 + 1) / PROBE];
+}
+
+// Fit the inked box into the canvas, keeping its aspect ratio, centred, a couple of px in from the edge.
 function paint(canvas, art, dpr) {
   canvas.width = Math.round(THUMB_W * dpr);
   canvas.height = Math.round(THUMB_H * dpr);
-  if (!art) return;
-  const [l, t, r, b] = art.bounds;
-  const scale = Math.min(canvas.width / (r - l), canvas.height / (b - t));
+  const box = art && inkBounds(art);
+  if (!box) return;
+  const [l, t, r, b] = box;
+  const inset = INSET * dpr;
+  const scale = Math.min((canvas.width - 2 * inset) / (r - l), (canvas.height - 2 * inset) / (b - t));
   const ctx = canvas.getContext('2d');
   ctx.save();
   ctx.translate((canvas.width - (r - l) * scale) / 2 - l * scale, (canvas.height - (b - t) * scale) / 2 - t * scale);
