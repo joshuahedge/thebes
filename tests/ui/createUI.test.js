@@ -111,7 +111,7 @@ describe('ui createUI', () => {
     const r = await rigUI();
     r.frame(0);
     expect(r.root.querySelector('#map-summary').textContent).toContain('Gold 1000');
-    r.world.gold = -30;   // the road goal pays 25 on the same day, so -5 would be out of debt by the tick
+    r.world.gold = -50;   // the road goal (25) and the first family (10) pay on the same day, so -30 would be out of debt by the tick
     r.frame(16);
     expect(document.body.classList.contains('has-banner')).toBe(false);     // not until a day passes
     tickDay(r.world);

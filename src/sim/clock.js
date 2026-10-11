@@ -9,6 +9,8 @@ import { monthlyEconomy } from './economy.js';
 import { updateMood } from './mood.js';
 import { updateMilestone } from './progression.js';
 import { computeAlerts } from './alerts.js';
+import { checkFirsts } from './firsts.js';
+import { checkAchievements } from './achievements.js';
 import { clearUndo } from './undo.js';
 import { checkGoals, triggerEventGoals } from './goals.js';
 import { population, HISTORY_MONTHS } from './world.js';
@@ -26,6 +28,7 @@ export function runMonth(world, events = null) {
   const milestoneChanged = updateMilestone(world);
   if (milestoneChanged && events) events.push({ type: 'milestone', id: world.milestone });
   computeAlerts(world);
+  checkAchievements(world, events);
   clearUndo(world);
   world.history.push({ day: world.day, people: population(world), gold: world.gold, mood: world.mood });
   if (world.history.length > HISTORY_MONTHS) world.history.splice(0, world.history.length - HISTORY_MONTHS);
@@ -44,6 +47,7 @@ export function tickDay(world, events = null) {
   world.tally.peakPeople = Math.max(world.tally.peakPeople, population(world));
   triggerEventGoals(world);
   checkGoals(world, events);
+  checkFirsts(world, events);
 }
 
 export function advanceDays(world, n, events = null) {
