@@ -8,3 +8,4 @@ import './score/sealShare.test.js';
 import './score/titleDecor.test.js';
 import './score/dangerGoals.test.js';
 import './score/feats.test.js';
+import './score/earlyGame.test.js';

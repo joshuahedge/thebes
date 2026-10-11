@@ -4,13 +4,18 @@
 // chapter, then today's daily goals. Goal state lives in the world (src/sim/goals.js, src/sim/daily.js):
 // this file reads it, and changes it only through swapDaily.
 import { DAILY_REWARD } from '../data/daily.js';
-import { openGoals, goalProgress, guideActive, chainGoals } from '../sim/goals.js';
+import { FOUNDED } from '../data/goals.js';
+import { MILESTONES } from '../data/progression.js';
+import { MEDALS } from '../data/scoring.js';
+import { openGoals, goalProgress, guideActive, chainGoals, openingProgress } from '../sim/goals.js';
+import { milestoneIndex } from '../sim/progression.js';
+import { scoreOf } from '../sim/score.js';
 import { dailyProgress, swapDaily } from '../sim/daily.js';
 import { alertsFor } from '../sim/alerts.js';
-import { housesOf } from '../sim/world.js';
+import { housesOf, population } from '../sim/world.js';
 import { TERRAIN_BY_NAME } from '../sim/terrain.js';
 import { el, button, clear, setText } from './components.js';
-import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, progressText, progressLabel, dailyDoneText, swapLabel, showMeLabel } from './text.js';
+import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, progressText, progressLabel, dailyDoneText, swapLabel, showMeLabel, thresholdMilestoneText, thresholdMedalText } from './text.js';
 
 const FOCUS_CLASSES = ['show-me', 'open-goals', 'skip-guide'];
 
@@ -98,9 +103,32 @@ function goalRow(world, goal, onShowMe) {
   ]);
 }
 
+// The next threshold (spec 4.1, ruling 127): the next milestone by the people the city has had, the measure that makes
+// it a milestone at a month end ("Town: 83 of 150 people"); from Capital the next medal ("Silver: 38 points to go"),
+// null at gold. share: how far from the last one to the next, 0 to 1.
+export function thresholdFor(world) {
+  const clamp = (v) => Math.max(0, Math.min(1, v));
+  const i = milestoneIndex(world.milestone);
+  if (i < MILESTONES.length - 1) {
+    const next = MILESTONES[i + 1], from = MILESTONES[i].population;
+    const n = Math.min(next.population, Math.max(world.tally.peakPeople, population(world)));
+    return { kind: 'milestone', text: thresholdMilestoneText(next.name, n, next.population), share: clamp((n - from) / (next.population - from)) };
+  }
+  const s = scoreOf(world);
+  if (!s.next) return null;
+  const k = MEDALS.findIndex((m) => m.id === s.next.medal);
+  const from = k > 0 ? MEDALS[k - 1].at : 0;
+  return { kind: 'medal', text: thresholdMedalText(s.next), share: clamp((s.raw - from) / (MEDALS[k].at - from)) };
+}
+
 export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGuide = () => {} }) {
   const strip = el('div', { class: 'goal-strip', hidden: true });
-  container.append(strip);
+  // The next-threshold bar under the strip: its words, and a meter that repeats them for sight (never alone).
+  const barText = el('span', { class: 'threshold-text small' });
+  const fill = el('span', { class: 'fill' });
+  const meter = el('span', { class: 'threshold-meter', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100' }, [fill]);
+  const bar = el('div', { class: 'threshold', hidden: true }, [barText, meter]);
+  container.append(strip, bar);
   let shownId, parts = null;
 
   // Rebuilt only when the goal changes (refreshChrome runs every day and command), so focus survives refreshes.
@@ -115,14 +143,14 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
     const skip = button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() });
     strip.append(
       el('span', { class: 'main' }, [
-        el('span', { class: 'label small muted', text: T.goal }),
+        el('span', { class: 'label small muted' }),        // "Goal", or the opening chain's count ("1 of 10")
         text,
         progress,
         el('span', { class: 'reward small muted wide-only', text: rewardText(goal.reward) }),   // phones read the reward in the goals sheet
       ]),
       el('span', { class: 'buttons' }, [showMe, button(T.goals, { class: 'open-goals quiet', onClick: onOpen }), skip]),
     );
-    parts = { text, progress, showMe, skip };
+    parts = { text, progress, showMe, skip, label: strip.querySelector('.label') };
     update(goal);
     if (focusedClass) {
       const again = strip.querySelector(`.${focusedClass}`);
@@ -131,6 +159,8 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
   }
   // A goal's words can change while it stays first (Stage 3: "Build a tower facing the east" follows the raids' direction).
   function update(goal) {
+    const o = openingProgress(world);
+    setText(parts.label, o ? progressText(o.done, o.of) : T.goal);
     setText(parts.text, goal.text);
     parts.showMe.setAttribute('aria-label', showMeLabel(goal.text));
     const c = countOf(world, goal);
@@ -140,11 +170,25 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
     if (hide && document.activeElement === parts.skip) parts.showMe.focus();   // Skip guide hides itself: keep focus in the strip
     parts.skip.hidden = hide;
   }
+  // The bar shows with the strip, and on its own from Capital (the medals; every goal may be done by then).
+  function renderBar(hasGoal) {
+    const t = thresholdFor(world);
+    const show = Boolean(t) && (hasGoal || t.kind === 'medal');
+    bar.hidden = !show;
+    if (!show) return false;
+    const pct = Math.round(t.share * 100);
+    setText(barText, t.text);
+    meter.setAttribute('aria-valuenow', String(pct));
+    meter.setAttribute('aria-label', t.text);
+    fill.style.width = `${pct}%`;
+    return true;
+  }
   function render() {
     const [goal] = openGoals(world, 1);
     const id = goal ? goal.id : null;
     strip.hidden = !goal;
-    container.hidden = !goal;                         // no empty row, and so no gap, in #under-bar
+    const barShown = renderBar(Boolean(goal));
+    container.hidden = !goal && !barShown;            // no empty row, and so no gap, in #under-bar
     if (id !== shownId) { shownId = id; build(goal); }
     else if (goal) update(goal);
   }
@@ -157,15 +201,21 @@ export function goalsSheet(world, { onShowMe, onSwap = (i) => swapDaily(world, i
   function draw(body) {
     const chain = chainGoals(world);                   // Stage 3: a Peaceful city's chain has no raid goals
     const done = chain.filter((g) => world.goals.completed.includes(g.id)).length;   // event goals never count against the chain
-    body.append(el('p', { class: 'muted', text: goalsProgressText(done, chain.length) }));
+    body.append(el('p', { class: 'muted', text: goalsProgressText(done + 1, chain.length + 1) }));   // Founded Thebes is done from the start
     const open = openGoals(world, 3);
     if (!open.length) body.append(el('p', { text: T.goalsDone }));
     const chapters = [];
     for (const g of open) if (!chapters.includes(g.chapter)) chapters.push(g.chapter);
     for (const ch of chapters) {
-      body.append(el('h3', { text: CHAPTER_NAMES[ch] || '' }), el('ul', { class: 'goals' }, open.filter((g) => g.chapter === ch).map((g) => goalRow(world, g, onShowMe))));
+      const rows = open.filter((g) => g.chapter === ch).map((g) => goalRow(world, g, onShowMe));
+      if (ch === FOUNDED.chapter) rows.unshift(foundedRow());   // the endowed start, ticked, at the head of its chapter
+      body.append(el('h3', { text: CHAPTER_NAMES[ch] || '' }), el('ul', { class: 'goals' }, rows));
     }
     if (world.daily) body.append(...today(body));
+  }
+  // Founded Thebes (spec 4.1): done in words, the tick decoration; it pays nothing, so no reward shows.
+  function foundedRow() {
+    return el('li', { class: 'founded done' }, [el('span', { class: 'text' }, [FOUNDED.text, ' ', el('span', { class: 'status small teal' }, [el('span', { 'aria-hidden': 'true', text: `${T.doneMark} ` }), T.done])])]);
   }
   // Today (spec 3.7): no streaks, no countdowns. Swap is offered once a day, on a goal not yet done.
   function today(body) {

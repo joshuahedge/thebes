@@ -725,6 +725,36 @@ export const FEAT_TEXT = {
 Object.assign(SCORE_TEXT, { feats: 'Feats', featEarned: 'Earned', featMissed: 'Missed', featOpen: 'Open', feat: 'Feat', noFeats: 'No feats yet.', featsHelp: 'Feats are optional: they pay nothing and never hold anything back.' });
 export const featsHeading = (done, total) => `${SCORE_TEXT.feats}, ${progressText(done, total)}`;
 export const sealFeatsText = (names) => (names.length ? `Feats this reign: ${listText(names)}.` : SCORE_TEXT.noFeats);
+// The opening chain and the next-threshold bar (spec 4.1).
+export const thresholdMilestoneText = (name, n, of) => `${name}: ${progressText(n, of)} people`;
+export const thresholdMedalText = (next) => `${SCORE_TEXT.medals[next.medal]}: ${plural(next.points, 'point', 'points')} to go`;
+// Citizen remarks (spec 4.19): at least 24, by season, each heard only in a city with its building (`type`).
+export const CITIZEN_REMARKS = [
+  { season: 'akhet', type: 'potter', text: 'The potters say the clay is good this year' },
+  { season: 'akhet', type: 'farm_grain', text: 'The farmers say the flood left rich black soil' },
+  { season: 'akhet', type: 'well', text: 'The water carriers say the wells are full and sweet' },
+  { season: 'akhet', type: 'granary', text: 'The granary keepers are sweeping out the bins' },
+  { season: 'akhet', type: 'temple', text: 'The priests say the river rose just as it should' },
+  { season: 'akhet', type: 'bazaar', text: 'At the bazaar they talk of how high the river came' },
+  { season: 'akhet', type: 'house', text: 'Families mend their roofs while the fields lie under water' },
+  { season: 'akhet', type: 'booth', text: 'The players at the booth are learning a flood song' },
+  { season: 'peret', type: 'farm_grain', text: 'The young grain stands green and even in the fields' },
+  { season: 'peret', type: 'farm_fig', text: 'The fig trees are heavy with fruit' },
+  { season: 'peret', type: 'clay_pit', text: 'The diggers at the clay pit sing to keep time' },
+  { season: 'peret', type: 'garden', text: 'Neighbours sit in the gardens in the cool of the evening' },
+  { season: 'peret', type: 'weaver', text: 'The weavers say the flax is long and fine this year' },
+  { season: 'peret', type: 'brewery', text: 'The brewers are trying a sweeter beer' },
+  { season: 'peret', type: 'house', text: 'Children chase each other between the houses at dusk' },
+  { season: 'peret', type: 'storehouse', text: 'The storehouse clerks count every jar twice' },
+  { season: 'shemu', type: 'farm_grain', text: 'The harvesters are singing in the fields' },
+  { season: 'shemu', type: 'granary', text: 'The granaries are filling with the new harvest' },
+  { season: 'shemu', type: 'well', text: 'The water carriers rest in the shade at noon' },
+  { season: 'shemu', type: 'trading_post', text: 'A trader says caravans pay well for Theban goods' },
+  { season: 'shemu', type: 'jeweller', text: 'The jewellers are cutting stones for a wedding' },
+  { season: 'shemu', type: 'temple', text: 'The priests watch the river for the first rise' },
+  { season: 'shemu', type: 'statue', text: 'People leave flowers at the foot of the statues' },
+  { season: 'shemu', type: 'firehouse', text: 'The firefighters keep their jars full in the dry heat' },
+];
 // ── end s3 score ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //
