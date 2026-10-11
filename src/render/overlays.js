@@ -14,6 +14,7 @@ import { p, U, tileDiamond, quad } from './iso.js';
 import { UI, INK, TEAL_DARK } from './art/palette.js';
 import { ART, slotFor } from './art/registry.js';
 import { GUIDE_PULSE_MS, DESIRABILITY_STEPS } from '../data/ui.js';
+import { DEFENCE } from '../data/raids.js';
 
 export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'housing'];
 export const OVERLAY_HUE = {
@@ -185,8 +186,23 @@ export function drawDesirabilityTint(g, tiles) {
   hatchTiles(g, worse, UI.bad, { fill: 0.1, line: 0.85 });
 }
 
+// Stage 3 (Track D, spec 4.5, 6.3): a tower's range and a barracks' patrol are straight-line tiles from its centre, not road
+// reach: the tiles whose centres lie within that distance, highlighted when the building is selected.
+export const RANGE_OF = { tower: DEFENCE.towerRange, barracks: DEFENCE.patrol };
+export function rangeTiles(world, b) {
+  const r = RANGE_OF[b.type];
+  if (!r) return [];
+  const cx = b.x + b.w / 2, cy = b.y + b.d / 2, out = [];
+  for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(world.size - 1, Math.ceil(cy + r)); y++) {
+    for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(world.size - 1, Math.ceil(cx + r)); x++) {
+      if ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r) out.push(idx(world.size, x, y));
+    }
+  }
+  return out;
+}
+
 export function drawReachHighlight(g, world, b) {
-  tintTiles(g, world, reachTiles(world, b), UI.housing, 0.22);
+  tintTiles(g, world, RANGE_OF[b.type] ? rangeTiles(world, b) : reachTiles(world, b), UI.housing, 0.22);
   g.poly(quad(b.x, b.y, b.w, b.d, 0), 'none', { stroke: UI.halo, strokeWidth: 2.2, strokeAlpha: 0.9 });
   g.poly(quad(b.x, b.y, b.w, b.d, 0), 'none', { stroke: UI.housing, strokeWidth: 1.2 });
 }

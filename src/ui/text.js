@@ -638,6 +638,50 @@ Object.assign(DANGER_UI_TEXT, {
   onAFireNote: "For a fire no staffed firehouse reaches. The city's first one always pauses the game.",
   ambient: 'Ambient motion', ambientReduced: 'Off while Reduce motion is on',
 });
+// D3: the danger sheets (src/ui/dangerSheets.js). The fire row reads src/sim/fire.js: "a firehouse reaches it" is
+// staffedCover (coverage of FIRE.staffedAt or more); "short of workers" and "paused" name a firehouse whose road reach
+// takes the building in but which does not cover it enough; the band is fireBand's. A blaze goes out only on covered and
+// staffed days, so a firehouse under FIRE.staffedAt of its workers puts none out. The tribute words read tributeQuote and
+// payTribute (src/sim/raids.js), the festival's festivalStatus (src/sim/festival.js).
+import { FIRE as duiFire } from '../data/fire.js';
+const duiFireFrom = MILESTONES.find((m) => m.id === duiFire.startsAt);
+const duiBands = ['low', 'rising', 'high', 'can catch fire'];
+Object.assign(T, { tribute: 'Pay tribute' });                     // the tribute sheet's heading (sheets use T[kind])
+Object.assign(DANGER_UI_TEXT, {
+  fireLabel: 'Fire', neverBurns: 'Never catches fire', riskStartsAtTown: `Fire risk starts at ${duiFireFrom ? duiFireFrom.name : duiFire.startsAt}`,
+  riskLine: (band, tail) => (band >= 3 ? `Can catch fire, ${tail}` : `Fire risk: ${duiBands[band]}, ${tail}`),
+  reaches: 'a firehouse reaches it', whyNone: `no firehouse within ${duiFire.reach} road tiles`, noneReaches: 'no firehouse reaches it',
+  whyShort: 'the firehouse is short of workers', whyPaused: 'the firehouse is paused',
+  blaze: 'Blaze', burningFor: (left) => `Burning, ${plural(left, 'day', 'days')} left`, puttingOut: 'the firehouse is putting it out', fighting: 'the firehouse is fighting it',
+  buildFirehouse: 'Build a firehouse near it',
+  covers: (n) => `Covers ${plural(n, 'building that can burn', 'buildings that can burn')}`,
+  coversNothingPaused: 'Covers nothing while it is paused',
+  coversNothingUntil: (n, of) => `Covers nothing until it has ${n} of ${of} workers`,
+  tooShortToFight: (n, of) => `Puts out blazes only with ${n} of ${of} workers or more`,
+  range: 'Range', patrol: 'Patrol', soldiers: 'Soldiers', onTheWall: 'On the wall',
+  tiles: (n) => plural(n, 'tile', 'tiles'), hitPoints: (hp, of) => `${hp} of ${of} hit points`,
+  towerDoes: (r) => `Shoots the nearest raider within ${r} tiles once a day`,
+  trains: (days) => `Trains one soldier every ${days} days at full staff, slower when short of workers`,
+  notTrainingPaused: 'Not training while it is paused', notTrainingUntil: (n, of) => `Not training until it has ${n} of ${of} workers`,
+  soldiersPay: (n) => `Each soldier is paid ${n} gold a month, in peace too`,
+  lastRaidTowers: (r) => `Last raid: towers stopped ${r.byTowers} of ${r.size}`,
+  lastRaidSoldiers: (r) => `Last raid: soldiers stopped ${r.bySoldiers} of ${r.size}`,
+  rubbleRow: (cost) => `Rubble: clear it for ${cost} gold a tile`, rubbleDrag: 'Drag Demolish over rubble to clear many at once',
+  clearFor: (cost) => `Clear, ${cost} gold`, cleared: 'Rubble cleared',
+  holdFestival: (cost) => `Hold a festival, ${cost} gold`, festivalHeld: 'Festival held',
+  festivalDoes: (mood, days, every) => `+${mood} mood for ${duiDuration(days)}; the next can follow ${duiDuration(every)} later`,
+  festivalOn: (mood, days) => `Festival: +${mood} mood for ${duiDuration(days)} more`,
+  nextFestival: (days) => `Next festival in ${duiDuration(days)}`,
+  festivalNeedsTemple: 'A festival needs a working temple',
+  wouldPassDebt: (n) => `Would put the treasury over ${n} gold in debt`,       // canAfford's floor (src/sim/money.js)
+  lastRaid: 'Last raid', endedOn: (date) => `Ended ${date}`,
+  noWarning: 'Tribute can be paid only while a raid is on its way', firstRaid: "The first raid can't be paid off.",
+  capital: (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s),
+  tributeCost: (cost) => `Pay ${cost} gold of tribute`, goldNow: 'Gold now', goldAfter: 'Gold afterwards',
+  cancels: (dir, size) => `Cancels the raid from the ${duiDir(dir)} (${plural(size, 'raider', 'raiders')}). The next raid still comes.`,
+  tributeBelowZero: (gold) => `You have ${gold} gold. Tribute can't put the treasury below 0.`,
+  payGold: (cost) => `Pay ${cost} gold`, keepGold: 'Keep gold, defend', tributePaid: (cost) => `Tribute paid: ${cost} gold`,
+});
 // ── end s3 ui ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

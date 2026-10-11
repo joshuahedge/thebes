@@ -489,6 +489,16 @@ body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:
 #cheer .cheer.info { border-color: var(--parchment-3); }
 #cheer .cheer.info .icon { display: none; }
 #sheet .fire-note, #sheet .ambient-note { margin: 0 0 6px; }
+/* D3: the danger sheets. The fire row's words wrap under its label; its Show me or View sits right under it. The
+   festival and rubble groups keep their reason beside the button they explain; the tribute sheet's two outcome
+   buttons share a row, neither styled as the default. */
+#sheet .fire-row > :last-child { text-align: right; }
+#sheet .fire-fix { display: flex; justify-content: flex-end; padding: 4px 0; }
+#sheet .festival-group { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex-basis: 100%; }
+#sheet .festival-group p { margin: 0; }
+#sheet .tribute-cost { font-weight: 700; margin: 0 0 6px; }
+#sheet .cancels, #sheet .why-not { margin: 8px 0 4px; }
+#sheet .tribute-actions button { flex: 1 1 10em; }
 /* ── end s3 ui ── */
 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
