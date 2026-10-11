@@ -214,7 +214,7 @@ describe('stage 2 overlay legend', () => {
       for (const b of r.root.querySelectorAll('#legend .band')) expect(b.getBoundingClientRect().right).toBeLessThanOrEqual(shell.right + 0.5);
     } finally { r.cleanup(); }
   });
-  it('keeps the scale\'s name and labels readable under a critical banner, and out of the middle of the map', async () => {
+  it('shrinks the scale to its icon under a critical banner, and opens it with its name and labels readable and out of the middle of the map', async () => {
     const r = await rigUI({ width: 360, height: 640 });
     try {
       r.ui.settings.set({ textSize: 150 });
@@ -224,6 +224,8 @@ describe('stage 2 overlay legend', () => {
       expect(document.body.classList.contains('has-banner')).toBe(true);
       const shell = r.root.getBoundingClientRect();
       const strip = r.root.querySelector('#legend .strip');
+      expect(getComputedStyle(strip).display).toBe('none');                  // Stage 3 (ruling 111): an icon beside the banner
+      fire(r.root.querySelector('#legend .legend-icon'), 'click');            // a tap opens the full legend
       const words = [...strip.querySelectorAll('.text')];
       expect(words.map((w) => w.textContent)).toEqual([OVERLAY_NAMES.desirability, '<0', '0–19', '20–34', '35–49', '50–64', '65+']);
       for (const w of words) {
@@ -244,9 +246,16 @@ describe('stage 2 overlay legend', () => {
       const shell = r.root.getBoundingClientRect();
       const box = (el) => el.getBoundingClientRect();
       const goals = () => box(r.root.querySelector('#goals .goal-strip'));
+      // Stage 3 (ruling 111): under the banner each legend is an icon beside it, so the goals end above the middle; the
+      // checks below open it (a tap on the icon) and measure the open strip as before.
+      const open = () => fire(r.root.querySelector('#legend .legend-icon'), 'click');
       r.store.set({ overlay: 'water' });
+      expect(goals().bottom - shell.top).toBeLessThan(shell.height / 2);
+      open();
       const plain = { strip: box(r.root.querySelector('#legend .strip')).height, goals: goals().bottom };
       r.store.set({ overlay: 'desirability' });
+      expect(goals().bottom - shell.top).toBeLessThan(shell.height / 2);
+      open();
       const strip = r.root.querySelector('#legend .strip');
       const name = box(strip.querySelector('strong.text')), scale = box(strip.querySelector('.scale')), close = box(strip.querySelector('.close'));
       expect([scale.top < name.bottom, close.top < scale.bottom, scale.left >= name.right]).toEqual([true, true, true]);   // one row: name, scale, close

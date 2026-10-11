@@ -585,6 +585,38 @@ export const ART_TEXT = {};
 // ── s3 ui (Track D) ──────────────────────────────────────────────────────────────────────────────────────────
 // Track D's words for the danger interface: banners, the countdown chip, the tribute sheet, settings rows, the fire overlay and its legend. Add new lines just above the end marker.
 export const DANGER_UI_TEXT = {};
+// Every track's section shares this module's top-level scope, so Track D's own names start with "dui" (its imports too,
+// renamed with "as"; imports are hoisted, so they sit here in the section and the shared lines at the top stay as they are).
+import { DAYS_PER_MONTH as duiMonthDays } from '../sim/time.js';
+// Directions as raids name them (src/sim/raids.js entryDir), and a span of game days in words ("2 months 12 days") and
+// as the countdown chip writes it ("2 m 12 d"). A game month is DAYS_PER_MONTH days (src/sim/time.js).
+const duiDirWords = { north: 'north', east: 'east', south: 'south', west: 'west' };
+const duiDir = (dir) => duiDirWords[dir] || dir;
+function duiDuration(days) {
+  const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
+  const parts = [m ? plural(m, 'month', 'months') : '', d || !m ? plural(d, 'day', 'days') : ''];
+  return parts.filter(Boolean).join(' ');
+}
+const duiCountdown = (days) => {
+  const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
+  return m ? `${m} m ${d} d` : `${d} d`;
+};
+// D1: the one banner (spec 6.3). The defence line follows tributeQuote (src/sim/raids.js): buildN is the towers needed
+// for the warned raid less the working towers, buildCost their price in this city; at 0 the towers can beat it (ruling 108).
+Object.assign(DANGER_UI_TEXT, {
+  dir: duiDir, duration: duiDuration, countdown: duiCountdown,
+  firesTitle: (n) => `${n} buildings on fire`,
+  firesFix: 'No staffed firehouse reaches them',             // the 'fire' code: a blaze or fire no staffed firehouse reaches
+  more: (n) => `+${n} more`,
+  moreLabel: (n) => `${plural(n, 'more critical alert', 'more critical alerts')}: open the alert list`,
+  payTribute: 'Pay tribute',
+  collapse: 'Shrink', collapseLabel: 'Shrink the raid warning to its countdown', expand: 'Show the whole warning',
+  chip: (dir, days) => `Raid from the ${duiDir(dir)} · ${duiCountdown(days)}`,
+  defenceLine: (q, dir) => (q.buildN > 0
+    ? `${q.hidden ? 'Build' : 'or build'} ${plural(q.buildN, 'tower', 'towers')} facing ${duiDir(dir)} (≈ ${q.buildCost} gold)`
+    : 'Your towers can beat this raid'),
+  legendOpen: (name) => `Show the legend: ${name}`, legendClose: 'Hide the legend',
+});
 // ── end s3 ui ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //
