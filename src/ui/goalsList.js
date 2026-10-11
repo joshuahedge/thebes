@@ -9,6 +9,7 @@ import { openGoals, goalProgress, guideActive } from '../sim/goals.js';
 import { dailyProgress, swapDaily } from '../sim/daily.js';
 import { alertsFor } from '../sim/alerts.js';
 import { housesOf } from '../sim/world.js';
+import { TERRAIN_BY_NAME } from '../sim/terrain.js';
 import { el, button, clear, setText } from './components.js';
 import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, progressText, progressLabel, dailyDoneText, swapLabel, showMeLabel } from './text.js';
 
@@ -22,6 +23,7 @@ export function dateKeyOf(ms) {
 }
 
 // Where a goal's Show me points. 'alert' aims at the first building with that alert (an event goal's trouble);
+// 'rocky' at the rocky tile nearest the city's focus (a gem mine needs rocky ground, as canPlace checks);
 // a goal with no showMe (out of debt) and any target that finds nothing fall back to the city's focus.
 export function showMeTarget(world, goal) {
   const show = goal.showMe;
@@ -40,6 +42,16 @@ export function showMeTarget(world, goal) {
       const sx = homes.reduce((n, h) => n + h.x + h.w / 2, 0), sy = homes.reduce((n, h) => n + h.y + h.d / 2, 0);
       return { x: sx / homes.length, y: sy / homes.length };
     }
+  }
+  if (kind === 'rocky') {
+    let best = null, bestD = Infinity;
+    for (let i = 0; i < world.terrain.length; i++) {
+      if (world.terrain[i] !== TERRAIN_BY_NAME.rocky) continue;
+      const x = (i % world.size) + 0.5, y = Math.floor(i / world.size) + 0.5;
+      const d = (x - world.focus.x) ** 2 + (y - world.focus.y) ** 2;
+      if (d < bestD) { bestD = d; best = { x, y }; }
+    }
+    if (best) return best;
   }
   return { x: world.focus.x, y: world.focus.y };
 }

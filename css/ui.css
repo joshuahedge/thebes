@@ -372,3 +372,16 @@ body.reduce-motion .goal-strip .show-me.glow, body.reduce-motion.nudge-play .spe
 .achievements .status { display: flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; }
 .ach-bar { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--parchment); border: 1px solid var(--ink-soft); overflow: hidden; box-sizing: border-box; }
 .ach-bar .fill { display: block; height: 100%; background: var(--teal); }
+
+/* Stage 2 cards and storage (spec 4.10, 4.14). A card whose building a milestone just unlocked wears a "New" badge: a
+   word, ink on gold (8:1), top left, clear of the guide's Suggested tag on the right. A producer's sheet leads with
+   what it is doing; a storehouse lists its goods as switches whose state is a word beside the good. */
+.card .new-badge { position: absolute; top: 4px; left: 4px; background: var(--gold); color: var(--ink); border-radius: 8px; padding: 0 6px; font-size: calc(12px * var(--ui-scale)); line-height: 1.6; font-weight: 600; pointer-events: none; }
+#sheet .work-status { margin: 4px 0 8px; font-weight: 600; }
+#sheet .store-goods { list-style: none; padding-left: 0; }
+.store-goods li { padding: 4px 0; border-bottom: 1px solid var(--parchment-2); }
+.store-goods .row { border-bottom: none; padding: 2px 0; }
+.store-goods .switch { margin: 2px 0; gap: 8px; }
+.store-goods .switch .state { font-weight: 600; flex: none; }
+.store-goods .switch[aria-checked="false"] .state { color: var(--coral-text); }
+.store-goods .good-line { margin: 2px 0 0; }

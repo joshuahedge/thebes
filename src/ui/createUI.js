@@ -29,7 +29,7 @@ import { pickBuilding } from './pick.js';
 import { createPlacement, snapGhost } from './placement.js';
 import { createHud } from './hud.js';
 import { createSpeedControl } from './speed.js';
-import { cardInfo, activeItemOf } from './cards.js';
+import { cardInfo, activeItemOf, shownItems } from './cards.js';
 import { createDock } from './dock.js';
 import { createConfirmBar } from './confirmBar.js';
 import { createSidePanel } from './sidePanel.js';
@@ -264,6 +264,7 @@ export function createUI({
     if (e.undoable && e.kind === 'houses' && world.speed === 0) fireTip('plotsPaused');
     if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type]) fireTip('servicePlaced');
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
+    if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
     if (e.kind === 'speed' && world.speed > 0 && tips.current() === 'press_play') tips.dismiss();   // its condition has cleared
     ghostsDirty = true;
     // Goals, firsts, achievements and daily goals settle after every command (undo and speed included), so a
@@ -427,9 +428,9 @@ export function createUI({
 
   const keyActions = {
     pause: () => speedControl.toggle(), speedUp: () => speedControl.faster(), speedDown: () => speedControl.slower(),
-    category: (i) => {                                 // keys 1-7 keep their categories; a hidden one does nothing (early-game pass 2.5)
+    category: (i) => {                                 // keys 1-7 keep their categories; one with no card to show does nothing (early-game pass 2.5, spec 4.14)
       const c = CATEGORIES[i];
-      if (!c || !c.items.length) return;
+      if (!c || !shownItems(world, c.id).length) return;
       const s = store.get();
       store.set(s.layout === 'wide' ? { category: c.id } : { category: c.id, dock: 'tray' });
     },

@@ -6,6 +6,7 @@ import { TIERS } from '../data/housing.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { FIRSTS } from '../data/firsts.js';
 import { GOODS } from '../data/goods.js';
+import { PARTNERS } from '../data/trade.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -16,6 +17,57 @@ export function buildingName(type) {
 }
 
 export const NEED_NAMES = { road: 'Road access', water: 'Water', food: 'Food', religion: 'Temple' };
+
+// Goods' names come from the data (GOODS[good].name), as buildings' do; inside a sentence they are lower case.
+export const goodName = (good) => (GOODS[good] ? GOODS[good].name : good);
+const goodWord = (good) => goodName(good).toLowerCase();
+
+// Trade partners, keyed by the ids in src/data/trade.js.
+export const PARTNER_NAMES = { memphis: 'Memphis', byblos: 'Byblos' };
+export const partnerName = (id) => PARTNER_NAMES[id] || id;
+
+// "a", "a and b", "a, b and c".
+export function listText(items) {
+  if (items.length <= 1) return items.join('');
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
+// The building that makes a good and the one that stores it, from the data (null when there is none).
+export const makerOf = (good) => Object.keys(BUILDINGS).find((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good) || null;
+export const storeFor = (good) => Object.keys(BUILDINGS).find((t) => (BUILDINGS[t].stores || []).includes(good)) || null;
+const pluralName = (type) => BUILDING_PLURALS[type] || `${buildingName(type).toLowerCase()}s`;
+
+// Every good's line (spec 4.10): what makes it, what uses it and who trades it, built from the data so it never
+// drifts: "Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis and Byblos".
+export function goodLine(good) {
+  const types = Object.keys(BUILDINGS);
+  const makers = types.filter((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good);
+  const users = types.filter((t) => BUILDINGS[t].consumes === good);
+  const need = GOODS[good] && GOODS[good].kind === 'food' ? 'food' : good;
+  const tier = TIERS.findIndex((t) => t && t.needs.includes(need));
+  const parts = [];
+  if (makers.length) {
+    const from = BUILDINGS[makers[0]].consumes;
+    parts.push(`made by ${listText(makers.map(pluralName))}${from ? ` from ${goodWord(from)}` : ''}`);
+  }
+  if (users.length) parts.push(`used by ${listText(users.map(pluralName))}`);
+  else if (tier > 0) parts.push(`used by ${TIERS[tier].name}s and up`);
+  const buyers = Object.keys(PARTNERS).filter((id) => PARTNERS[id].buys[good]).map(partnerName);
+  const sellers = Object.keys(PARTNERS).filter((id) => PARTNERS[id].sells[good]).map(partnerName);
+  if (buyers.length) parts.push(`sold to ${listText(buyers)}`);
+  if (sellers.length) parts.push(`bought from ${listText(sellers)}`);
+  return parts.length ? `${goodName(good)}: ${parts.join('; ')}` : goodName(good);
+}
+
+// A producer's status line on its sheet: "Making pottery from clay", "Growing figs", "Digging clay", or, when a
+// workshop has nothing to work, "Waiting for clay".
+const MAKE_VERBS = { clay: 'Digging', gems: 'Mining' };
+export function workingText(type) {
+  const def = BUILDINGS[type];
+  const good = goodWord(def.produces.good);
+  return def.consumes ? `Making ${good} from ${goodWord(def.consumes)}` : `${MAKE_VERBS[def.produces.good] || 'Growing'} ${good}`;
+}
+export const waitingText = (good) => `Waiting for ${goodWord(good)}`;
 
 // The house sheet's causes and fixes (early-game pass 2.10), keyed by needCause codes. Reaches come from the data.
 // A provider in reach that is not working (well_idle, bazaar_idle, temple_idle, granary_idle) words itself by the building's own
@@ -79,10 +131,16 @@ const REASONS = {
 export const reasonText = (code) => REASONS[code] || "Can't place here";
 
 const WARNINGS = { needs_road: 'No road touches it yet', no_storage: 'No granary within reach', no_supply: 'No granary to supply it' };
-export const warningText = (code) => WARNINGS[code] || "Won't work yet";
+// A producer's warnings name its own storage and input: a potter's ghost says "No storehouse within reach".
+export function warningText(code, type = null) {
+  const def = type ? BUILDINGS[type] : null;
+  if (code === 'no_storage' && def && def.produces) return `No ${buildingName(storeFor(def.produces.good)).toLowerCase()} within reach`;
+  if (code === 'no_input' && def && def.consumes) return `No ${goodWord(def.consumes)} in reach yet`;
+  return WARNINGS[code] || "Won't work yet";
+}
 
 // What a service will do from the ghost's spot (early-game pass 2.6), counted by homesServedFrom.
-const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}` };
+const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}`, booth: (homes) => `Entertains ${homes}` };
 export function effectText(type, n) {
   if (!EFFECTS[type]) return '';
   return n > 0 ? EFFECTS[type](plural(n, 'home', 'homes')) : T.noHomesInReach;
@@ -101,8 +159,27 @@ export function alertText(alert, world) {
   const name = b ? buildingName(b.type) : 'A building';
   switch (alert.code) {
     case 'no_road': return { title: `${name} has no road`, fix: 'Lay a road beside it' };
-    case 'no_storage': return { title: `${name} has nowhere to store its grain`, fix: `Build a granary within ${b ? BUILDINGS[b.type].producerReach : 12} road tiles` };
-    case 'storage_full': return { title: `${name} has no room left in storage`, fix: 'Build another granary nearby' };
+    case 'no_storage': {
+      const def = b ? BUILDINGS[b.type] : null;
+      const good = def && def.produces ? def.produces.good : 'grain';
+      return { title: `${name} has nowhere to store its ${goodWord(good)}`, fix: `Build a ${buildingName(storeFor(good)).toLowerCase()} within ${def ? def.producerReach : 12} road tiles` };
+    }
+    case 'storage_full': {
+      // Raised on a producer whose stores filled up, and on a store that is full itself.
+      const def = b ? BUILDINGS[b.type] : null;
+      const store = def && def.stores ? b.type : storeFor(def && def.produces ? def.produces.good : 'grain');
+      return { title: def && def.stores ? `${name} is full` : `${name} has no room left in storage`, fix: `Build another ${buildingName(store).toLowerCase()} nearby` };
+    }
+    case 'no_input': {
+      const def = b ? BUILDINGS[b.type] : null;
+      const input = def && def.consumes ? def.consumes : null;
+      if (!input) return { title: `${name} has nothing to work`, fix: 'Bring what it needs within reach' };
+      const maker = makerOf(input), store = storeFor(input);
+      return {
+        title: `${name} has no ${goodWord(input)} in reach`,
+        fix: `Store ${goodWord(input)} within ${def.producerReach} road tiles: a ${buildingName(maker).toLowerCase()} fills a ${buildingName(store).toLowerCase()}`,
+      };
+    }
     case 'understaffed': return { title: `${name} is short of workers`, fix: 'More homes bring more workers' };
     case 'bazaar_empty': return { title: 'Bazaar is empty', fix: `Build a granary with grain within ${BUILDINGS.bazaar.supplyReach} road tiles` };
     case 'labour_shortage': return { title: `Not enough workers for ${LEVEL_NAMES[alert.level] || alert.level}`, fix: "More homes, or pause buildings you don't need" };
@@ -188,6 +265,8 @@ export const T = {
   achievement: 'Achievement', dailyDone: 'Daily goal done', guideDone: "You've got the basics",
   tip: 'Tip', gotIt: 'Got it', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals. Help in Settings turns them off.', next: 'Next',
   achievements: 'Achievements', achievementsLater: 'Achievements show here once the guide is done.', notYetMet: 'Not yet', closestAchievement: 'Closest achievement',
+  newBadge: 'New', stored: 'Stored', accepted: 'Accepted', refused: 'Refused', notWorking: 'Not working',
+  acceptHelp: 'Tap a good to accept or refuse it here. A refused good goes to other storage.',
 };
 
 export const importErrorText = (code) => (code === 'newer_version' ? T.saveNewer : code === 'read_failed' ? T.fileUnreadable : T.saveUnreadable);
@@ -237,7 +316,7 @@ export const ACHIEVEMENT_NAMES = {
   green_city: 'Green city', sculpture_garden: 'Sculpture garden', estate_life: 'Estate life', thousand: 'A thousand souls',
 };
 
-const BUILDING_PLURALS = { well: 'wells', farm_grain: 'grain farms', granary: 'granaries', bazaar: 'bazaars', temple: 'temples' };
+const BUILDING_PLURALS = { well: 'wells', farm_grain: 'grain farms', granary: 'granaries', bazaar: 'bazaars', temple: 'temples', brewery: 'breweries' };
 const TALLY_CONDITIONS = {
   harvested: (n) => `Harvest ${n} grain`,
   profitMonths: (n) => `End ${n} months in profit`,

@@ -46,12 +46,9 @@ describe('goals v2', () => {
     }
     expect(goalById('fix_bazaar').showMe).toEqual({ category: 'food', item: 'granary', target: 'alert', code: 'bazaar_empty' });
     expect(goalById('out_of_debt').showMe).toBe(null);
-    // Stage 2's buildings join their categories with the interface (Task 12); until then the planned lists stand in.
-    const PLANNED = { homes: ['garden', 'statue'], food: ['farm_fig'], industry: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'], services: ['booth'] };
     for (const g of [...GOALS, ...EVENT_GOALS]) {
       if (!g.showMe) continue;
-      const items = [...CATEGORIES.find((c) => c.id === g.showMe.category).items, ...(PLANNED[g.showMe.category] || [])];
-      expect([g.id, items.includes(g.showMe.item)]).toEqual([g.id, true]);
+      expect([g.id, CATEGORIES.find((c) => c.id === g.showMe.category).items.includes(g.showMe.item)]).toEqual([g.id, true]);
     }
     const all = ids([...GOALS, ...EVENT_GOALS]);
     expect(new Set(all).size).toBe(all.length);

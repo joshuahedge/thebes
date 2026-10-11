@@ -61,6 +61,8 @@ export function place(world, type, x, y) {
   const b = insertBuilding(world, makeBuilding(world, type, x, y));
   spend(world, cost);
   pushUndo(world, { kind: 'place', ids: [b.id], cost });
+  const fresh = world.newItems.indexOf(type);       // its card stops saying "New" (spec 4.14)
+  if (fresh >= 0) world.newItems.splice(fresh, 1);
   return { ok: true, id: b.id, warnings: check.warnings };
 }
 

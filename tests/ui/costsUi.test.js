@@ -45,7 +45,7 @@ async function bootWith({ storage, params = '' }) {
 describe('ui costs by difficulty', () => {
   it('shows each city its own costs on cards, and judges them affordable against those', () => {
     const hard = cityAt('hard');
-    expect(cardInfo(hard, 'well')).toEqual({ item: 'well', name: 'Well', cost: 38, costText: '38 gold', affordable: true, locked: false, lockText: '' });
+    expect(cardInfo(hard, 'well')).toEqual({ item: 'well', name: 'Well', cost: 38, costText: '38 gold', affordable: true, locked: false, lockText: '', isNew: false });
     expect(cardInfo(hard, 'road').costText).toBe('3 gold per tile');
     expect(cardInfo(hard, 'house').costText).toBe('6 gold per plot');
     expect(cardInfo(cityAt('relaxed'), 'temple').costText).toBe('96 gold');
