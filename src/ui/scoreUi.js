@@ -11,10 +11,11 @@ import { SCORE_PARTS, SPLIT_MILESTONES } from '../data/scoring.js';
 import { scoreOf, scorePreview, sealReign, splitMonths } from '../sim/score.js';
 import { downloadFile } from '../save/exportImport.js';
 import { openSheet } from './modes.js';
-import { shareLink, emojiRow, pictureCard } from './share.js';
+import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, weeklySeed, drawMapSquare, medalColour } from './share.js';
+import { generateMap } from '../sim/mapgen.js';
 import { el, button, setText } from './components.js';
 import {
-  SCORE_TEXT, SHARE_TEXT, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
+  SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
   sealQuestion, sealedText, T,
 } from './text.js';
 
@@ -196,11 +197,92 @@ export function scoreLineFor(world, type, x, y) {
   return value;
 }
 
-// STUB. The title card's decoration (spec 4.1, 4.19): the three highest bests and a stamp per sealed reign under
-// Continue, This week's Nile, and a shared score link's "Beat N?" with Start this seed. boot.js calls titleDecor once per
-// title card and passes the result to createTitleCard as decorate, which calls it with (element, { buttonBox, newCity }).
-// opts: { records (src/save/records.js), shared (the page's location hash, '' for none), startSeed(seed) (starts a
-// city on that seed, asking first when a city is saved, as New city does), clock }.
-export function titleDecor(opts) {
-  return () => {};
+// A stamp (spec 4.19): the sealed seed's map, top-down, in a disc ringed in the medal's colour. Cosmetic; the label says it.
+const STAMP_PX = 40, STAMP_MAX = 8;
+const stampMaps = new Map();   // seed -> its generated map: a stamp row often repeats a seed (at most STAMP_MAX kept)
+function stampMap(seed) {
+  if (!stampMaps.has(seed)) {
+    if (stampMaps.size >= STAMP_MAX) stampMaps.delete(stampMaps.keys().next().value);
+    stampMaps.set(seed, generateMap(seed));
+  }
+  return stampMaps.get(seed);
+}
+function stampFor(entry, dpr) {
+  const map = stampMap(entry.seed);
+  const px = Math.round(STAMP_PX * dpr);
+  const c = el('canvas', { class: 'stamp', role: 'img', 'aria-label': TITLE_SCORE_TEXT.stampLabel(entry), width: px, height: px });
+  c.style.width = `${STAMP_PX}px`; c.style.height = `${STAMP_PX}px`;
+  const g = c.getContext('2d');
+  if (!g) return c;
+  const r = px / 2, ring = 3 * dpr;
+  g.save();
+  g.beginPath(); g.arc(r, r, r - ring, 0, Math.PI * 2); g.clip();
+  drawMapSquare(g, { size: map.size, terrain: map.terrain }, 0, 0, px);
+  g.restore();
+  g.strokeStyle = medalColour(entry.medal); g.lineWidth = ring;
+  g.beginPath(); g.arc(r, r, r - ring / 2, 0, Math.PI * 2); g.stroke();
+  return c;
+}
+
+// The title card's decoration (spec 4.1, 4.19): the three highest bests and a stamp per sealed reign under Continue (the
+// newest STAMP_MAX, then "+N more"), This week's Nile under the difficulty choice, and a shared score link's friend score
+// with "Beat N?" and Start this seed above the buttons. boot.js calls titleDecor once per title card and passes the result
+// to createTitleCard as decorate, which calls it with (element, { buttonBox, newCity }).
+// opts: { records (src/save/records.js), shared (the page's location hash, '' for none), startSeed(seed) (starts a city on
+// that seed, asking first when a city is saved, as New city does), clock, dpr (the stamps' pixel ratio) }.
+export function titleDecor({ records = null, shared = '', startSeed = () => {}, clock = () => Date.now(), dpr = (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1 } = {}) {
+  return (element, { buttonBox, newCity } = {}) => {
+    if (!element || !buttonBox) return;
+    const safe = (fn, fallback) => { try { return fn(); } catch (e) { return fallback; } };
+
+    // The device's records: up to three bests, then the stamps (records read blocked storage as none).
+    const bests = records ? safe(() => records.bests(3), []) : [];
+    const stamps = records ? safe(() => records.stamps(), []) : [];
+    if (bests.length || stamps.length) {
+      const box = el('div', { class: 'title-records', role: 'group', 'aria-label': TITLE_SCORE_TEXT.records }, [
+        ...bests.map((b) => el('p', { class: 'best-line small', text: TITLE_SCORE_TEXT.bestLine(b) })),
+        stamps.length ? el('div', { class: 'stamps' }, [
+          ...stamps.slice(0, STAMP_MAX).map((e) => stampFor(e, dpr)),
+          stamps.length > STAMP_MAX ? el('span', { class: 'more-stamps small muted', text: TITLE_SCORE_TEXT.moreStamps(stamps.length - STAMP_MAX) }) : null,
+        ]) : null,
+      ]);
+      const cont = buttonBox.querySelector('.continue');
+      if (cont) cont.after(box); else buttonBox.prepend(box);
+    }
+
+    // This week's Nile: the seed of the device's ISO week, at the level chosen above it.
+    const seed = weeklySeed(new Date(clock()));
+    const levels = buttonBox.querySelector('.title-difficulty');
+    const weekly = el('div', { class: 'title-weekly' }, [
+      button(TITLE_SCORE_TEXT.weekly, { class: 'weekly', 'aria-describedby': 'title-weekly-hint', onClick: () => startSeed(seed) }),
+      el('p', { class: 'weekly-hint small muted', id: 'title-weekly-hint', text: TITLE_SCORE_TEXT.weeklyHint(seed) }),
+    ]);
+    if (levels) levels.after(weekly); else if (newCity) newCity.after(weekly); else buttonBox.append(weekly);
+
+    // A shared score link: the friend's score and parts beside the best on that seed and level, "Beat N?" and Start this
+    // seed, which picks the link's level in the difficulty choice first. A bad or newer link says so; the card works as
+    // usual. Any other hash (or none) adds nothing.
+    const link = parseShareLink(shared);
+    if (!link) return;
+    if (!link.ok) {
+      element.insertBefore(el('p', { class: 'shared-bad small coral', text: link.reason === 'newer_format' ? TITLE_SCORE_TEXT.newerLink : TITLE_SCORE_TEXT.badLink }), buttonBox);
+      return;
+    }
+    const total = sharedTotal(link);
+    const best = records ? safe(() => records.bestFor(link.seed, link.difficulty), null) : null;
+    const start = button(TITLE_SCORE_TEXT.startSeed, { class: 'start-seed primary', onClick: () => {
+      const choice = buttonBox.querySelector(`.choice.difficulty[data-value="${link.difficulty}"]`);
+      if (choice && choice.getAttribute('aria-pressed') !== 'true') choice.click();
+      startSeed(link.seed);
+    } });
+    element.insertBefore(el('section', { class: 'shared-score', 'aria-labelledby': 'shared-score-heading' }, [
+      el('h2', { id: 'shared-score-heading', class: 'small', text: TITLE_SCORE_TEXT.friend }),
+      el('p', { class: 'friend-line', text: TITLE_SCORE_TEXT.friendLine(total, link.seed, link.difficulty) }),
+      el('p', { class: 'friend-parts small muted', text: TITLE_SCORE_TEXT.partsLine(link.parts) }),
+      el('p', { class: 'your-best small', text: TITLE_SCORE_TEXT.yourBest(best ? best.score : null) }),
+      el('p', { class: 'beat', text: TITLE_SCORE_TEXT.beat(total) }),
+      el('p', { class: 'start-on small muted', text: TITLE_SCORE_TEXT.startOn(link.difficulty) }),
+      start,
+    ]), buttonBox);
+  };
 }
