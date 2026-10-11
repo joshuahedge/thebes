@@ -10,7 +10,7 @@ import { updateMood } from './mood.js';
 import { updateMilestone } from './progression.js';
 import { computeAlerts } from './alerts.js';
 import { clearUndo } from './undo.js';
-import { checkGoals } from './goals.js';
+import { checkGoals, triggerEventGoals } from './goals.js';
 import { population, HISTORY_MONTHS } from './world.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
@@ -42,6 +42,7 @@ export function tickDay(world, events = null) {
   }
   if (world.day % DAYS_PER_MONTH === 0) runMonth(world, events);
   world.tally.peakPeople = Math.max(world.tally.peakPeople, population(world));
+  triggerEventGoals(world);
   checkGoals(world, events);
 }
 

@@ -34,7 +34,7 @@ describe('ui goals', () => {
     world.goals.completed.push('road');
     const shown = [];
     goalsSheet(world, { onShowMe: (g) => shown.push(g.id) })(root, { close: () => {} });
-    expect(root.textContent).toContain('1 of 7 done');
+    expect(root.textContent).toContain('1 of 9 done');
     const rows = root.querySelectorAll('.goal');
     expect(rows.length).toBe(3);
     expect(rows[0].textContent).toContain(GOALS[1].text);
