@@ -110,25 +110,29 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
     parts = null;
     if (!goal) return;
     const progress = el('span', { class: 'chip small', role: 'img' });
+    const text = el('span', { class: 'text' });
     const showMe = showMeButton(goal, onShowMe);
     const skip = button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() });
     strip.append(
       el('span', { class: 'main' }, [
         el('span', { class: 'label small muted', text: T.goal }),
-        el('span', { class: 'text', text: goal.text }),
+        text,
         progress,
         el('span', { class: 'reward small muted wide-only', text: rewardText(goal.reward) }),   // phones read the reward in the goals sheet
       ]),
       el('span', { class: 'buttons' }, [showMe, button(T.goals, { class: 'open-goals quiet', onClick: onOpen }), skip]),
     );
-    parts = { progress, showMe, skip };
+    parts = { text, progress, showMe, skip };
     update(goal);
     if (focusedClass) {
       const again = strip.querySelector(`.${focusedClass}`);
       (again && !again.hidden ? again : showMe).focus();
     }
   }
+  // A goal's words can change while it stays first (Stage 3: "Build a tower facing the east" follows the raids' direction).
   function update(goal) {
+    setText(parts.text, goal.text);
+    parts.showMe.setAttribute('aria-label', showMeLabel(goal.text));
     const c = countOf(world, goal);
     parts.progress.hidden = !c;
     if (c) { setText(parts.progress, c.text); parts.progress.setAttribute('aria-label', c.label); }
