@@ -23,6 +23,10 @@ export const SHOW_ME_PULSES = 2;
 export const SHOW_ME_PULSE_MS = 400;
 export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion' };
 
+// Picking a card or Show me puts a building ghost on the nearest tile where it fits, at most this many tiles
+// out (early-game pass 2.6). Only when nothing fits does it stay on the point itself.
+export const NEAREST_FIT_RADIUS = 10;
+
 // Spec 6.7. Letters are listed in both cases; `undo` needs Ctrl or Cmd.
 export const KEYS = {
   pause: [' '],

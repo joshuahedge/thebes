@@ -38,6 +38,13 @@ export const reasonText = (code) => REASONS[code] || "Can't place here";
 const WARNINGS = { needs_road: 'No road touches it yet', no_storage: 'No granary within reach', no_supply: 'No granary to supply it' };
 export const warningText = (code) => WARNINGS[code] || "Won't work yet";
 
+// What a service will do from the ghost's spot (early-game pass 2.6), counted by homesServedFrom.
+const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}` };
+export function effectText(type, n) {
+  if (!EFFECTS[type]) return '';
+  return n > 0 ? EFFECTS[type](plural(n, 'home', 'homes')) : T.noHomesInReach;
+}
+
 export function unlockText(type) {
   const m = MILESTONES.find((ms) => ms.unlocks.includes(type));
   return m ? `Unlocks at ${m.name}` : 'Comes later';
@@ -106,6 +113,7 @@ export const T = {
   aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
   undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
   hoverHint: 'Hover a building or pick a card',
+  noHomesInReach: 'No homes in reach yet',
 };
 
 export const importErrorText = (code) => (code === 'newer_version' ? T.saveNewer : code === 'read_failed' ? T.fileUnreadable : T.saveUnreadable);

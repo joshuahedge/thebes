@@ -22,6 +22,7 @@ describe('ui confirm bar', () => {
     const r = rig();
     expect(r.bar.element.hidden).toBe(true);
     r.placement.start({ kind: 'building', type: 'well' }, { x: 5, y: 20 });
+    r.placement.moveGhost(5, 20);                                  // the start lands on the nearest fit; put the ghost back where nothing fits
     r.bar.render();
     expect(r.bar.element.hidden).toBe(false);
     expect(r.root.querySelector('.title').textContent).toBe('Well');
