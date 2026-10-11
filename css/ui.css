@@ -97,7 +97,7 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 #dock[data-height="tucked"] .tray, #dock[data-height="tucked"] .cats, #dock[data-height="tucked"] .handle { display: none; }
 
 /* Building cards, shared by the dock tray, the side panel grid and the rail drawer. */
-.card { flex: 0 0 auto; width: 124px; min-height: 84px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; padding: 8px; text-align: left; white-space: normal; }
+.card { flex: 0 0 auto; width: 124px; min-height: 84px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 4px; padding: 8px; text-align: left; white-space: normal; }
 .card .name { font-weight: 600; }
 .card .cost { font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
 .card.unaffordable .cost { color: var(--coral-text); }
@@ -222,3 +222,12 @@ body.on-title #under-bar > :not(#notice) { display: none !important; }
    get a row of their own above the buttons and never wrap one word per line. */
 body[data-layout="compact"] .confirm { flex-wrap: wrap; justify-content: flex-end; }
 body[data-layout="compact"] .confirm .info { flex: 1 0 100%; }
+
+/* Cards with pictures (early-game pass 2.5): the building's drawing over its name and cost; the coin is decoration. */
+.card .thumb { display: block; width: 56px; height: 40px; flex: 0 0 auto; }
+.card .coin { display: inline-block; width: 0.75em; height: 0.75em; margin-right: 4px; border-radius: 50%; background: var(--gold); box-shadow: inset 0 0 0 1px #B98A4A; vertical-align: -0.05em; }
+/* Category bands: a thin stripe in the category's emblem colour (--tint, set on each button). A background image, so
+   it survives the dock's background: none and the pressed tab's teal fill; it adds no height. */
+#dock .cat, #rail .cat, #panel .tab, #panel .tab[aria-pressed="true"] { background-image: linear-gradient(var(--tint, transparent), var(--tint, transparent)); background-repeat: no-repeat; background-position: 50% 100%; background-size: 60% 3px; }
+/* The rail's pressed button wears a 2 px teal ring inside its edge; lift the band clear of it so it still shows. */
+#rail .cat { background-position: 50% calc(100% - 4px); }

@@ -9,7 +9,7 @@ describe('ui createUI', () => {
   it('places a well from the dock: card, ghost, tap, tick, building, then Undo from the toast', async () => {
     const r = await rigUI();
     expect(r.store.get().layout).toBe('portrait');
-    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');                 // Services
+    fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');  // Services
     const cards = r.root.querySelectorAll('#dock .tray .card');
     expect(cards[0].querySelector('.name').textContent).toBe('Well');
     fire(cards[0], 'click');
@@ -40,7 +40,7 @@ describe('ui createUI', () => {
     const r = await rigUI({ width: 390, height: 844 });
     const shown = (id) => getComputedStyle(r.root.querySelector(`#${id}`)).display !== 'none';
     expect([shown('dock'), shown('panel'), shown('rail')]).toEqual([true, false, false]);
-    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');
+    fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
     fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');
     r.tap(5, 9);
     r.cam.x = 7;
@@ -146,7 +146,7 @@ describe('ui createUI', () => {
     r.ui.actions.panStarted();
     expect(r.store.get().dock).toBe('tucked');
     expect(document.body.dataset.dock).toBe('tucked');
-    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');                  // Services (a tucked dock reopens as a tray)
+    fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');  // Services (a tucked dock reopens as a tray)
     fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');           // Well
     expect(r.store.get().mode).toBe('placing');
     r.ui.cameraControl.cancel(); r.cam.x = 12; r.cam.y = 10;                  // no frame ran the tween; put the view back

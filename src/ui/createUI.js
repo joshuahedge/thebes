@@ -284,7 +284,12 @@ export function createUI({
 
   const keyActions = {
     pause: () => speedControl.toggle(), speedUp: () => speedControl.faster(), speedDown: () => speedControl.slower(),
-    category: (i) => { const s = store.get(); const category = CATEGORIES[i].id; store.set(s.layout === 'wide' ? { category } : { category, dock: 'tray' }); },
+    category: (i) => {                                 // keys 1-7 keep their categories; a hidden one does nothing (early-game pass 2.5)
+      const c = CATEGORIES[i];
+      if (!c || !c.items.length) return;
+      const s = store.get();
+      store.set(s.layout === 'wide' ? { category: c.id } : { category: c.id, dock: 'tray' });
+    },
     rotate: () => {},                                  // nothing rotates in Stage 1 (mastabas come with monuments)
     minimap: () => toggleSheet('minimap'), overlay: () => legend.cycle(),
     confirm: () => {
