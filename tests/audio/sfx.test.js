@@ -118,8 +118,12 @@ describe('audio sfx', () => {
     expect(buzzes).toEqual([20, 20]);
     key(r.root, 'Escape');
     r.ui.onEvents([{ type: 'upgrade', id: 1, from: 1, to: 2 }, { type: 'arrivals', count: 2 }, { type: 'goal', id: 'road', reward: 25 }, { type: 'milestone', id: 'town' }]);
-    expect(played.slice(-3)).toEqual(['upgrade', 'goal', 'milestone']);
-    expect(buzzes).toEqual([20, 20, 40]);
+    expect(played.slice(-2)).toEqual(['upgrade', 'goal']);                    // the goal's sound and buzz come with its caption; the milestone's wait their turn (early-game pass 3.6)
+    expect(buzzes).toEqual([20, 20, 20]);
+    r.ui.celebrations.clear();
+    r.ui.onEvents([{ type: 'milestone', id: 'town' }]);
+    expect(played[played.length - 1]).toBe('milestone');
+    expect(buzzes).toEqual([20, 20, 20, 40]);
     r.world.gold = -5;
     r.ui.alerts.refresh();
     expect(played[played.length - 1]).toBe('alert');

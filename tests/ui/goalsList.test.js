@@ -59,7 +59,7 @@ describe('ui goals', () => {
     addRaw(world, 'house', 10, 10); addRaw(world, 'house', 12, 10);
     expect(showMeTarget(world, goalById('well'))).toEqual({ x: 11.5, y: 10.5 });
   });
-  it('wires Show me into the game: the right card starts, the camera moves, and done goals toast', async () => {
+  it('wires Show me into the game: the right card starts, the camera moves, and done goals celebrate', async () => {
     const r = await rigUI({ width: 1280, height: 800 });
     r.ui.settings.set({ reducedMotion: 'off' });
     expect(r.root.querySelector('#goals .goal-strip').hidden).toBe(false);
@@ -71,8 +71,12 @@ describe('ui goals', () => {
     expect(r.ui.cameraControl.animating).toBe(true);
     r.store.set(openSheet(r.store.get(), 'goals'));
     expect(r.root.querySelectorAll('#sheet .goal').length).toBe(3);
-    r.ui.onEvents([{ type: 'goal', id: 'road', reward: 25 }]);
-    expect(r.root.querySelector('#toasts .toast').textContent).toBe(`${T.goalDone}: ${GOALS[0].text} (${rewardText(GOAL_REWARD)})`);
+    r.ui.celebrations.clear();
+    r.ui.onEvents([{ type: 'goal', id: 'road', reward: GOAL_REWARD }]);
+    const caption = r.root.querySelector('#cheer .cheer');            // a caption now, not a toast (early-game pass 3.6)
+    expect(caption.querySelector('.text').textContent).toBe(`${T.goalDone}: ${GOALS[0].text}`);
+    expect(caption.querySelector('.reward').textContent).toBe(rewardText(GOAL_REWARD));
+    expect(r.root.querySelector('#toasts').textContent.includes(GOALS[0].text)).toBe(false);
     r.store.set(openSheet(r.store.get(), 'summary'));
     expect(r.root.querySelector('#sheet').textContent).toContain(GOALS[0].text);
     r.store.set({ overlay: 'water' });

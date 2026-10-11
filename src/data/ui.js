@@ -80,3 +80,8 @@ export const UPDATE_TOAST_MS = 20000;
 
 export const TITLE_SEED = 11;          // the sample city behind the title card
 export const TITLE_DRIFT_MS = 9000;    // one slow camera drift between two points of it
+
+// Celebration captions (early-game pass 3.6): how long each tier's caption shows, and the least time between two
+// captions starting. A milestone shows longer than the gap, so the next caption waits until it hides.
+export const CHEER_MS = { first: 2500, milestone: 4000 };
+export const CHEER_GAP_MS = 3000;
