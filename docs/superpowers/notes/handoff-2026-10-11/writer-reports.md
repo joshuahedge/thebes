@@ -6,3 +6,6 @@
 
 ## Tasks 12-14 (s2-plan-T12-T14.md) — FAILED, no output
 - The writer stopped early on the account's spend limit ("session limit resets 9:20am Europe/London", 11 Oct 2026). Re-dispatch it after the reset with the same assignment (see stage2-writer-prompt.md and stage2-task-briefs.md). Any other writer whose output file is missing hit the same limit: re-dispatch those too.
+
+## Tasks 1-2, 6-8, 9-11 and 15-17 — also FAILED on the spend limit, no output files
+- Only `s2-plan-T03-T05.md` exists. After the limit resets, re-dispatch five writers (same prompt file, same task groupings: 1-2, 6-8, 9-11, 12-14, 15-17), writing to the new session's scratch folder. The stopped writers may have left partial scratch copies of the repo (`s2-*` folders) in the old scratch folder; ignore them and start clean.
