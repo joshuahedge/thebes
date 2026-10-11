@@ -3,12 +3,13 @@ import { BUILDINGS } from '../../src/data/buildings.js';
 import { T } from '../../src/sim/terrain.js';
 import { idx } from '../../src/sim/grid.js';
 
-export function makeTestWorld({ size = 32, fertile = [[0, 0, 8, 32]], gold = 100000 } = {}) {
+// raiderEntries (Stage 3): the map's raider entry points, [{ x, y }, ...] on its edges; none by default.
+export function makeTestWorld({ size = 32, fertile = [[0, 0, 8, 32]], gold = 100000, raiderEntries = [] } = {}) {
   const terrain = new Array(size * size).fill(T.DESERT);
   for (const [fx, fy, fw, fd] of fertile) {
     for (let y = fy; y < fy + fd; y++) for (let x = fx; x < fx + fw; x++) terrain[idx(size, x, y)] = T.FERTILE;
   }
-  const map = { size, terrain, tradeEntry: { x: size - 1, y: size - 1 }, startRoad: [], focus: { x: size >> 1, y: size >> 1 }, raiderEntries: [] };
+  const map = { size, terrain, tradeEntry: { x: size - 1, y: size - 1 }, startRoad: [], focus: { x: size >> 1, y: size >> 1 }, raiderEntries };
   const world = createWorld({ seed: 1, size, map });
   world.gold = gold;
   return world;

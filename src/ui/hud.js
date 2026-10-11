@@ -22,7 +22,7 @@ export function summaryData(world) {
   const L = world.labour;
   return {
     gold: world.gold, people: population(world), mood: world.mood, moodBreakdown: world.moodBreakdown, date: dateParts(world),
-    taxes: last.taxes, wages: last.wages, upkeep: last.upkeep, net: last.net,
+    taxes: last.taxes, wages: last.wages, upkeep: last.upkeep, soldiers: last.soldiers || 0, net: last.net,
     tradeIncome: last.tradeIncome || 0, tradeSpent: last.tradeSpent || 0, made: last.made || {}, used: last.used || {}, difficulty: world.difficulty,   // the economy (spec 4.10, 4.18)
     foodStored, foodByGood, foodNeed, monthsOfFood: foodNeed > 0 ? Math.round((foodStored / foodNeed) * 10) / 10 : null,
     workforce: L.workforce, working: L.employed, jobless: L.workforce - L.employed, jobs: L.jobs,

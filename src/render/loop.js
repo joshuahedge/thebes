@@ -5,7 +5,8 @@ import { tickDay, daysForSeconds } from '../sim/clock.js';
 export const MAX_FRAME_SECONDS = 0.25; // a hidden tab or a hitch never becomes a burst of days
 export const MAX_DAYS_PER_FRAME = 12;
 
-export function createGameLoop({ world, render, onEvents = null, raf = (fn) => requestAnimationFrame(fn), caf = (id) => cancelAnimationFrame(id) }) {
+// allowFrame (Stage 3): asked each frame, after the sim's days, whether to draw it (the idle frame-rate cap, spec 5.6).
+export function createGameLoop({ world, render, onEvents = null, allowFrame = null, raf = (fn) => requestAnimationFrame(fn), caf = (id) => cancelAnimationFrame(id) }) {
   let last = null, acc = 0, handle = null, running = false;
   const events = [];
 
@@ -26,6 +27,7 @@ export function createGameLoop({ world, render, onEvents = null, raf = (fn) => r
       if (onEvents) onEvents(events.slice());
       events.length = 0;
     }
+    if (allowFrame && !allowFrame(t)) return;
     render({ timeDays: world.day + acc, dt, steps, now: t });
   }
 

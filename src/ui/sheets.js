@@ -65,8 +65,11 @@ const CAUSE_FIX = {
 };
 const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
 
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onSelect = () => {}, afterCommand = () => {}, custom = {} }) {
+// parts (Stage 3): the danger and score interfaces' sheet parts (src/ui/danger.js), each { building(b), house(h),
+// actions(b), summary() } returning arrays of nodes, added in the list's order at fixed places in the sheets below.
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onSelect = () => {}, afterCommand = () => {}, custom = {}, parts = [] }) {
   const close = () => store.set(closeSheet(store.get()));
+  const extra = (kind, ...args) => parts.flatMap((p) => (p && typeof p[kind] === 'function' ? p[kind](...args) || [] : []));
 
   function head(title) {
     return el('div', { class: 'head' }, [el('h2', { text: title }), iconButton(T.close, '✕', { class: 'close', onClick: close })]);
@@ -128,8 +131,9 @@ export function createSheets({ container, store, world, placement, cameraControl
     else for (const [good, n] of Object.entries(b.store)) body.append(row(`${T.stock}: ${goodName(good)}`, String(n)));
     const reach = def.reach || def.supplyReach || def.producerReach;
     if (reach) body.append(row(T.reach, `${reach} road tiles`));
+    body.append(...extra('building', b));
     body.append(el('h3', { text: T.problems }), problems(b.id));
-    const actions = el('div', { class: 'actions' });
+    const actions = el('div', { class: 'actions' }, extra('actions', b));
     // The trading post's routes and orders live on their own sheet (spec 4.15); Back comes back here.
     if (b.type === 'trading_post') actions.append(button(T.trade, { class: 'trade primary', onClick: () => store.set(openSheet(store.get(), 'trade', b.id)) }));
     if (def.workers || def.upkeep) {
@@ -207,6 +211,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     const lost = s.missingNow.find((n) => n !== 'desirability');
     if (s.downgradeIn !== null && lost) body.append(el('p', { class: 'coral', text: `Loses ${NEED_NAMES[lost].toLowerCase()} in ${plural(s.downgradeIn, 'month', 'months')}` }));
     else if (s.missingNow.includes('desirability')) body.append(el('p', { class: 'coral keep-warning', text: keepWarningText(tierName(s.tier), s.downgradeIn) }));
+    body.append(...extra('house', h));
     body.append(el('div', { class: 'actions' }, [button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(h.x, h.y); if (r.ok) close(); } })]));
     return [head(tierName(s.tier)), body];
   }
@@ -215,7 +220,9 @@ export function createSheets({ container, store, world, placement, cameraControl
     const d = summaryData(world);
     const body = el('div', { class: 'body' });
     body.append(row(T.difficulty, DIFFICULTY_NAMES[d.difficulty] || d.difficulty));
-    body.append(el('h3', { text: T.incomeVsSpending }), row(T.taxes, `+${d.taxes}`), row(T.wages, `−${d.wages}`), row(T.upkeep, `−${d.upkeep}`), row(T.net, (d.net >= 0 ? '+' : '') + d.net));
+    body.append(el('h3', { text: T.incomeVsSpending }), row(T.taxes, `+${d.taxes}`), row(T.wages, `−${d.wages}`), row(T.upkeep, `−${d.upkeep}`));
+    if (d.soldiers > 0) body.append(row(T.soldiersPay, `−${d.soldiers}`));       // spec 6.3: soldiers' pay on its own row
+    body.append(row(T.net, (d.net >= 0 ? '+' : '') + d.net));
     // Trade under its own heading, as Net above leaves it out: what caravans paid the city and what it paid them.
     body.append(el('h3', { text: T.tradeLastMonth }), row(T.tradeSales, `+${d.tradeIncome}`), row(T.tradeBought, `−${d.tradeSpent}`));
     // Food in store by kind: grain always, other foods once there are some.
@@ -231,6 +238,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     body.append(el('h3', { text: T.goals }));
     const open = openGoals(world, 3);
     body.append(open.length ? el('ul', { class: 'goals' }, open.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
+    body.append(...extra('summary'));
     body.append(...achievementsSection());
     return [head(T.summary), body];
   }

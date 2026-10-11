@@ -439,3 +439,40 @@ body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) 
   .title-card .tagline { margin: 0; }
   .title-buttons { gap: 4px; }
 }
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 contract (Track 0) ── Track 0's styles for the contract. Add new rules just above the end marker. */
+/* Screenshot mode (spec 4.19, 6.4): nothing of the interface shows over the map; the screen-reader lines stay. */
+body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; }
+/* ── end s3 contract ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 fire (Track A) ── Track A's styles for fire. Add new rules just above the end marker. */
+/* ── end s3 fire ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 raids (Track B) ── Track B's styles for raids and defence. Add new rules just above the end marker. */
+/* ── end s3 raids ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 art (Track C) ── Track C's styles for art and render. Add new rules just above the end marker. */
+/* ── end s3 art ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 ui (Track D) ── Track D's styles for the danger interface. Add new rules just above the end marker. */
+/* ── end s3 ui ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 score (Track E) ── Track E's styles for scoring and records. Add new rules just above the end marker. */
+/* ── end s3 score ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 balance (Track F) ── Track F's styles for balance and integration. Add new rules just above the end marker. */
+/* ── end s3 balance ── */

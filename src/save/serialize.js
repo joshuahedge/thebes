@@ -78,8 +78,10 @@ export function deserialize(text) {
   return finishLoad(obj);
 }
 
-export function packSave(world, { savedAt = null, lastSpeed = 1 } = {}) {
-  return JSON.stringify({ version: SAVE_VERSION, savedAt, lastSpeed, world });
+// records (Stage 3, spec 4.17): the device's records (src/save/records.js), carried by an export beside the world and
+// merged on import; autosaves leave them out.
+export function packSave(world, { savedAt = null, lastSpeed = 1, records = null } = {}) {
+  return JSON.stringify(records ? { version: SAVE_VERSION, savedAt, lastSpeed, world, records } : { version: SAVE_VERSION, savedAt, lastSpeed, world });
 }
 
 // A bare world (an early export) is accepted as an envelope with no wall-clock data.
@@ -94,5 +96,6 @@ export function unpackSave(text) {
     savedAt: !bare && Number.isFinite(obj.savedAt) ? obj.savedAt : null,
     lastSpeed: !bare && [1, 2, 3].includes(obj.lastSpeed) ? obj.lastSpeed : 1,
     world,
+    records: !bare && isRecord(obj.records) ? obj.records : null,
   };
 }

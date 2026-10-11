@@ -41,6 +41,7 @@ function addStageTwo(world) {
 }
 
 export function buildSampleCity(world, { days = 360, stageTwoDays = 240 } = {}) {
+  world.calm = true;                                // Stage 3 contract: no fire or raids until Track F (src/sim/clock.js)
   const gold = world.gold;
   world.gold = 1e9;
   const ex = world.tradeEntry.x;
@@ -104,6 +105,7 @@ const STRESS_SERVICES = [
 ];
 
 export function buildStressCity(world, { days = 60 } = {}) {
+  world.calm = true;                                // Stage 3 contract: no fire or raids until Track F (src/sim/clock.js)
   const gold = world.gold;
   world.gold = 1e9;
   world.milestone = 'capital';   // a fixture: every building unlocked, as the homes below are filled directly

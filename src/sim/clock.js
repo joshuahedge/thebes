@@ -53,8 +53,13 @@ export function runMonth(world, events = null) {
 export function tickDay(world, events = null) {
   assignLabour(world);
   produceDay(world);
-  fireDay(world, events);                              // Stage 3: fire, then raids and combat (src/sim/fire.js, raids.js)
-  raidDay(world, events);
+  // Stage 3: fire, then raids and combat (src/sim/fire.js, raids.js). world.calm is a TEST-ONLY switch the Stage 3
+  // contract gives the long runs and the sample cities until Track F builds their firehouses and defences and removes it:
+  // never set by the game, not in the save's required fields.
+  if (!world.calm) {
+    fireDay(world, events);
+    raidDay(world, events);
+  }
   world.day += 1;
   if (world.day % ARRIVAL_EVERY === 0) {
     const count = arrivalsBatch(world);

@@ -3,7 +3,7 @@
 // always reopens paused. ?skipTitle=1 boots straight into a new city and ?welcome=1 shows the Welcome back card (development flags:
 // they write nothing until the first autosave, which then replaces the saved city).
 import { createWorld } from './sim/world.js';
-import { setSpeed, setGuide } from './sim/commands.js';
+import { setSpeed, setGuide, setCityId } from './sim/commands.js';
 import { createCamera } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
 import { createGameLoop } from './render/loop.js';
@@ -23,6 +23,9 @@ import { detectEnvironment, readEnvironment, createInstallFlow } from './save/in
 import { installGuide, noticeText, showNotice } from './ui/installUi.js';
 import { openSheet } from './ui/modes.js';
 import { registerServiceWorker, applyUpdate } from './pwa.js';
+import { createRecords, newCityId } from './save/records.js';
+import { titleDecor } from './ui/scoreUi.js';
+import { devScene } from './dev/scenes.js';
 
 const HOUR = 3600 * 1000;
 
@@ -43,6 +46,11 @@ export async function boot(doc, win, {
   const canvas = root.querySelector('#map');
   const renderer = createRenderer({ canvas });
   const settings = createSettings({ storage, root });
+  // Stage 3: the device's records (spec 4.19), and the development scenes hook, there before the title card shows
+  // (tools/shots.ps1 -Stage3); startGame keeps it beside the game's own fields.
+  const records = createRecords({ storage });
+  let api = null;
+  win.__thebes = { devScene: (name) => devScene(api, name) };
   // One audio context for the whole page: every game (New city, import) shares it.
   const sfx = createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
   // The share sheet, the download and the file picker, replaceable by tests.
@@ -72,8 +80,10 @@ export async function boot(doc, win, {
 
   // A new city starts with the guide on only under Help: Guide and tips (early-game pass 3.1), and at the difficulty
   // the settings hold for new cities (spec 4.18). The sample and stress cities of the development flags never guide.
-  function freshWorld() {
-    const world = createWorld({ seed: seedOf(), difficulty: settings.get().difficulty });
+  // seed: a chosen seed (This week's Nile, a shared score's Start this seed); otherwise the flag's or a random one. Each
+  // new city gets its id for the records here (spec 4.19: the interface gives it, the sim never reads the clock).
+  function freshWorld({ seed = null } = {}) {
+    const world = createWorld({ seed: Number.isInteger(seed) ? seed : seedOf(), difficulty: settings.get().difficulty, cityId: newCityId(clock()) });
     if (stress) buildStressCity(world); else if (sample) buildSampleCity(world);
     if (params.has('speed')) setSpeed(world, Number(params.get('speed')));
     setGuide(world, settings.get().help === 'full' && !stress && !sample);
@@ -84,6 +94,7 @@ export async function boot(doc, win, {
   let persisted = false;
 
   const hooks = {
+    records,                                            // Stage 3: the device's records, for Seal this reign (src/ui/scoreUi.js)
     canInstall: () => flow.canInstall(),
     async install() {
       const r = await flow.promptInstall();
@@ -96,6 +107,7 @@ export async function boot(doc, win, {
       if (!current || saveBlocked) return false;
       const text = packSave(current.world, { savedAt: clock(), lastSpeed: current.ui.store.get().lastSpeed });
       const r = await store.save(text);
+      if (r.ok) { try { records.noteCity(current.world, clock()); } catch (e) { /* records never stop a save */ } }   // spec 4.19
       if (r.ok && !persisted) {                         // spec 4.17: ask to keep the data once a city exists
         persisted = true;
         try { const s = win.navigator && win.navigator.storage; if (s && s.persist) s.persist().catch(() => {}); } catch (e) { /* not offered */ }
@@ -106,7 +118,7 @@ export async function boot(doc, win, {
     async exportCity() {
       if (!current) return;
       const { ui, world } = current;
-      const text = packSave(world, { savedAt: clock(), lastSpeed: ui.store.get().lastSpeed });
+      const text = packSave(world, { savedAt: clock(), lastSpeed: ui.store.get().lastSpeed, records: records.load() });   // spec 4.17: the export carries the records
       try {                                             // share first: the sheet needs the tap's activation window (iOS)
         const r = await exportSave(text, { share: io.share, canShare: io.canShare, download: io.download, date: new Date(clock()) });
         if (r === 'downloaded') ui.toasts.show(T.exported);
@@ -122,7 +134,10 @@ export async function boot(doc, win, {
         if (current) current.ui.toasts.show(text); else if (title) title.card.setMessage(text);   // toasts are hidden on the title
         return;
       }
-      const go = () => startGame(save.world, { fromSave: true, savedAt: save.savedAt, lastSpeed: save.lastSpeed, saveNow: true });
+      const go = () => {
+        if (save.records) { try { records.merge(save.records); } catch (e) { /* a bad records block never stops an import */ } }   // spec 4.17
+        startGame(save.world, { fromSave: true, savedAt: save.savedAt, lastSpeed: save.lastSpeed, saveNow: true });
+      };
       if (current) current.ui.store.set({ confirmDialog: { text: T.replaceCityConfirm, confirmLabel: T.importCity, onConfirm: go } });
       else go();                                        // the title phase has no city to replace
     },
@@ -134,24 +149,25 @@ export async function boot(doc, win, {
     leaveTitle();
     stopGame();
     if (fromSave) setSpeed(world, 0);                   // the game always reopens paused (spec 4.17)
+    if (!world.cityId) setCityId(world, newCityId(clock()));   // a city from before Stage 3 gets its records id at load
     const cam = createCamera({ x: stress ? 32 : world.focus.x, y: stress ? 32 : world.focus.y, zoom: 1 });
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings, hooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install(), onBring: () => hooks.importCity() }) }, ...uiOptions });
-    const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: ui.render, ...loopOptions });
+    const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: ui.render, allowFrame: ui.allowFrame, ...loopOptions });
     current = { world, ui, loop, cam };
     if (notice) ui.toasts.show(notice);
     if (saveNow) ui.autosave(fromSave ? 'import' : 'new');   // the previous city becomes the backup at once
     loop.start();
     if (pendingUpdate) { ui.offerUpdate(pendingUpdate); pendingUpdate = null; }
-    win.__thebes = { world, cam, renderer, loop, ui };
+    win.__thebes = { ...(win.__thebes || {}), world, cam, renderer, loop, ui };
     return current;
   }
 
   // A newer version's save in the slot must never be overwritten (spec 7.5), whichever way the game starts.
   function blockIfNewer(loaded) { saveBlocked = loaded.state === 'error' && loaded.code === 'newer_version'; }
 
-  // Spec 4.17: with a saved city, a new one asks first and offers to export the old one.
-  function confirmNewCity(loaded) {
+  // Spec 4.17: with a saved city, a new one asks first and offers to export the old one. seed: a chosen seed (spec 4.19).
+  function confirmNewCity(loaded, seed = null) {
     if (!title) return;
     title.card.showPanel((body, back) => {
       const exportFirst = button(T.exportFirst, { class: 'export-first', onClick: async () => {
@@ -160,7 +176,7 @@ export async function boot(doc, win, {
           if (r === 'downloaded' && title) title.card.setMessage(T.exported);
         } catch (e) { if (title) title.card.setMessage(T.exportFailed); }
       } });
-      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => startGame(freshWorld()) });
+      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => startGame(freshWorld({ seed })) });
       body.append(el('p', { text: T.newCityConfirm }), el('div', { class: 'actions' }, [exportFirst, start, button(T.back, { class: 'panel-back', onClick: back })]));
     });
   }
@@ -188,6 +204,11 @@ export async function boot(doc, win, {
       onSound: (on) => settings.set({ sound: on }),
       onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); },
       onBring: () => hooks.importCity(),
+      // Stage 3 (spec 4.19): records, stamps, This week's Nile and a shared score, from the score interface.
+      decorate: titleDecor({
+        records, shared: (win.location && win.location.hash) || '', clock,
+        startSeed: (seed) => (loaded.state === 'ok' ? confirmNewCity(loaded, seed) : startGame(freshWorld({ seed }))),
+      }),
     });
     title = { card, loop, backdrop };
     if (flow.shouldShowGuide()) card.showGuide(guide);
@@ -220,10 +241,11 @@ export async function boot(doc, win, {
     startGame(world, { fromSave: true, savedAt: clock() - 2 * HOUR, lastSpeed: 2, saveNow: false });
   } else showTitle(await loadSave(store));
 
-  return {
+  api = {
     phase: () => (title ? 'title' : 'game'),
     game: () => current,
-    startGame, hooks,
+    startGame, hooks, records,
     destroy() { win.removeEventListener('beforeinstallprompt', onPrompt); showNotice(root.querySelector('#notice'), null); leaveTitle(); stopGame(); },
   };
+  return api;
 }
