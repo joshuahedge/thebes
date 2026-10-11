@@ -485,6 +485,10 @@ body.has-banner:not([data-layout="wide"]) #legend:not(.open) .strip { display: n
 body.has-banner:not([data-layout="wide"]) #legend.open { flex-direction: row-reverse; align-items: center; }   /* open: the icon ends the strip's row */
 body.has-banner:not([data-layout="wide"]) #legend:not(.open):not(:empty) { position: absolute; top: 0; right: 0; }
 body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:empty)) { max-width: calc(100% - var(--tap) - 6px); }
+/* D2: an info caption (a blaze put out, a raid's report) is news, not a celebration: no star, a plain edge. */
+#cheer .cheer.info { border-color: var(--parchment-3); }
+#cheer .cheer.info .icon { display: none; }
+#sheet .fire-note, #sheet .ambient-note { margin: 0 0 6px; }
 /* ── end s3 ui ── */
 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
