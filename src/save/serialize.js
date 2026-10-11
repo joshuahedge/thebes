@@ -1,6 +1,7 @@
 import { migrate } from './migrate.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
+import { STAGE3_TALLY } from '../sim/world.js';
 
 // Every top-level field createWorld produces (src/sim/world.js).
 export const REQUIRED = [
@@ -9,9 +10,10 @@ export const REQUIRED = [
   'raiderEntries', 'focus', 'stats', 'startRoad', 'goals', 'history',
   'firsts', 'achievements', 'daily', 'guide', 'tally',
   'difficulty', 'trade', 'newItems',
+  'wall', 'wallVersion', 'raid', 'soldiers', 'nextUnitId', 'danger', 'splits', 'seals', 'feats', 'cityId',
 ];
 
-const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans'];
+export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY];
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isCounts = (v) => isRecord(v) && Object.values(v).every(Number.isFinite);       // tally.made: good -> units
 const isStrings = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
@@ -21,6 +23,15 @@ const isTrade = (t) => isRecord(t) && ['routes', 'orders', 'drift', 'used'].ever
 const isIdList = (v) => v === null || (Array.isArray(v) && v.every((id) => typeof id === 'string'));
 const isDaily = (d) => d === null || (isRecord(d) && typeof d.date === 'string' && Array.isArray(d.picks)
   && Array.isArray(d.done) && isRecord(d.base) && typeof d.swapped === 'boolean');
+// Stage 3 (version 4): the shapes the save must have; what each record holds inside is its module's business.
+const isDay = (v) => v === null || Number.isInteger(v);
+const isFire = (f) => f === null || (isRecord(f) && (f.stage === 'blaze' || f.stage === 'fire'));
+const isRaid = (r) => isRecord(r) && isDay(r.clockDay) && isDay(r.nextWarnDay) && Number.isInteger(r.index) && r.index >= 0
+  && (r.warning === null || isRecord(r.warning)) && (r.active === null || isRecord(r.active)) && (r.last === null || isRecord(r.last))
+  && Number.isFinite(r.adaptation);
+const isDanger = (d) => isRecord(d) && Array.isArray(d.burnDays) && d.burnDays.every(Number.isInteger) && isDay(d.lastFireDay)
+  && isDay(d.festivalDay) && typeof d.firePaused === 'boolean';
+const isFeats = (f) => isRecord(f) && isStrings(f.earned) && isStrings(f.lost) && isCounts(f.counters);
 
 // The save envelope (spec 4.17): wall-clock fields sit beside the world, never inside it.
 export const SAVE_VERSION = 1;
@@ -44,6 +55,12 @@ export function validateWorld(w) {
   if (!isRecord(w.tally) || !TALLY_KEYS.every((k) => Number.isFinite(w.tally[k])) || !isCounts(w.tally.made)) return false;
   if (typeof w.difficulty !== 'string' || !Object.hasOwn(DIFFICULTIES, w.difficulty)) return false;
   if (!isTrade(w.trade) || !isStrings(w.newItems)) return false;
+  for (const b of Object.values(w.buildings)) if (!Number.isFinite(b.risk) || !isFire(b.fire)) return false;
+  if (!Array.isArray(w.wall) || w.wall.length !== cells || !w.wall.every((v) => Number.isInteger(v) && v >= -1)) return false;
+  if (!Number.isInteger(w.wallVersion) || !Number.isInteger(w.nextUnitId) || w.nextUnitId < 1) return false;
+  if (!isRaid(w.raid) || !Array.isArray(w.soldiers) || !w.soldiers.every(isRecord) || !isDanger(w.danger)) return false;
+  if (!isRecord(w.splits) || !Object.values(w.splits).every(Number.isInteger) || !Array.isArray(w.seals) || !w.seals.every(isRecord)) return false;
+  if (!isFeats(w.feats) || !(w.cityId === null || (typeof w.cityId === 'string' && w.cityId.length > 0))) return false;
   return true;
 }
 

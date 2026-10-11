@@ -37,7 +37,7 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 const pressed = (root) => [...root.querySelectorAll('.choice.difficulty')].filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.dataset.value);
 
 describe('ui difficulty choice', () => {
-  it('puts Relaxed, Normal and Hard under New city, chooses the level it is given, and reports a new choice', () => {
+  it('puts Peaceful, Relaxed, Normal and Hard under New city, chooses the level it is given, and reports a new choice', () => {
     const { root, cleanup } = mount('<div id="title" hidden></div>');
     try {
       const container = root.querySelector('#title');
@@ -47,12 +47,12 @@ describe('ui difficulty choice', () => {
       expect(row.previousElementSibling.classList.contains('new-city')).toBe(true);   // directly under New city
       const choices = [...row.querySelectorAll('.choice.difficulty')];
       expect(choices.map((b) => b.textContent)).toEqual(DIFFICULTY_ORDER.map((d) => DIFFICULTY_NAMES[d]));
-      expect(choices.map((b) => b.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON']);
+      expect(choices.map((b) => b.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON', 'BUTTON']);
       expect(row.querySelector('[role="group"]').getAttribute('aria-label')).toBe(T.difficultyForNewCities);
       expect(pressed(row)).toEqual(['hard']);
       expect(row.querySelector('.difficulty-hint').textContent).toBe(difficultyHint('hard'));
       expect(choices[0].getAttribute('aria-describedby')).toBe(row.querySelector('.difficulty-hint').id);
-      fire(choices[0], 'click');
+      fire(choices[1], 'click');
       expect([pressed(row), chosen]).toEqual([['relaxed'], ['relaxed']]);
       expect(row.querySelector('.difficulty-hint').textContent).toBe(difficultyHint('relaxed'));
       expect(document.activeElement).toBe(container.querySelector('.new-city'));     // focus still starts on the first button
@@ -133,7 +133,7 @@ describe('ui difficulty choice', () => {
       menus.settings(body, { close() {} });
       const group = body.querySelector(`[role="group"][aria-label="${T.difficultyForNewCities}"]`);
       expect(group.closest('.row').textContent).toContain(T.difficultyForNewCities);
-      expect([...group.querySelectorAll('.choice.difficulty')].map((b) => b.textContent)).toEqual(['Relaxed', 'Normal', 'Hard']);
+      expect([...group.querySelectorAll('.choice.difficulty')].map((b) => b.textContent)).toEqual(['Peaceful', 'Relaxed', 'Normal', 'Hard']);
       expect(pressed(group)).toEqual(['normal']);
       fire(group.querySelector('[data-value="hard"]'), 'click');
       expect([settings.get().difficulty, pressed(group)]).toEqual(['hard', ['hard']]);

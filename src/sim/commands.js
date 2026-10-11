@@ -17,8 +17,9 @@ const isTile = (x, y) => Number.isInteger(x) && Number.isInteger(y);
 
 export function checkTiles(world, type, x, y) {
   const def = BUILDINGS[type];
-  if (!def) return 'unknown';
+  if (!def || def.buildable === false) return 'unknown';   // rubble (and a gate) is never built
   if (!isUnlocked(world, type)) return 'locked';
+  if (def.tile) return 'unknown';                          // walls are drawn as a line (drawWall, src/sim/defence.js), not placed
   // A fractional tile would index between cells and leave ghost entries in occ and the save.
   if (!isTile(x, y)) return 'out_of_bounds';
   for (const [tx, ty] of footprint(x, y, def.w, def.d)) {

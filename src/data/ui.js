@@ -5,8 +5,8 @@ export const CATEGORIES = [
   { id: 'homes', items: ['house', 'garden', 'statue'] },
   { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
   { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'] },
-  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth'] },
-  { id: 'defence', items: [] },
+  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse'] },
+  { id: 'defence', items: ['wall', 'tower', 'barracks'] },
   { id: 'monuments', items: [] },
 ];
 
