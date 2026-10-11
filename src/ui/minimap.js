@@ -1,10 +1,31 @@
 // The minimap (spec 6.3): the whole map top-down, the current view outlined, alert pins. Tapping it jumps.
+// Stage 3 (Track D): a pin can mark a map point as well as a building. A raid's alerts (no building, an x and y) get a
+// larger pin with an arrow pointing into the map from the edge they come from (spec 4.13), so the pin says where by shape.
 import { T as TER } from '../sim/terrain.js';
-import { TERRAIN, UI } from '../render/art/palette.js';
+import { TERRAIN, UI, INK } from '../render/art/palette.js';
 import { allBuildings } from '../sim/world.js';
 import { screenToTile } from '../render/camera.js';
 
 const COLOURS = { [TER.DESERT]: TERRAIN.sand, [TER.FERTILE]: TERRAIN.fertile, [TER.ROCKY]: TERRAIN.rocky, [TER.WATER]: TERRAIN.water, [TER.BANK]: TERRAIN.bank, [TER.MEADOW]: TERRAIN.grass };
+
+const INTO = { east: [-1, 0], west: [1, 0], north: [0, 1], south: [0, -1] };
+
+// The pins for a list of alerts, in tile units: { x, y, point, dx, dy }. A building's pin sits on its centre; a point
+// alert's at its tile's centre, with (dx, dy) the unit arrow into the map (from its dir, else towards the map's middle).
+export function minimapPins(world, alerts = []) {
+  const out = [];
+  for (const a of alerts) {
+    const b = a.id ? world.buildings[a.id] : null;
+    if (b) { out.push({ x: b.x + b.w / 2, y: b.y + b.d / 2, point: false, dx: 0, dy: 0 }); continue; }
+    if (a.id !== undefined && a.id !== null) continue;          // a building that is gone
+    if (!Number.isFinite(a.x) || !Number.isFinite(a.y)) continue;
+    const x = Math.max(0, Math.min(world.size - 1, a.x)) + 0.5, y = Math.max(0, Math.min(world.size - 1, a.y)) + 0.5;
+    let [dx, dy] = INTO[a.dir] || [world.size / 2 - x, world.size / 2 - y];
+    const len = Math.hypot(dx, dy) || 1;
+    out.push({ x, y, point: true, dx: dx / len, dy: dy / len });
+  }
+  return out;
+}
 
 export function createMinimap({ world, cam, view, size = 160, dpr = 1 }) {
   const canvas = document.createElement('canvas');
@@ -46,12 +67,32 @@ export function createMinimap({ world, cam, view, size = 160, dpr = 1 }) {
     ctx.strokeStyle = TERRAIN.grid;
     ctx.lineWidth = Math.max(1, dpr * 0.5);
     ctx.stroke();
-    for (const a of alerts) {
-      const b = a.id ? world.buildings[a.id] : null;
-      if (!b) continue;
+    for (const pin of minimapPins(world, alerts)) {
+      const px = pin.x * scale, py = pin.y * scale;
       ctx.fillStyle = UI.bad;
+      if (pin.point) {
+        // An arrow from the pin into the map, then the pin: a ringed disc twice a building pin's size.
+        const r = Math.max(4, dpr * 5), len = r * 2.6, nx = -pin.dy, ny = pin.dx;
+        const tip = [px + pin.dx * len, py + pin.dy * len], base = [px + pin.dx * r * 0.6, py + pin.dy * r * 0.6];
+        ctx.beginPath();
+        ctx.moveTo(tip[0], tip[1]);
+        ctx.lineTo(base[0] + nx * r, base[1] + ny * r);
+        ctx.lineTo(base[0] - nx * r, base[1] - ny * r);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = Math.max(1, dpr);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = UI.halo;
+        ctx.lineWidth = Math.max(1.5, dpr * 2);
+        ctx.stroke();
+        continue;
+      }
       ctx.beginPath();
-      ctx.arc((b.x + b.w / 2) * scale, (b.y + b.d / 2) * scale, Math.max(2, dpr * 3), 0, Math.PI * 2);
+      ctx.arc(px, py, Math.max(2, dpr * 3), 0, Math.PI * 2);
       ctx.fill();
     }
   }

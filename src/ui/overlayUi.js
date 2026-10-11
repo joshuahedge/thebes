@@ -6,7 +6,7 @@ import { rgba } from '../render/art/ctx.js';
 import { UI, TERRAIN } from '../render/art/palette.js';
 import { DESIRABILITY_STEPS } from '../data/ui.js';
 import { toggleOverlay, cycleOverlay } from './modes.js';
-import { OVERLAY_NAMES, OVERLAY_LEGEND, desirabilityBand, T } from './text.js';
+import { OVERLAY_NAMES, OVERLAY_LEGEND, desirabilityBand, T, DANGER_UI_TEXT } from './text.js';
 import { el, iconButton, clear } from './components.js';
 
 // A band's swatch looks as the map does: the hue at the band's strength over sand, or coral hatching below zero.
@@ -27,6 +27,10 @@ function scale(kind) {
   }));
 }
 
+// Stage 3 (spec 6.3, ruling 111): on a phone (portrait or compact) with a critical banner up, the strip shrinks to one
+// icon button beside the banner (css/ui.css, Track D), so the goals strip stays above the middle of the screen; tapping
+// it opens the full legend (the container's 'open' class) and tapping it again shrinks it. The icon is always in the
+// strip's place in the DOM; the stylesheet shows one or the other.
 export function createOverlayLegend({ container, store }) {
   let lastKind = undefined;
 
@@ -35,7 +39,16 @@ export function createOverlayLegend({ container, store }) {
     if (kind === lastKind) return;
     lastKind = kind;
     clear(container);
+    container.classList.remove('open');
     if (!kind) return;
+    const toggle = iconButton(DANGER_UI_TEXT.legendOpen(OVERLAY_NAMES[kind]), '◧', { class: 'legend-icon', 'aria-expanded': 'false' });
+    toggle.addEventListener('click', () => {
+      const open = container.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.setAttribute('aria-label', open ? DANGER_UI_TEXT.legendClose : DANGER_UI_TEXT.legendOpen(OVERLAY_NAMES[kind]));
+      toggle.title = toggle.getAttribute('aria-label');
+    });
+    container.append(toggle);
     const graded = GRADED_OVERLAYS.includes(kind);
     const name = el('strong', { class: 'text', text: OVERLAY_NAMES[kind] });
     const close = iconButton(T.overlayOff, '✕', { class: 'close quiet', onClick: () => store.set(toggleOverlay(store.get(), kind)) });

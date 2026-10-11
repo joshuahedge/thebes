@@ -21,13 +21,24 @@
 //   destroy()   when the interface goes
 // ctx.screenshotMode() enters screenshot mode (the store's screenshot flag; Back, Esc, a tap or a click leaves it).
 // ctx.fireTip(trigger) asks for a tip (src/data/tips.js triggers), as createUI does for its own.
+import { openSheet, closeSheet } from './modes.js';
+
 export function createDanger(ctx) {
+  // D1: the banner's other buttons (src/ui/alerts.js). View on a raid's alert moves the camera to its map point (it has no
+  // building to select); "+N more" opens the minimap sheet, whose list holds every alert.
+  function onAlertAction(alert, action) {
+    if (action === 'view' && Number.isFinite(alert.x) && Number.isFinite(alert.y)) {
+      const s = ctx.store.get();
+      if (s.sheet) ctx.store.set(closeSheet(s));
+      ctx.cameraControl.panTo(alert.x + 0.5, alert.y + 0.5);
+    } else if (action === 'more') ctx.store.set(openSheet(ctx.store.get(), 'minimap'));
+  }
   return {
     sheets: {},
     sheetParts: { building: () => [], house: () => [], actions: () => [], summary: () => [] },
     onEvents() {},
     refresh() {},
-    onAlertAction() {},
+    onAlertAction,
     onCommand() {},
     destroy() {},
   };
