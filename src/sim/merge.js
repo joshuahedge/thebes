@@ -58,11 +58,14 @@ export function mergeHouses(world, house, origin) {
 const shareOf = (n, k, i) => Math.floor(n / k) + (i < n % k ? 1 : 0);
 
 // Splits a 2x2 home into four plots: Townhouses sharing its residents evenly (the north-west plot keeps its id),
-// with its household stock shared among the plots that have residents. A plot left with nobody is an empty plot,
-// so a 2x2 home emptied of residents splits into four empty plots. Returns the four plots, NW, NE, SW, SE.
+// with its household stock shared among the plots that have residents, and each of them keeping a copy of the
+// home's met record, so people who were fed this month still count as fed (mood reads it). A plot left with nobody
+// is an empty plot, so a 2x2 home emptied of residents splits into four empty plots. Returns the four plots, NW, NE,
+// SW, SE.
 export function splitHouse(world, house) {
   const { x, y, residents } = house;
   const stock = house.stock || {};
+  const met = house.met || {};
   removeBuilding(world, house.id);
   const shares = CORNERS.map((_, i) => shareOf(residents, 4, i));
   const lived = shares.filter((r) => r > 0).length;
@@ -77,7 +80,7 @@ export function splitHouse(world, house) {
     }
     Object.assign(b, {
       x: x + cx, y: y + cy, w: 1, d: 1, tier: r > 0 ? JOIN_TIER : 0, residents: r, stock: own,
-      met: {}, downTimer: 0, leftThisMonth: 0, stockedFor: r,
+      met: r > 0 ? { ...met } : {}, downTimer: 0, leftThisMonth: 0, stockedFor: r,
     });
     return insertBuilding(world, b);
   });

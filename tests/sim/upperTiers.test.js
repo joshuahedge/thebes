@@ -4,6 +4,7 @@ import { monthlyHousing, houseStatus, needCause, desirabilityTarget, removeResid
 import { mergeSquare, mergeHouses, splitHouse, MERGE_TIER } from '../../src/sim/merge.js';
 import { houseDesirability } from '../../src/sim/desirability.js';
 import { departures } from '../../src/sim/immigration.js';
+import { updateMood } from '../../src/sim/mood.js';
 import { buildingAt, housesOf, removeBuilding } from '../../src/sim/world.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 
@@ -120,6 +121,24 @@ describe('sim upper tiers and merges', () => {
     const split = splitHouse(w, Object.assign(mergeHouses(w, parts[0], { x: 12, y: 11 }), { residents: 3, stock: { grain: 5 } }));
     expect(split.map((p) => [p.tier, p.residents])).toEqual([[5, 1], [5, 1], [5, 1], [0, 0]]);   // nobody left for the fourth
     expect(split.map((p) => p.stock.grain || 0)).toEqual([2, 2, 1, 0]);    // stock goes to the plots with people
+  });
+  it('keeps the month\'s fed record on the plots of a split Manor, so the mood does not fall for people who just ate', () => {
+    const w = makeTestWorld();
+    setRoad(w, 0, 10, 31, 10);
+    const m = manor(w, 12, 11, 90);                                        // fed from its own stock, but no water, temple or booth
+    monthlyHousing(w);
+    expect(m.met.food).toBe(true);
+    const before = updateMood(w);
+    const events = [];
+    monthlyHousing(w, events);
+    expect(events.map((e) => e.type)).toEqual(['downgrade', 'split']);
+    const parts = [[12, 11], [13, 11], [12, 12], [13, 12]].map(([x, y]) => buildingAt(w, x, y));
+    expect(updateMood(w)).toBe(before);                                    // the same people, still fed
+    expect(parts.map((p) => p.met.food)).toEqual([true, true, true, true]);
+    expect(new Set(parts.map((p) => p.met)).size).toBe(4);                 // each plot has its own record
+    const v = makeTestWorld();
+    const split = splitHouse(v, Object.assign(manor(v, 12, 11, 3), { met: { food: true } }));
+    expect(split.map((p) => p.met)).toEqual([{ food: true }, { food: true }, { food: true }, {}]);   // nobody left for the fourth
   });
   it('holds a Manor between the two desirability values, and drops it after a month below "to keep", with the countdown', () => {
     const w = street();
