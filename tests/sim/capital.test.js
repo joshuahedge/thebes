@@ -10,26 +10,29 @@ import { FIRSTS, FIRST_REWARD } from '../../src/data/firsts.js';
 import { costOf, routeCostOf } from '../../src/sim/costs.js';
 import { T } from '../../src/sim/terrain.js';
 import { idx } from '../../src/sim/grid.js';
+import { canBurn, staffedCover } from '../../src/sim/fire.js';
+import { touchesRoad } from '../../src/sim/reach.js';
 
 // The Stage 2 balance run (spec 9, 11): a city laid only through the public commands, the way a steady player would,
 // grows from the starting treasury to Capital, then lives on for years. Each step waits for its milestone (and some for
 // a population) and for the gold to pay for it with RESERVE to spare, so the script never spends the treasury below
 // zero; whether it stays above zero after that is down to the economy. The chains are laid so their raw goods never
 // outrun the workshops (two clay pits feed three potters), because a raw good that piles up fills the shared
-// storehouse and stops every chain that uses it.
+// storehouse and stops every chain that uses it. Stage 3: the city meets fire and raids, so it builds firehouses
+// before fire risk starts at Town and defences once the raid clock can start at Market town.
 const SIZE = 48;
 const RESERVE = 400;
 
 // A band of fertile land south of the centre (farms) with a rocky patch in it at the west end (the gem mine), desert
-// elsewhere. The trade entry is the east end of the farm street, which the script lays.
+// elsewhere. The trade entry is the east end of the farm street, which the script lays; the raider entries are the two
+// mapgen gives a 48-tile map (the middle of the east edge and of the north edge).
 function capitalWorld() {
   const terrain = new Array(SIZE * SIZE).fill(T.DESERT);
   for (let y = 17; y < 24; y++) for (let x = 0; x < SIZE; x++) terrain[idx(SIZE, x, y)] = T.FERTILE;
   for (let y = 21; y < 23; y++) for (let x = 10; x < 14; x++) terrain[idx(SIZE, x, y)] = T.ROCKY;
-  const map = { size: SIZE, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries: [] };
-  const w = createWorld({ seed: 5, size: SIZE, map });
-  w.calm = true;                                   // Stage 3 contract: no fire or raids until Track F gives it firehouses and defences
-  return w;
+  const raiderEntries = [{ x: 47, y: 24 }, { x: 24, y: 0 }];
+  const map = { size: SIZE, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries };
+  return createWorld({ seed: 5, size: SIZE, map });
 }
 
 // Each step: the milestone it waits for, what it costs now, and the command. A step that fails for any reason but gold
@@ -45,7 +48,10 @@ const once = (pop, ...steps) => steps.map((s) => ({ ...s, pop }));
 // The main street (y 12) has homes on both sides and its services on the north side. A short works road (x 24) runs
 // south past the granaries to the farm street (y 20) on the fertile band, where the storehouse sits at the corner with
 // the workshops along the street. A block of paired plots (rows 13 and 14, east) with statues and gardens behind it is
-// where Manors can form.
+// where Manors can form. Five firehouses reach every building on a road (8 road tiles each): two in the north row of
+// the main street, laid before its homes fill that row, and three on the farm street (the middle one also reaches the
+// granaries on the works road). Two barracks (one at each end of the city) and two towers (by the trade road and at the
+// works road's corner) face the raids, which come from the east and the north.
 const CAPITAL_SCRIPT = [
   ...at('village',
     road(4, 12, 40, 12), road(24, 13, 24, 19), road(8, 20, 38, 20),
@@ -54,10 +60,12 @@ const CAPITAL_SCRIPT = [
     plots(10, 13, 23, 13),
     ...once(40, build('temple', 19, 10), build('farm_grain', 27, 18)),
     ...once(80, build('well', 33, 11), build('well', 38, 11), plots(25, 13, 30, 13), plots(32, 13, 39, 13)),
-    ...once(110, build('bazaar', 29, 10), build('temple', 34, 10), plots(10, 11, 39, 11), build('farm_grain', 18, 18)),
+    ...once(110, build('bazaar', 29, 10), build('temple', 34, 10), build('firehouse', 16, 11), build('firehouse', 32, 11),
+      plots(10, 11, 39, 11), build('farm_grain', 18, 18)),
     ...once(140, build('farm_grain', 22, 21), build('farm_grain', 29, 18)),
   ),
   ...at('town',
+    build('firehouse', 25, 19), build('firehouse', 11, 19), build('firehouse', 38, 19),
     build('storehouse', 22, 18), build('clay_pit', 18, 21), build('potter', 20, 21),
     // Two orchards, no more: homes eat grain before figs, so figs beyond what two-food homes need fill the shared
     // granaries and the grain farms stop with "no storage".
@@ -69,6 +77,7 @@ const CAPITAL_SCRIPT = [
   ),
   ...at('market_town',
     road(39, 20, 47, 20), build('trading_post', 36, 21), route('memphis'),
+    build('barracks', 8, 13), build('barracks', 38, 21), build('tower', 40, 19), build('tower', 25, 14),
     order('pottery', 'sell', 150),
     build('farm_grain', 26, 21), build('farm_grain', 33, 18), build('potter', 12, 21),
   ),
@@ -157,6 +166,14 @@ describe('capital run', () => {
     expect(homes.filter((h) => h.tier >= 6).length).toBeGreaterThanOrEqual(2);   // Manors merged on the pleasant block
     expect(w.tally.caravans).toBeGreaterThanOrEqual(4);
     expect(w.tally.sold).toBeGreaterThan(0);
+    // Stage 3: every building that can burn and stands on a road has a staffed firehouse in reach (spec 4.12), and the
+    // fires and raids leave the Capital standing (measured on the merged branch: 29 blazes, 28 put out and the last
+    // still being fought when the run ends, nothing burned; two raids, of 3 from the east and 12 from the north, both
+    // beaten). The bounds leave room for retuning.
+    const uncovered = allBuildings(w).filter((b) => canBurn(b) && touchesRoad(w, b) && !staffedCover(w, b));
+    expect(uncovered.map((b) => `${b.type} ${b.x},${b.y}`)).toEqual([]);
+    expect(w.tally.burned).toBeLessThanOrEqual(6);
+    expect(w.tally.raidsLost).toBe(0);
     expect(elapsed).toBeLessThan(5000);
   });
 });
