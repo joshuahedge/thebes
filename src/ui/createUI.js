@@ -10,7 +10,7 @@ import { startDaily } from '../sim/daily.js';
 import { setGuide } from '../sim/commands.js';
 import { checkFirsts } from '../sim/firsts.js';
 import { checkAchievements } from '../sim/achievements.js';
-import { population, housesOf } from '../sim/world.js';
+import { population, housesOf, allBuildings } from '../sim/world.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker } from '../render/overlays.js';
@@ -47,9 +47,10 @@ import { TIP_AUTO_CLOSE_MS } from '../data/tips.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { welcomeSheet } from './welcomeBack.js';
+import { tradeSheet } from './tradeSheet.js';
 import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
-import { buildingName, reasonText, milestoneText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, T } from './text.js';
 
 const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
@@ -150,7 +151,10 @@ export function createUI({
     lastHelp = v.help;
     if (v.help !== 'full' && world.guide.on) { setGuide(world, false); refresh(); }
   });
-  const customSheets = { ...menus, goals: goalsSheet(world, { onShowMe: showMe }) };
+  const customSheets = {
+    ...menus, goals: goalsSheet(world, { onShowMe: showMe }),
+    trade: tradeSheet({ world, afterCommand, onShowMe: showMeAt, toast: (text) => toasts.show(text) }),
+  };
   if (welcome) {
     customSheets.welcome = welcomeSheet({
       world, savedAt: welcome.savedAt, lastSpeed: welcome.lastSpeed, now: clock, getAlerts: () => alerts.list(), onView: viewAlert,
@@ -212,8 +216,13 @@ export function createUI({
     for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(x, y, at + i * SHOW_ME_PULSE_MS);
   }
   // A goal's Show me: the next building it still needs, at its target. A goal with nowhere to point (debt)
-  // opens the city summary instead.
+  // opens the city summary instead, and the trade route goal, once a trading post stands, opens that post's trade
+  // sheet: the route is opened there, not by placing another post.
   function showMe(goal) {
+    if (goal.id === 'trade_route') {
+      const post = allBuildings(world).find((b) => b.type === 'trading_post');
+      if (post) { selectBuilding(post.id); store.set(openSheet(store.get(), 'trade', post.id)); return; }
+    }
     if (!goal.showMe) { closeAnySheet(); store.set(openSheet(store.get(), 'summary')); return; }
     const item = nextItemFor(world, goal) || goal.showMe.item;
     const t = showMeTarget(world, goal);
@@ -265,6 +274,7 @@ export function createUI({
     if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type]) fireTip('servicePlaced');
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
+    if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'trading_post') fireTip('tradingPostPlaced');
     if (e.kind === 'speed' && world.speed > 0 && tips.current() === 'press_play') tips.dismiss();   // its condition has cleared
     ghostsDirty = true;
     // Goals, firsts, achievements and daily goals settle after every command (undo and speed included), so a
@@ -360,6 +370,7 @@ export function createUI({
     }
     if (e.type === 'daily') return DAILY_TEXT[e.id] ? { tier: 'first', text: `${T.dailyDone}: ${DAILY_TEXT[e.id]}`, reward: e.reward, onShow: cheerSound } : null;
     if (e.type === 'guide_done') return { tier: 'first', text: T.guideDone, reward: e.reward, onShow: cheerSound };
+    if (e.type === 'caravan') { const c = caravanText(e); return { tier: 'first', text: c.text, why: c.why, onShow: cheerSound }; }
     return null;
   }
   // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js).

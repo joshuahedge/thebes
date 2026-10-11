@@ -386,3 +386,21 @@ body.reduce-motion .goal-strip .show-me.glow, body.reduce-motion.nudge-play .spe
 .store-goods .switch .state { font-weight: 600; flex: none; }
 .store-goods .switch[aria-checked="false"] .state { color: var(--coral-text); }
 .store-goods .good-line { margin: 2px 0 0; }
+
+/* The trade sheet (spec 4.15): routes first, then a row per good with its prices, the Buy, Sell or Ignore choice
+   (the .choices group the settings use) and the level to keep between its 44 px -10 and +10 buttons. */
+#sheet .routes, #sheet .trade-goods { list-style: none; padding-left: 0; }
+.routes .route { padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+.routes .route.open { display: flex; justify-content: space-between; align-items: center; min-height: var(--tap); }
+.routes .route .row { border-bottom: none; align-items: center; padding: 0; }
+.routes .reason { margin: 2px 0 0; }
+.trade-goods .trade-good { padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+.trade-goods .row { border-bottom: none; padding: 0; align-items: baseline; }
+.trade-goods .prices { margin: 2px 0 4px; }
+.trade-goods .keep { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.trade-goods .keep-value { min-width: 5em; text-align: center; }
+.trade-goods .keep-help { margin: 2px 0 0; }
+.trade-warning { margin: 8px 0; }
+.trade-warning p { margin: 0 0 4px; }
+.trade-warning .fix { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
+#sheet .next-caravan { margin-top: 8px; }

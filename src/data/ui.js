@@ -42,6 +42,9 @@ export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion' 
 // out (early-game pass 2.6). Only when nothing fits does it stay on the point itself.
 export const NEAREST_FIT_RADIUS = 10;
 
+// The trade sheet's level to keep moves in steps of this many units (spec 4.15).
+export const TRADE_KEEP_STEP = 10;
+
 // Spec 6.7. Letters are listed in both cases; `undo` needs Ctrl or Cmd.
 export const KEYS = {
   pause: [' '],
