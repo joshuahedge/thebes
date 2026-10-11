@@ -1,6 +1,9 @@
 import { describe, it, expect } from '../harness.js';
 import { boot } from '../../src/boot.js';
 import { createSaveStore } from '../../src/save/store.js';
+import { createWorld, removeBuilding } from '../../src/sim/world.js';
+import { setGuide } from '../../src/sim/commands.js';
+import { addRaw } from '../helpers/testWorld.js';
 import { createSettings, DEFAULT_SETTINGS } from '../../src/ui/settings.js';
 import { createMenuSheets } from '../../src/ui/menu.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
@@ -191,11 +194,108 @@ describe('ui guide', () => {
       expect(r.ui.guide.marker(1000 + GUIDE_PULSES * GUIDE_PULSE_MS).pulsing).toBe(false);
       r.world.goals.completed.push('road');                          // the next step rings afresh
       r.ui.refresh();
-      expect(r.ui.guide.marker(9000)).toEqual({ ...showMeTarget(r.world, guideGoal(r.world)), pulsing: true });
+      expect(r.ui.guide.marker(9000)).toEqual({ ...showMeTarget(r.world, guideGoal(r.world)), pulsing: true, age: 0 });
+      expect(r.ui.guide.marker(9300).age).toBe(300);                 // the time since the step began
       r.ui.settings.set({ reducedMotion: 'on' });
       expect(r.ui.guide.marker(9001).pulsing).toBe(false);
       r.frame(9002);                                                 // the frame draws the ring without throwing
     } finally { r.cleanup(); }
+  });
+  it('starts the pulses at the step change: the first frame of a step draws the ring at the start of a pulse', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    try {
+      r.ui.settings.set({ reducedMotion: 'off' });
+      // The ring's fill is the one filled poly the overlay draws here; its alpha falls as a pulse grows (0.12 at its start).
+      const fills = [];
+      const g = new Proxy({}, { get: (_, k) => (k === 'poly' ? (pts, fill, o) => { if (fill !== 'none' && o && o.alpha !== undefined) fills.push(o.alpha); } : () => {}) });
+      r.renderer.renderFrame = (w, cam, opts) => { opts.drawOverlay(g, { x0: 0, y0: 0, x1: 31, y1: 31 }); };
+      const alphaAt = (t) => { fills.length = 0; r.frame(t); return fills[0]; };
+      expect(Math.abs(alphaAt(5000) - 0.12) < 1e-9).toBe(true);    // 5000 ms is not a whole number of pulses: the age is what counts
+      expect(alphaAt(5000 + GUIDE_PULSE_MS / 2)).toBeLessThan(0.1);
+      r.world.goals.completed.push('road');                          // the next step: a fresh pulse from its first frame
+      r.ui.refresh();
+      expect(Math.abs(alphaAt(7777) - 0.12) < 1e-9).toBe(true);
+    } finally { r.cleanup(); }
+  });
+  it('sweeps the cards no more once the guide is off and its marks are gone', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    try {
+      fire(r.root.querySelector('#goals .skip-guide'), 'click');
+      expect(document.querySelectorAll('.suggested, .dimmed').length).toBe(0);
+      let sweeps = 0;
+      const real = document.body.querySelectorAll;
+      document.body.querySelectorAll = function (sel) { if (String(sel).includes('.card[data-item]')) sweeps++; return real.call(this, sel); };
+      try {
+        r.store.set({ category: 'food' });                           // a store change rebuilds the panel's cards
+        r.ui.refresh();
+        expect(sweeps).toBe(0);
+        setGuide(r.world, true);                                     // back on: the marks return at once
+        r.ui.refresh();
+        expect(sweeps).toBeGreaterThan(0);
+        expect(r.root.querySelector('#panel .tab.suggested')).toBeTruthy();
+      } finally { delete document.body.querySelectorAll; }
+    } finally { r.cleanup(); }
+  });
+  it('walks the food step card by card: farm, then granary (dot on Food), then bazaar (dot on Services)', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    try {
+      r.world.goals.completed.push('road', 'plots', 'well');
+      for (const b of Object.values(r.world.buildings)) if (['farm_grain', 'granary', 'bazaar'].includes(b.type)) removeBuilding(r.world, b.id);
+      r.ui.refresh();
+      const dotOn = () => [...r.root.querySelectorAll('#panel .tab.suggested')].map((t) => t.dataset.category);
+      const check = (item, category) => {
+        expect(guideGoal(r.world).id).toBe('food');
+        expect(r.ui.guide.state()).toEqual({ active: true, goal: guideGoal(r.world), item, category });
+        expect([item, dotOn()]).toEqual([item, [category]]);
+        expect([item, r.root.querySelector('#dock .cat.suggested').dataset.category]).toEqual([item, category]);
+        r.store.set({ category });
+        expect([...r.root.querySelectorAll('#panel .card.suggested')].map((c) => c.dataset.item)).toEqual([item]);
+      };
+      check('farm_grain', 'food');
+      addRaw(r.world, 'farm_grain', 2, 11);
+      r.ui.refresh();
+      check('granary', 'food');
+      addRaw(r.world, 'granary', 6, 11);
+      r.ui.refresh();
+      check('bazaar', 'services');                                   // the dot moves from Food to Services
+    } finally { r.cleanup(); }
+  });
+  it('turns the guide off for a city imported under Help: Off, though it was exported mid-guide', async () => {
+    const shell = await mountShell(1280, 800);
+    const history = fakeHistory();
+    let stored = { help: 'full' };
+    const storage = { getItem: () => JSON.stringify(stored), setItem: (k, v) => { stored = JSON.parse(v); } };
+    let shared = null;
+    const platform = { share: async (d) => { shared = d.files[0]; }, canShare: () => true, pick: async () => shared };
+    const api = await boot(document, window, {
+      root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams('skipTitle=1&seed=8'),
+      now: () => 0, clock: () => 1760000000000, storage, platform, envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,
+      uiOptions: { getSize: () => ({ width: 1280, height: 800 }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage },
+      loopOptions: { raf: () => 0, caf: () => {} },
+    });
+    const tick = () => new Promise((res) => setTimeout(res, 0));
+    try {
+      expect(api.game().world.guide.on).toBe(true);                  // a new city under Guide and tips, mid-guide
+      await api.hooks.exportCity();
+      expect(shared === null).toBe(false);
+      api.game().ui.settings.set({ help: 'off' });                   // this device then turns Help off
+      expect(api.game().world.guide.on).toBe(false);
+      await api.hooks.importCity();
+      for (let i = 0; i < 50 && !api.game().ui.store.get().confirmDialog; i++) await tick();
+      fire(shell.root.querySelector('#dialog .ok'), 'click');
+      const g = api.game();
+      expect(g.ui.store.get().sheet.kind).toBe('welcome');           // the imported city
+      expect(g.world.guide.on).toBe(false);                          // its saved guide.on gave way to this device's Help
+      expect(document.body.classList.contains('guide-on')).toBe(false);
+      expect(document.querySelectorAll('.suggested, .dimmed').length).toBe(0);
+      expect(g.ui.guide.marker(0)).toBe(null);
+    } finally { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title'); delete window.__thebes; }
+  });
+  it('keeps the guide of a city loaded under Guide and tips', async () => {
+    const w = createWorld({ seed: 3 });
+    expect(w.guide.on).toBe(true);
+    const r = await rigUI({ width: 1280, height: 800, world: w, welcome: { savedAt: 0, lastSpeed: 1 } });
+    try { expect(r.world.guide.on).toBe(true); } finally { r.cleanup(); }
   });
   it('draws the ring the same at rest whatever the time, and grows it while pulsing', () => {
     const shot = (pulsing, now) => {

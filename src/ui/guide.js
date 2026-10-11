@@ -29,11 +29,15 @@ export function canResumeGuide(world) {
 export function createGuide({ world, store, root, reducedMotion = () => false }) {
   let current = OFF;
   let ringId = null, ringSince = 0;
+  let marked = true;         // whether any guide class may be on the page; true at first, so the first pass clears
 
   // Cards are rebuilt whenever their tray, grid or drawer re-renders, so the classes go back on after every
-  // store change (this subscription runs after the dock's, panel's and rail's) and every refreshChrome.
+  // store change (this subscription runs after the dock's, panel's and rail's) and every refreshChrome. Once the
+  // guide is off and its marks are cleared, a rebuilt card has none, so there is nothing to sweep.
   function apply() {
     const { active, item, category } = current;
+    if (!active && !marked) return;
+    marked = active;
     root.classList.toggle('guide-on', active);
     for (const card of root.querySelectorAll('.card[data-item]')) {
       const suggested = active && card.dataset.item === item;
@@ -56,13 +60,15 @@ export function createGuide({ world, store, root, reducedMotion = () => false })
   return {
     state: () => current,
     render,
-    // The map ring for one frame: { x, y, pulsing } at the step's Show me target, or null without a guide.
-    // A new step pulses afresh; at rest (and always under reduced motion) the ring is drawn still.
+    // The map ring for one frame: { x, y, pulsing, age } at the step's Show me target, or null without a guide. age
+    // is the time since the step began, so the pulses start at the step change. A new step pulses afresh; at rest
+    // (and always under reduced motion) the ring is drawn still.
     marker(now) {
       if (!current.active) { ringId = null; return null; }
       if (current.goal.id !== ringId) { ringId = current.goal.id; ringSince = now; }
       const at = showMeTarget(world, current.goal);
-      return { x: at.x, y: at.y, pulsing: !reducedMotion() && now - ringSince < GUIDE_PULSES * GUIDE_PULSE_MS };
+      const age = now - ringSince;
+      return { x: at.x, y: at.y, pulsing: !reducedMotion() && age < GUIDE_PULSES * GUIDE_PULSE_MS, age };
     },
     destroy() { unsubscribe(); current = OFF; apply(); },
   };

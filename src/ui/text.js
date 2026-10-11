@@ -274,7 +274,7 @@ export const TIP_TEXT = {
 
 // Achievements on the summary and the Welcome back card (early-game pass 3.8, 3.9). Counts read as progressText does.
 export const achievementsHeading = (done, total) => `${T.achievements}, ${done} of ${total}`;
-export const closestAchievementText = (name, n, of) => `${T.closestAchievement}: ${name}, ${progressText(n, of)}`;
+export const closestAchievementText = (name, n, of, condition = '') => `${T.closestAchievement}: ${name}, ${progressText(n, of)}${condition ? `. ${condition}` : ''}`;   // "...: Neighbours, 7 of 10. Have 10 homes"
 export const achievementBarLabel = (name, n, of) => `${name}: ${progressText(n, of)}`;   // a progress bar's accessible name
 // The arrows beside a trend's words; decoration only (aria-hidden), the words say which way it went.
 export const TREND_MARKS = { up: '▲', down: '▼' };

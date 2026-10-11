@@ -214,6 +214,21 @@ describe('ui placement fit', () => {
       }
     }
   });
+  it('words a service with no homes in reach in muted ink, not in the teal of a gain', async () => {
+    const r = await rigUI({ width: 390, height: 844 });
+    try {
+      r.ui.placement.start(WELL, { x: 28, y: 9 });                               // on the road, far from the homes
+      expect(r.ui.placement.preview().state).toBe('ok');
+      const none = r.root.querySelector('#confirm .effect');
+      expect(none.textContent).toBe(T.noHomesInReach);
+      expect([none.classList.contains('muted'), none.classList.contains('teal')]).toEqual([true, false]);
+      expect(getComputedStyle(none).color).toBe('rgb(90, 72, 50)');               // ink-soft, as the cost line
+      r.ui.placement.start(WELL, { x: 14, y: 9 });
+      const some = r.root.querySelector('#confirm .effect');
+      expect(some.textContent).toBe('Gives water to 2 homes');
+      expect([some.classList.contains('muted'), some.classList.contains('teal')]).toEqual([false, true]);
+    } finally { r.cleanup(); }
+  });
   it('lets the confirm dialog buttons wrap at large text', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {

@@ -5,14 +5,14 @@ import { TIPS, TIP_GAP_MS, TIP_HOURLY_MAX, TIP_FIRST_DELAY_MS, TIP_HELD_MAX_MS, 
 import { GUIDE_GOALS } from '../../src/data/goals.js';
 import { settle } from '../../src/sim/settle.js';
 import { setGuide } from '../../src/sim/commands.js';
-import { buildingAt } from '../../src/sim/world.js';
+import { buildingAt, housesOf } from '../../src/sim/world.js';
 import { select, openSheet } from '../../src/ui/modes.js';
 import { TIP_TEXT, T } from '../../src/ui/text.js';
 import { TOKENS } from '../../src/ui/theme.js';
 import { fakeLocal } from '../helpers/fakeStorage.js';
 import { mount, fire } from '../helpers/dom.js';
 import { addRaw, staffAll } from '../helpers/testWorld.js';
-import { rigUI } from '../helpers/uiWorld.js';
+import { rigUI, uiWorld } from '../helpers/uiWorld.js';
 
 // Tips on a clock the test moves; the session starts at t = 0.
 function rig(storage = fakeLocal()) {
@@ -449,26 +449,88 @@ describe('ui tips', () => {
   it('in the game: a tip closes itself after 15 s on a phone at 125% or 150% text, and nowhere else', async () => {
     expect(TIP_AUTO_CLOSE_MS).toBe(15000);
     for (const [w, h, size, closes] of [[360, 640, 125, true], [360, 640, 150, true], [740, 360, 125, true], [740, 360, 150, true], [360, 640, 100, false], [740, 360, 100, false], [1280, 800, 125, false], [1280, 800, 150, false]]) {
-      let t = 0;
-      const r = await rigUI({ width: w, height: h, now: () => t });
+      const r = await rigUI({ width: w, height: h });
+      const frames = quietFrames(r);                                           // frames a second apart, as the game draws them
       try {
         r.ui.settings.set({ textSize: size });
-        t = TIP_FIRST_DELAY_MS;
-        r.frame(t);
         expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
-        t += TIP_AUTO_CLOSE_MS - 1;
-        r.frame(t);
+        frames(TIP_AUTO_CLOSE_MS - 1000);
         expect(r.ui.tips.current()).toBe('press_play');                        // not yet, anywhere
-        t += 1;
-        r.frame(t);
+        frames(1000);
         expect(r.ui.tips.current()).toBe(closes ? null : 'press_play');
         expect(r.ui.settings.get().seenTips).toEqual(['press_play']);          // closed or not, it stays seen
-        t += 10 * 60 * 1000;
-        r.frame(t);
+        frames(10 * 60 * 1000);
         expect(r.ui.tips.current()).toBe(closes ? null : 'press_play');
-        expect(document.body.classList.contains('nudge-play')).toBe(!closes);  // the Play ring goes with the tip
+        expect(document.body.classList.contains('nudge-play')).toBe(!closes);  // the test city has people: the Play ring goes with the tip
       } finally { r.cleanup(); }
     }
+  });
+  it('in the game: a hidden tab never closes an unread tip, since only the frames drawn count towards its 15 s', async () => {
+    let t = 0;                                                                 // the page clock and the frame times agree, as in a browser
+    const r = await rigUI({ width: 360, height: 640, now: () => t });
+    r.renderer.renderFrame = () => {};
+    const frameAt = (ms) => { t = ms; r.frame(t); };
+    try {
+      r.ui.settings.set({ textSize: 150 });
+      frameAt(0);
+      expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
+      frameAt(1000); frameAt(2000);                                            // two seconds on screen
+      frameAt(2000 + 10 * 60 * 1000);                                          // then the tab is hidden for ten minutes: no frames, one late one
+      expect(r.ui.tips.current()).toBe('press_play');                          // that late frame counts a second, no more
+      for (let i = 0; i < 11; i++) frameAt(t + 1000);
+      expect(r.ui.tips.current()).toBe('press_play');                          // 14 s seen
+      frameAt(t + 1000);
+      expect(r.ui.tips.current()).toBe(null);                                  // 15 s seen: now it closes
+    } finally { r.cleanup(); }
+  });
+  it('in the game: once the Play tip has closed itself unread, the Play ring stays while the game is paused with plots and no family', async () => {
+    const emptyPlots = () => { const w = uiWorld(); for (const h of housesOf(w)) { h.residents = 0; h.tier = 0; } return w; };
+    const ring = () => document.body.classList.contains('nudge-play');
+    let r = await rigUI({ width: 360, height: 640, world: emptyPlots() });
+    let frames = quietFrames(r);
+    try {
+      r.ui.settings.set({ textSize: 125 });
+      expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
+      frames(TIP_AUTO_CLOSE_MS);
+      expect(r.ui.tips.current()).toBe(null);                                  // closed itself, unread
+      expect(ring()).toBe(true);                                               // but Play still asks to be pressed
+      frames(5 * 60 * 1000);
+      expect(ring()).toBe(true);                                               // as long as nothing changes
+      r.ui.speedControl.set(1);
+      frames(1000);
+      expect(ring()).toBe(false);                                              // Play pressed: it goes
+      r.ui.speedControl.set(0);
+      frames(1000);
+      expect(ring()).toBe(false);                                              // and never comes back to nag
+    } finally { r.cleanup(); }
+    r = await rigUI({ width: 360, height: 640, world: emptyPlots() });
+    frames = quietFrames(r);
+    try {
+      r.ui.settings.set({ textSize: 150 });
+      r.ui.tips.trigger('plotsPaused');
+      frames(TIP_AUTO_CLOSE_MS);
+      expect(ring()).toBe(true);
+      housesOf(r.world)[0].residents = 2;                                      // a family arrived (as a day's arrivals would bring)
+      frames(1000);
+      expect(ring()).toBe(false);
+    } finally { r.cleanup(); }
+    r = await rigUI({ width: 360, height: 640, world: emptyPlots() });
+    frames = quietFrames(r);
+    try {
+      r.ui.settings.set({ textSize: 150 });
+      r.ui.tips.trigger('plotsPaused');
+      frames(2000);
+      r.ui.tips.dismiss();                                                     // read and closed with Got it: no ring held
+      frames(1000);
+      expect(ring()).toBe(false);
+      r.ui.settings.set({ seenTips: [] });
+      r.ui.tips.trigger('plotsPaused');
+      frames(TIP_AUTO_CLOSE_MS);
+      expect(ring()).toBe(true);
+      r.ui.settings.set({ help: 'off' });                                      // Help: Off silences it
+      frames(1000);
+      expect(ring()).toBe(false);
+    } finally { r.cleanup(); }
   });
   it('in the game: destroying the interface empties the tip row and the Play ring', async () => {
     const r = await rigUI();

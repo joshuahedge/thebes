@@ -53,6 +53,10 @@ describe('terrain look', () => {
     expect(soft).toBeGreaterThan(loam);                       // the soft edge feathers loam towards sand
     expect(soft).toBeLessThan(sand);
     expect(luminance(hexToRgb(TERRAIN.fertileSpeck))).toBeLessThan(loam);
+    // Every third speckle is a pale crumb, drawn at 0.7 alpha (terrainBaker.js): it must read against the loam, lighter.
+    const crumb = hexToRgb(TERRAIN.fertileSecond).map((c, i) => 0.7 * c + 0.3 * hexToRgb(TERRAIN.fertile)[i]);
+    expect(luminance(crumb) - loam).toBeGreaterThanOrEqual(0.06);
+    expect(luminance(hexToRgb(TERRAIN.fertileSecond))).toBeGreaterThan(soft);
     for (const key of ['offMap', 'edgeFade', 'fertileSpeck', 'fertileTuft', 'shallows']) expect(typeof TERRAIN[key]).toBe('string');
   });
   it('makes the meadow a saturated green and the ground past the map a darker, quieter sand', () => {

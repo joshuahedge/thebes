@@ -159,10 +159,11 @@ export function drawProblemMarkers(g, world, alerts, range) {
 }
 
 // The guided start's ring on the ground at a step's target (early-game pass 3.2): teal on a white halo.
-// Pulsing, it grows and fades once per GUIDE_PULSE_MS; at rest it is drawn still (always so under reduced
-// motion, which the caller decides).
-export function drawGuideMarker(g, x, y, pulsing = false, now = 0) {
-  const k = pulsing ? (now % GUIDE_PULSE_MS) / GUIDE_PULSE_MS : 0;
+// Pulsing, it grows and fades once per GUIDE_PULSE_MS, counted from `age`, the time since its step began (so the
+// first pulse starts small at the step change); at rest it is drawn still (always so under reduced motion, which
+// the caller decides).
+export function drawGuideMarker(g, x, y, pulsing = false, age = 0) {
+  const k = pulsing ? (age % GUIDE_PULSE_MS) / GUIDE_PULSE_MS : 0;
   const r = 0.8 + k * 0.6;
   const fade = 1 - k * 0.7;
   const pts = quad(x - r, y - r, 2 * r, 2 * r, 0);

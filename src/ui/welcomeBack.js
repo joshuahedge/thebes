@@ -8,7 +8,7 @@ import { achievementProgress } from '../sim/achievements.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { CRITICAL } from './alerts.js';
 import { el, button } from './components.js';
-import { alertText, dateText, plural, progressText, closestAchievementText, viewLabel, ACHIEVEMENT_NAMES, DAILY_TEXT, TREND_MARKS, T } from './text.js';
+import { alertText, dateText, plural, progressText, closestAchievementText, viewLabel, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, TREND_MARKS, T } from './text.js';
 
 const MINUTE = 60 * 1000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 
@@ -61,13 +61,14 @@ export function closestAchievement(world) {
   return best ? { def: best.def, n: best.n, of: best.of } : null;
 }
 
-// One of today's goals: its words, then Done or its count in words (the tick is decoration).
+// One of today's goals: its words, then Done or its count in words (the tick is decoration). A pick the pool no
+// longer has (a save from an older version) has no count to show, as in the goals sheet.
 function dailyRow(world, id) {
   const done = world.daily.done.includes(id);
   const p = dailyProgress(world, id);
   const status = done
     ? el('span', { class: 'status small teal' }, [el('span', { class: 'tick', 'aria-hidden': 'true', text: `${T.doneMark} ` }), T.done])
-    : el('span', { class: 'status small muted', text: progressText(p.n, p.of) });
+    : p ? el('span', { class: 'status small muted', text: progressText(p.n, p.of) }) : null;
   return el('li', { class: done ? 'goal done' : 'goal' }, [el('span', { class: 'text', text: DAILY_TEXT[id] || id }), status]);
 }
 
@@ -83,7 +84,7 @@ export function welcomeSheet({ world, savedAt, lastSpeed, now = () => Date.now()
     body.append(el('h3', { text: T.goals }), goals.length ? el('ul', { class: 'goals' }, goals.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
     if (world.daily) body.append(el('h3', { text: T.today }), el('ul', { class: 'goals today' }, world.daily.picks.map((id) => dailyRow(world, id))));
     const closest = guideActive(world) ? null : closestAchievement(world);   // achievements stay hidden while the guide runs
-    if (closest) body.append(el('p', { class: 'closest', text: closestAchievementText(ACHIEVEMENT_NAMES[closest.def.id], closest.n, closest.of) }));
+    if (closest) body.append(el('p', { class: 'closest', text: closestAchievementText(ACHIEVEMENT_NAMES[closest.def.id], closest.n, closest.of, ACHIEVEMENT_TEXT[closest.def.id]) }));
     const alerts = [...getAlerts()].sort((a, b) => Number(CRITICAL.has(b.code)) - Number(CRITICAL.has(a.code)));   // critical ones first (stable)
     body.append(el('h3', { text: T.alerts }));
     if (!alerts.length) body.append(el('p', { class: 'muted', text: T.noAlerts }));
