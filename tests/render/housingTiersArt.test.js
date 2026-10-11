@@ -50,7 +50,27 @@ describe('house art, tiers 5 to 9', () => {
     expect(ART['house.t6'].height).toBeLessThan(ART['house.t7'].height);
     expect(ART['house.t7'].height).toBeLessThan(ART['house.t8'].height);
     expect(ART['house.t8'].height).toBeLessThan(ART['house.t9'].height);
-    expect([6, 7, 8, 9].map((t) => BIG[t].hA)).toEqual([13, 14, 15, 18]);   // the mock-up's main blocks rise tier by tier
+    expect([6, 7, 8, 9].map((t) => ART[`house.t${t}`].height)).toEqual([21, 24, 27, 36]);
+    // spec 5.3: each big home stands clearly taller than the tier below, main block and annexe both
+    for (const t of [7, 8, 9]) expect([t, BIG[t].hA - BIG[t - 1].hA >= 2, BIG[t].hB - BIG[t - 1].hB >= 2]).toEqual([t, true, true]);
+  });
+  it('paints a Manor, Fine manor, Villa and Estate each in its own wall tone, main block and annexe', () => {
+    // plain stretches of lit wall: the main block's above the colonnade's lintel and below the bands, the annexe's
+    // right of its door
+    const MAIN_S = { 6: 10, 7: 13.5, 8: 15, 9: 17 };
+    const annexeFace = (u, s) => U(p(1.25 + 0.65 * u, 1.35), s);
+    const walls = [6, 7, 8, 9].map((t) => {
+      const c = drawAlone(DRAW[t]);
+      const main = at(c, mainFace(0.5, MAIN_S[t])), annexe = at(c, annexeFace(0.82, 7));
+      expect([t, nearColour(main, BIG[t].wall[1], 20), nearColour(annexe, BIG[t].wall2[1], 20)]).toEqual([t, true, true]);
+      return [main, annexe];
+    });
+    const apart = (a, b) => Math.max(...[0, 1, 2].map((k) => Math.abs(a[k] - b[k])));
+    for (let i = 0; i < 4; i++) {
+      for (let j = i + 1; j < 4; j++) {
+        expect([6 + i, 6 + j, apart(walls[i][0], walls[j][0]) >= 16, apart(walls[i][1], walls[j][1]) >= 16]).toEqual([6 + i, 6 + j, true, true]);
+      }
+    }
   });
   it('names a slot for every tier and nothing past the top', () => {
     for (let t = 1; t <= 9; t++) {
@@ -91,10 +111,10 @@ describe('house art, tiers 5 to 9', () => {
     expect(gardenGreen(6, BIG[6].hB)).toBe(0);
     for (const t of [7, 8, 9]) expect([t, gardenGreen(t, BIG[t].hB) >= 4]).toEqual([t, true]);
     // 8: a red parapet band below the teal one, which a Fine manor does not have
-    expect(nearColour(at(c[8], mainFace(0.85, 13.2)), RED, 12)).toBe(true);
-    expect(nearColour(at(c[7], mainFace(0.85, 13.2)), RED, 60)).toBe(false);
-    expect(nearColour(at(c[7], mainFace(0.85, 13.2)), TEAL, 12)).toBe(true);
-    expect(nearColour(at(c[9], mainFace(0.85, 17.2)), GOLD, 12)).toBe(true);   // the Estate's top band is gold
+    expect(nearColour(at(c[8], mainFace(0.85, BIG[8].hA - 1.8)), RED, 12)).toBe(true);
+    expect(nearColour(at(c[7], mainFace(0.85, BIG[7].hA - 1.8)), RED, 60)).toBe(false);
+    expect(nearColour(at(c[7], mainFace(0.85, BIG[7].hA - 0.8)), TEAL, 12)).toBe(true);
+    expect(nearColour(at(c[9], mainFace(0.85, BIG[9].hA - 0.8)), GOLD, 12)).toBe(true);   // the Estate's top band is gold
     // 9: a pink flag above the roof, and a pool on it
     const q = U(p(1.1, 0.25), BIG[9].hA);
     const flag = [q[0] + 2.3, q[1] - 12.5];
