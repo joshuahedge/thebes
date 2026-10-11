@@ -156,6 +156,7 @@ Every task implements its part of this contract exactly; later tasks rely on the
   - `no_road` (id null): the home touches no road; every missing need of such a home reports this.
   - `no_well`, `no_bazaar`, `no_temple` (id null): no well, bazaar or temple of that kind reaches the home along the roads at all, working or not.
   - `well_idle`, `bazaar_idle`, `temple_idle` (id the building): one reaches the home but is paused or short of workers (the nearest such).
+  - `well_no_road`, `bazaar_no_road`, `temple_no_road` (id the building; final fix wave): none of that kind reaches the home along the roads, but one that touches no road lies within its own `reach` of the home in a straight line (the gap between the two footprints in tiles, `Math.hypot(dx, dy)`, 0 when they touch); the nearest such, ties to the lower id. Checked after the `*_idle` case and before `no_well`, `no_bazaar`, `no_temple`, which now mean nothing of that kind is near the home at all. `CAUSE_TEXT` words them "The well has no road" / "Lay a road beside it" (bazaar, temple likewise) and the house sheet offers View on the building.
   - `bazaar_empty` (id the bazaar): a working bazaar reaches the home, holds no grain, and no granary lies within its supply reach.
   - `granary_empty` (id the granary): a working bazaar is empty and a working, empty granary lies within its supply reach (the nearest such).
   - `granary_idle` (id the granary): a working bazaar is empty and every granary within its supply reach is empty and paused or short of workers (the nearest such).

@@ -121,6 +121,31 @@ describe('ui house sheet why', () => {
       expect(food.textContent).toContain('Resume it');
     } finally { r.cleanup(); }
   });
+  it('names a well, bazaar or temple beside the home that has no road, and offers View on it instead of building another', () => {
+    expect(CAUSE_TEXT.well_no_road).toEqual({ cause: 'The well has no road', fix: 'Lay a road beside it' });
+    expect(CAUSE_TEXT.bazaar_no_road).toEqual({ cause: 'The bazaar has no road', fix: 'Lay a road beside it' });
+    expect(CAUSE_TEXT.temple_no_road).toEqual({ cause: 'The temple has no road', fix: 'Lay a road beside it' });
+    const r = rig();
+    try {
+      const well = addRaw(r.world, 'well', 12, 7);                     // just above the home, nothing beside it but sand
+      const bazaar = addRaw(r.world, 'bazaar', 14, 6);
+      const shack = addRaw(r.world, 'house', 12, 9, { tier: 2, residents: 8 });
+      r.store.set(select(r.store.get(), shack.id));
+      const water = rowFor(r.root, 'water');
+      expect(water.textContent).toContain('The well has no road');
+      expect(water.textContent).toContain('Lay a road beside it');
+      expect(water.querySelector('.show-me')).toBe(null);
+      const view = water.querySelector('.view');
+      expect(view.getAttribute('aria-label')).toBe(`${T.view}: ${buildingName('well')}`);
+      fire(view, 'click');
+      expect(r.selected).toEqual([well.id]);
+      const food = rowFor(r.root, 'food');
+      expect(food.textContent).toContain('The bazaar has no road');
+      fire(food.querySelector('.view'), 'click');
+      expect(r.selected).toEqual([well.id, bazaar.id]);
+      expect(r.shown).toEqual([]);
+    } finally { r.cleanup(); }
+  });
   it('a paused well is named as paused, with Resume it and View', () => {
     const r = rig();
     try {
@@ -304,6 +329,31 @@ describe('ui house sheet why', () => {
         expect(inFree(r.screenOf(g.x + 0.5, g.y + 0.5))).toBe(true);            // the ghost is on screen, clear of the top bar and the confirm bar
         const t = r.screenOf(target.x, target.y);                               // and the target was not abandoned for it
         expect(t.x >= 0 && t.x <= 390 && t.y >= 48 && t.y <= 844 - 240).toBe(true);
+      } finally { r.cleanup(); }
+    }
+  });
+  // View (an alert's or a house sheet's) selects a building and pans to it. A portrait sheet may reach 60% of the
+  // height (css/ui.css), so the building must end up in the map above that, not centred under it. The test page's
+  // own viewport caps the mounted sheet lower than a phone would, so the check is against the tallest sheet.
+  it('View keeps the building in the map above the tallest portrait sheet at 150% text', async () => {
+    for (const motion of ['reduced', 'tween']) {
+      const r = await rigUI({ width: 390, height: 844 });
+      try {
+        r.ui.settings.set({ textSize: 150, reducedMotion: motion === 'tween' ? 'off' : 'on' });
+        const bazaar = addRaw(r.world, 'bazaar', 20, 5);                         // off the road: a sheet with problems to read
+        r.ui.refresh();
+        r.store.set(openSheet(r.store.get(), 'minimap'));
+        const i = r.ui.alerts.list().findIndex((a) => a.id === bazaar.id);
+        const view = r.root.querySelectorAll('#sheet .alert-list .view')[i];
+        fire(view, 'click');
+        if (motion === 'tween') { expect(r.ui.cameraControl.animating).toBe(true); r.ui.cameraControl.tick(1e6); }
+        expect(r.store.get().sheet).toEqual({ kind: 'info', id: bazaar.id });
+        const topBar = r.root.querySelector('#topbar').getBoundingClientRect().bottom;
+        const sheetTop = Math.min(r.root.querySelector('#sheet').getBoundingClientRect().top, 844 * 0.4);
+        for (const [x, y] of [[20, 5], [22, 5], [20, 7], [22, 7]]) {                // the footprint's four corners
+          const p = r.screenOf(x, y);
+          expect([motion, x, y, p.x >= 0 && p.x <= 390, p.y > topBar && p.y < sheetTop]).toEqual([motion, x, y, true, true]);
+        }
       } finally { r.cleanup(); }
     }
   });

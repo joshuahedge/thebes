@@ -26,6 +26,8 @@ const idleWords = (type) => {
     short: { cause: `The ${name} is short of workers`, fix: 'More homes bring more workers' },
   };
 };
+// A provider near the home that touches no road (well_no_road, bazaar_no_road, temple_no_road): it needs a road, not a twin.
+const roadlessWords = (type) => ({ cause: `The ${buildingName(type).toLowerCase()} has no road`, fix: 'Lay a road beside it' });
 export const CAUSE_TEXT = {
   no_road: { cause: 'No road beside it', fix: 'Lay a road next to it' },
   no_well: { cause: `No well within ${BUILDINGS.well.reach} road tiles`, fix: 'Build a well near it' },
@@ -38,6 +40,9 @@ export const CAUSE_TEXT = {
   granary_idle: idleWords('granary'),
   bazaar_idle: idleWords('bazaar'),
   temple_idle: idleWords('temple'),
+  well_no_road: roadlessWords('well'),
+  bazaar_no_road: roadlessWords('bazaar'),
+  temple_no_road: roadlessWords('temple'),
 };
 
 // The words for one needCause result: { cause, fix }. An idle provider reads its own building's state.
