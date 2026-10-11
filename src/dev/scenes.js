@@ -40,11 +40,28 @@ function viewOf(g) {
   return { width: c.x * 2, height: c.y * 2 };
 }
 
-// Puts tile (x, y) in the middle of the map the interface leaves free (the top bar, and the side panel, the rail or
-// a sheet take the rest), by a jump, so no camera tween is left running when the capture is taken.
+// The top of the map the interface leaves free, in CSS px from the map's top: under the top bar, and on a portrait
+// phone under the banner, the legend and the goals strip too, which run across the map there (read from the page,
+// since their height follows their words and the text size).
+function freeTop(layout) {
+  let top = 48;
+  const map = document.querySelector('#map');
+  if (layout !== 'portrait' || !map) return top;
+  const mapTop = map.getBoundingClientRect().top;
+  for (const sel of ['#banner', '#legend', '#goals']) {
+    const n = map.parentElement.querySelector(sel);
+    const r = n ? n.getBoundingClientRect() : null;
+    if (r && r.height > 0) top = Math.max(top, r.bottom - mapTop);
+  }
+  return top;
+}
+
+// Puts tile (x, y) in the middle of the map the interface leaves free (the top bar and what sits under it, and the
+// side panel, the rail or a sheet take the rest), by a jump, so no camera tween is left running when the capture is
+// taken.
 function focus(g, x, y, kind = 'browse') {
   const v = viewOf(g);
-  const layout = g.ui.store.get().layout, top = 48;
+  const layout = g.ui.store.get().layout, top = freeTop(layout);
   const i = layout === 'portrait'
     ? { top, left: 0, right: 0, bottom: kind === 'sheet' ? v.height * 0.6 : v.height * 0.2 }
     : { top, left: 0, bottom: 0, right: layout === 'compact' ? 56 + 268 : 320 };
@@ -164,6 +181,7 @@ async function battle(api) {
       if (!s) { s = { barracks: barracks.id }; world.soldiers.push(s); }
       Object.assign(s, { id: world.nextUnitId++, x, y, hp: UNITS.soldier.hp, hit: false, task: 'out' });
     });
+    world.soldiers.sort((a, b) => a.id - b.id);       // the contract keeps soldiers in ascending id
   }
   const target = allBuildings(world).find((b) => b.type === raidTargetKind(world));
   const r = world.raid;

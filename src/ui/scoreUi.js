@@ -234,7 +234,7 @@ export function createScoreUi(ctx) {
     refresh() { if (world) { version++; renderChip(); } },
     onAlertAction() {},
     onCommand(e) { version++; if (world && e) tipsForCommand(e); },
-    destroy() { picture = null; },                      // a picture still being made never touches a later interface's sheet
+    destroy() { picture = null; cached = null; },       // a picture still being made never touches a later interface's sheet
   };
 }
 

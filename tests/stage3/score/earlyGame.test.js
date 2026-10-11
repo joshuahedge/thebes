@@ -101,6 +101,16 @@ describe('s3 score next threshold', () => {
       expect(getComputedStyle(bar).display).toBe('flex');                      // shown (a flex item of #goals)
     } finally { r.cleanup(); }
   });
+
+  it('keeps the bar under a banner on a wide screen, which has room for both', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    try {
+      const bar = r.root.querySelector('#goals .threshold');
+      expect([document.body.dataset.layout, getComputedStyle(bar).display]).toEqual(['wide', 'flex']);
+      document.body.classList.add('has-banner');
+      expect(getComputedStyle(bar).display).toBe('flex');
+    } finally { document.body.classList.remove('has-banner'); r.cleanup(); }
+  });
 });
 
 describe('s3 score citizen remarks', () => {

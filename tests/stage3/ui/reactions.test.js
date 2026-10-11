@@ -136,6 +136,7 @@ describe('s3 ui sound and captions', () => {
     const base = { index: 1, dir: 'north', size: 6, towers: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, day: 1 };
     expect(D.raidReport({ ...base, won: true, towers: 1, byTowers: 3 })).toBe('Raid from the north beaten: 1 tower stopped 3 of 6; nothing lost.');
     expect(D.raidReport({ ...base, won: true, bySoldiers: 4, stolen: 15 })).toBe('Raid from the north beaten: soldiers stopped 4; 15 gold stolen.');
+    expect(D.raidReport({ ...base, won: true, towers: 1, byTowers: 0, bySoldiers: 6 })).toBe('Raid from the north beaten: soldiers stopped 6; nothing lost.');   // a tower that stopped none goes unsaid
     expect(D.raidReport({ ...base, won: false, burned: 3, stolen: 120, byTowers: 1 })).toBe('Raid from the north: raiders burned 3 buildings and took 120 gold. Towers stopped 1 of 6.');
     expect(D.raidReport({ ...base, won: false, burned: 1 })).toBe('Raid from the north: raiders burned 1 building.');
     expect(D.raidReport({ ...base, won: false, bySoldiers: 2 })).toBe('Raid from the north: the raiders struck and left. Soldiers stopped 2.');

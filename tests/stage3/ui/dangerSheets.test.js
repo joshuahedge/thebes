@@ -1,13 +1,13 @@
 import { describe, it, expect } from '../../harness.js';
-import { fireRowModel, firehousesReaching } from '../../../src/ui/dangerSheets.js';
+import { fireRowModel } from '../../../src/ui/dangerSheets.js';
 import { createDanger } from '../../../src/ui/danger.js';
 import { rangeTiles } from '../../../src/render/overlays.js';
-import { staffedCover, coverageOf, fireBand } from '../../../src/sim/fire.js';
+import { staffedCover, coverageOf, fireBand, fireCause } from '../../../src/sim/fire.js';
 import { tributeQuote } from '../../../src/sim/raids.js';
 import { festivalStatus } from '../../../src/sim/festival.js';
 import { openSheet, select } from '../../../src/ui/modes.js';
 import { idx } from '../../../src/sim/grid.js';
-import { DANGER_UI_TEXT as D, T } from '../../../src/ui/text.js';
+import { DANGER_UI_TEXT as D, T, alertText } from '../../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 import { fire } from '../../helpers/dom.js';
 import { rigUI } from '../../helpers/uiWorld.js';
@@ -50,9 +50,9 @@ describe('s3 ui fire row', () => {
     expect(fireRowModel(w, potter).text).toBe('Fire risk: low, a firehouse reaches it');
     potter.risk = 130;
     expect(fireRowModel(w, potter).text).toBe('Can catch fire, a firehouse reaches it');
-    expect(firehousesReaching(w, garden).map((f) => f.id)).toEqual([fh.id]);
+    expect(fireCause(w, potter).firehouse).toBe(fh.id);
     const far = addRaw(w, 'potter', 2, 11, { risk: 30 });                              // 22 road tiles away
-    expect([firehousesReaching(w, far), fireRowModel(w, far).text]).toEqual([[], 'Fire risk: rising, no firehouse within 8 road tiles']);
+    expect([fireCause(w, far).cause, fireRowModel(w, far).text]).toEqual(['none', 'Fire risk: rising, no firehouse within 8 road tiles']);
   });
 
   it('words a blaze and a fire by whether a staffed firehouse reaches it, with the days the fire has left', () => {
@@ -69,6 +69,35 @@ describe('s3 ui fire row', () => {
     expect(fireRowModel(w, potter)).toEqual({ text: 'Blaze, the firehouse is short of workers', burning: true, action: { kind: 'view', id: fh.id } });
     potter.fire = { stage: 'fire', days: 0, left: 1 };
     expect(fireRowModel(w, potter).text).toBe('Burning, 1 day left, the firehouse is short of workers');
+  });
+
+  it('names a burning firehouse as the banner does, paused or not, and on its own sheet a firehouse names itself with no View', () => {
+    const w = town();
+    const potter = addRaw(w, 'potter', 20, 11, { risk: 70 });
+    const fh = addRaw(w, 'firehouse', 24, 11, { staff: 4, fire: { stage: 'fire', days: 1, left: 9 } });
+    const fix = (b, code) => alertText({ code, id: b.id }, w).fix;                  // Track A's banner words (fireCause)
+    let m = fireRowModel(w, potter);
+    expect([m.text, m.action]).toEqual(['Fire risk: high, the firehouse is burning', { kind: 'view', id: fh.id }]);
+    expect(fix(potter, 'fire_risk')).toBe('Its firehouse is burning: build another near it');
+    fh.paused = true;                                                                // paused and burning: burning, on both
+    expect([fireRowModel(w, potter).text, fix(potter, 'fire_risk')]).toEqual(['Fire risk: high, the firehouse is burning', 'Its firehouse is burning: build another near it']);
+    fh.fire = null;                                                                  // put out, still paused
+    expect([fireRowModel(w, potter).text, fix(potter, 'fire_risk')]).toEqual(['Fire risk: high, the firehouse is paused', 'Its firehouse is paused: resume it']);
+    fh.paused = false;
+    expect(fireRowModel(w, potter).text).toBe('Fire risk: high, a firehouse reaches it');
+    // The firehouse's own sheet: fireCause names the firehouse itself.
+    fh.staff = 0;
+    m = fireRowModel(w, fh);
+    expect([fireCause(w, fh).firehouse, m.text, m.action]).toEqual([fh.id, 'Fire risk: low, this firehouse is short of workers', null]);
+    fh.staff = 4; fh.paused = true;
+    expect(fireRowModel(w, fh)).toEqual({ text: 'Fire risk: low, this firehouse is paused', burning: false, action: null });
+    fh.paused = false; fh.fire = { stage: 'fire', days: 0, left: 5 };
+    expect(fireRowModel(w, fh)).toEqual({ text: 'Burning, 5 days left, it cannot fight its own fire', burning: true, action: null });
+    expect(fix(fh, 'fire')).toBe('Its firehouse is burning: build another near it');
+    const other = addRaw(w, 'firehouse', 22, 11, { staff: 4 });                      // another, staffed, reaches it
+    expect([staffedCover(w, fh), fireRowModel(w, fh).text]).toEqual([true, 'Burning, 5 days left, the firehouse is fighting it']);
+    other.staff = 0;
+    expect(fireRowModel(w, fh)).toEqual({ text: 'Burning, 5 days left, the firehouse is short of workers', burning: true, action: { kind: 'view', id: other.id } });
   });
 
   it('shows the row on building and home sheets, with Show me placing a firehouse by it and View selecting the firehouse', async () => {
@@ -111,6 +140,9 @@ describe('s3 ui danger buildings', () => {
       expect(texts(sheet, '.body p.small')).toContain('Covers nothing until it has 1 of 4 workers');
       fh.paused = true; r.ui.refresh();
       expect(texts(sheet, '.body p.small')).toContain('Covers nothing while it is paused');
+      fh.staff = 4; fh.fire = { stage: 'fire', days: 0, left: 5 }; r.ui.refresh();   // in the fire stage it stops working, staffed or not
+      expect(texts(sheet, '.body p.small')).toContain('Covers nothing while it is burning');
+      fh.fire = null; fh.staff = 0; r.ui.refresh();
       const tower = addRaw(w, 'tower', 26, 11, { staff: 4 });
       w.wall[idx(w.size, 26, 11)] = 64;
       w.raid.last = { index: 1, dir: 'east', size: 6, won: true, byTowers: 4, bySoldiers: 2, towers: 1, burned: 0, stolen: 12, day: 400 };
@@ -136,6 +168,9 @@ describe('s3 ui danger buildings', () => {
       expect(texts(sheet, '.body p.small')).toEqual(['Trains one soldier every 30 days at full staff, slower when short of workers', 'Each soldier is paid 8 gold a month, in peace too', 'Last raid: soldiers stopped 2 of 6']);
       barracks.staff = 1; r.ui.refresh();
       expect(texts(sheet, '.body p.small')[0]).toBe('Not training until it has 2 of 6 workers');
+      barracks.staff = 6; barracks.fire = { stage: 'fire', days: 0, left: 5 }; r.ui.refresh();
+      expect(texts(sheet, '.body p.small')[0]).toBe('Not training while it is burning');
+      barracks.fire = null;
       barracks.staff = 6;   // a full barracks trains none (trainSoldiers skips it at soldiersPerBarracks)
       for (let id = 3; id <= 5; id++) w.soldiers.push({ id, barracks: barracks.id, x: 28, y: 12, hp: 12, hit: false, task: 'wait' });
       r.ui.refresh();
@@ -206,6 +241,7 @@ describe('s3 ui tribute and the last raid', () => {
       const sheet = r.root.querySelector('#sheet');
       expect([r.store.get().sheet, sheet.querySelector('h2').textContent]).toEqual([{ kind: 'tribute', id: null }, T.tribute]);
       expect(sheet.querySelector('.tribute-cost').textContent).toBe('Pay 240 gold of tribute');
+      expect(sheet.querySelector('.arrives').textContent).toBe('They arrive in 3 months.');   // the warning's arrives day less today
       expect(texts(sheet, '.row')).toEqual([`${D.goldNow}610`, `${D.goldAfter}370`]);
       expect(sheet.querySelector('.cancels').textContent).toBe('Cancels the raid from the east (6 raiders). The next raid still comes.');
       expect(texts(sheet, '.body p.small')).toEqual([D.capital(D.defenceLine(tributeQuote(w), 'east'))]);
@@ -233,7 +269,10 @@ describe('s3 ui tribute and the last raid', () => {
       expect([sheet.querySelector('.pay').disabled, sheet.querySelector('.why-not')]).toEqual([false, null]);   // exactly 0 afterwards is allowed
       warn(w, { first: true, size: 3 });
       r.ui.refresh();
-      expect([sheet.querySelector('.pay'), texts(sheet, '.body p')]).toEqual([null, ["The first raid can't be paid off.", 'Build 1 tower facing east (≈ 150 gold)']]);
+      expect([sheet.querySelector('.pay'), texts(sheet, '.body p')]).toEqual([null, ["The first raid can't be paid off.", 'They arrive in 3 months.', 'Build 1 tower facing east (≈ 150 gold)']]);
+      w.day += 88;
+      r.ui.refresh();
+      expect(sheet.querySelector('.arrives').textContent).toBe('They arrive in 2 days.');
       w.raid.warning = null;
       r.ui.refresh();
       expect(texts(sheet, '.body p')).toEqual(['Tribute can be paid only while a raid is on its way']);

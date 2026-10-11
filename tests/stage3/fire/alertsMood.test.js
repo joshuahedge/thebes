@@ -5,7 +5,7 @@ import { updateMood } from '../../../src/sim/mood.js';
 import { runMonth, tickDay } from '../../../src/sim/clock.js';
 import { serialize, deserialize } from '../../../src/save/serialize.js';
 import { clearRubble } from '../../../src/sim/commands.js';
-import { alertText, MOOD_NAMES } from '../../../src/ui/text.js';
+import { alertText, MOOD_NAMES, FIRE_TEXT, OVERLAY_LEGEND } from '../../../src/ui/text.js';
 import { DANGER_MOOD } from '../../../src/data/mood.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 
@@ -63,6 +63,9 @@ describe('s3 fire alerts', () => {
     other.paused = false;
     fh.paused = false;
     expect(fireCause(w, potter)).toEqual({ cause: 'covered', cover: 1, firehouse: fh.id });
+    expect(FIRE_TEXT.cause.covered).toBe(OVERLAY_LEGEND.fire[0]);                       // 'covered' is staffedCover, as the legend says
+    fh.staff = 1;                                                                     // reaches, but a quarter staffed: not covered
+    expect([fireCause(w, potter).cause, FIRE_TEXT.cause[fireCause(w, potter).cause]]).toEqual(['short', 'Its firehouse is short of workers: more homes bring more workers']);
   });
 
   it('words each alert as the sim has it: what is burning, the days it has left, and the reason', () => {

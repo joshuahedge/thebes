@@ -33,8 +33,8 @@ export function mapSummaryText(world, alerts) {
 }
 
 // What the one banner shows for a critical list (ranked), or null: the alerts its row stands for (every fire when the top
-// one is a fire), its words, the defence line and tribute for a raid warning, the countdown chip's words, and how many
-// other criticals wait behind "+N more". Pure, so the banner and the tests share it.
+// one is a fire), its words (a raid warning's with its arrival), the defence line and tribute for a raid warning, the
+// countdown chip's words, and how many other criticals wait behind "+N more". Pure, so the banner and the tests share it.
 export function bannerModel(world, critical) {
   if (!critical.length) return null;
   const top = critical[0];
@@ -47,7 +47,11 @@ export function bannerModel(world, critical) {
     // Track B's raid_warning fix words the same towers the defence line does (ruling 6: D words the banner's defence),
     // so with a quote the row carries the title and the defence line only, never the defence twice.
     if (q) { m.defence = D.defenceLine(q, top.dir); m.tribute = !q.hidden; m.fix = ''; }
-    m.chip = D.chip(top.dir, Math.max(0, top.arrives - world.day));
+    // Spec 6.3: the title carries the countdown ("… storehouses. They arrive in 2 months 12 days."), so it stays at
+    // every text size; the chip abbreviates it. raidDay brings the raiders in on the arrives day (src/sim/raids.js).
+    const left = Math.max(0, top.arrives - world.day);
+    m.title = D.withArrival(m.title, left);
+    m.chip = D.chip(top.dir, left);
   }
   return m;
 }
@@ -114,7 +118,9 @@ export function createAlerts({ world, banner, live, onView = () => {}, onAction 
       ]));
     }
     if (focused) {
-      const again = banner.querySelector(`.${focused}`) || banner.querySelector('.view');
+      // Shrink and the chip's Show the whole warning swap places, so focus goes to the one that undoes the press.
+      const swapped = { collapse: 'expand', expand: 'collapse' }[focused] || focused;
+      const again = banner.querySelector(`.${swapped}`) || banner.querySelector('.view');
       if (again) again.focus();
     }
   }

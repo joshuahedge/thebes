@@ -587,7 +587,7 @@ export const FIRE_TEXT = {
     fire: 'The firehouse is fighting it',                                         // 25% x coverage a day
   },
   cause: {
-    covered: 'A firehouse reaches it',
+    covered: 'A staffed firehouse reaches it',                                    // staffedCover, as the fire overlay's legend says
     no_road: 'No road beside it for a firehouse to reach: lay one',
     none: `No firehouse within ${FIRE_NUMBERS.reach} road tiles: build one near it`,
     short: 'Its firehouse is short of workers: more homes bring more workers',
@@ -717,6 +717,10 @@ Object.assign(DANGER_UI_TEXT, {
   payTribute: 'Pay tribute',
   collapse: 'Shrink', collapseLabel: 'Shrink the raid warning to its countdown', expand: 'Show the whole warning',
   chip: (dir, days) => `Raid from the ${duiDir(dir)} · ${duiCountdown(days)}`,
+  // The days until a warned raid arrives (warning.arrives less today): raidDay brings the raiders in on the arrives day.
+  arrivesIn: (days) => (days > 0 ? `They arrive in ${duiDuration(days)}` : 'They arrive today'),
+  withArrival: (title, days) => `${title}. ${DANGER_UI_TEXT.arrivesIn(days)}.`,
+  arrivalLine: (days) => `${DANGER_UI_TEXT.arrivesIn(days)}.`,                // the tribute sheet's line
   defenceLine: (q, dir) => (q.buildN > 0
     ? `${q.hidden ? 'Build' : 'or build'} ${plural(q.buildN, 'tower', 'towers')} facing ${duiDir(dir)} (≈ ${q.buildCost} gold)`
     : 'Your towers can beat this raid'),
@@ -729,7 +733,7 @@ const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildi
 function duiRaidReport(r) {
   const from = `Raid from the ${duiDir(r.dir)}`;
   if (r.won) {
-    const stopped = [r.towers || r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : ''].filter(Boolean);
+    const stopped = [r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : ''].filter(Boolean);
     return `${from} beaten: ${stopped.length ? `${stopped.join(', ')}; ` : ''}${duiLosses(r)}.`;
   }
   const did = listText([r.burned ? `burned ${plural(r.burned, 'building', 'buildings')}` : '', r.stolen ? `took ${r.stolen} gold` : ''].filter(Boolean));
@@ -744,8 +748,8 @@ Object.assign(DANGER_UI_TEXT, {
   ambient: 'Ambient motion', ambientReduced: 'Off while Reduce motion is on',
 });
 // D3: the danger sheets (src/ui/dangerSheets.js). The fire row reads src/sim/fire.js: "a firehouse reaches it" is
-// staffedCover (coverage of FIRE.staffedAt or more); "short of workers" and "paused" name a firehouse whose road reach
-// takes the building in but which does not cover it enough; the band is fireBand's. A blaze goes out only on covered and
+// staffedCover (coverage of FIRE.staffedAt or more); "short of workers", "paused" and "burning" are fireCause's reason
+// for the firehouse whose road reach takes the building in but which does not cover it enough; the band is fireBand's. A blaze goes out only on covered and
 // staffed days, so a firehouse under FIRE.staffedAt of its workers puts none out. The tribute words read tributeQuote and
 // payTribute (src/sim/raids.js), the festival's festivalStatus (src/sim/festival.js).
 import { FIRE as duiFire } from '../data/fire.js';
@@ -756,11 +760,14 @@ Object.assign(DANGER_UI_TEXT, {
   fireLabel: 'Fire', neverBurns: 'Never catches fire', riskStartsAtTown: `Fire risk starts at ${duiFireFrom ? duiFireFrom.name : duiFire.startsAt}`,
   riskLine: (band, tail) => (band >= 3 ? `Can catch fire, ${tail}` : `Fire risk: ${duiBands[band]}, ${tail}`),
   reaches: 'a firehouse reaches it', whyNone: `no firehouse within ${duiFire.reach} road tiles`, noneReaches: 'no firehouse reaches it',
-  whyShort: 'the firehouse is short of workers', whyPaused: 'the firehouse is paused',
+  whyShort: 'the firehouse is short of workers', whyPaused: 'the firehouse is paused', whyBurning: 'the firehouse is burning',
+  // On a firehouse's own sheet, when fireCause names the firehouse itself (a burning firehouse is not working, so it
+  // covers nothing, itself included).
+  whySelf: { short: 'this firehouse is short of workers', paused: 'this firehouse is paused', burning: 'it cannot fight its own fire' },
   blaze: 'Blaze', burningFor: (left) => `Burning, ${plural(left, 'day', 'days')} left`, puttingOut: 'the firehouse is putting it out', fighting: 'the firehouse is fighting it',
   buildFirehouse: 'Build a firehouse near it',
   covers: (n) => `Covers ${plural(n, 'building that can burn', 'buildings that can burn')}`,
-  coversNothingPaused: 'Covers nothing while it is paused',
+  coversNothingPaused: 'Covers nothing while it is paused', coversNothingBurning: 'Covers nothing while it is burning',
   coversNothingUntil: (n, of) => `Covers nothing until it has ${n} of ${of} workers`,
   tooShortToFight: (n, of) => `Puts out blazes only with ${n} of ${of} workers or more`,
   range: 'Range', patrol: 'Patrol', soldiers: 'Soldiers', onTheWall: 'On the wall',
@@ -769,7 +776,7 @@ Object.assign(DANGER_UI_TEXT, {
   notShootingPaused: 'Not shooting while it is paused', notShootingUntil: (n, of) => `Not shooting until it has ${n} of ${of} workers`,
   barracksFull: (n, of) => `Full: ${n} of ${of} soldiers; it trains another when one is wounded`,
   trains: (days) => `Trains one soldier every ${days} days at full staff, slower when short of workers`,
-  notTrainingPaused: 'Not training while it is paused', notTrainingUntil: (n, of) => `Not training until it has ${n} of ${of} workers`,
+  notTrainingPaused: 'Not training while it is paused', notTrainingBurning: 'Not training while it is burning', notTrainingUntil: (n, of) => `Not training until it has ${n} of ${of} workers`,
   soldiersPay: (n) => `Each soldier is paid ${n} gold a month, in peace too`,
   lastRaidTowers: (r) => `Last raid: towers stopped ${r.byTowers} of ${r.size}`,
   lastRaidSoldiers: (r) => `Last raid: soldiers stopped ${r.bySoldiers} of ${r.size}`,
