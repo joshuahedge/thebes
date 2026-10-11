@@ -11,6 +11,7 @@ import { updateMilestone } from './progression.js';
 import { computeAlerts } from './alerts.js';
 import { checkFirsts } from './firsts.js';
 import { checkAchievements } from './achievements.js';
+import { checkDaily } from './daily.js';
 import { clearUndo } from './undo.js';
 import { checkGoals, triggerEventGoals } from './goals.js';
 import { population, HISTORY_MONTHS } from './world.js';
@@ -48,6 +49,7 @@ export function tickDay(world, events = null) {
   triggerEventGoals(world);
   checkGoals(world, events);
   checkFirsts(world, events);
+  if (world.daily) checkDaily(world, events);
 }
 
 export function advanceDays(world, n, events = null) {
