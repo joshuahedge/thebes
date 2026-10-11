@@ -3,15 +3,16 @@
 // (early-game pass 2.10). Show me itself lives in createUI (showMeAt); this file only hands it a target.
 import { BUILDINGS } from '../data/buildings.js';
 import { houseStatus, needCause } from '../sim/housing.js';
-import { setPaused } from '../sim/commands.js';
-import { assignLabour } from '../sim/labour.js';
+import { setPaused, setAccept } from '../sim/commands.js';
+import { assignLabour, isWorking } from '../sim/labour.js';
+import { storeTotal, storeAccepts } from '../sim/production.js';
 import { openGoals, guideActive } from '../sim/goals.js';
 import { achievementProgress } from '../sim/achievements.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { closeSheet } from './modes.js';
 import { summaryData } from './hud.js';
 import { ZOOM_STEP } from '../data/ui.js';
-import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, T } from './text.js';
+import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText, T } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -53,11 +54,51 @@ export function createSheets({ container, store, world, placement, cameraControl
     }));
   }
 
+  // A producer says what it is doing in words: making, growing or digging its good, waiting for its input, or not
+  // working (the problems below say why).
+  function workLine(b) {
+    const def = BUILDINGS[b.type];
+    if (!def.produces) return null;
+    let text = T.notWorking;
+    if (isWorking(world, b) && b.blocked === 'no_input') text = waitingText(def.consumes);
+    else if (isWorking(world, b) && !b.blocked) text = workingText(b.type);
+    return el('p', { class: 'work-status', text });
+  }
+
+  // Storage (spec 4.10): how full it is, then a row per good it can hold with its count and the good's line (what
+  // makes it, what uses it). A storehouse's rows are switches that accept or refuse the good (setAccept); the state
+  // is a word beside the good, so the switch never relies on colour.
+  function storeSection(b) {
+    const def = BUILDINGS[b.type];
+    const switches = b.type === 'storehouse';
+    const out = [row(T.stored, progressText(storeTotal(b), def.capacity)), el('h3', { text: T.stock })];
+    if (switches) out.push(el('p', { class: 'small muted', text: T.acceptHelp }));
+    out.push(el('ul', { class: 'store-goods' }, def.stores.map((good) => {
+      const n = String(b.store[good] || 0);
+      const line = el('p', { class: 'good-line small muted', text: goodLine(good) });
+      if (!switches) return el('li', { dataset: { good } }, [el('div', { class: 'row' }, [el('span', { text: goodName(good) }), el('span', { text: n })]), line]);
+      const on = storeAccepts(b, good);
+      const sw = el('button', { type: 'button', role: 'switch', class: 'switch accept', 'aria-checked': String(on), dataset: { good } }, [
+        el('span', { class: 'good' }, [goodName(good), ' ', el('span', { class: 'count small muted', text: n })]),
+        el('span', { class: 'state small', text: on ? T.accepted : T.refused }),
+      ]);
+      sw.addEventListener('click', () => {
+        const r = setAccept(world, b.id, good, !on);
+        if (r.ok) { afterCommand({ kind: 'accept', result: r, undoable: false }); render(); }
+      });
+      return el('li', { dataset: { good } }, [sw, line]);
+    })));
+    return out;
+  }
+
   function buildingSheet(b) {
     const def = BUILDINGS[b.type];
     const body = el('div', { class: 'body' });
+    const work = workLine(b);
+    if (work) body.append(work);
     body.append(row(T.workers, def.workers ? `${b.staff} of ${def.workers}` : T.noWorkersNeeded));
-    for (const [good, n] of Object.entries(b.store)) body.append(row(`${T.stock}: ${good}`, String(n)));
+    if (def.stores) body.append(...storeSection(b));
+    else for (const [good, n] of Object.entries(b.store)) body.append(row(`${T.stock}: ${goodName(good)}`, String(n)));
     const reach = def.reach || def.supplyReach || def.producerReach;
     if (reach) body.append(row(T.reach, `${reach} road tiles`));
     body.append(el('h3', { text: T.problems }), problems(b.id));

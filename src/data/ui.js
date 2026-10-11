@@ -1,10 +1,10 @@
 // Interface data: what the build dock shows and in what order, key bindings, and gesture and timing tunables.
 export const CATEGORIES = [
   { id: 'roads', items: ['road', 'demolish'] },
-  { id: 'homes', items: ['house'] },
-  { id: 'food', items: ['farm_grain', 'granary'] },
-  { id: 'industry', items: [] },
-  { id: 'services', items: ['well', 'bazaar', 'temple'] },
+  { id: 'homes', items: ['house', 'garden', 'statue'] },
+  { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
+  { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'] },
+  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth'] },
   { id: 'defence', items: [] },
   { id: 'monuments', items: [] },
 ];
@@ -14,7 +14,8 @@ export const CATEGORY_ICONS = { roads: '═', homes: '⌂', food: '❋', industr
 // A thin band on each category button and tab in its buildings' emblem colour (early-game pass 2.5).
 export const CATEGORY_TINT = { roads: '#B39466', homes: '#C9552F', food: '#6AA83A', industry: '#8E7470', services: '#2F6FA8', defence: '#9A3A30', monuments: '#E2B13C' };
 
-// Categories with nothing to build stay hidden until a stage fills them; the number keys keep their own mapping.
+// The categories a stage has filled. Which of them show in a city, and which of their cards, depends on its
+// milestone (src/ui/cards.js: shownCategories, shownItems); the number keys keep their own mapping.
 export const visibleCategories = () => CATEGORIES.filter((c) => c.items.length > 0);
 
 export function toolForItem(item) {

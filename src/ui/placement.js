@@ -64,7 +64,7 @@ export function toolPreview(world, state) {
     const warn = r.warnings.length > 0;
     // A service says how many homes it would reach from here (early-game pass 2.6); other buildings say nothing.
     const effect = def.reach ? effectText(tool.type, homesServedFrom(world, tool.type, x, y)) : '';
-    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : '', effect, cost, count: 1, tiles: [], refund: 0 };
+    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0], tool.type) : '', effect, cost, count: 1, tiles: [], refund: 0 };
   }
   if (tool.kind === 'road') {
     const l = state.line;

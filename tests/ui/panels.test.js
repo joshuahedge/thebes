@@ -16,11 +16,11 @@ describe('ui panels', () => {
     const picked = [];
     const panel = createSidePanel({ container: root, store, world: makeTestWorld(), onPick: (i) => picked.push(i) });
     const tabs = root.querySelectorAll('.tab');
-    expect(tabs.length).toBe(4);                                   // empty categories are hidden
-    fire(tabs[3], 'click');
+    expect(tabs.length).toBe(5);                                   // categories with no card to show are hidden
+    fire(tabs[4], 'click');
     expect(store.get().category).toBe('services');
-    expect(tabs[3].getAttribute('aria-pressed')).toBe('true');
-    expect(root.querySelectorAll('.cards .card').length).toBe(3);
+    expect(tabs[4].getAttribute('aria-pressed')).toBe('true');
+    expect(root.querySelectorAll('.cards .card').length).toBe(4);
     fire(root.querySelectorAll('.cards .card')[2], 'click');
     expect(picked).toEqual(['temple']);
     fire(root.querySelector('.fold'), 'click');
@@ -40,11 +40,11 @@ describe('ui panels', () => {
     const log = [];
     createRail({ container: root, store, world, onPick: (i) => log.push(i), onConfirm: () => log.push('ok'), onCancel: () => log.push('cancel'), placement });
     const cats = root.querySelectorAll('.cat');
-    expect(cats.length).toBe(4);
+    expect(cats.length).toBe(5);
     expect(root.querySelector('.drawer').hidden).toBe(true);
     fire(cats[1], 'click');
     expect(root.querySelector('.drawer').hidden).toBe(false);
-    expect(root.querySelectorAll('.drawer .card').length).toBe(1);
+    expect(root.querySelectorAll('.drawer .card').length).toBe(3);   // plots, garden, statue (locked until Town)
     fire(cats[1], 'click');
     expect(root.querySelector('.drawer').hidden).toBe(true);
     expect(root.querySelector('.bottom').hidden).toBe(true);

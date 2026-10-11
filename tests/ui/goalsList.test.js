@@ -4,6 +4,7 @@ import { createGoalsStrip, goalsSheet, showMeTarget } from '../../src/ui/goalsLi
 import { GOALS, GOAL_REWARD } from '../../src/data/goals.js';
 import { goalById } from '../../src/sim/goals.js';
 import { canPlace } from '../../src/sim/commands.js';
+import { T as TERRAIN } from '../../src/sim/terrain.js';
 import { T, CHAPTER_NAMES, goalsProgressText, rewardText } from '../../src/ui/text.js';
 import { openSheet } from '../../src/ui/modes.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
@@ -58,6 +59,18 @@ describe('ui goals', () => {
     expect(showMeTarget(world, goalById('well'))).toEqual({ x: world.focus.x, y: world.focus.y });   // no homes yet
     addRaw(world, 'house', 10, 10); addRaw(world, 'house', 12, 10);
     expect(showMeTarget(world, goalById('well'))).toEqual({ x: 11.5, y: 10.5 });
+  });
+  it('aims the jewellery goal at the rocky tile nearest the focus, and at the focus when none is rocky', () => {
+    const world = makeTestWorld();
+    const goal = goalById('jewellery');
+    expect(goal.showMe.target).toBe('rocky');
+    world.terrain.fill(TERRAIN.DESERT);
+    expect(showMeTarget(world, goal)).toEqual({ x: world.focus.x, y: world.focus.y });
+    const at = (x, y) => { world.terrain[y * world.size + x] = TERRAIN.ROCKY; };
+    at(0, 0); at(world.focus.x + 9, world.focus.y - 2); at(world.focus.x - 3, world.focus.y + 4);
+    expect(showMeTarget(world, goal)).toEqual({ x: world.focus.x - 3 + 0.5, y: world.focus.y + 4 + 0.5 });
+    at(world.focus.x + 1, world.focus.y);                                          // one beside the focus beats the rest
+    expect(showMeTarget(world, goal)).toEqual({ x: world.focus.x + 1.5, y: world.focus.y + 0.5 });
   });
   it('wires Show me into the game: the right card starts, the camera moves, and done goals celebrate', async () => {
     const r = await rigUI({ width: 1280, height: 800 });
