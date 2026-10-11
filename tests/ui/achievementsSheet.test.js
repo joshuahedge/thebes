@@ -93,7 +93,7 @@ describe('ui achievements sheet', () => {
       r.world.achievements = [];
       r.store.set(openSheet(r.store.get(), 'summary'));
       const counted = ACHIEVEMENTS.filter((a) => !['fedAll', 'waterAll', 'jobs'].includes(a.measure.kind) && a.measure.n > 1);   // a count of one (an Estate) reads as yes or no
-      expect(counted.length).toBe(ACHIEVEMENTS.length - 4);
+      expect(counted.length).toBe(ACHIEVEMENTS.length - 5);                 // and Stage 3's safe streets, a yes or no
       for (const a of counted) {
         const p = achievementProgress(r.world, a);
         const row = rowOf(r, a.id);
@@ -103,7 +103,7 @@ describe('ui achievements sheet', () => {
         expect(row.textContent).toContain(progressText(p.n, p.of));                    // the words, beside the bar
         expect(row.textContent).toContain(ACHIEVEMENT_TEXT[a.id]);
       }
-      expect(r.root.querySelectorAll('#sheet [role="progressbar"]').length).toBe(counted.length);
+      expect(r.root.querySelectorAll('#sheet .achievements [role="progressbar"]').length).toBe(counted.length);   // the score's part bars are not achievements
     } finally { r.cleanup(); }
   });
   it('keeps achievements out of sight while the guide runs', async () => {

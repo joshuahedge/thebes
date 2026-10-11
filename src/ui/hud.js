@@ -36,8 +36,11 @@ const stat = (label, cls) => el('span', { class: `stat ${cls}` }, [el('span', { 
 export function createHud({ world, store, container, speedBar = null, onOpenSummary = () => {}, onOpenMenu = () => {}, shortDate = () => store.get().layout !== 'wide' }) {
   const gold = stat(T.gold, 'gold'), people = stat(T.people, 'people'), mood = stat(T.mood, 'mood'), date = stat(T.date, 'date');
   const income = stat(T.income, 'income wide-only'), jobless = stat(T.jobless, 'jobless wide-only'), food = stat(T.food, 'food wide-only');
+  // Stage 3 (spec 4.19): the score chip, a small "Score 247" on the summary button. It starts empty and hidden; the score
+  // interface fills it after every command and game day (src/ui/scoreUi.js), so the top bar's numbers are unchanged.
+  const scoreChip = el('span', { class: 'score-chip small', hidden: true });
   // No aria-label here: it would replace the visible numbers as the accessible name (spec 6.8). The hint is read as part of the name.
-  const stats = el('button', { type: 'button', class: 'stats quiet', title: T.summary, onClick: onOpenSummary }, [gold, people, mood, date, income, jobless, food, el('span', { class: 'sr-only', text: T.openSummary })]);
+  const stats = el('button', { type: 'button', class: 'stats quiet', title: T.summary, onClick: onOpenSummary }, [gold, people, mood, date, income, jobless, food, scoreChip, el('span', { class: 'sr-only', text: T.openSummary })]);
   const menu = iconButton(T.menu, '☰', { class: 'menu' });
   menu.addEventListener('click', onOpenMenu);
   const bar = el('div', { class: 'speed wide-only' });
