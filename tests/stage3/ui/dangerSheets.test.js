@@ -116,8 +116,19 @@ describe('s3 ui danger buildings', () => {
       w.raid.last = { index: 1, dir: 'east', size: 6, won: true, byTowers: 4, bySoldiers: 2, towers: 1, burned: 0, stolen: 12, day: 400 };
       r.store.set(select(r.store.get(), tower.id));
       expect(texts(sheet, '.row')).toContain(`${D.range}4 tiles`);
-      expect(texts(sheet, '.row')).toContain(`${D.onTheWall}64 of 80 hit points`);
+      // At peace the tile reads the hit points it fights with (ruling 8: raised to 80 when raiders arrive); "N of 80" in a raid.
+      expect(texts(sheet, '.row')).toContain(`${D.onTheWall}80 hit points`);
       expect(texts(sheet, '.body p.small')).toEqual(['Shoots the nearest raider within 4 tiles once a day', 'Last raid: towers stopped 4 of 6']);
+      w.raid.active = { index: 2, entry: { x: 31, y: 11 }, dir: 'east', size: 6, target: 'building', day: 500, raiders: [], phase: 'attack',
+        targetId: null, struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [] };
+      r.ui.refresh();
+      expect(texts(sheet, '.row')).toContain(`${D.onTheWall}64 of 80 hit points`);
+      w.raid.active = null;
+      tower.staff = 0; r.ui.refresh();   // combatDay skips a tower that is not working: no shooting line
+      expect(texts(sheet, '.body p.small')).toEqual(['Not shooting until it has 1 of 4 workers', 'Last raid: towers stopped 4 of 6']);
+      tower.staff = 4; tower.paused = true; r.ui.refresh();
+      expect(texts(sheet, '.body p.small')[0]).toBe('Not shooting while it is paused');
+      tower.paused = false;
       const barracks = addRaw(w, 'barracks', 27, 11, { staff: 6 });
       w.soldiers = [{ id: 1, barracks: barracks.id, x: 28, y: 12, hp: 12, hit: false, task: 'wait' }, { id: 2, barracks: 999, x: 1, y: 1, hp: 12, hit: false, task: 'wait' }];
       r.store.set(select(r.store.get(), barracks.id));
@@ -125,6 +136,11 @@ describe('s3 ui danger buildings', () => {
       expect(texts(sheet, '.body p.small')).toEqual(['Trains one soldier every 30 days at full staff, slower when short of workers', 'Each soldier is paid 8 gold a month, in peace too', 'Last raid: soldiers stopped 2 of 6']);
       barracks.staff = 1; r.ui.refresh();
       expect(texts(sheet, '.body p.small')[0]).toBe('Not training until it has 2 of 6 workers');
+      barracks.staff = 6;   // a full barracks trains none (trainSoldiers skips it at soldiersPerBarracks)
+      for (let id = 3; id <= 5; id++) w.soldiers.push({ id, barracks: barracks.id, x: 28, y: 12, hp: 12, hit: false, task: 'wait' });
+      r.ui.refresh();
+      expect(texts(sheet, '.row')).toContain(`${D.soldiers}4 of 4`);
+      expect(texts(sheet, '.body p.small')).toEqual(['Full: 4 of 4 soldiers; it trains another when one is wounded', 'Each soldier is paid 8 gold a month, in peace too', 'Last raid: soldiers stopped 2 of 6']);
       const range = rangeTiles(w, tower);
       expect([range.includes(idx(w.size, 26, 15)), range.includes(idx(w.size, 26, 16)), range.includes(idx(w.size, 30, 11)), range.includes(idx(w.size, 31, 11))]).toEqual([true, false, true, false]);
       const rubble = addRaw(w, 'rubble', 20, 12);
