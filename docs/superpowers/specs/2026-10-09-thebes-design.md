@@ -1,7 +1,7 @@
 # Thebes: design spec
 
 **Date:** 2026-10-09 (revised the same day after a three-reviewer pass covering game design, interface, and onboarding and accessibility)
-**Status:** Awaiting Joshua's review of the written spec
+**Status:** Approved 9 Oct 2026. Revised 11 Oct 2026 for Stage 2 (sections 4.1, 4.6-4.8, 4.10, 4.11, 4.14, 4.15, 4.18 and 10) from the Pharaoh Heaven review and the city-builder research; the calls made on Joshua's behalf are in that session's rulings list.
 **Owner:** Joshua Hedge (personal project, not Attensi)
 
 ## 1. Summary
@@ -25,6 +25,7 @@ It's a plain web page that installs to a phone's home screen, works offline, and
 | Input | Touch, mouse and keyboard are first-class. Controls follow the input in use, not the screen size. |
 | Onboarding | A goals list with "Show me" replaces a tutorial. Houses explain why they won't upgrade. |
 | Sound | About eight synthesised sound effects, **off by default**, no music. |
+| Difficulty | **Relaxed, Normal, Hard**, chosen when a city starts: cost and risk multipliers only (section 4.18). |
 | Hosting | **Public repo `joshuahedge/thebes` + GitHub Pages**. |
 | Separation | Personal GitHub account and commit identity. No Attensi org, and not a Claude artifact. |
 
@@ -72,6 +73,7 @@ It's a plain web page that installs to a phone's home screen, works offline, and
     5. Build a temple
     6. Reach 100 people
   - After the opening chain, goals come from the next milestone (for example "Reach 150 people to become a Town", "Build a booth so homes can grow into Manors").
+  - From Town, goals introduce each new need when the tier below it is common ("Your homes now want pottery: build a clay pit and a potter"), then ask for a number of homes at the new tier, so one new demand arrives at a time.
   - The goal list is data (`data/goals.js`). Missions will reuse it later.
 - First-time events add one-off goals instead of a separate tutorial: the first fire, the first raid warning, the first labour shortage, the first empty bazaar.
 
@@ -119,38 +121,59 @@ Starting reach values, all tunable in data:
 
 ### 4.6 Housing ladder
 
-| Tier | Name | Size | Needs (cumulative) | Starting max residents | Tax per resident per month |
-|---|---|---|---|---|---|
-| 1 | Hut | 1×1 | Road access | 5 | 1 |
-| 2 | Shack | 1×1 | Water | 8 | 1 |
-| 3 | Cottage | 1×1 | Food | 12 | 2 |
-| 4 | House | 1×1 | Temple | 16 | 2 |
-| 5 | Townhouse | 1×1 | Pottery | 22 | 3 |
-| 6 | Manor | 2×2 | Entertainment, desirability ≥ 20 | 100 | 4 |
-| 7 | Fine manor | 2×2 | Beer, two kinds of food, desirability ≥ 35 | 125 | 5 |
-| 8 | Villa | 2×2 | Linen, desirability ≥ 50 | 150 | 6 |
-| 9 | Estate | 2×2 | Jewellery, desirability ≥ 65 | 180 | 8 |
+| Tier | Name | Size | Needs (cumulative) | Starting max residents | Tax per resident per month | Desirability to rise / to keep |
+|---|---|---|---|---|---|---|
+| 1 | Hut | 1×1 | Road access | 5 | 1 | – |
+| 2 | Shack | 1×1 | Water | 8 | 1 | – |
+| 3 | Cottage | 1×1 | Food | 12 | 2 | – |
+| 4 | House | 1×1 | Temple | 16 | 2 | – |
+| 5 | Townhouse | 1×1 | Pottery | 22 | 3 | – |
+| 6 | Manor | 2×2 | Entertainment | 100 | 4 | 20 / 15 |
+| 7 | Fine manor | 2×2 | Beer, two kinds of food | 125 | 5 | 35 / 29 |
+| 8 | Villa | 2×2 | Linen | 150 | 6 | 50 / 43 |
+| 9 | Estate | 2×2 | Jewellery | 180 | 8 | 65 / 57 |
 
 **Rules:**
 - **No upgrade lowers capacity or tax per tile.** A data test enforces this (section 9).
 - **Household stock.** Each house holds up to **one month** of each good it uses: food, pottery, beer, linen, jewellery. A need counts as met while stock lasts. When a delivery is missed, stock is used up first.
-- **Upgrading** is checked monthly. A house rises one tier when every need for the next tier has been met for a full month.
-- **Downgrading** starts when a need's stock has run out. If it's still unmet one month later, the house drops a tier. The house sheet shows the countdown (section 6.4).
+- **Upgrading** is checked monthly. A house rises one tier when every need for the next tier has been met for a full month and, from tier 6, its desirability is at least the "to rise" value.
+- **Downgrading** starts when a need's stock has run out, or, from tier 6, when desirability falls below the "to keep" value. If it's still short one month later, the house drops a tier. Between the two desirability values a house neither rises nor falls (hysteresis), so a city does not flicker when a statue moves.
+- **Warnings come first.** The house sheet shows the countdown ("Loses Manor in 1 month: the street is not pleasant enough") and the map shows the amber marker the month before any drop.
 - **Leaving.** At most a quarter of a house's residents can leave in one month, whatever the cause.
 - **Merging to 2×2.** A tier-5 house becomes a Manor only if the three plots next to it, forming a 2×2 square, are housing plots at tier 5 or higher, or plots with no residents yet.
   - If more than one square qualifies, a fixed order picks one: north-west first, then clockwise.
-  - The merged house takes the combined residents.
+  - The merged house takes the combined residents. Residents of tiers 6-9 keep working (no "scribes" in Stage 2; see 4.8).
 - **Splitting back.** A 2×2 house that drops below tier 6 splits into four tier-5 plots, with residents shared out evenly.
-- **Looks.** Each tier has its own silhouette, height and tone so tiers can be told apart at phone zoom (section 5.3).
+- **Needs arrive one at a time.** Each new good is introduced by a goal when the tier below it is common ("Your homes now want pottery: build a clay pit and a potter"), so a player meets one new demand at a time.
+- **Looks.** Each tier has its own silhouette, height and tone so tiers can be told apart at phone zoom (section 5.3). Tiers 5-9 each add one roof tell: a striped awning (5), a pergola (6), a roof garden (7), a painted parapet band (8), a flag and pool (9).
 
 ### 4.7 Desirability
 
-- Every tile has a desirability score from nearby buildings, falling off with distance.
-- **Positive sources:** gardens, statues, temples, monuments, plazas.
-- **Negative sources:** workshops, clay pits, quarries, brickworks, barracks.
-- Tiers 6–9 need minimum desirability (section 4.6).
-- **Gardens** (1×1) and **statues** (1×1) are cheap and need no workers.
-- The house sheet breaks the score down, for example "14 of 20: −6 from potter".
+- Every tile has a desirability score: the sum of the values of every building near it. Each building type has values by distance (1 = touching, up to 6 tiles), counted from the nearest tile of its footprint. Values add where they overlap. A 2×2 house uses its best tile.
+- Starting values (in `data/desirability.js`, tunable):
+
+| Source | By distance 1, 2, 3, 4, 5, 6 |
+|---|---|
+| Garden | 3, 2, 1 |
+| Statue | 8, 6, 4, 2 |
+| Temple | 6, 6, 4, 4, 2, 2 |
+| Booth | 3, 2, 1 |
+| Bazaar | −2, −1, 0, 1, 2, 3 |
+| Well | 1 |
+| Granary | −8, −6, −4, −2 |
+| Storehouse | −6, −4, −2 |
+| Farms and orchards | −2, −1 |
+| Clay pit | −6, −5, −4, −3, −2, −1 |
+| Potter, brewery, weaver, jeweller | −4, −3, −2, −1 |
+| Gem mine | −8, −6, −4, −2 |
+| Trading post | −3, −2, −1 |
+| Homes, by tier | Hut −2, −1; Shack −1; Cottage 0; House 1; Townhouse 1, 1; Manor 2, 2; Fine manor 3, 2, 1; Villa 4, 3, 2; Estate 5, 4, 3, 2 |
+
+- **Gardens** (1×1, Village) and **statues** (1×1, Town) are cheap and need no workers.
+- Tiers 6-9 need minimum desirability (section 4.6), with a lower value to keep the tier.
+- The house sheet shows the score and its three biggest causes, for example "14 of 20: +6 temple, +3 garden, −4 potter".
+- **While placing** any building, the ground it would change is tinted (a teal wash where homes get nicer, coral hatching where they get worse) and the confirm bar says "Makes 6 homes nicer" or "Makes 4 homes less pleasant".
+- The desirability overlay is a single-hue light-to-dark scale with a five-step legend.
 
 ### 4.8 Workers
 
@@ -164,6 +187,7 @@ Starting reach values, all tunable in data:
 - Within a priority level, workers are shared proportionally.
 - An understaffed building works at a proportionally lower rate. Below 25% staffing it stops.
 - Labour shortage and unemployment above 15% show as alerts. The alert names which priority level is short.
+- **Every tier works.** Residents of tiers 6-9 keep working. A top-tier rule that trades workers for tax (the "scribes" idea) is a candidate for Stage 4, where monuments put pressure on labour.
 
 ### 4.9 Immigration, emigration and mood
 
@@ -177,21 +201,24 @@ Starting reach values, all tunable in data:
 
 ### 4.10 Goods and production chains
 
-| Chain | Steps | Used by |
-|---|---|---|
-| Grain | Grain farm (fertile) → granary | Homes from tier 3 |
-| Figs | Fig orchard (fertile) → granary | Homes from tier 7 (second food) |
-| Pottery | Clay pit → potter → storehouse | Homes from tier 5, trade |
-| Beer | Barley farm (fertile) → brewery → storehouse | Homes from tier 7, trade |
-| Linen | Flax farm (fertile) → weaver → storehouse | Homes from tier 8, trade (high price) |
-| Jewellery | Gem mine (rocky) → jeweller → storehouse | Homes from tier 9, trade (highest price) |
-| Stone | Quarry (rocky) → storehouse | Monuments |
-| Bricks | Clay pit → brickworks → storehouse | Monuments |
+| Chain | Steps | Used by | Unlocks |
+|---|---|---|---|
+| Grain | Grain farm (fertile) → granary | Homes from tier 3 | Village |
+| Figs | Fig orchard (fertile) → granary | Homes from tier 7 (second food) | Town |
+| Pottery | Clay pit → storehouse → potter → storehouse | Homes from tier 5, trade | Town |
+| Beer | Barley farm (fertile) → storehouse → brewery → storehouse | Homes from tier 7, trade | City |
+| Linen | Flax farm (fertile) → storehouse → weaver → storehouse | Homes from tier 8, trade (high price) | Great city |
+| Jewellery | Gem mine (rocky) → storehouse → jeweller → storehouse | Homes from tier 9, trade (highest price) | Capital |
+| Stone | Quarry (rocky) → storehouse | Monuments | City (Stage 4) |
+| Bricks | Clay pit → brickworks → storehouse | Monuments | City (Stage 4) |
 
-- **Producers** make output daily, scaled by staffing. Output goes to the nearest storage with space within producer reach. If there's none, production stops and an alert says "No storage nearby".
-- **Workshops** take raw materials from storage within producer reach.
-- **Bazaars** restock monthly from storage within supply reach. Each month, a home tops up its household stock from the covering bazaar it can reach most quickly that has stock.
-- **Fed** means the home's full monthly food need was met from stock, from any mix of foods. "Two kinds of food" also needs both grain and figs in stock.
+- **Producers** make output daily, scaled by staffing (below 25% staffing they stop). A raw producer makes its monthly yield at full staff; a **workshop** turns one unit of its raw material into one unit of its good, taking the raw material from storage within producer reach, and stops with "No clay in reach" when there is none. Output goes to the nearest storage with space within producer reach; if there is none, production stops and an alert says "No storage nearby".
+- **Monthly yields at full staff** (in `data/buildings.js`, tunable; a 30-day month): grain 30, figs 24, clay 40, pottery 30, barley 30, beer 25, flax 24, linen 20, gems 15, jewellery 15. A potter feeds about 13 Townhouses.
+- **Household use per resident per month:** food 0.25 (any mix of grain and figs), pottery 0.05, beer 0.05, linen 0.04, jewellery 0.03, rounded up per home.
+- **Storage:** the granary holds grain and figs (600 units); the **storehouse** (2×2, Town) holds everything else (800 units in total), with **accept or refuse** per good. Both show their fill on the map in four steps. There are no "get" orders.
+- **Bazaars** sell every good homes use, restocking monthly from storage within supply reach (up to 200 of each good). Each month, a home tops up its household stock from the covering bazaar it can reach most quickly that has stock.
+- **Fed** means the home's full monthly food need was met from stock, from any mix of foods. "Two kinds of food" also needs both grain and figs in stock at the start of the month. A home that wants two foods tops up half of its need from each and fills any gap from whichever food is there.
+- **The city summary** shows each good as made against used last month, and every good's sheet line says what makes it and what uses it ("Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis").
 
 ### 4.11 Money
 
@@ -200,6 +227,7 @@ Starting reach values, all tunable in data:
 - **Balance target:** in a steady tier-4 town, wages plus upkeep come to about 60–70% of tax income. Building costs and wages in `data/` are tuned to this.
 - **Pausing a building** stops its wages and upkeep.
 - **Demolishing** refunds 25% of a building's cost. Roads and plots refund nothing. Undo (section 6.5) refunds in full.
+- **Difficulty** multiplies building, road and route costs (section 4.18). Upkeep and wages do not change.
 - **Debt.** The treasury can go down to −500. Any debt lowers mood, scaled with the debt. Below −500, nothing new can be built until it recovers.
 
 ### 4.12 Fire
@@ -242,17 +270,24 @@ Starting reach values, all tunable in data:
 | Capital | 1,000 | Gem mine and jeweller, large mastaba |
 | Prestige | Prestige points | Small pyramid, great pyramid |
 
-- Locked buildings show in the build tray, greyed out with their unlock condition.
+- Locked buildings show in the build tray only for the **next** milestone, greyed out with their unlock condition; later ones stay hidden until then, so the tray never fills with grey. Buildings of later stages (defence, monuments) stay hidden until their stage ships.
 - Reaching a milestone shows a banner ("Your village is now a Town"), and newly unlocked build cards get "New" badges.
 - The thresholds are starting values for tuning.
 
 ### 4.15 Trade
 
-- The **trading post** is built next to the trade entry road.
-- For each good, the player sets **buy / sell / ignore** and a **stock level to keep**.
-- Each open partner sends a caravan every three game-months. A caravan carries **at most a set number of units of each good per visit** (in data), at that partner's prices.
-- **No arbitrage:** a data check ensures no partner sells a good for less than another partner pays for it. Prices **drift by up to ±10% a year** (seeded).
-- Partners unlock at Market town and Great city. Opening a route has a one-off cost.
+- The **trading post** (2×2, Market town) is built on a road connected to the trade entry.
+- **Partners** (in `data/trade.js`): **Memphis** opens at Market town for 300 gold; **Byblos** opens at Great city for 600 gold. Each partner buys and sells a fixed list of goods with a **yearly quota** per good; its caravan comes every three game-months and carries a quarter of each quota.
+
+| Partner | Buys (price paid, yearly quota) | Sells (price asked, yearly quota) |
+|---|---|---|
+| Memphis | Grain 1 (300), pottery 8 (200), beer 10 (160) | Clay 2 (300), figs 3 (200), barley 3 (200) |
+| Byblos | Pottery 8 (120), linen 14 (120), jewellery 20 (80) | Flax 3 (160), gems 9 (100), beer 14 (100) |
+
+- For each good the player sets **buy, sell or ignore** and a **level to keep**: a caravan sells the player its goods only up to that level, and buys the player's goods only above it. Purchases never take the treasury below zero. Goods move to and from storage within the trading post's supply reach (16 road tiles).
+- **No arbitrage:** a data check ensures no partner sells a good for less than another pays for it, with a margin of at least 25% so that drift can never cross it. Prices **drift by up to ±10% a year** (seeded).
+- The first caravan from a new route brings a gift: 40 units of the first good on its sale list.
+- The trading post's sheet is one step at a time: open the route, then a row per good with its price, the buy/sell/ignore choice and the level to keep, and the next caravan's date.
 
 ### 4.16 Monuments
 
@@ -295,6 +330,11 @@ Starting reach values, all tunable in data:
   - Safari may delete website data that hasn't been visited for 7 days. The home-screen app is exempt. The game also requests persistent storage (`navigator.storage.persist()`) where supported.
   - In **in-app browsers** (Messenger, Instagram and the like), the game shows "Open in Safari/Chrome to keep your city", because those browsers can't install apps and keep separate storage.
   - If storage fails (private browsing, full storage), a persistent banner warns that progress won't be saved.
+
+### 4.18 Difficulty
+
+- Three levels, chosen when a city starts and fixed for its life: **Relaxed** (building, road and route costs ×0.8; risks ×0.5), **Normal** (×1, ×1), **Hard** (costs ×1.25; risks ×1.5). Risks (fire and raids) arrive in Stage 3; Stage 2 stores the multiplier.
+- The title card shows the three as a choice under New city (the last one used is preselected, Normal the first time); the settings sheet holds the choice for the next city. The city summary names the level. Goals, workers and desirability are the same at every level.
 
 ## 5. Art and feel
 
@@ -622,12 +662,14 @@ Each stage ends playable and shareable at the link, and each gets its own step-b
    - autosave with a backup, export and import, the iOS and Android install flow, the in-app browser notice, link preview tags
    - the first GitHub Pages publish
 2. **Economy:**
-   - figs, pottery, beer, linen and jewellery chains; storehouse
-   - housing tiers 5–9 with 2×2 merging and splitting
-   - desirability with gardens and statues; booth
+   - figs, pottery, beer, linen and jewellery chains; workshops with inputs; the storehouse with accept or refuse and stock shown on the map
+   - housing tiers 5-9 with 2×2 merging and splitting, hysteresis, the warning month, and a roof tell per tier
+   - desirability with gardens and statues, the placement preview and the house-sheet breakdown; the booth and entertainment
    - goods, entertainment and desirability overlays
-   - trading post and partners
-   - milestones up to Capital (with defences still locked until stage 3)
+   - the trading post and two partners with yearly quotas, a level to keep, drift and the first-caravan gift
+   - milestones up to Capital (defences still locked until stage 3), "New" badges on unlocked cards, locked cards shown only for the next milestone
+   - the early-game mechanics extended: goals that introduce each need, firsts and achievements for the new tiers and goods, new daily goals, tips for desirability, storage and trade, problem markers for the new alerts
+   - difficulty (Relaxed, Normal, Hard)
 3. **Danger:**
    - fire with seeded ignition and spreading, the firehouse, rubble
    - raids with warnings, tribute and the first-raid goal

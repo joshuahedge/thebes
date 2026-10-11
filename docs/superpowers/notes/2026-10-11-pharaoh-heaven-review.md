@@ -73,6 +73,13 @@ Not changing: reach instead of walkers, nine tiers, no roadblocks, no collapse, 
 3. Scribes at tier 9 (no workers, four times the tax) is a strong late-game lever but changes the labour balance. Worth a spike in Stage 2, or leave for Stage 4 with monuments?
 4. Festivals: a gold-for-mood button with a cooldown, Stage 3 (where mood pressure from raids arrives) or never?
 
+### Answered 11 Oct 2026 (decided on Josh's behalf; recorded in the spec)
+
+1. **Difficulty: yes.** Relaxed, Normal and Hard, chosen when a city starts and fixed for its life; costs ×0.8/1/1.25 and risks ×0.5/1/1.5 (risks apply from Stage 3). Spec 4.18. One tuned Normal stays the default, so friends who never touch it get the designed game.
+2. **Entertainment gates tier 6**, together with desirability, so tier 5 asks for one new thing (pottery) and the first 2×2 home is where the street starts to matter. Spec 4.6.
+3. **Scribes: not in Stage 2.** Every tier keeps working; the trade-workers-for-tax rule is a candidate for Stage 4, where monuments put pressure on labour. Spec 4.8.
+4. **Festivals: a Stage 3 candidate**, when raids and fire bring mood pressure; not before.
+
 ## 6. Sources and caveats
 
 - Research digests (numbers, per page, with URLs): `reference/pharaoh-heaven/buildings.md`, `strategy.md`, `faqs-walkthroughs-interviews.md`.
