@@ -3,12 +3,13 @@ import { PARTNERS } from '../../src/data/trade.js';
 import { GOALS } from '../../src/data/goals.js';
 import { TIPS, TIP_FIRST_DELAY_MS } from '../../src/data/tips.js';
 import { routeCostOf } from '../../src/sim/costs.js';
-import { tradePrices, nextCaravanDay } from '../../src/sim/trade.js';
+import { ECONOMY } from '../../src/data/economy.js';
+import { tradePrices, nextCaravanDay, openRoute, activePost, caravanBlocker, tradeStock, tradeMonth } from '../../src/sim/trade.js';
 import { dateParts } from '../../src/sim/clock.js';
 import { settle } from '../../src/sim/settle.js';
 import { housesOf } from '../../src/sim/world.js';
 import { routeBlock, tradedGoods } from '../../src/ui/tradeSheet.js';
-import { select } from '../../src/ui/modes.js';
+import { select, openSheet } from '../../src/ui/modes.js';
 import { T, TIP_TEXT, caravanText, dateText, partnerName } from '../../src/ui/text.js';
 import { setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { fire, key } from '../helpers/dom.js';
@@ -61,10 +62,13 @@ describe('ui trade sheet', () => {
       expect(route(r, 'memphis').querySelector('.reason').textContent).toBe('Opens at Market town');
       expect(route(r, 'byblos').querySelector('.reason').textContent).toBe('Opens at Great city');
       w.milestone = 'market_town';
-      w.gold = routeCostOf(w, 'memphis') - 1;
+      w.gold = routeCostOf(w, 'memphis') + ECONOMY.debtFloor - 1;                     // one gold short of what the sim's canAfford allows
       r.ui.refresh();
       expect(memphis().disabled).toBe(true);
-      expect(route(r, 'memphis').querySelector('.reason').textContent).toBe(`Needs ${routeCostOf(w, 'memphis')} gold`);
+      expect(route(r, 'memphis').querySelector('.reason').textContent).toBe(`Would put the treasury over ${-ECONOMY.debtFloor} gold in debt`);
+      w.gold = 100;                                                                    // less than the cost, but a treasury may go into debt: it opens
+      r.ui.refresh();
+      expect([memphis().disabled, route(r, 'memphis').querySelector('.reason')]).toEqual([false, null]);
       w.gold = 5000;
       w.difficulty = 'hard';
       r.ui.refresh();
@@ -129,11 +133,11 @@ describe('ui trade sheet', () => {
       expect(w.trade.orders.pottery).toEqual({ mode: 'sell', keep: 20 });
       expect(document.activeElement).toBe(more());                                      // the rebuilt sheet keeps keyboard focus
       expect(good(r, 'pottery').querySelector('.keep-value').textContent).toBe('Keep 20');
-      expect(good(r, 'pottery').querySelector('.keep-help').textContent).toBe('Sells what is over 20 in storage');
+      expect(good(r, 'pottery').querySelector('.keep-help').textContent).toBe('Sells what is over 20 in storage near the post');
       fire(less(), 'click');
       expect(w.trade.orders.pottery.keep).toBe(10);
       fire(good(r, 'clay').querySelector('.mode.buy'), 'click');
-      expect(good(r, 'clay').querySelector('.keep-help').textContent).toBe('Buys until 0 are in storage');
+      expect(good(r, 'clay').querySelector('.keep-help').textContent).toBe('Buys until 0 are in storage near the post');
       fire(good(r, 'pottery').querySelector('.mode.ignore'), 'click');
       expect(w.trade.orders.pottery).toEqual({ mode: 'ignore', keep: 10 });             // the level is kept for next time
       expect(good(r, 'pottery').querySelector('.keep')).toBe(null);
@@ -166,6 +170,11 @@ describe('ui trade sheet', () => {
       .toBe('A caravan from Byblos bought 10 linen and 5 jewellery and sold you 25 flax: +240 gold');
     const idle = caravanText({ partner: 'memphis', sold: {}, bought: {}, income: 0 });
     expect([idle.text, idle.why]).toEqual(['A caravan from Memphis found nothing to trade', T.caravanIdleWhy]);
+    // The gold is what the treasury gained or lost: a buy-only visit costs gold, a mixed one says the net.
+    expect(caravanText({ partner: 'memphis', sold: {}, bought: { clay: 20 }, income: 0, spent: 40 }).text).toBe('A caravan from Memphis sold you 20 clay: −40 gold');
+    expect(caravanText({ partner: 'memphis', sold: { pottery: 30 }, bought: { clay: 20 }, income: 240, spent: 40 }).text).toBe('A caravan from Memphis bought 30 pottery and sold you 20 clay: net +200 gold');
+    expect(caravanText({ partner: 'memphis', sold: { pottery: 5 }, bought: { clay: 50 }, income: 40, spent: 100 }).text).toBe('A caravan from Memphis bought 5 pottery and sold you 50 clay: net −60 gold');
+    expect(caravanText({ partner: 'memphis', sold: { pottery: 5 }, bought: { clay: 20 }, income: 40, spent: 40 }).text).toBe('A caravan from Memphis bought 5 pottery and sold you 20 clay: net 0 gold');
     const r = await rigUI();
     try {
       r.ui.celebrations.clear();
@@ -187,6 +196,93 @@ describe('ui trade sheet', () => {
       expect(r.ui.tips.current()).toBe(tip.id);
       expect(r.root.querySelector('#tip .text').textContent).toBe(TIP_TEXT[tip.id]);
     } finally { r.cleanup(); }
+  });
+  it("enables Open route exactly when the sim would open the route, and the sheet's block is the sim's reason", async () => {
+    const memphisCost = routeCostOf(tradeWorld().w, 'memphis');
+    const cases = [
+      { name: 'milestone not reached', milestone: 'town', gold: 5000, block: 'locked' },
+      { name: 'no trading post', post: false, gold: 5000, block: 'no_post' },
+      { name: 'one gold short of the debt floor', gold: memphisCost + ECONOMY.debtFloor - 1, block: 'no_gold' },
+      { name: 'exactly the debt floor', gold: memphisCost + ECONOMY.debtFloor, block: null },
+      { name: 'less than the cost, above the floor', gold: 100, block: null },
+      { name: 'plenty of gold', gold: 5000, block: null },
+      { name: 'already open', gold: 5000, open: true, block: 'already_open' },
+    ];
+    for (const c of cases) {
+      const { w } = c.post === false ? { w: uiWorld() } : tradeWorld({ milestone: c.milestone });
+      if (c.post === false) w.milestone = 'market_town';
+      w.gold = c.gold;
+      if (c.open) w.trade.routes.memphis = { since: 0, gifted: true };
+      const r = await rigUI({ world: w });
+      try {
+        r.store.set(openSheet(r.store.get(), 'trade'));
+        const button = route(r, 'memphis').querySelector('.open-route');
+        expect([c.name, routeBlock(w, 'memphis')]).toEqual([c.name, c.block]);
+        expect([c.name, button ? button.disabled : 'no button']).toEqual([c.name, c.open ? 'no button' : c.block !== null]);
+        const result = openRoute(w, 'memphis');
+        expect([c.name, result.ok, result.reason]).toEqual([c.name, c.block === null, c.block === null ? undefined : c.block]);
+      } finally { r.cleanup(); }
+    }
+  });
+  it('shows the next caravan only when one will come, and says why none will otherwise', async () => {
+    const { w, post } = tradeWorld();
+    w.trade.routes.memphis = { since: 0, gifted: true };
+    const r = await rigUI({ world: w });
+    const sheet = () => r.root.querySelector('#sheet');
+    const state = () => [caravanBlocker(w), Boolean(activePost(w)), Boolean(sheet().querySelector('.next-caravan')), (sheet().querySelector('.no-caravan') || { textContent: null }).textContent, Boolean(sheet().querySelector('.trade-warning'))];
+    try {
+      openTrade(r, post);
+      expect(state()).toEqual([null, true, true, null, false]);                        // staffed, unpaused and joined by road: a date
+      post.paused = true;
+      r.ui.refresh();
+      expect(state()).toEqual(['paused', false, false, 'No caravan will come while the trading post is paused', false]);
+      post.paused = false;
+      post.staff = 1;                                                                  // 1 of 6 is under the quarter a workplace needs
+      r.ui.refresh();
+      expect(state()).toEqual(['short_staffed', false, false, 'No caravan will come while the trading post is short of workers', false]);
+      post.staff = 2;                                                                  // 2 of 6 is enough
+      r.ui.refresh();
+      expect(state()).toEqual([null, true, true, null, false]);
+      expect(sheet().querySelector('.next-caravan').textContent).toBe(`${T.nextCaravan}${dateText(dateParts({ day: nextCaravanDay(w) }))}`);
+    } finally { r.cleanup(); }
+    const unjoined = tradeWorld({ joined: false });
+    unjoined.w.trade.routes.memphis = { since: 0, gifted: false };
+    const r2 = await rigUI({ world: unjoined.w });
+    try {
+      openTrade(r2, unjoined.post);
+      const sheet2 = r2.root.querySelector('#sheet');
+      expect([caravanBlocker(unjoined.w), Boolean(activePost(unjoined.w))]).toEqual(['not_connected', false]);
+      expect([Boolean(sheet2.querySelector('.trade-warning')), Boolean(sheet2.querySelector('.next-caravan')), Boolean(sheet2.querySelector('.no-caravan'))]).toEqual([true, false, false]);   // the warning says why; no date beside it
+    } finally { r2.cleanup(); }
+  });
+  it('counts the stores within reach of the trading post, as a caravan does, and says so', async () => {
+    const { w, post } = tradeWorld();
+    w.trade.routes.memphis = { since: 0, gifted: true };
+    addRaw(w, 'storehouse', 20, 11, { store: { pottery: 40 } });                      // beside the road, in reach
+    addRaw(w, 'storehouse', 20, 20, { store: { pottery: 60 } });                      // no road: out of reach
+    const r = await rigUI({ world: w });
+    try {
+      openTrade(r, post);
+      expect(tradeStock(w, 'pottery')).toBe(40);
+      expect(good(r, 'pottery').textContent).toContain('40 in storage near the post');
+      fire(good(r, 'pottery').querySelector('.mode.sell'), 'click');
+      expect(good(r, 'pottery').querySelector('.keep-help').textContent).toBe('Sells what is over 0 in storage near the post');
+    } finally { r.cleanup(); }
+  });
+  it('says in a caption exactly what a real caravan did to the treasury', () => {
+    const { w } = tradeWorld();
+    w.trade.routes.memphis = { since: 0, gifted: true };
+    addRaw(w, 'storehouse', 20, 11, { store: { pottery: 40, clay: 0 } });
+    staffAll(w);
+    w.trade.orders.pottery = { mode: 'sell', keep: 10 };
+    w.trade.orders.clay = { mode: 'buy', keep: 20 };
+    const events = [];
+    const before = w.gold;
+    tradeMonth(w, events);
+    const e = events.find((x) => x.type === 'caravan');
+    const net = w.gold - before;
+    expect([e.income > 0, e.spent > 0, net]).toEqual([true, true, e.income - e.spent]);
+    expect(caravanText(e).text).toBe(`A caravan from Memphis bought ${e.sold.pottery} pottery and sold you ${e.bought.clay} clay: net ${net >= 0 ? '+' : '−'}${Math.abs(net)} gold`);
   });
   it("sends the trade route goal's Show me to the trading post card until a post stands, then to its trade sheet", async () => {
     const goal = GOALS.find((g) => g.id === 'trade_route');
