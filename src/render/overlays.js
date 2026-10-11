@@ -1,24 +1,40 @@
-// Overlays (spec 6.3): filled dot = has it, hollow ring = missing, one hue per overlay. Plus the reach
-// highlight for a selected building and the placement ghost's three states (spec 6.5).
+// Overlays (spec 6.3): filled dot = has it, hollow ring = missing, one hue per overlay; desirability is graded instead,
+// one hue light to dark with hatching below zero. Plus the reach highlight for a selected building, the placement
+// ghost's three states (spec 6.5) and the placement preview's desirability tint (spec 4.7).
 import { BUILDINGS } from '../data/buildings.js';
+import { HOUSEHOLD_GOODS } from '../data/goods.js';
 import { housesOf, allBuildings } from '../sim/world.js';
 import { houseStatus } from '../sim/housing.js';
 import { roadReach } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
+import { desirabilityField } from '../sim/desirability.js';
+import { T as TILE } from '../sim/terrain.js';
+import { idx } from '../sim/grid.js';
 import { p, U, tileDiamond, quad } from './iso.js';
 import { UI, INK, TEAL_DARK } from './art/palette.js';
 import { ART, slotFor } from './art/registry.js';
-import { GUIDE_PULSE_MS } from '../data/ui.js';
+import { GUIDE_PULSE_MS, DESIRABILITY_STEPS } from '../data/ui.js';
 
-export const OVERLAYS = ['water', 'food', 'religion', 'housing'];
-export const OVERLAY_HUE = { water: UI.water, food: UI.food, religion: UI.religion, housing: UI.housing };
-export const SERVICE_TYPES = { water: ['well'], food: ['bazaar'], religion: ['temple'], housing: [] };
+export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'housing'];
+export const OVERLAY_HUE = {
+  water: UI.water, food: UI.food, religion: UI.religion, goods: UI.goods, entertainment: UI.entertainment, desirability: UI.desirability, housing: UI.housing,
+};
+export const SERVICE_TYPES = { water: ['well'], food: ['bazaar'], religion: ['temple'], goods: ['bazaar'], entertainment: ['booth'], housing: [] };
+// Overlays that draw a graded scale over the ground instead of dots and rings (spec 6.3); their legend is a scale too.
+export const GRADED_OVERLAYS = ['desirability'];
 
 export function houseMark(world, house, kind) {
   const s = houseStatus(world, house);
   if (kind === 'housing') {
     const blocking = s.checklist.find((c) => !c.met);
     return { has: !blocking, need: blocking ? blocking.need : null };
+  }
+  // Goods: every household good the home's next tier needs (pottery, beer, linen, jewellery); a home that needs none has no mark.
+  if (kind === 'goods') {
+    const rows = s.checklist.filter((c) => HOUSEHOLD_GOODS.includes(c.need));
+    if (!rows.length) return null;
+    const missing = rows.find((c) => !c.met);
+    return { has: !missing, need: missing ? missing.need : null };
   }
   const item = s.checklist.find((c) => c.need === kind);
   return item ? { has: item.met, need: kind } : null;
@@ -82,6 +98,7 @@ function mark(g, m, color) {
 }
 
 export function drawOverlay(g, world, kind, range) {
+  if (kind === 'desirability') { drawDesirability(g, world, range); return; }
   if (!SERVICE_TYPES[kind]) return;
   const color = OVERLAY_HUE[kind];
   const tiles = new Set();
@@ -95,6 +112,73 @@ export function drawOverlay(g, world, kind, range) {
     g.poly(tileDiamond(x, y), color, { alpha: 0.16 });
   }
   for (const m of overlayMarks(world, kind, range)) mark(g, m, color);
+}
+
+// Diagonal hatching over a set of tiles: one clip for all of them, then lines on a fixed art-px grid (x + y a multiple of
+// HATCH_GAP), so the stripes stay put while the set changes under a moving ghost. Hatching, not a hue, is what says
+// "worse" (spec 6.1), so it reads without colour.
+const HATCH_GAP = 4;
+export function hatchTiles(g, tiles, color, { fill = 0.12, line = 0.8, width = 1 } = {}) {
+  if (!tiles.length) return;
+  const polys = tiles.map(([x, y]) => tileDiamond(x, y));
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of tiles) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + 1); y1 = Math.max(y1, y + 1); }
+  const left = p(x0, y1)[0], right = p(x1, y0)[0], top = p(x0, y0)[1], bottom = p(x1, y1)[1];
+  g.polys(polys, color, { alpha: fill });
+  g.save();
+  g.clipPolys(polys);
+  const segs = [];
+  for (let c = Math.floor((left + top) / HATCH_GAP) * HATCH_GAP; c <= right + bottom; c += HATCH_GAP) segs.push(['M', [c - bottom, bottom]], ['L', [c - top, top]]);
+  g.stroke(segs, color, width, line);
+  g.restore();
+}
+
+// The desirability overlay (spec 4.7, 6.3): each tile's score in one indigo, light to dark by the bands of
+// DESIRABILITY_STEPS, and coral hatching below zero. Water and the tiles under other buildings stay clear: only open
+// ground and homes have a use for the number. DESIRABILITY_ALPHA is each band's strength (the legend uses it too).
+export const DESIRABILITY_ALPHA = [0.08, 0.2, 0.32, 0.44, 0.56];
+
+// The band a score falls in: -1 below zero, else the index of the last step it reaches.
+export function desirabilityStep(v) {
+  if (v < 0) return -1;
+  let k = 0;
+  while (k + 1 < DESIRABILITY_STEPS.length && v >= DESIRABILITY_STEPS[k + 1]) k++;
+  return k;
+}
+
+// The tiles in range by band: { below: [[x, y]...], steps: [[[x, y]...] per band] }. The draw and the tests share it.
+export function desirabilityBands(world, range = null) {
+  const field = desirabilityField(world);
+  const r = range || { x0: 0, y0: 0, x1: world.size - 1, y1: world.size - 1 };
+  const below = [];
+  const steps = DESIRABILITY_STEPS.map(() => []);
+  for (let y = Math.max(0, r.y0); y <= Math.min(world.size - 1, r.y1); y++) {
+    for (let x = Math.max(0, r.x0); x <= Math.min(world.size - 1, r.x1); x++) {
+      const i = idx(world.size, x, y);
+      if (world.terrain[i] === TILE.WATER) continue;
+      const id = world.occ[i];
+      if (id && world.buildings[id].type !== 'house') continue;
+      const v = field[i];
+      if (v < 0) below.push([x, y]);
+      else steps[desirabilityStep(v)].push([x, y]);
+    }
+  }
+  return { below, steps };
+}
+
+function drawDesirability(g, world, range) {
+  const { below, steps } = desirabilityBands(world, range);
+  steps.forEach((tiles, k) => g.polys(tiles.map(([x, y]) => tileDiamond(x, y)), OVERLAY_HUE.desirability, { alpha: DESIRABILITY_ALPHA[k] }));
+  hatchTiles(g, below, UI.bad, { fill: 0.1, line: 0.75 });
+}
+
+// The placement preview's tint (spec 4.7): a teal wash on the tiles a building would make nicer, coral hatching on
+// those it would make worse. tiles = desirabilityPreview(...).tiles: [{ x, y, v }]. Wash against hatch, never colour alone.
+export function drawDesirabilityTint(g, tiles) {
+  const better = [], worse = [];
+  for (const t of tiles || []) if (t.v > 0) better.push(tileDiamond(t.x, t.y)); else if (t.v < 0) worse.push([t.x, t.y]);
+  g.polys(better, UI.nicer, { alpha: 0.28 });
+  hatchTiles(g, worse, UI.bad, { fill: 0.1, line: 0.85 });
 }
 
 export function drawReachHighlight(g, world, b) {

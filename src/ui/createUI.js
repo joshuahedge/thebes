@@ -13,7 +13,7 @@ import { checkAchievements } from '../sim/achievements.js';
 import { population, housesOf, allBuildings } from '../sim/world.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
-import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker } from '../render/overlays.js';
+import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
@@ -68,7 +68,7 @@ export function createUI({
   const view = getSize || (() => ({ width: canvas.clientWidth || win.innerWidth, height: canvas.clientHeight || win.innerHeight }));
 
   // Ghost and day bookkeeping lives up here: afterCommand is hoisted and may run during construction.
-  let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [];
+  let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [], tintList = [];
   let saveFailed = false, destroyed = false;
   // Daily goals (spec 3.7) come from the device's local date, read once when this game starts, so nothing expires
   // mid-session (a session that crosses midnight keeps its goals; the next start draws the new day).
@@ -271,7 +271,7 @@ export function createUI({
     }
     nudge.noteAction();                                // a command is a meaningful action (early-game pass 3.5)
     if (e.undoable && e.kind === 'houses' && world.speed === 0) fireTip('plotsPaused');
-    if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type]) fireTip('servicePlaced');
+    if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type] && BUILDINGS[store.get().tool.type].reach) fireTip('servicePlaced');   // a reach tip: a garden has none
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'trading_post') fireTip('tradingPostPlaced');
@@ -512,7 +512,11 @@ export function createUI({
   // Ghosts are recomputed only when the UI state object changes or a command ran (previews call canPlace).
   function ghosts() {
     const s = store.get();
-    if (s !== ghostState || ghostsDirty) { ghostState = s; ghostsDirty = false; ghostList = isToolMode(s.mode) ? placement.ghosts() : []; }
+    if (s !== ghostState || ghostsDirty) {
+      ghostState = s; ghostsDirty = false;
+      ghostList = isToolMode(s.mode) ? placement.ghosts() : [];
+      tintList = isToolMode(s.mode) ? placement.tint() : [];   // the desirability the ghost would change (spec 4.7)
+    }
     return ghostList;
   }
 
@@ -536,7 +540,9 @@ export function createUI({
         if (s.overlay) drawOverlay(g, world, s.overlay, r);
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
         if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change
-        for (const ghost of ghosts()) drawGhost(g, ghost);
+        const shapes = ghosts();                                                // refreshes the tint as well
+        drawDesirabilityTint(g, tintList);                                     // spec 4.7: teal wash nicer, coral hatching worse, under the ghost
+        for (const ghost of shapes) drawGhost(g, ghost);
         drawProblemMarkers(g, world, alerts.list(), r);                        // early-game pass 2.8: one badge per building with a problem
       },
     });

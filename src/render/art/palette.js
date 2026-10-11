@@ -59,4 +59,7 @@ export const UI = {
   ok: '#2F6FA8', warn: '#E0A030', bad: '#E2604C', label: '#3B2A14', halo: '#FFFFFF',
   water: '#2F6FA8', food: '#E2B13C', religion: '#7A5AA0', housing: '#2E8C83',
   problem: '#A33624',   // the map's problem badge (early-game pass 2.8): white "!" on it reads at 6.8:1
+  // Stage 2 overlays (spec 6.3): goods in kiln orange, entertainment in a deep rose, desirability as one indigo graded light
+  // to dark; and the placement preview's wash where homes would get nicer (spec 4.7).
+  goods: '#B5562A', entertainment: '#A8436B', desirability: '#3D3A8C', nicer: '#2E8C83',
 };

@@ -190,10 +190,12 @@ describe('ui placement fit', () => {
             expect([at, i, m.height, m.corner]).toEqual([at, i, tallest, farm[farm.length - 1].corner]);
           }
           if (!(w === 360 && size === 150)) expect([at, farm[0].height]).toEqual([at, tallest]);   // and where the min-height covers it, one height from the start
-          r.ui.placement.start(WELL, { x: 14, y: 9 });                                 // a new tool starts afresh
-          expect(r.root.querySelector('#confirm .effect').textContent).toBe('Gives water to 2 homes');
-          const well = read();
+          r.ui.placement.start(WELL, { x: 28, y: 9 });                                 // a new tool starts afresh (away from the homes, so
+          const well = read();                                                         // no desirability line: Stage 2, spec 4.7)
           expect([at, well.height <= tallest]).toEqual([at, true]);
+          r.ui.placement.moveGhost(14, 9);
+          expect(r.root.querySelector('#confirm .effect').textContent).toBe('Gives water to 2 homes');
+          read();
           // Housing plots: "Tap where it starts", a painted area with its warning, then ready for the next one.
           r.ui.placement.start({ kind: 'houses' });
           const plots = [read()];

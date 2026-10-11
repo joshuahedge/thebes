@@ -18,6 +18,16 @@ export function makeDraw(ctx, scale) {
     ctx.closePath();
   }
 
+  // Many polygons as one path (an overlay's tiles): one fill, and no seams where neighbours meet.
+  function traceAll(list) {
+    ctx.beginPath();
+    for (const pts of list) {
+      ctx.moveTo(s(pts[0][0]), s(pts[0][1]));
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(s(pts[i][0]), s(pts[i][1]));
+      ctx.closePath();
+    }
+  }
+
   function tracePath(segs) {
     ctx.beginPath();
     for (const seg of segs) {
@@ -55,6 +65,7 @@ export function makeDraw(ctx, scale) {
     ctx,
     scale,
     poly(pts, fill, o = {}) { trace(pts); fillStroke(fill, o); },
+    polys(list, fill, o = {}) { if (list.length) { traceAll(list); fillStroke(fill, o); } },
     circ(q, r, fill, o = {}) {
       ctx.beginPath();
       ctx.arc(s(q[0]), s(q[1]), s(Math.max(0, r)), 0, Math.PI * 2);
@@ -138,6 +149,7 @@ export function makeDraw(ctx, scale) {
       ctx.globalAlpha = 1;
     },
     clip(pts) { trace(pts); ctx.clip(); },
+    clipPolys(list) { traceAll(list); ctx.clip(); },
     save() { ctx.save(); },
     restore() { ctx.restore(); },
   };
