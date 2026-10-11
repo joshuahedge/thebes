@@ -24,6 +24,12 @@ export function toolForItem(item) {
   return { kind: 'building', type: item };
 }
 
+// The build category an item's card sits in (Show me and the guide open it); null for an unknown item.
+export function categoryOfItem(item) {
+  const c = CATEGORIES.find((cat) => cat.items.includes(item));
+  return c ? c.id : null;
+}
+
 // Placing a service shows its overlay together with the reach preview (spec 4.5).
 export const SHOW_ME_PULSES = 2;
 export const SHOW_ME_PULSE_MS = 400;

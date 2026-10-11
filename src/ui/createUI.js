@@ -3,8 +3,8 @@
 import { MILESTONES } from '../data/progression.js';
 import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { CATEGORIES, toolForItem, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
-import { goalById } from '../sim/goals.js';
+import { CATEGORIES, toolForItem, categoryOfItem, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
+import { goalById, nextItemFor } from '../sim/goals.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers } from '../render/overlays.js';
@@ -98,7 +98,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, afterCommand, custom: customSheets });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, afterCommand, custom: customSheets });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -133,18 +133,32 @@ export function createUI({
       cameraControl.keepVisible(g.x + def.w / 2, g.y + def.d / 2, placingInsets(store.get()));
     }
   }
-  // Show me (spec 4.1): open the right card, then pan to and pulse the place the goal is about. A building
-  // ghost lands on the nearest fit around the target (early-game pass 2.6). Task 11 moves this onto showMeAt.
+  // Show me (spec 4.1, early-game pass 2.6 and 2.10): close any sheet, open the right card, start its tool, pan to
+  // the place and pulse it. A building's ghost lands on the nearest tile where it fits around the place, so it
+  // never starts on top of a home, and the view keeps the ghost on screen even when that tile is several tiles
+  // off. The goals strip, the goals sheet and the house sheet all come through here.
+  function showMeAt({ category, item, x, y }) {
+    const s = store.get();
+    if (s.sheet) store.set(closeSheet(s));
+    store.set(pickCategory(store.get(), category || categoryOfItem(item)));
+    const tool = toolForItem(item);
+    const def = tool.kind === 'building' ? BUILDINGS[tool.type] : null;
+    placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : null);   // road, plot and demolish tools ignore the point
+    const g = def ? store.get().ghost : null;
+    if (g) cameraControl.panToKeeping(x, y, g.x + def.w / 2, g.y + def.d / 2, placingInsets(store.get()));
+    else cameraControl.panTo(x, y);
+    const at = now();
+    for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(x, y, at + i * SHOW_ME_PULSE_MS);
+  }
+  // A goal's Show me: the next building it still needs, at its target. A goal with nowhere to point (debt)
+  // opens the city summary instead.
   function showMe(goal) {
     const s = store.get();
     if (s.sheet) store.set(closeSheet(s));
-    if (!goal.showMe) { store.set(openSheet(store.get(), 'summary')); return; }   // a city-wide goal (out of debt): the summary explains it
-    store.set(pickCategory(store.get(), goal.showMe.category));
+    if (!goal.showMe) { store.set(openSheet(store.get(), 'summary')); return; }
+    const item = nextItemFor(world, goal) || goal.showMe.item;
     const t = showMeTarget(world, goal);
-    placement.start(toolForItem(goal.showMe.item), { x: Math.floor(t.x), y: Math.floor(t.y) });   // road and plot tools ignore the point
-    cameraControl.panTo(t.x, t.y);
-    const at = now();
-    for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(t.x, t.y, at + i * SHOW_ME_PULSE_MS);
+    showMeAt({ category: categoryOfItem(item) || goal.showMe.category, item, x: t.x, y: t.y });
   }
   function confirm() {
     const r = placement.confirm();
@@ -367,7 +381,7 @@ export function createUI({
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
-    store, settings, sfx, placement, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
+    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
     destroy() {
       if (destroyed) return;
       destroyed = true;

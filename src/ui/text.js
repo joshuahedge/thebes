@@ -14,6 +14,19 @@ export function buildingName(type) {
 
 export const NEED_NAMES = { road: 'Road access', water: 'Water', food: 'Food', religion: 'Temple' };
 
+// The house sheet's causes and fixes (early-game pass 2.10), keyed by needCause codes. Reaches come from the data.
+export const CAUSE_TEXT = {
+  no_road: { cause: 'No road beside it', fix: 'Lay a road next to it' },
+  no_well: { cause: `No working well within ${BUILDINGS.well.reach} road tiles`, fix: 'Build a well near it' },
+  no_bazaar: { cause: `No working bazaar within ${BUILDINGS.bazaar.reach} road tiles`, fix: 'Build a bazaar near it' },
+  bazaar_empty: { cause: 'The bazaar has no grain', fix: 'Build a granary near the bazaar' },
+  next_delivery: { cause: 'Food arrives at the next delivery', fix: '' },
+  no_temple: { cause: `No working temple within ${BUILDINGS.temple.reach} road tiles`, fix: 'Build a temple near it' },
+};
+
+// The city summary's mood rows, keyed by world.moodBreakdown.
+export const MOOD_NAMES = { base: 'Starting mood', food: 'Food', jobs: 'Jobs', debt: 'Debt' };
+
 export const tierName = (tier) => (tier >= 1 && TIERS[tier] ? TIERS[tier].name : 'Empty plot');
 
 const REASONS = {
@@ -81,6 +94,8 @@ export const OVERLAY_LEGEND = {
 
 export const dateText = ({ year, month, day }) => `Year ${year}, month ${month}, day ${day}`;
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+export const progressText = (n, of) => `${n} of ${of}`;
+export const residentsLabel = (n, of) => `${progressText(n, of)} residents`;
 export const goalsProgressText = (done, total) => `${done} of ${total} done`;
 export const milestoneText = (name) => `Your city is now a ${name}`;
 
@@ -96,6 +111,7 @@ export const T = {
   grain: 'Grain', lasts: 'Lasts', working: 'Working', jobs: 'Jobs',
   workers: 'Workers', stock: 'Stock', problems: 'Problems', noProblems: 'No problems', reach: 'Reach', view: 'View',
   residents: 'Residents', nextTier: 'To grow it needs', upgradesAtMonthEnd: 'Grows at the end of the month', emptyPlot: 'Waiting for people to move in',
+  hasIt: 'Has it', missing: 'Missing',
   alerts: 'Alerts', noAlerts: 'All quiet', zoomIn: 'Zoom in', zoomOut: 'Zoom out', jumpTo: 'Jump to',
   newCity: 'New city', continueGame: 'Continue', exportCity: 'Export city', importCity: 'Import city', settings: 'Settings', howToPlay: 'How to play', about: 'About',
   startNewCity: 'Start new city', newCityConfirm: 'Start a new city? The current one will be lost.', notYet: 'Not available yet', comingLater: 'Coming later',
