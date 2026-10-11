@@ -1,11 +1,15 @@
 // Feedback effects (spec 5.4): a dust puff on placing, a glow and "+Shack" on upgrade, a coral pulse and
-// "−Cottage" on downgrade, and a hook for the milestone banner (the banner itself is 1c's DOM). Under
-// prefers-reduced-motion there are no puffs, glows or pulses, and labels stay still.
+// "−Cottage" on downgrade, and a hook for the milestone banner (the banner itself is 1c's DOM). The settle
+// (early-game pass 2.4): a placed building rises from the ground while two haulers work at its front corners
+// in a little dust; the renderer reveals the sprite bottom-up from risingIds. Under prefers-reduced-motion
+// there are no puffs, glows, pulses or rises (the building simply appears), and labels stay still.
 import { TIERS } from '../data/housing.js';
 import { p, U, quad } from './iso.js';
 import { UI, GOLD, TERRAIN } from './art/palette.js';
+import { hauler } from './art/figures.js';
 
-export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400 };
+export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900 };
+export const RISE_STEPS = 2;   // hauler steps per rise: about two a second
 
 export function prefersReducedMotion() {
   try { return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
@@ -24,6 +28,15 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
     glow(x, y, now) { if (!reduced()) add({ kind: 'glow', x, y, start: now }); },
     pulse(x, y, now) { if (!reduced()) add({ kind: 'pulse', x, y, start: now }); },
     label(x, y, text, color, now) { add({ kind: 'label', x, y, text, color, start: now }); },
+    // Building `id` with footprint w x d at tile (x, y) rises from the ground over EFFECT_MS.rise.
+    rise(id, x, y, w, d, now) { if (!reduced()) add({ kind: 'rise', id, x, y, w, d, start: now }); },
+    // id -> how far each rising building is up, in [0, 1).
+    risingIds(now) {
+      prune(now);
+      const out = new Map();
+      for (const e of list) if (e.kind === 'rise') out.set(e.id, Math.max(0, age(e, now)));
+      return out;
+    },
     // How far (art px) a label has risen at progress t in 0..1. Still under reduced motion.
     labelLift(t) { return reduced() ? 0 : 10 * t; },
     fromEvents(world, events, now) {
@@ -59,6 +72,18 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
           const r = 0.5 + t * 0.8;
           g.poly(quad(e.x - r, e.y - r, 2 * r, 2 * r, 0), 'none', { stroke: UI.bad, strokeWidth: 2 - t, strokeAlpha: 1 - t });
           g.poly(quad(e.x - 0.5, e.y - 0.5, 1, 1, 0), UI.bad, { alpha: (1 - t) * 0.25 });
+        } else if (e.kind === 'rise') {
+          const k = Math.max(0, t);
+          // Dust along the two front edges, lifting and thinning as the walls go up.
+          for (let i = 0; i < 4; i++) {
+            const u = i % 2 ? 0.75 : 0.25;
+            const q = i < 2 ? p(e.x + e.w * u, e.y + e.d) : p(e.x + e.w, e.y + e.d * u);
+            g.circ([q[0], q[1] - 1 - k * 7], 1.5 + k * 2.5, TERRAIN.dotLight, { alpha: (1 - k) * 0.55 });
+          }
+          // Two haulers at the front corners, a half step apart.
+          const step = (k * RISE_STEPS) % 1;
+          hauler(g, e.x + 0.05, e.y + e.d + 0.25, step);
+          hauler(g, e.x + e.w + 0.25, e.y + 0.05, (step + 0.5) % 1);
         } else if (e.kind === 'label') {
           const q = U(c, 16 + fx.labelLift(t));
           g.text([q[0] + 0.6, q[1] + 0.6], e.text, { size: 7, color: UI.halo, alpha: Math.min(1, (1 - t) * 1.5) });

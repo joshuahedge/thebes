@@ -170,7 +170,11 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       }
       if (!result.ok) return result;
       assignLabour(world);
-      if (effects) effects.puff(cx, cy, now());
+      if (effects) {
+        const at = now();
+        effects.puff(cx, cy, at);
+        if (t.kind === 'building') effects.rise(result.id, s.ghost.x, s.ghost.y, BUILDINGS[t.type].w, BUILDINGS[t.type].d, at);   // the work-gang settle
+      }
       if (t.kind === 'road') store.set({ line: null });
       else if (t.kind !== 'building') store.set({ area: null });
       afterCommand({ kind: t.kind, result, text, undoable: true });

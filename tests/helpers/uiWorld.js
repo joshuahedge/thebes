@@ -109,7 +109,7 @@ export async function rigUI({ width = 390, height = 844, hooks = {}, doc = fakeD
   const resize = (w, h) => { size = { width: w, height: h }; shell.root.style.width = `${w}px`; shell.root.style.height = `${h}px`; for (const fn of resizeListeners) fn(); };
   const frame = (t = 0) => ui.render({ timeDays: world.day, now: t });
   return {
-    root: shell.root, world, canvas, cam, ui, store: ui.store, history, doc, at, screenOf, tap, resize, frame,
+    root: shell.root, world, canvas, cam, renderer, ui, store: ui.store, history, doc, at, screenOf, tap, resize, frame,
     cleanup() { ui.destroy(); shell.cleanup(); },
   };
 }

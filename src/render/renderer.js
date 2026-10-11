@@ -1,5 +1,7 @@
 // One frame (spec 7.4): baked terrain chunks, ground shadows, depth-sorted sprites (buildings, trees and
-// walkers), then effects, overlays and the placement grid. Reads the world; never writes it.
+// walkers), then effects, overlays and the placement grid. Reads the world; never writes it. Buildings in
+// opts.rising (id -> t in [0, 1), from effects.risingIds) are revealed bottom-up: only the lowest t share of
+// the sprite shows, and the shadow grows with it.
 import { ART_SCALE, p, depthKey, compareDepth } from './iso.js';
 import { visibleTileRange, visibleChunks, artToScreen, CHUNK } from './camera.js';
 import { ART, slotFor } from './art/registry.js';
@@ -63,6 +65,21 @@ export function collectObjects(world, range, walkers = [], registry = ART) {
 
 const defaultDpr = () => (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
 
+// drawSprite with only the bottom t share of the sprite's height showing, clipped in device px.
+export function drawRising(ctx, sprite, px, py, zoom, dpr, t) {
+  if (t <= 0) return;
+  const k = (ART_SCALE * zoom * dpr) / sprite.scale;
+  const left = px - sprite.ax * k, top = py - sprite.ay * k;
+  const w = sprite.canvas.width * k, h = sprite.canvas.height * k;
+  const cut = top + h * (1 - Math.min(1, t));
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(left, cut, w, top + h - cut);
+  ctx.clip();
+  drawSprite(ctx, sprite, px, py, zoom, dpr);
+  ctx.restore();
+}
+
 export function createRenderer({
   canvas, spriteCache = createSpriteCache(), baker = createTerrainBaker(),
   dpr = defaultDpr, registry = ART, maxBakesPerFrame = 2,
@@ -110,10 +127,12 @@ export function createRenderer({
 
     // 2. Ground shadows, drawn in art px with the art origin placed by the camera.
     const objects = collectObjects(world, range, opts.walkers || [], registry);
+    const rising = opts.rising || null;   // building ids only: tree and walker ids start at 1e6
     ctx.setTransform(1, 0, 0, 1, ox, oy);
     for (const o of objects) {
       if (!o.def) continue;
-      for (const [dx, dy, w, d, h] of o.def.shadows) groundShadow(g, o.x + dx, o.y + dy, w, d, h);
+      const up = rising && rising.has(o.id) ? rising.get(o.id) : 1;
+      for (const [dx, dy, w, d, h] of o.def.shadows) groundShadow(g, o.x + dx, o.y + dy, w, d, h * up);
     }
 
     // 3. Depth-sorted sprites: buildings, trees and walkers in one pass, back to front.
@@ -124,7 +143,8 @@ export function createRenderer({
       if (!sprite) continue;
       const q = p(o.x, o.y);
       const [px, py] = toDevice(q[0], q[1]);
-      drawSprite(ctx, sprite, px, py, zoom, dpr);
+      if (rising && rising.has(o.id)) drawRising(ctx, sprite, px, py, zoom, dpr, rising.get(o.id));
+      else drawSprite(ctx, sprite, px, py, zoom, dpr);
       sprites++;
     }
 

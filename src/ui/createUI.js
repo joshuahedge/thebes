@@ -345,7 +345,7 @@ export function createUI({
     const range = visibleTileRange(cam, v, world.size);
     const selected = s.selectedId !== null ? world.buildings[s.selectedId] : null;
     renderer.renderFrame(world, cam, {
-      view: v, walkers: walkersAt(world, timeDays, range), effects, now: t, grid: isToolMode(s.mode),
+      view: v, walkers: walkersAt(world, timeDays, range), effects, now: t, rising: effects.risingIds(t), grid: isToolMode(s.mode),
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r);
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach

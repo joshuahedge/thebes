@@ -11,7 +11,7 @@ function rig() {
   setRoad(world, 0, 10, 31, 10);
   const store = createStore(INITIAL_UI_STATE);
   const log = [];
-  const pl = createPlacement({ world, store, afterCommand: (e) => log.push(e.kind), effects: { puff: () => log.push('puff') }, now: () => 0 });
+  const pl = createPlacement({ world, store, afterCommand: (e) => log.push(e.kind), effects: { puff: () => log.push('puff'), rise: () => log.push('rise') }, now: () => 0 });
   return { world, store, pl, log };
 }
 
@@ -43,7 +43,7 @@ describe('ui placement', () => {
     expect(pl.confirm().ok).toBe(true);
     expect(allBuildings(world).some((b) => b.type === 'farm_grain' && b.x === 2 && b.y === 8)).toBe(true);
     expect(world.gold).toBe(gold - BUILDINGS.farm_grain.cost);
-    expect(log).toEqual(['puff', 'building']);
+    expect(log).toEqual(['puff', 'rise', 'building']);
     expect(store.get().mode).toBe('placing');
     expect(store.get().ghost).toEqual({ x: 2, y: 8 });
     expect(pl.preview().state).toBe('bad');     // the spot is taken now
