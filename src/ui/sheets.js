@@ -9,7 +9,7 @@ import { storeTotal, storeAccepts } from '../sim/production.js';
 import { openGoals, guideActive } from '../sim/goals.js';
 import { achievementProgress } from '../sim/achievements.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
-import { closeSheet } from './modes.js';
+import { closeSheet, openSheet } from './modes.js';
 import { summaryData } from './hud.js';
 import { ZOOM_STEP } from '../data/ui.js';
 import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText, T } from './text.js';
@@ -103,6 +103,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (reach) body.append(row(T.reach, `${reach} road tiles`));
     body.append(el('h3', { text: T.problems }), problems(b.id));
     const actions = el('div', { class: 'actions' });
+    // The trading post's routes and orders live on their own sheet (spec 4.15); Back comes back here.
+    if (b.type === 'trading_post') actions.append(button(T.trade, { class: 'trade primary', onClick: () => store.set(openSheet(store.get(), 'trade', b.id)) }));
     if (def.workers || def.upkeep) {
       actions.append(button(b.paused ? T.resume : T.pause, { class: 'pause', onClick: () => {
         const r = setPaused(world, b.id, !b.paused);
