@@ -103,7 +103,7 @@ describe('ui achievements sheet', () => {
         expect(row.textContent).toContain(progressText(p.n, p.of));                    // the words, beside the bar
         expect(row.textContent).toContain(ACHIEVEMENT_TEXT[a.id]);
       }
-      expect(r.root.querySelectorAll('#sheet [role="progressbar"]').length).toBe(counted.length);
+      expect(r.root.querySelectorAll('#sheet .achievements [role="progressbar"]').length).toBe(counted.length);   // the score's part bars are not achievements
     } finally { r.cleanup(); }
   });
   it('keeps achievements out of sight while the guide runs', async () => {

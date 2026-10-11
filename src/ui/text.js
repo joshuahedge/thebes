@@ -592,7 +592,53 @@ export const DANGER_UI_TEXT = {};
 //
 // ── s3 score (Track E) ──────────────────────────────────────────────────────────────────────────────────────────
 // Track E's words for scoring: parts, reasons, medals, splits, records, sharing, feats, remarks, and the danger goals, firsts, achievements, daily goals and tips. Add new lines just above the end marker.
-export const SCORE_TEXT = {};
+// Imports for this section only, aliased so no other section's names can clash (import declarations are hoisted).
+import { DAYS_PER_MONTH as SCORE_DAYS_PER_MONTH, MONTHS_PER_YEAR as SCORE_MONTHS_PER_YEAR } from '../sim/time.js';
+// The score (spec 4.19): parts, reasons, medals, the chip, the confirm bar's "+3 Culture" and the summary's section. Every
+// number comes from scoreOf (src/sim/score.js); the reason codes and their fields are listed there.
+export const SCORE_TEXT = {
+  score: 'Score', cityScore: 'City score', splits: 'Milestones', noSplits: 'No milestones yet',
+  parts: { people: 'People', prosperity: 'Prosperity', culture: 'Culture', safety: 'Safety' },
+  medals: { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' },
+  noMedal: 'No medal yet', topMedal: 'The highest medal',
+  noHomes: 'No one lives here yet', noRoute: 'No trade route yet', raidLost: 'A raid was lost in the last year',
+  scoreHelp: 'The score measures the city as it stands now. It never changes what you can build.',
+};
+const SCORE_SIDE_STREETS = { east: 'the east streets', west: 'the west streets', north: 'the north streets', south: 'the south streets' };
+const scoreMilestoneName = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
+// One part's reason line, from scoreOf's reasons[part] ({ code, ... }); '' for none.
+export function scoreReasonText(r) {
+  if (!r) return '';
+  switch (r.code) {
+    case 'growth': return `${scoreMilestoneName(r.milestone)}: ${progressText(r.people, r.of)} people`;
+    case 'homes': return `Most homes are ${TIERS[r.tier].name}s`;
+    case 'no_homes': return SCORE_TEXT.noHomes;
+    case 'taxes': return `Taxes bring ${r.perPerson} gold a person: bigger homes pay more`;
+    case 'jobless': return `${r.percent}% of workers have no job`;
+    case 'debt': return `The treasury is ${r.gold} gold in debt`;
+    case 'routes': return r.n === 0 ? SCORE_TEXT.noRoute : `Only ${plural(r.n, 'trade route is', 'trade routes are')} open`;
+    case 'no_temple': return `${plural(r.n, 'home has', 'homes have')} no temple`;
+    case 'no_booth': return `${plural(r.n, 'home has', 'homes have')} no entertainment`;
+    case 'no_bazaar': return `${plural(r.n, 'home has', 'homes have')} no bazaar`;
+    case 'plain': return `Homes average ${r.value} of 50 desirability`;
+    case 'fire_cover': return `No staffed firehouse reaches ${r.dir ? SCORE_SIDE_STREETS[r.dir] : plural(r.n, 'building', 'buildings')}`;
+    case 'towers': return `A raid this size needs ${plural(r.need, 'tower', 'towers')}; you have ${r.towers} working${r.soldiers ? ` and ${plural(r.soldiers, 'soldier', 'soldiers')}` : ''}`;
+    case 'burned': return `${plural(r.n, 'building', 'buildings')} burned in the last year`;
+    case 'raid_lost': return SCORE_TEXT.raidLost;
+    default: return '';
+  }
+}
+export const scoreChipText = (total) => `${SCORE_TEXT.score} ${total}`;
+export const medalText = (medal) => (medal ? `${SCORE_TEXT.medals[medal]} medal` : SCORE_TEXT.noMedal);
+export const nextMedalText = (next) => (next ? `${plural(next.points, 'point', 'points')} to ${SCORE_TEXT.medals[next.medal]}` : SCORE_TEXT.topMedal);
+export const partBarLabel = (part, n) => `${SCORE_TEXT.parts[part]}: ${progressText(n, 100)}`;
+export const factorText = (raw, factor, level) => `Parts ${raw} × ${factor} on ${DIFFICULTY_NAMES[level] || level}`;
+// The confirm bar's score line: the parts that would change by a whole point or more ("+3 Culture, −1 Safety"); '' for none.
+export const scoreLineText = (delta) => Object.keys(SCORE_TEXT.parts).filter((p) => Math.abs(delta[p] || 0) >= 1)
+  .map((p) => `${delta[p] > 0 ? '+' : '−'}${Math.abs(delta[p])} ${SCORE_TEXT.parts[p]}`).join(', ');
+// A milestone split as a game date: "Town in year 2, month 3" (day 0 is year 1, month 1).
+const SCORE_YEAR_DAYS = SCORE_DAYS_PER_MONTH * SCORE_MONTHS_PER_YEAR;
+export const splitDateText = (id, day) => `${scoreMilestoneName(id)} in year ${Math.floor(day / SCORE_YEAR_DAYS) + 1}, month ${Math.floor((day % SCORE_YEAR_DAYS) / SCORE_DAYS_PER_MONTH) + 1}`;
 // ── end s3 score ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

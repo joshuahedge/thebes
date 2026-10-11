@@ -7,8 +7,9 @@ import { dailyProgress } from '../sim/daily.js';
 import { achievementProgress } from '../sim/achievements.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { CRITICAL } from './alerts.js';
+import { scoreOf } from '../sim/score.js';
 import { el, button } from './components.js';
-import { alertText, dateText, plural, progressText, closestAchievementText, viewLabel, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, TREND_MARKS, T } from './text.js';
+import { alertText, dateText, plural, progressText, closestAchievementText, viewLabel, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, TREND_MARKS, SCORE_TEXT, T } from './text.js';
 
 const MINUTE = 60 * 1000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 
@@ -79,6 +80,8 @@ export function welcomeSheet({ world, savedAt, lastSpeed, now = () => Date.now()
       trendRow(T.people, population(world), world.history, 'people'),
       trendRow(T.gold, world.gold, world.history, 'gold'),
       trendRow(T.mood, world.mood, world.history, 'mood'),
+      // Stage 3 (spec 4.17, 4.19): the city score against the month-end rows that hold one (a version 3 save's rows do not).
+      trendRow(SCORE_TEXT.score, scoreOf(world).total, world.history.filter((r) => Number.isFinite(r.score)), 'score'),
     ]));
     const goals = openGoals(world, 3);
     body.append(el('h3', { text: T.goals }), goals.length ? el('ul', { class: 'goals' }, goals.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
