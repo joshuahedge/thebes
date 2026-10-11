@@ -1,12 +1,17 @@
 import { ECONOMY } from '../data/economy.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { DIFFICULTIES } from '../data/difficulty.js';
 import { generateMap } from './mapgen.js';
 import { idx, footprint } from './grid.js';
 
-export const WORLD_VERSION = 2;
+export const WORLD_VERSION = 3;
 export const HISTORY_MONTHS = 12;   // month-end rows kept for the Welcome back trends
 
-export function createWorld({ seed = 1, size = 64, map = null } = {}) {
+// The trade state a city starts with (Stage 2): no routes open, no orders, no price drift drawn, no quota used.
+export const newTradeState = () => ({ routes: {}, orders: {}, drift: {}, used: {}, year: 1 });
+
+// difficulty is a DIFFICULTIES key (spec 4.18), fixed for the city's life; anything else starts a Normal city.
+export function createWorld({ seed = 1, size = 64, map = null, difficulty = 'normal' } = {}) {
   const m = map || generateMap(seed, size);
   const n = m.size * m.size;
   const world = {
@@ -39,7 +44,11 @@ export function createWorld({ seed = 1, size = 64, map = null } = {}) {
     achievements: [],                                   // ids of achievements already earned (null as for firsts)
     daily: null,                                        // today's daily goals: { date, picks, base, done, swapped }
     guide: { on: true, done: false },                   // the guided start: running, and whether it has finished
-    tally: { harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0 },   // running counts for firsts, achievements and daily goals
+    // Running counts for firsts, achievements, daily goals and the summary; made: units produced, by good.
+    tally: { harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0, made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0 },
+    difficulty: Object.hasOwn(DIFFICULTIES, difficulty) ? difficulty : 'normal',
+    trade: newTradeState(),                             // open routes, orders, price drift and quota used this year
+    newItems: [],                                       // build items a milestone unlocked and nothing has placed yet ("New")
   };
   for (const [x, y] of m.startRoad) world.road[idx(world.size, x, y)] = 1;
   return world;

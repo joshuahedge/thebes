@@ -2,8 +2,8 @@
 // coral with a coin-slash when unaffordable; a lock and the unlock condition when locked. Shared by the dock
 // tray, the side panel grid and the rail drawer.
 import { BUILDINGS } from '../data/buildings.js';
-import { ECONOMY } from '../data/economy.js';
 import { isUnlocked } from '../sim/progression.js';
+import { costOf, roadCostOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
 import { CATEGORIES } from '../data/ui.js';
 import { buildingName, unlockText, T } from './text.js';
@@ -12,11 +12,12 @@ import { drawThumb } from './thumbs.js';
 
 const deviceRatio = () => Math.min(3, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
 
+// Costs are this city's (difficulty included: spec 4.18), the same the commands charge.
 export function cardInfo(world, item) {
   let cost = 0, suffix = '', costText;
-  if (item === 'road') { cost = ECONOMY.roadCost; suffix = ' per tile'; }
-  else if (item === 'house') { cost = BUILDINGS.house.cost; suffix = ' per plot'; }
-  else if (item !== 'demolish') cost = BUILDINGS[item].cost;
+  if (item === 'road') { cost = roadCostOf(world); suffix = ' per tile'; }
+  else if (item === 'house') { cost = costOf(world, 'house'); suffix = ' per plot'; }
+  else if (item !== 'demolish') cost = costOf(world, item);
   costText = item === 'demolish' ? 'Refunds a quarter' : `${cost} gold${suffix}`;
   const locked = Boolean(BUILDINGS[item]) && !isUnlocked(world, item);
   return { item, name: buildingName(item), cost, costText, affordable: canAfford(world, cost), locked, lockText: locked ? unlockText(item) : '' };

@@ -6,6 +6,7 @@ import { advanceDays } from '../../src/sim/clock.js';
 import { drawRoad, paintHouses, place } from '../../src/sim/commands.js';
 
 const NEW_KEYS = ['firsts', 'achievements', 'daily', 'guide', 'tally'];
+const V3_KEYS = ['difficulty', 'trade', 'newItems'];   // version 3's fields (tests/save/migrateV3.test.js)
 const code = (fn) => { try { fn(); } catch (e) { return e.message; } return null; };
 
 // A version 1 save as Stage 1d wrote it: a lived-in city without the version 2 fields.
@@ -17,7 +18,7 @@ function v1City() {
   expect(place(w, 'well', x, y - 1).ok).toBe(true);
   advanceDays(w, 75);
   const v1 = JSON.parse(serialize(w));
-  for (const k of NEW_KEYS) delete v1[k];
+  for (const k of [...NEW_KEYS, ...V3_KEYS]) delete v1[k];
   v1.goals = { completed: v1.goals.completed.slice() };
   v1.version = 1;
   return v1;
@@ -47,18 +48,18 @@ describe('migrate v1 to v2', () => {
     expect(v2.goals).toEqual({ completed: v1.goals.completed, triggered: [] });
     expect(v2.goals.completed === v1.goals.completed).toBe(false); // a copy, not the same array
     for (const k of Object.keys(v1)) if (k !== 'version' && k !== 'goals') expect([k, v2[k]]).toEqual([k, v1[k]]);
-    expect(Object.keys(v2).sort()).toEqual([...REQUIRED].sort());
-    expect(validateWorld(v2)).toBe(true);
+    expect(Object.keys(v2).sort()).toEqual(REQUIRED.filter((k) => !V3_KEYS.includes(k)).sort());
+    expect(validateWorld(MIGRATIONS[2](v2))).toBe(true);                    // valid once version 3 adds its fields
   });
   it('runs through migrate, deserialize and unpackSave', () => {
     const v1 = v1City();
-    expect(CURRENT_VERSION).toBe(2);
-    expect(migrate(v1)).toEqual(MIGRATIONS[1](v1));
-    expect(deserialize(JSON.stringify(v1)).version).toBe(2);
+    expect(CURRENT_VERSION).toBe(3);
+    expect(migrate(v1)).toEqual(MIGRATIONS[2](MIGRATIONS[1](v1)));
+    expect(deserialize(JSON.stringify(v1)).version).toBe(3);
     const back = unpackSave(JSON.stringify({ version: 1, savedAt: 1760000000000, lastSpeed: 2, world: v1 }));
     expect(back.savedAt).toBe(1760000000000);
     expect(back.lastSpeed).toBe(2);
-    expect(back.world.version).toBe(2);
+    expect(back.world.version).toBe(3);
     expect(back.world.guide.on).toBe(false);
     expect(back.world.tally.peakPeople).toBe(population(v1));
     expect(back.world.buildings).toEqual(v1.buildings);
