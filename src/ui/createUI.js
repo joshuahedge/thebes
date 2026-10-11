@@ -120,21 +120,29 @@ export function createUI({
     return parts.join(', ');
   }
 
-  // A card was picked: the ghost appears a little above mid-screen, snapped onto the map (spec 6.5).
+  // A card was picked: the ghost starts a little above mid-screen and lands on the nearest tile where it fits
+  // (spec 6.5, early-game pass 2.6). That tile can be up to ten tiles away, so the view follows it off screen.
   function pick(item) {
     const v = view();
     const c = screenToTile(cam, v, v.width / 2, v.height * 0.4);
-    placement.start(toolForItem(item), { x: c.x, y: c.y });
+    const tool = toolForItem(item);
+    placement.start(tool, { x: c.x, y: c.y });
+    const g = store.get().ghost;
+    if (g && tool.kind === 'building') {
+      const def = BUILDINGS[tool.type];
+      cameraControl.keepVisible(g.x + def.w / 2, g.y + def.d / 2, placingInsets(store.get()));
+    }
   }
-  // Show me (spec 4.1): open the right card, then pan to and pulse the place the goal is about.
+  // Show me (spec 4.1): open the right card, then pan to and pulse the place the goal is about. A building
+  // ghost lands on the nearest fit around the target (early-game pass 2.6). Task 11 moves this onto showMeAt.
   function showMe(goal) {
     const s = store.get();
     if (s.sheet) store.set(closeSheet(s));
+    if (!goal.showMe) { store.set(openSheet(store.get(), 'summary')); return; }   // a city-wide goal (out of debt): the summary explains it
     store.set(pickCategory(store.get(), goal.showMe.category));
-    pick(goal.showMe.item);
     const t = showMeTarget(world, goal);
+    placement.start(toolForItem(goal.showMe.item), { x: Math.floor(t.x), y: Math.floor(t.y) });   // road and plot tools ignore the point
     cameraControl.panTo(t.x, t.y);
-    placement.moveGhost(Math.floor(t.x), Math.floor(t.y));   // a building ghost lands on the target, not at the old screen centre (ignored for road and plot tools)
     const at = now();
     for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(t.x, t.y, at + i * SHOW_ME_PULSE_MS);
   }
@@ -296,6 +304,11 @@ export function createUI({
     if (s.layout === 'compact') return { top: TOPBAR_PX, right: RAIL_PX + DRAWER_PX, bottom: 0, left: 0 };
     return { top: TOPBAR_PX, right: PANEL_PX, bottom: 0, left: 0 };
   }
+  // The map a tool leaves free: in portrait the confirm bar and the corner buttons on it cover the bottom.
+  function placingInsets(s) {
+    if (s.layout !== 'portrait') return sheetInsets(s);
+    return { top: TOPBAR_PX, right: 0, bottom: Math.min(view().height * 0.3, 240), left: 0 };
+  }
   function panelDetails() {
     const s = store.get();
     const b = s.hoverId !== null ? world.buildings[s.hoverId] : null;
@@ -359,6 +372,7 @@ export function createUI({
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
       for (const id of ['sheet', 'dialog']) { const c = $(id); clear(c); c.hidden = true; }
       confirmBar.element.remove();
+      document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it
       delete root.dataset.mode;
       root.classList.remove('has-banner', 'has-overlay');
     },

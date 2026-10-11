@@ -1,4 +1,5 @@
 import { describe, it, expect } from '../harness.js';
+import { nearestFit } from '../../src/ui/placement.js';
 import { createGoalsStrip, goalsSheet, showMeTarget } from '../../src/ui/goalsList.js';
 import { GOALS } from '../../src/data/goals.js';
 import { goalById } from '../../src/sim/goals.js';
@@ -103,7 +104,8 @@ describe('ui goals', () => {
     fire(r.root.querySelector('#goals .show-me'), 'click');
     const t = showMeTarget(r.world, goalById('well'));
     expect(r.store.get().tool.type).toBe('well');
-    expect(r.store.get().ghost).toEqual({ x: Math.floor(t.x), y: Math.floor(t.y) });
+    expect(r.store.get().ghost).toEqual(nearestFit(r.world, { kind: 'building', type: 'well' }, Math.floor(t.x), Math.floor(t.y)));
+    expect(r.ui.placement.preview().state).toBe('ok');             // the hut on the target tile is stepped around
     r.cleanup();
   });
 });

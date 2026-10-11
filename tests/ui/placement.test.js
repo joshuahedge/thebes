@@ -20,7 +20,7 @@ describe('ui placement', () => {
     const { world, store, pl } = rig();
     pl.start({ kind: 'building', type: 'well' }, { x: 40, y: -2 });
     expect(store.get().mode).toBe('placing');
-    expect(store.get().ghost).toEqual({ x: 31, y: 0 });
+    expect(store.get().ghost).toEqual({ x: 31, y: 9 });           // snapped onto the map, then down to the nearest tile where it fits
     expect(store.get().overlay).toBe('water');
     expect(snapGhost(world, { kind: 'building', type: 'temple' }, 31, 31)).toEqual({ x: 30, y: 30 });
     pl.moveGhost(5, 9);

@@ -49,6 +49,7 @@ describe('ui panels', () => {
     expect(root.querySelector('.drawer').hidden).toBe(true);
     expect(root.querySelector('.bottom').hidden).toBe(true);
     placement.start({ kind: 'building', type: 'well' }, { x: 5, y: 20 });
+    placement.moveGhost(5, 20);                                    // the start lands on the nearest fit; put the ghost back where nothing fits
     expect(root.querySelector('.bottom').hidden).toBe(false);
     expect(root.querySelector('.ok').disabled).toBe(true);
     placement.moveGhost(5, 9);

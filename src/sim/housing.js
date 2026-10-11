@@ -35,6 +35,17 @@ export function computeCoverage(world) {
   return cov;
 }
 
+// How many housing plots (any tier, empty ones too) a service of this type placed at (x, y) would reach along
+// the roads: the coveredBy rule applied to a building that is not there yet (early-game pass 2.6).
+export function homesServedFrom(world, type, x, y) {
+  const def = BUILDINGS[type];
+  if (!def || !def.reach) return 0;
+  const reach = roadReach(world, { x, y, w: def.w, d: def.d }, def.reach);
+  let n = 0;
+  for (const h of housesOf(world)) if (reachDistance(reach, world, h) <= def.reach) n++;
+  return n;
+}
+
 export function removeResidents(house, n) {
   const k = Math.min(n, house.residents);
   house.residents -= k;

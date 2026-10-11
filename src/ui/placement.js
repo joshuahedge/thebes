@@ -7,8 +7,9 @@ import {
 import { undo as undoCommand } from '../sim/undo.js';
 import { assignLabour } from '../sim/labour.js';
 import { startTool as startToolPatch, cancelTool } from './modes.js';
-import { AUTO_OVERLAY } from '../data/ui.js';
-import { buildingName, reasonText, warningText, plural, T } from './text.js';
+import { AUTO_OVERLAY, NEAREST_FIT_RADIUS } from '../data/ui.js';
+import { homesServedFrom } from '../sim/housing.js';
+import { buildingName, reasonText, warningText, effectText, plural, T } from './text.js';
 
 const footprintOf = (tool) => (tool.kind === 'building' ? { w: BUILDINGS[tool.type].w, d: BUILDINGS[tool.type].d } : { w: 1, d: 1 });
 
@@ -17,8 +18,37 @@ export function snapGhost(world, tool, x, y) {
   return { x: Math.max(0, Math.min(world.size - w, Math.round(x))), y: Math.max(0, Math.min(world.size - d, Math.round(y))) };
 }
 
-const idle = (text, tiles = []) => ({ state: 'idle', reason: null, warnings: [], text, cost: 0, count: 0, tiles, refund: 0 });
-const bad = (reason, cost, count, tiles = []) => ({ state: 'bad', reason, warnings: [], text: reasonText(reason), cost, count, tiles, refund: 0 });
+// The tiles at Chebyshev distance r from (cx, cy): nearest first, then the upper row, then the left column, so
+// the search below is deterministic.
+function ringTiles(cx, cy, r) {
+  if (r === 0) return [[cx, cy]];
+  const out = [];
+  for (let k = -r; k <= r; k++) out.push([k, -r], [k, r]);
+  for (let k = -r + 1; k <= r - 1; k++) out.push([-r, k], [r, k]);
+  out.sort((a, b) => (a[0] * a[0] + a[1] * a[1]) - (b[0] * b[0] + b[1] * b[1]) || a[1] - b[1] || a[0] - b[0]);
+  return out.map(([dx, dy]) => [cx + dx, cy + dy]);
+}
+
+// Where a picked building's ghost lands (early-game pass 2.6): the nearest origin, in rings out to maxR
+// tiles around the snapped point, where it can be placed. A clean fit anywhere in reach beats a fit with a
+// warning; with no fit at all the snapped point stays, so the bar can say why. Line and area tools only snap.
+export function nearestFit(world, tool, x, y, maxR = NEAREST_FIT_RADIUS) {
+  const start = snapGhost(world, tool, x, y);
+  if (!tool || tool.kind !== 'building') return start;
+  let warned = null;
+  for (let r = 0; r <= maxR; r++) {
+    for (const [tx, ty] of ringTiles(start.x, start.y, r)) {
+      const c = canPlace(world, tool.type, tx, ty);           // off-map origins fail here as out_of_bounds
+      if (!c.ok) continue;
+      if (!c.warnings.length) return { x: tx, y: ty };
+      if (!warned) warned = { x: tx, y: ty };
+    }
+  }
+  return warned || start;
+}
+
+const idle = (text, tiles = []) => ({ state: 'idle', reason: null, warnings: [], text, effect: '', cost: 0, count: 0, tiles, refund: 0 });
+const bad = (reason, cost, count, tiles = []) => ({ state: 'bad', reason, warnings: [], text: reasonText(reason), effect: '', cost, count, tiles, refund: 0 });
 
 export function toolPreview(world, state) {
   const { tool } = state;
@@ -26,10 +56,13 @@ export function toolPreview(world, state) {
   if (tool.kind === 'building') {
     const def = BUILDINGS[tool.type];
     if (!state.ghost) return idle('');
-    const r = canPlace(world, tool.type, state.ghost.x, state.ghost.y);
+    const { x, y } = state.ghost;
+    const r = canPlace(world, tool.type, x, y);
     if (!r.ok) return bad(r.reason, def.cost, 1);
     const warn = r.warnings.length > 0;
-    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : '', cost: def.cost, count: 1, tiles: [], refund: 0 };
+    // A service says how many homes it would reach from here (early-game pass 2.6); other buildings say nothing.
+    const effect = def.reach ? effectText(tool.type, homesServedFrom(world, tool.type, x, y)) : '';
+    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : '', effect, cost: def.cost, count: 1, tiles: [], refund: 0 };
   }
   if (tool.kind === 'road') {
     const l = state.line;
@@ -39,7 +72,7 @@ export function toolPreview(world, state) {
     const r = previewRoad(world, l.x0, l.y0, l.x1, l.y1, l.flip);
     if (!r.ok) return bad(r.reason, r.cost, r.tiles.length, tiles);
     if (!r.tiles.length) return bad('nothing_to_place', 0, 0, tiles);
-    return { state: 'ok', reason: null, warnings: [], text: plural(r.tiles.length, 'tile', 'tiles'), cost: r.cost, count: r.tiles.length, tiles, refund: 0 };
+    return { state: 'ok', reason: null, warnings: [], text: plural(r.tiles.length, 'tile', 'tiles'), effect: '', cost: r.cost, count: r.tiles.length, tiles, refund: 0 };
   }
   const a = state.area;
   if (!a) return idle(T.tapStart);
@@ -49,13 +82,13 @@ export function toolPreview(world, state) {
     const tiles = r.positions.map(([x, y]) => [x, y]);
     if (!r.ok) return bad(r.reason, r.cost, r.positions.length, tiles);
     const warn = r.warnings.length > 0;
-    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : plural(r.positions.length, 'plot', 'plots'), cost: r.cost, count: r.positions.length, tiles, refund: 0 };
+    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : plural(r.positions.length, 'plot', 'plots'), effect: '', cost: r.cost, count: r.positions.length, tiles, refund: 0 };
   }
   const r = previewDemolishArea(world, a.x0, a.y0, a.x1, a.y1);
   const count = r.buildingIds.length + r.roadTiles.length;
   const tiles = rectTiles(a.x0, a.y0, a.x1, a.y1, world.size);
   if (!count) return bad('nothing_here', 0, 0, tiles);
-  return { state: 'ok', reason: null, warnings: [], text: `${plural(count, 'item', 'items')} · ${T.refund} ${r.refund}`, cost: -r.refund, count, tiles, refund: r.refund };
+  return { state: 'ok', reason: null, warnings: [], text: `${plural(count, 'item', 'items')} · ${T.refund} ${r.refund}`, effect: '', cost: -r.refund, count, tiles, refund: r.refund };
 }
 
 // Ghost shapes for drawGhost. Demolish marks only the tiles that have something on them.
@@ -81,7 +114,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
     start(tool, centre = null) {
       store.set(startToolPatch(store.get(), tool));
       if (tool.kind === 'building') {
-        if (centre) api.moveGhost(centre.x, centre.y);
+        if (centre) { const at = nearestFit(world, tool, centre.x, centre.y); api.moveGhost(at.x, at.y); }   // early-game pass 2.6
         if (AUTO_OVERLAY[tool.type]) store.set({ overlay: AUTO_OVERLAY[tool.type] });
       }
     },
