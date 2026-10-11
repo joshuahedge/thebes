@@ -140,7 +140,8 @@ export function createRenderer({
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     let sprites = 0;
     for (const o of objects) {
-      const sprite = spriteCache.get(o.slot, zoom, dpr);
+      const slot = opts.treeSlot && o.id >= 1e6 && o.id < 2e6 ? opts.treeSlot(o) : o.slot;   // Stage 3: swaying trees (decor ids are 1e6..2e6)
+      const sprite = spriteCache.get(slot, zoom, dpr);
       if (!sprite) continue;
       const q = p(o.x, o.y);
       const [px, py] = toDevice(q[0], q[1]);

@@ -22,5 +22,8 @@ export function createAmbient({ enabled = () => true } = {}) {
     draw(g, world, range, now) {},
     // What the last frame drew and cost: { ms, dropped } (dropped: the kinds left out to keep the budget).
     stats: { ms: 0, dropped: [] },
+    // STUB. Track C returns a lean slot palm.l-4..palm.l4 / acacia.l-4..acacia.l4 for the tree at (x, y) with base slot slot at
+    // time now (ms); renderFrame asks for it for every decor tree through opts.treeSlot. The stub returns slot unchanged.
+    treeSlot(world, x, y, slot, now) { return slot; },
   };
 }

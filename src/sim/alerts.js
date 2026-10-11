@@ -20,7 +20,7 @@ export function alertsFor(world) {
     if (b.blocked === 'storage_full') alerts.push({ code: 'storage_full', id: b.id });
     if (b.blocked === 'no_input') alerts.push({ code: 'no_input', id: b.id });
     if (def.stores && storeTotal(b) >= def.capacity) alerts.push({ code: 'storage_full', id: b.id });   // any full store
-    if (def.workers && road && !b.paused && !isWorking(world, b)) alerts.push({ code: 'understaffed', id: b.id });
+    if (def.workers && road && !b.paused && !(b.fire && b.fire.stage === 'fire') && !isWorking(world, b)) alerts.push({ code: 'understaffed', id: b.id });
     if (def.sells && isWorking(world, b) && FOOD_GOODS.every((g) => !((b.store[g] || 0) > 0))) alerts.push({ code: 'bazaar_empty', id: b.id });   // no food in stock
   }
   alerts.push(...fireAlerts(world), ...raidAlerts(world));   // Stage 3: fire (fire, blaze, fire_risk) and raids (raid_warning, raid)
