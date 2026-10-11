@@ -250,16 +250,17 @@ export const ACHIEVEMENT_TEXT = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id
 // The gold on a caption reads exactly as it does on the goals strip and sheets.
 export const cheerReward = (n) => rewardText(n);
 
-// Tips (early-game pass 3.4): one line each, verb first, 20 words or fewer, keyed by the ids in src/data/tips.js.
+// Tips (early-game pass 3.4): one line each, verb first, 20 words or fewer, keyed by the ids in src/data/tips.js. Each is short
+// enough for three lines on a 360 px phone at 150% text (a test measures it).
 export const TIP_TEXT = {
   press_play: 'Press Play so people can move in. Plots stay empty while the game is paused.',
-  arrivals: 'Place more plots to make room: new families arrive a few times a month while homes have space.',
-  house_needs: 'Read the list: it shows what this home needs to grow, and Show me points at the fix.',
-  service_reach: 'Look at the coloured tiles: they show which homes a well, bazaar or temple reaches along the roads.',
+  arrivals: 'Place more plots: families arrive a few times a month while there is room.',
+  house_needs: 'Read what this home needs to grow, then tap Show me for the fix.',
+  service_reach: 'Look at the coloured tiles: they are the homes this reaches by road.',
   problem_marker: 'Tap a building with a red ! badge to see what is wrong and how to fix it.',
   month_summary: "Tap the numbers in the top bar to see this month's taxes, wages and food.",
-  more_workers: 'Place more homes: every building needs workers, and workers come from homes.',
+  more_workers: 'Place more homes: buildings need workers, and homes provide them.',
   undo_demolish: 'Press Undo to bring back what you just removed, if you change your mind.',
-  goals_list: 'Open Goals to see what comes next, how far along you are and the gold each pays.',
-  overlay_keys: 'Read the overlay: a filled dot has it, a hollow ring is missing it. Tap ✕ to close it.',
+  goals_list: 'Open Goals to see what comes next, your progress and the gold each pays.',
+  overlay_keys: 'Read the overlay: a filled dot has it, a hollow ring lacks it. Tap ✕ to close.',
 };

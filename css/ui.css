@@ -321,6 +321,13 @@ body.reduce-motion #cheer .cheer { animation: none; }
 #tip .tip-row .label, #tip .tip-row .got-it { flex: none; }
 #tip .tip-row .got-it { white-space: nowrap; }
 body[data-layout="wide"] #tip { max-width: 440px; }
+/* A phone (portrait or compact) at 125% or 150% text has no room for a tip to stay up and cover the map: its words are 14 px
+   scaled instead of the body size, its padding is tight, and the Tip label is kept for screen readers only, as the caption's
+   why is. createUI also closes the tip after TIP_AUTO_CLOSE_MS there (it stays seen, and How to play lists it). */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row { position: relative; padding: 0 2px 0 10px; gap: 4px; line-height: 1.25; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .text { font-size: calc(14px * var(--ui-scale)); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .got-it { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
 
 /* The idle nudge (early-game pass 3.5): its one line sits under the goals strip, so #goals stacks in a column. Show me
    gets a gold ring that pulses twice (under 1 flash a second, done in 2.4 s), then stays still until the
