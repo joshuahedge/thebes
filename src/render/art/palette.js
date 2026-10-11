@@ -26,6 +26,7 @@ export const WOOD = '#6B4A3A';
 export const LEAF = '#4F8A2E';
 export const LEAF2 = '#6AA83A';
 export const LEAF3 = '#3F7526';
+export const INDUSTRY_TINT = '#8E7470';   // the industry category's tint (CATEGORY_TINT.industry in data/ui.js), for its pennants
 
 export const OUTLINE = '#5A4A6A';   // 32% opacity, 0.6 px, where a face meets another
 export const SHADOW = '#3E3260';    // ground shadows, two layers at 12% and 8%

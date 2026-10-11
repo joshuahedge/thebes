@@ -1,5 +1,5 @@
 // Which drawing a building shows (early-game pass 2.2 and 2.3): granaries and bazaars by how full they are,
-// grain farms by how far the crop has grown. Pure functions of the building (and, for farms, the game day);
+// farms by how far the crop has grown. Pure functions of the building (and, for farms, the game day);
 // the renderer turns them into art slots through slotFor in registry.js.
 import { BUILDINGS } from '../../data/buildings.js';
 
@@ -24,8 +24,11 @@ export function bazaarStage(b) {
   return n * 2 < BUILDINGS.bazaar.capacity ? 1 : 2;
 }
 
-// 0 fallow when the farm is not working (paused, unstaffed or blocked); otherwise 1 sprouting, 2 green,
-// 3 golden, cycling over FARM_CYCLE_DAYS. The look only: production stays daily.
+// Every farm grows the same way, whatever its crop: grain, figs, barley, flax.
+export const FARM_TYPES = ['farm_grain', 'farm_fig', 'farm_barley', 'farm_flax'];
+
+// 0 fallow (bare trees in an orchard) when the farm is not working (paused, unstaffed or blocked); otherwise
+// 1 sprouting, 2 growing, 3 ripe, cycling over FARM_CYCLE_DAYS. The look only: production stays daily.
 export function farmStage(world, b) {
   if (b.paused || !b.staff || b.blocked) return 0;
   const third = FARM_CYCLE_DAYS / 3;
