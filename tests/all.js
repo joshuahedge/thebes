@@ -32,6 +32,7 @@ import './render/figuresArt.test.js';
 import './render/artBounds.test.js';
 import './render/spriteCache.test.js';
 import './render/terrainBaker.test.js';
+import './render/terrainLook.test.js';
 import './render/terrainRoads.test.js';
 import './render/renderer.test.js';
 import './render/loop.test.js';

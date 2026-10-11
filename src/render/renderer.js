@@ -26,6 +26,16 @@ export function decorAt(world, x, y) {
   return null;
 }
 
+// The map edge (early-game pass 2.1): strokes along the map diamond, widest and faintest first, drawn under
+// the terrain chunks so only their outer halves show: a soft band that fades from the edge into the
+// off-map sand, so the edge reads as a border rather than a flat triangle. [width in art px, alpha].
+export const EDGE_FADE = [[24, 0.1], [14, 0.14], [7, 0.2], [2.5, 0.3]];
+
+export function drawMapEdge(g, size) {
+  const pts = [p(0, 0), p(size, 0), p(size, size), p(0, size)];
+  for (const [width, alpha] of EDGE_FADE) g.poly(pts, 'none', { stroke: TERRAIN.edgeFade, strokeWidth: width, strokeAlpha: alpha });
+}
+
 const intersects = (b, r) => b.x <= r.x1 && b.x + b.w - 1 >= r.x0 && b.y <= r.y1 && b.y + b.d - 1 >= r.y0;
 
 export function collectObjects(world, range, walkers = [], registry = ART) {
@@ -71,11 +81,18 @@ export function createRenderer({
     const W = Math.round(view.width * dpr), H = Math.round(view.height * dpr);
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = TERRAIN.sandOff;
+    ctx.fillStyle = TERRAIN.offMap;
     ctx.fillRect(0, 0, W, H);
     const zoom = cam.zoom;
     const range = visibleTileRange(cam, view, world.size);
     const toDevice = (ax, ay) => { const [sx, sy] = artToScreen(cam, view, ax, ay); return [sx * dpr, sy * dpr]; };
+    const [ox, oy] = toDevice(0, 0);
+    const g = makeDraw(ctx, ART_SCALE * zoom * dpr);
+
+    // 0. The map edge band, in art px with the art origin placed by the camera; the chunks cover its inner half.
+    ctx.setTransform(1, 0, 0, 1, ox, oy);
+    drawMapEdge(g, world.size);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     // 1. Terrain chunks. Stale or missing chunks bake a few per frame; the rest show next frame.
     let bakes = 0, chunks = 0, stale = 0;
@@ -92,8 +109,6 @@ export function createRenderer({
     }
 
     // 2. Ground shadows, drawn in art px with the art origin placed by the camera.
-    const [ox, oy] = toDevice(0, 0);
-    const g = makeDraw(ctx, ART_SCALE * zoom * dpr);
     const objects = collectObjects(world, range, opts.walkers || [], registry);
     ctx.setTransform(1, 0, 0, 1, ox, oy);
     for (const o of objects) {

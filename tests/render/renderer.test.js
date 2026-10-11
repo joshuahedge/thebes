@@ -116,7 +116,7 @@ describe('renderer', () => {
     renderer.renderFrame(w, createCamera({ x: 18, y: 14, zoom: 1 }), { view: { width: 200, height: 150 } });
     expect(canvas.width).toBe(400);
     expect(canvas.height).toBe(300);
-    expect(nearColour(pixelAt(canvas, 200, 150), TERRAIN.sandOff, 4)).toBe(false);
+    expect(nearColour(pixelAt(canvas, 200, 150), TERRAIN.offMap, 4)).toBe(false);
   });
   it('draws an in-view walker and culls one out of view', () => {
     const w = riverWorld();
