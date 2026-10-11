@@ -4,6 +4,8 @@ import { FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { allBuildings, housesOf } from './world.js';
 import { touchesRoad, roadReach, reachDistance, buildingsInReach } from './reach.js';
 import { isWorking } from './labour.js';
+import { desirabilityField, houseDesirability } from './desirability.js';
+import { MERGE_TIER, mergeSquare, mergeHouses, splitHouse } from './merge.js';
 import { bazaarsByHouse, topUpHouse, monthlyNeed } from './distribution.js';
 
 export const needsOf = (tier) => (tier >= 1 && tier <= MAX_TIER ? TIERS[tier].needs : []);
@@ -33,7 +35,7 @@ export function coveredBy(world, house, need) {
 }
 
 export function computeCoverage(world) {
-  const cov = { water: new Set(), religion: new Set() };
+  const cov = { water: new Set(), religion: new Set(), entertainment: new Set() };
   for (const h of housesOf(world)) {
     for (const need of Object.keys(cov)) if (coveredBy(world, h, need)) cov[need].add(h.id);
   }
@@ -106,7 +108,9 @@ function consumeGood(house, good) {
 export function monthlyHousing(world, events = null) {
   const cov = computeCoverage(world);
   const bazaars = bazaarsByHouse(world);
+  const field = desirabilityField(world);   // every home is judged on the street as it stood when the month ended
   for (const h of housesOf(world)) {
+    if (world.buildings[h.id] !== h) continue;   // merged into a neighbour's Manor earlier in this check
     h.leftThisMonth = 0;
     if (h.tier === 0) continue;
     const wants = wantedNeeds(h);
@@ -114,6 +118,7 @@ export function monthlyHousing(world, events = null) {
       road: touchesRoad(world, h),
       water: cov.water.has(h.id),
       religion: cov.religion.has(h.id),
+      entertainment: cov.entertainment.has(h.id),
       twoFoods: FOOD_GOODS.every((g) => (h.stock[g] || 0) > 0),   // grain and figs both in stock before the month's eating
       food: wants.includes('food') ? consumeFood(h) : false,
     };
@@ -122,46 +127,97 @@ export function monthlyHousing(world, events = null) {
     topUpHouse(world, h, wantedGoods(h), bazaars.get(h.id), { twoFoods: wants.includes('twoFoods') });
     h.stockedFor = h.residents;
 
-    const currentOk = met.road && needsOf(h.tier).every((n) => met[n]);
+    // Tiers 6-9 also want a pleasant street (spec 4.6): rising needs the next tier's "to rise" desirability and
+    // holding needs the tier's "to keep" value; between the two a home neither rises nor falls. Below "to keep"
+    // starts the countdown like an unmet need. Read only for homes where a value applies, from the month's field.
+    const keep = keepOf(h.tier);
+    const next = h.tier + 1;
+    const rise = riseOf(next);
+    const value = keep !== null || rise !== null ? houseDesirability(world, h, field) : 0;
+    const currentOk = met.road && needsOf(h.tier).every((n) => met[n]) && (keep === null || value >= keep);
+    let home = h;
     if (currentOk) {
       h.downTimer = 0;
-      const next = h.tier + 1;
-      if (next <= MAX_TIER && needsOf(next).every((n) => met[n])) {
-        if (events) events.push({ type: 'upgrade', id: h.id, from: h.tier, to: next });
-        h.tier = next;
-        world.tally.upgrades += 1;
+      if (next <= MAX_TIER && needsOf(next).every((n) => met[n]) && (rise === null || value >= rise)) {
+        if (TIERS[next].size > h.w) {
+          // A Townhouse becomes a Manor only by joining a 2x2 square (spec 4.6); with no square it waits.
+          const origin = mergeSquare(world, h);
+          if (origin) {
+            home = mergeHouses(world, h, origin);
+            if (events) events.push({ type: 'merge', id: home.id }, { type: 'upgrade', id: home.id, from: next - 1, to: next });
+            world.tally.upgrades += 1;
+          }
+        } else {
+          if (events) events.push({ type: 'upgrade', id: h.id, from: h.tier, to: next });
+          h.tier = next;
+          world.tally.upgrades += 1;
+        }
       }
     } else {
       h.downTimer++;
       if (h.downTimer >= DOWNGRADE_AFTER_MONTHS) {
+        h.downTimer = 0;
         if (h.tier > 1) {
           if (events) events.push({ type: 'downgrade', id: h.id, from: h.tier, to: h.tier - 1 });
+          if (TIERS[h.tier - 1].size < h.w) {
+            // A Manor that drops a tier splits back into four Townhouses, residents shared out (spec 4.6).
+            splitHouse(world, h);
+            if (events) events.push({ type: 'split', id: h.id });
+            continue;
+          }
           h.tier--;
         }
-        h.downTimer = 0;
       }
     }
 
-    const cap = TIERS[h.tier].capacity;
-    let leave = met.road ? Math.max(0, h.residents - cap) : h.residents;
-    leave = Math.min(leave, leaveCap(h));
-    if (leave > 0) removeResidents(h, leave);
+    const cap = TIERS[home.tier].capacity;
+    let leave = met.road ? Math.max(0, home.residents - cap) : home.residents;
+    leave = Math.min(leave, leaveCap(home));
+    if (leave > 0) removeResidents(home, leave);
+    if (home.residents === 0 && home.w > 1) splitHouse(world, home);   // an emptied 2x2 home becomes four empty plots
   }
+}
+
+// The desirability a tier asks for: "to rise" into it, "to keep" it (spec 4.6); null where it asks for none.
+const riseOf = (tier) => (tier >= 1 && tier <= MAX_TIER && TIERS[tier].desirability ? TIERS[tier].desirability.rise : null);
+const keepOf = (tier) => (tier >= 1 && tier <= MAX_TIER && TIERS[tier].desirability ? TIERS[tier].desirability.keep : null);
+
+// The value the checklist's desirability row measures against: the next tier's "to rise", or for the top tier
+// its own "to keep"; null for homes whose next tier asks for none (tiers 0-4).
+export function desirabilityTarget(tier) {
+  if (tier + 1 <= MAX_TIER) return riseOf(tier + 1);
+  return keepOf(tier);
 }
 
 // The checklist is judged live from the world as it is now, not from the snapshot the last monthly tick
 // stored in house.met, so a plot beside a road or a brand-new hut is never shown as missing what it has.
-// Only the downgrade countdown is timer-based.
+// Only the downgrade countdown is timer-based. Household goods count as met while the stock covers the month's
+// use (the monthly check's rule); two kinds of food means grain and figs are both in stock. desirability is
+// there only for homes whose checklist has the row; merge is false only for a Townhouse with no square to join.
 function liveNeeds(world, house) {
-  const foodNeed = foodNeedToMeet(house);
-  return {
+  const foodNeed = needToMeet(house, FOOD_GOODS[0]);
+  const met = {
     road: touchesRoad(world, house),
     water: coveredBy(world, house, 'water'),
     religion: coveredBy(world, house, 'religion'),
+    entertainment: coveredBy(world, house, 'entertainment'),
     food: foodNeed > 0 && foodOnHand(house) >= foodNeed,
+    twoFoods: FOOD_GOODS.every((g) => (house.stock[g] || 0) > 0),
   };
+  for (const good of HOUSEHOLD_GOODS) {
+    const n = needToMeet(house, good);
+    met[good] = n > 0 && (house.stock[good] || 0) >= n;
+  }
+  const target = desirabilityTarget(house.tier);
+  if (target !== null) met.desirability = houseDesirability(world, house) >= target;
+  met.merge = house.tier !== MERGE_TIER - 1 || mergeSquare(world, house) !== null;
+  return met;
 }
 
+// What the house sheet shows (spec 6.3): the next tier's checklist, with a desirability row { need: 'desirability',
+// met, value, target, keep } from the Townhouse up (keep is the home's own "to keep" value, null for a Townhouse);
+// what the home is missing now (with 'desirability' when it is below "to keep"); the countdown; and for a
+// Townhouse whether it needs a 2x2 square to grow and whether one can form.
 export function houseStatus(world, house) {
   const tier = house.tier;
   const info = tier >= 1 ? TIERS[tier] : null;
@@ -169,7 +225,13 @@ export function houseStatus(world, house) {
   const met = liveNeeds(world, house);
   const checklistNeeds = ['road', ...needsOf(next ? next.tier : tier)];
   const checklist = checklistNeeds.map((need) => ({ need, met: Boolean(met[need]) }));
+  const target = desirabilityTarget(tier);
+  const keep = keepOf(tier);
+  const value = target !== null || keep !== null ? houseDesirability(world, house) : null;
+  if (target !== null) checklist.push({ need: 'desirability', met: met.desirability, value, target, keep });
   const missingNow = tier >= 1 ? ['road', ...needsOf(tier)].filter((n) => !met[n]) : [];
+  if (keep !== null && value < keep) missingNow.push('desirability');
+  const mergeNeeded = tier === MERGE_TIER - 1;
   return {
     tier,
     name: info ? info.name : 'Empty plot',
@@ -179,40 +241,67 @@ export function houseStatus(world, house) {
     checklist,
     missingNow,
     downgradeIn: tier > 1 && house.downTimer > 0 ? DOWNGRADE_AFTER_MONTHS - house.downTimer : null,
+    merge: { needed: mergeNeeded, ready: mergeNeeded && met.merge },
   };
 }
 
 // Why a home lacks a need (early-game pass 2.10), judged by the same live rules as the checklist: null when it
-// has the need (or the need is unknown), else { code, id }. A home that touches no road blames the road for
-// every need, since nothing can reach it without one. Providers (a well, a bazaar, a temple) are looked for in
-// reach whether or not they work, so a paused or unstaffed one is named (well_idle, bazaar_idle, temple_idle,
-// id the building) rather than answered with "build another"; no_well, no_bazaar and no_temple mean nothing of
-// that kind reaches the home at all. For food, a working bazaar in reach decides: one holding grain, or able to
-// draw on a granary that holds some, means next_delivery (id the bazaar); else granary_empty (id the nearest
-// working granary in its supply reach, which holds nothing), granary_idle (the same, but every such granary is
-// paused or short of workers; id the nearest) or bazaar_empty (id the bazaar, no granary in reach at all).
-// Before no_well, no_bazaar or no_temple: a provider of that kind that touches no road, within its reach of the home
-// in a straight line, is named (well_no_road, bazaar_no_road, temple_no_road, id the nearest such), since it only
-// needs a road, not a twin.
+// has the need (or the need is unknown), else { code, id, ... }. A home that touches no road blames the road for
+// every need that comes along the roads, since nothing can reach it without one. Providers (a well, a temple, a
+// booth, a bazaar) are looked for in reach whether or not they work, so a paused or unstaffed one is named
+// (well_idle, temple_idle, booth_idle, bazaar_idle, id the building) rather than answered with "build another";
+// no_well, no_temple, no_booth and no_bazaar mean nothing of that kind reaches the home at all. Before those, a
+// provider of that kind that touches no road, within its reach of the home in a straight line, is named
+// (well_no_road, temple_no_road, booth_no_road, bazaar_no_road, id the nearest such), since it only needs a road.
+// For food, a working bazaar in reach decides: one holding food, or able to draw on a granary that holds some,
+// means next_delivery (id the bazaar); else granary_empty (id the nearest working granary in its supply reach,
+// which holds nothing), granary_idle (the same, but every such granary is paused or short of workers; id the
+// nearest) or bazaar_empty (id the bazaar, no granary in reach at all).
+// For a household good (pottery, beer, linen, jewellery) and for two kinds of food (traced through the first food
+// the home has none of), the same bazaar steps, then: next_delivery { good } when a working bazaar in reach has the
+// good or a store within its supply reach holds some (the bazaar restocks at the month's end); good_unmade { good,
+// id: bazaar } when stores for the good lie in that reach but none holds any; no_good { good, id: bazaar } when no
+// store for the good lies in that reach at all.
+// Desirability below the row's target is low_desirability { value, target }; a Townhouse with no 2x2 square to
+// join lacks 'merge' with no_square. Neither depends on the road.
+const PROVIDER_KIND = { water: 'well', religion: 'temple', entertainment: 'booth' };
+
 export function needCause(world, house, need) {
   const met = liveNeeds(world, house);
   if (!(need in met) || met[need]) return null;
+  if (need === 'desirability') return { code: 'low_desirability', id: null, value: houseDesirability(world, house), target: desirabilityTarget(house.tier) };
+  if (need === 'merge') return { code: 'no_square', id: null };
   if (!met.road) return { code: 'no_road', id: null };
-  if (need === 'water' || need === 'religion') {
+  const kind = PROVIDER_KIND[need];
+  if (kind) {
     const matches = (def) => def.provides === need;
     const [near] = providersReaching(world, house, matches);
-    const kind = need === 'water' ? 'well' : 'temple';
     if (near) return { code: `${kind}_idle`, id: near.id };
     const [roadless] = roadlessProvidersNear(world, house, matches);
     return roadless ? { code: `${kind}_no_road`, id: roadless.id } : { code: `no_${kind}`, id: null };
   }
-  const reaching = providersReaching(world, house, (def) => def.sells);
+  if (need === 'food') return foodCause(world, house);
+  const good = need === 'twoFoods' ? FOOD_GOODS.find((g) => !((house.stock[g] || 0) > 0)) : need;
+  return goodCause(world, house, good);
+}
+
+// The bazaars reaching the home that sell `good` (any of FOOD_GOODS for food): no_bazaar, bazaar_no_road or
+// bazaar_idle when none of them can serve it, else the working ones, nearest first.
+function bazaarsFor(world, house, goods) {
+  const sells = (def) => (def.sells || []).some((g) => goods.includes(g));
+  const reaching = providersReaching(world, house, sells);
   if (!reaching.length) {
-    const [roadless] = roadlessProvidersNear(world, house, (def) => def.sells);
-    return roadless ? { code: 'bazaar_no_road', id: roadless.id } : { code: 'no_bazaar', id: null };
+    const [roadless] = roadlessProvidersNear(world, house, sells);
+    return { cause: roadless ? { code: 'bazaar_no_road', id: roadless.id } : { code: 'no_bazaar', id: null } };
   }
   const working = reaching.filter((bz) => isWorking(world, bz));
-  if (!working.length) return { code: 'bazaar_idle', id: reaching[0].id };
+  if (!working.length) return { cause: { code: 'bazaar_idle', id: reaching[0].id } };
+  return { working };
+}
+
+function foodCause(world, house) {
+  const { cause, working } = bazaarsFor(world, house, FOOD_GOODS);
+  if (cause) return cause;
   const supply = new Map(working.map((bz) => [bz.id, graneriesFor(world, bz)]));
   const holds = (b) => FOOD_GOODS.some((g) => (b.store[g] || 0) > 0);
   const coming = working.find((bz) => holds(bz) || supply.get(bz.id).some(holds));
@@ -224,6 +313,17 @@ export function needCause(world, house, need) {
   const bare = working.find((bz) => supply.get(bz.id).length);
   if (bare) return { code: 'granary_idle', id: supply.get(bare.id)[0].id };
   return { code: 'bazaar_empty', id: working[0].id };
+}
+
+function goodCause(world, house, good) {
+  const { cause, working } = bazaarsFor(world, house, [good]);
+  if (cause) return cause;
+  const holds = (b) => (b.store[good] || 0) > 0;
+  const coming = working.find((bz) => holds(bz) || goodStoresFor(world, bz, good).some(holds));
+  if (coming) return { code: 'next_delivery', id: coming.id, good };
+  const kept = working.find((bz) => goodStoresFor(world, bz, good).length);
+  if (kept) return { code: 'good_unmade', good, id: kept.id };
+  return { code: 'no_good', good, id: working[0].id };
 }
 
 // Buildings whose reach takes in the home and whose def passes `matches`, nearest first, working or not: the
@@ -266,4 +366,11 @@ function graneriesFor(world, bazaar) {
   const def = BUILDINGS[bazaar.type];
   const foods = def.sells.filter((g) => FOOD_GOODS.includes(g));
   return buildingsInReach(world, bazaar, def.supplyReach, (o) => (BUILDINGS[o.type].stores || []).some((g) => foods.includes(g))).map((e) => e.b);
+}
+
+// The stores a bazaar draws one good from (restockBazaars' rule): any store of that good within its supply reach,
+// nearest first, holding it or not. Household goods and the second food are traced through these.
+function goodStoresFor(world, bazaar, good) {
+  const def = BUILDINGS[bazaar.type];
+  return buildingsInReach(world, bazaar, def.supplyReach, (o) => (BUILDINGS[o.type].stores || []).includes(good)).map((e) => e.b);
 }

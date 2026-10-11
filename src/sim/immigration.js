@@ -3,6 +3,7 @@ import { TIERS } from '../data/housing.js';
 import { housesOf, population } from './world.js';
 import { touchesRoad } from './reach.js';
 import { removeResidents, leaveCap } from './housing.js';
+import { splitHouse } from './merge.js';
 
 export function vacancies(world) {
   const out = [];
@@ -46,6 +47,7 @@ export function departures(world) {
     const allowed = Math.max(0, leaveCap(h) - h.leftThisMonth);
     const k = Math.min(n, allowed);
     if (k > 0) { removeResidents(h, k); n -= k; left += k; }
+    if (h.residents === 0 && h.w > 1) splitHouse(world, h);   // an emptied 2x2 home becomes four empty plots
   }
   return left;
 }
