@@ -51,7 +51,8 @@ describe('service art', () => {
       expect(typeof e.draw).toBe('function');
       expect(typeof SERVICE_EMBLEM[type]).toBe('string');
     }
-    expect(Object.keys(SERVICE_ART).length).toBe(16);   // the five types plus 4 granary, 3 bazaar and 4 farm stage slots
+    // well, granary, bazaar, temple, garden, statue and booth; 4 granary and 3 bazaar stage slots; four farms with a plain slot and 4 stage slots each
+    expect(Object.keys(SERVICE_ART).length).toBe(34);
   });
   it('keeps the temple the tallest and the farm the lowest', () => {
     expect(SERVICE_ART.temple.height).toBeGreaterThan(SERVICE_ART.granary.height);

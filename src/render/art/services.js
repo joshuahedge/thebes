@@ -1,23 +1,29 @@
-// Stage 1 service buildings, ported from the approved mock-up (well, granary, bazaar, temple, fieldTile).
-// The grain farm is new: a fenced 2x2 field of grain rows with a small farmhouse in the near corner.
-// Each service carries a small pennant in its emblem colour (spec 5.3) so it reads at phone zoom.
+// Service buildings, farms and the Stage 2 homes' neighbours, ported from the approved mock-up where it has them
+// (well, granary, bazaar, temple, fieldTile, gardenT, the colossus) and drawn in its style where it does not.
+// Farms are a fenced 2x2 of crop tiles (grain, barley, flax) or fig trees with a small farmhouse in the near corner.
+// Each service and farm carries a small pennant in its emblem colour (spec 5.3) so it reads at phone zoom.
 // Granaries and bazaars show their stock and farms their crop (early-game pass 2.2, 2.3): each draws a stage
 // chosen by stages.js, and SERVICE_ART registers one slot per stage beside the plain type slot.
-import { box, tb, qd, crs, door, fence, pots, awn, col, tile, p, U, quad, hs } from './primitives.js';
+import { box, tb, qd, crs, door, fence, pots, awn, col, rug, bed, pool, tile, p, U, quad, hs } from './primitives.js';
+import { palmAt, tufts } from './nature.js';
+import { fig } from './figures.js';
 import {
-  WASH, MUD2, STONE, THATCH, GOLDC, TEAL, TEAL_DARK, BLUE, RED, GOLD, PINK, ORANGE, GREEN, GREEN_DARK, LEAF2, WOOD, DOOR,
-  SHADOW, TERRAIN,
+  WASH, WASH2, MUD2, STONE, THATCH, GOLDC, TEAL, TEAL_DARK, BLUE, RED, RED_DARK, GOLD, PINK, ORANGE, GREEN, GREEN_DARK,
+  LEAF, LEAF2, LEAF3, TRUNK, WOOD, DOOR, SHADOW, TERRAIN, INDUSTRY_TINT,
 } from './palette.js';
 import { boundsFor } from '../iso.js';
 
-export const SERVICE_EMBLEM = { well: BLUE, farm_grain: LEAF2, granary: GREEN, bazaar: RED, temple: GOLD };
+export const SERVICE_EMBLEM = {
+  well: BLUE, farm_grain: LEAF2, granary: GREEN, bazaar: RED, temple: GOLD,
+  farm_fig: LEAF2, farm_barley: INDUSTRY_TINT, farm_flax: INDUSTRY_TINT, booth: PINK,
+};
 
 export function pennant(g, q, h, color) {
   g.line(q, U(q, h), WOOD, 0.7);
   g.poly([U(q, h), [q[0] + 6, q[1] - h + 1.5], U(q, h - 3)], color);
 }
 
-// A field tile: crop colour with straight rows of stalks. Only 'grain' is used in Stage 1.
+// A field tile: crop colour with straight rows of stalks: green grain, golden barley, or flax with blue flowers.
 export function fieldTile(g, x, y, k) {
   tile(g, x, y, { grain: TERRAIN.field, barley: '#D7BF62', flax: '#80AA52' }[k], { stroke: TERRAIN.fieldEdge, strokeWidth: 0.6, strokeAlpha: 0.35 });
   for (let v = 0.14; v < 0.95; v += 0.18) {
@@ -177,12 +183,19 @@ export function temple(g, X, Y) {
   pyl(X + 1.15);
 }
 
-// One field tile of the grain farm at a growth stage: 0 fallow (ploughed furrows), 1 sprouting, 2 green
-// grain (fieldTile), 3 golden grain.
+// One field tile at a growth stage: 0 fallow (ploughed furrows), 1 sprouting, 2 growing, 3 ripe. Each crop has its
+// own look (spec 5.1): grain grows green (fieldTile) and ripens golden; barley grows blue-green and ripens into the
+// mock-up's golden barley; flax grows as green stalks and ripens into the mock-up's blue flowers (both fieldTile).
 const LOAM = '#8A6A42', FURROW = '#6E5234', RIDGE = '#B49268', SPROUT = '#7FB04A', SPROUT_TIP = '#B4D86A';
 const RIPE = '#D4AE4E', RIPE_STALK = '#A88E3A', RIPE_HEAD = '#F2DE90';
-export function cropTile(g, x, y, stage) {
-  if (stage === 2) { fieldTile(g, x, y, 'grain'); return; }
+const GROWING = {
+  barley: { tile: '#A4B85C', stalk: '#6E8A34', tip: '#D2DE8E' },
+  flax: { tile: '#7FA850', stalk: '#4F7A2C', tip: '#B4D488' },
+};
+export const CROPS = ['grain', 'barley', 'flax'];
+export function cropTile(g, x, y, stage, crop = 'grain') {
+  if (crop === 'grain' && stage === 2) { fieldTile(g, x, y, 'grain'); return; }
+  if (crop !== 'grain' && stage === 3) { fieldTile(g, x, y, crop); return; }
   const edge = { stroke: TERRAIN.fieldEdge, strokeWidth: 0.6, strokeAlpha: 0.35 };
   if (stage === 3) {
     tile(g, x, y, RIPE, edge);
@@ -191,6 +204,19 @@ export function cropTile(g, x, y, stage) {
         const q = p(x + u, y + v), hh = 2.6 + hs(x * 7 + u, y * 3 + v, 1) * 1.2;
         g.line(q, [q[0] + 0.3, q[1] - hh], RIPE_STALK, 0.7);
         g.circ([q[0] + 0.3, q[1] - hh], 0.6, RIPE_HEAD);
+      }
+    }
+    return;
+  }
+  if (stage === 2) {
+    const look = GROWING[crop];
+    tile(g, x, y, look.tile, edge);
+    for (let v = 0.14; v < 0.95; v += 0.18) {
+      for (let u = 0.08; u < 0.98; u += 0.11) {
+        const q = p(x + u, y + v), hh = 2 + hs(x * 7 + u, y * 3 + v, 1) * 1.2;
+        g.line(q, [q[0] + 0.1, q[1] - hh], look.stalk, 0.6);
+        if (crop === 'barley') g.line([q[0] + 0.1, q[1] - hh], [q[0] + 1, q[1] - hh - 0.8], look.tip, 0.6);   // a whiskered ear
+        else g.circ([q[0], q[1] - hh], 0.45, look.tip);                                                        // a closed bud
       }
     }
     return;
@@ -210,28 +236,144 @@ export function cropTile(g, x, y, stage) {
   }
 }
 
-// Grain farm: four crop tiles, a reed fence round the edge that stops at the farmhouse, and a small thatched
-// farmhouse in the near corner with pots and a green pennant. `stage` (farmStage): 0 fallow, 1 sprouting,
-// 2 green, 3 golden; the back row (the two tiles at j = 0) runs one stage ahead, capped at golden, so a
-// working field shows two stages at once.
-export function farmGrain(g, X, Y, stage = 2) {
-  const back = stage === 0 ? 0 : Math.min(3, stage + 1);
-  for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) cropTile(g, X + i, Y + j, j === 0 ? back : stage);
-  fence(g, X + 0.02, Y + 0.02, 1.96, 0.06);
-  fence(g, X + 0.02, Y + 0.02, 0.06, 1.96);
-  fence(g, X + 0.02, Y + 1.92, 1.3, 0.06);
-  fence(g, X + 1.92, Y + 0.02, 0.06, 1.3);
+// The small thatched farmhouse every farm keeps in its near corner, its yard (pots by the door, unless `yard` draws
+// something else) and its pennant.
+function farmhouse(g, X, Y, emblem, yard = () => pots(g, p(X + 1.2, Y + 1.78), 2)) {
   const a = X + 1.4, b = Y + 1.4, w = 0.52;
   const F = box(g, a, b, w, w, 5, 0, MUD2);
   crs(g, F, 5, '#9C7A54', 2.2);
   door(g, F, 0.34, 0.6, 3.6);
   tb(g, a - 0.06, b - 0.06, w + 0.12, w + 0.12, 4.5, 5, 0.3, THATCH);
-  pots(g, p(X + 1.2, Y + 1.78), 2);
-  pennant(g, U(p(a + w, b + 0.06), 0), 9, SERVICE_EMBLEM.farm_grain);
+  yard();
+  pennant(g, U(p(a + w, b + 0.06), 0), 9, emblem);
 }
 
-// The plain type slots are what cards and assets show: a full granary, a piled bazaar, a green field.
-export const PLAIN_STAGE = { granary: 3, bazaar: 2, farm_grain: 2 };
+// A fenced 2x2 field of one crop with the farmhouse in the near corner. `stage` (farmStage): 0 fallow,
+// 1 sprouting, 2 growing, 3 ripe; the back row (the two tiles at j = 0) runs one stage ahead, capped at ripe, so a
+// working field shows two stages at once.
+export function farmField(g, X, Y, stage, crop, emblem) {
+  const back = stage === 0 ? 0 : Math.min(3, stage + 1);
+  for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) cropTile(g, X + i, Y + j, j === 0 ? back : stage, crop);
+  fence(g, X + 0.02, Y + 0.02, 1.96, 0.06);
+  fence(g, X + 0.02, Y + 0.02, 0.06, 1.96);
+  fence(g, X + 0.02, Y + 1.92, 1.3, 0.06);
+  fence(g, X + 1.92, Y + 0.02, 0.06, 1.3);
+  farmhouse(g, X, Y, emblem);
+}
+
+// Grain farm (Stage 1), barley farm and flax farm: the same fenced field with their own crop and pennant.
+export function farmGrain(g, X, Y, stage = 2) { farmField(g, X, Y, stage, 'grain', SERVICE_EMBLEM.farm_grain); }
+export function farmBarley(g, X, Y, stage = 3) { farmField(g, X, Y, stage, 'barley', SERVICE_EMBLEM.farm_barley); }
+export function farmFlax(g, X, Y, stage = 3) { farmField(g, X, Y, stage, 'flax', SERVICE_EMBLEM.farm_flax); }
+
+// Fig orchard: eight fig trees in rows on grassy loam inside the reed fence, and the farmhouse in the near corner.
+// `stage` (farmStage): 0 bare branches (not working), 1 young leaves, 2 full green canopies, 3 ripe purple figs with
+// full baskets by the farmhouse. The back row of trees runs a stage ahead, as on the fields.
+const ORCHARD_FLOOR = '#9C8656';
+const FIG = '#6B2F5E', FIG_LIGHT = '#A0588E', BARK = '#8A7058';
+const ORCHARD_TREES = [[0.42, 0.4], [1.0, 0.36], [0.38, 1.0], [0.98, 0.98], [1.58, 0.42], [0.44, 1.6], [1.6, 0.92], [1.02, 1.58]];
+export function figTree(g, gx, gy, stage) {
+  const c = p(gx, gy), top = [c[0], c[1] - 4];
+  g.ell([c[0] + 3, c[1] + 0.6], 6, 2, SHADOW, { alpha: 0.14 });
+  g.line(c, top, TRUNK, 1.5);
+  if (stage === 0) {
+    for (const [dx, dy] of [[-3.6, -3.8], [3.2, -4.4], [0.4, -5.6], [-1.6, -2.8], [2, -2.2]]) g.line(top, [top[0] + dx, top[1] + dy], BARK, 0.8);
+    return;
+  }
+  const r = stage === 1 ? 2.6 : 4.4, m = [top[0], top[1] - r * 0.6];
+  const leaves = stage === 1 ? ['#8DBE4E', '#A6CC5E', '#B8D878', '#A6CC5E'] : [LEAF3, LEAF, LEAF2, '#86B64E'];
+  [[-0.55, 0.15, 0.75], [0.55, 0.2, 0.75], [0, -0.3, 0.8], [-0.15, -0.45, 0.4]].forEach(([dx, dy, k], i) => {
+    g.circ([m[0] + dx * r, m[1] + dy * r], r * k, leaves[i]);
+  });
+  if (stage === 3) {
+    for (const [dx, dy] of [[-0.6, 0.3], [0.5, 0.45], [0.1, -0.1], [-0.25, -0.55], [0.7, -0.15], [-0.85, -0.2]]) {
+      g.circ([m[0] + dx * r, m[1] + dy * r], 0.8, FIG);
+      g.circ([m[0] + dx * r - 0.25, m[1] + dy * r - 0.25], 0.3, FIG_LIGHT);
+    }
+  }
+}
+export function figOrchard(g, X, Y, stage = 3) {
+  const back = stage === 0 ? 0 : Math.min(3, stage + 1);
+  const edge = { stroke: TERRAIN.fieldEdge, strokeWidth: 0.6, strokeAlpha: 0.35 };
+  for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+    tile(g, X + i, Y + j, ORCHARD_FLOOR, edge);
+    tufts(g, X + i, Y + j, 5, 11);
+  }
+  fence(g, X + 0.02, Y + 0.02, 1.96, 0.06);
+  fence(g, X + 0.02, Y + 0.02, 0.06, 1.96);
+  for (const [u, v] of ORCHARD_TREES) figTree(g, X + u, Y + v, v < 0.5 ? back : stage);
+  fence(g, X + 0.02, Y + 1.92, 1.3, 0.06);
+  fence(g, X + 1.92, Y + 0.02, 0.06, 1.3);
+  const baskets = () => { heapedBasket(g, p(X + 1.08, Y + 1.8), FIG); heapedBasket(g, p(X + 1.3, Y + 1.84), FIG_LIGHT); };
+  farmhouse(g, X, Y, SERVICE_EMBLEM.farm_fig, stage === 3 ? baskets : undefined);
+}
+
+// Garden (1x1): a flower bed (the mock-up's gardenT) with a small pool in its front corner, two clipped shrubs and
+// a young palm at the back.
+export function garden(g, x, y) {
+  bed(g, x + 0.1, y + 0.1, 0.8, 0.8);
+  pool(g, x + 0.2, y + 0.56, 0.36, 0.28);
+  palmAt(g, x + 0.66, y + 0.34, 0.6);
+  for (const [u, v] of [[0.78, 0.74], [0.24, 0.3]]) {
+    const q = p(x + u, y + v);
+    g.ell([q[0] + 1.5, q[1] + 0.4], 2.6, 1, SHADOW, { alpha: 0.15 });
+    g.circ(U(q, 2), 2.2, LEAF3, { outline: true });
+    g.circ(U(q, 2.6), 1.4, LEAF2);
+  }
+}
+
+// Statue (1x1): a seated figure in warm sandstone on a whitewashed plinth banded in teal, in the manner of the
+// mock-up's colossus: a throne behind, knees and lap in front, arms on the knees, a head in a blue-striped
+// headcloth, a gold collar and a gold crown.
+const SANDSTONE = ['#E8CC94', '#D2AE72', '#A88E7E'];
+export function seatedStatue(g, x, y) {
+  const P = box(g, x + 0.2, y + 0.2, 0.6, 0.6, 4, 0, STONE);
+  qd(g, P.L, 0, 1, 1.4, 2.4, TEAL);
+  qd(g, P.R, 0, 1, 1.4, 2.4, TEAL_DARK);
+  qd(g, P.L, 0, 1, 3.4, 4, GOLD);
+  qd(g, P.R, 0, 1, 3.4, 4, GOLDC[2]);
+  const Th = box(g, x + 0.3, y + 0.28, 0.4, 0.16, 9, 4, SANDSTONE);           // the throne's back
+  qd(g, Th.R, 0, 1, 6.5, 7.5, BLUE, { alpha: 0.8 });
+  const Lg = box(g, x + 0.36, y + 0.44, 0.28, 0.26, 4.4, 4, SANDSTONE);        // shins and lap
+  qd(g, Lg.L, 0.48, 0.52, 0, 4.4, SANDSTONE[2], { alpha: 0.5 });
+  const Tr = box(g, x + 0.38, y + 0.36, 0.24, 0.16, 6, 8.4, SANDSTONE);       // body
+  qd(g, Tr.L, 0, 1, 4.6, 6, GOLD);                                             // the gold collar
+  for (const u of [0.33, 0.6]) box(g, x + u, y + 0.44, 0.06, 0.24, 1.4, 8.4, SANDSTONE, 0);   // forearms on the knees
+  const Hc = box(g, x + 0.4, y + 0.36, 0.2, 0.15, 4.2, 14, SANDSTONE);         // the headcloth, striped blue
+  for (let s = 0.4; s < 4; s += 1.1) {
+    qd(g, Hc.L, 0, 0.22, s, s + 0.55, BLUE);
+    qd(g, Hc.L, 0.78, 1, s, s + 0.55, BLUE);
+    qd(g, Hc.R, 0, 1, s, s + 0.55, BLUE, { alpha: 0.85 });
+  }
+  qd(g, Hc.L, 0.3, 0.7, 0.6, 3.4, SANDSTONE[1]);                               // the face
+  qd(g, Hc.L, 0.36, 0.44, 2.2, 2.7, DOOR);
+  qd(g, Hc.L, 0.56, 0.64, 2.2, 2.7, DOOR);
+  box(g, x + 0.48, y + 0.5, 0.04, 0.04, 2, 12.4, SANDSTONE, 0);                // the beard
+  tb(g, x + 0.43, y + 0.38, 0.14, 0.11, 3, 18.2, 0.035, GOLDC);                // the crown
+}
+
+// Booth (1x1): a low timber stage with a painted backdrop under a red-and-gold striped awning at the back, a dancer
+// and a drum on the open front, a rug for the crowd and a pink pennant.
+const PLANK = ['#D8B47A', '#C09A62', '#9C8072'];
+export function booth(g, x, y) {
+  rug(g, x + 0.1, y + 0.78, 0.5, 0.18, 0, RED, '#F2D7A8', GOLD);
+  const F = box(g, x + 0.16, y + 0.14, 0.68, 0.6, 3, 0, PLANK);
+  for (let u = 0.2; u < 1; u += 0.2) g.line(F.L(u, 0.4), F.L(u, 2.6), '#9C7A54', 0.4, 0.6);
+  qd(g, F.L, 0, 1, 2.2, 2.8, TEAL);
+  qd(g, F.R, 0, 1, 2.2, 2.8, TEAL_DARK);
+  const B = box(g, x + 0.18, y + 0.16, 0.64, 0.08, 9, 3, WASH2);               // the backdrop, hung with cloth
+  qd(g, B.L, 0.1, 0.9, 1, 8, ORANGE);
+  for (const u of [0.25, 0.5, 0.75]) qd(g, B.L, u - 0.04, u + 0.04, 1, 8, GOLD);
+  awn(g, x + 0.14, y + 0.12, 0.72, 0.3, 13.6, RED, RED_DARK, GOLD);
+  g.ell(U(p(x + 0.72, y + 0.52), 4.4), 1.7, 1, '#B07A48', { outline: true });  // a drum
+  g.ell(U(p(x + 0.72, y + 0.52), 5.4), 1.6, 0.75, '#F2E2BC');
+  fig(g, x + 0.46, y + 0.56, 'woman', 3, 0.85);
+  pennant(g, U(p(x + 0.86, y + 0.12), 14.8), 6, SERVICE_EMBLEM.booth);
+}
+
+// The plain type slots are what cards and assets show: a full granary, a piled bazaar, a green grain field, ripe
+// barley, flax in flower and a fig orchard in fruit.
+export const PLAIN_STAGE = { granary: 3, bazaar: 2, farm_grain: 2, farm_barley: 3, farm_flax: 3, farm_fig: 3 };
 
 const FARM_SLOT = { w: 2, d: 2, height: 12, bounds: boundsFor(2, 2, 12), shadows: [[1.4, 1.4, 0.52, 0.52, 9]] };
 const GRANARY_SLOT = { w: 2, d: 2, height: 22, bounds: boundsFor(2, 2, 22), shadows: [[0.1, 0.1, 1.8, 1.8, 16]] };
@@ -239,15 +381,23 @@ const BAZAAR_SLOT = {
   w: 2, d: 2, height: 16, bounds: boundsFor(2, 2, 16),
   shadows: [[0.12, 0.12, 0.76, 0.76, 9], [1.12, 0.12, 0.76, 0.76, 9], [0.12, 1.12, 0.76, 0.76, 9], [1.12, 1.12, 0.76, 0.76, 9]],
 };
+// Every farm's drawing by type, each taking (g, x, y, stage); slots are registered for each below.
+export const FARM_DRAW = { farm_grain: farmGrain, farm_barley: farmBarley, farm_flax: farmFlax, farm_fig: figOrchard };
 
 export const SERVICE_ART = {
   well: { w: 1, d: 1, height: 18, bounds: boundsFor(1, 1, 18), shadows: [[0.28, 0.28, 0.44, 0.44, 6]], draw: well },
-  farm_grain: { ...FARM_SLOT, draw: (g, x, y) => farmGrain(g, x, y, PLAIN_STAGE.farm_grain) },
   granary: { ...GRANARY_SLOT, draw: (g, x, y) => granary(g, x, y, PLAIN_STAGE.granary) },
   bazaar: { ...BAZAAR_SLOT, draw: (g, x, y) => bazaar(g, x, y, PLAIN_STAGE.bazaar) },
   temple: { w: 2, d: 2, height: 40, bounds: boundsFor(2, 2, 40), shadows: [[0.25, 0.2, 1.5, 1, 15], [0.1, 1.2, 1.8, 0.7, 23]], draw: temple },
+  garden: { w: 1, d: 1, height: 16, bounds: boundsFor(1, 1, 16), shadows: [], draw: garden },
+  statue: { w: 1, d: 1, height: 22, bounds: boundsFor(1, 1, 22), shadows: [[0.2, 0.2, 0.6, 0.6, 4], [0.3, 0.28, 0.4, 0.42, 16]], draw: seatedStatue },
+  booth: { w: 1, d: 1, height: 21, bounds: boundsFor(1, 1, 21), shadows: [[0.16, 0.14, 0.68, 0.6, 3], [0.14, 0.12, 0.72, 0.3, 13]], draw: booth },
 };
-// One slot per stage, named as slotFor (registry.js) names them: granary.s0-s3, bazaar.s0-s2, farm_grain.g0-g3.
+// One slot per stage, named as slotFor (registry.js) names them: granary.s0-s3, bazaar.s0-s2, and g0-g3 for every
+// farm; each farm also keeps its plain type slot.
 for (let s = 0; s < 4; s++) SERVICE_ART[`granary.s${s}`] = { ...GRANARY_SLOT, draw: (g, x, y) => granary(g, x, y, s) };
 for (let s = 0; s < 3; s++) SERVICE_ART[`bazaar.s${s}`] = { ...BAZAAR_SLOT, draw: (g, x, y) => bazaar(g, x, y, s) };
-for (let s = 0; s < 4; s++) SERVICE_ART[`farm_grain.g${s}`] = { ...FARM_SLOT, draw: (g, x, y) => farmGrain(g, x, y, s) };
+for (const [type, draw] of Object.entries(FARM_DRAW)) {
+  SERVICE_ART[type] = { ...FARM_SLOT, draw: (g, x, y) => draw(g, x, y, PLAIN_STAGE[type]) };
+  for (let s = 0; s < 4; s++) SERVICE_ART[`${type}.g${s}`] = { ...FARM_SLOT, draw: (g, x, y) => draw(g, x, y, s) };
+}
