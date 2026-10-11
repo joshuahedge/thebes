@@ -1,0 +1,5 @@
+# Stage 2 plan-writer reports (summaries kept for the next session)
+
+## Tasks 3-5 (s2-plan-T03-T05.md) — RAN on a scratch copy with stand-ins for Tasks 1-2: 712/713 (the render stress timing test flaked under load, passed alone)
+- Contract notes are at the top of the file (topUpHouse gains `{ twoFoods }`; Task 4 sets met.<good> and met.twoFoods so Houses can become Townhouses before Task 6; `houseDesirability(world, house, field?)` takes the field so Task 6's monthly check passes it in; a store-level storage_full alert; workshops draw input from any store in reach, working or not; previews count empty plots; setAccept returns `{ ok, warnings }`; food told apart via FOOD_GOODS; Task 2 must keep `bazaar.capacity`).
+- Risks: timing tests flaky under load; `bazaar_empty` still means "holds nothing at all" (Task 12 may want "no food"); homes wanting one food also eat figs (balance, Task 17); anchors in commands.js/world.js chosen away from Task 1's edits; Task 4's tests avoid a second monthly pass on tier-6 homes.
