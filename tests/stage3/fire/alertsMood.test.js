@@ -57,6 +57,10 @@ describe('s3 fire alerts', () => {
     expect(fireCause(w, potter).cause).toBe('paused');
     const other = addRaw(w, 'firehouse', 10, 9, { staff: 4, fire: fireFor(5) });
     expect(fireCause(w, potter)).toEqual({ cause: 'burning', cover: 0, firehouse: other.id });   // burning beats paused
+    other.paused = true;                                                              // paused and burning: resuming it would not help
+    expect(fireCause(w, potter)).toEqual({ cause: 'burning', cover: 0, firehouse: other.id });
+    expect(alertText({ code: 'fire', id: potter.id }, w).fix).toBe('Its firehouse is burning: build another near it');
+    other.paused = false;
     fh.paused = false;
     expect(fireCause(w, potter)).toEqual({ cause: 'covered', cover: 1, firehouse: fh.id });
   });

@@ -242,7 +242,7 @@ export function paintHouses(world, x0, y0, x1, y1) {
   return { ok: true, warnings: p.warnings, ids, cost: p.cost };
 }
 
-// Everything in the rectangle: buildings (rubble among them), road tiles and wall tiles. refund is the buildings' refunds
+// Everything in the rectangle: buildings (rubble among them), road tiles with no wall on them and wall tiles. refund is the buildings' refunds
 // less the rubble's clearing (clearCost, rubble tiles x rubbleCostOf), so it is negative when clearing costs more than
 // the rest gives back; ok is false (reason 'no_gold') when that would take the treasury below the debt floor.
 export function previewDemolishArea(world, x0, y0, x1, y1) {
@@ -253,7 +253,7 @@ export function previewDemolishArea(world, x0, y0, x1, y1) {
     if (!inBounds(world.size, x, y)) continue;
     const i = idx(world.size, x, y);
     if (world.occ[i] && !buildingIds.includes(world.occ[i])) buildingIds.push(world.occ[i]);
-    if (world.road[i]) roadTiles.push(i);
+    if (world.road[i] && !world.wall[i]) roadTiles.push(i);   // a gate (or a breach on a road) keeps its road, as demolishAt does
     if (world.wall[i]) wallTiles.push(i);
   }
   const rubble = buildingIds.filter((id) => world.buildings[id].type === 'rubble').length;
