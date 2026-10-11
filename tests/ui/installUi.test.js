@@ -53,7 +53,8 @@ describe('ui install guide', () => {
     const card = createTitleCard({ container, hasSave: false, canInstall: false, canBring: true, sound: false, onContinue: () => {}, onNewCity: () => {}, onSound: () => {}, onInstall: () => log.push('install'), onBring: () => log.push('bring') });
     const bring = container.querySelector('.bring');
     expect(bring.textContent).toBe(T.bringCity);
-    expect(bring.previousElementSibling.classList.contains('new-city')).toBe(true);
+    expect(bring.previousElementSibling.classList.contains('title-difficulty')).toBe(true);                 // New city, its difficulty (spec 4.18), then Bring a city
+    expect(bring.previousElementSibling.previousElementSibling.classList.contains('new-city')).toBe(true);
     fire(bring, 'click');
     expect(log).toEqual(['bring']);
     const install = container.querySelector('.install');

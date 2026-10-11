@@ -17,7 +17,7 @@ function street() {
 describe('sim firsts', () => {
   it('lists the Stage 1 firsts in order, each paying 10 gold', () => {
     expect(FIRST_REWARD).toBe(10);
-    expect(FIRSTS.map((f) => f.id)).toEqual([
+    expect(FIRSTS.slice(0, 8).map((f) => f.id)).toEqual([
       'first_family', 'first_full_home', 'first_harvest', 'first_shack', 'first_cottage', 'first_house', 'first_profit', 'people_100',
     ]);
     expect(first('first_full_home').check).toEqual({ kind: 'fullHome' });

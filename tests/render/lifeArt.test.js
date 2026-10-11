@@ -89,7 +89,7 @@ describe('life art', () => {
       }
       expect(hashes.size).toBe(slots.length);
     }
-    expect(PLAIN_STAGE).toEqual({ granary: 3, bazaar: 2, farm_grain: 2 });
+    expect(PLAIN_STAGE).toEqual({ granary: 3, bazaar: 2, farm_grain: 2, farm_barley: 3, farm_flax: 3, farm_fig: 3 });
     // the plain slot is the full or middle stage, for card thumbnails and assets
     expect(canvasHash(drawAlone((g) => ART.granary.draw(g, 0, 0)))).toBe(canvasHash(drawAlone((g) => ART['granary.s3'].draw(g, 0, 0))));
   });

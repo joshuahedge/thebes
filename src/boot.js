@@ -70,10 +70,10 @@ export async function boot(doc, win, {
   const stress = params.get('stress') === '1', sample = params.get('sample') === '1';
   const seedOf = () => Number(params.get('seed')) || Math.floor(Math.random() * 1e9);
 
-  // A new city starts with the guide on only under Help: Guide and tips (early-game pass 3.1). The sample and
-  // stress cities of the development flags never guide.
+  // A new city starts with the guide on only under Help: Guide and tips (early-game pass 3.1), and at the difficulty
+  // the settings hold for new cities (spec 4.18). The sample and stress cities of the development flags never guide.
   function freshWorld() {
-    const world = createWorld({ seed: seedOf() });
+    const world = createWorld({ seed: seedOf(), difficulty: settings.get().difficulty });
     if (stress) buildStressCity(world); else if (sample) buildSampleCity(world);
     if (params.has('speed')) setSpeed(world, Number(params.get('speed')));
     setGuide(world, settings.get().help === 'full' && !stress && !sample);
@@ -182,6 +182,7 @@ export async function boot(doc, win, {
     const guide = installGuide(flow, { hasCity: loaded.state === 'ok', onPrompt: () => flow.promptInstall(), onBring: () => hooks.importCity() });
     const card = createTitleCard({
       container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), canBring: flow.canBring(), sound: settings.get().sound, message,
+      difficulty: settings.get().difficulty, onDifficulty: (level) => settings.set({ difficulty: level }),   // spec 4.18: freshWorld reads it
       onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
       onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : startGame(freshWorld())),
       onSound: (on) => settings.set({ sound: on }),

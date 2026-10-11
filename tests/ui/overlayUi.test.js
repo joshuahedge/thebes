@@ -5,7 +5,7 @@ import { OVERLAY_NAMES, OVERLAY_LEGEND } from '../../src/ui/text.js';
 import { mount, fire } from '../helpers/dom.js';
 
 describe('ui overlay legend', () => {
-  it('shows name, dot, ring and a close button for the current overlay, and cycles through all four', () => {
+  it('shows name, dot, ring and a close button for the current overlay, and cycles through all seven', () => {
     const { root, cleanup } = mount();
     const store = createStore(INITIAL_UI_STATE);
     const legend = createOverlayLegend({ container: root, store });
@@ -23,8 +23,8 @@ describe('ui overlay legend', () => {
     expect(store.get().overlay).toBe(null);
     expect(root.querySelector('.strip')).toBe(null);
     const seen = [];
-    for (let i = 0; i < 5; i++) { legend.cycle(); seen.push(store.get().overlay); }
-    expect(seen).toEqual(['water', 'food', 'religion', 'housing', null]);
+    for (let i = 0; i < 8; i++) { legend.cycle(); seen.push(store.get().overlay); }
+    expect(seen).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'housing', null]);
     cleanup();
   });
 });

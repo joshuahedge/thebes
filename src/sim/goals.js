@@ -2,9 +2,12 @@
 // the treasury. First-time event goals sit in front of the opening chain; the guided start is the chain's
 // first five goals and pays once when they are all done.
 import { GOALS, EVENT_GOALS, GUIDE_GOALS, GUIDE_REWARD } from '../data/goals.js';
+import { MILESTONES } from '../data/progression.js';
 import { housesOf, population, allBuildings } from './world.js';
 import { alertsFor } from './alerts.js';
 import { idx } from './grid.js';
+import { atLeast, milestoneIndex } from './progression.js';
+import { openRoutes } from './trade.js';
 
 const SETTLE_MAX = 20;   // settleGoals stops after this many completions in one go
 
@@ -30,6 +33,7 @@ export function goalMet(world, need) {
     case 'building': return countOf(world, need.type) >= (need.n || 1);
     case 'people': return population(world) >= need.n;
     case 'tier': return homesAtTier(world, need.tier) >= need.n;
+    case 'routes': return openRoutes(world) >= need.n;
     case 'noAlert': return !hasAlert(world, need.code);
     case 'gold': return world.gold >= need.n;
     case 'all': return need.of.every((x) => goalMet(world, x));
@@ -45,6 +49,7 @@ export function goalProgress(world, goal) {
     case 'building': { const of = need.n || 1; return { n: Math.min(countOf(world, need.type), of), of }; }
     case 'people': return { n: Math.min(population(world), need.n), of: need.n };
     case 'tier': return { n: Math.min(homesAtTier(world, need.tier), need.n), of: need.n };
+    case 'routes': return { n: Math.min(openRoutes(world), need.n), of: need.n };
     case 'all': return { n: need.of.filter((x) => goalMet(world, x)).length, of: need.of.length };
     default: return null;
   }
@@ -61,19 +66,44 @@ export function triggerEventGoals(world) {
   return fired;
 }
 
-// Triggered event goals first (in EVENT_GOALS order), then the chain, both without the completed ones.
-export function openGoals(world, limit = 3) {
+// A goal with a `from` milestone waits until the city has reached it. The milestone itself moves at month end,
+// so it counts as reached once the city has had the people for it too (its peak, kept daily, so a few leaving
+// before the month end do not take the goals away again): the goal before it (the one that names the people) is
+// then done, and the list does not run dry until the month turns. updateMilestone counts the same peak, so that
+// month end makes the milestone real and the goal's buildings placeable.
+const waits = (world, g) => Boolean(g.from) && !atLeast(world, g.from)
+  && Math.max(world.tally.peakPeople, population(world)) < MILESTONES[milestoneIndex(g.from)].population;
+
+// What is not done yet: triggered event goals first (in EVENT_GOALS order), then the chain.
+function unfinished(world) {
   const done = new Set(world.goals.completed);
   const triggered = new Set(world.goals.triggered);
-  const events = EVENT_GOALS.filter((g) => triggered.has(g.id) && !done.has(g.id));
-  return [...events, ...GOALS.filter((g) => !done.has(g.id))].slice(0, limit);
+  return {
+    events: EVENT_GOALS.filter((g) => triggered.has(g.id) && !done.has(g.id)),
+    chain: GOALS.filter((g) => !done.has(g.id)),
+  };
 }
 
-// Completes at most one open goal (any open goal, so a met chain goal never waits behind event goals),
+// The goals the player sees: triggered event goals first, then the chain, both without the completed ones. The
+// chain stops before its first goal that waits for a milestone, so no later goal shows ahead of it.
+export function openGoals(world, limit = 3) {
+  const { events, chain } = unfinished(world);
+  const stop = chain.findIndex((g) => waits(world, g));
+  return [...events, ...(stop < 0 ? chain : chain.slice(0, stop))].slice(0, limit);
+}
+
+// Every goal checkGoals can complete: all that are not done, in the same order, except those waiting for a
+// milestone (the ones after a waiting goal are still checked).
+const earnable = (world) => {
+  const { events, chain } = unfinished(world);
+  return [...events, ...chain.filter((g) => !waits(world, g))];
+};
+
+// Completes at most one earnable goal (any of them, so a met chain goal never waits behind event goals),
 // then finishes the guide once its goals are all done.
 export function checkGoals(world, events = null) {
   let goal = null;
-  for (const g of openGoals(world, Infinity)) {
+  for (const g of earnable(world)) {
     if (!goalMet(world, g.need)) continue;
     world.goals.completed.push(g.id);
     world.gold += g.reward;

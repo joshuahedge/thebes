@@ -2,16 +2,23 @@
 // A home's sheet says why it is not growing: each missing need names its cause and its fix, with Show me
 // (early-game pass 2.10). Show me itself lives in createUI (showMeAt); this file only hands it a target.
 import { BUILDINGS } from '../data/buildings.js';
+import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
-import { setPaused } from '../sim/commands.js';
-import { assignLabour } from '../sim/labour.js';
+import { desirabilityContributors } from '../sim/desirability.js';
+import { isUnlocked } from '../sim/progression.js';
+import { allBuildings } from '../sim/world.js';
+import { setPaused, setAccept } from '../sim/commands.js';
+import { assignLabour, isWorking } from '../sim/labour.js';
+import { storeTotal, storeAccepts } from '../sim/production.js';
 import { openGoals, guideActive } from '../sim/goals.js';
 import { achievementProgress } from '../sim/achievements.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
-import { closeSheet } from './modes.js';
+import { closeSheet, openSheet } from './modes.js';
 import { summaryData } from './hud.js';
-import { ZOOM_STEP } from '../data/ui.js';
-import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, T } from './text.js';
+import { nearestTerrainTile } from './goalsList.js';
+import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
+import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
+  goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -34,6 +41,27 @@ const CAUSE_FIX = {
   well_no_road: { view: true },
   bazaar_no_road: { view: true },
   temple_no_road: { view: true },
+  no_booth: { category: 'services', item: 'booth', at: 'home' },
+  booth_idle: { view: true },
+  booth_no_road: { view: true },
+  low_desirability: { category: 'homes', item: 'garden', at: 'home' },
+  no_square: { category: 'homes', item: 'house', at: 'home' },
+  // No store for the good near the bazaar: Show me that store beside the bazaar. Nothing makes it there: Show me the
+  // first of its makers the city has none of (a clay pit, then a potter), else the workshop, beside the bazaar; a maker
+  // that needs fertile or rocky ground aims at the nearest free tile of it instead (at: 'terrain'), which can lie well
+  // beyond the ghost's search around the bazaar. Neither while the building, or any of the good's makers, is not
+  // unlocked yet (the words then name the milestone; a store would stay empty).
+  no_good: (cause, world) => {
+    const item = storeFor(cause.good);
+    const usable = item && isUnlocked(world, item) && goodMakers(cause.good).every((t) => isUnlocked(world, t));
+    return usable ? { category: categoryOfItem(item), item, at: 'building' } : null;
+  },
+  good_unmade: (cause, world) => {
+    const makers = goodMakers(cause.good);
+    if (!makers.length || makers.some((t) => !isUnlocked(world, t))) return null;
+    const item = makers.find((t) => !allBuildings(world).some((b) => b.type === t)) || makerOf(cause.good);
+    return { category: categoryOfItem(item), item, at: BUILDINGS[item].terrain ? 'terrain' : 'building' };
+  },
 };
 const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
 
@@ -53,15 +81,57 @@ export function createSheets({ container, store, world, placement, cameraControl
     }));
   }
 
+  // A producer says what it is doing in words: making, growing or digging its good, waiting for its input, or not
+  // working (the problems below say why).
+  function workLine(b) {
+    const def = BUILDINGS[b.type];
+    if (!def.produces) return null;
+    let text = T.notWorking;
+    if (isWorking(world, b) && b.blocked === 'no_input') text = waitingText(def.consumes);
+    else if (isWorking(world, b) && !b.blocked) text = workingText(b.type);
+    return el('p', { class: 'work-status', text });
+  }
+
+  // Storage (spec 4.10): how full it is, then a row per good it can hold with its count and the good's line (what
+  // makes it, what uses it). A storehouse's rows are switches that accept or refuse the good (setAccept); the state
+  // is a word beside the good, so the switch never relies on colour.
+  function storeSection(b) {
+    const def = BUILDINGS[b.type];
+    const switches = b.type === 'storehouse';
+    const out = [row(T.stored, progressText(storeTotal(b), def.capacity)), el('h3', { text: T.stock })];
+    if (switches) out.push(el('p', { class: 'small muted', text: T.acceptHelp }));
+    out.push(el('ul', { class: 'store-goods' }, def.stores.map((good) => {
+      const n = String(b.store[good] || 0);
+      const line = el('p', { class: 'good-line small muted', text: goodLine(good) });
+      if (!switches) return el('li', { dataset: { good } }, [el('div', { class: 'row' }, [el('span', { text: goodName(good) }), el('span', { text: n })]), line]);
+      const on = storeAccepts(b, good);
+      const sw = el('button', { type: 'button', role: 'switch', class: 'switch accept', 'aria-checked': String(on), dataset: { good } }, [
+        el('span', { class: 'good' }, [goodName(good), ' ', el('span', { class: 'count small muted', text: n })]),
+        el('span', { class: 'state small', text: on ? T.accepted : T.refused }),
+      ]);
+      sw.addEventListener('click', () => {
+        const r = setAccept(world, b.id, good, !on);
+        if (r.ok) { afterCommand({ kind: 'accept', result: r, undoable: false }); render(); }
+      });
+      return el('li', { dataset: { good } }, [sw, line]);
+    })));
+    return out;
+  }
+
   function buildingSheet(b) {
     const def = BUILDINGS[b.type];
     const body = el('div', { class: 'body' });
+    const work = workLine(b);
+    if (work) body.append(work);
     body.append(row(T.workers, def.workers ? `${b.staff} of ${def.workers}` : T.noWorkersNeeded));
-    for (const [good, n] of Object.entries(b.store)) body.append(row(`${T.stock}: ${good}`, String(n)));
+    if (def.stores) body.append(...storeSection(b));
+    else for (const [good, n] of Object.entries(b.store)) body.append(row(`${T.stock}: ${goodName(good)}`, String(n)));
     const reach = def.reach || def.supplyReach || def.producerReach;
     if (reach) body.append(row(T.reach, `${reach} road tiles`));
     body.append(el('h3', { text: T.problems }), problems(b.id));
     const actions = el('div', { class: 'actions' });
+    // The trading post's routes and orders live on their own sheet (spec 4.15); Back comes back here.
+    if (b.type === 'trading_post') actions.append(button(T.trade, { class: 'trade primary', onClick: () => store.set(openSheet(store.get(), 'trade', b.id)) }));
     if (def.workers || def.upkeep) {
       actions.append(button(b.paused ? T.resume : T.pause, { class: 'pause', onClick: () => {
         const r = setPaused(world, b.id, !b.paused);
@@ -75,31 +145,44 @@ export function createSheets({ container, store, world, placement, cameraControl
 
   // One row of the next-tier checklist: a mark, the need, a status in words (meaning never by colour alone);
   // a missing need adds its cause, then its fix: Show me when there is something to build, View when the
-  // building that would serve it is already in reach and only needs resuming or workers.
+  // building that would serve it is already in reach and only needs resuming or workers. The desirability row also
+  // shows its score and three biggest causes; the merge row (a Townhouse) asks for a 2x2 square.
   function needRow(h, c) {
-    const li = el('li', { class: c.met ? 'met' : 'missing' }, [el('div', { class: 'need' }, [
+    const li = el('li', { class: c.met ? 'met' : 'missing', dataset: { need: c.need } }, [el('div', { class: 'need' }, [
       el('span', { class: c.met ? 'tick' : 'cross', 'aria-hidden': 'true', text: c.met ? '✓' : '✕' }),
       el('span', { class: 'name', text: NEED_NAMES[c.need] }),
       el('span', { class: `status small ${c.met ? 'teal' : 'coral'}`, text: c.met ? T.hasIt : T.missing }),
     ])]);
+    if (c.need === 'desirability') {
+      const parts = desirabilityContributors(world, h, 3).map((d) => contributorText(d.value, contributorName(d)));
+      li.append(el('p', { class: 'desirability small', text: desirabilityText(c.value, c.target, parts) }));
+    }
     const cause = c.met ? null : needCause(world, h, c.need);
-    if (!cause) return li;
-    const words = causeText(cause, world);
+    const words = cause ? causeText(cause, world, c.need) : null;
+    if (!words) return li;
     li.append(el('p', { class: 'cause small', text: words.cause }));
-    const fix = CAUSE_FIX[cause.code];
-    if (!fix) return li;
+    const fix = typeof CAUSE_FIX[cause.code] === 'function' ? CAUSE_FIX[cause.code](cause, world) : CAUSE_FIX[cause.code];
+    // Nothing to build or view (goods on their way, a building not unlocked yet): the fix's words alone, when it has any.
+    if (!fix) { if (words.fix) li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix })])); return li; }
     const building = cause.id !== null ? world.buildings[cause.id] : null;
     let action;
     if (fix.view) {
       if (!building) return li;
       action = button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(building.type)), onClick: () => onSelect(building.id) });
     } else {
-      const at = centreOf(fix.at === 'building' && building ? building : h);
+      const near = centreOf(fix.at !== 'home' && building ? building : h);
+      const at = fix.at === 'terrain' ? nearestTerrainTile(world, BUILDINGS[fix.item].terrain, near) || near : near;
       const target = { category: fix.category, item: fix.item, x: at.x, y: at.y };
       action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${words.fix}`, onClick: () => onShowMe(target) });
     }
     li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix }), action]));
     return li;
+  }
+
+  // A building that changes a home's desirability, by name: a home by its tier ("+2 manor"), anything else by its type.
+  function contributorName(d) {
+    const b = world.buildings[d.id];
+    return (b && b.type === 'house' ? tierName(b.tier) : buildingName(d.type)).toLowerCase();
   }
 
   function houseSheet(h) {
@@ -115,11 +198,15 @@ export function createSheets({ container, store, world, placement, cameraControl
       ]),
     ]));
     if (s.next) {
+      const rows = s.merge.needed ? [...s.checklist, { need: 'merge', met: s.merge.ready }] : s.checklist;
       body.append(el('h3', { text: `${T.nextTier} (${s.next.name})` }));
-      body.append(el('ul', { class: 'checklist' }, s.checklist.map((c) => needRow(h, c))));
-      if (s.tier >= 1 && s.checklist.every((c) => c.met)) body.append(el('p', { class: 'teal', text: T.upgradesAtMonthEnd }));
+      body.append(el('ul', { class: 'checklist' }, rows.map((c) => needRow(h, c))));
+      if (s.tier >= 1 && rows.every((c) => c.met)) body.append(el('p', { class: 'teal', text: T.upgradesAtMonthEnd }));
     }
-    if (s.downgradeIn !== null && s.missingNow.length) body.append(el('p', { class: 'coral', text: `Loses ${NEED_NAMES[s.missingNow[0]].toLowerCase()} in ${plural(s.downgradeIn, 'month', 'months')}` }));
+    // The warning month (spec 4.6): a need running out names the need; a street below the tier's keep value names the tier.
+    const lost = s.missingNow.find((n) => n !== 'desirability');
+    if (s.downgradeIn !== null && lost) body.append(el('p', { class: 'coral', text: `Loses ${NEED_NAMES[lost].toLowerCase()} in ${plural(s.downgradeIn, 'month', 'months')}` }));
+    else if (s.missingNow.includes('desirability')) body.append(el('p', { class: 'coral keep-warning', text: keepWarningText(tierName(s.tier), s.downgradeIn) }));
     body.append(el('div', { class: 'actions' }, [button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(h.x, h.y); if (r.ok) close(); } })]));
     return [head(tierName(s.tier)), body];
   }
@@ -127,8 +214,16 @@ export function createSheets({ container, store, world, placement, cameraControl
   function summarySheet() {
     const d = summaryData(world);
     const body = el('div', { class: 'body' });
+    body.append(row(T.difficulty, DIFFICULTY_NAMES[d.difficulty] || d.difficulty));
     body.append(el('h3', { text: T.incomeVsSpending }), row(T.taxes, `+${d.taxes}`), row(T.wages, `−${d.wages}`), row(T.upkeep, `−${d.upkeep}`), row(T.net, (d.net >= 0 ? '+' : '') + d.net));
-    body.append(el('h3', { text: T.foodInStore }), row(T.grain, `${d.foodStored}`), row(T.lasts, d.monthsOfFood === null ? '–' : plural(d.monthsOfFood, 'month', 'months')));
+    // Trade under its own heading, as Net above leaves it out: what caravans paid the city and what it paid them.
+    body.append(el('h3', { text: T.tradeLastMonth }), row(T.tradeSales, `+${d.tradeIncome}`), row(T.tradeBought, `−${d.tradeSpent}`));
+    // Food in store by kind: grain always, other foods once there are some.
+    body.append(el('h3', { text: T.foodInStore }), ...FOOD_GOODS.filter((g, i) => i === 0 || d.foodByGood[g] > 0).map((g) => row(goodName(g), `${d.foodByGood[g]}`)));
+    body.append(row(T.lasts, d.monthsOfFood === null ? '–' : plural(d.monthsOfFood, 'month', 'months')));
+    // Each good made against used last month (spec 4.10), in the data's order; only goods that moved.
+    const moved = Object.keys(GOODS).filter((g) => d.made[g] || d.used[g]);
+    body.append(el('h3', { text: T.goodsLastMonth }), ...(moved.length ? moved.map((g) => row(goodName(g), madeUsedText(d.made[g] || 0, d.used[g] || 0))) : [el('p', { class: 'muted', text: T.noGoodsYet })]));
     body.append(el('h3', { text: T.employment }), row(T.working, `${d.working} of ${d.workforce}`), row(T.jobless, `${d.jobless}`), row(T.jobs, `${d.jobs}`));
     body.append(el('h3', { text: T.moodBreakdown }), row(T.mood, `${d.mood}`));
     // The starting mood is a level, the rest are swings from it (early-game pass 2.10: plain English rows).

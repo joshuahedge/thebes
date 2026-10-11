@@ -31,16 +31,17 @@ function dayWith(w, picks) {
 }
 
 describe('sim daily goals', () => {
-  it('offers ten small goals, three a day, 25 gold each, once the temple goal is done', () => {
+  it('offers fifteen small goals, three a day, 25 gold each, once the temple goal is done', () => {
     expect(DAILY_COUNT).toBe(3);
     expect(DAILY_REWARD).toBe(25);
     expect(DAILY_AFTER).toBe('temple');
     expect(DAILY_POOL.map((d) => d.id)).toEqual([
       'plots4', 'roads10', 'upgrades3', 'well1', 'bazaar1', 'temple1', 'farm1', 'people20', 'profit1', 'harvest100',
+      'pottery30', 'gardens3', 'sell20', 'statue1', 'booth1',
     ]);
     const tallyKeys = Object.keys(makeTestWorld().tally);
     for (const d of DAILY_POOL) {
-      expect(['homes', 'roads', 'buildings', 'people', 'tally']).toContain(d.measure.kind);
+      expect(['homes', 'roads', 'buildings', 'people', 'tally', 'made']).toContain(d.measure.kind);
       if (d.measure.kind === 'buildings') expect(Object.keys(BUILDINGS)).toContain(d.measure.type);
       if (d.measure.kind === 'tally') expect(tallyKeys).toContain(d.measure.key);
       expect(d.n).toBeGreaterThan(0);
@@ -91,7 +92,7 @@ describe('sim daily goals', () => {
     expect(pickDaily(readyCity(2), DAY)).toEqual(['people20', 'bazaar1', 'plots4']);
     const order = dailyOrder(a, DAY);
     expect(order.slice(0, DAILY_COUNT)).toEqual(pickDaily(a, DAY));
-    expect(order.slice().sort()).toEqual(DAILY_POOL.map((d) => d.id).sort());
+    expect(order.slice().sort()).toEqual(DAILY_POOL.slice(0, 10).map((d) => d.id).sort());   // the ten a village can do: Stage 2's wait for Town
     addRaw(a, 'house', 3, 3, { tier: 1, residents: 5 });                     // the city's state does not move the draw
     a.tally.harvested = 99;
     const before = JSON.stringify(a);

@@ -3,12 +3,15 @@
 // date as a 'YYYY-MM-DD' key. No streaks: a new key simply replaces yesterday's goals. Data in src/data/daily.js.
 import { DAILY_POOL, DAILY_COUNT, DAILY_REWARD, DAILY_AFTER } from '../data/daily.js';
 import { housesOf, population } from './world.js';
-import { isUnlocked } from './progression.js';
+import { isUnlocked, atLeast } from './progression.js';
+import { openRoutes } from './trade.js';
 import { createRng, hash2 } from './rng.js';
 import { roadsLaid, countType } from './achievements.js';
 
 const defOf = (id) => DAILY_POOL.find((d) => d.id === id) || null;
-const isAvailable = (world, def) => !def.measure.type || isUnlocked(world, def.measure.type);
+// What the city can do today: the goal's building unlocked, its milestone reached, enough trade routes open.
+const isAvailable = (world, def) => (!def.measure.type || isUnlocked(world, def.measure.type))
+  && (!def.from || atLeast(world, def.from)) && (!def.routes || openRoutes(world) >= def.routes);
 
 export const dailyAvailable = (world) => world.goals.completed.includes(DAILY_AFTER);
 
@@ -21,6 +24,7 @@ export function dailyMeasure(world, def) {
     case 'buildings': return countType(world, m.type);
     case 'people': return population(world);
     case 'tally': return world.tally[m.key] || 0;
+    case 'made': return (world.tally.made || {})[m.good] || 0;
     default: return 0;
   }
 }

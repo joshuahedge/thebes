@@ -1,10 +1,10 @@
 // The portrait build dock (spec 6.3): slim bar of categories, a tray of cards, or tucked to a "Build" pill.
 // Tapping a category opens its tray; tapping it again closes it; the handle toggles; swipes move one step.
-import { visibleCategories, CATEGORY_ICONS, CATEGORY_TINT } from '../data/ui.js';
+import { CATEGORY_ICONS, CATEGORY_TINT } from '../data/ui.js';
 import { pickCategory, setDock } from './modes.js';
-import { renderCards, activeItemOf, cardsKey } from './cards.js';
+import { renderCards, activeItemOf, cardsKey, shownCategories } from './cards.js';
 import { CATEGORY_NAMES, T } from './text.js';
-import { el, button, icon } from './components.js';
+import { el, button, icon, clear } from './components.js';
 
 const SWIPE_PX = 30;
 
@@ -13,18 +13,31 @@ export function createDock({ container, store, world, onPick }) {
   const cats = el('div', { class: 'cats' });
   const tray = el('div', { class: 'tray cards' });
   const pill = button(T.build, { class: 'pill primary' });
-  const shown = visibleCategories();            // empty categories stay hidden until a stage fills them (early-game pass 2.5)
-  const catButtons = shown.map((c) => {
-    const b = el('button', { type: 'button', class: 'cat', dataset: { category: c.id }, 'aria-pressed': 'false' }, [icon(CATEGORY_ICONS[c.id]), el('span', { text: CATEGORY_NAMES[c.id] })]);
-    b.style.setProperty('--tint', CATEGORY_TINT[c.id]);
-    b.addEventListener('click', () => {
-      const s = store.get();
-      if (s.dock === 'tray' && s.category === c.id) store.set(setDock(s, 'slim'));
-      else store.set(pickCategory(s, c.id));
+  // Only categories with a card to show have a button (spec 4.14). The set can grow at a milestone, so it is
+  // rebuilt when it changes, keeping keyboard focus on the same category.
+  let shown = [], shownKey = null, catButtons = [];
+  function buildCats() {
+    const next = shownCategories(world);
+    const key = next.map((c) => c.id).join(',');
+    if (key === shownKey) return;
+    const focused = cats.contains(document.activeElement) ? document.activeElement.dataset.category : null;
+    shownKey = key;
+    shown = next;
+    catButtons = shown.map((c) => {
+      const b = el('button', { type: 'button', class: 'cat', dataset: { category: c.id }, 'aria-pressed': 'false' }, [icon(CATEGORY_ICONS[c.id]), el('span', { text: CATEGORY_NAMES[c.id] })]);
+      b.style.setProperty('--tint', CATEGORY_TINT[c.id]);
+      b.addEventListener('click', () => {
+        const s = store.get();
+        if (s.dock === 'tray' && s.category === c.id) store.set(setDock(s, 'slim'));
+        else store.set(pickCategory(s, c.id));
+      });
+      return b;
     });
-    return b;
-  });
-  cats.append(...catButtons);
+    clear(cats);
+    cats.append(...catButtons);
+    const again = focused && catButtons.find((b) => b.dataset.category === focused);
+    if (again) again.focus();
+  }
   handle.addEventListener('click', () => { const s = store.get(); store.set(setDock(s, s.dock === 'tray' ? 'slim' : 'tray')); });
   let swipeStart = null;
   handle.addEventListener('pointerdown', (ev) => {
@@ -48,6 +61,7 @@ export function createDock({ container, store, world, onPick }) {
 
   let lastCards = null;
   function render() {
+    buildCats();
     const s = store.get();
     container.dataset.height = s.dock;
     document.body.dataset.dock = s.dock;

@@ -1,6 +1,7 @@
 // Firsts (spec 3.6): one small celebration per city for each of these, each paying FIRST_REWARD. Checks are
 // declarative so later stages can add firsts for new goods and tiers; src/sim/firsts.js evaluates them.
-// The words the player sees live in src/ui/text.js (FIRST_TEXT, keyed by id).
+// The words the player sees live in src/ui/text.js (FIRST_TEXT, keyed by id). Check kinds: people { n },
+// fullHome, tier { tier }, tally { key, n }, made { good, n } (units of a good produced, world.tally.made).
 export const FIRST_REWARD = 10;
 
 export const FIRSTS = [
@@ -12,4 +13,11 @@ export const FIRSTS = [
   { id: 'first_house', check: { kind: 'tier', tier: 4 } },
   { id: 'first_profit', check: { kind: 'tally', key: 'profitMonths', n: 1 } },
   { id: 'people_100', check: { kind: 'people', n: 100 } },
+  { id: 'first_pottery', check: { kind: 'made', good: 'pottery', n: 1 } },
+  { id: 'first_townhouse', check: { kind: 'tier', tier: 5 } },
+  { id: 'first_manor', check: { kind: 'tier', tier: 6 } },
+  { id: 'first_caravan', check: { kind: 'tally', key: 'caravans', n: 1 } },
+  { id: 'first_fine_manor', check: { kind: 'tier', tier: 7 } },
+  { id: 'first_villa', check: { kind: 'tier', tier: 8 } },
+  { id: 'first_estate', check: { kind: 'tier', tier: 9 } },
 ];

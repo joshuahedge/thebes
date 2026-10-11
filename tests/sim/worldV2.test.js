@@ -16,15 +16,15 @@ function farmWorld() {
 }
 
 describe('world v2', () => {
-  it('creates a version 2 world with the new fields at their starting values', () => {
+  it('creates a world with the version 2 fields at their starting values', () => {
     const w = createWorld({ seed: 4 });
-    expect(WORLD_VERSION).toBe(2);
-    expect(w.version).toBe(2);
+    expect(w.version).toBe(WORLD_VERSION);                                // version 3 and its fields: tests/sim/worldV3.test.js
     expect(w.firsts).toEqual([]);
     expect(w.achievements).toEqual([]);
     expect(w.daily).toBe(null);
     expect(w.guide).toEqual({ on: true, done: false });
-    expect(w.tally).toEqual({ harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0 });
+    const { harvested, profitMonths, peakPeople, upgrades, dailyDone } = w.tally;
+    expect({ harvested, profitMonths, peakPeople, upgrades, dailyDone }).toEqual({ harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0 });
     expect(w.goals).toEqual({ completed: [], triggered: [] });
     expect(JSON.parse(JSON.stringify(w))).toEqual(w);
   });

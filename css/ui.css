@@ -70,8 +70,9 @@ body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
 #legend .dot, #legend .ring { display: inline-block; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; }
 #legend .dot { background: currentColor; }
 #legend .ring { border: 2px solid currentColor; }
-/* Under a banner the legend shrinks to its dot and ring; the words stay for screen readers (sr-only). */
-body.has-banner #legend .strip .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Under a banner the legend shrinks to its dot and ring; the words stay for screen readers (sr-only). A graded scale (the
+   desirability bands) keeps its name and labels: swatches alone would be colour alone (spec 6.1). */
+body.has-banner #legend .strip:not(.graded) .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body[data-hand="left"] .confirm { flex-direction: row-reverse; }
 body[data-hand="left"] #rail .bottom { flex-direction: column-reverse; }
 
@@ -104,7 +105,8 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 .card .name { font-weight: 600; }
 .card .cost { font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
 .card.unaffordable .cost { color: var(--coral-text); }
-.card.locked { opacity: 0.75; }
+/* A locked card fades only its picture: its name and its lock line keep full strength (4.5:1, spec 6.1) and say it in words. */
+.card.locked .thumb { opacity: 0.6; filter: saturate(0.5); }
 .cards.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 8px; grid-auto-rows: max-content; align-content: start; }
 .cards.grid .card { width: auto; }
 .cards .empty { padding: 12px; color: var(--ink-soft); }
@@ -122,7 +124,7 @@ body[data-layout="wide"] .confirm, body[data-layout="compact"] .confirm { paddin
 #panel .foldbar { display: flex; justify-content: flex-start; padding: 6px; border-bottom: 1px solid var(--parchment-3); }
 #panel .minimap { align-self: center; margin: 8px; }
 #panel .tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 8px; }
-#panel .tab { min-height: var(--tap); min-width: 0; padding: 0 10px; font-size: calc(12px * var(--ui-scale)); }
+#panel .tab { min-height: var(--tap); min-width: 0; padding: 0 8px; font-size: calc(12px * var(--ui-scale)); }   /* 8 px: five tabs fit one row at 100% text */
 #panel .tab[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); box-shadow: none; }
 #panel .cards { overflow-y: auto; flex: 1; }
 #panel .details { border-top: 1px solid var(--parchment-3); padding: 8px 12px; min-height: 64px; }
@@ -137,7 +139,7 @@ body.panel-folded #panel > :not(.foldbar) { display: none; }
 
 /* Sheets: a bottom sheet in portrait, a drawer in compact, the lower part of the panel column in wide. */
 #sheet { position: fixed; background: var(--parchment); box-shadow: var(--shadow); overflow-y: auto; display: flex; flex-direction: column; }
-#sheet .head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; position: sticky; top: 0; background: var(--parchment); border-bottom: 1px solid var(--parchment-3); }
+#sheet .head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; position: sticky; top: 0; z-index: 1; background: var(--parchment); border-bottom: 1px solid var(--parchment-3); }   /* z-index: above content that scrolls under it, a disabled button's own layer (its opacity) too */
 #sheet .head h2 { flex: 1; font-size: calc(18px * var(--ui-scale)); }
 #sheet .body { padding: 8px 16px calc(16px + var(--safe-bottom)); }
 #sheet .welcome-actions { position: sticky; bottom: 0; background: var(--parchment); border-top: 1px solid var(--parchment-3); margin: 12px -16px calc(-16px - var(--safe-bottom)); padding: 10px 16px calc(10px + var(--safe-bottom)); }   /* Carry on stays in view however many alerts there are */
@@ -146,7 +148,7 @@ body.panel-folded #panel > :not(.foldbar) { display: none; }
 #sheet .cross { color: var(--coral-text); }
 body[data-layout="portrait"] #sheet { left: 0; right: 0; bottom: 0; max-height: 60vh; max-height: 60dvh; border-radius: 16px 16px 0 0; }
 body[data-layout="compact"] #sheet { top: calc(var(--safe-top) + var(--topbar-h)); right: calc(var(--rail-w) + var(--safe-right)); bottom: 0; width: var(--drawer-w); }
-body[data-layout="wide"] #sheet { right: 0; bottom: 0; width: var(--panel-w); max-height: 55%; border-top: 1px solid var(--parchment-3); border-left: 1px solid var(--parchment-3); }
+body[data-layout="wide"] #sheet { right: 0; bottom: 0; width: var(--panel-w); max-height: min(55%, calc(100% - var(--panel-tabs-bottom, 0px))); border-top: 1px solid var(--parchment-3); border-left: 1px solid var(--parchment-3); }   /* never over the side panel's tabs, however many rows they take (sidePanel.js publishes their bottom edge) */
 
 /* Which chrome each layout shows. */
 body[data-layout="portrait"] #panel, body[data-layout="portrait"] #rail { display: none; }
@@ -372,3 +374,68 @@ body.reduce-motion .goal-strip .show-me.glow, body.reduce-motion.nudge-play .spe
 .achievements .status { display: flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; }
 .ach-bar { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--parchment); border: 1px solid var(--ink-soft); overflow: hidden; box-sizing: border-box; }
 .ach-bar .fill { display: block; height: 100%; background: var(--teal); }
+
+/* Stage 2 cards and storage (spec 4.10, 4.14). A card whose building a milestone just unlocked wears a "New" badge: a
+   word, ink on gold (8:1), top left, clear of the guide's Suggested tag on the right. A producer's sheet leads with
+   what it is doing; a storehouse lists its goods as switches whose state is a word beside the good. */
+.card .new-badge { position: absolute; top: 4px; left: 4px; background: var(--gold); color: var(--ink); border-radius: 8px; padding: 0 6px; font-size: calc(12px * var(--ui-scale)); line-height: 1.6; font-weight: 600; pointer-events: none; }
+#sheet .work-status { margin: 4px 0 8px; font-weight: 600; }
+#sheet .store-goods { list-style: none; padding-left: 0; }
+.store-goods li { padding: 4px 0; border-bottom: 1px solid var(--parchment-2); }
+.store-goods .row { border-bottom: none; padding: 2px 0; }
+.store-goods .switch { margin: 2px 0; gap: 8px; }
+.store-goods .switch .state { font-weight: 600; flex: none; }
+.store-goods .switch[aria-checked="false"] .state { color: var(--coral-text); }
+.store-goods .good-line { margin: 2px 0 0; }
+
+/* The trade sheet (spec 4.15): routes first, then a row per good with its prices, the Buy, Sell or Ignore choice
+   (the .choices group the settings use) and the level to keep between its 44 px -10 and +10 buttons. */
+#sheet .routes, #sheet .trade-goods { list-style: none; padding-left: 0; }
+.routes .route { padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+.routes .route.open { display: flex; justify-content: space-between; align-items: center; min-height: var(--tap); }
+.routes .route .row { border-bottom: none; align-items: center; padding: 0; }
+.routes .reason { margin: 2px 0 0; }
+.trade-goods .trade-good { padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+.trade-goods .row { border-bottom: none; padding: 0; align-items: baseline; }
+.trade-goods .prices { margin: 2px 0 4px; }
+.trade-goods .keep { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.trade-goods .keep-value { min-width: 5em; text-align: center; }
+.trade-goods .keep-help { margin: 2px 0 0; }
+.trade-warning { margin: 8px 0; }
+.trade-warning p { margin: 0 0 4px; }
+.trade-warning .fix { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
+#sheet .next-caravan { margin-top: 8px; }
+
+/* The house sheet for the economy (spec 4.6, 4.7): the desirability row's score and causes sit under it, lined up with
+   the cause and fix. */
+.checklist .desirability { margin: 2px 0 0 calc(var(--mark-w) + 8px); }
+
+/* Stage 2 overlays and the placement preview (spec 4.7, 6.3). The desirability legend is a scale: a swatch over a short
+   label per band, the first hatched as on the map. On a phone held upright the scale takes a row of its own under the name
+   and the x; held sideways (compact) it keeps one row, so the strip and the goals under it stay out of the middle. */
+#legend .strip.graded { flex-wrap: wrap; row-gap: 0; max-width: 100%; box-sizing: border-box; }
+#legend .scale { display: inline-flex; flex-wrap: wrap; align-items: flex-start; gap: 2px 6px; }
+#legend .band { display: inline-flex; flex-direction: column; align-items: center; min-width: 32px; }
+#legend .swatch { display: block; width: 26px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(43, 31, 14, 0.35); }
+#legend .band .text { line-height: 1.1; white-space: nowrap; }
+body[data-layout="portrait"] #legend .strip.graded .scale { order: 3; flex-basis: 100%; }
+body[data-layout="portrait"] #legend .strip.graded .close { margin-left: auto; }
+/* A building that changes desirability has a fourth line in the confirm bar ("Makes 6 homes nicer"): in portrait the bar
+   keeps room for it from the start (title 1.4em, three small lines of 1.05em; at 125% and 150% one of them may wrap). */
+body[data-layout="portrait"] .confirm.desire .info { min-height: 4.55em; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) .confirm.desire .info { min-height: 5.6em; }
+
+/* Difficulty under New city (spec 4.18): three choices on one row where they fit, the chosen level's line beneath. The
+   card scrolls rather than clip if a small phone at 150% text cannot hold it all. */
+.title-card { max-height: 100%; overflow-y: auto; }
+.title-difficulty { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0 0 4px; }
+.title-difficulty .choices { justify-content: center; }
+.title-difficulty .difficulty-hint { margin: 0; white-space: pre-line; }   /* the hint is two lines: what buildings cost, then the road price */
+#sheet .difficulty-note { margin: 4px 0 0; }
+/* A phone held sideways has about 360 px of height (the title card shows before the layout is watched, so this is a
+   height query): tighter spacing lets the card, difficulty row and all, fit at 100% text. */
+@media (max-height: 480px) {
+  .title-card { padding: 12px 24px; gap: 4px; }
+  .title-card .tagline { margin: 0; }
+  .title-buttons { gap: 4px; }
+}

@@ -15,15 +15,16 @@ describe('ui dock', () => {
     const picked = [];
     createDock({ container: root, store, world: makeTestWorld(), onPick: (i) => picked.push(i) });
     expect(root.dataset.height).toBe('slim');
-    expect(root.querySelectorAll('.cat').length).toBe(4);          // empty categories are hidden
+    expect(root.querySelectorAll('.cat').length).toBe(5);          // categories with no card to show are hidden
     fire(root.querySelectorAll('.cat')[2], 'click');
     expect(store.get().dock).toBe('tray');
     expect(store.get().category).toBe('food');
     expect(root.dataset.height).toBe('tray');
     expect(document.body.dataset.dock).toBe('tray');
     const cards = root.querySelectorAll('.tray .card');
-    expect(cards.length).toBe(2);
-    fire(cards[1], 'click');
+    expect(cards.length).toBe(3);                                  // grain farm, fig orchard (locked until Town), granary
+    fire(cards[1], 'click');                                       // a locked card does nothing
+    fire(cards[2], 'click');
     expect(picked).toEqual(['granary']);
     fire(root.querySelectorAll('.cat')[2], 'click');
     expect(store.get().dock).toBe('slim');
