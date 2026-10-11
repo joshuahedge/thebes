@@ -4,3 +4,4 @@ import './art/buildingArt.test.js';
 import './art/wallsMap.test.js';
 import './art/fireArt.test.js';
 import './art/unitsArt.test.js';
+import './art/ambient.test.js';

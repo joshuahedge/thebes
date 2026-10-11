@@ -1,6 +1,7 @@
 // Flames and smoke (spec 5.4), drawn from the world's fire state (b.fire, src/sim/fire.js), so they survive a reload.
 // Stage 3 contract: createUI passes drawFires to renderFrame as opts.fire, which calls it once a frame in art px (the
-// camera's origin set) after the depth-sorted sprites and before the effects and overlays.
+// camera's origin set) after the depth-sorted sprites and before the effects and overlays. It first draws the frame's
+// late ambient layer (render/ambient.js: drawAmbientLate), the one hook after the sprites Track C has.
 //
 // A blaze is one small flame on the roof; a fire is three larger flames and a column of the potter's soft smoke puffs.
 // A flame's shape (its tip's sway and its embers) steps once every FLAME_STEP_MS, so it changes at 2 Hz at most, each
@@ -10,6 +11,7 @@
 import { ART, slotFor } from './art/registry.js';
 import { p, U } from './iso.js';
 import { ART_TEXT } from '../ui/text.js';
+import { drawAmbientLate } from './ambient.js';
 
 export const FLAME_STEP_MS = 500;
 export const SMOKE_RISE_MS = 3000;
@@ -64,6 +66,7 @@ function smoke(g, q, now, id) {
 }
 
 export function drawFires(g, world, range, now, { reducedMotion = false } = {}) {
+  drawAmbientLate(g);                        // ambient life that shows over the buildings (render/ambient.js), this frame's
   for (const id in world.buildings) {
     const b = world.buildings[id];
     if (!b.fire || !inRange(b, range)) continue;

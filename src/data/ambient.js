@@ -9,6 +9,7 @@ export const AMBIENT = {
   reedSwayPeriodMs: [3000, 6000],  // ... over 3-6 s
   treeSwayDeg: 2,                  // palms and acacias lean +-2 degrees from the base ...
   treeSwayPeriodMs: [4000, 6000],  // ... over 4-6 s
+  treeLeanSteps: 4,                // lean slots each side of upright (palm.l-4 ... palm.l4): half a degree a step
   cropBandEveryMs: 6000,           // a lighter band crosses a working farm in the wind direction
   smokeEveryMs: [2000, 3000],      // one puff every 2-3 s from kilns, the brewery and chimneys of Townhouses and up
   smokeRiseTiles: 1,

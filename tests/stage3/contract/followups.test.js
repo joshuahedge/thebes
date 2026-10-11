@@ -60,11 +60,13 @@ describe('s3 contract follow-ups: tree sway seam', () => {
     const stats = renderer.renderFrame(w, createCamera({ x: 18, y: 14, zoom: 1 }), { view: { width: 400, height: 300 } });
     expect(stats.sprites).toBeGreaterThan(0);
   });
-  it('has a stub ambient treeSlot that returns the slot unchanged', () => {
+  it('has an ambient treeSlot that returns the slot or one of its lean slots, and the slot unchanged while motion is off', () => {
     const a = createAmbient();
-    expect(typeof a.treeSlot).toBe('function');
-    expect(a.treeSlot(makeTestWorld(), 3, 4, 'palm', 1234)).toBe('palm');
-    expect(a.treeSlot(makeTestWorld(), 3, 4, 'acacia', 0)).toBe('acacia');
+    expect(typeof a.treeSlot).toBe('function');                  // Track C (C4) replaced the stub: trees sway
+    expect(/^palm(\.l-?[1-4])?$/.test(a.treeSlot(makeTestWorld(), 3, 4, 'palm', 1234))).toBe(true);
+    const still = createAmbient({ enabled: () => false });
+    expect(still.treeSlot(makeTestWorld(), 3, 4, 'palm', 1234)).toBe('palm');
+    expect(still.treeSlot(makeTestWorld(), 3, 4, 'acacia', 0)).toBe('acacia');
   });
 });
 
