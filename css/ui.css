@@ -290,16 +290,22 @@ body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #corners { right: c
 #panel .tab[aria-pressed="true"].suggested::after { background: var(--teal-ink); box-shadow: 0 0 0 2px var(--teal); }
 
 /* Celebration captions (early-game pass 3.6): the last row of #under-bar, a parchment card with a gold star. Nothing to
-   tap, so the row lets taps through to the map. Text is ink on parchment, and the reward is teal (4.8:1). */
+   tap, so the row lets taps through to the map. The head (bold) and the gold sit on the first line and the why beneath it,
+   smaller. Text is ink on parchment, the why ink-soft (7:1) and the gold teal (4.8:1). */
 #cheer { position: static; display: flex; max-width: 100%; pointer-events: none; }
 /* #cheer is a live region, so it stays rendered while empty (a region that appears together with its words can go
    unannounced): collapsed to a clipped dot that is out of the flow, so it leaves no gap in #under-bar. */
 #under-bar > #cheer:empty { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-#cheer .cheer { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box; background: var(--parchment); color: var(--ink); border: 1px solid var(--gold); border-radius: var(--radius); padding: 6px 12px; box-shadow: var(--shadow); animation: cheer-in 200ms ease-out; }
-#cheer .cheer .icon { color: var(--amber-text); }
-#cheer .cheer .text { min-width: 0; }
-#cheer .cheer .reward { color: var(--teal); font-weight: 600; white-space: nowrap; }
-#cheer .cheer.milestone { background: var(--amber-soft); border-color: var(--amber-text); font-weight: 600; }
+#cheer .cheer { position: relative; display: inline-grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; max-width: 100%; box-sizing: border-box; background: var(--parchment); color: var(--ink); border: 1px solid var(--gold); border-radius: var(--radius); padding: 6px 12px; box-shadow: var(--shadow); animation: cheer-in 200ms ease-out; }
+#cheer .cheer .icon { grid-column: 1; grid-row: 1; margin-right: 8px; color: var(--amber-text); }
+#cheer .cheer .text { grid-column: 2; grid-row: 1; min-width: 0; font-weight: 600; }
+#cheer .cheer .reward { grid-column: 3; grid-row: 1; margin-left: 8px; color: var(--teal); font-weight: 600; white-space: nowrap; }
+#cheer .cheer .why { grid-column: 2 / 4; grid-row: 2; font-size: calc(14px * var(--ui-scale)); line-height: 1.35; color: var(--ink-soft); }
+/* A phone at larger text keeps the caption to the head and the gold, so it stays clear of the middle of the map; the
+   why stays in the live region for screen readers. */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .why { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer { padding: 4px 10px; line-height: 1.25; }
+#cheer .cheer.milestone { background: var(--amber-soft); border-color: var(--amber-text); }
 body[data-layout="wide"] #cheer { max-width: 440px; }
 @keyframes cheer-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 body.reduce-motion #cheer .cheer { animation: none; }

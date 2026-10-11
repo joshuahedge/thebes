@@ -4,6 +4,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { MILESTONES } from '../data/progression.js';
 import { TIERS } from '../data/housing.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
+import { FIRSTS } from '../data/firsts.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -188,18 +189,21 @@ export const HELP_ROWS = [
   ['confirm', 'Confirm'], ['back', 'Back one step'], ['undo', 'Undo', 'Ctrl+Z or Cmd+Z'], ['help', 'Show this list'],
 ];
 
-// Celebrations (early-game pass 3.6): what each first says (what happened and why it matters), achievement names and
-// their exact conditions, and the gold suffix on a caption. Numbers come from the data, so the words never drift.
+// Celebrations (early-game pass 3.6): what each first says, as a short head (what happened) and a why (why it
+// matters). A phone at larger text shows the head and the gold only; the why stays for screen readers. Achievement
+// names and their exact conditions follow, then the gold suffix on a caption. Names and numbers come from the data,
+// so the words never drift.
 const TOWN = MILESTONES.find((m) => m.id === 'town');
+const PEOPLE_FIRST = FIRSTS.find((f) => f.id === 'people_100').check.n;
 export const FIRST_TEXT = {
-  first_family: 'The first family has moved in. People work your buildings and pay taxes.',
-  first_full_home: 'A home is full. Meet its needs and it grows to hold more people.',
-  first_harvest: 'First harvest: grain reached the granary. Bazaars can now sell food.',
-  first_shack: `First ${TIERS[2].name}: water let a hut grow. ${TIERS[2].name}s hold ${TIERS[2].capacity} people.`,
-  first_cottage: `First ${TIERS[3].name}: food let a home grow. ${TIERS[3].name}s hold ${TIERS[3].capacity} people and pay more tax.`,
-  first_house: `First ${TIERS[4].name}: a temple let a home grow. ${TIERS[4].name}s hold ${TIERS[4].capacity} people.`,
-  first_profit: 'First month in profit: taxes covered wages and upkeep with gold to spare.',
-  people_100: `100 people live here now. At ${TOWN.population} people the city becomes a ${TOWN.name}.`,
+  first_family: { head: 'First family moved in', why: 'People work your buildings and pay taxes.' },
+  first_full_home: { head: 'First full home', why: "Meet a home's needs and it grows to hold more people." },
+  first_harvest: { head: 'First harvest', why: 'Grain reached the granary. Bazaars can now sell food.' },
+  first_shack: { head: `First ${TIERS[2].name}`, why: `Water let a ${TIERS[1].name.toLowerCase()} grow. ${TIERS[2].name}s hold ${TIERS[2].capacity} people.` },
+  first_cottage: { head: `First ${TIERS[3].name}`, why: `Food let a home grow. ${TIERS[3].name}s hold ${TIERS[3].capacity} people and pay more tax.` },
+  first_house: { head: `First ${TIERS[4].name}`, why: `A temple let a home grow. ${TIERS[4].name}s hold ${TIERS[4].capacity} people.` },
+  first_profit: { head: 'First month in profit', why: 'Taxes covered wages and upkeep, with gold to spare.' },
+  people_100: { head: `${PEOPLE_FIRST} people live here`, why: `At ${TOWN.population} people the city becomes a ${TOWN.name}.` },
 };
 
 export const ACHIEVEMENT_NAMES = {

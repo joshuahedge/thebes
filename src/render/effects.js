@@ -7,7 +7,7 @@
 // (celebrate.js).
 import { TIERS } from '../data/housing.js';
 import { p, U, quad } from './iso.js';
-import { UI, GOLD, TERRAIN } from './art/palette.js';
+import { UI, GOLD, GOLDC, TERRAIN } from './art/palette.js';
 import { hauler } from './art/figures.js';
 
 export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900, sparkle: 1200 };
@@ -94,10 +94,10 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
           else {
             for (let i = 0; i < 8; i++) {
               const a = (i / 8) * Math.PI * 2;
-              const r = 4 + t * 14;
-              const s = 2.4 * (1 - t * 0.5);
+              const r = 5 + t * 16;
+              const s = 3.6 * (1 - t * 0.5);                        // gold diamonds with a darker amber edge, so they read on sand
               const d = [q[0] + Math.cos(a) * r, q[1] + Math.sin(a) * r * 0.6 - t * 4];
-              g.poly([[d[0], d[1] - s], [d[0] + s * 0.6, d[1]], [d[0], d[1] + s], [d[0] - s * 0.6, d[1]]], e.color, { alpha: 1 - t });
+              g.poly([[d[0], d[1] - s], [d[0] + s * 0.6, d[1]], [d[0], d[1] + s], [d[0] - s * 0.6, d[1]]], e.color, { alpha: 1 - t, stroke: GOLDC[2], strokeWidth: 0.9, strokeAlpha: 1 - t });
             }
           }
         } else if (e.kind === 'label') {
