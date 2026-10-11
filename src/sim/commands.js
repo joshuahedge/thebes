@@ -35,7 +35,8 @@ function placementWarnings(world, type, x, y) {
   const def = BUILDINGS[type];
   const probe = { id: -1, x, y, w: def.w, d: def.d };
   const warnings = [];
-  if (!def.needsRoad && !touchesRoad(world, probe)) warnings.push('needs_road');
+  // A plot can be placed off the road but no one moves in until one touches it; gardens and statues need none.
+  if (type === 'house' && !touchesRoad(world, probe)) warnings.push('needs_road');
   if (def.produces && !buildingsInReach(world, probe, def.producerReach, (o) => storesAny(o, [def.produces.good])).length) {
     warnings.push('no_storage');
   }

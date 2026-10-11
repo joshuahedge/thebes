@@ -28,7 +28,7 @@ export function produceDay(world) {
       const t = targets.find(hasSpace);
       if (!t) { b.blocked = 'storage_full'; break; }
       t.store[good] = (t.store[good] || 0) + 1;
-      if (GOODS[good].food) world.tally.harvested += 1;   // every unit of food that reaches storage
+      if (GOODS[good].kind === 'food') world.tally.harvested += 1;   // every unit of food that reaches storage
       b.progress -= 1;
     }
   }
