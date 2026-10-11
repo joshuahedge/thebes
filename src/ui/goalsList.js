@@ -3,9 +3,8 @@
 // guide; the whole row hides when no goal is open. The goals sheet shows up to three open goals grouped by
 // chapter, then today's daily goals. Goal state lives in the world (src/sim/goals.js, src/sim/daily.js):
 // this file reads it, and changes it only through swapDaily.
-import { GOALS } from '../data/goals.js';
 import { DAILY_REWARD } from '../data/daily.js';
-import { openGoals, goalProgress, guideActive } from '../sim/goals.js';
+import { openGoals, goalProgress, guideActive, chainGoals } from '../sim/goals.js';
 import { dailyProgress, swapDaily } from '../sim/daily.js';
 import { alertsFor } from '../sim/alerts.js';
 import { housesOf } from '../sim/world.js';
@@ -37,21 +36,36 @@ export function nearestTerrainTile(world, terrain, from) {
   return best;
 }
 
-// Where a goal's Show me points. 'alert' aims at the first building with that alert (an event goal's trouble);
-// 'rocky' at the free rocky tile nearest the city's focus (a gem mine needs rocky ground, as canPlace checks);
-// a goal with no showMe (out of debt) and any target that finds nothing fall back to the city's focus.
-export function showMeTarget(world, goal) {
+// Where a goal's Show me points. 'alert' aims at the first building with that alert (an event goal's trouble; code can
+// be a list); 'rocky' at the free rocky tile nearest the city's focus (a gem mine needs rocky ground, as canPlace checks);
+// 'raid' (Stage 3) at the homes' side facing a warned or arriving raid, RAID_SHOW_ME_TILES from their centre towards
+// its entry, else at the homes; a goal with no showMe (out of debt) and any target that finds nothing fall back to the
+// city's focus.
+// alerts: the city's alerts when the caller has them (alertsFor's).
+const RAID_SHOW_ME_TILES = 6;
+export function showMeTarget(world, goal, alerts = null) {
   const show = goal.showMe;
   const kind = show ? show.target : null;
   if (kind === 'alert') {
-    const a = alertsFor(world).find((x) => x.code === show.code && x.id && world.buildings[x.id]);
+    const codes = [].concat(show.code);
+    const a = (alerts || alertsFor(world)).find((x) => codes.includes(x.code) && x.id && world.buildings[x.id]);
     if (a) { const b = world.buildings[a.id]; return { x: b.x + b.w / 2, y: b.y + b.d / 2 }; }
+  }
+  if (kind === 'raid') {
+    const r = world.raid.warning || world.raid.active;
+    const homes = housesOf(world);
+    if (r && r.entry && homes.length) {
+      const cx = homes.reduce((n, h) => n + h.x + h.w / 2, 0) / homes.length, cy = homes.reduce((n, h) => n + h.y + h.d / 2, 0) / homes.length;
+      const dx = r.entry.x + 0.5 - cx, dy = r.entry.y + 0.5 - cy, len = Math.hypot(dx, dy);
+      const step = len > 0 ? Math.min(RAID_SHOW_ME_TILES, len) / len : 0;
+      return { x: cx + dx * step, y: cy + dy * step };
+    }
   }
   if (kind === 'startRoad' && world.startRoad.length) {
     const [x, y] = world.startRoad[world.startRoad.length - 1];
     return { x: x + 0.5, y: y + 0.5 };
   }
-  if (kind === 'houses') {
+  if (kind === 'houses' || kind === 'raid') {
     const homes = housesOf(world);
     if (homes.length) {
       const sx = homes.reduce((n, h) => n + h.x + h.w / 2, 0), sy = homes.reduce((n, h) => n + h.y + h.d / 2, 0);
@@ -137,8 +151,9 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
 // The goals sheet: the chain's count, up to three open goals by chapter, then Today when daily goals are drawn.
 export function goalsSheet(world, { onShowMe, onSwap = (i) => swapDaily(world, i).ok }) {
   function draw(body) {
-    const done = GOALS.filter((g) => world.goals.completed.includes(g.id)).length;   // event goals never count against the chain
-    body.append(el('p', { class: 'muted', text: goalsProgressText(done, GOALS.length) }));
+    const chain = chainGoals(world);                   // Stage 3: a Peaceful city's chain has no raid goals
+    const done = chain.filter((g) => world.goals.completed.includes(g.id)).length;   // event goals never count against the chain
+    body.append(el('p', { class: 'muted', text: goalsProgressText(done, chain.length) }));
     const open = openGoals(world, 3);
     if (!open.length) body.append(el('p', { text: T.goalsDone }));
     const chapters = [];

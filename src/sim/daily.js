@@ -7,11 +7,13 @@ import { isUnlocked, atLeast } from './progression.js';
 import { openRoutes } from './trade.js';
 import { createRng, hash2 } from './rng.js';
 import { roadsLaid, countType } from './achievements.js';
+import { raidsOn } from './costs.js';
 
 const defOf = (id) => DAILY_POOL.find((d) => d.id === id) || null;
-// What the city can do today: the goal's building unlocked, its milestone reached, enough trade routes open.
+// What the city can do today: the goal's building unlocked, its milestone reached, enough trade routes open, and (Stage 3)
+// raids on for a goal about defences.
 const isAvailable = (world, def) => (!def.measure.type || isUnlocked(world, def.measure.type))
-  && (!def.from || atLeast(world, def.from)) && (!def.routes || openRoutes(world) >= def.routes);
+  && (!def.from || atLeast(world, def.from)) && (!def.routes || openRoutes(world) >= def.routes) && (!def.raids || raidsOn(world));
 
 export const dailyAvailable = (world) => world.goals.completed.includes(DAILY_AFTER);
 

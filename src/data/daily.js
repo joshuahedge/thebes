@@ -9,7 +9,7 @@ export const DAILY_AFTER = 'temple';            // daily goals open once this go
 // people (the population now), tally (a running tally in world.tally), made (units of a good produced).
 // A goal is drawn only when the city can do it: its building unlocked, and, where given, the milestone `from`
 // reached and at least `routes` trade routes open. The Stage 2 goals all wait for Town, so a village's days
-// draw exactly as before.
+// draw exactly as before. Stage 3: `raids: true` keeps a goal out of a Peaceful city's days (spec 4.18).
 export const DAILY_POOL = [
   { id: 'plots4', measure: { kind: 'homes' }, n: 4 },
   { id: 'roads10', measure: { kind: 'roads' }, n: 10 },
@@ -26,4 +26,8 @@ export const DAILY_POOL = [
   { id: 'sell20', measure: { kind: 'tally', key: 'sold' }, n: 20, routes: 1 },
   { id: 'statue1', measure: { kind: 'buildings', type: 'statue' }, n: 1, from: 'town' },
   { id: 'booth1', measure: { kind: 'buildings', type: 'booth' }, n: 1, from: 'town' },
+  // Stage 3 (spec 4.19).
+  { id: 'firehouse1', measure: { kind: 'buildings', type: 'firehouse' }, n: 1, from: 'town' },
+  { id: 'wall10', measure: { kind: 'tally', key: 'wallTiles' }, n: 10, from: 'market_town', raids: true },
+  { id: 'tower1', measure: { kind: 'buildings', type: 'tower' }, n: 1, from: 'market_town', raids: true },
 ];

@@ -1,4 +1,5 @@
-// Tips (early-game pass 3.4): fourteen short lessons, each tied to one trigger the interface fires (src/ui/createUI.js).
+// Tips (early-game pass 3.4): twenty short lessons, each tied to one trigger the interface fires (src/ui/createUI.js, and
+// from Stage 3 the score interface, src/ui/scoreUi.js, for danger's six).
 // Each shows at most once per device. The priority tip (only Press Play) ignores the first delay, the gap
 // and an active tool, and replaces a tip already showing. The words live in src/ui/text.js (TIP_TEXT).
 export const TIPS = [
@@ -16,6 +17,13 @@ export const TIPS = [
   { id: 'storehouse_choices', trigger: 'storehousePlaced', priority: false },  // a storehouse placed
   { id: 'trade_orders', trigger: 'tradingPostPlaced', priority: false },       // a trading post placed
   { id: 'merging_homes', trigger: 'townhouseSheet', priority: false },         // a Townhouse's sheet opened
+  // Stage 3 (spec 4.19): danger's six.
+  { id: 'fire_risk', trigger: 'fireRisk', priority: false },                   // the city became a Town, or a firehouse was placed
+  { id: 'firebreaks', trigger: 'fireGrew', priority: false },                  // a blaze grew into a fire
+  { id: 'clearing_rubble', trigger: 'rubbleLeft', priority: false },           // a building burned down to rubble
+  { id: 'raider_targets', trigger: 'raidWarned', priority: false },            // a raid warning appeared
+  { id: 'tribute_once', trigger: 'tributeOffered', priority: false },          // a raid warning that can be paid off appeared
+  { id: 'wall_ring', trigger: 'wallDrawn', priority: false },                  // a wall was drawn
 ];
 
 export const TIP_GAP_MS = 180000;          // at least 3 minutes between two tips

@@ -1,7 +1,8 @@
 // Firsts (spec 3.6): one small celebration per city for each of these, each paying FIRST_REWARD. Checks are
 // declarative so later stages can add firsts for new goods and tiers; src/sim/firsts.js evaluates them.
 // The words the player sees live in src/ui/text.js (FIRST_TEXT, keyed by id). Check kinds: people { n },
-// fullHome, tier { tier }, tally { key, n }, made { good, n } (units of a good produced, world.tally.made).
+// fullHome, tier { tier }, tally { key, n }, made { good, n } (units of a good produced, world.tally.made), and from
+// Stage 3 building { type } (one stands) and tallies { keys, n } (the tallies added together).
 export const FIRST_REWARD = 10;
 
 export const FIRSTS = [
@@ -20,4 +21,10 @@ export const FIRSTS = [
   { id: 'first_fine_manor', check: { kind: 'tier', tier: 7 } },
   { id: 'first_villa', check: { kind: 'tier', tier: 8 } },
   { id: 'first_estate', check: { kind: 'tier', tier: 9 } },
+  // Stage 3 (spec 4.19): danger's five.
+  { id: 'first_firehouse', check: { kind: 'building', type: 'firehouse' } },
+  { id: 'first_fire_out', check: { kind: 'tallies', keys: ['blazesOut', 'firesOut'], n: 1 } },
+  { id: 'first_wall', check: { kind: 'tally', key: 'wallTiles', n: 1 } },
+  { id: 'first_tower', check: { kind: 'building', type: 'tower' } },
+  { id: 'first_raid_beaten', check: { kind: 'tally', key: 'raidsBeaten', n: 1 } },
 ];
