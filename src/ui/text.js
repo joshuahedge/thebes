@@ -576,7 +576,9 @@ export const RAID_TEXT = {};
 //
 // ── s3 art (Track C) ──────────────────────────────────────────────────────────────────────────────────────────
 // Track C's words for art: words drawn on the map (the reduced-motion "Burning"). Add new lines just above the end marker.
-export const ART_TEXT = {};
+export const ART_TEXT = {
+  burning: 'Burning',          // under reduced motion, on a still flame over a burning building (spec 5.4)
+};
 // ── end s3 art ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //
