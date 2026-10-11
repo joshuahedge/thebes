@@ -217,7 +217,7 @@ Starting reach values, all tunable in data:
 - **Household use per resident per month:** food 0.25 (any mix of grain and figs), pottery 0.05, beer 0.05, linen 0.04, jewellery 0.03, rounded up per home.
 - **Storage:** the granary holds grain and figs (600 units); the **storehouse** (2×2, Town) holds everything else (800 units in total), with **accept or refuse** per good. Both show their fill on the map in four steps. There are no "get" orders.
 - **Bazaars** sell every good homes use, restocking monthly from storage within supply reach (up to 300 grain, 200 figs and 100 of each household good). Each month, a home tops up its household stock from the covering bazaar it can reach most quickly that has stock.
-- **Fed** means the home's full monthly food need was met from stock, from any mix of foods. "Two kinds of food" also needs both grain and figs in stock at the start of the month. A home that wants two foods tops up half of its need from each and fills any gap from whichever food is there.
+- **Fed** means the home's full monthly food need was met from stock, from any mix of foods. "Two kinds of food" also needs both grain and figs in stock at the start of the month. A home that wants two foods tops up half of its need from each and fills any gap from whichever food is there; a home that wants one food takes first from the food its bazaars hold most of (ties go to grain), so a surplus of one food never fills the granaries.
 - **The city summary** shows each good as made against used last month, and every good's sheet line says what makes it and what uses it ("Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis").
 
 ### 4.11 Money
