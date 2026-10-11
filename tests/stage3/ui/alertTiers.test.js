@@ -7,7 +7,7 @@ import { select, openSheet } from '../../../src/ui/modes.js';
 import { tributeQuote } from '../../../src/sim/raids.js';
 import { createCamera } from '../../../src/render/camera.js';
 import { UI } from '../../../src/render/art/palette.js';
-import { alertText, viewLabel, T, DANGER_UI_TEXT as D } from '../../../src/ui/text.js';
+import { alertText, viewLabel, T, DANGER_UI_TEXT as D, ALERT_TEXT } from '../../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 import { mount, fire } from '../../helpers/dom.js';
 import { pixelAt } from '../../helpers/canvas.js';
@@ -133,6 +133,45 @@ describe('s3 ui alert tiers', () => {
       expect([r.banner.querySelector('.chip'), Boolean(r.banner.querySelector('.defence'))]).toEqual([null, true]);
       expect(D.chip('north', 90)).toBe('Raid from the north · 3 m 0 d');
     } finally { r.cleanup(); }
+  });
+
+  it('says a raid warning\'s defence once, though Track B\'s fix words the same towers', () => {
+    const r = rig();
+    const saved = Object.prototype.hasOwnProperty.call(ALERT_TEXT, 'raid_warning') ? ALERT_TEXT.raid_warning : undefined;
+    // Track B's wording (plan, B's text.js): its fix is RAID_TEXT.towers(world), the same sentence as D's defence line.
+    const towers = (world) => {
+      const q = tributeQuote(world);
+      if (!q) return '';
+      if (q.buildN === 0) return 'Your towers can beat this raid';
+      return `Build ${q.buildN === 1 ? '1 tower' : `${q.buildN} towers`} facing east (≈ ${q.buildCost} gold)`;
+    };
+    ALERT_TEXT.raid_warning = (alert, world) => ({ title: 'Raiders from the east are after your storehouses', fix: towers(world) });
+    try {
+      let alerts = [warn(r.world)];
+      const a = createAlerts({ world: r.world, banner: r.banner, live: r.live, root: r.root, getAlerts: () => alerts });
+      const once = (sentence) => {
+        a.refresh();
+        const text = r.banner.querySelector('.critical .text').textContent;
+        expect(text.toLowerCase().split(sentence.toLowerCase()).length - 1).toBe(1);
+        expect(r.banner.querySelector('.critical .text > .small:not(.defence)')).toBe(null);
+      };
+      once('build 2 towers facing east (≈ 300 gold)');
+      expect(bannerModel(r.world, triage(r.world, alerts).critical).fix).toBe('');
+      addRaw(r.world, 'tower', 12, 11); addRaw(r.world, 'tower', 14, 11);
+      staffAll(r.world);
+      once('Your towers can beat this raid');
+      for (const t of Object.values(r.world.buildings)) if (t.type === 'tower') r.world.buildings[t.id].paused = true;
+      alerts = [warn(r.world, { first: true, size: 3 })];
+      once('Build 1 tower facing east (≈ 150 gold)');
+      // Without a quote (no warning up) there is no defence line, so the alert's own fix stays.
+      r.world.raid.warning = null;
+      ALERT_TEXT.raid_warning = () => ({ title: 'Raiders from the east are after your storehouses', fix: 'Have a look' });
+      a.refresh();
+      expect([r.banner.querySelector('.critical .defence'), r.banner.querySelector('.critical .text > .small').textContent]).toEqual([null, 'Have a look']);
+    } finally {
+      if (saved === undefined) delete ALERT_TEXT.raid_warning; else ALERT_TEXT.raid_warning = saved;
+      r.cleanup();
+    }
   });
 
   it('announces a new critical at once (assertive), and other changes politely (ruling 9)', () => {

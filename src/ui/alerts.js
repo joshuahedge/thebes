@@ -44,7 +44,9 @@ export function bannerModel(world, critical) {
   const m = { code: top.code, group, title: words.title, fix: words.fix, more: critical.length - group.length, defence: '', tribute: false, chip: '' };
   if (top.code === 'raid_warning') {
     const q = tributeQuote(world);
-    if (q) { m.defence = D.defenceLine(q, top.dir); m.tribute = !q.hidden; }
+    // Track B's raid_warning fix words the same towers the defence line does (ruling 6: D words the banner's defence),
+    // so with a quote the row carries the title and the defence line only, never the defence twice.
+    if (q) { m.defence = D.defenceLine(q, top.dir); m.tribute = !q.hidden; m.fix = ''; }
     m.chip = D.chip(top.dir, Math.max(0, top.arrives - world.day));
   }
   return m;
@@ -100,7 +102,7 @@ export function createAlerts({ world, banner, live, onView = () => {}, onAction 
       banner.append(el('div', { class: 'critical', dataset: { code: m.code } }, [
         el('span', { class: 'icon', 'aria-hidden': 'true', text: m.chip ? '⚑' : '⚠' }),
         el('span', { class: 'text' }, [
-          el('strong', { text: m.title }), ' ', el('span', { class: 'small', text: m.fix }),
+          el('strong', { text: m.title }), m.fix ? ' ' : null, m.fix ? el('span', { class: 'small', text: m.fix }) : null,
           m.defence ? el('span', { class: 'defence small' }, [m.defence]) : null,
         ]),
         el('span', { class: 'buttons' }, [
