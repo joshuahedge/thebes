@@ -56,13 +56,13 @@ function street(tier, extra = {}) {
 }
 
 describe('stage 2 overlays', () => {
-  it('lists the seven overlays in order, with a name, a hue and a legend each, and shows the new ones on placing', () => {
-    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'housing']);
+  it('lists the eight overlays in order, with a name, a hue and a legend each, and shows the new ones on placing', () => {
+    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing']);   // Stage 3: fire risk
     for (const o of OVERLAYS) {
       expect([o, typeof OVERLAY_NAMES[o], typeof OVERLAY_HUE[o]]).toEqual([o, 'string', 'string']);
       if (!GRADED_OVERLAYS.includes(o)) expect([o, OVERLAY_LEGEND[o].length]).toEqual([o, 2]);
     }
-    expect(GRADED_OVERLAYS).toEqual(['desirability']);
+    expect(GRADED_OVERLAYS).toEqual(['desirability', 'fire']);
     expect([AUTO_OVERLAY.booth, AUTO_OVERLAY.garden, AUTO_OVERLAY.statue, AUTO_OVERLAY.well]).toEqual(['entertainment', 'desirability', 'desirability', 'water']);
     const store = createStore(INITIAL_UI_STATE);
     const pl = createPlacement({ world: uiWorld(), store });
@@ -174,7 +174,7 @@ describe('stage 2 overlays', () => {
 });
 
 describe('stage 2 overlay legend', () => {
-  it('shows the desirability scale as six bands with a label and words each, the first hatched, and cycles all seven overlays', () => {
+  it('shows the desirability scale as six bands with a label and words each, the first hatched, and cycles all eight overlays', () => {
     const { root, cleanup } = mount();
     try {
       const store = createStore(INITIAL_UI_STATE);
@@ -196,7 +196,7 @@ describe('stage 2 overlay legend', () => {
       expect(root.querySelector('.strip').textContent).toContain(OVERLAY_LEGEND.goods[1]);
       store.set({ overlay: null });
       const seen = [];
-      for (let i = 0; i < 8; i++) { legend.cycle(); seen.push(store.get().overlay); }
+      for (let i = 0; i <= OVERLAYS.length; i++) { legend.cycle(); seen.push(store.get().overlay); }
       expect(seen).toEqual([...OVERLAYS, null]);
     } finally { cleanup(); }
   });

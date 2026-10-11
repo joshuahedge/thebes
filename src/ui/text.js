@@ -684,6 +684,25 @@ Object.assign(DANGER_UI_TEXT, {
   tributeBelowZero: (gold) => `You have ${gold} gold. Tribute can't put the treasury below 0.`,
   payGold: (cost) => `Pay ${cost} gold`, keepGold: 'Keep gold, defend', tributePaid: (cost) => `Tribute paid: ${cost} gold`,
 });
+// D4: tools and the fire-risk overlay. The bands start at FIRE_BANDS (src/data/fire.js); the dot is staffedCover, as on
+// the fire row. The firehouse's line counts what fireCoverage would reach from the ghost (src/ui/placement.js); the wall
+// line counts previewWall's tiles and gates (src/sim/defence.js); clearing rubble costs rubbleCostOf a tile and is
+// refused below the debt floor (src/sim/commands.js previewDemolishArea).
+import { FIRE_BANDS as duiBandStarts } from '../data/fire.js';
+const duiBandNames = ['Low', 'Rising', 'High', 'Can catch fire'];
+Object.assign(OVERLAY_NAMES, { fire: 'Fire risk' });
+Object.assign(OVERLAY_LEGEND, { fire: ['A staffed firehouse reaches it', 'No staffed firehouse reaches it'] });
+Object.assign(DANGER_UI_TEXT, {
+  fireBand: (k) => {
+    const from = duiBandStarts[k], next = duiBandStarts[k + 1];
+    return { label: duiBandNames[k], words: `${duiBandNames[k]}: fire risk ${next === undefined ? `${from} or more` : `${from} to ${next - 1}`}` };
+  },
+  neverBurnNote: 'Roads, gardens, statues, wells and walls never burn',
+  firehouseCovers: (n) => (n > 0 ? DANGER_UI_TEXT.covers(n) : 'No buildings that can burn in reach yet'),   // as the sheet's covers line
+  wallCount: (tiles, gates) => `${plural(tiles, 'tile', 'tiles')}${gates ? `, ${plural(gates, 'gate', 'gates')} on roads` : ''}`,
+  clearRubble: (n, cost) => `Clear ${n} rubble: ${cost} gold`,
+  demolishCost: (gold) => `${gold} gold`,
+});
 // ── end s3 ui ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

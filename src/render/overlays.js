@@ -12,17 +12,21 @@ import { T as TILE } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 import { p, U, tileDiamond, quad } from './iso.js';
 import { UI, INK, TEAL_DARK } from './art/palette.js';
+import { rgba } from './art/ctx.js';
 import { ART, slotFor } from './art/registry.js';
 import { GUIDE_PULSE_MS, DESIRABILITY_STEPS } from '../data/ui.js';
 import { DEFENCE } from '../data/raids.js';
+import { canBurn, fireRiskOf, fireBand, staffedCover } from '../sim/fire.js';
 
-export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'housing'];
+export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing'];
+// Fire risk (Stage 3, Track D) is one deep ember red, light to dark by band; no other overlay uses a red.
+export const FIRE_HUE = '#9C2A1C';
 export const OVERLAY_HUE = {
-  water: UI.water, food: UI.food, religion: UI.religion, goods: UI.goods, entertainment: UI.entertainment, desirability: UI.desirability, housing: UI.housing,
+  water: UI.water, food: UI.food, religion: UI.religion, goods: UI.goods, entertainment: UI.entertainment, desirability: UI.desirability, fire: FIRE_HUE, housing: UI.housing,
 };
 export const SERVICE_TYPES = { water: ['well'], food: ['bazaar'], religion: ['temple'], goods: ['bazaar'], entertainment: ['booth'], housing: [] };
 // Overlays that draw a graded scale over the ground instead of dots and rings (spec 6.3); their legend is a scale too.
-export const GRADED_OVERLAYS = ['desirability'];
+export const GRADED_OVERLAYS = ['desirability', 'fire'];
 
 export function houseMark(world, house, kind) {
   const s = houseStatus(world, house);
@@ -100,6 +104,7 @@ function mark(g, m, color) {
 
 export function drawOverlay(g, world, kind, range) {
   if (kind === 'desirability') { drawDesirability(g, world, range); return; }
+  if (kind === 'fire') { drawFireRisk(g, world, range); return; }
   if (!SERVICE_TYPES[kind]) return;
   const color = OVERLAY_HUE[kind];
   const tiles = new Set();
@@ -177,6 +182,58 @@ function drawDesirability(g, world, range) {
   hatchTiles(g, below, UI.bad, { fill: 0.1, line: 0.75 });
 }
 
+// The fire-risk overlay (spec 4.12, 6.3): every building that can burn, tinted by its band in one ember hue light to dark
+// (FIRE_ALPHA, which the legend uses too), with light diagonal hatching on High and dense cross-hatching on Can catch
+// fire, and a filled dot where a staffed firehouse reaches it (staffedCover, as the fire row and the alerts say) or a
+// hollow ring where none does. Buildings that never burn get nothing. fireRiskMarks is the list the draw and tests share.
+export const FIRE_ALPHA = [0.12, 0.26, 0.4, 0.55];
+export function fireRiskMarks(world, range = null) {
+  const out = [];
+  for (const b of allBuildings(world)) {
+    if (!canBurn(b)) continue;
+    const x = b.x + b.w / 2, y = b.y + b.d / 2;
+    if (range && (x < range.x0 || x > range.x1 + 1 || y < range.y0 || y > range.y1 + 1)) continue;
+    out.push({ id: b.id, x, y, b, band: fireBand(fireRiskOf(world, b)), has: staffedCover(world, b) });
+  }
+  return out;
+}
+
+// Diagonal stripes both ways as one repeating pattern on the art grid (the counterpart of the drawing context's one-way
+// hatching), memoised per context and size.
+const crossMemo = new WeakMap();
+function crossHatch(g, color, gap) {
+  const unit = g.scale * gap, px = Math.max(2, Math.round(unit));
+  const key = `${color}|${gap}|${unit}`;
+  let byKey = crossMemo.get(g.ctx);
+  if (!byKey) { byKey = new Map(); crossMemo.set(g.ctx, byKey); }
+  if (byKey.has(key)) return byKey.get(key);
+  const tile = document.createElement('canvas');
+  tile.width = tile.height = px;
+  const t = tile.getContext('2d');
+  t.strokeStyle = rgba(color, 0.85);
+  t.lineWidth = Math.max(1, (0.9 * px) / gap);
+  for (const c of [0, px, 2 * px]) {
+    t.beginPath(); t.moveTo(c + px, -px); t.lineTo(c - px, px); t.stroke();
+    t.beginPath(); t.moveTo(c - 2 * px, -px); t.lineTo(c, px); t.stroke();
+  }
+  const pattern = g.ctx.createPattern(tile, 'repeat');
+  if (px !== unit) pattern.setTransform(new DOMMatrix().scale(unit / px));
+  if (byKey.size >= 16) byKey.clear();
+  byKey.set(key, pattern);
+  return pattern;
+}
+
+function drawFireRisk(g, world, range) {
+  const marks = fireRiskMarks(world, range);
+  const foot = (m) => tilePolys(Array.from({ length: m.b.w * m.b.d }, (_, k) => [m.b.x + (k % m.b.w), m.b.y + Math.floor(k / m.b.w)]));
+  const byBand = [[], [], [], []];
+  for (const m of marks) byBand[m.band].push(...foot(m));
+  byBand.forEach((polys, k) => g.polys(polys, FIRE_HUE, { alpha: FIRE_ALPHA[k] }));
+  g.hatchPolys(byBand[2], FIRE_HUE, { fill: 0, line: 0.6, gap: 5 });
+  if (byBand[3].length) g.polys(byBand[3], crossHatch(g, FIRE_HUE, 3));
+  for (const m of marks) mark(g, m, FIRE_HUE);
+}
+
 // The placement preview's tint (spec 4.7): a teal wash on the tiles a building would make nicer, coral hatching on
 // those it would make worse. tiles = desirabilityPreview(...).tiles: [{ x, y, v }]. Wash against hatch, never colour alone.
 export function drawDesirabilityTint(g, tiles) {
@@ -207,7 +264,8 @@ export function drawReachHighlight(g, world, b) {
   g.poly(quad(b.x, b.y, b.w, b.d, 0), 'none', { stroke: UI.housing, strokeWidth: 1.2 });
 }
 
-// ghost = { x, y, w, d, state: 'ok' | 'warn' | 'bad' }
+// ghost = { x, y, w, d, state: 'ok' | 'warn' | 'bad' | 'demolish' | 'gate' }. A gate (Stage 3, a wall tile drawn over a
+// road) is an ok tile marked with an arch instead of a tick, so the wall tool shows where its gates will go.
 export function drawGhost(g, ghost) {
   const { x, y, w, d, state } = ghost;
   const pts = quad(x, y, w, d, 0);
@@ -227,7 +285,7 @@ export function drawGhost(g, ghost) {
   g.poly(pts, color, { alpha: 0.15 });
   g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
   g.poly(pts, 'none', { stroke: color, strokeWidth: 1.4 });
-  g.text(centre, state === 'warn' ? '!' : '✓', { size: 9, color });
+  g.text(centre, state === 'warn' ? '!' : state === 'gate' ? '∩' : '✓', { size: 9, color });
 }
 
 // Problem markers (early-game pass 2.8): a coral "!" badge over a building with an alert, an amber "↓" over a

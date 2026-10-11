@@ -3,3 +3,4 @@
 import './ui/alertTiers.test.js';
 import './ui/reactions.test.js';
 import './ui/dangerSheets.test.js';
+import './ui/fireOverlay.test.js';

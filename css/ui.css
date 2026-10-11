@@ -499,6 +499,8 @@ body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:
 #sheet .tribute-cost { font-weight: 700; margin: 0 0 6px; }
 #sheet .cancels, #sheet .why-not { margin: 8px 0 4px; }
 #sheet .tribute-actions button { flex: 1 1 10em; }
+/* D4: the fire-risk legend: the four bands, then the dot and ring and what never burns on a row of their own. */
+#legend .fire-keys { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; order: 4; flex-basis: 100%; }
 /* ── end s3 ui ── */
 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
