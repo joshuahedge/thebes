@@ -49,7 +49,7 @@ h2, h3 { margin: 0; }
 /* Top bar: things you read sit at the top. */
 #topbar { position: fixed; top: 0; left: 0; right: 0; padding: var(--safe-top) max(8px, var(--safe-right)) 0 max(8px, var(--safe-left)); min-height: var(--topbar-h); background: var(--parchment); border-bottom: 1px solid var(--parchment-3); box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; }
 #topbar .stat { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-#topbar .stats { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; overflow: hidden; }
+#topbar .stats { display: flex; flex-wrap: wrap; align-items: center; align-content: center; gap: 0 10px; flex: 1; min-width: 0; overflow: hidden; line-height: 1.2; }   /* a narrow phone at large text wraps the numbers to a second row inside the bar's height, rather than cutting one off */
 #topbar .stat .label { font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
 #topbar .spacer { flex: 0 0 0; }
 #topbar .speed { display: flex; gap: 4px; }
@@ -107,7 +107,7 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 .cards .empty { padding: 12px; color: var(--ink-soft); }
 
 /* Confirm bar for placing, drawing and demolishing. It never tucks away (spec 6.4). */
-.confirm { display: flex; align-items: center; gap: 8px; padding: 8px 12px calc(8px + var(--safe-bottom)); background: var(--parchment); border-top: 1px solid var(--parchment-3); border-radius: 16px 16px 0 0; }
+.confirm { display: flex; align-items: center; gap: 8px; box-sizing: border-box; padding: 8px 12px calc(8px + var(--safe-bottom)); background: var(--parchment); border-top: 1px solid var(--parchment-3); border-radius: 16px 16px 0 0; }   /* border-box: confirmBar.js holds its measured height as a min-height */
 .confirm .info { flex: 1; min-width: 0; }
 .confirm .info .title { font-weight: 600; }
 .confirm .info .reason { font-size: calc(12px * var(--ui-scale)); }
@@ -255,6 +255,10 @@ body[data-layout="portrait"][data-text-size="125"] .confirm .info, body[data-lay
 #corners .labelled .label { font-size: calc(12px * var(--ui-scale)); white-space: nowrap; }
 #corners .speed-main, #corners .speed-chevron { min-height: 52px; }
 .speed-main .icon { width: auto; margin-right: 6px; }
+/* The face and hidden copies of every state share one grid cell, so the button keeps the width of its widest state. */
+#corners .speed-main { display: inline-grid; align-items: center; justify-items: center; }
+#corners .speed-main > .face, #corners .speed-main > .sizer { grid-area: 1 / 1; white-space: nowrap; }
+#corners .speed-main > .sizer { visibility: hidden; }
 #corners .speed-chevron .icon { font-size: 1.5em; line-height: 1; }   /* ▴ is a small glyph: let it read as a chevron */
 /* Compact: the confirm bar, sheets and the card drawer share the column beside the rail, so the corners step left of it
    (they are never open together). The drawer is the card grid's 8 px padding either side plus its 1 px border wider than --drawer-w. */

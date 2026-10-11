@@ -32,6 +32,24 @@ describe('ui corner words', () => {
       expect(root.querySelector('.speed-chevron .icon').textContent).toBe('▴');
     } finally { cleanup(); }
   });
+  it('keeps the speed button one width, so the chevron stays put between Play and every speed', async () => {
+    for (const [w, h] of [[360, 640], [390, 844], [640, 360], [844, 390]]) {
+      for (const size of [100, 125, 150]) {
+        const r = await rigUI({ width: w, height: h });
+        try {
+          r.ui.settings.set({ textSize: size });
+          const xs = [];
+          for (const speed of [0, 1, 2, 3, 0]) {
+            r.ui.speedControl.set(speed);
+            xs.push(Math.round(box(r, '#corners .speed-chevron').left * 2) / 2);
+          }
+          expect([w, h, size, new Set(xs).size]).toEqual([w, h, size, 1]);
+          const face = box(r, '#corners .speed-main .face'), main = box(r, '#corners .speed-main');
+          expect([w, h, size, face.right <= main.right, face.left >= main.left]).toEqual([w, h, size, true, true]);   // the words fit inside it
+        } finally { r.cleanup(); }
+      }
+    }
+  });
   it('labels the map and layers buttons, and the layers word follows the overlay', () => {
     const { root, cleanup } = mount();
     try {

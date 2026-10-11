@@ -21,7 +21,10 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
   const reduced = () => (typeof reducedMotion === 'function' ? Boolean(reducedMotion()) : Boolean(reducedMotion));
   let list = [];
   const age = (e, now) => (now - e.start) / EFFECT_MS[e.kind];
-  const prune = (now) => { list = list.filter((e) => age(e, now) < 1); };
+  // A rise ends early when its building is gone (an Undo or a demolish inside the 900 ms), so the work gang never
+  // carries on at an empty site. Ids are never reused, so the id alone says whether it is the same building.
+  const gone = (e, world) => e.kind === 'rise' && Boolean(world) && !world.buildings[e.id];
+  const prune = (now, world = null) => { list = list.filter((e) => age(e, now) < 1 && !gone(e, world)); };
   const add = (e) => { list.push(e); return e; };
 
   const fx = {
@@ -34,9 +37,9 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
     sparkle(x, y, color, now) { add({ kind: 'sparkle', x, y, color, still: reduced(), start: now }); },
     // Building `id` with footprint w x d at tile (x, y) rises from the ground over EFFECT_MS.rise.
     rise(id, x, y, w, d, now) { if (!reduced()) add({ kind: 'rise', id, x, y, w, d, start: now }); },
-    // id -> how far each rising building is up, in [0, 1).
-    risingIds(now) {
-      prune(now);
+    // id -> how far each rising building is up, in [0, 1). Given the world, a building no longer in it is dropped.
+    risingIds(now, world = null) {
+      prune(now, world);
       const out = new Map();
       for (const e of list) if (e.kind === 'rise') out.set(e.id, Math.max(0, age(e, now)));
       return out;
@@ -58,8 +61,8 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
     },
     active(now) { prune(now); return list.slice(); },
     count(now) { prune(now); return list.length; },
-    draw(g, now) {
-      prune(now);
+    draw(g, now, world = null) {
+      prune(now, world);
       for (const e of list) {
         const t = age(e, now);
         const c = p(e.x, e.y);

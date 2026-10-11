@@ -490,7 +490,7 @@ export function createUI({
     const selected = s.selectedId !== null ? world.buildings[s.selectedId] : null;
     const ring = guide.marker(t);                                              // the guide's ring on its step's target (spec 3.2)
     renderer.renderFrame(world, cam, {
-      view: v, walkers: walkersAt(world, timeDays, range), effects, now: t, rising: effects.risingIds(t), grid: isToolMode(s.mode),
+      view: v, walkers: walkersAt(world, timeDays, range), effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r);
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach

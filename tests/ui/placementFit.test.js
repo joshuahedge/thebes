@@ -149,36 +149,69 @@ describe('ui placement fit', () => {
       } finally { r.cleanup(); }
     }
   });
+  // The corner buttons sit on the portrait confirm bar, so the bar must not bob as the ghost moves. The min-height in
+  // css/ui.css covers a title, a cost and two lines of reason; where that is not enough (a 360 px phone at 150% text,
+  // "Housing plots" on two lines), the bar keeps the tallest height it reached until the tool changes.
   it('keeps the portrait confirm bar one height, and the corner buttons put, as the preview flips between ok, warning and blocked', async () => {
-    for (const size of [100, 125, 150]) {
-      const r = await rigUI({ width: 390, height: 844 });
-      try {
-        r.ui.settings.set({ textSize: size });
-        const granary = Object.values(r.world.buildings).find((b) => b.type === 'granary');
-        const read = () => {
-          const bar = r.root.querySelector('#confirm').getBoundingClientRect();
-          return { top: bar.top, height: bar.height, corner: r.root.querySelector('#corners .minimap-button').getBoundingClientRect().bottom };
-        };
-        const stateOf = () => r.ui.placement.preview().state;
-        r.ui.placement.start(FARM, { x: 0, y: 8 });
-        expect([size, 'ok', stateOf()]).toEqual([size, 'ok', 'ok']);              // a farm beside the road with a granary in reach: nothing to say
-        const ok = read();
-        removeBuilding(r.world, granary.id);
-        r.ui.placement.moveGhost(1, 8);
-        expect([size, 'warn', stateOf()]).toEqual([size, 'warn', 'warn']);         // its grain has nowhere to go: one line of warning
-        expect(r.root.querySelector('#confirm .reason').textContent).toBe(warningText('no_storage'));
-        const warn = read();
-        r.ui.placement.moveGhost(0, 2);
-        expect([size, 'bad', stateOf()]).toEqual([size, 'bad', 'bad']);           // no road: one line of reason
-        const bad = read();
-        r.ui.placement.start(WELL, { x: 14, y: 9 });
-        expect(r.root.querySelector('#confirm .effect').textContent).toBe('Gives water to 2 homes');
-        const effect = read();                                                      // a service with its effect line
-        for (const [name, m] of [['warn', warn], ['bad', bad], ['effect', effect]]) {
-          expect([size, name, m.height, m.corner]).toEqual([size, name, ok.height, ok.corner]);
-        }
-        expect(ok.height).toBeGreaterThan(0);
-      } finally { r.cleanup(); }
+    for (const [w, h] of [[390, 844], [360, 640]]) {
+      for (const size of [100, 125, 150]) {
+        const r = await rigUI({ width: w, height: h });
+        try {
+          r.ui.settings.set({ textSize: size });
+          const at = `${w}x${h} at ${size}%`;
+          const granary = Object.values(r.world.buildings).find((b) => b.type === 'granary');
+          const read = () => {
+            const bar = r.root.querySelector('#confirm').getBoundingClientRect();
+            const corner = r.root.querySelector('#corners .minimap-button').getBoundingClientRect().bottom;
+            expect([at, corner <= bar.top + 0.5]).toEqual([at, true]);                 // the corners sit on the bar
+            return { height: bar.height, corner };
+          };
+          const stateOf = () => r.ui.placement.preview().state;
+          // One tool: the farm flips between ok, warning and blocked, then back.
+          r.ui.placement.start(FARM, { x: 0, y: 8 });
+          expect([at, stateOf()]).toEqual([at, 'ok']);                                 // beside the road with a granary in reach: nothing to say
+          const farm = [read()];
+          removeBuilding(r.world, granary.id);
+          r.ui.placement.moveGhost(1, 8);
+          expect([at, stateOf()]).toEqual([at, 'warn']);                               // its grain has nowhere to go
+          expect(r.root.querySelector('#confirm .reason').textContent).toBe(warningText('no_storage'));
+          farm.push(read());
+          r.ui.placement.moveGhost(0, 2);
+          expect([at, stateOf()]).toEqual([at, 'bad']);                                // no road
+          farm.push(read());
+          r.ui.placement.moveGhost(1, 8);
+          farm.push(read());
+          r.ui.placement.moveGhost(0, 8);
+          farm.push(read());
+          const tallest = Math.max(...farm.map((m) => m.height));
+          // From its first move on the bar is as tall as it will get: it never shrinks, so the corners never drop back.
+          for (const [i, m] of farm.entries()) {
+            if (i === 0) continue;
+            expect([at, i, m.height, m.corner]).toEqual([at, i, tallest, farm[farm.length - 1].corner]);
+          }
+          if (!(w === 360 && size === 150)) expect([at, farm[0].height]).toEqual([at, tallest]);   // and where the min-height covers it, one height from the start
+          r.ui.placement.start(WELL, { x: 14, y: 9 });                                 // a new tool starts afresh
+          expect(r.root.querySelector('#confirm .effect').textContent).toBe('Gives water to 2 homes');
+          const well = read();
+          expect([at, well.height <= tallest]).toEqual([at, true]);
+          // Housing plots: "Tap where it starts", a painted area with its warning, then ready for the next one.
+          r.ui.placement.start({ kind: 'houses' });
+          const plots = [read()];
+          r.ui.placement.pointAt(16, 13);
+          plots.push(read());
+          r.ui.placement.pointAt(21, 14);
+          expect([at, stateOf()]).toEqual([at, 'warn']);                               // no road touches the far plots
+          plots.push(read());
+          expect(r.ui.placement.confirm().ok).toBe(true);
+          expect(r.ui.placement.preview().text).toBe(T.tapStart);                      // the tool stays, back to its first prompt
+          plots.push(read());
+          const plotsTallest = Math.max(...plots.map((m) => m.height));
+          for (const [i, m] of plots.entries()) if (i >= 2) expect([at, 'plots', i, m.height]).toEqual([at, 'plots', i, plotsTallest]);
+          for (let i = 1; i < plots.length; i++) expect([at, 'plots', i, plots[i].height >= plots[i - 1].height]).toEqual([at, 'plots', i, true]);
+          r.ui.placement.cancel();
+          expect(document.body.style.getPropertyValue('--confirm-h')).toBe('');        // gone with the tool
+        } finally { r.cleanup(); }
+      }
     }
   });
   it('lets the confirm dialog buttons wrap at large text', async () => {

@@ -150,7 +150,7 @@ export function createRenderer({
 
     // 4. Effects, overlays and the placement grid, back in art px.
     ctx.setTransform(1, 0, 0, 1, ox, oy);
-    if (opts.effects) opts.effects.draw(g, opts.now === undefined ? performance.now() : opts.now);
+    if (opts.effects) opts.effects.draw(g, opts.now === undefined ? performance.now() : opts.now, world);
     if (opts.drawOverlay) opts.drawOverlay(g, range);
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
