@@ -35,7 +35,8 @@ describe('data', () => {
     for (const [type, b] of Object.entries(BUILDINGS)) {
       expect(b.w).toBeGreaterThanOrEqual(1);
       expect(b.d).toBeGreaterThanOrEqual(1);
-      expect(b.cost).toBeGreaterThan(0);
+      if (b.buildable === false) expect([type, b.cost >= 0]).toEqual([type, true]);   // rubble costs nothing; a gate is priced per tile
+      else expect([type, b.cost > 0]).toEqual([type, true]);
       if (b.workers > 0) expect(PRIORITY_LEVELS).toContain(b.priority);
     }
   });

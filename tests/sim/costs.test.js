@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { costOf, roadCostOf } from '../../src/sim/costs.js';
-import { BUILDINGS } from '../../src/data/buildings.js';
+import { BUILDINGS, BUILDABLE } from '../../src/data/buildings.js';
 import { ECONOMY } from '../../src/data/economy.js';
 import { DIFFICULTY_ORDER } from '../../src/data/difficulty.js';
 import {
@@ -21,22 +21,22 @@ const byLevel = (fn) => DIFFICULTY_ORDER.map((d) => fn(cityAt(d)));
 
 describe('costs', () => {
   it('scales building costs by the difficulty, rounded to whole gold', () => {
-    expect(byLevel((w) => costOf(w, 'well'))).toEqual([24, 30, 38]);         // 37.5 rounds up
-    expect(byLevel((w) => costOf(w, 'temple'))).toEqual([96, 120, 150]);
-    expect(byLevel((w) => costOf(w, 'granary'))).toEqual([64, 80, 100]);
-    expect(byLevel((w) => costOf(w, 'house'))).toEqual([4, 5, 6]);           // 6.25 rounds down
+    expect(byLevel((w) => costOf(w, 'well'))).toEqual([24, 24, 30, 38]);     // Peaceful costs what Relaxed does         // 37.5 rounds up
+    expect(byLevel((w) => costOf(w, 'temple'))).toEqual([96, 96, 120, 150]);
+    expect(byLevel((w) => costOf(w, 'granary'))).toEqual([64, 64, 80, 100]);
+    expect(byLevel((w) => costOf(w, 'house'))).toEqual([4, 4, 5, 6]);           // 6.25 rounds down
   });
   it('leaves every Normal cost exactly as the data says', () => {
     const w = cityAt('normal');
-    for (const type of Object.keys(BUILDINGS)) expect([type, costOf(w, type)]).toEqual([type, BUILDINGS[type].cost]);
+    for (const type of BUILDABLE) expect([type, costOf(w, type)]).toEqual([type, BUILDINGS[type].cost]);   // rubble is cleared, never bought
     expect(roadCostOf(w)).toBe(ECONOMY.roadCost);
   });
   it('scales road tiles too, and never charges less than 1 gold', () => {
-    expect(byLevel((w) => roadCostOf(w))).toEqual([2, 2, 3]);                 // 1.6 rounds to 2, 2.5 to 3
+    expect(byLevel((w) => roadCostOf(w))).toEqual([2, 2, 2, 3]);                 // 1.6 rounds to 2, 2.5 to 3
     const saved = BUILDINGS.house.cost;
     BUILDINGS.house.cost = 0.4;                                                // 0.32, 0.4 and 0.5 would round to 0, 0 and 1
     try {
-      expect(byLevel((w) => costOf(w, 'house'))).toEqual([1, 1, 1]);
+      expect(byLevel((w) => costOf(w, 'house'))).toEqual([1, 1, 1, 1]);
     } finally { BUILDINGS.house.cost = saved; }
   });
   it('charges the scaled cost when placing, drawing roads and painting plots, and records it for undo', () => {
@@ -75,7 +75,7 @@ describe('costs', () => {
       expect(w.gold).toBe(before + expected);
       return expected;
     });
-    expect(refunds).toEqual([24, 30, 37]);                                     // 37.5 rounds down
+    expect(refunds).toEqual([24, 24, 30, 37]);                                     // 37.5 rounds down
     const w = cityAt('hard');
     place(w, 'house', 20, 20);
     expect(demolishRefundFor(w, buildingAt(w, 20, 20))).toBe(0);

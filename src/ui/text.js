@@ -540,3 +540,10 @@ export const closestAchievementText = (name, n, of, condition = '') => `${T.clos
 export const achievementBarLabel = (name, n, of) => `${name}: ${progressText(n, of)}`;   // a progress bar's accessible name
 // The arrows beside a trend's words; decoration only (aria-hidden), the words say which way it went.
 export const TREND_MARKS = { up: '▲', down: '▼' };
+
+// ── s3 contract (Track 0) ────────────────────────────────────────────────────────────────────────────────────────
+// Words for the Stage 3 contract's own additions. Each Stage 3 track keeps its words in its own section below, as its
+// own exported objects (FIRE_TEXT, RAID_TEXT, ...), and adds to the shared tables above (FIRST_TEXT, MOOD_NAMES,
+// REASONS, CHAPTER_NAMES, T, ...) only with Object.assign inside its own section, so no two tracks edit the same lines.
+Object.assign(DIFFICULTY_NAMES, { peaceful: 'Peaceful' });
+// ── end s3 contract ──────────────────────────────────────────────────────────────────────────────────────────────
