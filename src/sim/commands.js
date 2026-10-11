@@ -8,6 +8,7 @@ import { canAfford, spend, refund } from './money.js';
 import { costOf, roadCostOf } from './costs.js';
 import { isUnlocked } from './progression.js';
 import { pushUndo } from './undo.js';
+import { storeAccepts } from './production.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 const storesAny = (o, goods) => (BUILDINGS[o.type].stores || []).some((g) => goods.includes(g));
@@ -37,7 +38,7 @@ function placementWarnings(world, type, x, y) {
   const warnings = [];
   // A plot can be placed off the road but no one moves in until one touches it; gardens and statues need none.
   if (type === 'house' && !touchesRoad(world, probe)) warnings.push('needs_road');
-  if (def.produces && !buildingsInReach(world, probe, def.producerReach, (o) => storesAny(o, [def.produces.good])).length) {
+  if (def.produces && !buildingsInReach(world, probe, def.producerReach, (o) => storeAccepts(o, def.produces.good)).length) {
     warnings.push('no_storage');
   }
   if (def.sells && !buildingsInReach(world, probe, def.supplyReach, (o) => storesAny(o, def.sells)).length) {
@@ -107,6 +108,19 @@ export function setSpeed(world, speed) {
 // The guided start (early-game pass 3.2): Skip guide turns it off, Resume guide turns it back on.
 export function setGuide(world, on) {
   world.guide.on = Boolean(on);
+  return { ok: true, warnings: [] };
+}
+
+// A storehouse's switch for one good (spec 4.10). Refused, producers send the good to other stores or stop with
+// no_storage; what the storehouse already holds stays and can still be drawn on. Only a storehouse has the switches,
+// and only for the goods it stores. Accepting deletes the entry, so a storehouse that takes everything has accepts {}.
+export function setAccept(world, id, good, accept) {
+  const b = world.buildings[id];
+  if (!b) return fail('nothing_here');
+  if (b.type !== 'storehouse' || !(BUILDINGS[b.type].stores || []).includes(good)) return fail('not_storage');
+  if (!b.accepts) b.accepts = {};
+  if (accept) delete b.accepts[good];
+  else b.accepts[good] = false;
   return { ok: true, warnings: [] };
 }
 
