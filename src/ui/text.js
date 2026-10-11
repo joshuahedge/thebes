@@ -15,7 +15,7 @@ export function buildingName(type) {
 export const NEED_NAMES = { road: 'Road access', water: 'Water', food: 'Food', religion: 'Temple' };
 
 // The house sheet's causes and fixes (early-game pass 2.10), keyed by needCause codes. Reaches come from the data.
-// A provider in reach that is not working (well_idle, bazaar_idle, temple_idle) words itself by the building's own
+// A provider in reach that is not working (well_idle, bazaar_idle, temple_idle, granary_idle) words itself by the building's own
 // state: causeText picks `paused` or `short`.
 const idleWords = (type) => {
   const name = buildingName(type).toLowerCase();
@@ -26,13 +26,14 @@ const idleWords = (type) => {
 };
 export const CAUSE_TEXT = {
   no_road: { cause: 'No road beside it', fix: 'Lay a road next to it' },
-  no_well: { cause: `No working well within ${BUILDINGS.well.reach} road tiles`, fix: 'Build a well near it' },
-  no_bazaar: { cause: `No working bazaar within ${BUILDINGS.bazaar.reach} road tiles`, fix: 'Build a bazaar near it' },
+  no_well: { cause: `No well within ${BUILDINGS.well.reach} road tiles`, fix: 'Build a well near it' },
+  no_bazaar: { cause: `No bazaar within ${BUILDINGS.bazaar.reach} road tiles`, fix: 'Build a bazaar near it' },
   bazaar_empty: { cause: 'The bazaar has no grain', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles of it` },
   granary_empty: { cause: 'Its granary is empty', fix: 'Grain farms fill granaries' },
   next_delivery: { cause: 'Food arrives at the next delivery', fix: '' },
-  no_temple: { cause: `No working temple within ${BUILDINGS.temple.reach} road tiles`, fix: 'Build a temple near it' },
+  no_temple: { cause: `No temple within ${BUILDINGS.temple.reach} road tiles`, fix: 'Build a temple near it' },
   well_idle: idleWords('well'),
+  granary_idle: idleWords('granary'),
   bazaar_idle: idleWords('bazaar'),
   temple_idle: idleWords('temple'),
 };

@@ -89,6 +89,22 @@ describe('sim need cause', () => {
     granary.store.grain = 50;                                       // food in a granary the bazaar can draw on: restocked at month end
     expect(needCause(w, home, 'food')).toEqual({ code: 'next_delivery', id: bazaar.id });
   });
+  it('food: an empty granary that is paused or short of workers is named idle, since farms only fill working storage', () => {
+    const { w, home } = street();
+    addRaw(w, 'bazaar', 9, 11);
+    const granary = addRaw(w, 'granary', 4, 11);
+    staffAll(w);
+    expect(needCause(w, home, 'food')).toEqual({ code: 'granary_empty', id: granary.id });
+    granary.paused = true;
+    expect(needCause(w, home, 'food')).toEqual({ code: 'granary_idle', id: granary.id });
+    granary.paused = false;
+    granary.staff = 0;                                              // short of workers
+    expect(needCause(w, home, 'food')).toEqual({ code: 'granary_idle', id: granary.id });
+    const other = addRaw(w, 'granary', 2, 8);                       // a second, working store in reach wins: a farm can fill it
+    staffAll(w);
+    granary.staff = 0;
+    expect(needCause(w, home, 'food')).toEqual({ code: 'granary_empty', id: other.id });
+  });
   it('agrees with the checklist: no cause exactly when the row is met, for all four needs, through every state', () => {
     const w = makeTestWorld();
     setRoad(w, 0, 10, 31, 10);
@@ -103,7 +119,8 @@ describe('sim need cause', () => {
       () => { well.paused = false; },
       () => { bazaar = addRaw(w, 'bazaar', 9, 11); },                      // unstaffed
       () => { granary = addRaw(w, 'granary', 4, 11); staffAll(w); },       // bazaar working, granary empty
-      () => { granary.store.grain = 50; },
+      () => { granary.paused = true; },
+      () => { granary.paused = false; granary.store.grain = 50; },
       () => { bazaar.store.grain = 40; },
       () => { home.stock.grain = 2; },                                      // fed
       () => { home.stock.grain = 0; bazaar.paused = true; },
