@@ -39,16 +39,38 @@ describe('sim goals and rewards for Stage 2', () => {
     expect(goalById('pottery').need).toEqual({ kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] });
     expect(goalById('trade_route').need).toEqual({ kind: 'all', of: [{ kind: 'building', type: 'trading_post', n: 1 }, { kind: 'routes', n: 1 }] });
     expect([goalById('market_town').need, goalById('capital').need, goalById('estate').need]).toEqual([{ kind: 'people', n: 250 }, { kind: 'people', n: 1000 }, { kind: 'tier', tier: 9, n: 1 }]);
-    // Every building a goal asks for is unlocked by the milestone the goals before it reached (people goals mark them).
+    // Every building a goal asks for is unlocked by the milestone the goals before it reached (people goals mark
+    // them), and by the milestone the goal is listed from: its `from`, or Town for the goals without one.
     let reached = milestoneIndex('town');
     for (const g of GOALS.slice(9)) {
       if (g.need.kind === 'people') reached = MILESTONES.findIndex((m) => m.population === g.need.n);
       expect(reached).toBeGreaterThan(0);
+      const listed = milestoneIndex(g.from || 'town');
       for (const type of typesIn(g.need)) {
         const at = MILESTONES.findIndex((m) => m.unlocks.includes(type));
-        expect([g.id, type, at >= 0 && at <= reached]).toEqual([g.id, type, true]);
+        expect([g.id, type, at >= 0 && at <= reached, at <= listed]).toEqual([g.id, type, true, true]);
       }
       expect([g.id, g.reward, g.text.length > 0, Boolean(BUILDINGS[g.showMe.item]) || g.showMe.item === 'house']).toEqual([g.id, GOAL_REWARD, true, true]);
+    }
+  });
+  it('lists a goal that needs a later milestone only once the city has reached it', () => {
+    const later = [['trade_route', 'market_town'], ['beer', 'city'], ['fine_manors', 'city'], ['linen', 'great_city'], ['villas', 'great_city'], ['jewellery', 'capital'], ['estate', 'capital']];
+    expect(GOALS.filter((g) => g.from).map((g) => [g.id, g.from])).toEqual(later);
+    const w = town();
+    w.goals.completed.push('pottery', 'homes_townhouse', 'booth_gardens', 'manor');
+    const crowd = addRaw(w, 'house', 0, 0, { tier: 1, residents: 249 });
+    const open = (n) => openGoals(w, n).map((g) => g.id);
+    expect(open(Infinity).includes('trade_route')).toBe(false);            // 249 people, a Town: no trading post to build yet
+    expect(open(3)).toEqual(['market_town', 'city', 'great_city']);
+    crowd.residents = 250;
+    w.milestone = 'market_town';
+    w.goals.completed.push('market_town');
+    expect(open(3)).toEqual(['trade_route', 'city', 'great_city']);
+    for (const m of MILESTONES) {                                          // each waits for exactly its milestone, none sooner
+      w.milestone = m.id;
+      const listed = open(Infinity);
+      expect([m.id, later.filter(([id]) => listed.includes(id)).map(([id]) => id)])
+        .toEqual([m.id, later.filter(([, from]) => milestoneIndex(from) <= milestoneIndex(m.id)).map(([id]) => id)]);
     }
   });
   it('counts open trade routes', () => {

@@ -5,6 +5,7 @@ import { GOALS, EVENT_GOALS, GUIDE_GOALS, GUIDE_REWARD } from '../data/goals.js'
 import { housesOf, population, allBuildings } from './world.js';
 import { alertsFor } from './alerts.js';
 import { idx } from './grid.js';
+import { atLeast } from './progression.js';
 import { openRoutes } from './trade.js';
 
 const SETTLE_MAX = 20;   // settleGoals stops after this many completions in one go
@@ -64,12 +65,13 @@ export function triggerEventGoals(world) {
   return fired;
 }
 
-// Triggered event goals first (in EVENT_GOALS order), then the chain, both without the completed ones.
+// Triggered event goals first (in EVENT_GOALS order), then the chain, both without the completed ones. A chain
+// goal with a `from` milestone waits, unlisted and so not completed either, until the city has reached it.
 export function openGoals(world, limit = 3) {
   const done = new Set(world.goals.completed);
   const triggered = new Set(world.goals.triggered);
   const events = EVENT_GOALS.filter((g) => triggered.has(g.id) && !done.has(g.id));
-  return [...events, ...GOALS.filter((g) => !done.has(g.id))].slice(0, limit);
+  return [...events, ...GOALS.filter((g) => !done.has(g.id) && (!g.from || atLeast(world, g.from)))].slice(0, limit);
 }
 
 // Completes at most one open goal (any open goal, so a met chain goal never waits behind event goals),

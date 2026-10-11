@@ -290,7 +290,7 @@ export const TIP_TEXT = {
   nicer_streets: 'Place gardens and statues near homes: Manors and up need a pleasant street.',
   storehouse_choices: 'Tap a storehouse to choose its goods: a refused good goes to other storage.',
   trade_orders: 'Tap the trading post, open a route, then pick what to buy, sell and keep.',
-  merging_homes: 'Keep the plots beside a Townhouse free: four in a square become a Manor.',
+  merging_homes: 'Add three plots beside a Townhouse in a square: it can become a Manor.',
 };
 
 // Achievements on the summary and the Welcome back card (early-game pass 3.8, 3.9). Counts read as progressText does.
