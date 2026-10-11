@@ -33,9 +33,10 @@ import { RAIDS, RAID_SALT } from '../data/raids.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, population } from './world.js';
 import { isWorking } from './labour.js';
-import { costOf, riskOf } from './costs.js';
+import { costOf, riskOf, raidsOn } from './costs.js';
 import { spend } from './money.js';
 import { hash2 } from './rng.js';
+import { setSpeed } from './commands.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 
@@ -119,16 +120,56 @@ export function payTribute(world) {
   return { ok: true, cost: w.tribute, warnings: [] };
 }
 
-// STUB. The day's raid step, run by tickDay after fire: starts the clock, raises the warning, brings the raiders in,
-// then moves the band, trains and moves soldiers and resolves combat (combat.js), strikes, retreat and the end.
-export function raidDay(world, events = null) {}
+// Raises the warning for the raid at world.raid.index (spec 4.3, 4.13): its entry by hash2(seed, index,
+// RAID_SALT.entry) among world.raiderEntries (a map without any has no raids), its direction, its size and tribute fixed
+// now, the target kind now, arriving RAIDS.warningDays later. The first warning pauses the game; later ones drop 2x or 3x
+// to 1x (setSpeed). index then counts it, so laterWarnDay draws the next raid's gap.
+function raiseWarning(world, events) {
+  const r = world.raid, entries = world.raiderEntries;
+  if (!entries.length) return;
+  const index = r.index, first = index === 0;
+  const entry = { ...entries[Math.floor(hash2(world.seed, index, RAID_SALT.entry) * entries.length)] };
+  const size = raidSize(world);
+  const w = { index, entry, dir: entryDir(world, entry), size, tribute: first ? null : tributeFor(world, size), target: raidTargetKind(world), day: world.day, arrives: world.day + RAIDS.warningDays, first };
+  r.warning = w;
+  r.index = index + 1;
+  if (first) setSpeed(world, 0);
+  else if (world.speed > 1) setSpeed(world, 1);
+  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first });
+}
+
+// The day's raid step (spec 4.3, 4.13), run by tickDay after fireDay; world.day is the day being simulated. Never on
+// Peaceful (raidsOn). The clock starts the first day the city has RAIDS.clockPeople people (its peak counts: a city that
+// had them keeps its clock), and the first warning comes RAIDS.firstWarnAfter days later; a warning is raised on
+// nextWarnDay when none is up and no raid is under way.
+export function raidDay(world, events = null) {
+  if (!raidsOn(world)) return;
+  const r = world.raid, day = world.day;
+  if (r.clockDay === null && Math.max(world.tally.peakPeople, population(world)) >= RAIDS.clockPeople) {
+    r.clockDay = day;
+    r.nextWarnDay = day + RAIDS.firstWarnAfter;
+  }
+  if (!r.warning && !r.active && r.nextWarnDay !== null && day >= r.nextWarnDay) raiseWarning(world, events);
+}
 
 // STUB. The month-end raid step, run by runMonth before mood (nothing required yet; kept so a later rule has its seam).
 export function raidMonth(world, events = null) {}
 
-// STUB. Raids' alerts (codes above).
+// The band's centre as a map tile: the mean of its raiders' points, or the entry when none is left.
+function bandCentre(a) {
+  if (!a.raiders.length) return { x: a.entry.x, y: a.entry.y };
+  const n = a.raiders.length;
+  return { x: Math.floor(a.raiders.reduce((s, u) => s + u.x, 0) / n), y: Math.floor(a.raiders.reduce((s, u) => s + u.y, 0) / n) };
+}
+
+// Raids' alerts, both critical: { code: 'raid', x, y, left } while raiders are on the map (x, y: the band's centre;
+// left: raiders still on the map) and { code: 'raid_warning', x, y, dir, arrives } while a raid is on its way (x, y: its
+// entry). A warning and a raid are never up at once.
 export function raidAlerts(world) {
-  return [];
+  const r = world.raid, out = [];
+  if (r.active) out.push({ code: 'raid', ...bandCentre(r.active), left: r.active.raiders.length });
+  if (r.warning) out.push({ code: 'raid_warning', x: r.warning.entry.x, y: r.warning.entry.y, dir: r.warning.dir, arrives: r.warning.arrives });
+  return out;
 }
 
 // STUB. The raid mood term (spec 4.9, DANGER_MOOD): { raid } for raidDays after a raid ends, by its outcome; {} otherwise.

@@ -53,7 +53,7 @@ describe('ui house sheet why', () => {
     bazaar.paused = true;
     expect(causeText({ code: 'bazaar_idle', id: bazaar.id }, world)).toEqual({ cause: 'The bazaar is paused', fix: 'Resume it' });
     expect(causeText({ code: 'no_road', id: null }, world)).toBe(CAUSE_TEXT.no_road);
-    expect(MOOD_NAMES).toEqual({ base: 'Starting mood', food: 'Food', jobs: 'Jobs', debt: 'Debt' });
+    expect(['base', 'food', 'jobs', 'debt'].map((k) => MOOD_NAMES[k])).toEqual(['Starting mood', 'Food', 'Jobs', 'Debt']);   // Stage 3 tracks add their own rows
     expect(categoryOfItem('bazaar')).toBe('services');
     expect(categoryOfItem('granary')).toBe('food');
     expect(categoryOfItem('nothing')).toBe(null);
