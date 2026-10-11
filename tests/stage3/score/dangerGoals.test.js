@@ -11,10 +11,11 @@ import { goalById, openGoals, settleGoals, triggerEventGoals, chainGoals } from 
 import { firstMet, checkFirsts } from '../../../src/sim/firsts.js';
 import { achievementProgress, checkAchievements, achievementsFor } from '../../../src/sim/achievements.js';
 import { dailyOrder, dailyMeasure } from '../../../src/sim/daily.js';
-import { showMeTarget } from '../../../src/ui/goalsList.js';
+import { showMeTarget, createGoalsStrip } from '../../../src/ui/goalsList.js';
 import { closestAchievement } from '../../../src/ui/welcomeBack.js';
-import { CHAPTER_NAMES, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, TIP_TEXT } from '../../../src/ui/text.js';
+import { CHAPTER_NAMES, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, TIP_TEXT, showMeLabel } from '../../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
+import { mount } from '../../helpers/dom.js';
 import { rigUI } from '../../helpers/uiWorld.js';
 
 const ids = (list) => list.map((g) => g.id);
@@ -86,6 +87,22 @@ describe('s3 score danger goals', () => {
     expect(openGoals(w)[0].text).toBe('Build a tower facing the north');
     const peaceful = city('market_town', 'peaceful');
     expect(triggerEventGoals(peaceful, [alert])).toEqual([]);
+  });
+  it('rewords the strip\'s tower goal when the raiders\' direction changes, without rebuilding it', () => {
+    const w = city('market_town');
+    triggerEventGoals(w, [{ code: 'raid_warning', x: 31, y: 16, dir: 'east', arrives: 90 }]);
+    w.raid.warning = { index: 0, entry: { x: 31, y: 16 }, dir: 'east', size: 3, tribute: null, target: 'building', day: 0, arrives: 90, first: true };
+    const { root, cleanup } = mount();
+    try {
+      const strip = createGoalsStrip({ container: root, world: w, onShowMe: () => {}, onOpen: () => {} });
+      const text = root.querySelector('.goal-strip .text'), showMe = root.querySelector('.goal-strip .show-me');
+      expect(text.textContent).toBe('Build a tower facing the east');
+      w.raid.warning.dir = 'north';
+      strip.render();
+      expect(root.querySelector('.goal-strip .text')).toBe(text);              // the same goal: updated in place, so focus survives
+      expect(text.textContent).toBe('Build a tower facing the north');
+      expect(showMe.getAttribute('aria-label')).toBe(showMeLabel('Build a tower facing the north'));
+    } finally { cleanup(); }
   });
   it('aims Show me for a tower at the homes\' side that faces the raid', () => {
     const w = city('market_town');
