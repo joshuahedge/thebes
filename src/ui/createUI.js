@@ -40,7 +40,7 @@ import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { welcomeSheet } from './welcomeBack.js';
 import { el, setText, clear } from './components.js';
-import { buildingName, reasonText, milestoneText, T } from './text.js';
+import { buildingName, reasonText, milestoneText, rewardText, T } from './text.js';
 
 const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
@@ -247,7 +247,7 @@ export function createUI({
   }
   function onEvents(events) {
     for (const e of events) if (e.type === 'month') { autosave('month'); break; }
-    for (const e of events) if (e.type === 'goal') { const g = goalById(e.id); if (g) toasts.show(`${T.goalDone}: ${g.text} (+${e.reward} ${T.gold.toLowerCase()})`); }
+    for (const e of events) if (e.type === 'goal') { const g = goalById(e.id); if (g) toasts.show(`${T.goalDone}: ${g.text} (${rewardText(e.reward)})`); }
     for (const e of events) {
       if (e.type === 'upgrade') sfx.play('upgrade');
       else if (e.type === 'goal') sfx.play('goal');

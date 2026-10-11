@@ -197,6 +197,82 @@ describe('ui goals v2', () => {
       expect(reward.textContent).toBe(rewardText(GOAL_REWARD));
     } finally { r.cleanup(); }
   });
+  it('keeps the goal readable in every layout at each text size: a text column of 8em or more, a strip of at most two lines and a button row, near the top', async () => {
+    const layouts = [['wide', 1280, 800], ['compact', 740, 360], ['compact', 844, 390], ['portrait', 390, 844]];
+    for (const [layout, width, height] of layouts) {
+      const r = await rigUI({ width, height });
+      try {
+        expect(r.store.get().layout).toBe(layout);
+        r.world.goals.completed.push('road', 'plots');                // the longest chain goal with its chip: 'Build a well so huts become shacks', 0 of 1
+        r.ui.refresh();
+        for (const size of [100, 125, 150]) {
+          r.ui.settings.set({ textSize: size });
+          const where = `${layout} ${width}x${height} at ${size}%`;
+          const strip = r.root.querySelector('#goals .goal-strip');
+          const text = strip.querySelector('.text');
+          const em = parseFloat(getComputedStyle(text).fontSize);
+          const lineHeight = parseFloat(getComputedStyle(text).lineHeight);
+          const line = Number.isFinite(lineHeight) ? lineHeight : em * 1.4;
+          const top = r.root.getBoundingClientRect().top;
+          const box = strip.getBoundingClientRect();
+          expect(`${where}: text column ${text.getBoundingClientRect().width >= 8 * em}`).toBe(`${where}: text column true`);
+          expect(`${where}: strip height ${box.height <= 2 * line + 44 + 8}`).toBe(`${where}: strip height true`);   // wrapping happens by rows, never inside the words
+          // never over the middle of the map: the top third, or in a landscape phone, where the top bar alone takes
+          // a sixth of the screen at large text, above the middle
+          const limit = (layout === 'compact' ? 0.5 : 1 / 3) * height;
+          expect(`${where}: bottom ${box.bottom - top <= limit}`).toBe(`${where}: bottom true`);
+          expectWholeButtons(r);
+        }
+      } finally { r.cleanup(); }
+    }
+  });
+  it('shows the reward in the strip on wide screens only, not on phones in either orientation', async () => {
+    for (const [layout, width, height] of [['wide', 1280, 800], ['compact', 740, 360], ['portrait', 390, 844]]) {
+      const r = await rigUI({ width, height });
+      try {
+        expect(r.store.get().layout).toBe(layout);
+        const shown = getComputedStyle(r.root.querySelector('#goals .goal-strip .reward')).display !== 'none';
+        expect(`${layout}: reward ${shown}`).toBe(`${layout}: reward ${layout === 'wide'}`);
+      } finally { r.cleanup(); }
+    }
+  });
+  it('words a finished daily goal as Done with no reward, and an open one with its progress and reward', () => {
+    const { root, cleanup } = mount();
+    try {
+      const world = makeTestWorld();
+      world.daily = { date: '2026-10-11', picks: ['plots4', 'well1', 'roads10'], base: { plots4: 0, well1: 0, roads10: 0 }, done: ['well1'], swapped: false };
+      world.tally.dailyDone = 1;
+      goalsSheet(world, { onShowMe: () => {} })(root, { close: () => {} });
+      const [open, done, open2] = [...root.querySelectorAll('.daily')];
+      expect(done.textContent).toContain(T.done);
+      expect(done.textContent).toContain(DAILY_TEXT.well1);
+      expect(done.textContent.includes('gold')).toBe(false);           // the reward is paid: nothing left to promise
+      expect(done.querySelector('.swap')).toBe(null);
+      for (const row of [open, open2]) expect(row.textContent).toContain(rewardText(DAILY_REWARD));
+      expect(root.textContent).toContain(dailyDoneText(1));
+    } finally { cleanup(); }
+  });
+  it('hands focus to Show me when Skip guide hides itself, and to the Today heading when a swap removes its button', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    try {
+      const skip = r.root.querySelector('#goals .skip-guide');
+      skip.focus();
+      expect(document.activeElement).toBe(skip);
+      fire(skip, 'click');
+      expect(r.root.querySelector('#goals .skip-guide').hidden).toBe(true);
+      expect(document.activeElement).toBe(r.root.querySelector('#goals .show-me'));   // focus stays in the strip
+      settle(r.world);
+      r.ui.afterCommand({ kind: 'check', undoable: false });
+      r.store.set(openSheet(r.store.get(), 'goals'));
+      const swap = r.root.querySelector('#sheet .daily .swap');
+      swap.focus();
+      expect(document.activeElement).toBe(swap);
+      fire(swap, 'click');
+      expect(r.world.daily.swapped).toBe(true);
+      expect(r.root.querySelector('#sheet .daily .swap')).toBe(null);
+      expect(document.activeElement).toBe(r.root.querySelector('#sheet .today'));
+    } finally { r.cleanup(); }
+  });
   it('keeps every button in the goals sheet whole on a phone at each text size: Show me and Swap on one line, inside the sheet', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
