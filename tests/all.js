@@ -16,6 +16,7 @@ import './sim/commands.test.js';
 import './sim/areaCommands.test.js';
 import './sim/labour.test.js';
 import './sim/production.test.js';
+import './sim/chains.test.js';
 import './sim/housing.test.js';
 import './sim/needCause.test.js';
 import './sim/immigration.test.js';
