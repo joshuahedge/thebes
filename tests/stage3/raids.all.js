@@ -2,3 +2,5 @@
 // with "s3 raids", so tests/run-tests.ps1 -Grep "s3 raids" runs the track alone. Only Track B edits this file.
 import './raids/warning.test.js';
 import './raids/walls.test.js';
+import './raids/raid.test.js';
+import './raids/report.test.js';

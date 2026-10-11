@@ -29,7 +29,25 @@
 // (report as raid.last); { type: 'tribute', index, cost } is never pushed: payTribute is a command and returns it.
 // Alerts (raidAlerts): { code: 'raid_warning', x, y, dir, arrives } and { code: 'raid', x, y, left } (left: raiders still
 // on the map), both critical and pinned at a map point (x, y: the entry, or the band's centre while it is on the map).
-import { RAIDS, RAID_SALT } from '../data/raids.js';
+//
+// Track B's fields (the contract lets the owner add them inside its records):
+//   active.x, active.y   the band's tile: the band moves as one, UNITS.raider.speed tiles a day, along flowField; each
+//                        raider stands at the tile's centre plus a small offset by its id (SLOTS), so they read as a group
+//   active.blocked       the tile index of the standing wall tile in the band's way (its raiders hit it), or null
+//   active.towerIds      the towers that have shot during the raid (the report's towers)
+//   active.fires         [{ id, type }]: buildings the raid set alight that are still burning; when one burns down,
+//                        burned goes up and its type joins burnedKinds. The report keeps both and goes on counting, so
+//                        raid.last.burned can still rise after the raid ends while its fires burn out
+//   active.burnedKinds   the types the raid's fires burned down, in order (the report names one kind: "1 storehouse")
+// A day of a raid (raidDay): combat (combat.js); the end when no raider is left; retreat once RAIDS.retreatShare of the
+// raiders (rounded up) have fallen; then, unless a raider is fighting, the band waits out a strike or takes one step: to
+// the target it is after (attack), back to its entry (leave, after RAIDS.strikes strikes; retreat), or stops before a
+// standing wall tile and hits it the next day. Reaching its target the band strikes at once (strike): the blaze, the
+// theft and RAIDS.strikeDays days there. Reaching the entry it leaves the map and the raid ends, lost after its strikes and
+// beaten in retreat. A target is the nearest (straight line from the band) unstruck building of the warned kind, else of
+// each kind below it in RAIDS.targets, else any other building but a home or rubble, that the band can reach.
+import { RAIDS, RAID_SALT, UNITS } from '../data/raids.js';
+import { DANGER_MOOD } from '../data/mood.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, population } from './world.js';
 import { isWorking } from './labour.js';
@@ -37,6 +55,11 @@ import { costOf, riskOf, raidsOn } from './costs.js';
 import { spend } from './money.js';
 import { hash2 } from './rng.js';
 import { setSpeed } from './commands.js';
+import { idx, ring, inBounds } from './grid.js';
+import { igniteBuilding } from './fire.js';
+import { flowField, tileCost } from './pathfinding.js';
+import { healWalls } from './defence.js';
+import { trainSoldiers, combatDay, soldiersHome } from './combat.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 
@@ -138,18 +161,25 @@ function raiseWarning(world, events) {
   if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first });
 }
 
-// The day's raid step (spec 4.3, 4.13), run by tickDay after fireDay; world.day is the day being simulated. Never on
-// Peaceful (raidsOn). The clock starts the first day the city has RAIDS.clockPeople people (its peak counts: a city that
-// had them keeps its clock), and the first warning comes RAIDS.firstWarnAfter days later; a warning is raised on
-// nextWarnDay when none is up and no raid is under way.
+// The day's raid step (spec 4.3, 4.13), run by tickDay after fireDay; world.day is the day being simulated. Barracks
+// train every day on every level (combat.js). The rest never runs on Peaceful (raidsOn): the clock starts the first day
+// the city has RAIDS.clockPeople people (its peak counts: a city that had them keeps its clock), and the first warning
+// comes RAIDS.firstWarnAfter days later; a warning is raised on nextWarnDay when none is up and no raid is under way,
+// and its raiders arrive on its arrives day. A raid under way has its day (raidStep); soldiers with none walk home.
 export function raidDay(world, events = null) {
-  if (!raidsOn(world)) return;
+  trainSoldiers(world, events);
   const r = world.raid, day = world.day;
-  if (r.clockDay === null && Math.max(world.tally.peakPeople, population(world)) >= RAIDS.clockPeople) {
+  if (raidsOn(world) && r.clockDay === null && Math.max(world.tally.peakPeople, population(world)) >= RAIDS.clockPeople) {
     r.clockDay = day;
     r.nextWarnDay = day + RAIDS.firstWarnAfter;
   }
-  if (!r.warning && !r.active && r.nextWarnDay !== null && day >= r.nextWarnDay) raiseWarning(world, events);
+  trackFires(world, r.active);
+  trackFires(world, r.last);
+  if (r.active) return raidStep(world, events);
+  soldiersHome(world);
+  if (!raidsOn(world)) return;
+  if (r.warning) { if (day >= r.warning.arrives) arrive(world, events); }
+  else if (r.nextWarnDay !== null && day >= r.nextWarnDay) raiseWarning(world, events);
 }
 
 // STUB. The month-end raid step, run by runMonth before mood (nothing required yet; kept so a later rule has its seam).
@@ -172,7 +202,167 @@ export function raidAlerts(world) {
   return out;
 }
 
-// STUB. The raid mood term (spec 4.9, DANGER_MOOD): { raid } for raidDays after a raid ends, by its outcome; {} otherwise.
+// Where each raider stands in the band's tile, by its id: the centre and eleven spots around it.
+const SLOTS = [[0, 0], [0.25, 0.2], [-0.25, 0.2], [0.25, -0.2], [-0.25, -0.2], [0, 0.32], [0, -0.32], [0.32, 0], [-0.32, 0], [0.16, 0.34], [-0.16, -0.34], [0.34, -0.16]];
+function placeBand(a) {
+  for (const u of a.raiders) {
+    const [dx, dy] = SLOTS[u.id % SLOTS.length];
+    u.x = a.x + 0.5 + dx;
+    u.y = a.y + 0.5 + dy;
+  }
+}
+
+// The raiders arrive at the warned entry (spec 4.13): the warning becomes the raid under way, every standing wall tile
+// is at its full hit points (a tower on a wall tile at DEFENCE.towerOnWallHp), tally.raids counts it, 2x or 3x drops to
+// 1x, and raid_start is pushed. They make their first move the next day.
+function arrive(world, events) {
+  const r = world.raid, w = r.warning;
+  const raiders = [];
+  for (let k = 0; k < w.size; k++) raiders.push({ id: world.nextUnitId++, x: 0, y: 0, hp: UNITS.raider.hp, hit: false });
+  const a = {
+    index: w.index, entry: { ...w.entry }, dir: w.dir, size: w.size, target: w.target, day: world.day, raiders, phase: 'attack', targetId: null,
+    struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [], x: w.entry.x, y: w.entry.y, blocked: null, towerIds: [], fires: [], burnedKinds: [],
+  };
+  placeBand(a);
+  r.active = a;
+  r.warning = null;
+  world.tally.raids += 1;
+  healWalls(world);
+  if (world.speed > 1) setSpeed(world, 1);
+  if (events) events.push({ type: 'raid_start', index: a.index, dir: a.dir, size: a.size });
+}
+
+// The tiles next to a building that a raider could stand on: its strike goals.
+function ringGoals(world, b) {
+  return ring(b.x, b.y, b.w, b.d).filter(([x, y]) => inBounds(world.size, x, y) && tileCost(world, x, y) !== Infinity);
+}
+
+// The building the band goes for next, or null (see the header): the warned kind first, then each kind below it, then
+// any building but a home or rubble; nearest first, ties to the lower id; one it can reach.
+function pickTarget(world, a) {
+  const at = idx(world.size, a.x, a.y), here = { x: a.x + 0.5, y: a.y + 0.5 };
+  const kinds = RAIDS.targets.includes(a.target) ? RAIDS.targets.slice(RAIDS.targets.indexOf(a.target)) : [];
+  const groups = [...kinds.map((k) => (b) => b.type === k), (b) => b.type !== 'house' && b.type !== 'rubble'];
+  for (const match of groups) {
+    const near = allBuildings(world).filter((b) => match(b) && !a.struck.includes(b.id))
+      .map((b) => ({ b, d: Math.hypot(b.x + b.w / 2 - here.x, b.y + b.d / 2 - here.y) }))
+      .sort((p, q) => p.d - q.d || p.b.id - q.b.id);
+    for (const { b } of near) if (flowField(world, ringGoals(world, b)).dist[at] !== Infinity) return b;
+  }
+  return null;
+}
+
+// A strike (spec 4.13): a blaze through the fire system (Track A's igniteBuilding; the building is followed while it
+// burns, see trackFires), and each raider steals RAIDS.stealShare of the treasury, at least RAIDS.stealMin and at most
+// RAIDS.stealMax, never taking it below 0. The band stays RAIDS.strikeDays days, this one included.
+function strike(world, a, b, events) {
+  if (igniteBuilding(world, b.id, events, 'raid')) a.fires.push({ id: b.id, type: b.type });
+  let stolen = 0;
+  for (let k = 0; k < a.raiders.length; k++) {
+    const take = Math.min(Math.max(0, world.gold), Math.max(RAIDS.stealMin, Math.min(RAIDS.stealMax, Math.round(world.gold * RAIDS.stealShare))));
+    world.gold -= take;
+    stolen += take;
+  }
+  a.stolen += stolen;
+  world.tally.goldStolen += stolen;
+  a.struck.push(b.id);
+  a.targetId = b.id;
+  a.phase = 'strike';
+  a.wait = RAIDS.strikeDays;
+  if (events) events.push({ type: 'raid_strike', id: b.id, stolen });
+}
+
+// Follows the raid's fires (active.fires, then the report's): one put out is dropped; one whose building is gone on a
+// day a building burned down (danger.burnDays, written by fire.js) counts as burned, with its type.
+function trackFires(world, rec) {
+  if (!rec || !rec.fires || !rec.fires.length) return;
+  const burnDays = world.danger.burnDays;
+  rec.fires = rec.fires.filter((f) => {
+    const b = world.buildings[f.id];
+    if (b) return Boolean(b.fire);
+    if (burnDays.length && burnDays[burnDays.length - 1] === world.day) { rec.burned += 1; rec.burnedKinds.push(f.type); }
+    return false;
+  });
+}
+
+// The raid is over (spec 4.13): no raider is left on the map. Beaten (won) when the raiders retreated or all fell, lost
+// when the band left after its strikes. The report becomes raid.last; the tallies, the adaptation (a lost raid sets
+// RAIDS.adaptLost, any other adds RAIDS.adaptStep up to 1) and the next warning (laterWarnDay after the arrival day)
+// follow; hit wall tiles heal; soldiers out walk back.
+function endRaid(world, events, won) {
+  const r = world.raid, a = r.active;
+  const report = {
+    index: a.index, dir: a.dir, size: a.size, won, byTowers: a.byTowers, bySoldiers: a.bySoldiers, towers: a.towerIds.length, burned: a.burned,
+    stolen: a.stolen, day: world.day, burnedKinds: a.burnedKinds.slice(), fires: a.fires.map((f) => ({ ...f })),
+  };
+  r.active = null;
+  r.last = report;
+  world.tally[won ? 'raidsBeaten' : 'raidsLost'] += 1;
+  r.adaptation = won ? Math.min(1, r.adaptation + RAIDS.adaptStep) : RAIDS.adaptLost;
+  r.nextWarnDay = laterWarnDay(world, a.day);
+  healWalls(world);
+  for (const s of world.soldiers) if (s.task === 'out') s.task = 'back';
+  if (events) events.push({ type: 'raid_end', won, report: JSON.parse(JSON.stringify(report)) });
+}
+
+// One day of the raid under way (see the header).
+function raidStep(world, events) {
+  const a = world.raid.active;
+  if (!Number.isInteger(a.x)) Object.assign(a, bandCentre(a));      // a raid set up in the contract's shape alone
+  if (a.blocked === undefined) a.blocked = null;
+  if (!a.towerIds) a.towerIds = [];
+  if (!a.fires) a.fires = [];
+  if (!a.burnedKinds) a.burnedKinds = [];
+  const { fighting } = combatDay(world, events);
+  if (!a.raiders.length) return endRaid(world, events, true);
+  if (a.phase !== 'retreat' && a.size - a.raiders.length >= Math.ceil(a.size * RAIDS.retreatShare)) {
+    a.phase = 'retreat';
+    a.targetId = null;
+    a.wait = 0;
+  }
+  if (fighting) return;
+  if (a.phase === 'strike') {
+    a.wait -= 1;
+    if (a.wait > 0) return;
+    a.phase = a.struck.length >= RAIDS.strikes ? 'leave' : 'attack';
+    a.targetId = null;
+  }
+  for (let step = 0; step < UNITS.raider.speed; step++) {
+    let goals;
+    if (a.phase === 'attack') {
+      let t = a.targetId ? world.buildings[a.targetId] : null;
+      if (!t || flowField(world, ringGoals(world, t)).dist[idx(world.size, a.x, a.y)] === Infinity) t = pickTarget(world, a);
+      if (t) { a.targetId = t.id; goals = ringGoals(world, t); }
+      else { a.phase = 'leave'; a.targetId = null; }
+    }
+    if (a.phase !== 'attack') goals = [[a.entry.x, a.entry.y]];
+    const field = flowField(world, goals);
+    const here = idx(world.size, a.x, a.y);
+    if (field.dist[here] === 0 || field.dist[here] === Infinity) return reach(world, a, events);
+    const [nx, ny] = field.next(a.x, a.y);
+    const ni = idx(world.size, nx, ny);
+    if (world.wall[ni] > 0) { a.blocked = ni; return; }
+    a.blocked = null;
+    a.x = nx;
+    a.y = ny;
+    placeBand(a);
+    if (field.dist[ni] === 0) return reach(world, a, events);
+  }
+}
+
+// The band is at its goal: its target (a strike), or its entry (it leaves the map and the raid ends). A band that can
+// no longer reach its entry slips away at once.
+function reach(world, a, events) {
+  if (a.phase === 'attack') return strike(world, a, world.buildings[a.targetId], events);
+  const won = a.phase === 'retreat';
+  a.raiders = [];
+  return endRaid(world, events, won);
+}
+
+// The raid mood term (spec 4.9, DANGER_MOOD): { raid: raidBeaten or raidLost } for raidDays after the last raid ended,
+// by its outcome; {} otherwise (and for a raid paid off, which leaves no report).
 export function raidMood(world) {
-  return {};
+  const last = world.raid.last;
+  if (!last || world.day - last.day >= DANGER_MOOD.raidDays) return {};
+  return { raid: last.won ? DANGER_MOOD.raidBeaten : DANGER_MOOD.raidLost };
 }
