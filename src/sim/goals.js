@@ -67,9 +67,11 @@ export function triggerEventGoals(world) {
 }
 
 // A goal with a `from` milestone waits until the city has reached it. The milestone itself moves at month end,
-// so it counts as reached once the city has the people for it too: the goal before it (the one that names the
-// people) is then done, and the list does not run dry until the month turns.
-const waits = (world, g) => Boolean(g.from) && !atLeast(world, g.from) && population(world) < MILESTONES[milestoneIndex(g.from)].population;
+// so it counts as reached once the city has had the people for it too (its peak, kept daily, so a few leaving
+// before the month end do not take the goals away again): the goal before it (the one that names the people) is
+// then done, and the list does not run dry until the month turns.
+const waits = (world, g) => Boolean(g.from) && !atLeast(world, g.from)
+  && Math.max(world.tally.peakPeople, population(world)) < MILESTONES[milestoneIndex(g.from)].population;
 
 // What is not done yet: triggered event goals first (in EVENT_GOALS order), then the chain.
 function unfinished(world) {

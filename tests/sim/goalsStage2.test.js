@@ -13,6 +13,7 @@ import { achievementProgress } from '../../src/sim/achievements.js';
 import { dailyOrder, dailyMeasure } from '../../src/sim/daily.js';
 import { milestoneIndex } from '../../src/sim/progression.js';
 import { population } from '../../src/sim/world.js';
+import { tickDay } from '../../src/sim/clock.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
 
 const STAGE1 = ['road', 'plots', 'well', 'food', 'temple', 'homes_cottage', 'people100', 'homes_house', 'town'];
@@ -84,6 +85,18 @@ describe('sim goals and rewards for Stage 2', () => {
     expect(settleGoals(w)).toEqual([]);                                    // ...but it is not listed, so it does not pay out
     crowd.residents = 250;
     expect(settleGoals(w).map((g) => g.id)).toEqual(['trade_route']);
+  });
+  it('keeps listing the goals after a people goal pays, when a few people leave before the month end', () => {
+    const w = makeTestWorld();
+    w.goals.completed.push(...STAGE1.filter((id) => id !== 'town'));
+    w.guide = { on: false, done: true };
+    const crowd = addRaw(w, 'house', 0, 0, { tier: 1, residents: 150 });
+    w.day = 5;
+    tickDay(w);                                                            // mid-month: the Town goal pays, the milestone waits for the month end
+    expect([w.goals.completed.includes('town'), w.milestone]).toEqual([true, 'village']);
+    expect(openGoals(w).map((g) => g.id)).toEqual(['pottery', 'homes_townhouse', 'booth_gardens']);
+    crowd.residents = 140;                                                 // some leave before the month turns
+    expect(openGoals(w).map((g) => g.id)).toEqual(['pottery', 'homes_townhouse', 'booth_gardens']);
   });
   it('counts open trade routes', () => {
     const w = town();

@@ -5,9 +5,9 @@
 // the treasury below zero, moving goods from and to stores within TRADE_REACH road tiles of the post. Prices drift
 // each year within PRICE_DRIFT, seeded by the city's seed and the year, so the same city always sees the same prices.
 //
-// world.trade: routes { partnerId: { since: day, gifted } }, orders { good: { mode, keep } }, drift { partnerId:
-// { good: fraction } } (no entry means no drift), used { partnerId: { good: units this year } }, year (the year
-// the quota and drift belong to).
+// world.trade: routes { partnerId: { since: day, gifted, giftLanded } } (giftLanded: gift units stored so far, set
+// by the first caravan), orders { good: { mode, keep } }, drift { partnerId: { good: fraction } } (no entry means no
+// drift), used { partnerId: { good: units this year } }, year (the year the quota and drift belong to).
 import { PARTNERS, CARAVAN_EVERY_MONTHS, PRICE_DRIFT, TRADE_REACH } from '../data/trade.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
@@ -185,10 +185,11 @@ function caravan(world, partnerId, post, events) {
   const prices = tradePrices(world, partnerId);
   const room = (good, side) => Math.max(0, Math.min(Math.floor(p[side][good].quota / 4), p[side][good].quota - (used[good] || 0)));
   let gift = null;
-  if (!route.gifted) {
-    route.gifted = true;
-    const n = putNear(world, post, p.gift.good, p.gift.n);
-    gift = { good: p.gift.good, n };
+  if (!route.gifted) {                                   // the gift waits for room near the post, and no part comes twice
+    const n = putNear(world, post, p.gift.good, p.gift.n - (route.giftLanded || 0));
+    route.giftLanded = (route.giftLanded || 0) + n;
+    route.gifted = route.giftLanded >= p.gift.n;
+    if (n > 0) gift = { good: p.gift.good, n };
   }
   const sold = {}, bought = {};
   let income = 0, spent = 0;
