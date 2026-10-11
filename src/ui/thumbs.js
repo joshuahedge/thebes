@@ -47,8 +47,10 @@ function artFor(item) {
   return def && def.draw ? def : null;
 }
 
-// The box the art really inks, in art px: draw it big once and scan for pixels that are clearly there.
-function inkBounds(art) {
+// The box the art really inks, in art px: draw it big once and scan for pixels that are clearly there. A browser
+// that blocks or noises canvas readback (Brave's farbling, Firefox's resistFingerprinting) reads back nothing, or
+// ink everywhere: then the box is the art's own bounds, a little loose but never a blank or shrunken picture.
+export function inkBounds(art) {
   const [l, t, r, b] = art.bounds;
   const w = Math.ceil((r - l + 2 * SLACK) * PROBE), h = Math.ceil((b - t + 2 * SLACK) * PROBE);
   const probe = document.createElement('canvas');
@@ -67,7 +69,7 @@ function inkBounds(art) {
       if (y > y1) y1 = y;
     }
   }
-  if (x1 < 0) return null;
+  if (x1 < 0 || (x0 === 0 && y0 === 0 && x1 === w - 1 && y1 === h - 1)) return art.bounds.slice();   // the art never reaches the slack edge
   return [l - SLACK + x0 / PROBE, t - SLACK + y0 / PROBE, l - SLACK + (x1 + 1) / PROBE, t - SLACK + (y1 + 1) / PROBE];
 }
 

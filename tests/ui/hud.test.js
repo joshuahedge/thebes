@@ -5,6 +5,7 @@ import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.j
 import { advanceDays } from '../../src/sim/clock.js';
 import { mount, fire } from '../helpers/dom.js';
 import { T } from '../../src/ui/text.js';
+import { rigUI } from '../helpers/uiWorld.js';
 
 function town(opts) {
   const w = makeTestWorld(opts);
@@ -32,6 +33,34 @@ describe('ui hud', () => {
     expect(d.workforce).toBe(w.labour.workforce);
     expect(d.jobless).toBe(w.labour.workforce - w.labour.employed);
     expect(summaryData(makeTestWorld()).monthsOfFood).toBe(null);
+  });
+  it('shows every number whole inside the bar on a narrow phone at large text, wrapping to a second row within its height', async () => {
+    const clipped = [];
+    for (const [w, h] of [[360, 640], [390, 844], [640, 360], [1280, 800]]) {
+      for (const size of [100, 125, 150]) {
+        const r = await rigUI({ width: w, height: h });
+        try {
+          r.ui.settings.set({ textSize: size });
+          r.world.gold = 123456;                                                // wide numbers: six-figure gold, a two-figure year
+          r.world.day = 11 * 360 + 300;
+          r.ui.refresh();
+          const bar = r.root.querySelector('#topbar').getBoundingClientRect();
+          const stats = r.root.querySelector('#topbar .stats');
+          const box = stats.getBoundingClientRect();
+          const under = r.root.querySelector('#under-bar').getBoundingClientRect();
+          for (const stat of stats.querySelectorAll('.stat')) {
+            if (getComputedStyle(stat).display === 'none') continue;             // the wide-only numbers in portrait and compact
+            const s = stat.getBoundingClientRect();
+            const inside = s.left >= box.left - 0.5 && s.right <= box.right + 0.5 && s.top >= bar.top - 0.5 && s.bottom <= bar.bottom + 0.5 && s.bottom <= box.bottom + 0.5;
+            if (!inside) clipped.push(`${w}x${h} at ${size}%: ${stat.textContent}`);
+          }
+          expect([w, size, stats.scrollWidth <= stats.clientWidth, stats.scrollHeight <= stats.clientHeight + 1]).toEqual([w, size, true, true]);
+          expect([w, size, under.top >= bar.bottom]).toEqual([w, size, true]);    // the bar keeps its height: nothing under it moves
+          expect([w, size, r.root.querySelector('#topbar .menu').getBoundingClientRect().right <= bar.right]).toEqual([w, size, true]);
+        } finally { r.cleanup(); }
+      }
+    }
+    expect(clipped).toEqual([]);
   });
   it('renders the bar, refreshes numbers and opens the summary and the menu', () => {
     const { root, cleanup } = mount();

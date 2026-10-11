@@ -15,6 +15,17 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
 
   // Portrait stacks the corner buttons on top of the bar, and the bar's words can wrap at large text sizes, so
   // its real height goes to --confirm-h on the body (css/ui.css). Hidden, it takes nothing.
+  // While one tool stays active the bar keeps the tallest height it has reached (a narrow phone at 150% text wraps a
+  // warning to more lines, and "Housing plots" to two), so it and the corner buttons on it never bob back down as the
+  // ghost moves. A new tool, layout or text size starts afresh.
+  let heldKey = null, tallest = 0;
+  function keepTallest(bar, s) {
+    const key = `${s.layout}|${document.body.dataset.textSize}|${s.tool.kind}|${s.tool.type || ''}`;
+    if (key !== heldKey) { heldKey = key; tallest = 0; }
+    tallest = Math.max(tallest, bar.getBoundingClientRect().height);
+    bar.style.minHeight = `${tallest}px`;
+  }
+
   function publishHeight() {
     const h = element.hidden ? 0 : Math.ceil(element.getBoundingClientRect().height);
     if (h > 0) document.body.style.setProperty('--confirm-h', `${h}px`);
@@ -26,7 +37,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // The bar rebuilds on every change, so remember which control had focus and put it back (spec 6.8).
     const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'ok'].includes(c)) : null;
     clear(element);
-    if (!isToolMode(s.mode) || !s.tool) { element.hidden = true; publishHeight(); return; }
+    if (!isToolMode(s.mode) || !s.tool) { element.hidden = true; heldKey = null; publishHeight(); return; }
     element.hidden = false;
     const p = placement.preview();
     const demolish = s.tool.kind === 'demolish';
@@ -44,7 +55,9 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
     controls.push(iconButton(T.cancel, '✕', { class: 'cancel', onClick: onCancel }));
     controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onClick: onConfirm }));
-    element.append(el('div', { class: `confirm${demolish ? ' demolish' : ''}` }, [info, ...controls]));
+    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}` }, [info, ...controls]);
+    element.append(bar);
+    keepTallest(bar, s);
     publishHeight();
     if (focusedClass) {
       const again = element.querySelector(`.${focusedClass}`);

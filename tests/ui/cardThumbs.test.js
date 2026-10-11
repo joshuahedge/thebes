@@ -1,5 +1,6 @@
 import { describe, it, expect } from '../harness.js';
-import { drawThumb, THUMB_W, THUMB_H } from '../../src/ui/thumbs.js';
+import { drawThumb, inkBounds, THUMB_W, THUMB_H } from '../../src/ui/thumbs.js';
+import { ART } from '../../src/render/art/registry.js';
 import { renderCards } from '../../src/ui/cards.js';
 import { CATEGORIES, CATEGORY_TINT, visibleCategories } from '../../src/data/ui.js';
 import { BUILDINGS } from '../../src/data/buildings.js';
@@ -39,6 +40,30 @@ describe('ui card pictures', () => {
     const again = drawThumb(document.createElement('canvas'), 'well', 2);
     expect(canvasHash(again)).toBe(canvasHash(sharp));                           // painted once, copied after
     expect(inked(drawThumb(document.createElement('canvas'), 'nothing', 1))).toBe(0);
+  });
+  it('fits the art by its own bounds when the canvas reads back nothing, or ink everywhere (blocked or noised readback)', () => {
+    const real = CanvasRenderingContext2D.prototype.getImageData;
+    const readBack = (alpha) => function (x, y, w, h) { const img = new ImageData(w, h); if (alpha) img.data.fill(alpha); return img; };
+    const measured = inkBounds(ART.well);                                       // a working canvas: the inked box, inside the bounds
+    const [l, t, rr, b] = ART.well.bounds;
+    expect(measured[0] >= l - 4 && measured[1] >= t - 4 && measured[2] <= rr + 4 && measured[3] <= b + 4).toBe(true);
+    expect(measured).toEqual(inkBounds(ART.well));
+    try {
+      CanvasRenderingContext2D.prototype.getImageData = readBack(0);           // reads back nothing at all
+      expect(inkBounds(ART.well)).toEqual(ART.well.bounds);
+      const blank = drawThumb(document.createElement('canvas'), 'temple', 3);  // a pixel ratio no other test paints, so it is painted now
+      CanvasRenderingContext2D.prototype.getImageData = readBack(255);         // ink everywhere (noise, or a filled canvas)
+      expect(inkBounds(ART.well)).toEqual(ART.well.bounds);
+      const filled = drawThumb(document.createElement('canvas'), 'bazaar', 3);
+      CanvasRenderingContext2D.prototype.getImageData = real;
+      for (const [item, c] of [['temple', blank], ['bazaar', filled]]) {
+        const box = inkBox(c);
+        const [W, H] = [THUMB_W * 3, THUMB_H * 3];
+        expect([item, box !== null]).toEqual([item, true]);                     // a picture, not a blank card
+        expect([item, box.w >= W * 0.4 || box.h >= H * 0.4]).toEqual([item, true]);   // and a card-sized one: the bounds are looser than the ink, so a little smaller
+        expect([item, box.x0 >= 1, box.y0 >= 1, box.x1 <= W - 1, box.y1 <= H - 1]).toEqual([item, true, true, true, true]);
+      }
+    } finally { CanvasRenderingContext2D.prototype.getImageData = real; }
   });
   it('fills the picture box with the drawn art, centred, and shows a plot as a Hut', () => {
     expect([THUMB_W, THUMB_H]).toEqual([104, 52]);

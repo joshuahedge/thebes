@@ -126,6 +126,44 @@ describe('rise', () => {
     expect(pl.confirm().ok).toBe(true);
     expect(calls.length).toBe(1);
   });
+  it('drops a rise, haulers and all, once its building is gone', () => {
+    const world = makeTestWorld();
+    const well = addRaw(world, 'well', 3, 4);
+    const fx = createEffects({ reducedMotion: () => false });
+    fx.rise(well.id, 3, 4, 1, 1, 0);
+    expect(fx.risingIds(300, world).has(well.id)).toBe(true);
+    const { c, g } = scene();
+    fx.draw(g, 300, world);
+    expect(inked(c)).toBeGreaterThan(30);
+    delete world.buildings[well.id];                     // as an Undo inside the 900 ms would leave it
+    expect(fx.risingIds(400, world).has(well.id)).toBe(false);
+    const { c: c2, g: g2 } = scene();
+    fx.draw(g2, 400, world);
+    expect(inked(c2)).toBe(0);                           // no work gang at an empty site
+    expect(fx.count(400)).toBe(0);
+  });
+  it('in the game, Undo inside the rise leaves no work gang behind', async () => {
+    const r = await rigUI();
+    try {
+      r.ui.settings.set({ reducedMotion: 'off' });
+      const seen = [];
+      const real = r.renderer.renderFrame;
+      r.renderer.renderFrame = (w, cam, opts) => { seen.push(opts.rising); return real(w, cam, opts); };
+      r.ui.placement.start({ kind: 'building', type: 'well' });
+      r.ui.placement.moveGhost(16, 9);
+      const res = r.ui.placement.confirm();
+      expect(res.ok).toBe(true);
+      r.frame(100);
+      expect(seen[seen.length - 1].has(res.id)).toBe(true);
+      r.ui.placement.undo();
+      expect(r.world.buildings[res.id]).toBe(undefined);
+      r.frame(200);                                       // still inside the 900 ms
+      expect(seen[seen.length - 1].has(res.id)).toBe(false);
+      expect(r.ui.effects.active(200).some((e) => e.kind === 'rise')).toBe(false);
+    } finally {
+      r.cleanup();
+    }
+  });
   it('hands the rising buildings to the renderer each frame', async () => {
     const r = await rigUI();
     try {
