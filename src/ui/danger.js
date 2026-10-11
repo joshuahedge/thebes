@@ -62,7 +62,8 @@ export function createDanger(ctx) {
   function onEvents(events) {
     let fireAt = null, paused = false;
     for (const e of events) {
-      if (e.type === 'fire' && e.first) paused = true;                       // the city's first: the sim has paused
+      // The city's first (a new fire, or a blaze growing with no staffed firehouse: both carry first): the sim has paused.
+      if ((e.type === 'fire' || e.type === 'fire_grow') && e.first) paused = true;
       else if ((e.type === 'fire' || e.type === 'fire_grow') && !e.covered && !reacted.has(e.id)) { reacted.add(e.id); if (fireAt === null) fireAt = e.id; }
       else if (e.type === 'fire_out') {
         reacted.delete(e.id);

@@ -56,6 +56,17 @@ describe('s3 ui speed reactions', () => {
       expect(r.world.speed).toBe(0);
     } finally { r.cleanup(); }
   });
+
+  it('leaves the city\'s first fire to the sim when it comes as a blaze growing (fire_grow carries first, ruling 7)', async () => {
+    const r = await rigUI({ settings: settingsWith({ fireReaction: 'goto' }) });
+    try {
+      const potter = addRaw(r.world, 'potter', 26, 4);
+      r.ui.speedControl.set(0);                                                        // the sim paused for the city's first
+      const before = [r.cam.x, r.cam.y];
+      r.ui.onEvents([{ type: 'fire_grow', id: potter.id, covered: false, first: true }]);
+      expect([r.world.speed, r.cam.x, r.cam.y]).toEqual([0, ...before]);
+    } finally { r.cleanup(); }
+  });
 });
 
 describe('s3 ui sound and captions', () => {
