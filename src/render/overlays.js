@@ -7,6 +7,7 @@ import { roadReach } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
 import { p, U, tileDiamond, quad } from './iso.js';
 import { UI, INK } from './art/palette.js';
+import { ART, slotFor } from './art/registry.js';
 
 export const OVERLAYS = ['water', 'food', 'religion', 'housing'];
 export const OVERLAY_HUE = { water: UI.water, food: UI.food, religion: UI.religion, housing: UI.housing };
@@ -122,4 +123,36 @@ export function drawGhost(g, ghost) {
   g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
   g.poly(pts, 'none', { stroke: color, strokeWidth: 1.4 });
   g.text(centre, state === 'warn' ? '!' : '✓', { size: 9, color });
+}
+
+// Problem markers (early-game pass 2.8): a coral "!" badge over a building with an alert, an amber "↓" over a
+// home counting down to lose a tier. One per building, drawn in the overlay pass, never animated. The list is a
+// pure function the draw and the tests share. `lift` is art px from the footprint centre up to the badge's
+// centre: the sprite's top (its height above the back corner, plus the back corner's 4 * (w + d) above the
+// centre), then the badge radius and a pixel.
+const BADGE_R = 5;
+
+export function problemMarkers(world, alerts, range = null) {
+  const flagged = new Set();
+  for (const a of alerts || []) if (a.id !== undefined && a.id !== null) flagged.add(a.id);
+  const out = [];
+  for (const b of allBuildings(world)) {
+    const kind = b.type === 'house' ? (b.tier > 1 && b.downTimer > 0 ? 'down' : null) : (flagged.has(b.id) ? 'problem' : null);
+    if (!kind) continue;
+    const x = b.x + b.w / 2, y = b.y + b.d / 2;
+    if (range && (x < range.x0 || x > range.x1 + 1 || y < range.y0 || y > range.y1 + 1)) continue;
+    const art = ART[slotFor(b)];
+    out.push({ id: b.id, x, y, lift: (art ? art.height + 4 * (b.w + b.d) : 30) + BADGE_R + 1, kind });
+  }
+  return out;
+}
+
+export function drawProblemMarkers(g, world, alerts, range) {
+  for (const m of problemMarkers(world, alerts, range)) {
+    const c = U(p(m.x, m.y), m.lift);
+    const down = m.kind === 'down';
+    g.circ(c, BADGE_R + 1.2, UI.halo, { alpha: 0.9 });
+    g.circ(c, BADGE_R, down ? UI.warn : UI.problem, { stroke: INK, strokeWidth: 0.6, strokeAlpha: 0.5 });
+    g.text(c, down ? '↓' : '!', { size: 7.5, weight: '700', color: down ? UI.label : UI.halo });   // the glyph, not the colour, says which
+  }
 }

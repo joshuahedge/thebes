@@ -72,6 +72,9 @@ export function alertText(alert, world) {
 
 export const SPEED_LABELS = ['Paused', '1×', '2×', '3×'];
 export const OVERLAY_NAMES = { water: 'Water', food: 'Food', religion: 'Religion', housing: 'Housing' };
+// The corner buttons' accessible names (early-game pass 2.9); each starts with or contains the word it shows.
+export const pauseSpeedText = (speed) => `${T.pause}, ${T.speed.toLowerCase()} ${SPEED_LABELS[speed]}`;
+export const layersText = (kind) => (kind ? `${T.layers}: ${OVERLAY_NAMES[kind]}` : T.layers);
 export const OVERLAY_LEGEND = {
   water: ['Has water', 'No water'], food: ['Has food', 'No food'], religion: ['Has a temple', 'No temple'], housing: ['Ready to grow', 'Next need missing'],
 };
@@ -113,6 +116,7 @@ export const T = {
   aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
   undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
   hoverHint: 'Hover a building or pick a card',
+  play: 'Play', mapButton: 'Map', layers: 'Layers',
   noHomesInReach: 'No homes in reach yet',
 };
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from '../harness.js';
 import { createSpeedControl } from '../../src/ui/speed.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
-import { SPEED_LABELS } from '../../src/ui/text.js';
+import { SPEED_LABELS, T } from '../../src/ui/text.js';
 import { makeTestWorld } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 
@@ -67,7 +67,7 @@ describe('ui speed', () => {
     ctl.mountCorner(root.querySelector('#c'));
     ctl.mountBar(root.querySelector('#b'));
     const main = root.querySelector('#c .speed-main');
-    expect(main.textContent).toContain(SPEED_LABELS[0]);
+    expect(main.textContent).toContain(T.play);                  // "▶ Play" when paused (early-game pass 2.9)
     fire(main, 'click');
     expect(w.speed).toBe(1);
     ctl.render();

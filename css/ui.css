@@ -222,6 +222,12 @@ body.on-title #under-bar > :not(#notice) { display: none !important; }
    get a row of their own above the buttons and never wrap one word per line. */
 body[data-layout="compact"] .confirm { flex-wrap: wrap; justify-content: flex-end; }
 body[data-layout="compact"] .confirm .info { flex: 1 0 100%; }
+/* Portrait: the bar keeps one height while the ghost moves. The corner buttons sit on its measured height, so an info block
+   that grew a line when a warning, a reason or an effect appeared would make them jump. 3.5em is three text lines:
+   the title (1.4em) plus the cost and the reason or effect (12px at the body size is .75em, so 1.05em each). */
+body[data-layout="portrait"] .confirm .info { min-height: 3.5em; }
+/* At 125% and 150% text the words column is only about 150px wide, so a reason or an effect wraps to two lines: keep both (4.55em). */
+body[data-layout="portrait"][data-text-size="125"] .confirm .info, body[data-layout="portrait"][data-text-size="150"] .confirm .info { min-height: 4.55em; }
 
 /* Cards with pictures (early-game pass 2.5): the building's drawing over its name and cost; the coin is decoration. */
 /* The picture is drawn at its own size (THUMB_W x THUMB_H in src/ui/thumbs.js); where a scrollbar narrows a card it shrinks, never stretches. */
@@ -234,3 +240,15 @@ body[data-layout="compact"] .confirm .info { flex: 1 0 100%; }
 #panel .tab[aria-pressed="true"] { background-image: linear-gradient(var(--teal-ink), var(--teal-ink)); }
 /* The rail's pressed button wears a 2 px teal ring inside its edge; lift the band clear of it so it still shows. */
 #rail .cat { background-position: 50% calc(100% - 4px); }
+
+/* Corner buttons with words (early-game pass 2.9): an icon over a short word; the speed button reads ▶ Play or ❚❚ 2×. */
+#corners .labelled { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 48px; min-height: 52px; padding: 2px 8px; line-height: 1.1; }
+#corners .labelled .label { font-size: calc(12px * var(--ui-scale)); white-space: nowrap; }
+#corners .speed-main, #corners .speed-chevron { min-height: 52px; }
+.speed-main .icon { width: auto; margin-right: 6px; }
+#corners .speed-chevron .icon { font-size: 1.5em; line-height: 1; }   /* ▴ is a small glyph: let it read as a chevron */
+/* Compact: the confirm bar, sheets and the card drawer share the column beside the rail, so the corners step left of it
+   (they are never open together). The drawer is the card grid's 8 px padding either side plus its 1 px border wider than --drawer-w. */
+body[data-layout="compact"]:has(#confirm:not([hidden])) #corners,
+body[data-layout="compact"]:has(#sheet:not([hidden])) #corners { right: calc(var(--rail-w) + var(--drawer-w) + var(--safe-right)); }
+body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #corners { right: calc(var(--rail-w) + var(--drawer-w) + 17px + var(--safe-right)); }

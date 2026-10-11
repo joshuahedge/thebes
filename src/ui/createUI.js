@@ -7,7 +7,7 @@ import { CATEGORIES, toolForItem, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES
 import { goalById } from '../sim/goals.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
-import { drawOverlay, drawReachHighlight, drawGhost } from '../render/overlays.js';
+import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
 import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode, pickCategory } from './modes.js';
@@ -355,6 +355,7 @@ export function createUI({
         if (s.overlay) drawOverlay(g, world, s.overlay, r);
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
         for (const ghost of ghosts()) drawGhost(g, ghost);
+        drawProblemMarkers(g, world, alerts.list(), r);                        // early-game pass 2.8: one badge per building with a problem
       },
     });
     hud.render();
