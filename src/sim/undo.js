@@ -24,7 +24,7 @@ function footprintFree(world, snap) {
 
 // Undoes the last action. Stage 3 guards (spec 7.3): a placement refunds only what still stands (a building that has
 // since burned, or a plot merged away, gives nothing back), and a demolish is refused, and dropped, when one of its
-// buildings or roads would go back onto tiles something now uses. Wall entries ({ kind: 'wall', tiles, before, cost },
+// buildings or roads would go back onto tiles something now uses. A placement that put a tower on a wall tile carries walls: [[tile index, old value]]. Wall entries ({ kind: 'wall', tiles, before, cost },
 // pushed by drawWall) put each tile's old value back.
 export function undo(world) {
   const e = world.undo.pop();
@@ -32,6 +32,12 @@ export function undo(world) {
   if (e.kind === 'place') {
     let standing = 0;
     for (const id of e.ids) if (removeBuilding(world, id)) standing++;
+    // A tower placed on a wall tile took it to the tower's hit points; it goes back to the old value, or stays lower if
+    // the tile has been damaged or breached since (never healed by an undo).
+    if (standing && e.walls && e.walls.length) {
+      for (const [t, v] of e.walls) if (world.wall[t] > 0) world.wall[t] = Math.min(world.wall[t], v);
+      world.wallVersion++;
+    }
     refund(world, e.ids.length ? Math.round((e.cost * standing) / e.ids.length) : 0);
   } else if (e.kind === 'road') {
     for (const t of e.tiles) world.road[t] = 0;

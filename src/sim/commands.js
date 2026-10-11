@@ -9,6 +9,7 @@ import { costOf, roadCostOf, rubbleCostOf } from './costs.js';
 import { isUnlocked } from './progression.js';
 import { pushUndo } from './undo.js';
 import { storeAccepts } from './production.js';
+import { DEFENCE } from '../data/raids.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 const storesAny = (o, goods) => (BUILDINGS[o.type].stores || []).some((g) => goods.includes(g));
@@ -62,7 +63,16 @@ export function place(world, type, x, y) {
   const cost = costOf(world, type);
   const b = insertBuilding(world, makeBuilding(world, type, x, y));
   spend(world, cost);
-  pushUndo(world, { kind: 'place', ids: [b.id], cost });
+  // A tower on a standing wall tile gives the tile its 80 hit points (spec 4.13); undo puts the old value back.
+  const walls = [];
+  if (type === 'tower') {
+    for (const [tx, ty] of footprint(x, y, b.w, b.d)) {
+      const i = idx(world.size, tx, ty);
+      if (world.wall[i] > 0) { walls.push([i, world.wall[i]]); world.wall[i] = DEFENCE.towerOnWallHp; }
+    }
+    if (walls.length) world.wallVersion++;
+  }
+  pushUndo(world, { kind: 'place', ids: [b.id], cost, walls });
   const fresh = world.newItems.indexOf(type);       // its card stops saying "New" (spec 4.14)
   if (fresh >= 0) world.newItems.splice(fresh, 1);
   return { ok: true, id: b.id, warnings: check.warnings };
@@ -87,9 +97,18 @@ export function demolishAt(world, x, y) {
     if (amount < 0 && !canAfford(world, -amount)) return fail('no_gold', { refund: 0 });
     const snap = JSON.parse(JSON.stringify(b));
     removeBuilding(world, b.id);
+    // A tower's wall tile falls back from the tower's hit points to a plain wall's (undo puts the old value back).
+    const walls = [];
+    if (b.type === 'tower') {
+      for (const [tx, ty] of footprint(b.x, b.y, b.w, b.d)) {
+        const t = idx(world.size, tx, ty);
+        if (world.wall[t] > DEFENCE.wallHp) { walls.push([t, world.wall[t]]); world.wall[t] = DEFENCE.wallHp; }
+      }
+      if (walls.length) world.wallVersion++;
+    }
     refund(world, amount);
     if (b.type === 'rubble') world.tally.rubbleCleared += 1;
-    pushUndo(world, { kind: 'demolish', buildings: [snap], roads: [], walls: [], refund: amount });
+    pushUndo(world, { kind: 'demolish', buildings: [snap], roads: [], walls, refund: amount });
     return { ok: true, refund: amount, warnings: [] };
   }
   const i = idx(world.size, x, y);
