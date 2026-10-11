@@ -507,6 +507,14 @@ body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; 
 .shared-score .start-seed { margin-top: 4px; }
 .title-card:has(> .guide) .shared-score { display: none; }   /* one panel at a time: the install guide or the new-city question */
 .shared-bad { margin: 0; }
+/* Feats (spec 4.19): their own group above the achievements, laid out as the achievements are. */
+.feats-section { margin-top: 12px; }
+#sheet .feats { list-style: none; margin: 4px 0; padding: 0; }
+#sheet .feat { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+#sheet .feat .what { display: flex; flex-direction: column; min-width: 0; }
+#sheet .feat .status { flex: none; white-space: nowrap; }
+#sheet .feat.earned .status { color: var(--teal); font-weight: 600; }
+#sheet .feat.lost .status { color: var(--ink-soft); }
 /* ── end s3 score ── */
 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */

@@ -596,6 +596,7 @@ export const DANGER_UI_TEXT = {};
 import { DAYS_PER_MONTH as SCORE_DAYS_PER_MONTH, MONTHS_PER_YEAR as SCORE_MONTHS_PER_YEAR } from '../sim/time.js';
 import { DEFENCE as SCORE_DEFENCE } from '../data/raids.js';
 import { DAILY_POOL as SCORE_DAILY_POOL } from '../data/daily.js';
+import { FEATS as SCORE_FEATS } from '../data/feats.js';
 // The score (spec 4.19): parts, reasons, medals, the chip, the confirm bar's "+3 Culture" and the summary's section. Every
 // number comes from scoreOf (src/sim/score.js); the reason codes and their fields are listed there.
 export const SCORE_TEXT = {
@@ -706,6 +707,24 @@ Object.assign(TIP_TEXT, {
   tribute_once: 'Pay tribute only if you must: it cancels this raid, not the next one.',
   wall_ring: 'Close your wall into a ring and set towers on it: raiders must break through.',
 });
+// Feats (spec 4.19): a name and the exact condition each, numbers from the data (src/data/feats.js, src/sim/feats.js).
+const scoreFeatCheck = (id) => SCORE_FEATS.find((f) => f.id === id).check;
+const scoreFeatMilestone = (id) => scoreMilestoneName(scoreFeatCheck(id).milestone);
+export const FEAT_TEXT = {
+  debt_free: { name: 'Debt-free founder', condition: `Become a ${scoreFeatMilestone('debt_free')} without the treasury ever going below 0` },
+  well_fed: { name: 'Well fed', condition: `Feed every home at ${tierName(3)} or better for ${scoreFeatCheck('well_fed').months} months in a row, with ${scoreFeatCheck('well_fed').people} people or more` },
+  grain_alone: { name: 'Grain alone', condition: `Become a ${scoreFeatMilestone('grain_alone')} without building a ${buildingName(scoreFeatCheck('grain_alone').type).toLowerCase()}` },
+  firewise: { name: 'Firewise', condition: `Lose no building to fire for ${scoreFeatCheck('firewise').days / SCORE_YEAR_DAYS} years after becoming a ${scoreFeatMilestone('firewise')}` },
+  untouched: { name: 'Untouched', condition: 'Beat a raid with no building burned and no gold stolen' },
+  never_bowed: { name: 'Never bowed', condition: `Become the ${scoreFeatMilestone('never_bowed')} without paying tribute` },
+  garden_city: { name: 'Garden city', condition: `Have ${scoreFeatCheck('garden_city').n} gardens and statues at once` },
+  full_hands: { name: 'Full hands', condition: `Have ${scoreFeatCheck('full_hands').people} people or more with ${Math.round(scoreFeatCheck('full_hands').rate * 100)}% or fewer out of work` },
+  merchant_prince: { name: 'Merchant prince', condition: `Sell ${scoreFeatCheck('merchant_prince').n.toLocaleString('en-GB')} goods to caravans` },
+  swift_town: { name: 'Swift Town', condition: `Become a ${scoreFeatMilestone('swift_town')} before year ${scoreFeatCheck('swift_town').day / SCORE_YEAR_DAYS + 1} begins` },
+};
+Object.assign(SCORE_TEXT, { feats: 'Feats', featEarned: 'Earned', featMissed: 'Missed', featOpen: 'Open', feat: 'Feat', noFeats: 'No feats yet.', featsHelp: 'Feats are optional: they pay nothing and never hold anything back.' });
+export const featsHeading = (done, total) => `${SCORE_TEXT.feats}, ${progressText(done, total)}`;
+export const sealFeatsText = (names) => (names.length ? `Feats this reign: ${listText(names)}.` : SCORE_TEXT.noFeats);
 // ── end s3 score ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

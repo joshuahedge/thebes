@@ -9,13 +9,14 @@
 // refresh after both (onCommand and onEvents also see each command), so the section and the chip read the same score.
 import { SCORE_PARTS, SPLIT_MILESTONES } from '../data/scoring.js';
 import { scoreOf, scorePreview, sealReign, splitMonths } from '../sim/score.js';
+import { featsFor, featStatus } from '../sim/feats.js';
 import { downloadFile } from '../save/exportImport.js';
 import { openSheet } from './modes.js';
 import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, weeklySeed, drawMapSquare, medalColour } from './share.js';
 import { generateMap } from '../sim/mapgen.js';
 import { el, button, setText } from './components.js';
 import {
-  SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
+  SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
   sealQuestion, sealedText, T,
 } from './text.js';
 
@@ -68,12 +69,33 @@ export function createScoreUi(ctx) {
     button(T.screenshotMode, { class: 'screenshot-mode quiet', onClick: () => ctx.screenshotMode() }),
   ]);
 
+  // Feats (spec 4.19): their own group, after the score and just above the achievements, each with its exact condition
+  // and its state in words (Earned with a tick that is decoration, Missed, Open). None about raids on Peaceful.
+  const FEAT_STATUS = { earned: SCORE_TEXT.featEarned, lost: SCORE_TEXT.featMissed, open: SCORE_TEXT.featOpen };
+  function featsSection() {
+    const list = featsFor(world);
+    const earned = list.filter((d) => featStatus(world, d) === 'earned').length;
+    return el('section', { class: 'feats-section' }, [
+      el('h3', { class: 'feats-heading', text: featsHeading(earned, list.length) }),
+      el('p', { class: 'small muted', text: SCORE_TEXT.featsHelp }),
+      el('ul', { class: 'feats' }, list.map((d) => {
+        const st = featStatus(world, d);
+        return el('li', { class: `feat ${st}`, dataset: { id: d.id } }, [
+          el('span', { class: 'what' }, [el('strong', { text: FEAT_TEXT[d.id].name }), el('span', { class: 'small muted', text: FEAT_TEXT[d.id].condition })]),
+          el('span', { class: 'status small' }, [st === 'earned' ? el('span', { class: 'tick', 'aria-hidden': 'true', text: `${T.doneMark} ` }) : null, FEAT_STATUS[st]]),
+        ]);
+      })),
+    ]);
+  }
+  const earnedNames = () => featsFor(world).filter((d) => world.feats.earned.includes(d.id)).map((d) => FEAT_TEXT[d.id].name);
+
   // Seal this reign (spec 4.19): what happens, in words, then "Seal reign" and "Not yet". sealReign records the day and the
   // score in the world; the device's chronicle gets an entry (records.addSeal), which the title card shows as a stamp.
   function sealSheet(body) {
     const s = current();
     body.append(
       el('p', { class: 'seal-question', text: sealQuestion(s.total, s.medal) }),
+      el('p', { class: 'seal-feats', text: sealFeatsText(earnedNames()) }),     // spec 4.19: feats show when sealing
       el('p', { class: 'small muted', text: SCORE_TEXT.stampNote }),
       el('div', { class: 'actions' }, [
         button(SCORE_TEXT.sealConfirm, { class: 'seal-confirm primary', onClick: seal }),
@@ -166,6 +188,13 @@ export function createScoreUi(ctx) {
   // Danger's six tips (spec 4.19, src/data/tips.js), each asked for when its lesson becomes news. The tips row decides
   // whether one shows (once per device, the gaps, Help: Off).
   const tip = (key) => { if (typeof ctx.fireTip === 'function') ctx.fireTip(key); };
+  // A feat earned: a caption in the caption row, as an achievement has, with its condition beneath.
+  function featCaptions(events) {
+    for (const e of events) {
+      if (e.type !== 'feat' || !FEAT_TEXT[e.id]) continue;
+      ctx.celebrations.show({ tier: 'first', text: `${SCORE_TEXT.feat}: ${FEAT_TEXT[e.id].name}`, why: FEAT_TEXT[e.id].condition, onShow: () => ctx.sfx.play('goal') });
+    }
+  }
   function tipsFor(events) {
     for (const e of events) {
       if (e.type === 'milestone' && e.id === 'town') tip('fireRisk');                // fire risk builds from Town
@@ -191,8 +220,8 @@ export function createScoreUi(ctx) {
   return {
     sheets: { sealReign: sealSheet, shareScore: shareSheet },
     // Made without a world (the contract's shape test), it has no parts.
-    sheetParts: { building: () => [], house: () => [], actions: () => [], summary: () => (world ? [summarySection()] : []) },
-    onEvents(events) { if (!events.length) return; version++; if (world) tipsFor(events); },
+    sheetParts: { building: () => [], house: () => [], actions: () => [], summary: () => (world ? [summarySection(), featsSection()] : []) },
+    onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); tipsFor(events); } },
     refresh() { if (world) { version++; renderChip(); } },
     onAlertAction() {},
     onCommand(e) { version++; if (world && e) tipsForCommand(e); },
