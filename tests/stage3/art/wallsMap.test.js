@@ -1,7 +1,8 @@
 import { describe, it, expect } from '../../harness.js';
 import { chunkSignature, bakeChunk } from '../../../src/render/terrainBaker.js';
 import { wallCode, wallPieceAt, runsAlongX } from '../../../src/render/terrainWalls.js';
-import { wallPiece, gatePiece, breachPiece } from '../../../src/render/art/defence.js';
+import { wallPiece, gatePiece, breachPiece, WALL } from '../../../src/render/art/defence.js';
+import { p, U } from '../../../src/render/iso.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
 import { MUD2 } from '../../../src/render/art/palette.js';
 import { idx } from '../../../src/sim/grid.js';
@@ -80,5 +81,24 @@ describe('s3 art walls on the map', () => {
     const breach = inkTop((g) => breachPiece(g, 0, 0, false));
     expect(gate).toBeLessThan(wall - 3);
     expect(breach).toBeGreaterThan(wall + 3);
+  });
+  it('draws a run of wall tiles as one band, with no seam where the tiles meet', () => {
+    for (const alongX of [true, false]) {
+      const c = makeCanvas(260, 200), ctx = c.getContext('2d');
+      const S = 3, ox = 130, oy = 60;
+      ctx.translate(ox, oy);
+      const g = makeDraw(ctx, S);
+      const at = (k) => (alongX ? [k, 0] : [0, k]);
+      const links = (k) => (alongX ? { w: k > 0 ? 1 : 0, e: k < 2 ? 1 : 0 } : { n: k > 0 ? 1 : 0, s: k < 2 ? 1 : 0 });
+      for (let k = 0; k < 3; k++) wallPiece(g, ...at(k), links(k));                // back to front, as drawWalls does
+      const d = ctx.getImageData(0, 0, c.width, c.height).data;
+      const px = (q) => { const i = (Math.round(q[1] * S + oy) * c.width + Math.round(q[0] * S + ox)) * 4; return [d[i], d[i + 1], d[i + 2], d[i + 3]]; };
+      // Along the face toward the viewer, half way between two courses: the same mudbrick all the way, joints included.
+      const face = (u) => U(alongX ? p(u, 0.5 + WALL.t / 2) : p(0.5 + WALL.t / 2, u), 3);
+      const samples = [];
+      for (let u = 0.4; u <= 2.6; u += 0.05) samples.push(px(face(u)));                 // the run's ends stand in from the tile edges
+      const worst = Math.max(...samples.slice(1).map((q, i) => Math.max(...q.map((v, ch) => Math.abs(v - samples[i][ch])))));
+      expect([alongX, samples.every((q) => q[3] === 255), worst < 10]).toEqual([alongX, true, true]);
+    }
   });
 });

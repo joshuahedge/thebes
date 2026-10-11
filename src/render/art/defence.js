@@ -129,46 +129,87 @@ export function barracks(g, X, Y) {
   pennant(g, U(p(X + 1.84, Y + 0.16), 11), 8, DEFENCE_EMBLEM);
 }
 
-// Wall pieces. A piece stands on its tile's centre line, WALL.t tiles thick: a post at the centre and an arm to each
-// side that links to wall, plain-faced so neighbouring arms meet in one unbroken band, with mudbrick courses, a coping,
-// merlons and a dark line at the foot. links: { n, e, s, w }, each 0 (nothing), 1 (standing wall, a gate, or a tower on
-// a wall) or 2 (a breach: the arm ends in a broken stub).
-export const WALL = { h: 6, t: 0.3, cap: 1.2, merlon: 1.6, gateH: 10.5 };
+// Wall pieces. A piece stands on its tile's centre line, WALL.t tiles thick, with an arm to each side that links to wall,
+// so a run of tiles reads as one continuous mudbrick band (spec 5.4): a straight tile is one stretch from edge to edge,
+// a stretch that links on to the east or south runs WALL.join under the next tile's piece (drawn after it, back to
+// front), and only the long face toward the viewer carries the courses and the dark line at the foot, so no edge is
+// drawn where two stretches meet. The coping runs along the top and the merlons stand at even quarter-tile steps along
+// the run, the same on every tile. links: { n, e, s, w }, each 0 (nothing), 1 (standing wall, a gate, or a tower on a
+// wall) or 2 (a breach: the arm ends in a low broken stub).
+export const WALL = { h: 6, t: 0.3, cap: 1.2, merlon: 1.6, gateH: 10.5, join: 0.04 };
 const CAP = ['#EBCB96', '#D8B17A', '#AE9080'];
 const BROKEN = ['#D6B07E', '#BF9762', '#957A6A'];
+const MERLON_STEP = 0.25, MERLON_LEN = 0.11;
 
-function band(g, x, y, w, d, h) {
-  const F = tb(g, x, y, w, d, h, 0, 0, MUD2, 0);
-  for (let s = 2; s < h - 0.5; s += 2) {
-    g.line(F.L(0, s), F.L(1, s), '#9A7A5A', 0.4, 0.28);
-    g.line(F.R(0, s), F.R(1, s), '#7E6A5E', 0.4, 0.28);
-  }
-  g.line(F.L(0, 0), F.L(1, 0), INK, 0.9, 0.22);
-  g.line(F.R(0, 0), F.R(1, 0), INK, 0.9, 0.22);
+// A plain band: a mudbrick box with courses and a foot line on the faces toward the viewer that faces names: 'x' the
+// long face of a stretch along x (L), 'y' along y (R), 'both' a pier. joinTo: how far past its own end a stretch runs
+// under the next piece (the lines stop at its own end).
+function band(g, x, y, w, d, h, faces = 'both', joinTo = 0) {
+  const alongX = faces === 'x';
+  const F = tb(g, x, y, w + (alongX ? joinTo : 0), d + (faces === 'y' ? joinTo : 0), h, 0, 0, MUD2, 0);
+  const lines = (face, end, col) => {
+    for (let s = 2; s < h - 0.5; s += 2) g.line(face(0, s), face(end, s), col, 0.4, 0.28);
+    g.line(face(0, 0), face(end, 0), INK, 0.9, 0.22);
+  };
+  if (faces !== 'y') lines(F.L, alongX ? w / (w + joinTo) : 1, '#9A7A5A');
+  if (faces !== 'x') lines(F.R, faces === 'y' ? d / (d + joinTo) : 1, '#7E6A5E');
   return F;
 }
 
-function arm(g, x, y, w, d, full) {
-  const h = full ? WALL.h : WALL.h * 0.55;
-  band(g, x, y, w, d, h);
-  if (!full) return;
-  const C = tb(g, x - (d > w ? 0.03 : 0), y - (w > d ? 0.03 : 0), w + (d > w ? 0.06 : 0), d + (w > d ? 0.06 : 0), WALL.cap, h, 0, CAP, 0);
-  g.line(C.L(0, WALL.cap), C.L(1, WALL.cap), '#FFFFFF', 0.5, 0.45);
-  const cx = x + w / 2 - 0.05, cy = y + d / 2 - 0.05;
-  box(g, cx, cy, 0.1, 0.1, WALL.merlon, h + WALL.cap, CAP, 0);
+// The coping over a stretch: a little wider than the band, with a pale line along its lit top edge.
+function coping(g, x, y, w, d, alongX, joinTo = 0) {
+  const o = 0.03;
+  const C = alongX ? tb(g, x, y - o, w + joinTo, d + 2 * o, WALL.cap, WALL.h, 0, CAP, 0) : tb(g, x - o, y, w + 2 * o, d + joinTo, WALL.cap, WALL.h, 0, CAP, 0);
+  const len = alongX ? w : d, end = len / (len + joinTo);
+  if (alongX) g.line(C.L(0, WALL.cap), C.L(end, WALL.cap), '#FFFFFF', 0.5, 0.45);
+  else g.line(C.R(0, WALL.cap), C.R(end, WALL.cap), '#FFFFFF', 0.5, 0.35);
 }
 
 export function wallPiece(g, x, y, links = {}) {
-  const t = WALL.t, a = 0.5 - t / 2, half = 0.5;
+  const t = WALL.t, a = 0.5 - t / 2, j = WALL.join, stub = 0.32;
   const L = { n: links.n || 0, e: links.e || 0, s: links.s || 0, w: links.w || 0 };
-  const stub = 0.32;
-  if (L.n) arm(g, x + a, L.n === 1 ? y : y + half - stub, t, L.n === 1 ? half : stub, L.n === 1);
-  if (L.w) arm(g, L.w === 1 ? x : x + half - stub, y + a, L.w === 1 ? half : stub, t, L.w === 1);
-  const lone = !L.n && !L.e && !L.s && !L.w;
-  if (lone) arm(g, x + 0.2, y + a, 0.6, t, true);                                // a single tile: a short block
-  else arm(g, x + a, y + a, t, t, true);                                         // the post where the arms meet
-  if (L.e) arm(g, x + half, y + a, L.e === 1 ? half : stub, t, L.e === 1);
-  if (L.s) arm(g, x + a, y + half, t, L.s === 1 ? half : stub, L.s === 1);
+  // Broken stubs toward a breach, low and with no coping: the back ones first.
+  const stubAt = (side) => {
+    if (side === 'n') band(g, x + a, y + 0.5 - stub, t, stub, WALL.h * 0.55, 'both');
+    if (side === 'w') band(g, x + 0.5 - stub, y + a, stub, t, WALL.h * 0.55, 'both');
+    if (side === 'e') band(g, x + a + t, y + a, 0.5 + stub - a - t, t, WALL.h * 0.55, 'both');   // the front ones start where the
+    if (side === 's') band(g, x + a, y + a + t, t, 0.5 + stub - a - t, WALL.h * 0.55, 'both');   // centre ends, so no top shows through it
+  };
+  if (L.n === 2) stubAt('n');
+  if (L.w === 2) stubAt('w');
+  // The full-height stretches, back to front, each covering the tile's centre square: [x, y, w, d, alongX, joinTo].
+  const xs = L.w === 1, xe = L.e === 1, yn = L.n === 1, ys = L.s === 1;
+  const parts = [];
+  if (!xs && !xe && !yn && !ys) {
+    const lone = !L.n && !L.e && !L.s && !L.w;
+    parts.push(lone ? [x + 0.2, y + a, 0.6, t, true, 0] : [x + a, y + a, t, t, true, 0]);   // a single tile: a short block; else a post between stubs
+  } else if ((xs || xe) && !yn && !ys) {
+    parts.push([xs ? x : x + a, y + a, (xe ? x + 1 : x + a + t) - (xs ? x : x + a), t, true, xe ? j : 0]);   // a straight stretch along x
+  } else if ((yn || ys) && !xs && !xe) {
+    parts.push([x + a, yn ? y : y + a, t, (ys ? y + 1 : y + a + t) - (yn ? y : y + a), false, ys ? j : 0]);   // along y
+  } else {
+    // A corner, a T or a crossing: the north and west arms (each over the centre), then the east and south ones.
+    if (yn) parts.push([x + a, y, t, a + t, false, 0]);
+    if (xs) parts.push([x, y + a, a + t, t, true, 0]);
+    if (xe) parts.push([x + a, y + a, 1 - a, t, true, j]);
+    if (ys) parts.push([x + a, y + a, t, 1 - a, false, j]);
+  }
+  for (const [px, py, w, d, alongX, jt] of parts) band(g, px, py, w, d, WALL.h, alongX ? 'x' : 'y', jt);
+  for (const [px, py, w, d, alongX, jt] of parts) coping(g, px, py, w, d, alongX, jt);
+  // Merlons at the same quarter-tile steps on every tile, back to front, wherever a stretch runs.
+  const merlons = [];
+  for (const [px, py, w, d, alongX] of parts) {
+    const from = alongX ? px - x : py - y, to = from + (alongX ? w : d);
+    for (let u = MERLON_STEP / 2; u < 1; u += MERLON_STEP) {
+      if (u - MERLON_LEN / 2 < from - 1e-6 || u + MERLON_LEN / 2 > to + 1e-6) continue;
+      const m = alongX ? [x + u - MERLON_LEN / 2, y + a + 0.06, MERLON_LEN, t - 0.12] : [x + a + 0.06, y + u - MERLON_LEN / 2, t - 0.12, MERLON_LEN];
+      if (!merlons.some((q) => Math.abs(q[0] - m[0]) < 1e-6 && Math.abs(q[1] - m[1]) < 1e-6)) merlons.push(m);
+    }
+  }
+  merlons.sort((p1, p2) => (p1[0] + p1[1]) - (p2[0] + p2[1]));
+  for (const [mx, my, mw, md] of merlons) box(g, mx, my, mw, md, WALL.merlon, WALL.h + WALL.cap, CAP, 0);
+  if (L.e === 2) stubAt('e');
+  if (L.s === 2) stubAt('s');
 }
 
 // A gate: the wall drawn over a road (spec 4.13). Two tall piers at the tile's ends along the wall, joined by a painted

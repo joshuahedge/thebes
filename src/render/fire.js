@@ -15,10 +15,15 @@ import { drawAmbientLate } from './ambient.js';
 
 export const FLAME_STEP_MS = 500;
 export const SMOKE_RISE_MS = 3000;
-export const SMOKE_PUFFS = 4;
-export const FLAME = { outer: '#E07B39', mid: '#F2A93B', core: '#FCE6A6', ember: '#F6C05A', smoke: '#BDB3BE' };
+export const SMOKE_PUFFS = 5;
+// Each smoke puff is a shaded grey body with a pale top, so the column reads at default zoom on a phone over pale sand
+// and dark loam alike (spec 5.4).
+export const FLAME = { outer: '#E07B39', mid: '#F2A93B', core: '#FCE6A6', ember: '#F6C05A', smoke: '#6F6470', smokeLight: '#E4DCE2' };
+const SMOKE_ALPHA = 0.7;                       // a puff's peak opacity (it fades in, then out as it rises)
 const LEAN = [-0.8, 0.5, 1, -0.3];            // the tip's sway at each of four steps, in art px per unit of size
-const LABEL = { fill: '#FFF8EA', text: '#3B2A14', size: 5.5 };
+const LABEL = { fill: '#FFF8EA', text: '#3B2A14', size: 7 };   // 14 CSS px at zoom 1 (spec 6.1's 12 px floor)
+// Flame sizes (a unit flame is 6.5 art px tall): one for a blaze, and a fire's three (left, right, middle).
+const BLAZE_SIZE = 1.5, FIRE_SIZES = [1.9, 1.8, 2.5];
 
 const inRange = (b, r) => !r || (b.x <= r.x1 && b.x + b.w - 1 >= r.x0 && b.y <= r.y1 && b.y + b.d - 1 >= r.y0);
 
@@ -53,15 +58,17 @@ function label(g, q, str) {
   g.text([x, y + 0.2], str, { size: LABEL.size, color: LABEL.text, weight: '700' });
 }
 
-// A fire's column of smoke over art point q: SMOKE_PUFFS puffs, each rising about 22 art px and fading as it goes,
-// spaced evenly in time and out of step with other buildings by id.
+// A fire's column of smoke over art point q: SMOKE_PUFFS puffs (two radial fills each), each rising about 28 art px and
+// fading as it goes, spaced evenly in time and out of step with other buildings by id.
 function smoke(g, q, now, id) {
   const offset = ((id * 0.618) % 1);
   for (let i = 0; i < SMOKE_PUFFS; i++) {
     const t = (now / SMOKE_RISE_MS + i / SMOKE_PUFFS + offset) % 1;
-    const a = 0.5 * Math.min(1, t / 0.15) * (1 - t);
-    const r = 2.6 + t * 3.6;
-    g.radial([q[0] + 1.5 + t * 4, q[1] - 10 - t * 22], r, r * 0.8, FLAME.smoke, a);
+    const a = SMOKE_ALPHA * Math.min(1, t / 0.15) * (1 - t * t);   // reaches 0 at the top, so no puff pops out
+    const r = 4 + t * 6;
+    const c = [q[0] + 1.5 + t * 6, q[1] - 16 - t * 28];
+    g.radial(c, r, r * 0.8, FLAME.smoke, a);
+    g.radial([c[0] - r * 0.25, c[1] - r * 0.3], r * 0.6, r * 0.45, FLAME.smokeLight, a * 0.8);
   }
 }
 
@@ -75,12 +82,14 @@ export function drawFires(g, world, range, now, { reducedMotion = false } = {}) 
     if (big && !reducedMotion) smoke(g, q, now, b.id);
     if (big) {
       const k = Math.min(2, b.w);
-      flame(g, [q[0] - 5 * k, q[1] + 1.5], 1.15, step + 1);
-      flame(g, [q[0] + 5 * k, q[1] + 2], 1.05, step + 2);
-      flame(g, [q[0], q[1] - 1], 1.5, step);
+      flame(g, [q[0] - 6.5 * k, q[1] + 1.5], FIRE_SIZES[0], step + 1);
+      flame(g, [q[0] + 6.5 * k, q[1] + 2], FIRE_SIZES[1], step + 2);
+      flame(g, [q[0], q[1] - 1], FIRE_SIZES[2], step);
     } else {
-      flame(g, q, 0.85, step);
+      flame(g, q, BLAZE_SIZE, step);
     }
-    if (reducedMotion) label(g, [q[0], q[1] - (big ? 15 : 10)], ART_TEXT.burning);
+    // The label sits just over the tallest flame's tip, clear of it.
+    const tip = big ? 1 + 6.5 * FIRE_SIZES[2] : 6.5 * BLAZE_SIZE;
+    if (reducedMotion) label(g, [q[0], q[1] - tip - LABEL.size / 2 - 3], ART_TEXT.burning);
   }
 }
