@@ -178,6 +178,7 @@ export const T = {
   noHomesInReach: 'No homes in reach yet',
   achievement: 'Achievement', dailyDone: 'Daily goal done', guideDone: "You've got the basics",
   tip: 'Tip', gotIt: 'Got it', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals. Help in Settings turns them off.', next: 'Next',
+  achievements: 'Achievements', achievementsLater: 'Achievements show here once the guide is done.', notYetMet: 'Not yet', closestAchievement: 'Closest achievement',
 };
 
 export const importErrorText = (code) => (code === 'newer_version' ? T.saveNewer : code === 'read_failed' ? T.fileUnreadable : T.saveUnreadable);
@@ -264,3 +265,10 @@ export const TIP_TEXT = {
   goals_list: 'Open Goals to see what comes next, your progress and the gold each pays.',
   overlay_keys: 'Read the overlay: a filled dot has it, a hollow ring lacks it. Tap ✕ to close.',
 };
+
+// Achievements on the summary and the Welcome back card (early-game pass 3.8, 3.9). Counts read as progressText does.
+export const achievementsHeading = (done, total) => `${T.achievements}, ${done} of ${total}`;
+export const closestAchievementText = (name, n, of) => `${T.closestAchievement}: ${name}, ${progressText(n, of)}`;
+export const achievementBarLabel = (name, n, of) => `${name}: ${progressText(n, of)}`;   // a progress bar's accessible name
+// The arrows beside a trend's words; decoration only (aria-hidden), the words say which way it went.
+export const TREND_MARKS = { up: '▲', down: '▼' };

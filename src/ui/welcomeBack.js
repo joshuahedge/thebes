@@ -1,10 +1,14 @@
-// The Welcome back card (spec 4.17): the date, how long ago, trends, open goals, alerts with View, Carry on.
+// The Welcome back card (spec 4.17; early-game pass 3.9): the date, how long ago, trends with ▲ and ▼ beside
+// the words, open goals, today's goals, the achievement closest to done, alerts with View, Carry on.
 import { population } from '../sim/world.js';
 import { dateParts } from '../sim/clock.js';
-import { openGoals } from '../sim/goals.js';
+import { openGoals, guideActive } from '../sim/goals.js';
+import { dailyProgress } from '../sim/daily.js';
+import { achievementProgress } from '../sim/achievements.js';
+import { ACHIEVEMENTS } from '../data/achievements.js';
 import { CRITICAL } from './alerts.js';
 import { el, button } from './components.js';
-import { alertText, dateText, plural, T } from './text.js';
+import { alertText, dateText, plural, progressText, closestAchievementText, ACHIEVEMENT_NAMES, DAILY_TEXT, TREND_MARKS, T } from './text.js';
 
 const MINUTE = 60 * 1000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 
@@ -26,16 +30,60 @@ export function trendText(label, current, history, key) {
   return `${label} ${current}, ${T.steadyAt} ${then}`;
 }
 
+// Which way trendText's comparison went: 'up', 'down', 'steady', or null with no history.
+export function trendDirection(current, history, key) {
+  if (!history.length) return null;
+  const then = history[Math.max(0, history.length - 4)][key];
+  return current > then ? 'up' : current < then ? 'down' : 'steady';
+}
+
+// The mark is decoration (aria-hidden); the words carry the meaning, so colour and shape are never the only signal.
+function trendRow(label, current, history, key) {
+  const dir = trendDirection(current, history, key);
+  return el('li', { class: dir ? `trend-row ${dir}` : 'trend-row' }, [
+    TREND_MARKS[dir] ? el('span', { class: `trend ${dir}`, 'aria-hidden': 'true', text: TREND_MARKS[dir] }) : null,
+    el('span', { class: 'words', text: trendText(label, current, history, key) }),
+  ]);
+}
+
+// The unfinished achievement nearest to done: the highest share of its count, ties to the earlier one in
+// ACHIEVEMENTS. Recorded ones, ones already at their count, and ones not started are left out. Null if none.
+export function closestAchievement(world) {
+  const done = new Set(world.achievements || []);
+  let best = null;
+  for (const def of ACHIEVEMENTS) {
+    if (done.has(def.id)) continue;
+    const p = achievementProgress(world, def);
+    if (p.n <= 0 || p.n >= p.of) continue;
+    const share = p.n / p.of;
+    if (!best || share > best.share) best = { def, n: p.n, of: p.of, share };
+  }
+  return best ? { def: best.def, n: best.n, of: best.of } : null;
+}
+
+// One of today's goals: its words, then Done or its count in words (the tick is decoration).
+function dailyRow(world, id) {
+  const done = world.daily.done.includes(id);
+  const p = dailyProgress(world, id);
+  const status = done
+    ? el('span', { class: 'status small teal' }, [el('span', { class: 'tick', 'aria-hidden': 'true', text: `${T.doneMark} ` }), T.done])
+    : el('span', { class: 'status small muted', text: progressText(p.n, p.of) });
+  return el('li', { class: done ? 'goal done' : 'goal' }, [el('span', { class: 'text', text: DAILY_TEXT[id] || id }), status]);
+}
+
 export function welcomeSheet({ world, savedAt, lastSpeed, now = () => Date.now(), getAlerts = () => [], onView = () => {}, onCarryOn = () => {}, onStayPaused = () => {} }) {
   return (body) => {
     body.append(el('p', { text: dateText(dateParts(world)) }), el('p', { class: 'muted', text: `${T.lastPlayed} ${elapsedText(savedAt, now())}` }));
     body.append(el('ul', { class: 'trends' }, [
-      el('li', { text: trendText(T.people, population(world), world.history, 'people') }),
-      el('li', { text: trendText(T.gold, world.gold, world.history, 'gold') }),
-      el('li', { text: trendText(T.mood, world.mood, world.history, 'mood') }),
+      trendRow(T.people, population(world), world.history, 'people'),
+      trendRow(T.gold, world.gold, world.history, 'gold'),
+      trendRow(T.mood, world.mood, world.history, 'mood'),
     ]));
     const goals = openGoals(world, 3);
     body.append(el('h3', { text: T.goals }), goals.length ? el('ul', { class: 'goals' }, goals.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
+    if (world.daily) body.append(el('h3', { text: T.today }), el('ul', { class: 'goals today' }, world.daily.picks.map((id) => dailyRow(world, id))));
+    const closest = guideActive(world) ? null : closestAchievement(world);   // achievements stay hidden while the guide runs
+    if (closest) body.append(el('p', { class: 'closest', text: closestAchievementText(ACHIEVEMENT_NAMES[closest.def.id], closest.n, closest.of) }));
     const alerts = [...getAlerts()].sort((a, b) => Number(CRITICAL.has(b.code)) - Number(CRITICAL.has(a.code)));   // critical ones first (stable)
     body.append(el('h3', { text: T.alerts }));
     if (!alerts.length) body.append(el('p', { class: 'muted', text: T.noAlerts }));

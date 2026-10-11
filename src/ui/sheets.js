@@ -5,14 +5,18 @@ import { BUILDINGS } from '../data/buildings.js';
 import { houseStatus, needCause } from '../sim/housing.js';
 import { setPaused } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
-import { openGoals } from '../sim/goals.js';
+import { openGoals, guideActive } from '../sim/goals.js';
+import { achievementProgress } from '../sim/achievements.js';
+import { ACHIEVEMENTS } from '../data/achievements.js';
 import { closeSheet } from './modes.js';
 import { summaryData } from './hud.js';
 import { ZOOM_STEP } from '../data/ui.js';
-import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, causeText, alertText, plural, progressText, T } from './text.js';
+import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, T } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
+
+const YES_NO = new Set(['fedAll', 'waterAll', 'jobs']);   // achievements that are met or not: no count to show
 
 // What each cause's button does. Show me opens a card and aims at the home or at the building the cause names (an
 // empty bazaar wants a granary beside it, an empty granary a farm beside it); View selects the building that is in
@@ -130,7 +134,42 @@ export function createSheets({ container, store, world, placement, cameraControl
     body.append(el('h3', { text: T.goals }));
     const open = openGoals(world, 3);
     body.append(open.length ? el('ul', { class: 'goals' }, open.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
+    body.append(...achievementsSection());
     return [head(T.summary), body];
+  }
+
+  // Achievements (spec 3.8): every one with its exact condition and its progress, at the end of the summary.
+  // Hidden while the guide runs, so they never compete with it.
+  function achievementsSection() {
+    if (guideActive(world)) return [el('h3', { text: T.achievements }), el('p', { class: 'muted', text: T.achievementsLater })];
+    const done = new Set(world.achievements || []);
+    const count = ACHIEVEMENTS.filter((a) => done.has(a.id)).length;
+    return [
+      el('h3', { text: achievementsHeading(count, ACHIEVEMENTS.length) }),
+      el('ul', { class: 'achievements' }, ACHIEVEMENTS.map((a) => achievementRow(a, done.has(a.id)))),
+    ];
+  }
+
+  // The status is words first (Done, "n of m", Not yet); the bar repeats a count and never stands alone.
+  function achievementRow(a, isDone) {
+    const name = ACHIEVEMENT_NAMES[a.id];
+    let status;
+    if (isDone) status = el('span', { class: 'status' }, [el('span', { class: 'tick', 'aria-hidden': 'true', text: `${T.doneMark} ` }), T.done]);
+    else if (YES_NO.has(a.measure.kind)) status = el('span', { class: 'status muted', text: T.notYetMet });
+    else {
+      const p = achievementProgress(world, a);
+      const words = progressText(p.n, p.of);
+      status = el('span', { class: 'status' }, [
+        el('span', { class: 'ach-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(p.of), 'aria-valuenow': String(p.n), 'aria-label': achievementBarLabel(name, p.n, p.of) }, [
+          el('span', { class: 'fill', style: { width: `${Math.round((p.n / p.of) * 100)}%` } }),
+        ]),
+        el('span', { class: 'small', 'aria-hidden': 'true', text: words }),     // the bar's label already says it
+      ]);
+    }
+    return el('li', { class: isDone ? 'achievement done' : 'achievement', dataset: { id: a.id } }, [
+      el('span', { class: 'what' }, [el('strong', { text: name }), el('span', { class: 'small muted', text: ACHIEVEMENT_TEXT[a.id] })]),
+      status,
+    ]);
   }
 
   function minimapSheet() {
