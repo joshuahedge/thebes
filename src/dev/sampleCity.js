@@ -1,9 +1,13 @@
 // Cities for the dev page and the title card, laid through the public commands so they are legal cities. Every call
 // is deterministic for a seed: the commands are deterministic and so is the clock.
-import { drawRoad, paintHouses, place } from '../sim/commands.js';
+import { drawRoad, paintHouses, place, canPlace } from '../sim/commands.js';
 import { advanceDays } from '../sim/clock.js';
 import { assignLabour } from '../sim/labour.js';
-import { housesOf } from '../sim/world.js';
+import { housesOf, allBuildings } from '../sim/world.js';
+import { atLeast } from '../sim/progression.js';
+import { canBurn } from '../sim/fire.js';
+import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
+import { FIRE } from '../data/fire.js';
 import { TIERS } from '../data/housing.js';
 import { T } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
@@ -25,6 +29,67 @@ function placeFirst(world, type, spots) {
   return false;
 }
 
+// Stage 3 (spec 4.12): fire risk builds from Town, and a firehouse reaches FIRE.reach road tiles. Each street keeps two
+// spots on its south row free of homes, four tiles either side of the north road; their two firehouses reach the whole
+// street (nine tiles either side) and the north road up to the next street. They are built the day the city becomes a
+// Town, like a careful player.
+const FIRE_DX = [-4, 4];
+
+// Paints a street's south row of homes around its two firehouse spots (the wells at five tiles are skipped as built).
+function paintAroundFirehouses(world, ex, y) {
+  paintHouses(world, ex - 9, y, ex - 5, y);
+  paintHouses(world, ex - 3, y, ex + 3, y);
+  paintHouses(world, ex + 5, y, ex + 9, y);
+}
+
+// Whether a firehouse standing at f (a building, or a spot being tried) reaches one of the building's road tiles.
+function reaches(world, f, b, cache = true) {
+  const reach = roadReach(world, f, FIRE.reach, { cache });
+  return adjacentRoadTiles(world, b).some((t) => reach.has(t));
+}
+const reachedByAny = (world, b) => allBuildings(world).some((f) => f.type === 'firehouse' && reaches(world, f, b));
+
+// Gives every building that can burn and stands on a road a firehouse that reaches it: first the streets' spots, then,
+// for anything still out of reach (farms far out west on a map whose river lies far off), the nearest free tile that
+// reaches it, searched in rings around it.
+function addFirehouses(world, streets) {
+  const ex = world.tradeEntry.x;
+  for (const y of streets) for (const dx of FIRE_DX) place(world, 'firehouse', ex + dx, y + 1);
+  for (let guard = 0; guard < 8; guard++) {
+    const b = allBuildings(world).find((x) => canBurn(x) && adjacentRoadTiles(world, x).length && !reachedByAny(world, x));
+    if (!b) return;
+    let spot = null;
+    for (let r = 1; r <= 6 && !spot; r++) {
+      for (let y = b.y - r; y < b.y + b.d + r && !spot; y++) {
+        for (let x = b.x - r; x < b.x + b.w + r && !spot; x++) {
+          const onRing = y === b.y - r || y === b.y + b.d + r - 1 || x === b.x - r || x === b.x + b.w + r - 1;
+          if (onRing && canPlace(world, 'firehouse', x, y).ok && reaches(world, { x, y, w: 1, d: 1 }, b, false)) spot = [x, y];
+        }
+      }
+    }
+    if (!spot) return;
+    place(world, 'firehouse', spot[0], spot[1]);
+  }
+}
+
+// Stage 3 (spec 4.13): a Market town's defences, at the north end of the north road where the raiders' northern entry
+// lies: a tower beside the road's end and a barracks across it (both reached by the top street's firehouses). A city
+// in debt, or close to it, leaves them for later (their upkeep, wages and pay would sink it further).
+const DEFENCE_RESERVE = 1000;
+function addDefences(world) {
+  const ex = world.tradeEntry.x;
+  const top = world.size - 10;
+  place(world, 'tower', ex + 1, top - 24);
+  place(world, 'barracks', ex - 2, top - 25);
+}
+
+// Runs the city day by day until test(world) holds or n days have passed; returns the days run.
+function advanceUntil(world, n, test) {
+  let d = 0;
+  while (d < n && !test(world)) { advanceDays(world, 1); d++; }
+  return d;
+}
+
 // Stage 2 on top of the village once it is a Town (spec 4.6, 4.7, 4.10): a storehouse, a clay pit and a potter on the
 // north road between the streets, and on the first street, beside the start road, a pleasant block: a row of empty
 // plots behind four homes, two statues and two gardens behind those, and a booth, so Townhouses there join into Manors.
@@ -41,7 +106,6 @@ function addStageTwo(world) {
 }
 
 export function buildSampleCity(world, { days = 360, stageTwoDays = 240 } = {}) {
-  world.calm = true;                                // Stage 3 contract: no fire or raids until Track F (src/sim/clock.js)
   const gold = world.gold;
   world.gold = 1e9;
   const ex = world.tradeEntry.x;
@@ -68,15 +132,24 @@ export function buildSampleCity(world, { days = 360, stageTwoDays = 240 } = {}) 
   placeFirst(world, 'granary', [[ex - 2, top - 7], [ex - 12, top - 3]]);
   place(world, 'temple', ex + 1, top - 7);
   for (const y of streets) {
-    paintHouses(world, ex - 9, y + 1, ex + 9, y + 1);
+    paintAroundFirehouses(world, ex, y + 1);
     paintHouses(world, ex - 9, y - 1, ex + 9, y - 1);
   }
   world.gold = gold;
-  advanceDays(world, days);
+  const untilTown = advanceUntil(world, days, (w) => atLeast(w, 'town'));
+  if (atLeast(world, 'town')) {
+    const spent = world.gold;
+    world.gold = 1e9;
+    addFirehouses(world, streets);
+    world.gold = spent;
+  }
+  advanceDays(world, days - untilTown);
   if (stageTwoDays > 0 && world.milestone !== 'village') {
     const spent = world.gold;
     world.gold = 1e9;
     addStageTwo(world);
+    addFirehouses(world, streets);                  // anything Stage 2 laid out of reach
+    if (spent >= DEFENCE_RESERVE) addDefences(world);
     world.gold = spent;
     advanceDays(world, stageTwoDays);
   }
@@ -97,15 +170,15 @@ function roadRow(world, y) {
   }
 }
 
-// Every building the stress city cycles through, Stage 2's included, so the frame draws them all at once (a farm only
-// takes where the land is fertile).
+// Every building the stress city cycles through, Stage 2's and Stage 3's included, so the frame draws them all at once
+// (a farm only takes where the land is fertile).
 const STRESS_SERVICES = [
   'well', 'bazaar', 'temple', 'granary', 'farm_grain', 'well', 'granary', 'storehouse', 'potter', 'booth', 'clay_pit',
   'brewery', 'garden', 'weaver', 'statue', 'jeweller', 'trading_post', 'farm_fig', 'farm_barley', 'farm_flax',
+  'firehouse', 'tower', 'barracks',
 ];
 
 export function buildStressCity(world, { days = 60 } = {}) {
-  world.calm = true;                                // Stage 3 contract: no fire or raids until Track F (src/sim/clock.js)
   const gold = world.gold;
   world.gold = 1e9;
   world.milestone = 'capital';   // a fixture: every building unlocked, as the homes below are filled directly
