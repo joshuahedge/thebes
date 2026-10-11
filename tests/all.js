@@ -101,3 +101,4 @@ import './ui/carryovers.test.js';
 import './ui/celebrate.test.js';
 import './ui/tips.test.js';
 import './ui/nudge.test.js';
+import './ui/achievementsSheet.test.js';
