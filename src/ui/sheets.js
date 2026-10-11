@@ -20,7 +20,8 @@ const YES_NO = new Set(['fedAll', 'waterAll', 'jobs']);   // achievements that a
 
 // What each cause's button does. Show me opens a card and aims at the home or at the building the cause names (an
 // empty bazaar wants a granary beside it, an empty granary a farm beside it); View selects the building that is in
-// reach but not working. next_delivery needs nothing from the player, so it has neither.
+// reach but not working, or near but without a road (its own sheet then says how to fix it). next_delivery needs
+// nothing from the player, so it has neither.
 const CAUSE_FIX = {
   no_road: { category: 'roads', item: 'road', at: 'home' },
   no_well: { category: 'services', item: 'well', at: 'home' },
@@ -32,6 +33,9 @@ const CAUSE_FIX = {
   granary_idle: { view: true },
   bazaar_idle: { view: true },
   temple_idle: { view: true },
+  well_no_road: { view: true },
+  bazaar_no_road: { view: true },
+  temple_no_road: { view: true },
 };
 const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
 

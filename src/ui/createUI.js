@@ -74,9 +74,6 @@ export function createUI({
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
   const toasts = createToasts({ container: $('toasts') });
   const effects = createEffects({ reducedMotion: settings.reducedMotion });
-  // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
-  // (hoisted) forwards settle's events to onEvents, which shows them.
-  const celebrations = createCelebrations({ container: $('cheer') });
   // Tips and the idle nudge (early-game pass 3.4, 3.5): quiet, never over the map, both off under Help: Off. frameNow is
   // the latest frame's time, so the nudge counts only time the player actually watched. The tips' 3-minute gap and
   // five-an-hour cap count play time (playMs), which runs only while the game does. A phone at 125% or 150% text has
@@ -87,6 +84,11 @@ export function createUI({
     container: $('tip'), settings, now, playNow: () => playMs, autoCloseMs: () => (tipsTight() ? TIP_AUTO_CLOSE_MS : 0),
     restoreFocus: () => { const b = $('goals').querySelector('.show-me'); if (b && !$('goals').hidden) b.focus(); },
   });
+  // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
+  // (hoisted) forwards settle's events to onEvents, which shows them. On a phone at larger text the goals strip, a tip
+  // and a caption together would reach the middle of the map, so there a caption waits while a tip shows (the tip
+  // closes itself there); the frame loop resumes the queue.
+  const celebrations = createCelebrations({ container: $('cheer'), hold: () => tipsTight() && Boolean(tips.current()) });
   const nudge = createNudge({ now: () => frameNow });
   const nudgeLine = el('p', { class: 'nudge-line', hidden: true });
   const nudgeRegion = el('div', { class: 'nudge', role: 'status', 'aria-live': 'polite' }, [nudgeLine]);   // stays rendered, so the line is announced when it appears
@@ -224,12 +226,15 @@ export function createUI({
     if (alert.code === 'save_failed') { store.set(openSheet(store.get(), 'menu')); return; }
     if (!(alert.id && selectBuilding(alert.id))) store.set(openSheet(store.get(), 'summary'));
   }
-  // Select a building: its sheet opens and the view pans to it. An alert's View and a house sheet's View share this.
+  // Select a building: its sheet opens and the view centres on it, then moves the least that keeps it in the map
+  // the sheet leaves free (spec 6.3), so a tall portrait sheet never covers it. An alert's View and a house sheet's
+  // View share this.
   function selectBuilding(id) {
     const b = world.buildings[id];
     if (!b) return false;
     store.set(select(store.get(), b.id));
-    cameraControl.panTo(b.x + b.w / 2, b.y + b.d / 2);
+    const cx = b.x + b.w / 2, cy = b.y + b.d / 2;
+    cameraControl.panToKeeping(cx, cy, cx, cy, sheetInsets(store.get()));
     return true;
   }
   function afterCommand(e) {
@@ -506,6 +511,7 @@ export function createUI({
     const on = helpOn();
     if (!on && tips.current()) tips.dismiss();
     tips.tick();
+    celebrations.resume();                             // a caption held while a tip showed goes up once the tip has closed
     root.classList.toggle('nudge-play', tips.current() === 'press_play' && world.speed === 0);
     const state = on ? nudge.tick({ running: world.speed > 0, busy: isToolMode(s.mode) || Boolean(s.sheet) || Boolean(s.confirmDialog) }) : 'none';
     if (state === nudgeState) return;

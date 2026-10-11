@@ -4,12 +4,14 @@
 // shows longer). A caption is a short head (what happened), the gold beside it and, beneath, an optional why
 // (why it matters; a phone at larger text hides it from sight, not from screen readers). Nothing to tap and nothing
 // takes focus: #cheer is a polite live region, so each caption is read once as it appears. An item's onShow runs when
-// its caption appears, so sound and sparkle land with it.
+// its caption appears, so sound and sparkle land with it. While hold() is true the next caption waits in the queue
+// (createUI holds captions while a tip shows on a phone at larger text, where the rows together would reach the
+// middle of the map); resume() shows it once nothing holds it and the row is free.
 import { CHEER_MS, CHEER_GAP_MS } from '../data/ui.js';
 import { el, clear } from './components.js';
 import { cheerReward } from './text.js';
 
-export function createCelebrations({ container, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id) }) {
+export function createCelebrations({ container, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), hold = () => false }) {
   const queue = [];
   let node = null;          // the caption on screen
   let hideTimer = null;     // hides it after its tier's time
@@ -22,8 +24,8 @@ export function createCelebrations({ container, setTimer = (fn, ms) => setTimeou
 
   function next() {
     slotTimer = null;
+    if (!queue.length || hold()) return;
     const item = queue.shift();
-    if (!item) return;
     if (hideTimer !== null) { clearTimer(hideTimer); hide(); }
     const ms = CHEER_MS[item.tier] || CHEER_MS.first;
     // The head and the gold sit on the first line, the why beneath (css/ui.css). The why stays in the live region
@@ -45,6 +47,8 @@ export function createCelebrations({ container, setTimer = (fn, ms) => setTimeou
       queue.push({ tier, text, why, reward, onShow });
       if (slotTimer === null) next();
     },
+    // Shows the next caption if the row is free and nothing holds it; cheap enough to call once a frame.
+    resume() { if (slotTimer === null) next(); },
     clear() {
       queue.length = 0;
       if (hideTimer !== null) clearTimer(hideTimer);

@@ -172,17 +172,26 @@ export function houseStatus(world, house) {
 // draw on a granary that holds some, means next_delivery (id the bazaar); else granary_empty (id the nearest
 // working granary in its supply reach, which holds nothing), granary_idle (the same, but every such granary is
 // paused or short of workers; id the nearest) or bazaar_empty (id the bazaar, no granary in reach at all).
+// Before no_well, no_bazaar or no_temple: a provider of that kind that touches no road, within its reach of the home
+// in a straight line, is named (well_no_road, bazaar_no_road, temple_no_road, id the nearest such), since it only
+// needs a road, not a twin.
 export function needCause(world, house, need) {
   const met = liveNeeds(world, house);
   if (!(need in met) || met[need]) return null;
   if (!met.road) return { code: 'no_road', id: null };
   if (need === 'water' || need === 'religion') {
-    const [near] = providersReaching(world, house, (def) => def.provides === need);
-    if (need === 'water') return near ? { code: 'well_idle', id: near.id } : { code: 'no_well', id: null };
-    return near ? { code: 'temple_idle', id: near.id } : { code: 'no_temple', id: null };
+    const matches = (def) => def.provides === need;
+    const [near] = providersReaching(world, house, matches);
+    const kind = need === 'water' ? 'well' : 'temple';
+    if (near) return { code: `${kind}_idle`, id: near.id };
+    const [roadless] = roadlessProvidersNear(world, house, matches);
+    return roadless ? { code: `${kind}_no_road`, id: roadless.id } : { code: `no_${kind}`, id: null };
   }
   const reaching = providersReaching(world, house, (def) => def.sells);
-  if (!reaching.length) return { code: 'no_bazaar', id: null };
+  if (!reaching.length) {
+    const [roadless] = roadlessProvidersNear(world, house, (def) => def.sells);
+    return roadless ? { code: 'bazaar_no_road', id: roadless.id } : { code: 'no_bazaar', id: null };
+  }
   const working = reaching.filter((bz) => isWorking(world, bz));
   if (!working.length) return { code: 'bazaar_idle', id: reaching[0].id };
   const supply = new Map(working.map((bz) => [bz.id, graneriesFor(world, bz)]));
@@ -210,6 +219,26 @@ function providersReaching(world, house, matches) {
   }
   out.sort((p, q) => p.dist - q.dist || p.b.id - q.b.id);
   return out.map((e) => e.b);
+}
+
+// Buildings whose def passes `matches`, that touch no road and whose footprint lies within their reach of the home's
+// in a straight line (the gap between the two footprints, in tiles: 0 when they touch), nearest first.
+function roadlessProvidersNear(world, house, matches) {
+  const out = [];
+  for (const b of allBuildings(world)) {
+    const def = BUILDINGS[b.type];
+    if (!def.reach || !matches(def) || touchesRoad(world, b)) continue;
+    const dist = footprintGap(b, house);
+    if (dist <= def.reach) out.push({ b, dist });
+  }
+  out.sort((p, q) => p.dist - q.dist || p.b.id - q.b.id);
+  return out.map((e) => e.b);
+}
+
+function footprintGap(a, b) {
+  const dx = Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w));
+  const dy = Math.max(0, a.y - (b.y + b.d), b.y - (a.y + a.d));
+  return Math.hypot(dx, dy);
 }
 
 // The stores a bazaar draws its goods from (restockBazaars' rule): any store of what it sells within its supply

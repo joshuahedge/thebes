@@ -302,9 +302,12 @@ body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #corners { right: c
 #cheer .cheer .reward { grid-column: 3; grid-row: 1; margin-left: 8px; color: var(--teal); font-weight: 600; white-space: nowrap; }
 #cheer .cheer .why { grid-column: 2 / 4; grid-row: 2; font-size: calc(14px * var(--ui-scale)); line-height: 1.35; color: var(--ink-soft); }
 /* A phone at larger text keeps the caption to the head and the gold, so it stays clear of the middle of the map; the
-   why stays in the live region for screen readers. */
+   why stays in the live region for screen readers. There the caption is one flow of words (the star, the head, then
+   the gold), so it wraps as a sentence in two lines at most rather than a column beside the gold. */
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .why { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer { padding: 4px 10px; line-height: 1.25; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer { display: block; padding: 4px 10px; font-size: calc(14px * var(--ui-scale)); line-height: 1.25; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .icon { margin-right: 4px; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .reward { margin-left: 6px; }
 #cheer .cheer.milestone { background: var(--amber-soft); border-color: var(--amber-text); }
 body[data-layout="wide"] #cheer { max-width: 440px; }
 @keyframes cheer-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
