@@ -73,16 +73,15 @@ describe('s3 contract render seams', () => {
     expect([drawn, w.day]).toEqual([[0, 250], 1]);                                      // the sim ran on; only the drawing waited
     const gate = createFrameGate();
     gate.noteInput(0);
-    expect(gate.allow(5000, true)).toBe(true);                                        // the stub allows every frame (Track C)
+    expect(typeof gate.allow(5000, true)).toBe('boolean');                           // the answer's type only: Track C decides its value
   });
-  it('starts the fire, units and ambient layers as stubs that draw nothing', () => {
+  it('exports the fire, units and ambient layers in their final shapes (shapes only; each track owns the behaviour)', () => {
     const w = makeTestWorld();
     expect(UNIT_ID_BASE).toBe(100000);
-    expect(unitsAt(w, 0, null)).toEqual([]);
-    expect([drawFires(null, w, null, 0), drawUnitMarks(null, w, null, 0, 0)]).toEqual([undefined, undefined]);
+    expect(Array.isArray(unitsAt(w, 0, null))).toBe(true);
+    expect([typeof drawFires, typeof drawUnitMarks]).toEqual(['function', 'function']);
     const a = createAmbient({ enabled: () => false });
-    a.draw(null, w, null, 0);
-    expect(a.stats).toEqual({ ms: 0, dropped: [] });
+    expect([typeof a.draw, typeof a.stats]).toEqual(['function', 'object']);
   });
 });
 
@@ -95,18 +94,27 @@ describe('s3 contract interface seams', () => {
       r.renderer.renderFrame = (world, cam, opts) => { seen = opts; return real(world, cam, opts); };
       r.frame();
       expect([typeof seen.ambient, typeof seen.fire, typeof seen.units, Array.isArray(seen.walkers)]).toEqual(['function', 'function', 'function', true]);
-      expect([typeof r.ui.danger, typeof r.ui.scoreUi, typeof r.ui.ambient.draw, r.ui.allowFrame(0)]).toEqual(['object', 'object', 'function', true]);
+      expect([typeof r.ui.danger, typeof r.ui.scoreUi, typeof r.ui.ambient.draw, typeof r.ui.allowFrame(0)]).toEqual(['object', 'object', 'function', 'boolean']);
+    } finally { r.cleanup(); }
+  });
+  it('counts a held drag or pinch as input for the frame gate, not only a press, a key or the wheel', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    try {
+      const noted = [];
+      r.ui.frameGate.noteInput = () => noted.push(1);
+      for (const type of ['pointerdown', 'pointermove', 'touchmove', 'keydown', 'wheel']) fire(r.root, type);
+      expect(noted.length).toBe(5);
     } finally { r.cleanup(); }
   });
   it('builds the danger and score interfaces in the final shape, and routes events, refreshes and sheet parts to them', async () => {
-    for (const make of [createDanger, createScoreUi]) {
-      const x = make({});
-      expect(Object.keys(x).sort()).toEqual(['destroy', 'onAlertAction', 'onCommand', 'onEvents', 'refresh', 'sheetParts', 'sheets']);
-      expect(Object.keys(x.sheetParts)).toEqual(STUB_PARTS);
-      for (const k of STUB_PARTS) expect(x.sheetParts[k]({ id: 1 })).toEqual([]);
-    }
+    expect([typeof createDanger, typeof createScoreUi]).toEqual(['function', 'function']);
     const r = await rigUI({ width: 1280, height: 800 });
     try {
+      for (const x of [r.ui.danger, r.ui.scoreUi]) {                                  // built by the real interface, with its real ctx
+        expect(Object.keys(x).sort()).toEqual(['destroy', 'onAlertAction', 'onCommand', 'onEvents', 'refresh', 'sheetParts', 'sheets']);
+        expect(Object.keys(x.sheetParts)).toEqual(STUB_PARTS);
+        for (const k of STUB_PARTS) expect(typeof x.sheetParts[k]).toBe('function');
+      }
       const log = [];
       r.ui.danger.onEvents = (events) => log.push(['danger', events.length]);
       r.ui.scoreUi.onEvents = (events) => log.push(['score', events.length]);
@@ -219,19 +227,19 @@ describe('s3 contract placement seams', () => {
       r.bar.render();
       expect(r.root.querySelector('.flip')).toBeTruthy();
       const p = r.placement.preview();
-      expect([p.state, p.text]).toEqual(['bad', reasonText('locked')]);               // the stub previewWall refuses (Track B)
-      expect(r.placement.confirm().ok).toBe(false);
+      expect([typeof p.state, typeof p.text]).toEqual(['string', 'string']);          // the shape only: Track B's previewWall decides ok or refused
+      expect(typeof r.placement.confirm().ok).toBe('boolean');
       r.placement.dragTo(1, 1, 'start');
       r.placement.dragTo(4, 1, 'move');
       expect(r.store.get().line).toEqual({ x0: 1, y0: 1, x1: 4, y1: 1, flip: false });
     } finally { r.cleanup(); }
   });
-  it('carries the score line beside the effect, and none from the stub', () => {
+  it('carries the score line beside the effect', () => {
     const r = rig();
     try {
-      expect(scoreLineFor(r.world, 'well', 3, 9)).toBe('');
+      expect(typeof scoreLineFor(r.world, 'well', 3, 9)).toBe('string');
       r.placement.start({ kind: 'building', type: 'well' }, { x: 12, y: 9 });
-      expect(r.placement.preview().score).toBe('');
+      expect(typeof r.placement.preview().score).toBe('string');
       const { root, cleanup } = mount();
       const store = createStore({ ...INITIAL_UI_STATE, mode: 'placing', tool: { kind: 'building', type: 'well' } });
       const fake = { preview: () => ({ state: 'ok', reason: null, text: '', effect: 'Gives water to 2 homes', score: '+3 Culture', cost: 30, refund: 0, nicer: '' }), canUndo: () => false, flip() {} };
@@ -308,23 +316,23 @@ describe('s3 contract records, sharing and boot', () => {
     expect('records' in JSON.parse(packSave(w))).toBe(false);
     expect(unpackSave(JSON.stringify(w)).records).toBe(null);                          // a bare world
   });
-  it('starts the records and sharing as stubs with their final shapes', () => {
+  it('exports the records and sharing with their final shapes (shapes only; Track E owns the behaviour)', () => {
     expect(emptyRecords()).toEqual({ version: 1, cities: [], chronicle: [] });
     const recs = createRecords({ storage: noStorage });
     expect(recs.load()).toEqual(emptyRecords());
-    expect(recs.bests()).toEqual([]);
-    expect(mergeRecords(emptyRecords(), emptyRecords())).toEqual(emptyRecords());
+    expect(Array.isArray(recs.bests())).toBe(true);
+    expect(Array.isArray(mergeRecords(emptyRecords(), emptyRecords()).cities)).toBe(true);
     expect(/^[0-9a-z]+-[0-9a-z]{4}$/.test(newCityId(1760000000000, () => 0.5))).toBe(true);
     expect(newCityId(1760000000000, () => 0.5)).toBe(newCityId(1760000000000, () => 0.5));
-    expect([weeklySeed(new Date(2026, 9, 11)), shareLink({}), parseShareLink('#x'), emojiRow({}), pictureCard(null, null)]).toEqual([0, '', null, '', null]);
+    expect(Number.isInteger(weeklySeed(new Date(2026, 9, 11)))).toBe(true);
+    expect([shareLink, parseShareLink, emojiRow, pictureCard].map((f) => typeof f)).toEqual(['function', 'function', 'function', 'function']);
   });
   it('shows the dev scene hook before the game, keeps it in the game, gives each city an id, and writes and carries records', async () => {
     const downloaded = [];
     const r = await bootRig({ platform: { share: null, canShare: null, download: (f) => downloaded.push(f) } });
     try {
       expect(r.api.phase()).toBe('title');
-      expect(await window.__thebes.devScene('fire')).toBe('stub');
-      expect(await devScene(r.api, 'fire')).toBe('stub');
+      expect([typeof window.__thebes.devScene, typeof devScene]).toEqual(['function', 'function']);   // before the game; Track F owns what a scene does
       expect(r.api.hooks.records).toBe(r.api.records);                                 // for Seal this reign
       const noted = [];
       r.api.records.noteCity = (world) => noted.push(world.cityId);

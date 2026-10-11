@@ -134,7 +134,8 @@ export function createUI({
   for (const t of GESTURES) root.addEventListener(t, onGesture);
   // Stage 3: the idle frame-rate cap (spec 5.6, render/ambient.js) counts from the last input.
   const frameGate = createFrameGate();
-  const INPUTS = ['pointerdown', 'keydown', 'wheel'];
+  // pointermove and touchmove keep a held pan or pinch counted as input (a drag sends moves, not repeated pointerdowns).
+  const INPUTS = ['pointerdown', 'pointermove', 'touchmove', 'keydown', 'wheel'];
   const onInput = () => frameGate.noteInput(now());
   for (const t of INPUTS) root.addEventListener(t, onInput);
   const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr });
@@ -623,7 +624,7 @@ export function createUI({
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
     store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
-    danger, scoreUi, ambient, screenshotMode,
+    danger, scoreUi, ambient, screenshotMode, frameGate,
     allowFrame: (t) => frameGate.allow(t, world.speed === 0),
     destroy() {
       if (destroyed) return;
