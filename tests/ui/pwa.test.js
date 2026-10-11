@@ -111,7 +111,7 @@ describe('ui pwa', () => {
   it('shows the Update ready toast only when no tool is active, and Restart runs the update', async () => {
     const r = await rigUI();
     const applied = [];
-    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');
+    fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
     fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');
     expect(r.store.get().mode).toBe('placing');
     r.ui.offerUpdate(() => applied.push(1));
@@ -134,7 +134,7 @@ describe('ui pwa', () => {
     expect(runs).toBe(1);
     expect(r.root.querySelector('#toasts .toast').textContent).toContain(T.updateSaveFailed);
     expect(r.root.querySelector('#toasts .toast button')).toBe(null);          // the failure line has no Restart
-    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');                   // a tool starts and ends: the offer returns
+    fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');  // a tool starts and ends: the offer returns
     fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');
     fire(r.root.querySelector('#confirm .cancel'), 'click');
     const again = [...r.root.querySelectorAll('#toasts .toast')].find((t) => t.textContent.includes(T.updateReady));

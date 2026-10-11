@@ -2,7 +2,7 @@
 // the minimap sheet's list. Every change is announced once through the aria-live region (spec 6.8).
 import { alertsFor } from '../sim/alerts.js';
 import { summaryData } from './hud.js';
-import { alertText, dateText, plural, T } from './text.js';
+import { alertText, dateText, plural, viewLabel, T } from './text.js';
 import { el, button, clear, setText } from './components.js';
 
 // The sim has no severity field, so the UI decides (1a follow-up). Raids and fire join this set in Stage 3.
@@ -42,7 +42,7 @@ export function createAlerts({ world, banner, live, onView = () => {}, onNewCrit
       banner.append(el('div', { class: 'critical' }, [
         el('span', { class: 'icon', 'aria-hidden': 'true', text: '⚠' }),
         el('span', { class: 'text' }, [el('strong', { text: t.title }), ' ', el('span', { class: 'small', text: t.fix })]),
-        button(T.view, { class: 'view', onClick: () => onView(a) }),
+        button(T.view, { class: 'view', 'aria-label': viewLabel(t.title), onClick: () => onView(a) }),
       ]));
     }
     root.classList.toggle('has-banner', current.critical.length > 0);

@@ -15,7 +15,7 @@ import { BUILDINGS } from '../../src/data/buildings.js';
 describe('ui carry-overs', () => {
   it('mirrors the confirm bar and the rail ticks for left-handed play', async () => {
     const r = await rigUI({ width: 844, height: 390 });                        // compact: the rail
-    fire(r.root.querySelectorAll('#rail .cat')[4], 'click');
+    fire(r.root.querySelector('#rail .cat[data-category="services"]'), 'click');
     fire(r.root.querySelector('#rail .drawer .card'), 'click');
     expect(r.store.get().mode).toBe('placing');
     const bottom = r.root.querySelector('#rail .bottom');
@@ -31,7 +31,7 @@ describe('ui carry-overs', () => {
   it('Esc closes an open tray or drawer, and that is not a history step', async () => {
     const r = await rigUI();
     const len = r.history.length;
-    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');
+    fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
     expect(r.store.get().dock).toBe('tray');
     expect(r.history.length).toBe(len);
     key(r.root, 'Escape');

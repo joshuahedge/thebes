@@ -3,7 +3,7 @@
 // always reopens paused. ?skipTitle=1 boots straight into a new city and ?welcome=1 shows the Welcome back card (development flags:
 // they write nothing until the first autosave, which then replaces the saved city).
 import { createWorld } from './sim/world.js';
-import { setSpeed } from './sim/commands.js';
+import { setSpeed, setGuide } from './sim/commands.js';
 import { createCamera } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
 import { createGameLoop } from './render/loop.js';
@@ -70,10 +70,13 @@ export async function boot(doc, win, {
   const stress = params.get('stress') === '1', sample = params.get('sample') === '1';
   const seedOf = () => Number(params.get('seed')) || Math.floor(Math.random() * 1e9);
 
+  // A new city starts with the guide on only under Help: Guide and tips (early-game pass 3.1). The sample and
+  // stress cities of the development flags never guide.
   function freshWorld() {
     const world = createWorld({ seed: seedOf() });
     if (stress) buildStressCity(world); else if (sample) buildSampleCity(world);
     if (params.has('speed')) setSpeed(world, Number(params.get('speed')));
+    setGuide(world, settings.get().help === 'full' && !stress && !sample);
     return world;
   }
 
@@ -212,7 +215,7 @@ export async function boot(doc, win, {
   else if (params.get('welcome') === '1') {
     blockIfNewer(await loadSave(store));
     const world = freshWorld();
-    if (!sample && !stress) buildSampleCity(world);
+    if (!sample && !stress) { buildSampleCity(world); setGuide(world, false); }   // a built-up city is not a new one: no guide
     startGame(world, { fromSave: true, savedAt: clock() - 2 * HOUR, lastSpeed: 2, saveNow: false });
   } else showTitle(await loadSave(store));
 

@@ -6,7 +6,15 @@ export const REQUIRED = [
   'version', 'seed', 'size', 'day', 'speed', 'gold', 'terrain', 'road', 'occ', 'buildings', 'nextId',
   'mood', 'moodBreakdown', 'milestone', 'labour', 'alerts', 'undo', 'roadVersion', 'tradeEntry',
   'raiderEntries', 'focus', 'stats', 'startRoad', 'goals', 'history',
+  'firsts', 'achievements', 'daily', 'guide', 'tally',
 ];
+
+const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone'];
+const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+// Firsts and achievements: ids, or null for "mark what is already true without celebrating" (a v1 save).
+const isIdList = (v) => v === null || (Array.isArray(v) && v.every((id) => typeof id === 'string'));
+const isDaily = (d) => d === null || (isRecord(d) && typeof d.date === 'string' && Array.isArray(d.picks)
+  && Array.isArray(d.done) && isRecord(d.base) && typeof d.swapped === 'boolean');
 
 // The save envelope (spec 4.17): wall-clock fields sit beside the world, never inside it.
 export const SAVE_VERSION = 1;
@@ -25,6 +33,9 @@ export function validateWorld(w) {
   for (const b of Object.values(w.buildings)) if (!b || !Object.hasOwn(BUILDINGS, b.type)) return false;   // 1a note: unknown types
   for (const id of w.occ) if (id !== 0 && !Object.hasOwn(w.buildings, id)) return false;                   // 1a note: stray occupancy
   if (!Array.isArray(w.startRoad) || !w.goals || !Array.isArray(w.goals.completed) || !Array.isArray(w.history)) return false;
+  if (!Array.isArray(w.goals.triggered) || !isIdList(w.firsts) || !isIdList(w.achievements) || !isDaily(w.daily)) return false;
+  if (!isRecord(w.guide) || typeof w.guide.on !== 'boolean' || typeof w.guide.done !== 'boolean') return false;
+  if (!isRecord(w.tally) || !TALLY_KEYS.every((k) => Number.isFinite(w.tally[k]))) return false;
   return true;
 }
 

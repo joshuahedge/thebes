@@ -7,7 +7,7 @@ import { wantedGoods } from '../sim/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { el, iconButton, setText } from './components.js';
-import { T, dateText } from './text.js';
+import { T, dateText, shortDateText } from './text.js';
 
 export function summaryData(world) {
   const last = world.stats.lastMonth || { taxes: 0, wages: 0, upkeep: 0, net: 0 };
@@ -29,7 +29,9 @@ export function summaryData(world) {
 
 const stat = (label, cls) => el('span', { class: `stat ${cls}` }, [el('span', { class: 'label', text: label }), el('span', { class: 'value', text: '' })]);
 
-export function createHud({ world, store, container, speedBar = null, onOpenSummary = () => {}, onOpenMenu = () => {} }) {
+// shortDate() says when the date reads "Y2 M1" rather than "Year 2, month 1, day 1": on a phone, and (createUI) in the
+// wide layout under 1000 px wide or at 150% text, where the long date would push the numbers onto another row.
+export function createHud({ world, store, container, speedBar = null, onOpenSummary = () => {}, onOpenMenu = () => {}, shortDate = () => store.get().layout !== 'wide' }) {
   const gold = stat(T.gold, 'gold'), people = stat(T.people, 'people'), mood = stat(T.mood, 'mood'), date = stat(T.date, 'date');
   const income = stat(T.income, 'income wide-only'), jobless = stat(T.jobless, 'jobless wide-only'), food = stat(T.food, 'food wide-only');
   // No aria-label here: it would replace the visible numbers as the accessible name (spec 6.8). The hint is read as part of the name.
@@ -45,8 +47,7 @@ export function createHud({ world, store, container, speedBar = null, onOpenSumm
     setText(gold.lastChild, String(d.gold));
     setText(people.lastChild, String(d.people));
     setText(mood.lastChild, String(d.mood));
-    const compact = store.get().layout !== 'wide';
-    setText(date.lastChild, compact ? `Y${d.date.year} M${d.date.month}` : dateText(d.date));
+    setText(date.lastChild, shortDate() ? shortDateText(d.date) : dateText(d.date));
     setText(income.lastChild, (d.net >= 0 ? '+' : '') + String(d.net));
     setText(jobless.lastChild, String(d.jobless));
     setText(food.lastChild, d.monthsOfFood === null ? '–' : `${d.monthsOfFood} mo`);

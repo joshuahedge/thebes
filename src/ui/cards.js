@@ -1,5 +1,6 @@
-// Building cards (spec 6.3): name and cost; coral with a coin-slash when unaffordable; a lock and the
-// unlock condition when locked. Shared by the dock tray, the side panel grid and the rail drawer.
+// Building cards (spec 6.3, early-game pass 2.5): the building's picture, its name and its cost with a coin;
+// coral with a coin-slash when unaffordable; a lock and the unlock condition when locked. Shared by the dock
+// tray, the side panel grid and the rail drawer.
 import { BUILDINGS } from '../data/buildings.js';
 import { ECONOMY } from '../data/economy.js';
 import { isUnlocked } from '../sim/progression.js';
@@ -7,6 +8,9 @@ import { canAfford } from '../sim/money.js';
 import { CATEGORIES } from '../data/ui.js';
 import { buildingName, unlockText, T } from './text.js';
 import { el, clear } from './components.js';
+import { drawThumb } from './thumbs.js';
+
+const deviceRatio = () => Math.min(3, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
 
 export function cardInfo(world, item) {
   let cost = 0, suffix = '', costText;
@@ -25,6 +29,22 @@ export function activeItemOf(tool) {
   return tool.kind;   // 'road' or 'demolish'
 }
 
+// What a tray of cards shows: its category, the active card and each card's affordable and locked state. The dock,
+// the side panel and the rail rebuild their cards (and so their pictures) only when this key changes, so a command
+// that spends a little gold but leaves every card as it was rebuilds nothing.
+export function cardsKey(world, category, activeItem) {
+  const cat = CATEGORIES.find((c) => c.id === category);
+  const states = (cat ? cat.items : []).map((item) => { const i = cardInfo(world, item); return `${i.affordable ? 'a' : 'u'}${i.locked ? 'l' : 'o'}`; });
+  return `${category}|${activeItem}|${states.join(',')}`;
+}
+
+// Locked and unaffordable cards keep their words and marks; an affordable cost gets a coin (decoration only).
+function costLine(info) {
+  if (info.locked) return [`\u{1F512} ${info.lockText}`];
+  if (!info.affordable) return [`⊘ ${info.costText}`];
+  return info.cost ? [el('span', { class: 'coin', 'aria-hidden': 'true' }), info.costText] : [info.costText];
+}
+
 export function renderCards(container, { world, category, activeItem = null, onPick, grid = false }) {
   const focusedItem = container.contains(document.activeElement) && document.activeElement.dataset ? document.activeElement.dataset.item : null;
   clear(container);
@@ -32,12 +52,13 @@ export function renderCards(container, { world, category, activeItem = null, onP
   const cat = CATEGORIES.find((c) => c.id === category);
   const items = cat ? cat.items : [];
   if (!items.length) { container.append(el('p', { class: 'empty', text: T.comingLater })); return []; }
+  const dpr = deviceRatio();
   const buttons = items.map((item) => {
     const info = cardInfo(world, item);
     const cls = ['card', info.affordable ? '' : 'unaffordable', info.locked ? 'locked' : ''].filter(Boolean).join(' ');
-    const costLine = info.locked ? `\u{1F512} ${info.lockText}` : (info.affordable ? info.costText : `⊘ ${info.costText}`);
+    const thumb = drawThumb(el('canvas', { class: 'thumb', 'aria-hidden': 'true' }), item, dpr);
     const b = el('button', { type: 'button', class: cls, dataset: { item }, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null }, [
-      el('span', { class: 'name', text: info.name }), el('span', { class: 'cost', text: costLine }),
+      thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)),
     ]);
     if (!info.locked) b.addEventListener('click', () => onPick(item));
     return b;

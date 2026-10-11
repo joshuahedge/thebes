@@ -36,6 +36,25 @@ function rig() {
 }
 
 describe('ui sheets', () => {
+  it("names every View after its alert, so a list of them reads apart, each name starting with the word it shows", () => {
+    const r = rig();
+    try {
+      const roadless = addRaw(r.world, 'farm_grain', 2, 3, { blocked: 'no_storage' });   // no road beside it, and nowhere to store
+      const listed = (sel) => [...r.root.querySelectorAll(sel)].map((b) => [b.textContent, b.getAttribute('aria-label')]);
+      r.store.set(select(r.store.get(), roadless.id));
+      const own = alertsFor(r.world).filter((a) => a.id === roadless.id);
+      expect(own.length).toBeGreaterThan(1);                                // a building sheet listing several problems
+      expect(listed('.problems .view')).toEqual(own.map((a) => [T.view, `${T.view}: ${alertText(a, r.world).title}`]));
+      r.store.set(openSheet(r.store.get(), 'minimap'));
+      const all = alertsFor(r.world);
+      expect(all.length).toBeGreaterThan(2);
+      const labels = listed('.alert-list .view');
+      expect(labels).toEqual(all.map((a) => [T.view, `${T.view}: ${alertText(a, r.world).title}`]));
+      const titles = new Set(all.map((a) => alertText(a, r.world).title));
+      expect(titles.size).toBeGreaterThan(1);
+      expect(new Set(labels.map(([, label]) => label)).size).toBe(titles.size);       // different alerts, different names
+    } finally { r.cleanup(); }
+  });
   it('shows a building with workers, reach, problems and View, and can pause or demolish it', () => {
     const r = rig();
     r.store.set(select(r.store.get(), r.farm.id));
