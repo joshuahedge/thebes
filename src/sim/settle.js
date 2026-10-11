@@ -4,11 +4,12 @@
 import { settleGoals } from './goals.js';
 import { checkFirsts } from './firsts.js';
 import { checkAchievements } from './achievements.js';
+import { checkDaily } from './daily.js';
 
 export function settle(world, events = null) {
   settleGoals(world, events);
   checkFirsts(world, events);
   checkAchievements(world, events);
-  // Daily goals (src/sim/daily.js) come last.
+  checkDaily(world, events);
   return events;
 }

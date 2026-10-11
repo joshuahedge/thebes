@@ -74,6 +74,7 @@ import './sim/goals.test.js';
 import './sim/goalsV2.test.js';
 import './sim/firsts.test.js';
 import './sim/achievements.test.js';
+import './sim/daily.test.js';
 import './ui/autosave.test.js';
 import './ui/goalsList.test.js';
 import './ui/welcomeBack.test.js';
