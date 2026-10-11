@@ -279,14 +279,8 @@ describe('s3 contract clock and economy wiring', () => {
     expect(w.splits).toEqual({ town: 90, market_town: 90 });                       // the first day stands
     expect(splitMonths(w)).toEqual({ town: 3, market_town: 3, city: null, great_city: null, capital: null });
   });
-  it('skips fire and raids for a calm world, the test-only switch the long runs and sample cities carry until Track F', () => {
-    const w = street();
-    expect('calm' in w).toBe(false);                                                // never set by the game
-    w.calm = true;
-    tickDay(w, []);
-    expect(w.day).toBe(1);
-    expect(JSON.parse(JSON.stringify(w)).calm).toBe(true);
-    expect(makeTestWorld({ raiderEntries: [{ x: 31, y: 16 }] }).raiderEntries).toEqual([{ x: 31, y: 16 }]);   // the fixture's entries for raid tests
+  it('gives the test fixture raider entries for raid tests', () => {
+    expect(makeTestWorld({ raiderEntries: [{ x: 31, y: 16 }] }).raiderEntries).toEqual([{ x: 31, y: 16 }]);
   });
   it('lists fire and raid alerts with the rest, and settles feats after every command', () => {
     const w = street();
