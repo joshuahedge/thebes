@@ -10,6 +10,7 @@ import { PARTNERS } from '../data/trade.js';
 import { TRADE_KEEP_STEP } from '../data/ui.js';
 import { ECONOMY } from '../data/economy.js';
 import { producerRefused } from '../sim/production.js';
+import { isUnlocked } from '../sim/progression.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -19,7 +20,11 @@ export function buildingName(type) {
   return BUILDINGS[type] ? BUILDINGS[type].name : type;
 }
 
-export const NEED_NAMES = { road: 'Road access', water: 'Water', food: 'Food', religion: 'Temple' };
+export const NEED_NAMES = {
+  road: 'Road access', water: 'Water', food: 'Food', religion: 'Temple',
+  pottery: 'Pottery', entertainment: 'Entertainment', beer: 'Beer', twoFoods: 'Two kinds of food', linen: 'Linen', jewellery: 'Jewellery',
+  desirability: 'Desirability', merge: `Room to become a ${TIERS[6].name}`,
+};
 
 // Goods' names come from the data (GOODS[good].name), as buildings' do; inside a sentence they are lower case.
 export const goodName = (good) => (GOODS[good] ? GOODS[good].name : good);
@@ -99,15 +104,69 @@ export const CAUSE_TEXT = {
   well_no_road: roadlessWords('well'),
   bazaar_no_road: roadlessWords('bazaar'),
   temple_no_road: roadlessWords('temple'),
+  no_booth: { cause: `No booth within ${BUILDINGS.booth.reach} road tiles`, fix: 'Build a booth near it' },
+  booth_idle: idleWords('booth'),
+  booth_no_road: roadlessWords('booth'),
+  low_desirability: { cause: 'The street is not pleasant enough', fix: 'Place gardens or statues near it, or move workshops away' },
+  no_square: { cause: 'No 2×2 square of plots around it', fix: `Make a square with three plots beside it, empty or ${TIERS[5].name}s` },
 };
 
-// The words for one needCause result: { cause, fix }. An idle provider reads its own building's state.
-export function causeText(cause, world) {
+// The buildings that make a good, in the order they are built: the raw producer, then the workshop ("clay pit,
+// potter"; figs: "fig orchard").
+export function goodMakers(good) {
+  const maker = makerOf(good);
+  if (!maker) return [];
+  const input = BUILDINGS[maker].consumes;
+  return [input ? makerOf(input) : null, maker].filter(Boolean);
+}
+const milestoneOf = (type) => MILESTONES.find((m) => m.unlocks.includes(type)) || null;
+const capitalised = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Words for the goods codes (spec 4.10), read as the food codes are: no_good, no store for the good within the
+// bazaar's supply reach (like bazaar_empty), so the fix is that store; good_unmade, stores there but none holds any
+// (like granary_empty), so the fix is what makes it. Buildings not unlocked yet are named with the milestone that
+// brings them, so the fix is never a card the player cannot use.
+const comeWith = (types) => `${capitalised(listText(types.map(pluralName)))} come with ${milestoneOf(types[0]).name}`;
+function goodWords(code, good, world) {
+  const name = goodWord(good);
+  if (code === 'no_good') {
+    const store = storeFor(good);
+    return { cause: `The bazaar has no ${name}`, fix: isUnlocked(world, store) ? `Build a ${buildingName(store).toLowerCase()} within ${BUILDINGS.bazaar.supplyReach} road tiles of it` : comeWith([store]) };
+  }
+  const makers = goodMakers(good);
+  const verb = makers.some((t) => BUILDINGS[t].consumes) ? 'Make' : 'Grow';
+  const locked = makers.filter((t) => !isUnlocked(world, t));
+  return {
+    cause: `Nothing ${verb.toLowerCase()}s ${name} near the bazaar`,
+    fix: locked.length ? comeWith(locked) : `${verb} ${name} near it: ${listText(makers.map((t) => `a ${buildingName(t).toLowerCase()}`))}`,
+  };
+}
+
+// The words for one needCause result: { cause, fix }, or null for a code with no words. An idle provider reads its own
+// building's state; the goods codes word themselves by the good (cause.good, else the need when it is a good), and a
+// delivery on its way names the good it brings.
+export function causeText(cause, world, need = null) {
+  const good = cause.good || (need && GOODS[need] ? need : null);
+  if (cause.code === 'next_delivery' && need !== 'food' && (good || need === 'twoFoods')) return { cause: good ? `The next delivery brings ${goodWord(good)}` : T.bothFoodsComing, fix: '' };
+  if ((cause.code === 'no_good' || cause.code === 'good_unmade') && good) return goodWords(cause.code, good, world);
   const t = CAUSE_TEXT[cause.code];
+  if (!t) return null;
   if (!t.paused) return t;
   const b = world.buildings[cause.id];
   return b && b.paused ? t.paused : t.short;
 }
+
+// The desirability row (spec 4.7): "14 of 20: +6 temple, +3 garden, −4 potter", and the warning before a home drops a
+// tier for it (spec 4.6): "Loses Manor in 1 month: the street is not pleasant enough".
+export const contributorText = (value, name) => `${value > 0 ? '+' : '−'}${Math.abs(value)} ${name}`;
+export const desirabilityText = (value, target, parts = []) => `${progressText(Math.round(value), target)}${parts.length ? `: ${parts.join(', ')}` : ''}`;
+export const keepWarningText = (tier, months) => (months === null || months === undefined
+  ? `The street is not pleasant enough to keep a ${tier}`
+  : `Loses ${tier} in ${plural(months, 'month', 'months')}: the street is not pleasant enough`);
+
+// The city summary's economy (spec 4.10, 4.18): the difficulty, each good made against used last month.
+export const DIFFICULTY_NAMES = { relaxed: 'Relaxed', normal: 'Normal', hard: 'Hard' };
+export const madeUsedText = (made, used) => `${made} made, ${used} used`;
 
 // The city summary's mood rows, keyed by world.moodBreakdown.
 export const MOOD_NAMES = { base: 'Starting mood', food: 'Food', jobs: 'Jobs', debt: 'Debt' };
@@ -330,6 +389,7 @@ export const T = {
   tradeHelp: 'Choose what each caravan buys from you or sells you, and how many to keep in storage.',
   postNotJoined: "Caravans can't reach the trading post: no road joins it to the trade entry.", postNotJoinedFix: 'Lay a road from it to the trade entry',
   caravanIdleWhy: 'Set what to buy and sell at the trading post.',
+  difficulty: 'Difficulty', tradeIncome: 'Trade income', goodsLastMonth: 'Goods last month', noGoodsYet: 'Nothing made yet', bothFoodsComing: 'The next delivery brings both kinds of food',
 };
 
 export const importErrorText = (code) => (code === 'newer_version' ? T.saveNewer : code === 'read_failed' ? T.fileUnreadable : T.saveUnreadable);

@@ -404,3 +404,7 @@ body.reduce-motion .goal-strip .show-me.glow, body.reduce-motion.nudge-play .spe
 .trade-warning p { margin: 0 0 4px; }
 .trade-warning .fix { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
 #sheet .next-caravan { margin-top: 8px; }
+
+/* The house sheet for the economy (spec 4.6, 4.7): the desirability row's score and causes sit under it, lined up with
+   the cause and fix. */
+.checklist .desirability { margin: 2px 0 0 calc(var(--mark-w) + 8px); }

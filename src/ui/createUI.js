@@ -496,7 +496,14 @@ export function createUI({
   store.subscribe((s) => {
     const opened = Boolean(s.sheet) && s.sheet !== seenSheet;
     if ((isToolMode(s.mode) && !isToolMode(seenMode)) || opened) nudge.noteAction();
-    if (opened && s.sheet.kind === 'info') { const b = world.buildings[s.sheet.id]; if (b && b.type === 'house') fireTip('houseSheet'); }
+    if (opened && s.sheet.kind === 'info') {
+      const b = world.buildings[s.sheet.id];
+      if (b && b.type === 'house') {
+        fireTip('houseSheet');
+        if (b.tier >= 5) fireTip('desirabilityShown');   // its next tier needs a pleasant street (spec 4.7)
+        if (b.tier === 5) fireTip('townhouseSheet');      // it grows by joining three plots beside it (spec 4.6)
+      }
+    }
     if (s.overlay && s.overlay !== seenOverlay && !isToolMode(s.mode)) fireTip('overlayOn');
     if (!isToolMode(s.mode)) tips.flush({ busy: false });
     seenMode = s.mode; seenSheet = s.sheet; seenOverlay = s.overlay;
