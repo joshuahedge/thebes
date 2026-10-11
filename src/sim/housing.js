@@ -170,7 +170,8 @@ export function houseStatus(world, house) {
 // id the building) rather than answered with "build another"; no_well, no_bazaar and no_temple mean nothing of
 // that kind reaches the home at all. For food, a working bazaar in reach decides: one holding grain, or able to
 // draw on a granary that holds some, means next_delivery (id the bazaar); else granary_empty (id the nearest
-// granary in its supply reach, which holds nothing) or bazaar_empty (id the bazaar, no granary in reach at all).
+// working granary in its supply reach, which holds nothing), granary_idle (the same, but every such granary is
+// paused or short of workers; id the nearest) or bazaar_empty (id the bazaar, no granary in reach at all).
 export function needCause(world, house, need) {
   const met = liveNeeds(world, house);
   if (!(need in met) || met[need]) return null;
@@ -188,8 +189,12 @@ export function needCause(world, house, need) {
   const holds = (b) => FOOD_GOODS.some((g) => (b.store[g] || 0) > 0);
   const coming = working.find((bz) => holds(bz) || supply.get(bz.id).some(holds));
   if (coming) return { code: 'next_delivery', id: coming.id };
+  // Farms only fill working storage (storageFor), so an empty store that is paused or short of workers needs
+  // resuming or staff, not a farm: granary_empty only when one of the bazaar's stores works.
+  const live = working.find((bz) => supply.get(bz.id).some((o) => isWorking(world, o)));
+  if (live) return { code: 'granary_empty', id: supply.get(live.id).find((o) => isWorking(world, o)).id };
   const bare = working.find((bz) => supply.get(bz.id).length);
-  if (bare) return { code: 'granary_empty', id: supply.get(bare.id)[0].id };
+  if (bare) return { code: 'granary_idle', id: supply.get(bare.id)[0].id };
   return { code: 'bazaar_empty', id: working[0].id };
 }
 

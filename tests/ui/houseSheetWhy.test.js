@@ -38,7 +38,9 @@ const rowFor = (root, need) => [...root.querySelectorAll('.checklist li')].find(
 describe('ui house sheet why', () => {
   it('words every cause in plain English with the reach the sim uses, and names the mood rows', () => {
     expect(CAUSE_TEXT.no_road.cause).toBe('No road beside it');
-    expect(CAUSE_TEXT.no_well.cause).toBe('No working well within 5 road tiles');
+    expect(CAUSE_TEXT.no_well.cause).toBe('No well within 5 road tiles');
+    expect(CAUSE_TEXT.no_bazaar.cause).toBe('No bazaar within 10 road tiles');
+    expect(CAUSE_TEXT.no_temple.cause).toBe('No temple within 10 road tiles');
     expect(CAUSE_TEXT.bazaar_empty.cause).toBe('The bazaar has no grain');
     expect(CAUSE_TEXT.next_delivery.cause).toBe('Food arrives at the next delivery');
     for (const code of ['no_road', 'no_well', 'no_bazaar', 'bazaar_empty', 'next_delivery', 'no_temple']) expect(CAUSE_TEXT[code].cause.length).toBeGreaterThan(0);
@@ -67,7 +69,7 @@ describe('ui house sheet why', () => {
       expect(road.querySelector('.show-me')).toBe(null);
       const water = rowFor(r.root, 'water');
       expect(water.querySelector('.status').textContent).toBe(T.missing);
-      expect(water.textContent).toContain('No working well within 5 road tiles');
+      expect(water.textContent).toContain('No well within 5 road tiles');
       expect(water.textContent).toContain(CAUSE_TEXT.no_well.fix);
       fire(water.querySelector('.show-me'), 'click');
       expect(r.shown).toEqual([{ category: 'services', item: 'well', x: 28.5, y: 9.5 }]);
@@ -150,6 +152,33 @@ describe('ui house sheet why', () => {
       expect(r.shown).toEqual([{ category: 'food', item: 'farm_grain', x: granary.x + 1, y: granary.y + 1 }]);
     } finally { r.cleanup(); }
   });
+  it('an empty granary that is paused or short of workers gets View, not a farm Show me', () => {
+    const r = rig();
+    try {
+      addRaw(r.world, 'well', 15, 11);
+      addRaw(r.world, 'bazaar', 9, 11);
+      const granary = addRaw(r.world, 'granary', 4, 11);
+      staffAll(r.world);
+      const shack = addRaw(r.world, 'house', 12, 9, { tier: 2, residents: 8 });
+      r.store.set(select(r.store.get(), shack.id));
+      granary.paused = true;
+      r.sheets.render();
+      let food = rowFor(r.root, 'food');
+      expect(food.textContent).toContain('The granary is paused');
+      expect(food.textContent).toContain('Resume it');
+      expect(food.querySelector('.show-me')).toBe(null);
+      expect(food.querySelector('.view').getAttribute('aria-label')).toBe(`${T.view}: ${buildingName('granary')}`);
+      fire(food.querySelector('.view'), 'click');
+      expect(r.selected).toEqual([granary.id]);
+      granary.paused = false;
+      granary.staff = 0;
+      r.sheets.render();
+      food = rowFor(r.root, 'food');
+      expect(food.textContent).toContain('The granary is short of workers');
+      expect(food.textContent).toContain('More homes bring more workers');
+      expect(food.querySelector('.show-me')).toBe(null);
+    } finally { r.cleanup(); }
+  });
   it('gives every Show me and View its own name for a screen reader, starting with the words it shows', () => {
     const r = rig();
     try {
@@ -192,7 +221,7 @@ describe('ui house sheet why', () => {
       const hut = addRaw(r.world, 'house', 28, 9, { tier: 1, residents: 4 });   // out of reach of the rig's well at (15, 11)
       r.store.set(select(r.store.get(), hut.id));
       const water = [...r.root.querySelectorAll('#sheet .checklist li')].find((li) => li.textContent.includes(NEED_NAMES.water));
-      expect(water.textContent).toContain('No working well within 5 road tiles');
+      expect(water.textContent).toContain('No well within 5 road tiles');
       fire(water.querySelector('.show-me'), 'click');
       const s = r.store.get();
       expect(s.sheet).toBe(null);

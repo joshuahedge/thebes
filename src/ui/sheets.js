@@ -25,6 +25,7 @@ const CAUSE_FIX = {
   granary_empty: { category: 'food', item: 'farm_grain', at: 'building' },
   no_temple: { category: 'services', item: 'temple', at: 'home' },
   well_idle: { view: true },
+  granary_idle: { view: true },
   bazaar_idle: { view: true },
   temple_idle: { view: true },
 };
