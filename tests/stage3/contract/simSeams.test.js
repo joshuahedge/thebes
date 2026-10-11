@@ -229,6 +229,8 @@ describe('s3 contract raid seams', () => {
     expect([isGate(w, idx(w.size, 6, 6)), wallHpFor(w, idx(w.size, 6, 6)), wallHpFor(w, idx(w.size, 6, 10))]).toEqual([false, DEFENCE.wallHp, DEFENCE.gateHp]);
     w.wall[idx(w.size, 6, 10)] = 40;
     expect(isGate(w, idx(w.size, 6, 10))).toBe(true);
+    w.wall[idx(w.size, 6, 10)] = -1;                                                  // broken stone on a road is a breach, not a gate
+    expect(isGate(w, idx(w.size, 6, 10))).toBe(false);
   });
 });
 
@@ -366,6 +368,20 @@ describe('s3 contract commands', () => {
     expect([w.wall[wall], w.wall[breach]]).toEqual([0, 0]);
     undo(w); undo(w);
     expect([w.wall[gate], w.wall[wall], w.wall[breach], w.wallVersion]).toEqual([40, 25, -1, v + 4]);
+  });
+  it('keeps a gate\'s road when Demolish is dragged over it, as a tap does, and takes up roads with no wall on them', () => {
+    const w = street();
+    const gate = idx(w.size, 5, 10), wall = idx(w.size, 5, 9), road = idx(w.size, 6, 10);
+    w.wall[gate] = 40; w.wall[wall] = 25;
+    const p = previewDemolishArea(w, 5, 9, 6, 10);
+    expect([p.roadTiles, p.wallTiles]).toEqual([[road], [wall, gate]]);
+    const rv = w.roadVersion;
+    expect(demolishArea(w, 5, 9, 6, 10).count).toBe(3);
+    expect([w.wall[gate], w.road[gate], w.wall[wall], w.road[road], w.roadVersion]).toEqual([0, 1, 0, 0, rv + 1]);
+    undo(w);
+    expect([w.wall[gate], w.road[gate], w.wall[wall], w.road[road]]).toEqual([40, 1, 25, 1]);
+    w.wall[road] = -1;                                                               // a breach on a road keeps its road too
+    expect(previewDemolishArea(w, 6, 10, 6, 10).roadTiles).toEqual([]);
   });
   it('undoes a wall entry to each tile\'s old value, refunds its cost and uncounts its tiles', () => {
     const w = street(1000);

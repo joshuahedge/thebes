@@ -285,9 +285,9 @@ export function fireAlerts(world) {
 // Why a building is or is not covered for putting fires out: { cause, cover, firehouse }. cause is 'covered' (coverage
 // at least FIRE.staffedAt); 'no_road' (no road tile beside it, so no firehouse can reach it); 'none' (no firehouse within
 // FIRE.reach road tiles); otherwise it names the best firehouse that does reach it (working beats burning beats paused,
-// then the most staff): 'short' (working or not, it is short of workers), 'burning' (it is in the fire stage) or
-// 'paused'. cover is the building's coverage (coverageOf); firehouse is that firehouse's id (for 'covered', the
-// best-staffed one), or null.
+// then the most staff): 'short' (working or not, it is short of workers), 'burning' (it is in the fire stage, paused
+// or not, since resuming it would not help) or 'paused'. cover is the building's coverage (coverageOf); firehouse is
+// that firehouse's id (for 'covered', the best-staffed one), or null.
 export function fireCause(world, b) {
   const cover = coverageOf(world, b);
   const roads = adjacentRoadTiles(world, b);
@@ -297,7 +297,7 @@ export function fireCause(world, b) {
       if (f.type !== 'firehouse') continue;
       const reach = roadReach(world, f, FIRE.reach);
       if (!roads.some((t) => reach.has(t))) continue;
-      const r = f.paused ? 0 : inFireStage(f) ? 1 : 2 + staffRatio(world, f);
+      const r = inFireStage(f) ? 1 : f.paused ? 0 : 2 + staffRatio(world, f);   // a burning one counts as burning, paused or not
       if (r > rank) { rank = r; pick = f; }
     }
   }
@@ -305,7 +305,7 @@ export function fireCause(world, b) {
   if (cover >= FIRE.staffedAt) cause = 'covered';
   else if (!roads.length) cause = 'no_road';
   else if (!pick) cause = 'none';
-  else cause = pick.paused ? 'paused' : inFireStage(pick) ? 'burning' : 'short';
+  else cause = inFireStage(pick) ? 'burning' : pick.paused ? 'paused' : 'short';
   return { cause, cover, firehouse: pick ? pick.id : null };
 }
 

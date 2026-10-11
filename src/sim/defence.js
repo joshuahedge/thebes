@@ -19,8 +19,8 @@ import { roadPath } from './commands.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], tiles: [], gates: [], cost: 0, ...extra });
 
-// A wall tile on a road.
-export const isGate = (world, i) => world.wall[i] !== 0 && Boolean(world.road[i]);
+// A standing wall tile on a road (a breach on a road is broken stone, not a gate).
+export const isGate = (world, i) => world.wall[i] > 0 && Boolean(world.road[i]);
 
 // The hit points a newly drawn tile gets: a gate's on a road, a wall's elsewhere.
 export const wallHpFor = (world, i) => (world.road[i] ? DEFENCE.gateHp : DEFENCE.wallHp);
