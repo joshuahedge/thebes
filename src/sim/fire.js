@@ -19,9 +19,12 @@
 //   { type: 'fire_out', id, stage }        a blaze or fire was put out ('blaze' or 'fire')
 //   { type: 'burned', id, kind, to }       the building burned down: kind is its type, to the ids of what replaced it
 //                                           (empty plots for a home, rubble otherwise), in footprint order
-// Alerts (fireAlerts): { code: 'fire', id } critical, a blaze or fire no staffed firehouse reaches; { code: 'blaze', id }
-// warning, a covered blaze; { code: 'fire_risk', id } warning, a building in the High or Can-catch-fire band that no
-// staffed firehouse covers (it carries the problem marker).
+// Alerts (fireAlerts), in ascending id: { code: 'fire', id } critical, a burning building (blaze or fire) whose coverage
+// is below FIRE.staffedAt; { code: 'blaze', id } warning, a burning building a staffed firehouse reaches (a covered
+// blaze, and also a covered fire, which the contract's two codes did not name: ruling 7); { code: 'fire_risk', id }
+// warning, a building that is not burning, whose risk is in the High band or above (fireBand >= 2) and whose coverage
+// is below FIRE.staffedAt (it carries the problem marker). fireCause says why a building is not covered, for the
+// alerts' words (and the fire row).
 //
 // Track A. Draws (each a fresh hash2, no state): ignition hash2(id, day, seed + FIRE_SALT.ignite) < FIRE.ignitionChance
 // once risk >= FIRE.threshold; a blaze's need hash2(id, day, seed + putOut) at ignition (putOutDays, 1 or 2). day is
@@ -42,6 +45,7 @@
 // the building down when left reaches 0. Put out, a building keeps everything and its risk is 0. (2) Every other
 // building that can burn adds its risk and may catch fire. (3) danger.burnDays forgets days a year (360 days) old.
 import { FIRE, FIRE_SALT, FIRE_RISK, HOUSE_RISK, FIRE_BANDS } from '../data/fire.js';
+import { DANGER_MOOD } from '../data/mood.js';
 import { allBuildings, makeBuilding, insertBuilding, removeBuilding } from './world.js';
 import { atLeast } from './progression.js';
 import { rubbleCostOf, riskOf } from './costs.js';
@@ -265,15 +269,57 @@ export function burnBuilding(world, id, events = null) {
   return to;
 }
 
-// STUB. Fire's alerts (codes above), in ascending building id.
+// Fire's alerts (codes above), in ascending building id. Cheap: one pass, and the coverage map only when some building
+// is burning or at High risk (it is cached on the roads and the firehouses).
 export function fireAlerts(world) {
-  return [];
+  const out = [];
+  let cover = null;
+  const staffed = (b) => ((cover || (cover = fireCoverage(world))).get(b.id) || 0) >= FIRE.staffedAt;
+  for (const b of allBuildings(world)) {
+    if (b.fire) out.push({ code: staffed(b) ? 'blaze' : 'fire', id: b.id });
+    else if (canBurn(b) && fireBand(b.risk || 0) >= 2 && !staffed(b)) out.push({ code: 'fire_risk', id: b.id });
+  }
+  return out;
 }
 
-// STUB. Fire's mood terms (spec 4.9, DANGER_MOOD): { fire } when a building reached the fire stage in the last 30 days,
-// { burned } for buildings burned in the last 180; a key only while its term is not 0. updateMood adds them.
+// Why a building is or is not covered for putting fires out: { cause, cover, firehouse }. cause is 'covered' (coverage
+// at least FIRE.staffedAt); 'no_road' (no road tile beside it, so no firehouse can reach it); 'none' (no firehouse within
+// FIRE.reach road tiles); otherwise it names the best firehouse that does reach it (working beats burning beats paused,
+// then the most staff): 'short' (working or not, it is short of workers), 'burning' (it is in the fire stage) or
+// 'paused'. cover is the building's coverage (coverageOf); firehouse is that firehouse's id (for 'covered', the
+// best-staffed one), or null.
+export function fireCause(world, b) {
+  const cover = coverageOf(world, b);
+  const roads = adjacentRoadTiles(world, b);
+  let pick = null, rank = -1;
+  if (roads.length) {
+    for (const f of allBuildings(world)) {
+      if (f.type !== 'firehouse') continue;
+      const reach = roadReach(world, f, FIRE.reach);
+      if (!roads.some((t) => reach.has(t))) continue;
+      const r = f.paused ? 0 : inFireStage(f) ? 1 : 2 + staffRatio(world, f);
+      if (r > rank) { rank = r; pick = f; }
+    }
+  }
+  let cause;
+  if (cover >= FIRE.staffedAt) cause = 'covered';
+  else if (!roads.length) cause = 'no_road';
+  else if (!pick) cause = 'none';
+  else cause = pick.paused ? 'paused' : inFireStage(pick) ? 'burning' : 'short';
+  return { cause, cover, firehouse: pick ? pick.id : null };
+}
+
+// Fire's mood terms (spec 4.9, DANGER_MOOD): { fire } when a building was in the fire stage in the last 30 days
+// (danger.lastFireDay; a blaze put out in time never sets it), { burned } for the buildings burned in the last 180 days
+// (each burnedEach, at most burnedMax); a key only while its term is not 0. updateMood adds them at the month end, when
+// world.day has just turned, so the last 30 days are exactly last month's.
 export function fireMood(world) {
-  return {};
+  const out = {};
+  const d = world.danger;
+  if (d.lastFireDay !== null && world.day - d.lastFireDay <= DAYS_PER_MONTH) out.fire = DANGER_MOOD.fireLastMonth;
+  const n = d.burnDays.filter((day) => world.day - day <= DANGER_MOOD.burnedDays).length;
+  if (n) out.burned = Math.max(DANGER_MOOD.burnedMax, n * DANGER_MOOD.burnedEach);
+  return out;
 }
 
 // What clearing this many rubble tiles costs in this city.
