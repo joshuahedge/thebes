@@ -15,7 +15,7 @@
 //   { type: 'fire', id, covered, first }   a blaze started (by ignition, a spread or a raid's strike); covered: a staffed
 //                                           firehouse reaches it; first: this is the city's first-time pause (the sim has
 //                                           set world.speed to 0)
-//   { type: 'fire_grow', id, covered }     a blaze grew into a fire
+//   { type: 'fire_grow', id, covered, first }  a blaze grew into a fire (first: it paused the game, as for a fire)
 //   { type: 'fire_out', id, stage }        a blaze or fire was put out ('blaze' or 'fire')
 //   { type: 'burned', id, kind, to }       the building burned down: kind is its type, to the ids of what replaced it
 //                                           (empty plots for a home, rubble otherwise), in footprint order
@@ -29,14 +29,28 @@
 // that no staffed firehouse reaches sets world.speed to 0 through setSpeed and danger.firePaused, once per city; its
 // event says first: true. The fire event also carries cause ('ignite', 'spread' or 'raid'). A building in the fire stage
 // stops working (isWorking in labour.js), so a burning firehouse covers nothing until it is put out.
+//
+// The day, in this order (fireDay): (1) every building that was burning when the day began takes its day, in ascending
+// id, with the coverage as the day began. A blaze counts the day (days + 1) and, when it is covered and staffed, a
+// fought day (fought + 1); it is out once fought reaches need, and grows into a fire once days reaches FIRE.blazeDays,
+// its length drawn by hash2(id, day, seed + length) (10-15 days); the first-time pause applies to a fire that grows with
+// no staffed firehouse, and its fire_grow event carries first as the fire event does. A fire counts the day (days + 1,
+// left - 1) and sets danger.lastFireDay (so lastFireDay is the last day any building was in the fire stage); a covered
+// one (coverage above 0) goes out on hash2(id, day, seed + out) < outChance x coverage; otherwise it spreads to each
+// building that shares an edge with it, can burn and is not burning, on hash2(neighbour id, day, seed + spread +
+// burning id x 7919) < spreadChance, starting a blaze there (cause 'spread', whose first day is tomorrow), and it burns
+// the building down when left reaches 0. Put out, a building keeps everything and its risk is 0. (2) Every other
+// building that can burn adds its risk and may catch fire. (3) danger.burnDays forgets days a year (360 days) old.
 import { FIRE, FIRE_SALT, FIRE_RISK, HOUSE_RISK, FIRE_BANDS } from '../data/fire.js';
-import { allBuildings } from './world.js';
+import { allBuildings, makeBuilding, insertBuilding, removeBuilding } from './world.js';
 import { atLeast } from './progression.js';
 import { rubbleCostOf, riskOf } from './costs.js';
 import { roadReach, adjacentRoadTiles } from './reach.js';
 import { isWorking, staffRatio } from './labour.js';
 import { hash2 } from './rng.js';
 import { setSpeed } from './commands.js';
+import { footprint, ring, idx, inBounds } from './grid.js';
+import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 
 export { clearRubble } from './commands.js';   // the clearRubble command (spec 7.3) lives with demolish in commands.js
 
@@ -134,16 +148,88 @@ function pauseFirst(world) {
   return true;
 }
 
-// The day's fire step, run by tickDay after production: every building that can burn and is not burning adds its daily
-// risk (dailyRiskOf), and one at the threshold catches fire on a 3% draw (risk back to 0).
+const KEEP_BURN_DAYS = MONTHS_PER_YEAR * DAYS_PER_MONTH;   // danger.burnDays covers the last year (Safety looks back 12 months)
+
+// The day's fire step, run by tickDay after production (the order is in the header): fires burning since before today
+// take their day, then risk builds and buildings at the threshold may catch fire, then old burn days are forgotten.
 export function fireDay(world, events = null) {
   const day = world.day;
+  const list = allBuildings(world);
+  const lit = list.filter((b) => b.fire);
+  if (lit.length) {
+    const cover = fireCoverage(world);
+    for (const b of lit) {
+      if (world.buildings[b.id] !== b || !b.fire) continue;
+      if (b.fire.stage === 'blaze') blazeDay(world, b, cover, day, events);
+      else fireStageDay(world, b, cover, day, events);
+    }
+  }
   const cover = fireCoverage(world);
-  for (const b of allBuildings(world)) {
-    if (b.fire || !canBurn(b)) continue;
+  for (const b of list) {
+    if (b.fire || lit.includes(b) || !canBurn(b) || world.buildings[b.id] !== b) continue;   // put out today: risk stays 0
     b.risk = (b.risk || 0) + riskToday(world, b, cover);
     if (b.risk >= FIRE.threshold && draw(world, b.id, day, 'ignite') < FIRE.ignitionChance) igniteBuilding(world, b.id, events, 'ignite');
   }
+  forgetBurnDays(world);
+}
+
+// A blaze's day: fought when covered and staffed; out at need, a fire after FIRE.blazeDays.
+function blazeDay(world, b, cover, day, events) {
+  const f = b.fire;
+  const staffed = (cover.get(b.id) || 0) >= FIRE.staffedAt;
+  f.days += 1;
+  if (staffed) f.fought += 1;
+  if (f.fought >= f.need) { putOut(world, b, events); return; }
+  if (f.days < FIRE.blazeDays) return;
+  b.fire = { stage: 'fire', days: 0, left: between(FIRE.fireDays, draw(world, b.id, day, 'length')) };
+  world.danger.lastFireDay = day;
+  const first = !staffed && pauseFirst(world);
+  if (events) events.push({ type: 'fire_grow', id: b.id, covered: staffed, first });
+}
+
+// A fire's day: it may go out (when covered), spreads to its edge neighbours, and burns down when its days run out.
+function fireStageDay(world, b, cover, day, events) {
+  const f = b.fire;
+  f.days += 1;
+  f.left -= 1;
+  world.danger.lastFireDay = day;
+  const c = cover.get(b.id) || 0;
+  if (c > 0 && draw(world, b.id, day, 'out') < FIRE.outChance * c) { putOut(world, b, events); return; }
+  for (const n of edgeNeighbours(world, b)) {
+    if (n.fire || !canBurn(n)) continue;
+    if (hash2(n.id, day, (world.seed + FIRE_SALT.spread + Math.imul(b.id, 7919)) | 0) < FIRE.spreadChance) igniteBuilding(world, n.id, events, 'spread');
+  }
+  if (f.left <= 0) burnBuilding(world, b.id, events);
+}
+
+// Put out: the building is as it was, with risk 0 (spec 4.12).
+function putOut(world, b, events) {
+  const stage = b.fire.stage;
+  b.fire = null;
+  b.risk = 0;
+  if (stage === 'blaze') world.tally.blazesOut += 1;
+  else world.tally.firesOut += 1;
+  if (events) events.push({ type: 'fire_out', id: b.id, stage });
+}
+
+// The buildings sharing an edge with b's footprint (a 1x1 has at most 4, a 2x2 at most 8), ascending id. A road, a wall
+// or open ground between two buildings makes them no neighbours, so a road is a firebreak.
+function edgeNeighbours(world, b) {
+  const ids = new Set();
+  for (const [x, y] of ring(b.x, b.y, b.w, b.d)) {
+    if (!inBounds(world.size, x, y)) continue;
+    const id = world.occ[idx(world.size, x, y)];
+    if (id && id !== b.id) ids.add(id);
+  }
+  return [...ids].sort((p, q) => p - q).map((id) => world.buildings[id]).filter(Boolean);
+}
+
+// danger.burnDays keeps the days of the last year, oldest first.
+function forgetBurnDays(world) {
+  const days = world.danger.burnDays;
+  let k = 0;
+  while (k < days.length && days[k] <= world.day - KEEP_BURN_DAYS) k++;
+  if (k) days.splice(0, k);
 }
 
 // Starts a blaze in the building (cause: 'ignite', 'spread' or 'raid'). Returns true when a blaze started; false when
@@ -163,11 +249,20 @@ export function igniteBuilding(world, id, events = null, cause = 'ignite') {
   return true;
 }
 
-// STUB. Burns the building down now: a home becomes empty plots on its tiles (four for a 2x2) and its residents leave
-// the city; anything else becomes one rubble per footprint tile and loses its stock. Removes it and inserts the new
+// Burns the building down now: a home becomes empty plots on its tiles (four for a 2x2) and its residents leave the
+// city; anything else becomes one rubble per footprint tile and loses its stock. Removes it and inserts the new
 // buildings under new ids (never a type change in place). Returns the new ids, or [] when there is no such building.
+// Counts tally.burned, adds the day to danger.burnDays and pushes { type: 'burned', id, kind, to }.
 export function burnBuilding(world, id, events = null) {
-  return [];
+  const b = world.buildings[id];
+  if (!b) return [];
+  const kind = b.type === 'house' ? 'house' : 'rubble';   // a new house is an empty plot: tier 0, nobody living there
+  removeBuilding(world, b.id);
+  const to = footprint(b.x, b.y, b.w, b.d).map(([x, y]) => insertBuilding(world, makeBuilding(world, kind, x, y)).id);
+  world.tally.burned += 1;
+  world.danger.burnDays.push(world.day);
+  if (events) events.push({ type: 'burned', id: b.id, kind: b.type, to });
+  return to;
 }
 
 // STUB. Fire's alerts (codes above), in ascending building id.
