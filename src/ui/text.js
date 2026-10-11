@@ -639,6 +639,28 @@ export const scoreLineText = (delta) => Object.keys(SCORE_TEXT.parts).filter((p)
 // A milestone split as a game date: "Town in year 2, month 3" (day 0 is year 1, month 1).
 const SCORE_YEAR_DAYS = SCORE_DAYS_PER_MONTH * SCORE_MONTHS_PER_YEAR;
 export const splitDateText = (id, day) => `${scoreMilestoneName(id)} in year ${Math.floor(day / SCORE_YEAR_DAYS) + 1}, month ${Math.floor((day % SCORE_YEAR_DAYS) / SCORE_DAYS_PER_MONTH) + 1}`;
+// A split against the personal best on this seed and level (records' bestFor: the earliest day another city reached it),
+// in whole game-months; just the date when no other city got there.
+export function splitCompareText(id, day, bestDay) {
+  const base = splitDateText(id, day);
+  if (!Number.isInteger(bestDay)) return base;
+  const diff = Math.floor(bestDay / SCORE_DAYS_PER_MONTH) - Math.floor(day / SCORE_DAYS_PER_MONTH);
+  if (diff === 0) return `${base}: level with your best`;
+  return `${base}: ${plural(Math.abs(diff), 'month', 'months')} ${diff > 0 ? 'faster' : 'slower'} than your best`;
+}
+// Seal this reign (spec 4.19): the confirmation says exactly what sealReign records and what it does not change.
+Object.assign(SCORE_TEXT, { sealReign: 'Seal this reign', sealConfirm: 'Seal reign', notYet: 'Not yet', shareScore: 'Share score', stampNote: 'Its stamp shows on the title card.' });
+export const sealQuestion = (total, medal) => `Seal this reign? Your chronicle gets score ${total}${medal ? ` (${SCORE_TEXT.medals[medal]})` : ''} for this city. The city carries on.`;
+export const sealedText = (seal) => `Reign sealed with score ${seal.score}`;
+// Sharing (spec 4.19): opt-in, and every shared score says friends' honour.
+export const SHARE_TEXT = {
+  honour: "Friends' honour", honourHelp: "Friends' honour: a link can't be checked without a server.",
+  sharePicture: 'Share picture', shareLink: 'Share link', linkLabel: 'Link to this score', making: 'Making the picture…',
+  pictureSaved: 'Picture downloaded', copied: 'Copied', fileName: 'thebes-score.png',
+  seedLine: (seed, level) => `Seed ${seed} · ${level}`,
+  text: (total, rows, link) => `Thebes: score ${total}, friends' honour\n${rows}\n${link}`,
+};
+Object.assign(T, { sealReign: SCORE_TEXT.sealReign, shareScore: SCORE_TEXT.shareScore });   // the two sheets' headings
 // ── end s3 score ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

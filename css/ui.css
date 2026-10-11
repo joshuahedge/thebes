@@ -488,6 +488,11 @@ body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; 
 .score-section h4 { margin: 12px 0 4px; font-size: inherit; }
 #sheet .splits { list-style: none; margin: 0; padding: 0; }
 .splits li { padding: 2px 0; }
+/* Seal this reign and Share score (spec 4.19). The emoji row keeps its lines; the link reads whole and can be selected. */
+.seal-question { margin: 4px 0 8px; }
+#sheet .emoji-row { margin: 8px 0; font: inherit; line-height: 1.5; white-space: pre; overflow-x: auto; }
+#sheet .share-link-text { box-sizing: border-box; width: 100%; min-height: var(--tap); padding: 0 8px; font: inherit; color: var(--ink); background: var(--parchment-2); border: 1px solid var(--parchment-3); border-radius: var(--radius); }
+#sheet .honour { margin: 4px 0; font-style: italic; }
 /* ── end s3 score ── */
 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
