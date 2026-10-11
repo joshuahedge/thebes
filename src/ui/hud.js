@@ -12,9 +12,10 @@ import { T, dateText, shortDateText } from './text.js';
 export function summaryData(world) {
   const last = world.stats.lastMonth || { taxes: 0, wages: 0, upkeep: 0, net: 0 };
   let foodStored = 0;
+  const foodByGood = Object.fromEntries(FOOD_GOODS.map((g) => [g, 0]));
   for (const b of allBuildings(world)) {
     const def = BUILDINGS[b.type];
-    if (def.stores || def.sells) for (const g of FOOD_GOODS) foodStored += b.store[g] || 0;
+    if (def.stores || def.sells) for (const g of FOOD_GOODS) { foodStored += b.store[g] || 0; foodByGood[g] += b.store[g] || 0; }
   }
   let foodNeed = 0;
   for (const h of housesOf(world)) if (h.tier >= 1 && wantedGoods(h).length) foodNeed += monthlyNeed(h, FOOD_GOODS[0]);
@@ -22,7 +23,8 @@ export function summaryData(world) {
   return {
     gold: world.gold, people: population(world), mood: world.mood, moodBreakdown: world.moodBreakdown, date: dateParts(world),
     taxes: last.taxes, wages: last.wages, upkeep: last.upkeep, net: last.net,
-    foodStored, foodNeed, monthsOfFood: foodNeed > 0 ? Math.round((foodStored / foodNeed) * 10) / 10 : null,
+    tradeIncome: last.tradeIncome || 0, made: last.made || {}, used: last.used || {}, difficulty: world.difficulty,   // the economy (spec 4.10, 4.18)
+    foodStored, foodByGood, foodNeed, monthsOfFood: foodNeed > 0 ? Math.round((foodStored / foodNeed) * 10) / 10 : null,
     workforce: L.workforce, working: L.employed, jobless: L.workforce - L.employed, jobs: L.jobs,
   };
 }

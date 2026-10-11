@@ -120,3 +120,5 @@ import './ui/achievementsSheet.test.js';
 import './sim/newItems.test.js';
 import './ui/stage2Cards.test.js';
 import './ui/tradeSheet.test.js';
+import './sim/goodsMonth.test.js';
+import './ui/houseSheetEconomy.test.js';
