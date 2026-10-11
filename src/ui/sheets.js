@@ -15,6 +15,7 @@ import { achievementProgress } from '../sim/achievements.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
 import { summaryData } from './hud.js';
+import { nearestTerrainTile } from './goalsList.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
   goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T } from './text.js';
@@ -46,8 +47,10 @@ const CAUSE_FIX = {
   low_desirability: { category: 'homes', item: 'garden', at: 'home' },
   no_square: { category: 'homes', item: 'house', at: 'home' },
   // No store for the good near the bazaar: Show me that store beside the bazaar. Nothing makes it there: Show me the
-  // first of its makers the city has none of (a clay pit, then a potter), else the workshop, beside the bazaar. Neither
-  // while the building is not unlocked yet (the words then name the milestone).
+  // first of its makers the city has none of (a clay pit, then a potter), else the workshop, beside the bazaar; a maker
+  // that needs fertile or rocky ground aims at the nearest free tile of it instead (at: 'terrain'), which can lie well
+  // beyond the ghost's search around the bazaar. Neither while the building is not unlocked yet (the words then name the
+  // milestone).
   no_good: (cause, world) => {
     const item = storeFor(cause.good);
     return item && isUnlocked(world, item) ? { category: categoryOfItem(item), item, at: 'building' } : null;
@@ -56,7 +59,7 @@ const CAUSE_FIX = {
     const makers = goodMakers(cause.good);
     if (!makers.length || makers.some((t) => !isUnlocked(world, t))) return null;
     const item = makers.find((t) => !allBuildings(world).some((b) => b.type === t)) || makerOf(cause.good);
-    return { category: categoryOfItem(item), item, at: 'building' };
+    return { category: categoryOfItem(item), item, at: BUILDINGS[item].terrain ? 'terrain' : 'building' };
   },
 };
 const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
@@ -166,7 +169,8 @@ export function createSheets({ container, store, world, placement, cameraControl
       if (!building) return li;
       action = button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(building.type)), onClick: () => onSelect(building.id) });
     } else {
-      const at = centreOf(fix.at === 'building' && building ? building : h);
+      const near = centreOf(fix.at !== 'home' && building ? building : h);
+      const at = fix.at === 'terrain' ? nearestTerrainTile(world, BUILDINGS[fix.item].terrain, near) || near : near;
       const target = { category: fix.category, item: fix.item, x: at.x, y: at.y };
       action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${words.fix}`, onClick: () => onShowMe(target) });
     }

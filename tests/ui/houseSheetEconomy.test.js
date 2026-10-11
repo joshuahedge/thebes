@@ -4,6 +4,9 @@ import { FIRSTS } from '../../src/data/firsts.js';
 import { ACHIEVEMENTS } from '../../src/data/achievements.js';
 import { DAILY_POOL } from '../../src/data/daily.js';
 import { TIPS, TIP_FIRST_DELAY_MS } from '../../src/data/tips.js';
+import { BUILDINGS } from '../../src/data/buildings.js';
+import { NEAREST_FIT_RADIUS } from '../../src/data/ui.js';
+import { canPlace } from '../../src/sim/commands.js';
 import { houseStatus } from '../../src/sim/housing.js';
 import { desirabilityContributors } from '../../src/sim/desirability.js';
 import { removeBuilding } from '../../src/sim/world.js';
@@ -88,6 +91,27 @@ describe('ui house sheet for the economy', () => {
     expect(causeText({ code: 'next_delivery', id: null, good: 'figs' }, w, 'twoFoods').cause).toBe('The next delivery brings figs');
     expect(causeText({ code: 'next_delivery', id: null }, w, 'food')).toBe(CAUSE_TEXT.next_delivery);   // food keeps its words
     expect(causeText({ code: 'no_such_code', id: null }, w, 'water')).toBe(null);
+  });
+  it('aims Show me for a terrain-bound maker at fertile land, even when it lies beyond the search around the bazaar', async () => {
+    const w = makeTestWorld({ gold: 5000 });                                          // fertile land is the columns x < 8
+    w.milestone = 'town';
+    setRoad(w, 0, 10, 31, 10);
+    const manor = addRaw(w, 'house', 22, 8, { w: 2, d: 2, tier: 6, residents: 60, stock: { grain: 30, pottery: 10 }, stockedFor: 60 });
+    const bazaar = addRaw(w, 'bazaar', 24, 11);
+    addRaw(w, 'granary', 28, 11, { store: { grain: 100 } });                          // a store for figs in the bazaar's reach, holding none
+    staffAll(w);
+    const r = await rigUI({ world: w });
+    try {
+      r.store.set(select(r.store.get(), manor.id));
+      const figs = rowOf(r, 'twoFoods');
+      expect(words(figs, '.cause')).toBe('Nothing grows figs near the bazaar');
+      fire(figs.querySelector('.show-me'), 'click');
+      expect(r.store.get().tool).toEqual({ kind: 'building', type: 'farm_fig' });
+      const g = r.store.get().ghost;
+      expect(bazaar.x - g.x).toBeGreaterThan(NEAREST_FIT_RADIUS);                     // the fertile land is out of the search around the bazaar
+      expect(canPlace(w, 'farm_fig', g.x, g.y).ok).toBe(true);                        // and the ghost sits on a site where an orchard can be placed
+      expect(BUILDINGS.farm_fig.terrain).toBe('fertile');
+    } finally { r.cleanup(); }
   });
   it('names a missing booth, an idle one and one with no road, each with its fix', async () => {
     const { w, home } = street({ tier: 5, residents: 22, stock: { grain: 10, pottery: 5 } });
@@ -202,6 +226,21 @@ describe('ui house sheet for the economy', () => {
       for (let n = head.nextElementSibling; n && n.tagName !== 'H3'; n = n.nextElementSibling) goods.push([n.firstChild.textContent, n.lastChild.textContent]);
       expect(goods).toEqual([[goodName('grain'), '25 made, 18 used'], [goodName('pottery'), '30 made, 26 used'], [goodName('clay'), '40 made, 30 used']]);
     } finally { r.cleanup(); }
+  });
+  it('has words for every code the housing check can give as a cause, so no row is left silent', async () => {
+    const w = makeTestWorld();
+    const src = await (await fetch('/src/sim/housing.js')).text();
+    const providers = Object.keys(BUILDINGS).filter((t) => BUILDINGS[t].provides);   // the kinds in the ${kind}_idle, ${kind}_no_road and no_${kind} codes
+    const codes = new Set([...src.matchAll(/code: '([a-z_]+)'/g)].map((m) => m[1]));
+    for (const m of src.matchAll(/code: `([^`]+)`/g)) for (const kind of providers) codes.add(m[1].replace('${kind}', kind));
+    expect(codes.size).toBeGreaterThan(20);                                           // the scan found the codes; a booth's are among them
+    for (const code of ['booth_idle', 'no_booth', 'low_desirability', 'no_square', 'good_unmade']) expect(codes.has(code)).toBe(true);
+    const goodsCodes = ['no_good', 'good_unmade', 'next_delivery'];
+    for (const code of codes) {
+      const goods = goodsCodes.includes(code);
+      const words = causeText({ code, id: null, ...(goods ? { good: 'pottery' } : {}) }, w, goods ? 'pottery' : 'water');
+      expect([code, Boolean(words && words.cause && words.cause.length > 0)]).toEqual([code, true]);
+    }
   });
   it('brings the desirability tip on a Townhouse sheet, and the merge tip once that one is seen', async () => {
     let t = 0;
