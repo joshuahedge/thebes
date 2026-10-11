@@ -16,7 +16,7 @@ const hasAlert = (world, code) => alertsFor(world).some((a) => a.code === code);
 
 // Road the player laid: road tiles that are not part of the generator's start road (an exact set
 // difference, so taking up a start-road tile and laying one elsewhere still counts the new tile).
-function laidRoadTiles(world) {
+export function laidRoadTiles(world) {
   const start = new Set(world.startRoad.map(([x, y]) => idx(world.size, x, y)));
   let n = 0;
   for (let i = 0; i < world.road.length; i++) if (world.road[i] && !start.has(i)) n++;
