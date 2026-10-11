@@ -3,6 +3,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { MILESTONES } from '../data/progression.js';
 import { TIERS } from '../data/housing.js';
+import { ACHIEVEMENTS } from '../data/achievements.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -174,6 +175,7 @@ export const T = {
   hoverHint: 'Hover a building or pick a card',
   play: 'Play', mapButton: 'Map', layers: 'Layers',
   noHomesInReach: 'No homes in reach yet',
+  achievement: 'Achievement', dailyDone: 'Daily goal done', guideDone: "You've got the basics",
 };
 
 export const importErrorText = (code) => (code === 'newer_version' ? T.saveNewer : code === 'read_failed' ? T.fileUnreadable : T.saveUnreadable);
@@ -185,3 +187,60 @@ export const HELP_ROWS = [
   ['rotate', 'Rotate, once something can rotate'], ['minimap', 'Open the minimap'], ['overlay', 'Cycle the overlays'],
   ['confirm', 'Confirm'], ['back', 'Back one step'], ['undo', 'Undo', 'Ctrl+Z or Cmd+Z'], ['help', 'Show this list'],
 ];
+
+// Celebrations (early-game pass 3.6): what each first says (what happened and why it matters), achievement names and
+// their exact conditions, and the gold suffix on a caption. Numbers come from the data, so the words never drift.
+const TOWN = MILESTONES.find((m) => m.id === 'town');
+export const FIRST_TEXT = {
+  first_family: 'The first family has moved in. People work your buildings and pay taxes.',
+  first_full_home: 'A home is full. Meet its needs and it grows to hold more people.',
+  first_harvest: 'First harvest: grain reached the granary. Bazaars can now sell food.',
+  first_shack: `First ${TIERS[2].name}: water let a hut grow. ${TIERS[2].name}s hold ${TIERS[2].capacity} people.`,
+  first_cottage: `First ${TIERS[3].name}: food let a home grow. ${TIERS[3].name}s hold ${TIERS[3].capacity} people and pay more tax.`,
+  first_house: `First ${TIERS[4].name}: a temple let a home grow. ${TIERS[4].name}s hold ${TIERS[4].capacity} people.`,
+  first_profit: 'First month in profit: taxes covered wages and upkeep with gold to spare.',
+  people_100: `100 people live here now. At ${TOWN.population} people the city becomes a ${TOWN.name}.`,
+};
+
+export const ACHIEVEMENT_NAMES = {
+  way_in: 'Way in', neighbours: 'Neighbours', street: 'A proper street', busy_streets: 'Busy streets',
+  water_bearer: 'Water bearer', breadbasket: 'Breadbasket', plenty: 'Plenty', market_day: 'Market day', faithful: 'Faithful',
+  shack_row: 'Shack row', cottage_lane: 'Cottage lane', house_proud: 'House proud',
+  hamlet: 'Hamlet', town: 'Town at last', bustling: 'Bustling',
+  good_harvests: 'Good harvests', granary_of_the_river: 'Granary of the river',
+  steady_books: 'Steady books', prosperous: 'Prosperous',
+  no_one_hungry: 'No one hungry', water_for_all: 'Water for all', busy_hands: 'Busy hands',
+  on_course: 'On course', day_by_day: 'Day by day',
+};
+
+const BUILDING_PLURALS = { well: 'wells', farm_grain: 'grain farms', granary: 'granaries', bazaar: 'bazaars', temple: 'temples' };
+const TALLY_CONDITIONS = {
+  harvested: (n) => `Harvest ${n} food`,
+  profitMonths: (n) => `End ${n} months in profit`,
+  upgrades: (n) => `Grow homes ${n} times`,
+  dailyDone: (n) => `Finish ${n} daily goals`,
+};
+
+// An achievement's exact condition, from its declarative measure ("Have 25 homes").
+export function achievementCondition(m) {
+  switch (m.kind) {
+    case 'roads': return `Lay ${m.n} road tiles beyond the starting road`;
+    case 'homes': return `Have ${m.n} homes`;
+    case 'buildings': {
+      const one = buildingName(m.type).toLowerCase();
+      return `Have ${plural(m.n, one, BUILDING_PLURALS[m.type] || `${one}s`)}`;
+    }
+    case 'tier': return `Have ${m.n} homes at ${tierName(m.tier)} or better`;
+    case 'people': return `Reach ${m.n} people`;
+    case 'tally': return TALLY_CONDITIONS[m.key] ? TALLY_CONDITIONS[m.key](m.n) : '';
+    case 'goals': return `Finish ${m.n} goals`;
+    case 'fedAll': return `Reach ${m.people} people with every ${tierName(3)} or better home fed`;
+    case 'waterAll': return `Have ${m.homes} lived-in homes, all with water`;
+    case 'jobs': return `Reach ${m.people} people with ${Math.round(m.rate * 100)}% or fewer out of work`;
+    default: return '';
+  }
+}
+export const ACHIEVEMENT_TEXT = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, achievementCondition(a.measure)]));
+
+// The gold on a caption reads exactly as it does on the goals strip and sheets.
+export const cheerReward = (n) => rewardText(n);

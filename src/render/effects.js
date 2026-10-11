@@ -1,14 +1,16 @@
 // Feedback effects (spec 5.4): a dust puff on placing, a glow and "+Shack" on upgrade, a coral pulse and
-// "−Cottage" on downgrade, and a hook for the milestone banner (the banner itself is 1c's DOM). The settle
+// "−Cottage" on downgrade, and a sparkle on a building for a first (early-game pass 3.6). The settle
 // (early-game pass 2.4): a placed building rises from the ground while two haulers work at its front corners
 // in a little dust; the renderer reveals the sprite bottom-up from risingIds. Under prefers-reduced-motion
-// there are no puffs, glows, pulses or rises (the building simply appears), and labels stay still.
+// there are no puffs, glows, pulses or rises (the building simply appears), labels stay still and a sparkle is
+// a still ring. The onMilestone hook stays for callers that want it; the interface celebrates milestones itself
+// (celebrate.js).
 import { TIERS } from '../data/housing.js';
 import { p, U, quad } from './iso.js';
 import { UI, GOLD, TERRAIN } from './art/palette.js';
 import { hauler } from './art/figures.js';
 
-export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900 };
+export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900, sparkle: 1200 };
 export const RISE_STEPS = 2;   // hauler steps per rise: about two a second
 
 export function prefersReducedMotion() {
@@ -28,6 +30,8 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
     glow(x, y, now) { if (!reduced()) add({ kind: 'glow', x, y, start: now }); },
     pulse(x, y, now) { if (!reduced()) add({ kind: 'pulse', x, y, start: now }); },
     label(x, y, text, color, now) { add({ kind: 'label', x, y, text, color, start: now }); },
+    // A first (early-game pass 3.6): a burst of small diamonds, or a still ring that fades under reduced motion.
+    sparkle(x, y, color, now) { add({ kind: 'sparkle', x, y, color, still: reduced(), start: now }); },
     // Building `id` with footprint w x d at tile (x, y) rises from the ground over EFFECT_MS.rise.
     rise(id, x, y, w, d, now) { if (!reduced()) add({ kind: 'rise', id, x, y, w, d, start: now }); },
     // id -> how far each rising building is up, in [0, 1).
@@ -84,6 +88,18 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
           const step = (k * RISE_STEPS) % 1;
           hauler(g, e.x + 0.05, e.y + e.d + 0.25, step);
           hauler(g, e.x + e.w + 0.25, e.y + 0.05, (step + 0.5) % 1);
+        } else if (e.kind === 'sparkle') {
+          const q = U(c, 14);                                    // about a storey above the building's centre
+          if (e.still) g.circ(q, 10, 'none', { stroke: e.color, strokeWidth: 1.5, strokeAlpha: 1 - t });
+          else {
+            for (let i = 0; i < 8; i++) {
+              const a = (i / 8) * Math.PI * 2;
+              const r = 4 + t * 14;
+              const s = 2.4 * (1 - t * 0.5);
+              const d = [q[0] + Math.cos(a) * r, q[1] + Math.sin(a) * r * 0.6 - t * 4];
+              g.poly([[d[0], d[1] - s], [d[0] + s * 0.6, d[1]], [d[0], d[1] + s], [d[0] - s * 0.6, d[1]]], e.color, { alpha: 1 - t });
+            }
+          }
         } else if (e.kind === 'label') {
           const q = U(c, 16 + fx.labelLift(t));
           g.text([q[0] + 0.6, q[1] + 0.6], e.text, { size: 7, color: UI.halo, alpha: Math.min(1, (1 - t) * 1.5) });

@@ -4,7 +4,7 @@ import { MILESTONES } from '../data/progression.js';
 import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { CATEGORIES, toolForItem, categoryOfItem, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
-import { goalById, nextItemFor } from '../sim/goals.js';
+import { goalById, nextItemFor, guideActive } from '../sim/goals.js';
 import { settle } from '../sim/settle.js';
 import { startDaily } from '../sim/daily.js';
 import { setGuide } from '../sim/commands.js';
@@ -12,6 +12,7 @@ import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
+import { GOLD } from '../render/art/palette.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
 import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode, pickCategory } from './modes.js';
 import { pickLayout, watchLayout } from './layout.js';
@@ -36,12 +37,13 @@ import { createMinimap } from './minimap.js';
 import { createAlerts, mapSummaryText } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
 import { createToasts } from './toasts.js';
+import { createCelebrations } from './celebrate.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { welcomeSheet } from './welcomeBack.js';
 import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
-import { buildingName, reasonText, milestoneText, rewardText, T } from './text.js';
+import { buildingName, reasonText, milestoneText, FIRST_TEXT, ACHIEVEMENT_NAMES, DAILY_TEXT, T } from './text.js';
 
 const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
@@ -68,10 +70,10 @@ export function createUI({
   const sfx = givenSfx || createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
   const toasts = createToasts({ container: $('toasts') });
-  const effects = createEffects({
-    reducedMotion: settings.reducedMotion,
-    onMilestone: (id) => { const m = MILESTONES.find((x) => x.id === id); toasts.show(milestoneText(m ? m.name : id)); },
-  });
+  const effects = createEffects({ reducedMotion: settings.reducedMotion });
+  // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
+  // (hoisted) forwards settle's events to onEvents, which shows them.
+  const celebrations = createCelebrations({ container: $('cheer') });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
   const placement = createPlacement({ world, store, afterCommand, effects, now });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
@@ -221,7 +223,7 @@ export function createUI({
     const events = settle(world, []);
     if (events.length) { effects.fromEvents(world, events, now()); onEvents(events); }
     syncDaily();
-    // The command's own toast goes last: two toasts at most, so goal lines from the same command never push its Undo out.
+    // Celebrations from the same command are captions in #cheer, not toasts, so nothing pushes the command's Undo toast out.
     if (e.undoable) toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
     else if (e.kind === 'undo') toasts.show(T.undone);
     refresh();
@@ -258,14 +260,39 @@ export function createUI({
     try { ok = await hooks.save(reason); } catch (e) { ok = false; }
     setSaveFailed(!ok);                 // a no-op if the UI was destroyed while the save was in flight
   }
+  // Celebrations queue in #cheer one at a time (early-game pass 3.6); each one's sound, buzz and sparkle come with its caption.
   function onEvents(events) {
     for (const e of events) if (e.type === 'month') { autosave('month'); break; }
-    for (const e of events) if (e.type === 'goal') { const g = goalById(e.id); if (g) toasts.show(`${T.goalDone}: ${g.text} (${rewardText(e.reward)})`); }
     for (const e of events) {
       if (e.type === 'upgrade') sfx.play('upgrade');
-      else if (e.type === 'goal') sfx.play('goal');
-      else if (e.type === 'milestone') { sfx.play('milestone'); sfx.buzz(40); }
+      const cheer = cheerFor(e);
+      if (cheer) celebrations.show(cheer);
     }
+  }
+  function cheerSound() { sfx.play('goal'); sfx.buzz(20); }
+  // The caption for one sim event, or null. Achievements stay quiet while the guide runs (spec 3.8): the sim
+  // still records them, and the summary shows them as done once the guide ends.
+  function cheerFor(e) {
+    if (e.type === 'milestone') {
+      const m = MILESTONES.find((x) => x.id === e.id);
+      return { tier: 'milestone', text: milestoneText(m ? m.name : e.id), onShow: () => { sfx.play('milestone'); sfx.buzz(40); } };
+    }
+    if (e.type === 'goal') {
+      const g = goalById(e.id);
+      return g ? { tier: 'first', text: `${T.goalDone}: ${g.text}`, reward: e.reward, onShow: cheerSound } : null;
+    }
+    if (e.type === 'first') {
+      if (!FIRST_TEXT[e.id]) return null;
+      const at = Number.isFinite(e.x) && Number.isFinite(e.y) ? { x: e.x, y: e.y } : null;
+      return { tier: 'first', text: FIRST_TEXT[e.id], reward: e.reward, onShow: () => { cheerSound(); if (at) effects.sparkle(at.x, at.y, GOLD, now()); } };
+    }
+    if (e.type === 'achievement') {
+      if (guideActive(world) || !ACHIEVEMENT_NAMES[e.id]) return null;
+      return { tier: 'first', text: `${T.achievement}: ${ACHIEVEMENT_NAMES[e.id]}`, onShow: cheerSound };
+    }
+    if (e.type === 'daily') return DAILY_TEXT[e.id] ? { tier: 'first', text: `${T.dailyDone}: ${DAILY_TEXT[e.id]}`, reward: e.reward, onShow: cheerSound } : null;
+    if (e.type === 'guide_done') return { tier: 'first', text: T.guideDone, reward: e.reward, onShow: cheerSound };
+    return null;
   }
   // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js).
   let pendingUpdate = null;
@@ -419,16 +446,16 @@ export function createUI({
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
-    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
+    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, celebrations, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
     destroy() {
       if (destroyed) return;
       destroyed = true;
       guide.destroy(); stopHelpWatch();
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
-      mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear();
+      mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
-      for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
+      for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
       $('goals').hidden = false;                       // the strip hides its row when no goal is open; the next UI decides again
       for (const id of ['sheet', 'dialog']) { const c = $(id); clear(c); c.hidden = true; }
       confirmBar.element.remove();
