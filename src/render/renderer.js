@@ -42,7 +42,7 @@ export function collectObjects(world, range, walkers = [], registry = ART) {
   const out = [];
   for (const b of Object.values(world.buildings)) {
     if (!intersects(b, range)) continue;
-    const slot = slotFor(b);
+    const slot = slotFor(b, world);
     const def = registry[slot];
     if (!def || !(def.draw || def.png)) continue;
     out.push({ key: depthKey(b.x, b.y, b.w, b.d), id: b.id, slot, def, x: b.x, y: b.y });

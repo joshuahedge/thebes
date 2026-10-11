@@ -27,6 +27,7 @@ import './render/ctx.test.js';
 import './render/primitives.test.js';
 import './render/housingArt.test.js';
 import './render/servicesArt.test.js';
+import './render/lifeArt.test.js';
 import './render/natureArt.test.js';
 import './render/figuresArt.test.js';
 import './render/artBounds.test.js';
