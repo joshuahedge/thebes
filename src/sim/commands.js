@@ -101,6 +101,12 @@ export function setSpeed(world, speed) {
   return { ok: true, warnings: [] };
 }
 
+// The guided start (early-game pass 3.2): Skip guide turns it off, Resume guide turns it back on.
+export function setGuide(world, on) {
+  world.guide.on = Boolean(on);
+  return { ok: true, warnings: [] };
+}
+
 function lineInto(ax, ay, bx, by, out) {
   const dx = Math.sign(bx - ax), dy = Math.sign(by - ay);
   let x = ax, y = ay;
