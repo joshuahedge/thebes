@@ -19,9 +19,11 @@ export function guideState(world) {
   return { active: true, goal, item, category: item ? categoryOfItem(item) : null };
 }
 
-// How to play offers "Resume guide" only while the guide is off and one of its steps is still open: a guide
-// resumed after every step is done would pay its 50-gold bonus for nothing it guided.
-export function canResumeGuide(world) {
+// How to play offers "Resume guide" only under Help: Guide and tips (`help`, settings.help), while the guide is off and
+// one of its steps is still open. A guide resumed under Tips only would vanish on the next load (createUI turns it off
+// there), and one resumed after every step is done would pay its 50-gold bonus for nothing it guided.
+export function canResumeGuide(world, help = 'full') {
+  if (help !== 'full') return false;
   const done = new Set(world.goals.completed);
   return !world.guide.on && !world.guide.done && GUIDE_GOALS.some((id) => !done.has(id));
 }

@@ -124,6 +124,7 @@ export const OVERLAY_LEGEND = {
 };
 
 export const dateText = ({ year, month, day }) => `Year ${year}, month ${month}, day ${day}`;
+export const shortDateText = ({ year, month }) => `Y${year} M${month}`;   // the top bar's date where room is short
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 export const progressText = (n, of) => `${n} of ${of}`;
 export const goalsProgressText = (done, total) => `${done} of ${total} done`;

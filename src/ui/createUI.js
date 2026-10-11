@@ -96,10 +96,11 @@ export function createUI({
     restoreFocus: () => { const b = $('goals').querySelector('.show-me'); if (b && !$('goals').hidden) b.focus(); },
   });
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
-  // (hoisted) forwards settle's events to onEvents, which shows them. On a phone at larger text the goals strip, a tip
-  // and a caption together would reach the middle of the map, so there a caption waits while a tip shows (the tip
-  // closes itself there); the frame loop resumes the queue.
-  const celebrations = createCelebrations({ container: $('cheer'), hold: () => tipsTight() && Boolean(tips.current()) });
+  // (hoisted) forwards settle's events to onEvents, which shows them. On a phone at larger text, and on any phone held
+  // sideways (a screen 360-390 px tall), the goals strip, a tip and a caption together would reach the middle of the
+  // map, so there a caption waits while a tip shows; the frame loop resumes the queue once the tip has closed.
+  const holdCaptions = () => (tipsTight() || store.get().layout === 'compact') && Boolean(tips.current());
+  const celebrations = createCelebrations({ container: $('cheer'), hold: holdCaptions });
   const nudge = createNudge({ now: () => frameNow });
   const nudgeLine = el('p', { class: 'nudge-line', hidden: true });
   const nudgeRegion = el('div', { class: 'nudge', role: 'status', 'aria-live': 'polite' }, [nudgeLine]);   // stays rendered, so the line is announced when it appears
@@ -121,7 +122,10 @@ export function createUI({
 
   const speedBar = el('div', { class: 'speed-bar' });
   speedControl.mountBar(speedBar);
-  const hud = createHud({ world, store, container: $('topbar'), speedBar, onOpenSummary: () => toggleSheet('summary'), onOpenMenu: () => toggleSheet('menu') });
+  const hud = createHud({
+    world, store, container: $('topbar'), speedBar, onOpenSummary: () => toggleSheet('summary'), onOpenMenu: () => toggleSheet('menu'),
+    shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150,
+  });
   const dock = createDock({ container: $('dock'), store, world, onPick: pick });
   const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: confirm, onUndo: undo });
   const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas });
@@ -133,7 +137,7 @@ export function createUI({
   $('goals').append(nudgeRegion);                      // the nudge's one line sits under the strip and hides with it (early-game pass 3.5)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
-    canResumeGuide: () => canResumeGuide(world), onResumeGuide: () => { setGuide(world, true); refresh(); },
+    canResumeGuide: () => canResumeGuide(world, settings.get().help), onResumeGuide: () => { setGuide(world, true); refresh(); },
   });
   // Choosing Tips only or Off turns a running guide off at once (spec 3.1: all of it can be switched off).
   // Choosing Guide and tips again does not restart it; Resume guide in How to play does.
