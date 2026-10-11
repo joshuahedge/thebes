@@ -1,16 +1,15 @@
 import { describe, it, expect } from '../harness.js';
-import { createWorld, WORLD_VERSION } from '../../src/sim/world.js';
+import { createWorld, STAGE3_TALLY } from '../../src/sim/world.js';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../../src/data/difficulty.js';
 
 describe('world v3', () => {
-  it('creates a version 3 world with a difficulty, no trade, no new items and the new tallies at zero', () => {
+  it('creates a world with a difficulty, no trade, no new items and the new tallies at zero', () => {
     const w = createWorld({ seed: 4 });
-    expect(WORLD_VERSION).toBe(3);
-    expect(w.version).toBe(3);
     expect(w.difficulty).toBe('normal');
     expect(w.trade).toEqual({ routes: {}, orders: {}, drift: {}, used: {}, year: 1 });
     expect(w.newItems).toEqual([]);
-    expect(w.tally).toEqual({
+    const stage2 = Object.fromEntries(Object.entries(w.tally).filter(([k]) => !STAGE3_TALLY.includes(k)));   // Stage 3's: tests/sim/worldV4.test.js
+    expect(stage2).toEqual({
       harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0,
       made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0,
     });
@@ -41,9 +40,12 @@ describe('world v3', () => {
 });
 
 describe('data difficulty', () => {
-  it('lists Relaxed, Normal and Hard with the spec 4.18 multipliers', () => {
-    expect(DIFFICULTY_ORDER).toEqual(['relaxed', 'normal', 'hard']);
+  it('lists Peaceful, Relaxed, Normal and Hard with the spec 4.18 multipliers, and raids on all but Peaceful', () => {
+    expect(DIFFICULTY_ORDER).toEqual(['peaceful', 'relaxed', 'normal', 'hard']);
     expect(Object.keys(DIFFICULTIES).sort()).toEqual([...DIFFICULTY_ORDER].sort());
-    expect(DIFFICULTIES).toEqual({ relaxed: { cost: 0.8, risk: 0.5 }, normal: { cost: 1, risk: 1 }, hard: { cost: 1.25, risk: 1.5 } });
+    expect(DIFFICULTIES).toEqual({
+      peaceful: { cost: 0.8, risk: 0.5, raids: false }, relaxed: { cost: 0.8, risk: 0.5, raids: true },
+      normal: { cost: 1, risk: 1, raids: true }, hard: { cost: 1.25, risk: 1.5, raids: true },
+    });
   });
 });

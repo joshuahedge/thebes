@@ -2,6 +2,7 @@
 // centre of their tile) and draw their own soft ground shadow.
 import { p, U, hs } from './primitives.js';
 import { SHADOW, LEAF, LEAF2, LEAF3, TRUNK, TRUNK_RING } from './palette.js';
+import { AMBIENT } from '../../data/ambient.js';
 
 export function palmAt(g, gx, gy, sc = 1, z = 0) {
   const c = U(p(gx, gy), z);
@@ -78,3 +79,23 @@ export const NATURE_ART = {
   palm: { w: 1, d: 1, height: 25, bounds: [-16, -22, 20, 14], shadows: [], draw: (g, x, y) => palmAt(g, x + 0.5, y + 0.5, 1, 0) },
   acacia: { w: 1, d: 1, height: 18, bounds: [-16, -12, 22, 16], shadows: [], draw: (g, x, y) => acacia(g, x + 0.5, y + 0.5) },
 };
+
+// Lean slots for ambient sway (spec 5.6, render/ambient.js treeSlot): each tree again, leant k steps of
+// AMBIENT.treeSwayDeg / AMBIENT.treeLeanSteps degrees about the foot of its trunk (k from -steps to steps, not 0).
+function leant(draw, deg) {
+  return (g, x, y) => {
+    const base = p(x + 0.5, y + 0.5), a = (deg * Math.PI) / 180, s = g.scale;
+    g.save();
+    g.ctx.translate(base[0] * s, base[1] * s);
+    g.ctx.rotate(a);
+    g.ctx.translate(-base[0] * s, -base[1] * s);
+    draw(g, x, y);
+    g.restore();
+  };
+}
+for (const slot of ['palm', 'acacia']) {
+  const def = NATURE_ART[slot], [l, t, r, b] = def.bounds;
+  for (let k = -AMBIENT.treeLeanSteps; k <= AMBIENT.treeLeanSteps; k++) {
+    if (k) NATURE_ART[`${slot}.l${k}`] = { ...def, bounds: [l - 2, t - 1, r + 2, b], draw: leant(def.draw, (k * AMBIENT.treeSwayDeg) / AMBIENT.treeLeanSteps) };
+  }
+}

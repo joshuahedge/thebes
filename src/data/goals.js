@@ -1,10 +1,12 @@
 // Goals (spec 4.1, early-game pass 3.2 and 3.3): the opening chain in chapters, then the economy's goals to
 // the Capital, and first-time troubles that become goals. Plain data: needs are declarative so missions can
 // define goals the same way later; src/sim/goals.js evaluates them. Need kinds: road, houses, building, people,
-// tier, routes (open trade routes), noAlert, gold, all. A showMe target is startRoad, houses, focus, alert or
-// rocky (any target the interface does not know points at the city's focus). A goal with `from` (a milestone id)
+// tier, routes (open trade routes), noAlert, gold, all. A showMe target is startRoad, houses, focus, alert, rocky or
+// raid (any target the interface does not know points at the city's focus). A goal with `from` (a milestone id)
 // waits for that milestone (or the people it takes), where its buildings unlock or its tier can be reached: the list
-// the player sees ends before it, so nothing later shows ahead of it (openGoals in src/sim/goals.js).
+// the player sees ends before it, so nothing later shows ahead of it (openGoals in src/sim/goals.js). Stage 3: a goal
+// with `raids: true` is about raids, so a Peaceful city (no raids, spec 4.18) never lists it; an event goal's trigger
+// may be a list of alert codes, and dirText words it by the direction raiders come from (openGoals).
 export const GOAL_REWARD = 25;
 export const EVENT_REWARD = 10;    // a first-time trouble put right
 export const GUIDE_REWARD = 50;    // paid once, when the guided start's goals are all done
@@ -19,6 +21,8 @@ export const GOALS = [
   { id: 'people100', chapter: 'grow', text: 'Reach 100 people', reward: GOAL_REWARD, need: { kind: 'people', n: 100 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'homes_house', chapter: 'grow', text: 'Grow 8 homes to House or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 4, n: 8 }, showMe: { category: 'services', item: 'temple', target: 'houses' } },
   { id: 'town', chapter: 'grow', text: 'Reach 150 people to become a Town', reward: GOAL_REWARD, need: { kind: 'people', n: 150 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
+  // Stage 3 (spec 4.1, 4.19): fire risk begins at Town, so the firehouse comes right after it.
+  { id: 'firehouse', chapter: 'danger', text: 'Build a firehouse', reward: GOAL_REWARD, need: { kind: 'building', type: 'firehouse', n: 1 }, showMe: { category: 'services', item: 'firehouse', target: 'houses' } },
   // From Town (spec 4.1, 4.6): each new need arrives with the goal that builds its chain, then a count of homes at
   // the tier that needs it, so one new demand comes at a time; the milestones and the trade route sit between.
   // Each text stays short enough for a two-line caption on a phone at 150% text (tests/ui/celebrate.test.js).
@@ -28,6 +32,8 @@ export const GOALS = [
   { id: 'manor', chapter: 'goods', text: 'Grow a Manor from four Townhouses', reward: GOAL_REWARD, need: { kind: 'tier', tier: 6, n: 1 }, showMe: { category: 'homes', item: 'garden', target: 'houses' } },
   { id: 'market_town', chapter: 'goods', text: 'Reach 250 people for a Market town', reward: GOAL_REWARD, need: { kind: 'people', n: 250 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'trade_route', chapter: 'goods', from: 'market_town', text: 'Build a trading post and open a route', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'trading_post', n: 1 }, { kind: 'routes', n: 1 }] }, showMe: { category: 'industry', item: 'trading_post', target: 'startRoad' } },
+  // Stage 3: the raid clock starts at Market town; the defences come after the trade route (not on Peaceful).
+  { id: 'defences', chapter: 'danger', from: 'market_town', raids: true, text: 'Build a tower and a barracks', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'tower', n: 1 }, { kind: 'building', type: 'barracks', n: 1 }] }, showMe: { category: 'defence', item: 'tower', target: 'raid' } },
   { id: 'city', chapter: 'grand', text: 'Reach 400 people to become a City', reward: GOAL_REWARD, need: { kind: 'people', n: 400 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'beer', chapter: 'grand', from: 'city', text: 'Build a barley farm, brewery, orchard', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_barley', n: 1 }, { kind: 'building', type: 'brewery', n: 1 }, { kind: 'building', type: 'farm_fig', n: 1 }] }, showMe: { category: 'industry', item: 'farm_barley', target: 'focus' } },
   { id: 'fine_manors', chapter: 'grand', from: 'city', text: 'Grow 2 homes to Fine manor or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 7, n: 2 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
@@ -50,4 +56,17 @@ export const EVENT_GOALS = [
   { id: 'more_workers', trigger: 'labour_shortage', chapter: 'event', text: 'Find more workers: place more homes', reward: EVENT_REWARD, need: { kind: 'noAlert', code: 'labour_shortage' }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'more_jobs', trigger: 'unemployment', chapter: 'event', text: 'Make more jobs: build a farm or a bazaar', reward: EVENT_REWARD, need: { kind: 'noAlert', code: 'unemployment' }, showMe: { category: 'food', item: 'farm_grain', target: 'focus' } },
   { id: 'out_of_debt', trigger: 'debt', chapter: 'event', text: 'Get out of debt', reward: EVENT_REWARD, need: { kind: 'gold', n: 0 }, showMe: null },
+  // Stage 3 (spec 4.1, 4.19): the first fire, covered or not, and the first raid warning. Each asks for a building, so it
+  // completes when that is built (a fire goes out by itself); one whose building already stands never joins the list.
+  { id: 'fire_firehouse', trigger: ['fire', 'blaze'], chapter: 'event', text: 'Build a firehouse near the fire', reward: EVENT_REWARD, need: { kind: 'building', type: 'firehouse', n: 1 }, showMe: { category: 'services', item: 'firehouse', target: 'alert', code: ['fire', 'blaze'] } },
+  {
+    id: 'raid_tower', trigger: 'raid_warning', chapter: 'event', raids: true, text: 'Build a tower facing the raiders', reward: EVENT_REWARD, need: { kind: 'building', type: 'tower', n: 1 }, showMe: { category: 'defence', item: 'tower', target: 'raid' },
+    dirText: { east: 'Build a tower facing the east', west: 'Build a tower facing the west', north: 'Build a tower facing the north', south: 'Build a tower facing the south' },
+  },
 ];
+
+// The opening chain (spec 4.1): Founded Thebes, already ticked when a city starts (an endowed start: it pays nothing and is
+// never in GOALS, so nothing completes it), and the goals up to and including OPENING_LAST make ten, so the strip opens
+// at "1 of 10".
+export const FOUNDED = { id: 'founded', chapter: 'first_homes', text: 'Founded Thebes' };
+export const OPENING_LAST = 'town';

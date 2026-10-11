@@ -37,7 +37,13 @@ export function closeSheet(state) {
   return wasInfo ? { sheet: null, mode: 'browse', selectedId: null } : afterPanel(state);
 }
 
+// Screenshot mode (spec 4.19, 6.4): the whole interface hides, with nothing open behind it; the speed is left alone.
+export function enterScreenshot(state) {
+  return { ...CLEAR_TOOL, mode: 'browse', selectedId: null, sheet: null, confirmDialog: null, screenshot: true };
+}
+
 export function back(state) {
+  if (state.screenshot) return { screenshot: false };
   if (state.confirmDialog) return { confirmDialog: null };
   if (state.sheet && state.sheet.kind !== 'info') return afterPanel(state);
   if (isToolMode(state.mode)) return cancelTool(state);

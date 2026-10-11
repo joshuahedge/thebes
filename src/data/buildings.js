@@ -74,4 +74,22 @@ export const BUILDINGS = {
     name: 'Jeweller', w: 2, d: 2, cost: 140, upkeep: 10, workers: 8, priority: 'industry', category: 'industry',
     needsRoad: true, produces: { good: 'jewellery', perMonth: 15 }, consumes: 'gems', producerReach: 12,
   },
+  // Stage 3 (spec 4.12, 4.13). The firehouse's reach is road tiles, as every service's; a tower's range and a barracks'
+  // patrol are straight-line tiles (src/data/raids.js DEFENCE). Walls and gates are a tile layer (world.wall), never
+  // buildings in world.buildings: their entries give the name, the cost per tile and the card; tile: true keeps them
+  // out of place(). A gate is a wall drawn on a road, so it has no card of its own. Rubble is what a burned building
+  // that is not a home leaves on each tile of its footprint: no card, no road, no upkeep, never burns.
+  // buildable: false means no card, no milestone and no place().
+  firehouse: {
+    name: 'Firehouse', w: 1, d: 1, cost: 50, upkeep: 4, workers: 4, priority: 'safety', category: 'services',
+    needsRoad: true, reach: 8,
+  },
+  tower: { name: 'Tower', w: 1, d: 1, cost: 150, upkeep: 8, workers: 4, priority: 'safety', category: 'defence', needsRoad: true },
+  barracks: { name: 'Barracks', w: 2, d: 2, cost: 200, upkeep: 12, workers: 6, priority: 'safety', category: 'defence', needsRoad: true },
+  wall: { name: 'Wall', w: 1, d: 1, cost: 8, upkeep: 0, workers: 0, category: 'defence', needsRoad: false, tile: true },
+  gate: { name: 'Gate', w: 1, d: 1, cost: 20, upkeep: 0, workers: 0, category: null, needsRoad: false, tile: true, buildable: false },
+  rubble: { name: 'Rubble', w: 1, d: 1, cost: 0, upkeep: 0, workers: 0, category: null, needsRoad: false, buildable: false },
 };
+
+// The types a player can build (a card, a milestone, place() or a drawing tool): every type but gate and rubble.
+export const BUILDABLE = Object.keys(BUILDINGS).filter((t) => BUILDINGS[t].buildable !== false);

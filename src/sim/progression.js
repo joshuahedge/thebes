@@ -17,6 +17,7 @@ export function updateMilestone(world) {
   const changed = MILESTONES[i].id !== world.milestone;
   for (let k = from + 1; k <= i; k++) {
     for (const type of MILESTONES[k].unlocks) if (!world.newItems.includes(type)) world.newItems.push(type);
+    if (!Number.isInteger(world.splits[MILESTONES[k].id])) world.splits[MILESTONES[k].id] = world.day;   // spec 4.19: the day it first became one
   }
   world.milestone = MILESTONES[i].id;
   return changed;

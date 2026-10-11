@@ -223,10 +223,15 @@ export function unlockText(type) {
 
 export const LEVEL_NAMES = { essential: 'water and food', safety: 'safety', services: 'services', industry: 'industry', monuments: 'monuments' };
 
+// Stage 3: the tracks' alert words, filled in their own sections below with Object.assign: code -> (alert, world, b,
+// name) => { title, fix }, where b is the alert's building (or null) and name its name ('A building' without one).
+export const ALERT_TEXT = {};
+
 // Every problem names the cause and the fix (spec 6.3).
 export function alertText(alert, world) {
   const b = alert.id ? world.buildings[alert.id] : null;
   const name = b ? buildingName(b.type) : 'A building';
+  if (ALERT_TEXT[alert.code]) return ALERT_TEXT[alert.code](alert, world, b, name);
   switch (alert.code) {
     case 'no_road': return { title: `${name} has no road`, fix: 'Lay a road beside it' };
     case 'no_storage': {
@@ -319,15 +324,24 @@ export const DAILY_TEXT = {
 };
 export const milestoneText = (name) => `Your city is now a ${name}`;
 
-// Difficulty on the title card (spec 4.18): what the chosen level changes, from the data. Buildings and trade routes
-// scale by the level's cost multiplier ("about": each price is rounded to whole gold); a road is only 2 gold, so its
-// rounded price per tile is given as it is, on a line of its own (the title card shows the hint with white-space:
-// pre-line). Fire and raids (the risk multiplier) arrive in Stage 3 and are not promised.
+// Difficulty on the title card (spec 4.18): what the chosen level changes, from the data, on three lines (the title
+// card shows the hint with white-space: pre-line). First the danger: a level without raids never starts the raid clock
+// (raidsOn); otherwise the level's risk multiplier scales the size of every raid after the first, which is
+// RAIDS.firstSize at every level (raidSize; "about": a size is rounded and kept between 2 and 12), and the same
+// multiplier scales how fast fire risk builds up (dailyRiskOf). Then buildings and trade routes, scaled by the level's
+// cost multiplier ("about": each price is rounded to whole gold); a road is only 2 gold, so its rounded price per tile
+// is given as it is. The danger line stays short enough for one line on a landscape phone's title card.
 export function difficultyHint(level) {
-  const pct = Math.round((DIFFICULTIES[level].cost - 1) * 100);
+  const { cost, risk, raids } = DIFFICULTIES[level];
+  const by = Math.abs(Math.round((risk - 1) * 100));
+  const fire = risk === 1 ? 'Fire risk as usual.' : `Fire risk builds ${by}% ${risk < 1 ? 'slower' : 'faster'}.`;
+  const danger = raids === false ? `No raids. ${fire}` : risk === 1 ? 'Raids and fire risk as usual.' : `Later raids about ${by}% ${risk < 1 ? 'smaller' : 'bigger'}. ${fire}`;
+  const pct = Math.round((cost - 1) * 100);
   const roads = `Roads: ${roadCostOf({ difficulty: level })} gold a tile.`;
   const rest = pct === 0 ? 'at their usual cost' : `cost about ${Math.abs(pct)}% ${pct < 0 ? 'less' : 'more'}`;
-  return `Buildings and trade routes ${rest}.\n${roads}`;
+  return `${danger}
+Buildings and trade routes ${rest}.
+${roads}`;
 }
 
 // The trade sheet (spec 4.15): routes and why one cannot open yet, each good's prices, the three choices and the
@@ -540,3 +554,443 @@ export const closestAchievementText = (name, n, of, condition = '') => `${T.clos
 export const achievementBarLabel = (name, n, of) => `${name}: ${progressText(n, of)}`;   // a progress bar's accessible name
 // The arrows beside a trend's words; decoration only (aria-hidden), the words say which way it went.
 export const TREND_MARKS = { up: '▲', down: '▼' };
+
+// ── s3 contract (Track 0) ────────────────────────────────────────────────────────────────────────────────────────
+// Words for the Stage 3 contract's own additions. Each Stage 3 track keeps its words in its own section below, as its
+// own exported objects (FIRE_TEXT, RAID_TEXT, ...), and adds to the shared tables above (FIRST_TEXT, MOOD_NAMES,
+// REASONS, CHAPTER_NAMES, T, ...) only with Object.assign inside its own section, so no two tracks edit the same lines.
+Object.assign(DIFFICULTY_NAMES, { peaceful: 'Peaceful' });
+Object.assign(T, { soldiersPay: "Soldiers' pay", wallBuilt: 'Wall built', screenshotMode: 'Screenshot mode' });
+Object.assign(REASONS, { no_rubble: 'No rubble here', bad_id: "Can't do that", has_id: "Can't do that" });
+// ── end s3 contract ──────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 fire (Track A) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track A's words for fire: the fire row, alert titles and fixes for fire, blaze and fire_risk, the mood rows fire and burned, captions. Add new lines just above the end marker.
+// (An import declaration is hoisted, so it may sit here, inside the section. The names are Track A's own, so another
+// section importing fireCause, fireBand or FIRE under their plain names cannot clash with them.)
+import { fireCause as fireCauseOf, fireBand as fireBandOf } from '../sim/fire.js';
+import { FIRE as FIRE_NUMBERS } from '../data/fire.js';
+
+// Every line follows src/sim/fire.js: fireAlerts picks the code, fireCause the reason no staffed firehouse reaches the
+// building, b.fire.left the days a fire has before the building burns down (it burns on the day left reaches 0).
+export const FIRE_TEXT = {
+  caught: (name) => `${name} has caught fire`,                                    // a blaze
+  burning: (name, left) => `${name} is burning: ${plural(left, 'day', 'days')} left`,   // the fire stage
+  highRisk: (name) => `${name} has a high fire risk`,                             // fireBand 2 (High)
+  canCatch: (name) => `${name} could catch fire`,                                 // fireBand 3 (Can catch fire): 3% a day
+  fighting: {
+    blaze: 'The firehouse is putting it out',                                     // it can still reach need before the blaze grows
+    late: (days) => `The firehouse came too late: it grows into a fire in ${plural(days, 'day', 'days')}`,
+    fire: 'The firehouse is fighting it',                                         // 25% x coverage a day
+  },
+  cause: {
+    covered: 'A staffed firehouse reaches it',                                    // staffedCover, as the fire overlay's legend says
+    no_road: 'No road beside it for a firehouse to reach: lay one',
+    none: `No firehouse within ${FIRE_NUMBERS.reach} road tiles: build one near it`,
+    short: 'Its firehouse is short of workers: more homes bring more workers',
+    burning: 'Its firehouse is burning: build another near it',
+    paused: 'Its firehouse is paused: resume it',
+  },
+};
+// A home is named by its tier ("Hut has caught fire"), anything else by its type.
+const fireAlertName = (b, name) => (b && b.type === 'house' ? tierName(b.tier) : name);
+const fireAlertTitle = (b, name) => (b && b.fire && b.fire.stage === 'fire' ? FIRE_TEXT.burning(fireAlertName(b, name), b.fire.left) : FIRE_TEXT.caught(fireAlertName(b, name)));
+const fireCauseFix = (world, b) => (b ? FIRE_TEXT.cause[fireCauseOf(world, b).cause] : FIRE_TEXT.cause.none);
+// A covered blaze goes out when its fought days reach need before days reaches FIRE.blazeDays (fireDay counts the fought
+// day first), so it is too late when more fought days are needed than blaze days are left.
+function fireFightFix(b) {
+  const f = b && b.fire;
+  if (f && f.stage === 'fire') return FIRE_TEXT.fighting.fire;
+  if (f && f.need - f.fought > FIRE_NUMBERS.blazeDays - f.days) return FIRE_TEXT.fighting.late(FIRE_NUMBERS.blazeDays - f.days);
+  return FIRE_TEXT.fighting.blaze;
+}
+Object.assign(ALERT_TEXT, {
+  fire: (alert, world, b, name) => ({ title: fireAlertTitle(b, name), fix: fireCauseFix(world, b) }),
+  blaze: (alert, world, b, name) => ({ title: fireAlertTitle(b, name), fix: fireFightFix(b) }),
+  fire_risk: (alert, world, b, name) => ({
+    title: b && fireBandOf(b.risk || 0) >= 3 ? FIRE_TEXT.canCatch(fireAlertName(b, name)) : FIRE_TEXT.highRisk(fireAlertName(b, name)),
+    fix: fireCauseFix(world, b),
+  }),
+});
+// The summary's mood rows (fireMood's keys).
+Object.assign(MOOD_NAMES, { fire: 'A fire last month', burned: 'Buildings burned, last 6 months' });
+// ── end s3 fire ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 raids (Track B) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track B's words for raids: alert titles for raid_warning and raid, directions, the report, tribute and festival reasons, mood rows raid and festival. Add new lines just above the end marker.
+// Track B imports under its own names (import declarations are hoisted, so they may sit in this section).
+import * as raidsData from '../data/raids.js';
+import * as raidsSim from '../sim/raids.js';
+import * as raidsTime from '../sim/time.js';
+export const RAID_TEXT = {
+  // The edge a raid comes from, as the words say it: "Raiders from the east", "facing east".
+  dirs: { north: 'north', east: 'east', south: 'south', west: 'west' },
+  // What a raid is after, in the plural: "storehouses", "trading posts"; "buildings" for a raid after any building.
+  targets: (kind) => (kind === 'building' ? 'buildings' : pluralName(kind)),
+  // The defence that would beat the warned raid (spec 4.13, ruling 108), from tributeQuote: N is the towers it needs less
+  // the working towers the city has, priced at this city's tower: "Build 2 towers facing east (≈ 300 gold)"; at 0 "Your
+  // towers can beat this raid". '' with no warning up. The banner puts it beside Pay tribute (Track D).
+  towers(world) {
+    const q = raidsSim.tributeQuote(world);
+    if (!q) return '';
+    if (q.buildN === 0) return 'Your towers can beat this raid';
+    return `Build ${plural(q.buildN, 'tower', 'towers')} facing ${RAID_TEXT.dirs[world.raid.warning.dir]} (≈ ${q.buildCost} gold)`;
+  },
+};
+// The raid alerts (raidAlerts). raid_warning: what is coming and the defence that would beat it. raid: the band on the map
+// by its phase (raid.active.phase): fighting its way in or striking, leaving after its strikes, or falling back once half
+// have fallen; towers (DEFENCE.towerRange tiles of a tower) and soldiers (DEFENCE.patrol tiles of their barracks) fight it
+// in every phase.
+Object.assign(ALERT_TEXT, {
+  raid_warning: (alert, world) => {
+    const w = world.raid.warning;
+    return { title: `Raiders from the ${RAID_TEXT.dirs[alert.dir]} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: RAID_TEXT.towers(world) };
+  },
+  raid: (alert, world) => {
+    const a = world.raid.active;
+    const dir = RAID_TEXT.dirs[a ? a.dir : ''] || '';
+    const phase = a ? a.phase : 'attack';
+    const raiders = plural(alert.left, 'raider', 'raiders');
+    if (phase === 'retreat') return { title: `Raid from the ${dir}: ${raiders} falling back`, fix: 'Towers keep shooting as they go' };
+    const fix = `Towers hit raiders within ${raidsData.DEFENCE.towerRange} tiles; soldiers fight within ${raidsData.DEFENCE.patrol} tiles of their barracks`;
+    return { title: phase === 'leave' ? `Raid from the ${dir}: ${raiders} leaving` : `Raid from the ${dir}: ${raiders}`, fix };
+  },
+});
+// The mood rows (spec 4.9): a raid in the last six months (raidMood), a festival (festivalMood).
+Object.assign(MOOD_NAMES, { raid: 'Recent raid', festival: 'Festival' });
+// payTribute's and holdFestival's refusals (spec 4.13).
+Object.assign(REASONS, {
+  no_warning: 'No raid is on its way',
+  first_raid: "The first raid can't be paid off",
+  below_zero: "Tribute can't put the treasury below 0",
+  no_temple: 'Needs a working temple',
+  too_soon: `One festival every ${Math.round(raidsData.FESTIVAL.every / raidsTime.DAYS_PER_MONTH)} months`,
+});
+// ── end s3 raids ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 art (Track C) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track C's words for art: words drawn on the map (the reduced-motion "Burning"). Add new lines just above the end marker.
+export const ART_TEXT = {
+  burning: 'Burning',          // under reduced motion, on a still flame over a burning building (spec 5.4)
+};
+// ── end s3 art ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 ui (Track D) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track D's words for the danger interface: banners, the countdown chip, the tribute sheet, settings rows, the fire overlay and its legend. Add new lines just above the end marker.
+export const DANGER_UI_TEXT = {};
+// Every track's section shares this module's top-level scope, so Track D's own names start with "dui" (its imports too,
+// renamed with "as"; imports are hoisted, so they sit here in the section and the shared lines at the top stay as they are).
+import { DAYS_PER_MONTH as duiMonthDays } from '../sim/time.js';
+// Directions as raids name them (src/sim/raids.js entryDir), and a span of game days in words ("2 months 12 days") and
+// as the countdown chip writes it ("2 m 12 d"). A game month is DAYS_PER_MONTH days (src/sim/time.js).
+const duiDirWords = { north: 'north', east: 'east', south: 'south', west: 'west' };
+const duiDir = (dir) => duiDirWords[dir] || dir;
+function duiDuration(days) {
+  const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
+  const parts = [m ? plural(m, 'month', 'months') : '', d || !m ? plural(d, 'day', 'days') : ''];
+  return parts.filter(Boolean).join(' ');
+}
+const duiCountdown = (days) => {
+  const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
+  return m ? `${m} m ${d} d` : `${d} d`;
+};
+// D1: the one banner (spec 6.3). The defence line follows tributeQuote (src/sim/raids.js): buildN is the towers needed
+// for the warned raid less the working towers, buildCost their price in this city; at 0 the towers can beat it (ruling 108).
+Object.assign(DANGER_UI_TEXT, {
+  dir: duiDir, duration: duiDuration, countdown: duiCountdown,
+  firesTitle: (n) => `${n} buildings on fire`,
+  firesFix: 'No staffed firehouse reaches them',             // the 'fire' code: a blaze or fire no staffed firehouse reaches
+  more: (n) => `+${n} more`,
+  moreLabel: (n) => `${plural(n, 'more critical alert', 'more critical alerts')}: open the alert list`,
+  payTribute: 'Pay tribute',
+  collapse: 'Shrink', collapseLabel: 'Shrink the raid warning to its countdown', expand: 'Show the whole warning',
+  chip: (dir, days) => `Raid from the ${duiDir(dir)} · ${duiCountdown(days)}`,
+  // The days until a warned raid arrives (warning.arrives less today): raidDay brings the raiders in on the arrives day.
+  arrivesIn: (days) => (days > 0 ? `They arrive in ${duiDuration(days)}` : 'They arrive today'),
+  withArrival: (title, days) => `${title}. ${DANGER_UI_TEXT.arrivesIn(days)}.`,
+  arrivalLine: (days) => `${DANGER_UI_TEXT.arrivesIn(days)}.`,                // the tribute sheet's line
+  defenceLine: (q, dir) => (q.buildN > 0
+    ? `${q.hidden ? 'Build' : 'or build'} ${plural(q.buildN, 'tower', 'towers')} facing ${duiDir(dir)} (≈ ${q.buildCost} gold)`
+    : 'Your towers can beat this raid'),
+  legendOpen: (name) => `Show the legend: ${name}`, legendClose: 'Hide the legend',
+});
+// D2: captions, the raid report and the Settings rows. A blaze or a fire goes out only where a firehouse reaches it
+// (src/sim/fire.js: a covered and staffed blaze, a covered fire at 25% x coverage a day), so the caption names the
+// firehouse. The report reads raid.last's fields (src/sim/raids.js): size, towers, byTowers, bySoldiers, burned, stolen.
+const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.stolen ? `${r.stolen} gold stolen` : ''].filter(Boolean).join(', ') || 'nothing lost';
+function duiRaidReport(r) {
+  const from = `Raid from the ${duiDir(r.dir)}`;
+  if (r.won) {
+    const stopped = [r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : ''].filter(Boolean);
+    return `${from} beaten: ${stopped.length ? `${stopped.join(', ')}; ` : ''}${duiLosses(r)}.`;
+  }
+  const did = listText([r.burned ? `burned ${plural(r.burned, 'building', 'buildings')}` : '', r.stolen ? `took ${r.stolen} gold` : ''].filter(Boolean));
+  const stopped = [r.byTowers ? `Towers stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `${r.byTowers ? 'soldiers' : 'Soldiers'} stopped ${r.bySoldiers}` : ''].filter(Boolean);
+  return `${from}: ${did ? `raiders ${did}` : 'the raiders struck and left'}.${stopped.length ? ` ${stopped.join(', ')}.` : ''}`;
+}
+Object.assign(DANGER_UI_TEXT, {
+  putOut: (stage, name) => `The firehouse put out a ${stage === 'fire' ? 'fire' : 'blaze'} at the ${name}`,
+  raidReport: duiRaidReport,
+  onAFire: 'On a fire', fireReactions: { pause: 'Pause', goto: 'Go to it', inform: 'Just tell me' },
+  onAFireNote: "For a fire no staffed firehouse reaches. The city's first one always pauses the game.",
+  ambient: 'Ambient motion', ambientReduced: 'Off while Reduce motion is on',
+});
+// D3: the danger sheets (src/ui/dangerSheets.js). The fire row reads src/sim/fire.js: "a firehouse reaches it" is
+// staffedCover (coverage of FIRE.staffedAt or more); "short of workers", "paused" and "burning" are fireCause's reason
+// for the firehouse whose road reach takes the building in but which does not cover it enough; the band is fireBand's. A blaze goes out only on covered and
+// staffed days, so a firehouse under FIRE.staffedAt of its workers puts none out. The tribute words read tributeQuote and
+// payTribute (src/sim/raids.js), the festival's festivalStatus (src/sim/festival.js).
+import { FIRE as duiFire } from '../data/fire.js';
+const duiFireFrom = MILESTONES.find((m) => m.id === duiFire.startsAt);
+const duiBands = ['low', 'rising', 'high', 'can catch fire'];
+Object.assign(T, { tribute: 'Pay tribute' });                     // the tribute sheet's heading (sheets use T[kind])
+Object.assign(DANGER_UI_TEXT, {
+  fireLabel: 'Fire', neverBurns: 'Never catches fire', riskStartsAtTown: `Fire risk starts at ${duiFireFrom ? duiFireFrom.name : duiFire.startsAt}`,
+  riskLine: (band, tail) => (band >= 3 ? `Can catch fire, ${tail}` : `Fire risk: ${duiBands[band]}, ${tail}`),
+  reaches: 'a firehouse reaches it', whyNone: `no firehouse within ${duiFire.reach} road tiles`, noneReaches: 'no firehouse reaches it',
+  whyShort: 'the firehouse is short of workers', whyPaused: 'the firehouse is paused', whyBurning: 'the firehouse is burning',
+  // On a firehouse's own sheet, when fireCause names the firehouse itself (a burning firehouse is not working, so it
+  // covers nothing, itself included).
+  whySelf: { short: 'this firehouse is short of workers', paused: 'this firehouse is paused', burning: 'it cannot fight its own fire' },
+  blaze: 'Blaze', burningFor: (left) => `Burning, ${plural(left, 'day', 'days')} left`, puttingOut: 'the firehouse is putting it out', fighting: 'the firehouse is fighting it',
+  buildFirehouse: 'Build a firehouse near it',
+  covers: (n) => `Covers ${plural(n, 'building that can burn', 'buildings that can burn')}`,
+  coversNothingPaused: 'Covers nothing while it is paused', coversNothingBurning: 'Covers nothing while it is burning',
+  coversNothingUntil: (n, of) => `Covers nothing until it has ${n} of ${of} workers`,
+  tooShortToFight: (n, of) => `Puts out blazes only with ${n} of ${of} workers or more`,
+  range: 'Range', patrol: 'Patrol', soldiers: 'Soldiers', onTheWall: 'On the wall',
+  tiles: (n) => plural(n, 'tile', 'tiles'), hitPoints: (hp, of) => `${hp} of ${of} hit points`, fullHitPoints: (hp) => `${hp} hit points`,
+  towerDoes: (r) => `Shoots the nearest raider within ${r} tiles once a day`,
+  notShootingPaused: 'Not shooting while it is paused', notShootingUntil: (n, of) => `Not shooting until it has ${n} of ${of} workers`,
+  barracksFull: (n, of) => `Full: ${n} of ${of} soldiers; it trains another when one is wounded`,
+  trains: (days) => `Trains one soldier every ${days} days at full staff, slower when short of workers`,
+  notTrainingPaused: 'Not training while it is paused', notTrainingBurning: 'Not training while it is burning', notTrainingUntil: (n, of) => `Not training until it has ${n} of ${of} workers`,
+  soldiersPay: (n) => `Each soldier is paid ${n} gold a month, in peace too`,
+  lastRaidTowers: (r) => `Last raid: towers stopped ${r.byTowers} of ${r.size}`,
+  lastRaidSoldiers: (r) => `Last raid: soldiers stopped ${r.bySoldiers} of ${r.size}`,
+  rubbleRow: (cost) => `Rubble: clear it for ${cost} gold a tile`, rubbleDrag: 'Drag Demolish over rubble to clear many at once',
+  clearFor: (cost) => `Clear, ${cost} gold`, cleared: 'Rubble cleared',
+  holdFestival: (cost) => `Hold a festival, ${cost} gold`, festivalHeld: 'Festival held',
+  festivalDoes: (mood, days, every) => `+${mood} mood for ${duiDuration(days)}; the next can follow ${duiDuration(every)} later`,
+  festivalOn: (mood, days) => `Festival: +${mood} mood for ${duiDuration(days)} more`,
+  nextFestival: (days) => `Next festival in ${duiDuration(days)}`,
+  festivalNeedsTemple: 'A festival needs a working temple',
+  wouldPassDebt: (n) => `Would put the treasury over ${n} gold in debt`,       // canAfford's floor (src/sim/money.js)
+  lastRaid: 'Last raid', endedOn: (date) => `Ended ${date}`,
+  noWarning: 'Tribute can be paid only while a raid is on its way', firstRaid: "The first raid can't be paid off.",
+  capital: (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s),
+  tributeCost: (cost) => `Pay ${cost} gold of tribute`, goldNow: 'Gold now', goldAfter: 'Gold afterwards',
+  cancels: (dir, size) => `Cancels the raid from the ${duiDir(dir)} (${plural(size, 'raider', 'raiders')}). The next raid still comes.`,
+  tributeBelowZero: (gold) => `You have ${gold} gold. Tribute can't put the treasury below 0.`,
+  payGold: (cost) => `Pay ${cost} gold`, keepGold: 'Keep gold, defend', tributePaid: (cost) => `Tribute paid: ${cost} gold`,
+});
+// D4: tools and the fire-risk overlay. The bands start at FIRE_BANDS (src/data/fire.js); the dot is staffedCover, as on
+// the fire row. The firehouse's line counts what fireCoverage would reach from the ghost (src/ui/placement.js); the wall
+// line counts previewWall's tiles and gates (src/sim/defence.js); clearing rubble costs rubbleCostOf a tile and is
+// refused below the debt floor (src/sim/commands.js previewDemolishArea).
+import { FIRE_BANDS as duiBandStarts } from '../data/fire.js';
+const duiBandNames = ['Low', 'Rising', 'High', 'Can catch fire'];
+Object.assign(OVERLAY_NAMES, { fire: 'Fire risk' });
+Object.assign(OVERLAY_LEGEND, { fire: ['A staffed firehouse reaches it', 'No staffed firehouse reaches it'] });
+Object.assign(DANGER_UI_TEXT, {
+  fireBand: (k) => {
+    const from = duiBandStarts[k], next = duiBandStarts[k + 1];
+    return { label: duiBandNames[k], words: `${duiBandNames[k]}: fire risk ${next === undefined ? `${from} or more` : `${from} to ${next - 1}`}` };
+  },
+  neverBurnNote: 'Roads, gardens, statues, wells and walls never burn',
+  firehouseCovers: (n) => (n > 0 ? DANGER_UI_TEXT.covers(n) : 'No buildings that can burn in reach yet'),   // as the sheet's covers line
+  wallCount: (tiles, gates) => `${plural(tiles, 'tile', 'tiles')}${gates ? `, ${plural(gates, 'gate', 'gates')} on roads` : ''}`,
+  clearRubble: (n, cost) => `Clear ${n} rubble: ${cost} gold`,
+  demolishCost: (gold) => `${gold} gold`,
+});
+// ── end s3 ui ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 score (Track E) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track E's words for scoring: parts, reasons, medals, splits, records, sharing, feats, remarks, and the danger goals, firsts, achievements, daily goals and tips. Add new lines just above the end marker.
+// Imports for this section only, aliased so no other section's names can clash (import declarations are hoisted).
+import { DAYS_PER_MONTH as SCORE_DAYS_PER_MONTH, MONTHS_PER_YEAR as SCORE_MONTHS_PER_YEAR } from '../sim/time.js';
+import { DEFENCE as SCORE_DEFENCE } from '../data/raids.js';
+import { DAILY_POOL as SCORE_DAILY_POOL } from '../data/daily.js';
+import { FEATS as SCORE_FEATS } from '../data/feats.js';
+// The score (spec 4.19): parts, reasons, medals, the chip, the confirm bar's "+3 Culture" and the summary's section. Every
+// number comes from scoreOf (src/sim/score.js); the reason codes and their fields are listed there.
+export const SCORE_TEXT = {
+  score: 'Score', cityScore: 'City score', splits: 'Milestones', noSplits: 'No milestones yet',
+  parts: { people: 'People', prosperity: 'Prosperity', culture: 'Culture', safety: 'Safety' },
+  medals: { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' },
+  noMedal: 'No medal yet', topMedal: 'The highest medal',
+  noHomes: 'No one lives here yet', noRoute: 'No trade route yet', raidLost: 'A raid was lost in the last year',
+  scoreHelp: 'The score measures the city as it stands now. It never changes what you can build.',
+};
+const SCORE_SIDE_STREETS = { east: 'the east streets', west: 'the west streets', north: 'the north streets', south: 'the south streets' };
+const scoreMilestoneName = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
+// One part's reason line, from scoreOf's reasons[part] ({ code, ... }); '' for none.
+export function scoreReasonText(r) {
+  if (!r) return '';
+  switch (r.code) {
+    case 'growth': return `${scoreMilestoneName(r.milestone)}: ${progressText(r.people, r.of)} people`;
+    case 'homes': return `Most homes are ${TIERS[r.tier].name}s`;
+    case 'no_homes': return SCORE_TEXT.noHomes;
+    case 'taxes': return `Taxes bring ${r.perPerson} gold a person: bigger homes pay more`;
+    case 'jobless': return `${r.percent}% of workers have no job`;
+    case 'debt': return `The treasury is ${r.gold} gold in debt`;
+    case 'routes': return r.n === 0 ? SCORE_TEXT.noRoute : `Only ${plural(r.n, 'trade route is', 'trade routes are')} open`;
+    case 'no_temple': return `${plural(r.n, 'home has', 'homes have')} no temple`;
+    case 'no_booth': return `${plural(r.n, 'home has', 'homes have')} no entertainment`;
+    case 'no_bazaar': return `${plural(r.n, 'home has', 'homes have')} no bazaar`;
+    case 'plain': return `Homes average ${r.value} of 50 desirability`;
+    case 'fire_cover': return `No staffed firehouse reaches ${r.dir ? SCORE_SIDE_STREETS[r.dir] : plural(r.n, 'building', 'buildings')}`;
+    case 'towers': return `A raid this size needs ${plural(r.need, 'tower', 'towers')}; you have ${r.towers} working${r.soldiers ? ` and ${plural(r.soldiers, 'soldier', 'soldiers')}` : ''}`;
+    case 'burned': return `${plural(r.n, 'building', 'buildings')} burned in the last year`;
+    case 'raid_lost': return SCORE_TEXT.raidLost;
+    default: return '';
+  }
+}
+export const scoreChipText = (total) => `${SCORE_TEXT.score} ${total}`;
+export const medalText = (medal) => (medal ? `${SCORE_TEXT.medals[medal]} medal` : SCORE_TEXT.noMedal);
+export const nextMedalText = (next) => (next ? `${plural(next.points, 'point', 'points')} to ${SCORE_TEXT.medals[next.medal]}` : SCORE_TEXT.topMedal);
+export const partBarLabel = (part, n) => `${SCORE_TEXT.parts[part]}: ${progressText(n, 100)}`;
+export const factorText = (raw, factor, level) => `Parts ${raw} × ${factor} on ${DIFFICULTY_NAMES[level] || level}`;
+// The confirm bar's score line: the parts that would change by a whole point or more ("+3 Culture, −1 Safety"); '' for none.
+export const scoreLineText = (delta) => Object.keys(SCORE_TEXT.parts).filter((p) => Math.abs(delta[p] || 0) >= 1)
+  .map((p) => `${delta[p] > 0 ? '+' : '−'}${Math.abs(delta[p])} ${SCORE_TEXT.parts[p]}`).join(', ');
+// A milestone split as a game date: "Town in year 2, month 3" (day 0 is year 1, month 1).
+const SCORE_YEAR_DAYS = SCORE_DAYS_PER_MONTH * SCORE_MONTHS_PER_YEAR;
+export const splitDateText = (id, day) => `${scoreMilestoneName(id)} in year ${Math.floor(day / SCORE_YEAR_DAYS) + 1}, month ${Math.floor((day % SCORE_YEAR_DAYS) / SCORE_DAYS_PER_MONTH) + 1}`;
+// A split against the personal best on this seed and level (records' bestFor: the earliest day another city reached it),
+// in whole game-months; just the date when no other city got there.
+export function splitCompareText(id, day, bestDay) {
+  const base = splitDateText(id, day);
+  if (!Number.isInteger(bestDay)) return base;
+  const diff = Math.floor(bestDay / SCORE_DAYS_PER_MONTH) - Math.floor(day / SCORE_DAYS_PER_MONTH);
+  if (diff === 0) return `${base}: level with your best`;
+  return `${base}: ${plural(Math.abs(diff), 'month', 'months')} ${diff > 0 ? 'faster' : 'slower'} than your best`;
+}
+// Seal this reign (spec 4.19): the confirmation says exactly what sealReign records and what it does not change.
+Object.assign(SCORE_TEXT, { sealReign: 'Seal this reign', sealConfirm: 'Seal reign', notYet: 'Not yet', shareScore: 'Share score', stampNote: 'Its stamp shows on the title card.' });
+export const sealQuestion = (total, medal) => `Seal this reign? Your chronicle gets score ${total}${medal ? ` (${SCORE_TEXT.medals[medal]})` : ''} for this city. The city carries on.`;
+export const sealedText = (seal) => `Reign sealed with score ${seal.score}`;
+// Sharing (spec 4.19): opt-in, and every shared score says friends' honour.
+export const SHARE_TEXT = {
+  honour: "Friends' honour", honourHelp: "Friends' honour: a link can't be checked without a server.",
+  sharePicture: 'Share picture', shareLink: 'Share link', linkLabel: 'Link to this score', making: 'Making the picture…',
+  pictureSaved: 'Picture downloaded', copied: 'Copied', fileName: 'thebes-score.png',
+  seedLine: (seed, level) => `Seed ${seed} · ${level}`,
+  text: (total, rows, link) => `Thebes: score ${total}, friends' honour\n${rows}\n${link}`,
+};
+Object.assign(T, { sealReign: SCORE_TEXT.sealReign, shareScore: SCORE_TEXT.shareScore });   // the two sheets' headings
+// The title card (spec 4.1, 4.19): the device's bests and stamps, This week's Nile and a friend's shared score.
+export const TITLE_SCORE_TEXT = {
+  weekly: "This week's Nile", records: 'Your records', friend: "A friend's score", startSeed: 'Start this seed',
+  badLink: "This score link can't be read", newerLink: 'This score link is from a newer version of Thebes',
+  weeklyHint: (seed) => `Seed ${seed}: the same river for everyone this week`,
+  bestLine: (b) => `Best: ${b.score}${b.medal ? `, ${SCORE_TEXT.medals[b.medal].toLowerCase()}` : ''}, seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.older ? ', older scoring' : ''}`,
+  stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}`,
+  moreStamps: (n) => `+${n} more`,
+  friendLine: (total, seed, level) => `${total} on seed ${seed}, ${DIFFICULTY_NAMES[level] || level}. ${SHARE_TEXT.honour}`,
+  partsLine: (parts) => Object.keys(SCORE_TEXT.parts).map((p) => `${SCORE_TEXT.parts[p]} ${parts[p]}`).join(' · '),
+  yourBest: (score) => (score === null ? 'You have no score on this seed and level yet' : `Your best here: ${score}`),
+  beat: (total) => `Beat ${total}?`,
+  startOn: (level) => `It starts on ${DIFFICULTY_NAMES[level] || level}, the level of the shared score.`,
+};
+// Danger in the goals and rewards (spec 4.19): the chapter, five firsts, four achievements, three daily goals and six
+// tips. Every number comes from the data, and every claim follows the rules of fire (spec 4.12) and raids (spec 4.13).
+const scoreAchievement = (id) => ACHIEVEMENTS.find((a) => a.id === id).measure;
+const scoreDaily = (id) => SCORE_DAILY_POOL.find((d) => d.id === id);
+Object.assign(CHAPTER_NAMES, { danger: 'Danger' });
+Object.assign(FIRST_TEXT, {
+  // A staffed firehouse (coverage of half or more) puts blazes out; any working one in road reach slows the risk.
+  first_firehouse: { head: 'First firehouse', why: `Staffed, it puts out blazes and slows fire risk up to ${BUILDINGS.firehouse.reach} road tiles away.` },
+  // A blaze goes out only with a staffed firehouse in reach, a fire only with one reaching it: either way one reached it.
+  first_fire_out: { head: 'First fire put out', why: 'A firehouse that reaches the building saved it.' },
+  first_wall: { head: 'First wall', why: 'Raiders must break through a wall before they can pass it.' },
+  first_tower: { head: 'First tower', why: `Staffed, it shoots raiders up to ${SCORE_DEFENCE.towerRange} tiles away.` },
+  first_raid_beaten: { head: 'First raid beaten', why: 'Your defences turned the raiders back.' },
+});
+Object.assign(ACHIEVEMENT_NAMES, { fire_brigade: 'Fire brigade', safe_streets: 'Safe streets', wall_builder: 'Wall builder', raid_breaker: 'Raid breaker' });
+Object.assign(ACHIEVEMENT_TEXT, {
+  safe_streets: `Reach ${scoreAchievement('safe_streets').people} people with no building burned for a year`,
+  wall_builder: `Draw ${scoreAchievement('wall_builder').n} wall tiles`,
+  raid_breaker: `Beat ${scoreAchievement('raid_breaker').n} raids`,
+});
+Object.assign(DAILY_TEXT, { firehouse1: 'Build a firehouse', wall10: `Draw ${scoreDaily('wall10').n} wall tiles`, tower1: 'Build a tower' });
+Object.assign(TIP_TEXT, {
+  fire_risk: `Watch fire risk from Town: a staffed firehouse within ${BUILDINGS.firehouse.reach} road tiles slows it.`,
+  firebreaks: 'Leave roads between buildings: fire spreads only to buildings that touch.',
+  clearing_rubble: 'Clear rubble with Demolish: tap it or drag over it. Clearing costs gold.',
+  raider_targets: 'Guard trading posts, storehouses, bazaars and temples: raiders want those.',
+  tribute_once: 'Pay tribute only if you must: it cancels this raid, not the next one.',
+  wall_ring: 'Close your wall into a ring and set towers on it: raiders must break through.',
+});
+// Feats (spec 4.19): a name and the exact condition each, numbers from the data (src/data/feats.js, src/sim/feats.js).
+const scoreFeatCheck = (id) => SCORE_FEATS.find((f) => f.id === id).check;
+const scoreFeatMilestone = (id) => scoreMilestoneName(scoreFeatCheck(id).milestone);
+export const FEAT_TEXT = {
+  debt_free: { name: 'Debt-free founder', condition: `Become a ${scoreFeatMilestone('debt_free')} without the treasury ever going below 0` },
+  well_fed: { name: 'Well fed', condition: `Feed every home at ${tierName(3)} or better for ${scoreFeatCheck('well_fed').months} months in a row, with ${scoreFeatCheck('well_fed').people} people or more` },
+  grain_alone: { name: 'Grain alone', condition: `Become a ${scoreFeatMilestone('grain_alone')} without building a ${buildingName(scoreFeatCheck('grain_alone').type).toLowerCase()}` },
+  firewise: { name: 'Firewise', condition: `Lose no building to fire for ${scoreFeatCheck('firewise').days / SCORE_YEAR_DAYS} years after becoming a ${scoreFeatMilestone('firewise')}` },
+  untouched: { name: 'Untouched', condition: 'Beat a raid with no building burned and no gold stolen' },
+  never_bowed: { name: 'Never bowed', condition: `Become the ${scoreFeatMilestone('never_bowed')} without paying tribute` },
+  garden_city: { name: 'Garden city', condition: `Have ${scoreFeatCheck('garden_city').n} gardens and statues at once` },
+  full_hands: { name: 'Full hands', condition: `Have ${scoreFeatCheck('full_hands').people} people or more with ${Math.round(scoreFeatCheck('full_hands').rate * 100)}% or fewer out of work` },
+  merchant_prince: { name: 'Merchant prince', condition: `Sell ${scoreFeatCheck('merchant_prince').n.toLocaleString('en-GB')} goods to caravans` },
+  swift_town: { name: 'Swift Town', condition: `Become a ${scoreFeatMilestone('swift_town')} before year ${scoreFeatCheck('swift_town').day / SCORE_YEAR_DAYS + 1} begins` },
+};
+Object.assign(SCORE_TEXT, { feats: 'Feats', featEarned: 'Earned', featMissed: 'Missed', featOpen: 'Open', feat: 'Feat', noFeats: 'No feats yet.', featsHelp: 'Feats are optional: they pay nothing and never hold anything back.' });
+export const featsHeading = (done, total) => `${SCORE_TEXT.feats}, ${progressText(done, total)}`;
+export const sealFeatsText = (names) => (names.length ? `Feats this reign: ${listText(names)}.` : SCORE_TEXT.noFeats);
+// The opening chain and the next-threshold bar (spec 4.1).
+export const thresholdMilestoneText = (name, n, of) => `${name}: ${progressText(n, of)} people`;
+export const thresholdMedalText = (next) => `${SCORE_TEXT.medals[next.medal]}: ${plural(next.points, 'point', 'points')} to go`;
+// Citizen remarks (spec 4.19): at least 24, by season, each heard only in a city with its building (`type`).
+export const CITIZEN_REMARKS = [
+  { season: 'akhet', type: 'potter', text: 'The potters say the clay is good this year' },
+  { season: 'akhet', type: 'farm_grain', text: 'The farmers say the flood left rich black soil' },
+  { season: 'akhet', type: 'well', text: 'The water carriers say the wells are full and sweet' },
+  { season: 'akhet', type: 'granary', text: 'The granary keepers are sweeping out the bins' },
+  { season: 'akhet', type: 'temple', text: 'The priests say the river rose just as it should' },
+  { season: 'akhet', type: 'bazaar', text: 'At the bazaar they talk of how high the river came' },
+  { season: 'akhet', type: 'house', text: 'Families mend their roofs while the fields lie under water' },
+  { season: 'akhet', type: 'booth', text: 'The players at the booth are learning a flood song' },
+  { season: 'peret', type: 'farm_grain', text: 'The young grain stands green and even in the fields' },
+  { season: 'peret', type: 'farm_fig', text: 'The fig trees are heavy with fruit' },
+  { season: 'peret', type: 'clay_pit', text: 'The diggers at the clay pit sing to keep time' },
+  { season: 'peret', type: 'garden', text: 'Neighbours sit in the gardens in the cool of the evening' },
+  { season: 'peret', type: 'weaver', text: 'The weavers say the flax is long and fine this year' },
+  { season: 'peret', type: 'brewery', text: 'The brewers are trying a sweeter beer' },
+  { season: 'peret', type: 'house', text: 'Children chase each other between the houses at dusk' },
+  { season: 'peret', type: 'storehouse', text: 'The storehouse clerks count every jar twice' },
+  { season: 'shemu', type: 'farm_grain', text: 'The harvesters are singing in the fields' },
+  { season: 'shemu', type: 'granary', text: 'The granaries are filling with the new harvest' },
+  { season: 'shemu', type: 'well', text: 'The water carriers rest in the shade at noon' },
+  { season: 'shemu', type: 'trading_post', text: 'A trader says caravans pay well for Theban goods' },
+  { season: 'shemu', type: 'jeweller', text: 'The jewellers are cutting stones for a wedding' },
+  { season: 'shemu', type: 'temple', text: 'The priests watch the river for the first rise' },
+  { season: 'shemu', type: 'statue', text: 'People leave flowers at the foot of the statues' },
+  { season: 'shemu', type: 'firehouse', text: 'The firefighters keep their jars full in the dry heat' },
+];
+// ── end s3 score ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 balance (Track F) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track F's words for the integrator: anything balance needs words for (difficultyHint is edited in place). Add new lines just above the end marker.
+export const BALANCE_TEXT = {};
+// ── end s3 balance ───────────────────────────────────────────────────────────────────────────────────────────────────

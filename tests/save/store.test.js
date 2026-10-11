@@ -57,7 +57,7 @@ describe('save envelope', () => {
     expect(msg).toBe('bad_migration_1');
     try { migrate({ version: 2 }, table, 3); } catch (e) { msg = e.message; }
     expect(msg).toBe('bad_migration_2');
-    expect(CURRENT_VERSION).toBe(3);
+    expect(CURRENT_VERSION).toBe(4);
   });
 });
 

@@ -22,13 +22,18 @@ export function matchKey(ev, names = Object.keys(KEYS)) {
   return null;
 }
 
-export function createKeyboard({ target = window, settings = null, cam, cameraControl, actions = {} }) {
+// hidden(): true while the interface is hidden (screenshot mode, spec 6.4); then only Esc (which brings it back) and the
+// pan keys act, so nothing changes the city where the player cannot see it.
+const WHILE_HIDDEN = new Set(['back', 'panLeft', 'panRight', 'panUp', 'panDown']);
+
+export function createKeyboard({ target = window, settings = null, cam, cameraControl, actions = {}, hidden = () => false }) {
   const run = (fn, ...args) => { if (typeof fn === 'function') fn(...args); };
   const pan = (dx, dy) => { if (cameraControl) cameraControl.cancel(); panBy(cam, dx, dy); };
   const onKey = (ev) => {
     if (isTyping(ev.target)) return;
     const name = matchKey(ev);
     if (!name) return;
+    if (hidden() && !WHILE_HIDDEN.has(name)) return;
     if (ev.repeat && !name.startsWith('pan')) return;                                  // held keys fire toggles once
     if (isActivatable(ev.target) && (name === 'confirm' || name === 'pause')) return;   // leave the button its Enter and Space
     if (!ALWAYS.has(name) && settings && settings.get().keyboardShortcuts === false) return;

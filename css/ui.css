@@ -439,3 +439,143 @@ body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) 
   .title-card .tagline { margin: 0; }
   .title-buttons { gap: 4px; }
 }
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 contract (Track 0) ── Track 0's styles for the contract. Add new rules just above the end marker. */
+/* Screenshot mode (spec 4.19, 6.4): nothing of the interface shows over the map; the screen-reader lines stay. */
+body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; }
+/* ── end s3 contract ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 fire (Track A) ── Track A's styles for fire. Add new rules just above the end marker. */
+/* ── end s3 fire ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 raids (Track B) ── Track B's styles for raids and defence. Add new rules just above the end marker. */
+/* ── end s3 raids ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 art (Track C) ── Track C's styles for art and render. Add new rules just above the end marker. */
+/* ── end s3 art ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 ui (Track D) ── Track D's styles for the danger interface. Add new rules just above the end marker. */
+/* D1: the one banner (spec 6.3). Words first, then the buttons; on a narrow phone the buttons wrap under the words and
+   keep their 44 px. A raid warning's defence line sits on its own line; its countdown chip is the same row, one line. */
+#banner .critical { flex-wrap: wrap; row-gap: 4px; }
+#banner .critical .icon { flex: none; }
+#banner .critical .text { flex: 1 1 6em; }
+#banner .critical .defence { display: block; }
+#banner .critical .buttons { flex: 0 1 auto; max-width: 100%; display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+#banner .critical .more { white-space: nowrap; }
+#banner .critical.chip .expand { font-weight: 700; text-align: left; padding: 0 4px; }
+/* A phone at larger text keeps the banner to its title and buttons: the fix stays for screen readers and in the alert
+   list (the minimap sheet), so the banner and the goals strip end above the middle of the screen (ruling 111). */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #banner .critical .text > .small:not(.defence) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* The legend under a banner on a phone (ruling 111): one 44 px icon at the right end of the banner's row, so the goals
+   strip keeps its place; tapped, the full legend opens in its own row. Wide screens keep the full strip. */
+#legend .legend-icon { display: none; }
+body.has-banner:not([data-layout="wide"]) #legend .legend-icon { display: inline-flex; align-items: center; justify-content: center; padding: 0; box-shadow: var(--shadow); }
+body.has-banner:not([data-layout="wide"]) #legend:not(.open) .strip { display: none; }
+body.has-banner:not([data-layout="wide"]) #legend.open { flex-direction: row-reverse; align-items: center; }   /* open: the icon ends the strip's row */
+body.has-banner:not([data-layout="wide"]) #legend:not(.open):not(:empty) { position: absolute; top: 0; right: 0; }
+body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:empty)) { max-width: calc(100% - var(--tap) - 6px); }
+/* D2: an info caption (a blaze put out, a raid's report) is news, not a celebration: no star, a plain edge. */
+#cheer .cheer.info { border-color: var(--parchment-3); }
+#cheer .cheer.info .icon { display: none; }
+#sheet .fire-note, #sheet .ambient-note { margin: 0 0 6px; }
+/* D3: the danger sheets. The fire row's words wrap under its label; its Show me or View sits right under it. The
+   festival and rubble groups keep their reason beside the button they explain; the tribute sheet's two outcome
+   buttons share a row, neither styled as the default. */
+#sheet .fire-row > :last-child { text-align: right; }
+#sheet .fire-fix { display: flex; justify-content: flex-end; padding: 4px 0; }
+#sheet .festival-group { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex-basis: 100%; }
+#sheet .festival-group p { margin: 0; }
+#sheet .tribute-cost { font-weight: 700; margin: 0 0 6px; }
+#sheet .cancels, #sheet .why-not { margin: 8px 0 4px; }
+#sheet .tribute-actions button { flex: 1 1 10em; }
+/* D4: the fire-risk legend: the four bands, then the dot and ring and what never burns on a row of their own. */
+#legend .fire-keys { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; order: 4; flex-basis: 100%; }
+/* ── end s3 ui ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 score (Track E) ── Track E's styles for scoring and records. Add new rules just above the end marker. */
+/* The score chip on the summary button (spec 4.19): out of the numbers' flow, at the button's bottom right, so the numbers
+   keep their rows; the numbers sit 3 px higher to leave it room. */
+#topbar .stats { position: relative; padding-bottom: 6px; }
+#topbar .score-chip { position: absolute; right: 4px; bottom: 2px; line-height: 1; padding: 0 6px; border-radius: 8px; background: var(--teal-soft); color: var(--ink); font-weight: 600; white-space: nowrap; pointer-events: none; }
+/* The summary's score section: the total and its medal, a bar per part with its number and reason, the splits. */
+.score-section .score-total { margin: 4px 0 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.score-section .score-number { font-size: calc(28px * var(--ui-scale)); line-height: 1.1; }
+.score-section .medal { font-weight: 600; }
+.score-section .medal::before { content: ""; display: inline-block; width: 0.8em; height: 0.8em; margin-right: 4px; border-radius: 50%; vertical-align: -0.08em; background: var(--parchment-3); }
+.medal.bronze::before { background: #B0703A; } .medal.silver::before { background: #A9A9A9; } .medal.gold::before { background: var(--gold); }
+.score-section p { margin: 2px 0; }
+#sheet .score-parts { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 8px; }
+.score-part .row { padding: 0; border: 0; }
+.part-bar { display: block; height: 8px; border-radius: 4px; background: var(--parchment-2); box-shadow: inset 0 0 0 1px var(--parchment-3); overflow: hidden; }
+.part-bar .fill { display: block; height: 100%; background: var(--teal); }
+.score-section h4 { margin: 12px 0 4px; font-size: inherit; }
+#sheet .splits { list-style: none; margin: 0; padding: 0; }
+.splits li { padding: 2px 0; }
+/* Seal this reign and Share score (spec 4.19). The emoji row keeps its lines; the link reads whole and can be selected. */
+.seal-question { margin: 4px 0 8px; }
+#sheet .emoji-row { margin: 8px 0; font: inherit; line-height: 1.5; white-space: pre; overflow-x: auto; }
+#sheet .share-link-text { box-sizing: border-box; width: 100%; min-height: var(--tap); padding: 0 8px; font: inherit; color: var(--ink); background: var(--parchment-2); border: 1px solid var(--parchment-3); border-radius: var(--radius); }
+#sheet .honour { margin: 4px 0; font-style: italic; }
+/* The title card's records, This week's Nile and a friend's shared score (spec 4.1, 4.19). The card already scrolls inside
+   the screen (the difficulty rules above) when they make it taller than a small phone. */
+.title-records { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 2px 0; }
+.title-records .best-line { margin: 0; }
+.title-records .stamps { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; margin-top: 4px; }
+.title-weekly { display: flex; flex-direction: column; gap: 2px; }
+.title-weekly .weekly-hint { margin: 0; }
+/* A phone held sideways (the height query the difficulty rules use): the week's seed line hides (the button still has it
+   as its description, through aria-describedby) and This week's Nile shares a line with Play with sound on a wider card,
+   so the card fits about 390 px of height at 100% text without scrolling. */
+@media (max-height: 480px) {
+  .title-card { width: min(440px, 100%); }
+  .title-buttons { flex-direction: row; flex-wrap: wrap; }
+  .title-buttons > * { flex: 1 1 100%; }
+  .title-buttons > .title-weekly, .title-buttons > .sound { flex: 1 1 40%; }
+  .title-weekly .weekly-hint { display: none; }
+}
+.shared-score { background: var(--parchment-2); border-radius: var(--radius); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+.shared-score h2 { margin: 0; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
+.shared-score p { margin: 0; }
+.shared-score .beat { font-weight: 700; font-size: calc(20px * var(--ui-scale)); }
+.shared-score .start-seed { margin-top: 4px; }
+.title-card:has(> .guide) .shared-score { display: none; }   /* one panel at a time: the install guide or the new-city question */
+.shared-bad { margin: 0; }
+/* Feats (spec 4.19): their own group above the achievements, laid out as the achievements are. */
+.feats-section { margin-top: 12px; }
+#sheet .feats { list-style: none; margin: 4px 0; padding: 0; }
+#sheet .feat { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+#sheet .feat .what { display: flex; flex-direction: column; min-width: 0; }
+#sheet .feat .status { flex: none; white-space: nowrap; }
+#sheet .feat.earned .status { color: var(--teal); font-weight: 600; }
+#sheet .feat.lost .status { color: var(--ink-soft); }
+/* The opening chain's Founded Thebes row, and the next-threshold bar (spec 4.1): a slim line under the goals strip. It
+   steps aside on a phone while a critical banner is up (the plan's controller ruling 12), or while a tip or a caption
+   shows, so the rows under the top bar still end above the middle of the map (spec 6.1); a wide screen keeps it. */
+#sheet .goals .founded { padding: 4px 0; }
+#goals .threshold { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box; margin-top: 4px; background: var(--parchment); color: var(--ink); border-radius: var(--radius); padding: 0 12px; box-shadow: var(--shadow); line-height: 1.6; }
+#goals .threshold-meter { flex: none; width: 48px; height: 6px; border-radius: 3px; background: var(--parchment-2); box-shadow: inset 0 0 0 1px var(--parchment-3); overflow: hidden; }
+#goals .threshold-meter .fill { display: block; height: 100%; background: var(--teal); }
+body:is([data-layout="portrait"], [data-layout="compact"]).has-banner #goals .threshold { display: none; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #under-bar:has(#tip .tip-row, #cheer .cheer) #goals .threshold { display: none; }
+/* A citizen remark (spec 4.19): a quieter caption, with a speech mark for its icon and no gold. */
+#cheer .cheer.remark { border-color: var(--parchment-3); }
+#cheer .cheer.remark .text { font-weight: 400; font-style: italic; }
+/* ── end s3 score ── */
+
+/* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
+
+/* ── s3 balance (Track F) ── Track F's styles for balance and integration. Add new rules just above the end marker. */
+/* ── end s3 balance ── */

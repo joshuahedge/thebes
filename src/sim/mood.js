@@ -2,6 +2,9 @@ import { MOOD } from '../data/mood.js';
 import { housesOf } from './world.js';
 import { atLeast } from './progression.js';
 import { wantedNeeds } from './housing.js';
+import { fireMood } from './fire.js';
+import { raidMood } from './raids.js';
+import { festivalMood } from './festival.js';
 
 export function updateMood(world) {
   let wanting = 0;
@@ -23,7 +26,11 @@ export function updateMood(world) {
   }
 
   const debt = world.gold < 0 ? -Math.min(MOOD.debtMax, Math.round(-world.gold / MOOD.debtPerPoint)) + 0 : 0;
-  world.mood = Math.max(0, Math.min(100, MOOD.base + food + jobs + debt));
-  world.moodBreakdown = { base: MOOD.base, food, jobs, debt };
+  // Stage 3's danger terms (spec 4.9): each module reports only the terms that apply now, so a calm city's breakdown is
+  // the same four rows as before. fire, burned (fire.js); raid (raids.js); festival (festival.js).
+  const danger = { ...fireMood(world), ...raidMood(world), ...festivalMood(world) };
+  const dangerSum = Object.values(danger).reduce((s, v) => s + v, 0);
+  world.mood = Math.max(0, Math.min(100, MOOD.base + food + jobs + debt + dangerSum));
+  world.moodBreakdown = { base: MOOD.base, food, jobs, debt, ...danger };
   return world.mood;
 }

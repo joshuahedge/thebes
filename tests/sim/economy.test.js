@@ -17,7 +17,7 @@ describe('economy', () => {
     addRaw(w, 'temple', 12, 8, { staff: 6 });
     addRaw(w, 'well', 20, 9);
     monthlyEconomy(w);
-    expect(w.stats.lastMonth).toEqual({ taxes: 40, wages: 24, upkeep: 13, net: 3 });
+    expect(w.stats.lastMonth).toEqual({ taxes: 40, wages: 24, upkeep: 13, soldiers: 0, net: 3 });   // no soldiers: no pay (spec 4.11)
     expect(w.gold).toBe(1003);
   });
   it('charges nothing for paused buildings', () => {

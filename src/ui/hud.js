@@ -22,7 +22,7 @@ export function summaryData(world) {
   const L = world.labour;
   return {
     gold: world.gold, people: population(world), mood: world.mood, moodBreakdown: world.moodBreakdown, date: dateParts(world),
-    taxes: last.taxes, wages: last.wages, upkeep: last.upkeep, net: last.net,
+    taxes: last.taxes, wages: last.wages, upkeep: last.upkeep, soldiers: last.soldiers || 0, net: last.net,
     tradeIncome: last.tradeIncome || 0, tradeSpent: last.tradeSpent || 0, made: last.made || {}, used: last.used || {}, difficulty: world.difficulty,   // the economy (spec 4.10, 4.18)
     foodStored, foodByGood, foodNeed, monthsOfFood: foodNeed > 0 ? Math.round((foodStored / foodNeed) * 10) / 10 : null,
     workforce: L.workforce, working: L.employed, jobless: L.workforce - L.employed, jobs: L.jobs,
@@ -36,8 +36,11 @@ const stat = (label, cls) => el('span', { class: `stat ${cls}` }, [el('span', { 
 export function createHud({ world, store, container, speedBar = null, onOpenSummary = () => {}, onOpenMenu = () => {}, shortDate = () => store.get().layout !== 'wide' }) {
   const gold = stat(T.gold, 'gold'), people = stat(T.people, 'people'), mood = stat(T.mood, 'mood'), date = stat(T.date, 'date');
   const income = stat(T.income, 'income wide-only'), jobless = stat(T.jobless, 'jobless wide-only'), food = stat(T.food, 'food wide-only');
+  // Stage 3 (spec 4.19): the score chip, a small "Score 247" on the summary button. It starts empty and hidden; the score
+  // interface fills it after every command and game day (src/ui/scoreUi.js), so the top bar's numbers are unchanged.
+  const scoreChip = el('span', { class: 'score-chip small', hidden: true });
   // No aria-label here: it would replace the visible numbers as the accessible name (spec 6.8). The hint is read as part of the name.
-  const stats = el('button', { type: 'button', class: 'stats quiet', title: T.summary, onClick: onOpenSummary }, [gold, people, mood, date, income, jobless, food, el('span', { class: 'sr-only', text: T.openSummary })]);
+  const stats = el('button', { type: 'button', class: 'stats quiet', title: T.summary, onClick: onOpenSummary }, [gold, people, mood, date, income, jobless, food, scoreChip, el('span', { class: 'sr-only', text: T.openSummary })]);
   const menu = iconButton(T.menu, '☰', { class: 'menu' });
   menu.addEventListener('click', onOpenMenu);
   const bar = el('div', { class: 'speed wide-only' });

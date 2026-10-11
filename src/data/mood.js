@@ -13,3 +13,18 @@ export const MOOD = {
   arrivalMoodDivisor: 60,
   arrivalBatchesPerMonth: 3,   // arrivals are processed every 10 days
 };
+
+// The danger terms (spec 4.9), each its own row in the summary's mood breakdown. Fire's (src/sim/fire.js fireMood):
+// a building reached the fire stage last month (a blaze put out in time does not count); each building burned down,
+// houses included, in the last burnedDays. Raids' (src/sim/raids.js raidMood): for raidDays after a raid ends, by its
+// outcome; a raid cancelled by tribute never happened. The festival's (src/sim/festival.js festivalMood): its bonus is
+// FESTIVAL.mood for FESTIVAL.days (src/data/raids.js).
+export const DANGER_MOOD = {
+  fireLastMonth: -4,
+  burnedEach: -2,
+  burnedMax: -10,
+  burnedDays: 180,
+  raidBeaten: -3,
+  raidLost: -8,
+  raidDays: 180,
+};

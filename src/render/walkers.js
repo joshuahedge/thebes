@@ -1,5 +1,5 @@
-// Cosmetic walkers (spec 4.5): water carriers, priests, porters and citizens pacing the roads inside each
-// working building's reach. Positions are a pure function of the world and the time, so nothing is
+// Cosmetic walkers (spec 4.5): water carriers, priests, porters, firefighters (Stage 3) and citizens pacing the roads
+// inside each working building's reach. Positions are a pure function of the world and the time, so nothing is
 // stored in the world and the same frame always looks the same.
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, housesOf } from '../sim/world.js';
@@ -12,7 +12,7 @@ export const WALKER_CAP = 40;
 export const TILES_PER_DAY = 2;   // at 1x a day lasts 2/3 s, so a tile takes a third of a second
 export const CITIZEN_RANGE = 4;
 export const CITIZEN_SHARE = 0.15;
-export const KIND_BY_TYPE = { well: 'water', temple: 'priest', bazaar: 'porter', granary: 'porter' };
+export const KIND_BY_TYPE = { well: 'water', temple: 'priest', bazaar: 'porter', granary: 'porter', firehouse: 'firefighter' };
 
 const reachFor = (def) => def.reach || def.supplyReach || def.producerReach || 6;
 

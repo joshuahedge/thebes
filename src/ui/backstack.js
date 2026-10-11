@@ -2,7 +2,8 @@
 // gesture closes one thing at a time and never leaves the game while something is open (spec 6.4).
 import { back, isToolMode } from './modes.js';
 
-const stepsOf = (s) => (s.confirmDialog ? 1 : 0) + (s.sheet && s.sheet.kind !== 'info' ? 1 : 0) + (isToolMode(s.mode) ? 1 : 0) + (s.mode === 'selected' ? 1 : 0);
+const stepsOf = (s) => (s.confirmDialog ? 1 : 0) + (s.sheet && s.sheet.kind !== 'info' ? 1 : 0) + (isToolMode(s.mode) ? 1 : 0) + (s.mode === 'selected' ? 1 : 0)
+  + (s.screenshot ? 1 : 0);
 
 export function createBackStack({
   store, history = window.history,
