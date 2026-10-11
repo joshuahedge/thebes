@@ -1,11 +1,12 @@
-param([string]$Grep = '', [int]$Port = 0)
+# Usage: tests/run-tests.ps1 [-Grep <text>] [-Port <n>] [-WaitSeconds <n>]
+# -WaitSeconds is how long to wait for the results (default 45), for each of the run and its one retry.
+param([string]$Grep = '', [int]$Port = 0, [int]$WaitSeconds = 45)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") |
   Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $edge) { Write-Output 'Microsoft Edge not found'; exit 2 }
 $serve = Join-Path $PSScriptRoot 'serve.py'
-$waitSeconds = 45
 
 # Runs the test page once and returns @{ Ready; Text; ErrTail }. Ready is false when the server never came
 # up. Text is the page's results, or '' when they did not arrive in time (then ErrTail holds Edge's stderr).
@@ -41,7 +42,7 @@ function Invoke-TestRun([int]$WantedPort) {
         '--no-pings', '--metrics-recording-only', "--user-data-dir=`"$profileDir`"", $url)
       Start-Process -FilePath $edge -ArgumentList $edgeArgs -RedirectStandardOutput $outFile -RedirectStandardError $errFile -WindowStyle Hidden | Out-Null
       $clock = [Diagnostics.Stopwatch]::StartNew()
-      while ($clock.Elapsed.TotalSeconds -lt $waitSeconds -and -not (Test-Path -LiteralPath $resultsFile)) { Start-Sleep -Milliseconds 100 }
+      while ($clock.Elapsed.TotalSeconds -lt $WaitSeconds -and -not (Test-Path -LiteralPath $resultsFile)) { Start-Sleep -Milliseconds 100 }
       if (Test-Path -LiteralPath $resultsFile) {
         # serve.py renames a finished temp file into place, so the file is complete once it exists.
         $result.Text = [System.IO.File]::ReadAllText($resultsFile, [System.Text.Encoding]::UTF8)
