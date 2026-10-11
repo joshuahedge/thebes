@@ -11,7 +11,7 @@ import { ACHIEVEMENTS } from '../data/achievements.js';
 import { closeSheet } from './modes.js';
 import { summaryData } from './hud.js';
 import { ZOOM_STEP } from '../data/ui.js';
-import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, T } from './text.js';
+import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, T } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -51,7 +51,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (!list.length) return el('p', { class: 'muted', text: T.noProblems });
     return el('ul', { class: 'problems' }, list.map((a) => {
       const t = alertText(a, world);
-      return el('li', { class: 'problem' }, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', onClick: () => onView(a) })]);
+      return el('li', { class: 'problem' }, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => onView(a) })]);
     }));
   }
 
@@ -94,7 +94,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     let action;
     if (fix.view) {
       if (!building) return li;
-      action = button(T.view, { class: 'view quiet', 'aria-label': `${T.view}: ${buildingName(building.type)}`, onClick: () => onSelect(building.id) });
+      action = button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(building.type)), onClick: () => onSelect(building.id) });
     } else {
       const at = centreOf(fix.at === 'building' && building ? building : h);
       const target = { category: fix.category, item: fix.item, x: at.x, y: at.y };
@@ -186,7 +186,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     const list = getAlerts();
     body.append(el('h3', { text: T.alerts }));
     if (!list.length) body.append(el('p', { class: 'muted', text: T.noAlerts }));
-    else body.append(el('ul', { class: 'alert-list' }, list.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', onClick: () => onView(a) })]); })));
+    else body.append(el('ul', { class: 'alert-list' }, list.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => onView(a) })]); })));
     minimap.render(list);
     return [head(T.minimap), body];
   }

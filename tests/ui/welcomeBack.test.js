@@ -37,6 +37,7 @@ describe('ui welcome back', () => {
     expect(sheet.textContent).toContain(`${T.people} 8`);
     expect(sheet.textContent).toContain(GOALS[0].text);
     expect(sheet.textContent).toContain(alertText({ code: 'debt' }, r.world).title);
+    expect(sheet.querySelector('.alert-list .view').getAttribute('aria-label')).toBe(`${T.view}: ${alertText({ code: 'debt' }, r.world).title}`);
     fire(sheet.querySelector('.alert-list .view'), 'click');
     expect(r.store.get().sheet.kind).toBe('summary');
     r.store.set({ sheet: { kind: 'welcome', id: null } });

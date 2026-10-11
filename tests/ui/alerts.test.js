@@ -50,6 +50,7 @@ describe('ui alerts', () => {
     expect(a.count()).toBe(1);
     expect(a.list().length).toBe(2);
     expect(r.live.textContent).toContain('2 alerts');
+    expect(row.querySelector('.view').getAttribute('aria-label')).toBe(`${T.view}: ${alertText({ code: 'debt' }, r.world).title}`);
     fire(row.querySelector('.view'), 'click');
     expect(seen).toEqual(['debt']);
     a.refresh();                                              // same critical set: the row is kept, not rebuilt

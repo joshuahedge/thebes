@@ -132,6 +132,7 @@ export const progressLabel = (n, of) => `Progress ${progressText(n, of)}`;
 export const dailyDoneText = (n) => plural(n, 'daily goal done', 'daily goals done');
 export const swapLabel = (text) => `Swap: ${text}`;
 export const showMeLabel = (text) => `${T.showMe}: ${text}`;   // a goal's Show me names its goal, so several of them stay apart
+export const viewLabel = (what) => `${T.view}: ${what}`;         // a View names its alert or building, so several of them stay apart
 
 // Goal chapters for the goals sheet (early-game pass 3.3); triggered first-time events come first.
 export const CHAPTER_NAMES = { first_homes: 'First homes', feed: 'Feed the village', grow: 'Grow', event: 'Needs attention' };

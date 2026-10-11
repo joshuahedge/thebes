@@ -56,6 +56,47 @@ describe('ui corner words', () => {
       expect(map.querySelector('.badge').textContent).toBe('2');
     } finally { cleanup(); }
   });
+  it('keeps the two corner groups apart beside the open drawer on a phone held sideways under 700 px, at larger text', async () => {
+    for (const [w, h] of [[667, 375], [640, 360]]) {
+      for (const size of [125, 150]) {
+        for (const speed of [0, 3]) {
+          const r = await rigUI({ width: w, height: h });
+          try {
+            r.ui.settings.set({ textSize: size });
+            if (speed) r.ui.speedControl.set(speed);                              // "❚❚ 3×" as well as "▶ Play"
+            r.store.set({ overlay: 'religion' });                                 // the longest overlay word
+            fire(r.root.querySelector('#rail .cat[data-category="services"]'), 'click');
+            expect(r.root.querySelector('#rail .drawer').hidden).toBe(false);
+            expect(document.body.classList.contains('narrow')).toBe(true);
+            const left = box(r, '#corners .left'), right = box(r, '#corners .right'), drawer = box(r, '#rail .drawer'), shell = r.root.getBoundingClientRect();
+            const at = `${w}x${h} at ${size}%, speed ${speed}`;
+            expect([at, left.right + 2 < right.left, right.right <= drawer.left + 0.5, left.left >= shell.left]).toEqual([at, true, true, true]);   // apart, not touching
+            expect([at, box(r, '#corners .speed-main').height <= box(r, '#corners .minimap-button').height + 0.5]).toEqual([at, true]);   // Play is not squeezed onto two lines
+            for (const sel of ['.speed-main', '.speed-chevron', '.minimap-button', '.overlay-button']) {
+              const b = box(r, `#corners ${sel}`);
+              expect([at, sel, b.width >= 44, b.height >= 44]).toEqual([at, sel, true, true]);
+            }
+            for (const [sel, word] of [['.minimap-button', T.mapButton], ['.overlay-button', OVERLAY_NAMES.religion]]) {
+              const b = r.root.querySelector(`#corners ${sel}`);
+              expect(b.querySelector('.label').getBoundingClientRect().width).toBeLessThan(2);   // the word leaves the screen
+              expect(b.querySelector('.label').textContent).toBe(word);
+              expect(b.getAttribute('aria-label').startsWith(sel === '.minimap-button' ? T.mapButton : T.layers)).toBe(true);   // and stays in the name
+            }
+            expect(box(r, '#corners .speed-main .word').width).toBeGreaterThan(2);   // Play keeps its word
+          } finally { r.cleanup(); }
+        }
+      }
+    }
+    for (const [w, h, size] of [[740, 360, 150], [640, 360, 100]]) {             // wider, or at the body text size, the words stay
+      const r = await rigUI({ width: w, height: h });
+      try {
+        r.ui.settings.set({ textSize: size });
+        fire(r.root.querySelector('#rail .cat[data-category="services"]'), 'click');
+        expect([w, size, box(r, '#corners .minimap-button .label').width > 2]).toEqual([w, size, true]);
+        expect([w, size, box(r, '#corners .left').right <= box(r, '#corners .right').left]).toEqual([w, size, true]);
+      } finally { r.cleanup(); }
+    }
+  });
   it('keeps the corner buttons tappable and apart at 150% text, and clear of the compact column', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {

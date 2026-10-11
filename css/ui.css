@@ -261,6 +261,10 @@ body[data-layout="portrait"][data-text-size="125"] .confirm .info, body[data-lay
 body[data-layout="compact"]:has(#confirm:not([hidden])) #corners,
 body[data-layout="compact"]:has(#sheet:not([hidden])) #corners { right: calc(var(--rail-w) + var(--drawer-w) + var(--safe-right)); }
 body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #corners { right: calc(var(--rail-w) + var(--drawer-w) + 17px + var(--safe-right)); }
+/* A phone held sideways under 700 px wide (body.narrow, set by layout.js) at 125% or 150% text has too little map beside
+   the drawer for both corner groups with their words: Map and Layers keep their icons and drop the word from sight. Each
+   button's accessible name still starts with its word. */
+body.narrow[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]) #corners .labelled .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* The house sheet (early-game pass 2.10): each need on its own row with a mark, its name and a status in
    words; a missing one adds its cause, its fix and Show me. Residents carry a small meter. */
