@@ -309,3 +309,27 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 body[data-layout="wide"] #cheer { max-width: 440px; }
 @keyframes cheer-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 body.reduce-motion #cheer .cheer { animation: none; }
+
+/* The tip row (early-game pass 3.4): under the goals strip, one tip at a time with Got it. Ink on teal-soft (6.7:1 for the
+   muted label). Like #cheer, #tip is a live region that stays rendered while empty (collapsed to a clipped dot that is
+   out of the flow, so it leaves no gap), so a screen reader already has it when a tip arrives. */
+#tip { position: static; display: flex; max-width: 100%; pointer-events: none; }
+#tip > * { pointer-events: auto; }
+#under-bar > #tip:empty { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+#tip .tip-row { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box; background: var(--teal-soft); color: var(--ink); border: 1px solid var(--teal); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); }
+#tip .tip-row .text { min-width: 0; }
+#tip .tip-row .label, #tip .tip-row .got-it { flex: none; }
+#tip .tip-row .got-it { white-space: nowrap; }
+body[data-layout="wide"] #tip { max-width: 440px; }
+
+/* The idle nudge (early-game pass 3.5): its one line sits under the goals strip, so #goals stacks in a column. Show me
+   gets a gold ring that pulses twice (under 1 flash a second, done in 2.4 s), then stays still until the
+   player acts; under reduced motion only the still ring shows. The Play tip rings the speed control the same way. */
+#goals { flex-direction: column; align-items: flex-start; }
+#goals .nudge { max-width: 100%; pointer-events: none; }   /* a polite live region that stays rendered: no height of its own while its line is hidden */
+#goals .nudge-line { margin: 4px 0 0; max-width: 100%; box-sizing: border-box; background: var(--parchment); color: var(--ink); border-radius: var(--radius); padding: 4px 12px; box-shadow: var(--shadow); pointer-events: none; }
+.goal-strip .show-me.glow { box-shadow: 0 0 0 3px var(--gold); animation: nudge-glow 1.2s ease-in-out 2; }
+body.nudge-play .speed-main { box-shadow: 0 0 0 3px var(--gold); animation: nudge-glow 1.2s ease-in-out 2; }
+body.nudge-play #topbar .speed-bar { border-radius: var(--radius); box-shadow: 0 0 0 3px var(--gold); animation: nudge-glow 1.2s ease-in-out 2; }
+@keyframes nudge-glow { 0%, 100% { box-shadow: 0 0 0 3px var(--gold); } 50% { box-shadow: 0 0 0 8px rgba(226, 177, 60, 0.35); } }
+body.reduce-motion .goal-strip .show-me.glow, body.reduce-motion.nudge-play .speed-main, body.reduce-motion.nudge-play #topbar .speed-bar { animation: none; }

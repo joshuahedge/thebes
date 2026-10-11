@@ -1,8 +1,9 @@
 // The menu, settings, help and about sheets (spec 6.3) as custom renderers for sheets.js, plus the
 // confirm dialog that store.confirmDialog drives (New city, undoing an occupied area).
 import { KEYS, APP_VERSION } from '../data/ui.js';
+import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
-import { HELP_ROWS, HELP_NAMES, T } from './text.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, T } from './text.js';
 import { el, button, clear } from './components.js';
 
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
@@ -78,6 +79,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     if (canResumeGuide()) {
       body.append(el('div', { class: 'actions' }, [button(T.resumeGuide, { class: 'resume-guide primary', onClick: () => { onResumeGuide(); if (close) close(); } })]));
     }
+    body.append(el('h3', { text: T.tips }), el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.map((tip) => el('li', { text: TIP_TEXT[tip.id] }))));
   }
 
   function about(body) {

@@ -85,3 +85,7 @@ export const TITLE_DRIFT_MS = 9000;    // one slow camera drift between two poin
 // captions starting. A milestone shows longer than the gap, so the next caption waits until it hides.
 export const CHEER_MS = { first: 2500, milestone: 4000 };
 export const CHEER_GAP_MS = 3000;
+
+// The idle nudge (early-game pass 3.5): Show me glows after this much idle running play, and one Next line follows this much later.
+export const NUDGE_GLOW_MS = 45000;
+export const NUDGE_LINE_MS = 60000;

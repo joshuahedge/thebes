@@ -157,7 +157,7 @@ describe('ui celebrate', () => {
     const r = await rigUI({ sfx });
     try {
       const cheer = r.root.querySelector('#cheer');
-      expect(cheer.previousElementSibling.id).toBe('goals');                 // the last row of #under-bar, so nothing above it moves
+      expect(cheer.previousElementSibling.id).toBe('tip');                   // the last row of #under-bar (after the goals and the tip row), so nothing above it moves
       expect(cheer.nextElementSibling).toBe(null);
       expect(cheer.getAttribute('role')).toBe('status');
       expect(cheer.getAttribute('aria-live')).toBe('polite');
