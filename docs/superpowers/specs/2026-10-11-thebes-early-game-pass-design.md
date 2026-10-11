@@ -17,7 +17,7 @@
 
 ### 2.1 Calm, readable land
 - Sand blotches drop to a narrow lightness band (alpha 0.5 to 0.22, closer shades) so the ground stops competing with buildings.
-- **Fertile land** becomes dark river loam: main `#9C7A4E`, soft edge `#B49268`, with scattered green tufts and dark speckles in place of the offset second-tone pass that drew stair-steps. A farm site must read at a glance against sand (luminance difference at least 0.12 on the 0-1 scale).
+- **Fertile land** becomes dark river loam: main `#A8885C`, soft edge `#BC9C6E`, with scattered green tufts and dark speckles in place of the offset second-tone pass that drew stair-steps. A farm site must read at a glance against sand (luminance difference at least 0.12 on the 0-1 scale).
 - **Meadow** becomes a saturated, clumpy green (`#86B04A` main).
 - **River:** a turquoise shallows strip about a quarter-tile wide along the bank, between the foam line and the deep channel.
 - **Map edge:** the ground past the map is a darker, quieter sand (`#C8AE7C`), and the map's diamond edge gets a soft fade band so the edge reads as a border, never a flat triangle.
