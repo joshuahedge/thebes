@@ -27,3 +27,6 @@ Josh's standing instructions for this work: **no questions** — decide from gam
 ## For the final report
 - The rulings so far: `notes/handoff-2026-10-11/rulings-so-far.md` (40 items). Add Stage 2 execution rulings from the new ledger.
 - What is left for Josh: push main when he is happy (the push deploys `https://joshuahedge.github.io/thebes/`); the real-device checks from the 1d follow-ups (iPhone install/import, Android install, in-app browser notice, link preview, update cycle); a play of the guided start on his phone; taste calls on the loam colour and the caption/tip sizes; the og-image and icons still show the Stage 1 palette until `tools/render-assets.ps1` is rerun.
+
+## Outcome (11 Oct 2026, evening)
+Done in a second session: the plan was assembled and committed (817b2b3), Tasks 1-17 built and reviewed, the whole-branch review (fable) and its fix wave applied, Task 18's wrap-up done, and Stage 2 merged into main locally (not pushed). Follow-ups: `notes/2026-10-11-stage-2-followups.md`; every ruling: `notes/handoff-2026-10-11/rulings-so-far.md` (part 4).

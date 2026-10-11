@@ -13,3 +13,6 @@
 ## Correction: Tasks 1-2 (s2-plan-T01-T02.md) exists
 - The file is present and looks complete (both tasks with Steps 1-8, 1,955 lines, code fences balanced), but its writer stopped on the spend limit while still verifying it in a scratch copy and never reported. Treat it as unverified: read its CONTRACT NOTE lines and check it against the contract, or have one writer re-run it on a scratch copy before execution.
 - So the writers still to run after the reset are four: Tasks 6-8, 9-11, 12-14 and 15-17.
+
+## Superseded (11 Oct 2026, evening)
+- A second session picked up the handoff, re-ran all six writers (all finished and ran their code), assembled the plan (817b2b3), built Tasks 1-17 with reviews, ran the whole-branch review and its fix wave, and merged Stage 2 into main locally. Nothing above is still to do.

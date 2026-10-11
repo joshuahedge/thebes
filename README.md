@@ -20,6 +20,8 @@ Then open http://localhost:8000/. The title card shows a sample city; **New city
 
 **Learning as you go.** A new city starts with a guided start: the goal under the top bar marks the card it needs with **Suggested** and rings the spot on the map, and every step also works while paused. **Skip guide** turns it off; **Resume guide** in How to play brings it back. Goals keep coming after the opening (homes to grow, people to reach), first-time troubles become goals, and a home's sheet says why it is not growing, with **Show me** or **View**. Small captions celebrate firsts, goals and Town; one-time tips appear on their first trigger; if you sit idle, Show me glows and then one "Next:" line appears. Once the opening is done, three small **daily goals** arrive each day (no streaks; one free swap), and the city summary lists **achievements**. The **Help** setting chooses Guide and tips, Tips only, or Off.
 
+**The economy (Stage 2).** From Town (150 people) the city grows past House: Townhouses want pottery, and four Townhouses or empty plots in a square on a pleasant street join into a Manor, then a Fine manor (beer and two foods), a Villa (linen) and an Estate (jewellery). Each good has a chain: a clay pit, barley farm, flax farm or gem mine fills a **storehouse**, a workshop next to it turns the raw good into pottery, beer, linen or jewellery, and bazaars sell everything homes use. A storehouse's sheet lets you accept or refuse each good. **Desirability** decides which streets can hold the big homes: gardens, statues, temples and booths make a street nicer, workshops and storage make it worse; placing a building tints the ground it would change and the confirm bar says how many homes it makes nicer or less pleasant, and a home's sheet shows its score and the three biggest causes. The **booth** brings entertainment. At Market town a **trading post** opens trade with Memphis (and Byblos at Great city): for each good choose buy, sell or ignore and a level to keep, and a caravan comes every three months. Milestones run up to Capital (1,000 people); new build cards wear a "New" badge, and the next milestone's cards show greyed with when they unlock. Overlays add goods, entertainment and desirability. **Difficulty** (Relaxed, Normal, Hard, chosen under New city) changes what buildings, roads and trade routes cost.
+
 **Saving.** The game saves on its own at the end of every game month and whenever you leave the page, keeping the previous save as a backup. Come back and **Continue** opens the Welcome back card: how long you were away, what moved, open goals and alerts; **Carry on** restores your speed. A warning banner appears if saving stops working (private browsing, full storage): export your city from the menu.
 
 **Export and import.** Menu → **Export city** shares a `thebes-city-<date>.json` file (or downloads it); **Import city** loads one. Starting a new city offers to export first.
@@ -28,7 +30,7 @@ Then open http://localhost:8000/. The title card shows a sample city; **New city
 
 **Sound and vibration** are off by default: **Play with sound** on the title card or the Settings sheet turns them on. The iPhone silent switch is respected.
 
-Add `?seed=7` for another map, `?sample=1` for a small ready-made city, `?stress=1` for a full 64×64 city, or `?speed=1` to start running.
+Add `?seed=7` for another map, `?sample=1` for a small ready-made city (seeds 4, 7 and 19 starve; seed 11 grows into a Stage 2 town), `?stress=1` for a full 64×64 city, or `?speed=1` to start running.
 
 Keys: Space pauses, + and − change the speed, 1–7 pick a build category, arrows or WASD move the view, M opens the minimap, O cycles the overlays, Enter confirms, Esc goes back one step (it also closes an open tray), Ctrl+Z (Cmd+Z) undoes, ? lists the shortcuts. With a mouse: drag to pan, wheel to zoom, click to place. On a phone: one finger pans, two fingers zoom, tap to select or to move the ghost, then ✓.
 
@@ -46,7 +48,7 @@ Add `-Grep "reach"` to run only tests whose full name contains that text. You ca
 
 ## Tools
 
-`tools/render-assets.ps1` redraws the app icons and `og-image.png` with the art code (commit the PNGs). `tools/sw-files.ps1` rewrites `sw-files.js`, the list of files the offline cache holds, with a build stamp; run it after adding or changing files, before a publish (the test suite fails when it is stale).
+`tools/render-assets.ps1` redraws the app icons and `og-image.png` with the art code (commit the PNGs). `tools/shots.ps1 -Tag <name>` takes the before/after screen set at four sizes (`-Stage2` for the Stage 2 scenes) and `python tools/contact.py <raw dir> <out dir> <prefix> <before tag> <after tag> [--stage2]` builds contact sheets from it. `tools/sw-files.ps1` rewrites `sw-files.js`, the list of files the offline cache holds, with a build stamp; run it after adding or changing files, before a publish (the test suite fails when it is stale).
 
 For development, `?skipTitle=1` starts a fresh city without the title card, `?welcome=1` starts a sample city behind the Welcome back card, and `?nosw=1` drops the offline cache so edits show without a restart. Neither of the first two writes anything at once, but the next autosave replaces the saved city, so use them on a scratch browser profile.
 
