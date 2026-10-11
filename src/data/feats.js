@@ -4,9 +4,9 @@
 // Check kinds (src/sim/feats.js):
 //   neverInDebt { milestone }      become the milestone without the treasury ever going below 0
 //   fedRun { months, people }      every home at Cottage or above fed for `months` month ends in a row, with `people` or more
-//   without { type, milestone }    become the milestone without ever having a building of that type
+//   without { type, milestone }    become the milestone without ever keeping one of that type past undo
 //   noneBurned { milestone, days } no building burned for `days` after becoming the milestone
-//   cleanRaid                      beat a raid with no building burned and no gold stolen
+//   cleanRaid                      beat a raid with no building burned, no gold stolen and none of its fires still burning
 //   noTribute { milestone }        become the milestone without paying tribute
 //   buildings { types, n }         n buildings of these types at once
 //   jobs { people, rate }          `people` or more with unemployment at `rate` or less
