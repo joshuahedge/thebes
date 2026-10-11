@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-09 (revised the same day after a three-reviewer pass covering game design, interface, and onboarding and accessibility)
 **Status:** Approved 9 Oct 2026. Revised 11 Oct 2026 for Stage 2 (sections 4.1, 4.6-4.8, 4.10, 4.11, 4.14, 4.15, 4.18 and 10) from the Pharaoh Heaven review and the city-builder research; the calls made on Joshua's behalf are in that session's rulings list.
-**Owner:** Joshua Hedge (personal project, not Attensi)
+**Owner:** Joshua Hedge (personal project)
 
 ## 1. Summary
 
@@ -27,7 +27,7 @@ It's a plain web page that installs to a phone's home screen, works offline, and
 | Sound | About eight synthesised sound effects, **off by default**, no music. |
 | Difficulty | **Relaxed, Normal, Hard**, chosen when a city starts: cost and risk multipliers only (section 4.18). |
 | Hosting | **Public repo `joshuahedge/thebes` + GitHub Pages**. |
-| Separation | Personal GitHub account and commit identity. No Attensi org, and not a Claude artifact. |
+| Separation | Personal GitHub account and commit identity; not hosted as a Claude artifact. |
 
 ## 3. Goals and non-goals
 
@@ -598,13 +598,13 @@ thebes/
 - Every save carries a `version`. `migrate.js` upgrades older saves step by step. A save from a newer version is refused politely.
 - The install and import flow follows section 4.17.
 
-## 8. Hosting, sharing and separation from Attensi
+## 8. Hosting and sharing
 
 - **Repo:** `C:\dev\thebes` (outside OneDrive), branch `main`.
-- **Commit identity for this repo only:** `Joshua Hedge <181878008+joshuahedge@users.noreply.github.com>`. The global identity (Attensi email) is unchanged.
+- **Commit identity for this repo only:** `Joshua Hedge <181878008+joshuahedge@users.noreply.github.com>`. The global git identity is unchanged.
 - **Remote:** a **public** repo, `joshuahedge/thebes`, on the personal account, created when stage 1 is ready to publish.
 - **Hosting:** **GitHub Pages** from `main` → `https://joshuahedge.github.io/thebes/`.
-- It isn't hosted as a Claude artifact, because those sit on the Attensi Claude account.
+- It isn't hosted as a Claude artifact.
 - **Local running:** `python -m http.server` from the repo folder.
 
 ## 9. Testing and quality
