@@ -1,4 +1,5 @@
 import { BUILDINGS } from '../data/buildings.js';
+import { FOOD_GOODS } from '../data/goods.js';
 import { MOOD } from '../data/mood.js';
 import { allBuildings } from './world.js';
 import { touchesRoad } from './reach.js';
@@ -18,7 +19,7 @@ export function alertsFor(world) {
     if (b.blocked === 'no_input') alerts.push({ code: 'no_input', id: b.id });
     if (def.stores && storeTotal(b) >= def.capacity) alerts.push({ code: 'storage_full', id: b.id });   // any full store
     if (def.workers && road && !b.paused && !isWorking(world, b)) alerts.push({ code: 'understaffed', id: b.id });
-    if (def.sells && isWorking(world, b) && def.sells.every((g) => !((b.store[g] || 0) > 0))) alerts.push({ code: 'bazaar_empty', id: b.id });
+    if (def.sells && isWorking(world, b) && FOOD_GOODS.every((g) => !((b.store[g] || 0) > 0))) alerts.push({ code: 'bazaar_empty', id: b.id });   // no food in stock
   }
   for (const level of world.labour.shortLevels || []) alerts.push({ code: 'labour_shortage', level });
   const L = world.labour;

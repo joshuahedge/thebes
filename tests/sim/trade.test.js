@@ -153,6 +153,34 @@ describe('sim trade', () => {
     tradeMonth(full.w, ev);
     expect([ev[0].gift, full.store.store.clay]).toEqual([{ good: 'clay', n: 10 }, 10]);
     expect(granary.store).toEqual({});                                     // clay never goes to a granary
+    full.store.store.pottery = 0;                                          // room again: the other 30 come next time
+    full.w.day = 180;
+    tradeMonth(full.w, ev);
+    expect([ev[1].gift, full.store.store.clay, full.w.trade.routes.memphis.gifted]).toEqual([{ good: 'clay', n: 30 }, 40, true]);
+    full.w.day = 270;
+    tradeMonth(full.w, ev);
+    expect([ev[2].gift, full.store.store.clay]).toEqual([null, 40]);
+  });
+  it('keeps the gift until there is room for it near the post, then brings it once', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    setRoad(w, 0, 10, 31, 10);
+    setRoad(w, 31, 10, 31, 31);
+    w.milestone = 'market_town';
+    addRaw(w, 'trading_post', 20, 8);
+    staffAll(w);
+    w.trade.routes.memphis = { since: 0, gifted: false };
+    w.day = 90;
+    const events = [];
+    tradeMonth(w, events);                                                 // no store near the post: nothing lands
+    expect([events.length, events[0].gift, w.trade.routes.memphis.gifted]).toEqual([1, null, false]);
+    const store = addRaw(w, 'storehouse', 16, 8);
+    staffAll(w);
+    w.day = 180;
+    tradeMonth(w, events);
+    expect([events[1].gift, store.store.clay, w.trade.routes.memphis.gifted]).toEqual([{ good: 'clay', n: 40 }, 40, true]);
+    w.day = 270;
+    tradeMonth(w, events);
+    expect([events[2].gift, store.store.clay]).toEqual([null, 40]);
   });
   it('drifts prices each new year by at most 10%, the same for the same seed and year', () => {
     expect(drawDrift(1, 2)).toEqual(drawDrift(1, 2));

@@ -119,6 +119,18 @@ describe('goals v2', () => {
     expect(w.goals.triggered).toEqual(['fix_bazaar']);
     expect(ids(openGoals(w))).toEqual(['plots', 'well', 'food']);
   });
+  it('calls a bazaar empty when it has no food, even with household goods in stock', () => {
+    const w = makeTestWorld();
+    setRoad(w, 0, 10, 31, 10);
+    const bz = addRaw(w, 'bazaar', 9, 11);
+    staffAll(w);
+    bz.store.pottery = 5;
+    bz.store.beer = 3;
+    expect(alertsFor(w).map((a) => a.code)).toEqual(['bazaar_empty']);
+    expect(triggerEventGoals(w)).toEqual(['fix_bazaar']);
+    bz.store.figs = 1;                                            // any food clears it
+    expect(alertsFor(w).map((a) => a.code)).toEqual([]);
+  });
   it('puts triggered event goals first, in their listed order', () => {
     const w = makeTestWorld({ gold: -10 });
     expect(triggerEventGoals(w)).toEqual(['out_of_debt']);
