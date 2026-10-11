@@ -227,8 +227,9 @@ describe('s3 contract placement seams', () => {
       r.bar.render();
       expect(r.root.querySelector('.flip')).toBeTruthy();
       const p = r.placement.preview();
-      expect([typeof p.state, typeof p.text]).toEqual(['string', 'string']);          // the shape only: Track B's previewWall decides ok or refused
-      expect(typeof r.placement.confirm().ok).toBe('boolean');
+      expect([p.state, p.text, p.cost]).toEqual(['ok', '8 tiles', 64]);               // previewWall's answer (Track B): 6 + 2 tiles at 8
+      expect(r.placement.confirm().ok).toBe(true);
+      expect(r.world.tally.wallTiles).toBe(8);
       r.placement.dragTo(1, 1, 'start');
       r.placement.dragTo(4, 1, 'move');
       expect(r.store.get().line).toEqual({ x0: 1, y0: 1, x1: 4, y1: 1, flip: false });
