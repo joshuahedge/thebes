@@ -144,9 +144,11 @@ export function createUI({
     canResumeGuide: () => canResumeGuide(world, settings.get().help), onResumeGuide: () => { setGuide(world, true); refresh(); },
   });
   // Choosing Tips only or Off turns a running guide off at once (spec 3.1: all of it can be switched off).
-  // Choosing Guide and tips again does not restart it; Resume guide in How to play does.
+  // Choosing Guide and tips again does not restart it; Resume guide in How to play does. A new text size can wrap the
+  // side panel's tabs to more rows, so the panel measures them again.
   let lastHelp = settings.get().help;
-  const stopHelpWatch = settings.subscribe((v) => {
+  const stopSettingsWatch = settings.subscribe((v) => {
+    sidePanel.render();
     if (v.help === lastHelp) return;
     lastHelp = v.help;
     if (v.help !== 'full' && world.guide.on) { setGuide(world, false); refresh(); }
@@ -583,7 +585,7 @@ export function createUI({
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      guide.destroy(); stopHelpWatch();                // the guide's store subscription and the shared settings' help watch
+      guide.destroy(); stopSettingsWatch();            // the guide's store subscription and the shared settings' watch
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); celebrations.clear();
@@ -592,7 +594,8 @@ export function createUI({
       $('goals').hidden = false;                       // the strip hides its row when no goal is open; the next UI decides again
       for (const id of ['sheet', 'dialog']) { const c = $(id); clear(c); c.hidden = true; }
       confirmBar.element.remove();
-      document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it
+      document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it, and the tabs' edge
+      document.body.style.removeProperty('--panel-tabs-bottom');
       delete root.dataset.mode;
       root.classList.remove('has-banner', 'has-overlay', 'nudge-play');
       store.dispose();                                 // last: every component's subscription to this interface's store

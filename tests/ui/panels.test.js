@@ -8,6 +8,7 @@ import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
 import { startTool, openSheet } from '../../src/ui/modes.js';
 import { makeTestWorld, setRoad } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
+import { rigUI } from '../helpers/uiWorld.js';
 
 describe('ui panels', () => {
   it('side panel: tabs pick the category, the grid shows cards, the fold button folds', () => {
@@ -30,6 +31,25 @@ describe('ui panels', () => {
     expect(document.body.classList.contains('panel-folded')).toBe(false);
     expect(panel.details.classList.contains('details')).toBe(true);
     cleanup();
+  });
+  it('side panel: five tabs on one row at 100% text, and an open sheet below the tabs at any text size', async () => {
+    for (const [width, height] of [[1024, 768], [1280, 800]]) {
+      const r = await rigUI({ width, height });
+      try {
+        expect(r.store.get().layout).toBe('wide');
+        const tabs = () => [...r.root.querySelectorAll('#panel .tab')].map((t) => t.getBoundingClientRect());
+        expect(tabs().length).toBe(5);
+        expect([width, new Set(tabs().map((t) => t.top)).size]).toEqual([width, 1]);   // one row
+        for (const size of [100, 125, 150]) {
+          r.ui.settings.set({ textSize: size });
+          r.store.set(openSheet(r.store.get(), 'summary'));                 // a sheet tall enough to reach its full height
+          const top = r.root.querySelector('#sheet').getBoundingClientRect().top;
+          const rows = new Set(tabs().map((t) => t.top)).size;
+          for (const t of tabs()) expect([`${width} at ${size}%, ${rows} rows`, t.bottom <= top + 0.5]).toEqual([`${width} at ${size}%, ${rows} rows`, true]);
+          r.store.set({ sheet: null });
+        }
+      } finally { r.cleanup(); }
+    }
   });
   it('rail: category icons open and close the drawer; tick and cross appear in tool modes', () => {
     const { root, cleanup } = mount();

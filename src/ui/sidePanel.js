@@ -35,6 +35,19 @@ export function createSidePanel({ container, store, world, onPick, minimapNode =
   fold.addEventListener('click', () => store.set({ panelFolded: !store.get().panelFolded }));
   container.append(foldbar, minimap, tabs, cards, details);
 
+  // An open sheet in the wide layout sits below the tabs, however many rows they wrap to at large text: their bottom
+  // edge goes to --panel-tabs-bottom on the body (css/ui.css). Measured only when the layout, the fold, the text size or
+  // the set of tabs changes; with the tabs hidden (another layout, or folded) it is cleared.
+  let edgeKey = null;
+  function publishTabsBottom(s) {
+    const key = `${s.layout}|${s.panelFolded}|${document.body.dataset.textSize}|${shownKey}`;
+    if (key === edgeKey) return;
+    edgeKey = key;
+    const bottom = s.layout === 'wide' && !s.panelFolded ? Math.ceil(tabs.getBoundingClientRect().bottom) : 0;
+    if (bottom > 0) document.body.style.setProperty('--panel-tabs-bottom', `${bottom}px`);
+    else document.body.style.removeProperty('--panel-tabs-bottom');
+  }
+
   let lastCards = null;
   function render() {
     buildTabs();
@@ -48,6 +61,7 @@ export function createSidePanel({ container, store, world, onPick, minimapNode =
       renderCards(cards, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick, grid: true });
       lastCards = key;
     }
+    publishTabsBottom(s);
   }
   render();
   store.subscribe(render);

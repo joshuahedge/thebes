@@ -105,6 +105,10 @@ describe('stage 2 overlays', () => {
     const sand = hexToRgb(TERRAIN.sand), hue = hexToRgb(OVERLAY_HUE.desirability);
     const lum = DESIRABILITY_ALPHA.map((a) => luminance(sand.map((v, i) => Math.round(v * (1 - a) + hue[i] * a))));
     for (let k = 1; k < lum.length; k++) expect([k, lum[k - 1] - lum[k] > 0.04]).toEqual([k, true]);
+    // And by contrast, from bare sand on: the first band (0 to 19, most open ground in a Town) shows against no
+    // overlay at all, and no step is fainter than that one (about 1.2:1 each).
+    const ladder = [luminance(sand), ...lum];
+    for (let k = 1; k < ladder.length; k++) expect([k, (ladder[k - 1] + 0.05) / (ladder[k] + 0.05) >= 1.18]).toEqual([k, true]);
   });
   it('puts every tile in its band, leaves water and other buildings clear, and hatches below zero where the rest is a wash', () => {
     const w = makeTestWorld({ gold: 5000 });
@@ -229,6 +233,30 @@ describe('stage 2 overlay legend', () => {
       }
       expect(r.root.querySelector('#banner .critical') === null).toBe(false);
       expect(strip.getBoundingClientRect().bottom - shell.top).toBeLessThan(shell.height / 2);
+    } finally { r.cleanup(); }
+  });
+  it('keeps the scale on the name\'s row on a phone held sideways, so it and the goals stay above the middle under a banner', async () => {
+    const r = await rigUI({ width: 844, height: 390 });
+    try {
+      r.world.gold = -5;                                                       // debt: a critical alert, so a banner
+      r.ui.alerts.refresh();
+      expect([r.store.get().layout, document.body.classList.contains('has-banner')]).toEqual(['compact', true]);
+      const shell = r.root.getBoundingClientRect();
+      const box = (el) => el.getBoundingClientRect();
+      const goals = () => box(r.root.querySelector('#goals .goal-strip'));
+      r.store.set({ overlay: 'water' });
+      const plain = { strip: box(r.root.querySelector('#legend .strip')).height, goals: goals().bottom };
+      r.store.set({ overlay: 'desirability' });
+      const strip = r.root.querySelector('#legend .strip');
+      const name = box(strip.querySelector('strong.text')), scale = box(strip.querySelector('.scale')), close = box(strip.querySelector('.close'));
+      expect([scale.top < name.bottom, close.top < scale.bottom, scale.left >= name.right]).toEqual([true, true, true]);   // one row: name, scale, close
+      expect([box(strip).height, goals().bottom]).toEqual([plain.strip, plain.goals]);   // no taller than any overlay's strip, so the goals sit where they always do
+      expect(box(strip).bottom - shell.top).toBeLessThan(shell.height / 2);
+      expect(goals().top - shell.top).toBeLessThan(shell.height / 2);
+      // The top bar, the banner, the strip and the goals each hold a 44 px button, so stacked they need about 216 px of
+      // this 390 px tall phone: under any overlay the goals end a little past the middle (pinned here, as the
+      // celebrations test pins its tight rows, so it cannot creep further). The scale's own row took them to 61%.
+      expect(goals().bottom - shell.top).toBeLessThan(0.56 * shell.height);
     } finally { r.cleanup(); }
   });
 });
