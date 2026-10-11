@@ -12,6 +12,7 @@ import { rock, scrub, dune, tufts } from './art/nature.js';
 import { defaultCreateCanvas, bucketFor } from './spriteCache.js';
 import { drawRiver } from './terrainWater.js';
 import { drawRoads } from './terrainRoads.js';
+import { drawWalls, wallCode } from './terrainWalls.js';
 
 export { CHUNK };
 export const CHUNK_MARGIN = 4;  // art px of canvas around the chunk diamond
@@ -31,8 +32,9 @@ export function chunkScaleFor(zoom, dpr) {
   return 1;
 }
 
-// FNV-style hash of terrain, road, occupancy, building type and house tier for the chunk plus a two-tile
-// ring (bakeChunk draws two tiles deep): blending and road joins look across chunk edges, so a change next
+// FNV-style hash of terrain, road, occupancy, building type, house tier and wall (Stage 3: none, standing or a
+// breach, so a chunk re-bakes when the sim bumps world.wallVersion for a tile under it) for the chunk plus a two-tile
+// ring (bakeChunk draws two tiles deep): blending, road joins and wall links look across chunk edges, so a change next
 // door must re-bake this chunk too.
 export function chunkSignature(world, cx, cy) {
   let h = (2166136261 ^ (world.seed | 0)) >>> 0;
@@ -47,6 +49,7 @@ export function chunkSignature(world, cx, cy) {
       const b = world.occ[i] ? world.buildings[world.occ[i]] : null;
       mix(b ? TYPE_INDEX.indexOf(b.type) + 1 : 0);
       mix(b && b.type === 'house' ? b.tier + 1 : 0);
+      mix(wallCode(world, x, y));
     }
   }
   return h;
@@ -208,7 +211,8 @@ export function drawTileGrid(g, range, alpha = 0.18) {
   }
 }
 
-// Draw everything under one chunk. Task 11 adds the river and roads between the ground and the plots.
+// Draw everything under one chunk: the ground, the river, the plots and roads, then the walls (Stage 3), which stand
+// on the ground and over the roads they cross as gates.
 export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanvas) {
   const ox = cx * CHUNK, oy = cy * CHUNK;
   const left = -16 * CHUNK - CHUNK_MARGIN, right = 16 * CHUNK + CHUNK_MARGIN, top = -CHUNK_MARGIN, bottom = 16 * CHUNK + CHUNK_MARGIN;
@@ -223,6 +227,7 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
   drawRiver(g, world, range);
   drawPlots(g, world, range);
   drawRoads(g, world, range);
+  drawWalls(g, world, range);
   // Cut the chunk to its diamond, dilated by about one device pixel so anti-aliased edges leave no hairline
   // gap; both chunks draw identical content in the overlap, so the overdraw is harmless. The cut is one mask
   // at the end rather than a clip on every layer: a clip blends each layer's partial edge coverage into the

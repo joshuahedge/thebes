@@ -4,13 +4,14 @@
 // in a little dust; the renderer reveals the sprite bottom-up from risingIds. Under prefers-reduced-motion
 // there are no puffs, glows, pulses or rises (the building simply appears), labels stay still and a sparkle is
 // a still ring. The onMilestone hook stays for callers that want it; the interface celebrates milestones itself
-// (celebrate.js).
+// (celebrate.js). Stage 3 (Track D, spec 5.4): a ripple ring (0.8 s) on each home a newly placed well first waters;
+// none under reduced motion.
 import { TIERS } from '../data/housing.js';
 import { p, U, quad } from './iso.js';
 import { UI, GOLD, GOLDC, TERRAIN } from './art/palette.js';
 import { hauler } from './art/figures.js';
 
-export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900, sparkle: 1200 };
+export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900, sparkle: 1200, ripple: 800 };
 export const RISE_STEPS = 2;   // hauler steps per rise: about two a second
 
 export function prefersReducedMotion() {
@@ -32,6 +33,7 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
     puff(x, y, now) { if (!reduced()) add({ kind: 'puff', x, y, start: now }); },
     glow(x, y, now) { if (!reduced()) add({ kind: 'glow', x, y, start: now }); },
     pulse(x, y, now) { if (!reduced()) add({ kind: 'pulse', x, y, start: now }); },
+    ripple(x, y, now) { if (!reduced()) add({ kind: 'ripple', x, y, start: now }); },
     label(x, y, text, color, now) { add({ kind: 'label', x, y, text, color, start: now }); },
     // A first (early-game pass 3.6): a burst of small diamonds, or a still ring that fades under reduced motion.
     sparkle(x, y, color, now) { add({ kind: 'sparkle', x, y, color, still: reduced(), start: now }); },
@@ -79,6 +81,11 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
           const r = 0.5 + t * 0.8;
           g.poly(quad(e.x - r, e.y - r, 2 * r, 2 * r, 0), 'none', { stroke: UI.bad, strokeWidth: 2 - t, strokeAlpha: 1 - t });
           g.poly(quad(e.x - 0.5, e.y - 0.5, 1, 1, 0), UI.bad, { alpha: (1 - t) * 0.25 });
+        } else if (e.kind === 'ripple') {
+          // One water ring widening on the ground and fading: it never comes back, so it cannot flash.
+          const r = 0.35 + t * 0.75;
+          g.poly(quad(e.x - r, e.y - r, 2 * r, 2 * r, 0), 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: (1 - t) * 0.7 });
+          g.poly(quad(e.x - r, e.y - r, 2 * r, 2 * r, 0), 'none', { stroke: UI.water, strokeWidth: 1.4, strokeAlpha: 1 - t });
         } else if (e.kind === 'rise') {
           const k = Math.max(0, t);
           // Dust along the two front edges, lifting and thinning as the walls go up.

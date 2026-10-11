@@ -78,7 +78,7 @@ describe('stage 2 unlocks', () => {
   });
   it('prices a trade route by the city’s difficulty', () => {
     const byLevel = (id) => DIFFICULTY_ORDER.map((d) => { const w = street(); w.difficulty = d; return routeCostOf(w, id); });
-    expect(byLevel('memphis')).toEqual([240, 300, 375]);
-    expect(byLevel('byblos')).toEqual([480, 600, 750]);
+    expect(byLevel('memphis')).toEqual([240, 240, 300, 375]);
+    expect(byLevel('byblos')).toEqual([480, 480, 600, 750]);
   });
 });

@@ -21,7 +21,9 @@ function difficultyRow(initial, onChoose) {
   ]);
 }
 
-export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, sound = false, difficulty = 'normal', message = null, onContinue, onNewCity, onSound, onDifficulty = () => {}, onInstall = () => {}, onBring = () => {} }) {
+// decorate (Stage 3): called once with (element, { buttonBox, newCity }) after the card is built, so the score interface
+// adds the records, stamps, This week's Nile and a shared score (src/ui/scoreUi.js titleDecor) without editing this file.
+export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, sound = false, difficulty = 'normal', message = null, onContinue, onNewCity, onSound, onDifficulty = () => {}, onInstall = () => {}, onBring = () => {}, decorate = null }) {
   let on = Boolean(sound);
   const soundButton = button(on ? T.playMuted : T.playWithSound, { class: 'sound' });
   soundButton.addEventListener('click', () => { on = !on; soundButton.textContent = on ? T.playMuted : T.playWithSound; onSound(on); });
@@ -43,6 +45,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
   let guide = null;
   const showPanelNode = (children) => { guide = el('div', { class: 'guide' }, children); buttonBox.hidden = true; element.append(guide); };
   const showCard = () => { if (guide) { guide.remove(); guide = null; } buttonBox.hidden = false; buttons[0].focus(); };
+  if (typeof decorate === 'function') decorate(element, { buttonBox, newCity });
   clear(container);
   container.append(element);
   container.hidden = false;

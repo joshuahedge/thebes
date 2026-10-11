@@ -11,8 +11,7 @@ import { setPaused, setAccept } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { storeTotal, storeAccepts } from '../sim/production.js';
 import { openGoals, guideActive } from '../sim/goals.js';
-import { achievementProgress } from '../sim/achievements.js';
-import { ACHIEVEMENTS } from '../data/achievements.js';
+import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
 import { summaryData } from './hud.js';
 import { nearestTerrainTile } from './goalsList.js';
@@ -65,8 +64,11 @@ const CAUSE_FIX = {
 };
 const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
 
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onSelect = () => {}, afterCommand = () => {}, custom = {} }) {
+// parts (Stage 3): the danger and score interfaces' sheet parts (src/ui/danger.js), each { building(b), house(h),
+// actions(b), summary() } returning arrays of nodes, added in the list's order at fixed places in the sheets below.
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onSelect = () => {}, afterCommand = () => {}, custom = {}, parts = [] }) {
   const close = () => store.set(closeSheet(store.get()));
+  const extra = (kind, ...args) => parts.flatMap((p) => (p && typeof p[kind] === 'function' ? p[kind](...args) || [] : []));
 
   function head(title) {
     return el('div', { class: 'head' }, [el('h2', { text: title }), iconButton(T.close, '✕', { class: 'close', onClick: close })]);
@@ -128,8 +130,9 @@ export function createSheets({ container, store, world, placement, cameraControl
     else for (const [good, n] of Object.entries(b.store)) body.append(row(`${T.stock}: ${goodName(good)}`, String(n)));
     const reach = def.reach || def.supplyReach || def.producerReach;
     if (reach) body.append(row(T.reach, `${reach} road tiles`));
+    body.append(...extra('building', b));
     body.append(el('h3', { text: T.problems }), problems(b.id));
-    const actions = el('div', { class: 'actions' });
+    const actions = el('div', { class: 'actions' }, extra('actions', b));
     // The trading post's routes and orders live on their own sheet (spec 4.15); Back comes back here.
     if (b.type === 'trading_post') actions.append(button(T.trade, { class: 'trade primary', onClick: () => store.set(openSheet(store.get(), 'trade', b.id)) }));
     if (def.workers || def.upkeep) {
@@ -138,7 +141,8 @@ export function createSheets({ container, store, world, placement, cameraControl
         if (r.ok) { assignLabour(world); afterCommand({ kind: 'pause', result: r, text: b.paused ? T.paused : T.resumed, undoable: false }); render(); }
       } }));
     }
-    actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(b.x, b.y); if (r.ok) close(); } }));
+    // Rubble's Clear (Stage 3, src/ui/dangerSheets.js) is its demolish, with the price in its name.
+    if (b.type !== 'rubble') actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(b.x, b.y); if (r.ok) close(); } }));
     body.append(actions);
     return [head(buildingName(b.type)), body];
   }
@@ -207,6 +211,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     const lost = s.missingNow.find((n) => n !== 'desirability');
     if (s.downgradeIn !== null && lost) body.append(el('p', { class: 'coral', text: `Loses ${NEED_NAMES[lost].toLowerCase()} in ${plural(s.downgradeIn, 'month', 'months')}` }));
     else if (s.missingNow.includes('desirability')) body.append(el('p', { class: 'coral keep-warning', text: keepWarningText(tierName(s.tier), s.downgradeIn) }));
+    body.append(...extra('house', h));
     body.append(el('div', { class: 'actions' }, [button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(h.x, h.y); if (r.ok) close(); } })]));
     return [head(tierName(s.tier)), body];
   }
@@ -215,7 +220,9 @@ export function createSheets({ container, store, world, placement, cameraControl
     const d = summaryData(world);
     const body = el('div', { class: 'body' });
     body.append(row(T.difficulty, DIFFICULTY_NAMES[d.difficulty] || d.difficulty));
-    body.append(el('h3', { text: T.incomeVsSpending }), row(T.taxes, `+${d.taxes}`), row(T.wages, `−${d.wages}`), row(T.upkeep, `−${d.upkeep}`), row(T.net, (d.net >= 0 ? '+' : '') + d.net));
+    body.append(el('h3', { text: T.incomeVsSpending }), row(T.taxes, `+${d.taxes}`), row(T.wages, `−${d.wages}`), row(T.upkeep, `−${d.upkeep}`));
+    if (d.soldiers > 0) body.append(row(T.soldiersPay, `−${d.soldiers}`));       // spec 6.3: soldiers' pay on its own row
+    body.append(row(T.net, (d.net >= 0 ? '+' : '') + d.net));
     // Trade under its own heading, as Net above leaves it out: what caravans paid the city and what it paid them.
     body.append(el('h3', { text: T.tradeLastMonth }), row(T.tradeSales, `+${d.tradeIncome}`), row(T.tradeBought, `−${d.tradeSpent}`));
     // Food in store by kind: grain always, other foods once there are some.
@@ -231,6 +238,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     body.append(el('h3', { text: T.goals }));
     const open = openGoals(world, 3);
     body.append(open.length ? el('ul', { class: 'goals' }, open.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
+    body.append(...extra('summary'));
     body.append(...achievementsSection());
     return [head(T.summary), body];
   }
@@ -240,10 +248,11 @@ export function createSheets({ container, store, world, placement, cameraControl
   function achievementsSection() {
     if (guideActive(world)) return [el('h3', { text: T.achievements }), el('p', { class: 'muted', text: T.achievementsLater })];
     const done = new Set(world.achievements || []);
-    const count = ACHIEVEMENTS.filter((a) => done.has(a.id)).length;
+    const earnable = achievementsFor(world);         // Stage 3: a Peaceful city is not shown the raid ones it can never earn
+    const count = earnable.filter((a) => done.has(a.id)).length;
     return [
-      el('h3', { text: achievementsHeading(count, ACHIEVEMENTS.length) }),
-      el('ul', { class: 'achievements' }, ACHIEVEMENTS.map((a) => achievementRow(a, done.has(a.id)))),
+      el('h3', { text: achievementsHeading(count, earnable.length) }),
+      el('ul', { class: 'achievements' }, earnable.map((a) => achievementRow(a, done.has(a.id)))),
     ];
   }
 
@@ -280,9 +289,25 @@ export function createSheets({ container, store, world, placement, cameraControl
     const list = getAlerts();
     body.append(el('h3', { text: T.alerts }));
     if (!list.length) body.append(el('p', { class: 'muted', text: T.noAlerts }));
-    else body.append(el('ul', { class: 'alert-list' }, list.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => onView(a) })]); })));
+    else body.append(el('ul', { class: 'alert-list' }, list.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) })]); })));
     minimap.render(list);
     return [head(T.minimap), body];
+  }
+
+  // View in the alert list: a building's alert goes through onView (it selects the building); a raid's alert sits at a
+  // map point (Stage 3), so the sheet closes and the camera goes there.
+  function viewInList(a) {
+    if ((a.id === undefined || a.id === null) && Number.isFinite(a.x) && Number.isFinite(a.y)) { close(); cameraControl.panTo(a.x + 0.5, a.y + 0.5); return; }
+    onView(a);
+  }
+
+  // Store re-entrancy (1c follow-up, Stage 3): a building can vanish on the daily tick (it burned down). When the sheet
+  // is rebuilt inside a store notification, closing it there would hand the subscribers after this one an older state,
+  // so the close waits for a microtask and checks again; outside a notification it closes at once.
+  let notifying = false;
+  function closeGone() {
+    const now = store.get();
+    if (now.sheet && now.sheet.kind === 'info' && !world.buildings[now.sheet.id]) store.set(closeSheet(now));
   }
 
   function render() {
@@ -296,7 +321,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     let parts;
     if (s.sheet.kind === 'info') {
       const b = world.buildings[s.sheet.id];
-      if (!b) { store.set(closeSheet(s)); container.hidden = true; return; }
+      if (!b) { container.hidden = true; if (notifying) queueMicrotask(closeGone); else closeGone(); return; }
       parts = b.type === 'house' ? houseSheet(b) : buildingSheet(b);
     } else if (s.sheet.kind === 'summary') parts = summarySheet();
     else if (s.sheet.kind === 'minimap') parts = minimapSheet();
@@ -311,6 +336,6 @@ export function createSheets({ container, store, world, placement, cameraControl
   }
 
   render();
-  store.subscribe(render);
+  store.subscribe(() => { notifying = true; try { render(); } finally { notifying = false; } });
   return { render };
 }

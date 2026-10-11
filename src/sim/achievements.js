@@ -4,6 +4,7 @@ import { ACHIEVEMENTS } from '../data/achievements.js';
 import { allBuildings, housesOf, population } from './world.js';
 import { coveredBy } from './housing.js';
 import { laidRoadTiles } from './goals.js';
+import { raidsOn } from './costs.js';
 
 // Road tiles the player laid: every road tile that is not part of the generator's start road. One rule,
 // shared with the road goal (src/sim/goals.js).
@@ -46,14 +47,27 @@ function jobsFor(world, people, rate) {
   return (L.workforce - L.employed) / L.workforce <= rate;
 }
 
+// Stage 3: `people` or more and no building burned for `days`, counted from the day the city became a Town where the
+// world knows it (a city from before Stage 3 had no fires, so its days run from when it was saved).
+function safeYear(world, people, days) {
+  if (population(world) < people) return false;
+  const town = world.splits.town;
+  if (Number.isInteger(town) && world.day - town < days) return false;
+  return !world.danger.burnDays.some((d) => world.day - d < days);
+}
+
 function holds(world, m) {
   switch (m.kind) {
     case 'fedAll': return fedAll(world, m.people);
     case 'waterAll': return waterAll(world, m.homes);
     case 'jobs': return jobsFor(world, m.people, m.rate);
+    case 'safeYear': return safeYear(world, m.people, m.days);
     default: return false;
   }
 }
+
+// The achievements this city can earn: all but the raid ones on Peaceful (spec 4.18).
+export const achievementsFor = (world) => ACHIEVEMENTS.filter((a) => !a.raids || raidsOn(world));
 
 // { n, of } with n never above of; the yes/no measures report { n: 0 or 1, of: 1 }. def is an ACHIEVEMENTS entry.
 export function achievementProgress(world, def) {
@@ -69,11 +83,11 @@ const complete = (world, a) => { const p = achievementProgress(world, a); return
 // city migrated from version 1) has the complete ones marked silently. Returns the ids reported.
 export function checkAchievements(world, events = null) {
   if (world.achievements === null) {
-    world.achievements = ACHIEVEMENTS.filter((a) => complete(world, a)).map((a) => a.id);
+    world.achievements = achievementsFor(world).filter((a) => complete(world, a)).map((a) => a.id);
     return [];
   }
   const added = [];
-  for (const a of ACHIEVEMENTS) {
+  for (const a of achievementsFor(world)) {
     if (world.achievements.includes(a.id) || !complete(world, a)) continue;
     world.achievements.push(a.id);
     added.push(a.id);

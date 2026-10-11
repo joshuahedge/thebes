@@ -2,7 +2,7 @@ import { describe, it, expect } from '../harness.js';
 import { cardInfo, renderCards, cardShown, shownItems, shownCategories } from '../../src/ui/cards.js';
 import { CATEGORIES } from '../../src/data/ui.js';
 import { MILESTONES } from '../../src/data/progression.js';
-import { BUILDINGS } from '../../src/data/buildings.js';
+import { BUILDINGS, BUILDABLE } from '../../src/data/buildings.js';
 import { GOODS } from '../../src/data/goods.js';
 import { TIPS, TIP_FIRST_DELAY_MS } from '../../src/data/tips.js';
 import { updateMilestone } from '../../src/sim/progression.js';
@@ -33,11 +33,13 @@ describe('ui stage 2 cards', () => {
     expect(shownItems(w, 'homes')).toEqual(['house', 'garden', 'statue']);
     expect(shownItems(w, 'food')).toEqual(['farm_grain', 'farm_fig', 'granary']);
     expect(shownItems(w, 'industry')).toEqual(['clay_pit', 'potter', 'storehouse']);
-    expect(shownItems(w, 'services')).toEqual(['well', 'bazaar', 'temple', 'booth']);
+    expect(shownItems(w, 'services')).toEqual(['well', 'bazaar', 'temple', 'booth', 'firehouse']);
+    expect(shownItems(w, 'defence')).toEqual([]);                                     // Market town's cards: hidden until Town
     expect([cardInfo(w, 'garden').locked, cardInfo(w, 'statue').locked, cardInfo(w, 'potter').lockText]).toEqual([false, true, 'Unlocks at Town']);
     w.milestone = 'town';
     expect(shownItems(w, 'industry')).toEqual(['clay_pit', 'potter', 'storehouse', 'trading_post']);
     expect(cardInfo(w, 'trading_post').lockText).toBe('Unlocks at Market town');
+    expect(shownItems(w, 'defence').map((i) => [i, cardInfo(w, i).locked])).toEqual([['wall', true], ['tower', true], ['barracks', true]]);
     w.milestone = 'market_town';
     expect(shownItems(w, 'industry')).toEqual(['clay_pit', 'potter', 'farm_barley', 'brewery', 'storehouse', 'trading_post']);
     w.milestone = 'city';
@@ -51,7 +53,7 @@ describe('ui stage 2 cards', () => {
     expect(cardShown(w, 'road') && cardShown(w, 'demolish')).toBe(true);
   });
   it('puts every building in exactly one category and unlocks each at a milestone', () => {
-    for (const type of Object.keys(BUILDINGS)) {
+    for (const type of BUILDABLE) {                                                    // gates and rubble have no card
       expect([type, CATEGORIES.filter((c) => c.items.includes(type)).length]).toEqual([type, 1]);
       expect([type, MILESTONES.some((m) => m.unlocks.includes(type))]).toEqual([type, true]);
     }

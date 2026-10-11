@@ -1,13 +1,14 @@
 import { describe, it, expect } from '../harness.js';
 import { migrate, MIGRATIONS, CURRENT_VERSION } from '../../src/save/migrate.js';
 import { serialize, deserialize, validateWorld, unpackSave, REQUIRED } from '../../src/save/serialize.js';
-import { createWorld, population } from '../../src/sim/world.js';
+import { createWorld, population, STAGE3_TALLY } from '../../src/sim/world.js';
 import { advanceDays } from '../../src/sim/clock.js';
 import { drawRoad, paintHouses, place } from '../../src/sim/commands.js';
 import { costOf, roadCostOf } from '../../src/sim/costs.js';
 
 const V3_KEYS = ['difficulty', 'trade', 'newItems'];
 const V3_TALLY = ['made', 'sold', 'bought', 'tradeIncome', 'caravans'];
+const V4_KEYS = ['wall', 'wallVersion', 'raid', 'soldiers', 'nextUnitId', 'danger', 'splits', 'seals', 'feats', 'cityId'];   // version 4's (migrateV4.test.js)
 const code = (fn) => { try { fn(); } catch (e) { return e.message; } return null; };
 
 // A version 2 save as the early-game pass wrote it: a lived-in city without the version 3 fields.
@@ -19,8 +20,9 @@ function v2City() {
   expect(place(w, 'well', x, y - 1).ok).toBe(true);
   advanceDays(w, 75);
   const v2 = JSON.parse(serialize(w));
-  for (const k of V3_KEYS) delete v2[k];
-  for (const k of V3_TALLY) delete v2.tally[k];
+  for (const k of [...V3_KEYS, ...V4_KEYS]) delete v2[k];
+  for (const k of [...V3_TALLY, ...STAGE3_TALLY]) delete v2.tally[k];
+  for (const b of Object.values(v2.buildings)) { delete b.risk; delete b.fire; }
   v2.version = 2;
   return v2;
 }
@@ -47,20 +49,20 @@ describe('migrate v2 to v3', () => {
     expect(v3.tally).toEqual({ ...v2.tally, made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0 });
     expect(v3.tally === v2.tally).toBe(false);                    // a copy, not the same object
     for (const k of Object.keys(v2)) if (k !== 'version' && k !== 'tally') expect([k, v3[k]]).toEqual([k, v2[k]]);
-    expect(Object.keys(v3).sort()).toEqual([...REQUIRED].sort());
-    expect(validateWorld(v3)).toBe(true);
+    expect(Object.keys(v3).sort()).toEqual(REQUIRED.filter((k) => !V4_KEYS.includes(k)).sort());
+    expect(validateWorld(MIGRATIONS[3](v3))).toBe(true);                    // valid once version 4 adds its fields
   });
   it('runs through migrate, deserialize and unpackSave, and keeps the old costs', () => {
     const v2 = v2City();
-    expect(CURRENT_VERSION).toBe(3);
-    expect(migrate(v2)).toEqual(MIGRATIONS[2](v2));
-    expect(deserialize(JSON.stringify(v2)).version).toBe(3);
+    expect(CURRENT_VERSION).toBe(4);
+    expect(migrate(v2)).toEqual(MIGRATIONS[3](MIGRATIONS[2](v2)));
+    expect(deserialize(JSON.stringify(v2)).version).toBe(4);
     const back = unpackSave(JSON.stringify({ version: 1, savedAt: 1760000000000, lastSpeed: 2, world: v2 }));
     expect(back.savedAt).toBe(1760000000000);
     expect(back.lastSpeed).toBe(2);
-    expect(back.world.version).toBe(3);
+    expect(back.world.version).toBe(4);
     expect(back.world.difficulty).toBe('normal');
-    expect(back.world.buildings).toEqual(v2.buildings);
+    for (const [id, b] of Object.entries(v2.buildings)) expect(back.world.buildings[id]).toEqual({ ...b, risk: 0, fire: null });
     expect(back.world.gold).toBe(v2.gold);
     expect([costOf(back.world, 'well'), costOf(back.world, 'temple'), roadCostOf(back.world)]).toEqual([30, 120, 2]);   // a city from before plays on Normal
   });

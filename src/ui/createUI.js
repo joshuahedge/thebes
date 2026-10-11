@@ -17,7 +17,7 @@ import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGui
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
-import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode, pickCategory } from './modes.js';
+import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode, pickCategory, enterScreenshot } from './modes.js';
 import { pickLayout, watchLayout } from './layout.js';
 import { createBackStack } from './backstack.js';
 import { createSettings } from './settings.js';
@@ -50,6 +50,11 @@ import { welcomeSheet } from './welcomeBack.js';
 import { tradeSheet } from './tradeSheet.js';
 import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
+import { createDanger } from './danger.js';
+import { createScoreUi } from './scoreUi.js';
+import { unitsAt, drawUnitMarks } from '../render/units.js';
+import { drawFires } from '../render/fire.js';
+import { createAmbient, createFrameGate } from '../render/ambient.js';
 import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, T } from './text.js';
 
 const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
@@ -69,6 +74,10 @@ export function createUI({
 
   // Ghost and day bookkeeping lives up here: afterCommand is hoisted and may run during construction.
   let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [], tintList = [];
+  // Stage 3: the danger and score interfaces, made below once their context exists. Until then (afterCommand can run
+  // during construction) seams() is empty, so nothing calls them early.
+  let danger = null, scoreUi = null;
+  const seams = () => [danger, scoreUi].filter(Boolean);
   let saveFailed = false, destroyed = false;
   // Daily goals (spec 3.7) come from the device's local date, read once when this game starts, so nothing expires
   // mid-session (a session that crosses midnight keeps its goals; the next start draws the new day).
@@ -112,13 +121,23 @@ export function createUI({
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
   const placement = createPlacement({ world, store, afterCommand, effects, now });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
-  const alerts = createAlerts({ world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root, getAlerts: () => (saveFailed ? [...alertsFor(world), { code: 'save_failed' }] : alertsFor(world)) });
+  const alerts = createAlerts({
+    world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root,
+    onAction: (a, kind) => { for (const s of seams()) s.onAlertAction(a, kind); },   // Stage 3: Pay tribute and the like
+    getAlerts: () => (saveFailed ? [...alertsFor(world), { code: 'save_failed' }] : alertsFor(world)),
+  });
   // Web Audio needs a user gesture before it plays (spec 5.5). A touch pointerdown is not an activation event
   // (pointerup and keydown are), so all three listen; they go once the context is running. While sound is off,
   // or the context has not resumed yet, unlock() returns false and they stay for the next gesture.
   const GESTURES = ['pointerdown', 'pointerup', 'keydown'];
   const onGesture = () => { if (sfx.unlock()) for (const t of GESTURES) root.removeEventListener(t, onGesture); };
   for (const t of GESTURES) root.addEventListener(t, onGesture);
+  // Stage 3: the idle frame-rate cap (spec 5.6, render/ambient.js) counts from the last input.
+  const frameGate = createFrameGate();
+  // pointermove and touchmove keep a held pan or pinch counted as input (a drag sends moves, not repeated pointerdowns).
+  const INPUTS = ['pointerdown', 'pointermove', 'touchmove', 'keydown', 'wheel'];
+  const onInput = () => frameGate.noteInput(now());
+  for (const t of INPUTS) root.addEventListener(t, onInput);
   const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr });
   const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr });
 
@@ -139,9 +158,21 @@ export function createUI({
   const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count() });
   const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals'), onSkipGuide: skipGuide });
   $('goals').append(nudgeRegion);                      // the nudge's one line sits under the strip and hides with it (early-game pass 3.5)
+  // Stage 3 seams (the Stage 3 plan's contract): the danger interface (Track D, ui/danger.js) and the score interface
+  // (Track E, ui/scoreUi.js) plug in here, each as one object with its own sheets, sheet parts, event, refresh and
+  // alert-action hooks. Screenshot mode (spec 4.19) is the interface's own; both may enter it through the context.
+  const screenshotMode = () => store.set(enterScreenshot(store.get()));
+  const seamCtx = {
+    world, store, settings, sfx, toasts, celebrations, effects, cameraControl, speedControl, alerts, root, doc, now, clock, hooks,
+    afterCommand, refresh, onView: viewAlert, showMeAt, selectBuilding, screenshotMode, fireTip,
+  };
+  danger = createDanger(seamCtx);
+  scoreUi = createScoreUi(seamCtx);
+  const ambient = createAmbient({ enabled: () => settings.get().ambient && !settings.reducedMotion() });
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
     canResumeGuide: () => canResumeGuide(world, settings.get().help), onResumeGuide: () => { setGuide(world, true); refresh(); },
+    onScreenshot: screenshotMode,
   });
   // Choosing Tips only or Off turns a running guide off at once (spec 3.1: all of it can be switched off).
   // Choosing Guide and tips again does not restart it; Resume guide in How to play does. A new text size can wrap the
@@ -156,6 +187,7 @@ export function createUI({
   const customSheets = {
     ...menus, goals: goalsSheet(world, { onShowMe: showMe }),
     trade: tradeSheet({ world, afterCommand, onShowMe: showMeAt, toast: (text) => toasts.show(text) }),
+    ...danger.sheets, ...scoreUi.sheets,
   };
   if (welcome) {
     customSheets.welcome = welcomeSheet({
@@ -165,7 +197,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onSelect: selectBuilding, afterCommand, custom: customSheets });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts] });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -278,6 +310,7 @@ export function createUI({
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'trading_post') fireTip('tradingPostPlaced');
     if (e.kind === 'speed' && world.speed > 0 && tips.current() === 'press_play') tips.dismiss();   // its condition has cleared
+    for (const s of seams()) s.onCommand(e);           // Stage 3: the interfaces see every command (a well's ripple, a tip)
     ghostsDirty = true;
     // Goals, firsts, achievements and daily goals settle after every command (undo and speed included), so a
     // guided step finishes while the game is paused (early-game pass 3.2).
@@ -312,6 +345,7 @@ export function createUI({
     if (list.some((a) => a.id !== undefined && a.id !== null)) fireTip('problemMarker');
     if (list.some((a) => a.code === 'labour_shortage')) fireTip('labourShortage');
     nudge.noteProgress(progressSignature());
+    for (const s of seams()) s.refresh();
   }
   // Goal progress as one string: the nudge starts again whenever it changes (early-game pass 3.5).
   function progressSignature() {
@@ -348,6 +382,8 @@ export function createUI({
       const cheer = e.type === 'achievement' && quiet ? null : cheerFor(e);
       if (cheer) celebrations.show(cheer);
     }
+    speedControl.render();                             // the sim may have changed the speed (a first fire or raid warning)
+    for (const s of seams()) s.onEvents(events);
   }
   function cheerSound() { sfx.play('goal'); sfx.buzz(20); }
   // The caption for one sim event, or null. Achievements stay quiet while the guide runs (spec 3.8): the sim
@@ -400,6 +436,7 @@ export function createUI({
   const actions = {
     tap({ x, y, type }) {
       const s = store.get();
+      if (s.screenshot) { store.set({ screenshot: false }); return; }   // a tap or click brings the interface back (spec 6.4)
       const t = tileUnder(x, y);
       if (isToolMode(s.mode)) {
         if (s.tool.kind === 'building' && type === 'mouse') { placement.moveGhost(t.x, t.y); confirm(); }   // a click places (spec 6.5)
@@ -457,7 +494,7 @@ export function createUI({
     back: goBack, undo, help: () => toggleSheet('help'),
   };
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
-  const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions });
+  const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions, hidden: () => Boolean(store.get().screenshot) });
 
   // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free.
   function sheetInsets(s) {
@@ -484,6 +521,7 @@ export function createUI({
     root.dataset.mode = s.mode;
     if (pendingUpdate && !isToolMode(s.mode)) showUpdateToast();
     root.classList.toggle('has-overlay', Boolean(s.overlay));
+    root.classList.toggle('screenshot', Boolean(s.screenshot));
     if (s.selectedId !== lastSelected) {
       lastSelected = s.selectedId;
       const b = s.selectedId !== null ? world.buildings[s.selectedId] : null;
@@ -536,8 +574,13 @@ export function createUI({
     const range = visibleTileRange(cam, v, world.size);
     const selected = s.selectedId !== null ? world.buildings[s.selectedId] : null;
     const ring = guide.marker(t);                                              // the guide's ring on its step's target (spec 3.2)
+    const still = { reducedMotion: settings.reducedMotion() };
     renderer.renderFrame(world, cam, {
-      view: v, walkers: walkersAt(world, timeDays, range), effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
+      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
+      treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
+      ambient: (g, r) => ambient.draw(g, world, r, t),                          // Stage 3 (render/ambient.js, fire.js, units.js)
+      fire: (g, r) => drawFires(g, world, r, t, still),
+      units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r);
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
@@ -582,12 +625,16 @@ export function createUI({
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
     store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
+    danger, scoreUi, ambient, screenshotMode, frameGate,
+    allowFrame: (t) => frameGate.allow(t, world.speed === 0),
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      for (const s of seams()) s.destroy();
       guide.destroy(); stopSettingsWatch();            // the guide's store subscription and the shared settings' watch
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
+      for (const t of INPUTS) root.removeEventListener(t, onInput);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'tip', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
@@ -597,7 +644,7 @@ export function createUI({
       document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it, and the tabs' edge
       document.body.style.removeProperty('--panel-tabs-bottom');
       delete root.dataset.mode;
-      root.classList.remove('has-banner', 'has-overlay', 'nudge-play');
+      root.classList.remove('has-banner', 'has-overlay', 'nudge-play', 'screenshot');
       store.dispose();                                 // last: every component's subscription to this interface's store
     },
   };

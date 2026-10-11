@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { GOODS, FOOD_GOODS, HOUSEHOLD_GOODS, RAW_GOODS } from '../../src/data/goods.js';
-import { BUILDINGS } from '../../src/data/buildings.js';
+import { BUILDINGS, BUILDABLE } from '../../src/data/buildings.js';
 import { TIERS, MAX_TIER } from '../../src/data/housing.js';
 import { MILESTONES } from '../../src/data/progression.js';
 import { DESIRABILITY, HOUSE_DESIRABILITY } from '../../src/data/desirability.js';
@@ -153,9 +153,9 @@ describe('data milestones to Capital', () => {
       ['city', 'City', 400], ['great_city', 'Great city', 650], ['capital', 'Capital', 1000],
     ]);
     expect(Object.fromEntries(MILESTONES.map((m) => [m.id, m.unlocks]))).toEqual({
-      village: ['house', 'well', 'farm_grain', 'granary', 'bazaar', 'temple', 'garden'],
+      village: ['house', 'well', 'farm_grain', 'granary', 'bazaar', 'temple', 'garden', 'firehouse'],
       town: ['farm_fig', 'clay_pit', 'potter', 'storehouse', 'booth', 'statue'],
-      market_town: ['trading_post'],
+      market_town: ['trading_post', 'wall', 'tower', 'barracks'],
       city: ['farm_barley', 'brewery'],
       great_city: ['farm_flax', 'weaver'],
       capital: ['gem_mine', 'jeweller'],
@@ -163,7 +163,7 @@ describe('data milestones to Capital', () => {
   });
   it('unlocks every building exactly once, and nothing that does not exist', () => {
     const all = MILESTONES.flatMap((m) => m.unlocks);
-    expect([...all].sort()).toEqual(Object.keys(BUILDINGS).sort());
+    expect([...all].sort()).toEqual(BUILDABLE.slice().sort());                       // gates and rubble are never unlocked: no card
   });
   it('unlocks each workshop no earlier than its raw good and the stores both need', () => {
     const at = (type) => MILESTONES.findIndex((m) => m.unlocks.includes(type));
@@ -187,6 +187,7 @@ describe('data desirability', () => {
       farm_grain: [-2, -1], farm_fig: [-2, -1], farm_barley: [-2, -1], farm_flax: [-2, -1],
       clay_pit: [-6, -5, -4, -3, -2, -1], potter: [-4, -3, -2, -1], brewery: [-4, -3, -2, -1], weaver: [-4, -3, -2, -1],
       jeweller: [-4, -3, -2, -1], gem_mine: [-8, -6, -4, -2], trading_post: [-3, -2, -1],
+      firehouse: [-1], tower: [-2, -1], barracks: [-4, -2], rubble: [-3, -1], wall: [], gate: [],
     });
   });
   it('gives homes values by tier, from an empty plot to an Estate', () => {

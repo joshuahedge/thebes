@@ -4,10 +4,10 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
-import { buildingName, T } from './text.js';
+import { buildingName, T, DANGER_UI_TEXT } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
-const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' ? buildingName('road') : tool.kind === 'houses' ? T.housingPlots : T.demolish);
+const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' || tool.kind === 'wall' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : T.demolish);
 const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted' };
 const rotates = (tool) => tool.kind === 'building' && Boolean(BUILDINGS[tool.type].rotates);   // none in Stage 1 (mastabas come with monuments)
 
@@ -43,20 +43,22 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     element.hidden = false;
     const p = placement.preview();
     const demolish = s.tool.kind === 'demolish';
-    const costText = demolish ? (p.refund ? `${T.refund} ${p.refund}` : '') : (p.cost ? `${p.cost} gold` : '');
+    // A demolish refunds, or (Stage 3) costs gold when it clears rubble: "Refund 7" or "20 gold", never a negative refund.
+    const costText = demolish ? (p.refund > 0 ? `${T.refund} ${p.refund}` : p.refund < 0 ? DANGER_UI_TEXT.demolishCost(-p.refund) : '') : (p.cost ? `${p.cost} gold` : '');
     const info = el('div', { class: 'info' }, [
       el('div', { class: 'title', text: titleOf(s.tool) }),
       el('div', { class: 'cost small muted', text: costText }),
       el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' ? 'amber' : 'muted'}`, text: p.text }),
       // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line. Homes
       // served read in teal; "no homes in reach yet" is not a gain, so it reads muted.
-      p.state === 'ok' && p.effect ? el('div', { class: `effect small ${p.effect === T.noHomesInReach ? 'muted' : 'teal'}`, text: p.effect }) : null,
+      // Stage 3: the score parts it would change ride on the same line ("Gives water to 6 homes · +3 Culture", spec 4.19).
+      p.state === 'ok' && (p.effect || p.score) ? el('div', { class: `effect small ${(p.effect === T.noHomesInReach || p.effect === DANGER_UI_TEXT.firehouseCovers(0)) && !p.score ? 'muted' : 'teal'}`, text: [p.effect, p.score].filter(Boolean).join(' · ') }) : null,
       // What it does to the homes around it (spec 4.7), in words; teal when nicer, coral when less pleasant, ink when both.
       p.nicer ? el('div', { class: `nicer small ${NICER_TONE[p.nicerTone]}`, text: p.nicer }) : null,
     ]);
     const controls = [];
     if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', disabled: true }));
-    if (s.tool.kind === 'road' && s.line && s.line.x1 !== null) controls.push(button(T.flip, { class: 'flip', onClick: () => placement.flip() }));
+    if ((s.tool.kind === 'road' || s.tool.kind === 'wall') && s.line && s.line.x1 !== null) controls.push(button(T.flip, { class: 'flip', onClick: () => placement.flip() }));
     controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
     controls.push(iconButton(T.cancel, '✕', { class: 'cancel', onClick: onCancel }));
     controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onClick: onConfirm }));

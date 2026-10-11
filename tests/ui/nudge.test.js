@@ -102,7 +102,8 @@ describe('ui nudge', () => {
       expect(line.parentElement).toBe(region);
       expect(getComputedStyle(region).display === 'none').toBe(false);          // rendered while the line is hidden, so the first line is announced
       expect(region.getBoundingClientRect().height).toBeLessThan(1);
-      expect(Math.abs(goals.getBoundingClientRect().bottom - strip.getBoundingClientRect().bottom)).toBeLessThan(0.5);
+      const above = r.root.querySelector('#goals .threshold:not([hidden])') || strip;   // Stage 3: the next-threshold bar sits between them
+      expect(Math.abs(goals.getBoundingClientRect().bottom - above.getBoundingClientRect().bottom)).toBeLessThan(0.5);
       r.ui.speedControl.set(1);
       let t = 0;
       r.frame(0);

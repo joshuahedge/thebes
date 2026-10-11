@@ -7,9 +7,28 @@
 // its caption appears, so sound and sparkle land with it. While hold() is true the next caption waits in the queue
 // (createUI holds captions while a tip shows on a phone at larger text, where the rows together would reach the
 // middle of the map); resume() shows it once nothing holds it and the row is free.
+// Stage 3: a caption may carry its own icon (a citizen remark's speech mark), busy() says whether the row is taken, and
+// remarkFor picks a citizen remark (spec 4.19).
 import { CHEER_MS, CHEER_GAP_MS } from '../data/ui.js';
+import { REMARK_EVERY_MONTHS, REMARK_SALT, SEASONS } from '../data/tips.js';
+import { allBuildings } from '../sim/world.js';
+import { monthIndex } from '../sim/clock.js';
+import { hash2 } from '../sim/rng.js';
 import { el, clear } from './components.js';
-import { cheerReward } from './text.js';
+import { cheerReward, CITIZEN_REMARKS } from './text.js';
+
+// The citizen remark for the month that has just begun (spec 4.19, ruling 130), or null: only at a month index that is a
+// multiple of REMARK_EVERY_MONTHS, from the season's remarks whose building the city has, chosen by
+// hash2(seed, month index, REMARK_SALT), so a city hears the same line at the same month every time.
+export function remarkFor(world) {
+  const m = monthIndex(world);
+  if (m <= 0 || m % REMARK_EVERY_MONTHS !== 0) return null;
+  const season = SEASONS[m % SEASONS.length];
+  const has = new Set(allBuildings(world).map((b) => b.type));
+  const pool = CITIZEN_REMARKS.filter((r) => r.season === season && has.has(r.type));
+  if (!pool.length) return null;
+  return pool[Math.min(pool.length - 1, Math.floor(hash2(world.seed, m, REMARK_SALT) * pool.length))].text;
+}
 
 export function createCelebrations({ container, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), hold = () => false }) {
   const queue = [];
@@ -31,7 +50,7 @@ export function createCelebrations({ container, setTimer = (fn, ms) => setTimeou
     // The head and the gold sit on the first line, the why beneath (css/ui.css). The why stays in the live region
     // even where it is hidden from sight, so a screen reader hears all of it.
     node = el('div', { class: `cheer ${item.tier}` }, [
-      el('span', { class: 'icon', 'aria-hidden': 'true', text: '★' }),
+      el('span', { class: 'icon', 'aria-hidden': 'true', text: item.icon || '★' }),
       el('span', { class: 'text', text: item.text }),
       item.why ? el('span', { class: 'why', text: item.why }) : null,
       item.reward > 0 ? el('span', { class: 'reward', text: cheerReward(item.reward) }) : null,
@@ -43,8 +62,8 @@ export function createCelebrations({ container, setTimer = (fn, ms) => setTimeou
   }
 
   return {
-    show({ tier = 'first', text, why = '', reward = 0, onShow = null }) {
-      queue.push({ tier, text, why, reward, onShow });
+    show({ tier = 'first', text, why = '', reward = 0, onShow = null, icon = null }) {
+      queue.push({ tier, text, why, reward, onShow, icon });
       if (slotTimer === null) next();
     },
     // Shows the next caption if the row is free and nothing holds it; cheap enough to call once a frame.
@@ -59,5 +78,7 @@ export function createCelebrations({ container, setTimer = (fn, ms) => setTimeou
       clear(container);
     },
     pending: () => queue.length,
+    // Whether the caption row is taken: a caption showing, its slot still running, or one waiting.
+    busy: () => node !== null || slotTimer !== null || queue.length > 0,
   };
 }

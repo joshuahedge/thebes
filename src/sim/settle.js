@@ -5,11 +5,13 @@ import { settleGoals } from './goals.js';
 import { checkFirsts } from './firsts.js';
 import { checkAchievements } from './achievements.js';
 import { checkDaily } from './daily.js';
+import { checkFeats } from './feats.js';
 
 export function settle(world, events = null) {
   settleGoals(world, events);
   checkFirsts(world, events);
   checkAchievements(world, events);
   checkDaily(world, events);
+  checkFeats(world, events);
   return events;
 }

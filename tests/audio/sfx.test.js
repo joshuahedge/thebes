@@ -28,11 +28,11 @@ function fakeAudio() {
 }
 
 describe('audio sfx', () => {
-  it('stays silent until enabled and unlocked, then plays the seven effects as short envelopes', () => {
+  it('stays silent until enabled and unlocked, then plays the nine effects as short envelopes', () => {
     let on = false, created = 0;
     const ctx = fakeAudio();
     const sfx = createSfx({ create: () => { created++; return ctx; }, enabled: () => on, vibrate: null, audioSession: null });
-    expect(sfx.names).toEqual(['place', 'road', 'demolish', 'upgrade', 'milestone', 'alert', 'goal']);
+    expect(sfx.names).toEqual(['place', 'road', 'demolish', 'upgrade', 'milestone', 'alert', 'goal', 'horn', 'coin']);   // Stage 3: the raid horn and the coin tick
     expect(sfx.play('place')).toBe(false);
     expect(sfx.unlock()).toBe(false);
     expect(created).toBe(0);

@@ -129,6 +129,7 @@ export function createRenderer({
     const objects = collectObjects(world, range, opts.walkers || [], registry);
     const rising = opts.rising || null;   // building ids only: tree and walker ids start at 1e6
     ctx.setTransform(1, 0, 0, 1, ox, oy);
+    if (opts.ambient) opts.ambient(g, range);              // Stage 3: ambient life over the terrain (render/ambient.js)
     for (const o of objects) {
       if (!o.def) continue;
       const up = rising && rising.has(o.id) ? rising.get(o.id) : 1;
@@ -139,7 +140,8 @@ export function createRenderer({
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     let sprites = 0;
     for (const o of objects) {
-      const sprite = spriteCache.get(o.slot, zoom, dpr);
+      const slot = opts.treeSlot && o.id >= 1e6 && o.id < 2e6 ? opts.treeSlot(o) : o.slot;   // Stage 3: swaying trees (decor ids are 1e6..2e6)
+      const sprite = spriteCache.get(slot, zoom, dpr);
       if (!sprite) continue;
       const q = p(o.x, o.y);
       const [px, py] = toDevice(q[0], q[1]);
@@ -148,8 +150,11 @@ export function createRenderer({
       sprites++;
     }
 
-    // 4. Effects, overlays and the placement grid, back in art px.
+    // 4. Fire and the units' marks (Stage 3: render/fire.js, render/units.js), effects, overlays and the placement grid,
+    // back in art px.
     ctx.setTransform(1, 0, 0, 1, ox, oy);
+    if (opts.fire) opts.fire(g, range);
+    if (opts.units) opts.units(g, range);
     if (opts.effects) opts.effects.draw(g, opts.now === undefined ? performance.now() : opts.now, world);
     if (opts.drawOverlay) opts.drawOverlay(g, range);
     if (opts.grid) drawTileGrid(g, range);

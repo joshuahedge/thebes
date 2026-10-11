@@ -1,4 +1,4 @@
-# Rulings made on Josh's behalf, 11 Oct 2026 (parts 1-5)
+# Rulings made on Josh's behalf, 11-12 Oct 2026 (parts 1-6)
 
 Josh asked for no questions; every call is listed here with what it costs if wrong. The final session report presents this list (plus any Stage 2 execution rulings added later).
 
@@ -180,3 +180,44 @@ The spec was revised in place (`specs/2026-10-09-thebes-design.md`) from the Sta
 ### Art and ambient
 132. Raiders and soldiers are drawn 1.5× citizen size and told apart by shape (crested helmet and round shield, against white kilt, tall spear and teal shield); health bars show after the first hit; arrows are 0.3 s strokes. — Cost if wrong: art constants.
 133. Ambient numbers: glints drift about 0.2 tiles a second over 4-7 s; reeds sway ±3° and trees ±2° over 3-6 s; a crop band every 6 s; smoke every 2-3 s; each kind of rare life at most one on screen, every 60-120 s; over 2 ms a frame, drop rare life, then smoke, then sway; paused and idle for 2 s, cap at 30 fps. — Cost if wrong: tuning.
+
+## Part 6: Stage 3 built (plan, tracks, integration, final review)
+
+### Process
+134. Six track plan writers ran in parallel (opus) after an architect wrote the binding contract and Track 0, and each writer ran its own code on a scratch copy with Track 0 applied (A 1007, B 1019, C 1017, D 1018, E 1066, F 999 tests passing). — Cost if wrong: none; the tracks applied almost verbatim.
+135. Track 0 was built while the writers wrote, and the plan was committed in two parts (header, contract and Track 0 first; Tracks A-F once written). — Cost if wrong: none; it saved about an hour.
+136. Tracks A-E ran at the same time in sibling worktrees (`C:\dev\thebes-s3-<track>`), one agent per track, and skipped the plan's "catch up before the last task" merge: the controller merged them in order A-E and fixed cross-track breakage at integration. — Cost if wrong: cross-track bugs surface at the merge (one did: a Track D test written against B's stub, fixed in the merge).
+137. On your "go for the above to save tokens": task reviewers were sonnet for every track (each still checked the words against the sim), fix rounds were capped at 3, and the final review used four sizes without a 150% text pass. — Cost if wrong: a few words-versus-sim or large-text bugs may reach the mobile UX step (which covers 150% text).
+138. Models: fable for the final review; opus for the spec, the architect, the six writers, the art, interface and scoring tasks, the balance tasks and the fix wave; sonnet for the infrastructure, Track 0's and the fire and raid sim implementers, every task reviewer from Track A on, and the integration fixer. Every commit carries the Opus 5.5 trailer, as your rule says. — Cost if wrong: none.
+139. A fixer committed the private progress ledger into the Track D merge; the unpushed merge was amended to drop it, and `.superpowers/` stays ignored. — Cost if wrong: none.
+
+### Contract (plan section "The contract" and its notes)
+140. Fire state lives on each building (`b.risk`, `b.fire`), not in a world map; walls are a tile layer (`world.wall`, −1 a breach) that is also listed in BUILDINGS (`tile: true`) so cards, prices and unlocks work; rubble costs 0 and is not buildable; roads never cross walls (a gate is wall drawn over a road); demolishing a wall refunds nothing and a gate keeps its road; only a tower may stand on a wall tile. — Cost if wrong: rework in the owning track.
+141. The pure rules several tracks read (coverage, daily risk, raid size, tribute, festivals, medals, seals) were written complete in Track 0, so the interface and score could test real behaviour before the sims landed. — Cost if wrong: none.
+142. Speed reactions are split: the sim makes the first-time pauses and the drops to 1× (saved, deterministic); the interface makes the On a fire reaction for later fires (a device setting). — Cost if wrong: none.
+143. Records ride in the save envelope as an optional field (save version stays 1); every city gets a records id from the interface; a Stage 2 city's milestone days are unknown, so its share link shows `x` for them. — Cost if wrong: an older city has no "faster than your best" for milestones it passed before Stage 3.
+144. A test-only calm switch kept the long runs and sample cities fire-free until Track F, which then removed it. — Cost if wrong: none (removed).
+
+### Rulings on the writers' notes (plan section "Controller rulings")
+145. A burning workplace is not also "short of workers"; palms and acacias sway through a renderer hook; the summary shows the score before the last raid report (Task 0.4). — Cost if wrong: none.
+146. Every track namespaces its names inside the shared words file, and each track words only its own things: the interface words the fire row, directions, countdown, raid report, tribute and festival; the sims word only their alert codes, refusals and mood rows. — Cost if wrong: none.
+147. A covered fire raises a warning ("X is burning: N days left"), not a critical banner; "a fire last month" counts every day a building is in the fire stage. — Cost if wrong: a covered fire passes quietly (intended: no alarm fatigue).
+148. A tower's wall tile is raised to 80 when raiders arrive and healed when they leave (it may read 40 between raids); a tower on a broken wall tile falls without rubble. — Cost if wrong: a tower between raids looks like plain wall to code that reads the tile.
+149. The banner keeps Stage 2's single live announcer, switched to assertive for a new critical; the fire legend says "a staffed firehouse reaches it"; on phones the legend becomes an icon under a banner (replacing ruling 64 there). — Cost if wrong: a screen reader may hear a critical slightly later than with a dedicated alert region.
+150. An event goal whose need is already met is not added; Peaceful skips only the raid achievement, raid feats, the tower-and-barracks goal, the first-warning goal and the wall and tower daily goals; the summary shows Peaceful cities only achievements they can earn. — Cost if wrong: none.
+151. The next-threshold bar steps aside on phones while a critical banner, a tip or a caption is up; the strip opens at "1 of 10". — Cost if wrong: the bar is hidden for a few seconds at a time.
+152. The summary runs score, feats, last raid report, then achievements. — Cost if wrong: the feats sit one section above the achievements when a raid report exists.
+153. Info captions (raid reports, blazes put out) stay 6 s. — Cost if wrong: none.
+
+### Balance and integration (Track F)
+154. No balance number needed tuning: the 10-year village (two firehouses, three towers) spends 65.3% of its taxes on wages, upkeep and soldiers' pay, inside the 60-70% band; 26 blazes, all put out; three raids, all beaten. The capital run (39%) is not held to the band (ruling 114). — Cost if wrong: the late game stays generous until Stage 4.
+155. The sample cities place firehouses through the player's commands and defences only when they hold 1,000 gold spare; none of them burns or meets a raid in its 600 days, so the title backdrop still looks thriving. — Cost if wrong: none.
+156. The long-run tests keep their Stage 2 names ("longrun", "capital run"). — Cost if wrong: `-Grep "s3 balance"` does not select them.
+157. Homes with no road beside them can never be covered by a firehouse (coverage reads a building's own road tiles); a follow-up. — Cost if wrong: such a home's fire risk shows uncovered.
+
+### Final review (fable), fix wave (opus), adjudication
+158. The final review found no critical issues and 7 important ones (no arrival time on the open raid banner; a fire row saying "short of workers" for a burning firehouse; flames too small; walls drawn as separate blocks; an area demolish taking a gate's road; focus lost after Shrink; a firehouse offering View on itself), plus 10 minor; one fix wave fixed all 17 and a scoped re-review confirmed each. — Cost if wrong: none.
+159. The open raid banner now says when the raiders arrive ("They arrive in 2 months 12 days"), and so does the tribute sheet. — Cost if wrong: the banner is one line taller.
+160. Left open on purpose: with a raid warning up, the banner and goals strip end past the middle of the map at 375×667 at 150% text and at 844×390 at 125-150% (they already did before Stage 3's arrival line). The mobile UX pass you asked for takes this first, with the rest of the notification clutter. — Cost if wrong: until that pass, large-text phone players see the map's upper half covered during a raid warning.
+161. The title card hides This week's hint line on landscape phones so the card fits 844×390 without scrolling. — Cost if wrong: the seed number is not shown there (the button still works).
+162. The worktrees `C:\dev\thebes-s3-{fire,raids,art,ui,score}` and their branches are left in place after the merge (deleting them is your call; they are fully merged). — Cost if wrong: about 5 folders of disk.

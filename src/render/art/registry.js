@@ -8,17 +8,20 @@ import { SERVICE_ART } from './services.js';
 import { INDUSTRY_ART } from './industry.js';
 import { NATURE_ART } from './nature.js';
 import { FIGURE_ART } from './figures.js';
+import { DEFENCE_ART, RUBBLE_VARIANTS } from './defence.js';
 import { granaryStage, storehouseStage, bazaarStage, farmStage, FARM_TYPES } from './stages.js';
 
 export { boundsFor } from '../iso.js';
 
-export const ART = { ...HOUSE_ART, ...SERVICE_ART, ...INDUSTRY_ART, ...NATURE_ART, ...FIGURE_ART };
+export const ART = { ...HOUSE_ART, ...SERVICE_ART, ...INDUSTRY_ART, ...NATURE_ART, ...FIGURE_ART, ...DEFENCE_ART };
 
 // The art slot a building shows: houses by tier, granaries, storehouses and bazaars by how full they are
 // (stages.js), and farms by their crop's growth, which runs on the game day, so a farm needs the world (without
-// one, its plain type slot). Everything else is its type.
+// one, its plain type slot). Rubble picks one of its heaps by id, so a burned 2x2 shows four different heaps.
+// Everything else is its type.
 export function slotFor(b, world = null) {
   if (b.type === 'house') return `house.t${b.tier}`;
+  if (b.type === 'rubble') return `rubble.v${b.id % RUBBLE_VARIANTS}`;
   if (b.type === 'granary') return `granary.s${granaryStage(b)}`;
   if (b.type === 'storehouse') return `storehouse.s${storehouseStage(b)}`;
   if (b.type === 'bazaar') return `bazaar.s${bazaarStage(b)}`;
