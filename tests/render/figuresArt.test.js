@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { makeDraw } from '../../src/render/art/ctx.js';
-import { fig, FIGURE_KINDS, FIGURE_ART } from '../../src/render/art/figures.js';
+import { fig, FIGURE_KINDS, FIGURE_ART, UNIT_KINDS } from '../../src/render/art/figures.js';
 import { ART } from '../../src/render/art/registry.js';
 import { makeCanvas, pixelAt, canvasHash } from '../helpers/canvas.js';
 
@@ -40,6 +40,6 @@ describe('figure art', () => {
       expect(e.bounds).toEqual([-14, -30, 14, 6]);
       expect(e.shadows).toEqual([]);
     }
-    expect(Object.keys(FIGURE_ART).length).toBe(FIGURE_KINDS.length);
+    expect(Object.keys(FIGURE_ART).length).toBe(FIGURE_KINDS.length + UNIT_KINDS.length);   // Stage 3: raiders and soldiers, at 1.5x (tests/stage3/art)
   });
 });
