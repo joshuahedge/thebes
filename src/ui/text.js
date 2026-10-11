@@ -177,6 +177,7 @@ export const T = {
   play: 'Play', mapButton: 'Map', layers: 'Layers',
   noHomesInReach: 'No homes in reach yet',
   achievement: 'Achievement', dailyDone: 'Daily goal done', guideDone: "You've got the basics",
+  tip: 'Tip', gotIt: 'Got it', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals. Help in Settings turns them off.', next: 'Next',
 };
 
 export const importErrorText = (code) => (code === 'newer_version' ? T.saveNewer : code === 'read_failed' ? T.fileUnreadable : T.saveUnreadable);
@@ -248,3 +249,17 @@ export const ACHIEVEMENT_TEXT = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id
 
 // The gold on a caption reads exactly as it does on the goals strip and sheets.
 export const cheerReward = (n) => rewardText(n);
+
+// Tips (early-game pass 3.4): one line each, verb first, 20 words or fewer, keyed by the ids in src/data/tips.js.
+export const TIP_TEXT = {
+  press_play: 'Press Play so people can move in. Plots stay empty while the game is paused.',
+  arrivals: 'Place more plots to make room: new families arrive a few times a month while homes have space.',
+  house_needs: 'Read the list: it shows what this home needs to grow, and Show me points at the fix.',
+  service_reach: 'Look at the coloured tiles: they show which homes a well, bazaar or temple reaches along the roads.',
+  problem_marker: 'Tap a building with a red ! badge to see what is wrong and how to fix it.',
+  month_summary: "Tap the numbers in the top bar to see this month's taxes, wages and food.",
+  more_workers: 'Place more homes: every building needs workers, and workers come from homes.',
+  undo_demolish: 'Press Undo to bring back what you just removed, if you change your mind.',
+  goals_list: 'Open Goals to see what comes next, how far along you are and the gold each pays.',
+  overlay_keys: 'Read the overlay: a filled dot has it, a hollow ring is missing it. Tap ✕ to close it.',
+};

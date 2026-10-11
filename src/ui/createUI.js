@@ -3,8 +3,8 @@
 import { MILESTONES } from '../data/progression.js';
 import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { CATEGORIES, toolForItem, categoryOfItem, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
-import { goalById, nextItemFor, guideActive } from '../sim/goals.js';
+import { CATEGORIES, toolForItem, categoryOfItem, AUTO_OVERLAY, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
+import { goalById, nextItemFor, guideActive, openGoals, goalProgress } from '../sim/goals.js';
 import { settle } from '../sim/settle.js';
 import { startDaily } from '../sim/daily.js';
 import { setGuide } from '../sim/commands.js';
@@ -38,6 +38,8 @@ import { createAlerts, mapSummaryText } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
 import { createToasts } from './toasts.js';
 import { createCelebrations } from './celebrate.js';
+import { createTips } from './tips.js';
+import { createNudge, nudgeLineText } from './nudge.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { welcomeSheet } from './welcomeBack.js';
@@ -74,6 +76,16 @@ export function createUI({
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
   // (hoisted) forwards settle's events to onEvents, which shows them.
   const celebrations = createCelebrations({ container: $('cheer') });
+  // Tips and the idle nudge (early-game pass 3.4, 3.5): quiet, never over the map, both off under Help: Off. frameNow is
+  // the latest frame's time, so the nudge counts only time the player actually watched.
+  const tips = createTips({ container: $('tip'), settings, now, restoreFocus: () => { const b = $('goals').querySelector('.show-me'); if (b && !$('goals').hidden) b.focus(); } });
+  let frameNow = now();
+  const nudge = createNudge({ now: () => frameNow });
+  const nudgeLine = el('p', { class: 'nudge-line', hidden: true });
+  const nudgeRegion = el('div', { class: 'nudge', role: 'status', 'aria-live': 'polite' }, [nudgeLine]);   // stays rendered, so the line is announced when it appears
+  let nudgeState = 'none', markerCount = 0, hadShortage = false;
+  const helpOn = () => settings.get().help !== 'off';
+  const fireTip = (key) => tips.trigger(key, { busy: isToolMode(store.get().mode) });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
   const placement = createPlacement({ world, store, afterCommand, effects, now });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
@@ -98,6 +110,7 @@ export function createUI({
   const legend = createOverlayLegend({ container: $('legend'), store });
   const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count() });
   const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals'), onSkipGuide: skipGuide });
+  $('goals').append(nudgeRegion);                      // the nudge's one line sits under the strip and hides with it (early-game pass 3.5)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
     canResumeGuide: () => canResumeGuide(world), onResumeGuide: () => { setGuide(world, true); refresh(); },
@@ -217,6 +230,11 @@ export function createUI({
       sfx.play(e.kind === 'road' ? 'road' : e.kind === 'demolish' ? 'demolish' : 'place');
       sfx.buzz(20);
     }
+    nudge.noteAction();                                // a command is a meaningful action (early-game pass 3.5)
+    if (e.undoable && e.kind === 'houses' && world.speed === 0) fireTip('plotsPaused');
+    if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type]) fireTip('servicePlaced');
+    if (e.undoable && e.kind === 'demolish') fireTip('demolished');
+    if (e.kind === 'speed' && world.speed > 0 && tips.current() === 'press_play') tips.dismiss();   // its condition has cleared
     ghostsDirty = true;
     // Goals, firsts, achievements and daily goals settle after every command (undo and speed included), so a
     // guided step finishes while the game is paused (early-game pass 3.2).
@@ -244,6 +262,21 @@ export function createUI({
     alerts.refresh();
     hud.render(); dock.render(); sidePanel.render(); rail.render(); guide.render(); confirmBar.render(); corners.render(); goalsStrip.render();
     setText($('map-summary'), mapSummaryText(world, alerts.list()));
+    // Tips that follow the alerts (the first problem markers, a labour shortage), and goal progress for the nudge.
+    const list = alerts.list();
+    const markers = list.filter((a) => a.id !== undefined && a.id !== null).length;
+    if (markers > 0 && markerCount === 0) fireTip('problemMarker');
+    markerCount = markers;
+    const shortage = list.some((a) => a.code === 'labour_shortage');
+    if (shortage && !hadShortage) fireTip('labourShortage');
+    hadShortage = shortage;
+    nudge.noteProgress(progressSignature());
+  }
+  // Goal progress as one string: the nudge starts again whenever it changes (early-game pass 3.5).
+  function progressSignature() {
+    const [goal] = openGoals(world, 1);
+    const p = goal ? goalProgress(world, goal) : null;
+    return `${world.goals.completed.length}|${goal ? goal.id : ''}|${p ? p.n : ''}`;
   }
 
   // Autosave (spec 4.17): every game month and whenever the page is hidden. A failing save shows the
@@ -268,6 +301,9 @@ export function createUI({
     const quiet = events.some((e) => e.type === 'milestone');
     for (const e of events) {
       if (e.type === 'upgrade') sfx.play('upgrade');
+      else if (e.type === 'arrivals') fireTip('arrivals');
+      else if (e.type === 'month') fireTip('monthEnd');
+      else if (e.type === 'goal') fireTip('goalDone');
       const cheer = e.type === 'achievement' && quiet ? null : cheerFor(e);
       if (cheer) celebrations.show(cheer);
     }
@@ -414,6 +450,17 @@ export function createUI({
     panelDetails();
   });
   root.dataset.mode = store.get().mode;
+  // Tips and the nudge watch the interface: a tool starting (a card picked, Show me) and a sheet opening are
+  // meaningful actions; a house sheet and an overlay turned on by hand have tips; a held tip shows once no tool is active.
+  let seenMode = store.get().mode, seenSheet = store.get().sheet, seenOverlay = store.get().overlay;
+  store.subscribe((s) => {
+    const opened = Boolean(s.sheet) && s.sheet !== seenSheet;
+    if ((isToolMode(s.mode) && !isToolMode(seenMode)) || opened) nudge.noteAction();
+    if (opened && s.sheet.kind === 'info') { const b = world.buildings[s.sheet.id]; if (b && b.type === 'house') fireTip('houseSheet'); }
+    if (s.overlay && s.overlay !== seenOverlay && !isToolMode(s.mode)) fireTip('overlayOn');
+    if (!isToolMode(s.mode)) tips.flush({ busy: false });
+    seenMode = s.mode; seenSheet = s.sheet; seenOverlay = s.overlay;
+  });
 
   // Ghosts are recomputed only when the UI state object changes or a command ran (previews call canPlace).
   function ghosts() {
@@ -423,6 +470,7 @@ export function createUI({
   }
 
   function render({ timeDays, now: t }) {
+    frameNow = t;
     cameraControl.tick(t);
     const s = store.get();
     const v = view();
@@ -443,13 +491,29 @@ export function createUI({
     if (s.layout === 'wide' && !s.panelFolded) panelMinimap.render(alerts.list());
     if (s.sheet && s.sheet.kind === 'minimap') sheetMinimap.render(alerts.list());
     if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; syncDaily(); refreshDaily(); }
+    tickNudge(s);
+  }
+  // Once a frame (early-game pass 3.5): the nudge's glow on Show me, then its one line, then nothing more. The Play tip's
+  // pulse on the speed control lasts while that tip shows and the game is paused. Help: Off silences both.
+  function tickNudge(s) {
+    const on = helpOn();
+    if (!on && tips.current()) tips.dismiss();
+    root.classList.toggle('nudge-play', tips.current() === 'press_play' && world.speed === 0);
+    const state = on ? nudge.tick({ running: world.speed > 0, busy: isToolMode(s.mode) || Boolean(s.sheet) || Boolean(s.confirmDialog) }) : 'none';
+    if (state === nudgeState) return;
+    nudgeState = state;
+    const showMeButton = $('goals').querySelector('.show-me');
+    if (showMeButton) showMeButton.classList.toggle('glow', state === 'glow');
+    const text = state === 'line' ? nudgeLineText(world, alerts.list(), openGoals(world, 1)[0] || null) : '';
+    setText(nudgeLine, text);
+    nudgeLine.hidden = !text;
   }
 
   syncDaily();
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
-    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, celebrations, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
+    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
     destroy() {
       if (destroyed) return;
       destroyed = true;
@@ -458,13 +522,13 @@ export function createUI({
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
-      for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
+      for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'tip', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
       $('goals').hidden = false;                       // the strip hides its row when no goal is open; the next UI decides again
       for (const id of ['sheet', 'dialog']) { const c = $(id); clear(c); c.hidden = true; }
       confirmBar.element.remove();
       document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it
       delete root.dataset.mode;
-      root.classList.remove('has-banner', 'has-overlay');
+      root.classList.remove('has-banner', 'has-overlay', 'nudge-play');
     },
   };
 }

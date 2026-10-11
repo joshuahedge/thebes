@@ -99,3 +99,5 @@ import './render/assets.test.js';
 import './ui/pwa.test.js';
 import './ui/carryovers.test.js';
 import './ui/celebrate.test.js';
+import './ui/tips.test.js';
+import './ui/nudge.test.js';
