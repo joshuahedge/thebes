@@ -31,6 +31,7 @@ import './save/serialize.test.js';
 import './save/migrateV2.test.js';
 import './save/migrateV3.test.js';
 import './sim/longrun.test.js';
+import './sim/capital.test.js';
 import './sim/events.test.js';
 import './render/iso.test.js';
 import './render/camera.test.js';
