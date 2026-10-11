@@ -9,3 +9,7 @@
 
 ## Tasks 1-2, 6-8, 9-11 and 15-17 — also FAILED on the spend limit, no output files
 - Only `s2-plan-T03-T05.md` exists. After the limit resets, re-dispatch five writers (same prompt file, same task groupings: 1-2, 6-8, 9-11, 12-14, 15-17), writing to the new session's scratch folder. The stopped writers may have left partial scratch copies of the repo (`s2-*` folders) in the old scratch folder; ignore them and start clean.
+
+## Correction: Tasks 1-2 (s2-plan-T01-T02.md) exists
+- The file is present and looks complete (both tasks with Steps 1-8, 1,955 lines, code fences balanced), but its writer stopped on the spend limit while still verifying it in a scratch copy and never reported. Treat it as unverified: read its CONTRACT NOTE lines and check it against the contract, or have one writer re-run it on a scratch copy before execution.
+- So the writers still to run after the reset are four: Tasks 6-8, 9-11, 12-14 and 15-17.
