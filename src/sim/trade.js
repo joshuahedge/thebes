@@ -65,6 +65,21 @@ export const postConnected = (world) => posts(world).some((p) => joinsEntry(worl
 // The post caravans come to: the first (lowest id) trading post that works and is joined to the trade entry.
 export const activePost = (world) => posts(world).find((p) => isWorking(world, p) && joinsEntry(world, p)) || null;
 
+// Why no caravan will come, or null when one will (exactly when activePost finds a post): 'no_post', 'not_connected'
+// (no post is joined by road to the trade entry), 'paused' (every joined post is paused) or 'short_staffed' (a joined
+// post is not paused but has under a quarter of its workers).
+export function caravanBlocker(world) {
+  const all = posts(world);
+  if (!all.length) return 'no_post';
+  const joined = all.filter((p) => joinsEntry(world, p));
+  if (!joined.length) return 'not_connected';
+  if (joined.some((p) => isWorking(world, p))) return null;
+  return joined.some((p) => !p.paused) ? 'short_staffed' : 'paused';
+}
+
+// The post the city's trade is counted at: the one caravans come to, else the first post (null with no post).
+export const tradePost = (world) => activePost(world) || posts(world)[0] || null;
+
 // Today's prices: what the partner pays for each good it buys, and asks for each good it sells, after this
 // year's drift, in whole gold (never below 1).
 export function tradePrices(world, partnerId) {
@@ -89,15 +104,24 @@ export function drawDrift(seed, year) {
   return drift;
 }
 
-// Opens the route to a partner: its milestone reached, a trading post built, the cost (scaled by difficulty)
-// affordable. A route that opens while no post is joined to the trade entry warns 'not_connected'.
+// Why a route cannot be opened now, or null when it can: the one rule openRoute follows and the trade sheet reads.
+// The partner exists and is not open yet, its milestone is reached, a trading post stands, and the cost (scaled by
+// difficulty) is affordable (the treasury may go as far into debt as every other purchase allows).
+export function routeBlocker(world, partnerId) {
+  if (!PARTNERS[partnerId]) return 'unknown_partner';
+  if (world.trade.routes[partnerId]) return 'already_open';
+  if (!partnerUnlocked(world, partnerId)) return 'locked';
+  if (!posts(world).length) return 'no_post';
+  if (!canAfford(world, routeCostOf(world, partnerId))) return 'no_gold';
+  return null;
+}
+
+// Opens the route to a partner (see routeBlocker). A route that opens while no post is joined to the trade entry
+// warns 'not_connected'.
 export function openRoute(world, partnerId) {
-  if (!PARTNERS[partnerId]) return fail('unknown_partner');
-  if (world.trade.routes[partnerId]) return fail('already_open');
-  if (!partnerUnlocked(world, partnerId)) return fail('locked');
-  if (!posts(world).length) return fail('no_post');
+  const reason = routeBlocker(world, partnerId);
+  if (reason) return fail(reason);
   const cost = routeCostOf(world, partnerId);
-  if (!canAfford(world, cost)) return fail('no_gold');
   spend(world, cost);
   world.trade.routes[partnerId] = { since: world.day, gifted: false };
   return { ok: true, cost, warnings: postConnected(world) ? [] : ['not_connected'] };
@@ -119,6 +143,9 @@ const storesOf = (b, good) => (BUILDINGS[b.type].stores || []).includes(good);
 function stockNear(world, post, good) {
   return buildingsInReach(world, post, TRADE_REACH, (o) => storesOf(o, good)).reduce((n, { b }) => n + (b.store[good] || 0), 0);
 }
+
+// How much of a good a caravan can count and take: what the stores within reach of the trade post hold (0 with no post).
+export const tradeStock = (world, good, post = tradePost(world)) => (post ? stockNear(world, post, good) : 0);
 
 // Takes up to n of a good from the stores in the post's reach, nearest first; returns how many it took.
 function takeNear(world, post, good, n) {

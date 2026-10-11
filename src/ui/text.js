@@ -8,6 +8,7 @@ import { FIRSTS } from '../data/firsts.js';
 import { GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
 import { TRADE_KEEP_STEP } from '../data/ui.js';
+import { ECONOMY } from '../data/economy.js';
 import { producerRefused } from '../sim/production.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
@@ -236,28 +237,38 @@ export const milestoneText = (name) => `Your city is now a ${name}`;
 // level to keep; then a caravan's caption.
 export const TRADE_MODE_NAMES = { buy: 'Buy', sell: 'Sell', ignore: 'Ignore' };
 export const openRouteText = (cost) => `Open route, ${cost} gold`;
-export function routeBlockText(id, block, cost) {
+export function routeBlockText(id, block) {
   if (block === 'locked') {
     const m = MILESTONES.find((x) => x.id === PARTNERS[id].milestone);
     return `Opens at ${m ? m.name : PARTNERS[id].milestone}`;
   }
   if (block === 'no_post') return 'Needs a trading post';
-  if (block === 'no_gold') return `Needs ${cost} gold`;
+  if (block === 'no_gold') return `Would put the treasury over ${-ECONOMY.debtFloor} gold in debt`;   // the rule every purchase follows (canAfford)
   return '';
 }
 export const paysText = (name, price) => `${name} pays ${price}`;
 export const asksText = (name, price) => `${name} asks ${price}`;
-export const inStorageText = (n) => `${n} in storage`;
+// Caravans count the stores within reach of the trading post, not every store in the city.
+export const inStorageText = (n) => `${n} in storage near the post`;
 export const keepText = (n) => `Keep ${n}`;
-export const keepHelpText = (mode, n) => (mode === 'buy' ? `Buys until ${n} are in storage` : `Sells what is over ${n} in storage`);
+export const keepHelpText = (mode, n) => (mode === 'buy' ? `Buys until ${n} are in storage near the post` : `Sells what is over ${n} in storage near the post`);
 export const keepStepText = (sign) => `${sign > 0 ? '+' : '−'}${TRADE_KEEP_STEP}`;
 export const keepStepLabel = (sign, name) => `${keepStepText(sign)}: keep ${sign > 0 ? 'more' : 'less'} ${name.toLowerCase()}`;
 export const tradeChoiceLabel = (name) => `${name}: buy, sell or ignore`;
 const TRADE_REASONS = { no_post: 'Build a trading post first', already_open: 'That route is already open', locked: 'That partner trades with bigger cities', no_gold: 'Not enough gold' };
 export const tradeReasonText = (code) => TRADE_REASONS[code] || "Can't do that yet";
+// Why no caravan will come (caravanBlocker); a post no road joins to the trade entry has its own warning, T.postNotJoined.
+const NO_CARAVAN = {
+  no_post: 'No caravan will come without a trading post',
+  paused: 'No caravan will come while the trading post is paused',
+  short_staffed: 'No caravan will come while the trading post is short of workers',
+};
+export const noCaravanText = (code) => NO_CARAVAN[code] || '';
 
-// A caravan's caption (spec 4.15): what it bought from the city and sold it, any first-visit gift, and the gold it
-// paid: "A caravan from Memphis bought 30 pottery: +240 gold". One that found nothing says so and why.
+// A caravan's caption (spec 4.15): what it bought from the city and sold it, any first-visit gift, and the gold the
+// treasury gained or lost: "A caravan from Memphis bought 30 pottery: +240 gold". A visit that both paid and charged
+// says the net ("net +200 gold"), so the caption always matches the treasury. One that found nothing says so and why.
+const goldChangeText = (n) => (n > 0 ? rewardText(n) : n < 0 ? `−${-n} gold` : '0 gold');
 export function caravanText(e) {
   const goods = (m) => listText(Object.entries(m || {}).filter(([, n]) => n > 0).map(([g, n]) => `${n} ${goodWord(g)}`));
   const from = partnerName(e.partner);
@@ -267,7 +278,9 @@ export function caravanText(e) {
   if (bought) parts.push(`sold you ${bought}`);
   if (e.gift && e.gift.n > 0) parts.push(`brought a gift of ${e.gift.n} ${goodWord(e.gift.good)}`);
   if (!parts.length) return { text: `A caravan from ${from} found nothing to trade`, why: T.caravanIdleWhy };
-  return { text: `A caravan from ${from} ${listText(parts)}${e.income > 0 ? `: ${rewardText(e.income)}` : ''}`, why: '' };
+  const income = e.income || 0, spent = e.spent || 0;
+  const gold = income > 0 && spent > 0 ? `net ${goldChangeText(income - spent)}` : goldChangeText(income - spent);
+  return { text: `A caravan from ${from} ${listText(parts)}${income > 0 || spent > 0 ? `: ${gold}` : ''}`, why: '' };
 }
 
 export const T = {

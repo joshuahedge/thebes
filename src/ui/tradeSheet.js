@@ -1,34 +1,27 @@
 // The trading post's sheet (spec 4.15), one step at a time: first the routes, each with Open route and its cost or
 // why it cannot open yet; once a route is open, a row per good an open partner trades (what they pay or ask, Buy,
-// Sell or Ignore, and the level to keep, in steps of TRADE_KEEP_STEP), then the next caravan's date. It reads the
+// Sell or Ignore, and the level to keep, in steps of TRADE_KEEP_STEP), then the next caravan's date, or why none will
+// come. What it offers is what the sim will honour: it reads routeBlocker, caravanBlocker and tradeStock. It reads the
 // world and changes it only through openRoute and setTradeOrder (src/sim/trade.js); createUI registers it as the
 // custom sheet 'trade', opened by the Trade button on a trading post's sheet. A command re-renders it (afterCommand).
 import { PARTNERS } from '../data/trade.js';
 import { GOODS } from '../data/goods.js';
-import { BUILDINGS } from '../data/buildings.js';
 import { TRADE_KEEP_STEP } from '../data/ui.js';
-import { openRoute, setTradeOrder, tradePrices, nextCaravanDay, postConnected } from '../sim/trade.js';
+import { openRoute, routeBlocker, setTradeOrder, tradePrices, tradePost, tradeStock, caravanBlocker, nextCaravanDay } from '../sim/trade.js';
 import { routeCostOf } from '../sim/costs.js';
-import { atLeast } from '../sim/progression.js';
-import { allBuildings } from '../sim/world.js';
 import { dateParts } from '../sim/clock.js';
 import { el, button } from './components.js';
 import {
-  T, TRADE_MODE_NAMES, partnerName, goodName, dateText, showMeLabel, openRouteText, routeBlockText, paysText, asksText,
+  T, TRADE_MODE_NAMES, partnerName, goodName, dateText, showMeLabel, openRouteText, routeBlockText, noCaravanText, paysText, asksText,
   inStorageText, keepText, keepHelpText, keepStepText, keepStepLabel, tradeChoiceLabel, tradeReasonText,
 } from './text.js';
 
 const isOpen = (world, id) => Boolean(world.trade.routes[id]);
-const hasPost = (world) => allBuildings(world).some((b) => b.type === 'trading_post');
 const openPartners = (world) => Object.keys(PARTNERS).filter((id) => isOpen(world, id));
 
-// Why a route cannot open now, or null, by openRoute's rules: the partner's milestone, a trading post, the gold.
-export function routeBlock(world, id) {
-  if (!atLeast(world, PARTNERS[id].milestone)) return 'locked';
-  if (!hasPost(world)) return 'no_post';
-  if (world.gold < routeCostOf(world, id)) return 'no_gold';
-  return null;
-}
+// Why a route cannot open now, or null: the sim's own rule (routeBlocker), so the button is enabled exactly when
+// Open route would work.
+export const routeBlock = routeBlocker;
 
 // The goods any open partner buys or sells, in the data's order.
 export function tradedGoods(world) {
@@ -37,7 +30,6 @@ export function tradedGoods(world) {
 }
 
 export const orderOf = (world, good) => world.trade.orders[good] || { mode: 'ignore', keep: 0 };
-const inStorage = (world, good) => allBuildings(world).reduce((n, b) => n + ((BUILDINGS[b.type].stores || []).includes(good) ? (b.store[good] || 0) : 0), 0);
 
 export function tradeSheet({ world, afterCommand = () => {}, onShowMe = () => {}, toast = () => {} }) {
   const done = (r, kind) => {
@@ -53,12 +45,13 @@ export function tradeSheet({ world, afterCommand = () => {}, onShowMe = () => {}
     const open = button(words, { class: 'open-route primary', 'aria-label': `${words}: ${partnerName(id)}`, disabled: Boolean(block), onClick: () => done(openRoute(world, id), 'route') });
     return el('li', { class: 'route', dataset: { partner: id } }, [
       el('div', { class: 'row' }, [name, open]),
-      block ? el('p', { class: 'reason small muted', text: routeBlockText(id, block, routeCostOf(world, id)) }) : null,
+      block ? el('p', { class: 'reason small muted', text: routeBlockText(id, block) }) : null,
     ]);
   }
 
-  // One good: its name and stock, each open partner's price, the choices those partners allow, and the keep level.
-  function goodRow(good) {
+  // One good: its name and the stock near the trading post (what a caravan counts), each open partner's price, the
+  // choices those partners allow, and the keep level.
+  function goodRow(good, post) {
     const name = goodName(good);
     const order = orderOf(world, good);
     const prices = openPartners(world).map((id) => ({ id, p: tradePrices(world, id) }));
@@ -75,7 +68,7 @@ export function tradeSheet({ world, afterCommand = () => {}, onShowMe = () => {}
     const set = (mode, keep) => done(setTradeOrder(world, good, mode, keep), 'trade');
     const choices = modes.map((m) => button(TRADE_MODE_NAMES[m], { class: `choice mode ${m}`, dataset: { mode: m }, 'aria-pressed': String(order.mode === m), onClick: () => set(m, order.keep) }));
     const li = el('li', { class: 'trade-good', dataset: { good } }, [
-      el('div', { class: 'row' }, [el('strong', { text: name }), el('span', { class: 'small muted', text: inStorageText(inStorage(world, good)) })]),
+      el('div', { class: 'row' }, [el('strong', { text: name }), el('span', { class: 'small muted', text: inStorageText(tradeStock(world, good, post)) })]),
       el('p', { class: 'prices small', text: words.join(' · ') }),
       el('span', { class: 'choices', role: 'group', 'aria-label': tradeChoiceLabel(name) }, choices),
     ]);
@@ -91,8 +84,9 @@ export function tradeSheet({ world, afterCommand = () => {}, onShowMe = () => {}
   }
 
   return function render(body) {
+    const blocker = caravanBlocker(world);
     body.append(el('h3', { text: T.routes }), el('ul', { class: 'routes' }, Object.keys(PARTNERS).map(routeRow)));
-    if (hasPost(world) && !postConnected(world)) {
+    if (blocker === 'not_connected') {
       const at = world.tradeEntry;
       body.append(el('div', { class: 'trade-warning' }, [
         el('p', { class: 'coral', text: T.postNotJoined }),
@@ -104,8 +98,11 @@ export function tradeSheet({ world, afterCommand = () => {}, onShowMe = () => {}
     }
     const goods = tradedGoods(world);
     if (!goods.length) { body.append(el('p', { class: 'muted', text: T.openRouteFirst })); return; }
-    body.append(el('h3', { text: T.tradeGoods }), el('p', { class: 'small muted', text: T.tradeHelp }), el('ul', { class: 'trade-goods' }, goods.map(goodRow)));
-    const day = nextCaravanDay(world);
-    if (Number.isFinite(day)) body.append(el('div', { class: 'row next-caravan' }, [el('span', { class: 'muted', text: T.nextCaravan }), el('span', { text: dateText(dateParts({ day })) })]));
+    const post = tradePost(world);
+    body.append(el('h3', { text: T.tradeGoods }), el('p', { class: 'small muted', text: T.tradeHelp }), el('ul', { class: 'trade-goods' }, goods.map((g) => goodRow(g, post))));
+    // A date only when a caravan will come (a working post joined by road); the reason otherwise, once: the warning
+    // above already says a post no road joins.
+    if (blocker === null) body.append(el('div', { class: 'row next-caravan' }, [el('span', { class: 'muted', text: T.nextCaravan }), el('span', { text: dateText(dateParts({ day: nextCaravanDay(world) })) })]));
+    else if (blocker !== 'not_connected') body.append(el('p', { class: 'no-caravan coral', text: noCaravanText(blocker) }));
   };
 }
