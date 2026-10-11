@@ -560,7 +560,54 @@ Object.assign(REASONS, { no_rubble: 'No rubble here', bad_id: "Can't do that", h
 //
 // ── s3 fire (Track A) ──────────────────────────────────────────────────────────────────────────────────────────
 // Track A's words for fire: the fire row, alert titles and fixes for fire, blaze and fire_risk, the mood rows fire and burned, captions. Add new lines just above the end marker.
-export const FIRE_TEXT = {};
+// (An import declaration is hoisted, so it may sit here, inside the section. The names are Track A's own, so another
+// section importing fireCause, fireBand or FIRE under their plain names cannot clash with them.)
+import { fireCause as fireCauseOf, fireBand as fireBandOf } from '../sim/fire.js';
+import { FIRE as FIRE_NUMBERS } from '../data/fire.js';
+
+// Every line follows src/sim/fire.js: fireAlerts picks the code, fireCause the reason no staffed firehouse reaches the
+// building, b.fire.left the days a fire has before the building burns down (it burns on the day left reaches 0).
+export const FIRE_TEXT = {
+  caught: (name) => `${name} has caught fire`,                                    // a blaze
+  burning: (name, left) => `${name} is burning: ${plural(left, 'day', 'days')} left`,   // the fire stage
+  highRisk: (name) => `${name} has a high fire risk`,                             // fireBand 2 (High)
+  canCatch: (name) => `${name} could catch fire`,                                 // fireBand 3 (Can catch fire): 3% a day
+  fighting: {
+    blaze: 'The firehouse is putting it out',                                     // it can still reach need before the blaze grows
+    late: (days) => `The firehouse came too late: it grows into a fire in ${plural(days, 'day', 'days')}`,
+    fire: 'The firehouse is fighting it',                                         // 25% x coverage a day
+  },
+  cause: {
+    covered: 'A firehouse reaches it',
+    no_road: 'No road beside it for a firehouse to reach: lay one',
+    none: `No firehouse within ${FIRE_NUMBERS.reach} road tiles: build one near it`,
+    short: 'Its firehouse is short of workers: more homes bring more workers',
+    burning: 'Its firehouse is burning: build another near it',
+    paused: 'Its firehouse is paused: resume it',
+  },
+};
+// A home is named by its tier ("Hut has caught fire"), anything else by its type.
+const fireAlertName = (b, name) => (b && b.type === 'house' ? tierName(b.tier) : name);
+const fireAlertTitle = (b, name) => (b && b.fire && b.fire.stage === 'fire' ? FIRE_TEXT.burning(fireAlertName(b, name), b.fire.left) : FIRE_TEXT.caught(fireAlertName(b, name)));
+const fireCauseFix = (world, b) => (b ? FIRE_TEXT.cause[fireCauseOf(world, b).cause] : FIRE_TEXT.cause.none);
+// A covered blaze goes out when its fought days reach need before days reaches FIRE.blazeDays (fireDay counts the fought
+// day first), so it is too late when more fought days are needed than blaze days are left.
+function fireFightFix(b) {
+  const f = b && b.fire;
+  if (f && f.stage === 'fire') return FIRE_TEXT.fighting.fire;
+  if (f && f.need - f.fought > FIRE_NUMBERS.blazeDays - f.days) return FIRE_TEXT.fighting.late(FIRE_NUMBERS.blazeDays - f.days);
+  return FIRE_TEXT.fighting.blaze;
+}
+Object.assign(ALERT_TEXT, {
+  fire: (alert, world, b, name) => ({ title: fireAlertTitle(b, name), fix: fireCauseFix(world, b) }),
+  blaze: (alert, world, b, name) => ({ title: fireAlertTitle(b, name), fix: fireFightFix(b) }),
+  fire_risk: (alert, world, b, name) => ({
+    title: b && fireBandOf(b.risk || 0) >= 3 ? FIRE_TEXT.canCatch(fireAlertName(b, name)) : FIRE_TEXT.highRisk(fireAlertName(b, name)),
+    fix: fireCauseFix(world, b),
+  }),
+});
+// The summary's mood rows (fireMood's keys).
+Object.assign(MOOD_NAMES, { fire: 'A fire last month', burned: 'Buildings burned, last 6 months' });
 // ── end s3 fire ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

@@ -10,7 +10,7 @@ function village() {
   expect(paintHouses(w, 9, 11, 20, 11).ids.length).toBe(12);
   for (const [type, x, y] of [
     ['well', 10, 9], ['well', 19, 9], ['farm_grain', 2, 8], ['farm_grain', 2, 11],
-    ['granary', 5, 8], ['bazaar', 13, 8], ['temple', 16, 8],
+    ['granary', 5, 8], ['bazaar', 13, 8], ['temple', 16, 8], ['firehouse', 9, 9], ['firehouse', 18, 9],   // from Stage 3 a Town burns where no firehouse reaches
   ]) {
     expect(place(w, type, x, y).ok).toBe(true);
   }
