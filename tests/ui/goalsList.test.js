@@ -38,7 +38,7 @@ describe('ui goals', () => {
     world.goals.completed.push('road');
     const shown = [];
     goalsSheet(world, { onShowMe: (g) => shown.push(g.id) })(root, { close: () => {} });
-    expect(root.textContent).toContain(goalsProgressText(1, GOALS.length));
+    expect(root.textContent).toContain(goalsProgressText(2, GOALS.length + 1));   // Stage 3: Founded Thebes counts, done from the start
     expect([...root.querySelectorAll('h3')].map((h) => h.textContent)).toEqual([CHAPTER_NAMES.first_homes, CHAPTER_NAMES.feed]);
     const rows = root.querySelectorAll('.goal');
     expect(rows.length).toBe(3);

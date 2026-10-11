@@ -1,7 +1,7 @@
 // Goal evaluation (spec 4.1, early-game pass 3.2 and 3.3): pure checks against the world, rewards paid into
 // the treasury. First-time event goals sit in front of the opening chain; the guided start is the chain's
 // first five goals and pays once when they are all done.
-import { GOALS, EVENT_GOALS, GUIDE_GOALS, GUIDE_REWARD } from '../data/goals.js';
+import { GOALS, EVENT_GOALS, GUIDE_GOALS, GUIDE_REWARD, OPENING_LAST } from '../data/goals.js';
 import { MILESTONES } from '../data/progression.js';
 import { housesOf, population, allBuildings } from './world.js';
 import { alertsFor } from './alerts.js';
@@ -147,6 +147,14 @@ export function settleGoals(world, events = null) {
     done.push(g);
   }
   return done;
+}
+
+// The opening chain's count (spec 4.1): Founded Thebes, done from the start, and the goals up to OPENING_LAST, as
+// { done, of } ("1 of 10" for a new city); null once every one of them is done.
+export function openingProgress(world) {
+  const opening = GOALS.slice(0, GOALS.findIndex((g) => g.id === OPENING_LAST) + 1);
+  const done = opening.filter((g) => world.goals.completed.includes(g.id)).length;
+  return done < opening.length ? { done: done + 1, of: opening.length + 1 } : null;
 }
 
 // The card a goal needs next: the first missing building of a compound goal, else its Show me card.

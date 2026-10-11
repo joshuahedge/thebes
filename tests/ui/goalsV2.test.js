@@ -104,7 +104,7 @@ describe('ui goals v2', () => {
       world.goals.completed.push('fix_bazaar');                    // event goals never count against the chain
       root.innerHTML = '';
       goalsSheet(world, { onShowMe: () => {} })(root, { close: () => {} });
-      expect(root.textContent).toContain(goalsProgressText(1, GOALS.length));
+      expect(root.textContent).toContain(goalsProgressText(2, GOALS.length + 1));   // Stage 3: Founded Thebes counts, done from the start
     } finally { cleanup(); }
   });
   it('settles goals after every command, so plots placed while paused finish the step without a game day', async () => {

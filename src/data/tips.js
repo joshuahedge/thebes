@@ -31,3 +31,10 @@ export const TIP_HOURLY_MAX = 5;           // and at most five in any hour
 export const TIP_FIRST_DELAY_MS = 10000;   // none in the first 10 s of a session
 export const TIP_HELD_MAX_MS = 60000;      // a tip held while a tool was active is dropped if it is older than this when the tool closes
 export const TIP_AUTO_CLOSE_MS = 15000;    // on a phone at 125% or 150% text a tip closes itself after this long (it stays seen)
+// Citizen remarks (spec 4.19, ruling 130): a short line in the caption row at a month end whose index is a multiple of
+// REMARK_EVERY_MONTHS, when the row is free and Help is not Off, chosen by hash2(seed, month index, REMARK_SALT) from the
+// season's remarks whose building the city has (the pool and its words: CITIZEN_REMARKS in src/ui/text.js).
+export const REMARK_EVERY_MONTHS = 3;
+export const REMARK_SALT = 9301;
+// The seasons by month of the year (1-12): Akhet, the flood, months 1-4; Peret, the growing, 5-8; Shemu, the harvest, 9-12.
+export const SEASONS = ['akhet', 'akhet', 'akhet', 'akhet', 'peret', 'peret', 'peret', 'peret', 'shemu', 'shemu', 'shemu', 'shemu'];

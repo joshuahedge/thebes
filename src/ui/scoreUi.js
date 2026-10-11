@@ -10,6 +10,7 @@
 import { SCORE_PARTS, SPLIT_MILESTONES } from '../data/scoring.js';
 import { scoreOf, scorePreview, sealReign, splitMonths } from '../sim/score.js';
 import { featsFor, featStatus } from '../sim/feats.js';
+import { remarkFor } from './celebrate.js';
 import { downloadFile } from '../save/exportImport.js';
 import { openSheet } from './modes.js';
 import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, weeklySeed, drawMapSquare, medalColour } from './share.js';
@@ -195,6 +196,14 @@ export function createScoreUi(ctx) {
       ctx.celebrations.show({ tier: 'first', text: `${SCORE_TEXT.feat}: ${FEAT_TEXT[e.id].name}`, why: FEAT_TEXT[e.id].condition, onShow: () => ctx.sfx.play('goal') });
     }
   }
+  // A citizen remark (spec 4.19): at a month end, only when the caption row is free (createUI has already queued the
+  // batch's own captions) and Help is not Off; remarkFor says whether this month has one.
+  function remark(events) {
+    if (!events.some((e) => e.type === 'month') || !ctx.celebrations || ctx.celebrations.busy()) return;
+    if (ctx.settings && ctx.settings.get().help === 'off') return;
+    const text = remarkFor(world);
+    if (text) ctx.celebrations.show({ tier: 'remark', text, icon: '❝' });
+  }
   function tipsFor(events) {
     for (const e of events) {
       if (e.type === 'milestone' && e.id === 'town') tip('fireRisk');                // fire risk builds from Town
@@ -221,7 +230,7 @@ export function createScoreUi(ctx) {
     sheets: { sealReign: sealSheet, shareScore: shareSheet },
     // Made without a world (the contract's shape test), it has no parts.
     sheetParts: { building: () => [], house: () => [], actions: () => [], summary: () => (world ? [summarySection(), featsSection()] : []) },
-    onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); tipsFor(events); } },
+    onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); tipsFor(events); remark(events); } },
     refresh() { if (world) { version++; renderChip(); } },
     onAlertAction() {},
     onCommand(e) { version++; if (world && e) tipsForCommand(e); },

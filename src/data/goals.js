@@ -64,3 +64,9 @@ export const EVENT_GOALS = [
     dirText: { east: 'Build a tower facing the east', west: 'Build a tower facing the west', north: 'Build a tower facing the north', south: 'Build a tower facing the south' },
   },
 ];
+
+// The opening chain (spec 4.1): Founded Thebes, already ticked when a city starts (an endowed start: it pays nothing and is
+// never in GOALS, so nothing completes it), and the goals up to and including OPENING_LAST make ten, so the strip opens
+// at "1 of 10".
+export const FOUNDED = { id: 'founded', chapter: 'first_homes', text: 'Founded Thebes' };
+export const OPENING_LAST = 'town';
