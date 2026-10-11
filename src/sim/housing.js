@@ -1,6 +1,6 @@
 import { TIERS, MAX_TIER, LEAVE_CAP, DOWNGRADE_AFTER_MONTHS } from '../data/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { FOOD_GOODS } from '../data/goods.js';
+import { FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { allBuildings, housesOf } from './world.js';
 import { touchesRoad, roadReach, reachDistance, buildingsInReach } from './reach.js';
 import { isWorking } from './labour.js';
@@ -14,7 +14,12 @@ export function wantedNeeds(house) {
   return out;
 }
 
-export const wantedGoods = (house) => (wantedNeeds(house).includes('food') ? FOOD_GOODS.slice() : []);
+// The goods a home tops up at the bazaar (spec 4.10): every food once its current or next tier needs food, and each
+// household good (pottery, beer, linen, jewellery) that its current or next tier needs.
+export function wantedGoods(house) {
+  const wants = wantedNeeds(house);
+  return [...(wants.includes('food') ? FOOD_GOODS : []), ...HOUSEHOLD_GOODS.filter((g) => wants.includes(g))];
+}
 
 // True if any working building that provides `need` reaches the house along the roads.
 // The one rule for water and religion coverage: the monthly tick and the house checklist both use it.
@@ -71,8 +76,9 @@ const foodOnHand = (house) => FOOD_GOODS.reduce((s, g) => s + (house.stock[g] ||
 // A house is judged on the residents it was stocked for: newcomers who arrived since the last delivery
 // eat from the household's stock (so it may run out early) but do not make the house count as unfed.
 // stockedFor 0 means no delivery has been recorded yet, so the house is judged on its current residents.
-const foodNeedToMeet = (house) =>
-  monthlyNeed({ residents: Math.min(house.residents, house.stockedFor || house.residents) }, FOOD_GOODS[0]);
+const needToMeet = (house, good) =>
+  monthlyNeed({ residents: Math.min(house.residents, house.stockedFor || house.residents) }, good);
+const foodNeedToMeet = (house) => needToMeet(house, FOOD_GOODS[0]);
 
 function consumeFood(house) {
   const needAll = monthlyNeed(house, FOOD_GOODS[0]);
@@ -88,20 +94,32 @@ function consumeFood(house) {
   return needMet > 0 && available >= needMet;
 }
 
+// A household good is met when the stock covers the month's use at the monthly check (spec 4.10), judged like food
+// on the residents it was stocked for; the month's use is then taken from the stock.
+function consumeGood(house, good) {
+  const needMet = needToMeet(house, good);
+  const available = house.stock[good] || 0;
+  house.stock[good] = available - Math.min(available, monthlyNeed(house, good));
+  return needMet > 0 && available >= needMet;
+}
+
 export function monthlyHousing(world, events = null) {
   const cov = computeCoverage(world);
   const bazaars = bazaarsByHouse(world);
   for (const h of housesOf(world)) {
     h.leftThisMonth = 0;
     if (h.tier === 0) continue;
+    const wants = wantedNeeds(h);
     const met = {
       road: touchesRoad(world, h),
       water: cov.water.has(h.id),
       religion: cov.religion.has(h.id),
-      food: wantedNeeds(h).includes('food') ? consumeFood(h) : false,
+      twoFoods: FOOD_GOODS.every((g) => (h.stock[g] || 0) > 0),   // grain and figs both in stock before the month's eating
+      food: wants.includes('food') ? consumeFood(h) : false,
     };
+    for (const g of HOUSEHOLD_GOODS) if (wants.includes(g)) met[g] = consumeGood(h, g);
     h.met = met;
-    topUpHouse(world, h, wantedGoods(h), bazaars.get(h.id));
+    topUpHouse(world, h, wantedGoods(h), bazaars.get(h.id), { twoFoods: wants.includes('twoFoods') });
     h.stockedFor = h.residents;
 
     const currentOk = met.road && needsOf(h.tier).every((n) => met[n]);
@@ -242,9 +260,10 @@ function footprintGap(a, b) {
   return Math.hypot(dx, dy);
 }
 
-// The stores a bazaar draws its goods from (restockBazaars' rule): any store of what it sells within its supply
-// reach, nearest first, holding goods or not.
+// The stores a bazaar draws its food from (restockBazaars' rule): any store of a food it sells within its supply
+// reach, nearest first, holding food or not. A storehouse holds no food, so it is never named for an empty granary.
 function graneriesFor(world, bazaar) {
   const def = BUILDINGS[bazaar.type];
-  return buildingsInReach(world, bazaar, def.supplyReach, (o) => (BUILDINGS[o.type].stores || []).some((g) => def.sells.includes(g))).map((e) => e.b);
+  const foods = def.sells.filter((g) => FOOD_GOODS.includes(g));
+  return buildingsInReach(world, bazaar, def.supplyReach, (o) => (BUILDINGS[o.type].stores || []).some((g) => foods.includes(g))).map((e) => e.b);
 }
