@@ -324,15 +324,24 @@ export const DAILY_TEXT = {
 };
 export const milestoneText = (name) => `Your city is now a ${name}`;
 
-// Difficulty on the title card (spec 4.18): what the chosen level changes, from the data. Buildings and trade routes
-// scale by the level's cost multiplier ("about": each price is rounded to whole gold); a road is only 2 gold, so its
-// rounded price per tile is given as it is, on a line of its own (the title card shows the hint with white-space:
-// pre-line). Fire and raids (the risk multiplier) arrive in Stage 3 and are not promised.
+// Difficulty on the title card (spec 4.18): what the chosen level changes, from the data, on three lines (the title
+// card shows the hint with white-space: pre-line). First the danger: a level without raids never starts the raid clock
+// (raidsOn); otherwise the level's risk multiplier scales the size of every raid after the first, which is
+// RAIDS.firstSize at every level (raidSize; "about": a size is rounded and kept between 2 and 12), and the same
+// multiplier scales how fast fire risk builds up (dailyRiskOf). Then buildings and trade routes, scaled by the level's
+// cost multiplier ("about": each price is rounded to whole gold); a road is only 2 gold, so its rounded price per tile
+// is given as it is. The danger line stays short enough for one line on a landscape phone's title card.
 export function difficultyHint(level) {
-  const pct = Math.round((DIFFICULTIES[level].cost - 1) * 100);
+  const { cost, risk, raids } = DIFFICULTIES[level];
+  const by = Math.abs(Math.round((risk - 1) * 100));
+  const fire = risk === 1 ? 'Fire risk as usual.' : `Fire risk builds ${by}% ${risk < 1 ? 'slower' : 'faster'}.`;
+  const danger = raids === false ? `No raids. ${fire}` : risk === 1 ? 'Raids and fire risk as usual.' : `Later raids about ${by}% ${risk < 1 ? 'smaller' : 'bigger'}. ${fire}`;
+  const pct = Math.round((cost - 1) * 100);
   const roads = `Roads: ${roadCostOf({ difficulty: level })} gold a tile.`;
   const rest = pct === 0 ? 'at their usual cost' : `cost about ${Math.abs(pct)}% ${pct < 0 ? 'less' : 'more'}`;
-  return `Buildings and trade routes ${rest}.\n${roads}`;
+  return `${danger}
+Buildings and trade routes ${rest}.
+${roads}`;
 }
 
 // The trade sheet (spec 4.15): routes and why one cannot open yet, each good's prices, the three choices and the
