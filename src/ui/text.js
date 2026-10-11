@@ -9,6 +9,7 @@ import { GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
 import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
 import { ECONOMY } from '../data/economy.js';
+import { DIFFICULTIES } from '../data/difficulty.js';
 import { producerRefused } from '../sim/production.js';
 import { isUnlocked } from '../sim/progression.js';
 
@@ -314,6 +315,14 @@ export const DAILY_TEXT = {
 };
 export const milestoneText = (name) => `Your city is now a ${name}`;
 
+// Difficulty on the title card and in Settings (spec 4.18): one line saying what the chosen level changes, from its cost
+// multiplier, so the words follow the data. Fire and raids (its risk multiplier) arrive in Stage 3 and are not promised.
+export function difficultyHint(level) {
+  const pct = Math.round((DIFFICULTIES[level].cost - 1) * 100);
+  if (pct === 0) return 'Buildings, roads and trade routes at their usual cost';
+  return `Buildings, roads and trade routes cost ${Math.abs(pct)}% ${pct < 0 ? 'less' : 'more'}`;
+}
+
 // The trade sheet (spec 4.15): routes and why one cannot open yet, each good's prices, the three choices and the
 // level to keep; then a caravan's caption.
 export const TRADE_MODE_NAMES = { buy: 'Buy', sell: 'Sell', ignore: 'Ignore' };
@@ -383,6 +392,7 @@ export const T = {
   startNewCity: 'Start new city', newCityConfirm: 'Start a new city? The current one will be lost.', notYet: 'Not available yet', comingLater: 'Coming later',
   sound: 'Sound', vibration: 'Vibration', textSize: 'Text size', leftHanded: 'Left-handed controls', keyboardShortcuts: 'Keyboard shortcuts', reducedMotion: 'Reduce motion', followSystem: 'Follow the system',
   helpLevel: 'Help', suggested: 'Suggested', resumeGuide: 'Resume guide',
+  difficultyForNewCities: 'Difficulty for new cities', difficultyNote: 'A city keeps the level it started with. This one changes the next new city.',
   guideHelp: 'While the guide runs, the card for the next step says Suggested and a ring marks the place. Skip guide in the goals strip turns it off.',
   updateReady: 'Update ready', restart: 'Restart', updateSaveFailed: "Couldn't save, so the update will wait",
   playWithSound: 'Play with sound', playMuted: 'Play muted', install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',

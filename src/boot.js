@@ -182,6 +182,7 @@ export async function boot(doc, win, {
     const guide = installGuide(flow, { hasCity: loaded.state === 'ok', onPrompt: () => flow.promptInstall(), onBring: () => hooks.importCity() });
     const card = createTitleCard({
       container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), canBring: flow.canBring(), sound: settings.get().sound, message,
+      difficulty: settings.get().difficulty, onDifficulty: (level) => settings.set({ difficulty: level }),   // spec 4.18: freshWorld reads it
       onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
       onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : startGame(freshWorld())),
       onSound: (on) => settings.set({ sound: on }),
