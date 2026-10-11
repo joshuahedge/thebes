@@ -114,23 +114,26 @@ export function drawOverlay(g, world, kind, range) {
   for (const m of overlayMarks(world, kind, range)) mark(g, m, color);
 }
 
-// Diagonal hatching over a set of tiles: one clip for all of them, then lines on a fixed art-px grid (x + y a multiple of
-// HATCH_GAP), so the stripes stay put while the set changes under a moving ghost. Hatching, not a hue, is what says
+// Tiles [[x, y]...] as polygons for one path: tiles side by side along x are one parallelogram, so a screenful of ground is
+// a few hundred polygons and not thousands of diamonds. That is most of an overlay's cost: the canvas fills by edges.
+function tilePolys(tiles) {
+  const out = [];
+  let first = null, last = null;
+  const close = () => out.push([p(first[0], first[1]), p(last[0] + 1, first[1]), p(last[0] + 1, first[1] + 1), p(first[0], first[1] + 1)]);
+  for (const t of tiles) {
+    if (last && t[1] === last[1] && t[0] === last[0] + 1) { last = t; continue; }
+    if (first) close();
+    first = last = t;
+  }
+  if (first) close();
+  return out;
+}
+
+// Diagonal hatching over a set of tiles: one fill of a stripe pattern that sits on the art grid (lines at x + y a multiple
+// of 4 art px), so the stripes stay put while the set changes under a moving ghost. Hatching, not a hue, is what says
 // "worse" (spec 6.1), so it reads without colour.
-const HATCH_GAP = 4;
-export function hatchTiles(g, tiles, color, { fill = 0.12, line = 0.8, width = 1 } = {}) {
-  if (!tiles.length) return;
-  const polys = tiles.map(([x, y]) => tileDiamond(x, y));
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const [x, y] of tiles) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + 1); y1 = Math.max(y1, y + 1); }
-  const left = p(x0, y1)[0], right = p(x1, y0)[0], top = p(x0, y0)[1], bottom = p(x1, y1)[1];
-  g.polys(polys, color, { alpha: fill });
-  g.save();
-  g.clipPolys(polys);
-  const segs = [];
-  for (let c = Math.floor((left + top) / HATCH_GAP) * HATCH_GAP; c <= right + bottom; c += HATCH_GAP) segs.push(['M', [c - bottom, bottom]], ['L', [c - top, top]]);
-  g.stroke(segs, color, width, line);
-  g.restore();
+export function hatchTiles(g, tiles, color, opts) {
+  g.hatchPolys(tilePolys(tiles), color, opts);
 }
 
 // The desirability overlay (spec 4.7, 6.3): each tile's score in one indigo, light to dark by the bands of
@@ -168,7 +171,7 @@ export function desirabilityBands(world, range = null) {
 
 function drawDesirability(g, world, range) {
   const { below, steps } = desirabilityBands(world, range);
-  steps.forEach((tiles, k) => g.polys(tiles.map(([x, y]) => tileDiamond(x, y)), OVERLAY_HUE.desirability, { alpha: DESIRABILITY_ALPHA[k] }));
+  steps.forEach((tiles, k) => g.polys(tilePolys(tiles), OVERLAY_HUE.desirability, { alpha: DESIRABILITY_ALPHA[k] }));
   hatchTiles(g, below, UI.bad, { fill: 0.1, line: 0.75 });
 }
 
@@ -176,8 +179,8 @@ function drawDesirability(g, world, range) {
 // those it would make worse. tiles = desirabilityPreview(...).tiles: [{ x, y, v }]. Wash against hatch, never colour alone.
 export function drawDesirabilityTint(g, tiles) {
   const better = [], worse = [];
-  for (const t of tiles || []) if (t.v > 0) better.push(tileDiamond(t.x, t.y)); else if (t.v < 0) worse.push([t.x, t.y]);
-  g.polys(better, UI.nicer, { alpha: 0.28 });
+  for (const t of tiles || []) if (t.v > 0) better.push([t.x, t.y]); else if (t.v < 0) worse.push([t.x, t.y]);
+  g.polys(tilePolys(better), UI.nicer, { alpha: 0.28 });
   hatchTiles(g, worse, UI.bad, { fill: 0.1, line: 0.85 });
 }
 
