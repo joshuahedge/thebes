@@ -57,6 +57,8 @@ const CAPITAL_SCRIPT = [
   ),
   ...at('town',
     build('storehouse', 22, 18), build('clay_pit', 18, 21), build('potter', 20, 21),
+    // Two orchards, no more: homes eat grain before figs, so figs beyond what two-food homes need fill the shared
+    // granaries and the grain farms stop with "no storage".
     build('farm_fig', 16, 18), build('farm_fig', 31, 18),
     build('booth', 31, 13), plots(27, 14, 30, 14), plots(32, 14, 39, 14),
     build('statue', 29, 15), build('statue', 33, 15), build('statue', 37, 15),
@@ -89,7 +91,7 @@ function sane(w) {
 // Runs the script month by month: each month end, the next steps whose milestone, population and price allow.
 function runCapital(months) {
   const w = capitalWorld();
-  let next = 0, lowestGold = w.gold, taxes = 0, capitalMonth = null;
+  let next = 0, lowestGold = w.gold, net = 0, spent = 0, capitalMonth = null;
   const made = [];                                   // tally.made at each month end
   const tryBuild = () => {
     while (next < CAPITAL_SCRIPT.length) {
@@ -98,8 +100,10 @@ function runCapital(months) {
       const cost = s.cost(w);
       if (!Number.isFinite(cost)) throw new Error(`step ${next} (${s.type} at ${s.x}, ${s.y}) cannot go there: ${canPlace(w, s.type, s.x, s.y).reason}`);
       if (w.gold - cost < RESERVE) return;
+      const before = w.gold;
       const r = s.run(w);
       if (!r.ok) throw new Error(`step ${next} failed: ${r.reason}`);
+      spent += before - w.gold;                      // what the step took from the treasury: building, road or route
       next++;
     }
   };
@@ -108,12 +112,12 @@ function runCapital(months) {
     advanceDays(w, 30);
     sane(w);
     lowestGold = Math.min(lowestGold, w.gold);
-    taxes += w.stats.lastMonth.taxes;
+    net += w.stats.lastMonth.net;                    // taxes less wages and upkeep
     if (capitalMonth === null && w.milestone === 'capital') capitalMonth = m;
     made.push({ ...w.tally.made });
     tryBuild();
   }
-  return { w, steps: next, lowestGold, taxes, capitalMonth, made };
+  return { w, steps: next, lowestGold, net, spent, capitalMonth, made };
 }
 
 const YEARS = 6;
@@ -131,9 +135,11 @@ describe('capital run', () => {
     expect(r.lowestGold).toBeGreaterThan(0);                                    // never in debt at a month end
     expect(population(w)).toBeGreaterThanOrEqual(1000);
     expect(w.mood).toBeGreaterThanOrEqual(30);                                  // nobody is leaving
-    // No money from nowhere: the treasury grows only by taxes, trade and the gold goals and firsts pay.
+    // No money from nowhere: the treasury is at most the starting gold plus each month's net (taxes less wages and
+    // upkeep), the trade income and every gold goal and first, less what the script spent; it falls short of that only
+    // by the goals and firsts not yet earned.
     const rewards = [...GOALS, ...EVENT_GOALS].reduce((n, g) => n + g.reward, 0) + GUIDE_REWARD + FIRSTS.length * FIRST_REWARD;
-    expect(w.gold).toBeLessThanOrEqual(ECONOMY.startGold + r.taxes + w.tally.tradeIncome + rewards);
+    expect(w.gold).toBeLessThanOrEqual(ECONOMY.startGold + r.net + w.tally.tradeIncome + rewards - r.spent);
     // No stuck chain: in the last year every chain kept making its goods, at least a workshop's steady output.
     const yearAgo = r.made[r.made.length - 13];
     const lastYear = (good) => (w.tally.made[good] || 0) - (yearAgo[good] || 0);
