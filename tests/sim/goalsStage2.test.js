@@ -11,7 +11,7 @@ import { goalById, goalMet, goalProgress, openGoals, settleGoals } from '../../s
 import { firstMet, checkFirsts } from '../../src/sim/firsts.js';
 import { achievementProgress } from '../../src/sim/achievements.js';
 import { dailyOrder, dailyMeasure } from '../../src/sim/daily.js';
-import { milestoneIndex } from '../../src/sim/progression.js';
+import { milestoneIndex, isUnlocked } from '../../src/sim/progression.js';
 import { population } from '../../src/sim/world.js';
 import { tickDay } from '../../src/sim/clock.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
@@ -97,6 +97,43 @@ describe('sim goals and rewards for Stage 2', () => {
     expect(openGoals(w).map((g) => g.id)).toEqual(['pottery', 'homes_townhouse', 'booth_gardens']);
     crowd.residents = 140;                                                 // some leave before the month turns
     expect(openGoals(w).map((g) => g.id)).toEqual(['pottery', 'homes_townhouse', 'booth_gardens']);
+  });
+  it('makes a city that had 150 people this month a Town at the month end, even if a few left before it', () => {
+    const w = makeTestWorld();
+    w.goals.completed.push(...STAGE1.filter((id) => id !== 'town'));
+    w.guide = { on: false, done: true };
+    const crowd = addRaw(w, 'house', 0, 0, { tier: 1, residents: 150 });
+    w.day = 5;
+    tickDay(w);                                                            // mid-month: 150 people, the Town goal pays
+    crowd.residents = 148;
+    w.day = 29;
+    tickDay(w);                                                            // the month end
+    expect([w.day % 30, w.milestone, population(w) < 150]).toEqual([0, 'town', true]);
+    const pottery = goalById('pottery');
+    expect(openGoals(w).map((g) => g.id)).toContain('pottery');           // after any first-time trouble the Town brings (unemployment here)
+    for (const t of typesIn(pottery.need)) expect([t, isUnlocked(w, t)]).toEqual([t, true]);   // its buildings can be placed now
+  });
+  it('lists no goal with locked buildings once the month has turned, at every people milestone', () => {
+    const steps = GOALS.filter((g) => g.need.kind === 'people' && MILESTONES.some((m) => m.population === g.need.n));
+    expect(steps.map((g) => g.id)).toEqual(['town', 'market_town', 'city', 'great_city', 'capital']);
+    for (const g of steps) {
+      const target = MILESTONES.find((m) => m.population === g.need.n);
+      const w = makeTestWorld();
+      w.goals.completed.push(...GOALS.slice(0, GOALS.indexOf(g)).map((x) => x.id));
+      w.guide = { on: false, done: true };
+      w.milestone = MILESTONES[MILESTONES.indexOf(target) - 1].id;
+      const crowd = addRaw(w, 'house', 0, 0, { tier: 1, residents: target.population });
+      w.day = 5;
+      tickDay(w);                                                          // the people goal pays mid-month
+      expect([g.id, w.goals.completed.includes(g.id)]).toEqual([g.id, true]);
+      crowd.residents = target.population - 2;                             // a few leave
+      w.day = 29;
+      tickDay(w);                                                          // the month turns
+      expect([g.id, w.milestone]).toEqual([g.id, target.id]);
+      for (const open of openGoals(w, Infinity)) {
+        for (const t of typesIn(open.need)) expect([g.id, open.id, t, isUnlocked(w, t)]).toEqual([g.id, open.id, t, true]);
+      }
+    }
   });
   it('counts open trade routes', () => {
     const w = town();

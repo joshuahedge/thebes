@@ -69,7 +69,8 @@ export function triggerEventGoals(world) {
 // A goal with a `from` milestone waits until the city has reached it. The milestone itself moves at month end,
 // so it counts as reached once the city has had the people for it too (its peak, kept daily, so a few leaving
 // before the month end do not take the goals away again): the goal before it (the one that names the people) is
-// then done, and the list does not run dry until the month turns.
+// then done, and the list does not run dry until the month turns. updateMilestone counts the same peak, so that
+// month end makes the milestone real and the goal's buildings placeable.
 const waits = (world, g) => Boolean(g.from) && !atLeast(world, g.from)
   && Math.max(world.tally.peakPeople, population(world)) < MILESTONES[milestoneIndex(g.from)].population;
 

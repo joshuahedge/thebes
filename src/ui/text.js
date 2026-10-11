@@ -254,7 +254,7 @@ export function alertText(alert, world) {
       };
     }
     case 'understaffed': return { title: `${name} is short of workers`, fix: 'More homes bring more workers' };
-    case 'bazaar_empty': return { title: 'Bazaar is empty', fix: `Build a granary with grain within ${BUILDINGS.bazaar.supplyReach} road tiles` };
+    case 'bazaar_empty': return { title: 'Bazaar has no food', fix: `Build a granary with grain within ${BUILDINGS.bazaar.supplyReach} road tiles` };
     case 'labour_shortage': return { title: `Not enough workers for ${LEVEL_NAMES[alert.level] || alert.level}`, fix: "More homes, or pause buildings you don't need" };
     case 'unemployment': return { title: 'Too many people have no work', fix: 'Build farms, granaries, bazaars or temples' };
     case 'debt': return { title: 'The treasury is in debt', fix: "Pause buildings you don't need; taxes rise as homes grow" };
