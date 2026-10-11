@@ -7,6 +7,7 @@ import { ACHIEVEMENTS } from '../data/achievements.js';
 import { FIRSTS } from '../data/firsts.js';
 import { GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
+import { producerRefused } from '../sim/production.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -131,10 +132,13 @@ const REASONS = {
 export const reasonText = (code) => REASONS[code] || "Can't place here";
 
 const WARNINGS = { needs_road: 'No road touches it yet', no_storage: 'No granary within reach', no_supply: 'No granary to supply it' };
-// A producer's warnings name its own storage and input: a potter's ghost says "No storehouse within reach".
+// A producer's warnings name its own storage and input: a potter's ghost says "No storehouse within reach". When a
+// store in reach is built to hold the good but refuses it, the ghost says so instead (store_refuses, a wording of
+// no_storage chosen by the placement preview): "No storehouse in reach accepts pottery".
 export function warningText(code, type = null) {
   const def = type ? BUILDINGS[type] : null;
   if (code === 'no_storage' && def && def.produces) return `No ${buildingName(storeFor(def.produces.good)).toLowerCase()} within reach`;
+  if (code === 'store_refuses' && def && def.produces) return `No ${buildingName(storeFor(def.produces.good)).toLowerCase()} in reach accepts ${goodWord(def.produces.good)}`;
   if (code === 'no_input' && def && def.consumes) return `No ${goodWord(def.consumes)} in reach yet`;
   return WARNINGS[code] || "Won't work yet";
 }
@@ -162,7 +166,10 @@ export function alertText(alert, world) {
     case 'no_storage': {
       const def = b ? BUILDINGS[b.type] : null;
       const good = def && def.produces ? def.produces.good : 'grain';
-      return { title: `${name} has nowhere to store its ${goodWord(good)}`, fix: `Build a ${buildingName(storeFor(good)).toLowerCase()} within ${def ? def.producerReach : 12} road tiles` };
+      const store = buildingName(storeFor(good)).toLowerCase();
+      // A store in reach that refuses the good is the likelier cause than a missing one: say how to let it accept.
+      const fix = b && producerRefused(world, b) ? `Let a ${store} in reach accept ${goodWord(good)}, or build another` : `Build a ${store} within ${def ? def.producerReach : 12} road tiles`;
+      return { title: `${name} has nowhere to store its ${goodWord(good)}`, fix };
     }
     case 'storage_full': {
       // Raised on a producer whose stores filled up, and on a store that is full itself.
@@ -266,7 +273,7 @@ export const T = {
   tip: 'Tip', gotIt: 'Got it', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals. Help in Settings turns them off.', next: 'Next',
   achievements: 'Achievements', achievementsLater: 'Achievements show here once the guide is done.', notYetMet: 'Not yet', closestAchievement: 'Closest achievement',
   newBadge: 'New', stored: 'Stored', accepted: 'Accepted', refused: 'Refused', notWorking: 'Not working',
-  acceptHelp: 'Tap a good to accept or refuse it here. A refused good goes to other storage.',
+  acceptHelp: 'Tap a good to accept or refuse it here. A refused good goes to other storage, or production stops.',
 };
 
 export const importErrorText = (code) => (code === 'newer_version' ? T.saveNewer : code === 'read_failed' ? T.fileUnreadable : T.saveUnreadable);
@@ -367,7 +374,7 @@ export const TIP_TEXT = {
   goals_list: 'Open Goals to see what comes next, your progress and the gold each pays.',
   overlay_keys: 'Read the overlay: a filled dot has it, a hollow ring lacks it. Tap ✕ to close.',
   nicer_streets: 'Place gardens and statues near homes: Manors and up need a pleasant street.',
-  storehouse_choices: 'Tap a storehouse to choose its goods: a refused good goes to other storage.',
+  storehouse_choices: 'Tap a storehouse to refuse goods. If no store takes one, production stops.',
   trade_orders: 'Tap the trading post, open a route, then pick what to buy, sell and keep.',
   merging_homes: 'Add three plots beside a Townhouse in a square: it can become a Manor.',
 };

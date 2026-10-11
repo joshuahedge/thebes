@@ -18,6 +18,18 @@ export function storeAccepts(b, good) {
   return !(b.accepts && b.accepts[good] === false);
 }
 
+// Stores within `reach` of a building (or of a ghost's probe) built to hold the good whose accept switch is off. When no
+// store takes a producer's good, these are why: the quick fix is to let one accept, not to build another.
+export function refusingStores(world, b, good, reach) {
+  return buildingsInReach(world, b, reach, (o) => (BUILDINGS[o.type].stores || []).includes(good) && !storeAccepts(o, good)).map((r) => r.b);
+}
+
+// Whether a store in the producer's reach refuses the producer's own good.
+export function producerRefused(world, b) {
+  const def = BUILDINGS[b.type];
+  return Boolean(def.produces) && refusingStores(world, b, def.produces.good, def.producerReach).length > 0;
+}
+
 const stocked = (s, good) => (s.store[good] || 0) > 0;
 const holds = (o, good) => (BUILDINGS[o.type].stores || []).includes(good) && stocked(o, good);
 

@@ -14,10 +14,13 @@ import { problemMarkers } from '../../src/render/overlays.js';
 import { alertText, warningText, effectText, goodLine, goodName, workingText, waitingText, TIP_TEXT, T } from '../../src/ui/text.js';
 import { select } from '../../src/ui/modes.js';
 import { nudgeLineText } from '../../src/ui/nudge.js';
+import { toolPreview } from '../../src/ui/placement.js';
+import { setAccept } from '../../src/sim/commands.js';
 import { costOf } from '../../src/sim/costs.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { mount, fire, key } from '../helpers/dom.js';
 import { rigUI, uiWorld } from '../helpers/uiWorld.js';
+import { contrastIn } from '../helpers/contrast.js';
 
 const ids = (list) => list.map((c) => c.id);
 const catsOf = (r, sel) => [...r.root.querySelectorAll(sel)].map((b) => b.dataset.category);
@@ -196,6 +199,53 @@ describe('ui stage 2 cards', () => {
     expect(line({ code: 'no_input', id: potter.id })).toBe('');
     w.gold = costOf(w, 'clay_pit');
     expect(line({ code: 'no_input', id: potter.id })).toBe(said({ code: 'no_input', id: potter.id }));
+  });
+  it("says so when a storehouse in reach refuses a producer's good, in the ghost line, the alert, the nudge and the help", () => {
+    const w = makeTestWorld();
+    w.milestone = 'town';
+    setRoad(w, 0, 10, 31, 10);
+    const sh = addRaw(w, 'storehouse', 14, 11);
+    const pit = addRaw(w, 'clay_pit', 10, 11);
+    staffAll(w);
+    const ghost = (world, x, y) => toolPreview(world, { tool: { kind: 'building', type: 'clay_pit' }, ghost: { x, y } });
+    const alert = { code: 'no_storage', id: pit.id };
+    expect(ghost(w, 20, 11).warnings).toEqual([]);                                   // the storehouse takes clay
+    expect(setAccept(w, sh.id, 'clay', false).ok).toBe(true);
+    const refused = ghost(w, 20, 11);
+    expect([refused.state, refused.warnings, refused.text]).toEqual(['warn', ['no_storage'], 'No storehouse in reach accepts clay']);
+    produceDay(w);
+    expect(pit.blocked).toBe('no_storage');
+    expect(alertText(alert, w)).toEqual({ title: 'Clay pit has nowhere to store its clay', fix: 'Let a storehouse in reach accept clay, or build another' });
+    w.gold = 0;
+    expect(nudgeLineText(w, [alert], null)).toBe(`${T.next}: Clay pit has nowhere to store its clay. Let a storehouse in reach accept clay, or build another`);   // a switch costs nothing
+    // A refusing storehouse out of reach is not the cause: the plain words stay, and building one still costs gold.
+    const far = makeTestWorld();
+    far.milestone = 'town';
+    setRoad(far, 0, 10, 31, 10);
+    const distant = addRaw(far, 'storehouse', 28, 11);
+    const lone = addRaw(far, 'clay_pit', 2, 11);
+    setAccept(far, distant.id, 'clay', false);
+    expect(ghost(far, 6, 11).text).toBe('No storehouse within reach');
+    expect(alertText({ code: 'no_storage', id: lone.id }, far).fix).toBe(`Build a storehouse within ${BUILDINGS.clay_pit.producerReach} road tiles`);
+    far.gold = 0;
+    expect(nudgeLineText(far, [{ code: 'no_storage', id: lone.id }], null)).toBe('');
+    expect(T.acceptHelp).toContain('or production stops');
+    expect(TIP_TEXT.storehouse_choices).toContain('production stops');
+  });
+  it('keeps a locked card readable: only its picture fades, its words stay at 4.5:1 in the panel and the rail drawer', async () => {
+    for (const [width, height] of [[1280, 800], [844, 390]]) {
+      const r = await rigUI({ width, height });
+      try {
+        if (width === 1280) r.store.set({ category: 'industry' });
+        else fire(r.root.querySelector('#rail .cat[data-category="industry"]'), 'click');
+        const card = r.root.querySelector(`${width === 1280 ? '#panel' : '#rail .drawer'} .card[data-item="potter"]`);
+        expect([width, card.classList.contains('locked'), card.getAttribute('aria-disabled')]).toEqual([width, true, 'true']);
+        expect(card.querySelector('.cost').textContent).toContain('Unlocks at Town');           // the lock says it in words
+        expect([width, getComputedStyle(card).opacity]).toEqual([width, '1']);
+        expect(Number(getComputedStyle(card.querySelector('.thumb')).opacity)).toBeLessThan(1);
+        for (const sel of ['.name', '.cost']) expect([width, sel, contrastIn(card.querySelector(sel), card) >= 4.5]).toEqual([width, sel, true]);
+      } finally { r.cleanup(); }
+    }
   });
   it('gives every good its name and a line saying what makes it, what uses it and who trades it', () => {
     expect(goodLine('pottery')).toBe('Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis and Byblos');
