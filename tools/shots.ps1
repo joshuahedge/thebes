@@ -1,10 +1,14 @@
 # Takes six screens at four sizes for before/after comparisons. By default the early-game six (title, fresh city,
 # placing a well, a house sheet, the summary, Welcome back); with -Stage2 the Stage 2 six (title, city, placing a
-# potter, a Manor's sheet, a trade sheet with an open route, the summary).
-# Usage: tools/shots.ps1 -Tag before [-Stage2] [-Only title,fresh] [-OnlySizes phone-portrait]
-# then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> before after [--stage2]
-param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2)
+# potter, a Manor's sheet, a trade sheet with an open route, the summary); with -Stage3 the Stage 3 six (the title's
+# difficulty choice, a fire, a tribute sheet, a battle at the wall, the score, ambient river life). -Stage2 and -Stage3
+# cannot be combined. Each Stage 3 scene calls one dev hook, window.__thebes.devScene('<name>'), which sets the scene
+# up; when the hook is missing the scene is still captured (as the plain page), so the tool runs before Stage 3 exists.
+# Usage: tools/shots.ps1 -Tag before [-Stage2 | -Stage3] [-Only title,fresh] [-OnlySizes phone-portrait]
+# then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> before after [--stage2 | --stage3]
+param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2, [switch]$Stage3)
 $ErrorActionPreference = 'Stop'
+if ($Stage2 -and $Stage3) { Write-Error '-Stage2 and -Stage3 cannot be combined'; exit 2 }
 # `powershell -File ... -Only a,b` hands over one string "a,b": split it.
 $Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $OnlySizes = @($OnlySizes | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
@@ -123,7 +127,22 @@ const rect = (sel) => sheet.querySelector(sel).getBoundingClientRect();
 if (help) sheet.scrollTop += Math.min(Math.max(0, help.getBoundingClientRect().bottom - sheet.getBoundingClientRect().bottom + 16), Math.max(0, rect('.route.open').top - rect('.head').bottom));
 '@
 
-$scenarios = if ($Stage2) {
+# A Stage 3 scene is one call to the dev hook (written with the Stage 3 features); with no hook the page is captured as it
+# is. (The title card may not have window.__thebes at all, hence the guard.)
+function New-Stage3Scene([string]$Name) {
+  "(async () => { return await ((window.__thebes && window.__thebes.devScene) ? window.__thebes.devScene('$Name') : Promise.resolve('no devScene')); })()"
+}
+
+$scenarios = if ($Stage3) {
+  @(
+    @{ name = 'peaceful'; url = '/?nosw=1'; eval = (New-Stage3Scene 'peaceful') },
+    @{ name = 'fire'; url = '/?skipTitle=1&nosw=1&seed=11&sample=1'; eval = (New-Stage3Scene 'fire') },
+    @{ name = 'tribute'; url = '/?skipTitle=1&nosw=1&seed=11&sample=1'; eval = (New-Stage3Scene 'tribute') },
+    @{ name = 'battle'; url = '/?skipTitle=1&nosw=1&seed=11&sample=1'; eval = (New-Stage3Scene 'battle') },
+    @{ name = 'score'; url = '/?skipTitle=1&nosw=1&seed=11&sample=1'; eval = (New-Stage3Scene 'score') },
+    @{ name = 'ambient'; url = '/?skipTitle=1&nosw=1&seed=11&sample=1'; eval = (New-Stage3Scene 'ambient') }
+  )
+} elseif ($Stage2) {
   @(
     @{ name = 'title'; url = '/?nosw=1'; eval = '' },
     @{ name = 'city'; url = '/?skipTitle=1&nosw=1&seed=11&sample=1'; eval = $city },
