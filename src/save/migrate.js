@@ -1,4 +1,4 @@
-import { WORLD_VERSION } from '../sim/world.js';
+import { WORLD_VERSION, newTradeState } from '../sim/world.js';
 
 export const CURRENT_VERSION = WORLD_VERSION;
 
@@ -28,8 +28,23 @@ function v1ToV2(w) {
   };
 }
 
+// v2 -> v3 (Stage 2). A city from before difficulty existed plays on Normal, so its costs do not change; it has no
+// trade yet and no "New" badges, and the new tallies start at zero (nothing was made, sold or bought before).
+// Every other field is kept as it was. A malformed tally is left for validateWorld to report.
+function v2ToV3(w) {
+  const tally = w.tally !== null && typeof w.tally === 'object' && !Array.isArray(w.tally) ? w.tally : {};
+  return {
+    ...w,
+    version: 3,
+    difficulty: 'normal',
+    trade: newTradeState(),
+    newItems: [],
+    tally: { ...tally, made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0 },
+  };
+}
+
 // Each entry upgrades a world from version N to N + 1. Add one whenever WORLD_VERSION goes up.
-export const MIGRATIONS = { 1: v1ToV2 };
+export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3 };
 
 // table and target are parameters so tests can drive a synthetic chain; production calls use the defaults.
 export function migrate(obj, table = MIGRATIONS, target = CURRENT_VERSION) {

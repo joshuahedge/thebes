@@ -9,6 +9,7 @@ import { assignLabour } from '../sim/labour.js';
 import { startTool as startToolPatch, cancelTool } from './modes.js';
 import { AUTO_OVERLAY, NEAREST_FIT_RADIUS } from '../data/ui.js';
 import { homesServedFrom } from '../sim/housing.js';
+import { costOf } from '../sim/costs.js';
 import { buildingName, reasonText, warningText, effectText, plural, T } from './text.js';
 
 const footprintOf = (tool) => (tool.kind === 'building' ? { w: BUILDINGS[tool.type].w, d: BUILDINGS[tool.type].d } : { w: 1, d: 1 });
@@ -57,12 +58,13 @@ export function toolPreview(world, state) {
     const def = BUILDINGS[tool.type];
     if (!state.ghost) return idle('');
     const { x, y } = state.ghost;
+    const cost = costOf(world, tool.type);
     const r = canPlace(world, tool.type, x, y);
-    if (!r.ok) return bad(r.reason, def.cost, 1);
+    if (!r.ok) return bad(r.reason, cost, 1);
     const warn = r.warnings.length > 0;
     // A service says how many homes it would reach from here (early-game pass 2.6); other buildings say nothing.
     const effect = def.reach ? effectText(tool.type, homesServedFrom(world, tool.type, x, y)) : '';
-    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : '', effect, cost: def.cost, count: 1, tiles: [], refund: 0 };
+    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : '', effect, cost, count: 1, tiles: [], refund: 0 };
   }
   if (tool.kind === 'road') {
     const l = state.line;

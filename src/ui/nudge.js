@@ -3,8 +3,7 @@
 // nothing more until the player acts or a goal moves. It is never a sound, a camera move or a panel. The state
 // machine is pure: time comes from the injected clock, and paused or busy time never counts.
 import { NUDGE_GLOW_MS, NUDGE_LINE_MS } from '../data/ui.js';
-import { BUILDINGS } from '../data/buildings.js';
-import { ECONOMY } from '../data/economy.js';
+import { costOf, roadCostOf } from '../sim/costs.js';
 import { alertText, T } from './text.js';
 
 export const NUDGE_MAX_STEP_MS = 1000;     // a stalled frame (a hidden tab, a long hitch) counts as one second at most
@@ -28,15 +27,16 @@ export function createNudge({ now = () => performance.now(), glowMs = NUDGE_GLOW
   };
 }
 
-// What each alert's cheapest fix costs, for "an affordable fix". Alerts without an entry (a failing save) are skipped.
+// What each alert's cheapest fix costs in this city (difficulty included), for "an affordable fix". Alerts without an
+// entry (a failing save) are skipped.
 const FIX_COST = {
-  no_road: () => ECONOMY.roadCost,
-  no_storage: () => BUILDINGS.granary.cost,
-  storage_full: () => BUILDINGS.granary.cost,
-  bazaar_empty: () => BUILDINGS.granary.cost,
-  understaffed: () => BUILDINGS.house.cost,
-  labour_shortage: () => BUILDINGS.house.cost,
-  unemployment: () => Math.min(BUILDINGS.farm_grain.cost, BUILDINGS.bazaar.cost),
+  no_road: (w) => roadCostOf(w),
+  no_storage: (w) => costOf(w, 'granary'),
+  storage_full: (w) => costOf(w, 'granary'),
+  bazaar_empty: (w) => costOf(w, 'granary'),
+  understaffed: (w) => costOf(w, 'house'),
+  labour_shortage: (w) => costOf(w, 'house'),
+  unemployment: (w) => Math.min(costOf(w, 'farm_grain'), costOf(w, 'bazaar')),
   debt: () => -Infinity,   // getting out of debt costs nothing up front (pause what you don't need), so it is always worth naming, even in the red
 };
 
@@ -44,7 +44,7 @@ const FIX_COST = {
 export function nudgeLineText(world, alerts, goal) {
   for (const a of alerts) {
     const cost = FIX_COST[a.code];
-    if (cost && world.gold >= cost()) { const t = alertText(a, world); return `${T.next}: ${t.title}. ${t.fix}`; }
+    if (cost && world.gold >= cost(world)) { const t = alertText(a, world); return `${T.next}: ${t.title}. ${t.fix}`; }
   }
   return goal ? `${T.next}: ${goal.text}` : '';
 }
