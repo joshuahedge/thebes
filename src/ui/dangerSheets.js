@@ -81,10 +81,17 @@ function firehouseRows(world, b) {
   return out;
 }
 
+// The tower: its range, whether it shoots (only a working tower does, src/sim/combat.js), and its wall tile's hit points.
+// The tile is raised to DEFENCE.towerOnWallHp when raiders arrive and healed when the raid ends (ruling 8: the stored
+// value may read a plain wall's between raids), so at peace the row gives the full hit points the tile fights with, and
+// "N of 80" only while a raid is under way.
 function towerRows(world, b) {
-  const out = [row(D.range, D.tiles(DEFENCE.towerRange)), line(D.towerDoes(DEFENCE.towerRange))];
+  const out = [row(D.range, D.tiles(DEFENCE.towerRange))];
+  if (b.paused) out.push(line(D.notShootingPaused));
+  else if (!isWorking(world, b)) out.push(line(D.notShootingUntil(needed('tower'), BUILDINGS.tower.workers)));
+  else out.push(line(D.towerDoes(DEFENCE.towerRange)));
   const hp = world.wall[idx(world.size, b.x, b.y)];
-  if (hp > 0) out.push(row(D.onTheWall, D.hitPoints(hp, DEFENCE.towerOnWallHp)));
+  if (hp > 0) out.push(row(D.onTheWall, world.raid.active ? D.hitPoints(hp, DEFENCE.towerOnWallHp) : D.fullHitPoints(DEFENCE.towerOnWallHp)));
   if (world.raid.last) out.push(line(D.lastRaidTowers(world.raid.last)));
   return out;
 }
@@ -92,7 +99,8 @@ function towerRows(world, b) {
 function barracksRows(world, b) {
   const n = world.soldiers.filter((s) => s.barracks === b.id).length;
   const out = [row(D.soldiers, `${n} of ${DEFENCE.soldiersPerBarracks}`), row(D.patrol, D.tiles(DEFENCE.patrol))];
-  if (b.paused) out.push(line(D.notTrainingPaused));
+  if (n >= DEFENCE.soldiersPerBarracks) out.push(line(D.barracksFull(n, DEFENCE.soldiersPerBarracks)));   // a full barracks trains none
+  else if (b.paused) out.push(line(D.notTrainingPaused));
   else if (!isWorking(world, b)) out.push(line(D.notTrainingUntil(needed('barracks'), BUILDINGS.barracks.workers)));
   else out.push(line(D.trains(DEFENCE.trainDays)));
   out.push(line(D.soldiersPay(DEFENCE.soldierPay)));
