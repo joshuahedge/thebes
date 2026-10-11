@@ -1,7 +1,7 @@
 // Feats (spec 4.19): named, optional style bonuses, per city; no gold, never gating. Stage 3 contract: Track E implements
 // checkFeats and fills FEATS (src/data/feats.js) with their words (FEAT_TEXT in src/ui/text.js). State: world.feats =
 // { earned, lost, counters }: earned and lost are feat ids (lost: can no longer be earned, e.g. Grain alone once a fig
-// orchard stands before Market town), counters a record of whole numbers the checks keep:
+// orchard stands past undo before Market town), counters a record of whole numbers the checks keep:
 //   fedMonth  the month index (world.day / 30) of the last month end counted for Well fed
 //   fedRun    month ends in a row, up to that one, with every home at Cottage or above fed and enough people
 // runMonth and settle call checkFeats. Feats that ask how a milestone was reached are judged only where the world knows the
@@ -15,6 +15,13 @@ import { DAYS_PER_MONTH } from './time.js';
 
 const known = (world, id) => Number.isInteger(world.splits[id]);
 const reachedKnown = (world, id) => atLeast(world, id) && known(world, id);
+
+// The ids of buildings placed by an action that can still be undone (world.undo's 'place' entries, this month only).
+function undoableIds(world) {
+  const ids = new Set();
+  for (const e of world.undo || []) if (e.kind === 'place') for (const id of e.ids) ids.add(id);
+  return ids;
+}
 
 // The feats this city can earn: all but the raid feats on Peaceful (spec 4.18).
 export const featsFor = (world) => FEATS.filter((f) => !f.raids || raidsOn(world));
@@ -47,16 +54,24 @@ function judge(world, c) {
       return reachedKnown(world, c.milestone) ? 'earned' : null;
     case 'fedRun':
       return (world.feats.counters.fedRun || 0) >= c.months ? 'earned' : null;
-    case 'without':
-      if (allBuildings(world).some((b) => b.type === c.type)) return 'lost';
+    case 'without': {
+      // A building of the type counts against the feat only once it is past undo (spec 4.19's Avoid list: never penalise
+      // undo): one placed this month can still be undone, and the monthly tick clears the undo history (spec 6.5).
+      const theirs = allBuildings(world).filter((b) => b.type === c.type);
+      const undoable = undoableIds(world);
+      if (theirs.some((b) => !undoable.has(b.id))) return 'lost';
+      if (theirs.length) return null;                    // only undoable ones stand: decided once undone or the month ends
       return reachedKnown(world, c.milestone) ? 'earned' : null;
+    }
     case 'noneBurned':                                   // fire starts at Town, so every building burned counts
       if (!reachedKnown(world, c.milestone)) return null;
       if (world.tally.burned > 0) return 'lost';
       return world.day - world.splits[c.milestone] >= c.days ? 'earned' : null;
     case 'cleanRaid': {
       const last = world.raid.last;
-      return last && last.won && last.burned === 0 && last.stolen === 0 ? 'earned' : null;
+      // Track B's raid.last also lists the raid's fires still burning (`fires`), and its `burned` keeps counting while they
+      // burn out: a raid is clean only once none of its fires is still alight.
+      return last && last.won && last.burned === 0 && last.stolen === 0 && !(last.fires && last.fires.length) ? 'earned' : null;
     }
     case 'noTribute':
       if (world.tally.tributes > 0) return 'lost';

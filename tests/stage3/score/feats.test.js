@@ -3,6 +3,8 @@ import { FEATS } from '../../../src/data/feats.js';
 import { checkFeats, featStatus, featsFor } from '../../../src/sim/feats.js';
 import { runMonth } from '../../../src/sim/clock.js';
 import { settle } from '../../../src/sim/settle.js';
+import { place, demolishAt } from '../../../src/sim/commands.js';
+import { undo } from '../../../src/sim/undo.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { FEAT_TEXT, SCORE_TEXT, featsHeading, sealFeatsText, T } from '../../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
@@ -117,6 +119,45 @@ describe('s3 score feats', () => {
     const c = city();
     c.milestone = 'capital'; c.splits = { town: 200, market_town: 400, city: 600, great_city: 800, capital: 1000 };
     expect(checkFeats(c).includes('never_bowed')).toBe(true);
+  });
+  it('does not hold an undone fig orchard against Grain alone, only one kept past the month it was placed', () => {
+    const figCity = () => { const c = city(); c.milestone = 'town'; c.splits.town = 300; return c; };   // fig orchards open at Town
+    const w = figCity();
+    expect(place(w, 'farm_fig', 2, 11).ok).toBe(true);
+    settle(w, []);
+    expect(status(w, 'grain_alone')).toBe('open');                          // it can still be undone
+    undo(w);
+    settle(w, []);
+    w.milestone = 'market_town'; w.splits = { town: 300, market_town: 600 };
+    expect(checkFeats(w).includes('grain_alone')).toBe(true);
+    const gone = figCity();
+    place(gone, 'farm_fig', 2, 11);
+    demolishAt(gone, 2, 11);
+    checkFeats(gone);
+    expect(status(gone, 'grain_alone')).toBe('open');                       // demolished in the month it was placed
+    const kept = figCity();
+    place(kept, 'farm_fig', 2, 11);
+    runMonth(kept, []);                                                     // the month ends: undo is cleared
+    settle(kept, []);
+    expect(status(kept, 'grain_alone')).toBe('lost');
+    const reached = figCity();
+    place(reached, 'farm_fig', 2, 11);
+    reached.milestone = 'market_town'; reached.splits = { town: 300, market_town: 600 };
+    checkFeats(reached);
+    expect(status(reached, 'grain_alone')).toBe('open');                    // Market town with an orchard that can still be undone
+    undo(reached);
+    expect(checkFeats(reached).includes('grain_alone')).toBe(true);
+  });
+  it("waits for a raid's fires to burn out before judging Untouched", () => {
+    const w = city();
+    w.raid.last = { index: 1, dir: 'east', size: 4, won: true, byTowers: 4, bySoldiers: 0, towers: 2, burned: 0, stolen: 0, day: 900, fires: [{ id: 7, type: 'house' }], burnedKinds: [] };
+    checkFeats(w);
+    expect(status(w, 'untouched')).toBe('open');                            // a fire the raid set is still burning
+    w.raid.last = { ...w.raid.last, fires: [], burned: 1 };
+    checkFeats(w);
+    expect(status(w, 'untouched')).toBe('open');                            // it burned the building down
+    w.raid.last = { ...w.raid.last, index: 2, fires: [], burned: 0 };
+    expect(checkFeats(w).includes('untouched')).toBe(true);
   });
   it('judges Full hands and Merchant prince from the labour count and the sales', () => {
     const w = city();
