@@ -4,7 +4,9 @@ import { minimapPins, createMinimap } from '../../../src/ui/minimap.js';
 import { createSheets } from '../../../src/ui/sheets.js';
 import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 import { select, openSheet } from '../../../src/ui/modes.js';
-import { tributeQuote } from '../../../src/sim/raids.js';
+import { tributeQuote, raidDay } from '../../../src/sim/raids.js';
+import { alertsFor } from '../../../src/sim/alerts.js';
+import { RAIDS } from '../../../src/data/raids.js';
 import { createCamera } from '../../../src/render/camera.js';
 import { UI } from '../../../src/render/art/palette.js';
 import { alertText, viewLabel, T, DANGER_UI_TEXT as D, ALERT_TEXT } from '../../../src/ui/text.js';
@@ -118,9 +120,14 @@ describe('s3 ui alert tiers', () => {
       const alerts = [warn(r.world, { arrives: 72 })];
       const a = createAlerts({ world: r.world, banner: r.banner, live: r.live, root: r.root, getAlerts: () => alerts });
       a.refresh();
-      click(r.banner.querySelector('.collapse'));
+      // The open banner says when they arrive (spec 6.3), from the warning's arrives day less today.
+      expect(r.banner.querySelector('.critical strong').textContent).toBe('Raiders from the east are after your storehouses. They arrive in 2 months 12 days.');
+      const collapse = r.banner.querySelector('.collapse');
+      collapse.focus();
+      click(collapse);
       expect(r.banner.querySelectorAll('.critical').length).toBe(1);
       const chip = r.banner.querySelector('.critical.chip');
+      expect(document.activeElement === chip.querySelector('.expand')).toBe(true);        // focus lands on the button that undoes Shrink
       expect(chip.querySelector('.expand').textContent).toBe('Raid from the east · 2 m 12 d');   // its words show the whole warning again
       expect(chip.querySelector('.expand').getAttribute('aria-expanded')).toBe('false');
       expect(chip.querySelector('.view').getAttribute('aria-label')).toBe(viewLabel('Raid from the east · 2 m 12 d'));
@@ -129,8 +136,14 @@ describe('s3 ui alert tiers', () => {
       r.world.day = 65;
       a.refresh();
       expect(r.banner.querySelector('.chip .expand').textContent).toBe('Raid from the east · 7 d');
+      r.banner.querySelector('.expand').focus();
       click(r.banner.querySelector('.expand'));
       expect([r.banner.querySelector('.chip'), Boolean(r.banner.querySelector('.defence'))]).toEqual([null, true]);
+      expect(document.activeElement === r.banner.querySelector('.collapse')).toBe(true);
+      expect(r.banner.querySelector('.critical strong').textContent).toBe('Raiders from the east are after your storehouses. They arrive in 7 days.');
+      r.world.day = 72;                                                                    // raidDay brings them in on this day's step
+      a.refresh();
+      expect(r.banner.querySelector('.critical strong').textContent).toBe('Raiders from the east are after your storehouses. They arrive today.');
       expect(D.chip('north', 90)).toBe('Raid from the north · 3 m 0 d');
     } finally { r.cleanup(); }
   });
@@ -172,6 +185,34 @@ describe('s3 ui alert tiers', () => {
       if (saved === undefined) delete ALERT_TEXT.raid_warning; else ALERT_TEXT.raid_warning = saved;
       r.cleanup();
     }
+  });
+
+  it('words the banner of a real warning from the sim: the title, when the raiders arrive and the defence, counting down to the day', () => {
+    const { root, cleanup } = mount('<div id="banner"></div><p id="live"></p>');
+    try {
+      const w = makeTestWorld({ gold: 1000, raiderEntries: [{ x: 31, y: 16 }] });
+      setRoad(w, 0, 10, 31, 10);
+      w.milestone = 'market_town';
+      addRaw(w, 'house', 2, 11, { tier: 4, residents: 300 });
+      w.day = 100; raidDay(w, []);                                                       // the raid clock starts
+      w.day = w.raid.nextWarnDay; raidDay(w, []);                                        // the first warning
+      const warning = w.raid.warning;
+      const banner = root.querySelector('#banner');
+      const a = createAlerts({ world: w, banner, live: root.querySelector('#live'), root });
+      const title = () => banner.querySelector('.critical strong').textContent;
+      a.refresh();
+      const alert = alertsFor(w).find((x) => x.code === 'raid_warning');
+      expect([alert.arrives, warning.arrives - w.day]).toEqual([warning.arrives, RAIDS.warningDays]);
+      expect(title()).toBe(`${alertText(alert, w).title}. They arrive in 3 months.`);
+      expect(title()).toBe('Raiders from the east are after your buildings. They arrive in 3 months.');
+      expect(banner.querySelector('.defence').textContent).toBe(D.capital(D.defenceLine(tributeQuote(w), 'east')));
+      w.day += 47; a.refresh();
+      expect(title()).toBe('Raiders from the east are after your buildings. They arrive in 1 month 13 days.');
+      w.day = warning.arrives; a.refresh();
+      expect(title()).toBe('Raiders from the east are after your buildings. They arrive today.');
+      raidDay(w, []);                                                                    // and they do, on this day's step
+      expect([w.raid.warning, Boolean(w.raid.active)]).toEqual([null, true]);
+    } finally { cleanup(); }
   });
 
   it('announces a new critical at once (assertive), and other changes politely (ruling 9)', () => {
@@ -275,6 +316,29 @@ describe('s3 ui alert tiers on the page', () => {
       expect(getComputedStyle(wide.root.querySelector('#legend .legend-icon')).display).toBe('none');
       expect(getComputedStyle(wide.root.querySelector('#legend .strip')).display === 'none').toBe(false);
     } finally { wide.cleanup(); }
+  });
+
+  // Spec 6.1 (nothing under the top bar past the middle of the map). Measured with a later raid's warning: at 125% and
+  // 150% text on a 375 x 667 phone, and on an 844 x 390 phone held sideways, the banner and the goals strip already ran
+  // past the middle before the arrival sentence joined the title (fix wave, 11 Oct 2026); what gives way there is a
+  // design call left open, so those sizes are not asserted here.
+  it('keeps a raid warning, its arrival in the title, and the goals strip above the middle on phones', async () => {
+    for (const [w, h, sizes] of [[375, 667, [100, 125]], [390, 844, [100, 125, 150]], [844, 390, [100]]]) {
+      for (const size of sizes) {
+        const r = await rigUI({ width: w, height: h });
+        try {
+          r.ui.settings.set({ textSize: size });
+          r.world.raid.warning = { index: 1, entry: { x: 31, y: 16 }, dir: 'east', size: 9, tribute: 360, target: 'storehouse', day: r.world.day, arrives: r.world.day + 72, first: false };
+          r.ui.alerts.refresh();
+          const shell = r.root.getBoundingClientRect();
+          const title = r.root.querySelector('#banner .critical strong');
+          expect([w, size, title.textContent.endsWith('They arrive in 2 months 12 days.'), title.getBoundingClientRect().height > 0]).toEqual([w, size, true, true]);
+          const goals = r.root.querySelector('#goals .goal-strip').getBoundingClientRect();
+          const banner = r.root.querySelector('#banner .critical').getBoundingClientRect();
+          expect([w, size, Math.max(goals.bottom, banner.bottom) - shell.top < shell.height / 2]).toEqual([w, size, true]);
+        } finally { r.cleanup(); }
+      }
+    }
   });
 
   it('moves the camera to a raid\'s point from the banner, and opens the alert list from "+N more"', async () => {

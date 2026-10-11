@@ -170,8 +170,14 @@ describe('s3 contract interface seams', () => {
       expect([r.store.get().screenshot, document.body.classList.contains('screenshot')]).toEqual([false, false]);
       expect(r.store.get().mode).toBe('browse');                                       // the tap only brought the interface back
       r.ui.screenshotMode();
+      for (const key of [' ', '+', '1', 'm']) fire(r.root, 'keydown', { key });                // hidden: shortcuts do nothing
+      fire(r.root, 'keydown', { key: 'z', ctrlKey: true });
+      expect([r.world.speed, r.store.get().sheet, r.store.get().screenshot]).toEqual([2, null, true]);
       fire(r.root, 'keydown', { key: 'Escape' });
       expect(r.store.get().screenshot).toBe(false);
+      fire(r.root, 'keydown', { key: ' ' });                                            // and back once it shows again
+      expect(r.world.speed).toBe(0);
+      r.ui.speedControl.set(2);
       r.ui.screenshotMode();
       expect(r.history.length).toBeGreaterThan(1);                                      // a history entry, so Back closes it
       r.history.back();

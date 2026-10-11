@@ -494,7 +494,7 @@ export function createUI({
     back: goBack, undo, help: () => toggleSheet('help'),
   };
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
-  const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions });
+  const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions, hidden: () => Boolean(store.get().screenshot) });
 
   // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free.
   function sheetInsets(s) {

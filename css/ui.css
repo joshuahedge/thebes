@@ -536,6 +536,16 @@ body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:
 .title-records .stamps { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; margin-top: 4px; }
 .title-weekly { display: flex; flex-direction: column; gap: 2px; }
 .title-weekly .weekly-hint { margin: 0; }
+/* A phone held sideways (the height query the difficulty rules use): the week's seed line hides (the button still has it
+   as its description, through aria-describedby) and This week's Nile shares a line with Play with sound on a wider card,
+   so the card fits about 390 px of height at 100% text without scrolling. */
+@media (max-height: 480px) {
+  .title-card { width: min(440px, 100%); }
+  .title-buttons { flex-direction: row; flex-wrap: wrap; }
+  .title-buttons > * { flex: 1 1 100%; }
+  .title-buttons > .title-weekly, .title-buttons > .sound { flex: 1 1 40%; }
+  .title-weekly .weekly-hint { display: none; }
+}
 .shared-score { background: var(--parchment-2); border-radius: var(--radius); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
 .shared-score h2 { margin: 0; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
 .shared-score p { margin: 0; }
@@ -552,13 +562,13 @@ body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:
 #sheet .feat.earned .status { color: var(--teal); font-weight: 600; }
 #sheet .feat.lost .status { color: var(--ink-soft); }
 /* The opening chain's Founded Thebes row, and the next-threshold bar (spec 4.1): a slim line under the goals strip. It
-   steps aside on a phone while a critical banner is up (ruling 111), or while a tip or a caption shows, so the rows under
-   the top bar still end above the middle of the map (spec 6.1). */
+   steps aside on a phone while a critical banner is up (the plan's controller ruling 12), or while a tip or a caption
+   shows, so the rows under the top bar still end above the middle of the map (spec 6.1); a wide screen keeps it. */
 #sheet .goals .founded { padding: 4px 0; }
 #goals .threshold { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box; margin-top: 4px; background: var(--parchment); color: var(--ink); border-radius: var(--radius); padding: 0 12px; box-shadow: var(--shadow); line-height: 1.6; }
 #goals .threshold-meter { flex: none; width: 48px; height: 6px; border-radius: 3px; background: var(--parchment-2); box-shadow: inset 0 0 0 1px var(--parchment-3); overflow: hidden; }
 #goals .threshold-meter .fill { display: block; height: 100%; background: var(--teal); }
-body.has-banner #goals .threshold { display: none; }
+body:is([data-layout="portrait"], [data-layout="compact"]).has-banner #goals .threshold { display: none; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #under-bar:has(#tip .tip-row, #cheer .cheer) #goals .threshold { display: none; }
 /* A citizen remark (spec 4.19): a quieter caption, with a speech mark for its icon and no gold. */
 #cheer .cheer.remark { border-color: var(--parchment-3); }

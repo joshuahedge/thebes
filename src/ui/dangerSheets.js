@@ -11,7 +11,7 @@ import { ECONOMY } from '../data/economy.js';
 import { allBuildings } from '../sim/world.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
 import { isWorking, staffRatio } from '../sim/labour.js';
-import { canBurn, fireStarted, fireRiskOf, fireBand, staffedCover, clearRubble } from '../sim/fire.js';
+import { canBurn, fireStarted, fireRiskOf, fireBand, fireCause, clearRubble } from '../sim/fire.js';
 import { tributeQuote, payTribute } from '../sim/raids.js';
 import { festivalStatus, holdFestival } from '../sim/festival.js';
 import { rubbleCostOf } from '../sim/costs.js';
@@ -24,31 +24,24 @@ import { dateText, plural, viewLabel, T, DANGER_UI_TEXT } from './text.js';
 const D = DANGER_UI_TEXT;
 const centre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
 
-// The firehouses whose road reach (FIRE.reach) takes in a road tile next to b, working or not: fireCoverage's own test
-// (src/sim/fire.js) without its working filter, so the row can say "short of workers" or "paused" of one that reaches but
-// does not cover. Best first: working, then the best staffed, then the lowest id.
-export function firehousesReaching(world, b) {
-  const adj = adjacentRoadTiles(world, b);
-  if (!adj.length) return [];
-  return allBuildings(world)
-    .filter((f) => f.type === 'firehouse' && adj.some((t) => roadReach(world, f, FIRE.reach).has(t)))
-    .sort((a, c) => Number(isWorking(world, c)) - Number(isWorking(world, a)) || staffRatio(world, c) - staffRatio(world, a) || a.id - c.id);
-}
-
 // The fire row (spec 4.12) as { text, burning, action }: action null, { kind: 'showMe' } (the firehouse card with its
-// ghost by the building) or { kind: 'view', id } (the firehouse that reaches it but is short of workers or paused).
+// ghost by the building) or { kind: 'view', id } (the firehouse that reaches it but is short of workers, paused or
+// burning). The reason is fireCause's (src/sim/fire.js), the one the fire alerts word, so the row and the banner never
+// disagree. On a firehouse's own sheet the firehouse named may be itself: the row says "this firehouse" and has no View.
 export function fireRowModel(world, b) {
   if (!canBurn(b)) return { text: D.neverBurns, burning: false, action: null };
   if (!b.fire && !fireStarted(world)) return { text: D.riskStartsAtTown, burning: false, action: null };
-  const staffed = staffedCover(world, b);
-  const reaching = staffed ? [] : firehousesReaching(world, b);
-  const f = reaching[0] || null;
-  // Why no staffed firehouse covers it: none reaches it (Show me), or the one that does is paused or short of workers (View).
-  const why = f ? (f.paused ? D.whyPaused : D.whyShort) : D.whyNone;
-  const action = staffed ? null : f ? { kind: 'view', id: f.id } : { kind: 'showMe' };
+  const c = fireCause(world, b);
+  const staffed = c.cause === 'covered';                                   // staffedCover: coverage of FIRE.staffedAt or more
+  const named = staffed ? null : c.firehouse;                              // null for 'none' and 'no_road'
+  const own = named !== null && named === b.id;
+  // Why no staffed firehouse covers it: none reaches it (Show me), or the best one that does is short of workers, paused or
+  // burning (View it).
+  const why = !named ? D.whyNone : own ? D.whySelf[c.cause] : { short: D.whyShort, paused: D.whyPaused, burning: D.whyBurning }[c.cause];
+  const action = staffed || own ? null : named ? { kind: 'view', id: named } : { kind: 'showMe' };
   if (b.fire) {
     const head = b.fire.stage === 'fire' ? D.burningFor(b.fire.left) : D.blaze;
-    const tail = staffed ? (b.fire.stage === 'fire' ? D.fighting : D.puttingOut) : f ? why : D.noneReaches;
+    const tail = staffed ? (b.fire.stage === 'fire' ? D.fighting : D.puttingOut) : named ? why : D.noneReaches;
     return { text: `${head}, ${tail}`, burning: true, action };
   }
   return { text: D.riskLine(fireBand(fireRiskOf(world, b)), staffed ? D.reaches : why), burning: false, action };
@@ -71,7 +64,10 @@ const line = (text, cls = 'small muted') => el('p', { class: cls, text });
 const needed = (type) => Math.ceil(BUILDINGS[type].workers * MIN_STAFF_RATIO);   // the fewest workers that make it work
 
 // The firehouse: what it covers, or why it covers nothing; and whether it is staffed enough to put fires out.
+// A building in the fire stage stops working (src/sim/labour.js isWorking) whatever its staff, so that comes first.
+const inFireStage = (b) => Boolean(b.fire && b.fire.stage === 'fire');
 function firehouseRows(world, b) {
+  if (inFireStage(b)) return [line(D.coversNothingBurning)];
   if (b.paused) return [line(D.coversNothingPaused)];
   if (!isWorking(world, b)) return [line(D.coversNothingUntil(needed('firehouse'), BUILDINGS.firehouse.workers))];
   const reach = roadReach(world, b, FIRE.reach);
@@ -100,6 +96,7 @@ function barracksRows(world, b) {
   const n = world.soldiers.filter((s) => s.barracks === b.id).length;
   const out = [row(D.soldiers, `${n} of ${DEFENCE.soldiersPerBarracks}`), row(D.patrol, D.tiles(DEFENCE.patrol))];
   if (n >= DEFENCE.soldiersPerBarracks) out.push(line(D.barracksFull(n, DEFENCE.soldiersPerBarracks)));   // a full barracks trains none
+  else if (inFireStage(b)) out.push(line(D.notTrainingBurning));
   else if (b.paused) out.push(line(D.notTrainingPaused));
   else if (!isWorking(world, b)) out.push(line(D.notTrainingUntil(needed('barracks'), BUILDINGS.barracks.workers)));
   else out.push(line(D.trains(DEFENCE.trainDays)));
@@ -161,17 +158,20 @@ export function summaryParts(ctx) {
   return [el('h3', { text: D.lastRaid }), el('p', { class: 'raid-report', text: D.raidReport(last) }), line(D.endedOn(dateText(dateParts({ day: last.day }))))];
 }
 
-// The tribute confirmation sheet (spec 4.13): the cost, the gold afterwards, what it cancels and what it does not, two
-// buttons named for their outcome and neither the default; the rule's own words when it cannot be paid.
+// The tribute confirmation sheet (spec 4.13): the cost, when the raiders arrive, the gold afterwards, what it cancels and
+// what it does not, two buttons named for their outcome and neither the default; the rule's own words when it cannot be
+// paid.
 export function tributeSheet(ctx) {
   return (body, { close }) => {
     const world = ctx.world;
     const q = tributeQuote(world);
     if (!q) { body.append(el('p', { text: D.noWarning })); return; }
     const w = world.raid.warning;
-    if (q.hidden) { body.append(el('p', { text: D.firstRaid }), el('p', { text: D.capital(D.defenceLine(q, w.dir)) })); return; }
+    const arrives = el('p', { class: 'arrives', text: D.arrivalLine(Math.max(0, w.arrives - world.day)) });   // as the banner says it
+    if (q.hidden) { body.append(el('p', { text: D.firstRaid }), arrives, el('p', { text: D.capital(D.defenceLine(q, w.dir)) })); return; }
     body.append(
       el('p', { class: 'tribute-cost', text: D.tributeCost(q.cost) }),
+      arrives,
       row(D.goldNow, String(world.gold)), row(D.goldAfter, String(world.gold - q.cost)),
       el('p', { class: 'cancels', text: D.cancels(w.dir, q.size) }),
       el('p', { class: 'small muted', text: D.capital(D.defenceLine(q, w.dir)) }),

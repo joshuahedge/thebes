@@ -18,14 +18,14 @@ import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
 
 const noStorage = { getItem: () => null, setItem: () => {} };
 
-async function bootRig(params = '') {
-  const shell = await mountShell(1280, 800);
+async function bootRig(params = '', { width = 1280, height = 800 } = {}) {
+  const shell = await mountShell(width, height);
   const history = fakeHistory();
   const api = await boot(document, window, {
     root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams(params),
     now: () => 0, clock: () => 1760000000000, storage: noStorage,
     envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,
-    uiOptions: { getSize: () => ({ width: 1280, height: 800 }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage: noStorage },
+    uiOptions: { getSize: () => ({ width, height }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage: noStorage },
     loopOptions: { raf: () => 0, caf: () => {} },
   });
   return { api, root: shell.root, cleanup() { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title'); delete window.__thebes; } };
@@ -76,6 +76,20 @@ describe('s3 balance dev scenes', () => {
     } finally { r.cleanup(); }
   });
 
+  it('centres the fire on a portrait phone in the map left free under the banner and the goals strip', async () => {
+    const r = await bootRig('', { width: 390, height: 844 });
+    try {
+      const g = r.api.startGame(sample());
+      const home = g.world.buildings[Number((await devScene(r.api, 'fire')).split(' ')[1])];
+      const map = r.root.querySelector('#map').getBoundingClientRect();
+      const banner = r.root.querySelector('#banner').getBoundingClientRect(), goals = r.root.querySelector('#goals').getBoundingClientRect();
+      expect(banner.height).toBeGreaterThan(0);                                              // the fire's critical banner is up
+      const top = Math.max(48, banner.bottom - map.top, goals.bottom - map.top), bottom = 844 * 0.8;
+      const [sx, sy] = tileToScreen(g.cam, { width: 390, height: 844 }, home.x + 0.5, home.y + 0.5);
+      expect([Math.abs(sx - 195) < 2, Math.abs(sy - (top + bottom) / 2) < 2, top > 48]).toEqual([true, true, true]);
+    } finally { r.cleanup(); }
+  });
+
   it('raises a later raid\'s warning with its tribute and asks the danger interface for the tribute sheet', async () => {
     const r = await bootRig();
     try {
@@ -111,6 +125,7 @@ describe('s3 balance dev scenes', () => {
       const out = world.soldiers.filter((s) => s.task === 'out');
       expect(out.map((s) => [s.hp, s.y > gate.y + 1])).toEqual([[UNITS.soldier.hp, true], [UNITS.soldier.hp, true], [UNITS.soldier.hp, true]]);
       expect(out.every((s) => s.id > Math.max(...a.raiders.map((u) => u.id)))).toBe(true);   // fresh ids: drawn where they stand, not gliding from the yard
+      expect(world.soldiers.map((s) => s.id)).toEqual(world.soldiers.map((s) => s.id).sort((x, y) => x - y));   // ascending id (contract)
       const ids = [...a.raiders, ...world.soldiers].map((u) => u.id);
       expect([new Set(ids).size === ids.length, Math.max(...ids) < world.nextUnitId]).toEqual([true, true]);
     } finally { r.cleanup(); }
