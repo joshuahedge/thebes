@@ -20,7 +20,7 @@
 - Tunables live in `src/data/`; render palettes live in `src/render/art/palette.js`.
 - The world is JSON-safe data. Nothing in this plan adds a field to it.
 - Tile width is **64 CSS px at zoom 1** (spec 5.3). Mock-up art is drawn at 32 px tiles, so `ART_SCALE = 2`. Zoom is clamped to 0.5–2.
-- Commit identity for this repo only: `Joshua Hedge <181878008+joshuahedge@users.noreply.github.com>`. It's already set in `.git/config`; never change it or the global config. There is no work GitHub for this project.
+- Commit identity for this repo only: `Joshua Hedge <181878008+joshuahedge@users.noreply.github.com>`. It's already set in `.git/config`; never change it or the global config.
 - Every commit message ends with the trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` (as the brief requires; keep it as written).
 - Never use any file, image or text from Pharaoh or Pharaoh: A New Era, and never use the word "Pharaoh" in game text or code identifiers.
 - LF line endings (`.gitattributes` enforces it). Run all commands from the repo root `C:\dev\thebes` in PowerShell.
