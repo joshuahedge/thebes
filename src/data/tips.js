@@ -1,4 +1,4 @@
-// Tips (early-game pass 3.4): ten short lessons, each tied to one trigger the interface fires (src/ui/createUI.js).
+// Tips (early-game pass 3.4): fourteen short lessons, each tied to one trigger the interface fires (src/ui/createUI.js).
 // Each shows at most once per device. The priority tip (only Press Play) ignores the first delay, the gap
 // and an active tool, and replaces a tip already showing. The words live in src/ui/text.js (TIP_TEXT).
 export const TIPS = [
@@ -12,6 +12,10 @@ export const TIPS = [
   { id: 'undo_demolish', trigger: 'demolished', priority: false },       // something was demolished
   { id: 'goals_list', trigger: 'goalDone', priority: false },            // a goal was done
   { id: 'overlay_keys', trigger: 'overlayOn', priority: false },         // an overlay turned on by hand
+  { id: 'nicer_streets', trigger: 'desirabilityShown', priority: false },     // a sheet opened for a home whose next tier wants a pleasant street
+  { id: 'storehouse_choices', trigger: 'storehousePlaced', priority: false },  // a storehouse placed
+  { id: 'trade_orders', trigger: 'tradingPostPlaced', priority: false },       // a trading post placed
+  { id: 'merging_homes', trigger: 'townhouseSheet', priority: false },         // a Townhouse's sheet opened
 ];
 
 export const TIP_GAP_MS = 180000;          // at least 3 minutes between two tips

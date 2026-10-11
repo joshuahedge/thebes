@@ -1,0 +1,183 @@
+import { describe, it, expect } from '../harness.js';
+import { GOALS, GOAL_REWARD } from '../../src/data/goals.js';
+import { FIRSTS } from '../../src/data/firsts.js';
+import { ACHIEVEMENTS } from '../../src/data/achievements.js';
+import { DAILY_POOL } from '../../src/data/daily.js';
+import { TIPS } from '../../src/data/tips.js';
+import { MILESTONES } from '../../src/data/progression.js';
+import { BUILDINGS } from '../../src/data/buildings.js';
+import { GOODS } from '../../src/data/goods.js';
+import { goalById, goalMet, goalProgress, openGoals, settleGoals } from '../../src/sim/goals.js';
+import { firstMet, checkFirsts } from '../../src/sim/firsts.js';
+import { achievementProgress } from '../../src/sim/achievements.js';
+import { dailyOrder, dailyMeasure } from '../../src/sim/daily.js';
+import { milestoneIndex } from '../../src/sim/progression.js';
+import { population } from '../../src/sim/world.js';
+import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
+
+const STAGE1 = ['road', 'plots', 'well', 'food', 'temple', 'homes_cottage', 'people100', 'homes_house', 'town'];
+const STAGE2 = ['pottery', 'homes_townhouse', 'booth_gardens', 'manor', 'market_town', 'trade_route', 'city', 'beer', 'fine_manors',
+  'great_city', 'linen', 'villas', 'capital', 'jewellery', 'estate'];
+const first = (id) => FIRSTS.find((f) => f.id === id);
+const achievement = (id) => ACHIEVEMENTS.find((a) => a.id === id);
+const pool = (id) => DAILY_POOL.find((d) => d.id === id);
+const typesIn = (need) => (need.kind === 'all' ? need.of.flatMap(typesIn) : need.kind === 'building' ? [need.type] : []);
+
+// A city that has finished the opening chain and the guide, at Town.
+function town() {
+  const w = makeTestWorld();
+  w.goals.completed.push(...STAGE1);
+  w.guide = { on: false, done: true };
+  w.milestone = 'town';
+  return w;
+}
+
+describe('sim goals and rewards for Stage 2', () => {
+  it('keeps the opening chain and goes on from Town in two chapters, one new need at a time', () => {
+    expect(GOALS.map((g) => g.id)).toEqual([...STAGE1, ...STAGE2]);
+    expect(GOALS.slice(9).map((g) => g.chapter)).toEqual([...Array(6).fill('goods'), ...Array(9).fill('grand')]);
+    expect(goalById('pottery').need).toEqual({ kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] });
+    expect(goalById('trade_route').need).toEqual({ kind: 'all', of: [{ kind: 'building', type: 'trading_post', n: 1 }, { kind: 'routes', n: 1 }] });
+    expect([goalById('market_town').need, goalById('capital').need, goalById('estate').need]).toEqual([{ kind: 'people', n: 250 }, { kind: 'people', n: 1000 }, { kind: 'tier', tier: 9, n: 1 }]);
+    // Every building a goal asks for is unlocked by the milestone the goals before it reached (people goals mark them).
+    let reached = milestoneIndex('town');
+    for (const g of GOALS.slice(9)) {
+      if (g.need.kind === 'people') reached = MILESTONES.findIndex((m) => m.population === g.need.n);
+      expect(reached).toBeGreaterThan(0);
+      for (const type of typesIn(g.need)) {
+        const at = MILESTONES.findIndex((m) => m.unlocks.includes(type));
+        expect([g.id, type, at >= 0 && at <= reached]).toEqual([g.id, type, true]);
+      }
+      expect([g.id, g.reward, g.text.length > 0, Boolean(BUILDINGS[g.showMe.item]) || g.showMe.item === 'house']).toEqual([g.id, GOAL_REWARD, true, true]);
+    }
+  });
+  it('counts open trade routes', () => {
+    const w = town();
+    const need = goalById('trade_route').need;
+    expect(goalMet(w, { kind: 'routes', n: 1 })).toBe(false);
+    expect(goalProgress(w, { need: { kind: 'routes', n: 2 } })).toEqual({ n: 0, of: 2 });
+    addRaw(w, 'trading_post', 20, 8);
+    expect([goalMet(w, need), goalProgress(w, goalById('trade_route'))]).toEqual([false, { n: 1, of: 2 }]);
+    w.trade.routes.memphis = { since: 0, gifted: false };
+    expect([goalMet(w, need), goalProgress(w, goalById('trade_route'))]).toEqual([true, { n: 2, of: 2 }]);
+    w.trade.routes.byblos = { since: 0, gifted: false };
+    expect(goalProgress(w, { need: { kind: 'routes', n: 1 } })).toEqual({ n: 1, of: 1 });   // clamped
+  });
+  it('completes the Stage 2 goals in order as a scripted city grows to an Estate', () => {
+    const w = town();
+    const crowd = addRaw(w, 'house', 0, 0, { tier: 1, residents: 150 });  // stands in for the city's people
+    let hx = 0, bx = 0;                                                     // homes along y = 20, buildings along y = 24
+    const home = (tier) => { addRaw(w, 'house', hx, 20, tier >= 6 ? { tier, w: 2, d: 2, residents: 1 } : { tier, residents: 1 }); hx += 2; };
+    const build = (...types) => { for (const t of types) { addRaw(w, t, bx, 24); bx += 2; } };
+    const people = (n) => { crowd.residents += n - population(w); };
+    const steps = [
+      [() => build('clay_pit', 'storehouse'), []],
+      [() => build('potter'), ['pottery']],
+      [() => { for (let i = 0; i < 8; i++) home(5); }, ['homes_townhouse']],
+      [() => build('booth', 'garden'), []],
+      [() => build('garden'), ['booth_gardens']],
+      [() => home(6), ['manor']],
+      [() => { people(250); w.milestone = 'market_town'; }, ['market_town']],
+      [() => build('trading_post'), []],
+      [() => { w.trade.routes.memphis = { since: w.day, gifted: false }; }, ['trade_route']],
+      [() => { people(400); w.milestone = 'city'; }, ['city']],
+      [() => build('farm_barley', 'brewery', 'farm_fig'), ['beer']],
+      [() => { home(7); home(7); }, ['fine_manors']],
+      [() => { people(650); w.milestone = 'great_city'; }, ['great_city']],
+      [() => build('farm_flax', 'weaver'), ['linen']],
+      [() => { home(8); home(8); }, ['villas']],
+      [() => { people(1000); w.milestone = 'capital'; }, ['capital']],
+      [() => build('gem_mine', 'jeweller'), ['jewellery']],
+      [() => home(9), ['estate']],
+    ];
+    const gold = w.gold;
+    for (const [step, expected] of steps) {
+      step();
+      expect(settleGoals(w).map((g) => g.id)).toEqual(expected);
+    }
+    expect(w.goals.completed).toEqual([...STAGE1, ...STAGE2]);
+    expect(openGoals(w)).toEqual([]);
+    expect(w.gold).toBe(gold + STAGE2.length * GOAL_REWARD);
+  });
+  it('adds firsts for pottery made, the first caravan and each new tier, each shown where it happened', () => {
+    expect(FIRSTS.slice(8).map((f) => [f.id, f.check])).toEqual([
+      ['first_pottery', { kind: 'made', good: 'pottery', n: 1 }],
+      ['first_townhouse', { kind: 'tier', tier: 5 }],
+      ['first_manor', { kind: 'tier', tier: 6 }],
+      ['first_caravan', { kind: 'tally', key: 'caravans', n: 1 }],
+      ['first_fine_manor', { kind: 'tier', tier: 7 }],
+      ['first_villa', { kind: 'tier', tier: 8 }],
+      ['first_estate', { kind: 'tier', tier: 9 }],
+    ]);
+    const w = town();
+    expect(firstMet(w, first('first_pottery'))).toBe(null);
+    w.tally.made.pottery = 1;
+    expect(firstMet(w, first('first_pottery'))).toEqual({ x: null, y: null });   // gone on already, nothing makes it
+    addRaw(w, 'potter', 10, 4);
+    expect(firstMet(w, first('first_pottery'))).toEqual({ x: 11, y: 5 });        // the potter that made it
+    addRaw(w, 'storehouse', 20, 4, { store: { pottery: 1 } });
+    expect(firstMet(w, first('first_pottery'))).toEqual({ x: 21, y: 5 });        // the store holding it
+    expect(firstMet(w, first('first_caravan'))).toBe(null);
+    w.tally.caravans = 1;
+    addRaw(w, 'trading_post', 4, 12);
+    expect(firstMet(w, first('first_caravan'))).toEqual({ x: 5, y: 13 });
+    addRaw(w, 'house', 14, 14, { tier: 7, w: 2, d: 2, residents: 100 });
+    expect(firstMet(w, first('first_fine_manor'))).toEqual({ x: 15, y: 15 });
+    expect(firstMet(w, first('first_manor'))).toEqual({ x: 15, y: 15 });         // nothing at exactly tier 6: the first above
+    expect(firstMet(w, first('first_villa'))).toBe(null);
+    const events = [];
+    expect(checkFirsts(w, events)).toEqual(['first_family', 'first_shack', 'first_cottage', 'first_house', 'people_100', 'first_pottery', 'first_townhouse', 'first_manor', 'first_caravan', 'first_fine_manor']);
+    expect(events.find((e) => e.id === 'first_caravan')).toEqual({ type: 'first', id: 'first_caravan', reward: 10, x: 5, y: 13 });
+  });
+  it('adds eight achievements, counting goods made, trade income, upper tiers, gardens, statues and people', () => {
+    expect(ACHIEVEMENTS.slice(24).map((a) => [a.id, a.measure])).toEqual([
+      ['potters_wheel', { kind: 'made', good: 'pottery', n: 500 }],
+      ['merchant_city', { kind: 'tally', key: 'tradeIncome', n: 2000 }],
+      ['townhouse_terrace', { kind: 'tier', tier: 5, n: 20 }],
+      ['manor_row', { kind: 'tier', tier: 6, n: 5 }],
+      ['green_city', { kind: 'buildings', type: 'garden', n: 20 }],
+      ['sculpture_garden', { kind: 'buildings', type: 'statue', n: 10 }],
+      ['estate_life', { kind: 'tier', tier: 9, n: 1 }],
+      ['thousand', { kind: 'people', n: 1000 }],
+    ]);
+    const w = town();
+    const p = (id) => achievementProgress(w, achievement(id));
+    w.tally.made = { pottery: 120, clay: 900 };
+    w.tally.tradeIncome = 2400;
+    expect([p('potters_wheel'), p('merchant_city')]).toEqual([{ n: 120, of: 500 }, { n: 2000, of: 2000 }]);
+    for (let i = 0; i < 3; i++) addRaw(w, 'garden', i, 2);
+    addRaw(w, 'statue', 5, 2);
+    addRaw(w, 'house', 8, 8, { tier: 5, residents: 22 });
+    addRaw(w, 'house', 10, 8, { tier: 6, w: 2, d: 2, residents: 100 });
+    expect([p('green_city'), p('sculpture_garden'), p('townhouse_terrace'), p('manor_row'), p('estate_life')]).toEqual([
+      { n: 3, of: 20 }, { n: 1, of: 10 }, { n: 2, of: 20 }, { n: 1, of: 5 }, { n: 0, of: 1 },
+    ]);
+    w.tally.peakPeople = 640;
+    expect(p('thousand')).toEqual({ n: 640, of: 1000 });
+  });
+  it('draws the Stage 2 daily goals only from Town, and the selling one only with a route open', () => {
+    expect(DAILY_POOL.slice(10).map((d) => d.id)).toEqual(['pottery30', 'gardens3', 'sell20', 'statue1', 'booth1']);
+    expect([pool('pottery30').measure, pool('sell20').measure, pool('gardens3').n]).toEqual([{ kind: 'made', good: 'pottery' }, { kind: 'tally', key: 'sold' }, 3]);
+    const w = town();
+    w.milestone = 'village';
+    expect(dailyOrder(w, '2026-10-11').length).toBe(10);                   // a village draws exactly as before
+    w.milestone = 'town';
+    const atTown = dailyOrder(w, '2026-10-11');
+    expect(atTown.length).toBe(14);
+    expect(atTown.includes('sell20')).toBe(false);
+    w.trade.routes.memphis = { since: 0, gifted: false };
+    expect(dailyOrder(w, '2026-10-11').length).toBe(15);
+    w.tally.made.pottery = 42;
+    w.tally.sold = 17;
+    expect([dailyMeasure(w, pool('pottery30')), dailyMeasure(w, pool('sell20'))]).toEqual([42, 17]);
+    for (const d of DAILY_POOL) if (d.measure.kind === 'made') expect(Boolean(GOODS[d.measure.good])).toBe(true);
+  });
+  it('adds tips for desirability, storehouse choices, trade and merges, each with its own trigger', () => {
+    expect(TIPS.slice(10).map((t) => [t.id, t.trigger, t.priority])).toEqual([
+      ['nicer_streets', 'desirabilityShown', false],
+      ['storehouse_choices', 'storehousePlaced', false],
+      ['trade_orders', 'tradingPostPlaced', false],
+      ['merging_homes', 'townhouseSheet', false],
+    ]);
+  });
+});

@@ -92,6 +92,7 @@ import './ui/a11y.test.js';
 import './save/store.test.js';
 import './sim/goals.test.js';
 import './sim/goalsV2.test.js';
+import './sim/goalsStage2.test.js';
 import './sim/firsts.test.js';
 import './sim/achievements.test.js';
 import './sim/daily.test.js';

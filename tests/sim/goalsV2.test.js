@@ -27,8 +27,8 @@ function readyCity() {
 
 describe('goals v2', () => {
   it('lists the chain in chapters, the guide goals and the event goals', () => {
-    expect(ids(GOALS)).toEqual(['road', 'plots', 'well', 'food', 'temple', 'homes_cottage', 'people100', 'homes_house', 'town']);
-    expect(GOALS.map((g) => g.chapter)).toEqual(['first_homes', 'first_homes', 'first_homes', 'feed', 'feed', 'grow', 'grow', 'grow', 'grow']);
+    expect(ids(GOALS.slice(0, 9))).toEqual(['road', 'plots', 'well', 'food', 'temple', 'homes_cottage', 'people100', 'homes_house', 'town']);
+    expect(GOALS.slice(0, 9).map((g) => g.chapter)).toEqual(['first_homes', 'first_homes', 'first_homes', 'feed', 'feed', 'grow', 'grow', 'grow', 'grow']);
     expect(goalById('homes_cottage').need).toEqual({ kind: 'tier', tier: 3, n: 8 });
     expect(goalById('homes_cottage').text).toBe('Grow 8 homes to Cottage or better');
     expect(goalById('homes_house').need).toEqual({ kind: 'tier', tier: 4, n: 8 });
@@ -46,8 +46,12 @@ describe('goals v2', () => {
     }
     expect(goalById('fix_bazaar').showMe).toEqual({ category: 'food', item: 'granary', target: 'alert', code: 'bazaar_empty' });
     expect(goalById('out_of_debt').showMe).toBe(null);
+    // Stage 2's buildings join their categories with the interface (Task 12); until then the planned lists stand in.
+    const PLANNED = { homes: ['garden', 'statue'], food: ['farm_fig'], industry: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'], services: ['booth'] };
     for (const g of [...GOALS, ...EVENT_GOALS]) {
-      if (g.showMe) expect([g.id, CATEGORIES.find((c) => c.id === g.showMe.category).items.includes(g.showMe.item)]).toEqual([g.id, true]);
+      if (!g.showMe) continue;
+      const items = [...CATEGORIES.find((c) => c.id === g.showMe.category).items, ...(PLANNED[g.showMe.category] || [])];
+      expect([g.id, items.includes(g.showMe.item)]).toEqual([g.id, true]);
     }
     const all = ids([...GOALS, ...EVENT_GOALS]);
     expect(new Set(all).size).toBe(all.length);

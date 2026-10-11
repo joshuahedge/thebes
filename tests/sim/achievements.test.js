@@ -1,6 +1,7 @@
 import { describe, it, expect } from '../harness.js';
 import { ACHIEVEMENTS } from '../../src/data/achievements.js';
 import { BUILDINGS } from '../../src/data/buildings.js';
+import { GOODS } from '../../src/data/goods.js';
 import { achievementProgress, checkAchievements, roadsLaid } from '../../src/sim/achievements.js';
 import { advanceDays } from '../../src/sim/clock.js';
 import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
@@ -9,20 +10,22 @@ const byId = (id) => ACHIEVEMENTS.find((a) => a.id === id);
 const progress = (w, id) => achievementProgress(w, byId(id));
 
 describe('sim achievements', () => {
-  it('lists 24 achievements with unique ids and measures the sim can count', () => {
-    expect(ACHIEVEMENTS.map((a) => a.id)).toEqual([
+  it('lists 32 achievements with unique ids and measures the sim can count', () => {
+    expect(ACHIEVEMENTS.slice(0, 24).map((a) => a.id)).toEqual([
       'way_in', 'neighbours', 'street', 'busy_streets', 'water_bearer', 'breadbasket', 'plenty', 'market_day',
       'faithful', 'shack_row', 'cottage_lane', 'house_proud', 'hamlet', 'town', 'bustling', 'good_harvests',
       'granary_of_the_river', 'steady_books', 'prosperous', 'no_one_hungry', 'water_for_all', 'busy_hands',
       'on_course', 'day_by_day',
     ]);
-    expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(24);
-    const kinds = ['roads', 'homes', 'buildings', 'tier', 'people', 'tally', 'goals', 'fedAll', 'waterAll', 'jobs'];
+    expect(ACHIEVEMENTS.length).toBe(32);                                  // Stage 2 adds eight (goalsStage2.test.js)
+    expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(32);
+    const kinds = ['roads', 'homes', 'buildings', 'tier', 'people', 'tally', 'made', 'goals', 'fedAll', 'waterAll', 'jobs'];
     const tallyKeys = Object.keys(makeTestWorld().tally);
     for (const a of ACHIEVEMENTS) {
       expect(kinds).toContain(a.measure.kind);
       if (a.measure.kind === 'buildings') expect(Object.keys(BUILDINGS)).toContain(a.measure.type);
       if (a.measure.kind === 'tally') expect(tallyKeys).toContain(a.measure.key);
+      if (a.measure.kind === 'made') expect(Object.keys(GOODS)).toContain(a.measure.good);
     }
     expect(byId('cottage_lane').measure).toEqual({ kind: 'tier', tier: 3, n: 20 });
     expect(byId('no_one_hungry').measure).toEqual({ kind: 'fedAll', people: 100 });
