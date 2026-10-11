@@ -27,6 +27,7 @@ import { roadReach, reachDistance } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
 import { openSheet, closeSheet } from './modes.js';
 import { buildingName, tierName, DANGER_UI_TEXT } from './text.js';
+import { tributeSheet, buildingParts, fireRow, actionParts, summaryParts } from './dangerSheets.js';
 
 // The homes a newly placed water provider is the first to water (spec 5.4's ripple): those it reaches by the coveredBy rule
 // (src/sim/housing.js) that no other working water provider reaches. Plots count, as "Gives water to N homes" counts them.
@@ -96,11 +97,19 @@ export function createDanger(ctx) {
       if (s.sheet) ctx.store.set(closeSheet(s));
       ctx.cameraControl.panTo(alert.x + 0.5, alert.y + 0.5);
     } else if (action === 'more') ctx.store.set(openSheet(ctx.store.get(), 'minimap'));
+    else if (action === 'tribute') ctx.store.set(openSheet(ctx.store.get(), 'tribute'));   // D3: the confirmation sheet
   }
 
+  // D3: the sheets' parts (src/ui/dangerSheets.js). Each asks only of a real building in this city.
+  const real = (b) => Boolean(ctx.world && b && BUILDINGS[b.type] && ctx.world.buildings[b.id] === b);
   return {
-    sheets: {},
-    sheetParts: { building: () => [], house: () => [], actions: () => [], summary: () => [] },
+    sheets: { tribute: tributeSheet(ctx) },
+    sheetParts: {
+      building: (b) => (real(b) ? buildingParts(ctx, b) : []),
+      house: (h) => (real(h) ? fireRow(ctx, h) : []),
+      actions: (b) => (real(b) ? actionParts(ctx, b) : []),
+      summary: () => (ctx.world ? summaryParts(ctx) : []),
+    },
     onEvents,
     refresh() {},
     onAlertAction,

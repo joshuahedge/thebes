@@ -142,7 +142,8 @@ export function createSheets({ container, store, world, placement, cameraControl
         if (r.ok) { assignLabour(world); afterCommand({ kind: 'pause', result: r, text: b.paused ? T.paused : T.resumed, undoable: false }); render(); }
       } }));
     }
-    actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(b.x, b.y); if (r.ok) close(); } }));
+    // Rubble's Clear (Stage 3, src/ui/dangerSheets.js) is its demolish, with the price in its name.
+    if (b.type !== 'rubble') actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(b.x, b.y); if (r.ok) close(); } }));
     body.append(actions);
     return [head(buildingName(b.type)), body];
   }
