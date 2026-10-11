@@ -1,5 +1,6 @@
 import { describe, it, expect } from '../harness.js';
-import { touchesRoad, roadReach, buildingsInReach, adjacentRoadTiles } from '../../src/sim/reach.js';
+import { touchesRoad, roadReach, buildingsInReach, adjacentRoadTiles, reachCacheSize } from '../../src/sim/reach.js';
+import { homesServedFrom } from '../../src/sim/housing.js';
 import { idx } from '../../src/sim/grid.js';
 import { makeBuilding, insertBuilding } from '../../src/sim/world.js';
 import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
@@ -68,6 +69,23 @@ describe('reach', () => {
     const found = buildingsInReach(w, well, 16, (o) => o.type === 'granary');
     expect(found.map((f) => f.dist)).toEqual([3, 3]);
     expect(found.map((f) => f.b.id)).toEqual([west.id, east.id]);
+  });
+  it('previews a ghost anywhere without growing the reach cache, and gives the same answer as the cached rule', () => {
+    const w = makeTestWorld();
+    setRoad(w, 0, 10, 31, 10);
+    addRaw(w, 'house', 12, 9);
+    addRaw(w, 'house', 13, 9);
+    const well = addRaw(w, 'well', 15, 11);
+    roadReach(w, well, 5);                                            // a real building's reach is cached as before
+    const size = reachCacheSize(w);
+    expect(size).toBe(1);
+    const counts = [];
+    for (let x = 0; x < 32; x++) for (const y of [9, 11]) counts.push(homesServedFrom(w, 'well', x, y));   // a ghost hovered along the street
+    expect(reachCacheSize(w)).toBe(size);
+    expect(counts.filter((n) => n === 2).length).toBeGreaterThan(4);
+    const cached = roadReach(w, { x: 14, y: 9, w: 1, d: 1 }, 5);
+    expect([...roadReach(w, { x: 14, y: 9, w: 1, d: 1 }, 5, { cache: false })]).toEqual([...cached]);
+    expect(roadReach(w, { x: 14, y: 9, w: 1, d: 1 }, 5, { cache: false }) === cached).toBe(false);
   });
   it('reaches nothing when maxDist is below 1', () => {
     const w = makeTestWorld();

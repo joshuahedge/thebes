@@ -1,5 +1,9 @@
 import { describe, it, expect } from '../harness.js';
 import { createDock } from '../../src/ui/dock.js';
+import { createSidePanel } from '../../src/ui/sidePanel.js';
+import { createRail } from '../../src/ui/rail.js';
+import { BUILDINGS } from '../../src/data/buildings.js';
+import { ECONOMY } from '../../src/data/economy.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
 import { makeTestWorld } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
@@ -25,6 +29,32 @@ describe('ui dock', () => {
     expect(store.get().dock).toBe('slim');
     expect(store.get().category).toBe('food');
     cleanup();
+  });
+  it('rebuilds its cards (and their pictures) only when a card changes, not whenever the gold does', () => {
+    for (const make of ['dock', 'panel', 'rail']) {
+      const { root, cleanup } = mount('<div id="c"></div>');
+      try {
+        const world = makeTestWorld({ gold: 1000 });
+        const store = createStore({ ...INITIAL_UI_STATE, layout: make === 'dock' ? 'portrait' : make === 'panel' ? 'wide' : 'compact', category: 'food', dock: 'tray' });
+        const container = root.querySelector('#c');
+        const ui = make === 'dock' ? createDock({ container, store, world, onPick() {} })
+          : make === 'panel' ? createSidePanel({ container, store, world, onPick() {} })
+            : createRail({ container, store, world, onPick() {} });
+        const card = () => container.querySelector('.card[data-item="granary"]');
+        const first = card();
+        expect([make, first !== null]).toEqual([make, true]);
+        world.gold = 900;                                            // still enough for every card: nothing to redraw
+        ui.render();
+        expect([make, card() === first]).toEqual([make, true]);
+        world.gold = BUILDINGS.granary.cost + ECONOMY.debtFloor - 1; // the granary is out of reach now (past the debt floor): its card changes
+        ui.render();
+        expect([make, card() === first, card().classList.contains('unaffordable')]).toEqual([make, false, true]);
+        const second = card();
+        world.gold = BUILDINGS.granary.cost + ECONOMY.debtFloor - 2;
+        ui.render();
+        expect([make, card() === second]).toEqual([make, true]);
+      } finally { cleanup(); }
+    }
   });
   it('changes height with the handle, swipes and the pill', () => {
     const { root, cleanup } = mount();

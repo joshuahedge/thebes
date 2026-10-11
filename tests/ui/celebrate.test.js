@@ -141,7 +141,7 @@ describe('ui celebrate', () => {
     expect(ACHIEVEMENT_TEXT.plenty).toBe('Have 2 granaries');
     expect(ACHIEVEMENT_TEXT.cottage_lane).toBe('Have 20 homes at Cottage or better');
     expect(ACHIEVEMENT_TEXT.bustling).toBe('Reach 300 people');
-    expect(ACHIEVEMENT_TEXT.granary_of_the_river).toBe('Harvest 2000 food');
+    expect(ACHIEVEMENT_TEXT.granary_of_the_river).toBe('Harvest 2000 grain');
     expect(ACHIEVEMENT_TEXT.prosperous).toBe('End 24 months in profit');
     expect(ACHIEVEMENT_TEXT.no_one_hungry).toBe('Reach 100 people with every Cottage or better home fed');
     expect(ACHIEVEMENT_TEXT.water_for_all).toBe('Have 30 lived-in homes, all with water');

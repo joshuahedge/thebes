@@ -29,6 +29,15 @@ export function activeItemOf(tool) {
   return tool.kind;   // 'road' or 'demolish'
 }
 
+// What a tray of cards shows: its category, the active card and each card's affordable and locked state. The dock,
+// the side panel and the rail rebuild their cards (and so their pictures) only when this key changes, so a command
+// that spends a little gold but leaves every card as it was rebuilds nothing.
+export function cardsKey(world, category, activeItem) {
+  const cat = CATEGORIES.find((c) => c.id === category);
+  const states = (cat ? cat.items : []).map((item) => { const i = cardInfo(world, item); return `${i.affordable ? 'a' : 'u'}${i.locked ? 'l' : 'o'}`; });
+  return `${category}|${activeItem}|${states.join(',')}`;
+}
+
 // Locked and unaffordable cards keep their words and marks; an affordable cost gets a coin (decoration only).
 function costLine(info) {
   if (info.locked) return [`\u{1F512} ${info.lockText}`];

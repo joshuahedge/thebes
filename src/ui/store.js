@@ -35,5 +35,9 @@ export function createStore(initial) {
       return state;
     },
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
+    // Drops every subscriber: the interface that owns this store is gone, so a late set() (a stray callback) changes
+    // nothing on a page the next interface now owns.
+    dispose() { subs.clear(); },
+    subscribers: () => subs.size,
   };
 }

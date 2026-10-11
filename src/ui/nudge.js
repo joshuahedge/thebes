@@ -37,7 +37,7 @@ const FIX_COST = {
   understaffed: () => BUILDINGS.house.cost,
   labour_shortage: () => BUILDINGS.house.cost,
   unemployment: () => Math.min(BUILDINGS.farm_grain.cost, BUILDINGS.bazaar.cost),
-  debt: () => -Infinity,
+  debt: () => -Infinity,   // getting out of debt costs nothing up front (pause what you don't need), so it is always worth naming, even in the red
 };
 
 // The nudge's one line: the first problem the treasury can pay to fix, else the open goal, else nothing.
