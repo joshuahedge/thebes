@@ -1,7 +1,16 @@
-// Housing tiers 1-4, ported line for line from the approved mock-up (v4-new-era-style.html, H1-H4).
-// Tiers 5-9 arrive in Stage 2 and follow the same pattern.
-import { box, tb, qd, crs, door, win, parapet, mat, pots, fence, stairs, awn, p, U } from './primitives.js';
-import { MUD, MUD2, WASH, WASH2, THATCH, BLUE, GOLD, RED, PINK, GREEN, GREEN_DARK, TEAL } from './palette.js';
+// Housing tiers 1-9, ported line for line from the approved mock-up (v4-new-era-style.html, H1-H5 and big()).
+// Tiers 6-9 are 2x2. Spec 4.6 gives tiers 5-9 one roof tell each, kept by the tiers above: the striped awning (5,
+// on the annexe of the big homes), a vine pergola over the roof mat (6), a roof garden on the annexe (7), painted
+// parapet bands (8) and a flag with a roof pool (9). The awning, bands and flag are the mock-up's own; big() adds
+// the rest, each on its own patch of roof so none hides another.
+import {
+  box, tb, qd, crs, door, win, parapet, mat, rug, pots, fence, stairs, ladder, awn, col, bed, pool, statue, p, U, quad,
+} from './primitives.js';
+import { palmAt } from './nature.js';
+import {
+  MUD, MUD2, WASH, WASH2, STONE, THATCH, GOLDC, BLUE, GOLD, RED, RED_DARK, PINK, ORANGE, GREEN, GREEN_DARK, TEAL, TEAL_DARK,
+  PURP, WOOD, LEAF, LEAF2, LEAF3, SHADOW,
+} from './palette.js';
 import { boundsFor } from '../iso.js';
 
 // Hut: a mud-brick cube with a tall thatched roof, a woven door, a reed fence and a pot.
@@ -61,10 +70,173 @@ export function H4(g, x, y) {
   pots(g, U(p(x + 0.86, y + 0.5), 7), 1);
 }
 
+// Townhouse: a tall block banded in teal and red under its parapet, a teal striped awning on the roof terrace (the
+// tier-5 tell), an outside staircase, a ladder up from the annexe roof and a pink-and-gold mat on the annexe.
+export function H5(g, x, y) {
+  const A = box(g, x + 0.08, y + 0.08, 0.6, 0.56, 17, 0, WASH);
+  parapet(g, x + 0.08, y + 0.08, 0.6, 0.56, 17);
+  qd(g, A.L, 0, 1, 15.6, 16.6, TEAL);
+  qd(g, A.R, 0, 1, 15.6, 16.6, TEAL_DARK);
+  qd(g, A.L, 0, 1, 14.8, 15.6, RED);
+  qd(g, A.R, 0, 1, 14.8, 15.6, RED_DARK);
+  win(g, A.L, 0.15, 0.3, 10, 12.5);
+  win(g, A.L, 0.55, 0.7, 10, 12.5);
+  win(g, A.R, 0.25, 0.42, 10, 12.5);
+  win(g, A.R, 0.25, 0.42, 4, 6.5);
+  awn(g, x + 0.12, y + 0.12, 0.44, 0.42, 21.2, TEAL, TEAL_DARK);
+  pots(g, U(p(x + 0.58, y + 0.2), 17), 2);
+  stairs(g, x + 0.1, y + 0.64, 0.36, 0.13, 9.5, 5, WASH2);
+  const B = box(g, x + 0.52, y + 0.44, 0.4, 0.48, 10, 0, WASH2);
+  parapet(g, x + 0.52, y + 0.44, 0.4, 0.48, 10);
+  door(g, B, 0.3, 0.62, 5);
+  mat(g, x + 0.57, y + 0.5, 0.3, 0.36, 10, PINK, GOLD);
+  ladder(g, U(p(x + 0.6, y + 0.68), 10), U(p(x + 0.6, y + 0.64), 17.5));
+}
+
+// The roof tells the mock-up lacked. Each sits on its own patch of roof, so a tier keeps the tells below it.
+const BEAM = '#8A6448', SLAT = '#A9805A';
+const FLOWERS = [RED, GOLD, '#FFFFFF', PINK];
+export const PERGOLA = { x: 0.2, y: 0.16, w: 0.52, d: 0.46, h: 5 };   // over the main roof's mat, relative to the footprint
+export const ROOF_GARDEN = { x: 1.34, y: 0.8, w: 0.48, d: 0.46 };      // the front half of the annexe roof
+export const ROOF_POOL = { x: 0.84, y: 0.5, w: 0.38, d: 0.32 };         // the main roof's front right corner
+
+// Tier 6: a timber pergola over the roof mat: four posts, two beams, six slats whose shadows stripe the mat, and a
+// vine climbing the front post into the back corner.
+function pergola(g, x, y, z) {
+  const { w, d, h } = PERGOLA, x0 = x + PERGOLA.x, y0 = y + PERGOLA.y;
+  for (let i = 0; i <= 5; i++) {                                   // the slats' shadows fall on the roof
+    const u = x0 + 0.06 + (w * i) / 5;
+    g.line(U(p(u, y0 + 0.02), z), U(p(u, y0 + d - 0.02), z), SHADOW, 1.2, 0.18);
+  }
+  for (const [a, b] of [[x0, y0], [x0 + w, y0], [x0, y0 + d], [x0 + w, y0 + d]]) {
+    const q = U(p(a, b), z);
+    g.line(q, U(q, h), WOOD, 1);
+  }
+  for (const v of [0, d]) g.line(U(p(x0 - 0.05, y0 + v), z + h), U(p(x0 + w + 0.05, y0 + v), z + h), BEAM, 1.2);
+  for (let i = 0; i <= 5; i++) {
+    const u = x0 + (w * i) / 5;
+    g.line(U(p(u, y0 - 0.06), z + h + 0.7), U(p(u, y0 + d + 0.06), z + h + 0.7), SLAT, 1);
+  }
+  const foot = U(p(x0, y0 + d), z);                                // the vine: up the front post, along the back beam
+  g.stroke([['M', foot], ['Q', U(p(x0 + 0.03, y0 + d), z + h * 0.5), U(p(x0, y0 + d), z + h)]], LEAF3, 0.9);
+  for (const [u, v, r, c] of [[0, 1, 1.3, LEAF], [0, 0.72, 1.1, LEAF2], [0, 0.4, 1.2, LEAF3], [0.04, 0, 1.4, LEAF], [0.24, 0, 1.2, LEAF2], [0.46, 0, 1.1, LEAF3]]) {
+    g.circ(U(p(x0 + w * u, y0 + d * v), z + h + 0.9), r, c);
+  }
+  g.circ(U(p(x0 + w * 0.24, y0), z + h + 1.6), 0.6, PINK);
+}
+
+// Tier 7: a roof garden on the annexe, in front of its awning: a planter of dark soil with shrubs and flowers.
+function roofGarden(g, x, y, z) {
+  const { w, d } = ROOF_GARDEN, x0 = x + ROOF_GARDEN.x, y0 = y + ROOF_GARDEN.y;
+  const P = box(g, x0, y0, w, d, 1.4, z, MUD2, 0);
+  qd(g, P.L, 0, 1, 0.5, 0.9, GOLD, { alpha: 0.7 });
+  g.poly(quad(x0 + 0.03, y0 + 0.03, w - 0.06, d - 0.06, z + 1.4), '#5A7A34');
+  const spots = [[0.2, 0.25], [0.55, 0.2], [0.82, 0.3], [0.3, 0.6], [0.66, 0.58], [0.2, 0.85], [0.52, 0.86], [0.84, 0.78]];
+  spots.forEach(([u, v], i) => {
+    const q = U(p(x0 + w * u, y0 + d * v), z + 1.4);
+    g.circ(U(q, 1.4), 1.8, [LEAF3, LEAF, LEAF2][i % 3], { outline: true });
+    if (i % 2 === 0) g.circ(U(q, 2.4), 0.7, FLOWERS[(i / 2) % 4]);
+  });
+}
+
+// Tier 9: a small pool on the main roof, beside the flag.
+function roofPool(g, x, y, z) {
+  const { w, d } = ROOF_POOL, x0 = x + ROOF_POOL.x, y0 = y + ROOF_POOL.y;
+  g.poly(quad(x0 - 0.04, y0 - 0.04, w + 0.08, d + 0.08, z + 0.2), '#E4D6BC');
+  g.poly(quad(x0, y0, w, d, z + 0.2), '#4FB3B5');
+  g.poly(quad(x0 + 0.03, y0 + 0.03, w - 0.06, d * 0.35, z + 0.2), '#7FD0CC', { alpha: 0.6 });
+  g.line(U(p(x0 + w * 0.25, y0 + d * 0.62), z + 0.2), U(p(x0 + w * 0.65, y0 + d * 0.62), z + 0.2), '#D7F0EE', 0.7);
+}
+
+// The 2x2 homes, Manor and up: a main block at the back with a roof mat and pots, a walled courtyard in front of
+// it and an annexe down the right side with an awning on its roof. O picks each tier's look, as in the mock-up:
+// the block heights hA and hB, painted bands, columns, a pool, a rug and a flower bed, a statue, palms, a flag,
+// the annexe awning's colours and the courtyard floor. Every big home has the pergola (the tier-6 tell); O.tier
+// adds the roof garden from 7 and the roof pool at 9 (the bands and the flag are the mock-up's own options).
+export function big(g, x, y, O) {
+  const tier = O.tier || 6;
+  const A = box(g, x + 0.1, y + 0.1, 1.2, 0.82, O.hA, 0, WASH);
+  parapet(g, x + 0.1, y + 0.1, 1.2, 0.82, O.hA);
+  for (const [s0, s1, c] of O.bands || [[O.hA - 1.4, O.hA - 0.6, TEAL]]) {
+    qd(g, A.L, 0, 1, s0, s1, c);
+    qd(g, A.R, 0, 1, s0, s1, c, { alpha: 0.8 });
+  }
+  door(g, A, 0.42, 0.56, 7);
+  for (const u of [0.1, 0.24, 0.72, 0.86]) win(g, A.L, u, u + 0.07, 4, 7);
+  if (O.hA > 15) for (const u of [0.1, 0.24, 0.72, 0.86]) win(g, A.L, u, u + 0.07, 9.5, 12);
+  win(g, A.R, 0.3, 0.5, 4, 7);
+  mat(g, x + 0.25, y + 0.2, 0.4, 0.35, O.hA, BLUE, GOLD);
+  if (tier >= 9) roofPool(g, x, y, O.hA);
+  pots(g, U(p(x + 0.95, y + 0.3), O.hA), 2);
+  pergola(g, x, y, O.hA);
+  if (O.flag) {
+    const q = U(p(x + 1.1, y + 0.25), O.hA);
+    g.line(q, U(q, 14), WOOD, 0.7);
+    g.poly([U(q, 14), [q[0] + 7, q[1] - 12.5], U(q, 11)], PINK);
+  }
+  g.poly(quad(x + 0.15, y + 0.95, 1.07, 0.91, 0), O.floor || '#EEE2CA');
+  box(g, x + 0.1, y + 0.95, 0.08, 0.9, 3.5, 0, WASH, 0);
+  if (O.cols) {
+    for (const u of O.cols) col(g, x + u, y + 1.02, O.colH || 9, 0, O.cap);
+    box(g, x + 0.18, y + 0.9, 1.08, 0.22, 1.2, (O.colH || 9) + 1.6, STONE, 0);
+  }
+  if (O.pool) pool(g, x + 0.32, y + 1.24, 0.6, 0.3);
+  if (O.rug) rug(g, x + 0.28, y + 1.2, 0.5, 0.3, 0, RED, '#F2D7A8', GOLD);
+  if (O.bed) bed(g, x + 0.3, y + 1.56, 0.55, 0.22);
+  if (O.statue) statue(g, x + 0.28, y + 1.66);
+  const B = box(g, x + 1.25, y + 0.1, 0.65, 1.25, O.hB, 0, WASH2);
+  parapet(g, x + 1.25, y + 0.1, 0.65, 1.25, O.hB);
+  door(g, B, 0.35, 0.65, 5.5);
+  win(g, B.R, 0.2, 0.35, 4, 6.5);
+  win(g, B.R, 0.6, 0.75, 4, 6.5);
+  if (O.bands) {
+    qd(g, B.L, 0, 1, O.hB - 1.4, O.hB - 0.6, TEAL);
+    qd(g, B.R, 0, 1, O.hB - 1.4, O.hB - 0.6, TEAL, { alpha: 0.8 });
+  }
+  awn(g, x + 1.32, y + 0.18, 0.5, 0.55, O.hB + 4.2, O.awn || ORANGE, O.awn2 || '#B45F2A');
+  if (tier >= 7) roofGarden(g, x, y, O.hB);
+  for (const [u, v] of O.palms || []) palmAt(g, x + u, y + v, 0.72);
+  box(g, x + 1.82, y + 1.35, 0.08, 0.5, 3.5, 0, WASH, 0);
+  box(g, x + 0.1, y + 1.8, 0.72, 0.1, 3.5, 0, WASH, 0);
+  box(g, x + 0.74, y + 1.76, 0.1, 0.18, 5.5, 0, WASH, 0);
+  box(g, x + 1.16, y + 1.76, 0.1, 0.18, 5.5, 0, WASH, 0);
+  box(g, x + 1.18, y + 1.8, 0.72, 0.1, 3.5, 0, WASH, 0);
+}
+
+// The mock-up's four variants (H6-H9), keyed by tier.
+export const BIG = {
+  6: { hA: 13, hB: 10, rug: 1, bed: 1, palms: [[1.02, 1.6]] },
+  7: { hA: 14, hB: 11, cols: [0.35, 0.65, 0.95], rug: 1, bed: 1, palms: [[1.05, 1.62]], awn: GREEN, awn2: GREEN_DARK },
+  8: {
+    hA: 15, hB: 12, cols: [0.35, 0.65, 0.95], pool: 1, palms: [[0.22, 1.7], [1.05, 1.62]], awn: TEAL, awn2: TEAL_DARK,
+    bands: [[13.6, 14.4, TEAL], [12.8, 13.6, RED]],
+  },
+  9: {
+    hA: 18, hB: 14, cols: [0.3, 0.55, 0.8, 1.05], colH: 11, cap: GOLDC, pool: 1, statue: 1, palms: [[1.08, 1.62]],
+    bands: [[16.6, 17.4, GOLD], [15.8, 16.6, TEAL], [15, 15.8, RED]], flag: 1, awn: PURP, awn2: '#563E78', floor: '#F2E8D2',
+  },
+};
+export const H6 = (g, x, y) => big(g, x, y, { ...BIG[6], tier: 6 });
+export const H7 = (g, x, y) => big(g, x, y, { ...BIG[7], tier: 7 });
+export const H8 = (g, x, y) => big(g, x, y, { ...BIG[8], tier: 8 });
+export const H9 = (g, x, y) => big(g, x, y, { ...BIG[9], tier: 9 });
+
+// A 2x2 home's slot: the mock-up's two shadow blocks (its shd calls) for the variant. height is the top of the
+// tallest thing on it: the pergola's vine (main block + 5 + 0.9 + its leaves), or the flag at 9.
+const bigSlot = (t, height, draw) => ({
+  w: 2, d: 2, height, bounds: boundsFor(2, 2, height),
+  shadows: [[0.1, 0.1, 1.2, 0.82, BIG[t].hA + 3], [1.25, 0.1, 0.65, 1.25, BIG[t].hB + 3]], draw,
+});
+
 // Shadow blocks are the mock-up's shd(...) calls, relative to the footprint origin.
 export const HOUSE_ART = {
   'house.t1': { w: 1, d: 1, height: 12, bounds: boundsFor(1, 1, 12), shadows: [[0.22, 0.22, 0.56, 0.56, 9]], draw: H1 },
   'house.t2': { w: 1, d: 1, height: 8, bounds: boundsFor(1, 1, 8), shadows: [[0.14, 0.14, 0.66, 0.66, 10]], draw: H2 },
   'house.t3': { w: 1, d: 1, height: 9, bounds: boundsFor(1, 1, 9), shadows: [[0.1, 0.1, 0.65, 0.6, 12], [0.5, 0.52, 0.42, 0.4, 8]], draw: H3 },
   'house.t4': { w: 1, d: 1, height: 18, bounds: boundsFor(1, 1, 18), shadows: [[0.08, 0.08, 0.62, 0.58, 16], [0.55, 0.42, 0.38, 0.5, 9]], draw: H4 },
+  'house.t5': { w: 1, d: 1, height: 23, bounds: boundsFor(1, 1, 23), shadows: [[0.08, 0.08, 0.6, 0.56, 21], [0.52, 0.44, 0.4, 0.48, 13]], draw: H5 },
+  'house.t6': bigSlot(6, 21, H6),
+  'house.t7': bigSlot(7, 22, H7),
+  'house.t8': bigSlot(8, 23, H8),
+  'house.t9': bigSlot(9, 32, H9),
 };
