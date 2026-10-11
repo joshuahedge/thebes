@@ -22,8 +22,23 @@ export function dateKeyOf(ms) {
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
 }
 
+// The free tile of a terrain ('fertile' or 'rocky') nearest to a point, as the tile's centre; null when there is none.
+// Free means no building and no road on it, so Show me never aims at ground that is already built on. A farm or a mine
+// needs its terrain (canPlace checks), and the nearest ground of it can lie beyond the ghost's search around a bazaar or a
+// home: Show me aims here instead. The goals' rocky target and the house sheet's makers share it.
+export function nearestTerrainTile(world, terrain, from) {
+  let best = null, bestD = Infinity;
+  for (let i = 0; i < world.terrain.length; i++) {
+    if (world.terrain[i] !== TERRAIN_BY_NAME[terrain] || world.occ[i] || world.road[i]) continue;
+    const x = (i % world.size) + 0.5, y = Math.floor(i / world.size) + 0.5;
+    const d = (x - from.x) ** 2 + (y - from.y) ** 2;
+    if (d < bestD) { bestD = d; best = { x, y }; }
+  }
+  return best;
+}
+
 // Where a goal's Show me points. 'alert' aims at the first building with that alert (an event goal's trouble);
-// 'rocky' at the rocky tile nearest the city's focus (a gem mine needs rocky ground, as canPlace checks);
+// 'rocky' at the free rocky tile nearest the city's focus (a gem mine needs rocky ground, as canPlace checks);
 // a goal with no showMe (out of debt) and any target that finds nothing fall back to the city's focus.
 export function showMeTarget(world, goal) {
   const show = goal.showMe;
@@ -44,13 +59,7 @@ export function showMeTarget(world, goal) {
     }
   }
   if (kind === 'rocky') {
-    let best = null, bestD = Infinity;
-    for (let i = 0; i < world.terrain.length; i++) {
-      if (world.terrain[i] !== TERRAIN_BY_NAME.rocky) continue;
-      const x = (i % world.size) + 0.5, y = Math.floor(i / world.size) + 0.5;
-      const d = (x - world.focus.x) ** 2 + (y - world.focus.y) ** 2;
-      if (d < bestD) { bestD = d; best = { x, y }; }
-    }
+    const best = nearestTerrainTile(world, 'rocky', world.focus);
     if (best) return best;
   }
   return { x: world.focus.x, y: world.focus.y };
