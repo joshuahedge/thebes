@@ -8,7 +8,7 @@ import { achievementProgress } from '../sim/achievements.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { CRITICAL } from './alerts.js';
 import { el, button } from './components.js';
-import { alertText, dateText, plural, progressText, closestAchievementText, ACHIEVEMENT_NAMES, DAILY_TEXT, TREND_MARKS, T } from './text.js';
+import { alertText, dateText, plural, progressText, closestAchievementText, viewLabel, ACHIEVEMENT_NAMES, DAILY_TEXT, TREND_MARKS, T } from './text.js';
 
 const MINUTE = 60 * 1000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 
@@ -87,7 +87,7 @@ export function welcomeSheet({ world, savedAt, lastSpeed, now = () => Date.now()
     const alerts = [...getAlerts()].sort((a, b) => Number(CRITICAL.has(b.code)) - Number(CRITICAL.has(a.code)));   // critical ones first (stable)
     body.append(el('h3', { text: T.alerts }));
     if (!alerts.length) body.append(el('p', { class: 'muted', text: T.noAlerts }));
-    else body.append(el('ul', { class: 'alert-list' }, alerts.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', onClick: () => onView(a) })]); })));
+    else body.append(el('ul', { class: 'alert-list' }, alerts.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => onView(a) })]); })));
     body.append(el('div', { class: 'actions welcome-actions' }, [
       button(T.carryOn, { class: 'carry-on primary', onClick: () => onCarryOn(lastSpeed) }),
       button(T.stayPaused, { class: 'stay-paused', onClick: () => onStayPaused() }),
