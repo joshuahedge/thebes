@@ -21,6 +21,7 @@ export const visibleCategories = () => CATEGORIES.filter((c) => c.items.length >
 
 export function toolForItem(item) {
   if (item === 'road') return { kind: 'road' };
+  if (item === 'wall') return { kind: 'wall' };       // drawn as a line, like a road (spec 6.4 Drawing mode)
   if (item === 'demolish') return { kind: 'demolish' };
   if (item === 'house') return { kind: 'houses' };
   return { kind: 'building', type: item };

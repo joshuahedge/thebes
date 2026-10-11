@@ -17,6 +17,7 @@ export const INITIAL_UI_STATE = {
   panelFolded: false,
   lastSpeed: 1,
   confirmDialog: null,
+  screenshot: false,     // Stage 3: screenshot mode hides the whole interface until the next tap, click, Esc or Back
 };
 
 export function createStore(initial) {

@@ -223,10 +223,15 @@ export function unlockText(type) {
 
 export const LEVEL_NAMES = { essential: 'water and food', safety: 'safety', services: 'services', industry: 'industry', monuments: 'monuments' };
 
+// Stage 3: the tracks' alert words, filled in their own sections below with Object.assign: code -> (alert, world, b,
+// name) => { title, fix }, where b is the alert's building (or null) and name its name ('A building' without one).
+export const ALERT_TEXT = {};
+
 // Every problem names the cause and the fix (spec 6.3).
 export function alertText(alert, world) {
   const b = alert.id ? world.buildings[alert.id] : null;
   const name = b ? buildingName(b.type) : 'A building';
+  if (ALERT_TEXT[alert.code]) return ALERT_TEXT[alert.code](alert, world, b, name);
   switch (alert.code) {
     case 'no_road': return { title: `${name} has no road`, fix: 'Lay a road beside it' };
     case 'no_storage': {
@@ -546,4 +551,54 @@ export const TREND_MARKS = { up: '▲', down: '▼' };
 // own exported objects (FIRE_TEXT, RAID_TEXT, ...), and adds to the shared tables above (FIRST_TEXT, MOOD_NAMES,
 // REASONS, CHAPTER_NAMES, T, ...) only with Object.assign inside its own section, so no two tracks edit the same lines.
 Object.assign(DIFFICULTY_NAMES, { peaceful: 'Peaceful' });
+Object.assign(T, { soldiersPay: "Soldiers' pay", wallBuilt: 'Wall built', screenshotMode: 'Screenshot mode' });
+Object.assign(REASONS, { no_rubble: 'No rubble here', bad_id: "Can't do that", has_id: "Can't do that" });
 // ── end s3 contract ──────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 fire (Track A) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track A's words for fire: the fire row, alert titles and fixes for fire, blaze and fire_risk, the mood rows fire and burned, captions. Add new lines just above the end marker.
+export const FIRE_TEXT = {};
+// ── end s3 fire ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 raids (Track B) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track B's words for raids: alert titles for raid_warning and raid, directions, the report, tribute and festival reasons, mood rows raid and festival. Add new lines just above the end marker.
+export const RAID_TEXT = {};
+// ── end s3 raids ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 art (Track C) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track C's words for art: words drawn on the map (the reduced-motion "Burning"). Add new lines just above the end marker.
+export const ART_TEXT = {};
+// ── end s3 art ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 ui (Track D) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track D's words for the danger interface: banners, the countdown chip, the tribute sheet, settings rows, the fire overlay and its legend. Add new lines just above the end marker.
+export const DANGER_UI_TEXT = {};
+// ── end s3 ui ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 score (Track E) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track E's words for scoring: parts, reasons, medals, splits, records, sharing, feats, remarks, and the danger goals, firsts, achievements, daily goals and tips. Add new lines just above the end marker.
+export const SCORE_TEXT = {};
+// ── end s3 score ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 sections: leave these lines as they are.)
+//
+// ── s3 balance (Track F) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track F's words for the integrator: anything balance needs words for (difficultyHint is edited in place). Add new lines just above the end marker.
+export const BALANCE_TEXT = {};
+// ── end s3 balance ───────────────────────────────────────────────────────────────────────────────────────────────────

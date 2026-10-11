@@ -20,7 +20,8 @@ export function keyLabel(name) {
 
 // canResumeGuide / onResumeGuide come from createUI: How to play offers "Resume guide" while the guide is off
 // and one of its steps is open, under Help: Guide and tips only (early-game pass 3.2).
-export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCity = () => {}, version = APP_VERSION, canResumeGuide = () => false, onResumeGuide = () => {} }) {
+// onScreenshot (Stage 3, spec 6.3): the menu's Screenshot mode; createUI enters the mode.
+export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCity = () => {}, version = APP_VERSION, canResumeGuide = () => false, onResumeGuide = () => {}, onScreenshot = null }) {
   const open = (kind) => store.set(openSheet(store.get(), kind));
   const hookOr = (name) => () => { if (typeof hooks[name] === 'function') hooks[name](); else toasts.show(T.notYet); };
 
@@ -36,6 +37,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       typeof hooks.install === 'function' && (typeof hooks.canInstall !== 'function' || hooks.canInstall()) ? button(T.installMenu, { class: 'install', onClick: () => hooks.install() }) : null,
       button(T.settings, { onClick: () => open('settings') }),
       button(T.howToPlay, { onClick: () => open('help') }),
+      typeof onScreenshot === 'function' ? button(T.screenshotMode, { class: 'screenshot-mode', onClick: onScreenshot }) : null,
       button(T.about, { onClick: () => open('about') }),
     ]));
   }

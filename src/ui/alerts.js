@@ -22,7 +22,8 @@ export function mapSummaryText(world, alerts) {
   return `${head} ${plural(alerts.length, 'alert', 'alerts')}: ${alerts.map((a) => alertText(a, world).title).join('. ')}.`;
 }
 
-export function createAlerts({ world, banner, live, onView = () => {}, onNewCritical = () => {}, root = document.body, getAlerts = () => alertsFor(world) }) {
+// onAction (Stage 3): a button on an alert other than View (the raid warning's Pay tribute), as onAction(alert, action).
+export function createAlerts({ world, banner, live, onView = () => {}, onAction = () => {}, onNewCritical = () => {}, root = document.body, getAlerts = () => alertsFor(world) }) {
   let current = { all: [], critical: [], ordinary: [] };
   let lastKeys = null;
   let lastCriticalKeys = null;
@@ -63,5 +64,6 @@ export function createAlerts({ world, banner, live, onView = () => {}, onNewCrit
     count: () => current.ordinary.length,
     list: () => current.all,
     critical: () => current.critical,
+    action: (alert, kind) => onAction(alert, kind),
   };
 }

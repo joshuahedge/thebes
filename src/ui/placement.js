@@ -12,9 +12,15 @@ import { homesServedFrom } from '../sim/housing.js';
 import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
 import { costOf } from '../sim/costs.js';
 import { refusingStores } from '../sim/production.js';
+import { previewWall, drawWall } from '../sim/defence.js';
+import { scoreLineFor } from './scoreUi.js';
 import { buildingName, reasonText, warningText, effectText, plural, nicerText, T } from './text.js';
 
 const footprintOf = (tool) => (tool.kind === 'building' ? { w: BUILDINGS[tool.type].w, d: BUILDINGS[tool.type].d } : { w: 1, d: 1 });
+
+// Tools drawn as a line from a start to an end, in an L that can be flipped (spec 6.4 Drawing mode): roads and walls.
+export const LINE_TOOLS = ['road', 'wall'];
+const isLine = (tool) => Boolean(tool) && LINE_TOOLS.includes(tool.kind);
 
 export function snapGhost(world, tool, x, y) {
   const { w, d } = footprintOf(tool);
@@ -89,12 +95,12 @@ function basePreview(world, state) {
     const effect = def.reach ? effectText(tool.type, homesServedFrom(world, tool.type, x, y)) : '';
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningLine(world, tool.type, x, y, r.warnings[0]) : '', effect, cost, count: 1, tiles: [], refund: 0 };
   }
-  if (tool.kind === 'road') {
+  if (isLine(tool)) {
     const l = state.line;
     if (!l) return idle(T.tapStart);
     if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
     const tiles = roadPath(l.x0, l.y0, l.x1, l.y1, l.flip);
-    const r = previewRoad(world, l.x0, l.y0, l.x1, l.y1, l.flip);
+    const r = (tool.kind === 'road' ? previewRoad : previewWall)(world, l.x0, l.y0, l.x1, l.y1, l.flip);
     if (!r.ok) return bad(r.reason, r.cost, r.tiles.length, tiles);
     if (!r.tiles.length) return bad('nothing_to_place', 0, 0, tiles);
     return { state: 'ok', reason: null, warnings: [], text: plural(r.tiles.length, 'tile', 'tiles'), effect: '', cost: r.cost, count: r.tiles.length, tiles, refund: 0 };
@@ -110,9 +116,10 @@ function basePreview(world, state) {
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : plural(r.positions.length, 'plot', 'plots'), effect: '', cost: r.cost, count: r.positions.length, tiles, refund: 0 };
   }
   const r = previewDemolishArea(world, a.x0, a.y0, a.x1, a.y1);
-  const count = r.buildingIds.length + r.roadTiles.length;
+  const count = r.buildingIds.length + r.roadTiles.length + r.wallTiles.length;
   const tiles = rectTiles(a.x0, a.y0, a.x1, a.y1, world.size);
   if (!count) return bad('nothing_here', 0, 0, tiles);
+  if (!r.ok) return bad(r.reason, -r.refund, count, tiles);                     // clearing rubble would cross the debt floor
   return { state: 'ok', reason: null, warnings: [], text: `${plural(count, 'item', 'items')} · ${T.refund} ${r.refund}`, effect: '', cost: -r.refund, count, tiles, refund: r.refund };
 }
 
@@ -123,10 +130,12 @@ export function toolPreview(world, state) {
   if (!p) return p;
   p.nicer = '';
   p.nicerTone = '';
+  p.score = '';                                         // Stage 3: the parts it would change, "+3 Culture" (scoreUi.js)
   if (state.tool.kind === 'building' && (p.state === 'ok' || p.state === 'warn')) {
     const d = nicerFor(world, state.tool.type, state.ghost.x, state.ghost.y);
     p.nicer = nicerText(d.better, d.worse);
     p.nicerTone = d.better && d.worse ? 'mixed' : d.better ? 'better' : d.worse ? 'worse' : '';
+    p.score = scoreLineFor(world, state.tool.type, state.ghost.x, state.ghost.y);
   }
   return p;
 }
@@ -168,7 +177,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       const s = store.get();
       if (!s.tool) return;
       if (s.tool.kind === 'building') { api.moveGhost(x, y); return; }
-      if (s.tool.kind === 'road') {
+      if (isLine(s.tool)) {
         const l = s.line;
         store.set({ line: !l || l.x1 !== null ? { x0: x, y0: y, x1: null, y1: null, flip: false } : { ...l, x1: x, y1: y } });
         return;
@@ -180,9 +189,9 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
     dragTo(x, y, phase) {
       const s = store.get();
       if (!s.tool || s.tool.kind === 'building') return;
-      if (phase === 'start') { store.set(s.tool.kind === 'road' ? { line: { x0: x, y0: y, x1: null, y1: null, flip: false } } : { area: { x0: x, y0: y, x1: null, y1: null } }); return; }
-      if (s.tool.kind === 'road' && s.line) store.set({ line: { ...s.line, x1: x, y1: y } });
-      else if (s.tool.kind !== 'road' && s.area) store.set({ area: { ...s.area, x1: x, y1: y } });
+      if (phase === 'start') { store.set(isLine(s.tool) ? { line: { x0: x, y0: y, x1: null, y1: null, flip: false } } : { area: { x0: x, y0: y, x1: null, y1: null } }); return; }
+      if (isLine(s.tool) && s.line) store.set({ line: { ...s.line, x1: x, y1: y } });
+      else if (!isLine(s.tool) && s.area) store.set({ area: { ...s.area, x1: x, y1: y } });
     },
     flip() { const s = store.get(); if (s.line) store.set({ line: { ...s.line, flip: !s.line.flip } }); },
     preview: () => toolPreview(world, store.get()),
@@ -205,10 +214,10 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         result = place(world, t.type, s.ghost.x, s.ghost.y);
         cx = s.ghost.x + def.w / 2; cy = s.ghost.y + def.d / 2;
         text = `${buildingName(t.type)} ${T.placed.toLowerCase()}`;
-      } else if (t.kind === 'road') {
-        result = drawRoad(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip);
+      } else if (isLine(t)) {
+        result = (t.kind === 'road' ? drawRoad : drawWall)(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip);
         cx = s.line.x1 + 0.5; cy = s.line.y1 + 0.5;
-        text = T.roadLaid;
+        text = t.kind === 'road' ? T.roadLaid : T.wallBuilt;
       } else {
         const a = s.area;
         result = t.kind === 'houses' ? paintHouses(world, a.x0, a.y0, a.x1, a.y1) : demolishArea(world, a.x0, a.y0, a.x1, a.y1);
@@ -222,7 +231,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         effects.puff(cx, cy, at);
         if (t.kind === 'building') effects.rise(result.id, s.ghost.x, s.ghost.y, BUILDINGS[t.type].w, BUILDINGS[t.type].d, at);   // the work-gang settle
       }
-      if (t.kind === 'road') store.set({ line: null });
+      if (isLine(t)) store.set({ line: null });
       else if (t.kind !== 'building') store.set({ area: null });
       afterCommand({ kind: t.kind, result, text, undoable: true });
       return result;

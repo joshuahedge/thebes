@@ -27,7 +27,9 @@ function capitalWorld() {
   for (let y = 17; y < 24; y++) for (let x = 0; x < SIZE; x++) terrain[idx(SIZE, x, y)] = T.FERTILE;
   for (let y = 21; y < 23; y++) for (let x = 10; x < 14; x++) terrain[idx(SIZE, x, y)] = T.ROCKY;
   const map = { size: SIZE, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries: [] };
-  return createWorld({ seed: 5, size: SIZE, map });
+  const w = createWorld({ seed: 5, size: SIZE, map });
+  w.calm = true;                                   // Stage 3 contract: no fire or raids until Track F gives it firehouses and defences
+  return w;
 }
 
 // Each step: the milestone it waits for, what it costs now, and the command. A step that fails for any reason but gold

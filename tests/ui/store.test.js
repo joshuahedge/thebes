@@ -25,6 +25,6 @@ describe('ui store', () => {
   });
   it('has every field the conventions list', () => {
     const keys = Object.keys(INITIAL_UI_STATE).sort();
-    expect(keys).toEqual(['area', 'category', 'confirmDialog', 'dock', 'ghost', 'hoverId', 'inputType', 'lastSpeed', 'layout', 'line', 'mode', 'overlay', 'panelFolded', 'selectedId', 'sheet', 'tool']);
+    expect(keys).toEqual(['area', 'category', 'confirmDialog', 'dock', 'ghost', 'hoverId', 'inputType', 'lastSpeed', 'layout', 'line', 'mode', 'overlay', 'panelFolded', 'screenshot', 'selectedId', 'sheet', 'tool']);
   });
 });

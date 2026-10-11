@@ -6,7 +6,10 @@ import { prefersReducedMotion } from '../render/effects.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 
 export const HELP_LEVELS = ['full', 'tips', 'off'];
-export const DEFAULT_SETTINGS = { sound: false, vibration: true, textSize: 100, leftHanded: false, keyboardShortcuts: true, reducedMotion: 'system', help: 'full', seenTips: [], difficulty: 'normal' };
+// Stage 3 (spec 4.3, 5.6, 6.3): ambient motion on or off, and what a fire no staffed firehouse reaches does to the speed
+// after the city's first one: 'pause', 'goto' (1x and the camera goes there) or 'inform' (1x and the banner).
+export const FIRE_REACTIONS = ['pause', 'goto', 'inform'];
+export const DEFAULT_SETTINGS = { sound: false, vibration: true, textSize: 100, leftHanded: false, keyboardShortcuts: true, reducedMotion: 'system', help: 'full', seenTips: [], difficulty: 'normal', ambient: true, fireReaction: 'inform' };
 
 const isBool = (v) => typeof v === 'boolean';
 const VALID = {
@@ -16,6 +19,8 @@ const VALID = {
   help: (v) => HELP_LEVELS.includes(v),
   seenTips: (v) => Array.isArray(v) && v.every((s) => typeof s === 'string'),
   difficulty: (v) => DIFFICULTY_ORDER.includes(v),
+  ambient: isBool,
+  fireReaction: (v) => FIRE_REACTIONS.includes(v),
 };
 // Lists are copied on the way in and out of storage, so no caller can change the defaults or the stored copy.
 const copy = (v) => (Array.isArray(v) ? v.slice() : v);

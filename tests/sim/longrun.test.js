@@ -8,6 +8,7 @@ import { makeTestWorld } from '../helpers/testWorld.js';
 // A realistic Stage 1 village built from the real starting treasury.
 function realVillage() {
   const w = makeTestWorld({ size: 48, fertile: [[0, 0, 8, 48]], gold: ECONOMY.startGold });
+  w.calm = true;                                   // Stage 3 contract: no fire or raids until Track F gives it firehouses
   const steps = [
     () => drawRoad(w, 0, 12, 27, 12),
     () => paintHouses(w, 10, 13, 26, 13),

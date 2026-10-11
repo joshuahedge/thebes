@@ -1,4 +1,4 @@
-// Sound and haptics (spec 5.5): seven short synthesised effects, off by default, unlocked on the first user
+// Sound and haptics (spec 5.5): nine short synthesised effects (the raid horn and the coin tick from Stage 3), off by default, unlocked on the first user
 // gesture; an ambient audio session so the iPhone silent switch is respected; short vibration pulses.
 // No audio element and no silent-switch unlock hack: when the phone is muted, the game is quiet.
 export const SFX = {
@@ -9,6 +9,9 @@ export const SFX = {
   milestone: [{ f: 523, type: 'triangle', t: 0, d: 0.15, g: 0.25 }, { f: 659, type: 'triangle', t: 0.15, d: 0.15, g: 0.25 }, { f: 784, type: 'triangle', t: 0.3, d: 0.15, g: 0.25 }, { f: 1047, type: 'triangle', t: 0.45, d: 0.3, g: 0.3 }],
   alert: [{ f: 330, type: 'square', t: 0, d: 0.12, g: 0.15 }, { f: 330, type: 'square', t: 0.2, d: 0.12, g: 0.15 }],
   goal: [{ f: 587, type: 'sine', t: 0, d: 0.1, g: 0.2 }, { f: 880, type: 'sine', t: 0.1, d: 0.2, g: 0.25 }],
+  // Stage 3: the raid horn, three low notes once when a warning appears; the coin tick, one high note when taxes arrive.
+  horn: [{ f: 147, type: 'sawtooth', t: 0, d: 0.35, g: 0.2 }, { f: 147, type: 'sawtooth', t: 0.45, d: 0.35, g: 0.2 }, { f: 110, type: 'sawtooth', t: 0.9, d: 0.4, g: 0.22 }],
+  coin: [{ f: 1568, type: 'triangle', t: 0, d: 0.08, g: 0.12 }],
 };
 
 const ATTACK = 0.01, TAIL = 0.02, SILENT = 0.0001;
