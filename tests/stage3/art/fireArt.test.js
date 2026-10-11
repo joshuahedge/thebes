@@ -53,7 +53,7 @@ describe('s3 art fire', () => {
     const a = frame(blaze.w, blaze.b, 1000, { reducedMotion: false });
     const b = frame(fire.w, fire.b, 1000, { reducedMotion: false });
     expect([a.calls.path, a.calls.radial.length]).toEqual([2, 0]);              // one flame (its outer and inner shapes), no smoke
-    expect([b.calls.path, b.calls.radial.length]).toEqual([6, SMOKE_PUFFS]);   // three flames and the smoke column
+    expect([b.calls.path, b.calls.radial.length]).toEqual([6, SMOKE_PUFFS * 2]);   // three flames and the smoke column (a body and a pale top a puff)
     expect(look(b.c).n).toBeGreaterThan(look(a.c).n * 3);
   });
   it('changes a flame\'s shape at most twice a second, never its brightness, and never in red', () => {
