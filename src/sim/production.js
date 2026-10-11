@@ -18,7 +18,8 @@ export function storeAccepts(b, good) {
   return !(b.accepts && b.accepts[good] === false);
 }
 
-const holds = (o, good) => (BUILDINGS[o.type].stores || []).includes(good) && (o.store[good] || 0) > 0;
+const stocked = (s, good) => (s.store[good] || 0) > 0;
+const holds = (o, good) => (BUILDINGS[o.type].stores || []).includes(good) && stocked(o, good);
 
 // Working stores within the producer's reach that take the good, nearest first, with room or not.
 function outputStores(world, b, good) {
@@ -30,14 +31,21 @@ function inputStores(world, b, input) {
   return buildingsInReach(world, b, BUILDINGS[b.type].producerReach, (o) => holds(o, input)).map((r) => r.b);
 }
 
-// One unit (spec 4.10): a workshop takes one of its input from the nearest store holding it, then the good goes to
-// the nearest store with room. Taking the input first means a full storehouse that gave up the clay has room for
-// the pot, so a storehouse filled with clay never stops its potter. Returns null, or why the unit could not be made.
+// The store a workshop takes its next unit of input from: the nearest holding it. When no store that takes the output
+// has room, only one of those stores can help (the nearest holding the input): giving up its input frees the room.
+function inputSource(sources, targets, input) {
+  if (targets.some(hasSpace)) return sources.find((s) => stocked(s, input));
+  return sources.find((s) => stocked(s, input) && targets.includes(s));
+}
+
+// One unit (spec 4.10): a workshop takes one of its input from the nearest suitable store (inputSource), then the good
+// goes to the nearest store with room. Taking the input first means a full storehouse that gave up the clay has room
+// for the pot, so a storehouse filled with clay never stops its potter. Returns null, or why the unit could not be made.
 function makeOne(world, good, input, sources, targets) {
   let from = null;
   if (input) {
-    from = sources.find((s) => (s.store[input] || 0) > 0);
-    if (!from) return 'no_input';
+    from = inputSource(sources, targets, input);
+    if (!from) return sources.some((s) => stocked(s, input)) ? 'storage_full' : 'no_input';
     from.store[input] -= 1;
   }
   const to = targets.find(hasSpace);
@@ -64,7 +72,8 @@ export function produceDay(world) {
     const sources = input ? inputStores(world, b, input) : [];
     if (input && !sources.length) { b.blocked = 'no_input'; continue; }
     const targets = outputStores(world, b, good);
-    if (!targets.some(hasSpace) && !(input && targets.includes(sources[0]))) { b.blocked = 'no_storage'; continue; }
+    // A full store that gives up its input counts as having room: each unit takes its input first (see makeOne).
+    if (!targets.some(hasSpace) && !(input && inputSource(sources, targets, input))) { b.blocked = 'no_storage'; continue; }
     b.blocked = null;
     b.progress += (perMonth / DAYS_PER_MONTH) * staffRatio(world, b);
     while (b.progress >= 1 - 1e-9) {
