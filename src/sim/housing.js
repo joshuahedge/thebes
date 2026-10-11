@@ -2,7 +2,7 @@ import { TIERS, MAX_TIER, LEAVE_CAP, DOWNGRADE_AFTER_MONTHS } from '../data/hous
 import { BUILDINGS } from '../data/buildings.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { allBuildings, housesOf } from './world.js';
-import { touchesRoad, roadReach, reachDistance } from './reach.js';
+import { touchesRoad, roadReach, reachDistance, buildingsInReach } from './reach.js';
 import { isWorking } from './labour.js';
 import { bazaarsByHouse, topUpHouse, monthlyNeed } from './distribution.js';
 
@@ -165,29 +165,51 @@ export function houseStatus(world, house) {
 
 // Why a home lacks a need (early-game pass 2.10), judged by the same live rules as the checklist: null when it
 // has the need (or the need is unknown), else { code, id }. A home that touches no road blames the road for
-// every need, since no well, bazaar or temple can reach it without one. For food, id is the bazaar concerned:
-// the nearest working one in reach that has grain (next_delivery), else the nearest empty one (bazaar_empty).
+// every need, since nothing can reach it without one. Providers (a well, a bazaar, a temple) are looked for in
+// reach whether or not they work, so a paused or unstaffed one is named (well_idle, bazaar_idle, temple_idle,
+// id the building) rather than answered with "build another"; no_well, no_bazaar and no_temple mean nothing of
+// that kind reaches the home at all. For food, a working bazaar in reach decides: one holding grain, or able to
+// draw on a granary that holds some, means next_delivery (id the bazaar); else granary_empty (id the nearest
+// granary in its supply reach, which holds nothing) or bazaar_empty (id the bazaar, no granary in reach at all).
 export function needCause(world, house, need) {
   const met = liveNeeds(world, house);
   if (!(need in met) || met[need]) return null;
   if (!met.road) return { code: 'no_road', id: null };
-  if (need === 'water') return { code: 'no_well', id: null };
-  if (need === 'religion') return { code: 'no_temple', id: null };
-  const reaching = bazaarsReaching(world, house);
+  if (need === 'water' || need === 'religion') {
+    const [near] = providersReaching(world, house, (def) => def.provides === need);
+    if (need === 'water') return near ? { code: 'well_idle', id: near.id } : { code: 'no_well', id: null };
+    return near ? { code: 'temple_idle', id: near.id } : { code: 'no_temple', id: null };
+  }
+  const reaching = providersReaching(world, house, (def) => def.sells);
   if (!reaching.length) return { code: 'no_bazaar', id: null };
-  const stocked = reaching.find((bz) => FOOD_GOODS.some((g) => (bz.store[g] || 0) > 0));
-  return stocked ? { code: 'next_delivery', id: stocked.id } : { code: 'bazaar_empty', id: reaching[0].id };
+  const working = reaching.filter((bz) => isWorking(world, bz));
+  if (!working.length) return { code: 'bazaar_idle', id: reaching[0].id };
+  const supply = new Map(working.map((bz) => [bz.id, graneriesFor(world, bz)]));
+  const holds = (b) => FOOD_GOODS.some((g) => (b.store[g] || 0) > 0);
+  const coming = working.find((bz) => holds(bz) || supply.get(bz.id).some(holds));
+  if (coming) return { code: 'next_delivery', id: coming.id };
+  const bare = working.find((bz) => supply.get(bz.id).length);
+  if (bare) return { code: 'granary_empty', id: supply.get(bare.id)[0].id };
+  return { code: 'bazaar_empty', id: working[0].id };
 }
 
-// Working bazaars whose reach takes in the home, nearest first: the rule bazaarsByHouse uses for deliveries.
-function bazaarsReaching(world, house) {
+// Buildings whose reach takes in the home and whose def passes `matches`, nearest first, working or not: the
+// rule coveredBy and bazaarsByHouse use for reach, without their working test.
+function providersReaching(world, house, matches) {
   const out = [];
   for (const b of allBuildings(world)) {
     const def = BUILDINGS[b.type];
-    if (!def.sells || !isWorking(world, b)) continue;
+    if (!def.reach || !matches(def)) continue;
     const dist = reachDistance(roadReach(world, b, def.reach), world, house);
     if (dist <= def.reach) out.push({ b, dist });
   }
   out.sort((p, q) => p.dist - q.dist || p.b.id - q.b.id);
   return out.map((e) => e.b);
+}
+
+// The stores a bazaar draws its goods from (restockBazaars' rule): any store of what it sells within its supply
+// reach, nearest first, holding goods or not.
+function graneriesFor(world, bazaar) {
+  const def = BUILDINGS[bazaar.type];
+  return buildingsInReach(world, bazaar, def.supplyReach, (o) => (BUILDINGS[o.type].stores || []).some((g) => def.sells.includes(g))).map((e) => e.b);
 }

@@ -9,23 +9,28 @@ import { openGoals } from '../sim/goals.js';
 import { closeSheet } from './modes.js';
 import { summaryData } from './hud.js';
 import { ZOOM_STEP } from '../data/ui.js';
-import { buildingName, tierName, NEED_NAMES, CAUSE_TEXT, MOOD_NAMES, alertText, plural, progressText, residentsLabel, T } from './text.js';
+import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, causeText, alertText, plural, progressText, T } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
 
-// Where each cause's Show me points: the card to open, and whether to aim at the home or at the building the
-// cause names (an empty bazaar wants a granary beside it). next_delivery needs nothing from the player.
+// What each cause's button does. Show me opens a card and aims at the home or at the building the cause names (an
+// empty bazaar wants a granary beside it, an empty granary a farm beside it); View selects the building that is in
+// reach but not working. next_delivery needs nothing from the player, so it has neither.
 const CAUSE_FIX = {
   no_road: { category: 'roads', item: 'road', at: 'home' },
   no_well: { category: 'services', item: 'well', at: 'home' },
   no_bazaar: { category: 'services', item: 'bazaar', at: 'home' },
   bazaar_empty: { category: 'food', item: 'granary', at: 'building' },
+  granary_empty: { category: 'food', item: 'farm_grain', at: 'building' },
   no_temple: { category: 'services', item: 'temple', at: 'home' },
+  well_idle: { view: true },
+  bazaar_idle: { view: true },
+  temple_idle: { view: true },
 };
 const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
 
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, afterCommand = () => {}, custom = {} }) {
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onSelect = () => {}, afterCommand = () => {}, custom = {} }) {
   const close = () => store.set(closeSheet(store.get()));
 
   function head(title) {
@@ -62,7 +67,8 @@ export function createSheets({ container, store, world, placement, cameraControl
   }
 
   // One row of the next-tier checklist: a mark, the need, a status in words (meaning never by colour alone);
-  // a missing need adds its cause, then its fix with Show me when there is something to build.
+  // a missing need adds its cause, then its fix: Show me when there is something to build, View when the
+  // building that would serve it is already in reach and only needs resuming or workers.
   function needRow(h, c) {
     const li = el('li', { class: c.met ? 'met' : 'missing' }, [el('div', { class: 'need' }, [
       el('span', { class: c.met ? 'tick' : 'cross', 'aria-hidden': 'true', text: c.met ? '✓' : '✕' }),
@@ -71,17 +77,21 @@ export function createSheets({ container, store, world, placement, cameraControl
     ])]);
     const cause = c.met ? null : needCause(world, h, c.need);
     if (!cause) return li;
-    const words = CAUSE_TEXT[cause.code];
+    const words = causeText(cause, world);
     li.append(el('p', { class: 'cause small', text: words.cause }));
     const fix = CAUSE_FIX[cause.code];
     if (!fix) return li;
-    const near = fix.at === 'building' && world.buildings[cause.id] ? world.buildings[cause.id] : h;
-    const at = centreOf(near);
-    const target = { category: fix.category, item: fix.item, x: at.x, y: at.y };
-    li.append(el('div', { class: 'fix' }, [
-      el('span', { class: 'small muted', text: words.fix }),
-      button(T.showMe, { class: 'show-me primary', onClick: () => onShowMe(target) }),
-    ]));
+    const building = cause.id !== null ? world.buildings[cause.id] : null;
+    let action;
+    if (fix.view) {
+      if (!building) return li;
+      action = button(T.view, { class: 'view quiet', 'aria-label': `${T.view}: ${buildingName(building.type)}`, onClick: () => onSelect(building.id) });
+    } else {
+      const at = centreOf(fix.at === 'building' && building ? building : h);
+      const target = { category: fix.category, item: fix.item, x: at.x, y: at.y };
+      action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${words.fix}`, onClick: () => onShowMe(target) });
+    }
+    li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix }), action]));
     return li;
   }
 
@@ -94,7 +104,7 @@ export function createSheets({ container, store, world, placement, cameraControl
       el('span', { class: 'muted', text: T.residents }),
       el('span', { class: 'value' }, [
         progressText(s.residents, s.capacity),
-        el('span', { class: 'meter', role: 'img', 'aria-label': residentsLabel(s.residents, s.capacity) }, [el('span', { class: 'fill', style: { width: `${Math.round(share * 100)}%` } })]),
+        el('span', { class: 'meter', 'aria-hidden': 'true' }, [el('span', { class: 'fill', style: { width: `${Math.round(share * 100)}%` } })]),
       ]),
     ]));
     if (s.next) {

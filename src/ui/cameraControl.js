@@ -65,6 +65,7 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, no
     // Centre on (cx, cy), then nudge the least that keeps tile point (x, y) inside the viewport minus the insets:
     // Show me centres the place and still never leaves the ghost off screen. Works from where the camera will
     // be, not where it is, so it is right whether the move is tweened or a jump.
+    // When the place and the point cannot both fit, the point wins and the place moves off centre.
     panToKeeping(cx, cy, x, y, insets = NO_INSETS, margin = 48, ms = CAMERA_PAN_MS) {
       const centre = nudgedCentre(cam, view(), cx, cy, x, y, insets, margin) || { x: cx, y: cy };
       begin(centre.x, centre.y, cam.zoom, ms);
