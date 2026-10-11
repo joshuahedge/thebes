@@ -1,0 +1,297 @@
+import { describe, it, expect } from '../harness.js';
+import { OVERLAYS, OVERLAY_HUE, GRADED_OVERLAYS, DESIRABILITY_ALPHA, houseMark, drawOverlay, drawDesirabilityTint, desirabilityStep, desirabilityBands } from '../../src/render/overlays.js';
+import { AUTO_OVERLAY, DESIRABILITY_STEPS } from '../../src/data/ui.js';
+import { TIERS } from '../../src/data/housing.js';
+import { createOverlayLegend } from '../../src/ui/overlayUi.js';
+import { createPlacement, toolPreview, nicerFor } from '../../src/ui/placement.js';
+import { createConfirmBar } from '../../src/ui/confirmBar.js';
+import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
+import { OVERLAY_NAMES, OVERLAY_LEGEND, desirabilityBand, nicerText } from '../../src/ui/text.js';
+import { place } from '../../src/sim/commands.js';
+import { createWorld } from '../../src/sim/world.js';
+import { buildStressCity } from '../../src/dev/sampleCity.js';
+import { p, tileDiamond } from '../../src/render/iso.js';
+import { makeDraw, rgba } from '../../src/render/art/ctx.js';
+import { UI, TERRAIN } from '../../src/render/art/palette.js';
+import { tileToScreen } from '../../src/render/camera.js';
+import { T as TILE } from '../../src/sim/terrain.js';
+import { idx } from '../../src/sim/grid.js';
+import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
+import { makeCanvas, pixelAt, hexToRgb } from '../helpers/canvas.js';
+import { uiWorld, rigUI } from '../helpers/uiWorld.js';
+import { mount, fire } from '../helpers/dom.js';
+
+const GARDEN = { kind: 'building', type: 'garden' };
+const GRANARY = { kind: 'building', type: 'granary' };
+
+// A canvas whose art origin sits at device (120, 60), drawn at 2 device px per art px, with tile (tx, ty) placed there.
+function scene(tx = 0, ty = 0, background = null) {
+  const c = makeCanvas(240, 200);
+  const ctx = c.getContext('2d');
+  if (background) { ctx.fillStyle = background; ctx.fillRect(0, 0, 240, 200); }
+  const [ax, ay] = p(tx, ty);
+  ctx.translate(120 - 2 * ax, 60 - 2 * ay);
+  return { c, g: makeDraw(ctx, 2), at: (x, y) => { const q = p(x, y); return [120 + 2 * (q[0] - ax), 60 + 2 * (q[1] - ay)]; } };
+}
+
+// The device pixels along the middle row of tile (x, y), its centre 12 art px either side.
+function rowAcross(s, x, y) {
+  const [cx, cy] = s.at(x + 0.5, y + 0.5);
+  const out = [];
+  for (let dx = -20; dx <= 20; dx++) out.push(pixelAt(s.c, cx + dx, cy));
+  return out;
+}
+
+const luminance = ([r, g, b]) => {
+  const lin = (v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+};
+
+// A road along y = 10 with a home of the given tier at (12, 11).
+function street(tier, extra = {}) {
+  const w = makeTestWorld({ gold: 5000 });
+  setRoad(w, 0, 10, 31, 10);
+  const h = addRaw(w, 'house', 12, 11, { tier, residents: TIERS[tier].capacity, ...extra });
+  return { w, h };
+}
+
+describe('stage 2 overlays', () => {
+  it('lists the seven overlays in order, with a name, a hue and a legend each, and shows the new ones on placing', () => {
+    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'housing']);
+    for (const o of OVERLAYS) {
+      expect([o, typeof OVERLAY_NAMES[o], typeof OVERLAY_HUE[o]]).toEqual([o, 'string', 'string']);
+      if (!GRADED_OVERLAYS.includes(o)) expect([o, OVERLAY_LEGEND[o].length]).toEqual([o, 2]);
+    }
+    expect(GRADED_OVERLAYS).toEqual(['desirability']);
+    expect([AUTO_OVERLAY.booth, AUTO_OVERLAY.garden, AUTO_OVERLAY.statue, AUTO_OVERLAY.well]).toEqual(['entertainment', 'desirability', 'desirability', 'water']);
+    const store = createStore(INITIAL_UI_STATE);
+    const pl = createPlacement({ world: uiWorld(), store });
+    for (const [type, overlay] of [['booth', 'entertainment'], ['garden', 'desirability'], ['statue', 'desirability'], ['granary', null]]) {
+      store.set({ overlay: null });
+      pl.start({ kind: 'building', type }, { x: 20, y: 9 });
+      expect([type, store.get().overlay]).toEqual([type, overlay]);
+    }
+  });
+  it('marks the goods a home needs for its next tier, and entertainment from a booth in reach', () => {
+    const plain = street(3);
+    expect(houseMark(plain.w, plain.h, 'goods')).toBe(null);                  // a Cottage's next tier needs no household goods
+    const house = street(4);
+    expect(houseMark(house.w, house.h, 'goods')).toEqual({ has: false, need: 'pottery' });
+    house.h.stock.pottery = 5;
+    expect(houseMark(house.w, house.h, 'goods')).toEqual({ has: true, need: null });
+    const town = street(5, { stock: { pottery: 5 } });
+    expect(houseMark(town.w, town.h, 'entertainment')).toEqual({ has: false, need: 'entertainment' });
+    addRaw(town.w, 'booth', 16, 9);
+    staffAll(town.w);
+    expect(houseMark(town.w, town.h, 'entertainment')).toEqual({ has: true, need: 'entertainment' });
+    expect(houseMark(plain.w, plain.h, 'entertainment')).toBe(null);         // only homes on the way to a Manor want it
+    const s = scene(12, 11);
+    addRaw(house.w, 'bazaar', 14, 8);
+    staffAll(house.w);
+    drawOverlay(s.g, house.w, 'goods', { x0: 0, y0: 0, x1: 31, y1: 31 });
+    let inked = 0;
+    for (let x = 0; x < 240; x += 2) for (let y = 0; y < 200; y += 2) if (pixelAt(s.c, x, y)[3] > 0) inked++;
+    expect(inked).toBeGreaterThan(10);                                         // the bazaar's reach and the home's mark
+  });
+  it('grades desirability in bands that start at each tier\'s "to rise" value, and words each band', () => {
+    expect(DESIRABILITY_STEPS).toEqual([0, ...TIERS.filter((t) => t && t.desirability).map((t) => t.desirability.rise)]);
+    expect(DESIRABILITY_STEPS).toEqual([0, 20, 35, 50, 65]);
+    expect([-1, 0, 19, 20, 34, 35, 49, 50, 64, 65, 200].map(desirabilityStep)).toEqual([-1, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+    expect([-1, 0, 1, 2, 3, 4].map((k) => desirabilityBand(k).label)).toEqual(['<0', '0–19', '20–34', '35–49', '50–64', '65+']);
+    expect(desirabilityBand(-1).words).toBe('Below 0: unpleasant');
+    expect(desirabilityBand(1).words).toBe(`20 to 34: pleasant enough for a ${TIERS[6].name}`);
+    expect(desirabilityBand(4).words).toBe(`65 or more: pleasant enough for a ${TIERS[9].name}`);
+    // One hue, light to dark: over sand each band is darker than the one before by a clear step (spec 6.3, colour-blind safe).
+    const sand = hexToRgb(TERRAIN.sand), hue = hexToRgb(OVERLAY_HUE.desirability);
+    const lum = DESIRABILITY_ALPHA.map((a) => luminance(sand.map((v, i) => Math.round(v * (1 - a) + hue[i] * a))));
+    for (let k = 1; k < lum.length; k++) expect([k, lum[k - 1] - lum[k] > 0.04]).toEqual([k, true]);
+  });
+  it('puts every tile in its band, leaves water and other buildings clear, and hatches below zero where the rest is a wash', () => {
+    const w = makeTestWorld({ gold: 5000 });
+    setRoad(w, 0, 10, 31, 10);
+    w.terrain[idx(32, 20, 20)] = TILE.WATER;
+    addRaw(w, 'garden', 5, 5);
+    addRaw(w, 'granary', 20, 4);
+    addRaw(w, 'house', 6, 5, { tier: 1, residents: 3 });
+    const { below, steps } = desirabilityBands(w);
+    const has = (list, x, y) => list.some(([a, b]) => a === x && b === y);
+    expect(has(steps[0], 4, 4)).toBe(true);                                    // beside the garden: 3
+    expect(has(steps[0], 6, 5)).toBe(true);                                    // the home's own tile counts
+    expect(has(below, 19, 4)).toBe(true);                                      // beside the granary: -8
+    expect([has(below, 20, 4), has(steps[0], 20, 4), has(below, 21, 5), has(steps[0], 21, 5)]).toEqual([false, false, false, false]);   // under the granary
+    expect(steps.some((l) => has(l, 20, 20)) || has(below, 20, 20)).toBe(false); // water
+    expect(steps[0].length + below.length + steps.slice(1).reduce((n, l) => n + l.length, 0)).toBe(32 * 32 - 1 - 4 - 1);   // all but water, the granary and the garden
+    // Drawn on a clear canvas: the wash beside the garden is one even strength; the hatching beside the granary stripes.
+    const s = scene(4, 4);
+    drawOverlay(s.g, w, 'desirability', { x0: 0, y0: 0, x1: 31, y1: 31 });
+    const wash = rowAcross(s, 4, 4).map((px) => px[3]);
+    expect(Math.max(...wash) - Math.min(...wash)).toBeLessThanOrEqual(6);
+    expect(Math.min(...wash)).toBeGreaterThan(0);
+    const h = scene(18, 5);
+    drawOverlay(h.g, w, 'desirability', { x0: 0, y0: 0, x1: 31, y1: 31 });
+    const hatch = rowAcross(h, 18, 5).map((px) => px[3]);
+    expect(Math.max(...hatch) - Math.min(...hatch)).toBeGreaterThan(100);
+  });
+  it('tints the ground a ghost would change: a teal wash where homes get nicer, coral hatching where they get worse', () => {
+    const s = scene(0, 0);
+    drawDesirabilityTint(s.g, [{ x: 0, y: 0, v: 3 }, { x: 3, y: 0, v: -4 }, { x: 0, y: 3, v: 0 }]);
+    const wash = rowAcross(s, 0, 0);
+    const alphas = wash.map((px) => px[3]);
+    expect(Math.max(...alphas) - Math.min(...alphas)).toBeLessThanOrEqual(6);  // even: a wash
+    const nicer = hexToRgb(UI.nicer);
+    expect(wash.every((px) => Math.abs(px[0] - nicer[0]) <= 30 && Math.abs(px[1] - nicer[1]) <= 30 && Math.abs(px[2] - nicer[2]) <= 30)).toBe(true);
+    const hatch = rowAcross(s, 3, 0).map((px) => px[3]);
+    expect(Math.max(...hatch) - Math.min(...hatch)).toBeGreaterThan(100);     // stripes: a pattern, readable without colour
+    expect(rowAcross(s, 0, 3).every((px) => px[3] === 0)).toBe(true);         // no change, no tint
+  });
+});
+
+describe('stage 2 overlay legend', () => {
+  it('shows the desirability scale as six bands with a label and words each, the first hatched, and cycles all seven overlays', () => {
+    const { root, cleanup } = mount();
+    try {
+      const store = createStore(INITIAL_UI_STATE);
+      const legend = createOverlayLegend({ container: root, store });
+      store.set({ overlay: 'desirability' });
+      const strip = root.querySelector('.strip');
+      expect(strip.classList.contains('graded')).toBe(true);
+      expect(strip.textContent).toContain(OVERLAY_NAMES.desirability);
+      const bands = [...strip.querySelectorAll('.band')];
+      expect(bands.map((b) => b.textContent)).toEqual(['<0', '0–19', '20–34', '35–49', '50–64', '65+']);
+      expect(bands.map((b) => b.getAttribute('aria-label'))).toEqual([-1, 0, 1, 2, 3, 4].map((k) => desirabilityBand(k).words));
+      expect(bands[0].querySelector('.swatch').classList.contains('hatch')).toBe(true);
+      expect(bands[0].querySelector('.swatch').style.backgroundImage).toContain('repeating-linear-gradient');
+      expect(bands[3].querySelector('.swatch').style.backgroundImage).toContain(rgba(OVERLAY_HUE.desirability, DESIRABILITY_ALPHA[2]).replace(/,/g, ', '));
+      expect(strip.querySelector('.dot')).toBe(null);
+      fire(strip.querySelector('.close'), 'click');
+      expect(store.get().overlay).toBe(null);
+      store.set({ overlay: 'goods' });
+      expect(root.querySelector('.strip').textContent).toContain(OVERLAY_LEGEND.goods[1]);
+      store.set({ overlay: null });
+      const seen = [];
+      for (let i = 0; i < 8; i++) { legend.cycle(); seen.push(store.get().overlay); }
+      expect(seen).toEqual([...OVERLAYS, null]);
+    } finally { cleanup(); }
+  });
+  it('keeps the scale on screen under the top bar on a phone at 150% text, with the close button 44 px', async () => {
+    const r = await rigUI({ width: 360, height: 640 });
+    try {
+      r.ui.settings.set({ textSize: 150 });
+      r.store.set({ overlay: 'desirability' });
+      const strip = r.root.querySelector('#legend .strip').getBoundingClientRect();
+      const shell = r.root.getBoundingClientRect();
+      expect([strip.left >= shell.left, strip.right <= shell.right + 0.5]).toEqual([true, true]);
+      expect(strip.bottom - shell.top).toBeLessThan(shell.height / 2);
+      const close = r.root.querySelector('#legend .close').getBoundingClientRect();
+      expect([close.width >= 44, close.height >= 44]).toEqual([true, true]);
+      for (const b of r.root.querySelectorAll('#legend .band')) expect(b.getBoundingClientRect().right).toBeLessThanOrEqual(shell.right + 0.5);
+    } finally { r.cleanup(); }
+  });
+});
+
+describe('stage 2 placement preview', () => {
+  it('says how many homes a building makes nicer or less pleasant, from the ghost\'s tile', () => {
+    const world = uiWorld();                                                   // huts at (12, 9) and (13, 9), road along y = 10
+    const store = createStore(INITIAL_UI_STATE);
+    const pl = createPlacement({ world, store });
+    pl.start(GARDEN, { x: 12, y: 8 });
+    expect(store.get().ghost).toEqual({ x: 12, y: 8 });
+    expect([pl.preview().nicer, pl.preview().nicerTone]).toEqual(['Makes 2 homes nicer', 'better']);
+    expect(pl.tint().length).toBeGreaterThan(0);
+    expect(pl.tint().every((t) => t.v > 0)).toBe(true);
+    pl.moveGhost(28, 2);                                                       // no homes anywhere near
+    expect([pl.preview().state, pl.preview().nicer]).toEqual(['ok', '']);
+    pl.start(GRANARY, { x: 14, y: 8 });
+    expect([pl.preview().nicer, pl.preview().nicerTone]).toEqual(['Makes 2 homes less pleasant', 'worse']);
+    pl.moveGhost(13, 9);                                                       // on a hut: blocked, so no line and no tint
+    expect([pl.preview().state, pl.preview().nicer, pl.tint()]).toEqual(['bad', '', []]);
+    pl.start({ kind: 'road' });
+    expect([pl.preview().nicer, pl.tint()]).toEqual(['', []]);
+    expect(nicerText(1, 0)).toBe('Makes 1 home nicer');
+    expect(nicerText(3, 2)).toBe('Makes 3 homes nicer and 2 less pleasant');
+    expect(nicerText(0, 0)).toBe('');
+  });
+  it('works the preview out once per ghost tile, and again only when the city changes', () => {
+    const world = uiWorld();
+    const a = nicerFor(world, 'garden', 12, 8);
+    expect(nicerFor(world, 'garden', 12, 8) === a).toBe(true);                // a redraw asks nothing new
+    expect(nicerFor(world, 'garden', 11, 8) === a).toBe(false);               // the next tile asks once
+    const b = nicerFor(world, 'garden', 11, 8);
+    expect(nicerFor(world, 'garden', 11, 8) === b).toBe(true);
+    expect(place(world, 'garden', 20, 20).ok).toBe(true);
+    expect(nicerFor(world, 'garden', 11, 8) === b).toBe(false);               // a new building: worked out afresh
+    // A crowded 64 x 64 city: sweeping the ghost along a row of 40 tiles stays well inside a frame each, and a frame
+    // that only redraws the same tile costs next to nothing.
+    const big = buildStressCity(createWorld({ seed: 3 }), { days: 0 });
+    const store = createStore(INITIAL_UI_STATE);
+    const pl = createPlacement({ world: big, store });
+    pl.start(GARDEN, { x: 10, y: 4 });
+    let started = performance.now();
+    for (let x = 4; x < 44; x++) { pl.moveGhost(x, 4); pl.preview(); pl.tint(); }
+    const sweep = performance.now() - started;
+    expect(sweep).toBeLessThan(40 * 16);
+    started = performance.now();
+    for (let i = 0; i < 200; i++) nicerFor(big, 'garden', 43, 4);
+    expect(performance.now() - started).toBeLessThan(20);
+  });
+  it('puts the line in the confirm bar in teal or coral, and keeps room for it', () => {
+    const { root, cleanup } = mount();
+    try {
+      const world = uiWorld();
+      const store = createStore(INITIAL_UI_STATE);
+      const placement = createPlacement({ world, store });
+      createConfirmBar({ container: root, store, placement, onCancel() {}, onConfirm() {}, onUndo() {} });
+      placement.start(GARDEN, { x: 12, y: 8 });
+      const line = root.querySelector('.confirm .nicer');
+      expect(line.textContent).toBe('Makes 2 homes nicer');
+      expect(line.classList.contains('teal')).toBe(true);
+      expect(root.querySelector('.confirm').classList.contains('desire')).toBe(true);
+      placement.moveGhost(28, 2);
+      expect(root.querySelector('.confirm .nicer')).toBe(null);
+      placement.start(GRANARY, { x: 14, y: 8 });
+      expect(root.querySelector('.confirm .nicer').classList.contains('coral')).toBe(true);
+      placement.start({ kind: 'road' });
+      expect(root.querySelector('.confirm').classList.contains('desire')).toBe(false);
+      placement.cancel();
+    } finally { cleanup(); }
+  });
+  it('keeps the portrait confirm bar one height as the line comes and goes, and the corners on it', async () => {
+    for (const size of [100, 150]) {
+      const r = await rigUI({ width: 390, height: 844 });
+      try {
+        r.ui.settings.set({ textSize: size });
+        const read = () => {
+          const bar = r.root.querySelector('#confirm').getBoundingClientRect();
+          const corner = r.root.querySelector('#corners .minimap-button').getBoundingClientRect().bottom;
+          expect([size, corner <= bar.top + 0.5]).toEqual([size, true]);
+          return bar.height;
+        };
+        r.ui.placement.start(GARDEN, { x: 28, y: 2 });
+        expect(r.root.querySelector('#confirm .nicer')).toBe(null);
+        const before = read();
+        r.ui.placement.moveGhost(12, 8);
+        expect(r.root.querySelector('#confirm .nicer').textContent).toBe('Makes 2 homes nicer');
+        expect([size, read()]).toEqual([size, before]);
+        r.ui.placement.cancel();
+      } finally { r.cleanup(); }
+    }
+  });
+  it('draws the tint on the map under the ghost while placing, and nothing once the tool is gone', async () => {
+    const r = await rigUI({ width: 800, height: 600 });
+    try {
+      const at = () => { const [sx, sy] = tileToScreen(r.cam, { width: 800, height: 600 }, 11.5, 7.5); return pixelAt(r.canvas, sx, sy); };
+      for (let i = 0; i < 8; i++) r.frame(i);                                  // every chunk in view baked
+      const plain = at();
+      r.ui.placement.start(GARDEN, { x: 12, y: 8 });
+      r.store.set({ overlay: null });                                          // the tint alone, without the desirability overlay
+      r.frame(16);
+      const tinted = at();
+      const nicer = hexToRgb(UI.nicer);
+      const towards = (px) => Math.abs(px[0] - nicer[0]) + Math.abs(px[1] - nicer[1]) + Math.abs(px[2] - nicer[2]);
+      expect(towards(tinted)).toBeLessThan(towards(plain) - 20);
+      r.ui.placement.cancel();
+      r.frame(32);
+      expect(towards(at())).toBe(towards(plain));
+    } finally { r.cleanup(); }
+  });
+});

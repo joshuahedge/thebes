@@ -1,4 +1,5 @@
 // Interface data: what the build dock shows and in what order, key bindings, and gesture and timing tunables.
+import { TIERS } from './housing.js';
 export const CATEGORIES = [
   { id: 'roads', items: ['road', 'demolish'] },
   { id: 'homes', items: ['house', 'garden', 'statue'] },
@@ -36,7 +37,12 @@ export const SHOW_ME_PULSES = 2;
 export const SHOW_ME_PULSE_MS = 400;
 export const GUIDE_PULSES = 2;          // the guide's map ring pulses twice when its step changes, then stays still (spec 3.2)
 export const GUIDE_PULSE_MS = 600;      // one pulse: under 3 flashes a second, done well within 5 s (spec 5.4)
-export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion' };
+export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion', booth: 'entertainment', garden: 'desirability', statue: 'desirability' };
+
+// The desirability overlay's bands (spec 4.7, 6.3): where each starts. Below the first is unpleasant (hatched); the
+// rest are the "to rise" values of the tiers that need desirability (Manor 20, Fine manor 35, Villa 50, Estate 65), so a
+// band says which home a tile is pleasant enough for, and the overlay follows the data when those are tuned.
+export const DESIRABILITY_STEPS = [0, ...TIERS.filter((t) => t && t.desirability).map((t) => t.desirability.rise)];
 
 // Picking a card or Show me puts a building ghost on the nearest tile where it fits, at most this many tiles
 // out (early-game pass 2.6). Only when nothing fits does it stay on the point itself.

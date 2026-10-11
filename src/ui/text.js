@@ -7,7 +7,7 @@ import { ACHIEVEMENTS } from '../data/achievements.js';
 import { FIRSTS } from '../data/firsts.js';
 import { GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
-import { TRADE_KEEP_STEP } from '../data/ui.js';
+import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
 import { ECONOMY } from '../data/economy.js';
 import { producerRefused } from '../sim/production.js';
 import { isUnlocked } from '../sim/progression.js';
@@ -261,13 +261,35 @@ export function alertText(alert, world) {
 export const SPEED_LABELS = ['Paused', '1×', '2×', '3×'];
 // The Help setting (early-game pass 3.1), keyed by settings.help.
 export const HELP_NAMES = { full: 'Guide and tips', tips: 'Tips only', off: 'Off' };
-export const OVERLAY_NAMES = { water: 'Water', food: 'Food', religion: 'Religion', housing: 'Housing' };
+export const OVERLAY_NAMES = { water: 'Water', food: 'Food', religion: 'Religion', goods: 'Goods', entertainment: 'Entertainment', desirability: 'Desirability', housing: 'Housing' };
 // The corner buttons' accessible names (early-game pass 2.9); each starts with or contains the word it shows.
 export const pauseSpeedText = (speed) => `${T.pause}, ${T.speed.toLowerCase()} ${SPEED_LABELS[speed]}`;
 export const layersText = (kind) => (kind ? `${T.layers}: ${OVERLAY_NAMES[kind]}` : T.layers);
 export const OVERLAY_LEGEND = {
-  water: ['Has water', 'No water'], food: ['Has food', 'No food'], religion: ['Has a temple', 'No temple'], housing: ['Ready to grow', 'Next need missing'],
+  water: ['Has water', 'No water'], food: ['Has food', 'No food'], religion: ['Has a temple', 'No temple'],
+  goods: ['Has its goods', 'Goods missing'], entertainment: ['Has entertainment', 'No entertainment'], housing: ['Ready to grow', 'Next need missing'],
 };
+
+// The desirability legend (spec 4.7, 6.3): a short label under each band's swatch, and words for screen readers that say
+// what the band is pleasant enough for. Band -1 is below zero; the others follow DESIRABILITY_STEPS (src/data/ui.js).
+const PLEASANT_TIERS = TIERS.filter((t) => t && t.desirability);
+export function desirabilityBand(k) {
+  const s = DESIRABILITY_STEPS;
+  if (k < 0) return { label: `<${s[0]}`, words: `Below ${s[0]}: unpleasant` };
+  const last = k + 1 >= s.length;
+  const label = last ? `${s[k]}+` : `${s[k]}–${s[k + 1] - 1}`;
+  const spoken = last ? `${s[k]} or more` : `${s[k]} to ${s[k + 1] - 1}`;
+  return { label, words: k === 0 ? `${spoken}: plain` : `${spoken}: pleasant enough for a ${PLEASANT_TIERS[k - 1].name}` };
+}
+
+// What a building would do to the homes around it while it is placed (spec 4.7), from desirabilityPreview's counts.
+export function nicerText(better, worse) {
+  const homes = (n) => plural(n, 'home', 'homes');
+  if (better && worse) return `Makes ${homes(better)} nicer and ${worse} less pleasant`;
+  if (better) return `Makes ${homes(better)} nicer`;
+  if (worse) return `Makes ${homes(worse)} less pleasant`;
+  return '';
+}
 
 export const dateText = ({ year, month, day }) => `Year ${year}, month ${month}, day ${day}`;
 export const shortDateText = ({ year, month }) => `Y${year} M${month}`;   // the top bar's date where room is short

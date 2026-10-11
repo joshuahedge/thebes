@@ -2,11 +2,13 @@
 // what a service will do from the ghost's spot (early-game pass 2.6), rotate for buildings that rotate, Flip
 // for roads, Undo, x and the tick. It never tucks away.
 import { BUILDINGS } from '../data/buildings.js';
+import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
 import { buildingName, T } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' ? buildingName('road') : tool.kind === 'houses' ? T.housingPlots : T.demolish);
+const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted' };
 const rotates = (tool) => tool.kind === 'building' && Boolean(BUILDINGS[tool.type].rotates);   // none in Stage 1 (mastabas come with monuments)
 
 export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo }) {
@@ -49,6 +51,8 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
       // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line. Homes
       // served read in teal; "no homes in reach yet" is not a gain, so it reads muted.
       p.state === 'ok' && p.effect ? el('div', { class: `effect small ${p.effect === T.noHomesInReach ? 'muted' : 'teal'}`, text: p.effect }) : null,
+      // What it does to the homes around it (spec 4.7), in words; teal when nicer, coral when less pleasant, ink when both.
+      p.nicer ? el('div', { class: `nicer small ${NICER_TONE[p.nicerTone]}`, text: p.nicer }) : null,
     ]);
     const controls = [];
     if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', disabled: true }));
@@ -56,7 +60,9 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
     controls.push(iconButton(T.cancel, '✕', { class: 'cancel', onClick: onCancel }));
     controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onClick: onConfirm }));
-    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}` }, [info, ...controls]);
+    // A building that changes desirability keeps a line for it (css: .confirm.desire), so the bar never grows as the ghost moves.
+    const desire = s.tool.kind === 'building' && (DESIRABILITY[s.tool.type] || []).length > 0;
+    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}` }, [info, ...controls]);
     element.append(bar);
     keepTallest(bar, s);
     publishHeight();
