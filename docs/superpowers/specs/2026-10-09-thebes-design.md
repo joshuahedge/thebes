@@ -82,7 +82,8 @@ It's a plain web page that installs to a phone's home screen, works offline, and
   - From Town, goals introduce each new need when the tier below it is common ("Your homes now want pottery: build a clay pit and a potter"), then ask for a number of homes at the new tier, so one new demand arrives at a time.
   - Danger goals (chapter "Danger"): "Build a firehouse" right after the Town goal, and "Build a tower and a barracks" right after the trading-post goal (skipped on Peaceful).
   - The goal list is data (`data/goals.js`). Missions will reuse it later.
-- **Next threshold bar:** a slim bar under the goals strip always shows the next milestone ("Town: 83 of 150 people"). From Capital it shows the next medal instead ("Silver: 38 points to go"). The milestone banner celebrates each step.
+- **The goals strip on phones is one row** (portrait and compact): the count or label ("2 of 10"), the goal's words (two lines at most), a progress chip and **Show me**. The label and the words are one button that opens the **Goals sheet**, so there is no separate Goals button. **Skip guide** lives in the Goals sheet, one tap with no confirm. The Goals sheet also holds the reward and a **Recent** list of the last 10 captions (section 6.3). Wide screens keep their strip.
+- **Next threshold bar:** a slim bar under the goals strip shows the next milestone ("Town: 83 of 150 people"). From Capital it shows the next medal instead ("Silver: 38 points to go"). A caption celebrates each step (section 6.3). On phones the bar shows only in **calm portrait play**: no banner, tip, caption, sheet or tool, never while the guide runs, and never on a landscape phone. The Goals sheet and the city summary always show it, and wide screens always show it under the strip.
 - First-time events add one-off goals instead of a separate tutorial: the first fire ("Build a firehouse near the fire"), the first raid warning ("Build a tower facing the east"), the first labour shortage, the first empty bazaar.
 
 ### 4.2 Core loop
@@ -415,9 +416,9 @@ Examples on Normal: 250 people and 6,000 wealth → 1 + 2 + 0.2 = 3.2 → 3 raid
 
 **The warning.**
 - It appears **3 game-months** ahead. The first warning pauses the game; later ones drop it to 1× (section 4.3). A short horn plays if sound is on (section 5.5).
-- It shows as the critical banner, which collapses to a one-line **countdown chip** under the top bar ("Raid from the east · 2 m 12 d"). The chip never times out (section 6.3).
+- It shows as the critical banner. On wide screens that is the full banner, which can collapse to a one-line **countdown chip** under the top bar ("Raid from the east · 2 m 12 d"). On phones it is the one-line chip from the start, and its words open the **raid sheet** (below). The chip never times out (section 6.3).
 - The entry point gets a **minimap pin with an arrow** pointing into the map.
-- The banner names the direction and the target, and shows **Pay tribute** beside the defence it could buy: "or build 2 towers facing east (≈ 300 gold)". N there is the towers needed less the working towers the city already has; at 0 the line reads "Your towers can beat this raid".
+- The wide banner names the direction and the target, and shows **Pay tribute** beside the defence it could buy: "or build 2 towers facing east (≈ 300 gold)". N there is the towers needed less the working towers the city already has; at 0 the line reads "Your towers can beat this raid". On phones the raid sheet carries these words.
 - The first warning adds the goal "Build a tower facing the east" (need: one tower).
 
 **Tribute.**
@@ -425,6 +426,7 @@ Examples on Normal: 250 people and 6,000 wealth → 1 + 2 + 0.2 = 3.2 → 3 raid
 - **Hidden for the very first raid**, so every player sees one fight.
 - Payable any time during the warning, never once raiders have arrived.
 - One **confirmation sheet** (`payTribute`): the cost, your gold afterwards, what it cancels and what it doesn't ("Cancels the raid from the east (8 raiders). The next raid still comes."), and two buttons named for the outcome, **"Pay 240 gold"** and **"Keep gold, defend"**, with no default.
+- **The raid sheet.** On phones this same sheet is where the raid warning's details live: when the chip's words are tapped it shows when the raiders arrive, the defence line, and Pay tribute or Keep gold. On the first raid, where tribute is hidden, it is headed "Raid warning" and shows the arrival and the defence line only. It is the existing tribute sheet, not a new kind of sheet, and it adds no new mode (section 6.4).
 - Paying **can't take the treasury below 0**. When it would, the pay button is disabled and says why in the words of the rule: "You have 180 gold. Tribute can't put the treasury below 0."
 - A paid raid is cancelled: no raiders, no mood penalty. The next raid is scheduled as usual.
 
@@ -499,7 +501,7 @@ All costs are times the difficulty's cost multiplier. Towers and barracks need a
 
 - Locked buildings show in the build tray only for the **next** milestone, greyed out with their unlock condition; later ones stay hidden until then, so the tray never fills with grey. Buildings of later stages (monuments) stay hidden until their stage ships. Rubble is never a card.
 - A city saved before Stage 3 gets "New" badges for the firehouse, and for the defences if it is already a Market town.
-- Reaching a milestone shows a banner ("Your village is now a Town"), and newly unlocked build cards get "New" badges.
+- Reaching a milestone shows a caption ("Your village is now a Town"; 5 s, section 6.3), and newly unlocked build cards get "New" badges.
 - The thresholds are starting values for tuning.
 
 ### 4.15 Trade
@@ -667,7 +669,7 @@ A score says how well the city is doing, in a way you can compare between cities
 
 **More for the early game** (each passes the test "skipping it costs you nothing"):
 - The endowed start and the next-threshold bar (section 4.1), and the "+N" previews above.
-- **Citizen remarks.** Short lines in the caption row ("The potters say the clay is good this year"), at most one every 3 game-months and only when the caption row is free. Each is chosen by `hash2(seed, month index)` from a pool of at least 24 in `text.js`, by season (Akhet: months 1-4, Peret: 5-8, Shemu: 9-12), and only from remarks whose building the city has. They follow the Help setting (none when Help is Off).
+- **Citizen remarks.** Short lines in the caption row ("The potters say the clay is good this year"), at most one every 3 game-months and only when the caption row is free (on phones, the guidance row, section 6.3). Each is chosen by `hash2(seed, month index)` from a pool of at least 24 in `text.js`, by season (Akhet: months 1-4, Peret: 5-8, Shemu: 9-12), and only from remarks whose building the city has. They follow the Help setting (none when Help is Off).
 - **A soft coin tick** when the month's taxes arrive (if sound is on), and **a ripple** on each home that a newly placed well first waters (not under reduced motion). Section 5.4.
 
 **Danger in the goals and rewards** (data plus words, as in Stage 2):
@@ -723,7 +725,7 @@ The ground reads as one painted landscape, not a grid of diamonds. Gameplay stil
 - **Placing:** a dust puff on ✓.
 - **Upgrading:** a short glow and a rising "+Shack" label.
 - **Downgrading:** a coral pulse and "−Cottage".
-- **Milestones:** a banner, plus "New" badges on unlocked cards.
+- **Milestones:** a caption, plus "New" badges on unlocked cards.
 - **Taxes:** a soft coin tick when the month's taxes arrive (sound only). **Water:** a ripple ring (0.8 s) on each home a newly placed well first waters.
 - Walkers, carts, boats and smoke animate gently. The ambient layer (section 5.6) adds water, sway, smoke and rare life.
 - **Fire** is drawn from the world's fire state, so it survives a reload:
@@ -775,7 +777,7 @@ The city breathes: slow, small, out-of-step motion over the landscape. Terrain i
 ### 6.1 Principles
 
 - **Things you read sit at the top, things you tap sit at the bottom** (or in the side panel on wide screens).
-- **Nothing floats over the middle of the map.** Corner buttons are fine.
+- **Nothing floats over the middle of the map.** Corner buttons are fine. On phones the middle third of the map never holds text (section 6.3, Small phones).
 - **One panel open at a time.**
 - **Every mode has a visible exit.** ✕, Back, Esc and right-click all go back one step.
 - **Meaning is never carried by colour alone.**
@@ -794,52 +796,67 @@ The layout depends on the available space; controls depend on the input in use (
   - a details card for the selected or hovered item, with ✕ and ✓ when placing on touch
 
   It can fold to a thin strip. The top bar shows more: income per month, jobless, months of food, mood, full date and speed buttons.
-- **Compact landscape layout** (every other viewport: wider than tall, but under 900 × 520 px). Used on phones held sideways and small tablets: a slim **vertical rail on the right** with category icons, trays opening as a side drawer, ✕ and ✓ at the bottom of the rail, and a condensed top bar.
+- **Compact landscape layout** (every other viewport: wider than tall, but under 900 × 520 px). Used on phones held sideways and small tablets: a slim **vertical rail on the right** with category icons, trays opening as a side drawer, ✕ and ✓ at the bottom of the rail (hidden while the confirm bar shows its own), and a condensed top bar.
 - **Rotating** keeps the camera position and any placement in progress.
 
 ### 6.3 Screen elements
 
 - **Top bar:** gold, population, mood, date and the ☰ menu. Tapping it opens the **city summary** sheet: income against spending (soldiers' pay on its own row), food in store, employment, the mood breakdown, goals, the score section (section 4.19) and the last raid's report. A small chip on the summary button shows the score ("Score 247"); the top bar gets nothing new.
 - **Speed controls:**
-  - Portrait: pause and speed sit in the **bottom-left corner button** (tap to pause or resume, long-press or tap the chevron for 1×, 2× or 3×).
+  - Portrait: pause and speed sit in the **bottom-left corner button** (tap to pause or resume, long-press or tap the chevron, labelled **Speed**, for 1×, 2× or 3×).
   - Wide: the speed controls are in the top bar.
 - **Build dock (portrait),** one panel with three heights:
   1. **Slim bar** (default): category icons with labels (Roads, Homes, Food, Industry, Services, Defence, Monuments).
   2. **Tray**: tapping a category or swiping up shows its buildings as cards with cost. Unaffordable costs show in coral with a coin-slash icon, and locked cards show a lock and their condition. The tray scrolls sideways and remembers the last category.
   3. **Tucked away**: swiping down or panning the map shrinks the dock to a single **Build** pill.
-- **Corner buttons** show at **every dock height**, never in the middle:
+- **Corner buttons** show at **every dock height**, never in the middle (in portrait at 125% text or more they hide while the tray is open if they would sit above half the screen):
   - bottom-left: pause and speed
   - bottom-right: the **minimap** button with an **alert count badge**, and the **overlay** button
 - **Alerts** come in three tiers, one channel each:
 
 | Tier | Channel | Examples | Screen readers |
 |---|---|---|---|
-| Info | A caption in the caption row | A blaze put out, a raid report, a citizen remark | Polite status |
+| Info | A caption (the caption row on wide screens, the guidance row on phones) | A blaze put out, a raid report, a citizen remark | Polite status |
 | Warning | The count badge, a row in the minimap sheet's list, and a problem marker on the map | A covered blaze, high fire risk, labour shortage, an empty bazaar, no storage | Polite status |
-| Critical | **The one banner** under the top bar | See the ranking below | `role="alert"` |
+| Critical | **The one banner** under the top bar (the alert row on phones) | See the ranking below | `role="alert"` |
 
-  - **Only one banner ever shows.** It holds the highest-ranked critical: **an active raid, then a raid warning, then a fire no staffed firehouse reaches, then debt, then save failing**. The others wait in the minimap list, and the banner shows "+2 more", which opens it.
+  - **Only one banner ever shows.** It holds the highest-ranked critical, ranked by how soon harm lands: **an active raid, then a fire no staffed firehouse reaches, then a raid warning, then debt, then save failing**. A fire burns out in 7-10 s and a warning gives about 60 s, so a fire is never hidden behind a raid that is months away. The others wait in the minimap list. On wide screens the banner shows "+2 more", which opens it. On phones there is no "+N more": the Map badge counts every alert the banner is not showing, criticals included, and the minimap sheet, opened from the badge or from the banner, lists alerts first (criticals first) and the map second.
   - **Repeats roll into one line**: "3 buildings on fire", whose View steps through them in turn.
   - Banner words and buttons:
 
 | Critical | Banner | Buttons |
 |---|---|---|
 | Active raid | "Raid from the east: 9 raiders left" | View |
-| Raid warning | "Raiders from the east are after your storehouses. They arrive in 2 months 12 days." and "or build 2 towers facing east (≈ 300 gold)" | View, Pay tribute (not on the first raid), collapse |
+| Raid warning | Wide: "Raiders from the east are after your storehouses. They arrive in 2 months 12 days." and "or build 2 towers facing east (≈ 300 gold)". Phones: the countdown chip (below) | Wide: View, Pay tribute (not on the first raid), Shrink. Phones: View, and the words open the raid sheet (section 4.13) |
 | Fire | "Fire at the potter: no firehouse reaches it" or "3 buildings on fire" | View |
 | Debt, save failing | As in Stage 2 | As in Stage 2 |
 
-  - **The countdown chip.** A raid warning's banner collapses to one line, "Raid from the east · 2 m 12 d", with View. It stays in the banner's place: it never times out and never stacks with another banner. When an active raid starts it becomes that raid's banner.
+  - **The countdown chip.** A raid warning's banner is one line, "Raid from the east · 2 m 12 d" ("Raid from the east · 2 months" when the days are 0), with View. On wide screens the full banner collapses to it with Shrink; on phones it is the banner from the start, and its words open the raid sheet. It stays in the banner's place: it never times out and never stacks with another banner. When an active raid starts it becomes that raid's banner.
   - **Minimap pins** can mark a map point as well as a building: the raid entry gets a pin with an arrow pointing in.
   - Banners never time out. They clear when the trouble does.
-  - **Small phones.** With a banner up, the overlay legend shrinks to an icon (tap it for the full legend), so the goals strip never ends below the middle of the screen, at any text size, on a 375×667 portrait phone or an 844×390 landscape phone.
+  - **Small phones.** In the portrait and compact layouts everything that appears over the map is kept to a budget, at any text size, so the rows never reach the middle of a 375×667 portrait phone or an 844×390 landscape phone. Wide layouts keep what they have.
+    - **At most two rows under the top bar:** an **alert row**, the one banner as one line (icon, words, View), and a **guidance row**. The guidance row shows one thing, in this order: the overlay legend (while an overlay is on), a tip, a caption, the goal (with the threshold bar in calm portrait play, section 4.1). Its words wrap to two lines at most; longer text is cut with "…", with the full words in the button's name and one tap away (the Goals sheet, the raid sheet, How to play).
+    - **One row on a landscape phone at 125% or 150% text:** the alert row when there is a banner, otherwise the guidance row.
+    - **A sheet open:** the guidance row hides, so tips and captions wait (a caption that waits more than 10 s goes to Recent), and the alert row stays one line. In compact the rows stop at the sheet's left edge. The camera frames a selected building, the placing ghost and Show me in the part of the map left free below the measured rows, not below a fixed 48 px bar.
+    - **A tool active** (placing, drawing, demolishing): the guidance row shows the goal or a caption, and tips wait.
+    - **Captions** show one at a time, 3 s apart: **4 s** for goals, firsts, feats and remarks, **5 s** for milestones and **6 s** for info. At most two wait; an older one goes straight to **Recent**. Every caption is also written to Recent, the last 10, in the Goals sheet. While a banner is up only info captions show; the rest go to Recent. A goal caption reads as the strip itself changing ("✓ Lay a road · +25 gold", then "2 of 10 Place 6 housing plots").
+    - **Tips** show one at a time. A tip takes the guidance row in place of the goal, and closes on **Got it**, on Esc, when its condition clears, or after **20 s of unpaused play** (so a paused game keeps it). The caps stay: none in the first 10 s of a session, at least 3 min between two, at most 5 an hour. Tips are always listed in How to play.
+    - **Toasts** show one at a time (the newest replaces the last), as wide as the screen allows up to **420 px** with 16 px sides, above the corner buttons: 4 s, or 6 s with Undo. Undo always undoes the last action, and also works from the confirm bar and with Ctrl+Z.
+    - **Height budget** (where the rows under the top bar end, as a share of the screen height; this is what the tests hold):
+
+    | Screen | Text | Rows end by | With a sheet open |
+    |---|---|---|---|
+    | 375×667 and 390×844, portrait | 100% | 30% | 20% |
+    | | 150% | 40% | 25% |
+    | 844×390 and 667×375, landscape | 100% | 40% (two rows) | the rows stop at the sheet's edge |
+    | | 125% and 150% | 40% (one row) | the rows stop at the sheet's edge |
 - **Overlays:** water, food, religion, goods, entertainment, desirability, **fire risk** and **Housing**.
   - Housing shows each home's next blocking need.
   - Has-it versus missing is shown as a **filled dot versus a hollow ring**. Graded overlays (desirability, fire risk) use a single-hue light-to-dark scale with a legend.
   - The **fire-risk legend** reads, in words: "Low · Rising · High · Can catch fire", with the hatching drawn on the top two swatches, then "● a firehouse reaches it · ○ no firehouse reaches it" and "Roads, gardens, statues, wells and walls never burn" (bands in section 4.12).
-  - The legend strip attaches under the top bar. A critical alert banner takes priority and shrinks the legend to an icon.
-- **Minimap sheet:** the whole map, the current view outlined, and alert pins. Tapping the map jumps there. It also holds the alert list with View buttons and **+/− zoom buttons**, the zoom alternative that doesn't need pinching.
-- **Info sheets.** Selecting a building moves the camera so the building stays visible above the sheet.
+  - The legend strip attaches under the top bar. On wide screens a critical banner shrinks it to an icon. On phones the legend takes the guidance row while an overlay is on (the goal waits), so the full legend reads under a banner.
+- **Minimap sheet:** the whole map, the current view outlined, and alert pins. Tapping the map jumps there. It also holds the alert list with View buttons (on phones the list comes first, criticals first, then the map) and **+/− zoom buttons**, the zoom alternative that doesn't need pinching.
+- **Info sheets.** Selecting a building moves the camera so the building stays visible above the sheet and below the alert and guidance rows.
   - **Buildings:** name, reach (highlighted), staffing, stock, problems, and from Town the **fire row** (section 4.12: "Fire risk: high, no firehouse within 8 road tiles", with Show me). Every problem names the **cause and the fix** with **View** ("Bazaar empty: no granary within 16 road tiles").
   - **Houses:** a **next-tier checklist** with a tick or cross for each need, timers ("upgrades in 1 month", "loses water in 1 month"), the desirability breakdown, residents and the fire row.
   - **Temple:** also **Hold a festival** with its cost, or "Next festival in 7 months" (section 4.13).
@@ -859,7 +876,7 @@ The layout depends on the available space; controls depend on the input in use (
 | Placing | **Confirm bar**: name, cost, **reason if blocked**, ⟳ rotate, Undo, ✕, ✓ | Moves the ghost to the tapped tile | ✕, Back, Esc, right-click |
 | Drawing (roads, walls, area paint) | Confirm bar with length or count and total cost | First tap sets the start, second sets the end | Same as Placing |
 | Demolishing | Red **Demolish** bar with count and refund, or the clearing cost for rubble | Marks a building, rubble or an area | Same as Placing |
-| Overlay (combines with Browse) | Legend strip at the top | As Browse | ✕ on the strip, O |
+| Overlay (combines with Browse) | Legend strip at the top (the guidance row on phones) | As Browse | ✕ on the strip, O |
 | Screenshot | Nothing: the whole interface is hidden | Restores the interface (pinch and drag still move the camera) | Tap, click, Esc, Back |
 
 - The confirm bar never tucks away.
@@ -869,7 +886,7 @@ The layout depends on the available space; controls depend on the input in use (
 ### 6.5 Placing and tools
 
 - **Touch placing:**
-  - The ghost appears mid-screen, snapped to the nearest valid tile.
+  - The ghost appears in the middle of the map left free (on phones, below the rows under the top bar), snapped to the nearest valid tile.
   - **Tapping** a tile moves it there. A **drag that starts on the ghost** moves it, drawn just above the finger so it isn't hidden. Every other one-finger drag pans, and **two fingers always pan or zoom**.
   - Nothing is built until ✓.
 - **Mouse placing:**
@@ -883,7 +900,7 @@ The layout depends on the available space; controls depend on the input in use (
 - **Rotate** (⟳ in the confirm bar, or R) for non-square footprints such as mastabas.
 - **Undo:**
   - The last **10 actions** (placing, drawing, painting, demolishing) can be undone with a full refund, **until the current game-month ends**. The monthly tick clears the undo history, which closes the refund loophole at high speed.
-  - Undo sits in the confirm bar and in a toast after each action, and works with Ctrl+Z or Cmd+Z.
+  - Undo sits in the confirm bar and in a toast after each action (one toast at a time on phones), and works with Ctrl+Z or Cmd+Z.
 
 ### 6.6 Gestures (touch)
 
