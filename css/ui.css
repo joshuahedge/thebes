@@ -493,6 +493,20 @@ body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; 
 #sheet .emoji-row { margin: 8px 0; font: inherit; line-height: 1.5; white-space: pre; overflow-x: auto; }
 #sheet .share-link-text { box-sizing: border-box; width: 100%; min-height: var(--tap); padding: 0 8px; font: inherit; color: var(--ink); background: var(--parchment-2); border: 1px solid var(--parchment-3); border-radius: var(--radius); }
 #sheet .honour { margin: 4px 0; font-style: italic; }
+/* The title card's records, This week's Nile and a friend's shared score (spec 4.1, 4.19). The card already scrolls inside
+   the screen (the difficulty rules above) when they make it taller than a small phone. */
+.title-records { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 2px 0; }
+.title-records .best-line { margin: 0; }
+.title-records .stamps { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; margin-top: 4px; }
+.title-weekly { display: flex; flex-direction: column; gap: 2px; }
+.title-weekly .weekly-hint { margin: 0; }
+.shared-score { background: var(--parchment-2); border-radius: var(--radius); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+.shared-score h2 { margin: 0; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
+.shared-score p { margin: 0; }
+.shared-score .beat { font-weight: 700; font-size: calc(20px * var(--ui-scale)); }
+.shared-score .start-seed { margin-top: 4px; }
+.title-card:has(> .guide) .shared-score { display: none; }   /* one panel at a time: the install guide or the new-city question */
+.shared-bad { margin: 0; }
 /* ── end s3 score ── */
 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */

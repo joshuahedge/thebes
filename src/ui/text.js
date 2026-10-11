@@ -661,6 +661,20 @@ export const SHARE_TEXT = {
   text: (total, rows, link) => `Thebes: score ${total}, friends' honour\n${rows}\n${link}`,
 };
 Object.assign(T, { sealReign: SCORE_TEXT.sealReign, shareScore: SCORE_TEXT.shareScore });   // the two sheets' headings
+// The title card (spec 4.1, 4.19): the device's bests and stamps, This week's Nile and a friend's shared score.
+export const TITLE_SCORE_TEXT = {
+  weekly: "This week's Nile", records: 'Your records', friend: "A friend's score", startSeed: 'Start this seed',
+  badLink: "This score link can't be read", newerLink: 'This score link is from a newer version of Thebes',
+  weeklyHint: (seed) => `Seed ${seed}: the same river for everyone this week`,
+  bestLine: (b) => `Best: ${b.score}${b.medal ? `, ${SCORE_TEXT.medals[b.medal].toLowerCase()}` : ''}, seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.older ? ', older scoring' : ''}`,
+  stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}`,
+  moreStamps: (n) => `+${n} more`,
+  friendLine: (total, seed, level) => `${total} on seed ${seed}, ${DIFFICULTY_NAMES[level] || level}. ${SHARE_TEXT.honour}`,
+  partsLine: (parts) => Object.keys(SCORE_TEXT.parts).map((p) => `${SCORE_TEXT.parts[p]} ${parts[p]}`).join(' · '),
+  yourBest: (score) => (score === null ? 'You have no score on this seed and level yet' : `Your best here: ${score}`),
+  beat: (total) => `Beat ${total}?`,
+  startOn: (level) => `It starts on ${DIFFICULTY_NAMES[level] || level}, the level of the shared score.`,
+};
 // ── end s3 score ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //
