@@ -1,7 +1,7 @@
 // The compact landscape rail (spec 6.2): category icons open a drawer of cards; x and tick live at the bottom.
 import { visibleCategories, CATEGORY_ICONS, CATEGORY_TINT } from '../data/ui.js';
 import { setDock, isToolMode } from './modes.js';
-import { renderCards, activeItemOf } from './cards.js';
+import { renderCards, activeItemOf, cardsKey } from './cards.js';
 import { CATEGORY_NAMES, T } from './text.js';
 import { el, iconButton } from './components.js';
 
@@ -34,7 +34,7 @@ export function createRail({ container, store, world, onPick, onConfirm, onCance
     const tool = isToolMode(s.mode);
     bottom.hidden = !tool;
     if (tool && placement) { const p = placement.preview(); ok.disabled = !p || p.state === 'bad' || p.state === 'idle'; }
-    const key = `${s.category}|${activeItemOf(s.tool)}|${world.gold}|${world.milestone}`;
+    const key = cardsKey(world, s.category, activeItemOf(s.tool));
     if (open && key !== lastCards) {
       renderCards(drawer, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick, grid: true });
       lastCards = key;

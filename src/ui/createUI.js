@@ -551,7 +551,7 @@ export function createUI({
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      guide.destroy(); stopHelpWatch();
+      guide.destroy(); stopHelpWatch();                // the guide's store subscription and the shared settings' help watch
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); celebrations.clear();
@@ -563,6 +563,7 @@ export function createUI({
       document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it
       delete root.dataset.mode;
       root.classList.remove('has-banner', 'has-overlay', 'nudge-play');
+      store.dispose();                                 // last: every component's subscription to this interface's store
     },
   };
 }

@@ -36,11 +36,12 @@ export function computeCoverage(world) {
 }
 
 // How many housing plots (any tier, empty ones too) a service of this type placed at (x, y) would reach along
-// the roads: the coveredBy rule applied to a building that is not there yet (early-game pass 2.6).
+// the roads: the coveredBy rule applied to a building that is not there yet (early-game pass 2.6). Uncached, so a
+// ghost moved tile by tile leaves nothing behind in the reach cache.
 export function homesServedFrom(world, type, x, y) {
   const def = BUILDINGS[type];
   if (!def || !def.reach) return 0;
-  const reach = roadReach(world, { x, y, w: def.w, d: def.d }, def.reach);
+  const reach = roadReach(world, { x, y, w: def.w, d: def.d }, def.reach, { cache: false });
   let n = 0;
   for (const h of housesOf(world)) if (reachDistance(reach, world, h) <= def.reach) n++;
   return n;

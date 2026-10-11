@@ -140,7 +140,7 @@ export const CHAPTER_NAMES = { first_homes: 'First homes', feed: 'Feed the villa
 export const DAILY_TEXT = {
   plots4: 'Place 4 housing plots', roads10: 'Lay 10 road tiles', upgrades3: 'Grow 3 homes a tier', well1: 'Build a well',
   bazaar1: 'Build a bazaar', temple1: 'Build a temple', farm1: 'Build a grain farm', people20: 'Gain 20 people',
-  profit1: 'Have a month in profit', harvest100: 'Store 100 grain',
+  profit1: 'Have a month in profit', harvest100: 'Harvest 100 grain',
 };
 export const milestoneText = (name) => `Your city is now a ${name}`;
 
@@ -227,7 +227,7 @@ export const ACHIEVEMENT_NAMES = {
 
 const BUILDING_PLURALS = { well: 'wells', farm_grain: 'grain farms', granary: 'granaries', bazaar: 'bazaars', temple: 'temples' };
 const TALLY_CONDITIONS = {
-  harvested: (n) => `Harvest ${n} food`,
+  harvested: (n) => `Harvest ${n} grain`,
   profitMonths: (n) => `End ${n} months in profit`,
   upgrades: (n) => `Grow homes ${n} times`,
   dailyDone: (n) => `Finish ${n} daily goals`,

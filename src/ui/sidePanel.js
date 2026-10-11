@@ -1,6 +1,6 @@
 // The wide layout's right-hand panel (spec 6.2): minimap, category tabs, the card grid and a details area.
 import { visibleCategories, CATEGORY_TINT } from '../data/ui.js';
-import { renderCards, activeItemOf } from './cards.js';
+import { renderCards, activeItemOf, cardsKey } from './cards.js';
 import { CATEGORY_NAMES, T } from './text.js';
 import { el, button, iconButton } from './components.js';
 
@@ -29,7 +29,7 @@ export function createSidePanel({ container, store, world, onPick, minimapNode =
     fold.setAttribute('aria-label', s.panelFolded ? T.unfold : T.fold);
     fold.querySelector('.icon').textContent = s.panelFolded ? '›' : '‹';
     tabButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(s.category === shown[i].id)));
-    const key = `${s.category}|${activeItemOf(s.tool)}|${world.gold}|${world.milestone}`;
+    const key = cardsKey(world, s.category, activeItemOf(s.tool));
     if (key !== lastCards) {
       renderCards(cards, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick, grid: true });
       lastCards = key;

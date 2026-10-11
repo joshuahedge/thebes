@@ -4,7 +4,9 @@ import { fire, key } from '../helpers/dom.js';
 import { buildingAt } from '../../src/sim/world.js';
 import { tickDay } from '../../src/sim/clock.js';
 import { settle } from '../../src/sim/settle.js';
-import { select } from '../../src/ui/modes.js';
+import { select, openSheet } from '../../src/ui/modes.js';
+import { createSettings } from '../../src/ui/settings.js';
+import { createStore } from '../../src/ui/store.js';
 
 describe('ui createUI', () => {
   it('places a well from the dock: card, ghost, tap, tick, building, then Undo from the toast', async () => {
@@ -135,6 +137,30 @@ describe('ui createUI', () => {
     expect(after === before).toBe(false);
     expect(after).toContain('4242');
     r.cleanup();
+  });
+  it('leaves no store or settings subscription behind when destroyed: the help watch and the guide go with it', async () => {
+    const real = createSettings({ storage: { getItem: () => null, setItem: () => {} }, root: document.body });
+    let live = 0;                                                             // subscriptions the interface holds on the shared settings
+    const settings = { ...real, subscribe(fn) { live++; const off = real.subscribe(fn); let on = true; return () => { if (on) { on = false; live--; } off(); }; } };
+    const r = await rigUI({ settings });
+    try {
+      expect(live).toBe(1);                                                   // the help watch
+      expect(r.store.subscribers()).toBeGreaterThan(5);                       // the components and the guide
+      expect(r.world.guide.on).toBe(true);
+      r.store.set(openSheet(r.store.get(), 'summary'));
+      r.ui.destroy();
+      expect(live).toBe(0);
+      expect(r.store.subscribers()).toBe(0);
+      settings.set({ help: 'off' });                                          // the next city's settings change: this world is left alone
+      expect(r.world.guide.on).toBe(true);
+      const dock = document.body.dataset.dock;
+      r.store.set({ dock: dock === 'tray' ? 'slim' : 'tray', category: 'food', sheet: null });   // a stray late set reaches nothing
+      expect(document.body.dataset.dock).toBe(dock);
+      expect(document.body.classList.contains('guide-on')).toBe(false);
+      expect(document.querySelectorAll('.suggested, .dimmed').length).toBe(0);
+      expect(r.root.querySelector('#sheet').hidden).toBe(true);
+      expect(typeof createStore({}).dispose).toBe('function');
+    } finally { r.cleanup(); }
   });
   it('pans a selection into view, tucks the dock on a pan, places on a mouse click, and detaches on destroy', async () => {
     const r = await rigUI();

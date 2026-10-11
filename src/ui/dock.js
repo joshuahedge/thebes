@@ -2,7 +2,7 @@
 // Tapping a category opens its tray; tapping it again closes it; the handle toggles; swipes move one step.
 import { visibleCategories, CATEGORY_ICONS, CATEGORY_TINT } from '../data/ui.js';
 import { pickCategory, setDock } from './modes.js';
-import { renderCards, activeItemOf } from './cards.js';
+import { renderCards, activeItemOf, cardsKey } from './cards.js';
 import { CATEGORY_NAMES, T } from './text.js';
 import { el, button, icon } from './components.js';
 
@@ -53,7 +53,7 @@ export function createDock({ container, store, world, onPick }) {
     document.body.dataset.dock = s.dock;
     handle.setAttribute('aria-expanded', String(s.dock === 'tray'));
     catButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(s.dock === 'tray' && s.category === shown[i].id)));
-    const key = `${s.category}|${activeItemOf(s.tool)}|${world.gold}|${world.milestone}`;
+    const key = cardsKey(world, s.category, activeItemOf(s.tool));
     if (s.dock === 'tray' && key !== lastCards) {
       renderCards(tray, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick });
       lastCards = key;
