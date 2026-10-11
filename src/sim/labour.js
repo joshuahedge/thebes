@@ -46,4 +46,6 @@ export function staffRatio(world, b) {
   return b.staff / workers;
 }
 
-export const isWorking = (world, b) => !b.paused && staffRatio(world, b) >= MIN_STAFF_RATIO;
+// A workplace works when it is not paused, not in the fire stage of a fire (spec 4.12: no production, service or storage
+// use while it burns; a blaze does not stop it) and has at least MIN_STAFF_RATIO of its workers.
+export const isWorking = (world, b) => !b.paused && !(b.fire && b.fire.stage === 'fire') && staffRatio(world, b) >= MIN_STAFF_RATIO;

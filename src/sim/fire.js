@@ -22,12 +22,21 @@
 // Alerts (fireAlerts): { code: 'fire', id } critical, a blaze or fire no staffed firehouse reaches; { code: 'blaze', id }
 // warning, a covered blaze; { code: 'fire_risk', id } warning, a building in the High or Can-catch-fire band that no
 // staffed firehouse covers (it carries the problem marker).
-import { FIRE, FIRE_RISK, HOUSE_RISK, FIRE_BANDS } from '../data/fire.js';
+//
+// Track A. Draws (each a fresh hash2, no state): ignition hash2(id, day, seed + FIRE_SALT.ignite) < FIRE.ignitionChance
+// once risk >= FIRE.threshold; a blaze's need hash2(id, day, seed + putOut) at ignition (putOutDays, 1 or 2). day is
+// the day being simulated (fireDay runs before tickDay turns the day). The first-time pause: the first blaze in the city
+// that no staffed firehouse reaches sets world.speed to 0 through setSpeed and danger.firePaused, once per city; its
+// event says first: true. The fire event also carries cause ('ignite', 'spread' or 'raid'). A building in the fire stage
+// stops working (isWorking in labour.js), so a burning firehouse covers nothing until it is put out.
+import { FIRE, FIRE_SALT, FIRE_RISK, HOUSE_RISK, FIRE_BANDS } from '../data/fire.js';
 import { allBuildings } from './world.js';
 import { atLeast } from './progression.js';
 import { rubbleCostOf, riskOf } from './costs.js';
 import { roadReach, adjacentRoadTiles } from './reach.js';
 import { isWorking, staffRatio } from './labour.js';
+import { hash2 } from './rng.js';
+import { setSpeed } from './commands.js';
 
 export { clearRubble } from './commands.js';   // the clearRubble command (spec 7.3) lives with demolish in commands.js
 
@@ -58,8 +67,10 @@ export const burning = (world) => allBuildings(world).filter((b) => b.fire);
 // paused) whose road reach (FIRE.reach tiles) takes in a road tile next to it. Buildings no firehouse reaches are not in
 // the map. Each road tile keeps the best ratio reaching it, then each building reads its own road tiles: one pass over the
 // firehouses and one over the buildings, never every building against every firehouse. Cached outside the world, keyed
-// on the road version and a signature of every building's id, place, size and a firehouse's staff and pause; read-only.
+// on the road version and a signature of every building's id, place, size and a firehouse's staff, pause and whether it
+// is in the fire stage (a burning firehouse stops working); read-only.
 const coverCache = new WeakMap();   // world -> { key, map }
+const inFireStage = (b) => Boolean(b.fire && b.fire.stage === 'fire');
 function coverKey(world) {
   let h = 0x811c9dc5, n = 0;
   for (const b of allBuildings(world)) {
@@ -67,7 +78,7 @@ function coverKey(world) {
     h = Math.imul(h ^ b.id, 16777619);
     h = Math.imul(h ^ (b.x * 256 + b.y), 16777619);
     h = Math.imul(h ^ (b.w * 4 + b.d), 16777619);
-    if (b.type === 'firehouse') h = Math.imul(h ^ ((b.staff | 0) * 2 + (b.paused ? 1 : 0) + 1000), 16777619);
+    if (b.type === 'firehouse') h = Math.imul(h ^ ((b.staff | 0) * 4 + (b.paused ? 1 : 0) + (inFireStage(b) ? 2 : 0) + 1000), 16777619);
   }
   return `${world.roadVersion}|${n}|${h}`;
 }
@@ -102,19 +113,54 @@ export const staffedCover = (world, b) => coverageOf(world, b) >= FIRE.staffedAt
 // The risk points the building adds today (spec 4.12): its base risk x the difficulty's risk (riskOf) x (1 - cut x
 // coverage), and 0 before Town or for a building that never burns.
 export function dailyRiskOf(world, b) {
+  return riskToday(world, b, fireCoverage(world));
+}
+// The same, reading a coverage map the caller already has (fireDay reads it once a day, not once a building).
+function riskToday(world, b, cover) {
   if (!fireStarted(world) || !canBurn(b)) return 0;
-  return baseRiskOf(b) * riskOf(world) * (1 - FIRE.cut * coverageOf(world, b));
+  return baseRiskOf(b) * riskOf(world) * (1 - FIRE.cut * (cover.get(b.id) || 0));
 }
 
-// STUB. The day's fire step, run by tickDay after production: risk builds, buildings at the threshold may ignite, blazes
-// are fought or grow, fires spread, go out or burn down, with their events, tallies and danger days; the first fire no
-// staffed firehouse reaches pauses the game once per city (world.speed = 0, danger.firePaused).
-export function fireDay(world, events = null) {}
+// A seeded draw in [0, 1): hash2(a, b, seed + FIRE_SALT[kind]). Stateless, so a reload changes nothing.
+const draw = (world, a, b, kind) => hash2(a, b, (world.seed + FIRE_SALT[kind]) | 0);
+// A whole number in [lo, hi] from a draw.
+const between = ([lo, hi], u) => lo + Math.min(hi - lo, Math.floor(u * (hi - lo + 1)));
 
-// STUB. Starts a blaze in the building (cause: 'ignite', 'spread' or 'raid'). Returns true when a blaze started; false
-// when there is no such building, it never burns or it is already burning. Raids call it for a strike (Track B).
+// The city's one first-time pause (spec 4.3): true when this fire is the one that paused the game.
+function pauseFirst(world) {
+  if (world.danger.firePaused) return false;
+  setSpeed(world, 0);
+  world.danger.firePaused = true;
+  return true;
+}
+
+// The day's fire step, run by tickDay after production: every building that can burn and is not burning adds its daily
+// risk (dailyRiskOf), and one at the threshold catches fire on a 3% draw (risk back to 0).
+export function fireDay(world, events = null) {
+  const day = world.day;
+  const cover = fireCoverage(world);
+  for (const b of allBuildings(world)) {
+    if (b.fire || !canBurn(b)) continue;
+    b.risk = (b.risk || 0) + riskToday(world, b, cover);
+    if (b.risk >= FIRE.threshold && draw(world, b.id, day, 'ignite') < FIRE.ignitionChance) igniteBuilding(world, b.id, events, 'ignite');
+  }
+}
+
+// Starts a blaze in the building (cause: 'ignite', 'spread' or 'raid'). Returns true when a blaze started; false when
+// there is no such building, it never burns or it is already burning. Raids call it for a strike (Track B). The blaze
+// draws the covered-and-staffed days it needs (1 or 2), the building's risk goes back to 0, tally.fires counts it, and
+// the event { type: 'fire', id, covered, first, cause } says whether a staffed firehouse reaches it and whether it
+// paused the game (the city's first fire that none reaches).
 export function igniteBuilding(world, id, events = null, cause = 'ignite') {
-  return false;
+  const b = world.buildings[id];
+  if (!b || !canBurn(b) || b.fire) return false;
+  b.fire = { stage: 'blaze', days: 0, need: between(FIRE.putOutDays, draw(world, b.id, world.day, 'putOut')), fought: 0 };
+  b.risk = 0;
+  world.tally.fires += 1;
+  const covered = staffedCover(world, b);
+  const first = !covered && pauseFirst(world);
+  if (events) events.push({ type: 'fire', id: b.id, covered, first, cause });
+  return true;
 }
 
 // STUB. Burns the building down now: a home becomes empty plots on its tiles (four for a 2x2) and its residents leave
