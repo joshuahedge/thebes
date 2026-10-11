@@ -124,7 +124,7 @@ body[data-layout="wide"] .confirm, body[data-layout="compact"] .confirm { paddin
 #panel .foldbar { display: flex; justify-content: flex-start; padding: 6px; border-bottom: 1px solid var(--parchment-3); }
 #panel .minimap { align-self: center; margin: 8px; }
 #panel .tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 8px; }
-#panel .tab { min-height: var(--tap); min-width: 0; padding: 0 10px; font-size: calc(12px * var(--ui-scale)); }
+#panel .tab { min-height: var(--tap); min-width: 0; padding: 0 8px; font-size: calc(12px * var(--ui-scale)); }   /* 8 px: five tabs fit one row at 100% text */
 #panel .tab[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); box-shadow: none; }
 #panel .cards { overflow-y: auto; flex: 1; }
 #panel .details { border-top: 1px solid var(--parchment-3); padding: 8px 12px; min-height: 64px; }
@@ -139,7 +139,7 @@ body.panel-folded #panel > :not(.foldbar) { display: none; }
 
 /* Sheets: a bottom sheet in portrait, a drawer in compact, the lower part of the panel column in wide. */
 #sheet { position: fixed; background: var(--parchment); box-shadow: var(--shadow); overflow-y: auto; display: flex; flex-direction: column; }
-#sheet .head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; position: sticky; top: 0; background: var(--parchment); border-bottom: 1px solid var(--parchment-3); }
+#sheet .head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; position: sticky; top: 0; z-index: 1; background: var(--parchment); border-bottom: 1px solid var(--parchment-3); }   /* z-index: above content that scrolls under it, a disabled button's own layer (its opacity) too */
 #sheet .head h2 { flex: 1; font-size: calc(18px * var(--ui-scale)); }
 #sheet .body { padding: 8px 16px calc(16px + var(--safe-bottom)); }
 #sheet .welcome-actions { position: sticky; bottom: 0; background: var(--parchment); border-top: 1px solid var(--parchment-3); margin: 12px -16px calc(-16px - var(--safe-bottom)); padding: 10px 16px calc(10px + var(--safe-bottom)); }   /* Carry on stays in view however many alerts there are */
@@ -148,7 +148,7 @@ body.panel-folded #panel > :not(.foldbar) { display: none; }
 #sheet .cross { color: var(--coral-text); }
 body[data-layout="portrait"] #sheet { left: 0; right: 0; bottom: 0; max-height: 60vh; max-height: 60dvh; border-radius: 16px 16px 0 0; }
 body[data-layout="compact"] #sheet { top: calc(var(--safe-top) + var(--topbar-h)); right: calc(var(--rail-w) + var(--safe-right)); bottom: 0; width: var(--drawer-w); }
-body[data-layout="wide"] #sheet { right: 0; bottom: 0; width: var(--panel-w); max-height: 55%; border-top: 1px solid var(--parchment-3); border-left: 1px solid var(--parchment-3); }
+body[data-layout="wide"] #sheet { right: 0; bottom: 0; width: var(--panel-w); max-height: min(55%, calc(100% - var(--panel-tabs-bottom, 0px))); border-top: 1px solid var(--parchment-3); border-left: 1px solid var(--parchment-3); }   /* never over the side panel's tabs, however many rows they take (sidePanel.js publishes their bottom edge) */
 
 /* Which chrome each layout shows. */
 body[data-layout="portrait"] #panel, body[data-layout="portrait"] #rail { display: none; }
@@ -411,14 +411,15 @@ body.reduce-motion .goal-strip .show-me.glow, body.reduce-motion.nudge-play .spe
 .checklist .desirability { margin: 2px 0 0 calc(var(--mark-w) + 8px); }
 
 /* Stage 2 overlays and the placement preview (spec 4.7, 6.3). The desirability legend is a scale: a swatch over a short
-   label per band, the first hatched as on the map. On a phone the scale takes a row of its own under the name and the x. */
+   label per band, the first hatched as on the map. On a phone held upright the scale takes a row of its own under the name
+   and the x; held sideways (compact) it keeps one row, so the strip and the goals under it stay out of the middle. */
 #legend .strip.graded { flex-wrap: wrap; row-gap: 0; max-width: 100%; box-sizing: border-box; }
 #legend .scale { display: inline-flex; flex-wrap: wrap; align-items: flex-start; gap: 2px 6px; }
 #legend .band { display: inline-flex; flex-direction: column; align-items: center; min-width: 32px; }
 #legend .swatch { display: block; width: 26px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(43, 31, 14, 0.35); }
 #legend .band .text { line-height: 1.1; white-space: nowrap; }
-body:not([data-layout="wide"]) #legend .strip.graded .scale { order: 3; flex-basis: 100%; }
-body:not([data-layout="wide"]) #legend .strip.graded .close { margin-left: auto; }
+body[data-layout="portrait"] #legend .strip.graded .scale { order: 3; flex-basis: 100%; }
+body[data-layout="portrait"] #legend .strip.graded .close { margin-left: auto; }
 /* A building that changes desirability has a fourth line in the confirm bar ("Makes 6 homes nicer"): in portrait the bar
    keeps room for it from the start (title 1.4em, three small lines of 1.05em; at 125% and 150% one of them may wrap). */
 body[data-layout="portrait"] .confirm.desire .info { min-height: 4.55em; }

@@ -312,4 +312,24 @@ describe('ui trade sheet', () => {
       expect(r2.root.querySelectorAll('#sheet').length).toBe(1);
     } finally { r2.cleanup(); }
   });
+  it('keeps the heading above the sheet as it scrolls, a disabled Open route too, on a phone either way up', async () => {
+    for (const [width, height] of [[844, 390], [390, 844]]) {
+      const { w, post } = tradeWorld();
+      expect(openRoute(w, 'memphis').ok).toBe(true);                                // an open route lists the goods, so the sheet scrolls
+      const r = await rigUI({ world: w, width, height });
+      try {
+        openTrade(r, post);
+        r.root.style.left = '0px';                                                   // on screen (its foot at the window's), so the page can say what is on top
+        r.root.style.top = `${Math.min(0, innerHeight - height)}px`;
+        const sheet = r.root.querySelector('#sheet'), head = sheet.querySelector('.head');
+        const open = route(r, 'byblos').querySelector('.open-route');                // Byblos waits for the Great city: disabled
+        expect(open.disabled).toBe(true);
+        sheet.scrollTop += open.getBoundingClientRect().top - head.getBoundingClientRect().top + 4;   // the button slides under the heading
+        const b = open.getBoundingClientRect(), h = head.getBoundingClientRect();
+        expect([b.top < h.bottom, b.bottom > h.top]).toEqual([true, true]);
+        const top = document.elementFromPoint(b.left + b.width / 2, (Math.max(b.top, h.top) + Math.min(b.bottom, h.bottom)) / 2);
+        expect([`${width}x${height}`, head.contains(top)]).toEqual([`${width}x${height}`, true]);
+      } finally { r.cleanup(); }
+    }
+  });
 });

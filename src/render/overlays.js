@@ -138,8 +138,9 @@ export function hatchTiles(g, tiles, color, opts) {
 
 // The desirability overlay (spec 4.7, 6.3): each tile's score in one indigo, light to dark by the bands of
 // DESIRABILITY_STEPS, and coral hatching below zero. Water and the tiles under other buildings stay clear: only open
-// ground and homes have a use for the number. DESIRABILITY_ALPHA is each band's strength (the legend uses it too).
-export const DESIRABILITY_ALPHA = [0.08, 0.2, 0.32, 0.44, 0.56];
+// ground and homes have a use for the number. DESIRABILITY_ALPHA is each band's strength (the legend uses it too):
+// even steps from a first band strong enough to show on bare ground.
+export const DESIRABILITY_ALPHA = [0.14, 0.25, 0.36, 0.47, 0.58];
 
 // The band a score falls in: -1 below zero, else the index of the last step it reaches.
 export function desirabilityStep(v) {
