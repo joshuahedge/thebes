@@ -11,7 +11,7 @@ describe('ui dock', () => {
     const picked = [];
     createDock({ container: root, store, world: makeTestWorld(), onPick: (i) => picked.push(i) });
     expect(root.dataset.height).toBe('slim');
-    expect(root.querySelectorAll('.cat').length).toBe(7);
+    expect(root.querySelectorAll('.cat').length).toBe(4);          // empty categories are hidden
     fire(root.querySelectorAll('.cat')[2], 'click');
     expect(store.get().dock).toBe('tray');
     expect(store.get().category).toBe('food');

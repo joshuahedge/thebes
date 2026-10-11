@@ -1,6 +1,6 @@
 // The portrait build dock (spec 6.3): slim bar of categories, a tray of cards, or tucked to a "Build" pill.
 // Tapping a category opens its tray; tapping it again closes it; the handle toggles; swipes move one step.
-import { CATEGORIES, CATEGORY_ICONS } from '../data/ui.js';
+import { visibleCategories, CATEGORY_ICONS, CATEGORY_TINT } from '../data/ui.js';
 import { pickCategory, setDock } from './modes.js';
 import { renderCards, activeItemOf } from './cards.js';
 import { CATEGORY_NAMES, T } from './text.js';
@@ -13,8 +13,10 @@ export function createDock({ container, store, world, onPick }) {
   const cats = el('div', { class: 'cats' });
   const tray = el('div', { class: 'tray cards' });
   const pill = button(T.build, { class: 'pill primary' });
-  const catButtons = CATEGORIES.map((c) => {
-    const b = el('button', { type: 'button', class: 'cat', 'aria-pressed': 'false' }, [icon(CATEGORY_ICONS[c.id]), el('span', { text: CATEGORY_NAMES[c.id] })]);
+  const shown = visibleCategories();            // empty categories stay hidden until a stage fills them (early-game pass 2.5)
+  const catButtons = shown.map((c) => {
+    const b = el('button', { type: 'button', class: 'cat', dataset: { category: c.id }, 'aria-pressed': 'false' }, [icon(CATEGORY_ICONS[c.id]), el('span', { text: CATEGORY_NAMES[c.id] })]);
+    b.style.setProperty('--tint', CATEGORY_TINT[c.id]);
     b.addEventListener('click', () => {
       const s = store.get();
       if (s.dock === 'tray' && s.category === c.id) store.set(setDock(s, 'slim'));
@@ -50,7 +52,7 @@ export function createDock({ container, store, world, onPick }) {
     container.dataset.height = s.dock;
     document.body.dataset.dock = s.dock;
     handle.setAttribute('aria-expanded', String(s.dock === 'tray'));
-    catButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(s.dock === 'tray' && s.category === CATEGORIES[i].id)));
+    catButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(s.dock === 'tray' && s.category === shown[i].id)));
     const key = `${s.category}|${activeItemOf(s.tool)}|${world.gold}|${world.milestone}`;
     if (s.dock === 'tray' && key !== lastCards) {
       renderCards(tray, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick });

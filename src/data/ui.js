@@ -11,6 +11,12 @@ export const CATEGORIES = [
 
 export const CATEGORY_ICONS = { roads: '═', homes: '⌂', food: '❋', industry: '⚒', services: '✚', defence: '⛊', monuments: '▲' };
 
+// A thin band on each category button and tab in its buildings' emblem colour (early-game pass 2.5).
+export const CATEGORY_TINT = { roads: '#B39466', homes: '#C9552F', food: '#6AA83A', industry: '#8E7470', services: '#2F6FA8', defence: '#9A3A30', monuments: '#E2B13C' };
+
+// Categories with nothing to build stay hidden until a stage fills them; the number keys keep their own mapping.
+export const visibleCategories = () => CATEGORIES.filter((c) => c.items.length > 0);
+
 export function toolForItem(item) {
   if (item === 'road') return { kind: 'road' };
   if (item === 'demolish') return { kind: 'demolish' };
