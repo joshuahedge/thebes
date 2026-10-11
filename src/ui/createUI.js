@@ -10,7 +10,7 @@ import { startDaily } from '../sim/daily.js';
 import { setGuide } from '../sim/commands.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
-import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers } from '../render/overlays.js';
+import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
 import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode, pickCategory } from './modes.js';
@@ -39,6 +39,7 @@ import { createToasts } from './toasts.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { welcomeSheet } from './welcomeBack.js';
+import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
 import { buildingName, reasonText, milestoneText, rewardText, T } from './text.js';
 
@@ -91,10 +92,22 @@ export function createUI({
   const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: confirm, onUndo: undo });
   const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas });
   const rail = createRail({ container: $('rail'), store, world, onPick: pick, onConfirm: confirm, onCancel: () => placement.cancel(), placement });
+  const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
   const legend = createOverlayLegend({ container: $('legend'), store });
   const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count() });
   const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals'), onSkipGuide: skipGuide });
-  const menus = createMenuSheets({ store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {} });
+  const menus = createMenuSheets({
+    store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
+    canResumeGuide: () => canResumeGuide(world), onResumeGuide: () => { setGuide(world, true); refresh(); },
+  });
+  // Choosing Tips only or Off turns a running guide off at once (spec 3.1: all of it can be switched off).
+  // Choosing Guide and tips again does not restart it; Resume guide in How to play does.
+  let lastHelp = settings.get().help;
+  const stopHelpWatch = settings.subscribe((v) => {
+    if (v.help === lastHelp) return;
+    lastHelp = v.help;
+    if (v.help !== 'full' && world.guide.on) { setGuide(world, false); refresh(); }
+  });
   const customSheets = { ...menus, goals: goalsSheet(world, { onShowMe: showMe }) };
   if (welcome) {
     customSheets.welcome = welcomeSheet({
@@ -227,7 +240,7 @@ export function createUI({
   }
   function refreshChrome() {
     alerts.refresh();
-    hud.render(); dock.render(); sidePanel.render(); rail.render(); confirmBar.render(); corners.render(); goalsStrip.render();
+    hud.render(); dock.render(); sidePanel.render(); rail.render(); guide.render(); confirmBar.render(); corners.render(); goalsStrip.render();
     setText($('map-summary'), mapSummaryText(world, alerts.list()));
   }
 
@@ -385,11 +398,13 @@ export function createUI({
     const v = view();
     const range = visibleTileRange(cam, v, world.size);
     const selected = s.selectedId !== null ? world.buildings[s.selectedId] : null;
+    const ring = guide.marker(t);                                              // the guide's ring on its step's target (spec 3.2)
     renderer.renderFrame(world, cam, {
       view: v, walkers: walkersAt(world, timeDays, range), effects, now: t, rising: effects.risingIds(t), grid: isToolMode(s.mode),
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r);
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
+        if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, t);         // under the ghost, so the ghost stays readable
         for (const ghost of ghosts()) drawGhost(g, ghost);
         drawProblemMarkers(g, world, alerts.list(), r);                        // early-game pass 2.8: one badge per building with a problem
       },
@@ -404,10 +419,11 @@ export function createUI({
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
-    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, effects, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
+    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      guide.destroy(); stopHelpWatch();
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear();

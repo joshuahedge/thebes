@@ -33,6 +33,8 @@ export function categoryOfItem(item) {
 // Placing a service shows its overlay together with the reach preview (spec 4.5).
 export const SHOW_ME_PULSES = 2;
 export const SHOW_ME_PULSE_MS = 400;
+export const GUIDE_PULSES = 2;          // the guide's map ring pulses twice when its step changes, then stays still (spec 3.2)
+export const GUIDE_PULSE_MS = 600;      // one pulse: under 3 flashes a second, done well within 5 s (spec 5.4)
 export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion' };
 
 // Picking a card or Show me puts a building ghost on the nearest tile where it fits, at most this many tiles
