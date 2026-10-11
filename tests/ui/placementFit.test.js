@@ -7,7 +7,8 @@ import { canPlace } from '../../src/sim/commands.js';
 import { BUILDINGS } from '../../src/data/buildings.js';
 import { NEAREST_FIT_RADIUS } from '../../src/data/ui.js';
 import { screenToTile, tileToScreen } from '../../src/render/camera.js';
-import { effectText, T } from '../../src/ui/text.js';
+import { effectText, warningText, T } from '../../src/ui/text.js';
+import { removeBuilding } from '../../src/sim/world.js';
 import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
 import { uiWorld, rigUI } from '../helpers/uiWorld.js';
 import { mount, fire } from '../helpers/dom.js';
@@ -145,6 +146,38 @@ describe('ui placement fit', () => {
         const corners = r.root.querySelector('#corners').getBoundingClientRect();
         expect(corners.height).toBeGreaterThan(0);
         expect([size, corners.bottom <= bar.top + 0.5]).toEqual([size, true]);
+      } finally { r.cleanup(); }
+    }
+  });
+  it('keeps the portrait confirm bar one height, and the corner buttons put, as the preview flips between ok, warning and blocked', async () => {
+    for (const size of [100, 125, 150]) {
+      const r = await rigUI({ width: 390, height: 844 });
+      try {
+        r.ui.settings.set({ textSize: size });
+        const granary = Object.values(r.world.buildings).find((b) => b.type === 'granary');
+        const read = () => {
+          const bar = r.root.querySelector('#confirm').getBoundingClientRect();
+          return { top: bar.top, height: bar.height, corner: r.root.querySelector('#corners .minimap-button').getBoundingClientRect().bottom };
+        };
+        const stateOf = () => r.ui.placement.preview().state;
+        r.ui.placement.start(FARM, { x: 0, y: 8 });
+        expect([size, 'ok', stateOf()]).toEqual([size, 'ok', 'ok']);              // a farm beside the road with a granary in reach: nothing to say
+        const ok = read();
+        removeBuilding(r.world, granary.id);
+        r.ui.placement.moveGhost(1, 8);
+        expect([size, 'warn', stateOf()]).toEqual([size, 'warn', 'warn']);         // its grain has nowhere to go: one line of warning
+        expect(r.root.querySelector('#confirm .reason').textContent).toBe(warningText('no_storage'));
+        const warn = read();
+        r.ui.placement.moveGhost(0, 2);
+        expect([size, 'bad', stateOf()]).toEqual([size, 'bad', 'bad']);           // no road: one line of reason
+        const bad = read();
+        r.ui.placement.start(WELL, { x: 14, y: 9 });
+        expect(r.root.querySelector('#confirm .effect').textContent).toBe('Gives water to 2 homes');
+        const effect = read();                                                      // a service with its effect line
+        for (const [name, m] of [['warn', warn], ['bad', bad], ['effect', effect]]) {
+          expect([size, name, m.height, m.corner]).toEqual([size, name, ok.height, ok.corner]);
+        }
+        expect(ok.height).toBeGreaterThan(0);
       } finally { r.cleanup(); }
     }
   });

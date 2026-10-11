@@ -57,4 +57,5 @@ export const TERRAIN = {
 export const UI = {
   ok: '#2F6FA8', warn: '#E0A030', bad: '#E2604C', label: '#3B2A14', halo: '#FFFFFF',
   water: '#2F6FA8', food: '#E2B13C', religion: '#7A5AA0', housing: '#2E8C83',
+  problem: '#A33624',   // the map's problem badge (early-game pass 2.8): white "!" on it reads at 6.8:1
 };
