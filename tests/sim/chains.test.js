@@ -132,6 +132,29 @@ describe('production chains', () => {
     expect(potter.blocked).toBe(null);
     expect(pit.blocked).toBe('no_storage');
   });
+  // Storehouse A is nearest the potter and holds clay but takes no pottery; B is full of clay and takes pottery. The
+  // potter must draw on B (a pot takes the place of its clay) rather than stop on A's clay and never use B's.
+  const fullStoreBeyondANonTarget = (makeANonTarget) => {
+    const w = row();
+    const a = addRaw(w, 'storehouse', 13, 8, { store: { clay: 10 } });    // 3 road tiles from the potter
+    const b = addRaw(w, 'storehouse', 5, 8, { store: { clay: 800 } });    // 11 road tiles from the potter
+    const potter = addRaw(w, 'potter', 16, 8);
+    staffAll(w);
+    makeANonTarget(w, a);
+    month(w);
+    expect(potter.blocked).toBe(null);
+    expect(b.store.pottery).toBe(30);
+    expect(b.store.clay).toBe(770);
+    expect(storeTotal(b)).toBe(800);
+    expect(a.store.clay).toBe(10);
+    expect(a.store.pottery).toBe(undefined);
+  };
+  it('does not deadlock when its nearest clay is in a store that is not working, while a full working store holds clay', () => {
+    fullStoreBeyondANonTarget((w, a) => { a.paused = true; });
+  });
+  it('does not deadlock when its nearest clay is in a store that refuses pottery, while a full store that takes it holds clay', () => {
+    fullStoreBeyondANonTarget((w, a) => { setAccept(w, a.id, 'pottery', false); });
+  });
   it('sends a refused good to the next store that takes it, and stops with no_storage when none does', () => {
     const w = row();
     const pit = addRaw(w, 'clay_pit', 10, 8);
