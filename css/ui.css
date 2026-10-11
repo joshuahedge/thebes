@@ -195,12 +195,21 @@ kbd { font: inherit; background: var(--parchment-2); border-radius: 6px; padding
 /* The goals strip is the last row of #under-bar, below the banner and the legend when they show. */
 #goals { position: static; display: flex; max-width: 100%; pointer-events: none; }
 #goals > * { pointer-events: auto; }
-.goal-strip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; background: var(--parchment); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); }
-.goal-strip .text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-body[data-layout="wide"] #goals { max-width: 440px; }
+/* The strip's buttons wrap onto a second line when the goal's words need the room (phones, large text). */
+.goal-strip { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 0; max-width: 100%; box-sizing: border-box; background: var(--parchment); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); }
+.goal-strip .main { display: flex; align-items: center; gap: 8px; flex: 1 1 140px; min-width: 0; }
+.goal-strip .text { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }   /* the goal's words wrap rather than cut off, so a phone at large text still reads the whole goal */
+.goal-strip .reward { flex: none; white-space: nowrap; }
+.goal-strip .buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; column-gap: 4px; flex: 0 1 auto; min-width: 0; margin-left: auto; }   /* on the narrowest phones at large text the third button drops to a row of its own */
+body[data-layout="portrait"] .goal-strip .reward { display: none; }   /* phones: the reward reads in the goals sheet */
+.chip { flex: none; display: inline-block; background: var(--teal-soft); color: var(--ink); border-radius: 10px; padding: 0 8px; white-space: nowrap; }
+body[data-layout="wide"] #goals { max-width: 560px; }
 body[data-layout="compact"] #under-bar { right: calc(var(--rail-w) + var(--safe-right) + 8px); }
 .goals { list-style: none; padding: 0; }
-.goals .goal { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+.goals .goal, .goals .daily { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+.goals button { flex: none; white-space: nowrap; }   /* Show me and Swap keep their words on one line; the goal's own words wrap beside them */
+.goals .reward { white-space: nowrap; }                /* '+25 gold' stays together */
+#sheet .goals + h3 { margin-top: 10px; }
 
 /* The title card (spec 4.1) over the drifting sample city. While it shows, the game chrome stays hidden. */
 #title { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(43, 31, 14, 0.25); }

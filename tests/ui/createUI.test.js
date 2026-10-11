@@ -3,11 +3,14 @@ import { rigUI } from '../helpers/uiWorld.js';
 import { fire, key } from '../helpers/dom.js';
 import { buildingAt } from '../../src/sim/world.js';
 import { tickDay } from '../../src/sim/clock.js';
+import { settle } from '../../src/sim/settle.js';
 import { select } from '../../src/ui/modes.js';
 
 describe('ui createUI', () => {
   it('places a well from the dock: card, ghost, tap, tick, building, then Undo from the toast', async () => {
     const r = await rigUI();
+    settle(r.world);                                                          // the rig's city already meets four goals: pay them now
+    const start = r.world.gold;
     expect(r.store.get().layout).toBe('portrait');
     fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');  // Services
     const cards = r.root.querySelectorAll('#dock .tray .card');
@@ -30,7 +33,7 @@ describe('ui createUI', () => {
     expect(toast.textContent).toContain('Well placed');
     fire(toast.querySelector('button'), 'click');                             // Undo
     expect(buildingAt(r.world, 5, 9)).toBe(null);
-    expect(r.world.gold).toBe(1000);
+    expect(r.world.gold).toBe(start);
     fire(r.root.querySelector('#confirm .cancel'), 'click');
     expect(r.store.get().mode).toBe('browse');
     expect(r.root.querySelector('#confirm').hidden).toBe(true);

@@ -118,6 +118,20 @@ export const dateText = ({ year, month, day }) => `Year ${year}, month ${month},
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 export const progressText = (n, of) => `${n} of ${of}`;
 export const goalsProgressText = (done, total) => `${done} of ${total} done`;
+export const rewardText = (n) => `+${n} gold`;
+export const progressLabel = (n, of) => `Progress ${progressText(n, of)}`;
+export const dailyDoneText = (n) => plural(n, 'daily goal done', 'daily goals done');
+export const swapLabel = (text) => `Swap: ${text}`;
+export const showMeLabel = (text) => `${T.showMe}: ${text}`;   // a goal's Show me names its goal, so several of them stay apart
+
+// Goal chapters for the goals sheet (early-game pass 3.3); triggered first-time events come first.
+export const CHAPTER_NAMES = { first_homes: 'First homes', feed: 'Feed the village', grow: 'Grow', event: 'Needs attention' };
+// Daily goals (early-game pass 3.7), keyed by DAILY_POOL ids.
+export const DAILY_TEXT = {
+  plots4: 'Place 4 housing plots', roads10: 'Lay 10 road tiles', upgrades3: 'Grow 3 homes a tier', well1: 'Build a well',
+  bazaar1: 'Build a bazaar', temple1: 'Build a temple', farm1: 'Build a grain farm', people20: 'Gain 20 people',
+  profit1: 'Have a month in profit', harvest100: 'Store 100 grain',
+};
 export const milestoneText = (name) => `Your city is now a ${name}`;
 
 export const T = {
@@ -127,6 +141,7 @@ export const T = {
   gold: 'Gold', people: 'People', mood: 'Mood', date: 'Date', income: 'Income', jobless: 'Jobless', food: 'Food',
   summary: 'City summary', incomeVsSpending: 'Income against spending', taxes: 'Taxes', wages: 'Wages', upkeep: 'Upkeep', net: 'Net',
   foodInStore: 'Food in store', employment: 'Employment', moodBreakdown: 'Mood', goals: 'Goals', goal: 'Goal', showMe: 'Show me', goalsDone: 'All goals done', goalDone: 'Goal done', goalsNone: 'No goals open',
+  skipGuide: 'Skip guide', today: 'Today', swap: 'Swap', done: 'Done',
   welcome: 'Welcome back', lastPlayed: 'Last played', justNow: 'just now', aWhileAgo: 'a while ago', upFrom: 'up from', downFrom: 'down from', steadyAt: 'steady at', carryOn: 'Carry on', stayPaused: 'Stay paused',
   goalsHelp: 'Goals show under the top bar. Show me opens the right card and points at the place.',
   grain: 'Grain', lasts: 'Lasts', working: 'Working', jobs: 'Jobs',
