@@ -43,7 +43,7 @@ import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsLi
 import { welcomeSheet } from './welcomeBack.js';
 import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
-import { buildingName, reasonText, milestoneText, FIRST_TEXT, ACHIEVEMENT_NAMES, DAILY_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, T } from './text.js';
 
 const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
@@ -263,9 +263,12 @@ export function createUI({
   // Celebrations queue in #cheer one at a time (early-game pass 3.6); each one's sound, buzz and sparkle come with its caption.
   function onEvents(events) {
     for (const e of events) if (e.type === 'month') { autosave('month'); break; }
+    // Town brings a goal, the milestone and an achievement at once: the milestone and the goal are celebrated and the
+    // achievement stays in the summary list, so a batch never queues three captions for one moment.
+    const quiet = events.some((e) => e.type === 'milestone');
     for (const e of events) {
       if (e.type === 'upgrade') sfx.play('upgrade');
-      const cheer = cheerFor(e);
+      const cheer = e.type === 'achievement' && quiet ? null : cheerFor(e);
       if (cheer) celebrations.show(cheer);
     }
   }
@@ -284,11 +287,11 @@ export function createUI({
     if (e.type === 'first') {
       if (!FIRST_TEXT[e.id]) return null;
       const at = Number.isFinite(e.x) && Number.isFinite(e.y) ? { x: e.x, y: e.y } : null;
-      return { tier: 'first', text: FIRST_TEXT[e.id], reward: e.reward, onShow: () => { cheerSound(); if (at) effects.sparkle(at.x, at.y, GOLD, now()); } };
+      return { tier: 'first', text: FIRST_TEXT[e.id].head, why: FIRST_TEXT[e.id].why, reward: e.reward, onShow: () => { cheerSound(); if (at) effects.sparkle(at.x, at.y, GOLD, now()); } };
     }
     if (e.type === 'achievement') {
       if (guideActive(world) || !ACHIEVEMENT_NAMES[e.id]) return null;
-      return { tier: 'first', text: `${T.achievement}: ${ACHIEVEMENT_NAMES[e.id]}`, onShow: cheerSound };
+      return { tier: 'first', text: `${T.achievement}: ${ACHIEVEMENT_NAMES[e.id]}`, why: ACHIEVEMENT_TEXT[e.id], onShow: cheerSound };
     }
     if (e.type === 'daily') return DAILY_TEXT[e.id] ? { tier: 'first', text: `${T.dailyDone}: ${DAILY_TEXT[e.id]}`, reward: e.reward, onShow: cheerSound } : null;
     if (e.type === 'guide_done') return { tier: 'first', text: T.guideDone, reward: e.reward, onShow: cheerSound };
