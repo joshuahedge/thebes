@@ -18,7 +18,7 @@ export function keyLabel(name) {
 }
 
 // canResumeGuide / onResumeGuide come from createUI: How to play offers "Resume guide" while the guide is off
-// and one of its steps is open (early-game pass 3.2).
+// and one of its steps is open, under Help: Guide and tips only (early-game pass 3.2).
 export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCity = () => {}, version = APP_VERSION, canResumeGuide = () => false, onResumeGuide = () => {} }) {
   const open = (kind) => store.set(openSheet(store.get(), kind));
   const hookOr = (name) => () => { if (typeof hooks[name] === 'function') hooks[name](); else toasts.show(T.notYet); };

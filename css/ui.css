@@ -47,11 +47,14 @@ h2, h3 { margin: 0; }
 .noscript { margin: 24px; }
 
 /* Top bar: things you read sit at the top. */
-#topbar { position: fixed; top: 0; left: 0; right: 0; padding: var(--safe-top) max(8px, var(--safe-right)) 0 max(8px, var(--safe-left)); min-height: var(--topbar-h); background: var(--parchment); border-bottom: 1px solid var(--parchment-3); box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; }
-#topbar .stat { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-#topbar .stats { display: flex; flex-wrap: wrap; align-items: center; align-content: center; gap: 0 10px; flex: 1; min-width: 0; overflow: hidden; line-height: 1.2; }   /* a narrow phone at large text wraps the numbers to a second row inside the bar's height, rather than cutting one off */
+#topbar { position: fixed; top: 0; left: 0; right: 0; padding: var(--safe-top) max(8px, var(--safe-right)) 0 max(8px, var(--safe-left)); min-height: var(--topbar-h); background: var(--parchment); border-bottom: 1px solid var(--parchment-3); box-shadow: var(--shadow); display: flex; align-items: center; gap: 6px; }
+#topbar .stat { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+/* The numbers keep to one row wherever they fit (every layout at 100% text, with tight 8 px gaps and 4 px ends); only
+   where they would otherwise be cut off (a narrow phone at large text, or very large numbers) do they wrap to a second row, inside the bar's
+   own height. In the wide layout at 150% the date is short (hud.js), so the numbers never need a third row. */
+#topbar .stats { display: flex; flex-wrap: wrap; align-items: center; align-content: center; gap: 0 8px; flex: 1; min-width: 0; overflow: hidden; line-height: 1.2; padding: 0 4px; }
 #topbar .stat .label { font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
-#topbar .spacer { flex: 0 0 0; }
+#topbar .spacer { display: none; }   /* the numbers' flex: 1 already pushes the rest right; a spacer would only cost a gap */
 #topbar .speed { display: flex; gap: 4px; }
 #topbar button { min-height: var(--tap); }
 body[data-layout="portrait"] .wide-only, body[data-layout="compact"] .wide-only { display: none !important; }

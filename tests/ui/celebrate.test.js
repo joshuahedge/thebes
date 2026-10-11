@@ -356,8 +356,8 @@ describe('ui celebrate', () => {
     }
     expect(tooTall).toEqual([]);
   });
-  it('on a phone at larger text a caption waits while a tip shows, and goes up once the tip has closed', async () => {
-    for (const [w, h, size, waits] of [[360, 640, 150, true], [390, 844, 125, true], [740, 360, 150, true], [360, 640, 100, false], [740, 360, 100, false], [1280, 800, 150, false]]) {
+  it('on a phone at larger text, and on any phone held sideways, a caption waits while a tip shows, and goes up once the tip has closed', async () => {
+    for (const [w, h, size, waits] of [[360, 640, 150, true], [390, 844, 125, true], [740, 360, 150, true], [740, 360, 100, true], [844, 390, 100, true], [360, 640, 100, false], [390, 844, 100, false], [1280, 800, 150, false]]) {
       const r = await rigUI({ width: w, height: h });
       try {
         r.ui.settings.set({ textSize: size, reducedMotion: 'on' });
@@ -381,10 +381,10 @@ describe('ui celebrate', () => {
   // goal caption, all showing at once. Spec 6.1: nothing over the middle of the map. Where the screen is too short for
   // three rows, the measured end is pinned (so it cannot creep further) and the reason written down.
   it('keeps the goals strip, a tip and a caption together above the middle of the screen', async () => {
-    const TIGHT = 'On a phone at larger text a caption waits while a tip shows (the test above), so in play these rows meet only when a tip arrives during the 2.5 s of a caption, and the tip closes itself after 15 s';
+    const TIGHT = 'Here a caption waits while a tip shows (the test above), so in play these rows meet only when a tip arrives during the 2.5 s of a caption';
     const EXCEPTIONS = {
       '360x640 at 150%': [68, `the tallest guide strip alone ends at 42% here. ${TIGHT}`],
-      '740x360 at 100%': [54, 'a 360 px tall phone held sideways: the top bar and three rows with 44 px tap targets need more than half of it. The rows clear themselves: a caption after 2.5 s'],
+      '740x360 at 100%': [54, `a 360 px tall phone held sideways: the top bar and three rows with 44 px tap targets need more than half of it. ${TIGHT}`],
       '740x360 at 125%': [63, `a 360 px tall phone held sideways. ${TIGHT}`],
       '740x360 at 150%': [71, `a 360 px tall phone held sideways. ${TIGHT}`],
       '844x390 at 150%': [65, `a 390 px tall phone held sideways. ${TIGHT}`],

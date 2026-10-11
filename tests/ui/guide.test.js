@@ -157,6 +157,26 @@ describe('ui guide', () => {
       expect(r.root.querySelector('#sheet .resume-guide')).toBe(null);   // offered only while the guide is off
     } finally { r.cleanup(); }
   });
+  it('offers Resume guide only under Help: Guide and tips, since a city loaded under the others turns its guide off', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    try {
+      const offered = () => {
+        r.store.set(openSheet(r.store.get(), 'help'));
+        const b = r.root.querySelector('#sheet .resume-guide');
+        r.store.set({ sheet: null });
+        return Boolean(b);
+      };
+      fire(r.root.querySelector('#goals .skip-guide'), 'click');       // off, with guide steps still open
+      expect(offered()).toBe(true);
+      for (const help of ['tips', 'off']) {
+        r.ui.settings.set({ help });
+        expect([help, canResumeGuide(r.world, help), offered()]).toEqual([help, false, false]);
+      }
+      r.ui.settings.set({ help: 'full' });
+      expect(canResumeGuide(r.world, 'full')).toBe(true);
+      expect(offered()).toBe(true);
+    } finally { r.cleanup(); }
+  });
   it('offers no Resume guide once every guide goal is done, since a resumed guide would pay its bonus late', async () => {
     const r = await rigUI({ width: 1280, height: 800 });
     try {
