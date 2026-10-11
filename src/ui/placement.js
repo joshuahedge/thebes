@@ -10,6 +10,7 @@ import { startTool as startToolPatch, cancelTool } from './modes.js';
 import { AUTO_OVERLAY, NEAREST_FIT_RADIUS } from '../data/ui.js';
 import { homesServedFrom } from '../sim/housing.js';
 import { costOf } from '../sim/costs.js';
+import { refusingStores } from '../sim/production.js';
 import { buildingName, reasonText, warningText, effectText, plural, T } from './text.js';
 
 const footprintOf = (tool) => (tool.kind === 'building' ? { w: BUILDINGS[tool.type].w, d: BUILDINGS[tool.type].d } : { w: 1, d: 1 });
@@ -51,6 +52,14 @@ export function nearestFit(world, tool, x, y, maxR = NEAREST_FIT_RADIUS) {
 const idle = (text, tiles = []) => ({ state: 'idle', reason: null, warnings: [], text, effect: '', cost: 0, count: 0, tiles, refund: 0 });
 const bad = (reason, cost, count, tiles = []) => ({ state: 'bad', reason, warnings: [], text: reasonText(reason), effect: '', cost, count, tiles, refund: 0 });
 
+// A ghost's first warning in words. A producer with no store in reach that takes its good names the store it needs; when a
+// store there is built to hold the good but refuses it, the line says so, so the accept switch is not hidden.
+function warningLine(world, type, x, y, code) {
+  const def = BUILDINGS[type];
+  const refused = code === 'no_storage' && refusingStores(world, { id: -1, x, y, w: def.w, d: def.d }, def.produces.good, def.producerReach).length > 0;
+  return warningText(refused ? 'store_refuses' : code, type);
+}
+
 export function toolPreview(world, state) {
   const { tool } = state;
   if (!tool) return null;
@@ -64,7 +73,7 @@ export function toolPreview(world, state) {
     const warn = r.warnings.length > 0;
     // A service says how many homes it would reach from here (early-game pass 2.6); other buildings say nothing.
     const effect = def.reach ? effectText(tool.type, homesServedFrom(world, tool.type, x, y)) : '';
-    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0], tool.type) : '', effect, cost, count: 1, tiles: [], refund: 0 };
+    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningLine(world, tool.type, x, y, r.warnings[0]) : '', effect, cost, count: 1, tiles: [], refund: 0 };
   }
   if (tool.kind === 'road') {
     const l = state.line;

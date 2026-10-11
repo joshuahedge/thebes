@@ -104,7 +104,8 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 .card .name { font-weight: 600; }
 .card .cost { font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
 .card.unaffordable .cost { color: var(--coral-text); }
-.card.locked { opacity: 0.75; }
+/* A locked card fades only its picture: its name and its lock line keep full strength (4.5:1, spec 6.1) and say it in words. */
+.card.locked .thumb { opacity: 0.6; filter: saturate(0.5); }
 .cards.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 8px; grid-auto-rows: max-content; align-content: start; }
 .cards.grid .card { width: auto; }
 .cards .empty { padding: 12px; color: var(--ink-soft); }

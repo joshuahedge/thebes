@@ -5,6 +5,7 @@
 import { NUDGE_GLOW_MS, NUDGE_LINE_MS } from '../data/ui.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { costOf, roadCostOf } from '../sim/costs.js';
+import { producerRefused } from '../sim/production.js';
 import { alertText, storeFor, makerOf, T } from './text.js';
 
 export const NUDGE_MAX_STEP_MS = 1000;     // a stalled frame (a hidden tab, a long hitch) counts as one second at most
@@ -35,6 +36,8 @@ function storeOf(w, a) {
   const def = b ? BUILDINGS[b.type] : null;
   return def && def.stores ? b.type : storeFor(def && def.produces ? def.produces.good : 'grain');
 }
+// A producer stopped only because a store in its reach refuses its good: the fix is letting that store accept it, which costs nothing.
+const refusedByStore = (w, a) => Boolean(a.id && w.buildings[a.id] && producerRefused(w, w.buildings[a.id]));
 // A workshop waiting for its input: the fix builds what makes that input (a clay pit for a potter).
 function inputMakerCost(w, a) {
   const b = a.id ? w.buildings[a.id] : null;
@@ -47,7 +50,7 @@ function inputMakerCost(w, a) {
 // entry (a failing save) are skipped.
 const FIX_COST = {
   no_road: (w) => roadCostOf(w),
-  no_storage: (w, a) => costOf(w, storeOf(w, a)),
+  no_storage: (w, a) => (refusedByStore(w, a) ? -Infinity : costOf(w, storeOf(w, a))),
   storage_full: (w, a) => costOf(w, storeOf(w, a)),
   no_input: (w, a) => inputMakerCost(w, a),
   bazaar_empty: (w) => costOf(w, 'granary'),
