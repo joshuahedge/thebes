@@ -3,7 +3,8 @@
 // define goals the same way later; src/sim/goals.js evaluates them. Need kinds: road, houses, building, people,
 // tier, routes (open trade routes), noAlert, gold, all. A showMe target is startRoad, houses, focus, alert or
 // rocky (any target the interface does not know points at the city's focus). A goal with `from` (a milestone id)
-// is listed only once the city has reached that milestone (where its buildings unlock, or its tier can be reached).
+// waits for that milestone (or the people it takes), where its buildings unlock or its tier can be reached: the list
+// the player sees ends before it, so nothing later shows ahead of it (openGoals in src/sim/goals.js).
 export const GOAL_REWARD = 25;
 export const EVENT_REWARD = 10;    // a first-time trouble put right
 export const GUIDE_REWARD = 50;    // paid once, when the guided start's goals are all done
@@ -21,9 +22,9 @@ export const GOALS = [
   // From Town (spec 4.1, 4.6): each new need arrives with the goal that builds its chain, then a count of homes at
   // the tier that needs it, so one new demand comes at a time; the milestones and the trade route sit between.
   // Each text stays short enough for a two-line caption on a phone at 150% text (tests/ui/celebrate.test.js).
-  { id: 'pottery', chapter: 'goods', text: 'Build a clay pit, storehouse and potter', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] }, showMe: { category: 'industry', item: 'clay_pit', target: 'focus' } },
-  { id: 'homes_townhouse', chapter: 'goods', text: 'Grow 8 homes to Townhouse or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 5, n: 8 }, showMe: { category: 'industry', item: 'potter', target: 'houses' } },
-  { id: 'booth_gardens', chapter: 'goods', text: 'Build a booth and two gardens', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'booth', n: 1 }, { kind: 'building', type: 'garden', n: 2 }] }, showMe: { category: 'services', item: 'booth', target: 'houses' } },
+  { id: 'pottery', chapter: 'goods', from: 'town', text: 'Build a clay pit, storehouse and potter', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] }, showMe: { category: 'industry', item: 'clay_pit', target: 'focus' } },
+  { id: 'homes_townhouse', chapter: 'goods', from: 'town', text: 'Grow 8 homes to Townhouse or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 5, n: 8 }, showMe: { category: 'industry', item: 'potter', target: 'houses' } },
+  { id: 'booth_gardens', chapter: 'goods', from: 'town', text: 'Build a booth and two gardens', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'booth', n: 1 }, { kind: 'building', type: 'garden', n: 2 }] }, showMe: { category: 'services', item: 'booth', target: 'houses' } },
   { id: 'manor', chapter: 'goods', text: 'Grow a Manor from four Townhouses', reward: GOAL_REWARD, need: { kind: 'tier', tier: 6, n: 1 }, showMe: { category: 'homes', item: 'garden', target: 'houses' } },
   { id: 'market_town', chapter: 'goods', text: 'Reach 250 people for a Market town', reward: GOAL_REWARD, need: { kind: 'people', n: 250 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'trade_route', chapter: 'goods', from: 'market_town', text: 'Build a trading post and open a route', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'trading_post', n: 1 }, { kind: 'routes', n: 1 }] }, showMe: { category: 'industry', item: 'trading_post', target: 'startRoad' } },

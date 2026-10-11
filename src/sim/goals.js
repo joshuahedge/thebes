@@ -2,10 +2,11 @@
 // the treasury. First-time event goals sit in front of the opening chain; the guided start is the chain's
 // first five goals and pays once when they are all done.
 import { GOALS, EVENT_GOALS, GUIDE_GOALS, GUIDE_REWARD } from '../data/goals.js';
+import { MILESTONES } from '../data/progression.js';
 import { housesOf, population, allBuildings } from './world.js';
 import { alertsFor } from './alerts.js';
 import { idx } from './grid.js';
-import { atLeast } from './progression.js';
+import { atLeast, milestoneIndex } from './progression.js';
 import { openRoutes } from './trade.js';
 
 const SETTLE_MAX = 20;   // settleGoals stops after this many completions in one go
@@ -65,20 +66,41 @@ export function triggerEventGoals(world) {
   return fired;
 }
 
-// Triggered event goals first (in EVENT_GOALS order), then the chain, both without the completed ones. A chain
-// goal with a `from` milestone waits, unlisted and so not completed either, until the city has reached it.
-export function openGoals(world, limit = 3) {
+// A goal with a `from` milestone waits until the city has reached it. The milestone itself moves at month end,
+// so it counts as reached once the city has the people for it too: the goal before it (the one that names the
+// people) is then done, and the list does not run dry until the month turns.
+const waits = (world, g) => Boolean(g.from) && !atLeast(world, g.from) && population(world) < MILESTONES[milestoneIndex(g.from)].population;
+
+// What is not done yet: triggered event goals first (in EVENT_GOALS order), then the chain.
+function unfinished(world) {
   const done = new Set(world.goals.completed);
   const triggered = new Set(world.goals.triggered);
-  const events = EVENT_GOALS.filter((g) => triggered.has(g.id) && !done.has(g.id));
-  return [...events, ...GOALS.filter((g) => !done.has(g.id) && (!g.from || atLeast(world, g.from)))].slice(0, limit);
+  return {
+    events: EVENT_GOALS.filter((g) => triggered.has(g.id) && !done.has(g.id)),
+    chain: GOALS.filter((g) => !done.has(g.id)),
+  };
 }
 
-// Completes at most one open goal (any open goal, so a met chain goal never waits behind event goals),
+// The goals the player sees: triggered event goals first, then the chain, both without the completed ones. The
+// chain stops before its first goal that waits for a milestone, so no later goal shows ahead of it.
+export function openGoals(world, limit = 3) {
+  const { events, chain } = unfinished(world);
+  const stop = chain.findIndex((g) => waits(world, g));
+  return [...events, ...(stop < 0 ? chain : chain.slice(0, stop))].slice(0, limit);
+}
+
+// Every goal checkGoals can complete: all that are not done, in the same order, except those waiting for a
+// milestone (the ones after a waiting goal are still checked).
+const earnable = (world) => {
+  const { events, chain } = unfinished(world);
+  return [...events, ...chain.filter((g) => !waits(world, g))];
+};
+
+// Completes at most one earnable goal (any of them, so a met chain goal never waits behind event goals),
 // then finishes the guide once its goals are all done.
 export function checkGoals(world, events = null) {
   let goal = null;
-  for (const g of openGoals(world, Infinity)) {
+  for (const g of earnable(world)) {
     if (!goalMet(world, g.need)) continue;
     world.goals.completed.push(g.id);
     world.gold += g.reward;
