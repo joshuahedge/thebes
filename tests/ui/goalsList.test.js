@@ -72,7 +72,7 @@ describe('ui goals', () => {
     r.store.set(openSheet(r.store.get(), 'goals'));
     expect(r.root.querySelectorAll('#sheet .goal').length).toBe(3);
     r.ui.onEvents([{ type: 'goal', id: 'road', reward: 25 }]);
-    expect(r.root.querySelector('#toasts .toast').textContent).toContain(GOALS[0].text);
+    expect(r.root.querySelector('#toasts .toast').textContent).toBe(`${T.goalDone}: ${GOALS[0].text} (${rewardText(GOAL_REWARD)})`);
     r.store.set(openSheet(r.store.get(), 'summary'));
     expect(r.root.querySelector('#sheet').textContent).toContain(GOALS[0].text);
     r.store.set({ overlay: 'water' });

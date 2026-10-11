@@ -82,7 +82,7 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
         el('span', { class: 'label small muted', text: T.goal }),
         el('span', { class: 'text', text: goal.text }),
         progress,
-        el('span', { class: 'reward small muted', text: rewardText(goal.reward) }),
+        el('span', { class: 'reward small muted wide-only', text: rewardText(goal.reward) }),   // phones read the reward in the goals sheet
       ]),
       el('span', { class: 'buttons' }, [showMe, button(T.goals, { class: 'open-goals quiet', onClick: onOpen }), skip]),
     );
@@ -135,13 +135,13 @@ export function goalsSheet(world, { onShowMe, onSwap = (i) => swapDaily(world, i
       const p = dailyProgress(world, id);
       const text = DAILY_TEXT[id] || id;
       const status = done
-        ? el('span', { class: 'status small teal' }, [el('span', { 'aria-hidden': 'true', text: '✓ ' }), T.done])
+        ? el('span', { class: 'status small teal' }, [el('span', { 'aria-hidden': 'true', text: `${T.doneMark} ` }), T.done])
         : p ? chip({ text: progressText(p.n, p.of), label: progressLabel(p.n, p.of) }) : null;
       const swap = !done && !d.swapped
         ? button(T.swap, { class: 'swap quiet', 'aria-label': swapLabel(text), onClick: () => { if (onSwap(i)) { clear(body); draw(body); body.querySelector('.today').focus(); } } })   // the Swap button is gone: focus stays on Today
         : null;
       return el('li', { class: done ? 'daily done' : 'daily' }, [
-        el('span', { class: 'text' }, [text, ' ', status, ' ', el('span', { class: 'reward small muted', text: rewardText(DAILY_REWARD) })]),
+        el('span', { class: 'text' }, [text, ' ', status, done ? null : ' ', done ? null : el('span', { class: 'reward small muted', text: rewardText(DAILY_REWARD) })]),   // a finished goal has been paid: no reward to promise
         swap,
       ]);
     });
