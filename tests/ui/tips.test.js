@@ -1,8 +1,10 @@
 import { describe, it, expect } from '../harness.js';
 import { createTips } from '../../src/ui/tips.js';
 import { createSettings } from '../../src/ui/settings.js';
-import { TIPS, TIP_GAP_MS, TIP_HOURLY_MAX, TIP_FIRST_DELAY_MS } from '../../src/data/tips.js';
+import { TIPS, TIP_GAP_MS, TIP_HOURLY_MAX, TIP_FIRST_DELAY_MS, TIP_HELD_MAX_MS, TIP_AUTO_CLOSE_MS } from '../../src/data/tips.js';
+import { GUIDE_GOALS } from '../../src/data/goals.js';
 import { settle } from '../../src/sim/settle.js';
+import { setGuide } from '../../src/sim/commands.js';
 import { buildingAt } from '../../src/sim/world.js';
 import { select, openSheet } from '../../src/ui/modes.js';
 import { TIP_TEXT, T } from '../../src/ui/text.js';
@@ -21,6 +23,15 @@ function rig(storage = fakeLocal()) {
   return { root, settings, storage, clock, tips, cleanup };
 }
 const shownText = (root) => { const n = root.querySelector('.tip-row .text'); return n ? n.textContent : null; };
+
+// Frames for the game tests, cheap because the drawing is stubbed. play(ms) runs frames a second apart, so the game's play
+// clock (which the tips' gap and hourly cap count) moves only while the speed is above zero.
+function quietFrames(r) {
+  r.renderer.renderFrame = () => {};
+  let ft = 0;
+  r.frame(ft);
+  return (ms) => { const end = ft + ms; while (ft < end) { ft += 1000; r.frame(ft); } };
+}
 
 describe('ui tips', () => {
   it('shows a tip on its trigger with Got it, once per device, without taking focus', () => {
@@ -111,6 +122,79 @@ describe('ui tips', () => {
     try { expect(early.tips.trigger('plotsPaused')).toBe(true); }             // and before the first delay
     finally { early.cleanup(); }
   });
+  it('drops a tip that waited more than a minute for the tool to close, and shows one that waited less', () => {
+    expect(TIP_HELD_MAX_MS).toBe(60000);
+    const r = rig();
+    try {
+      r.clock.t = TIP_FIRST_DELAY_MS;
+      expect(r.tips.trigger('demolished', { busy: true })).toBe(false);          // held while a tool is active
+      r.clock.t += TIP_HELD_MAX_MS;
+      expect(r.tips.flush({ busy: false })).toBe(true);                          // exactly a minute: still fresh
+      r.tips.dismiss();
+      r.clock.t += TIP_GAP_MS;
+      expect(r.tips.trigger('servicePlaced', { busy: true })).toBe(false);
+      r.clock.t += TIP_HELD_MAX_MS + 1;
+      expect(r.tips.flush({ busy: false })).toBe(false);                         // "what you just removed" is not news now
+      expect(r.tips.current()).toBe(null);
+      expect(r.settings.get().seenTips).toEqual(['undo_demolish']);              // and it is not marked seen: its next trigger shows it
+      expect(r.tips.trigger('servicePlaced')).toBe(true);
+    } finally { r.cleanup(); }
+  });
+  it('keeps the 3-minute gap and the five-an-hour cap on play time, and the first 10 s on the clock', () => {
+    const { root, cleanup } = mount();
+    const settings = createSettings({ storage: fakeLocal(), root, systemReducedMotion: () => false });
+    const wall = { t: 0 }, play = { t: 0 };
+    const tips = createTips({ container: root, settings, now: () => wall.t, playNow: () => play.t });
+    try {
+      wall.t = TIP_FIRST_DELAY_MS - 1;
+      expect(tips.trigger('arrivals')).toBe(false);                              // the first delay is on the wall clock
+      wall.t = TIP_FIRST_DELAY_MS;
+      expect(tips.trigger('arrivals')).toBe(true);
+      tips.dismiss();
+      wall.t += 3600 * 1000;                                                     // an hour passes with the game paused
+      expect(tips.trigger('monthEnd')).toBe(false);                              // and none of it counts toward the gap
+      play.t += TIP_GAP_MS - 1;
+      expect(tips.trigger('monthEnd')).toBe(false);
+      play.t += 1;
+      expect(tips.trigger('monthEnd')).toBe(true);
+      tips.dismiss();
+      for (const key of ['goalDone', 'overlayOn', 'problemMarker']) {
+        play.t += TIP_GAP_MS;
+        expect(tips.trigger(key)).toBe(true);
+        tips.dismiss();
+      }
+      play.t += TIP_GAP_MS;
+      expect(tips.trigger('houseSheet')).toBe(false);                            // a sixth in an hour of play
+      play.t = 3600 * 1000;                                                      // an hour of play after the first (it began at play time 0)
+      expect(tips.trigger('houseSheet')).toBe(true);
+    } finally { cleanup(); }
+  });
+  it('closes a tip by itself only while autoCloseMs asks for it, and the tip stays seen', () => {
+    const { root, cleanup } = mount();
+    const settings = createSettings({ storage: fakeLocal(), root, systemReducedMotion: () => false });
+    const clock = { t: 0 };
+    let autoClose = 0;
+    const tips = createTips({ container: root, settings, now: () => clock.t, autoCloseMs: () => autoClose });
+    try {
+      clock.t = TIP_FIRST_DELAY_MS;
+      expect(tips.trigger('arrivals')).toBe(true);
+      clock.t += 10 * 60 * 1000;
+      expect(tips.tick()).toBe(false);                                           // not asked for: the tip stays until Got it
+      expect(tips.current()).toBe('arrivals');
+      tips.dismiss();
+      clock.t += TIP_GAP_MS;
+      autoClose = TIP_AUTO_CLOSE_MS;
+      expect(tips.trigger('monthEnd')).toBe(true);
+      clock.t += TIP_AUTO_CLOSE_MS - 1;
+      expect(tips.tick()).toBe(false);
+      expect(tips.current()).toBe('month_summary');
+      clock.t += 1;
+      expect(tips.tick()).toBe(true);
+      expect(tips.current()).toBe(null);
+      expect(root.children.length).toBe(0);
+      expect(settings.get().seenTips).toEqual(['arrivals', 'month_summary']);
+    } finally { cleanup(); }
+  });
   it('shows nothing under Help: Off and still shows tips under Tips only', () => {
     const r = rig();
     try {
@@ -164,13 +248,15 @@ describe('ui tips', () => {
   it('in the game: a house sheet, a service placed and an overlay each bring their tip, a held one once the tool closes', async () => {
     let t = 0;
     const r = await rigUI({ now: () => t });
+    const play = quietFrames(r);
     try {
       settle(r.world, []);                                                     // finish what the test city already meets, so placing raises no goal events
+      r.ui.speedControl.set(1);
       t = TIP_FIRST_DELAY_MS;
       r.store.set(select(r.store.get(), buildingAt(r.world, 12, 9).id));
       expect(r.ui.tips.current()).toBe('house_needs');
       r.ui.tips.dismiss();
-      t += TIP_GAP_MS;
+      play(TIP_GAP_MS);
       r.ui.placement.start({ kind: 'building', type: 'well' });
       r.ui.placement.moveGhost(16, 9);
       expect(r.ui.placement.confirm().ok).toBe(true);
@@ -178,32 +264,90 @@ describe('ui tips', () => {
       r.ui.placement.cancel();
       expect(r.ui.tips.current()).toBe('service_reach');
       r.ui.tips.dismiss();
-      t += TIP_GAP_MS;
+      play(TIP_GAP_MS);
       r.store.set({ overlay: null });
       r.store.set({ overlay: 'food' });
       expect(r.ui.tips.current()).toBe('overlay_keys');
     } finally { r.cleanup(); }
   });
-  it('in the game: arrivals, a month end, a goal, a demolish, a labour shortage and the first problem marker each bring their tip', async () => {
+  it('in the game: arrivals, a month end, a goal, a demolish and a labour shortage each bring their tip, three minutes of play apart', async () => {
     let t = 0;
     const r = await rigUI({ now: () => t });
+    const play = quietFrames(r);
     try {
       settle(r.world, []);
-      const hour = 3600 * 1000;                                                // an hour apart, so only the trigger decides
-      const brings = (id, act) => { t += hour; act(); expect(r.ui.tips.current()).toBe(id); r.ui.tips.dismiss(); };
+      r.ui.speedControl.set(1);
+      t = TIP_FIRST_DELAY_MS;
+      const brings = (id, act) => { play(TIP_GAP_MS); act(); expect(r.ui.tips.current()).toBe(id); r.ui.tips.dismiss(); };
       brings('arrivals', () => r.ui.onEvents([{ type: 'arrivals', count: 2 }]));
       brings('month_summary', () => r.ui.onEvents([{ type: 'month' }]));
       brings('goals_list', () => r.ui.onEvents([{ type: 'goal', id: 'road', reward: 25 }]));
       brings('undo_demolish', () => expect(r.ui.placement.demolishOne(24, 11).ok).toBe(true));
-      r.world.labour.shortLevels = [];                                         // the test city is short of workers from the start: clear it, so the next one is a first
-      r.ui.refresh();
-      brings('more_workers', () => { r.world.labour.shortLevels = ['essential']; r.ui.refresh(); });
       const bazaar = Object.values(r.world.buildings).find((b) => b.type === 'bazaar');
       bazaar.store.grain = 10;                                                 // the empty bazaar's and the short-staffed buildings' badges go,
-      staffAll(r.world);                                                       // so the next one is a first
-      r.ui.refresh();
+      staffAll(r.world);                                                       // so the labour shortage is the only thing that can bring a tip
+      brings('more_workers', () => { r.world.labour.shortLevels = ['essential']; r.ui.refresh(); });
+    } finally { r.cleanup(); }
+  });
+  it('in the game: the first problem marker and the labour shortage still bring their tip when they came inside the gap and are still there', async () => {
+    let t = 0;
+    const r = await rigUI({ now: () => t });
+    const play = quietFrames(r);
+    try {
+      settle(r.world, []);
+      Object.values(r.world.buildings).find((b) => b.type === 'bazaar').store.grain = 10;
+      staffAll(r.world);
+      r.world.labour.shortLevels = [];
+      r.ui.refresh();                                                          // a clean city: no marker, no shortage yet
       expect(r.ui.alerts.list().filter((a) => a.id !== undefined)).toEqual([]);
-      brings('problem_marker', () => { addRaw(r.world, 'well', 20, 20); r.ui.refresh(); });   // a well with no road beside it
+      t = TIP_FIRST_DELAY_MS;
+      r.ui.placement.start({ kind: 'houses' });
+      r.ui.placement.pointAt(14, 9);
+      r.ui.placement.pointAt(15, 9);
+      expect(r.ui.placement.confirm().ok).toBe(true);
+      expect(r.ui.tips.current()).toBe('press_play');                          // the Play tip starts the 3-minute gap
+      r.ui.speedControl.set(1);
+      expect(r.ui.tips.current()).toBe(null);
+      r.ui.placement.cancel();                                                 // the plots tool stays active after a ✓: a tip waits for it to close
+      play(60000);
+      addRaw(r.world, 'well', 20, 20);                                         // a well with no road beside it: a marker appears inside the gap
+      r.world.labour.shortLevels = ['essential'];                              // and so does a labour shortage
+      r.ui.refresh();
+      expect(r.ui.tips.current()).toBe(null);
+      play(TIP_GAP_MS - 60000 - 1000);
+      r.ui.refresh();
+      expect(r.ui.tips.current()).toBe(null);                                  // one second of the gap left
+      play(1000);
+      r.ui.refresh();
+      expect(r.ui.tips.current()).toBe('problem_marker');                      // the gap is over and the marker is still there
+      r.ui.tips.dismiss();
+      play(TIP_GAP_MS);
+      r.ui.refresh();
+      expect(r.ui.tips.current()).toBe('more_workers');                        // and so is the shortage
+    } finally { r.cleanup(); }
+  });
+  it('in the game: time with the game paused does not count toward the gap between tips', async () => {
+    let t = 0;
+    const r = await rigUI({ now: () => t });
+    const play = quietFrames(r);
+    try {
+      t = TIP_FIRST_DELAY_MS;
+      r.ui.onEvents([{ type: 'arrivals', count: 2 }]);
+      expect(r.ui.tips.current()).toBe('arrivals');
+      r.ui.tips.dismiss();
+      t += 60 * 60 * 1000;                                                     // an hour on the wall clock, paused
+      play(10 * 60 * 1000);
+      expect(r.world.speed).toBe(0);
+      expect(r.ui.tips.trigger('monthEnd')).toBe(false);
+      r.ui.speedControl.set(1);
+      play(TIP_GAP_MS - 1000);
+      expect(r.ui.tips.trigger('monthEnd')).toBe(false);                       // three minutes less a second of play
+      play(1000);
+      expect(r.ui.tips.trigger('monthEnd')).toBe(true);
+      r.ui.tips.dismiss();
+      r.ui.speedControl.set(0);
+      play(TIP_GAP_MS);                                                        // paused again: the count stops again
+      expect(r.ui.tips.trigger('goalDone')).toBe(false);
     } finally { r.cleanup(); }
   });
   it('in the game: Help: Off takes a tip that is showing away, and nothing shows until Help is on again', async () => {
@@ -258,6 +402,73 @@ describe('ui tips', () => {
       expect(r.ui.tips.current()).toBe(null);
       expect(document.activeElement).toBe(r.root.querySelector('#goals .show-me'));
     } finally { r.cleanup(); }
+  });
+  it('in the game: on a phone at 125% and 150% text every tip is three lines or fewer, with the Tip label kept for screen readers only', async () => {
+    const worst = [];
+    for (const [w, h] of [[360, 640], [740, 360]]) {
+      for (const size of [125, 150]) {
+        const r = await rigUI({ width: w, height: h });
+        try {
+          r.ui.settings.set({ textSize: size, reducedMotion: 'on' });
+          setGuide(r.world, true);
+          r.world.guide.done = false;
+          let tallest = 0, tallestAt = 0;                                      // the tallest guide strip: each guided step in turn
+          GUIDE_GOALS.forEach((id, i) => {
+            r.world.goals.completed = GUIDE_GOALS.slice(0, i);
+            r.ui.refresh();
+            const bottom = r.root.querySelector('#goals').getBoundingClientRect().bottom;
+            if (bottom > tallest) { tallest = bottom; tallestAt = i; }
+          });
+          r.world.goals.completed = GUIDE_GOALS.slice(0, tallestAt);
+          r.ui.refresh();
+          const settings = r.ui.settings;
+          const clock = { t: 0 };
+          const tips = createTips({ container: r.root.querySelector('#tip'), settings, now: () => clock.t });
+          for (const tip of TIPS) {
+            settings.set({ seenTips: [] });
+            clock.t += 3600 * 1000;
+            expect(tips.trigger(tip.trigger)).toBe(true);
+            const row = r.root.querySelector('#tip .tip-row'), text = row.querySelector('.text'), label = row.querySelector('.label');
+            const lineHeight = parseFloat(getComputedStyle(text).lineHeight);
+            const lines = Math.round(text.getBoundingClientRect().height / lineHeight);
+            const cs = getComputedStyle(row);
+            const chrome = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((n, k) => n + parseFloat(cs[k]), 0);
+            if (lines > 3 || row.getBoundingClientRect().height - chrome > 3 * lineHeight + 1) worst.push(`${w}x${h} at ${size}%: ${tip.id} is ${lines} lines`);
+            expect(parseFloat(getComputedStyle(text).fontSize)).toBeLessThan(16 * size / 100);   // 14 px scaled, not the body size
+            expect(label.textContent).toBe(T.tip);                             // still in the live region
+            expect(label.getBoundingClientRect().width).toBeLessThan(2);       // but not on screen
+            expect(row.getBoundingClientRect().right).toBeLessThanOrEqual(w);
+            expect(row.querySelector('.got-it').getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+            tips.dismiss();
+          }
+        } finally { r.cleanup(); }
+      }
+    }
+    expect(worst).toEqual([]);
+  });
+  it('in the game: a tip closes itself after 15 s on a phone at 125% or 150% text, and nowhere else', async () => {
+    expect(TIP_AUTO_CLOSE_MS).toBe(15000);
+    for (const [w, h, size, closes] of [[360, 640, 125, true], [360, 640, 150, true], [740, 360, 125, true], [740, 360, 150, true], [360, 640, 100, false], [740, 360, 100, false], [1280, 800, 125, false], [1280, 800, 150, false]]) {
+      let t = 0;
+      const r = await rigUI({ width: w, height: h, now: () => t });
+      try {
+        r.ui.settings.set({ textSize: size });
+        t = TIP_FIRST_DELAY_MS;
+        r.frame(t);
+        expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
+        t += TIP_AUTO_CLOSE_MS - 1;
+        r.frame(t);
+        expect(r.ui.tips.current()).toBe('press_play');                        // not yet, anywhere
+        t += 1;
+        r.frame(t);
+        expect(r.ui.tips.current()).toBe(closes ? null : 'press_play');
+        expect(r.ui.settings.get().seenTips).toEqual(['press_play']);          // closed or not, it stays seen
+        t += 10 * 60 * 1000;
+        r.frame(t);
+        expect(r.ui.tips.current()).toBe(closes ? null : 'press_play');
+        expect(document.body.classList.contains('nudge-play')).toBe(!closes);  // the Play ring goes with the tip
+      } finally { r.cleanup(); }
+    }
   });
   it('in the game: destroying the interface empties the tip row and the Play ring', async () => {
     const r = await rigUI();

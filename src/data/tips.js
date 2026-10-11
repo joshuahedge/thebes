@@ -17,3 +17,5 @@ export const TIPS = [
 export const TIP_GAP_MS = 180000;          // at least 3 minutes between two tips
 export const TIP_HOURLY_MAX = 5;           // and at most five in any hour
 export const TIP_FIRST_DELAY_MS = 10000;   // none in the first 10 s of a session
+export const TIP_HELD_MAX_MS = 60000;      // a tip held while a tool was active is dropped if it is older than this when the tool closes
+export const TIP_AUTO_CLOSE_MS = 15000;    // on a phone at 125% or 150% text a tip closes itself after this long (it stays seen)

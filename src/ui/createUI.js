@@ -39,7 +39,8 @@ import { createOverlayLegend } from './overlayUi.js';
 import { createToasts } from './toasts.js';
 import { createCelebrations } from './celebrate.js';
 import { createTips } from './tips.js';
-import { createNudge, nudgeLineText } from './nudge.js';
+import { createNudge, nudgeLineText, NUDGE_MAX_STEP_MS } from './nudge.js';
+import { TIP_AUTO_CLOSE_MS } from '../data/tips.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { welcomeSheet } from './welcomeBack.js';
@@ -77,13 +78,19 @@ export function createUI({
   // (hoisted) forwards settle's events to onEvents, which shows them.
   const celebrations = createCelebrations({ container: $('cheer') });
   // Tips and the idle nudge (early-game pass 3.4, 3.5): quiet, never over the map, both off under Help: Off. frameNow is
-  // the latest frame's time, so the nudge counts only time the player actually watched.
-  const tips = createTips({ container: $('tip'), settings, now, restoreFocus: () => { const b = $('goals').querySelector('.show-me'); if (b && !$('goals').hidden) b.focus(); } });
-  let frameNow = now();
+  // the latest frame's time, so the nudge counts only time the player actually watched. The tips' 3-minute gap and
+  // five-an-hour cap count play time (playMs), which runs only while the game does. A phone at 125% or 150% text has
+  // no room for a tip to stay (it would cover the middle of the map), so there it closes itself.
+  let frameNow = now(), lastFrameAt = null, playMs = 0;
+  const tipsTight = () => store.get().layout !== 'wide' && settings.get().textSize >= 125;
+  const tips = createTips({
+    container: $('tip'), settings, now, playNow: () => playMs, autoCloseMs: () => (tipsTight() ? TIP_AUTO_CLOSE_MS : 0),
+    restoreFocus: () => { const b = $('goals').querySelector('.show-me'); if (b && !$('goals').hidden) b.focus(); },
+  });
   const nudge = createNudge({ now: () => frameNow });
   const nudgeLine = el('p', { class: 'nudge-line', hidden: true });
   const nudgeRegion = el('div', { class: 'nudge', role: 'status', 'aria-live': 'polite' }, [nudgeLine]);   // stays rendered, so the line is announced when it appears
-  let nudgeState = 'none', markerCount = 0, hadShortage = false;
+  let nudgeState = 'none';
   const helpOn = () => settings.get().help !== 'off';
   const fireTip = (key) => tips.trigger(key, { busy: isToolMode(store.get().mode) });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
@@ -262,14 +269,12 @@ export function createUI({
     alerts.refresh();
     hud.render(); dock.render(); sidePanel.render(); rail.render(); guide.render(); confirmBar.render(); corners.render(); goalsStrip.render();
     setText($('map-summary'), mapSummaryText(world, alerts.list()));
-    // Tips that follow the alerts (the first problem markers, a labour shortage), and goal progress for the nudge.
+    // Tips that follow the alerts: asked for whenever a problem marker is on the map or a labour shortage is on, not only when
+    // one first appears, because the gap or a tool may have turned the tip away then. Seen tips and the first 10 s turn the
+    // question down cheaply, so a saved city never meets a tip on load. Goal progress feeds the nudge.
     const list = alerts.list();
-    const markers = list.filter((a) => a.id !== undefined && a.id !== null).length;
-    if (markers > 0 && markerCount === 0) fireTip('problemMarker');
-    markerCount = markers;
-    const shortage = list.some((a) => a.code === 'labour_shortage');
-    if (shortage && !hadShortage) fireTip('labourShortage');
-    hadShortage = shortage;
+    if (list.some((a) => a.id !== undefined && a.id !== null)) fireTip('problemMarker');
+    if (list.some((a) => a.code === 'labour_shortage')) fireTip('labourShortage');
     nudge.noteProgress(progressSignature());
   }
   // Goal progress as one string: the nudge starts again whenever it changes (early-game pass 3.5).
@@ -470,6 +475,8 @@ export function createUI({
   }
 
   function render({ timeDays, now: t }) {
+    if (lastFrameAt !== null && world.speed > 0) playMs += Math.min(NUDGE_MAX_STEP_MS, Math.max(0, t - lastFrameAt));   // a stalled frame counts a second at most
+    lastFrameAt = t;
     frameNow = t;
     cameraControl.tick(t);
     const s = store.get();
@@ -498,6 +505,7 @@ export function createUI({
   function tickNudge(s) {
     const on = helpOn();
     if (!on && tips.current()) tips.dismiss();
+    tips.tick();
     root.classList.toggle('nudge-play', tips.current() === 'press_play' && world.speed === 0);
     const state = on ? nudge.tick({ running: world.speed > 0, busy: isToolMode(s.mode) || Boolean(s.sheet) || Boolean(s.confirmDialog) }) : 'none';
     if (state === nudgeState) return;

@@ -5,6 +5,7 @@ import { GOALS } from '../../src/data/goals.js';
 import { alertText, T } from '../../src/ui/text.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
 import { openSheet, closeSheet } from '../../src/ui/modes.js';
+import { tickDay } from '../../src/sim/clock.js';
 import { rigUI } from '../helpers/uiWorld.js';
 
 // The nudge on a clock the test moves, ticked every half second like a slow frame rate.
@@ -146,16 +147,20 @@ describe('ui nudge', () => {
     try {
       r.ui.speedControl.set(1);
       const showMe = () => r.root.querySelector('#goals .show-me');
+      const line = () => r.root.querySelector('#goals .nudge-line');
       let t = 0;
       const play = (ms) => { const end = t + ms; while (t < end) { t += 1000; r.frame(t); } };
       r.frame(0);
       play(NUDGE_GLOW_MS);
       expect(showMe().classList.contains('glow')).toBe(true);
       expect(getComputedStyle(showMe()).boxShadow.includes('226, 177, 60')).toBe(true);   // gold, whether the ring is pulsing or at rest
-      r.world.goals.completed.push('road');                                     // progress moved without a command
-      r.ui.refresh();
-      play(1000);
-      expect(!showMe() || !showMe().classList.contains('glow')).toBe(true);
+      const goal = showMe().getAttribute('aria-label');
+      tickDay(r.world, []);                                                     // a game day finishes the road goal: progress, with no command to reset the count
+      expect(r.world.goals.completed).toContain('road');
+      play(NUDGE_LINE_MS + 10000);
+      expect(showMe().getAttribute('aria-label') === goal).toBe(false);          // the strip moved on to the next goal
+      expect(line().hidden).toBe(true);                                         // 70 s on, the old count would have shown its line at 60 s
+      expect(showMe().classList.contains('glow')).toBe(true);                   // and the new count glowed 45 s after the goal moved
     } finally { r.cleanup(); }
   });
   it('draws the glow and the Play ring as a gold ring that pulses twice, under one flash a second, and only still under reduced motion', () => {
