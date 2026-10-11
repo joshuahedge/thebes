@@ -11,8 +11,7 @@ import { setPaused, setAccept } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { storeTotal, storeAccepts } from '../sim/production.js';
 import { openGoals, guideActive } from '../sim/goals.js';
-import { achievementProgress } from '../sim/achievements.js';
-import { ACHIEVEMENTS } from '../data/achievements.js';
+import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
 import { summaryData } from './hud.js';
 import { nearestTerrainTile } from './goalsList.js';
@@ -249,10 +248,11 @@ export function createSheets({ container, store, world, placement, cameraControl
   function achievementsSection() {
     if (guideActive(world)) return [el('h3', { text: T.achievements }), el('p', { class: 'muted', text: T.achievementsLater })];
     const done = new Set(world.achievements || []);
-    const count = ACHIEVEMENTS.filter((a) => done.has(a.id)).length;
+    const earnable = achievementsFor(world);         // Stage 3: a Peaceful city is not shown the raid ones it can never earn
+    const count = earnable.filter((a) => done.has(a.id)).length;
     return [
-      el('h3', { text: achievementsHeading(count, ACHIEVEMENTS.length) }),
-      el('ul', { class: 'achievements' }, ACHIEVEMENTS.map((a) => achievementRow(a, done.has(a.id)))),
+      el('h3', { text: achievementsHeading(count, earnable.length) }),
+      el('ul', { class: 'achievements' }, earnable.map((a) => achievementRow(a, done.has(a.id)))),
     ];
   }
 
