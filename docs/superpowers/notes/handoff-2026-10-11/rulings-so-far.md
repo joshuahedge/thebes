@@ -1,4 +1,4 @@
-# Rulings made on Josh's behalf, 11 Oct 2026 (parts 1-4)
+# Rulings made on Josh's behalf, 11 Oct 2026 (parts 1-5)
 
 Josh asked for no questions; every call is listed here with what it costs if wrong. The final session report presents this list (plus any Stage 2 execution rulings added later).
 
@@ -99,3 +99,84 @@ Josh asked for no questions; every call is listed here with what it costs if wro
     - Task 8 owns the words for its own additions;
     - `DIFFICULTY_NAMES` lives with the summary.
     — Cost if wrong: none.
+
+## Part 5: Stage 3 spec
+
+The spec was revised in place (`specs/2026-10-09-thebes-design.md`) from the Stage 3 review (`notes/2026-10-11-stage-3-review.md`, its 12 proposals accepted) and the controller's decisions. Every number is a first value in `data/`.
+
+### The review's twelve, as accepted
+69. Fire burns 10-15 days and starts as a 3-day blaze that a staffed firehouse in reach puts out in 1-2 days. — Cost if wrong: fires feel less dramatic; the numbers live in `data/fire.js`.
+70. The raid warning runs 3 months (90 days, 60 s at 1×) with a countdown chip, not 2 months. — Cost if wrong: a little less tension.
+71. Raid size follows a capped curve of people and wealth (at most 12 raiders) and shrinks after a lost raid. — Cost if wrong: tuning.
+72. Tribute is 0.8 × the price of the towers that would win, shown beside "or build N towers facing <dir>", and hidden for the first raid. — Cost if wrong: a cautious player can't buy off the first raid.
+73. Peaceful for new cities: Relaxed costs (×0.8), fire risk ×0.5, no raids, score factor 0.7, its own bests. — Cost if wrong: one more choice on the title card.
+74. Raiders burn and steal but never hurt citizens; the residents of a burned home leave the city. — Cost if wrong: less grim, and less weight to losing.
+75. Score: four parts 0-100 (People, Prosperity, Culture, Safety), sum × difficulty factor, versioned as score v1; Monuments joins in Stage 4 as v2. — Cost if wrong: the weights need tuning.
+76. Personal bests per seed and difficulty on the device; Seal this reign; bronze, silver and gold medals. — Cost if wrong: the medal thresholds are guesses at first.
+77. Weekly seed, share link and picture card, labelled "friends' honour". — Cost if wrong: anyone can fake a link.
+78. Early-game additions: Founded Thebes ticked, the next-threshold bar, "+N" previews, ten feats, stamps, citizen remarks, a coin tick and a water ripple. — Cost if wrong: a little more interface.
+79. Ambient life as a light layer over the terrain chunks, with a Settings switch. — Cost if wrong: frame time on old phones.
+80. Festivals small: 200 gold × difficulty cost, +6 mood for 3 months, a 12-month wait, from Town, at a working temple. — Cost if wrong: one more button.
+
+### Fire
+81. Firehouse 1×1 (like the well and booth): 50 gold, 4 upkeep, 4 workers, safety priority, Services card, Village; reach 8 road tiles (spec 4.5 said 10). — Cost if wrong: one number each.
+82. Risk is points a day towards 100: potter and brewery 1.0; weaver, jeweller, granary, storehouse and trading post 0.5; hut and shack 0.3; cottage to townhouse 0.25; manor to estate 0.2; bazaar, booth and barracks 0.3; farms, clay pit and gem mine 0.15; temple and firehouse 0.1. An uncovered House reaches 100 in about 13 months. — Cost if wrong: fires too rare or too common; a table in data.
+83. Never burn: roads, empty plots, gardens, statues, plazas, wells and water, walls, gates, towers, rubble. — Cost if wrong: towers can't be lost to fire.
+84. Coverage is the best staffing ratio among firehouses reaching a building; it cuts build-up by 80% × coverage; "staffed", for putting fires out, means coverage of at least 0.5. — Cost if wrong: a half-staffed firehouse helps less than players expect.
+85. A blaze's put-out time (1 or 2 days) is drawn at ignition and counts only days the building is covered and staffed; after three unfought days it grows. — Cost if wrong: none (a firehouse built during a blaze still saves it).
+86. Spread is 6% a day to each burnable building sharing an edge (so a 2×2 has up to 8 neighbours), and a spread starts a blaze, so coverage applies again. — Cost if wrong: big buildings spread fire more.
+87. A covered fire goes out at 25% × coverage a day; a firehouse built during a fire counts from the next day. — Cost if wrong: tuning.
+88. A building in the fire stage stops working; a blaze does not. — Cost if wrong: production dips during long fires.
+89. A burned non-home leaves 1×1 rubble on each footprint tile and loses its stock; rubble needs no road, never burns, has desirability −3, −1; clearing is 5 gold a tile × difficulty cost through Demolish (tap or drag), refused below −500. — Cost if wrong: tuning.
+90. Only a blaze or fire that no staffed firehouse reaches is critical (banner, a pause the first time, the speed reaction later); a covered blaze is a warning row, plus a caption when it is out. — Cost if wrong: a covered blaze passes quietly. The brief's "later fires drop to 1×" now applies to uncovered fires only, to avoid alarm fatigue in a big covered city.
+91. The "On a fire" setting defaults to Just tell me (1× plus banner); Go to it is the one opt-in exception to "the camera moves only on View", and an instant cut under reduced motion. — Cost if wrong: none.
+92. Mood: a fire last month −4 (fire stage only; blazes put out don't count); buildings burned in 6 months −2 each, at most −10. — Cost if wrong: tuning in `data/mood.js`.
+93. Fire-risk overlay bands Low 0-24, Rising 25-59, High 60-99 (light hatching) and Can catch fire 100+ (dense hatching), plus dot or ring for covered or not; problem markers on High and above where no staffed firehouse covers. — Cost if wrong: band edges in data.
+
+### Raids and defence
+94. Raid timing: the clock starts the day the city first has 250 people (and keeps running if people fall); the first warning comes exactly 720 days later; later warnings 720-1,440 days after the previous raid's (or cancelled raid's) arrival, seeded by raid index; a v3 city above 250 starts the clock at load. — Cost if wrong: raids feel regular.
+95. Entry: one of the map's two raider entries, by `hash2(seed, raid index, salt)`, with the direction named by its edge. — Cost if wrong: none.
+96. Size: raw = 1 + people ÷ 125 + clamp((wealth − 5,000) ÷ 5,000, 0, 4); wealth = positive treasury + base cost of standing buildings except roads and walls; raiders = clamp(round(raw × risk × adaptation), 2, 12); the first raid is always 3 at every difficulty. — Cost if wrong: tuning (Hard's first raid is no harder).
+97. Adaptation: a lost raid sets it to 0.6; each later raid (beaten, lost or paid) adds 0.2, up to 1. — Cost if wrong: tuning.
+98. Targets in the order trading post, storehouse, bazaar, temple, then any non-home building; the warning names the kind at warning time; raiders move as one band, strike at most 3 targets for 2 days each, then leave. — Cost if wrong: one band is less dramatic than raiders splitting up, but far easier to read.
+99. A strike sets a blaze through the fire system (so a covered firehouse can still save the target), and each raider steals 1% of the treasury (5-50 gold), never below 0. — Cost if wrong: theft is small late on; tuning.
+100. Outcome: beaten if half the raiders (rounded up) fall, so the rest retreat, or all fall; lost if the band leaves after its strikes. — Cost if wrong: none.
+101. Units: raider 10 HP, 1 tile a day, 2 damage a day; soldier 12 HP, 2 tiles a day, 3 damage; tower 4 a day × staffing at the nearest raider within 4 tiles (straight line); towers needed = ceil(raiders ÷ 3). — Cost if wrong: combat tuning; a test pins "one tower beats the first raid".
+102. Wall 8 gold a tile, 40 HP; gate (a wall on a road) 20 gold, 40 HP; tower 1×1, 150 gold, 8 upkeep, 4 workers, 80 HP on a wall; barracks 2×2, 200 gold, 12 upkeep, 6 workers; walls cost no upkeep; towers and barracks need a road, and a gate counts as one. — Cost if wrong: numbers in data.
+103. Damaged wall tiles heal when the raid ends; broken ones stay gaps until redrawn at the normal price. — Cost if wrong: no repair chore after a raid.
+104. Pathfinding: one flow field per band target; open tiles cost 1, buildings and water can't be crossed, a wall, gate or tower tile costs 1 + HP ÷ 2 (1 once broken); rebuilt on a wall, road or building change; the band waits while any member breaks a wall or fights. — Cost if wrong: raiders breach where towers aren't (a tower's 80 HP steers them away).
+105. Barracks train 1 soldier per 30 days at full staff, up to 4; patrol radius 8 tiles; pay is 8 gold a month even in peace and even while the barracks is paused; a soldier at 0 HP is wounded and leaves service, and training replaces it. — Cost if wrong: tuning.
+106. Mood: a raid in the last 6 months costs −3 if beaten and −8 if lost (the brief gave one term; the split shows defence's value). — Cost if wrong: winning still dents mood a little.
+107. Raiders arriving drop the speed to 1× (never a pause), so a fight isn't watched at 3×. — Cost if wrong: one more speed drop.
+108. The tribute hint's N is towers needed less working towers; at 0 it says "Your towers can beat this raid". Tribute is payable only during the warning. — Cost if wrong: none.
+109. Desirability: firehouse −1; tower −2, −1; barracks −4, −2; walls and gates none (spec 4.7 had no values). — Cost if wrong: tuning.
+
+### Alerts, difficulty, money
+110. One banner slot, ranked active raid, raid warning, uncovered fire, debt, save failing; the rest wait in the minimap list behind "+N more"; the countdown chip is the raid warning's collapsed banner in the same slot, so a chip and a banner never stack. — Cost if wrong: a fire during a raid warning shows only as "+1 more" and a speed drop.
+111. With a banner up, the legend shrinks to an icon so the goals strip ends above the middle at 375×667 and 844×390 at any text size. — Cost if wrong: the full legend is one tap away.
+112. Peaceful keeps the Defence cards working but skips the defence goals, daily goals, raid feats and achievements, and counts Safety's defence term as full. — Cost if wrong: walls on Peaceful are decoration.
+113. The difficulty's cost multiplier also covers walls, rubble clearing and festivals, and tribute through the tower price; soldiers' pay never changes. — Cost if wrong: none.
+114. Balance: wages + upkeep + soldiers' pay at 60-70% of taxes at a steady tier-4 town is the band the long-run test asserts. — Cost if wrong: at Capital a full defence costs only about 5% of taxes, so the late game stays generous until Stage 4's monuments.
+
+### Scoring and gamification
+115. People = 60 × growth (milestone steps plus the fraction to the next, ÷ 5) + 40 × residents' average tier ((tier − 1) ÷ 8). — Cost if wrong: weights.
+116. Prosperity = 30 × (tax per person ÷ 5) + 30 × jobs (full at 5% jobless or less, 0 at 30%) + 20 × treasury (0 at −500) + 20 × (open routes ÷ 2). — Cost if wrong: weights; trade counts routes, not volume.
+117. Culture = 25 each for the share of homes reached by a working temple, booth and bazaar, + 25 × average home desirability ÷ 50. — Cost if wrong: weights.
+118. Safety = 40 × firehouse coverage share (1 before Town) + 40 × defence ((working towers + soldiers ÷ 3) ÷ towers needed now; 1 before the raid clock and on Peaceful) + 20 × record (−0.2 per building burned and −0.5 per raid lost in the last 12 months). — Cost if wrong: weights.
+119. The live total shows in the summary, on Welcome back, and as a small chip on the summary button; the top bar gets nothing new. — Cost if wrong: the score is one tap away, not always in view.
+120. Medals are set on the parts' total before the difficulty factor, 160/240/320 of 400, and shown in city-score points (so Hard's gold is 400 and Peaceful's 224). — Cost if wrong: guesses; set on the raw parts so every level can earn gold.
+121. The review's examples ("Best: 712", "Beat 701?") exceed the 500 the formula allows at most; the spec uses 312 and 301. — Cost if wrong: none.
+122. Records in `localStorage` `thebes.records`: one row per city (an id the interface gives at creation) updated on every save, and one chronicle entry per seal, 200 of each (oldest first, never a best); bests = the highest month-end score and the earliest milestone days per seed and difficulty; older score versions are kept and labelled. — Cost if wrong: a cleared browser loses its records unless exported.
+123. Seal this reign can be repeated at any time; each seal is a new entry and stamp; the title card shows the three highest bests. — Cost if wrong: a player can fill the chronicle with seals of one city.
+124. Weekly seed = ISO week-year × 100 + ISO week, from the local date, read by the interface. — Cost if wrong: friends in far time zones can be a day apart at the week's turn.
+125. Share link `#t1.<seed>.<p|r|n|h>.<parts joined by ->.<game-months to each milestone, x if not reached>.<4 base-36 check characters>`; the emoji row has one line per part and a square per 20 points; screenshot mode sits in the ☰ menu and beside Share score. — Cost if wrong: a format change needs t2.
+126. Founded Thebes makes the opening chain ten goals, so the strip opens at "1 of 10", not the review's "1 of 9". — Cost if wrong: one number; drop a chain goal if "of 9" matters.
+127. After Capital the next-threshold bar shows the next medal ("Silver: 38 points to go"). — Cost if wrong: none.
+128. Ten feats (table in spec 4.19), per city, no gold, may be missed, never gate anything. "Town with only grain" became "Market town without a fig orchard", because figs unlock at Town. — Cost if wrong: the list is data.
+129. Stage 3 goals and rewards: a "Danger" chapter; chain goals "Build a firehouse" (after Town) and "Build a tower and a barracks" (after the trade route); event goals for the first fire and first raid warning (each needs a building, not "no alert"); five firsts; four achievements; three daily goals; six tips. — Cost if wrong: data only.
+130. Citizen remarks: a pool of at least 24; at most one per 3 game-months, when the caption row is free; by seed, month and season; only for buildings the city has; none when Help is Off. — Cost if wrong: remarks are rarer than "variety" suggests.
+131. The coin tick is one note of at most 0.1 s at gain 0.15 or less; the horn is three low notes of at most 0.4 s each; about ten sounds in all. — Cost if wrong: none.
+
+### Art and ambient
+132. Raiders and soldiers are drawn 1.5× citizen size and told apart by shape (crested helmet and round shield, against white kilt, tall spear and teal shield); health bars show after the first hit; arrows are 0.3 s strokes. — Cost if wrong: art constants.
+133. Ambient numbers: glints drift about 0.2 tiles a second over 4-7 s; reeds sway ±3° and trees ±2° over 3-6 s; a crop band every 6 s; smoke every 2-3 s; each kind of rare life at most one on screen, every 60-120 s; over 2 ms a frame, drop rare life, then smoke, then sway; paused and idle for 2 s, cap at 30 fps. — Cost if wrong: tuning.
