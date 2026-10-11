@@ -36,7 +36,7 @@
 - The settle is the "every placement" celebration tier: the existing place sound and buzz stay.
 
 ### 2.5 Cards with pictures
-- Each build card shows the building's own drawing (a thumbnail rendered from its art slot; roads, plots and demolish get small drawn icons), the name, and the cost with a coin mark. Locked and unaffordable states keep their words and marks.
+- Each build card shows the building's own drawing (a thumbnail rendered from its art slot, fitted to its drawn pixels; housing plots show a hut, the first home a plot becomes; roads and demolish get small drawn icons), the name, and the cost with a coin mark. Locked and unaffordable states keep their words and marks.
 - Category buttons and tabs carry a thin colour band matching their buildings' emblem colours.
 - Categories with no buildings at all (Industry, Defence, Monuments in Stage 1) are hidden; they return when Stage 2 fills them. Keyboard 1-7 keeps its mapping and ignores hidden categories.
 
