@@ -98,7 +98,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, afterCommand, custom: customSheets });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onSelect: selectBuilding, afterCommand, custom: customSheets });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -133,13 +133,13 @@ export function createUI({
       cameraControl.keepVisible(g.x + def.w / 2, g.y + def.d / 2, placingInsets(store.get()));
     }
   }
+  const closeAnySheet = () => { const s = store.get(); if (s.sheet) store.set(closeSheet(s)); };
   // Show me (spec 4.1, early-game pass 2.6 and 2.10): close any sheet, open the right card, start its tool, pan to
   // the place and pulse it. A building's ghost lands on the nearest tile where it fits around the place, so it
   // never starts on top of a home, and the view keeps the ghost on screen even when that tile is several tiles
   // off. The goals strip, the goals sheet and the house sheet all come through here.
   function showMeAt({ category, item, x, y }) {
-    const s = store.get();
-    if (s.sheet) store.set(closeSheet(s));
+    closeAnySheet();
     store.set(pickCategory(store.get(), category || categoryOfItem(item)));
     const tool = toolForItem(item);
     const def = tool.kind === 'building' ? BUILDINGS[tool.type] : null;
@@ -153,9 +153,7 @@ export function createUI({
   // A goal's Show me: the next building it still needs, at its target. A goal with nowhere to point (debt)
   // opens the city summary instead.
   function showMe(goal) {
-    const s = store.get();
-    if (s.sheet) store.set(closeSheet(s));
-    if (!goal.showMe) { store.set(openSheet(store.get(), 'summary')); return; }
+    if (!goal.showMe) { closeAnySheet(); store.set(openSheet(store.get(), 'summary')); return; }
     const item = nextItemFor(world, goal) || goal.showMe.item;
     const t = showMeTarget(world, goal);
     showMeAt({ category: categoryOfItem(item) || goal.showMe.category, item, x: t.x, y: t.y });
@@ -178,9 +176,15 @@ export function createUI({
   // View on an alert: a building's alert selects it and pans there; a city-wide one opens the summary.
   function viewAlert(alert) {
     if (alert.code === 'save_failed') { store.set(openSheet(store.get(), 'menu')); return; }
-    const b = alert.id ? world.buildings[alert.id] : null;
-    if (b) { store.set(select(store.get(), b.id)); cameraControl.panTo(b.x + b.w / 2, b.y + b.d / 2); }
-    else store.set(openSheet(store.get(), 'summary'));
+    if (!(alert.id && selectBuilding(alert.id))) store.set(openSheet(store.get(), 'summary'));
+  }
+  // Select a building: its sheet opens and the view pans to it. An alert's View and a house sheet's View share this.
+  function selectBuilding(id) {
+    const b = world.buildings[id];
+    if (!b) return false;
+    store.set(select(store.get(), b.id));
+    cameraControl.panTo(b.x + b.w / 2, b.y + b.d / 2);
+    return true;
   }
   function afterCommand(e) {
     if (e.undoable) {                                  // a ✓ outcome: place, road, plots or demolish

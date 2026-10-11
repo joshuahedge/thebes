@@ -12,7 +12,7 @@ import { updateMood } from '../../src/sim/mood.js';
 import { goalById, triggerEventGoals } from '../../src/sim/goals.js';
 import { categoryOfItem } from '../../src/data/ui.js';
 import { createCamera, tileToScreen } from '../../src/render/camera.js';
-import { T, NEED_NAMES, CAUSE_TEXT, MOOD_NAMES, residentsLabel } from '../../src/ui/text.js';
+import { T, NEED_NAMES, CAUSE_TEXT, MOOD_NAMES, causeText, buildingName } from '../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 import { rigUI } from '../helpers/uiWorld.js';
@@ -25,13 +25,13 @@ function rig() {
   const store = createStore(INITIAL_UI_STATE);
   const cam = createCamera({ x: 16, y: 16, zoom: 1 });
   const view = () => ({ width: 400, height: 300 });
-  const shown = [];
+  const shown = [], selected = [];
   const sheets = createSheets({
     container: root, store, world, placement: createPlacement({ world, store }),
     cameraControl: createCameraControl({ cam, view, reducedMotion: () => true }),
-    minimap: createMinimap({ world, cam, view, size: 100 }), getAlerts: () => alertsFor(world), onShowMe: (t) => shown.push(t),
+    minimap: createMinimap({ world, cam, view, size: 100 }), getAlerts: () => alertsFor(world), onShowMe: (t) => shown.push(t), onSelect: (id) => selected.push(id),
   });
-  return { root, world, store, sheets, shown, cleanup };
+  return { root, world, store, sheets, shown, selected, cleanup };
 }
 const rowFor = (root, need) => [...root.querySelectorAll('.checklist li')].find((li) => li.querySelector('.name').textContent === NEED_NAMES[need]);
 
@@ -43,6 +43,14 @@ describe('ui house sheet why', () => {
     expect(CAUSE_TEXT.next_delivery.cause).toBe('Food arrives at the next delivery');
     for (const code of ['no_road', 'no_well', 'no_bazaar', 'bazaar_empty', 'next_delivery', 'no_temple']) expect(CAUSE_TEXT[code].cause.length).toBeGreaterThan(0);
     for (const code of ['no_road', 'no_well', 'no_bazaar', 'bazaar_empty', 'no_temple']) expect(CAUSE_TEXT[code].fix.length).toBeGreaterThan(0);
+    expect(CAUSE_TEXT.bazaar_empty.fix).toBe('Build a granary within 16 road tiles of it');
+    expect(CAUSE_TEXT.granary_empty).toEqual({ cause: 'Its granary is empty', fix: 'Grain farms fill granaries' });
+    const world = makeTestWorld();
+    const bazaar = addRaw(world, 'bazaar', 9, 11);
+    expect(causeText({ code: 'bazaar_idle', id: bazaar.id }, world)).toEqual({ cause: 'The bazaar is short of workers', fix: 'More homes bring more workers' });
+    bazaar.paused = true;
+    expect(causeText({ code: 'bazaar_idle', id: bazaar.id }, world)).toEqual({ cause: 'The bazaar is paused', fix: 'Resume it' });
+    expect(causeText({ code: 'no_road', id: null }, world)).toBe(CAUSE_TEXT.no_road);
     expect(MOOD_NAMES).toEqual({ base: 'Starting mood', food: 'Food', jobs: 'Jobs', debt: 'Debt' });
     expect(categoryOfItem('bazaar')).toBe('services');
     expect(categoryOfItem('granary')).toBe('food');
@@ -63,8 +71,8 @@ describe('ui house sheet why', () => {
       expect(water.textContent).toContain(CAUSE_TEXT.no_well.fix);
       fire(water.querySelector('.show-me'), 'click');
       expect(r.shown).toEqual([{ category: 'services', item: 'well', x: 28.5, y: 9.5 }]);
-      const meter = r.root.querySelector('.residents [role="img"]');
-      expect(meter.getAttribute('aria-label')).toBe(residentsLabel(4, 5));
+      expect(r.root.querySelector('.residents .meter').getAttribute('aria-hidden')).toBe('true');   // the visible "4 of 5" carries it
+      expect(r.root.querySelector('.residents [role="img"]')).toBe(null);
       expect(r.root.textContent).toContain('4 of 5');
     } finally { r.cleanup(); }
   });
@@ -85,6 +93,76 @@ describe('ui house sheet why', () => {
       food = rowFor(r.root, 'food');
       expect(food.textContent).toContain(CAUSE_TEXT.next_delivery.cause);
       expect(food.querySelector('.show-me')).toBe(null);
+    } finally { r.cleanup(); }
+  });
+  it("names a provider that is in reach but not working, and offers View on it instead of building another", () => {
+    const r = rig();
+    try {
+      addRaw(r.world, 'well', 15, 11);
+      const bazaar = addRaw(r.world, 'bazaar', 9, 11);                  // in reach, no staff yet
+      const shack = addRaw(r.world, 'house', 12, 9, { tier: 2, residents: 8 });
+      r.store.set(select(r.store.get(), shack.id));
+      let food = rowFor(r.root, 'food');
+      expect(food.textContent).toContain('The bazaar is short of workers');
+      expect(food.textContent).toContain('More homes bring more workers');
+      expect(food.querySelector('.show-me')).toBe(null);
+      const view = food.querySelector('.view');
+      expect(view.textContent).toBe(T.view);
+      expect(view.getAttribute('aria-label')).toBe(`${T.view}: ${buildingName('bazaar')}`);
+      fire(view, 'click');
+      expect(r.selected).toEqual([bazaar.id]);
+      expect(r.shown).toEqual([]);
+      bazaar.paused = true;
+      r.sheets.render();
+      food = rowFor(r.root, 'food');
+      expect(food.textContent).toContain('The bazaar is paused');
+      expect(food.textContent).toContain('Resume it');
+    } finally { r.cleanup(); }
+  });
+  it('a paused well is named as paused, with Resume it and View', () => {
+    const r = rig();
+    try {
+      const well = addRaw(r.world, 'well', 15, 11);
+      well.paused = true;
+      const shack = addRaw(r.world, 'house', 12, 9, { tier: 2, residents: 8 });
+      r.store.set(select(r.store.get(), shack.id));
+      const water = rowFor(r.root, 'water');
+      expect(water.textContent).toContain('The well is paused');
+      expect(water.textContent).toContain('Resume it');
+      expect(water.querySelector('.show-me')).toBe(null);
+      fire(water.querySelector('.view'), 'click');
+      expect(r.selected).toEqual([well.id]);
+    } finally { r.cleanup(); }
+  });
+  it("points an empty granary's Show me at a grain farm beside that granary", () => {
+    const r = rig();
+    try {
+      addRaw(r.world, 'well', 15, 11);
+      addRaw(r.world, 'bazaar', 9, 11);
+      const granary = addRaw(r.world, 'granary', 4, 11);
+      staffAll(r.world);
+      const shack = addRaw(r.world, 'house', 12, 9, { tier: 2, residents: 8 });
+      r.store.set(select(r.store.get(), shack.id));
+      const food = rowFor(r.root, 'food');
+      expect(food.textContent).toContain(CAUSE_TEXT.granary_empty.cause);
+      expect(food.textContent).toContain(CAUSE_TEXT.granary_empty.fix);
+      fire(food.querySelector('.show-me'), 'click');
+      expect(r.shown).toEqual([{ category: 'food', item: 'farm_grain', x: granary.x + 1, y: granary.y + 1 }]);
+    } finally { r.cleanup(); }
+  });
+  it('gives every Show me and View its own name for a screen reader, starting with the words it shows', () => {
+    const r = rig();
+    try {
+      const lost = addRaw(r.world, 'house', 12, 5, { tier: 2, residents: 8 });   // no road: every row blames the road
+      r.store.set(select(r.store.get(), lost.id));
+      const labels = [...r.root.querySelectorAll('.checklist .show-me')].map((b) => b.getAttribute('aria-label'));
+      expect(labels.length).toBeGreaterThan(1);
+      for (const label of labels) expect(label).toBe(`${T.showMe}: ${CAUSE_TEXT.no_road.fix}`);   // each says what it does, not just "Show me"
+      const away = addRaw(r.world, 'house', 28, 9, { tier: 2, residents: 8 });    // on the road, but no well or bazaar
+      r.store.set(select(r.store.get(), away.id));
+      const own = [...r.root.querySelectorAll('.checklist .show-me')].map((b) => b.getAttribute('aria-label'));
+      expect(own).toEqual([`${T.showMe}: ${CAUSE_TEXT.no_well.fix}`, `${T.showMe}: ${CAUSE_TEXT.no_bazaar.fix}`]);   // and different fixes read differently
+      for (const b of r.root.querySelectorAll('.checklist button')) expect(b.getAttribute('aria-label').startsWith(b.textContent)).toBe(true);
     } finally { r.cleanup(); }
   });
   it('reads the mood rows in plain English', () => {
@@ -123,6 +201,22 @@ describe('ui house sheet why', () => {
       expect(s.category).toBe('services');
       expect(Math.abs(s.ghost.x - 28) <= 2 && Math.abs(s.ghost.y - 9) <= 2).toBe(true);
       expect(canPlace(r.world, 'well', s.ghost.x, s.ghost.y).ok).toBe(true);
+    } finally { r.cleanup(); }
+  });
+  it("in the game, the house sheet's View on a paused well selects that well and opens its sheet", async () => {
+    const r = await rigUI({ width: 390, height: 844 });
+    try {
+      const well = Object.values(r.world.buildings).find((b) => b.type === 'well');
+      well.paused = true;
+      const home = Object.values(r.world.buildings).find((b) => b.type === 'house');
+      r.store.set(select(r.store.get(), home.id));
+      const water = [...r.root.querySelectorAll('#sheet .checklist li')].find((li) => li.textContent.includes(NEED_NAMES.water));
+      expect(water.textContent).toContain('The well is paused');
+      fire(water.querySelector('.view'), 'click');
+      const s = r.store.get();
+      expect(s.selectedId).toBe(well.id);
+      expect(s.sheet).toEqual({ kind: 'info', id: well.id });
+      expect(r.root.querySelector('#sheet h2').textContent).toBe(buildingName('well'));
     } finally { r.cleanup(); }
   });
   it("sends goal Show me the same way: the goal's next missing building, an event goal's building, the summary for debt", async () => {

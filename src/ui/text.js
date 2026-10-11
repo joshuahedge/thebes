@@ -15,14 +15,35 @@ export function buildingName(type) {
 export const NEED_NAMES = { road: 'Road access', water: 'Water', food: 'Food', religion: 'Temple' };
 
 // The house sheet's causes and fixes (early-game pass 2.10), keyed by needCause codes. Reaches come from the data.
+// A provider in reach that is not working (well_idle, bazaar_idle, temple_idle) words itself by the building's own
+// state: causeText picks `paused` or `short`.
+const idleWords = (type) => {
+  const name = buildingName(type).toLowerCase();
+  return {
+    paused: { cause: `The ${name} is paused`, fix: 'Resume it' },
+    short: { cause: `The ${name} is short of workers`, fix: 'More homes bring more workers' },
+  };
+};
 export const CAUSE_TEXT = {
   no_road: { cause: 'No road beside it', fix: 'Lay a road next to it' },
   no_well: { cause: `No working well within ${BUILDINGS.well.reach} road tiles`, fix: 'Build a well near it' },
   no_bazaar: { cause: `No working bazaar within ${BUILDINGS.bazaar.reach} road tiles`, fix: 'Build a bazaar near it' },
-  bazaar_empty: { cause: 'The bazaar has no grain', fix: 'Build a granary near the bazaar' },
+  bazaar_empty: { cause: 'The bazaar has no grain', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles of it` },
+  granary_empty: { cause: 'Its granary is empty', fix: 'Grain farms fill granaries' },
   next_delivery: { cause: 'Food arrives at the next delivery', fix: '' },
   no_temple: { cause: `No working temple within ${BUILDINGS.temple.reach} road tiles`, fix: 'Build a temple near it' },
+  well_idle: idleWords('well'),
+  bazaar_idle: idleWords('bazaar'),
+  temple_idle: idleWords('temple'),
 };
+
+// The words for one needCause result: { cause, fix }. An idle provider reads its own building's state.
+export function causeText(cause, world) {
+  const t = CAUSE_TEXT[cause.code];
+  if (!t.paused) return t;
+  const b = world.buildings[cause.id];
+  return b && b.paused ? t.paused : t.short;
+}
 
 // The city summary's mood rows, keyed by world.moodBreakdown.
 export const MOOD_NAMES = { base: 'Starting mood', food: 'Food', jobs: 'Jobs', debt: 'Debt' };
@@ -95,7 +116,6 @@ export const OVERLAY_LEGEND = {
 export const dateText = ({ year, month, day }) => `Year ${year}, month ${month}, day ${day}`;
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 export const progressText = (n, of) => `${n} of ${of}`;
-export const residentsLabel = (n, of) => `${progressText(n, of)} residents`;
 export const goalsProgressText = (done, total) => `${done} of ${total} done`;
 export const milestoneText = (name) => `Your city is now a ${name}`;
 
