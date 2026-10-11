@@ -3,7 +3,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { generateMap } from './mapgen.js';
 import { idx, footprint } from './grid.js';
 
-export const WORLD_VERSION = 1;
+export const WORLD_VERSION = 2;
 export const HISTORY_MONTHS = 12;   // month-end rows kept for the Welcome back trends
 
 export function createWorld({ seed = 1, size = 64, map = null } = {}) {
@@ -33,8 +33,13 @@ export function createWorld({ seed = 1, size = 64, map = null } = {}) {
     focus: { ...m.focus },
     stats: { lastMonth: null },
     startRoad: m.startRoad.map(([x, y]) => [x, y]),   // the generator's road in from the trade edge (goals, Show me)
-    goals: { completed: [] },                           // ids of finished goals, in order
+    goals: { completed: [], triggered: [] },            // ids of finished goals, in order; event goals that have fired
     history: [],                                        // { day, people, gold, mood } per month end, newest last
+    firsts: [],                                         // ids of firsts already celebrated (null: mark silently, from a v1 save)
+    achievements: [],                                   // ids of achievements already earned (null as for firsts)
+    daily: null,                                        // today's daily goals: { date, picks, base, done, swapped }
+    guide: { on: true, done: false },                   // the guided start: running, and whether it has finished
+    tally: { harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0 },   // running counts for firsts, achievements and daily goals
   };
   for (const [x, y] of m.startRoad) world.road[idx(world.size, x, y)] = 1;
   return world;

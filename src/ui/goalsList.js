@@ -1,15 +1,35 @@
-// The goals list (spec 4.1): the first open goal as a strip under the top bar, up to three in a sheet,
-// each with Show me. Goal state lives in the world (src/sim/goals.js); this file only reads it.
+// The goals list (spec 4.1; early-game pass 2.7, 3.3 and 3.7). The strip under the top bar shows the first
+// open goal with its progress ("2 of 6"), its reward, a filled Show me, Goals and, while the guide runs, Skip
+// guide; the whole row hides when no goal is open. The goals sheet shows up to three open goals grouped by
+// chapter, then today's daily goals. Goal state lives in the world (src/sim/goals.js, src/sim/daily.js):
+// this file reads it, and changes it only through swapDaily.
 import { GOALS } from '../data/goals.js';
-import { openGoals } from '../sim/goals.js';
+import { DAILY_REWARD } from '../data/daily.js';
+import { openGoals, goalProgress, guideActive } from '../sim/goals.js';
+import { dailyProgress, swapDaily } from '../sim/daily.js';
+import { alertsFor } from '../sim/alerts.js';
 import { housesOf } from '../sim/world.js';
-import { el, button, clear } from './components.js';
-import { T, goalsProgressText } from './text.js';
+import { el, button, clear, setText } from './components.js';
+import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, progressText, progressLabel, dailyDoneText, swapLabel, showMeLabel } from './text.js';
 
-const rewardText = (goal) => `+${goal.reward}`;
+const FOCUS_CLASSES = ['show-me', 'open-goals', 'skip-guide'];
 
+// The device's local date as 'YYYY-MM-DD'. It is the only way the date reaches the sim (daily goals).
+export function dateKeyOf(ms) {
+  const d = new Date(ms);
+  const two = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+}
+
+// Where a goal's Show me points. 'alert' aims at the first building with that alert (an event goal's trouble);
+// a goal with no showMe (out of debt) and any target that finds nothing fall back to the city's focus.
 export function showMeTarget(world, goal) {
-  const kind = goal.showMe.target;
+  const show = goal.showMe;
+  const kind = show ? show.target : null;
+  if (kind === 'alert') {
+    const a = alertsFor(world).find((x) => x.code === show.code && x.id && world.buildings[x.id]);
+    if (a) { const b = world.buildings[a.id]; return { x: b.x + b.w / 2, y: b.y + b.d / 2 }; }
+  }
   if (kind === 'startRoad' && world.startRoad.length) {
     const [x, y] = world.startRoad[world.startRoad.length - 1];
     return { x: x + 0.5, y: y + 0.5 };
@@ -24,44 +44,108 @@ export function showMeTarget(world, goal) {
   return { x: world.focus.x, y: world.focus.y };
 }
 
-function goalRow(goal, onShowMe) {
+// "2 of 6" (and its words for screen readers) where a goal counts something, else null. Never past the target.
+function countOf(world, goal) {
+  const p = goalProgress(world, goal);
+  if (!p) return null;
+  const n = Math.min(p.n, p.of);
+  return { text: progressText(n, p.of), label: progressLabel(n, p.of) };
+}
+const chip = (c) => el('span', { class: 'chip small', role: 'img', 'aria-label': c.label, text: c.text });
+// Several Show me buttons can be on screen at once: each one's name starts with its visible words and says which goal.
+const showMeButton = (goal, onShowMe) => button(T.showMe, { class: 'show-me primary', 'aria-label': showMeLabel(goal.text), onClick: () => onShowMe(goal) });
+
+function goalRow(world, goal, onShowMe) {
+  const c = countOf(world, goal);
   return el('li', { class: 'goal' }, [
-    el('span', { class: 'text' }, [goal.text, ' ', el('span', { class: 'reward small muted', text: `${rewardText(goal)} ${T.gold.toLowerCase()}` })]),
-    button(T.showMe, { class: 'show-me quiet', onClick: () => onShowMe(goal) }),
+    el('span', { class: 'text' }, [goal.text, ' ', c ? chip(c) : null, c ? ' ' : null, el('span', { class: 'reward small muted', text: rewardText(goal.reward) })]),
+    showMeButton(goal, onShowMe),
   ]);
 }
 
-export function createGoalsStrip({ container, world, onShowMe, onOpen }) {
+export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGuide = () => {} }) {
   const strip = el('div', { class: 'goal-strip', hidden: true });
   container.append(strip);
-  let shownId = null;
+  let shownId, parts = null;
+
+  // Rebuilt only when the goal changes (refreshChrome runs every day and command), so focus survives refreshes.
+  function build(goal) {
+    const focusedClass = strip.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => FOCUS_CLASSES.includes(c)) : null;
+    clear(strip);
+    parts = null;
+    if (!goal) return;
+    const progress = el('span', { class: 'chip small', role: 'img' });
+    const showMe = showMeButton(goal, onShowMe);
+    const skip = button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() });
+    strip.append(
+      el('span', { class: 'main' }, [
+        el('span', { class: 'label small muted', text: T.goal }),
+        el('span', { class: 'text', text: goal.text }),
+        progress,
+        el('span', { class: 'reward small muted wide-only', text: rewardText(goal.reward) }),   // phones read the reward in the goals sheet
+      ]),
+      el('span', { class: 'buttons' }, [showMe, button(T.goals, { class: 'open-goals quiet', onClick: onOpen }), skip]),
+    );
+    parts = { progress, showMe, skip };
+    update(goal);
+    if (focusedClass) {
+      const again = strip.querySelector(`.${focusedClass}`);
+      (again && !again.hidden ? again : showMe).focus();
+    }
+  }
+  function update(goal) {
+    const c = countOf(world, goal);
+    parts.progress.hidden = !c;
+    if (c) { setText(parts.progress, c.text); parts.progress.setAttribute('aria-label', c.label); }
+    const hide = !guideActive(world);
+    if (hide && document.activeElement === parts.skip) parts.showMe.focus();   // Skip guide hides itself: keep focus in the strip
+    parts.skip.hidden = hide;
+  }
   function render() {
     const [goal] = openGoals(world, 1);
     const id = goal ? goal.id : null;
     strip.hidden = !goal;
-    if (id === shownId) return;                       // refreshChrome runs every day and command: keep the buttons (and their focus) unless the goal changed
-    shownId = id;
-    // The strip rebuilds when the goal changes, so remember which button had focus and put it back (spec 6.8).
-    const focusedClass = strip.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => c === 'show-me' || c === 'open-goals') : null;
-    clear(strip);
-    if (!goal) return;
-    strip.append(
-      el('span', { class: 'label small muted', text: T.goal }),
-      el('span', { class: 'text' }, [goal.text, ' ', el('span', { class: 'reward small muted', text: rewardText(goal) })]),
-      button(T.showMe, { class: 'show-me quiet', onClick: () => onShowMe(goal) }),
-      button(T.goals, { class: 'open-goals quiet', onClick: onOpen }),
-    );
-    if (focusedClass) strip.querySelector(`.${focusedClass}`).focus();
+    container.hidden = !goal;                         // no empty row, and so no gap, in #under-bar
+    if (id !== shownId) { shownId = id; build(goal); }
+    else if (goal) update(goal);
   }
   render();
   return { render };
 }
 
-export function goalsSheet(world, { onShowMe }) {
-  return (body) => {
+// The goals sheet: the chain's count, up to three open goals by chapter, then Today when daily goals are drawn.
+export function goalsSheet(world, { onShowMe, onSwap = (i) => swapDaily(world, i).ok }) {
+  function draw(body) {
+    const done = GOALS.filter((g) => world.goals.completed.includes(g.id)).length;   // event goals never count against the chain
+    body.append(el('p', { class: 'muted', text: goalsProgressText(done, GOALS.length) }));
     const open = openGoals(world, 3);
-    body.append(el('p', { class: 'muted', text: goalsProgressText(world.goals.completed.length, GOALS.length) }));
-    if (!open.length) { body.append(el('p', { text: T.goalsDone })); return; }
-    body.append(el('ul', { class: 'goals' }, open.map((g) => goalRow(g, onShowMe))));
-  };
+    if (!open.length) body.append(el('p', { text: T.goalsDone }));
+    const chapters = [];
+    for (const g of open) if (!chapters.includes(g.chapter)) chapters.push(g.chapter);
+    for (const ch of chapters) {
+      body.append(el('h3', { text: CHAPTER_NAMES[ch] || '' }), el('ul', { class: 'goals' }, open.filter((g) => g.chapter === ch).map((g) => goalRow(world, g, onShowMe))));
+    }
+    if (world.daily) body.append(...today(body));
+  }
+  // Today (spec 3.7): no streaks, no countdowns. Swap is offered once a day, on a goal not yet done.
+  function today(body) {
+    const d = world.daily;
+    const rows = d.picks.map((id, i) => {
+      const done = d.done.includes(id);
+      const p = dailyProgress(world, id);
+      const text = DAILY_TEXT[id] || id;
+      const status = done
+        ? el('span', { class: 'status small teal' }, [el('span', { 'aria-hidden': 'true', text: `${T.doneMark} ` }), T.done])
+        : p ? chip({ text: progressText(p.n, p.of), label: progressLabel(p.n, p.of) }) : null;
+      const swap = !done && !d.swapped
+        ? button(T.swap, { class: 'swap quiet', 'aria-label': swapLabel(text), onClick: () => { if (onSwap(i)) { clear(body); draw(body); body.querySelector('.today').focus(); } } })   // the Swap button is gone: focus stays on Today
+        : null;
+      return el('li', { class: done ? 'daily done' : 'daily' }, [
+        el('span', { class: 'text' }, [text, ' ', status, done ? null : ' ', done ? null : el('span', { class: 'reward small muted', text: rewardText(DAILY_REWARD) })]),   // a finished goal has been paid: no reward to promise
+        swap,
+      ]);
+    });
+    return [el('h3', { class: 'today', tabindex: '-1', text: T.today }), el('ul', { class: 'goals' }, rows), el('p', { class: 'small muted', text: dailyDoneText(world.tally.dailyDone) })];
+  }
+  return (body) => draw(body);
 }

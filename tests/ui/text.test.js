@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { CATEGORIES, CATEGORY_ICONS, toolForItem, AUTO_OVERLAY, KEYS } from '../../src/data/ui.js';
-import { CATEGORY_NAMES, buildingName, NEED_NAMES, tierName, reasonText, warningText, unlockText, alertText, OVERLAY_NAMES, OVERLAY_LEGEND, SPEED_LABELS, dateText, plural, T } from '../../src/ui/text.js';
+import { CATEGORY_NAMES, buildingName, NEED_NAMES, tierName, reasonText, warningText, unlockText, alertText, OVERLAY_NAMES, OVERLAY_LEGEND, SPEED_LABELS, dateText, plural, ACHIEVEMENT_TEXT, DAILY_TEXT, FIRST_TEXT, T } from '../../src/ui/text.js';
 import { BUILDINGS } from '../../src/data/buildings.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
 
@@ -9,6 +9,13 @@ const WARNINGS = ['needs_road', 'no_storage', 'no_supply'];
 const ALERTS = ['no_road', 'no_storage', 'storage_full', 'understaffed', 'bazaar_empty', 'labour_shortage', 'unemployment', 'debt'];
 
 describe('ui text', () => {
+  it('calls the harvest grain everywhere: the achievements, the daily goal and the first harvest', () => {
+    expect(ACHIEVEMENT_TEXT.good_harvests).toBe('Harvest 500 grain');
+    expect(ACHIEVEMENT_TEXT.granary_of_the_river).toBe('Harvest 2000 grain');
+    expect(DAILY_TEXT.harvest100).toBe('Harvest 100 grain');
+    expect(FIRST_TEXT.first_harvest.why.startsWith('Grain reached')).toBe(true);
+    for (const words of [ACHIEVEMENT_TEXT.good_harvests, ACHIEVEMENT_TEXT.granary_of_the_river, DAILY_TEXT.harvest100]) expect(words.includes('food')).toBe(false);
+  });
   it('names every category, item and need', () => {
     for (const c of CATEGORIES) {
       expect(typeof CATEGORY_NAMES[c.id]).toBe('string');

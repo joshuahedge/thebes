@@ -47,11 +47,14 @@ h2, h3 { margin: 0; }
 .noscript { margin: 24px; }
 
 /* Top bar: things you read sit at the top. */
-#topbar { position: fixed; top: 0; left: 0; right: 0; padding: var(--safe-top) max(8px, var(--safe-right)) 0 max(8px, var(--safe-left)); min-height: var(--topbar-h); background: var(--parchment); border-bottom: 1px solid var(--parchment-3); box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; }
-#topbar .stat { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-#topbar .stats { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; overflow: hidden; }
+#topbar { position: fixed; top: 0; left: 0; right: 0; padding: var(--safe-top) max(8px, var(--safe-right)) 0 max(8px, var(--safe-left)); min-height: var(--topbar-h); background: var(--parchment); border-bottom: 1px solid var(--parchment-3); box-shadow: var(--shadow); display: flex; align-items: center; gap: 6px; }
+#topbar .stat { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+/* The numbers keep to one row wherever they fit (every layout at 100% text, with tight 8 px gaps and 4 px ends); only
+   where they would otherwise be cut off (a narrow phone at large text, or very large numbers) do they wrap to a second row, inside the bar's
+   own height. In the wide layout under 1000 px wide or at 150% text the date is short (createUI, hud.js), so the numbers never need a third row. */
+#topbar .stats { display: flex; flex-wrap: wrap; align-items: center; align-content: center; gap: 0 8px; flex: 1; min-width: 0; overflow: hidden; line-height: 1.2; padding: 0 4px; }
 #topbar .stat .label { font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
-#topbar .spacer { flex: 0 0 0; }
+#topbar .spacer { display: none; }   /* the numbers' flex: 1 already pushes the rest right; a spacer would only cost a gap */
 #topbar .speed { display: flex; gap: 4px; }
 #topbar button { min-height: var(--tap); }
 body[data-layout="portrait"] .wide-only, body[data-layout="compact"] .wide-only { display: none !important; }
@@ -90,14 +93,14 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 #dock .cat { display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; min-width: var(--tap); padding: 2px 4px; font-size: calc(12px * var(--ui-scale)); border-radius: 8px; box-shadow: none; }
 #dock .cat[aria-pressed="true"] { color: var(--teal); font-weight: 600; box-shadow: none; }
 #dock .cat .icon { font-size: calc(20px * var(--ui-scale)); }
-#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 4px 12px 10px; scroll-snap-type: x proximity; }
+#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 4px 12px 10px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; }
 #dock .pill { align-self: center; margin: 6px 0 8px; }
 #dock[data-height="slim"] .tray, #dock[data-height="slim"] .pill { display: none; }
 #dock[data-height="tray"] .pill { display: none; }
 #dock[data-height="tucked"] .tray, #dock[data-height="tucked"] .cats, #dock[data-height="tucked"] .handle { display: none; }
 
 /* Building cards, shared by the dock tray, the side panel grid and the rail drawer. */
-.card { flex: 0 0 auto; width: 124px; min-height: 84px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; padding: 8px; text-align: left; white-space: normal; }
+.card { flex: 0 0 auto; width: 124px; min-height: 84px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 4px; padding: 8px; text-align: left; white-space: normal; }
 .card .name { font-weight: 600; }
 .card .cost { font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
 .card.unaffordable .cost { color: var(--coral-text); }
@@ -107,7 +110,7 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 .cards .empty { padding: 12px; color: var(--ink-soft); }
 
 /* Confirm bar for placing, drawing and demolishing. It never tucks away (spec 6.4). */
-.confirm { display: flex; align-items: center; gap: 8px; padding: 8px 12px calc(8px + var(--safe-bottom)); background: var(--parchment); border-top: 1px solid var(--parchment-3); border-radius: 16px 16px 0 0; }
+.confirm { display: flex; align-items: center; gap: 8px; box-sizing: border-box; padding: 8px 12px calc(8px + var(--safe-bottom)); background: var(--parchment); border-top: 1px solid var(--parchment-3); border-radius: 16px 16px 0 0; }   /* border-box: confirmBar.js holds its measured height as a min-height */
 .confirm .info { flex: 1; min-width: 0; }
 .confirm .info .title { font-weight: 600; }
 .confirm .info .reason { font-size: calc(12px * var(--ui-scale)); }
@@ -162,7 +165,7 @@ body[data-layout="compact"] #toasts { bottom: 64px; left: calc(50% - var(--rail-
 .toast button:focus-visible { outline-color: var(--gold); }
 #dialog { position: fixed; inset: 0; background: rgba(43, 31, 14, 0.45); display: flex; align-items: center; justify-content: center; }
 #dialog .box { background: var(--parchment); border-radius: var(--radius); padding: 16px; max-width: 360px; width: calc(100% - 32px); box-shadow: var(--shadow); }
-#dialog .buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+#dialog .buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 /* The confirm bar replaces the dock while a tool is active and never tucks (spec 6.4). */
 #confirm { position: fixed; z-index: 3; }
@@ -170,7 +173,8 @@ body[data-layout="portrait"] #confirm { left: 0; right: 0; bottom: 0; }
 body[data-layout="wide"] #confirm { right: 0; bottom: 0; width: var(--panel-w); }
 body[data-layout="compact"] #confirm { right: calc(var(--rail-w) + var(--safe-right)); bottom: 0; width: var(--drawer-w); }
 body[data-mode="placing"] #dock, body[data-mode="drawing"] #dock, body[data-mode="demolishing"] #dock { display: none; }
-body[data-layout="portrait"][data-mode="placing"] #corners, body[data-layout="portrait"][data-mode="drawing"] #corners, body[data-layout="portrait"][data-mode="demolishing"] #corners { bottom: calc(var(--safe-bottom) + 104px); }
+/* The corners sit on the confirm bar by its measured height (--confirm-h, set by confirmBar.js), whatever the text size. */
+body[data-layout="portrait"][data-mode="placing"] #corners, body[data-layout="portrait"][data-mode="drawing"] #corners, body[data-layout="portrait"][data-mode="demolishing"] #corners { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + 8px); }
 .speed-corner { position: relative; }
 .speed-options { position: absolute; bottom: calc(100% + 6px); left: 0; display: flex; gap: 6px; }
 /* Legend keys and the banner's warning glyph. */
@@ -194,12 +198,21 @@ kbd { font: inherit; background: var(--parchment-2); border-radius: 6px; padding
 /* The goals strip is the last row of #under-bar, below the banner and the legend when they show. */
 #goals { position: static; display: flex; max-width: 100%; pointer-events: none; }
 #goals > * { pointer-events: auto; }
-.goal-strip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; background: var(--parchment); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); }
-.goal-strip .text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-body[data-layout="wide"] #goals { max-width: 440px; }
+/* The strip wraps by rows: the goal (label, words, chip, reward) keeps the width it needs, and the buttons drop to a
+   row of their own when both do not fit. Only when the goal alone is wider than the strip do its words wrap, at spaces. */
+.goal-strip { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 0; max-width: 100%; box-sizing: border-box; background: var(--parchment); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); }
+.goal-strip .main { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.goal-strip .text { flex: 0 1 auto; min-width: 0; }   /* the goal's words wrap rather than cut off, so a phone at large text still reads the whole goal */
+.goal-strip .reward { flex: none; white-space: nowrap; }
+.goal-strip .buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; column-gap: 4px; flex: 0 1 auto; min-width: 0; margin-left: auto; }   /* on the narrowest phones at large text the third button drops to a row of its own */
+.chip { flex: none; display: inline-block; background: var(--teal-soft); color: var(--ink); border-radius: 10px; padding: 0 8px; white-space: nowrap; }
+body[data-layout="wide"] #goals { max-width: 560px; }
 body[data-layout="compact"] #under-bar { right: calc(var(--rail-w) + var(--safe-right) + 8px); }
 .goals { list-style: none; padding: 0; }
-.goals .goal { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+.goals .goal, .goals .daily { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+.goals button { flex: none; white-space: nowrap; }   /* Show me and Swap keep their words on one line; the goal's own words wrap beside them */
+.goals .reward { white-space: nowrap; }                /* '+25 gold' stays together */
+#sheet .goals + h3 { margin-top: 10px; }
 
 /* The title card (spec 4.1) over the drifting sample city. While it shows, the game chrome stays hidden. */
 #title { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(43, 31, 14, 0.25); }
@@ -216,3 +229,146 @@ body.on-title #ui > :not(#title):not(#under-bar) { display: none !important; }
 body.on-title #under-bar > :not(#notice) { display: none !important; }
 .guide { text-align: left; }
 .guide .steps { padding-left: 20px; margin: 8px 0; }
+
+/* Placement that explains (early-game pass 2.6). Compact: the bar is a narrow column beside the rail, so its words
+   get a row of their own above the buttons and never wrap one word per line. */
+body[data-layout="compact"] .confirm { flex-wrap: wrap; justify-content: flex-end; }
+body[data-layout="compact"] .confirm .info { flex: 1 0 100%; }
+/* Portrait: the bar keeps one height while the ghost moves. The corner buttons sit on its measured height, so an info block
+   that grew a line when a warning, a reason or an effect appeared would make them jump. 3.5em is three text lines:
+   the title (1.4em) plus the cost and the reason or effect (12px at the body size is .75em, so 1.05em each). */
+body[data-layout="portrait"] .confirm .info { min-height: 3.5em; }
+/* At 125% and 150% text the words column is only about 150px wide, so a reason or an effect wraps to two lines: keep both (4.55em). */
+body[data-layout="portrait"][data-text-size="125"] .confirm .info, body[data-layout="portrait"][data-text-size="150"] .confirm .info { min-height: 4.55em; }
+
+/* Cards with pictures (early-game pass 2.5): the building's drawing over its name and cost; the coin is decoration. */
+/* The picture is drawn at its own size (THUMB_W x THUMB_H in src/ui/thumbs.js); where a scrollbar narrows a card it shrinks, never stretches. */
+.card .thumb { display: block; align-self: center; width: 104px; max-width: 100%; height: 52px; object-fit: contain; flex: 0 0 auto; }
+.card .coin { display: inline-block; width: 0.75em; height: 0.75em; margin-right: 4px; border-radius: 50%; background: var(--gold); box-shadow: inset 0 0 0 1px #B98A4A; vertical-align: -0.05em; }
+/* Category bands: a thin stripe in the category's emblem colour (--tint, set on each button). A background image, so
+   it survives the dock's background: none and the pressed tab's teal fill; it adds no height. The teal fill would
+   swallow most tints, so the pressed tab's band turns white. */
+#dock .cat, #rail .cat, #panel .tab, #panel .tab[aria-pressed="true"] { background-image: linear-gradient(var(--tint, transparent), var(--tint, transparent)); background-repeat: no-repeat; background-position: 50% 100%; background-size: 60% 3px; }
+#panel .tab[aria-pressed="true"] { background-image: linear-gradient(var(--teal-ink), var(--teal-ink)); }
+/* The rail's pressed button wears a 2 px teal ring inside its edge; lift the band clear of it so it still shows. */
+#rail .cat { background-position: 50% calc(100% - 4px); }
+
+/* Corner buttons with words (early-game pass 2.9): an icon over a short word; the speed button reads ▶ Play or ❚❚ 2×. */
+#corners .labelled { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 48px; min-height: 52px; padding: 2px 8px; line-height: 1.1; }
+#corners .labelled .label { font-size: calc(12px * var(--ui-scale)); white-space: nowrap; }
+#corners .speed-main, #corners .speed-chevron { min-height: 52px; }
+.speed-main .icon { width: auto; margin-right: 6px; }
+/* The face and hidden copies of every state share one grid cell, so the button keeps the width of its widest state. */
+#corners .speed-main { display: inline-grid; align-items: center; justify-items: center; }
+#corners .speed-main > .face, #corners .speed-main > .sizer { grid-area: 1 / 1; white-space: nowrap; }
+#corners .speed-main > .sizer { visibility: hidden; }
+#corners .speed-chevron .icon { font-size: 1.5em; line-height: 1; }   /* ▴ is a small glyph: let it read as a chevron */
+/* Compact: the confirm bar, sheets and the card drawer share the column beside the rail, so the corners step left of it
+   (they are never open together). The drawer is the card grid's 8 px padding either side plus its 1 px border wider than --drawer-w. */
+body[data-layout="compact"]:has(#confirm:not([hidden])) #corners,
+body[data-layout="compact"]:has(#sheet:not([hidden])) #corners { right: calc(var(--rail-w) + var(--drawer-w) + var(--safe-right)); }
+body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #corners { right: calc(var(--rail-w) + var(--drawer-w) + 17px + var(--safe-right)); }
+/* A phone held sideways under 700 px wide (body.narrow, set by layout.js) at 125% or 150% text has too little map beside
+   the drawer for both corner groups with their words: Map and Layers keep their icons and drop the word from sight. Each
+   button's accessible name still starts with its word. */
+body.narrow[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]) #corners .labelled .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* The house sheet (early-game pass 2.10): each need on its own row with a mark, its name and a status in
+   words; a missing one adds its cause, its fix and Show me. Residents carry a small meter. */
+/* --mark-w is the tick or cross column at body size (1.25 em of 16 px): the cause and the fix indent by it and the
+   8 px gap, so they line up under the need's name whatever their own (smaller) font size. */
+#sheet .checklist { list-style: none; padding-left: 0; --mark-w: calc(20px * var(--ui-scale)); }
+.checklist li { padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+.checklist .need { display: flex; align-items: center; gap: 8px; }
+.checklist .need .name { flex: 1; min-width: 0; }
+.checklist .tick, .checklist .cross { display: inline-block; width: var(--mark-w); text-align: center; font-weight: 700; }
+.checklist .cause { margin: 2px 0 0 calc(var(--mark-w) + 8px); }
+.checklist .fix { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin: 4px 0 0 calc(var(--mark-w) + 8px); }
+.row.residents .value { display: inline-flex; align-items: center; gap: 8px; }
+.meter { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--parchment-2); box-shadow: inset 0 0 0 1px var(--parchment-3); overflow: hidden; }
+.meter .fill { display: block; height: 100%; background: var(--teal); }
+
+/* The guided start (early-game pass 3.2): the suggested card has a teal ring and a tag; the other cards keep
+   their words at full strength (4.5:1) and only their picture fades; the suggested category carries a dot. */
+.card, #dock .cat, #rail .cat, #panel .tab { position: relative; }
+.card.suggested { border-color: var(--teal); box-shadow: inset 0 0 0 2px var(--teal); }
+.card .tag { position: absolute; top: 4px; right: 4px; background: var(--teal); color: var(--teal-ink); border-radius: 8px; padding: 0 6px; font-size: calc(12px * var(--ui-scale)); line-height: 1.6; font-weight: 600; pointer-events: none; }
+.card.dimmed { border-color: transparent; }
+.card.dimmed .thumb { opacity: 0.6; filter: saturate(0.5); }
+.cat.dimmed .icon { opacity: 0.6; }
+.cat.suggested::after, .tab.suggested::after { content: ""; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 2px var(--parchment); }
+/* On the pressed tab (a teal fill) the dot turns white, so it still reads as a filled dot. */
+#panel .tab[aria-pressed="true"].suggested::after { background: var(--teal-ink); box-shadow: 0 0 0 2px var(--teal); }
+
+/* Celebration captions (early-game pass 3.6): the last row of #under-bar, a parchment card with a gold star. Nothing to
+   tap, so the row lets taps through to the map. The head (bold) and the gold sit on the first line and the why beneath it,
+   smaller. Text is ink on parchment, the why ink-soft (7:1) and the gold teal (4.8:1). */
+#cheer { position: static; display: flex; max-width: 100%; pointer-events: none; }
+/* #cheer is a live region, so it stays rendered while empty (a region that appears together with its words can go
+   unannounced): collapsed to a clipped dot that is out of the flow, so it leaves no gap in #under-bar. */
+#under-bar > #cheer:empty { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+#cheer .cheer { position: relative; display: inline-grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; max-width: 100%; box-sizing: border-box; background: var(--parchment); color: var(--ink); border: 1px solid var(--gold); border-radius: var(--radius); padding: 6px 12px; box-shadow: var(--shadow); animation: cheer-in 200ms ease-out; }
+#cheer .cheer .icon { grid-column: 1; grid-row: 1; margin-right: 8px; color: var(--amber-text); }
+#cheer .cheer .text { grid-column: 2; grid-row: 1; min-width: 0; font-weight: 600; }
+#cheer .cheer .reward { grid-column: 3; grid-row: 1; margin-left: 8px; color: var(--teal); font-weight: 600; white-space: nowrap; }
+#cheer .cheer .why { grid-column: 2 / 4; grid-row: 2; font-size: calc(14px * var(--ui-scale)); line-height: 1.35; color: var(--ink-soft); }
+/* A phone at larger text keeps the caption to the head and the gold, so it stays clear of the middle of the map; the
+   why stays in the live region for screen readers. There the caption is one flow of words (the star, the head, then
+   the gold), so it wraps as a sentence in two lines at most rather than a column beside the gold. */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .why { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer { display: block; padding: 4px 10px; font-size: calc(14px * var(--ui-scale)); line-height: 1.25; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .icon { margin-right: 4px; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .reward { margin-left: 6px; }
+#cheer .cheer.milestone { background: var(--amber-soft); border-color: var(--amber-text); }
+body[data-layout="wide"] #cheer { max-width: 440px; }
+@keyframes cheer-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+body.reduce-motion #cheer .cheer { animation: none; }
+
+/* The tip row (early-game pass 3.4): under the goals strip, one tip at a time with Got it. Ink on teal-soft (6.7:1 for the
+   muted label). Like #cheer, #tip is a live region that stays rendered while empty (collapsed to a clipped dot that is
+   out of the flow, so it leaves no gap), so a screen reader already has it when a tip arrives. */
+#tip { position: static; display: flex; max-width: 100%; pointer-events: none; }
+#tip > * { pointer-events: auto; }
+#under-bar > #tip:empty { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+#tip .tip-row { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box; background: var(--teal-soft); color: var(--ink); border: 1px solid var(--teal); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); }
+#tip .tip-row .text { min-width: 0; }
+#tip .tip-row .label, #tip .tip-row .got-it { flex: none; }
+#tip .tip-row .got-it { white-space: nowrap; }
+body[data-layout="wide"] #tip { max-width: 440px; }
+/* A phone (portrait or compact) at 125% or 150% text has no room for a tip to stay up and cover the map: its words are 14 px
+   scaled instead of the body size, its padding is tight, and the Tip label is kept for screen readers only, as the caption's
+   why is. createUI also closes the tip after TIP_AUTO_CLOSE_MS there (it stays seen, and How to play lists it). */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row { position: relative; padding: 0 2px 0 10px; gap: 4px; line-height: 1.25; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .text { font-size: calc(14px * var(--ui-scale)); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .got-it { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
+
+/* The idle nudge (early-game pass 3.5): its one line sits under the goals strip, so #goals stacks in a column. Show me
+   gets a gold ring that pulses twice (under 1 flash a second, done in 2.4 s), then stays still until the
+   player acts; under reduced motion only the still ring shows. The Play tip rings the speed control the same way. */
+#goals { flex-direction: column; align-items: flex-start; }
+#goals .nudge { max-width: 100%; pointer-events: none; }   /* a polite live region that stays rendered: no height of its own while its line is hidden */
+#goals .nudge-line { margin: 4px 0 0; max-width: 100%; box-sizing: border-box; background: var(--parchment); color: var(--ink); border-radius: var(--radius); padding: 4px 12px; box-shadow: var(--shadow); pointer-events: none; }
+.goal-strip .show-me.glow { box-shadow: 0 0 0 3px var(--gold); animation: nudge-glow 1.2s ease-in-out 2; }
+body.nudge-play .speed-main { box-shadow: 0 0 0 3px var(--gold); animation: nudge-glow 1.2s ease-in-out 2; }
+body.nudge-play #topbar .speed-bar { border-radius: var(--radius); box-shadow: 0 0 0 3px var(--gold); animation: nudge-glow 1.2s ease-in-out 2; }
+@keyframes nudge-glow { 0%, 100% { box-shadow: 0 0 0 3px var(--gold); } 50% { box-shadow: 0 0 0 8px rgba(226, 177, 60, 0.35); } }
+body.reduce-motion .goal-strip .show-me.glow, body.reduce-motion.nudge-play .speed-main, body.reduce-motion.nudge-play #topbar .speed-bar { animation: none; }
+
+/* Welcome back trends (early-game pass 3.9): an arrow column, then the words. Teal up, coral down, both beside words. */
+#sheet .trends { list-style: none; padding-left: 0; }
+.trends .trend-row { display: flex; align-items: baseline; gap: 6px; padding: 2px 0; }
+.trends .trend { display: inline-block; width: 1.25em; text-align: center; }
+.trends .trend.up { color: var(--teal); }
+.trends .trend.down { color: var(--coral-text); }
+.trends .trend-row:not(.up):not(.down) .words { margin-left: calc(1.25em + 6px); }   /* steady and first-time rows line up with the arrowed ones */
+.goals.today .status { white-space: nowrap; }                                       /* "Done" and "2 of 6" keep to one line */
+#sheet .closest { margin: 8px 0; }
+
+/* Achievements at the end of the city summary (early-game pass 3.8): name and condition on the left, progress on the right. */
+#sheet .achievements { list-style: none; padding-left: 0; }
+.achievements .achievement { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+.achievements .what { display: flex; flex-direction: column; min-width: 0; }
+.achievements .status { display: flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; }
+.ach-bar { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--parchment); border: 1px solid var(--ink-soft); overflow: hidden; box-sizing: border-box; }
+.ach-bar .fill { display: block; height: 100%; background: var(--teal); }

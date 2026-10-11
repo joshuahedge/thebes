@@ -11,6 +11,12 @@ export const CATEGORIES = [
 
 export const CATEGORY_ICONS = { roads: '═', homes: '⌂', food: '❋', industry: '⚒', services: '✚', defence: '⛊', monuments: '▲' };
 
+// A thin band on each category button and tab in its buildings' emblem colour (early-game pass 2.5).
+export const CATEGORY_TINT = { roads: '#B39466', homes: '#C9552F', food: '#6AA83A', industry: '#8E7470', services: '#2F6FA8', defence: '#9A3A30', monuments: '#E2B13C' };
+
+// Categories with nothing to build stay hidden until a stage fills them; the number keys keep their own mapping.
+export const visibleCategories = () => CATEGORIES.filter((c) => c.items.length > 0);
+
 export function toolForItem(item) {
   if (item === 'road') return { kind: 'road' };
   if (item === 'demolish') return { kind: 'demolish' };
@@ -18,10 +24,22 @@ export function toolForItem(item) {
   return { kind: 'building', type: item };
 }
 
+// The build category an item's card sits in (Show me and the guide open it); null for an unknown item.
+export function categoryOfItem(item) {
+  const c = CATEGORIES.find((cat) => cat.items.includes(item));
+  return c ? c.id : null;
+}
+
 // Placing a service shows its overlay together with the reach preview (spec 4.5).
 export const SHOW_ME_PULSES = 2;
 export const SHOW_ME_PULSE_MS = 400;
+export const GUIDE_PULSES = 2;          // the guide's map ring pulses twice when its step changes, then stays still (spec 3.2)
+export const GUIDE_PULSE_MS = 600;      // one pulse: under 3 flashes a second, done well within 5 s (spec 5.4)
 export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion' };
+
+// Picking a card or Show me puts a building ghost on the nearest tile where it fits, at most this many tiles
+// out (early-game pass 2.6). Only when nothing fits does it stay on the point itself.
+export const NEAREST_FIT_RADIUS = 10;
 
 // Spec 6.7. Letters are listed in both cases; `undo` needs Ctrl or Cmd.
 export const KEYS = {
@@ -62,3 +80,12 @@ export const UPDATE_TOAST_MS = 20000;
 
 export const TITLE_SEED = 11;          // the sample city behind the title card
 export const TITLE_DRIFT_MS = 9000;    // one slow camera drift between two points of it
+
+// Celebration captions (early-game pass 3.6): how long each tier's caption shows, and the least time between two
+// captions starting. A milestone shows longer than the gap, so the next caption waits until it hides.
+export const CHEER_MS = { first: 2500, milestone: 4000 };
+export const CHEER_GAP_MS = 3000;
+
+// The idle nudge (early-game pass 3.5): Show me glows after this much idle running play, and one Next line follows this much later.
+export const NUDGE_GLOW_MS = 45000;
+export const NUDGE_LINE_MS = 60000;

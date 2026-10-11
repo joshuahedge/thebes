@@ -62,7 +62,7 @@ export async function mountShell(width = 390, height = 844) {
     cleanup() {
       root.remove();
       for (const k of BODY_KEYS) delete document.body.dataset[k];
-      document.body.classList.remove('has-banner', 'has-overlay', 'panel-folded', 'reduce-motion');
+      document.body.classList.remove('has-banner', 'has-overlay', 'panel-folded', 'reduce-motion', 'guide-on');
     },
   };
 }
@@ -82,9 +82,9 @@ export function fakeDoc() {
 
 // The whole interface on the mounted shell, with the window-facing parts injected: size, resize source,
 // history, keyboard target and storage. `root` is document.body so the stylesheet's body[data-...] rules apply.
-export async function rigUI({ width = 390, height = 844, hooks = {}, doc = fakeDoc(), welcome = null, sfx = null } = {}) {
+// `world` (default uiWorld()) and `settings` (default: the interface makes its own) can be handed in.
+export async function rigUI({ width = 390, height = 844, hooks = {}, doc = fakeDoc(), welcome = null, sfx = null, clock = undefined, now = () => 0, world = uiWorld(), settings = null } = {}) {
   const shell = await mountShell(width, height);
-  const world = uiWorld();
   const canvas = shell.root.querySelector('#map');
   const cam = createCamera({ x: 12, y: 10, zoom: 1 });
   const renderer = createRenderer({ canvas, dpr: 1 });
@@ -95,7 +95,7 @@ export async function rigUI({ width = 390, height = 844, hooks = {}, doc = fakeD
     world, canvas, cam, renderer, root: document.body, getSize: () => size,
     subscribeResize: (fn) => { resizeListeners.push(fn); return () => resizeListeners.splice(resizeListeners.indexOf(fn), 1); },
     history, addListener: history.addListener, removeListener: history.removeListener,
-    keyTarget: shell.root, storage: { getItem: () => null, setItem: () => {} }, now: () => 0, hooks, doc, welcome, sfx,
+    keyTarget: shell.root, storage: { getItem: () => null, setItem: () => {} }, now, hooks, doc, welcome, sfx, clock, settings,   // undefined clock: createUI's Date.now
   });
   const at = (x, y) => { const r = canvas.getBoundingClientRect(); return { clientX: r.left + x, clientY: r.top + y }; };
   const screenOf = (tx, ty) => { const [sx, sy] = tileToScreen(cam, size, tx, ty); return { x: sx, y: sy }; };
@@ -109,7 +109,7 @@ export async function rigUI({ width = 390, height = 844, hooks = {}, doc = fakeD
   const resize = (w, h) => { size = { width: w, height: h }; shell.root.style.width = `${w}px`; shell.root.style.height = `${h}px`; for (const fn of resizeListeners) fn(); };
   const frame = (t = 0) => ui.render({ timeDays: world.day, now: t });
   return {
-    root: shell.root, world, canvas, cam, ui, store: ui.store, history, doc, at, screenOf, tap, resize, frame,
+    root: shell.root, world, canvas, cam, renderer, ui, store: ui.store, history, doc, at, screenOf, tap, resize, frame,
     cleanup() { ui.destroy(); shell.cleanup(); },
   };
 }

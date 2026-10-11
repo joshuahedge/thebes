@@ -1,6 +1,7 @@
-// The river as one smooth band (spec 5.2): wet-sand fringe, water with a deep centre and light shallows,
-// a foam line, ripples and reeds. Mapgen gives one contiguous span of WATER per row, so the banks are
-// curves through the row spans with the mock-up's gentle sine wobble.
+// The river as one smooth band (spec 5.2): wet-sand fringe, a turquoise shallows strip about a quarter tile
+// wide inside each bank (early-game pass 2.1), water with a deep centre, a light edge and a foam line,
+// ripples and reeds. Mapgen gives one contiguous span of WATER per row, so the banks are curves through the
+// row spans with the mock-up's gentle sine wobble.
 import { p } from './iso.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
@@ -9,6 +10,7 @@ import { TERRAIN } from './art/palette.js';
 import { reeds } from './art/nature.js';
 
 const spanCache = new WeakMap(); // world -> { spans, minWidth }; terrain never changes in Stage 1
+export const SHALLOWS_TILES = 0.25; // the shallows strip's width inside each bank, in tiles (a quarter tile across on screen)
 
 function riverData(world) {
   let data = spanCache.get(world);
@@ -72,7 +74,8 @@ export function drawRiver(g, world, range) {
   if (left.length < 2) return;
   g.path(bandPath(left, right, 0.35), TERRAIN.bank, { alpha: 0.85 });
   g.path(bandPath(left, right, 0.15), '#CDBE8E', { alpha: 0.7 });
-  g.path(bandPath(left, right, 0), TERRAIN.water);
+  g.path(bandPath(left, right, 0), TERRAIN.shallows);                 // the whole river, then the channel over it,
+  g.path(bandPath(left, right, -SHALLOWS_TILES), TERRAIN.water);      // leaves the shallows strip along each bank
   const { minWidth } = riverData(world); // over the whole river, so the deep band never steps at a chunk border
   const mid = smoothPath(centre);
   g.stroke(mid, TERRAIN.waterDeep, minWidth * 16 * 0.55, 0.85);

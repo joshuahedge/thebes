@@ -1,5 +1,7 @@
 // One frame (spec 7.4): baked terrain chunks, ground shadows, depth-sorted sprites (buildings, trees and
-// walkers), then effects, overlays and the placement grid. Reads the world; never writes it.
+// walkers), then effects, overlays and the placement grid. Reads the world; never writes it. Buildings in
+// opts.rising (id -> t in [0, 1), from effects.risingIds) are revealed bottom-up: only the lowest t share of
+// the sprite shows, and the shadow grows with it.
 import { ART_SCALE, p, depthKey, compareDepth } from './iso.js';
 import { visibleTileRange, visibleChunks, artToScreen, CHUNK } from './camera.js';
 import { ART, slotFor } from './art/registry.js';
@@ -26,13 +28,23 @@ export function decorAt(world, x, y) {
   return null;
 }
 
+// The map edge (early-game pass 2.1): strokes along the map diamond, widest and faintest first, drawn under
+// the terrain chunks so only their outer halves show: a soft band that fades from the edge into the
+// off-map sand, so the edge reads as a border rather than a flat triangle. [width in art px, alpha].
+export const EDGE_FADE = [[24, 0.1], [14, 0.14], [7, 0.2], [2.5, 0.3]];
+
+export function drawMapEdge(g, size) {
+  const pts = [p(0, 0), p(size, 0), p(size, size), p(0, size)];
+  for (const [width, alpha] of EDGE_FADE) g.poly(pts, 'none', { stroke: TERRAIN.edgeFade, strokeWidth: width, strokeAlpha: alpha });
+}
+
 const intersects = (b, r) => b.x <= r.x1 && b.x + b.w - 1 >= r.x0 && b.y <= r.y1 && b.y + b.d - 1 >= r.y0;
 
 export function collectObjects(world, range, walkers = [], registry = ART) {
   const out = [];
   for (const b of Object.values(world.buildings)) {
     if (!intersects(b, range)) continue;
-    const slot = slotFor(b);
+    const slot = slotFor(b, world);
     const def = registry[slot];
     if (!def || !(def.draw || def.png)) continue;
     out.push({ key: depthKey(b.x, b.y, b.w, b.d), id: b.id, slot, def, x: b.x, y: b.y });
@@ -53,6 +65,21 @@ export function collectObjects(world, range, walkers = [], registry = ART) {
 
 const defaultDpr = () => (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
 
+// drawSprite with only the bottom t share of the sprite's height showing, clipped in device px.
+export function drawRising(ctx, sprite, px, py, zoom, dpr, t) {
+  if (t <= 0) return;
+  const k = (ART_SCALE * zoom * dpr) / sprite.scale;
+  const left = px - sprite.ax * k, top = py - sprite.ay * k;
+  const w = sprite.canvas.width * k, h = sprite.canvas.height * k;
+  const cut = top + h * (1 - Math.min(1, t));
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(left, cut, w, top + h - cut);
+  ctx.clip();
+  drawSprite(ctx, sprite, px, py, zoom, dpr);
+  ctx.restore();
+}
+
 export function createRenderer({
   canvas, spriteCache = createSpriteCache(), baker = createTerrainBaker(),
   dpr = defaultDpr, registry = ART, maxBakesPerFrame = 2,
@@ -71,11 +98,18 @@ export function createRenderer({
     const W = Math.round(view.width * dpr), H = Math.round(view.height * dpr);
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = TERRAIN.sandOff;
+    ctx.fillStyle = TERRAIN.offMap;
     ctx.fillRect(0, 0, W, H);
     const zoom = cam.zoom;
     const range = visibleTileRange(cam, view, world.size);
     const toDevice = (ax, ay) => { const [sx, sy] = artToScreen(cam, view, ax, ay); return [sx * dpr, sy * dpr]; };
+    const [ox, oy] = toDevice(0, 0);
+    const g = makeDraw(ctx, ART_SCALE * zoom * dpr);
+
+    // 0. The map edge band, in art px with the art origin placed by the camera; the chunks cover its inner half.
+    ctx.setTransform(1, 0, 0, 1, ox, oy);
+    drawMapEdge(g, world.size);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     // 1. Terrain chunks. Stale or missing chunks bake a few per frame; the rest show next frame.
     let bakes = 0, chunks = 0, stale = 0;
@@ -92,13 +126,13 @@ export function createRenderer({
     }
 
     // 2. Ground shadows, drawn in art px with the art origin placed by the camera.
-    const [ox, oy] = toDevice(0, 0);
-    const g = makeDraw(ctx, ART_SCALE * zoom * dpr);
     const objects = collectObjects(world, range, opts.walkers || [], registry);
+    const rising = opts.rising || null;   // building ids only: tree and walker ids start at 1e6
     ctx.setTransform(1, 0, 0, 1, ox, oy);
     for (const o of objects) {
       if (!o.def) continue;
-      for (const [dx, dy, w, d, h] of o.def.shadows) groundShadow(g, o.x + dx, o.y + dy, w, d, h);
+      const up = rising && rising.has(o.id) ? rising.get(o.id) : 1;
+      for (const [dx, dy, w, d, h] of o.def.shadows) groundShadow(g, o.x + dx, o.y + dy, w, d, h * up);
     }
 
     // 3. Depth-sorted sprites: buildings, trees and walkers in one pass, back to front.
@@ -109,13 +143,14 @@ export function createRenderer({
       if (!sprite) continue;
       const q = p(o.x, o.y);
       const [px, py] = toDevice(q[0], q[1]);
-      drawSprite(ctx, sprite, px, py, zoom, dpr);
+      if (rising && rising.has(o.id)) drawRising(ctx, sprite, px, py, zoom, dpr, rising.get(o.id));
+      else drawSprite(ctx, sprite, px, py, zoom, dpr);
       sprites++;
     }
 
     // 4. Effects, overlays and the placement grid, back in art px.
     ctx.setTransform(1, 0, 0, 1, ox, oy);
-    if (opts.effects) opts.effects.draw(g, opts.now === undefined ? performance.now() : opts.now);
+    if (opts.effects) opts.effects.draw(g, opts.now === undefined ? performance.now() : opts.now, world);
     if (opts.drawOverlay) opts.drawOverlay(g, range);
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);

@@ -1,8 +1,8 @@
 // Pause and speed (spec 4.3, 6.3): a corner button in portrait and compact, buttons in the wide top bar.
 // The page pauses when hidden and reopens paused; the UI says so when it comes back.
 import { setSpeed } from '../sim/commands.js';
-import { el, button, iconButton, setText, clear } from './components.js';
-import { SPEED_LABELS, T } from './text.js';
+import { el, button, iconButton, icon, setText, clear } from './components.js';
+import { SPEED_LABELS, T, pauseSpeedText } from './text.js';
 
 export function createSpeedControl({ world, store, afterCommand = () => {}, onPausedHidden = () => {}, doc = document }) {
   const mounted = [];     // render callbacks
@@ -30,14 +30,28 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
       return () => doc.removeEventListener('visibilitychange', onChange);
     },
     mountCorner(container) {
-      const main = button(SPEED_LABELS[world.speed], { class: 'speed-main primary', 'aria-label': `${T.speed}: ${SPEED_LABELS[world.speed]}` });
-      const chevron = iconButton(T.speed, '⌄', { class: 'speed-chevron', 'aria-expanded': 'false' });
+      // The main button says what a tap does (early-game pass 2.9): "▶ Play" when paused, "❚❚ 2×" (the speed) when running.
+      // Hidden copies of every state it can show sit in the same grid cell as the face (css/ui.css), so the button is
+      // always as wide as its widest state and the chevron beside it never slides from under a second tap.
+      const glyph = icon('▶');
+      const word = el('span', { class: 'word' });
+      const states = [['▶', T.play], ...[1, 2, 3].map((s) => ['❚❚', SPEED_LABELS[s]])];
+      const sizers = states.map(([g, w]) => el('span', { class: 'sizer', 'aria-hidden': 'true' }, [icon(g), el('span', { text: w })]));
+      const main = el('button', { type: 'button', class: 'speed-main primary' }, [el('span', { class: 'face' }, [glyph, word]), ...sizers]);
+      const chevron = iconButton(T.speed, '▴', { class: 'speed-chevron', 'aria-expanded': 'false' });   // ▴ renders in every system font
       const options = el('div', { class: 'speed-options', hidden: true });
       for (const s of [1, 2, 3]) options.append(button(SPEED_LABELS[s], { onClick: () => { api.set(s); options.hidden = true; chevron.setAttribute('aria-expanded', 'false'); } }));
       main.addEventListener('click', () => api.toggle());
       chevron.addEventListener('click', () => { options.hidden = !options.hidden; chevron.setAttribute('aria-expanded', String(!options.hidden)); });
       container.append(el('div', { class: 'speed-corner group' }, [main, chevron, options]));
-      mounted.push(() => { setText(main, SPEED_LABELS[world.speed]); main.setAttribute('aria-label', `${T.speed}: ${SPEED_LABELS[world.speed]}`); });
+      const paint = () => {
+        const running = world.speed > 0;
+        setText(glyph, running ? '❚❚' : '▶');
+        setText(word, running ? SPEED_LABELS[world.speed] : T.play);
+        main.setAttribute('aria-label', running ? pauseSpeedText(world.speed) : T.play);
+      };
+      paint();
+      mounted.push(paint);
     },
     mountBar(container) {
       const buttons = [0, 1, 2, 3].map((s) => button(SPEED_LABELS[s], { 'aria-pressed': String(world.speed === s), onClick: () => api.set(s) }));

@@ -3,6 +3,8 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { MILESTONES } from '../data/progression.js';
 import { TIERS } from '../data/housing.js';
+import { ACHIEVEMENTS } from '../data/achievements.js';
+import { FIRSTS } from '../data/firsts.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -13,6 +15,46 @@ export function buildingName(type) {
 }
 
 export const NEED_NAMES = { road: 'Road access', water: 'Water', food: 'Food', religion: 'Temple' };
+
+// The house sheet's causes and fixes (early-game pass 2.10), keyed by needCause codes. Reaches come from the data.
+// A provider in reach that is not working (well_idle, bazaar_idle, temple_idle, granary_idle) words itself by the building's own
+// state: causeText picks `paused` or `short`.
+const idleWords = (type) => {
+  const name = buildingName(type).toLowerCase();
+  return {
+    paused: { cause: `The ${name} is paused`, fix: 'Resume it' },
+    short: { cause: `The ${name} is short of workers`, fix: 'More homes bring more workers' },
+  };
+};
+// A provider near the home that touches no road (well_no_road, bazaar_no_road, temple_no_road): it needs a road, not a twin.
+const roadlessWords = (type) => ({ cause: `The ${buildingName(type).toLowerCase()} has no road`, fix: 'Lay a road beside it' });
+export const CAUSE_TEXT = {
+  no_road: { cause: 'No road beside it', fix: 'Lay a road next to it' },
+  no_well: { cause: `No well within ${BUILDINGS.well.reach} road tiles`, fix: 'Build a well near it' },
+  no_bazaar: { cause: `No bazaar within ${BUILDINGS.bazaar.reach} road tiles`, fix: 'Build a bazaar near it' },
+  bazaar_empty: { cause: 'The bazaar has no grain', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles of it` },
+  granary_empty: { cause: 'Its granary is empty', fix: 'Grain farms fill granaries' },
+  next_delivery: { cause: 'Food arrives at the next delivery', fix: '' },
+  no_temple: { cause: `No temple within ${BUILDINGS.temple.reach} road tiles`, fix: 'Build a temple near it' },
+  well_idle: idleWords('well'),
+  granary_idle: idleWords('granary'),
+  bazaar_idle: idleWords('bazaar'),
+  temple_idle: idleWords('temple'),
+  well_no_road: roadlessWords('well'),
+  bazaar_no_road: roadlessWords('bazaar'),
+  temple_no_road: roadlessWords('temple'),
+};
+
+// The words for one needCause result: { cause, fix }. An idle provider reads its own building's state.
+export function causeText(cause, world) {
+  const t = CAUSE_TEXT[cause.code];
+  if (!t.paused) return t;
+  const b = world.buildings[cause.id];
+  return b && b.paused ? t.paused : t.short;
+}
+
+// The city summary's mood rows, keyed by world.moodBreakdown.
+export const MOOD_NAMES = { base: 'Starting mood', food: 'Food', jobs: 'Jobs', debt: 'Debt' };
 
 export const tierName = (tier) => (tier >= 1 && TIERS[tier] ? TIERS[tier].name : 'Empty plot');
 
@@ -37,6 +79,13 @@ export const reasonText = (code) => REASONS[code] || "Can't place here";
 
 const WARNINGS = { needs_road: 'No road touches it yet', no_storage: 'No granary within reach', no_supply: 'No granary to supply it' };
 export const warningText = (code) => WARNINGS[code] || "Won't work yet";
+
+// What a service will do from the ghost's spot (early-game pass 2.6), counted by homesServedFrom.
+const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}` };
+export function effectText(type, n) {
+  if (!EFFECTS[type]) return '';
+  return n > 0 ? EFFECTS[type](plural(n, 'home', 'homes')) : T.noHomesInReach;
+}
 
 export function unlockText(type) {
   const m = MILESTONES.find((ms) => ms.unlocks.includes(type));
@@ -64,14 +113,36 @@ export function alertText(alert, world) {
 }
 
 export const SPEED_LABELS = ['Paused', '1×', '2×', '3×'];
+// The Help setting (early-game pass 3.1), keyed by settings.help.
+export const HELP_NAMES = { full: 'Guide and tips', tips: 'Tips only', off: 'Off' };
 export const OVERLAY_NAMES = { water: 'Water', food: 'Food', religion: 'Religion', housing: 'Housing' };
+// The corner buttons' accessible names (early-game pass 2.9); each starts with or contains the word it shows.
+export const pauseSpeedText = (speed) => `${T.pause}, ${T.speed.toLowerCase()} ${SPEED_LABELS[speed]}`;
+export const layersText = (kind) => (kind ? `${T.layers}: ${OVERLAY_NAMES[kind]}` : T.layers);
 export const OVERLAY_LEGEND = {
   water: ['Has water', 'No water'], food: ['Has food', 'No food'], religion: ['Has a temple', 'No temple'], housing: ['Ready to grow', 'Next need missing'],
 };
 
 export const dateText = ({ year, month, day }) => `Year ${year}, month ${month}, day ${day}`;
+export const shortDateText = ({ year, month }) => `Y${year} M${month}`;   // the top bar's date where room is short
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+export const progressText = (n, of) => `${n} of ${of}`;
 export const goalsProgressText = (done, total) => `${done} of ${total} done`;
+export const rewardText = (n) => `+${n} gold`;
+export const progressLabel = (n, of) => `Progress ${progressText(n, of)}`;
+export const dailyDoneText = (n) => plural(n, 'daily goal done', 'daily goals done');
+export const swapLabel = (text) => `Swap: ${text}`;
+export const showMeLabel = (text) => `${T.showMe}: ${text}`;   // a goal's Show me names its goal, so several of them stay apart
+export const viewLabel = (what) => `${T.view}: ${what}`;         // a View names its alert or building, so several of them stay apart
+
+// Goal chapters for the goals sheet (early-game pass 3.3); triggered first-time events come first.
+export const CHAPTER_NAMES = { first_homes: 'First homes', feed: 'Feed the village', grow: 'Grow', event: 'Needs attention' };
+// Daily goals (early-game pass 3.7), keyed by DAILY_POOL ids.
+export const DAILY_TEXT = {
+  plots4: 'Place 4 housing plots', roads10: 'Lay 10 road tiles', upgrades3: 'Grow 3 homes a tier', well1: 'Build a well',
+  bazaar1: 'Build a bazaar', temple1: 'Build a temple', farm1: 'Build a grain farm', people20: 'Gain 20 people',
+  profit1: 'Have a month in profit', harvest100: 'Harvest 100 grain',
+};
 export const milestoneText = (name) => `Your city is now a ${name}`;
 
 export const T = {
@@ -81,15 +152,19 @@ export const T = {
   gold: 'Gold', people: 'People', mood: 'Mood', date: 'Date', income: 'Income', jobless: 'Jobless', food: 'Food',
   summary: 'City summary', incomeVsSpending: 'Income against spending', taxes: 'Taxes', wages: 'Wages', upkeep: 'Upkeep', net: 'Net',
   foodInStore: 'Food in store', employment: 'Employment', moodBreakdown: 'Mood', goals: 'Goals', goal: 'Goal', showMe: 'Show me', goalsDone: 'All goals done', goalDone: 'Goal done', goalsNone: 'No goals open',
+  skipGuide: 'Skip guide', today: 'Today', swap: 'Swap', done: 'Done', doneMark: '✓',   // doneMark is decorative: its row says Done in words
   welcome: 'Welcome back', lastPlayed: 'Last played', justNow: 'just now', aWhileAgo: 'a while ago', upFrom: 'up from', downFrom: 'down from', steadyAt: 'steady at', carryOn: 'Carry on', stayPaused: 'Stay paused',
   goalsHelp: 'Goals show under the top bar. Show me opens the right card and points at the place.',
   grain: 'Grain', lasts: 'Lasts', working: 'Working', jobs: 'Jobs',
   workers: 'Workers', stock: 'Stock', problems: 'Problems', noProblems: 'No problems', reach: 'Reach', view: 'View',
   residents: 'Residents', nextTier: 'To grow it needs', upgradesAtMonthEnd: 'Grows at the end of the month', emptyPlot: 'Waiting for people to move in',
+  hasIt: 'Has it', missing: 'Missing',
   alerts: 'Alerts', noAlerts: 'All quiet', zoomIn: 'Zoom in', zoomOut: 'Zoom out', jumpTo: 'Jump to',
   newCity: 'New city', continueGame: 'Continue', exportCity: 'Export city', importCity: 'Import city', settings: 'Settings', howToPlay: 'How to play', about: 'About',
   startNewCity: 'Start new city', newCityConfirm: 'Start a new city? The current one will be lost.', notYet: 'Not available yet', comingLater: 'Coming later',
   sound: 'Sound', vibration: 'Vibration', textSize: 'Text size', leftHanded: 'Left-handed controls', keyboardShortcuts: 'Keyboard shortcuts', reducedMotion: 'Reduce motion', followSystem: 'Follow the system',
+  helpLevel: 'Help', suggested: 'Suggested', resumeGuide: 'Resume guide',
+  guideHelp: 'While the guide runs, the card for the next step says Suggested and a ring marks the place. Skip guide in the goals strip turns it off.',
   updateReady: 'Update ready', restart: 'Restart', updateSaveFailed: "Couldn't save, so the update will wait",
   playWithSound: 'Play with sound', playMuted: 'Play muted', install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',
   installMenu: 'Install on this device', bringCity: 'Bring a city from Safari', bringCityHelp: 'If you saved a city in Safari, open the menu there and choose Export city. Then import that file here.', installWhy: 'Installed on the home screen, the game works offline and keeps your city safe.', installIosSteps: ['Tap Share (the square with an arrow)', 'Scroll down and tap Add to Home Screen', 'Tap Add'], installExportFirst: 'Export your city first: the installed app keeps its own storage. Then import the file from the home-screen app.', installNow: 'Install now', installNotOffered: 'Your browser did not offer to install. Look for Install app or Add to Home screen in its menu.', openInSafari: 'Open in Safari to keep your city', openInChrome: 'Open in Chrome to keep your city', saveNewer: 'This city was saved by a newer version of the game', saveUnreadable: "This save can't be read",
@@ -106,6 +181,11 @@ export const T = {
   aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
   undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
   hoverHint: 'Hover a building or pick a card',
+  play: 'Play', mapButton: 'Map', layers: 'Layers',
+  noHomesInReach: 'No homes in reach yet',
+  achievement: 'Achievement', dailyDone: 'Daily goal done', guideDone: "You've got the basics",
+  tip: 'Tip', gotIt: 'Got it', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals. Help in Settings turns them off.', next: 'Next',
+  achievements: 'Achievements', achievementsLater: 'Achievements show here once the guide is done.', notYetMet: 'Not yet', closestAchievement: 'Closest achievement',
 };
 
 export const importErrorText = (code) => (code === 'newer_version' ? T.saveNewer : code === 'read_failed' ? T.fileUnreadable : T.saveUnreadable);
@@ -117,3 +197,85 @@ export const HELP_ROWS = [
   ['rotate', 'Rotate, once something can rotate'], ['minimap', 'Open the minimap'], ['overlay', 'Cycle the overlays'],
   ['confirm', 'Confirm'], ['back', 'Back one step'], ['undo', 'Undo', 'Ctrl+Z or Cmd+Z'], ['help', 'Show this list'],
 ];
+
+// Celebrations (early-game pass 3.6): what each first says, as a short head (what happened) and a why (why it
+// matters). A phone at larger text shows the head and the gold only; the why stays for screen readers. Achievement
+// names and their exact conditions follow, then the gold suffix on a caption. Names and numbers come from the data,
+// so the words never drift.
+const TOWN = MILESTONES.find((m) => m.id === 'town');
+const PEOPLE_FIRST = FIRSTS.find((f) => f.id === 'people_100').check.n;
+export const FIRST_TEXT = {
+  first_family: { head: 'First family moved in', why: 'People work your buildings and pay taxes.' },
+  first_full_home: { head: 'First full home', why: "Meet a home's needs and it grows to hold more people." },
+  first_harvest: { head: 'First harvest', why: 'Grain reached the granary. Bazaars can now sell food.' },
+  first_shack: { head: `First ${TIERS[2].name}`, why: `Water let a ${TIERS[1].name.toLowerCase()} grow. ${TIERS[2].name}s hold ${TIERS[2].capacity} people.` },
+  first_cottage: { head: `First ${TIERS[3].name}`, why: `Food let a home grow. ${TIERS[3].name}s hold ${TIERS[3].capacity} people and pay more tax.` },
+  first_house: { head: `First ${TIERS[4].name}`, why: `A temple let a home grow. ${TIERS[4].name}s hold ${TIERS[4].capacity} people.` },
+  first_profit: { head: 'First month in profit', why: 'Taxes covered wages and upkeep, with gold to spare.' },
+  people_100: { head: `${PEOPLE_FIRST} people live here`, why: `At ${TOWN.population} people the city becomes a ${TOWN.name}.` },
+};
+
+export const ACHIEVEMENT_NAMES = {
+  way_in: 'Way in', neighbours: 'Neighbours', street: 'A proper street', busy_streets: 'Busy streets',
+  water_bearer: 'Water bearer', breadbasket: 'Breadbasket', plenty: 'Plenty', market_day: 'Market day', faithful: 'Faithful',
+  shack_row: 'Shack row', cottage_lane: 'Cottage lane', house_proud: 'House proud',
+  hamlet: 'Hamlet', town: 'Town at last', bustling: 'Bustling',
+  good_harvests: 'Good harvests', granary_of_the_river: 'Granary of the river',
+  steady_books: 'Steady books', prosperous: 'Prosperous',
+  no_one_hungry: 'No one hungry', water_for_all: 'Water for all', busy_hands: 'Busy hands',
+  on_course: 'On course', day_by_day: 'Day by day',
+};
+
+const BUILDING_PLURALS = { well: 'wells', farm_grain: 'grain farms', granary: 'granaries', bazaar: 'bazaars', temple: 'temples' };
+const TALLY_CONDITIONS = {
+  harvested: (n) => `Harvest ${n} grain`,
+  profitMonths: (n) => `End ${n} months in profit`,
+  upgrades: (n) => `Grow homes ${n} times`,
+  dailyDone: (n) => `Finish ${n} daily goals`,
+};
+
+// An achievement's exact condition, from its declarative measure ("Have 25 homes").
+export function achievementCondition(m) {
+  switch (m.kind) {
+    case 'roads': return `Lay ${m.n} road tiles beyond the starting road`;
+    case 'homes': return `Have ${m.n} homes`;
+    case 'buildings': {
+      const one = buildingName(m.type).toLowerCase();
+      return `Have ${plural(m.n, one, BUILDING_PLURALS[m.type] || `${one}s`)}`;
+    }
+    case 'tier': return `Have ${m.n} homes at ${tierName(m.tier)} or better`;
+    case 'people': return `Reach ${m.n} people`;
+    case 'tally': return TALLY_CONDITIONS[m.key] ? TALLY_CONDITIONS[m.key](m.n) : '';
+    case 'goals': return `Finish ${m.n} goals`;
+    case 'fedAll': return `Reach ${m.people} people with every ${tierName(3)} or better home fed`;
+    case 'waterAll': return `Have ${m.homes} lived-in homes, all with water`;
+    case 'jobs': return `Reach ${m.people} people with ${Math.round(m.rate * 100)}% or fewer out of work`;
+    default: return '';
+  }
+}
+export const ACHIEVEMENT_TEXT = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, achievementCondition(a.measure)]));
+
+// The gold on a caption reads exactly as it does on the goals strip and sheets.
+export const cheerReward = (n) => rewardText(n);
+
+// Tips (early-game pass 3.4): one line each, verb first, 20 words or fewer, keyed by the ids in src/data/tips.js. Each is short
+// enough for three lines on a 360 px phone at 150% text (a test measures it).
+export const TIP_TEXT = {
+  press_play: 'Press Play so people can move in. Plots stay empty while the game is paused.',
+  arrivals: 'Place more plots: families arrive a few times a month while there is room.',
+  house_needs: 'Read what this home needs to grow, then tap Show me for the fix.',
+  service_reach: 'Look at the coloured tiles: they are the homes this reaches by road.',
+  problem_marker: 'Tap a building with a red ! badge to see what is wrong and how to fix it.',
+  month_summary: "Tap the numbers in the top bar to see this month's taxes, wages and food.",
+  more_workers: 'Place more homes: buildings need workers, and homes provide them.',
+  undo_demolish: 'Press Undo to bring back what you just removed, if you change your mind.',
+  goals_list: 'Open Goals to see what comes next, your progress and the gold each pays.',
+  overlay_keys: 'Read the overlay: a filled dot has it, a hollow ring lacks it. Tap ✕ to close.',
+};
+
+// Achievements on the summary and the Welcome back card (early-game pass 3.8, 3.9). Counts read as progressText does.
+export const achievementsHeading = (done, total) => `${T.achievements}, ${done} of ${total}`;
+export const closestAchievementText = (name, n, of, condition = '') => `${T.closestAchievement}: ${name}, ${progressText(n, of)}${condition ? `. ${condition}` : ''}`;   // "...: Neighbours, 7 of 10. Have 10 homes"
+export const achievementBarLabel = (name, n, of) => `${name}: ${progressText(n, of)}`;   // a progress bar's accessible name
+// The arrows beside a trend's words; decoration only (aria-hidden), the words say which way it went.
+export const TREND_MARKS = { up: '▲', down: '▼' };

@@ -11,7 +11,7 @@ function rig() {
   setRoad(world, 0, 10, 31, 10);
   const store = createStore(INITIAL_UI_STATE);
   const log = [];
-  const pl = createPlacement({ world, store, afterCommand: (e) => log.push(e.kind), effects: { puff: () => log.push('puff') }, now: () => 0 });
+  const pl = createPlacement({ world, store, afterCommand: (e) => log.push(e.kind), effects: { puff: () => log.push('puff'), rise: () => log.push('rise') }, now: () => 0 });
   return { world, store, pl, log };
 }
 
@@ -20,7 +20,7 @@ describe('ui placement', () => {
     const { world, store, pl } = rig();
     pl.start({ kind: 'building', type: 'well' }, { x: 40, y: -2 });
     expect(store.get().mode).toBe('placing');
-    expect(store.get().ghost).toEqual({ x: 31, y: 0 });
+    expect(store.get().ghost).toEqual({ x: 31, y: 9 });           // snapped onto the map, then down to the nearest tile where it fits
     expect(store.get().overlay).toBe('water');
     expect(snapGhost(world, { kind: 'building', type: 'temple' }, 31, 31)).toEqual({ x: 30, y: 30 });
     pl.moveGhost(5, 9);
@@ -43,7 +43,7 @@ describe('ui placement', () => {
     expect(pl.confirm().ok).toBe(true);
     expect(allBuildings(world).some((b) => b.type === 'farm_grain' && b.x === 2 && b.y === 8)).toBe(true);
     expect(world.gold).toBe(gold - BUILDINGS.farm_grain.cost);
-    expect(log).toEqual(['puff', 'building']);
+    expect(log).toEqual(['puff', 'rise', 'building']);
     expect(store.get().mode).toBe('placing');
     expect(store.get().ghost).toEqual({ x: 2, y: 8 });
     expect(pl.preview().state).toBe('bad');     // the spot is taken now

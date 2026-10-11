@@ -18,6 +18,8 @@ Then open http://localhost:8000/.
 
 Then open http://localhost:8000/. The title card shows a sample city; **New city** starts a fresh one, paused, with 2,000 gold and a road in from the edge. The goals strip under the top bar says what to do next, and **Show me** opens the right card and points at the place.
 
+**Learning as you go.** A new city starts with a guided start: the goal under the top bar marks the card it needs with **Suggested** and rings the spot on the map, and every step also works while paused. **Skip guide** turns it off; **Resume guide** in How to play brings it back. Goals keep coming after the opening (homes to grow, people to reach), first-time troubles become goals, and a home's sheet says why it is not growing, with **Show me** or **View**. Small captions celebrate firsts, goals and Town; one-time tips appear on their first trigger; if you sit idle, Show me glows and then one "Next:" line appears. Once the opening is done, three small **daily goals** arrive each day (no streaks; one free swap), and the city summary lists **achievements**. The **Help** setting chooses Guide and tips, Tips only, or Off.
+
 **Saving.** The game saves on its own at the end of every game month and whenever you leave the page, keeping the previous save as a backup. Come back and **Continue** opens the Welcome back card: how long you were away, what moved, open goals and alerts; **Carry on** restores your speed. A warning banner appears if saving stops working (private browsing, full storage): export your city from the menu.
 
 **Export and import.** Menu → **Export city** shares a `thebes-city-<date>.json` file (or downloads it); **Import city** loads one. Starting a new city offers to export first.

@@ -1,4 +1,8 @@
 // Spec 6.2: portrait = taller than wide and under 900 px wide; wide = at least 900 x 520; compact = the rest.
+// Below NARROW_PX wide the root also carries the class "narrow": a phone held sideways is too narrow there for the
+// corner buttons' words beside the card drawer at larger text (css/ui.css).
+export const NARROW_PX = 700;
+
 export function pickLayout(width, height) {
   if (height > width && width < 900) return 'portrait';
   if (width >= 900 && height >= 520) return 'wide';
@@ -24,6 +28,7 @@ export function watchLayout({ root, getSize = windowSize, subscribe = windowSubs
   let current = null;
   const check = () => {
     const { width, height } = getSize();
+    root.classList.toggle('narrow', width < NARROW_PX);
     const next = pickLayout(width, height);
     if (next === current) return;
     current = next;
@@ -32,5 +37,5 @@ export function watchLayout({ root, getSize = windowSize, subscribe = windowSubs
   };
   check();
   const off = subscribe(check);
-  return () => off();
+  return () => { off(); root.classList.remove('narrow'); };
 }

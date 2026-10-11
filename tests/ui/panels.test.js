@@ -16,10 +16,10 @@ describe('ui panels', () => {
     const picked = [];
     const panel = createSidePanel({ container: root, store, world: makeTestWorld(), onPick: (i) => picked.push(i) });
     const tabs = root.querySelectorAll('.tab');
-    expect(tabs.length).toBe(7);
-    fire(tabs[4], 'click');
+    expect(tabs.length).toBe(4);                                   // empty categories are hidden
+    fire(tabs[3], 'click');
     expect(store.get().category).toBe('services');
-    expect(tabs[4].getAttribute('aria-pressed')).toBe('true');
+    expect(tabs[3].getAttribute('aria-pressed')).toBe('true');
     expect(root.querySelectorAll('.cards .card').length).toBe(3);
     fire(root.querySelectorAll('.cards .card')[2], 'click');
     expect(picked).toEqual(['temple']);
@@ -40,7 +40,7 @@ describe('ui panels', () => {
     const log = [];
     createRail({ container: root, store, world, onPick: (i) => log.push(i), onConfirm: () => log.push('ok'), onCancel: () => log.push('cancel'), placement });
     const cats = root.querySelectorAll('.cat');
-    expect(cats.length).toBe(7);
+    expect(cats.length).toBe(4);
     expect(root.querySelector('.drawer').hidden).toBe(true);
     fire(cats[1], 'click');
     expect(root.querySelector('.drawer').hidden).toBe(false);
@@ -49,6 +49,7 @@ describe('ui panels', () => {
     expect(root.querySelector('.drawer').hidden).toBe(true);
     expect(root.querySelector('.bottom').hidden).toBe(true);
     placement.start({ kind: 'building', type: 'well' }, { x: 5, y: 20 });
+    placement.moveGhost(5, 20);                                    // the start lands on the nearest fit; put the ghost back where nothing fits
     expect(root.querySelector('.bottom').hidden).toBe(false);
     expect(root.querySelector('.ok').disabled).toBe(true);
     placement.moveGhost(5, 9);

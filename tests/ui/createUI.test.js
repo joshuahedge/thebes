@@ -3,13 +3,18 @@ import { rigUI } from '../helpers/uiWorld.js';
 import { fire, key } from '../helpers/dom.js';
 import { buildingAt } from '../../src/sim/world.js';
 import { tickDay } from '../../src/sim/clock.js';
-import { select } from '../../src/ui/modes.js';
+import { settle } from '../../src/sim/settle.js';
+import { select, openSheet } from '../../src/ui/modes.js';
+import { createSettings } from '../../src/ui/settings.js';
+import { createStore } from '../../src/ui/store.js';
 
 describe('ui createUI', () => {
   it('places a well from the dock: card, ghost, tap, tick, building, then Undo from the toast', async () => {
     const r = await rigUI();
+    settle(r.world);                                                          // the rig's city already meets four goals: pay them now
+    const start = r.world.gold;
     expect(r.store.get().layout).toBe('portrait');
-    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');                 // Services
+    fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');  // Services
     const cards = r.root.querySelectorAll('#dock .tray .card');
     expect(cards[0].querySelector('.name').textContent).toBe('Well');
     fire(cards[0], 'click');
@@ -30,7 +35,7 @@ describe('ui createUI', () => {
     expect(toast.textContent).toContain('Well placed');
     fire(toast.querySelector('button'), 'click');                             // Undo
     expect(buildingAt(r.world, 5, 9)).toBe(null);
-    expect(r.world.gold).toBe(1000);
+    expect(r.world.gold).toBe(start);
     fire(r.root.querySelector('#confirm .cancel'), 'click');
     expect(r.store.get().mode).toBe('browse');
     expect(r.root.querySelector('#confirm').hidden).toBe(true);
@@ -40,7 +45,7 @@ describe('ui createUI', () => {
     const r = await rigUI({ width: 390, height: 844 });
     const shown = (id) => getComputedStyle(r.root.querySelector(`#${id}`)).display !== 'none';
     expect([shown('dock'), shown('panel'), shown('rail')]).toEqual([true, false, false]);
-    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');
+    fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
     fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');
     r.tap(5, 9);
     r.cam.x = 7;
@@ -111,7 +116,7 @@ describe('ui createUI', () => {
     const r = await rigUI();
     r.frame(0);
     expect(r.root.querySelector('#map-summary').textContent).toContain('Gold 1000');
-    r.world.gold = -30;   // the road goal pays 25 on the same day, so -5 would be out of debt by the tick
+    r.world.gold = -50;   // the road goal (25) and the first family (10) pay on the same day, so -30 would be out of debt by the tick
     r.frame(16);
     expect(document.body.classList.contains('has-banner')).toBe(false);     // not until a day passes
     tickDay(r.world);
@@ -133,6 +138,30 @@ describe('ui createUI', () => {
     expect(after).toContain('4242');
     r.cleanup();
   });
+  it('leaves no store or settings subscription behind when destroyed: the help watch and the guide go with it', async () => {
+    const real = createSettings({ storage: { getItem: () => null, setItem: () => {} }, root: document.body });
+    let live = 0;                                                             // subscriptions the interface holds on the shared settings
+    const settings = { ...real, subscribe(fn) { live++; const off = real.subscribe(fn); let on = true; return () => { if (on) { on = false; live--; } off(); }; } };
+    const r = await rigUI({ settings });
+    try {
+      expect(live).toBe(1);                                                   // the help watch
+      expect(r.store.subscribers()).toBeGreaterThan(5);                       // the components and the guide
+      expect(r.world.guide.on).toBe(true);
+      r.store.set(openSheet(r.store.get(), 'summary'));
+      r.ui.destroy();
+      expect(live).toBe(0);
+      expect(r.store.subscribers()).toBe(0);
+      settings.set({ help: 'off' });                                          // the next city's settings change: this world is left alone
+      expect(r.world.guide.on).toBe(true);
+      const dock = document.body.dataset.dock;
+      r.store.set({ dock: dock === 'tray' ? 'slim' : 'tray', category: 'food', sheet: null });   // a stray late set reaches nothing
+      expect(document.body.dataset.dock).toBe(dock);
+      expect(document.body.classList.contains('guide-on')).toBe(false);
+      expect(document.querySelectorAll('.suggested, .dimmed').length).toBe(0);
+      expect(r.root.querySelector('#sheet').hidden).toBe(true);
+      expect(typeof createStore({}).dispose).toBe('function');
+    } finally { r.cleanup(); }
+  });
   it('pans a selection into view, tucks the dock on a pan, places on a mouse click, and detaches on destroy', async () => {
     const r = await rigUI();
     const temple = buildingAt(r.world, 24, 11);
@@ -146,7 +175,7 @@ describe('ui createUI', () => {
     r.ui.actions.panStarted();
     expect(r.store.get().dock).toBe('tucked');
     expect(document.body.dataset.dock).toBe('tucked');
-    fire(r.root.querySelectorAll('#dock .cat')[4], 'click');                  // Services (a tucked dock reopens as a tray)
+    fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');  // Services (a tucked dock reopens as a tray)
     fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');           // Well
     expect(r.store.get().mode).toBe('placing');
     r.ui.cameraControl.cancel(); r.cam.x = 12; r.cam.y = 10;                  // no frame ran the tween; put the view back

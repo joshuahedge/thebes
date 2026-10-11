@@ -4,6 +4,7 @@ import { rigUI } from '../helpers/uiWorld.js';
 import { fire, key } from '../helpers/dom.js';
 import { screenToTile } from '../../src/render/camera.js';
 import { buildingAt } from '../../src/sim/world.js';
+import { settle } from '../../src/sim/settle.js';
 
 // Records every oscillator and gain node the effects build, so envelopes can be checked without sound.
 function fakeAudio() {
@@ -92,6 +93,7 @@ describe('audio sfx', () => {
     const played = [], buzzes = [];
     const sfx = { names: [], play: (n) => { played.push(n); return true; }, unlock: () => { played.push('unlock'); return true; }, buzz: (ms) => { buzzes.push(ms); return true; }, context: null };
     const r = await rigUI({ width: 1280, height: 800, sfx });
+    settle(r.world);                                                          // the rig's city already meets four goals: settle them silently first
     expect(r.ui.sfx).toBe(sfx);
     fire(r.root.querySelector('#topbar'), 'pointerdown');
     fire(r.root.querySelector('#topbar'), 'pointerdown');
@@ -116,8 +118,12 @@ describe('audio sfx', () => {
     expect(buzzes).toEqual([20, 20]);
     key(r.root, 'Escape');
     r.ui.onEvents([{ type: 'upgrade', id: 1, from: 1, to: 2 }, { type: 'arrivals', count: 2 }, { type: 'goal', id: 'road', reward: 25 }, { type: 'milestone', id: 'town' }]);
-    expect(played.slice(-3)).toEqual(['upgrade', 'goal', 'milestone']);
-    expect(buzzes).toEqual([20, 20, 40]);
+    expect(played.slice(-2)).toEqual(['upgrade', 'goal']);                    // the goal's sound and buzz come with its caption; the milestone's wait their turn (early-game pass 3.6)
+    expect(buzzes).toEqual([20, 20, 20]);
+    r.ui.celebrations.clear();
+    r.ui.onEvents([{ type: 'milestone', id: 'town' }]);
+    expect(played[played.length - 1]).toBe('milestone');
+    expect(buzzes).toEqual([20, 20, 20, 40]);
     r.world.gold = -5;
     r.ui.alerts.refresh();
     expect(played[played.length - 1]).toBe('alert');

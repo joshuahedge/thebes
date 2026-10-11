@@ -7,7 +7,7 @@ import { T } from '../sim/terrain.js';
 import { idx, inBounds } from '../sim/grid.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { makeDraw } from './art/ctx.js';
-import { TERRAIN } from './art/palette.js';
+import { TERRAIN, LEAF2 } from './art/palette.js';
 import { rock, scrub, dune, tufts } from './art/nature.js';
 import { defaultCreateCanvas, bucketFor } from './spriteCache.js';
 import { drawRiver } from './terrainWater.js';
@@ -17,6 +17,9 @@ export { CHUNK };
 export const CHUNK_MARGIN = 4;  // art px of canvas around the chunk diamond
 export const CHUNK_MAX_SCALE = 3; // device px per art px; terrain is soft, so a little upscaling is fine
 export const BLEND = 0.33;        // edges wander by about a third of a tile
+export const BLOTCH_ALPHA = 0.22; // calm sand (early-game pass 2.1): faint blotches in shades close to the sand
+export const FERTILE_SPECKS = 6;  // loam speckles per fertile tile; every third is a light crumb
+export const FERTILE_TUFT_SHARE = 0.45; // share of fertile tiles that carry two small green tufts
 
 const TYPE_INDEX = Object.keys(BUILDINGS);
 
@@ -86,15 +89,15 @@ const forTiles = (world, range, fn) => {
   for (let y = range.y0; y <= range.y1; y++) for (let x = range.x0; x <= range.x1; x++) if (inBounds(world.size, x, y)) fn(x, y, idx(world.size, x, y));
 };
 
-// One terrain layer in three passes: a soft, slightly larger pass in a paler tone; the main fill; and a
-// second tone offset by (3, 2) art px on about 60% of tiles for texture. All tiles of the layer go into
-// one path per pass, so overlapping blobs union instead of stacking alpha.
+// One terrain layer in up to three passes: a soft, slightly larger pass in a paler tone; the main fill; and,
+// when the style has a `second` tone, that tone offset by (3, 2) art px on about 60% of tiles for clumpy
+// texture. All tiles of the layer go into one path per pass, so overlapping blobs union instead of stacking alpha.
 function drawLayer(g, world, range, code, style) {
   const passes = [
     { expand: 0.2, fill: style.soft, alpha: 0.5, dx: 0, dy: 0, salt: 1, pick: () => true },
     { expand: 0, fill: style.main, alpha: 1, dx: 0, dy: 0, salt: 1, pick: () => true },
-    { expand: -0.05, fill: style.second, alpha: 0.55, dx: 3, dy: 2, salt: 2, pick: (x, y) => hash2(x, y, world.seed + 9) < 0.6 },
   ];
+  if (style.second) passes.push({ expand: -0.05, fill: style.second, alpha: 0.55, dx: 3, dy: 2, salt: 2, pick: (x, y) => hash2(x, y, world.seed + 9) < 0.6 });
   for (const pass of passes) {
     const ctx = g.ctx;
     ctx.beginPath();
@@ -116,10 +119,30 @@ function drawLayer(g, world, range, code, style) {
 }
 
 const isFree = (world, i) => !world.occ[i] && !world.road[i];
+
+// Fertile land's texture in place of an offset second tone (which drew stair-steps along the blend): dark
+// loam speckles, a few light crumbs and, on some tiles, small green tufts. Positions hang off the tile, so
+// neighbouring chunks draw the same ones at a border.
+function fertileSpeckle(g, world, x, y) {
+  for (let j = 0; j < FERTILE_SPECKS; j++) {
+    const q = p(x + hash2(x, y, 110 + j), y + hash2(x, y, 120 + j));
+    if (j % 3 === 2) g.circ(q, 0.6, TERRAIN.fertileSecond, { alpha: 0.7 });
+    else g.circ(q, 0.5 + hash2(x, y, 130 + j) * 0.4, TERRAIN.fertileSpeck, { alpha: 0.55 });
+  }
+  if (hash2(x, y, world.seed + 140) >= FERTILE_TUFT_SHARE) return;
+  for (let j = 0; j < 2; j++) {
+    const q = p(x + 0.15 + hash2(x, y, 150 + j) * 0.7, y + 0.15 + hash2(x, y, 160 + j) * 0.7);
+    g.line(q, [q[0] - 0.7, q[1] - 2.6], TERRAIN.fertileTuft, 0.7);
+    g.line(q, [q[0] + 0.5, q[1] - 3], LEAF2, 0.6);
+    g.line(q, [q[0] + 1.2, q[1] - 1.9], TERRAIN.fertileTuft, 0.6);
+  }
+}
+
 const nearType = (world, x, y, code) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => terrainAt(world, x + dx, y + dy, -1) === code);
 
-// Sand everywhere, pale blotches and dots, then the blended layers, then the scatter that sells the blend:
-// tufts across meadow borders, pebbles across rocky borders, mud on the banks, rocks, scrub and dunes.
+// Sand everywhere, faint blotches and dots, then the blended layers, then the scatter that sells the blend:
+// loam speckles on fertile land, tufts across meadow borders, pebbles across rocky borders, mud on the banks,
+// rocks, scrub and dunes.
 export function drawGround(g, world, range) {
   const a = p(range.x0, range.y0), b = p(range.x1 + 1, range.y0), c = p(range.x1 + 1, range.y1 + 1), d = p(range.x0, range.y1 + 1);
   g.poly([a, b, c, d], TERRAIN.sand);
@@ -128,7 +151,7 @@ export function drawGround(g, world, range) {
     for (let gx = Math.floor(range.x0 / 4); gx <= Math.floor(range.x1 / 4); gx++) {
       const q = p(gx * 4 + hash2(gx, gy, world.seed + 41) * 4, gy * 4 + hash2(gx, gy, world.seed + 42) * 4);
       const rx = 14 + hash2(gx, gy, world.seed + 43) * 30;
-      g.ell(q, rx, rx * 0.45, TERRAIN.blotches[Math.abs(gx * 7 + gy * 13) % 5], { alpha: 0.5 });
+      g.ell(q, rx, rx * 0.45, TERRAIN.blotches[Math.abs(gx * 7 + gy * 13) % 5], { alpha: BLOTCH_ALPHA });
     }
   }
   forTiles(world, range, (x, y, i) => {
@@ -136,13 +159,14 @@ export function drawGround(g, world, range) {
     for (let j = 0; j < 4; j++) g.circ(p(x + hash2(x, y, 40 + j), y + hash2(x, y, 50 + j)), 0.7, j % 2 ? TERRAIN.dotLight : TERRAIN.dotDark, { alpha: 0.7 });
   });
   drawLayer(g, world, range, T.ROCKY, { soft: TERRAIN.rockySoft, main: TERRAIN.rocky, second: TERRAIN.rockySecond });
-  drawLayer(g, world, range, T.FERTILE, { soft: TERRAIN.fertileSoft, main: TERRAIN.fertile, second: TERRAIN.fertileSecond });
+  drawLayer(g, world, range, T.FERTILE, { soft: TERRAIN.fertileSoft, main: TERRAIN.fertile, second: null });
   drawLayer(g, world, range, T.MEADOW, { soft: TERRAIN.grassSoft, main: TERRAIN.grass, second: TERRAIN.grassSecond });
   drawLayer(g, world, range, T.BANK, { soft: TERRAIN.bankSecond, main: TERRAIN.bank, second: TERRAIN.bankSecond });
   forTiles(world, range, (x, y, i) => {
     const t = world.terrain[i];
     if (t === T.WATER || !isFree(world, i)) return;
     const r = hash2(x, y, world.seed + 3);
+    if (t === T.FERTILE) fertileSpeckle(g, world, x, y);
     if (t === T.MEADOW) tufts(g, x, y, 9, 0);
     else if (t !== T.BANK && nearType(world, x, y, T.MEADOW)) tufts(g, x, y, 3, 5);
     if (t === T.ROCKY || nearType(world, x, y, T.ROCKY)) {
@@ -195,19 +219,23 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
   ctx.translate(ax - o[0] * scale, ay - o[1] * scale); // art coordinates below are world tiles
   const g = makeDraw(ctx, scale);
   const range = { x0: ox - 2, y0: oy - 2, x1: ox + CHUNK + 1, y1: oy + CHUNK + 1 };
-  g.save();
-  // Dilate the clip by about one device pixel so anti-aliased diamond edges leave no hairline seam; both
-  // chunks draw identical content in the overlap, so the overdraw is harmless.
-  const e = 1.5 / scale;
-  const mid = p(ox + CHUNK / 2, oy + CHUNK / 2);
-  g.clip([p(ox, oy), p(ox + CHUNK, oy), p(ox + CHUNK, oy + CHUNK), p(ox, oy + CHUNK)].map((v) => {
-    const dx = v[0] - mid[0], dy = v[1] - mid[1], len = Math.hypot(dx, dy) || 1;
-    return [v[0] + dx / len * e, v[1] + dy / len * e];
-  }));
   drawGround(g, world, range);
   drawRiver(g, world, range);
   drawPlots(g, world, range);
   drawRoads(g, world, range);
+  // Cut the chunk to its diamond, dilated by about one device pixel so anti-aliased edges leave no hairline
+  // gap; both chunks draw identical content in the overlap, so the overdraw is harmless. The cut is one mask
+  // at the end rather than a clip on every layer: a clip blends each layer's partial edge coverage into the
+  // layers beneath, so the edge pixels came out paler than the ground and drew a line along chunk borders on
+  // dark loam (early-game pass 2.1).
+  const e = 1.5 / scale;
+  const mid = p(ox + CHUNK / 2, oy + CHUNK / 2);
+  g.save();
+  ctx.globalCompositeOperation = 'destination-in';
+  g.poly([p(ox, oy), p(ox + CHUNK, oy), p(ox + CHUNK, oy + CHUNK), p(ox, oy + CHUNK)].map((v) => {
+    const dx = v[0] - mid[0], dy = v[1] - mid[1], len = Math.hypot(dx, dy) || 1;
+    return [v[0] + dx / len * e, v[1] + dy / len * e];
+  }), '#000000');
   g.restore();
   return { canvas, ax, ay, scale, cx, cy };
 }

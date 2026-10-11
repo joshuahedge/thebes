@@ -14,9 +14,12 @@ export function adjacentRoadTiles(world, b) {
 
 export const touchesRoad = (world, b) => adjacentRoadTiles(world, b).length > 0;
 
-// The returned Map is cached and shared, so callers must treat it as read-only.
-export function roadReach(world, b, maxDist) {
+// The returned Map is cached and shared, so callers must treat it as read-only. A caller asking about a footprint
+// that is not a building (a ghost being previewed) passes { cache: false }: hovering would otherwise add an entry
+// for every tile the ghost visits, kept until the roads next change.
+export function roadReach(world, b, maxDist, { cache: keep = true } = {}) {
   if (maxDist < 1) return new Map();
+  if (!keep) return walkRoads(world, b, maxDist);
   let c = cache.get(world);
   if (!c || c.version !== world.roadVersion) {
     c = { version: world.roadVersion, map: new Map() };
@@ -24,6 +27,19 @@ export function roadReach(world, b, maxDist) {
   }
   const key = `${b.x},${b.y},${b.w},${b.d},${maxDist}`;
   if (c.map.has(key)) return c.map.get(key);
+  const dist = walkRoads(world, b, maxDist);
+  c.map.set(key, dist);
+  return dist;
+}
+
+// How many footprints the reach cache holds for this world now (tests).
+export function reachCacheSize(world) {
+  const c = cache.get(world);
+  return c && c.version === world.roadVersion ? c.map.size : 0;
+}
+
+// Road tile -> road distance from the footprint, breadth first along the roads, up to maxDist.
+function walkRoads(world, b, maxDist) {
   const dist = new Map();
   const queue = [];
   for (const t of adjacentRoadTiles(world, b)) {
@@ -41,7 +57,6 @@ export function roadReach(world, b, maxDist) {
       if (world.road[nt] && !dist.has(nt)) { dist.set(nt, d + 1); queue.push(nt); }
     }
   }
-  c.map.set(key, dist);
   return dist;
 }
 

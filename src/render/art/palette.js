@@ -38,15 +38,18 @@ export const POT_LIGHT = '#F6B48A';
 export const TRUNK = '#9A7448';
 export const TRUNK_RING = '#6E5236';
 
+// Terrain (early-game pass 2.1): calm sand whose blotches stay within about 3% lightness of it; fertile land as
+// dark river loam with speckles and tufts; a saturated meadow; turquoise shallows along the river bank; and a
+// darker, quieter sand past the map edge, with a soft umber band along the edge itself.
 export const TERRAIN = {
-  sand: '#EBD6A8', sandOff: '#DCC594',
-  blotches: ['#E2C995', '#F1E0B8', '#E6CFA0', '#F4E6C4', '#DDC28C'],
+  sand: '#EBD6A8', offMap: '#C8AE7C', sandOff: '#C8AE7C', edgeFade: '#A08458',   // sandOff is kept as an alias of offMap
+  blotches: ['#E7D1A2', '#EFDBB0', '#E9D3A4', '#EEDAAE', '#E5CF9E'],
   dotLight: '#F8ECCF', dotDark: '#D4B987',
-  grass: '#8FB64C', grassAlt: '#86AE45', grassSoft: '#C9C27E', grassSecond: '#7EA846',
-  fertile: '#D9BE86', fertileSecond: '#CBAE74', fertileSoft: '#E6D2A0',
+  grass: '#86B04A', grassAlt: '#86AE45', grassSoft: '#B3C272', grassSecond: '#74A03E',
+  fertile: '#A8885C', fertileSecond: '#C2A274', fertileSoft: '#BC9C6E', fertileSpeck: '#6E5234', fertileTuft: '#5E8E32',
   bank: '#B9A978', bankSecond: '#C9B98A', mud: '#7A5E40', mudDark: '#5E4630',
   rocky: '#D3B582', rockySecond: '#C4A574', rockySoft: '#E0C898', pebble: '#B39C82', pebbleLight: '#D9C7A8',
-  water: '#2E8C96', waterDeep: '#1E6A7C', waterLight: '#86CBC4', foam: '#DDF4F1', ripple: '#B8E6E2',
+  water: '#2E8C96', waterDeep: '#1E6A7C', waterLight: '#86CBC4', shallows: '#4DB6AE', foam: '#DDF4F1', ripple: '#B8E6E2',
   road: '#DCC08C', roadEdge: '#C2A274', roadPebble: '#B39466', roadPebbleLight: '#F2E2BC',
   plot: '#E3CFA0', field: '#7FAA45', fieldEdge: '#6A5A40', grid: '#3E3260',
 };
@@ -54,4 +57,5 @@ export const TERRAIN = {
 export const UI = {
   ok: '#2F6FA8', warn: '#E0A030', bad: '#E2604C', label: '#3B2A14', halo: '#FFFFFF',
   water: '#2F6FA8', food: '#E2B13C', religion: '#7A5AA0', housing: '#2E8C83',
+  problem: '#A33624',   // the map's problem badge (early-game pass 2.8): white "!" on it reads at 6.8:1
 };

@@ -1,7 +1,7 @@
 import { describe, it, expect } from '../harness.js';
 import { createSpeedControl } from '../../src/ui/speed.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
-import { SPEED_LABELS } from '../../src/ui/text.js';
+import { SPEED_LABELS, T } from '../../src/ui/text.js';
 import { makeTestWorld } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 
@@ -67,11 +67,14 @@ describe('ui speed', () => {
     ctl.mountCorner(root.querySelector('#c'));
     ctl.mountBar(root.querySelector('#b'));
     const main = root.querySelector('#c .speed-main');
-    expect(main.textContent).toContain(SPEED_LABELS[0]);
+    const face = main.querySelector('.face');                     // what shows; the hidden sizers only hold its width
+    expect(face.textContent).toContain(T.play);                  // "▶ Play" when paused (early-game pass 2.9)
     fire(main, 'click');
     expect(w.speed).toBe(1);
     ctl.render();
-    expect(main.textContent).toContain(SPEED_LABELS[1]);
+    expect(face.textContent).toContain(SPEED_LABELS[1]);
+    expect(face.textContent.includes(T.play)).toBe(false);
+    for (const s of main.querySelectorAll('.sizer')) expect(s.getAttribute('aria-hidden')).toBe('true');
     fire(root.querySelector('#c .speed-chevron'), 'click');
     const options = root.querySelectorAll('#c .speed-options button');
     expect(options.length).toBe(3);
