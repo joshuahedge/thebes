@@ -52,6 +52,7 @@ import { el, setText, clear } from './components.js';
 import { buildingName, reasonText, milestoneText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, T } from './text.js';
 
 const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
+const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
 
 export function createUI({
@@ -124,7 +125,9 @@ export function createUI({
   speedControl.mountBar(speedBar);
   const hud = createHud({
     world, store, container: $('topbar'), speedBar, onOpenSummary: () => toggleSheet('summary'), onOpenMenu: () => toggleSheet('menu'),
-    shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150,
+    // The long date ("Year 2, month 1, day 1") only where the wide top bar has room for it beside a real city's numbers:
+    // 1000 px and wider, below 150% text. Narrower, it would push the last number onto a second row.
+    shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150 || view().width < WIDE_LONG_DATE_PX,
   });
   const dock = createDock({ container: $('dock'), store, world, onPick: pick });
   const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: confirm, onUndo: undo });

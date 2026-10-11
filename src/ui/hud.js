@@ -30,7 +30,7 @@ export function summaryData(world) {
 const stat = (label, cls) => el('span', { class: `stat ${cls}` }, [el('span', { class: 'label', text: label }), el('span', { class: 'value', text: '' })]);
 
 // shortDate() says when the date reads "Y2 M1" rather than "Year 2, month 1, day 1": on a phone, and (createUI) in the
-// wide layout at 150% text, where the long date would push the numbers to a third row on a 900 px screen.
+// wide layout under 1000 px wide or at 150% text, where the long date would push the numbers onto another row.
 export function createHud({ world, store, container, speedBar = null, onOpenSummary = () => {}, onOpenMenu = () => {}, shortDate = () => store.get().layout !== 'wide' }) {
   const gold = stat(T.gold, 'gold'), people = stat(T.people, 'people'), mood = stat(T.mood, 'mood'), date = stat(T.date, 'date');
   const income = stat(T.income, 'income wide-only'), jobless = stat(T.jobless, 'jobless wide-only'), food = stat(T.food, 'food wide-only');
