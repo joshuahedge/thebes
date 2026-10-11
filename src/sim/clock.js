@@ -17,6 +17,10 @@ import { clearUndo } from './undo.js';
 import { checkGoals, triggerEventGoals } from './goals.js';
 import { population, HISTORY_MONTHS } from './world.js';
 import { goodsMonthStart, homeGoodsHeld, recordGoodsMonth } from './goodsMonth.js';
+import { fireDay } from './fire.js';
+import { raidDay, raidMonth } from './raids.js';
+import { checkFeats } from './feats.js';
+import { scoreRow } from './score.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
 
@@ -31,14 +35,17 @@ export function runMonth(world, events = null) {
   departures(world);
   monthlyEconomy(world);
   const tradeSpent = tradeMonth(world, events);
+  raidMonth(world, events);                            // Stage 3 (src/sim/raids.js)
   updateMood(world);
   const milestoneChanged = updateMilestone(world);
   if (milestoneChanged && events) events.push({ type: 'milestone', id: world.milestone });
   computeAlerts(world);
   checkAchievements(world, events);
+  checkFeats(world, events);                           // Stage 3 (src/sim/feats.js)
   clearUndo(world);
   recordGoodsMonth(world, goods, held, heldAfter, tradeSpent);   // after monthlyEconomy (it starts stats.lastMonth) and tradeMonth
-  world.history.push({ day: world.day, people: population(world), gold: world.gold, mood: world.mood });
+  // The month-end row: Welcome back's trends, and from Stage 3 the city score and its four parts (spec 4.19).
+  world.history.push({ day: world.day, people: population(world), gold: world.gold, mood: world.mood, ...scoreRow(world) });
   if (world.history.length > HISTORY_MONTHS) world.history.splice(0, world.history.length - HISTORY_MONTHS);
   if (events) events.push({ type: 'month' });
 }
@@ -46,6 +53,8 @@ export function runMonth(world, events = null) {
 export function tickDay(world, events = null) {
   assignLabour(world);
   produceDay(world);
+  fireDay(world, events);                              // Stage 3: fire, then raids and combat (src/sim/fire.js, raids.js)
+  raidDay(world, events);
   world.day += 1;
   if (world.day % ARRIVAL_EVERY === 0) {
     const count = arrivalsBatch(world);

@@ -2,3 +2,4 @@
 import './contract/dangerData.test.js';
 import './contract/worldV4.test.js';
 import './contract/migrateV4.test.js';
+import './contract/simSeams.test.js';
