@@ -429,7 +429,7 @@ body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) 
 .title-card { max-height: 100%; overflow-y: auto; }
 .title-difficulty { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0 0 4px; }
 .title-difficulty .choices { justify-content: center; }
-.title-difficulty .difficulty-hint { margin: 0; }
+.title-difficulty .difficulty-hint { margin: 0; white-space: pre-line; }   /* the hint is two lines: what buildings cost, then the road price */
 #sheet .difficulty-note { margin: 4px 0 0; }
 /* A phone held sideways has about 360 px of height (the title card shows before the layout is watched, so this is a
    height query): tighter spacing lets the card, difficulty row and all, fit at 100% text. */
