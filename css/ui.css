@@ -423,3 +423,18 @@ body:not([data-layout="wide"]) #legend .strip.graded .close { margin-left: auto;
    keeps room for it from the start (title 1.4em, three small lines of 1.05em; at 125% and 150% one of them may wrap). */
 body[data-layout="portrait"] .confirm.desire .info { min-height: 4.55em; }
 body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) .confirm.desire .info { min-height: 5.6em; }
+
+/* Difficulty under New city (spec 4.18): three choices on one row where they fit, the chosen level's line beneath. The
+   card scrolls rather than clip if a small phone at 150% text cannot hold it all. */
+.title-card { max-height: 100%; overflow-y: auto; }
+.title-difficulty { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0 0 4px; }
+.title-difficulty .choices { justify-content: center; }
+.title-difficulty .difficulty-hint { margin: 0; }
+#sheet .difficulty-note { margin: 4px 0 0; }
+/* A phone held sideways has about 360 px of height (the title card shows before the layout is watched, so this is a
+   height query): tighter spacing lets the card, difficulty row and all, fit at 100% text. */
+@media (max-height: 480px) {
+  .title-card { padding: 12px 24px; gap: 4px; }
+  .title-card .tagline { margin: 0; }
+  .title-buttons { gap: 4px; }
+}

@@ -1,20 +1,39 @@
-// The title card (spec 4.1): Continue, New city, Play with sound / Play muted and Install over a paused,
-// slowly drifting sample city. The backdrop only moves the camera; the sim behind it never ticks.
+// The title card (spec 4.1): Continue, New city with its difficulty under it (spec 4.18), Play with sound / Play muted
+// and Install over a paused, slowly drifting sample city. The backdrop only moves the camera; the sim behind it never ticks.
 import { TITLE_DRIFT_MS } from '../data/ui.js';
+import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { el, button, clear } from './components.js';
-import { T } from './text.js';
+import { T, DIFFICULTY_NAMES, difficultyHint } from './text.js';
 
-export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, sound = false, message = null, onContinue, onNewCity, onSound, onInstall = () => {}, onBring = () => {} }) {
+// Relaxed, Normal or Hard for the next new city: three pressed-state buttons with the chosen level's line under them.
+// Choosing one tells onChoose (boot.js keeps it in settings.difficulty), so the last one used is chosen next time.
+function difficultyRow(initial, onChoose) {
+  let level = DIFFICULTY_ORDER.includes(initial) ? initial : 'normal';
+  const hint = el('p', { class: 'difficulty-hint small muted', id: 'title-difficulty-hint' });
+  const choices = DIFFICULTY_ORDER.map((d) => button(DIFFICULTY_NAMES[d], { class: 'choice difficulty', dataset: { value: d }, 'aria-describedby': 'title-difficulty-hint' }));
+  const sync = () => { for (const b of choices) b.setAttribute('aria-pressed', String(b.dataset.value === level)); hint.textContent = difficultyHint(level); };
+  for (const b of choices) b.addEventListener('click', () => { level = b.dataset.value; sync(); onChoose(level); });
+  sync();
+  return el('div', { class: 'title-difficulty' }, [
+    el('span', { class: 'label small', 'aria-hidden': 'true', text: T.difficulty }),
+    el('div', { class: 'choices', role: 'group', 'aria-label': T.difficultyForNewCities }, choices),
+    hint,
+  ]);
+}
+
+export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, sound = false, difficulty = 'normal', message = null, onContinue, onNewCity, onSound, onDifficulty = () => {}, onInstall = () => {}, onBring = () => {} }) {
   let on = Boolean(sound);
   const soundButton = button(on ? T.playMuted : T.playWithSound, { class: 'sound' });
   soundButton.addEventListener('click', () => { on = !on; soundButton.textContent = on ? T.playMuted : T.playWithSound; onSound(on); });
   const install = button(T.install, { class: 'install', hidden: !canInstall, onClick: onInstall });
+  const newCity = button(T.newCity, { class: hasSave ? 'new-city' : 'new-city primary', onClick: onNewCity });
   const buttons = [];
   if (hasSave) buttons.push(button(T.continueGame, { class: 'continue primary', onClick: onContinue }));
-  buttons.push(button(T.newCity, { class: hasSave ? 'new-city' : 'new-city primary', onClick: onNewCity }));
+  buttons.push(newCity);
   if (canBring) buttons.push(button(T.bringCity, { class: 'bring', onClick: onBring }));
   buttons.push(soundButton, install);
-  const buttonBox = el('div', { class: 'title-buttons' }, buttons);
+  const levels = difficultyRow(difficulty, onDifficulty);
+  const buttonBox = el('div', { class: 'title-buttons' }, buttons.flatMap((b) => (b === newCity ? [b, levels] : [b])));   // the choice sits under New city
   const element = el('div', { class: 'title-card', role: 'dialog', 'aria-labelledby': 'title-name' }, [
     el('h1', { id: 'title-name', text: 'Thebes' }),
     el('p', { class: 'tagline muted', text: T.tagline }),

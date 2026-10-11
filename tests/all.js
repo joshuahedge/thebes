@@ -106,6 +106,7 @@ import './ui/goalsV2.test.js';
 import './ui/guide.test.js';
 import './ui/welcomeBack.test.js';
 import './ui/titleCard.test.js';
+import './ui/difficultyChoice.test.js';
 import './ui/boot.test.js';
 import './save/exportImport.test.js';
 import './audio/sfx.test.js';

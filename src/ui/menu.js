@@ -1,9 +1,10 @@
 // The menu, settings, help and about sheets (spec 6.3) as custom renderers for sheets.js, plus the
 // confirm dialog that store.confirmDialog drives (New city, undoing an occupied area).
 import { KEYS, APP_VERSION } from '../data/ui.js';
+import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, T } from './text.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, DIFFICULTY_NAMES, T } from './text.js';
 import { el, button, clear } from './components.js';
 
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
@@ -63,6 +64,9 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%']]),
       choiceRow(T.reducedMotion, 'reducedMotion', [['system', T.followSystem], ['on', T.on], ['off', T.off]]),
       choiceRow(T.helpLevel, 'help', [['full', HELP_NAMES.full], ['tips', HELP_NAMES.tips], ['off', HELP_NAMES.off]]),
+      // Spec 4.18: the level the next new city starts at; the city being played keeps its own (the summary names it).
+      choiceRow(T.difficultyForNewCities, 'difficulty', DIFFICULTY_ORDER.map((d) => [d, DIFFICULTY_NAMES[d]])),
+      el('p', { class: 'difficulty-note small muted', text: T.difficultyNote }),
     );
   }
 
