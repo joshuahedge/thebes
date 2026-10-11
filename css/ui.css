@@ -51,7 +51,7 @@ h2, h3 { margin: 0; }
 #topbar .stat { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
 /* The numbers keep to one row wherever they fit (every layout at 100% text, with tight 8 px gaps and 4 px ends); only
    where they would otherwise be cut off (a narrow phone at large text, or very large numbers) do they wrap to a second row, inside the bar's
-   own height. In the wide layout at 150% the date is short (hud.js), so the numbers never need a third row. */
+   own height. In the wide layout under 1000 px wide or at 150% text the date is short (createUI, hud.js), so the numbers never need a third row. */
 #topbar .stats { display: flex; flex-wrap: wrap; align-items: center; align-content: center; gap: 0 8px; flex: 1; min-width: 0; overflow: hidden; line-height: 1.2; padding: 0 4px; }
 #topbar .stat .label { font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
 #topbar .spacer { display: none; }   /* the numbers' flex: 1 already pushes the rest right; a spacer would only cost a gap */
