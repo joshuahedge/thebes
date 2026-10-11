@@ -19,6 +19,7 @@ export function createGameLoop({ world, render, onEvents = null, raf = (fn) => r
       tickDay(world, events);
       acc -= 1;
       steps++;
+      if (world.speed === 0) { acc = 0; break; }   // the sim paused the game (a first fire or raid warning): no more days this frame
     }
     if (acc >= 1) acc %= 1;          // the cap left a backlog: drop it instead of spiralling
     if (events.length) {

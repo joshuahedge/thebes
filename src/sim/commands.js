@@ -5,7 +5,7 @@ import { T, TERRAIN_BY_NAME } from './terrain.js';
 import { makeBuilding, insertBuilding, removeBuilding, buildingAt } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { canAfford, spend, refund } from './money.js';
-import { costOf, roadCostOf } from './costs.js';
+import { costOf, roadCostOf, rubbleCostOf } from './costs.js';
 import { isUnlocked } from './progression.js';
 import { pushUndo } from './undo.js';
 import { storeAccepts } from './production.js';
@@ -27,6 +27,7 @@ export function checkTiles(world, type, x, y) {
     const i = idx(world.size, tx, ty);
     if (world.terrain[i] === T.WATER) return 'water';
     if (world.occ[i] || world.road[i]) return 'occupied';
+    if (world.wall[i] && !(type === 'tower' && world.wall[i] > 0)) return 'occupied';   // a tower may stand on a standing wall tile (spec 4.13)
     if (def.terrain && world.terrain[i] !== TERRAIN_BY_NAME[def.terrain]) return 'needs_' + def.terrain;
   }
   if (def.needsRoad && !touchesRoad(world, { x, y, w: def.w, d: def.d })) return 'needs_road';
@@ -67,25 +68,42 @@ export function place(world, type, x, y) {
   return { ok: true, id: b.id, warnings: check.warnings };
 }
 
-// A quarter of what the building costs in this city (difficulty included); plots refund nothing (spec 4.11).
-export const demolishRefundFor = (world, b) => (b.type === 'house' ? 0 : Math.floor(costOf(world, b.type) * ECONOMY.demolishRefund));
+// A quarter of what the building costs in this city (difficulty included); plots refund nothing (spec 4.11). Clearing a
+// rubble tile costs gold instead (spec 4.12): its "refund" is minus the clearing price, and the demolish that clears it
+// is refused when that would take the treasury below the debt floor.
+export const demolishRefundFor = (world, b) => {
+  if (b.type === 'rubble') return -rubbleCostOf(world);
+  return b.type === 'house' ? 0 : Math.floor(costOf(world, b.type) * ECONOMY.demolishRefund);
+};
 
+// One tile: a building (or a rubble tile), else a wall tile (a gate keeps its road), else a road. Walls and roads refund
+// nothing. Undo entries: { kind: 'demolish', buildings: [snapshots], roads: [tile index], walls: [[tile index, value]],
+// refund } (src/sim/undo.js).
 export function demolishAt(world, x, y) {
   if (!isTile(x, y) || !inBounds(world.size, x, y)) return fail('out_of_bounds', { refund: 0 });
   const b = buildingAt(world, x, y);
   if (b) {
+    const amount = demolishRefundFor(world, b);
+    if (amount < 0 && !canAfford(world, -amount)) return fail('no_gold', { refund: 0 });
     const snap = JSON.parse(JSON.stringify(b));
     removeBuilding(world, b.id);
-    const amount = demolishRefundFor(world, b);
     refund(world, amount);
-    pushUndo(world, { kind: 'demolish', buildings: [snap], roads: [], refund: amount });
+    if (b.type === 'rubble') world.tally.rubbleCleared += 1;
+    pushUndo(world, { kind: 'demolish', buildings: [snap], roads: [], walls: [], refund: amount });
     return { ok: true, refund: amount, warnings: [] };
   }
   const i = idx(world.size, x, y);
+  if (world.wall[i]) {
+    const walls = [[i, world.wall[i]]];
+    world.wall[i] = 0;
+    world.wallVersion++;
+    pushUndo(world, { kind: 'demolish', buildings: [], roads: [], walls, refund: 0 });
+    return { ok: true, refund: 0, warnings: [] };
+  }
   if (world.road[i]) {
     world.road[i] = 0;
     world.roadVersion++;
-    pushUndo(world, { kind: 'demolish', buildings: [], roads: [i], refund: 0 });
+    pushUndo(world, { kind: 'demolish', buildings: [], roads: [i], walls: [], refund: 0 });
     return { ok: true, refund: 0, warnings: [] };
   }
   return fail('nothing_here', { refund: 0 });
@@ -157,7 +175,7 @@ export function previewRoad(world, x0, y0, x1, y1, flip = false) {
     if (!inBounds(world.size, x, y)) return fail('out_of_bounds', { tiles: [], cost: 0 });
     const i = idx(world.size, x, y);
     if (world.terrain[i] === T.WATER) return fail('water', { tiles: [], cost: 0 });
-    if (world.occ[i]) return fail('blocked', { tiles: [], cost: 0 });
+    if (world.occ[i] || (world.wall[i] && !world.road[i])) return fail('blocked', { tiles: [], cost: 0 });   // a road never crosses a wall: draw wall over a road for a gate
     if (!world.road[i]) tiles.push(i);
   }
   const cost = tiles.length * roadCostOf(world);
@@ -205,28 +223,70 @@ export function paintHouses(world, x0, y0, x1, y1) {
   return { ok: true, warnings: p.warnings, ids, cost: p.cost };
 }
 
+// Everything in the rectangle: buildings (rubble among them), road tiles and wall tiles. refund is the buildings' refunds
+// less the rubble's clearing (clearCost, rubble tiles x rubbleCostOf), so it is negative when clearing costs more than
+// the rest gives back; ok is false (reason 'no_gold') when that would take the treasury below the debt floor.
 export function previewDemolishArea(world, x0, y0, x1, y1) {
   const buildingIds = [];
   const roadTiles = [];
+  const wallTiles = [];
   for (const [x, y] of rectTiles(x0, y0, x1, y1, world.size)) {
     if (!inBounds(world.size, x, y)) continue;
     const i = idx(world.size, x, y);
     if (world.occ[i] && !buildingIds.includes(world.occ[i])) buildingIds.push(world.occ[i]);
     if (world.road[i]) roadTiles.push(i);
+    if (world.wall[i]) wallTiles.push(i);
   }
+  const rubble = buildingIds.filter((id) => world.buildings[id].type === 'rubble').length;
   const refundTotal = buildingIds.reduce((s, id) => s + demolishRefundFor(world, world.buildings[id]), 0);
-  return { buildingIds, roadTiles, refund: refundTotal };
+  const ok = refundTotal >= 0 || canAfford(world, -refundTotal);
+  return { buildingIds, roadTiles, wallTiles, rubble, clearCost: rubble * rubbleCostOf(world), refund: refundTotal, ok, reason: ok ? null : 'no_gold' };
 }
 
 export function demolishArea(world, x0, y0, x1, y1) {
   const p = previewDemolishArea(world, x0, y0, x1, y1);
-  const count = p.buildingIds.length + p.roadTiles.length;
+  const count = p.buildingIds.length + p.roadTiles.length + p.wallTiles.length;
   if (!count) return fail('nothing_here', { count: 0, refund: 0 });
+  if (!p.ok) return fail(p.reason, { count, refund: 0 });
   const snaps = p.buildingIds.map((id) => JSON.parse(JSON.stringify(world.buildings[id])));
   for (const id of p.buildingIds) removeBuilding(world, id);
   for (const t of p.roadTiles) world.road[t] = 0;
   if (p.roadTiles.length) world.roadVersion++;
+  const walls = p.wallTiles.map((t) => [t, world.wall[t]]);
+  for (const [t] of walls) world.wall[t] = 0;
+  if (walls.length) world.wallVersion++;
   refund(world, p.refund);
-  pushUndo(world, { kind: 'demolish', buildings: snaps, roads: p.roadTiles, refund: p.refund });
+  world.tally.rubbleCleared += p.rubble;
+  pushUndo(world, { kind: 'demolish', buildings: snaps, roads: p.roadTiles, walls, refund: p.refund });
   return { ok: true, warnings: [], count, refund: p.refund };
+}
+
+// The clearRubble command (spec 4.12, 7.3): clears the rubble in the rectangle (one tile by default) and nothing else,
+// charging rubbleCostOf a tile; undoable like a demolish. { ok: true, count, cost, warnings: [] }, or fails with
+// 'no_rubble' or 'no_gold' (below the debt floor). The Demolish tool clears rubble through demolishAt and demolishArea,
+// which charge the same price.
+export function clearRubble(world, x0, y0, x1 = x0, y1 = y0) {
+  const ids = [];
+  for (const [x, y] of rectTiles(x0, y0, x1, y1, world.size)) {
+    const b = buildingAt(world, x, y);
+    if (b && b.type === 'rubble' && !ids.includes(b.id)) ids.push(b.id);
+  }
+  if (!ids.length) return fail('no_rubble', { count: 0, cost: 0 });
+  const cost = ids.length * rubbleCostOf(world);
+  if (!canAfford(world, cost)) return fail('no_gold', { count: ids.length, cost });
+  const snaps = ids.map((id) => JSON.parse(JSON.stringify(world.buildings[id])));
+  for (const id of ids) removeBuilding(world, id);
+  spend(world, cost);
+  world.tally.rubbleCleared += ids.length;
+  pushUndo(world, { kind: 'demolish', buildings: snaps, roads: [], walls: [], refund: -cost });
+  return { ok: true, warnings: [], count: ids.length, cost };
+}
+
+// The city's id for the device's records (spec 4.19), given once by the interface (the sim never reads the clock): a
+// new city gets it in createWorld, a city from before Stage 3 at load. Refused once the city has one.
+export function setCityId(world, id) {
+  if (typeof id !== 'string' || !id) return fail('bad_id');
+  if (world.cityId) return fail('has_id');
+  world.cityId = id;
+  return { ok: true, warnings: [] };
 }

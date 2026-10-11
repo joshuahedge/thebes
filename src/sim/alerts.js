@@ -6,6 +6,8 @@ import { touchesRoad } from './reach.js';
 import { atLeast } from './progression.js';
 import { isWorking } from './labour.js';
 import { storeTotal } from './production.js';
+import { fireAlerts } from './fire.js';
+import { raidAlerts } from './raids.js';
 
 export function alertsFor(world) {
   const alerts = [];
@@ -21,6 +23,7 @@ export function alertsFor(world) {
     if (def.workers && road && !b.paused && !isWorking(world, b)) alerts.push({ code: 'understaffed', id: b.id });
     if (def.sells && isWorking(world, b) && FOOD_GOODS.every((g) => !((b.store[g] || 0) > 0))) alerts.push({ code: 'bazaar_empty', id: b.id });   // no food in stock
   }
+  alerts.push(...fireAlerts(world), ...raidAlerts(world));   // Stage 3: fire (fire, blaze, fire_risk) and raids (raid_warning, raid)
   for (const level of world.labour.shortLevels || []) alerts.push({ code: 'labour_shortage', level });
   const L = world.labour;
   if (atLeast(world, 'town') && L.workforce > 0 && (L.workforce - L.employed) / L.workforce > MOOD.unemploymentThreshold) {
