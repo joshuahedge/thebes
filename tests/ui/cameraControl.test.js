@@ -58,4 +58,22 @@ describe('ui camera control', () => {
     expect(close(sx, 400, 0.01)).toBe(true);
     expect(close(sy, 252, 0.01)).toBe(true);
   });
+  it('panToKeeping centres a place and nudges the least to keep a second point in the free map, tween or jump', () => {
+    const insets = { top: 0, right: 0, bottom: 200, left: 0 };            // free map: y from 48 to 352 with the margin, x from 48 to 752
+    for (const reduced of [true, false]) {
+      let t = 0;
+      const cam = createCamera({ x: 5, y: 5, zoom: 1 });
+      const ctl = createCameraControl({ cam, view, reducedMotion: () => reduced, now: () => t });
+      ctl.panToKeeping(32, 32, 33, 32, insets);                           // a point one tile away is already in the free map: plain centre
+      if (!reduced) { t = 1000; ctl.tick(t); }
+      expect(close(cam.x, 32, 1e-6) && close(cam.y, 32, 1e-6)).toBe(true);
+      ctl.panToKeeping(32, 32, 32, 42, insets);                           // ten tiles down the y axis is below it: the nudge brings it in
+      if (!reduced) { t = 2000; ctl.tick(t); }
+      const [sx, sy] = tileToScreen(cam, view(), 32, 42);
+      expect(close(sy, 352, 0.01)).toBe(true);
+      expect(sx >= 48 && sx <= 752).toBe(true);
+      const [tx, ty] = tileToScreen(cam, view(), 32, 32);                 // the place itself moved with it, by the same nudge
+      expect(ty < 300 && ty >= 0 && close(tx - sx, 320, 0.01)).toBe(true);
+    }
+  });
 });

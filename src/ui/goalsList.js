@@ -2,14 +2,22 @@
 // each with Show me. Goal state lives in the world (src/sim/goals.js); this file only reads it.
 import { GOALS } from '../data/goals.js';
 import { openGoals } from '../sim/goals.js';
+import { alertsFor } from '../sim/alerts.js';
 import { housesOf } from '../sim/world.js';
 import { el, button, clear } from './components.js';
 import { T, goalsProgressText } from './text.js';
 
 const rewardText = (goal) => `+${goal.reward}`;
 
+// Where a goal's Show me points. 'alert' aims at the first building with that alert (an event goal's trouble);
+// a goal with no showMe (out of debt) and any target that finds nothing fall back to the city's focus.
 export function showMeTarget(world, goal) {
-  const kind = goal.showMe.target;
+  const show = goal.showMe;
+  const kind = show ? show.target : null;
+  if (kind === 'alert') {
+    const a = alertsFor(world).find((x) => x.code === show.code && x.id && world.buildings[x.id]);
+    if (a) { const b = world.buildings[a.id]; return { x: b.x + b.w / 2, y: b.y + b.d / 2 }; }
+  }
   if (kind === 'startRoad' && world.startRoad.length) {
     const [x, y] = world.startRoad[world.startRoad.length - 1];
     return { x: x + 0.5, y: y + 0.5 };
