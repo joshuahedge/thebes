@@ -2,7 +2,7 @@
 // confirm dialog that store.confirmDialog drives (New city, undoing an occupied area).
 import { KEYS, APP_VERSION } from '../data/ui.js';
 import { openSheet } from './modes.js';
-import { HELP_ROWS, T } from './text.js';
+import { HELP_ROWS, HELP_NAMES, T } from './text.js';
 import { el, button, clear } from './components.js';
 
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
@@ -16,7 +16,9 @@ export function keyLabel(name) {
   return seen.join(' or ');
 }
 
-export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCity = () => {}, version = APP_VERSION }) {
+// canResumeGuide / onResumeGuide come from createUI: How to play offers "Resume guide" while the guide is off
+// and one of its steps is open (early-game pass 3.2).
+export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCity = () => {}, version = APP_VERSION, canResumeGuide = () => false, onResumeGuide = () => {} }) {
   const open = (kind) => store.set(openSheet(store.get(), kind));
   const hookOr = (name) => () => { if (typeof hooks[name] === 'function') hooks[name](); else toasts.show(T.notYet); };
 
@@ -59,10 +61,11 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'),
       choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%']]),
       choiceRow(T.reducedMotion, 'reducedMotion', [['system', T.followSystem], ['on', T.on], ['off', T.off]]),
+      choiceRow(T.helpLevel, 'help', [['full', HELP_NAMES.full], ['tips', HELP_NAMES.tips], ['off', HELP_NAMES.off]]),
     );
   }
 
-  function help(body) {
+  function help(body, { close } = {}) {
     body.append(el('p', { text: T.leaveMode }));
     body.append(el('h3', { text: T.shortcuts }));
     body.append(el('table', { class: 'shortcuts' }, [
@@ -71,7 +74,10 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     ]));
     body.append(el('p', { class: 'small muted', text: T.shortcutsOff }));
     body.append(el('h3', { text: T.gestures }), el('p', { text: T.gesturesHelp }));
-    body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsHelp }));
+    body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsHelp }), el('p', { class: 'muted', text: T.guideHelp }));
+    if (canResumeGuide()) {
+      body.append(el('div', { class: 'actions' }, [button(T.resumeGuide, { class: 'resume-guide primary', onClick: () => { onResumeGuide(); if (close) close(); } })]));
+    }
   }
 
   function about(body) {

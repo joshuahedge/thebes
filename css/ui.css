@@ -276,3 +276,15 @@ body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #corners { right: c
 .row.residents .value { display: inline-flex; align-items: center; gap: 8px; }
 .meter { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--parchment-2); box-shadow: inset 0 0 0 1px var(--parchment-3); overflow: hidden; }
 .meter .fill { display: block; height: 100%; background: var(--teal); }
+
+/* The guided start (early-game pass 3.2): the suggested card has a teal ring and a tag; the other cards keep
+   their words at full strength (4.5:1) and only their picture fades; the suggested category carries a dot. */
+.card, #dock .cat, #rail .cat, #panel .tab { position: relative; }
+.card.suggested { border-color: var(--teal); box-shadow: inset 0 0 0 2px var(--teal); }
+.card .tag { position: absolute; top: 4px; right: 4px; background: var(--teal); color: var(--teal-ink); border-radius: 8px; padding: 0 6px; font-size: calc(12px * var(--ui-scale)); line-height: 1.6; font-weight: 600; pointer-events: none; }
+.card.dimmed { border-color: transparent; }
+.card.dimmed .thumb { opacity: 0.6; filter: saturate(0.5); }
+.cat.dimmed .icon { opacity: 0.6; }
+.cat.suggested::after, .tab.suggested::after { content: ""; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 2px var(--parchment); }
+/* On the pressed tab (a teal fill) the dot turns white, so it still reads as a filled dot. */
+#panel .tab[aria-pressed="true"].suggested::after { background: var(--teal-ink); box-shadow: 0 0 0 2px var(--teal); }
