@@ -21,15 +21,19 @@
 //   no_temple { n }   no_booth { n }   no_bazaar { n } (lived-in homes not reached)   plain { value }
 //   fire_cover { n, dir } (buildings that can burn with no staffed firehouse; dir their side of the city or null)
 //   towers { need, towers, soldiers }   burned { n }   raid_lost {}
-// The words are SCORE_TEXT's (src/ui/text.js).
-import { SCORE_VERSION, SCORE_PARTS, SCORE_WEIGHTS, SCORE_TERMS, SCORE_FACTOR, MEDALS, SPLITS } from '../data/scoring.js';
-import { prestigeOf } from './prestige.js';
+//   (Stage 4, Monuments: the next step) finish { type, id, more }   found { type, first, more, milestone }
+//   locked { type, first, milestone } or { type, first, prestige, have }   (monumentsReason below)
+// The words are SCORE_TEXT's (src/ui/text.js), and from Stage 4 score4ReasonText's (Track D's section).
+import { SCORE_VERSION, SCORE_PARTS, SCORE_WEIGHTS, SCORE_TERMS, SCORE_FACTOR, MEDALS, MEDALS_BY_VERSION, SPLITS } from '../data/scoring.js';
+import { MONUMENTS, MONUMENT_KINDS } from '../data/monuments.js';
+import { prestigeOf, prestigeByKind, monumentsPart } from './prestige.js';
+import { siteProgress } from './monuments.js';
 import { MILESTONES } from '../data/progression.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { DAYS_PER_MONTH } from './time.js';
 import { allBuildings, housesOf, population, makeBuilding, insertBuilding, removeBuilding } from './world.js';
 import { footprint, idx, inBounds } from './grid.js';
-import { milestoneIndex } from './progression.js';
+import { milestoneIndex, isUnlocked } from './progression.js';
 import { roadReach, adjacentRoadTiles } from './reach.js';
 import { isWorking } from './labour.js';
 import { desirabilityField, houseDesirability } from './desirability.js';
@@ -46,10 +50,11 @@ const T = SCORE_TERMS;
 // The difficulty's score factor.
 export const scoreFactor = (world) => SCORE_FACTOR[world.difficulty];
 
-// The best medal a parts' total earns ('bronze', 'silver', 'gold'), or null.
-export function medalFor(raw) {
+// The best medal a parts' total earns ('bronze', 'silver', 'gold'), or null. Stage 4: on the scale of the score version the
+// total was made under (MEDALS_BY_VERSION: a v1 total of 240 is silver, a v2 one bronze); this version's by default.
+export function medalFor(raw, version = SCORE_VERSION) {
   let medal = null;
-  for (const m of MEDALS) if (raw >= m.at) medal = m.id;
+  for (const m of MEDALS_BY_VERSION[version] || MEDALS) if (raw >= m.at) medal = m.id;
   return medal;
 }
 
@@ -194,12 +199,51 @@ function partOf(part, terms) {
   return { value, reason: value >= 100 ? null : worst };
 }
 
+// The prestige a kind gives in all (its courses' share and its completion share).
+const prestigeFullOf = (type) => MONUMENTS[type].prestige.courses + MONUMENTS[type].prestige.done;
+
+// The Monuments part's reason (spec 4.19): the next step, from the monuments standing (prestigeByKind: one of each kind).
+//   { code: 'finish', type, id, more }     the most advanced unfinished site that holds its kind's prestige (the highest
+//                                          share of its units laid; ties keep the earlier kind), and the prestige still to come
+//   { code: 'found', type, first, more, milestone }   else the first kind with none standing, unlocked (first: no monument
+//                                          stands at all; more: what it gives once finished; milestone: the one it came with)
+//   { code: 'locked', type, first, milestone } or { code: 'locked', type, first, prestige, have }   that kind is not
+//                                          unlocked yet: its milestone not reached, or (the pyramids) its prestige not yet held
+function monumentsReason(world, prestige) {
+  const by = prestigeByKind(world);
+  let site = null, share = -1;
+  for (const k of MONUMENT_KINDS) {
+    const b = by[k].id === null ? null : world.buildings[by[k].id];
+    if (!b || b.site.done !== null) continue;
+    const done = siteProgress(b).done;
+    if (done > share) { site = b; share = done; }
+  }
+  if (site) return { code: 'finish', type: site.type, id: site.id, more: prestigeFullOf(site.type) - by[site.type].prestige };
+  const type = MONUMENT_KINDS.find((k) => by[k].id === null);
+  if (!type) return null;
+  const first = MONUMENT_KINDS.every((k) => by[k].id === null);
+  if (isUnlocked(world, type)) return { code: 'found', type, first, more: prestigeFullOf(type), milestone: MONUMENTS[type].unlock.milestone };
+  const u = MONUMENTS[type].unlock;
+  return milestoneIndex(world.milestone) >= milestoneIndex(u.milestone)
+    ? { code: 'locked', type, first, prestige: u.prestige, have: prestige }
+    : { code: 'locked', type, first, milestone: u.milestone };
+}
+
 // Stage 4 (score v2, spec 4.19): Monuments, one term, prestige = sqrt(prestige / prestigeFull), at most 1 (complete in the
-// contract: src/sim/prestige.js). Its reason: { code: 'prestige', prestige } until the part is 100. STUB reason: Track D
-// replaces it with the next step (found the next kind, or finish the most advanced site), keeping the value.
+// contract: src/sim/prestige.js), with the next step as its reason (Track D).
 function monumentsTerms(world) {
   const prestige = prestigeOf(world);
-  return { prestige: { value: Math.min(1, Math.sqrt(prestige / T.prestigeFull)), reason: { code: 'prestige', prestige } } };
+  return { prestige: { value: Math.min(1, Math.sqrt(prestige / T.prestigeFull)), reason: monumentsReason(world, prestige) } };
+}
+
+// What founding a monument of this type would add to the Monuments part once it is finished (spec 4.19: "+32 Monuments
+// when finished"), as monumentsPart counts it: { gain, second }; second is true, and gain 0, when one of its kind already
+// stands (one of each kind counts, so a second adds no prestige). null for a type that is not a monument.
+export function monumentPreview(world, type) {
+  if (!MONUMENTS[type]) return null;
+  if (prestigeByKind(world)[type].id !== null) return { gain: 0, second: true };
+  const now = prestigeOf(world);
+  return { gain: monumentsPart(now + prestigeFullOf(type)) - monumentsPart(now), second: false };
 }
 
 // The score now: { version, total, raw, factor, parts, reasons, medal, next }

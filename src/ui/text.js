@@ -1149,7 +1149,44 @@ export const UI4_TEXT = {};
 // ── s4 score (Track D) ───────────────────────────────────────────────────────────────────────────────────────────
 // Track D's words: score v2 (the Monuments part's reasons, the two new splits, older scoring), the Monuments chapter,
 // goals, firsts, achievements, feats, daily goals, captions and citizen remarks. Add new lines just above the end marker.
-export const SCORE4_TEXT = {};
+export const SCORE4_TEXT = {
+  splitNames: { pyramids: 'Pyramids unlocked', great_pyramid: 'Great pyramid finished' },
+  olderLink: 'Older scoring: this link has four parts, so it is compared with your best from then.',
+};
+const score4Name = (type) => buildingName(type).toLowerCase();
+const score4Milestone = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
+// The Monuments part's reason line (spec 4.19: the next step), from scoreOf's reasons.monuments (src/sim/score.js
+// monumentsReason); any other part's reason as scoreReasonText words it.
+export function score4ReasonText(r) {
+  if (!r) return '';
+  switch (r.code) {
+    case 'finish': return `Finish the ${score4Name(r.type)}: +${r.more} prestige`;
+    case 'found': return r.first ? `No monument yet: found a ${score4Name(r.type)} (${score4Milestone(r.milestone)})` : `Found a ${score4Name(r.type)}: +${r.more} prestige when finished`;
+    case 'locked':
+      if (r.milestone) return r.first ? `Monuments come with ${score4Milestone(r.milestone)}` : `The ${score4Name(r.type)} comes with ${score4Milestone(r.milestone)}`;
+      return `The ${score4Name(r.type)} needs ${r.prestige} prestige (you have ${r.have})`;
+    default: return scoreReasonText(r);
+  }
+}
+// The confirm bar's score line for a monument (spec 4.19, ruling 251's first part), from monumentPreview: "+32 Monuments
+// when finished"; '' for a second of a kind (one of each kind counts: Track C words that) or a gain under a point.
+export const score4MonumentLine = (p) => (p && !p.second && p.gain >= 1 ? `+${p.gain} ${SCORE_TEXT.parts.monuments} when finished` : '');
+// A split against the best on this seed and level, as splitCompareText words a milestone's, for all seven (score v2's two
+// new ones by their own names: "Pyramids unlocked in year 12, month 3: 5 months faster than your best").
+export function score4SplitText(id, day, bestDay) {
+  const words = splitCompareText(id, day, bestDay);
+  return SCORE4_TEXT.splitNames[id] ? `${SCORE4_TEXT.splitNames[id]}${words.slice(id.length)}` : words;
+}
+// A shared t1 link (ruling 259): the friend's score says it is older scoring, and "your best" is your best from then.
+export const score4YourBest = (score, older) => (!older ? TITLE_SCORE_TEXT.yourBest(score)
+  : score === null ? 'You have no older-scoring score on this seed and level' : `Your best here under older scoring: ${score}`);
+// A stamp's name: the sealed reign and its glyphs' monuments ("with a small mastaba and 2 small pyramids").
+export function score4StampLabel(e) {
+  const counts = new Map();
+  for (const k of e.built || []) counts.set(k, (counts.get(k) || 0) + 1);
+  const names = [...counts].map(([k, n]) => (n === 1 ? `a ${score4Name(k)}` : `${n} ${score4Name(k)}s`));
+  return `${TITLE_SCORE_TEXT.stampLabel(e)}${names.length ? `, with ${listText(names)}` : ''}`;
+}
 // ── end s4 score ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 //
