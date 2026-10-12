@@ -2,17 +2,20 @@
 // from Stage 3 the score interface, src/ui/scoreUi.js, for danger's six).
 // Each shows at most once per device. The priority tip (only Press Play) ignores the first delay, the gap
 // and an active tool, and replaces a tip already showing. The words live in src/ui/text.js (TIP_TEXT).
+// waits: false marks a tip whose words are about what is on screen as it fires (a house sheet, the overlay): it never
+// waits in the held slot, because its words would be false once that has closed. When it cannot show at once (on a phone
+// the sheet or the overlay legend has the guidance row, spec 6.3) it is dropped unseen, so it can fire again next time.
 export const TIPS = [
   { id: 'press_play', trigger: 'plotsPaused', priority: true },          // plots placed while paused
   { id: 'arrivals', trigger: 'arrivals', priority: false },              // families arrived
-  { id: 'house_needs', trigger: 'houseSheet', priority: false },         // a house sheet opened
+  { id: 'house_needs', trigger: 'houseSheet', priority: false, waits: false },   // a house sheet opened
   { id: 'service_reach', trigger: 'servicePlaced', priority: false },    // a well, bazaar or temple placed
   { id: 'problem_marker', trigger: 'problemMarker', priority: false },   // problem markers appeared on the map
   { id: 'month_summary', trigger: 'monthEnd', priority: false },         // a month ended
   { id: 'more_workers', trigger: 'labourShortage', priority: false },    // a labour shortage began
   { id: 'undo_demolish', trigger: 'demolished', priority: false },       // something was demolished
   { id: 'goals_list', trigger: 'goalDone', priority: false },            // a goal was done
-  { id: 'overlay_keys', trigger: 'overlayOn', priority: false },         // an overlay turned on by hand
+  { id: 'overlay_keys', trigger: 'overlayOn', priority: false, waits: false },   // an overlay turned on by hand
   { id: 'nicer_streets', trigger: 'desirabilityShown', priority: false },     // a sheet opened for a home whose next tier wants a pleasant street
   { id: 'storehouse_choices', trigger: 'storehousePlaced', priority: false },  // a storehouse placed
   { id: 'trade_orders', trigger: 'tradingPostPlaced', priority: false },       // a trading post placed

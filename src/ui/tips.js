@@ -3,7 +3,8 @@
 // TIP_FIRST_DELAY_MS of a session (on the wall clock), at least TIP_GAP_MS after the last one and at most
 // TIP_HOURLY_MAX an hour (both on the play clock, which runs only while the game does).
 // A tip triggered while a tool is active waits in a one-tip slot until flush() runs with no tool active; a tip that
-// has waited longer than TIP_HELD_MAX_MS is dropped (it described something that is no longer news).
+// has waited longer than TIP_HELD_MAX_MS is dropped (it described something that is no longer news). A tip marked
+// waits: false (its words are about the sheet or overlay on screen as it fires) is never held: busy, it is dropped unseen.
 // The priority tip (Press Play) skips the delay, the gap and the tool rule. Nothing shows under Help: Off.
 // autoCloseMs() is how long a tip may stay before tick() closes it (0: until Got it), measured on frameNow(), a clock
 // that createUI runs only while the tip is on screen and the game is unpaused, so a tip never closes unseen (a hidden tab,
@@ -52,6 +53,7 @@ export function createTips({ container, settings, now = () => performance.now(),
     if (!enabled() || seen().includes(tip.id)) return false;
     const t = now();
     if (busy && !tip.priority) {
+      if (tip.waits === false) return false;            // its words would be false by the time the slot is flushed; unseen, it may fire again
       // One slot: the first tip held keeps it, unless it has gone stale; the same tip triggering again is still news.
       if (!waiting || waiting.tip === tip || t - waiting.at > TIP_HELD_MAX_MS) waiting = { tip, at: t };
       return false;
