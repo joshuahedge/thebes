@@ -277,6 +277,12 @@ function drawDucks(g, rows, range, a) {
 
 const lateByG = new WeakMap();               // the frame's draw object -> its late layer
 
+// What the processions (src/render/walkers.js, Track E) need of the ambient layer's last frame for a world: the Motion
+// level it drew at, what the budget has dropped (processions drop with rare life, spec 5.7) and its real clock (the
+// streamers' flutter). Kept per world, outside it; a world no ambient layer has drawn reads as Still, nothing dropped.
+const stateByWorld = new WeakMap();
+export const ambientState = (world) => stateByWorld.get(world) || { level: 'still', dropped: [], now: 0 };
+
 // The late layer of the frame g belongs to (crop bands, pool glints, smoke, birds), drawn once; render/fire.js calls it
 // right after the sprites. Does nothing for a frame without one.
 export function drawAmbientLate(g) {
@@ -313,6 +319,7 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
   function draw(g, world, range, now) {
     if (pending) { account(pending.ms, pending.now); pending = null; }   // the last frame had no late layer
     if (g) lateByG.delete(g);                // a late layer left from a frame that never drew it is stale: drop it
+    if (world) stateByWorld.set(world, { level: enabled() ? level() : 'still', dropped: stats.dropped.slice(), now });
     if (!enabled() || !g || !range) return;
     const started = clock();
     const off = new Set(AMBIENT.dropOrder.slice(0, dropLevel));

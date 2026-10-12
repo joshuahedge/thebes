@@ -29,3 +29,24 @@ export const AMBIENT = {
   idleFpsCap: 30,                  // paused, with no input for idleAfterMs: cap the frame rate
   idleAfterMs: 2000,
 };
+
+// Processions (spec 5.7 items 3 and 4, rulings 214, 257), drawn as walkers (src/render/walkers.js), Track E. A festival's
+// procession walks the roads in each working temple's reach while the festival lasts (FESTIVAL.days), starting at `start`
+// figures and gaining one for each temple, booth and finished monument, up to `max`. A dedication walks from the nearest
+// temple whose reach meets the new monument's road to it (or along the monument's own road, ownReach tiles, when none
+// does) for dedicationDays after it is finished, with dedicationFigures figures. At most maxOnScreen processions, the
+// nearest the middle of the view; they drop once the ambient budget has dropped all it can (render/walkers.js).
+export const PROCESSION = {
+  start: 4,
+  max: 12,
+  tilesPerDay: 1,                  // half a walker's pace: a stately walk
+  spacing: 0.85,                   // tiles between one figure and the next along the road
+  // The figures in walking order (Track B's walker kinds, src/render/art/figures.js): the first four already show a
+  // priest, the carried shrine, a musician and a dancer.
+  order: ['priest', 'shrine', 'musician', 'dancer', 'priest', 'musician', 'dancer', 'musician', 'dancer', 'priest', 'dancer', 'musician'],
+  dedicationDays: 30,
+  dedicationFigures: 6,
+  ownReach: 4,
+  maxOnScreen: 3,
+  flutterMs: 1000,                 // the temple's streamers change shape once a second, under Full only
+};
