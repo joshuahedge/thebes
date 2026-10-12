@@ -107,6 +107,42 @@ function addStageTwo(world) {
   for (const x of [ex + 1, ex + 4]) place(world, 'garden', x, top - 1);
 }
 
+// The nearest spot to (cx, cy), in rings out to maxR tiles, where the building goes down with no warning (a road touches
+// it, and a producer has its storage and supply in reach); null when there is none.
+function placeNear(world, type, cx, cy, maxR = 9) {
+  for (let r = 0; r <= maxR; r++) {
+    for (let y = cy - r; y <= cy + r; y++) {
+      for (let x = cx - r; x <= cx + r; x++) {
+        if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) !== r) continue;
+        const c = canPlace(world, type, x, y);
+        if (c.ok && !c.warnings.length) return place(world, type, x, y).id;
+      }
+    }
+  }
+  return null;
+}
+
+// The Town's work, laid with Stage 2 (art-direction review item 3: a sample city that shows the game off should not be an
+// unhappy one; before it, half the grown Town's workforce stood idle, it ran short of grain, a dozen Townhouses had no
+// pottery and were about to lose a tier, and Mood sat in the 20s): a farm lane west from the start road across the
+// fields south of the homes, with a granary at its head and grain farms either side of it; a second clay pit and potter
+// by the storehouse, so every Townhouse gets its pottery; three more booths and a temple east of the streets.
+const FARM_LANE = 3;   // more fill the lane's granary, and the farms stop with "no storage"
+function addWork(world) {
+  const ex = world.tradeEntry.x, top = world.size - 10;
+  roadWest(world, ex, top + 1, ex - 11);
+  placeFirst(world, 'granary', [[ex - 3, top + 2], [ex - 3, top - 1], [ex - 2, top + 2]]);
+  let farms = 0;
+  for (const y of [top + 2, top - 1]) for (let x = ex - 4; x >= ex - 11 && farms < FARM_LANE; x--) if (place(world, 'farm_grain', x, y).ok) { farms++; x--; }
+  placeNear(world, 'bazaar', ex + 1, top + 1, 4);   // a bazaar across the start road sells the lane's grain to the southern homes
+  placeNear(world, 'clay_pit', ex + 1, top - 13);
+  placeNear(world, 'potter', ex + 1, top - 13);
+  placeNear(world, 'booth', ex + 1, top - 12);
+  placeNear(world, 'booth', ex + 1, top - 20);
+  placeNear(world, 'booth', ex - 1, top - 6);
+  placeNear(world, 'temple', ex + 10, top - 6);
+}
+
 // Stage 4 (spec 4.1, 5.7 item 7): the sample city's monuments and palace, where the title backdrop first looks (its
 // first drift point, east of the north road between the second and third streets from the start road): a lane east
 // from the north road along the free row between those streets, two builders' guilds for the colossus's crews south of
@@ -194,6 +230,7 @@ export function buildSampleCity(world, { days = 360, stageTwoDays = 240 } = {}) 
     const spent = world.gold;
     world.gold = 1e9;
     addStageTwo(world);
+    if (spent >= DEFENCE_RESERVE) addWork(world);   // a city in debt leaves the extra work for later, as its defences
     addFirehouses(world, streets);                  // anything Stage 2 laid out of reach
     if (spent >= DEFENCE_RESERVE) addDefences(world);
     world.gold = spent;

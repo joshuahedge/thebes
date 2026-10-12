@@ -1,7 +1,8 @@
 // Problem markers pinned to their own buildings (spec 6.3, rulings 280, 281): a badge on a stem rising from a dot on the
 // building's roof, a 2 px ring and faint wash on its footprint in the marker's colour, badges laid out so none overlaps
 // (the one further back gets a longer stem; more than three in one place merge into a count badge with a ring on each
-// footprint). Nothing pulses. Stage 4 contract: Track 0 fixed the names and the createUI wiring; Track B implements
+// footprint, three or more homes about to lose a tier already). A warning's footprint mark is softer than a problem's: a
+// thin ring and half the wash. Nothing pulses. Stage 4 contract: Track 0 fixed the names and the createUI wiring; Track B implements
 // layoutMarkers and drawMarkers and owns this file; Track C owns what a tap on a marker does (createUI's tap seam and
 // View's outline), reading the same layout.
 //
@@ -33,8 +34,10 @@ export const MARKER = {
   stem: 10,       // the shortest stem, CSS px, from the roof dot to the badge's foot
   gap: 3,         // CSS px kept clear between two badges
   most: 3,        // more than this many in one place merge into a count badge
-  ring: 2,        // the footprint ring's width, CSS px
-  wash: 0.12,     // the footprint wash's strength
+  mostWarning: 2, // homes about to lose a tier ("↓", the warning tone) merge sooner: three or more in one place make one
+                  // count badge, as a cluster of identical warnings says no more than its count (art-direction review 3)
+  ring: 2,        // the footprint ring's width, CSS px (a problem's; a warning's is half as wide and has no halo)
+  wash: 0.12,     // the footprint wash's strength (a problem's; a warning's is half as strong)
 };
 
 // The roof a building's stem stands on, in art px: a monument's top as it stands now; any other building's sprite at
@@ -82,8 +85,9 @@ export function layoutMarkers(world, alerts, cam, view) {
   const chains = new Map();
   list.forEach((c, i) => { const k = find(i); if (!chains.has(k)) chains.set(k, []); chains.get(k).push(c); });
   const places = [];
+  const limit = (g) => (g.every((c) => c.glyph === 'down') ? MARKER.mostWarning : most);
   for (const chain of chains.values()) {
-    if (chain.length <= most) { places.push(chain); continue; }
+    if (chain.length <= limit(chain)) { places.push(chain); continue; }
     const cut = [];
     for (const c of chain) {
       const home = cut.find((g) => Math.hypot(g[0].foot.x - c.foot.x, g[0].base - c.base) < 2 * near);
@@ -102,7 +106,7 @@ export function layoutMarkers(world, alerts, cam, view) {
     return m;
   };
   for (const g of places) {
-    if (g.length > most) {
+    if (g.length > limit(g)) {
       const front = g[0], ids = g.map((c) => c.id);
       put(front.foot, ids, g.some((c) => c.glyph !== 'down') ? '!' : 'down', g.some((c) => toneOf(c.glyph) === 'problem') ? 'problem' : 'warning');
     } else for (const c of g) put(c.foot, c.ids, c.glyph, toneOf(c.glyph));
@@ -135,12 +139,13 @@ export function drawMarkers(g, world, alerts, range, layout = []) {
   if (!layout.length) return;
   const css = g.cssScale || g.scale, ringW = MARKER.ring / css;
   for (const m of layout) {
-    const color = TONE[m.tone] || UI.problem;
+    const color = TONE[m.tone] || UI.problem, warn = m.tone === 'warning';
     for (const id of m.ids) {
       const b = world.buildings[id];
       if (!b) continue;
       const pts = quad(b.x, b.y, b.w, b.d, 0);
-      g.poly(pts, color, { alpha: MARKER.wash });
+      g.poly(pts, color, { alpha: warn ? MARKER.wash / 2 : MARKER.wash });
+      if (warn) { g.poly(pts, 'none', { stroke: color, strokeWidth: ringW / 2, strokeAlpha: 0.85 }); continue; }   // a softer mark for a warning
       g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: ringW + 1.6 / css, strokeAlpha: 0.75 });
       g.poly(pts, 'none', { stroke: color, strokeWidth: ringW });
     }
