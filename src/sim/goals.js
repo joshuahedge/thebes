@@ -10,10 +10,10 @@ import { idx } from './grid.js';
 import { atLeast, milestoneIndex } from './progression.js';
 import { openRoutes } from './trade.js';
 import { raidsOn } from './costs.js';
-import { MONUMENTS } from '../data/monuments.js';
+import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { isMonument, isFinished } from './world.js';
-import { touchesRoad } from './reach.js';
-import { prestigeOf, guildsNear, monumentAlerts } from './monuments.js';
+import { touchesRoad, buildingsInReach } from './reach.js';
+import { prestigeOf, monumentAlerts } from './monuments.js';
 
 const SETTLE_MAX = 20;   // settleGoals stops after this many completions in one go
 
@@ -24,9 +24,10 @@ const countOf = (world, type) => allBuildings(world).filter((b) => b.type === ty
 const homesAtTier = (world, tier) => housesOf(world).filter((h) => h.tier >= tier).length;
 const hasAlert = (world, code) => alertsFor(world).some((a) => a.code === code);
 // Stage 4: monuments of a type finished (a finished monument needs no road, ruling 228), and whether a monument on a road
-// has a builders' guild within its crew reach (guildsNear: the guild yard's crew reach, src/sim/monuments.js).
+// has a builders' guild within its crew reach. Reach alone is tested, not guildsNear: that skips a guild already on today's crew
+// plan, and a guild near the only open site is planned to it, so the goal would never be met.
 const finishedOf = (world, type) => allBuildings(world).filter((b) => b.type === type && isFinished(b)).length;
-const crewNear = (world) => allBuildings(world).some((b) => isMonument(b) && touchesRoad(world, b) && guildsNear(world, b).length > 0);
+const crewNear = (world) => allBuildings(world).some((b) => isMonument(b) && touchesRoad(world, b) && buildingsInReach(world, b, MONUMENT.crewReach, (o) => o.type === 'builders_guild').length > 0);
 
 // Road the player laid: road tiles that are not part of the generator's start road (an exact set
 // difference, so taking up a start-road tile and laying one elsewhere still counts the new tile).
