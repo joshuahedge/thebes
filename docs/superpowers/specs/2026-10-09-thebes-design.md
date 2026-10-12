@@ -598,7 +598,7 @@ A score says how well the city is doing, in a way you can compare between cities
 
 **Where it shows.**
 - **The summary sheet** has a score section: the city score, each part's bar with its number and reason line, the medal and the points to the next one, the milestone splits, and the **Seal this reign** and **Share score** buttons.
-- **A small chip on the summary button** shows the live total ("Score 247"). The top bar is unchanged.
+- **A small chip on the summary button** shows the live total ("Score 247"), once somebody lives in the city. The top bar is unchanged.
 - **Welcome back** shows the score and its trend (section 4.17).
 - **Previews while placing.** The confirm bar adds the parts the building would change, beside the reach lines: "Gives water to 6 homes · +3 Culture". It counts the building as staffed, and shows only changes of 1 point or more.
 
@@ -801,7 +801,7 @@ The layout depends on the available space; controls depend on the input in use (
 
 ### 6.3 Screen elements
 
-- **Top bar:** gold, population, mood, date and the ☰ menu. Tapping it opens the **city summary** sheet: income against spending (soldiers' pay on its own row), food in store, employment, the mood breakdown, goals, the score section (section 4.19) and the last raid's report. A small chip on the summary button shows the score ("Score 247"); the top bar gets nothing new.
+- **Top bar:** gold, population, mood, date and the ☰ menu. Tapping it opens the **city summary** sheet: income against spending (soldiers' pay on its own row), food in store, employment, the mood breakdown, goals, the score section (section 4.19) and the last raid's report. A small chip on the summary button shows the score ("Score 247") once somebody lives in the city; the top bar gets nothing new. On a landscape phone, and on a portrait phone at 150% text, the chip sits in the numbers' row right after the date. On a phone at 150% text each of the four numbers shows a small picture in place of its word (a coin, an ankh, a smile, the sun; the word stays for screen readers), so the numbers keep to one row.
 - **Speed controls:**
   - Portrait: pause and speed sit in the **bottom-left corner button** (tap to pause or resume, long-press or tap the chevron, labelled **Speed**, for 1×, 2× or 3×).
   - Wide: the speed controls are in the top bar.

@@ -106,6 +106,9 @@ export function createUI({
   // (a stalled frame counts a second at most), so a paused game, a sheet over it or a hidden tab never closes it unread.
   let frameNow = now(), lastFrameAt = null, playMs = 0, tipMs = 0;
   const phone = () => store.get().layout !== 'wide';
+  // On a landscape phone at 125% or 150% text only one row sits under the top bar (ruling 172): while a banner is up the
+  // alert row has it, so the guidance row steps aside as it does for a sheet (tips and captions wait).
+  const alertHasRow = () => store.get().layout === 'compact' && settings.get().textSize >= 125 && root.classList.contains('has-banner');
   const tips = createTips({
     container: $('tip'), settings, now, playNow: () => playMs, frameNow: () => tipMs, autoCloseMs: () => (phone() ? TIP_AUTO_CLOSE_MS : 0),
     restoreFocus: () => { const b = $('goals').querySelector('.show-me'); if (b && !$('goals').hidden) b.focus(); },
@@ -113,19 +116,21 @@ export function createUI({
   });
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
   // (hoisted) forwards settle's events to onEvents, which shows them. On a phone they take the guidance row (spec 6.3,
-  // rulings 163-165): a caption waits while a sheet, the overlay legend or a tip has the row (behind a sheet for 10 s at
-  // most, spec 6.3), and under a banner only info captions show (the rest are in the Goals sheet's Recent list).
-  const holdCaptions = () => { const s = store.get(); return phone() && Boolean(s.sheet || s.overlay || tips.current()); };
+  // rulings 163-165): a caption waits while a sheet, the overlay legend or a tip has the row, or the alert row has a
+  // landscape phone's one row (behind a sheet or that alert row for 10 s at most, spec 6.3), and under a banner only info
+  // captions show (the rest are in the Goals sheet's Recent list).
+  const holdCaptions = () => { const s = store.get(); return phone() && Boolean(s.sheet || s.overlay || tips.current() || alertHasRow()); };
   const skipCaption = (item) => phone() && item.tier !== 'info' && root.classList.contains('has-banner');
-  const celebrations = createCelebrations({ container: $('cheer'), hold: holdCaptions, skip: skipCaption, dropHeld: () => Boolean(store.get().sheet), now, onChange: () => syncGuidance() });
+  const celebrations = createCelebrations({ container: $('cheer'), hold: holdCaptions, skip: skipCaption, dropHeld: () => Boolean(store.get().sheet) || alertHasRow(), now, onChange: () => syncGuidance() });
   const nudge = createNudge({ now: () => frameNow });
   const nudgeLine = el('p', { class: 'nudge-line', hidden: true });
   const nudgeRegion = el('div', { class: 'nudge', role: 'status', 'aria-live': 'polite' }, [nudgeLine]);   // stays rendered, so the line is announced when it appears
   let nudgeState = 'none';
   const helpOn = () => settings.get().help !== 'off';
-  // A tip waits while a tool is active, and on a phone while a sheet or the overlay legend has the guidance row; a tip
-  // whose words are about that sheet or overlay (waits: false in data/tips.js) is dropped unseen instead.
-  const tipsBusy = (s) => isToolMode(s.mode) || (phone() && Boolean(s.sheet || s.overlay));
+  // A tip waits while a tool is active, and on a phone while a sheet, the overlay legend or (a landscape phone at large
+  // text) the alert row has the row; a tip whose words are about that sheet or overlay (waits: false in data/tips.js) is
+  // dropped unseen instead.
+  const tipsBusy = (s) => isToolMode(s.mode) || (phone() && Boolean(s.sheet || s.overlay || alertHasRow()));
   const fireTip = (key) => tips.trigger(key, { busy: tipsBusy(store.get()) });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
   const placement = createPlacement({ world, store, afterCommand, effects, now });
@@ -592,8 +597,9 @@ export function createUI({
     seenMode = s.mode; seenSheet = s.sheet; seenOverlay = s.overlay;
     syncGuidance();
   });
-  // The guidance row (spec 6.3, rulings 163, 164 and 168): on a phone one thing shows under the alert row, in this order:
-  // the overlay legend, a tip, a caption, the goal; nothing while a sheet is open. root's data-guidance names it and the
+  // The guidance row (spec 6.3, rulings 163, 164, 168 and 172): on a phone one thing shows under the alert row, in this
+  // order: the overlay legend, a tip, a caption, the goal; nothing while a sheet is open, or while a banner is up on a
+  // landscape phone at 125% text or more (its one row is the alert row). root's data-guidance names it and the
   // stylesheet hides the rest; a tip that loses the row stays current, off the screen, and comes back when it has it again.
   // A wide screen keeps every row (no data-guidance). It is worked out again whenever the store, a tip or a caption
   // changes, and once a frame.
@@ -601,7 +607,7 @@ export function createUI({
   function guidanceKind() {
     const s = store.get();
     if (!phone()) return null;
-    if (s.sheet) return 'none';
+    if (s.sheet || alertHasRow()) return 'none';
     if (s.overlay) return 'legend';
     if (tips.current()) return 'tip';
     if (celebrations.showing()) return 'caption';
@@ -678,6 +684,7 @@ export function createUI({
     const on = helpOn();
     if (!on && tips.current()) tips.dismiss();
     tips.tick();
+    tips.flush({ busy: tipsBusy(s) });                 // a tip held while a banner had a landscape phone's one row goes up once it clears
     syncGuidance();                                    // and a caption held while the row was taken goes up once it is free
     root.classList.toggle('nudge-play', world.speed === 0 && tips.current() === 'press_play');
     const state = on ? nudge.tick({ running: world.speed > 0, busy: isToolMode(s.mode) || Boolean(s.sheet) || Boolean(s.confirmDialog) }) : 'none';

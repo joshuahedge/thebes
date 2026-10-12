@@ -10,6 +10,7 @@
 import { SCORE_PARTS, SPLIT_MILESTONES } from '../data/scoring.js';
 import { scoreOf, scorePreview, sealReign, splitMonths } from '../sim/score.js';
 import { featsFor, featStatus } from '../sim/feats.js';
+import { population } from '../sim/world.js';
 import { remarkFor } from './celebrate.js';
 import { downloadFile } from '../save/exportImport.js';
 import { openSheet } from './modes.js';
@@ -218,12 +219,13 @@ export function createScoreUi(ctx) {
     if (e.kind === 'wall') tip('wallDrawn');
   }
 
-  // The chip on the summary button (hud.js makes the empty node): the live total, refreshed with the chrome.
+  // The chip on the summary button (hud.js makes the empty node): the live total, refreshed with the chrome. It stays
+  // hidden while nobody lives in the city (mobile UX review, section 4 item 9): a new city has no score to show yet.
   function renderChip() {
     const chip = root.querySelector('#topbar .score-chip');
     if (!chip) return;
     setText(chip, scoreChipText(current().total));
-    chip.hidden = false;
+    chip.hidden = population(world) === 0;
   }
 
   return {
