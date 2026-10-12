@@ -11,18 +11,23 @@
 // it with the moving parts (the newest block's fade and drop) to drawSite; drawFinished draws the finished monument
 // (also the card's thumbnail and the fallback sprite). Heights are in art px, places in tiles.
 import { box, tb, qd, p, U, quad, groundShadow } from './primitives.js';
-import { WASH, WASH2, MUD, MUD2, STONE, GOLDC, TEAL, TEAL_DARK, BLUE, RED, GOLD, WOOD, DOOR, OUTLINE, INK } from './palette.js';
+import { WASH, WASH2, MUD, MUD2, STONE, GOLDC, TEAL, TEAL_DARK, BLUE, RED, RED_DARK, GOLD, WOOD, DOOR, OUTLINE, INK } from './palette.js';
 import { MONUMENTS, MONUMENT_KINDS, MONUMENT } from '../../data/monuments.js';
 import { boundsFor } from '../iso.js';
 
 export const BLOCK_UNITS = 5;                               // units of material a block stands for (spec 5.7: a block every 5 s)
-export const CORE = ['#EFDDB0', '#DCC493', '#B4A29E'];      // the pyramids' limestone core blocks, warm under the casing
-const CORE2 = ['#ECD8A8', '#D7BE8C', '#AE9C98'];            // every other course a shade deeper, so the courses read
+// The pyramids' quarried limestone: paler and greyer than the sand it stands on, its shaded face a cool lavender-grey
+// (spec 5.1), so a site is the brightest, heaviest thing in the view rather than a darker patch of desert.
+export const CORE = ['#F8F0DE', '#EEE3CA', '#B9ACB6'];
+const CORE2 = ['#F1E7D1', '#E4D7BC', '#ADA0AD'];            // every other course a shade deeper, so the courses read
 export const CASING = ['#FBF7EE', '#F1E9DC', '#CBC0D2'];    // the white casing: brighter than whitewash
 export const SANDSTONE = ['#E8CC94', '#D2AE72', '#A88E7E'];
-const APRON = '#E9DCC0', APRON_EDGE = '#CDBB98', JOINT = '#9C8A76', CORD = '#7A5E44';
+const APRON = '#E3D3B2', APRON_EDGE = '#C7B28C', JOINT = '#9C8A76', CORD = '#7A5E44';
 const TIMBER = ['#C9A26A', '#A8814E', '#86705E'];
 const RAMP = ['#E6C690', '#D6B07A', '#AC9080'];
+const RAMP_SIDE = '#B9957A', RAMP_BRICK = '#8E7060';       // the ramp's outer side, a lavender-brown, and its brick courses
+// The rose granite of an obelisk's shaft (Pharaoh's obelisks stand warm pink-grey against the white houses).
+const ROSE = ['#E9CFC4', '#D8B6A8', '#A98A94'];
 
 // Each kind's look: its family, finished height (art px), and the apron's width round the body (tiles).
 export const MONUMENT_LOOK = {
@@ -195,14 +200,23 @@ function courseUnderWay(g, cx, cy, cw, cd, z, h, look, newest, C, ink) {
 // then the landing's top and front. Returns its geometry, for the gangs.
 function ramp(g, xf, xt, yo, wide, yi, z1) {
   if (z1 <= 0.5) return null;
-  const yr = yo - wide;
-  g.poly([U(p(xf, yr), 0), U(p(xt, yr), z1), U(p(xt, yo), z1), U(p(xf, yo), 0)], RAMP[0]);
-  g.poly([U(p(xf, yo), 0), U(p(xt, yo), 0), U(p(xt, yo), z1)], RAMP[1]);
+  const yr = yo - wide, ym = yo - wide / 2;
+  // the sloping top as a visible band: its near half pale, its far half a step darker, so it reads as a surface
+  g.poly([U(p(xf, ym), 0), U(p(xt, ym), z1), U(p(xt, yo), z1), U(p(xf, yo), 0)], RAMP[0]);
+  g.poly([U(p(xf, yr), 0), U(p(xt, yr), z1), U(p(xt, ym), z1), U(p(xf, ym), 0)], RAMP[1]);
+  g.poly([U(p(xf, yo), 0), U(p(xt, yo), 0), U(p(xt, yo), z1)], RAMP_SIDE);    // the outer side, in shade
   g.poly([U(p(xt, yr), 0), U(p(xt, yo), 0), U(p(xt, yo), z1), U(p(xt, yr), z1)], RAMP[2]);
-  const segs = [];
-  for (let s = 2.5; s < z1; s += 2.5) segs.push(['M', U(p(xf + (xt - xf) * (s / z1), yo), s)], ['L', U(p(xt, yo), s)], ['L', U(p(xt, yr), s)]);
-  g.stroke(segs, MUD[2], 0.4, 0.4);
-  g.stroke([['M', U(p(xf, yo), 0)], ['L', U(p(xt, yo), z1)], ['L', U(p(xt, yr), z1)]], '#F3DDB4', 0.6, 0.8);   // the lit edges of its top
+  // its mudbrick: a few courses along the side and the end, and the bricks' head joints staggered course by course
+  const segs = [], heads = [], step = Math.max(2.6, z1 / 6), run = xt - xf;
+  for (let s = step; s < z1 - 0.8; s += step) segs.push(['M', U(p(xf + run * (s / z1), yo), s)], ['L', U(p(xt, yo), s)], ['L', U(p(xt, yr), s)]);
+  for (let s = 0, row = 0; s < z1 - step * 0.5; s += step, row++) {
+    const top = Math.min(z1, s + step);
+    for (let u = row % 2 ? 0.3 : 0.6; u < run; u += 0.6) if (z1 * (u / run) > top) heads.push(['M', U(p(xf + u, yo), s)], ['L', U(p(xf + u, yo), top)]);
+  }
+  g.stroke(segs, RAMP_BRICK, 0.45, 0.45);
+  if (heads.length) g.stroke(heads, RAMP_BRICK, 0.4, 0.3);
+  g.line(U(p(xf, ym), 0), U(p(xt, ym), z1), '#C9A26A', 0.4, 0.5);             // the line between the halves of its top
+  g.stroke([['M', U(p(xf, yo), 0)], ['L', U(p(xt, yo), z1)], ['L', U(p(xt, yr), z1)]], '#F8E6C2', 0.8, 0.9);   // the lit edges of its top
   if (yi < yr - 0.02) {                                                     // the landing: a brick slab back to the face
     const ink = inkFor();
     slab(g, xt - 0.34, yi, 0.34, yr - yi + 0.02, 2.4, z1 - 2.4, 0, RAMP, ink);
@@ -229,11 +243,17 @@ function scaffold(g, x0, y0, w, d, top, back) {
 
 // A triangular face of a finished monument, shaded as the mock-ups' gradient would be (lighter towards its top, a shade
 // along its foot) from flat fills: the face, three faint pale bands over its upper part, two faint shades along its foot.
-function shadedFace(g, foot0, foot1, top, C) {
+// `lit` gives the sunlit face its warm-to-pale gradient: stronger pale bands towards the apex and a shade at its foot.
+function shadedFace(g, foot0, foot1, top, C, lit = false) {
   g.poly([foot0, foot1, top], C);
   const at = (q, f) => [q[0] + (top[0] - q[0]) * f, q[1] + (top[1] - q[1]) * f];
-  for (const f of [0.35, 0.6, 0.8]) g.poly([at(foot0, f), at(foot1, f), top], '#FFFFFF', { alpha: 0.06 });
-  for (const f of [0.08, 0.18]) g.poly([foot0, foot1, at(foot1, f), at(foot0, f)], INK, { alpha: 0.035 });
+  for (const f of lit ? [0.3, 0.5, 0.7] : [0.35, 0.6, 0.8]) g.poly([at(foot0, f), at(foot1, f), top], '#FFFFFF', { alpha: lit ? 0.12 : 0.06 });
+  for (const f of lit ? [0.06, 0.14] : [0.08, 0.18]) g.poly([foot0, foot1, at(foot1, f), at(foot0, f)], INK, { alpha: lit ? 0.06 : 0.035 });
+}
+
+// The darker line where a body meets the ground (spec 5.1), along its two front feet: left corner, front, right corner.
+function foot(g, a, f, c) {
+  g.stroke([['M', a], ['L', f], ['L', c]], INK, 0.8, 0.45);
 }
 
 // ── pyramids ──
@@ -256,6 +276,7 @@ function pyramidSite(g, x, y, w, look, newest) {
     courseUnderWay(g, bx + k, by + k, side - 2 * k, side - 2 * k, look.course * ch, ch, look, newest, look.course % 2 ? CORE2 : CORE, ink);
   }
   flush(g, ink);
+  if (look.course > 0) foot(g, p(bx, by + side), p(bx + side, by + side), p(bx + side, by));
   // the ramp up the +y face from the left of the apron to the top of the courses laid, landing on the course under way
   const z1 = look.course * ch, k = Math.min(look.course, n - 1) * step;
   return ramp(g, x + 0.1, bx + side - k - (side - 2 * k) * 0.25, by + side + 0.26, 0.36, by + side - k, z1);
@@ -265,21 +286,23 @@ export function pyramidFinished(g, x, y, w, type) {
   const { L, bx, by, side } = pyramidGeom(type, x, y, w);
   const apex = U(p(bx + side / 2, by + side / 2), L.height);
   const A = p(bx, by + side), Bp = p(bx + side, by + side), C = p(bx + side, by);
-  shadedFace(g, A, Bp, apex, CASING[1]);
+  shadedFace(g, A, Bp, apex, CASING[1], true);
   shadedFace(g, Bp, C, apex, CASING[2]);
-  const segs = [];                                                           // the casing's courses, barely there
-  for (let k = 1; k < 10; k++) {
-    const f = k / 10, at = (q) => [q[0] + (apex[0] - q[0]) * f, q[1] + (apex[1] - q[1]) * f];
+  const segs = [];                                                           // the casing's courses
+  for (let k = 1; k < 16; k++) {
+    const f = k / 16, at = (q) => [q[0] + (apex[0] - q[0]) * f, q[1] + (apex[1] - q[1]) * f];
     segs.push(['M', at(A)], ['L', at(Bp)], ['L', at(C)]);
   }
-  g.stroke(segs, '#B8AAB8', 0.4, 0.22);
-  g.stroke([['M', A], ['L', apex], ['L', C]], OUTLINE, 0.6, 0.32);
-  g.line(Bp, apex, '#FFFFFF', 0.8, 0.7);                                     // the lit edge
-  // the gold capstone: the top eighth
-  const t = 0.125, cap = (q) => [apex[0] + (q[0] - apex[0]) * t, apex[1] + (q[1] - apex[1]) * t];
+  g.stroke(segs, '#B8AAB8', 0.45, 0.4);
+  g.stroke([['M', A], ['L', apex], ['L', C]], OUTLINE, 0.6, 0.4);
+  foot(g, A, Bp, C);
+  g.line(Bp, apex, '#FFFFFF', 1.2, 0.85);                                    // the lit edge
+  // the gold capstone: the top sixth, a separate stone with a dark gold joint under it
+  const t = 1 / 6, cap = (q) => [apex[0] + (q[0] - apex[0]) * t, apex[1] + (q[1] - apex[1]) * t];
   g.poly([cap(A), cap(Bp), apex], GOLDC[1]);
   g.poly([cap(Bp), cap(C), apex], GOLDC[2]);
-  g.line(cap(Bp), apex, '#FFF4C8', 0.6, 0.9);
+  g.stroke([['M', cap(A)], ['L', cap(Bp)], ['L', cap(C)]], '#7E5A22', 0.8, 0.95);
+  g.line(cap(Bp), apex, '#FFF4C8', 0.8, 0.95);
   return { apex, cap: [cap(A), cap(Bp), cap(C)] };
 }
 
@@ -352,12 +375,12 @@ function obeliskSite(g, x, y, look, newest) {
   flush(g, ink);
   const built = (look.course + look.laid / look.blocks) * G.seg;
   scaffold(g, G.cx - G.base / 2, G.cy - G.base / 2, G.base, G.base, G.ped + built + 6, true);
-  for (let i = 0; i < Math.min(look.course, G.n); i++) obeliskShaft(g, G, i * G.seg, G.seg, STONE, ink);
+  for (let i = 0; i < Math.min(look.course, G.n); i++) obeliskShaft(g, G, i * G.seg, G.seg, ROSE, ink);
   if (look.course < G.n && look.laid > 0) {
     const per = G.seg / look.blocks, settled = newest ? look.laid - 1 : look.laid;
-    if (settled > 0) obeliskShaft(g, G, look.course * G.seg, settled * per, STONE, ink);
+    if (settled > 0) obeliskShaft(g, G, look.course * G.seg, settled * per, ROSE, ink);
     flush(g, ink);
-    if (newest) obeliskShaft(g, G, look.course * G.seg + settled * per, per, STONE, ink, newest);
+    if (newest) obeliskShaft(g, G, look.course * G.seg + settled * per, per, ROSE, ink, newest);
   }
   flush(g, ink);
   scaffold(g, G.cx - G.base / 2, G.cy - G.base / 2, G.base, G.base, G.ped + built + 6, false);
@@ -369,21 +392,27 @@ export function obeliskFinished(g, x, y, type) {
   const P = slab(g, G.cx - 0.24, G.cy - 0.24, 0.48, 0.48, G.ped, 0, 0, STONE, ink);
   flush(g, ink);
   qd(g, P.L, 0, 1, 1.2, 2.2, TEAL); qd(g, P.R, 0, 1, 1.2, 2.2, TEAL_DARK);
-  const F = obeliskShaft(g, G, 0, G.L.shaft, STONE, ink);
+  const F = obeliskShaft(g, G, 0, G.L.shaft, ROSE, ink);
   flush(g, ink);
-  for (const s of [G.L.shaft * 0.62, G.L.shaft * 0.84]) {                  // painted bands
-    qd(g, F.L, 0, 1, s, s + 1, TEAL); qd(g, F.R, 0, 1, s, s + 1, TEAL_DARK);
+  for (const s of [G.L.shaft * 0.6, G.L.shaft * 0.82]) {                   // painted bands, 2 px
+    qd(g, F.L, 0, 1, s, s + 2, TEAL); qd(g, F.R, 0, 1, s, s + 2, TEAL_DARK);
   }
-  qd(g, F.L, 0, 1, G.L.shaft * 0.84 + 1, G.L.shaft * 0.84 + 1.8, RED); qd(g, F.R, 0, 1, G.L.shaft * 0.84 + 1, G.L.shaft * 0.84 + 1.8, RED, { alpha: 0.75 });
+  const r0 = G.L.shaft * 0.82 + 2, r1 = r0 + 1.4;
+  qd(g, F.L, 0, 1, r0, r1, RED); qd(g, F.R, 0, 1, r0, r1, RED_DARK);
+  qd(g, F.L, 0.3, 0.7, 3, G.L.shaft * 0.55, '#C9A396', { alpha: 0.8 });     // the carved column, a shade darker
   const glyphs = [];
-  for (let s = 4; s < G.L.shaft * 0.58; s += 3.2) glyphs.push(['M', F.L(0.35, s)], ['L', F.L(0.65, s + 0.6)]);
-  g.stroke(glyphs, '#9C8C9E', 0.5, 0.55);                                    // a column of carved signs
+  for (let s = 4.4; s < G.L.shaft * 0.53; s += 3.2) glyphs.push(['M', F.L(0.38, s)], ['L', F.L(0.62, s + 0.6)]);
+  g.stroke(glyphs, '#7E5F6A', 0.55, 0.7);                                    // its carved signs
+  g.line(F.L(1, 0), F.L(1, G.L.shaft), '#F6E6DE', 0.6, 0.7);                 // the lit edge
+  foot(g, P.L(0, 0), P.L(1, 0), P.R(0, 0));
   const top = G.ped + G.L.shaft, hw = G.topW / 2, tipH = G.L.height - top;
   const a = U(p(G.cx - hw, G.cy + hw), top), b = U(p(G.cx + hw, G.cy + hw), top), c = U(p(G.cx + hw, G.cy - hw), top), t = U(p(G.cx, G.cy), top + tipH);
   const gilded = MONUMENTS[type].extra && MONUMENTS[type].extra.kind === 'gilding';
-  g.poly([a, b, t], gilded ? GOLDC[1] : STONE[1]);
+  // the pyramidion: gilded on the large obelisk (its paid extra, MONUMENTS.obelisk_large.extra); the small one's is
+  // polished pale, so its rose shaft still ends in a bright point without taking the gilding's meaning
+  g.poly([a, b, t], gilded ? GOLDC[1] : STONE[0]);
   g.poly([b, c, t], gilded ? GOLDC[2] : STONE[2]);
-  g.line(b, t, gilded ? '#FFF4C8' : '#FFFFFF', 0.6, 0.9);
+  g.line(b, t, gilded ? '#FFF4C8' : '#FFFFFF', 0.8, 0.95);
   return { apex: t, cap: gilded ? [a, b, c] : null };
 }
 

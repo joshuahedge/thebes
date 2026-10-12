@@ -48,7 +48,8 @@ export const GANG = {
   scale: 0.7,            // the figures' size: a little smaller than a walker, so a gang fits the ramp
 };
 
-const seen = new WeakMap();   // building -> { blocks, course, done, blockAt, courseAt, doneAt, lastCourse }
+const HAULED = [CORE[1], '#E0D2B4', CORE[2]];   // the block on a sled: the core's limestone, its top a shade down from the kilts' white
+const seen = new WeakMap();  // building -> { blocks, course, done, blockAt, courseAt, doneAt, lastCourse }
 
 // What the draw saw of a site last frame, updated with what it shows now: when its newest block, its last course and its
 // finish appeared (real ms; -Infinity for what was already there when the draw first met it). Kept by the building record
@@ -226,7 +227,11 @@ function drawGangs(g, layout) {
   gang(g, layout.masons);
   for (const s of layout.sleds) {
     box(g, s.q[0] - 0.13, s.q[1] - 0.08, 0.26, 0.16, 1, s.z, ['#C9A26A', '#A8814E', '#86705E'], 0);
-    if (s.loaded) box(g, s.q[0] - 0.09, s.q[1] - 0.06, 0.18, 0.12, 3.2, s.z + 1, STONE, 0);
+    if (s.loaded) {                                                          // a dressed limestone block, not a sack: a dark top edge
+      const x = s.q[0] - 0.09, y = s.q[1] - 0.06, z = s.z + 1, h = 3.2;
+      box(g, x, y, 0.18, 0.12, h, z, HAULED, 0);
+      g.stroke([['M', U(p(x, y + 0.12), z + h)], ['L', U(p(x + 0.18, y + 0.12), z + h)], ['L', U(p(x + 0.18, y), z + h)]], '#6E5E58', 0.6, 0.85);
+    }
   }
   gang(g, [...layout.people].sort((a, b) => a.q[1] - b.q[1]));
 }
