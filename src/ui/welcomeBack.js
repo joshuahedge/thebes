@@ -86,7 +86,7 @@ export function siteLines(world) {
     if (!s.road) state = U.welcomeNoRoad;
     else if (s.paused) state = U.welcomePaused;
     else if (s.pace !== null) state = U.welcomePace(s.pace);
-    else if (s.last && !(s.last.units > 0)) state = U.welcomeStill(s.reason);
+    else if (s.last && !(s.last.units > 0) && s.reason) state = U.welcomeStill(s.reason);   // reason is null while a site works: that falls through to welcomeFirst, never a made-up cause
     return U.welcomeSite(b.type, s.progress.course, s.progress.courses, state);
   });
 }

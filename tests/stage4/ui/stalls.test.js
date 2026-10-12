@@ -175,6 +175,9 @@ describe('s4 ui the summary\'s Monuments section and Welcome back\'s site lines'
     expect(siteLines(w)).toEqual(['Small pyramid: course 6 of 8, about 3 years left at last month\'s pace']);
     Object.assign(s.site, { last: { units: 0, gold: 0, crews: 0 }, reason: 'no_stone' });
     expect(siteLines(w)).toEqual(['Small pyramid: course 6 of 8, not progressing: no stone']);
+    Object.assign(s.site, { last: { units: 0, gold: 0, crews: 0 }, reason: null });   // laid nothing last month but was working when the player left: no cause is invented
+    expect(siteLines(w)).toEqual(['Small pyramid: course 6 of 8, pace shows after a month of work']);
+    Object.assign(s.site, { reason: 'no_stone' });
     s.paused = true;
     expect(siteLines(w)).toEqual(['Small pyramid: course 6 of 8, paused']);
     addRaw(w, 'obelisk_small', 25, 20);
