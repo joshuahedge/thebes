@@ -167,6 +167,13 @@ function outline(g, pts) {
   g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2, strokeAlpha: 0.9 });
   g.poly(pts, 'none', { stroke: GOLD, strokeWidth: 0.9, strokeAlpha: 1 });
 }
+// The still outline of a course just laid: its two top front edges (left, front, right corner) as an open line, white
+// over gold. Not closed: a closed path would draw a chord from the right corner back across the course's top face.
+function outlineEdge(g, [a, f, c]) {
+  const segs = [['M', a], ['L', f], ['L', c]];
+  g.stroke(segs, UI.halo, 2, 0.9);
+  g.stroke(segs, GOLD, 0.9, 1);
+}
 
 // Whether a site's crews are at work today: crews on it, not paused, not finished, and its last day was a working day
 // (site.reason is null after a day of work, src/sim/monuments.js monumentDay).
@@ -224,13 +231,16 @@ function drawGangs(g, layout) {
   gang(g, [...layout.people].sort((a, b) => a.q[1] - b.q[1]));
 }
 
-// The course-done dust (Full, t 0..1): soft puffs rising a little and fading along the course's top edges.
+// The course-done dust (Full, t 0..1): soft puffs rising a little and fading along the course's top edges, a warm
+// sand-grey darker than the casing and the sand round it (so it reads on a phone) with a pale core.
+const DUST = '#D9C79C', DUST_CORE = '#F4EAD2';
 function dust(g, edge, t) {
   const [a, f, c] = edge, k = 1 - t;
   for (let i = 0; i <= 8; i++) {
     const u = i / 8, q = u <= 0.5 ? [a[0] + (f[0] - a[0]) * u * 2, a[1] + (f[1] - a[1]) * u * 2] : [f[0] + (c[0] - f[0]) * (u - 0.5) * 2, f[1] + (c[1] - f[1]) * (u - 0.5) * 2];
-    const r = 2.4 + 3.6 * t;
-    g.ell([q[0], q[1] - 1 - 4 * t], r, r * 0.6, '#F1E3C4', { alpha: 0.55 * k });
+    const r = 3 + 4 * t, at = [q[0], q[1] - 1 - 4 * t];
+    g.ell(at, r, r * 0.6, DUST, { alpha: 0.7 * k });
+    g.ell([at[0], at[1] - r * 0.1], r * 0.5, r * 0.3, DUST_CORE, { alpha: 0.6 * k });
   }
 }
 
@@ -251,7 +261,7 @@ function drawScene(g, world, b, look, { now, timeDays, motion }) {
   if (m.lastCourse >= 0 && age >= 0) {                                       // a course laid while on screen
     const edge = courseTop(b.type, b.x, b.y, b.w, b.d, m.lastCourse);
     if (motion === 'full' && age < DUST_MS) dust(g, edge, age / DUST_MS);
-    else if (motion !== 'full' && age < OUTLINE_MS) outline(g, edge);
+    else if (motion !== 'full' && age < OUTLINE_MS) outlineEdge(g, edge);
   }
   drawGangs(g, gangLayout(b, look, ramp, timeDays));
   return { look, memo: m, ramp };
