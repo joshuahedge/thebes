@@ -61,7 +61,7 @@ describe('s4 motion festival processions', () => {
       expect(reach.has(idx(w.size, Math.floor(f.x), Math.floor(f.y)))).toBe(true);
     }
     expect(out.map((f) => f.kind)).toEqual(PROCESSION.order.slice(0, n).map(figureKind));
-    expect(PROCESSION.order.slice(0, 4)).toEqual(['priest', 'shrine', 'musician', 'dancer']);
+    expect(PROCESSION.order.slice(0, 4)).toEqual(['standard', 'shrine', 'musician', 'dancer']);   // a priest with the standard leads
     expect(walkersAt(w, DAY + 12).filter(mine(PROCESSION_ID_BASE, temple.id)).length).toBe(n);   // among the game's walkers
     w.day = DAY + FESTIVAL.days - 1;
     expect(figures(w.day).length).toBe(n);

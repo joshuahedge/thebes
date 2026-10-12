@@ -1,6 +1,6 @@
 // Track H, task H2: the frieze, the cartouches and the title card's glyph (spec 6.9, rulings 276-277). The frieze lies along
 // the top bar's lower edge and each sheet's head, 4 px, inside the heights they had; a sheet's title and the city's name sit
-// in cartouches in the serif display face, each tie joined to its outline, and section titles get a quieter serif rule
+// in cartouches in the serif display face, each tie flush inside its outline's end, and section titles get a quieter serif rule
 // (the controller's ruling 18); one glyph, on the title card, hidden from screen readers; nothing in the look moves.
 import { describe, it, expect } from '../../harness.js';
 import { rigUI } from '../../helpers/uiWorld.js';
@@ -56,11 +56,13 @@ describe('s4 look frieze and cartouches', () => {
       const cs = getComputedStyle(h2), tie = pseudo(h2, '::after');
       expect([cs.fontFamily, cs.boxShadow.startsWith(cssRgb(TOKENS.inkSoft)) && cs.boxShadow.includes('inset'), parseFloat(cs.borderTopLeftRadius) >= h2.getBoundingClientRect().height / 2]).toEqual([SERIF, true, true]);
       expect([tie.content, tie.position, parseFloat(tie.width) >= 2]).toEqual(['""', 'absolute', true]);
-      // Ruling 18: the tie joins the outline (it overlaps the outline's last pixel at the end, never stands apart like a
-      // text cursor) and spans the end from top to bottom, a little proud of it.
-      const box = h2.getBoundingClientRect(), right = -parseFloat(tie.right), width = parseFloat(tie.width);
-      expect([right > 0, right < width, parseFloat(tie.top) <= 0, parseFloat(tie.bottom) <= 0, tie.backgroundColor]).toEqual([true, true, true, true, cssRgb(TOKENS.inkSoft)]);
-      expect(parseFloat(tie.height) >= box.height).toBe(true);
+      // Ruling 18 and the art-direction review (5): the tie joins the outline or goes. It lies inside the outline's square
+      // end, flush with it at the right, the top and the bottom and no taller, wider than the outline's line, so it reads
+      // as the end of the loop and never as a text cursor beside it.
+      const box = h2.getBoundingClientRect(), width = parseFloat(tie.width);
+      expect([parseFloat(tie.right), parseFloat(tie.top), parseFloat(tie.bottom), width >= 3, tie.backgroundColor]).toEqual([0, 0, 0, true, cssRgb(TOKENS.inkSoft)]);
+      expect(Math.abs(parseFloat(tie.height) - box.height) < 0.5).toBe(true);
+      expect(parseFloat(cs.borderTopRightRadius) <= 2).toBe(true);                  // a square end for the tie to sit in
       // A section title is no cartouche: the serif face at a normal weight, no outline, a thin ink rule after its words.
       const h3cs = getComputedStyle(h3), rule = pseudo(h3, '::after');
       expect([h3cs.fontFamily, h3cs.fontWeight, h3cs.boxShadow, rule.content, rule.height, rule.backgroundColor]).toEqual([SERIF, '400', 'none', '""', '1px', cssRgb(LOOK_TOKENS.inkLine)]);
@@ -80,7 +82,7 @@ describe('s4 look frieze and cartouches', () => {
       const h1 = card.element.querySelector('h1');
       expect([h1.textContent, getComputedStyle(h1).fontFamily, pseudo(card.element, '::before').height]).toEqual(['Thebes', SERIF, '4px']);
       const h1tie = pseudo(h1, '::after');                                                   // the name's tie joins its outline too
-      expect([h1tie.position, -parseFloat(h1tie.right) > 0, -parseFloat(h1tie.right) < parseFloat(h1tie.width), parseFloat(h1tie.height) >= h1.getBoundingClientRect().height]).toEqual(['absolute', true, true, true]);
+      expect([h1tie.position, parseFloat(h1tie.right), parseFloat(h1tie.top), parseFloat(h1tie.width) >= 4, Math.abs(parseFloat(h1tie.height) - h1.getBoundingClientRect().height) < 0.5]).toEqual(['absolute', 0, 0, true, true]);
       const glyph = pseudo(h1, '::before');
       expect([glyph.content, glyph.backgroundImage.startsWith('url("data:image/svg+xml'), parseFloat(glyph.width) > 0]).toEqual(['""', true, true]);
       expect(r.root.querySelector('#title').textContent.includes('☥')).toBe(false);              // the glyph is a picture, never a word

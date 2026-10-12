@@ -938,15 +938,19 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
 .title-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--look-frieze); pointer-events: none; }   /* in the card's top padding */
 /* Cartouches (spec 6.9; the controller's ruling 18): a sheet's title and the city's name, and only those, sit in a
    cartouche in the serif display face: an outline of soft ink, round at the start and drawn in at the tie's end, where
-   the tie (a bar across the end, a little taller than the outline) joins it, so the two read as one shape. Body text
+   the tie (a bar across the end, flush inside it, no taller) closes it, so the two read as one shape. Body text
    stays the system sans. The outline is an inset shadow and the tie is absolute, so neither takes room: a title that
    wraps grows the head no more than it did. The sheet's title hugs its words (the ✕ keeps the far end); the name fits
    a 375 px phone at 150% text. */
 #sheet .head h2 { flex: 0 1 auto; min-width: 0; margin-right: auto; position: relative; padding: 0 14px; border-radius: 0.75em 0.3em 0.3em 0.75em; box-shadow: inset 0 0 0 1.5px var(--ink-soft); font-family: var(--serif); letter-spacing: 0.02em; }
 .title-card h1 { align-self: center; position: relative; display: inline-flex; align-items: center; gap: 0.25em; padding: 0 0.6em 0 0.5em; border-radius: 0.75em 0.3em 0.3em 0.75em; box-shadow: inset 0 0 0 2px var(--ink); font-family: var(--serif); letter-spacing: 0.06em; }
 #sheet .head h2::after, .title-card h1::after { content: ''; position: absolute; border-radius: 1px; pointer-events: none; }
-#sheet .head h2::after { right: -1.5px; top: -2px; bottom: -2px; width: 3px; background: var(--ink-soft); }   /* over the outline's last 1.5 px and 1.5 px beyond it */
-.title-card h1::after { right: -2px; top: -3px; bottom: -3px; width: 4px; background: var(--ink); }
+/* The tie (art-direction review 5, ruling 18: it joins the oval or goes): a bar inside the outline's square end, flush
+   with it top, bottom and right and no taller, so the end reads as the knotted end of one loop, not a cursor beside it. */
+#sheet .head h2, .title-card h1 { border-top-right-radius: 2px; border-bottom-right-radius: 2px; }
+#sheet .head h2::after { right: 0; top: 0; bottom: 0; width: 4px; border-radius: 0 2px 2px 0; background: var(--ink-soft); }
+.title-card h1::after { right: 0; top: 0; bottom: 0; width: 5px; border-radius: 0 2px 2px 0; background: var(--ink); }
+.title-card h1 { letter-spacing: 0.04em; }
 /* A section's title ("Stock", "Employment") is quieter: the serif face at a normal weight with a thin ink rule running
    from its words to the end of the row, no cartouche. It gains 14 px of margin (10 above, 4 below). */
 #sheet h3 { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; font-family: var(--serif); font-weight: 400; font-size: calc(17px * var(--ui-scale)); letter-spacing: 0.02em; }
@@ -954,6 +958,11 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
 /* The title card's one glyph, inside the cartouche before the name: empty generated content, so a screen reader meets only
    "Thebes"; a sheet's head has none (at most one, spec 6.9). */
 .title-card h1::before { content: ''; flex: none; width: 0.5em; height: 0.75em; background: var(--look-ankh) center / contain no-repeat; }
+/* A toast (art-direction review 10): lapis with the gold ink of the main buttons (8.4:1) and a thin gold edge, instead of
+   the near-black pill that was the one piece of chrome left out of the look; its action in parchment. */
+.toast { background: var(--lapis); color: var(--lapis-ink); box-shadow: var(--shadow), inset 0 0 0 1px rgba(245, 217, 138, 0.45); }
+.toast button { color: var(--parchment); text-decoration: underline; text-underline-offset: 3px; }
+.toast button:focus-visible { outline-color: var(--lapis-ink); }
 /* ── end s4 look ── */
 
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */

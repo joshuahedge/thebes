@@ -3,14 +3,16 @@
 // the monument crews; the firefighter (Stage 3) walks the firehouse's reach with a leather bucket. Stage 4 (Track B)
 // adds the mason (a mallet on his shoulder), and for the festival and dedication processions (spec 5.7, Track E's
 // walkers) the musician (a harp), the dancer (arms raised, a red sash) and the shrine (two priests carrying a gilded
-// shrine on poles), and gang(): the monument gangs, many small figures in a handful of draws. Raiders and
+// shrine on poles; art-direction review 10: the bearers a fifth bigger than a walker, the shrine gold in a lapis frame),
+// the standard (the priest who leads a procession, holding a pole half again a walker's height topped by a gold disc and
+// two streamers, so the eye finds a festival in a crowd), and gang(): the monument gangs, many small figures in a handful of draws. Raiders and
 // soldiers (Stage 3, spec 5.4) are drawn UNIT_SCALE times a citizen's size and told apart by shape: a raider is a dark
 // silhouette with a crested helmet and a round shield; a soldier wears a white kilt and carries a tall spear and a tall,
 // round-topped teal shield.
 import { p, U } from './primitives.js';
 import { SHADOW, TEAL, TEAL_DARK, BLUE, GOLD, ORANGE, WOOD, MUD, RED, STONE } from './palette.js';
 
-export const FIGURE_KINDS = ['citizen', 'woman', 'water', 'porter', 'priest', 'farmer', 'noble', 'fisher', 'hauler', 'firefighter', 'mason', 'musician', 'dancer', 'shrine'];
+export const FIGURE_KINDS = ['citizen', 'woman', 'water', 'porter', 'priest', 'farmer', 'noble', 'fisher', 'hauler', 'firefighter', 'mason', 'musician', 'dancer', 'shrine', 'standard'];
 export const UNIT_KINDS = ['raider', 'soldier'];
 export const UNIT_SCALE = 1.5;
 
@@ -25,6 +27,7 @@ function brick(g, cx, by, s) {
 
 export function fig(g, gx, gy, kind, z = 0, sc = 1) {
   if (kind === 'shrine') { shrine(g, gx, gy, z, sc); return; }
+  if (kind === 'standard') { standard(g, gx, gy, z, sc); return; }
   const c = U(p(gx, gy), z), X = c[0], Y = c[1], s = sc, sk = '#A0663F', hair = '#1E150E';
   g.ell([X, Y], 3 * s, 1.1 * s, SHADOW, { alpha: 0.25 });
   const long = kind === 'woman' || kind === 'priest' || kind === 'dancer';
@@ -70,16 +73,33 @@ export function fig(g, gx, gy, kind, z = 0, sc = 1) {
   }
 }
 
-// The shrine of a procession: two priests carrying a small gilded shrine on two poles between them.
+// The shrine of a procession: two priests a fifth bigger than a walker carrying a gilded shrine in a lapis frame on two
+// poles between them.
+const LAPIS = '#2C4F9E', LAPIS_DARK = '#203C7A';
 function shrine(g, gx, gy, z = 0, sc = 1) {
-  const s = sc;
+  const s = sc * 1.2;
   fig(g, gx - 0.12, gy + 0.12, 'priest', z, s * 0.9);
   const c = U(p(gx, gy), z), X = c[0], Y = c[1];
   g.line([X - 7 * s, Y - 7.4 * s], [X + 7 * s, Y - 9.4 * s], WOOD, 0.8 * s);
-  g.poly([[X - 3.4 * s, Y - 9.6 * s], [X + 3.4 * s, Y - 10.6 * s], [X + 3.4 * s, Y - 16 * s], [X - 3.4 * s, Y - 15 * s]], GOLD, { outline: true });
-  g.poly([[X - 3.8 * s, Y - 15 * s], [X + 3.8 * s, Y - 16 * s], [X + 2.4 * s, Y - 18 * s], [X - 2.4 * s, Y - 17.2 * s]], '#F6D46A', { outline: true });
-  g.poly([[X - 1.2 * s, Y - 10.4 * s], [X + 1.2 * s, Y - 10.8 * s], [X + 1.2 * s, Y - 14 * s], [X - 1.2 * s, Y - 13.6 * s]], TEAL);
+  g.poly([[X - 4.2 * s, Y - 9 * s], [X + 4.2 * s, Y - 10.2 * s], [X + 4.2 * s, Y - 16.6 * s], [X - 4.2 * s, Y - 15.4 * s]], LAPIS, { outline: true });   // the frame
+  g.poly([[X - 3.2 * s, Y - 9.8 * s], [X + 3.2 * s, Y - 10.7 * s], [X + 3.2 * s, Y - 15.6 * s], [X - 3.2 * s, Y - 14.7 * s]], GOLD);
+  g.poly([[X - 4.4 * s, Y - 15.4 * s], [X + 4.4 * s, Y - 16.6 * s], [X + 2.8 * s, Y - 18.8 * s], [X - 2.8 * s, Y - 17.8 * s]], '#F6D46A', { outline: true });
+  g.line([X - 4.4 * s, Y - 15.4 * s], [X + 4.4 * s, Y - 16.6 * s], LAPIS_DARK, 0.6 * s);
+  g.poly([[X - 1.2 * s, Y - 10.6 * s], [X + 1.2 * s, Y - 11 * s], [X + 1.2 * s, Y - 14.2 * s], [X - 1.2 * s, Y - 13.8 * s]], TEAL);
   fig(g, gx + 0.12, gy - 0.12, 'priest', z, s * 0.9);
+}
+
+// The procession's standard: a priest holding up a pole half again a walker's height, a gold disc at its top in a thin
+// dark rim and two streamers, red and teal, hanging from under it.
+function standard(g, gx, gy, z = 0, sc = 1) {
+  const s = sc;
+  fig(g, gx, gy, 'priest', z, s);
+  const c = U(p(gx, gy), z), X = c[0] + 2.4 * s, Y = c[1], top = Y - 20 * s;
+  g.line([X, Y - 1 * s], [X, top], WOOD, 0.9 * s);
+  g.path([['M', [X + 0.3 * s, top + 3.4 * s]], ['Q', [X + 3 * s, top + 5 * s], [X + 4.4 * s, top + 9.4 * s]], ['L', [X + 0.3 * s, top + 6 * s]], ['Z']], RED, { outline: true });
+  g.path([['M', [X - 0.3 * s, top + 3.4 * s]], ['Q', [X - 3 * s, top + 5 * s], [X - 4.2 * s, top + 9 * s]], ['L', [X - 0.3 * s, top + 6 * s]], ['Z']], TEAL, { outline: true });
+  g.circ([X, top], 2.3 * s, GOLD, { stroke: '#8A6526', strokeWidth: 0.5 * s });
+  g.circ([X - 0.6 * s, top - 0.6 * s], 0.8 * s, '#FFF4C8');
 }
 
 // A monument's gang (spec 5.7, rulings 182, 246): many small working figures in one go, each { q: [ax, ay] (its feet,
