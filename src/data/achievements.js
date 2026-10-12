@@ -53,4 +53,13 @@ export const ACHIEVEMENTS = [
   { id: 'safe_streets', measure: { kind: 'safeYear', people: 500, days: 360 } },
   { id: 'wall_builder', measure: { kind: 'tally', key: 'wallTiles', n: 50 } },
   { id: 'raid_breaker', raids: true, measure: { kind: 'tally', key: 'raidsBeaten', n: 3 } },
+  // Stage 4 (spec 4.19, 4.20): the monuments' five and the palace's. Measure kinds (Stage 4): prestige { n } (the city's
+  // prestige now), kinds { n } (kinds with a finished monument standing), finished { type, n } (monuments of the type
+  // finished), palaceStyle { n } (the palace's style, 0-4: n is the last).
+  { id: 'monument_builder', measure: { kind: 'tally', key: 'monumentsDone', n: 3 } },
+  { id: 'renowned', measure: { kind: 'prestige', n: 300 } },
+  { id: 'seven_wonders', measure: { kind: 'kinds', n: 7 } },
+  { id: 'stone_upon_stone', measure: { kind: 'tally', key: 'stoneLaid', n: 5000 } },
+  { id: 'gilded_tip', measure: { kind: 'finished', type: 'obelisk_large', n: 1 } },
+  { id: 'lapis_and_gold', measure: { kind: 'palaceStyle', n: 4 } },
 ];

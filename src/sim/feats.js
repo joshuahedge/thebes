@@ -8,7 +8,7 @@
 // day it was (world.splits): a city from before Stage 3 that passed it earlier can no longer earn them (featStatus says
 // so) and nothing is written for it, so a plain city's state never changes until something happens.
 import { FEATS } from '../data/feats.js';
-import { allBuildings, housesOf, population } from './world.js';
+import { allBuildings, housesOf, population, isFinished } from './world.js';
 import { atLeast } from './progression.js';
 import { raidsOn } from './costs.js';
 import { DAYS_PER_MONTH } from './time.js';
@@ -87,6 +87,13 @@ function judge(world, c) {
     case 'before':
       if (known(world, c.milestone)) return world.splits[c.milestone] < c.day ? 'earned' : 'lost';
       return !atLeast(world, c.milestone) && world.day >= c.day ? 'lost' : null;
+    // Stage 4: a finished monument of these types whose crews never stood idle for lack of material (never lost: another
+    // can still be built), and a split (the great pyramid finished) reached before a day.
+    case 'steadyBuild':
+      return allBuildings(world).some((b) => c.types.includes(b.type) && isFinished(b) && !b.site.starved && !(b.site.month.starvedDays > 0)) ? 'earned' : null;
+    case 'splitBefore':
+      if (known(world, c.split)) return world.splits[c.split] < c.day ? 'earned' : 'lost';
+      return world.day >= c.day ? 'lost' : null;
     default:
       return null;
   }

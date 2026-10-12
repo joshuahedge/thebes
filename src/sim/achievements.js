@@ -6,6 +6,9 @@ import { coveredBy } from './housing.js';
 import { laidRoadTiles } from './goals.js';
 import { raidsOn } from './costs.js';
 import { lacksRoad } from './reach.js';
+import { isFinished } from './world.js';
+import { prestigeOf } from './monuments.js';
+import { palaceOf } from './palace.js';
 
 // Road tiles the player laid: every road tile that is not part of the generator's start road. One rule,
 // shared with the road goal (src/sim/goals.js).
@@ -23,9 +26,14 @@ function count(world, m) {
     case 'buildings': return countType(world, m.type);
     case 'tier': return housesOf(world).filter((h) => h.tier >= m.tier).length;
     case 'people': return Math.max(world.tally.peakPeople, population(world));
-    case 'tally': return world.tally[m.key] || 0;
+    case 'tally': return Math.floor(world.tally[m.key] || 0);   // Stage 4: stone laid is a sum of fractions (2/3 of a unit a crew-day)
     case 'made': return (world.tally.made || {})[m.good] || 0;
     case 'goals': return world.goals.completed.length;
+    // Stage 4: prestige now; kinds with a finished monument standing; monuments of a type finished; the palace's style.
+    case 'prestige': return prestigeOf(world);
+    case 'kinds': return new Set(allBuildings(world).filter(isFinished).map((b) => b.type)).size;
+    case 'finished': return allBuildings(world).filter((b) => b.type === m.type && isFinished(b)).length;
+    case 'palaceStyle': { const p = palaceOf(world); return p ? p.style : 0; }
     default: return null;
   }
 }

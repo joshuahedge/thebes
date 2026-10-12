@@ -258,7 +258,9 @@ describe('ui tips', () => {
   });
   it('keeps every tip short and unique, and lists them all in How to play', async () => {
     const ids = TIPS.map((t) => t.id), triggers = TIPS.map((t) => t.trigger);
-    expect(TIPS.length).toBe(20);                                          // Stage 3 adds danger's six
+    expect(TIPS.slice(0, 20).map((t) => t.id)).toEqual(['press_play', 'arrivals', 'house_needs', 'service_reach', 'problem_marker', 'month_summary', 'more_workers', 'undo_demolish',
+      'goals_list', 'overlay_keys', 'nicer_streets', 'storehouse_choices', 'trade_orders', 'merging_homes', 'fire_risk', 'firebreaks',
+      'clearing_rubble', 'raider_targets', 'tribute_once', 'wall_ring']);   // Stage 3 adds danger's six; Stage 4's lists follow
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(triggers).size).toBe(triggers.length);
     for (const t of TIPS) {

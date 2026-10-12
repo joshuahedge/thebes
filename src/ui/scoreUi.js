@@ -12,7 +12,8 @@ import { BUILDINGS } from '../data/buildings.js';
 import { scoreOf, scorePreview, monumentPreview, sealReign, splitMonths } from '../sim/score.js';
 import { featsFor, featStatus } from '../sim/feats.js';
 import { population } from '../sim/world.js';
-import { remarkFor } from './celebrate.js';
+import { remarkFor, monumentCaptions } from './celebrate.js';
+import { isMonument, isSite } from '../sim/world.js';
 import { downloadFile } from '../save/exportImport.js';
 import { openSheet } from './modes.js';
 import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, weeklySeed, drawMapSquare, medalColour } from './share.js';
@@ -207,8 +208,14 @@ export function createScoreUi(ctx) {
     const text = remarkFor(world);
     if (text) ctx.celebrations.show({ tier: 'remark', text, icon: '❝' });
   }
+  // Stage 4: the course, finish and palace captions (monumentCaptions), each with its sound as it shows.
+  function monumentCheers(events) {
+    for (const c of monumentCaptions(world, events)) ctx.celebrations.show({ tier: c.tier, text: c.text, why: c.why, onShow: () => ctx.sfx.play(c.sound) });
+  }
   function tipsFor(events) {
     for (const e of events) {
+      if (e.type === 'site_stalled' && (e.reason === 'no_stone' || e.reason === 'no_bricks')) tip('siteStarved');   // Stage 4: a storehouse can bridge
+      if (e.type === 'month' && allBuildingsOf('storehouse').some((s) => (s.store.stone || 0) > 0 && (s.store.clay || 0) > 0)) tip('stoneStored');
       if (e.type === 'milestone' && e.id === 'town') tip('fireRisk');                // fire risk builds from Town
       else if (e.type === 'fire_grow') tip('fireGrew');                               // a fire can spread
       else if (e.type === 'burned' && e.kind !== 'house') tip('rubbleLeft');          // a burned home leaves empty plots, the rest rubble
@@ -219,7 +226,16 @@ export function createScoreUi(ctx) {
     const built = e.kind === 'building' && e.result && world.buildings[e.result.id];
     if (built && built.type === 'firehouse') tip('fireRisk');
     if (e.kind === 'wall') tip('wallDrawn');
+    // Stage 4: the Monuments tips, each when its lesson becomes news.
+    if (built && built.type === 'builders_guild') tip('guildPlaced');
+    if (built && (built.type === 'quarry' || built.type === 'brickworks')) tip('supplyPlaced');
+    if (built && isMonument(built)) {
+      const others = Object.values(world.buildings).filter((b) => isMonument(b) && b.id !== built.id);
+      if (others.some((b) => b.type === built.type)) tip('secondOfKind');
+      if (others.some(isSite)) tip('secondSite');
+    }
   }
+  const allBuildingsOf = (type) => Object.values(world.buildings).filter((b) => b.type === type);
 
   // The chip on the summary button (hud.js makes the empty node): the live total, refreshed with the chrome. It stays
   // hidden while nobody lives in the city (mobile UX review, section 4 item 9): a new city has no score to show yet.
@@ -234,7 +250,7 @@ export function createScoreUi(ctx) {
     sheets: { sealReign: sealSheet, shareScore: shareSheet },
     // Made without a world (the contract's shape test), it has no parts.
     sheetParts: { building: () => [], house: () => [], actions: () => [], summary: () => (world ? [summarySection(), featsSection()] : []) },
-    onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); tipsFor(events); remark(events); } },
+    onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); monumentCheers(events); tipsFor(events); remark(events); } },
     refresh() { if (world) { version++; renderChip(); } },
     onAlertAction() {},
     onCommand(e) { version++; if (world && e) tipsForCommand(e); },

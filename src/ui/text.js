@@ -1189,6 +1189,76 @@ export function score4StampLabel(e) {
 }
 // The Monuments chapter of the goals (spec 4.19); its goals' words live in src/data/goals.js with every goal's.
 Object.assign(CHAPTER_NAMES, { monuments: 'Monuments' });
+// Monuments in the goals and rewards (spec 4.19, 4.20): five firsts, six achievements, two feats, three daily goals, six
+// tips, ten citizen remarks and the course, finish and palace captions. Every number comes from the data, and every claim
+// follows the monument rules (spec 4.16).
+import { MONUMENT as score4Monument, MONUMENTS as score4Monuments, PRESTIGE as score4Prestige } from '../data/monuments.js';
+import { FEATS as score4Feats } from '../data/feats.js';
+import { DAILY_POOL as score4Daily } from '../data/daily.js';
+import { PALACE_STYLES as score4PalaceStyles } from '../data/palace.js';
+import { DAYS_PER_MONTH as score4MonthDays, MONTHS_PER_YEAR as score4YearMonths } from '../sim/time.js';
+const score4Achievement = (id) => ACHIEVEMENTS.find((a) => a.id === id).measure;
+const score4Count = (n) => n.toLocaleString('en-GB');
+Object.assign(FIRST_TEXT, {
+  first_guild: { head: "First builders' guild", why: `Its crew builds a monument site up to ${score4Monument.crewReach} road tiles away.` },
+  first_course: { head: 'First course laid', why: "Half a monument's prestige comes course by course, half when it is finished." },
+  first_monument: { head: 'First monument finished', why: `Prestige lifts the mood, +1 for every ${score4Prestige.moodPer}, and the Monuments score.` },
+  pyramids_unlocked: { head: 'The pyramids are unlocked', why: `A Capital with ${score4Monuments.pyramid_small.unlock.prestige} prestige can found the small pyramid.` },
+  first_palace: { head: 'First palace', why: 'Enlarge it on its sheet as the city grows grander.' },
+});
+Object.assign(ACHIEVEMENT_NAMES, {
+  monument_builder: 'Monument builder', renowned: 'Renowned', seven_wonders: 'Seven wonders', stone_upon_stone: 'Stone upon stone',
+  gilded_tip: 'Gilded tip', lapis_and_gold: 'Lapis and gold',
+});
+Object.assign(ACHIEVEMENT_TEXT, {
+  monument_builder: `Finish ${score4Achievement('monument_builder').n} monuments`,
+  renowned: `Reach ${score4Achievement('renowned').n} prestige`,
+  seven_wonders: `Finish one of each of the ${score4Achievement('seven_wonders').n} monuments`,
+  stone_upon_stone: `Lay ${score4Count(score4Achievement('stone_upon_stone').n)} stone on monuments`,
+  gilded_tip: 'Finish the large obelisk with its gilded tip',
+  lapis_and_gold: 'Enlarge the palace to lapis and gold',
+});
+const score4FeatCheck = (id) => score4Feats.find((f) => f.id === id).check;
+Object.assign(FEAT_TEXT, {
+  steady_hands: { name: 'Steady hands', condition: 'Finish a mastaba or pyramid with no month in which its crews stood idle for lack of material' },
+  swift_pyramid: { name: 'Swift pyramid', condition: `Finish the great pyramid before year ${score4FeatCheck('swift_pyramid').day / (score4MonthDays * score4YearMonths) + 1} begins` },
+});
+Object.assign(DAILY_TEXT, {
+  course1: 'Lay a course on any monument', quarry1: 'Build a quarry',
+  stone100: `Bring ${score4Daily.find((d) => d.id === 'stone100').n} stone to a monument site`,
+});
+Object.assign(TIP_TEXT, {
+  monuments_last: 'Monuments come last for workers: guilds, quarries and brickworks hire after every other building.',
+  straight_to_site: `Quarries and brickworks send straight to a monument site within ${score4Monument.producerReach} road tiles, before any storehouse.`,
+  storehouse_bridge: `A site draws from storehouses within ${score4Monument.supplyReach} road tiles: one between quarry and site bridges a long way.`,
+  refuse_stone: 'Tap the storehouse your potters use and refuse stone, so its clay keeps its room.',
+  pause_site: 'Pause a site on its sheet to send its crews to another site in reach.',
+  one_each: 'One of each kind counts for prestige: a second only makes homes nicer.',
+});
+// The masons (builders' guild), haulers (quarry) and brickmakers, by season, once the city has their building.
+CITIZEN_REMARKS.push(
+  { season: 'akhet', type: 'builders_guild', text: 'The masons say the flood months are the time to build' },
+  { season: 'akhet', type: 'builders_guild', text: 'The overseers check every course with a plumb line' },
+  { season: 'peret', type: 'builders_guild', text: 'The masons are teaching their sons to dress a block' },
+  { season: 'shemu', type: 'builders_guild', text: 'The masons sing as they haul the blocks up the ramp' },
+  { season: 'akhet', type: 'quarry', text: 'The quarrymen say the stone here splits clean and true' },
+  { season: 'peret', type: 'quarry', text: 'The haulers count the blocks they dragged today' },
+  { season: 'shemu', type: 'quarry', text: 'The haulers wet the sand in front of the sleds to ease the way' },
+  { season: 'akhet', type: 'brickworks', text: "The brickmakers stamp each brick with the city's mark" },
+  { season: 'peret', type: 'brickworks', text: 'The brickmakers say the river mud makes strong bricks' },
+  { season: 'shemu', type: 'brickworks', text: 'The brickmakers lay their bricks out to dry in the sun' },
+);
+// Captions (spec 6.3, rulings 212, 242): a course laid names the real gain in the city's prestige ("Small pyramid: course 3
+// of 8 · +10 prestige", none for a second of a kind), a finished monument is a milestone caption, and the palace says its
+// new style when its works end (spec 4.20). The gains are worked out by monumentCaptions (src/ui/celebrate.js).
+Object.assign(SCORE4_TEXT, {
+  palaceStyles: { courtyard: 'a courtyard house', columned: 'a columned hall', pylons: 'a palace of pylons and banners', gilded: 'a gilded palace', lapis: 'a palace of lapis and gold' },
+  secondOfKind: 'One of each kind counts: no prestige',
+});
+export const score4CourseText = (type, course, of, gain) => `${buildingName(type)}: course ${course} of ${of}${gain > 0 ? ` · +${gain} prestige` : ''}`;
+export const score4FinishText = (type) => `The ${score4Name(type)} is finished`;
+export const score4FinishWhy = (gain, total) => (gain > 0 ? `+${gain} prestige: the city now has ${total}` : SCORE4_TEXT.secondOfKind);
+export const score4PalaceText = (style) => `The palace is now ${SCORE4_TEXT.palaceStyles[score4PalaceStyles[style].id]}`;
 // ── end s4 score ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 //
