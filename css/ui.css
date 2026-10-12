@@ -1,4 +1,5 @@
-/* Thebes interface. Parchment and ink, teal accents, coral for problems, amber for warnings (spec 6.1). */
+/* Thebes interface. Papyrus and ink, teal accents, coral for problems, amber for warnings (spec 6.1); gold on lapis for the
+   main action, the frieze's lapis, gold, terracotta and turquoise, and cartouche headings in a serif (spec 6.9). */
 :root {
   --parchment: #F3E7CB; --parchment-2: #EADBB9; --parchment-3: #DCC9A0;
   --ink: #2B1F0E; --ink-soft: #5A4832;
@@ -6,6 +7,12 @@
   --coral: #E2604C; --coral-text: #A33624; --coral-soft: #F6D5CE;
   --amber: #E0A030; --amber-text: #7A5200; --amber-soft: #F6E7C2;
   --blue: #2F6FA8; --gold: #E2B13C;
+  --lapis: #1C3768; --lapis-ink: #F5D98A; --terracotta: #B4502E; --turquoise: #3A9E96; --ink-line: #8C7550;   /* gold on lapis 8.4:1; the ink outline 3.6:1 on parchment */
+  --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;   /* the display face for titles, from the system's fonts: nothing is downloaded */
+  /* Papyrus fibre (spec 6.9): a 160x120 tile of fine strokes. Two layers are lighter than the parchment (the strips laid one
+     way, then the other); one is darker, and its group opacity caps it, so no point of the tile is darker than the parchment
+     blended 7% with #A9844C, which keeps every text pair at 4.5:1 (tests/stage4/look/lookBase.test.js reads this value). */
+  --look-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='120'%3E%3Cg fill='none' stroke='%23FFF9EA' opacity='0.5'%3E%3Cpath d='M0 3.5c53 0.2 107 -0.2 160 0' stroke-opacity='0.45' stroke-width='1.2'/%3E%3Cpath d='M0 5.5c53 -0.2 107 0.2 160 0' stroke-opacity='1' stroke-width='0.6'/%3E%3Cpath d='M0 7.5c53 -0.6 107 0.6 160 0' stroke-opacity='1' stroke-width='0.8'/%3E%3Cpath d='M0 11.5c53 -0.3 107 0.3 160 0' stroke-opacity='0.8' stroke-width='0.6'/%3E%3Cpath d='M0 16.5c53 0.4 107 -0.4 160 0' stroke-opacity='0.8' stroke-width='0.6'/%3E%3Cpath d='M0 18.5c53 0.1 107 -0.1 160 0' stroke-opacity='0.45' stroke-width='0.6'/%3E%3Cpath d='M0 22.5c53 -0.5 107 0.5 160 0' stroke-opacity='0.3' stroke-width='0.8'/%3E%3Cpath d='M0 29.5c53 -0.1 107 0.1 160 0' stroke-opacity='0.45' stroke-width='1'/%3E%3Cpath d='M0 34.5c53 0.1 107 -0.1 160 0' stroke-opacity='0.3' stroke-width='1'/%3E%3Cpath d='M0 40.5c53 0.1 107 -0.1 160 0' stroke-opacity='0.45' stroke-width='0.6'/%3E%3Cpath d='M0 46.5c53 -0.5 107 0.5 160 0' stroke-opacity='0.45' stroke-width='1'/%3E%3Cpath d='M0 52.5c53 0.1 107 -0.1 160 0' stroke-opacity='0.3' stroke-width='0.6'/%3E%3Cpath d='M0 56.5c53 0.3 107 -0.3 160 0' stroke-opacity='1' stroke-width='1.2'/%3E%3Cpath d='M0 60.5c53 -0.2 107 0.2 160 0' stroke-opacity='1' stroke-width='1.2'/%3E%3Cpath d='M0 63.5c53 -0.5 107 0.5 160 0' stroke-opacity='0.45' stroke-width='0.8'/%3E%3Cpath d='M0 66.5c53 0.5 107 -0.5 160 0' stroke-opacity='1' stroke-width='1.2'/%3E%3Cpath d='M0 72.5c53 0.1 107 -0.1 160 0' stroke-opacity='0.8' stroke-width='1'/%3E%3Cpath d='M0 74.5c53 -0.4 107 0.4 160 0' stroke-opacity='0.3' stroke-width='1.2'/%3E%3Cpath d='M0 77.5c53 -0.1 107 0.1 160 0' stroke-opacity='0.45' stroke-width='1.2'/%3E%3Cpath d='M0 83.5c53 -0.2 107 0.2 160 0' stroke-opacity='0.3' stroke-width='1'/%3E%3Cpath d='M0 86.5c53 0.1 107 -0.1 160 0' stroke-opacity='1' stroke-width='1.2'/%3E%3Cpath d='M0 90.5c53 0.5 107 -0.5 160 0' stroke-opacity='0.3' stroke-width='0.6'/%3E%3Cpath d='M0 94.5c53 0.3 107 -0.3 160 0' stroke-opacity='0.3' stroke-width='0.6'/%3E%3Cpath d='M0 97.5c53 -0.3 107 0.3 160 0' stroke-opacity='1' stroke-width='1.2'/%3E%3Cpath d='M0 101.5c53 0.5 107 -0.5 160 0' stroke-opacity='0.6' stroke-width='0.6'/%3E%3Cpath d='M0 104.5c53 -0.0 107 0.0 160 0' stroke-opacity='0.45' stroke-width='0.6'/%3E%3Cpath d='M0 107.5c53 0.3 107 -0.3 160 0' stroke-opacity='0.6' stroke-width='0.8'/%3E%3Cpath d='M0 111.5c53 -0.5 107 0.5 160 0' stroke-opacity='0.8' stroke-width='1.2'/%3E%3Cpath d='M0 115.5c53 0.5 107 -0.5 160 0' stroke-opacity='0.8' stroke-width='1'/%3E%3C/g%3E%3Cg fill='none' stroke='%23FFF9EA' stroke-width='1.5' opacity='0.22'%3E%3Cpath d='M21.5 0v120' stroke-opacity='0.4'/%3E%3Cpath d='M28.5 0v120' stroke-opacity='0.4'/%3E%3Cpath d='M49.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M58.5 0v120' stroke-opacity='1'/%3E%3Cpath d='M70.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M91.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M107.5 0v120' stroke-opacity='0.4'/%3E%3Cpath d='M114.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M130.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M146.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M153.5 0v120' stroke-opacity='0.4'/%3E%3C/g%3E%3Cg fill='none' stroke='%23A9844C' opacity='0.07'%3E%3Cpath d='M27 15.5h73' stroke-opacity='1'/%3E%3Cpath d='M85 26.5h73' stroke-opacity='1'/%3E%3Cpath d='M17 34.5h56' stroke-opacity='0.5'/%3E%3Cpath d='M47 42.5h79' stroke-opacity='0.5'/%3E%3Cpath d='M0 53.5h84' stroke-opacity='0.75'/%3E%3Cpath d='M54 64.5h102' stroke-opacity='1'/%3E%3Cpath d='M86 69.5h64' stroke-opacity='0.75'/%3E%3Cpath d='M38 83.5h39' stroke-opacity='0.75'/%3E%3Cpath d='M18 97.5h140' stroke-opacity='0.5'/%3E%3Cpath d='M11 111.5h102' stroke-opacity='0.5'/%3E%3Cpath d='M54 116.5h71' stroke-opacity='0.5'/%3E%3C/g%3E%3C/svg%3E");
   --shadow: 0 4px 16px rgba(43, 31, 14, 0.25);
   --radius: 12px; --tap: 44px;
   --ui-scale: 1;
@@ -27,8 +34,11 @@ body { font: calc(16px * var(--ui-scale)) / 1.4 var(--font); }
 #ui > * { pointer-events: auto; }
 [hidden] { display: none !important; }
 
-button { font: inherit; color: inherit; background: var(--parchment); border: 1px solid var(--parchment-3); border-radius: var(--radius); min-width: var(--tap); min-height: var(--tap); padding: 0 12px; cursor: pointer; }
-button.primary { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); }
+button { font: inherit; color: inherit; background: var(--parchment); border: 1px solid var(--ink-line); border-radius: var(--radius); min-width: var(--tap); min-height: var(--tap); padding: 0 12px; cursor: pointer; }
+/* Gold on lapis for the one main action of a sheet or bar (spec 6.9), with a hairline of gold inside its edge. A row's own
+   action in a sheet's list (each need's, goal's or route's) is lapis words in a lapis outline, so the sheet keeps one. */
+button.primary { background: var(--lapis); color: var(--lapis-ink); border-color: var(--lapis); box-shadow: inset 0 0 0 2px var(--lapis), inset 0 0 0 3px rgba(245, 217, 138, 0.5); }
+#sheet li button.primary { background: var(--parchment); color: var(--lapis); border-color: var(--lapis); box-shadow: none; }
 button.danger { background: var(--coral-text); color: #FFFFFF; border-color: var(--coral-text); }
 button.quiet { background: transparent; border-color: transparent; }
 button[disabled] { opacity: 0.5; cursor: default; }
@@ -185,7 +195,11 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .toast { pointer-even
 #dialog { position: fixed; inset: 0; background: rgba(43, 31, 14, 0.45); display: flex; align-items: center; justify-content: center; }
 #dialog .box { background: var(--parchment); border-radius: var(--radius); padding: 16px; max-width: 360px; width: calc(100% - 32px); box-shadow: var(--shadow); }
 #dialog .buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 12px; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* Motion (spec 5.4, ruling 247): the interface follows the Motion setting, not the device. settings.js writes data-motion
+   on the root: under Gentle and Still the chrome's transitions and animations are instant; Full keeps them even on a device
+   that asks for less motion. Only before the settings apply (no data-motion yet) does the device's request decide. */
+[data-motion="gentle"] *, [data-motion="still"] * { transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion: reduce) { body:not([data-motion]) * { transition: none !important; animation: none !important; } }
 /* The confirm bar replaces the dock while a tool is active and never tucks (spec 6.4). */
 #confirm { position: fixed; z-index: 3; }
 body[data-layout="portrait"] #confirm { left: 0; right: 0; bottom: 0; }
@@ -631,6 +645,10 @@ body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) 
   .title-buttons { gap: 4px; }
 }
 
+/* Papyrus (spec 6.9): the chrome's surfaces wear the fibre over their own colour; a box that sets its own background
+   (the demolish bar's coral) keeps it plain. Nothing in the look moves, so it is the same under every Motion level. */
+#topbar, #dock, #panel, #rail, #rail .drawer, #sheet, #sheet .head, #sheet .welcome-actions, .confirm, #dialog .box, .title-card { background-image: var(--look-fibre); }
+
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
 
 /* ── s3 contract (Track 0) ── Track 0's styles for the contract. Add new rules just above the end marker. */
@@ -905,6 +923,37 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
 
 /* ── s4 look (Track H) ── Track H's own new rules (the frieze, cartouches, gold-on-lapis primary buttons, fibre,
    ornaments) beside its edits to the base above the s3 sections. */
+/* The frieze (spec 6.9): blocks of lapis, gold, terracotta and turquoise parted by ink, on an ink line; 4 px in all. The
+   title card's one glyph: an ankh in lapis. */
+:root {
+  --look-frieze: linear-gradient(var(--ink), var(--ink)) 0 100% / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--lapis) 0 11px, var(--ink) 11px 12px, var(--gold) 12px 23px, var(--ink) 23px 24px, var(--terracotta) 24px 35px, var(--ink) 35px 36px, var(--turquoise) 36px 47px, var(--ink) 47px 48px);
+  --look-ankh: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 24'%3E%3Cg fill='none' stroke='%231C3768' stroke-width='2.4' stroke-linecap='round'%3E%3Cellipse cx='8' cy='6' rx='3.6' ry='4.6'/%3E%3Cpath d='M1.5 12.5h13M8 11v11.5'/%3E%3C/g%3E%3C/svg%3E");
+}
+/* Along the top bar's lower edge and each sheet's head: over the 1 px border and 3 px inside it, so neither grows. Both
+   boxes make their own stacking context (fixed; sticky with a z-index), so z-index -1 lays the frieze over their papyrus
+   and under their buttons: a 44 px button that reaches the edge keeps its own outline. */
+#topbar::after, #sheet .head::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; z-index: -1; background: var(--look-frieze); pointer-events: none; }
+.title-card { position: relative; }
+.title-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--look-frieze); pointer-events: none; }   /* in the card's top padding */
+/* Cartouches (spec 6.9; the controller's ruling 18): a sheet's title and the city's name, and only those, sit in a
+   cartouche in the serif display face: an outline of soft ink, round at the start and drawn in at the tie's end, where
+   the tie (a bar across the end, a little taller than the outline) joins it, so the two read as one shape. Body text
+   stays the system sans. The outline is an inset shadow and the tie is absolute, so neither takes room: a title that
+   wraps grows the head no more than it did. The sheet's title hugs its words (the ✕ keeps the far end); the name fits
+   a 375 px phone at 150% text. */
+#sheet .head h2 { flex: 0 1 auto; min-width: 0; margin-right: auto; position: relative; padding: 0 14px; border-radius: 0.75em 0.3em 0.3em 0.75em; box-shadow: inset 0 0 0 1.5px var(--ink-soft); font-family: var(--serif); letter-spacing: 0.02em; }
+.title-card h1 { align-self: center; position: relative; display: inline-flex; align-items: center; gap: 0.25em; padding: 0 0.6em 0 0.5em; border-radius: 0.75em 0.3em 0.3em 0.75em; box-shadow: inset 0 0 0 2px var(--ink); font-family: var(--serif); letter-spacing: 0.06em; }
+#sheet .head h2::after, .title-card h1::after { content: ''; position: absolute; border-radius: 1px; pointer-events: none; }
+#sheet .head h2::after { right: -1.5px; top: -2px; bottom: -2px; width: 3px; background: var(--ink-soft); }   /* over the outline's last 1.5 px and 1.5 px beyond it */
+.title-card h1::after { right: -2px; top: -3px; bottom: -3px; width: 4px; background: var(--ink); }
+/* A section's title ("Stock", "Employment") is quieter: the serif face at a normal weight with a thin ink rule running
+   from its words to the end of the row, no cartouche. It gains 14 px of margin (10 above, 4 below). */
+#sheet h3 { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; font-family: var(--serif); font-weight: 400; font-size: calc(17px * var(--ui-scale)); letter-spacing: 0.02em; }
+#sheet h3::after { content: ''; flex: 1 1 0; min-width: 24px; height: 1px; background: var(--ink-line); pointer-events: none; }
+/* The title card's one glyph, inside the cartouche before the name: empty generated content, so a screen reader meets only
+   "Thebes"; a sheet's head has none (at most one, spec 6.9). */
+.title-card h1::before { content: ''; flex: none; width: 0.5em; height: 0.75em; background: var(--look-ankh) center / contain no-repeat; }
 /* ── end s4 look ── */
 
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
