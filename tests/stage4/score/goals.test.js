@@ -63,8 +63,20 @@ describe('s4 score Monuments goals', () => {
     expect(CHAPTER_NAMES.monuments).toBe('Monuments');
     const items = CATEGORIES.find((c) => c.id === 'monuments').items;
     for (const g of chain) expect([g.id, g.reward, items.includes(g.showMe.item)]).toEqual([g.id, GOAL_REWARD, true]);
-    expect(goalById('prestige_pyramids').text).toBe(`Reach ${MONUMENTS.pyramid_small.unlock.prestige} prestige to unlock the pyramids`);
+    expect(goalById('prestige_pyramids').text).toBe(`Reach ${MONUMENTS.pyramid_small.unlock.prestige} prestige to unlock the small pyramid`);
+    expect(goalById('prestige_pyramids').why).toBe(`The great pyramid unlocks at ${MONUMENTS.pyramid_great.unlock.prestige} prestige.`);   // the great pyramid's 300 is told, not 100 for both
     expect(chain.map((g) => g.from)).toEqual(['city', 'city', 'city', 'city', 'great_city', 'great_city', 'capital', 'capital', 'capital']);
+  });
+  it('counts a guild near the only open site even when it is planned to that site or paused (a reach-only test, not guildsNear)', () => {
+    const w = city('market_town');
+    w.milestone = 'city';
+    const site = addRaw(w, 'obelisk_small', 30, 12);
+    setRoad(w, 30, 11, 30, 11);
+    const guild = addRaw(w, 'builders_guild', 24, 11);                 // 5 road tiles along: within MONUMENT.crewReach
+    site.site.crews.push(guild.id);                                    // on today's crew plan: the site has this guild
+    expect(goalMet(w, goalById('guild_near').need)).toBe(true);
+    guild.paused = true;
+    expect(goalMet(w, goalById('guild_near').need)).toBe(true);        // the goal asks for a guild in reach, not a free one
   });
   it('lists the City goals from City, counts a site only once a road touches it, and a guild only within its crew reach', () => {
     const w = city('market_town');

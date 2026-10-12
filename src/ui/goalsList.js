@@ -270,7 +270,7 @@ export function goalsSheet(world, { onShowMe, onSwap = (i) => swapDaily(world, i
     body.append(el('p', { class: 'muted', text: goalsProgressText(done + 1, chain.length + 1) }));   // Founded Thebes is done from the start
     if (skipHere() && guideActive(world)) body.append(el('p', { class: 'skip-row' }, [button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() })]));   // one tap, no confirm (spec 3.2)
     const open = openGoals(world, 3);
-    if (!open.length) body.append(el('p', { text: T.goalsDone }));
+    if (!open.length) body.append(el('p', { text: done === chain.length ? T.goalsDone : T.goalsNone }));   // a goal waiting on its `when` is hidden, not done
     const chapters = [];
     for (const g of open) if (!chapters.includes(g.chapter)) chapters.push(g.chapter);
     for (const ch of chapters) {
