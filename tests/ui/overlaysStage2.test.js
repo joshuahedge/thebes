@@ -260,6 +260,40 @@ describe('stage 2 overlay legend', () => {
       expect(box(strip).bottom - shell.top).toBeLessThan(shell.height / 2);
     } finally { r.cleanup(); }
   });
+  // Ruling 172 and the height budget (spec 6.3): on a phone held sideways the alert row and the legend end by 40% of the
+  // height at 100% text, so the fire-risk legend keeps a plain strip's height (its name, scale and keys beside the x, the
+  // never-burn line for screen readers as on a portrait phone); at 125% and 150% only the alert row shows under a banner.
+  it('keeps the legend and the banner above 40% on a phone held sideways, the fire-risk legend as tall as a plain strip, and gives the one row to the banner at large text', async () => {
+    for (const [w, h] of [[844, 390], [667, 375]]) {
+      for (const size of [100, 125, 150]) {
+        const r = await rigUI({ width: w, height: h });
+        try {
+          r.ui.settings.set({ textSize: size });
+          r.world.gold = -5;
+          r.ui.alerts.refresh();
+          r.frame();
+          const shell = r.root.getBoundingClientRect();
+          const box = (el) => el.getBoundingClientRect();
+          const at = `${w}x${h} at ${size}%`;
+          r.store.set({ overlay: 'water' }); r.frame();
+          const legend = r.root.querySelector('#legend');
+          if (size >= 125) {
+            expect([at, getComputedStyle(legend).display]).toEqual([at, 'none']);   // the alert row has the one row
+            r.world.gold = 500; r.ui.alerts.refresh(); r.frame();
+          }
+          const plain = box(r.root.querySelector('#legend .strip'));
+          expect([at, plain.bottom - shell.top <= h * 0.4]).toEqual([at, true]);
+          r.store.set({ overlay: 'fire' }); r.frame();
+          const strip = r.root.querySelector('#legend .strip');
+          const name = box(strip.querySelector('strong.text')), scale = box(strip.querySelector('.scale')), keys = box(strip.querySelector('.fire-keys')), close = box(strip.querySelector('.close'));
+          expect([at, scale.left >= name.right, keys.top >= scale.bottom - 1, close.left >= Math.max(scale.right, keys.right)]).toEqual([at, true, true, true]);
+          expect([at, size > 100 || box(strip).height <= plain.height + 2, box(strip).bottom - shell.top <= h * 0.4, box(strip).right <= shell.right]).toEqual([at, true, true, true]);
+          const never = strip.querySelector('.never-burn');
+          expect([at, never.textContent.length > 0, box(never).width <= 1]).toEqual([at, true, true]);   // kept for screen readers
+        } finally { r.cleanup(); }
+      }
+    }
+  });
 });
 
 describe('stage 2 placement preview', () => {

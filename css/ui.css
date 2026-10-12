@@ -356,7 +356,8 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .got-it { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
 
 /* The guidance row on a phone (spec 6.3, rulings 163 and 164): under the alert row one of the overlay legend, a tip, a
-   caption or the goal shows, the one createUI names in data-guidance ('none' while a sheet is open). #tip and #cheer are
+   caption or the goal shows, the one createUI names in data-guidance ('none' while a sheet is open, and on a landscape
+   phone at 125% text or more while a banner is up, ruling 172: its one row is the alert row). #tip and #cheer are
    live regions that stay rendered: their contents hide instead. The goals strip is one row (ruling 170): the label, the
    words and the progress are one flow of words on one button (two lines at most, cut with "…"; the button's name has all
    of it), then Show me. A goal's caption drops its "Goal done:" lead from sight (screen readers keep it) and reads as the strip
@@ -384,6 +385,38 @@ body:is([data-layout="portrait"], [data-layout="compact"]) #tip .tip-row .text {
 #sheet .recent { list-style: none; padding: 0; margin: 4px 0; }
 #sheet .recent li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--parchment-2); }
 #sheet .recent .reward { flex: none; white-space: nowrap; }
+
+/* Landscape phones and large text (mobile UX review: ruling 172, section 4 items 8 and 9; spec 6.3 "Small phones").
+   Held sideways the alert row and the guidance row end by 40% of the height at 100% text: they sit 4 px apart, and the
+   banner and the legend keep 2 px above and below their 44 px buttons. At 125% and 150% only one row shows (createUI's
+   guidance rule). The rows stop at the left edge of the column beside the rail while a sheet or the card drawer holds
+   it, as the corner buttons do. */
+body[data-layout="compact"] #under-bar { gap: 4px; }
+body[data-layout="compact"] #banner .critical, body[data-layout="compact"] #legend .strip { padding-top: 2px; padding-bottom: 2px; }
+body[data-layout="compact"]:has(#sheet:not([hidden])) #under-bar { right: calc(var(--rail-w) + var(--drawer-w) + var(--safe-right) + 8px); }
+body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #under-bar { right: calc(var(--rail-w) + var(--drawer-w) + 17px + var(--safe-right) + 8px); }
+/* Held sideways the fire-risk legend keeps a plain strip's height at 100% text: its name and the four bands on one row,
+   the two firehouse keys beneath them on one line, the x beside both rows; what never burns is kept for screen readers,
+   as on a portrait phone (the building sheet's fire row says it for each building). */
+body[data-layout="compact"] #legend .strip.graded:has(.fire-keys) { display: inline-grid; grid-template-columns: auto minmax(0, auto) auto; column-gap: 8px; row-gap: 0; align-items: center; }
+body[data-layout="compact"] #legend .strip.graded:has(.fire-keys) > strong.text { grid-column: 1; grid-row: 1; }
+body[data-layout="compact"] #legend .strip.graded .scale:has(+ .fire-keys) { grid-column: 2; grid-row: 1; justify-self: start; }
+body[data-layout="compact"] #legend .strip.graded .fire-keys { grid-column: 1 / 3; grid-row: 2; column-gap: 8px; }
+body[data-layout="compact"] #legend .strip.graded:has(.fire-keys) .close { grid-column: 3; grid-row: 1 / 3; }
+body[data-layout="compact"] #legend .fire-keys .never-burn { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* The top bar on a phone at 150% text (section 4 item 8): each number wears its small picture (hud.js) in place of its
+   word, which stays for screen readers, and the gaps tighten, so a real city's numbers keep to one row. */
+#topbar .stat .glyph { display: none; }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat { gap: 2px; }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stats { column-gap: 6px; }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat .glyph { display: inline-block; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat .glyph.coin { width: 0.8em; height: 0.8em; border-radius: 50%; background: var(--gold); box-shadow: inset 0 0 0 1px #B98A4A; }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* The score chip (section 4 item 9) joins the numbers' flow, right after the date, on a landscape phone (where the bar's
+   far end is under ☰ and the rail) and on a portrait phone at 150% text (where one row of numbers leaves it no corner):
+   on the numbers' row where it fits, else at the start of the next. */
+body[data-layout="compact"] #topbar .stats, body[data-layout="portrait"][data-text-size="150"] #topbar .stats { padding-bottom: 0; }
+body[data-layout="compact"] #topbar .score-chip, body[data-layout="portrait"][data-text-size="150"] #topbar .score-chip { position: static; line-height: 1.2; }
 
 /* The idle nudge (early-game pass 3.5): its one line sits under the goals strip, so #goals stacks in a column. Show me
    gets a gold ring that pulses twice (under 1 flash a second, done in 2.4 s), then stays still until the

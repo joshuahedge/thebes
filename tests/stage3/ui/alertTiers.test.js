@@ -325,7 +325,7 @@ describe('s3 ui alert tiers', () => {
 });
 
 describe('s3 ui alert tiers on the page', () => {
-  it('gives the legend the guidance row under the banner on small phones, in place of the goal, so the rows end above the middle', async () => {
+  it('gives the legend the guidance row under the banner on small phones, in place of the goal, so the rows end above the middle; a landscape phone at large text keeps only the alert row', async () => {
     for (const [w, h, sizes] of [[375, 667, [100, 125, 150]], [844, 390, [100, 125, 150]]]) {
       for (const size of sizes) {
         const r = await rigUI({ width: w, height: h });
@@ -334,16 +334,20 @@ describe('s3 ui alert tiers on the page', () => {
           r.store.set({ overlay: 'water' });
           r.world.gold = -5;                                                              // debt: a critical banner
           r.ui.alerts.refresh();
+          r.frame();                                                                      // the guidance row follows the banner on the next frame
           const shell = r.root.getBoundingClientRect();
           expect(r.root.querySelector('#legend .legend-icon')).toBe(null);               // no icon stands in for the legend any more (ruling 164)
           const strip = r.root.querySelector('#legend .strip');
-          expect([w, size, getComputedStyle(strip).display === 'none', getComputedStyle(r.root.querySelector('#goals')).display]).toEqual([w, size, false, 'none']);
-          const banner = r.root.querySelector('#banner .critical').getBoundingClientRect(), box = strip.getBoundingClientRect();
-          expect([w, size, box.top >= banner.bottom - 0.5, box.right <= shell.right + 0.5]).toEqual([w, size, true, true]);   // the row under the alert row, on screen
-          expect([w, size, box.bottom - shell.top < shell.height / 2]).toEqual([w, size, true]);
-          for (const word of strip.querySelectorAll('.text')) expect([w, size, word.getBoundingClientRect().width > 2]).toEqual([w, size, true]);   // the words show
+          const one = w === 844 && size >= 125;                                           // a landscape phone at large text: one row, the alert row (ruling 172)
+          expect([w, size, strip.getBoundingClientRect().height === 0, getComputedStyle(r.root.querySelector('#goals')).display]).toEqual([w, size, one, 'none']);
+          if (!one) {
+            const banner = r.root.querySelector('#banner .critical').getBoundingClientRect(), box = strip.getBoundingClientRect();
+            expect([w, size, box.top >= banner.bottom - 0.5, box.right <= shell.right + 0.5]).toEqual([w, size, true, true]);   // the row under the alert row, on screen
+            expect([w, size, box.bottom - shell.top < shell.height / 2]).toEqual([w, size, true]);
+            for (const word of strip.querySelectorAll('.text')) expect([w, size, word.getBoundingClientRect().width > 2]).toEqual([w, size, true]);   // the words show
+          }
           r.store.set({ overlay: null });
-          expect([w, size, getComputedStyle(r.root.querySelector('#goals')).display === 'none']).toEqual([w, size, false]);   // the goal comes back
+          expect([w, size, getComputedStyle(r.root.querySelector('#goals')).display === 'none']).toEqual([w, size, one]);   // the goal comes back (not beside the one alert row)
         } finally { r.cleanup(); }
       }
     }
@@ -358,10 +362,10 @@ describe('s3 ui alert tiers on the page', () => {
   });
 
   // Spec 6.1 (nothing under the top bar past the middle of the map). On phones the raid warning is its one-line chip
-  // (ruling 167). The 844 x 390 phone at 125% and 150% text, where the goals strip alone reaches the middle, waits for the
-  // one-row rule of ruling 172 (tests/ui/mobileBudget.test.js holds the whole budget).
+  // (ruling 167). On the 844 x 390 phone at 125% and 150% text only the alert row shows (ruling 172), so the goals strip
+  // steps aside (tests/ui/mobileBudget.test.js holds the whole budget).
   it('keeps a raid warning, its countdown, and the goals strip above the middle on phones', async () => {
-    for (const [w, h, sizes] of [[375, 667, [100, 125, 150]], [390, 844, [100, 125, 150]], [844, 390, [100]]]) {
+    for (const [w, h, sizes] of [[375, 667, [100, 125, 150]], [390, 844, [100, 125, 150]], [844, 390, [100, 125, 150]]]) {
       for (const size of sizes) {
         const r = await rigUI({ width: w, height: h });
         try {
@@ -374,9 +378,11 @@ describe('s3 ui alert tiers on the page', () => {
           const row = r.root.querySelector('#banner .critical').getBoundingClientRect();
           const view = r.root.querySelector('#banner .critical .view').getBoundingClientRect();
           expect([w, size, Math.abs(view.top + view.height / 2 - (row.top + row.height / 2)) < 2]).toEqual([w, size, true]);   // one row: View beside the words, not under them
+          r.frame();
           const goals = r.root.querySelector('#goals .goal-strip').getBoundingClientRect();
           const banner = r.root.querySelector('#banner .critical').getBoundingClientRect();
           expect([w, size, Math.max(goals.bottom, banner.bottom) - shell.top < shell.height / 2]).toEqual([w, size, true]);
+          expect([w, size, goals.height > 0]).toEqual([w, size, !(w === 844 && size >= 125)]);   // the goal steps aside for the alert row on a landscape phone at large text
         } finally { r.cleanup(); }
       }
     }

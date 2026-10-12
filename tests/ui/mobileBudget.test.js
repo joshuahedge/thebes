@@ -22,20 +22,9 @@ import { mountShell, fakeHistory } from '../helpers/uiWorld.js';
 const SIZES = [[375, 667], [844, 390]];
 const TEXT_SIZES = [100, 150];
 
-// Not met yet, with what M5 measured: where the rows end (share of the height), or the rows and the layers in them. All on
-// the landscape phone, for the compact rules and the one-row rule at large text (ruling 172).
-const NOT_YET = new Set([
-  'raid 844x390 150% end',          // 43%
-  'raid 844x390 150% rows',         // 2 (alert+caption)
-  'raid-fire 844x390 150% end',     // 43%
-  'raid-fire 844x390 150% rows',    // 2 (alert+caption)
-  'raid-overlay 844x390 100% end',  // 46% (the fire-risk legend)
-  'raid-overlay 844x390 150% end',  // 60%
-  'raid-overlay 844x390 150% rows', // 2 (alert+legend)
-  'placing 844x390 100% end',       // 42%
-  'placing 844x390 150% end',       // 47%
-  'placing 844x390 150% rows',      // 2 (alert+legend)
-]);
+// Not met yet: none. The mobile UX pass met every check (M6 met the last, on the landscape phone: the compact rows and the
+// one-row rule at large text, ruling 172). A check that fails again is a regression, not a task left to do.
+const NOT_YET = new Set([]);
 
 const noStorage = { getItem: () => null, setItem: () => {} };
 const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));

@@ -8,8 +8,9 @@
 // item's onShow runs when its caption appears, so sound and sparkle land with it.
 // Ruling 165: every caption is also written to recent() (the last CHEER_RECENT_MAX, newest first; the Goals sheet lists
 // them), and at most CHEER_WAITING_MAX wait their turn, so an older one goes to Recent only. While hold() is true the
-// next caption waits (createUI holds them on a phone while a sheet, a tip or the overlay legend has the guidance row);
-// while dropHeld() is also true (a sheet is open) one held longer than CHEER_HELD_MAX_MS goes to Recent only, and
+// next caption waits (createUI holds them on a phone while a sheet, a tip or the overlay legend has the guidance row, or
+// the alert row has a landscape phone's one row at large text); while dropHeld() is also true (a sheet is open, or that
+// alert row has the one row) one held longer than CHEER_HELD_MAX_MS goes to Recent only, and
 // resume() shows the next once nothing holds it and the row is free. skip(item) drops a caption to Recent only (on a phone under a banner only info captions show). onChange
 // runs whenever a caption appears or hides.
 // Stage 3: a caption may carry its own icon (a citizen remark's speech mark), busy() says whether the row is taken, and
