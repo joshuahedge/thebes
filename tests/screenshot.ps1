@@ -2,8 +2,10 @@
 # --window-size includes the window chrome (a 1280x800 window gives a 1254x707 page and nothing narrower than ~496 px).
 # -BudgetMs is the settle time after the page has loaded, so a few frames have run before the capture.
 # -Eval is page JavaScript run after the load and before the settle time (awaited if it returns a promise),
-# for driving the interface into a state: open a sheet, pick a tool. -Dpr sets the device pixel ratio.
-param([string]$Url = '/', [string]$Out = 'shot.png', [int]$Width = 1280, [int]$Height = 800, [int]$BudgetMs = 1500, [string]$Eval = '', [double]$Dpr = 1)
+# for driving the interface into a state: open a sheet, pick a tool; what it returns is printed as "EVAL <value>".
+# -Measure is page JavaScript run after the settle time, just before the capture (awaited too), printed as
+# "MEASURE <value>" (tools/shots.ps1 -Mobile measures the rows under the top bar). -Dpr sets the device pixel ratio.
+param([string]$Url = '/', [string]$Out = 'shot.png', [int]$Width = 1280, [int]$Height = 800, [int]$BudgetMs = 1500, [string]$Eval = '', [double]$Dpr = 1, [string]$Measure = '')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") |
@@ -31,7 +33,7 @@ try {
   if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Force $dir | Out-Null }
   if (Test-Path $outPath) { Remove-Item -LiteralPath $outPath -Force }
 
-  $browserArgs = @('--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--hide-scrollbars',
+  $browserArgs = @('--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--disable-frame-rate-limit',
     "--user-data-dir=`"$profileDir`"", "--remote-debugging-port=$debugPort", 'about:blank')
   $browser = Start-Process -FilePath $edge -ArgumentList $browserArgs -PassThru -WindowStyle Hidden
 
@@ -68,6 +70,10 @@ try {
     }
   }
 
+  # A headless page can stop drawing frames (requestAnimationFrame stops, a DOM change made after a few seconds never
+  # reaches the capture), seen on Windows in scenes that wait a few seconds: emulated focus and no frame-rate limit keep
+  # frames coming.
+  Invoke-Cdp 'Emulation.setFocusEmulationEnabled' @{ enabled = $true } | Out-Null
   Invoke-Cdp 'Emulation.setDeviceMetricsOverride' @{ width = $Width; height = $Height; deviceScaleFactor = $Dpr; mobile = $false } | Out-Null
   Invoke-Cdp 'Page.navigate' @{ url = "http://127.0.0.1:$port$Url" } | Out-Null
   $loaded = $false
@@ -81,8 +87,14 @@ try {
     Start-Sleep -Milliseconds 800                     # the boot is async: let the game (and window.__thebes) exist first
     $r = Invoke-Cdp 'Runtime.evaluate' @{ expression = $Eval; awaitPromise = $true }
     if ($r.result.exceptionDetails) { Write-Output "Eval threw: $($r.result.exceptionDetails.exception.description)"; exit 1 }
+    if ($null -ne $r.result.result.value) { Write-Output "EVAL $($r.result.result.value)" }
   }
   Start-Sleep -Milliseconds $BudgetMs
+  if ($Measure) {
+    $mr = Invoke-Cdp 'Runtime.evaluate' @{ expression = $Measure; awaitPromise = $true; returnByValue = $true }
+    if ($mr.result.exceptionDetails) { Write-Output "Measure threw: $($mr.result.exceptionDetails.exception.description)"; exit 1 }
+    Write-Output "MEASURE $($mr.result.result.value)"
+  }
   $shot = Invoke-Cdp 'Page.captureScreenshot' @{ format = 'png' }
   [IO.File]::WriteAllBytes($outPath, [Convert]::FromBase64String($shot.result.data))
   if (Test-Path $outPath) { Write-Output "Wrote $outPath" } else { Write-Output 'NO SCREENSHOT'; exit 1 }
