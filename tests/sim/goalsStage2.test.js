@@ -20,7 +20,8 @@ const STAGE1 = ['road', 'plots', 'well', 'food', 'temple', 'homes_cottage', 'peo
 const STAGE2 = ['pottery', 'homes_townhouse', 'booth_gardens', 'manor', 'market_town', 'trade_route', 'city', 'beer', 'fine_manors',
   'great_city', 'linen', 'villas', 'capital', 'jewellery', 'estate'];
 const DANGER = ['firehouse', 'defences'];   // Stage 3's chain goals, after Town and after the trade route (tests/stage3/score/dangerGoals.test.js)
-const notDanger = (g) => !DANGER.includes(g.id);
+const MONUMENTS4 = GOALS.filter((g) => g.chapter === 'monuments').map((g) => g.id);   // Stage 4's chain goals (tests/stage4/score/goals.test.js)
+const notDanger = (g) => !DANGER.includes(g.id) && !MONUMENTS4.includes(g.id);
 const first = (id) => FIRSTS.find((f) => f.id === id);
 const achievement = (id) => ACHIEVEMENTS.find((a) => a.id === id);
 const pool = (id) => DAILY_POOL.find((d) => d.id === id);
@@ -29,7 +30,7 @@ const typesIn = (need) => (need.kind === 'all' ? need.of.flatMap(typesIn) : need
 // A city that has finished the opening chain and the guide, at Town (and Stage 3's danger goals, so the Stage 2 chain reads as before).
 function town() {
   const w = makeTestWorld();
-  w.goals.completed.push(...STAGE1, ...DANGER);
+  w.goals.completed.push(...STAGE1, ...DANGER, ...MONUMENTS4);
   w.guide = { on: false, done: true };
   w.milestone = 'town';
   return w;
@@ -45,7 +46,7 @@ describe('sim goals and rewards for Stage 2', () => {
     // Every building a goal asks for is unlocked by the milestone the goals before it reached (people goals mark
     // them), and by the milestone the goal is listed from: its `from`, or Town for the goals without one.
     let reached = milestoneIndex('town');
-    for (const g of GOALS.slice(9)) {
+    for (const g of GOALS.slice(9).filter((x) => !MONUMENTS4.includes(x.id))) {   // Stage 4's pyramids unlock by prestige: tests/stage4/score
       if (g.need.kind === 'people') reached = MILESTONES.findIndex((m) => m.population === g.need.n);
       expect(reached).toBeGreaterThan(0);
       const listed = milestoneIndex(g.from || 'town');
@@ -59,7 +60,7 @@ describe('sim goals and rewards for Stage 2', () => {
   it('lists the chain only as far as the milestone the city has reached, so no later goal shows ahead of a waiting one', () => {
     const waiting = [['pottery', 'town'], ['homes_townhouse', 'town'], ['booth_gardens', 'town'], ['trade_route', 'market_town'], ['defences', 'market_town'], ['beer', 'city'],
       ['fine_manors', 'city'], ['linen', 'great_city'], ['villas', 'great_city'], ['jewellery', 'capital'], ['estate', 'capital']];
-    expect(GOALS.filter((g) => g.from).map((g) => [g.id, g.from])).toEqual(waiting);
+    expect(GOALS.filter((g) => g.from && !MONUMENTS4.includes(g.id)).map((g) => [g.id, g.from])).toEqual(waiting);
     const w = town();
     const open = () => openGoals(w, Infinity).map((g) => g.id);
     const endsAt = { village: 'pottery', town: 'trade_route', market_town: 'beer', city: 'linen', great_city: 'jewellery', capital: null };
@@ -184,7 +185,7 @@ describe('sim goals and rewards for Stage 2', () => {
       step();
       expect(settleGoals(w).map((g) => g.id)).toEqual(expected);
     }
-    expect(w.goals.completed).toEqual([...STAGE1, ...DANGER, ...STAGE2]);
+    expect(w.goals.completed).toEqual([...STAGE1, ...DANGER, ...MONUMENTS4, ...STAGE2]);
     expect(openGoals(w)).toEqual([]);
     expect(w.gold).toBe(gold + STAGE2.length * GOAL_REWARD);
   });

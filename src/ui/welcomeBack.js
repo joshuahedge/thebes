@@ -10,6 +10,7 @@ import { scoreOf } from '../sim/score.js';
 import { allBuildings, isSite } from '../sim/world.js';
 import { siteStatus } from '../sim/monuments.js';
 import { noteView } from '../render/overlays.js';
+import { SCORE_VERSION } from '../data/scoring.js';
 import { el, button } from './components.js';
 import { alertText, dateText, plural, progressText, closestAchievementText, viewLabel, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, TREND_MARKS, SCORE_TEXT, T, UI4_TEXT } from './text.js';
 
@@ -48,6 +49,10 @@ function trendRow(label, current, history, key) {
     el('span', { class: 'words', text: trendText(label, current, history, key) }),
   ]);
 }
+
+// The month-end rows the score trend compares with (spec 4.17, 4.19; Track D): those holding a score made under this score
+// version. A row without a version is a score v1 row (MIGRATIONS[4] marks them; ruling 203).
+export const scoreTrendRows = (world) => world.history.filter((r) => Number.isFinite(r.score) && (Number.isInteger(r.version) ? r.version : 1) === SCORE_VERSION);
 
 // The unfinished achievement nearest to done: the highest share of its count, ties to the earlier one in
 // ACHIEVEMENTS. Recorded ones, ones already at their count, and ones not started are left out. Null if none.
@@ -99,7 +104,8 @@ export function welcomeSheet({ world, savedAt, lastSpeed, now = () => Date.now()
       trendRow(T.gold, world.gold, world.history, 'gold'),
       trendRow(T.mood, world.mood, world.history, 'mood'),
       // Stage 3 (spec 4.17, 4.19): the city score against the month-end rows that hold one (a version 3 save's rows do not).
-      trendRow(SCORE_TEXT.score, scoreOf(world).total, world.history.filter((r) => Number.isFinite(r.score)), 'score'),
+      // Stage 4: only rows of this score version, so a city does not seem to drop overnight when the formula changes.
+      trendRow(SCORE_TEXT.score, scoreOf(world).total, scoreTrendRows(world), 'score'),
     ]));
     const sites = siteLines(world);
     if (sites.length) body.append(el('h3', { text: UI4_TEXT.welcomeHead }), el('ul', { class: 'sites' }, sites.map((s) => el('li', { class: 'site', text: s }))));

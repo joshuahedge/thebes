@@ -39,6 +39,12 @@ const TIPS_S4_UI = [
 // ── s4 score (Track D) ── the Monuments tips of spec 4.19 (last for workers, straight to the site, a storehouse bridges,
 // refuse stone at the potters' storehouse, pause to free crews, one of each kind counts)
 const TIPS_S4_SCORE = [
+  { id: 'monuments_last', trigger: 'guildPlaced', priority: false },          // a builders' guild placed
+  { id: 'straight_to_site', trigger: 'supplyPlaced', priority: false },       // a quarry or brickworks placed
+  { id: 'storehouse_bridge', trigger: 'siteStarved', priority: false },       // a site stalled for want of stone or bricks
+  { id: 'refuse_stone', trigger: 'stoneStored', priority: false },            // a month ended with stone and clay in one storehouse
+  { id: 'pause_site', trigger: 'secondSite', priority: false },               // a monument founded while another site is under way
+  { id: 'one_each', trigger: 'secondOfKind', priority: false },               // a monument founded where one of its kind stands
 ];
 // ── end s4 score ──
 // ── s4 motion (Track E) ── the one-time Gentle tip (ruling 218)

@@ -342,7 +342,7 @@ export function createMonumentUi(ctx) {
       for (const e of events) {
         if (e.type !== 'palace_done') continue;
         const b = world.buildings[e.id];
-        if (ctx.celebrations) ctx.celebrations.show({ tier: 'info', text: UI4_TEXT.palaceDone(UI4_PALACE_TEXT[PALACE_STYLES[e.style].id].to) });
+        // The caption is Track D's (monumentCaptions, ruling 5); only the sparkle is the sheet's.
         if (b && ctx.effects && motion() === 'full') ctx.effects.sparkle(b.x + b.w / 2, b.y + b.d / 2, GOLD, ctx.now());   // a small sparkle under Full only
       }
     },

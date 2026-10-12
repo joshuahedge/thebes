@@ -7,11 +7,13 @@
 // The score is measured, never stored by the interface: current() asks scoreOf (src/sim/score.js) at most once per
 // refresh, game day and command. The sim changes the city only on a day's tick or through a command, and createUI calls
 // refresh after both (onCommand and onEvents also see each command), so the section and the chip read the same score.
-import { SCORE_PARTS, SPLIT_MILESTONES } from '../data/scoring.js';
-import { scoreOf, scorePreview, sealReign, splitMonths } from '../sim/score.js';
+import { SCORE_PARTS, SPLITS, STAMP_GLYPHS_MAX } from '../data/scoring.js';
+import { BUILDINGS } from '../data/buildings.js';
+import { scoreOf, scorePreview, monumentPreview, sealReign, splitMonths } from '../sim/score.js';
 import { featsFor, featStatus } from '../sim/feats.js';
 import { population } from '../sim/world.js';
-import { remarkFor } from './celebrate.js';
+import { remarkFor, monumentCaptions } from './celebrate.js';
+import { isMonument, isSite } from '../sim/world.js';
 import { downloadFile } from '../save/exportImport.js';
 import { openSheet } from './modes.js';
 import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, weeklySeed, drawMapSquare, medalColour } from './share.js';
@@ -19,7 +21,7 @@ import { generateMap } from '../sim/mapgen.js';
 import { el, button, setText } from './components.js';
 import {
   SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
-  sealQuestion, sealedText, T,
+  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel,
 } from './text.js';
 
 // Returns { sheets, sheetParts: { building, house, actions, summary }, onEvents, refresh, onAlertAction, onCommand,
@@ -44,21 +46,22 @@ export function createScoreUi(ctx) {
       el('span', { class: 'part-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(n), 'aria-label': partBarLabel(part, n) }, [
         el('span', { class: 'fill', style: { width: `${n}%` } }),
       ]),
-      s.reasons[part] ? el('p', { class: 'reason small muted', text: scoreReasonText(s.reasons[part]) }) : null,
+      s.reasons[part] ? el('p', { class: 'reason small muted', text: score4ReasonText(s.reasons[part]) }) : null,   // Stage 4: the Monuments part's next step too
     ]);
   }
 
   // The milestone splits as game dates, in order, each against the personal best on this seed and level (the earliest
-  // day any other city on the device reached it); the ones not reached are left out.
+  // day any other city on the device reached it); the ones not reached are left out. Stage 4: score v2's seven, the
+  // pyramids unlocked and the great pyramid finished after the five milestones.
   function splitsBlock() {
-    const reached = SPLIT_MILESTONES.filter((id) => Number.isInteger(world.splits[id]));
+    const reached = SPLITS.filter((id) => Number.isInteger(world.splits[id]));
     let best = null;
     try { best = records() ? records().bestFor(world.seed, world.difficulty, { except: world.cityId }) : null; } catch (e) { best = null; }
     const bestDay = (id) => (best && Number.isInteger(best.splits[id]) ? best.splits[id] : null);
     return [
       el('h4', { class: 'splits-heading', text: SCORE_TEXT.splits }),
       reached.length
-        ? el('ul', { class: 'splits' }, reached.map((id) => el('li', { class: 'split', dataset: { id }, text: splitCompareText(id, world.splits[id], bestDay(id)) })))
+        ? el('ul', { class: 'splits' }, reached.map((id) => el('li', { class: 'split', dataset: { id }, text: score4SplitText(id, world.splits[id], bestDay(id)) })))
         : el('p', { class: 'small muted', text: SCORE_TEXT.noSplits }),
     ];
   }
@@ -205,8 +208,14 @@ export function createScoreUi(ctx) {
     const text = remarkFor(world);
     if (text) ctx.celebrations.show({ tier: 'remark', text, icon: '❝' });
   }
+  // Stage 4: the course, finish and palace captions (monumentCaptions), each with its sound as it shows.
+  function monumentCheers(events) {
+    for (const c of monumentCaptions(world, events)) ctx.celebrations.show({ tier: c.tier, text: c.text, why: c.why, onShow: () => ctx.sfx.play(c.sound) });
+  }
   function tipsFor(events) {
     for (const e of events) {
+      if (e.type === 'site_stalled' && (e.reason === 'no_stone' || e.reason === 'no_bricks')) tip('siteStarved');   // Stage 4: a storehouse can bridge
+      if (e.type === 'month' && allBuildingsOf('storehouse').some((s) => (s.store.stone || 0) > 0 && (s.store.clay || 0) > 0)) tip('stoneStored');
       if (e.type === 'milestone' && e.id === 'town') tip('fireRisk');                // fire risk builds from Town
       else if (e.type === 'fire_grow') tip('fireGrew');                               // a fire can spread
       else if (e.type === 'burned' && e.kind !== 'house') tip('rubbleLeft');          // a burned home leaves empty plots, the rest rubble
@@ -217,7 +226,16 @@ export function createScoreUi(ctx) {
     const built = e.kind === 'building' && e.result && world.buildings[e.result.id];
     if (built && built.type === 'firehouse') tip('fireRisk');
     if (e.kind === 'wall') tip('wallDrawn');
+    // Stage 4: the Monuments tips, each when its lesson becomes news.
+    if (built && built.type === 'builders_guild') tip('guildPlaced');
+    if (built && (built.type === 'quarry' || built.type === 'brickworks')) tip('supplyPlaced');
+    if (built && isMonument(built)) {
+      const others = Object.values(world.buildings).filter((b) => isMonument(b) && b.id !== built.id);
+      if (others.some((b) => b.type === built.type)) tip('secondOfKind');
+      if (others.some(isSite)) tip('secondSite');
+    }
   }
+  const allBuildingsOf = (type) => Object.values(world.buildings).filter((b) => b.type === type);
 
   // The chip on the summary button (hud.js makes the empty node): the live total, refreshed with the chrome. It stays
   // hidden while nobody lives in the city (mobile UX review, section 4 item 9): a new city has no score to show yet.
@@ -232,7 +250,7 @@ export function createScoreUi(ctx) {
     sheets: { sealReign: sealSheet, shareScore: shareSheet },
     // Made without a world (the contract's shape test), it has no parts.
     sheetParts: { building: () => [], house: () => [], actions: () => [], summary: () => (world ? [summarySection(), featsSection()] : []) },
-    onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); tipsFor(events); remark(events); } },
+    onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); monumentCheers(events); tipsFor(events); remark(events); } },
     refresh() { if (world) { version++; renderChip(); } },
     onAlertAction() {},
     onCommand(e) { version++; if (world && e) tipsForCommand(e); },
@@ -249,13 +267,26 @@ export function scoreLineFor(world, type, x, y) {
   const key = `${type}|${x}|${y}|${world.day}|${world.nextId}|${Object.keys(world.buildings).length}|${world.roadVersion}|${L.employed}|${L.jobs}|${world.gold}`;
   const m = lineMemo.get(world);
   if (m && m.key === key) return m.value;
-  const value = scoreLineText(scorePreview(world, type, x, y));
+  // Stage 4 (spec 4.19): a monument's line is the Monuments part once it is finished ("+32 Monuments when finished"), and
+  // nothing for a second of a kind; its site counts for nothing until then.
+  const value = BUILDINGS[type] && BUILDINGS[type].monument ? score4MonumentLine(monumentPreview(world, type)) : scoreLineText(scorePreview(world, type, x, y));
   lineMemo.set(world, { key, value });
   return value;
 }
 
 // A stamp (spec 4.19): the sealed seed's map, top-down, in a disc ringed in the medal's colour. Cosmetic; the label says it.
+// Stage 4: a small glyph along its foot for each mastaba (a stepped bench) and pyramid (a triangle) finished at the seal
+// (the entry's `built`, at most STAMP_GLYPHS_MAX), ink with a pale halo.
 const STAMP_PX = 40, STAMP_MAX = 8;
+const GLYPH = { ink: '#2B1F0E', halo: '#F3E7CB' };
+function drawGlyph(g, kind, cx, base, s) {
+  g.beginPath();
+  if (kind.startsWith('pyramid')) { g.moveTo(cx - s / 2, base); g.lineTo(cx, base - s * 0.8); g.lineTo(cx + s / 2, base); }
+  else { g.moveTo(cx - s / 2, base); g.lineTo(cx - s / 2, base - s * 0.3); g.lineTo(cx - s / 4, base - s * 0.3); g.lineTo(cx - s / 4, base - s * 0.55); g.lineTo(cx + s / 4, base - s * 0.55); g.lineTo(cx + s / 4, base - s * 0.3); g.lineTo(cx + s / 2, base - s * 0.3); g.lineTo(cx + s / 2, base); }
+  g.closePath();
+  g.stroke();
+  g.fill();
+}
 const stampMaps = new Map();   // seed -> its generated map: a stamp row often repeats a seed (at most STAMP_MAX kept)
 function stampMap(seed) {
   if (!stampMaps.has(seed)) {
@@ -267,7 +298,7 @@ function stampMap(seed) {
 function stampFor(entry, dpr) {
   const map = stampMap(entry.seed);
   const px = Math.round(STAMP_PX * dpr);
-  const c = el('canvas', { class: 'stamp', role: 'img', 'aria-label': TITLE_SCORE_TEXT.stampLabel(entry), width: px, height: px });
+  const c = el('canvas', { class: 'stamp', role: 'img', 'aria-label': score4StampLabel(entry), width: px, height: px });
   c.style.width = `${STAMP_PX}px`; c.style.height = `${STAMP_PX}px`;
   const g = c.getContext('2d');
   if (!g) return c;
@@ -278,6 +309,12 @@ function stampFor(entry, dpr) {
   g.restore();
   g.strokeStyle = medalColour(entry.medal); g.lineWidth = ring;
   g.beginPath(); g.arc(r, r, r - ring / 2, 0, Math.PI * 2); g.stroke();
+  const glyphs = (entry.built || []).slice(0, STAMP_GLYPHS_MAX);
+  if (glyphs.length) {
+    const s = 9 * dpr, gap = 1.5 * dpr, base = px - ring - 3 * dpr, left = r - (glyphs.length * (s + gap) - gap) / 2;
+    g.fillStyle = GLYPH.ink; g.strokeStyle = GLYPH.halo; g.lineWidth = 2 * dpr; g.lineJoin = 'round';
+    glyphs.forEach((k, i) => drawGlyph(g, k, left + i * (s + gap) + s / 2, base, s));
+  }
   return c;
 }
 
@@ -326,7 +363,8 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
       return;
     }
     const total = sharedTotal(link);
-    const best = records ? safe(() => records.bestFor(link.seed, link.difficulty), null) : null;
+    // Stage 4 (ruling 259): a t1 link (older scoring) is compared only with your best made under its own score version.
+    const best = records ? safe(() => records.bestFor(link.seed, link.difficulty, { version: link.version }), null) : null;
     const start = button(TITLE_SCORE_TEXT.startSeed, { class: 'start-seed primary', onClick: () => {
       const choice = buttonBox.querySelector(`.choice.difficulty[data-value="${link.difficulty}"]`);
       if (choice && choice.getAttribute('aria-pressed') !== 'true') choice.click();
@@ -336,7 +374,8 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
       el('h2', { id: 'shared-score-heading', class: 'small', text: TITLE_SCORE_TEXT.friend }),
       el('p', { class: 'friend-line', text: TITLE_SCORE_TEXT.friendLine(total, link.seed, link.difficulty) }),
       el('p', { class: 'friend-parts small muted', text: TITLE_SCORE_TEXT.partsLine(link.parts) }),
-      el('p', { class: 'your-best small', text: TITLE_SCORE_TEXT.yourBest(best ? best.score : null) }),
+      link.older ? el('p', { class: 'friend-older small muted', text: SCORE4_TEXT.olderLink }) : null,
+      el('p', { class: 'your-best small', text: score4YourBest(best ? best.score : null, link.older) }),
       el('p', { class: 'beat', text: TITLE_SCORE_TEXT.beat(total) }),
       el('p', { class: 'start-on small muted', text: TITLE_SCORE_TEXT.startOn(link.difficulty) }),
       start,
