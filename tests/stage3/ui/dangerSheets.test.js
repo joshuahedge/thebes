@@ -241,7 +241,8 @@ describe('s3 ui tribute and the last raid', () => {
       const sheet = r.root.querySelector('#sheet');
       expect([r.store.get().sheet, sheet.querySelector('h2').textContent]).toEqual([{ kind: 'tribute', id: null }, T.tribute]);
       expect(sheet.querySelector('.tribute-cost').textContent).toBe('Pay 240 gold of tribute');
-      expect(sheet.querySelector('.arrives').textContent).toBe('They arrive in 3 months.');   // the warning's arrives day less today
+      // On a phone it is also the raid sheet (ruling 167): the arrival line carries the warning's title, as the chip does not.
+      expect(sheet.querySelector('.arrives').textContent).toBe('Raiders from the east are after your storehouses. They arrive in 3 months.');   // the warning's arrives day less today
       expect(texts(sheet, '.row')).toEqual([`${D.goldNow}610`, `${D.goldAfter}370`]);
       expect(sheet.querySelector('.cancels').textContent).toBe('Cancels the raid from the east (6 raiders). The next raid still comes.');
       expect(texts(sheet, '.body p.small')).toEqual([D.capital(D.defenceLine(tributeQuote(w), 'east'))]);
@@ -269,13 +270,32 @@ describe('s3 ui tribute and the last raid', () => {
       expect([sheet.querySelector('.pay').disabled, sheet.querySelector('.why-not')]).toEqual([false, null]);   // exactly 0 afterwards is allowed
       warn(w, { first: true, size: 3 });
       r.ui.refresh();
-      expect([sheet.querySelector('.pay'), texts(sheet, '.body p')]).toEqual([null, ["The first raid can't be paid off.", 'They arrive in 3 months.', 'Build 1 tower facing east (≈ 150 gold)']]);
+      // The first raid: the raid sheet, headed "Raid warning", with the arrival and the defence line only (spec 4.13).
+      expect([sheet.querySelector('h2').textContent, sheet.querySelector('.pay'), texts(sheet, '.body p')]).toEqual([D.raidSheetTitle, null, ['Raiders from the east are after your storehouses. They arrive in 3 months.', 'Build 1 tower facing east (≈ 150 gold)']]);
       w.day += 88;
       r.ui.refresh();
-      expect(sheet.querySelector('.arrives').textContent).toBe('They arrive in 2 days.');
+      expect(sheet.querySelector('.arrives').textContent).toBe('Raiders from the east are after your storehouses. They arrive in 2 days.');
       w.raid.warning = null;
       r.ui.refresh();
-      expect(texts(sheet, '.body p')).toEqual(['Tribute can be paid only while a raid is on its way']);
+      expect([sheet.querySelector('h2').textContent, texts(sheet, '.body p')]).toEqual([T.tribute, ['Tribute can be paid only while a raid is on its way']]);
+    } finally { r.cleanup(); }
+  });
+
+  it('opens the raid sheet from a phone\'s countdown chip, and keeps the wide sheet\'s arrival line beside the full banner', async () => {
+    const r = await rigUI({ width: 375, height: 667 });
+    try {
+      const w = r.world;
+      warn(w, { first: true, size: 3 });
+      r.ui.refresh();
+      click(r.root.querySelector('#banner .critical .warning'));
+      const sheet = r.root.querySelector('#sheet');
+      expect([r.store.get().sheet, sheet.querySelector('h2').textContent]).toEqual([{ kind: 'tribute', id: null }, 'Raid warning']);
+      expect(texts(sheet, '.body p')).toEqual(['Raiders from the east are after your storehouses. They arrive in 3 months.', D.capital(D.defenceLine(tributeQuote(w), 'east'))]);
+      click(sheet.querySelector('.close'));
+      warn(w);
+      r.resize(1280, 800);
+      r.ui.alerts.action({ code: 'raid_warning' }, 'tribute');                            // Pay tribute on the wide banner
+      expect([sheet.querySelector('h2').textContent, sheet.querySelector('.arrives').textContent]).toEqual([T.tribute, 'They arrive in 3 months.']);
     } finally { r.cleanup(); }
   });
 

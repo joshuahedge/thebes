@@ -474,8 +474,9 @@ body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
 
 /* ── s3 ui (Track D) ── Track D's styles for the danger interface. Add new rules just above the end marker. */
-/* D1: the one banner (spec 6.3). Words first, then the buttons; on a narrow phone the buttons wrap under the words and
-   keep their 44 px. A raid warning's defence line sits on its own line; its countdown chip is the same row, one line. */
+/* D1: the one banner (spec 6.3), the wide screens' full banner: words first, then the buttons, which wrap under the words
+   when they must and keep their 44 px. A raid warning's defence line sits on its own line; its countdown chip is the same
+   row, one line. Phones have the one-line alert row below (.line). */
 #banner .critical { flex-wrap: wrap; row-gap: 4px; }
 #banner .critical .icon { flex: none; }
 #banner .critical .text { flex: 1 1 6em; }
@@ -483,9 +484,6 @@ body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; 
 #banner .critical .buttons { flex: 0 1 auto; max-width: 100%; display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
 #banner .critical .more { white-space: nowrap; }
 #banner .critical.chip .expand { font-weight: 700; text-align: left; padding: 0 4px; }
-/* A phone at larger text keeps the banner to its title and buttons: the fix stays for screen readers and in the alert
-   list (the minimap sheet), so the banner and the goals strip end above the middle of the screen (ruling 111). */
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #banner .critical .text > .small:not(.defence) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* The legend under a banner on a phone (ruling 111): one 44 px icon at the right end of the banner's row, so the goals
    strip keeps its place; tapped, the full legend opens in its own row. Wide screens keep the full strip. */
 #legend .legend-icon { display: none; }
@@ -494,6 +492,13 @@ body.has-banner:not([data-layout="wide"]) #legend:not(.open) .strip { display: n
 body.has-banner:not([data-layout="wide"]) #legend.open { flex-direction: row-reverse; align-items: center; }   /* open: the icon ends the strip's row */
 body.has-banner:not([data-layout="wide"]) #legend:not(.open):not(:empty) { position: absolute; top: 0; right: 0; }
 body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:empty)) { max-width: calc(100% - var(--tap) - 6px); }
+/* The phone's alert row (ruling 167): one row, the icon, the words and View side by side. The words wrap to two lines at
+   most and are cut with "…" past that; the full words are in the buttons' names, the alert list and the raid sheet. A
+   raid warning's words are its countdown chip, a button that opens the raid sheet. */
+#banner .critical.line { flex-wrap: nowrap; white-space: normal; }   /* normal: the goals strip's .chip rule would keep the words on one line */
+#banner .critical.line .buttons { flex: none; flex-wrap: nowrap; }
+#banner .critical.line strong, #banner .critical.line .warning { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+#banner .critical.line .warning { font-weight: 700; text-align: left; padding: 0 4px; max-width: 100%; }
 /* D2: an info caption (a blaze put out, a raid's report) is news, not a celebration: no star, a plain edge. */
 #cheer .cheer.info { border-color: var(--parchment-3); }
 #cheer .cheer.info .icon { display: none; }

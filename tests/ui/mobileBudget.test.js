@@ -63,8 +63,7 @@ const NOT_YET = new Set([
   'raid-overlay 844x390 150% end',  // 77%
   'raid-overlay 844x390 150% rows', // 3 (alert+legend+goal+caption)
 
-  'placing 375x667 100% end',       // 41%
-  'placing 375x667 150% end',       // 74%
+  'placing 375x667 150% end',       // 42% (the alert row's chip takes two lines)
   'placing 844x390 100% end',       // 45%
   'placing 844x390 150% end',       // 67%
   'placing 844x390 150% rows',      // 2 (alert+legend+goal)
@@ -75,7 +74,6 @@ const NOT_YET = new Set([
   'sheet 375x667 150% rows',        // 2 (alert+goal)
   'sheet 844x390 100% end',         // 45%
   'sheet 844x390 100% rows',        // 2 (alert+goal)
-  'sheet 844x390 100% edge',        // the rows reach 780 px, the sheet starts at 520
   'sheet 844x390 150% end',         // 67%
   'sheet 844x390 150% rows',        // 2 (alert+goal)
   'sheet 844x390 150% edge',        // the rows reach 780 px, the sheet starts at 520

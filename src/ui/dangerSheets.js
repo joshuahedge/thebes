@@ -19,7 +19,7 @@ import { canAfford } from '../sim/money.js';
 import { dateParts } from '../sim/clock.js';
 import { idx } from '../sim/grid.js';
 import { el, button } from './components.js';
-import { dateText, plural, viewLabel, T, DANGER_UI_TEXT } from './text.js';
+import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT } from './text.js';
 
 const D = DANGER_UI_TEXT;
 const centre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
@@ -160,15 +160,21 @@ export function summaryParts(ctx) {
 
 // The tribute confirmation sheet (spec 4.13): the cost, when the raiders arrive, the gold afterwards, what it cancels and
 // what it does not, two buttons named for their outcome and neither the default; the rule's own words when it cannot be
-// paid.
+// paid. On phones it is also the raid sheet (ruling 167): the countdown chip's words open it, so its arrival line carries
+// the warning's own title ("Raiders from the east are after your storehouses. They arrive in 2 months."), which a wide
+// screen's banner shows above it. On the first raid, which no tribute buys off, it is headed "Raid warning" and holds the
+// arrival and the defence line only.
 export function tributeSheet(ctx) {
-  return (body, { close }) => {
+  return (body, { close, setTitle = () => {} }) => {
     const world = ctx.world;
     const q = tributeQuote(world);
     if (!q) { body.append(el('p', { text: D.noWarning })); return; }
     const w = world.raid.warning;
-    const arrives = el('p', { class: 'arrives', text: D.arrivalLine(Math.max(0, w.arrives - world.day)) });   // as the banner says it
-    if (q.hidden) { body.append(el('p', { text: D.firstRaid }), arrives, el('p', { text: D.capital(D.defenceLine(q, w.dir)) })); return; }
+    const left = Math.max(0, w.arrives - world.day);
+    const phone = Boolean(ctx.store) && ctx.store.get().layout !== 'wide';
+    const title = alertText({ code: 'raid_warning', dir: w.dir }, world).title;
+    const arrives = el('p', { class: 'arrives', text: phone || q.hidden ? D.withArrival(title, left) : D.arrivalLine(left) });   // as the banner says it
+    if (q.hidden) { setTitle(D.raidSheetTitle); body.append(arrives, el('p', { text: D.capital(D.defenceLine(q, w.dir)) })); return; }
     body.append(
       el('p', { class: 'tribute-cost', text: D.tributeCost(q.cost) }),
       arrives,
