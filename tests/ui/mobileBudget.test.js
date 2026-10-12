@@ -61,13 +61,15 @@ const SET_UP = {
   'raid-fire': (g) => [raidUp(g), Object.values(g.world.buildings).some((b) => b.fire && b.fire.stage === 'fire')],
   'raid-overlay': (g) => [raidUp(g), g.ui.store.get().overlay],
   placing: (g) => [raidUp(g), g.ui.store.get().mode, g.ui.store.get().tool.type],
+  farm: (g) => [raidUp(g), g.ui.store.get().mode, g.ui.store.get().tool.type, g.ui.store.get().overlay],
+  'farm-raid': (g) => [raidUp(g), g.ui.store.get().mode, g.ui.store.get().tool.type, g.ui.store.get().overlay],
   sheet: (g) => [raidUp(g), g.ui.store.get().sheet.kind, g.world.buildings[g.ui.store.get().selectedId].type],
   welcome: (g) => [g.ui.store.get().sheet.kind, g.world.speed],
   expanded: (g) => [g.ui.tips.current(), g.ui.store.get().guidanceOpen, document.body.dataset.guidance, g.world.speed],   // the goal's tip, open, on the row
 };
 const SET_UP_WANTED = {
   early: [true, null, 'goal', 0], plots: [true, 0], raid: [true, 0], 'raid-fire': [true, true], 'raid-overlay': [true, 'fire'],
-  placing: [true, 'placing', 'well'], sheet: [true, 'info', 'house'], welcome: ['welcome', 0], expanded: ['goals_list', true, 'tip', 0],
+  placing: [true, 'placing', 'well'], farm: [false, 'placing', 'farm_grain', 'ground'], 'farm-raid': [true, 'placing', 'farm_grain', 'ground'], sheet: [true, 'info', 'house'], welcome: ['welcome', 0], expanded: ['goals_list', true, 'tip', 0],
 };
 
 // The budget checks for one measurement: [{ id, ok, got, limit }].
@@ -95,7 +97,7 @@ function budgetChecks(scene, m) {
 
 describe('mobile height budget', () => {
   it('names a page query for every mobile scene, and lists only checks it makes', () => {
-    expect(MOBILE_SCENES).toEqual(['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'sheet', 'welcome', 'expanded']);
+    expect(MOBILE_SCENES).toEqual(['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded']);
     expect(MOBILE_SCENES.every((name) => typeof MOBILE_SCENE_PARAMS[name] === 'string')).toBe(true);
     const kinds = ['end', 'rows', 'edge'], sizes = SIZES.map(([w, h]) => `${w}x${h}`), texts = TEXT_SIZES.map((t) => `${t}%`);
     const unknown = [...NOT_YET].filter((id) => {
