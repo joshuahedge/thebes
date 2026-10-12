@@ -8,7 +8,7 @@ import { isWorking } from './labour.js';
 import { storeTotal } from './production.js';
 import { fireAlerts } from './fire.js';
 import { raidAlerts } from './raids.js';
-import { monumentAlerts } from './monuments.js';
+import { monumentAlerts, hasMonumentWork } from './monuments.js';
 
 export function alertsFor(world) {
   const alerts = [];
@@ -21,7 +21,7 @@ export function alertsFor(world) {
     if (b.blocked === 'storage_full') alerts.push({ code: 'storage_full', id: b.id });
     if (b.blocked === 'no_input') alerts.push({ code: 'no_input', id: b.id });
     if (def.stores && storeTotal(b) >= def.capacity) alerts.push({ code: 'storage_full', id: b.id });   // any full store
-    if (def.workers && road && !b.paused && !(b.fire && b.fire.stage === 'fire') && !isWorking(world, b)) alerts.push({ code: 'understaffed', id: b.id });
+    if (def.workers && road && !b.paused && !(b.fire && b.fire.stage === 'fire') && hasMonumentWork(world, b) && !isWorking(world, b)) alerts.push({ code: 'understaffed', id: b.id });
     if (def.sells && isWorking(world, b) && FOOD_GOODS.every((g) => !((b.store[g] || 0) > 0))) alerts.push({ code: 'bazaar_empty', id: b.id });   // no food in stock
   }
   // Homes and plots with no road beside them (placement review P13): one warning for the lot, not one per plot (a hundred

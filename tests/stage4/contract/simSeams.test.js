@@ -177,7 +177,7 @@ describe('s4 contract site facts and the monthly roll', () => {
     expect(courseOf(s)).toEqual({ stone: 816, bricks: 144 });
     expect(siteProgress(s)).toEqual({ course: 2, courses: 8, inCourse: 0.5, done: 2.5 / 8 });
     expect(remainingNeed(s)).toEqual({ stone: 816 * 6 - 408, bricks: 144 * 6 - 72 });
-    expect(stockRoom(s)).toEqual({ stone: 30, bricks: 30 });                      // 160 at most in all (40 x 4 crews), 130 held
+    expect(stockRoom(s)).toEqual({ stone: 36, bricks: 0 });                       // Track A: 160 (40 x 4 crews) shared as the work takes it: 136 stone, 24 bricks
     expect(paceOf(w, s)).toBe(null);                                             // no month yet
     s.site.last = { units: 80, gold: 400, crews: 4 };
     expect(paceOf(w, s)).toBe(Math.ceil(((816 + 144) * 5.5 / 80) * 30));
@@ -225,12 +225,12 @@ describe('s4 contract site facts and the monthly roll', () => {
     expect([s.site.last, s.site.starved, s.site.month, f.site.last, w.stats.lastMonth.monuments]).toEqual([
       { units: 40, gold: 200, crews: 2 }, true, { units: 0, gold: 0, crews: 0, crewDays: 0, starvedDays: 0 }, { units: 7, gold: 35, crews: 1 }, 200]);
   });
-  it('runs the monument and palace steps in the tick: a site with no guild lays nothing, the palace works count down', () => {
+  it('runs the monument and palace steps in the tick: a site with no crew waits, the palace works count down', () => {
     const w = city('city');
-    const s = monument(w, 'obelisk_small', 20, 3);                               // no road, no guild, no stone
+    const s = monument(w, 'obelisk_small', 20, 9);                               // on the road, no guild, no stone
     const gold = w.gold;
     monumentDay(w, []);
-    expect([s.site.course, s.site.done, w.gold]).toEqual([0, null, gold]);
+    expect([s.site.idle, s.site.reason, s.site.course, s.site.done, w.gold]).toEqual([1, 'no_crew', 0, null, gold]);   // Track A
     const pal = addRaw(w, 'palace', 12, 11, { style: 1, works: { style: 2, left: 2 } });
     const events = [];
     advanceDays(w, 2, events);
