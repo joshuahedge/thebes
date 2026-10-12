@@ -5,7 +5,7 @@ import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
 import { FIRE_REACTIONS, MOTION_SETTINGS } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT } from './text.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, CARDS4_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
@@ -60,13 +60,36 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     return el('div', { class: 'row' }, [el('span', { text: label }), el('span', { class: 'choices', role: 'group', 'aria-label': label }, buttons)]);
   }
 
+  // Stage 4, Track G (spec 5.5, ruling 269): Music On / Off and its volume, 0-100 in tens with a 44 px − and + (each
+  // disabled at its end), beside Sound and separate from it.
+  function musicRows() {
+    const C = CARDS4_TEXT;
+    const value = el('span', { class: 'value' });
+    const quieter = button('−', { class: 'quieter', 'aria-label': C.quieter });
+    const louder = button('+', { class: 'louder', 'aria-label': C.louder });
+    const sync = () => {
+      const v = settings.get().musicVolume;
+      value.textContent = String(v);
+      quieter.disabled = v <= 0;
+      louder.disabled = v >= 100;
+    };
+    const step = (d) => { settings.set({ musicVolume: Math.max(0, Math.min(100, settings.get().musicVolume + d)) }); sync(); };
+    quieter.addEventListener('click', () => step(-10));
+    louder.addEventListener('click', () => step(10));
+    sync();
+    return [
+      switchRow(C.music, 'music'),
+      el('div', { class: 'row music-volume' }, [el('span', { text: C.musicVolume }), el('span', { class: 'stepper', role: 'group', 'aria-label': C.musicVolume }, [quieter, value, louder])]),
+    ];
+  }
+
   // Stage 4 (spec 5.4, ruling 216): one Motion row replaces Stage 3's Reduce motion and Ambient motion rows. Track E words
   // what it is doing ("Motion: Gentle (your device asks for less motion)"); Track G adds Music and its volume.
   function settingsSheet(body) {
     const D = DANGER_UI_TEXT;
     const motion = choiceRow(CONTRACT4_TEXT.motion, 'motion', MOTION_SETTINGS.map((m) => [m, CONTRACT4_TEXT.motionLevels[m]]));
     body.append(
-      switchRow(T.sound, 'sound'), switchRow(T.vibration, 'vibration'),
+      switchRow(T.sound, 'sound'), ...musicRows(), switchRow(T.vibration, 'vibration'),
       switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'),
       choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%']]),
       motion,
