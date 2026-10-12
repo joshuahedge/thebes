@@ -190,3 +190,20 @@ export function updatePrestigeUnlocks(world, events = null) {
 }
 
 
+// ── What the supply buildings are doing (Stage 4, Task 0.4) ───────────────────────────────────────────────────────
+
+// The site a builders' guild's crew works today (the site whose site.crews holds it), or null: its sheet's "Crew at work
+// on the small mastaba" and the guild yard's art. Complete from state; Track A keeps site.crews true.
+export function guildSite(world, g) {
+  for (const b of allBuildings(world)) if (isSite(b) && b.site.crews.includes(g.id)) return b.id;
+  return null;
+}
+
+// STUB. Whether a quarry or brickworks is needed (ruling 237): an unpaused, unfinished, road-touching site that still needs
+// its material and has stockpile room lies in its producer reach, or within MONUMENT.supplyReach of a storehouse in its
+// producer reach that accepts the material and has room. An idle one makes nothing, employs nobody and pays no wages
+// (upkeep still runs), its sheet says "Idle: no monument site needs stone within reach" and its art lays its tools down.
+// true for any other building. Until Track A: always true (a quarry works as any producer does).
+export function supplyNeeded(world, b) {
+  return true;
+}

@@ -649,7 +649,7 @@ export function createUI({
       const s = store.get();
       store.set(s.layout === 'wide' ? { category: c.id } : { category: c.id, dock: 'tray' });
     },
-    rotate: () => {},                                  // nothing rotates in Stage 1 (mastabas come with monuments)
+    rotate: () => { if (typeof placement.rotate === 'function') placement.rotate(); },   // Stage 4: R turns a mastaba's ghost (Track C's placement.rotate, ruling 234)
     minimap: () => toggleSheet('minimap'), overlay: () => legend.cycle(),
     confirm: () => {
       const s = store.get();

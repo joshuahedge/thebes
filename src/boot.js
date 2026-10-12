@@ -28,6 +28,7 @@ import { titleDecor } from './ui/scoreUi.js';
 import { devScene, setMotion } from './dev/scenes.js';
 import { createMusic, musicMood } from './audio/music.js';
 import { showPictureCards } from './ui/tutorial.js';
+import { drawMonument } from './render/monuments.js';
 
 const HOUR = 3600 * 1000;
 
@@ -210,7 +211,9 @@ export async function boot(doc, win, {
     const cam = createCamera({ x: world.tradeEntry.x, y: world.size - 22, zoom: 1 });
     const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
     const backdrop = createBackdrop({ world, cam, cameraControl, reducedMotion: settings.reducedMotion });
-    const loop = createGameLoop({ world, render: ({ now: t }) => { backdrop.tick(t); cameraControl.tick(t); renderer.renderFrame(world, cam, { view: view() }); music.tick(t); }, ...loopOptions });
+    // Stage 4: the backdrop's monuments are drawn live as in the game (spec 5.7), still (it never ticks).
+    const live = (g, o) => drawMonument(g, world, o.b, { now: performance.now(), timeDays: world.day, motion: settings.motionLevel() });
+    const loop = createGameLoop({ world, render: ({ now: t }) => { backdrop.tick(t); cameraControl.tick(t); renderer.renderFrame(world, cam, { view: view(), live }); music.tick(t); }, ...loopOptions });
     let message = null;
     blockIfNewer(loaded);
     if (loaded.state === 'error') {
