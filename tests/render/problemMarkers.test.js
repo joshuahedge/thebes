@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { problemMarkers, drawProblemMarkers } from '../../src/render/overlays.js';
+import { problemMarkers, drawProblemMarkers, roadlessPlots } from '../../src/render/overlays.js';
 import { alertsFor } from '../../src/sim/alerts.js';
 import { ART } from '../../src/render/art/registry.js';
 import { UI } from '../../src/render/art/palette.js';
@@ -41,13 +41,29 @@ describe('render problem markers', () => {
     expect(alerts.map((a) => a.code)).toEqual(['bazaar_empty']);
     const marks = problemMarkers(w, alerts, null);
     expect(marks).toEqual([
-      { id: bazaar.id, x: 10, y: 12, lift: liftOf(bazaar, 'bazaar'), kind: 'problem' },
-      { id: shack.id, x: 12.5, y: 9.5, lift: liftOf(shack, 'house.t2'), kind: 'down' },
+      { id: bazaar.id, x: 10, y: 12, lift: liftOf(bazaar, 'bazaar'), kind: 'problem', cause: 'bazaar_empty' },
+      { id: shack.id, x: 12.5, y: 9.5, lift: liftOf(shack, 'house.t2'), kind: 'down', cause: 'down' },
     ]);
-    const noisy = [...alerts, { code: 'no_road', id: bazaar.id }, { code: 'no_road', id: shack.id }, { code: 'no_road', id: 999 }, { code: 'debt' }];
-    expect(problemMarkers(w, noisy, null)).toEqual(marks);                            // one per building; homes, missing ids and city-wide alerts add nothing
+    const noisy = [...alerts, { code: 'no_road', id: shack.id }, { code: 'no_road', id: 999 }, { code: 'debt' }, { code: 'plots_no_road', count: 2, ids: [shack.id] }];
+    expect(problemMarkers(w, noisy, null)).toEqual(marks);                            // one per building; homes, missing ids, city-wide and many-plot alerts add nothing
     expect(problemMarkers(w, alerts, { x0: 0, y0: 0, x1: 8, y1: 31 })).toEqual([]);   // off screen
     expect(problemMarkers(w, alerts, { x0: 9, y0: 11, x1: 10, y1: 12 }).map((m) => m.kind)).toEqual(['problem']);
+  });
+  it('names the cause: the road beats any other alert on the same building', () => {
+    const { w, bazaar } = town();
+    const both = [{ code: 'bazaar_empty', id: bazaar.id }, { code: 'no_road', id: bazaar.id }];
+    expect(problemMarkers(w, both, null).map((m) => [m.id, m.cause])).toEqual([[bazaar.id, 'no_road'], [4, 'down']]);
+    expect(problemMarkers(w, [...both].reverse(), null)[0].cause).toBe('no_road');       // whatever order the alerts come in
+    expect(problemMarkers(w, [{ code: 'fire_risk', id: bazaar.id }], null)[0].cause).toBe('fire_risk');
+  });
+  it('lists the homes and plots in view that have no road beside them', () => {
+    const { w } = town();
+    const lone = addRaw(w, 'house', 20, 20);                                          // far from the road on row 10
+    const edge = addRaw(w, 'house', 5, 11);                                           // beside it
+    expect(roadlessPlots(w, null)).toEqual([{ id: lone.id, x: 20, y: 20 }]);
+    expect(edge.id).toBeGreaterThan(0);
+    expect(roadlessPlots(w, { x0: 0, y0: 0, x1: 10, y1: 12 })).toEqual([]);           // off screen
+    expect(roadlessPlots(w, { x0: 18, y0: 18, x1: 22, y1: 22 }).map((t) => t.id)).toEqual([lone.id]);
   });
   it('marks nothing in a healthy town', () => {
     const { w, bazaar, shack } = town();
@@ -69,6 +85,37 @@ describe('render problem markers', () => {
       expect([b.type, near(c, 100, cy, disc) > 20]).toEqual([b.type, true]);
       expect([b.type, near(c, 100, cy, glyph, 5) > 0]).toEqual([b.type, true]);       // the glyph inside the disc
     }
+  });
+  it('keeps the badge 20 CSS px across when the map is zoomed out, and draws the road mark for a missing road', () => {
+    const { w, bazaar } = town();
+    const alerts = [{ code: 'no_road', id: bazaar.id }];
+    // 2 device px per art px but 1 CSS px per art px: a phone's pixel ratio of 2 with the map at half size.
+    const c = makeCanvas(200, 200);
+    const ctx = c.getContext('2d');
+    const q = p(bazaar.x + bazaar.w / 2, bazaar.y + bazaar.d / 2);
+    ctx.translate(100 - 2 * q[0], 170 - 2 * q[1]);
+    drawProblemMarkers(makeDraw(ctx, 2, 1), w, alerts, null);
+    const m = problemMarkers(w, alerts, null)[0];
+    const cy = 170 - 2 * (m.lift + 5);                                                 // the badge rides up by what it grew (10 art px, not 5)
+    expect(nearColour(pixelAt(c, 100 + 17, cy), UI.problem, 30)).toBe(true);           // 20 device px = 10 CSS px from the centre: inside the disc
+    expect(nearColour(pixelAt(c, 100 + 24, cy), UI.problem, 30)).toBe(false);          // and not far past it
+    expect(nearColour(pixelAt(c, 100, cy - 6), UI.halo, 30)).toBe(true);               // the road mark's two bars,
+    expect(nearColour(pixelAt(c, 100, cy + 6), UI.halo, 30)).toBe(true);
+    expect(nearColour(pixelAt(c, 100, cy), UI.problem, 30)).toBe(true);                // with coral between them
+  });
+  it('outlines a plot with no road in dashed amber, and leaves a plot beside the road plain', () => {
+    const { w } = town();
+    const lone = addRaw(w, 'house', 20, 20), fed = addRaw(w, 'house', 5, 11);
+    const c = makeCanvas(600, 800);
+    const ctx = c.getContext('2d');
+    ctx.translate(300, 20);
+    drawProblemMarkers(makeDraw(ctx, 2), w, [], { x0: 0, y0: 0, x1: 31, y1: 31 });
+    const centre = (b) => { const q = p(b.x + 0.5, b.y + 0.5); return [300 + 2 * q[0], 20 + 2 * q[1]]; };
+    const at = (b) => pixelAt(c, ...centre(b));
+    expect(at(lone)[3]).toBeGreaterThan(0);                                            // a faint amber wash on the tile
+    expect(at(fed)[3]).toBe(0);
+    const [lx, ly] = centre(lone);
+    expect(near(c, lx, ly, UI.warn, 18)).toBeGreaterThan(0);                           // and the dashes round it
   });
   it('draws the markers in the game frame from the live alerts', async () => {
     const r = await rigUI({ width: 390, height: 844 });

@@ -14,11 +14,11 @@ import { costOf } from '../sim/costs.js';
 import { refusingStores } from '../sim/production.js';
 import { previewWall, drawWall } from '../sim/defence.js';
 import { canBurn } from '../sim/fire.js';
-import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
+import { roadReach, adjacentRoadTiles, touchesRoad } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
-import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, T, DANGER_UI_TEXT } from './text.js';
+import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, T, DANGER_UI_TEXT } from './text.js';
 
 const footprintOf = (tool) => (tool.kind === 'building' ? { w: BUILDINGS[tool.type].w, d: BUILDINGS[tool.type].d } : { w: 1, d: 1 });
 
@@ -289,9 +289,11 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         const a = s.area;
         result = t.kind === 'houses' ? paintHouses(world, a.x0, a.y0, a.x1, a.y1) : demolishArea(world, a.x0, a.y0, a.x1, a.y1);
         cx = (a.x0 + a.x1) / 2 + 0.5; cy = (a.y0 + a.y1) / 2 + 0.5;
-        text = t.kind === 'houses' ? T.plotsPainted : T.demolished;
+        text = t.kind === 'houses' ? '' : T.demolished;
       }
       if (!result.ok) return result;
+      // Plots say how many were laid and, when a road is missing, that (placement review P14): counted after the paint, from the world.
+      if (t.kind === 'houses') text = plotsPlacedText(result.ids.length, result.ids.filter((id) => !touchesRoad(world, world.buildings[id])).length);
       assignLabour(world);
       if (effects) {
         const at = now();

@@ -230,11 +230,20 @@ export const CONDITION_TEXT = {
   suppliedMet: 'Supplied',
   goldShort: (cost, have) => `Not enough gold: ${cost} needed, you have ${have}`,
   placedNoRoad: 'needs a road',
+  placedNoRoadYet: 'no road yet',
   onTerrain: { fertile: 'On fertile land', rocky: 'On rocky ground' },
   // A building with this terrain in its definition: "On fertile land" for a tooltip, "Fertile land" (the chip's words, short enough
   // for a card at 150% text) for a card; '' for any other.
   terrainLine: (type, short = false) => (BUILDINGS[type] && BUILDINGS[type].terrain ? (short ? TERRAIN_WORDS[BUILDINGS[type].terrain] : CONDITION_TEXT.onTerrain[BUILDINGS[type].terrain]) || '' : ''),
 };
+
+// The toast after plots are painted (placement review P14): "6 plots placed", and, when the road is missing, "· no road yet" for
+// all of them or "· 2 with no road yet" for some. total is how many were laid, roadless how many of those touch no road.
+export function plotsPlacedText(total, roadless) {
+  const base = `${plural(total, 'plot', 'plots')} placed`;
+  if (!roadless) return base;
+  return roadless >= total ? `${base} · ${CONDITION_TEXT.placedNoRoadYet}` : `${base} · ${roadless} with no road yet`;
+}
 
 // One condition's words for its chip. cond is a conditionsFor condition; refused says a store in reach is built to hold the good
 // but turns it away (the placing preview works that out). Never invents a state: each sentence is the sim's own reason.
@@ -281,6 +290,15 @@ export const LEVEL_NAMES = { essential: 'water and food', safety: 'safety', serv
 // name) => { title, fix }, where b is the alert's building (or null) and name its name ('A building' without one).
 export const ALERT_TEXT = {};
 
+// One warning for every home or plot with no road beside it (placement review P13): "6 plots have no road". Empty plots are
+// plots and any with people in are homes; a mix says homes, since that is what the player would lose to it.
+function plotsNoRoadWords(alert, world) {
+  const n = alert.count;
+  const empty = (alert.ids || []).every((id) => !world.buildings[id] || world.buildings[id].tier === 0);
+  const [one, many] = empty ? ['plot', 'plots'] : ['home', 'homes'];
+  return { title: `${plural(n, one, many)} ${n === 1 ? 'has' : 'have'} no road`, fix: n === 1 ? 'Draw a road beside it' : 'Draw a road beside them' };
+}
+
 // Every problem names the cause and the fix (spec 6.3).
 export function alertText(alert, world) {
   const b = alert.id ? world.buildings[alert.id] : null;
@@ -288,6 +306,7 @@ export function alertText(alert, world) {
   if (ALERT_TEXT[alert.code]) return ALERT_TEXT[alert.code](alert, world, b, name);
   switch (alert.code) {
     case 'no_road': return { title: `${name} has no road`, fix: 'Lay a road beside it' };
+    case 'plots_no_road': return plotsNoRoadWords(alert, world);
     case 'no_storage': {
       const def = b ? BUILDINGS[b.type] : null;
       const good = def && def.produces ? def.produces.good : 'grain';
@@ -484,7 +503,7 @@ export const T = {
   playWithSound: 'Play with sound', playMuted: 'Play muted', install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',
   installMenu: 'Install on this device', bringCity: 'Bring a city from Safari', bringCityHelp: 'If you saved a city in Safari, open the menu there and choose Export city. Then import that file here.', installWhy: 'Installed on the home screen, the game works offline and keeps your city safe.', installIosSteps: ['Tap Share (the square with an arrow)', 'Scroll down and tap Add to Home Screen', 'Tap Add'], installExportFirst: 'Export your city first: the installed app keeps its own storage. Then import the file from the home-screen app.', installNow: 'Install now', installNotOffered: 'Your browser did not offer to install. Look for Install app or Add to Home screen in its menu.', openInSafari: 'Open in Safari to keep your city', openInChrome: 'Open in Chrome to keep your city', saveNewer: 'This city was saved by a newer version of the game', saveUnreadable: "This save can't be read",
   exported: 'City file downloaded', exportFailed: "Couldn't export the city", exportFirst: 'Export first', replaceCityConfirm: 'Replace the current city with the imported one?', fileUnreadable: "Couldn't read that file",
-  paused: 'Paused', resumed: 'Resumed', pausedHidden: 'Paused while you were away', placed: 'Placed', demolished: 'Demolished', roadLaid: 'Road laid', plotsPainted: 'Plots painted',
+  paused: 'Paused', resumed: 'Resumed', pausedHidden: 'Paused while you were away', placed: 'Placed', demolished: 'Demolished', roadLaid: 'Road laid',
   tapStart: 'Tap where it starts', tapEnd: 'Tap where it ends', tapCorner: 'Tap the far corner', refund: 'Refund',
   shortcuts: 'Keyboard shortcuts', openSummary: 'Open the city summary', overlayOff: 'Turn the overlay off',
   rotate: 'Rotate', housingPlots: 'Housing plots',
@@ -601,7 +620,7 @@ export const TIP_TEXT = {
   arrivals: 'Place more plots: families arrive a few times a month while there is room.',
   house_needs: 'Read what this home needs to grow, then tap Show me for the fix.',
   service_reach: 'Look at the coloured tiles: they are the homes this reaches by road.',
-  problem_marker: 'Tap a building with a red ! badge to see what is wrong and how to fix it.',
+  problem_marker: 'Tap a building with a red badge to see what is wrong and how to fix it.',
   month_summary: "Tap the numbers in the top bar to see this month's taxes, wages and food.",
   more_workers: 'Place more homes: buildings need workers, and homes provide them.',
   undo_demolish: 'Press Undo to bring back what you just removed, if you change your mind.',

@@ -6,6 +6,7 @@ import { GUIDE_GOALS } from '../../src/data/goals.js';
 import { settle } from '../../src/sim/settle.js';
 import { setGuide } from '../../src/sim/commands.js';
 import { buildingAt, housesOf } from '../../src/sim/world.js';
+import { adjacentRoadTiles } from '../../src/sim/reach.js';
 import { select, openSheet, back } from '../../src/ui/modes.js';
 import { TIP_TEXT, T } from '../../src/ui/text.js';
 import { TOKENS } from '../../src/ui/theme.js';
@@ -292,6 +293,30 @@ describe('ui tips', () => {
       expect(r.ui.tips.current()).toBe(null);                                   // its condition cleared
       expect(document.body.classList.contains('nudge-play')).toBe(false);
     } finally { r.cleanup(); }
+  });
+  it('in the game: plots painted with no road bring no Play tip and say so in the toast; one beside a road brings it (placement review P14)', async () => {
+    const away = await rigUI();
+    try {
+      away.ui.placement.start({ kind: 'houses' });
+      away.ui.placement.pointAt(14, 20);
+      away.ui.placement.pointAt(16, 20);                                          // three plots, rows away from the road on y = 10
+      expect(away.ui.placement.confirm().ok).toBe(true);
+      expect(away.ui.tips.current()).toBe(null);                                  // "plots stay empty while paused" would be wrong: they would stay empty in play too
+      expect(away.root.querySelector('#toasts .toast').textContent).toContain('3 plots placed · no road yet');
+    } finally { away.cleanup(); }
+    const mixed = await rigUI();
+    try {
+      mixed.ui.placement.start({ kind: 'houses' });
+      mixed.ui.placement.pointAt(15, 9);
+      mixed.ui.placement.pointAt(15, 12);                                         // (15, 9) touches the road, (15, 12) does not; the road and the well take the tiles between
+      const r = mixed.ui.placement.confirm();
+      expect(r.ok).toBe(true);
+      const roadless = r.ids.filter((id) => !adjacentRoadTiles(mixed.world, mixed.world.buildings[id]).length).length;
+      expect(roadless).toBeGreaterThan(0);
+      expect(roadless).toBeLessThan(r.ids.length);
+      expect(mixed.root.querySelector('#toasts .toast').textContent).toContain(`${r.ids.length} plots placed · ${roadless} with no road yet`);
+      expect(mixed.ui.tips.current()).toBe('press_play');                         // some of them can fill
+    } finally { mixed.cleanup(); }
   });
   it('in the game: a house sheet, a service placed and an overlay each bring their tip, a held one once the tool closes', async () => {
     let t = 0;

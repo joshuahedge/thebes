@@ -35,7 +35,7 @@ import { screenToTile } from '../render/camera.js';
 import { openSheet, closeSheet, select, toggleOverlay } from '../ui/modes.js';
 import { freeTop } from '../ui/layout.js';
 import { placeName } from '../ui/danger.js';
-import { T, DANGER_UI_TEXT, CITIZEN_REMARKS } from '../ui/text.js';
+import { T, DANGER_UI_TEXT, CITIZEN_REMARKS, plotsPlacedText } from '../ui/text.js';
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -307,7 +307,7 @@ async function plots(api, options) {
   const result = paintHouses(world, a.x0, a.y0, a.x1, a.y1);
   if (!result.ok) throw new Error(`devScene plots: no plots beside the road (${result.reason})`);
   assignLabour(world);
-  g.ui.afterCommand({ kind: 'houses', result, text: T.plotsPainted, undoable: true });
+  g.ui.afterCommand({ kind: 'houses', result, text: plotsPlacedText(result.ids.length, result.ids.filter((id) => !adjacentRoadTiles(world, world.buildings[id]).length).length), undoable: true });
   await settle(options, 200);
   return `plots tip ${g.ui.tips.current()} speed ${world.speed}`;
 }
