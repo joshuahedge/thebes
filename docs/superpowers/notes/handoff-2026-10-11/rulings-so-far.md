@@ -1,4 +1,4 @@
-# Rulings made on Josh's behalf, 11-12 Oct 2026 (parts 1-7)
+# Rulings made on Josh's behalf, 11-12 Oct 2026 (parts 1-8)
 
 Josh asked for no questions; every call is listed here with what it costs if wrong. The final session report presents this list (plus any Stage 2 execution rulings added later).
 
@@ -242,3 +242,25 @@ From `notes/2026-10-12-mobile-ux-review.md` (notifications first, as you asked),
 175. Spec 6.3 and 4.1 are updated to match 163-174 (the "Small phones" paragraph, the rank, the threshold bar), and the height budget in section 3 becomes a test at four sizes and three text sizes. — Cost if wrong: none.
 176. On phones, while the game is paused, an ordinary tip waits so a new player always sees the goal and Show me; the Play tip still shows; the guidance order of ruling 164 is unchanged. — Cost if wrong: tips arrive only once play starts.
 177. The Update ready toast is exempt from the one-toast rule on phones and keeps its Restart button until used or dismissed. — Cost if wrong: two toasts can briefly show together.
+
+
+## Part 8: the placement UX pass (12 Oct 2026, from your phone feedback)
+
+From `notes/2026-10-12-placement-ux-review.md`, accepted as proposed. They are numbered P1-P16 because the Stage 4 review has already proposed 178-224. On point 5 this takes option D: a building that lacks only a road can be placed (amber, no upkeep, counts for nothing until a road reaches it); the "planned, unpaid" building state is a follow-up if you still want it after trying D.
+
+- **P1.** A ninth overlay, **Ground**, shows free fertile land (green with dots) and free rocky ground (grey, hatched), with crisp tile edges and a legend in words. Picking a farm, orchard or gem mine turns it on, and while placing one the tiles with room for a whole footprint are brighter. — Cost if wrong: one more overlay to pass when cycling with O.
+- **P2.** The Layers button opens a picker of all overlays plus Off on every layout (a corner popover on phones, a new button under the minimap on wide). O still cycles. — Cost if wrong: switching off from the picker is two taps (the legend's ✕ is still one).
+- **P3.** On touch and pen, a one-finger drag in a drawing tool draws instead of panning; two fingers pan and zoom. Roads and walls follow the finger tile by tile; plots and demolish paint the rectangle from start to finger. A tap adds or removes one tile. Strokes add up into one plan until ✓. The mouse keeps click-start-click-end, drag and Flip. — Cost if wrong: one-finger panning is not available while a drawing tool is open.
+- **P4.** Double-tap zoom is off while any tool is active. — Cost if wrong: zooming while placing needs a pinch.
+- **P5.** A touch plan lays every tile it can and skips blocked ones, marking them coral with ✕ and counting them in the bar. — Cost if wrong: a road can have a gap where something stood.
+- **P6.** After ✓ with touch or pen the tool ends: the map is in Browse, the dock returns as it was when the card was picked, a service's overlay stays on until closed, and the Undo toast stays 6 s above the dock that is showing. Mouse and keyboard keep placing repeatedly. — Cost if wrong: placing several of the same building takes one extra tap each (the card).
+- **P7.** On phones the confirm bar's Undo is an icon button (↶, named Undo), shown only when there is something to undo. — Cost if wrong: Undo is less obvious in the bar; the toast keeps the word.
+- **P8.** A cut goal, tip or caption shows "More ▾"; a tap opens it in place up to 40% of the screen height (scrolling inside beyond), stops its timer, and closes on a second tap, Back, Esc, a map tap, a sheet opening or a change of content. The open goal holds its reward, Show me, "All goals ›" and Skip guide. This replaces ruling 170's "the words open the Goals sheet". — Cost if wrong: the Goals sheet is two taps from the strip, not one.
+- **P9.** The placing preview checks each condition on its own (ground or terrain, road, storage or supply, gold) and shows each as a chip in the confirm bar with a mark and words (✓ met, ! later, ✕ can't). Each footprint tile shows its own state on the map. — Cost if wrong: the bar is one row taller for buildings.
+- **P10.** A building that fails only the road can be placed by the player, in amber ("won't work until a road touches it"), as housing plots already can; the ghost marks the free tiles where a road would join it. Fertile or rocky ground and gold still refuse. The sim's default and the sample city stay strict. — Cost if wrong: a player can spend gold on a building that does nothing until a road comes (Undo refunds it this month).
+- **P11.** A building with no road beside it pays no upkeep and no wages, and does not count for "Build a …" goals until a road touches it. — Cost if wrong: an unconnected building costs nothing to keep (it already does nothing).
+- **P12.** No "planned" building state for now (placed free, built and paid for by itself later). Revisit after Josh has played P10. — Cost if wrong: a farm's gold is spent when it is placed, not when its road arrives.
+- **P13.** Ghost marks and problem markers are at least 20 px across at any zoom; a no-road problem shows the road mark "═", others "!". Road-less housing plots get a dashed amber outline and one warning in the list ("6 plots have no road", View). — Cost if wrong: a busier map while many plots lack a road.
+- **P14.** Plots painted with no road never bring the Press Play tip; their toast says "· no road yet". — Cost if wrong: none.
+- **P15.** Picking a farm, orchard or mine lands its ghost on the nearest free ground of its kind (a fit with only "later" conditions counts), and Show me for the farm goals aims at the nearest free fertile land. Terrain buildings' cards say "On fertile land" or "On rocky ground". — Cost if wrong: the ghost may land a few tiles further from the town than today.
+- **P16.** Spec 4.4, 4.5, 6.3, 6.4, 6.5, 6.6 and 6.8 are updated to match P1-P15, and the mobile budget gains an "expanded" scene (an open tip, limit 40% at every size and text size) and a "farm" placing scene. — Cost if wrong: none.
