@@ -2,3 +2,5 @@
 // with "s4 ui", so tests/run-tests.ps1 -Grep "s4 ui" runs the track alone. Only Track C edits this file.
 import './ui/monumentsTab.test.js';
 import './ui/placing.test.js';
+import './ui/siteSheet.test.js';
+import './ui/otherSheets.test.js';

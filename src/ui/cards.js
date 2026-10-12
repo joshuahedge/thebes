@@ -6,6 +6,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { MILESTONES } from '../data/progression.js';
 import { MONUMENTS, PRESTIGE_UNLOCKS } from '../data/monuments.js';
 import { prestigeOf } from '../sim/prestige.js';
+import { palaceOf } from '../sim/palace.js';
 import { isUnlocked, milestoneIndex } from '../sim/progression.js';
 import { costOf, roadCostOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
@@ -56,6 +57,8 @@ export function cardInfo(world, item) {
   else if (item === 'house') { cost = costOf(world, 'house'); suffix = ' per plot'; }
   else if (item !== 'demolish') cost = costOf(world, item);
   costText = item === 'demolish' ? 'Refunds a quarter' : `${cost} gold${suffix}`;
+  // Stage 4 (spec 4.20): while a palace stands its card is a way to it, not a price (picking it selects the palace).
+  if (item === 'palace' && palaceOf(world)) return { item, name: buildingName(item), cost: 0, costText: UI4_TEXT.palaceStands, affordable: true, locked: false, lockText: '', isNew: false, terrainText: '' };
   const locked = Boolean(BUILDINGS[item]) && !isUnlocked(world, item);
   const isNew = !locked && (world.newItems || []).includes(item);
   // terrainText: "Fertile land" or "Rocky ground" for a building that needs it (placement review P15), "Desert" for a monument
@@ -77,7 +80,7 @@ export function activeItemOf(tool) {
 export function cardsKey(world, category, activeItem) {
   const states = shownItems(world, category).map((item) => {
     const i = cardInfo(world, item);
-    return `${item}:${i.affordable ? 'a' : 'u'}${i.locked ? 'l' : 'o'}${i.isNew ? 'n' : ''}${i.lockText}`;   // a prestige count moving rebuilds it
+    return `${item}:${i.affordable ? 'a' : 'u'}${i.locked ? 'l' : 'o'}${i.isNew ? 'n' : ''}${i.lockText}${i.costText}`;   // a prestige count moving, or a palace standing, rebuilds it
   });
   return `${category}|${activeItem}|${states.join(',')}`;
 }

@@ -8,7 +8,8 @@ import {
 } from '../sim/commands.js';
 import { undo as undoCommand } from '../sim/undo.js';
 import { assignLabour } from '../sim/labour.js';
-import { startTool as startToolPatch, cancelTool } from './modes.js';
+import { startTool as startToolPatch, cancelTool, select } from './modes.js';
+import { palaceOf } from '../sim/palace.js';
 import { AUTO_OVERLAY, NEAREST_FIT_RADIUS } from '../data/ui.js';
 import { homesServedFrom } from '../sim/housing.js';
 import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
@@ -399,6 +400,9 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
   const api = {
     start(tool, centre = null) {
       stroke = null;
+      // Stage 4 (spec 4.20, ruling 271): while a palace stands its card selects it (its sheet opens) instead of starting a tool.
+      const palace = tool.kind === 'building' && tool.type === 'palace' ? palaceOf(world) : null;
+      if (palace) { store.set(select(store.get(), palace.id)); return; }
       store.set(startToolPatch(store.get(), tool));
       if (tool.kind === 'building') {
         setPlacingRot(world, rotOf(tool));                                     // Stage 4: the Ground overlay's room follows the turn
@@ -504,7 +508,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
             : t.kind === 'houses' ? paintHouseTiles(world, tiles) : t.kind === 'plazas' ? paintPlazaTiles(world, tiles) : demolishTiles(world, tiles);
         const xs = tiles.map((q) => q[0]), ys = tiles.map((q) => q[1]);
         cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 0.5; cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 0.5;
-        text = t.kind === 'road' ? T.roadLaid : t.kind === 'wall' ? T.wallBuilt : t.kind === 'houses' ? '' : t.kind === 'plazas' ? `${buildingName('plaza')} ${T.placed.toLowerCase()}` : T.demolished;
+        text = t.kind === 'road' ? T.roadLaid : t.kind === 'wall' ? T.wallBuilt : t.kind === 'houses' ? '' : t.kind === 'plazas' ? UI4_TEXT.plazasLaid(result.ok ? result.ids.length : 0) : T.demolished;
       } else if (t.kind === 'building') {
         const def = footprintOf(t);
         result = place(world, t.type, s.ghost.x, s.ghost.y, { roadLater: true, rot: rotOf(t) });   // only the player's placing waits for a road (P10)
@@ -521,7 +525,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         result = t.kind === 'houses' ? paintHouses(world, a.x0, a.y0, a.x1, a.y1)
           : t.kind === 'plazas' ? paintPlazaTiles(world, rectTiles(a.x0, a.y0, a.x1, a.y1, world.size)) : demolishArea(world, a.x0, a.y0, a.x1, a.y1);
         cx = (a.x0 + a.x1) / 2 + 0.5; cy = (a.y0 + a.y1) / 2 + 0.5;
-        text = t.kind === 'houses' ? '' : t.kind === 'plazas' ? `${buildingName('plaza')} ${T.placed.toLowerCase()}` : T.demolished;
+        text = t.kind === 'houses' ? '' : t.kind === 'plazas' ? UI4_TEXT.plazasLaid(result.ok ? result.ids.length : 0) : T.demolished;
       }
       if (!result.ok) return result;
       // Plots say how many were laid and, when a road is missing, that (placement review P14): counted after the paint, from the world.
@@ -550,9 +554,12 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (!e || e.kind !== 'place') return false;
       return e.ids.some((id) => { const b = world.buildings[id]; return Boolean(b && b.type === 'house' && b.residents > 0); });
     },
+    // Stage 4 (ruling 236): undo refuses a site once work has begun on it and drops that step; the interfaces hear of it as an
+    // 'undo_refused' command (the monuments interface names the site in a toast).
     undo() {
       const r = undoCommand(world);
       if (r.ok) { assignLabour(world); afterCommand({ kind: 'undo', result: r, text: T.undo, undoable: false }); }
+      else if (r.reason === 'work_begun') afterCommand({ kind: 'undo_refused', result: r, undoable: false });
       return r;
     },
     cancel() { stroke = null; store.set(cancelTool(store.get())); },

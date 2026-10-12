@@ -25,11 +25,33 @@
 //     "drag by the body"), in art px at zoom 1 (createUI scales it with the camera as it draws).
 //
 // Track C. The seam context has no camera: the fit reads the one the minimap was given (src/ui/minimap.js cameraOf).
+// Every sheet row is a pure function of what the sim's own functions return (siteStatus, guildSite, supplyNeeded,
+// palaceQuote, palaceMood, prestigeOfBuilding, holdsPrestige, demolishRefundFor), so the tests set the world up both ways and
+// check the words follow (ruling 210, 252).
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
+import { MONUMENTS, MONUMENT, MATERIALS } from '../data/monuments.js';
+import { PALACE_STYLES } from '../data/palace.js';
+import { MILESTONES } from '../data/progression.js';
 import { ART } from '../render/art/registry.js';
 import { pxPerArt, MIN_ZOOM } from '../render/camera.js';
+import { GOLD } from '../render/art/palette.js';
+import { allBuildings, housesOf, isSite, isFinished, isMonument } from '../sim/world.js';
+import { siteStatus, guildSite, guildsNear, supplyNeeded, prestigeOfBuilding, holdsPrestige } from '../sim/monuments.js';
+import { palaceQuote, enlargePalace, palaceMood } from '../sim/palace.js';
+import { workGoldPerUnit, extraGoldOf } from '../sim/costs.js';
+import { setPaused, demolishRefundFor } from '../sim/commands.js';
+import { assignLabour } from '../sim/labour.js';
+import { touchesRoad } from '../sim/reach.js';
+import { desirabilityContributors } from '../sim/desirability.js';
+import { milestoneIndex } from '../sim/progression.js';
+import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../sim/time.js';
 import { FRAME_MARGIN_PX } from './cameraControl.js';
 import { cameraOf } from './minimap.js';
+import { nearestTerrainTile } from './goalsList.js';
+import { el, button } from './components.js';
+import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT } from './text.js';
+
+// ── The pick's fit (Task C1) ─────────────────────────────────────────────────────────────────────────────────────
 
 // The art px a building of `type` in rotation `rot` reaches about its footprint's middle: up (its drawn height plus the back
 // half of the footprint, iso.js p(): a tile is 32 x 16 art px), down (the front half) and across (the footprint's width).
@@ -61,15 +83,211 @@ export function fitZoom(type, rot, zoom, view, insets, margin = FRAME_MARGIN_PX)
   return { zoom: MIN_ZOOM, extent: { up: Math.min(e.up, Math.max(4 * (w + d), room - e.down)), down: e.down } };
 }
 
+// ── The sheets' rows (Task C2) ───────────────────────────────────────────────────────────────────────────────────
+
+const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
+const MAKER = { stone: 'quarry', bricks: 'brickworks' };
+
+// Where a stall's fix points (spec 4.16 Stalls): Show me opens a card with its ghost near the site (a quarry on the rocky
+// ground nearest it), View selects the guild that is short of workers or burning. null when the cause has no fix to offer.
+export function causeFix(world, b, reason, status = null) {
+  const c = centreOf(b);
+  if (reason === 'no_road') return { showMe: { category: 'roads', item: 'road', x: c.x, y: c.y } };
+  if (reason === 'no_crew') return { showMe: { category: 'monuments', item: 'builders_guild', x: c.x, y: c.y } };
+  if (reason === 'no_stone' || reason === 'no_bricks') {
+    const item = MAKER[reason.slice(3)];
+    const at = BUILDINGS[item].terrain ? nearestTerrainTile(world, BUILDINGS[item].terrain, c) || c : c;
+    return { showMe: { category: 'monuments', item, x: at.x, y: at.y } };
+  }
+  if (reason === 'crew_short' || reason === 'crew_burning') {
+    const guilds = status ? status.crews.guilds : [];
+    const id = guilds.length ? guilds[0] : guildsNear(world, b)[0];
+    return Number.isInteger(id) && world.buildings[id] ? { view: id } : null;
+  }
+  return null;
+}
+
+// A stall's cause in words (spec 4.16), the same on the sheet, in the alert list and on Welcome back; '' for none.
+export function causeText(world, b, reason) {
+  const C = UI4_TEXT.cause;
+  if (!reason) return '';
+  if (reason === 'no_crew') return C.no_crew(MONUMENT.crewReach);
+  if (reason === 'waiting_gilding' || reason === 'waiting_capstone') return C[reason](extraGoldOf(world, b.type));
+  if (reason === 'no_stone' || reason === 'no_bricks') return C.material(reason.slice(3));
+  return typeof C[reason] === 'string' ? C[reason] : '';
+}
+
+// The site sheet's rows (spec 6.3), from siteStatus: [{ key, text, share?, fix? }] in the spec's order: progress, crews, the
+// cause of the last day without work (with its fix), each material, pace, gold, prestige.
+export function siteRows(world, b, s = siteStatus(world, b)) {
+  const U = UI4_TEXT;
+  const rows = [{ key: 'progress', text: U.progress(s.progress.course, s.progress.courses, s.progress.done), share: s.progress.done }];
+  rows.push({ key: 'crews', text: U.crews(s.crews.guilds.length, s.crews.max) });
+  const cause = causeText(world, b, s.reason);
+  if (cause) rows.push({ key: 'cause', reason: s.reason, text: cause, fix: causeFix(world, b, s.reason, s) });
+  for (const g of MATERIALS) {
+    const m = s.materials[g];
+    if (m) rows.push({ key: `material-${g}`, text: U.material(g, m.onSite, m.makers.length, m.stores.length) });
+  }
+  if (!s.paused && s.road) {
+    let pace = U.paceLater;
+    if (s.pace !== null) pace = U.pace(s.pace);
+    else if (s.last && !(s.last.units > 0)) pace = U.notProgressing(s.reason);
+    rows.push({ key: 'pace', text: pace });
+  }
+  rows.push({ key: 'gold', text: s.last ? U.lastMonth(s.last.gold, s.last.crews) : U.workGold(workGoldPerUnit(world) * MONUMENT.unitsPerCrewMonth) });
+  rows.push({ key: 'prestige', text: s.prestige.holds ? U.prestige(s.prestige.now, s.prestige.more) : U.otherHolds(b.type) });
+  return rows;
+}
+
+// How many homes a standing building makes nicer: the homes it adds desirability to (desirabilityContributors).
+export function homesMadeNicer(world, b) {
+  return housesOf(world).filter((h) => desirabilityContributors(world, h, Infinity).some((c) => c.id === b.id && c.value > 0)).length;
+}
+
+// A finished monument's rows (spec 6.3, ruling 258): the day it was finished, its prestige or which other of its kind holds it,
+// and the homes it makes nicer.
+export function finishedRows(world, b) {
+  const U = UI4_TEXT;
+  const month = Math.floor(b.site.done / DAYS_PER_MONTH);
+  return [
+    { key: 'finished', text: U.finishedOn(Math.floor(month / MONTHS_PER_YEAR) + 1, (month % MONTHS_PER_YEAR) + 1) },
+    { key: 'prestige', text: holdsPrestige(world, b) ? U.countsFor(prestigeOfBuilding(b)) : U.otherCounts(b.type) },
+    { key: 'nicer', text: U.homesNicer(homesMadeNicer(world, b)) },
+  ];
+}
+
+// A builders' guild's, quarry's or brickworks' line (spec 6.3, ruling 258), or '' (a working quarry says what it makes on the
+// Stage 1 work line). A quarry or brickworks serves the first site whose siteStatus lists it among its makers. sim: the sim
+// functions it reads (Track A's; a test hands in their contract shapes).
+const SUPPLY_SIM = { siteStatus, supplyNeeded, guildSite };
+export function supplyLine(world, b, sim = SUPPLY_SIM) {
+  const U = UI4_TEXT;
+  if (b.type === 'builders_guild') {
+    if (b.paused) return '';
+    const id = sim.guildSite(world, b);
+    return id !== null ? U.crewAt(world.buildings[id].type) : U.guildIdle(MONUMENT.crewReach);
+  }
+  const good = BUILDINGS[b.type].produces && BUILDINGS[b.type].produces.good;
+  if (!good || !MATERIALS.includes(good) || b.paused) return '';
+  for (const site of allBuildings(world)) {
+    if (!isSite(site)) continue;
+    const m = sim.siteStatus(world, site).materials[good];
+    if (m && m.makers.includes(b.id)) return U.sends(good, site.type);
+  }
+  return sim.supplyNeeded(world, b) ? '' : U.supplyIdle(good);
+}
+
+// The palace's rows (spec 6.3, 4.20): its style, then its desirability and mood while a road touches it (else that it needs
+// one, with Show me), and the works' days left while it is enlarged.
+export function palaceRows(world, b) {
+  const U = UI4_TEXT;
+  const style = PALACE_STYLES[b.style];
+  const rows = [{ key: 'style', text: U.palaceStyle(UI4_PALACE_TEXT[style.id].name) }];
+  if (touchesRoad(world, b)) rows.push({ key: 'nicer', text: U.palaceNicer(style.desirability) }, { key: 'mood', text: U.palaceMood(palaceMood(world)) });
+  else rows.push({ key: 'road', text: U.palaceNoRoad, fix: causeFix(world, b, 'no_road') });
+  if (b.works) rows.push({ key: 'works', text: U.palaceWorks(UI4_PALACE_TEXT[PALACE_STYLES[b.works.style].id].to, b.works.left) });
+  return rows;
+}
+
+// Enlarge the palace (spec 4.20, ruling 273): { ok, text } from palaceQuote: the next style and its price, or why it waits.
+export function enlargeModel(world, b) {
+  const q = palaceQuote(world, b.id);
+  const W = UI4_TEXT.enlargeWhy;
+  const next = q.next === null ? null : UI4_PALACE_TEXT[PALACE_STYLES[q.next].id];
+  if (q.ok) return { ok: true, text: UI4_TEXT.enlarge(next.to, q.price), quote: q, next };
+  let text = W.last_style;
+  if (q.reason === 'works') text = W.works(b.works.left);
+  else if (q.reason === 'locked') text = W.locked(next.comes, MILESTONES[milestoneIndex(q.milestone)].name);
+  else if (q.reason === 'no_road') text = W.no_road;
+  else if (q.reason === 'no_gold') text = W.no_gold(world.gold);
+  return { ok: false, text, quote: q, next };
+}
+
+// Demolish's question for a monument or the palace (spec 4.16, 4.20): what is lost and the refund, or null for anything else.
+export function demolishQuestion(world, b) {
+  const U = UI4_TEXT;
+  const refund = demolishRefundFor(world, b);
+  if (b.type === 'palace') return U.tearDownPalace(b.style + (b.works ? 1 : 0), refund);
+  if (!isMonument(b)) return null;
+  const counts = holdsPrestige(world, b) ? prestigeOfBuilding(b) : 0;
+  if (isFinished(b)) return U.tearDownFinished(b.type, counts, refund);
+  return U.tearDownSite(b.type, b.site.course, MONUMENTS[b.type].courses.length, counts > 0, refund);
+}
+
+// ── The interface ────────────────────────────────────────────────────────────────────────────────────────────────
+
 export function createMonumentUi(ctx) {
   const { world, store } = ctx;
+  const after = (e) => { if (typeof ctx.afterCommand === 'function') ctx.afterCommand(e); };
+  const motion = () => (ctx.settings && typeof ctx.settings.motionLevel === 'function' ? ctx.settings.motionLevel() : 'still');
+
+  // A row with its fix: Show me opens the card and aims its ghost; View selects the building.
+  function fixButton(row) {
+    const f = row.fix;
+    if (!f) return null;
+    if (f.showMe) return button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${row.text}`, onClick: () => ctx.showMeAt(f.showMe) });
+    const g = world.buildings[f.view];
+    return button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(g.type)), onClick: () => ctx.selectBuilding(f.view) });
+  }
+  const rowList = (cls, rows) => el('ul', { class: `s4-rows ${cls}` }, rows.map((r) => el('li', { class: `row-${r.key}`, dataset: { row: r.key } }, [
+    el('span', { class: 'text', text: r.text }),
+    Number.isFinite(r.share) ? el('span', { class: 'meter', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.floor(r.share * 100)), 'aria-label': r.text }, [
+      el('span', { class: 'fill', style: { width: `${Math.floor(r.share * 100)}%` } })]) : null,
+    fixButton(r),
+  ])));
+
+  function buildingPart(b) {
+    if (isSite(b)) return [rowList('site', siteRows(world, b))];
+    if (isFinished(b)) return [rowList('finished', finishedRows(world, b))];
+    if (b.type === 'palace') return [rowList('palace', palaceRows(world, b))];
+    const line = ['builders_guild', 'quarry', 'brickworks'].includes(b.type) ? supplyLine(world, b) : '';
+    return line ? [el('p', { class: 'work-status supply-line', text: line })] : [];
+  }
+
+  function enlarge(b, m) {
+    store.set({ confirmDialog: { text: UI4_TEXT.enlargeAsk(m.next.to, m.quote.price), confirmLabel: UI4_TEXT.enlargeOk, onConfirm: () => {
+      const r = enlargePalace(world, b.id);
+      if (!r.ok) return;
+      if (ctx.toasts) ctx.toasts.show(UI4_TEXT.enlarged(m.next.to, r.days));
+      after({ kind: 'enlarge', result: r, undoable: false });
+    } } });
+  }
+
+  function actionsPart(b) {
+    if (isSite(b)) {
+      return [
+        button(b.paused ? T.resume : T.pause, { class: 'pause', onClick: () => {
+          const r = setPaused(world, b.id, !b.paused);
+          if (r.ok) { assignLabour(world); after({ kind: 'pause', result: r, text: b.paused ? T.paused : T.resumed, undoable: false }); }
+        } }),
+        button(T.view, { class: 'view', 'aria-label': viewLabel(buildingName(b.type)), onClick: () => ctx.selectBuilding(b.id) }),
+      ];
+    }
+    if (b.type === 'palace') {
+      const m = enlargeModel(world, b);
+      return [button(m.text, { class: m.ok ? 'enlarge primary' : 'enlarge', disabled: !m.ok, onClick: () => enlarge(b, m) })];
+    }
+    return [];
+  }
+
   return {
     sheets: {},
-    sheetParts: {},
-    onEvents(events) {},
+    sheetParts: { building: buildingPart, actions: actionsPart },
+    onEvents(events) {
+      for (const e of events) {
+        if (e.type !== 'palace_done') continue;
+        const b = world.buildings[e.id];
+        if (ctx.celebrations) ctx.celebrations.show({ tier: 'info', text: UI4_TEXT.palaceDone(UI4_PALACE_TEXT[PALACE_STYLES[e.style].id].to) });
+        if (b && ctx.effects && motion() === 'full') ctx.effects.sparkle(b.x + b.w / 2, b.y + b.d / 2, GOLD, ctx.now());   // a small sparkle under Full only
+      }
+    },
     refresh() {},
     onAlertAction(alert, action) {},
-    onCommand(e) {},
+    // Undo refused once work has begun on a site (ruling 236): its own words, naming the site (placement.js passes it on).
+    onCommand(e) {
+      if (e.kind === 'undo_refused' && e.result && e.result.reason === 'work_begun' && ctx.toasts) ctx.toasts.show(UI4_TEXT.workBegun(e.result.type));
+    },
     pickFit(type, ghost, insets) {
       const shown = cameraOf(world);
       if (!shown || !BUILDINGS[type] || !BUILDINGS[type].monument || !ghost) return null;
