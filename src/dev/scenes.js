@@ -484,12 +484,17 @@ export function monumentSpot(world, n = 7) {
   return { x: best.x, y: best.y, n };
 }
 
-// The title card with its backdrop.
-// S4-TODO: the Stage 4 title backdrop has a finished small obelisk and a colossus under way (review note 7.1 item 7).
+// The title card with its backdrop (Track F, spec 4.1, 5.7 item 7, review note 7.1 item 7): the camera's first drift point
+// frames the sample city's colossus under way, its finished small obelisk and its palace in its third style
+// (src/dev/sampleCity.js addShowcase), the view Gentle and Still hold. The description names what the backdrop shows.
 async function title(api) {
   if (api.phase() !== 'title') throw new Error('devScene title: open the title card (/?nosw=1)');
   await wait(300);
-  return 'title';
+  const view = api.titleView && api.titleView();
+  const find = (type) => (view ? allBuildings(view.world).find((b) => b.type === type) : null);
+  const ob = find('obelisk_small'), co = find('colossus'), pal = find('palace');
+  if (!ob || !co || !pal) return 'title';
+  return `title: small obelisk ${ob.site.done === null ? 'under way' : 'finished'}, colossus course ${co.site.course}, palace style ${pal.style}`;
 }
 
 // The picture cards (Track G, src/dev/tutorialScenes.js): on the title card, the cards' first card as a player first meets
@@ -534,10 +539,11 @@ async function palace(api) {
   }
   if (!['capital', 'great_city', 'city', 'market_town', 'town'].includes(world.milestone)) world.milestone = 'town';
   world.gold = Math.max(world.gold, 1000);
-  const roadSpot = spotFor(world, 'palace', c.x - 1.5, c.y - 1.5, 10);
+  const standing = allBuildings(world).find((b) => b.type === 'palace');      // the sample city has one (Track F): enlarge it
+  const roadSpot = standing || spotFor(world, 'palace', c.x - 1.5, c.y - 1.5, 10);
   const at = roadSpot || best;
   if (!at) throw new Error('devScene palace: no free 3x3 in the town centre');
-  const result = place(world, 'palace', at.x, at.y, { roadLater: !roadSpot });
+  const result = standing ? { ok: true, id: standing.id } : place(world, 'palace', at.x, at.y, { roadLater: !roadSpot });
   if (!result.ok) throw new Error(`devScene palace: the palace would not go down (${result.reason})`);
   world.buildings[result.id].style = PALACE.lastStyle;
   assignLabour(world);

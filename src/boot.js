@@ -256,7 +256,7 @@ export async function boot(doc, win, {
         startSeed: (seed) => (loaded.state === 'ok' ? confirmNewCity(loaded, seed) : withCards(() => startGame(freshWorld({ seed })))),
       }),
     });
-    title = { card, loop, backdrop };
+    title = { card, loop, backdrop, world, cam };
     if (flow.shouldShowGuide()) card.showGuide(guide);
     loop.start();
   }
@@ -290,6 +290,7 @@ export async function boot(doc, win, {
   api = {
     phase: () => (title ? 'title' : 'game'),
     game: () => current,
+    titleView: () => (title ? { world: title.world, cam: title.cam } : null),   // Stage 4 (Track F): the backdrop's city and camera, for the title scene
     startGame, hooks, records, music,
     destroy() {
       win.removeEventListener('beforeinstallprompt', onPrompt); showNotice(root.querySelector('#notice'), null); leaveTitle(); stopGame();
