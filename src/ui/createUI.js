@@ -12,7 +12,7 @@ import { checkFirsts } from '../sim/firsts.js';
 import { checkAchievements } from '../sim/achievements.js';
 import { allBuildings } from '../sim/world.js';
 import { touchesRoad } from '../sim/reach.js';
-import { screenToTile, visibleTileRange, pxPerArt } from '../render/camera.js';
+import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
@@ -82,6 +82,7 @@ export function createUI({
   // Stage 3: the danger and score interfaces, made below once their context exists. Until then (afterCommand can run
   // during construction) seams() is empty, so nothing calls them early.
   let danger = null, scoreUi = null;
+  let toastLow = null;   // { dock, mode, sheet, layout } while the toast sits low after a touch tick (leavePlan, setToastLow)
   const seams = () => [danger, scoreUi].filter(Boolean);
   let saveFailed = false, destroyed = false;
   // The guidance row's controller (syncGuidance, below) runs from the tips' and captions' callbacks, which may fire
@@ -316,7 +317,8 @@ export function createUI({
   }
   // The tick (spec 6.5, 6.7, placement review P6). A mouse or the keyboard keeps placing repeatedly; a touch or pen tick ends the
   // tool: the map goes to Browse, the dock is as it was when the card was picked (the tray on the same category, so the same
-  // card is one tap away) and a service's overlay stays on. A building is panned the least that keeps it above the dock.
+  // card is one tap away) and a service's overlay stays on. A building is panned the least that keeps the whole of it in sight
+  // (leavePlan says where, and whether the toast moves or the map zooms out to make room).
   // `type` is the input type of the press ('touch', 'pen', 'mouse', 'keyboard'); nothing means keep placing.
   function confirm(type) {
     const before = store.get();
@@ -334,32 +336,62 @@ export function createUI({
         const portrait = store.get().layout === 'portrait';
         const margin = portrait ? LEAVE_MARGIN_PX : FRAME_MARGIN_PX;
         const need = (extent.up + extent.down) * pxPerArt(cam) + 2 * margin;
-        cameraControl.keepVisible(before.ghost.x + def.w / 2, before.ghost.y + def.d / 2, leaveInsets(store.get(), need), margin, undefined, extent);
+        const plan = leavePlan(store.get(), need, margin);
+        setToastLow(plan.toastLow);
+        cameraControl.keepVisible(before.ghost.x + def.w / 2, before.ghost.y + def.d / 2, plan.insets, margin, undefined, extent, plan.zoom);
       }
     }
     return r;
   }
-  // The map the dock leaves free once the tool has ended: the corner buttons ride on the dock, so their top is its edge, and
-  // the "placed · Undo" toast sits on them, so the building is kept clear of that too. The top is the rows under the top bar
-  // (the overlay legend stays on), not capped the way a sheet's is: the new building must not end up behind them. At large
-  // text the rows above and the toast leave a band shorter than the building (`need` px). The legend stays but the toast
-  // goes in 6 s, and under the corner buttons the dock can leave free map of its own, so then the building goes where it
-  // is clear of everything: the band between the corner buttons and the dock when that is tall enough, else the band
-  // between the legend and the corners (the toast may then hide it for those 6 s).
-  function leaveInsets(s, need = 0) {
+  // Where a new building goes once a touch tick has ended the tool, kept whole (`need` px tall with its margins) and clear of the
+  // rows under the top bar (the overlay legend stays on), the "placed · Undo" toast and the corner buttons, which ride on the
+  // dock with the toast on them. On a phone held upright, in this order:
+  // 1. the band between the rows above and the toast, when it is tall enough;
+  // 2. at large text it is not, but the tray can be shorter than the room kept for it, leaving free map under the corner buttons:
+  //    when the toast fits there, it moves down into it (toastLow: its bottom, px above the map's bottom edge) and the building
+  //    takes the band between the rows above and the corner buttons;
+  // 3. the free map under the corner buttons itself, when that alone holds the building;
+  // 4. else the band above the toast, with the map zoomed out just enough for the building to fit it (never past the least zoom).
+  // Every other layout keeps the sheet's insets.
+  function leavePlan(s, need = 0, margin = 0) {
     const i = sheetInsets(s);
-    if (s.layout !== 'portrait') return i;
+    const plain = { insets: i, toastLow: null, zoom: null };
+    if (s.layout !== 'portrait') return plain;
     const h = view().height;
     const top = Math.max(TOPBAR_PX, freeTop(root, canvas, s.layout));
     const corners = cornersHeight(root, canvas, h) || placingInsets(s).bottom;
     const toast = $('toasts') ? $('toasts').getBoundingClientRect().height : 0;
     const withToast = corners + (toast > 0 ? toast + 8 : 0);
-    if (h - top - withToast >= need) return { ...i, top, bottom: withToast };
+    if (h - top - withToast >= need) return { ...plain, insets: { ...i, top, bottom: withToast } };
     const dock = $('dock') ? $('dock').getBoundingClientRect().top - canvas.getBoundingClientRect().top : 0;
     const under = cornersBottom(root, canvas);
-    if (dock > 0 && under > 0 && dock - under >= need) return { ...i, top: under, bottom: h - dock };
-    return { ...i, top, bottom: corners };
+    const gap = dock > 0 && under > 0 ? dock - under : 0;
+    if (toast > 0 && gap >= toast + 8 && h - top - corners >= need) {
+      return { insets: { ...i, top, bottom: corners }, toastLow: h - dock + Math.round((gap - toast) / 2), zoom: null };
+    }
+    if (gap >= need) return { ...plain, insets: { ...i, top: under, bottom: h - dock } };
+    const band = h - top - withToast;
+    const zoom = band > 2 * margin && need > 2 * margin ? cam.zoom * (band - 2 * margin) / (need - 2 * margin) : MIN_ZOOM;
+    return { insets: { ...i, top, bottom: withToast }, toastLow: null, zoom: Math.max(MIN_ZOOM, Math.min(cam.zoom, zoom)) };
   }
+  // The toast moved down into the free map under the corner buttons (leavePlan, step 2), or put back (null). It goes back by
+  // itself once no toast is showing, or when the dock, the mode, a sheet or the layout changes. toastLow is declared at the top.
+  function setToastLow(px) {
+    if (px === null) {
+      if (toastLow === null) return;
+      toastLow = null;
+      root.classList.remove('toast-low');
+      root.style.removeProperty('--toast-low');
+      return;
+    }
+    const s = store.get();
+    toastLow = { dock: s.dock, mode: s.mode, sheet: s.sheet, layout: s.layout };
+    root.style.setProperty('--toast-low', `${px}px`);
+    root.classList.add('toast-low');
+  }
+  store.subscribe((s) => {
+    if (toastLow && (s.dock !== toastLow.dock || s.mode !== toastLow.mode || s.sheet !== toastLow.sheet || s.layout !== toastLow.layout)) setToastLow(null);
+  });
   function undo() {
     if (!placement.canUndo()) return;
     if (placement.undoNeedsConfirm()) store.set({ confirmDialog: { text: T.undoOccupiedConfirm, confirmLabel: T.undo, onConfirm: () => placement.undo() } });
@@ -832,6 +864,7 @@ export function createUI({
     lastFrameAt = t;
     frameNow = t;
     cameraControl.tick(t);
+    if (toastLow && !$('toasts').querySelector('.toast')) setToastLow(null);   // the toast it was moved for has gone
     const s = store.get();
     const v = view();
     const range = visibleTileRange(cam, v, world.size);
@@ -910,7 +943,8 @@ export function createUI({
       delete root.dataset.mode;
       delete root.dataset.guidance;
       root.style.removeProperty('--guidance-max');
-      root.classList.remove('has-banner', 'has-overlay', 'nudge-play', 'screenshot');
+      root.style.removeProperty('--toast-low');
+      root.classList.remove('has-banner', 'has-overlay', 'nudge-play', 'screenshot', 'toast-low');
       store.dispose();                                 // last: every component's subscription to this interface's store
     },
   };

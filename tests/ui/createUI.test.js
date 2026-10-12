@@ -113,7 +113,8 @@ describe('ui createUI', () => {
       r.cleanup();
     });
     // A phone 375x667 at 150% text: the legend (water, left on) ends near 130 px, the toast spans 189-245 and the corner buttons
-    // end near 312, so the band above the toast cannot hold a well (68 px drawn). Returns where the well's roof and ground end.
+    // 249-312, so the band above the toast cannot hold a well (68 px drawn). Returns where the well's roof and ground end, and
+    // where the legend, the toast, the corner buttons and the tray are once the tool has ended.
     async function leaveNarrow(dockHeight) {
       const r = await rigUI({ width: 375, height: 667 });
       r.ui.settings.set({ textSize: 150, reducedMotion: 'on' });
@@ -127,21 +128,30 @@ describe('ui createUI', () => {
       r.ui.cameraControl.tick(1e6);
       const k = 2 * r.cam.zoom, well = r.screenOf(g.x + 0.5, g.y + 0.5);
       const rect = (sel) => r.root.querySelector(sel).getBoundingClientRect();
-      const out = { roof: well.y - (18 + 8) * k, ground: well.y + 8 * k, legend: rect('#legend'), dock: rect('#dock').top, toast: rect('#toasts .toast') };
+      const corners = [...r.root.querySelectorAll('#corners .group')].map((e) => e.getBoundingClientRect()).filter((b) => b.height > 0);
+      const out = { roof: well.y - (18 + 8) * k, ground: well.y + 8 * k, legend: rect('#legend'), dock: rect('#dock').top, toast: rect('#toasts .toast'),
+        cornersTop: Math.min(...corners.map((b) => b.top)), cornersBottom: Math.max(...corners.map((b) => b.bottom)), zoom: r.cam.zoom, low: document.body.classList.contains('toast-low') };
       r.cleanup();
       return out;
     }
-    it('keeps the new building clear of the overlay legend at 375x667 and 150% text, where the free band is narrow', async () => {
+    it('keeps the whole new building in sight above the toast and the corner buttons at 375x667 and 150% text (final review 6)', async () => {
       const o = await leaveNarrow(0);
       expect(o.legend.height > 0).toBe(true);                                    // the water legend stays on after the tool ends
       expect(o.roof >= o.legend.bottom).toBe(true);                             // the well's roof (height 18 plus its back half-footprint) is not behind the legend
-      expect(o.ground <= o.dock).toBe(true);
+      expect([o.low, o.zoom]).toEqual([true, 1]);                               // the toast dropped into the free map under the corner buttons; no zoom
+      expect([o.ground <= o.cornersTop, o.ground <= o.toast.top]).toEqual([true, true]);
+      expect([o.toast.top >= o.cornersBottom, o.toast.bottom <= o.dock]).toEqual([true, true]);   // the toast between the corner buttons and the tray
     });
-    it('puts it in the free map under the corner buttons when the band above the toast is too short, so the toast does not hide it either', async () => {
+    it('does the same when the tray is shorter, with the toast between the corner buttons and the tray', async () => {
       const o = await leaveNarrow(200);
       expect(o.roof >= o.legend.bottom).toBe(true);
-      expect(o.ground <= o.dock).toBe(true);
-      expect(o.ground <= o.toast.top || o.roof >= o.toast.bottom).toBe(true);
+      expect([o.ground <= o.cornersTop, o.ground <= o.toast.top, o.toast.top >= o.cornersBottom, o.toast.bottom <= o.dock]).toEqual([true, true, true, true]);
+    });
+    it('zooms the map out just enough when no free map is left under the corner buttons for the toast', async () => {
+      const o = await leaveNarrow(360);                                          // the tray reaches the corner buttons
+      expect(o.low).toBe(false);
+      expect(o.zoom < 1 && o.zoom >= 0.5).toBe(true);
+      expect([o.roof >= o.legend.bottom, o.ground <= o.toast.top, o.ground <= o.cornersTop]).toEqual([true, true, true]);
     });
     it('puts the toast just above the bar while a tool is on', async () => {
       const r = await rigUI();
