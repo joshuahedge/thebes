@@ -1214,7 +1214,13 @@ Object.assign(UI4_TEXT, {
     no_gold: 'No gold for the crews: work waits until the treasury is above 0',
     waiting_gilding: (gold) => `Waiting for ${ui4Gold(gold)} gold for the gilding`,
     waiting_capstone: (gold) => `Waiting for ${ui4Gold(gold)} gold for the capstone`,
-    material: (good) => `Waiting for ${goodName(good).toLowerCase()}: no ${ui4Lower(ui4MakerOf[good])} or storehouse with ${goodName(good).toLowerCase()} within reach`,
+    // The spec's sentence only when nothing reaches the site; else what is true (a quarry that reaches it has not delivered yet).
+    material: (good, makers = 0, stores = 0) => {
+      const g = goodName(good).toLowerCase();
+      if (!makers && !stores) return `Waiting for ${g}: no ${ui4Lower(ui4MakerOf[good])} or storehouse with ${g} within reach`;
+      const parts = [makers ? ui4Count(makers, ui4MakerOf[good]) : '', stores ? ui4Count(stores, 'storehouse') : ''].filter(Boolean);
+      return `Waiting for ${g}: ${listText(parts)} ${makers + stores === 1 ? 'reaches' : 'reach'} this site, but none has arrived yet`;
+    },
   },
   stallShort: (reason) => UI4_STALL_SHORT[reason] || 'no work',
   material: (good, onSite, makers, stores) => {
@@ -1235,13 +1241,16 @@ Object.assign(UI4_TEXT, {
   homesNicer: (n) => (n ? `Makes ${plural(n, 'home', 'homes')} nicer` : 'Makes no homes nicer yet'),
   // The supply buildings (spec 6.3, ruling 258).
   crewAt: (type) => `Crew at work on the ${ui4Lower(type)}`,
+  crewShort: (type) => `Short of workers: the crew for the ${ui4Lower(type)} cannot start`,
+  crewBurning: (type) => `On fire: the crew for the ${ui4Lower(type)} cannot work`,
   guildIdle: (reach) => `Idle: no monument site within ${reach} road tiles has room for a crew`,
   sends: (good, type) => `Sends ${goodName(good).toLowerCase()} to the ${ui4Lower(type)}`,
   supplyIdle: (good) => `Idle: no monument site needs ${goodName(good).toLowerCase()} within reach`,
   cuttingStone: 'Cutting stone',
   // Demolish asks first (spec 4.16, 4.20).
-  tearDownSite: (type, course, courses, prestige, refund) => `Tear down the ${ui4Lower(type)}? ${course ? `${course} of ${courses} courses ${prestige ? 'and their prestige ' : ''}are lost. ` : ''}Refunds ${ui4Gold(refund)} gold (a quarter of its founding).`,
-  tearDownFinished: (type, prestige, refund) => `Tear down the ${ui4Lower(type)}? ${prestige ? `It and its ${prestige} prestige are lost.` : 'It is lost.'} Refunds ${ui4Gold(refund)} gold (a quarter of its founding).`,
+  // lost: what the city's prestige loses (the best of each kind counts, so a second of the kind makes it less, or nothing).
+  tearDownSite: (type, course, courses, lost, refund) => `Tear down the ${ui4Lower(type)}? ${course ? `${course} of ${courses} courses are lost. ` : ''}${lost ? `The city loses ${lost} prestige. ` : ''}Refunds ${ui4Gold(refund)} gold (a quarter of its founding).`,
+  tearDownFinished: (type, lost, refund) => `Tear down the ${ui4Lower(type)}? ${lost ? `It is lost, and the city loses ${lost} prestige.` : 'It is lost; the city loses no prestige.'} Refunds ${ui4Gold(refund)} gold (a quarter of its founding).`,
   tearDownPalace: (n, refund) => `Tear down the palace? ${n ? `Its ${plural(n, 'enlargement', 'enlargements')} ${n === 1 ? 'is' : 'are'} lost. ` : ''}Refunds ${ui4Gold(refund)} gold.`,
   workBegun: (type) => `Work has begun on the ${ui4Lower(type)}: demolish it instead`,
   plazasLaid: (n) => `${plural(n, 'plaza', 'plazas')} laid`,

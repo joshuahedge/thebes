@@ -68,6 +68,21 @@ describe('s4 ui the site sheet', () => {
     expect([cause().text, siteStatus(w, b).reason]).toEqual(['Paused: no work and no work gold until you resume it', 'paused']);
   });
 
+  it('words a material stall by what reaches the site: the spec sentence only when nothing does', () => {
+    const w = city();
+    const b = addRaw(w, 'pyramid_small', 12, 11);
+    const s = siteStatus(w, b);
+    const reach = (stone, bricks) => ({ ...s, materials: { stone: { ...s.materials.stone, ...stone }, bricks: { ...s.materials.bricks, ...bricks } } });
+    const cause = (status, reason) => siteRows(w, b, { ...status, reason }).find((r) => r.key === 'cause').text;
+    expect(cause(reach({ makers: [], stores: [] }, {}), 'no_stone')).toBe('Waiting for stone: no quarry or storehouse with stone within reach');
+    // A working quarry in reach that has not delivered yet: the sentence must not say none is within reach.
+    expect(cause(reach({ makers: [5], stores: [] }, {}), 'no_stone')).toBe('Waiting for stone: 1 quarry reaches this site, but none has arrived yet');
+    expect(cause(reach({ makers: [5, 6], stores: [7] }, {}), 'no_stone')).toBe('Waiting for stone: 2 quarries and 1 storehouse reach this site, but none has arrived yet');
+    expect(cause(reach({}, { makers: [], stores: [8] }), 'no_bricks')).toBe('Waiting for bricks: 1 storehouse reaches this site, but none has arrived yet');
+    expect(causeText(w, b, 'no_bricks', reach({}, { makers: [8], stores: [] }))).toBe('Waiting for bricks: 1 brickworks reaches this site, but none has arrived yet');
+    expect(causeText(w, b, 'no_stone')).toBe('Waiting for stone: no quarry or storehouse with stone within reach');     // taken from siteStatus when not given
+  });
+
   it('waits for the gilding or the capstone in the city\'s own gold', () => {
     const w = city();
     const b = addRaw(w, 'pyramid_great', 12, 11);
@@ -112,6 +127,10 @@ describe('s4 ui the site sheet', () => {
     b.site.last = { units: 0, gold: 0, crews: 0 };
     b.site.reason = 'no_stone';
     expect(rowsOf(w, b).pace).toBe('Not progressing: no stone');
+    b.site.reason = null;                                                            // a crew that came this month: working today, no month of work yet
+    expect(rowsOf(w, b).pace).toBe('Pace shows after a month of work');
+    b.site.reason = 'no_crew';
+    expect(rowsOf(w, b).pace).toBe('Not progressing: no crew');
     b.paused = true;
     expect(rowsOf(w, b).pace).toBe(undefined);
   });
