@@ -13,18 +13,15 @@ import { alertText, T } from '../../src/ui/text.js';
 import { BUILDINGS } from '../../src/data/buildings.js';
 
 describe('ui carry-overs', () => {
-  it('mirrors the confirm bar and the rail ticks for left-handed play', async () => {
+  it('mirrors the confirm bar for left-handed play', async () => {
     const r = await rigUI({ width: 844, height: 390 });                        // compact: the rail
     fire(r.root.querySelector('#rail .cat[data-category="services"]'), 'click');
     fire(r.root.querySelector('#rail .drawer .card'), 'click');
     expect(r.store.get().mode).toBe('placing');
-    const bottom = r.root.querySelector('#rail .bottom');
     const bar = r.root.querySelector('#confirm .confirm');
-    expect(getComputedStyle(bottom).flexDirection).toBe('column');
     expect(getComputedStyle(bar).flexDirection).toBe('row');
     r.ui.settings.set({ leftHanded: true });
     expect(document.body.dataset.hand).toBe('left');
-    expect(getComputedStyle(bottom).flexDirection).toBe('column-reverse');
     expect(getComputedStyle(bar).flexDirection).toBe('row-reverse');
     r.cleanup();
   });

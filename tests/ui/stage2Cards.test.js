@@ -70,7 +70,7 @@ describe('ui stage 2 cards', () => {
       r.world.milestone = 'town';                                                    // Market town is next: its card shows, locked
       r.ui.refresh();
       for (const sel of ['#dock .cat', '#rail .cat', '#panel .tab']) expect([sel, catsOf(r, sel)]).toEqual([sel, [...SHOWN, 'defence']]);
-      expect(r.root.querySelector('#rail .bottom').previousElementSibling.dataset.category).toBe('defence');   // the rail keeps x and tick below its categories
+      expect(r.root.querySelector('#rail .drawer').previousElementSibling.dataset.category).toBe('defence');   // the rail's categories come before its drawer
       key(r.root, '6');
       expect(r.store.get().category).toBe('defence');
       expect(r.root.querySelector('#dock .tray [data-item="trading_post"]').getAttribute('aria-disabled')).toBe('true');

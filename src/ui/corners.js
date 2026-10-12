@@ -3,6 +3,7 @@
 // height and never sit in the middle of the map.
 import { el, iconButton, setText } from './components.js';
 import { T, plural, layersText, OVERLAY_NAMES } from './text.js';
+import { isToolMode } from './modes.js';
 
 // An icon button with its word underneath. The aria-label leads with the same word, so the name matches the label.
 function labelled(label, glyph, props) {
@@ -13,7 +14,11 @@ function labelled(label, glyph, props) {
   return { b, word };
 }
 
-export function createCorners({ container, store, speedControl, onMinimap, onOverlay, alertCount = () => 0 }) {
+// viewHeight: the screen's height in px (0 when unknown). With the portrait tray open, the corners ride on its top edge; at
+// 125% text and more that edge is above the middle of the map, where nothing may float (spec 6.3, ruling 173), so then
+// they step out of sight (the class "over-half": visibility hidden, which keeps their place so they can be measured again)
+// until the tray closes. A tool, a wide screen or a compact one never hides them this way.
+export function createCorners({ container, store, speedControl, onMinimap, onOverlay, alertCount = () => 0, viewHeight = () => 0 }) {
   const left = el('div', { class: 'group left' });
   speedControl.mountCorner(left);
   const map = labelled(T.mapButton, '▣', { class: 'minimap-button has-badge', onClick: onMinimap });
@@ -23,7 +28,15 @@ export function createCorners({ container, store, speedControl, onMinimap, onOve
   const right = el('div', { class: 'group right' }, [map.b, layers.b]);
   container.append(left, right);
 
+  function overHalf() {
+    const s = store.get(), h = viewHeight();
+    if (!h || s.layout !== 'portrait' || s.dock !== 'tray' || isToolMode(s.mode)) return false;
+    const bottom = parseFloat(getComputedStyle(container).bottom);              // px from the screen's foot (css/ui.css, by the dock height)
+    return Number.isFinite(bottom) && h - bottom - container.offsetHeight < h / 2;
+  }
+
   function render() {
+    container.classList.toggle('over-half', overHalf());
     const n = alertCount();
     badge.hidden = n === 0;
     badge.textContent = String(n);

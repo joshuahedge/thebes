@@ -55,7 +55,8 @@ describe('ui createUI', () => {
     expect(r.store.get().mode).toBe('placing');
     expect(r.store.get().ghost).toEqual({ x: 5, y: 9 });
     expect(r.cam.x).toBe(7);
-    expect(r.root.querySelector('#rail .bottom').hidden).toBe(false);          // x and tick on the rail
+    expect(r.root.querySelector('#rail .bottom')).toBe(null);                  // the rail repeats no x and tick: the confirm bar beside it has them (ruling 173)
+    expect(r.root.querySelector('#confirm .cancel') !== null && r.root.querySelector('#confirm .ok') !== null).toBe(true);
     r.resize(1280, 800);                                                      // laptop
     expect(document.body.dataset.layout).toBe('wide');
     expect([shown('dock'), shown('panel'), shown('rail')]).toEqual([false, true, false]);
