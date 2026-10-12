@@ -115,9 +115,9 @@ describe('s4 motion settings and the Motion row', () => {
         const cs = getComputedStyle(probe);
         return [cs.transitionDuration, cs.transitionDelay, cs.animationName];
       };
-      // Under Full the chrome moves, except where the base's own device rule (prefers-reduced-motion, css/ui.css) stops it.
-      const deviceStops = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      expect(look('full')).toEqual(deviceStops ? ['0s', '0s', 'none'] : ['0.3s', '0.05s', 'cheer-in']);
+      // Under Full the chrome moves, even on a device that asks for less motion (ruling 16: the base's device rule in css/ui.css
+      // only decides before data-motion is set).
+      expect(look('full')).toEqual(['0.3s', '0.05s', 'cheer-in']);
       expect(look('gentle')).toEqual(['0s', '0s', 'none']);
       expect(look('still')).toEqual(['0s', '0s', 'none']);
     } finally {
