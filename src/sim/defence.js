@@ -42,36 +42,52 @@ function raiderTiles(world) {
   return new Set(a ? a.raiders.map((r) => idx(world.size, Math.floor(r.x), Math.floor(r.y))) : []);
 }
 
-// What drawing wall from (x0, y0) to (x1, y1) would do, in the road tool's L (flip picks the other L):
-// { ok, reason, warnings, tiles, gates, cost } where tiles are the map indices that get wall (new tiles and breaches
-// redrawn; standing wall is skipped), gates the subset on roads, and cost = walls x costOf(world, 'wall') + gates x
-// costOf(world, 'gate'). Fails with 'locked' (before Market town), 'out_of_bounds', 'water', 'blocked' (a building in the
-// way, or a raider), 'nothing_to_place' (all of it is wall already) or 'no_gold' (below the debt floor), keeping
-// tiles, gates and cost for the last two.
-export function previewWall(world, x0, y0, x1, y1, flip = false) {
-  if (!isUnlocked(world, 'wall')) return fail('locked');
-  if (![x0, y0, x1, y1].every(Number.isInteger) || !inBounds(world.size, x0, y0) || !inBounds(world.size, x1, y1)) return fail('out_of_bounds');
+// Why wall cannot go on one tile, else null: off the map, water, a building or a raider in the way.
+function wallTileReason(world, x, y, raiders) {
+  if (!Number.isInteger(x) || !Number.isInteger(y) || !inBounds(world.size, x, y)) return 'out_of_bounds';
+  const i = idx(world.size, x, y);
+  if (world.terrain[i] === T.WATER) return 'water';
+  if (world.occ[i] || raiders.has(i)) return 'blocked';
+  return null;
+}
+
+// The wall tool's core (placement review P3, P5): what drawing wall on a list of tiles would do. { ok, reason, warnings, tiles,
+// gates, cost, skipped } where tiles are the map indices that get wall (new tiles and breaches redrawn; standing wall is
+// skipped), each once, gates the subset on roads, cost = walls x costOf(world, 'wall') + gates x costOf(world, 'gate'), and
+// skipped [{ x, y, reason }]. By default the first tile that cannot take wall refuses the lot ('out_of_bounds', 'water',
+// 'blocked': a building or a raider), as the mouse's L does; with skipBlocked (a touch plan) such tiles are skipped and the
+// rest is drawn. Fails with 'locked' (before Market town), 'nothing_to_place' (nothing left to draw) or 'no_gold' (below the
+// debt floor), keeping tiles, gates and cost for the last two.
+export function previewWallTiles(world, list, { skipBlocked = false } = {}) {
+  if (!isUnlocked(world, 'wall')) return fail('locked', { skipped: [] });
   const raiders = raiderTiles(world);
-  const tiles = [], gates = [];
-  for (const [x, y] of roadPath(x0, y0, x1, y1, flip)) {
+  const tiles = [], gates = [], skipped = [], seen = new Set();
+  for (const [x, y] of list) {
+    const k = `${x},${y}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const reason = wallTileReason(world, x, y, raiders);
+    if (reason) {
+      if (!skipBlocked) return fail(reason, { skipped: [] });
+      skipped.push({ x, y, reason });
+      continue;
+    }
     const i = idx(world.size, x, y);
-    if (world.terrain[i] === T.WATER) return fail('water');
-    if (world.occ[i] || raiders.has(i)) return fail('blocked');
     if (world.wall[i] > 0) continue;                                   // standing wall: nothing to do
     tiles.push(i);
     if (world.road[i]) gates.push(i);
   }
-  if (!tiles.length) return fail('nothing_to_place');
+  if (!tiles.length) return fail('nothing_to_place', { skipped });
   const cost = (tiles.length - gates.length) * costOf(world, 'wall') + gates.length * costOf(world, 'gate');
-  if (!canAfford(world, cost)) return fail('no_gold', { tiles, gates, cost });
-  return { ok: true, reason: null, warnings: [], tiles, gates, cost };
+  if (!canAfford(world, cost)) return fail('no_gold', { tiles, gates, cost, skipped });
+  return { ok: true, reason: null, warnings: [], tiles, gates, cost, skipped };
 }
 
-// The drawWall command (spec 7.3): draws the preview's tiles at full hit points, charges its cost, bumps wallVersion,
-// adds tally.wallTiles, takes 'wall' out of newItems, and pushes the undo entry { kind: 'wall', tiles, before, cost }
-// (before: each tile's value before, so undo puts breaches back). Returns the preview's result.
-export function drawWall(world, x0, y0, x1, y1, flip = false) {
-  const p = previewWall(world, x0, y0, x1, y1, flip);
+// Draws the preview's tiles at full hit points, charges its cost, bumps wallVersion, adds tally.wallTiles, takes 'wall' out
+// of newItems, and pushes one undo entry for the whole list, { kind: 'wall', tiles, before, cost } (before: each tile's value
+// before, so undo puts breaches back). Returns the preview's result.
+export function drawWallTiles(world, list, options = {}) {
+  const p = previewWallTiles(world, list, options);
   if (!p.ok) return p;
   const before = p.tiles.map((t) => world.wall[t]);
   for (const t of p.tiles) world.wall[t] = wallHpFor(world, t);
@@ -81,5 +97,29 @@ export function drawWall(world, x0, y0, x1, y1, flip = false) {
   const fresh = world.newItems.indexOf('wall');                      // the Defence card's wall stops saying "New"
   if (fresh >= 0) world.newItems.splice(fresh, 1);
   pushUndo(world, { kind: 'wall', tiles: p.tiles.slice(), before, cost: p.cost });
+  return p;
+}
+
+// The mouse's wall: from (x0, y0) to (x1, y1) in the road tool's L (flip picks the other L), refused whole when any tile of
+// it is blocked. Fails first with 'locked', then 'out_of_bounds' for a fractional or off-map end; otherwise as
+// previewWallTiles, in the shape it always had (no skipped).
+function lineOf(world, x0, y0, x1, y1, flip) {
+  if (!isUnlocked(world, 'wall')) return { fail: fail('locked') };
+  if (![x0, y0, x1, y1].every(Number.isInteger) || !inBounds(world.size, x0, y0) || !inBounds(world.size, x1, y1)) return { fail: fail('out_of_bounds') };
+  return { tiles: roadPath(x0, y0, x1, y1, flip) };
+}
+
+export function previewWall(world, x0, y0, x1, y1, flip = false) {
+  const l = lineOf(world, x0, y0, x1, y1, flip);
+  if (l.fail) return l.fail;
+  const { skipped, ...p } = previewWallTiles(world, l.tiles);
+  return p;
+}
+
+// The drawWall command (spec 7.3): drawWallTiles on the mouse's L.
+export function drawWall(world, x0, y0, x1, y1, flip = false) {
+  const l = lineOf(world, x0, y0, x1, y1, flip);
+  if (l.fail) return l.fail;
+  const { skipped, ...p } = drawWallTiles(world, l.tiles);
   return p;
 }
