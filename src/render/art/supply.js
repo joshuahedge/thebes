@@ -84,41 +84,68 @@ export function buildersGuild(g, X, Y, idle = false) {
   pennant(g, U(p(X + 1.88, Y + 0.12), 6), 9, SUPPLY_TINT);
 }
 
-// Quarry (on rocky ground): a limestone outcrop cut back in steps, each cut face pale and straight with its
-// wedge marks, a split block on the floor, dressed blocks stacked at the front, and two men splitting stone: one
-// swinging a mallet onto a wedge, one with a lever. Idle: the blocks stand, the mallet lies by the wedge, nobody works.
+// Quarry (on rocky ground): a weathered limestone outcrop cut back in steps, each lower step standing forward of the
+// one behind it. Only the front of each step is cut, pale and straight, with a few wedge marks low on it; its side and
+// its top stay rough rock with a jagged crest. A split block on the floor, dressed blocks stacked at the front, and two
+// men splitting stone: one swinging a mallet onto a wedge, one with a lever. Idle: the blocks stand, the mallet lies
+// by the wedge, nobody works.
+export const QUARRY_MASSES = [[0.06, 0.06, 0.92, 0.66, 15], [0.98, 0.06, 0.94, 0.76, 11], [0.06, 0.72, 0.5, 0.56, 7]];
+const CREST = [0.2, 0.42, 0.66, 0.86];                                          // where along an edge the crest jags
+
+// One step of the outcrop: its cut front (the lit face) pale, its side and top in rock tones under a jagged crest.
+function outcrop(g, x, y, w, d, h, k) {
+  const i = 0.05, f = 0.6 + (0.4 * h) / 15;                                    // the crest's jags scale with the step
+  const F = tb(g, x, y, w, d, h, 0, i, [ROCK[0], CUT[1], ROCK[1]]);
+  for (let s = 3; s < h - 1; s += 3.4) {                                        // the bedding planes
+    g.line(F.L(0.02, s), F.L(0.98, s + hs(k, s, 2) - 0.5), '#B39466', 0.45, 0.45);
+    g.line(F.R(0.02, s), F.R(0.98, s + 0.6 * hs(k, s, 8) - 0.3), '#7E6460', 0.45, 0.45);
+  }
+  // the rough side: its top edge worn down unevenly into the rock above it
+  const side = [F.R(0, h)];
+  CREST.forEach((u, j) => side.push(F.R(u, h - f * (0.4 + 1.8 * hs(k, j, 9)))));
+  side.push(F.R(1, h));
+  g.poly(side, ROCK[0]);
+  g.stroke([['M', side[0]], ...side.slice(1).map((q) => ['L', q])], '#7E6460', 0.5, 0.5);
+  // the crest: the top's back edges broken into jags against the sky, its front edge left on the cut
+  const T = (gx, gy, s) => U(p(x + gx, y + gy), h + s);
+  const jag = (j, n) => f * (n % 2 ? 0.3 + 0.7 * hs(k, j, 10) : 1.4 + 2.2 * hs(k, j, 11));
+  const crest = [T(i, d - i, 0)];
+  CREST.forEach((t, j) => crest.push(T(i, d - i - (d - 2 * i) * t, jag(j, j))));
+  crest.push(T(i, i, f * 2.6));
+  CREST.forEach((t, j) => crest.push(T(i + (w - 2 * i) * t, i, jag(j + 4, j + 1))));
+  crest.push(T(w - i, i, f * 0.6), T(w - i, d - i, 0));
+  g.poly(crest, ROCK[0], { outline: true });
+  g.poly([T(w * 0.45, d * 0.25, 0.4), T(w - i, i + 0.04, f * 0.6), T(w - i, d - i, 0), T(w * 0.55, d - i, 0)], ROCK[1], { alpha: 0.45 });   // the crest's shaded flank
+  // three or four wedge marks, unevenly spaced, low on the cut face
+  const n = 3 + (hs(k, 0, 5) > 0.5 ? 1 : 0);
+  for (let j = 0; j < n; j++) {
+    const u = 0.1 + (0.8 * (j + 0.15 + 0.7 * hs(k, j, 6))) / n, s = h * 0.42 + 1.6 * hs(k, j, 7);
+    g.line(F.L(u, s), F.L(u + 0.015, s - 1.1 - 0.8 * hs(k, j, 12)), '#8E7470', 0.6, 0.7);
+  }
+  return F;
+}
+
 export function quarry(g, X, Y, idle = false) {
   g.poly(quad(X + 0.04, Y + 0.04, 1.92, 1.92, 0), '#D9C08E', { outline: true });                       // the quarry floor
-  // the outcrop: weathered rock masses, their fronts cut back in straight pale faces, boulders on their tops
-  const masses = [[0.06, 0.06, 0.92, 0.66, 15], [0.98, 0.06, 0.94, 0.48, 11], [0.06, 0.72, 0.5, 0.56, 7]];
-  masses.forEach(([dx, dy, w, d, h], k) => {
-    const F = tb(g, X + dx, Y + dy, w, d, h, 0, 0.03, [ROCK[0], CUT[1], CUT[2]]);
-    for (let s = 3; s < h - 1; s += 3.4) {                                                                // the bedding planes
-      g.line(F.L(0.02, s), F.L(0.98, s + hs(k, s, 2) - 0.5), '#B39466', 0.45, 0.45);
-      g.line(F.R(0.02, s), F.R(0.98, s), '#9C8A86', 0.45, 0.35);
-    }
-    for (let u = 0.1; u < 0.95; u += 0.14) g.line(F.L(u, h - 0.3), F.L(u, h - 1.8), '#8E7470', 0.5, 0.55);   // wedge marks along the cut edge
-    g.poly(quad(X + dx + 0.03, Y + dy + 0.03, w - 0.06, d - 0.06, h), ROCK[1], { alpha: 0.55 });       // the weathered top
-    for (let i = 0; i < 2 + (k === 0); i++) rock(g, U(p(X + dx + w * (0.2 + 0.6 * hs(k, i, 3)), Y + dy + d * (0.2 + 0.5 * hs(k, i, 4))), h));
-  });
+  QUARRY_MASSES.forEach(([dx, dy, w, d, h], k) => outcrop(g, X + dx, Y + dy, w, d, h, k));
   // a block half split off the low bench, the wedges in its crack
-  const B = box(g, X + 0.78, Y + 0.7, 0.4, 0.3, 4.4, 0, CUT);
+  const B = box(g, X + 0.66, Y + 0.9, 0.36, 0.28, 4.4, 0, CUT);
   g.line(B.L(0.5, 0), B.L(0.5, 4.4), '#8E7470', 0.5);
-  for (const u of [0.2, 0.5, 0.8]) box(g, X + 0.78 + 0.4 * u - 0.02, Y + 0.84, 0.04, 0.04, 1.2, 4.4, TIMBER, 0);
+  for (const u of [0.2, 0.5, 0.8]) box(g, X + 0.66 + 0.36 * u - 0.02, Y + 1.02, 0.04, 0.04, 1.2, 4.4, TIMBER, 0);
   // dressed blocks stacked at the front, ready to go
   blocks(g, X + 1.12, Y + 1.36, 3, idle ? 1 : 2, CUT);
   for (const [u, v] of [[0.3, 1.82], [0.12, 1.5]]) rock(g, p(X + u, Y + v));
-  if (idle) toolsDown(g, X + 0.66, Y + 1.24);
+  if (idle) toolsDown(g, X + 0.66, Y + 1.32);
   else {
     // the mallet man, his mallet raised over a wedge
-    const m = p(X + 0.62, Y + 1.24);
-    fig(g, X + 0.62, Y + 1.24, 'citizen', 0, 0.9);
+    const m = p(X + 0.6, Y + 1.32);
+    fig(g, X + 0.6, Y + 1.32, 'citizen', 0, 0.9);
     g.line(U(m, 8.6), [m[0] + 4.6, m[1] - 14], WOOD, 0.7);
     g.poly([[m[0] + 3.4, m[1] - 15.4], [m[0] + 6.2, m[1] - 14.2], [m[0] + 5.6, m[1] - 12.4], [m[0] + 2.8, m[1] - 13.6]], TIMBER[1], { outline: true });
-    // the lever man, prising the split block
-    const l = p(X + 0.5, Y + 1.0);
-    fig(g, X + 0.46, Y + 1.04, 'citizen', 0, 0.9);
-    g.line([l[0] + 2, l[1] - 7], [l[0] + 9, l[1] + 1], WOOD, 0.8);
+    // the lever man, prising the split block from its right
+    const l = p(X + 1.16, Y + 1.06);
+    fig(g, X + 1.16, Y + 1.06, 'citizen', 0, 0.9);
+    g.line([l[0] - 1.6, l[1] - 7], [l[0] - 9, l[1] - 1], WOOD, 0.8);
   }
   pennant(g, U(p(X + 1.9, Y + 1.02), 0), 11, SUPPLY_TINT);
 }
@@ -178,7 +205,7 @@ export function brickworks(g, X, Y, rows = 3, idle = false) {
 }
 
 const slot = (height, shadows, draw) => ({ w: 2, d: 2, height, bounds: boundsFor(2, 2, height), shadows, draw });
-const GUILD_SHADOWS = [[0.12, 0.12, 1.0, 0.7, 11]], QUARRY_SHADOWS = [[0.06, 0.06, 1.86, 0.62, 12]], KILN_SHADOWS = [[1.26, 0.16, 0.6, 0.6, 12]];
+const GUILD_SHADOWS = [[0.12, 0.12, 1.0, 0.7, 11]], QUARRY_SHADOWS = [[0.06, 0.06, 0.92, 0.66, 15], [0.98, 0.06, 0.94, 0.76, 11]], KILN_SHADOWS = [[1.26, 0.16, 0.6, 0.6, 12]];
 
 export const SUPPLY_ART = {
   builders_guild: slot(20, GUILD_SHADOWS, (g, x, y) => buildersGuild(g, x, y)),

@@ -1,9 +1,9 @@
 import { describe, it, expect } from '../../harness.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
 import { ART, slotFor, boundsFor } from '../../../src/render/art/registry.js';
-import { SUPPLY_TYPES, SUPPLY_TINT, supplySlot, brickworksStage, buildersGuild, quarry, brickworks } from '../../../src/render/art/supply.js';
+import { SUPPLY_TYPES, SUPPLY_TINT, supplySlot, brickworksStage, buildersGuild, quarry, brickworks, QUARRY_MASSES } from '../../../src/render/art/supply.js';
 import { plazaEdges, sphinxFacing, plaza, sphinx } from '../../../src/render/art/plaza.js';
-import { PALACE_DRAW, PALACE_HEIGHT, scaffolding } from '../../../src/render/art/palace.js';
+import { PALACE_DRAW, PALACE_HEIGHT, PYLON_HEIGHT, scaffolding } from '../../../src/render/art/palace.js';
 import { PALACE_STYLES } from '../../../src/data/palace.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
 import { CATEGORY_TINT } from '../../../src/data/ui.js';
@@ -59,6 +59,15 @@ describe('s4 art supply buildings', () => {
     expect(rows[2]).toBeGreaterThan(rows[1]);
   });
 
+  it('cuts only the quarry\'s fronts: rough rock sides and crests, each lower step standing forward of the one behind', () => {
+    const q = drawAlone((g) => quarry(g, 0, 0));
+    expect(countNear(q, '#B99565', 12)).toBeGreaterThan(300);                    // the rock sides (ROCK[1]), not cut stone
+    expect(countNear(q, '#BCA79E', 12)).toBeLessThan(400);                        // the cut stone's shade only on the split and dressed blocks
+    expect(countNear(q, '#E2CFA6', 12)).toBeGreaterThan(600);                     // the pale cut fronts
+    const steps = [...QUARRY_MASSES].sort((a, b) => b[4] - a[4]);
+    for (let k = 1; k < steps.length; k++) expect([k, steps[k][1] + steps[k][3] - (steps[k - 1][1] + steps[k - 1][3]) >= 0.1]).toEqual([k, true]);
+  });
+
   it('shows a supply building nobody works at, or a paused one, idle; a brickworks by how many of its workers it has', () => {
     const need = BUILDINGS.brickworks.workers;
     expect([0, 3, need / 2 - 1, need / 2, need - 1, need].map((staff) => brickworksStage({ staff }))).toEqual([1, 1, 1, 2, 2, 3]);
@@ -81,6 +90,11 @@ describe('s4 art palace', () => {
     for (let i = 1; i < 5; i++) expect([i, ink[i] > ink[0]]).toEqual([i, true]);   // every enlargement covers more of the plot
     expect(tops[2]).toBeLessThan(tops[1]);                                        // the pylons' banners rise over the columned hall
     expect(countNear(shots[3], '#E2B13C', 12)).toBeGreaterThan(countNear(shots[2], '#E2B13C', 12));   // gilded: more gold
+    expect(PYLON_HEIGHT.gilt).toBeGreaterThan(PYLON_HEIGHT.painted);
+    expect(tops[3]).toBeLessThan(tops[2] - 8);                                    // gilded: taller pylons and finials, clear at phone zoom
+    expect(tops[4]).toBeLessThan(tops[3] + 1);                                    // lapis stands at least as tall
+    const gold = (c) => countNear(c, '#E2B13C', 12) + countNear(c, '#F6D46A', 12);
+    expect(gold(shots[3])).toBeGreaterThan(4 * gold(shots[2]));                   // a broad gold read: cappings, cornices, gate, statues
     expect(countNear(shots[4], '#2C4F9E', 12)).toBeGreaterThan(100);             // lapis
     expect(countNear(shots[3], '#2C4F9E', 12)).toBe(0);
   });
