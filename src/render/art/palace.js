@@ -30,14 +30,17 @@ function flag(g, gx, gy, z, h, color, finial = false) {
 }
 
 // A small obelisk with a gilded tip, standing on tile point (gx, gy) at height z.
-export function smallObelisk(g, gx, gy, h, z = 0) {
-  box(g, gx - 0.1, gy - 0.1, 0.2, 0.2, 1.6, z, STONE, 0);
-  const F = tb(g, gx - 0.065, gy - 0.065, 0.13, 0.13, h, z + 1.6, 0.02, STONE);
+// `size` widens it (1: the gilded style's pins; the lapis style's stand broader and taller, so they read at phone zoom).
+export function smallObelisk(g, gx, gy, h, z = 0, size = 1) {
+  const pw = 0.2 * size, sw = 0.13 * size, tw = 0.045 * size, tip = 3.4 * size;
+  box(g, gx - pw / 2, gy - pw / 2, pw, pw, 1.6, z, STONE, 0);
+  const F = tb(g, gx - sw / 2, gy - sw / 2, sw, sw, h, z + 1.6, 0.02 * size, STONE);
   qd(g, F.L, 0.2, 0.8, h * 0.2, h * 0.85, '#E2D6C2', { alpha: 0.6 });
-  for (const s of [h * 0.3, h * 0.55]) { qd(g, F.L, 0.15, 0.85, s, s + 0.6, TEAL, { alpha: 0.8 }); qd(g, F.R, 0.15, 0.85, s, s + 0.6, TEAL_DARK, { alpha: 0.7 }); }
-  const t = U(p(gx, gy), z + 1.6 + h + 3.4), a = U(p(gx - 0.045, gy + 0.045), z + 1.6 + h), b = U(p(gx + 0.045, gy + 0.045), z + 1.6 + h), c = U(p(gx + 0.045, gy - 0.045), z + 1.6 + h);
+  for (const s of [h * 0.3, h * 0.55]) { qd(g, F.L, 0.15, 0.85, s, s + 0.6 * size, TEAL, { alpha: 0.8 }); qd(g, F.R, 0.15, 0.85, s, s + 0.6 * size, TEAL_DARK, { alpha: 0.7 }); }
+  const t = U(p(gx, gy), z + 1.6 + h + tip), a = U(p(gx - tw, gy + tw), z + 1.6 + h), b = U(p(gx + tw, gy + tw), z + 1.6 + h), c = U(p(gx + tw, gy - tw), z + 1.6 + h);
   g.poly([a, b, t], GOLD);
   g.poly([b, c, t], GOLDC[2]);
+  if (size > 1) g.line(b, t, '#FFF4C8', 0.6, 0.9);
 }
 
 // A row of painted columns along x at y = gy, from x0 to x1, standing on z.
@@ -127,9 +130,11 @@ function hall(g, X, Y, { gilt = false, lapis = false } = {}) {
 
 // The gateway: two pylons and the gate between, along the front of the platform. Gilded (styles 3-4), the pylons
 // stand taller (26 against 22) and the gate is taller too, its leaves gilded.
-export const PYLON_HEIGHT = { painted: 22, gilt: 26 };
+// Lapis and gold (style 4) raises them by about a third again (34), so at its grandest the palace is the tallest thing in
+// its block (art-direction review item 8).
+export const PYLON_HEIGHT = { painted: 22, gilt: 26, lapis: 34 };
 function gateway(g, X, Y, y0, opts) {
-  const h = opts.gilt ? PYLON_HEIGHT.gilt : PYLON_HEIGHT.painted, gh = opts.gilt ? 17 : 14;
+  const h = opts.lapis ? PYLON_HEIGHT.lapis : opts.gilt ? PYLON_HEIGHT.gilt : PYLON_HEIGHT.painted, gh = opts.lapis ? 22 : opts.gilt ? 17 : 14;
   pylon(g, X + 0.32, Y + y0, 0.86, 0.6, h, 2, opts);
   const G = box(g, X + 1.22, Y + y0 + 0.12, 0.56, 0.4, gh, 2, STONE);
   qd(g, G.L, 0.18, 0.82, 0, 10, DOOR);
@@ -186,18 +191,18 @@ export function palaceLapis(g, X, Y) {
   qd(g, P.L, 0, 1, 1.6, 2.4, GOLD); qd(g, P.R, 0, 1, 1.6, 2.4, GOLDC[2]);
   hall(g, X, Y, { gilt: true, lapis: true });
   gateway(g, X, Y, 1.24, { gilt: true, lapis: true });
-  for (let i = 0; i < 4; i++) flag(g, X + 0.42 + i * 0.72 + (i > 1 ? 0.06 : 0), Y + 1.9, 2.4, 39, i % 2 ? GOLD : LAPIS, true);
+  for (let i = 0; i < 4; i++) flag(g, X + 0.42 + i * 0.72 + (i > 1 ? 0.06 : 0), Y + 1.9, 2.4, 50, i % 2 ? GOLD : LAPIS, true);
   g.poly(quad(X + 0.3, Y + 2.0, 2.4, 0.86, 2.4), '#F2E6CC');                    // the pool court
   pool(g, X + 0.52, Y + 2.14, 1.96, 0.56);
   g.poly(quad(X + 0.52, Y + 2.14, 1.96, 0.56, 2.4), 'none', { stroke: GOLD, strokeWidth: 0.7 });
   palmAt(g, X + 0.3, Y + 2.78, 0.8, 2.4);
   palmAt(g, X + 2.72, Y + 2.78, 0.8, 2.4);
-  smallObelisk(g, X + 1.0, Y + 2.84, 18, 2.4);
-  smallObelisk(g, X + 2.0, Y + 2.84, 18, 2.4);
+  smallObelisk(g, X + 1.0, Y + 2.8, 24, 2.4, 1.4);
+  smallObelisk(g, X + 2.0, Y + 2.8, 24, 2.4, 1.4);
 }
 
 export const PALACE_DRAW = [palaceCourtyard, palaceColumned, palacePylons, palaceGilded, palaceLapis];
-export const PALACE_HEIGHT = [26, 24, 40, 44, 46];
+export const PALACE_HEIGHT = [26, 24, 40, 44, 58];
 
 // Timber scaffolding round the palace while it is enlarged: poles at the corners and along the front faces, two
 // levels of planks, a ladder, and three workers carrying bricks.
@@ -218,10 +223,17 @@ export function scaffolding(g, X, Y, h) {
   fig(g, X + 2.3, Y + 2.96, 'hauler', 0, 0.85);
 }
 
-const slot = (height, draw) => ({ w: 3, d: 3, height, bounds: boundsFor(3, 3, height), shadows: [[0.3, 0.2, 2.4, 1.3, 12]], draw });
+// The ground shadows: the hall's; lapis and gold also casts the platform's, the hall's and the tall gateway's, the
+// broadest, so its mass sits on the ground.
+const HALL_SHADOW = [[0.3, 0.2, 2.4, 1.3, 12]];
+const SHADOWS = [
+  HALL_SHADOW, HALL_SHADOW, HALL_SHADOW, HALL_SHADOW,
+  [[0.06, 0.06, 2.88, 2.88, 6], [0.3, 0.2, 2.4, 1.2, 14], [0.32, 1.24, 2.36, 0.6, 20]],
+];
+const slot = (height, draw, i = 0) => ({ w: 3, d: 3, height, bounds: boundsFor(3, 3, height), shadows: SHADOWS[i], draw });
 
 export const PALACE_ART = { palace: slot(PALACE_HEIGHT[0], (g, x, y) => palaceCourtyard(g, x, y)) };
 PALACE_STYLES.forEach((s, i) => {
-  PALACE_ART[`palace.s${i}`] = slot(PALACE_HEIGHT[i], (g, x, y) => PALACE_DRAW[i](g, x, y));
-  PALACE_ART[`palace.s${i}.w`] = slot(PALACE_HEIGHT[i], (g, x, y) => { PALACE_DRAW[i](g, x, y); scaffolding(g, x, y, PALACE_HEIGHT[i]); });
+  PALACE_ART[`palace.s${i}`] = slot(PALACE_HEIGHT[i], (g, x, y) => PALACE_DRAW[i](g, x, y), i);
+  PALACE_ART[`palace.s${i}.w`] = slot(PALACE_HEIGHT[i], (g, x, y) => { PALACE_DRAW[i](g, x, y); scaffolding(g, x, y, PALACE_HEIGHT[i]); }, i);
 });
