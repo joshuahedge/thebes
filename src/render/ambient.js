@@ -319,7 +319,7 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
   function draw(g, world, range, now) {
     if (pending) { account(pending.ms, pending.now); pending = null; }   // the last frame had no late layer
     if (g) lateByG.delete(g);                // a late layer left from a frame that never drew it is stale: drop it
-    if (world) stateByWorld.set(world, { level: enabled() ? level() : 'still', dropped: stats.dropped.slice(), now });
+    if (world) stateByWorld.set(world, { level: enabled() ? level() : 'still', dropped: enabled() ? stats.dropped.slice() : [], now });
     if (!enabled() || !g || !range) return;
     const started = clock();
     const off = new Set(AMBIENT.dropOrder.slice(0, dropLevel));
