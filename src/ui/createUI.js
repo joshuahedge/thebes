@@ -129,8 +129,10 @@ export function createUI({
   const helpOn = () => settings.get().help !== 'off';
   // A tip waits while a tool is active, and on a phone while a sheet, the overlay legend or (a landscape phone at large
   // text) the alert row has the row; a tip whose words are about that sheet or overlay (waits: false in data/tips.js) is
-  // dropped unseen instead.
-  const tipsBusy = (s) => isToolMode(s.mode) || (phone() && Boolean(s.sheet || s.overlay || alertHasRow()));
+  // dropped unseen instead. On a phone a tip also waits while the game is paused (ruling 176), so a new player laying the
+  // first road keeps the goal and Show me in sight; the per-frame flush shows it once Play is pressed. The Play tip is
+  // the priority tip and never waits.
+  const tipsBusy = (s) => isToolMode(s.mode) || (phone() && Boolean(s.sheet || s.overlay || alertHasRow() || world.speed === 0));
   const fireTip = (key) => tips.trigger(key, { busy: tipsBusy(store.get()) });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
   const placement = createPlacement({ world, store, afterCommand, effects, now });

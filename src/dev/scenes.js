@@ -282,7 +282,8 @@ function finestHome(world) {
 const putOutCaption = (g, b) => g.ui.celebrations.show({ tier: 'info', text: DANGER_UI_TEXT.putOut('blaze', placeName(b)) });
 
 // The first minutes: a road laid off the start road on the new city once tips may show (none in the session's first
-// TIP_FIRST_DELAY_MS): the goals strip, the goal's caption, the tip it brings and the Undo toast.
+// TIP_FIRST_DELAY_MS): the goals strip, the goal's caption, the tip it brings and the Undo toast. On a phone the city is
+// still paused, so that tip waits for Play (ruling 176) and the caption, then the goal and Show me, keep the row.
 async function early(api, options) {
   const g = inGame(api, 'early');
   await settle(options, TIP_FIRST_DELAY_MS + 300);

@@ -240,3 +240,5 @@ From `notes/2026-10-12-mobile-ux-review.md` (notifications first, as you asked),
 173. The corner buttons hide while the portrait tray is open if they would sit above half the screen; the rail's ✕ and ✓ hide while the confirm bar shows. — Cost if wrong: pausing with a tall tray open needs the tray closed first.
 174. The speed chevron gets the word "Speed"; the countdown chip says "2 months" when the days are 0. — Cost if wrong: none.
 175. Spec 6.3 and 4.1 are updated to match 163-174 (the "Small phones" paragraph, the rank, the threshold bar), and the height budget in section 3 becomes a test at four sizes and three text sizes. — Cost if wrong: none.
+176. On phones, while the game is paused, an ordinary tip waits so a new player always sees the goal and Show me; the Play tip still shows; the guidance order of ruling 164 is unchanged. — Cost if wrong: tips arrive only once play starts.
+177. The Update ready toast is exempt from the one-toast rule on phones and keeps its Restart button until used or dismissed. — Cost if wrong: two toasts can briefly show together.
