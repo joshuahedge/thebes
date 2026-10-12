@@ -109,6 +109,45 @@ describe('s4 art monument gangs', () => {
     expect([edge.length, edge[1][1] > edge[0][1], edge[1][1] > edge[2][1]]).toEqual([3, true, true]);   // the front corner is lowest on screen
   });
 
+  it('outlines only the two top front edges of the course just laid (no chord across its top), and its dust reads', () => {
+    let b = null;
+    const shot = (motion, after) => {
+      const w = makeTestWorld();
+      b = siteIn(w, 'pyramid_small', 4, 4, { course: 3, frac: 0.99 });
+      drawAt((g) => drawMonument(g, w, b, { now: 0, motion }));
+      Object.assign(b.site, { course: 4, laid: { stone: 0, bricks: 0 } });
+      drawAt((g) => drawMonument(g, w, b, { now: 100, motion }));
+      return drawAt((g) => drawMonument(g, w, b, { now: 100 + after, motion }));
+    };
+    const pixels = (c) => c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    const at = (q) => [Math.round(260 + 2 * q[0]), Math.round(150 + 2 * q[1])];         // drawAt's origin, 2 px an art px
+    const block = (c, q, r) => {                                                          // the pixels round q, r px each way
+      const d = pixels(c), [x, y] = at(q), out = [];
+      for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) { const o = ((y + j) * c.width + x + i) * 4; out.push([d[o], d[o + 1], d[o + 2], d[o + 3]]); }
+      return out;
+    };
+    const [gr, gg, gb] = hexToRgb('#E2B13C');
+    const goldish = (px) => px[3] >= 200 && Math.abs(px[0] - gr) <= 40 && Math.abs(px[1] - gg) <= 40 && Math.abs(px[2] - gb) <= 40;
+    const mid = (u, v) => [(u[0] + v[0]) / 2, (u[1] + v[1]) / 2];
+    for (const motion of ['gentle', 'still']) {
+      const lit = shot(motion, OUTLINE_MS / 2), plain = shot(motion, OUTLINE_MS + 1);
+      const [a, f, c] = courseTop('pyramid_small', b.x, b.y, b.w, b.d, 3);
+      const chord = block(lit, mid(a, c), 2), base = block(plain, mid(a, c), 2);
+      expect([motion, 'chord', chord.some(goldish)]).toEqual([motion, 'chord', false]);
+      expect([motion, 'chord same as without', chord.every((px, i) => px.every((v, k) => Math.abs(v - base[i][k]) <= 2))]).toEqual([motion, 'chord same as without', true]);
+      expect([motion, 'left edge', block(lit, mid(a, f), 1).some(goldish), 'right edge', block(lit, mid(f, c), 1).some(goldish)]).toEqual([motion, 'left edge', true, 'right edge', true]);
+    }
+    // The Full dust a third of the way through: the pixels it covers that were already drawn (stone, sand) change by a
+    // visible step, not only a level or two.
+    const puff = pixels(shot('full', DUST_MS / 3)), clear = pixels(shot('full', DUST_MS + 1));
+    let seen = 0;
+    for (let i = 0; i < puff.length; i += 4) {
+      if (clear[i + 3] < 250) continue;
+      if (Math.abs(puff[i] - clear[i]) + Math.abs(puff[i + 1] - clear[i + 1]) + Math.abs(puff[i + 2] - clear[i + 2]) >= 30) seen++;
+    }
+    expect(['dust pixels a visible step off', seen >= 100]).toEqual(['dust pixels a visible step off', true]);   // 145 now; the faint first puff gave 43
+  });
+
   it('draws a record that is not in the world from itself (the placing silhouette), and keeps no state by id', () => {
     const w = makeTestWorld();
     const ghost = { id: -1, type: 'pyramid_great', x: 4, y: 4, w: 7, d: 7, rot: 0, paused: false, site: { ...newSite(), course: 12, done: 0 } };
