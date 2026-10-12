@@ -3,7 +3,7 @@
 // flagpoles and banners before the hall; gilded cornices, seated statues and two small obelisks; and a lapis-and-gold
 // palace with a pool court. A 3x3 drawn once per style as a cached sprite, like the homes. While the palace is being
 // enlarged (b.works), its slot is the old style with timber scaffolding and a few workers round it ('palace.s<n>.w').
-import { box, tb, qd, door, win, parapet, mat, rug, pots, col, bed, pool, stairs, statue, p, U, quad, hs } from './primitives.js';
+import { box, tb, qd, door, win, parapet, mat, rug, pots, col, bed, pool, stairs, p, U, quad, hs } from './primitives.js';
 import { palmAt } from './nature.js';
 import { fig } from './figures.js';
 import { pennant } from './services.js';
@@ -18,11 +18,15 @@ const LAPIS = '#2C4F9E', LAPIS_DARK = '#203C7A';
 const PLATFORM = ['#F2EADA', '#E2D6C2', '#BEB2C2'];
 const BANNERS = [RED, TEAL, GOLD, BLUE];
 
-// The palace's own banner pole: a tall pole with a long pennant.
-function flag(g, gx, gy, z, h, color) {
+// The palace's own banner pole: a tall pole with a long pennant; `finial` tops it with a gilded knob.
+function flag(g, gx, gy, z, h, color, finial = false) {
   const q = U(p(gx, gy), z);
   g.line(q, U(q, h), WOOD, 0.8);
   g.poly([U(q, h), [q[0] + 8, q[1] - h + 2.4], [q[0] + 7, q[1] - h + 4.4], U(q, h - 5)], color);
+  if (finial) {
+    g.poly([U(q, h + 3.2), [q[0] + 1.3, q[1] - h - 1], [q[0] - 1.3, q[1] - h - 1]], GOLDC[1], { outline: true });
+    g.circ(U(q, h + 0.4), 1.4, GOLD, { outline: true });
+  }
 }
 
 // A small obelisk with a gilded tip, standing on tile point (gx, gy) at height z.
@@ -46,10 +50,13 @@ function bands(g, F, list) {
   for (const [a, b, c, c2] of list) { qd(g, F.L, 0, 1, a, b, c); qd(g, F.R, 0, 1, a, b, c2 || c, { alpha: c2 ? 1 : 0.8 }); }
 }
 
-// A pylon: a tapered painted tower; `gilt` gives it a gold cornice, `lapis` lapis panels.
+// A pylon: a tapered painted tower; `gilt` gives it a deep gold cornice under a gold capping, `lapis` lapis panels.
 function pylon(g, x, y, w, d, h, z, { gilt = false, lapis = false } = {}) {
   const F = tb(g, x, y, w, d, h, z, 0.08, STONE);
-  bands(g, F, [[h - 1.4, h, gilt ? GOLD : TEAL, gilt ? GOLDC[2] : TEAL_DARK], [h - 2.4, h - 1.4, RED, RED_DARK], [h - 3.2, h - 2.4, gilt ? TEAL : GOLD, gilt ? TEAL_DARK : GOLDC[2]]]);
+  if (gilt) {
+    bands(g, F, [[h - 3, h, GOLD, GOLDC[2]], [h - 4, h - 3, RED, RED_DARK], [h - 4.8, h - 4, TEAL, TEAL_DARK]]);
+    tb(g, x + 0.05, y + 0.05, w - 0.1, d - 0.1, 1.4, z + h, -0.02, GOLDC);       // the gilded capping
+  } else bands(g, F, [[h - 1.4, h, TEAL, TEAL_DARK], [h - 2.4, h - 1.4, RED, RED_DARK], [h - 3.2, h - 2.4, GOLD, GOLDC[2]]]);
   qd(g, F.L, 0.2, 0.8, 3, h - 5, lapis ? LAPIS : '#F7F1E4');                    // the painted panel
   if (lapis) qd(g, F.L, 0.26, 0.74, 3.6, h - 5.6, LAPIS_DARK, { alpha: 0.5 });
   qd(g, F.L, 0.42, 0.58, 4, h * 0.45, lapis ? GOLD : TEAL);                     // a painted figure
@@ -118,13 +125,30 @@ function hall(g, X, Y, { gilt = false, lapis = false } = {}) {
   return H;
 }
 
-// The gateway: two pylons and the gate between, along the front of the platform.
+// The gateway: two pylons and the gate between, along the front of the platform. Gilded (styles 3-4), the pylons
+// stand taller (26 against 22) and the gate is taller too, its leaves gilded.
+export const PYLON_HEIGHT = { painted: 22, gilt: 26 };
 function gateway(g, X, Y, y0, opts) {
-  pylon(g, X + 0.32, Y + y0, 0.86, 0.6, 22, 2, opts);
-  const G = box(g, X + 1.22, Y + y0 + 0.12, 0.56, 0.4, 14, 2, STONE);
+  const h = opts.gilt ? PYLON_HEIGHT.gilt : PYLON_HEIGHT.painted, gh = opts.gilt ? 17 : 14;
+  pylon(g, X + 0.32, Y + y0, 0.86, 0.6, h, 2, opts);
+  const G = box(g, X + 1.22, Y + y0 + 0.12, 0.56, 0.4, gh, 2, STONE);
   qd(g, G.L, 0.18, 0.82, 0, 10, DOOR);
-  qd(g, G.L, 0, 1, 11.4, 14, opts.gilt ? GOLD : TEAL);
-  pylon(g, X + 1.82, Y + y0, 0.86, 0.6, 22, 2, opts);
+  if (opts.gilt) {
+    qd(g, G.L, 0.22, 0.78, 0.4, 9.6, GOLDC[1]);                                  // the gilded leaves
+    g.line(G.L(0.5, 0.4), G.L(0.5, 9.6), GOLDC[2], 0.6);
+    for (const s of [3.2, 6.4]) g.line(G.L(0.24, s), G.L(0.76, s), GOLD, 0.5, 0.9);
+  }
+  qd(g, G.L, 0, 1, gh - 2.6, gh, opts.gilt ? GOLD : TEAL);
+  pylon(g, X + 1.82, Y + y0, 0.86, 0.6, h, 2, opts);
+}
+
+// A seated gold statue on a tall plinth banded in gold, for the gilded styles' processional way.
+function plinthStatue(g, gx, gy, z) {
+  const P = box(g, gx - 0.11, gy - 0.11, 0.22, 0.22, 5.4, z, STONE);
+  qd(g, P.L, 0, 1, 4.4, 5.4, GOLD); qd(g, P.R, 0, 1, 4.4, 5.4, GOLDC[2]);
+  box(g, gx - 0.075, gy - 0.075, 0.15, 0.15, 3.4, z + 5.4, GOLDC);              // the seat and the lap
+  box(g, gx - 0.045, gy - 0.065, 0.09, 0.09, 4.6, z + 8.8, GOLDC, 0);            // the body
+  g.circ(U(p(gx, gy - 0.02), z + 14.6), 1.5, GOLD, { outline: true });
 }
 
 // 2 Pylons and banners: the hall behind a painted pylon gateway, four flagpoles with banners before it.
@@ -138,16 +162,18 @@ export function palacePylons(g, X, Y) {
   for (const u of [0.4, 2.4]) bed(g, X + u, Y + 2.4, 0.4, 0.4);
 }
 
-// 3 Gilded: the gateway's cornices and the hall's in gold, seated statues flanking the approach, two small obelisks
-// with gilded tips at the front corners.
+// 3 Gilded: taller pylons under deep gold cornices and gold cappings, a gate with gilded leaves, the hall's cornice in
+// gold, banners on taller poles with gilded finials, seated gold statues on tall plinths flanking the approach, and two
+// small obelisks with gilded tips at the front corners.
 export function palaceGilded(g, X, Y) {
   box(g, X + 0.06, Y + 0.06, 2.88, 2.88, 2, 0, PLATFORM);
   hall(g, X, Y, { gilt: true });
   gateway(g, X, Y, 1.4, { gilt: true });
-  for (let i = 0; i < 4; i++) flag(g, X + 0.42 + i * 0.72 + (i > 1 ? 0.06 : 0), Y + 2.06, 2, 34, BANNERS[i]);
+  for (let i = 0; i < 4; i++) flag(g, X + 0.42 + i * 0.72 + (i > 1 ? 0.06 : 0), Y + 2.06, 2, 37, BANNERS[i], true);
   g.poly(quad(X + 1.2, Y + 2.06, 0.6, 0.88, 2), '#E8DCC4');                     // the processional way
-  statue(g, X + 1.0, Y + 2.5);
-  statue(g, X + 2.0, Y + 2.5);
+  g.poly(quad(X + 1.2, Y + 2.06, 0.6, 0.88, 2), 'none', { stroke: GOLD, strokeWidth: 0.6 });
+  plinthStatue(g, X + 1.0, Y + 2.5, 2);
+  plinthStatue(g, X + 2.0, Y + 2.5, 2);
   smallObelisk(g, X + 0.4, Y + 2.62, 16, 2);
   smallObelisk(g, X + 2.62, Y + 2.62, 16, 2);
 }
@@ -160,7 +186,7 @@ export function palaceLapis(g, X, Y) {
   qd(g, P.L, 0, 1, 1.6, 2.4, GOLD); qd(g, P.R, 0, 1, 1.6, 2.4, GOLDC[2]);
   hall(g, X, Y, { gilt: true, lapis: true });
   gateway(g, X, Y, 1.24, { gilt: true, lapis: true });
-  for (let i = 0; i < 4; i++) flag(g, X + 0.42 + i * 0.72 + (i > 1 ? 0.06 : 0), Y + 1.9, 2.4, 36, i % 2 ? GOLD : LAPIS);
+  for (let i = 0; i < 4; i++) flag(g, X + 0.42 + i * 0.72 + (i > 1 ? 0.06 : 0), Y + 1.9, 2.4, 39, i % 2 ? GOLD : LAPIS, true);
   g.poly(quad(X + 0.3, Y + 2.0, 2.4, 0.86, 2.4), '#F2E6CC');                    // the pool court
   pool(g, X + 0.52, Y + 2.14, 1.96, 0.56);
   g.poly(quad(X + 0.52, Y + 2.14, 1.96, 0.56, 2.4), 'none', { stroke: GOLD, strokeWidth: 0.7 });
@@ -171,7 +197,7 @@ export function palaceLapis(g, X, Y) {
 }
 
 export const PALACE_DRAW = [palaceCourtyard, palaceColumned, palacePylons, palaceGilded, palaceLapis];
-export const PALACE_HEIGHT = [26, 24, 40, 40, 42];
+export const PALACE_HEIGHT = [26, 24, 40, 44, 46];
 
 // Timber scaffolding round the palace while it is enlarged: poles at the corners and along the front faces, two
 // levels of planks, a ladder, and three workers carrying bricks.
