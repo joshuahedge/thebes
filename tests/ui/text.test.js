@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { CATEGORIES, CATEGORY_ICONS, toolForItem, AUTO_OVERLAY, KEYS } from '../../src/data/ui.js';
-import { CATEGORY_NAMES, buildingName, NEED_NAMES, tierName, reasonText, warningText, unlockText, alertText, OVERLAY_NAMES, OVERLAY_LEGEND, SPEED_LABELS, dateText, plural, ACHIEVEMENT_TEXT, DAILY_TEXT, FIRST_TEXT, CONDITION_TEXT, CONDITION_MARKS, CONDITION_STATE_WORDS, conditionText, T } from '../../src/ui/text.js';
+import { CATEGORY_NAMES, buildingName, NEED_NAMES, tierName, reasonText, warningText, unlockText, alertText, OVERLAY_NAMES, OVERLAY_LEGEND, SPEED_LABELS, dateText, plural, ACHIEVEMENT_TEXT, DAILY_TEXT, FIRST_TEXT, CONDITION_TEXT, CONDITION_MARKS, CONDITION_STATE_WORDS, conditionText, plotsPlacedText, T } from '../../src/ui/text.js';
 import { BUILDINGS } from '../../src/data/buildings.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
 
@@ -40,6 +40,17 @@ describe('ui text', () => {
     }
     expect(alertText({ code: 'no_storage', id: farm.id }, w).fix).toContain(String(BUILDINGS.farm_grain.producerReach));
     expect(alertText({ code: 'bazaar_empty', id: farm.id }, w).fix).toContain(String(BUILDINGS.bazaar.supplyReach));
+  });
+  it('words the plots with no road: plots, or homes once people live in them, the toast by how many lack a road (placement review P13, P14)', () => {
+    const w = makeTestWorld();
+    const empty = [addRaw(w, 'house', 20, 20), addRaw(w, 'house', 21, 20)], lived = addRaw(w, 'house', 25, 25, { tier: 2, residents: 6 });
+    expect(alertText({ code: 'plots_no_road', count: 2, ids: empty.map((h) => h.id) }, w)).toEqual({ title: '2 plots have no road', fix: 'Draw a road beside them' });
+    expect(alertText({ code: 'plots_no_road', count: 1, ids: [empty[0].id] }, w)).toEqual({ title: '1 plot has no road', fix: 'Draw a road beside it' });
+    expect(alertText({ code: 'plots_no_road', count: 3, ids: [empty[0].id, empty[1].id, lived.id] }, w).title).toBe('3 homes have no road');
+    expect(plotsPlacedText(6, 0)).toBe('6 plots placed');
+    expect(plotsPlacedText(6, 6)).toBe('6 plots placed · no road yet');
+    expect(plotsPlacedText(1, 1)).toBe('1 plot placed · no road yet');
+    expect(plotsPlacedText(6, 2)).toBe('6 plots placed · 2 with no road yet');
   });
   it('words each placing condition in each state, with a mark and a state that never rest on colour (placement review P9)', () => {
     expect(CONDITION_MARKS).toEqual({ met: '✓', later: '!', cant: '✕' });

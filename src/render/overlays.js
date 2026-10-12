@@ -5,7 +5,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { HOUSEHOLD_GOODS } from '../data/goods.js';
 import { housesOf, allBuildings } from '../sim/world.js';
 import { houseStatus } from '../sim/housing.js';
-import { roadReach } from '../sim/reach.js';
+import { roadReach, touchesRoad } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
 import { desirabilityField } from '../sim/desirability.js';
 import { T as TILE, TERRAIN_BY_NAME } from '../sim/terrain.js';
@@ -413,16 +413,22 @@ function hatchedBad(g, x, y, w, d) {
 
 // The free tiles where a road would join the building: a faint amber wash, a dashed amber outline on a white halo and the road
 // mark (the Roads category's), so "draw one on a marked tile" can be followed.
+// A tile's dashed amber outline on a white halo: the sign for a free tile where a road would join (with the road mark in it) and
+// for a plot with no road beside it.
+function dashedAmberTile(g, x, y) {
+  const pts = quad(x, y, 1, 1, 0);
+  g.poly(pts, UI.warn, { alpha: 0.18 });
+  g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.4, strokeAlpha: 0.7 });
+  g.ctx.setLineDash([3 * g.scale, 2 * g.scale]);
+  g.poly(pts, 'none', { stroke: UI.warn, strokeWidth: 1.4 });
+  g.ctx.setLineDash([]);
+}
+
 function drawRoadJoins(g, joins) {
   const css = cssScaleOf(g);
   const size = Math.max(6, 12 / css);
   for (const [jx, jy] of joins) {
-    const pts = quad(jx, jy, 1, 1, 0);
-    g.poly(pts, UI.warn, { alpha: 0.18 });
-    g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.4, strokeAlpha: 0.7 });
-    g.ctx.setLineDash([3 * g.scale, 2 * g.scale]);
-    g.poly(pts, 'none', { stroke: UI.warn, strokeWidth: 1.4 });
-    g.ctx.setLineDash([]);
+    dashedAmberTile(g, jx, jy);
     g.text(p(jx + 0.5, jy + 0.5), '═', { size, weight: '700', color: JOIN_INK });
   }
 }
@@ -461,35 +467,61 @@ export function drawGhost(g, ghost) {
   if (badge) ghostBadge(g, centre, mark); else g.text(centre, mark, { size: 9, color });
 }
 
-// Problem markers (early-game pass 2.8): a coral "!" badge over a building with an alert, an amber "↓" over a
-// home counting down to lose a tier. One per building, drawn in the overlay pass, never animated. The list is a
-// pure function the draw and the tests share. `lift` is art px from the footprint centre up to the badge's
-// centre: the sprite's top (its height above the back corner, plus the back corner's 4 * (w + d) above the
-// centre), then the badge radius and a pixel.
+// Problem markers (early-game pass 2.8, placement review P13): a coral badge over a building with an alert, an amber "↓" over a
+// home counting down to lose a tier. One per building, drawn in the overlay pass, never animated. The badge is at least 20 CSS px
+// across at any zoom (BADGE_R art px, grown when the map is zoomed out), and its mark says the cause: the road mark (two bars)
+// when the building has no road beside it, "!" for any other problem. The list is a pure function the draw and the tests share.
+// `lift` is art px from the footprint centre up to the badge's centre at its smallest size: the sprite's top (its height above the
+// back corner, plus the back corner's 4 * (w + d) above the centre), then the badge radius and a pixel; a bigger badge rides higher
+// by what it grew. `cause` is the alert code that decides the mark ('no_road' first), 'down' for a home losing a tier.
 const BADGE_R = 5;
 
 export function problemMarkers(world, alerts, range = null) {
-  const flagged = new Set();
-  for (const a of alerts || []) if (a.id !== undefined && a.id !== null) flagged.add(a.id);
+  const cause = new Map();
+  for (const a of alerts || []) {
+    if (a.id === undefined || a.id === null) continue;
+    if (!cause.has(a.id) || a.code === 'no_road') cause.set(a.id, a.code);   // the road decides the mark whatever else is wrong
+  }
   const out = [];
   for (const b of allBuildings(world)) {
-    const kind = b.type === 'house' ? (b.tier > 1 && b.downTimer > 0 ? 'down' : null) : (flagged.has(b.id) ? 'problem' : null);
+    const kind = b.type === 'house' ? (b.tier > 1 && b.downTimer > 0 ? 'down' : null) : (cause.has(b.id) ? 'problem' : null);
     if (!kind) continue;
     const x = b.x + b.w / 2, y = b.y + b.d / 2;
     if (range && (x < range.x0 || x > range.x1 + 1 || y < range.y0 || y > range.y1 + 1)) continue;
     const art = ART[slotFor(b)];
-    out.push({ id: b.id, x, y, lift: (art ? art.height + 4 * (b.w + b.d) : 30) + BADGE_R + 1, kind });
+    out.push({ id: b.id, x, y, lift: (art ? art.height + 4 * (b.w + b.d) : 30) + BADGE_R + 1, kind, cause: kind === 'down' ? 'down' : cause.get(b.id) });
   }
   return out;
 }
 
+// The homes and plots in view with no road beside them: each gets a dashed amber outline on its tile (drawProblemMarkers), since a
+// plot with no road is a pale patch that nothing else marks. range is the visible tile range, as for problemMarkers.
+export function roadlessPlots(world, range = null) {
+  const out = [];
+  for (const b of housesOf(world)) {
+    if (range && (b.x < range.x0 - 1 || b.x > range.x1 + 1 || b.y < range.y0 - 1 || b.y > range.y1 + 1)) continue;
+    if (!touchesRoad(world, b)) out.push({ id: b.id, x: b.x, y: b.y });
+  }
+  return out;
+}
+
+// The road mark: two bars, white on the badge (a font's "═" is not always there).
+function roadMark(g, c, R) {
+  const half = 0.55 * R, gap = 0.28 * R;
+  for (const dy of [-gap, gap]) g.line([c[0] - half, c[1] + dy], [c[0] + half, c[1] + dy], UI.halo, Math.max(1.2, 0.3 * R), 1);
+}
+
 export function drawProblemMarkers(g, world, alerts, range) {
+  for (const t of roadlessPlots(world, range)) dashedAmberTile(g, t.x, t.y);
+  const css = cssScaleOf(g);
+  const R = Math.max(BADGE_R, BADGE_CSS_R / css);   // 20 CSS px across at the least, at any zoom
   for (const m of problemMarkers(world, alerts, range)) {
-    const c = U(p(m.x, m.y), m.lift);
+    const c = U(p(m.x, m.y), m.lift + (R - BADGE_R));
     const down = m.kind === 'down';
-    g.circ(c, BADGE_R + 1.2, UI.halo, { alpha: 0.9 });
-    g.circ(c, BADGE_R, down ? UI.warn : UI.problem, { stroke: INK, strokeWidth: 0.6, strokeAlpha: 0.5 });
-    g.text(c, down ? '↓' : '!', { size: 7.5, weight: '700', color: down ? UI.label : UI.halo });   // the glyph, not the colour, says which
+    g.circ(c, R + Math.max(1.2, 2 / css), UI.halo, { alpha: 0.9 });
+    g.circ(c, R, down ? UI.warn : UI.problem, { stroke: INK, strokeWidth: 0.6, strokeAlpha: 0.5 });
+    if (m.cause === 'no_road') roadMark(g, c, R);
+    else g.text(c, down ? '↓' : '!', { size: 1.5 * R, weight: '700', color: down ? UI.label : UI.halo });   // the glyph, not the colour, says which
   }
 }
 

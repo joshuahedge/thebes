@@ -57,6 +57,18 @@ describe('alerts', () => {
     expect(codes).toContain('labour_shortage:services');
     expect(codes.some((c) => c.startsWith('no_road:') && c !== 'no_road:' + lonely.id)).toBe(false);
   });
+  it('raises one plots_no_road for every home or plot with no road beside it, not one each (placement review P13)', () => {
+    const w = street();
+    addRaw(w, 'house', 4, 9);                                                         // beside the road on y = 10: no alert
+    const a = addRaw(w, 'house', 20, 20), b = addRaw(w, 'house', 21, 20), c = addRaw(w, 'house', 25, 25, { tier: 2, residents: 6 });
+    const found = computeAlerts(w).filter((x) => x.code === 'plots_no_road');
+    expect(found).toEqual([{ code: 'plots_no_road', count: 3, ids: [a.id, b.id, c.id] }]);
+    expect(computeAlerts(w).some((x) => x.code === 'no_road')).toBe(false);          // a house is not a no_road building: that code is for the rest
+    setRoad(w, 20, 19, 25, 19);                                                       // a road along y = 19 reaches the two plots
+    expect(computeAlerts(w).filter((x) => x.code === 'plots_no_road')).toEqual([{ code: 'plots_no_road', count: 1, ids: [c.id] }]);
+    setRoad(w, 25, 24, 28, 24);
+    expect(computeAlerts(w).some((x) => x.code === 'plots_no_road')).toBe(false);
+  });
   it('flags debt, and unemployment only from Town', () => {
     const w = street(-10);
     w.labour = { workforce: 100, employed: 10, jobs: 10, shortLevels: [] };

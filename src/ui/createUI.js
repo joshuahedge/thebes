@@ -11,6 +11,7 @@ import { setGuide } from '../sim/commands.js';
 import { checkFirsts } from '../sim/firsts.js';
 import { checkAchievements } from '../sim/achievements.js';
 import { allBuildings } from '../sim/world.js';
+import { touchesRoad } from '../sim/reach.js';
 import { screenToTile, visibleTileRange, pxPerArt } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint } from '../render/overlays.js';
@@ -38,7 +39,7 @@ import { createRail } from './rail.js';
 import { createCorners } from './corners.js';
 import { createSheets } from './sheets.js';
 import { createMinimap } from './minimap.js';
-import { createAlerts, mapSummaryText } from './alerts.js';
+import { createAlerts, mapSummaryText, nearestOf } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
 import { createLayersPicker } from './layersPicker.js';
 import { createToasts, MAX_TOASTS, MAX_TOASTS_PHONE } from './toasts.js';
@@ -233,7 +234,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts] });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts] });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -366,9 +367,20 @@ export function createUI({
     store.set(s.sheet && s.sheet.kind === kind ? closeSheet(s) : openSheet(s, kind));
   }
   function goBack() { const p = back(store.get()); if (p) store.set(p); }
+  // plots_no_road stands for many plots: View goes to the one nearest the middle of the map on screen (placement review P13).
+  function nearestPlot(alert) {
+    const v = view();
+    return nearestOf(world, alert, screenToTile(cam, v, v.width / 2, v.height / 2));
+  }
+  // The fix button on an alert in the list (Show me): the road tool, aimed at the nearest plot with no road.
+  function fixAlert(alert) {
+    const b = alert.code === 'plots_no_road' ? nearestPlot(alert) : null;
+    if (b) showMeAt({ category: 'roads', item: 'road', x: b.x + b.w / 2, y: b.y + b.d / 2 });
+  }
   // View on an alert: a building's alert selects it and pans there; a city-wide one opens the summary.
   function viewAlert(alert) {
     if (alert.code === 'save_failed') { store.set(openSheet(store.get(), 'menu')); return; }
+    if (alert.code === 'plots_no_road') { const b = nearestPlot(alert); if (b && selectBuilding(b.id)) return; }
     if (!(alert.id && selectBuilding(alert.id))) store.set(openSheet(store.get(), 'summary'));
   }
   // Select a building: its sheet opens and the view centres on it, then moves the least that keeps it in the map
@@ -384,13 +396,15 @@ export function createUI({
     else cameraControl.frameKeeping(cx, cy, cx, cy, sheetInsets(s));
     return true;
   }
+  const plotsTouchRoad = (e) => !e.result || !e.result.ids || e.result.ids.some((id) => world.buildings[id] && touchesRoad(world, world.buildings[id]));   // no list to check: as before
   function afterCommand(e) {
     if (e.undoable) {                                  // a ✓ outcome: place, road, plots or demolish
       sfx.play(e.kind === 'road' ? 'road' : e.kind === 'demolish' ? 'demolish' : 'place');
       sfx.buzz(20);
     }
     nudge.noteAction();                                // a command is a meaningful action (early-game pass 3.5)
-    if (e.undoable && e.kind === 'houses' && world.speed === 0) fireTip('plotsPaused');
+    // The Play tip says the plots stay empty while paused: true only when one of them touches a road (placement review P14).
+    if (e.undoable && e.kind === 'houses' && world.speed === 0 && plotsTouchRoad(e)) fireTip('plotsPaused');
     if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type] && BUILDINGS[store.get().tool.type].reach) fireTip('servicePlaced');   // a reach tip: a garden has none
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');

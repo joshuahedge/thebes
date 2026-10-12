@@ -96,7 +96,7 @@ describe('s3 ui fire-risk overlay', () => {
   it('badges a building the sim flags for fire risk or burning, as any problem', () => {
     const w = town();
     const potter = addRaw(w, 'potter', 8, 11, { risk: 70 });
-    expect(problemMarkers(w, [{ code: 'fire_risk', id: potter.id }]).map((m) => [m.id, m.kind])).toEqual([[potter.id, 'problem']]);
+    expect(problemMarkers(w, [{ code: 'fire_risk', id: potter.id }]).map((m) => [m.id, m.kind, m.cause])).toEqual([[potter.id, 'problem', 'fire_risk']]);   // a fire mark is the plain "!": only a missing road changes it
     expect(problemMarkers(w, [{ code: 'raid_warning', x: 31, y: 16 }])).toEqual([]);   // a map point has no building to badge
   });
 });
