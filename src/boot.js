@@ -45,6 +45,7 @@ export async function boot(doc, win, {
   root = doc.body, store = createSaveStore(), params = new URLSearchParams(win.location.search),
   now = () => performance.now(), clock = () => Date.now(), storage = undefined, uiOptions = {}, loopOptions = {}, platform = {}, envInput = readEnvironment(win),
   sw = (win.navigator && win.navigator.serviceWorker) || null,
+  createMusic: makeMusic = createMusic, showPictureCards: showCards = showPictureCards,   // Stage 4: replaceable by tests
 } = {}) {
   const canvas = root.querySelector('#map');
   const renderer = createRenderer({ canvas });
@@ -53,12 +54,14 @@ export async function boot(doc, win, {
   // (tools/shots.ps1 -Stage3); startGame keeps it beside the game's own fields.
   const records = createRecords({ storage });
   let api = null;
+  let current = null;        // { world, ui, loop, cam } while the game runs (declared before the music: its seed and mood read it)
+  let title = null;          // { card, loop, backdrop } while the title shows
   win.__thebes = { devScene: (name) => devScene(api, name), setMotion: (motion) => setMotion(settings, motion) };   // setMotion: tools/shots.ps1 -Stage4
   // One audio context for the whole page: every game (New city, import) shares it.
   const sfx = createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
   // Stage 4 (spec 5.5): one music for the page (the title card plays too), unlocked by the first gesture, quiet while the
   // page is hidden, following the settings; Track G implements src/audio/music.js.
-  const music = createMusic({
+  const music = makeMusic({
     enabled: () => settings.get().music, volume: () => settings.get().musicVolume / 100,
     seed: () => (current ? current.world.seed : TITLE_SEED), mood: () => musicMood(current ? current.world : null),
   });
@@ -70,10 +73,17 @@ export async function boot(doc, win, {
   const stopMusicWatch = settings.subscribe(() => music.refresh());
   // Stage 4 (spec 4.1, ruling 262): the picture cards show before the first new city on this device (seen or skipped,
   // once), and any time through hooks.pictureCards. Track G implements src/ui/tutorial.js.
+  // One set of cards at a time: a second New city while they show is ignored, and an onDone run at once leaves cards null.
   let cards = null;
+  function openCards(after) {
+    if (cards) return;
+    let done = false;
+    const shown = showCards({ root, doc, settings, onDone: () => { done = true; cards = null; settings.set({ cardsSeen: true }); after(); } });
+    if (!done) cards = shown;
+  }
   function withCards(go) {
     if (settings.get().cardsSeen) { go(); return; }
-    cards = showPictureCards({ root, doc, settings, onDone: () => { cards = null; settings.set({ cardsSeen: true }); go(); } });
+    openCards(go);
   }
   // The share sheet, the download and the file picker, replaceable by tests.
   const nav = win.navigator || {};
@@ -91,8 +101,6 @@ export async function boot(doc, win, {
   win.addEventListener('beforeinstallprompt', onPrompt);
   if (!io.installPrompt) io.installPrompt = () => promptEvent;
   let loadedOk = false;
-  let current = null;        // { world, ui, loop, cam } while the game runs
-  let title = null;          // { card, loop, backdrop } while the title shows
   let pendingUpdate = null;  // a waiting worker's restart, kept through the title and offered once the game runs
   const flow = createInstallFlow({ env: detectEnvironment(envInput), hasSave: () => loadedOk || Boolean(current), getPrompt: io.installPrompt });
   showNotice(root.querySelector('#notice'), noticeText(flow.notice()));
@@ -138,7 +146,7 @@ export async function boot(doc, win, {
     },
     newCity() { withCards(() => startGame(freshWorld())); },   // Stage 4: the picture cards first, once a device
     // Stage 4 (spec 4.1): the picture cards any time (How to play on the title card and in the menu, Track G); onDone after.
-    pictureCards(onDone = () => {}) { cards = showPictureCards({ root, doc, settings, onDone: () => { cards = null; settings.set({ cardsSeen: true }); onDone(); } }); },
+    pictureCards(onDone = () => {}) { openCards(onDone); },
     async exportCity() {
       if (!current) return;
       const { ui, world } = current;
@@ -212,7 +220,7 @@ export async function boot(doc, win, {
     const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
     const backdrop = createBackdrop({ world, cam, cameraControl, reducedMotion: settings.reducedMotion });
     // Stage 4: the backdrop's monuments are drawn live as in the game (spec 5.7), still (it never ticks).
-    const live = (g, o) => drawMonument(g, world, o.b, { now: performance.now(), timeDays: world.day, motion: settings.motionLevel() });
+    const live = (g, o) => drawMonument(g, world, o.b, { now: now(), timeDays: world.day, motion: settings.motionLevel() });
     const loop = createGameLoop({ world, render: ({ now: t }) => { backdrop.tick(t); cameraControl.tick(t); renderer.renderFrame(world, cam, { view: view(), live }); music.tick(t); }, ...loopOptions });
     let message = null;
     blockIfNewer(loaded);
@@ -275,7 +283,7 @@ export async function boot(doc, win, {
       win.removeEventListener('beforeinstallprompt', onPrompt); showNotice(root.querySelector('#notice'), null); leaveTitle(); stopGame();
       if (cards) { cards.close(); cards = null; }
       for (const t of MUSIC_GESTURES) root.removeEventListener(t, onMusicGesture);
-      doc.removeEventListener('visibilitychange', onMusicVisibility); stopMusicWatch(); music.destroy();
+      doc.removeEventListener('visibilitychange', onMusicVisibility); stopMusicWatch(); music.destroy(); settings.destroy();
     },
   };
   return api;

@@ -22,7 +22,7 @@ export const palaceOf = (world) => allBuildings(world).find((b) => b.type === PA
 // next style's milestone not reached; milestone names it), 'no_road', 'no_gold' (paying would take the treasury below 0).
 export function palaceQuote(world, id) {
   const b = world.buildings[id];
-  if (!b || b.type !== PALACE.type) return { next: null, price: 0, days: 0, ok: false, reason: 'not_palace' };
+  if (!b || b.type !== PALACE.type) return { next: null, price: 0, days: 0, milestone: null, ok: false, reason: 'not_palace' };
   const next = b.style < PALACE.lastStyle ? b.style + 1 : null;
   const style = next === null ? null : PALACE_STYLES[next];
   const quote = { next, price: next === null ? 0 : palacePriceOf(world, next), days: style ? style.days : 0, milestone: style ? style.milestone : null };
@@ -36,11 +36,15 @@ export function palaceQuote(world, id) {
 }
 
 // The enlargePalace command (spec 7.3): pays the next style's price in full and starts its works. Not undoable (it pushes
-// no undo entry). { ok: true, warnings: [], style, price, days }, or fails with palaceQuote's reason.
+// no undo entry), and once enlarged the palace's own placing can no longer be undone either: its 'place' entry is dropped,
+// so Undo cannot remove the palace and lose the enlargement's gold and works with it.
+// { ok: true, warnings: [], style, price, days }, or fails with palaceQuote's reason.
 export function enlargePalace(world, id) {
   const q = palaceQuote(world, id);
   if (!q.ok) return fail(q.reason);
   const b = world.buildings[id];
+  const stack = world.undo || [];
+  for (let i = stack.length - 1; i >= 0; i--) if (stack[i].kind === 'place' && (stack[i].ids || []).includes(id)) stack.splice(i, 1);
   spend(world, q.price);
   b.works = { style: q.next, left: q.days };
   world.tally.enlargements += 1;

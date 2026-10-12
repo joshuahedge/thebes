@@ -202,6 +202,17 @@ describe('s4 contract site facts and the monthly roll', () => {
     far.site.idle = 9;
     expect([siteStatus(w, far).reason, monumentAlerts(w)]).toEqual(['no_road', []]);
     expect(Object.keys(siteStatus(w, far).materials)).toEqual(['stone']);
+    expect(siteStatus(w, addRaw(w, 'well', 25, 9))).toBe(null);                     // not a monument: no site facts
+  });
+  it('warns of no road for a site, never for a finished monument (ruling 228)', () => {
+    const w = city();
+    const s = monument(w, 'obelisk_small', 20, 3);                                // no road beside it
+    const noRoad = () => alertsFor(w).filter((a) => a.code === 'no_road' && a.id === s.id).length;
+    expect(noRoad()).toBe(1);
+    Object.assign(s.site, { course: 3, done: 40 });
+    expect(noRoad()).toBe(0);
+    const well = addRaw(w, 'well', 26, 3);                                        // other buildings keep the warning
+    expect(alertsFor(w).filter((a) => a.code === 'no_road' && a.id === well.id).length).toBe(1);
   });
   it('rolls each site\'s month into last month, marks a starved month and puts the gold in last month\'s stats', () => {
     const w = city();
@@ -214,12 +225,12 @@ describe('s4 contract site facts and the monthly roll', () => {
     expect([s.site.last, s.site.starved, s.site.month, f.site.last, w.stats.lastMonth.monuments]).toEqual([
       { units: 40, gold: 200, crews: 2 }, true, { units: 0, gold: 0, crews: 0, crewDays: 0, starvedDays: 0 }, { units: 7, gold: 35, crews: 1 }, 200]);
   });
-  it('runs the monument and palace steps in the tick: a stub does nothing, the palace works count down', () => {
+  it('runs the monument and palace steps in the tick: a site with no guild lays nothing, the palace works count down', () => {
     const w = city('city');
-    const s = monument(w, 'obelisk_small', 20, 9);
-    const before = JSON.stringify(s.site);
+    const s = monument(w, 'obelisk_small', 20, 3);                               // no road, no guild, no stone
+    const gold = w.gold;
     monumentDay(w, []);
-    expect(JSON.stringify(s.site)).toBe(before);
+    expect([s.site.course, s.site.done, w.gold]).toEqual([0, null, gold]);
     const pal = addRaw(w, 'palace', 12, 11, { style: 1, works: { style: 2, left: 2 } });
     const events = [];
     advanceDays(w, 2, events);
@@ -240,13 +251,15 @@ describe('s4 contract the palace, desirability and stone', () => {
     expect(enlargePalace(w, pal.id).reason).toBe('no_gold');
     w.gold = 600;
     expect(enlargePalace(w, pal.id)).toEqual({ ok: true, warnings: [], style: 1, price: 600, days: 30 });
-    expect([w.gold, pal.works, w.tally.enlargements, w.undo.length]).toEqual([0, { style: 1, left: 30 }, 1, 1]);   // only the placing is undoable
+    expect([w.gold, pal.works, w.tally.enlargements, w.undo.length]).toEqual([0, { style: 1, left: 30 }, 1, 0]);   // the placing is no longer undoable
+    expect(undo(w).ok).toBe(false);                                               // so Undo cannot take the palace and its works
+    expect([Boolean(w.buildings[pal.id]), pal.works]).toEqual([true, { style: 1, left: 30 }]);
     expect(palaceQuote(w, pal.id).reason).toBe('works');
     for (let i = 0; i < 30; i++) palaceDay(w);
     expect([pal.style, pal.works]).toEqual([1, null]);
     pal.style = 4;
     expect(palaceQuote(w, pal.id).reason).toBe('last_style');
-    expect(palaceQuote(w, 999).reason).toBe('not_palace');
+    expect(palaceQuote(w, 999)).toEqual({ next: null, price: 0, days: 0, milestone: null, ok: false, reason: 'not_palace' });
     const lone = addRaw(w, 'palace', 20, 3);
     w.milestone = 'capital'; w.gold = 1e6;
     expect(palaceQuote(w, lone.id).reason).toBe('no_road');

@@ -66,9 +66,23 @@ function defaultStorage() {
   try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch (e) { return null; }
 }
 
+// Calls cb whenever the device's reduced-motion preference changes; returns the unwatch. Nothing where matchMedia or the
+// query's change event is not offered (older browsers have only addListener, used when there).
+export function watchReducedMotion(cb) {
+  try {
+    const q = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    if (!q) return () => {};
+    if (q.addEventListener) { q.addEventListener('change', cb); return () => q.removeEventListener('change', cb); }
+    if (q.addListener) { q.addListener(cb); return () => q.removeListener(cb); }
+  } catch (e) { /* not offered */ }
+  return () => {};
+}
+
+// watchSystem(cb) -> unwatch: how the device's preference is watched, so root's data-motion and reduce-motion follow it at
+// once under 'system' (spec 5.4); tests inject it. destroy() stops the watch.
 export function createSettings({
   storage = defaultStorage(), key = 'thebes.settings',
-  root = document.body, systemReducedMotion = prefersReducedMotion,
+  root = document.body, systemReducedMotion = prefersReducedMotion, watchSystem = watchReducedMotion,
 } = {}) {
   const subs = new Set();
 
@@ -100,6 +114,7 @@ export function createSettings({
   }
 
   apply();
+  let unwatch = (typeof watchSystem === 'function' && watchSystem(() => apply())) || null;
   return {
     get: () => value,
     set(patch) {
@@ -115,5 +130,6 @@ export function createSettings({
     motionLevel,
     reducedMotion,
     apply,
+    destroy() { if (typeof unwatch === 'function') unwatch(); unwatch = null; },
   };
 }

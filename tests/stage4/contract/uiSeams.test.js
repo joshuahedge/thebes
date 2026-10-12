@@ -16,7 +16,7 @@ import { openSheet } from '../../../src/ui/modes.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 import { makeCanvas } from '../../helpers/canvas.js';
 import { mount, fire } from '../../helpers/dom.js';
-import { rigUI, mountShell, fakeHistory } from '../../helpers/uiWorld.js';
+import { rigUI, mountShell, fakeHistory, fakeDoc } from '../../helpers/uiWorld.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 
 const memory = (data = {}) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } });
@@ -30,12 +30,19 @@ describe('s4 contract settings: Motion, music and the picture cards flag', () =>
   });
   it('gives Gentle, not Still, to a device that asks for less motion, read live, and says the level on the root', () => {
     let asks = true;
+    let changed = null;                                                             // the device's change watch, injected
+    const watchSystem = (cb) => { changed = cb; return () => { changed = null; }; };
     const { root, cleanup } = mount();
     try {
-      const s = createSettings({ storage: memory(), root, systemReducedMotion: () => asks });
+      const s = createSettings({ storage: memory(), root, systemReducedMotion: () => asks, watchSystem });
       expect([s.motionLevel(), s.reducedMotion(), root.dataset.motion]).toEqual(['gentle', true, 'gentle']);
       asks = false;
       expect([s.motionLevel(), s.reducedMotion()]).toEqual(['full', false]);       // the device changed: at once
+      changed();                                                                    // and the root follows it (spec 5.4)
+      expect([root.dataset.motion, root.classList.contains('reduce-motion')]).toEqual(['full', false]);
+      asks = true;
+      changed();
+      expect([root.dataset.motion, root.classList.contains('reduce-motion')]).toEqual(['gentle', true]);
       s.set({ motion: 'still' });
       expect([s.motionLevel(), root.dataset.motion, root.classList.contains('reduce-motion')]).toEqual(['still', 'still', true]);
       s.set({ motion: 'gentle' });
@@ -43,6 +50,11 @@ describe('s4 contract settings: Motion, music and the picture cards flag', () =>
       s.set({ motion: 'calm', musicVolume: 35, music: 'yes' });                     // not settings: ignored
       expect([s.get().motion, s.get().musicVolume, s.get().music]).toEqual(['gentle', 30, true]);
       expect([motionLevelOf('system', true), motionLevelOf('system', false), motionLevelOf('still', false)]).toEqual(['gentle', 'full', 'still']);
+      s.destroy();
+      expect(changed).toBe(null);                                                   // destroy stops the watch
+      const bare = createSettings({ storage: memory(), root, systemReducedMotion: () => false, watchSystem: () => undefined });
+      bare.destroy();                                                               // no watch offered: nothing to stop
+      expect(root.dataset.motion).toBe('full');
     } finally { cleanup(); }
   });
   it('moves a Stage 3 device\'s choice to Motion once (ruling 249), and still reads the two old keys when they are set', () => {
@@ -94,7 +106,7 @@ describe('s4 contract render seams', () => {
     expect(markerAt(layout, 100, 88).ids).toEqual([1]);                           // on the first one's stem
     expect(markerAt(layout, 300, 300)).toBe(null);
     expect(markerAt([], 1, 1)).toBe(null);
-    expect(layoutMarkers(makeTestWorld(), [], createCamera({ x: 1, y: 1, zoom: 1 }), { width: 10, height: 10 })).toEqual([]);   // STUB until Track B
+    expect(Array.isArray(layoutMarkers(makeTestWorld(), [], createCamera({ x: 1, y: 1, zoom: 1 }), { width: 10, height: 10 }))).toBe(true);
   });
 });
 
@@ -108,14 +120,25 @@ describe('s4 contract interface seams', () => {
       expect([blank.pickFit('colossus', { x: 1, y: 1 }, {}), blank.markerTap({ ids: [1] })]).toEqual([null, false]);
       r.world.milestone = 'great_city';
       const asked = [];
-      m.pickFit = (type, ghost, insets) => { asked.push([type, typeof ghost.x, typeof insets.top]); return { zoom: 0.5, extent: { up: 60, down: 20 } }; };
+      let fitZoom = 0.5;
+      m.pickFit = (type, ghost, insets) => { asked.push([type, typeof ghost.x, typeof insets.top]); return { zoom: fitZoom, extent: { up: 60, down: 20 } }; };
+      const cc = r.ui.cameraControl, keep = cc.keepVisible, kept = [];
+      cc.keepVisible = (...args) => { kept.push([args[5], args[6]]); return keep(...args); };
       r.ui.refresh();
       fire(r.root.querySelector('#dock .cat[data-category="monuments"]'), 'click');
       fire(r.root.querySelector('#dock .tray .card[data-item="colossus"]'), 'click');
       expect(asked).toEqual([['colossus', 'number', 'number']]);
-      expect(r.store.get().tool).toEqual({ kind: 'building', type: 'colossus' });
+      const tool = r.store.get().tool;
+      expect([tool.kind, tool.type]).toEqual(['building', 'colossus']);
+      expect(kept).toEqual([[{ up: 60, down: 20 }, 0.5]]);                          // the fit's extent and zoom go to the camera
+      cc.tick(1e12);
+      expect(r.cam.zoom).toBe(0.5);                                                 // and the camera ends at the fit's zoom
+      fitZoom = 1.5;                                                                // a fit never zooms in (ruling 231)
+      r.store.set({ tool: null });
+      fire(r.root.querySelector('#dock .tray .card[data-item="colossus"]'), 'click');
+      expect([kept.length, kept[1][1]]).toEqual([2, 0.5]);
       expect(r.ui.motionLevel()).toBe(r.ui.settings.motionLevel());
-      expect(r.ui.markers()).toEqual([]);
+      expect(Array.isArray(r.ui.markers())).toBe(true);
     } finally { r.cleanup(); }
   });
   it('puts the monuments interface\'s sheet parts on a building sheet', async () => {
@@ -141,15 +164,36 @@ describe('s4 contract interface seams', () => {
       expect([step.kind, step.cost, step.ids.length, Object.values(r.world.buildings).filter((x) => x.type === 'plaza').length]).toEqual(['place', 16, 2, 2]);
     } finally { r.cleanup(); }
   });
-  it('has the Stage 4 words the contract needs, and its tips sections add nothing yet', () => {
+  it('paints plazas from a touch plan too: tiles toggled on and off, then confirmed as one undo step', async () => {
+    const r = await rigUI({ width: 390, height: 844 });
+    try {
+      r.world.milestone = 'city';
+      r.ui.placement.start({ kind: 'plazas' });
+      r.ui.placement.toggleTile(16, 12);
+      r.ui.placement.toggleTile(17, 12);
+      r.ui.placement.toggleTile(18, 12);
+      r.ui.placement.toggleTile(18, 12);                                            // the same tile twice: off again
+      expect([r.store.get().plan.tiles, r.ui.placement.preview().count, r.ui.placement.preview().cost]).toEqual([[[16, 12], [17, 12]], 2, 16]);
+      const undoBefore = r.world.undo.length;
+      expect(r.ui.placement.confirm().ok).toBe(true);
+      const step = r.world.undo[r.world.undo.length - 1];
+      expect([r.world.undo.length - undoBefore, step.kind, step.cost, step.ids.length]).toEqual([1, 'place', 16, 2]);
+      expect(step.ids.map((id) => r.world.buildings[id].type)).toEqual(['plaza', 'plaza']);
+    } finally { r.cleanup(); }
+  });
+  it('has the Stage 4 words the contract needs, and the tips keep the base twenty first, each id once', () => {
     expect([SCORE_TEXT.parts.monuments, MOOD_NAMES.monuments, MOOD_NAMES.palace, CONTRACT4_TEXT.motion]).toEqual(['Monuments', 'Monuments', 'Palace', 'Motion']);
     expect(Object.keys(CONTRACT4_TEXT.motionLevels)).toEqual(MOTION_SETTINGS);
-    expect(TIPS.length).toBe(20);
+    const base = ['press_play', 'arrivals', 'house_needs', 'service_reach', 'problem_marker', 'month_summary', 'more_workers', 'undo_demolish', 'goals_list', 'overlay_keys',
+      'nicer_streets', 'storehouse_choices', 'trade_orders', 'merging_homes', 'fire_risk', 'firebreaks', 'clearing_rubble', 'raider_targets', 'tribute_once', 'wall_ring'];
+    const ids = TIPS.map((t) => t.id);
+    expect(ids.slice(0, base.length)).toEqual(base);                                // the tracks add theirs after (src/data/tips.js)
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 
 describe('s4 contract music and picture cards seams', () => {
-  it('calls the music\'s mood raid while a warning or a raid is on, and its stub does nothing', () => {
+  it('calls the music\'s mood raid while a warning or a raid is on, and has the music\'s and the cards\' controls', () => {
     const w = makeTestWorld();
     expect([musicMood(null), musicMood(w)]).toEqual(['calm', 'calm']);
     w.raid.warning = { index: 0 };
@@ -157,31 +201,91 @@ describe('s4 contract music and picture cards seams', () => {
     w.raid.warning = null; w.raid.active = { index: 0 };
     expect(musicMood(w)).toBe('raid');
     const m = createMusic();
-    expect([m.unlock(), m.playing()]).toEqual([false, false]);
+    expect([typeof m.unlock(), typeof m.playing()]).toEqual(['boolean', 'boolean']);
     for (const k of ['start', 'stop', 'refresh', 'tick', 'destroy']) expect(typeof m[k]).toBe('function');
+    const c = showPictureCards({ onDone: () => {} });
+    expect(typeof c.close).toBe('function');
   });
-  it('shows the picture cards before the first new city on the device, once, and offers them through hooks.pictureCards', async () => {
-    let done = 0;
-    const c = showPictureCards({ onDone: () => { done++; } });
-    expect([done, typeof c.close]).toEqual([1, 'function']);                      // STUB: done at once
+
+  // boot on the real shell with the music and the picture cards injected. Frames run by hand: frames(t) runs every queued
+  // animation frame once at time t.
+  async function bootWith({ createMusic: makeMusic, showPictureCards: showCards, storage = memory(), doc = fakeDoc() }) {
     const shell = await mountShell(1280, 800);
     const history = fakeHistory();
-    const noStorage = { getItem: () => null, setItem: () => {} };
-    const api = await boot(document, window, {
-      root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams(''), now: () => 0, clock: () => 1760000000000, storage: noStorage,
+    const queued = new Map();
+    let next = 1;
+    const api = await boot(doc, window, {
+      root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams(''), now: () => 0, clock: () => 1760000000000, storage,
       envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,
-      uiOptions: { getSize: () => ({ width: 1280, height: 800 }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage: noStorage },
-      loopOptions: { raf: () => 0, caf: () => {} },
+      uiOptions: { getSize: () => ({ width: 1280, height: 800 }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage },
+      loopOptions: { raf: (fn) => { queued.set(next, fn); return next++; }, caf: (id) => { queued.delete(id); } },
+      createMusic: makeMusic, showPictureCards: showCards,
     });
+    const frames = (t) => { const fns = [...queued.values()]; queued.clear(); for (const fn of fns) fn(t); };
+    const cleanup = () => { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title'); delete window.__thebes; };
+    return { api, shell, doc, frames, cleanup };
+  }
+  const storedSettings = (storage) => JSON.parse(storage.getItem('thebes.settings') || '{}');
+
+  it('wires the music in boot: unlocked by the first gestures, quiet while hidden, refreshed by settings, ticked by both loops', async () => {
+    const calls = [];
+    let opts = null, unlocks = 0;
+    const spy = (o) => {
+      opts = o;
+      return {
+        unlock: () => { calls.push('unlock'); return ++unlocks >= 2; }, start: () => calls.push('start'), stop: () => calls.push('stop'),
+        refresh: () => calls.push('refresh'), tick: (t) => calls.push(`tick ${t}`), destroy: () => calls.push('destroy'), playing: () => false,
+      };
+    };
+    const storage = memory();
+    const b = await bootWith({ createMusic: spy, showPictureCards: ({ onDone }) => { onDone(); return { close() {} }; }, storage });
+    let destroyed = false;
     try {
-      expect(typeof api.music.tick).toBe('function');
-      fire(shell.root.querySelector('#title .new-city'), 'click');
-      expect(api.phase()).toBe('game');
-      const settings = api.game().ui.settings;
-      expect(settings.get().cardsSeen).toBe(true);
+      expect([b.api.music === null, typeof opts.seed(), opts.mood()]).toEqual([false, 'number', 'calm']);
+      fire(b.shell.root, 'pointerdown');
+      fire(b.shell.root, 'keydown');                                               // unlocked: the gestures stop asking
+      fire(b.shell.root, 'pointerup');
+      expect(calls.filter((c) => c === 'unlock').length).toBe(2);
+      b.doc.hidden = true; b.doc.fireVisibility();
+      b.doc.hidden = false; b.doc.fireVisibility();
+      expect(calls.slice(-2)).toEqual(['stop', 'start']);
+      b.frames(1000);                                                               // the title's loop
+      expect(calls.includes('tick 1000')).toBe(true);
+      const sound = b.shell.root.querySelector('#title .sound');
+      fire(sound, 'click');                                                         // Play with sound: sound and music on
+      expect([storedSettings(storage).sound, storedSettings(storage).music, opts.enabled(), calls[calls.length - 1]]).toEqual([true, true, true, 'refresh']);
+      fire(sound, 'click');                                                         // Play muted: both off (ruling 269)
+      expect([storedSettings(storage).sound, storedSettings(storage).music, opts.enabled()]).toEqual([false, false, false]);
+      fire(b.shell.root.querySelector('#title .new-city'), 'click');
+      expect(b.api.phase()).toBe('game');
+      expect(opts.seed()).toBe(b.api.game().world.seed);                            // the city's seed once it runs
+      b.frames(2000);                                                               // the game's loop
+      expect(calls.includes('tick 2000')).toBe(true);
+      b.cleanup(); destroyed = true;
+      expect(calls[calls.length - 1]).toBe('destroy');
+    } finally { if (!destroyed) b.cleanup(); }
+  });
+  it('shows the picture cards before the first new city on the device and starts the city only when they are done', async () => {
+    let held = null, shown = 0, closed = 0;
+    const cards = ({ onDone }) => { shown++; held = onDone; return { close: () => { closed++; } }; };
+    const storage = memory();
+    const b = await bootWith({ showPictureCards: cards, storage });
+    let destroyed = false;
+    try {
+      fire(b.shell.root.querySelector('#title .new-city'), 'click');
+      expect([b.api.phase(), shown, storedSettings(storage).cardsSeen === true]).toEqual(['title', 1, false]);   // the cards first
+      fire(b.shell.root.querySelector('#title .new-city'), 'click');
+      expect(shown).toBe(1);                                                        // a second New city while they show: ignored
+      held();
+      expect([b.api.phase(), b.api.game().ui.settings.get().cardsSeen, storedSettings(storage).cardsSeen]).toEqual(['game', true, true]);
       let after = 0;
-      api.hooks.pictureCards(() => { after++; });
+      b.api.hooks.pictureCards(() => { after++; });                                 // any time after: onDone when they are done
+      expect([shown, after]).toEqual([2, 0]);
+      held();
       expect(after).toBe(1);
-    } finally { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title'); delete window.__thebes; }
+      b.api.hooks.pictureCards();
+      b.cleanup(); destroyed = true;
+      expect(closed).toBe(1);                                                       // the page torn down under them: closed
+    } finally { if (!destroyed) b.cleanup(); }
   });
 });

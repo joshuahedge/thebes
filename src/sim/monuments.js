@@ -105,9 +105,10 @@ export function supplyNear(world, probe, good) {
 //     last: site.last, pace: paceOf, prestige: { now, more, holds } (more: what is still to come; holds: whether this one
 //     counts for its kind), stalled (site.idle >= MONUMENT.stallDays), reason }
 // STUB in part: makers and stores are [] and reason is the stored site.reason (or 'no_road' / 'paused' from state) until
-// Track A lists what reaches the site and judges the cause as monumentDay does.
+// Track A lists what reaches the site and judges the cause as monumentDay does. null for a building that is not a monument.
 export function siteStatus(world, b) {
-  const m = MONUMENTS[b.type];
+  const m = b && MONUMENTS[b.type];
+  if (!m || !b.site) return null;
   const road = touchesRoad(world, b);
   const finished = isFinished(b);
   const need = remainingNeed(b);
@@ -168,8 +169,8 @@ export function monumentAlerts(world) {
 // The prestige unlocks (spec 4.14, ruling 243): the day the city first has a kind's milestone and its prestige together
 // is recorded once in world.prestigeUnlocks (it stays, as a milestone does), the type joins newItems (its card says
 // "New") and a 'prestige_unlock' event is pushed. The small pyramid's day is also the 'pyramids' split, and the day the
-// first great pyramid is seen finished the 'great_pyramid' split (spec 4.19). Run daily by tickDay after monumentDay, and
-// by settle. Complete in the contract.
+// first great pyramid is seen finished the 'great_pyramid' split (spec 4.19). Run daily by tickDay after monumentDay (not
+// by settle: prestige and the milestone change only in the tick). Complete in the contract.
 export function updatePrestigeUnlocks(world, events = null) {
   let prestige = null;
   for (const k of PRESTIGE_UNLOCKS) {

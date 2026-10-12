@@ -16,7 +16,7 @@ describe('s4 contract follow-ups', () => {
     expect([guildSite(w, g), guildSite(w, other)]).toEqual([s.id, null]);
     s.site.done = 30;                                                             // a finished monument has no crews at work
     expect(guildSite(w, g)).toBe(null);
-    expect(supplyNeeded(w, addRaw(w, 'quarry', 20, 11))).toBe(true);              // STUB
+    expect(typeof supplyNeeded(w, addRaw(w, 'quarry', 20, 11))).toBe('boolean');  // Track A judges it
   });
   it('sends R to the placement\'s rotate, once Track C gives it one', async () => {
     const r = await rigUI({ width: 1280, height: 800 });
