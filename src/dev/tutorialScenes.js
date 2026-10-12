@@ -62,10 +62,14 @@ function buildingRing(g, clip, b) {
   const [x0, y0] = toPicture(clip, ox + (l + m) * s, oy + (t + m) * s), [x1, y1] = toPicture(clip, ox + (r - m) * s, oy + (bt - m) * s);
   return { kind: 'ring', x: r1((x0 + x1) / 2), y: r1((y0 + y1) / 2), w: r1(x1 - x0), h: r1(y1 - y0) };
 }
-function boxRing(g, clip, node) {
+// A row of text gets `radius` (square-ish corners, so the ends do not sit on its first and last letters) and `widen` px
+// (picture) more each side, as its text runs right to the row's edge and the ring's halo needs the room; above and below
+// the row's own padding is all there is before the next row's text, so the ring stays close there. A button is itself a
+// pill, so it keeps one.
+function boxRing(g, clip, node, { pad = 2, radius, widen = 0 } = {}) {
   const v = frameOf(g), b = node.getBoundingClientRect();
   const [x0, y0] = toPicture(clip, b.left - v.left, b.top - v.top), [x1, y1] = toPicture(clip, b.right - v.left, b.bottom - v.top);
-  return { kind: 'ring', x: r1((x0 + x1) / 2), y: r1((y0 + y1) / 2), w: r1(x1 - x0), h: r1(y1 - y0), pad: 2 };
+  return { kind: 'ring', x: r1((x0 + x1) / 2), y: r1((y0 + y1) / 2), w: r1(x1 - x0 + 2 * widen), h: r1(y1 - y0), pad, ...(Number.isFinite(radius) ? { radius } : {}) };
 }
 function boxArrow(g, clip, node, angle) {
   const v = frameOf(g), b = node.getBoundingClientRect();
@@ -144,7 +148,7 @@ const PICTURES = {
     const clip = clipAt(Math.max(0, Math.round(top - 170)));
     putTileAt(g, v.start.x + 0.5, v.start.y + 2, 195, clip.y + 85, 0.8);
     await wait(50);
-    return { clip, mark: boxRing(g, clip, row) };
+    return { clip, mark: boxRing(g, clip, row, { radius: 12, widen: 10 }) };
   },
   // The goals strip, the start road below it: a ring on Show me.
   async goals(g) {

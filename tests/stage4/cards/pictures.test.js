@@ -92,6 +92,18 @@ describe('s4 cards pictures', () => {
           const sheetTop = box(s.root.querySelector('#sheet')).top;
           expect([at, Boolean(row) && /worker/i.test(row.textContent), world.buildings[g.ui.store.get().selectedId].type]).toEqual([at, true, 'bazaar']);
           for (const type of ['granary', 'bazaar']) { const [x, y] = centreOf(one(type)); expect([at, type, inClip([x, y]), y < sheetTop]).toEqual([at, type, true, true]); }
+          // The ring is a rounded box, not a pill, and its line and halo (half the halo's 16 px, 8 picture px, either side of its path) clear the row's
+          // label and value text: every corner of each text's rect lies inside the ring's path drawn in by the halo.
+          const pad = Number.isFinite(mark.pad) ? mark.pad : TUTORIAL.ringPad, halo = 8 * k;
+          const pill = Math.min(mark.w, mark.h) / 2 + pad, radius = Number.isFinite(mark.radius) ? Math.min(mark.radius, pill) : pill;   // as markSvg draws it
+          const hw = (mark.w / 2 + pad) * k - halo, hh = (mark.h / 2 + pad) * k - halo, rad = Math.max(0, radius * k - halo);
+          expect([at, Number.isFinite(mark.radius), radius < pill]).toEqual([at, true, true]);
+          const clears = (rect) => [[rect.left, rect.top], [rect.right, rect.top], [rect.left, rect.bottom], [rect.right, rect.bottom]].every(([x, y]) => {
+            const qx = Math.abs(x - mx) - (hw - rad), qy = Math.abs(y - my) - (hh - rad);
+            return Math.abs(x - mx) <= hw && Math.abs(y - my) <= hh && (qx <= 0 || qy <= 0 || Math.hypot(qx, qy) <= rad);
+          });
+          const texts = [...row.children].map((c) => { const r = document.createRange(); r.selectNodeContents(c); const b = r.getBoundingClientRect(), f = s.root.querySelector('#map').getBoundingClientRect(); return { left: b.left - f.left, right: b.right - f.left, top: b.top - f.top, bottom: b.bottom - f.top }; });
+          expect([at, texts.length, texts.map((t) => t.right > t.left), texts.map(clears)]).toEqual([at, 2, [true, true], [true, true]]);
         } else if (at === 'goals') {
           const show = [...s.root.querySelectorAll('#goals button')].find((b) => inBox(box(b), mx, my));
           expect([at, Boolean(show) && /show me/i.test(show.textContent)]).toEqual([at, true]);

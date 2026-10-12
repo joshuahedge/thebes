@@ -5,10 +5,12 @@
 // The pictures are made by tools/tutorial.ps1 from the development scenes (src/dev/tutorialScenes.js: the `tutorial`
 // scene with { picture: id }), saved as assets/tutorial/<id>.webp, TUTORIAL.size px square and at most TUTORIAL.maxBytes,
 // with assets/tutorial/cards.json giving each card's mark in picture px, read from the scene itself:
-//   { "size": 600, "cards": { "<id>": { "mark": { "kind": "ring", "x", "y", "w", "h"[, "pad"] }
+//   { "size": 600, "cards": { "<id>": { "mark": { "kind": "ring", "x", "y", "w", "h"[, "pad"][, "radius"] }
 //                                             | { "kind": "arrow", "x", "y", "angle" } } } }
 // A ring is a rounded outline around the box centred on (x, y), w by h (a circle when they are equal), TUTORIAL.ringPad
-// outside it, or the mark's own "pad" (a button's ring sits close, clear of the words beside it). An arrow's tip is at
+// outside it, or the mark's own "pad" (a button's ring sits close, clear of the words beside it), with a pill's ends
+// (corner radius half the shorter side) or the mark's own "radius" in px (a row of text gets square-ish corners, so the
+// ends do not sit on its first and last letters). An arrow's tip is at
 // (x, y) and it points along angle (degrees: 0 points right, 90 down). The interface draws the mark live over the
 // picture (src/ui/tutorial.js), so it stays sharp and stays aligned when the pictures are made again.
 export const TUTORIAL_CARDS = [

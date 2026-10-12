@@ -43,7 +43,8 @@ export function markSvg(mark, size = TUTORIAL.size) {
   let shape = null;
   if (mark.kind === 'ring') {
     const pad = Number.isFinite(mark.pad) ? mark.pad : TUTORIAL.ringPad;
-    const w = mark.w + 2 * pad, h = mark.h + 2 * pad, r = Math.min(w, h) / 2;
+    const w = mark.w + 2 * pad, h = mark.h + 2 * pad;
+    const r = Number.isFinite(mark.radius) ? Math.min(mark.radius, w / 2, h / 2) : Math.min(w, h) / 2;   // a pill unless the mark gives its own corner radius
     shape = { tag: 'rect', attrs: { x: round(mark.x - w / 2), y: round(mark.y - h / 2), width: round(w), height: round(h), rx: round(r), ry: round(r) } };
   } else if (mark.kind === 'arrow') {
     const a = (mark.angle * Math.PI) / 180, L = TUTORIAL.arrowLength, H = TUTORIAL.arrowHead;
