@@ -26,7 +26,8 @@
 // the rest on the seed-11 sample city. Stage 4 does not exist yet, so each sets up the closest thing today's game
 // shows, and its S4-TODO comment names what the Stage 4 version must show. They leave motion to the caller: the shots
 // tool calls setMotion first (window.__thebes.setMotion), and takes every scene under both motions.
-import { place, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
+import { place, canPlace, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
+import { PALACE } from '../data/palace.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { holdFestival } from '../sim/festival.js';
 import { allBuildings, housesOf } from '../sim/world.js';
@@ -257,7 +258,7 @@ async function ambient(api) {
 
 // ── The mobile budget scenes ──
 
-export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded'];
+export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded', 'pyramid-placing'];
 
 // The page query each mobile scene opens with (tools/shots.ps1 -Mobile adds nosw=1): 'early' and 'plots' on a new guided
 // city, seed 7, which starts paused, as does 'expanded'; 'welcome' on Welcome back over the seed-11 sample city; the rest on that city.
@@ -265,6 +266,7 @@ const SAMPLE_CITY = 'skipTitle=1&seed=11&sample=1';
 export const MOBILE_SCENE_PARAMS = {
   early: 'skipTitle=1&seed=7', plots: 'skipTitle=1&seed=7', raid: SAMPLE_CITY, 'raid-fire': SAMPLE_CITY, 'raid-overlay': SAMPLE_CITY,
   placing: SAMPLE_CITY, farm: SAMPLE_CITY, 'farm-raid': SAMPLE_CITY, sheet: SAMPLE_CITY, welcome: 'welcome=1&seed=11&sample=1', expanded: 'skipTitle=1&seed=7',
+  'pyramid-placing': SAMPLE_CITY,
 };
 
 // A mobile scene's waits: as long as asked on the page, so the capture shows the settled screen; none with
@@ -409,6 +411,22 @@ async function expanded(api, options) {
   return `expanded tip ${g.ui.tips.current()}`;
 }
 
+// Stage 4 (Track C, ruling 252): the great pyramid being placed, the biggest footprint: its ghost and silhouette, the Ground
+// overlay's legend with the gold room line, and the confirm bar's two chip rows. The sample city is made a Capital with the
+// great pyramid's prestige unlock reached and the gold to found it (the contract's state, written as a scene does), then the
+// card is picked through Show me at the middle of the city, as a monument goal's Show me picks it.
+async function pyramidPlacing(api, options) {
+  const g = inGame(api, 'pyramid-placing'), { world, ui } = g;
+  world.milestone = 'capital';
+  for (const k of ['pyramid_small', 'pyramid_great']) world.prestigeUnlocks[k] = world.day;
+  world.gold = Math.max(world.gold, 20000);
+  ui.refresh();
+  await settle(options, 100);
+  ui.showMeAt({ category: 'monuments', item: 'pyramid_great', x: world.focus.x, y: world.focus.y });
+  await settle(options, 500);
+  return `pyramid-placing ${ui.store.get().mode} ${ui.store.get().overlay}`;
+}
+
 // Welcome back (/?welcome=1): the card as the city opens.
 async function welcome(api, options) {
   const g = inGame(api, 'welcome');
@@ -478,12 +496,26 @@ async function tutorial(api) {
   return 'tutorial (title card)';
 }
 
-// The town centre where a 3x3 palace would stand: the free 3x3 of land (no building, road, wall or water) nearest the
-// point between the working temple and the bazaar nearest the middle of the city, framed at zoom 1; the point itself
-// when no 3x3 is free within 10 tiles of it.
-// S4-TODO: the town palace at its highest style, in the town centre. Today: the town centre with nothing new on it.
+// The nearest spot to (cx, cy), within r tiles, where `type` can be placed with a road touching it (the sim's strict
+// canPlace), or null.
+function spotFor(world, type, cx, cy, r) {
+  let best = null;
+  for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(world.size - 1, Math.ceil(cy + r)); y++) {
+    for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(world.size - 1, Math.ceil(cx + r)); x++) {
+      const d = Math.hypot(x - cx, y - cy);
+      if (d > r || (best && d >= best.d) || !canPlace(world, type, x, y).ok) continue;
+      best = { x, y, d };
+    }
+  }
+  return best;
+}
+
+// Stage 4 (Track C): the town palace at its highest style (lapis and gold), in the town centre, its sheet open: the palace is
+// placed through the command on the spot with a road nearest the point between the working temple and the bazaar nearest the
+// middle of the city (the free 3x3 nearest that point, waiting for its road, when none has one), its style written to the
+// contract's shape as the five enlargements would leave it, then selected as a tap on it selects it.
 async function palace(api) {
-  const g = inGame(api, 'palace'), { world } = g, N = world.size;
+  const g = inGame(api, 'palace'), { world, ui } = g, N = world.size;
   const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
   const nearest = (type) => allBuildings(world).filter((b) => b.type === type).sort((a, b) => near(a) - near(b))[0];
   const temple = nearest('temple'), bazaar = nearest('bazaar');
@@ -500,11 +532,21 @@ async function palace(api) {
       if (ok) best = { x, y, d };
     }
   }
+  if (!['capital', 'great_city', 'city', 'market_town', 'town'].includes(world.milestone)) world.milestone = 'town';
+  world.gold = Math.max(world.gold, 1000);
+  const roadSpot = spotFor(world, 'palace', c.x - 1.5, c.y - 1.5, 10);
+  const at = roadSpot || best;
+  if (!at) throw new Error('devScene palace: no free 3x3 in the town centre');
+  const result = place(world, 'palace', at.x, at.y, { roadLater: !roadSpot });
+  if (!result.ok) throw new Error(`devScene palace: the palace would not go down (${result.reason})`);
+  world.buildings[result.id].style = PALACE.lastStyle;
+  assignLabour(world);
+  ui.refresh();
   g.cam.zoom = 1;
-  if (best) focus(g, best.x + 1.5, best.y + 1.5);
-  else focus(g, c.x, c.y);
-  await wait(200);
-  return best ? `palace ${best.x},${best.y}` : `palace centre ${c.x},${c.y}`;
+  focus(g, at.x + 1.5, at.y + 1.5, 'sheet');
+  ui.store.set(select(ui.store.get(), result.id));
+  await wait(300);
+  return `palace ${at.x},${at.y} style ${world.buildings[result.id].style}${roadSpot ? '' : ' no road'}`;
 }
 
 // ── Track B: the monument scenes ──
@@ -585,22 +627,38 @@ async function procession(api) {
   return `procession ${temple.id} day ${world.danger.festivalDay}`;
 }
 
-// A monument's site sheet open.
-// S4-TODO: the site sheet (review note 3.9): stage, courses, stock, crews, what holds it up. Today: the sheet of the
-// storehouse nearest the middle of the city (the closest thing: a yard with stock), or the summary when there is none.
+// Stage 4 (Track C, review note 3.9): a small pyramid's site sheet: its course and share done, two crews, stone and bricks on
+// site, what holds it up (bricks), last month's pace and gold, and its prestige. The city is made a Capital with the small
+// pyramid unlocked; the site and two builders' guilds are placed through the commands on spots with a road near the middle of
+// the city, and the site's state (courses, stock, crews, last month, the reason it waits) is written to the contract's shape,
+// as a few years of Track A's crews would leave it. Then the site is selected as a tap on it selects it.
 async function sitesheet(api) {
   const g = inGame(api, 'sitesheet'), { world, ui } = g;
-  const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
-  const yard = allBuildings(world).filter((b) => b.type === 'storehouse').sort((a, b) => near(a) - near(b))[0];
-  if (yard) {
-    focus(g, yard.x + yard.w / 2, yard.y + yard.d / 2, 'sheet');
-    ui.store.set(select(ui.store.get(), yard.id));
-  } else {
-    const s = ui.store.get();
-    ui.store.set(openSheet(s.sheet ? closeSheet(s) : s, 'summary'));
+  world.milestone = 'capital';
+  world.prestigeUnlocks.pyramid_small = world.day;
+  world.gold = Math.max(world.gold, 20000);
+  const at = spotFor(world, 'pyramid_small', world.focus.x, world.focus.y, 16);
+  if (!at) throw new Error('devScene sitesheet: no room for a small pyramid with a road near the middle of the city');
+  const site = place(world, 'pyramid_small', at.x, at.y);
+  if (!site.ok) throw new Error(`devScene sitesheet: the site would not go down (${site.reason})`);
+  const guilds = [];
+  for (let i = 0; i < 2; i++) {
+    const s = spotFor(world, 'builders_guild', at.x + 2, at.y + 2, 10);
+    const r = s ? place(world, 'builders_guild', s.x, s.y) : null;
+    if (r && r.ok) guilds.push(r.id);
   }
+  const b = world.buildings[site.id];
+  Object.assign(b.site, {
+    course: 3, laid: { stone: 408, bricks: 72 }, stock: { stone: 46, bricks: 0 }, crews: guilds, idle: 3, reason: 'no_bricks',
+    last: { units: 40, gold: 200, crews: guilds.length },
+  });
+  assignLabour(world);
+  ui.refresh();
+  g.cam.zoom = 1;
+  focus(g, b.x + b.w / 2, b.y + b.d / 2, 'sheet');
+  ui.store.set(select(ui.store.get(), b.id));
   await wait(300);
-  return yard ? `sitesheet storehouse ${yard.id}` : 'sitesheet summary';
+  return `sitesheet ${b.id} at ${at.x},${at.y} crews ${guilds.length}`;
 }
 
 // The Settings sheet scrolled to the Motion row.
@@ -622,7 +680,7 @@ async function motion(api) {
 
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
-  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded,
+  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded, 'pyramid-placing': pyramidPlacing,
   title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion,
 };
 

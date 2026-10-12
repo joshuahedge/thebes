@@ -3,8 +3,18 @@
 // larger pin with an arrow pointing into the map from the edge they come from (spec 4.13), so the pin says where by shape.
 import { T as TER } from '../sim/terrain.js';
 import { TERRAIN, UI, INK } from '../render/art/palette.js';
-import { allBuildings } from '../sim/world.js';
+import { allBuildings, isMonument } from '../sim/world.js';
 import { screenToTile } from '../render/camera.js';
+import * as monumentArt from '../render/monuments.js';   // Track B's minimapGlyph, once it is there (a namespace import never fails)
+
+// Stage 4 (Track C, spec 5.7): a monument on the minimap is Track B's glyph (render/monuments.js minimapGlyph(ctx, b, scale), drawn
+// in minimap px), or until then its footprint in the Monuments gold.
+const MONUMENT_GOLD = '#E2B13C';
+function drawMonumentMark(ctx, b, scale) {
+  if (typeof monumentArt.minimapGlyph === 'function') { monumentArt.minimapGlyph(ctx, b, scale); return; }
+  ctx.fillStyle = MONUMENT_GOLD;
+  ctx.fillRect(b.x * scale, b.y * scale, Math.max(1, b.w * scale), Math.max(1, b.d * scale));
+}
 
 const COLOURS = { [TER.DESERT]: TERRAIN.sand, [TER.FERTILE]: TERRAIN.fertile, [TER.ROCKY]: TERRAIN.rocky, [TER.WATER]: TERRAIN.water, [TER.BANK]: TERRAIN.bank, [TER.MEADOW]: TERRAIN.grass };
 
@@ -29,7 +39,14 @@ export function minimapPins(world, alerts = []) {
   return out;
 }
 
+// Stage 4 (Track C): the camera and view the interface shows a city through, as the minimap that follows it was given them.
+// createUI makes its minimaps before the monuments interface, and its seam context carries no camera, so the placing fit
+// (src/ui/monumentSheet.js pickFit: never zoom in) reads the camera's zoom here. Read-only.
+const shownBy = new WeakMap();   // world -> { cam, view }
+export const cameraOf = (world) => (world && shownBy.get(world)) || null;
+
 export function createMinimap({ world, cam, view, size = 160, dpr = 1 }) {
+  if (cam && view) shownBy.set(world, { cam, view });
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(size * dpr);
   canvas.height = Math.round(size * dpr);
@@ -55,6 +72,7 @@ export function createMinimap({ world, cam, view, size = 160, dpr = 1 }) {
     ctx.fillStyle = TERRAIN.road;
     for (let i = 0; i < world.road.length; i++) if (world.road[i]) ctx.fillRect((i % world.size) * scale, Math.floor(i / world.size) * scale, Math.ceil(scale), Math.ceil(scale));
     for (const b of allBuildings(world)) {
+      if (isMonument(b)) { drawMonumentMark(ctx, b, scale); continue; }
       ctx.fillStyle = b.type === 'house' ? (b.tier > 0 ? TERRAIN.roadPebble : TERRAIN.plot) : UI.housing;
       ctx.fillRect(b.x * scale, b.y * scale, Math.max(1, b.w * scale), Math.max(1, b.d * scale));
     }

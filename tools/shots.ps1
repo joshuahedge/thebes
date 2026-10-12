@@ -19,7 +19,7 @@
 # then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> before after [--stage2 | --stage3]
 #
 # -Mobile takes the mobile budget scenes instead (src/dev/scenes.js MOBILE_SCENES: early, plots, raid, raid-fire,
-# raid-overlay, placing, farm, farm-raid, sheet, welcome, the busy moments of the mobile UX review, and expanded, a tip opened in place) on four phones (390x844, 375x667,
+# raid-overlay, placing, farm, farm-raid, sheet, welcome, the busy moments of the mobile UX review, expanded, a tip opened in place, and pyramid-placing, the great pyramid's ghost (Stage 4, ruling 252)) on four phones (390x844, 375x667,
 # 844x390, 667x375) at each of -TextSizes (default 100 and 150), reduced motion on, as <Tag>-<scene>-<size>-t<text>.png.
 # Each shot also measures the rows under the top bar (measureRows in src/dev/scenes.js): a line per shot says where they
 # end, which layers show and how much of the map is left clear, and the lines (each with the full measurement as JSON
@@ -192,7 +192,7 @@ if ($Mobile) {
   $sample = '/?skipTitle=1&nosw=1&seed=11&sample=1'
   $mobileScenes = [ordered]@{
     'early' = '/?skipTitle=1&nosw=1&seed=7'; 'plots' = '/?skipTitle=1&nosw=1&seed=7'; 'raid' = $sample; 'raid-fire' = $sample
-    'raid-overlay' = $sample; 'placing' = $sample; 'farm' = $sample; 'farm-raid' = $sample; 'sheet' = $sample; 'welcome' = '/?welcome=1&nosw=1&seed=11&sample=1'; 'expanded' = '/?skipTitle=1&nosw=1&seed=7'
+    'raid-overlay' = $sample; 'placing' = $sample; 'farm' = $sample; 'farm-raid' = $sample; 'sheet' = $sample; 'welcome' = '/?welcome=1&nosw=1&seed=11&sample=1'; 'expanded' = '/?skipTitle=1&nosw=1&seed=7'; 'pyramid-placing' = $sample
   }
   $phones = @('390x844', '375x667', '844x390', '667x375')
   $measure = "(async () => JSON.stringify((await import('./src/dev/scenes.js')).measureRows()))()"
