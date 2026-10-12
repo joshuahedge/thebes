@@ -5,7 +5,7 @@ import { rigUI } from '../../helpers/uiWorld.js';
 import { fire } from '../../helpers/dom.js';
 
 describe('s4 contract follow-ups', () => {
-  it('names the site a guild\'s crew works from the sites\' crews, and keeps every quarry needed until Track A', () => {
+  it('names the site a guild\'s crew works from the sites\' crews, and idles a quarry no site needs', () => {
     const w = makeTestWorld();
     setRoad(w, 0, 10, 31, 10);
     const g = addRaw(w, 'builders_guild', 12, 11);
@@ -16,7 +16,7 @@ describe('s4 contract follow-ups', () => {
     expect([guildSite(w, g), guildSite(w, other)]).toEqual([s.id, null]);
     s.site.done = 30;                                                             // a finished monument has no crews at work
     expect(guildSite(w, g)).toBe(null);
-    expect(typeof supplyNeeded(w, addRaw(w, 'quarry', 20, 11))).toBe('boolean');  // Track A judges it
+    expect(supplyNeeded(w, addRaw(w, 'quarry', 20, 11))).toBe(false);             // Track A: no site wants stone
   });
   it('sends R to the placement\'s rotate, once Track C gives it one', async () => {
     const r = await rigUI({ width: 1280, height: 800 });

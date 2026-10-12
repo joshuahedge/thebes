@@ -1121,7 +1121,23 @@ export const CONTRACT4_TEXT = {
 // Track A's words: its REASONS (not_on_fields, one_only, work_begun, finished, the palace's), its ALERT_TEXT codes
 // (site_stalled and its reason codes), the mood rows' names if they change, and the supply buildings' working lines.
 // Add new lines just above the end marker.
-export const SIM4_TEXT = {};
+// The refusals Track A's commands return (src/sim/commands.js place and setPaused, src/sim/palace.js palaceQuote and
+// enlargePalace, src/sim/undo.js): reasonText(code) words each. work_begun's generic line is for callers that have no
+// site to name; SIM4_TEXT.workBegun names it from undo's { type }.
+Object.assign(REASONS, {
+  not_on_fields: 'Monuments stand on the desert, not the fields',
+  one_only: 'The city has its palace: there is only one',
+  work_begun: 'Work has begun on it: demolish it instead',
+  finished: 'A finished monument has nothing to pause',
+  not_palace: 'That is not the palace',
+  works: 'The palace is already being enlarged',
+  last_style: 'The palace is as grand as it gets',
+  no_road: 'Must touch a road',
+});
+export const SIM4_TEXT = {
+  // Undo refused once work has begun on a site (ruling 236): "Work has begun on the small obelisk: demolish it instead".
+  workBegun: (type) => `Work has begun on the ${buildingName(type).toLowerCase()}: demolish it instead`,
+};
 // ── end s4 sim ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

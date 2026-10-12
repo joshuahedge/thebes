@@ -3,14 +3,14 @@ import { ECONOMY } from '../data/economy.js';
 import { MONUMENTS } from '../data/monuments.js';
 import { footprint, idx, inBounds, ring } from './grid.js';
 import { T, TERRAIN_BY_NAME } from './terrain.js';
-import { makeBuilding, insertBuilding, removeBuilding, buildingAt, allBuildings, isFinished } from './world.js';
+import { makeBuilding, insertBuilding, removeBuilding, buildingAt, allBuildings, isFinished, isSite } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { canAfford, spend, refund } from './money.js';
 import { costOf, roadCostOf, rubbleCostOf, canPayNoDebt } from './costs.js';
 import { isUnlocked } from './progression.js';
 import { pushUndo } from './undo.js';
 import { storeAccepts } from './production.js';
-import { guildsNear, supplyNear } from './monuments.js';
+import { guildsNear, supplyNear, remainingNeed } from './monuments.js';
 import { DEFENCE } from '../data/raids.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
@@ -62,10 +62,13 @@ export function checkTiles(world, type, x, y, rot = 0) {
 }
 
 // Producers want a store in reach, sellers their supply: 'no_storage' / 'no_supply', else null. Either only delays it.
+// Stage 4 (spec 4.16): a quarry's stone and a brickworks' bricks go to a monument site first, so a site that still needs
+// the good counts as somewhere to send it.
 function worksWarning(world, type, x, y, rot = 0) {
   const def = BUILDINGS[type];
   const probe = { id: -1, x, y, ...dimsOf(type, rot) };
-  if (def.produces && !buildingsInReach(world, probe, def.producerReach, (o) => storeAccepts(o, def.produces.good)).length) return 'no_storage';
+  const takes = (o, good) => storeAccepts(o, good) || (isSite(o) && remainingNeed(o)[good] > 0);
+  if (def.produces && !buildingsInReach(world, probe, def.producerReach, (o) => takes(o, def.produces.good)).length) return 'no_storage';
   if (def.sells && !buildingsInReach(world, probe, def.supplyReach, (o) => storesAny(o, def.sells)).length) return 'no_supply';
   return null;
 }
