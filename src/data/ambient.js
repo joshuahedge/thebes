@@ -42,8 +42,9 @@ export const PROCESSION = {
   tilesPerDay: 1,                  // half a walker's pace: a stately walk
   spacing: 0.85,                   // tiles between one figure and the next along the road
   // The figures in walking order (Track B's walker kinds, src/render/art/figures.js): the first four already show a
-  // priest, the carried shrine, a musician and a dancer.
-  order: ['priest', 'shrine', 'musician', 'dancer', 'priest', 'musician', 'dancer', 'musician', 'dancer', 'priest', 'dancer', 'musician'],
+  // priest holding up the standard (art-direction review 10: the eye finds the festival by it), the carried shrine, a
+  // musician and a dancer.
+  order: ['standard', 'shrine', 'musician', 'dancer', 'priest', 'musician', 'dancer', 'musician', 'dancer', 'priest', 'dancer', 'musician'],
   dedicationDays: 30,
   dedicationFigures: 6,
   ownReach: 4,
