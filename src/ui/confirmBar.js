@@ -1,6 +1,7 @@
 // The confirm bar for placing, drawing and demolishing (spec 6.4-6.5): name, cost, the reason when blocked,
 // what a service will do from the ghost's spot (early-game pass 2.6), rotate for buildings that rotate, Flip
-// for roads, Undo, x and the tick. It never tucks away.
+// for roads, Undo, x and the tick. It never tucks away. onConfirm gets the input type of the tick's press
+// ('touch', 'pen', 'mouse' or 'keyboard', spec 6.7: decided when the press starts) so a touch tick can end the tool.
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
@@ -27,6 +28,13 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     tallest = Math.max(tallest, bar.getBoundingClientRect().height);
     bar.style.minHeight = `${tallest}px`;
   }
+
+  // The press type of the tick: its pointerdown names it, and a click with no pointerdown before it (Enter or Space on
+  // the focused button, a screen reader's activate) is the keyboard's. A press that never became a click is forgotten.
+  let pressType = null;
+  const forgetPress = () => { pressType = null; };
+  const rememberPress = (ev) => { pressType = ev.pointerType === 'pen' ? 'pen' : ev.pointerType === 'touch' ? 'touch' : 'mouse'; };
+  const confirmPressed = () => { const type = pressType || 'keyboard'; pressType = null; onConfirm(type); };
 
   function publishHeight() {
     const h = element.hidden ? 0 : Math.ceil(element.getBoundingClientRect().height);
@@ -59,9 +67,12 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const controls = [];
     if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', disabled: true }));
     if ((s.tool.kind === 'road' || s.tool.kind === 'wall') && s.line && s.line.x1 !== null) controls.push(button(T.flip, { class: 'flip', onClick: () => placement.flip() }));
-    controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
+    // On a phone Undo is a small icon and only when there is something to undo (the toast after a placement keeps the word);
+    // the wide layout keeps the word button, greyed out when there is nothing to undo.
+    if (s.layout === 'wide') controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
+    else if (placement.canUndo()) controls.push(iconButton(T.undo, '↶', { class: 'undo', onClick: onUndo }));
     controls.push(iconButton(T.cancel, '✕', { class: 'cancel', onClick: onCancel }));
-    controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onClick: onConfirm }));
+    controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onPointerDown: rememberPress, onPointerCancel: forgetPress, onKeyDown: forgetPress, onClick: confirmPressed }));
     // A building that changes desirability keeps a line for it (css: .confirm.desire), so the bar never grows as the ghost moves.
     const desire = s.tool.kind === 'building' && (DESIRABILITY[s.tool.type] || []).length > 0;
     const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}` }, [info, ...controls]);

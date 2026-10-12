@@ -44,15 +44,17 @@ describe('ui confirm bar', () => {
     r.placement.start({ kind: 'road' });
     r.bar.render();
     expect(r.root.querySelector('.flip')).toBe(null);
-    expect(r.root.querySelector('.undo').disabled).toBe(true);
+    expect(r.root.querySelector('.undo')).toBe(null);               // a phone shows Undo only when there is something to undo
     r.placement.pointAt(10, 12); r.placement.pointAt(14, 14);
     r.bar.render();
     fire(r.root.querySelector('.flip'), 'click');
     expect(r.store.get().line.flip).toBe(true);
     r.placement.confirm();
     r.bar.render();
-    expect(r.root.querySelector('.undo').disabled).toBe(false);
-    fire(r.root.querySelector('.undo'), 'click');
+    const undo = r.root.querySelector('.undo');
+    expect(undo.disabled).toBe(false);
+    expect([undo.getAttribute('aria-label'), undo.textContent]).toEqual([T.undo, '↶']);   // an icon button named Undo on a phone
+    fire(undo, 'click');
     expect(r.log).toEqual(['undo']);
     r.placement.start({ kind: 'demolish' });
     r.placement.pointAt(10, 12); r.placement.pointAt(10, 12);
@@ -61,6 +63,35 @@ describe('ui confirm bar', () => {
     expect(r.root.querySelector('.title').textContent).toBe(T.demolish);
     expect(r.root.querySelector('.reason').textContent).toContain('1 item');
     r.cleanup();
+  });
+  it('keeps the word Undo on the wide layout, greyed out with nothing to undo', () => {
+    const r = rig();
+    r.store.set({ layout: 'wide' });
+    r.placement.start({ kind: 'road' });
+    r.bar.render();
+    const undo = r.root.querySelector('.undo');
+    expect([undo.textContent, undo.disabled]).toEqual([T.undo, true]);
+    r.cleanup();
+  });
+  it('tells onConfirm which input pressed the tick: touch, pen, mouse, or the keyboard', () => {
+    const types = [];
+    const { root, cleanup } = mount();
+    const world = makeTestWorld({ gold: 1000 });
+    setRoad(world, 0, 10, 31, 10);
+    const store = createStore(INITIAL_UI_STATE);
+    const placement = createPlacement({ world, store });
+    createConfirmBar({ container: root, store, placement, onCancel() {}, onConfirm: (type) => types.push(type), onUndo() {} });
+    placement.start({ kind: 'building', type: 'well' }, { x: 5, y: 9 });
+    placement.moveGhost(5, 9);
+    const press = (pointerType) => {
+      const ok = root.querySelector('.ok');
+      if (pointerType) fire(ok, 'pointerdown', { pointerType });
+      fire(ok, 'click');
+    };
+    press('touch'); press('pen'); press('mouse'); press(null);           // no pointerdown before the click: Enter or Space on the button
+    press('touch'); fire(root.querySelector('.ok'), 'pointercancel'); press(null);   // a press that never became a click is forgotten
+    expect(types).toEqual(['touch', 'pen', 'mouse', 'keyboard', 'touch', 'keyboard']);
+    cleanup();
   });
   it('keeps keyboard focus on the same control when the bar rebuilds', () => {
     const r = rig();

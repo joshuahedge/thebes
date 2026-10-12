@@ -30,7 +30,7 @@ describe('ui createUI', () => {
     expect(buildingAt(r.world, 5, 9)).toBe(null);
     fire(r.root.querySelector('#confirm .ok'), 'click');
     expect(buildingAt(r.world, 5, 9).type).toBe('well');
-    expect(r.store.get().mode).toBe('placing');                               // placing repeats until the x
+    expect(r.store.get().mode).toBe('placing');                               // a click (no touch press) keeps placing repeatedly until the x
     const toast = r.root.querySelector('#toasts .toast');
     expect(toast.textContent).toContain('Well placed');
     fire(toast.querySelector('button'), 'click');                             // Undo
@@ -40,6 +40,90 @@ describe('ui createUI', () => {
     expect(r.store.get().mode).toBe('browse');
     expect(r.root.querySelector('#confirm').hidden).toBe(true);
     r.cleanup();
+  });
+  describe('the tick on a touch or pen press (placement review P6)', () => {
+    async function onTheTick(pointerType, build = { category: 'services', index: 0 }) {
+      const r = await rigUI();
+      fire(r.root.querySelector(`#dock .cat[data-category="${build.category}"]`), 'click');
+      fire(r.root.querySelectorAll('#dock .tray .card')[build.index], 'click');
+      r.frame(0);
+      r.tap(5, 9);
+      const ok = r.root.querySelector('#confirm .ok');
+      if (pointerType) fire(ok, 'pointerdown', { pointerType });
+      fire(ok, 'click');
+      return r;
+    }
+    it('ends the tool after a touch tick: the well stands, the map is in Browse, the tray is back and the overlay stays on', async () => {
+      const r = await onTheTick('touch');
+      expect(buildingAt(r.world, 5, 9).type).toBe('well');
+      const s = r.store.get();
+      expect([s.mode, s.tool, s.ghost, s.overlay, s.dock, s.category]).toEqual(['browse', null, null, 'water', 'tray', 'services']);
+      expect(r.root.querySelector('#confirm').hidden).toBe(true);
+      expect(r.root.querySelector('#dock .tray .card .name').textContent).toBe('Well');   // the same card is one tap away
+      expect(r.root.querySelector('#toasts .toast').textContent).toContain('Well placed');
+      r.cleanup();
+    });
+    it('does the same for a pen, and the Undo toast still undoes it', async () => {
+      const r = await onTheTick('pen');
+      expect(r.store.get().mode).toBe('browse');
+      fire(r.root.querySelector('#toasts .toast button'), 'click');
+      expect(buildingAt(r.world, 5, 9)).toBe(null);
+      r.cleanup();
+    });
+    it('keeps placing for a mouse or keyboard tick, and for the Enter key', async () => {
+      const mouse = await onTheTick('mouse');
+      expect(mouse.store.get().mode).toBe('placing');
+      mouse.cleanup();
+      const plain = await onTheTick(null);                                       // a click with no press before it is the keyboard's
+      expect(plain.store.get().mode).toBe('placing');
+      plain.cleanup();
+      const r = await onTheTick('mouse');
+      r.store.set({ inputType: 'touch' });                                       // the last map press being a touch does not matter: Enter is the keyboard's
+      r.ui.placement.moveGhost(7, 9);
+      key(r.root, 'Enter');
+      expect(buildingAt(r.world, 7, 9) && buildingAt(r.world, 7, 9).type).toBe('well');
+      expect(r.store.get().mode).toBe('placing');
+      r.cleanup();
+    });
+    it('stays in the tool when the tick is refused', async () => {
+      const r = await rigUI();
+      fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
+      fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');
+      r.ui.placement.moveGhost(12, 9);                                           // a hut stands here
+      const ok = r.root.querySelector('#confirm .ok');
+      fire(ok, 'pointerdown', { pointerType: 'touch' }); fire(ok, 'click');
+      expect(r.store.get().mode).toBe('placing');
+      r.cleanup();
+    });
+    it('pans the least that keeps the new building above the tray when it stood where the tray comes back', async () => {
+      const r = await rigUI();
+      fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
+      fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');
+      r.frame(0);
+      while (r.screenOf(5.5, 9.5).y < 650) { r.cam.x -= 1; r.cam.y -= 1; }       // tile (5, 9) now sits low on the map, where the tray will cover it
+      r.tap(5, 9);
+      expect(r.store.get().ghost).toEqual({ x: 5, y: 9 });
+      expect(r.screenOf(5.5, 9.5).y > 600).toBe(true);
+      const ok = r.root.querySelector('#confirm .ok');
+      fire(ok, 'pointerdown', { pointerType: 'touch' }); fire(ok, 'click');
+      r.ui.cameraControl.tick(1e6);                                              // let the pan finish
+      const tray = r.root.querySelector('#dock').getBoundingClientRect().top;
+      expect(r.screenOf(5.5, 9.5).y < tray).toBe(true);
+      r.cleanup();
+    });
+    it('puts the toast just above the bar while a tool is on', async () => {
+      const r = await rigUI();
+      fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
+      fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');
+      r.frame(0);
+      r.tap(5, 9);
+      const ok = r.root.querySelector('#confirm .ok');
+      fire(ok, 'pointerdown', { pointerType: 'mouse' }); fire(ok, 'click');       // the mouse keeps the tool on, the bar stays up
+      expect(r.store.get().dock).toBe('tray');                                    // the tray is hidden behind the bar: the toast must not float at the tray's height
+      const toast = r.root.querySelector('#toasts .toast').getBoundingClientRect(), bar = r.root.querySelector('#confirm').getBoundingClientRect();
+      expect(toast.bottom <= bar.top && bar.top - toast.bottom < 100).toBe(true);   // just above the corner row on the bar
+      r.cleanup();
+    });
   });
   it('switches chrome with the viewport and keeps the camera and a placement through a rotation', async () => {
     const r = await rigUI({ width: 390, height: 844 });
