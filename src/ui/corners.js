@@ -1,6 +1,7 @@
 // Corner buttons (spec 6.3): pause and speed bottom-left; minimap with the alert badge and the overlay toggle
-// bottom-right. Each says what it is in a word under its icon (early-game pass 2.9). They show at every dock
-// height and never sit in the middle of the map.
+// bottom-right. Each says what it is in a word under its icon (early-game pass 2.9). They ride above the dock at
+// every height, except that in portrait they step out of sight over an open tray that would lift them above half the
+// screen (ruling 173), so they never sit in the middle of the map.
 import { el, iconButton, setText } from './components.js';
 import { T, plural, layersText, OVERLAY_NAMES } from './text.js';
 import { isToolMode } from './modes.js';

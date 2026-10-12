@@ -353,7 +353,8 @@ body.reduce-motion #cheer .cheer { animation: none; }
 body[data-layout="wide"] #tip { max-width: 440px; }
 /* A phone (portrait or compact) at 125% or 150% text has no room for a tip to stay up and cover the map: its words are 14 px
    scaled instead of the body size, its padding is tight, and the Tip label is kept for screen readers only, as the caption's
-   why is. createUI also closes the tip after TIP_AUTO_CLOSE_MS there (it stays seen, and How to play lists it). */
+   why is. On every phone, at any text size, createUI also closes a tip after TIP_AUTO_CLOSE_MS of unpaused play with it on
+   screen (ruling 171; it stays seen, and How to play lists it). */
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row { position: relative; padding: 0 2px 0 10px; gap: 4px; line-height: 1.25; }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .text { font-size: calc(14px * var(--ui-scale)); }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

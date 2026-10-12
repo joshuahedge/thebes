@@ -29,7 +29,7 @@ import { T as TERRAIN } from '../sim/terrain.js';
 import { DEFENCE, RAIDS, UNITS } from '../data/raids.js';
 import { FIRE } from '../data/fire.js';
 import { TIP_FIRST_DELAY_MS } from '../data/tips.js';
-import { CHEER_GAP_MS } from '../data/ui.js';
+import { CHEER_GAP_MS, CHEER_MS } from '../data/ui.js';
 import { screenToTile } from '../render/camera.js';
 import { openSheet, closeSheet, select, toggleOverlay } from '../ui/modes.js';
 import { freeTop } from '../ui/layout.js';
@@ -121,8 +121,9 @@ async function fire(api) {
   return `fire ${home.id} ${coverageOf(world, home)}`;
 }
 
-// A later raid's warning (spec 4.13), so it carries a tribute: the first raid came from the east and was beaten, and the
-// second's warning went up 30 days ago. Returns the warning.
+// A later raid's warning (spec 4.13), so it carries a tribute: the first raid came from the east when the map has an
+// east entry (the seed-11 sample city does; otherwise from its first raider entry) and was beaten, and the second's
+// warning went up 30 days ago. Returns the warning.
 function raiseWarning(world) {
   const r = world.raid;
   const entry = { ...(world.raiderEntries.find((e) => entryDir(world, e) === 'east') || world.raiderEntries[0]) };
@@ -282,18 +283,20 @@ function finestHome(world) {
 const putOutCaption = (g, b) => g.ui.celebrations.show({ tier: 'info', text: DANGER_UI_TEXT.putOut('blaze', placeName(b)) });
 
 // The first minutes: a road laid off the start road on the new city once tips may show (none in the session's first
-// TIP_FIRST_DELAY_MS): the goals strip, the goal's caption, the tip it brings and the Undo toast. On a phone the city is
-// still paused, so that tip waits for Play (ruling 176) and the caption, then the goal and Show me, keep the row.
+// TIP_FIRST_DELAY_MS), captured once the goal's caption has gone: the goals strip with the next goal and Show me, and the
+// Undo toast. The city is still paused, so on a phone the tip the goal brings waits for Play (ruling 176); a wide screen
+// shows it under the strip. Quick, the caption row is emptied as the caption's end would leave it.
 async function early(api, options) {
   const g = inGame(api, 'early');
   await settle(options, TIP_FIRST_DELAY_MS + 300);
   layRoad(g, 5, 'early');
-  await settle(options, 200);
+  if (options && options.quick) g.ui.celebrations.clear();
+  else await wait(CHEER_MS.first + 300);
   return `early tip ${g.ui.tips.current()}`;
 }
 
 // Plots while paused: a road, and once its caption's slot has passed, six plots beside it, the game still paused: Press
-// Play, a caption, two Undo toasts and the guide's strip. Quick, the caption row is emptied as the slot's end would
+// Play, a caption, the Undo toasts (on a phone only the newest, ruling 169) and the guide's strip. Quick, the caption row is emptied as the slot's end would
 // leave it, when nothing waits behind the road's caption.
 async function plots(api, options) {
   const g = inGame(api, 'plots'), { world } = g;

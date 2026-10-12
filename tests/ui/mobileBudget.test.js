@@ -1,14 +1,15 @@
 // The phone height budget (mobile UX review, docs/superpowers/notes/2026-10-12-mobile-ux-review.md, section 3; ruling
 // 175): each mobile scene (src/dev/scenes.js MOBILE_SCENES, the busy moments tools/shots.ps1 -Mobile captures) is booted
-// as its page query opens it, on a small portrait phone (375x667) and a landscape phone (844x390) at 100% and 150% text,
-// and measureRows() reads where the rows under the top bar end. The scenes run quick (no settling waits; the clock is
-// moved past the session's first seconds for 'early', as the scene waits them out; on a paused phone its goal tip
-// then waits for Play, ruling 176). The shell is mounted in the test page,
+// as its page query opens it, on a small portrait phone (375x667) and two landscape phones (844x390 and 667x375, the
+// review's worst case) at 100%, 125% and 150% text, and measureRows() reads where the rows under the top bar end. The
+// scenes run quick (no settling waits; the clock is moved past the session's first seconds for 'early', as the scene
+// waits them out; on a paused phone its goal tip then waits for Play, ruling 176). The shell is mounted in the test page,
 // so sizes in vh (the portrait sheet's 60vh) follow the test page, not the phone; no check reads them. The checks:
-//   end    the rows end by 30% of the height in portrait at 100% text, 40% at 150%; with a sheet open 20% and 25%;
-//          in landscape by 40%
+//   end    the rows end by 30% of the height in portrait at 100% text, 40% at 125% and 150%; with a sheet open 20% and
+//          25%; in landscape by 40%
 //   rows   at most two rows (the alert row and the guidance row), one on a landscape phone at 125% text or more
-//          (ruling 172), and while a sheet is open only the alert row (ruling 168)
+//          (ruling 172), and that one the alert row whenever a banner shows; while a sheet is open only the alert row
+//          (ruling 168)
 //   edge   in landscape the rows stop at an open sheet's left edge
 // NOT_YET lists the checks the game does not meet yet. Each must fail as listed, so the task that meets one removes it
 // here; the list is empty when the mobile UX pass is done.
@@ -20,8 +21,8 @@ import { TIP_FIRST_DELAY_MS } from '../../src/data/tips.js';
 import { fakeIndexedDB } from '../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../helpers/uiWorld.js';
 
-const SIZES = [[375, 667], [844, 390]];
-const TEXT_SIZES = [100, 150];
+const SIZES = [[375, 667], [844, 390], [667, 375]];
+const TEXT_SIZES = [100, 125, 150];
 
 // Not met yet: none. The mobile UX pass met every check (M6 met the last, on the landscape phone: the compact rows and the
 // one-row rule at large text, ruling 172). A check that fails again is a regression, not a task left to do.
@@ -53,7 +54,7 @@ async function bootScene(name, width, height) {
 // not as a budget that is suddenly met).
 const raidUp = (g) => g.world.raid.warning !== null;
 const SET_UP = {
-  early: (g) => [g.world.goals.completed.length > 0, g.ui.tips.current(), g.world.speed],   // the goal's tip waits for Play (ruling 176)
+  early: (g) => [g.world.goals.completed.length > 0, g.ui.tips.current(), document.body.dataset.guidance, g.world.speed],   // the goal's tip waits for Play: the goal has the row (ruling 176)
   plots: (g) => [g.ui.tips.current() === 'press_play', g.world.speed],
   raid: (g) => [raidUp(g), g.world.speed],
   'raid-fire': (g) => [raidUp(g), Object.values(g.world.buildings).some((b) => b.fire && b.fire.stage === 'fire')],
@@ -63,7 +64,7 @@ const SET_UP = {
   welcome: (g) => [g.ui.store.get().sheet.kind, g.world.speed],
 };
 const SET_UP_WANTED = {
-  early: [true, null, 0], plots: [true, 0], raid: [true, 0], 'raid-fire': [true, true], 'raid-overlay': [true, 'fire'],
+  early: [true, null, 'goal', 0], plots: [true, 0], raid: [true, 0], 'raid-fire': [true, true], 'raid-overlay': [true, 'fire'],
   placing: [true, 'placing', 'well'], sheet: [true, 'info', 'house'], welcome: ['welcome', 0],
 };
 
@@ -71,14 +72,18 @@ const SET_UP_WANTED = {
 function budgetChecks(scene, m) {
   const at = `${scene} ${m.width}x${m.height} ${m.textSize}%`;
   const portrait = m.layout === 'portrait', sheet = m.sheet !== null;
-  const endLimit = portrait ? (sheet ? (m.textSize >= 150 ? 0.25 : 0.2) : (m.textSize >= 150 ? 0.4 : 0.3)) : 0.4;
-  const rowLimit = !portrait && m.textSize >= 125 ? 1 : 2;
+  const large = m.textSize >= 125;                   // the spec's budget names 100% and 150%; 125% is held to the larger-text line
+  const endLimit = portrait ? (sheet ? (large ? 0.25 : 0.2) : (large ? 0.4 : 0.3)) : 0.4;
+  const oneRow = !portrait && large;
   const end = m.rowsEnd / m.height, names = Object.keys(m.layers);
+  const got = `${m.rows} (${names.join('+')})`;
   const out = [
     { id: `${at} end`, ok: end <= endLimit + 0.005, got: `${Math.round(end * 100)}%`, limit: `${Math.round(endLimit * 100)}%` },
     sheet
-      ? { id: `${at} rows`, ok: names.every((k) => k === 'alert'), got: `${m.rows} (${names.join('+')})`, limit: 'the alert row only' }
-      : { id: `${at} rows`, ok: m.rows <= rowLimit, got: `${m.rows} (${names.join('+')})`, limit: rowLimit },
+      ? { id: `${at} rows`, ok: names.every((k) => k === 'alert'), got, limit: 'the alert row only' }
+      : oneRow && names.includes('alert')
+        ? { id: `${at} rows`, ok: names.length === 1, got, limit: 'the alert row only (ruling 172)' }
+        : { id: `${at} rows`, ok: m.rows <= (oneRow ? 1 : 2), got, limit: oneRow ? 1 : 2 },
   ];
   if (!portrait && sheet && m.sheet.left > m.width / 3) {
     out.push({ id: `${at} edge`, ok: m.rows === 0 || m.rowsRight <= m.sheet.left + 1, got: Math.round(m.rowsRight), limit: Math.round(m.sheet.left) });
