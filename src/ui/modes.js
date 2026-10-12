@@ -45,6 +45,7 @@ export function enterScreenshot(state) {
 export function back(state) {
   if (state.screenshot) return { screenshot: false };
   if (state.confirmDialog) return { confirmDialog: null };
+  if (state.guidanceOpen) return { guidanceOpen: false };   // the guidance row opened in place is the newest thing open: it closes first
   if (state.sheet && state.sheet.kind !== 'info') return afterPanel(state);
   if (isToolMode(state.mode)) return cancelTool(state);
   if (state.mode === 'selected') return { mode: 'browse', selectedId: null, sheet: null };

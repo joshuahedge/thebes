@@ -4,6 +4,8 @@ import { fire, key } from '../helpers/dom.js';
 import { select, openSheet } from '../../src/ui/modes.js';
 import { screenToTile } from '../../src/render/camera.js';
 import { buildingAt } from '../../src/sim/world.js';
+import { T } from '../../src/ui/text.js';
+import { TIP_FIRST_DELAY_MS } from '../../src/data/tips.js';
 
 // A control's name is its aria-label, else its visible text with aria-hidden glyphs removed (an icon-only button
 // whose only text is a hidden glyph has no name). Scans buttons and role=button; there are no bare inputs, selects
@@ -66,6 +68,34 @@ describe('ui accessibility', () => {
     key(r.root, ' ');
     expect(r.world.speed).toBe(0);
     r.cleanup();
+  });
+  it('names the More, Less and All goals controls, says whether a row is open, and keeps the tip and caption rows live regions (P8)', async () => {
+    let t = 0;
+    const r = await rigUI({ width: 360, height: 640, now: () => t });
+    r.renderer.renderFrame = () => {};
+    try {
+      r.ui.settings.set({ textSize: 150, reducedMotion: 'on' });
+      const unnamed = () => [...r.root.querySelectorAll('button, [role="button"]')].filter((b) => !b.hidden && !nameOf(b)).map((b) => b.className);
+      const live = (id) => [r.root.querySelector(`#${id}`).getAttribute('role'), r.root.querySelector(`#${id}`).getAttribute('aria-live')];
+      expect([live('tip'), live('cheer')]).toEqual([['status', 'polite'], ['status', 'polite']]);
+      t = TIP_FIRST_DELAY_MS;
+      r.world.speed = 1;
+      expect(r.ui.tips.trigger('goalDone')).toBe(true);                // cut at two lines at 150% on a 360 px phone
+      r.frame(1000);
+      const more = r.root.querySelector('#tip .more');
+      expect([more.hidden, nameOf(more), more.getAttribute('aria-expanded')]).toEqual([false, T.more, 'false']);
+      fire(more, 'click');
+      expect([nameOf(more), more.getAttribute('aria-expanded'), unnamed()]).toEqual([T.less, 'true', []]);   // the arrow is decoration: the name is the word
+      expect(r.root.querySelector('#tip').getAttribute('aria-live')).toBe('polite');
+      fire(r.root, 'keydown', { key: 'Escape' });
+      r.ui.tips.dismiss();
+      const words = r.root.querySelector('#goals .open-goals');
+      expect([words.getAttribute('aria-expanded'), nameOf(words).includes(T.goal)]).toEqual(['false', true]);
+      fire(words, 'click');
+      const all = r.root.querySelector('#goals .all-goals');
+      expect([words.getAttribute('aria-expanded'), nameOf(all), unnamed()]).toEqual(['true', T.allGoals, []]);   // the › is decoration
+      expect([...r.root.querySelectorAll('#goals button')].filter((b) => !b.hidden).every((b) => b.getBoundingClientRect().height >= 44)).toBe(true);
+    } finally { r.cleanup(); }
   });
   it('jumps instead of panning under reduced motion (spec 5.4)', async () => {
     const r = await rigUI({ width: 390, height: 844 });
