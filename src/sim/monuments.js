@@ -22,6 +22,7 @@ import { allBuildings, isSite, isFinished } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { atLeast } from './progression.js';
 import { isWorking, staffRatio } from './labour.js';
+import { storeAccepts, hasSpace } from './production.js';
 import { prestigeOf, prestigeOfBuilding, prestigeByKind, holdsPrestige, monumentMood, monumentsPart } from './prestige.js';
 
 export { prestigeOf, prestigeOfBuilding, prestigeByKind, holdsPrestige, monumentMood, monumentsPart };
@@ -85,9 +86,13 @@ export function paceOf(world, b) {
 // takes: { guilds: [ids], max }. Complete from state; Track A keeps site.crews true.
 export const crewsFor = (world, b) => ({ guilds: b.site ? b.site.crews.slice() : [], max: MONUMENTS[b.type] ? MONUMENTS[b.type].crews : 0 });
 
-// The guild ids within a footprint's crew reach, nearest first (the placing chip's "builders' guild near"; ruling 230).
-// STUB in part: Track A adds "with room for a crew" (a guild already at work elsewhere does not count). probe: { x, y, w, d }.
-export const guildsNear = (world, probe) => buildingsInReach(world, { id: -1, ...probe }, MONUMENT.crewReach, (o) => o.type === 'builders_guild').map((r) => r.b.id);
+// The guild ids within a footprint's crew reach that have room for a crew, nearest first (the placing chip's "builders'
+// guild near"; ruling 230): unpaused, and not already at work on a site in today's crew plan. probe: { x, y, w, d }.
+export function guildsNear(world, probe) {
+  const plan = crewPlan(world);
+  const free = (o) => o.type === 'builders_guild' && !o.paused && !plan.has(o.id);
+  return buildingsInReach(world, { id: -1, ...probe }, MONUMENT.crewReach, free).map((r) => r.b.id);
+}
 
 // Whether anything could bring this material to a footprint: a maker of it within its producer reach, or a storehouse
 // within the site's supply reach that holds some (the placing chip's "Stone near"; ruling 230).
@@ -172,10 +177,11 @@ export function crewPlan(world) {
 }
 
 // Whether a workplace of the monuments priority has work today, so labour.js employs it (spec 4.8, 4.16, ruling 187): a
-// builders' guild only while the crew plan gives it a site. Any other building: true. plan: crewPlan(world), passed in
-// so labour.js works it out once a day.
+// builders' guild only while the crew plan gives it a site, a quarry or brickworks only while supplyNeeded. Any other
+// building: true. plan: crewPlan(world), passed in so labour.js works it out once a day.
 export function hasMonumentWork(world, b, plan = null) {
   if (b.type === 'builders_guild') return (plan || crewPlan(world)).has(b.id);
+  if (materialOf(b)) return supplyNeeded(world, b);
   return true;
 }
 
@@ -249,8 +255,9 @@ function commitCrew(world, b, p, events) {
 // raids). Sites go in founding order (ascending id). Each open site's crews are the working guilds the crew plan sends
 // it (site.crews, in the order they took it; month.crews the most on one day); each crew lays its day (crewDayUnits) from
 // the stockpile, course by course; a crew that cannot lay its full share for want of material counts a starved day
-// (month.starvedDays). A road-less or paused site has no crews and does nothing.
-// Task A2 adds the deliveries (sites draw from storehouses); Task A3 the work gold, the gilding and capstone, idle,
+// (month.starvedDays). Before its crews work, an open site draws what its stockpile has room for from the storehouses
+// within MONUMENT.supplyReach (drawFromStores; quarries and brickworks delivered earlier in the day, production.js). A
+// road-less or paused site has no crews and does nothing. Task A3 adds the work gold, the gilding and capstone, idle,
 // reason and the stall.
 export function monumentDay(world, events = null) {
   const plan = crewPlan(world);
@@ -262,6 +269,7 @@ export function monumentDay(world, events = null) {
   for (const b of allBuildings(world)) {
     if (!isSite(b)) continue;
     const s = b.site;
+    if (openSite(world, b)) drawFromStores(world, b);
     const working = (guildsAt.get(b.id) || []).filter((g) => isWorking(world, g));
     s.crews = working.map((g) => g.id);
     s.month.crews = Math.max(s.month.crews, s.crews.length);
@@ -337,11 +345,54 @@ export function guildSite(world, g) {
   return null;
 }
 
-// STUB. Whether a quarry or brickworks is needed (ruling 237): an unpaused, unfinished, road-touching site that still needs
-// its material and has stockpile room lies in its producer reach, or within MONUMENT.supplyReach of a storehouse in its
-// producer reach that accepts the material and has room. An idle one makes nothing, employs nobody and pays no wages
-// (upkeep still runs), its sheet says "Idle: no monument site needs stone within reach" and its art lays its tools down.
-// true for any other building. Until Track A: always true (a quarry works as any producer does).
+// ── Supply (Track A) ─────────────────────────────────────────────────────────────────────────────────────────────
+
+// The material a quarry or brickworks makes (MATERIALS), or null for any other building.
+export function materialOf(b) {
+  const p = BUILDINGS[b.type] && BUILDINGS[b.type].produces;
+  return p && MATERIALS.includes(p.good) ? p.good : null;
+}
+
+// A site that wants a material today: open (unpaused, unfinished, on a road) with stockpile room for a whole unit of it
+// (stockRoom, ruling 238). Units arrive whole, so a pile is never filled past its limit or past what its courses need.
+const wantsGood = (world, o, good) => openSite(world, o) && stockRoom(o)[good] >= 1 - EPS;
+
+// The sites a quarry or brickworks delivers to, nearest first: those within its producer reach that want its material
+// (spec 4.16: a site before any storehouse). production.js sends each unit to the first that still has room.
+export function deliverySites(world, b) {
+  const good = materialOf(b);
+  if (!good) return [];
+  return buildingsInReach(world, b, BUILDINGS[b.type].producerReach, (o) => wantsGood(world, o, good)).map((r) => r.b);
+}
+
+// Whether a quarry or brickworks is needed (ruling 237): a site that wants its material (open, still needing it, with
+// room) lies in its producer reach, or within MONUMENT.supplyReach of a storehouse in its producer reach that accepts the
+// material and has room. An idle one makes nothing (production.js: b.blocked 'idle'), employs nobody and pays no wages
+// (labour.js; upkeep still runs, economy.js), its sheet says "Idle: no monument site needs stone within reach" and its
+// art lays its tools down. true for any other building.
 export function supplyNeeded(world, b) {
-  return true;
+  const good = materialOf(b);
+  if (!good) return true;
+  if (deliverySites(world, b).length) return true;
+  const stores = buildingsInReach(world, b, BUILDINGS[b.type].producerReach, (o) => storeAccepts(o, good) && hasSpace(o));
+  return stores.some(({ b: s }) => buildingsInReach(world, s, MONUMENT.supplyReach, (o) => wantsGood(world, o, good)).length > 0);
+}
+
+// A site's own draw (spec 4.16, as a bazaar restocks): for each material, the whole units its stockpile has room for,
+// from the stores within MONUMENT.supplyReach that hold some (accepting it or not, working or not), nearest first.
+// Each unit drawn counts as delivered (tally stoneDelivered / bricksDelivered).
+function drawFromStores(world, b) {
+  for (const g of MATERIALS) {
+    let want = Math.floor(stockRoom(b)[g] + EPS);
+    if (want <= 0) continue;
+    const holding = (o) => (BUILDINGS[o.type].stores || []).includes(g) && (o.store[g] || 0) > 0;
+    for (const { b: src } of buildingsInReach(world, b, MONUMENT.supplyReach, holding)) {
+      const take = Math.min(want, src.store[g]);
+      src.store[g] -= take;
+      b.site.stock[g] += take;
+      world.tally[`${g}Delivered`] += take;
+      want -= take;
+      if (want <= 0) break;
+    }
+  }
 }

@@ -18,7 +18,8 @@ export function assignLabour(world) {
     b.staff = 0;
     if (b.paused || !touchesRoad(world, b)) continue;
     // Stage 4 (spec 4.8, 4.16, ruling 187): a monuments workplace with no work today (hasMonumentWork: a builders' guild
-    // with no site) employs nobody, so pays no wages (upkeep still runs), and its jobs are not counted.
+    // with no site, a quarry or brickworks no site needs) employs nobody, so pays no wages (upkeep still runs), and its
+    // jobs are not counted.
     if (def.priority === 'monuments' && !hasMonumentWork(world, b, plan || (plan = crewPlan(world)))) continue;
     (byLevel[def.priority] = byLevel[def.priority] || []).push(b);
     jobs += def.workers;
