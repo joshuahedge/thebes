@@ -26,8 +26,10 @@ function rig(storage = fakeLocal()) {
 const shownText = (root) => { const n = root.querySelector('.tip-row .text'); return n ? n.textContent : null; };
 
 // Frames for the game tests, cheap because the drawing is stubbed. play(ms) runs frames a second apart, so the game's play
-// clock (which the tips' gap and hourly cap count) moves only while the speed is above zero.
+// clock (which the tips' gap and hourly cap count) moves only while the speed is above zero. Motion is chosen (Gentle),
+// so the device's own setting (headless Edge asks for less motion) brings no Gentle tip into these tests (Stage 4).
 function quietFrames(r) {
+  r.ui.settings.set({ motion: 'gentle' });
   r.renderer.renderFrame = () => {};
   let ft = 0;
   r.frame(ft);
@@ -258,7 +260,7 @@ describe('ui tips', () => {
   });
   it('keeps every tip short and unique, and lists them all in How to play', async () => {
     const ids = TIPS.map((t) => t.id), triggers = TIPS.map((t) => t.trigger);
-    expect(TIPS.length).toBe(20);                                          // Stage 3 adds danger's six
+    expect(TIPS.findIndex((t) => t.id === 'wall_ring')).toBe(19);          // Stage 3 adds danger's six; Stage 4's lists follow them
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(triggers).size).toBe(triggers.length);
     for (const t of TIPS) {

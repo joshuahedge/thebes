@@ -419,15 +419,15 @@ async function welcome(api, options) {
 
 export const STAGE4_SCENES = ['title', 'tutorial', 'site', 'pyramid', 'capstone', 'procession', 'palace', 'sitesheet', 'motion'];
 
-// The two motions every Stage 4 shot is taken under (review note 7.2, "Screenshots in both"), in today's settings: full
-// is reduced motion off and ambient on; reduced follows the device (reduced motion 'system', which headless Edge resolves
-// to reduced, so ambient is off too). Returns the motion it set.
-// S4-TODO: Track E updates this when the Motion setting lands (full = Motion Full, reduced = follow the device -> Gentle).
+// The two motions every Stage 4 shot is taken under (review note 7.2, "Screenshots in both"; spec 5.4): full is Motion
+// Full; reduced follows the device (Motion 'system'), which headless Edge, asking for less motion, resolves to Gentle.
+// 'gentle' and 'still' choose those levels outright (for a shot or a test that wants one whatever the device says).
+// Returns the motion it set. tools/shots.ps1 -Motion takes MOTIONS.
 export const MOTIONS = ['full', 'reduced'];
+const MOTION_FOR = { full: 'full', reduced: 'system', gentle: 'gentle', still: 'still' };
 export function setMotion(settings, motion) {
-  if (motion === 'full') settings.set({ reducedMotion: 'off', ambient: true });
-  else if (motion === 'reduced') settings.set({ reducedMotion: 'system', ambient: true });
-  else throw new Error(`setMotion: no motion named ${motion} (${MOTIONS.join(', ')})`);
+  if (!(motion in MOTION_FOR)) throw new Error(`setMotion: no motion named ${motion} (${Object.keys(MOTION_FOR).join(', ')})`);
+  settings.set({ motion: MOTION_FOR[motion] });
   return motion;
 }
 
@@ -578,9 +578,9 @@ async function sitesheet(api) {
   return yard ? `sitesheet storehouse ${yard.id}` : 'sitesheet summary';
 }
 
-// The Settings sheet scrolled to the Motion row.
-// S4-TODO: the one Motion row (Full / Gentle / Still) saying what it is doing, e.g. "Motion: Gentle (your device asks
-// for less motion)" (review note 7.2). Track E owns the fuller rewrite.
+// The Settings sheet scrolled to the Motion row (spec 5.4): its four choices, the status line saying what it is doing
+// ("Motion: Gentle (your device asks for less motion)" under the reduced shots, "Motion: Full" under the full ones) and
+// the line saying what that level moves.
 async function motion(api) {
   const g = inGame(api, 'motion'), { ui } = g;
   const s = ui.store.get();

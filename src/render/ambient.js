@@ -14,6 +14,11 @@
 // changes direction or brightness more than once a second. Rare life and the drop order keep the frame inside its
 // budget: over AMBIENT.budgetMs (a running average), rare life goes first, then smoke, then sway; the water stays.
 // A dropped kind returns only after RESTORE_AFTER_MS well under budget, so kinds never blink in and out.
+//
+// Stage 4 (spec 5.4, 5.6, ruling 217, Track E): createAmbient takes the Motion level (level(): 'full' | 'gentle' |
+// 'still'; without it, enabled() true reads as Full). Full is all of it. Gentle keeps only fades in place: river and pool
+// glints fade in and out where they are (no drift), smoke fades in place rising at most GENTLE_SMOKE_RISE_PX, the bank
+// ripples hold still; no reed or tree sway, no crop bands, no rare life. Still (or enabled() false) draws nothing.
 import { AMBIENT } from '../data/ambient.js';
 import { hash2 } from '../sim/rng.js';
 import { idx, inBounds } from '../sim/grid.js';
@@ -26,6 +31,7 @@ import { TERRAIN, WOOD, SHADOW } from './art/palette.js';
 
 export const LEVEL_HOLD_MS = 2000;           // the budget can drop one more kind at most this often
 export const RESTORE_AFTER_MS = 10000;       // and brings one back only after this long at under half the budget
+export const GENTLE_SMOKE_RISE_PX = 4;       // Gentle: a puff rises at most this far (spec 5.4)
 const FIELDS = ['farm_grain', 'farm_barley', 'farm_flax'];
 const SMOKE_FROM = { potter: [1.52, 0.52, 9], brewery: [0.66, 0.46, 10] };   // tile offsets and art height of the kiln and brewhouse
 const RARE_WINDOW_MS = 90000;                // one appearance per kind per window, starting 0-30 s in: 60-120 s apart
@@ -73,13 +79,14 @@ export function riverRows(world, y0, y1) {
 }
 
 // River tile (x, y)'s glint at time now (most tiles have one): { x, y } in tiles and its alpha, or null. Each glint lives
-// 4-7 s, drifting downstream (+y) at AMBIENT.glintDriftTilesPerSecond and fading in and out, then starts again.
-export function glintAt(world, x, y, now, rows) {
+// 4-7 s, drifting downstream (+y) at AMBIENT.glintDriftTilesPerSecond and fading in and out, then starts again. With
+// drift false (Gentle) it fades in and out where it starts.
+export function glintAt(world, x, y, now, rows, drift = true) {
   const seed = world.seed | 0, h = unit(x, y, seed + SALT.glint);
   if (h > 0.7) return null;
   const life = between(AMBIENT.glintFadeMs, unit(y, x, seed + SALT.glint));
   const t = ((now + h * life * 7) % life) / life;
-  const gy = y + 0.2 + unit(x + 7, y, seed) * 0.6 + AMBIENT.glintDriftTilesPerSecond * (t * life) / 1000;
+  const gy = y + 0.2 + unit(x + 7, y, seed) * 0.6 + (drift ? AMBIENT.glintDriftTilesPerSecond * (t * life) / 1000 : 0);
   const row = rows.get(Math.floor(gy));
   if (!row) return null;
   const gx = Math.min(row.right - 0.35, Math.max(row.left + 0.35, x + 0.2 + unit(x, y + 7, seed) * 0.6));
@@ -89,13 +96,13 @@ export function glintAt(world, x, y, now, rows) {
 // Water glints: short pale strokes on the river's tiles in range. Strokes are batched into one path per step of
 // GLINT_STEPS alpha steps (one stroke call each, not one per glint), so a glint's fade moves in small even steps.
 export const GLINT_STEPS = 12;
-function drawGlints(g, world, range, now, rows) {
+function drawGlints(g, world, range, now, rows, drift = true) {
   const spans = riverSpans(world), buckets = [];
   for (let y = Math.max(0, range.y0); y <= Math.min(world.size - 1, range.y1); y++) {
     const s = spans[y];
     if (!s) continue;
     for (let x = Math.max(s[0], range.x0); x <= Math.min(s[1], range.x1); x++) {
-      const gl = glintAt(world, x, y, now, rows);
+      const gl = glintAt(world, x, y, now, rows, drift);
       if (!gl) continue;
       const k = Math.round((gl.alpha / 0.75) * GLINT_STEPS);
       if (k <= 0) continue;
@@ -106,9 +113,10 @@ function drawGlints(g, world, range, now, rows) {
   for (let k = 1; k <= GLINT_STEPS; k++) if (buckets[k]) g.stroke(buckets[k], TERRAIN.foam, 0.7, (0.75 * k) / GLINT_STEPS);
 }
 
-// Bank ripples: a faint line just inside each bank, shifting about a pixel back and forth over 5 s, out of step along it.
-function drawRipples(g, rows, now) {
-  const shift = AMBIENT.rippleShiftPx / 18;  // art px across the bank, in tiles
+// Bank ripples: a faint line just inside each bank, shifting about a pixel back and forth over 5 s, out of step along it
+// (still under Gentle: shift false).
+function drawRipples(g, rows, now, shifts = true) {
+  const shift = shifts ? AMBIENT.rippleShiftPx / 18 : 0;  // art px across the bank, in tiles
   for (const side of ['left', 'right']) {
     const pts = [];
     for (const [y, r] of rows) pts.push([r[side] + (side === 'left' ? 0.32 : -0.32) + shift * wave(now, AMBIENT.ripplePeriodMs, y * 0.13), y + 0.5]);
@@ -174,19 +182,22 @@ function drawCrops(g, world, b, now, wind) {
   g.restore();
 }
 
-// A glint on a pool (gardens; Villas and Estates, whose yard has one): it drifts a little and fades in and out.
-function drawPoolGlint(g, b, rect, now) {
+// A glint on a pool (gardens; Villas and Estates, whose yard has one): it drifts a little and fades in and out (in the
+// pool's middle under Gentle: drift false).
+function drawPoolGlint(g, b, rect, now, drift = true) {
   const [u, v, w, d] = rect, life = between(AMBIENT.glintFadeMs, unit(b.id, 1, SALT.pool));
   const t = ((now + unit(b.id, 2, SALT.pool) * life) % life) / life;
-  const q = p(b.x + u + w * (0.3 + 0.4 * t), b.y + v + d * 0.5);
+  const q = p(b.x + u + w * (drift ? 0.3 + 0.4 * t : 0.5), b.y + v + d * 0.5);
   g.line([q[0] - 1.4, q[1] + 0.3], [q[0] + 1.4, q[1] - 0.3], TERRAIN.foam, 0.6, 0.85 * Math.sin(Math.PI * t));
 }
 
 // Smoke: puffs from a working kiln or brewhouse, or the roof of a lived-in Townhouse and up, one every 2-3 s, each
-// rising about a tile and fading over two of those periods, leaning with the wind.
-function drawSmoke(g, b, base, now, wind) {
+// rising about a tile and fading over two of those periods, leaning with the wind. Under Gentle (inPlace) a puff fades
+// where it starts, rising GENTLE_SMOKE_RISE_PX at most, with no lean.
+function drawSmoke(g, b, base, now, wind, inPlace = false) {
   const P = between(AMBIENT.smokeEveryMs, unit(b.id, 3, SALT.smoke)), off = unit(b.id, 4, SALT.smoke) * P;
-  const rise = 16 * AMBIENT.smokeRiseTiles;
+  const rise = inPlace ? GENTLE_SMOKE_RISE_PX : 16 * AMBIENT.smokeRiseTiles;
+  if (inPlace) wind = { x: 0, y: 0 };
   for (let k = 0; k < 2; k++) {
     const a = ((now + off) / (2 * P) + k / 2) % 1;          // this puff's age, 0 to 1 over its life of 2P: a new one every P
     const alpha = 0.42 * Math.min(1, a / 0.15) * (1 - a);
@@ -269,10 +280,11 @@ export function drawAmbientLate(g) {
   fn();
 }
 
-// enabled() says whether to draw at all: the Ambient motion setting and not reduced motion (createUI decides).
+// enabled() says whether to draw at all, and level() the Motion level (createUI decides: Full and Gentle draw, Still not).
 // clock() is the real clock in ms, for the frame budget only.
-export function createAmbient({ enabled = () => true, clock = () => performance.now() } = {}) {
-  let level = 0, avg = null, lastChange = -Infinity, calmSince = null;
+export function createAmbient({ enabled = () => true, level = () => 'full', clock = () => performance.now() } = {}) {
+  const full = () => level() === 'full';
+  let dropLevel = 0, avg = null, lastChange = -Infinity, calmSince = null;
   let pending = null;                        // this frame's ground cost, until its late layer adds its own
   const stats = { ms: 0, dropped: [] };
 
@@ -283,12 +295,12 @@ export function createAmbient({ enabled = () => true, clock = () => performance.
     const order = AMBIENT.dropOrder;
     if (avg > AMBIENT.budgetMs) {
       calmSince = null;
-      if (level < order.length && now - lastChange >= LEVEL_HOLD_MS) { level++; lastChange = now; avg = AMBIENT.budgetMs * 0.75; }
-    } else if (avg < AMBIENT.budgetMs / 2 && level > 0) {
+      if (dropLevel < order.length && now - lastChange >= LEVEL_HOLD_MS) { dropLevel++; lastChange = now; avg = AMBIENT.budgetMs * 0.75; }
+    } else if (avg < AMBIENT.budgetMs / 2 && dropLevel > 0) {
       if (calmSince === null) calmSince = now;
-      if (now - calmSince >= RESTORE_AFTER_MS && now - lastChange >= LEVEL_HOLD_MS) { level--; lastChange = now; calmSince = now; }
+      if (now - calmSince >= RESTORE_AFTER_MS && now - lastChange >= LEVEL_HOLD_MS) { dropLevel--; lastChange = now; calmSince = now; }
     } else calmSince = null;
-    stats.dropped = order.slice(0, level);
+    stats.dropped = order.slice(0, dropLevel);
   }
 
   function draw(g, world, range, now) {
@@ -296,12 +308,14 @@ export function createAmbient({ enabled = () => true, clock = () => performance.
     if (g) lateByG.delete(g);                // a late layer left from a frame that never drew it is stale: drop it
     if (!enabled() || !g || !range) return;
     const started = clock();
-    const off = new Set(AMBIENT.dropOrder.slice(0, level));
+    const off = new Set(AMBIENT.dropOrder.slice(0, dropLevel));
+    const moving = full();                   // Gentle: glints and smoke in place; no ripple shift, sway, crops or rare life
+    if (!moving) for (const k of ['sway', 'rare']) off.add(k);
     const rows = riverRows(world, range.y0 - 2, range.y1 + 2);
     const wind = windOf(world);
     if (rows.size) {
-      drawGlints(g, world, range, now, rows);
-      drawRipples(g, rows, now);
+      drawGlints(g, world, range, now, rows, moving);
+      drawRipples(g, rows, now, moving);
       if (!off.has('sway')) drawReeds(g, world, range, now, rows);
       if (!off.has('rare')) {
         const boat = rareAt(world, 'felucca', now), ducks = rareAt(world, 'ducks', now);
@@ -316,11 +330,11 @@ export function createAmbient({ enabled = () => true, clock = () => performance.
         const b = world.buildings[id];
         if (!inRange(b, range)) continue;
         if (FIELDS.includes(b.type) && !off.has('sway') && isWorking(world, b) && !screened(world, b)) drawCrops(g, world, b, now, wind);
-        else if (b.type === 'garden' && !screened(world, b)) drawPoolGlint(g, b, [0.2, 0.56, 0.36, 0.28], now);
-        else if (b.type === 'house' && BIG[b.tier] && BIG[b.tier].pool && !screened(world, b)) drawPoolGlint(g, b, [0.32, 1.24, 0.6, 0.3], now);
+        else if (b.type === 'garden' && !screened(world, b)) drawPoolGlint(g, b, [0.2, 0.56, 0.36, 0.28], now, moving);
+        else if (b.type === 'house' && BIG[b.tier] && BIG[b.tier].pool && !screened(world, b)) drawPoolGlint(g, b, [0.32, 1.24, 0.6, 0.3], now, moving);
         if (!off.has('smoke')) {
           const base = smokeBase(world, b);
-          if (base) drawSmoke(g, b, base, now, wind);
+          if (base) drawSmoke(g, b, base, now, wind, !moving);
         }
       }
       if (!off.has('rare')) {
@@ -337,7 +351,7 @@ export function createAmbient({ enabled = () => true, clock = () => performance.
   // motion is off or sway is dropped. For the renderer's depth pass (see the Stage 3 plan's contract note: a seam the
   // renderer does not have yet).
   function treeSlot(world, x, y, slot, now) {
-    if (!enabled() || level >= AMBIENT.dropOrder.indexOf('sway') + 1) return slot;
+    if (!enabled() || !full() || dropLevel >= AMBIENT.dropOrder.indexOf('sway') + 1) return slot;
     const k = Math.round((treeLean(world, x, y, now) / AMBIENT.treeSwayDeg) * AMBIENT.treeLeanSteps);
     return k ? `${slot}.l${k}` : slot;
   }

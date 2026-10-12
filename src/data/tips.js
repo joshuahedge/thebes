@@ -42,6 +42,7 @@ const TIPS_S4_SCORE = [
 // ── end s4 score ──
 // ── s4 motion (Track E) ── the one-time Gentle tip (ruling 218)
 const TIPS_S4_MOTION = [
+  { id: 'gentle_motion', trigger: 'gentleMotion', priority: false },          // a city is open on a device that asks for less motion (Motion: follow the device)
 ];
 // ── end s4 motion ──
 // ── s4 cards (Track G) ── any How to play or music tip
