@@ -17,15 +17,18 @@
 // resume() shows the next once nothing holds it and the row is free. skip(item) drops a caption to Recent only (on a phone under a banner only info captions show). onChange
 // runs whenever a caption appears or hides.
 // Stage 3: a caption may carry its own icon (a citizen remark's speech mark), busy() says whether the row is taken, and
-// remarkFor picks a citizen remark (spec 4.19).
+// remarkFor picks a citizen remark (spec 4.19). Stage 4: monumentCaptions words the courses laid, the monuments finished
+// and the palace's new style (Track D).
 import { CHEER_MS, CHEER_GAP_MS, CHEER_OPEN_MIN_MS, CHEER_WAITING_MAX, CHEER_HELD_MAX_MS, CHEER_RECENT_MAX } from '../data/ui.js';
 import { REMARK_EVERY_MONTHS, REMARK_SALT, SEASONS } from '../data/tips.js';
 import { allBuildings } from '../sim/world.js';
+import { MONUMENTS } from '../data/monuments.js';
+import { prestigeOf } from '../sim/monuments.js';
 import { monthIndex } from '../sim/clock.js';
 import { hash2 } from '../sim/rng.js';
 import { el, clear } from './components.js';
 import { isCut, writeMore } from './expand.js';
-import { cheerReward, CITIZEN_REMARKS } from './text.js';
+import { cheerReward, CITIZEN_REMARKS, score4CourseText, score4FinishText, score4FinishWhy, score4PalaceText } from './text.js';
 
 // The citizen remark for the month that has just begun (spec 4.19, ruling 130), or null: only at a month index that is a
 // multiple of REMARK_EVERY_MONTHS, from the season's remarks whose building the city has, chosen by
@@ -38,6 +41,26 @@ export function remarkFor(world) {
   const pool = CITIZEN_REMARKS.filter((r) => r.season === season && has.has(r.type));
   if (!pool.length) return null;
   return pool[Math.min(pool.length - 1, Math.floor(hash2(world.seed, m, REMARK_SALT) * pool.length))].text;
+}
+
+// The captions for a day's monument events (spec 6.3, rulings 212, 242; spec 4.20): { tier, text, why, sound } each. The
+// events carry the monument's kind as `kind` and, as `prestige`, what they added to the city's prestige (0 for a second of
+// a kind: Track A's events). A course laid ('first' tier) names that gain; the course that finishes a monument says
+// nothing of its own, and its gain goes into the finish caption (a milestone); the palace's works ending names its new style.
+export function monumentCaptions(world, events) {
+  const out = [];
+  const done = new Set(events.filter((e) => e.type === 'monument_done').map((e) => e.id));
+  const added = (id) => events.filter((e) => (e.type === 'course_done' || e.type === 'monument_done') && e.id === id).reduce((s, e) => s + (e.prestige || 0), 0);
+  for (const e of events) {
+    if (e.type === 'course_done' && MONUMENTS[e.kind] && !done.has(e.id)) {
+      out.push({ tier: 'first', text: score4CourseText(e.kind, e.course, MONUMENTS[e.kind].courses.length, e.prestige || 0), why: '', sound: 'goal' });
+    } else if (e.type === 'monument_done' && MONUMENTS[e.kind]) {
+      out.push({ tier: 'milestone', text: score4FinishText(e.kind), why: score4FinishWhy(added(e.id), prestigeOf(world)), sound: 'milestone' });
+    } else if (e.type === 'palace_done' && Number.isInteger(e.style)) {
+      out.push({ tier: 'first', text: score4PalaceText(e.style), why: '', sound: 'goal' });
+    }
+  }
+  return out;
 }
 
 export function createCelebrations({

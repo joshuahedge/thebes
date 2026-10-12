@@ -27,4 +27,11 @@ export const FIRSTS = [
   { id: 'first_wall', check: { kind: 'tally', key: 'wallTiles', n: 1 } },
   { id: 'first_tower', check: { kind: 'building', type: 'tower' } },
   { id: 'first_raid_beaten', check: { kind: 'tally', key: 'raidsBeaten', n: 1 } },
+  // Stage 4 (spec 4.19, 4.20): the monuments' four and the palace's first. Check kind unlocked { type } (Stage 4): a prestige
+  // unlock reached (world.prestigeUnlocks).
+  { id: 'first_guild', check: { kind: 'building', type: 'builders_guild' } },
+  { id: 'first_course', check: { kind: 'tally', key: 'courses', n: 1 } },
+  { id: 'first_monument', check: { kind: 'tally', key: 'monumentsDone', n: 1 } },
+  { id: 'pyramids_unlocked', check: { kind: 'unlocked', type: 'pyramid_small' } },
+  { id: 'first_palace', check: { kind: 'building', type: 'palace' } },
 ];

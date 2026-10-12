@@ -93,7 +93,7 @@ describe('ui achievements sheet', () => {
       r.world.achievements = [];
       r.store.set(openSheet(r.store.get(), 'summary'));
       const counted = ACHIEVEMENTS.filter((a) => !['fedAll', 'waterAll', 'jobs'].includes(a.measure.kind) && a.measure.n > 1);   // a count of one (an Estate) reads as yes or no
-      expect(counted.length).toBe(ACHIEVEMENTS.length - 5);                 // and Stage 3's safe streets, a yes or no
+      expect(counted.length).toBe(ACHIEVEMENTS.length - 6);                 // and Stage 3's safe streets, a yes or no, and Stage 4's gilded tip
       for (const a of counted) {
         const p = achievementProgress(r.world, a);
         const row = rowOf(r, a.id);

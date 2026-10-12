@@ -85,7 +85,7 @@ describe('s3 contract data', () => {
     expect(SPLIT_MILESTONES).toEqual(MILESTONES.slice(1).map((m) => m.id));
     expect([RECORDS_KEY, RECORDS_MAX]).toEqual(['thebes.records', 200]);
     expect([SHARE.base, SHARE.format, SHARE.difficulty, SHARE.checkLength]).toEqual(['https://joshuahedge.github.io/thebes/', 't2', { peaceful: 'p', relaxed: 'r', normal: 'n', hard: 'h' }, 4]);
-    expect(FEATS.length).toBe(10);                                                   // Track E fills it, with its words (tests/stage3/score/feats.test.js)
+    expect(FEATS.length).toBe(12);                                                   // Track E fills it, with its words (tests/stage3/score/feats.test.js); Stage 4 adds two
   });
   it('sets the ambient numbers of ruling 133', () => {
     expect(pick(AMBIENT, ['glintDriftTilesPerSecond', 'reedSwayDeg', 'treeSwayDeg', 'cropBandEveryMs', 'budgetMs', 'idleFpsCap', 'idleAfterMs', 'maxChangeHz'])).toEqual({
