@@ -111,3 +111,7 @@ export const CHEER_RECENT_MAX = 10;        // the Goals sheet's Recent list keep
 // The idle nudge (early-game pass 3.5): Show me glows after this much idle running play, and one Next line follows this much later.
 export const NUDGE_GLOW_MS = 45000;
 export const NUDGE_LINE_MS = 60000;
+
+// Stage 4 (Track C, spec 6.3, ruling 281): View outlines the building it frames for holdMs, then fades it over fadeMs under
+// Full motion (under Gentle and Still it holds, then goes at once).
+export const VIEW_OUTLINE = { holdMs: 2500, fadeMs: 500 };

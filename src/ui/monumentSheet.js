@@ -29,7 +29,7 @@
 // palaceQuote, palaceMood, prestigeOfBuilding, holdsPrestige, demolishRefundFor), so the tests set the world up both ways and
 // check the words follow (ruling 210, 252).
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
-import { MONUMENTS, MONUMENT, MONUMENT_KINDS, MATERIALS } from '../data/monuments.js';
+import { MONUMENTS, MONUMENT, MATERIALS, MONUMENT_KINDS, PRESTIGE, PRESTIGE_UNLOCKS } from '../data/monuments.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { MILESTONES } from '../data/progression.js';
 import { ART } from '../render/art/registry.js';
@@ -44,13 +44,15 @@ import { setPaused, demolishRefundFor } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
 import { touchesRoad } from '../sim/reach.js';
 import { desirabilityContributors } from '../sim/desirability.js';
-import { milestoneIndex } from '../sim/progression.js';
+import { milestoneIndex, atLeast } from '../sim/progression.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../sim/time.js';
 import { FRAME_MARGIN_PX } from './cameraControl.js';
 import { cameraOf } from './minimap.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { el, button } from './components.js';
-import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT } from './text.js';
+import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT, ui4CauseText } from './text.js';
+import { setViewClock } from '../render/overlays.js';
+import { ZOOM_STEP } from '../data/ui.js';
 
 // ── The pick's fit (Task C1) ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -112,16 +114,12 @@ export function causeFix(world, b, reason, status = null) {
 // status: the site's siteStatus (taken when not given): the material stall says what reaches the site, since the sim sets
 // it whenever the course under way has none on site, a quarry's slow delivery included.
 export function causeText(world, b, reason, status = null) {
-  const C = UI4_TEXT.cause;
   if (!reason) return '';
-  if (reason === 'no_crew') return C.no_crew(MONUMENT.crewReach);
-  if (reason === 'waiting_gilding' || reason === 'waiting_capstone') return C[reason](extraGoldOf(world, b.type));
   if (reason === 'no_stone' || reason === 'no_bricks') {
-    const good = reason.slice(3);
-    const m = (status || siteStatus(world, b)).materials[good];
-    return C.material(good, m ? m.makers.length : 0, m ? m.stores.length : 0);
+    const m = (status || siteStatus(world, b)).materials[reason.slice(3)];
+    return ui4CauseText(reason, 0, m ? { makers: m.makers.length, stores: m.stores.length } : null);
   }
-  return typeof C[reason] === 'string' ? C[reason] : '';
+  return ui4CauseText(reason, extraGoldOf(world, b.type));
 }
 
 // The site sheet's rows (spec 6.3), from siteStatus: [{ key, text, share?, fix? }] in the spec's order: progress, crews, the
@@ -187,7 +185,7 @@ export function supplyLine(world, b, sim = SUPPLY_SIM) {
   }
   const good = BUILDINGS[b.type].produces && BUILDINGS[b.type].produces.good;
   if (!good || !MATERIALS.includes(good) || b.paused) return '';
-  if (!sim.supplyNeeded(world, b)) return U.supplyIdle(good);
+  if (b.blocked === 'idle' || !sim.supplyNeeded(world, b)) return U.supplyIdle(good);   // Track A marks an unneeded one blocked: 'idle'
   const to = sim.deliverySites(world, b)[0];
   return to ? U.sends(good, to.type) : '';
 }
@@ -237,12 +235,51 @@ export function demolishQuestion(world, b) {
   return U.tearDownSite(b.type, b.site.course, MONUMENTS[b.type].courses.length, lost, refund);
 }
 
+// ── The summary and the markers (Task C3) ────────────────────────────────────────────────────────────────────────
+
+// The city summary's Monuments section (spec 6.3), from City: each site with its course (and its share done, for the bar), each
+// finished monument, then the city's prestige and what it unlocks next (the next prestige unlock not yet reached, with its
+// milestone while that waits), or the prestige of all seven once both are reached. [] before City.
+export function summaryRows(world) {
+  if (!atLeast(world, 'city')) return [];
+  const U = UI4_TEXT;
+  const rows = [];
+  const mine = allBuildings(world).filter(isMonument).sort((a, b) => MONUMENT_KINDS.indexOf(a.type) - MONUMENT_KINDS.indexOf(b.type) || a.id - b.id);
+  for (const b of mine) {
+    if (isFinished(b)) rows.push({ key: 'finished', id: b.id, text: U.finishedLine(b.type) });
+    else {
+      const s = siteStatus(world, b);
+      rows.push({ key: 'site', id: b.id, text: U.siteLine(b.type, s.progress.course, s.progress.courses), share: s.progress.done });
+    }
+  }
+  if (!mine.length) rows.push({ key: 'none', text: U.noMonumentYet });
+  const p = prestigeOf(world);
+  const next = PRESTIGE_UNLOCKS.find((k) => !Number.isInteger(world.prestigeUnlocks[k]));
+  if (next) {
+    const u = MONUMENTS[next].unlock;
+    rows.push({ key: 'prestige', text: U.prestigeNext(p, next, u.prestige, atLeast(world, u.milestone) ? '' : MILESTONES[milestoneIndex(u.milestone)].name) });
+  } else rows.push({ key: 'prestige', text: U.prestigeAll(p, PRESTIGE.scoreFull) });
+  return rows;
+}
+
+// A count badge (more than one building on its stem) zooms in one step centred on its buildings (ruling 281): the camera's
+// target { x, y, zoom }, or null for a single marker (createUI then selects its building).
+export function countBadgeTarget(world, marker, zoom) {
+  const ids = (marker && marker.ids || []).filter((id) => world.buildings[id]);
+  if (ids.length < 2) return null;
+  const bs = ids.map((id) => world.buildings[id]);
+  const x = bs.reduce((s, b) => s + b.x + b.w / 2, 0) / bs.length, y = bs.reduce((s, b) => s + b.y + b.d / 2, 0) / bs.length;
+  return { x, y, zoom: zoom * ZOOM_STEP };
+}
+
 // ── The interface ────────────────────────────────────────────────────────────────────────────────────────────────
 
 export function createMonumentUi(ctx) {
   const { world, store } = ctx;
   const after = (e) => { if (typeof ctx.afterCommand === 'function') ctx.afterCommand(e); };
   const motion = () => (ctx.settings && typeof ctx.settings.motionLevel === 'function' ? ctx.settings.motionLevel() : 'still');
+  // View's outline (render/overlays.js) reads the interface's clock and Motion level.
+  if (world && typeof ctx.now === 'function') setViewClock(world, { now: ctx.now, motion });
 
   // A row with its fix: Show me opens the card and aims its ghost; View selects the building.
   function fixButton(row) {
@@ -293,9 +330,14 @@ export function createMonumentUi(ctx) {
     return [];
   }
 
+  function summaryPart() {
+    const rows = summaryRows(world);
+    return rows.length ? [el('h3', { text: UI4_TEXT.monuments }), rowList('summary-monuments', rows)] : [];
+  }
+
   return {
     sheets: {},
-    sheetParts: { building: buildingPart, actions: actionsPart },
+    sheetParts: { building: buildingPart, actions: actionsPart, summary: summaryPart },
     onEvents(events) {
       for (const e of events) {
         if (e.type !== 'palace_done') continue;
@@ -304,7 +346,12 @@ export function createMonumentUi(ctx) {
         if (b && ctx.effects && motion() === 'full') ctx.effects.sparkle(b.x + b.w / 2, b.y + b.d / 2, GOLD, ctx.now());   // a small sparkle under Full only
       }
     },
-    refresh() {},
+    // The palace's tip (ruling 275), once, when the city first could enlarge it (the tips keep it to once a device).
+    refresh() {
+      if (!world || typeof ctx.fireTip !== 'function') return;
+      const palace = allBuildings(world).find((b) => b.type === 'palace');
+      if (palace && palaceQuote(world, palace.id).ok) ctx.fireTip('palaceCanGrow');
+    },
     onAlertAction(alert, action) {},
     // Undo refused once work has begun on a site (ruling 236): its own words, naming the site (placement.js passes it on).
     onCommand(e) {
@@ -323,7 +370,15 @@ export function createMonumentUi(ctx) {
       const art = ART[type];
       return { up: art ? art.height : 0 };
     },
-    markerTap(marker) { return false; },
+    markerTap(marker) {
+      const shown = cameraOf(world);
+      const t = shown && ctx.cameraControl ? countBadgeTarget(world, marker, shown.cam.zoom) : null;
+      if (!t) return false;
+      // Centred: the free map is a one-pixel box at the screen's middle, so the least pan puts the buildings there.
+      const c = ctx.cameraControl.centre();
+      ctx.cameraControl.keepVisible(t.x, t.y, { top: c.y - 1, bottom: c.y - 1, left: c.x - 1, right: c.x - 1 }, 0, undefined, null, t.zoom);
+      return true;
+    },
     destroy() {},
   };
 }

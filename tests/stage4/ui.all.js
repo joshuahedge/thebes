@@ -4,3 +4,4 @@ import './ui/monumentsTab.test.js';
 import './ui/placing.test.js';
 import './ui/siteSheet.test.js';
 import './ui/otherSheets.test.js';
+import './ui/stalls.test.js';
