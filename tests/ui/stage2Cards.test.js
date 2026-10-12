@@ -33,7 +33,7 @@ describe('ui stage 2 cards', () => {
     expect(shownItems(w, 'homes')).toEqual(['house', 'garden', 'statue']);
     expect(shownItems(w, 'food')).toEqual(['farm_grain', 'farm_fig', 'granary']);
     expect(shownItems(w, 'industry')).toEqual(['clay_pit', 'potter', 'storehouse']);
-    expect(shownItems(w, 'services')).toEqual(['well', 'bazaar', 'temple', 'booth', 'firehouse']);
+    expect(shownItems(w, 'services')).toEqual(['well', 'bazaar', 'temple', 'booth', 'firehouse', 'palace']);   // Stage 4: the palace comes with Town
     expect(shownItems(w, 'defence')).toEqual([]);                                     // Market town's cards: hidden until Town
     expect([cardInfo(w, 'garden').locked, cardInfo(w, 'statue').locked, cardInfo(w, 'potter').lockText]).toEqual([false, true, 'Unlocks at Town']);
     w.milestone = 'town';
@@ -47,15 +47,16 @@ describe('ui stage 2 cards', () => {
     expect(shownItems(w, 'industry').includes('gem_mine')).toBe(false);              // Capital's cards stay hidden until Great city
     w.milestone = 'capital';
     for (const c of CATEGORIES) {
-      expect([c.id, shownItems(w, c.id)]).toEqual([c.id, c.items]);
-      for (const item of c.items) expect([item, cardInfo(w, item).locked]).toEqual([item, false]);
+      const items = c.items.filter((i) => !['pyramid_small', 'pyramid_great'].includes(i));   // Stage 4: the pyramids also need prestige (Track C shows them locked with the count)
+      expect([c.id, shownItems(w, c.id)]).toEqual([c.id, items]);
+      for (const item of items) expect([item, cardInfo(w, item).locked]).toEqual([item, false]);
     }
     expect(cardShown(w, 'road') && cardShown(w, 'demolish')).toBe(true);
   });
   it('puts every building in exactly one category and unlocks each at a milestone', () => {
     for (const type of BUILDABLE) {                                                    // gates and rubble have no card
       expect([type, CATEGORIES.filter((c) => c.items.includes(type)).length]).toEqual([type, 1]);
-      expect([type, MILESTONES.some((m) => m.unlocks.includes(type))]).toEqual([type, true]);
+      if (!['pyramid_small', 'pyramid_great'].includes(type)) expect([type, MILESTONES.some((m) => m.unlocks.includes(type))]).toEqual([type, true]);   // Stage 4: the pyramids unlock by prestige
     }
   });
   it('adds a category button in the dock, rail and panel when a milestone gives it a card, and its number key follows', async () => {
@@ -251,7 +252,7 @@ describe('ui stage 2 cards', () => {
   });
   it('gives every good its name and a line saying what makes it, what uses it and who trades it', () => {
     expect(goodLine('pottery')).toBe('Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis and Byblos');
-    expect(goodLine('clay')).toBe('Clay: made by clay pits; used by potters; bought from Memphis');
+    expect(goodLine('clay')).toBe('Clay: made by clay pits; used by potters and brickworks; bought from Memphis');
     expect(goodLine('grain')).toBe('Grain: made by grain farms; used by Cottages and up; sold to Memphis');
     expect(goodLine('beer')).toBe('Beer: made by breweries from barley; used by Fine manors and up; sold to Memphis; bought from Byblos');
     for (const g of Object.keys(GOODS)) {

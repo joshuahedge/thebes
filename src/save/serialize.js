@@ -1,7 +1,9 @@
 import { migrate } from './migrate.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
-import { STAGE3_TALLY } from '../sim/world.js';
+import { PALACE_STYLES } from '../data/palace.js';
+import { PRESTIGE_UNLOCKS } from '../data/monuments.js';
+import { STAGE3_TALLY, STAGE4_TALLY } from '../sim/world.js';
 
 // Every top-level field createWorld produces (src/sim/world.js).
 export const REQUIRED = [
@@ -11,9 +13,10 @@ export const REQUIRED = [
   'firsts', 'achievements', 'daily', 'guide', 'tally',
   'difficulty', 'trade', 'newItems',
   'wall', 'wallVersion', 'raid', 'soldiers', 'nextUnitId', 'danger', 'splits', 'seals', 'feats', 'cityId',
+  'prestigeUnlocks',
 ];
 
-export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY];
+export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY];
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isCounts = (v) => isRecord(v) && Object.values(v).every(Number.isFinite);       // tally.made: good -> units
 const isStrings = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
@@ -32,6 +35,22 @@ const isRaid = (r) => isRecord(r) && isDay(r.clockDay) && isDay(r.nextWarnDay) &
 const isDanger = (d) => isRecord(d) && Array.isArray(d.burnDays) && d.burnDays.every(Number.isInteger) && isDay(d.lastFireDay)
   && isDay(d.festivalDay) && typeof d.firePaused === 'boolean';
 const isFeats = (f) => isRecord(f) && isStrings(f.earned) && isStrings(f.lost) && isCounts(f.counters);
+// Stage 4 (version 5): every building's rotation; a monument's site (src/sim/world.js newSite: Track A may add fields
+// inside it, never remove these); the palace's style and works; the prestige unlock days.
+const isMaterials = (m) => isRecord(m) && Number.isFinite(m.stone) && m.stone >= 0 && Number.isFinite(m.bricks) && m.bricks >= 0;
+const isSiteRecord = (s) => isRecord(s) && Number.isInteger(s.course) && s.course >= 0 && isMaterials(s.laid) && isMaterials(s.stock)
+  && Number.isFinite(s.carry) && typeof s.extraPaid === 'boolean' && Array.isArray(s.crews) && s.crews.every(Number.isInteger)
+  && Number.isInteger(s.idle) && s.idle >= 0 && (s.reason === null || typeof s.reason === 'string') && isCounts(s.month)
+  && (s.last === null || isCounts(s.last)) && typeof s.starved === 'boolean' && isDay(s.done);
+const isWorks = (k) => k === null || (isRecord(k) && Number.isInteger(k.style) && k.style > 0 && k.style < PALACE_STYLES.length && Number.isInteger(k.left) && k.left >= 0);
+function isStage4Building(b) {
+  if (b.rot !== 0 && b.rot !== 1) return false;
+  const def = BUILDINGS[b.type];
+  if (def.monument && !isSiteRecord(b.site)) return false;
+  if (def.palace && !(Number.isInteger(b.style) && b.style >= 0 && b.style < PALACE_STYLES.length && isWorks(b.works))) return false;
+  return true;
+}
+const isUnlockDays = (u) => isRecord(u) && PRESTIGE_UNLOCKS.every((k) => isDay(u[k]));
 
 // The save envelope (spec 4.17): wall-clock fields sit beside the world, never inside it.
 export const SAVE_VERSION = 1;
@@ -61,6 +80,7 @@ export function validateWorld(w) {
   if (!isRaid(w.raid) || !Array.isArray(w.soldiers) || !w.soldiers.every(isRecord) || !isDanger(w.danger)) return false;
   if (!isRecord(w.splits) || !Object.values(w.splits).every(Number.isInteger) || !Array.isArray(w.seals) || !w.seals.every(isRecord)) return false;
   if (!isFeats(w.feats) || !(w.cityId === null || (typeof w.cityId === 'string' && w.cityId.length > 0))) return false;
+  if (!Object.values(w.buildings).every(isStage4Building) || !isUnlockDays(w.prestigeUnlocks)) return false;
   return true;
 }
 

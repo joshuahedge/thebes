@@ -68,8 +68,8 @@ describe('s3 score next threshold', () => {
     const w = makeTestWorld();
     w.milestone = 'capital';
     const s = scoreOf(w);
-    expect([s.raw, s.next]).toEqual([210, { medal: 'silver', points: 30 }]);   // an empty capital: growth full, jobs, treasury, safety
-    expect(thresholdFor(w)).toEqual({ kind: 'medal', text: 'Silver: 30 points to go', share: (210 - 160) / (240 - 160) });
+    expect([s.raw, s.next]).toEqual([210, { medal: 'silver', points: 90 }]);   // score v2: silver at 300   // an empty capital: growth full, jobs, treasury, safety
+    expect(thresholdFor(w)).toEqual({ kind: 'medal', text: 'Silver: 90 points to go', share: (210 - 200) / (300 - 200) });
     expect(thresholdMedalText({ medal: 'silver', points: 38 })).toBe('Silver: 38 points to go');
     expect(thresholdMedalText({ medal: 'gold', points: 1 })).toBe('Gold: 1 point to go');
   });

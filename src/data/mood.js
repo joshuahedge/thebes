@@ -28,3 +28,8 @@ export const DANGER_MOOD = {
   raidLost: -8,
   raidDays: 180,
 };
+
+// Stage 4's two rows (spec 4.9), each shown only while it is not 0: 'monuments', +1 for every PRESTIGE.moodPer prestige, at
+// most PRESTIGE.moodMax (src/data/monuments.js; monumentMood in src/sim/monuments.js); and 'palace', its style's mood
+// (PALACE_STYLES in src/data/palace.js; palaceMood in src/sim/palace.js) while a road touches it.
+export const STAGE4_MOOD_ROWS = ['monuments', 'palace'];

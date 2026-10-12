@@ -22,7 +22,8 @@
 //   fire_cover { n, dir } (buildings that can burn with no staffed firehouse; dir their side of the city or null)
 //   towers { need, towers, soldiers }   burned { n }   raid_lost {}
 // The words are SCORE_TEXT's (src/ui/text.js).
-import { SCORE_VERSION, SCORE_PARTS, SCORE_WEIGHTS, SCORE_TERMS, SCORE_FACTOR, MEDALS, SPLIT_MILESTONES } from '../data/scoring.js';
+import { SCORE_VERSION, SCORE_PARTS, SCORE_WEIGHTS, SCORE_TERMS, SCORE_FACTOR, MEDALS, SPLITS } from '../data/scoring.js';
+import { prestigeOf } from './prestige.js';
 import { MILESTONES } from '../data/progression.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { DAYS_PER_MONTH } from './time.js';
@@ -193,9 +194,17 @@ function partOf(part, terms) {
   return { value, reason: value >= 100 ? null : worst };
 }
 
+// Stage 4 (score v2, spec 4.19): Monuments, one term, prestige = sqrt(prestige / prestigeFull), at most 1 (complete in the
+// contract: src/sim/prestige.js). Its reason: { code: 'prestige', prestige } until the part is 100. STUB reason: Track D
+// replaces it with the next step (found the next kind, or finish the most advanced site), keeping the value.
+function monumentsTerms(world) {
+  const prestige = prestigeOf(world);
+  return { prestige: { value: Math.min(1, Math.sqrt(prestige / T.prestigeFull)), reason: { code: 'prestige', prestige } } };
+}
+
 // The score now: { version, total, raw, factor, parts, reasons, medal, next }
-//   parts    { people, prosperity, culture, safety }, each a whole number 0-100 (spec 4.19 formulas, data/scoring.js)
-//   raw      the parts' sum (0-400); total: round(raw x factor), the city score
+//   parts    { people, prosperity, culture, safety, monuments }, each a whole number 0-100 (spec 4.19, data/scoring.js)
+//   raw      the parts' sum (0-500); total: round(raw x factor), the city score
 //   reasons  per part, null or { code, ... }: the term that lost the part the most points, for its reason line
 //            (codes and their fields above; the words live in SCORE_TEXT in src/ui/text.js)
 //   medal    medalFor(raw); next: nextMedal(world, raw)
@@ -206,6 +215,7 @@ export function scoreOf(world) {
     prosperity: partOf('prosperity', prosperityTerms(world)),
     culture: partOf('culture', cultureTerms(world, lived)),
     safety: partOf('safety', safetyTerms(world)),
+    monuments: partOf('monuments', monumentsTerms(world)),
   };
   const parts = zeroParts();
   const reasons = {};
@@ -239,15 +249,16 @@ export function scorePreview(world, type, x, y) {
   return Object.fromEntries(SCORE_PARTS.map((p) => [p, after[p] - before[p]]));
 }
 
-// Game-months from the start to each milestone the city has reached (world.splits), null where not reached.
+// Game-months from the start to each split the city has reached (world.splits; score v2's seven, SPLITS), null where not.
 export function splitMonths(world) {
-  return Object.fromEntries(SPLIT_MILESTONES.map((id) => [id, Number.isInteger(world.splits[id]) ? Math.floor(world.splits[id] / DAYS_PER_MONTH) : null]));
+  return Object.fromEntries(SPLITS.map((id) => [id, Number.isInteger(world.splits[id]) ? Math.floor(world.splits[id] / DAYS_PER_MONTH) : null]));
 }
 
-// The month-end history row's score fields (runMonth): { score, parts }.
+// The month-end history row's score fields (runMonth): { score, parts, version } (Stage 4: the score version, so the trend
+// compares rows of one version only; a v4 save's rows are marked 1 when loaded).
 export function scoreRow(world) {
   const s = scoreOf(world);
-  return { score: s.total, parts: { ...s.parts } };
+  return { score: s.total, parts: { ...s.parts }, version: s.version };
 }
 
 // The sealReign command (spec 4.19, 7.3): records the day and the score in the world; never refused, and repeatable.

@@ -56,7 +56,7 @@ describe('s3 score summary and chip', () => {
       expect(sec.querySelector('.next-medal').textContent).toBe(nextMedalText(s.next));
       expect(sec.querySelector('.factor')).toBe(null);                                  // Normal: no factor line
       const rows = [...sec.querySelectorAll('.score-part')];
-      expect(rows.map((li) => li.dataset.part)).toEqual(['people', 'prosperity', 'culture', 'safety']);
+      expect(rows.map((li) => li.dataset.part)).toEqual(['people', 'prosperity', 'culture', 'safety', 'monuments']);
       for (const li of rows) {
         const part = li.dataset.part;
         expect([part, li.querySelector('.part-number').textContent]).toEqual([part, String(s.parts[part])]);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { GOODS, FOOD_GOODS, HOUSEHOLD_GOODS, RAW_GOODS } from '../../src/data/goods.js';
+import { GOODS, FOOD_GOODS, HOUSEHOLD_GOODS, RAW_GOODS, MATERIAL_GOODS } from '../../src/data/goods.js';
 import { BUILDINGS, BUILDABLE } from '../../src/data/buildings.js';
 import { TIERS, MAX_TIER } from '../../src/data/housing.js';
 import { MILESTONES } from '../../src/data/progression.js';
@@ -14,10 +14,11 @@ const pick = (b, keys) => Object.fromEntries(keys.map((k) => [k, b[k]]));
 
 describe('data goods', () => {
   it('lists the ten goods with their kinds and household use', () => {
-    expect(Object.keys(GOODS)).toEqual(['grain', 'figs', 'pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems']);
+    expect(Object.keys(GOODS)).toEqual(['grain', 'figs', 'pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'stone', 'bricks']);   // Stage 4: the two materials
     expect(FOOD_GOODS).toEqual(['grain', 'figs']);
     expect(HOUSEHOLD_GOODS).toEqual(['pottery', 'beer', 'linen', 'jewellery']);
     expect(RAW_GOODS).toEqual(['clay', 'barley', 'flax', 'gems']);
+    expect(MATERIAL_GOODS).toEqual(['stone', 'bricks']);
     const use = Object.fromEntries([...FOOD_GOODS, ...HOUSEHOLD_GOODS].map((g) => [g, GOODS[g].perResidentPerMonth]));
     expect(use).toEqual({ grain: 0.25, figs: 0.25, pottery: 0.05, beer: 0.05, linen: 0.04, jewellery: 0.03 });
     for (const g of RAW_GOODS) expect([g, 'perResidentPerMonth' in GOODS[g]]).toEqual([g, false]);
@@ -77,17 +78,17 @@ describe('data buildings, Stage 2', () => {
     }
     expect(made).toEqual({
       farm_grain: 'grain 30', farm_fig: 'figs 24', clay_pit: 'clay 40', potter: 'pottery 30', farm_barley: 'barley 30',
-      brewery: 'beer 25', farm_flax: 'flax 24', weaver: 'linen 20', gem_mine: 'gems 15', jeweller: 'jewellery 15',
+      brewery: 'beer 25', farm_flax: 'flax 24', weaver: 'linen 20', gem_mine: 'gems 15', jeweller: 'jewellery 15', quarry: 'stone 30', brickworks: 'bricks 30',
     });
-    expect(used).toEqual({ potter: 'clay', brewery: 'barley', weaver: 'flax', jeweller: 'gems' });
-    for (const t of Object.keys(used)) {
+    expect(used).toEqual({ potter: 'clay', brewery: 'barley', weaver: 'flax', jeweller: 'gems', brickworks: 'clay' });
+    for (const t of Object.keys(used).filter((k) => k !== 'brickworks')) {   // the brickworks makes a material (Stage 4)
       expect([t, GOODS[BUILDINGS[t].consumes].kind, GOODS[BUILDINGS[t].produces.good].kind]).toEqual([t, 'raw', 'household']);
     }
   });
   it('stores food in granaries and everything else in storehouses, and sells the six goods homes use', () => {
     expect(BUILDINGS.granary.stores).toEqual(['grain', 'figs']);
     expect(BUILDINGS.granary.capacity).toBe(600);
-    expect(BUILDINGS.storehouse.stores).toEqual(['pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems']);
+    expect(BUILDINGS.storehouse.stores).toEqual(['pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'stone', 'bricks']);
     expect(BUILDINGS.storehouse.capacity).toBe(800);
     for (const g of Object.keys(GOODS)) {
       const homes = [BUILDINGS.granary, BUILDINGS.storehouse].filter((s) => s.stores.includes(g));
@@ -154,16 +155,16 @@ describe('data milestones to Capital', () => {
     ]);
     expect(Object.fromEntries(MILESTONES.map((m) => [m.id, m.unlocks]))).toEqual({
       village: ['house', 'well', 'farm_grain', 'granary', 'bazaar', 'temple', 'garden', 'firehouse'],
-      town: ['farm_fig', 'clay_pit', 'potter', 'storehouse', 'booth', 'statue'],
+      town: ['farm_fig', 'clay_pit', 'potter', 'storehouse', 'booth', 'statue', 'palace'],
       market_town: ['trading_post', 'wall', 'tower', 'barracks'],
-      city: ['farm_barley', 'brewery'],
-      great_city: ['farm_flax', 'weaver'],
-      capital: ['gem_mine', 'jeweller'],
+      city: ['farm_barley', 'brewery', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'plaza'],
+      great_city: ['farm_flax', 'weaver', 'colossus', 'mastaba_small', 'sphinx'],
+      capital: ['gem_mine', 'jeweller', 'mastaba_large'],
     });
   });
   it('unlocks every building exactly once, and nothing that does not exist', () => {
     const all = MILESTONES.flatMap((m) => m.unlocks);
-    expect([...all].sort()).toEqual(BUILDABLE.slice().sort());                       // gates and rubble are never unlocked: no card
+    expect([...all].sort()).toEqual(BUILDABLE.filter((t) => !['pyramid_small', 'pyramid_great'].includes(t)).sort());   // gates and rubble never; the pyramids unlock by prestige (Stage 4)
   });
   it('unlocks each workshop no earlier than its raw good and the stores both need', () => {
     const at = (type) => MILESTONES.findIndex((m) => m.unlocks.includes(type));
@@ -188,6 +189,10 @@ describe('data desirability', () => {
       clay_pit: [-6, -5, -4, -3, -2, -1], potter: [-4, -3, -2, -1], brewery: [-4, -3, -2, -1], weaver: [-4, -3, -2, -1],
       jeweller: [-4, -3, -2, -1], gem_mine: [-8, -6, -4, -2], trading_post: [-3, -2, -1],
       firehouse: [-1], tower: [-2, -1], barracks: [-4, -2], rubble: [-3, -1], wall: [], gate: [],
+      // Stage 4: the supply buildings, plaza, sphinx, the palace's first style and each monument's finished values
+      builders_guild: [-4, -3, -2, -1], quarry: [-6, -5, -4, -3, -2, -1], brickworks: [-4, -3, -2, -1], plaza: [2, 1], sphinx: [10, 8, 6, 4, 2], palace: [4, 3, 2, 1],
+      obelisk_small: [6, 5, 4, 3, 2, 1], obelisk_large: [10, 8, 6, 4, 2, 1], colossus: [12, 10, 8, 6, 4, 2], mastaba_small: [10, 8, 6, 4, 2, 1],
+      mastaba_large: [14, 12, 10, 8, 6, 4], pyramid_small: [16, 14, 12, 10, 8, 6], pyramid_great: [24, 20, 16, 12, 10, 8],
     });
   });
   it('gives homes values by tier, from an empty plot to an Estate', () => {
@@ -211,7 +216,7 @@ describe('data trade', () => {
   it('buys and sells the spec 4.15 goods at its prices and yearly quotas', () => {
     const list = (m) => Object.entries(m).map(([g, o]) => `${g} ${o.price} (${o.quota})`);
     expect(list(PARTNERS.memphis.buys)).toEqual(['grain 1 (300)', 'pottery 8 (200)', 'beer 10 (160)']);
-    expect(list(PARTNERS.memphis.sells)).toEqual(['clay 2 (300)', 'figs 3 (200)', 'barley 3 (200)']);
+    expect(list(PARTNERS.memphis.sells)).toEqual(['clay 2 (300)', 'figs 3 (200)', 'barley 3 (200)', 'stone 6 (200)']);   // Stage 4: stone, listed from City (from: 'city')
     expect(list(PARTNERS.byblos.buys)).toEqual(['pottery 8 (120)', 'linen 14 (120)', 'jewellery 20 (80)']);
     expect(list(PARTNERS.byblos.sells)).toEqual(['flax 3 (160)', 'gems 9 (100)', 'beer 14 (100)']);
   });
