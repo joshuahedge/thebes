@@ -247,6 +247,14 @@ describe('s4 cards picture cards: the marks', () => {
     expect([markSvg(null).childElementCount, markSvg({ kind: 'blob' }).childElementCount]).toEqual([0, 0]);
   });
 
+  it('gives a ring its own corner radius when the mark has one (a pill otherwise), never more than half its short side', () => {
+    const rx = (mark) => markSvg(mark).querySelector('rect.line').getAttribute('rx');
+    const ring = { kind: 'ring', x: 100, y: 200, w: 80, h: 30 };                   // padded to 100 by 50: a pill is 25
+    expect([rx(ring), rx({ ...ring, radius: 12 }), rx({ ...ring, radius: 0 }), rx({ ...ring, radius: 90 }), rx({ ...ring, radius: 'big' })]).toEqual(['25', '12', '0', '25', '25']);
+    const rounded = markSvg({ ...ring, radius: 12 }).querySelector('rect.halo');
+    expect([rounded.getAttribute('rx'), rounded.getAttribute('ry')]).toEqual(['12', '12']);
+  });
+
   it('fetches the marks once a page from cards.json and draws them as they come; without them a card shows its picture alone', async () => {
     const shell = await mountShell(390, 844);
     forgetMarks();
