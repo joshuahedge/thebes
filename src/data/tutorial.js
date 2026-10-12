@@ -5,10 +5,12 @@
 // The pictures are made by tools/tutorial.ps1 from the development scenes (src/dev/tutorialScenes.js: the `tutorial`
 // scene with { picture: id }), saved as assets/tutorial/<id>.webp, TUTORIAL.size px square and at most TUTORIAL.maxBytes,
 // with assets/tutorial/cards.json giving each card's mark in picture px, read from the scene itself:
-//   { "size": 600, "cards": { "<id>": { "mark": { "kind": "ring", "x", "y", "w", "h" } | { "kind": "arrow", "x", "y", "angle" } } } }
-// A ring is a rounded outline around the box centred on (x, y), w by h (a circle when they are equal); an arrow's tip is at
-// (x, y) and it points along angle (degrees: 0 points right, 90 down). The interface draws the mark live over the picture
-// (src/ui/tutorial.js), so it stays sharp and stays aligned when the pictures are made again.
+//   { "size": 600, "cards": { "<id>": { "mark": { "kind": "ring", "x", "y", "w", "h"[, "pad"] }
+//                                             | { "kind": "arrow", "x", "y", "angle" } } } }
+// A ring is a rounded outline around the box centred on (x, y), w by h (a circle when they are equal), TUTORIAL.ringPad
+// outside it, or the mark's own "pad" (a button's ring sits close, clear of the words beside it). An arrow's tip is at
+// (x, y) and it points along angle (degrees: 0 points right, 90 down). The interface draws the mark live over the
+// picture (src/ui/tutorial.js), so it stays sharp and stays aligned when the pictures are made again.
 export const TUTORIAL_CARDS = [
   { id: 'road', mark: 'ring' },     // a road with homes, a well and a farm along it: a ring on the road
   { id: 'homes', mark: 'ring' },    // housing plots on a road and a well beside them: a ring on the well
@@ -23,7 +25,7 @@ export const TUTORIAL = {
   marks: 'cards.json',
   size: 600,                        // the pictures' side in px, and the marks' coordinates
   maxBytes: 60 * 1024,              // each picture at most 60 KB (ruling 264)
-  ringPad: 10,                      // px (picture) between a ring and the box it marks
+  ringPad: 10,                      // px (picture) between a ring and the box it marks, unless the mark gives its own pad
   arrowLength: 110, arrowHead: 34,  // px (picture)
   swipePx: 40,                      // a swipe moves a card when it goes this far, more across than up or down
 };
