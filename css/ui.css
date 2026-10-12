@@ -60,7 +60,7 @@ h2, h3 { margin: 0; }
 body[data-layout="portrait"] .wide-only, body[data-layout="compact"] .wide-only { display: none !important; }
 body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
 
-/* Critical banner, overlay legend and goals strip stack under the top bar in one column, so nothing overlaps whatever the text size. The banner wins; the legend shrinks to its icon. */
+/* Critical banner, overlay legend and goals strip stack under the top bar in one column, so nothing overlaps whatever the text size. On a phone only the alert row and one guidance row show (the guidance row rules below). */
 #under-bar { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + var(--topbar-h) + 6px); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
 #banner, #legend { position: static; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; max-width: 100%; }
 #under-bar > :empty { display: none; }
@@ -70,9 +70,10 @@ body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
 #legend .dot, #legend .ring { display: inline-block; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; }
 #legend .dot { background: currentColor; }
 #legend .ring { border: 2px solid currentColor; }
-/* Under a banner the legend shrinks to its dot and ring; the words stay for screen readers (sr-only). A graded scale (the
-   desirability bands) keeps its name and labels: swatches alone would be colour alone (spec 6.1). */
-body.has-banner #legend .strip:not(.graded) .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* On a wide screen under a banner the legend shrinks to its dot and ring; the words stay for screen readers (sr-only). A
+   graded scale (the desirability bands) keeps its name and labels: swatches alone would be colour alone (spec 6.1). A
+   phone's legend has the guidance row to itself, so it keeps its words. */
+body.has-banner[data-layout="wide"] #legend .strip:not(.graded) .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body[data-hand="left"] .confirm { flex-direction: row-reverse; }
 
 /* Corner buttons: speed bottom-left, minimap and overlay bottom-right. Never in the middle. */
@@ -354,6 +355,36 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .got-it { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
 
+/* The guidance row on a phone (spec 6.3, rulings 163 and 164): under the alert row one of the overlay legend, a tip, a
+   caption or the goal shows, the one createUI names in data-guidance ('none' while a sheet is open). #tip and #cheer are
+   live regions that stay rendered: their contents hide instead. The goals strip is one row (ruling 170): the label, the
+   words and the progress are one flow of words on one button (two lines at most, cut with "…"; the button's name has all
+   of it), then Show me. A goal's caption drops its "Goal done:" lead from sight (screen readers keep it) and reads as the strip
+   changing: "✓ Lay a road +25 gold". */
+body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="legend"]) #legend,
+body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="goal"]) #goals { display: none !important; }
+body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="tip"]) #tip > *,
+body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="caption"]) #cheer > * { display: none !important; }
+.goal-strip.one-row { flex-wrap: nowrap; column-gap: 4px; padding: 0 4px 0 0; }
+.goal-strip.one-row .main { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; min-height: var(--tap); padding: 2px 4px 2px 12px; background: transparent; border-color: transparent; text-align: left; line-height: 1.25; }
+.goal-strip.one-row .words { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; min-width: 0; }
+.goal-strip.one-row .buttons { flex: none; flex-wrap: nowrap; margin-left: 0; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #cheer .cheer.led .lead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* A caption in the guidance row is two lines at most: at 100% text the head (with the gold beside it) takes two at most
+   and the why one beneath; at larger text the whole caption is one flow of two lines. Past that it is cut with "…": the
+   live region reads it whole, and the Goals sheet's Recent list has it in full. */
+body:is([data-layout="portrait"], [data-layout="compact"]) #cheer .cheer .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #cheer .cheer .why { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .text { display: inline; }
+#sheet .recent .why { display: block; }
+/* A tip in the guidance row is two lines at most too; How to play lists every tip in full, and the live region reads it whole. */
+body:is([data-layout="portrait"], [data-layout="compact"]) #tip .tip-row .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+#sheet .skip-row { margin: 4px 0; }
+#sheet .recent { list-style: none; padding: 0; margin: 4px 0; }
+#sheet .recent li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--parchment-2); }
+#sheet .recent .reward { flex: none; white-space: nowrap; }
+
 /* The idle nudge (early-game pass 3.5): its one line sits under the goals strip, so #goals stacks in a column. Show me
    gets a gold ring that pulses twice (under 1 flash a second, done in 2.4 s), then stays still until the
    player acts; under reduced motion only the still ring shows. The Play tip rings the speed control the same way. */
@@ -484,14 +515,6 @@ body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; 
 #banner .critical .buttons { flex: 0 1 auto; max-width: 100%; display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
 #banner .critical .more { white-space: nowrap; }
 #banner .critical.chip .expand { font-weight: 700; text-align: left; padding: 0 4px; }
-/* The legend under a banner on a phone (ruling 111): one 44 px icon at the right end of the banner's row, so the goals
-   strip keeps its place; tapped, the full legend opens in its own row. Wide screens keep the full strip. */
-#legend .legend-icon { display: none; }
-body.has-banner:not([data-layout="wide"]) #legend .legend-icon { display: inline-flex; align-items: center; justify-content: center; padding: 0; box-shadow: var(--shadow); }
-body.has-banner:not([data-layout="wide"]) #legend:not(.open) .strip { display: none; }
-body.has-banner:not([data-layout="wide"]) #legend.open { flex-direction: row-reverse; align-items: center; }   /* open: the icon ends the strip's row */
-body.has-banner:not([data-layout="wide"]) #legend:not(.open):not(:empty) { position: absolute; top: 0; right: 0; }
-body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:empty)) { max-width: calc(100% - var(--tap) - 6px); }
 /* The phone's alert row (ruling 167): one row, the icon, the words and View side by side. The words wrap to two lines at
    most and are cut with "…" past that; the full words are in the buttons' names, the alert list and the raid sheet. A
    raid warning's words are its countdown chip, a button that opens the raid sheet. */
@@ -515,6 +538,15 @@ body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:
 #sheet .tribute-actions button { flex: 1 1 10em; }
 /* D4: the fire-risk legend: the four bands, then the dot and ring and what never burns on a row of their own. */
 #legend .fire-keys { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; order: 4; flex-basis: 100%; }
+/* On a portrait phone the fire-risk legend has the guidance row to itself (ruling 164) and keeps it short: the name and the
+   four bands share a row where they fit, the two firehouse keys sit beneath beside the x, and what never burns is kept
+   for screen readers (the building sheet's fire row says it for each building). */
+body[data-layout="portrait"] #legend .strip.graded:has(.fire-keys) { display: inline-grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 6px; row-gap: 0; padding-left: 10px; }
+body[data-layout="portrait"] #legend .strip.graded:has(.fire-keys) > strong.text { grid-column: 1; grid-row: 1; }
+body[data-layout="portrait"] #legend .strip.graded .scale:has(+ .fire-keys) { grid-column: 2 / 4; grid-row: 1; }
+body[data-layout="portrait"] #legend .strip.graded .fire-keys { grid-column: 1 / 3; grid-row: 2; }
+body[data-layout="portrait"] #legend .strip.graded:has(.fire-keys) .close { grid-column: 3; grid-row: 2; margin-left: 0; }
+body[data-layout="portrait"] #legend .fire-keys .never-burn { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* ── end s3 ui ── */
 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
@@ -575,15 +607,13 @@ body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:
 #sheet .feat .status { flex: none; white-space: nowrap; }
 #sheet .feat.earned .status { color: var(--teal); font-weight: 600; }
 #sheet .feat.lost .status { color: var(--ink-soft); }
-/* The opening chain's Founded Thebes row, and the next-threshold bar (spec 4.1): a slim line under the goals strip. It
-   steps aside on a phone while a critical banner is up (the plan's controller ruling 12), or while a tip or a caption
-   shows, so the rows under the top bar still end above the middle of the map (spec 6.1); a wide screen keeps it. */
+/* The opening chain's Founded Thebes row, and the next-threshold bar (spec 4.1): a slim line under the goals strip. On a
+   phone it shows only in calm portrait play (createUI's barAllowed: no banner, tool or guide; a tip, a caption or a sheet
+   already takes the whole guidance row); a wide screen keeps it. */
 #sheet .goals .founded { padding: 4px 0; }
 #goals .threshold { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box; margin-top: 4px; background: var(--parchment); color: var(--ink); border-radius: var(--radius); padding: 0 12px; box-shadow: var(--shadow); line-height: 1.6; }
 #goals .threshold-meter { flex: none; width: 48px; height: 6px; border-radius: 3px; background: var(--parchment-2); box-shadow: inset 0 0 0 1px var(--parchment-3); overflow: hidden; }
 #goals .threshold-meter .fill { display: block; height: 100%; background: var(--teal); }
-body:is([data-layout="portrait"], [data-layout="compact"]).has-banner #goals .threshold { display: none; }
-body:is([data-layout="portrait"], [data-layout="compact"]) #under-bar:has(#tip .tip-row, #cheer .cheer) #goals .threshold { display: none; }
 /* A citizen remark (spec 4.19): a quieter caption, with a speech mark for its icon and no gold. */
 #cheer .cheer.remark { border-color: var(--parchment-3); }
 #cheer .cheer.remark .text { font-weight: 400; font-style: italic; }

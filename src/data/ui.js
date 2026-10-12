@@ -92,12 +92,15 @@ export const UPDATE_TOAST_MS = 20000;
 export const TITLE_SEED = 11;          // the sample city behind the title card
 export const TITLE_DRIFT_MS = 9000;    // one slow camera drift between two points of it
 
-// Celebration captions (early-game pass 3.6): how long each tier's caption shows, and the least time between two
-// captions starting. A milestone shows longer than the gap, so the next caption waits until it hides. Stage 3 (Track D,
-// spec 4.13 and 6.3): an info caption (a blaze put out, a raid's report of about 100 characters) shows long enough to read
-// at a phone's 150% text.
-export const CHEER_MS = { first: 2500, milestone: 4000, info: 6000 };
+// Celebration captions (early-game pass 3.6; spec 6.3, ruling 165): how long each tier's caption shows, and the least
+// time between two captions starting. Goals, firsts, feats and achievements are the 'first' tier; citizen remarks
+// 'remark'. A caption showing longer than the gap holds the next one until it hides. An info caption (a blaze put out, a
+// raid's report of about 100 characters) shows long enough to read at a phone's 150% text.
+export const CHEER_MS = { first: 4000, remark: 4000, milestone: 5000, info: 6000 };
 export const CHEER_GAP_MS = 3000;
+export const CHEER_WAITING_MAX = 2;        // at most two captions wait their turn; an older one goes straight to Recent
+export const CHEER_HELD_MAX_MS = 10000;    // a caption held back this long behind a sheet on a phone goes to Recent (spec 6.3)
+export const CHEER_RECENT_MAX = 10;        // the Goals sheet's Recent list keeps the last ten captions
 
 // The idle nudge (early-game pass 3.5): Show me glows after this much idle running play, and one Next line follows this much later.
 export const NUDGE_GLOW_MS = 45000;

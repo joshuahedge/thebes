@@ -325,7 +325,7 @@ describe('s3 ui alert tiers', () => {
 });
 
 describe('s3 ui alert tiers on the page', () => {
-  it('shrinks the legend to an icon beside the banner on small phones, so the goals strip stays above the middle', async () => {
+  it('gives the legend the guidance row under the banner on small phones, in place of the goal, so the rows end above the middle', async () => {
     for (const [w, h, sizes] of [[375, 667, [100, 125, 150]], [844, 390, [100, 125, 150]]]) {
       for (const size of sizes) {
         const r = await rigUI({ width: w, height: h });
@@ -335,18 +335,15 @@ describe('s3 ui alert tiers on the page', () => {
           r.world.gold = -5;                                                              // debt: a critical banner
           r.ui.alerts.refresh();
           const shell = r.root.getBoundingClientRect();
-          const icon = r.root.querySelector('#legend .legend-icon');
-          const box = icon.getBoundingClientRect();
-          expect([w, size, box.width >= 44, box.height >= 44]).toEqual([w, size, true, true]);
-          expect(getComputedStyle(r.root.querySelector('#legend .strip')).display).toBe('none');
-          const banner = r.root.querySelector('#banner .critical').getBoundingClientRect();
-          expect([w, size, box.left >= banner.right - 0.5, box.right <= shell.right + 0.5]).toEqual([w, size, true, true]);   // beside the banner, on screen
-          const goals = r.root.querySelector('#goals .goal-strip').getBoundingClientRect();
-          expect([w, size, goals.bottom - shell.top < shell.height / 2]).toEqual([w, size, true]);
-          click(icon);
-          expect([icon.getAttribute('aria-expanded'), getComputedStyle(r.root.querySelector('#legend .strip')).display === 'none']).toEqual(['true', false]);
-          click(icon);
-          expect(getComputedStyle(r.root.querySelector('#legend .strip')).display).toBe('none');
+          expect(r.root.querySelector('#legend .legend-icon')).toBe(null);               // no icon stands in for the legend any more (ruling 164)
+          const strip = r.root.querySelector('#legend .strip');
+          expect([w, size, getComputedStyle(strip).display === 'none', getComputedStyle(r.root.querySelector('#goals')).display]).toEqual([w, size, false, 'none']);
+          const banner = r.root.querySelector('#banner .critical').getBoundingClientRect(), box = strip.getBoundingClientRect();
+          expect([w, size, box.top >= banner.bottom - 0.5, box.right <= shell.right + 0.5]).toEqual([w, size, true, true]);   // the row under the alert row, on screen
+          expect([w, size, box.bottom - shell.top < shell.height / 2]).toEqual([w, size, true]);
+          for (const word of strip.querySelectorAll('.text')) expect([w, size, word.getBoundingClientRect().width > 2]).toEqual([w, size, true]);   // the words show
+          r.store.set({ overlay: null });
+          expect([w, size, getComputedStyle(r.root.querySelector('#goals')).display === 'none']).toEqual([w, size, false]);   // the goal comes back
         } finally { r.cleanup(); }
       }
     }
@@ -355,8 +352,8 @@ describe('s3 ui alert tiers on the page', () => {
       wide.store.set({ overlay: 'water' });
       wide.world.gold = -5;
       wide.ui.alerts.refresh();
-      expect(getComputedStyle(wide.root.querySelector('#legend .legend-icon')).display).toBe('none');
       expect(getComputedStyle(wide.root.querySelector('#legend .strip')).display === 'none').toBe(false);
+      expect(getComputedStyle(wide.root.querySelector('#goals')).display === 'none').toBe(false);   // a wide screen keeps every row
     } finally { wide.cleanup(); }
   });
 

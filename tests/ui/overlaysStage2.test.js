@@ -214,7 +214,7 @@ describe('stage 2 overlay legend', () => {
       for (const b of r.root.querySelectorAll('#legend .band')) expect(b.getBoundingClientRect().right).toBeLessThanOrEqual(shell.right + 0.5);
     } finally { r.cleanup(); }
   });
-  it('shrinks the scale to its icon under a critical banner, and opens it with its name and labels readable and out of the middle of the map', async () => {
+  it('shows the whole scale under a critical banner on a phone, in the guidance row, its name and labels readable and out of the middle of the map', async () => {
     const r = await rigUI({ width: 360, height: 640 });
     try {
       r.ui.settings.set({ textSize: 150 });
@@ -224,8 +224,9 @@ describe('stage 2 overlay legend', () => {
       expect(document.body.classList.contains('has-banner')).toBe(true);
       const shell = r.root.getBoundingClientRect();
       const strip = r.root.querySelector('#legend .strip');
-      expect(getComputedStyle(strip).display).toBe('none');                  // Stage 3 (ruling 111): an icon beside the banner
-      fire(r.root.querySelector('#legend .legend-icon'), 'click');            // a tap opens the full legend
+      expect(getComputedStyle(strip).display === 'none').toBe(false);        // the legend has the guidance row (ruling 164), so no icon stands in for it
+      expect(r.root.querySelector('#legend .legend-icon')).toBe(null);
+      expect(getComputedStyle(r.root.querySelector('#goals')).display).toBe('none');   // the goal waits while an overlay is on
       const words = [...strip.querySelectorAll('.text')];
       expect(words.map((w) => w.textContent)).toEqual([OVERLAY_NAMES.desirability, '<0', '0–19', '20–34', '35–49', '50–64', '65+']);
       for (const w of words) {
@@ -234,10 +235,11 @@ describe('stage 2 overlay legend', () => {
         expect([w.textContent, box.left >= shell.left, box.right <= shell.right + 0.5]).toEqual([w.textContent, true, true]);
       }
       expect(r.root.querySelector('#banner .critical') === null).toBe(false);
+      expect(strip.getBoundingClientRect().top).toBeGreaterThanOrEqual(r.root.querySelector('#banner').getBoundingClientRect().bottom);   // under the alert row
       expect(strip.getBoundingClientRect().bottom - shell.top).toBeLessThan(shell.height / 2);
     } finally { r.cleanup(); }
   });
-  it('keeps the scale on the name\'s row on a phone held sideways, so it and the goals stay above the middle under a banner', async () => {
+  it('keeps the scale on the name\'s row on a phone held sideways, so the legend stays above the middle under a banner', async () => {
     const r = await rigUI({ width: 844, height: 390 });
     try {
       r.world.gold = -5;                                                       // debt: a critical alert, so a banner
@@ -245,27 +247,17 @@ describe('stage 2 overlay legend', () => {
       expect([r.store.get().layout, document.body.classList.contains('has-banner')]).toEqual(['compact', true]);
       const shell = r.root.getBoundingClientRect();
       const box = (el) => el.getBoundingClientRect();
-      const goals = () => box(r.root.querySelector('#goals .goal-strip'));
-      // Stage 3 (ruling 111): under the banner each legend is an icon beside it, so the goals end above the middle; the
-      // checks below open it (a tap on the icon) and measure the open strip as before.
-      const open = () => fire(r.root.querySelector('#legend .legend-icon'), 'click');
+      // The legend takes the guidance row in place of the goals strip (ruling 164): two rows under the top bar.
       r.store.set({ overlay: 'water' });
-      expect(goals().bottom - shell.top).toBeLessThan(shell.height / 2);
-      open();
-      const plain = { strip: box(r.root.querySelector('#legend .strip')).height, goals: goals().bottom };
+      expect(getComputedStyle(r.root.querySelector('#goals')).display).toBe('none');
+      const plain = box(r.root.querySelector('#legend .strip'));
+      expect(plain.bottom - shell.top).toBeLessThan(shell.height / 2);
       r.store.set({ overlay: 'desirability' });
-      expect(goals().bottom - shell.top).toBeLessThan(shell.height / 2);
-      open();
       const strip = r.root.querySelector('#legend .strip');
       const name = box(strip.querySelector('strong.text')), scale = box(strip.querySelector('.scale')), close = box(strip.querySelector('.close'));
       expect([scale.top < name.bottom, close.top < scale.bottom, scale.left >= name.right]).toEqual([true, true, true]);   // one row: name, scale, close
-      expect([box(strip).height, goals().bottom]).toEqual([plain.strip, plain.goals]);   // no taller than any overlay's strip, so the goals sit where they always do
+      expect(box(strip).height).toBe(plain.height);                            // no taller than any overlay's strip
       expect(box(strip).bottom - shell.top).toBeLessThan(shell.height / 2);
-      expect(goals().top - shell.top).toBeLessThan(shell.height / 2);
-      // The top bar, the banner, the strip and the goals each hold a 44 px button, so stacked they need about 216 px of
-      // this 390 px tall phone: under any overlay the goals end a little past the middle (pinned here, as the
-      // celebrations test pins its tight rows, so it cannot creep further). The scale's own row took them to 61%.
-      expect(goals().bottom - shell.top).toBeLessThan(0.56 * shell.height);
     } finally { r.cleanup(); }
   });
 });

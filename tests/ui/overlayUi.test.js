@@ -17,6 +17,7 @@ describe('ui overlay legend', () => {
     expect(strip.textContent).toContain(OVERLAY_LEGEND.water[1]);
     expect(strip.querySelector('.dot')).toBeTruthy();
     expect(strip.querySelector('.ring')).toBeTruthy();
+    expect([root.children.length, root.querySelector('.legend-icon')]).toEqual([1, null]);   // the strip alone: no icon stands in for it (ruling 164)
     store.set({ dock: 'tray' });                              // an unrelated store write must not rebuild the strip
     expect(root.querySelector('.strip') === strip).toBe(true);
     fire(strip.querySelector('.close'), 'click');

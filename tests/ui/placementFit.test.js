@@ -137,6 +137,8 @@ describe('ui placement fit', () => {
       const r = await rigUI({ width, height });
       try {
         r.ui.settings.set({ textSize: text, reducedMotion: 'on' });
+        r.world.gold = -5;                                                       // debt: the alert row, and an info caption in the guidance row under it
+        r.ui.alerts.refresh();
         r.ui.celebrations.show({ tier: 'info', text: 'The blaze at the potter\'s yard is out. Your firehouse crew reached it in time.' });
         const v = { width, height }, m = freeMiddle(r, v);
         expect([text, m.y - height * 0.4 > 32]).toEqual([text, true]);         // more than a tile row below where a fixed 40% would start it

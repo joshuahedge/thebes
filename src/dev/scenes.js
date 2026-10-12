@@ -396,7 +396,7 @@ const ROW_LAYERS = { alert: '#banner', legend: '#legend', goal: '#goals', tip: '
 // screen's top left, { top, bottom, left, right }, or null when nothing of it shows.
 //   topBar       the top bar
 //   layers       each of ROW_LAYERS that shows (the union of its visible children)
-//   rows         how many rows the layers make: layers side by side (a legend icon beside the banner) are one row
+//   rows         how many rows the layers make: layers side by side are one row
 //   rowsEnd      where the last row ends (the top bar's bottom when there is none); rowsRight, the rows' right edge
 //   sheet        the open sheet (at the bottom in portrait, a side column in compact), or null
 //   bottomStart  where the first full-width bottom panel (dock, confirm bar, sheet) starts; rightEdge, where a side

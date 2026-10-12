@@ -113,6 +113,10 @@ describe('ui nudge', () => {
       expect(Math.abs(goals.getBoundingClientRect().bottom - line.getBoundingClientRect().bottom)).toBeLessThan(0.5);
       expect(r.root.querySelector('#under-bar').getBoundingClientRect().bottom).toBeLessThan(844 * 0.45);   // nothing over the middle of the map
       expect(getComputedStyle(line).pointerEvents).toBe('none');                // taps go through to the map
+      r.ui.celebrations.show({ tier: 'info', text: 'The blaze at the potter is out.' });
+      expect(getComputedStyle(goals).display).toBe('none');                    // a phone: a caption takes the guidance row, the line goes with the strip
+      r.ui.celebrations.clear();
+      expect(line.getBoundingClientRect().height).toBeGreaterThan(2);          // and is back with it
     } finally { r.cleanup(); }
   });
   it('in the game: opening a sheet or starting a tool is an action and neither counts as idle time, and Tips only keeps the nudge', async () => {
