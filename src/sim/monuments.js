@@ -4,11 +4,13 @@
 // nothing; nothing here reads the clock or Math.random. Everything but monumentDay, monumentMonth and
 // updatePrestigeUnlocks only reads the world.
 //
-// Events (pushed into the optional events array; the sim never reads it):
-//   { type: 'course_done', id, type: kind, course, prestige }   course: courses now done (1-based); prestige: what this
-//                                                                course added to the site's prestige (ruling 242)
-//   { type: 'monument_done', id, type: kind, prestige }          prestige: the completion share it added
-//   { type: 'site_stalled', id, type: kind, reason }             the day a site reaches MONUMENT.stallDays without work
+// Events (pushed into the optional events array; the sim never reads it). The monument's type rides as kind, since
+// type names the event (as Stage 3's 'burned' event does):
+//   { type: 'course_done', id, kind, course, prestige }   course: courses now done (1-based); prestige: what this course
+//                                                          added to the city's prestige (ruling 242: the site's own course
+//                                                          share for the first of its kind; 0 for a second not ahead of it)
+//   { type: 'monument_done', id, kind, prestige }          prestige: the completion share it added (0 for a second)
+//   { type: 'site_stalled', id, kind, reason }             the day a site reaches MONUMENT.stallDays without work
 //   { type: 'prestige_unlock', id: kind, day }                   a prestige unlock first reached (updatePrestigeUnlocks)
 //   (the palace's: src/sim/palace.js)
 //
@@ -17,6 +19,8 @@
 // 'waiting_capstone', 'no_stone', 'no_bricks'.
 import { BUILDINGS } from '../data/buildings.js';
 import { MONUMENTS, MONUMENT, MATERIALS, PRESTIGE_UNLOCKS } from '../data/monuments.js';
+import { MIN_STAFF_RATIO } from '../data/labour.js';
+import { workGoldPerUnit, extraGoldOf, canPayNoDebt } from './costs.js';
 import { DAYS_PER_MONTH } from './time.js';
 import { allBuildings, isSite, isFinished } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
@@ -63,14 +67,33 @@ export function remainingNeed(b) {
 }
 
 // The stockpile's room for each material (ruling 238): the pile holds at most MONUMENT.stockPerCrew x the kind's most
-// crews in all, and never more of one material than the courses still need (what is on site counts).
+// crews in all, and never more of one material than the courses still need (what is on site counts). Track A: the limit
+// is shared between the materials as the next limit's worth of work takes them (the course under way's rest, then the
+// next courses', in order; rounded down, and at least 1 of a material that work takes), so a pile never fills with one
+// material while the course under way waits for the other (a small mastaba's pile full of stone for its facing course,
+// or a pyramid's full of stone with no bricks for its ramp, would wait for ever), and a course's material is stocked
+// ahead as the course before it ends. The shares add up to the limit at most.
 export function stockRoom(b) {
   const out = { stone: 0, bricks: 0 };
   if (!isSite(b)) return out;
-  const cap = MONUMENT.stockPerCrew * MONUMENTS[b.type].crews;
-  const held = b.site.stock.stone + b.site.stock.bricks;
+  const m = MONUMENTS[b.type];
+  const cap = MONUMENT.stockPerCrew * m.crews;
   const need = remainingNeed(b);
-  for (const g of MATERIALS) out[g] = Math.max(0, Math.min(cap - held, need[g] - b.site.stock[g]));
+  const next = { stone: 0, bricks: 0 };
+  let left = cap;
+  for (let i = b.site.course; i < m.courses.length && left > 0; i++) {
+    const c = m.courses[i];
+    const rest = Object.fromEntries(MATERIALS.map((g) => [g, Math.max(0, c[g] - (i === b.site.course ? b.site.laid[g] : 0))]));
+    const total = rest.stone + rest.bricks;
+    const take = Math.min(left, total);
+    if (total > 0) for (const g of MATERIALS) next[g] += (take * rest[g]) / total;
+    left -= take;
+  }
+  for (const g of MATERIALS) {
+    if (!(next[g] > 1e-9)) continue;
+    const share = Math.max(1, Math.floor(next[g] + 1e-9));
+    out[g] = Math.max(0, Math.min(need[g], share) - b.site.stock[g]);
+  }
   return out;
 }
 
@@ -110,8 +133,10 @@ export function supplyNear(world, probe, good) {
 //     materials: { stone: { onSite, need, makers: [ids], stores: [ids] }, bricks: { ... } } (only the materials the kind uses),
 //     last: site.last, pace: paceOf, prestige: { now, more, holds } (more: what is still to come; holds: whether this one
 //     counts for its kind), stalled (site.idle >= MONUMENT.stallDays), reason }
-// STUB in part: makers and stores are [] and reason is the stored site.reason (or 'no_road' / 'paused' from state) until
-// Track A lists what reaches the site and judges the cause as monumentDay does. null for a building that is not a monument.
+// makers: the quarries or brickworks (working or not) whose producer reach takes in the site; stores: the stores within
+// MONUMENT.supplyReach that hold some of the material (what the site can draw today); both nearest first, and empty for
+// a road-less site. reason: 'no_road' or 'paused' from state, else site.reason as monumentDay judged it (ruling 245),
+// so the sheet, the stall warning and the event say one thing; null after a day of work and once finished.
 export function siteStatus(world, b) {
   const m = b && MONUMENTS[b.type];
   if (!m || !b.site) return null;
@@ -119,7 +144,10 @@ export function siteStatus(world, b) {
   const finished = isFinished(b);
   const need = remainingNeed(b);
   const used = MATERIALS.filter((g) => m.courses.some((c) => c[g] > 0));
-  const materials = Object.fromEntries(used.map((g) => [g, { onSite: b.site.stock[g], need: need[g], makers: [], stores: [] }]));
+  const ids = (list) => list.map((r) => r.b.id);
+  const makers = (g) => ids(buildingsInReach(world, b, MONUMENT.producerReach, (o) => materialOf(o) === g));
+  const stores = (g) => ids(buildingsInReach(world, b, MONUMENT.supplyReach, (o) => (BUILDINGS[o.type].stores || []).includes(g) && (o.store[g] || 0) > 0));
+  const materials = Object.fromEntries(used.map((g) => [g, { onSite: b.site.stock[g], need: need[g], makers: makers(g), stores: stores(g) }]));
   const now = prestigeOfBuilding(b);
   let reason = null;
   if (!finished) reason = !road ? 'no_road' : b.paused ? 'paused' : b.site.reason;
@@ -188,14 +216,16 @@ export function hasMonumentWork(world, b, plan = null) {
 // What one crew would lay today with `cap` units of work (pure: the site is not touched). It lays the course under way
 // from the stockpile in the course's recipe proportion (ruling 239: a course naming two materials waits when either is
 // missing) and carries on into the next course when it finishes one, until its work for the day is done, a material
-// runs out (short: the first missing, in MATERIALS order) or the monument is finished. st is the site's course, laid
-// and stock afterwards; courses how many it finished; by the units of each material laid.
+// runs out (short: the first missing, in MATERIALS order) or the monument is finished. It stops at the start of the last
+// course while the kind's gilding or capstone is unpaid (ruling 241: monumentDay pays it as the course begins). st is the
+// site's course, laid and stock afterwards; courses how many it finished; by the units of each material laid.
 function planCrew(b, cap) {
   const m = MONUMENTS[b.type];
   const st = { course: b.site.course, laid: { ...b.site.laid }, stock: { ...b.site.stock } };
   const p = { units: 0, by: { stone: 0, bricks: 0 }, courses: 0, short: null, st };
   let left = cap;
   while (left > EPS && st.course < m.courses.length) {
+    if (extraDue(b, st.course)) break;
     const c = m.courses[st.course];
     const total = c.stone + c.bricks;
     const rest = total - st.laid.stone - st.laid.bricks;
@@ -251,14 +281,58 @@ function commitCrew(world, b, p, events) {
   if (events) events.push({ type: 'monument_done', id: b.id, kind: b.type, prestige: prestigeOf(world) - before });
 }
 
+// Whether the kind's gilding or capstone is due and unpaid with the site at course `course` (the last course).
+function extraDue(b, course = b.site.course) {
+  const m = MONUMENTS[b.type];
+  return Boolean(m.extra) && !b.site.extraPaid && course === m.courses.length - 1;
+}
+
+// Pays the gilding or the capstone as the last course begins (ruling 241), if it is due: true when nothing is owed
+// now, false when paying would take the treasury below 0 (the course waits). It counts in the month's gold.
+function payExtra(world, b) {
+  if (!extraDue(b)) return true;
+  const cost = extraGoldOf(world, b.type);
+  if (!canPayNoDebt(world, cost)) return false;
+  world.gold -= cost;
+  b.site.extraPaid = true;
+  b.site.month.gold += cost;
+  return true;
+}
+
+// A crew's work gold for `units` (ruling 240): workGoldPerUnit x units plus the site's carried fraction, paid in whole
+// gold; { pay, carry } with 0 <= carry < 1. A sum within EPS of a whole number is that number, so a month of a full
+// crew pays exactly 100 (x the difficulty's cost).
+function workPay(world, b, units) {
+  const owed = snap(b.site.carry + units * workGoldPerUnit(world));
+  const pay = Math.floor(owed);
+  return { pay, carry: owed - pay };
+}
+
+const burning = (g) => Boolean(g.fire && g.fire.stage === 'fire');
+
+// Why an open site did no work today (ruling 245), the first that applies: no guild's crew in reach ('no_crew'); its
+// guilds' crews cannot work: one short of workers ('crew_short', ahead of 'crew_burning'); no crew's full day could be
+// paid without taking the treasury below 0 ('no_gold'); the gilding or capstone waits for its gold ('waiting_gilding',
+// 'waiting_capstone'); a material is missing ('no_stone', 'no_bricks': the first the course under way lacks).
+function stallReason(world, b, guilds, working, waiting, short) {
+  if (!guilds.length) return 'no_crew';
+  if (!working.length) return guilds.some((g) => !burning(g) && staffRatio(world, g) < MIN_STAFF_RATIO) ? 'crew_short' : 'crew_burning';
+  if (!working.some((g) => canPayNoDebt(world, workPay(world, b, crewDayUnits(world, g)).pay))) return 'no_gold';
+  if (waiting) return `waiting_${MONUMENTS[b.type].extra.kind}`;
+  return short ? `no_${short}` : 'no_gold';
+}
+
 // The daily step (spec 4.16), run by tickDay right after produceDay (before updatePrestigeUnlocks, palaceDay, fire and
-// raids). Sites go in founding order (ascending id). Each open site's crews are the working guilds the crew plan sends
-// it (site.crews, in the order they took it; month.crews the most on one day); each crew lays its day (crewDayUnits) from
-// the stockpile, course by course; a crew that cannot lay its full share for want of material counts a starved day
-// (month.starvedDays). Before its crews work, an open site draws what its stockpile has room for from the storehouses
-// within MONUMENT.supplyReach (drawFromStores; quarries and brickworks delivered earlier in the day, production.js). A
-// road-less or paused site has no crews and does nothing. Task A3 adds the work gold, the gilding and capstone, idle,
-// reason and the stall.
+// raids). Sites go in founding order (ascending id), so their crews pay in that order (ruling 240). A road-less or paused
+// site has no crews, does nothing and keeps idle 0 (its reason is 'no_road' or 'paused'). An open site first draws what
+// its stockpile has room for from the storehouses within MONUMENT.supplyReach (drawFromStores; quarries and brickworks
+// delivered earlier in the day, production.js). Its crews are the working guilds the crew plan sends it (site.crews, in
+// the order they took it; month.crews the most on one day). Each crew in turn: the gilding or capstone is paid as the
+// last course begins, or every crew waits (payExtra); the crew lays its day (crewDayUnits) from the stockpile, course by
+// course, and is paid for it in whole gold with the fraction carried (workPay), unless that would take the treasury below
+// 0, when it does not work today; a crew that cannot lay its full share for want of material counts a starved day
+// (month.starvedDays). A day with work sets idle 0 and reason null; a day without adds 1 to idle and names the cause
+// (stallReason), and the day idle reaches MONUMENT.stallDays a 'site_stalled' event is pushed (once per stall).
 export function monumentDay(world, events = null) {
   const plan = crewPlan(world);
   const guildsAt = new Map();
@@ -269,16 +343,34 @@ export function monumentDay(world, events = null) {
   for (const b of allBuildings(world)) {
     if (!isSite(b)) continue;
     const s = b.site;
-    if (openSite(world, b)) drawFromStores(world, b);
-    const working = (guildsAt.get(b.id) || []).filter((g) => isWorking(world, g));
+    if (!openSite(world, b)) {
+      Object.assign(s, { crews: [], idle: 0, reason: touchesRoad(world, b) ? 'paused' : 'no_road' });
+      continue;
+    }
+    drawFromStores(world, b);
+    const guilds = guildsAt.get(b.id) || [];
+    const working = guilds.filter((g) => isWorking(world, g));
     s.crews = working.map((g) => g.id);
     s.month.crews = Math.max(s.month.crews, s.crews.length);
+    let units = 0, waiting = false, short = null;
     for (const g of working) {
       if (!isSite(b)) break;
+      if (!payExtra(world, b)) { waiting = true; break; }
       const p = planCrew(b, crewDayUnits(world, g));
-      if (p.short) s.month.starvedDays += 1;
-      if (p.units > EPS) commitCrew(world, b, p, events);
+      const { pay, carry } = workPay(world, b, p.units);
+      if (p.units > EPS && !canPayNoDebt(world, pay)) continue;          // its day would cross 0: it does not work
+      if (p.short) { s.month.starvedDays += 1; short = short || p.short; }
+      if (p.units <= EPS) continue;
+      world.gold -= pay;
+      s.carry = carry;
+      s.month.gold += pay;
+      commitCrew(world, b, p, events);
+      units += p.units;
     }
+    if (units > EPS || !isSite(b)) { s.idle = 0; s.reason = null; continue; }
+    s.idle += 1;
+    s.reason = stallReason(world, b, guilds, working, waiting, short);
+    if (s.idle === MONUMENT.stallDays && events) events.push({ type: 'site_stalled', id: b.id, kind: b.type, reason: s.reason });
   }
 }
 
