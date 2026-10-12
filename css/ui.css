@@ -959,4 +959,13 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
 
 /* ── s4 balance (Track F) ── Track F's styles for integration fixes. */
+/* The title backdrop's showcase (art-direction review 4): the backdrop frames the sample city's monuments in the largest
+   band the card leaves free (src/ui/titleCard.js showcaseFrame). A phone held upright puts the card at the top, so the
+   band under it is as tall as it can be; a phone held sideways puts it at the right, so the band beside it is. */
+@media (orientation: portrait) and (max-height: 900px) {
+  #title { align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top)); }
+}
+@media (orientation: landscape) and (max-height: 480px) {
+  #title { justify-content: flex-end; padding-right: max(12px, env(safe-area-inset-right)); }
+}
 /* ── end s4 balance ── */

@@ -6,7 +6,7 @@ import { touchesRoad } from '../../../src/sim/reach.js';
 import { alertsFor } from '../../../src/sim/alerts.js';
 import { PALACE_STYLES } from '../../../src/data/palace.js';
 import { TITLE_SEED } from '../../../src/data/ui.js';
-import { driftPoints } from '../../../src/ui/titleCard.js';
+import { driftPoints, showcaseFrame, showcaseBox } from '../../../src/ui/titleCard.js';
 import { createCamera, tileToScreen } from '../../../src/render/camera.js';
 
 const of = (w, type) => allBuildings(w).filter((b) => b.type === type);
@@ -35,6 +35,29 @@ describe('s4 balance cities', () => {
     }
     const village = buildSampleCity(createWorld({ seed: 1 }), { stageTwoDays: 0 });
     expect(['obelisk_small', 'colossus', 'palace'].map((t) => of(village, t).length)).toEqual([0, 0, 0]);   // a Stage 1 village has none
+  });
+
+  it('frames the showcase in the band the title card leaves free, on short phones and laptops too, and drifts only round it', () => {
+    const w = buildSampleCity(createWorld({ seed: TITLE_SEED }));
+    const shown = ['obelisk_small', 'colossus', 'palace'].map((t) => of(w, t)[0]);
+    // the card as the title's styles lay it out: at the top of a phone held upright, at the right of one held sideways,
+    // in the middle of a wider screen (360 px wide, 440 sideways)
+    const cardFor = (width, height) => {
+      if (height < 480 && width > height) return { left: width - 12 - 440, right: width - 12, top: 8, bottom: height - 8 };
+      if (height <= 900 && height > width) return { left: (width - Math.min(360, width - 32)) / 2, right: (width + Math.min(360, width - 32)) / 2, top: 12, bottom: Math.min(height - 16, 556) };
+      return { left: (width - 360) / 2, right: (width + 360) / 2, top: (height - 540) / 2, bottom: (height + 540) / 2 };
+    };
+    for (const [width, height] of [[390, 844], [375, 667], [360, 640], [844, 390], [667, 375], [1024, 768], [1280, 800], [1366, 768]]) {
+      const view = { width, height }, card = cardFor(width, height), frame = showcaseFrame(showcaseBox(w), view, card);
+      const points = driftPoints(w, frame, view);
+      for (const [x, y] of points) {
+        for (const b of shown) {
+          const [sx, sy] = tileToScreen(createCamera({ x, y, zoom: frame.zoom }), view, b.x + b.w / 2, b.y + b.d / 2);
+          const clear = sx < card.left || sx > card.right || sy < card.top || sy > card.bottom;
+          expect([width, height, b.type, sx > 0 && sx < width && sy > 0 && sy < height, clear]).toEqual([width, height, b.type, true, true]);
+        }
+      }
+    }
   });
 
   it('builds the title backdrop, monuments and palace included, well inside a second', () => {
