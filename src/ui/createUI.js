@@ -288,7 +288,7 @@ export function createUI({
       const { w, d } = dimsOf(tool.type, store.get().tool.rot || 0);
       // Stage 4 (ruling 231): a monument's pick may also zoom out once to fit its footprint and silhouette (Track C's pickFit).
       const fit = BUILDINGS[tool.type].monument ? monumentUi.pickFit(tool.type, g, placingInsets(store.get())) : null;
-      if (fit) cameraControl.keepVisible(g.x + w / 2, g.y + d / 2, placingInsets(store.get()), undefined, undefined, fit.extent || null, fit.zoom === undefined ? null : fit.zoom);
+      if (fit) cameraControl.keepVisible(g.x + w / 2, g.y + d / 2, placingInsets(store.get()), undefined, undefined, fit.extent || null, fit.zoom === undefined ? null : Math.min(fit.zoom, cam.zoom));   // out only, never in
       else cameraControl.keepVisible(g.x + w / 2, g.y + d / 2, placingInsets(store.get()));
     }
   }
@@ -604,7 +604,7 @@ export function createUI({
       // Stage 4 (ruling 281): a tap on a problem marker (its badge or stem) selects the marker's building, ahead of whatever
       // building lies under the badge; Track C's markerTap may handle it first (a count badge zooms in).
       const marker = markerAt(markerLayout, x, y);
-      if (marker && !monumentUi.markerTap(marker)) { selectBuilding(marker.ids[0]); return; }
+      if (marker && !monumentUi.markerTap(marker)) { store.set(select(s, marker.ids[0])); return; }   // as a building tap: no camera move
       if (marker) return;
       const b = pickBuilding(world, cam, view(), x, y);
       if (b) store.set(select(s, b.id));
@@ -949,6 +949,7 @@ export function createUI({
       for (const s of seams()) s.destroy();
       cornerPicker.destroy(); panelPicker.destroy();
       guide.destroy(); stopSettingsWatch();            // the guide's store subscription and the shared settings' watch
+      if (!givenSettings) settings.destroy();          // settings made here: stop its device-motion watch
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
       for (const t of INPUTS) root.removeEventListener(t, onInput);

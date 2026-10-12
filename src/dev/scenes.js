@@ -578,21 +578,21 @@ async function sitesheet(api) {
   return yard ? `sitesheet storehouse ${yard.id}` : 'sitesheet summary';
 }
 
-// The Settings sheet scrolled to the motion rows.
+// The Settings sheet scrolled to the Motion row.
 // S4-TODO: the one Motion row (Full / Gentle / Still) saying what it is doing, e.g. "Motion: Gentle (your device asks
-// for less motion)" (review note 7.2). Today: Reduce motion's row at the top, Ambient motion's below it.
+// for less motion)" (review note 7.2). Track E owns the fuller rewrite.
 async function motion(api) {
   const g = inGame(api, 'motion'), { ui } = g;
   const s = ui.store.get();
   ui.store.set(openSheet(s.sheet ? closeSheet(s) : s, 'settings'));
   await wait(150);
   const sheet = document.querySelector('#sheet');
-  const choice = sheet && sheet.querySelector('.choice.reducedMotion');
-  if (!choice) throw new Error('devScene motion: no Reduce motion row in the Settings sheet');
+  const choice = sheet && sheet.querySelector('.choice.motion');
+  if (!choice) throw new Error('devScene motion: no Motion row in the Settings sheet');
   const row = choice.closest('.row'), head = sheet.querySelector('.head');
   sheet.scrollTop += row.getBoundingClientRect().top - (head ? head.getBoundingClientRect().bottom : sheet.getBoundingClientRect().top) - 8;
   await wait(100);
-  return `motion ${ui.settings.get().reducedMotion} ambient ${ui.settings.get().ambient}`;
+  return `motion ${ui.settings.get().motion} level ${ui.settings.motionLevel()}`;
 }
 
 const SCENES = {

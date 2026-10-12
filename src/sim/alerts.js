@@ -1,7 +1,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { MOOD } from '../data/mood.js';
-import { allBuildings, housesOf } from './world.js';
+import { allBuildings, housesOf, isFinished } from './world.js';
 import { touchesRoad } from './reach.js';
 import { atLeast } from './progression.js';
 import { isWorking } from './labour.js';
@@ -16,7 +16,7 @@ export function alertsFor(world) {
     const def = BUILDINGS[b.type];
     if (b.type === 'house') continue;
     const road = touchesRoad(world, b);
-    if (def.needsRoad && !road) alerts.push({ code: 'no_road', id: b.id });
+    if (def.needsRoad && !road && !isFinished(b)) alerts.push({ code: 'no_road', id: b.id });   // a finished monument needs no road (ruling 228)
     if (b.blocked === 'no_storage') alerts.push({ code: 'no_storage', id: b.id });
     if (b.blocked === 'storage_full') alerts.push({ code: 'storage_full', id: b.id });
     if (b.blocked === 'no_input') alerts.push({ code: 'no_input', id: b.id });
