@@ -505,21 +505,71 @@ export function roadlessPlots(world, range = null) {
   return out;
 }
 
+// One road badge per connected group of homes and plots with no road beside them (final review 7): the outlines alone are thin,
+// so the map also says "road" over them the way it does over a well with no road, without a badge on every plot. Plots join a
+// group when their footprints touch along an edge. The badge sits over the group's plot nearest the group's middle, just above
+// its sprite (just above the tile for an empty plot), as a building's badge does. Memoised on the roads and the buildings (it
+// runs every frame); range keeps the ones in view.
+const plotBadgeMemo = new WeakMap();   // world -> { key, list }
+export function roadlessPlotBadges(world, range = null) {
+  const key = `${world.roadVersion}|${world.nextId}|${buildingSignature(world)}`;
+  let m = plotBadgeMemo.get(world);
+  if (!m || m.key !== key) { m = { key, list: groupRoadless(world) }; plotBadgeMemo.set(world, m); }
+  if (!range) return m.list;
+  return m.list.filter((b) => b.x >= range.x0 && b.x <= range.x1 + 1 && b.y >= range.y0 && b.y <= range.y1 + 1);
+}
+
+function groupRoadless(world) {
+  const lone = housesOf(world).filter((h) => !touchesRoad(world, h));
+  const at = new Map();                        // tile index -> the plot on it
+  for (const h of lone) for (let y = h.y; y < h.y + h.d; y++) for (let x = h.x; x < h.x + h.w; x++) at.set(idx(world.size, x, y), h);
+  const seen = new Set(), out = [];
+  for (const start of lone) {
+    if (seen.has(start.id)) continue;
+    const group = [start];
+    seen.add(start.id);
+    for (let k = 0; k < group.length; k++) {
+      const h = group[k];
+      for (let y = h.y - 1; y <= h.y + h.d; y++) {
+        for (let x = h.x - 1; x <= h.x + h.w; x++) {
+          const corner = (x < h.x || x >= h.x + h.w) && (y < h.y || y >= h.y + h.d);
+          if (corner || x < 0 || y < 0 || x >= world.size || y >= world.size) continue;
+          const o = at.get(idx(world.size, x, y));
+          if (o && !seen.has(o.id)) { seen.add(o.id); group.push(o); }
+        }
+      }
+    }
+    const mid = group.reduce((s, h) => [s[0] + (h.x + h.w / 2) / group.length, s[1] + (h.y + h.d / 2) / group.length], [0, 0]);
+    const d = (h) => Math.hypot(h.x + h.w / 2 - mid[0], h.y + h.d / 2 - mid[1]);
+    const pick = group.reduce((a, h) => (d(h) < d(a) - 1e-9 || (Math.abs(d(h) - d(a)) <= 1e-9 && h.id < a.id) ? h : a));
+    const art = ART[slotFor(pick)];                                         // an empty plot has no sprite: the badge sits just over its tile
+    out.push({ id: pick.id, ids: group.map((h) => h.id).sort((a, b) => a - b), x: pick.x + pick.w / 2, y: pick.y + pick.d / 2, lift: (art ? art.height : 0) + 4 * (pick.w + pick.d) + BADGE_R + 1 });
+  }
+  return out;
+}
+
 // The road mark: two bars, white on the badge (a font's "═" is not always there).
 function roadMark(g, c, R) {
   const half = 0.55 * R, gap = 0.28 * R;
   for (const dy of [-gap, gap]) g.line([c[0] - half, c[1] + dy], [c[0] + half, c[1] + dy], UI.halo, Math.max(1.2, 0.3 * R), 1);
 }
 
+// A badge's disc on its white halo, at (x, y) lifted `lift` art px, riding up by what it grew past BADGE_R.
+function badgeDisc(g, x, y, lift, R, css, fill) {
+  const c = U(p(x, y), lift + (R - BADGE_R));
+  g.circ(c, R + Math.max(1.2, 2 / css), UI.halo, { alpha: 0.9 });
+  g.circ(c, R, fill, { stroke: INK, strokeWidth: 0.6, strokeAlpha: 0.5 });
+  return c;
+}
+
 export function drawProblemMarkers(g, world, alerts, range) {
   for (const t of roadlessPlots(world, range)) dashedAmberTile(g, t.x, t.y);
   const css = cssScaleOf(g);
   const R = Math.max(BADGE_R, BADGE_CSS_R / css);   // 20 CSS px across at the least, at any zoom
+  for (const b of roadlessPlotBadges(world, range)) roadMark(g, badgeDisc(g, b.x, b.y, b.lift, R, css, UI.problem), R);
   for (const m of problemMarkers(world, alerts, range)) {
-    const c = U(p(m.x, m.y), m.lift + (R - BADGE_R));
     const down = m.kind === 'down';
-    g.circ(c, R + Math.max(1.2, 2 / css), UI.halo, { alpha: 0.9 });
-    g.circ(c, R, down ? UI.warn : UI.problem, { stroke: INK, strokeWidth: 0.6, strokeAlpha: 0.5 });
+    const c = badgeDisc(g, m.x, m.y, m.lift, R, css, down ? UI.warn : UI.problem);
     if (m.cause === 'no_road') roadMark(g, c, R);
     else g.text(c, down ? '↓' : '!', { size: 1.5 * R, weight: '700', color: down ? UI.label : UI.halo });   // the glyph, not the colour, says which
   }

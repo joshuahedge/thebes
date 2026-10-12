@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { problemMarkers, drawProblemMarkers, roadlessPlots } from '../../src/render/overlays.js';
+import { problemMarkers, drawProblemMarkers, roadlessPlots, roadlessPlotBadges } from '../../src/render/overlays.js';
 import { alertsFor } from '../../src/sim/alerts.js';
 import { ART } from '../../src/render/art/registry.js';
 import { UI } from '../../src/render/art/palette.js';
@@ -64,6 +64,38 @@ describe('render problem markers', () => {
     expect(edge.id).toBeGreaterThan(0);
     expect(roadlessPlots(w, { x0: 0, y0: 0, x1: 10, y1: 12 })).toEqual([]);           // off screen
     expect(roadlessPlots(w, { x0: 18, y0: 18, x1: 22, y1: 22 }).map((t) => t.id)).toEqual([lone.id]);
+  });
+  it('puts one road badge over each group of plots with no road, over the plot nearest its middle (final review 7)', () => {
+    const { w } = town();
+    const block = [];
+    for (let y = 20; y < 22; y++) for (let x = 20; x < 23; x++) block.push(addRaw(w, 'house', x, y));   // a 3x2 block of plots
+    const lone = addRaw(w, 'house', 27, 27);
+    const corner = addRaw(w, 'house', 23, 22);                                        // touches the block only at a corner: a group of its own
+    const badges = roadlessPlotBadges(w, null);
+    expect(badges.map((b) => [b.id, b.ids.length, b.x, b.y])).toEqual([[block[1].id, 6, 21.5, 20.5], [lone.id, 1, 27.5, 27.5], [corner.id, 1, 23.5, 22.5]]);
+    expect(badges[0].ids).toEqual(block.map((b) => b.id));
+    expect(roadlessPlotBadges(w, { x0: 0, y0: 0, x1: 12, y1: 12 })).toEqual([]);     // off screen
+    setRoad(w, 26, 27, 26, 27);                                                       // a road reaches the lone plot
+    expect(roadlessPlotBadges(w, null).map((b) => b.id)).toEqual([block[1].id, corner.id]);
+    setRoad(w, 20, 19, 22, 19);                                                       // and roads along both long sides of the block
+    setRoad(w, 20, 22, 22, 22);
+    expect(roadlessPlotBadges(w, null).map((b) => b.id)).toEqual([]);                 // the corner plot touches it too
+  });
+  it('draws the badge of a plot group as a coral disc with the road mark, 20 CSS px across when zoomed out', () => {
+    const { w } = town();
+    addRaw(w, 'house', 20, 20);
+    const [b] = roadlessPlotBadges(w, null);
+    const c = makeCanvas(200, 200);
+    const ctx = c.getContext('2d');
+    const q = p(b.x, b.y);
+    ctx.translate(100 - 2 * q[0], 170 - 2 * q[1]);
+    drawProblemMarkers(makeDraw(ctx, 2, 1), w, [], null);
+    const cy = 170 - 2 * (b.lift + 5);
+    expect(nearColour(pixelAt(c, 100 + 17, cy), UI.problem, 30)).toBe(true);           // 10 CSS px from the centre: inside the disc
+    expect(nearColour(pixelAt(c, 100 + 24, cy), UI.problem, 30)).toBe(false);
+    expect(nearColour(pixelAt(c, 100, cy - 6), UI.halo, 30)).toBe(true);               // the road mark's two bars
+    expect(nearColour(pixelAt(c, 100, cy + 6), UI.halo, 30)).toBe(true);
+    expect(nearColour(pixelAt(c, 100, cy), UI.problem, 30)).toBe(true);
   });
   it('marks nothing in a healthy town', () => {
     const { w, bazaar, shack } = town();

@@ -162,6 +162,9 @@ body { --toast-lift: calc(64px + 20px * (var(--ui-scale) - 1)); }
 #toasts { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + var(--dock-slim) + var(--toast-lift)); display: flex; flex-direction: column; align-items: center; gap: 6px; }
 body[data-dock="tray"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tray) + var(--toast-lift)); }
 body[data-dock="tucked"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + var(--toast-lift)); }
+/* After a touch tick at large text the toast can drop into the free map between the corner buttons and the tray, so the new
+   building fits above the corner buttons (createUI leavePlan); --toast-low is its bottom, set while that toast shows. */
+body[data-layout="portrait"].toast-low #toasts { bottom: var(--toast-low); }
 body[data-layout="wide"] #toasts { bottom: 24px; left: calc(50% - var(--panel-w) / 2); }
 body[data-layout="compact"] #toasts { bottom: calc(var(--safe-bottom) + var(--toast-lift)); }   /* the compact corners sit on the home-bar inset too */
 /* On a phone a toast may use the screen's width, up to 420 px, with 16 px at each side (ruling 169); the old half-screen box made
