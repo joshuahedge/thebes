@@ -62,6 +62,7 @@ export function goodLine(good) {
   }
   if (users.length) parts.push(`used by ${listText(users.map(pluralName))}`);
   else if (tier > 0) parts.push(`used by ${TIERS[tier].name}s and up`);
+  else if (GOODS[good] && GOODS[good].kind === 'material') parts.push('used by monument sites');   // Stage 4 (spec 4.10)
   const buyers = Object.keys(PARTNERS).filter((id) => PARTNERS[id].buys[good]).map(partnerName);
   const sellers = Object.keys(PARTNERS).filter((id) => PARTNERS[id].sells[good]).map(partnerName);
   if (buyers.length) parts.push(`sold to ${listText(buyers)}`);
@@ -1001,7 +1002,7 @@ export const TITLE_SCORE_TEXT = {
   stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}`,
   moreStamps: (n) => `+${n} more`,
   friendLine: (total, seed, level) => `${total} on seed ${seed}, ${DIFFICULTY_NAMES[level] || level}. ${SHARE_TEXT.honour}`,
-  partsLine: (parts) => Object.keys(SCORE_TEXT.parts).map((p) => `${SCORE_TEXT.parts[p]} ${parts[p]}`).join(' · '),
+  partsLine: (parts) => Object.keys(SCORE_TEXT.parts).filter((p) => p in parts).map((p) => `${SCORE_TEXT.parts[p]} ${parts[p]}`).join(' · '),
   yourBest: (score) => (score === null ? 'You have no score on this seed and level yet' : `Your best here: ${score}`),
   beat: (total) => `Beat ${total}?`,
   startOn: (level) => `It starts on ${DIFFICULTY_NAMES[level] || level}, the level of the shared score.`,
@@ -1092,3 +1093,14 @@ export const CITIZEN_REMARKS = [
 // Track F's words for the integrator: anything balance needs words for (difficultyHint is edited in place). Add new lines just above the end marker.
 export const BALANCE_TEXT = {};
 // ── end s3 balance ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 and Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 contract (Track 0) ────────────────────────────────────────────────────────────────────────────────────────
+// Words for the Stage 4 contract's own additions. Each Stage 4 track keeps its words in its own section below, as its own
+// exported objects with its prefix (src/ui/text.js is one module: see the plan's "Shared files"), and adds to the shared
+// tables above only with Object.assign inside its own section.
+Object.assign(SCORE_TEXT.parts, { monuments: 'Monuments' });
+Object.assign(BUILDING_PLURALS, { quarry: 'quarries', brickworks: 'brickworks', builders_guild: "builders' guilds", plaza: 'plazas', sphinx: 'sphinxes', palace: 'palaces' });
+// ── end s4 contract ──────────────────────────────────────────────────────────────────────────────────────────────

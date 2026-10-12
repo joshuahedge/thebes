@@ -35,11 +35,11 @@ describe('s3 score records', () => {
     const r = createRecords({ storage });
     const w = city({ scores: [100, 240, 200], splits: { town: 300 } });
     r.noteCity(w, 1000);
-    expect(r.load().cities).toEqual([{ id: 'a', seed: 11, difficulty: 'normal', scoreVersion: 1, best: 240, bestDay: 60, medal: 'silver', splits: { town: 300 }, updated: 1000 }]);
+    expect(r.load().cities).toEqual([{ id: 'a', seed: 11, difficulty: 'normal', scoreVersion: 2, best: 240, bestDay: 60, medal: 'bronze', splits: { town: 300 }, updated: 1000 }]);
     w.history = [{ day: 400, people: 0, gold: 0, mood: 60, score: 150, parts: parts(37.5) }];   // the 240 has left the 12 rows
     w.splits.market_town = 500;
     r.noteCity(w, 2000);
-    expect(r.load().cities[0]).toEqual({ id: 'a', seed: 11, difficulty: 'normal', scoreVersion: 1, best: 240, bestDay: 60, medal: 'silver', splits: { town: 300, market_town: 500 }, updated: 2000 });
+    expect(r.load().cities[0]).toEqual({ id: 'a', seed: 11, difficulty: 'normal', scoreVersion: 2, best: 240, bestDay: 60, medal: 'bronze', splits: { town: 300, market_town: 500 }, updated: 2000 });
     r.noteCity(city({ id: 'b', scores: [] }), 3000);                       // no month end yet: a row, but no best
     expect(r.load().cities[1].best).toBe(null);
     r.noteCity({ ...w, cityId: null }, 4000);                             // no id: nothing
@@ -48,17 +48,17 @@ describe('s3 score records', () => {
   });
   it('lists the highest bests, one per seed and level, and labels a best made under an older score version', () => {
     const r = createRecords({ storage: memory({ version: 1, cities: [
-      { id: 'a', seed: 11, difficulty: 'normal', scoreVersion: 1, best: 312, bestDay: 900, medal: 'gold', splits: {}, updated: 1 },
-      { id: 'b', seed: 11, difficulty: 'normal', scoreVersion: 1, best: 200, bestDay: 900, medal: 'bronze', splits: {}, updated: 2 },
-      { id: 'c', seed: 11, difficulty: 'hard', scoreVersion: 1, best: 250, bestDay: 900, medal: 'bronze', splits: {}, updated: 3 },
+      { id: 'a', seed: 11, difficulty: 'normal', scoreVersion: 2, best: 312, bestDay: 900, medal: 'gold', splits: {}, updated: 1 },
+      { id: 'b', seed: 11, difficulty: 'normal', scoreVersion: 2, best: 200, bestDay: 900, medal: 'bronze', splits: {}, updated: 2 },
+      { id: 'c', seed: 11, difficulty: 'hard', scoreVersion: 2, best: 250, bestDay: 900, medal: 'bronze', splits: {}, updated: 3 },
       { id: 'd', seed: 7, difficulty: 'relaxed', scoreVersion: 0, best: 280, bestDay: 900, medal: 'gold', splits: {}, updated: 4 },
-      { id: 'e', seed: 8, difficulty: 'normal', scoreVersion: 1, best: 100, bestDay: 900, medal: null, splits: {}, updated: 5 },
-      { id: 'f', seed: 9, difficulty: 'normal', scoreVersion: 1, best: null, splits: {}, updated: 6 },
+      { id: 'e', seed: 8, difficulty: 'normal', scoreVersion: 2, best: 100, bestDay: 900, medal: null, splits: {}, updated: 5 },
+      { id: 'f', seed: 9, difficulty: 'normal', scoreVersion: 2, best: null, splits: {}, updated: 6 },
     ], chronicle: [] }) });
     expect(r.bests()).toEqual([
-      { seed: 11, difficulty: 'normal', score: 312, medal: 'gold', version: 1, older: false },
+      { seed: 11, difficulty: 'normal', score: 312, medal: 'gold', version: 2, older: false },
       { seed: 7, difficulty: 'relaxed', score: 280, medal: 'gold', version: 0, older: true },
-      { seed: 11, difficulty: 'hard', score: 250, medal: 'bronze', version: 1, older: false },
+      { seed: 11, difficulty: 'hard', score: 250, medal: 'bronze', version: 2, older: false },
     ]);
     expect(r.bests(10).length).toBe(4);
     expect(r.bestFor(11, 'normal', { except: 'a' })).toEqual({ score: 200, splits: {} });
@@ -77,7 +77,7 @@ describe('s3 score records', () => {
     w.feats.earned = ['swift_town'];
     w.seals.push({ day: 800, score: 247, parts: { people: 72, prosperity: 65, culture: 58, safety: 52 }, medal: 'silver', version: 1 });
     const e = r.addSeal(w, w.seals[0], 5000);
-    expect(e).toEqual({ id: 'a:1:800', cityId: 'a', seed: 11, difficulty: 'normal', day: 800, score: 247, parts: { people: 72, prosperity: 65, culture: 58, safety: 52 },
+    expect(e).toEqual({ id: 'a:1:800', cityId: 'a', seed: 11, difficulty: 'normal', day: 800, score: 247, parts: { people: 72, prosperity: 65, culture: 58, safety: 52, monuments: 0 },
       splits: { town: 300 }, medal: 'silver', feats: ['swift_town'], version: 1, date: 5000 });
     w.seals.push({ day: 900, score: 250, parts: parts(62.5), medal: 'silver', version: 1 });
     r.addSeal(w, w.seals[1], 6000);

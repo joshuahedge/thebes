@@ -73,11 +73,11 @@ describe('s3 contract migrate v3 to v4', () => {
   });
   it('runs through migrate, deserialize and unpackSave', () => {
     const v3 = v3City();
-    expect(CURRENT_VERSION).toBe(4);
-    expect(migrate(v3)).toEqual(MIGRATIONS[3](v3));
-    expect(deserialize(JSON.stringify(v3)).version).toBe(4);
+    expect(CURRENT_VERSION).toBe(5);
+    expect(migrate(v3)).toEqual(MIGRATIONS[4](MIGRATIONS[3](v3)));
+    expect(deserialize(JSON.stringify(v3)).version).toBe(5);
     const back = unpackSave(JSON.stringify({ version: 1, savedAt: 1760000000000, lastSpeed: 2, world: v3 }));
-    expect([back.savedAt, back.lastSpeed, back.world.version, back.world.gold]).toEqual([1760000000000, 2, 4, v3.gold]);
+    expect([back.savedAt, back.lastSpeed, back.world.version, back.world.gold]).toEqual([1760000000000, 2, 5, v3.gold]);
   });
   it('reports a malformed version 3 save as corrupt, not as a failed migration', () => {
     expect(code(() => deserialize(JSON.stringify({ version: 3 })))).toBe('corrupt_save');
@@ -106,7 +106,7 @@ describe('s3 contract validateWorld v4', () => {
   });
   it('checks every building has a risk and a fire that is null, a blaze or a fire', () => {
     const withHouse = (fn) => validAfter((w) => {
-      w.buildings[1] = { id: 1, type: 'house', x: 2, y: 2, w: 1, d: 1, staff: 0, paused: false, store: {}, progress: 0, blocked: null, risk: 0, fire: null };
+      w.buildings[1] = { id: 1, type: 'house', x: 2, y: 2, w: 1, d: 1, staff: 0, paused: false, store: {}, progress: 0, blocked: null, risk: 0, fire: null, rot: 0 };
       w.occ[2 * w.size + 2] = 1;
       fn(w.buildings[1]);
     });

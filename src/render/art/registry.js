@@ -9,11 +9,12 @@ import { INDUSTRY_ART } from './industry.js';
 import { NATURE_ART } from './nature.js';
 import { FIGURE_ART } from './figures.js';
 import { DEFENCE_ART, RUBBLE_VARIANTS } from './defence.js';
+import { STAGE4_ART } from './stage4.js';
 import { granaryStage, storehouseStage, bazaarStage, farmStage, FARM_TYPES } from './stages.js';
 
 export { boundsFor } from '../iso.js';
 
-export const ART = { ...HOUSE_ART, ...SERVICE_ART, ...INDUSTRY_ART, ...NATURE_ART, ...FIGURE_ART, ...DEFENCE_ART };
+export const ART = { ...HOUSE_ART, ...SERVICE_ART, ...INDUSTRY_ART, ...NATURE_ART, ...FIGURE_ART, ...DEFENCE_ART, ...STAGE4_ART };
 
 // The art slot a building shows: houses by tier, granaries, storehouses and bazaars by how full they are
 // (stages.js), and farms by their crop's growth, which runs on the game day, so a farm needs the world (without
@@ -21,6 +22,7 @@ export const ART = { ...HOUSE_ART, ...SERVICE_ART, ...INDUSTRY_ART, ...NATURE_AR
 // Everything else is its type.
 export function slotFor(b, world = null) {
   if (b.type === 'house') return `house.t${b.tier}`;
+  if (b.type === 'palace') return `palace.s${b.style || 0}`;   // Stage 4: the palace by its style (spec 4.20); live monuments are their type
   if (b.type === 'rubble') return `rubble.v${b.id % RUBBLE_VARIANTS}`;
   if (b.type === 'granary') return `granary.s${granaryStage(b)}`;
   if (b.type === 'storehouse') return `storehouse.s${storehouseStage(b)}`;

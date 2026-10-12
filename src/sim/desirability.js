@@ -7,15 +7,28 @@
 // and the road version, so it is rebuilt only after a building is added, removed, moved, merged or changes tier, or a
 // road is drawn or removed. Everything here only reads the world.
 import { DESIRABILITY, HOUSE_DESIRABILITY } from '../data/desirability.js';
-import { BUILDINGS } from '../data/buildings.js';
+import { SITE_DESIRABILITY } from '../data/monuments.js';
+import { PALACE_STYLES } from '../data/palace.js';
+import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { allBuildings, housesOf } from './world.js';
 import { idx, inBounds } from './grid.js';
 import { lacksRoad } from './reach.js';
 
 const memo = new WeakMap();   // world -> { sig, field }; kept outside the world so saves stay pure data
 
-// A building's values by distance: a home's by its tier (an empty plot adds nothing), anything else's by its type.
-const valuesFor = (type, tier) => (type === 'house' ? HOUSE_DESIRABILITY[tier] : DESIRABILITY[type]) || [];
+// A building's values by distance: a home's by its tier (an empty plot adds nothing), anything else's by its type. Stage 4
+// (spec 4.7, 4.20; complete in the contract, Track A owns it after): a monument site under way gives SITE_DESIRABILITY and
+// a finished one its kind's values; the palace gives its style's.
+export function valuesOf(b) {
+  if (b.type === 'house') return HOUSE_DESIRABILITY[b.tier] || [];
+  if (b.site && b.site.done === null) return SITE_DESIRABILITY;
+  if (b.type === 'palace') return (PALACE_STYLES[b.style] || PALACE_STYLES[0]).desirability;
+  return DESIRABILITY[b.type] || [];
+}
+
+// Whether a building gives its values now: one that needs a road and has none gives nothing (rulings P10, P11), except a
+// finished monument, which needs no road for its desirability (ruling 228).
+export const givesDesirability = (world, b) => Boolean(b.site && b.site.done !== null) || !lacksRoad(world, b);
 
 // The value a footprint gives the tile (tx, ty): 0 on the footprint itself and beyond its last distance.
 function valueAt(vals, x, y, w, d, tx, ty) {
@@ -49,6 +62,7 @@ function signature(world) {
     h = Math.imul(h ^ b.x, 16777619);
     h = Math.imul(h ^ b.y, 16777619);
     h = Math.imul(h ^ ((b.tier | 0) * 16 + b.w * 4 + b.d), 16777619);
+    h = Math.imul(h ^ ((b.style | 0) * 2 + (b.site && b.site.done !== null ? 1 : 0)), 16777619);   // Stage 4: a palace's style, a monument finished
   }
   return `${list.length}:${h}:${world.roadVersion}`;
 }
@@ -63,8 +77,8 @@ export function desirabilityField(world) {
   const size = world.size;
   const field = new Float32Array(size * size);
   for (const b of allBuildings(world)) {
-    if (lacksRoad(world, b)) continue;
-    spread(size, b.x, b.y, b.w, b.d, valuesFor(b.type, b.tier), (i, tx, ty, v) => { field[i] += v; });
+    if (!givesDesirability(world, b)) continue;
+    spread(size, b.x, b.y, b.w, b.d, valuesOf(b), (i, tx, ty, v) => { field[i] += v; });
   }
   memo.set(world, { sig, field });
   return field;
@@ -94,8 +108,8 @@ export function desirabilityContributors(world, house, n = 3) {
   const { x, y } = bestTile(world, house);
   const out = [];
   for (const b of allBuildings(world)) {
-    if (b.id === house.id || lacksRoad(world, b)) continue;
-    const value = valueAt(valuesFor(b.type, b.tier), b.x, b.y, b.w, b.d, x, y);
+    if (b.id === house.id || !givesDesirability(world, b)) continue;
+    const value = valueAt(valuesOf(b), b.x, b.y, b.w, b.d, x, y);
     if (value) out.push({ id: b.id, type: b.type, value });
   }
   out.sort((p, q) => Math.abs(q.value) - Math.abs(p.value) || p.id - q.id);
@@ -104,13 +118,16 @@ export function desirabilityContributors(world, house, n = 3) {
 
 // What placing a building of this type at (x, y) would do (spec 4.7), once a road touches it, without placing it: the tiles it would change
 // with their change v, and how many housing plots (any tier, empty ones too, as homesServedFrom counts) would get
-// a better or a worse best tile.
-export function desirabilityPreview(world, type, x, y) {
+// a better or a worse best tile. Stage 4: rot turns a mastaba's footprint; a monument previews its finished values unless
+// site is true (the site's dust and noise: "while building: N homes less pleasant", spec 4.7).
+export function desirabilityPreview(world, type, x, y, { rot = 0, site = false } = {}) {
   const def = BUILDINGS[type];
   const tiles = [];
   if (!def) return { better: 0, worse: 0, tiles };
+  const { w, d } = dimsOf(type, rot);
+  const vals = site && def.monument ? SITE_DESIRABILITY : (DESIRABILITY[type] || []);
   const delta = new Map();
-  spread(world.size, x, y, def.w, def.d, valuesFor(type, 0), (i, tx, ty, v) => {
+  spread(world.size, x, y, w, d, vals, (i, tx, ty, v) => {
     tiles.push({ x: tx, y: ty, v });
     delta.set(i, v);
   });

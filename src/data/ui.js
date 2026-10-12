@@ -1,13 +1,15 @@
 // Interface data: what the build dock shows and in what order, key bindings, and gesture and timing tunables.
 import { TIERS } from './housing.js';
+import { MONUMENT_KINDS } from './monuments.js';
 export const CATEGORIES = [
   { id: 'roads', items: ['road', 'demolish'] },
-  { id: 'homes', items: ['house', 'garden', 'statue'] },
+  { id: 'homes', items: ['house', 'garden', 'statue', 'plaza', 'sphinx'] },
   { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
   { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'] },
-  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse'] },
+  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse', 'palace'] },
   { id: 'defence', items: ['wall', 'tower', 'barracks'] },
-  { id: 'monuments', items: [] },
+  // Stage 4 (spec 4.14, ruling 207): everything a monument needs, in order, then the seven from the small obelisk up.
+  { id: 'monuments', items: ['builders_guild', 'quarry', 'brickworks', ...MONUMENT_KINDS] },
 ];
 
 export const CATEGORY_ICONS = { roads: '═', homes: '⌂', food: '❋', industry: '⚒', services: '✚', defence: '⛊', monuments: '▲' };
@@ -39,7 +41,7 @@ export const SHOW_ME_PULSE_MS = 400;
 export const GUIDE_PULSES = 2;          // the guide's map ring pulses twice when its step changes, then stays still (spec 3.2)
 export const GUIDE_PULSE_MS = 600;      // one pulse: under 3 flashes a second, done well within 5 s (spec 5.4)
 export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion', booth: 'entertainment', garden: 'desirability', statue: 'desirability', firehouse: 'fire',
-  farm_grain: 'ground', farm_fig: 'ground', farm_barley: 'ground', farm_flax: 'ground', gem_mine: 'ground' };   // placement review P1: the buildings that need fertile or rocky ground show it
+  farm_grain: 'ground', farm_fig: 'ground', farm_barley: 'ground', farm_flax: 'ground', gem_mine: 'ground', quarry: 'ground' };   // placement review P1: the buildings that need fertile or rocky ground show it (Track C adds the monuments, ruling 229)
 
 // The desirability overlay's bands (spec 4.7, 6.3): where each starts. Below the first is unpleasant (hatched); the
 // rest are the "to rise" values of the tiers that need desirability (Manor 20, Fine manor 35, Villa 50, Estate 65), so a
@@ -48,7 +50,7 @@ export const DESIRABILITY_STEPS = [0, ...TIERS.filter((t) => t && t.desirability
 
 // Picking a card or Show me puts a building ghost on the nearest tile where it fits, at most this many tiles
 // out (early-game pass 2.6). Only when nothing fits does it stay on the point itself.
-export const NEAREST_FIT_RADIUS = 10;
+export const NEAREST_FIT_RADIUS = 10;   // Stage 4: MONUMENT_PLACING.fitRadius (16) for footprints of bigArea tiles and up (src/data/monuments.js)
 
 // The trade sheet's level to keep moves in steps of this many units (spec 4.15).
 export const TRADE_KEEP_STEP = 10;

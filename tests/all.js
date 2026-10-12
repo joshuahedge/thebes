@@ -135,3 +135,13 @@ import './stage3/art.all.js';
 import './stage3/ui.all.js';
 import './stage3/score.all.js';
 import './stage3/balance.all.js';
+// Stage 4: one aggregator per track (tests/stage4/*.all.js); each track adds its files there, never here.
+import './stage4/contract.all.js';
+import './stage4/sim.all.js';
+import './stage4/art.all.js';
+import './stage4/ui.all.js';
+import './stage4/score.all.js';
+import './stage4/motion.all.js';
+import './stage4/cards.all.js';
+import './stage4/look.all.js';
+import './stage4/balance.all.js';

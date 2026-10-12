@@ -77,8 +77,8 @@ describe('goals', () => {
     expect(w.day).toBe(30);
     expect(events.filter((e) => e.type === 'month').length).toBe(1);
     expect(w.history.length).toBe(1);
-    expect(w.history[0]).toEqual({ day: 30, people: w.history[0].people, gold: w.history[0].gold, mood: w.history[0].mood, score: w.history[0].score, parts: w.history[0].parts });
-    expect(Object.keys(w.history[0]).sort()).toEqual(['day', 'gold', 'mood', 'parts', 'people', 'score']);   // the score and its parts from Stage 3 (spec 4.19)
+    expect(w.history[0]).toEqual({ day: 30, people: w.history[0].people, gold: w.history[0].gold, mood: w.history[0].mood, score: w.history[0].score, parts: w.history[0].parts, version: 2 });
+    expect(Object.keys(w.history[0]).sort()).toEqual(['day', 'gold', 'mood', 'parts', 'people', 'score', 'version']);   // the score and its parts from Stage 3 (spec 4.19), its version from Stage 4
     advanceDays(w, 30 * (HISTORY_MONTHS + 2));
     expect(w.history.length).toBe(HISTORY_MONTHS);
     expect(w.history[HISTORY_MONTHS - 1].day).toBe(w.day);

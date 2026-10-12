@@ -11,7 +11,7 @@
 // row with the highest score per seed and level, and each milestone's earliest row; the chronicle's highest entry per
 // seed and level). boot.js writes a city row on every save, export carries the records beside the world (packSave's
 // records) and import merges them by id.
-import { RECORDS_KEY, RECORDS_MAX, SCORE_VERSION, SCORE_PARTS, SPLIT_MILESTONES, MEDALS, SCORE_FACTOR } from '../data/scoring.js';
+import { RECORDS_KEY, RECORDS_MAX, SCORE_VERSION, SCORE_PARTS, SPLITS, MEDALS, SCORE_FACTOR } from '../data/scoring.js';
 import { medalFor } from '../sim/score.js';
 
 export const RECORDS_VERSION = 1;
@@ -33,10 +33,10 @@ const isLevel = (d) => typeof d === 'string' && Object.hasOwn(SCORE_FACTOR, d);
 const isMedal = (m) => m === null || MEDALS.some((x) => x.id === m);
 const keyOf = (r) => `${r.seed}|${r.difficulty}`;
 
-// The milestone days of a splits object, whole days only, in SPLIT_MILESTONES order.
+// The split days of a splits object (Stage 4: all seven, SPLITS), whole days only, in that order.
 function cleanSplits(s) {
   const out = {};
-  if (isObj(s)) for (const id of SPLIT_MILESTONES) if (isInt(s[id]) && s[id] >= 0) out[id] = s[id];
+  if (isObj(s)) for (const id of SPLITS) if (isInt(s[id]) && s[id] >= 0) out[id] = s[id];
   return out;
 }
 

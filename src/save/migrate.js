@@ -1,4 +1,4 @@
-import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY } from '../sim/world.js';
+import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, newPrestigeUnlocks } from '../sim/world.js';
 import { MILESTONES } from '../data/progression.js';
 import { RAIDS } from '../data/raids.js';
 
@@ -91,8 +91,46 @@ function v3ToV4(w) {
   };
 }
 
+// The Stage 4 build items a city of this milestone has already unlocked (spec 4.14, ruling 253: a city saved before Stage 4
+// gets "New" badges for the Stage 4 cards its milestone unlocks), in the milestones' order.
+export const STAGE4_ITEMS = ['palace', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'plaza', 'colossus', 'mastaba_small', 'sphinx', 'mastaba_large'];
+function stage4Unlocked(milestone) {
+  const reached = MILESTONES.findIndex((m) => m.id === milestone);
+  const out = [];
+  for (let i = 0; i <= reached; i++) for (const t of MILESTONES[i].unlocks) if (STAGE4_ITEMS.includes(t)) out.push(t);
+  return out;
+}
+
+// v4 -> v5 (Stage 4). Every building gets rot 0 (nothing turned before Stage 4); no monument, site or palace exists yet,
+// so none needs a site or a style. The city has reached no prestige unlock, the Stage 4 tallies start at zero, and its
+// splits keep their five milestones (the pyramids' two are not reached). Every month-end history row that has a score is
+// marked score version 1 (spec 7.5, ruling 203: Welcome back compares rows of one version only). Already-unlocked Stage 4
+// build items join newItems. Last month's stats gain no monuments row (the summary reads a missing one as 0). The device's
+// settings move to Motion in src/ui/settings.js (they are not in the world). Every other field is kept as it was.
+function v4ToV5(w) {
+  const tally = w.tally !== null && typeof w.tally === 'object' && !Array.isArray(w.tally) ? w.tally : {};
+  const buildings = {};
+  if (w.buildings && typeof w.buildings === 'object') {
+    for (const [id, b] of Object.entries(w.buildings)) buildings[id] = b && typeof b === 'object' ? { ...b, rot: 0 } : b;
+  }
+  const history = Array.isArray(w.history)
+    ? w.history.map((r) => (r && typeof r === 'object' && Number.isFinite(r.score) && !Number.isInteger(r.version) ? { ...r, version: 1 } : r))
+    : w.history;
+  const items = Array.isArray(w.newItems) ? w.newItems.slice() : w.newItems;
+  if (Array.isArray(items)) for (const t of stage4Unlocked(w.milestone)) if (!items.includes(t)) items.push(t);
+  return {
+    ...w,
+    version: 5,
+    buildings,
+    history,
+    newItems: items,
+    tally: { ...tally, ...Object.fromEntries(STAGE4_TALLY.map((k) => [k, 0])) },
+    prestigeUnlocks: newPrestigeUnlocks(),
+  };
+}
+
 // Each entry upgrades a world from version N to N + 1. Add one whenever WORLD_VERSION goes up.
-export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4 };
+export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5 };
 
 // table and target are parameters so tests can drive a synthetic chain; production calls use the defaults.
 export function migrate(obj, table = MIGRATIONS, target = CURRENT_VERSION) {
