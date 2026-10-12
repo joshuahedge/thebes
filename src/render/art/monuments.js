@@ -485,6 +485,57 @@ export function drawFinished(g, x, y, w, d, type) {
   return colossusFinished(g, x, y);
 }
 
+// ── where the work happens (Task B3: the gangs, the masons, the course-done dust) ──
+
+// The top front edges of course i (left corner, front corner, right corner, art px): where its dust rises and its still
+// outline runs. For a mastaba's facing course, the top tier's; for an obelisk, the shaft at that height; for the colossus,
+// the plinth up to its top and the throne and lap above it.
+export function courseTop(type, x, y, w, d, i) {
+  const fam = MONUMENT_LOOK[type].family;
+  let x0, y0, x1, y1, z;
+  if (fam === 'pyramid') {
+    const G = pyramidGeom(type, x, y, w), k = i * G.step;
+    [x0, y0, x1, y1, z] = [G.bx + k, G.by + k, G.bx + G.side - k, G.by + G.side - k, (i + 1) * G.ch];
+  } else if (fam === 'mastaba') {
+    const G = mastabaGeom(type, x, y, w, d), t = Math.min(i, G.tiers - 1), [tx, ty, tw, td] = tier(G, t);
+    [x0, y0, x1, y1, z] = [tx + 0.04, ty + 0.04, tx + tw - 0.04, ty + td - 0.04, (t + 1) * G.ch];
+  } else if (fam === 'obelisk') {
+    const G = obeliskGeom(type, x, y), zz = (i + 1) * G.seg, hw = shaftW(G, zz) / 2;
+    [x0, y0, x1, y1, z] = [G.cx - hw, G.cy - hw, G.cx + hw, G.cy + hw, G.ped + zz];
+  } else {
+    const H = MONUMENT_LOOK[type].height, zz = (i + 1) * H / MONUMENTS[type].courses.length;
+    [x0, y0, x1, y1] = zz <= COLOSSUS[0][5] ? [x + 0.22, y + 0.2, x + 1.78, y + 1.8] : [x + 0.6, y + 0.5, x + 1.4, y + 1.42];
+    z = zz;
+  }
+  return [U(p(x0, y1), z), U(p(x1, y1), z), U(p(x1, y0), z)];
+}
+
+// Where a site's people work (tiles and art px): `masons` the spots where two masons stand at the course under way (by
+// the edge of the blocks laid, on the course below; on the scaffold's top for an obelisk or the colossus), and `path`, the
+// way the sleds go when there is no ramp yet (or never one): along the apron in front, { x0, x1, y, z }.
+export function workSpots(type, x, y, w, d, look) {
+  const fam = MONUMENT_LOOK[type].family;
+  if (fam === 'obelisk' || fam === 'colossus') {
+    const z = builtHeight(type, look) - 4, c = fam === 'obelisk' ? [x + 0.5, y + 0.5] : [x + 1, y + 1];
+    return { masons: [[c[0] + 0.16, c[1] + 0.3, z], [c[0] + 0.32, c[1] + 0.1, z]], path: { x0: x + 0.1, x1: x + w * 0.62, y: y + d - 0.1, z: 0 } };
+  }
+  const path = { x0: x + 0.12, x1: x + w * 0.6, y: y + d - 0.14, z: 0 };
+  let rect, z;
+  if (fam === 'pyramid') {
+    const G = pyramidGeom(type, x, y, w), c = Math.min(look.course, G.n - 1), k = c * G.step;
+    rect = [G.bx + k, G.by + k, G.side - 2 * k, G.side - 2 * k]; z = c * G.ch;
+  } else {
+    const G = mastabaGeom(type, x, y, w, d), c = Math.min(look.course, G.tiers - 1);
+    rect = tier(G, c); z = c * G.ch;
+    if (look.course >= G.tiers) z = G.L.height;                               // the facing: on the top
+  }
+  const [cx, cy, cw, cd] = rect, N = look.blocks;
+  const cols = Math.max(1, Math.round(Math.sqrt((N * cw) / Math.max(0.01, cd)))), rows = Math.ceil(N / cols);
+  const full = Math.floor(look.laid / cols), rem = look.laid - full * cols;
+  const fx = cx + Math.min(cw - 0.1, Math.max(0.15, (rem + 0.5) * (cw / cols))), fy = cy + Math.min(cd - 0.08, (full + 1.4) * (cd / rows));
+  return { masons: [[fx, fy, z], [Math.max(cx + 0.1, fx - 0.34), Math.min(cy + cd - 0.08, fy + 0.12), z]], path };
+}
+
 // The art slots (contract: the renderer draws these live through opts.live and never caches them; `draw` is the card's
 // thumbnail and the fallback for a bare renderFrame: the finished monument). Ground shadows are drawn by the scene.
 export const MONUMENT_ART = {};

@@ -217,9 +217,10 @@ export const SUPPLY_ART = {
 };
 for (let r = 1; r <= 3; r++) SUPPLY_ART[`brickworks.s${r}`] = slot(18, KILN_SHADOWS, (g, x, y) => brickworks(g, x, y, r));
 
-// The slot a supply building shows (registry.js slotFor): '<type>.idle' when nobody works there (an idle one employs
-// nobody, as does one with no road or no workers to be had), else its type, the brickworks by its drying rows.
+// The slot a supply building shows (registry.js slotFor): '<type>.idle' when nobody works there: an idle quarry or
+// brickworks (b.blocked 'idle': no site needs its material, src/sim/production.js) employs nobody, as does one with no
+// road or no workers to be had, or paused; else its type, the brickworks by its drying rows.
 export function supplySlot(b) {
-  if (!(b.staff > 0) || b.paused) return `${b.type}.idle`;
+  if (!(b.staff > 0) || b.paused || b.blocked === 'idle') return `${b.type}.idle`;
   return b.type === 'brickworks' ? `brickworks.s${brickworksStage(b)}` : b.type;
 }

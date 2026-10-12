@@ -9,19 +9,27 @@
 //   live: (g, o) => drawMonument(g, world, o.b, { now, timeDays, motion, ghost, selectedId })
 // now: the frame's real-clock ms; timeDays: the sim's day plus the fraction since the last tick (gangs move on game time);
 // motion: settings.motionLevel(); ghost: the placing ghost { type, x, y, w, d } or null; selectedId: the selected
-// building's id or null (the monument fades to MONUMENT_PLACING.fadeBehind when either lies behind it).
+// building's id or null (the monument fades to MONUMENT_PLACING.fadeBehind when either lies behind it). Everything is
+// drawn from `b` itself: the world is read only for the selected building behind it, so a record that is not in the
+// world (Track C's placing silhouette, drawn with { motion: 'still' }) draws as any other.
 // Budget: three sites within 1 ms a frame on the stress city (spec 5.7).
 //
 // What moves, by Motion level (spec 5.4): the newest block fades in and settles 3 px over 400 ms under Full, fades in place
-// over 200 ms under Gentle, and appears at once under Still. A monument finished while on screen gets one slow shine
-// across its gold and a short sparkle under Full, and a still outline for a moment under Gentle and Still. The scene
+// over 200 ms under Gentle, and appears at once under Still. A course laid on screen raises a short dust puff along it under
+// Full and a still outline for a moment under Gentle and Still; a monument finished on screen gets one slow shine across
+// its gold and a short sparkle under Full, and a still outline for a moment under Gentle and Still. The gangs (one sled
+// and four haulers a crew, up the ramp or along the apron, and two masons at the course under way) are walkers: they move
+// under every level, on game time (timeDays), so they hold still while the game is paused, and stand idle by their sleds
+// at the ramp's foot while the site does no work (stalled, or its crews gone; a paused site has none). The scene
 // itself is a pure function of the building (src/render/art/monuments.js); the only state kept here is what the draw saw
 // last of each site (its blocks and course, and when they changed), outside the world, so a reload shows the same scene
 // with nothing fading.
 import { ART } from './art/registry.js';
 import { makeDraw } from './art/ctx.js';
-import { siteLook, drawSite, drawFinished, builtHeight, bodyOf, MONUMENT_LOOK, CASING, CORE } from './art/monuments.js';
-import { GOLD, GOLDC, UI } from './art/palette.js';
+import { siteLook, drawSite, drawFinished, builtHeight, bodyOf, courseTop, workSpots, MONUMENT_LOOK, CASING, CORE } from './art/monuments.js';
+import { gang } from './art/figures.js';
+import { box } from './art/primitives.js';
+import { GOLD, GOLDC, UI, STONE } from './art/palette.js';
 import { p, U, depthKey } from './iso.js';
 import { MONUMENT_PLACING } from '../data/monuments.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -31,19 +39,27 @@ export const SETTLE_PX = 3;                          // how far a new block sett
 export const SHINE_MS = 2400;                        // the one slow shine across the gold, Full only
 export const SPARKLE_MS = 1500;
 export const OUTLINE_MS = 1500;                      // the still outline for a moment, Gentle and Still
+export const DUST_MS = 1200;                         // the course-done dust, Full only
+export const GANG = {
+  haulers: 4,            // a crew's gang hauling its sled (spec 5.7: four or five)
+  tripDays: 6,           // game days a sled takes up and back (4 s at 1x): up loaded for upShare of it, down empty
+  upShare: 0.6,
+  spacing: 0.16,         // tiles between the haulers in a file, and from the sled to the first pair
+  scale: 0.7,            // the figures' size: a little smaller than a walker, so a gang fits the ramp
+};
 
-const seen = new WeakMap();   // world -> Map<id, { blocks, course, done, blockAt, courseAt, doneAt, lastCourse }>
+const seen = new WeakMap();   // building -> { blocks, course, done, blockAt, courseAt, doneAt, lastCourse }
 
 // What the draw saw of a site last frame, updated with what it shows now: when its newest block, its last course and its
-// finish appeared (real ms; -Infinity for what was already there when the draw first met it).
+// finish appeared (real ms; -Infinity for what was already there when the draw first met it). Kept by the building record
+// itself, never looked up by id: a loaded city has new records (so nothing fades after a reload), and a record that is not
+// in the world at all (Track C's placing silhouette: id -1, every course laid) is drawn from itself alone.
 export function siteMemo(world, b, look, now) {
-  let byId = seen.get(world);
-  if (!byId) { byId = new Map(); seen.set(world, byId); }
   const blocks = look.course * 100000 + look.laid;
-  let m = byId.get(b.id);
+  let m = seen.get(b);
   if (!m) {
     m = { blocks, course: look.course, done: look.done, blockAt: -Infinity, courseAt: -Infinity, doneAt: -Infinity, lastCourse: -1 };
-    byId.set(b.id, m);
+    seen.set(b, m);
     return m;
   }
   if (blocks > m.blocks && look.laid > 0) m.blockAt = now;
@@ -152,8 +168,74 @@ function outline(g, pts) {
   g.poly(pts, 'none', { stroke: GOLD, strokeWidth: 0.9, strokeAlpha: 1 });
 }
 
+// Whether a site's crews are at work today: crews on it, not paused, not finished, and its last day was a working day
+// (site.reason is null after a day of work, src/sim/monuments.js monumentDay).
+export function isWorking(b, look = siteLook(b)) {
+  return look.crews > 0 && !b.paused && !look.done && (b.site.reason === null || b.site.reason === undefined);
+}
+
+// The gangs: one sled and GANG.haulers haulers a crew, up the ramp (or along the apron before there is one) and back on
+// game time, crews out of step; two masons a crew (at most four) at the course under way, swinging their mallets. A site
+// that does no work keeps its sleds parked at the ramp's foot, its haulers standing by (and its masons at rest); with no
+// crews, one empty sled stands there.
+export function gangLayout(b, look, ramp, timeDays) {
+  const spots = workSpots(b.type, b.x, b.y, b.w, b.d, look), working = isWorking(b, look);
+  const way = ramp ? { x0: ramp.xf, x1: ramp.xt, y: (ramp.yo + ramp.yr) / 2, z0: 0, z1: ramp.z1 } : { ...spots.path, z0: 0, z1: 0 };
+  const at = (t, side = 0) => U(p(way.x0 + (way.x1 - way.x0) * t, way.y + side), way.z0 + (way.z1 - way.z0) * t);
+  const run = Math.max(0.05, Math.abs(way.x1 - way.x0)), dt = GANG.spacing / run;
+  const sleds = [], people = [];
+  const crews = look.crews, n = Math.max(1, crews);
+  for (let j = 0; j < n; j++) {
+    if (!working) {
+      const t = Math.min(0.9, j * 0.12);                                      // parked at the foot, one behind another
+      sleds.push({ q: [way.x0 + (way.x1 - way.x0) * t, way.y], z: way.z0 + (way.z1 - way.z0) * t, loaded: false });
+      if (j < crews) for (let k = 0; k < GANG.haulers; k++) people.push({ q: at(Math.min(1, t + dt * (1 + (k >> 1))), (k % 2 ? 0.1 : -0.1) + 0.04), s: GANG.scale, pose: 'rest' });
+      continue;
+    }
+    const phase = (((timeDays / GANG.tripDays + j / n) % 1) + 1) % 1, up = phase < GANG.upShare;
+    const t = up ? phase / GANG.upShare : 1 - (phase - GANG.upShare) / (1 - GANG.upShare);
+    const ahead = up ? 1 : -1, span = dt * (1 + GANG.haulers / 2);
+    const ts = up ? Math.min(t, 1 - span) : Math.max(t, span);                // the sled, its haulers on the ramp ahead of it
+    sleds.push({ q: [way.x0 + (way.x1 - way.x0) * ts, way.y], z: way.z0 + (way.z1 - way.z0) * ts, loaded: up });
+    for (let k = 0; k < GANG.haulers; k++) {
+      const tk = ts + ahead * dt * (1 + (k >> 1)), bob = Math.abs(Math.sin((timeDays * 3 + k * 0.37 + j * 0.21) * Math.PI)) * 0.8;
+      const q = at(tk, k % 2 ? 0.08 : -0.08);
+      people.push({ q: [q[0], q[1] - bob], s: GANG.scale, pose: 'pull' });
+    }
+  }
+  const masons = [];
+  if (!look.done && crews > 0) {
+    for (let j = 0; j < Math.min(2, crews); j++) {
+      const [mx, my, mz] = spots.masons[j];
+      const swing = working ? Math.abs(Math.sin((timeDays * 2 + j * 0.5) * Math.PI)) : 0.2;
+      masons.push({ q: U(p(mx, my), mz), s: GANG.scale, pose: working ? 'mallet' : 'rest', swing });
+    }
+  }
+  return { working, sleds, people, masons };
+}
+
+// Draws the gangs of gangLayout: the masons (on the course, further back) first, then the sleds and their haulers.
+function drawGangs(g, layout) {
+  gang(g, layout.masons);
+  for (const s of layout.sleds) {
+    box(g, s.q[0] - 0.13, s.q[1] - 0.08, 0.26, 0.16, 1, s.z, ['#C9A26A', '#A8814E', '#86705E'], 0);
+    if (s.loaded) box(g, s.q[0] - 0.09, s.q[1] - 0.06, 0.18, 0.12, 3.2, s.z + 1, STONE, 0);
+  }
+  gang(g, [...layout.people].sort((a, b) => a.q[1] - b.q[1]));
+}
+
+// The course-done dust (Full, t 0..1): soft puffs rising a little and fading along the course's top edges.
+function dust(g, edge, t) {
+  const [a, f, c] = edge, k = 1 - t;
+  for (let i = 0; i <= 8; i++) {
+    const u = i / 8, q = u <= 0.5 ? [a[0] + (f[0] - a[0]) * u * 2, a[1] + (f[1] - a[1]) * u * 2] : [f[0] + (c[0] - f[0]) * (u - 0.5) * 2, f[1] + (c[1] - f[1]) * (u - 0.5) * 2];
+    const r = 2.4 + 3.6 * t;
+    g.ell([q[0], q[1] - 1 - 4 * t], r, r * 0.6, '#F1E3C4', { alpha: 0.55 * k });
+  }
+}
+
 // The scene of one monument, without the see-through fade.
-function drawScene(g, world, b, look, { now, motion }) {
+function drawScene(g, world, b, look, { now, timeDays, motion }) {
   const m = siteMemo(world, b, look, now);
   if (look.done) {
     const mark = drawFinished(g, b.x, b.y, b.w, b.d, b.type);
@@ -165,6 +247,13 @@ function drawScene(g, world, b, look, { now, motion }) {
     return { look, memo: m, ramp: null };
   }
   const ramp = drawSite(g, b.x, b.y, b.w, b.d, look, newestBlock(m, now, motion));
+  const age = now - m.courseAt;
+  if (m.lastCourse >= 0 && age >= 0) {                                       // a course laid while on screen
+    const edge = courseTop(b.type, b.x, b.y, b.w, b.d, m.lastCourse);
+    if (motion === 'full' && age < DUST_MS) dust(g, edge, age / DUST_MS);
+    else if (motion !== 'full' && age < OUTLINE_MS) outline(g, edge);
+  }
+  drawGangs(g, gangLayout(b, look, ramp, timeDays));
   return { look, memo: m, ramp };
 }
 
