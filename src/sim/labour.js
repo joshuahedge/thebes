@@ -3,6 +3,7 @@ import { ECONOMY } from '../data/economy.js';
 import { PRIORITY_LEVELS, MIN_STAFF_RATIO } from '../data/labour.js';
 import { population, allBuildings } from './world.js';
 import { touchesRoad } from './reach.js';
+import { crewPlan, hasMonumentWork } from './monuments.js';
 
 export function assignLabour(world) {
   const workforce = Math.floor(population(world) * ECONOMY.workerShare);
@@ -10,11 +11,15 @@ export function assignLabour(world) {
   let jobs = 0;
   let employed = 0;
   const byLevel = {};
+  let plan = null;   // Stage 4: the crew plan, worked out once and only when a monuments workplace stands
   for (const b of allBuildings(world)) {
     const def = BUILDINGS[b.type];
     if (!def.workers) continue;
     b.staff = 0;
     if (b.paused || !touchesRoad(world, b)) continue;
+    // Stage 4 (spec 4.8, 4.16, ruling 187): a monuments workplace with no work today (hasMonumentWork: a builders' guild
+    // with no site) employs nobody, so pays no wages (upkeep still runs), and its jobs are not counted.
+    if (def.priority === 'monuments' && !hasMonumentWork(world, b, plan || (plan = crewPlan(world)))) continue;
     (byLevel[def.priority] = byLevel[def.priority] || []).push(b);
     jobs += def.workers;
   }

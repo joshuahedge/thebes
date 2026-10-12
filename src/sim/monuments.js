@@ -21,6 +21,7 @@ import { DAYS_PER_MONTH } from './time.js';
 import { allBuildings, isSite, isFinished } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { atLeast } from './progression.js';
+import { isWorking, staffRatio } from './labour.js';
 import { prestigeOf, prestigeOfBuilding, prestigeByKind, holdsPrestige, monumentMood, monumentsPart } from './prestige.js';
 
 export { prestigeOf, prestigeOfBuilding, prestigeByKind, holdsPrestige, monumentMood, monumentsPart };
@@ -127,15 +128,151 @@ export function siteStatus(world, b) {
 
 // ── The daily and monthly steps ─────────────────────────────────────────────────────────────────────────────────
 
-// STUB. The daily step, run by tickDay right after produceDay (before fire and raids): crews to sites (one guild, one
-// crew, the nearest unpaused, unfinished, road-touching site within MONUMENT.crewReach with room; staffing as any
-// producer's, none below MIN_STAFF_RATIO), deliveries counted (quarries and brickworks send to sites first: production.js;
-// sites draw from storehouses within MONUMENT.supplyReach), work laid in each course's proportion, work gold paid daily
-// (workGoldPerUnit, whole gold, the fraction carried, sites in founding order, never below 0), the gilding or capstone
-// paid as the last course begins (extraGoldOf, never below 0), courses and monuments finished (site.course, site.done,
-// tallies, events), site.crews, site.idle, site.reason and site.month kept, and a 'site_stalled' event the day idle
-// reaches MONUMENT.stallDays. A road-less or paused site does nothing and its idle stays 0.
-export function monumentDay(world, events = null) {}
+// ── Crews and work (Track A) ────────────────────────────────────────────────────────────────────────────────────
+
+const EPS = 1e-6;   // a course, a stockpile or a crew's day closer than this to its end counts as there
+
+// Tallies and month counts add up fractions (a full crew lays 2/3 a unit a day); a sum this close to a whole number is
+// that number, so a month or a course adds up to 20 and not to 19.999999999999996.
+const snap = (v) => (Math.abs(v - Math.round(v)) < EPS ? Math.round(v) : v);
+
+// The units one builders' guild's crew lays in a day: MONUMENT.unitsPerCrewMonth a month at full staff, in proportion to
+// its staffing like any producer's (spec 4.16). Whether it works at all is isWorking's (MIN_STAFF_RATIO, not burning).
+export const crewDayUnits = (world, g) => (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH) * staffRatio(world, g);
+
+// A site a crew can work: unfinished, unpaused and touching a road (spec 4.16, ruling 226).
+const openSite = (world, b) => isSite(b) && !b.paused && touchesRoad(world, b);
+
+// Which site each builders' guild's crew goes to today (spec 4.16, ruling 184): guild id -> site id, in the order the
+// crews took their sites. Every guild that is unpaused and touches a road may work any open site within
+// MONUMENT.crewReach road tiles; the pairs are taken nearest first (ties to the older guild, then the older site), each
+// guild taking one site and each site at most its kind's crews. So each guild works the nearest open site that still
+// had room when its turn came, and where two guilds want a site's last place the nearer one gets it. A guild short of
+// workers or burning still holds its place (the site then names it as the cause, ruling 245); a paused guild, or one
+// with no road, holds none. Pure: labour.js reads it to employ only guilds with a site, and monumentDay to put the
+// crews to work.
+export function crewPlan(world) {
+  const plan = new Map();
+  const open = new Set();
+  for (const b of allBuildings(world)) if (openSite(world, b)) open.add(b.id);
+  if (!open.size) return plan;
+  const pairs = [];
+  for (const g of allBuildings(world)) {
+    if (g.type !== 'builders_guild' || g.paused || !touchesRoad(world, g)) continue;
+    for (const r of buildingsInReach(world, g, MONUMENT.crewReach, (o) => open.has(o.id))) pairs.push({ g: g.id, s: r.b, d: r.dist });
+  }
+  pairs.sort((p, q) => p.d - q.d || p.g - q.g || p.s.id - q.s.id);
+  const taken = new Map();
+  for (const { g, s } of pairs) {
+    if (plan.has(g) || (taken.get(s.id) || 0) >= MONUMENTS[s.type].crews) continue;
+    plan.set(g, s.id);
+    taken.set(s.id, (taken.get(s.id) || 0) + 1);
+  }
+  return plan;
+}
+
+// Whether a workplace of the monuments priority has work today, so labour.js employs it (spec 4.8, 4.16, ruling 187): a
+// builders' guild only while the crew plan gives it a site. Any other building: true. plan: crewPlan(world), passed in
+// so labour.js works it out once a day.
+export function hasMonumentWork(world, b, plan = null) {
+  if (b.type === 'builders_guild') return (plan || crewPlan(world)).has(b.id);
+  return true;
+}
+
+// What one crew would lay today with `cap` units of work (pure: the site is not touched). It lays the course under way
+// from the stockpile in the course's recipe proportion (ruling 239: a course naming two materials waits when either is
+// missing) and carries on into the next course when it finishes one, until its work for the day is done, a material
+// runs out (short: the first missing, in MATERIALS order) or the monument is finished. st is the site's course, laid
+// and stock afterwards; courses how many it finished; by the units of each material laid.
+function planCrew(b, cap) {
+  const m = MONUMENTS[b.type];
+  const st = { course: b.site.course, laid: { ...b.site.laid }, stock: { ...b.site.stock } };
+  const p = { units: 0, by: { stone: 0, bricks: 0 }, courses: 0, short: null, st };
+  let left = cap;
+  while (left > EPS && st.course < m.courses.length) {
+    const c = m.courses[st.course];
+    const total = c.stone + c.bricks;
+    const rest = total - st.laid.stone - st.laid.bricks;
+    let u = Math.min(left, rest);
+    for (const g of MATERIALS) if (c[g] > 0) u = Math.min(u, (st.stock[g] * total) / c[g]);
+    if (u > EPS) {
+      for (const g of MATERIALS) {
+        const x = (u * c[g]) / total;
+        st.laid[g] += x;
+        st.stock[g] = Math.max(0, st.stock[g] - x);
+        p.by[g] += x;
+      }
+      p.units += u;
+      left -= u;
+    } else u = 0;
+    if (rest - u <= EPS) {
+      st.course += 1;
+      st.laid = { stone: 0, bricks: 0 };
+      p.courses += 1;
+      continue;
+    }
+    if (left > EPS) p.short = MATERIALS.find((g) => c[g] > 0 && (st.stock[g] * total) / c[g] <= EPS) || null;
+    break;
+  }
+  return p;
+}
+
+// Lays a crew's planned day on the site: the tallies, each course finished ('course_done', with what it added to the
+// city's prestige, ruling 242: a second of a kind that is not ahead of the first adds 0), and the monument finished
+// ('monument_done', with its completion share's gain; site.done, its crews released).
+function commitCrew(world, b, p, events) {
+  const s = b.site;
+  const courses = MONUMENTS[b.type].courses.length;
+  for (const g of MATERIALS) world.tally[`${g}Laid`] = snap(world.tally[`${g}Laid`] + p.by[g]);
+  let before = events ? prestigeOf(world) : 0;
+  for (let k = 0; k < p.courses; k++) {
+    s.course += 1;
+    s.laid = { stone: 0, bricks: 0 };
+    world.tally.courses += 1;
+    if (!events) continue;
+    const now = prestigeOf(world);
+    events.push({ type: 'course_done', id: b.id, kind: b.type, course: s.course, prestige: now - before });
+    before = now;
+  }
+  s.laid = p.st.laid;
+  s.stock = p.st.stock;
+  s.month.units = snap(s.month.units + p.units);
+  s.month.crewDays += 1;
+  if (s.course < courses) return;
+  s.done = world.day;
+  s.crews = [];
+  world.tally.monumentsDone += 1;
+  if (events) events.push({ type: 'monument_done', id: b.id, kind: b.type, prestige: prestigeOf(world) - before });
+}
+
+// The daily step (spec 4.16), run by tickDay right after produceDay (before updatePrestigeUnlocks, palaceDay, fire and
+// raids). Sites go in founding order (ascending id). Each open site's crews are the working guilds the crew plan sends
+// it (site.crews, in the order they took it; month.crews the most on one day); each crew lays its day (crewDayUnits) from
+// the stockpile, course by course; a crew that cannot lay its full share for want of material counts a starved day
+// (month.starvedDays). A road-less or paused site has no crews and does nothing.
+// Task A2 adds the deliveries (sites draw from storehouses); Task A3 the work gold, the gilding and capstone, idle,
+// reason and the stall.
+export function monumentDay(world, events = null) {
+  const plan = crewPlan(world);
+  const guildsAt = new Map();
+  for (const [gid, sid] of plan) {
+    if (!guildsAt.has(sid)) guildsAt.set(sid, []);
+    guildsAt.get(sid).push(world.buildings[gid]);
+  }
+  for (const b of allBuildings(world)) {
+    if (!isSite(b)) continue;
+    const s = b.site;
+    const working = (guildsAt.get(b.id) || []).filter((g) => isWorking(world, g));
+    s.crews = working.map((g) => g.id);
+    s.month.crews = Math.max(s.month.crews, s.crews.length);
+    for (const g of working) {
+      if (!isSite(b)) break;
+      const p = planCrew(b, crewDayUnits(world, g));
+      if (p.short) s.month.starvedDays += 1;
+      if (p.units > EPS) commitCrew(world, b, p, events);
+    }
+  }
+}
 
 // The monthly step, run by runMonth right after monthlyEconomy (which starts stats.lastMonth): each site's month becomes
 // its last (a site finished before this month keeps its last), a month in which a crew stood idle for lack of material
