@@ -38,6 +38,8 @@ describe('ui welcome back', () => {
     expect(sheet.textContent).toContain(GOALS[0].text);
     expect(sheet.textContent).toContain(alertText({ code: 'debt' }, r.world).title);
     expect(sheet.querySelector('.alert-list .view').getAttribute('aria-label')).toBe(`${T.view}: ${alertText({ code: 'debt' }, r.world).title}`);
+    // On a phone the card is a sheet: only the alert row stays above it; the goals strip waits (ruling 168).
+    expect([getComputedStyle(r.root.querySelector('#goals')).display, getComputedStyle(r.root.querySelector('#banner')).display === 'none']).toEqual(['none', false]);
     fire(sheet.querySelector('.alert-list .view'), 'click');
     expect(r.store.get().sheet.kind).toBe('summary');
     r.store.set({ sheet: { kind: 'welcome', id: null } });
@@ -45,6 +47,7 @@ describe('ui welcome back', () => {
     expect(r.world.speed).toBe(2);
     expect(r.store.get().lastSpeed).toBe(2);
     expect(r.store.get().sheet).toBe(null);
+    expect(getComputedStyle(r.root.querySelector('#goals')).display === 'none').toBe(false);   // the strip is back once the card has gone
     r.cleanup();
     const stay = await rigUI({ welcome: { savedAt: null, lastSpeed: 3 } });
     expect(stay.root.querySelector('#sheet').textContent).toContain(T.aWhileAgo);

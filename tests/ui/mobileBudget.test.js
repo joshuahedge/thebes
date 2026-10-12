@@ -22,69 +22,19 @@ import { mountShell, fakeHistory } from '../helpers/uiWorld.js';
 const SIZES = [[375, 667], [844, 390]];
 const TEXT_SIZES = [100, 150];
 
-// Not met yet, with what M1 measured: where the rows end (share of the height), or the rows and the layers in them.
+// Not met yet, with what M5 measured: where the rows end (share of the height), or the rows and the layers in them. All on
+// the landscape phone, for the compact rules and the one-row rule at large text (ruling 172).
 const NOT_YET = new Set([
-  'early 375x667 100% end',         // 37%
-  'early 375x667 100% rows',        // 3 (goal+tip+caption)
-  'early 375x667 150% end',         // 49%
-  'early 844x390 150% end',         // 45%
-  'early 844x390 150% rows',        // 2 (goal+tip)
-
-  'plots 375x667 100% end',         // 44%
-  'plots 375x667 100% rows',        // 3 (goal+tip+caption)
-  'plots 375x667 150% end',         // 49%
-  'plots 844x390 150% end',         // 53%
-  'plots 844x390 150% rows',        // 2 (goal+tip)
-
-  'raid 375x667 100% end',          // 44%
-  'raid 375x667 100% rows',         // 3 (alert+goal+caption)
-  'raid 375x667 150% end',          // 72%
-  'raid 375x667 150% rows',         // 3 (alert+goal+caption)
-  'raid 844x390 100% end',          // 56%
-  'raid 844x390 100% rows',         // 3 (alert+goal+caption)
-  'raid 844x390 150% end',          // 77%
-  'raid 844x390 150% rows',         // 3 (alert+goal+caption)
-
-  'raid-fire 375x667 100% end',     // 44%
-  'raid-fire 375x667 100% rows',    // 3 (alert+goal+caption)
-  'raid-fire 375x667 150% end',     // 79%
-  'raid-fire 375x667 150% rows',    // 3 (alert+goal+caption)
-  'raid-fire 844x390 100% end',     // 56%
-  'raid-fire 844x390 100% rows',    // 3 (alert+goal+caption)
-  'raid-fire 844x390 150% end',     // 93%
-  'raid-fire 844x390 150% rows',    // 3 (alert+goal+caption)
-
-  'raid-overlay 375x667 100% end',  // 48%
-  'raid-overlay 375x667 100% rows', // 3 (alert+legend+goal+caption)
-  'raid-overlay 375x667 150% end',  // 84%
-  'raid-overlay 375x667 150% rows', // 3 (alert+legend+goal+caption)
-  'raid-overlay 844x390 100% end',  // 56%
-  'raid-overlay 844x390 100% rows', // 3 (alert+legend+goal+caption)
-  'raid-overlay 844x390 150% end',  // 77%
-  'raid-overlay 844x390 150% rows', // 3 (alert+legend+goal+caption)
-
-  'placing 375x667 150% end',       // 42% (the alert row's chip takes two lines)
-  'placing 844x390 100% end',       // 45%
-  'placing 844x390 150% end',       // 67%
-  'placing 844x390 150% rows',      // 2 (alert+legend+goal)
-
-  'sheet 375x667 100% end',         // 38%
-  'sheet 375x667 100% rows',        // 2 (alert+goal)
-  'sheet 375x667 150% end',         // 62%
-  'sheet 375x667 150% rows',        // 2 (alert+goal)
-  'sheet 844x390 100% end',         // 45%
-  'sheet 844x390 100% rows',        // 2 (alert+goal)
-  'sheet 844x390 150% end',         // 67%
-  'sheet 844x390 150% rows',        // 2 (alert+goal)
-  'sheet 844x390 150% edge',        // the rows reach 780 px, the sheet starts at 520
-
-  'welcome 375x667 100% end',       // 22%
-  'welcome 375x667 100% rows',      // 1 (goal)
-  'welcome 375x667 150% end',       // 34%
-  'welcome 375x667 150% rows',      // 1 (goal)
-  'welcome 844x390 100% rows',      // 1 (goal)
-  'welcome 844x390 150% rows',      // 1 (goal)
-  'welcome 844x390 150% edge',      // the rows reach 724 px, the sheet starts at 520
+  'raid 844x390 150% end',          // 43%
+  'raid 844x390 150% rows',         // 2 (alert+caption)
+  'raid-fire 844x390 150% end',     // 43%
+  'raid-fire 844x390 150% rows',    // 2 (alert+caption)
+  'raid-overlay 844x390 100% end',  // 46% (the fire-risk legend)
+  'raid-overlay 844x390 150% end',  // 60%
+  'raid-overlay 844x390 150% rows', // 2 (alert+legend)
+  'placing 844x390 100% end',       // 42%
+  'placing 844x390 150% end',       // 47%
+  'placing 844x390 150% rows',      // 2 (alert+legend)
 ]);
 
 const noStorage = { getItem: () => null, setItem: () => {} };

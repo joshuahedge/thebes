@@ -1,25 +1,30 @@
-// The tip row (early-game pass 3.4): one tip at a time in #tip, under the goals strip, with Got it. A tip fires only on
-// its trigger, at most once per device (settings.seenTips; showing it counts), never in the first
+// The tip row (early-game pass 3.4): one tip at a time in #tip, under the goals strip (on a phone, in its place), with
+// Got it. A tip fires only on its trigger, at most once per device (settings.seenTips; showing it counts), never in the first
 // TIP_FIRST_DELAY_MS of a session (on the wall clock), at least TIP_GAP_MS after the last one and at most
 // TIP_HOURLY_MAX an hour (both on the play clock, which runs only while the game does).
 // A tip triggered while a tool is active waits in a one-tip slot until flush() runs with no tool active; a tip that
 // has waited longer than TIP_HELD_MAX_MS is dropped (it described something that is no longer news).
 // The priority tip (Press Play) skips the delay, the gap and the tool rule. Nothing shows under Help: Off.
 // autoCloseMs() is how long a tip may stay before tick() closes it (0: until Got it), measured on frameNow(), a clock
-// that runs only while the game is drawn (createUI), so a tip never closes unseen in a hidden tab. A closed tip stays seen.
+// that createUI runs only while the tip is on screen and the game is unpaused, so a tip never closes unseen (a hidden tab,
+// a paused game, a sheet over it). A closed tip stays seen.
+// setShown(false) takes a tip that is showing off the screen without closing it (on a phone a sheet or the overlay legend
+// has the guidance row, spec 6.3); setShown(true) puts it back, written afresh so the live region reads it then.
 // #tip is a polite live region: a tip is read once as it appears, and it never takes focus (Got it hands focus on if it had it).
+// onChange runs whenever the tip showing changes.
 import { TIPS, TIP_GAP_MS, TIP_HOURLY_MAX, TIP_FIRST_DELAY_MS, TIP_HELD_MAX_MS } from '../data/tips.js';
 import { el, button, clear } from './components.js';
 import { TIP_TEXT, T } from './text.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 
-export function createTips({ container, settings, now = () => performance.now(), playNow = now, frameNow = now, autoCloseMs = () => 0, restoreFocus = () => {} }) {
+export function createTips({ container, settings, now = () => performance.now(), playNow = now, frameNow = now, autoCloseMs = () => 0, restoreFocus = () => {}, onChange = () => {} }) {
   const started = now();
   const shownAt = [];      // the play time at which each tip of this session appeared
   let showing = null;      // the id on screen
   let shownFrame = 0;      // the frame-clock time it appeared
   let waiting = null;      // { tip, at }: a tip held back by an active tool, and when
+  let onScreen = true;     // false while setShown(false) keeps the tip off the screen
 
   const seen = () => (Array.isArray(settings.get().seenTips) ? settings.get().seenTips : []);
   const enabled = () => settings.get().help !== 'off';
@@ -35,7 +40,7 @@ export function createTips({ container, settings, now = () => performance.now(),
 
   function render() {
     clear(container);
-    if (!showing) return;
+    if (!showing || !onScreen) return;
     container.append(el('div', { class: 'tip-row' }, [
       el('span', { class: 'label small muted', text: T.tip }),
       el('span', { class: 'text', text: TIP_TEXT[showing] }),
@@ -57,6 +62,7 @@ export function createTips({ container, settings, now = () => performance.now(),
     shownAt.push(playNow());
     settings.set({ seenTips: [...seen(), tip.id] });
     render();
+    onChange();
     return true;
   }
 
@@ -86,7 +92,13 @@ export function createTips({ container, settings, now = () => performance.now(),
       const hadFocus = container.contains(document.activeElement);
       showing = null;
       render();
+      onChange();                                       // first: on a phone the goal comes back into the row, so focus has somewhere to go
       if (hadFocus) restoreFocus();
+    },
+    setShown(on) {
+      if (Boolean(on) === onScreen) return;
+      onScreen = Boolean(on);
+      render();
     },
     current: () => showing,
   };

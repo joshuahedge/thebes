@@ -6,7 +6,7 @@ import { GUIDE_GOALS } from '../../src/data/goals.js';
 import { settle } from '../../src/sim/settle.js';
 import { setGuide } from '../../src/sim/commands.js';
 import { buildingAt, housesOf } from '../../src/sim/world.js';
-import { select, openSheet } from '../../src/ui/modes.js';
+import { select, openSheet, back } from '../../src/ui/modes.js';
 import { TIP_TEXT, T } from '../../src/ui/text.js';
 import { TOKENS } from '../../src/ui/theme.js';
 import { fakeLocal } from '../helpers/fakeStorage.js';
@@ -247,7 +247,7 @@ describe('ui tips', () => {
   });
   it('in the game: a house sheet, a service placed and an overlay each bring their tip, a held one once the tool closes', async () => {
     let t = 0;
-    const r = await rigUI({ now: () => t });
+    const r = await rigUI({ width: 1280, height: 800, now: () => t });
     const play = quietFrames(r);
     try {
       settle(r.world, []);                                                     // finish what the test city already meets, so placing raises no goal events
@@ -267,6 +267,33 @@ describe('ui tips', () => {
       play(TIP_GAP_MS);
       r.store.set({ overlay: null });
       r.store.set({ overlay: 'food' });
+      expect(r.ui.tips.current()).toBe('overlay_keys');
+    } finally { r.cleanup(); }
+  });
+  it('in the game: on a phone a tip waits while a sheet or the overlay legend has the guidance row, and one already up steps off the screen until the row is free', async () => {
+    let t = 0;
+    const r = await rigUI({ width: 390, height: 844, now: () => t });
+    const play = quietFrames(r);
+    try {
+      settle(r.world, []);
+      r.ui.speedControl.set(1);
+      t = TIP_FIRST_DELAY_MS;
+      r.store.set(select(r.store.get(), buildingAt(r.world, 12, 9).id));
+      expect(r.ui.tips.current()).toBe(null);                                   // the house sheet has the screen: the tip waits (spec 6.3)
+      r.store.set(back(r.store.get()));
+      expect(r.store.get().sheet).toBe(null);
+      expect(r.ui.tips.current()).toBe('house_needs');                          // and shows once the sheet has closed
+      expect(document.body.dataset.guidance).toBe('tip');
+      r.store.set(openSheet(r.store.get(), 'summary'));                        // a sheet over a tip that is up: off the screen, still current
+      expect([r.ui.tips.current(), r.root.querySelector('#tip').children.length, document.body.dataset.guidance]).toEqual(['house_needs', 0, 'none']);
+      r.store.set(back(r.store.get()));
+      expect([r.root.querySelector('#tip .tip-row .text').textContent, document.body.dataset.guidance]).toEqual([TIP_TEXT.house_needs, 'tip']);   // written again, so it is read again
+      r.ui.tips.dismiss();
+      play(TIP_GAP_MS);
+      r.store.set({ overlay: 'food' });
+      expect(r.ui.tips.current()).toBe(null);                                   // the legend has the row
+      expect(document.body.dataset.guidance).toBe('legend');
+      r.store.set({ overlay: null });
       expect(r.ui.tips.current()).toBe('overlay_keys');
     } finally { r.cleanup(); }
   });
@@ -403,27 +430,17 @@ describe('ui tips', () => {
       expect(document.activeElement).toBe(r.root.querySelector('#goals .show-me'));
     } finally { r.cleanup(); }
   });
-  it('in the game: on a phone at 125% and 150% text every tip is three lines or fewer, with the Tip label kept for screen readers only', async () => {
+  it('in the game: on a phone every tip is two lines at most on screen, whole in the live region, with the Tip label kept for screen readers only at larger text', async () => {
     const worst = [];
-    for (const [w, h] of [[360, 640], [740, 360]]) {
-      for (const size of [125, 150]) {
+    for (const [w, h] of [[360, 640], [390, 844], [740, 360]]) {
+      for (const size of [100, 125, 150]) {
         const r = await rigUI({ width: w, height: h });
         try {
           r.ui.settings.set({ textSize: size, reducedMotion: 'on' });
-          setGuide(r.world, true);
-          r.world.guide.done = false;
-          let tallest = 0, tallestAt = 0;                                      // the tallest guide strip: each guided step in turn
-          GUIDE_GOALS.forEach((id, i) => {
-            r.world.goals.completed = GUIDE_GOALS.slice(0, i);
-            r.ui.refresh();
-            const bottom = r.root.querySelector('#goals').getBoundingClientRect().bottom;
-            if (bottom > tallest) { tallest = bottom; tallestAt = i; }
-          });
-          r.world.goals.completed = GUIDE_GOALS.slice(0, tallestAt);
-          r.ui.refresh();
           const settings = r.ui.settings;
           const clock = { t: 0 };
           const tips = createTips({ container: r.root.querySelector('#tip'), settings, now: () => clock.t });
+          document.body.dataset.guidance = 'tip';                              // as createUI names the row while a tip has it
           for (const tip of TIPS) {
             settings.set({ seenTips: [] });
             clock.t += 3600 * 1000;
@@ -431,12 +448,13 @@ describe('ui tips', () => {
             const row = r.root.querySelector('#tip .tip-row'), text = row.querySelector('.text'), label = row.querySelector('.label');
             const lineHeight = parseFloat(getComputedStyle(text).lineHeight);
             const lines = Math.round(text.getBoundingClientRect().height / lineHeight);
-            const cs = getComputedStyle(row);
-            const chrome = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((n, k) => n + parseFloat(cs[k]), 0);
-            if (lines > 3 || row.getBoundingClientRect().height - chrome > 3 * lineHeight + 1) worst.push(`${w}x${h} at ${size}%: ${tip.id} is ${lines} lines`);
-            expect(parseFloat(getComputedStyle(text).fontSize)).toBeLessThan(16 * size / 100);   // 14 px scaled, not the body size
-            expect(label.textContent).toBe(T.tip);                             // still in the live region
-            expect(label.getBoundingClientRect().width).toBeLessThan(2);       // but not on screen
+            if (lines > 2) worst.push(`${w}x${h} at ${size}%: ${tip.id} is ${lines} lines`);
+            expect(text.textContent).toBe(TIP_TEXT[tip.id]);                    // cut on screen at most, whole for screen readers (How to play lists it too)
+            if (size > 100) {
+              expect(parseFloat(getComputedStyle(text).fontSize)).toBeLessThan(16 * size / 100);   // 14 px scaled, not the body size
+              expect(label.textContent).toBe(T.tip);                           // still in the live region
+              expect(label.getBoundingClientRect().width).toBeLessThan(2);     // but not on screen
+            }
             expect(row.getBoundingClientRect().right).toBeLessThanOrEqual(w);
             expect(row.querySelector('.got-it').getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
             tips.dismiss();
@@ -446,90 +464,76 @@ describe('ui tips', () => {
     }
     expect(worst).toEqual([]);
   });
-  it('in the game: a tip closes itself after 15 s on a phone at 125% or 150% text, and nowhere else', async () => {
-    expect(TIP_AUTO_CLOSE_MS).toBe(15000);
-    for (const [w, h, size, closes] of [[360, 640, 125, true], [360, 640, 150, true], [740, 360, 125, true], [740, 360, 150, true], [360, 640, 100, false], [740, 360, 100, false], [1280, 800, 125, false], [1280, 800, 150, false]]) {
-      const r = await rigUI({ width: w, height: h });
+  it('in the game: a tip closes itself after 20 s of unpaused play on a phone, at any text size, and nowhere else', async () => {
+    expect(TIP_AUTO_CLOSE_MS).toBe(20000);
+    for (const [w, h, size, closes] of [[360, 640, 100, true], [360, 640, 150, true], [740, 360, 100, true], [740, 360, 125, true], [390, 844, 125, true], [1280, 800, 100, false], [1280, 800, 150, false]]) {
+      let t = 0;
+      const r = await rigUI({ width: w, height: h, now: () => t });
       const frames = quietFrames(r);                                           // frames a second apart, as the game draws them
       try {
         r.ui.settings.set({ textSize: size });
-        expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
+        t = TIP_FIRST_DELAY_MS;
+        r.world.speed = 1;                                                     // running (set directly: a speed command would count as an action)
+        expect(r.ui.tips.trigger('arrivals')).toBe(true);
         frames(TIP_AUTO_CLOSE_MS - 1000);
-        expect(r.ui.tips.current()).toBe('press_play');                        // not yet, anywhere
+        expect(r.ui.tips.current()).toBe('arrivals');                          // not yet, anywhere
         frames(1000);
-        expect(r.ui.tips.current()).toBe(closes ? null : 'press_play');
-        expect(r.ui.settings.get().seenTips).toEqual(['press_play']);          // closed or not, it stays seen
-        frames(10 * 60 * 1000);
-        expect(r.ui.tips.current()).toBe(closes ? null : 'press_play');
-        expect(document.body.classList.contains('nudge-play')).toBe(!closes);  // the test city has people: the Play ring goes with the tip
+        expect([w, size, r.ui.tips.current()]).toEqual([w, size, closes ? null : 'arrivals']);
+        expect(r.ui.settings.get().seenTips).toEqual(['arrivals']);            // closed or not, it stays seen
       } finally { r.cleanup(); }
     }
   });
-  it('in the game: a hidden tab never closes an unread tip, since only the frames drawn count towards its 15 s', async () => {
+  it('in the game: a paused game, a sheet over the tip or a hidden tab never closes a tip unread, since only unpaused frames with it on screen count', async () => {
     let t = 0;                                                                 // the page clock and the frame times agree, as in a browser
     const r = await rigUI({ width: 360, height: 640, now: () => t });
     r.renderer.renderFrame = () => {};
     const frameAt = (ms) => { t = ms; r.frame(t); };
     try {
-      r.ui.settings.set({ textSize: 150 });
-      frameAt(0);
-      expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
-      frameAt(1000); frameAt(2000);                                            // two seconds on screen
-      frameAt(2000 + 10 * 60 * 1000);                                          // then the tab is hidden for ten minutes: no frames, one late one
-      expect(r.ui.tips.current()).toBe('press_play');                          // that late frame counts a second, no more
-      for (let i = 0; i < 11; i++) frameAt(t + 1000);
-      expect(r.ui.tips.current()).toBe('press_play');                          // 14 s seen
+      frameAt(TIP_FIRST_DELAY_MS);
+      expect(r.ui.tips.trigger('arrivals')).toBe(true);
+      for (let i = 0; i < 60; i++) frameAt(t + 1000);                          // a minute paused
+      expect(r.ui.tips.current()).toBe('arrivals');
+      r.world.speed = 1;
+      frameAt(t + 1000); frameAt(t + 1000);                                    // two seconds running
+      frameAt(t + 10 * 60 * 1000);                                             // then the tab is hidden for ten minutes: no frames, one late one
+      expect(r.ui.tips.current()).toBe('arrivals');                            // that late frame counts a second, no more
+      r.store.set(openSheet(r.store.get(), 'summary'));
+      for (let i = 0; i < 60; i++) frameAt(t + 1000);                          // a minute running with a sheet over the tip
+      expect(r.ui.tips.current()).toBe('arrivals');
+      r.store.set(back(r.store.get()));
+      for (let i = 0; i < 16; i++) frameAt(t + 1000);
+      expect(r.ui.tips.current()).toBe('arrivals');                            // 19 s on screen and running
       frameAt(t + 1000);
-      expect(r.ui.tips.current()).toBe(null);                                  // 15 s seen: now it closes
+      expect(r.ui.tips.current()).toBe(null);                                  // 20 s: now it closes
     } finally { r.cleanup(); }
   });
-  it('in the game: once the Play tip has closed itself unread, the Play ring stays while the game is paused with plots and no family', async () => {
+  it('in the game: the Play tip stays while the game is paused, however long, and its ring with it until Play is pressed', async () => {
     const emptyPlots = () => { const w = uiWorld(); for (const h of housesOf(w)) { h.residents = 0; h.tier = 0; } return w; };
     const ring = () => document.body.classList.contains('nudge-play');
-    let r = await rigUI({ width: 360, height: 640, world: emptyPlots() });
-    let frames = quietFrames(r);
+    for (const [w, h] of [[360, 640], [844, 390]]) {
+      const r = await rigUI({ width: w, height: h, world: emptyPlots() });
+      const frames = quietFrames(r);
+      try {
+        r.ui.settings.set({ textSize: 150 });
+        expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
+        frames(5 * 60 * 1000);
+        expect([w, r.ui.tips.current(), ring()]).toEqual([w, 'press_play', true]);   // paused: no play time passes, so it never closes itself
+        r.ui.speedControl.set(1);
+        frames(1000);
+        expect([w, r.ui.tips.current(), ring()]).toEqual([w, null, false]);          // Play pressed: its condition cleared
+      } finally { r.cleanup(); }
+    }
+  });
+  it('in the game: Esc closes a tip on screen first, and goes Back after that', async () => {
+    const r = await rigUI({ width: 390, height: 844 });
     try {
-      r.ui.settings.set({ textSize: 125 });
       expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
-      frames(TIP_AUTO_CLOSE_MS);
-      expect(r.ui.tips.current()).toBe(null);                                  // closed itself, unread
-      expect(ring()).toBe(true);                                               // but Play still asks to be pressed
-      frames(5 * 60 * 1000);
-      expect(ring()).toBe(true);                                               // as long as nothing changes
-      r.ui.speedControl.set(1);
-      frames(1000);
-      expect(ring()).toBe(false);                                              // Play pressed: it goes
-      r.ui.speedControl.set(0);
-      frames(1000);
-      expect(ring()).toBe(false);                                              // and never comes back to nag
-    } finally { r.cleanup(); }
-    r = await rigUI({ width: 360, height: 640, world: emptyPlots() });
-    frames = quietFrames(r);
-    try {
-      r.ui.settings.set({ textSize: 150 });
-      r.ui.tips.trigger('plotsPaused');
-      frames(TIP_AUTO_CLOSE_MS);
-      expect(ring()).toBe(true);
-      housesOf(r.world)[0].residents = 2;                                      // a family arrived (as a day's arrivals would bring)
-      frames(1000);
-      expect(ring()).toBe(false);
-    } finally { r.cleanup(); }
-    r = await rigUI({ width: 360, height: 640, world: emptyPlots() });
-    frames = quietFrames(r);
-    try {
-      r.ui.settings.set({ textSize: 150 });
-      r.ui.tips.trigger('plotsPaused');
-      frames(2000);
-      r.ui.tips.dismiss();                                                     // read and closed with Got it: no ring held
-      frames(1000);
-      expect(ring()).toBe(false);
-      r.ui.settings.set({ seenTips: [] });
-      r.ui.tips.trigger('plotsPaused');
-      frames(TIP_AUTO_CLOSE_MS);
-      expect(ring()).toBe(true);
-      r.ui.settings.set({ help: 'off' });                                      // Help: Off silences it
-      frames(1000);
-      expect(ring()).toBe(false);
+      r.store.set({ dock: 'tray' });
+      fire(r.root, 'keydown', { key: 'Escape' });
+      expect([r.ui.tips.current(), r.store.get().dock]).toEqual([null, 'tray']);   // the tip went, the tray stayed
+      fire(r.root, 'keydown', { key: 'Escape' });
+      expect(r.store.get().dock === 'tray').toBe(false);                       // then Back closes the tray
+      expect(r.ui.settings.get().seenTips).toEqual(['press_play']);
     } finally { r.cleanup(); }
   });
   it('in the game: destroying the interface empties the tip row and the Play ring', async () => {

@@ -10,7 +10,7 @@ import { canPlace } from '../../src/sim/commands.js';
 import { houseStatus } from '../../src/sim/housing.js';
 import { desirabilityContributors } from '../../src/sim/desirability.js';
 import { removeBuilding } from '../../src/sim/world.js';
-import { select, openSheet } from '../../src/ui/modes.js';
+import { select, openSheet, back } from '../../src/ui/modes.js';
 import {
   T, NEED_NAMES, CAUSE_TEXT, FIRST_TEXT, ACHIEVEMENT_TEXT, DAILY_TEXT, CHAPTER_NAMES, TIP_TEXT,
   causeText, desirabilityText, contributorText, keepWarningText, goodName,
@@ -288,6 +288,8 @@ describe('ui house sheet for the economy', () => {
         home.tier = 5;
         r.store.set(select(r.store.get(), home.id));
         const want = seen.length ? merge : des;
+        expect(r.ui.tips.current()).toBe(null);                                // a phone: the tip waits while the sheet has the screen (spec 6.3)
+        r.store.set(back(r.store.get()));
         expect(r.ui.tips.current()).toBe(want.id);
         expect(r.root.querySelector('#tip .text').textContent).toBe(TIP_TEXT[want.id]);
       } finally { r.cleanup(); t = 0; }

@@ -17,6 +17,8 @@ import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.j
 import { mount, fire } from '../helpers/dom.js';
 import { rigUI } from '../helpers/uiWorld.js';
 import { measureRows } from '../../src/dev/scenes.js';
+import { freeTop } from '../../src/ui/layout.js';
+import { showNotice, noticeText } from '../../src/ui/installUi.js';
 
 // The sheets on their own, with a road along y = 10 and Show me recorded instead of acted on.
 function rig() {
@@ -408,21 +410,23 @@ describe('ui house sheet why', () => {
   // over, the frame keeps that much room above the sheet (the building stays clear of the sheet, though the rows may
   // cover it until the guidance row steps aside).
   it('View keeps the building above the sheet when the rows leave too little room', async () => {
+    // With a sheet open a phone keeps only the alert row (ruling 168), so the rows rarely reach this far: here the
+    // in-app browser's notice (spec 4.17, the first row under the top bar) joins the banner at 150% text.
     const r = await rigUI({ width: 375, height: 667 });
     try {
       r.ui.settings.set({ textSize: 150, reducedMotion: 'on' });
-      r.world.gold = -30;                                                       // debt: the critical banner joins the goals strip
+      r.world.gold = -30;                                                       // debt: the critical banner
       const bazaar = addRaw(r.world, 'bazaar', 20, 5);
+      showNotice(r.root.querySelector('#notice'), noticeText('chrome'));
       r.ui.refresh();
       expect(r.root.querySelector('#banner .critical')).toBeTruthy();
-      const before = measureRows(r.root).rowsEnd;
-      expect(before).toBeGreaterThan(667 * 0.4 - 96);                           // the rows leave less than 96 px above the sheet
       r.store.set(openSheet(r.store.get(), 'minimap'));
       const i = criticalFirst(r.ui.alerts.list()).findIndex((a) => a.id === bazaar.id);   // a phone lists the criticals first (ruling 167)
       fire(r.root.querySelectorAll('#sheet .alert-list .view')[i], 'click');
       expect(r.store.get().sheet).toEqual({ kind: 'info', id: bazaar.id });
+      expect(freeTop(r.root, r.canvas, 'portrait')).toBeGreaterThan(667 * 0.4 - 96);   // the rows leave less than 96 px above the sheet
       const centre = r.screenOf(21, 6);
       expect(Math.abs(centre.y - (667 * 0.4 - 48)) < 1).toBe(true);             // as low as the margin allows, never behind the sheet
-    } finally { r.cleanup(); }
+    } finally { showNotice(r.root.querySelector('#notice'), null); r.cleanup(); }
   });
 });
