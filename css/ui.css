@@ -195,7 +195,11 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .toast { pointer-even
 #dialog { position: fixed; inset: 0; background: rgba(43, 31, 14, 0.45); display: flex; align-items: center; justify-content: center; }
 #dialog .box { background: var(--parchment); border-radius: var(--radius); padding: 16px; max-width: 360px; width: calc(100% - 32px); box-shadow: var(--shadow); }
 #dialog .buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 12px; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* Motion (spec 5.4, ruling 247): the interface follows the Motion setting, not the device. settings.js writes data-motion
+   on the root: under Gentle and Still the chrome's transitions and animations are instant; Full keeps them even on a device
+   that asks for less motion. Only before the settings apply (no data-motion yet) does the device's request decide. */
+[data-motion="gentle"] *, [data-motion="still"] * { transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion: reduce) { body:not([data-motion]) * { transition: none !important; animation: none !important; } }
 /* The confirm bar replaces the dock while a tool is active and never tucks (spec 6.4). */
 #confirm { position: fixed; z-index: 3; }
 body[data-layout="portrait"] #confirm { left: 0; right: 0; bottom: 0; }
@@ -835,6 +839,37 @@ body[data-layout="portrait"] #legend .fire-keys .never-burn { position: absolute
 
 /* ── s4 look (Track H) ── Track H's own new rules (the frieze, cartouches, gold-on-lapis primary buttons, fibre,
    ornaments) beside its edits to the base above the s3 sections. */
+/* The frieze (spec 6.9): blocks of lapis, gold, terracotta and turquoise parted by ink, on an ink line; 4 px in all. The
+   title card's one glyph: an ankh in lapis. */
+:root {
+  --look-frieze: linear-gradient(var(--ink), var(--ink)) 0 100% / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--lapis) 0 11px, var(--ink) 11px 12px, var(--gold) 12px 23px, var(--ink) 23px 24px, var(--terracotta) 24px 35px, var(--ink) 35px 36px, var(--turquoise) 36px 47px, var(--ink) 47px 48px);
+  --look-ankh: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 24'%3E%3Cg fill='none' stroke='%231C3768' stroke-width='2.4' stroke-linecap='round'%3E%3Cellipse cx='8' cy='6' rx='3.6' ry='4.6'/%3E%3Cpath d='M1.5 12.5h13M8 11v11.5'/%3E%3C/g%3E%3C/svg%3E");
+}
+/* Along the top bar's lower edge and each sheet's head: over the 1 px border and 3 px inside it, so neither grows. Both
+   boxes make their own stacking context (fixed; sticky with a z-index), so z-index -1 lays the frieze over their papyrus
+   and under their buttons: a 44 px button that reaches the edge keeps its own outline. */
+#topbar::after, #sheet .head::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; z-index: -1; background: var(--look-frieze); pointer-events: none; }
+.title-card { position: relative; }
+.title-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--look-frieze); pointer-events: none; }   /* in the card's top padding */
+/* Cartouches (spec 6.9; the controller's ruling 18): a sheet's title and the city's name, and only those, sit in a
+   cartouche in the serif display face: an outline of soft ink, round at the start and drawn in at the tie's end, where
+   the tie (a bar across the end, a little taller than the outline) joins it, so the two read as one shape. Body text
+   stays the system sans. The outline is an inset shadow and the tie is absolute, so neither takes room: a title that
+   wraps grows the head no more than it did. The sheet's title hugs its words (the ✕ keeps the far end); the name fits
+   a 375 px phone at 150% text. */
+#sheet .head h2 { flex: 0 1 auto; min-width: 0; margin-right: auto; position: relative; padding: 0 14px; border-radius: 0.75em 0.3em 0.3em 0.75em; box-shadow: inset 0 0 0 1.5px var(--ink-soft); font-family: var(--serif); letter-spacing: 0.02em; }
+.title-card h1 { align-self: center; position: relative; display: inline-flex; align-items: center; gap: 0.25em; padding: 0 0.6em 0 0.5em; border-radius: 0.75em 0.3em 0.3em 0.75em; box-shadow: inset 0 0 0 2px var(--ink); font-family: var(--serif); letter-spacing: 0.06em; }
+#sheet .head h2::after, .title-card h1::after { content: ''; position: absolute; border-radius: 1px; pointer-events: none; }
+#sheet .head h2::after { right: -1.5px; top: -2px; bottom: -2px; width: 3px; background: var(--ink-soft); }   /* over the outline's last 1.5 px and 1.5 px beyond it */
+.title-card h1::after { right: -2px; top: -3px; bottom: -3px; width: 4px; background: var(--ink); }
+/* A section's title ("Stock", "Employment") is quieter: the serif face at a normal weight with a thin ink rule running
+   from its words to the end of the row, no cartouche. It gains 14 px of margin (10 above, 4 below). */
+#sheet h3 { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; font-family: var(--serif); font-weight: 400; font-size: calc(17px * var(--ui-scale)); letter-spacing: 0.02em; }
+#sheet h3::after { content: ''; flex: 1 1 0; min-width: 24px; height: 1px; background: var(--ink-line); pointer-events: none; }
+/* The title card's one glyph, inside the cartouche before the name: empty generated content, so a screen reader meets only
+   "Thebes"; a sheet's head has none (at most one, spec 6.9). */
+.title-card h1::before { content: ''; flex: none; width: 0.5em; height: 0.75em; background: var(--look-ankh) center / contain no-repeat; }
 /* ── end s4 look ── */
 
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
