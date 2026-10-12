@@ -48,7 +48,7 @@ import { freeTop } from '../ui/layout.js';
 import { placeName } from '../ui/danger.js';
 import { T, DANGER_UI_TEXT, CITIZEN_REMARKS, plotsPlacedText } from '../ui/text.js';
 import { makeBuilding, insertBuilding } from '../sim/world.js';   // Track B's monument scenes
-import { MONUMENTS } from '../data/monuments.js';
+import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { tutorialScene } from './tutorialScenes.js';
 
@@ -676,7 +676,8 @@ async function sitesheet(api) {
   const b = world.buildings[site.id];
   Object.assign(b.site, {
     course: 3, laid: { stone: 408, bricks: 72 }, stock: { stone: 46, bricks: 0 }, crews: guilds, idle: 3, reason: 'no_bricks',
-    last: { units: 40, gold: 200, crews: guilds.length },
+    // last month as the sim would pay it: a full crew-month each, at the work gold (130 a crew on Normal)
+    last: { units: MONUMENT.unitsPerCrewMonth * guilds.length, gold: MONUMENT.unitsPerCrewMonth * guilds.length * MONUMENT.goldPerUnit, crews: guilds.length },
   });
   assignLabour(world);
   ui.refresh();
