@@ -777,7 +777,7 @@ The city breathes: slow, small, out-of-step motion over the landscape. Terrain i
 ### 6.1 Principles
 
 - **Things you read sit at the top, things you tap sit at the bottom** (or in the side panel on wide screens).
-- **Nothing floats over the middle of the map.** Corner buttons are fine. On phones the middle third of the map never holds text (section 6.3, Small phones).
+- **Nothing floats over the middle of the map.** Corner buttons are fine. On phones the rows of text under the top bar never reach the middle of the screen: they end by 40% of its height (section 6.3, Small phones).
 - **One panel open at a time.**
 - **Every mode has a visible exit.** ✕, Back, Esc and right-click all go back one step.
 - **Meaning is never carried by colour alone.**
@@ -796,7 +796,7 @@ The layout depends on the available space; controls depend on the input in use (
   - a details card for the selected or hovered item, with ✕ and ✓ when placing on touch
 
   It can fold to a thin strip. The top bar shows more: income per month, jobless, months of food, mood, full date and speed buttons.
-- **Compact landscape layout** (every other viewport: wider than tall, but under 900 × 520 px). Used on phones held sideways and small tablets: a slim **vertical rail on the right** with category icons, trays opening as a side drawer, ✕ and ✓ at the bottom of the rail (hidden while the confirm bar shows its own), and a condensed top bar.
+- **Compact landscape layout** (every other viewport: wider than tall, but under 900 × 520 px). Used on phones held sideways and small tablets: a slim **vertical rail on the right** with category icons, trays opening as a side drawer (while a tool is active the confirm bar beside the rail holds ✕ and ✓; the rail has none of its own), and a condensed top bar.
 - **Rotating** keeps the camera position and any placement in progress.
 
 ### 6.3 Screen elements

@@ -191,7 +191,7 @@ Read at the top, tap at the bottom (spec 6.1). The middle third of the map never
 7. **Chip wording "2 months" not "2 m 0 d"** (2.2). Small, tiny.
 8. **Top bar at 150% in portrait wraps to two rows** (`raid-375x667-t150.png`, 0-11%). Medium, medium: on phones at 150% drop the four small word labels to icons with the same accessible names, so the numbers fit one row. Saves about 4% of the height.
 9. **Score chip** placed in the numbers' flow in landscape, and hidden until the city has people. Small, small.
-10. **Check on a real phone** what headless cannot: the notch in landscape (Play corner and rows use `--safe-left`), the home bar under the confirm bar, and Back on Android closing the raid sheet before leaving the game.
+10. **Check on a real phone** what headless cannot: the notch in landscape (Play corner and rows use `--safe-left`), the home bar under the confirm bar, and Back on Android closing the raid sheet before leaving the game. Added by the final review: the two-line cut with "…" on the phone banner's chip, a `<button>` styled `-webkit-box` with `line-clamp` (Safari and Firefox may change a button's display), and the 150% top bar's glyphs (☥ for people reads like ♀ at that size, and ☺ may draw as a colour emoji on iOS).
 
 Not recommended now: moving Show me and the banner's buttons to the bottom for thumb reach. They sit beside the words they act on, they are occasional taps, and moving them would split each notice in two.
 

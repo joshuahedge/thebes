@@ -22,7 +22,7 @@ import { pickLayout, watchLayout, freeTop, cornersHeight, TOPBAR_PX } from './la
 import { createBackStack } from './backstack.js';
 import { createSettings } from './settings.js';
 import { createSfx } from '../audio/sfx.js';
-import { createCameraControl } from './cameraControl.js';
+import { createCameraControl, FRAME_MARGIN_PX } from './cameraControl.js';
 import { createMapInput } from './input.js';
 import { createKeyboard } from './keyboard.js';
 import { pickBuilding } from './pick.js';
@@ -59,7 +59,6 @@ import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIE
 
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
-const FRAME_MARGIN_PX = 48;           // the camera's margin inside the free map (cameraControl's keepVisible)
 
 export function createUI({
   world, canvas, cam, renderer,
