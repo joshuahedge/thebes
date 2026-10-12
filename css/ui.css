@@ -163,7 +163,7 @@ body { --toast-lift: calc(64px + 20px * (var(--ui-scale) - 1)); }
 body[data-dock="tray"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tray) + var(--toast-lift)); }
 body[data-dock="tucked"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + var(--toast-lift)); }
 body[data-layout="wide"] #toasts { bottom: 24px; left: calc(50% - var(--panel-w) / 2); }
-body[data-layout="compact"] #toasts { bottom: var(--toast-lift); }
+body[data-layout="compact"] #toasts { bottom: calc(var(--safe-bottom) + var(--toast-lift)); }   /* the compact corners sit on the home-bar inset too */
 /* On a phone a toast may use the screen's width, up to 420 px, with 16 px at each side (ruling 169); the old half-screen box made
    it wrap a word a line at larger text. The sides run to the screen edge, or in compact to the rail; the same sets as the corners
    keep it clear of the card drawer, the confirm bar and a sheet. margin: auto centres the toast box when 420 px is narrower. */
@@ -172,6 +172,10 @@ body[data-layout="compact"] #toasts { right: calc(var(--rail-w) + var(--safe-rig
 body[data-layout="compact"]:has(#confirm:not([hidden])) #toasts, body[data-layout="compact"]:has(#sheet:not([hidden])) #toasts { right: calc(var(--rail-w) + var(--drawer-w) + var(--safe-right) + 16px); }
 body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #toasts { right: calc(var(--rail-w) + var(--drawer-w) + 17px + var(--safe-right) + 16px); }
 body[data-layout="portrait"] .toast, body[data-layout="compact"] .toast { max-width: 100%; box-sizing: border-box; }
+/* The phone container is as wide as the screen allows, far wider than a short toast: only the toast takes taps, so the map
+   beside it still does (the column is otherwise an invisible strip over the tiles the player is placing on). */
+body:is([data-layout="portrait"], [data-layout="compact"]) #toasts { pointer-events: none; }
+body:is([data-layout="portrait"], [data-layout="compact"]) .toast { pointer-events: auto; }
 .toast { background: var(--ink); color: var(--parchment); border-radius: var(--radius); padding: 6px 8px 6px 14px; display: flex; gap: 12px; align-items: center; box-shadow: var(--shadow); }
 .toast button { min-height: var(--tap); background: transparent; color: var(--gold); border: none; font-weight: 600; }
 .toast button:focus-visible { outline-color: var(--gold); }

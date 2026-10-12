@@ -841,7 +841,7 @@ The layout depends on the available space; controls depend on the input in use (
     - **A tool active** (placing, drawing, demolishing): the guidance row shows the goal or a caption, and tips wait.
     - **Captions** show one at a time, 3 s apart: **4 s** for goals, firsts, feats and remarks, **5 s** for milestones and **6 s** for info. At most two wait; an older one goes straight to **Recent**. Every caption is also written to Recent, the last 10, in the Goals sheet. While a banner is up only info captions show; the rest go to Recent. A goal caption reads as the strip itself changing ("✓ Lay a road · +25 gold", then "2 of 10 Place 6 housing plots").
     - **Tips** show one at a time. A tip takes the guidance row in place of the goal, and closes on **Got it**, on Esc, when its condition clears, or after **20 s of unpaused play** (so a paused game keeps it). While the game is paused a tip other than the Play tip waits, so a new player laying the first road while paused keeps the goal and Show me in sight; it shows once Play is pressed (a tip already up stays). The caps stay: none in the first 10 s of a session, at least 3 min between two, at most 5 an hour. A tip whose words are about the sheet or overlay that brought it (the house sheet's needs, the overlay's dot and ring) never waits, since its words would be false once that has closed: while the sheet or the legend has the row it is dropped unseen, and it can come again the next time. Tips are always listed in How to play.
-    - **Toasts** show one at a time (the newest replaces the last), as wide as the screen allows up to **420 px** with 16 px sides, above the corner buttons: 4 s, or 6 s with Undo. Undo always undoes the last action, and also works from the confirm bar and with Ctrl+Z.
+    - **Toasts** show one at a time (the newest replaces the last), as wide as the screen allows up to **420 px** with 16 px sides, above the corner buttons: 4 s, or 6 s with Undo. Undo always undoes the last action, and also works from the confirm bar and with Ctrl+Z. Only the toast takes taps; the map beside it still does. The **Update ready** toast is the exception: it stays beside the newest toast, with its Restart, until Restart is used or its ✕ closes it.
     - **Height budget** (where the rows under the top bar end, as a share of the screen height; this is what the tests hold):
 
     | Screen | Text | Rows end by | With a sheet open |
@@ -865,7 +865,7 @@ The layout depends on the available space; controls depend on the input in use (
   - **Actions:** Pause, Demolish, and Rotate where it applies.
 - **☰ menu:** Continue, New city, Export city, Import city, Settings, How to play (goal history and short explanations), **Screenshot mode** (section 4.19), About.
   - **Settings:** sound, vibration, text size, left-handed controls (mirrors ✕ and ✓ and the corner buttons), keyboard shortcuts on or off, reduced motion (follows the system by default), **On a fire: Pause / Go to it / Just tell me** (default Just tell me, section 4.3), and **Ambient motion: On / Off** (section 5.6).
-- **"Update ready" toast:** appears only when no placement or raid is in progress. It saves first, then reloads.
+- **"Update ready" toast:** appears only when no placement or raid is in progress. It saves first, then reloads. On a wide screen it lasts 20 s; on a phone it stays until Restart or ✕ (section 6.3, Small phones). Either way, an update not taken is offered again the next time the game opens.
 
 ### 6.4 Modes
 
