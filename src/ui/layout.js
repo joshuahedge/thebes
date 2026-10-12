@@ -63,6 +63,14 @@ export function cornersHeight(root, map, height) {
   return Math.max(0, height - (Math.min(...shown.map((r) => r.top)) - map.getBoundingClientRect().top));
 }
 
+// Where the corner buttons end, in CSS px from the map's top (0 when none show): the free map between them and the dock.
+export function cornersBottom(root, map) {
+  if (!measurable(root, map)) return 0;
+  const shown = boxes([...root.querySelectorAll('#corners .group')]);
+  if (!shown.length) return 0;
+  return Math.max(0, Math.max(...shown.map((r) => r.bottom)) - map.getBoundingClientRect().top);
+}
+
 const measurable = (root, map) => Boolean(root && map && typeof map.getBoundingClientRect === 'function');
 
 // The boxes of the nodes that show (an empty caption or tip row is a 1 px dot; hidden corners keep their box).

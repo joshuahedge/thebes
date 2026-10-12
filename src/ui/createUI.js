@@ -11,18 +11,19 @@ import { setGuide } from '../sim/commands.js';
 import { checkFirsts } from '../sim/firsts.js';
 import { checkAchievements } from '../sim/achievements.js';
 import { allBuildings } from '../sim/world.js';
-import { screenToTile, visibleTileRange } from '../render/camera.js';
+import { screenToTile, visibleTileRange, pxPerArt } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
 import { select, deselect, cancelTool, back, openSheet, closeSheet, setDock, isToolMode, pickCategory, enterScreenshot } from './modes.js';
-import { pickLayout, watchLayout, freeTop, cornersHeight, TOPBAR_PX } from './layout.js';
+import { pickLayout, watchLayout, freeTop, cornersHeight, cornersBottom, TOPBAR_PX } from './layout.js';
 import { createBackStack } from './backstack.js';
 import { createSettings } from './settings.js';
 import { createSfx } from '../audio/sfx.js';
 import { createCameraControl, FRAME_MARGIN_PX } from './cameraControl.js';
+import { ART } from '../render/art/registry.js';
 import { createMapInput } from './input.js';
 import { createKeyboard } from './keyboard.js';
 import { pickBuilding } from './pick.js';
@@ -59,6 +60,7 @@ import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIE
 
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
+const LEAVE_MARGIN_PX = 8;           // the margin a new building keeps inside the phone's narrow free band when the tool ends (the camera's usual 48 is wider than the band at 150% text)
 
 export function createUI({
   world, canvas, cam, renderer,
@@ -302,18 +304,39 @@ export function createUI({
       store.set(cancelTool(store.get()));
       if (before.tool.kind === 'building' && before.ghost) {
         const def = BUILDINGS[before.tool.type];
-        cameraControl.keepVisible(before.ghost.x + def.w / 2, before.ghost.y + def.d / 2, leaveInsets(store.get()));
+        // The whole drawn building is kept in the free band, not just its ground: it rises above the tile's centre by its height
+        // plus the back half of its footprint (iso.js p(): the sprite's origin is the footprint's back corner) and drops by
+        // the front half. A phone's band is narrow (the legend above, the toast and corners below), so the margin is small.
+        const art = ART[before.tool.type];
+        const extent = { up: (art ? art.height : 0) + 4 * (def.w + def.d), down: 4 * (def.w + def.d) };
+        const portrait = store.get().layout === 'portrait';
+        const margin = portrait ? LEAVE_MARGIN_PX : FRAME_MARGIN_PX;
+        const need = (extent.up + extent.down) * pxPerArt(cam) + 2 * margin;
+        cameraControl.keepVisible(before.ghost.x + def.w / 2, before.ghost.y + def.d / 2, leaveInsets(store.get(), need), margin, undefined, extent);
       }
     }
     return r;
   }
   // The map the dock leaves free once the tool has ended: the corner buttons ride on the dock, so their top is its edge, and
-  // the "placed · Undo" toast sits on them, so the building is kept clear of that too.
-  function leaveInsets(s) {
+  // the "placed · Undo" toast sits on them, so the building is kept clear of that too. The top is the rows under the top bar
+  // (the overlay legend stays on), not capped the way a sheet's is: the new building must not end up behind them. At large
+  // text the rows above and the toast leave a band shorter than the building (`need` px). The legend stays but the toast
+  // goes in 6 s, and under the corner buttons the dock can leave free map of its own, so then the building goes where it
+  // is clear of everything: the band between the corner buttons and the dock when that is tall enough, else the band
+  // between the legend and the corners (the toast may then hide it for those 6 s).
+  function leaveInsets(s, need = 0) {
     const i = sheetInsets(s);
     if (s.layout !== 'portrait') return i;
+    const h = view().height;
+    const top = Math.max(TOPBAR_PX, freeTop(root, canvas, s.layout));
+    const corners = cornersHeight(root, canvas, h) || placingInsets(s).bottom;
     const toast = $('toasts') ? $('toasts').getBoundingClientRect().height : 0;
-    return { ...i, bottom: (cornersHeight(root, canvas, view().height) || placingInsets(s).bottom) + (toast > 0 ? toast + 8 : 0) };
+    const withToast = corners + (toast > 0 ? toast + 8 : 0);
+    if (h - top - withToast >= need) return { ...i, top, bottom: withToast };
+    const dock = $('dock') ? $('dock').getBoundingClientRect().top - canvas.getBoundingClientRect().top : 0;
+    const under = cornersBottom(root, canvas);
+    if (dock > 0 && under > 0 && dock - under >= need) return { ...i, top: under, bottom: h - dock };
+    return { ...i, top, bottom: corners };
   }
   function undo() {
     if (!placement.canUndo()) return;

@@ -111,6 +111,37 @@ describe('ui createUI', () => {
       expect(r.screenOf(5.5, 9.5).y < tray).toBe(true);
       r.cleanup();
     });
+    // A phone 375x667 at 150% text: the legend (water, left on) ends near 130 px, the toast spans 189-245 and the corner buttons
+    // end near 312, so the band above the toast cannot hold a well (68 px drawn). Returns where the well's roof and ground end.
+    async function leaveNarrow(dockHeight) {
+      const r = await rigUI({ width: 375, height: 667 });
+      r.ui.settings.set({ textSize: 150, reducedMotion: 'on' });
+      if (dockHeight) r.root.querySelector('#dock').style.height = `${dockHeight}px`;   // a shorter tray leaves free map under the corner buttons
+      fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
+      fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click');
+      r.frame(0);
+      const ok = r.root.querySelector('#confirm .ok');
+      const g = r.store.get().ghost;
+      fire(ok, 'pointerdown', { pointerType: 'touch' }); fire(ok, 'click');
+      r.ui.cameraControl.tick(1e6);
+      const k = 2 * r.cam.zoom, well = r.screenOf(g.x + 0.5, g.y + 0.5);
+      const rect = (sel) => r.root.querySelector(sel).getBoundingClientRect();
+      const out = { roof: well.y - (18 + 8) * k, ground: well.y + 8 * k, legend: rect('#legend'), dock: rect('#dock').top, toast: rect('#toasts .toast') };
+      r.cleanup();
+      return out;
+    }
+    it('keeps the new building clear of the overlay legend at 375x667 and 150% text, where the free band is narrow', async () => {
+      const o = await leaveNarrow(0);
+      expect(o.legend.height > 0).toBe(true);                                    // the water legend stays on after the tool ends
+      expect(o.roof >= o.legend.bottom).toBe(true);                             // the well's roof (height 18 plus its back half-footprint) is not behind the legend
+      expect(o.ground <= o.dock).toBe(true);
+    });
+    it('puts it in the free map under the corner buttons when the band above the toast is too short, so the toast does not hide it either', async () => {
+      const o = await leaveNarrow(200);
+      expect(o.roof >= o.legend.bottom).toBe(true);
+      expect(o.ground <= o.dock).toBe(true);
+      expect(o.ground <= o.toast.top || o.roof >= o.toast.bottom).toBe(true);
+    });
     it('puts the toast just above the bar while a tool is on', async () => {
       const r = await rigUI();
       fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
