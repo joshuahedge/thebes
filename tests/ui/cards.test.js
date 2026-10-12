@@ -9,7 +9,7 @@ describe('ui cards', () => {
   it('describes every item with its cost and state', () => {
     // the treasury may run to the debt floor (-500): a 30-gold well still fits, a 120-gold temple does not
     const w = makeTestWorld({ gold: -400 });
-    expect(cardInfo(w, 'well')).toEqual({ item: 'well', name: 'Well', cost: BUILDINGS.well.cost, costText: `${BUILDINGS.well.cost} gold`, affordable: true, locked: false, lockText: '', isNew: false });
+    expect(cardInfo(w, 'well')).toEqual({ item: 'well', name: 'Well', cost: BUILDINGS.well.cost, costText: `${BUILDINGS.well.cost} gold`, affordable: true, locked: false, lockText: '', isNew: false, terrainText: '' });
     expect(cardInfo(w, 'temple').affordable).toBe(false);
     expect(cardInfo(w, 'road').costText).toBe(`${ECONOMY.roadCost} gold per tile`);
     expect(cardInfo(w, 'house').costText).toBe(`${BUILDINGS.house.cost} gold per plot`);
@@ -17,6 +17,18 @@ describe('ui cards', () => {
     expect(activeItemOf({ kind: 'building', type: 'temple' })).toBe('temple');
     expect(activeItemOf({ kind: 'houses' })).toBe('house');
     expect(activeItemOf(null)).toBe(null);
+  });
+  it('says what ground a farm or a mine needs on its card, and nothing on any other card (placement review P15)', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    expect(['farm_grain', 'farm_fig', 'farm_barley', 'farm_flax'].map((t) => cardInfo(w, t).terrainText)).toEqual(Array(4).fill('Fertile land'));
+    expect(cardInfo(w, 'gem_mine').terrainText).toBe('Rocky ground');
+    expect(['well', 'granary', 'road', 'house', 'demolish', 'clay_pit'].map((t) => cardInfo(w, t).terrainText)).toEqual(Array(6).fill(''));
+    const { root, cleanup } = mount();
+    renderCards(root, { world: w, category: 'food', activeItem: null, onPick: () => {} });
+    const farm = root.querySelector('.card[data-item="farm_grain"]');
+    expect(farm.querySelector('.terrain').textContent).toBe('Fertile land');
+    expect(root.querySelector('.card[data-item="granary"] .terrain')).toBe(null);
+    cleanup();
   });
   it('renders a category as labelled card buttons and reports picks', () => {
     const { root, cleanup } = mount();

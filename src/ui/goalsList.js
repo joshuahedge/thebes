@@ -10,13 +10,14 @@ import { DAILY_REWARD } from '../data/daily.js';
 import { FOUNDED } from '../data/goals.js';
 import { MILESTONES } from '../data/progression.js';
 import { MEDALS } from '../data/scoring.js';
-import { openGoals, goalProgress, guideActive, chainGoals, openingProgress } from '../sim/goals.js';
+import { openGoals, goalProgress, guideActive, chainGoals, openingProgress, nextItemFor } from '../sim/goals.js';
 import { milestoneIndex } from '../sim/progression.js';
 import { scoreOf } from '../sim/score.js';
 import { dailyProgress, swapDaily } from '../sim/daily.js';
 import { alertsFor } from '../sim/alerts.js';
 import { housesOf, population } from '../sim/world.js';
 import { TERRAIN_BY_NAME } from '../sim/terrain.js';
+import { BUILDINGS } from '../data/buildings.js';
 import { el, button, clear, setText } from './components.js';
 import { isCut, writeMore } from './expand.js';
 import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, cheerReward, progressText, progressLabel, dailyDoneText, swapLabel, showMeLabel, goalWordsLabel, thresholdMilestoneText, thresholdMedalText } from './text.js';
@@ -46,7 +47,9 @@ export function nearestTerrainTile(world, terrain, from) {
 }
 
 // Where a goal's Show me points. 'alert' aims at the first building with that alert (an event goal's trouble; code can
-// be a list); 'rocky' at the free rocky tile nearest the city's focus (a gem mine needs rocky ground, as canPlace checks);
+// be a list); 'fertile' and 'rocky' at the free tile of that ground nearest the city's focus (a farm needs fertile land and a
+// gem mine rocky ground, as canPlace checks), while the building Show me opens next needs that ground, else at the focus (a
+// granary beside the farm goes with the town, not the fields);
 // 'raid' (Stage 3) at the homes' side facing a warned or arriving raid, RAID_SHOW_ME_TILES from their centre towards
 // its entry, else at the homes; a goal with no showMe (out of debt) and any target that finds nothing fall back to the
 // city's focus.
@@ -81,9 +84,12 @@ export function showMeTarget(world, goal, alerts = null) {
       return { x: sx / homes.length, y: sy / homes.length };
     }
   }
-  if (kind === 'rocky') {
-    const best = nearestTerrainTile(world, 'rocky', world.focus);
-    if (best) return best;
+  if (kind === 'fertile' || kind === 'rocky') {
+    const item = nextItemFor(world, goal) || show.item;
+    if (BUILDINGS[item] && BUILDINGS[item].terrain === kind) {
+      const best = nearestTerrainTile(world, kind, world.focus);
+      if (best) return best;
+    }
   }
   return { x: world.focus.x, y: world.focus.y };
 }

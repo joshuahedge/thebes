@@ -209,6 +209,60 @@ export function warningText(code, type = null) {
   return WARNINGS[code] || "Won't work yet";
 }
 
+// The placing preview's conditions (placement review P9, src/sim/commands.js conditionsFor): one chip each in the confirm
+// bar, with a mark and words so the colour never says it alone. met, later (it can be placed, it will not work until this
+// is met) and cant (it cannot be placed).
+export const CONDITION_MARKS = { met: '✓', later: '!', cant: '✕' };
+export const CONDITION_STATE_WORDS = { met: 'Met', later: 'Not yet', cant: "Can't" };
+const TERRAIN_WORDS = { fertile: 'Fertile land', rocky: 'Rocky ground' };
+export const CONDITION_TEXT = {
+  group: 'Conditions',
+  free: 'Free ground',
+  terrain: (terrain) => TERRAIN_WORDS[terrain] || 'Free ground',
+  terrainCount: (terrain, fit, of) => `${TERRAIN_WORDS[terrain] || 'Free ground'}: ${fit} of ${of} tiles`,
+  taken: 'Ground taken',
+  water: 'Water here',
+  offMap: 'Off the map',
+  roadMet: 'Road beside it',
+  roadLater: 'No road yet',
+  roadCant: 'Must touch a road',
+  roadHint: 'No road yet: draw one on a marked tile',
+  suppliedMet: 'Supplied',
+  goldShort: (cost, have) => `Not enough gold: ${cost} needed, you have ${have}`,
+  placedNoRoad: 'needs a road',
+  onTerrain: { fertile: 'On fertile land', rocky: 'On rocky ground' },
+  // A building with this terrain in its definition: "On fertile land" for a tooltip, "Fertile land" (the chip's words, short enough
+  // for a card at 150% text) for a card; '' for any other.
+  terrainLine: (type, short = false) => (BUILDINGS[type] && BUILDINGS[type].terrain ? (short ? TERRAIN_WORDS[BUILDINGS[type].terrain] : CONDITION_TEXT.onTerrain[BUILDINGS[type].terrain]) || '' : ''),
+};
+
+// One condition's words for its chip. cond is a conditionsFor condition; refused says a store in reach is built to hold the good
+// but turns it away (the placing preview works that out). Never invents a state: each sentence is the sim's own reason.
+export function conditionText(cond, type, { refused = false } = {}) {
+  const C = CONDITION_TEXT;
+  const def = BUILDINGS[type];
+  if (cond.key === 'ground') {
+    if (cond.state === 'met') return def && def.terrain ? C.terrain(def.terrain) : C.free;
+    if (cond.reason === 'needs_fertile' || cond.reason === 'needs_rocky') return C.terrainCount(cond.terrain, cond.fit, cond.of);
+    if (cond.reason === 'occupied') return C.taken;
+    if (cond.reason === 'water') return C.water;
+    if (cond.reason === 'out_of_bounds') return C.offMap;
+    return reasonText(cond.reason);
+  }
+  if (cond.key === 'road') return cond.state === 'met' ? C.roadMet : cond.state === 'later' ? C.roadLater : C.roadCant;
+  if (cond.key === 'works') {
+    if (cond.reason === 'no_storage' && def && def.produces) {
+      const store = buildingName(storeFor(def.produces.good)).toLowerCase();
+      return refused ? `No ${store} takes ${goodWord(def.produces.good)}` : `No ${store} near`;
+    }
+    if (cond.reason === 'no_supply') return WARNINGS.no_supply;
+    if (cond.state === 'met' && def && def.produces) return `${buildingName(storeFor(def.produces.good))} near`;
+    return cond.state === 'met' ? C.suppliedMet : "Won't work yet";
+  }
+  if (cond.key === 'gold') return C.goldShort(cond.cost, cond.have);
+  return '';
+}
+
 // What a service will do from the ghost's spot (early-game pass 2.6), counted by homesServedFrom.
 const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}`, booth: (homes) => `Entertains ${homes}` };
 export function effectText(type, n) {

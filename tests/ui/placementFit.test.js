@@ -8,6 +8,7 @@ import { BUILDINGS } from '../../src/data/buildings.js';
 import { NEAREST_FIT_RADIUS } from '../../src/data/ui.js';
 import { screenToTile, tileToScreen } from '../../src/render/camera.js';
 import { effectText, warningText, T } from '../../src/ui/text.js';
+import { T as TERRAIN } from '../../src/sim/terrain.js';
 import { removeBuilding } from '../../src/sim/world.js';
 import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
 import { uiWorld, rigUI } from '../helpers/uiWorld.js';
@@ -36,6 +37,32 @@ describe('ui placement fit', () => {
     expect(nearestFit(w, WELL, 30, 30, 3)).toEqual({ x: 30, y: 30 });          // nothing within three tiles: the snapped point, so the bar says why
     expect(nearestFit(w, WELL, 40, -2, 2)).toEqual({ x: 31, y: 0 });           // snapped onto the map first
     expect(nearestFit(w, { kind: 'road' }, 4.6, 7.2)).toEqual({ x: 5, y: 7 }); // line and area tools only snap
+  });
+  it('lands a farm picked in a city with no road on fertile ground, and a building that lacks only a road counts as a fit (P10, P15)', () => {
+    const w = makeTestWorld({ gold: 1000 });                                    // no road anywhere; fertile land on x < 8
+    expect(canPlace(w, 'farm_grain', 6, 16).ok).toBe(false);                   // strict: it must touch a road
+    expect(canPlace(w, 'farm_grain', 6, 16, { roadLater: true }).warnings).toEqual(['needs_road', 'no_storage']);
+    expect(nearestFit(w, FARM, 12, 16)).toEqual({ x: 6, y: 16 });              // the nearest fertile origin, ten tiles out at most
+    expect(nearestFit(w, FARM, 24, 16)).toEqual({ x: 6, y: 16 });              // none within ten tiles: it looks on, out to thirty
+    expect(nearestFit(w, FARM, 12, 16, 3)).toEqual({ x: 6, y: 16 });           // three times the reach it is given: nine tiles out
+    expect(nearestFit(w, FARM, 24, 16, 3)).toEqual({ x: 24, y: 16 });          // ...and no further
+    expect(nearestFit(w, WELL, 24, 16)).toEqual({ x: 24, y: 16 });             // a well fits anywhere free, with a road to come
+    w.terrain.fill(TERRAIN.DESERT);
+    expect(nearestFit(w, FARM, 24, 16)).toEqual({ x: 24, y: 16 });             // no fertile land at all: the snapped point, so the bar says why
+  });
+  it('words a placed building that waits for a road in its toast, and gives a farm beside one the plain words', () => {
+    const w = street();
+    const log = [];
+    const store = createStore(INITIAL_UI_STATE);
+    const pl = createPlacement({ world: w, store, afterCommand: (e) => log.push(e.text) });
+    pl.start(FARM, { x: 2, y: 2 });
+    expect(store.get().ghost).toEqual({ x: 2, y: 8 });                          // beside the road at y = 10 (a clean fit beats the road-less ones above)
+    expect(pl.confirm().ok).toBe(true);
+    pl.moveGhost(2, 2);                                                         // no road touches it, and no granary
+    expect(pl.preview().state).toBe('warn');
+    expect(pl.confirm().ok).toBe(true);                                         // placed anyway, in amber (P10)
+    expect(log).toEqual(['Grain farm placed', 'Grain farm placed · needs a road']);
+    expect(Object.values(w.buildings).filter((b) => b.type === 'farm_grain').length).toBe(2);
   });
   it('keeps the whole footprint free and on the map', () => {
     const w = street();
@@ -86,7 +113,7 @@ describe('ui placement fit', () => {
     pl.start({ kind: 'road' });
     expect(pl.preview().effect).toBe('');
     pl.start(WELL, { x: 14, y: 9 });
-    pl.moveGhost(14, 20);                                                       // no road there: blocked
+    pl.moveGhost(14, 10);                                                       // on the road itself: blocked
     expect(pl.preview().state).toBe('bad');
     expect(pl.preview().effect).toBe('');
   });
@@ -102,7 +129,7 @@ describe('ui placement fit', () => {
       expect(effect.textContent).toBe('Gives water to 2 homes');
       expect(effect.classList.contains('teal')).toBe(true);
       expect(root.querySelector('.rotate')).toBe(null);                         // nothing rotates in Stage 1
-      placement.moveGhost(14, 20);                                              // no road: the reason takes the line
+      placement.moveGhost(14, 10);                                              // on the road: the reason takes the line
       expect(root.querySelector('.confirm .effect')).toBe(null);
       expect(root.querySelector('.reason').classList.contains('coral')).toBe(true);
       BUILDINGS.well.rotates = true;                                            // borrow the well to see the button come back
@@ -211,8 +238,8 @@ describe('ui placement fit', () => {
           expect([at, stateOf()]).toEqual([at, 'warn']);                               // its grain has nowhere to go
           expect(r.root.querySelector('#confirm .reason').textContent).toBe(warningText('no_storage'));
           farm.push(read());
-          r.ui.placement.moveGhost(0, 2);
-          expect([at, stateOf()]).toEqual([at, 'bad']);                                // no road
+          r.ui.placement.moveGhost(0, 9);
+          expect([at, stateOf()]).toEqual([at, 'bad']);                                // half on the road
           farm.push(read());
           r.ui.placement.moveGhost(1, 8);
           farm.push(read());

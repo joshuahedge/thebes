@@ -1,13 +1,13 @@
 import { describe, it, expect } from '../harness.js';
 import { nearestFit } from '../../src/ui/placement.js';
 import { createGoalsStrip, goalsSheet, showMeTarget } from '../../src/ui/goalsList.js';
-import { GOALS, GOAL_REWARD } from '../../src/data/goals.js';
-import { goalById, guideActive } from '../../src/sim/goals.js';
+import { GOALS, GOAL_REWARD, EVENT_GOALS } from '../../src/data/goals.js';
+import { goalById, guideActive, nextItemFor } from '../../src/sim/goals.js';
 import { canPlace, setGuide } from '../../src/sim/commands.js';
 import { T as TERRAIN } from '../../src/sim/terrain.js';
 import { T, CHAPTER_NAMES, goalsProgressText, rewardText } from '../../src/ui/text.js';
 import { openSheet } from '../../src/ui/modes.js';
-import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
+import { makeTestWorld, addRaw, setRoad } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 import { rigUI } from '../helpers/uiWorld.js';
 
@@ -120,10 +120,25 @@ describe('ui goals', () => {
     const world = makeTestWorld();
     world.startRoad = [[31, 31], [31, 30], [31, 29]];
     expect(showMeTarget(world, goalById('road'))).toEqual({ x: 31.5, y: 29.5 });
-    expect(showMeTarget(world, goalById('food'))).toEqual({ x: world.focus.x, y: world.focus.y });
+    expect(showMeTarget(world, goalById('food'))).toEqual({ x: 7.5, y: world.focus.y - 0.5 });   // the farm goal aims at the fertile land (x < 8 here) nearest the focus
     expect(showMeTarget(world, goalById('well'))).toEqual({ x: world.focus.x, y: world.focus.y });   // no homes yet
     addRaw(world, 'house', 10, 10); addRaw(world, 'house', 12, 10);
     expect(showMeTarget(world, goalById('well'))).toEqual({ x: 11.5, y: 10.5 });
+  });
+  it('aims every farm goal at the nearest free fertile tile while a farm is what is next, and at the focus once only a store or a mill is', () => {
+    const world = makeTestWorld();                                                  // fertile land on x < 8, the focus at (16, 16)
+    for (const id of ['food', 'beer', 'linen']) expect([id, goalById(id).showMe.target]).toEqual([id, 'fertile']);
+    expect(EVENT_GOALS.find((g) => g.id === 'more_jobs').showMe.target).toBe('fertile');
+    const fertile = { x: 7.5, y: world.focus.y - 0.5 };
+    for (const id of ['food', 'beer', 'linen']) expect([id, showMeTarget(world, goalById(id))]).toEqual([id, fertile]);
+    expect(showMeTarget(world, EVENT_GOALS.find((g) => g.id === 'more_jobs'))).toEqual(fertile);
+    world.terrain.fill(TERRAIN.DESERT);
+    expect(showMeTarget(world, goalById('food'))).toEqual({ x: world.focus.x, y: world.focus.y });   // no fertile land: the focus
+    world.terrain.fill(TERRAIN.FERTILE);
+    addRaw(world, 'farm_grain', 3, 3);
+    setRoad(world, 0, 5, 10, 5);                                                     // a farm with no road counts for nothing yet (P11)
+    expect(nextItemFor(world, goalById('food'))).toBe('granary');                   // the farm stands: the granary is next, and it goes with the town
+    expect(showMeTarget(world, goalById('food'))).toEqual({ x: world.focus.x, y: world.focus.y });
   });
   it('aims the jewellery goal at the rocky tile nearest the focus, and at the focus when none is rocky', () => {
     const world = makeTestWorld();

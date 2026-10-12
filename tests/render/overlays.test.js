@@ -168,3 +168,56 @@ describe('ground overlay (placement review P1)', () => {
     expect(tileAlpha(none, none.c, 5, 5)).toBe(dim);                                      // no room anywhere: all of it at half
   });
 });
+
+// A building's ghost (placement review P9, P10, P13): a badge of a fixed size on screen, each tile's own state, and the tiles a road
+// would join.
+describe('building ghost (placement review P9, P10, P13)', () => {
+  const countNear = (s, colour, tol = 40) => {
+    let n = 0;
+    for (let x = 0; x < s.c.width; x++) for (let y = 0; y < s.c.height; y++) if (nearColour(pixelAt(s.c, x, y), colour, tol)) n++;
+    return n;
+  };
+  // A bare drawing context at device scale 2 whose art px are `css` CSS px: what the renderer builds at zoom css / 2.
+  const sceneAt = (tx, ty, css) => {
+    const c = makeCanvas(240, 200);
+    const ctx = c.getContext('2d');
+    const [ax, ay] = p(tx, ty);
+    ctx.translate(120 - 2 * ax, 60 - 2 * ay);
+    return { c, g: makeDraw(ctx, 2, css), at: (x, y) => { const q = p(x, y); return [120 + 2 * (q[0] - ax), 60 + 2 * (q[1] - ay)]; } };
+  };
+  it('keeps its badge 20 CSS px across at any zoom: it takes its art size only where that is bigger', () => {
+    const small = sceneAt(0, 0, 1), big = sceneAt(0, 0, 4), plain = sceneAt(0, 0, 1);   // zoomed far out and far in
+    for (const s of [small, big]) drawGhost(s.g, { x: 0, y: 0, w: 2, d: 2, state: 'bad', badge: true });
+    drawGhost(plain.g, { x: 0, y: 0, w: 2, d: 2, state: 'bad' });
+    // The cross sits on the deep coral of the problem badge. At css 1 the badge is 10 art px in radius (20 CSS px across, 20 device px
+    // each way from its centre at scale 2); at css 4 it keeps its 5 art px floor (10 device px). An unflagged ghost (a road tile,
+    // a plot) keeps its small glyph.
+    const [few, many] = [countNear(big, UI.problem, 20), countNear(small, UI.problem, 20)];
+    expect(many).toBeGreaterThan(few * 2.5);
+    expect(few).toBeGreaterThan(100);
+    expect(countNear(plain, UI.problem, 20)).toBe(0);
+  });
+  it('draws each footprint tile in its own state when part of it is wrong', () => {
+    const s = sceneAt(0, 0, 2);
+    drawGhost(s.g, { x: 0, y: 0, w: 2, d: 1, state: 'bad', badge: true, tiles: [{ x: 0, y: 0, state: 'met' }, { x: 1, y: 0, state: 'cant' }] });
+    const blue = s.at(0.5, 0.5), coral = s.at(1.5, 0.5);
+    const sample = (q, dy) => pixelAt(s.c, Math.round(q[0]), Math.round(q[1]) + dy);
+    expect(sample(blue, 5)[3]).toBeGreaterThan(20);                                // the good tile has a wash
+    expect([sample(blue, 5)[2] > sample(blue, 5)[0]]).toEqual([true]);             // and it is blue
+    let reds = 0;
+    for (let dx = -14; dx <= 14; dx += 2) for (let dy = -8; dy <= 8; dy += 2) if (nearColour(pixelAt(s.c, Math.round(coral[0]) + dx, Math.round(coral[1]) + dy), UI.bad, 50)) reds++;
+    expect(reds).toBeGreaterThan(5);                                               // the bad tile is hatched coral
+    let blueOnBad = 0;
+    for (let dx = -14; dx <= 14; dx += 2) for (let dy = -8; dy <= 8; dy += 2) if (nearColour(pixelAt(s.c, Math.round(coral[0]) + dx, Math.round(coral[1]) + dy), UI.ok, 30)) blueOnBad++;
+    expect(blueOnBad).toBe(0);
+  });
+  it('marks the tiles where a road would join with a dashed amber outline', () => {
+    const none = sceneAt(0, 0, 2), some = sceneAt(0, 0, 2);
+    drawGhost(none.g, { x: 0, y: 0, w: 1, d: 1, state: 'warn', badge: true });
+    drawGhost(some.g, { x: 0, y: 0, w: 1, d: 1, state: 'warn', badge: true, joins: [[1, 0], [0, 1]] });
+    expect(countNear(some, UI.warn, 30)).toBeGreaterThan(countNear(none, UI.warn, 30) + 20);
+    const [jx, jy] = some.at(1.5, 0.5);
+    expect(pixelAt(some.c, Math.round(jx), Math.round(jy) + 6)[3]).toBeGreaterThan(10);   // the joining tile has a wash of its own
+    expect(pixelAt(none.c, Math.round(jx), Math.round(jy) + 6)[3]).toBe(0);
+  });
+});

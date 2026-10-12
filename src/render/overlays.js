@@ -376,26 +376,89 @@ export function drawReachHighlight(g, world, b) {
 
 // ghost = { x, y, w, d, state: 'ok' | 'warn' | 'bad' | 'demolish' | 'gate' }. A gate (Stage 3, a wall tile drawn over a
 // road) is an ok tile marked with an arch instead of a tick, so the wall tool shows where its gates will go.
+// A building's ghost adds (placement review P9, P10, P13):
+//   badge: true      its mark is a badge at least 20 screen px across at any zoom, not a glyph that shrinks with the map
+//   tiles: [{ x, y, state: 'met' | 'cant' }]   each footprint tile's own state, when the footprint is part right, part wrong
+//   joins: [[x, y]...]   the free tiles where a road would touch it: a dashed amber outline and the road mark
+const BADGE_MIN_R = 5;            // art px: 10 CSS px at zoom 1, so the badge is 20 CSS px across (ART_SCALE 2)
+const BADGE_CSS_R = 10;
+const JOIN_INK = '#7A5200';       // css --amber-text: the road mark on a joining tile
+
+// The scale the ghost's fixed-size marks divide by: CSS px per art px (the renderer sets it on the context; a bare drawing
+// context has none, and its own scale stands in).
+const cssScaleOf = (g) => g.cssScale || g.scale;
+
+// A round badge with a mark, white halo, at least 20 CSS px across: ✓ white on blue, ! dark on amber, ✕ white on the deep coral
+// of the problem badge (the glyph, not the colour, says which).
+function ghostBadge(g, c, mark) {
+  const css = cssScaleOf(g);
+  const R = Math.max(BADGE_MIN_R, BADGE_CSS_R / css);
+  const fill = mark === '✓' || mark === '∩' ? UI.ok : mark === '!' ? UI.warn : UI.problem;
+  g.circ(c, R + 2 / css, UI.halo, { alpha: 0.95 });
+  g.circ(c, R, fill, { stroke: INK, strokeWidth: 0.6, strokeAlpha: 0.5 });
+  g.text(c, mark, { size: 1.3 * R, weight: '700', color: mark === '!' ? UI.label : UI.halo });
+}
+
+// Coral hatching clipped to a footprint, and its outline.
+function hatchedBad(g, x, y, w, d) {
+  const pts = quad(x, y, w, d, 0);
+  g.save();
+  g.clip(pts);
+  g.poly(pts, UI.bad, { alpha: 0.18 });
+  const left = p(x, y + d)[0], right = p(x + w, y)[0], top = p(x, y)[1], bottom = p(x + w, y + d)[1];
+  for (let k = left - (bottom - top); k < right; k += 4) g.line([k, bottom], [k + (bottom - top), top], UI.bad, 1, 0.8);
+  g.restore();
+  g.poly(pts, 'none', { stroke: UI.bad, strokeWidth: 1.4 });
+}
+
+// The free tiles where a road would join the building: a faint amber wash, a dashed amber outline on a white halo and the road
+// mark (the Roads category's), so "draw one on a marked tile" can be followed.
+function drawRoadJoins(g, joins) {
+  const css = cssScaleOf(g);
+  const size = Math.max(6, 12 / css);
+  for (const [jx, jy] of joins) {
+    const pts = quad(jx, jy, 1, 1, 0);
+    g.poly(pts, UI.warn, { alpha: 0.18 });
+    g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.4, strokeAlpha: 0.7 });
+    g.ctx.setLineDash([3 * g.scale, 2 * g.scale]);
+    g.poly(pts, 'none', { stroke: UI.warn, strokeWidth: 1.4 });
+    g.ctx.setLineDash([]);
+    g.text(p(jx + 0.5, jy + 0.5), '═', { size, weight: '700', color: JOIN_INK });
+  }
+}
+
 export function drawGhost(g, ghost) {
-  const { x, y, w, d, state } = ghost;
+  const { x, y, w, d, state, tiles, joins, badge } = ghost;
   const pts = quad(x, y, w, d, 0);
   const centre = p(x + w / 2, y + d / 2);
-  if (state === 'bad' || state === 'demolish') {
-    g.save();
-    g.clip(pts);
-    g.poly(pts, UI.bad, { alpha: 0.18 });
-    const left = p(x, y + d)[0], right = p(x + w, y)[0], top = p(x, y)[1], bottom = p(x + w, y + d)[1];
-    for (let k = left - (bottom - top); k < right; k += 4) g.line([k, bottom], [k + (bottom - top), top], UI.bad, 1, 0.8);
-    g.restore();
+  if (joins && joins.length) drawRoadJoins(g, joins);
+  if (state === 'bad' && tiles && tiles.length) {
+    // Part of the footprint is fine: each tile shows its own state, the good ones blue, the bad ones coral with a cross.
+    for (const t of tiles) {
+      if (t.state === 'cant') {
+        hatchedBad(g, t.x, t.y, 1, 1);
+        ghostBadge(g, p(t.x + 0.5, t.y + 0.5), '✕');
+      } else {
+        const tp = quad(t.x, t.y, 1, 1, 0);
+        g.poly(tp, UI.ok, { alpha: 0.15 });
+        g.poly(tp, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
+        g.poly(tp, 'none', { stroke: UI.ok, strokeWidth: 1.4 });
+      }
+    }
     g.poly(pts, 'none', { stroke: UI.bad, strokeWidth: 1.4 });
-    if (state === 'bad') g.text(centre, '✕', { size: 9, color: UI.bad });
+    return;
+  }
+  if (state === 'bad' || state === 'demolish') {
+    hatchedBad(g, x, y, w, d);
+    if (state === 'bad') { if (badge) ghostBadge(g, centre, '✕'); else g.text(centre, '✕', { size: 9, color: UI.bad }); }
     return;
   }
   const color = state === 'warn' ? UI.warn : UI.ok;
   g.poly(pts, color, { alpha: 0.15 });
   g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
   g.poly(pts, 'none', { stroke: color, strokeWidth: 1.4 });
-  g.text(centre, state === 'warn' ? '!' : state === 'gate' ? '∩' : '✓', { size: 9, color });
+  const mark = state === 'warn' ? '!' : state === 'gate' ? '∩' : '✓';
+  if (badge) ghostBadge(g, centre, mark); else g.text(centre, mark, { size: 9, color });
 }
 
 // Problem markers (early-game pass 2.8): a coral "!" badge over a building with an alert, an amber "↓" over a
