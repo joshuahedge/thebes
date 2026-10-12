@@ -443,14 +443,17 @@ export function createUI({
     if (e.type === 'caravan') { const c = caravanText(e); return { tier: 'first', text: c.text, why: c.why, onShow: cheerSound }; }
     return null;
   }
-  // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js).
-  let pendingUpdate = null;
+  // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js). On a phone
+  // it is kept (ruling 177): outside the one-toast rule, with no timer, so the next Undo toast never takes its Restart
+  // away; it goes when Restart is used or its ✕ closes it (an update not taken is offered again the next time the game opens).
+  let pendingUpdate = null, updateToast = null;
   function showUpdateToast() {
     if (!pendingUpdate || isToolMode(store.get().mode)) return;
     const apply = pendingUpdate;
     pendingUpdate = null;
-    toasts.show(T.updateReady, {
-      action: T.restart, ms: UPDATE_TOAST_MS,
+    if (updateToast) toasts.hide(updateToast);         // an offer made again replaces the one still up
+    updateToast = toasts.show(T.updateReady, {
+      action: T.restart, ms: UPDATE_TOAST_MS, keep: phone(), close: T.close,
       onAction: async () => {
         let ok = true;
         try { ok = (await apply()) !== false; } catch (e) { ok = false; }
