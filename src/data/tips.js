@@ -5,7 +5,7 @@
 // waits: false marks a tip whose words are about what is on screen as it fires (a house sheet, the overlay): it never
 // waits in the held slot, because its words would be false once that has closed. When it cannot show at once (on a phone
 // the sheet or the overlay legend has the guidance row, spec 6.3) it is dropped unseen, so it can fire again next time.
-export const TIPS = [
+const TIPS_BASE = [
   { id: 'press_play', trigger: 'plotsPaused', priority: true },          // plots placed while paused
   { id: 'arrivals', trigger: 'arrivals', priority: false },              // families arrived
   { id: 'house_needs', trigger: 'houseSheet', priority: false, waits: false },   // a house sheet opened
@@ -28,6 +28,32 @@ export const TIPS = [
   { id: 'tribute_once', trigger: 'tributeOffered', priority: false },          // a raid warning that can be paid off appeared
   { id: 'wall_ring', trigger: 'wallDrawn', priority: false },                  // a wall was drawn
 ];
+
+// Stage 4: each track adds its tips (with their words in its text.js section) in its own list below, and only there; TIPS
+// lists them all in this order. Add new rows just above the section's end marker.
+// ── s4 ui (Track C) ── the palace's "Your palace can grow" (ruling 275), and any sheet or placing tip
+const TIPS_S4_UI = [
+];
+// ── end s4 ui ──
+// ── s4 score (Track D) ── the Monuments tips of spec 4.19 (last for workers, straight to the site, a storehouse bridges,
+// refuse stone at the potters' storehouse, pause to free crews, one of each kind counts)
+const TIPS_S4_SCORE = [
+];
+// ── end s4 score ──
+// ── s4 motion (Track E) ── the one-time Gentle tip (ruling 218)
+const TIPS_S4_MOTION = [
+];
+// ── end s4 motion ──
+// ── s4 cards (Track G) ── any How to play or music tip
+const TIPS_S4_CARDS = [
+];
+// ── end s4 cards ──
+// ── s4 balance (Track F) ──
+const TIPS_S4_BALANCE = [
+];
+// ── end s4 balance ──
+
+export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE];
 
 export const TIP_GAP_MS = 180000;          // at least 3 minutes between two tips
 export const TIP_HOURLY_MAX = 5;           // and at most five in any hour

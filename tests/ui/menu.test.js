@@ -87,8 +87,8 @@ describe('ui menu', () => {
     expect(r.root.dataset.textSize).toBe('150');
     expect(r.body.querySelector('.choice.textSize[data-value="150"]').getAttribute('aria-pressed')).toBe('true');
     expect(r.body.querySelector('.choice.textSize[data-value="100"]').getAttribute('aria-pressed')).toBe('false');
-    fire(r.body.querySelector('.choice.reducedMotion[data-value="on"]'), 'click');
-    expect(r.settings.reducedMotion()).toBe(true);
+    fire(r.body.querySelector('.choice.motion[data-value="still"]'), 'click');                 // Stage 4: one Motion row (spec 5.4)
+    expect([r.settings.get().motion, r.settings.motionLevel(), r.settings.reducedMotion(), r.root.dataset.motion]).toEqual(['still', 'still', true, 'still']);
     fire(r.body.querySelector('.switch.leftHanded'), 'click');
     expect(r.root.dataset.hand).toBe('left');
     fire(r.body.querySelector('.switch.keyboardShortcuts'), 'click');

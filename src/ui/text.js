@@ -1099,8 +1099,90 @@ export const BALANCE_TEXT = {};
 //
 // ── s4 contract (Track 0) ────────────────────────────────────────────────────────────────────────────────────────
 // Words for the Stage 4 contract's own additions. Each Stage 4 track keeps its words in its own section below, as its own
-// exported objects with its prefix (src/ui/text.js is one module: see the plan's "Shared files"), and adds to the shared
-// tables above only with Object.assign inside its own section.
+// exported objects whose names carry its prefix (src/ui/text.js is one module), and adds to the shared tables above
+// (T, REASONS, ALERT_TEXT, MOOD_NAMES, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, TIP_TEXT,
+// CHAPTER_NAMES, SCORE_TEXT, BUILDING_PLURALS, CITIZEN_REMARKS, ...) only with Object.assign inside its own section.
+// Prefixes: A sim4 / SIM4_, B art4 / ART4_, C ui4 / UI4_, D score4 / SCORE4_, E motion4 / MOTION4_, G cards4 / CARDS4_,
+// H look4 / LOOK4_, F balance4 / BALANCE4_.
 Object.assign(SCORE_TEXT.parts, { monuments: 'Monuments' });
 Object.assign(BUILDING_PLURALS, { quarry: 'quarries', brickworks: 'brickworks', builders_guild: "builders' guilds", plaza: 'plazas', sphinx: 'sphinxes', palace: 'palaces' });
+Object.assign(MOOD_NAMES, { monuments: 'Monuments', palace: 'Palace' });   // spec 4.9: "Monuments +4", "Palace +2"
+// The Settings sheet's Motion row until Track E words it fully (spec 5.4).
+export const CONTRACT4_TEXT = {
+  motion: 'Motion',
+  motionLevels: { system: 'Follow the device', full: 'Full', gentle: 'Gentle', still: 'Still' },
+};
 // ── end s4 contract ──────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 sim (Track A) ─────────────────────────────────────────────────────────────────────────────────────────────
+// Track A's words: its REASONS (not_on_fields, one_only, work_begun, finished, the palace's), its ALERT_TEXT codes
+// (site_stalled and its reason codes), the mood rows' names if they change, and the supply buildings' working lines.
+// Add new lines just above the end marker.
+export const SIM4_TEXT = {};
+// ── end s4 sim ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 art (Track B) ─────────────────────────────────────────────────────────────────────────────────────────────
+// Track B's words: anything the drawing needs in words (the problem markers' screen-reader names). Add new lines just
+// above the end marker.
+export const ART4_TEXT = {};
+// ── end s4 art ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 ui (Track C) ──────────────────────────────────────────────────────────────────────────────────────────────
+// Track C's words: the Monuments tab's cards and locks, the monument chips and confirm-bar line, the site, guild, quarry,
+// brickworks and palace sheets, the summary's Monuments section, Welcome back's site lines, the stall warnings' tier
+// words and View's outline. Add new lines just above the end marker.
+export const UI4_TEXT = {};
+// ── end s4 ui ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 score (Track D) ───────────────────────────────────────────────────────────────────────────────────────────
+// Track D's words: score v2 (the Monuments part's reasons, the two new splits, older scoring), the Monuments chapter,
+// goals, firsts, achievements, feats, daily goals, captions and citizen remarks. Add new lines just above the end marker.
+export const SCORE4_TEXT = {};
+// ── end s4 score ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 motion (Track E) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track E's words: the Motion row ("Motion: Gentle (your device asks for less motion)"), the Gentle tip and the
+// processions. Add new lines just above the end marker.
+export const MOTION4_TEXT = {};
+// ── end s4 motion ────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 cards (Track G) ───────────────────────────────────────────────────────────────────────────────────────────
+// Track G's words: the six picture cards (titles, words, alt text), How to play, the Music rows and the reworded opening
+// goals and their whys (ruling 265). Add new lines just above the end marker.
+export const CARDS4_TEXT = {};
+// ── end s4 cards ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 look (Track H) ────────────────────────────────────────────────────────────────────────────────────────────
+// Track H's words: the ornaments' screen-reader text, if any (they are hidden from screen readers). Add new lines just
+// above the end marker.
+export const LOOK4_TEXT = {};
+// ── end s4 look ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 balance (Track F) ─────────────────────────────────────────────────────────────────────────────────────────
+// Track F's words for the integrator. Add new lines just above the end marker.
+export const BALANCE4_TEXT = {};
+// ── end s4 balance ───────────────────────────────────────────────────────────────────────────────────────────────

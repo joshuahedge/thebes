@@ -269,8 +269,8 @@ describe('s3 contract placement seams', () => {
 });
 
 describe('s3 contract settings, title, sound and words', () => {
-  it('keeps Ambient motion (on) and On a fire (Just tell me) in settings, and only their own values', () => {
-    expect([DEFAULT_SETTINGS.ambient, DEFAULT_SETTINGS.fireReaction, FIRE_REACTIONS]).toEqual([true, 'inform', ['pause', 'goto', 'inform']]);
+  it('keeps On a fire (Just tell me) in settings with only its own values; ambient off still reads as Still (Stage 4 Motion)', () => {
+    expect([DEFAULT_SETTINGS.motion, DEFAULT_SETTINGS.fireReaction, FIRE_REACTIONS]).toEqual(['system', 'inform', ['pause', 'goto', 'inform']]);
     const data = {};
     const storage = { getItem: (k) => data[k] || null, setItem: (k, v) => { data[k] = v; } };
     const { root, cleanup } = mount();
@@ -278,7 +278,7 @@ describe('s3 contract settings, title, sound and words', () => {
       const s = createSettings({ storage, root, systemReducedMotion: () => false });
       s.set({ ambient: false, fireReaction: 'goto' });
       s.set({ ambient: 'no', fireReaction: 'panic', difficulty: 'peaceful' });
-      expect([s.get().ambient, s.get().fireReaction, s.get().difficulty]).toEqual([false, 'goto', 'peaceful']);
+      expect([s.get().ambient, s.get().motion, s.get().fireReaction, s.get().difficulty]).toEqual([false, 'still', 'goto', 'peaceful']);
       expect(createSettings({ storage, root, systemReducedMotion: () => false }).get().fireReaction).toBe('goto');
     } finally { cleanup(); }
   });

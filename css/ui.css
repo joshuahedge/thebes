@@ -774,3 +774,56 @@ body[data-layout="portrait"] #legend .fire-keys .never-burn { position: absolute
 
 /* ── s3 balance (Track F) ── Track F's styles for balance and integration. Add new rules just above the end marker. */
 /* ── end s3 balance ── */
+
+/* (A stable separator between the Stage 3 and Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 contract (Track 0) ── Stage 4's style rules, one section per track below. Ownership (the Stage 4 plan's "Shared
+   files"): Track H owns the BASE of this file, everything above the first "s3" section marker (the :root tokens and the
+   Stage 1-2 rules), and its own s4 look section; it restyles there and never edits a track's section. Every other track
+   adds rules only inside its own s4 section, uses the tokens (var(--...)) rather than raw colours where a token exists,
+   and names any custom property it adds with its prefix (--s4a- ... --s4f-). A track that needs a base rule changed asks
+   the controller. Add new rules just above each section's end marker. */
+/* ── end s4 contract ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 sim (Track A) ── Track A's styles (none expected). */
+/* ── end s4 sim ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 art (Track B) ── Track B's styles (none expected: markers are drawn on the canvas). */
+/* ── end s4 art ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 ui (Track C) ── Track C's styles: the Monuments tray, the monument chips and confirm-bar lines, the site, guild,
+   quarry, brickworks and palace sheets, the summary's Monuments section. */
+/* ── end s4 ui ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 score (Track D) ── Track D's styles: score v2's fifth bar, the splits, stamps' glyphs, captions. */
+/* ── end s4 score ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 motion (Track E) ── Track E's styles: the Motion row, and the chrome's transitions per Motion level
+   (body[data-motion]: instant under gentle and still, ruling 247). */
+/* ── end s4 motion ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 cards (Track G) ── Track G's styles: the picture cards' dialog, ring and arrow, dots, How to play, Music rows. */
+/* ── end s4 cards ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 look (Track H) ── Track H's own new rules (the frieze, cartouches, gold-on-lapis primary buttons, fibre,
+   ornaments) beside its edits to the base above the s3 sections. */
+/* ── end s4 look ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 balance (Track F) ── Track F's styles for integration fixes. */
+/* ── end s4 balance ── */

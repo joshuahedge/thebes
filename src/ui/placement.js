@@ -3,7 +3,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import {
   canPlace, conditionsFor, place, previewRoad, drawRoad, roadPath, previewHouses, paintHouses, previewDemolishArea, demolishArea, demolishAt, rectTiles,
-  previewRoadTiles, drawRoadTiles, previewHouseTiles, paintHouseTiles, previewDemolishTiles, demolishTiles,
+  previewRoadTiles, drawRoadTiles, previewHouseTiles, paintHouseTiles, previewDemolishTiles, demolishTiles, previewPlazaTiles, paintPlazaTiles,
 } from '../sim/commands.js';
 import { undo as undoCommand } from '../sim/undo.js';
 import { assignLabour } from '../sim/labour.js';
@@ -218,6 +218,7 @@ function basePreview(world, state) {
     const warn = r.warnings.length > 0;
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : plural(r.positions.length, 'plot', 'plots'), effect: '', cost: r.cost, count: r.positions.length, tiles, refund: 0 };
   }
+  if (tool.kind === 'plazas') return plazaPreview(previewPlazaTiles(world, rectTiles(a.x0, a.y0, a.x1, a.y1, world.size)));   // Stage 4 (ruling 250)
   return demolishPreview(previewDemolishArea(world, a.x0, a.y0, a.x1, a.y1), rectTiles(a.x0, a.y0, a.x1, a.y1, world.size));
 }
 
@@ -250,7 +251,19 @@ function planPreview(world, tool, tiles) {
     const text = warn ? warningText(r.warnings[0]) : plural(r.positions.length, 'plot', 'plots');
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: withSkips(text, r), effect: '', cost: r.cost, count: r.positions.length, tiles, skipped: skippedOf(r), refund: 0 };
   }
+  if (tool.kind === 'plazas') {                                                                   // Stage 4 (ruling 250): as plots
+    const r = previewPlazaTiles(world, tiles);
+    if (r.reason === 'nothing_to_place') return nothing(r);
+    return { ...plazaPreview(r, tiles), skipped: skippedOf(r) };
+  }
   return demolishPreview(previewDemolishTiles(world, tiles), tiles);
+}
+
+// Stage 4 (ruling 250): the plaza tool's preview, a rectangle's or a plan's (tiles: the plan's, else the plazas'). Track C
+// words it fully; the contract counts them like plots.
+function plazaPreview(r, tiles = r.positions) {
+  if (!r.ok) return bad(r.reason, r.cost, r.positions.length, tiles);
+  return { state: 'ok', reason: null, warnings: [], text: plural(r.positions.length, 'plaza', 'plazas'), effect: '', cost: r.cost, count: r.positions.length, tiles, refund: 0 };
 }
 
 // Demolish's preview, a rectangle's or a plan's: what it would take up, and its refund (or, Stage 3, what clearing rubble costs).
@@ -409,10 +422,10 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         const tiles = s.plan.tiles;
         result = t.kind === 'road' ? drawRoadTiles(world, tiles, { skipBlocked: true })
           : t.kind === 'wall' ? drawWallTiles(world, tiles, { skipBlocked: true })
-            : t.kind === 'houses' ? paintHouseTiles(world, tiles) : demolishTiles(world, tiles);
+            : t.kind === 'houses' ? paintHouseTiles(world, tiles) : t.kind === 'plazas' ? paintPlazaTiles(world, tiles) : demolishTiles(world, tiles);
         const xs = tiles.map((q) => q[0]), ys = tiles.map((q) => q[1]);
         cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 0.5; cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 0.5;
-        text = t.kind === 'road' ? T.roadLaid : t.kind === 'wall' ? T.wallBuilt : t.kind === 'houses' ? '' : T.demolished;
+        text = t.kind === 'road' ? T.roadLaid : t.kind === 'wall' ? T.wallBuilt : t.kind === 'houses' ? '' : t.kind === 'plazas' ? `${buildingName('plaza')} ${T.placed.toLowerCase()}` : T.demolished;
       } else if (t.kind === 'building') {
         const def = BUILDINGS[t.type];
         result = place(world, t.type, s.ghost.x, s.ghost.y, { roadLater: true });   // only the player's placing waits for a road (P10)
@@ -425,9 +438,10 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         text = t.kind === 'road' ? T.roadLaid : T.wallBuilt;
       } else {
         const a = s.area;
-        result = t.kind === 'houses' ? paintHouses(world, a.x0, a.y0, a.x1, a.y1) : demolishArea(world, a.x0, a.y0, a.x1, a.y1);
+        result = t.kind === 'houses' ? paintHouses(world, a.x0, a.y0, a.x1, a.y1)
+          : t.kind === 'plazas' ? paintPlazaTiles(world, rectTiles(a.x0, a.y0, a.x1, a.y1, world.size)) : demolishArea(world, a.x0, a.y0, a.x1, a.y1);
         cx = (a.x0 + a.x1) / 2 + 0.5; cy = (a.y0 + a.y1) / 2 + 0.5;
-        text = t.kind === 'houses' ? '' : T.demolished;
+        text = t.kind === 'houses' ? '' : t.kind === 'plazas' ? `${buildingName('plaza')} ${T.placed.toLowerCase()}` : T.demolished;
       }
       if (!result.ok) return result;
       // Plots say how many were laid and, when a road is missing, that (placement review P14): counted after the paint, from the world.
