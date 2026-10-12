@@ -48,7 +48,7 @@ describe('s4 contract world v5', () => {
     expect([p.w, p.d, p.rot]).toEqual([4, 4, 0]);
     expect(m.site).toEqual({
       course: 0, laid: { stone: 0, bricks: 0 }, stock: { stone: 0, bricks: 0 }, carry: 0, extraPaid: false, crews: [], idle: 0, reason: null,
-      month: { units: 0, gold: 0, crewDays: 0, starvedDays: 0 }, last: null, starved: false, done: null,
+      month: { units: 0, gold: 0, crews: 0, crewDays: 0, starvedDays: 0 }, last: null, starved: false, done: null,
     });
     expect(m.site).toEqual(newSite());
     const pal = makeBuilding(w, 'palace', 3, 3);

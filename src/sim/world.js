@@ -51,13 +51,14 @@ export const newPrestigeUnlocks = () => Object.fromEntries(PRESTIGE_UNLOCKS.map(
 //   crews     the builders' guild ids whose crews worked it today, in the order they took it
 //   idle      days in a row with no work while unpaused, unfinished and on a road (stalled at MONUMENT.stallDays)
 //   reason    the cause of the last day without work (siteStatus's reason codes), or null after a day of work
-//   month     this month so far: { units laid, gold paid, crewDays worked, starvedDays (a crew stood idle for material) }
+//   month     this month so far: { units laid, gold paid (work, gilding, capstone), crews (the most at work on one day),
+//             crewDays worked, starvedDays (days a crew stood idle for lack of material) }
 //   last      last month's { units, gold, crews (the most at work on a day) }, or null before the site's first month end
 //   starved   whether any month of its build had a crew stand idle for lack of material (the Steady hands feat)
 //   done      the day it was finished, or null
 export const newSite = () => ({
   course: 0, laid: { stone: 0, bricks: 0 }, stock: { stone: 0, bricks: 0 }, carry: 0, extraPaid: false, crews: [], idle: 0, reason: null,
-  month: { units: 0, gold: 0, crewDays: 0, starvedDays: 0 }, last: null, starved: false, done: null,
+  month: { units: 0, gold: 0, crews: 0, crewDays: 0, starvedDays: 0 }, last: null, starved: false, done: null,
 });
 
 // difficulty is a DIFFICULTIES key (spec 4.18), fixed for the city's life; anything else starts a Normal city. cityId

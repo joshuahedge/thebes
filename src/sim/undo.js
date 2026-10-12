@@ -30,6 +30,10 @@ export function undo(world) {
   const e = world.undo.pop();
   if (!e) return { ok: false, reason: 'nothing_to_undo' };
   if (e.kind === 'place') {
+    // Stage 4 (ruling 236): a monument site is undone only before any work on it; once a course is done or a unit laid
+    // the step is refused and dropped (it is already off the list), naming the site.
+    const begun = e.ids.map((id) => world.buildings[id]).find((b) => b && b.site && (b.site.course > 0 || b.site.laid.stone + b.site.laid.bricks > 0));
+    if (begun) return { ok: false, reason: 'work_begun', id: begun.id, type: begun.type };
     let standing = 0;
     for (const id of e.ids) if (removeBuilding(world, id)) standing++;
     // A tower placed on a wall tile took it to the tower's hit points; it goes back to the old value, or stays lower if

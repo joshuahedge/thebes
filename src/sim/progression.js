@@ -1,4 +1,5 @@
 import { MILESTONES } from '../data/progression.js';
+import { PRESTIGE_UNLOCKS } from '../data/monuments.js';
 import { population } from './world.js';
 
 export const milestoneIndex = (id) => MILESTONES.findIndex((m) => m.id === id);
@@ -23,7 +24,10 @@ export function updateMilestone(world) {
   return changed;
 }
 
+// Stage 4: a kind that unlocks by prestige (the pyramids) is unlocked once the city has recorded the day it reached it
+// (world.prestigeUnlocks, src/sim/monuments.js updatePrestigeUnlocks), which needs its milestone too (spec 4.14).
 export function isUnlocked(world, type) {
+  if (PRESTIGE_UNLOCKS.includes(type)) return Number.isInteger(world.prestigeUnlocks[type]);
   const cur = milestoneIndex(world.milestone);
   for (let i = 0; i <= cur; i++) if (MILESTONES[i].unlocks.includes(type)) return true;
   return false;

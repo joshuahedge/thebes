@@ -5,6 +5,8 @@ import { wantedNeeds } from './housing.js';
 import { fireMood } from './fire.js';
 import { raidMood } from './raids.js';
 import { festivalMood } from './festival.js';
+import { monumentMood } from './prestige.js';
+import { palaceMood } from './palace.js';
 
 export function updateMood(world) {
   let wanting = 0;
@@ -29,6 +31,10 @@ export function updateMood(world) {
   // Stage 3's danger terms (spec 4.9): each module reports only the terms that apply now, so a calm city's breakdown is
   // the same four rows as before. fire, burned (fire.js); raid (raids.js); festival (festival.js).
   const danger = { ...fireMood(world), ...raidMood(world), ...festivalMood(world) };
+  // Stage 4's rows (spec 4.9), each only while it is not 0: Monuments (+1 for every 70 prestige, at most +10) and Palace.
+  const monuments = monumentMood(world), palace = palaceMood(world);
+  if (monuments) danger.monuments = monuments;
+  if (palace) danger.palace = palace;
   const dangerSum = Object.values(danger).reduce((s, v) => s + v, 0);
   world.mood = Math.max(0, Math.min(100, MOOD.base + food + jobs + debt + dangerSum));
   world.moodBreakdown = { base: MOOD.base, food, jobs, debt, ...danger };

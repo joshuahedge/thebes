@@ -8,6 +8,7 @@ import { isWorking } from './labour.js';
 import { storeTotal } from './production.js';
 import { fireAlerts } from './fire.js';
 import { raidAlerts } from './raids.js';
+import { monumentAlerts } from './monuments.js';
 
 export function alertsFor(world) {
   const alerts = [];
@@ -29,6 +30,7 @@ export function alertsFor(world) {
   const roadless = housesOf(world).filter((h) => !touchesRoad(world, h));
   if (roadless.length) alerts.push({ code: 'plots_no_road', count: roadless.length, ids: roadless.map((h) => h.id) });
   alerts.push(...fireAlerts(world), ...raidAlerts(world));   // Stage 3: fire (fire, blaze, fire_risk) and raids (raid_warning, raid)
+  alerts.push(...monumentAlerts(world));                     // Stage 4: site_stalled (a warning, never a critical: ruling 211)
   for (const level of world.labour.shortLevels || []) alerts.push({ code: 'labour_shortage', level });
   const L = world.labour;
   if (atLeast(world, 'town') && L.workforce > 0 && (L.workforce - L.employed) / L.workforce > MOOD.unemploymentThreshold) {
