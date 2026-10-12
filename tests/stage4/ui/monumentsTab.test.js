@@ -61,18 +61,52 @@ describe('s4 ui the Monuments tab', () => {
     expect(lockTextOf(w, 'colossus')).toBe('Unlocks at Great city');
   });
 
-  it('says a monument stands on the desert, on its card and in its tooltip', async () => {
+  it('says a monument stands anywhere but the fields, on its card and in its tooltip (ruling 299)', async () => {
     const w = makeTestWorld();
     w.milestone = 'city';
-    expect([cardInfo(w, 'obelisk_small').terrainText, cardInfo(w, 'quarry').terrainText, cardInfo(w, 'builders_guild').terrainText]).toEqual(['Desert', 'Rocky ground', '']);
+    expect([cardInfo(w, 'obelisk_small').terrainText, cardInfo(w, 'quarry').terrainText, cardInfo(w, 'builders_guild').terrainText]).toEqual(['Not on the fields', 'Rocky ground', '']);
     const r = await rigUI({ width: 390, height: 844 });
     try {
       r.world.milestone = 'city';
       r.ui.refresh();
       fire(r.root.querySelector('#dock .cat[data-category="monuments"]'), 'click');
       const card = r.root.querySelector('#dock .tray .card[data-item="obelisk_small"]');
-      expect([card.querySelector('.terrain').textContent, card.getAttribute('title')]).toEqual(['Desert', 'Small obelisk: on the desert, not the fields']);
+      expect([card.querySelector('.terrain').textContent, card.getAttribute('title')]).toEqual(['Not on the fields', 'Small obelisk: on dry ground, not the fields']);
       expect(r.root.querySelector('#dock .tray .card[data-item="quarry"]').getAttribute('title')).toBe(null);
+      // At 150% text the card's line takes no more room than the quarry's "Rocky ground" (two lines in the 124 px card): the
+      // monument's card is no taller than the quarry's and its words fit inside it.
+      document.body.dataset.textSize = '150';
+      const quarry = r.root.querySelector('#dock .tray .card[data-item="quarry"]');
+      const line = card.querySelector('.terrain');
+      const lines = (n) => Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight));
+      expect([parseFloat(getComputedStyle(line).fontSize), lines(line) <= lines(quarry.querySelector('.terrain')), card.scrollHeight <= card.clientHeight, card.getBoundingClientRect().height <= quarry.getBoundingClientRect().height]).toEqual([18, true, true, true]);
+    } finally { r.cleanup(); }
+  });
+
+  it('hints on a phone that the Monuments tray scrolls on, over its right end, and drops the hint at the end (ruling 300)', async () => {
+    const w = makeTestWorld();
+    w.milestone = 'capital';
+    const r = await rigUI({ width: 390, height: 844, world: w });
+    try {
+      r.ui.refresh();
+      const hint = r.root.querySelector('#dock .tray-more');
+      expect([hint.hidden, hint.getAttribute('aria-hidden')]).toEqual([true, 'true']);   // slim dock: no tray, no hint
+      fire(r.root.querySelector('#dock .cat[data-category="monuments"]'), 'click');
+      const tray = r.root.querySelector('#dock .tray');
+      expect([tray.scrollWidth > tray.clientWidth, hint.hidden]).toEqual([true, false]);
+      const t = tray.getBoundingClientRect(), h = hint.getBoundingClientRect();
+      const near = (a, b) => Math.abs(a - b) <= 1;                                   // whole px: offsetTop rounds
+      expect([near(h.right, t.right), near(h.top, t.top), near(h.height, t.height), h.width < 60]).toEqual([true, true, true, true]);
+      expect(getComputedStyle(hint).pointerEvents).toBe('none');                   // taps reach the card under it
+      const dockHeight = r.root.querySelector('#dock').getBoundingClientRect().height;
+      hint.hidden = true;
+      expect(r.root.querySelector('#dock').getBoundingClientRect().height).toBe(dockHeight);   // no height of its own
+      tray.scrollLeft = tray.scrollWidth;
+      fire(tray, 'scroll');
+      expect(hint.hidden).toBe(true);                                               // at the end: nothing more that way
+      tray.scrollLeft = 0;
+      fire(tray, 'scroll');
+      expect(hint.hidden).toBe(false);
     } finally { r.cleanup(); }
   });
 });

@@ -112,7 +112,7 @@ describe('s4 sim the refusals\' words', () => {
   it('words every refusal the monument and palace commands return, from the commands themselves', () => {
     const w = city();
     const fields = place(w, 'obelisk_small', 4, 9);                               // fertile land
-    expect([fields.reason, reasonText(fields.reason)]).toEqual(['not_on_fields', 'Monuments stand on the desert, not the fields']);
+    expect([fields.reason, reasonText(fields.reason)]).toEqual(['not_on_fields', 'Monuments stand on dry ground, not the fields']);
     expect(place(w, 'obelisk_small', 12, 9).ok).toBe(true);                       // on the desert it is founded
     expect(place(w, 'palace', 20, 7).ok).toBe(true);
     const second = place(w, 'palace', 24, 7);

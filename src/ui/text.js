@@ -1125,7 +1125,7 @@ export const CONTRACT4_TEXT = {
 // enlargePalace, src/sim/undo.js): reasonText(code) words each. work_begun's generic line is for callers that have no
 // site to name; SIM4_TEXT.workBegun names it from undo's { type }.
 Object.assign(REASONS, {
-  not_on_fields: 'Monuments stand on the desert, not the fields',
+  not_on_fields: 'Monuments stand on dry ground, not the fields',
   one_only: 'The city has its palace: there is only one',
   work_begun: 'Work has begun on it: demolish it instead',
   finished: 'A finished monument has nothing to pause',
@@ -1165,19 +1165,22 @@ const ui4Cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // What a monument's crews and materials are, for "come by road": the crews and every material its courses use (its recipe).
 const ui4ByRoad = (type) => listText(['crews', ...['stone', 'bricks'].filter((g) => score4Monuments[type] && score4Monuments[type].courses.some((c) => c[g] > 0))]);
 export const UI4_TEXT = {
-  // The Monuments tab's cards (spec 4.4, 4.14, 6.3): the ground a monument stands on, and a prestige lock with its count.
-  desert: 'Desert',
-  desertTip: 'on the desert, not the fields',
+  // The Monuments tab's cards (spec 4.4, 4.14, 6.3): the ground a monument stands on, and a prestige lock with its count. The
+  // sim refuses only fertile land (ruling 299: desert, rocky, meadow and bank all take one), so the words say just that; the
+  // card's line is the short form, one line in a 124 px card at 150% text.
+  groundCard: 'Not on the fields',
+  groundTip: 'on dry ground, not the fields',
   needsPrestige: (need, have) => `Needs ${need} prestige (you have ${have})`,
   needsMilestoneAndPrestige: (milestone, need) => `Needs ${milestone} and ${need} prestige`,
   // The monument chips (spec 6.5, ruling 230), each the sim's own condition in words.
-  groundMet: 'Desert ground',
+  groundMet: 'Dry ground, not the fields',
   notOnFields: (fertile, of) => `Not on the fields: ${fertile} of ${of} tiles are fertile`,
   roadLater: (type) => `No road yet: ${ui4ByRoad(type)} come by road`,
   crewMet: (n) => `Crew: ${plural(n, "builders' guild", "builders' guilds")} near`,
   crewLater: "No builders' guild near",
   supplyMet: (goods) => `${ui4Cap(listText(goods.map((g) => goodName(g).toLowerCase())))} near`,
-  supplyLater: (good) => `No ${goodName(good).toLowerCase()} near`,
+  // Every material the recipe takes that has no maker or storehouse near (ruling 300): "No bricks or stone near".
+  supplyLater: (goods) => `No ${[].concat(goods).map((g) => goodName(g).toLowerCase()).join(' or ')} near`,
   founding: (cost, have) => `Founding ${ui4Gold(cost)} gold: you have ${ui4Gold(have)}`,
   // The confirm bar's line (spec 6.5, ruling 251), after the score's "+N Monuments when finished" (Track D).
   crewGold: (gold) => `then ${ui4Gold(gold)} gold a crew a month`,
@@ -1190,10 +1193,10 @@ export const UI4_TEXT = {
   roomFor: (type) => `Gold: room for a ${ui4Lower(type)}`,
   noRoomFor: (type) => `No room left for a ${ui4Lower(type)}`,
 };
-// One monument condition's chip words (src/sim/commands.js conditionsFor: ground, road, crew, supply, gold). firstGoods: the
-// materials of the first course, which the supply chip names when it is met. Ground refusals other than the fields keep the
-// shared words (conditionText).
-export function ui4ConditionText(cond, type, firstGoods = []) {
+// One monument condition's chip words (src/sim/commands.js conditionsFor: ground, road, crew, supply, gold). The supply chip
+// names the sim's own lists: every material the recipe takes when all are near (goods), else every one missing (missing).
+// Ground refusals other than the fields keep the shared words (conditionText).
+export function ui4ConditionText(cond, type) {
   const U = UI4_TEXT;
   if (cond.key === 'ground') {
     if (cond.state === 'met') return U.groundMet;
@@ -1202,7 +1205,7 @@ export function ui4ConditionText(cond, type, firstGoods = []) {
   }
   if (cond.key === 'road') return cond.state === 'met' ? CONDITION_TEXT.roadMet : cond.state === 'later' ? U.roadLater(type) : CONDITION_TEXT.roadCant;
   if (cond.key === 'crew') return cond.state === 'met' ? U.crewMet(cond.n) : U.crewLater;
-  if (cond.key === 'supply') return cond.state === 'met' ? U.supplyMet(firstGoods) : U.supplyLater(cond.good);
+  if (cond.key === 'supply') return cond.state === 'met' ? U.supplyMet(cond.goods || []) : U.supplyLater(cond.missing || [cond.good]);
   if (cond.key === 'gold') return U.founding(cond.cost, cond.have);
   return conditionText(cond, type);
 }
