@@ -1,10 +1,13 @@
 """Builds one before/after contact sheet per screen size from the raw shots.
 
-Usage: python contact.py <raw_dir> <out_dir> <prefix> [before_tag] [after_tag] [--stage2 | --stage3]
+Usage: python contact.py <raw_dir> <out_dir> <prefix> [before_tag] [after_tag] [--stage2 | --stage3 | --stage4]
 Writes <out_dir>/<prefix>-<size>.png: a labelled row of the six scenarios before, and a row after. With --stage2
 the after row holds the Stage 2 scenes (shots.ps1 -Stage2); the before row keeps the early-game six. With --stage3
 the after row holds the Stage 3 scenes (shots.ps1 -Stage3: peaceful, fire, tribute, battle, score, ambient) and the
-before row holds the Stage 2 scenes (what Stage 3 changes; shots.ps1 -Stage2). Plain python, not -I: Pillow is in the user site.
+before row holds the Stage 2 scenes (what Stage 3 changes; shots.ps1 -Stage2). With --stage4 both rows hold the Stage 4
+scenes (shots.ps1 -Stage4: title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion); shots are named
+<tag>-<motion>-<scene>-<size>.png, so pass the motion in the tags: s4before-full s4after-full (or -reduced).
+Plain python, not -I: Pillow is in the user site.
 """
 import sys
 from pathlib import Path
@@ -13,6 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 SCENARIOS = ['title', 'fresh', 'placing', 'house', 'summary', 'welcome']
 STAGE2_SCENARIOS = ['title', 'city', 'placing', 'manor', 'trade', 'summary']
 STAGE3_SCENARIOS = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient']
+STAGE4_SCENARIOS = ['title', 'tutorial', 'site', 'pyramid', 'capstone', 'procession', 'palace', 'sitesheet', 'motion']
 SIZES = {'phone-portrait': 0.5, 'phone-landscape': 0.45, 'tablet': 0.32, 'laptop': 0.27}
 
 
@@ -26,14 +30,16 @@ def font(size):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if a not in ('--stage2', '--stage3')]
+    flags = ('--stage2', '--stage3', '--stage4')
+    args = [a for a in sys.argv[1:] if a not in flags]
     stage3 = '--stage3' in sys.argv[1:]
-    if stage3 and '--stage2' in sys.argv[1:]:
-        sys.exit('--stage2 and --stage3 cannot be combined')
-    # Both flags name the scenes by their own names under each picture (the two rows' scene names differ).
-    stage2 = '--stage2' in sys.argv[1:] or stage3
-    before_scenarios = STAGE2_SCENARIOS if stage3 else SCENARIOS
-    after_scenarios = STAGE3_SCENARIOS if stage3 else STAGE2_SCENARIOS if stage2 else SCENARIOS
+    stage4 = '--stage4' in sys.argv[1:]
+    if sum(f in sys.argv[1:] for f in flags) > 1:
+        sys.exit('--stage2, --stage3 and --stage4 cannot be combined')
+    # These flags name the scenes by their own names under each picture (under it, as the two rows' names may differ).
+    stage2 = '--stage2' in sys.argv[1:] or stage3 or stage4
+    before_scenarios = STAGE4_SCENARIOS if stage4 else STAGE2_SCENARIOS if stage3 else SCENARIOS
+    after_scenarios = STAGE4_SCENARIOS if stage4 else STAGE3_SCENARIOS if stage3 else STAGE2_SCENARIOS if stage2 else SCENARIOS
     raw, out, prefix = Path(args[0]), Path(args[1]), args[2]
     before = args[3] if len(args) > 3 else 'before'
     after = args[4] if len(args) > 4 else 'after'
