@@ -4,8 +4,8 @@ import { KEYS, APP_VERSION } from '../data/ui.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
-import { FIRE_REACTIONS } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT } from './text.js';
+import { FIRE_REACTIONS, MOTION_SETTINGS, motionStatus } from './settings.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
@@ -60,40 +60,61 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     return el('div', { class: 'row' }, [el('span', { text: label }), el('span', { class: 'choices', role: 'group', 'aria-label': label }, buttons)]);
   }
 
-  // Stage 3 (Track D, spec 5.6): Ambient motion is Off while reduced motion is on (createUI's ambient layer runs only when
-  // both allow it), so the switch shows Off, is disabled and says why; the reduced-motion choices re-sync it.
-  function ambientRow() {
-    const D = DANGER_UI_TEXT;
-    const r = switchRow(D.ambient, 'ambient');
-    const b = r.querySelector('button'), state = b.querySelector('.state');
-    const note = el('p', { class: 'ambient-note small muted', text: D.ambientReduced });
+  // Stage 4 (spec 5.4, ruling 216, Track E): one Motion row replaces Stage 3's Reduce motion and Ambient motion rows. Under
+  // it, a status line says what it is doing ("Motion: Gentle (your device asks for less motion)", settings.js motionStatus)
+  // and a line says what that level moves. Both follow every change at once, a change of the device's own setting
+  // included (settings tell their subscribers), until the sheet closes. Track G adds Music and its volume.
+  function motionRow() {
+    const M = MOTION4_TEXT;
+    const row = choiceRow(M.motion, 'motion', MOTION_SETTINGS.map((m) => [m, M.choices[m]]));
+    const status = el('p', { class: 'motion-status small', 'aria-live': 'polite' });
+    const line = el('p', { class: 'motion-line small muted' });
+    const buttons = [...row.querySelectorAll('.choice.motion')];
     const sync = () => {
-      const reduced = settings.reducedMotion();
-      b.disabled = reduced;
-      note.hidden = !reduced;
-      const on = !reduced && Boolean(settings.get().ambient);
-      b.setAttribute('aria-checked', String(on));
-      state.textContent = on ? T.on : T.off;
+      const s = motionStatus(settings);
+      status.textContent = M.status(s);
+      line.textContent = M.levelLines[s.level];
+      for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.value === s.setting));
     };
-    b.addEventListener('click', sync);
     sync();
-    return { row: el('div', {}, [r, note]), sync };
+    const stop = settings.subscribe(() => { if (status.isConnected) sync(); else stop(); });   // the sheet has closed: stop listening
+    return el('div', { class: 'motion-row' }, [row, status, line]);
+  }
+
+  // Stage 4, Track G (spec 5.5, ruling 269): Music On / Off and its volume, 0-100 in tens with a 44 px − and + (each
+  // disabled at its end), beside Sound and separate from it.
+  function musicRows() {
+    const C = CARDS4_TEXT;
+    const value = el('span', { class: 'value' });
+    const quieter = button('−', { class: 'quieter', 'aria-label': C.quieter });
+    const louder = button('+', { class: 'louder', 'aria-label': C.louder });
+    const sync = () => {
+      const v = settings.get().musicVolume;
+      value.textContent = String(v);
+      quieter.disabled = v <= 0;
+      louder.disabled = v >= 100;
+    };
+    const step = (d) => { settings.set({ musicVolume: Math.max(0, Math.min(100, settings.get().musicVolume + d)) }); sync(); };
+    quieter.addEventListener('click', () => step(-10));
+    louder.addEventListener('click', () => step(10));
+    sync();
+    return [
+      switchRow(C.music, 'music'),
+      el('div', { class: 'row music-volume' }, [el('span', { text: C.musicVolume }), el('span', { class: 'stepper', role: 'group', 'aria-label': C.musicVolume }, [quieter, value, louder])]),
+    ];
   }
 
   function settingsSheet(body) {
     const D = DANGER_UI_TEXT;
-    const ambient = ambientRow();
-    const motion = choiceRow(T.reducedMotion, 'reducedMotion', [['system', T.followSystem], ['on', T.on], ['off', T.off]]);
-    for (const c of motion.querySelectorAll('button')) c.addEventListener('click', ambient.sync);
+    const motion = motionRow();
     body.append(
-      switchRow(T.sound, 'sound'), switchRow(T.vibration, 'vibration'),
+      switchRow(T.sound, 'sound'), ...musicRows(), switchRow(T.vibration, 'vibration'),
       switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'),
       choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%']]),
       motion,
       // Spec 4.3: what a fire no staffed firehouse reaches does to the speed, after the city's first (which always pauses).
       choiceRow(D.onAFire, 'fireReaction', FIRE_REACTIONS.map((k) => [k, D.fireReactions[k]])),
       el('p', { class: 'fire-note small muted', text: D.onAFireNote }),
-      ambient.row,
       choiceRow(T.helpLevel, 'help', [['full', HELP_NAMES.full], ['tips', HELP_NAMES.tips], ['off', HELP_NAMES.off]]),
       // Spec 4.18: the level the next new city starts at; the city being played keeps its own (the summary names it).
       choiceRow(T.difficultyForNewCities, 'difficulty', DIFFICULTY_ORDER.map((d) => [d, DIFFICULTY_NAMES[d]])),
@@ -102,6 +123,11 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
   }
 
   function help(body, { close } = {}) {
+    // Stage 4, Track G (spec 4.1): the picture cards at the top of How to play, over the open sheet (hooks.pictureCards
+    // pauses the game behind them); the sheet is still open after.
+    if (typeof hooks.pictureCards === 'function') {
+      body.append(el('div', { class: 'actions show-cards' }, [button(CARDS4_TEXT.showCards, { class: 'show-cards primary', onClick: () => hooks.pictureCards() })]));
+    }
     body.append(el('p', { text: T.leaveMode }));
     body.append(el('h3', { text: T.shortcuts }));
     body.append(el('table', { class: 'shortcuts' }, [
@@ -114,7 +140,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     if (canResumeGuide()) {
       body.append(el('div', { class: 'actions' }, [button(T.resumeGuide, { class: 'resume-guide primary', onClick: () => { onResumeGuide(); if (close) close(); } })]));
     }
-    body.append(el('h3', { text: T.tips }), el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.map((tip) => el('li', { text: TIP_TEXT[tip.id] }))));
+    body.append(el('h3', { text: T.tips }), el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.map((tip) => el('li', { text: TIP_HELP_TEXT[tip.id] || TIP_TEXT[tip.id] }))));   // Stage 4: a tip true only where it fires has its help words
   }
 
   function about(body) {

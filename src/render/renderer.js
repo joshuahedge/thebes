@@ -47,7 +47,9 @@ export function collectObjects(world, range, walkers = [], registry = ART) {
     const slot = slotFor(b, world);
     const def = registry[slot];
     if (!def || !(def.draw || def.png)) continue;
-    out.push({ key: depthKey(b.x, b.y, b.w, b.d), id: b.id, slot, def, x: b.x, y: b.y });
+    const o = { key: depthKey(b.x, b.y, b.w, b.d), id: b.id, slot, def, x: b.x, y: b.y };
+    if (def.live) o.b = b;                             // Stage 4: a monument is drawn live from its building (opts.live)
+    out.push(o);
   }
   for (let y = range.y0; y <= range.y1; y++) {
     for (let x = range.x0; x <= range.x1; x++) {
@@ -87,7 +89,7 @@ export function createRenderer({
   const dprOf = typeof dpr === 'function' ? dpr : () => dpr;
   let currentDpr = dprOf();
   const ctx = canvas.getContext('2d');
-  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, ms: 0, frames: 0, stale: 0 };
+  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, live: 0, ms: 0, frames: 0, stale: 0 };
 
   function renderFrame(world, cam, opts = {}) {
     const started = performance.now();
@@ -138,8 +140,18 @@ export function createRenderer({
 
     // 3. Depth-sorted sprites: buildings, trees and walkers in one pass, back to front.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    let sprites = 0;
+    let sprites = 0, live = 0;
     for (const o of objects) {
+      // Stage 4: a monument (art entry live: true) is drawn live in its depth slot, in art px with the art origin set
+      // (src/render/monuments.js drawMonument through opts.live), never from the sprite cache. Without opts.live (a bare
+      // renderFrame) it falls back to its placeholder sprite.
+      if (o.def && o.def.live && opts.live) {
+        ctx.setTransform(1, 0, 0, 1, ox, oy);
+        opts.live(g, o);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        live++;
+        continue;
+      }
       const slot = opts.treeSlot && o.id >= 1e6 && o.id < 2e6 ? opts.treeSlot(o) : o.slot;   // Stage 3: swaying trees (decor ids are 1e6..2e6)
       const sprite = spriteCache.get(slot, zoom, dpr);
       if (!sprite) continue;
@@ -160,7 +172,7 @@ export function createRenderer({
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.objects = objects.length; stats.sprites = sprites;
+    stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
     stats.ms = performance.now() - started; stats.frames++;
     return stats;
   }

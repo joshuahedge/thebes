@@ -9,17 +9,17 @@
 # -Stage4 takes the Stage 4 nine (src/dev/scenes.js STAGE4_SCENES: title, tutorial, site, pyramid, capstone, procession,
 # palace, sitesheet, motion), each one call to window.__thebes.devScene('<name>'), under both motions (review note 7.2:
 # "Screenshots in both"): full and reduced, or the one -Motion names. Before each scene
-# window.__thebes.setMotion('<motion>') sets it (src/dev/scenes.js setMotion: full = reduced motion off and ambient on,
-# reduced = follow the device, which headless Edge resolves to reduced). Until Stage 4 exists each scene shows the
-# closest thing today's game can (its S4-TODO says what the Stage 4 version must show); sitesheet and motion show an
-# open sheet under the top bar, the interface-style before. Shots are <Tag>-<motion>-<scene>-<size>.png at the four
-# sizes. -Stage4 cannot be combined with -Stage2, -Stage3 or -Mobile; -Only and -OnlySizes still pick scenes and sizes.
+# window.__thebes.setMotion('<motion>') sets it (src/dev/scenes.js setMotion: full = Settings -> Motion Full, reduced =
+# Follow the device, which headless Edge asks for less motion, so Gentle). Shots are <Tag>-<motion>-<scene>-<size>.png at
+# the four sizes. -Stage4 cannot be combined with -Stage2, -Stage3 or -Mobile; -Only and -OnlySizes still pick scenes and sizes.
+# The title and tutorial scenes are also shot at phone-landscape-small (667x375), beside phone-landscape (844x390).
 # Usage: tools/shots.ps1 -Stage4 -Tag s4before [-Motion full] [-Only site,motion] [-OnlySizes phone-portrait]
-# then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> s4before-full s4after-full --stage4
+# then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots stage-4-full s4before-full s4final-full --stage4
+# (and the same with reduced: stage-4-reduced s4before-reduced s4final-reduced; one contact sheet a size)
 # then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> before after [--stage2 | --stage3]
 #
 # -Mobile takes the mobile budget scenes instead (src/dev/scenes.js MOBILE_SCENES: early, plots, raid, raid-fire,
-# raid-overlay, placing, farm, farm-raid, sheet, welcome, the busy moments of the mobile UX review, and expanded, a tip opened in place) on four phones (390x844, 375x667,
+# raid-overlay, placing, farm, farm-raid, sheet, welcome, the busy moments of the mobile UX review, expanded, a tip opened in place, and pyramid-placing, the great pyramid's ghost (Stage 4, ruling 252)) on four phones (390x844, 375x667,
 # 844x390, 667x375) at each of -TextSizes (default 100 and 150), reduced motion on, as <Tag>-<scene>-<size>-t<text>.png.
 # Each shot also measures the rows under the top bar (measureRows in src/dev/scenes.js): a line per shot says where they
 # end, which layers show and how much of the map is left clear, and the lines (each with the full measurement as JSON
@@ -176,7 +176,10 @@ if ($Stage4) {
   foreach ($mo in $Motion) {
     foreach ($name in $stage4Scenes.Keys) {
       if ($Only.Count -and -not ($Only -contains $name)) { continue }
-      foreach ($sz in $sizes) {
+      # The title card and the picture cards also at the small landscape phone (667x375): How to play made the title card's
+      # buttons taller there (G2 review I3).
+      $stage4Sizes = if (@('title', 'tutorial') -contains $name) { @($sizes) + @(@{ name = 'phone-landscape-small'; w = 667; h = 375 }) } else { $sizes }
+      foreach ($sz in $stage4Sizes) {
         if ($OnlySizes.Count -and -not ($OnlySizes -contains $sz.name)) { continue }
         $out = Join-Path $OutDir "$Tag-$mo-$name-$($sz.name).png"
         & $shot -Url $stage4Scenes[$name] -Out $out -Width $sz.w -Height $sz.h -BudgetMs 1800 -Eval (New-Stage4Scene $name $mo)
@@ -192,7 +195,7 @@ if ($Mobile) {
   $sample = '/?skipTitle=1&nosw=1&seed=11&sample=1'
   $mobileScenes = [ordered]@{
     'early' = '/?skipTitle=1&nosw=1&seed=7'; 'plots' = '/?skipTitle=1&nosw=1&seed=7'; 'raid' = $sample; 'raid-fire' = $sample
-    'raid-overlay' = $sample; 'placing' = $sample; 'farm' = $sample; 'farm-raid' = $sample; 'sheet' = $sample; 'welcome' = '/?welcome=1&nosw=1&seed=11&sample=1'; 'expanded' = '/?skipTitle=1&nosw=1&seed=7'
+    'raid-overlay' = $sample; 'placing' = $sample; 'farm' = $sample; 'farm-raid' = $sample; 'sheet' = $sample; 'welcome' = '/?welcome=1&nosw=1&seed=11&sample=1'; 'expanded' = '/?skipTitle=1&nosw=1&seed=7'; 'pyramid-placing' = $sample
   }
   $phones = @('390x844', '375x667', '844x390', '667x375')
   $measure = "(async () => JSON.stringify((await import('./src/dev/scenes.js')).measureRows()))()"

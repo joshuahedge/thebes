@@ -19,14 +19,15 @@ const homes = (w, n, tier, residents, y = 9) => { for (let i = 0; i < n; i++) ad
 describe('s3 score parts', () => {
   it('scores an empty city by the formulas: only full jobs, a sound treasury and a safe record count', () => {
     const s = scoreOf(street());
-    expect(s.parts).toEqual({ people: 0, prosperity: 50, culture: 0, safety: 100 });
-    expect([s.raw, s.total, s.factor, s.version, s.medal]).toEqual([150, 150, 1, 1, null]);
-    expect(s.next).toEqual({ medal: 'bronze', points: 10 });
+    expect(s.parts).toEqual({ people: 0, prosperity: 50, culture: 0, safety: 100, monuments: 0 });
+    expect([s.raw, s.total, s.factor, s.version, s.medal]).toEqual([150, 150, 1, 2, null]);
+    expect(s.next).toEqual({ medal: 'bronze', points: 50 });   // score v2: bronze at 200
     expect(s.reasons).toEqual({
       people: { code: 'growth', milestone: 'town', people: 0, of: 150 },
       prosperity: { code: 'taxes', perPerson: 0 },
       culture: { code: 'no_homes' },
       safety: null,
+      monuments: { code: 'locked', type: 'obelisk_small', first: true, milestone: 'city' },   // Stage 4 (Track D): the next step, "Monuments come with City"
     });
   });
   it('counts People as 60 x growth along the milestones by people now plus 40 x the residents\' average tier', () => {
@@ -147,7 +148,7 @@ describe('s3 score parts', () => {
     expect(JSON.stringify(scoreOf(w))).toBe(JSON.stringify(scoreOf(w)));
     runMonth(w, []);
     const row = w.history[w.history.length - 1];
-    expect({ score: row.score, parts: row.parts }).toEqual(scoreRow(w));
+    expect({ score: row.score, parts: row.parts, version: row.version }).toEqual(scoreRow(w));
   });
   it('scores a big city quickly enough to show every game day', () => {
     const w = createWorld({ seed: 11 });
@@ -169,9 +170,9 @@ describe('s3 score previews', () => {
     expect(p.culture).toBeGreaterThan(0);
     expect([p.people, p.prosperity]).toEqual([0, 0]);
     expect(JSON.stringify(w)).toBe(before);
-    expect(scorePreview(w, 'temple', 10, 9)).toEqual({ people: 0, prosperity: 0, culture: 0, safety: 0 });   // on a home: nothing
-    expect(scorePreview(w, 'temple', 31, 31)).toEqual({ people: 0, prosperity: 0, culture: 0, safety: 0 });  // off the map
-    expect(scorePreview(w, 'nothing', 3, 3)).toEqual({ people: 0, prosperity: 0, culture: 0, safety: 0 });
+    expect(scorePreview(w, 'temple', 10, 9)).toEqual({ people: 0, prosperity: 0, culture: 0, safety: 0, monuments: 0 });   // on a home: nothing
+    expect(scorePreview(w, 'temple', 31, 31)).toEqual({ people: 0, prosperity: 0, culture: 0, safety: 0, monuments: 0 });  // off the map
+    expect(scorePreview(w, 'nothing', 3, 3)).toEqual({ people: 0, prosperity: 0, culture: 0, safety: 0, monuments: 0 });
   });
   it('previews a firehouse raising Safety and a potter lowering it, from Town', () => {
     const w = street();

@@ -155,9 +155,8 @@ describe('render problem markers', () => {
       r.frame(0);
       const m = problemMarkers(r.world, r.ui.alerts.list(), null).find((x) => x.kind === 'problem');
       expect(r.world.buildings[m.id].type).toBe('bazaar');                             // uiWorld's bazaar has nothing to sell
-      const q = p(m.x, m.y);
-      const [sx, sy] = artToScreen(r.cam, { width: 390, height: 844 }, q[0], q[1] - m.lift);
-      expect(near(r.canvas, sx, sy, UI.problem)).toBeGreaterThan(20);
+      const pin = r.ui.markers().find((x) => x.ids.includes(m.id));                      // Stage 4: pinned on a stem (rulings 280-281)
+      expect(near(r.canvas, pin.x, pin.y, UI.problem)).toBeGreaterThan(20);
     } finally { r.cleanup(); }
   });
 });

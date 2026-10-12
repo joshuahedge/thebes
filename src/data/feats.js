@@ -12,6 +12,9 @@
 //   jobs { people, rate }          `people` or more with unemployment at `rate` or less
 //   tally { key, n }               a running tally in world.tally
 //   before { milestone, day }      become the milestone before this game day (day 720 starts game-year 3)
+//   steadyBuild { types }          (Stage 4) finish a monument of one of these types with no month in which its crews stood
+//                                  idle for lack of material (site.starved false, and none this month: site.month.starvedDays 0)
+//   splitBefore { split, day }     (Stage 4) reach a split (world.splits: the great pyramid finished) before this game day
 // raids: true marks a raid feat, which a Peaceful city (no raids, spec 4.18) neither earns nor lists.
 export const FEATS = [
   { id: 'debt_free', check: { kind: 'neverInDebt', milestone: 'town' } },
@@ -24,4 +27,8 @@ export const FEATS = [
   { id: 'full_hands', check: { kind: 'jobs', people: 400, rate: 0.05 } },
   { id: 'merchant_prince', check: { kind: 'tally', key: 'sold', n: 1000 } },
   { id: 'swift_town', check: { kind: 'before', milestone: 'town', day: 720 } },
+  // Stage 4 (spec 4.19): a mastaba or pyramid built without its crews ever waiting for material, and the great pyramid
+  // finished before game-year 25 begins (day 8,640).
+  { id: 'steady_hands', check: { kind: 'steadyBuild', types: ['mastaba_small', 'mastaba_large', 'pyramid_small', 'pyramid_great'] } },
+  { id: 'swift_pyramid', check: { kind: 'splitBefore', split: 'great_pyramid', day: 8640 } },
 ];

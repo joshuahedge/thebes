@@ -32,7 +32,7 @@ describe('s3 contract data', () => {
   it('unlocks the firehouse with the Village and the wall, tower and barracks with Market town, and gives each a card', () => {
     const at = (type) => MILESTONES.find((m) => m.unlocks.includes(type)).id;
     expect(['firehouse', 'wall', 'tower', 'barracks'].map(at)).toEqual(['village', 'market_town', 'market_town', 'market_town']);
-    expect(CATEGORIES.find((c) => c.id === 'services').items.slice(-1)).toEqual(['firehouse']);
+    expect(CATEGORIES.find((c) => c.id === 'services').items.slice(-2)).toEqual(['firehouse', 'palace']);   // Stage 4: the palace comes last
     expect(CATEGORIES.find((c) => c.id === 'defence').items).toEqual(['wall', 'tower', 'barracks']);
     for (const slot of ['firehouse', 'tower', 'barracks', 'wall', 'gate', 'rubble']) expect([slot, typeof (ART[slot] && ART[slot].draw)]).toEqual([slot, 'function']);
   });
@@ -49,7 +49,7 @@ describe('s3 contract data', () => {
     expect(FIRE_RISK).toEqual({
       potter: 1.0, brewery: 1.0, weaver: 0.5, jeweller: 0.5, granary: 0.5, storehouse: 0.5, trading_post: 0.5,
       bazaar: 0.3, booth: 0.3, barracks: 0.3, farm_grain: 0.15, farm_fig: 0.15, farm_barley: 0.15, farm_flax: 0.15, clay_pit: 0.15, gem_mine: 0.15,
-      temple: 0.1, firehouse: 0.1,
+      temple: 0.1, firehouse: 0.1, quarry: 0.15, brickworks: 1.0, builders_guild: 0.3,   // Stage 4's three supply buildings
     });
     for (const never of ['garden', 'statue', 'well', 'wall', 'gate', 'tower', 'rubble', 'house']) expect([never, FIRE_RISK[never]]).toEqual([never, undefined]);
     for (const t of Object.keys(FIRE_RISK)) expect([t, Boolean(BUILDINGS[t])]).toEqual([t, true]);
@@ -73,25 +73,25 @@ describe('s3 contract data', () => {
   it('sets the danger mood terms of spec 4.9', () => {
     expect(DANGER_MOOD).toEqual({ fireLastMonth: -4, burnedEach: -2, burnedMax: -10, burnedDays: 180, raidBeaten: -3, raidLost: -8, raidDays: 180 });
   });
-  it('sets score v1: four parts whose weights add up to 100, a factor per level, medals and the share link', () => {
-    expect(SCORE_VERSION).toBe(1);
-    expect(SCORE_PARTS).toEqual(['people', 'prosperity', 'culture', 'safety']);
+  it('sets the score (score v2 from Stage 4: tests/stage4/contract): parts whose weights add up to 100, a factor per level, medals and the share link', () => {
+    expect(SCORE_VERSION).toBe(2);
+    expect(SCORE_PARTS).toEqual(['people', 'prosperity', 'culture', 'safety', 'monuments']);
     expect(Object.keys(SCORE_WEIGHTS)).toEqual(SCORE_PARTS);
     for (const part of SCORE_PARTS) expect([part, Object.values(SCORE_WEIGHTS[part]).reduce((a, b) => a + b, 0)]).toEqual([part, 100]);
-    expect(SCORE_TERMS).toEqual({ growthSteps: 5, homesSpan: 8, taxPerPerson: 5, jobsFull: 0.05, jobsZero: 0.30, treasuryZero: -500, routes: 2, pleasant: 50, burnedPenalty: 0.2, raidLostPenalty: 0.5, recordDays: 360 });
+    expect(SCORE_TERMS).toEqual({ growthSteps: 5, homesSpan: 8, taxPerPerson: 5, jobsFull: 0.05, jobsZero: 0.30, treasuryZero: -500, routes: 2, pleasant: 50, burnedPenalty: 0.2, raidLostPenalty: 0.5, recordDays: 360, prestigeFull: 700 });
     expect(SCORE_FACTOR).toEqual({ peaceful: 0.7, relaxed: 0.8, normal: 1, hard: 1.25 });
     expect(Object.keys(SCORE_FACTOR).sort()).toEqual([...DIFFICULTY_ORDER].sort());
-    expect(MEDALS).toEqual([{ id: 'bronze', at: 160 }, { id: 'silver', at: 240 }, { id: 'gold', at: 320 }]);
+    expect(MEDALS).toEqual([{ id: 'bronze', at: 200 }, { id: 'silver', at: 300 }, { id: 'gold', at: 400 }]);
     expect(SPLIT_MILESTONES).toEqual(MILESTONES.slice(1).map((m) => m.id));
     expect([RECORDS_KEY, RECORDS_MAX]).toEqual(['thebes.records', 200]);
-    expect(SHARE).toEqual({ base: 'https://joshuahedge.github.io/thebes/', format: 't1', difficulty: { peaceful: 'p', relaxed: 'r', normal: 'n', hard: 'h' }, checkLength: 4 });
-    expect(FEATS.length).toBe(10);                                                   // Track E fills it, with its words (tests/stage3/score/feats.test.js)
+    expect([SHARE.base, SHARE.format, SHARE.difficulty, SHARE.checkLength]).toEqual(['https://joshuahedge.github.io/thebes/', 't2', { peaceful: 'p', relaxed: 'r', normal: 'n', hard: 'h' }, 4]);
+    expect(FEATS.length).toBe(12);                                                   // Track E fills it, with its words (tests/stage3/score/feats.test.js); Stage 4 adds two
   });
   it('sets the ambient numbers of ruling 133', () => {
     expect(pick(AMBIENT, ['glintDriftTilesPerSecond', 'reedSwayDeg', 'treeSwayDeg', 'cropBandEveryMs', 'budgetMs', 'idleFpsCap', 'idleAfterMs', 'maxChangeHz'])).toEqual({
       glintDriftTilesPerSecond: 0.2, reedSwayDeg: 3, treeSwayDeg: 2, cropBandEveryMs: 6000, budgetMs: 2, idleFpsCap: 30, idleAfterMs: 2000, maxChangeHz: 1,
     });
-    expect([AMBIENT.glintFadeMs, AMBIENT.reedSwayPeriodMs, AMBIENT.treeSwayPeriodMs, AMBIENT.smokeEveryMs, AMBIENT.rareEveryMs]).toEqual([[4000, 7000], [3000, 6000], [4000, 6000], [2000, 3000], [60000, 120000]]);
+    expect([AMBIENT.glintFadeMs, AMBIENT.reedSwayPeriodMs, AMBIENT.treeSwayPeriodMs, AMBIENT.smokeEveryMs, AMBIENT.rareEveryMs]).toEqual([[4000, 7000], [3000, 6000], [4000, 6000], [2000, 3000], [45000, 90000]]);   // Stage 4: rare life every 45-90 s (ruling 219)
     expect(AMBIENT.dropOrder).toEqual(['rare', 'smoke', 'sway']);
   });
 });

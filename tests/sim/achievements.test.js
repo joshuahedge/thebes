@@ -17,9 +17,9 @@ describe('sim achievements', () => {
       'granary_of_the_river', 'steady_books', 'prosperous', 'no_one_hungry', 'water_for_all', 'busy_hands',
       'on_course', 'day_by_day',
     ]);
-    expect(ACHIEVEMENTS.length).toBe(36);                                  // Stage 2 adds eight (goalsStage2.test.js), Stage 3 four (tests/stage3/score)
-    expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(36);
-    const kinds = ['roads', 'homes', 'buildings', 'tier', 'people', 'tally', 'made', 'goals', 'fedAll', 'waterAll', 'jobs', 'safeYear'];
+    expect(ACHIEVEMENTS.length).toBe(42);                                  // Stage 2 adds eight (goalsStage2.test.js), Stage 3 four (tests/stage3/score), Stage 4 six (tests/stage4/score)
+    expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(42);
+    const kinds = ['roads', 'homes', 'buildings', 'tier', 'people', 'tally', 'made', 'goals', 'fedAll', 'waterAll', 'jobs', 'safeYear', 'prestige', 'kinds', 'finished', 'palaceStyle'];
     const tallyKeys = Object.keys(makeTestWorld().tally);
     for (const a of ACHIEVEMENTS) {
       expect(kinds).toContain(a.measure.kind);

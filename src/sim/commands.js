@@ -1,14 +1,16 @@
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { ECONOMY } from '../data/economy.js';
+import { MONUMENTS } from '../data/monuments.js';
 import { footprint, idx, inBounds, ring } from './grid.js';
 import { T, TERRAIN_BY_NAME } from './terrain.js';
-import { makeBuilding, insertBuilding, removeBuilding, buildingAt } from './world.js';
+import { makeBuilding, insertBuilding, removeBuilding, buildingAt, allBuildings, isFinished, isSite } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { canAfford, spend, refund } from './money.js';
-import { costOf, roadCostOf, rubbleCostOf } from './costs.js';
+import { costOf, roadCostOf, rubbleCostOf, canPayNoDebt } from './costs.js';
 import { isUnlocked } from './progression.js';
 import { pushUndo } from './undo.js';
 import { storeAccepts } from './production.js';
+import { guildsNear, supplyNear, remainingNeed } from './monuments.js';
 import { DEFENCE } from '../data/raids.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
@@ -16,18 +18,24 @@ const storesAny = (o, goods) => (BUILDINGS[o.type].stores || []).some((g) => goo
 
 const isTile = (x, y) => Number.isInteger(x) && Number.isInteger(y);
 
+// Stage 4: what a type's placing pays, and whether it may take the treasury below the debt floor. A monument's founding
+// never takes it below 0 (ruling 227); every other building may go down to ECONOMY.debtFloor.
+const canPay = (world, type, cost) => (BUILDINGS[type].monument ? canPayNoDebt(world, cost) : canAfford(world, cost));
+
 // Why a building cannot go at x, y before any tile is looked at, else null.
 function typeReason(world, type, x, y) {
   const def = BUILDINGS[type];
   if (!def || def.buildable === false) return 'unknown';   // rubble (and a gate) is never built
   if (!isUnlocked(world, type)) return 'locked';
   if (def.tile) return 'unknown';                          // walls are drawn as a line (drawWall, src/sim/defence.js), not placed
+  if (def.oneOnly && allBuildings(world).some((b) => b.type === type)) return 'one_only';   // Stage 4: one palace a city (ruling 271)
   // A fractional tile would index between cells and leave ghost entries in occ and the save.
   if (!isTile(x, y)) return 'out_of_bounds';
   return null;
 }
 
-// Why one footprint tile cannot take the building, else null.
+// Why one footprint tile cannot take the building, else null. Stage 4: a monument stands on any dry ground but the fields
+// (ruling 226): a fertile tile refuses with 'not_on_fields'.
 function tileReason(world, type, tx, ty) {
   const def = BUILDINGS[type];
   if (!inBounds(world.size, tx, ty)) return 'out_of_bounds';
@@ -36,51 +44,83 @@ function tileReason(world, type, tx, ty) {
   if (world.occ[i] || world.road[i]) return 'occupied';
   if (world.wall[i] && !(type === 'tower' && world.wall[i] > 0)) return 'occupied';   // a tower may stand on a standing wall tile (spec 4.13)
   if (def.terrain && world.terrain[i] !== TERRAIN_BY_NAME[def.terrain]) return 'needs_' + def.terrain;
+  if (def.monument && world.terrain[i] === TERRAIN_BY_NAME.fertile) return 'not_on_fields';
   return null;
 }
 
-export function checkTiles(world, type, x, y) {
+// rot (Stage 4, ruling 234): 0, or 1 to turn a type that rotates a quarter (dimsOf); ignored by the rest.
+export function checkTiles(world, type, x, y, rot = 0) {
   const first = typeReason(world, type, x, y);
   if (first) return first;
-  const def = BUILDINGS[type];
-  for (const [tx, ty] of footprint(x, y, def.w, def.d)) {
+  const { w, d } = dimsOf(type, rot);
+  for (const [tx, ty] of footprint(x, y, w, d)) {
     const reason = tileReason(world, type, tx, ty);
     if (reason) return reason;
   }
-  if (def.needsRoad && !touchesRoad(world, { x, y, w: def.w, d: def.d })) return 'needs_road';
+  if (BUILDINGS[type].needsRoad && !touchesRoad(world, { x, y, w, d })) return 'needs_road';
   return null;
 }
 
 // Producers want a store in reach, sellers their supply: 'no_storage' / 'no_supply', else null. Either only delays it.
-function worksWarning(world, type, x, y) {
+// Stage 4 (spec 4.16): a quarry's stone and a brickworks' bricks go to a monument site first, so a site that still needs
+// the good counts as somewhere to send it.
+function worksWarning(world, type, x, y, rot = 0) {
   const def = BUILDINGS[type];
-  const probe = { id: -1, x, y, w: def.w, d: def.d };
-  if (def.produces && !buildingsInReach(world, probe, def.producerReach, (o) => storeAccepts(o, def.produces.good)).length) return 'no_storage';
+  const probe = { id: -1, x, y, ...dimsOf(type, rot) };
+  const takes = (o, good) => storeAccepts(o, good) || (isSite(o) && remainingNeed(o)[good] > 0);
+  if (def.produces && !buildingsInReach(world, probe, def.producerReach, (o) => takes(o, def.produces.good)).length) return 'no_storage';
   if (def.sells && !buildingsInReach(world, probe, def.supplyReach, (o) => storesAny(o, def.sells)).length) return 'no_supply';
   return null;
 }
 
+// Stage 4 (ruling 230, spec 6.5): a monument's crew and supply, judged only once a road touches the footprint (both come by
+// road). crew: { n } guilds within MONUMENT.crewReach (guildsNear), reason 'no_crew' when none; supply: the first course's
+// materials: every material its recipe takes (goods: the first course's first, then the later courses'), each needing a maker
+// in producer reach or a storehouse holding some in supply reach; missing: those with neither (ruling 300: the chip names
+// every one), reason 'no_stone' or 'no_bricks' (the first missing, good names it). null for a type that is not a monument or
+// a footprint with no road.
+function monumentChecks(world, type, x, y, rot = 0) {
+  if (!BUILDINGS[type].monument) return null;
+  const probe = { x, y, ...dimsOf(type, rot) };
+  if (!touchesRoad(world, probe)) return null;
+  const guilds = guildsNear(world, probe);
+  const { courses } = MONUMENTS[type];
+  const goods = ['stone', 'bricks'].filter((g) => courses[0][g] > 0);
+  for (const g of ['stone', 'bricks']) if (!goods.includes(g) && courses.some((c) => c[g] > 0)) goods.push(g);
+  const missing = goods.filter((g) => !supplyNear(world, probe, g));
+  const first = missing[0] || null;
+  return {
+    crew: { key: 'crew', state: guilds.length ? 'met' : 'later', reason: guilds.length ? null : 'no_crew', n: guilds.length },
+    supply: { key: 'supply', state: first ? 'later' : 'met', reason: first ? `no_${first}` : null, good: first, goods, missing },
+  };
+}
+
 // roadLater: canPlace let the building through without a road, so it carries the plot's warning.
-function placementWarnings(world, type, x, y, roadLater = false) {
-  const def = BUILDINGS[type];
+function placementWarnings(world, type, x, y, roadLater = false, rot = 0) {
+  const { w, d } = dimsOf(type, rot);
   const warnings = [];
   // A plot can be placed off the road but no one moves in until one touches it; gardens and statues need none.
-  if (roadLater || (type === 'house' && !touchesRoad(world, { x, y, w: def.w, d: def.d }))) warnings.push('needs_road');
-  const works = worksWarning(world, type, x, y);
+  if (roadLater || (type === 'house' && !touchesRoad(world, { x, y, w, d }))) warnings.push('needs_road');
+  const works = worksWarning(world, type, x, y, rot);
   if (works) warnings.push(works);
+  const m = monumentChecks(world, type, x, y, rot);
+  if (m) for (const c of [m.crew, m.supply]) if (c.reason) warnings.push(c.reason);
   return warnings;
 }
 
 // roadLater (ruling P10): a building that fails only for want of a road is let through with a 'needs_road' warning, as
 // a housing plot always is. It does nothing, pays no upkeep or wages (src/sim/economy.js) and counts for no "Build a"
 // goal (src/sim/goals.js) until a road touches it. Only the player's placing passes it: by default (the sample city,
-// the balance runs) a road is still required.
-export function canPlace(world, type, x, y, { roadLater = false } = {}) {
-  const reason = checkTiles(world, type, x, y);
+// the balance runs) a road is still required. Stage 4: rot turns a mastaba; a monument refuses on the fields
+// ('not_on_fields'), before its prestige unlock ('locked') and when founding would take the treasury below 0 ('no_gold');
+// a second palace refuses with 'one_only'. A monument's warnings add 'no_crew' and 'no_stone' / 'no_bricks' once a road
+// touches it.
+export function canPlace(world, type, x, y, { roadLater = false, rot = 0 } = {}) {
+  const reason = checkTiles(world, type, x, y, rot);
   const later = reason === 'needs_road' && roadLater;
   if (reason && !later) return fail(reason);
-  if (!canAfford(world, costOf(world, type))) return fail('no_gold');
-  return { ok: true, warnings: placementWarnings(world, type, x, y, later) };
+  if (!canPay(world, type, costOf(world, type))) return fail('no_gold');
+  return { ok: true, warnings: placementWarnings(world, type, x, y, later, rot) };
 }
 
 // The placing preview's conditions (ruling P9): each one judged on its own, so the ghost and the confirm bar can show
@@ -90,45 +130,54 @@ export function canPlace(world, type, x, y, { roadLater = false } = {}) {
 //   conditions, in this order, each { key, state: 'met' | 'later' | 'cant', reason (null when met), ... }:
 //     ground: every footprint tile free (on the map, dry, no building, road or wall); reason: the first tile's refusal,
 //             as checkTiles gives it. A terrain building adds terrain ('fertile', 'rocky'), fit and of: how many of the
-//             footprint's tiles are that terrain, out of how many.
+//             footprint's tiles are that terrain, out of how many. A monument adds fertile and of: how many of its tiles
+//             are fields ("Not on the fields: 3 of 12 tiles are fertile").
 //     road (buildings that need one, and housing plots): reason 'needs_road' while no road touches the footprint;
 //             'later' for a plot, and for a building with roadLater, else 'cant'. joins: [[x, y], ...], the free tiles
 //             beside the footprint where a road would touch it (empty once one does).
 //     works (producers and sellers): 'later' with reason 'no_storage' / 'no_supply' while nothing in reach serves it.
-//     gold: cost and have (the treasury); 'cant' with reason 'no_gold' when paying would cross the debt floor.
+//     crew, supply (Stage 4, monuments, only once a road touches it): 'later' with 'no_crew' (n guilds near) or
+//             'no_stone' / 'no_bricks' (good) while nothing in reach would serve it (monumentChecks).
+//     gold: cost and have (the treasury); 'cant' with reason 'no_gold' when paying would cross the debt floor (for a
+//             monument, would take the treasury below 0, and its gold condition carries floor: 0).
 //   tiles: [{ x, y, state: 'met' | 'cant', reason }], one per footprint tile in footprint order.
-// A refusal before any tile (unknown, locked, a fractional spot) has state 'cant' and no conditions or tiles.
-export function conditionsFor(world, type, x, y, { roadLater = false } = {}) {
+// A refusal before any tile (unknown, locked, one_only, a fractional spot) has state 'cant' and no conditions or tiles.
+export function conditionsFor(world, type, x, y, { roadLater = false, rot = 0 } = {}) {
   const first = typeReason(world, type, x, y);
   if (first) return { ok: false, reason: first, warnings: [], state: 'cant', conditions: [], tiles: [] };
   const def = BUILDINGS[type];
-  const tiles = footprint(x, y, def.w, def.d).map(([tx, ty]) => {
+  const { w, d } = dimsOf(type, rot);
+  const tiles = footprint(x, y, w, d).map(([tx, ty]) => {
     const reason = tileReason(world, type, tx, ty);
     return { x: tx, y: ty, state: reason ? 'cant' : 'met', reason };
   });
   const conditions = [];
   const blocked = tiles.find((t) => t.reason);
   const ground = { key: 'ground', state: blocked ? 'cant' : 'met', reason: blocked ? blocked.reason : null };
+  const terrainAt = (t) => inBounds(world.size, t.x, t.y) && world.terrain[idx(world.size, t.x, t.y)];
   if (def.terrain) {
     const want = TERRAIN_BY_NAME[def.terrain];
-    const fit = tiles.filter((t) => inBounds(world.size, t.x, t.y) && world.terrain[idx(world.size, t.x, t.y)] === want).length;
-    Object.assign(ground, { terrain: def.terrain, fit, of: tiles.length });
+    Object.assign(ground, { terrain: def.terrain, fit: tiles.filter((t) => terrainAt(t) === want).length, of: tiles.length });
   }
+  if (def.monument) Object.assign(ground, { fertile: tiles.filter((t) => terrainAt(t) === TERRAIN_BY_NAME.fertile).length, of: tiles.length });
   conditions.push(ground);
   if (def.needsRoad || type === 'house') {
-    const probe = { x, y, w: def.w, d: def.d };
+    const probe = { x, y, w, d };
     const touches = touchesRoad(world, probe);
     const state = touches ? 'met' : (type === 'house' || roadLater ? 'later' : 'cant');
     conditions.push({ key: 'road', state, reason: touches ? null : 'needs_road', joins: touches ? [] : roadJoins(world, probe) });
   }
   if (def.produces || def.sells) {
-    const works = worksWarning(world, type, x, y);
+    const works = worksWarning(world, type, x, y, rot);
     conditions.push({ key: 'works', state: works ? 'later' : 'met', reason: works });
   }
+  const m = monumentChecks(world, type, x, y, rot);
+  if (m) conditions.push(m.crew, m.supply);
   const cost = costOf(world, type);
-  conditions.push(canAfford(world, cost)
-    ? { key: 'gold', state: 'met', reason: null, cost, have: world.gold }
-    : { key: 'gold', state: 'cant', reason: 'no_gold', cost, have: world.gold });
+  const floor = def.monument ? { floor: 0 } : {};   // Stage 4: a monument's gold may not go below 0
+  conditions.push(canPay(world, type, cost)
+    ? { key: 'gold', state: 'met', reason: null, cost, have: world.gold, ...floor }
+    : { key: 'gold', state: 'cant', reason: 'no_gold', cost, have: world.gold, ...floor });
   const refusal = conditions.find((c) => c.state === 'cant');
   const later = conditions.filter((c) => c.state === 'later');
   return {
@@ -150,11 +199,14 @@ function roadJoins(world, b) {
   });
 }
 
-export function place(world, type, x, y, { roadLater = false } = {}) {
-  const check = canPlace(world, type, x, y, { roadLater });
+// Stage 4: rot (0 or 1) turns a mastaba; the building keeps it (b.rot) and its swapped footprint. A monument is founded as a
+// site (makeBuilding gives it an empty b.site); its undo entry is the same 'place' entry, which undo refuses once work has
+// begun on it (src/sim/undo.js, ruling 236).
+export function place(world, type, x, y, { roadLater = false, rot = 0 } = {}) {
+  const check = canPlace(world, type, x, y, { roadLater, rot });
   if (!check.ok) return check;
   const cost = costOf(world, type);
-  const b = insertBuilding(world, makeBuilding(world, type, x, y));
+  const b = insertBuilding(world, makeBuilding(world, type, x, y, rot));
   spend(world, cost);
   // A tower on a standing wall tile gives the tile its 80 hit points (spec 4.13); undo puts the old value back.
   const walls = [];
@@ -224,9 +276,12 @@ export function demolishAt(world, x, y) {
 export function setPaused(world, id, paused) {
   const b = world.buildings[id];
   if (!b) return fail('nothing_here');
-  // Pausing stops staffing and upkeep, so a building with neither (a housing plot) has nothing to pause.
+  // Pausing stops staffing and upkeep, so a building with neither (a housing plot) has nothing to pause. Stage 4 (ruling 235):
+  // a monument site pauses like any building (its work and work gold stop; monumentDay reads b.paused); a finished
+  // monument has nothing to pause.
   const def = BUILDINGS[b.type];
-  if (!def.workers && !def.upkeep) return fail('not_pausable');
+  if (isFinished(b)) return fail('finished');
+  if (!def.workers && !def.upkeep && !def.monument) return fail('not_pausable');
   b.paused = Boolean(paused);
   if (b.paused) b.staff = 0;
   return { ok: true, warnings: [] };
@@ -396,6 +451,36 @@ export function previewHouses(world, x0, y0, x1, y1) {
 export function paintHouses(world, x0, y0, x1, y1) {
   const { skipped, ...p } = paintHouseTiles(world, rectTiles(x0, y0, x1, y1, world.size));
   return p;
+}
+
+// Stage 4 (ruling 250, spec 7.3): plazas are painted like plots, one 1x1 building a tile. Complete in the contract; Track A
+// owns it after. previewPlazaTiles: { ok, reason, warnings, positions, cost, skipped } as previewHouseTiles; refused with
+// 'locked' before City, 'nothing_to_place' when no tile is free and 'no_gold' when the cost would cross the debt floor.
+// A plaza needs no road, so it never warns of one.
+export function previewPlazaTiles(world, list) {
+  if (!isUnlocked(world, 'plaza')) return fail('locked', { positions: [], cost: 0, skipped: [] });
+  const positions = [], skipped = [];
+  for (const [x, y] of uniqueTiles(list)) {
+    const reason = checkTiles(world, 'plaza', x, y);
+    if (reason) skipped.push({ x, y, reason });
+    else positions.push([x, y]);
+  }
+  const cost = positions.length * costOf(world, 'plaza');
+  if (!positions.length) return fail('nothing_to_place', { positions, cost: 0, skipped });
+  if (!canAfford(world, cost)) return fail('no_gold', { positions, cost, skipped });
+  return { ok: true, warnings: [], positions, cost, skipped };
+}
+
+// Paints the preview's plazas, charges once and pushes one undo entry for them all ({ kind: 'place', ids, cost }).
+export function paintPlazaTiles(world, list) {
+  const p = previewPlazaTiles(world, list);
+  if (!p.ok) return { ...p, ids: [] };
+  const ids = p.positions.map(([x, y]) => insertBuilding(world, makeBuilding(world, 'plaza', x, y)).id);
+  spend(world, p.cost);
+  pushUndo(world, { kind: 'place', ids, cost: p.cost });
+  const fresh = world.newItems.indexOf('plaza');
+  if (fresh >= 0) world.newItems.splice(fresh, 1);
+  return { ok: true, warnings: [], ids, cost: p.cost, skipped: p.skipped };
 }
 
 // Everything on a list of tiles (the demolish tool's core, placement review P3): buildings (rubble among them), road tiles

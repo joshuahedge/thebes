@@ -26,6 +26,9 @@ import { registerServiceWorker, applyUpdate } from './pwa.js';
 import { createRecords, newCityId } from './save/records.js';
 import { titleDecor } from './ui/scoreUi.js';
 import { devScene, setMotion } from './dev/scenes.js';
+import { createMusic, musicMood } from './audio/music.js';
+import { showPictureCards } from './ui/tutorial.js';
+import { drawMonument } from './render/monuments.js';
 
 const HOUR = 3600 * 1000;
 
@@ -42,6 +45,7 @@ export async function boot(doc, win, {
   root = doc.body, store = createSaveStore(), params = new URLSearchParams(win.location.search),
   now = () => performance.now(), clock = () => Date.now(), storage = undefined, uiOptions = {}, loopOptions = {}, platform = {}, envInput = readEnvironment(win),
   sw = (win.navigator && win.navigator.serviceWorker) || null,
+  createMusic: makeMusic = createMusic, showPictureCards: showCards = showPictureCards,   // Stage 4: replaceable by tests
 } = {}) {
   const canvas = root.querySelector('#map');
   const renderer = createRenderer({ canvas });
@@ -50,9 +54,44 @@ export async function boot(doc, win, {
   // (tools/shots.ps1 -Stage3); startGame keeps it beside the game's own fields.
   const records = createRecords({ storage });
   let api = null;
+  let current = null;        // { world, ui, loop, cam } while the game runs (declared before the music: its seed and mood read it)
+  let title = null;          // { card, loop, backdrop } while the title shows
   win.__thebes = { devScene: (name) => devScene(api, name), setMotion: (motion) => setMotion(settings, motion) };   // setMotion: tools/shots.ps1 -Stage4
   // One audio context for the whole page: every game (New city, import) shares it.
   const sfx = createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
+  // Stage 4 (spec 5.5): one music for the page (the title card plays too), unlocked by the first gesture, quiet while the
+  // page is hidden, following the settings; Track G implements src/audio/music.js.
+  const music = makeMusic({
+    enabled: () => settings.get().music, volume: () => settings.get().musicVolume / 100,
+    seed: () => (current ? current.world.seed : TITLE_SEED), mood: () => musicMood(current ? current.world : null),
+  });
+  const MUSIC_GESTURES = ['pointerdown', 'pointerup', 'keydown'];
+  const onMusicGesture = () => { if (music.unlock()) for (const t of MUSIC_GESTURES) root.removeEventListener(t, onMusicGesture); };
+  for (const t of MUSIC_GESTURES) root.addEventListener(t, onMusicGesture);
+  const onMusicVisibility = () => { if (doc.hidden) music.stop(); else music.start(); };
+  doc.addEventListener('visibilitychange', onMusicVisibility);
+  const stopMusicWatch = settings.subscribe(() => music.refresh());
+  // Stage 4 (spec 4.1, ruling 262): the picture cards show before the first new city on this device (seen or skipped,
+  // once), and any time through hooks.pictureCards. Track G implements src/ui/tutorial.js.
+  // One set of cards at a time: a second New city while they show is ignored, and an onDone run at once leaves cards null.
+  // Track G: a second hooks.pictureCards(onDone) while they show joins them: its onDone runs when they close.
+  let cards = null, joined = [];
+  function openCards(after, { join = false } = {}) {
+    if (cards) { if (join) joined.push(after); return; }
+    let done = false;
+    // difficulty: the city's own level in a game, the level the next new city will start at on the title (card 6's words).
+    const shown = showCards({ root, doc, settings, difficulty: current ? current.world.difficulty : settings.get().difficulty, onDone: () => {
+      done = true; cards = null; settings.set({ cardsSeen: true });
+      const also = joined; joined = [];
+      after();
+      for (const fn of also) fn();
+    } });
+    if (!done) cards = shown;
+  }
+  function withCards(go) {
+    if (settings.get().cardsSeen) { go(); return; }
+    openCards(go);
+  }
   // The share sheet, the download and the file picker, replaceable by tests.
   const nav = win.navigator || {};
   const io = {
@@ -69,8 +108,6 @@ export async function boot(doc, win, {
   win.addEventListener('beforeinstallprompt', onPrompt);
   if (!io.installPrompt) io.installPrompt = () => promptEvent;
   let loadedOk = false;
-  let current = null;        // { world, ui, loop, cam } while the game runs
-  let title = null;          // { card, loop, backdrop } while the title shows
   let pendingUpdate = null;  // a waiting worker's restart, kept through the title and offered once the game runs
   const flow = createInstallFlow({ env: detectEnvironment(envInput), hasSave: () => loadedOk || Boolean(current), getPrompt: io.installPrompt });
   showNotice(root.querySelector('#notice'), noticeText(flow.notice()));
@@ -114,7 +151,13 @@ export async function boot(doc, win, {
       }
       return r.ok;
     },
-    newCity() { startGame(freshWorld()); },
+    newCity() { withCards(() => startGame(freshWorld())); },   // Stage 4: the picture cards first, once a device
+    // Stage 4 (spec 4.1): the picture cards any time (How to play on the title card and in the menu, Track G); onDone after.
+    // Track G: the game behind them is paused (spec 4.1); the player presses Play again when ready.
+    pictureCards(onDone = () => {}) {
+      if (current && current.world.speed > 0) current.ui.speedControl.set(0);
+      openCards(onDone, { join: true });
+    },
     async exportCity() {
       if (!current) return;
       const { ui, world } = current;
@@ -153,7 +196,7 @@ export async function boot(doc, win, {
     const cam = createCamera({ x: stress ? 32 : world.focus.x, y: stress ? 32 : world.focus.y, zoom: 1 });
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings, hooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install(), onBring: () => hooks.importCity() }) }, ...uiOptions });
-    const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: ui.render, allowFrame: ui.allowFrame, ...loopOptions });
+    const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: (f) => { ui.render(f); music.tick(f.now); }, allowFrame: ui.allowFrame, ...loopOptions });
     current = { world, ui, loop, cam };
     if (notice) ui.toasts.show(notice);
     if (saveNow) ui.autosave(fromSave ? 'import' : 'new');   // the previous city becomes the backup at once
@@ -176,9 +219,18 @@ export async function boot(doc, win, {
           if (r === 'downloaded' && title) title.card.setMessage(T.exported);
         } catch (e) { if (title) title.card.setMessage(T.exportFailed); }
       } });
-      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => startGame(freshWorld({ seed })) });
+      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => withCards(() => startGame(freshWorld({ seed }))) });
       body.append(el('p', { text: T.newCityConfirm }), el('div', { class: 'actions' }, [exportFirst, start, button(T.back, { class: 'panel-back', onClick: back })]));
     });
+  }
+
+  // The title card's box on the screen the map fills (CSS px from #title's corner, which covers it), or null before it shows.
+  function titleCardBox() {
+    const box = root.querySelector('#title');
+    if (!title || !title.card || !box) return null;
+    const c = title.card.element.getBoundingClientRect(), o = box.getBoundingClientRect();
+    if (!c.width || !c.height) return null;
+    return { left: c.left - o.left, right: c.right - o.left, top: c.top - o.top, bottom: c.bottom - o.top };
   }
 
   function showTitle(loaded) {
@@ -186,8 +238,11 @@ export async function boot(doc, win, {
     const world = buildSampleCity(createWorld({ seed: TITLE_SEED }));
     const cam = createCamera({ x: world.tradeEntry.x, y: world.size - 22, zoom: 1 });
     const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
-    const backdrop = createBackdrop({ world, cam, cameraControl, reducedMotion: settings.reducedMotion });
-    const loop = createGameLoop({ world, render: ({ now: t }) => { backdrop.tick(t); cameraControl.tick(t); renderer.renderFrame(world, cam, { view: view() }); }, ...loopOptions });
+    // The showcase is framed beside the card (art-direction review 4): the backdrop reads the card's box once it shows.
+    const backdrop = createBackdrop({ world, cam, cameraControl, reducedMotion: settings.reducedMotion, view, card: () => titleCardBox() });
+    // Stage 4: the backdrop's monuments are drawn live as in the game (spec 5.7), still (it never ticks).
+    const live = (g, o) => drawMonument(g, world, o.b, { now: now(), timeDays: world.day, motion: settings.motionLevel() });
+    const loop = createGameLoop({ world, render: ({ now: t }) => { backdrop.tick(t); cameraControl.tick(t); renderer.renderFrame(world, cam, { view: view(), live }); music.tick(t); }, ...loopOptions });
     let message = null;
     blockIfNewer(loaded);
     if (loaded.state === 'error') {
@@ -200,17 +255,19 @@ export async function boot(doc, win, {
       container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), canBring: flow.canBring(), sound: settings.get().sound, message,
       difficulty: settings.get().difficulty, onDifficulty: (level) => settings.set({ difficulty: level }),   // spec 4.18: freshWorld reads it
       onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
-      onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : startGame(freshWorld())),
-      onSound: (on) => settings.set({ sound: on }),
+      onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(freshWorld()))),
+      onSound: (on) => settings.set({ sound: on, music: on }),   // Stage 4: Play muted turns the music off too, and is remembered (ruling 269)
+      onHowToPlay: () => hooks.pictureCards(),                   // Stage 4, Track G: How to play shows the picture cards (spec 4.1)
       onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); },
       onBring: () => hooks.importCity(),
       // Stage 3 (spec 4.19): records, stamps, This week's Nile and a shared score, from the score interface.
       decorate: titleDecor({
         records, shared: (win.location && win.location.hash) || '', clock,
-        startSeed: (seed) => (loaded.state === 'ok' ? confirmNewCity(loaded, seed) : startGame(freshWorld({ seed }))),
+        startSeed: (seed) => (loaded.state === 'ok' ? confirmNewCity(loaded, seed) : withCards(() => startGame(freshWorld({ seed })))),
       }),
     });
-    title = { card, loop, backdrop };
+    title = { card, loop, backdrop, world, cam };
+    backdrop.frame();
     if (flow.shouldShowGuide()) card.showGuide(guide);
     loop.start();
   }
@@ -244,8 +301,14 @@ export async function boot(doc, win, {
   api = {
     phase: () => (title ? 'title' : 'game'),
     game: () => current,
-    startGame, hooks, records,
-    destroy() { win.removeEventListener('beforeinstallprompt', onPrompt); showNotice(root.querySelector('#notice'), null); leaveTitle(); stopGame(); },
+    titleView: () => (title ? { world: title.world, cam: title.cam } : null),   // Stage 4 (Track F): the backdrop's city and camera, for the title scene
+    startGame, hooks, records, music,
+    destroy() {
+      win.removeEventListener('beforeinstallprompt', onPrompt); showNotice(root.querySelector('#notice'), null); leaveTitle(); stopGame();
+      if (cards) { cards.close(); cards = null; }
+      for (const t of MUSIC_GESTURES) root.removeEventListener(t, onMusicGesture);
+      doc.removeEventListener('visibilitychange', onMusicVisibility); stopMusicWatch(); music.destroy(); settings.destroy();
+    },
   };
   return api;
 }

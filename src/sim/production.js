@@ -1,8 +1,9 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { allBuildings } from './world.js';
-import { buildingsInReach } from './reach.js';
+import { buildingsInReach, touchesRoad } from './reach.js';
 import { isWorking, staffRatio } from './labour.js';
+import { materialOf, supplyNeeded, deliverySites, stockRoom } from './monuments.js';
 import { DAYS_PER_MONTH } from './time.js';
 
 export const storeTotal = (b) => Object.values(b.store).reduce((s, v) => s + v, 0);
@@ -53,12 +54,21 @@ function inputSource(sources, targets, input) {
 // One unit (spec 4.10): a workshop takes one of its input from the nearest suitable store (inputSource), then the good
 // goes to the nearest store with room. Taking the input first means a full storehouse that gave up the clay has room
 // for the pot, so a storehouse filled with clay never stops its potter. Returns null, or why the unit could not be made.
-function makeOne(world, good, input, sources, targets) {
+// Stage 4 (spec 4.16): stone and bricks go first to the nearest monument site in reach with room for a whole unit
+// (sites: deliverySites), counted as delivered (tally stoneDelivered / bricksDelivered); only then to a store.
+function makeOne(world, good, input, sources, targets, sites = []) {
+  const site = sites.find((s) => stockRoom(s)[good] >= 1 - 1e-6);
   let from = null;
   if (input) {
-    from = inputSource(sources, targets, input);
+    from = site ? sources.find((s) => stocked(s, input)) : inputSource(sources, targets, input);
     if (!from) return sources.some((s) => stocked(s, input)) ? 'storage_full' : 'no_input';
     from.store[input] -= 1;
+  }
+  if (site) {
+    site.site.stock[good] += 1;
+    world.tally[`${good}Delivered`] += 1;
+    world.tally.made[good] = (world.tally.made[good] || 0) + 1;
+    return null;
   }
   const to = targets.find(hasSpace);
   if (!to) {
@@ -74,22 +84,27 @@ function makeOne(world, good, input, sources, targets) {
 // Producers make output daily, scaled by staffing (spec 4.10). b.blocked says why one is idle: paused, understaffed,
 // no_input (a workshop with none of its input in any store within its producer reach), no_storage (no working
 // store within reach that takes the good has room for it) or storage_full (its stores filled up during the day).
+// Stage 4 (spec 4.16, ruling 237): a quarry or brickworks on a road that is not needed (supplyNeeded) is 'idle' and makes
+// nothing; one that is sends to monument sites first (deliverySites), so a site with room is somewhere to send.
 export function produceDay(world) {
   for (const b of allBuildings(world)) {
     const def = BUILDINGS[b.type];
     if (!def.produces) continue;
+    const material = materialOf(b);
+    if (material && !b.paused && touchesRoad(world, b) && !supplyNeeded(world, b)) { b.blocked = 'idle'; continue; }
     if (!isWorking(world, b)) { b.blocked = b.paused ? 'paused' : 'understaffed'; continue; }
     const { good, perMonth } = def.produces;
     const input = def.consumes || null;
     const sources = input ? inputStores(world, b, input) : [];
     if (input && !sources.length) { b.blocked = 'no_input'; continue; }
     const targets = outputStores(world, b, good);
+    const sites = material ? deliverySites(world, b) : [];
     // A full store that gives up its input counts as having room: each unit takes its input first (see makeOne).
-    if (!targets.some(hasSpace) && !(input && inputSource(sources, targets, input))) { b.blocked = 'no_storage'; continue; }
+    if (!sites.length && !targets.some(hasSpace) && !(input && inputSource(sources, targets, input))) { b.blocked = 'no_storage'; continue; }
     b.blocked = null;
     b.progress += (perMonth / DAYS_PER_MONTH) * staffRatio(world, b);
     while (b.progress >= 1 - 1e-9) {
-      const why = makeOne(world, good, input, sources, targets);
+      const why = makeOne(world, good, input, sources, targets, sites);
       if (why) { b.blocked = why; break; }
       b.progress -= 1;
     }

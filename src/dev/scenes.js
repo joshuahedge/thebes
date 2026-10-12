@@ -23,12 +23,15 @@
 // overlay's legend alone in the guidance row, or under a raid warning's alert row.
 //
 // The Stage 4 scenes (tools/shots.ps1 -Stage4, STAGE4_SCENES): 'title' and 'tutorial' on the title card (/?nosw=1),
-// the rest on the seed-11 sample city. Stage 4 does not exist yet, so each sets up the closest thing today's game
-// shows, and its S4-TODO comment names what the Stage 4 version must show. They leave motion to the caller: the shots
-// tool calls setMotion first (window.__thebes.setMotion), and takes every scene under both motions.
-import { place, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
+// the rest on the seed-11 sample city. They leave motion to the caller: the shots tool calls setMotion first
+// (window.__thebes.setMotion), and takes every scene under both motions.
+import { place, canPlace, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
+import { PALACE } from '../data/palace.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { holdFestival } from '../sim/festival.js';
+import { tickDay } from '../sim/clock.js';
+import { processionsAt, PROCESSION_ID_BASE } from '../render/walkers.js';
+import { PROCESSION } from '../data/ambient.js';
 import { allBuildings, housesOf } from '../sim/world.js';
 import { coverageOf } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
@@ -44,6 +47,10 @@ import { openSheet, closeSheet, select, toggleOverlay } from '../ui/modes.js';
 import { freeTop } from '../ui/layout.js';
 import { placeName } from '../ui/danger.js';
 import { T, DANGER_UI_TEXT, CITIZEN_REMARKS, plotsPlacedText } from '../ui/text.js';
+import { makeBuilding, insertBuilding } from '../sim/world.js';   // Track B's monument scenes
+import { MONUMENTS, MONUMENT } from '../data/monuments.js';
+import { BUILDINGS } from '../data/buildings.js';
+import { tutorialScene } from './tutorialScenes.js';
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -254,7 +261,7 @@ async function ambient(api) {
 
 // ── The mobile budget scenes ──
 
-export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded'];
+export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded', 'pyramid-placing'];
 
 // The page query each mobile scene opens with (tools/shots.ps1 -Mobile adds nosw=1): 'early' and 'plots' on a new guided
 // city, seed 7, which starts paused, as does 'expanded'; 'welcome' on Welcome back over the seed-11 sample city; the rest on that city.
@@ -262,6 +269,7 @@ const SAMPLE_CITY = 'skipTitle=1&seed=11&sample=1';
 export const MOBILE_SCENE_PARAMS = {
   early: 'skipTitle=1&seed=7', plots: 'skipTitle=1&seed=7', raid: SAMPLE_CITY, 'raid-fire': SAMPLE_CITY, 'raid-overlay': SAMPLE_CITY,
   placing: SAMPLE_CITY, farm: SAMPLE_CITY, 'farm-raid': SAMPLE_CITY, sheet: SAMPLE_CITY, welcome: 'welcome=1&seed=11&sample=1', expanded: 'skipTitle=1&seed=7',
+  'pyramid-placing': SAMPLE_CITY,
 };
 
 // A mobile scene's waits: as long as asked on the page, so the capture shows the settled screen; none with
@@ -406,6 +414,22 @@ async function expanded(api, options) {
   return `expanded tip ${g.ui.tips.current()}`;
 }
 
+// Stage 4 (Track C, ruling 252): the great pyramid being placed, the biggest footprint: its ghost and silhouette, the Ground
+// overlay's legend with the gold room line, and the confirm bar's two chip rows. The sample city is made a Capital with the
+// great pyramid's prestige unlock reached and the gold to found it (the contract's state, written as a scene does), then the
+// card is picked through Show me at the middle of the city, as a monument goal's Show me picks it.
+async function pyramidPlacing(api, options) {
+  const g = inGame(api, 'pyramid-placing'), { world, ui } = g;
+  world.milestone = 'capital';
+  for (const k of ['pyramid_small', 'pyramid_great']) world.prestigeUnlocks[k] = world.day;
+  world.gold = Math.max(world.gold, 20000);
+  ui.refresh();
+  await settle(options, 100);
+  ui.showMeAt({ category: 'monuments', item: 'pyramid_great', x: world.focus.x, y: world.focus.y });
+  await settle(options, 500);
+  return `pyramid-placing ${ui.store.get().mode} ${ui.store.get().overlay}`;
+}
+
 // Welcome back (/?welcome=1): the card as the city opens.
 async function welcome(api, options) {
   const g = inGame(api, 'welcome');
@@ -419,15 +443,15 @@ async function welcome(api, options) {
 
 export const STAGE4_SCENES = ['title', 'tutorial', 'site', 'pyramid', 'capstone', 'procession', 'palace', 'sitesheet', 'motion'];
 
-// The two motions every Stage 4 shot is taken under (review note 7.2, "Screenshots in both"), in today's settings: full
-// is reduced motion off and ambient on; reduced follows the device (reduced motion 'system', which headless Edge resolves
-// to reduced, so ambient is off too). Returns the motion it set.
-// S4-TODO: Track E updates this when the Motion setting lands (full = Motion Full, reduced = follow the device -> Gentle).
+// The two motions every Stage 4 shot is taken under (review note 7.2, "Screenshots in both"; spec 5.4): full is Motion
+// Full; reduced follows the device (Motion 'system'), which headless Edge, asking for less motion, resolves to Gentle.
+// 'gentle' and 'still' choose those levels outright (for a shot or a test that wants one whatever the device says).
+// Returns the motion it set. tools/shots.ps1 -Motion takes MOTIONS.
 export const MOTIONS = ['full', 'reduced'];
+const MOTION_FOR = { full: 'full', reduced: 'system', gentle: 'gentle', still: 'still' };
 export function setMotion(settings, motion) {
-  if (motion === 'full') settings.set({ reducedMotion: 'off', ambient: true });
-  else if (motion === 'reduced') settings.set({ reducedMotion: 'system', ambient: true });
-  else throw new Error(`setMotion: no motion named ${motion} (${MOTIONS.join(', ')})`);
+  if (!(motion in MOTION_FOR)) throw new Error(`setMotion: no motion named ${motion} (${Object.keys(MOTION_FOR).join(', ')})`);
+  settings.set({ motion: MOTION_FOR[motion] });
   return motion;
 }
 
@@ -459,36 +483,43 @@ export function monumentSpot(world, n = 7) {
   return { x: best.x, y: best.y, n };
 }
 
-// The middle of monumentSpot's square at a zoom, in the free map's middle.
-function frameSpot(g, zoom) {
-  const s = monumentSpot(g.world);
-  g.cam.zoom = zoom;
-  focus(g, s.x + s.n / 2, s.y + s.n / 2);
-  return s;
-}
-
-// The title card with its backdrop.
-// S4-TODO: the Stage 4 title backdrop has a finished small obelisk and a colossus under way (review note 7.1 item 7).
+// The title card with its backdrop (Track F, spec 4.1, 5.7 item 7, review note 7.1 item 7): the camera's first drift point
+// frames the sample city's colossus under way, its finished small obelisk and its palace in its third style
+// (src/dev/sampleCity.js addShowcase), the view Gentle and Still hold. The description names what the backdrop shows.
 async function title(api) {
   if (api.phase() !== 'title') throw new Error('devScene title: open the title card (/?nosw=1)');
   await wait(300);
-  return 'title';
+  const view = api.titleView && api.titleView();
+  const find = (type) => (view ? allBuildings(view.world).find((b) => b.type === type) : null);
+  const ob = find('obelisk_small'), co = find('colossus'), pal = find('palace');
+  if (!ob || !co || !pal) return 'title';
+  return `title: small obelisk ${ob.site.done === null ? 'under way' : 'finished'}, colossus course ${co.site.course}, palace style ${pal.style}`;
 }
 
-// The picture tutorial before play.
-// S4-TODO: the picture tutorial's first card, shown before the first city starts. Today: the title card.
-async function tutorial(api) {
-  if (api.phase() !== 'title') throw new Error('devScene tutorial: open the title card (/?nosw=1)');
-  await wait(300);
-  return 'tutorial (title card)';
+// The picture cards (Track G, src/dev/tutorialScenes.js): on the title card, the cards' first card as a player first meets
+// them ({ card: i } for card i); on seed 7's fresh city, { picture: id } sets up that card's picture for tools/tutorial.ps1.
+const tutorial = (api, options) => tutorialScene(api, options);
+
+// The nearest spot to (cx, cy), within r tiles, where `type` can be placed with a road touching it (the sim's strict
+// canPlace), or null.
+function spotFor(world, type, cx, cy, r) {
+  let best = null;
+  for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(world.size - 1, Math.ceil(cy + r)); y++) {
+    for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(world.size - 1, Math.ceil(cx + r)); x++) {
+      const d = Math.hypot(x - cx, y - cy);
+      if (d > r || (best && d >= best.d) || !canPlace(world, type, x, y).ok) continue;
+      best = { x, y, d };
+    }
+  }
+  return best;
 }
 
-// The town centre where a 3x3 palace would stand: the free 3x3 of land (no building, road, wall or water) nearest the
-// point between the working temple and the bazaar nearest the middle of the city, framed at zoom 1; the point itself
-// when no 3x3 is free within 10 tiles of it.
-// S4-TODO: the town palace at its highest style, in the town centre. Today: the town centre with nothing new on it.
+// Stage 4 (Track C): the town palace at its highest style (lapis and gold), in the town centre, its sheet open: the palace is
+// placed through the command on the spot with a road nearest the point between the working temple and the bazaar nearest the
+// middle of the city (the free 3x3 nearest that point, waiting for its road, when none has one), its style written to the
+// contract's shape as the five enlargements would leave it, then selected as a tap on it selects it.
 async function palace(api) {
-  const g = inGame(api, 'palace'), { world } = g, N = world.size;
+  const g = inGame(api, 'palace'), { world, ui } = g, N = world.size;
   const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
   const nearest = (type) => allBuildings(world).filter((b) => b.type === type).sort((a, b) => near(a) - near(b))[0];
   const temple = nearest('temple'), bazaar = nearest('bazaar');
@@ -505,47 +536,93 @@ async function palace(api) {
       if (ok) best = { x, y, d };
     }
   }
+  if (!['capital', 'great_city', 'city', 'market_town', 'town'].includes(world.milestone)) world.milestone = 'town';
+  world.gold = Math.max(world.gold, 1000);
+  const standing = allBuildings(world).find((b) => b.type === 'palace');      // the sample city has one (Track F): enlarge it
+  const roadSpot = standing || spotFor(world, 'palace', c.x - 1.5, c.y - 1.5, 10);
+  const at = roadSpot || best;
+  if (!at) throw new Error('devScene palace: no free 3x3 in the town centre');
+  const result = standing ? { ok: true, id: standing.id } : place(world, 'palace', at.x, at.y, { roadLater: !roadSpot });
+  if (!result.ok) throw new Error(`devScene palace: the palace would not go down (${result.reason})`);
+  world.buildings[result.id].style = PALACE.lastStyle;
+  assignLabour(world);
+  ui.refresh();
   g.cam.zoom = 1;
-  if (best) focus(g, best.x + 1.5, best.y + 1.5);
-  else focus(g, c.x, c.y);
-  await wait(200);
-  return best ? `palace ${best.x},${best.y}` : `palace centre ${c.x},${c.y}`;
+  focus(g, at.x + 1.5, at.y + 1.5, 'sheet');
+  ui.store.set(select(ui.store.get(), result.id));
+  await wait(300);
+  return `palace ${at.x},${at.y} style ${world.buildings[result.id].style}${roadSpot ? '' : ' no road'}`;
 }
 
-// A monument site under way, framed with its surroundings.
-// S4-TODO: a great pyramid's site part built (review note 3.3): cords and stakes, the paved apron, stockpiled blocks,
-// the ramp, crews with sleds and haulers, a few courses laid. Today: the open desert where it would go.
+// ── Track B: the monument scenes ──
+
+// A great pyramid at monumentSpot, its site written to the contract's shapes (b.site: course, laid, stock, crews), a road
+// along its front, and full builders' guilds on free desert beyond the road (as many as fit, at most `guilds`), whose
+// ids are its crews, as a site under way would have them. The sample city starts paused, so the scene stays as set.
+export function pyramidScene(world, { course, frac = 0, stock = { stone: 120, bricks: 40 }, guilds = 4 } = {}) {
+  const s = monumentSpot(world), N = world.size;
+  const b = insertBuilding(world, makeBuilding(world, 'pyramid_great', s.x, s.y));
+  const front = s.y + s.n;
+  for (let x = s.x - 1; x <= s.x + s.n; x++) world.road[idx(N, x, front)] = 1;
+  world.roadVersion++;
+  const crews = [], free = (x, y) => freeLand(world, x, y) && !world.road[idx(N, x, y)];
+  for (let x = s.x - 1; x + 1 <= s.x + s.n && crews.length < guilds; x += 2) {
+    if (![0, 1].every((dx) => [1, 2].every((dy) => free(x + dx, front + dy)))) continue;
+    const g = insertBuilding(world, makeBuilding(world, 'builders_guild', x, front + 1));
+    g.staff = BUILDINGS.builders_guild.workers;
+    crews.push(g.id);
+  }
+  const c = MONUMENTS.pyramid_great.courses[Math.min(course, MONUMENTS.pyramid_great.courses.length - 1)];
+  Object.assign(b.site, { course, laid: { stone: c.stone * frac, bricks: c.bricks * frac }, stock: { ...stock }, crews, idle: 0, reason: null });
+  return b;
+}
+
+// A great pyramid's site part built (review note 3.3): the paved apron, stockpiled blocks, five courses laid and the
+// sixth half laid, the ramp up the front, the guilds' crews at work; framed whole at zoom 0.75.
 async function site(api) {
   const g = inGame(api, 'site');
-  const s = frameSpot(g, 0.75);
+  const b = pyramidScene(g.world, { course: 5, frac: 0.55 });
+  g.cam.zoom = 0.75;
+  focus(g, b.x + b.w / 2 - 0.8, b.y + b.d / 2 - 0.8);
   await wait(200);
-  return `site ${s.x},${s.y} ${s.n}x${s.n}`;
+  return `site ${b.x},${b.y} course ${b.site.course} crews ${b.site.crews.length}`;
 }
 
-// A pyramid course going up, framed close.
-// S4-TODO: blocks appearing one at a time along the course, a gang dragging a block up the ramp, masons on the top
-// course (review note 3.3). Today: the same desert, close.
+// A pyramid course going up, framed close at zoom 1.5 on the course under way: blocks laid row by row, the ramp landing
+// on it, the gangs and the masons (review note 3.3).
 async function pyramid(api) {
   const g = inGame(api, 'pyramid');
-  const s = frameSpot(g, 1.5);
+  const b = pyramidScene(g.world, { course: 8, frac: 0.6, stock: { stone: 160, bricks: 120 } });
+  g.cam.zoom = 1.5;
+  focus(g, b.x + b.w / 2 - 2.2, b.y + b.d / 2 - 2.2);
   await wait(200);
-  return `pyramid ${s.x},${s.y}`;
+  return `pyramid ${b.x},${b.y} course ${b.site.course}`;
 }
 
-// A great pyramid's capstone set: the finished pyramid.
-// S4-TODO: white casing and the gold capstone, the shine crossing the gold, the milestone caption and sparkle, the
-// dedication procession starting (review note 3.3, 7.1). Today: the same desert, at zoom 1.
+// A great pyramid's capstone set: its last course is laid on screen, then a second later it is finished (course 12,
+// done today, its crews gone), so the capture, 1.8 s after the scene, falls in the one slow shine and the sparkle under
+// Full and in the still outline under Gentle. Framed whole at zoom 1.
 async function capstone(api) {
-  const g = inGame(api, 'capstone');
-  const s = frameSpot(g, 1);
+  const g = inGame(api, 'capstone'), { world } = g;
+  const b = pyramidScene(world, { course: 11, frac: 0.98, stock: { stone: 0, bricks: 0 } });
+  g.cam.zoom = 1;
+  focus(g, b.x + b.w / 2 - 1.2, b.y + b.d / 2 - 1.2);
+  setTimeout(() => {
+    Object.assign(b.site, { course: MONUMENTS.pyramid_great.courses.length, laid: { stone: 0, bricks: 0 }, crews: [], done: world.day, extraPaid: true });
+  }, 1000);
   await wait(200);
-  return `capstone ${s.x},${s.y}`;
+  return `capstone ${b.x},${b.y}`;
 }
 
 // A festival at the working temple nearest the middle of the city, held through the sim's command as the temple
-// sheet's button holds it (with its caption), the temple framed.
-// S4-TODO: the festival procession walking the roads in the temple's reach (priests with a carried shrine, musicians,
-// dancers) and streamers on the temple (review note 7.1 item 3). Today: the festival is held, with nothing on the map.
+// sheet's button holds it (with its caption), and its procession framed close (spec 5.7 item 3): priests with the carried
+// shrine, musicians and dancers walking the roads in the temple's reach, streamers at the temple's front corners. The
+// sim then runs (its own tick, as play would) until the whole procession has filed out of the temple and the carried
+// shrine stands where least is built just in front of it (the day from PROCESSION_DAYS to PROCESSION_DAYS_MAX with the
+// most free tiles in the two rows before it, the earliest of equals), so nothing hides it; the
+// city stays paused, so it holds still for the shot, framed on the shrine at zoom 1.5. Returns the temple, the
+// festival's day and how many figures walk (render/walkers.js festivalSize).
+const PROCESSION_DAYS = 6, PROCESSION_DAYS_MAX = 40;
 async function procession(api) {
   const g = inGame(api, 'procession'), { world, ui } = g;
   const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
@@ -555,49 +632,82 @@ async function procession(api) {
   if (!result.ok) throw new Error(`devScene procession: no festival (${result.reason})`);
   ui.toasts.show(DANGER_UI_TEXT.festivalHeld);
   ui.afterCommand({ kind: 'festival', result, text: DANGER_UI_TEXT.festivalHeld, undoable: false });
-  focus(g, temple.x + temple.w / 2, temple.y + temple.d / 2);
+  const held = world.danger.festivalDay;
+  const mine = (w) => w.id >= PROCESSION_ID_BASE + temple.id * 16 && w.id < PROCESSION_ID_BASE + temple.id * 16 + 16;
+  const isShrine = (w) => w.id === PROCESSION_ID_BASE + temple.id * 16 + PROCESSION.order.indexOf('shrine');
+  const FRONT = [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2], [2, 2]];
+  const open = (w) => FRONT.filter(([dx, dy]) => freeLand(world, Math.floor(w.x) + dx, Math.floor(w.y) + dy)).length;
+  let days = PROCESSION_DAYS, best = -1;
+  for (let d = PROCESSION_DAYS; d <= PROCESSION_DAYS_MAX; d++) {
+    const s = processionsAt(world, held + d, null).find(isShrine);
+    if (s && open(s) > best) { best = open(s); days = d; }
+  }
+  for (let i = 0; i < days; i++) tickDay(world);
+  ui.refresh();
+  const figures = processionsAt(world, world.day, null).filter(mine);
+  if (!figures.length) throw new Error('devScene procession: no procession at the temple');
+  const shrine = figures.find(isShrine) || figures[0];
+  g.cam.zoom = 1.5;
+  focus(g, shrine.x, shrine.y);
   await wait(300);
-  return `procession ${temple.id} day ${world.danger.festivalDay}`;
+  return `procession ${temple.id} day ${held} figures ${figures.length}`;
 }
 
-// A monument's site sheet open.
-// S4-TODO: the site sheet (review note 3.9): stage, courses, stock, crews, what holds it up. Today: the sheet of the
-// storehouse nearest the middle of the city (the closest thing: a yard with stock), or the summary when there is none.
+// Stage 4 (Track C, review note 3.9): a small pyramid's site sheet: its course and share done, two crews, stone and bricks on
+// site, what holds it up (bricks), last month's pace and gold, and its prestige. The city is made a Capital with the small
+// pyramid unlocked; the site and two builders' guilds are placed through the commands on spots with a road near the middle of
+// the city, and the site's state (courses, stock, crews, last month, the reason it waits) is written to the contract's shape,
+// as a few years of Track A's crews would leave it. Then the site is selected as a tap on it selects it.
 async function sitesheet(api) {
   const g = inGame(api, 'sitesheet'), { world, ui } = g;
-  const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
-  const yard = allBuildings(world).filter((b) => b.type === 'storehouse').sort((a, b) => near(a) - near(b))[0];
-  if (yard) {
-    focus(g, yard.x + yard.w / 2, yard.y + yard.d / 2, 'sheet');
-    ui.store.set(select(ui.store.get(), yard.id));
-  } else {
-    const s = ui.store.get();
-    ui.store.set(openSheet(s.sheet ? closeSheet(s) : s, 'summary'));
+  world.milestone = 'capital';
+  world.prestigeUnlocks.pyramid_small = world.day;
+  world.gold = Math.max(world.gold, 20000);
+  const at = spotFor(world, 'pyramid_small', world.focus.x, world.focus.y, 16);
+  if (!at) throw new Error('devScene sitesheet: no room for a small pyramid with a road near the middle of the city');
+  const site = place(world, 'pyramid_small', at.x, at.y);
+  if (!site.ok) throw new Error(`devScene sitesheet: the site would not go down (${site.reason})`);
+  const guilds = [];
+  for (let i = 0; i < 2; i++) {
+    const s = spotFor(world, 'builders_guild', at.x + 2, at.y + 2, 10);
+    const r = s ? place(world, 'builders_guild', s.x, s.y) : null;
+    if (r && r.ok) guilds.push(r.id);
   }
+  const b = world.buildings[site.id];
+  Object.assign(b.site, {
+    course: 3, laid: { stone: 408, bricks: 72 }, stock: { stone: 46, bricks: 0 }, crews: guilds, idle: 3, reason: 'no_bricks',
+    // last month as the sim would pay it: a full crew-month each, at the work gold (130 a crew on Normal)
+    last: { units: MONUMENT.unitsPerCrewMonth * guilds.length, gold: MONUMENT.unitsPerCrewMonth * guilds.length * MONUMENT.goldPerUnit, crews: guilds.length },
+  });
+  assignLabour(world);
+  ui.refresh();
+  g.cam.zoom = 1;
+  focus(g, b.x + b.w / 2, b.y + b.d / 2, 'sheet');
+  ui.store.set(select(ui.store.get(), b.id));
   await wait(300);
-  return yard ? `sitesheet storehouse ${yard.id}` : 'sitesheet summary';
+  return `sitesheet ${b.id} at ${at.x},${at.y} crews ${guilds.length}`;
 }
 
-// The Settings sheet scrolled to the motion rows.
-// S4-TODO: the one Motion row (Full / Gentle / Still) saying what it is doing, e.g. "Motion: Gentle (your device asks
-// for less motion)" (review note 7.2). Today: Reduce motion's row at the top, Ambient motion's below it.
+// The Settings sheet scrolled to the Motion row (spec 5.4): its four choices, the status line saying what it is doing
+// ("Motion: Gentle (your device asks for less motion)" under the reduced shots, "Motion: Full" under the full ones) and
+// the line saying what that level moves.
 async function motion(api) {
   const g = inGame(api, 'motion'), { ui } = g;
   const s = ui.store.get();
   ui.store.set(openSheet(s.sheet ? closeSheet(s) : s, 'settings'));
   await wait(150);
   const sheet = document.querySelector('#sheet');
-  const choice = sheet && sheet.querySelector('.choice.reducedMotion');
-  if (!choice) throw new Error('devScene motion: no Reduce motion row in the Settings sheet');
+  const choice = sheet && sheet.querySelector('.choice.motion');
+  if (!choice) throw new Error('devScene motion: no Motion row in the Settings sheet');
   const row = choice.closest('.row'), head = sheet.querySelector('.head');
   sheet.scrollTop += row.getBoundingClientRect().top - (head ? head.getBoundingClientRect().bottom : sheet.getBoundingClientRect().top) - 8;
   await wait(100);
-  return `motion ${ui.settings.get().reducedMotion} ambient ${ui.settings.get().ambient}`;
+  return `motion ${ui.settings.get().motion} level ${ui.settings.motionLevel()}`;
 }
 
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
-  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded,
+  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded, 'pyramid-placing': pyramidPlacing,
   title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion,
 };
 

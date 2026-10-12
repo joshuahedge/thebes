@@ -13,6 +13,10 @@ export function createDock({ container, store, world, onPick }) {
   const cats = el('div', { class: 'cats' });
   const tray = el('div', { class: 'tray cards' });
   const pill = button(T.build, { class: 'pill primary' });
+  // Ruling 300: a tray with more cards than the phone shows (the Monuments tray holds ten) says so: an edge fade with a
+  // chevron over its right end while there is more to see that way, gone at the end. It sits over the cards (no height of
+  // its own, so the mobile budget is untouched), lets taps through, and does not move (css/ui.css, s4 ui).
+  const more = el('span', { class: 'tray-more', 'aria-hidden': 'true', hidden: true }, [el('span', { class: 'chev', text: '›' })]);
   // Only categories with a card to show have a button (spec 4.14). The set can grow at a milestone, so it is
   // rebuilt when it changes, keeping keyboard focus on the same category.
   let shown = [], shownKey = null, catButtons = [];
@@ -57,7 +61,15 @@ export function createDock({ container, store, world, onPick }) {
     else if (dy >= SWIPE_PX) store.set(setDock(s, s.dock === 'tray' ? 'slim' : 'tucked'));
   });
   pill.addEventListener('click', () => store.set(setDock(store.get(), 'slim')));
-  container.append(handle, cats, tray, pill);
+  container.append(handle, cats, tray, more, pill);
+  function updateMore() {
+    const on = store.get().dock === 'tray' && tray.scrollLeft + tray.clientWidth < tray.scrollWidth - 2;
+    if (on) { more.style.top = `${tray.offsetTop}px`; more.style.height = `${tray.offsetHeight}px`; }
+    more.hidden = !on;
+  }
+  tray.addEventListener('scroll', updateMore, { passive: true });
+  const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(updateMore) : null;
+  if (watch) watch.observe(tray);
 
   let lastCards = null;
   function render() {
@@ -72,8 +84,9 @@ export function createDock({ container, store, world, onPick }) {
       renderCards(tray, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick });
       lastCards = key;
     }
+    updateMore();
   }
   render();
   store.subscribe(render);
-  return { render };
+  return { render, updateMore };
 }

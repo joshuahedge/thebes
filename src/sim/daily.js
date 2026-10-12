@@ -8,12 +8,17 @@ import { openRoutes } from './trade.js';
 import { createRng, hash2 } from './rng.js';
 import { roadsLaid, countType } from './achievements.js';
 import { raidsOn } from './costs.js';
+import { allBuildings, isSite } from './world.js';
+import { touchesRoad } from './reach.js';
 
 const defOf = (id) => DAILY_POOL.find((d) => d.id === id) || null;
 // What the city can do today: the goal's building unlocked, its milestone reached, enough trade routes open, and (Stage 3)
 // raids on for a goal about defences.
+// Stage 4: a goal about monuments (site: true) only while a site is under way: unpaused, unfinished and on a road.
+export const siteUnderWay = (world) => allBuildings(world).some((b) => isSite(b) && !b.paused && touchesRoad(world, b));
 const isAvailable = (world, def) => (!def.measure.type || isUnlocked(world, def.measure.type))
-  && (!def.from || atLeast(world, def.from)) && (!def.routes || openRoutes(world) >= def.routes) && (!def.raids || raidsOn(world));
+  && (!def.from || atLeast(world, def.from)) && (!def.routes || openRoutes(world) >= def.routes) && (!def.raids || raidsOn(world))
+  && (!def.site || siteUnderWay(world));
 
 export const dailyAvailable = (world) => world.goals.completed.includes(DAILY_AFTER);
 
@@ -25,7 +30,7 @@ export function dailyMeasure(world, def) {
     case 'roads': return roadsLaid(world);
     case 'buildings': return countType(world, m.type);
     case 'people': return population(world);
-    case 'tally': return world.tally[m.key] || 0;
+    case 'tally': return Math.floor(world.tally[m.key] || 0);   // Stage 4: stone brought to sites can be a sum of fractions
     case 'made': return (world.tally.made || {})[m.good] || 0;
     default: return 0;
   }

@@ -9,6 +9,8 @@ import { DIFFICULTIES } from '../data/difficulty.js';
 import { PARTNERS } from '../data/trade.js';
 import { FIRE } from '../data/fire.js';
 import { FESTIVAL, DEFENCE } from '../data/raids.js';
+import { MONUMENTS, MONUMENT } from '../data/monuments.js';
+import { PALACE_STYLES } from '../data/palace.js';
 
 const scaled = (world, base) => Math.max(1, Math.round(base * DIFFICULTIES[world.difficulty].cost));
 
@@ -33,3 +35,17 @@ export const raidsOn = (world) => DIFFICULTIES[world.difficulty].raids !== false
 
 // Soldiers' pay for a month (spec 4.11): per soldier, in peace too and from a paused barracks; never scaled.
 export const soldiersPayOf = (world) => world.soldiers.length * DEFENCE.soldierPay;
+
+// Stage 4 (spec 4.11, 4.16, 4.20). A monument's founding is costOf(world, type) (its BUILDINGS cost). Work gold is
+// MONUMENT.goldPerUnit for each unit laid times the difficulty's cost, NOT rounded here: the site pays whole gold and
+// carries the fraction (ruling 240). The gilding and the capstone, and each palace style's price, are rounded like any cost.
+export const workGoldPerUnit = (world) => MONUMENT.goldPerUnit * DIFFICULTIES[world.difficulty].cost;
+export const extraGoldOf = (world, type) => {
+  const m = MONUMENTS[type];
+  return m && m.extra ? scaled(world, m.extra.gold) : 0;
+};
+export const palacePriceOf = (world, style) => (style > 0 && PALACE_STYLES[style] ? scaled(world, PALACE_STYLES[style].price) : 0);
+
+// Gold that must never take the treasury below 0 (founding, work gold, gilding, the capstone, enlarging the palace;
+// tribute's own rule is the same): true when paying `cost` keeps it at 0 or above.
+export const canPayNoDebt = (world, cost) => world.gold - cost >= 0;

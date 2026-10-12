@@ -35,7 +35,7 @@ describe('ui cards', () => {
     const w = makeTestWorld({ gold: -400 });
     const picked = [];
     const buttons = renderCards(root, { world: w, category: 'services', activeItem: 'well', onPick: (i) => picked.push(i) });
-    expect(buttons.length).toBe(5);                                  // the booth comes with Town: shown, locked; the firehouse with the Village
+    expect(buttons.length).toBe(6);                                  // the booth and the palace come with Town: shown, locked; the firehouse with the Village
     expect(buttons[0].querySelector('.name').textContent).toBe('Well');
     expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
     expect(buttons[2].classList.contains('unaffordable')).toBe(true);

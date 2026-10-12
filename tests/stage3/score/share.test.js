@@ -2,8 +2,10 @@ import { describe, it, expect } from '../../harness.js';
 import { weeklySeed, isoWeek, shareLink, parseShareLink, shareCheck, sharedTotal, emojiRow, pictureCard } from '../../../src/ui/share.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 
-const PARTS = { people: 72, prosperity: 65, culture: 58, safety: 40 };
-const SPLITS = { town: 14, market_town: 20, city: null, great_city: null, capital: null };
+const PARTS = { people: 72, prosperity: 65, culture: 58, safety: 40, monuments: 36 };   // Stage 4: score v2's five parts
+const SPLITS = { town: 14, market_town: 20, city: null, great_city: null, capital: null, pyramids: null, great_pyramid: null };
+const V1 = { people: 72, prosperity: 65, culture: 58, safety: 40 };
+const V1_SPLITS = { town: 14, market_town: 20, city: null, great_city: null, capital: null };
 
 describe('s3 score sharing', () => {
   it('draws This week\'s Nile from the local date: ISO week-year x 100 + ISO week', () => {
@@ -16,32 +18,36 @@ describe('s3 score sharing', () => {
     expect(isoWeek(new Date(2026, 2, 30))).toEqual({ year: 2026, week: 14 }); // the Monday after the clocks change
     expect([weeklySeed(new Date('nonsense')), weeklySeed(null)]).toEqual([0, 0]);
   });
-  it('makes the t1 link with its check, and reads it back', () => {
+  it('makes the t2 link with its check, and reads it back; a t1 link still opens as older scoring (Stage 4)', () => {
     const link = shareLink({ seed: 202641, difficulty: 'normal', parts: PARTS, splits: SPLITS });
-    const body = 't1.202641.n.72-65-58-40.14-20-x-x-x';
+    const body = 't2.202641.n.72-65-58-40-36.14-20-x-x-x-x-x';
     expect(link).toBe(`https://joshuahedge.github.io/thebes/#${body}.${shareCheck(body)}`);
     expect(/^[0-9a-z]{4}$/.test(shareCheck(body))).toBe(true);
-    expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: 202641, difficulty: 'normal', parts: PARTS, splits: SPLITS });
-    expect(sharedTotal(parseShareLink(new URL(link).hash))).toBe(235);
+    expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: 202641, difficulty: 'normal', parts: PARTS, splits: SPLITS, version: 2, older: false });
+    expect(sharedTotal(parseShareLink(new URL(link).hash))).toBe(271);
     const hard = parseShareLink(new URL(shareLink({ seed: 7, difficulty: 'hard', parts: PARTS, splits: {} })).hash);
-    expect([hard.difficulty, hard.splits.town, sharedTotal(hard)]).toEqual(['hard', null, Math.round(235 * 1.25)]);
-    expect([shareLink({}), shareLink({ seed: 1, difficulty: 'easy', parts: PARTS }), shareLink({ seed: 1, difficulty: 'normal', parts: { ...PARTS, safety: 101 } })]).toEqual(['', '', '']);
+    expect([hard.difficulty, hard.splits.town, sharedTotal(hard)]).toEqual(['hard', null, Math.round(271 * 1.25)]);
+    expect([shareLink({}), shareLink({ seed: 1, difficulty: 'easy', parts: PARTS }), shareLink({ seed: 1, difficulty: 'normal', parts: { ...PARTS, safety: 101 } }), shareLink({ seed: 1, difficulty: 'normal', parts: V1 })]).toEqual(['', '', '', '']);
+    const old = 't1.202641.n.72-65-58-40.14-20-x-x-x';
+    expect(parseShareLink(`#${old}.${shareCheck(old)}`)).toEqual({ ok: true, seed: 202641, difficulty: 'normal', parts: V1, splits: V1_SPLITS, version: 1, older: true });
+    expect(sharedTotal(parseShareLink(`#${old}.${shareCheck(old)}`))).toBe(235);
   });
   it('says a typo, a newer link and a broken one apart, and ignores a hash that is no share link', () => {
     const link = shareLink({ seed: 202641, difficulty: 'normal', parts: PARTS, splits: SPLITS });
     const hash = new URL(link).hash;
     expect([parseShareLink(''), parseShareLink('#x'), parseShareLink('#welcome'), parseShareLink(null)]).toEqual([null, null, null, null]);
     expect(parseShareLink(hash.replace('72-65', '73-65'))).toEqual({ ok: false, reason: 'bad_check' });
-    expect(parseShareLink(hash.replace('#t1', '#t2'))).toEqual({ ok: false, reason: 'newer_format' });
-    expect(parseShareLink('#t1.202641.n.72-65-58.14-20-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });
-    expect(parseShareLink('#t1.202641.e.72-65-58-40.14-20-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });
-    expect(parseShareLink('#t1.202641.n.72-65-58-400.14-20-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });
-    expect(parseShareLink('#t1.202641.n.72-65-58-40.14-20-x-x-x')).toEqual({ ok: false, reason: 'malformed' });
+    expect(parseShareLink(hash.replace('#t2', '#t3'))).toEqual({ ok: false, reason: 'newer_format' });
+    expect(parseShareLink('#t2.202641.n.72-65-58-40.14-20-x-x-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });   // four parts in a t2 link
+    expect(parseShareLink('#t1.202641.n.72-65-58-40-36.14-20-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });  // five parts in a t1 link
+    expect(parseShareLink('#t2.202641.e.72-65-58-40-36.14-20-x-x-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });
+    expect(parseShareLink('#t2.202641.n.72-65-58-400-36.14-20-x-x-x-x-x.abcd')).toEqual({ ok: false, reason: 'malformed' });
+    expect(parseShareLink('#t2.202641.n.72-65-58-40-36.14-20-x-x-x-x-x')).toEqual({ ok: false, reason: 'malformed' });
   });
   it('writes the emoji row: one line per part, a square per 20 points', () => {
-    expect(emojiRow(PARTS)).toBe('People 🟩🟩🟩⬜⬜\nProsperity 🟩🟩🟩⬜⬜\nCulture 🟩🟩⬜⬜⬜\nSafety 🟩🟩⬜⬜⬜');
-    expect(emojiRow({ people: 100, prosperity: 0, culture: 19, safety: 20 })).toBe('People 🟩🟩🟩🟩🟩\nProsperity ⬜⬜⬜⬜⬜\nCulture ⬜⬜⬜⬜⬜\nSafety 🟩⬜⬜⬜⬜');
-    expect([emojiRow({}), emojiRow(null)]).toEqual(['', '']);
+    expect(emojiRow(PARTS)).toBe('People 🟩🟩🟩⬜⬜\nProsperity 🟩🟩🟩⬜⬜\nCulture 🟩🟩⬜⬜⬜\nSafety 🟩🟩⬜⬜⬜\nMonuments 🟩⬜⬜⬜⬜');
+    expect(emojiRow({ people: 100, prosperity: 0, culture: 19, safety: 20, monuments: 0 })).toBe('People 🟩🟩🟩🟩🟩\nProsperity ⬜⬜⬜⬜⬜\nCulture ⬜⬜⬜⬜⬜\nSafety 🟩⬜⬜⬜⬜\nMonuments ⬜⬜⬜⬜⬜');
+    expect([emojiRow({}), emojiRow(null), emojiRow(V1)]).toEqual(['', '', '']);
   });
   it('paints the 1200x630 picture card: the city on the left, the four bars to scale on the right', () => {
     const w = makeTestWorld();

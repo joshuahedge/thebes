@@ -200,7 +200,7 @@ describe('sim trade', () => {
     for (const id of Object.keys(PARTNERS)) {
       const prices = tradePrices(w, id);
       for (const side of ['buys', 'sells']) {
-        for (const [good, t] of Object.entries(PARTNERS[id][side])) {
+        for (const [good, t] of Object.entries(PARTNERS[id][side]).filter(([, o]) => !o.from)) {   // Stage 4: a good with from is listed later
           expect(prices[side][good]).toBeGreaterThanOrEqual(Math.max(1, Math.round(t.price * (1 - PRICE_DRIFT))));
           expect(prices[side][good]).toBeLessThanOrEqual(Math.round(t.price * (1 + PRICE_DRIFT)));
         }

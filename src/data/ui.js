@@ -1,13 +1,15 @@
 // Interface data: what the build dock shows and in what order, key bindings, and gesture and timing tunables.
 import { TIERS } from './housing.js';
+import { MONUMENT_KINDS } from './monuments.js';
 export const CATEGORIES = [
   { id: 'roads', items: ['road', 'demolish'] },
-  { id: 'homes', items: ['house', 'garden', 'statue'] },
+  { id: 'homes', items: ['house', 'garden', 'statue', 'plaza', 'sphinx'] },
   { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
   { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'] },
-  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse'] },
+  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse', 'palace'] },
   { id: 'defence', items: ['wall', 'tower', 'barracks'] },
-  { id: 'monuments', items: [] },
+  // Stage 4 (spec 4.14, ruling 207): everything a monument needs, in order, then the seven from the small obelisk up.
+  { id: 'monuments', items: ['builders_guild', 'quarry', 'brickworks', ...MONUMENT_KINDS] },
 ];
 
 export const CATEGORY_ICONS = { roads: '═', homes: '⌂', food: '❋', industry: '⚒', services: '✚', defence: '⛊', monuments: '▲' };
@@ -24,6 +26,7 @@ export function toolForItem(item) {
   if (item === 'wall') return { kind: 'wall' };       // drawn as a line, like a road (spec 6.4 Drawing mode)
   if (item === 'demolish') return { kind: 'demolish' };
   if (item === 'house') return { kind: 'houses' };
+  if (item === 'plaza') return { kind: 'plazas' };     // Stage 4 (ruling 250): painted like plots
   return { kind: 'building', type: item };
 }
 
@@ -39,7 +42,8 @@ export const SHOW_ME_PULSE_MS = 400;
 export const GUIDE_PULSES = 2;          // the guide's map ring pulses twice when its step changes, then stays still (spec 3.2)
 export const GUIDE_PULSE_MS = 600;      // one pulse: under 3 flashes a second, done well within 5 s (spec 5.4)
 export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion', booth: 'entertainment', garden: 'desirability', statue: 'desirability', firehouse: 'fire',
-  farm_grain: 'ground', farm_fig: 'ground', farm_barley: 'ground', farm_flax: 'ground', gem_mine: 'ground' };   // placement review P1: the buildings that need fertile or rocky ground show it
+  farm_grain: 'ground', farm_fig: 'ground', farm_barley: 'ground', farm_flax: 'ground', gem_mine: 'ground', quarry: 'ground',   // placement review P1: the buildings that need fertile or rocky ground show it
+  ...Object.fromEntries(MONUMENT_KINDS.map((k) => [k, 'ground'])) };   // Stage 4 (Track C, ruling 229): picking a monument turns Ground on, with its gold room
 
 // The desirability overlay's bands (spec 4.7, 6.3): where each starts. Below the first is unpleasant (hatched); the
 // rest are the "to rise" values of the tiers that need desirability (Manor 20, Fine manor 35, Villa 50, Estate 65), so a
@@ -48,7 +52,7 @@ export const DESIRABILITY_STEPS = [0, ...TIERS.filter((t) => t && t.desirability
 
 // Picking a card or Show me puts a building ghost on the nearest tile where it fits, at most this many tiles
 // out (early-game pass 2.6). Only when nothing fits does it stay on the point itself.
-export const NEAREST_FIT_RADIUS = 10;
+export const NEAREST_FIT_RADIUS = 10;   // Stage 4: MONUMENT_PLACING.fitRadius (16) for footprints of bigArea tiles and up (src/data/monuments.js)
 
 // The trade sheet's level to keep moves in steps of this many units (spec 4.15).
 export const TRADE_KEEP_STEP = 10;
@@ -92,6 +96,7 @@ export const UPDATE_TOAST_MS = 20000;
 
 export const TITLE_SEED = 11;          // the sample city behind the title card
 export const TITLE_DRIFT_MS = 9000;    // one slow camera drift between two points of it
+export const TITLE_HOLD_MS = 8000;     // under Full, how long the backdrop holds the showcase before it first drifts
 
 // Celebration captions (early-game pass 3.6; spec 6.3, ruling 165): how long each tier's caption shows, and the least
 // time between two captions starting. Goals, firsts, feats and achievements are the 'first' tier; citizen remarks
@@ -107,3 +112,7 @@ export const CHEER_RECENT_MAX = 10;        // the Goals sheet's Recent list keep
 // The idle nudge (early-game pass 3.5): Show me glows after this much idle running play, and one Next line follows this much later.
 export const NUDGE_GLOW_MS = 45000;
 export const NUDGE_LINE_MS = 60000;
+
+// Stage 4 (Track C, spec 6.3, ruling 281): View outlines the building it frames for holdMs, then fades it over fadeMs under
+// Full motion (under Gentle and Still it holds, then goes at once).
+export const VIEW_OUTLINE = { holdMs: 2500, fadeMs: 500 };

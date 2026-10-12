@@ -54,7 +54,7 @@ describe('s3 score seal this reign', () => {
       const s = scoreOf(r.world);
       r.store.set(openSheet(r.store.get(), 'sealReign'));
       fire(sheet(r).querySelector('.seal-confirm'), 'click');
-      expect(r.world.seals).toEqual([{ day: 400, score: s.total, parts: s.parts, medal: s.medal, version: 1 }]);
+      expect(r.world.seals).toEqual([{ day: 400, score: s.total, parts: s.parts, medal: s.medal, version: 2 }]);
       const [entry] = records.stamps();
       expect([entry.cityId, entry.score, entry.day, entry.date, entry.seed]).toEqual(['abc', s.total, 400, 1760000000000, r.world.seed]);
       expect(r.store.get().sheet.kind).toBe('summary');
@@ -92,7 +92,7 @@ describe('s3 score share score', () => {
       const link = shareLink({ seed: r.world.seed, difficulty: r.world.difficulty, parts: s.parts, splits: splitMonths(r.world) });
       expect(sheet(r).querySelector('h2').textContent).toBe(T.shareScore);
       expect(sheet(r).querySelector('.share-link-text').value).toBe(link);
-      expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: r.world.seed, difficulty: 'normal', parts: s.parts, splits: { ...splitMonths(r.world) } });
+      expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: r.world.seed, difficulty: 'normal', parts: s.parts, splits: { ...splitMonths(r.world) }, version: 2, older: false });
       expect(sheet(r).querySelector('.emoji-row').textContent).toBe(emojiRow(s.parts));
       expect(sheet(r).querySelector('.honour').textContent).toBe(SHARE_TEXT.honourHelp);
     } finally { r.cleanup(); }

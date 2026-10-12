@@ -20,11 +20,11 @@ function city() {
 
 describe('s3 score feats', () => {
   it('lists the ten feats of spec 4.19, the raid ones marked, each with a name and its exact condition', () => {
-    expect(FEATS.map((f) => [f.id, Boolean(f.raids)])).toEqual([
+    expect(FEATS.slice(0, 10).map((f) => [f.id, Boolean(f.raids)])).toEqual([   // Stage 4's two: tests/stage4/score
       ['debt_free', false], ['well_fed', false], ['grain_alone', false], ['firewise', false], ['untouched', true],
       ['never_bowed', true], ['garden_city', false], ['full_hands', false], ['merchant_prince', false], ['swift_town', false],
     ]);
-    expect(FEATS.map((f) => [FEAT_TEXT[f.id].name, FEAT_TEXT[f.id].condition])).toEqual([
+    expect(FEATS.slice(0, 10).map((f) => [FEAT_TEXT[f.id].name, FEAT_TEXT[f.id].condition])).toEqual([
       ['Debt-free founder', 'Become a Town without the treasury ever going below 0'],
       ['Well fed', 'Feed every home at Cottage or better for 12 months in a row, with 100 people or more'],
       ['Grain alone', 'Become a Market town without building a fig orchard'],
@@ -190,10 +190,10 @@ describe('s3 score feats in the interface', () => {
       r.world.feats = { earned: ['garden_city'], lost: ['grain_alone'], counters: {} };
       r.store.set(openSheet(r.store.get(), 'summary'));
       const sheet = r.root.querySelector('#sheet');
-      expect(sheet.querySelector('.feats-heading').textContent).toBe(featsHeading(1, 10));
+      expect(sheet.querySelector('.feats-heading').textContent).toBe(featsHeading(1, 12));   // Stage 4 adds two
       const rows = [...sheet.querySelectorAll('.feat')];
       const row = (id) => rows.find((li) => li.dataset.id === id);
-      expect(rows.length).toBe(10);
+      expect(rows.length).toBe(12);
       expect(row('garden_city').querySelector('.status').textContent).toBe(`${T.doneMark} ${SCORE_TEXT.featEarned}`);
       expect(row('garden_city').querySelector('.tick').getAttribute('aria-hidden')).toBe('true');
       expect(row('grain_alone').querySelector('.status').textContent).toBe(SCORE_TEXT.featMissed);
@@ -202,8 +202,8 @@ describe('s3 score feats in the interface', () => {
       expect(sheet.querySelector('.feats-section').nextElementSibling.textContent.startsWith(T.achievements)).toBe(true);   // just above the achievements
       r.world.difficulty = 'peaceful';
       r.ui.refresh();
-      expect(r.root.querySelectorAll('#sheet .feat').length).toBe(8);
-      expect(r.root.querySelector('#sheet .feats-heading').textContent).toBe(featsHeading(1, 8));
+      expect(r.root.querySelectorAll('#sheet .feat').length).toBe(10);
+      expect(r.root.querySelector('#sheet .feats-heading').textContent).toBe(featsHeading(1, 10));
     } finally { r.cleanup(); }
   });
   it('shows the feats earned when sealing, and a caption when one is earned', async () => {

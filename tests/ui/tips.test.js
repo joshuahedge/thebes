@@ -8,7 +8,7 @@ import { setGuide } from '../../src/sim/commands.js';
 import { buildingAt, housesOf } from '../../src/sim/world.js';
 import { adjacentRoadTiles } from '../../src/sim/reach.js';
 import { select, openSheet, back } from '../../src/ui/modes.js';
-import { TIP_TEXT, T } from '../../src/ui/text.js';
+import { TIP_TEXT, TIP_HELP_TEXT, T } from '../../src/ui/text.js';
 import { TOKENS } from '../../src/ui/theme.js';
 import { fakeLocal } from '../helpers/fakeStorage.js';
 import { mount, fire } from '../helpers/dom.js';
@@ -26,8 +26,10 @@ function rig(storage = fakeLocal()) {
 const shownText = (root) => { const n = root.querySelector('.tip-row .text'); return n ? n.textContent : null; };
 
 // Frames for the game tests, cheap because the drawing is stubbed. play(ms) runs frames a second apart, so the game's play
-// clock (which the tips' gap and hourly cap count) moves only while the speed is above zero.
+// clock (which the tips' gap and hourly cap count) moves only while the speed is above zero. Motion is chosen (Gentle),
+// so the device's own setting (headless Edge asks for less motion) brings no Gentle tip into these tests (Stage 4).
 function quietFrames(r) {
+  r.ui.settings.set({ motion: 'gentle' });
   r.renderer.renderFrame = () => {};
   let ft = 0;
   r.frame(ft);
@@ -258,7 +260,9 @@ describe('ui tips', () => {
   });
   it('keeps every tip short and unique, and lists them all in How to play', async () => {
     const ids = TIPS.map((t) => t.id), triggers = TIPS.map((t) => t.trigger);
-    expect(TIPS.length).toBe(20);                                          // Stage 3 adds danger's six
+    expect(TIPS.slice(0, 20).map((t) => t.id)).toEqual(['press_play', 'arrivals', 'house_needs', 'service_reach', 'problem_marker', 'month_summary', 'more_workers', 'undo_demolish',
+      'goals_list', 'overlay_keys', 'nicer_streets', 'storehouse_choices', 'trade_orders', 'merging_homes', 'fire_risk', 'firebreaks',
+      'clearing_rubble', 'raider_targets', 'tribute_once', 'wall_ring']);   // Stage 3 adds danger's six; Stage 4's lists follow
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(triggers).size).toBe(triggers.length);
     for (const t of TIPS) {
@@ -269,7 +273,8 @@ describe('ui tips', () => {
     try {
       r.store.set(openSheet(r.store.get(), 'help'));
       const items = [...r.root.querySelectorAll('#sheet .tips-list li')].map((li) => li.textContent);
-      expect(items).toEqual(TIPS.map((t) => TIP_TEXT[t.id]));
+      expect(items).toEqual(TIPS.map((t) => TIP_HELP_TEXT[t.id] || TIP_TEXT[t.id]));   // Stage 4: a tip true only where it fires has help words
+      for (const words of Object.values(TIP_HELP_TEXT)) expect(words.split(/\s+/).length).toBeLessThanOrEqual(20);
       expect([...r.root.querySelectorAll('#sheet h3')].some((h) => h.textContent === T.tips)).toBe(true);
     } finally { r.cleanup(); }
   });

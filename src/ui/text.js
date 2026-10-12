@@ -62,6 +62,7 @@ export function goodLine(good) {
   }
   if (users.length) parts.push(`used by ${listText(users.map(pluralName))}`);
   else if (tier > 0) parts.push(`used by ${TIERS[tier].name}s and up`);
+  else if (GOODS[good] && GOODS[good].kind === 'material') parts.push('used by monument sites');   // Stage 4 (spec 4.10)
   const buyers = Object.keys(PARTNERS).filter((id) => PARTNERS[id].buys[good]).map(partnerName);
   const sellers = Object.keys(PARTNERS).filter((id) => PARTNERS[id].sells[good]).map(partnerName);
   if (buyers.length) parts.push(`sold to ${listText(buyers)}`);
@@ -1001,7 +1002,7 @@ export const TITLE_SCORE_TEXT = {
   stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}`,
   moreStamps: (n) => `+${n} more`,
   friendLine: (total, seed, level) => `${total} on seed ${seed}, ${DIFFICULTY_NAMES[level] || level}. ${SHARE_TEXT.honour}`,
-  partsLine: (parts) => Object.keys(SCORE_TEXT.parts).map((p) => `${SCORE_TEXT.parts[p]} ${parts[p]}`).join(' · '),
+  partsLine: (parts) => Object.keys(SCORE_TEXT.parts).filter((p) => p in parts).map((p) => `${SCORE_TEXT.parts[p]} ${parts[p]}`).join(' · '),
   yourBest: (score) => (score === null ? 'You have no score on this seed and level yet' : `Your best here: ${score}`),
   beat: (total) => `Beat ${total}?`,
   startOn: (level) => `It starts on ${DIFFICULTY_NAMES[level] || level}, the level of the shared score.`,
@@ -1092,3 +1093,481 @@ export const CITIZEN_REMARKS = [
 // Track F's words for the integrator: anything balance needs words for (difficultyHint is edited in place). Add new lines just above the end marker.
 export const BALANCE_TEXT = {};
 // ── end s3 balance ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 3 and Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 contract (Track 0) ────────────────────────────────────────────────────────────────────────────────────────
+// Words for the Stage 4 contract's own additions. Each Stage 4 track keeps its words in its own section below, as its own
+// exported objects whose names carry its prefix (src/ui/text.js is one module), and adds to the shared tables above
+// (T, REASONS, ALERT_TEXT, MOOD_NAMES, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, TIP_TEXT,
+// CHAPTER_NAMES, SCORE_TEXT, BUILDING_PLURALS, CITIZEN_REMARKS, ...) only with Object.assign inside its own section.
+// Prefixes: A sim4 / SIM4_, B art4 / ART4_, C ui4 / UI4_, D score4 / SCORE4_, E motion4 / MOTION4_, G cards4 / CARDS4_,
+// H look4 / LOOK4_, F balance4 / BALANCE4_.
+Object.assign(SCORE_TEXT.parts, { monuments: 'Monuments' });
+Object.assign(BUILDING_PLURALS, { quarry: 'quarries', brickworks: 'brickworks', builders_guild: "builders' guilds", plaza: 'plazas', sphinx: 'sphinxes', palace: 'palaces' });
+Object.assign(MOOD_NAMES, { monuments: 'Monuments', palace: 'Palace' });   // spec 4.9: "Monuments +4", "Palace +2"
+// The Settings sheet's Motion row until Track E words it fully (spec 5.4).
+export const CONTRACT4_TEXT = {
+  motion: 'Motion',
+  motionLevels: { system: 'Follow the device', full: 'Full', gentle: 'Gentle', still: 'Still' },
+};
+// ── end s4 contract ──────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 sim (Track A) ─────────────────────────────────────────────────────────────────────────────────────────────
+// Track A's words: its REASONS (not_on_fields, one_only, work_begun, finished, the palace's), its ALERT_TEXT codes
+// (site_stalled and its reason codes), the mood rows' names if they change, and the supply buildings' working lines.
+// Add new lines just above the end marker.
+// The refusals Track A's commands return (src/sim/commands.js place and setPaused, src/sim/palace.js palaceQuote and
+// enlargePalace, src/sim/undo.js): reasonText(code) words each. work_begun's generic line is for callers that have no
+// site to name; SIM4_TEXT.workBegun names it from undo's { type }.
+Object.assign(REASONS, {
+  not_on_fields: 'Monuments stand on dry ground, not the fields',
+  one_only: 'The city has its palace: there is only one',
+  work_begun: 'Work has begun on it: demolish it instead',
+  finished: 'A finished monument has nothing to pause',
+  not_palace: 'That is not the palace',
+  works: 'The palace is already being enlarged',
+  last_style: 'The palace is as grand as it gets',
+  no_road: 'Must touch a road',
+});
+export const SIM4_TEXT = {
+  // Undo refused once work has begun on a site (ruling 236): "Work has begun on the small obelisk: demolish it instead".
+  workBegun: (type) => `Work has begun on the ${buildingName(type).toLowerCase()}: demolish it instead`,
+};
+// ── end s4 sim ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 art (Track B) ─────────────────────────────────────────────────────────────────────────────────────────────
+// Track B's words: anything the drawing needs in words (the problem markers' screen-reader names). Add new lines just
+// above the end marker.
+export const ART4_TEXT = {};
+// ── end s4 art ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 ui (Track C) ──────────────────────────────────────────────────────────────────────────────────────────────
+// Track C's words: the Monuments tab's cards and locks, the monument chips and confirm-bar line, the site, guild, quarry,
+// brickworks and palace sheets, the summary's Monuments section, Welcome back's site lines, the stall warnings' tier
+// words and View's outline. Add new lines just above the end marker.
+import { extraGoldOf as ui4ExtraGold } from '../sim/costs.js';
+import { siteStatus as ui4SiteStatus } from '../sim/monuments.js';
+// Whole gold with thousands marked, as the spec writes it ("1,000 gold").
+export const ui4Gold = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const ui4Lower = (type) => buildingName(type).toLowerCase();
+const ui4Cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// What a monument's crews and materials are, for "come by road": the crews and every material its courses use (its recipe).
+const ui4ByRoad = (type) => listText(['crews', ...['stone', 'bricks'].filter((g) => score4Monuments[type] && score4Monuments[type].courses.some((c) => c[g] > 0))]);
+export const UI4_TEXT = {
+  // The Monuments tab's cards (spec 4.4, 4.14, 6.3): the ground a monument stands on, and a prestige lock with its count. The
+  // sim refuses only fertile land (ruling 299: desert, rocky, meadow and bank all take one), so the words say just that; the
+  // card's line is the short form, one line in a 124 px card at 150% text.
+  groundCard: 'Not on the fields',
+  groundTip: 'on dry ground, not the fields',
+  needsPrestige: (need, have) => `Needs ${need} prestige (you have ${have})`,
+  needsMilestoneAndPrestige: (milestone, need) => `Needs ${milestone} and ${need} prestige`,
+  // The monument chips (spec 6.5, ruling 230), each the sim's own condition in words.
+  groundMet: 'Dry ground, not the fields',
+  notOnFields: (fertile, of) => `Not on the fields: ${fertile} of ${of} tiles are fertile`,
+  roadLater: (type) => `No road yet: ${ui4ByRoad(type)} come by road`,
+  crewMet: (n) => `Crew: ${plural(n, "builders' guild", "builders' guilds")} near`,
+  crewLater: "No builders' guild near",
+  supplyMet: (goods) => `${ui4Cap(listText(goods.map((g) => goodName(g).toLowerCase())))} near`,
+  // Every material the recipe takes that has no maker or storehouse near (ruling 300): "No bricks or stone near".
+  supplyLater: (goods) => `No ${[].concat(goods).map((g) => goodName(g).toLowerCase()).join(' or ')} near`,
+  founding: (cost, have) => `Founding ${ui4Gold(cost)} gold: you have ${ui4Gold(have)}`,
+  // The confirm bar's line (spec 6.5, ruling 251), after the score's "+N Monuments when finished" (Track D).
+  crewGold: (gold) => `then ${ui4Gold(gold)} gold a crew a month`,
+  finishedNicer: (n) => `finished: ${plural(n, 'home', 'homes')} nicer`,
+  whileBuilding: (n) => `while building: ${plural(n, 'home', 'homes')} less pleasant`,
+  oneOfEach: 'One of each kind counts: no prestige',
+  founded: (type) => `${buildingName(type)} founded`,
+  // The Ground overlay while a monument is placed (spec 6.3, ruling 229).
+  groundFertile: 'Fertile: no monuments here',
+  roomFor: (type) => `Gold: room for a ${ui4Lower(type)}`,
+  noRoomFor: (type) => `No room left for a ${ui4Lower(type)}`,
+};
+// One monument condition's chip words (src/sim/commands.js conditionsFor: ground, road, crew, supply, gold). The supply chip
+// names the sim's own lists: every material the recipe takes when all are near (goods), else every one missing (missing).
+// Ground refusals other than the fields keep the shared words (conditionText).
+export function ui4ConditionText(cond, type) {
+  const U = UI4_TEXT;
+  if (cond.key === 'ground') {
+    if (cond.state === 'met') return U.groundMet;
+    if (cond.reason === 'not_on_fields') return U.notOnFields(cond.fertile, cond.of);
+    return conditionText(cond, type);
+  }
+  if (cond.key === 'road') return cond.state === 'met' ? CONDITION_TEXT.roadMet : cond.state === 'later' ? U.roadLater(type) : CONDITION_TEXT.roadCant;
+  if (cond.key === 'crew') return cond.state === 'met' ? U.crewMet(cond.n) : U.crewLater;
+  if (cond.key === 'supply') return cond.state === 'met' ? U.supplyMet(cond.goods || []) : U.supplyLater(cond.missing || [cond.good]);
+  if (cond.key === 'gold') return U.founding(cond.cost, cond.have);
+  return conditionText(cond, type);
+}
+
+// Task C2: the sheets (spec 6.3, 4.16, 4.20; rulings 210, 236, 245, 258, 273, 275). Each row states what the sim's own function
+// returned (siteStatus, crewsFor, paceOf, guildSite, supplyNeeded, palaceQuote, demolishRefundFor).
+const ui4Months = (days) => {
+  const months = Math.max(1, Math.ceil(days / 30));
+  const y = Math.floor(months / 12), m = months % 12;
+  return [y ? plural(y, 'year', 'years') : '', m ? plural(m, 'month', 'months') : ''].filter(Boolean).join(' ');
+};
+const ui4MakerOf = { stone: 'quarry', bricks: 'brickworks' };
+const ui4Count = (n, type) => plural(n, ui4Lower(type), BUILDING_PLURALS[type] || `${ui4Lower(type)}s`);
+// Why a site is not progressing, short ("Not progressing: no stone"), by siteStatus's reason codes.
+const UI4_STALL_SHORT = {
+  no_road: 'no road', paused: 'paused', no_crew: 'no crew', crew_short: "its builders' guild is short of workers", crew_burning: "its builders' guild is on fire",
+  no_gold: 'no gold', waiting_gilding: 'waiting for gold for the gilding', waiting_capstone: 'waiting for gold for the capstone', no_stone: 'no stone', no_bricks: 'no bricks',
+};
+Object.assign(UI4_TEXT, {
+  progress: (course, courses, share) => `Course ${course + 1} of ${courses} · ${Math.floor(share * 100)}% done`,
+  crews: (n, max) => `Crews: ${n} of ${max}.${n ? ` ${ui4Count(n, 'builders_guild')} ${n === 1 ? 'works' : 'work'} here.` : ''}`,
+  // A stall's cause and its fix, the same words on the sheet, in the alert list and on Welcome back (spec 4.16 Stalls).
+  cause: {
+    no_road: (type) => UI4_TEXT.roadLater(type),
+    paused: 'Paused: no work and no work gold until you resume it',
+    no_crew: (reach) => `No crew: build a builders' guild within ${reach} road tiles`,
+    crew_short: "The builders' guild is short of workers",
+    crew_burning: "The builders' guild is on fire",
+    no_gold: 'No gold for the crews: a crew works a day only when its pay leaves the treasury at 0 or more',
+    waiting_gilding: (gold) => `Waiting for ${ui4Gold(gold)} gold for the gilding`,
+    waiting_capstone: (gold) => `Waiting for ${ui4Gold(gold)} gold for the capstone`,
+    // The spec's sentence only when nothing reaches the site; else what is true (a quarry that reaches it has not delivered yet).
+    material: (good, makers = 0, stores = 0) => {
+      const g = goodName(good).toLowerCase();
+      if (!makers && !stores) return `Waiting for ${g}: no ${ui4Lower(ui4MakerOf[good])} or storehouse with ${g} within reach`;
+      const parts = [makers ? ui4Count(makers, ui4MakerOf[good]) : '', stores ? ui4Count(stores, 'storehouse') : ''].filter(Boolean);
+      return `Waiting for ${g}: ${listText(parts)} ${makers + stores === 1 ? 'reaches' : 'reach'} this site, but none has arrived yet`;
+    },
+  },
+  stallShort: (reason) => UI4_STALL_SHORT[reason] || 'no work',
+  material: (good, onSite, makers, stores) => {
+    const parts = [makers ? ui4Count(makers, ui4MakerOf[good]) : '', stores ? ui4Count(stores, 'storehouse') : ''].filter(Boolean);
+    const reach = parts.length ? `${listText(parts)} ${makers + stores === 1 ? 'reaches' : 'reach'} this site.` : `No ${ui4Lower(ui4MakerOf[good])} or storehouse reaches this site.`;
+    return `${goodName(good)}: ${Math.floor(onSite)} on site. ${reach}`;
+  },
+  pace: (days) => `At last month's pace, about ${ui4Months(days)} to finish`,
+  notProgressing: (reason) => `Not progressing: ${UI4_STALL_SHORT[reason] || 'no work'}`,
+  paceLater: 'Pace shows after a month of work',
+  lastMonth: (gold, crews) => `Last month: ${ui4Gold(Math.floor(gold))} gold for ${plural(crews, 'crew', 'crews')}. Work stops if gold would go below 0.`,
+  workGold: (gold) => `Work gold: ${ui4Gold(gold)} gold a crew a month. Work stops if gold would go below 0.`,
+  prestige: (now, more) => `Prestige ${now} so far; +${more} when finished`,
+  otherHolds: (type) => `One of each kind counts: the other ${ui4Lower(type)} holds its prestige`,
+  finishedOn: (year, month) => `Finished in year ${year}, month ${month}`,
+  countsFor: (n) => `Counts for prestige: ${n}`,
+  otherCounts: (type) => `The other ${ui4Lower(type)} counts for prestige`,
+  homesNicer: (n) => (n ? `Makes ${plural(n, 'home', 'homes')} nicer` : 'Makes no homes nicer yet'),
+  // The supply buildings (spec 6.3, ruling 258).
+  crewAt: (type) => `Crew at work on the ${ui4Lower(type)}`,
+  crewShort: (type) => `Short of workers: the crew for the ${ui4Lower(type)} cannot start`,
+  crewBurning: (type) => `On fire: the crew for the ${ui4Lower(type)} cannot work`,
+  guildIdle: (reach) => `Idle: no monument site within ${reach} road tiles has room for a crew`,
+  sends: (good, type) => `Sends ${goodName(good).toLowerCase()} to the ${ui4Lower(type)}`,
+  supplyIdle: (good) => `Idle: no monument site needs ${goodName(good).toLowerCase()} within reach`,
+  cuttingStone: 'Cutting stone',
+  // Demolish asks first (spec 4.16, 4.20).
+  // lost: what the city's prestige loses (the best of each kind counts, so a second of the kind makes it less, or nothing).
+  tearDownSite: (type, course, courses, lost, refund) => `Tear down the ${ui4Lower(type)}? ${course ? `${course} of ${courses} courses are lost. ` : ''}${lost ? `The city loses ${lost} prestige. ` : ''}Refunds ${ui4Gold(refund)} gold (a quarter of its founding).`,
+  tearDownFinished: (type, lost, refund) => `Tear down the ${ui4Lower(type)}? ${lost ? `It is lost, and the city loses ${lost} prestige.` : 'It is lost; the city loses no prestige.'} Refunds ${ui4Gold(refund)} gold (a quarter of its founding).`,
+  tearDownPalace: (n, refund) => `Tear down the palace? ${n ? `Its ${plural(n, 'enlargement', 'enlargements')} ${n === 1 ? 'is' : 'are'} lost. ` : ''}Refunds ${ui4Gold(refund)} gold.`,
+  workBegun: (type) => `Work has begun on the ${ui4Lower(type)}: demolish it instead`,
+  plazasLaid: (n) => `${plural(n, 'plaza', 'plazas')} laid`,
+  // The palace (spec 4.20, rulings 271-275).
+  palaceStands: 'Your palace stands: tap to visit it',
+  palaceStyle: (name) => `Style: ${name}`,
+  palaceNicer: (values) => `Makes homes nicer up to ${values.length} tiles away (+${values[0]} beside it)`,
+  palaceMood: (n) => (n ? `Mood: +${n}` : 'Mood: none until it is enlarged'),
+  palaceNoRoad: 'No road yet: no desirability or mood until a road touches it',
+  palaceWorks: (to, days) => `Enlarging to ${to}: ${plural(days, 'day', 'days')} left`,
+  enlarge: (to, gold) => `Enlarge to ${to}: ${ui4Gold(gold)} gold`,
+  enlargeAsk: (to, gold) => `Enlarge the palace to ${to} for ${ui4Gold(gold)} gold? It is paid at once and cannot be undone.`,
+  enlargeOk: 'Enlarge',
+  enlarged: (to, days) => `Enlarging to ${to}: ready in ${plural(days, 'day', 'days')}`,
+  palaceDone: (to) => `The palace is now ${to}`,
+  enlargeWhy: {
+    works: (days) => `One enlargement at a time: ${plural(days, 'day', 'days')} left`,
+    last_style: 'The palace is at its grandest',
+    locked: (comes, milestone) => `${comes} ${milestone}`,
+    no_road: 'The palace needs a road first',
+    no_gold: (have) => `You have ${ui4Gold(have)} gold: enlarging can't put the treasury below 0`,
+  },
+});
+// A stall's cause in words (spec 4.16 Stalls, ruling 245), the same on the site sheet, in the alert list and on Welcome back,
+// by siteStatus's reason codes; '' for none. extraGold: the gilding's or capstone's gold for the city (extraGoldOf).
+export function ui4CauseText(reason, extraGold = 0, material = null, type = null) {
+  const C = UI4_TEXT.cause;
+  if (!reason) return '';
+  if (reason === 'no_road') return C.no_road(type);                       // type: the monument, whose recipe names what comes by road
+  if (reason === 'no_crew') return C.no_crew(BUILDINGS.builders_guild.reach);
+  if (reason === 'waiting_gilding' || reason === 'waiting_capstone') return C[reason](extraGold);
+  // material: { makers, stores }, the counts that reach the site (siteStatus); none given: nothing reaches it.
+  if (reason === 'no_stone' || reason === 'no_bricks') return C.material(reason.slice(3), material ? material.makers : 0, material ? material.stores : 0);
+  return typeof C[reason] === 'string' ? C[reason] : '';
+}
+// Task C3: the stall warning (a warning, never a critical: ruling 211), the summary's Monuments section and spending row,
+// Welcome back's site lines and the palace's tip.
+ALERT_TEXT.site_stalled = (alert, world, b, name) => {
+  const good = alert.reason === 'no_stone' || alert.reason === 'no_bricks' ? alert.reason.slice(3) : null;
+  const m = good && b ? ui4SiteStatus(world, b).materials[good] : null;
+  return {
+    title: `${name} is not progressing`,
+    fix: ui4CauseText(alert.reason, b ? ui4ExtraGold(world, b.type) : 0, m ? { makers: m.makers.length, stores: m.stores.length } : null, b ? b.type : null) || 'Have a look',
+  };
+};
+Object.assign(UI4_TEXT, {
+  monuments: 'Monuments',
+  siteLine: (type, course, courses) => `${buildingName(type)}: course ${course + 1} of ${courses}`,
+  finishedLine: (type) => `${buildingName(type)}: finished`,
+  noMonumentYet: 'No monument founded yet',
+  prestigeNext: (prestige, type, need, milestone) => `Prestige ${prestige}: the ${ui4Lower(type)} unlocks at ${need}${milestone ? ` and ${milestone}` : ''}`,
+  prestigeAll: (prestige, full) => `Prestige ${prestige} of ${full}`,
+  spendingHead: 'Monuments last month',
+  spendingRow: 'Work, gilding and capstone',
+  // Welcome back (spec 4.17): "Small pyramid: course 6 of 8, about 3 years left at last month's pace".
+  welcomeHead: 'Monument sites',
+  welcomeSite: (type, course, courses, state) => `${buildingName(type)}: course ${course + 1} of ${courses}, ${state}`,
+  welcomePace: (days) => `about ${ui4Months(days)} left at last month's pace`,
+  welcomeStill: (reason) => (UI4_STALL_SHORT[reason] ? `not progressing: ${UI4_STALL_SHORT[reason]}` : 'not progressing'),   // no invented cause: the caller only asks with a reason set
+  welcomePaused: 'paused',
+  welcomeNoRoad: 'no road yet',
+  welcomeFirst: 'pace shows after a month of work',
+});
+Object.assign(TIP_TEXT, { palace_grows: 'Your palace can grow: enlarge it on its sheet for more mood and nicer homes.' });
+// The palace's five styles, by PALACE_STYLES id: the name its sheet shows, the words after "Enlarge to", and the start of
+// "... come with City" while its milestone waits.
+export const UI4_PALACE_TEXT = {
+  courtyard: { name: 'Courtyard house', to: 'a courtyard house', comes: 'A courtyard house comes with' },
+  columned: { name: 'Columned hall', to: 'a columned hall', comes: 'A columned hall comes with' },
+  pylons: { name: 'Pylons and banners', to: 'pylons and banners', comes: 'Painted pylons come with' },
+  gilded: { name: 'Gilded palace', to: 'a gilded palace', comes: 'Gilded cornices come with' },
+  lapis: { name: 'Lapis and gold', to: 'lapis and gold', comes: 'Lapis and gold come with' },
+};
+// ── end s4 ui ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 score (Track D) ───────────────────────────────────────────────────────────────────────────────────────────
+// Track D's words: score v2 (the Monuments part's reasons, the two new splits, older scoring), the Monuments chapter,
+// goals, firsts, achievements, feats, daily goals, captions and citizen remarks. Add new lines just above the end marker.
+export const SCORE4_TEXT = {
+  splitNames: { pyramids: 'Pyramids unlocked', great_pyramid: 'Great pyramid finished' },
+  olderLink: 'Older scoring: this link has four parts, so it is compared with your best from then.',
+};
+const score4Name = (type) => buildingName(type).toLowerCase();
+const score4Milestone = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
+// The Monuments part's reason line (spec 4.19: the next step), from scoreOf's reasons.monuments (src/sim/score.js
+// monumentsReason); any other part's reason as scoreReasonText words it.
+export function score4ReasonText(r) {
+  if (!r) return '';
+  switch (r.code) {
+    case 'finish': return `Finish the ${score4Name(r.type)}: +${r.more} prestige`;
+    case 'found': return r.first ? `No monument yet: found a ${score4Name(r.type)} (${score4Milestone(r.milestone)})` : `Found a ${score4Name(r.type)}: +${r.more} prestige when finished`;
+    case 'locked':
+      if (r.milestone) return r.first ? `Monuments come with ${score4Milestone(r.milestone)}` : `The ${score4Name(r.type)} comes with ${score4Milestone(r.milestone)}`;
+      return `The ${score4Name(r.type)} needs ${r.prestige} prestige (you have ${r.have})`;
+    default: return scoreReasonText(r);
+  }
+}
+// The confirm bar's score line for a monument (spec 4.19, ruling 251's first part), from monumentPreview: "+32 Monuments
+// when finished"; '' for a second of a kind (one of each kind counts: Track C words that) or a gain under a point.
+export const score4MonumentLine = (p) => (p && !p.second && p.gain >= 1 ? `+${p.gain} ${SCORE_TEXT.parts.monuments} when finished` : '');
+// A split against the best on this seed and level, as splitCompareText words a milestone's, for all seven (score v2's two
+// new ones by their own names: "Pyramids unlocked in year 12, month 3: 5 months faster than your best").
+export function score4SplitText(id, day, bestDay) {
+  const words = splitCompareText(id, day, bestDay);
+  return SCORE4_TEXT.splitNames[id] ? `${SCORE4_TEXT.splitNames[id]}${words.slice(id.length)}` : words;
+}
+// A shared t1 link (ruling 259): the friend's score says it is older scoring, and "your best" is your best from then.
+export const score4YourBest = (score, older) => (!older ? TITLE_SCORE_TEXT.yourBest(score)
+  : score === null ? 'You have no older-scoring score on this seed and level' : `Your best here under older scoring: ${score}`);
+// A stamp's name: the sealed reign and its glyphs' monuments ("with a small mastaba and 2 small pyramids").
+export function score4StampLabel(e) {
+  const counts = new Map();
+  for (const k of e.built || []) counts.set(k, (counts.get(k) || 0) + 1);
+  const names = [...counts].map(([k, n]) => (n === 1 ? `a ${score4Name(k)}` : `${n} ${score4Name(k)}s`));
+  return `${TITLE_SCORE_TEXT.stampLabel(e)}${names.length ? `, with ${listText(names)}` : ''}`;
+}
+// The Monuments chapter of the goals (spec 4.19); its goals' words live in src/data/goals.js with every goal's.
+Object.assign(CHAPTER_NAMES, { monuments: 'Monuments' });
+// Monuments in the goals and rewards (spec 4.19, 4.20): five firsts, six achievements, two feats, three daily goals, six
+// tips, ten citizen remarks and the course, finish and palace captions. Every number comes from the data, and every claim
+// follows the monument rules (spec 4.16).
+import { MONUMENT as score4Monument, MONUMENTS as score4Monuments, PRESTIGE as score4Prestige } from '../data/monuments.js';
+import { FEATS as score4Feats } from '../data/feats.js';
+import { DAILY_POOL as score4Daily } from '../data/daily.js';
+import { PALACE_STYLES as score4PalaceStyles } from '../data/palace.js';
+import { DAYS_PER_MONTH as score4MonthDays, MONTHS_PER_YEAR as score4YearMonths } from '../sim/time.js';
+const score4Achievement = (id) => ACHIEVEMENTS.find((a) => a.id === id).measure;
+const score4Count = (n) => n.toLocaleString('en-GB');
+Object.assign(FIRST_TEXT, {
+  first_guild: { head: "First builders' guild", why: `Its crew builds a monument site up to ${score4Monument.crewReach} road tiles away.` },
+  first_course: { head: 'First course laid', why: "Half a monument's prestige comes course by course, half when it is finished." },
+  first_monument: { head: 'First monument finished', why: `Prestige lifts the mood, +1 for every ${score4Prestige.moodPer}, and the Monuments score.` },
+  pyramids_unlocked: { head: 'The small pyramid is unlocked', why: `A ${score4Milestone(score4Monuments.pyramid_small.unlock.milestone)} with ${score4Monuments.pyramid_small.unlock.prestige} prestige can found the small pyramid.` },
+  first_palace: { head: 'First palace', why: 'Enlarge it on its sheet as the city grows grander.' },
+});
+Object.assign(ACHIEVEMENT_NAMES, {
+  monument_builder: 'Monument builder', renowned: 'Renowned', seven_wonders: 'Seven wonders', stone_upon_stone: 'Stone upon stone',
+  gilded_tip: 'Gilded tip', lapis_and_gold: 'Lapis and gold',
+});
+Object.assign(ACHIEVEMENT_TEXT, {
+  monument_builder: `Finish ${score4Achievement('monument_builder').n} monuments`,
+  renowned: `Reach ${score4Achievement('renowned').n} prestige`,
+  seven_wonders: `Finish one of each of the ${score4Achievement('seven_wonders').n} monuments`,
+  stone_upon_stone: `Lay ${score4Count(score4Achievement('stone_upon_stone').n)} stone on monuments`,
+  gilded_tip: 'Finish the large obelisk with its gilded tip',
+  lapis_and_gold: 'Enlarge the palace to lapis and gold',
+});
+const score4FeatCheck = (id) => score4Feats.find((f) => f.id === id).check;
+Object.assign(FEAT_TEXT, {
+  steady_hands: { name: 'Steady hands', condition: 'Finish a mastaba or pyramid with no month in which its crews stood idle for lack of material' },
+  swift_pyramid: { name: 'Swift pyramid', condition: `Finish the great pyramid before year ${score4FeatCheck('swift_pyramid').day / (score4MonthDays * score4YearMonths) + 1} begins` },
+});
+Object.assign(DAILY_TEXT, {
+  course1: 'Lay a course on any monument', quarry1: 'Build a quarry',
+  stone100: `Bring ${score4Daily.find((d) => d.id === 'stone100').n} stone to a monument site`,
+});
+Object.assign(TIP_TEXT, {
+  monuments_last: 'Monuments come last for workers: guilds, quarries and brickworks hire after every other building.',
+  straight_to_site: `Quarries and brickworks send straight to a monument site within ${score4Monument.producerReach} road tiles, before any storehouse.`,
+  storehouse_bridge: `A site draws from storehouses within ${score4Monument.supplyReach} road tiles: one between quarry and site bridges a long way.`,
+  refuse_stone: 'Tap the storehouse your potters use and refuse stone, so its clay keeps its room.',
+  pause_site: 'Pause a site on its sheet to send its crews to another site in reach.',
+  one_each: "One of each kind counts for prestige, the furthest along. A second's site makes homes less pleasant; finished, nicer.",
+});
+// The masons (builders' guild), haulers (quarry) and brickmakers, by season, once the city has their building.
+CITIZEN_REMARKS.push(
+  { season: 'akhet', type: 'builders_guild', text: 'The masons say the flood months are the time to build' },
+  { season: 'akhet', type: 'builders_guild', text: 'The overseers check every course with a plumb line' },
+  { season: 'peret', type: 'builders_guild', text: 'The masons are teaching their sons to dress a block' },
+  { season: 'shemu', type: 'builders_guild', text: 'The masons sing as they haul the blocks up the ramp' },
+  { season: 'akhet', type: 'quarry', text: 'The quarrymen say the stone here splits clean and true' },
+  { season: 'peret', type: 'quarry', text: 'The haulers count the blocks they dragged today' },
+  { season: 'shemu', type: 'quarry', text: 'The haulers wet the sand in front of the sleds to ease the way' },
+  { season: 'akhet', type: 'brickworks', text: "The brickmakers stamp each brick with the city's mark" },
+  { season: 'peret', type: 'brickworks', text: 'The brickmakers say the river mud makes strong bricks' },
+  { season: 'shemu', type: 'brickworks', text: 'The brickmakers lay their bricks out to dry in the sun' },
+);
+// Captions (spec 6.3, rulings 212, 242): a course laid names the real gain in the city's prestige ("Small pyramid: course 3
+// of 8 · +10 prestige", none for a second of a kind), a finished monument is a milestone caption, and the palace says its
+// new style when its works end (spec 4.20). The gains are worked out by monumentCaptions (src/ui/celebrate.js).
+Object.assign(SCORE4_TEXT, {
+  palaceStyles: { courtyard: 'a courtyard house', columned: 'a columned hall', pylons: 'a palace of pylons and banners', gilded: 'a gilded palace', lapis: 'a palace of lapis and gold' },
+  secondOfKind: 'One of each kind counts: no prestige',
+});
+export const score4CourseText = (type, course, of, gain) => `${buildingName(type)}: course ${course} of ${of}${gain > 0 ? ` · +${gain} prestige` : ''}`;
+export const score4FinishText = (type) => `The ${score4Name(type)} is finished`;
+export const score4FinishWhy = (gain, total) => (gain > 0 ? `+${gain} prestige: the city now has ${total}` : SCORE4_TEXT.secondOfKind);
+export const score4PalaceText = (style) => `The palace is now ${SCORE4_TEXT.palaceStyles[score4PalaceStyles[style].id]}`;
+// ── end s4 score ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 motion (Track E) ──────────────────────────────────────────────────────────────────────────────────────────
+// Track E's words: the Motion row ("Motion: Gentle (your device asks for less motion)"), the Gentle tip and the
+// processions. Add new lines just above the end marker.
+export const MOTION4_TEXT = {
+  motion: 'Motion',
+  choices: { system: 'Follow the device', full: 'Full', gentle: 'Gentle', still: 'Still' },
+  levels: { full: 'Full', gentle: 'Gentle', still: 'Still' },
+  // What the row is doing (spec 5.4), from settings.js motionStatus: { level, device, asks }.
+  status: ({ level, device, asks }) => {
+    const name = MOTION4_TEXT.levels[level];
+    if (asks) return `Motion: ${name} (your device asks for less motion)`;
+    if (device) return `Motion: ${name} (your device's setting)`;
+    return `Motion: ${name}`;
+  },
+  // What each level moves (spec 5.4's table), under the row.
+  levelLines: {
+    full: 'Everything moves: water drifts, trees sway, smoke rises, birds fly over and the camera glides.',
+    gentle: 'People, sleds and processions walk; water and smoke fade in place. Nothing sways, drifts or pulses.',
+    still: 'Only people, sleds and processions move. Everything else holds still.',
+  },
+};
+Object.assign(TIP_TEXT, {
+  gentle_motion: 'Your device asks for less motion, so the city moves gently. Settings → Motion changes it.',
+});
+// How to play lists every tip; a tip whose words hold only where it fires says there what is true on any device.
+export const TIP_HELP_TEXT = {
+  gentle_motion: 'While Settings → Motion follows the device, a device that asks for less motion moves the city gently.',
+};
+// ── end s4 motion ────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 cards (Track G) ───────────────────────────────────────────────────────────────────────────────────────────
+// Track G's words: the six picture cards (titles, words, alt text), How to play, the Music rows and the reworded opening
+// goals and their whys (ruling 265). Add new lines just above the end marker.
+// "About four in ten people work" (the food card) is the sim's own share (ECONOMY.workerShare, src/sim/labour.js).
+const CARDS4_TENS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+export const cards4WorkShare = (share = ECONOMY.workerShare) => `About ${CARDS4_TENS[Math.max(0, Math.min(10, Math.round(share * 10)))]} in ten people work`;
+// The last card's words: fires and raiders to guard against, but on Peaceful (raids: false, src/data/difficulty.js) the city
+// never starts a raid clock, so there it names fires alone. The pause sentence is the same at every level.
+export const cards4Ahead = (raids = true) => `Later come fires ${raids ? 'and raiders ' : ''}to guard against, and monuments to raise. Pause any time: nothing happens while you plan.`;
+export const CARDS4_TEXT = {
+  // The Settings sheet's Music rows (spec 5.5, ruling 269).
+  music: 'Music', musicVolume: 'Music volume', quieter: 'Quieter music', louder: 'Louder music',
+  // The picture cards (spec 4.1, rulings 261-264): How to play on the title card and at the top of the How to play sheet.
+  howToPlay: 'How to play', showCards: 'Show the picture cards',
+  count: (i, n) => `${i} of ${n}`, dots: 'Cards', dot: (i, n) => `Card ${i} of ${n}`,
+  next: 'Next', back: 'Back', skip: 'Skip', close: 'Close', start: 'Start building',
+  // Each card's title, words and picture's alt text, by its id in src/data/tutorial.js (spec 4.1's table).
+  cards: {
+    road: {
+      title: 'Everything needs a road',
+      words: 'Homes and workplaces work only when they touch a road. Lay a road first, then build beside it.',
+      alt: 'A road running past homes, a well and a farm, with a ring around the road.',
+    },
+    homes: {
+      title: 'Homes grow when served',
+      words: 'Paint housing plots beside a road and people move in. A well near them, then food, lets them grow.',
+      alt: 'Housing plots along a road and a well beside them, with a ring around the well.',
+    },
+    farm: {
+      title: 'Farms need fertile land',
+      words: 'Farms grow only on the fertile land by the river. Layers → Ground shows it in green.',
+      alt: 'The map with the Ground layer on: the fertile land by the river shows green, a farm stands on it, and an arrow points to the Layers button.',
+    },
+    food: {
+      title: 'Food and workers',
+      words: `A farm fills a granary; a bazaar near homes sells its food. ${cards4WorkShare()}, and a building short of workers works slowly.`,
+      alt: "A granary and a bazaar among the homes, and a building's sheet with a ring around its workers row.",
+    },
+    goals: {
+      title: 'Follow the goals',
+      words: 'The goal line shows what to do next. Show me opens the right card and puts it where it fits.',
+      alt: 'The goals strip at the top of the screen, with a ring around its Show me button.',
+    },
+    ahead: {
+      title: 'What lies ahead',
+      words: cards4Ahead(),             // the level with raids; the dialog asks cards4Ahead(raids) for the city's own level
+      alt: 'A pyramid being built, with a tower and a firehouse beyond it, and a ring around the pyramid.',
+    },
+  },
+};
+// ── end s4 cards ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 look (Track H) ────────────────────────────────────────────────────────────────────────────────────────────
+// Track H's words: the ornaments' screen-reader text, if any (they are hidden from screen readers). Add new lines just
+// above the end marker.
+export const LOOK4_TEXT = {};
+// ── end s4 look ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections: leave these lines as they are.)
+//
+// ── s4 balance (Track F) ─────────────────────────────────────────────────────────────────────────────────────────
+// Track F's words for the integrator. Add new lines just above the end marker.
+export const BALANCE4_TEXT = {};
+// ── end s4 balance ───────────────────────────────────────────────────────────────────────────────────────────────
