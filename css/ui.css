@@ -545,6 +545,34 @@ body.reduce-motion .goal-strip .show-me.glow, body.reduce-motion.nudge-play .spe
 #legend .band .text { line-height: 1.1; white-space: nowrap; }
 body[data-layout="portrait"] #legend .strip.graded .scale { order: 3; flex-basis: 100%; }
 body[data-layout="portrait"] #legend .strip.graded .close { margin-left: auto; }
+/* The Ground overlay's legend (placement review P1): the name and the x on the first row, then two swatches with their words
+   and, while a farm, orchard or mine is being placed, a third line for the brighter tiles, wrapping among themselves. */
+#legend .strip.ground { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; row-gap: 0; max-width: 100%; box-sizing: border-box; }
+#legend .strip.ground > strong.text { grid-column: 1; grid-row: 1; }
+#legend .strip.ground > .close { grid-column: 2; grid-row: 1; }
+#legend .strip.ground .ground-keys { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding-bottom: 6px; }
+#legend .strip.ground .key { gap: 6px; }
+body[data-layout="wide"] #legend .strip.ground { display: inline-flex; flex-wrap: wrap; gap: 0 12px; }
+body[data-layout="wide"] #legend .strip.ground > .close { order: 3; }
+body[data-layout="wide"] #legend .strip.ground .ground-keys { padding-bottom: 0; }
+/* The Layers picker (placement review P2, ui/layersPicker.js): a popover of every overlay and Off. Three columns at 100% text,
+   two from 125%, each button 44 px tall at least; the current layer is teal. On a phone it rides above the Layers corner
+   button (its right edge on the button's; the left edge instead in left-handed mode); on a wide screen it opens under the
+   Layers button below the minimap, over the tabs. It scrolls inside when a short screen cannot hold it. */
+.layers-picker { position: absolute; z-index: 6; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 8px; box-sizing: border-box; background: var(--parchment); border: 1px solid var(--parchment-3); border-radius: var(--radius); box-shadow: var(--shadow); overflow-y: auto; }
+.layers-picker .layer { position: relative; display: flex; align-items: center; min-height: var(--tap); padding: 2px 4px 2px 13px; overflow: hidden; font-size: calc(13px * var(--ui-scale)); line-height: 1.15; text-align: left; overflow-wrap: normal; hyphens: none; }
+.layers-picker .layer .hue { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }   /* the overlay's own hue, as a stripe down the button's edge */
+.layers-picker .layer[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); box-shadow: none; }
+.layers-picker .layer.off { grid-column: 1 / -1; justify-content: center; }
+body:is([data-text-size="125"], [data-text-size="150"]) .layers-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#corners .group.right { position: relative; }
+#corners .layers-picker { bottom: calc(100% + 8px); right: 0; width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); }
+body[data-hand="left"] #corners .layers-picker { right: auto; left: 0; }
+#panel .layers-row { position: relative; flex: none; padding: 0 8px 8px; }
+#panel .layers-button { width: 100%; font-size: calc(14px * var(--ui-scale)); }
+#panel .layers-button[aria-pressed="true"] { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }
+#panel .layers-picker { top: calc(100% - 4px); left: 8px; right: 8px; max-height: 60vh; grid-template-columns: repeat(2, minmax(0, 1fr)); }   /* the panel is 320 px: "Entertainment" does not fit a third of it */
+#corners .overlay-button[aria-expanded="true"] { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }
 /* A building that changes desirability has a fourth line in the confirm bar ("Makes 6 homes nicer"): in portrait the bar
    keeps room for it from the start (title 1.4em, three small lines of 1.05em; at 125% and 150% one of them may wrap). */
 body[data-layout="portrait"] .confirm.desire .info { min-height: 4.55em; }

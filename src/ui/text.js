@@ -271,14 +271,22 @@ export function alertText(alert, world) {
 export const SPEED_LABELS = ['Paused', '1×', '2×', '3×'];
 // The Help setting (early-game pass 3.1), keyed by settings.help.
 export const HELP_NAMES = { full: 'Guide and tips', tips: 'Tips only', off: 'Off' };
-export const OVERLAY_NAMES = { water: 'Water', food: 'Food', religion: 'Religion', goods: 'Goods', entertainment: 'Entertainment', desirability: 'Desirability', housing: 'Housing' };
+export const OVERLAY_NAMES = { water: 'Water', food: 'Food', religion: 'Religion', goods: 'Goods', entertainment: 'Entertainment', desirability: 'Desirability', housing: 'Housing', ground: 'Ground' };
 // The corner buttons' accessible names (early-game pass 2.9); each starts with or contains the word it shows.
 export const pauseSpeedText = (speed) => `${T.pause}, ${T.speed.toLowerCase()} ${SPEED_LABELS[speed]}`;
 export const layersText = (kind) => (kind ? `${T.layers}: ${OVERLAY_NAMES[kind]}` : T.layers);
 export const OVERLAY_LEGEND = {
   water: ['Has water', 'No water'], food: ['Has food', 'No food'], religion: ['Has a temple', 'No temple'],
   goods: ['Has its goods', 'Goods missing'], entertainment: ['Has entertainment', 'No entertainment'], housing: ['Ready to grow', 'Next need missing'],
+  // Ground (placement review P1) has no dot and ring: its two keys are the land it shows, free fertile land (leaf green with
+  // dots) and free rocky ground (grey, hatched).
+  ground: ['Fertile: farms and orchards', 'Rocky: mines'],
 };
+// What the Ground overlay's third line says while a farm, orchard or mine is being placed: its brighter tiles are where the whole
+// building fits on its own ground (src/render/overlays.js roomTiles), or, with none left, that nothing is.
+const GROUND_THING = { farm_grain: 'a farm', farm_barley: 'a farm', farm_flax: 'a farm', farm_fig: 'an orchard', gem_mine: 'a mine' };
+export const groundThing = (type) => GROUND_THING[type] || null;
+export const groundRoomText = (type, any) => (any ? `Bright: room for ${groundThing(type)}` : `No room left for ${groundThing(type)}`);
 
 // The desirability legend (spec 4.7, 6.3): a short label under each band's swatch, and words for screen readers that say
 // what the band is pleasant enough for. Band -1 is below zero; the others follow DESIRABILITY_STEPS (src/data/ui.js).
@@ -434,7 +442,7 @@ export const T = {
   aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
   undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
   hoverHint: 'Hover a building or pick a card',
-  play: 'Play', mapButton: 'Map', layers: 'Layers',
+  play: 'Play', mapButton: 'Map', layers: 'Layers', layersOff: 'Off',
   noHomesInReach: 'No homes in reach yet',
   achievement: 'Achievement', dailyDone: 'Daily goal done', guideDone: "You've got the basics",
   tip: 'Tip', gotIt: 'Got it', more: 'More', less: 'Less', allGoals: 'All goals', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals or, on a phone, in their place. Help in Settings turns them off.', next: 'Next',

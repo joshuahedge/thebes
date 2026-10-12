@@ -8,7 +8,7 @@ import { houseStatus } from '../sim/housing.js';
 import { roadReach } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
 import { desirabilityField } from '../sim/desirability.js';
-import { T as TILE } from '../sim/terrain.js';
+import { T as TILE, TERRAIN_BY_NAME } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 import { p, U, tileDiamond, quad } from './iso.js';
 import { UI, INK, TEAL_DARK } from './art/palette.js';
@@ -18,11 +18,15 @@ import { GUIDE_PULSE_MS, DESIRABILITY_STEPS } from '../data/ui.js';
 import { DEFENCE } from '../data/raids.js';
 import { canBurn, fireRiskOf, fireBand, staffedCover } from '../sim/fire.js';
 
-export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing'];
+export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing', 'ground'];
 // Fire risk (Stage 3, Track D) is one deep ember red, light to dark by band; no other overlay uses a red.
 export const FIRE_HUE = '#9C2A1C';
+// The Ground overlay (placement review P1): free fertile land in a leaf green (darker than the meadow's lime, so the two read
+// apart), free rocky ground in a stone grey. The hues are for the tint, the dots and the hatching; the legend uses them too.
+export const GROUND_HUE = { fertile: '#27934A', rocky: '#5F5A54' };
 export const OVERLAY_HUE = {
   water: UI.water, food: UI.food, religion: UI.religion, goods: UI.goods, entertainment: UI.entertainment, desirability: UI.desirability, fire: FIRE_HUE, housing: UI.housing,
+  ground: GROUND_HUE.fertile,
 };
 export const SERVICE_TYPES = { water: ['well'], food: ['bazaar'], religion: ['temple'], goods: ['bazaar'], entertainment: ['booth'], housing: [] };
 // Overlays that draw a graded scale over the ground instead of dots and rings (spec 6.3); their legend is a scale too.
@@ -102,7 +106,9 @@ function mark(g, m, color) {
   }
 }
 
-export function drawOverlay(g, world, kind, range) {
+// `placing` is the type of the building being placed, if any: the Ground overlay brightens the tiles that have room for it.
+export function drawOverlay(g, world, kind, range, placing = null) {
+  if (kind === 'ground') { drawGround(g, world, range, placing); return; }
   if (kind === 'desirability') { drawDesirability(g, world, range); return; }
   if (kind === 'fire') { drawFireRisk(g, world, range); return; }
   if (!SERVICE_TYPES[kind]) return;
@@ -140,6 +146,110 @@ function tilePolys(tiles) {
 // "worse" (spec 6.1), so it reads without colour.
 export function hatchTiles(g, tiles, color, opts) {
   g.hatchPolys(tilePolys(tiles), color, opts);
+}
+
+// The Ground overlay (placement review P1, spec 4.4, 6.3): where the land is fertile (farms, orchards) or rocky (mines).
+// Free fertile tiles are leaf green with two small dots each, free rocky tiles stone grey with diagonal hatching, tile edges
+// crisp (the terrain art feathers its edges, this does not); tiles with a building, road or wall on them stay plain. While a
+// farm, orchard or mine is being placed, the tiles that belong to at least one free spot where its whole footprint fits are
+// drawn at full strength and the rest at half. groundTiles and roomTiles are what the draw, the legend and the tests share.
+export const GROUND_ALPHA = { bright: 1, dim: 0.5 };
+
+const groundFree = (world, i) => !world.occ[i] && !world.road[i] && !world.wall[i];
+
+// The free fertile and rocky tiles in range, as [[x, y]...] in row order (so tilePolys joins runs along x).
+export function groundTiles(world, range = null) {
+  const r = range || { x0: 0, y0: 0, x1: world.size - 1, y1: world.size - 1 };
+  const fertile = [], rocky = [];
+  for (let y = Math.max(0, r.y0); y <= Math.min(world.size - 1, r.y1); y++) {
+    for (let x = Math.max(0, r.x0); x <= Math.min(world.size - 1, r.x1); x++) {
+      const i = idx(world.size, x, y), t = world.terrain[i];
+      if ((t !== TILE.FERTILE && t !== TILE.ROCKY) || !groundFree(world, i)) continue;
+      (t === TILE.FERTILE ? fertile : rocky).push([x, y]);
+    }
+  }
+  return { fertile, rocky };
+}
+
+const roomMemo = new WeakMap();   // world -> { key, room: Map type -> Set of tile indices }
+
+// The tile indices that belong to at least one free spot where a `type` building's whole footprint fits on its own ground
+// (every tile of the right terrain with nothing on it). Ground only: whether a road touches the spot, or the gold is there, is
+// the placement bar's business. Empty for a type with no terrain. Memoised on the buildings, roads and walls (the same
+// signature the other overlays use), so a ghost that moves around asks once.
+export function roomTiles(world, type) {
+  const def = BUILDINGS[type];
+  if (!def || !def.terrain) return new Set();
+  const key = `${world.roadVersion}|${world.wallVersion}|${world.nextId}|${buildingSignature(world)}`;
+  let m = roomMemo.get(world);
+  if (!m || m.key !== key) { m = { key, room: new Map() }; roomMemo.set(world, m); }
+  let room = m.room.get(type);
+  if (room) return room;
+  room = new Set();
+  const want = TERRAIN_BY_NAME[def.terrain], n = world.size;
+  for (let y = 0; y + def.d <= n; y++) {
+    for (let x = 0; x + def.w <= n; x++) {
+      let fits = true;
+      for (let dy = 0; dy < def.d && fits; dy++) for (let dx = 0; dx < def.w && fits; dx++) {
+        const i = idx(n, x + dx, y + dy);
+        fits = world.terrain[i] === want && groundFree(world, i);
+      }
+      if (!fits) continue;
+      for (let dy = 0; dy < def.d; dy++) for (let dx = 0; dx < def.w; dx++) room.add(idx(n, x + dx, y + dy));
+    }
+  }
+  m.room.set(type, room);
+  return room;
+}
+
+// Two small dots per tile as one repeating pattern on the art grid. A tile's centre is at (16a, 8(b + 1)) with a and b the same
+// parity, so the pattern's 32 x 16 art px cell holds two tile centres, (0, 8) and (16, 0); each gets a dot either side of it.
+const dotsMemo = new WeakMap();
+function dotsPattern(g, color, alpha) {
+  const unit = g.scale * 16, px = Math.max(2, Math.round(unit));
+  const key = `${color}|${alpha}|${unit}`;
+  let byKey = dotsMemo.get(g.ctx);
+  if (!byKey) { byKey = new Map(); dotsMemo.set(g.ctx, byKey); }
+  if (byKey.has(key)) return byKey.get(key);
+  const tile = document.createElement('canvas');
+  tile.width = 2 * px; tile.height = px;
+  const t = tile.getContext('2d');
+  t.fillStyle = rgba(color, alpha);
+  const k = px / 16;
+  for (const [ax, ay] of [[4, 8], [28, 8], [12, 0], [20, 0], [12, 16], [20, 16]]) {
+    t.beginPath(); t.arc(ax * k, ay * k, 1.25 * k, 0, Math.PI * 2); t.fill();
+  }
+  const pattern = g.ctx.createPattern(tile, 'repeat');
+  if (px !== unit) pattern.setTransform(new DOMMatrix().scale(unit / px));
+  if (byKey.size >= 16) byKey.clear();
+  byKey.set(key, pattern);
+  return pattern;
+}
+
+function groundLayer(g, tiles, kind, strength) {
+  if (!tiles.length) return;
+  const polys = tilePolys(tiles);
+  if (kind === 'fertile') {
+    g.polys(polys, GROUND_HUE.fertile, { alpha: 0.36 * strength });
+    g.polys(polys, dotsPattern(g, '#0B3D1A', 0.9 * strength));
+  } else {
+    g.hatchPolys(polys, GROUND_HUE.rocky, { fill: 0.28 * strength, line: 0.85 * strength, gap: 4 });
+  }
+}
+
+function drawGround(g, world, range, placing) {
+  const { fertile, rocky } = groundTiles(world, range);
+  const room = placing && BUILDINGS[placing] && BUILDINGS[placing].terrain ? roomTiles(world, placing) : null;
+  if (!room) {
+    groundLayer(g, fertile, 'fertile', GROUND_ALPHA.bright);
+    groundLayer(g, rocky, 'rocky', GROUND_ALPHA.bright);
+    return;
+  }
+  const inRoom = ([x, y]) => room.has(idx(world.size, x, y));
+  groundLayer(g, fertile.filter((t) => !inRoom(t)), 'fertile', GROUND_ALPHA.dim);
+  groundLayer(g, rocky.filter((t) => !inRoom(t)), 'rocky', GROUND_ALPHA.dim);
+  groundLayer(g, fertile.filter(inRoom), 'fertile', GROUND_ALPHA.bright);
+  groundLayer(g, rocky.filter(inRoom), 'rocky', GROUND_ALPHA.bright);
 }
 
 // The desirability overlay (spec 4.7, 6.3): each tile's score in one indigo, light to dark by the bands of

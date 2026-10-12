@@ -24,7 +24,7 @@ export function deselect(state) {
 }
 
 export function openSheet(state, kind, id = null) {
-  const patch = { sheet: { kind, id } };
+  const patch = { sheet: { kind, id }, layersOpen: false };
   if (kind !== 'info') Object.assign(patch, CLEAR_TOOL, { mode: state.selectedId !== null ? 'selected' : 'browse' });
   return patch;
 }
@@ -45,6 +45,7 @@ export function enterScreenshot(state) {
 export function back(state) {
   if (state.screenshot) return { screenshot: false };
   if (state.confirmDialog) return { confirmDialog: null };
+  if (state.layersOpen) return { layersOpen: false };         // the Layers popover is the newest thing open: it closes first
   if (state.guidanceOpen) return { guidanceOpen: false };   // the guidance row opened in place is the newest thing open: it closes first
   if (state.sheet && state.sheet.kind !== 'info') return afterPanel(state);
   if (isToolMode(state.mode)) return cancelTool(state);

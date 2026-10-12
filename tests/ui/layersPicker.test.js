@@ -1,0 +1,158 @@
+import { describe, it, expect } from '../harness.js';
+import { createLayersPicker } from '../../src/ui/layersPicker.js';
+import { createBackStack } from '../../src/ui/backstack.js';
+import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
+import { back, openSheet, startTool } from '../../src/ui/modes.js';
+import { OVERLAYS } from '../../src/render/overlays.js';
+import { OVERLAY_NAMES, T } from '../../src/ui/text.js';
+import { rigUI, fakeHistory } from '../helpers/uiWorld.js';
+import { mount, fire, key } from '../helpers/dom.js';
+
+function rig() {
+  const { root, cleanup } = mount();
+  const store = createStore(INITIAL_UI_STATE);
+  let restored = 0;
+  const picker = createLayersPicker({ store, restoreFocus: () => { restored++; } });
+  root.append(picker.node);
+  return { root, store, picker, restored: () => restored, cleanup() { picker.destroy(); cleanup(); } };
+}
+
+describe('ui layers picker (placement review P2)', () => {
+  it('is hidden until opened, then offers every overlay by name and Off, the current one pressed', () => {
+    const r = rig();
+    expect(r.picker.node.hidden).toBe(true);
+    r.store.set({ layersOpen: true, overlay: 'fire' });
+    expect(r.picker.node.hidden).toBe(false);
+    const buttons = [...r.picker.node.querySelectorAll('button.layer')];
+    expect(buttons.map((b) => b.textContent)).toEqual([...OVERLAYS.map((k) => OVERLAY_NAMES[k]), T.layersOff]);
+    expect(buttons.length).toBe(10);                                        // nine overlays and Off
+    expect(buttons.map((b) => b.getAttribute('aria-pressed') === 'true')).toEqual(buttons.map((b) => b.dataset.layer === 'fire'));
+    r.cleanup();
+  });
+  it('picks and closes with one tap, turns the current one off, and Off turns every one off', () => {
+    const r = rig();
+    const press = (layer) => fire(r.picker.node.querySelector(`[data-layer="${layer}"]`), 'click');
+    r.store.set({ layersOpen: true });
+    press('ground');
+    expect([r.store.get().overlay, r.store.get().layersOpen]).toEqual(['ground', false]);
+    r.store.set({ layersOpen: true });
+    press('ground');                                                         // the current one again: off
+    expect([r.store.get().overlay, r.store.get().layersOpen]).toEqual([null, false]);
+    r.store.set({ layersOpen: true, overlay: 'water' });
+    expect(r.picker.node.querySelector('[data-layer="off"]').getAttribute('aria-pressed')).toBe('false');
+    press('off');
+    expect([r.store.get().overlay, r.store.get().layersOpen]).toEqual([null, false]);
+    r.store.set({ layersOpen: true });
+    expect(r.picker.node.querySelector('[data-layer="off"]').getAttribute('aria-pressed')).toBe('true');
+    r.cleanup();
+  });
+  it('closes on a press outside it, but not on one inside it or on a Layers button (which toggle it themselves)', () => {
+    const r = rig();
+    const layers = document.createElement('button');
+    layers.className = 'overlay-button';
+    r.root.append(layers);
+    r.store.set({ layersOpen: true });
+    fire(r.picker.node, 'pointerdown');
+    fire(layers, 'pointerdown');
+    expect(r.store.get().layersOpen).toBe(true);
+    fire(r.root, 'pointerdown');
+    expect(r.store.get().layersOpen).toBe(false);
+    r.cleanup();
+  });
+  it('closes when a sheet opens, and opening or closing it does not touch a tool', () => {
+    const r = rig();
+    r.store.set(startTool(r.store.get(), { kind: 'road' }));
+    r.store.set({ layersOpen: true });
+    expect([r.store.get().mode, r.store.get().tool.kind]).toEqual(['drawing', 'road']);
+    r.store.set({ layersOpen: false });
+    expect(r.store.get().mode).toBe('drawing');
+    r.store.set({ layersOpen: true });
+    r.store.set({ sheet: { kind: 'menu', id: null } });
+    expect(r.store.get().layersOpen).toBe(false);
+    r.cleanup();
+  });
+  it('hands focus back to the Layers button when it closes with focus inside', () => {
+    const r = rig();
+    r.store.set({ layersOpen: true });
+    r.picker.node.querySelector('[data-layer="water"]').focus();
+    r.store.set({ layersOpen: false });
+    expect(r.restored()).toBe(1);
+    r.cleanup();
+  });
+  it('is one step for Back: modes.back closes it first, a sheet opening clears it, and the phone Back closes it too', () => {
+    expect(back({ ...INITIAL_UI_STATE, layersOpen: true, guidanceOpen: true })).toEqual({ layersOpen: false });
+    expect(openSheet({ ...INITIAL_UI_STATE, layersOpen: true }, 'menu').layersOpen).toBe(false);
+    const store = createStore(INITIAL_UI_STATE);
+    const h = fakeHistory();
+    const bs = createBackStack({ store, history: h, addListener: h.addListener, removeListener: h.removeListener });
+    bs.start();
+    store.set({ layersOpen: true });
+    expect([h.length, bs.depth()]).toEqual([2, 1]);
+    h.back();
+    expect([store.get().layersOpen, bs.depth()]).toEqual([false, 0]);
+    bs.stop();
+  });
+});
+
+describe('ui layers picker in the interface', () => {
+  it('opens from the corner button instead of cycling, picks one overlay in one tap, and leaves a tool running', async () => {
+    const r = await rigUI();
+    const button = r.root.querySelector('#corners .overlay-button');
+    const picker = r.root.querySelector('#corners .layers-picker');
+    expect(picker.hidden).toBe(true);
+    fire(button, 'click');
+    expect([r.store.get().overlay, r.store.get().layersOpen, picker.hidden, button.getAttribute('aria-expanded')]).toEqual([null, true, false, 'true']);
+    fire(picker.querySelector('[data-layer="ground"]'), 'click');
+    expect([r.store.get().overlay, r.store.get().layersOpen, picker.hidden, button.getAttribute('aria-expanded')]).toEqual(['ground', false, true, 'false']);
+    expect(r.root.querySelector('#legend .strip').textContent).toContain(OVERLAY_NAMES.ground);
+    fire(r.root.querySelector('#dock .cat[data-category="roads"]'), 'click');
+    fire(r.root.querySelector('#dock .tray .card'), 'click');                  // the road tool
+    expect(r.store.get().mode).toBe('drawing');
+    fire(button, 'click');
+    fire(picker.querySelector('[data-layer="water"]'), 'click');
+    expect([r.store.get().overlay, r.store.get().mode]).toEqual(['water', 'drawing']);   // a popover, not a sheet: the tool stays
+    r.cleanup();
+  });
+  it('closes on Esc before anything else, and the O key still cycles the overlays', async () => {
+    const r = await rigUI();
+    fire(r.root.querySelector('#dock .cat[data-category="roads"]'), 'click');
+    fire(r.root.querySelector('#dock .tray .card'), 'click');
+    fire(r.root.querySelector('#corners .overlay-button'), 'click');
+    key(r.root, 'Escape');
+    expect([r.store.get().layersOpen, r.store.get().mode]).toEqual([false, 'drawing']);
+    key(r.root, 'o');
+    expect(r.store.get().overlay).toBe('water');
+    key(r.root, 'o');
+    expect(r.store.get().overlay).toBe('food');
+    r.cleanup();
+  });
+  it('is under the minimap on a wide screen, where the corner buttons are hidden, and opens its own popover', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    expect(r.store.get().layout).toBe('wide');
+    const button = r.root.querySelector('#panel .layers-button');
+    expect(button.textContent).toBe(T.layers);
+    expect(r.root.querySelector('#panel .minimap').compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fire(button, 'click');
+    const picker = r.root.querySelector('#panel .layers-picker');
+    expect([picker.hidden, button.getAttribute('aria-expanded'), picker.getBoundingClientRect().height > 100]).toEqual([false, 'true', true]);
+    fire(picker.querySelector('[data-layer="ground"]'), 'click');
+    expect([r.store.get().overlay, button.textContent, button.getAttribute('aria-pressed')]).toEqual(['ground', `${T.layers}: ${OVERLAY_NAMES.ground}`, 'true']);
+    r.cleanup();
+  });
+  it('lays out as three columns at 100% text and two at 125% and more, every button 44 px tall at least', async () => {
+    const r = await rigUI();
+    fire(r.root.querySelector('#corners .overlay-button'), 'click');
+    const picker = r.root.querySelector('#corners .layers-picker');
+    const columns = () => getComputedStyle(picker).gridTemplateColumns.split(' ').length;
+    expect(columns()).toBe(3);
+    for (const b of picker.querySelectorAll('button.layer')) expect(b.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+    document.body.dataset.textSize = '125';
+    expect(columns()).toBe(2);
+    document.body.dataset.textSize = '150';
+    expect(columns()).toBe(2);
+    for (const b of picker.querySelectorAll('button.layer')) expect(b.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+    const box = picker.getBoundingClientRect(), root = r.root.getBoundingClientRect();
+    expect([box.left >= root.left, box.right <= root.right, box.top >= root.top]).toEqual([true, true, true]);   // on the screen at the biggest text
+    r.cleanup();
+  });
+});

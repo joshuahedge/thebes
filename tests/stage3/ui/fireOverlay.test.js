@@ -26,7 +26,7 @@ const luminance = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
 describe('s3 ui fire-risk overlay', () => {
   it('joins the overlays as a graded one, named, and turns on while a firehouse is placed', () => {
-    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing']);
+    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing', 'ground']);
     expect([GRADED_OVERLAYS, OVERLAY_NAMES.fire, typeof OVERLAY_HUE.fire, AUTO_OVERLAY.firehouse]).toEqual([['desirability', 'fire'], 'Fire risk', 'string', 'fire']);
     const store = createStore(INITIAL_UI_STATE);
     createPlacement({ world: town(), store }).start({ kind: 'building', type: 'firehouse' }, { x: 20, y: 11 });
