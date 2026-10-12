@@ -70,6 +70,10 @@ describe('ui corner words', () => {
       store.set({ overlay: null });
       expect(layers.querySelector('.label').textContent).toBe(T.layers);
       expect(layers.getAttribute('aria-pressed')).toBe('false');
+      expect(layers.getAttribute('aria-expanded')).toBe('false');           // the button opens the Layers picker (placement review P2)
+      store.set({ layersOpen: true });
+      expect(layers.getAttribute('aria-expanded')).toBe('true');
+      store.set({ layersOpen: false });
       alerts = 2;
       corners.render();
       expect(map.getAttribute('aria-label')).toBe('Map, 2 alerts');

@@ -38,7 +38,8 @@ export const SHOW_ME_PULSES = 2;
 export const SHOW_ME_PULSE_MS = 400;
 export const GUIDE_PULSES = 2;          // the guide's map ring pulses twice when its step changes, then stays still (spec 3.2)
 export const GUIDE_PULSE_MS = 600;      // one pulse: under 3 flashes a second, done well within 5 s (spec 5.4)
-export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion', booth: 'entertainment', garden: 'desirability', statue: 'desirability', firehouse: 'fire' };
+export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion', booth: 'entertainment', garden: 'desirability', statue: 'desirability', firehouse: 'fire',
+  farm_grain: 'ground', farm_fig: 'ground', farm_barley: 'ground', farm_flax: 'ground', gem_mine: 'ground' };   // placement review P1: the buildings that need fertile or rocky ground show it
 
 // The desirability overlay's bands (spec 4.7, 6.3): where each starts. Below the first is unpleasant (hatched); the
 // rest are the "to rise" values of the tiers that need desirability (Manor 20, Fine manor 35, Villa 50, Estate 65), so a

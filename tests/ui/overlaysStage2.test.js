@@ -56,17 +56,18 @@ function street(tier, extra = {}) {
 }
 
 describe('stage 2 overlays', () => {
-  it('lists the eight overlays in order, with a name, a hue and a legend each, and shows the new ones on placing', () => {
-    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing']);   // Stage 3: fire risk
+  it('lists the nine overlays in order, with a name, a hue and a legend each, and shows the new ones on placing', () => {
+    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing', 'ground']);   // Stage 3: fire risk; the placement review: Ground
     for (const o of OVERLAYS) {
       expect([o, typeof OVERLAY_NAMES[o], typeof OVERLAY_HUE[o]]).toEqual([o, 'string', 'string']);
       if (!GRADED_OVERLAYS.includes(o)) expect([o, OVERLAY_LEGEND[o].length]).toEqual([o, 2]);
     }
     expect(GRADED_OVERLAYS).toEqual(['desirability', 'fire']);
     expect([AUTO_OVERLAY.booth, AUTO_OVERLAY.garden, AUTO_OVERLAY.statue, AUTO_OVERLAY.well]).toEqual(['entertainment', 'desirability', 'desirability', 'water']);
+    for (const type of ['farm_grain', 'farm_fig', 'farm_barley', 'farm_flax', 'gem_mine']) expect([type, AUTO_OVERLAY[type]]).toEqual([type, 'ground']);   // placement review P1
     const store = createStore(INITIAL_UI_STATE);
     const pl = createPlacement({ world: uiWorld(), store });
-    for (const [type, overlay] of [['booth', 'entertainment'], ['garden', 'desirability'], ['statue', 'desirability'], ['granary', null]]) {
+    for (const [type, overlay] of [['booth', 'entertainment'], ['garden', 'desirability'], ['statue', 'desirability'], ['farm_grain', 'ground'], ['farm_fig', 'ground'], ['gem_mine', 'ground'], ['granary', null]]) {
       store.set({ overlay: null });
       pl.start({ kind: 'building', type }, { x: 20, y: 9 });
       expect([type, store.get().overlay]).toEqual([type, overlay]);

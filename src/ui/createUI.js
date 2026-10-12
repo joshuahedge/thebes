@@ -40,6 +40,7 @@ import { createSheets } from './sheets.js';
 import { createMinimap } from './minimap.js';
 import { createAlerts, mapSummaryText } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
+import { createLayersPicker } from './layersPicker.js';
 import { createToasts, MAX_TOASTS, MAX_TOASTS_PHONE } from './toasts.js';
 import { createCelebrations } from './celebrate.js';
 import { createTips } from './tips.js';
@@ -172,11 +173,18 @@ export function createUI({
   });
   const dock = createDock({ container: $('dock'), store, world, onPick: pick });
   const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo });
-  const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas });
+  // The Layers picker (placement review P2): one popover for the corner button on a phone and one under the minimap on a wide
+  // screen, sharing store.layersOpen; the layout's own host shows the one that counts. Closing it with focus inside hands focus
+  // back to the Layers button that opened it.
+  const toggleLayers = () => { const s = store.get(); store.set({ layersOpen: !s.layersOpen }); };
+  const restoreLayersFocus = () => { const b = store.get().layout === 'wide' ? sidePanel.layersButton : corners.layersButton; if (b && b.offsetParent !== null) b.focus({ preventScroll: true }); };
+  const cornerPicker = createLayersPicker({ store, restoreFocus: restoreLayersFocus, doc });
+  const panelPicker = createLayersPicker({ store, restoreFocus: restoreLayersFocus, doc });
+  const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas, onLayers: toggleLayers, pickerNode: panelPicker.node });
   const rail = createRail({ container: $('rail'), store, world, onPick: pick });
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
-  const legend = createOverlayLegend({ container: $('legend'), store });
-  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count(), viewHeight: () => view().height });
+  const legend = createOverlayLegend({ container: $('legend'), store, world });
+  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: toggleLayers, pickerNode: cornerPicker.node, alertCount: () => alerts.count(), viewHeight: () => view().height });
   // The next-threshold bar (spec 4.1): on a phone only in calm portrait play, outside the guide (a tip, a caption or a
   // sheet already takes the whole guidance row; a banner or a tool keeps the bar away too).
   const barAllowed = () => {
@@ -412,7 +420,7 @@ export function createUI({
   }
   function refreshChrome() {
     alerts.refresh();
-    hud.render(); dock.render(); sidePanel.render(); rail.render(); guide.render(); confirmBar.render(); corners.render(); goalsStrip.render();
+    hud.render(); dock.render(); sidePanel.render(); rail.render(); guide.render(); confirmBar.render(); corners.render(); legend.render(); goalsStrip.render();
     measureKey = '';                                   // a goal's words may have changed: "More ▾" is measured again next frame
     setText($('map-summary'), mapSummaryText(world, alerts.list()));
     // Tips that follow the alerts: asked for whenever a problem marker is on the map or a labour shortage is on, not only when
@@ -577,7 +585,7 @@ export function createUI({
     // On a phone Esc closes a tip on screen first (spec 6.3, Small phones: Got it, Esc, its condition clearing or play
     // time), then goes Back; never ahead of an open sheet (the tip is off the screen under one). A wide screen keeps Esc
     // as Back (spec 6.8).
-    back: () => { const s = store.get(); if (s.guidanceOpen) goBack(); else if (phone() && tipOnScreen() && !s.sheet && !s.confirmDialog && !s.screenshot) tips.dismiss(); else goBack(); },
+    back: () => { const s = store.get(); if (s.guidanceOpen || s.layersOpen) goBack(); else if (phone() && tipOnScreen() && !s.sheet && !s.confirmDialog && !s.screenshot) tips.dismiss(); else goBack(); },
     undo, help: () => toggleSheet('help'),
   };
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
@@ -647,7 +655,7 @@ export function createUI({
         if (b.tier === 5) fireTip('townhouseSheet');      // it grows by joining three plots beside it (spec 4.6)
       }
     }
-    if (s.overlay && s.overlay !== seenOverlay && !isToolMode(s.mode)) fireTip('overlayOn');
+    if (s.overlay && s.overlay !== 'ground' && s.overlay !== seenOverlay && !isToolMode(s.mode)) fireTip('overlayOn');   // Ground's legend says it all: the tip's dot and ring are other overlays'
     tips.flush({ busy: tipsBusy(s) });
     seenMode = s.mode; seenSheet = s.sheet; seenOverlay = s.overlay;
     syncGuidance();
@@ -810,7 +818,7 @@ export function createUI({
       fire: (g, r) => drawFires(g, world, r, t, still),
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),
       drawOverlay: (g, r) => {
-        if (s.overlay) drawOverlay(g, world, s.overlay, r);
+        if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null);   // Ground brightens the tiles with room for the building being placed
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
         if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change
         const shapes = ghosts();                                                // refreshes the tint as well
@@ -857,6 +865,7 @@ export function createUI({
       if (destroyed) return;
       destroyed = true;
       for (const s of seams()) s.destroy();
+      cornerPicker.destroy(); panelPicker.destroy();
       guide.destroy(); stopSettingsWatch();            // the guide's store subscription and the shared settings' watch
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
