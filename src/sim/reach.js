@@ -1,3 +1,4 @@
+import { BUILDINGS } from '../data/buildings.js';
 import { ring, idx, inBounds, NEIGHBOURS4 } from './grid.js';
 
 const cache = new WeakMap(); // world -> { version, map }; kept outside the world so saves stay pure data
@@ -13,6 +14,10 @@ export function adjacentRoadTiles(world, b) {
 }
 
 export const touchesRoad = (world, b) => adjacentRoadTiles(world, b).length > 0;
+
+// A building that needs a road and has none beside it (rulings P10, P11): it does nothing, pays no upkeep or wages and
+// counts for no "Build a" goal until a road touches it. Plots, gardens and statues need no road.
+export const lacksRoad = (world, b) => Boolean(BUILDINGS[b.type].needsRoad) && !touchesRoad(world, b);
 
 // The returned Map is cached and shared, so callers must treat it as read-only. A caller asking about a footprint
 // that is not a building (a ghost being previewed) passes { cache: false }: hovering would otherwise add an entry

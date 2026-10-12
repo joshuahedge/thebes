@@ -5,6 +5,7 @@ import { GOALS, EVENT_GOALS, GUIDE_GOALS, GUIDE_REWARD, OPENING_LAST } from '../
 import { MILESTONES } from '../data/progression.js';
 import { housesOf, population, allBuildings } from './world.js';
 import { alertsFor } from './alerts.js';
+import { lacksRoad } from './reach.js';
 import { idx } from './grid.js';
 import { atLeast, milestoneIndex } from './progression.js';
 import { openRoutes } from './trade.js';
@@ -14,7 +15,8 @@ const SETTLE_MAX = 20;   // settleGoals stops after this many completions in one
 
 export const goalById = (id) => GOALS.find((g) => g.id === id) || EVENT_GOALS.find((g) => g.id === id) || null;
 
-const countOf = (world, type) => allBuildings(world).filter((b) => b.type === type).length;
+// A "Build a" goal counts only buildings that can work: one placed off the road (ruling P11) counts once a road touches it.
+const countOf = (world, type) => allBuildings(world).filter((b) => b.type === type && !lacksRoad(world, b)).length;
 const homesAtTier = (world, tier) => housesOf(world).filter((h) => h.tier >= tier).length;
 const hasAlert = (world, code) => alertsFor(world).some((a) => a.code === code);
 

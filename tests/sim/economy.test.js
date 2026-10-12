@@ -26,6 +26,18 @@ describe('economy', () => {
     monthlyEconomy(w);
     expect(w.stats.lastMonth.upkeep).toBe(0);
   });
+  it('charges no upkeep or wages for a building no road touches, until one does (ruling P11)', () => {
+    const w = street();
+    addRaw(w, 'well', 20, 21);
+    addRaw(w, 'temple', 12, 20, { staff: 6 });                   // staff left over from before its road went
+    addRaw(w, 'garden', 25, 25);                                 // needs no road, costs nothing either way
+    monthlyEconomy(w);
+    expect(w.stats.lastMonth).toEqual({ taxes: 0, wages: 0, upkeep: 0, soldiers: 0, net: 0 });
+    expect(w.gold).toBe(1000);
+    setRoad(w, 10, 22, 21, 22);                                  // now both touch a road
+    monthlyEconomy(w);
+    expect(w.stats.lastMonth).toEqual({ taxes: 0, wages: 24, upkeep: 13, soldiers: 0, net: -37 });
+  });
 });
 
 describe('alerts', () => {
