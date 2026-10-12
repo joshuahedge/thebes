@@ -76,18 +76,24 @@ describe('s3 balance dev scenes', () => {
     } finally { r.cleanup(); }
   });
 
-  it('centres the fire on a portrait phone in the map left free under the banner and the goals strip', async () => {
-    const r = await bootRig('', { width: 390, height: 844 });
-    try {
-      const g = r.api.startGame(sample());
-      const home = g.world.buildings[Number((await devScene(r.api, 'fire')).split(' ')[1])];
-      const map = r.root.querySelector('#map').getBoundingClientRect();
-      const banner = r.root.querySelector('#banner').getBoundingClientRect(), goals = r.root.querySelector('#goals').getBoundingClientRect();
-      expect(banner.height).toBeGreaterThan(0);                                              // the fire's critical banner is up
-      const top = Math.max(48, banner.bottom - map.top, goals.bottom - map.top), bottom = 844 * 0.8;
-      const [sx, sy] = tileToScreen(g.cam, { width: 390, height: 844 }, home.x + 0.5, home.y + 0.5);
-      expect([Math.abs(sx - 195) < 2, Math.abs(sy - (top + bottom) / 2) < 2, top > 48]).toEqual([true, true, true]);
-    } finally { r.cleanup(); }
+  // On a phone the scene frames the fire in the map left free below the rows under the top bar, measured as the camera
+  // measures them (ruling 168): in portrait above the bottom fifth, in compact left of the rail and its drawer.
+  it('centres the fire on a phone in the map left free under the banner and the rows below it', async () => {
+    for (const [width, height] of [[390, 844], [844, 390]]) {
+      const r = await bootRig('', { width, height });
+      try {
+        const g = r.api.startGame(sample());
+        const home = g.world.buildings[Number((await devScene(r.api, 'fire')).split(' ')[1])];
+        const map = r.root.querySelector('#map').getBoundingClientRect();
+        expect(r.root.querySelector('#banner').getBoundingClientRect().height).toBeGreaterThan(0);   // the fire's critical banner is up
+        const rows = [r.root.querySelector('#topbar'), ...r.root.querySelector('#under-bar').children]
+          .map((n) => n.getBoundingClientRect()).filter((b) => b.width > 2 && b.height > 2);
+        const top = Math.max(48, ...rows.map((b) => b.bottom - map.top));
+        const portrait = height > width, bottom = portrait ? height * 0.8 : height, right = portrait ? width : width - 56 - 268;
+        const [sx, sy] = tileToScreen(g.cam, { width, height }, home.x + 0.5, home.y + 0.5);
+        expect([width, Math.abs(sx - right / 2) < 2, Math.abs(sy - (top + bottom) / 2) < 2, top > 48]).toEqual([width, true, true, true]);
+      } finally { r.cleanup(); }
+    }
   });
 
   it('raises a later raid\'s warning with its tribute and asks the danger interface for the tribute sheet', async () => {

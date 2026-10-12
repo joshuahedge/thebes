@@ -18,7 +18,7 @@ import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
 import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode, pickCategory, enterScreenshot } from './modes.js';
-import { pickLayout, watchLayout } from './layout.js';
+import { pickLayout, watchLayout, freeTop, cornersHeight, TOPBAR_PX } from './layout.js';
 import { createBackStack } from './backstack.js';
 import { createSettings } from './settings.js';
 import { createSfx } from '../audio/sfx.js';
@@ -57,9 +57,9 @@ import { drawFires } from '../render/fire.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
 import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, T } from './text.js';
 
-const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
+const FRAME_MARGIN_PX = 48;           // the camera's margin inside the free map (cameraControl's keepVisible)
 
 export function createUI({
   world, canvas, cam, renderer,
@@ -220,11 +220,13 @@ export function createUI({
     return parts.join(', ');
   }
 
-  // A card was picked: the ghost starts a little above mid-screen and lands on the nearest tile where it fits
-  // (spec 6.5, early-game pass 2.6). That tile can be up to ten tiles away, so the view follows it off screen.
+  // A card was picked: the ghost starts a little above mid-screen (on a phone, in the middle of the map the rows above
+  // and the confirm bar below leave free, ruling 168) and lands on the nearest tile where it fits (spec 6.5, early-game
+  // pass 2.6). That tile can be up to ten tiles away, so the view follows it off screen.
   function pick(item) {
-    const v = view();
-    const c = screenToTile(cam, v, v.width / 2, v.height * 0.4);
+    const v = view(), s = store.get();
+    const at = s.layout === 'wide' ? { x: v.width / 2, y: v.height * 0.4 } : middleOf(placingInsets(s));
+    const c = screenToTile(cam, v, at.x, at.y);
     const tool = toolForItem(item);
     placement.start(tool, { x: c.x, y: c.y });
     const g = store.get().ghost;
@@ -237,7 +239,8 @@ export function createUI({
   // Show me (spec 4.1, early-game pass 2.6 and 2.10): close any sheet, open the right card, start its tool, pan to
   // the place and pulse it. A building's ghost lands on the nearest tile where it fits around the place, so it
   // never starts on top of a home, and the view keeps the ghost on screen even when that tile is several tiles
-  // off. The goals strip, the goals sheet and the house sheet all come through here.
+  // off. On a phone the place sits in the middle of the map left free below the rows (ruling 168). The goals strip, the
+  // goals sheet and the house sheet all come through here.
   function showMeAt({ category, item, x, y }) {
     closeAnySheet();
     store.set(pickCategory(store.get(), category || categoryOfItem(item)));
@@ -245,7 +248,9 @@ export function createUI({
     const def = tool.kind === 'building' ? BUILDINGS[tool.type] : null;
     placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : null);   // road, plot and demolish tools ignore the point
     const g = def ? store.get().ghost : null;
-    if (g) cameraControl.panToKeeping(x, y, g.x + def.w / 2, g.y + def.d / 2, placingInsets(store.get()));
+    const keep = g ? { x: g.x + def.w / 2, y: g.y + def.d / 2 } : { x, y };
+    if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, placingInsets(store.get()));
+    else if (g) cameraControl.panToKeeping(x, y, keep.x, keep.y, placingInsets(store.get()));
     else cameraControl.panTo(x, y);
     const at = now();
     for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(x, y, at + i * SHOW_ME_PULSE_MS);
@@ -289,14 +294,16 @@ export function createUI({
     if (!(alert.id && selectBuilding(alert.id))) store.set(openSheet(store.get(), 'summary'));
   }
   // Select a building: its sheet opens and the view centres on it, then moves the least that keeps it in the map
-  // the sheet leaves free (spec 6.3), so a tall portrait sheet never covers it. An alert's View and a house sheet's
-  // View share this.
+  // the sheet leaves free (spec 6.3), so a tall portrait sheet never covers it. On a phone it is framed in the middle
+  // of the map between the rows under the top bar and the sheet (ruling 168). An alert's View and a house sheet's View
+  // share this.
   function selectBuilding(id) {
     const b = world.buildings[id];
     if (!b) return false;
     store.set(select(store.get(), b.id));
-    const cx = b.x + b.w / 2, cy = b.y + b.d / 2;
-    cameraControl.panToKeeping(cx, cy, cx, cy, sheetInsets(store.get()));
+    const s = store.get(), cx = b.x + b.w / 2, cy = b.y + b.d / 2;
+    if (s.layout === 'wide') cameraControl.panToKeeping(cx, cy, cx, cy, sheetInsets(s));
+    else cameraControl.frameKeeping(cx, cy, cx, cy, sheetInsets(s));
     return true;
   }
   function afterCommand(e) {
@@ -497,17 +504,31 @@ export function createUI({
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
   const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions, hidden: () => Boolean(store.get().screenshot) });
 
-  // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free.
+  // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free (in
+  // compact with the corner buttons along the map's bottom, measured).
   function sheetInsets(s) {
     const v = view();
-    if (s.layout === 'portrait') return { top: TOPBAR_PX, right: 0, bottom: v.height * 0.6, left: 0 };
-    if (s.layout === 'compact') return { top: TOPBAR_PX, right: RAIL_PX + DRAWER_PX, bottom: 0, left: 0 };
+    if (s.layout === 'portrait') return phoneInsets(s, { right: 0, bottom: v.height * 0.6, left: 0 });
+    if (s.layout === 'compact') return phoneInsets(s, { right: RAIL_PX + DRAWER_PX, bottom: cornersHeight(root, canvas, v.height), left: 0 });
     return { top: TOPBAR_PX, right: PANEL_PX, bottom: 0, left: 0 };
   }
-  // The map a tool leaves free: in portrait the confirm bar and the corner buttons on it cover the bottom.
+  // The map a tool leaves free: in portrait the confirm bar and the corner buttons on it cover the bottom (allowed for,
+  // not measured: a card is picked while the tray is open and the corners still ride above it).
   function placingInsets(s) {
     if (s.layout !== 'portrait') return sheetInsets(s);
-    return { top: TOPBAR_PX, right: 0, bottom: Math.min(view().height * 0.3, 240), left: 0 };
+    return phoneInsets(s, { right: 0, bottom: Math.min(view().height * 0.3, 240), left: 0 });
+  }
+  // A phone's free map starts below the rows under the top bar, measured (ruling 168). At large text they can reach far
+  // down; the top then stops twice the camera's margin above the sheet or bar, so what is framed stays clear of that
+  // panel even where the rows would cover it.
+  function phoneInsets(s, sides) {
+    const room = view().height - sides.bottom - 2 * FRAME_MARGIN_PX;
+    return { top: Math.max(TOPBAR_PX, Math.min(freeTop(root, canvas, s.layout), room)), ...sides };
+  }
+  // The middle of the map the insets leave free, in screen px.
+  function middleOf(i) {
+    const v = view();
+    return { x: i.left + (v.width - i.left - i.right) / 2, y: i.top + (v.height - i.top - i.bottom) / 2 };
   }
   function panelDetails() {
     const s = store.get();

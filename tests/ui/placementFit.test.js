@@ -12,6 +12,7 @@ import { removeBuilding } from '../../src/sim/world.js';
 import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
 import { uiWorld, rigUI } from '../helpers/uiWorld.js';
 import { mount, fire } from '../helpers/dom.js';
+import { measureRows } from '../../src/dev/scenes.js';
 
 const WELL = { kind: 'building', type: 'well' };
 const FARM = { kind: 'building', type: 'farm_grain' };
@@ -111,12 +112,16 @@ describe('ui placement fit', () => {
       placement.cancel();
     } finally { cleanup(); }
   });
+  // Where a picked card's ghost starts on a phone: the middle of the map left free between the rows under the top bar
+  // (measured) and the confirm bar with the corners on it (ruling 168).
+  const freeMiddle = (r, v) => ({ x: v.width / 2, y: (measureRows(r.root).rowsEnd + v.height - Math.min(v.height * 0.3, 240)) / 2 });
   it('brings a ghost that landed off screen into view', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       r.ui.settings.set({ reducedMotion: 'on' });                               // the view jumps, so the test can read it at once
       const v = { width: 390, height: 844 };
-      const c = screenToTile(r.cam, v, v.width / 2, v.height * 0.4);          // where a picked card's ghost starts
+      const m = freeMiddle(r, v);
+      const c = screenToTile(r.cam, v, m.x, m.y);                               // where a picked card's ghost starts
       r.cam.x += 20.2 - c.x; r.cam.y += 1.2 - c.y;                              // aim that point at (20, 1): eight rows above the road
       const before = { x: r.cam.x, y: r.cam.y };
       r.store.set({ category: 'services', dock: 'tray' });
@@ -126,6 +131,34 @@ describe('ui placement fit', () => {
       const [sx, sy] = tileToScreen(r.cam, v, 20.5, 9.5);
       expect(sx >= 0 && sx <= v.width && sy >= 0 && sy <= v.height).toBe(true);
     } finally { r.cleanup(); }
+  });
+  it('starts a picked card\'s ghost in the middle of the map left free below the rows on a phone, and a little above mid-screen on a wide one', async () => {
+    for (const [width, height, text] of [[390, 844, 100], [375, 667, 150]]) {
+      const r = await rigUI({ width, height });
+      try {
+        r.ui.settings.set({ textSize: text, reducedMotion: 'on' });
+        r.ui.celebrations.show({ tier: 'info', text: 'The blaze at the potter\'s yard is out. Your firehouse crew reached it in time.' });
+        const v = { width, height }, m = freeMiddle(r, v);
+        expect([text, m.y - height * 0.4 > 32]).toEqual([text, true]);         // more than a tile row below where a fixed 40% would start it
+        const c = screenToTile(r.cam, v, m.x, m.y);
+        r.cam.x += 20.2 - c.x; r.cam.y += 9.2 - c.y;                            // aim the free middle at tile (20, 9), beside the road: a clean fit
+        r.store.set({ category: 'services', dock: 'tray' });
+        fire(r.root.querySelector('#dock .tray .card[data-item="well"]'), 'click');
+        expect([text, r.store.get().ghost]).toEqual([text, { x: 20, y: 9 }]);
+        // The well's Water legend joins the rows as the tool starts; the view keeps the ghost below them all.
+        const g = r.screenOf(20.5, 9.5), rowsEnd = measureRows(r.root).rowsEnd;
+        expect([text, g.y >= rowsEnd + 48 - 0.5, g.y <= height - Math.min(height * 0.3, 240) - 48 + 0.5]).toEqual([text, true, true]);
+      } finally { r.cleanup(); }
+    }
+    const wide = await rigUI({ width: 1280, height: 800 });
+    try {
+      const v = { width: 1280, height: 800 };
+      const c = screenToTile(wide.cam, v, v.width / 2, v.height * 0.4);
+      wide.cam.x += 20.2 - c.x; wide.cam.y += 9.2 - c.y;
+      wide.store.set({ category: 'services' });
+      fire(wide.root.querySelector('#panel .card[data-item="well"]'), 'click');
+      expect(wide.store.get().ghost).toEqual({ x: 20, y: 9 });
+    } finally { wide.cleanup(); }
   });
   it('gives the bar its own row for words in compact, and stacks the corners above it in portrait at 100% and 150%', async () => {
     const compact = await rigUI({ width: 844, height: 390 });
