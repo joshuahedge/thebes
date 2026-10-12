@@ -15,8 +15,9 @@ export function adjacentRoadTiles(world, b) {
 
 export const touchesRoad = (world, b) => adjacentRoadTiles(world, b).length > 0;
 
-// A building that needs a road and has none beside it (rulings P10, P11): it does nothing, pays no upkeep or wages and
-// counts for no "Build a" goal until a road touches it. Plots, gardens and statues need no road.
+// A building that needs a road and has none beside it (rulings P10, P11): it does nothing (no staff and no road to
+// serve along, so no work or service, and no desirability), pays no upkeep or wages and counts for no "Build a" goal,
+// first, achievement or daily goal until a road touches it. Plots, gardens and statues need no road.
 export const lacksRoad = (world, b) => Boolean(BUILDINGS[b.type].needsRoad) && !touchesRoad(world, b);
 
 // The returned Map is cached and shared, so callers must treat it as read-only. A caller asking about a footprint

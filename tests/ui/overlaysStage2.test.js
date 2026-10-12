@@ -117,6 +117,7 @@ describe('stage 2 overlays', () => {
     w.terrain[idx(32, 20, 20)] = TILE.WATER;
     addRaw(w, 'garden', 5, 5);
     addRaw(w, 'granary', 20, 4);
+    setRoad(w, 22, 5, 22, 5);                                                   // a granary gives its values once a road touches it (P11)
     addRaw(w, 'house', 6, 5, { tier: 1, residents: 3 });
     const { below, steps } = desirabilityBands(w);
     const has = (list, x, y) => list.some(([a, b]) => a === x && b === y);
