@@ -43,11 +43,12 @@ describe('s4 ui the supply buildings\' sheets', () => {
     const w = city();
     const g = addRaw(w, 'builders_guild', 20, 11);
     const site = addRaw(w, 'mastaba_small', 12, 11);
-    expect(supplyLine(w, g)).toBe("Idle: no monument site within 12 road tiles has room for a crew");
-    site.site.crews = [g.id];
-    expect(supplyLine(w, g)).toBe('Crew at work on the small mastaba');
+    // The sim comes in through the argument in Track A's contract shapes, so the line does not depend on which crewPlan this branch has.
+    const sim = (plan, at) => ({ crewPlan: planOf(plan), guildSite: () => at });
+    expect(supplyLine(w, g, sim([], null))).toBe("Idle: no monument site within 12 road tiles has room for a crew");
+    expect(supplyLine(w, g, sim([[g.id, site.id]], site.id))).toBe('Crew at work on the small mastaba');
     g.paused = true;
-    expect(supplyLine(w, g)).toBe('');
+    expect(supplyLine(w, g, sim([[g.id, site.id]], site.id))).toBe('');
   });
 
   it('says a guild planned for a site but not at work is short of workers or on fire, not idle', () => {
