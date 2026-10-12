@@ -111,7 +111,7 @@ export function createUI({
   const alertHasRow = () => store.get().layout === 'compact' && settings.get().textSize >= 125 && root.classList.contains('has-banner');
   const tips = createTips({
     container: $('tip'), settings, now, playNow: () => playMs, frameNow: () => tipMs, autoCloseMs: () => (phone() ? TIP_AUTO_CLOSE_MS : 0),
-    restoreFocus: () => { const b = $('goals').querySelector('.show-me'); if (b && !$('goals').hidden) b.focus(); },
+    restoreFocus: () => handGuidanceFocus(guidance === undefined ? null : guidance),   // Got it's button is gone: on to what has the row now
     onChange: () => syncGuidance(),
   });
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
@@ -526,8 +526,10 @@ export function createUI({
       if (s.confirmDialog) return;                     // a dialog's Enter belongs to its focused button (keyboard.js); never place behind the modal
       if (isToolMode(s.mode)) confirm();
     },
-    // Esc closes a tip on screen first (spec 6.3: Got it, Esc, its condition clearing or play time), then goes Back.
-    back: () => { const s = store.get(); if (tipOnScreen() && !s.confirmDialog && !s.screenshot) tips.dismiss(); else goBack(); },
+    // On a phone Esc closes a tip on screen first (spec 6.3, Small phones: Got it, Esc, its condition clearing or play
+    // time), then goes Back; never ahead of an open sheet (the tip is off the screen under one). A wide screen keeps Esc
+    // as Back (spec 6.8).
+    back: () => { const s = store.get(); if (phone() && tipOnScreen() && !s.sheet && !s.confirmDialog && !s.screenshot) tips.dismiss(); else goBack(); },
     undo, help: () => toggleSheet('help'),
   };
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
@@ -609,6 +611,31 @@ export function createUI({
   // A wide screen keeps every row (no data-guidance). It is worked out again whenever the store, a tip or a caption
   // changes, and once a frame.
   let guidance, guidanceSyncing = false;
+  // Keyboard focus and the guidance row (spec 6.8): the thing leaving the row is hidden (display: none) or rebuilt, which
+  // would drop focus to the page. Focus inside the row moves to what comes in: Got it for a tip, the legend's ✕, Show me for
+  // the goal; for a caption (no buttons) the banner's first button or the map, and for a sheet its first button. Focus put
+  // there (parked) goes back to the row once the goal, a tip or the legend has it again, unless the player moved it on.
+  // rowFocus is the row's element that last took focus, kept because a part rebuilt by its own store subscriber (the legend,
+  // a tip) is gone before syncGuidance runs.
+  let parkedFocus = null, rowFocus = null;
+  const onScreen = (n) => Boolean(n) && n.isConnected && n.getClientRects().length > 0;
+  const inGuidanceRow = (n) => Boolean(n) && ['goals', 'tip', 'cheer', 'legend'].some((id) => $(id).contains(n));
+  const onFocusIn = (e) => { rowFocus = inGuidanceRow(e.target) ? e.target : null; };
+  root.addEventListener('focusin', onFocusIn);
+  function guidanceFocusTarget(kind) {
+    const first = (scope, sel = 'button') => [...scope.querySelectorAll(sel)].find(onScreen) || null;
+    if (kind === 'tip') return first($('tip'), '.got-it');
+    if (kind === 'legend') return first($('legend'), '.close') || first($('legend'));
+    if (kind === 'goal' || kind === null) return first($('goals'), '.show-me') || first($('goals'));
+    if (kind === 'none' && store.get().sheet) { const b = first($('sheet')); if (b) return b; }
+    return first($('banner')) || canvas;
+  }
+  function handGuidanceFocus(kind) {
+    const target = guidanceFocusTarget(kind);
+    if (!target) return;
+    target.focus();
+    parkedFocus = kind === 'caption' || kind === 'none' ? target : null;
+  }
   function guidanceKind() {
     const s = store.get();
     if (!phone()) return null;
@@ -629,6 +656,12 @@ export function createUI({
       guidance = kind;
       if (kind) root.dataset.guidance = kind;
       else delete root.dataset.guidance;
+      if (!kind) return;                               // a wide screen hides nothing
+      const current = document.activeElement, lost = current === document.body || current === null;
+      if (rowFocus && (current === rowFocus || lost) && !onScreen(rowFocus)) { rowFocus = null; handGuidanceFocus(kind); return; }
+      if (!parkedFocus) return;
+      if (current !== parkedFocus && !lost) parkedFocus = null;   // the player moved on
+      else if (kind === 'goal' || kind === 'tip' || kind === 'legend') handGuidanceFocus(kind);
     } finally { guidanceSyncing = false; }
   }
   guidanceWired = true;
@@ -717,6 +750,7 @@ export function createUI({
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
       for (const t of INPUTS) root.removeEventListener(t, onInput);
+      root.removeEventListener('focusin', onFocusIn);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'tip', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));

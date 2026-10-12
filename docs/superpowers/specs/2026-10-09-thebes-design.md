@@ -926,8 +926,8 @@ The layout depends on the available space; controls depend on the input in use (
   - Space pauses or resumes; + and − change speed; 1–7 pick a category.
   - Arrow keys or WASD pan.
   - R rotates; M opens the minimap; O cycles overlays.
-  - Enter confirms; Esc goes back one step; Ctrl+Z or Cmd+Z undoes; ? lists shortcuts.
-  - Focus is visible and the tab order follows the screen layout.
+  - Enter confirms; Esc goes back one step (on a phone layout it closes a tip on screen first, never ahead of an open sheet); Ctrl+Z or Cmd+Z undoes; ? lists shortcuts.
+  - Focus is visible and the tab order follows the screen layout. On a phone layout, when the guidance row changes what it shows, focus in it moves to what comes in (Got it, the legend's ✕, Show me; for a caption the banner's button or the map; for a sheet into the sheet), and comes back to the row once it has a button again.
   - Single-key shortcuts switch off while a text field has focus, and can be turned off in settings (WCAG 2.1.4).
 - **Switching between inputs:**
   - The input type is decided **when each press starts** (pointer type), never partway through an action.
