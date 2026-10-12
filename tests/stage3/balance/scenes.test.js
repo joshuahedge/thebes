@@ -53,7 +53,7 @@ describe('s3 balance dev scenes', () => {
       expect(error).toBe('devScene fire: no city is open (use ?skipTitle=1&sample=1)');
       error = null;
       try { await devScene(r.api, 'parade'); } catch (e) { error = e.message; }
-      expect(error).toBe('devScene: no scene named parade (peaceful, fire, tribute, battle, score, ambient, early, plots, raid, raid-fire, raid-overlay, placing, sheet, welcome, expanded)');
+      expect(error).toBe('devScene: no scene named parade (peaceful, fire, tribute, battle, score, ambient, early, plots, raid, raid-fire, raid-overlay, placing, farm, farm-raid, sheet, welcome, expanded)');
     } finally { r.cleanup(); }
   });
 

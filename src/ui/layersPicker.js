@@ -44,7 +44,11 @@ export function createLayersPicker({ store, restoreFocus = () => {}, doc = docum
     if (open) {
       doc.addEventListener('pointerdown', onDown, true);
       const first = choices.find((b) => b.getAttribute('aria-pressed') === 'true') || off;
-      if (node.offsetParent !== null) first.focus({ preventScroll: true });           // only the host the layout shows takes focus
+      if (node.offsetParent !== null) {                                                // only the host the layout shows takes focus
+        first.focus({ preventScroll: true });
+        // On a small screen the popover scrolls: show the current choice (or Off) instead of leaving it below the cut.
+        if (first.scrollIntoView) first.scrollIntoView({ block: 'nearest' });
+      }
     } else {
       doc.removeEventListener('pointerdown', onDown, true);
       if (node.contains(doc.activeElement)) restoreFocus();

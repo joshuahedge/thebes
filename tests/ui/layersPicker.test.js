@@ -155,4 +155,31 @@ describe('ui layers picker in the interface', () => {
     expect([box.left >= root.left, box.right <= root.right, box.top >= root.top]).toEqual([true, true, true]);   // on the screen at the biggest text
     r.cleanup();
   });
+  it('stays on the screen held sideways at 150% text with a farm placed: beside the confirm bar, under the top bar, every choice inside it', async () => {
+    const r = await rigUI({ width: 667, height: 375 });
+    r.ui.settings.set({ textSize: 150, reducedMotion: 'on' });
+    r.ui.showMeAt({ category: 'food', item: 'farm_grain', x: r.world.focus.x, y: r.world.focus.y });
+    expect([r.store.get().layout, r.store.get().mode, r.store.get().overlay, r.root.querySelector('#confirm').hidden]).toEqual(['compact', 'placing', 'ground', false]);
+    fire(r.root.querySelector('#corners .overlay-button'), 'click');
+    const picker = r.root.querySelector('#corners .layers-picker'), root = r.root.getBoundingClientRect();
+    const box = picker.getBoundingClientRect(), bar = r.root.querySelector('#confirm').getBoundingClientRect(), top = r.root.querySelector('#topbar').getBoundingClientRect();
+    expect([box.left >= root.left, box.right <= bar.left + 1, box.top >= top.bottom - 1]).toEqual([true, true, true]);   // not cut at the left edge, not over the bar, not under the top bar
+    for (const b of picker.querySelectorAll('button.layer')) {
+      const q = b.getBoundingClientRect();
+      expect([b.dataset.layer, q.left >= box.left - 1, q.right <= box.right + 1, q.top >= box.top - 1, q.bottom <= box.bottom + 1]).toEqual([b.dataset.layer, true, true, true, true]);
+      expect(q.height).toBeGreaterThanOrEqual(44);
+    }
+    expect(picker.scrollHeight).toBeLessThanOrEqual(picker.clientHeight + 1);          // nothing hides below a scroll: Ground and Off are in sight
+    r.cleanup();
+  });
+  it('scrolls the current choice into view when it opens in a popover that scrolls', () => {
+    const r = rig();
+    r.picker.node.style.cssText = 'position:absolute;display:grid;grid-template-columns:1fr;max-height:120px;overflow-y:auto;width:200px';
+    for (const b of r.picker.node.querySelectorAll('button.layer')) b.style.cssText = 'min-height:44px;display:block';
+    r.store.set({ layersOpen: true, overlay: 'ground' });
+    const ground = r.picker.node.querySelector('[data-layer="ground"]'), box = r.picker.node.getBoundingClientRect(), g = ground.getBoundingClientRect();
+    expect(r.picker.node.scrollTop).toBeGreaterThan(0);
+    expect([g.top >= box.top - 1, g.bottom <= box.bottom + 1]).toEqual([true, true]);
+    r.cleanup();
+  });
 });

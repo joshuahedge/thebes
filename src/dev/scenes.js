@@ -246,14 +246,14 @@ async function ambient(api) {
 
 // ── The mobile budget scenes ──
 
-export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'sheet', 'welcome', 'expanded'];
+export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded'];
 
 // The page query each mobile scene opens with (tools/shots.ps1 -Mobile adds nosw=1): 'early' and 'plots' on a new guided
 // city, seed 7, which starts paused, as does 'expanded'; 'welcome' on Welcome back over the seed-11 sample city; the rest on that city.
 const SAMPLE_CITY = 'skipTitle=1&seed=11&sample=1';
 export const MOBILE_SCENE_PARAMS = {
   early: 'skipTitle=1&seed=7', plots: 'skipTitle=1&seed=7', raid: SAMPLE_CITY, 'raid-fire': SAMPLE_CITY, 'raid-overlay': SAMPLE_CITY,
-  placing: SAMPLE_CITY, sheet: SAMPLE_CITY, welcome: 'welcome=1&seed=11&sample=1', expanded: 'skipTitle=1&seed=7',
+  placing: SAMPLE_CITY, farm: SAMPLE_CITY, 'farm-raid': SAMPLE_CITY, sheet: SAMPLE_CITY, welcome: 'welcome=1&seed=11&sample=1', expanded: 'skipTitle=1&seed=7',
 };
 
 // A mobile scene's waits: as long as asked on the page, so the capture shows the settled screen; none with
@@ -358,6 +358,22 @@ async function placing(api, options) {
   return `placing ${ui.store.get().mode}`;
 }
 
+// Placing a grain farm (placement review P16): the ghost, the confirm bar, and the Ground overlay a farm turns on, whose
+// legend names the two kinds of ground and says whether there is room (the tallest guidance row). 'farm' is the calm city,
+// where the legend alone has the guidance row (what a landscape phone at large text shows); 'farm-raid' has a raid warning
+// up as well, so the alert row sits above the legend (a portrait phone, or a landscape phone at 100% text).
+async function farmScene(api, options, name, warn) {
+  const g = inGame(api, name), { world, ui } = g;
+  if (warn) raiseWarning(world);
+  ui.refresh();
+  await settle(options, 100);
+  ui.showMeAt({ category: 'food', item: 'farm_grain', x: world.focus.x, y: world.focus.y });
+  await settle(options, 500);
+  return `${name} ${ui.store.get().mode} ${ui.store.get().overlay}`;
+}
+const farm = (api, options) => farmScene(api, options, 'farm', false);
+const farmRaid = (api, options) => farmScene(api, options, 'farm-raid', true);
+
 // A house sheet with a raid warning up: finestHome selected as a tap on it selects it (createUI's actions.tap).
 async function sheet(api, options) {
   const g = inGame(api, 'sheet'), { world, ui } = g;
@@ -393,7 +409,7 @@ async function welcome(api, options) {
 
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
-  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, sheet, welcome, expanded,
+  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded,
 };
 
 export async function devScene(api, name, options = {}) {
