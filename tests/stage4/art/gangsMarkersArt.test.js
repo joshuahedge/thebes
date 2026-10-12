@@ -229,6 +229,32 @@ describe('s4 art pinned markers', () => {
     expect(mine.map((m) => m.glyph)).toEqual(['road']);
   });
 
+  it('merges three or more homes about to lose a tier in one place into one amber count badge, and marks them softly', () => {
+    const w = makeTestWorld();
+    setRoad(w, 8, 9, 15, 9);
+    const homes = [10, 11, 12].map((x) => addRaw(w, 'house', x, 10, { tier: 3, residents: 5, downTimer: 4 }));
+    const cam = camOn(11, 10, 0.5);
+    const three = layoutMarkers(w, [], cam, view);
+    expect(three.map((m) => [m.count, m.glyph, m.tone, [...m.ids].sort()])).toEqual([[3, 'down', 'warning', homes.map((h) => h.id).sort()]]);
+    homes[2].downTimer = 0;
+    expect(layoutMarkers(w, [], cam, view).map((m) => m.count)).toEqual([1, 1]);   // two stay two
+    const problem = addRaw(w, 'well', 13, 10);
+    const mixed = layoutMarkers(w, [{ code: 'understaffed', id: problem.id }], cam, view);
+    expect(mixed.map((m) => m.count).sort()).toEqual([1, 1, 1]);                  // a problem beside them: the three-in-one rule
+    // the warning's footprint: half the wash and a thin ring, no white halo
+    const draw = (tone) => {
+      const c = makeCanvas(200, 200), ctx = c.getContext('2d');
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, 200, 200);
+      ctx.setTransform(1, 0, 0, 1, 100, 100 - 2 * (20.5 * 8));                    // the home's tile (10, 10) in the middle
+      const m = { ids: [homes[0].id], x: -999, y: -999, r: 11, foot: { x: -999, y: -999 }, glyph: 'down', tone, count: 1 };
+      drawMarkers(makeDraw(ctx, 2, 2), w, [], { x0: 0, y0: 0, x1: 0, y1: 0 }, [m]);   // the badge and stem off the canvas
+      return c;
+    };
+    const light = (c) => { const d = c.getContext('2d').getImageData(0, 0, 200, 200).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2]; return s; };
+    expect(light(draw('warning')) > 0 && light(draw('warning')) < 0.6 * light(draw('problem'))).toBe(true);
+  });
+
   it('draws the ring and wash on the footprint, the stem and roof dot, and the badge in the marker\'s colour', () => {
     const w = makeTestWorld();
     const well = addRaw(w, 'well', 10, 10);
