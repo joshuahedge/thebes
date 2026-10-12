@@ -6,6 +6,7 @@ import { ART } from '../render/art/registry.js';
 import { makeDraw } from '../render/art/ctx.js';
 import { p } from '../render/iso.js';
 import { TERRAIN, SHADOW, ROCK, RED, UI } from '../render/art/palette.js';
+import { plaza } from '../render/art/plaza.js';
 
 export const THUMB_W = 104;   // CSS px; css/ui.css sizes .card .thumb to match
 export const THUMB_H = 52;
@@ -39,10 +40,17 @@ const DEMOLISH_ICON = {
   },
 };
 
+// Stage 4 (Track B): plazas are painted as courts, so the plaza card shows a little court of four joined tiles.
+const PLAZA_ICON = {
+  bounds: [-40, -9, 40, 41],
+  draw(g) { plaza(g, 0, 0, 6); plaza(g, 1, 0, 12); plaza(g, 0, 1, 3); plaza(g, 1, 1, 9); },
+};
+
 // Only `draw`-based art slots get a picture; a slot that later points at a PNG would need handling here.
 function artFor(item) {
   if (item === 'road') return ROAD_ICON;
   if (item === 'demolish') return DEMOLISH_ICON;
+  if (item === 'plaza') return PLAZA_ICON;
   const def = ART[item === 'house' ? 'house.t1' : item];      // a plot shows a Hut, the home it starts as
   return def && def.draw ? def : null;
 }
