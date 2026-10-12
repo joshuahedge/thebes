@@ -86,11 +86,15 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
   };
 }
 
-// Four points around the sample city's centre; the camera drifts from one to the next.
+// Four points around the sample city's centre; the camera drifts from one to the next. Stage 4 (spec 4.1): the first
+// (the one Gentle and Still hold) is ten tiles west and thirteen north of the middle of the sample city's colossus under
+// way (src/dev/sampleCity.js addShowcase), which puts the colossus about 370 px below and 100 px left of the screen's
+// middle, its finished small obelisk to its left and its palace to its right: in the band under the title card on a
+// laptop (1280x800) and a phone held upright (390x844), so they are on screen before the first tap.
 export function driftPoints(world) {
   const cx = world.tradeEntry.x, cy = world.size - 22;
   const clamp = (v) => Math.max(0, Math.min(world.size - 1, v));
-  return [[cx - 4, cy - 3], [cx + 4, cy], [cx, cy + 4], [cx - 3, cy + 1]].map(([x, y]) => [clamp(x), clamp(y)]);
+  return [[cx - 1, cy - 13], [cx + 4, cy], [cx, cy + 4], [cx - 3, cy + 1]].map(([x, y]) => [clamp(x), clamp(y)]);
 }
 
 // Stage 4 (spec 5.4, ruling 247, Track E): the backdrop drifts under Full only. reducedMotion() is boot's

@@ -4,11 +4,13 @@ import { drawRoad, paintHouses, place, canPlace } from '../sim/commands.js';
 import { advanceDays } from '../sim/clock.js';
 import { assignLabour } from '../sim/labour.js';
 import { housesOf, allBuildings } from '../sim/world.js';
+import { crewPlan } from '../sim/monuments.js';
 import { atLeast } from '../sim/progression.js';
 import { canBurn } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { TIERS } from '../data/housing.js';
+import { MONUMENTS } from '../data/monuments.js';
 import { T } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 
@@ -105,6 +107,50 @@ function addStageTwo(world) {
   for (const x of [ex + 1, ex + 4]) place(world, 'garden', x, top - 1);
 }
 
+// Stage 4 (spec 4.1, 5.7 item 7): the sample city's monuments and palace, where the title backdrop first looks (its
+// first drift point, east of the north road between the second and third streets from the start road): a lane east
+// from the north road along the free row between those streets, two builders' guilds for the colossus's crews south of
+// it, then a colossus under way, a finished small obelisk on a spur below the lane just west of it, and the palace in its
+// third style at the lane's end, north of the lane where the streets stop. Laid out so the three stand in one row across
+// the screen (obelisk, colossus, palace from left to right, their footprints' middles within 16 px of one height), which
+// fits the band under the title card on a phone held upright as well as a laptop. A 600-day sample city is a Town or a
+// little more, so what years of play would leave is written as the contract's state: the milestone is lifted for the
+// placing as the gold is, the obelisk was finished SHOWCASE_DONE_AGO days ago (so no dedication procession is still
+// walking), the colossus is half built (three of its six courses, 60 stone on site and its two crews at work) and the
+// palace stands in its third style (pylons). No day runs after it. Returns the ids.
+const SHOWCASE_DONE_AGO = 90;
+export const SHOWCASE_STYLE = 2;
+function addShowcase(world) {
+  const ex = world.tradeEntry.x, y = world.size - 24;
+  drawRoad(world, ex + 1, y, ex + 9, y);
+  drawRoad(world, ex + 7, y + 1, ex + 7, y + 1);    // the obelisk's spur
+  const milestone = world.milestone;
+  world.milestone = 'great_city';
+  const ids = {};
+  for (const [key, type, x, yy] of [
+    ['guild', 'builders_guild', ex + 3, y + 1], ['guild2', 'builders_guild', ex + 5, y + 1], ['obelisk', 'obelisk_small', ex + 7, y + 2],
+    ['colossus', 'colossus', ex + 8, y + 1], ['palace', 'palace', ex + 10, y - 2],
+  ]) {
+    const r = place(world, type, x, yy);
+    if (r.ok) ids[key] = r.id;
+  }
+  world.milestone = milestone;
+  const b = (key) => world.buildings[ids[key]];
+  if (ids.obelisk) {
+    const done = Math.max(0, world.day - SHOWCASE_DONE_AGO);
+    Object.assign(b('obelisk').site, { course: MONUMENTS.obelisk_small.courses.length, done, last: { units: 20, gold: 130, crews: 1 } });
+  }
+  if (ids.colossus) {
+    const crews = [ids.guild, ids.guild2].filter(Boolean);
+    Object.assign(b('colossus').site, {
+      course: 3, laid: { stone: 64, bricks: 0 }, stock: { stone: 60, bricks: 0 }, crews, idle: 0, reason: null,
+      last: { units: 20 * crews.length, gold: 130 * crews.length, crews: crews.length },
+    });
+  }
+  if (ids.palace) b('palace').style = SHOWCASE_STYLE;
+  return ids;
+}
+
 export function buildSampleCity(world, { days = 360, stageTwoDays = 240 } = {}) {
   const gold = world.gold;
   world.gold = 1e9;
@@ -153,15 +199,22 @@ export function buildSampleCity(world, { days = 360, stageTwoDays = 240 } = {}) 
     world.gold = spent;
     advanceDays(world, stageTwoDays);
   }
+  if (stageTwoDays > 0) {
+    const spent = world.gold;
+    world.gold = 1e9;
+    addShowcase(world);
+    addFirehouses(world, streets);                  // the guilds burn like any workshop
+    world.gold = spent;
+  }
   assignLabour(world);
   return world;
 }
 
-// A road along row y, split wherever the river crosses it.
+// A road along row y, split wherever the river or a building (the stress city's monument sites) crosses it.
 function roadRow(world, y) {
   let start = null;
   for (let x = 0; x <= world.size; x++) {
-    const blocked = x === world.size || water(world, x, y);
+    const blocked = x === world.size || water(world, x, y) || Boolean(world.occ[idx(world.size, x, y)]);
     if (!blocked && start === null) start = x;
     if (blocked && start !== null) {
       if (x - 1 > start) drawRoad(world, start, y, x - 1, y);
@@ -178,11 +231,28 @@ const STRESS_SERVICES = [
   'firehouse', 'tower', 'barracks',
 ];
 
+// Stage 4 (spec 5.7, 9): three monument sites in the middle of the stress city, for the live draw's budget (three sites
+// within 1 ms a frame): a great pyramid (laid before the roads, which part round it), a large mastaba and a colossus, each
+// at a course part way up with stone and bricks on site, and six builders' guilds beside them. [type, x, y] from the
+// map's middle; STRESS_SITE_STATE is each site's state, written after the city's days have run (as years of crews would
+// leave it), its crews the guilds the sim's crew plan sends it.
+const STRESS_SITES = [['pyramid_great', 2, -5], ['mastaba_large', -5, -1], ['colossus', -8, 0]];
+const STRESS_GUILDS = [[-12, 3], [-10, 3], [-5, 3], [-3, 3], [-1, 3], [1, 3]];
+const STRESS_SITE_STATE = {
+  pyramid_great: { course: 5, laid: { stone: 510, bricks: 90 }, stock: { stone: 150, bricks: 60 } },
+  mastaba_large: { course: 2, laid: { stone: 0, bricks: 480 }, stock: { stone: 0, bricks: 120 } },
+  colossus: { course: 3, laid: { stone: 64, bricks: 0 }, stock: { stone: 60, bricks: 0 } },
+};
+
 export function buildStressCity(world, { days = 60 } = {}) {
   const gold = world.gold;
   world.gold = 1e9;
   world.milestone = 'capital';   // a fixture: every building unlocked, as the homes below are filled directly
+  world.prestigeUnlocks.pyramid_great = world.day;   // and the great pyramid's prestige unlock with it
   const size = world.size;
+  const mid = Math.floor(size / 2);
+  const sites = STRESS_SITES.map(([type, dx, dy]) => place(world, type, mid + dx, mid + dy, { roadLater: true })).filter((r) => r.ok).map((r) => r.id);
+  for (const [dx, dy] of STRESS_GUILDS) place(world, 'builders_guild', mid + dx, mid + dy, { roadLater: true });
   const services = STRESS_SERVICES;
   for (let y = 2; y < size - 1; y += 4) roadRow(world, y);
   for (let y = 2; y < size - 3; y += 4) {
@@ -200,6 +270,12 @@ export function buildStressCity(world, { days = 60 } = {}) {
   }
   world.gold = gold;
   advanceDays(world, days);
+  const plan = crewPlan(world);
+  for (const id of sites) {
+    const b = world.buildings[id];
+    const crews = [...plan].filter(([, s]) => s === id).map(([g]) => g);
+    Object.assign(b.site, { ...STRESS_SITE_STATE[b.type], crews, idle: 0, reason: null });
+  }
   assignLabour(world);
   return world;
 }
