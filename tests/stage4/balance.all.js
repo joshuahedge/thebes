@@ -3,3 +3,4 @@
 import './balance/capital.test.js';
 import './balance/cities.test.js';
 import './balance/scenes.test.js';
+import './balance/budget.test.js';
