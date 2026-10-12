@@ -4,7 +4,7 @@ import { fire, key } from '../helpers/dom.js';
 import { select, openSheet } from '../../src/ui/modes.js';
 import { screenToTile } from '../../src/render/camera.js';
 import { buildingAt } from '../../src/sim/world.js';
-import { T } from '../../src/ui/text.js';
+import { T, FIRST_TEXT } from '../../src/ui/text.js';
 import { TIP_FIRST_DELAY_MS } from '../../src/data/tips.js';
 
 // A control's name is its aria-label, else its visible text with aria-hidden glyphs removed (an icon-only button
@@ -17,6 +17,8 @@ const nameOf = (b) => {
   for (const n of clone.querySelectorAll('[aria-hidden="true"]')) n.remove();
   return clone.textContent.trim();
 };
+// The box a pointer can hit on a small word button: its invisible ::before (css/ui.css), at least 44 px each way.
+const target = (b) => { const s = getComputedStyle(b, '::before'); return [s.content !== 'none', parseFloat(s.height) >= 44, parseFloat(s.width) >= 44]; };
 
 describe('ui accessibility', () => {
   it('gives every control a name, in every layout and sheet (spec 6.8)', async () => {
@@ -84,8 +86,11 @@ describe('ui accessibility', () => {
       r.frame(1000);
       const more = r.root.querySelector('#tip .more');
       expect([more.hidden, nameOf(more), more.getAttribute('aria-expanded')]).toEqual([false, T.more, 'false']);
+      expect(target(more)).toEqual([true, true, true]);                // a 44 px target, though the word is 12 px
       fire(more, 'click');
       expect([nameOf(more), more.getAttribute('aria-expanded'), unnamed()]).toEqual([T.less, 'true', []]);   // the arrow is decoration: the name is the word
+      r.frame(1100);
+      expect(target(more)).toEqual([true, true, true]);
       expect(r.root.querySelector('#tip').getAttribute('aria-live')).toBe('polite');
       fire(r.root, 'keydown', { key: 'Escape' });
       r.ui.tips.dismiss();
@@ -96,6 +101,25 @@ describe('ui accessibility', () => {
       expect([words.getAttribute('aria-expanded'), nameOf(all), unnamed()]).toEqual(['true', T.allGoals, []]);   // the › is decoration
       expect([...r.root.querySelectorAll('#goals button')].filter((b) => !b.hidden).every((b) => b.getBoundingClientRect().height >= 44)).toBe(true);
     } finally { r.cleanup(); }
+  });
+  it('gives the caption More and Less a 44 px target, and keeps Less in sight when the open caption scrolls (P8)', async () => {
+    const longWhy = Array.from({ length: 14 }, () => FIRST_TEXT.first_cottage.why).join(' ');
+    for (const size of [100, 150]) {
+      const r = await rigUI({ width: 360, height: 640 });
+      r.renderer.renderFrame = () => {};
+      try {
+        r.ui.settings.set({ textSize: size, reducedMotion: 'on' });
+        r.ui.celebrations.show({ tier: 'first', text: 'First Cottage', why: longWhy });
+        r.frame(1000);
+        const node = r.root.querySelector('#cheer .cheer'), more = node.querySelector('.more');
+        expect([size, more.hidden, ...target(more)]).toEqual([size, false, true, true, true]);
+        fire(node, 'click');
+        r.frame(2000);
+        expect([size, node.classList.contains('open'), node.scrollHeight > node.clientHeight, ...target(more)]).toEqual([size, true, true, true, true, true]);
+        const box = node.getBoundingClientRect(), less = more.getBoundingClientRect();
+        expect([size, less.height > 0, less.top >= box.top, less.bottom <= box.bottom]).toEqual([size, true, true, true]);   // in sight, not at the end of the scroll
+      } finally { r.cleanup(); }
+    }
   });
   it('jumps instead of panning under reduced motion (spec 5.4)', async () => {
     const r = await rigUI({ width: 390, height: 844 });

@@ -308,8 +308,8 @@ describe('stage 2 placement preview', () => {
     expect([pl.preview().nicer, pl.preview().nicerTone]).toEqual(['Makes 2 homes nicer', 'better']);
     expect(pl.tint().length).toBeGreaterThan(0);
     expect(pl.tint().every((t) => t.v > 0)).toBe(true);
-    pl.moveGhost(28, 2);                                                       // no homes anywhere near
-    expect([pl.preview().state, pl.preview().nicer]).toEqual(['ok', '']);
+    pl.moveGhost(28, 2);                                                       // no homes anywhere near: no line and no tint (final review 4)
+    expect([pl.preview().state, pl.preview().nicer, pl.tint()]).toEqual(['ok', '', []]);
     pl.start(GRANARY, { x: 14, y: 8 });
     expect([pl.preview().nicer, pl.preview().nicerTone]).toEqual(['Makes 2 homes less pleasant', 'worse']);
     pl.moveGhost(13, 9);                                                       // on a hut: blocked, so no line and no tint

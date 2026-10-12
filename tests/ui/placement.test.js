@@ -190,6 +190,15 @@ describe('ui placement', () => {
     expect(ghostsFor(world, store.get()).map((g) => g.state)).toEqual(['demolish', 'demolish', 'demolish']);
     expect(pl.confirm().ok).toBe(true);
     expect(housesOf(world).length).toBe(4);
+    pl.start({ kind: 'demolish' });                                  // a dragged rectangle keeps only the tiles with something on them (final review 13)
+    pl.stroke(14, 8, 'start');
+    pl.stroke(15, 9, 'end');                                         // four tiles, one plot (14, 9)
+    expect(store.get().plan.tiles).toEqual([[14, 9]]);
+    pl.stroke(24, 24, 'start');
+    pl.stroke(26, 26, 'end');                                        // empty ground adds nothing
+    expect(store.get().plan.tiles).toEqual([[14, 9]]);
+    pl.toggleTile(14, 9);                                            // so every tile in the plan can be tapped off
+    expect(store.get().plan).toBe(null);
   });
   it('lets a mouse click start a line over a touch plan, and the tool or a new one clears the plan', () => {
     const { store, pl } = rig();

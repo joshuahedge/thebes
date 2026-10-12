@@ -411,8 +411,6 @@ function hatchedBad(g, x, y, w, d) {
   g.poly(pts, 'none', { stroke: UI.bad, strokeWidth: 1.4 });
 }
 
-// The free tiles where a road would join the building: a faint amber wash, a dashed amber outline on a white halo and the road
-// mark (the Roads category's), so "draw one on a marked tile" can be followed.
 // A tile's dashed amber outline on a white halo: the sign for a free tile where a road would join (with the road mark in it) and
 // for a plot with no road beside it.
 function dashedAmberTile(g, x, y) {
@@ -424,6 +422,8 @@ function dashedAmberTile(g, x, y) {
   g.ctx.setLineDash([]);
 }
 
+// The free tiles where a road would join the building: a faint amber wash, a dashed amber outline on a white halo and the road
+// mark (the Roads category's), so "draw one on a marked tile" can be followed.
 function drawRoadJoins(g, joins) {
   const css = cssScaleOf(g);
   const size = Math.max(6, 12 / css);

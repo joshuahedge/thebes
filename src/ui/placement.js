@@ -11,6 +11,7 @@ import { startTool as startToolPatch, cancelTool } from './modes.js';
 import { AUTO_OVERLAY, NEAREST_FIT_RADIUS } from '../data/ui.js';
 import { homesServedFrom } from '../sim/housing.js';
 import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
+import { housesOf } from '../sim/world.js';
 import { costOf } from '../sim/costs.js';
 import { refusingStores } from '../sim/production.js';
 import { previewWall, drawWall, previewWallTiles, drawWallTiles } from '../sim/defence.js';
@@ -138,14 +139,22 @@ function warningLine(world, type, x, y, code) {
 }
 
 // What a ghost would do to the desirability around it (spec 4.7), memoised per ghost tile: desirabilityField is memoised
-// on the city's buildings, so while it hands back the same field nothing has changed and the last answer stands. A ghost
-// moved a tile asks once; a frame that only redraws asks nothing.
+// on the city's buildings and roads, so while it hands back the same field nothing has changed and the last answer stands.
+// A ghost moved a tile asks once; a frame that only redraws asks nothing. `near` says whether any home or plot lies on the
+// tiles it would change: the tint is there to show which homes get nicer or worse, so with none it is not drawn (a farm
+// out on the fertile land would otherwise sit in coral hatching that reads as "can't").
 const nicerMemo = new WeakMap();   // world -> { field, type, x, y, value }
 export function nicerFor(world, type, x, y) {
   const field = desirabilityField(world);
   const m = nicerMemo.get(world);
   if (m && m.field === field && m.type === type && m.x === x && m.y === y) return m.value;
-  const value = desirabilityPreview(world, type, x, y);
+  const preview = desirabilityPreview(world, type, x, y);
+  const on = new Set(preview.tiles.map((t) => t.y * world.size + t.x));
+  const near = on.size > 0 && housesOf(world).some((h) => {
+    for (let ty = h.y; ty < h.y + h.d; ty++) for (let tx = h.x; tx < h.x + h.w; tx++) if (on.has(ty * world.size + tx)) return true;
+    return false;
+  });
+  const value = { ...preview, near };
   nicerMemo.set(world, { field, type, x, y, value });
   return value;
 }
@@ -309,6 +318,8 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
   const drawingTool = (s) => Boolean(s.tool) && s.tool.kind !== 'building';
   const setPlan = (tiles) => store.set({ plan: tiles.length ? { tiles } : null, line: null, area: null });
   const somethingAt = (x, y) => { const i = y * world.size + x; return Boolean(world.occ[i] || world.road[i] || world.wall[i]); };
+  // The tiles of a stroke the plan takes: all of them, except that demolish takes only a tile with something on it, as a tap does.
+  const marked = (tool, tiles) => (tool.kind === 'demolish' ? tiles.filter(([x, y]) => somethingAt(x, y)) : tiles);
   const api = {
     start(tool, centre = null) {
       stroke = null;
@@ -354,7 +365,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (phase === 'start') {
         if (!inMap(x, y)) return;
         stroke = { base: s.plan ? s.plan.tiles : [], x0: x, y0: y, path: [[x, y]], at: [x, y] };
-        setPlan(joinTiles(stroke.base, stroke.path));
+        setPlan(joinTiles(stroke.base, marked(s.tool, stroke.path)));
         return;
       }
       if (!stroke) return;
@@ -362,7 +373,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (inMap(x, y) && !sameTile(stroke.at, [x, y])) {
         if (isLine(s.tool)) followFinger(stroke, [x, y]);
         else { stroke.at = [x, y]; stroke.path = rectTiles(stroke.x0, stroke.y0, x, y, world.size); }
-        setPlan(joinTiles(stroke.base, stroke.path));
+        setPlan(joinTiles(stroke.base, marked(s.tool, stroke.path)));
       }
       if (phase === 'end') stroke = null;
     },
@@ -377,12 +388,15 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
     flip() { const s = store.get(); if (s.line) store.set({ line: { ...s.line, flip: !s.line.flip } }); },
     preview: () => toolPreview(world, store.get()),
     ghosts: () => ghostsFor(world, store.get()),
-    // The desirability tint under a building's ghost (spec 4.7): the tiles it would change, while it can go there.
+    // The desirability tint under a building's ghost (spec 4.7): the tiles it would change, while it can go there and a
+    // home or plot lies on them.
     tint() {
       const s = store.get();
       if (!s.tool || s.tool.kind !== 'building' || !s.ghost) return [];
       const p = toolPreview(world, s);
-      return p.state === 'ok' || p.state === 'warn' ? nicerFor(world, s.tool.type, s.ghost.x, s.ghost.y).tiles : [];
+      if (p.state !== 'ok' && p.state !== 'warn') return [];
+      const d = nicerFor(world, s.tool.type, s.ghost.x, s.ghost.y);
+      return d.near ? d.tiles : [];
     },
     confirm() {
       const s = store.get();
