@@ -4,8 +4,8 @@ import { KEYS, APP_VERSION } from '../data/ui.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
-import { FIRE_REACTIONS } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT } from './text.js';
+import { FIRE_REACTIONS, MOTION_SETTINGS } from './settings.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
@@ -60,31 +60,11 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     return el('div', { class: 'row' }, [el('span', { text: label }), el('span', { class: 'choices', role: 'group', 'aria-label': label }, buttons)]);
   }
 
-  // Stage 3 (Track D, spec 5.6): Ambient motion is Off while reduced motion is on (createUI's ambient layer runs only when
-  // both allow it), so the switch shows Off, is disabled and says why; the reduced-motion choices re-sync it.
-  function ambientRow() {
-    const D = DANGER_UI_TEXT;
-    const r = switchRow(D.ambient, 'ambient');
-    const b = r.querySelector('button'), state = b.querySelector('.state');
-    const note = el('p', { class: 'ambient-note small muted', text: D.ambientReduced });
-    const sync = () => {
-      const reduced = settings.reducedMotion();
-      b.disabled = reduced;
-      note.hidden = !reduced;
-      const on = !reduced && Boolean(settings.get().ambient);
-      b.setAttribute('aria-checked', String(on));
-      state.textContent = on ? T.on : T.off;
-    };
-    b.addEventListener('click', sync);
-    sync();
-    return { row: el('div', {}, [r, note]), sync };
-  }
-
+  // Stage 4 (spec 5.4, ruling 216): one Motion row replaces Stage 3's Reduce motion and Ambient motion rows. Track E words
+  // what it is doing ("Motion: Gentle (your device asks for less motion)"); Track G adds Music and its volume.
   function settingsSheet(body) {
     const D = DANGER_UI_TEXT;
-    const ambient = ambientRow();
-    const motion = choiceRow(T.reducedMotion, 'reducedMotion', [['system', T.followSystem], ['on', T.on], ['off', T.off]]);
-    for (const c of motion.querySelectorAll('button')) c.addEventListener('click', ambient.sync);
+    const motion = choiceRow(CONTRACT4_TEXT.motion, 'motion', MOTION_SETTINGS.map((m) => [m, CONTRACT4_TEXT.motionLevels[m]]));
     body.append(
       switchRow(T.sound, 'sound'), switchRow(T.vibration, 'vibration'),
       switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'),
@@ -93,7 +73,6 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       // Spec 4.3: what a fire no staffed firehouse reaches does to the speed, after the city's first (which always pauses).
       choiceRow(D.onAFire, 'fireReaction', FIRE_REACTIONS.map((k) => [k, D.fireReactions[k]])),
       el('p', { class: 'fire-note small muted', text: D.onAFireNote }),
-      ambient.row,
       choiceRow(T.helpLevel, 'help', [['full', HELP_NAMES.full], ['tips', HELP_NAMES.tips], ['off', HELP_NAMES.off]]),
       // Spec 4.18: the level the next new city starts at; the city being played keeps its own (the summary names it).
       choiceRow(T.difficultyForNewCities, 'difficulty', DIFFICULTY_ORDER.map((d) => [d, DIFFICULTY_NAMES[d]])),

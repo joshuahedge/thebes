@@ -2,3 +2,4 @@
 import './contract/monumentData.test.js';
 import './contract/worldV5.test.js';
 import './contract/simSeams.test.js';
+import './contract/uiSeams.test.js';

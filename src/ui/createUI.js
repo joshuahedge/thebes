@@ -2,7 +2,7 @@
 // only through placement.js, speed.js and the sheets, which call src/sim/commands.js then assignLabour.
 import { MILESTONES } from '../data/progression.js';
 import { alertsFor } from '../sim/alerts.js';
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { CATEGORIES, toolForItem, categoryOfItem, AUTO_OVERLAY, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
 import { goalById, nextItemFor, guideActive, openGoals, goalProgress } from '../sim/goals.js';
 import { settle } from '../sim/settle.js';
@@ -55,6 +55,9 @@ import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
 import { createDanger } from './danger.js';
 import { createScoreUi } from './scoreUi.js';
+import { createMonumentUi } from './monumentSheet.js';
+import { drawMonument } from '../render/monuments.js';
+import { layoutMarkers, drawMarkers, markerAt } from '../render/markers.js';
 import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires } from '../render/fire.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
@@ -81,9 +84,10 @@ export function createUI({
   let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [], tintList = [];
   // Stage 3: the danger and score interfaces, made below once their context exists. Until then (afterCommand can run
   // during construction) seams() is empty, so nothing calls them early.
-  let danger = null, scoreUi = null;
+  let danger = null, scoreUi = null, monumentUi = null;   // Stage 4: the monuments interface (Track C, ui/monumentSheet.js)
   let toastLow = null;   // { dock, mode, sheet, layout } while the toast sits low after a touch tick (leavePlan, setToastLow)
-  const seams = () => [danger, scoreUi].filter(Boolean);
+  const seams = () => [danger, scoreUi, monumentUi].filter(Boolean);
+  let markerLayout = [];                                 // Stage 4: this frame's problem markers on screen (render/markers.js)
   let saveFailed = false, destroyed = false;
   // The guidance row's controller (syncGuidance, below) runs from the tips' and captions' callbacks, which may fire
   // before it is wired up; until then it does nothing.
@@ -213,7 +217,10 @@ export function createUI({
   };
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
-  const ambient = createAmbient({ enabled: () => settings.get().ambient && !settings.reducedMotion() });
+  monumentUi = createMonumentUi(seamCtx);
+  // Stage 4 (spec 5.4): the Motion level in use, 'full' | 'gentle' | 'still' (a test's stand-in settings may only have reducedMotion).
+  const motionLevel = () => (typeof settings.motionLevel === 'function' ? settings.motionLevel() : (settings.reducedMotion() ? 'still' : 'full'));
+  const ambient = createAmbient({ enabled: () => motionLevel() === 'full' });   // Stage 4: Track E adds Gentle's glints and smoke
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
     canResumeGuide: () => canResumeGuide(world, settings.get().help), onResumeGuide: () => { setGuide(world, true); refresh(); },
@@ -233,7 +240,7 @@ export function createUI({
   const customSheets = {
     ...menus, goals: goalsSheet(world, { onShowMe: showMe, recent: () => celebrations.recent(), skipHere: phone, onSkipGuide: skipGuide }),
     trade: tradeSheet({ world, afterCommand, onShowMe: showMeAt, toast: (text) => toasts.show(text) }),
-    ...danger.sheets, ...scoreUi.sheets,
+    ...danger.sheets, ...scoreUi.sheets, ...monumentUi.sheets,
   };
   if (welcome) {
     customSheets.welcome = welcomeSheet({
@@ -243,7 +250,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts] });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts] });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -278,8 +285,11 @@ export function createUI({
     placement.start(tool, { x: c.x, y: c.y });
     const g = store.get().ghost;
     if (g && tool.kind === 'building') {
-      const def = BUILDINGS[tool.type];
-      cameraControl.keepVisible(g.x + def.w / 2, g.y + def.d / 2, placingInsets(store.get()));
+      const { w, d } = dimsOf(tool.type, store.get().tool.rot || 0);
+      // Stage 4 (ruling 231): a monument's pick may also zoom out once to fit its footprint and silhouette (Track C's pickFit).
+      const fit = BUILDINGS[tool.type].monument ? monumentUi.pickFit(tool.type, g, placingInsets(store.get())) : null;
+      if (fit) cameraControl.keepVisible(g.x + w / 2, g.y + d / 2, placingInsets(store.get()), undefined, undefined, fit.extent || null, fit.zoom === undefined ? null : fit.zoom);
+      else cameraControl.keepVisible(g.x + w / 2, g.y + d / 2, placingInsets(store.get()));
     }
   }
   const closeAnySheet = () => { const s = store.get(); if (s.sheet) store.set(closeSheet(s)); };
@@ -591,6 +601,11 @@ export function createUI({
         else placement.pointAt(t.x, t.y);                                                                      // a tap moves the ghost or sets a point
         return;
       }
+      // Stage 4 (ruling 281): a tap on a problem marker (its badge or stem) selects the marker's building, ahead of whatever
+      // building lies under the badge; Track C's markerTap may handle it first (a count badge zooms in).
+      const marker = markerAt(markerLayout, x, y);
+      if (marker && !monumentUi.markerTap(marker)) { selectBuilding(marker.ids[0]); return; }
+      if (marker) return;
       const b = pickBuilding(world, cam, view(), x, y);
       if (b) store.set(select(s, b.id));
       else if (s.mode === 'selected') store.set(deselect(s));
@@ -871,7 +886,13 @@ export function createUI({
     const selected = s.selectedId !== null ? world.buildings[s.selectedId] : null;
     const ring = guide.marker(t);                                              // the guide's ring on its step's target (spec 3.2)
     const still = { reducedMotion: settings.reducedMotion() };
+    // Stage 4: the monuments' live draw (render/monuments.js) and the problem markers' layout (render/markers.js), once a frame.
+    const motion = motionLevel();
+    const ghostBox = s.ghost && s.tool && s.tool.kind === 'building' ? { type: s.tool.type, x: s.ghost.x, y: s.ghost.y, ...dimsOf(s.tool.type, s.tool.rot || 0) } : null;
+    const list = alerts.list();
+    markerLayout = layoutMarkers(world, list, cam, v);
     renderer.renderFrame(world, cam, {
+      live: (g, o) => drawMonument(g, world, o.b, { now: t, timeDays, motion, ghost: ghostBox, selectedId: s.selectedId }),
       view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
       ambient: (g, r) => ambient.draw(g, world, r, t),                          // Stage 3 (render/ambient.js, fire.js, units.js)
@@ -884,7 +905,7 @@ export function createUI({
         const shapes = ghosts();                                                // refreshes the tint as well
         drawDesirabilityTint(g, tintList);                                     // spec 4.7: teal wash nicer, coral hatching worse, under the ghost
         for (const ghost of shapes) drawGhost(g, ghost);
-        drawProblemMarkers(g, world, alerts.list(), r);                        // early-game pass 2.8: one badge per building with a problem
+        drawMarkers(g, world, list, r, markerLayout);                          // early-game pass 2.8, Stage 4 rulings 280-281: pinned to their buildings
       },
     });
     hud.render();
@@ -920,6 +941,7 @@ export function createUI({
   return {
     store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
     danger, scoreUi, ambient, screenshotMode, frameGate, setGuidanceOpen,
+    monumentUi, motionLevel, markers: () => markerLayout,   // Stage 4
     allowFrame: (t) => frameGate.allow(t, world.speed === 0),
     destroy() {
       if (destroyed) return;

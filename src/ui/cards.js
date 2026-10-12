@@ -48,6 +48,7 @@ export function activeItemOf(tool) {
   if (!tool) return null;
   if (tool.kind === 'building') return tool.type;
   if (tool.kind === 'houses') return 'house';
+  if (tool.kind === 'plazas') return 'plaza';   // Stage 4 (ruling 250)
   return tool.kind;   // 'road' or 'demolish'
 }
 

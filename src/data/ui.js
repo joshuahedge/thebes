@@ -26,6 +26,7 @@ export function toolForItem(item) {
   if (item === 'wall') return { kind: 'wall' };       // drawn as a line, like a road (spec 6.4 Drawing mode)
   if (item === 'demolish') return { kind: 'demolish' };
   if (item === 'house') return { kind: 'houses' };
+  if (item === 'plaza') return { kind: 'plazas' };     // Stage 4 (ruling 250): painted like plots
   return { kind: 'building', type: item };
 }
 
