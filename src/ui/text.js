@@ -1496,7 +1496,53 @@ Object.assign(TIP_TEXT, {
 // ── s4 cards (Track G) ───────────────────────────────────────────────────────────────────────────────────────────
 // Track G's words: the six picture cards (titles, words, alt text), How to play, the Music rows and the reworded opening
 // goals and their whys (ruling 265). Add new lines just above the end marker.
-export const CARDS4_TEXT = {};
+// "About four in ten people work" (the food card) is the sim's own share (ECONOMY.workerShare, src/sim/labour.js).
+const CARDS4_TENS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+export const cards4WorkShare = (share = ECONOMY.workerShare) => `About ${CARDS4_TENS[Math.max(0, Math.min(10, Math.round(share * 10)))]} in ten people work`;
+// The last card's words: fires and raiders to guard against, but on Peaceful (raids: false, src/data/difficulty.js) the city
+// never starts a raid clock, so there it names fires alone. The pause sentence is the same at every level.
+export const cards4Ahead = (raids = true) => `Later come fires ${raids ? 'and raiders ' : ''}to guard against, and monuments to raise. Pause any time: nothing happens while you plan.`;
+export const CARDS4_TEXT = {
+  // The Settings sheet's Music rows (spec 5.5, ruling 269).
+  music: 'Music', musicVolume: 'Music volume', quieter: 'Quieter music', louder: 'Louder music',
+  // The picture cards (spec 4.1, rulings 261-264): How to play on the title card and at the top of the How to play sheet.
+  howToPlay: 'How to play', showCards: 'Show the picture cards',
+  count: (i, n) => `${i} of ${n}`, dots: 'Cards', dot: (i, n) => `Card ${i} of ${n}`,
+  next: 'Next', back: 'Back', skip: 'Skip', close: 'Close', start: 'Start building',
+  // Each card's title, words and picture's alt text, by its id in src/data/tutorial.js (spec 4.1's table).
+  cards: {
+    road: {
+      title: 'Everything needs a road',
+      words: 'Homes and workplaces work only when they touch a road. Lay a road first, then build beside it.',
+      alt: 'A road running past homes, a well and a farm, with a ring around the road.',
+    },
+    homes: {
+      title: 'Homes grow when served',
+      words: 'Paint housing plots beside a road and people move in. A well near them, then food, lets them grow.',
+      alt: 'Housing plots along a road and a well beside them, with a ring around the well.',
+    },
+    farm: {
+      title: 'Farms need fertile land',
+      words: 'Farms grow only on the fertile land by the river. Layers → Ground shows it in green.',
+      alt: 'The map with the Ground layer on: the fertile land by the river shows green, a farm stands on it, and an arrow points to the Layers button.',
+    },
+    food: {
+      title: 'Food and workers',
+      words: `A farm fills a granary; a bazaar near homes sells its food. ${cards4WorkShare()}, and a building short of workers works slowly.`,
+      alt: "A granary and a bazaar among the homes, and a building's sheet with a ring around its workers row.",
+    },
+    goals: {
+      title: 'Follow the goals',
+      words: 'The goal line shows what to do next. Show me opens the right card and puts it where it fits.',
+      alt: 'The goals strip at the top of the screen, with a ring around its Show me button.',
+    },
+    ahead: {
+      title: 'What lies ahead',
+      words: cards4Ahead(),             // the level with raids; the dialog asks cards4Ahead(raids) for the city's own level
+      alt: 'A pyramid being built, with a tower and a firehouse beyond it, and a ring around the pyramid.',
+    },
+  },
+};
 // ── end s4 cards ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

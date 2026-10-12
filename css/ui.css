@@ -839,6 +839,66 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
 
 /* ── s4 cards (Track G) ── Track G's styles: the picture cards' dialog, ring and arrow, dots, How to play, Music rows. */
+/* The Music volume row: − value + with 44 px buttons (spec 5.5). */
+.music-volume { align-items: center; }
+.music-volume .stepper { display: flex; align-items: center; gap: 6px; }
+.music-volume .stepper .value { min-width: 2.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.music-volume .stepper button { font-size: calc(20px * var(--ui-scale)); line-height: 1; padding: 0; }
+/* How to play on the title card (spec 4.1) added a row to a card that on a phone held sideways (the height query the title
+   rules above use) had no room: Play with sound and Install fell below the fold. There the five buttons sit in two rows of two
+   (This week's Nile with How to play, Play with sound with Install), so the card is as tall as it was before How to play; and
+   under 400 px (667x375) the tagline goes, so the last row ends inside the card too. */
+@media (max-height: 480px) {
+  .title-buttons > .how-to-play, .title-buttons > .install { flex: 1 1 40%; }
+}
+@media (max-height: 400px) {
+  .title-card .tagline { display: none; }
+}
+/* The picture cards (spec 4.1): a full-screen sheet on a phone, the picture beside the words on a landscape phone and a
+   centred card of at most 560 px on a wide screen. The dialog is its own size container (pc), so its parts are sized from
+   its box, never the window's: a test's mounted shell lays it out as the phone it stands for. --s4g-pic is the picture's
+   side: the picture keeps its shape and size, and only the words scroll when they do not fit (150% text). */
+.picture-cards { position: fixed; inset: 0; z-index: 20; container: pc / size; display: flex; align-items: center; justify-content: center; background: rgba(43, 31, 14, 0.55); }
+.picture-cards:focus { outline: none; }   /* tabindex -1: a click on the picture or the words puts focus on the dialog, so its keys keep working */
+.picture-cards .pc-box {
+  --s4g-pic: min(600px, 100cqw - 24px, 100cqh - 300px);
+  box-sizing: border-box; width: 100%; height: 100%; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto auto; gap: 8px;
+  padding: max(8px, var(--safe-top)) max(12px, var(--safe-right)) max(10px, var(--safe-bottom)) max(12px, var(--safe-left));
+  background: var(--parchment); color: var(--ink);
+}
+.picture-cards .pc-top { display: flex; align-items: center; gap: 4px; }
+.picture-cards .pc-count { flex: 1; }
+.picture-cards .pc-stage { touch-action: pan-y; }
+.picture-cards .pc-figure { position: relative; margin: 0 auto; width: var(--s4g-pic); height: var(--s4g-pic); }
+.picture-cards .pc-picture { display: block; width: 100%; height: 100%; border-radius: 8px; background: var(--parchment-2); object-fit: cover; }
+.picture-cards .pc-mark { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.picture-cards .pc-mark .halo { fill: none; stroke: #FFFFFF; stroke-width: 16; stroke-linecap: round; stroke-linejoin: round; }
+.picture-cards .pc-mark .line { fill: none; stroke: var(--teal); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+.picture-cards .pc-text { min-height: 0; overflow-y: auto; }
+.picture-cards .pc-text h2 { font-size: calc(20px * var(--ui-scale)); line-height: 1.25; margin: 0 0 4px; }
+.picture-cards .pc-text p { margin: 0; }
+.picture-cards .pc-dots { display: flex; justify-content: center; }
+.picture-cards .pc-dot { position: relative; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; }
+.picture-cards .pc-dot::after { content: ''; position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; box-sizing: border-box; border-radius: 50%; border: 2px solid var(--ink-soft); }
+.picture-cards .pc-dot[aria-current="step"]::after { width: 16px; height: 16px; margin: -8px 0 0 -8px; background: var(--teal); border-color: var(--teal); }
+.picture-cards .pc-nav { display: flex; justify-content: space-between; gap: 8px; }
+.picture-cards .pc-next { flex: 0 1 auto; min-width: 40%; }
+/* A landscape phone: the picture on the left, the words, the dots and the buttons beside it. */
+@container pc (min-aspect-ratio: 1 / 1) and (max-height: 599px) {
+  .picture-cards .pc-box { --s4g-pic: min(600px, 100cqh - 20px, 50cqw); grid-template-columns: var(--s4g-pic) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; column-gap: 16px; }
+  .picture-cards .pc-stage { grid-column: 1; grid-row: 1 / 5; align-self: center; }
+  .picture-cards .pc-top, .picture-cards .pc-text, .picture-cards .pc-dots, .picture-cards .pc-nav { grid-column: 2; }
+}
+/* A wide screen: a centred card. */
+@container pc (min-width: 900px) and (min-height: 600px) {
+  .picture-cards .pc-box { --s4g-pic: min(536px, 100cqh - 330px); width: min(560px, 100cqw - 32px); height: auto; max-height: calc(100cqh - 32px); border-radius: var(--radius); box-shadow: var(--shadow); }
+}
+/* Under Full motion only (src/ui/tutorial.js adds the classes): the new card slides in from the side it came from. */
+@keyframes s4g-in-next { from { transform: translateX(32px); opacity: 0.2; } to { transform: none; opacity: 1; } }
+@keyframes s4g-in-back { from { transform: translateX(-32px); opacity: 0.2; } to { transform: none; opacity: 1; } }
+.picture-cards .pc-in-next { animation: s4g-in-next 200ms ease-out; }
+.picture-cards .pc-in-back { animation: s4g-in-back 200ms ease-out; }
 /* ── end s4 cards ── */
 
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */

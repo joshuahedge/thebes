@@ -1,0 +1,11 @@
+{
+  "size": 600,
+  "cards": {
+    "road": { "mark": {"kind":"ring","x":277.8,"y":288.9,"w":106.3,"h":106.3} },
+    "homes": { "mark": {"kind":"ring","x":300,"y":326.2,"w":147.7,"h":156.9} },
+    "farm": { "mark": {"kind":"arrow","x":518.4,"y":498.9,"angle":60} },
+    "food": { "mark": {"kind":"ring","x":300,"y":394.7,"w":570.8,"h":54.4,"pad":2,"radius":12} },
+    "goals": { "mark": {"kind":"ring","x":291.6,"y":116.9,"w":140,"h":67.7,"pad":2} },
+    "ahead": { "mark": {"kind":"ring","x":315.4,"y":344.6,"w":354.5,"h":288} }
+  }
+}
