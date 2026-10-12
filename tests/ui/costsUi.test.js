@@ -45,7 +45,7 @@ async function bootWith({ storage, params = '' }) {
 describe('ui costs by difficulty', () => {
   it('shows each city its own costs on cards, and judges them affordable against those', () => {
     const hard = cityAt('hard');
-    expect(cardInfo(hard, 'well')).toEqual({ item: 'well', name: 'Well', cost: 38, costText: '38 gold', affordable: true, locked: false, lockText: '', isNew: false });
+    expect(cardInfo(hard, 'well')).toEqual({ item: 'well', name: 'Well', cost: 38, costText: '38 gold', affordable: true, locked: false, lockText: '', isNew: false, terrainText: '' });
     expect(cardInfo(hard, 'road').costText).toBe('3 gold per tile');
     expect(cardInfo(hard, 'house').costText).toBe('6 gold per plot');
     expect(cardInfo(cityAt('relaxed'), 'temple').costText).toBe('96 gold');
@@ -60,7 +60,9 @@ describe('ui costs by difficulty', () => {
     const ok = toolPreview(w, { tool: { kind: 'building', type: 'well' }, ghost: { x: 12, y: 9 } });
     expect([ok.state, ok.cost]).toEqual(['ok', 38]);
     const blocked = toolPreview(w, { tool: { kind: 'building', type: 'well' }, ghost: { x: 20, y: 20 } });
-    expect([blocked.state, blocked.cost]).toEqual(['bad', 38]);
+    expect([blocked.state, blocked.cost]).toEqual(['warn', 38]);                 // no road touches it: placed in amber, and paid for now (P10)
+    const taken = toolPreview(w, { tool: { kind: 'building', type: 'well' }, ghost: { x: 12, y: 10 } });
+    expect([taken.state, taken.cost]).toEqual(['bad', 38]);                      // on the road itself
     expect(toolPreview(w, { tool: { kind: 'road' }, line: { x0: 12, y0: 14, x1: 16, y1: 14, flip: false } }).cost).toBe(15);
     expect(toolPreview(w, { tool: { kind: 'houses' }, area: { x0: 12, y0: 15, x1: 14, y1: 15 } }).cost).toBe(18);
     expect(place(w, 'temple', 12, 8).ok).toBe(true);

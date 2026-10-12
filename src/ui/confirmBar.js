@@ -1,15 +1,16 @@
-// The confirm bar for placing, drawing and demolishing (spec 6.4-6.5): name, cost, the reason when blocked,
+// The confirm bar for placing, drawing and demolishing (spec 6.4-6.5): name, cost, a building's conditions, the reason when blocked,
 // what a service will do from the ghost's spot (early-game pass 2.6), rotate for buildings that rotate, Flip
 // for roads, Undo, x and the tick. It never tucks away. onConfirm gets the input type of the tick's press
 // ('touch', 'pen', 'mouse' or 'keyboard', spec 6.7: decided when the press starts) so a touch tick can end the tool.
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
-import { buildingName, T, DANGER_UI_TEXT } from './text.js';
+import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' || tool.kind === 'wall' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : T.demolish);
 const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted' };
+const NARROW_BAR = 365;   // px: a bar this narrow at 150% text can need a chip row for each condition (css/ui.css .conds.tall.narrow)
 const rotates = (tool) => tool.kind === 'building' && Boolean(BUILDINGS[tool.type].rotates);   // none in Stage 1 (mastabas come with monuments)
 
 export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo }) {
@@ -75,7 +76,12 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onPointerDown: rememberPress, onPointerCancel: forgetPress, onKeyDown: forgetPress, onClick: confirmPressed }));
     // A building that changes desirability keeps a line for it (css: .confirm.desire), so the bar never grows as the ghost moves.
     const desire = s.tool.kind === 'building' && (DESIRABILITY[s.tool.type] || []).length > 0;
-    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}` }, [info, ...controls]);
+    // A building's conditions, each with its own mark and words (placement review P9): met, later (it can be placed but will not
+    // work yet) or can't. The row is always there for a building tool, empty or not, so the bar keeps one height as the ghost moves;
+    // it takes the whole width under the words and the buttons. A chip's words are its name for screen readers, with its state.
+    const chips = s.tool.kind === 'building' ? el('div', { class: `conds${BUILDINGS[s.tool.type].terrain ? ` tall${element.getBoundingClientRect().width <= NARROW_BAR ? ' narrow' : ''}` : ''}`, role: 'group', 'aria-label': CONDITION_TEXT.group }, (p.conditions || []).map((c) =>
+      el('span', { class: `cond ${c.state}`, role: 'img', 'aria-label': c.label }, [el('span', { class: 'mark', 'aria-hidden': 'true', text: c.mark }), ` ${c.text}`]))) : null;
+    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}` }, [info, ...controls, chips]);
     element.append(bar);
     keepTallest(bar, s);
     publishHeight();

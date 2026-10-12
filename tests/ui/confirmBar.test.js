@@ -2,7 +2,7 @@ import { describe, it, expect } from '../harness.js';
 import { createConfirmBar } from '../../src/ui/confirmBar.js';
 import { createPlacement } from '../../src/ui/placement.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
-import { reasonText, T } from '../../src/ui/text.js';
+import { reasonText, T, CONDITION_TEXT } from '../../src/ui/text.js';
 import { makeTestWorld, setRoad } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 
@@ -22,14 +22,22 @@ describe('ui confirm bar', () => {
     const r = rig();
     expect(r.bar.element.hidden).toBe(true);
     r.placement.start({ kind: 'building', type: 'well' }, { x: 5, y: 20 });
-    r.placement.moveGhost(5, 20);                                  // the start lands on the nearest fit; put the ghost back where nothing fits
+    r.placement.moveGhost(12, 10);                                 // the start lands on the nearest fit; put the ghost back on the road, where nothing fits
     r.bar.render();
     expect(r.bar.element.hidden).toBe(false);
     expect(r.root.querySelector('.title').textContent).toBe('Well');
     expect(r.root.querySelector('.cost').textContent).toContain('30');
-    expect(r.root.querySelector('.reason').textContent).toBe(reasonText('needs_road'));
+    expect(r.root.querySelector('.reason').textContent).toBe(reasonText('occupied'));
     expect(r.root.querySelector('.reason').classList.contains('coral')).toBe(true);
     expect(r.root.querySelector('.ok').disabled).toBe(true);
+    expect([...r.root.querySelectorAll('.conds .cond')].map((c) => `${c.className}|${c.textContent}`)).toEqual(['cond cant|✕ Ground taken', 'cond met|✓ Road beside it']);
+    r.placement.moveGhost(5, 20);                                  // off the road: it can be placed, in amber, and waits for one (P10)
+    r.bar.render();
+    expect(r.root.querySelector('.reason').textContent).toBe(CONDITION_TEXT.roadHint);
+    expect(r.root.querySelector('.reason').classList.contains('amber')).toBe(true);
+    expect(r.root.querySelector('.ok').disabled).toBe(false);
+    expect([...r.root.querySelectorAll('.conds .cond')].map((c) => `${c.className}|${c.textContent}|${c.getAttribute('aria-label')}`)).toEqual([
+      'cond met|✓ Free ground|Met: Free ground', 'cond later|! No road yet|Not yet: No road yet']);
     r.placement.moveGhost(5, 9);
     r.bar.render();
     expect(r.root.querySelector('.ok').disabled).toBe(false);

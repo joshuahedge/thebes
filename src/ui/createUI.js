@@ -57,7 +57,7 @@ import { createScoreUi } from './scoreUi.js';
 import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires } from '../render/fire.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
-import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, T } from './text.js';
 
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
@@ -252,6 +252,8 @@ export function createUI({
     const parts = [buildingName(b.type)];
     if (def.workers) parts.push(`${T.workers.toLowerCase()} ${b.staff} of ${def.workers}`);
     if (reachOf(def)) parts.push(`${T.reach.toLowerCase()} ${reachOf(def)}`);
+    const land = CONDITION_TEXT.terrainLine(b.type);   // a farm or a mine says what ground it stands on (placement review P15)
+    if (land) parts.push(land.toLowerCase());
     return parts.join(', ');
   }
 

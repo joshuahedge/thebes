@@ -95,7 +95,7 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 #dock .cat { display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; min-width: var(--tap); padding: 2px 4px; font-size: calc(12px * var(--ui-scale)); border-radius: 8px; box-shadow: none; }
 #dock .cat[aria-pressed="true"] { color: var(--teal); font-weight: 600; box-shadow: none; }
 #dock .cat .icon { font-size: calc(20px * var(--ui-scale)); }
-#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 4px 12px 10px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; }
+#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 2px 12px 6px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; }
 #dock .pill { align-self: center; margin: 6px 0 8px; }
 #dock[data-height="slim"] .tray, #dock[data-height="slim"] .pill { display: none; }
 #dock[data-height="tray"] .pill { display: none; }
@@ -259,6 +259,21 @@ body[data-layout="compact"] .confirm .info { flex: 1 0 100%; }
 body[data-layout="portrait"] .confirm .info { min-height: 3.5em; }
 /* At 125% and 150% text the words column is only about 150px wide, so a reason or an effect wraps to two lines: keep both (4.55em). */
 body[data-layout="portrait"][data-text-size="125"] .confirm .info, body[data-layout="portrait"][data-text-size="150"] .confirm .info { min-height: 4.55em; }
+
+/* Conditions in the confirm bar (placement review P9): a row of chips under the words and the buttons, full width. Each chip has its
+   mark and its words (met teal, later amber, can't coral), 14 px at the body size and at least 24 px tall. The row is there for
+   every building tool, so the bar does not jump as the ghost moves; a terrain building's chips can run to a second row ("Fertile
+   land: 2 of 4 tiles"), so its row keeps room for two from the start (three on a bar 365 px wide or less at 150% text). */
+.confirm.has-conds { flex-wrap: wrap; row-gap: 6px; }
+.confirm .conds { --chip-h: max(24px, calc(14px * var(--ui-scale) * 1.2 + 4px)); flex: 1 0 100%; order: 9; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 4px 6px; min-height: var(--chip-h); }
+.confirm .conds.tall { min-height: calc(2 * var(--chip-h) + 4px); }
+body[data-text-size="150"] .confirm .conds.tall.narrow { min-height: calc(3 * var(--chip-h) + 8px); }   /* a 360 px phone at 150% text fits one chip a row at worst (confirmBar.js) */
+.cond { display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box; min-height: 24px; padding: 1px 8px; border: 1px solid transparent; border-radius: 12px; font-size: calc(14px * var(--ui-scale)); line-height: 1.2; }
+.cond .mark { font-weight: 700; }
+.cond.met { background: var(--teal-soft); color: var(--ink); border-color: var(--teal); }
+.cond.later { background: var(--amber-soft); color: var(--amber-text); border-color: var(--amber-text); }
+.cond.cant { background: var(--coral-soft); color: var(--coral-text); border-color: var(--coral-text); }
+.card .terrain { margin-top: -3px; font-size: calc(12px * var(--ui-scale)); line-height: 1.15; color: var(--ink-soft); }   /* it hugs the cost line, so a farm's card stays inside --dock-tray */
 
 /* Cards with pictures (early-game pass 2.5): the building's drawing over its name and cost; the coin is decoration. */
 /* The picture is drawn at its own size (THUMB_W x THUMB_H in src/ui/thumbs.js); where a scrollbar narrows a card it shrinks, never stretches. */

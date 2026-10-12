@@ -104,7 +104,7 @@ export function createRenderer({
     const range = visibleTileRange(cam, view, world.size);
     const toDevice = (ax, ay) => { const [sx, sy] = artToScreen(cam, view, ax, ay); return [sx * dpr, sy * dpr]; };
     const [ox, oy] = toDevice(0, 0);
-    const g = makeDraw(ctx, ART_SCALE * zoom * dpr);
+    const g = makeDraw(ctx, ART_SCALE * zoom * dpr, ART_SCALE * zoom);   // the CSS px an art px takes, for marks that keep their size on screen
 
     // 0. The map edge band, in art px with the art origin placed by the camera; the chunks cover its inner half.
     ctx.setTransform(1, 0, 0, 1, ox, oy);

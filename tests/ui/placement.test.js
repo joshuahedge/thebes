@@ -1,7 +1,7 @@
 import { describe, it, expect } from '../harness.js';
 import { createPlacement, snapGhost, toolPreview, ghostsFor } from '../../src/ui/placement.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
-import { reasonText, T } from '../../src/ui/text.js';
+import { reasonText, T, CONDITION_TEXT } from '../../src/ui/text.js';
 import { BUILDINGS } from '../../src/data/buildings.js';
 import { housesOf, allBuildings } from '../../src/sim/world.js';
 import { makeTestWorld, setRoad } from '../helpers/testWorld.js';
@@ -26,10 +26,54 @@ describe('ui placement', () => {
     pl.moveGhost(5, 9);
     expect(pl.preview().state).toBe('ok');
     pl.moveGhost(5, 20);
+    let p = pl.preview();
+    expect(p.state).toBe('warn');                                    // no road touches it: it can be placed, in amber, and waits for one (P10)
+    expect(p.warnings).toEqual(['needs_road']);
+    expect(p.text).toBe(CONDITION_TEXT.roadHint);
+    expect(ghostsFor(world, store.get())).toEqual([{ x: 5, y: 20, w: 1, d: 1, state: 'warn', badge: true, joins: [[5, 19], [5, 21], [4, 20], [6, 20]] }]);
+    pl.moveGhost(12, 10);                                            // on the road itself: the ground is taken, which no road will change
+    p = pl.preview();
+    expect(p.state).toBe('bad');
+    expect(p.text).toBe(reasonText('occupied'));
+    expect(ghostsFor(world, store.get())).toEqual([{ x: 12, y: 10, w: 1, d: 1, state: 'bad', badge: true }]);
+  });
+  it('judges each condition of a building on its own, and marks each footprint tile on its own', () => {
+    const { world, store, pl } = rig();
+    pl.start({ kind: 'building', type: 'farm_grain' }, { x: 2, y: 8 });
+    pl.moveGhost(7, 8);                                              // fertile land ends at x = 7: two tiles of four are sand
     const p = pl.preview();
     expect(p.state).toBe('bad');
-    expect(p.text).toBe(reasonText('needs_road'));
-    expect(ghostsFor(world, store.get())).toEqual([{ x: 5, y: 20, w: 1, d: 1, state: 'bad' }]);
+    expect(p.text).toBe(reasonText('needs_fertile'));
+    expect(p.conditions.map((c) => [c.key, c.state, c.text])).toEqual([
+      ['ground', 'cant', 'Fertile land: 2 of 4 tiles'], ['road', 'met', 'Road beside it'], ['works', 'later', 'No granary near'],
+    ]);
+    expect(p.conditions.map((c) => c.mark).join('')).toBe('✕✓!');
+    expect(p.conditions[0].label).toBe("Can't: Fertile land: 2 of 4 tiles");
+    expect(p.joins).toEqual([]);                                     // the road is already there, and the spot is not fit to build on
+    const [ghost] = ghostsFor(world, store.get());
+    expect(ghost.tiles.map((t) => `${t.x},${t.y}:${t.state}`).sort()).toEqual(['7,8:met', '7,9:met', '8,8:cant', '8,9:cant']);
+    pl.moveGhost(6, 8);                                              // all four tiles fertile: the whole ghost is one state again
+    expect(ghostsFor(world, store.get())[0].tiles).toBe(undefined);
+    expect(pl.preview().conditions.map((c) => [c.key, c.state, c.text])).toEqual([
+      ['ground', 'met', 'Fertile land'], ['road', 'met', 'Road beside it'], ['works', 'later', 'No granary near'],
+    ]);
+    pl.moveGhost(20, 2);                                             // all sand and no road: every tile is wrong, so the whole ghost is
+    expect(ghostsFor(world, store.get())[0].tiles).toBe(undefined);
+    expect(pl.preview().conditions.map((c) => [c.key, c.state])).toEqual([['ground', 'cant'], ['road', 'later'], ['works', 'later']]);
+  });
+  it('shows the gold chip only when the treasury is short, and the road chip with the tiles a road would join', () => {
+    const { world, pl } = rig();
+    pl.start({ kind: 'building', type: 'well' }, { x: 5, y: 9 });
+    expect(pl.preview().conditions.map((c) => c.key)).toEqual(['ground', 'road']);
+    world.gold = -495;                                               // paying would cross the debt floor
+    const p = pl.preview();
+    expect(p.state).toBe('bad');
+    expect(p.conditions.map((c) => [c.key, c.state])).toEqual([['ground', 'met'], ['road', 'met'], ['gold', 'cant']]);
+    expect(p.conditions[2].text).toBe(CONDITION_TEXT.goldShort(30, -495));
+    world.gold = 1000;
+    pl.moveGhost(5, 20);
+    expect(pl.preview().conditions.map((c) => [c.key, c.state, c.text])).toEqual([['ground', 'met', 'Free ground'], ['road', 'later', 'No road yet']]);
+    expect(pl.preview().joins.length).toBe(4);
   });
   it('warns when a farm has no granary in reach, and places it on confirm', () => {
     const { world, store, pl, log } = rig();
@@ -38,7 +82,7 @@ describe('ui placement', () => {
     expect(p.state).toBe('warn');
     expect(p.warnings).toEqual(['no_storage']);
     expect(p.cost).toBe(BUILDINGS.farm_grain.cost);
-    expect(ghostsFor(world, store.get())[0]).toEqual({ x: 2, y: 8, w: 2, d: 2, state: 'warn' });
+    expect(ghostsFor(world, store.get())[0]).toEqual({ x: 2, y: 8, w: 2, d: 2, state: 'warn', badge: true });
     const gold = world.gold;
     expect(pl.confirm().ok).toBe(true);
     expect(allBuildings(world).some((b) => b.type === 'farm_grain' && b.x === 2 && b.y === 8)).toBe(true);

@@ -2,7 +2,7 @@
 // by assignLabour so derived state is fresh while paused (1a follow-up).
 import { BUILDINGS } from '../data/buildings.js';
 import {
-  canPlace, place, previewRoad, drawRoad, roadPath, previewHouses, paintHouses, previewDemolishArea, demolishArea, demolishAt, rectTiles,
+  canPlace, conditionsFor, place, previewRoad, drawRoad, roadPath, previewHouses, paintHouses, previewDemolishArea, demolishArea, demolishAt, rectTiles,
 } from '../sim/commands.js';
 import { undo as undoCommand } from '../sim/undo.js';
 import { assignLabour } from '../sim/labour.js';
@@ -18,7 +18,7 @@ import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
-import { buildingName, reasonText, warningText, effectText, plural, nicerText, T, DANGER_UI_TEXT } from './text.js';
+import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, T, DANGER_UI_TEXT } from './text.js';
 
 const footprintOf = (tool) => (tool.kind === 'building' ? { w: BUILDINGS[tool.type].w, d: BUILDINGS[tool.type].d } : { w: 1, d: 1 });
 
@@ -42,26 +42,40 @@ function ringTiles(cx, cy, r) {
   return out.map(([dx, dy]) => [cx + dx, cy + dy]);
 }
 
-// Where a picked building's ghost lands (early-game pass 2.6): the nearest origin, in rings out to maxR
-// tiles around the snapped point, where it can be placed. A clean fit anywhere in reach beats a fit with a
-// warning; with no fit at all the snapped point stays, so the bar can say why. Line and area tools only snap.
+// Where a picked building's ghost lands (early-game pass 2.6, placement review P10 and P15): the nearest origin, in rings out to
+// maxR tiles around the snapped point, where it can be placed. A building that only lacks a road counts as a fit with a
+// warning (the player's placing passes roadLater, as the preview does), so a farm picked in a new city lands on fertile
+// land beside the town instead of where nothing fits. A clean fit anywhere in reach beats a fit with a warning, and among
+// fits with warnings the one with the fewest wins, the nearest of those (a farm beside a road with no granary yet beats a
+// nearer one with no road either); a building
+// that needs fertile or rocky ground, with no fit at all within reach, looks on out to three times as far, since the
+// ground it needs can lie beyond the town; with none, the snapped point stays, so the bar can say why. Line and area
+// tools only snap.
 export function nearestFit(world, tool, x, y, maxR = NEAREST_FIT_RADIUS) {
   const start = snapGhost(world, tool, x, y);
   if (!tool || tool.kind !== 'building') return start;
   let warned = null;
-  for (let r = 0; r <= maxR; r++) {
-    for (const [tx, ty] of ringTiles(start.x, start.y, r)) {
-      const c = canPlace(world, tool.type, tx, ty);           // off-map origins fail here as out_of_bounds
-      if (!c.ok) continue;
-      if (!c.warnings.length) return { x: tx, y: ty };
-      if (!warned) warned = { x: tx, y: ty };
+  const scan = (from, to) => {
+    for (let r = from; r <= to; r++) {
+      for (const [tx, ty] of ringTiles(start.x, start.y, r)) {
+        const c = canPlace(world, tool.type, tx, ty, { roadLater: true });   // off-map origins fail here as out_of_bounds
+        if (!c.ok) continue;
+        if (!c.warnings.length) return { x: tx, y: ty };
+        if (!warned || c.warnings.length < warned.n) warned = { x: tx, y: ty, n: c.warnings.length };
+      }
     }
-  }
-  return warned || start;
+    return null;
+  };
+  const clean = scan(0, maxR);
+  if (clean) return clean;
+  if (!warned && BUILDINGS[tool.type].terrain) { const far = scan(maxR + 1, maxR * 3); if (far) return far; }
+  return warned ? { x: warned.x, y: warned.y } : start;
 }
 
-const idle = (text, tiles = []) => ({ state: 'idle', reason: null, warnings: [], text, effect: '', cost: 0, count: 0, tiles, refund: 0 });
-const bad = (reason, cost, count, tiles = [], text = reasonText(reason)) => ({ state: 'bad', reason, warnings: [], text, effect: '', cost, count, tiles, refund: 0 });
+// conditions: a building's chips for the confirm bar ([] for lines and areas); footprint: each of its tiles' own state; joins: the
+// free tiles where a road would touch it (placement review P9, P10).
+const idle = (text, tiles = []) => ({ state: 'idle', reason: null, warnings: [], text, effect: '', cost: 0, count: 0, tiles, refund: 0, conditions: [], footprint: [], joins: [] });
+const bad = (reason, cost, count, tiles = [], text = reasonText(reason)) => ({ state: 'bad', reason, warnings: [], text, effect: '', cost, count, tiles, refund: 0, conditions: [], footprint: [], joins: [] });
 
 // Stage 3 (Track D, spec 4.12): the buildings that can burn a firehouse at (x, y) would reach: fireCoverage's own test
 // (src/sim/fire.js: a road tile next to the building within FIRE.reach road tiles of the firehouse), counted as if it
@@ -104,14 +118,26 @@ function basePreview(world, state) {
     if (!state.ghost) return idle('');
     const { x, y } = state.ghost;
     const cost = costOf(world, tool.type);
-    const r = canPlace(world, tool.type, x, y);
-    if (!r.ok) return bad(r.reason, cost, 1);
-    const warn = r.warnings.length > 0;
+    // Every condition on its own (P9); a building that lacks only a road can still be placed, in amber (P10).
+    const c = conditionsFor(world, tool.type, x, y, { roadLater: true });
+    const refused = c.warnings.includes('no_storage') && refusingStores(world, { id: -1, x, y, w: def.w, d: def.d }, def.produces.good, def.producerReach).length > 0;
+    const chips = c.conditions.filter((k) => k.key !== 'gold' || k.state !== 'met').map((k) => {
+      const text = conditionText(k, tool.type, { refused: refused && k.reason === 'no_storage' });
+      return { key: k.key, state: k.state, mark: CONDITION_MARKS[k.state], text, label: `${CONDITION_STATE_WORDS[k.state]}: ${text}` };
+    });
+    const road = c.conditions.find((k) => k.key === 'road');
+    const ground = c.conditions.find((k) => k.key === 'ground');
+    // The tiles where a road would join are shown only while the spot itself is fine: a footprint on water has no use for them.
+    const joins = road && road.state === 'later' && ground.state === 'met' ? road.joins : [];
+    const extra = { conditions: chips, footprint: c.tiles.map(({ x: tx, y: ty, state: st }) => ({ x: tx, y: ty, state: st })), joins };
+    if (!c.ok) return { ...bad(c.reason, cost, 1), ...extra };
+    const warn = c.warnings.length > 0;
     // A service says how many homes it would reach from here (early-game pass 2.6); a firehouse, how many buildings that
     // can burn (Stage 3); other buildings say nothing.
     const effect = tool.type === 'firehouse' ? DANGER_UI_TEXT.firehouseCovers(firehouseReachFrom(world, x, y))
       : def.reach ? effectText(tool.type, homesServedFrom(world, tool.type, x, y)) : '';
-    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningLine(world, tool.type, x, y, r.warnings[0]) : '', effect, cost, count: 1, tiles: [], refund: 0 };
+    const text = !warn ? '' : c.warnings[0] === 'needs_road' && joins.length ? CONDITION_TEXT.roadHint : warningLine(world, tool.type, x, y, c.warnings[0]);
+    return { state: warn ? 'warn' : 'ok', reason: null, warnings: c.warnings, text, effect, cost, count: 1, tiles: [], refund: 0, ...extra };
   }
   if (isLine(tool)) {
     const l = state.line;
@@ -179,7 +205,12 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
   if (tool.kind === 'building') {
     if (!state.ghost) return [];
     const { w, d } = footprintOf(tool);
-    return [{ x: state.ghost.x, y: state.ghost.y, w, d, state: visual }];
+    const shape = { x: state.ghost.x, y: state.ghost.y, w, d, state: visual, badge: true };   // a building's mark is a fixed-size badge (P13)
+    // Where the footprint is part right, part wrong (the loam's edge), each tile shows its own state (P9).
+    const foot = preview.footprint || [];
+    if (foot.some((t) => t.state === 'cant') && foot.some((t) => t.state === 'met')) shape.tiles = foot;
+    if (preview.joins && preview.joins.length) shape.joins = preview.joins;
+    return [shape];
   }
   if (tool.kind === 'demolish') {
     return preview.tiles
@@ -246,9 +277,10 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       let result, text, cx, cy;
       if (t.kind === 'building') {
         const def = BUILDINGS[t.type];
-        result = place(world, t.type, s.ghost.x, s.ghost.y);
+        result = place(world, t.type, s.ghost.x, s.ghost.y, { roadLater: true });   // only the player's placing waits for a road (P10)
         cx = s.ghost.x + def.w / 2; cy = s.ghost.y + def.d / 2;
         text = `${buildingName(t.type)} ${T.placed.toLowerCase()}`;
+        if (result.ok && t.type !== 'house' && result.warnings.includes('needs_road')) text += ` · ${CONDITION_TEXT.placedNoRoad}`;
       } else if (isLine(t)) {
         result = (t.kind === 'road' ? drawRoad : drawWall)(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip);
         cx = s.line.x1 + 0.5; cy = s.line.y1 + 0.5;

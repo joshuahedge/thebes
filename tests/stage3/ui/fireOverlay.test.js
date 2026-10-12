@@ -142,6 +142,7 @@ describe('s3 ui danger tools', () => {
     const ctx = c.getContext('2d');
     ctx.translate(40, 10);
     drawGhost(makeDraw(ctx, 1), { x: 0, y: 0, w: 1, d: 1, state: 'gate' });            // draws, with its arch mark
+    drawGhost(makeDraw(ctx, 1), { x: 0, y: 0, w: 1, d: 1, state: 'gate', badge: true });   // and the badge's arch, for a gate drawn as a building would be
   });
 
   it('says what clearing rubble costs in the demolish bar, and refuses it in the rule\'s words below the debt floor', () => {
