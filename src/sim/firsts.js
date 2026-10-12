@@ -4,7 +4,7 @@ import { FIRSTS, FIRST_REWARD } from '../data/firsts.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { TIERS } from '../data/housing.js';
 import { FOOD_GOODS } from '../data/goods.js';
-import { allBuildings, housesOf, population } from './world.js';
+import { allBuildings, housesOf, population, isFinished } from './world.js';
 import { lacksRoad } from './reach.js';
 
 const centre = (b) => (b ? { x: b.x + b.w / 2, y: b.y + b.d / 2 } : { x: null, y: null });
@@ -14,6 +14,8 @@ const holds = (good) => (b) => (BUILDINGS[b.type].stores || []).includes(good) &
 const makes = (good) => (b) => Boolean(BUILDINGS[b.type].produces && BUILDINGS[b.type].produces.good === good);
 // The building a tally's first shows on: the first granary holding food for a harvest, the trading post for a caravan.
 const TALLY_PLACE = { harvested: holdsFood, caravans: (b) => b.type === 'trading_post' };
+// Stage 4: the first course shows on the first site with a course laid, the first monument on the first finished one.
+Object.assign(TALLY_PLACE, { courses: (b) => Boolean(b.site) && b.site.course > 0, monumentsDone: isFinished });
 
 // null when the first has not happened; otherwise where it happened: the centre of the building that shows
 // it (the first lived-in home, the first full home, the first granary holding food, the first home at the
@@ -48,6 +50,8 @@ export function firstMet(world, def) {
     }
     case 'tallies':                                                      // Stage 3: tallies added together (blazes and fires put out)
       return c.keys.reduce((s, k) => s + (world.tally[k] || 0), 0) >= c.n ? centre(null) : null;
+    case 'unlocked':                                                     // Stage 4: a prestige unlock reached (nothing on the map shows it)
+      return Number.isInteger(world.prestigeUnlocks[c.type]) ? centre(null) : null;
     default:
       return null;
   }

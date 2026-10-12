@@ -115,7 +115,7 @@ describe('s3 score danger goals', () => {
 
 describe('s3 score danger rewards', () => {
   it('adds five firsts at 10 gold, each with words that follow the data', () => {
-    expect(FIRSTS.slice(15).map((f) => [f.id, f.check])).toEqual([
+    expect(FIRSTS.slice(15, 20).map((f) => [f.id, f.check])).toEqual([
       ['first_firehouse', { kind: 'building', type: 'firehouse' }],
       ['first_fire_out', { kind: 'tallies', keys: ['blazesOut', 'firesOut'], n: 1 }],
       ['first_wall', { kind: 'tally', key: 'wallTiles', n: 1 }],
@@ -125,11 +125,11 @@ describe('s3 score danger rewards', () => {
     expect(FIRST_TEXT.first_firehouse.why).toBe(`Staffed, it puts out blazes and slows fire risk up to ${FIRE.reach} road tiles away.`);
     expect(FIRST_TEXT.first_tower.why).toBe(`Staffed, it shoots raiders up to ${DEFENCE.towerRange} tiles away.`);
     const w = city();
-    expect(FIRSTS.slice(15).map((f) => firstMet(w, f))).toEqual([null, null, null, null, null]);
+    expect(FIRSTS.slice(15, 20).map((f) => firstMet(w, f))).toEqual([null, null, null, null, null]);
     addRaw(w, 'firehouse', 3, 11);
     w.tally.firesOut = 1; w.tally.wallTiles = 4; w.tally.raidsBeaten = 1;
     addRaw(w, 'tower', 6, 11);
-    expect(FIRSTS.slice(15).map((f) => firstMet(w, f))).toEqual([{ x: 3.5, y: 11.5 }, { x: null, y: null }, { x: null, y: null }, { x: 6.5, y: 11.5 }, { x: null, y: null }]);
+    expect(FIRSTS.slice(15, 20).map((f) => firstMet(w, f))).toEqual([{ x: 3.5, y: 11.5 }, { x: null, y: null }, { x: null, y: null }, { x: 6.5, y: 11.5 }, { x: null, y: null }]);
     w.firsts = FIRSTS.slice(0, 15).map((f) => f.id);
     const gold = w.gold, events = [];
     expect(checkFirsts(w, events)).toEqual(['first_firehouse', 'first_fire_out', 'first_wall', 'first_tower', 'first_raid_beaten']);
@@ -148,13 +148,13 @@ describe('s3 score danger rewards', () => {
     expect(firstMet(out, FIRSTS.find((f) => f.id === 'first_fire_out'))).toEqual({ x: null, y: null });   // a blaze counts as much as a fire
   });
   it('adds four achievements with exact words; the raid one is never earned or listed on Peaceful', () => {
-    expect(ACHIEVEMENTS.slice(32).map((a) => [a.id, a.measure])).toEqual([
+    expect(ACHIEVEMENTS.slice(32, 36).map((a) => [a.id, a.measure])).toEqual([
       ['fire_brigade', { kind: 'buildings', type: 'firehouse', n: 3 }],
       ['safe_streets', { kind: 'safeYear', people: 500, days: 360 }],
       ['wall_builder', { kind: 'tally', key: 'wallTiles', n: 50 }],
       ['raid_breaker', { kind: 'tally', key: 'raidsBeaten', n: 3 }],
     ]);
-    expect(ACHIEVEMENTS.slice(32).map((a) => [ACHIEVEMENT_NAMES[a.id], ACHIEVEMENT_TEXT[a.id]])).toEqual([
+    expect(ACHIEVEMENTS.slice(32, 36).map((a) => [ACHIEVEMENT_NAMES[a.id], ACHIEVEMENT_TEXT[a.id]])).toEqual([
       ['Fire brigade', 'Have 3 firehouses'], ['Safe streets', 'Reach 500 people with no building burned for a year'],
       ['Wall builder', 'Draw 50 wall tiles'], ['Raid breaker', 'Beat 3 raids'],
     ]);
@@ -187,7 +187,7 @@ describe('s3 score danger rewards', () => {
     expect(s(w)).toEqual({ n: 0, of: 1 });
   });
   it('adds three daily goals: a firehouse from Town, ten wall tiles and a tower from Market town, none of the defence ones on Peaceful', () => {
-    expect(DAILY_POOL.slice(15).map((d) => [d.id, d.measure, d.n, d.from, Boolean(d.raids)])).toEqual([
+    expect(DAILY_POOL.slice(15, 18).map((d) => [d.id, d.measure, d.n, d.from, Boolean(d.raids)])).toEqual([
       ['firehouse1', { kind: 'buildings', type: 'firehouse' }, 1, 'town', false],
       ['wall10', { kind: 'tally', key: 'wallTiles' }, 10, 'market_town', true],
       ['tower1', { kind: 'buildings', type: 'tower' }, 1, 'market_town', true],

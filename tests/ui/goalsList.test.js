@@ -2,7 +2,7 @@ import { describe, it, expect } from '../harness.js';
 import { nearestFit } from '../../src/ui/placement.js';
 import { createGoalsStrip, goalsSheet, showMeTarget } from '../../src/ui/goalsList.js';
 import { GOALS, GOAL_REWARD, EVENT_GOALS } from '../../src/data/goals.js';
-import { goalById, guideActive, nextItemFor } from '../../src/sim/goals.js';
+import { goalById, guideActive, nextItemFor, chainGoals } from '../../src/sim/goals.js';
 import { canPlace, setGuide } from '../../src/sim/commands.js';
 import { T as TERRAIN } from '../../src/sim/terrain.js';
 import { T, CHAPTER_NAMES, goalsProgressText, rewardText } from '../../src/ui/text.js';
@@ -94,6 +94,18 @@ describe('ui goals', () => {
     goalsSheet(world, { onShowMe: () => {} })(root, { close: () => {} });
     expect(root.textContent).toContain(T.goalsDone);
     cleanup();
+  });
+  it('says No goals open, not All goals done, when the only goal left is hidden until its prestige unlock', () => {
+    const { root, cleanup } = mount();
+    try {
+      const world = makeTestWorld();
+      world.milestone = 'capital';
+      const chain = chainGoals(world);
+      world.goals.completed = chain.filter((g) => g.id !== 'found_great_pyramid').map((g) => g.id);   // pyramid_great is not unlocked: its goal waits on `when`
+      goalsSheet(world, { onShowMe: () => {} })(root, { close: () => {} });
+      expect(root.textContent).toContain(goalsProgressText(chain.length, chain.length + 1));          // 57 of 58 style: one goal is not done
+      expect([root.textContent.includes(T.goalsNone), root.textContent.includes(T.goalsDone)]).toEqual([true, false]);
+    } finally { cleanup(); }
   });
   it('lists the last captions under Recent in the goals sheet, newest first, and offers Skip guide there on a phone', () => {
     const { root, cleanup } = mount();

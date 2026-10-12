@@ -154,7 +154,7 @@ describe('s4 ui the palace\'s sheet', () => {
       const shown = [];
       r.ui.celebrations.show = (item) => shown.push(item.text);
       r.ui.onEvents([{ type: 'palace_done', id, style: 1 }]);
-      expect(shown).toEqual(['The palace is now a columned hall']);
+      expect(shown.filter((t) => t === 'The palace is now a columned hall')).toEqual(['The palace is now a columned hall']);   // exactly one caption (Track D's)
     } finally { r.cleanup(); }
   });
 });
