@@ -1187,6 +1187,8 @@ export function score4StampLabel(e) {
   const names = [...counts].map(([k, n]) => (n === 1 ? `a ${score4Name(k)}` : `${n} ${score4Name(k)}s`));
   return `${TITLE_SCORE_TEXT.stampLabel(e)}${names.length ? `, with ${listText(names)}` : ''}`;
 }
+// The Monuments chapter of the goals (spec 4.19); its goals' words live in src/data/goals.js with every goal's.
+Object.assign(CHAPTER_NAMES, { monuments: 'Monuments' });
 // ── end s4 score ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

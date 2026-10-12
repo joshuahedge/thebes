@@ -3,3 +3,5 @@
 import './score/scoreV2.test.js';
 import './score/recordsV2.test.js';
 import './score/scoreV2Ui.test.js';
+import './score/goals.test.js';
+import './score/goalsUi.test.js';

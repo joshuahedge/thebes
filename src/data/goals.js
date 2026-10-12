@@ -8,15 +8,26 @@
 // the player sees ends before it, so nothing later shows ahead of it (openGoals in src/sim/goals.js). Stage 3: a goal
 // with `raids: true` is about raids, so a Peaceful city (no raids, spec 4.18) never lists it; an event goal's trigger
 // may be a list of alert codes, and dirText words it by the direction raiders come from (openGoals).
+// Stage 4 (Track D): the opening four say the road rule and the fertile-land rule, each with a one-sentence `why` (ruling
+// 265; shown when the goal is opened in place and in the Goals sheet), and the Monuments chapter. New need kinds: finished
+// { type, n } (monuments of the type finished, road or not), any { of } (one of the needs), unlocked { type } (a prestige
+// unlock reached: world.prestigeUnlocks) and crewNear {} (a monument on a road with a builders' guild in its crew reach).
+// A goal with `when` (a need) is left out of the list, without holding up the goals after it, until the need is met (the
+// brickworks waits for a mastaba, each pyramid for its prestige). showMe target 'site' aims at the newest monument site.
+// An event goal with `causeText` and `causeShowMe` is worded and aimed by its trouble's cause: the first stalled site's
+// reason ('{site}' is the site's name), else its own text and showMe.
+import { BUILDINGS } from './buildings.js';
+import { MONUMENTS } from './monuments.js';
+
 export const GOAL_REWARD = 25;
 export const EVENT_REWARD = 10;    // a first-time trouble put right
 export const GUIDE_REWARD = 50;    // paid once, when the guided start's goals are all done
 
 export const GOALS = [
-  { id: 'road', chapter: 'first_homes', text: 'Lay a road', reward: GOAL_REWARD, need: { kind: 'road' }, showMe: { category: 'roads', item: 'road', target: 'startRoad' } },
-  { id: 'plots', chapter: 'first_homes', text: 'Place 6 housing plots', reward: GOAL_REWARD, need: { kind: 'houses', n: 6 }, showMe: { category: 'homes', item: 'house', target: 'startRoad' } },
-  { id: 'well', chapter: 'first_homes', text: 'Build a well so huts become shacks', reward: GOAL_REWARD, need: { kind: 'building', type: 'well', n: 1 }, showMe: { category: 'services', item: 'well', target: 'houses' } },
-  { id: 'food', chapter: 'feed', text: 'Build a farm, a granary and a bazaar', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_grain', n: 1 }, { kind: 'building', type: 'granary', n: 1 }, { kind: 'building', type: 'bazaar', n: 1 }] }, showMe: { category: 'food', item: 'farm_grain', target: 'fertile' } },
+  { id: 'road', chapter: 'first_homes', text: 'Lay a road: buildings need one', why: 'Homes and workplaces work only when they touch a road.', reward: GOAL_REWARD, need: { kind: 'road' }, showMe: { category: 'roads', item: 'road', target: 'startRoad' } },
+  { id: 'plots', chapter: 'first_homes', text: 'Place 6 housing plots by the road', why: 'Plots off the road stay empty until a road reaches them.', reward: GOAL_REWARD, need: { kind: 'houses', n: 6 }, showMe: { category: 'homes', item: 'house', target: 'startRoad' } },
+  { id: 'well', chapter: 'first_homes', text: "Build a well by the homes' road", why: `A well gives water along the road for ${BUILDINGS.well.reach} tiles, so huts become shacks.`, reward: GOAL_REWARD, need: { kind: 'building', type: 'well', n: 1 }, showMe: { category: 'services', item: 'well', target: 'houses' } },
+  { id: 'food', chapter: 'feed', text: 'Farm on fertile land, granary, bazaar', why: 'Farms need the fertile land by the river: Layers → Ground shows it. Each needs a road.', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_grain', n: 1 }, { kind: 'building', type: 'granary', n: 1 }, { kind: 'building', type: 'bazaar', n: 1 }] }, showMe: { category: 'food', item: 'farm_grain', target: 'fertile' } },
   { id: 'temple', chapter: 'feed', text: 'Build a temple', reward: GOAL_REWARD, need: { kind: 'building', type: 'temple', n: 1 }, showMe: { category: 'services', item: 'temple', target: 'houses' } },
   { id: 'homes_cottage', chapter: 'grow', text: 'Grow 8 homes to Cottage or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 3, n: 8 }, showMe: { category: 'services', item: 'bazaar', target: 'houses' } },
   { id: 'people100', chapter: 'grow', text: 'Reach 100 people', reward: GOAL_REWARD, need: { kind: 'people', n: 100 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
@@ -38,12 +49,25 @@ export const GOALS = [
   { id: 'city', chapter: 'grand', text: 'Reach 400 people to become a City', reward: GOAL_REWARD, need: { kind: 'people', n: 400 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'beer', chapter: 'grand', from: 'city', text: 'Build a barley farm, brewery, orchard', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_barley', n: 1 }, { kind: 'building', type: 'brewery', n: 1 }, { kind: 'building', type: 'farm_fig', n: 1 }] }, showMe: { category: 'industry', item: 'farm_barley', target: 'fertile' } },
   { id: 'fine_manors', chapter: 'grand', from: 'city', text: 'Grow 2 homes to Fine manor or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 7, n: 2 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
+  // Stage 4 (spec 4.19): the Monuments chapter. From City the small obelisk and its supply; a "Found a" goal counts a
+  // site once a road touches it (ruling 226), as every "Build a" goal does.
+  { id: 'found_obelisk', chapter: 'monuments', from: 'city', text: 'Found a small obelisk', reward: GOAL_REWARD, need: { kind: 'building', type: 'obelisk_small', n: 1 }, showMe: { category: 'monuments', item: 'obelisk_small', target: 'focus' } },
+  { id: 'guild_near', chapter: 'monuments', from: 'city', text: "Build a builders' guild near it", reward: GOAL_REWARD, need: { kind: 'crewNear' }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },
+  { id: 'quarry', chapter: 'monuments', from: 'city', text: 'Build a quarry on rocky ground', reward: GOAL_REWARD, need: { kind: 'building', type: 'quarry', n: 1 }, showMe: { category: 'monuments', item: 'quarry', target: 'rocky' } },
+  { id: 'finish_obelisk', chapter: 'monuments', from: 'city', text: 'Finish the small obelisk', reward: GOAL_REWARD, need: { kind: 'finished', type: 'obelisk_small', n: 1 }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },
   { id: 'great_city', chapter: 'grand', text: 'Reach 650 people for a Great city', reward: GOAL_REWARD, need: { kind: 'people', n: 650 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'linen', chapter: 'grand', from: 'great_city', text: 'Build a flax farm and a weaver', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_flax', n: 1 }, { kind: 'building', type: 'weaver', n: 1 }] }, showMe: { category: 'industry', item: 'farm_flax', target: 'fertile' } },
   { id: 'villas', chapter: 'grand', from: 'great_city', text: 'Grow 2 homes to Villa or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 8, n: 2 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
+  // Stage 4: from Great city a colossus or a small mastaba, and the brickworks once a mastaba is founded.
+  { id: 'found_colossus', chapter: 'monuments', from: 'great_city', text: 'Found a colossus or a small mastaba', reward: GOAL_REWARD, need: { kind: 'any', of: [{ kind: 'building', type: 'colossus', n: 1 }, { kind: 'building', type: 'mastaba_small', n: 1 }] }, showMe: { category: 'monuments', item: 'colossus', target: 'focus' } },
+  { id: 'brickworks', chapter: 'monuments', from: 'great_city', when: { kind: 'any', of: [{ kind: 'building', type: 'mastaba_small', n: 1 }, { kind: 'building', type: 'mastaba_large', n: 1 }] }, text: 'Build a brickworks', reward: GOAL_REWARD, need: { kind: 'building', type: 'brickworks', n: 1 }, showMe: { category: 'monuments', item: 'brickworks', target: 'site' } },
   { id: 'capital', chapter: 'grand', text: 'Reach 1,000 people for the Capital', reward: GOAL_REWARD, need: { kind: 'people', n: 1000 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'jewellery', chapter: 'grand', from: 'capital', text: 'Build a gem mine and a jeweller', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'gem_mine', n: 1 }, { kind: 'building', type: 'jeweller', n: 1 }] }, showMe: { category: 'industry', item: 'gem_mine', target: 'rocky' } },
   { id: 'estate', chapter: 'grand', from: 'capital', text: 'Grow an Estate', reward: GOAL_REWARD, need: { kind: 'tier', tier: 9, n: 1 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
+  // Stage 4: at Capital the pyramids' prestige, then each pyramid once its prestige unlock is reached (ruling 243).
+  { id: 'prestige_pyramids', chapter: 'monuments', from: 'capital', text: `Reach ${MONUMENTS.pyramid_small.unlock.prestige} prestige to unlock the pyramids`, reward: GOAL_REWARD, need: { kind: 'unlocked', type: 'pyramid_small' }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },
+  { id: 'found_pyramid', chapter: 'monuments', from: 'capital', when: { kind: 'unlocked', type: 'pyramid_small' }, text: 'Found the small pyramid', reward: GOAL_REWARD, need: { kind: 'building', type: 'pyramid_small', n: 1 }, showMe: { category: 'monuments', item: 'pyramid_small', target: 'focus' } },
+  { id: 'found_great_pyramid', chapter: 'monuments', from: 'capital', when: { kind: 'unlocked', type: 'pyramid_great' }, text: 'Found the great pyramid', reward: GOAL_REWARD, need: { kind: 'building', type: 'pyramid_great', n: 1 }, showMe: { category: 'monuments', item: 'pyramid_great', target: 'focus' } },
 ];
 
 // The guided start (early-game pass 3.2) runs while any of these is open.
@@ -63,6 +87,25 @@ export const EVENT_GOALS = [
   {
     id: 'raid_tower', trigger: 'raid_warning', chapter: 'event', raids: true, text: 'Build a tower facing the raiders', reward: EVENT_REWARD, need: { kind: 'building', type: 'tower', n: 1 }, showMe: { category: 'defence', item: 'tower', target: 'raid' },
     dirText: { east: 'Build a tower facing the east', west: 'Build a tower facing the west', north: 'Build a tower facing the north', south: 'Build a tower facing the south' },
+  },
+  // Stage 4 (spec 4.19): the first stalled monument site, worded and aimed by its cause (ruling 245's reason codes); it is
+  // done once no site is stalled. A cause with no build card to fix it (gold) opens the city summary.
+  {
+    id: 'fix_site', trigger: 'site_stalled', chapter: 'event', text: 'Get the monument site working again', reward: EVENT_REWARD, need: { kind: 'noAlert', code: 'site_stalled' },
+    showMe: { category: 'monuments', item: 'quarry', target: 'alert', code: 'site_stalled' },
+    causeText: {
+      no_crew: 'Get a crew to the {site}', crew_short: "Find workers for the {site}'s guild", crew_burning: "Save the {site}'s guild from the fire",
+      no_gold: 'Find gold for the {site}', waiting_gilding: 'Find gold for the {site}', waiting_capstone: 'Find gold for the {site}',
+      no_stone: 'Get stone to the {site}', no_bricks: 'Get bricks to the {site}',
+    },
+    causeShowMe: {
+      no_crew: { category: 'monuments', item: 'builders_guild', target: 'alert', code: 'site_stalled' },
+      crew_short: { category: 'homes', item: 'house', target: 'houses' },
+      crew_burning: { category: 'services', item: 'firehouse', target: 'alert', code: 'site_stalled' },
+      no_gold: null, waiting_gilding: null, waiting_capstone: null,
+      no_stone: { category: 'monuments', item: 'quarry', target: 'alert', code: 'site_stalled' },
+      no_bricks: { category: 'monuments', item: 'brickworks', target: 'alert', code: 'site_stalled' },
+    },
   },
 ];
 

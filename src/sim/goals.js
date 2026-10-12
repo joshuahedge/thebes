@@ -10,6 +10,10 @@ import { idx } from './grid.js';
 import { atLeast, milestoneIndex } from './progression.js';
 import { openRoutes } from './trade.js';
 import { raidsOn } from './costs.js';
+import { MONUMENTS } from '../data/monuments.js';
+import { isMonument, isFinished } from './world.js';
+import { touchesRoad } from './reach.js';
+import { prestigeOf, guildsNear, monumentAlerts } from './monuments.js';
 
 const SETTLE_MAX = 20;   // settleGoals stops after this many completions in one go
 
@@ -19,6 +23,10 @@ export const goalById = (id) => GOALS.find((g) => g.id === id) || EVENT_GOALS.fi
 const countOf = (world, type) => allBuildings(world).filter((b) => b.type === type && !lacksRoad(world, b)).length;
 const homesAtTier = (world, tier) => housesOf(world).filter((h) => h.tier >= tier).length;
 const hasAlert = (world, code) => alertsFor(world).some((a) => a.code === code);
+// Stage 4: monuments of a type finished (a finished monument needs no road, ruling 228), and whether a monument on a road
+// has a builders' guild within its crew reach (guildsNear: the guild yard's crew reach, src/sim/monuments.js).
+const finishedOf = (world, type) => allBuildings(world).filter((b) => b.type === type && isFinished(b)).length;
+const crewNear = (world) => allBuildings(world).some((b) => isMonument(b) && touchesRoad(world, b) && guildsNear(world, b).length > 0);
 
 // Road the player laid: road tiles that are not part of the generator's start road (an exact set
 // difference, so taking up a start-road tile and laying one elsewhere still counts the new tile).
@@ -40,6 +48,10 @@ export function goalMet(world, need) {
     case 'noAlert': return !hasAlert(world, need.code);
     case 'gold': return world.gold >= need.n;
     case 'all': return need.of.every((x) => goalMet(world, x));
+    case 'any': return need.of.some((x) => goalMet(world, x));                         // Stage 4
+    case 'finished': return finishedOf(world, need.type) >= (need.n || 1);
+    case 'unlocked': return Number.isInteger(world.prestigeUnlocks[need.type]);
+    case 'crewNear': return crewNear(world);
     default: return false;
   }
 }
@@ -54,12 +66,19 @@ export function goalProgress(world, goal) {
     case 'tier': return { n: Math.min(homesAtTier(world, need.tier), need.n), of: need.n };
     case 'routes': return { n: Math.min(openRoutes(world), need.n), of: need.n };
     case 'all': return { n: need.of.filter((x) => goalMet(world, x)).length, of: need.of.length };
+    case 'finished': { const of = need.n || 1; return { n: Math.min(finishedOf(world, need.type), of), of }; }   // Stage 4
+    case 'unlocked': {                                                                  // the prestige its unlock needs
+      const of = MONUMENTS[need.type].unlock.prestige;
+      return { n: goalMet(world, need) ? of : Math.min(prestigeOf(world), of), of };
+    }
     default: return null;
   }
 }
 
 // Stage 3: a goal about raids (raids: true) is not for a Peaceful city (spec 4.18).
 const forCity = (world, g) => !g.raids || raidsOn(world);
+// Stage 4: a goal with `when` stays out of the list until that need is met, without holding up the goals after it.
+const ready = (world, g) => !g.when || goalMet(world, g.when);
 
 // The chain this city plays: every goal but the raid goals on Peaceful.
 export const chainGoals = (world) => GOALS.filter((g) => forCity(world, g));
@@ -91,7 +110,7 @@ function unfinished(world) {
   const triggered = new Set(world.goals.triggered);
   return {
     events: EVENT_GOALS.filter((g) => triggered.has(g.id) && !done.has(g.id) && forCity(world, g)),
-    chain: chainGoals(world).filter((g) => !done.has(g.id)),
+    chain: chainGoals(world).filter((g) => !done.has(g.id) && ready(world, g)),
   };
 }
 
@@ -101,8 +120,20 @@ function raidDir(world) {
   const x = r.warning || r.active || r.last;
   return x ? x.dir : null;
 }
-// A goal worded for this city: one with dirText names the raiders' direction ("Build a tower facing the east").
-const worded = (world, g) => (g.dirText && g.dirText[raidDir(world)] ? { ...g, text: g.dirText[raidDir(world)] } : g);
+// Stage 4: the first stalled site's alert ({ code, id, reason }), or null.
+const firstStall = (world) => monumentAlerts(world)[0] || null;
+// A goal worded for this city: one with dirText names the raiders' direction ("Build a tower facing the east"); one with
+// causeText (Stage 4) names the first stalled site and its cause ("Get stone to the small obelisk"), and aims Show me by it.
+function worded(world, g) {
+  if (g.dirText && g.dirText[raidDir(world)]) return { ...g, text: g.dirText[raidDir(world)] };
+  if (g.causeText) {
+    const a = firstStall(world);
+    if (a && a.reason in g.causeText) {
+      return { ...g, text: g.causeText[a.reason].replace('{site}', MONUMENTS[world.buildings[a.id].type].name.toLowerCase()), showMe: g.causeShowMe[a.reason] };
+    }
+  }
+  return g;
+}
 
 // The goals the player sees: triggered event goals first, then the chain, both without the completed ones. The
 // chain stops before its first goal that waits for a milestone, so no later goal shows ahead of it.

@@ -804,6 +804,8 @@ body[data-layout="portrait"] #legend .fire-keys .never-burn { position: absolute
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
 
 /* ── s4 score (Track D) ── Track D's styles: score v2's fifth bar, the splits, stamps' glyphs, captions. */
+/* The opening goals' why (ruling 265): its own line under the goal's words, in the open goal and in the Goals sheet. */
+.goal-strip .words .why:not([hidden]), #sheet .goals .goal .why { display: block; margin-top: 2px; }
 /* ── end s4 score ── */
 
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
