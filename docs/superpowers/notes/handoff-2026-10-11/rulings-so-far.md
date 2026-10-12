@@ -1,4 +1,4 @@
-# Rulings made on Josh's behalf, 11-12 Oct 2026 (parts 1-6)
+# Rulings made on Josh's behalf, 11-12 Oct 2026 (parts 1-7)
 
 Josh asked for no questions; every call is listed here with what it costs if wrong. The final session report presents this list (plus any Stage 2 execution rulings added later).
 
@@ -221,3 +221,24 @@ The spec was revised in place (`specs/2026-10-09-thebes-design.md`) from the Sta
 160. Left open on purpose: with a raid warning up, the banner and goals strip end past the middle of the map at 375×667 at 150% text and at 844×390 at 125-150% (they already did before Stage 3's arrival line). The mobile UX pass you asked for takes this first, with the rest of the notification clutter. — Cost if wrong: until that pass, large-text phone players see the map's upper half covered during a raid warning.
 161. The title card hides This week's hint line on landscape phones so the card fits 844×390 without scrolling. — Cost if wrong: the seed number is not shown there (the button still works).
 162. The worktrees `C:\dev\thebes-s3-{fire,raids,art,ui,score}` and their branches are left in place after the merge (deleting them is your call; they are fully merged). — Cost if wrong: about 5 folders of disk.
+
+
+## Part 7: the mobile UX pass (12 Oct 2026)
+
+From `notes/2026-10-12-mobile-ux-review.md` (notifications first, as you asked), accepted as proposed.
+
+163. On phones (portrait and compact) at most two rows sit under the top bar: one alert row and one guidance row. — Cost if wrong: a player sees the goal less often (a tip, caption or legend takes its place for a while).
+164. The guidance row shows one thing, in this order: the overlay legend, a tip, a caption, the goal; the threshold bar only in calm portrait play outside the guide. — Cost if wrong: the goal is out of sight while an overlay is on; the "Town: 83 of 150" reminder shows less.
+165. Captions last 4 s (goals, firsts, feats, remarks), 5 s (milestones), 6 s (info); at most two wait; every caption is copied to a Recent list of 10 in the Goals sheet; under a banner only info captions show. — Cost if wrong: some celebrations go straight to the list in a busy moment.
+166. The banner ranks active raid, uncovered fire, raid warning, debt, save failing. — Cost if wrong: during a fire the raid countdown is in the badge for a few seconds.
+167. On phones the banner is one line (icon, words, View); a raid warning shows as its countdown chip from the start, and its words open the raid sheet (the tribute sheet, with Pay tribute where offered); Shrink and "+N more" leave the phone banner, and the Map badge counts every alert the banner is not showing. Wide screens keep today's banner. — Cost if wrong: tribute is one tap deeper on a phone.
+168. While a sheet is open on a phone, the guidance row hides and the alert row stays one line; the camera frames a selected building, the ghost and Show me in the map left free below the measured rows (not 48 px). — Cost if wrong: the goal is out of sight while a sheet is open.
+169. On phones one toast shows at a time (the newest replaces the last) and it may use the screen's width up to 420 px. — Cost if wrong: an older Undo toast goes early (Undo still works from the confirm bar and Ctrl+Z).
+170. The goals strip is one row on phones: count or label, words, progress, Show me; the words open the Goals sheet; Skip guide moves into the Goals sheet. — Cost if wrong: Skip guide is one tap deeper.
+171. Tips on phones close after 20 s of unpaused play (replacing the 15 s rule at 125%+), on Got it, on Esc, or when their condition clears. — Cost if wrong: a slow reader loses a tip mid-read; How to play still lists it.
+172. On a landscape phone at 125% or 150% text only one row sits under the top bar: the alert row when there is one, otherwise the guidance row. — Cost if wrong: in a raid the goal is out of sight on large-text landscape phones.
+173. The corner buttons hide while the portrait tray is open if they would sit above half the screen; the rail's ✕ and ✓ hide while the confirm bar shows. — Cost if wrong: pausing with a tall tray open needs the tray closed first.
+174. The speed chevron gets the word "Speed"; the countdown chip says "2 months" when the days are 0. — Cost if wrong: none.
+175. Spec 6.3 and 4.1 are updated to match 163-174 (the "Small phones" paragraph, the rank, the threshold bar), and the height budget in section 3 becomes a test at four sizes and three text sizes. — Cost if wrong: none.
+176. On phones, while the game is paused, an ordinary tip waits so a new player always sees the goal and Show me; the Play tip still shows; the guidance order of ruling 164 is unchanged. — Cost if wrong: tips arrive only once play starts.
+177. The Update ready toast is exempt from the one-toast rule on phones and keeps its Restart button until used or dismissed. — Cost if wrong: two toasts can briefly show together.

@@ -2,8 +2,8 @@ import { describe, it, expect } from '../harness.js';
 import { nearestFit } from '../../src/ui/placement.js';
 import { createGoalsStrip, goalsSheet, showMeTarget } from '../../src/ui/goalsList.js';
 import { GOALS, GOAL_REWARD } from '../../src/data/goals.js';
-import { goalById } from '../../src/sim/goals.js';
-import { canPlace } from '../../src/sim/commands.js';
+import { goalById, guideActive } from '../../src/sim/goals.js';
+import { canPlace, setGuide } from '../../src/sim/commands.js';
 import { T as TERRAIN } from '../../src/sim/terrain.js';
 import { T, CHAPTER_NAMES, goalsProgressText, rewardText } from '../../src/ui/text.js';
 import { openSheet } from '../../src/ui/modes.js';
@@ -50,6 +50,27 @@ describe('ui goals', () => {
     goalsSheet(world, { onShowMe: () => {} })(root, { close: () => {} });
     expect(root.textContent).toContain(T.goalsDone);
     cleanup();
+  });
+  it('lists the last captions under Recent in the goals sheet, newest first, and offers Skip guide there on a phone', () => {
+    const { root, cleanup } = mount();
+    try {
+      const world = makeTestWorld();
+      setGuide(world, true);
+      const skipped = [];
+      const recent = [{ tier: 'first', text: `${T.goalDone}: ${GOALS[0].text}`, why: '', reward: 25 }, { tier: 'info', text: 'The blaze at the potter is out.', why: '', reward: 0 }];
+      goalsSheet(world, { onShowMe: () => {}, recent: () => recent, skipHere: () => true, onSkipGuide: () => skipped.push(1) })(root, { close: () => {} });
+      const heads = [...root.querySelectorAll('h3')].map((h) => h.textContent);
+      expect(heads[heads.length - 1]).toBe(T.recent);
+      const rows = [...root.querySelectorAll('.recent li')];
+      expect(rows.map((li) => li.querySelector('.text').textContent)).toEqual(recent.map((c) => c.text));
+      expect([rows[0].querySelector('.reward').textContent, rows[1].querySelector('.reward')]).toEqual([rewardText(25), null]);
+      expect(guideActive(world)).toBe(true);
+      fire(root.querySelector('.skip-guide'), 'click');
+      expect(skipped).toEqual([1]);
+      root.innerHTML = '';
+      goalsSheet(world, { onShowMe: () => {}, recent: () => [], skipHere: () => false })(root, { close: () => {} });
+      expect([root.querySelector('.skip-guide'), root.querySelector('.recent'), [...root.querySelectorAll('h3')].some((h) => h.textContent === T.recent)]).toEqual([null, null, false]);   // a wide screen's strip keeps Skip guide; no Recent until a caption
+    } finally { cleanup(); }
   });
   it('finds the Show me target for each kind', () => {
     const world = makeTestWorld();

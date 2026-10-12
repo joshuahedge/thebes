@@ -125,6 +125,7 @@ import './ui/stage2Cards.test.js';
 import './ui/tradeSheet.test.js';
 import './sim/goodsMonth.test.js';
 import './ui/houseSheetEconomy.test.js';
+import './ui/mobileBudget.test.js';
 // Stage 3: one aggregator per track (tests/stage3/*.all.js); each track adds its files there, never here.
 import './stage3/contract.all.js';
 import './stage3/fire.all.js';

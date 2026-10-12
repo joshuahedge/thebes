@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { createCamera, tileToScreen } from '../../src/render/camera.js';
-import { createCameraControl } from '../../src/ui/cameraControl.js';
+import { createCameraControl, FRAME_MARGIN_PX } from '../../src/ui/cameraControl.js';
 
 const view = () => ({ width: 800, height: 600 });
 const close = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
@@ -58,6 +58,20 @@ describe('ui camera control', () => {
     expect(close(sx, 400, 0.01)).toBe(true);
     expect(close(sy, 252, 0.01)).toBe(true);
   });
+  it('keeps FRAME_MARGIN_PX inside the free map by default, the one margin the phone insets in createUI count on', () => {
+    expect(FRAME_MARGIN_PX).toBe(48);
+    const reduced = () => true;
+    const insets = { top: 0, right: 0, bottom: 300, left: 0 };
+    for (const move of ['keepVisible', 'panToKeeping', 'frameKeeping']) {
+      const cam = createCamera({ x: 32, y: 32, zoom: 1 });
+      const ctl = createCameraControl({ cam, view, reducedMotion: reduced, now: () => 0 });
+      if (move === 'keepVisible') ctl.keepVisible(32, 40, insets);
+      else ctl[move](32, 32, 32, 40, insets);
+      const [, sy] = tileToScreen(cam, view(), 32, 40);
+      expect([move, sy <= 600 - 300 - FRAME_MARGIN_PX + 0.01]).toEqual([move, true]);
+      expect([move, close(sy, 600 - 300 - FRAME_MARGIN_PX, 0.01)]).toEqual([move, true]);   // just inside: the default margin, no more
+    }
+  });
   it('panToKeeping centres a place and nudges the least to keep a second point in the free map, tween or jump', () => {
     const insets = { top: 0, right: 0, bottom: 200, left: 0 };            // free map: y from 48 to 352 with the margin, x from 48 to 752
     for (const reduced of [true, false]) {
@@ -74,6 +88,26 @@ describe('ui camera control', () => {
       expect(sx >= 48 && sx <= 752).toBe(true);
       const [tx, ty] = tileToScreen(cam, view(), 32, 32);                 // the place itself moved with it, by the same nudge
       expect(ty < 300 && ty >= 0 && close(tx - sx, 320, 0.01)).toBe(true);
+    }
+  });
+  // A phone frames a place in the middle of the map the rows above and the sheet or bar below leave free, not in the
+  // middle of the screen (ruling 168).
+  it('frameKeeping puts a place in the middle of the free map and nudges the least to keep a second point there, tween or jump', () => {
+    const insets = { top: 100, right: 0, bottom: 200, left: 0 };          // free map: y from 100 to 400 (middle 250), x from 0 to 800
+    for (const reduced of [true, false]) {
+      let t = 0;
+      const cam = createCamera({ x: 5, y: 5, zoom: 1 });
+      const ctl = createCameraControl({ cam, view, reducedMotion: () => reduced, now: () => t });
+      ctl.frameKeeping(32, 32, 32, 32, insets);
+      if (!reduced) { expect(ctl.animating).toBe(true); t = 1000; ctl.tick(t); }
+      let [tx, ty] = tileToScreen(cam, view(), 32, 32);
+      expect([close(tx, 400, 0.01), close(ty, 250, 0.01)]).toEqual([true, true]);
+      ctl.frameKeeping(32, 32, 32, 42, insets);                           // ten tiles down the y axis lands 160 px lower, past the margin
+      if (!reduced) { t = 2000; ctl.tick(t); }
+      const [sx, sy] = tileToScreen(cam, view(), 32, 42);
+      expect(close(sy, 600 - 200 - 48, 0.01)).toBe(true);                // brought just inside the free map
+      [tx, ty] = tileToScreen(cam, view(), 32, 32);
+      expect([close(tx - sx, 320, 0.01), close(ty, 250 - 58, 0.01)]).toEqual([true, true]);   // the place moved by the same nudge
     }
   });
 });

@@ -13,18 +13,15 @@ import { alertText, T } from '../../src/ui/text.js';
 import { BUILDINGS } from '../../src/data/buildings.js';
 
 describe('ui carry-overs', () => {
-  it('mirrors the confirm bar and the rail ticks for left-handed play', async () => {
+  it('mirrors the confirm bar for left-handed play', async () => {
     const r = await rigUI({ width: 844, height: 390 });                        // compact: the rail
     fire(r.root.querySelector('#rail .cat[data-category="services"]'), 'click');
     fire(r.root.querySelector('#rail .drawer .card'), 'click');
     expect(r.store.get().mode).toBe('placing');
-    const bottom = r.root.querySelector('#rail .bottom');
     const bar = r.root.querySelector('#confirm .confirm');
-    expect(getComputedStyle(bottom).flexDirection).toBe('column');
     expect(getComputedStyle(bar).flexDirection).toBe('row');
     r.ui.settings.set({ leftHanded: true });
     expect(document.body.dataset.hand).toBe('left');
-    expect(getComputedStyle(bottom).flexDirection).toBe('column-reverse');
     expect(getComputedStyle(bar).flexDirection).toBe('row-reverse');
     r.cleanup();
   });
@@ -62,14 +59,21 @@ describe('ui carry-overs', () => {
     r.cleanup();
   });
   it('keeps the legend words readable under a banner, and reads reduced motion live', async () => {
+    // A wide screen shrinks the legend to its dot and ring under a banner, the words kept for screen readers; a phone's
+    // legend has the guidance row to itself (spec 6.3, ruling 164), so there the words show in full.
+    for (const [w, h, sized] of [[1280, 800, true], [390, 844, false]]) {
+      const r = await rigUI({ width: w, height: h });
+      try {
+        r.store.set({ overlay: 'water' });
+        r.world.gold = -5;
+        r.ui.alerts.refresh();
+        expect(document.body.classList.contains('has-banner')).toBe(true);
+        const words = r.root.querySelectorAll('#legend .strip .text');
+        expect(words.length).toBeGreaterThan(0);
+        for (const word of words) { const cs = getComputedStyle(word); expect(cs.display === 'none').toBe(false); expect([w, cs.width === '1px']).toEqual([w, sized]); }
+      } finally { r.cleanup(); }
+    }
     const r = await rigUI();
-    r.store.set({ overlay: 'water' });
-    r.world.gold = -5;
-    r.ui.alerts.refresh();
-    expect(document.body.classList.contains('has-banner')).toBe(true);
-    const words = r.root.querySelectorAll('#legend .strip .text');
-    expect(words.length).toBeGreaterThan(0);
-    for (const w of words) { const cs = getComputedStyle(w); expect(cs.display === 'none').toBe(false); expect(cs.width).toBe('1px'); }
     r.ui.settings.set({ reducedMotion: 'off' });
     r.ui.effects.pulse(1, 1, 0);
     expect(r.ui.effects.count(0)).toBe(1);

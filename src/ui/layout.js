@@ -3,6 +3,8 @@
 // corner buttons' words beside the card drawer at larger text (css/ui.css).
 export const NARROW_PX = 700;
 
+export const TOPBAR_PX = 48;           // --topbar-h at 100% text size
+
 export function pickLayout(width, height) {
   if (height > width && width < 900) return 'portrait';
   if (width >= 900 && height >= 520) return 'wide';
@@ -38,4 +40,33 @@ export function watchLayout({ root, getSize = windowSize, subscribe = windowSubs
   check();
   const off = subscribe(check);
   return () => { off(); root.classList.remove('narrow'); };
+}
+
+// The top of the map the interface leaves free, in CSS px from the map's top (spec 6.3, ruling 168). A wide screen keeps
+// the top bar's fixed height. On a phone (portrait or compact) the rows under the top bar run across the map (the notice,
+// the banner, the legend, the goals strip, a tip, a caption: #under-bar's children), and their height follows their
+// words and the text size, so it is measured off the page: the lowest of the top bar and every row that shows, never
+// less than the fixed bar. root holds the shell (#topbar, #under-bar, #corners); map is the map's canvas.
+export function freeTop(root, map, layout) {
+  if (layout === 'wide' || !measurable(root, map)) return TOPBAR_PX;
+  const under = root.querySelector('#under-bar');
+  const shown = boxes([root.querySelector('#topbar'), ...(under ? under.children : [])]);
+  return Math.max(TOPBAR_PX, ...shown.map((r) => r.bottom - map.getBoundingClientRect().top));
+}
+
+// How far up from the bottom of a map `height` px tall the corner buttons reach, in CSS px (0 when none show): in
+// compact they sit on the map's bottom edge in every mode, left of the rail and any drawer or sheet.
+export function cornersHeight(root, map, height) {
+  if (!measurable(root, map)) return 0;
+  const shown = boxes([...root.querySelectorAll('#corners .group')]);
+  if (!shown.length) return 0;
+  return Math.max(0, height - (Math.min(...shown.map((r) => r.top)) - map.getBoundingClientRect().top));
+}
+
+const measurable = (root, map) => Boolean(root && map && typeof map.getBoundingClientRect === 'function');
+
+// The boxes of the nodes that show (an empty caption or tip row is a 1 px dot; hidden corners keep their box).
+function boxes(nodes) {
+  return nodes.filter((n) => n && getComputedStyle(n).visibility !== 'hidden')
+    .map((n) => n.getBoundingClientRect()).filter((r) => r.width > 2 && r.height > 2);
 }

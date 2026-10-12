@@ -10,7 +10,7 @@ import { startDaily } from '../sim/daily.js';
 import { setGuide } from '../sim/commands.js';
 import { checkFirsts } from '../sim/firsts.js';
 import { checkAchievements } from '../sim/achievements.js';
-import { population, housesOf, allBuildings } from '../sim/world.js';
+import { allBuildings } from '../sim/world.js';
 import { screenToTile, visibleTileRange } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint } from '../render/overlays.js';
@@ -18,11 +18,11 @@ import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
 import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode, pickCategory, enterScreenshot } from './modes.js';
-import { pickLayout, watchLayout } from './layout.js';
+import { pickLayout, watchLayout, freeTop, cornersHeight, TOPBAR_PX } from './layout.js';
 import { createBackStack } from './backstack.js';
 import { createSettings } from './settings.js';
 import { createSfx } from '../audio/sfx.js';
-import { createCameraControl } from './cameraControl.js';
+import { createCameraControl, FRAME_MARGIN_PX } from './cameraControl.js';
 import { createMapInput } from './input.js';
 import { createKeyboard } from './keyboard.js';
 import { pickBuilding } from './pick.js';
@@ -39,7 +39,7 @@ import { createSheets } from './sheets.js';
 import { createMinimap } from './minimap.js';
 import { createAlerts, mapSummaryText } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
-import { createToasts } from './toasts.js';
+import { createToasts, MAX_TOASTS, MAX_TOASTS_PHONE } from './toasts.js';
 import { createCelebrations } from './celebrate.js';
 import { createTips } from './tips.js';
 import { createNudge, nudgeLineText, NUDGE_MAX_STEP_MS } from './nudge.js';
@@ -57,7 +57,6 @@ import { drawFires } from '../render/fire.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
 import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, T } from './text.js';
 
-const TOPBAR_PX = 48;                 // --topbar-h at 100% text size
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
 
@@ -79,6 +78,10 @@ export function createUI({
   let danger = null, scoreUi = null;
   const seams = () => [danger, scoreUi].filter(Boolean);
   let saveFailed = false, destroyed = false;
+  // The guidance row's controller (syncGuidance, below) runs from the tips' and captions' callbacks, which may fire
+  // before it is wired up; until then it does nothing.
+  let guidanceWired = false;
+  const tipOnScreen = () => Boolean(tips.current()) && (!phone() || guidanceKind() === 'tip');
   // Daily goals (spec 3.7) come from the device's local date, read once when this game starts, so nothing expires
   // mid-session (a session that crosses midnight keeps its goals; the next start draws the new day).
   const sessionDate = dateKeyOf(clock());
@@ -93,31 +96,43 @@ export function createUI({
   if (world.achievements === null) checkAchievements(world);
   const sfx = givenSfx || createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
-  const toasts = createToasts({ container: $('toasts') });
+  const toasts = createToasts({ container: $('toasts'), max: () => (store.get().layout === 'wide' ? MAX_TOASTS : MAX_TOASTS_PHONE) });
   const effects = createEffects({ reducedMotion: settings.reducedMotion });
   // Tips and the idle nudge (early-game pass 3.4, 3.5): quiet, never over the map, both off under Help: Off. frameNow is
   // the latest frame's time, so the nudge counts only time the player actually watched. The tips' 3-minute gap and
-  // five-an-hour cap count play time (playMs), which runs only while the game does. A phone at 125% or 150% text has
-  // no room for a tip to stay (it would cover the middle of the map), so there it closes itself, timed on seenMs: the
-  // frames actually drawn (a stalled frame counts a second at most), so a hidden tab never closes an unread tip.
-  let frameNow = now(), lastFrameAt = null, playMs = 0, seenMs = 0;
-  const tipsTight = () => store.get().layout !== 'wide' && settings.get().textSize >= 125;
+  // five-an-hour cap count play time (playMs), which runs only while the game does. On a phone a tip closes itself after
+  // TIP_AUTO_CLOSE_MS of tipMs (ruling 171): unpaused play with the tip on screen, counted on the frames actually drawn
+  // (a stalled frame counts a second at most), so a paused game, a sheet over it or a hidden tab never closes it unread.
+  let frameNow = now(), lastFrameAt = null, playMs = 0, tipMs = 0;
+  const phone = () => store.get().layout !== 'wide';
+  // On a landscape phone at 125% or 150% text only one row sits under the top bar (ruling 172): while a banner is up the
+  // alert row has it, so the guidance row steps aside as it does for a sheet (tips and captions wait).
+  const alertHasRow = () => store.get().layout === 'compact' && settings.get().textSize >= 125 && root.classList.contains('has-banner');
   const tips = createTips({
-    container: $('tip'), settings, now, playNow: () => playMs, frameNow: () => seenMs, autoCloseMs: () => (tipsTight() ? TIP_AUTO_CLOSE_MS : 0),
-    restoreFocus: () => { const b = $('goals').querySelector('.show-me'); if (b && !$('goals').hidden) b.focus(); },
+    container: $('tip'), settings, now, playNow: () => playMs, frameNow: () => tipMs, autoCloseMs: () => (phone() ? TIP_AUTO_CLOSE_MS : 0),
+    restoreFocus: () => handGuidanceFocus(guidance === undefined ? null : guidance),   // Got it's button is gone: on to what has the row now
+    onChange: () => syncGuidance(),
   });
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
-  // (hoisted) forwards settle's events to onEvents, which shows them. On a phone at larger text, and on any phone held
-  // sideways (a screen 360-390 px tall), the goals strip, a tip and a caption together would reach the middle of the
-  // map, so there a caption waits while a tip shows; the frame loop resumes the queue once the tip has closed.
-  const holdCaptions = () => (tipsTight() || store.get().layout === 'compact') && Boolean(tips.current());
-  const celebrations = createCelebrations({ container: $('cheer'), hold: holdCaptions });
+  // (hoisted) forwards settle's events to onEvents, which shows them. On a phone they take the guidance row (spec 6.3,
+  // rulings 163-165): a caption waits while a sheet, the overlay legend or a tip has the row, or the alert row has a
+  // landscape phone's one row (behind a sheet or that alert row for 10 s at most, spec 6.3), and under a banner only info
+  // captions show (the rest are in the Goals sheet's Recent list).
+  const holdCaptions = () => { const s = store.get(); return phone() && Boolean(s.sheet || s.overlay || tips.current() || alertHasRow()); };
+  const skipCaption = (item) => phone() && item.tier !== 'info' && root.classList.contains('has-banner');
+  const celebrations = createCelebrations({ container: $('cheer'), hold: holdCaptions, skip: skipCaption, dropHeld: () => Boolean(store.get().sheet) || alertHasRow(), now, onChange: () => syncGuidance() });
   const nudge = createNudge({ now: () => frameNow });
   const nudgeLine = el('p', { class: 'nudge-line', hidden: true });
   const nudgeRegion = el('div', { class: 'nudge', role: 'status', 'aria-live': 'polite' }, [nudgeLine]);   // stays rendered, so the line is announced when it appears
   let nudgeState = 'none';
   const helpOn = () => settings.get().help !== 'off';
-  const fireTip = (key) => tips.trigger(key, { busy: isToolMode(store.get().mode) });
+  // A tip waits while a tool is active, and on a phone while a sheet, the overlay legend or (a landscape phone at large
+  // text) the alert row has the row; a tip whose words are about that sheet or overlay (waits: false in data/tips.js) is
+  // dropped unseen instead. On a phone a tip also waits while the game is paused (ruling 176), so a new player laying the
+  // first road keeps the goal and Show me in sight; the per-frame flush shows it once Play is pressed. The Play tip is
+  // the priority tip and never waits.
+  const tipsBusy = (s) => isToolMode(s.mode) || (phone() && Boolean(s.sheet || s.overlay || alertHasRow() || world.speed === 0));
+  const fireTip = (key) => tips.trigger(key, { busy: tipsBusy(store.get()) });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
   const placement = createPlacement({ world, store, afterCommand, effects, now });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
@@ -125,6 +140,7 @@ export function createUI({
     world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root,
     onAction: (a, kind) => { for (const s of seams()) s.onAlertAction(a, kind); },   // Stage 3: Pay tribute and the like
     getAlerts: () => (saveFailed ? [...alertsFor(world), { code: 'save_failed' }] : alertsFor(world)),
+    phone: () => store.get().layout !== 'wide',                                     // the one-line alert row (ruling 167)
   });
   // Web Audio needs a user gesture before it plays (spec 5.5). A touch pointerdown is not an activation event
   // (pointerup and keydown are), so all three listen; they go once the context is running. While sound is off,
@@ -152,11 +168,17 @@ export function createUI({
   const dock = createDock({ container: $('dock'), store, world, onPick: pick });
   const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: confirm, onUndo: undo });
   const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas });
-  const rail = createRail({ container: $('rail'), store, world, onPick: pick, onConfirm: confirm, onCancel: () => placement.cancel(), placement });
+  const rail = createRail({ container: $('rail'), store, world, onPick: pick });
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
   const legend = createOverlayLegend({ container: $('legend'), store });
-  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count() });
-  const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals'), onSkipGuide: skipGuide });
+  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count(), viewHeight: () => view().height });
+  // The next-threshold bar (spec 4.1): on a phone only in calm portrait play, outside the guide (a tip, a caption or a
+  // sheet already takes the whole guidance row; a banner or a tool keeps the bar away too).
+  const barAllowed = () => {
+    const s = store.get();
+    return s.layout === 'wide' || (s.layout === 'portrait' && !guideActive(world) && !isToolMode(s.mode) && !root.classList.contains('has-banner'));
+  };
+  const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals'), onSkipGuide: skipGuide, phone, barAllowed });
   $('goals').append(nudgeRegion);                      // the nudge's one line sits under the strip and hides with it (early-game pass 3.5)
   // Stage 3 seams (the Stage 3 plan's contract): the danger interface (Track D, ui/danger.js) and the score interface
   // (Track E, ui/scoreUi.js) plug in here, each as one object with its own sheets, sheet parts, event, refresh and
@@ -180,12 +202,13 @@ export function createUI({
   let lastHelp = settings.get().help;
   const stopSettingsWatch = settings.subscribe((v) => {
     sidePanel.render();
+    corners.render();                                    // a new text size moves the tray's top edge: the corners may need to step away from it (or back)
     if (v.help === lastHelp) return;
     lastHelp = v.help;
     if (v.help !== 'full' && world.guide.on) { setGuide(world, false); refresh(); }
   });
   const customSheets = {
-    ...menus, goals: goalsSheet(world, { onShowMe: showMe }),
+    ...menus, goals: goalsSheet(world, { onShowMe: showMe, recent: () => celebrations.recent(), skipHere: phone, onSkipGuide: skipGuide }),
     trade: tradeSheet({ world, afterCommand, onShowMe: showMeAt, toast: (text) => toasts.show(text) }),
     ...danger.sheets, ...scoreUi.sheets,
   };
@@ -219,11 +242,13 @@ export function createUI({
     return parts.join(', ');
   }
 
-  // A card was picked: the ghost starts a little above mid-screen and lands on the nearest tile where it fits
-  // (spec 6.5, early-game pass 2.6). That tile can be up to ten tiles away, so the view follows it off screen.
+  // A card was picked: the ghost starts a little above mid-screen (on a phone, in the middle of the map the rows above
+  // and the confirm bar below leave free, ruling 168) and lands on the nearest tile where it fits (spec 6.5, early-game
+  // pass 2.6). That tile can be up to ten tiles away, so the view follows it off screen.
   function pick(item) {
-    const v = view();
-    const c = screenToTile(cam, v, v.width / 2, v.height * 0.4);
+    const v = view(), s = store.get();
+    const at = s.layout === 'wide' ? { x: v.width / 2, y: v.height * 0.4 } : middleOf(placingInsets(s));
+    const c = screenToTile(cam, v, at.x, at.y);
     const tool = toolForItem(item);
     placement.start(tool, { x: c.x, y: c.y });
     const g = store.get().ghost;
@@ -236,7 +261,8 @@ export function createUI({
   // Show me (spec 4.1, early-game pass 2.6 and 2.10): close any sheet, open the right card, start its tool, pan to
   // the place and pulse it. A building's ghost lands on the nearest tile where it fits around the place, so it
   // never starts on top of a home, and the view keeps the ghost on screen even when that tile is several tiles
-  // off. The goals strip, the goals sheet and the house sheet all come through here.
+  // off. On a phone the place sits in the middle of the map left free below the rows (ruling 168). The goals strip, the
+  // goals sheet and the house sheet all come through here.
   function showMeAt({ category, item, x, y }) {
     closeAnySheet();
     store.set(pickCategory(store.get(), category || categoryOfItem(item)));
@@ -244,7 +270,9 @@ export function createUI({
     const def = tool.kind === 'building' ? BUILDINGS[tool.type] : null;
     placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : null);   // road, plot and demolish tools ignore the point
     const g = def ? store.get().ghost : null;
-    if (g) cameraControl.panToKeeping(x, y, g.x + def.w / 2, g.y + def.d / 2, placingInsets(store.get()));
+    const keep = g ? { x: g.x + def.w / 2, y: g.y + def.d / 2 } : { x, y };
+    if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, placingInsets(store.get()));
+    else if (g) cameraControl.panToKeeping(x, y, keep.x, keep.y, placingInsets(store.get()));
     else cameraControl.panTo(x, y);
     const at = now();
     for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(x, y, at + i * SHOW_ME_PULSE_MS);
@@ -288,14 +316,16 @@ export function createUI({
     if (!(alert.id && selectBuilding(alert.id))) store.set(openSheet(store.get(), 'summary'));
   }
   // Select a building: its sheet opens and the view centres on it, then moves the least that keeps it in the map
-  // the sheet leaves free (spec 6.3), so a tall portrait sheet never covers it. An alert's View and a house sheet's
-  // View share this.
+  // the sheet leaves free (spec 6.3), so a tall portrait sheet never covers it. On a phone it is framed in the middle
+  // of the map between the rows under the top bar and the sheet (ruling 168). An alert's View and a house sheet's View
+  // share this.
   function selectBuilding(id) {
     const b = world.buildings[id];
     if (!b) return false;
     store.set(select(store.get(), b.id));
-    const cx = b.x + b.w / 2, cy = b.y + b.d / 2;
-    cameraControl.panToKeeping(cx, cy, cx, cy, sheetInsets(store.get()));
+    const s = store.get(), cx = b.x + b.w / 2, cy = b.y + b.d / 2;
+    if (s.layout === 'wide') cameraControl.panToKeeping(cx, cy, cx, cy, sheetInsets(s));
+    else cameraControl.frameKeeping(cx, cy, cx, cy, sheetInsets(s));
     return true;
   }
   function afterCommand(e) {
@@ -361,6 +391,7 @@ export function createUI({
     saveFailed = flag;
     alerts.refresh();
     corners.render();
+    goalsStrip.render();                               // the threshold bar steps aside for the banner on a phone
   }
   async function autosave(reason) {
     if (destroyed || typeof hooks.save !== 'function') return;
@@ -393,9 +424,9 @@ export function createUI({
       const m = MILESTONES.find((x) => x.id === e.id);
       return { tier: 'milestone', text: milestoneText(m ? m.name : e.id), onShow: () => { sfx.play('milestone'); sfx.buzz(40); } };
     }
-    if (e.type === 'goal') {
+    if (e.type === 'goal') {                           // on a phone it reads as the strip itself changing: "✓ Lay a road +25 gold"
       const g = goalById(e.id);
-      return g ? { tier: 'first', text: `${T.goalDone}: ${g.text}`, reward: e.reward, onShow: cheerSound } : null;
+      return g ? { tier: 'first', lead: `${T.goalDone}: `, text: g.text, icon: phone() ? T.doneMark : null, reward: e.reward, onShow: cheerSound } : null;
     }
     if (e.type === 'first') {
       if (!FIRST_TEXT[e.id]) return null;
@@ -411,14 +442,17 @@ export function createUI({
     if (e.type === 'caravan') { const c = caravanText(e); return { tier: 'first', text: c.text, why: c.why, onShow: cheerSound }; }
     return null;
   }
-  // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js).
-  let pendingUpdate = null;
+  // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js). On a phone
+  // it is kept (ruling 177): outside the one-toast rule, with no timer, so the next Undo toast never takes its Restart
+  // away; it goes when Restart is used or its ✕ closes it (an update not taken is offered again the next time the game opens).
+  let pendingUpdate = null, updateToast = null;
   function showUpdateToast() {
     if (!pendingUpdate || isToolMode(store.get().mode)) return;
     const apply = pendingUpdate;
     pendingUpdate = null;
-    toasts.show(T.updateReady, {
-      action: T.restart, ms: UPDATE_TOAST_MS,
+    if (updateToast) toasts.hide(updateToast);         // an offer made again replaces the one still up
+    updateToast = toasts.show(T.updateReady, {
+      action: T.restart, ms: UPDATE_TOAST_MS, keep: phone(), close: T.close,
       onAction: async () => {
         let ok = true;
         try { ok = (await apply()) !== false; } catch (e) { ok = false; }
@@ -491,22 +525,40 @@ export function createUI({
       if (s.confirmDialog) return;                     // a dialog's Enter belongs to its focused button (keyboard.js); never place behind the modal
       if (isToolMode(s.mode)) confirm();
     },
-    back: goBack, undo, help: () => toggleSheet('help'),
+    // On a phone Esc closes a tip on screen first (spec 6.3, Small phones: Got it, Esc, its condition clearing or play
+    // time), then goes Back; never ahead of an open sheet (the tip is off the screen under one). A wide screen keeps Esc
+    // as Back (spec 6.8).
+    back: () => { const s = store.get(); if (phone() && tipOnScreen() && !s.sheet && !s.confirmDialog && !s.screenshot) tips.dismiss(); else goBack(); },
+    undo, help: () => toggleSheet('help'),
   };
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
   const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions, hidden: () => Boolean(store.get().screenshot) });
 
-  // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free.
+  // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free (in
+  // compact with the corner buttons along the map's bottom, measured).
   function sheetInsets(s) {
     const v = view();
-    if (s.layout === 'portrait') return { top: TOPBAR_PX, right: 0, bottom: v.height * 0.6, left: 0 };
-    if (s.layout === 'compact') return { top: TOPBAR_PX, right: RAIL_PX + DRAWER_PX, bottom: 0, left: 0 };
+    if (s.layout === 'portrait') return phoneInsets(s, { right: 0, bottom: v.height * 0.6, left: 0 });
+    if (s.layout === 'compact') return phoneInsets(s, { right: RAIL_PX + DRAWER_PX, bottom: cornersHeight(root, canvas, v.height), left: 0 });
     return { top: TOPBAR_PX, right: PANEL_PX, bottom: 0, left: 0 };
   }
-  // The map a tool leaves free: in portrait the confirm bar and the corner buttons on it cover the bottom.
+  // The map a tool leaves free: in portrait the confirm bar and the corner buttons on it cover the bottom (allowed for,
+  // not measured: a card is picked while the tray is open and the corners still ride above it).
   function placingInsets(s) {
     if (s.layout !== 'portrait') return sheetInsets(s);
-    return { top: TOPBAR_PX, right: 0, bottom: Math.min(view().height * 0.3, 240), left: 0 };
+    return phoneInsets(s, { right: 0, bottom: Math.min(view().height * 0.3, 240), left: 0 });
+  }
+  // A phone's free map starts below the rows under the top bar, measured (ruling 168). At large text they can reach far
+  // down; the top then stops twice the camera's margin above the sheet or bar, so what is framed stays clear of that
+  // panel even where the rows would cover it.
+  function phoneInsets(s, sides) {
+    const room = view().height - sides.bottom - 2 * FRAME_MARGIN_PX;
+    return { top: Math.max(TOPBAR_PX, Math.min(freeTop(root, canvas, s.layout), room)), ...sides };
+  }
+  // The middle of the map the insets leave free, in screen px.
+  function middleOf(i) {
+    const v = view();
+    return { x: i.left + (v.width - i.left - i.right) / 2, y: i.top + (v.height - i.top - i.bottom) / 2 };
   }
   function panelDetails() {
     const s = store.get();
@@ -516,9 +568,11 @@ export function createUI({
     else if (s.tool) { const c = cardInfo(world, activeItemOf(s.tool)); text = `${c.name}: ${c.costText}`; }
     setText(sidePanel.details, text);
   }
-  let lastSelected = null;
+  let lastSelected = null, lastLayout = store.get().layout, lastStripLayout = store.get().layout, lastStripMode = store.get().mode;
   store.subscribe((s) => {
     root.dataset.mode = s.mode;
+    if (s.layout !== lastLayout) { lastLayout = s.layout; alerts.refresh(); corners.render(); }   // the banner is one line on phones, full on wide screens
+    if (s.layout !== lastStripLayout || s.mode !== lastStripMode) { lastStripLayout = s.layout; lastStripMode = s.mode; goalsStrip.render(); }   // one row on phones; the threshold bar steps aside for a tool
     if (pendingUpdate && !isToolMode(s.mode)) showUpdateToast();
     root.classList.toggle('has-overlay', Boolean(s.overlay));
     root.classList.toggle('screenshot', Boolean(s.screenshot));
@@ -545,9 +599,72 @@ export function createUI({
       }
     }
     if (s.overlay && s.overlay !== seenOverlay && !isToolMode(s.mode)) fireTip('overlayOn');
-    if (!isToolMode(s.mode)) tips.flush({ busy: false });
+    tips.flush({ busy: tipsBusy(s) });
     seenMode = s.mode; seenSheet = s.sheet; seenOverlay = s.overlay;
+    syncGuidance();
   });
+  // The guidance row (spec 6.3, rulings 163, 164, 168 and 172): on a phone one thing shows under the alert row, in this
+  // order: the overlay legend, a tip, a caption, the goal; nothing while a sheet is open, or while a banner is up on a
+  // landscape phone at 125% text or more (its one row is the alert row). root's data-guidance names it and the
+  // stylesheet hides the rest; a tip that loses the row stays current, off the screen, and comes back when it has it again.
+  // A wide screen keeps every row (no data-guidance). It is worked out again whenever the store, a tip or a caption
+  // changes, and once a frame.
+  let guidance, guidanceSyncing = false;
+  // Keyboard focus and the guidance row (spec 6.8): the thing leaving the row is hidden (display: none) or rebuilt, which
+  // would drop focus to the page. Focus inside the row moves to what comes in: Got it for a tip, the legend's ✕, Show me for
+  // the goal; for a caption (no buttons) the banner's first button or the map, and for a sheet its first button. Focus put
+  // there (parked) goes back to the row once the goal, a tip or the legend has it again, unless the player moved it on.
+  // rowFocus is the row's element that last took focus, kept because a part rebuilt by its own store subscriber (the legend,
+  // a tip) is gone before syncGuidance runs.
+  let parkedFocus = null, rowFocus = null;
+  const onScreen = (n) => Boolean(n) && n.isConnected && n.getClientRects().length > 0;
+  const inGuidanceRow = (n) => Boolean(n) && ['goals', 'tip', 'cheer', 'legend'].some((id) => $(id).contains(n));
+  const onFocusIn = (e) => { rowFocus = inGuidanceRow(e.target) ? e.target : null; };
+  root.addEventListener('focusin', onFocusIn);
+  function guidanceFocusTarget(kind) {
+    const first = (scope, sel = 'button') => [...scope.querySelectorAll(sel)].find(onScreen) || null;
+    if (kind === 'tip') return first($('tip'), '.got-it');
+    if (kind === 'legend') return first($('legend'), '.close') || first($('legend'));
+    if (kind === 'goal' || kind === null) return first($('goals'), '.show-me') || first($('goals'));
+    if (kind === 'none' && store.get().sheet) { const b = first($('sheet')); if (b) return b; }
+    return first($('banner')) || canvas;
+  }
+  function handGuidanceFocus(kind) {
+    const target = guidanceFocusTarget(kind);
+    if (!target) return;
+    target.focus();
+    parkedFocus = kind === 'caption' || kind === 'none' ? target : null;
+  }
+  function guidanceKind() {
+    const s = store.get();
+    if (!phone()) return null;
+    if (s.sheet || alertHasRow()) return 'none';
+    if (s.overlay) return 'legend';
+    if (tips.current()) return 'tip';
+    if (celebrations.showing()) return 'caption';
+    return 'goal';
+  }
+  function syncGuidance() {
+    if (!guidanceWired || guidanceSyncing) return;
+    guidanceSyncing = true;
+    try {
+      celebrations.resume();                           // a caption that waited for the row goes up as soon as it has it
+      const kind = guidanceKind();
+      tips.setShown(kind === null || kind === 'tip');
+      if (kind === guidance) return;
+      guidance = kind;
+      if (kind) root.dataset.guidance = kind;
+      else delete root.dataset.guidance;
+      if (!kind) return;                               // a wide screen hides nothing
+      const current = document.activeElement, lost = current === document.body || current === null;
+      if (rowFocus && (current === rowFocus || lost) && !onScreen(rowFocus)) { rowFocus = null; handGuidanceFocus(kind); return; }
+      if (!parkedFocus) return;
+      if (current !== parkedFocus && !lost) parkedFocus = null;   // the player moved on
+      else if (kind === 'goal' || kind === 'tip' || kind === 'legend') handGuidanceFocus(kind);
+    } finally { guidanceSyncing = false; }
+  }
+  guidanceWired = true;
+  syncGuidance();
 
   // Ghosts are recomputed only when the UI state object changes or a command ran (previews call canPlace).
   function ghosts() {
@@ -563,8 +680,8 @@ export function createUI({
   function render({ timeDays, now: t }) {
     if (lastFrameAt !== null) {                         // a stalled frame (a hidden tab, a long hitch) counts a second at most
       const dt = Math.min(NUDGE_MAX_STEP_MS, Math.max(0, t - lastFrameAt));
-      seenMs += dt;
       if (world.speed > 0) playMs += dt;
+      if (world.speed > 0 && tipOnScreen()) tipMs += dt;
     }
     lastFrameAt = t;
     frameNow = t;
@@ -598,23 +715,20 @@ export function createUI({
     tickNudge(s);
   }
   // Once a frame (early-game pass 3.5): the nudge's glow on Show me, then its one line, then nothing more. The Play tip's
-  // pulse on the speed control lasts while that tip shows and the game is paused. Where the tip closed itself unread
-  // (a phone at larger text), the pulse stays on while the game is still paused with plots and no family yet, and
-  // goes for good once that is no longer so. Help: Off silences all of it.
-  let playRingHeld = false;
+  // pulse on the speed control lasts while that tip shows and the game is paused (a paused game never closes it by
+  // itself, ruling 171). Help: Off silences all of it.
   function tickNudge(s) {
     const on = helpOn();
     if (!on && tips.current()) tips.dismiss();
-    const showing = tips.current();
-    if (tips.tick() && showing === 'press_play') playRingHeld = true;
-    if (playRingHeld && !(on && world.speed === 0 && population(world) === 0 && housesOf(world).length > 0)) playRingHeld = false;
-    celebrations.resume();                             // a caption held while a tip showed goes up once the tip has closed
-    root.classList.toggle('nudge-play', world.speed === 0 && (tips.current() === 'press_play' || playRingHeld));
+    tips.tick();
+    tips.flush({ busy: tipsBusy(s) });                 // a tip held while a banner had a landscape phone's one row goes up once it clears
+    syncGuidance();                                    // and a caption held while the row was taken goes up once it is free
+    root.classList.toggle('nudge-play', world.speed === 0 && tips.current() === 'press_play');
     const state = on ? nudge.tick({ running: world.speed > 0, busy: isToolMode(s.mode) || Boolean(s.sheet) || Boolean(s.confirmDialog) }) : 'none';
+    const showMeButton = $('goals').querySelector('.show-me');
+    if (showMeButton) showMeButton.classList.toggle('glow', state === 'glow');   // every frame: the strip is built again when a phone turns
     if (state === nudgeState) return;
     nudgeState = state;
-    const showMeButton = $('goals').querySelector('.show-me');
-    if (showMeButton) showMeButton.classList.toggle('glow', state === 'glow');
     const text = state === 'line' ? nudgeLineText(world, alerts.list(), openGoals(world, 1)[0] || null) : '';
     setText(nudgeLine, text);
     nudgeLine.hidden = !text;
@@ -635,6 +749,7 @@ export function createUI({
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
       for (const t of INPUTS) root.removeEventListener(t, onInput);
+      root.removeEventListener('focusin', onFocusIn);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'tip', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
@@ -644,6 +759,7 @@ export function createUI({
       document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it, and the tabs' edge
       document.body.style.removeProperty('--panel-tabs-bottom');
       delete root.dataset.mode;
+      delete root.dataset.guidance;
       root.classList.remove('has-banner', 'has-overlay', 'nudge-play', 'screenshot');
       store.dispose();                                 // last: every component's subscription to this interface's store
     },

@@ -11,6 +11,8 @@ import { T, CITIZEN_REMARKS, goalsProgressText, thresholdMilestoneText, threshol
 import { makeTestWorld, addRaw } from '../../helpers/testWorld.js';
 import { mount } from '../../helpers/dom.js';
 import { rigUI } from '../../helpers/uiWorld.js';
+import { setGuide } from '../../../src/sim/commands.js';
+import { openSheet, closeSheet } from '../../../src/ui/modes.js';
 
 const opening = GOALS.slice(0, GOALS.findIndex((g) => g.id === OPENING_LAST) + 1).map((g) => g.id);
 
@@ -72,7 +74,7 @@ describe('s3 score next threshold', () => {
     expect(thresholdMedalText({ medal: 'gold', points: 1 })).toBe('Gold: 1 point to go');
   });
   it('shows a slim bar under the strip, with words and a meter that repeats them, and on its own at Capital', async () => {
-    const r = await rigUI();
+    const r = await rigUI({ width: 1280, height: 800 });
     try {
       const bar = r.root.querySelector('#goals .threshold');
       expect(bar.previousElementSibling.classList.contains('goal-strip')).toBe(true);
@@ -87,18 +89,42 @@ describe('s3 score next threshold', () => {
       expect([bar.hidden, r.root.querySelector('#goals').hidden, bar.textContent]).toEqual([false, false, thresholdFor(r.world).text]);
     } finally { r.cleanup(); }
   });
-  it('steps the bar aside on a phone while a banner, a tip or a caption is up, so the rows end above the middle', async () => {
+  it('shows the bar on a phone only in calm portrait play: not while the guide runs, nor with a banner, a tip, a caption, a sheet or a tool, nor held sideways', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       const bar = r.root.querySelector('#goals .threshold');
-      expect(getComputedStyle(bar).display).toBe('flex');                      // shown (a flex item of #goals)
+      const shows = () => bar.getBoundingClientRect().height > 2;
+      setGuide(r.world, true);
+      r.ui.refresh();
+      expect(['guide', shows()]).toEqual(['guide', false]);                    // spec 4.1: never while the guide runs
+      setGuide(r.world, false);
+      r.ui.refresh();
+      expect(['calm', shows()]).toEqual(['calm', true]);
       r.ui.celebrations.show({ tier: 'first', text: 'Something' });
-      expect(getComputedStyle(bar).display).toBe('none');
+      expect(['caption', shows()]).toEqual(['caption', false]);                // the caption has the guidance row
       r.ui.celebrations.clear();
-      document.body.classList.add('has-banner');
-      expect(getComputedStyle(bar).display).toBe('none');
-      document.body.classList.remove('has-banner');
-      expect(getComputedStyle(bar).display).toBe('flex');                      // shown (a flex item of #goals)
+      expect(['calm', shows()]).toEqual(['calm', true]);
+      r.world.gold = -5;                                                       // debt: the alert row
+      r.ui.refresh();
+      expect(['banner', shows()]).toEqual(['banner', false]);
+      r.world.gold = 500;
+      r.ui.refresh();
+      expect(['calm', shows()]).toEqual(['calm', true]);
+      r.ui.placement.start({ kind: 'road' });
+      expect(['tool', shows()]).toEqual(['tool', false]);
+      r.ui.placement.cancel();
+      expect(['calm', shows()]).toEqual(['calm', true]);
+      r.store.set(openSheet(r.store.get(), 'summary'));
+      expect(['sheet', shows()]).toEqual(['sheet', false]);
+      r.store.set(closeSheet(r.store.get()));
+      expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
+      expect(['tip', shows()]).toEqual(['tip', false]);
+      r.ui.tips.dismiss();
+      expect(['calm', shows()]).toEqual(['calm', true]);
+      r.resize(844, 390);
+      expect(['sideways', r.store.get().layout, shows()]).toEqual(['sideways', 'compact', false]);
+      r.resize(390, 844);
+      expect(['calm', shows()]).toEqual(['calm', true]);
     } finally { r.cleanup(); }
   });
 

@@ -311,6 +311,9 @@ export const progressLabel = (n, of) => `Progress ${progressText(n, of)}`;
 export const dailyDoneText = (n) => plural(n, 'daily goal done', 'daily goals done');
 export const swapLabel = (text) => `Swap: ${text}`;
 export const showMeLabel = (text) => `${T.showMe}: ${text}`;   // a goal's Show me names its goal, so several of them stay apart
+// The phone strip's words are one button that opens the Goals sheet (ruling 170): its name carries the whole goal, since
+// the words on screen may be cut at two lines. label is "Goal" or the opening chain's "2 of 10"; count the goal's own.
+export const goalsOpenLabel = (label, text, count) => `${label}: ${text}${count ? `, ${count}` : ''}. Open the goals list`;
 export const viewLabel = (what) => `${T.view}: ${what}`;         // a View names its alert or building, so several of them stay apart
 
 // Goal chapters for the goals sheet (early-game pass 3.3); triggered first-time events come first.
@@ -401,7 +404,7 @@ export const T = {
   gold: 'Gold', people: 'People', mood: 'Mood', date: 'Date', income: 'Income', jobless: 'Jobless', food: 'Food',
   summary: 'City summary', incomeVsSpending: 'Income against spending', taxes: 'Taxes', wages: 'Wages', upkeep: 'Upkeep', net: 'Net',
   foodInStore: 'Food in store', employment: 'Employment', moodBreakdown: 'Mood', goals: 'Goals', goal: 'Goal', showMe: 'Show me', goalsDone: 'All goals done', goalDone: 'Goal done', goalsNone: 'No goals open',
-  skipGuide: 'Skip guide', today: 'Today', swap: 'Swap', done: 'Done', doneMark: '✓',   // doneMark is decorative: its row says Done in words
+  skipGuide: 'Skip guide', recent: 'Recent', today: 'Today', swap: 'Swap', done: 'Done', doneMark: '✓',   // doneMark is decorative: its row says Done in words
   welcome: 'Welcome back', lastPlayed: 'Last played', justNow: 'just now', aWhileAgo: 'a while ago', upFrom: 'up from', downFrom: 'down from', steadyAt: 'steady at', carryOn: 'Carry on', stayPaused: 'Stay paused',
   goalsHelp: 'Goals show under the top bar. Show me opens the right card and points at the place.',
   grain: 'Grain', lasts: 'Lasts', working: 'Working', jobs: 'Jobs',
@@ -414,7 +417,7 @@ export const T = {
   sound: 'Sound', vibration: 'Vibration', textSize: 'Text size', leftHanded: 'Left-handed controls', keyboardShortcuts: 'Keyboard shortcuts', reducedMotion: 'Reduce motion', followSystem: 'Follow the system',
   helpLevel: 'Help', suggested: 'Suggested', resumeGuide: 'Resume guide',
   difficultyForNewCities: 'Difficulty for new cities', difficultyNote: 'A city keeps the level it started with. This one changes the next new city.',
-  guideHelp: 'While the guide runs, the card for the next step says Suggested and a ring marks the place. Skip guide in the goals strip turns it off.',
+  guideHelp: 'While the guide runs, the card for the next step says Suggested and a ring marks the place. Skip guide turns it off: in the goals strip, or on a phone in the goals list.',
   updateReady: 'Update ready', restart: 'Restart', updateSaveFailed: "Couldn't save, so the update will wait",
   playWithSound: 'Play with sound', playMuted: 'Play muted', install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',
   installMenu: 'Install on this device', bringCity: 'Bring a city from Safari', bringCityHelp: 'If you saved a city in Safari, open the menu there and choose Export city. Then import that file here.', installWhy: 'Installed on the home screen, the game works offline and keeps your city safe.', installIosSteps: ['Tap Share (the square with an arrow)', 'Scroll down and tap Add to Home Screen', 'Tap Add'], installExportFirst: 'Export your city first: the installed app keeps its own storage. Then import the file from the home-screen app.', installNow: 'Install now', installNotOffered: 'Your browser did not offer to install. Look for Install app or Add to Home screen in its menu.', openInSafari: 'Open in Safari to keep your city', openInChrome: 'Open in Chrome to keep your city', saveNewer: 'This city was saved by a newer version of the game', saveUnreadable: "This save can't be read",
@@ -434,7 +437,7 @@ export const T = {
   play: 'Play', mapButton: 'Map', layers: 'Layers',
   noHomesInReach: 'No homes in reach yet',
   achievement: 'Achievement', dailyDone: 'Daily goal done', guideDone: "You've got the basics",
-  tip: 'Tip', gotIt: 'Got it', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals. Help in Settings turns them off.', next: 'Next',
+  tip: 'Tip', gotIt: 'Got it', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals or, on a phone, in their place. Help in Settings turns them off.', next: 'Next',
   achievements: 'Achievements', achievementsLater: 'Achievements show here once the guide is done.', notYetMet: 'Not yet', closestAchievement: 'Closest achievement',
   newBadge: 'New', stored: 'Stored', accepted: 'Accepted', refused: 'Refused', notWorking: 'Not working',
   acceptHelp: 'Tap a good to accept or refuse it here. A refused good goes to other storage, or production stops.',
@@ -532,7 +535,7 @@ export const cheerReward = (n) => rewardText(n);
 // Tips (early-game pass 3.4): one line each, verb first, 20 words or fewer, keyed by the ids in src/data/tips.js. Each is short
 // enough for three lines on a 360 px phone at 150% text (a test measures it).
 export const TIP_TEXT = {
-  press_play: 'Press Play so people can move in. Plots stay empty while the game is paused.',
+  press_play: 'Press Play so people can move in: plots stay empty while paused.',
   arrivals: 'Place more plots: families arrive a few times a month while there is room.',
   house_needs: 'Read what this home needs to grow, then tap Show me for the fix.',
   service_reach: 'Look at the coloured tiles: they are the homes this reaches by road.',
@@ -540,7 +543,7 @@ export const TIP_TEXT = {
   month_summary: "Tap the numbers in the top bar to see this month's taxes, wages and food.",
   more_workers: 'Place more homes: buildings need workers, and homes provide them.',
   undo_demolish: 'Press Undo to bring back what you just removed, if you change your mind.',
-  goals_list: 'Open Goals to see what comes next, your progress and the gold each pays.',
+  goals_list: 'Tap the goal line (Goals on a wide screen) to see what comes next and the gold each pays.',
   overlay_keys: 'Read the overlay: a filled dot has it, a hollow ring lacks it. Tap ✕ to close.',
   nicer_streets: 'Place gardens and statues near homes: Manors and up need a pleasant street.',
   storehouse_choices: 'Tap a storehouse to refuse goods. If no store takes one, production stops.',
@@ -694,7 +697,7 @@ export const DANGER_UI_TEXT = {};
 // renamed with "as"; imports are hoisted, so they sit here in the section and the shared lines at the top stay as they are).
 import { DAYS_PER_MONTH as duiMonthDays } from '../sim/time.js';
 // Directions as raids name them (src/sim/raids.js entryDir), and a span of game days in words ("2 months 12 days") and
-// as the countdown chip writes it ("2 m 12 d"). A game month is DAYS_PER_MONTH days (src/sim/time.js).
+// as the countdown chip writes it ("2 m 12 d", and "2 months" when the days come out at 0, ruling 174). A game month is DAYS_PER_MONTH days (src/sim/time.js).
 const duiDirWords = { north: 'north', east: 'east', south: 'south', west: 'west' };
 const duiDir = (dir) => duiDirWords[dir] || dir;
 function duiDuration(days) {
@@ -704,7 +707,8 @@ function duiDuration(days) {
 }
 const duiCountdown = (days) => {
   const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
-  return m ? `${m} m ${d} d` : `${d} d`;
+  if (!m) return `${d} d`;
+  return d ? `${m} m ${d} d` : plural(m, 'month', 'months');
 };
 // D1: the one banner (spec 6.3). The defence line follows tributeQuote (src/sim/raids.js): buildN is the towers needed
 // for the warned raid less the working towers, buildCost their price in this city; at 0 the towers can beat it (ruling 108).
@@ -717,6 +721,8 @@ Object.assign(DANGER_UI_TEXT, {
   payTribute: 'Pay tribute',
   collapse: 'Shrink', collapseLabel: 'Shrink the raid warning to its countdown', expand: 'Show the whole warning',
   chip: (dir, days) => `Raid from the ${duiDir(dir)} · ${duiCountdown(days)}`,
+  // A phone's chip (ruling 167): its words are the button that opens the raid sheet, where the whole warning is.
+  chipOpenLabel: (chip) => `${chip}: show the whole warning`,
   // The days until a warned raid arrives (warning.arrives less today): raidDay brings the raiders in on the arrives day.
   arrivesIn: (days) => (days > 0 ? `They arrive in ${duiDuration(days)}` : 'They arrive today'),
   withArrival: (title, days) => `${title}. ${DANGER_UI_TEXT.arrivesIn(days)}.`,
@@ -724,7 +730,6 @@ Object.assign(DANGER_UI_TEXT, {
   defenceLine: (q, dir) => (q.buildN > 0
     ? `${q.hidden ? 'Build' : 'or build'} ${plural(q.buildN, 'tower', 'towers')} facing ${duiDir(dir)} (≈ ${q.buildCost} gold)`
     : 'Your towers can beat this raid'),
-  legendOpen: (name) => `Show the legend: ${name}`, legendClose: 'Hide the legend',
 });
 // D2: captions, the raid report and the Settings rows. A blaze or a fire goes out only where a firehouse reaches it
 // (src/sim/fire.js: a covered and staffed blaze, a covered fire at 25% x coverage a day), so the caption names the
@@ -789,7 +794,8 @@ Object.assign(DANGER_UI_TEXT, {
   festivalNeedsTemple: 'A festival needs a working temple',
   wouldPassDebt: (n) => `Would put the treasury over ${n} gold in debt`,       // canAfford's floor (src/sim/money.js)
   lastRaid: 'Last raid', endedOn: (date) => `Ended ${date}`,
-  noWarning: 'Tribute can be paid only while a raid is on its way', firstRaid: "The first raid can't be paid off.",
+  noWarning: 'Tribute can be paid only while a raid is on its way',
+  raidSheetTitle: 'Raid warning',                                  // the raid sheet's heading on the first raid, which no tribute buys off
   capital: (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s),
   tributeCost: (cost) => `Pay ${cost} gold of tribute`, goldNow: 'Gold now', goldAfter: 'Gold afterwards',
   cancels: (dir, size) => `Cancels the raid from the ${duiDir(dir)} (${plural(size, 'raider', 'raiders')}). The next raid still comes.`,

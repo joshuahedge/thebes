@@ -5,7 +5,7 @@ import { runMonth } from '../../../src/sim/clock.js';
 import { settle } from '../../../src/sim/settle.js';
 import { place, demolishAt } from '../../../src/sim/commands.js';
 import { undo } from '../../../src/sim/undo.js';
-import { openSheet } from '../../../src/ui/modes.js';
+import { openSheet, closeSheet } from '../../../src/ui/modes.js';
 import { FEAT_TEXT, SCORE_TEXT, featsHeading, sealFeatsText, T } from '../../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 import { rigUI } from '../../helpers/uiWorld.js';
@@ -215,6 +215,8 @@ describe('s3 score feats in the interface', () => {
       expect(sealFeatsText([])).toBe(SCORE_TEXT.noFeats);
       r.ui.celebrations.clear();
       r.ui.onEvents([{ type: 'feat', id: 'well_fed' }]);
+      expect(r.root.querySelector('#cheer .cheer')).toBe(null);                // a phone: the caption waits while the sheet is open
+      r.store.set(closeSheet(r.store.get()));
       const cheer = r.root.querySelector('#cheer .cheer');
       expect([cheer.querySelector('.text').textContent, cheer.querySelector('.why').textContent]).toEqual([`${SCORE_TEXT.feat}: ${FEAT_TEXT.well_fed.name}`, FEAT_TEXT.well_fed.condition]);
     } finally { r.cleanup(); }

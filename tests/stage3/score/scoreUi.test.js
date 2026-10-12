@@ -6,7 +6,7 @@ import { assignLabour } from '../../../src/sim/labour.js';
 import { scoreLineFor } from '../../../src/ui/scoreUi.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { addRaw } from '../../helpers/testWorld.js';
-import { rigUI } from '../../helpers/uiWorld.js';
+import { rigUI, uiWorld } from '../../helpers/uiWorld.js';
 import {
   SCORE_TEXT, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitDateText, T,
 } from '../../../src/ui/text.js';
@@ -110,8 +110,38 @@ describe('s3 score summary and chip', () => {
       for (const h of housesOf(r.world)) h.residents = 0;
       r.world.day += 1;
       r.frame(1);
-      expect(chip.textContent).toBe(scoreChipText(scoreOf(r.world).total));
+      expect([chip.hidden, chip.textContent]).toEqual([true, scoreChipText(scoreOf(r.world).total)]);   // nobody lives here: no score to show yet
+      for (const h of housesOf(r.world)) h.residents = 4;
+      r.world.day += 1;
+      r.frame(2);
+      expect([chip.hidden, chip.textContent]).toEqual([false, scoreChipText(scoreOf(r.world).total)]);
     } finally { r.cleanup(); }
+  });
+  it('hides the chip in a new city until somebody lives there', async () => {
+    const world = uiWorld();
+    for (const h of housesOf(world)) h.residents = 0;
+    const r = await rigUI({ world });
+    try {
+      expect(r.root.querySelector('#topbar .score-chip').hidden).toBe(true);
+    } finally { r.cleanup(); }
+  });
+  it("puts the chip in the numbers' flow on a landscape phone and on a phone at 150% text, right after the date, not out at the bar's far end", async () => {
+    for (const [w, h, size] of [[844, 390, 100], [844, 390, 125], [844, 390, 150], [667, 375, 100], [667, 375, 150], [375, 667, 150], [390, 844, 150]]) {
+      const r = await rigUI({ width: w, height: h });
+      try {
+        r.ui.settings.set({ textSize: size });
+        r.world.gold = 2493;
+        r.ui.refresh();
+        const chip = r.root.querySelector('#topbar .score-chip').getBoundingClientRect();
+        const date = r.root.querySelector('#topbar .stat.date').getBoundingClientRect();
+        const bar = r.root.querySelector('#topbar').getBoundingClientRect();
+        const at = `${w}x${h} at ${size}%`;
+        const sameRow = chip.top < date.bottom && date.top < chip.bottom;
+        // after the date on its row, or (a narrow phone) at the start of the next row
+        const placed = sameRow ? chip.left >= date.right && chip.left - date.right <= 16 : chip.top >= date.bottom - 1 && chip.left <= date.left + 1;
+        expect([at, placed, chip.bottom <= bar.bottom]).toEqual([at, true, true]);
+      } finally { r.cleanup(); }
+    }
   });
   it('keeps the chip inside the top bar and off the numbers, on a phone and a laptop, at every text size', async () => {
     for (const [w, h] of [[360, 640], [390, 844], [844, 390], [1280, 800]]) {

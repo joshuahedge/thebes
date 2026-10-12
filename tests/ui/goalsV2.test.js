@@ -2,7 +2,7 @@ import { describe, it, expect } from '../harness.js';
 import { createGoalsStrip, goalsSheet, dateKeyOf } from '../../src/ui/goalsList.js';
 import { GOALS, EVENT_GOALS, GOAL_REWARD } from '../../src/data/goals.js';
 import { DAILY_POOL, DAILY_COUNT, DAILY_REWARD } from '../../src/data/daily.js';
-import { goalById } from '../../src/sim/goals.js';
+import { goalById, openGoals } from '../../src/sim/goals.js';
 import { settle } from '../../src/sim/settle.js';
 import { tickDay } from '../../src/sim/clock.js';
 import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, progressText, progressLabel, dailyDoneText, showMeLabel } from '../../src/ui/text.js';
@@ -15,24 +15,37 @@ const DAY_MS = 24 * 3600 * 1000;
 const FIXED = new Date(2026, 9, 11, 12, 0, 0).getTime();   // local noon on 11 October 2026
 
 // Every visible button of the strip is whole: its label on one line, not clipped, inside the strip, which sits
-// inside #under-bar. A button that wrapped its label ("Show me" on two lines) or ran off the edge fails.
+// inside #under-bar. A button that wrapped its label ("Show me" on two lines) or ran off the edge fails. A wide strip
+// has Show me, Goals and Skip guide; a phone's is one row (ruling 170): the goal's words, which are the button that opens
+// the goals sheet and may take two lines, then Show me.
 function expectWholeButtons(r) {
   const bar = r.root.querySelector('#under-bar').getBoundingClientRect();
   const strip = r.root.querySelector('#goals .goal-strip');
   const box = strip.getBoundingClientRect();
+  const phone = r.store.get().layout !== 'wide';
   expect(box.left >= bar.left - 0.5).toBe(true);
   expect(box.right <= bar.right + 0.5).toBe(true);
   const buttons = [...strip.querySelectorAll('button')].filter((b) => !b.hidden);
-  expect(buttons.length).toBeGreaterThanOrEqual(3);                // Show me, Goals and Skip guide
+  expect(buttons.length).toBeGreaterThanOrEqual(phone ? 2 : 3);
   for (const b of buttons) {
     const rb = b.getBoundingClientRect();
     expect(rb.height).toBeGreaterThanOrEqual(44);
     expect(rb.left >= box.left - 0.5).toBe(true);
     expect(rb.right <= box.right + 0.5).toBe(true);
     expect(b.scrollWidth <= b.clientWidth + 1).toBe(true);        // the label is not clipped
+    if (b.classList.contains('main')) continue;                    // the phone's words wrap, two lines at most (below)
     const range = document.createRange();
     range.selectNodeContents(b);
     expect(range.getClientRects().length).toBe(1);                // ...and sits on a single line
+  }
+  if (phone) {
+    const words = strip.querySelector('.main.open-goals');
+    expect(Boolean(words)).toBe(true);
+    expect([...strip.querySelectorAll('.open-goals')].length).toBe(1);   // no separate Goals button
+    const flow = words.querySelector('.words');                    // the label, the words and the progress: two lines at most
+    expect(flow.getBoundingClientRect().height <= 2 * parseFloat(getComputedStyle(flow).lineHeight) + 1).toBe(true);
+    const others = [...strip.children].filter((n) => n !== words && !n.hidden).map((n) => n.getBoundingClientRect());
+    for (const o of others) expect(o.top < words.getBoundingClientRect().bottom && o.bottom > words.getBoundingClientRect().top).toBe(true);   // one row
   }
 }
 
@@ -149,6 +162,27 @@ describe('ui goals v2', () => {
       expect(r.root.querySelector('#goals .goal-strip').hidden).toBe(false);   // the goals carry on without the guide
     } finally { r.cleanup(); }
   });
+  it('moves Skip guide into the goals sheet on a phone, one tap with no confirm, and names the whole goal on the strip\'s words', async () => {
+    const r = await rigUI({ width: 390, height: 844 });
+    try {
+      expect(r.world.guide.on).toBe(true);
+      expect(r.root.querySelector('#goals .skip-guide')).toBe(null);
+      const words = r.root.querySelector('#goals .open-goals');
+      expect(words.classList.contains('main')).toBe(true);
+      expect(words.getAttribute('aria-label')).toContain(openGoals(r.world, 1)[0].text);
+      expect(words.getAttribute('aria-label')).toContain(T.goal);
+      fire(words, 'click');
+      expect(r.store.get().sheet).toEqual({ kind: 'goals', id: null });
+      const skip = r.root.querySelector('#sheet .skip-guide');
+      expect(skip.textContent).toBe(T.skipGuide);
+      fire(skip, 'click');
+      expect(r.world.guide.on).toBe(false);
+      expect(r.root.querySelector('#sheet .skip-guide')).toBe(null);    // the sheet is drawn again without it
+      r.resize(1280, 800);
+      expect(r.root.querySelector('#goals .open-goals').classList.contains('main')).toBe(false);   // wide: the Goals button again
+      expect(Boolean(r.root.querySelector('#goals .skip-guide'))).toBe(true);
+    } finally { r.cleanup(); }
+  });
   it('hides the whole goals row when nothing is open, so #under-bar keeps no gap for it', async () => {
     const r = await rigUI({ width: 1280, height: 800 });
     try {
@@ -165,7 +199,7 @@ describe('ui goals v2', () => {
       expectWholeButtons(r);
       const text = strip.querySelector('.text');
       expect(text.scrollWidth <= text.clientWidth + 1).toBe(true);   // 'Lay a road' fits on its own line
-      expect(getComputedStyle(strip.querySelector('.reward')).display).toBe('none');   // portrait: the reward reads in the sheet
+      expect(strip.querySelector('.reward')).toBe(null);             // portrait: the reward reads in the sheet
     } finally { r.cleanup(); }
   });
   it('keeps every strip button whole on 360 and 390 px phones at each text size, with the longest goal and a progress chip showing', async () => {
@@ -181,7 +215,10 @@ describe('ui goals v2', () => {
           expect(strip.querySelector('.chip').hidden).toBe(false);
           expect(strip.textContent).toContain(goalById('well').text);
           const text = strip.querySelector('.text');
-          expect(text.scrollWidth <= text.clientWidth + 1).toBe(true); // the goal's words are all there, none cut off
+          expect(text.scrollWidth <= text.clientWidth + 1).toBe(true); // no word cut off sideways
+          // Two lines at most (ruling 170): where the words need more they are cut with "…", and the button's name has them all.
+          const flow = strip.querySelector('.words');
+          if (flow.scrollHeight > flow.clientHeight + 1) expect(strip.querySelector('.open-goals').getAttribute('aria-label')).toContain(goalById('well').text);
           const bar = r.root.querySelector('#under-bar').getBoundingClientRect();
           expect(strip.querySelector('.chip').getBoundingClientRect().right <= bar.right + 0.5).toBe(true);
         }
@@ -231,7 +268,8 @@ describe('ui goals v2', () => {
       const r = await rigUI({ width, height });
       try {
         expect(r.store.get().layout).toBe(layout);
-        const shown = getComputedStyle(r.root.querySelector('#goals .goal-strip .reward')).display !== 'none';
+        const reward = r.root.querySelector('#goals .goal-strip .reward');
+        const shown = Boolean(reward) && getComputedStyle(reward).display !== 'none';
         expect(`${layout}: reward ${shown}`).toBe(`${layout}: reward ${layout === 'wide'}`);
       } finally { r.cleanup(); }
     }

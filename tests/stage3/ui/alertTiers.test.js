@@ -33,17 +33,58 @@ function warn(world, { first = false, size = 6, arrives = 72 } = {}) {
 const click = (node) => fire(node, 'click');
 
 describe('s3 ui alert tiers', () => {
-  it('ranks an active raid, a raid warning, a fire, debt and save failing as critical, in that order', () => {
+  it('ranks an active raid, a fire no staffed firehouse reaches, a raid warning, debt and save failing as critical, in that order (ruling 166)', () => {
     const r = rig();
     try {
-      expect(CRITICAL_RANK).toEqual(['raid', 'raid_warning', 'fire', 'debt', 'save_failed']);
+      expect(CRITICAL_RANK).toEqual(['raid', 'fire', 'raid_warning', 'debt', 'save_failed']);
       for (const c of CRITICAL_RANK) expect(CRITICAL.has(c)).toBe(true);
       for (const c of ['blaze', 'fire_risk', 'no_storage']) expect(CRITICAL.has(c)).toBe(false);
       const list = [{ code: 'save_failed' }, { code: 'debt' }, { code: 'fire', id: r.potter.id }, { code: 'blaze', id: r.granary.id },
         { code: 'raid', x: 20, y: 16, left: 4 }, { code: 'raid_warning', x: 31, y: 16, dir: 'east', arrives: 90 }, { code: 'fire_risk', id: r.farm.id }];
       const t = triage(r.world, list);
-      expect(t.critical.map((a) => a.code)).toEqual(['raid', 'raid_warning', 'fire', 'debt', 'save_failed']);
+      expect(t.critical.map((a) => a.code)).toEqual(['raid', 'fire', 'raid_warning', 'debt', 'save_failed']);
       expect(t.ordinary.map((a) => a.code)).toEqual(['blaze', 'fire_risk']);
+      // A fire nobody reaches burns out in seconds: it takes the banner from raiders who are months away.
+      const banner = bannerModel(r.world, triage(r.world, [warn(r.world), { code: 'fire', id: r.potter.id }, { code: 'debt' }]).critical);
+      expect([banner.code, banner.more]).toEqual(['fire', 2]);
+    } finally { r.cleanup(); }
+  });
+
+  it('on phones keeps the banner to one line: a raid warning as its chip, whose words open the raid sheet, and View; no Shrink or "+N more" (ruling 167)', () => {
+    const r = rig();
+    try {
+      let phone = true;
+      let alerts = [warn(r.world, { arrives: 72 }), { code: 'debt' }, { code: 'no_storage', id: r.farm.id }];
+      const actions = [];
+      const a = createAlerts({ world: r.world, banner: r.banner, live: r.live, root: r.root, onAction: (x, k) => actions.push([x.code, k]), getAlerts: () => alerts, phone: () => phone });
+      a.refresh();
+      expect(r.banner.querySelectorAll('.critical').length).toBe(1);
+      const row = r.banner.querySelector('.critical');
+      expect([row.className, row.dataset.code]).toEqual(['critical line chip', 'raid_warning']);
+      const words = row.querySelector('.warning');
+      expect([words.textContent, words.getAttribute('aria-label')]).toEqual(['Raid from the east · 2 m 12 d', 'Raid from the east · 2 m 12 d: show the whole warning']);
+      expect([...row.querySelectorAll('button')].map((b) => b.className)).toEqual(['warning quiet', 'view']);
+      expect([row.querySelector('strong'), row.querySelector('.defence'), row.querySelector('.tribute'), row.querySelector('.collapse'), row.querySelector('.more')]).toEqual([null, null, null, null, null]);
+      expect(row.querySelector('.view').getAttribute('aria-label')).toBe(viewLabel('Raid from the east · 2 m 12 d'));
+      click(words);
+      click(row.querySelector('.view'));
+      expect(actions).toEqual([['raid_warning', 'warning'], ['raid_warning', 'view']]);   // the raid sheet, then its map point
+      expect(a.count()).toBe(2);                                                           // the badge: debt and the warning-tier alert, every one the row is not showing
+      words.focus();
+      r.world.day = 65;                                                                    // the countdown moves on: the row is rebuilt, focus stays on the words
+      a.refresh();
+      expect(r.banner.querySelector('.warning').textContent).toBe('Raid from the east · 7 d');
+      expect(document.activeElement === r.banner.querySelector('.warning')).toBe(true);
+      // A fire nobody reaches outranks the warning (ruling 166): the fires' row is its title and View, the fix is in the list.
+      alerts = [warn(r.world, { arrives: 72 }), { code: 'fire', id: r.potter.id }, { code: 'fire', id: r.granary.id }, { code: 'debt' }];
+      a.refresh();
+      const fires = r.banner.querySelector('.critical');
+      expect([fires.className, fires.querySelector('strong').textContent, fires.textContent.includes(D.firesFix)]).toEqual(['critical line', D.firesTitle(2), false]);
+      expect([...fires.querySelectorAll('button')].map((b) => b.className)).toEqual(['view']);
+      expect(a.count()).toBe(2);                                                           // the warning and debt: both fires are on the row
+      phone = false;                                                                       // a wide screen: today's banner and badge
+      a.refresh();
+      expect([r.banner.querySelector('.critical').className, r.banner.querySelector('.more').textContent, a.count()]).toEqual(['critical', '+2 more', 0]);
     } finally { r.cleanup(); }
   });
 
@@ -144,7 +185,8 @@ describe('s3 ui alert tiers', () => {
       r.world.day = 72;                                                                    // raidDay brings them in on this day's step
       a.refresh();
       expect(r.banner.querySelector('.critical strong').textContent).toBe('Raiders from the east are after your storehouses. They arrive today.');
-      expect(D.chip('north', 90)).toBe('Raid from the north · 3 m 0 d');
+      expect(D.chip('north', 90)).toBe('Raid from the north · 3 months');             // no "0 d" when the days come out at 0 (ruling 174)
+      expect([D.chip('east', 31), D.chip('east', 30), D.chip('east', 29), D.chip('east', 0)]).toEqual(['Raid from the east · 1 m 1 d', 'Raid from the east · 1 month', 'Raid from the east · 29 d', 'Raid from the east · 0 d']);
     } finally { r.cleanup(); }
   });
 
@@ -283,7 +325,7 @@ describe('s3 ui alert tiers', () => {
 });
 
 describe('s3 ui alert tiers on the page', () => {
-  it('shrinks the legend to an icon beside the banner on small phones, so the goals strip stays above the middle', async () => {
+  it('gives the legend the guidance row under the banner on small phones, in place of the goal, so the rows end above the middle; a landscape phone at large text keeps only the alert row', async () => {
     for (const [w, h, sizes] of [[375, 667, [100, 125, 150]], [844, 390, [100, 125, 150]]]) {
       for (const size of sizes) {
         const r = await rigUI({ width: w, height: h });
@@ -292,19 +334,20 @@ describe('s3 ui alert tiers on the page', () => {
           r.store.set({ overlay: 'water' });
           r.world.gold = -5;                                                              // debt: a critical banner
           r.ui.alerts.refresh();
+          r.frame();                                                                      // the guidance row follows the banner on the next frame
           const shell = r.root.getBoundingClientRect();
-          const icon = r.root.querySelector('#legend .legend-icon');
-          const box = icon.getBoundingClientRect();
-          expect([w, size, box.width >= 44, box.height >= 44]).toEqual([w, size, true, true]);
-          expect(getComputedStyle(r.root.querySelector('#legend .strip')).display).toBe('none');
-          const banner = r.root.querySelector('#banner .critical').getBoundingClientRect();
-          expect([w, size, box.left >= banner.right - 0.5, box.right <= shell.right + 0.5]).toEqual([w, size, true, true]);   // beside the banner, on screen
-          const goals = r.root.querySelector('#goals .goal-strip').getBoundingClientRect();
-          expect([w, size, goals.bottom - shell.top < shell.height / 2]).toEqual([w, size, true]);
-          click(icon);
-          expect([icon.getAttribute('aria-expanded'), getComputedStyle(r.root.querySelector('#legend .strip')).display === 'none']).toEqual(['true', false]);
-          click(icon);
-          expect(getComputedStyle(r.root.querySelector('#legend .strip')).display).toBe('none');
+          expect(r.root.querySelector('#legend .legend-icon')).toBe(null);               // no icon stands in for the legend any more (ruling 164)
+          const strip = r.root.querySelector('#legend .strip');
+          const one = w === 844 && size >= 125;                                           // a landscape phone at large text: one row, the alert row (ruling 172)
+          expect([w, size, strip.getBoundingClientRect().height === 0, getComputedStyle(r.root.querySelector('#goals')).display]).toEqual([w, size, one, 'none']);
+          if (!one) {
+            const banner = r.root.querySelector('#banner .critical').getBoundingClientRect(), box = strip.getBoundingClientRect();
+            expect([w, size, box.top >= banner.bottom - 0.5, box.right <= shell.right + 0.5]).toEqual([w, size, true, true]);   // the row under the alert row, on screen
+            expect([w, size, box.bottom - shell.top < shell.height / 2]).toEqual([w, size, true]);
+            for (const word of strip.querySelectorAll('.text')) expect([w, size, word.getBoundingClientRect().width > 2]).toEqual([w, size, true]);   // the words show
+          }
+          r.store.set({ overlay: null });
+          expect([w, size, getComputedStyle(r.root.querySelector('#goals')).display === 'none']).toEqual([w, size, one]);   // the goal comes back (not beside the one alert row)
         } finally { r.cleanup(); }
       }
     }
@@ -313,17 +356,16 @@ describe('s3 ui alert tiers on the page', () => {
       wide.store.set({ overlay: 'water' });
       wide.world.gold = -5;
       wide.ui.alerts.refresh();
-      expect(getComputedStyle(wide.root.querySelector('#legend .legend-icon')).display).toBe('none');
       expect(getComputedStyle(wide.root.querySelector('#legend .strip')).display === 'none').toBe(false);
+      expect(getComputedStyle(wide.root.querySelector('#goals')).display === 'none').toBe(false);   // a wide screen keeps every row
     } finally { wide.cleanup(); }
   });
 
-  // Spec 6.1 (nothing under the top bar past the middle of the map). Measured with a later raid's warning: at 125% and
-  // 150% text on a 375 x 667 phone, and on an 844 x 390 phone held sideways, the banner and the goals strip already ran
-  // past the middle before the arrival sentence joined the title (fix wave, 11 Oct 2026); what gives way there is a
-  // design call left open, so those sizes are not asserted here.
-  it('keeps a raid warning, its arrival in the title, and the goals strip above the middle on phones', async () => {
-    for (const [w, h, sizes] of [[375, 667, [100, 125]], [390, 844, [100, 125, 150]], [844, 390, [100]]]) {
+  // Spec 6.1 (nothing under the top bar past the middle of the map). On phones the raid warning is its one-line chip
+  // (ruling 167). On the 844 x 390 phone at 125% and 150% text only the alert row shows (ruling 172), so the goals strip
+  // steps aside (tests/ui/mobileBudget.test.js holds the whole budget).
+  it('keeps a raid warning, its countdown, and the goals strip above the middle on phones', async () => {
+    for (const [w, h, sizes] of [[375, 667, [100, 125, 150]], [390, 844, [100, 125, 150]], [844, 390, [100, 125, 150]]]) {
       for (const size of sizes) {
         const r = await rigUI({ width: w, height: h });
         try {
@@ -331,14 +373,43 @@ describe('s3 ui alert tiers on the page', () => {
           r.world.raid.warning = { index: 1, entry: { x: 31, y: 16 }, dir: 'east', size: 9, tribute: 360, target: 'storehouse', day: r.world.day, arrives: r.world.day + 72, first: false };
           r.ui.alerts.refresh();
           const shell = r.root.getBoundingClientRect();
-          const title = r.root.querySelector('#banner .critical strong');
-          expect([w, size, title.textContent.endsWith('They arrive in 2 months 12 days.'), title.getBoundingClientRect().height > 0]).toEqual([w, size, true, true]);
+          const words = r.root.querySelector('#banner .critical .warning');
+          expect([w, size, words.textContent, words.getBoundingClientRect().height > 0]).toEqual([w, size, 'Raid from the east · 2 m 12 d', true]);
+          const row = r.root.querySelector('#banner .critical').getBoundingClientRect();
+          const view = r.root.querySelector('#banner .critical .view').getBoundingClientRect();
+          expect([w, size, Math.abs(view.top + view.height / 2 - (row.top + row.height / 2)) < 2]).toEqual([w, size, true]);   // one row: View beside the words, not under them
+          r.frame();
           const goals = r.root.querySelector('#goals .goal-strip').getBoundingClientRect();
           const banner = r.root.querySelector('#banner .critical').getBoundingClientRect();
           expect([w, size, Math.max(goals.bottom, banner.bottom) - shell.top < shell.height / 2]).toEqual([w, size, true]);
+          expect([w, size, goals.height > 0]).toEqual([w, size, !(w === 844 && size >= 125)]);   // the goal steps aside for the alert row on a landscape phone at large text
         } finally { r.cleanup(); }
       }
     }
+  });
+
+  it('opens the raid sheet from a phone chip\'s words, counts the criticals it is not showing on the Map badge, and gives a wide screen the full banner', async () => {
+    const r = await rigUI({ width: 375, height: 667 });
+    try {
+      r.world.raid.warning = { index: 1, entry: { x: 31, y: 16 }, dir: 'east', size: 9, tribute: 360, target: 'storehouse', day: r.world.day, arrives: r.world.day + 72, first: false };
+      r.world.gold = -5;                                                                   // debt too: a second critical
+      r.ui.refresh();
+      const row = r.root.querySelector('#banner .critical');
+      expect([row.dataset.code, row.querySelector('.more')]).toEqual(['raid_warning', null]);
+      const badge = r.root.querySelector('#corners .minimap-button .badge');
+      expect(r.ui.alerts.list().some((x) => x.code === 'debt')).toBe(true);
+      expect(badge.textContent).toBe(String(r.ui.alerts.list().length - 1));               // every alert but the warning, debt included
+      click(row.querySelector('.warning'));
+      const sheet = r.root.querySelector('#sheet');
+      expect([r.store.get().sheet, sheet.querySelector('h2').textContent]).toEqual([{ kind: 'tribute', id: null }, T.tribute]);
+      expect(sheet.querySelector('.arrives').textContent).toBe('Raiders from the east are after your storehouses. They arrive in 2 months 12 days.');
+      click(sheet.querySelector('.keep'));
+      r.resize(1280, 800);
+      expect(r.store.get().layout).toBe('wide');
+      const wide = r.root.querySelector('#banner .critical');
+      expect([wide.querySelector('strong').textContent, Boolean(wide.querySelector('.collapse')), wide.querySelector('.more').textContent]).toEqual(['Raiders from the east are after your storehouses. They arrive in 2 months 12 days.', true, '+1 more']);
+      expect(badge.textContent).toBe(String(r.ui.alerts.list().length - 2));               // wide: the warnings only
+    } finally { r.cleanup(); }
   });
 
   it('moves the camera to a raid\'s point from the banner, and opens the alert list from "+N more"', async () => {
