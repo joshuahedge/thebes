@@ -189,6 +189,9 @@ body[data-layout="portrait"] #confirm { left: 0; right: 0; bottom: 0; }
 body[data-layout="wide"] #confirm { right: 0; bottom: 0; width: var(--panel-w); }
 body[data-layout="compact"] #confirm { right: calc(var(--rail-w) + var(--safe-right)); bottom: 0; width: var(--drawer-w); }
 body[data-mode="placing"] #dock, body[data-mode="drawing"] #dock, body[data-mode="demolishing"] #dock { display: none; }
+/* While a tool is on, the confirm bar covers the dock, so a toast (Well placed, Undo) sits above the bar and the corner row on it, not
+   out in the middle of the map above a tray that is hidden behind the bar. The compact toast already rides the bar's column. */
+body[data-layout="portrait"]:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #toasts { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + var(--toast-lift)); }
 /* The corners sit on the confirm bar by its measured height (--confirm-h, set by confirmBar.js), whatever the text size. */
 body[data-layout="portrait"][data-mode="placing"] #corners, body[data-layout="portrait"][data-mode="drawing"] #corners, body[data-layout="portrait"][data-mode="demolishing"] #corners { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + 8px); }
 .speed-corner { position: relative; }

@@ -17,7 +17,7 @@ import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGui
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
-import { select, deselect, back, openSheet, closeSheet, setDock, isToolMode, pickCategory, enterScreenshot } from './modes.js';
+import { select, deselect, cancelTool, back, openSheet, closeSheet, setDock, isToolMode, pickCategory, enterScreenshot } from './modes.js';
 import { pickLayout, watchLayout, freeTop, cornersHeight, TOPBAR_PX } from './layout.js';
 import { createBackStack } from './backstack.js';
 import { createSettings } from './settings.js';
@@ -166,7 +166,7 @@ export function createUI({
     shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150 || view().width < WIDE_LONG_DATE_PX,
   });
   const dock = createDock({ container: $('dock'), store, world, onPick: pick });
-  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: confirm, onUndo: undo });
+  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo });
   const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas });
   const rail = createRail({ container: $('rail'), store, world, onPick: pick });
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
@@ -290,10 +290,30 @@ export function createUI({
     const t = showMeTarget(world, goal);
     showMeAt({ category: categoryOfItem(item) || goal.showMe.category, item, x: t.x, y: t.y });
   }
-  function confirm() {
+  // The tick (spec 6.5, 6.7, placement review P6). A mouse or the keyboard keeps placing repeatedly; a touch or pen tick ends the
+  // tool: the map goes to Browse, the dock is as it was when the card was picked (the tray on the same category, so the same
+  // card is one tap away) and a service's overlay stays on. A building is panned the least that keeps it above the dock.
+  // `type` is the input type of the press ('touch', 'pen', 'mouse', 'keyboard'); nothing means keep placing.
+  function confirm(type) {
+    const before = store.get();
     const r = placement.confirm();
-    if (!r.ok) toasts.show(reasonText(r.reason));
+    if (!r.ok) { toasts.show(reasonText(r.reason)); return r; }
+    if ((type === 'touch' || type === 'pen') && before.tool) {
+      store.set(cancelTool(store.get()));
+      if (before.tool.kind === 'building' && before.ghost) {
+        const def = BUILDINGS[before.tool.type];
+        cameraControl.keepVisible(before.ghost.x + def.w / 2, before.ghost.y + def.d / 2, leaveInsets(store.get()));
+      }
+    }
     return r;
+  }
+  // The map the dock leaves free once the tool has ended: the corner buttons ride on the dock, so their top is its edge, and
+  // the "placed · Undo" toast sits on them, so the building is kept clear of that too.
+  function leaveInsets(s) {
+    const i = sheetInsets(s);
+    if (s.layout !== 'portrait') return i;
+    const toast = $('toasts') ? $('toasts').getBoundingClientRect().height : 0;
+    return { ...i, bottom: (cornersHeight(root, canvas, view().height) || placingInsets(s).bottom) + (toast > 0 ? toast + 8 : 0) };
   }
   function undo() {
     if (!placement.canUndo()) return;
