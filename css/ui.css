@@ -351,6 +351,7 @@ body.reduce-motion #cheer .cheer { animation: none; }
 #under-bar > #tip:empty { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 #tip .tip-row { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box; background: var(--teal-soft); color: var(--ink); border: 1px solid var(--teal); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); }
 #tip .tip-row .text { min-width: 0; }
+#tip .tip-row .body { position: relative; display: flex; align-items: center; gap: inherit; min-width: 0; }   /* the label and the words: the one place a tap opens a cut tip, and the box "More ▾" sits in */
 #tip .tip-row .label, #tip .tip-row .got-it { flex: none; }
 #tip .tip-row .got-it { white-space: nowrap; }
 body[data-layout="wide"] #tip { max-width: 440px; }
@@ -375,7 +376,7 @@ body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="g
 body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="tip"]) #tip > *,
 body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="caption"]) #cheer > * { display: none !important; }
 .goal-strip.one-row { flex-wrap: nowrap; column-gap: 4px; padding: 0 4px 0 0; }
-.goal-strip.one-row .main { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; min-height: var(--tap); padding: 2px 4px 2px 12px; background: transparent; border-color: transparent; text-align: left; line-height: 1.25; }
+.goal-strip.one-row .main { position: relative; display: flex; align-items: center; flex: 1 1 auto; min-width: 0; min-height: var(--tap); padding: 2px 4px 2px 12px; background: transparent; border-color: transparent; text-align: left; line-height: 1.25; }
 .goal-strip.one-row .words { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; min-width: 0; }
 .goal-strip.one-row .buttons { flex: none; flex-wrap: nowrap; margin-left: 0; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #cheer .cheer.led .lead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -389,6 +390,49 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 #sheet .recent .why { display: block; }
 /* A tip in the guidance row is two lines at most too; How to play lists every tip in full, and the live region reads it whole. */
 body:is([data-layout="portrait"], [data-layout="compact"]) #tip .tip-row .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+/* The guidance row opened in place (placement review P8, spec 6.3). A phone cuts a goal, a tip or a caption at two lines;
+   while the words are cut, "More ▾" sits over the end of the last line on a fade of the row's own colour (expand.js writes
+   it, createUI shows it only when the words are measured as cut). A tap on the row opens it: every clamp above comes off, the
+   row grows down to --guidance-max (createUI: 40% of the screen's height less where the row starts, spec 6.1) and scrolls
+   inside beyond it. It eases open in 150 ms, at once under reduced motion. "Less ▴" closes it, as do Back, Esc and a tap on
+   the map. Teal on parchment and amber is 4.8:1; on the tip's teal-soft it is ink. */
+#goals .goal-strip, #cheer .cheer { --row-bg: var(--parchment); }
+#cheer .cheer.milestone { --row-bg: var(--amber-soft); }
+#tip .tip-row { --row-bg: var(--teal-soft); }
+.goal-strip .more, #tip .more, #cheer .more { position: absolute; right: 2px; bottom: 1px; min-width: 0; min-height: 0; margin: 0; padding: 0 2px 0 22px; border: none; border-radius: 0; box-shadow: none; background: linear-gradient(to right, transparent, var(--row-bg) 20px); color: var(--teal); font-size: calc(12px * var(--ui-scale)); font-weight: 600; line-height: 1.5; white-space: nowrap; }
+#tip .more { color: var(--ink); }
+#cheer .more { pointer-events: auto; }
+#cheer .cheer:has(.more:not([hidden])) { pointer-events: auto; cursor: pointer; }   /* a cut caption can be tapped; any other still lets taps through to the map */
+#tip .body:has(.more:not([hidden])) { cursor: pointer; }
+/* At larger text a caption is one flow of head and gold, its why hidden from sight: "More ▾" has a place of its own at the end
+   of the row, so it never sits over the head. */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer:not(.open):has(.more:not([hidden])) { padding-right: calc(28px + 46px * var(--ui-scale)); }
+/* Open: the goal's words in full, its reward, then Show me, All goals and Skip guide on a row of their own. */
+.goal-strip.one-row.open { display: flex; flex-wrap: wrap; align-self: stretch; max-height: var(--guidance-max, 40vh); overflow-y: auto; padding: 0 4px 4px 0; }
+.goal-strip.one-row.open .main { flex: 1 1 100%; }
+.goal-strip.one-row.open .words { display: block; overflow: visible; }
+.goal-strip.one-row.open .buttons { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; padding-left: 8px; }
+.goal-strip.one-row.open .more { position: static; align-self: flex-end; padding: 0 0 0 8px; background: none; }
+.goal-strip.open ~ .threshold { display: none; }                  /* the next-threshold bar would push the rows past 40% */
+/* Open: the tip's words in full, Got it still at the top right. */
+#tip .tip-row.open { display: flex; align-items: flex-start; max-height: var(--guidance-max, 40vh); overflow-y: auto; }
+#tip .tip-row.open .body { flex: 1 1 auto; flex-wrap: wrap; align-items: flex-start; }
+#tip .tip-row.open .text { display: block !important; flex: 1 1 0; overflow: visible !important; }   /* !important: the phone clamps above are more specific */
+#tip .tip-row.open .more { position: static; flex: 1 1 100%; padding: 0 4px; text-align: right; background: none; }
+/* Open: the caption's head, its gold and its why in full, at every text size (the why returns to sight where larger text hid it),
+   in the grid the caption has at 100%: the star, the head and the gold on the first row, the why beneath, Less at the end. At
+   larger text the gold sits under the head, so the head keeps the width of the row. */
+#cheer .cheer.open { display: grid !important; width: 100%; max-height: var(--guidance-max, 40vh); overflow: hidden auto !important; padding: 4px 12px; }   /* !important: the phone clamps above are more specific */
+#cheer .cheer.open .text { display: block !important; overflow: visible !important; }
+#cheer .cheer.open .why { position: static !important; display: block !important; width: auto !important; height: auto !important; clip: auto !important; overflow: visible !important; white-space: normal !important; }
+#cheer .cheer.open .more { position: static; grid-column: 2 / 4; grid-row: 4; justify-self: end; padding: 0; background: none; }   /* last: row 4 stays empty-height where the why is row 2 */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open .reward { grid-column: 2; grid-row: 2; justify-self: start; margin-left: 0; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open { grid-template-columns: auto minmax(0, 1fr); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open .why { grid-column: 2; grid-row: 3; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open .more { grid-column: 2; }
+@keyframes guidance-open { from { clip-path: inset(0 0 55% 0); } to { clip-path: inset(0); } }
+.goal-strip.one-row.open, #tip .tip-row.open, #cheer .cheer.open { animation: guidance-open 150ms ease-out; }
+body.reduce-motion .goal-strip.one-row.open, body.reduce-motion #tip .tip-row.open, body.reduce-motion #cheer .cheer.open { animation: none; }
 #sheet .skip-row { margin: 4px 0; }
 #sheet .recent { list-style: none; padding: 0; margin: 4px 0; }
 #sheet .recent li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--parchment-2); }

@@ -101,6 +101,13 @@ describe('ui modes', () => {
     expect(pickCategory({ ...S0, layout: 'wide', dock: 'slim' }, 'food')).toEqual({ category: 'food', dock: 'slim' });
     expect(pickCategory({ ...S0, layout: 'compact', dock: 'slim' }, 'food')).toEqual({ category: 'food', dock: 'tray' });
   });
+  it('goes back from a guidance row opened in place before anything else, and leaves the rest as it was (P8)', () => {
+    const s = { ...S0, ...startTool(S0, { kind: 'road' }), guidanceOpen: true };
+    expect(back(s)).toEqual({ guidanceOpen: false });
+    expect(back({ ...s, guidanceOpen: false })).toEqual(cancelTool(s));       // then the tool, as before
+    expect(back({ ...S0, guidanceOpen: true, confirmDialog: { text: 'x' } })).toEqual({ confirmDialog: null });   // a dialog is on top of it
+    expect(S0.guidanceOpen).toBe(false);
+  });
   it('never has a tool and a selection at once', () => {
     const steps = [(s) => select(s, 1), (s) => startTool(s, { kind: 'road' }), (s) => openSheet(s, 'summary'), (s) => back(s), (s) => select(s, 2), (s) => cancelTool(s), (s) => startTool(s, { kind: 'demolish' }), (s) => back(s), (s) => back(s)];
     let s = S0;

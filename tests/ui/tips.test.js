@@ -215,6 +215,34 @@ describe('ui tips', () => {
       expect(settings.get().seenTips).toEqual(['arrivals', 'month_summary']);
     } finally { cleanup(); }
   });
+  it('shows More while the words are cut or the tip is open, asks onToggle on a tap, writes the row once, and never auto-closes an open tip (P8)', () => {
+    const { root, cleanup } = mount();
+    const settings = createSettings({ storage: fakeLocal(), root, systemReducedMotion: () => false });
+    const clock = { t: 0 };
+    const log = [];
+    const tips = createTips({ container: root, settings, now: () => clock.t, autoCloseMs: () => TIP_AUTO_CLOSE_MS, onToggle: () => log.push('toggle') });
+    try {
+      clock.t = TIP_FIRST_DELAY_MS;
+      expect(tips.trigger('goalDone')).toBe(true);
+      const row = root.querySelector('.tip-row'), more = root.querySelector('.more');
+      expect([more.hidden, more.getAttribute('aria-expanded'), more.tagName]).toEqual([true, 'false', 'BUTTON']);   // nothing is cut here (no stylesheet): no More
+      fire(root.querySelector('.body'), 'click');
+      expect(log).toEqual([]);                                                // the words are not cut: a tap on them does nothing
+      tips.setOpen(true);
+      expect(root.querySelector('.tip-row')).toBe(row);                       // opened in place: the live region is not written again
+      expect([row.classList.contains('open'), more.hidden, more.getAttribute('aria-expanded'), more.textContent.trim().startsWith(T.less)]).toEqual([true, false, 'true', true]);
+      expect(shownText(root)).toBe(TIP_TEXT.goals_list);                      // the words are whole either way
+      fire(more, 'click');
+      fire(root.querySelector('.text'), 'click');
+      expect(log).toEqual(['toggle', 'toggle']);                              // More, and the words, each ask once
+      clock.t += 10 * 60 * 1000;
+      expect(tips.tick()).toBe(false);                                        // open: it stays until it is closed
+      tips.setOpen(false);
+      expect([row.classList.contains('open'), more.hidden, more.getAttribute('aria-expanded')]).toEqual([false, true, 'false']);
+      expect(tips.tick()).toBe(true);                                         // closed again, the 20 s are long past
+      fire(root, 'click');
+    } finally { cleanup(); }
+  });
   it('shows nothing under Help: Off and still shows tips under Tips only', () => {
     const r = rig();
     try {
@@ -552,6 +580,60 @@ describe('ui tips', () => {
       } finally { r.cleanup(); }
     }
   });
+  it('in the game: a tip cut at two lines shows More, opens in place to 40% of the screen at most, and keeps its 20 s stopped while open (P8)', async () => {
+    for (const [w, h, size] of [[360, 640, 100], [360, 640, 150], [390, 844, 125], [740, 360, 150]]) {
+      let t = 0;
+      const r = await rigUI({ width: w, height: h, now: () => t });
+      const frames = quietFrames(r);
+      const at = `${w}x${h} at ${size}%`;
+      try {
+        r.ui.settings.set({ textSize: size, reducedMotion: 'on' });
+        t = TIP_FIRST_DELAY_MS;
+        r.world.speed = 1;
+        expect(r.ui.tips.trigger('goalDone')).toBe(true);
+        frames(1000);
+        const text = r.root.querySelector('#tip .text'), more = r.root.querySelector('#tip .more'), row = r.root.querySelector('#tip .tip-row');
+        const cut = text.scrollHeight > text.clientHeight + 1;
+        expect([at, more.hidden]).toEqual([at, !cut]);                         // More shows exactly while the words are cut
+        expect([at, text.textContent]).toEqual([at, TIP_TEXT.goals_list]);
+        if (!cut) { expect(r.ui.setGuidanceOpen(true)).toBe(true); } else fire(more, 'click');   // a tap on More (the API when the screen has room for all of it)
+        frames(1000);
+        expect([at, r.store.get().guidanceOpen, row.classList.contains('open'), more.getAttribute('aria-expanded')]).toEqual([at, true, true, 'true']);
+        expect([at, text.scrollHeight <= text.clientHeight + 1]).toEqual([at, true]);          // every word shows
+        const canvas = r.root.querySelector('#map').getBoundingClientRect();
+        expect([at, row.getBoundingClientRect().bottom - canvas.top <= 0.4 * h + 1]).toEqual([at, true]);
+        frames(TIP_AUTO_CLOSE_MS * 3);                                         // a minute of play with it open
+        expect([at, r.ui.tips.current()]).toEqual([at, 'goals_list']);
+        fire(r.root.querySelector('#tip .more'), 'click');                     // Less
+        expect([at, r.store.get().guidanceOpen]).toEqual([at, false]);
+        frames(TIP_AUTO_CLOSE_MS - 2000);                                      // 1 s was counted before it opened: 19 s in all now
+        expect([at, r.ui.tips.current()]).toEqual([at, 'goals_list']);
+        frames(1000);                                                          // 20 s of unpaused play with it closed: now it goes
+        expect([at, r.ui.tips.current()]).toEqual([at, null]);
+      } finally { r.cleanup(); }
+    }
+  });
+  it('in the game: Esc closes a tip opened in place before it closes the tip, a tap on the map closes it, and the tip going closes it (P8)', async () => {
+    const r = await rigUI({ width: 360, height: 640 });
+    r.renderer.renderFrame = () => {};
+    try {
+      expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
+      const open = () => r.store.get().guidanceOpen;
+      expect(r.ui.setGuidanceOpen(true)).toBe(true);
+      fire(r.root, 'keydown', { key: 'Escape' });
+      expect([open(), r.ui.tips.current()]).toEqual([false, 'press_play']);    // the first Esc closes the open row, the tip stays
+      expect(r.ui.setGuidanceOpen(true)).toBe(true);
+      r.tap(3, 3);
+      expect([open(), r.ui.tips.current()]).toEqual([false, 'press_play']);
+      expect(r.ui.setGuidanceOpen(true)).toBe(true);
+      fire(r.root.querySelector('#tip .got-it'), 'click');
+      expect([open(), r.ui.tips.current()]).toEqual([false, null]);            // Got it on an open tip: the row closes with it
+      expect(r.ui.setGuidanceOpen(true)).toBe(true);                           // the goal has the row now: it opens in place instead
+      expect(document.body.dataset.guidance).toBe('goal');
+      fire(r.root, 'keydown', { key: 'Escape' });
+      expect(open()).toBe(false);
+    } finally { r.cleanup(); }
+  });
   it('in the game: a paused game, a sheet over the tip or a hidden tab never closes a tip unread, since only unpaused frames with it on screen count', async () => {
     let t = 0;                                                                 // the page clock and the frame times agree, as in a browser
     const r = await rigUI({ width: 360, height: 640, now: () => t });
@@ -651,7 +733,9 @@ describe('ui tips', () => {
       expect(['legend', document.activeElement === r.root.querySelector('#legend .close')]).toEqual(['legend', true]);
       r.store.set({ overlay: null });
       expect(['legend off', document.activeElement === showMe()]).toEqual(['legend off', true]);
-      fire(r.root.querySelector('#goals .open-goals'), 'click');               // the words open the Goals sheet: focus goes into it
+      fire(r.root.querySelector('#goals .open-goals'), 'click');               // the words open the goal in place (P8)
+      expect(r.store.get().guidanceOpen).toBe(true);
+      fire(r.root.querySelector('#goals .all-goals'), 'click');                // All goals opens the Goals sheet: focus goes into it
       expect(r.store.get().sheet.kind).toBe('goals');
       expect(r.root.querySelector('#sheet').contains(document.activeElement)).toBe(true);
       r.store.set(back(r.store.get()));

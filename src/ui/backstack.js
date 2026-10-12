@@ -3,7 +3,7 @@
 import { back, isToolMode } from './modes.js';
 
 const stepsOf = (s) => (s.confirmDialog ? 1 : 0) + (s.sheet && s.sheet.kind !== 'info' ? 1 : 0) + (isToolMode(s.mode) ? 1 : 0) + (s.mode === 'selected' ? 1 : 0)
-  + (s.screenshot ? 1 : 0);
+  + (s.screenshot ? 1 : 0) + (s.guidanceOpen ? 1 : 0);
 
 export function createBackStack({
   store, history = window.history,

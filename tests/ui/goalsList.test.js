@@ -32,6 +32,50 @@ describe('ui goals', () => {
     expect(root.hidden).toBe(true);                                  // the whole row goes, so #under-bar keeps no gap for it
     cleanup();
   });
+  it('on a phone the goal words are one button that asks onToggle and never opens the sheet; open, the strip adds the reward, All goals and Skip guide (placement review P8)', () => {
+    const { root, cleanup } = mount();
+    try {
+      const world = makeTestWorld();
+      setGuide(world, true);
+      const log = [];
+      const strip = createGoalsStrip({
+        container: root, world, phone: () => true, onShowMe: () => {}, onOpen: () => log.push('sheet'), onToggle: () => log.push('toggle'), onSkipGuide: () => log.push('skip'),
+      });
+      const words = root.querySelector('.main.open-goals'), box = root.querySelector('.goal-strip');
+      const extras = () => [root.querySelector('.reward').hidden, root.querySelector('.all-goals').hidden, root.querySelector('.skip-guide').hidden];
+      expect([words.getAttribute('aria-expanded'), extras()]).toEqual(['false', [true, true, true]]);
+      fire(words, 'click');
+      expect(log).toEqual(['toggle']);                                    // ruling 170's "opens the sheet" is now behind All goals
+      strip.setOpen(true);
+      expect([box.classList.contains('open'), words.getAttribute('aria-expanded'), extras()]).toEqual([true, 'true', [false, false, false]]);
+      expect(root.querySelector('.reward').textContent).toBe(rewardText(GOALS[0].reward));
+      expect(root.querySelector('.all-goals').textContent).toBe(`${T.allGoals} ›`);
+      expect(root.querySelector('.more').textContent.trim().startsWith(T.less)).toBe(true);   // "Less ▴" while open
+      fire(root.querySelector('.all-goals'), 'click');
+      fire(root.querySelector('.skip-guide'), 'click');
+      expect(log).toEqual(['toggle', 'sheet', 'skip']);
+      world.goals.completed.push('road');
+      strip.render();                                                      // another goal: the strip is built again, and stays as it was set
+      expect([root.querySelector('.goal-strip').classList.contains('open'), root.querySelector('.main.open-goals').getAttribute('aria-expanded')]).toEqual([true, 'true']);
+      strip.setOpen(false);
+      expect([root.querySelector('.goal-strip').classList.contains('open'), root.querySelector('.main.open-goals').getAttribute('aria-expanded'), extras()]).toEqual([false, 'false', [true, true, true]]);
+      expect(root.querySelector('.more').hidden).toBe(true);              // nothing is cut (no stylesheet here), so no More
+    } finally { cleanup(); }
+  });
+  it('on a wide screen the strip is as it was: Goals opens the sheet, with the reward and Skip guide in sight, and no open state', () => {
+    const { root, cleanup } = mount();
+    try {
+      const world = makeTestWorld();
+      setGuide(world, true);
+      const log = [];
+      const strip = createGoalsStrip({ container: root, world, phone: () => false, onShowMe: () => {}, onOpen: () => log.push('sheet'), onToggle: () => log.push('toggle') });
+      expect([root.querySelector('.more'), root.querySelector('.all-goals')]).toEqual([null, null]);
+      expect(root.querySelector('.skip-guide').hidden).toBe(false);
+      fire(root.querySelector('.open-goals'), 'click');
+      strip.setOpen(true);                                                 // meaningless on a wide strip: nothing changes
+      expect([log, root.querySelector('.goal-strip').classList.contains('open')]).toEqual([['sheet'], false]);
+    } finally { cleanup(); }
+  });
   it('renders the goals sheet by chapter with the count and up to three goals', () => {
     const { root, cleanup } = mount();
     const world = makeTestWorld();

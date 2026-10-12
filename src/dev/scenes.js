@@ -17,7 +17,8 @@
 // MOBILE_SCENE_PARAMS names and driven through the sim's commands and the interface's own paths (afterCommand, the
 // caption row, Show me, a tap's select), so the captions, tips and Undo toasts on screen come from the real code. They
 // leave the text size and reduced motion to the caller, which sets them first. measureRows() reads the rows under the
-// top bar off the page, for the review note's height budget (section 3).
+// top bar off the page, for the review note's height budget (section 3). The 'expanded' scene (placement review P8) is a tip
+// opened in place, whose limit is 40% of the height at every size and text size.
 import { place, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
 import { allBuildings, housesOf } from '../sim/world.js';
@@ -245,14 +246,14 @@ async function ambient(api) {
 
 // ── The mobile budget scenes ──
 
-export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'sheet', 'welcome'];
+export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'sheet', 'welcome', 'expanded'];
 
 // The page query each mobile scene opens with (tools/shots.ps1 -Mobile adds nosw=1): 'early' and 'plots' on a new guided
-// city, seed 7, which starts paused; 'welcome' on Welcome back over the seed-11 sample city; the rest on that city.
+// city, seed 7, which starts paused, as does 'expanded'; 'welcome' on Welcome back over the seed-11 sample city; the rest on that city.
 const SAMPLE_CITY = 'skipTitle=1&seed=11&sample=1';
 export const MOBILE_SCENE_PARAMS = {
   early: 'skipTitle=1&seed=7', plots: 'skipTitle=1&seed=7', raid: SAMPLE_CITY, 'raid-fire': SAMPLE_CITY, 'raid-overlay': SAMPLE_CITY,
-  placing: SAMPLE_CITY, sheet: SAMPLE_CITY, welcome: 'welcome=1&seed=11&sample=1',
+  placing: SAMPLE_CITY, sheet: SAMPLE_CITY, welcome: 'welcome=1&seed=11&sample=1', expanded: 'skipTitle=1&seed=7',
 };
 
 // A mobile scene's waits: as long as asked on the page, so the capture shows the settled screen; none with
@@ -368,6 +369,19 @@ async function sheet(api, options) {
   return `sheet ${h.id} tier ${h.tier}`;
 }
 
+// A tip opened in place (placement review P8): the goal tip that follows a finished goal, the longest, on the paused new
+// city once tips may show (the session's first TIP_FIRST_DELAY_MS have passed), then a tap on More as the player makes it
+// (setGuidanceOpen is what that tap runs): the row shows every word, up to 40% of the screen's height, and scrolls beyond.
+async function expanded(api, options) {
+  const g = inGame(api, 'expanded');
+  await settle(options, TIP_FIRST_DELAY_MS + 300);
+  if (!g.ui.tips.trigger('goalDone')) throw new Error('devScene expanded: the goal tip did not show');
+  await settle(options, 100);
+  if (!g.ui.setGuidanceOpen(true)) throw new Error('devScene expanded: the tip would not open');
+  await settle(options, 300);
+  return `expanded tip ${g.ui.tips.current()}`;
+}
+
 // Welcome back (/?welcome=1): the card as the city opens.
 async function welcome(api, options) {
   const g = inGame(api, 'welcome');
@@ -379,7 +393,7 @@ async function welcome(api, options) {
 
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
-  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, sheet, welcome,
+  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, sheet, welcome, expanded,
 };
 
 export async function devScene(api, name, options = {}) {

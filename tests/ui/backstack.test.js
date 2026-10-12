@@ -37,6 +37,21 @@ describe('ui back stack', () => {
     expect(store.get().sheet).toBe(null);
     expect(bs.depth()).toBe(0);
   });
+  it('counts a guidance row opened in place as a step: Back closes it, and one closed another way leaves a stale entry (P8)', () => {
+    const store = createStore(INITIAL_UI_STATE);
+    const h = fakeHistory();
+    const bs = createBackStack({ store, history: h, addListener: h.addListener, removeListener: h.removeListener });
+    bs.start();
+    store.set({ guidanceOpen: true });
+    expect([h.length, bs.depth()]).toEqual([2, 1]);
+    h.back();                                  // the phone's Back
+    expect([store.get().guidanceOpen, bs.depth()]).toEqual([false, 0]);
+    store.set({ guidanceOpen: true });
+    store.set({ guidanceOpen: false });        // a second tap closed it
+    expect(bs.depth()).toBe(0);
+    h.back();                                  // the stale entry expires with nothing open
+    expect([store.get().guidanceOpen, store.get().mode]).toEqual([false, 'browse']);
+  });
   it('does not push twice for the same step and absorbs steps left by other means', () => {
     const store = createStore(INITIAL_UI_STATE);
     const h = fakeHistory();

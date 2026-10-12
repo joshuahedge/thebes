@@ -6,7 +6,7 @@ import { goalById, openGoals } from '../../src/sim/goals.js';
 import { settle } from '../../src/sim/settle.js';
 import { tickDay } from '../../src/sim/clock.js';
 import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, progressText, progressLabel, dailyDoneText, showMeLabel } from '../../src/ui/text.js';
-import { openSheet } from '../../src/ui/modes.js';
+import { openSheet, cancelTool, isToolMode } from '../../src/ui/modes.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 import { rigUI } from '../helpers/uiWorld.js';
@@ -162,17 +162,28 @@ describe('ui goals v2', () => {
       expect(r.root.querySelector('#goals .goal-strip').hidden).toBe(false);   // the goals carry on without the guide
     } finally { r.cleanup(); }
   });
-  it('moves Skip guide into the goals sheet on a phone, one tap with no confirm, and names the whole goal on the strip\'s words', async () => {
+  it('puts Skip guide in the open goal and in the goals sheet on a phone, one tap with no confirm; the words open the goal in place and All goals opens the sheet (P8)', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       expect(r.world.guide.on).toBe(true);
-      expect(r.root.querySelector('#goals .skip-guide')).toBe(null);
+      expect(r.root.querySelector('#goals .skip-guide').hidden).toBe(true);   // closed: Skip guide is part of the open goal
       const words = r.root.querySelector('#goals .open-goals');
       expect(words.classList.contains('main')).toBe(true);
-      expect(words.getAttribute('aria-label')).toContain(openGoals(r.world, 1)[0].text);
+      expect(words.getAttribute('aria-label')).toContain(openGoals(r.world, 1)[0].text);   // the button's name has the whole goal, cut on screen or not
       expect(words.getAttribute('aria-label')).toContain(T.goal);
-      fire(words, 'click');
+      expect(words.getAttribute('aria-expanded')).toBe('false');
+      fire(words, 'click');                                                    // opens in place: ruling 170 changed by P8
+      expect([r.store.get().guidanceOpen, r.store.get().sheet]).toEqual([true, null]);
+      expect(words.getAttribute('aria-expanded')).toBe('true');
+      expect(r.root.querySelector('#goals .skip-guide').hidden).toBe(false);
+      expect(r.root.querySelector('#goals .reward').hidden).toBe(false);
+      expect(r.root.querySelector('#goals .reward').textContent).toBe(rewardText(openGoals(r.world, 1)[0].reward));
+      const all = r.root.querySelector('#goals .all-goals');
+      expect(all.hidden).toBe(false);
+      expect(all.textContent).toContain(T.allGoals);
+      fire(all, 'click');                                                      // All goals opens the sheet, which closes the open row
       expect(r.store.get().sheet).toEqual({ kind: 'goals', id: null });
+      expect(r.store.get().guidanceOpen).toBe(false);
       const skip = r.root.querySelector('#sheet .skip-guide');
       expect(skip.textContent).toBe(T.skipGuide);
       fire(skip, 'click');
@@ -182,6 +193,61 @@ describe('ui goals v2', () => {
       expect(r.root.querySelector('#goals .open-goals').classList.contains('main')).toBe(false);   // wide: the Goals button again
       expect(Boolean(r.root.querySelector('#goals .skip-guide'))).toBe(true);
     } finally { r.cleanup(); }
+  });
+  it('on a phone opens the goal in place on a tap, and closes it on a second tap, Back, Esc, a map tap, Show me, a sheet, the next goal or a wide screen (P8)', async () => {
+    const r = await rigUI({ width: 390, height: 844 });
+    r.renderer.renderFrame = () => {};
+    try {
+      r.frame(0);
+      const words = () => r.root.querySelector('#goals .open-goals'), open = () => r.store.get().guidanceOpen;
+      const tapWords = () => fire(words(), 'click');
+      const steps = r.history.length;
+      tapWords();
+      expect([open(), words().getAttribute('aria-expanded'), r.history.length]).toEqual([true, 'true', steps + 1]);   // Back has a step to close
+      r.history.back();
+      expect([open(), words().getAttribute('aria-expanded')]).toEqual([false, 'false']);                                // the phone's Back
+      tapWords(); tapWords();
+      expect(open()).toBe(false);                                                                                       // a second tap
+      tapWords(); fire(r.root, 'keydown', { key: 'Escape' });
+      expect([open(), r.store.get().mode]).toEqual([false, 'browse']);                                                  // Esc closes it and nothing else
+      tapWords(); r.tap(3, 3);
+      expect(open()).toBe(false);                                                                                       // a tap on the map
+      tapWords(); fire(r.root.querySelector('#goals .show-me'), 'click');
+      expect([open(), isToolMode(r.store.get().mode)]).toEqual([false, true]);                                          // Show me starts a tool
+      r.store.set(cancelTool(r.store.get()));
+      tapWords(); r.store.set(openSheet(r.store.get(), 'summary'));
+      expect(open()).toBe(false);                                                                                       // a sheet opening
+      r.store.set({ sheet: null });
+      tapWords(); r.world.goals.completed.push(openGoals(r.world, 1)[0].id); r.ui.refresh();
+      expect([open(), words().getAttribute('aria-expanded')]).toEqual([false, 'false']);                                // the next goal is another row
+      tapWords(); r.resize(1280, 800);
+      expect(open()).toBe(false);                                                                                       // a wide screen has no open state
+    } finally { r.cleanup(); }
+  });
+  it('opens a goal to 40% of the screen at most, with its reward, Show me, All goals and Skip guide in reach, at every phone size and text size (P8)', async () => {
+    for (const [w, h] of [[360, 640], [390, 844], [740, 360], [844, 390]]) {
+      for (const size of [100, 125, 150]) {
+        const r = await rigUI({ width: w, height: h });
+        r.renderer.renderFrame = () => {};
+        try {
+          r.world.goals.completed.push('road', 'plots');                  // 'Build a well so huts become shacks'
+          r.ui.settings.set({ textSize: size, reducedMotion: 'on' });
+          r.ui.refresh();
+          r.frame(0);
+          r.ui.setGuidanceOpen(true);
+          r.frame(1000);
+          const strip = r.root.querySelector('#goals .goal-strip'), canvas = r.root.querySelector('#map').getBoundingClientRect();
+          const at = `${w}x${h} at ${size}%`;
+          expect([at, r.store.get().guidanceOpen, strip.classList.contains('open')]).toEqual([at, true, true]);
+          expect([at, strip.getBoundingClientRect().bottom - canvas.top <= 0.4 * h + 1]).toEqual([at, true]);          // the rows end by 40% of the height
+          const words = strip.querySelector('.words');
+          expect([at, words.scrollHeight <= words.clientHeight + 1]).toEqual([at, true]);                              // every word shows (the strip scrolls, never clamps)
+          expect([at, strip.querySelector('.more').textContent.startsWith(T.less)]).toEqual([at, true]);
+          const buttons = [...strip.querySelectorAll('button')].filter((b) => !b.hidden);
+          expect([at, buttons.map((b) => b.className.split(' ')[0])]).toEqual([at, ['main', 'show-me', 'all-goals', 'skip-guide']]);
+        } finally { r.cleanup(); }
+      }
+    }
   });
   it('hides the whole goals row when nothing is open, so #under-bar keeps no gap for it', async () => {
     const r = await rigUI({ width: 1280, height: 800 });
@@ -199,7 +265,7 @@ describe('ui goals v2', () => {
       expectWholeButtons(r);
       const text = strip.querySelector('.text');
       expect(text.scrollWidth <= text.clientWidth + 1).toBe(true);   // 'Lay a road' fits on its own line
-      expect(strip.querySelector('.reward')).toBe(null);             // portrait: the reward reads in the sheet
+      expect(strip.querySelector('.reward').hidden).toBe(true);      // portrait: the reward reads in the open goal
     } finally { r.cleanup(); }
   });
   it('keeps every strip button whole on 360 and 390 px phones at each text size, with the longest goal and a progress chip showing', async () => {
@@ -208,17 +274,21 @@ describe('ui goals v2', () => {
       try {
         r.world.goals.completed.push('road', 'plots');                 // 'Build a well so huts become shacks', 0 of 1
         r.ui.refresh();
+        r.renderer.renderFrame = () => {};
         for (const size of [100, 125, 150]) {
           r.ui.settings.set({ textSize: size });
+          r.frame(size);                                               // a frame measures whether the words are cut
           expectWholeButtons(r);
           const strip = r.root.querySelector('#goals .goal-strip');
           expect(strip.querySelector('.chip').hidden).toBe(false);
           expect(strip.textContent).toContain(goalById('well').text);
           const text = strip.querySelector('.text');
           expect(text.scrollWidth <= text.clientWidth + 1).toBe(true); // no word cut off sideways
-          // Two lines at most (ruling 170): where the words need more they are cut with "…", and the button's name has them all.
-          const flow = strip.querySelector('.words');
-          if (flow.scrollHeight > flow.clientHeight + 1) expect(strip.querySelector('.open-goals').getAttribute('aria-label')).toContain(goalById('well').text);
+          // Two lines at most (ruling 170): where the words need more they are cut with "…", "More ▾" shows (P8), and the
+          // button's name has all the words.
+          const flow = strip.querySelector('.words'), more = strip.querySelector('.more');
+          expect(more.hidden).toBe(!(flow.scrollHeight > flow.clientHeight + 1));
+          expect(strip.querySelector('.open-goals').getAttribute('aria-label')).toContain(goalById('well').text);
           const bar = r.root.querySelector('#under-bar').getBoundingClientRect();
           expect(strip.querySelector('.chip').getBoundingClientRect().right <= bar.right + 0.5).toBe(true);
         }
