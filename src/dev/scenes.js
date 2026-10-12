@@ -21,8 +21,14 @@
 // (docs/superpowers/notes/2026-10-12-placement-ux-review.md): 'expanded' (P8) is a tip opened in place, whose limit is 40% of
 // the height at every size and text size, and 'farm' and 'farm-raid' (P16) are a grain farm being placed, with the Ground
 // overlay's legend alone in the guidance row, or under a raid warning's alert row.
+//
+// The Stage 4 scenes (tools/shots.ps1 -Stage4, STAGE4_SCENES): 'title' on the title card (/?nosw=1), the rest on the
+// seed-11 sample city. Stage 4 does not exist yet, so each sets up the closest thing today's game shows, and its
+// S4-TODO comment names what the Stage 4 version must show. They leave motion to the caller: the shots tool calls
+// setMotion first (window.__thebes.setMotion), and takes every scene under both motions.
 import { place, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
-import { assignLabour } from '../sim/labour.js';
+import { assignLabour, isWorking } from '../sim/labour.js';
+import { holdFestival } from '../sim/festival.js';
 import { allBuildings, housesOf } from '../sim/world.js';
 import { coverageOf } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
@@ -409,14 +415,158 @@ async function welcome(api, options) {
   return 'welcome';
 }
 
+// ── The Stage 4 scenes ──
+
+export const STAGE4_SCENES = ['title', 'site', 'pyramid', 'capstone', 'procession', 'sitesheet', 'motion'];
+
+// The two motions every Stage 4 shot is taken under (review note 7.2, "Screenshots in both"), in today's settings: full
+// is reduced motion off and ambient on; reduced follows the device (reduced motion 'system', which headless Edge resolves
+// to reduced, so ambient is off too). Returns the motion it set.
+// S4-TODO: Track E updates this when the Motion setting lands (full = Motion Full, reduced = follow the device -> Gentle).
+export const MOTIONS = ['full', 'reduced'];
+export function setMotion(settings, motion) {
+  if (motion === 'full') settings.set({ reducedMotion: 'off', ambient: true });
+  else if (motion === 'reduced') settings.set({ reducedMotion: 'system', ambient: true });
+  else throw new Error(`setMotion: no motion named ${motion} (${MOTIONS.join(', ')})`);
+  return motion;
+}
+
+// Where a great pyramid (7x7) would go on open desert east of the river: the n x n square of desert, with a ring of
+// unbuilt land around it and EDGE tiles between it and the map's edge (so the frame shows land, not the edge), whose
+// middle is nearest the middle of the city. Returns its top-left tile and size.
+const EDGE = 4;
+export function monumentSpot(world, n = 7) {
+  const N = world.size, at = (x, y) => idx(N, x, y);
+  let riverEast = -1;
+  for (let x = 0; x < N; x++) if (world.terrain[at(x, world.focus.y)] === TERRAIN.WATER) riverEast = x;
+  let best = null;
+  for (let y = EDGE; y + n + EDGE <= N; y++) {
+    for (let x = Math.max(EDGE, riverEast + 2); x + n + EDGE <= N; x++) {
+      let ok = true;
+      for (let dy = -1; dy <= n && ok; dy++) {
+        for (let dx = -1; dx <= n && ok; dx++) {
+          const i = at(x + dx, y + dy), inside = dx >= 0 && dx < n && dy >= 0 && dy < n;
+          if (world.occ[i] || world.road[i] || (world.wall && world.wall[i]) || world.terrain[i] === TERRAIN.WATER) ok = false;
+          else if (inside && world.terrain[i] !== TERRAIN.DESERT) ok = false;
+        }
+      }
+      if (!ok) continue;
+      const d = Math.hypot(x + n / 2 - world.focus.x, y + n / 2 - world.focus.y);
+      if (!best || d < best.d) best = { x, y, n, d };
+    }
+  }
+  if (!best) throw new Error(`devScene: no ${n}x${n} of open desert east of the river`);
+  return { x: best.x, y: best.y, n };
+}
+
+// The middle of monumentSpot's square at a zoom, in the free map's middle.
+function frameSpot(g, zoom) {
+  const s = monumentSpot(g.world);
+  g.cam.zoom = zoom;
+  focus(g, s.x + s.n / 2, s.y + s.n / 2);
+  return s;
+}
+
+// The title card with its backdrop.
+// S4-TODO: the Stage 4 title backdrop has a finished small obelisk and a colossus under way (review note 7.1 item 7).
+async function title(api) {
+  if (api.phase() !== 'title') throw new Error('devScene title: open the title card (/?nosw=1)');
+  await wait(300);
+  return 'title';
+}
+
+// A monument site under way, framed with its surroundings.
+// S4-TODO: a great pyramid's site part built (review note 3.3): cords and stakes, the paved apron, stockpiled blocks,
+// the ramp, crews with sleds and haulers, a few courses laid. Today: the open desert where it would go.
+async function site(api) {
+  const g = inGame(api, 'site');
+  const s = frameSpot(g, 0.75);
+  await wait(200);
+  return `site ${s.x},${s.y} ${s.n}x${s.n}`;
+}
+
+// A pyramid course going up, framed close.
+// S4-TODO: blocks appearing one at a time along the course, a gang dragging a block up the ramp, masons on the top
+// course (review note 3.3). Today: the same desert, close.
+async function pyramid(api) {
+  const g = inGame(api, 'pyramid');
+  const s = frameSpot(g, 1.5);
+  await wait(200);
+  return `pyramid ${s.x},${s.y}`;
+}
+
+// A great pyramid's capstone set: the finished pyramid.
+// S4-TODO: white casing and the gold capstone, the shine crossing the gold, the milestone caption and sparkle, the
+// dedication procession starting (review note 3.3, 7.1). Today: the same desert, at zoom 1.
+async function capstone(api) {
+  const g = inGame(api, 'capstone');
+  const s = frameSpot(g, 1);
+  await wait(200);
+  return `capstone ${s.x},${s.y}`;
+}
+
+// A festival at the working temple nearest the middle of the city, held through the sim's command as the temple
+// sheet's button holds it (with its caption), the temple framed.
+// S4-TODO: the festival procession walking the roads in the temple's reach (priests with a carried shrine, musicians,
+// dancers) and streamers on the temple (review note 7.1 item 3). Today: the festival is held, with nothing on the map.
+async function procession(api) {
+  const g = inGame(api, 'procession'), { world, ui } = g;
+  const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
+  const temple = allBuildings(world).filter((b) => b.type === 'temple' && isWorking(world, b)).sort((a, b) => near(a) - near(b))[0];
+  if (!temple) throw new Error('devScene procession: no working temple');
+  const result = holdFestival(world);
+  if (!result.ok) throw new Error(`devScene procession: no festival (${result.reason})`);
+  ui.toasts.show(DANGER_UI_TEXT.festivalHeld);
+  ui.afterCommand({ kind: 'festival', result, text: DANGER_UI_TEXT.festivalHeld, undoable: false });
+  focus(g, temple.x + temple.w / 2, temple.y + temple.d / 2);
+  await wait(300);
+  return `procession ${temple.id} day ${world.danger.festivalDay}`;
+}
+
+// A monument's site sheet open.
+// S4-TODO: the site sheet (review note 3.9): stage, courses, stock, crews, what holds it up. Today: the sheet of the
+// storehouse nearest the middle of the city (the closest thing: a yard with stock), or the summary when there is none.
+async function sitesheet(api) {
+  const g = inGame(api, 'sitesheet'), { world, ui } = g;
+  const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
+  const yard = allBuildings(world).filter((b) => b.type === 'storehouse').sort((a, b) => near(a) - near(b))[0];
+  if (yard) {
+    focus(g, yard.x + yard.w / 2, yard.y + yard.d / 2, 'sheet');
+    ui.store.set(select(ui.store.get(), yard.id));
+  } else {
+    const s = ui.store.get();
+    ui.store.set(openSheet(s.sheet ? closeSheet(s) : s, 'summary'));
+  }
+  await wait(300);
+  return yard ? `sitesheet storehouse ${yard.id}` : 'sitesheet summary';
+}
+
+// The Settings sheet scrolled to the motion rows.
+// S4-TODO: the one Motion row (Full / Gentle / Still) saying what it is doing, e.g. "Motion: Gentle (your device asks
+// for less motion)" (review note 7.2). Today: Reduce motion's row at the top, Ambient motion's below it.
+async function motion(api) {
+  const g = inGame(api, 'motion'), { ui } = g;
+  const s = ui.store.get();
+  ui.store.set(openSheet(s.sheet ? closeSheet(s) : s, 'settings'));
+  await wait(150);
+  const sheet = document.querySelector('#sheet');
+  const choice = sheet && sheet.querySelector('.choice.reducedMotion');
+  if (!choice) throw new Error('devScene motion: no Reduce motion row in the Settings sheet');
+  const row = choice.closest('.row'), head = sheet.querySelector('.head');
+  sheet.scrollTop += row.getBoundingClientRect().top - (head ? head.getBoundingClientRect().bottom : sheet.getBoundingClientRect().top) - 8;
+  await wait(100);
+  return `motion ${ui.settings.get().reducedMotion} ambient ${ui.settings.get().ambient}`;
+}
+
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
   early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded,
+  title, site, pyramid, capstone, procession, sitesheet, motion,
 };
 
 export async function devScene(api, name, options = {}) {
   const scene = SCENES[name];
-  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES].join(', ')})`);
+  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES, ...STAGE4_SCENES].join(', ')})`);
   return scene(api, options);
 }
 
