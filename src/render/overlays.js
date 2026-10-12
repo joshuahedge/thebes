@@ -12,7 +12,7 @@ import { T as TILE, TERRAIN_BY_NAME } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 import { p, U, tileDiamond, quad } from './iso.js';
 import { UI, INK, TEAL_DARK } from './art/palette.js';
-import { rgba } from './art/ctx.js';
+import { rgba, makeDraw } from './art/ctx.js';
 import { ART, slotFor } from './art/registry.js';
 import { GUIDE_PULSE_MS, DESIRABILITY_STEPS } from '../data/ui.js';
 import { DEFENCE } from '../data/raids.js';
@@ -467,11 +467,35 @@ function drawRoadJoins(g, joins) {
 
 // Stage 4 (Track C, spec 6.5): a monument's ghost carries silhouette: { world, b }, the finished monument it stands for, drawn
 // by the live draw (render/monuments.js) at MONUMENT_PLACING.silhouetteAlpha and still, under the footprint's marks.
+// Every art primitive sets the context's alpha absolutely, so scaling globalAlpha around the draw does nothing: the monument is
+// drawn at full strength into an offscreen layer (the target's size and transform) and the layer is laid on once at the
+// silhouette's alpha, so it is one even 35% with no see-through between its own faces.
+let silhouetteLayer = null;
+function layerFor(w, h) {
+  if (!silhouetteLayer || silhouetteLayer.width !== w || silhouetteLayer.height !== h) {
+    silhouetteLayer = document.createElement('canvas');
+    silhouetteLayer.width = w;
+    silhouetteLayer.height = h;
+  }
+  return silhouetteLayer;
+}
 function drawSilhouette(g, { world, b }) {
-  g.ctx.save();
-  g.ctx.globalAlpha *= MONUMENT_PLACING.silhouetteAlpha;
-  drawMonument(g, world, b, { motion: 'still' });
-  g.ctx.restore();
+  const { ctx } = g;
+  const target = ctx.canvas;
+  if (!target || typeof ctx.getTransform !== 'function' || typeof document === 'undefined') {   // no canvas to layer on: the plain draw
+    drawMonument(g, world, b, { motion: 'still' });
+    return;
+  }
+  const layer = layerFor(target.width, target.height), lctx = layer.getContext('2d');
+  lctx.setTransform(1, 0, 0, 1, 0, 0);
+  lctx.clearRect(0, 0, layer.width, layer.height);
+  lctx.setTransform(ctx.getTransform());
+  drawMonument(makeDraw(lctx, g.scale, g.cssScale), world, b, { motion: 'still' });
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = MONUMENT_PLACING.silhouetteAlpha;
+  ctx.drawImage(layer, 0, 0);
+  ctx.restore();
 }
 
 export function drawGhost(g, ghost) {

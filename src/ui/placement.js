@@ -318,19 +318,24 @@ export function toolPreview(world, state) {
 }
 
 // Stage 4 (Track C, spec 6.5, ruling 251): what a monument will cost and do, all from the sim, after the score's "+N Monuments
-// when finished" (Track D's scoreLineFor): a second of a kind says one of each kind counts; then the work gold a full crew is
-// paid a month (workGoldPerUnit x MONUMENT.unitsPerCrewMonth), the homes the finished monument makes nicer and the homes the
-// site makes less pleasant (desirabilityPreview, finished and as a site). Parts that are 0 are left out. Memoised per ghost
+// when finished" (Track D's scoreLineFor): a second of a kind says one of each kind counts once the first is finished; then the
+// work gold a full crew is paid a month (workGoldPerUnit x MONUMENT.unitsPerCrewMonth), the homes the finished monument makes
+// nicer and the homes the site makes less pleasant (desirabilityPreview, finished and as a site). Parts that are 0 are left out. Memoised per ghost
 // spot on the desirability field, as nicerFor is.
 const lineMemo = new WeakMap();   // world -> { field, key, value }
 export function monumentLine(world, type, x, y, rot = 0) {
   const field = desirabilityField(world);
-  const key = `${type}|${x}|${y}|${rot}|${world.difficulty}|${world.nextId}`;
+  // "One of each kind counts" is true only once the standing one holds the kind's whole share (it is finished): while it is
+  // unfinished, paused or at course 0, a second that gets further earns prestige up to the difference. Its state is in the key.
+  const first = prestigeByKind(world)[type];
+  const standing = first.id !== null ? world.buildings[first.id] : null;
+  const held = Boolean(standing && standing.site && standing.site.done !== null);
+  const key = `${type}|${x}|${y}|${rot}|${world.difficulty}|${world.nextId}|${held}`;
   const m = lineMemo.get(world);
   if (m && m.field === field && m.key === key) return m.value;
   const U = UI4_TEXT;
   const parts = [];
-  if (prestigeByKind(world)[type].id !== null) parts.push(U.oneOfEach);
+  if (held) parts.push(U.oneOfEach);
   parts.push(U.crewGold(workGoldPerUnit(world) * MONUMENT.unitsPerCrewMonth));
   const done = desirabilityPreview(world, type, x, y, { rot });
   if (done.better) parts.push(U.finishedNicer(done.better));
