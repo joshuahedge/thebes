@@ -9,7 +9,7 @@ import { INDUSTRY_ART } from './industry.js';
 import { NATURE_ART } from './nature.js';
 import { FIGURE_ART } from './figures.js';
 import { DEFENCE_ART, RUBBLE_VARIANTS } from './defence.js';
-import { STAGE4_ART } from './stage4.js';
+import { MONUMENT_ART } from './monuments.js';
 import { SUPPLY_ART, SUPPLY_TYPES, supplySlot } from './supply.js';
 import { PLAZA_ART, plazaEdges, sphinxFacing } from './plaza.js';
 import { PALACE_ART } from './palace.js';
@@ -18,8 +18,8 @@ import { granaryStage, storehouseStage, bazaarStage, farmStage, FARM_TYPES } fro
 export { boundsFor } from '../iso.js';
 
 export const ART = {
-  ...HOUSE_ART, ...SERVICE_ART, ...INDUSTRY_ART, ...NATURE_ART, ...FIGURE_ART, ...DEFENCE_ART, ...STAGE4_ART,
-  ...SUPPLY_ART, ...PLAZA_ART, ...PALACE_ART,
+  ...HOUSE_ART, ...SERVICE_ART, ...INDUSTRY_ART, ...NATURE_ART, ...FIGURE_ART, ...DEFENCE_ART,
+  ...SUPPLY_ART, ...PLAZA_ART, ...PALACE_ART, ...MONUMENT_ART,
 };
 
 // The art slot a building shows: houses by tier, granaries, storehouses and bazaars by how full they are
