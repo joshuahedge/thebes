@@ -6,13 +6,14 @@
 # up; when the hook is missing the scene is still captured (as the plain page), so the tool runs before Stage 3 exists.
 # Usage: tools/shots.ps1 -Tag before [-Stage2 | -Stage3] [-Only title,fresh] [-OnlySizes phone-portrait]
 #
-# -Stage4 takes the Stage 4 seven (src/dev/scenes.js STAGE4_SCENES: title, site, pyramid, capstone, procession, sitesheet,
-# motion), each one call to window.__thebes.devScene('<name>'), under both motions (review note 7.2: "Screenshots in
-# both"): full and reduced, or the one -Motion names. Before each scene window.__thebes.setMotion('<motion>') sets it
-# (src/dev/scenes.js setMotion: full = reduced motion off and ambient on, reduced = follow the device, which headless Edge
-# resolves to reduced). Until Stage 4 exists each scene shows the closest thing today's game can (its S4-TODO says what the
-# Stage 4 version must show). Shots are <Tag>-<motion>-<scene>-<size>.png at the four sizes. -Stage4 cannot be combined
-# with -Stage2, -Stage3 or -Mobile; -Only and -OnlySizes still pick scenes and sizes.
+# -Stage4 takes the Stage 4 nine (src/dev/scenes.js STAGE4_SCENES: title, tutorial, site, pyramid, capstone, procession,
+# palace, sitesheet, motion), each one call to window.__thebes.devScene('<name>'), under both motions (review note 7.2:
+# "Screenshots in both"): full and reduced, or the one -Motion names. Before each scene
+# window.__thebes.setMotion('<motion>') sets it (src/dev/scenes.js setMotion: full = reduced motion off and ambient on,
+# reduced = follow the device, which headless Edge resolves to reduced). Until Stage 4 exists each scene shows the
+# closest thing today's game can (its S4-TODO says what the Stage 4 version must show); sitesheet and motion show an
+# open sheet under the top bar, the interface-style before. Shots are <Tag>-<motion>-<scene>-<size>.png at the four
+# sizes. -Stage4 cannot be combined with -Stage2, -Stage3 or -Mobile; -Only and -OnlySizes still pick scenes and sizes.
 # Usage: tools/shots.ps1 -Stage4 -Tag s4before [-Motion full] [-Only site,motion] [-OnlySizes phone-portrait]
 # then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> s4before-full s4after-full --stage4
 # then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> before after [--stage2 | --stage3]
@@ -161,13 +162,16 @@ function New-Stage3Scene([string]$Name) {
 }
 
 # The Stage 4 run (-Stage4): each scene is setMotion('<motion>') then one call to the dev hook (guarded as New-Stage3Scene
-# is), on the title card for 'title' and on the seed-11 sample city for the rest.
+# is), on the title card for 'title' and 'tutorial' and on the seed-11 sample city for the rest.
 function New-Stage4Scene([string]$Name, [string]$MotionName) {
   "(async () => { const t = window.__thebes; if (!(t && t.devScene)) return 'no devScene'; if (t.setMotion) t.setMotion('$MotionName'); await new Promise((r) => setTimeout(r, 50)); return await t.devScene('$Name'); })()"
 }
 if ($Stage4) {
   $sample = '/?skipTitle=1&nosw=1&seed=11&sample=1'
-  $stage4Scenes = [ordered]@{ 'title' = '/?nosw=1'; 'site' = $sample; 'pyramid' = $sample; 'capstone' = $sample; 'procession' = $sample; 'sitesheet' = $sample; 'motion' = $sample }
+  $stage4Scenes = [ordered]@{
+    'title' = '/?nosw=1'; 'tutorial' = '/?nosw=1'; 'site' = $sample; 'pyramid' = $sample; 'capstone' = $sample; 'procession' = $sample
+    'palace' = $sample; 'sitesheet' = $sample; 'motion' = $sample
+  }
   if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
   foreach ($mo in $Motion) {
     foreach ($name in $stage4Scenes.Keys) {
