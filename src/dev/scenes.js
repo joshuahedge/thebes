@@ -23,9 +23,8 @@
 // overlay's legend alone in the guidance row, or under a raid warning's alert row.
 //
 // The Stage 4 scenes (tools/shots.ps1 -Stage4, STAGE4_SCENES): 'title' and 'tutorial' on the title card (/?nosw=1),
-// the rest on the seed-11 sample city. Stage 4 does not exist yet, so each sets up the closest thing today's game
-// shows, and its S4-TODO comment names what the Stage 4 version must show. They leave motion to the caller: the shots
-// tool calls setMotion first (window.__thebes.setMotion), and takes every scene under both motions.
+// the rest on the seed-11 sample city. They leave motion to the caller: the shots tool calls setMotion first
+// (window.__thebes.setMotion), and takes every scene under both motions.
 import { place, canPlace, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
 import { PALACE } from '../data/palace.js';
 import { assignLabour, isWorking } from '../sim/labour.js';

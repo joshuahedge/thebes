@@ -9,14 +9,13 @@
 # -Stage4 takes the Stage 4 nine (src/dev/scenes.js STAGE4_SCENES: title, tutorial, site, pyramid, capstone, procession,
 # palace, sitesheet, motion), each one call to window.__thebes.devScene('<name>'), under both motions (review note 7.2:
 # "Screenshots in both"): full and reduced, or the one -Motion names. Before each scene
-# window.__thebes.setMotion('<motion>') sets it (src/dev/scenes.js setMotion: full = reduced motion off and ambient on,
-# reduced = follow the device, which headless Edge resolves to reduced). Until Stage 4 exists each scene shows the
-# closest thing today's game can (its S4-TODO says what the Stage 4 version must show); sitesheet and motion show an
-# open sheet under the top bar, the interface-style before. Shots are <Tag>-<motion>-<scene>-<size>.png at the four
-# sizes. -Stage4 cannot be combined with -Stage2, -Stage3 or -Mobile; -Only and -OnlySizes still pick scenes and sizes.
+# window.__thebes.setMotion('<motion>') sets it (src/dev/scenes.js setMotion: full = Settings -> Motion Full, reduced =
+# Follow the device, which headless Edge asks for less motion, so Gentle). Shots are <Tag>-<motion>-<scene>-<size>.png at
+# the four sizes. -Stage4 cannot be combined with -Stage2, -Stage3 or -Mobile; -Only and -OnlySizes still pick scenes and sizes.
 # The title and tutorial scenes are also shot at phone-landscape-small (667x375), beside phone-landscape (844x390).
 # Usage: tools/shots.ps1 -Stage4 -Tag s4before [-Motion full] [-Only site,motion] [-OnlySizes phone-portrait]
-# then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> s4before-full s4after-full --stage4
+# then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots stage-4-full s4before-full s4final-full --stage4
+# (and the same with reduced: stage-4-reduced s4before-reduced s4final-reduced; one contact sheet a size)
 # then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> before after [--stage2 | --stage3]
 #
 # -Mobile takes the mobile budget scenes instead (src/dev/scenes.js MOBILE_SCENES: early, plots, raid, raid-fire,
