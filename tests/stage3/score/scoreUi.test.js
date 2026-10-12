@@ -8,7 +8,7 @@ import { openSheet } from '../../../src/ui/modes.js';
 import { addRaw } from '../../helpers/testWorld.js';
 import { rigUI, uiWorld } from '../../helpers/uiWorld.js';
 import {
-  SCORE_TEXT, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitDateText, T,
+  SCORE_TEXT, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitDateText, T, score4ReasonText,
 } from '../../../src/ui/text.js';
 
 const H = 3600 * 1000;
@@ -63,7 +63,7 @@ describe('s3 score summary and chip', () => {
         const bar = li.querySelector('[role="progressbar"]');
         expect([bar.getAttribute('aria-valuenow'), bar.getAttribute('aria-label')]).toEqual([String(s.parts[part]), partBarLabel(part, s.parts[part])]);
         const reason = li.querySelector('.reason');
-        expect([part, reason ? reason.textContent : '']).toEqual([part, scoreReasonText(s.reasons[part])]);
+        expect([part, reason ? reason.textContent : '']).toEqual([part, score4ReasonText(s.reasons[part])]);   // Stage 4: Monuments' next step too
       }
       expect(sec.querySelector('.splits')).toBe(null);
       expect(sec.textContent).toContain(SCORE_TEXT.noSplits);
@@ -191,7 +191,7 @@ describe('s3 score welcome back', () => {
       const now = scoreOf(r.world).total;
       r.world.history = [
         { day: 30, people: 4, gold: 0, mood: 60 },                                       // from a version 3 save: no score
-        { day: 60, people: 4, gold: 0, mood: 60, score: now - 20, parts: { people: 0, prosperity: 0, culture: 0, safety: 0 } },
+        { day: 60, people: 4, gold: 0, mood: 60, score: now - 20, parts: { people: 0, prosperity: 0, culture: 0, safety: 0, monuments: 0 }, version: 2 },   // Stage 4: a score v2 row
       ];
       r.ui.refresh();
       const rows = [...r.root.querySelectorAll('#sheet .trends li')];

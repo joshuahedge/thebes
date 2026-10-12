@@ -48,6 +48,19 @@ export const MEDALS = [
   { id: 'silver', at: 300 },
   { id: 'gold', at: 400 },
 ];
+// Each score version's medals and parts (spec 4.19: a best keeps its own version and is labelled "older scoring"). A
+// month-end row, a best or a chronicle entry made under score v1 has v1's four parts and v1's medals (160, 240 and 320 of
+// 400), so its medal is read on its own scale and never compared with a v2 total.
+export const MEDALS_BY_VERSION = {
+  1: [{ id: 'bronze', at: 160 }, { id: 'silver', at: 240 }, { id: 'gold', at: 320 }],
+  2: MEDALS,
+};
+export const PARTS_BY_VERSION = { 1: SCORE_PARTS_V1, 2: SCORE_PARTS };
+
+// A sealed reign's stamp (spec 4.19) gains a small glyph for each finished monument of these kinds, at most
+// STAMP_GLYPHS_MAX on one stamp (in this order: mastabas, then pyramids). Cosmetic.
+export const STAMP_KINDS = ['mastaba_small', 'mastaba_large', 'pyramid_small', 'pyramid_great'];
+export const STAMP_GLYPHS_MAX = 4;
 
 // The milestones whose first day the world records (world.splits, updateMilestone), in order.
 export const SPLIT_MILESTONES = ['town', 'market_town', 'city', 'great_city', 'capital'];

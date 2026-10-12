@@ -27,7 +27,7 @@ describe('s3 score parts', () => {
       prosperity: { code: 'taxes', perPerson: 0 },
       culture: { code: 'no_homes' },
       safety: null,
-      monuments: { code: 'prestige', prestige: 0 },                              // Stage 4: the contract's reason until Track D words the next step
+      monuments: { code: 'locked', type: 'obelisk_small', first: true, milestone: 'city' },   // Stage 4 (Track D): the next step, "Monuments come with City"
     });
   });
   it('counts People as 60 x growth along the milestones by people now plus 40 x the residents\' average tier', () => {
