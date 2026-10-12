@@ -1140,7 +1140,52 @@ export const ART4_TEXT = {};
 // Track C's words: the Monuments tab's cards and locks, the monument chips and confirm-bar line, the site, guild, quarry,
 // brickworks and palace sheets, the summary's Monuments section, Welcome back's site lines, the stall warnings' tier
 // words and View's outline. Add new lines just above the end marker.
-export const UI4_TEXT = {};
+// Whole gold with thousands marked, as the spec writes it ("1,000 gold").
+export const ui4Gold = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const ui4Lower = (type) => buildingName(type).toLowerCase();
+const ui4Cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+export const UI4_TEXT = {
+  // The Monuments tab's cards (spec 4.4, 4.14, 6.3): the ground a monument stands on, and a prestige lock with its count.
+  desert: 'Desert',
+  desertTip: 'on the desert, not the fields',
+  needsPrestige: (need, have) => `Needs ${need} prestige (you have ${have})`,
+  needsMilestoneAndPrestige: (milestone, need) => `Needs ${milestone} and ${need} prestige`,
+  // The monument chips (spec 6.5, ruling 230), each the sim's own condition in words.
+  groundMet: 'Desert ground',
+  notOnFields: (fertile, of) => `Not on the fields: ${fertile} of ${of} tiles are fertile`,
+  roadLater: 'No road yet: crews and stone come by road',
+  crewMet: (n) => `Crew: ${plural(n, "builders' guild", "builders' guilds")} near`,
+  crewLater: "No builders' guild near",
+  supplyMet: (goods) => `${ui4Cap(listText(goods.map((g) => goodName(g).toLowerCase())))} near`,
+  supplyLater: (good) => `No ${goodName(good).toLowerCase()} near`,
+  founding: (cost, have) => `Founding ${ui4Gold(cost)} gold: you have ${ui4Gold(have)}`,
+  // The confirm bar's line (spec 6.5, ruling 251), after the score's "+N Monuments when finished" (Track D).
+  crewGold: (gold) => `then ${ui4Gold(gold)} gold a crew a month`,
+  finishedNicer: (n) => `finished: ${plural(n, 'home', 'homes')} nicer`,
+  whileBuilding: (n) => `while building: ${plural(n, 'home', 'homes')} less pleasant`,
+  oneOfEach: 'One of each kind counts: no prestige',
+  founded: (type) => `${buildingName(type)} founded`,
+  // The Ground overlay while a monument is placed (spec 6.3, ruling 229).
+  groundFertile: 'Fertile: no monuments here',
+  roomFor: (type) => `Gold: room for a ${ui4Lower(type)}`,
+  noRoomFor: (type) => `No room left for a ${ui4Lower(type)}`,
+};
+// One monument condition's chip words (src/sim/commands.js conditionsFor: ground, road, crew, supply, gold). firstGoods: the
+// materials of the first course, which the supply chip names when it is met. Ground refusals other than the fields keep the
+// shared words (conditionText).
+export function ui4ConditionText(cond, type, firstGoods = []) {
+  const U = UI4_TEXT;
+  if (cond.key === 'ground') {
+    if (cond.state === 'met') return U.groundMet;
+    if (cond.reason === 'not_on_fields') return U.notOnFields(cond.fertile, cond.of);
+    return conditionText(cond, type);
+  }
+  if (cond.key === 'road') return cond.state === 'met' ? CONDITION_TEXT.roadMet : cond.state === 'later' ? U.roadLater : CONDITION_TEXT.roadCant;
+  if (cond.key === 'crew') return cond.state === 'met' ? U.crewMet(cond.n) : U.crewLater;
+  if (cond.key === 'supply') return cond.state === 'met' ? U.supplyMet(firstGoods) : U.supplyLater(cond.good);
+  if (cond.key === 'gold') return U.founding(cond.cost, cond.have);
+  return conditionText(cond, type);
+}
 // ── end s4 ui ────────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

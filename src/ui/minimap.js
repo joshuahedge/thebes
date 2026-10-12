@@ -29,7 +29,14 @@ export function minimapPins(world, alerts = []) {
   return out;
 }
 
+// Stage 4 (Track C): the camera and view the interface shows a city through, as the minimap that follows it was given them.
+// createUI makes its minimaps before the monuments interface, and its seam context carries no camera, so the placing fit
+// (src/ui/monumentSheet.js pickFit: never zoom in) reads the camera's zoom here. Read-only.
+const shownBy = new WeakMap();   // world -> { cam, view }
+export const cameraOf = (world) => (world && shownBy.get(world)) || null;
+
 export function createMinimap({ world, cam, view, size = 160, dpr = 1 }) {
+  if (cam && view) shownBy.set(world, { cam, view });
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(size * dpr);
   canvas.height = Math.round(size * dpr);

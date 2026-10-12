@@ -254,7 +254,7 @@ async function ambient(api) {
 
 // ── The mobile budget scenes ──
 
-export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded'];
+export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded', 'pyramid-placing'];
 
 // The page query each mobile scene opens with (tools/shots.ps1 -Mobile adds nosw=1): 'early' and 'plots' on a new guided
 // city, seed 7, which starts paused, as does 'expanded'; 'welcome' on Welcome back over the seed-11 sample city; the rest on that city.
@@ -262,6 +262,7 @@ const SAMPLE_CITY = 'skipTitle=1&seed=11&sample=1';
 export const MOBILE_SCENE_PARAMS = {
   early: 'skipTitle=1&seed=7', plots: 'skipTitle=1&seed=7', raid: SAMPLE_CITY, 'raid-fire': SAMPLE_CITY, 'raid-overlay': SAMPLE_CITY,
   placing: SAMPLE_CITY, farm: SAMPLE_CITY, 'farm-raid': SAMPLE_CITY, sheet: SAMPLE_CITY, welcome: 'welcome=1&seed=11&sample=1', expanded: 'skipTitle=1&seed=7',
+  'pyramid-placing': SAMPLE_CITY,
 };
 
 // A mobile scene's waits: as long as asked on the page, so the capture shows the settled screen; none with
@@ -404,6 +405,22 @@ async function expanded(api, options) {
   if (!g.ui.setGuidanceOpen(true)) throw new Error('devScene expanded: the tip would not open');
   await settle(options, 300);
   return `expanded tip ${g.ui.tips.current()}`;
+}
+
+// Stage 4 (Track C, ruling 252): the great pyramid being placed, the biggest footprint: its ghost and silhouette, the Ground
+// overlay's legend with the gold room line, and the confirm bar's two chip rows. The sample city is made a Capital with the
+// great pyramid's prestige unlock reached and the gold to found it (the contract's state, written as a scene does), then the
+// card is picked through Show me at the middle of the city, as a monument goal's Show me picks it.
+async function pyramidPlacing(api, options) {
+  const g = inGame(api, 'pyramid-placing'), { world, ui } = g;
+  world.milestone = 'capital';
+  for (const k of ['pyramid_small', 'pyramid_great']) world.prestigeUnlocks[k] = world.day;
+  world.gold = Math.max(world.gold, 20000);
+  ui.refresh();
+  await settle(options, 100);
+  ui.showMeAt({ category: 'monuments', item: 'pyramid_great', x: world.focus.x, y: world.focus.y });
+  await settle(options, 500);
+  return `pyramid-placing ${ui.store.get().mode} ${ui.store.get().overlay}`;
 }
 
 // Welcome back (/?welcome=1): the card as the city opens.
@@ -597,7 +614,7 @@ async function motion(api) {
 
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
-  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded,
+  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded, 'pyramid-placing': pyramidPlacing,
   title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion,
 };
 

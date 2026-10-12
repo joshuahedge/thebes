@@ -73,12 +73,15 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
       // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line. Homes
       // served read in teal; "no homes in reach yet" is not a gain, so it reads muted.
       // Stage 3: the score parts it would change ride on the same line ("Gives water to 6 homes · +3 Culture", spec 4.19).
-      p.state === 'ok' && (p.effect || p.score) ? el('div', { class: `effect small ${(p.effect === T.noHomesInReach || p.effect === DANGER_UI_TEXT.firehouseCovers(0)) && !p.score ? 'muted' : 'teal'}`, text: [p.effect, p.score].filter(Boolean).join(' · ') }) : null,
+      p.state === 'ok' && !p.line && (p.effect || p.score) ? el('div', { class: `effect small ${(p.effect === T.noHomesInReach || p.effect === DANGER_UI_TEXT.firehouseCovers(0)) && !p.score ? 'muted' : 'teal'}`, text: [p.effect, p.score].filter(Boolean).join(' · ') }) : null,
       // What it does to the homes around it (spec 4.7), in words; teal when nicer, coral when less pleasant, ink when both.
       p.nicer ? el('div', { class: `nicer small ${NICER_TONE[p.nicerTone]}`, text: p.nicer }) : null,
+      // Stage 4 (Track C, spec 6.5, ruling 251): a monument's line, placeable or waiting for its road: "+32 Monuments when finished ·
+      // then 100 gold a crew a month · finished: 9 homes nicer". Two lines at most on a phone (css), every word in its name.
+      p.line ? el('div', { class: 'monument-line small', title: p.line, 'aria-label': p.line, text: p.line }) : null,
     ]);
     const controls = [];
-    if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', disabled: true }));
+    if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', onClick: () => placement.rotate() }));   // Stage 4: a mastaba turns (ruling 234)
     if ((s.tool.kind === 'road' || s.tool.kind === 'wall') && s.line && s.line.x1 !== null) controls.push(button(T.flip, { class: 'flip', onClick: () => placement.flip() }));
     // On a phone Undo is a small icon and only when there is something to undo (the toast after a placement keeps the word);
     // the wide layout keeps the word button, greyed out when there is nothing to undo.
@@ -91,7 +94,8 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // A building's conditions, each with its own mark and words (placement review P9): met, later (it can be placed but will not
     // work yet) or can't. The row is always there for a building tool, empty or not, so the bar keeps one height as the ghost moves;
     // it takes the whole width under the words and the buttons. A chip's words are its name for screen readers, with its state.
-    const chips = s.tool.kind === 'building' ? el('div', { class: `conds${BUILDINGS[s.tool.type].terrain ? ` tall${element.getBoundingClientRect().width <= NARROW_BAR ? ' narrow' : ''}` : ''}`, role: 'group', 'aria-label': CONDITION_TEXT.group }, (p.conditions || []).map((c) =>
+    // A terrain building's and (Stage 4, ruling 230) a monument's row keep room for two rows of chips from the start.
+    const chips = s.tool.kind === 'building' ? el('div', { class: `conds${BUILDINGS[s.tool.type].terrain || BUILDINGS[s.tool.type].monument ? ` tall${element.getBoundingClientRect().width <= NARROW_BAR ? ' narrow' : ''}` : ''}`, role: 'group', 'aria-label': CONDITION_TEXT.group }, (p.conditions || []).map((c) =>
       el('span', { class: `cond ${c.state}`, role: 'img', 'aria-label': c.label }, [el('span', { class: 'mark', 'aria-hidden': 'true', text: c.mark }), ` ${c.text}`]))) : null;
     const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}` }, [info, ...controls, chips]);
     element.append(bar);
