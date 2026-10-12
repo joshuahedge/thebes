@@ -1,7 +1,7 @@
 import { describe, it, expect } from '../harness.js';
 import { pickLayout, applyLayout, watchLayout } from '../../src/ui/layout.js';
 import { mount } from '../helpers/dom.js';
-import { rigUI } from '../helpers/uiWorld.js';
+import { rigUI, runningUiWorld } from '../helpers/uiWorld.js';
 import { measureRows } from '../../src/dev/scenes.js';
 import { settle } from '../../src/sim/settle.js';
 import { buildingAt } from '../../src/sim/world.js';
@@ -76,7 +76,7 @@ describe('ui layout: landscape phones and large text', () => {
   });
   it('on a landscape phone at large text, a tip waits while the alert row has the one row and a tip already up steps off the screen; both come back when the banner clears', async () => {
     let t = 0;
-    const r = await rigUI({ width: 844, height: 390, now: () => t });
+    const r = await rigUI({ width: 844, height: 390, now: () => t, world: runningUiWorld() });
     r.renderer.renderFrame = () => {};
     try {
       r.ui.settings.set({ textSize: 150 });

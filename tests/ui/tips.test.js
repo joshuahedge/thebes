@@ -12,7 +12,7 @@ import { TOKENS } from '../../src/ui/theme.js';
 import { fakeLocal } from '../helpers/fakeStorage.js';
 import { mount, fire } from '../helpers/dom.js';
 import { addRaw, staffAll } from '../helpers/testWorld.js';
-import { rigUI, uiWorld } from '../helpers/uiWorld.js';
+import { rigUI, uiWorld, runningUiWorld } from '../helpers/uiWorld.js';
 
 // Tips on a clock the test moves; the session starts at t = 0.
 function rig(storage = fakeLocal()) {
@@ -292,7 +292,7 @@ describe('ui tips', () => {
   });
   it('in the game: on a phone a tip about a sheet or the overlay is dropped unseen while that has the guidance row, another tip waits for the row, and one already up steps off the screen until the row is free', async () => {
     let t = 0;
-    const r = await rigUI({ width: 390, height: 844, now: () => t });
+    const r = await rigUI({ width: 390, height: 844, now: () => t, world: runningUiWorld() });
     const play = quietFrames(r);
     const seenTip = (id) => (r.ui.settings.get().seenTips || []).includes(id);
     try {
@@ -323,9 +323,52 @@ describe('ui tips', () => {
       expect(r.root.querySelector('#tip').children.length).toBe(0);
     } finally { r.cleanup(); }
   });
+  it('in the game: on a paused phone a goal tip waits, so the goal and Show me stay on screen; it shows once the game runs (ruling 176)', async () => {
+    let t = 0;
+    const calm = uiWorld();                                                    // no problem marker or labour shortage, so only the goal brings a tip
+    settle(calm, []);
+    Object.values(calm.buildings).find((b) => b.type === 'bazaar').store.grain = 10;
+    staffAll(calm);
+    calm.labour.shortLevels = [];
+    const r = await rigUI({ width: 375, height: 667, now: () => t, world: calm });
+    r.renderer.renderFrame = () => {};
+    try {
+      expect(r.ui.alerts.list().filter((a) => a.id !== undefined || a.code === 'labour_shortage')).toEqual([]);
+      t = TIP_FIRST_DELAY_MS;
+      expect(r.world.speed).toBe(0);                                           // a new city starts paused (spec 4.1)
+      r.ui.onEvents([{ type: 'goal', id: 'road', reward: 25 }]);
+      expect(r.ui.tips.current()).toBe(null);                                   // the goal tip waits
+      expect(document.body.dataset.guidance).toBe('caption');                  // the goal's caption has the row for its few seconds
+      r.ui.celebrations.clear();
+      r.frame(t);
+      expect(document.body.dataset.guidance).toBe('goal');
+      const showMe = r.root.querySelector('#goals .show-me');
+      expect(showMe.getClientRects().length > 0).toBe(true);                   // the goal and Show me are on screen
+      r.frame(t + 1000);
+      expect(r.ui.tips.current()).toBe(null);                                   // still paused: still waiting
+      r.ui.speedControl.set(1);
+      r.frame(t + 2000);
+      expect([r.ui.tips.current(), document.body.dataset.guidance]).toEqual(['goals_list', 'tip']);   // Play pressed: it shows
+    } finally { r.cleanup(); }
+    const plots = await rigUI({ width: 375, height: 667 });
+    try {
+      plots.ui.placement.start({ kind: 'houses' });
+      plots.ui.placement.pointAt(14, 9);
+      plots.ui.placement.pointAt(15, 9);
+      expect(plots.ui.placement.confirm().ok).toBe(true);
+      expect(plots.ui.tips.current()).toBe('press_play');                       // the Play tip still shows while paused
+    } finally { plots.cleanup(); }
+    let tw = 0;
+    const wide = await rigUI({ width: 1280, height: 800, now: () => tw });
+    try {
+      tw = TIP_FIRST_DELAY_MS;
+      wide.ui.onEvents([{ type: 'goal', id: 'road', reward: 25 }]);
+      expect(wide.ui.tips.current()).toBe('goals_list');                        // a wide screen keeps every row: no wait
+    } finally { wide.cleanup(); }
+  });
   it('in the game: arrivals, a month end, a goal, a demolish and a labour shortage each bring their tip, three minutes of play apart', async () => {
     let t = 0;
-    const r = await rigUI({ now: () => t });
+    const r = await rigUI({ now: () => t, world: runningUiWorld() });
     const play = quietFrames(r);
     try {
       settle(r.world, []);
@@ -381,7 +424,7 @@ describe('ui tips', () => {
   });
   it('in the game: time with the game paused does not count toward the gap between tips', async () => {
     let t = 0;
-    const r = await rigUI({ now: () => t });
+    const r = await rigUI({ width: 1280, height: 800, now: () => t });          // wide: on a paused phone the tip would wait for Play (ruling 176)
     const play = quietFrames(r);
     try {
       t = TIP_FIRST_DELAY_MS;

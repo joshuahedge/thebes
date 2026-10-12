@@ -17,7 +17,7 @@ import {
 } from '../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { fire } from '../helpers/dom.js';
-import { rigUI } from '../helpers/uiWorld.js';
+import { rigUI, runningUiWorld } from '../helpers/uiWorld.js';
 
 // A Town street along y = 10 with a home at (12, 9), a well, a temple and a bazaar in reach of it, and a granary.
 function street({ tier = 4, residents = 16, stock = { grain: 10 } } = {}) {
@@ -278,7 +278,7 @@ describe('ui house sheet for the economy', () => {
   it('brings the desirability tip on a Townhouse sheet, and the merge tip once that one is seen', async () => {
     let t = 0;
     for (const seen of [[], ['desirability']]) {
-      const r = await rigUI({ now: () => t });
+      const r = await rigUI({ now: () => t, world: runningUiWorld() });
       try {
         const des = TIPS.find((x) => x.trigger === 'desirabilityShown'), merge = TIPS.find((x) => x.trigger === 'townhouseSheet');
         const house = TIPS.find((x) => x.trigger === 'houseSheet');

@@ -2,7 +2,8 @@
 // 175): each mobile scene (src/dev/scenes.js MOBILE_SCENES, the busy moments tools/shots.ps1 -Mobile captures) is booted
 // as its page query opens it, on a small portrait phone (375x667) and a landscape phone (844x390) at 100% and 150% text,
 // and measureRows() reads where the rows under the top bar end. The scenes run quick (no settling waits; the clock is
-// moved past the session's first seconds for 'early', whose tip waits for them). The shell is mounted in the test page,
+// moved past the session's first seconds for 'early', as the scene waits them out; on a paused phone its goal tip
+// then waits for Play, ruling 176). The shell is mounted in the test page,
 // so sizes in vh (the portrait sheet's 60vh) follow the test page, not the phone; no check reads them. The checks:
 //   end    the rows end by 30% of the height in portrait at 100% text, 40% at 150%; with a sheet open 20% and 25%;
 //          in landscape by 40%
@@ -52,7 +53,7 @@ async function bootScene(name, width, height) {
 // not as a budget that is suddenly met).
 const raidUp = (g) => g.world.raid.warning !== null;
 const SET_UP = {
-  early: (g) => [g.ui.tips.current() !== null, g.world.speed],
+  early: (g) => [g.world.goals.completed.length > 0, g.ui.tips.current(), g.world.speed],   // the goal's tip waits for Play (ruling 176)
   plots: (g) => [g.ui.tips.current() === 'press_play', g.world.speed],
   raid: (g) => [raidUp(g), g.world.speed],
   'raid-fire': (g) => [raidUp(g), Object.values(g.world.buildings).some((b) => b.fire && b.fire.stage === 'fire')],
@@ -62,7 +63,7 @@ const SET_UP = {
   welcome: (g) => [g.ui.store.get().sheet.kind, g.world.speed],
 };
 const SET_UP_WANTED = {
-  early: [true, 0], plots: [true, 0], raid: [true, 0], 'raid-fire': [true, true], 'raid-overlay': [true, 'fire'],
+  early: [true, null, 0], plots: [true, 0], raid: [true, 0], 'raid-fire': [true, true], 'raid-overlay': [true, 'fire'],
   placing: [true, 'placing', 'well'], sheet: [true, 'info', 'house'], welcome: ['welcome', 0],
 };
 
@@ -107,7 +108,7 @@ describe('mobile height budget', () => {
             const g = r.api.game();
             g.ui.settings.set({ textSize, reducedMotion: 'on' });
             await frame();
-            if (name === 'early') r.skip(TIP_FIRST_DELAY_MS);   // the scene waits out the session's first seconds, so its tip may show
+            if (name === 'early') r.skip(TIP_FIRST_DELAY_MS);   // the scene waits out the session's first seconds before its road
             await devScene(r.api, name, { quick: true });
             await frame(); await frame();
             expect(SET_UP[name](g)).toEqual(SET_UP_WANTED[name]);
