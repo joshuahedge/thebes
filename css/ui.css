@@ -912,6 +912,31 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
 @container pc (min-width: 900px) and (min-height: 600px) {
   .picture-cards .pc-box { --s4g-pic: min(536px, 100cqh - 330px); width: min(560px, 100cqw - 32px); height: auto; max-height: calc(100cqh - 32px); border-radius: var(--radius); box-shadow: var(--shadow); }
 }
+/* A phone held upright (art-direction review 9): the square picture is as wide as the phone allows, so the height it
+   leaves goes evenly above the picture and below its words (two spacer rows), the picture and the words staying together
+   in the middle of the sheet instead of a gap under the words; the dots and the buttons keep the foot. A landscape phone
+   puts the picture beside the words (below), so there the items go back to its own rows. */
+.picture-cards .pc-box { grid-template-rows: auto minmax(0, 1fr) auto minmax(0, auto) minmax(0, 1fr) auto auto; }
+.picture-cards .pc-top { grid-row: 1; }
+.picture-cards .pc-stage { grid-row: 3; }
+.picture-cards .pc-text { grid-row: 4; }
+.picture-cards .pc-dots { grid-row: 6; }
+.picture-cards .pc-nav { grid-row: 7; }
+@container pc (min-aspect-ratio: 1 / 1) and (max-height: 599px) {
+  .picture-cards .pc-box { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+  .picture-cards .pc-top { grid-row: 1; }
+  .picture-cards .pc-text { grid-row: 2; }
+  .picture-cards .pc-dots { grid-row: 3; }
+  .picture-cards .pc-nav { grid-row: 4; }
+  .picture-cards .pc-stage { grid-row: 1 / 5; }
+}
+@container pc (min-width: 900px) and (min-height: 600px) {   /* the centred card is as tall as what it holds */
+  .picture-cards .pc-box { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
+  .picture-cards .pc-stage { grid-row: 2; }
+  .picture-cards .pc-text { grid-row: 3; }
+  .picture-cards .pc-dots { grid-row: 4; }
+  .picture-cards .pc-nav { grid-row: 5; }
+}
 /* Under Full motion only (src/ui/tutorial.js adds the classes): the new card slides in from the side it came from. */
 @keyframes s4g-in-next { from { transform: translateX(32px); opacity: 0.2; } to { transform: none; opacity: 1; } }
 @keyframes s4g-in-back { from { transform: translateX(-32px); opacity: 0.2; } to { transform: none; opacity: 1; } }

@@ -203,5 +203,12 @@ export async function tutorialScene(api, options = {}) {
   const dialog = document.querySelector('.picture-cards');
   if (dialog) for (let i = 0; i < at; i++) dialog.querySelector('.pc-next').click();
   await wait(300);
+  // The picture arrives on its own (decoding async): a shot taken before it has loaded shows the alt text in an empty
+  // box (the art-direction review's item 9, a capture-timing artefact of a cold page, not a fault of the cards), so the
+  // scene waits until it has loaded or failed (complete), up to 5 s, and then for it to be decoded.
+  const picture = dialog && dialog.querySelector('.pc-picture');
+  for (let t = 0; picture && !picture.complete && t < 5000; t += 50) await wait(50);
+  if (picture && picture.naturalWidth > 0 && picture.decode) await picture.decode().catch(() => {});
+  else if (picture) console.warn(`devScene tutorial: card ${at + 1}'s picture did not load (${picture.src})`);
   return `tutorial card ${at + 1}`;
 }
