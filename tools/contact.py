@@ -5,7 +5,7 @@ Writes <out_dir>/<prefix>-<size>.png: a labelled row of the six scenarios before
 the after row holds the Stage 2 scenes (shots.ps1 -Stage2); the before row keeps the early-game six. With --stage3
 the after row holds the Stage 3 scenes (shots.ps1 -Stage3: peaceful, fire, tribute, battle, score, ambient) and the
 before row holds the Stage 2 scenes (what Stage 3 changes; shots.ps1 -Stage2). With --stage4 both rows hold the Stage 4
-scenes (shots.ps1 -Stage4: title, site, pyramid, capstone, procession, sitesheet, motion); its shots are named
+scenes (shots.ps1 -Stage4: title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion); shots are named
 <tag>-<motion>-<scene>-<size>.png, so pass the motion in the tags: s4before-full s4after-full (or -reduced).
 Plain python, not -I: Pillow is in the user site.
 """
@@ -16,7 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 SCENARIOS = ['title', 'fresh', 'placing', 'house', 'summary', 'welcome']
 STAGE2_SCENARIOS = ['title', 'city', 'placing', 'manor', 'trade', 'summary']
 STAGE3_SCENARIOS = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient']
-STAGE4_SCENARIOS = ['title', 'site', 'pyramid', 'capstone', 'procession', 'sitesheet', 'motion']
+STAGE4_SCENARIOS = ['title', 'tutorial', 'site', 'pyramid', 'capstone', 'procession', 'palace', 'sitesheet', 'motion']
 SIZES = {'phone-portrait': 0.5, 'phone-landscape': 0.45, 'tablet': 0.32, 'laptop': 0.27}
 
 

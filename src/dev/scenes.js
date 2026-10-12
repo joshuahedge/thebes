@@ -22,10 +22,10 @@
 // the height at every size and text size, and 'farm' and 'farm-raid' (P16) are a grain farm being placed, with the Ground
 // overlay's legend alone in the guidance row, or under a raid warning's alert row.
 //
-// The Stage 4 scenes (tools/shots.ps1 -Stage4, STAGE4_SCENES): 'title' on the title card (/?nosw=1), the rest on the
-// seed-11 sample city. Stage 4 does not exist yet, so each sets up the closest thing today's game shows, and its
-// S4-TODO comment names what the Stage 4 version must show. They leave motion to the caller: the shots tool calls
-// setMotion first (window.__thebes.setMotion), and takes every scene under both motions.
+// The Stage 4 scenes (tools/shots.ps1 -Stage4, STAGE4_SCENES): 'title' and 'tutorial' on the title card (/?nosw=1),
+// the rest on the seed-11 sample city. Stage 4 does not exist yet, so each sets up the closest thing today's game
+// shows, and its S4-TODO comment names what the Stage 4 version must show. They leave motion to the caller: the shots
+// tool calls setMotion first (window.__thebes.setMotion), and takes every scene under both motions.
 import { place, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { holdFestival } from '../sim/festival.js';
@@ -417,7 +417,7 @@ async function welcome(api, options) {
 
 // ── The Stage 4 scenes ──
 
-export const STAGE4_SCENES = ['title', 'site', 'pyramid', 'capstone', 'procession', 'sitesheet', 'motion'];
+export const STAGE4_SCENES = ['title', 'tutorial', 'site', 'pyramid', 'capstone', 'procession', 'palace', 'sitesheet', 'motion'];
 
 // The two motions every Stage 4 shot is taken under (review note 7.2, "Screenshots in both"), in today's settings: full
 // is reduced motion off and ambient on; reduced follows the device (reduced motion 'system', which headless Edge resolves
@@ -473,6 +473,43 @@ async function title(api) {
   if (api.phase() !== 'title') throw new Error('devScene title: open the title card (/?nosw=1)');
   await wait(300);
   return 'title';
+}
+
+// The picture tutorial before play.
+// S4-TODO: the picture tutorial's first card, shown before the first city starts. Today: the title card.
+async function tutorial(api) {
+  if (api.phase() !== 'title') throw new Error('devScene tutorial: open the title card (/?nosw=1)');
+  await wait(300);
+  return 'tutorial (title card)';
+}
+
+// The town centre where a 3x3 palace would stand: the free 3x3 of land (no building, road, wall or water) nearest the
+// point between the working temple and the bazaar nearest the middle of the city, framed at zoom 1; the point itself
+// when no 3x3 is free within 10 tiles of it.
+// S4-TODO: the town palace at its highest style, in the town centre. Today: the town centre with nothing new on it.
+async function palace(api) {
+  const g = inGame(api, 'palace'), { world } = g, N = world.size;
+  const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
+  const nearest = (type) => allBuildings(world).filter((b) => b.type === type).sort((a, b) => near(a) - near(b))[0];
+  const temple = nearest('temple'), bazaar = nearest('bazaar');
+  const mid = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
+  const parts = [temple, bazaar].filter(Boolean).map(mid);
+  const c = parts.length ? { x: parts.reduce((s, p) => s + p.x, 0) / parts.length, y: parts.reduce((s, p) => s + p.y, 0) / parts.length } : { ...world.focus };
+  let best = null;
+  for (let y = 0; y + 3 <= N; y++) {
+    for (let x = 0; x + 3 <= N; x++) {
+      const d = Math.hypot(x + 1.5 - c.x, y + 1.5 - c.y);
+      if (d > 10 || (best && d >= best.d)) continue;
+      let ok = true;
+      for (let dy = 0; dy < 3 && ok; dy++) for (let dx = 0; dx < 3 && ok; dx++) if (!freeLand(world, x + dx, y + dy) || world.road[idx(N, x + dx, y + dy)] || (world.wall && world.wall[idx(N, x + dx, y + dy)])) ok = false;
+      if (ok) best = { x, y, d };
+    }
+  }
+  g.cam.zoom = 1;
+  if (best) focus(g, best.x + 1.5, best.y + 1.5);
+  else focus(g, c.x, c.y);
+  await wait(200);
+  return best ? `palace ${best.x},${best.y}` : `palace centre ${c.x},${c.y}`;
 }
 
 // A monument site under way, framed with its surroundings.
@@ -561,7 +598,7 @@ async function motion(api) {
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
   early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded,
-  title, site, pyramid, capstone, procession, sitesheet, motion,
+  title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion,
 };
 
 export async function devScene(api, name, options = {}) {

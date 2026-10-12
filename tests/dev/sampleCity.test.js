@@ -48,7 +48,7 @@ describe('sample city', () => {
 // tools/shots.ps1 -Stage4: the scenes, the two motions in today's settings, and where the monument scenes look.
 describe('s4 infra', () => {
   it('sets full and reduced motion in the settings of today, reduced following the device', () => {
-    expect(STAGE4_SCENES).toEqual(['title', 'site', 'pyramid', 'capstone', 'procession', 'sitesheet', 'motion']);
+    expect(STAGE4_SCENES).toEqual(['title', 'tutorial', 'site', 'pyramid', 'capstone', 'procession', 'palace', 'sitesheet', 'motion']);
     expect(MOTIONS).toEqual(['full', 'reduced']);
     const settings = createSettings({ storage: null, root: document.createElement('div'), systemReducedMotion: () => true });
     settings.set({ reducedMotion: 'on', ambient: false });
