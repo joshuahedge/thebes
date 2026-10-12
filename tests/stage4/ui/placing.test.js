@@ -7,10 +7,13 @@ import { fitZoom, footprintExtent } from '../../../src/ui/monumentSheet.js';
 import { roomTiles, drawGhost, drawOverlay, setPlacingRot } from '../../../src/render/overlays.js';
 import { desirabilityPreview } from '../../../src/sim/desirability.js';
 import { workGoldPerUnit } from '../../../src/sim/costs.js';
-import { MONUMENTS } from '../../../src/data/monuments.js';
+import { prestigeByKind } from '../../../src/sim/prestige.js';
+import { MONUMENTS, MONUMENT_PLACING } from '../../../src/data/monuments.js';
 import { AUTO_OVERLAY, NEAREST_FIT_RADIUS } from '../../../src/data/ui.js';
 import { ART } from '../../../src/render/art/registry.js';
 import { MIN_ZOOM } from '../../../src/render/camera.js';
+import { createSettings } from '../../../src/ui/settings.js';
+import { CAMERA_PAN_MS } from '../../../src/data/ui.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
 import { p } from '../../../src/render/iso.js';
 import { idx } from '../../../src/sim/grid.js';
@@ -89,11 +92,26 @@ describe('s4 ui the monument line', () => {
     expect(monumentLine(w, 'colossus', 20, 11)).toBe(`then 100 gold a crew a month · finished: ${done.better} homes nicer · while building: ${site.worse} homes less pleasant`);
   });
 
-  it('says a second of a kind earns no prestige', () => {
+  it('says a second of a kind earns no prestige only once the first holds the kind\'s whole share', () => {
     const w = capital();
-    expect(monumentLine(w, 'obelisk_small', 20, 11).startsWith(UI4_TEXT.oneOfEach)).toBe(false);
-    addRaw(w, 'obelisk_small', 28, 20);
+    const oneOfEach = (x = 20, y = 11) => monumentLine(w, 'obelisk_small', x, y).startsWith(UI4_TEXT.oneOfEach);
+    expect(oneOfEach()).toBe(false);                                              // none stands
+    const first = addRaw(w, 'obelisk_small', 28, 20);                             // an unfinished site, course 0: a second that gets further earns
+    const n = MONUMENTS.obelisk_small.courses.length;
+    expect([first.site.done, prestigeByKind(w).obelisk_small.prestige]).toEqual([null, 0]);
+    expect(oneOfEach()).toBe(false);
+    expect(monumentLine(w, 'obelisk_small', 20, 11)).toBe('then 100 gold a crew a month');
+    first.site.course = Math.floor(n / 2);                                        // half built (same spot: the memo must see the state move)
+    expect([prestigeByKind(w).obelisk_small.prestige > 0, prestigeByKind(w).obelisk_small.prestige < MONUMENTS.obelisk_small.prestige.courses + MONUMENTS.obelisk_small.prestige.done]).toEqual([true, true]);
+    expect(oneOfEach()).toBe(false);
+    first.paused = true;
+    expect(oneOfEach()).toBe(false);                                              // paused or not, it is not finished
+    first.site.course = n; first.site.done = 0;                                   // finished: the whole share is held
+    expect(prestigeByKind(w).obelisk_small.prestige).toBe(MONUMENTS.obelisk_small.prestige.courses + MONUMENTS.obelisk_small.prestige.done);
     expect(monumentLine(w, 'obelisk_small', 20, 11)).toBe('One of each kind counts: no prestige · then 100 gold a crew a month');
+    first.site.done = null; first.site.course = 0;                                // and unfinished again: the line goes
+    expect(oneOfEach()).toBe(false);
+    expect(monumentLine(w, 'colossus', 20, 11).startsWith(UI4_TEXT.oneOfEach)).toBe(false);   // another kind is its own
   });
 
   it('rides in the confirm bar, after the score\'s part, while it can be placed or waits for its road', () => {
@@ -160,9 +178,20 @@ describe('s4 ui rotating, fitting and the silhouette', () => {
     const [ax, ay] = p(20, 11);
     ctx.translate(120 - 2 * ax, 120 - 2 * ay);
     drawGhost(makeDraw(ctx, 2), shape);
-    let inked = 0;
-    for (let y = 0; y < 110; y += 2) for (let x = 0; x < 240; x += 2) if (pixelAt(c, x, y)[3] > 0) inked++;   // above the footprint: the silhouette
+    let inked = 0, faint = 0, strongest = 0;
+    for (let y = 0; y < 110; y += 2) {
+      for (let x = 0; x < 240; x += 2) {
+        const a = pixelAt(c, x, y)[3];                                           // above the footprint: the silhouette
+        if (a > 0) inked++;
+        if (a >= 70 && a <= 110) faint++;
+        strongest = Math.max(strongest, a);
+      }
+    }
     expect(inked).toBeGreaterThan(20);
+    // At MONUMENT_PLACING.silhouetteAlpha (35% of 255 = 89), once: no pixel is stronger (the art primitives set alpha absolutely,
+    // so scaling globalAlpha around the draw would leave it opaque), and the body of it sits at that strength.
+    expect(strongest).toBeLessThan(Math.round(MONUMENT_PLACING.silhouetteAlpha * 255) + 12);
+    expect(faint).toBeGreaterThan(inked / 2);
   });
 
   it('fits the footprint and silhouette at the pick: just enough zoom out, never in, never past the least zoom', () => {
@@ -176,6 +205,26 @@ describe('s4 ui rotating, fitting and the silhouette', () => {
     expect(fitZoom('obelisk_small', 0, 1, phone, insets).zoom).toBe(undefined);
     expect(fitZoom('pyramid_great', 0, 1, { width: 200, height: 200 }, { top: 0, right: 0, bottom: 0, left: 0 }).zoom).toBe(MIN_ZOOM);
     expect(footprintExtent('mastaba_large', 1).across).toBe(footprintExtent('mastaba_large', 0).across);
+  });
+
+  it('where even the least zoom cannot hold footprint and silhouette it keeps the footprint and clips the silhouette top', () => {
+    const e = footprintExtent('pyramid_great'), back = e.down;                 // the footprint's back half equals its front half
+    const k = 2, none = { top: 0, right: 0, bottom: 0, left: 0 };
+    let last = -1;
+    for (const height of [150, 200, 250, 300, 340, 380, 420, 460, 500]) {       // ever more free map, 390 wide, zero margin
+      const fit = fitZoom('pyramid_great', 0, 1, { width: 390, height }, none, 0);
+      if (height * 1 / (MIN_ZOOM * k) >= e.up + e.down) { expect(fit.extent).toEqual({ up: e.up, down: e.down }); continue; }   // it fits at MIN_ZOOM
+      expect(fit.zoom).toBe(MIN_ZOOM);
+      expect(fit.extent.down).toBe(e.down);
+      expect(fit.extent.up).toBeGreaterThanOrEqual(back);                       // the footprint is never dropped
+      expect(fit.extent.up).toBeLessThan(e.up);                                 // the silhouette's top is what clips
+      expect(fit.extent.up).toBeGreaterThanOrEqual(last);                       // a taller free map keeps more of it
+      if (fit.extent.up > back) expect(Math.abs((fit.extent.up + fit.extent.down) * MIN_ZOOM * k - height) < 1e-6).toBe(true);   // exactly what the view holds
+      last = fit.extent.up;
+    }
+    expect(last > back).toBe(true);                                             // the loop reached the part-silhouette range
+    expect(fitZoom('pyramid_great', 0, 1, { width: 375, height: 667 }, { top: 330, right: 0, bottom: 341, left: 0 }).extent).toEqual({ up: back, down: e.down });   // 150% text on a short phone: only the footprint
+    expect(fitZoom('pyramid_great', 0, MIN_ZOOM, { width: 200, height: 200 }, none, 0).zoom).toBe(MIN_ZOOM);   // already at the least zoom: still the shrunk extent
   });
 
   it('grabExtent gives a monument drawn height (the art height, not footprintExtent up), the same turned, and null for anything else', async () => {
@@ -192,20 +241,50 @@ describe('s4 ui rotating, fitting and the silhouette', () => {
     } finally { r.cleanup(); }
   });
 
-  it('zooms the camera out once when a great pyramid\'s card is picked on a phone (a cut under Gentle)', async () => {
+  // The pick on a phone with the Motion setting forced (never the machine's own: headless Edge asks for reduced motion).
+  async function pickGreatPyramid(motion) {
     const w = uiWorld();
     w.milestone = 'capital'; w.prestigeUnlocks.pyramid_small = 0; w.prestigeUnlocks.pyramid_great = 0; w.gold = 20000;
-    const r = await rigUI({ width: 390, height: 844, world: w });
+    const settings = createSettings({ storage: null, root: document.createElement('div'), systemReducedMotion: () => false, watchSystem: null });
+    settings.set({ motion });
+    const r = await rigUI({ width: 390, height: 844, world: w, settings });
+    r.ui.refresh();
+    fire(r.root.querySelector('#dock .cat[data-category="monuments"]'), 'click');
+    fire(r.root.querySelector('#dock .tray .card[data-item="pyramid_great"]'), 'click');
+    return r;
+  }
+
+  it('zooms the camera out once when a great pyramid\'s card is picked on a phone (a cut under Gentle)', async () => {
+    const r = await pickGreatPyramid('gentle');
     try {
-      r.ui.refresh();
-      fire(r.root.querySelector('#dock .cat[data-category="monuments"]'), 'click');
-      fire(r.root.querySelector('#dock .tray .card[data-item="pyramid_great"]'), 'click');
       expect([r.store.get().tool.type, r.store.get().overlay]).toEqual(['pyramid_great', 'ground']);
-      expect([r.cam.zoom < 1, r.cam.zoom >= MIN_ZOOM]).toEqual([true, true]);
+      expect([r.cam.zoom < 1, r.cam.zoom >= MIN_ZOOM]).toEqual([true, true]);    // at once: no frame has been drawn
       const zoomed = r.cam.zoom;
+      r.frame(CAMERA_PAN_MS * 2);
+      expect(r.cam.zoom).toBe(zoomed);
       r.ui.placement.cancel();
       fire(r.root.querySelector('#dock .tray .card[data-item="obelisk_small"]'), 'click');
       expect(r.cam.zoom).toBe(zoomed);                                            // never zooms back in
+    } finally { r.cleanup(); }
+  });
+
+  it('eases the same zoom out under Full: nothing at once, then out to the fit zoom, never in', async () => {
+    const gentle = await pickGreatPyramid('gentle');
+    const fitZoomOf = gentle.cam.zoom;
+    gentle.cleanup();
+    const r = await pickGreatPyramid('full');
+    try {
+      expect([r.store.get().tool.type, r.store.get().overlay]).toEqual(['pyramid_great', 'ground']);
+      expect(r.cam.zoom).toBe(1);                                                 // the move has begun, not jumped
+      const seen = [];
+      for (const t of [CAMERA_PAN_MS / 4, CAMERA_PAN_MS / 2, (3 * CAMERA_PAN_MS) / 4]) { r.frame(t); seen.push(r.cam.zoom); }
+      expect(seen.every((z) => z <= 1 && z >= fitZoomOf)).toBe(true);
+      expect(seen[0] < 1 && seen[0] > seen[1] && seen[1] > seen[2] && seen[2] > fitZoomOf).toBe(true);   // eased out, step by step
+      r.frame(CAMERA_PAN_MS);
+      expect(r.cam.zoom).toBe(fitZoomOf);                                         // the same fit as a cut
+      r.ui.placement.cancel();
+      fire(r.root.querySelector('#dock .tray .card[data-item="obelisk_small"]'), 'click');
+      for (const t of [CAMERA_PAN_MS * 2, CAMERA_PAN_MS * 4]) { r.frame(t); expect(r.cam.zoom).toBe(fitZoomOf); }   // never zooms back in
     } finally { r.cleanup(); }
   });
 });
