@@ -26,8 +26,10 @@ function rig(storage = fakeLocal()) {
 const shownText = (root) => { const n = root.querySelector('.tip-row .text'); return n ? n.textContent : null; };
 
 // Frames for the game tests, cheap because the drawing is stubbed. play(ms) runs frames a second apart, so the game's play
-// clock (which the tips' gap and hourly cap count) moves only while the speed is above zero.
+// clock (which the tips' gap and hourly cap count) moves only while the speed is above zero. Motion is chosen (Gentle),
+// so the device's own setting (headless Edge asks for less motion) brings no Gentle tip into these tests (Stage 4).
 function quietFrames(r) {
+  r.ui.settings.set({ motion: 'gentle' });
   r.renderer.renderFrame = () => {};
   let ft = 0;
   r.frame(ft);

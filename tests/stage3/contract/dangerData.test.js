@@ -91,7 +91,7 @@ describe('s3 contract data', () => {
     expect(pick(AMBIENT, ['glintDriftTilesPerSecond', 'reedSwayDeg', 'treeSwayDeg', 'cropBandEveryMs', 'budgetMs', 'idleFpsCap', 'idleAfterMs', 'maxChangeHz'])).toEqual({
       glintDriftTilesPerSecond: 0.2, reedSwayDeg: 3, treeSwayDeg: 2, cropBandEveryMs: 6000, budgetMs: 2, idleFpsCap: 30, idleAfterMs: 2000, maxChangeHz: 1,
     });
-    expect([AMBIENT.glintFadeMs, AMBIENT.reedSwayPeriodMs, AMBIENT.treeSwayPeriodMs, AMBIENT.smokeEveryMs, AMBIENT.rareEveryMs]).toEqual([[4000, 7000], [3000, 6000], [4000, 6000], [2000, 3000], [60000, 120000]]);
+    expect([AMBIENT.glintFadeMs, AMBIENT.reedSwayPeriodMs, AMBIENT.treeSwayPeriodMs, AMBIENT.smokeEveryMs, AMBIENT.rareEveryMs]).toEqual([[4000, 7000], [3000, 6000], [4000, 6000], [2000, 3000], [45000, 90000]]);   // Stage 4: rare life every 45-90 s (ruling 219)
     expect(AMBIENT.dropOrder).toEqual(['rare', 'smoke', 'sway']);
   });
 });

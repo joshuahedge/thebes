@@ -66,11 +66,11 @@ describe('s4 contract settings: Motion, music and the picture cards flag', () =>
       expect(load({ reducedMotion: 'on', motion: 'full' })).toBe('full');             // a Stage 4 choice wins
       expect([motionFromLegacy({ reducedMotion: 'off', ambient: true }), motionFromLegacy({ ambient: true })]).toEqual(['full', null]);
       const s = createSettings({ storage: memory(), root, systemReducedMotion: () => true });
-      s.set({ reducedMotion: 'off', ambient: true });                                // src/dev/scenes.js setMotion('full')
-      expect([s.get().motion, s.get().reducedMotion, s.get().ambient]).toEqual(['full', 'off', true]);
-      s.set({ reducedMotion: 'system', ambient: true });                             // setMotion('reduced'): follow the device
-      expect([s.get().motion, s.motionLevel(), s.get().reducedMotion]).toEqual(['system', 'gentle', 'system']);
-      expect(Object.keys(s.get()).sort()).toEqual(Object.keys(DEFAULT_SETTINGS).sort());   // the old keys are mirrors only
+      s.set({ reducedMotion: 'off', ambient: true });                                // a Stage 1-3 test's write
+      expect([s.get().motion, s.get().reducedMotion, s.get().ambient]).toEqual(['full', undefined, undefined]);   // Track E retired the mirrors
+      s.set({ reducedMotion: 'system', ambient: true });                             // follow the device
+      expect([s.get().motion, s.motionLevel()]).toEqual(['system', 'gentle']);
+      expect(Object.keys(s.get()).sort()).toEqual(Object.keys(DEFAULT_SETTINGS).sort());   // the old keys are never kept
     } finally { cleanup(); }
   });
 });

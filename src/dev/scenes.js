@@ -30,6 +30,9 @@ import { place, canPlace, drawRoad, paintHouses, setPaused } from '../sim/comman
 import { PALACE } from '../data/palace.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { holdFestival } from '../sim/festival.js';
+import { tickDay } from '../sim/clock.js';
+import { processionsAt, PROCESSION_ID_BASE } from '../render/walkers.js';
+import { PROCESSION } from '../data/ambient.js';
 import { allBuildings, housesOf } from '../sim/world.js';
 import { coverageOf } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
@@ -440,15 +443,15 @@ async function welcome(api, options) {
 
 export const STAGE4_SCENES = ['title', 'tutorial', 'site', 'pyramid', 'capstone', 'procession', 'palace', 'sitesheet', 'motion'];
 
-// The two motions every Stage 4 shot is taken under (review note 7.2, "Screenshots in both"), in today's settings: full
-// is reduced motion off and ambient on; reduced follows the device (reduced motion 'system', which headless Edge resolves
-// to reduced, so ambient is off too). Returns the motion it set.
-// S4-TODO: Track E updates this when the Motion setting lands (full = Motion Full, reduced = follow the device -> Gentle).
+// The two motions every Stage 4 shot is taken under (review note 7.2, "Screenshots in both"; spec 5.4): full is Motion
+// Full; reduced follows the device (Motion 'system'), which headless Edge, asking for less motion, resolves to Gentle.
+// 'gentle' and 'still' choose those levels outright (for a shot or a test that wants one whatever the device says).
+// Returns the motion it set. tools/shots.ps1 -Motion takes MOTIONS.
 export const MOTIONS = ['full', 'reduced'];
+const MOTION_FOR = { full: 'full', reduced: 'system', gentle: 'gentle', still: 'still' };
 export function setMotion(settings, motion) {
-  if (motion === 'full') settings.set({ reducedMotion: 'off', ambient: true });
-  else if (motion === 'reduced') settings.set({ reducedMotion: 'system', ambient: true });
-  else throw new Error(`setMotion: no motion named ${motion} (${MOTIONS.join(', ')})`);
+  if (!(motion in MOTION_FOR)) throw new Error(`setMotion: no motion named ${motion} (${Object.keys(MOTION_FOR).join(', ')})`);
+  settings.set({ motion: MOTION_FOR[motion] });
   return motion;
 }
 
@@ -610,9 +613,14 @@ async function capstone(api) {
 }
 
 // A festival at the working temple nearest the middle of the city, held through the sim's command as the temple
-// sheet's button holds it (with its caption), the temple framed.
-// S4-TODO: the festival procession walking the roads in the temple's reach (priests with a carried shrine, musicians,
-// dancers) and streamers on the temple (review note 7.1 item 3). Today: the festival is held, with nothing on the map.
+// sheet's button holds it (with its caption), and its procession framed close (spec 5.7 item 3): priests with the carried
+// shrine, musicians and dancers walking the roads in the temple's reach, streamers at the temple's front corners. The
+// sim then runs (its own tick, as play would) until the whole procession has filed out of the temple and the carried
+// shrine stands where least is built just in front of it (the day from PROCESSION_DAYS to PROCESSION_DAYS_MAX with the
+// most free tiles in the two rows before it, the earliest of equals), so nothing hides it; the
+// city stays paused, so it holds still for the shot, framed on the shrine at zoom 1.5. Returns the temple, the
+// festival's day and how many figures walk (render/walkers.js festivalSize).
+const PROCESSION_DAYS = 6, PROCESSION_DAYS_MAX = 40;
 async function procession(api) {
   const g = inGame(api, 'procession'), { world, ui } = g;
   const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
@@ -622,9 +630,25 @@ async function procession(api) {
   if (!result.ok) throw new Error(`devScene procession: no festival (${result.reason})`);
   ui.toasts.show(DANGER_UI_TEXT.festivalHeld);
   ui.afterCommand({ kind: 'festival', result, text: DANGER_UI_TEXT.festivalHeld, undoable: false });
-  focus(g, temple.x + temple.w / 2, temple.y + temple.d / 2);
+  const held = world.danger.festivalDay;
+  const mine = (w) => w.id >= PROCESSION_ID_BASE + temple.id * 16 && w.id < PROCESSION_ID_BASE + temple.id * 16 + 16;
+  const isShrine = (w) => w.id === PROCESSION_ID_BASE + temple.id * 16 + PROCESSION.order.indexOf('shrine');
+  const FRONT = [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2], [2, 2]];
+  const open = (w) => FRONT.filter(([dx, dy]) => freeLand(world, Math.floor(w.x) + dx, Math.floor(w.y) + dy)).length;
+  let days = PROCESSION_DAYS, best = -1;
+  for (let d = PROCESSION_DAYS; d <= PROCESSION_DAYS_MAX; d++) {
+    const s = processionsAt(world, held + d, null).find(isShrine);
+    if (s && open(s) > best) { best = open(s); days = d; }
+  }
+  for (let i = 0; i < days; i++) tickDay(world);
+  ui.refresh();
+  const figures = processionsAt(world, world.day, null).filter(mine);
+  if (!figures.length) throw new Error('devScene procession: no procession at the temple');
+  const shrine = figures.find(isShrine) || figures[0];
+  g.cam.zoom = 1.5;
+  focus(g, shrine.x, shrine.y);
   await wait(300);
-  return `procession ${temple.id} day ${world.danger.festivalDay}`;
+  return `procession ${temple.id} day ${held} figures ${figures.length}`;
 }
 
 // Stage 4 (Track C, review note 3.9): a small pyramid's site sheet: its course and share done, two crews, stone and bricks on
@@ -661,9 +685,9 @@ async function sitesheet(api) {
   return `sitesheet ${b.id} at ${at.x},${at.y} crews ${guilds.length}`;
 }
 
-// The Settings sheet scrolled to the Motion row.
-// S4-TODO: the one Motion row (Full / Gentle / Still) saying what it is doing, e.g. "Motion: Gentle (your device asks
-// for less motion)" (review note 7.2). Track E owns the fuller rewrite.
+// The Settings sheet scrolled to the Motion row (spec 5.4): its four choices, the status line saying what it is doing
+// ("Motion: Gentle (your device asks for less motion)" under the reduced shots, "Motion: Full" under the full ones) and
+// the line saying what that level moves.
 async function motion(api) {
   const g = inGame(api, 'motion'), { ui } = g;
   const s = ui.store.get();

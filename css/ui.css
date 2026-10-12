@@ -825,6 +825,15 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
 
 /* ── s4 motion (Track E) ── Track E's styles: the Motion row, and the chrome's transitions per Motion level
    (body[data-motion]: instant under gentle and still, ruling 247). */
+/* The interface's own transitions and animations (rows opening, the dock's heights, sheets, captions, the picture cards'
+   slide) are instant under Gentle as under Still (spec 5.4): Gentle and Still differ only on the map. */
+[data-motion="gentle"] *, [data-motion="gentle"] *::before, [data-motion="gentle"] *::after,
+[data-motion="still"] *, [data-motion="still"] *::before, [data-motion="still"] *::after {
+  transition-duration: 0s !important; transition-delay: 0s !important; animation: none !important;
+}
+/* The Motion row: the four choices, then what it is doing and what that level moves. */
+#sheet .motion-row .motion-status { margin: 4px 0 0; font-weight: 600; }
+#sheet .motion-row .motion-line { margin: 2px 0 8px; }
 /* ── end s4 motion ── */
 
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */

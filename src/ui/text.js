@@ -1467,7 +1467,27 @@ export const score4PalaceText = (style) => `The palace is now ${SCORE4_TEXT.pala
 // ── s4 motion (Track E) ──────────────────────────────────────────────────────────────────────────────────────────
 // Track E's words: the Motion row ("Motion: Gentle (your device asks for less motion)"), the Gentle tip and the
 // processions. Add new lines just above the end marker.
-export const MOTION4_TEXT = {};
+export const MOTION4_TEXT = {
+  motion: 'Motion',
+  choices: { system: 'Follow the device', full: 'Full', gentle: 'Gentle', still: 'Still' },
+  levels: { full: 'Full', gentle: 'Gentle', still: 'Still' },
+  // What the row is doing (spec 5.4), from settings.js motionStatus: { level, device, asks }.
+  status: ({ level, device, asks }) => {
+    const name = MOTION4_TEXT.levels[level];
+    if (asks) return `Motion: ${name} (your device asks for less motion)`;
+    if (device) return `Motion: ${name} (your device's setting)`;
+    return `Motion: ${name}`;
+  },
+  // What each level moves (spec 5.4's table), under the row.
+  levelLines: {
+    full: 'Everything moves: water drifts, trees sway, smoke rises, birds fly over and the camera glides.',
+    gentle: 'People, sleds and processions walk; water and smoke fade in place. Nothing sways, drifts or pulses.',
+    still: 'Only people, sleds and processions move. Everything else holds still.',
+  },
+};
+Object.assign(TIP_TEXT, {
+  gentle_motion: 'Your device asks for less motion, so the city moves gently. Settings → Motion changes it.',
+});
 // ── end s4 motion ────────────────────────────────────────────────────────────────────────────────────────────────
 
 //
