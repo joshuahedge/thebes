@@ -140,7 +140,7 @@ describe('s4 ui the site sheet', () => {
     const b = addRaw(w, 'colossus', 12, 11);
     expect(rowsOf(w, b).gold).toBe(`Work gold: ${workGoldPerUnit(w) * 20} gold a crew a month. Work stops if gold would go below 0.`);
     w.difficulty = 'hard';
-    expect(rowsOf(w, b).gold).toBe('Work gold: 125 gold a crew a month. Work stops if gold would go below 0.');
+    expect(rowsOf(w, b).gold).toBe('Work gold: 160 gold a crew a month. Work stops if gold would go below 0.');
     b.site.last = { units: 60, gold: 300, crews: 3 };
     expect(rowsOf(w, b).gold).toBe('Last month: 300 gold for 3 crews. Work stops if gold would go below 0.');
   });

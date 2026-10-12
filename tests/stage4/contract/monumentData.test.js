@@ -53,8 +53,8 @@ describe('s4 contract monument data', () => {
     expect(PRESTIGE_UNLOCKS).toEqual(['pyramid_small', 'pyramid_great']);
     expect(PRESTIGE).toEqual({ moodPer: 70, moodMax: 10, scoreFull: 700 });
   });
-  it('keeps the shared rules: 20 units a crew-month, 5 gold a unit, the reaches, the stockpile, the stall, the big-footprint fit', () => {
-    expect(MONUMENT).toEqual({ unitsPerCrewMonth: 20, goldPerUnit: 5, crewReach: 12, producerReach: 12, supplyReach: 16, stockPerCrew: 40, stallDays: 3, demolishRefund: 0.25 });
+  it('keeps the shared rules: 20 units a crew-month, 6.4 gold a unit as Track F tuned it, the reaches, the stockpile, the stall, the big-footprint fit', () => {
+    expect(MONUMENT).toEqual({ unitsPerCrewMonth: 20, goldPerUnit: 6.4, crewReach: 12, producerReach: 12, supplyReach: 16, stockPerCrew: 40, stallDays: 3, demolishRefund: 0.25 });
     expect(MONUMENT_PLACING).toEqual({ fitRadius: 16, bigArea: 9, silhouetteAlpha: 0.35, fadeBehind: 0.4 });
     expect(SITE_DESIRABILITY).toEqual([-3, -2, -1]);
   });
@@ -119,7 +119,7 @@ describe('s4 contract score v2 data and costs', () => {
   });
   it('scales founding, work gold, gilding, the capstone and the palace by the difficulty\'s cost, never below 0', () => {
     expect(byLevel((w) => costOf(w, 'pyramid_great'))).toEqual([4800, 4800, 6000, 7500]);
-    expect(byLevel(workGoldPerUnit)).toEqual([4, 4, 5, 6.25]);                    // not rounded: the site carries the fraction
+    expect(byLevel(workGoldPerUnit).map((g) => Math.round(g * 1e6) / 1e6)).toEqual([5.12, 5.12, 6.4, 8]);   // not rounded to whole gold: the site carries the fraction (the float noise of 6.4 x 0.8 is)
     expect(byLevel((w) => extraGoldOf(w, 'pyramid_great'))).toEqual([4000, 4000, 5000, 6250]);
     expect(byLevel((w) => extraGoldOf(w, 'obelisk_large'))).toEqual([800, 800, 1000, 1250]);
     expect(byLevel((w) => extraGoldOf(w, 'colossus'))).toEqual([0, 0, 0, 0]);

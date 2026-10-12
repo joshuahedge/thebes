@@ -301,7 +301,7 @@ function payExtra(world, b) {
 
 // A crew's work gold for `units` (ruling 240): workGoldPerUnit x units plus the site's carried fraction, paid in whole
 // gold; { pay, carry } with 0 <= carry < 1. A sum within EPS of a whole number is that number, so a month of a full
-// crew pays exactly 100 (x the difficulty's cost).
+// crew pays exactly 20 x workGoldPerUnit (128 at Normal, src/data/monuments.js), less a fraction it carries.
 function workPay(world, b, units) {
   const owed = snap(b.site.carry + units * workGoldPerUnit(world));
   const pay = Math.floor(owed);

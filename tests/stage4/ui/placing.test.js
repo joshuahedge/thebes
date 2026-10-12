@@ -82,14 +82,14 @@ describe('s4 ui the monument line', () => {
   it('says the work gold a crew is paid a month from the sim, and what it does to the homes when finished and while building', () => {
     const w = capital();
     expect(monumentLine(w, 'colossus', 20, 11)).toBe(`then ${workGoldPerUnit(w) * 20} gold a crew a month`);
-    expect(monumentLine(w, 'colossus', 20, 11)).toBe('then 100 gold a crew a month');
+    expect(monumentLine(w, 'colossus', 20, 11)).toBe('then 128 gold a crew a month');
     w.difficulty = 'hard';
-    expect(monumentLine(w, 'colossus', 20, 12)).toBe('then 125 gold a crew a month');
+    expect(monumentLine(w, 'colossus', 20, 12)).toBe('then 160 gold a crew a month');
     w.difficulty = 'normal';
     for (const x of [17, 18, 19]) addRaw(w, 'house', x, 11, { tier: 2, residents: 5 });
     const done = desirabilityPreview(w, 'colossus', 20, 11), site = desirabilityPreview(w, 'colossus', 20, 11, { site: true });
     expect([done.better > 0, site.worse > 0]).toEqual([true, true]);
-    expect(monumentLine(w, 'colossus', 20, 11)).toBe(`then 100 gold a crew a month · finished: ${done.better} homes nicer · while building: ${site.worse} homes less pleasant`);
+    expect(monumentLine(w, 'colossus', 20, 11)).toBe(`then 128 gold a crew a month · finished: ${done.better} homes nicer · while building: ${site.worse} homes less pleasant`);
   });
 
   it('says a second of a kind earns no prestige only once the first holds the kind\'s whole share', () => {
@@ -100,7 +100,7 @@ describe('s4 ui the monument line', () => {
     const n = MONUMENTS.obelisk_small.courses.length;
     expect([first.site.done, prestigeByKind(w).obelisk_small.prestige]).toEqual([null, 0]);
     expect(oneOfEach()).toBe(false);
-    expect(monumentLine(w, 'obelisk_small', 20, 11)).toBe('then 100 gold a crew a month');
+    expect(monumentLine(w, 'obelisk_small', 20, 11)).toBe('then 128 gold a crew a month');
     first.site.course = Math.floor(n / 2);                                        // half built (same spot: the memo must see the state move)
     expect([prestigeByKind(w).obelisk_small.prestige > 0, prestigeByKind(w).obelisk_small.prestige < MONUMENTS.obelisk_small.prestige.courses + MONUMENTS.obelisk_small.prestige.done]).toEqual([true, true]);
     expect(oneOfEach()).toBe(false);
@@ -108,7 +108,7 @@ describe('s4 ui the monument line', () => {
     expect(oneOfEach()).toBe(false);                                              // paused or not, it is not finished
     first.site.course = n; first.site.done = 0;                                   // finished: the whole share is held
     expect(prestigeByKind(w).obelisk_small.prestige).toBe(MONUMENTS.obelisk_small.prestige.courses + MONUMENTS.obelisk_small.prestige.done);
-    expect(monumentLine(w, 'obelisk_small', 20, 11)).toBe('One of each kind counts: no prestige · then 100 gold a crew a month');
+    expect(monumentLine(w, 'obelisk_small', 20, 11)).toBe('One of each kind counts: no prestige · then 128 gold a crew a month');
     first.site.done = null; first.site.course = 0;                                // and unfinished again: the line goes
     expect(oneOfEach()).toBe(false);
     expect(monumentLine(w, 'colossus', 20, 11).startsWith(UI4_TEXT.oneOfEach)).toBe(false);   // another kind is its own
@@ -162,7 +162,7 @@ describe('s4 ui rotating, fitting and the silhouette', () => {
       r.ui.placement.start({ kind: 'building', type: 'obelisk_small' });
       r.ui.placement.moveGhost(20, 14);
       expect(r.root.querySelector('#confirm .conds').classList.contains('tall')).toBe(true);
-      expect(r.root.querySelector('#confirm .monument-line').textContent.endsWith('then 100 gold a crew a month')).toBe(true);
+      expect(r.root.querySelector('#confirm .monument-line').textContent.endsWith('then 128 gold a crew a month')).toBe(true);
       r.ui.placement.confirm();
       expect(r.root.querySelector('#toasts').textContent.includes('Small obelisk founded · needs a road')).toBe(true);
     } finally { r.cleanup(); }
