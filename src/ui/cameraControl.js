@@ -70,5 +70,15 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, no
       const centre = nudgedCentre(cam, view(), cx, cy, x, y, insets, margin) || { x: cx, y: cy };
       begin(centre.x, centre.y, cam.zoom, ms);
     },
+    // As panToKeeping, but (cx, cy) goes to the middle of the map the insets leave free rather than the middle of the
+    // screen: a phone frames a place between the rows under the top bar and the sheet or bar below (ruling 168).
+    frameKeeping(cx, cy, x, y, insets = NO_INSETS, margin = 48, ms = CAMERA_PAN_MS) {
+      const v = view();
+      const midX = insets.left + (v.width - insets.left - insets.right) / 2;
+      const midY = insets.top + (v.height - insets.top - insets.bottom) / 2;
+      const framed = screenToTile({ x: cx, y: cy, zoom: cam.zoom }, v, v.width - midX, v.height - midY);
+      const centre = nudgedCentre(cam, v, framed.x, framed.y, x, y, insets, margin) || framed;
+      begin(centre.x, centre.y, cam.zoom, ms);
+    },
   };
 }

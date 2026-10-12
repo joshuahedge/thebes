@@ -16,6 +16,7 @@ import { T, NEED_NAMES, CAUSE_TEXT, MOOD_NAMES, causeText, buildingName } from '
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 import { rigUI } from '../helpers/uiWorld.js';
+import { measureRows } from '../../src/dev/scenes.js';
 
 // The sheets on their own, with a road along y = 10 and Show me recorded instead of acted on.
 function rig() {
@@ -309,8 +310,10 @@ describe('ui house sheet why', () => {
   function crowdAroundHomes(world) {
     for (const y of [9, 11]) for (let x = 7; x <= 18; x++) if (!world.occ[y * world.size + x]) addRaw(world, 'house', x, y);
   }
-  const FREE = { left: 48, right: 390 - 48, top: 48 + 48, bottom: 844 - 240 - 48 };   // the phone's placing insets plus keepVisible's 48 px margin
-  const inFree = (p) => p.x >= FREE.left && p.x <= FREE.right && p.y >= FREE.top && p.y <= FREE.bottom;
+  // The phone's placing insets plus keepVisible's 48 px margin: the top is the measured bottom of the rows under the top
+  // bar (ruling 168), not a fixed 48 px bar.
+  const freeOf = (root) => ({ left: 48, right: 390 - 48, top: measureRows(root).rowsEnd + 48, bottom: 844 - 240 - 48 });
+  const inFree = (p, free) => p.x >= free.left && p.x <= free.right && p.y >= free.top && p.y <= free.bottom;
   it('Show me keeps its ghost inside the free map when the nearest fit is several tiles from the target', async () => {
     for (const motion of ['reduced', 'tween']) {
       const r = await rigUI({ width: 390, height: 844 });
@@ -326,7 +329,9 @@ describe('ui house sheet why', () => {
         expect(r.store.get().tool.type).toBe('well');
         expect(g).toEqual({ x: 19, y: 9 });
         expect(canPlace(r.world, 'well', g.x, g.y).ok).toBe(true);
-        expect(inFree(r.screenOf(g.x + 0.5, g.y + 0.5))).toBe(true);            // the ghost is on screen, clear of the top bar and the confirm bar
+        const free = freeOf(r.root);
+        expect(free.top).toBeGreaterThan(48 + 48);                              // the goals strip runs under the top bar
+        expect(inFree(r.screenOf(g.x + 0.5, g.y + 0.5), free)).toBe(true);      // the ghost is on screen, clear of the rows and the confirm bar
         const t = r.screenOf(target.x, target.y);                               // and the target was not abandoned for it
         expect(t.x >= 0 && t.x <= 390 && t.y >= 48 && t.y <= 844 - 240).toBe(true);
       } finally { r.cleanup(); }
@@ -348,21 +353,76 @@ describe('ui house sheet why', () => {
         fire(view, 'click');
         if (motion === 'tween') { expect(r.ui.cameraControl.animating).toBe(true); r.ui.cameraControl.tick(1e6); }
         expect(r.store.get().sheet).toEqual({ kind: 'info', id: bazaar.id });
-        const topBar = r.root.querySelector('#topbar').getBoundingClientRect().bottom;
+        const rowsEnd = measureRows(r.root).rowsEnd;                             // the top bar and the rows under it
         const sheetTop = Math.min(r.root.querySelector('#sheet').getBoundingClientRect().top, 844 * 0.4);
         for (const [x, y] of [[20, 5], [22, 5], [20, 7], [22, 7]]) {                // the footprint's four corners
           const p = r.screenOf(x, y);
-          expect([motion, x, y, p.x >= 0 && p.x <= 390, p.y > topBar && p.y < sheetTop]).toEqual([motion, x, y, true, true]);
+          expect([motion, x, y, p.x >= 0 && p.x <= 390, p.y > rowsEnd && p.y < sheetTop]).toEqual([motion, x, y, true, true]);
         }
       } finally { r.cleanup(); }
     }
   });
-  it('Show me centres the target when the ghost is already in view', async () => {
-    const r = await rigUI({ width: 390, height: 844 });
+  // On a phone Show me frames its place in the middle of the map left free between the rows under the top bar and the
+  // confirm bar (ruling 168): in compact left of the rail and the confirm drawer, above the corner buttons; a wide screen
+  // keeps it in the middle of the screen.
+  it('Show me puts the target in the middle of the free map when the ghost is already in view', async () => {
+    for (const [width, height, text] of [[390, 844, 100], [390, 844, 150], [375, 667, 150], [844, 390, 100]]) {
+      const r = await rigUI({ width, height });
+      try {
+        r.ui.settings.set({ textSize: text });
+        r.ui.showMeAt({ category: 'services', item: 'well', x: 13, y: 9.5 });
+        const centre = r.screenOf(13, 9.5), m = measureRows(r.root), portrait = height > width;
+        const bottom = portrait ? Math.min(height * 0.3, 240) : height - m.cornersTop, right = portrait ? 0 : 56 + 268;
+        const middle = { x: (width - right) / 2, y: (m.rowsEnd + height - bottom) / 2 };
+        expect([width, height, text, m.rowsEnd > 48, bottom > 0]).toEqual([width, height, text, true, true]);   // the goals strip is up; corners or the bar below
+        expect([width, height, text, Math.abs(centre.x - middle.x) < 1, Math.abs(centre.y - middle.y) < 1]).toEqual([width, height, text, true, true]);
+      } finally { r.cleanup(); }
+    }
+    const wide = await rigUI({ width: 1280, height: 800 });
     try {
-      r.ui.showMeAt({ category: 'services', item: 'well', x: 13, y: 9.5 });
-      const centre = r.screenOf(13, 9.5);
-      expect(Math.abs(centre.x - 195) < 1 && Math.abs(centre.y - 422) < 1).toBe(true);   // nothing needed nudging: the target sits mid-screen
+      wide.ui.showMeAt({ category: 'services', item: 'well', x: 13, y: 9.5 });
+      const centre = wide.screenOf(13, 9.5);
+      expect(Math.abs(centre.x - 640) < 1 && Math.abs(centre.y - 400) < 1).toBe(true);   // wide: the middle of the screen, as before
+    } finally { wide.cleanup(); }
+  });
+  // View on a phone frames the building in the middle of the map between the measured rows and the top of the tallest
+  // portrait sheet (ruling 168, spec 6.3), not just inside it.
+  it('View frames the building between the rows and the sheet on a phone', async () => {
+    for (const motion of ['reduced', 'tween']) {
+      const r = await rigUI({ width: 390, height: 844 });
+      try {
+        r.ui.settings.set({ reducedMotion: motion === 'tween' ? 'off' : 'on' });
+        const bazaar = addRaw(r.world, 'bazaar', 20, 5);
+        r.ui.refresh();
+        r.store.set(openSheet(r.store.get(), 'minimap'));
+        const i = r.ui.alerts.list().findIndex((a) => a.id === bazaar.id);
+        fire(r.root.querySelectorAll('#sheet .alert-list .view')[i], 'click');
+        if (motion === 'tween') r.ui.cameraControl.tick(1e6);
+        const rowsEnd = measureRows(r.root).rowsEnd, centre = r.screenOf(21, 6);
+        expect([motion, rowsEnd > 48]).toEqual([motion, true]);
+        expect([motion, Math.abs(centre.x - 195) < 1, Math.abs(centre.y - (rowsEnd + 844 * 0.4) / 2) < 1]).toEqual([motion, true, true]);
+      } finally { r.cleanup(); }
+    }
+  });
+  // When the rows reach so far down that the map between them and the sheet is less than the camera's margin twice
+  // over, the frame keeps that much room above the sheet (the building stays clear of the sheet, though the rows may
+  // cover it until the guidance row steps aside).
+  it('View keeps the building above the sheet when the rows leave too little room', async () => {
+    const r = await rigUI({ width: 375, height: 667 });
+    try {
+      r.ui.settings.set({ textSize: 150, reducedMotion: 'on' });
+      r.world.gold = -30;                                                       // debt: the critical banner joins the goals strip
+      const bazaar = addRaw(r.world, 'bazaar', 20, 5);
+      r.ui.refresh();
+      expect(r.root.querySelector('#banner .critical')).toBeTruthy();
+      const before = measureRows(r.root).rowsEnd;
+      expect(before).toBeGreaterThan(667 * 0.4 - 96);                           // the rows leave less than 96 px above the sheet
+      r.store.set(openSheet(r.store.get(), 'minimap'));
+      const i = r.ui.alerts.list().findIndex((a) => a.id === bazaar.id);
+      fire(r.root.querySelectorAll('#sheet .alert-list .view')[i], 'click');
+      expect(r.store.get().sheet).toEqual({ kind: 'info', id: bazaar.id });
+      const centre = r.screenOf(21, 6);
+      expect(Math.abs(centre.y - (667 * 0.4 - 48)) < 1).toBe(true);             // as low as the margin allows, never behind the sheet
     } finally { r.cleanup(); }
   });
 });
