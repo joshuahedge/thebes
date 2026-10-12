@@ -26,6 +26,18 @@ describe('economy', () => {
     monthlyEconomy(w);
     expect(w.stats.lastMonth.upkeep).toBe(0);
   });
+  it('charges no upkeep or wages for a building no road touches, until one does (ruling P11)', () => {
+    const w = street();
+    addRaw(w, 'well', 20, 21);
+    addRaw(w, 'temple', 12, 20, { staff: 6 });                   // staff left over from before its road went
+    addRaw(w, 'garden', 25, 25);                                 // needs no road, costs nothing either way
+    monthlyEconomy(w);
+    expect(w.stats.lastMonth).toEqual({ taxes: 0, wages: 0, upkeep: 0, soldiers: 0, net: 0 });
+    expect(w.gold).toBe(1000);
+    setRoad(w, 10, 22, 21, 22);                                  // now both touch a road
+    monthlyEconomy(w);
+    expect(w.stats.lastMonth).toEqual({ taxes: 0, wages: 24, upkeep: 13, soldiers: 0, net: -37 });
+  });
 });
 
 describe('alerts', () => {
@@ -44,6 +56,18 @@ describe('alerts', () => {
     expect(codes).toContain('no_road:' + lonely.id);
     expect(codes).toContain('labour_shortage:services');
     expect(codes.some((c) => c.startsWith('no_road:') && c !== 'no_road:' + lonely.id)).toBe(false);
+  });
+  it('raises one plots_no_road for every home or plot with no road beside it, not one each (placement review P13)', () => {
+    const w = street();
+    addRaw(w, 'house', 4, 9);                                                         // beside the road on y = 10: no alert
+    const a = addRaw(w, 'house', 20, 20), b = addRaw(w, 'house', 21, 20), c = addRaw(w, 'house', 25, 25, { tier: 2, residents: 6 });
+    const found = computeAlerts(w).filter((x) => x.code === 'plots_no_road');
+    expect(found).toEqual([{ code: 'plots_no_road', count: 3, ids: [a.id, b.id, c.id] }]);
+    expect(computeAlerts(w).some((x) => x.code === 'no_road')).toBe(false);          // a house is not a no_road building: that code is for the rest
+    setRoad(w, 20, 19, 25, 19);                                                       // a road along y = 19 reaches the two plots
+    expect(computeAlerts(w).filter((x) => x.code === 'plots_no_road')).toEqual([{ code: 'plots_no_road', count: 1, ids: [c.id] }]);
+    setRoad(w, 25, 24, 28, 24);
+    expect(computeAlerts(w).some((x) => x.code === 'plots_no_road')).toBe(false);
   });
   it('flags debt, and unemployment only from Town', () => {
     const w = street(-10);

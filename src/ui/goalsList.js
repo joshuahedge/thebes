@@ -1,25 +1,28 @@
 // The goals list (spec 4.1; early-game pass 2.7, 3.3 and 3.7). The strip under the top bar shows the first
 // open goal with its progress ("2 of 6"), its reward, a filled Show me, Goals and, while the guide runs, Skip
 // guide; the whole row hides when no goal is open. On a phone (ruling 170) the strip is one row: the label and the
-// goal's words are one button that opens the goals sheet, then the progress and Show me; the reward and Skip guide are
-// in the sheet. The goals sheet shows up to three open goals grouped by chapter, then today's daily goals, then the
+// goal's words are one button, then the progress and Show me. That button opens the goal in place (placement review P8,
+// ruling 170 changed): the words in full, the reward, Show me, All goals (which opens the goals sheet) and, while the guide
+// runs, Skip guide; "More ▾" shows at its end when the words are cut at two lines. The goals sheet shows up to three open goals grouped by chapter, then today's daily goals, then the
 // Recent captions (ruling 165). Goal state lives in the world (src/sim/goals.js, src/sim/daily.js): this file reads
 // it, and changes it only through swapDaily.
 import { DAILY_REWARD } from '../data/daily.js';
 import { FOUNDED } from '../data/goals.js';
 import { MILESTONES } from '../data/progression.js';
 import { MEDALS } from '../data/scoring.js';
-import { openGoals, goalProgress, guideActive, chainGoals, openingProgress } from '../sim/goals.js';
+import { openGoals, goalProgress, guideActive, chainGoals, openingProgress, nextItemFor } from '../sim/goals.js';
 import { milestoneIndex } from '../sim/progression.js';
 import { scoreOf } from '../sim/score.js';
 import { dailyProgress, swapDaily } from '../sim/daily.js';
 import { alertsFor } from '../sim/alerts.js';
 import { housesOf, population } from '../sim/world.js';
 import { TERRAIN_BY_NAME } from '../sim/terrain.js';
+import { BUILDINGS } from '../data/buildings.js';
 import { el, button, clear, setText } from './components.js';
-import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, cheerReward, progressText, progressLabel, dailyDoneText, swapLabel, showMeLabel, goalsOpenLabel, thresholdMilestoneText, thresholdMedalText } from './text.js';
+import { isCut, writeMore } from './expand.js';
+import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, cheerReward, progressText, progressLabel, dailyDoneText, swapLabel, showMeLabel, goalWordsLabel, thresholdMilestoneText, thresholdMedalText } from './text.js';
 
-const FOCUS_CLASSES = ['show-me', 'open-goals', 'skip-guide'];
+const FOCUS_CLASSES = ['show-me', 'open-goals', 'skip-guide', 'all-goals'];
 
 // The device's local date as 'YYYY-MM-DD'. It is the only way the date reaches the sim (daily goals).
 export function dateKeyOf(ms) {
@@ -44,7 +47,9 @@ export function nearestTerrainTile(world, terrain, from) {
 }
 
 // Where a goal's Show me points. 'alert' aims at the first building with that alert (an event goal's trouble; code can
-// be a list); 'rocky' at the free rocky tile nearest the city's focus (a gem mine needs rocky ground, as canPlace checks);
+// be a list); 'fertile' and 'rocky' at the free tile of that ground nearest the city's focus (a farm needs fertile land and a
+// gem mine rocky ground, as canPlace checks), while the building Show me opens next needs that ground, else at the focus (a
+// granary beside the farm goes with the town, not the fields);
 // 'raid' (Stage 3) at the homes' side facing a warned or arriving raid, RAID_SHOW_ME_TILES from their centre towards
 // its entry, else at the homes; a goal with no showMe (out of debt) and any target that finds nothing fall back to the
 // city's focus.
@@ -79,9 +84,12 @@ export function showMeTarget(world, goal, alerts = null) {
       return { x: sx / homes.length, y: sy / homes.length };
     }
   }
-  if (kind === 'rocky') {
-    const best = nearestTerrainTile(world, 'rocky', world.focus);
-    if (best) return best;
+  if (kind === 'fertile' || kind === 'rocky') {
+    const item = nextItemFor(world, goal) || show.item;
+    if (BUILDINGS[item] && BUILDINGS[item].terrain === kind) {
+      const best = nearestTerrainTile(world, kind, world.focus);
+      if (best) return best;
+    }
   }
   return { x: world.focus.x, y: world.focus.y };
 }
@@ -124,8 +132,10 @@ export function thresholdFor(world) {
 }
 
 // phone(): a phone layout (portrait or compact), whose strip is one row. barAllowed(): whether the next-threshold bar may
-// show under the strip now (createUI: on a phone only in calm portrait play outside the guide, spec 4.1).
-export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGuide = () => {}, phone = () => false, barAllowed = () => true }) {
+// show under the strip now (createUI: on a phone only in calm portrait play outside the guide, spec 4.1). onOpen opens the
+// goals sheet; onToggle is a tap on a phone's goal words, which opens or closes the goal in place. setOpen(on) shows it so,
+// measure() shows or hides "More ▾" by whether the words are cut now.
+export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGuide = () => {}, onToggle = () => {}, phone = () => false, barAllowed = () => true }) {
   const strip = el('div', { class: 'goal-strip', hidden: true });
   // The next-threshold bar under the strip: its words, and a meter that repeats them for sight (never alone).
   const barText = el('span', { class: 'threshold-text small' });
@@ -133,7 +143,7 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
   const meter = el('span', { class: 'threshold-meter', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100' }, [fill]);
   const bar = el('div', { class: 'threshold', hidden: true }, [barText, meter]);
   container.append(strip, bar);
-  let shownId, shownPhone, parts = null;
+  let shownId, shownPhone, parts = null, expanded = false;
 
   // Rebuilt only when the goal or the layout's kind changes (refreshChrome runs every day and command), so focus
   // survives refreshes.
@@ -149,10 +159,14 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
     const label = el('span', { class: 'label small muted' });   // "Goal", or the opening chain's count ("1 of 10")
     if (shownPhone) {
       // One row (ruling 170): the label, the words and the progress are one flow of words, two lines at most, on the button
-      // that opens the goals sheet (its name has all of them, in case the words are cut); then Show me.
-      const open = el('button', { type: 'button', class: 'main open-goals', onClick: onOpen }, [el('span', { class: 'words' }, [label, ' ', text, ' ', progress])]);
-      strip.append(open, el('span', { class: 'buttons' }, [showMe]));
-      parts = { text, progress, showMe, skip: null, label, open };
+      // that opens the goal in place (P8); then Show me. Open, the reward, All goals and Skip guide show too.
+      const reward = el('span', { class: 'reward small muted', hidden: true });
+      const more = el('span', { class: 'more small', 'aria-hidden': 'true', hidden: true });   // the button's aria-expanded says the state
+      const open = el('button', { type: 'button', class: 'main open-goals', 'aria-expanded': 'false', onClick: () => onToggle() }, [el('span', { class: 'words' }, [label, ' ', text, ' ', progress, ' ', reward]), more]);
+      const allGoals = el('button', { type: 'button', class: 'all-goals quiet', hidden: true, onClick: () => onOpen() }, [T.allGoals, el('span', { 'aria-hidden': 'true', text: ' ›' })]);
+      const skip = button(T.skipGuide, { class: 'skip-guide quiet', hidden: true, onClick: () => onSkipGuide() });
+      strip.append(open, el('span', { class: 'buttons' }, [showMe, allGoals, skip]));
+      parts = { text, progress, showMe, skip, label, open, reward, more, allGoals };
     } else {
       const skip = button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() });
       strip.append(
@@ -160,13 +174,14 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
           label,
           text,
           progress,
-          el('span', { class: 'reward small muted wide-only', text: rewardText(goal.reward) }),   // phones read the reward in the goals sheet
+          el('span', { class: 'reward small muted wide-only', text: rewardText(goal.reward) }),   // phones read the reward in the open goal
         ]),
         el('span', { class: 'buttons' }, [showMe, button(T.goals, { class: 'open-goals quiet', onClick: onOpen }), skip]),
       );
-      parts = { text, progress, showMe, skip, label, open: null };
+      parts = { text, progress, showMe, skip, label, open: null, reward: null, more: null, allGoals: null };
     }
     update(goal);
+    paintOpen();
     if (focusedClass) {
       const again = strip.querySelector(`.${focusedClass}`);
       (again && !again.hidden ? again : showMe).focus();
@@ -181,11 +196,34 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
     const c = countOf(world, goal);
     parts.progress.hidden = !c;
     if (c) { setText(parts.progress, c.text); parts.progress.setAttribute('aria-label', c.label); }
-    if (parts.open) parts.open.setAttribute('aria-label', goalsOpenLabel(o ? `${T.goal} ${progressText(o.done, o.of)}` : T.goal, goal.text, c ? c.label : ''));
-    if (!parts.skip) return;
-    const hide = !guideActive(world);
-    if (hide && document.activeElement === parts.skip) parts.showMe.focus();   // Skip guide hides itself: keep focus in the strip
-    parts.skip.hidden = hide;
+    if (parts.reward) setText(parts.reward, rewardText(goal.reward));
+    if (parts.open) parts.open.setAttribute('aria-label', goalWordsLabel(o ? `${T.goal} ${progressText(o.done, o.of)}` : T.goal, goal.text, c ? c.label : ''));
+    const skipHidden = !guideActive(world) || (shownPhone && !expanded);   // a phone's Skip guide is part of the open goal
+    if (skipHidden && document.activeElement === parts.skip) (parts.open || parts.showMe).focus();   // Skip guide hides itself: keep focus in the strip
+    parts.skip.hidden = skipHidden;
+  }
+  // The strip as open or closed, in place: the open flow of words and the buttons that come with it (a phone only; a wide
+  // strip has all of it all the time). Rebuilding the strip keeps it (build reads `expanded`).
+  function paintOpen() {
+    if (!parts || !parts.open) return;
+    strip.classList.toggle('open', expanded);
+    parts.open.setAttribute('aria-expanded', String(expanded));
+    const hadAllGoals = document.activeElement === parts.allGoals;
+    parts.reward.hidden = !expanded;
+    parts.allGoals.hidden = !expanded;
+    const [goal] = openGoals(world, 1);
+    if (goal) update(goal);
+    if (hadAllGoals && !expanded) parts.open.focus();   // All goals went with the open goal: keep focus in the strip
+    measure();
+  }
+  // "More ▾" shows while the words are cut at two lines, and "Less ▴" while the goal is open. Measured with the mark hidden,
+  // so the mark never decides whether it is needed.
+  function measure() {
+    if (!parts || !parts.more) return false;
+    parts.more.hidden = true;
+    const cut = !expanded && isCut(parts.open.querySelector('.words'));
+    if (cut || expanded) { writeMore(parts.more, expanded); parts.more.hidden = false; }
+    return cut;
   }
   // The bar shows with the strip, and on its own from Capital (the medals; every goal may be done by then).
   function renderBar(hasGoal) {
@@ -210,7 +248,7 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
     else if (goal) update(goal);
   }
   render();
-  return { render };
+  return { render, measure, setOpen(on) { if (Boolean(on) !== expanded) { expanded = Boolean(on); paintOpen(); } } };
 }
 
 // The goals sheet: the chain's count, Skip guide where the strip has none (a phone, ruling 170: skipHere()), up to three

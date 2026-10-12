@@ -1,5 +1,5 @@
 // Corner buttons (spec 6.3): pause and speed bottom-left; minimap with the alert badge and the overlay toggle
-// bottom-right. Each says what it is in a word under its icon (early-game pass 2.9). They ride above the dock at
+// bottom-right (the overlay button opens the Layers picker, ui/layersPicker.js). Each says what it is in a word under its icon (early-game pass 2.9). They ride above the dock at
 // every height, except that in portrait they step out of sight over an open tray that would lift them above half the
 // screen (ruling 173), so they never sit in the middle of the map.
 import { el, iconButton, setText } from './components.js';
@@ -19,14 +19,16 @@ function labelled(label, glyph, props) {
 // 125% text and more that edge is above the middle of the map, where nothing may float (spec 6.3, ruling 173), so then
 // they step out of sight (the class "over-half": visibility hidden, which keeps their place so they can be measured again)
 // until the tray closes. A tool, a wide screen or a compact one never hides them this way.
-export function createCorners({ container, store, speedControl, onMinimap, onOverlay, alertCount = () => 0, viewHeight = () => 0 }) {
+export function createCorners({ container, store, speedControl, onMinimap, onOverlay, pickerNode = null, alertCount = () => 0, viewHeight = () => 0 }) {
   const left = el('div', { class: 'group left' });
   speedControl.mountCorner(left);
   const map = labelled(T.mapButton, '▣', { class: 'minimap-button has-badge', onClick: onMinimap });
   const badge = el('span', { class: 'badge', hidden: true });
   map.b.append(badge);
   const layers = labelled(T.layers, '◑', { class: 'overlay-button', 'aria-pressed': 'false', onClick: onOverlay });
-  const right = el('div', { class: 'group right' }, [map.b, layers.b]);
+  layers.b.setAttribute('aria-expanded', 'false');
+  // The Layers picker's popover (ui/layersPicker.js) rides on this group, above the Layers button.
+  const right = el('div', { class: 'group right' }, [map.b, layers.b, pickerNode]);
   container.append(left, right);
 
   function overHalf() {
@@ -46,9 +48,10 @@ export function createCorners({ container, store, speedControl, onMinimap, onOve
     setText(layers.word, kind ? OVERLAY_NAMES[kind] : T.layers);
     layers.b.setAttribute('aria-label', layersText(kind));
     layers.b.setAttribute('aria-pressed', String(Boolean(kind)));
+    layers.b.setAttribute('aria-expanded', String(store.get().layersOpen));
     speedControl.render();
   }
   render();
   store.subscribe(render);
-  return { render };
+  return { render, layersButton: layers.b };
 }

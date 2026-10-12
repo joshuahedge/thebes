@@ -95,7 +95,7 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 #dock .cat { display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; min-width: var(--tap); padding: 2px 4px; font-size: calc(12px * var(--ui-scale)); border-radius: 8px; box-shadow: none; }
 #dock .cat[aria-pressed="true"] { color: var(--teal); font-weight: 600; box-shadow: none; }
 #dock .cat .icon { font-size: calc(20px * var(--ui-scale)); }
-#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 4px 12px 10px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; }
+#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 2px 12px 6px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; }
 #dock .pill { align-self: center; margin: 6px 0 8px; }
 #dock[data-height="slim"] .tray, #dock[data-height="slim"] .pill { display: none; }
 #dock[data-height="tray"] .pill { display: none; }
@@ -162,6 +162,9 @@ body { --toast-lift: calc(64px + 20px * (var(--ui-scale) - 1)); }
 #toasts { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + var(--dock-slim) + var(--toast-lift)); display: flex; flex-direction: column; align-items: center; gap: 6px; }
 body[data-dock="tray"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tray) + var(--toast-lift)); }
 body[data-dock="tucked"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + var(--toast-lift)); }
+/* After a touch tick at large text the toast can drop into the free map between the corner buttons and the tray, so the new
+   building fits above the corner buttons (createUI leavePlan); --toast-low is its bottom, set while that toast shows. */
+body[data-layout="portrait"].toast-low #toasts { bottom: var(--toast-low); }
 body[data-layout="wide"] #toasts { bottom: 24px; left: calc(50% - var(--panel-w) / 2); }
 body[data-layout="compact"] #toasts { bottom: calc(var(--safe-bottom) + var(--toast-lift)); }   /* the compact corners sit on the home-bar inset too */
 /* On a phone a toast may use the screen's width, up to 420 px, with 16 px at each side (ruling 169); the old half-screen box made
@@ -189,6 +192,9 @@ body[data-layout="portrait"] #confirm { left: 0; right: 0; bottom: 0; }
 body[data-layout="wide"] #confirm { right: 0; bottom: 0; width: var(--panel-w); }
 body[data-layout="compact"] #confirm { right: calc(var(--rail-w) + var(--safe-right)); bottom: 0; width: var(--drawer-w); }
 body[data-mode="placing"] #dock, body[data-mode="drawing"] #dock, body[data-mode="demolishing"] #dock { display: none; }
+/* While a tool is on, the confirm bar covers the dock, so a toast (Well placed, Undo) sits above the bar and the corner row on it, not
+   out in the middle of the map above a tray that is hidden behind the bar. The compact toast already rides the bar's column. */
+body[data-layout="portrait"]:is([data-mode="placing"], [data-mode="drawing"], [data-mode="demolishing"]) #toasts { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + var(--toast-lift)); }
 /* The corners sit on the confirm bar by its measured height (--confirm-h, set by confirmBar.js), whatever the text size. */
 body[data-layout="portrait"][data-mode="placing"] #corners, body[data-layout="portrait"][data-mode="drawing"] #corners, body[data-layout="portrait"][data-mode="demolishing"] #corners { bottom: calc(var(--confirm-h, calc(var(--safe-bottom) + 96px)) + 8px); }
 .speed-corner { position: relative; }
@@ -256,6 +262,21 @@ body[data-layout="compact"] .confirm .info { flex: 1 0 100%; }
 body[data-layout="portrait"] .confirm .info { min-height: 3.5em; }
 /* At 125% and 150% text the words column is only about 150px wide, so a reason or an effect wraps to two lines: keep both (4.55em). */
 body[data-layout="portrait"][data-text-size="125"] .confirm .info, body[data-layout="portrait"][data-text-size="150"] .confirm .info { min-height: 4.55em; }
+
+/* Conditions in the confirm bar (placement review P9): a row of chips under the words and the buttons, full width. Each chip has its
+   mark and its words (met teal, later amber, can't coral), 14 px at the body size and at least 24 px tall. The row is there for
+   every building tool, so the bar does not jump as the ghost moves; a terrain building's chips can run to a second row ("Fertile
+   land: 2 of 4 tiles"), so its row keeps room for two from the start (three on a bar 365 px wide or less at 150% text). */
+.confirm.has-conds { flex-wrap: wrap; row-gap: 6px; }
+.confirm .conds { --chip-h: max(24px, calc(14px * var(--ui-scale) * 1.2 + 4px)); flex: 1 0 100%; order: 9; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 4px 6px; min-height: var(--chip-h); }
+.confirm .conds.tall { min-height: calc(2 * var(--chip-h) + 4px); }
+body[data-text-size="150"] .confirm .conds.tall.narrow { min-height: calc(3 * var(--chip-h) + 8px); }   /* a 360 px phone at 150% text fits one chip a row at worst (confirmBar.js) */
+.cond { display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box; min-height: 24px; padding: 1px 8px; border: 1px solid transparent; border-radius: 12px; font-size: calc(14px * var(--ui-scale)); line-height: 1.2; }
+.cond .mark { font-weight: 700; }
+.cond.met { background: var(--teal-soft); color: var(--ink); border-color: var(--teal); }
+.cond.later { background: var(--amber-soft); color: var(--amber-text); border-color: var(--amber-text); }
+.cond.cant { background: var(--coral-soft); color: var(--coral-text); border-color: var(--coral-text); }
+.card .terrain { margin-top: -3px; font-size: calc(12px * var(--ui-scale)); line-height: 1.15; color: var(--ink-soft); }   /* it hugs the cost line, so a farm's card stays inside --dock-tray */
 
 /* Cards with pictures (early-game pass 2.5): the building's drawing over its name and cost; the coin is decoration. */
 /* The picture is drawn at its own size (THUMB_W x THUMB_H in src/ui/thumbs.js); where a scrollbar narrows a card it shrinks, never stretches. */
@@ -348,6 +369,7 @@ body.reduce-motion #cheer .cheer { animation: none; }
 #under-bar > #tip:empty { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 #tip .tip-row { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box; background: var(--teal-soft); color: var(--ink); border: 1px solid var(--teal); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); }
 #tip .tip-row .text { min-width: 0; }
+#tip .tip-row .body { position: relative; display: flex; align-items: center; gap: inherit; min-width: 0; }   /* the label and the words: the one place a tap opens a cut tip, and the box "More ▾" sits in */
 #tip .tip-row .label, #tip .tip-row .got-it { flex: none; }
 #tip .tip-row .got-it { white-space: nowrap; }
 body[data-layout="wide"] #tip { max-width: 440px; }
@@ -372,7 +394,7 @@ body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="g
 body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="tip"]) #tip > *,
 body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="caption"]) #cheer > * { display: none !important; }
 .goal-strip.one-row { flex-wrap: nowrap; column-gap: 4px; padding: 0 4px 0 0; }
-.goal-strip.one-row .main { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; min-height: var(--tap); padding: 2px 4px 2px 12px; background: transparent; border-color: transparent; text-align: left; line-height: 1.25; }
+.goal-strip.one-row .main { position: relative; display: flex; align-items: center; flex: 1 1 auto; min-width: 0; min-height: var(--tap); padding: 2px 4px 2px 12px; background: transparent; border-color: transparent; text-align: left; line-height: 1.25; }
 .goal-strip.one-row .words { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; min-width: 0; }
 .goal-strip.one-row .buttons { flex: none; flex-wrap: nowrap; margin-left: 0; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #cheer .cheer.led .lead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -386,6 +408,53 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 #sheet .recent .why { display: block; }
 /* A tip in the guidance row is two lines at most too; How to play lists every tip in full, and the live region reads it whole. */
 body:is([data-layout="portrait"], [data-layout="compact"]) #tip .tip-row .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+/* The guidance row opened in place (placement review P8, spec 6.3). A phone cuts a goal, a tip or a caption at two lines;
+   while the words are cut, "More ▾" sits over the end of the last line on a fade of the row's own colour (expand.js writes
+   it, createUI shows it only when the words are measured as cut). A tap on the row opens it: every clamp above comes off, the
+   row grows down to --guidance-max (createUI: 40% of the screen's height less where the row starts, spec 6.1) and scrolls
+   inside beyond it. It eases open in 150 ms, at once under reduced motion. "Less ▴" closes it, as do Back, Esc and a tap on
+   the map. Teal on parchment and amber is 4.8:1; on the tip's teal-soft it is ink. */
+#goals .goal-strip, #cheer .cheer { --row-bg: var(--parchment); }
+#cheer .cheer.milestone { --row-bg: var(--amber-soft); }
+#tip .tip-row { --row-bg: var(--teal-soft); }
+.goal-strip .more, #tip .more, #cheer .more { position: absolute; right: 2px; bottom: 1px; min-width: 0; min-height: 0; margin: 0; padding: 0 2px 0 22px; border: none; border-radius: 0; box-shadow: none; background: linear-gradient(to right, transparent, var(--row-bg) 20px); color: var(--teal); font-size: calc(12px * var(--ui-scale)); font-weight: 600; line-height: 1.5; white-space: nowrap; }
+#tip .more { color: var(--ink); }
+#cheer .more { pointer-events: auto; }
+#cheer .cheer:has(.more:not([hidden])) { pointer-events: auto; cursor: pointer; }   /* a cut caption can be tapped; any other still lets taps through to the map */
+#tip .body:has(.more:not([hidden])) { cursor: pointer; }
+/* The tip's and the caption's More and Less are real buttons, so each gets a 44 px target (spec 6.1, 6.8) without making the row
+   taller: an invisible box at least 44 px tall and wide that ends 1 px under the word and reaches up over the cut words (which
+   take the same tap) and never right, where Got it sits. */
+#tip .more::before, #cheer .more::before { content: ''; position: absolute; right: 0; bottom: -1px; width: max(100%, var(--tap)); height: max(calc(100% + 1px), var(--tap)); }
+/* At larger text a caption is one flow of head and gold, its why hidden from sight: "More ▾" has a place of its own at the end
+   of the row, so it never sits over the head. */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer:not(.open):has(.more:not([hidden])) { padding-right: calc(28px + 46px * var(--ui-scale)); }
+/* Open: the goal's words in full, its reward, then Show me, All goals and Skip guide on a row of their own. */
+.goal-strip.one-row.open { display: flex; flex-wrap: wrap; align-self: stretch; max-height: var(--guidance-max, 40vh); overflow-y: auto; padding: 0 4px 4px 0; }
+.goal-strip.one-row.open .main { flex: 1 1 100%; }
+.goal-strip.one-row.open .words { display: block; overflow: visible; }
+.goal-strip.one-row.open .buttons { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; padding-left: 8px; }
+.goal-strip.one-row.open .more { position: static; align-self: flex-end; padding: 0 0 0 8px; background: none; }
+.goal-strip.open ~ .threshold { display: none; }                  /* the next-threshold bar would push the rows past 40% */
+/* Open: the tip's words in full, Got it still at the top right. */
+#tip .tip-row.open { display: flex; align-items: flex-start; max-height: var(--guidance-max, 40vh); overflow-y: auto; }
+#tip .tip-row.open .body { flex: 1 1 auto; flex-wrap: wrap; align-items: flex-start; }
+#tip .tip-row.open .text { display: block !important; flex: 1 1 0; overflow: visible !important; }   /* !important: the phone clamps above are more specific */
+#tip .tip-row.open .more { position: sticky; bottom: 0; flex: 1 1 100%; padding: 0 4px; text-align: right; background: var(--row-bg); box-shadow: 0 -8px 8px -2px var(--row-bg); }   /* sticky: Less stays in sight, on a fade that says the words scroll (P8) */
+/* Open: the caption's head, its gold and its why in full, at every text size (the why returns to sight where larger text hid it),
+   in the grid the caption has at 100%: the star, the head and the gold on the first row, the why beneath, Less at the end. At
+   larger text the gold sits under the head, so the head keeps the width of the row. */
+#cheer .cheer.open { display: grid !important; width: 100%; max-height: var(--guidance-max, 40vh); overflow: hidden auto !important; padding: 4px 12px; }   /* !important: the phone clamps above are more specific */
+#cheer .cheer.open .text { display: block !important; overflow: visible !important; }
+#cheer .cheer.open .why { position: static !important; display: block !important; width: auto !important; height: auto !important; clip: auto !important; overflow: visible !important; white-space: normal !important; }
+#cheer .cheer.open .more { position: sticky; bottom: 0; grid-column: 2 / 4; grid-row: 4; justify-self: end; padding: 0 0 0 8px; background: var(--row-bg); box-shadow: 0 -8px 8px -2px var(--row-bg); }   /* last: row 4 stays empty-height where the why is row 2 */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open .reward { grid-column: 2; grid-row: 2; justify-self: start; margin-left: 0; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open { grid-template-columns: auto minmax(0, 1fr); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open .why { grid-column: 2; grid-row: 3; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open .more { grid-column: 2; }
+@keyframes guidance-open { from { clip-path: inset(0 0 55% 0); } to { clip-path: inset(0); } }
+.goal-strip.one-row.open, #tip .tip-row.open, #cheer .cheer.open { animation: guidance-open 150ms ease-out; }
+body.reduce-motion .goal-strip.one-row.open, body.reduce-motion #tip .tip-row.open, body.reduce-motion #cheer .cheer.open { animation: none; }
 #sheet .skip-row { margin: 4px 0; }
 #sheet .recent { list-style: none; padding: 0; margin: 4px 0; }
 #sheet .recent li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--parchment-2); }
@@ -498,6 +567,50 @@ body.reduce-motion .goal-strip .show-me.glow, body.reduce-motion.nudge-play .spe
 #legend .band .text { line-height: 1.1; white-space: nowrap; }
 body[data-layout="portrait"] #legend .strip.graded .scale { order: 3; flex-basis: 100%; }
 body[data-layout="portrait"] #legend .strip.graded .close { margin-left: auto; }
+/* The Ground overlay's legend (placement review P1). A portrait phone: the name, then two swatches with their words and, while a
+   farm, orchard or mine is being placed, a third line for the brighter tiles, in one column with the x beside all three, so the
+   third line costs no taller strip than the x's own 44 px. A landscape phone: one flex row (name, keys, x) whose keys wrap among
+   themselves. At 125% text and more on either phone the brighter-tiles words move to screen readers only (sr-only): the budget
+   (spec 6.3, rows end by 40% of the height) leaves no third line, and the map shows the bright tiles themselves. */
+#legend .strip.ground { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; row-gap: 0; max-width: 100%; box-sizing: border-box; }
+#legend .strip.ground > strong.text { grid-column: 1; grid-row: 1; }
+#legend .strip.ground > .close { grid-column: 2; grid-row: 1 / 4; }
+#legend .strip.ground .ground-keys { grid-column: 1; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding-bottom: 2px; }
+#legend .strip.ground .ground-keys .room { flex-basis: 100%; }
+#legend .strip.ground .key { gap: 6px; }
+body[data-layout="compact"] #legend .strip.ground { display: flex; flex-wrap: nowrap; gap: 0 10px; }
+body[data-layout="compact"] #legend .strip.ground > strong.text { flex: 0 0 auto; }
+body[data-layout="compact"] #legend .strip.ground > .close { order: 3; margin-left: auto; flex: 0 0 auto; }
+body[data-layout="compact"] #legend .strip.ground .ground-keys { flex: 1 1 0; min-width: 0; padding-bottom: 0; }
+body[data-layout="compact"] #legend .strip.ground .ground-keys .room { flex-basis: auto; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #legend .strip.ground .ground-keys .room { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body[data-layout="wide"] #legend .strip.ground { display: inline-flex; flex-wrap: wrap; gap: 0 12px; }
+body[data-layout="wide"] #legend .strip.ground > .close { order: 3; }
+body[data-layout="wide"] #legend .strip.ground .ground-keys { padding-bottom: 0; }
+body[data-layout="wide"] #legend .strip.ground .ground-keys .room { flex-basis: auto; }
+/* The Layers picker (placement review P2, ui/layersPicker.js): a popover of every overlay and Off. Three columns at 100% text,
+   two from 125%, each button 44 px tall at least; the current layer is teal. On a phone it rides above the Layers corner
+   button (its right edge on the button's; the left edge instead in left-handed mode); on a wide screen it opens under the
+   Layers button below the minimap, over the tabs. It scrolls inside when a short screen cannot hold it. */
+.layers-picker { position: absolute; z-index: 6; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 8px; box-sizing: border-box; background: var(--parchment); border: 1px solid var(--parchment-3); border-radius: var(--radius); box-shadow: var(--shadow); overflow-y: auto; }
+.layers-picker .layer { position: relative; display: flex; align-items: center; min-height: var(--tap); padding: 2px 4px 2px 13px; overflow: hidden; font-size: calc(13px * var(--ui-scale)); line-height: 1.15; text-align: left; overflow-wrap: normal; hyphens: none; }
+.layers-picker .layer .hue { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }   /* the overlay's own hue, as a stripe down the button's edge */
+.layers-picker .layer[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); box-shadow: none; }
+.layers-picker .layer.off { grid-column: 1 / -1; justify-content: center; }
+body:is([data-text-size="125"], [data-text-size="150"]) .layers-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#corners .layers-picker { bottom: calc(100% + 8px); right: 8px; width: min(360px, calc(100% - 16px)); max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); }
+body[data-hand="left"] #corners .layers-picker { right: auto; left: 8px; }
+/* The popover stays on the screen: it hangs from the corner row itself (fixed, and as wide as the room the row has: in compact it stops left of the confirm bar
+   or the card drawer while one shows), so a tool in compact never pushes it off the screen. On a phone at 125% text or more Off
+   takes the last cell beside Ground (nine overlays and Off make five rows of two, not six); held sideways it is as tall as the
+   top bar and the corner row leave (five tight rows fit even at 150% text), and the open popover scrolls the current choice into view (layersPicker.js). */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) .layers-picker .layer.off { grid-column: auto; }
+body[data-layout="compact"] #corners .layers-picker { gap: 2px; padding: 4px; max-height: calc(100vh - var(--topbar-h) - var(--safe-top) - var(--safe-bottom) - 76px); max-height: calc(100dvh - var(--topbar-h) - var(--safe-top) - var(--safe-bottom) - 76px); overscroll-behavior: contain; }
+#panel .layers-row { position: relative; flex: none; padding: 0 8px 8px; }
+#panel .layers-button { width: 100%; font-size: calc(14px * var(--ui-scale)); }
+#panel .layers-button[aria-pressed="true"] { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }
+#panel .layers-picker { top: calc(100% - 4px); left: 8px; right: 8px; max-height: 60vh; grid-template-columns: repeat(2, minmax(0, 1fr)); }   /* the panel is 320 px: "Entertainment" does not fit a third of it */
+#corners .overlay-button[aria-expanded="true"] { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }
 /* A building that changes desirability has a fourth line in the confirm bar ("Makes 6 homes nicer"): in portrait the bar
    keeps room for it from the start (title 1.4em, three small lines of 1.05em; at 125% and 150% one of them may wrap). */
 body[data-layout="portrait"] .confirm.desire .info { min-height: 4.55em; }

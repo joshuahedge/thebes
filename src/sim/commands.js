@@ -1,6 +1,6 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { ECONOMY } from '../data/economy.js';
-import { footprint, idx, inBounds } from './grid.js';
+import { footprint, idx, inBounds, ring } from './grid.js';
 import { T, TERRAIN_BY_NAME } from './terrain.js';
 import { makeBuilding, insertBuilding, removeBuilding, buildingAt } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
@@ -16,49 +16,142 @@ const storesAny = (o, goods) => (BUILDINGS[o.type].stores || []).some((g) => goo
 
 const isTile = (x, y) => Number.isInteger(x) && Number.isInteger(y);
 
-export function checkTiles(world, type, x, y) {
+// Why a building cannot go at x, y before any tile is looked at, else null.
+function typeReason(world, type, x, y) {
   const def = BUILDINGS[type];
   if (!def || def.buildable === false) return 'unknown';   // rubble (and a gate) is never built
   if (!isUnlocked(world, type)) return 'locked';
   if (def.tile) return 'unknown';                          // walls are drawn as a line (drawWall, src/sim/defence.js), not placed
   // A fractional tile would index between cells and leave ghost entries in occ and the save.
   if (!isTile(x, y)) return 'out_of_bounds';
+  return null;
+}
+
+// Why one footprint tile cannot take the building, else null.
+function tileReason(world, type, tx, ty) {
+  const def = BUILDINGS[type];
+  if (!inBounds(world.size, tx, ty)) return 'out_of_bounds';
+  const i = idx(world.size, tx, ty);
+  if (world.terrain[i] === T.WATER) return 'water';
+  if (world.occ[i] || world.road[i]) return 'occupied';
+  if (world.wall[i] && !(type === 'tower' && world.wall[i] > 0)) return 'occupied';   // a tower may stand on a standing wall tile (spec 4.13)
+  if (def.terrain && world.terrain[i] !== TERRAIN_BY_NAME[def.terrain]) return 'needs_' + def.terrain;
+  return null;
+}
+
+export function checkTiles(world, type, x, y) {
+  const first = typeReason(world, type, x, y);
+  if (first) return first;
+  const def = BUILDINGS[type];
   for (const [tx, ty] of footprint(x, y, def.w, def.d)) {
-    if (!inBounds(world.size, tx, ty)) return 'out_of_bounds';
-    const i = idx(world.size, tx, ty);
-    if (world.terrain[i] === T.WATER) return 'water';
-    if (world.occ[i] || world.road[i]) return 'occupied';
-    if (world.wall[i] && !(type === 'tower' && world.wall[i] > 0)) return 'occupied';   // a tower may stand on a standing wall tile (spec 4.13)
-    if (def.terrain && world.terrain[i] !== TERRAIN_BY_NAME[def.terrain]) return 'needs_' + def.terrain;
+    const reason = tileReason(world, type, tx, ty);
+    if (reason) return reason;
   }
   if (def.needsRoad && !touchesRoad(world, { x, y, w: def.w, d: def.d })) return 'needs_road';
   return null;
 }
 
-function placementWarnings(world, type, x, y) {
+// Producers want a store in reach, sellers their supply: 'no_storage' / 'no_supply', else null. Either only delays it.
+function worksWarning(world, type, x, y) {
   const def = BUILDINGS[type];
   const probe = { id: -1, x, y, w: def.w, d: def.d };
+  if (def.produces && !buildingsInReach(world, probe, def.producerReach, (o) => storeAccepts(o, def.produces.good)).length) return 'no_storage';
+  if (def.sells && !buildingsInReach(world, probe, def.supplyReach, (o) => storesAny(o, def.sells)).length) return 'no_supply';
+  return null;
+}
+
+// roadLater: canPlace let the building through without a road, so it carries the plot's warning.
+function placementWarnings(world, type, x, y, roadLater = false) {
+  const def = BUILDINGS[type];
   const warnings = [];
   // A plot can be placed off the road but no one moves in until one touches it; gardens and statues need none.
-  if (type === 'house' && !touchesRoad(world, probe)) warnings.push('needs_road');
-  if (def.produces && !buildingsInReach(world, probe, def.producerReach, (o) => storeAccepts(o, def.produces.good)).length) {
-    warnings.push('no_storage');
-  }
-  if (def.sells && !buildingsInReach(world, probe, def.supplyReach, (o) => storesAny(o, def.sells)).length) {
-    warnings.push('no_supply');
-  }
+  if (roadLater || (type === 'house' && !touchesRoad(world, { x, y, w: def.w, d: def.d }))) warnings.push('needs_road');
+  const works = worksWarning(world, type, x, y);
+  if (works) warnings.push(works);
   return warnings;
 }
 
-export function canPlace(world, type, x, y) {
+// roadLater (ruling P10): a building that fails only for want of a road is let through with a 'needs_road' warning, as
+// a housing plot always is. It does nothing, pays no upkeep or wages (src/sim/economy.js) and counts for no "Build a"
+// goal (src/sim/goals.js) until a road touches it. Only the player's placing passes it: by default (the sample city,
+// the balance runs) a road is still required.
+export function canPlace(world, type, x, y, { roadLater = false } = {}) {
   const reason = checkTiles(world, type, x, y);
-  if (reason) return fail(reason);
+  const later = reason === 'needs_road' && roadLater;
+  if (reason && !later) return fail(reason);
   if (!canAfford(world, costOf(world, type))) return fail('no_gold');
-  return { ok: true, warnings: placementWarnings(world, type, x, y) };
+  return { ok: true, warnings: placementWarnings(world, type, x, y, later) };
 }
 
-export function place(world, type, x, y) {
-  const check = canPlace(world, type, x, y);
+// The placing preview's conditions (ruling P9): each one judged on its own, so the ghost and the confirm bar can show
+// them all at once where canPlace gives only its first refusal.
+//   ok, reason, warnings: what canPlace says for the same spot and options (reason null when ok).
+//   state: the worst condition: 'ok' (all met), 'later' (it can be placed but will not work yet) or 'cant'.
+//   conditions, in this order, each { key, state: 'met' | 'later' | 'cant', reason (null when met), ... }:
+//     ground: every footprint tile free (on the map, dry, no building, road or wall); reason: the first tile's refusal,
+//             as checkTiles gives it. A terrain building adds terrain ('fertile', 'rocky'), fit and of: how many of the
+//             footprint's tiles are that terrain, out of how many.
+//     road (buildings that need one, and housing plots): reason 'needs_road' while no road touches the footprint;
+//             'later' for a plot, and for a building with roadLater, else 'cant'. joins: [[x, y], ...], the free tiles
+//             beside the footprint where a road would touch it (empty once one does).
+//     works (producers and sellers): 'later' with reason 'no_storage' / 'no_supply' while nothing in reach serves it.
+//     gold: cost and have (the treasury); 'cant' with reason 'no_gold' when paying would cross the debt floor.
+//   tiles: [{ x, y, state: 'met' | 'cant', reason }], one per footprint tile in footprint order.
+// A refusal before any tile (unknown, locked, a fractional spot) has state 'cant' and no conditions or tiles.
+export function conditionsFor(world, type, x, y, { roadLater = false } = {}) {
+  const first = typeReason(world, type, x, y);
+  if (first) return { ok: false, reason: first, warnings: [], state: 'cant', conditions: [], tiles: [] };
+  const def = BUILDINGS[type];
+  const tiles = footprint(x, y, def.w, def.d).map(([tx, ty]) => {
+    const reason = tileReason(world, type, tx, ty);
+    return { x: tx, y: ty, state: reason ? 'cant' : 'met', reason };
+  });
+  const conditions = [];
+  const blocked = tiles.find((t) => t.reason);
+  const ground = { key: 'ground', state: blocked ? 'cant' : 'met', reason: blocked ? blocked.reason : null };
+  if (def.terrain) {
+    const want = TERRAIN_BY_NAME[def.terrain];
+    const fit = tiles.filter((t) => inBounds(world.size, t.x, t.y) && world.terrain[idx(world.size, t.x, t.y)] === want).length;
+    Object.assign(ground, { terrain: def.terrain, fit, of: tiles.length });
+  }
+  conditions.push(ground);
+  if (def.needsRoad || type === 'house') {
+    const probe = { x, y, w: def.w, d: def.d };
+    const touches = touchesRoad(world, probe);
+    const state = touches ? 'met' : (type === 'house' || roadLater ? 'later' : 'cant');
+    conditions.push({ key: 'road', state, reason: touches ? null : 'needs_road', joins: touches ? [] : roadJoins(world, probe) });
+  }
+  if (def.produces || def.sells) {
+    const works = worksWarning(world, type, x, y);
+    conditions.push({ key: 'works', state: works ? 'later' : 'met', reason: works });
+  }
+  const cost = costOf(world, type);
+  conditions.push(canAfford(world, cost)
+    ? { key: 'gold', state: 'met', reason: null, cost, have: world.gold }
+    : { key: 'gold', state: 'cant', reason: 'no_gold', cost, have: world.gold });
+  const refusal = conditions.find((c) => c.state === 'cant');
+  const later = conditions.filter((c) => c.state === 'later');
+  return {
+    ok: !refusal,
+    reason: refusal ? refusal.reason : null,
+    warnings: refusal ? [] : later.map((c) => c.reason),
+    state: refusal ? 'cant' : (later.length ? 'later' : 'ok'),
+    conditions,
+    tiles,
+  };
+}
+
+// The tiles beside a footprint where a road could be laid to touch it: on the map, dry, with no building or wall on them.
+function roadJoins(world, b) {
+  return ring(b.x, b.y, b.w, b.d).filter(([tx, ty]) => {
+    if (!inBounds(world.size, tx, ty)) return false;
+    const i = idx(world.size, tx, ty);
+    return world.terrain[i] !== T.WATER && !world.occ[i] && !world.wall[i];
+  });
+}
+
+export function place(world, type, x, y, { roadLater = false } = {}) {
+  const check = canPlace(world, type, x, y, { roadLater });
   if (!check.ok) return check;
   const cost = costOf(world, type);
   const b = insertBuilding(world, makeBuilding(world, type, x, y));
@@ -183,32 +276,75 @@ export function roadPath(x0, y0, x1, y1, flip = false) {
   return out;
 }
 
-export function previewRoad(world, x0, y0, x1, y1, flip = false) {
-  // Non-integer or NaN endpoints would make lineInto never reach its end, so reject them first.
-  const integers = [x0, y0, x1, y1].every(Number.isInteger);
-  if (!integers || !inBounds(world.size, x0, y0) || !inBounds(world.size, x1, y1)) {
-    return fail('out_of_bounds', { tiles: [], cost: 0 });
-  }
-  const tiles = [];
-  for (const [x, y] of roadPath(x0, y0, x1, y1, flip)) {
-    if (!inBounds(world.size, x, y)) return fail('out_of_bounds', { tiles: [], cost: 0 });
+// The tiles of a list, each once, in the order given (a touch plan can name a tile twice).
+function uniqueTiles(tiles) {
+  const seen = new Set(), out = [];
+  for (const t of tiles) { const k = `${t[0]},${t[1]}`; if (!seen.has(k)) { seen.add(k); out.push(t); } }
+  return out;
+}
+
+// Why a road cannot be laid on one tile, else null.
+function roadTileReason(world, x, y) {
+  if (!isTile(x, y) || !inBounds(world.size, x, y)) return 'out_of_bounds';
+  const i = idx(world.size, x, y);
+  if (world.terrain[i] === T.WATER) return 'water';
+  if (world.occ[i] || (world.wall[i] && !world.road[i])) return 'blocked';   // a road never crosses a wall: draw wall over a road for a gate
+  return null;
+}
+
+// The road tool's core (placement review P3, P5): what laying road on a list of tiles would do. { ok, reason, warnings,
+// tiles: the map indices that get road (free tiles, in order; a tile with road already is left as it is), cost, skipped:
+// [{ x, y, reason }] }. By default the first tile that cannot take a road refuses the lot ('out_of_bounds', 'water',
+// 'blocked'), as the mouse's L does; with skipBlocked (a touch plan) such tiles are skipped and the rest is laid. Fails with
+// 'no_gold' when the cost would cross the debt floor, keeping tiles, cost and skipped.
+export function previewRoadTiles(world, list, { skipBlocked = false } = {}) {
+  const tiles = [], skipped = [];
+  for (const [x, y] of uniqueTiles(list)) {
+    const reason = roadTileReason(world, x, y);
+    if (reason) {
+      if (!skipBlocked) return fail(reason, { tiles: [], cost: 0, skipped: [] });
+      skipped.push({ x, y, reason });
+      continue;
+    }
     const i = idx(world.size, x, y);
-    if (world.terrain[i] === T.WATER) return fail('water', { tiles: [], cost: 0 });
-    if (world.occ[i] || (world.wall[i] && !world.road[i])) return fail('blocked', { tiles: [], cost: 0 });   // a road never crosses a wall: draw wall over a road for a gate
     if (!world.road[i]) tiles.push(i);
   }
   const cost = tiles.length * roadCostOf(world);
-  if (!canAfford(world, cost)) return fail('no_gold', { tiles, cost });
-  return { ok: true, warnings: [], tiles, cost };
+  if (!canAfford(world, cost)) return fail('no_gold', { tiles, cost, skipped });
+  return { ok: true, warnings: [], tiles, cost, skipped };
 }
 
-export function drawRoad(world, x0, y0, x1, y1, flip = false) {
-  const p = previewRoad(world, x0, y0, x1, y1, flip);
+// Lays the preview's tiles, charges for them and pushes one undo entry for the whole list.
+export function drawRoadTiles(world, list, options = {}) {
+  const p = previewRoadTiles(world, list, options);
   if (!p.ok || p.tiles.length === 0) return p;
   for (const t of p.tiles) world.road[t] = 1;
   world.roadVersion++;
   spend(world, p.cost);
   pushUndo(world, { kind: 'road', tiles: p.tiles.slice(), cost: p.cost });
+  return p;
+}
+
+// The L from a start to an end (the mouse's road), or null when an end is fractional, NaN or off the map (lineInto would
+// never reach a fractional end).
+function lineTiles(world, x0, y0, x1, y1, flip) {
+  if (![x0, y0, x1, y1].every(Number.isInteger) || !inBounds(world.size, x0, y0) || !inBounds(world.size, x1, y1)) return null;
+  return roadPath(x0, y0, x1, y1, flip);
+}
+
+// The mouse's road: an L, refused whole when any tile of it is blocked. Thin wrappers on the tile-list core, with the
+// shapes they always had.
+export function previewRoad(world, x0, y0, x1, y1, flip = false) {
+  const tiles = lineTiles(world, x0, y0, x1, y1, flip);
+  if (!tiles) return fail('out_of_bounds', { tiles: [], cost: 0 });
+  const { skipped, ...p } = previewRoadTiles(world, tiles);
+  return p;
+}
+
+export function drawRoad(world, x0, y0, x1, y1, flip = false) {
+  const tiles = lineTiles(world, x0, y0, x1, y1, flip);
+  if (!tiles) return fail('out_of_bounds', { tiles: [], cost: 0 });
+  const { skipped, ...p } = drawRoadTiles(world, tiles);
   return p;
 }
 
@@ -224,33 +360,54 @@ export function rectTiles(x0, y0, x1, y1, size = Infinity) {
   return out;
 }
 
-export function previewHouses(world, x0, y0, x1, y1) {
-  const positions = rectTiles(x0, y0, x1, y1, world.size).filter(([x, y]) => checkTiles(world, 'house', x, y) === null);
+// The plots tool's core (placement review P3, P5): plots on a list of tiles. positions: the tiles that take a plot, in
+// order; skipped: [{ x, y, reason }] for the rest (taken, water, off the map). Fails with 'nothing_to_place' when none
+// fits and 'no_gold' when the cost would cross the debt floor; a needs_road warning when any plot has no road beside it.
+export function previewHouseTiles(world, list) {
+  const positions = [], skipped = [];
+  for (const [x, y] of uniqueTiles(list)) {
+    const reason = checkTiles(world, 'house', x, y);
+    if (reason) skipped.push({ x, y, reason });
+    else positions.push([x, y]);
+  }
   const cost = positions.length * costOf(world, 'house');
-  if (!positions.length) return fail('nothing_to_place', { positions, cost: 0 });
+  if (!positions.length) return fail('nothing_to_place', { positions, cost: 0, skipped });
   const warnings = positions.some(([x, y]) => !touchesRoad(world, { x, y, w: 1, d: 1 })) ? ['needs_road'] : [];
-  if (!canAfford(world, cost)) return fail('no_gold', { positions, cost, warnings });
-  return { ok: true, warnings, positions, cost };
+  if (!canAfford(world, cost)) return fail('no_gold', { positions, cost, warnings, skipped });
+  return { ok: true, warnings, positions, cost, skipped };
 }
 
-export function paintHouses(world, x0, y0, x1, y1) {
-  const p = previewHouses(world, x0, y0, x1, y1);
+// Paints the preview's plots, charges once and pushes one undo entry for them all.
+export function paintHouseTiles(world, list) {
+  const p = previewHouseTiles(world, list);
   if (!p.ok) return { ...p, ids: [] };
   const ids = p.positions.map(([x, y]) => insertBuilding(world, makeBuilding(world, 'house', x, y)).id);
   spend(world, p.cost);
   pushUndo(world, { kind: 'place', ids, cost: p.cost });
-  return { ok: true, warnings: p.warnings, ids, cost: p.cost };
+  return { ok: true, warnings: p.warnings, ids, cost: p.cost, skipped: p.skipped };
 }
 
-// Everything in the rectangle: buildings (rubble among them), road tiles with no wall on them and wall tiles. refund is the buildings' refunds
-// less the rubble's clearing (clearCost, rubble tiles x rubbleCostOf), so it is negative when clearing costs more than
-// the rest gives back; ok is false (reason 'no_gold') when that would take the treasury below the debt floor.
-export function previewDemolishArea(world, x0, y0, x1, y1) {
+// The mouse's plots: the rectangle between two corners, taken tiles left out.
+export function previewHouses(world, x0, y0, x1, y1) {
+  const { skipped, ...p } = previewHouseTiles(world, rectTiles(x0, y0, x1, y1, world.size));
+  return p;
+}
+
+export function paintHouses(world, x0, y0, x1, y1) {
+  const { skipped, ...p } = paintHouseTiles(world, rectTiles(x0, y0, x1, y1, world.size));
+  return p;
+}
+
+// Everything on a list of tiles (the demolish tool's core, placement review P3): buildings (rubble among them), road tiles
+// with no wall on them and wall tiles, each once; a tile off the map or fractional is passed over. refund is the buildings'
+// refunds less the rubble's clearing (clearCost, rubble tiles x rubbleCostOf), so it is negative when clearing costs more
+// than the rest gives back; ok is false (reason 'no_gold') when that would take the treasury below the debt floor.
+export function previewDemolishTiles(world, list) {
   const buildingIds = [];
   const roadTiles = [];
   const wallTiles = [];
-  for (const [x, y] of rectTiles(x0, y0, x1, y1, world.size)) {
-    if (!inBounds(world.size, x, y)) continue;
+  for (const [x, y] of uniqueTiles(list)) {
+    if (!isTile(x, y) || !inBounds(world.size, x, y)) continue;
     const i = idx(world.size, x, y);
     if (world.occ[i] && !buildingIds.includes(world.occ[i])) buildingIds.push(world.occ[i]);
     if (world.road[i] && !world.wall[i]) roadTiles.push(i);   // a gate (or a breach on a road) keeps its road, as demolishAt does
@@ -262,8 +419,9 @@ export function previewDemolishArea(world, x0, y0, x1, y1) {
   return { buildingIds, roadTiles, wallTiles, rubble, clearCost: rubble * rubbleCostOf(world), refund: refundTotal, ok, reason: ok ? null : 'no_gold' };
 }
 
-export function demolishArea(world, x0, y0, x1, y1) {
-  const p = previewDemolishArea(world, x0, y0, x1, y1);
+// Clears the preview's buildings, roads and walls, with one undo entry that puts them all back.
+export function demolishTiles(world, list) {
+  const p = previewDemolishTiles(world, list);
   const count = p.buildingIds.length + p.roadTiles.length + p.wallTiles.length;
   if (!count) return fail('nothing_here', { count: 0, refund: 0 });
   if (!p.ok) return fail(p.reason, { count, refund: 0 });
@@ -279,6 +437,10 @@ export function demolishArea(world, x0, y0, x1, y1) {
   pushUndo(world, { kind: 'demolish', buildings: snaps, roads: p.roadTiles, walls, refund: p.refund });
   return { ok: true, warnings: [], count, refund: p.refund };
 }
+
+// The mouse's demolish: everything in the rectangle between two corners.
+export const previewDemolishArea = (world, x0, y0, x1, y1) => previewDemolishTiles(world, rectTiles(x0, y0, x1, y1, world.size));
+export const demolishArea = (world, x0, y0, x1, y1) => demolishTiles(world, rectTiles(x0, y0, x1, y1, world.size));
 
 // The clearRubble command (spec 4.12, 7.3): clears the rubble in the rectangle (one tile by default) and nothing else,
 // charging rubbleCostOf a tile; undoable like a demolish. { ok: true, count, cost, warnings: [] }, or fails with

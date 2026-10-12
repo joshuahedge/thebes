@@ -14,7 +14,7 @@ import { dailyOrder, dailyMeasure } from '../../src/sim/daily.js';
 import { milestoneIndex, isUnlocked } from '../../src/sim/progression.js';
 import { population } from '../../src/sim/world.js';
 import { tickDay } from '../../src/sim/clock.js';
-import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
+import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
 
 const STAGE1 = ['road', 'plots', 'well', 'food', 'temple', 'homes_cottage', 'people100', 'homes_house', 'town'];
 const STAGE2 = ['pottery', 'homes_townhouse', 'booth_gardens', 'manor', 'market_town', 'trade_route', 'city', 'beer', 'fine_manors',
@@ -81,6 +81,7 @@ describe('sim goals and rewards for Stage 2', () => {
     const w = town();
     w.goals.completed.push('pottery', 'homes_townhouse', 'booth_gardens', 'manor', 'market_town');
     const crowd = addRaw(w, 'house', 0, 0, { tier: 1, residents: 100 });
+    setRoad(w, 0, 10, 31, 10);                                             // a building counts once a road touches it (ruling P11)
     addRaw(w, 'trading_post', 20, 8);
     w.trade.routes.memphis = { since: 0, gifted: false };
     expect(goalMet(w, goalById('trade_route').need)).toBe(true);           // everything it asks for is there...
@@ -142,6 +143,7 @@ describe('sim goals and rewards for Stage 2', () => {
     const need = goalById('trade_route').need;
     expect(goalMet(w, { kind: 'routes', n: 1 })).toBe(false);
     expect(goalProgress(w, { need: { kind: 'routes', n: 2 } })).toEqual({ n: 0, of: 2 });
+    setRoad(w, 0, 10, 31, 10);
     addRaw(w, 'trading_post', 20, 8);
     expect([goalMet(w, need), goalProgress(w, goalById('trade_route'))]).toEqual([false, { n: 1, of: 2 }]);
     w.trade.routes.memphis = { since: 0, gifted: false };
@@ -153,6 +155,7 @@ describe('sim goals and rewards for Stage 2', () => {
     const w = town();
     const crowd = addRaw(w, 'house', 0, 0, { tier: 1, residents: 150 });  // stands in for the city's people
     let hx = 0, bx = 0;                                                     // homes along y = 20, buildings along y = 24
+    setRoad(w, 0, 23, 31, 23);                                             // above the buildings: each counts once a road touches it
     const home = (tier) => { addRaw(w, 'house', hx, 20, tier >= 6 ? { tier, w: 2, d: 2, residents: 1 } : { tier, residents: 1 }); hx += 2; };
     const build = (...types) => { for (const t of types) { addRaw(w, t, bx, 24); bx += 2; } };
     const people = (n) => { crowd.residents += n - population(w); };

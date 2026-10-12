@@ -1,5 +1,5 @@
 // Tweened camera moves for selection and the +/- buttons. Reduced motion makes every move a jump (spec 5.4).
-import { clampZoom, screenToTile, tileToScreen, zoomAt } from '../render/camera.js';
+import { clampZoom, pxPerArt, screenToTile, tileToScreen, zoomAt } from '../render/camera.js';
 import { CAMERA_PAN_MS } from '../data/ui.js';
 
 const easeOut = (t) => 1 - (1 - t) ** 3;
@@ -10,14 +10,22 @@ export const FRAME_MARGIN_PX = 48;
 
 // The centre a camera looking at (cx, cy) must move to so tile point (x, y) sits inside the view minus the
 // insets (plus a margin), moving as little as it can; null when the point is already there.
-function nudgedCentre(cam, v, cx, cy, x, y, insets, margin) {
+// extent { up, down } (art px; none by default) makes the point a building: it reaches `up` above the point and `down`
+// below it, and all of that is kept in the free band. A building taller than the band is centred in it rather than
+// pushed against one edge.
+function nudgedCentre(cam, v, cx, cy, x, y, insets, margin, extent = null) {
   const at = { x: cx, y: cy, zoom: cam.zoom };
   const [sx, sy] = tileToScreen(at, v, x, y);
   const minX = insets.left + margin, maxX = v.width - insets.right - margin;
   const minY = insets.top + margin, maxY = v.height - insets.bottom - margin;
   let dx = 0, dy = 0;
   if (sx < minX) dx = minX - sx; else if (sx > maxX) dx = maxX - sx;
-  if (sy < minY) dy = minY - sy; else if (sy > maxY) dy = maxY - sy;
+  if (extent) {
+    const k = pxPerArt(at);
+    const top = sy - extent.up * k, bottom = sy + extent.down * k;
+    if (bottom - top > maxY - minY) dy = (minY + maxY) / 2 - (top + bottom) / 2;
+    else if (top < minY) dy = minY - top; else if (bottom > maxY) dy = maxY - bottom;
+  } else if (sy < minY) dy = minY - sy; else if (sy > maxY) dy = maxY - sy;
   if (dx === 0 && dy === 0) return null;
   return screenToTile(at, v, v.width / 2 - dx, v.height / 2 - dy);
 }
@@ -57,12 +65,16 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, no
       return true;
     },
     get animating() { return tween !== null; },
-    // Pan the least that puts tile point (x, y) inside the viewport minus the insets, with a margin.
-    keepVisible(x, y, insets = NO_INSETS, margin = FRAME_MARGIN_PX, ms = CAMERA_PAN_MS) {
+    // Pan the least that puts tile point (x, y) inside the viewport minus the insets, with a margin. With an extent
+    // ({ up, down }, art px) the whole drawn building around the point is kept inside (see nudgedCentre). With a zoom, the
+    // camera goes to that zoom too, and the pan is worked out at it.
+    keepVisible(x, y, insets = NO_INSETS, margin = FRAME_MARGIN_PX, ms = CAMERA_PAN_MS, extent = null, zoom = null) {
       const v = view();
-      const centre = nudgedCentre(cam, v, cam.x, cam.y, x, y, insets, margin);
-      if (!centre) return false;
-      begin(centre.x, centre.y, cam.zoom, ms);
+      const z = zoom === null ? cam.zoom : clampZoom(zoom);
+      const at = { x: cam.x, y: cam.y, zoom: z };
+      const centre = nudgedCentre(at, v, cam.x, cam.y, x, y, insets, margin, extent);
+      if (!centre && z === cam.zoom) return false;
+      begin(centre ? centre.x : cam.x, centre ? centre.y : cam.y, z, ms);
       return true;
     },
     // Centre on (cx, cy), then nudge the least that keeps tile point (x, y) inside the viewport minus the insets:

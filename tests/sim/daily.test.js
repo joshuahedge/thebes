@@ -166,6 +166,7 @@ describe('sim daily goals', () => {
     expect(checkDaily(w, events)).toEqual([]);
     const homes = [0, 1, 2, 3].map((x) => addRaw(w, 'house', x, 11));
     addRaw(w, 'well', 5, 9);
+    setRoad(w, 5, 10, 5, 10);                                                // a well counts once a road touches it (P11)
     expect(checkDaily(w, events)).toEqual(['plots4', 'well1']);
     expect(events).toEqual([{ type: 'daily', id: 'plots4', reward: 25 }, { type: 'daily', id: 'well1', reward: 25 }]);
     expect(w.gold).toBe(gold + 2 * DAILY_REWARD);
@@ -197,6 +198,7 @@ describe('sim daily goals', () => {
     const v = readyCity();
     dayWith(v, ['well1', 'plots4', 'roads10']);
     addRaw(v, 'well', 5, 9);
+    setRoad(v, 5, 10, 5, 10);
     const settled = [];
     settle(v, settled);
     expect(settled).toEqual([{ type: 'daily', id: 'well1', reward: 25 }]);
@@ -216,6 +218,8 @@ describe('sim daily goals', () => {
     expect(startDaily(w, '2026-10-12')).toBe(true);
     expect(w.daily.picks).toEqual(['temple1', 'roads10', 'plots4']);
     addRaw(w, 'temple', 20, 20);
+    expect(checkDaily(w)).toEqual([]);                                       // no road touches it yet: it counts for nothing (P11)
+    setRoad(w, 19, 20, 19, 20);
     expect(checkDaily(w)).toEqual(['temple1']);
     expect(swapDaily(w, 0)).toEqual({ ok: false, reason: 'no_swap' });      // not a finished goal
     for (const bad of [3, -1, 1.5]) expect(swapDaily(w, bad)).toEqual({ ok: false, reason: 'no_swap' });

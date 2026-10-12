@@ -2,12 +2,14 @@ import { describe, it, expect } from '../harness.js';
 import { desirabilityField, desirabilityAt, houseDesirability, desirabilityContributors, desirabilityPreview } from '../../src/sim/desirability.js';
 import { createWorld, removeBuilding, housesOf } from '../../src/sim/world.js';
 import { buildStressCity } from '../../src/dev/sampleCity.js';
-import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
+import { makeTestWorld, addRaw, setRoad } from '../helpers/testWorld.js';
 
 // Values (spec 4.7, data/desirability.js) by distance 1, 2, 3...: garden 3, 2, 1; statue 8, 6, 4, 2; temple 6, 6, 4,
 // 4, 2, 2; well 1; potter -4, -3, -2, -1; granary -8, -6, -4, -2; Hut -2, -1; Cottage 0; Manor 2, 2.
-// Desirability needs no roads, so these worlds have none.
+// Gardens, statues and homes need no road; a building that needs one gives nothing until a road touches it (rulings
+// P10, P11), so `linked` lays one road tile beside it, at (rx, ry). A road tile changes no tile's score.
 const world = () => makeTestWorld();
+const linked = (w, type, x, y, rx, ry) => { const b = addRaw(w, type, x, y); setRoad(w, rx, ry, rx, ry); return b; };
 const home = (w, x, y, tier = 3, extra = {}) => addRaw(w, 'house', x, y, { tier, residents: 5, ...extra });
 const manor = (w, x, y) => home(w, x, y, 6, { w: 2, d: 2, residents: 100 });
 
@@ -31,14 +33,14 @@ describe('desirability', () => {
     addRaw(w, 'garden', 14, 10);
     expect(desirabilityAt(w, 11, 10)).toBe(4);            // 3 + 1
     expect(desirabilityAt(w, 12, 10)).toBe(4);            // 2 + 2
-    addRaw(w, 'potter', 20, 10);                           // a 2x2 at x 20-21
+    linked(w, 'potter', 20, 10, 22, 10);                   // a 2x2 at x 20-21
     addRaw(w, 'garden', 17, 10);
     expect(desirabilityAt(w, 18, 10)).toBe(0);            // garden +3, potter -3
     expect(desirabilityAt(w, 19, 10)).toBe(-2);           // garden +2, potter -4
   });
   it('counts distance from the nearest tile of a 2x2 footprint and leaves the footprint alone', () => {
     const w = world();
-    addRaw(w, 'granary', 10, 10);
+    linked(w, 'granary', 10, 10, 10, 12);
     for (const [x, y] of [[10, 10], [11, 10], [10, 11], [11, 11]]) expect(desirabilityAt(w, x, y)).toBe(0);
     expect(desirabilityAt(w, 12, 11)).toBe(-8);
     expect(desirabilityAt(w, 9, 9)).toBe(-8);
@@ -70,10 +72,10 @@ describe('desirability', () => {
   it('names the biggest causes of a home\'s score, largest effect first, either sign', () => {
     const w = world();
     const h = home(w, 15, 15, 5);
-    const temple = addRaw(w, 'temple', 13, 15);
-    const potter = addRaw(w, 'potter', 16, 14);
+    const temple = linked(w, 'temple', 13, 15, 12, 15);
+    const potter = linked(w, 'potter', 16, 14, 18, 14);
     const garden = addRaw(w, 'garden', 15, 14);
-    const well = addRaw(w, 'well', 16, 16);
+    const well = linked(w, 'well', 16, 16, 17, 16);
     addRaw(w, 'garden', 25, 25);                           // too far to matter
     expect(houseDesirability(w, h)).toBe(6);               // 6 - 4 + 3 + 1
     expect(desirabilityContributors(w, h)).toEqual([
@@ -127,8 +129,8 @@ describe('desirability', () => {
   it('previews exactly what placing the building then does', () => {
     const w = world();
     for (let x = 4; x < 28; x += 3) home(w, x, 12, 1 + (x % 5));
-    addRaw(w, 'temple', 8, 15);
-    addRaw(w, 'potter', 20, 9);
+    linked(w, 'temple', 8, 15, 7, 15);
+    linked(w, 'potter', 20, 9, 22, 9);
     const before = housesOf(w).map((h) => houseDesirability(w, h));
     const fieldBefore = Float32Array.from(desirabilityField(w));
     const p = desirabilityPreview(w, 'statue', 14, 14);
@@ -141,6 +143,26 @@ describe('desirability', () => {
     let changed = 0;
     for (let i = 0; i < field.length; i++) if (field[i] !== fieldBefore[i]) changed++;
     expect(changed).toBe(p.tiles.length);
+  });
+  it('gives nothing from a building that needs a road until one touches it, and refreshes when roads change (P11)', () => {
+    const w = world();
+    const h = home(w, 15, 15, 5);
+    const temple = addRaw(w, 'temple', 13, 15);            // needs a road and has none
+    const garden = addRaw(w, 'garden', 15, 14);            // needs no road
+    addRaw(w, 'potter', 16, 16);                           // a road-less potter does not spoil the street either
+    expect(desirabilityAt(w, 15, 15)).toBe(3);             // the garden only
+    expect(houseDesirability(w, h)).toBe(3);
+    expect(desirabilityContributors(w, h)).toEqual([{ id: garden.id, type: 'garden', value: 3 }]);
+    const before = desirabilityField(w);
+    setRoad(w, 12, 15, 12, 15);                            // a road beside the temple wakes it
+    expect(desirabilityField(w) === before).toBe(false);
+    expect(desirabilityAt(w, 15, 15)).toBe(9);             // temple 6 + garden 3
+    expect(desirabilityContributors(w, h).map((c) => c.id)).toEqual([temple.id, garden.id]);
+    w.road[12 + 15 * w.size] = 0; w.roadVersion++;         // and taking it away silences it again
+    expect(desirabilityAt(w, 15, 15)).toBe(3);
+    const p = desirabilityPreview(w, 'temple', 13, 18);    // a ghost is judged as if a road will reach it
+    expect(p.tiles.length).toBeGreaterThan(0);
+    expect(p.better).toBe(1);
   });
   it('memoises the field until a building is added, removed, changes tier or merges', () => {
     const w = world();

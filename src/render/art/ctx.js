@@ -10,7 +10,8 @@ const stripeMemo = new WeakMap();   // context -> Map: a hatching's colour, stre
 // Wraps a Canvas 2D context so the art code can draw in art px (a tile is 32 x 16). `scale` is device px
 // per art px. The options object mirrors the SVG mock-ups' extras: { alpha } is fill-opacity,
 // { outline: true } is their standard thin outline, { stroke, strokeWidth, strokeAlpha } a custom stroke.
-export function makeDraw(ctx, scale) {
+// cssScale is CSS px per art px (the renderer passes it; marks that keep a fixed size on screen divide by it), which defaults to scale.
+export function makeDraw(ctx, scale, cssScale = scale) {
   const s = (v) => v * scale;
 
   function trace(pts) {
@@ -92,6 +93,7 @@ export function makeDraw(ctx, scale) {
   const g = {
     ctx,
     scale,
+    cssScale,
     poly(pts, fill, o = {}) { trace(pts); fillStroke(fill, o); },
     polys(list, fill, o = {}) { if (list.length) { traceAll(list); fillStroke(fill, o); } },
     // Many polygons hatched in one fill: the colour at `fill` strength with diagonal stripes of it at `line` strength.

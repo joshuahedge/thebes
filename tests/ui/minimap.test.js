@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { createMinimap } from '../../src/ui/minimap.js';
+import { createMinimap, minimapPins } from '../../src/ui/minimap.js';
 import { createCamera } from '../../src/render/camera.js';
 import { riverWorld } from '../helpers/renderWorld.js';
 import { pixelAt } from '../helpers/canvas.js';
@@ -48,6 +48,27 @@ describe('ui minimap', () => {
       store.set({ layout: 'wide' });
       expect(order()).toEqual(['minimap-wrap', 'actions', 'h3', 'alert-list']);
       expect(titles()).toEqual(list.map((a) => alertText(a, world).title));
+    } finally { cleanup(); }
+  });
+  it('pins every plot an alert about many plots names, and gives that row a Show me beside View (placement review P13)', () => {
+    const { root, cleanup } = mount('<section id="sheet"></section>');
+    try {
+      const world = makeTestWorld();
+      const a = addRaw(world, 'house', 3, 20), b = addRaw(world, 'house', 9, 24);
+      const list = [{ code: 'plots_no_road', count: 2, ids: [a.id, b.id, 999] }];            // a plot that has gone has no pin
+      expect(minimapPins(world, list)).toEqual([{ x: 3.5, y: 20.5, point: false, dx: 0, dy: 0 }, { x: 9.5, y: 24.5, point: false, dx: 0, dy: 0 }]);
+      const store = createStore({ ...INITIAL_UI_STATE, layout: 'portrait' });
+      const minimap = { canvas: document.createElement('canvas'), render() {}, tileFromPoint: () => ({ x: 0, y: 0 }) };
+      const cameraControl = { panTo() {}, zoomStep() {}, centre: () => ({ x: 0, y: 0 }) };
+      const fixed = [], viewed = [];
+      createSheets({ container: root.querySelector('#sheet'), store, world, placement: null, cameraControl, minimap, getAlerts: () => list, onFixAlert: (x) => fixed.push(x.code), onView: (x) => viewed.push(x.code) });
+      store.set(openSheet(store.get(), 'minimap'));
+      const row = root.querySelector('#sheet .alert-list li');
+      expect(row.querySelector('strong').textContent).toBe('2 plots have no road');
+      expect([...row.querySelectorAll('button')].map((n) => n.textContent)).toEqual(['View', 'Show me']);
+      row.querySelector('.show-me').click();
+      row.querySelector('.view').click();
+      expect([fixed, viewed]).toEqual([['plots_no_road'], ['plots_no_road']]);
     } finally { cleanup(); }
   });
 });

@@ -2,11 +2,12 @@
 // 175): each mobile scene (src/dev/scenes.js MOBILE_SCENES, the busy moments tools/shots.ps1 -Mobile captures) is booted
 // as its page query opens it, on a small portrait phone (375x667) and two landscape phones (844x390 and 667x375, the
 // review's worst case) at 100%, 125% and 150% text, and measureRows() reads where the rows under the top bar end. The
-// scenes run quick (no settling waits; the clock is moved past the session's first seconds for 'early', as the scene
+// scenes run quick (no settling waits; the clock is moved past the session's first seconds for 'early' and 'expanded', as the scene
 // waits them out; on a paused phone its goal tip then waits for Play, ruling 176). The shell is mounted in the test page,
 // so sizes in vh (the portrait sheet's 60vh) follow the test page, not the phone; no check reads them. The checks:
 //   end    the rows end by 30% of the height in portrait at 100% text, 40% at 125% and 150%; with a sheet open 20% and
-//          25%; in landscape by 40%
+//          25%; in landscape by 40%; in the 'expanded' scene (a tip opened in place, placement review P8) by 40% at every
+//          size and text size
 //   rows   at most two rows (the alert row and the guidance row), one on a landscape phone at 125% text or more
 //          (ruling 172), and that one the alert row whenever a banner shows; while a sheet is open only the alert row
 //          (ruling 168)
@@ -60,12 +61,15 @@ const SET_UP = {
   'raid-fire': (g) => [raidUp(g), Object.values(g.world.buildings).some((b) => b.fire && b.fire.stage === 'fire')],
   'raid-overlay': (g) => [raidUp(g), g.ui.store.get().overlay],
   placing: (g) => [raidUp(g), g.ui.store.get().mode, g.ui.store.get().tool.type],
+  farm: (g) => [raidUp(g), g.ui.store.get().mode, g.ui.store.get().tool.type, g.ui.store.get().overlay],
+  'farm-raid': (g) => [raidUp(g), g.ui.store.get().mode, g.ui.store.get().tool.type, g.ui.store.get().overlay],
   sheet: (g) => [raidUp(g), g.ui.store.get().sheet.kind, g.world.buildings[g.ui.store.get().selectedId].type],
   welcome: (g) => [g.ui.store.get().sheet.kind, g.world.speed],
+  expanded: (g) => [g.ui.tips.current(), g.ui.store.get().guidanceOpen, document.body.dataset.guidance, g.world.speed],   // the goal's tip, open, on the row
 };
 const SET_UP_WANTED = {
   early: [true, null, 'goal', 0], plots: [true, 0], raid: [true, 0], 'raid-fire': [true, true], 'raid-overlay': [true, 'fire'],
-  placing: [true, 'placing', 'well'], sheet: [true, 'info', 'house'], welcome: ['welcome', 0],
+  placing: [true, 'placing', 'well'], farm: [false, 'placing', 'farm_grain', 'ground'], 'farm-raid': [true, 'placing', 'farm_grain', 'ground'], sheet: [true, 'info', 'house'], welcome: ['welcome', 0], expanded: ['goals_list', true, 'tip', 0],
 };
 
 // The budget checks for one measurement: [{ id, ok, got, limit }].
@@ -73,7 +77,7 @@ function budgetChecks(scene, m) {
   const at = `${scene} ${m.width}x${m.height} ${m.textSize}%`;
   const portrait = m.layout === 'portrait', sheet = m.sheet !== null;
   const large = m.textSize >= 125;                   // the spec's budget names 100% and 150%; 125% is held to the larger-text line
-  const endLimit = portrait ? (sheet ? (large ? 0.25 : 0.2) : (large ? 0.4 : 0.3)) : 0.4;
+  const endLimit = scene === 'expanded' ? 0.4 : portrait ? (sheet ? (large ? 0.25 : 0.2) : (large ? 0.4 : 0.3)) : 0.4;
   const oneRow = !portrait && large;
   const end = m.rowsEnd / m.height, names = Object.keys(m.layers);
   const got = `${m.rows} (${names.join('+')})`;
@@ -93,7 +97,7 @@ function budgetChecks(scene, m) {
 
 describe('mobile height budget', () => {
   it('names a page query for every mobile scene, and lists only checks it makes', () => {
-    expect(MOBILE_SCENES).toEqual(['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'sheet', 'welcome']);
+    expect(MOBILE_SCENES).toEqual(['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded']);
     expect(MOBILE_SCENES.every((name) => typeof MOBILE_SCENE_PARAMS[name] === 'string')).toBe(true);
     const kinds = ['end', 'rows', 'edge'], sizes = SIZES.map(([w, h]) => `${w}x${h}`), texts = TEXT_SIZES.map((t) => `${t}%`);
     const unknown = [...NOT_YET].filter((id) => {
@@ -113,7 +117,7 @@ describe('mobile height budget', () => {
             const g = r.api.game();
             g.ui.settings.set({ textSize, reducedMotion: 'on' });
             await frame();
-            if (name === 'early') r.skip(TIP_FIRST_DELAY_MS);   // the scene waits out the session's first seconds before its road
+            if (name === 'early' || name === 'expanded') r.skip(TIP_FIRST_DELAY_MS);   // the scene waits out the session's first seconds before its road or its tip
             await devScene(r.api, name, { quick: true });
             await frame(); await frame();
             expect(SET_UP[name](g)).toEqual(SET_UP_WANTED[name]);

@@ -21,10 +21,24 @@ import { el, button, clear, setText } from './components.js';
 export const CRITICAL_RANK = ['raid', 'fire', 'raid_warning', 'debt', 'save_failed'];
 export const CRITICAL = new Set(CRITICAL_RANK);
 
-const keyOf = (a) => `${a.code}:${a.id === undefined ? '' : a.id}:${a.level || ''}`;
+const keyOf = (a) => `${a.code}:${a.id === undefined ? '' : a.id}:${a.level || ''}${a.count ? `:${a.count}` : ''}`;   // a count joins the key so "6 plots" becoming "7 plots" is announced
 const rankOf = (a) => CRITICAL_RANK.indexOf(a.code);
 // A raid's alerts sit at a map point (the entry, or the band's centre), not on a building.
 export const isPointAlert = (a) => (a.id === undefined || a.id === null) && Number.isFinite(a.x) && Number.isFinite(a.y);
+
+// The warning tier (the Map badge and the list, never the banner): an alert about many buildings at once carries their ids.
+// plots_no_road is one such, "6 plots have no road" (placement review P13). View on it goes to the plot nearest `from` (a tile point,
+// the camera's centre), not to a fixed one, so the list stays useful as plots are added across the map.
+export function nearestOf(world, alert, from) {
+  let best = null, bestD = Infinity;
+  for (const id of alert.ids || []) {
+    const b = world.buildings[id];
+    if (!b) continue;
+    const d = Math.hypot(b.x + b.w / 2 - from.x, b.y + b.d / 2 - from.y);
+    if (d < bestD) { best = b; bestD = d; }
+  }
+  return best;
+}
 
 export function triage(world, alerts = alertsFor(world)) {
   const all = alerts.filter((a) => a.id === undefined || a.id === null || Boolean(world.buildings[a.id]));

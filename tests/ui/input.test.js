@@ -24,6 +24,7 @@ function rig({ mode = 'browse', ghost = false } = {}) {
     ghostDrag: (e) => log.push(['ghostDrag', Math.round(e.x), Math.round(e.y)]),
     ghostDragEnd: () => log.push(['ghostDragEnd']),
     drawDrag: (e) => log.push(['drawDrag', e.phase, Math.round(e.x), Math.round(e.y)]),
+    strokeDrag: (e) => log.push(e.phase === 'cancel' ? ['strokeDrag', 'cancel'] : ['strokeDrag', e.phase, Math.round(e.x), Math.round(e.y)]),
     panStarted: () => log.push(['panStarted']),
   };
   const input = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
@@ -53,6 +54,52 @@ describe('ui map input', () => {
     expect(r.log.filter((e) => e[0] === 'panStarted').length).toBe(1);
     expect(r.log.some((e) => e[0] === 'tap')).toBe(false);
     r.input.detach(); r.cleanup();
+  });
+  it('draws a stroke instead of panning on a one-finger drag in a drawing tool, and a pen does too (placement review P3)', () => {
+    for (const [mode, type] of [['drawing', 'touch'], ['demolishing', 'pen']]) {
+      const r = rig({ mode });
+      const before = { x: r.cam.x, y: r.cam.y };
+      fire(r.canvas, 'pointerdown', { ...r.at(100, 100), pointerId: 1, pointerType: type });
+      fire(r.canvas, 'pointermove', { ...r.at(140, 100), pointerId: 1, pointerType: type });
+      fire(r.canvas, 'pointermove', { ...r.at(180, 120), pointerId: 1, pointerType: type });
+      fire(r.canvas, 'pointerup', { ...r.at(180, 120), pointerId: 1, pointerType: type });
+      expect([mode, r.log]).toEqual([mode, [['strokeDrag', 'start', 100, 100], ['strokeDrag', 'move', 140, 100], ['strokeDrag', 'move', 180, 120], ['strokeDrag', 'end', 180, 120]]]);
+      expect([r.cam.x, r.cam.y]).toEqual([before.x, before.y]);
+      r.input.detach(); r.cleanup();
+    }
+  });
+  it('takes a stroke back when a second finger arrives, and pans and zooms with two fingers', () => {
+    const r = rig({ mode: 'drawing' });
+    const before = { x: r.cam.x, zoom: r.cam.zoom };
+    fire(r.canvas, 'pointerdown', { ...r.at(100, 150), pointerId: 1, pointerType: 'touch' });
+    fire(r.canvas, 'pointermove', { ...r.at(120, 150), pointerId: 1, pointerType: 'touch' });
+    fire(r.canvas, 'pointerdown', { ...r.at(200, 150), pointerId: 2, pointerType: 'touch' });
+    fire(r.canvas, 'pointermove', { ...r.at(260, 150), pointerId: 2, pointerType: 'touch' });
+    fire(r.canvas, 'pointerup', { ...r.at(260, 150), pointerId: 2, pointerType: 'touch' });
+    fire(r.canvas, 'pointerup', { ...r.at(120, 150), pointerId: 1, pointerType: 'touch' });
+    expect(r.log.filter((e) => e[0] === 'strokeDrag')).toEqual([['strokeDrag', 'start', 100, 150], ['strokeDrag', 'move', 120, 150], ['strokeDrag', 'cancel']]);
+    expect(r.cam.zoom > before.zoom && r.cam.x !== before.x).toBe(true);
+    expect(r.log.some((e) => e[0] === 'tap')).toBe(false);
+    r.input.detach(); r.cleanup();
+  });
+  it('takes a stroke back when the browser cancels the touch', () => {
+    const r = rig({ mode: 'drawing' });
+    fire(r.canvas, 'pointerdown', { ...r.at(100, 100), pointerId: 1, pointerType: 'touch' });
+    fire(r.canvas, 'pointermove', { ...r.at(140, 100), pointerId: 1, pointerType: 'touch' });
+    fire(r.canvas, 'pointercancel', { pointerId: 1, pointerType: 'touch' });
+    expect(r.log).toEqual([['strokeDrag', 'start', 100, 100], ['strokeDrag', 'move', 140, 100], ['strokeDrag', 'cancel']]);
+    r.input.detach(); r.cleanup();
+  });
+  it('gives two quick taps as two taps while a tool is open, so neighbouring tiles can be tapped (placement review P4)', () => {
+    for (const mode of ['drawing', 'placing']) {
+      const r = rig({ mode });
+      fire(r.canvas, 'pointerdown', { ...r.at(200, 150), pointerId: 1, pointerType: 'touch' });
+      fire(r.canvas, 'pointerup', { ...r.at(200, 150), pointerId: 1, pointerType: 'touch' });
+      fire(r.canvas, 'pointerdown', { ...r.at(210, 150), pointerId: 2, pointerType: 'touch' });
+      fire(r.canvas, 'pointerup', { ...r.at(210, 150), pointerId: 2, pointerType: 'touch' });
+      expect([mode, r.cam.zoom, r.log]).toEqual([mode, 1, [['tap', 200, 150, 'touch', 0], ['tap', 210, 150, 'touch', 0]]]);
+      r.input.detach(); r.cleanup();
+    }
   });
   it('moves the ghost instead of panning when the drag starts on it', () => {
     const r = rig({ mode: 'placing', ghost: true });

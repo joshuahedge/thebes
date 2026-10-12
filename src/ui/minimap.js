@@ -15,6 +15,8 @@ const INTO = { east: [-1, 0], west: [1, 0], north: [0, 1], south: [0, -1] };
 export function minimapPins(world, alerts = []) {
   const out = [];
   for (const a of alerts) {
+    // An alert about many buildings (plots with no road) pins each of them.
+    if (a.ids) { for (const id of a.ids) { const m = world.buildings[id]; if (m) out.push({ x: m.x + m.w / 2, y: m.y + m.d / 2, point: false, dx: 0, dy: 0 }); } continue; }
     const b = a.id ? world.buildings[a.id] : null;
     if (b) { out.push({ x: b.x + b.w / 2, y: b.y + b.d / 2, point: false, dx: 0, dy: 0 }); continue; }
     if (a.id !== undefined && a.id !== null) continue;          // a building that is gone

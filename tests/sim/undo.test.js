@@ -3,6 +3,7 @@ import { pushUndo, undo, clearUndo, UNDO_LIMIT } from '../../src/sim/undo.js';
 import { buildingAt } from '../../src/sim/world.js';
 import { idx } from '../../src/sim/grid.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
+import { drawRoadTiles, paintHouseTiles } from '../../src/sim/commands.js';
 
 describe('undo', () => {
   it('reports when there is nothing to undo', () => {
@@ -24,6 +25,16 @@ describe('undo', () => {
     pushUndo(w, { kind: 'road', tiles: [t], cost: 2 });
     undo(w);
     expect(w.road[t]).toBe(0);
+    expect(w.gold).toBe(1000);
+  });
+  it('takes back a touch plan in one step: every tile of its strokes, refunded together (placement review P3)', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    addRaw(w, 'well', 6, 4);
+    expect(drawRoadTiles(w, [[4, 4], [5, 4], [6, 4], [7, 4], [7, 5], [2, 9]], { skipBlocked: true }).ok).toBe(true);
+    expect(paintHouseTiles(w, [[8, 5], [9, 5]]).ok).toBe(true);
+    expect(w.undo.map((e) => e.kind)).toEqual(['road', 'place']);
+    undo(w); undo(w);
+    expect([[4, 4], [5, 4], [7, 4], [7, 5], [2, 9]].map(([x, y]) => w.road[idx(w.size, x, y)])).toEqual([0, 0, 0, 0, 0]);
     expect(w.gold).toBe(1000);
   });
   it('restores demolished buildings exactly and takes back the refund', () => {

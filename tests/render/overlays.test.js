@@ -1,5 +1,7 @@
 import { describe, it, expect } from '../harness.js';
-import { OVERLAYS, houseMark, overlayMarks, reachTiles, drawOverlay, drawReachHighlight, drawGhost } from '../../src/render/overlays.js';
+import { OVERLAYS, houseMark, overlayMarks, reachTiles, drawOverlay, drawReachHighlight, drawGhost, groundTiles, roomTiles, GROUND_HUE } from '../../src/render/overlays.js';
+import { T as TILE } from '../../src/sim/terrain.js';
+import { idx } from '../../src/sim/grid.js';
 import { p } from '../../src/render/iso.js';
 import { makeDraw } from '../../src/render/art/ctx.js';
 import { UI } from '../../src/render/art/palette.js';
@@ -56,7 +58,7 @@ describe('overlays', () => {
     expect(marks.length).toBe(2);
     expect(marks.find((m) => m.id === hut.id)).toEqual({ id: hut.id, x: 12.5, y: 11.5, has: true, need: null });
     expect(overlayMarks(w, 'water', { x0: 0, y0: 0, x1: 8, y1: 31 }).length).toBe(0);
-    expect(OVERLAYS.length).toBe(8);                                   // Stage 3 adds fire risk
+    expect(OVERLAYS.length).toBe(9);                                   // Stage 3 adds fire risk, the placement review Ground
   });
   it('lists the tiles a building reaches', () => {
     const w = riverWorld();
@@ -90,5 +92,132 @@ describe('overlays', () => {
     const warn = scene();
     drawGhost(warn.g, { x: 0, y: 0, w: 1, d: 1, state: 'warn' });
     expect(inked(warn.c)).toBeGreaterThan(10);
+  });
+});
+
+// The Ground overlay (placement review P1): a 1-wide fertile strip down x = 0 (no 2 x 2 fits), a 3 x 3 fertile block, rocky ground.
+function groundWorld() {
+  const w = makeTestWorld({ size: 16, fertile: [[0, 0, 1, 4], [5, 5, 3, 3]] });
+  for (let y = 10; y < 13; y++) for (let x = 10; x < 13; x++) w.terrain[idx(w.size, x, y)] = TILE.ROCKY;
+  return w;
+}
+// A scene whose tile (tx, ty) sits at the canvas origin, with `at(x, y)`: the device point of a tile's corner.
+function groundScene(tx, ty) {
+  const s = scene([tx, ty]);
+  const [ax, ay] = p(tx, ty);
+  return { ...s, at: (x, y) => { const q = p(x, y); return [120 + 2 * (q[0] - ax), 60 + 2 * (q[1] - ay)]; } };
+}
+// Device alpha of the pixel just under tile (x, y)'s centre, clear of the two dots either side of it.
+function tileAlpha(s, c, x, y) {
+  const [cx, cy] = s.at(x + 0.5, y + 0.5);
+  return pixelAt(c, Math.round(cx), Math.round(cy) + 6)[3];
+}
+
+describe('ground overlay (placement review P1)', () => {
+  it('lists the free fertile and free rocky tiles, leaving out any with a building, a road or a wall, and honours the range', () => {
+    const w = groundWorld();
+    expect([groundTiles(w).fertile.length, groundTiles(w).rocky.length]).toEqual([4 + 9, 9]);
+    addRaw(w, 'house', 5, 5);
+    setRoad(w, 6, 5, 7, 5);
+    w.wall[idx(w.size, 0, 3)] = 1;
+    const g = groundTiles(w);
+    expect(g.fertile.length).toBe(13 - 1 - 2 - 1);
+    expect(g.fertile.some(([x, y]) => (x === 5 && y === 5) || (x === 6 && y === 5) || (x === 0 && y === 3))).toBe(false);
+    expect(groundTiles(w, { x0: 10, y0: 10, x1: 11, y1: 11 })).toEqual({ fertile: [], rocky: [[10, 10], [11, 10], [10, 11], [11, 11]] });
+  });
+  it('finds the tiles with room for a whole footprint on its own ground, and memoises them until the buildings change', () => {
+    const w = groundWorld();
+    const farm = roomTiles(w, 'farm_grain');
+    expect([farm.size, farm.has(idx(w.size, 6, 6)), farm.has(idx(w.size, 0, 0))]).toEqual([9, true, false]);   // the strip has no room for 2 x 2
+    expect(roomTiles(w, 'farm_grain')).toBe(farm);
+    const mine = roomTiles(w, 'gem_mine');
+    expect([mine.size, mine.has(idx(w.size, 11, 11)), mine.has(idx(w.size, 6, 6))]).toEqual([9, true, false]);
+    expect(roomTiles(w, 'well').size).toBe(0);                                                                  // no terrain: no ground to fit
+    addRaw(w, 'house', 6, 6);                                                                                    // the 3 x 3 block's middle: every 2 x 2 in it needs it
+    expect(roomTiles(w, 'farm_grain').size).toBe(0);
+  });
+  it('draws free fertile land green with dots, free rocky ground grey with hatching, and nothing on built tiles', () => {
+    const w = groundWorld();
+    addRaw(w, 'house', 7, 7);
+    const s = groundScene(6, 6);
+    drawOverlay(s.g, w, 'ground', null);
+    const [cx, cy] = s.at(6.5, 6.5).map(Math.round);
+    const open = pixelAt(s.c, cx, cy + 6), dot = pixelAt(s.c, cx - 8, cy);
+    expect(open[3]).toBeGreaterThan(80);
+    expect([open[1] > open[0], open[1] > open[2]]).toEqual([true, true]);               // green, not the other overlays' hues
+    expect(dot[3]).toBeGreaterThan(open[3] + 40);                                        // a dot is stronger than the wash beside it
+    expect(tileAlpha(s, s.c, 7, 7)).toBe(0);                                             // the house stands there
+    const rock = groundScene(11, 11);
+    drawOverlay(rock.g, w, 'ground', null);
+    expect(inked(rock.c)).toBeGreaterThan(40);
+    expect(GROUND_HUE.fertile === GROUND_HUE.rocky).toBe(false);
+  });
+  it('draws at half strength the tiles with no room for the building being placed, and at full strength those with room', () => {
+    const w = groundWorld();
+    const strip = groundScene(0, 0), block = groundScene(6, 6), plain = groundScene(0, 0), bare = groundScene(6, 6);
+    drawOverlay(strip.g, w, 'ground', null, 'farm_grain');
+    drawOverlay(block.g, w, 'ground', null, 'farm_grain');
+    drawOverlay(plain.g, w, 'ground', null);
+    drawOverlay(bare.g, w, 'ground', null);
+    const dim = tileAlpha(strip, strip.c, 0, 0), bright = tileAlpha(block, block.c, 6, 6);
+    expect([dim > 40 && dim < 66, bright > 90 && bright < 118]).toEqual([true, true]);
+    expect([tileAlpha(plain, plain.c, 0, 0), tileAlpha(bare, bare.c, 6, 6)]).toEqual([bright, bright]);   // no tool: everything at full strength
+    const none = groundScene(6, 6);
+    addRaw(w, 'house', 6, 6);
+    drawOverlay(none.g, w, 'ground', null, 'farm_grain');
+    expect(tileAlpha(none, none.c, 5, 5)).toBe(dim);                                      // no room anywhere: all of it at half
+  });
+});
+
+// A building's ghost (placement review P9, P10, P13): a badge of a fixed size on screen, each tile's own state, and the tiles a road
+// would join.
+describe('building ghost (placement review P9, P10, P13)', () => {
+  const countNear = (s, colour, tol = 40) => {
+    let n = 0;
+    for (let x = 0; x < s.c.width; x++) for (let y = 0; y < s.c.height; y++) if (nearColour(pixelAt(s.c, x, y), colour, tol)) n++;
+    return n;
+  };
+  // A bare drawing context at device scale 2 whose art px are `css` CSS px: what the renderer builds at zoom css / 2.
+  const sceneAt = (tx, ty, css) => {
+    const c = makeCanvas(240, 200);
+    const ctx = c.getContext('2d');
+    const [ax, ay] = p(tx, ty);
+    ctx.translate(120 - 2 * ax, 60 - 2 * ay);
+    return { c, g: makeDraw(ctx, 2, css), at: (x, y) => { const q = p(x, y); return [120 + 2 * (q[0] - ax), 60 + 2 * (q[1] - ay)]; } };
+  };
+  it('keeps its badge 20 CSS px across at any zoom: it takes its art size only where that is bigger', () => {
+    const small = sceneAt(0, 0, 1), big = sceneAt(0, 0, 4), plain = sceneAt(0, 0, 1);   // zoomed far out and far in
+    for (const s of [small, big]) drawGhost(s.g, { x: 0, y: 0, w: 2, d: 2, state: 'bad', badge: true });
+    drawGhost(plain.g, { x: 0, y: 0, w: 2, d: 2, state: 'bad' });
+    // The cross sits on the deep coral of the problem badge. At css 1 the badge is 10 art px in radius (20 CSS px across, 20 device px
+    // each way from its centre at scale 2); at css 4 it keeps its 5 art px floor (10 device px). An unflagged ghost (a road tile,
+    // a plot) keeps its small glyph.
+    const [few, many] = [countNear(big, UI.problem, 20), countNear(small, UI.problem, 20)];
+    expect(many).toBeGreaterThan(few * 2.5);
+    expect(few).toBeGreaterThan(100);
+    expect(countNear(plain, UI.problem, 20)).toBe(0);
+  });
+  it('draws each footprint tile in its own state when part of it is wrong', () => {
+    const s = sceneAt(0, 0, 2);
+    drawGhost(s.g, { x: 0, y: 0, w: 2, d: 1, state: 'bad', badge: true, tiles: [{ x: 0, y: 0, state: 'met' }, { x: 1, y: 0, state: 'cant' }] });
+    const blue = s.at(0.5, 0.5), coral = s.at(1.5, 0.5);
+    const sample = (q, dy) => pixelAt(s.c, Math.round(q[0]), Math.round(q[1]) + dy);
+    expect(sample(blue, 5)[3]).toBeGreaterThan(20);                                // the good tile has a wash
+    expect([sample(blue, 5)[2] > sample(blue, 5)[0]]).toEqual([true]);             // and it is blue
+    let reds = 0;
+    for (let dx = -14; dx <= 14; dx += 2) for (let dy = -8; dy <= 8; dy += 2) if (nearColour(pixelAt(s.c, Math.round(coral[0]) + dx, Math.round(coral[1]) + dy), UI.bad, 50)) reds++;
+    expect(reds).toBeGreaterThan(5);                                               // the bad tile is hatched coral
+    let blueOnBad = 0;
+    for (let dx = -14; dx <= 14; dx += 2) for (let dy = -8; dy <= 8; dy += 2) if (nearColour(pixelAt(s.c, Math.round(coral[0]) + dx, Math.round(coral[1]) + dy), UI.ok, 30)) blueOnBad++;
+    expect(blueOnBad).toBe(0);
+  });
+  it('marks the tiles where a road would join with a dashed amber outline', () => {
+    const none = sceneAt(0, 0, 2), some = sceneAt(0, 0, 2);
+    drawGhost(none.g, { x: 0, y: 0, w: 1, d: 1, state: 'warn', badge: true });
+    drawGhost(some.g, { x: 0, y: 0, w: 1, d: 1, state: 'warn', badge: true, joins: [[1, 0], [0, 1]] });
+    expect(countNear(some, UI.warn, 30)).toBeGreaterThan(countNear(none, UI.warn, 30) + 20);
+    const [jx, jy] = some.at(1.5, 0.5);
+    expect(pixelAt(some.c, Math.round(jx), Math.round(jy) + 6)[3]).toBeGreaterThan(10);   // the joining tile has a wash of its own
+    expect(pixelAt(none.c, Math.round(jx), Math.round(jy) + 6)[3]).toBe(0);
   });
 });

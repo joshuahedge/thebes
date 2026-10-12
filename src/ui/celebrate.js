@@ -4,8 +4,11 @@
 // shows longer). A caption is a short head (what happened), the gold beside it and, beneath, an optional why
 // (why it matters; a phone at larger text hides it from sight, not from screen readers). A head may start with a lead
 // ("Goal done: ") that a phone keeps for screen readers only, so a goal's caption reads as the strip itself changing.
-// Nothing to tap and nothing takes focus: #cheer is a polite live region, so each caption is read once as it appears. An
-// item's onShow runs when its caption appears, so sound and sparkle land with it.
+// Nothing takes focus: #cheer is a polite live region, so each caption is read once as it appears. A phone cuts a caption
+// at two lines, or hides its why at larger text (css/ui.css): measure() shows "More ▾" on a caption so cut, and a tap on
+// the caption runs onToggle (createUI opens it in place and calls setOpen; placement review P8). An open caption shows all
+// its words and its why, with "Less ▴"; its timers stop, and once it is closed it stays CHEER_OPEN_MIN_MS at least, the
+// next caption waiting meanwhile. An item's onShow runs when its caption appears, so sound and sparkle land with it.
 // Ruling 165: every caption is also written to recent() (the last CHEER_RECENT_MAX, newest first; the Goals sheet lists
 // them), and at most CHEER_WAITING_MAX wait their turn, so an older one goes to Recent only. While hold() is true the
 // next caption waits (createUI holds them on a phone while a sheet, a tip or the overlay legend has the guidance row, or
@@ -15,12 +18,13 @@
 // runs whenever a caption appears or hides.
 // Stage 3: a caption may carry its own icon (a citizen remark's speech mark), busy() says whether the row is taken, and
 // remarkFor picks a citizen remark (spec 4.19).
-import { CHEER_MS, CHEER_GAP_MS, CHEER_WAITING_MAX, CHEER_HELD_MAX_MS, CHEER_RECENT_MAX } from '../data/ui.js';
+import { CHEER_MS, CHEER_GAP_MS, CHEER_OPEN_MIN_MS, CHEER_WAITING_MAX, CHEER_HELD_MAX_MS, CHEER_RECENT_MAX } from '../data/ui.js';
 import { REMARK_EVERY_MONTHS, REMARK_SALT, SEASONS } from '../data/tips.js';
 import { allBuildings } from '../sim/world.js';
 import { monthIndex } from '../sim/clock.js';
 import { hash2 } from '../sim/rng.js';
 import { el, clear } from './components.js';
+import { isCut, writeMore } from './expand.js';
 import { cheerReward, CITIZEN_REMARKS } from './text.js';
 
 // The citizen remark for the month that has just begun (spec 4.19, ruling 130), or null: only at a month index that is a
@@ -38,21 +42,26 @@ export function remarkFor(world) {
 
 export function createCelebrations({
   container, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), hold = () => false,
-  skip = () => false, dropHeld = () => true, now = () => performance.now(), onChange = () => {},
+  skip = () => false, dropHeld = () => true, now = () => performance.now(), onChange = () => {}, onToggle = () => {},
 }) {
   const queue = [];
   const recent = [];        // { tier, text, why, reward }: the last captions, newest first, in full
   let node = null;          // the caption on screen
   let hideTimer = null;     // hides it after its tier's time
   let slotTimer = null;     // frees the row for the next caption; null while the row is free
+  let more = null;          // the caption's More button
+  let open = false;         // the caption on screen is open in place: its timers are stopped
+  let shown = { at: 0, ms: 0 };   // when the caption on screen appeared, and for how long it shows
+  let left = 0;             // the time it had left when it was opened
 
   function hide() {
     hideTimer = null;
-    if (node) { node.remove(); node = null; onChange(); }
+    if (node) { node.remove(); node = null; more = null; open = false; onChange(); }
   }
 
   function next() {
     slotTimer = null;
+    if (open) return;                                  // an open caption keeps the row until it is closed
     if (hold()) {
       const t = now();
       if (dropHeld()) while (queue.length && t - queue[0].at > CHEER_HELD_MAX_MS) queue.shift();   // waited too long: Recent has it
@@ -65,16 +74,54 @@ export function createCelebrations({
     const ms = CHEER_MS[item.tier] || CHEER_MS.first;
     // The head and the gold sit on the first line, the why beneath (css/ui.css). The why stays in the live region
     // even where it is hidden from sight, so a screen reader hears all of it.
-    node = el('div', { class: item.lead ? `cheer ${item.tier} led` : `cheer ${item.tier}` }, [
+    more = el('button', { type: 'button', class: 'more quiet', 'aria-expanded': 'false', hidden: true });
+    node = el('div', { class: item.lead ? `cheer ${item.tier} led` : `cheer ${item.tier}`, onClick: () => { if (!more.hidden) onToggle(); } }, [
       el('span', { class: 'icon', 'aria-hidden': 'true', text: item.icon || '★' }),
       el('span', { class: 'text' }, [item.lead ? el('span', { class: 'lead', text: item.lead }) : null, item.text]),
       item.why ? el('span', { class: 'why', text: item.why }) : null,
       item.reward > 0 ? el('span', { class: 'reward', text: cheerReward(item.reward) }) : null,
+      more,
     ]);
     container.append(node);
+    shown = { at: now(), ms };
     hideTimer = setTimer(hide, ms);
     slotTimer = setTimer(next, Math.max(CHEER_GAP_MS, ms));
     if (typeof item.onShow === 'function') item.onShow();
+    onChange();
+  }
+
+  // Whether the caption on screen shows less than it holds: cut at two lines, or its why hidden from sight (larger text).
+  function measure() {
+    if (!node) return false;
+    more.hidden = true;
+    const why = node.querySelector('.why'), head = node.querySelector('.text');
+    const onScreen = node.offsetWidth > 0;              // a caption the row is not showing has no size, and so is never cut
+    const cut = onScreen && !open && Boolean((why && why.offsetWidth <= 1) || [node, head, why].some((n) => n && isCut(n)));
+    if (cut || open) { writeMore(more, open); more.hidden = false; }
+    return cut;
+  }
+
+  // Opens the caption on screen in place, or closes it. Open, it stops its timers (and next() waits); closed, it stays at
+  // least CHEER_OPEN_MIN_MS, and the next caption starts as it hides.
+  function setOpen(on) {
+    if (Boolean(on) === open || (on && !node)) return;
+    open = Boolean(on);
+    if (open) {
+      left = Math.max(0, shown.ms - (now() - shown.at));
+      if (hideTimer !== null) clearTimer(hideTimer);
+      if (slotTimer !== null) clearTimer(slotTimer);
+      hideTimer = null;
+      slotTimer = null;
+    } else {
+      const ms = Math.max(CHEER_OPEN_MIN_MS, left);
+      hideTimer = setTimer(hide, ms);
+      slotTimer = setTimer(next, ms + Math.max(0, CHEER_GAP_MS - shown.ms));
+    }
+    if (node) {
+      node.classList.toggle('open', open);
+      more.setAttribute('aria-expanded', String(open));
+      measure();
+    }
     onChange();
   }
 
@@ -98,12 +145,16 @@ export function createCelebrations({
       slotTimer = null;
       const had = node !== null;
       node = null;
+      more = null;
+      open = false;
       clear(container);
       if (had) onChange();
     },
     pending: () => queue.length,
     // Whether a caption is on screen now.
     showing: () => node !== null,
+    setOpen,
+    measure,
     // Whether the caption row is taken: a caption showing, its slot still running, or one waiting.
     busy: () => node !== null || slotTimer !== null || queue.length > 0,
     // The last captions, newest first, in full (a phone may cut a long one at two lines): { tier, text, why, reward }.
