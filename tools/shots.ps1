@@ -14,6 +14,7 @@
 # closest thing today's game can (its S4-TODO says what the Stage 4 version must show); sitesheet and motion show an
 # open sheet under the top bar, the interface-style before. Shots are <Tag>-<motion>-<scene>-<size>.png at the four
 # sizes. -Stage4 cannot be combined with -Stage2, -Stage3 or -Mobile; -Only and -OnlySizes still pick scenes and sizes.
+# The title and tutorial scenes are also shot at phone-landscape-small (667x375), beside phone-landscape (844x390).
 # Usage: tools/shots.ps1 -Stage4 -Tag s4before [-Motion full] [-Only site,motion] [-OnlySizes phone-portrait]
 # then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> s4before-full s4after-full --stage4
 # then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> before after [--stage2 | --stage3]
@@ -176,7 +177,10 @@ if ($Stage4) {
   foreach ($mo in $Motion) {
     foreach ($name in $stage4Scenes.Keys) {
       if ($Only.Count -and -not ($Only -contains $name)) { continue }
-      foreach ($sz in $sizes) {
+      # The title card and the picture cards also at the small landscape phone (667x375): How to play made the title card's
+      # buttons taller there (G2 review I3).
+      $stage4Sizes = if (@('title', 'tutorial') -contains $name) { @($sizes) + @(@{ name = 'phone-landscape-small'; w = 667; h = 375 }) } else { $sizes }
+      foreach ($sz in $stage4Sizes) {
         if ($OnlySizes.Count -and -not ($OnlySizes -contains $sz.name)) { continue }
         $out = Join-Path $OutDir "$Tag-$mo-$name-$($sz.name).png"
         & $shot -Url $stage4Scenes[$name] -Out $out -Width $sz.w -Height $sz.h -BudgetMs 1800 -Eval (New-Stage4Scene $name $mo)

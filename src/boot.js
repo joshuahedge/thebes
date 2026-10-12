@@ -79,7 +79,8 @@ export async function boot(doc, win, {
   function openCards(after, { join = false } = {}) {
     if (cards) { if (join) joined.push(after); return; }
     let done = false;
-    const shown = showCards({ root, doc, settings, onDone: () => {
+    // difficulty: the city's own level in a game, the level the next new city will start at on the title (card 6's words).
+    const shown = showCards({ root, doc, settings, difficulty: current ? current.world.difficulty : settings.get().difficulty, onDone: () => {
       done = true; cards = null; settings.set({ cardsSeen: true });
       const also = joined; joined = [];
       after();

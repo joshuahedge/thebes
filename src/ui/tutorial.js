@@ -23,7 +23,8 @@
 // Options for tests: cards, marks (the cards.json "cards" object, given instead of fetched), fetchMarks, history,
 // addListener and removeListener (the window's popstate, capturing), base (where the pictures are).
 import { TUTORIAL_CARDS, TUTORIAL } from '../data/tutorial.js';
-import { CARDS4_TEXT } from './text.js';
+import { DIFFICULTIES } from '../data/difficulty.js';
+import { CARDS4_TEXT, cards4Ahead } from './text.js';
 import { el, button } from './components.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -78,7 +79,7 @@ export function showPictureCards({
   root = null, doc = null, settings = null, onDone = () => {},
   cards = TUTORIAL_CARDS, marks = null, fetchMarks = undefined, history = defaultHistory(),
   addListener = (type, fn) => window.addEventListener(type, fn, true), removeListener = (type, fn) => window.removeEventListener(type, fn, true),
-  base = TUTORIAL.dir,
+  base = TUTORIAL.dir, difficulty = null,
 } = {}) {
   const C = CARDS4_TEXT, n = cards.length;
   const host = root || document.body;
@@ -87,6 +88,9 @@ export function showPictureCards({
   const openerClasses = opener && typeof opener.className === 'string' && opener.className.trim() ? `${opener.tagName.toLowerCase()}.${opener.className.trim().split(/\s+/).join('.')}` : null;
   const motion = () => (settings && typeof settings.motionLevel === 'function' ? settings.motionLevel() : 'still');
   let index = 0, closed = false, known = marks || marksNow;
+  // Words follow the sim: Peaceful never starts a raid clock (src/data/difficulty.js raids: false), so card 6 does not
+  // promise it raiders there. No level given (or an unknown one) reads as a level with raids.
+  const raids = !difficulty || !Object.hasOwn(DIFFICULTIES, difficulty) || DIFFICULTIES[difficulty].raids !== false;
 
   // The dialog.
   const count = el('span', { class: 'pc-count small muted' });
@@ -107,7 +111,7 @@ export function showPictureCards({
     el('div', { class: 'pc-dots', role: 'group', 'aria-label': C.dots }, dots),
     el('div', { class: 'pc-nav' }, [back, next]),
   ]);
-  const dialog = el('div', { class: 'picture-cards', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'pc-title', 'aria-describedby': 'pc-words' }, [box]);
+  const dialog = el('div', { class: 'picture-cards', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'pc-title', 'aria-describedby': 'pc-words', tabindex: '-1' }, [box]);
 
   function render(dir = null) {
     const card = cards[index], words4 = C.cards[card.id] || { title: card.id, words: '', alt: '' };
@@ -116,7 +120,7 @@ export function showPictureCards({
     picture.alt = words4.alt;
     figure.replaceChild(markSvg(known && known[card.id] ? known[card.id].mark : null), figure.lastChild);
     title.textContent = words4.title;
-    words.textContent = words4.words;
+    words.textContent = card.id === 'ahead' ? cards4Ahead(raids) : words4.words;
     text.scrollTop = 0;
     dots.forEach((d, i) => { if (i === index) d.setAttribute('aria-current', 'step'); else d.removeAttribute('aria-current'); });
     back.disabled = index === 0;
@@ -154,6 +158,7 @@ export function showPictureCards({
 
   function teardown() {
     closed = true;
+    document.removeEventListener('keydown', guard, true);
     dialog.remove();
     if (pushed) {
       pushed = false;
@@ -184,8 +189,8 @@ export function showPictureCards({
     if (Math.abs(dx) >= TUTORIAL.swipePx && Math.abs(dx) > Math.abs(dy) * 1.2) go(index + (dx < 0 ? 1 : -1));
   });
   stage.addEventListener('pointercancel', () => { swipe = null; });
-  dialog.addEventListener('keydown', (e) => {
-    e.stopPropagation();                                   // a modal: the game's shortcuts never act behind it
+  // Keys: the arrows, Esc and Tab are the cards'; nothing else gets past them to the game.
+  function route(e) {
     if (e.key === 'ArrowRight') { e.preventDefault(); go(index + 1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); go(index - 1); }
     else if (e.key === 'Escape') { e.preventDefault(); finish(); }
@@ -196,7 +201,20 @@ export function showPictureCards({
       e.preventDefault();
       stops[to].focus();
     }
+  }
+  dialog.addEventListener('keydown', (e) => {
+    e.stopPropagation();                                   // a modal: the game's shortcuts never act behind it
+    route(e);
   });
+  // A click or tap on the picture, the words or the backdrop moves focus off Next (onto the dialog itself, tabindex -1), and
+  // a page that blurs it leaves it on the body: keys then reach the page, not the dialog. While the cards show, a key
+  // whose target is outside them is caught first (capturing, on the document) and is the cards' too.
+  const guard = (e) => {
+    if (closed || dialog.contains(e.target)) return;
+    e.stopImmediatePropagation();
+    route(e);
+  };
+  document.addEventListener('keydown', guard, true);
 
   host.append(dialog);
   render();

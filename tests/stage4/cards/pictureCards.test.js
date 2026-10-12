@@ -1,7 +1,7 @@
 import { describe, it, expect } from '../../harness.js';
 import { showPictureCards, markSvg, loadMarks, forgetMarks } from '../../../src/ui/tutorial.js';
 import { TUTORIAL_CARDS, TUTORIAL } from '../../../src/data/tutorial.js';
-import { CARDS4_TEXT } from '../../../src/ui/text.js';
+import { CARDS4_TEXT, cards4Ahead } from '../../../src/ui/text.js';
 import { createSettings } from '../../../src/ui/settings.js';
 import { mountShell } from '../../helpers/uiWorld.js';
 import { fire, key } from '../../helpers/dom.js';
@@ -24,7 +24,7 @@ function fakeListeners() {
 }
 
 // The cards on the real shell at a phone's or a screen's size, opened from a button that had focus.
-async function rig({ width = 390, height = 844, motion = 'still', text = 100, marks = MARKS } = {}) {
+async function rig({ width = 390, height = 844, motion = 'still', text = 100, marks = MARKS, difficulty = undefined } = {}) {
   const shell = await mountShell(width, height);
   const settings = createSettings({ storage: { getItem: () => null, setItem() {} }, root: document.body, systemReducedMotion: () => false });
   settings.set({ motion, textSize: text });
@@ -34,7 +34,7 @@ async function rig({ width = 390, height = 844, motion = 'still', text = 100, ma
   opener.focus();
   const history = fakeHistory(), l = fakeListeners();
   let done = 0;
-  const c = showPictureCards({ root: shell.root, doc: document, settings, marks, history, addListener: l.add, removeListener: l.remove, onDone: () => { done++; } });
+  const c = showPictureCards({ root: shell.root, doc: document, settings, marks, difficulty, history, addListener: l.add, removeListener: l.remove, onDone: () => { done++; } });
   const d = c.element;
   return {
     shell, settings, opener, history, l, c, d, q: (sel) => d.querySelector(sel), done: () => done,
@@ -143,6 +143,54 @@ describe('s4 cards picture cards: the dialog', () => {
       key(next, 'Tab', { shiftKey: true });
       expect(r.d.contains(document.activeElement)).toBe(true);
     } finally { r.cleanup(); }
+  });
+
+  it('keeps focus inside after a click on the picture, the words or the backdrop: its keys still work and none reaches the game', async () => {
+    const r = await rig();
+    try {
+      let heard = 0;
+      const listen = () => { heard++; };
+      window.addEventListener('keydown', listen);                               // where the game listens (keyTarget is the window)
+      try {
+        expect(r.d.getAttribute('tabindex')).toBe('-1');                       // a click on a part that cannot take focus lands on the dialog
+        r.d.focus();
+        expect(document.activeElement).toBe(r.d);
+        key(document.activeElement, 'ArrowRight');
+        expect([r.c.index(), heard]).toEqual([1, 0]);
+        key(document.activeElement, 'Tab');
+        expect(document.activeElement).toBe(r.q('.pc-skip'));                  // Tab from the dialog goes to its first button
+        r.q('.pc-next').focus();
+        r.q('.pc-next').blur();                                                 // what a tap on the picture did before: focus on the body
+        expect(document.activeElement).toBe(document.body);
+        key(document.activeElement, 'p');                                       // the game's pause key
+        key(document.activeElement, ' ');
+        key(document.activeElement, 'ArrowRight');
+        expect([r.c.index(), heard, r.done()]).toEqual([2, 0, 0]);
+        key(document.activeElement, 'ArrowLeft');
+        expect(r.c.index()).toBe(1);
+        key(document.activeElement, 'Tab', { shiftKey: true });                 // from the body: round to the last button, inside the cards
+        expect([r.d.contains(document.activeElement), document.activeElement === r.q('.pc-next')]).toEqual([true, true]);
+        r.q('.pc-next').blur();
+        const e = key(document.activeElement, 'Escape');
+        expect([r.done(), r.d.isConnected, heard, e.defaultPrevented]).toEqual([1, false, 0, true]);
+        key(document.body, 'p');                                                // closed: the keys are the page's again
+        expect(heard).toBe(1);
+      } finally { window.removeEventListener('keydown', listen); }
+    } finally { r.cleanup(); }
+  });
+
+  it('words the last card for the city\'s level: raiders only where there are raids', async () => {
+    for (const [difficulty, raids] of [['peaceful', false], ['relaxed', true], ['normal', true], ['hard', true], [undefined, true], ['nonsense', true]]) {
+      const r = await rig({ difficulty });
+      try {
+        r.c.go(5);
+        const words = r.q('#pc-words').textContent;
+        expect([difficulty, words.includes('raiders'), words]).toEqual([difficulty, raids, cards4Ahead(raids)]);
+        expect(words.endsWith('Pause any time: nothing happens while you plan.')).toBe(true);
+        r.c.go(3);
+        expect(r.q('#pc-words').textContent).toBe(CARDS4_TEXT.cards.food.words);       // no other card changes
+      } finally { r.cleanup(); }
+    }
   });
 
   it('slides a new card in under Full motion only', async () => {
