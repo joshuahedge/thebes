@@ -4,6 +4,7 @@ import { createCamera } from '../../src/render/camera.js';
 import { createCameraControl } from '../../src/ui/cameraControl.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
 import { mount, key } from '../helpers/dom.js';
+import { rigUI } from '../helpers/uiWorld.js';
 
 function rig(shortcuts = true) {
   const { root, cleanup } = mount('<div id="t" tabindex="0"><input id="field"><textarea id="area"></textarea><button id="b">Go</button></div>');
@@ -88,6 +89,24 @@ describe('ui keyboard', () => {
     key(r.target, 'z', { ctrlKey: true, shiftKey: true });
     expect(r.log).toEqual([]);
     r.kb.detach(); r.cleanup();
+  });
+  it('in the game: Esc closes the guidance row opened in place before it cancels a tool, and a wide screen keeps Esc as Back (P8)', async () => {
+    const r = await rigUI({ width: 390, height: 844 });
+    r.renderer.renderFrame = () => {};
+    try {
+      r.ui.placement.start({ kind: 'road' });                          // a road has no overlay: the goal keeps the guidance row under it
+      expect(r.store.get().mode).toBe('drawing');
+      expect(r.ui.setGuidanceOpen(true)).toBe(true);                   // the goal opened over a tool: both are open
+      key(r.root, 'Escape');
+      expect([r.store.get().guidanceOpen, r.store.get().mode]).toEqual([false, 'drawing']);
+      key(r.root, 'Escape');
+      expect(r.store.get().mode).toBe('browse');                       // then Back, as before
+      r.resize(1280, 800);
+      expect(r.ui.setGuidanceOpen(true)).toBe(false);                  // a wide screen has no row to open: Esc is only ever Back there
+      r.ui.placement.start({ kind: 'road' });
+      key(r.root, 'Escape');
+      expect(r.store.get().mode).toBe('browse');
+    } finally { r.cleanup(); }
   });
   it('fires toggles once per press, but keeps panning on key repeat', () => {
     const r = rig();

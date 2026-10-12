@@ -3,7 +3,7 @@ import { createCelebrations } from '../../src/ui/celebrate.js';
 import { createEffects, EFFECT_MS } from '../../src/render/effects.js';
 import { makeDraw } from '../../src/render/art/ctx.js';
 import { GOLD } from '../../src/render/art/palette.js';
-import { CHEER_MS, CHEER_GAP_MS, CHEER_WAITING_MAX, CHEER_HELD_MAX_MS, CHEER_RECENT_MAX } from '../../src/data/ui.js';
+import { CHEER_MS, CHEER_GAP_MS, CHEER_OPEN_MIN_MS, CHEER_WAITING_MAX, CHEER_HELD_MAX_MS, CHEER_RECENT_MAX } from '../../src/data/ui.js';
 import { FIRSTS, FIRST_REWARD } from '../../src/data/firsts.js';
 import { ACHIEVEMENTS } from '../../src/data/achievements.js';
 import { DAILY_POOL, DAILY_REWARD } from '../../src/data/daily.js';
@@ -11,7 +11,7 @@ import { GOALS, EVENT_GOALS, GUIDE_GOALS, GUIDE_REWARD } from '../../src/data/go
 import { setGuide } from '../../src/sim/commands.js';
 import { guideActive, goalById } from '../../src/sim/goals.js';
 import { FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, milestoneText, cheerReward, rewardText, T } from '../../src/ui/text.js';
-import { mount } from '../helpers/dom.js';
+import { mount, fire } from '../helpers/dom.js';
 import { openSheet } from '../../src/ui/modes.js';
 import { makeCanvas, pixelAt } from '../helpers/canvas.js';
 import { rigUI } from '../helpers/uiWorld.js';
@@ -360,6 +360,53 @@ describe('ui celebrate', () => {
       expect(root.querySelectorAll('.cheer').length).toBe(1);
     } finally { cleanup(); }
   });
+  it('stops a caption opened in place, keeps it at least 2 s once it is closed, and makes the next caption wait (P8)', () => {
+    const { root, cleanup } = mount();
+    try {
+      const clock = fakeClock();
+      let t = 0;
+      const advance = (ms) => { t += ms; clock.advance(ms); };
+      const log = [];
+      const cheers = createCelebrations({ container: root, setTimer: clock.setTimer, clearTimer: clock.clearTimer, now: () => t, onToggle: () => log.push('toggle'), onChange: () => log.push('change') });
+      expect(CHEER_OPEN_MIN_MS).toBe(2000);
+      cheers.show({ tier: 'first', text: 'One', why: 'Because.' });
+      cheers.show({ tier: 'first', text: 'Two' });
+      const node = root.querySelector('.cheer'), more = node.querySelector('.more');
+      expect([more.tagName, more.hidden, more.getAttribute('aria-expanded')]).toEqual(['BUTTON', true, 'false']);   // nothing is cut here: no More
+      fire(node, 'click');
+      expect(log.includes('toggle')).toBe(false);                      // not cut: a tap on the caption does nothing
+      advance(1000);
+      cheers.setOpen(true);                                            // 3 s of its 4 left
+      expect([node.classList.contains('open'), more.hidden, more.getAttribute('aria-expanded'), more.textContent.trim().startsWith(T.less)]).toEqual([true, false, 'true', true]);
+      fire(node, 'click');
+      fire(more, 'click');
+      expect(log.filter((x) => x === 'toggle').length).toBe(2);        // the caption and More both ask (More's click reaches the caption once)
+      advance(60000);
+      cheers.resume();
+      expect([root.querySelectorAll('.cheer').length, root.querySelector('.cheer .text').textContent, cheers.pending()]).toEqual([1, 'One', 1]);   // still up, Two waiting
+      expect(cheers.busy()).toBe(true);
+      cheers.setOpen(false);
+      advance(2999);
+      expect(root.querySelector('.cheer .text').textContent).toBe('One');   // the 3 s it had left, more than the 2 s minimum
+      advance(1);
+      expect(root.querySelector('.cheer .text').textContent).toBe('Two');  // it hid and Two began as it hid
+      advance(CHEER_MS.first - 500);
+      cheers.setOpen(true);                                            // 0.5 s left when opened
+      cheers.setOpen(false);
+      advance(CHEER_OPEN_MIN_MS - 1);
+      expect(root.querySelectorAll('.cheer').length).toBe(1);          // at least 2 s once closed
+      advance(1);
+      expect(root.querySelectorAll('.cheer').length).toBe(0);
+      cheers.setOpen(true);                                            // nothing on screen: nothing to open
+      expect(cheers.busy()).toBe(false);
+      cheers.show({ tier: 'first', text: 'Three' });
+      cheers.setOpen(true);
+      cheers.clear();
+      expect([root.children.length, cheers.busy()]).toEqual([0, false]);
+      cheers.show({ tier: 'first', text: 'Four' });
+      expect(root.querySelector('.cheer').classList.contains('open')).toBe(false);   // clear() left nothing open
+    } finally { cleanup(); }
+  });
   it('sends a caption held back behind a sheet for more than 10 s to Recent only, and keeps one held by anything else', () => {
     const { root, cleanup } = mount();
     try {
@@ -501,6 +548,38 @@ describe('ui celebrate', () => {
         r.store.set(openSheet(r.store.get(), 'goals'));
         const recent = [...r.root.querySelectorAll('#sheet .recent li .text')].map((n) => n.firstChild.textContent);
         expect(recent).toEqual(['The blaze at the potter is out.', FIRST_TEXT.first_family.head, `${T.goalDone}: ${GOALS[0].text}`]);   // newest first
+      } finally { r.cleanup(); }
+    }
+  });
+  it('in the game: a caption with its why hidden or its words cut shows More, and a tap opens it in place with every word in sight, to 40% of the screen at most (P8)', async () => {
+    const longWhy = Array.from({ length: 14 }, () => FIRST_TEXT.first_cottage.why).join(' ');
+    for (const [w, h, size] of [[360, 640, 150], [390, 844, 125], [360, 640, 100], [844, 390, 150], [1280, 800, 100]]) {
+      const r = await rigUI({ width: w, height: h });
+      r.renderer.renderFrame = () => {};
+      const at = `${w}x${h} at ${size}%`;
+      try {
+        r.ui.settings.set({ textSize: size, reducedMotion: 'on' });
+        const wide = w >= 1000;
+        const canvas = r.root.querySelector('#map').getBoundingClientRect();
+        // First Shack: the why is the whole of what is cut at larger text; a very long why is cut at any phone size.
+        for (const [c, expectMore] of [[{ text: FIRST_TEXT.first_shack.head, why: FIRST_TEXT.first_shack.why }, !wide && size > 100], [{ text: 'First Cottage', why: longWhy }, !wide]]) {
+          r.ui.celebrations.clear();
+          r.ui.celebrations.show({ tier: 'first', ...c });
+          r.frame(1000 * (1 + size));
+          const node = r.root.querySelector('#cheer .cheer'), more = node.querySelector('.more');
+          expect([at, c.text, more.hidden]).toEqual([at, c.text, !expectMore]);
+          if (!expectMore) continue;
+          fire(node, 'click');                                             // a tap on the caption: it asks, createUI opens it
+          r.frame(1000 * (2 + size));
+          const why = node.querySelector('.why');
+          expect([at, r.store.get().guidanceOpen, node.classList.contains('open'), more.getAttribute('aria-expanded')]).toEqual([at, true, true, 'true']);
+          expect([at, why.offsetWidth > 1, why.getBoundingClientRect().height > 0]).toEqual([at, true, true]);   // the why is back in sight at every size
+          expect([at, node.getBoundingClientRect().bottom - canvas.top <= 0.4 * h + 1]).toEqual([at, true]);
+          if (c.why === longWhy) expect([at, node.scrollHeight > node.clientHeight, getComputedStyle(node).overflowY]).toEqual([at, true, 'auto']);   // longer than 40% scrolls inside
+          fire(r.root, 'keydown', { key: 'Escape' });
+          expect([at, r.store.get().guidanceOpen, node.classList.contains('open'), r.ui.celebrations.showing()]).toEqual([at, false, false, true]);   // Esc closes the row, the caption stays
+        }
+        if (wide) expect([r.ui.setGuidanceOpen(true), r.store.get().guidanceOpen]).toEqual([false, false]);     // a wide screen has no row to open
       } finally { r.cleanup(); }
     }
   });

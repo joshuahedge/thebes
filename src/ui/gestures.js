@@ -1,8 +1,10 @@
 // Pure pointer-stream recogniser (spec 6.6): tap, double-tap, drag with per-move deltas, two-finger pinch.
-// It knows nothing about the DOM; input.js feeds it pointer events and acts on the callbacks.
+// It knows nothing about the DOM; input.js feeds it pointer events and acts on the callbacks. doubleTap() says whether two
+// quick taps make a double tap at all (placement review P4: not while a tool is open, so two neighbouring tiles can be tapped
+// in quick succession); when it says no they are two taps. A drag that a second finger ends gets pinch: true on its onDragEnd.
 import { DRAG_THRESHOLD_PX, DOUBLE_TAP_MS, DOUBLE_TAP_PX } from '../data/ui.js';
 
-export function createGestures(handlers, { now = () => performance.now() } = {}) {
+export function createGestures(handlers, { now = () => performance.now(), doubleTap = () => true } = {}) {
   const pointers = new Map();
   let dragging = false;
   let pinch = null;
@@ -17,7 +19,7 @@ export function createGestures(handlers, { now = () => performance.now() } = {})
   function pointerDown(id, x, y, type, button = 0) {
     pointers.set(id, { x, y, startX: x, startY: y, prevX: x, prevY: y, type, button, inPinch: false });
     if (pointers.size === 2) {
-      if (dragging) { dragging = false; call('onDragEnd', { x, y, type, button }); }
+      if (dragging) { dragging = false; call('onDragEnd', { x, y, type, button, pinch: true }); }
       for (const p of pointers.values()) p.inPinch = true;
       pinch = pair();
       call('onPinchStart', { cx: pinch.cx, cy: pinch.cy });
@@ -62,7 +64,7 @@ export function createGestures(handlers, { now = () => performance.now() } = {})
     if (p.inPinch) return;
     if (dragging) { dragging = false; call('onDragEnd', { x, y, type: p.type, button: p.button }); return; }
     const t = now();
-    if (lastTap && p.type !== 'mouse' && t - lastTap.t <= DOUBLE_TAP_MS && Math.hypot(x - lastTap.x, y - lastTap.y) <= DOUBLE_TAP_PX) {
+    if (lastTap && p.type !== 'mouse' && doubleTap() && t - lastTap.t <= DOUBLE_TAP_MS && Math.hypot(x - lastTap.x, y - lastTap.y) <= DOUBLE_TAP_PX) {
       lastTap = null;
       call('onDoubleTap', { x, y, type: p.type });
       return;

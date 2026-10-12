@@ -1,13 +1,13 @@
 import { describe, it, expect } from '../harness.js';
 import { nearestFit } from '../../src/ui/placement.js';
 import { createGoalsStrip, goalsSheet, showMeTarget } from '../../src/ui/goalsList.js';
-import { GOALS, GOAL_REWARD } from '../../src/data/goals.js';
-import { goalById, guideActive } from '../../src/sim/goals.js';
+import { GOALS, GOAL_REWARD, EVENT_GOALS } from '../../src/data/goals.js';
+import { goalById, guideActive, nextItemFor } from '../../src/sim/goals.js';
 import { canPlace, setGuide } from '../../src/sim/commands.js';
 import { T as TERRAIN } from '../../src/sim/terrain.js';
 import { T, CHAPTER_NAMES, goalsProgressText, rewardText } from '../../src/ui/text.js';
 import { openSheet } from '../../src/ui/modes.js';
-import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
+import { makeTestWorld, addRaw, setRoad } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 import { rigUI } from '../helpers/uiWorld.js';
 
@@ -31,6 +31,50 @@ describe('ui goals', () => {
     expect(root.querySelector('.goal-strip').hidden).toBe(true);
     expect(root.hidden).toBe(true);                                  // the whole row goes, so #under-bar keeps no gap for it
     cleanup();
+  });
+  it('on a phone the goal words are one button that asks onToggle and never opens the sheet; open, the strip adds the reward, All goals and Skip guide (placement review P8)', () => {
+    const { root, cleanup } = mount();
+    try {
+      const world = makeTestWorld();
+      setGuide(world, true);
+      const log = [];
+      const strip = createGoalsStrip({
+        container: root, world, phone: () => true, onShowMe: () => {}, onOpen: () => log.push('sheet'), onToggle: () => log.push('toggle'), onSkipGuide: () => log.push('skip'),
+      });
+      const words = root.querySelector('.main.open-goals'), box = root.querySelector('.goal-strip');
+      const extras = () => [root.querySelector('.reward').hidden, root.querySelector('.all-goals').hidden, root.querySelector('.skip-guide').hidden];
+      expect([words.getAttribute('aria-expanded'), extras()]).toEqual(['false', [true, true, true]]);
+      fire(words, 'click');
+      expect(log).toEqual(['toggle']);                                    // ruling 170's "opens the sheet" is now behind All goals
+      strip.setOpen(true);
+      expect([box.classList.contains('open'), words.getAttribute('aria-expanded'), extras()]).toEqual([true, 'true', [false, false, false]]);
+      expect(root.querySelector('.reward').textContent).toBe(rewardText(GOALS[0].reward));
+      expect(root.querySelector('.all-goals').textContent).toBe(`${T.allGoals} ›`);
+      expect(root.querySelector('.more').textContent.trim().startsWith(T.less)).toBe(true);   // "Less ▴" while open
+      fire(root.querySelector('.all-goals'), 'click');
+      fire(root.querySelector('.skip-guide'), 'click');
+      expect(log).toEqual(['toggle', 'sheet', 'skip']);
+      world.goals.completed.push('road');
+      strip.render();                                                      // another goal: the strip is built again, and stays as it was set
+      expect([root.querySelector('.goal-strip').classList.contains('open'), root.querySelector('.main.open-goals').getAttribute('aria-expanded')]).toEqual([true, 'true']);
+      strip.setOpen(false);
+      expect([root.querySelector('.goal-strip').classList.contains('open'), root.querySelector('.main.open-goals').getAttribute('aria-expanded'), extras()]).toEqual([false, 'false', [true, true, true]]);
+      expect(root.querySelector('.more').hidden).toBe(true);              // nothing is cut (no stylesheet here), so no More
+    } finally { cleanup(); }
+  });
+  it('on a wide screen the strip is as it was: Goals opens the sheet, with the reward and Skip guide in sight, and no open state', () => {
+    const { root, cleanup } = mount();
+    try {
+      const world = makeTestWorld();
+      setGuide(world, true);
+      const log = [];
+      const strip = createGoalsStrip({ container: root, world, phone: () => false, onShowMe: () => {}, onOpen: () => log.push('sheet'), onToggle: () => log.push('toggle') });
+      expect([root.querySelector('.more'), root.querySelector('.all-goals')]).toEqual([null, null]);
+      expect(root.querySelector('.skip-guide').hidden).toBe(false);
+      fire(root.querySelector('.open-goals'), 'click');
+      strip.setOpen(true);                                                 // meaningless on a wide strip: nothing changes
+      expect([log, root.querySelector('.goal-strip').classList.contains('open')]).toEqual([['sheet'], false]);
+    } finally { cleanup(); }
   });
   it('renders the goals sheet by chapter with the count and up to three goals', () => {
     const { root, cleanup } = mount();
@@ -76,10 +120,25 @@ describe('ui goals', () => {
     const world = makeTestWorld();
     world.startRoad = [[31, 31], [31, 30], [31, 29]];
     expect(showMeTarget(world, goalById('road'))).toEqual({ x: 31.5, y: 29.5 });
-    expect(showMeTarget(world, goalById('food'))).toEqual({ x: world.focus.x, y: world.focus.y });
+    expect(showMeTarget(world, goalById('food'))).toEqual({ x: 7.5, y: world.focus.y - 0.5 });   // the farm goal aims at the fertile land (x < 8 here) nearest the focus
     expect(showMeTarget(world, goalById('well'))).toEqual({ x: world.focus.x, y: world.focus.y });   // no homes yet
     addRaw(world, 'house', 10, 10); addRaw(world, 'house', 12, 10);
     expect(showMeTarget(world, goalById('well'))).toEqual({ x: 11.5, y: 10.5 });
+  });
+  it('aims every farm goal at the nearest free fertile tile while a farm is what is next, and at the focus once only a store or a mill is', () => {
+    const world = makeTestWorld();                                                  // fertile land on x < 8, the focus at (16, 16)
+    for (const id of ['food', 'beer', 'linen']) expect([id, goalById(id).showMe.target]).toEqual([id, 'fertile']);
+    expect(EVENT_GOALS.find((g) => g.id === 'more_jobs').showMe.target).toBe('fertile');
+    const fertile = { x: 7.5, y: world.focus.y - 0.5 };
+    for (const id of ['food', 'beer', 'linen']) expect([id, showMeTarget(world, goalById(id))]).toEqual([id, fertile]);
+    expect(showMeTarget(world, EVENT_GOALS.find((g) => g.id === 'more_jobs'))).toEqual(fertile);
+    world.terrain.fill(TERRAIN.DESERT);
+    expect(showMeTarget(world, goalById('food'))).toEqual({ x: world.focus.x, y: world.focus.y });   // no fertile land: the focus
+    world.terrain.fill(TERRAIN.FERTILE);
+    addRaw(world, 'farm_grain', 3, 3);
+    setRoad(world, 0, 5, 10, 5);                                                     // a farm with no road counts for nothing yet (P11)
+    expect(nextItemFor(world, goalById('food'))).toBe('granary');                   // the farm stands: the granary is next, and it goes with the town
+    expect(showMeTarget(world, goalById('food'))).toEqual({ x: world.focus.x, y: world.focus.y });
   });
   it('aims the jewellery goal at the rocky tile nearest the focus, and at the focus when none is rocky', () => {
     const world = makeTestWorld();

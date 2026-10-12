@@ -84,6 +84,7 @@ describe('goals v2', () => {
   });
   it('reports progress for counting goals and null for the others', () => {
     const w = makeTestWorld();
+    setRoad(w, 0, 6, 31, 6); setRoad(w, 0, 12, 31, 12);         // buildings count once a road touches them (ruling P11)
     expect(goalProgress(w, goalById('plots'))).toEqual({ n: 0, of: 6 });
     addRaw(w, 'house', 1, 1); addRaw(w, 'house', 2, 1);
     expect(goalProgress(w, goalById('plots'))).toEqual({ n: 2, of: 6 });
@@ -191,6 +192,7 @@ describe('goals v2', () => {
   });
   it('names the next card a goal needs', () => {
     const w = makeTestWorld();
+    setRoad(w, 0, 10, 31, 10);
     const food = goalById('food');
     expect(nextItemFor(w, food)).toBe('farm_grain');
     addRaw(w, 'granary', 5, 8);

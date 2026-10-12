@@ -4,7 +4,7 @@ export const isToolMode = (mode) => mode === 'placing' || mode === 'drawing' || 
 
 export const toolMode = (tool) => (tool.kind === 'building' ? 'placing' : tool.kind === 'demolish' ? 'demolishing' : 'drawing');
 
-const CLEAR_TOOL = { tool: null, ghost: null, line: null, area: null };
+const CLEAR_TOOL = { tool: null, ghost: null, line: null, area: null, plan: null };
 
 export function startTool(state, tool) {
   return { ...CLEAR_TOOL, mode: toolMode(tool), tool, selectedId: null, sheet: null, dock: state.dock === 'tucked' ? 'slim' : state.dock };
@@ -24,7 +24,7 @@ export function deselect(state) {
 }
 
 export function openSheet(state, kind, id = null) {
-  const patch = { sheet: { kind, id } };
+  const patch = { sheet: { kind, id }, layersOpen: false };
   if (kind !== 'info') Object.assign(patch, CLEAR_TOOL, { mode: state.selectedId !== null ? 'selected' : 'browse' });
   return patch;
 }
@@ -45,6 +45,8 @@ export function enterScreenshot(state) {
 export function back(state) {
   if (state.screenshot) return { screenshot: false };
   if (state.confirmDialog) return { confirmDialog: null };
+  if (state.layersOpen) return { layersOpen: false };         // the Layers popover is the newest thing open: it closes first
+  if (state.guidanceOpen) return { guidanceOpen: false };   // the guidance row opened in place is the newest thing open: it closes first
   if (state.sheet && state.sheet.kind !== 'info') return afterPanel(state);
   if (isToolMode(state.mode)) return cancelTool(state);
   if (state.mode === 'selected') return { mode: 'browse', selectedId: null, sheet: null };

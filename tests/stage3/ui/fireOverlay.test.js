@@ -26,7 +26,7 @@ const luminance = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
 describe('s3 ui fire-risk overlay', () => {
   it('joins the overlays as a graded one, named, and turns on while a firehouse is placed', () => {
-    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing']);
+    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing', 'ground']);
     expect([GRADED_OVERLAYS, OVERLAY_NAMES.fire, typeof OVERLAY_HUE.fire, AUTO_OVERLAY.firehouse]).toEqual([['desirability', 'fire'], 'Fire risk', 'string', 'fire']);
     const store = createStore(INITIAL_UI_STATE);
     createPlacement({ world: town(), store }).start({ kind: 'building', type: 'firehouse' }, { x: 20, y: 11 });
@@ -96,7 +96,7 @@ describe('s3 ui fire-risk overlay', () => {
   it('badges a building the sim flags for fire risk or burning, as any problem', () => {
     const w = town();
     const potter = addRaw(w, 'potter', 8, 11, { risk: 70 });
-    expect(problemMarkers(w, [{ code: 'fire_risk', id: potter.id }]).map((m) => [m.id, m.kind])).toEqual([[potter.id, 'problem']]);
+    expect(problemMarkers(w, [{ code: 'fire_risk', id: potter.id }]).map((m) => [m.id, m.kind, m.cause])).toEqual([[potter.id, 'problem', 'fire_risk']]);   // a fire mark is the plain "!": only a missing road changes it
     expect(problemMarkers(w, [{ code: 'raid_warning', x: 31, y: 16 }])).toEqual([]);   // a map point has no building to badge
   });
 });
@@ -142,6 +142,7 @@ describe('s3 ui danger tools', () => {
     const ctx = c.getContext('2d');
     ctx.translate(40, 10);
     drawGhost(makeDraw(ctx, 1), { x: 0, y: 0, w: 1, d: 1, state: 'gate' });            // draws, with its arch mark
+    drawGhost(makeDraw(ctx, 1), { x: 0, y: 0, w: 1, d: 1, state: 'gate', badge: true });   // and the badge's arch, for a gate drawn as a building would be
   });
 
   it('says what clearing rubble costs in the demolish bar, and refuses it in the rule\'s words below the debt floor', () => {

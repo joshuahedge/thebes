@@ -2,12 +2,15 @@
 // and each home by its tier, has values by distance 1 to 6 (data/desirability.js), counted as the Chebyshev
 // distance from the nearest tile of its footprint (1 = touching, diagonals included). Values add where they
 // overlap, and a building never scores its own footprint. A home (a 2x2 one too) uses its best tile.
-// The field is memoised per world on a signature of the buildings (id, place, size and tier), so it is rebuilt only
-// after a building is added, removed, moved, merged or changes tier. Everything here only reads the world.
+// A building that needs a road and has none beside it gives nothing (rulings P10, P11: it does nothing until a road
+// touches it), good or bad. The field is memoised per world on a signature of the buildings (id, place, size and tier)
+// and the road version, so it is rebuilt only after a building is added, removed, moved, merged or changes tier, or a
+// road is drawn or removed. Everything here only reads the world.
 import { DESIRABILITY, HOUSE_DESIRABILITY } from '../data/desirability.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, housesOf } from './world.js';
 import { idx, inBounds } from './grid.js';
+import { lacksRoad } from './reach.js';
 
 const memo = new WeakMap();   // world -> { sig, field }; kept outside the world so saves stay pure data
 
@@ -34,8 +37,9 @@ function spread(size, x, y, w, d, vals, visit) {
   }
 }
 
-// A fingerprint of everything the field depends on (each building's id, place, size and tier): one tight pass, about
-// 50 microseconds for a full 64x64 city. Only homes have a tier; a type never changes under the same id.
+// A fingerprint of everything the field depends on (each building's id, place, size and tier, and the road version,
+// since a road drawn or removed can wake or silence a building): one tight pass, about 50 microseconds for a full 64x64
+// city. Only homes have a tier; a type never changes under the same id.
 function signature(world) {
   const list = Object.values(world.buildings);
   let h = 0x811c9dc5;
@@ -46,7 +50,7 @@ function signature(world) {
     h = Math.imul(h ^ b.y, 16777619);
     h = Math.imul(h ^ ((b.tier | 0) * 16 + b.w * 4 + b.d), 16777619);
   }
-  return `${list.length}:${h}`;
+  return `${list.length}:${h}:${world.roadVersion}`;
 }
 
 // The whole map's scores, one per tile (index y * size + x). Shared and memoised: callers must not write to it.
@@ -59,6 +63,7 @@ export function desirabilityField(world) {
   const size = world.size;
   const field = new Float32Array(size * size);
   for (const b of allBuildings(world)) {
+    if (lacksRoad(world, b)) continue;
     spread(size, b.x, b.y, b.w, b.d, valuesFor(b.type, b.tier), (i, tx, ty, v) => { field[i] += v; });
   }
   memo.set(world, { sig, field });
@@ -89,7 +94,7 @@ export function desirabilityContributors(world, house, n = 3) {
   const { x, y } = bestTile(world, house);
   const out = [];
   for (const b of allBuildings(world)) {
-    if (b.id === house.id) continue;
+    if (b.id === house.id || lacksRoad(world, b)) continue;
     const value = valueAt(valuesFor(b.type, b.tier), b.x, b.y, b.w, b.d, x, y);
     if (value) out.push({ id: b.id, type: b.type, value });
   }
@@ -97,7 +102,7 @@ export function desirabilityContributors(world, house, n = 3) {
   return out.slice(0, n);
 }
 
-// What placing a building of this type at (x, y) would do (spec 4.7), without placing it: the tiles it would change
+// What placing a building of this type at (x, y) would do (spec 4.7), once a road touches it, without placing it: the tiles it would change
 // with their change v, and how many housing plots (any tier, empty ones too, as homesServedFrom counts) would get
 // a better or a worse best tile.
 export function desirabilityPreview(world, type, x, y) {

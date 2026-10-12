@@ -47,6 +47,9 @@ describe('sim achievements', () => {
     [1, 2, 3, 4, 0].forEach((tier, i) => addRaw(w, 'house', 10 + i, 11, { tier }));
     addRaw(w, 'well', 10, 9);
     addRaw(w, 'well', 12, 9);
+    addRaw(w, 'well', 20, 3);                                              // no road touches it: it counts for nothing (P11)
+    expect(progress(w, 'water_bearer')).toEqual({ n: 0, of: 5 });
+    setRoad(w, 0, 10, 31, 10);                                             // a road beside the first two
     expect(progress(w, 'neighbours')).toEqual({ n: 5, of: 10 });            // empty plots are homes too
     expect(progress(w, 'water_bearer')).toEqual({ n: 2, of: 5 });
     expect(progress(w, 'faithful')).toEqual({ n: 0, of: 2 });

@@ -1,14 +1,20 @@
-// The confirm bar for placing, drawing and demolishing (spec 6.4-6.5): name, cost, the reason when blocked,
-// what a service will do from the ghost's spot (early-game pass 2.6), rotate for buildings that rotate, Flip
-// for roads, Undo, x and the tick. It never tucks away.
+// The confirm bar for placing, drawing and demolishing (spec 6.4-6.5). It never tucks away. It holds:
+// - the name and cost, a building's conditions and the reason when blocked;
+// - what a service will do from the ghost's spot (early-game pass 2.6);
+// - rotate for buildings that rotate, and Flip for a mouse's road or wall (a touch plan has no L to flip, placement review P3);
+// - Undo, x and the tick.
+// A drawing tool's first line says how to draw (the preview's words: drag or tap tiles for a finger, a start and an end for a
+// mouse). onConfirm gets the input type of the tick's press ('touch', 'pen', 'mouse' or 'keyboard', spec 6.7: decided when the
+// press starts, forgotten when it ends off the tick) so a touch tick can end the tool.
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
-import { buildingName, T, DANGER_UI_TEXT } from './text.js';
+import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' || tool.kind === 'wall' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : T.demolish);
 const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted' };
+const NARROW_BAR = 365;   // px: a bar this narrow at 150% text can need a chip row for each condition (css/ui.css .conds.tall.narrow)
 const rotates = (tool) => tool.kind === 'building' && Boolean(BUILDINGS[tool.type].rotates);   // none in Stage 1 (mastabas come with monuments)
 
 export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo }) {
@@ -27,6 +33,20 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     tallest = Math.max(tallest, bar.getBoundingClientRect().height);
     bar.style.minHeight = `${tallest}px`;
   }
+
+  // The press type of the tick: its pointerdown names it, and a click with no pointerdown before it (Enter or Space on
+  // the focused button, a screen reader's activate) is the keyboard's. A press that never became a click is forgotten.
+  let pressType = null;
+  const forgetPress = () => { pressType = null; };
+  const rememberPress = (ev) => { pressType = ev.pointerType === 'pen' ? 'pen' : ev.pointerType === 'touch' ? 'touch' : 'mouse'; };
+  // A press that ends off the tick never becomes its click: forget it when the pointer is lifted outside the button (a finger is
+  // held to the button it pressed, so its up lands here wherever it is), or leaves the button still pressed (a pen or a mouse).
+  const releasePress = (ev) => {
+    const r = ev.currentTarget.getBoundingClientRect();
+    if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) pressType = null;
+  };
+  const leavePress = (ev) => { if (ev.buttons) pressType = null; };
+  const confirmPressed = () => { const type = pressType || 'keyboard'; pressType = null; onConfirm(type); };
 
   function publishHeight() {
     const h = element.hidden ? 0 : Math.ceil(element.getBoundingClientRect().height);
@@ -48,7 +68,8 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const info = el('div', { class: 'info' }, [
       el('div', { class: 'title', text: titleOf(s.tool) }),
       el('div', { class: 'cost small muted', text: costText }),
-      el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' ? 'amber' : 'muted'}`, text: p.text }),
+      // A touch plan that skips tiles says how many in amber (placement review P5): what it lays is fine, the rest is passed over.
+      el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' || (p.skipped && p.skipped.length) ? 'amber' : 'muted'}`, text: p.text }),
       // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line. Homes
       // served read in teal; "no homes in reach yet" is not a gain, so it reads muted.
       // Stage 3: the score parts it would change ride on the same line ("Gives water to 6 homes · +3 Culture", spec 4.19).
@@ -59,12 +80,20 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const controls = [];
     if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', disabled: true }));
     if ((s.tool.kind === 'road' || s.tool.kind === 'wall') && s.line && s.line.x1 !== null) controls.push(button(T.flip, { class: 'flip', onClick: () => placement.flip() }));
-    controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
+    // On a phone Undo is a small icon and only when there is something to undo (the toast after a placement keeps the word);
+    // the wide layout keeps the word button, greyed out when there is nothing to undo.
+    if (s.layout === 'wide') controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
+    else if (placement.canUndo()) controls.push(iconButton(T.undo, '↶', { class: 'undo', onClick: onUndo }));
     controls.push(iconButton(T.cancel, '✕', { class: 'cancel', onClick: onCancel }));
-    controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onClick: onConfirm }));
+    controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onPointerDown: rememberPress, onPointerUp: releasePress, onPointerLeave: leavePress, onPointerCancel: forgetPress, onKeyDown: forgetPress, onClick: confirmPressed }));
     // A building that changes desirability keeps a line for it (css: .confirm.desire), so the bar never grows as the ghost moves.
     const desire = s.tool.kind === 'building' && (DESIRABILITY[s.tool.type] || []).length > 0;
-    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}` }, [info, ...controls]);
+    // A building's conditions, each with its own mark and words (placement review P9): met, later (it can be placed but will not
+    // work yet) or can't. The row is always there for a building tool, empty or not, so the bar keeps one height as the ghost moves;
+    // it takes the whole width under the words and the buttons. A chip's words are its name for screen readers, with its state.
+    const chips = s.tool.kind === 'building' ? el('div', { class: `conds${BUILDINGS[s.tool.type].terrain ? ` tall${element.getBoundingClientRect().width <= NARROW_BAR ? ' narrow' : ''}` : ''}`, role: 'group', 'aria-label': CONDITION_TEXT.group }, (p.conditions || []).map((c) =>
+      el('span', { class: `cond ${c.state}`, role: 'img', 'aria-label': c.label }, [el('span', { class: 'mark', 'aria-hidden': 'true', text: c.mark }), ` ${c.text}`]))) : null;
+    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}` }, [info, ...controls, chips]);
     element.append(bar);
     keepTallest(bar, s);
     publishHeight();

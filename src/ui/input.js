@@ -1,5 +1,9 @@
 // Pointer, wheel and context-menu events on the map canvas (spec 6.5-6.7). Panning and zooming happen
 // here; everything with game meaning goes to `actions`, which createUI wires to placement and picking.
+// In a drawing tool (road, wall, plots, Demolish) a one-finger touch or pen drag draws a stroke instead of panning, and two
+// fingers pan and zoom (placement review P3); a stroke a second finger interrupts is taken back ('cancel'), since the player
+// meant to move the map. The mouse keeps its own drag (drawDrag: start, then end). Double tap zooms only while no tool is
+// open (P4).
 import { createGestures } from './gestures.js';
 import { panBy, zoomAt } from '../render/camera.js';
 import { isToolMode } from './modes.js';
@@ -7,7 +11,7 @@ import { WHEEL_ZOOM_STEP, ZOOM_STEP, GHOST_FINGER_OFFSET_PX } from '../data/ui.j
 
 export function createMapInput({ canvas, cam, view, cameraControl, store, actions, root = document.body }) {
   const local = (ev) => { const r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
-  let dragKind = null; // 'pan' | 'ghost' | 'draw'
+  let dragKind = null; // 'pan' | 'ghost' | 'draw' (the mouse's) | 'stroke' (a finger's or pen's)
   let cancelling = false; // true while gestures.cancel runs, so a cancelled draw drag does not commit
 
   const gestures = createGestures({
@@ -20,6 +24,9 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
       if (e.type === 'mouse' && e.button === 0 && isToolMode(mode) && mode !== 'placing') {
         dragKind = 'draw';
         actions.drawDrag({ x: e.x, y: e.y, phase: 'start' });
+      } else if (e.type !== 'mouse' && e.button === 0 && isToolMode(mode) && mode !== 'placing') {
+        dragKind = 'stroke';
+        actions.strokeDrag({ x: e.x, y: e.y, phase: 'start' });
       } else if (e.type !== 'mouse' && e.button === 0 && mode === 'placing' && actions.ghostDragStart({ x: e.x, y: e.y, type: e.type })) {
         dragKind = 'ghost';
       } else {
@@ -32,15 +39,17 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
       if (dragKind === 'pan') panBy(cam, e.dx, e.dy);
       else if (dragKind === 'ghost') actions.ghostDrag({ x: e.x, y: e.y - GHOST_FINGER_OFFSET_PX });
       else if (dragKind === 'draw') actions.drawDrag({ x: e.x, y: e.y, phase: 'move' });
+      else if (dragKind === 'stroke') actions.strokeDrag({ x: e.x, y: e.y, phase: 'move' });
     },
     onDragEnd: (e) => {
       if (dragKind === 'ghost') actions.ghostDragEnd();
       else if (dragKind === 'draw' && !cancelling) actions.drawDrag({ x: e.x, y: e.y, phase: 'end' });
+      else if (dragKind === 'stroke') actions.strokeDrag(cancelling || e.pinch ? { phase: 'cancel' } : { x: e.x, y: e.y, phase: 'end' });
       dragKind = null;
     },
     onPinchStart: () => { cameraControl.cancel(); actions.panStarted(); },
     onPinch: (e) => { panBy(cam, e.dx, e.dy); zoomAt(cam, view(), e.scale, e.cx, e.cy); },
-  });
+  }, { doubleTap: () => !isToolMode(store.get().mode) });
 
   const onDown = (ev) => {
     const type = ev.pointerType === 'pen' ? 'pen' : ev.pointerType === 'touch' ? 'touch' : 'mouse';

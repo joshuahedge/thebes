@@ -32,6 +32,20 @@ describe('ui panels', () => {
     expect(panel.details.classList.contains('details')).toBe(true);
     cleanup();
   });
+  it('side panel: a Layers button under the minimap says the overlay on and opens the picker through its callback (placement review P2)', () => {
+    const { root, cleanup } = mount();
+    const store = createStore({ ...INITIAL_UI_STATE, layout: 'wide' });
+    let opened = 0;
+    createSidePanel({ container: root, store, world: makeTestWorld(), onPick() {}, onLayers: () => { opened++; } });
+    const button = root.querySelector('.layers-button');
+    expect([button.textContent, button.getAttribute('aria-pressed'), button.getAttribute('aria-expanded')]).toEqual(['Layers', 'false', 'false']);
+    expect(root.querySelector('.minimap').compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fire(button, 'click');
+    expect(opened).toBe(1);
+    store.set({ overlay: 'ground', layersOpen: true });
+    expect([button.textContent, button.getAttribute('aria-pressed'), button.getAttribute('aria-expanded')]).toEqual(['Layers: Ground', 'true', 'true']);
+    cleanup();
+  });
   it('side panel: five tabs on one row at 100% text, and an open sheet below the tabs at any text size', async () => {
     for (const [width, height] of [[1024, 768], [1280, 800]]) {
       const r = await rigUI({ width, height });

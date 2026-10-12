@@ -66,11 +66,14 @@ const CAUSE_FIX = {
     return { category: categoryOfItem(item), item, at: BUILDINGS[item].terrain ? 'terrain' : 'building' };
   },
 };
+// The alerts that carry a fix button in the list besides View (Show me opens the tool and aims at the place): many plots with no
+// road want the road tool (placement review P13). onFixAlert aims it, at the plot nearest the view.
+const ALERT_FIX = new Set(['plots_no_road']);
 const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
 
 // parts (Stage 3): the danger and score interfaces' sheet parts (src/ui/danger.js), each { building(b), house(h),
 // actions(b), summary() } returning arrays of nodes, added in the list's order at fixed places in the sheets below.
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onSelect = () => {}, afterCommand = () => {}, custom = {}, parts = [] }) {
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onFixAlert = () => {}, onSelect = () => {}, afterCommand = () => {}, custom = {}, parts = [] }) {
   const close = () => store.set(closeSheet(store.get()));
   const extra = (kind, ...args) => parts.flatMap((p) => (p && typeof p[kind] === 'function' ? p[kind](...args) || [] : []));
 
@@ -297,7 +300,11 @@ export function createSheets({ container, store, world, placement, cameraControl
     const list = phone ? criticalFirst(getAlerts()) : getAlerts();
     const alerts = [el('h3', { text: T.alerts })];
     if (!list.length) alerts.push(el('p', { class: 'muted', text: T.noAlerts }));
-    else alerts.push(el('ul', { class: 'alert-list' }, list.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) })]); })));
+    else alerts.push(el('ul', { class: 'alert-list' }, list.map((a) => {
+      const t = alertText(a, world);
+      const fix = ALERT_FIX.has(a.code) ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onFixAlert(a) })] : [];
+      return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) }), ...fix]);
+    })));
     body.append(...(phone ? [...alerts, ...map] : [...map, ...alerts]));
     minimap.render(list);
     return [head(T.minimap), body];

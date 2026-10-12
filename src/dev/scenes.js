@@ -17,7 +17,10 @@
 // MOBILE_SCENE_PARAMS names and driven through the sim's commands and the interface's own paths (afterCommand, the
 // caption row, Show me, a tap's select), so the captions, tips and Undo toasts on screen come from the real code. They
 // leave the text size and reduced motion to the caller, which sets them first. measureRows() reads the rows under the
-// top bar off the page, for the review note's height budget (section 3).
+// top bar off the page, for the review note's height budget (section 3). Two scenes come from the placement review
+// (docs/superpowers/notes/2026-10-12-placement-ux-review.md): 'expanded' (P8) is a tip opened in place, whose limit is 40% of
+// the height at every size and text size, and 'farm' and 'farm-raid' (P16) are a grain farm being placed, with the Ground
+// overlay's legend alone in the guidance row, or under a raid warning's alert row.
 import { place, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
 import { allBuildings, housesOf } from '../sim/world.js';
@@ -34,7 +37,7 @@ import { screenToTile } from '../render/camera.js';
 import { openSheet, closeSheet, select, toggleOverlay } from '../ui/modes.js';
 import { freeTop } from '../ui/layout.js';
 import { placeName } from '../ui/danger.js';
-import { T, DANGER_UI_TEXT, CITIZEN_REMARKS } from '../ui/text.js';
+import { T, DANGER_UI_TEXT, CITIZEN_REMARKS, plotsPlacedText } from '../ui/text.js';
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -245,14 +248,14 @@ async function ambient(api) {
 
 // ── The mobile budget scenes ──
 
-export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'sheet', 'welcome'];
+export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded'];
 
 // The page query each mobile scene opens with (tools/shots.ps1 -Mobile adds nosw=1): 'early' and 'plots' on a new guided
-// city, seed 7, which starts paused; 'welcome' on Welcome back over the seed-11 sample city; the rest on that city.
+// city, seed 7, which starts paused, as does 'expanded'; 'welcome' on Welcome back over the seed-11 sample city; the rest on that city.
 const SAMPLE_CITY = 'skipTitle=1&seed=11&sample=1';
 export const MOBILE_SCENE_PARAMS = {
   early: 'skipTitle=1&seed=7', plots: 'skipTitle=1&seed=7', raid: SAMPLE_CITY, 'raid-fire': SAMPLE_CITY, 'raid-overlay': SAMPLE_CITY,
-  placing: SAMPLE_CITY, sheet: SAMPLE_CITY, welcome: 'welcome=1&seed=11&sample=1',
+  placing: SAMPLE_CITY, farm: SAMPLE_CITY, 'farm-raid': SAMPLE_CITY, sheet: SAMPLE_CITY, welcome: 'welcome=1&seed=11&sample=1', expanded: 'skipTitle=1&seed=7',
 };
 
 // A mobile scene's waits: as long as asked on the page, so the capture shows the settled screen; none with
@@ -306,7 +309,7 @@ async function plots(api, options) {
   const result = paintHouses(world, a.x0, a.y0, a.x1, a.y1);
   if (!result.ok) throw new Error(`devScene plots: no plots beside the road (${result.reason})`);
   assignLabour(world);
-  g.ui.afterCommand({ kind: 'houses', result, text: T.plotsPainted, undoable: true });
+  g.ui.afterCommand({ kind: 'houses', result, text: plotsPlacedText(result.ids.length, result.ids.filter((id) => !adjacentRoadTiles(world, world.buildings[id]).length).length), undoable: true });
   await settle(options, 200);
   return `plots tip ${g.ui.tips.current()} speed ${world.speed}`;
 }
@@ -357,6 +360,22 @@ async function placing(api, options) {
   return `placing ${ui.store.get().mode}`;
 }
 
+// Placing a grain farm (placement review P16): the ghost, the confirm bar, and the Ground overlay a farm turns on, whose
+// legend names the two kinds of ground and says whether there is room (the tallest guidance row). 'farm' is the calm city,
+// where the legend alone has the guidance row (what a landscape phone at large text shows); 'farm-raid' has a raid warning
+// up as well, so the alert row sits above the legend (a portrait phone, or a landscape phone at 100% text).
+async function farmScene(api, options, name, warn) {
+  const g = inGame(api, name), { world, ui } = g;
+  if (warn) raiseWarning(world);
+  ui.refresh();
+  await settle(options, 100);
+  ui.showMeAt({ category: 'food', item: 'farm_grain', x: world.focus.x, y: world.focus.y });
+  await settle(options, 500);
+  return `${name} ${ui.store.get().mode} ${ui.store.get().overlay}`;
+}
+const farm = (api, options) => farmScene(api, options, 'farm', false);
+const farmRaid = (api, options) => farmScene(api, options, 'farm-raid', true);
+
 // A house sheet with a raid warning up: finestHome selected as a tap on it selects it (createUI's actions.tap).
 async function sheet(api, options) {
   const g = inGame(api, 'sheet'), { world, ui } = g;
@@ -366,6 +385,19 @@ async function sheet(api, options) {
   ui.store.set(select(ui.store.get(), h.id));
   await settle(options, 500);
   return `sheet ${h.id} tier ${h.tier}`;
+}
+
+// A tip opened in place (placement review P8): the goal tip that follows a finished goal, the longest, on the paused new
+// city once tips may show (the session's first TIP_FIRST_DELAY_MS have passed), then a tap on More as the player makes it
+// (setGuidanceOpen is what that tap runs): the row shows every word, up to 40% of the screen's height, and scrolls beyond.
+async function expanded(api, options) {
+  const g = inGame(api, 'expanded');
+  await settle(options, TIP_FIRST_DELAY_MS + 300);
+  if (!g.ui.tips.trigger('goalDone')) throw new Error('devScene expanded: the goal tip did not show');
+  await settle(options, 100);
+  if (!g.ui.setGuidanceOpen(true)) throw new Error('devScene expanded: the tip would not open');
+  await settle(options, 300);
+  return `expanded tip ${g.ui.tips.current()}`;
 }
 
 // Welcome back (/?welcome=1): the card as the city opens.
@@ -379,7 +411,7 @@ async function welcome(api, options) {
 
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
-  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, sheet, welcome,
+  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded,
 };
 
 export async function devScene(api, name, options = {}) {

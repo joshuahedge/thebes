@@ -38,7 +38,8 @@ export const SHOW_ME_PULSES = 2;
 export const SHOW_ME_PULSE_MS = 400;
 export const GUIDE_PULSES = 2;          // the guide's map ring pulses twice when its step changes, then stays still (spec 3.2)
 export const GUIDE_PULSE_MS = 600;      // one pulse: under 3 flashes a second, done well within 5 s (spec 5.4)
-export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion', booth: 'entertainment', garden: 'desirability', statue: 'desirability', firehouse: 'fire' };
+export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion', booth: 'entertainment', garden: 'desirability', statue: 'desirability', firehouse: 'fire',
+  farm_grain: 'ground', farm_fig: 'ground', farm_barley: 'ground', farm_flax: 'ground', gem_mine: 'ground' };   // placement review P1: the buildings that need fertile or rocky ground show it
 
 // The desirability overlay's bands (spec 4.7, 6.3): where each starts. Below the first is unpleasant (hatched); the
 // rest are the "to rise" values of the tiers that need desirability (Manor 20, Fine manor 35, Villa 50, Estate 65), so a
@@ -98,6 +99,7 @@ export const TITLE_DRIFT_MS = 9000;    // one slow camera drift between two poin
 // raid's report of about 100 characters) shows long enough to read at a phone's 150% text.
 export const CHEER_MS = { first: 4000, remark: 4000, milestone: 5000, info: 6000 };
 export const CHEER_GAP_MS = 3000;
+export const CHEER_OPEN_MIN_MS = 2000;     // a caption opened in place (placement review P8) stays at least this long once it is closed again
 export const CHEER_WAITING_MAX = 2;        // at most two captions wait their turn; an older one goes straight to Recent
 export const CHEER_HELD_MAX_MS = 10000;    // a caption held back this long behind a sheet on a phone goes to Recent (spec 6.3)
 export const CHEER_RECENT_MAX = 10;        // the Goals sheet's Recent list keeps the last ten captions

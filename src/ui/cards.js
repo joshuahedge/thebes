@@ -8,7 +8,7 @@ import { isUnlocked, milestoneIndex } from '../sim/progression.js';
 import { costOf, roadCostOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
 import { CATEGORIES } from '../data/ui.js';
-import { buildingName, unlockText, T } from './text.js';
+import { buildingName, unlockText, CONDITION_TEXT, T } from './text.js';
 import { el, clear } from './components.js';
 import { drawThumb } from './thumbs.js';
 
@@ -40,7 +40,8 @@ export function cardInfo(world, item) {
   costText = item === 'demolish' ? 'Refunds a quarter' : `${cost} gold${suffix}`;
   const locked = Boolean(BUILDINGS[item]) && !isUnlocked(world, item);
   const isNew = !locked && (world.newItems || []).includes(item);
-  return { item, name: buildingName(item), cost, costText, affordable: canAfford(world, cost), locked, lockText: locked ? unlockText(item) : '', isNew };
+  // terrainText: "Fertile land" or "Rocky ground" for a building that needs it (placement review P15), else ''.
+  return { item, name: buildingName(item), cost, costText, affordable: canAfford(world, cost), locked, lockText: locked ? unlockText(item) : '', isNew, terrainText: CONDITION_TEXT.terrainLine(item, true) };
 }
 
 export function activeItemOf(tool) {
@@ -82,7 +83,7 @@ export function renderCards(container, { world, category, activeItem = null, onP
     // The badge is a word, part of the card's name for screen readers, so the colour never says it alone.
     const badge = info.isNew ? el('span', { class: 'new-badge', text: T.newBadge }) : null;
     const b = el('button', { type: 'button', class: cls, dataset: { item }, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null }, [
-      thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), badge,
+      thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), info.terrainText ? el('span', { class: 'terrain', text: info.terrainText }) : null, badge,
     ]);
     if (!info.locked) b.addEventListener('click', () => onPick(item));
     return b;

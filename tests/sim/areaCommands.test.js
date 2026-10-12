@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { roadPath, previewRoad, drawRoad, previewHouses, paintHouses, previewDemolishArea, demolishArea, place, rectTiles } from '../../src/sim/commands.js';
+import { roadPath, previewRoad, drawRoad, previewHouses, paintHouses, previewDemolishArea, demolishArea, place, rectTiles, previewRoadTiles, drawRoadTiles, previewHouseTiles, paintHouseTiles, previewDemolishTiles, demolishTiles } from '../../src/sim/commands.js';
 import { buildingAt, housesOf } from '../../src/sim/world.js';
 import { undo } from '../../src/sim/undo.js';
 import { idx } from '../../src/sim/grid.js';
@@ -140,5 +140,72 @@ describe('commands: area painting', () => {
     expect(buildingAt(w, 12, 8).type).toBe('temple');
     expect(w.road[idx(w.size, 12, 10)]).toBe(1);
     expect(w.gold).toBe(goldBefore);
+  });
+});
+
+// The touch plan's tile-list cores (placement review P3, P5): a list of tiles in any order, each one undo entry. By default a
+// blocked tile refuses the lot, as the mouse's L does; skipBlocked lays what it can and lists the rest as skipped.
+describe('commands: tile lists (placement review P3, P5)', () => {
+  it('lays road on a list of tiles, strictly by default, skipping blocked tiles in a touch plan', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    setRoad(w, 0, 10, 31, 10);
+    place(w, 'well', 13, 11);
+    w.terrain[idx(w.size, 15, 11)] = 3;
+    const tiles = [[11, 11], [12, 11], [13, 11], [14, 11], [15, 11], [16, 11], [12, 11], [12, 10]];
+    const strict = previewRoadTiles(w, tiles);
+    expect([strict.ok, strict.reason, strict.tiles, strict.cost]).toEqual([false, 'blocked', [], 0]);
+    const p = previewRoadTiles(w, tiles, { skipBlocked: true });
+    expect(p.ok).toBe(true);
+    expect(p.tiles).toEqual([[11, 11], [12, 11], [14, 11], [16, 11]].map(([x, y]) => idx(w.size, x, y)));   // each once; the road at (12, 10) is there already
+    expect(p.cost).toBe(8);
+    expect(p.skipped).toEqual([{ x: 13, y: 11, reason: 'blocked' }, { x: 15, y: 11, reason: 'water' }]);
+    expect(previewRoadTiles(w, [[40, 3], [1.5, 2]], { skipBlocked: true }).skipped.map((s) => s.reason)).toEqual(['out_of_bounds', 'out_of_bounds']);
+    const gold = w.gold;
+    const r = drawRoadTiles(w, tiles, { skipBlocked: true });
+    expect(r.ok).toBe(true);
+    expect(w.road[idx(w.size, 16, 11)]).toBe(1);
+    expect(w.road[idx(w.size, 15, 11)]).toBe(0);
+    expect(w.gold).toBe(gold - 8);
+    expect(w.undo.length).toBe(2);                                  // the well, then the road: one entry for the whole plan
+    undo(w);
+    expect(w.road[idx(w.size, 11, 11)]).toBe(0);
+    expect(w.gold).toBe(gold);
+  });
+  it('keeps the L functions as they were, on top of the tile-list core', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    setRoad(w, 0, 10, 31, 10);
+    place(w, 'temple', 12, 8);
+    expect(previewRoad(w, 10, 9, 15, 9)).toEqual({ ok: false, reason: 'blocked', warnings: [], tiles: [], cost: 0 });
+    expect(previewRoad(w, 0, 5, 2, 5)).toEqual({ ok: true, warnings: [], tiles: [0, 1, 2].map((x) => idx(w.size, x, 5)), cost: 6 });
+    expect(Object.keys(drawRoad(w, 0, 5, 2, 5)).sort()).toEqual(['cost', 'ok', 'tiles', 'warnings']);
+    expect(Object.keys(previewHouses(w, 20, 20, 21, 20)).sort()).toEqual(['cost', 'ok', 'positions', 'warnings']);
+  });
+  it('paints plots on a list of tiles and counts the ones it skips', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    setRoad(w, 0, 10, 31, 10);
+    const p = previewHouseTiles(w, [[12, 9], [12, 10], [13, 9], [12, 9]]);
+    expect(p.positions).toEqual([[12, 9], [13, 9]]);
+    expect(p.skipped).toEqual([{ x: 12, y: 10, reason: 'occupied' }]);
+    expect(p.cost).toBe(10);
+    const none = previewHouseTiles(w, [[12, 10]]);
+    expect([none.ok, none.reason, none.skipped.length]).toEqual([false, 'nothing_to_place', 1]);
+    const r = paintHouseTiles(w, [[12, 9], [12, 10], [13, 9]]);
+    expect([r.ok, r.ids.length, w.undo.length]).toEqual([true, 2, 1]);
+    undo(w);
+    expect(housesOf(w).length).toBe(0);
+  });
+  it('demolishes a list of tiles with one undo', () => {
+    const w = makeTestWorld({ gold: 1000 });
+    setRoad(w, 0, 10, 31, 10);
+    place(w, 'temple', 12, 8);
+    const p = previewDemolishTiles(w, [[12, 8], [13, 9], [20, 10], [20, 10], [25, 25], [-1, 3]]);
+    expect([p.buildingIds.length, p.roadTiles, p.refund]).toEqual([1, [idx(w.size, 20, 10)], 30]);
+    const gold = w.gold;
+    const r = demolishTiles(w, [[12, 8], [20, 10]]);
+    expect([r.ok, r.count, w.gold]).toEqual([true, 2, gold + 30]);
+    undo(w);
+    expect(buildingAt(w, 12, 8).type).toBe('temple');
+    expect(w.road[idx(w.size, 20, 10)]).toBe(1);
+    expect(demolishTiles(w, [[25, 25]]).reason).toBe('nothing_here');
   });
 });

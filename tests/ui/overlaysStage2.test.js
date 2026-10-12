@@ -56,17 +56,18 @@ function street(tier, extra = {}) {
 }
 
 describe('stage 2 overlays', () => {
-  it('lists the eight overlays in order, with a name, a hue and a legend each, and shows the new ones on placing', () => {
-    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing']);   // Stage 3: fire risk
+  it('lists the nine overlays in order, with a name, a hue and a legend each, and shows the new ones on placing', () => {
+    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing', 'ground']);   // Stage 3: fire risk; the placement review: Ground
     for (const o of OVERLAYS) {
       expect([o, typeof OVERLAY_NAMES[o], typeof OVERLAY_HUE[o]]).toEqual([o, 'string', 'string']);
       if (!GRADED_OVERLAYS.includes(o)) expect([o, OVERLAY_LEGEND[o].length]).toEqual([o, 2]);
     }
     expect(GRADED_OVERLAYS).toEqual(['desirability', 'fire']);
     expect([AUTO_OVERLAY.booth, AUTO_OVERLAY.garden, AUTO_OVERLAY.statue, AUTO_OVERLAY.well]).toEqual(['entertainment', 'desirability', 'desirability', 'water']);
+    for (const type of ['farm_grain', 'farm_fig', 'farm_barley', 'farm_flax', 'gem_mine']) expect([type, AUTO_OVERLAY[type]]).toEqual([type, 'ground']);   // placement review P1
     const store = createStore(INITIAL_UI_STATE);
     const pl = createPlacement({ world: uiWorld(), store });
-    for (const [type, overlay] of [['booth', 'entertainment'], ['garden', 'desirability'], ['statue', 'desirability'], ['granary', null]]) {
+    for (const [type, overlay] of [['booth', 'entertainment'], ['garden', 'desirability'], ['statue', 'desirability'], ['farm_grain', 'ground'], ['farm_fig', 'ground'], ['gem_mine', 'ground'], ['granary', null]]) {
       store.set({ overlay: null });
       pl.start({ kind: 'building', type }, { x: 20, y: 9 });
       expect([type, store.get().overlay]).toEqual([type, overlay]);
@@ -116,6 +117,7 @@ describe('stage 2 overlays', () => {
     w.terrain[idx(32, 20, 20)] = TILE.WATER;
     addRaw(w, 'garden', 5, 5);
     addRaw(w, 'granary', 20, 4);
+    setRoad(w, 22, 5, 22, 5);                                                   // a granary gives its values once a road touches it (P11)
     addRaw(w, 'house', 6, 5, { tier: 1, residents: 3 });
     const { below, steps } = desirabilityBands(w);
     const has = (list, x, y) => list.some(([a, b]) => a === x && b === y);
@@ -306,8 +308,8 @@ describe('stage 2 placement preview', () => {
     expect([pl.preview().nicer, pl.preview().nicerTone]).toEqual(['Makes 2 homes nicer', 'better']);
     expect(pl.tint().length).toBeGreaterThan(0);
     expect(pl.tint().every((t) => t.v > 0)).toBe(true);
-    pl.moveGhost(28, 2);                                                       // no homes anywhere near
-    expect([pl.preview().state, pl.preview().nicer]).toEqual(['ok', '']);
+    pl.moveGhost(28, 2);                                                       // no homes anywhere near: no line and no tint (final review 4)
+    expect([pl.preview().state, pl.preview().nicer, pl.tint()]).toEqual(['ok', '', []]);
     pl.start(GRANARY, { x: 14, y: 8 });
     expect([pl.preview().nicer, pl.preview().nicerTone]).toEqual(['Makes 2 homes less pleasant', 'worse']);
     pl.moveGhost(13, 9);                                                       // on a hut: blocked, so no line and no tint

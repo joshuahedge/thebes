@@ -8,12 +8,15 @@
 # then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> before after [--stage2 | --stage3]
 #
 # -Mobile takes the mobile budget scenes instead (src/dev/scenes.js MOBILE_SCENES: early, plots, raid, raid-fire,
-# raid-overlay, placing, sheet, welcome, the busy moments of the mobile UX review) on four phones (390x844, 375x667,
+# raid-overlay, placing, farm, farm-raid, sheet, welcome, the busy moments of the mobile UX review, and expanded, a tip opened in place) on four phones (390x844, 375x667,
 # 844x390, 667x375) at each of -TextSizes (default 100 and 150), reduced motion on, as <Tag>-<scene>-<size>-t<text>.png.
 # Each shot also measures the rows under the top bar (measureRows in src/dev/scenes.js): a line per shot says where they
 # end, which layers show and how much of the map is left clear, and the lines (each with the full measurement as JSON
 # under it) are saved to <Tag>-mobile-measure.txt beside the shots. -Mobile cannot be combined with -Stage2 or -Stage3;
 # -Only names scenes and -OnlySizes sizes (375x667). tests/ui/mobileBudget.test.js holds the budget on the same scenes.
+# The placement pass's before and after pairs (docs/superpowers/notes/screenshots/placement-*.png, from the placement review) were taken
+# with tests/screenshot.ps1 -Eval on main and on this branch: a farm picked (Ground on), a well ticked by touch, a road drawn by a finger, the
+# Layers picker, a tip opened in place, a no-road well and plots.
 # Usage: tools/shots.ps1 -Mobile -Tag before [-Only raid,sheet] [-OnlySizes 375x667,667x375] [-TextSizes 100,125,150]
 param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2, [switch]$Stage3, [switch]$Mobile, [string[]]$TextSizes = @('100', '150'))
 $ErrorActionPreference = 'Stop'
@@ -150,7 +153,7 @@ if ($Mobile) {
   $sample = '/?skipTitle=1&nosw=1&seed=11&sample=1'
   $mobileScenes = [ordered]@{
     'early' = '/?skipTitle=1&nosw=1&seed=7'; 'plots' = '/?skipTitle=1&nosw=1&seed=7'; 'raid' = $sample; 'raid-fire' = $sample
-    'raid-overlay' = $sample; 'placing' = $sample; 'sheet' = $sample; 'welcome' = '/?welcome=1&nosw=1&seed=11&sample=1'
+    'raid-overlay' = $sample; 'placing' = $sample; 'farm' = $sample; 'farm-raid' = $sample; 'sheet' = $sample; 'welcome' = '/?welcome=1&nosw=1&seed=11&sample=1'; 'expanded' = '/?skipTitle=1&nosw=1&seed=7'
   }
   $phones = @('390x844', '375x667', '844x390', '667x375')
   $measure = "(async () => JSON.stringify((await import('./src/dev/scenes.js')).measureRows()))()"

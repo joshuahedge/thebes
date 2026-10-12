@@ -209,6 +209,80 @@ export function warningText(code, type = null) {
   return WARNINGS[code] || "Won't work yet";
 }
 
+// The placing preview's conditions (placement review P9, src/sim/commands.js conditionsFor): one chip each in the confirm
+// bar, with a mark and words so the colour never says it alone. met, later (it can be placed, it will not work until this
+// is met) and cant (it cannot be placed).
+export const CONDITION_MARKS = { met: '✓', later: '!', cant: '✕' };
+export const CONDITION_STATE_WORDS = { met: 'Met', later: 'Not yet', cant: "Can't" };
+const TERRAIN_WORDS = { fertile: 'Fertile land', rocky: 'Rocky ground' };
+export const CONDITION_TEXT = {
+  group: 'Conditions',
+  free: 'Free ground',
+  terrain: (terrain) => TERRAIN_WORDS[terrain] || 'Free ground',
+  terrainCount: (terrain, fit, of) => `${TERRAIN_WORDS[terrain] || 'Free ground'}: ${fit} of ${of} tiles`,
+  taken: 'Ground taken',
+  water: 'Water here',
+  offMap: 'Off the map',
+  roadMet: 'Road beside it',
+  roadLater: 'No road yet',
+  roadCant: 'Must touch a road',
+  roadHint: 'No road yet: draw one on a marked tile',
+  suppliedMet: 'Supplied',
+  goldShort: (cost, have) => `Not enough gold: ${cost} needed, you have ${have}`,
+  placedNoRoad: 'needs a road',
+  placedNoRoadYet: 'no road yet',
+  onTerrain: { fertile: 'On fertile land', rocky: 'On rocky ground' },
+  // A building with this terrain in its definition: "On fertile land" for a tooltip, "Fertile land" (the chip's words, short enough
+  // for a card at 150% text) for a card; '' for any other.
+  terrainLine: (type, short = false) => (BUILDINGS[type] && BUILDINGS[type].terrain ? (short ? TERRAIN_WORDS[BUILDINGS[type].terrain] : CONDITION_TEXT.onTerrain[BUILDINGS[type].terrain]) || '' : ''),
+};
+
+// The toast after plots are painted (placement review P14): "6 plots placed", and, when the road is missing, "· no road yet" for
+// all of them or "· 2 with no road yet" for some. total is how many were laid, roadless how many of those touch no road.
+export function plotsPlacedText(total, roadless) {
+  const base = `${plural(total, 'plot', 'plots')} placed`;
+  if (!roadless) return base;
+  return roadless >= total ? `${base} · ${CONDITION_TEXT.placedNoRoadYet}` : `${base} · ${roadless} with no road yet`;
+}
+
+// A touch plan's words (placement review P3, P5). The bar's first line before anything is drawn, and how many tiles the plan
+// passes over and why: "2 skipped: something is in the way" (one reason's words when they all share it).
+export const DRAW_TEXT = {
+  idle: 'Drag or tap tiles · two fingers move the map',
+  skipped(skipped) {
+    const reasons = [...new Set(skipped.map((s) => s.reason))];
+    const why = reasonText(reasons.length === 1 ? reasons[0] : 'blocked');
+    return `${skipped.length} skipped: ${why.charAt(0).toLowerCase()}${why.slice(1)}`;
+  },
+};
+
+// One condition's words for its chip. cond is a conditionsFor condition; refused says a store in reach is built to hold the good
+// but turns it away (the placing preview works that out). Never invents a state: each sentence is the sim's own reason.
+export function conditionText(cond, type, { refused = false } = {}) {
+  const C = CONDITION_TEXT;
+  const def = BUILDINGS[type];
+  if (cond.key === 'ground') {
+    if (cond.state === 'met') return def && def.terrain ? C.terrain(def.terrain) : C.free;
+    if (cond.reason === 'needs_fertile' || cond.reason === 'needs_rocky') return C.terrainCount(cond.terrain, cond.fit, cond.of);
+    if (cond.reason === 'occupied') return C.taken;
+    if (cond.reason === 'water') return C.water;
+    if (cond.reason === 'out_of_bounds') return C.offMap;
+    return reasonText(cond.reason);
+  }
+  if (cond.key === 'road') return cond.state === 'met' ? C.roadMet : cond.state === 'later' ? C.roadLater : C.roadCant;
+  if (cond.key === 'works') {
+    if (cond.reason === 'no_storage' && def && def.produces) {
+      const store = buildingName(storeFor(def.produces.good)).toLowerCase();
+      return refused ? `No ${store} takes ${goodWord(def.produces.good)}` : `No ${store} near`;
+    }
+    if (cond.reason === 'no_supply') return WARNINGS.no_supply;
+    if (cond.state === 'met' && def && def.produces) return `${buildingName(storeFor(def.produces.good))} near`;
+    return cond.state === 'met' ? C.suppliedMet : "Won't work yet";
+  }
+  if (cond.key === 'gold') return C.goldShort(cond.cost, cond.have);
+  return '';
+}
+
 // What a service will do from the ghost's spot (early-game pass 2.6), counted by homesServedFrom.
 const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}`, booth: (homes) => `Entertains ${homes}` };
 export function effectText(type, n) {
@@ -227,6 +301,15 @@ export const LEVEL_NAMES = { essential: 'water and food', safety: 'safety', serv
 // name) => { title, fix }, where b is the alert's building (or null) and name its name ('A building' without one).
 export const ALERT_TEXT = {};
 
+// One warning for every home or plot with no road beside it (placement review P13): "6 plots have no road". Empty plots are
+// plots and any with people in are homes; a mix says homes, since that is what the player would lose to it.
+function plotsNoRoadWords(alert, world) {
+  const n = alert.count;
+  const empty = (alert.ids || []).every((id) => !world.buildings[id] || world.buildings[id].tier === 0);
+  const [one, many] = empty ? ['plot', 'plots'] : ['home', 'homes'];
+  return { title: `${plural(n, one, many)} ${n === 1 ? 'has' : 'have'} no road`, fix: n === 1 ? 'Draw a road beside it' : 'Draw a road beside them' };
+}
+
 // Every problem names the cause and the fix (spec 6.3).
 export function alertText(alert, world) {
   const b = alert.id ? world.buildings[alert.id] : null;
@@ -234,6 +317,7 @@ export function alertText(alert, world) {
   if (ALERT_TEXT[alert.code]) return ALERT_TEXT[alert.code](alert, world, b, name);
   switch (alert.code) {
     case 'no_road': return { title: `${name} has no road`, fix: 'Lay a road beside it' };
+    case 'plots_no_road': return plotsNoRoadWords(alert, world);
     case 'no_storage': {
       const def = b ? BUILDINGS[b.type] : null;
       const good = def && def.produces ? def.produces.good : 'grain';
@@ -271,14 +355,22 @@ export function alertText(alert, world) {
 export const SPEED_LABELS = ['Paused', '1×', '2×', '3×'];
 // The Help setting (early-game pass 3.1), keyed by settings.help.
 export const HELP_NAMES = { full: 'Guide and tips', tips: 'Tips only', off: 'Off' };
-export const OVERLAY_NAMES = { water: 'Water', food: 'Food', religion: 'Religion', goods: 'Goods', entertainment: 'Entertainment', desirability: 'Desirability', housing: 'Housing' };
+export const OVERLAY_NAMES = { water: 'Water', food: 'Food', religion: 'Religion', goods: 'Goods', entertainment: 'Entertainment', desirability: 'Desirability', housing: 'Housing', ground: 'Ground' };
 // The corner buttons' accessible names (early-game pass 2.9); each starts with or contains the word it shows.
 export const pauseSpeedText = (speed) => `${T.pause}, ${T.speed.toLowerCase()} ${SPEED_LABELS[speed]}`;
 export const layersText = (kind) => (kind ? `${T.layers}: ${OVERLAY_NAMES[kind]}` : T.layers);
 export const OVERLAY_LEGEND = {
   water: ['Has water', 'No water'], food: ['Has food', 'No food'], religion: ['Has a temple', 'No temple'],
   goods: ['Has its goods', 'Goods missing'], entertainment: ['Has entertainment', 'No entertainment'], housing: ['Ready to grow', 'Next need missing'],
+  // Ground (placement review P1) has no dot and ring: its two keys are the land it shows, free fertile land (leaf green with
+  // dots) and free rocky ground (grey, hatched).
+  ground: ['Fertile: farms and orchards', 'Rocky: mines'],
 };
+// What the Ground overlay's third line says while a farm, orchard or mine is being placed: its brighter tiles are where the whole
+// building fits on its own ground (src/render/overlays.js roomTiles), or, with none left, that nothing is.
+const GROUND_THING = { farm_grain: 'a farm', farm_barley: 'a farm', farm_flax: 'a farm', farm_fig: 'an orchard', gem_mine: 'a mine' };
+export const groundThing = (type) => GROUND_THING[type] || null;
+export const groundRoomText = (type, any) => (any ? `Bright: room for ${groundThing(type)}` : `No room left for ${groundThing(type)}`);
 
 // The desirability legend (spec 4.7, 6.3): a short label under each band's swatch, and words for screen readers that say
 // what the band is pleasant enough for. Band -1 is below zero; the others follow DESIRABILITY_STEPS (src/data/ui.js).
@@ -310,10 +402,10 @@ export const rewardText = (n) => `+${n} gold`;
 export const progressLabel = (n, of) => `Progress ${progressText(n, of)}`;
 export const dailyDoneText = (n) => plural(n, 'daily goal done', 'daily goals done');
 export const swapLabel = (text) => `Swap: ${text}`;
+// The phone strip's words are one button that opens the goal in place (P8): its name carries the whole goal, since the words on
+// screen may be cut at two lines. label is "Goal" or the opening chain's "2 of 10"; count the goal's own.
+export const goalWordsLabel = (label, text, count) => `${label}: ${text}${count ? `, ${count}` : ''}`;
 export const showMeLabel = (text) => `${T.showMe}: ${text}`;   // a goal's Show me names its goal, so several of them stay apart
-// The phone strip's words are one button that opens the Goals sheet (ruling 170): its name carries the whole goal, since
-// the words on screen may be cut at two lines. label is "Goal" or the opening chain's "2 of 10"; count the goal's own.
-export const goalsOpenLabel = (label, text, count) => `${label}: ${text}${count ? `, ${count}` : ''}. Open the goals list`;
 export const viewLabel = (what) => `${T.view}: ${what}`;         // a View names its alert or building, so several of them stay apart
 
 // Goal chapters for the goals sheet (early-game pass 3.3); triggered first-time events come first.
@@ -417,12 +509,12 @@ export const T = {
   sound: 'Sound', vibration: 'Vibration', textSize: 'Text size', leftHanded: 'Left-handed controls', keyboardShortcuts: 'Keyboard shortcuts', reducedMotion: 'Reduce motion', followSystem: 'Follow the system',
   helpLevel: 'Help', suggested: 'Suggested', resumeGuide: 'Resume guide',
   difficultyForNewCities: 'Difficulty for new cities', difficultyNote: 'A city keeps the level it started with. This one changes the next new city.',
-  guideHelp: 'While the guide runs, the card for the next step says Suggested and a ring marks the place. Skip guide turns it off: in the goals strip, or on a phone in the goals list.',
+  guideHelp: 'While the guide runs, the card for the next step says Suggested and a ring marks the place. Skip guide turns it off: in the goals strip, or on a phone in the open goal or the goals list.',
   updateReady: 'Update ready', restart: 'Restart', updateSaveFailed: "Couldn't save, so the update will wait",
   playWithSound: 'Play with sound', playMuted: 'Play muted', install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',
   installMenu: 'Install on this device', bringCity: 'Bring a city from Safari', bringCityHelp: 'If you saved a city in Safari, open the menu there and choose Export city. Then import that file here.', installWhy: 'Installed on the home screen, the game works offline and keeps your city safe.', installIosSteps: ['Tap Share (the square with an arrow)', 'Scroll down and tap Add to Home Screen', 'Tap Add'], installExportFirst: 'Export your city first: the installed app keeps its own storage. Then import the file from the home-screen app.', installNow: 'Install now', installNotOffered: 'Your browser did not offer to install. Look for Install app or Add to Home screen in its menu.', openInSafari: 'Open in Safari to keep your city', openInChrome: 'Open in Chrome to keep your city', saveNewer: 'This city was saved by a newer version of the game', saveUnreadable: "This save can't be read",
   exported: 'City file downloaded', exportFailed: "Couldn't export the city", exportFirst: 'Export first', replaceCityConfirm: 'Replace the current city with the imported one?', fileUnreadable: "Couldn't read that file",
-  paused: 'Paused', resumed: 'Resumed', pausedHidden: 'Paused while you were away', placed: 'Placed', demolished: 'Demolished', roadLaid: 'Road laid', plotsPainted: 'Plots painted',
+  paused: 'Paused', resumed: 'Resumed', pausedHidden: 'Paused while you were away', placed: 'Placed', demolished: 'Demolished', roadLaid: 'Road laid',
   tapStart: 'Tap where it starts', tapEnd: 'Tap where it ends', tapCorner: 'Tap the far corner', refund: 'Refund',
   shortcuts: 'Keyboard shortcuts', openSummary: 'Open the city summary', overlayOff: 'Turn the overlay off',
   rotate: 'Rotate', housingPlots: 'Housing plots',
@@ -430,14 +522,14 @@ export const T = {
   on: 'On', off: 'Off', version: 'Version', keyHead: 'Key', doesHead: 'Does', gestures: 'Touch',
   leaveMode: 'To leave any mode: ✕, Back, Esc or right-click.',
   shortcutsOff: 'Single-key shortcuts can be turned off in settings. Esc, Enter and Ctrl+Z always work.',
-  gesturesHelp: 'One finger pans. Two fingers pan or zoom. Tap to select, or to move the ghost. Double-tap zooms in. Tap a start and an end to draw a road or paint plots.',
+  gesturesHelp: 'One finger pans, and two fingers pan or zoom. Tap to select, or to move the ghost. Double-tap zooms in when no tool is open. With a road, wall, plots or Demolish, drag one finger over tiles or tap them one by one (tap again to take one off), then tick.',
   aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
   undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
   hoverHint: 'Hover a building or pick a card',
-  play: 'Play', mapButton: 'Map', layers: 'Layers',
+  play: 'Play', mapButton: 'Map', layers: 'Layers', layersOff: 'Off',
   noHomesInReach: 'No homes in reach yet',
   achievement: 'Achievement', dailyDone: 'Daily goal done', guideDone: "You've got the basics",
-  tip: 'Tip', gotIt: 'Got it', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals or, on a phone, in their place. Help in Settings turns them off.', next: 'Next',
+  tip: 'Tip', gotIt: 'Got it', more: 'More', less: 'Less', allGoals: 'All goals', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals or, on a phone, in their place. Help in Settings turns them off.', next: 'Next',
   achievements: 'Achievements', achievementsLater: 'Achievements show here once the guide is done.', notYetMet: 'Not yet', closestAchievement: 'Closest achievement',
   newBadge: 'New', stored: 'Stored', accepted: 'Accepted', refused: 'Refused', notWorking: 'Not working',
   acceptHelp: 'Tap a good to accept or refuse it here. A refused good goes to other storage, or production stops.',
@@ -539,11 +631,11 @@ export const TIP_TEXT = {
   arrivals: 'Place more plots: families arrive a few times a month while there is room.',
   house_needs: 'Read what this home needs to grow, then tap Show me for the fix.',
   service_reach: 'Look at the coloured tiles: they are the homes this reaches by road.',
-  problem_marker: 'Tap a building with a red ! badge to see what is wrong and how to fix it.',
+  problem_marker: 'Tap a building with a red badge to see what is wrong and how to fix it.',
   month_summary: "Tap the numbers in the top bar to see this month's taxes, wages and food.",
   more_workers: 'Place more homes: buildings need workers, and homes provide them.',
   undo_demolish: 'Press Undo to bring back what you just removed, if you change your mind.',
-  goals_list: 'Tap the goal line (Goals on a wide screen) to see what comes next and the gold each pays.',
+  goals_list: "Tap the goal, then All goals (wide: Goals), to see what's next and what each pays.",
   overlay_keys: 'Read the overlay: a filled dot has it, a hollow ring lacks it. Tap ✕ to close.',
   nicer_streets: 'Place gardens and statues near homes: Manors and up need a pleasant street.',
   storehouse_choices: 'Tap a storehouse to refuse goods. If no store takes one, production stops.',

@@ -13,19 +13,25 @@
 // has the guidance row, spec 6.3); setShown(true) puts it back, written afresh so the live region reads it then.
 // #tip is a polite live region: a tip is read once as it appears, and it never takes focus (Got it hands focus on if it had it).
 // onChange runs whenever the tip showing changes.
+// A phone cuts a tip at two lines (css/ui.css): measure() shows "More ▾" at its end while the words are cut, and a tap on More
+// or on the words runs onToggle (createUI opens the tip in place and calls setOpen). An open tip shows all its words, with
+// "Less ▴"; setOpen changes the row in place, without writing it again, so the live region never reads it twice.
 import { TIPS, TIP_GAP_MS, TIP_HOURLY_MAX, TIP_FIRST_DELAY_MS, TIP_HELD_MAX_MS } from '../data/tips.js';
 import { el, button, clear } from './components.js';
+import { isCut, writeMore } from './expand.js';
 import { TIP_TEXT, T } from './text.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 
-export function createTips({ container, settings, now = () => performance.now(), playNow = now, frameNow = now, autoCloseMs = () => 0, restoreFocus = () => {}, onChange = () => {} }) {
+export function createTips({ container, settings, now = () => performance.now(), playNow = now, frameNow = now, autoCloseMs = () => 0, restoreFocus = () => {}, onChange = () => {}, onToggle = () => {} }) {
   const started = now();
   const shownAt = [];      // the play time at which each tip of this session appeared
   let showing = null;      // the id on screen
   let shownFrame = 0;      // the frame-clock time it appeared
   let waiting = null;      // { tip, at }: a tip held back by an active tool, and when
   let onScreen = true;     // false while setShown(false) keeps the tip off the screen
+  let open = false;        // the tip is open in place (a phone): all its words show, and its timer is stopped (createUI)
+  let row = null, words = null, more = null;   // the row on screen, its words and its More button
 
   const seen = () => (Array.isArray(settings.get().seenTips) ? settings.get().seenTips : []);
   const enabled = () => settings.get().help !== 'off';
@@ -41,12 +47,29 @@ export function createTips({ container, settings, now = () => performance.now(),
 
   function render() {
     clear(container);
+    row = words = more = null;
     if (!showing || !onScreen) return;
-    container.append(el('div', { class: 'tip-row' }, [
-      el('span', { class: 'label small muted', text: T.tip }),
-      el('span', { class: 'text', text: TIP_TEXT[showing] }),
-      button(T.gotIt, { class: 'got-it quiet', onClick: () => api.dismiss() }),
-    ]));
+    words = el('span', { class: 'text', text: TIP_TEXT[showing] });
+    more = el('button', { type: 'button', class: 'more quiet', 'aria-expanded': 'false', hidden: true });
+    // A tap on More, or on the cut words, opens or closes the tip (More shows only while the words are cut, or open).
+    const body = el('span', { class: 'body', onClick: () => { if (!more.hidden) onToggle(); } }, [el('span', { class: 'label small muted', text: T.tip }), words, more]);
+    row = el('div', { class: 'tip-row' }, [body, button(T.gotIt, { class: 'got-it quiet', onClick: () => api.dismiss() })]);
+    container.append(row);
+    paintOpen();
+  }
+  function paintOpen() {
+    if (!row) return;
+    row.classList.toggle('open', open);
+    more.setAttribute('aria-expanded', String(open));
+    measure();
+  }
+  // "More ▾" while the words are cut, "Less ▴" while open; measured with the control hidden, so it never decides its own need.
+  function measure() {
+    if (!row) return false;
+    more.hidden = true;
+    const cut = !open && isCut(words);
+    if (cut || open) { writeMore(more, open); more.hidden = false; }
+    return cut;
   }
 
   function consider(tip, busy) {
@@ -60,6 +83,7 @@ export function createTips({ container, settings, now = () => performance.now(),
     }
     if (!allowed(tip, t)) return false;
     showing = tip.id;
+    open = false;
     shownFrame = frameNow();
     shownAt.push(playNow());
     settings.set({ seenTips: [...seen(), tip.id] });
@@ -82,7 +106,7 @@ export function createTips({ container, settings, now = () => performance.now(),
     },
     // Once a frame: closes a tip that has stayed as long as autoCloseMs() allows. Returns true when it closed one.
     tick() {
-      if (!showing) return false;
+      if (!showing || open) return false;               // a tip open in place stays until it is closed
       const ms = autoCloseMs();
       if (!(ms > 0) || frameNow() - shownFrame < ms) return false;
       api.dismiss();
@@ -93,6 +117,7 @@ export function createTips({ container, settings, now = () => performance.now(),
       if (!showing) return;
       const hadFocus = container.contains(document.activeElement);
       showing = null;
+      open = false;
       render();
       onChange();                                       // first: on a phone the goal comes back into the row, so focus has somewhere to go
       if (hadFocus) restoreFocus();
@@ -102,6 +127,12 @@ export function createTips({ container, settings, now = () => performance.now(),
       onScreen = Boolean(on);
       render();
     },
+    setOpen(on) {
+      if (Boolean(on) === open) return;
+      open = Boolean(on);
+      paintOpen();
+    },
+    measure,
     current: () => showing,
   };
   return api;
