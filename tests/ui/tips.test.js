@@ -258,7 +258,7 @@ describe('ui tips', () => {
   });
   it('keeps every tip short and unique, and lists them all in How to play', async () => {
     const ids = TIPS.map((t) => t.id), triggers = TIPS.map((t) => t.trigger);
-    expect(TIPS.length).toBe(20);                                          // Stage 3 adds danger's six
+    expect(TIPS.length >= 20 && TIPS[19].id === 'wall_ring').toBe(true);              // Stage 3 adds danger's six; Stage 4's tracks add theirs after them
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(triggers).size).toBe(triggers.length);
     for (const t of TIPS) {

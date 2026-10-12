@@ -14,7 +14,7 @@ import { p, U, tileDiamond, quad } from './iso.js';
 import { UI, INK, TEAL_DARK } from './art/palette.js';
 import { rgba, makeDraw } from './art/ctx.js';
 import { ART, slotFor } from './art/registry.js';
-import { GUIDE_PULSE_MS, DESIRABILITY_STEPS } from '../data/ui.js';
+import { GUIDE_PULSE_MS, DESIRABILITY_STEPS, VIEW_OUTLINE } from '../data/ui.js';
 import { DEFENCE } from '../data/raids.js';
 import { canBurn, fireRiskOf, fireBand, staffedCover } from '../sim/fire.js';
 import { MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
@@ -407,6 +407,32 @@ export function siteReachTiles(world, b) {
   return { crew: [...roadReach(world, b, MONUMENT.crewReach).keys()], supply: [...roadReach(world, b, MONUMENT.supplyReach).keys()] };
 }
 
+// Stage 4 (Track C, spec 6.3, ruling 281): View from the alert list, the banner or Welcome back outlines the building it selects
+// in the marker's colour with a white halo for VIEW_OUTLINE.holdMs, then fades out over fadeMs under Full motion; under Gentle
+// and Still it holds still and then goes. noteView(world, id) starts it (the View buttons call it); the clock and the Motion
+// level come from the interface (setViewClock, the monuments interface sets it); drawReachHighlight draws it on the selected
+// building, so it shows while View's selection does.
+const viewClocks = new WeakMap();   // world -> { now(), motion() }
+const viewed = new WeakMap();       // world -> { id, at }
+export const setViewClock = (world, clock) => { viewClocks.set(world, clock); };
+export function noteView(world, id) {
+  const clock = viewClocks.get(world);
+  if (Number.isInteger(id) && clock) viewed.set(world, { id, at: clock.now() });
+}
+// The outline's strength ms after View: 1 while it holds, easing to 0 over the fade under Full, else 0 once it has held.
+export function viewOutlineAlpha(ms, motion) {
+  if (ms < 0) return 0;
+  if (ms < VIEW_OUTLINE.holdMs) return 1;
+  if (motion === 'full' && ms < VIEW_OUTLINE.holdMs + VIEW_OUTLINE.fadeMs) return 1 - (ms - VIEW_OUTLINE.holdMs) / VIEW_OUTLINE.fadeMs;
+  return 0;
+}
+// The outline's strength on building `id` now (0 when View did not pick it, or its time has passed).
+export function viewOutlineOn(world, id) {
+  const v = viewed.get(world), clock = viewClocks.get(world);
+  if (!v || !clock || v.id !== id) return 0;
+  return viewOutlineAlpha(clock.now() - v.at, clock.motion());
+}
+
 export function drawReachHighlight(g, world, b) {
   if (isSite(b)) {
     // Both reaches: the 16-tile supply reach lighter, the 12-tile crew and producer reach at the usual strength.
@@ -417,6 +443,14 @@ export function drawReachHighlight(g, world, b) {
   } else tintTiles(g, world, RANGE_OF[b.type] ? rangeTiles(world, b) : reachTiles(world, b), UI.housing, 0.22);
   g.poly(quad(b.x, b.y, b.w, b.d, 0), 'none', { stroke: UI.halo, strokeWidth: 2.2, strokeAlpha: 0.9 });
   g.poly(quad(b.x, b.y, b.w, b.d, 0), 'none', { stroke: UI.housing, strokeWidth: 1.2 });
+  // View's outline, over the reach's: the marker's colour, 2 CSS px on a white halo, and a faint wash inside.
+  const outline = viewOutlineOn(world, b.id);
+  if (outline > 0) {
+    const pts = quad(b.x, b.y, b.w, b.d, 0), css = cssScaleOf(g);
+    g.poly(pts, UI.problem, { alpha: 0.12 * outline });
+    g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 5 / css, strokeAlpha: 0.9 * outline });
+    g.poly(pts, 'none', { stroke: UI.problem, strokeWidth: 2.5 / css, strokeAlpha: outline });
+  }
 }
 
 // ghost = { x, y, w, d, state: 'ok' | 'warn' | 'bad' | 'demolish' | 'gate' }. A gate (Stage 3, a wall tile drawn over a

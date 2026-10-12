@@ -1140,6 +1140,8 @@ export const ART4_TEXT = {};
 // Track C's words: the Monuments tab's cards and locks, the monument chips and confirm-bar line, the site, guild, quarry,
 // brickworks and palace sheets, the summary's Monuments section, Welcome back's site lines, the stall warnings' tier
 // words and View's outline. Add new lines just above the end marker.
+import { extraGoldOf as ui4ExtraGold } from '../sim/costs.js';
+import { siteStatus as ui4SiteStatus } from '../sim/monuments.js';
 // Whole gold with thousands marked, as the spec writes it ("1,000 gold").
 export const ui4Gold = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const ui4Lower = (type) => buildingName(type).toLowerCase();
@@ -1231,7 +1233,7 @@ Object.assign(UI4_TEXT, {
   pace: (days) => `At last month's pace, about ${ui4Months(days)} to finish`,
   notProgressing: (reason) => `Not progressing: ${UI4_STALL_SHORT[reason] || 'no work'}`,
   paceLater: 'Pace shows after a month of work',
-  lastMonth: (gold, crews) => `Last month: ${ui4Gold(gold)} gold for ${plural(crews, 'crew', 'crews')}. Work stops if gold would go below 0.`,
+  lastMonth: (gold, crews) => `Last month: ${ui4Gold(Math.floor(gold))} gold for ${plural(crews, 'crew', 'crews')}. Work stops if gold would go below 0.`,
   workGold: (gold) => `Work gold: ${ui4Gold(gold)} gold a crew a month. Work stops if gold would go below 0.`,
   prestige: (now, more) => `Prestige ${now} so far; +${more} when finished`,
   otherHolds: (type) => `One of each kind counts: the other ${ui4Lower(type)} holds its prestige`,
@@ -1274,6 +1276,46 @@ Object.assign(UI4_TEXT, {
     no_gold: (have) => `You have ${ui4Gold(have)} gold: enlarging can't put the treasury below 0`,
   },
 });
+// A stall's cause in words (spec 4.16 Stalls, ruling 245), the same on the site sheet, in the alert list and on Welcome back,
+// by siteStatus's reason codes; '' for none. extraGold: the gilding's or capstone's gold for the city (extraGoldOf).
+export function ui4CauseText(reason, extraGold = 0, material = null) {
+  const C = UI4_TEXT.cause;
+  if (!reason) return '';
+  if (reason === 'no_crew') return C.no_crew(BUILDINGS.builders_guild.reach);
+  if (reason === 'waiting_gilding' || reason === 'waiting_capstone') return C[reason](extraGold);
+  // material: { makers, stores }, the counts that reach the site (siteStatus); none given: nothing reaches it.
+  if (reason === 'no_stone' || reason === 'no_bricks') return C.material(reason.slice(3), material ? material.makers : 0, material ? material.stores : 0);
+  return typeof C[reason] === 'string' ? C[reason] : '';
+}
+// Task C3: the stall warning (a warning, never a critical: ruling 211), the summary's Monuments section and spending row,
+// Welcome back's site lines and the palace's tip.
+ALERT_TEXT.site_stalled = (alert, world, b, name) => {
+  const good = alert.reason === 'no_stone' || alert.reason === 'no_bricks' ? alert.reason.slice(3) : null;
+  const m = good && b ? ui4SiteStatus(world, b).materials[good] : null;
+  return {
+    title: `${name} is not progressing`,
+    fix: ui4CauseText(alert.reason, b ? ui4ExtraGold(world, b.type) : 0, m ? { makers: m.makers.length, stores: m.stores.length } : null) || 'Have a look',
+  };
+};
+Object.assign(UI4_TEXT, {
+  monuments: 'Monuments',
+  siteLine: (type, course, courses) => `${buildingName(type)}: course ${course + 1} of ${courses}`,
+  finishedLine: (type) => `${buildingName(type)}: finished`,
+  noMonumentYet: 'No monument founded yet',
+  prestigeNext: (prestige, type, need, milestone) => `Prestige ${prestige}: the ${ui4Lower(type)} unlocks at ${need}${milestone ? ` and ${milestone}` : ''}`,
+  prestigeAll: (prestige, full) => `Prestige ${prestige} of ${full}`,
+  spendingHead: 'Monuments last month',
+  spendingRow: 'Work, gilding and capstone',
+  // Welcome back (spec 4.17): "Small pyramid: course 6 of 8, about 3 years left at last month's pace".
+  welcomeHead: 'Monument sites',
+  welcomeSite: (type, course, courses, state) => `${buildingName(type)}: course ${course + 1} of ${courses}, ${state}`,
+  welcomePace: (days) => `about ${ui4Months(days)} left at last month's pace`,
+  welcomeStill: (reason) => `not progressing: ${UI4_STALL_SHORT[reason] || 'no work'}`,
+  welcomePaused: 'paused',
+  welcomeNoRoad: 'no road yet',
+  welcomeFirst: 'pace shows after a month of work',
+});
+Object.assign(TIP_TEXT, { palace_grows: 'Your palace can grow: enlarge it on its sheet for more mood and nicer homes.' });
 // The palace's five styles, by PALACE_STYLES id: the name its sheet shows, the words after "Enlarge to", and the start of
 // "... come with City" while its milestone waits.
 export const UI4_PALACE_TEXT = {
