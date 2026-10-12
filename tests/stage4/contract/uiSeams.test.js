@@ -205,6 +205,7 @@ describe('s4 contract music and picture cards seams', () => {
     for (const k of ['start', 'stop', 'refresh', 'tick', 'destroy']) expect(typeof m[k]).toBe('function');
     const c = showPictureCards({ onDone: () => {} });
     expect(typeof c.close).toBe('function');
+    c.close();                                                       // Track G: the real cards show a dialog; close it
   });
 
   // boot on the real shell with the music and the picture cards injected. Frames run by hand: frames(t) runs every queued

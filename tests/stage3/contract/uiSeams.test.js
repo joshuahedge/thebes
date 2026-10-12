@@ -31,7 +31,8 @@ import { rigUI, mountShell, fakeHistory } from '../../helpers/uiWorld.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
-const noStorage = { getItem: () => null, setItem: () => {} };
+// Stage 4 (Track G): the picture cards were seen on this device, so New city starts the city at once.
+const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true}' : null), setItem: () => {} };
 const STUB_PARTS = ['building', 'house', 'actions', 'summary'];
 
 async function bootRig({ platform = {}, store = createSaveStore({ idb: fakeIndexedDB(), local: null }) } = {}) {
