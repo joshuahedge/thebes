@@ -5,6 +5,16 @@
 # cannot be combined. Each Stage 3 scene calls one dev hook, window.__thebes.devScene('<name>'), which sets the scene
 # up; when the hook is missing the scene is still captured (as the plain page), so the tool runs before Stage 3 exists.
 # Usage: tools/shots.ps1 -Tag before [-Stage2 | -Stage3] [-Only title,fresh] [-OnlySizes phone-portrait]
+#
+# -Stage4 takes the Stage 4 seven (src/dev/scenes.js STAGE4_SCENES: title, site, pyramid, capstone, procession, sitesheet,
+# motion), each one call to window.__thebes.devScene('<name>'), under both motions (review note 7.2: "Screenshots in
+# both"): full and reduced, or the one -Motion names. Before each scene window.__thebes.setMotion('<motion>') sets it
+# (src/dev/scenes.js setMotion: full = reduced motion off and ambient on, reduced = follow the device, which headless Edge
+# resolves to reduced). Until Stage 4 exists each scene shows the closest thing today's game can (its S4-TODO says what the
+# Stage 4 version must show). Shots are <Tag>-<motion>-<scene>-<size>.png at the four sizes. -Stage4 cannot be combined
+# with -Stage2, -Stage3 or -Mobile; -Only and -OnlySizes still pick scenes and sizes.
+# Usage: tools/shots.ps1 -Stage4 -Tag s4before [-Motion full] [-Only site,motion] [-OnlySizes phone-portrait]
+# then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> s4before-full s4after-full --stage4
 # then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> before after [--stage2 | --stage3]
 #
 # -Mobile takes the mobile budget scenes instead (src/dev/scenes.js MOBILE_SCENES: early, plots, raid, raid-fire,
@@ -18,14 +28,17 @@
 # with tests/screenshot.ps1 -Eval on main and on this branch: a farm picked (Ground on), a well ticked by touch, a road drawn by a finger, the
 # Layers picker, a tip opened in place, a no-road well and plots.
 # Usage: tools/shots.ps1 -Mobile -Tag before [-Only raid,sheet] [-OnlySizes 375x667,667x375] [-TextSizes 100,125,150]
-param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2, [switch]$Stage3, [switch]$Mobile, [string[]]$TextSizes = @('100', '150'))
+param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2, [switch]$Stage3, [switch]$Stage4, [string[]]$Motion = @('full', 'reduced'), [switch]$Mobile, [string[]]$TextSizes = @('100', '150'))
 $ErrorActionPreference = 'Stop'
 if ($Stage2 -and $Stage3) { Write-Error '-Stage2 and -Stage3 cannot be combined'; exit 2 }
 if ($Mobile -and ($Stage2 -or $Stage3)) { Write-Error '-Mobile cannot be combined with -Stage2 or -Stage3'; exit 2 }
+if ($Stage4 -and ($Stage2 -or $Stage3 -or $Mobile)) { Write-Error '-Stage4 cannot be combined with -Stage2, -Stage3 or -Mobile'; exit 2 }
 # `powershell -File ... -Only a,b` hands over one string "a,b": split it.
 $Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $OnlySizes = @($OnlySizes | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $TextSizes = @($TextSizes | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+$Motion = @($Motion | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+foreach ($mo in $Motion) { if (@('full', 'reduced') -notcontains $mo) { Write-Error "-Motion takes full or reduced, not $mo"; exit 2 } }
 $shot = Join-Path (Split-Path -Parent $PSScriptRoot) 'tests\screenshot.ps1'
 $sizes = @(
   @{ name = 'phone-portrait'; w = 390; h = 844 },
@@ -145,6 +158,28 @@ if (help) sheet.scrollTop += Math.min(Math.max(0, help.getBoundingClientRect().b
 # is. (The title card may not have window.__thebes at all, hence the guard.)
 function New-Stage3Scene([string]$Name) {
   "(async () => { return await ((window.__thebes && window.__thebes.devScene) ? window.__thebes.devScene('$Name') : Promise.resolve('no devScene')); })()"
+}
+
+# The Stage 4 run (-Stage4): each scene is setMotion('<motion>') then one call to the dev hook (guarded as New-Stage3Scene
+# is), on the title card for 'title' and on the seed-11 sample city for the rest.
+function New-Stage4Scene([string]$Name, [string]$MotionName) {
+  "(async () => { const t = window.__thebes; if (!(t && t.devScene)) return 'no devScene'; if (t.setMotion) t.setMotion('$MotionName'); await new Promise((r) => setTimeout(r, 50)); return await t.devScene('$Name'); })()"
+}
+if ($Stage4) {
+  $sample = '/?skipTitle=1&nosw=1&seed=11&sample=1'
+  $stage4Scenes = [ordered]@{ 'title' = '/?nosw=1'; 'site' = $sample; 'pyramid' = $sample; 'capstone' = $sample; 'procession' = $sample; 'sitesheet' = $sample; 'motion' = $sample }
+  if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
+  foreach ($mo in $Motion) {
+    foreach ($name in $stage4Scenes.Keys) {
+      if ($Only.Count -and -not ($Only -contains $name)) { continue }
+      foreach ($sz in $sizes) {
+        if ($OnlySizes.Count -and -not ($OnlySizes -contains $sz.name)) { continue }
+        $out = Join-Path $OutDir "$Tag-$mo-$name-$($sz.name).png"
+        & $shot -Url $stage4Scenes[$name] -Out $out -Width $sz.w -Height $sz.h -BudgetMs 1800 -Eval (New-Stage4Scene $name $mo)
+      }
+    }
+  }
+  exit 0
 }
 
 # The mobile budget run (-Mobile): each scene is one call to the dev hook once the text size is set, on the city the scene

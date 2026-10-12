@@ -25,7 +25,7 @@ import { openSheet } from './ui/modes.js';
 import { registerServiceWorker, applyUpdate } from './pwa.js';
 import { createRecords, newCityId } from './save/records.js';
 import { titleDecor } from './ui/scoreUi.js';
-import { devScene } from './dev/scenes.js';
+import { devScene, setMotion } from './dev/scenes.js';
 
 const HOUR = 3600 * 1000;
 
@@ -50,7 +50,7 @@ export async function boot(doc, win, {
   // (tools/shots.ps1 -Stage3); startGame keeps it beside the game's own fields.
   const records = createRecords({ storage });
   let api = null;
-  win.__thebes = { devScene: (name) => devScene(api, name) };
+  win.__thebes = { devScene: (name) => devScene(api, name), setMotion: (motion) => setMotion(settings, motion) };   // setMotion: tools/shots.ps1 -Stage4
   // One audio context for the whole page: every game (New city, import) shares it.
   const sfx = createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
   // The share sheet, the download and the file picker, replaceable by tests.
