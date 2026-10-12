@@ -3,7 +3,7 @@
 // ghost's three states (spec 6.5) and the placement preview's desirability tint (spec 4.7).
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { HOUSEHOLD_GOODS } from '../data/goods.js';
-import { housesOf, allBuildings } from '../sim/world.js';
+import { housesOf, allBuildings, isSite } from '../sim/world.js';
 import { houseStatus } from '../sim/housing.js';
 import { roadReach, touchesRoad } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
@@ -17,7 +17,7 @@ import { ART, slotFor } from './art/registry.js';
 import { GUIDE_PULSE_MS, DESIRABILITY_STEPS } from '../data/ui.js';
 import { DEFENCE } from '../data/raids.js';
 import { canBurn, fireRiskOf, fireBand, staffedCover } from '../sim/fire.js';
-import { MONUMENT_PLACING } from '../data/monuments.js';
+import { MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
 import { drawMonument } from './monuments.js';
 
 export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing', 'ground'];
@@ -400,8 +400,21 @@ export function rangeTiles(world, b) {
   return out;
 }
 
+// Stage 4 (Track C, spec 6.3): a monument site's reach, the road tiles within MONUMENT.crewReach (its guilds, quarries and
+// brickworks serve it from there) and within MONUMENT.supplyReach (it draws from storehouses there): { crew, supply }, tile
+// indices; empty for a site no road touches.
+export function siteReachTiles(world, b) {
+  return { crew: [...roadReach(world, b, MONUMENT.crewReach).keys()], supply: [...roadReach(world, b, MONUMENT.supplyReach).keys()] };
+}
+
 export function drawReachHighlight(g, world, b) {
-  tintTiles(g, world, RANGE_OF[b.type] ? rangeTiles(world, b) : reachTiles(world, b), UI.housing, 0.22);
+  if (isSite(b)) {
+    // Both reaches: the 16-tile supply reach lighter, the 12-tile crew and producer reach at the usual strength.
+    const { crew, supply } = siteReachTiles(world, b);
+    const inner = new Set(crew);
+    tintTiles(g, world, supply.filter((t) => !inner.has(t)), UI.housing, 0.1);
+    tintTiles(g, world, crew, UI.housing, 0.22);
+  } else tintTiles(g, world, RANGE_OF[b.type] ? rangeTiles(world, b) : reachTiles(world, b), UI.housing, 0.22);
   g.poly(quad(b.x, b.y, b.w, b.d, 0), 'none', { stroke: UI.halo, strokeWidth: 2.2, strokeAlpha: 0.9 });
   g.poly(quad(b.x, b.y, b.w, b.d, 0), 'none', { stroke: UI.housing, strokeWidth: 1.2 });
 }
