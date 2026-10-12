@@ -4,7 +4,7 @@
 // it can; the festival temple's streamers flutter under Full only; the procession dev scene.
 import { describe, it, expect } from '../../harness.js';
 import {
-  processionsAt, walkersAt, walkerLoop, festivalOn, festivalSize, dedicationsOn, dedicationLoop, figureKind,
+  processionsAt, walkersAt, WALKER_CAP, walkerLoop, festivalOn, festivalSize, dedicationsOn, dedicationLoop, figureKind,
   PROCESSION_ID_BASE, DEDICATION_ID_BASE, STREAMER_ID_BASE,
 } from '../../../src/render/walkers.js';
 import { createAmbient, drawAmbientLate, ambientState, LEVEL_HOLD_MS } from '../../../src/render/ambient.js';
@@ -176,6 +176,34 @@ describe('s4 motion processions on screen', () => {
     expect(processionsAt(w, DAY + 12).length).toBe(0);
     cost = 0.1;
     run(30000);
+    expect(processionsAt(w, DAY + 12).length).toBeGreaterThan(0);
+  });
+  it('keeps its procession in a crowd already at the walker cap (40 working wells in view)', () => {
+    const w = makeTestWorld({ size: 64, gold: 5000, fertile: [] });
+    for (let y = 2; y < 62; y += 4) setRoad(w, 0, y, 63, y);
+    for (let y = 2; y < 62; y += 4) for (let x = 1; x < 63; x += 6) addRaw(w, 'well', x, y + 1);
+    addRaw(w, 'temple', 12, 3);
+    staffAll(w);
+    w.day = DAY;
+    w.danger.festivalDay = DAY;
+    const all = walkersAt(w, DAY + 12);
+    expect(all.filter((wk) => wk.id < PROCESSION_ID_BASE).length).toBe(WALKER_CAP);   // the services alone fill the cap
+    expect(all.filter((wk) => wk.id >= PROCESSION_ID_BASE).length).toBeGreaterThan(0);
+    const view = walkersAt(w, DAY + 12, { x0: 0, y0: 0, x1: 63, y1: 63 });
+    expect(view.filter((wk) => wk.id >= PROCESSION_ID_BASE).length).toBeGreaterThan(0);
+  });
+  it('walks under every Motion level: a layer switched off after the budget dropped everything does not leave the procession dropped', () => {
+    const { w } = street();
+    let cost = 3, t = 0, now = 0, on = true;
+    const a = createAmbient({ enabled: () => on, level: () => 'full', clock: () => (t += cost) });
+    const run = (ms) => { for (let n = 0; n < ms; n += 16) { now += 16; const g = makeDraw(makeCanvas(16, 16).getContext('2d'), 1); a.draw(g, w, { x0: 0, y0: 0, x1: 31, y1: 31 }, now); drawAmbientLate(g); } };
+    run(LEVEL_HOLD_MS * 3 + 400);
+    run(16);
+    expect(ambientState(w).dropped).toEqual(AMBIENT.dropOrder);
+    expect(processionsAt(w, DAY + 12).length).toBe(0);
+    on = false;                                                                  // Motion Still: the layer does not draw at all
+    run(16);
+    expect(ambientState(w).dropped).toEqual([]);
     expect(processionsAt(w, DAY + 12).length).toBeGreaterThan(0);
   });
   it('draws its figures through the walker slots in the depth pass', () => {

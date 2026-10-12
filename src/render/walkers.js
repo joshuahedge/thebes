@@ -136,7 +136,7 @@ export function walkersAt(world, timeDays, range = null) {
     services.push({ b, kind, maxDist });
   }
   fill(world, timeDays, range, services, out);
-  if (out.length >= WALKER_CAP) return out;
+  if (out.length >= WALKER_CAP) return out.concat(processionsAt(world, timeDays, range));   // a full crowd still sees its procession
   const homes = [];
   for (const h of housesOf(world)) {
     if (h.residents <= 0 || hash2(h.x, h.y, world.seed + 13) >= CITIZEN_SHARE) continue;
