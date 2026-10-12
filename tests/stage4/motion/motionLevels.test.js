@@ -2,7 +2,7 @@
 // setting read live, the one-time Gentle tip, Gentle's variants of the effects, flames, glints and smoke, the interface's
 // instant transitions under Gentle, the title backdrop drifting under Full only, and setMotion for the shots.
 import { describe, it, expect } from '../../harness.js';
-import { createSettings, motionStatus, gentleTipDue } from '../../../src/ui/settings.js';
+import { createSettings, motionStatus, gentleTipDue, motionLevelOf } from '../../../src/ui/settings.js';
 import { createEffects, EFFECT_MS } from '../../../src/render/effects.js';
 import { drawFires, gentleShapes, GENTLE_FLAME_MS, GENTLE_SMOKE_RISE_PX, FLAME } from '../../../src/render/fire.js';
 import { createAmbient, drawAmbientLate, glintAt, riverRows, GENTLE_SMOKE_RISE_PX as AMBIENT_RISE_PX } from '../../../src/render/ambient.js';
@@ -13,7 +13,7 @@ import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 import { createMenuSheets } from '../../../src/ui/menu.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
 import { TIPS, TIP_FIRST_DELAY_MS } from '../../../src/data/tips.js';
-import { MOTION4_TEXT, TIP_TEXT, ART_TEXT } from '../../../src/ui/text.js';
+import { MOTION4_TEXT, TIP_TEXT, TIP_HELP_TEXT, ART_TEXT } from '../../../src/ui/text.js';
 import { makeTestWorld, addRaw, setRoad, staffAll } from '../../helpers/testWorld.js';
 import { riverWorld } from '../../helpers/renderWorld.js';
 import { makeCanvas } from '../../helpers/canvas.js';
@@ -133,6 +133,38 @@ describe('s4 motion Gentle tip', () => {
     const tip = TIPS.find((t) => t.id === 'gentle_motion');
     expect([tip.trigger, tip.priority, TIP_TEXT.gentle_motion]).toEqual(['gentleMotion', false, 'Your device asks for less motion, so the city moves gently. Settings → Motion changes it.']);
     expect(TIP_TEXT.gentle_motion.split(/\s+/).length).toBeLessThanOrEqual(20);
+  });
+  // M7 (final review): How to play lists every tip on every device, so the Gentle tip's line there must be true on any device
+  // and at any level: it states motionLevelOf's rule, checked both ways.
+  it('lists the Gentle tip in How to play by its rule, true whether or not the device asks and at any level', () => {
+    expect(TIP_HELP_TEXT.gentle_motion).toBe('While Settings → Motion follows the device, a device that asks for less motion moves the city gently.');
+    expect([motionLevelOf('system', true), motionLevelOf('system', false), motionLevelOf('full', true), motionLevelOf('still', true)]).toEqual(['gentle', 'full', 'full', 'still']);
+    for (const asks of [true, false]) {
+      const { root, cleanup } = mount('<div id="body"></div>');
+      const settings = settingsAsking(asks);
+      try {
+        createMenuSheets({ store: createStore(INITIAL_UI_STATE), settings, toasts: { show() {} } }).help(root.querySelector('#body'), { close() {} });
+        const items = [...root.querySelectorAll('.tips-list li')].map((li) => li.textContent);
+        expect([asks, items.includes(TIP_HELP_TEXT.gentle_motion), items.includes(TIP_TEXT.gentle_motion), items.length]).toEqual([asks, true, false, TIPS.length]);
+      } finally { cleanup(); settings.destroy(); }
+    }
+  });
+  it('withdraws a shown Gentle tip once its words stop being true (a level is chosen)', async () => {
+    let t = 0;
+    const settings = settingsAsking(true);
+    settings.set({ seenTips: TIPS.map((x) => x.id).filter((id) => id !== 'gentle_motion') });
+    const r = await rigUI({ width: 1280, height: 800, now: () => t, settings });
+    try {
+      r.renderer.renderFrame = () => {};
+      t = TIP_FIRST_DELAY_MS + 1;
+      r.frame(t);
+      expect(r.ui.tips.current()).toBe('gentle_motion');
+      r.frame(t + 100);
+      expect(r.ui.tips.current()).toBe('gentle_motion');                          // still true: it stays
+      settings.set({ motion: 'full' });
+      r.frame(t + 200);
+      expect(r.ui.tips.current()).toBe(null);
+    } finally { r.cleanup(); settings.destroy(); }
   });
   it('shows once, after the first 10 s, on a device that asks for less motion; never when it does not, or when a level is chosen', async () => {
     for (const [asks, motion, want] of [[true, null, 'gentle_motion'], [false, null, null], [true, 'gentle', null], [true, 'still', null]]) {

@@ -11,7 +11,9 @@ import { checkFirsts, firstMet } from '../../../src/sim/firsts.js';
 import { achievementProgress, checkAchievements } from '../../../src/sim/achievements.js';
 import { checkFeats, featStatus } from '../../../src/sim/feats.js';
 import { dailyOrder, dailyMeasure, siteUnderWay } from '../../../src/sim/daily.js';
-import { prestigeOf, monumentMood } from '../../../src/sim/monuments.js';
+import { prestigeOf, monumentMood, holdsPrestige } from '../../../src/sim/monuments.js';
+import { desirabilityContributors } from '../../../src/sim/desirability.js';
+import { MILESTONES } from '../../../src/data/progression.js';
 import { setPaused } from '../../../src/sim/commands.js';
 import { monumentCaptions } from '../../../src/ui/celebrate.js';
 import { rigUI } from '../../helpers/uiWorld.js';
@@ -58,6 +60,16 @@ describe('s4 score firsts and achievements', () => {
     finish(w, 'mastaba_large', 12, 11);                                // 110 prestige: +1 mood for every 70
     expect([prestigeOf(w), monumentMood(w), FIRST_TEXT.first_monument.why.includes(`every ${PRESTIGE.moodPer}`)]).toEqual([110, 1, true]);
     expect(FIRST_TEXT.pyramids_unlocked.why).toContain(`${MONUMENTS.pyramid_small.unlock.prestige} prestige`);
+    // M5 (final review): the first fires on the small pyramid's unlock alone, the great one still locked: it names the small one,
+    // and its milestone comes from the data.
+    const u = city('capital');
+    u.prestigeUnlocks.pyramid_small = 10;
+    expect([checkFirsts(u).includes('pyramids_unlocked'), Number.isInteger(u.prestigeUnlocks.pyramid_great)]).toEqual([true, false]);
+    expect(FIRST_TEXT.pyramids_unlocked).toEqual({
+      head: 'The small pyramid is unlocked',
+      why: `A ${MILESTONES.find((m) => m.id === MONUMENTS.pyramid_small.unlock.milestone).name} with ${MONUMENTS.pyramid_small.unlock.prestige} prestige can found the small pyramid.`,
+    });
+    expect(FIRST_TEXT.pyramids_unlocked.why).toBe('A Capital with 100 prestige can found the small pyramid.');
   });
   it('counts the six new achievements from the city\'s state, Lapis and gold by the palace\'s style', () => {
     const six = ACHIEVEMENTS.slice(36);
@@ -134,6 +146,20 @@ describe('s4 score tips, remarks and captions', () => {
     expect([BUILDINGS.quarry.producerReach, BUILDINGS.brickworks.producerReach]).toEqual([MONUMENT.producerReach, MONUMENT.producerReach]);
     expect(BUILDINGS.storehouse.stores).toContain('stone');            // so it can refuse stone
   });
+  // M6 (final review): one_each fires when a second of a kind is founded, so its words must hold while that second is a site.
+  it('words one_each as the rules play a second of a kind: the one furthest along counts; its site, then the finished one', () => {
+    const w = city('capital');
+    const first = addRaw(w, 'obelisk_small', 12, 11);
+    first.site.course = 1;
+    const home = addRaw(w, 'house', 14, 11, { tier: 2 });
+    const second = addRaw(w, 'obelisk_small', 15, 11);                 // founded: a site beside the home
+    const from = (b) => desirabilityContributors(w, home, Infinity).find((c) => c.id === b.id);
+    expect([holdsPrestige(w, first), holdsPrestige(w, second), from(second).value < 0]).toEqual([true, false, true]);   // less pleasant
+    second.site.course = 2;                                             // further along: it is the one that counts
+    expect([holdsPrestige(w, first), holdsPrestige(w, second)]).toEqual([false, true]);
+    Object.assign(second.site, { course: 3, done: 30 });
+    expect(from(second).value > 0).toBe(true);                          // finished: nicer
+  });
   it('asks for each Monuments tip when its lesson is news', async () => {
     const r = await rigUI();
     try {
@@ -194,5 +220,5 @@ const SCORE_TIPS_WORDS = {
   storehouse_bridge: `A site draws from storehouses within ${MONUMENT.supplyReach} road tiles: one between quarry and site bridges a long way.`,
   refuse_stone: 'Tap the storehouse your potters use and refuse stone, so its clay keeps its room.',
   pause_site: 'Pause a site on its sheet to send its crews to another site in reach.',
-  one_each: 'One of each kind counts for prestige: a second only makes homes nicer.',
+  one_each: "One of each kind counts for prestige, the furthest along. A second's site makes homes less pleasant; finished, nicer.",
 };

@@ -81,8 +81,8 @@ function dailyRow(world, id) {
 }
 
 // Stage 4 (Track C, spec 4.17): each monument site's course and its pace, from siteStatus, oldest first: "Small pyramid: course
-// 6 of 8, about 3 years left at last month's pace", "... not progressing: no stone", "... paused", "... no road yet", or
-// "... pace shows after a month of work". Nothing advances while the game is closed, so this is where the player left it.
+// 6 of 8, about 3 years left at last month's pace" (not while it is stalled), "... not progressing: no stone", "... paused",
+// "... no road yet", or "... pace shows after a month of work". Nothing advances while the game is closed, so this is where the player left it.
 export function siteLines(world) {
   const U = UI4_TEXT;
   return allBuildings(world).filter(isSite).map((b) => {
@@ -90,6 +90,7 @@ export function siteLines(world) {
     let state = U.welcomeFirst;
     if (!s.road) state = U.welcomeNoRoad;
     else if (s.paused) state = U.welcomePaused;
+    else if (s.stalled && s.reason) state = U.welcomeStill(s.reason);   // stalled now: last month's pace is not what it is doing
     else if (s.pace !== null) state = U.welcomePace(s.pace);
     else if (s.last && !(s.last.units > 0) && s.reason) state = U.welcomeStill(s.reason);   // reason is null while a site works: that falls through to welcomeFirst, never a made-up cause
     return U.welcomeSite(b.type, s.progress.course, s.progress.courses, state);
