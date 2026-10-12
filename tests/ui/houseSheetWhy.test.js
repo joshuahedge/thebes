@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { createSheets } from '../../src/ui/sheets.js';
+import { createSheets, criticalFirst } from '../../src/ui/sheets.js';
 import { createMinimap } from '../../src/ui/minimap.js';
 import { createPlacement } from '../../src/ui/placement.js';
 import { createCameraControl } from '../../src/ui/cameraControl.js';
@@ -418,7 +418,7 @@ describe('ui house sheet why', () => {
       const before = measureRows(r.root).rowsEnd;
       expect(before).toBeGreaterThan(667 * 0.4 - 96);                           // the rows leave less than 96 px above the sheet
       r.store.set(openSheet(r.store.get(), 'minimap'));
-      const i = r.ui.alerts.list().findIndex((a) => a.id === bazaar.id);
+      const i = criticalFirst(r.ui.alerts.list()).findIndex((a) => a.id === bazaar.id);   // a phone lists the criticals first (ruling 167)
       fire(r.root.querySelectorAll('#sheet .alert-list .view')[i], 'click');
       expect(r.store.get().sheet).toEqual({ kind: 'info', id: bazaar.id });
       const centre = r.screenOf(21, 6);

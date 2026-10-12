@@ -125,6 +125,7 @@ export function createUI({
     world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root,
     onAction: (a, kind) => { for (const s of seams()) s.onAlertAction(a, kind); },   // Stage 3: Pay tribute and the like
     getAlerts: () => (saveFailed ? [...alertsFor(world), { code: 'save_failed' }] : alertsFor(world)),
+    phone: () => store.get().layout !== 'wide',                                     // the one-line alert row (ruling 167)
   });
   // Web Audio needs a user gesture before it plays (spec 5.5). A touch pointerdown is not an activation event
   // (pointerup and keydown are), so all three listen; they go once the context is running. While sound is off,
@@ -538,9 +539,10 @@ export function createUI({
     else if (s.tool) { const c = cardInfo(world, activeItemOf(s.tool)); text = `${c.name}: ${c.costText}`; }
     setText(sidePanel.details, text);
   }
-  let lastSelected = null;
+  let lastSelected = null, lastLayout = store.get().layout;
   store.subscribe((s) => {
     root.dataset.mode = s.mode;
+    if (s.layout !== lastLayout) { lastLayout = s.layout; alerts.refresh(); corners.render(); }   // the banner is one line on phones, full on wide screens
     if (pendingUpdate && !isToolMode(s.mode)) showUpdateToast();
     root.classList.toggle('has-overlay', Boolean(s.overlay));
     root.classList.toggle('screenshot', Boolean(s.screenshot));

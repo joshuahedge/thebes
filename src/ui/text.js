@@ -718,6 +718,8 @@ Object.assign(DANGER_UI_TEXT, {
   payTribute: 'Pay tribute',
   collapse: 'Shrink', collapseLabel: 'Shrink the raid warning to its countdown', expand: 'Show the whole warning',
   chip: (dir, days) => `Raid from the ${duiDir(dir)} · ${duiCountdown(days)}`,
+  // A phone's chip (ruling 167): its words are the button that opens the raid sheet, where the whole warning is.
+  chipOpenLabel: (chip) => `${chip}: show the whole warning`,
   // The days until a warned raid arrives (warning.arrives less today): raidDay brings the raiders in on the arrives day.
   arrivesIn: (days) => (days > 0 ? `They arrive in ${duiDuration(days)}` : 'They arrive today'),
   withArrival: (title, days) => `${title}. ${DANGER_UI_TEXT.arrivesIn(days)}.`,
@@ -790,7 +792,8 @@ Object.assign(DANGER_UI_TEXT, {
   festivalNeedsTemple: 'A festival needs a working temple',
   wouldPassDebt: (n) => `Would put the treasury over ${n} gold in debt`,       // canAfford's floor (src/sim/money.js)
   lastRaid: 'Last raid', endedOn: (date) => `Ended ${date}`,
-  noWarning: 'Tribute can be paid only while a raid is on its way', firstRaid: "The first raid can't be paid off.",
+  noWarning: 'Tribute can be paid only while a raid is on its way',
+  raidSheetTitle: 'Raid warning',                                  // the raid sheet's heading on the first raid, which no tribute buys off
   capital: (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s),
   tributeCost: (cost) => `Pay ${cost} gold of tribute`, goldNow: 'Gold now', goldAfter: 'Gold afterwards',
   cancels: (dir, size) => `Cancels the raid from the ${duiDir(dir)} (${plural(size, 'raider', 'raiders')}). The next raid still comes.`,
