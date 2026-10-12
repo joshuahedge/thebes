@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../../harness.js';
-import { previewWall, drawWall, isGate, wallHpFor, fullWallHp, healWalls } from '../../../src/sim/defence.js';
+import { previewWall, drawWall, previewWallTiles, drawWallTiles, isGate, wallHpFor, fullWallHp, healWalls } from '../../../src/sim/defence.js';
 import { flowField, tileCost, flowCacheSize } from '../../../src/sim/pathfinding.js';
 import { undo } from '../../../src/sim/undo.js';
 import { roadReach } from '../../../src/sim/reach.js';
@@ -73,6 +73,23 @@ describe('s3 raids walls', () => {
     const before = JSON.stringify(w);
     expect(drawWall(w, 1, 1, 40, 1).ok).toBe(false);
     expect(JSON.stringify(w)).toBe(before);                                            // a refusal changes nothing
+  });
+  it('draws wall on the tiles of a touch plan, skipping blocked ones, with one undo entry (placement review P3, P5)', () => {
+    const w = street(500);
+    addRaw(w, 'well', 5, 9);
+    w.terrain[at(w, 5, 12)] = TERRAIN.WATER;
+    const list = [[5, 8], [5, 9], [5, 10], [5, 11], [5, 12], [5, 13], [5, 10]];
+    expect(previewWallTiles(w, list).reason).toBe('blocked');                          // strict, as the mouse's L
+    const p = previewWallTiles(w, list, { skipBlocked: true });
+    expect([p.ok, p.tiles, p.gates]).toEqual([true, [8, 10, 11, 13].map((y) => at(w, 5, y)), [at(w, 5, 10)]]);
+    expect(p.skipped).toEqual([{ x: 5, y: 9, reason: 'blocked' }, { x: 5, y: 12, reason: 'water' }]);
+    expect(p.cost).toBe(3 * costOf(w, 'wall') + costOf(w, 'gate'));
+    expect(previewWallTiles(w, [[5, 9]], { skipBlocked: true })).toEqual({ ok: false, reason: 'nothing_to_place', warnings: [], tiles: [], gates: [], cost: 0, skipped: [{ x: 5, y: 9, reason: 'blocked' }] });
+    const r = drawWallTiles(w, list, { skipBlocked: true });
+    expect([r.ok, w.gold, w.undo.length, w.tally.wallTiles]).toEqual([true, 500 - p.cost, 1, 4]);
+    expect(undo(w)).toEqual({ ok: true, kind: 'wall' });
+    expect([8, 10, 11, 13].map((y) => w.wall[at(w, 5, y)])).toEqual([0, 0, 0, 0]);
+    expect(Object.keys(previewWall(w, 1, 1, 3, 1)).includes('skipped')).toBe(false);   // the L keeps its shape
   });
   it('lets road reach through a gate and makes raiders break it like wall', () => {
     const w = street();
