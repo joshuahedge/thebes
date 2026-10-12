@@ -830,6 +830,12 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
 .s4-rows li .meter { flex: 1 0 100%; width: auto; height: 10px; }
 .s4-rows li button { min-height: 44px; }
 #sheet .actions .enlarge[disabled] { opacity: 1; color: var(--ink-soft); }
+/* The tray's "more this way" hint (ruling 300, dock.js): a parchment fade over the tray's right end with a calm chevron, while
+   the row scrolls further right. It is laid over the cards (top and height from the tray), so it adds no height; taps go
+   through; it never moves (the opacity fade is instant under Gentle and Still, as all chrome). */
+#dock .tray-more { position: absolute; right: 0; width: 44px; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; box-sizing: border-box; pointer-events: none; background: linear-gradient(to right, transparent, var(--parchment) 72%); transition: opacity 0.2s; }
+#dock .tray-more[hidden] { display: none; }
+#dock .tray-more .chev { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--parchment); box-shadow: 0 0 0 1px var(--parchment-3); color: var(--ink-soft); font-size: 20px; line-height: 1; font-weight: 600; }
 /* ── end s4 ui ── */
 
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */

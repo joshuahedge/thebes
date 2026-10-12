@@ -61,9 +61,9 @@ export function cardInfo(world, item) {
   if (item === 'palace' && palaceOf(world)) return { item, name: buildingName(item), cost: 0, costText: UI4_TEXT.palaceStands, affordable: true, locked: false, lockText: '', isNew: false, terrainText: '' };
   const locked = Boolean(BUILDINGS[item]) && !isUnlocked(world, item);
   const isNew = !locked && (world.newItems || []).includes(item);
-  // terrainText: "Fertile land" or "Rocky ground" for a building that needs it (placement review P15), "Desert" for a monument
+  // terrainText: "Fertile land" or "Rocky ground" for a building that needs it (placement review P15), "Not on the fields" for a monument (ruling 299)
   // (spec 4.4), else ''.
-  return { item, name: buildingName(item), cost, costText, affordable: canAfford(world, cost), locked, lockText: locked ? lockTextOf(world, item) : '', isNew, terrainText: isMonumentItem(item) ? UI4_TEXT.desert : CONDITION_TEXT.terrainLine(item, true) };
+  return { item, name: buildingName(item), cost, costText, affordable: canAfford(world, cost), locked, lockText: locked ? lockTextOf(world, item) : '', isNew, terrainText: isMonumentItem(item) ? UI4_TEXT.groundCard : CONDITION_TEXT.terrainLine(item, true) };
 }
 
 export function activeItemOf(tool) {
@@ -105,8 +105,8 @@ export function renderCards(container, { world, category, activeItem = null, onP
     const thumb = drawThumb(el('canvas', { class: 'thumb', 'aria-hidden': 'true' }), item, dpr);
     // The badge is a word, part of the card's name for screen readers, so the colour never says it alone.
     const badge = info.isNew ? el('span', { class: 'new-badge', text: T.newBadge }) : null;
-    // A monument's tooltip says where it stands (spec 4.4): "Small obelisk: on the desert, not the fields".
-    const b = el('button', { type: 'button', class: cls, dataset: { item }, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null, title: isMonumentItem(item) ? `${info.name}: ${UI4_TEXT.desertTip}` : null }, [
+    // A monument's tooltip says where it stands (spec 4.4): "Small obelisk: on dry ground, not the fields".
+    const b = el('button', { type: 'button', class: cls, dataset: { item }, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null, title: isMonumentItem(item) ? `${info.name}: ${UI4_TEXT.groundTip}` : null }, [
       thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), info.terrainText ? el('span', { class: 'terrain', text: info.terrainText }) : null, badge,
     ]);
     if (!info.locked) b.addEventListener('click', () => onPick(item));

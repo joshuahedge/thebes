@@ -1,7 +1,7 @@
 // Tools and their previews (spec 6.5). The world changes only through src/sim/commands.js here, followed
 // by assignLabour so derived state is fresh while paused (1a follow-up).
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
-import { MONUMENTS, MONUMENT, MONUMENT_PLACING, MATERIALS } from '../data/monuments.js';
+import { MONUMENTS, MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
 import {
   canPlace, conditionsFor, place, previewRoad, drawRoad, roadPath, previewHouses, paintHouses, previewDemolishArea, demolishArea, demolishAt, rectTiles,
   previewRoadTiles, drawRoadTiles, previewHouseTiles, paintHouseTiles, previewDemolishTiles, demolishTiles, previewPlazaTiles, paintPlazaTiles,
@@ -185,10 +185,9 @@ function basePreview(world, state) {
     // Every condition on its own (P9); a building that lacks only a road can still be placed, in amber (P10).
     const c = conditionsFor(world, tool.type, x, y, { roadLater: true, rot: rotOf(tool) });
     const refused = c.warnings.includes('no_storage') && refusingStores(world, { id: -1, x, y, w: def.w, d: def.d }, def.produces.good, def.producerReach).length > 0;
-    const firstGoods = def.monument ? MATERIALS.filter((g) => MONUMENTS[tool.type].courses[0][g] > 0) : [];
     const chips = c.conditions.filter((k) => k.key !== 'gold' || k.state !== 'met').map((k) => {
       // Stage 4 (Track C, spec 6.5, ruling 230): a monument's chips say its own words (ground, road, crew, supply, founding).
-      const text = def.monument ? ui4ConditionText(k, tool.type, firstGoods) : conditionText(k, tool.type, { refused: refused && k.reason === 'no_storage' });
+      const text = def.monument ? ui4ConditionText(k, tool.type) : conditionText(k, tool.type, { refused: refused && k.reason === 'no_storage' });
       return { key: k.key, state: k.state, mark: CONDITION_MARKS[k.state], text, label: `${CONDITION_STATE_WORDS[k.state]}: ${text}` };
     });
     const road = c.conditions.find((k) => k.key === 'road');

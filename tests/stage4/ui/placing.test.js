@@ -17,6 +17,8 @@ import { CAMERA_PAN_MS } from '../../../src/data/ui.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
 import { p } from '../../../src/render/iso.js';
 import { idx } from '../../../src/sim/grid.js';
+import { T } from '../../../src/sim/terrain.js';
+import { conditionsFor, place } from '../../../src/sim/commands.js';
 import { UI4_TEXT } from '../../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 import { rigUI, uiWorld } from '../../helpers/uiWorld.js';
@@ -36,9 +38,16 @@ const preview = (w, type, x, y, rot = 0) => toolPreview(w, { tool: { kind: 'buil
 const chips = (pv) => Object.fromEntries(pv.conditions.map((c) => [c.key, `${c.mark} ${c.text}`]));
 
 describe('s4 ui monument chips', () => {
-  it('words the ground: desert, or how many tiles are on the fields (coral, refused)', () => {
+  it('words the ground: dry ground, or how many tiles are on the fields (coral, refused)', () => {
     const w = capital();
-    expect(chips(preview(w, 'colossus', 20, 11)).ground).toBe('✓ Desert ground');
+    expect(chips(preview(w, 'colossus', 20, 11)).ground).toBe('✓ Dry ground, not the fields');
+    // Ruling 299: the sim refuses only the fields, so rocky, meadow and bank ground take a monument too, and the words say so.
+    for (const ter of [T.ROCKY, T.MEADOW, T.BANK]) {
+      const v = capital();
+      for (const [x, y] of [[20, 11], [21, 11], [20, 12], [21, 12]]) v.terrain[idx(v.size, x, y)] = ter;
+      const pv = preview(v, 'colossus', 20, 11);
+      expect([ter, pv.conditions.find((c) => c.key === 'ground').state, chips(pv).ground, place(v, 'colossus', 20, 11).ok]).toEqual([ter, 'met', '✓ Dry ground, not the fields', true]);
+    }
     const on = preview(w, 'colossus', 7, 11);                                      // x 7 is fertile, x 8 is not: 2 of 4
     expect([on.state, chips(on).ground]).toEqual(['bad', '✕ Not on the fields: 2 of 4 tiles are fertile']);
     expect(on.footprint.filter((t) => t.state === 'cant').length).toBe(2);
@@ -47,27 +56,32 @@ describe('s4 ui monument chips', () => {
   it('words the road as later, and the crew and supply only once a road touches it', () => {
     const w = capital();
     const far = preview(w, 'colossus', 20, 13);
-    expect([far.state, chips(far)]).toEqual(['warn', { ground: '✓ Desert ground', road: '! No road yet: crews and stone come by road' }]);
+    expect([far.state, chips(far)]).toEqual(['warn', { ground: '✓ Dry ground, not the fields', road: '! No road yet: crews and stone come by road' }]);
     // M3 (final review): the road chip names what the kind's recipe takes: a mastaba's courses take bricks and stone.
     expect(chips(preview(w, 'mastaba_small', 20, 14)).road).toBe('! No road yet: crews, stone and bricks come by road');
     expect(chips(preview(w, 'pyramid_small', 20, 14)).road).toBe('! No road yet: crews, stone and bricks come by road');
     const near = preview(w, 'colossus', 20, 11);
-    expect(chips(near)).toEqual({ ground: '✓ Desert ground', road: '✓ Road beside it', crew: "! No builders' guild near", supply: '! No stone near' });
+    expect(chips(near)).toEqual({ ground: '✓ Dry ground, not the fields', road: '✓ Road beside it', crew: "! No builders' guild near", supply: '! No stone near' });
     addRaw(w, 'builders_guild', 24, 11);
     addRaw(w, 'quarry', 27, 11);
-    expect(chips(preview(w, 'colossus', 20, 11))).toEqual({ ground: '✓ Desert ground', road: '✓ Road beside it', crew: "✓ Crew: 1 builders' guild near", supply: '✓ Stone near' });
+    expect(chips(preview(w, 'colossus', 20, 11))).toEqual({ ground: '✓ Dry ground, not the fields', road: '✓ Road beside it', crew: "✓ Crew: 1 builders' guild near", supply: '✓ Stone near' });
     addRaw(w, 'builders_guild', 14, 11);
     expect(chips(preview(w, 'colossus', 20, 11)).crew).toBe("✓ Crew: 2 builders' guilds near");
   });
 
-  it('names the first course\'s materials: bricks for a mastaba, both for a pyramid', () => {
+  it('names every material the recipe takes, and every one missing (ruling 300): bricks then stone for a mastaba, both for a pyramid', () => {
     const w = capital();
-    expect(chips(preview(w, 'mastaba_small', 16, 11)).supply).toBe('! No bricks near');
+    const supply = (type, x, y) => conditionsFor(w, type, x, y, { roadLater: true }).conditions.find((c) => c.key === 'supply');
+    expect([supply('mastaba_small', 16, 11).missing, chips(preview(w, 'mastaba_small', 16, 11)).supply]).toEqual([['bricks', 'stone'], '! No bricks or stone near']);
+    expect(chips(preview(w, 'pyramid_small', 10, 11)).supply).toBe('! No stone or bricks near');
     addRaw(w, 'brickworks', 20, 11);
-    expect(chips(preview(w, 'mastaba_small', 16, 11)).supply).toBe('✓ Bricks near');
+    // Bricks for the core courses are near; the top course's stone is not, and the chip says so rather than "Bricks near".
+    expect([supply('mastaba_small', 16, 11).missing, supply('mastaba_small', 16, 11).reason, chips(preview(w, 'mastaba_small', 16, 11)).supply]).toEqual([['stone'], 'no_stone', '! No stone near']);
     expect(chips(preview(w, 'pyramid_small', 10, 11)).supply).toBe('! No stone near');
     addRaw(w, 'quarry', 24, 11);
+    expect([supply('mastaba_small', 16, 11).goods, chips(preview(w, 'mastaba_small', 16, 11)).supply]).toEqual([['bricks', 'stone'], '✓ Bricks and stone near']);
     expect(chips(preview(w, 'pyramid_small', 10, 11)).supply).toBe('✓ Stone and bricks near');
+    expect(chips(preview(w, 'colossus', 20, 11)).supply).toBe('✓ Stone near');
   });
 
   it('shows the founding only when it would take the treasury below 0, and then refuses', () => {
@@ -202,9 +216,9 @@ describe('s4 ui rotating, fitting and the silhouette', () => {
     const e = footprintExtent('pyramid_great');
     expect(e).toEqual({ up: ART.pyramid_great.height + 56, down: 56, across: 224 });
     const fit = fitZoom('pyramid_great', 0, 1, phone, insets);
-    expect(fit).toEqual({ zoom: Math.min((390 - 96) / (224 * 2), (844 - 340 - 96) / ((e.up + e.down) * 2)), extent: { up: e.up, down: e.down } });
+    expect(fit).toEqual({ zoom: Math.min((390 - 96) / (224 * 2), (844 - 340 - 96) / ((e.up + e.down) * 2)), extent: { up: e.up, down: e.down, side: 112 } });
     expect(fit.zoom < 1).toBe(true);
-    expect(fitZoom('pyramid_great', 0, 0.55, phone, insets)).toEqual({ extent: { up: e.up, down: e.down } });   // already fits: no zoom in
+    expect(fitZoom('pyramid_great', 0, 0.55, phone, insets)).toEqual({ extent: { up: e.up, down: e.down, side: 112 } });   // already fits: no zoom in
     expect(fitZoom('obelisk_small', 0, 1, phone, insets).zoom).toBe(undefined);
     expect(fitZoom('pyramid_great', 0, 1, { width: 200, height: 200 }, { top: 0, right: 0, bottom: 0, left: 0 }).zoom).toBe(MIN_ZOOM);
     expect(footprintExtent('mastaba_large', 1).across).toBe(footprintExtent('mastaba_large', 0).across);
@@ -216,7 +230,7 @@ describe('s4 ui rotating, fitting and the silhouette', () => {
     let last = -1;
     for (const height of [150, 200, 250, 300, 340, 380, 420, 460, 500]) {       // ever more free map, 390 wide, zero margin
       const fit = fitZoom('pyramid_great', 0, 1, { width: 390, height }, none, 0);
-      if (height * 1 / (MIN_ZOOM * k) >= e.up + e.down) { expect(fit.extent).toEqual({ up: e.up, down: e.down }); continue; }   // it fits at MIN_ZOOM
+      if (height * 1 / (MIN_ZOOM * k) >= e.up + e.down) { expect(fit.extent).toEqual({ up: e.up, down: e.down, side: e.across / 2 }); continue; }   // it fits at MIN_ZOOM
       expect(fit.zoom).toBe(MIN_ZOOM);
       expect(fit.extent.down).toBe(e.down);
       expect(fit.extent.up).toBeGreaterThanOrEqual(back);                       // the footprint is never dropped
@@ -226,7 +240,7 @@ describe('s4 ui rotating, fitting and the silhouette', () => {
       last = fit.extent.up;
     }
     expect(last > back).toBe(true);                                             // the loop reached the part-silhouette range
-    expect(fitZoom('pyramid_great', 0, 1, { width: 375, height: 667 }, { top: 330, right: 0, bottom: 341, left: 0 }).extent).toEqual({ up: back, down: e.down });   // 150% text on a short phone: only the footprint
+    expect(fitZoom('pyramid_great', 0, 1, { width: 375, height: 667 }, { top: 330, right: 0, bottom: 341, left: 0 }).extent).toEqual({ up: back, down: e.down, side: e.across / 2 });   // 150% text on a short phone: only the footprint
     expect(fitZoom('pyramid_great', 0, MIN_ZOOM, { width: 200, height: 200 }, none, 0).zoom).toBe(MIN_ZOOM);   // already at the least zoom: still the shrunk extent
   });
 
@@ -288,6 +302,28 @@ describe('s4 ui rotating, fitting and the silhouette', () => {
       r.ui.placement.cancel();
       fire(r.root.querySelector('#dock .tray .card[data-item="obelisk_small"]'), 'click');
       for (const t of [CAMERA_PAN_MS * 2, CAMERA_PAN_MS * 4]) { r.frame(t); expect(r.cam.zoom).toBe(fitZoomOf); }   // never zooms back in
+    } finally { r.cleanup(); }
+  });
+
+  it('keeps a mastaba\'s corners and silhouette on a phone when its ghost lands far to the side (ruling 300)', async () => {
+    // Fields everywhere but a 4 x 4 patch of desert at (8, 18): the nearest fit lands the ghost there, ten screen tiles left of
+    // where the pick began (the play-test's case: the camera kept the ghost's middle in view and cut its corner by 32 px).
+    const w = makeTestWorld({ gold: 20000, fertile: [[0, 0, 32, 18], [0, 22, 32, 10], [0, 18, 8, 4], [12, 18, 20, 4]] });
+    w.milestone = 'great_city';
+    const settings = createSettings({ storage: null, root: document.createElement('div'), systemReducedMotion: () => false, watchSystem: null });
+    settings.set({ motion: 'gentle' });                                            // the move is a cut: read it at once
+    const r = await rigUI({ width: 390, height: 844, world: w, settings });
+    try {
+      r.cam.x = 16; r.cam.y = 16;
+      r.ui.refresh();
+      fire(r.root.querySelector('#dock .cat[data-category="monuments"]'), 'click');
+      fire(r.root.querySelector('#dock .tray .card[data-item="mastaba_small"]'), 'click');
+      const g = r.store.get().ghost;
+      expect([g.x >= 8 && g.x + 3 <= 12, g.y >= 18 && g.y + 2 <= 22]).toEqual([true, true]);
+      const left = r.screenOf(g.x, g.y + 2), right = r.screenOf(g.x + 3, g.y), front = r.screenOf(g.x + 3, g.y + 2), back = r.screenOf(g.x, g.y);
+      const k = 2 * r.cam.zoom;                                                    // CSS px per art px
+      const top = back.y - ART.mastaba_small.height * k;
+      expect([left.x >= 0, right.x <= 390, top >= 0, front.y <= 844]).toEqual([true, true, true, true]);
     } finally { r.cleanup(); }
   });
 });

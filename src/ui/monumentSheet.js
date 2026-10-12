@@ -66,7 +66,8 @@ export function footprintExtent(type, rot = 0) {
 
 // The pick's one camera move for a monument (spec 6.5, ruling 231): { extent } when the footprint and the finished monument's
 // silhouette already fit the free map (the view less the insets and the camera's margin) at the current zoom, else
-// { zoom, extent } with the zoom that just fits them, never past MIN_ZOOM and never in. Where even MIN_ZOOM cannot hold
+// { zoom, extent } with the zoom that just fits them, never past MIN_ZOOM and never in (extent { up, down, side }: art px above,
+// below and to each side of the footprint's middle, for the camera's keepVisible). Where even MIN_ZOOM cannot hold
 // them, the extent's `up` shrinks to what fits (never below the footprint's back half): the footprint stays in view and the
 // silhouette's top clips. view: { width, height } CSS px.
 export function fitZoom(type, rot, zoom, view, insets, margin = FRAME_MARGIN_PX) {
@@ -75,7 +76,8 @@ export function fitZoom(type, rot, zoom, view, insets, margin = FRAME_MARGIN_PX)
   const freeW = view.width - insets.left - insets.right - 2 * margin;
   const freeH = view.height - insets.top - insets.bottom - 2 * margin;
   const fits = Math.min(freeW / (e.across * k), freeH / ((e.up + e.down) * k));
-  const extent = { up: e.up, down: e.down };
+  // side: half the footprint's width each way of its middle, so the camera keeps its corners in view too (ruling 300).
+  const extent = { up: e.up, down: e.down, side: e.across / 2 };
   if (fits >= zoom) return { extent };
   if (fits >= MIN_ZOOM) return { zoom: fits, extent };
   // Even the least zoom cannot hold footprint and silhouette (a big text size, a short phone): keep the footprint, its badge and
@@ -83,7 +85,7 @@ export function fitZoom(type, rot, zoom, view, insets, margin = FRAME_MARGIN_PX)
   // above the footprint's middle, never less than the footprint's back half.
   const { w, d } = dimsOf(type, rot);
   const room = freeH / (MIN_ZOOM * k);                                // art px the free map's height holds at the least zoom
-  return { zoom: MIN_ZOOM, extent: { up: Math.min(e.up, Math.max(4 * (w + d), room - e.down)), down: e.down } };
+  return { zoom: MIN_ZOOM, extent: { up: Math.min(e.up, Math.max(4 * (w + d), room - e.down)), down: e.down, side: e.across / 2 } };
 }
 
 // ── The sheets' rows (Task C2) ───────────────────────────────────────────────────────────────────────────────────

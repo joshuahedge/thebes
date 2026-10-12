@@ -77,7 +77,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
       // What it does to the homes around it (spec 4.7), in words; teal when nicer, coral when less pleasant, ink when both.
       p.nicer ? el('div', { class: `nicer small ${NICER_TONE[p.nicerTone]}`, text: p.nicer }) : null,
       // Stage 4 (Track C, spec 6.5, ruling 251): a monument's line, placeable or waiting for its road: "+32 Monuments when finished ·
-      // then 100 gold a crew a month · finished: 9 homes nicer". Two lines at most on a phone (css), every word in its name.
+      // then 130 gold a crew a month · finished: 9 homes nicer". Two lines at most on a phone (css), every word in its name.
       p.line ? el('div', { class: 'monument-line small', title: p.line, 'aria-label': p.line, text: p.line }) : null,
     ]);
     const controls = [];

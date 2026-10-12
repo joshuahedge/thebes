@@ -75,18 +75,23 @@ function worksWarning(world, type, x, y, rot = 0) {
 
 // Stage 4 (ruling 230, spec 6.5): a monument's crew and supply, judged only once a road touches the footprint (both come by
 // road). crew: { n } guilds within MONUMENT.crewReach (guildsNear), reason 'no_crew' when none; supply: the first course's
-// materials, each needing a maker in producer reach or a storehouse holding some in supply reach, reason 'no_stone' or
-// 'no_bricks' (the first missing, good names it). null for a type that is not a monument or a footprint with no road.
+// materials: every material its recipe takes (goods: the first course's first, then the later courses'), each needing a maker
+// in producer reach or a storehouse holding some in supply reach; missing: those with neither (ruling 300: the chip names
+// every one), reason 'no_stone' or 'no_bricks' (the first missing, good names it). null for a type that is not a monument or
+// a footprint with no road.
 function monumentChecks(world, type, x, y, rot = 0) {
   if (!BUILDINGS[type].monument) return null;
   const probe = { x, y, ...dimsOf(type, rot) };
   if (!touchesRoad(world, probe)) return null;
   const guilds = guildsNear(world, probe);
-  const first = MONUMENTS[type].courses[0];
-  const missing = ['stone', 'bricks'].find((g) => first[g] > 0 && !supplyNear(world, probe, g)) || null;
+  const { courses } = MONUMENTS[type];
+  const goods = ['stone', 'bricks'].filter((g) => courses[0][g] > 0);
+  for (const g of ['stone', 'bricks']) if (!goods.includes(g) && courses.some((c) => c[g] > 0)) goods.push(g);
+  const missing = goods.filter((g) => !supplyNear(world, probe, g));
+  const first = missing[0] || null;
   return {
     crew: { key: 'crew', state: guilds.length ? 'met' : 'later', reason: guilds.length ? null : 'no_crew', n: guilds.length },
-    supply: { key: 'supply', state: missing ? 'later' : 'met', reason: missing ? `no_${missing}` : null, good: missing },
+    supply: { key: 'supply', state: first ? 'later' : 'met', reason: first ? `no_${first}` : null, good: first, goods, missing },
   };
 }
 

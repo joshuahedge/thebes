@@ -12,14 +12,20 @@ export const FRAME_MARGIN_PX = 48;
 // insets (plus a margin), moving as little as it can; null when the point is already there.
 // extent { up, down } (art px; none by default) makes the point a building: it reaches `up` above the point and `down`
 // below it, and all of that is kept in the free band. A building taller than the band is centred in it rather than
-// pushed against one edge.
+// pushed against one edge. extent.side (art px, optional) is how far it reaches to each side of the point (ruling 300: a
+// mastaba picked near the edge of a phone kept its middle in view and lost a corner), kept in the same way.
 function nudgedCentre(cam, v, cx, cy, x, y, insets, margin, extent = null) {
   const at = { x: cx, y: cy, zoom: cam.zoom };
   const [sx, sy] = tileToScreen(at, v, x, y);
   const minX = insets.left + margin, maxX = v.width - insets.right - margin;
   const minY = insets.top + margin, maxY = v.height - insets.bottom - margin;
   let dx = 0, dy = 0;
-  if (sx < minX) dx = minX - sx; else if (sx > maxX) dx = maxX - sx;
+  if (extent && extent.side) {
+    const k = pxPerArt(at);
+    const left = sx - extent.side * k, right = sx + extent.side * k;
+    if (right - left > maxX - minX) dx = (minX + maxX) / 2 - sx;
+    else if (left < minX) dx = minX - left; else if (right > maxX) dx = maxX - right;
+  } else if (sx < minX) dx = minX - sx; else if (sx > maxX) dx = maxX - sx;
   if (extent) {
     const k = pxPerArt(at);
     const top = sy - extent.up * k, bottom = sy + extent.down * k;
@@ -66,7 +72,7 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, no
     },
     get animating() { return tween !== null; },
     // Pan the least that puts tile point (x, y) inside the viewport minus the insets, with a margin. With an extent
-    // ({ up, down }, art px) the whole drawn building around the point is kept inside (see nudgedCentre). With a zoom, the
+    // ({ up, down, side? }, art px) the whole drawn building around the point is kept inside (see nudgedCentre). With a zoom, the
     // camera goes to that zoom too, and the pan is worked out at it.
     keepVisible(x, y, insets = NO_INSETS, margin = FRAME_MARGIN_PX, ms = CAMERA_PAN_MS, extent = null, zoom = null) {
       const v = view();
