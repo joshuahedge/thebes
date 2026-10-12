@@ -815,6 +815,11 @@ body[data-layout="portrait"] #legend .fire-keys .never-burn { position: absolute
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
 
 /* ── s4 cards (Track G) ── Track G's styles: the picture cards' dialog, ring and arrow, dots, How to play, Music rows. */
+/* The Music volume row: − value + with 44 px buttons (spec 5.5). */
+.music-volume { align-items: center; }
+.music-volume .stepper { display: flex; align-items: center; gap: 6px; }
+.music-volume .stepper .value { min-width: 2.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.music-volume .stepper button { font-size: calc(20px * var(--ui-scale)); line-height: 1; padding: 0; }
 /* ── end s4 cards ── */
 
 /* (A stable separator between the Stage 4 sections: leave these lines as they are.) */

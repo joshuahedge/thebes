@@ -1167,7 +1167,10 @@ export const MOTION4_TEXT = {};
 // ── s4 cards (Track G) ───────────────────────────────────────────────────────────────────────────────────────────
 // Track G's words: the six picture cards (titles, words, alt text), How to play, the Music rows and the reworded opening
 // goals and their whys (ruling 265). Add new lines just above the end marker.
-export const CARDS4_TEXT = {};
+export const CARDS4_TEXT = {
+  // The Settings sheet's Music rows (spec 5.5, ruling 269).
+  music: 'Music', musicVolume: 'Music volume', quieter: 'Quieter music', louder: 'Louder music',
+};
 // ── end s4 cards ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 //
