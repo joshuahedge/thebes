@@ -1,6 +1,7 @@
 // Goods (spec 4.10). kind: 'food' (homes eat it: grain from tier 3, figs as the second food from tier 7),
-// 'household' (homes use it from the tier that needs it), 'raw' (only workshops use it). perResidentPerMonth is
-// what a home uses, rounded up per home; raw goods have none.
+// 'household' (homes use it from the tier that needs it), 'raw' (only workshops use it), and from Stage 4 'material'
+// (only monument sites use it: homes never want it and bazaars never sell it). perResidentPerMonth is what a home uses,
+// rounded up per home; raw goods and materials have none.
 export const GOODS = {
   grain: { name: 'Grain', kind: 'food', perResidentPerMonth: 0.25 },
   figs: { name: 'Figs', kind: 'food', perResidentPerMonth: 0.25 },
@@ -12,9 +13,13 @@ export const GOODS = {
   barley: { name: 'Barley', kind: 'raw' },
   flax: { name: 'Flax', kind: 'raw' },
   gems: { name: 'Gems', kind: 'raw' },
+  // Stage 4 (spec 4.10, 4.16): quarries make stone, brickworks turn clay into bricks; storehouses keep both.
+  stone: { name: 'Stone', kind: 'material' },
+  bricks: { name: 'Bricks', kind: 'material' },
 };
 
 const ofKind = (kind) => Object.keys(GOODS).filter((k) => GOODS[k].kind === kind);
 export const FOOD_GOODS = ofKind('food');            // grain first: the food every home from tier 3 eats
 export const HOUSEHOLD_GOODS = ofKind('household');
 export const RAW_GOODS = ofKind('raw');
+export const MATERIAL_GOODS = ofKind('material');    // Stage 4: stone, bricks (src/data/monuments.js MATERIALS)

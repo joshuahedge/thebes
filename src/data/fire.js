@@ -20,7 +20,8 @@ export const FIRE = {
 export const FIRE_SALT = { ignite: 7101, putOut: 7102, length: 7103, spread: 7104, out: 7105 };
 
 // Risk per day by building type (spec 4.12). A type not listed never burns: roads, empty plots, gardens, statues,
-// wells, walls, gates, towers and rubble. Homes burn by their tier (HOUSE_RISK), so 'house' is not listed here.
+// wells, walls, gates, towers and rubble, and from Stage 4 plazas, sphinxes, the palace and monuments (sites, their
+// stockpiles and finished ones alike). Homes burn by their tier (HOUSE_RISK), so 'house' is not listed here.
 const FARMS = 0.15;
 export const FIRE_RISK = {
   potter: 1.0, brewery: 1.0,
@@ -29,6 +30,7 @@ export const FIRE_RISK = {
   bazaar: 0.3, booth: 0.3, barracks: 0.3,
   farm_grain: FARMS, farm_fig: FARMS, farm_barley: FARMS, farm_flax: FARMS, clay_pit: FARMS, gem_mine: FARMS,
   temple: 0.1, firehouse: 0.1,
+  quarry: FARMS, brickworks: 1.0, builders_guild: 0.3,   // Stage 4: the quarry as the gem mine, the brickworks a kiln, the guild timber and rope
 };
 
 // Index = tier, as TIERS: an empty plot (0) never burns; hut and shack 0.3; cottage, house, townhouse 0.25; manor up 0.2.

@@ -53,7 +53,7 @@ describe('s3 balance dev scenes', () => {
       expect(error).toBe('devScene fire: no city is open (use ?skipTitle=1&sample=1)');
       error = null;
       try { await devScene(r.api, 'parade'); } catch (e) { error = e.message; }
-      expect(error).toBe('devScene: no scene named parade (peaceful, fire, tribute, battle, score, ambient, early, plots, raid, raid-fire, raid-overlay, placing, farm, farm-raid, sheet, welcome, expanded, title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion)');
+      expect(error).toBe('devScene: no scene named parade (peaceful, fire, tribute, battle, score, ambient, early, plots, raid, raid-fire, raid-overlay, placing, farm, farm-raid, sheet, welcome, expanded, pyramid-placing, title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion)');
     } finally { r.cleanup(); }
   });
 
@@ -148,7 +148,7 @@ describe('s3 balance dev scenes', () => {
       const [, at] = (await devScene(r.api, 'ambient')).split(' ');
       const [x, y] = at.split(',').map(Number);
       expect(g.world.terrain[idx(g.world.size, x, y)]).toBe(TERRAIN.WATER);
-      expect([g.ui.settings.get().ambient, g.ui.settings.reducedMotion(), g.cam.zoom]).toEqual([true, false, 1.5]);
+      expect([g.ui.settings.motionLevel(), g.ui.settings.reducedMotion(), g.cam.zoom]).toEqual(['full', false, 1.5]);   // Stage 4: Motion Full
     } finally { r.cleanup(); }
   });
 });

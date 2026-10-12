@@ -1,4 +1,5 @@
-/* Thebes interface. Parchment and ink, teal accents, coral for problems, amber for warnings (spec 6.1). */
+/* Thebes interface. Papyrus and ink, teal accents, coral for problems, amber for warnings (spec 6.1); gold on lapis for the
+   main action, the frieze's lapis, gold, terracotta and turquoise, and cartouche headings in a serif (spec 6.9). */
 :root {
   --parchment: #F3E7CB; --parchment-2: #EADBB9; --parchment-3: #DCC9A0;
   --ink: #2B1F0E; --ink-soft: #5A4832;
@@ -6,6 +7,12 @@
   --coral: #E2604C; --coral-text: #A33624; --coral-soft: #F6D5CE;
   --amber: #E0A030; --amber-text: #7A5200; --amber-soft: #F6E7C2;
   --blue: #2F6FA8; --gold: #E2B13C;
+  --lapis: #1C3768; --lapis-ink: #F5D98A; --terracotta: #B4502E; --turquoise: #3A9E96; --ink-line: #8C7550;   /* gold on lapis 8.4:1; the ink outline 3.6:1 on parchment */
+  --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;   /* the display face for titles, from the system's fonts: nothing is downloaded */
+  /* Papyrus fibre (spec 6.9): a 160x120 tile of fine strokes. Two layers are lighter than the parchment (the strips laid one
+     way, then the other); one is darker, and its group opacity caps it, so no point of the tile is darker than the parchment
+     blended 7% with #A9844C, which keeps every text pair at 4.5:1 (tests/stage4/look/lookBase.test.js reads this value). */
+  --look-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='120'%3E%3Cg fill='none' stroke='%23FFF9EA' opacity='0.5'%3E%3Cpath d='M0 3.5c53 0.2 107 -0.2 160 0' stroke-opacity='0.45' stroke-width='1.2'/%3E%3Cpath d='M0 5.5c53 -0.2 107 0.2 160 0' stroke-opacity='1' stroke-width='0.6'/%3E%3Cpath d='M0 7.5c53 -0.6 107 0.6 160 0' stroke-opacity='1' stroke-width='0.8'/%3E%3Cpath d='M0 11.5c53 -0.3 107 0.3 160 0' stroke-opacity='0.8' stroke-width='0.6'/%3E%3Cpath d='M0 16.5c53 0.4 107 -0.4 160 0' stroke-opacity='0.8' stroke-width='0.6'/%3E%3Cpath d='M0 18.5c53 0.1 107 -0.1 160 0' stroke-opacity='0.45' stroke-width='0.6'/%3E%3Cpath d='M0 22.5c53 -0.5 107 0.5 160 0' stroke-opacity='0.3' stroke-width='0.8'/%3E%3Cpath d='M0 29.5c53 -0.1 107 0.1 160 0' stroke-opacity='0.45' stroke-width='1'/%3E%3Cpath d='M0 34.5c53 0.1 107 -0.1 160 0' stroke-opacity='0.3' stroke-width='1'/%3E%3Cpath d='M0 40.5c53 0.1 107 -0.1 160 0' stroke-opacity='0.45' stroke-width='0.6'/%3E%3Cpath d='M0 46.5c53 -0.5 107 0.5 160 0' stroke-opacity='0.45' stroke-width='1'/%3E%3Cpath d='M0 52.5c53 0.1 107 -0.1 160 0' stroke-opacity='0.3' stroke-width='0.6'/%3E%3Cpath d='M0 56.5c53 0.3 107 -0.3 160 0' stroke-opacity='1' stroke-width='1.2'/%3E%3Cpath d='M0 60.5c53 -0.2 107 0.2 160 0' stroke-opacity='1' stroke-width='1.2'/%3E%3Cpath d='M0 63.5c53 -0.5 107 0.5 160 0' stroke-opacity='0.45' stroke-width='0.8'/%3E%3Cpath d='M0 66.5c53 0.5 107 -0.5 160 0' stroke-opacity='1' stroke-width='1.2'/%3E%3Cpath d='M0 72.5c53 0.1 107 -0.1 160 0' stroke-opacity='0.8' stroke-width='1'/%3E%3Cpath d='M0 74.5c53 -0.4 107 0.4 160 0' stroke-opacity='0.3' stroke-width='1.2'/%3E%3Cpath d='M0 77.5c53 -0.1 107 0.1 160 0' stroke-opacity='0.45' stroke-width='1.2'/%3E%3Cpath d='M0 83.5c53 -0.2 107 0.2 160 0' stroke-opacity='0.3' stroke-width='1'/%3E%3Cpath d='M0 86.5c53 0.1 107 -0.1 160 0' stroke-opacity='1' stroke-width='1.2'/%3E%3Cpath d='M0 90.5c53 0.5 107 -0.5 160 0' stroke-opacity='0.3' stroke-width='0.6'/%3E%3Cpath d='M0 94.5c53 0.3 107 -0.3 160 0' stroke-opacity='0.3' stroke-width='0.6'/%3E%3Cpath d='M0 97.5c53 -0.3 107 0.3 160 0' stroke-opacity='1' stroke-width='1.2'/%3E%3Cpath d='M0 101.5c53 0.5 107 -0.5 160 0' stroke-opacity='0.6' stroke-width='0.6'/%3E%3Cpath d='M0 104.5c53 -0.0 107 0.0 160 0' stroke-opacity='0.45' stroke-width='0.6'/%3E%3Cpath d='M0 107.5c53 0.3 107 -0.3 160 0' stroke-opacity='0.6' stroke-width='0.8'/%3E%3Cpath d='M0 111.5c53 -0.5 107 0.5 160 0' stroke-opacity='0.8' stroke-width='1.2'/%3E%3Cpath d='M0 115.5c53 0.5 107 -0.5 160 0' stroke-opacity='0.8' stroke-width='1'/%3E%3C/g%3E%3Cg fill='none' stroke='%23FFF9EA' stroke-width='1.5' opacity='0.22'%3E%3Cpath d='M21.5 0v120' stroke-opacity='0.4'/%3E%3Cpath d='M28.5 0v120' stroke-opacity='0.4'/%3E%3Cpath d='M49.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M58.5 0v120' stroke-opacity='1'/%3E%3Cpath d='M70.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M91.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M107.5 0v120' stroke-opacity='0.4'/%3E%3Cpath d='M114.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M130.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M146.5 0v120' stroke-opacity='0.7'/%3E%3Cpath d='M153.5 0v120' stroke-opacity='0.4'/%3E%3C/g%3E%3Cg fill='none' stroke='%23A9844C' opacity='0.07'%3E%3Cpath d='M27 15.5h73' stroke-opacity='1'/%3E%3Cpath d='M85 26.5h73' stroke-opacity='1'/%3E%3Cpath d='M17 34.5h56' stroke-opacity='0.5'/%3E%3Cpath d='M47 42.5h79' stroke-opacity='0.5'/%3E%3Cpath d='M0 53.5h84' stroke-opacity='0.75'/%3E%3Cpath d='M54 64.5h102' stroke-opacity='1'/%3E%3Cpath d='M86 69.5h64' stroke-opacity='0.75'/%3E%3Cpath d='M38 83.5h39' stroke-opacity='0.75'/%3E%3Cpath d='M18 97.5h140' stroke-opacity='0.5'/%3E%3Cpath d='M11 111.5h102' stroke-opacity='0.5'/%3E%3Cpath d='M54 116.5h71' stroke-opacity='0.5'/%3E%3C/g%3E%3C/svg%3E");
   --shadow: 0 4px 16px rgba(43, 31, 14, 0.25);
   --radius: 12px; --tap: 44px;
   --ui-scale: 1;
@@ -27,8 +34,11 @@ body { font: calc(16px * var(--ui-scale)) / 1.4 var(--font); }
 #ui > * { pointer-events: auto; }
 [hidden] { display: none !important; }
 
-button { font: inherit; color: inherit; background: var(--parchment); border: 1px solid var(--parchment-3); border-radius: var(--radius); min-width: var(--tap); min-height: var(--tap); padding: 0 12px; cursor: pointer; }
-button.primary { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); }
+button { font: inherit; color: inherit; background: var(--parchment); border: 1px solid var(--ink-line); border-radius: var(--radius); min-width: var(--tap); min-height: var(--tap); padding: 0 12px; cursor: pointer; }
+/* Gold on lapis for the one main action of a sheet or bar (spec 6.9), with a hairline of gold inside its edge. A row's own
+   action in a sheet's list (each need's, goal's or route's) is lapis words in a lapis outline, so the sheet keeps one. */
+button.primary { background: var(--lapis); color: var(--lapis-ink); border-color: var(--lapis); box-shadow: inset 0 0 0 2px var(--lapis), inset 0 0 0 3px rgba(245, 217, 138, 0.5); }
+#sheet li button.primary { background: var(--parchment); color: var(--lapis); border-color: var(--lapis); box-shadow: none; }
 button.danger { background: var(--coral-text); color: #FFFFFF; border-color: var(--coral-text); }
 button.quiet { background: transparent; border-color: transparent; }
 button[disabled] { opacity: 0.5; cursor: default; }
@@ -185,7 +195,11 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .toast { pointer-even
 #dialog { position: fixed; inset: 0; background: rgba(43, 31, 14, 0.45); display: flex; align-items: center; justify-content: center; }
 #dialog .box { background: var(--parchment); border-radius: var(--radius); padding: 16px; max-width: 360px; width: calc(100% - 32px); box-shadow: var(--shadow); }
 #dialog .buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 12px; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* Motion (spec 5.4, ruling 247): the interface follows the Motion setting, not the device. settings.js writes data-motion
+   on the root: under Gentle and Still the chrome's transitions and animations are instant; Full keeps them even on a device
+   that asks for less motion. Only before the settings apply (no data-motion yet) does the device's request decide. */
+[data-motion="gentle"] *, [data-motion="still"] * { transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion: reduce) { body:not([data-motion]) * { transition: none !important; animation: none !important; } }
 /* The confirm bar replaces the dock while a tool is active and never tucks (spec 6.4). */
 #confirm { position: fixed; z-index: 3; }
 body[data-layout="portrait"] #confirm { left: 0; right: 0; bottom: 0; }
@@ -631,6 +645,10 @@ body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) 
   .title-buttons { gap: 4px; }
 }
 
+/* Papyrus (spec 6.9): the chrome's surfaces wear the fibre over their own colour; a box that sets its own background
+   (the demolish bar's coral) keeps it plain. Nothing in the look moves, so it is the same under every Motion level. */
+#topbar, #dock, #panel, #rail, #rail .drawer, #sheet, #sheet .head, #sheet .welcome-actions, .confirm, #dialog .box, .title-card { background-image: var(--look-fibre); }
+
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
 
 /* ── s3 contract (Track 0) ── Track 0's styles for the contract. Add new rules just above the end marker. */
@@ -774,3 +792,220 @@ body[data-layout="portrait"] #legend .fire-keys .never-burn { position: absolute
 
 /* ── s3 balance (Track F) ── Track F's styles for balance and integration. Add new rules just above the end marker. */
 /* ── end s3 balance ── */
+
+/* (A stable separator between the Stage 3 and Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 contract (Track 0) ── Stage 4's style rules, one section per track below. Ownership (the Stage 4 plan's "Shared
+   files"): Track H owns the BASE of this file, everything above the first "s3" section marker (the :root tokens and the
+   Stage 1-2 rules), and its own s4 look section; it restyles there and never edits a track's section. Every other track
+   adds rules only inside its own s4 section, uses the tokens (var(--...)) rather than raw colours where a token exists,
+   and names any custom property it adds with its prefix (--s4a- ... --s4f-). A track that needs a base rule changed asks
+   the controller. Add new rules just above each section's end marker. */
+/* ── end s4 contract ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 sim (Track A) ── Track A's styles (none expected). */
+/* ── end s4 sim ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 art (Track B) ── Track B's styles (none expected: markers are drawn on the canvas). */
+/* ── end s4 art ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 ui (Track C) ── Track C's styles: the Monuments tray, the monument chips and confirm-bar lines, the site, guild,
+   quarry, brickworks and palace sheets, the summary's Monuments section. */
+/* A monument's line in the confirm bar (spec 6.5, ruling 251): two lines at most on a phone, the whole line in its name. */
+.confirm .monument-line { color: var(--ink); }
+body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-line { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* The Ground legend's gold room swatch while a monument is placed (ruling 229). */
+#legend .strip.ground .room .swatch.gold { display: inline-block; width: 14px; height: 10px; vertical-align: -1px; border: 1px solid var(--ink); border-radius: 2px; }
+/* The site, finished monument and palace sheets' rows (spec 6.3): one line each, the progress bar full width under its words,
+   a fix button (Show me, View) at the line's end. */
+#sheet .s4-rows { list-style: none; margin: 0 0 8px; padding: 0; }
+.s4-rows li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 4px 0; border-bottom: 1px solid var(--parchment-3); }
+.s4-rows li .text { flex: 1 1 12em; }
+.s4-rows li .meter { flex: 1 0 100%; width: auto; height: 10px; }
+.s4-rows li button { min-height: 44px; }
+#sheet .actions .enlarge[disabled] { opacity: 1; color: var(--ink-soft); }
+/* The tray's "more this way" hint (ruling 300, dock.js): a parchment fade over the tray's right end with a calm chevron, while
+   the row scrolls further right. It is laid over the cards (top and height from the tray), so it adds no height; taps go
+   through; it never moves (the opacity fade is instant under Gentle and Still, as all chrome). */
+#dock .tray-more { position: absolute; right: 0; width: 44px; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; box-sizing: border-box; pointer-events: none; background: linear-gradient(to right, transparent, var(--parchment) 72%); transition: opacity 0.2s; }
+#dock .tray-more[hidden] { display: none; }
+#dock .tray-more .chev { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--parchment); box-shadow: 0 0 0 1px var(--parchment-3); color: var(--ink-soft); font-size: 20px; line-height: 1; font-weight: 600; }
+/* ── end s4 ui ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 score (Track D) ── Track D's styles: score v2's fifth bar, the splits, stamps' glyphs, captions. */
+/* The opening goals' why (ruling 265): its own line under the goal's words, in the open goal and in the Goals sheet. */
+.goal-strip .words .why:not([hidden]), #sheet .goals .goal .why { display: block; margin-top: 2px; }
+/* ── end s4 score ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 motion (Track E) ── Track E's styles: the Motion row, and the chrome's transitions per Motion level
+   (body[data-motion]: instant under gentle and still, ruling 247). */
+/* The interface's own transitions and animations (rows opening, the dock's heights, sheets, captions, the picture cards'
+   slide) are instant under Gentle as under Still (spec 5.4): Gentle and Still differ only on the map. */
+[data-motion="gentle"] *, [data-motion="gentle"] *::before, [data-motion="gentle"] *::after,
+[data-motion="still"] *, [data-motion="still"] *::before, [data-motion="still"] *::after {
+  transition-duration: 0s !important; transition-delay: 0s !important; animation: none !important;
+}
+/* The Motion row: the four choices, then what it is doing and what that level moves. */
+#sheet .motion-row .motion-status { margin: 4px 0 0; font-weight: 600; }
+#sheet .motion-row .motion-line { margin: 2px 0 8px; }
+/* ── end s4 motion ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 cards (Track G) ── Track G's styles: the picture cards' dialog, ring and arrow, dots, How to play, Music rows. */
+/* The Music volume row: − value + with 44 px buttons (spec 5.5). */
+.music-volume { align-items: center; }
+.music-volume .stepper { display: flex; align-items: center; gap: 6px; }
+.music-volume .stepper .value { min-width: 2.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.music-volume .stepper button { font-size: calc(20px * var(--ui-scale)); line-height: 1; padding: 0; }
+/* How to play on the title card (spec 4.1) added a row to a card that on a phone held sideways (the height query the title
+   rules above use) had no room: Play with sound and Install fell below the fold. There the five buttons sit in two rows of two
+   (This week's Nile with How to play, Play with sound with Install), so the card is as tall as it was before How to play; and
+   under 400 px (667x375) the tagline goes, so the last row ends inside the card too. */
+@media (max-height: 480px) {
+  .title-buttons > .how-to-play, .title-buttons > .install { flex: 1 1 40%; }
+}
+@media (max-height: 400px) {
+  .title-card .tagline { display: none; }
+}
+/* The picture cards (spec 4.1): a full-screen sheet on a phone, the picture beside the words on a landscape phone and a
+   centred card of at most 560 px on a wide screen. The dialog is its own size container (pc), so its parts are sized from
+   its box, never the window's: a test's mounted shell lays it out as the phone it stands for. --s4g-pic is the picture's
+   side: the picture keeps its shape and size, and only the words scroll when they do not fit (150% text). */
+.picture-cards { position: fixed; inset: 0; z-index: 20; container: pc / size; display: flex; align-items: center; justify-content: center; background: rgba(43, 31, 14, 0.55); }
+.picture-cards:focus { outline: none; }   /* tabindex -1: a click on the picture or the words puts focus on the dialog, so its keys keep working */
+.picture-cards .pc-box {
+  --s4g-pic: min(600px, 100cqw - 24px, 100cqh - 300px);
+  box-sizing: border-box; width: 100%; height: 100%; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto auto; gap: 8px;
+  padding: max(8px, var(--safe-top)) max(12px, var(--safe-right)) max(10px, var(--safe-bottom)) max(12px, var(--safe-left));
+  background: var(--parchment); color: var(--ink);
+}
+.picture-cards .pc-top { display: flex; align-items: center; gap: 4px; }
+.picture-cards .pc-count { flex: 1; }
+.picture-cards .pc-stage { touch-action: pan-y; }
+.picture-cards .pc-figure { position: relative; margin: 0 auto; width: var(--s4g-pic); height: var(--s4g-pic); }
+.picture-cards .pc-picture { display: block; width: 100%; height: 100%; border-radius: 8px; background: var(--parchment-2); object-fit: cover; }
+.picture-cards .pc-mark { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.picture-cards .pc-mark .halo { fill: none; stroke: #FFFFFF; stroke-width: 16; stroke-linecap: round; stroke-linejoin: round; }
+.picture-cards .pc-mark .line { fill: none; stroke: var(--teal); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+.picture-cards .pc-text { min-height: 0; overflow-y: auto; }
+.picture-cards .pc-text h2 { font-size: calc(20px * var(--ui-scale)); line-height: 1.25; margin: 0 0 4px; }
+.picture-cards .pc-text p { margin: 0; }
+.picture-cards .pc-dots { display: flex; justify-content: center; }
+.picture-cards .pc-dot { position: relative; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; }
+.picture-cards .pc-dot::after { content: ''; position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; box-sizing: border-box; border-radius: 50%; border: 2px solid var(--ink-soft); }
+.picture-cards .pc-dot[aria-current="step"]::after { width: 16px; height: 16px; margin: -8px 0 0 -8px; background: var(--teal); border-color: var(--teal); }
+.picture-cards .pc-nav { display: flex; justify-content: space-between; gap: 8px; }
+.picture-cards .pc-next { flex: 0 1 auto; min-width: 40%; }
+/* A landscape phone: the picture on the left, the words, the dots and the buttons beside it. */
+@container pc (min-aspect-ratio: 1 / 1) and (max-height: 599px) {
+  .picture-cards .pc-box { --s4g-pic: min(600px, 100cqh - 20px, 50cqw); grid-template-columns: var(--s4g-pic) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; column-gap: 16px; }
+  .picture-cards .pc-stage { grid-column: 1; grid-row: 1 / 5; align-self: center; }
+  .picture-cards .pc-top, .picture-cards .pc-text, .picture-cards .pc-dots, .picture-cards .pc-nav { grid-column: 2; }
+}
+/* A wide screen: a centred card. */
+@container pc (min-width: 900px) and (min-height: 600px) {
+  .picture-cards .pc-box { --s4g-pic: min(536px, 100cqh - 330px); width: min(560px, 100cqw - 32px); height: auto; max-height: calc(100cqh - 32px); border-radius: var(--radius); box-shadow: var(--shadow); }
+}
+/* A phone held upright (art-direction review 9): the square picture is as wide as the phone allows, so the height it
+   leaves goes evenly above the picture and below its words (two spacer rows), the picture and the words staying together
+   in the middle of the sheet instead of a gap under the words; the dots and the buttons keep the foot. A landscape phone
+   puts the picture beside the words (below), so there the items go back to its own rows. */
+.picture-cards .pc-box { grid-template-rows: auto minmax(0, 1fr) auto minmax(0, auto) minmax(0, 1fr) auto auto; }
+.picture-cards .pc-top { grid-row: 1; }
+.picture-cards .pc-stage { grid-row: 3; }
+.picture-cards .pc-text { grid-row: 4; }
+.picture-cards .pc-dots { grid-row: 6; }
+.picture-cards .pc-nav { grid-row: 7; }
+@container pc (min-aspect-ratio: 1 / 1) and (max-height: 599px) {
+  .picture-cards .pc-box { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+  .picture-cards .pc-top { grid-row: 1; }
+  .picture-cards .pc-text { grid-row: 2; }
+  .picture-cards .pc-dots { grid-row: 3; }
+  .picture-cards .pc-nav { grid-row: 4; }
+  .picture-cards .pc-stage { grid-row: 1 / 5; }
+}
+@container pc (min-width: 900px) and (min-height: 600px) {   /* the centred card is as tall as what it holds */
+  .picture-cards .pc-box { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
+  .picture-cards .pc-stage { grid-row: 2; }
+  .picture-cards .pc-text { grid-row: 3; }
+  .picture-cards .pc-dots { grid-row: 4; }
+  .picture-cards .pc-nav { grid-row: 5; }
+}
+/* Under Full motion only (src/ui/tutorial.js adds the classes): the new card slides in from the side it came from. */
+@keyframes s4g-in-next { from { transform: translateX(32px); opacity: 0.2; } to { transform: none; opacity: 1; } }
+@keyframes s4g-in-back { from { transform: translateX(-32px); opacity: 0.2; } to { transform: none; opacity: 1; } }
+.picture-cards .pc-in-next { animation: s4g-in-next 200ms ease-out; }
+.picture-cards .pc-in-back { animation: s4g-in-back 200ms ease-out; }
+/* ── end s4 cards ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 look (Track H) ── Track H's own new rules (the frieze, cartouches, gold-on-lapis primary buttons, fibre,
+   ornaments) beside its edits to the base above the s3 sections. */
+/* The frieze (spec 6.9): blocks of lapis, gold, terracotta and turquoise parted by ink, on an ink line; 4 px in all. The
+   title card's one glyph: an ankh in lapis. */
+:root {
+  --look-frieze: linear-gradient(var(--ink), var(--ink)) 0 100% / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--lapis) 0 11px, var(--ink) 11px 12px, var(--gold) 12px 23px, var(--ink) 23px 24px, var(--terracotta) 24px 35px, var(--ink) 35px 36px, var(--turquoise) 36px 47px, var(--ink) 47px 48px);
+  --look-ankh: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 24'%3E%3Cg fill='none' stroke='%231C3768' stroke-width='2.4' stroke-linecap='round'%3E%3Cellipse cx='8' cy='6' rx='3.6' ry='4.6'/%3E%3Cpath d='M1.5 12.5h13M8 11v11.5'/%3E%3C/g%3E%3C/svg%3E");
+}
+/* Along the top bar's lower edge and each sheet's head: over the 1 px border and 3 px inside it, so neither grows. Both
+   boxes make their own stacking context (fixed; sticky with a z-index), so z-index -1 lays the frieze over their papyrus
+   and under their buttons: a 44 px button that reaches the edge keeps its own outline. */
+#topbar::after, #sheet .head::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; z-index: -1; background: var(--look-frieze); pointer-events: none; }
+.title-card { position: relative; }
+.title-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--look-frieze); pointer-events: none; }   /* in the card's top padding */
+/* Cartouches (spec 6.9; the controller's ruling 18): a sheet's title and the city's name, and only those, sit in a
+   cartouche in the serif display face: an outline of soft ink, round at the start and drawn in at the tie's end, where
+   the tie (a bar across the end, flush inside it, no taller) closes it, so the two read as one shape. Body text
+   stays the system sans. The outline is an inset shadow and the tie is absolute, so neither takes room: a title that
+   wraps grows the head no more than it did. The sheet's title hugs its words (the ✕ keeps the far end); the name fits
+   a 375 px phone at 150% text. */
+#sheet .head h2 { flex: 0 1 auto; min-width: 0; margin-right: auto; position: relative; padding: 0 14px; border-radius: 0.75em 0.3em 0.3em 0.75em; box-shadow: inset 0 0 0 1.5px var(--ink-soft); font-family: var(--serif); letter-spacing: 0.02em; }
+.title-card h1 { align-self: center; position: relative; display: inline-flex; align-items: center; gap: 0.25em; padding: 0 0.6em 0 0.5em; border-radius: 0.75em 0.3em 0.3em 0.75em; box-shadow: inset 0 0 0 2px var(--ink); font-family: var(--serif); letter-spacing: 0.06em; }
+#sheet .head h2::after, .title-card h1::after { content: ''; position: absolute; border-radius: 1px; pointer-events: none; }
+/* The tie (art-direction review 5, ruling 18: it joins the oval or goes): a bar inside the outline's square end, flush
+   with it top, bottom and right and no taller, so the end reads as the knotted end of one loop, not a cursor beside it. */
+#sheet .head h2, .title-card h1 { border-top-right-radius: 2px; border-bottom-right-radius: 2px; }
+#sheet .head h2::after { right: 0; top: 0; bottom: 0; width: 4px; border-radius: 0 2px 2px 0; background: var(--ink-soft); }
+.title-card h1::after { right: 0; top: 0; bottom: 0; width: 5px; border-radius: 0 2px 2px 0; background: var(--ink); }
+.title-card h1 { letter-spacing: 0.04em; }
+/* A section's title ("Stock", "Employment") is quieter: the serif face at a normal weight with a thin ink rule running
+   from its words to the end of the row, no cartouche. It gains 14 px of margin (10 above, 4 below). */
+#sheet h3 { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; font-family: var(--serif); font-weight: 400; font-size: calc(17px * var(--ui-scale)); letter-spacing: 0.02em; }
+#sheet h3::after { content: ''; flex: 1 1 0; min-width: 24px; height: 1px; background: var(--ink-line); pointer-events: none; }
+/* The title card's one glyph, inside the cartouche before the name: empty generated content, so a screen reader meets only
+   "Thebes"; a sheet's head has none (at most one, spec 6.9). */
+.title-card h1::before { content: ''; flex: none; width: 0.5em; height: 0.75em; background: var(--look-ankh) center / contain no-repeat; }
+/* A toast (art-direction review 10): lapis with the gold ink of the main buttons (8.4:1) and a thin gold edge, instead of
+   the near-black pill that was the one piece of chrome left out of the look; its action in parchment. */
+.toast { background: var(--lapis); color: var(--lapis-ink); box-shadow: var(--shadow), inset 0 0 0 1px rgba(245, 217, 138, 0.45); }
+.toast button { color: var(--parchment); text-decoration: underline; text-underline-offset: 3px; }
+.toast button:focus-visible { outline-color: var(--lapis-ink); }
+/* ── end s4 look ── */
+
+/* (A stable separator between the Stage 4 sections: leave these lines as they are.) */
+
+/* ── s4 balance (Track F) ── Track F's styles for integration fixes. */
+/* The title backdrop's showcase (art-direction review 4): the backdrop frames the sample city's monuments in the largest
+   band the card leaves free (src/ui/titleCard.js showcaseFrame). A phone held upright puts the card at the top, so the
+   band under it is as tall as it can be; a phone held sideways puts it at the right, so the band beside it is. */
+@media (orientation: portrait) and (max-height: 900px) {
+  #title { align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top)); }
+}
+@media (orientation: landscape) and (max-height: 480px) {
+  #title { justify-content: flex-end; padding-right: max(12px, env(safe-area-inset-right)); }
+}
+/* ── end s4 balance ── */

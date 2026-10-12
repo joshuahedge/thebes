@@ -81,12 +81,13 @@ export function caravanBlocker(world) {
 export const tradePost = (world) => activePost(world) || posts(world)[0] || null;
 
 // Today's prices: what the partner pays for each good it buys, and asks for each good it sells, after this
-// year's drift, in whole gold (never below 1).
+// year's drift, in whole gold (never below 1). Stage 4: a good with from (Memphis's stone) is listed only from that
+// milestone (ruling 255), here and so in the caravans and the trade sheet.
 export function tradePrices(world, partnerId) {
   const p = PARTNERS[partnerId];
   const drift = world.trade.drift[partnerId] || {};
   const price = (good, base) => Math.max(1, Math.round(base * (1 + (drift[good] || 0))));
-  const side = (list) => Object.fromEntries(Object.entries(list).map(([good, t]) => [good, price(good, t.price)]));
+  const side = (list) => Object.fromEntries(Object.entries(list).filter(([, t]) => !t.from || atLeast(world, t.from)).map(([good, t]) => [good, price(good, t.price)]));
   return { buys: side(p.buys), sells: side(p.sells) };
 }
 
@@ -203,7 +204,7 @@ function caravan(world, partnerId, post, events) {
     income += n * prices.buys[good];
   }
   world.gold += income;
-  for (const good of Object.keys(p.sells)) {
+  for (const good of Object.keys(prices.sells)) {   // Stage 4: only the goods listed now (a good with from waits for its milestone)
     const order = world.trade.orders[good];
     if (!order || order.mode !== 'buy') continue;
     const price = prices.sells[good];

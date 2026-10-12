@@ -25,7 +25,7 @@ export const routeBlock = routeBlocker;
 
 // The goods any open partner buys or sells, in the data's order.
 export function tradedGoods(world) {
-  const traded = new Set(openPartners(world).flatMap((id) => [...Object.keys(PARTNERS[id].buys), ...Object.keys(PARTNERS[id].sells)]));
+  const traded = new Set(openPartners(world).flatMap((id) => { const p = tradePrices(world, id); return [...Object.keys(p.buys), ...Object.keys(p.sells)]; }));   // Stage 4: listed goods only
   return Object.keys(GOODS).filter((g) => traded.has(g));
 }
 

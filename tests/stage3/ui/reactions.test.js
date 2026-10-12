@@ -145,13 +145,15 @@ describe('s3 ui sound and captions', () => {
 
 describe('s3 ui water ripple', () => {
   it('ripples each home a newly placed well is the first to water, and none under reduced motion', async () => {
+    // Stage 4 (spec 5.4): a device asking for less motion now gets Gentle, whose ripple is a ring fading in place
+    // (tests/stage4/motion); Still has none, as reduced motion had.
     for (const reduced of [false, true]) {
       const world = uiWorld();                                                        // a well at (15, 11) waters the huts at (12, 9) and (13, 9)
       const near = addRaw(world, 'house', 26, 9, { tier: 1, residents: 2 });
       const plot = addRaw(world, 'house', 27, 9);
       staffAll(world);
       expect(firstWatered(world, addRaw(world, 'well', 17, 11)).map((h) => h.id)).toEqual([]);   // its homes already have water
-      const r = await rigUI({ world, settings: settingsWith({}, reduced) });
+      const r = await rigUI({ world, settings: settingsWith(reduced ? { motion: 'still' } : {}, reduced) });
       try {
         r.ui.placement.start({ kind: 'building', type: 'well' }, null);
         r.ui.placement.moveGhost(27, 11);
@@ -177,7 +179,7 @@ describe('s3 ui settings rows', () => {
     return { body, settings, cleanup };
   }
 
-  it('adds On a fire (Pause, Go to it, Just tell me) and Ambient motion, Off and disabled while reduced motion is on', () => {
+  it('adds On a fire (Pause, Go to it, Just tell me) and, from Stage 4, the Motion row', () => {
     const r = rig(false);
     try {
       const choices = [...r.body.querySelectorAll('.choice.fireReaction')];
@@ -186,17 +188,13 @@ describe('s3 ui settings rows', () => {
       fire(choices[1], 'click');
       expect(r.settings.get().fireReaction).toBe('goto');
       expect(r.body.querySelector('.fire-note').textContent).toBe(D.onAFireNote);
-      const ambient = r.body.querySelector('.switch.ambient');
-      const note = r.body.querySelector('.ambient-note');
-      expect([ambient.textContent.startsWith(D.ambient), ambient.getAttribute('aria-checked'), ambient.disabled, note.hidden]).toEqual([true, 'true', false, true]);
-      fire(ambient, 'click');
-      expect([r.settings.get().ambient, ambient.getAttribute('aria-checked')]).toEqual([false, 'false']);
-      fire(ambient, 'click');
-      fire(r.body.querySelector('.choice.reducedMotion[data-value="on"]'), 'click');
-      expect([ambient.getAttribute('aria-checked'), ambient.querySelector('.state').textContent, ambient.disabled, note.hidden]).toEqual(['false', T.off, true, false]);
-      expect(r.settings.get().ambient).toBe(true);                                     // the choice is kept for when motion is back
-      fire(r.body.querySelector('.choice.reducedMotion[data-value="off"]'), 'click');
-      expect([ambient.getAttribute('aria-checked'), ambient.disabled]).toEqual(['true', false]);
+      // Stage 4: one Motion row replaces Reduce motion and Ambient motion (spec 5.4; tests/stage4 for its words).
+      const motion = [...r.body.querySelectorAll('.choice.motion')];
+      expect(motion.map((b) => [b.dataset.value, b.getAttribute('aria-pressed')])).toEqual([['system', 'true'], ['full', 'false'], ['gentle', 'false'], ['still', 'false']]);
+      fire(motion[3], 'click');
+      expect([r.settings.get().motion, r.settings.motionLevel()]).toEqual(['still', 'still']);
+      fire(motion[1], 'click');
+      expect([r.settings.get().motion, r.settings.motionLevel(), motion[1].getAttribute('aria-pressed')]).toEqual(['full', 'full', 'true']);
     } finally { r.cleanup(); }
   });
 
@@ -209,7 +207,7 @@ describe('s3 ui settings rows', () => {
       const levels = [...r.root.querySelectorAll('#sheet .choice.difficulty')];
       expect(levels.map((b) => b.textContent)).toEqual(DIFFICULTY_ORDER.map((d) => DIFFICULTY_NAMES[d]));
       expect(levels[0].textContent).toBe('Peaceful');
-      for (const b of [...levels, ...r.root.querySelectorAll('#sheet .choice.fireReaction'), r.root.querySelector('#sheet .switch.ambient')]) {
+      for (const b of [...levels, ...r.root.querySelectorAll('#sheet .choice.fireReaction'), ...r.root.querySelectorAll('#sheet .choice.motion')]) {
         const box = b.getBoundingClientRect();
         expect([b.textContent, box.height >= 44, box.left >= sheet.left - 0.5, box.right <= sheet.right + 0.5]).toEqual([b.textContent, true, true, true]);
       }

@@ -79,7 +79,7 @@ describe('s3 art ambient', () => {
     const samples = [];
     for (let t = 0; t <= 14000; t += 50) samples.push(glintAt(w, spot[0], spot[1], t, rows));
     const alphas = samples.map((s) => (s ? s.alpha : 0));
-    expect(Math.max(...alphas)).toBeLessThanOrEqual(0.75);
+    expect(Math.max(...alphas)).toBeLessThanOrEqual(AMBIENT.glintAlpha);        // Stage 4: a third brighter (tests/stage4/motion)
     expect(turns(alphas)).toBeLessThanOrEqual(8);                                // up then down once per life: under 1 Hz
     for (let i = 1; i < samples.length; i++) {
       const [a, b] = [samples[i - 1], samples[i]];
@@ -143,11 +143,12 @@ describe('s3 art ambient', () => {
     addRaw(w, 'house', 27, 22, { tier: 4, residents: 10 });
     staffAll(w);
     const puffs = (now) => frame(on(), w, now).late.filter((c) => c.k === 'radial').map((c) => c.a[4]);
-    expect(puffs(1000).length).toBe(2);                                          // the kiln's two puffs; a House has no chimney smoke
+    const n = AMBIENT.smokeLifePeriods;                                          // Stage 4: three puffs in the air (tests/stage4/motion)
+    expect(puffs(1000).length).toBe(n);                                          // the kiln's puffs; a House has no chimney smoke
     addRaw(w, 'house', 27, 24, { tier: 5, residents: 10 });
-    expect(puffs(1000).length).toBe(4);
+    expect(puffs(1000).length).toBe(2 * n);
     potter.staff = 0;
-    expect(puffs(1000).length).toBe(2);
+    expect(puffs(1000).length).toBe(n);
     let prev = null;
     for (let t = 0; t < 8000; t += 16) {
       const now = puffs(t);
@@ -155,7 +156,7 @@ describe('s3 art ambient', () => {
       prev = now;
     }
   });
-  it('brings each kind of rare life at most one at a time, 60 to 120 s apart', () => {
+  it('brings each kind of rare life at most one at a time, AMBIENT.rareEveryMs apart (Stage 4: 45-90 s)', () => {
     const w = riverWorld();
     for (const kind of AMBIENT.rareKinds) {
       const starts = [];
@@ -168,7 +169,7 @@ describe('s3 art ambient', () => {
       expect([kind, starts.length >= 15]).toEqual([kind, true]);
       for (let i = 1; i < starts.length; i++) {
         const gap = starts[i] - starts[i - 1];
-        expect([kind, gap >= 60000 - 250 && gap <= 120000 + 250]).toEqual([kind, true]);
+        expect([kind, gap >= AMBIENT.rareEveryMs[0] - 250 && gap <= AMBIENT.rareEveryMs[1] + 250]).toEqual([kind, true]);
       }
     }
   });

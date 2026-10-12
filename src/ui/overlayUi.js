@@ -3,13 +3,14 @@
 // label per band, hatched as on the map. Overlays combine with browsing, so the strip never changes the mode.
 // Stage 3 (Track D): the scale is general (GRADED, one entry per graded overlay); fire risk's adds the dot and ring for
 // "a firehouse reaches it" and a line on what never burns.
-import { OVERLAYS, OVERLAY_HUE, GROUND_HUE, GRADED_OVERLAYS, DESIRABILITY_ALPHA, FIRE_ALPHA, roomTiles } from '../render/overlays.js';
+import { OVERLAYS, OVERLAY_HUE, GROUND_HUE, GRADED_OVERLAYS, DESIRABILITY_ALPHA, FIRE_ALPHA, roomTiles, placingRotOf, MONUMENT_ROOM_HUE, MONUMENT_ROOM_ALPHA } from '../render/overlays.js';
+import { BUILDINGS } from '../data/buildings.js';
 import { rgba } from '../render/art/ctx.js';
 import { UI, TERRAIN } from '../render/art/palette.js';
 import { DESIRABILITY_STEPS } from '../data/ui.js';
 import { FIRE_BANDS } from '../data/fire.js';
 import { toggleOverlay, cycleOverlay } from './modes.js';
-import { OVERLAY_NAMES, OVERLAY_LEGEND, desirabilityBand, groundThing, groundRoomText, T, DANGER_UI_TEXT } from './text.js';
+import { OVERLAY_NAMES, OVERLAY_LEGEND, desirabilityBand, groundThing, groundRoomText, T, DANGER_UI_TEXT, UI4_TEXT } from './text.js';
 import { el, iconButton, clear } from './components.js';
 
 const tint = (c) => `linear-gradient(${c}, ${c})`;
@@ -66,8 +67,15 @@ const GROUND_SWATCH = {
 function groundKeys(room) {
   const [fertile, rocky] = OVERLAY_LEGEND.ground;
   const key = (kind, words) => el('span', { class: 'key' }, [el('span', { class: 'swatch', style: GROUND_SWATCH[kind], 'aria-hidden': 'true' }), ' ', el('span', { class: 'text small', text: words })]);
+  // Stage 4 (Track C, spec 6.3, ruling 229): while a monument is placed the keys are "Fertile: no monuments here" and the gold
+  // room line ("Gold: room for a small mastaba"), which, like the farms' room line, a phone at 125% text or more keeps for
+  // screen readers (css/ui.css .room).
+  if (room && room.monument) {
+    const gold = el('span', { class: 'swatch gold', style: { backgroundColor: MONUMENT_ROOM_HUE, opacity: String(0.5 + MONUMENT_ROOM_ALPHA) }, 'aria-hidden': 'true' });
+    return el('span', { class: 'ground-keys' }, [key('fertile', UI4_TEXT.groundFertile), el('span', { class: 'text small room' }, [gold, ' ', room.words])]);
+  }
   // The keys wrap among themselves under the name and the x, so the x never lands alone on a row of its own.
-  return el('span', { class: 'ground-keys' }, [key('fertile', fertile), key('rocky', rocky), ...(room ? [el('span', { class: 'text small room', text: room })] : [])]);
+  return el('span', { class: 'ground-keys' }, [key('fertile', fertile), key('rocky', rocky), ...(room ? [el('span', { class: 'text small room', text: room.words })] : [])]);
 }
 
 // The strip is the legend everywhere. Under a critical banner a wide screen keeps the dot and ring keys' words for
@@ -76,15 +84,22 @@ function groundKeys(room) {
 export function createOverlayLegend({ container, store, world = null }) {
   let lastKey = undefined;
 
-  // The Ground overlay's third line, while a farm, orchard or mine is being placed: where its brighter tiles are.
+  // The Ground overlay's third line, while a farm, orchard or mine is being placed: where its brighter tiles are. Stage 4: while
+  // a monument is placed, where its gold room is in its current rotation (or that none is left).
   function roomWords(s) {
-    if (s.overlay !== 'ground' || !s.tool || s.tool.kind !== 'building' || !groundThing(s.tool.type)) return null;
-    return groundRoomText(s.tool.type, world ? roomTiles(world, s.tool.type).size > 0 : true);
+    if (s.overlay !== 'ground' || !s.tool || s.tool.kind !== 'building') return null;
+    const type = s.tool.type;
+    if (BUILDINGS[type] && BUILDINGS[type].monument) {
+      const any = world ? roomTiles(world, type, placingRotOf(world)).size > 0 : true;
+      return { monument: true, words: any ? UI4_TEXT.roomFor(type) : UI4_TEXT.noRoomFor(type) };
+    }
+    if (!groundThing(type)) return null;
+    return { monument: false, words: groundRoomText(type, world ? roomTiles(world, type).size > 0 : true) };
   }
 
   function render() {
     const s = store.get(), kind = s.overlay, room = roomWords(s);
-    const key = `${kind}|${room}`;
+    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}`;
     if (key === lastKey) return;
     lastKey = key;
     clear(container);

@@ -84,11 +84,15 @@ export function raidTargetKind(world) {
   return RAIDS.targets.find((t) => types.has(t)) || 'building';
 }
 
+// Stage 4 (spec 4.16, 4.20, ruling 195): monuments (finished or under way, with their stockpiles) and the palace are not
+// wealth and never a raid's target.
+const raidProof = (b) => Boolean(BUILDINGS[b.type].monument || BUILDINGS[b.type].palace);
+
 // The city's wealth for raid size (spec 4.13): the treasury if above 0, plus the base cost of every standing building
-// (roads and walls are not buildings; rubble costs nothing).
+// (roads and walls are not buildings; rubble costs nothing; monuments and the palace do not count).
 export function raidWealth(world) {
   let w = Math.max(0, world.gold);
-  for (const b of allBuildings(world)) w += BUILDINGS[b.type].cost;
+  for (const b of allBuildings(world)) if (!raidProof(b)) w += BUILDINGS[b.type].cost;
   return w;
 }
 
@@ -242,7 +246,7 @@ function ringGoals(world, b) {
 function pickTarget(world, a) {
   const at = idx(world.size, a.x, a.y), here = { x: a.x + 0.5, y: a.y + 0.5 };
   const kinds = RAIDS.targets.includes(a.target) ? RAIDS.targets.slice(RAIDS.targets.indexOf(a.target)) : [];
-  const groups = [...kinds.map((k) => (b) => b.type === k), (b) => b.type !== 'house' && b.type !== 'rubble'];
+  const groups = [...kinds.map((k) => (b) => b.type === k), (b) => b.type !== 'house' && b.type !== 'rubble' && !raidProof(b)];
   for (const match of groups) {
     const near = allBuildings(world).filter((b) => match(b) && !a.struck.includes(b.id))
       .map((b) => ({ b, d: Math.hypot(b.x + b.w / 2 - here.x, b.y + b.d / 2 - here.y) }))

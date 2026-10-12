@@ -29,9 +29,10 @@ const SHOWN = ['roads', 'homes', 'food', 'industry', 'services'];
 describe('ui card pictures', () => {
   it('draws a picture for every card, sized for the screen', () => {
     const items = visibleCategories().flatMap((c) => c.items);
-    expect(items).toEqual(['road', 'demolish', 'house', 'garden', 'statue', 'farm_grain', 'farm_fig', 'granary', 'clay_pit', 'potter', 'farm_barley', 'brewery',
-      'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'well', 'bazaar', 'temple', 'booth', 'firehouse',
-      'wall', 'tower', 'barracks']);
+    expect(items).toEqual(['road', 'demolish', 'house', 'garden', 'statue', 'plaza', 'sphinx', 'farm_grain', 'farm_fig', 'granary', 'clay_pit', 'potter', 'farm_barley', 'brewery',
+      'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'well', 'bazaar', 'temple', 'booth', 'firehouse', 'palace',
+      'wall', 'tower', 'barracks', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'colossus', 'mastaba_small',
+      'mastaba_large', 'pyramid_small', 'pyramid_great']);   // Stage 4: the plaza, sphinx, palace and the Monuments tab
     for (const item of items) {
       const c = drawThumb(document.createElement('canvas'), item, 1);
       expect([item, c.width, c.height]).toEqual([item, THUMB_W, THUMB_H]);
@@ -103,7 +104,7 @@ describe('ui card pictures', () => {
     } finally { cleanup(); }
   });
   it('shows only the categories with something to build, each with its colour band', async () => {
-    expect(visibleCategories().map((c) => c.id)).toEqual([...SHOWN, 'defence']);   // Defence has cards from Stage 3, shown from Town (locked)
+    expect(visibleCategories().map((c) => c.id)).toEqual([...SHOWN, 'defence', 'monuments']);   // Defence has cards from Stage 3, shown from Town (locked); Monuments from Stage 4, shown from Market town
     expect(Object.keys(CATEGORY_TINT).sort()).toEqual(CATEGORIES.map((c) => c.id).sort());
     expect(HELP_ROWS.find((row) => row[0] === 'category')[2]).toBe('1 to 7');
     const r = await rigUI({ width: 390, height: 844 });
@@ -174,7 +175,7 @@ describe('ui card pictures', () => {
       try {
         fire(r.root.querySelector(`${width === 844 ? '#rail' : '#panel'} ${width === 844 ? '.cat' : '.tab'}[data-category="services"]`), 'click');
         const cards = [...r.root.querySelectorAll(`${host} .card`)];
-        expect([width, cards.length]).toEqual([width, 5]);
+        expect([width, cards.length]).toEqual([width, 6]);
         for (const c of cards) {
           const box = c.getBoundingClientRect();
           const pic = c.querySelector('.thumb').getBoundingClientRect();

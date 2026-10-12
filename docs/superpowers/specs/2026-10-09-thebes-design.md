@@ -334,27 +334,27 @@ Defence ranges are straight-line distances in tiles, not road reach: a **tower s
 |---|---|
 | Builders' guild, quarry, brickworks | 150, 100 and 90 gold to build; upkeep 10, 6 and 6 gold a month, plus 16, 10 and 8 workers' wages while they work (none while idle) |
 | A monument's founding, when it is placed | Small obelisk 150, large obelisk 400, colossus 600, small mastaba 1,000, large mastaba 2,000, small pyramid 3,000, great pyramid 6,000 |
-| Monument work | 100 gold a crew for each month of work: 5 gold for each unit of stone or bricks laid, paid daily as the work is done |
+| Monument work | 130 gold a crew for each month of work (163 on Hard): 6.5 gold for each unit of stone or bricks laid, paid daily as the work is done (ruling 295; first written as 5 a unit, 100 a crew-month) |
 | The large obelisk's gilding | 1,000 gold, when its last course begins |
 | The great pyramid's capstone | 5,000 gold, when its last course begins |
-| One of each monument, all told | about 171,000 gold |
+| One of each monument, all told | about 217,000 gold (30,420 units of work at 6.5, 13,150 of founding, 6,000 of gilding and capstone) |
 | Plaza, sphinx | 8 gold a tile, 150 gold; no upkeep |
 | Palace | 300 gold to build, then 600, 1,500, 4,000 and 10,000 to enlarge it to each later style (16,100 all told); no upkeep or workers; enlarging never takes the treasury below 0 (section 4.20) |
 
 - **Monuments never borrow.** Founding a monument, a crew's day of work, the gilding and the capstone never take the treasury below 0 (as tribute never does), although other buildings may go down to the −500 floor. A crew whose day would cross 0 does not work that day; a last course waits until its gilding or capstone can be paid. The site sheet says so in those words (section 6.3).
 - **The bill is visible.** The city summary has a **Monuments** row under spending (last month's work, gilding and capstone gold; founding counts with building costs), and each site sheet says what it cost last month.
 - **Balance target:** in a steady tier-4 town, wages plus upkeep plus soldiers' pay come to about 60–70% of tax income. Building costs and wages in `data/` are tuned to this, and the long-run test (the 10-year village) asserts the band; monuments unlock at City, so they never touch it, and **that band is unchanged**. From Stage 3 the firehouses and defences a town needs are part of that spending.
-- **The late game's sink** is the monuments. Before Stage 4 a Capital spent 39% of its taxes and held about 126,000 gold by year 6. With four crews at work (four guilds, three quarries, a brickworks and its clay pit) wages, upkeep, soldiers' pay and monument work come to about 64%:
+- **The late game's sink** is the monuments. Before Stage 4 a Capital spent 39% of its taxes and held about 126,000 gold by year 6. With four crews at work (four guilds, three quarries, two brickworks and their clay pits) wages, upkeep, soldiers' pay and monument work come to about 68% (the capital run measures 67.5% over its last 24 months, and holds 59,319 gold at year 6):
 
 | Monthly spending at Capital (the capital run) | Before Stage 4 | With four crews |
 |---|---|---|
 | Wages | 1,080 | about 1,510 (about 108 more workers) |
 | Upkeep | 265 | about 335 |
 | Soldiers' pay | 64 | 64 |
-| Monument work | 0 | 400 |
-| Share of taxes (3,610) | 39% | about 64% |
+| Monument work | 0 | about 520 |
+| Share of taxes (3,610) | 39% | about 68% |
 
-  The capital run asserts 60-70% while four crews work (section 9); the work gold (100 a crew a month) is the lever that tunes it.
+  The capital run asserts 60-70% while four crews work (section 9); the work gold (130 a crew a month, 6.5 a unit) is the lever that tunes it.
 - **Pausing a building** stops its wages and upkeep. A paused barracks still pays its soldiers.
 - **A building that needs a road and has none beside it** (one the player placed before its road, or whose road was demolished) pays no upkeep and no wages, since it has no workers and does nothing: it serves no home, gives no desirability (section 4.7) and counts for nothing. A "Build a …" goal, a first, an achievement and a daily goal count only buildings that touch a road, or that need none (gardens, statues). It still stands: it can catch fire as any building of its type can, and its price counts in the city's wealth for a raid's size (section 4.13). The gold for a building is spent when it is placed, not when its road arrives; Undo refunds it until the month ends (section 6.5).
 - **Demolishing** refunds 25% of a building's cost (a monument's: a quarter of its founding; its work gold is gone). Roads and plots refund nothing. Clearing rubble costs gold instead (section 4.12). Undo (section 6.5) refunds in full.
@@ -650,7 +650,7 @@ The target feel: a small monument is a reward inside one phone session, a mastab
 
 **Work, courses and gold.**
 - Each day each working crew lays its share of the course under way from the site's stockpile. Blocks appear on the course as it fills (section 5.7). When a course's recipe is laid, the course is done (`course_done`: a caption, section 6.3), and the next begins.
-- **Work gold** is paid daily as work is done: 5 gold for each unit laid (100 gold a full crew-month), times the difficulty's cost, in whole gold with the fraction carried on the site, so a month adds up exactly. Crews pay in the order their sites were founded; a crew whose day would take the treasury below 0 does not work that day.
+- **Work gold** is paid daily as work is done: 6.5 gold for each unit laid (130 gold a full crew-month, 163 on Hard), times the difficulty's cost, in whole gold with the fraction carried on the site, so a month adds up exactly. Crews pay in the order their sites were founded; a crew whose day would take the treasury below 0 does not work that day.
 - **The large obelisk's gilding** (1,000 gold) and **the great pyramid's capstone** (5,000 gold) are paid on the day the last course begins; that course waits ("Waiting for 1,000 gold for the gilding") until paying keeps the treasury at 0 or above.
 - When the last course is laid the monument is **finished** (`monument_done`): the ramp and stakes go, a pyramid gets its white casing and gold capstone, the large obelisk its gilded tip, and a dedication procession walks to it (section 5.7). There is no new sheet or pop-up.
 
@@ -889,7 +889,7 @@ The city's own seat, which grows grander as the city does. It is a civic buildin
 - **Safe:** it never burns, raiders never target it and it is not wealth for a raid's size (sections 4.12, 4.13).
 - **Demolishing** asks first ("Tear down the palace? Its 3 enlargements are lost. Refunds 75 gold."), refunds a quarter of the 300 to build it, and a new palace starts again as a courtyard house.
 - **Rewards:** a first ("First palace", 10 gold), an achievement for the fifth style ("Lapis and gold"), and a tip when the city first could enlarge it ("Your palace can grow: enlarge it on its sheet").
-- **Total:** 16,100 gold of enlargements on Normal: a modest sink beside the monuments' 171,000, reached at a pace the player chooses.
+- **Total:** 16,100 gold of enlargements on Normal: a modest sink beside the monuments' 217,000, reached at a pace the player chooses.
 
 ## 5. Art and feel
 
@@ -1212,7 +1212,7 @@ The layout depends on the available space; controls depend on the input in use (
   - **Rotate.** For the mastabas the confirm bar's ⟳ (and R) turns the ghost a quarter about its centre tile, swapping its footprint; the room on the Ground overlay is worked out again. Other monuments have no ⟳.
   - **Ground overlay.** Picking a monument turns Ground on, with the gold "room" wash of section 6.3.
   - **Chips:** **Ground** ("Desert ground", or "Not on the fields: 3 of 12 tiles are fertile" with those tiles coral); **Road** ("Road beside it", or "! No road yet: crews and stone come by road", with the road-join tiles marked); **Crew** ("✓ Crew: 1 builders' guild near", or "! No builders' guild near" when no guild within 12 road tiles has room for a crew); **Supply** ("✓ Stone near", or "! No stone near" when no quarry, brickworks or storehouse with the first course's material is in reach); and **Gold** ("Founding 1,000 gold: you have 640" when founding would take the treasury below 0, which refuses). Crew and Supply show only once the road is met, since both arrive by road. There is no chip for a prestige lock: a locked card cannot start the tool, and the card already says "Needs 100 prestige (you have 60)".
-  - **The confirm bar's line** says what the monument will cost and do, all from the data, most important first: "+32 Monuments when finished · then 100 gold a crew a month · finished: 9 homes nicer · while building: 4 homes less pleasant". On phones it is two lines at most; the full words are in the card's details (long-press) and its tooltip. A second of a kind says "One of each kind counts: no prestige".
+  - **The confirm bar's line** says what the monument will cost and do, all from the data, most important first: "+32 Monuments when finished · then 130 gold a crew a month · finished: 9 homes nicer · while building: 4 homes less pleasant". On phones it is two lines at most; the full words are in the card's details (long-press) and its tooltip. A second of a kind says "One of each kind counts: no prestige".
   - **Seeing behind.** A monument the ghost passes behind fades to about 40% (section 5.7).
   - **After ✓** the toast says "Small obelisk founded · Undo" ("· needs a road" with none), and on touch the tool ends as for any building, with the Monuments tray back; no sheet opens by itself.
 - **Area painting:** housing plots, plazas and demolition are painted as a rectangle with a count and total cost and **one ✓** (gardens, statues and sphinxes are placed one at a time). With a **mouse**, click the start and the end, or drag. Demolishing occupied homes at tier 5 or above asks first. Plots painted with no road say "6 plots placed · no road yet" ("· 2 with no road yet" when only some lack one) and are drawn amber.
@@ -1458,11 +1458,11 @@ thebes/
   - **Saving:** save then load gives an identical world; old versions migrate; a corrupt save falls back to the backup.
   - **Modes** (`ui/`): enter and exit transitions, and one mode at a time.
 - **Long-run sanity test:** a scripted city simulated for 10 game-years, checking that there's no negative population or stock, no runaway treasury and no stuck supply chain, and that it runs within a time budget. From Stage 3 its script builds firehouses (and the capital run defences), and it asserts the balance band of section 4.11: at a steady tier-4 town, wages plus upkeep plus soldiers' pay are 60-70% of taxes. That band is unchanged in Stage 4.
-- **The capital run** (the scripted city grown to Capital through the player's commands) gains a monument programme from Stage 4: at City a guild, a quarry and a small obelisk; at Great city a second guild, a brickworks with its clay pit, the colossus and the small mastaba; at Capital two more guilds and a third quarry, the large mastaba, then the small pyramid once prestige reaches 100. It keeps its reserve rule (never spend below 400). It asserts:
+- **The capital run** (the scripted city grown to Capital through the player's commands) gains a monument programme from Stage 4: at City a guild, a quarry and a small obelisk; at Great city a second guild, a brickworks with its clay pit, the colossus and the small mastaba; at Capital two more guilds, a third quarry and a second brickworks with its clay pit (with one, the small mastaba's brick courses take twice as long), the large mastaba, then the small pyramid once prestige reaches 100. It keeps its reserve rule (never spend below 400). It asserts:
   - every month-end treasury is 0 or above;
   - over the last 24 months, while four crews work, wages, upkeep, soldiers' pay and monument work are 60-70% of taxes;
   - the treasury at year 6 is at most 60,000;
-  - unemployment is at most 15% while crews work;
+  - unemployment while crews work averages at most 15% over the last 24 months, with no month end over 20% (ruling 301: two months at 17.4%, when every quarry idles between monuments, is real play);
   - the small obelisk, the colossus and the small mastaba are finished by year 6;
   - the household chains still meet their existing floors (monuments must not starve pottery or beer);
   - it still runs in under 5 s.

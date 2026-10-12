@@ -6,6 +6,13 @@
 // a still ring. The onMilestone hook stays for callers that want it; the interface celebrates milestones itself
 // (celebrate.js). Stage 3 (Track D, spec 5.4): a ripple ring (0.8 s) on each home a newly placed well first waters;
 // none under reduced motion.
+//
+// Stage 4 (spec 5.4, ruling 248, Track E): the Motion level, motionLevel() ('full' | 'gentle' | 'still'; without it,
+// reducedMotion() true reads as Still, so Stage 1-3 callers keep their behaviour). Full is all of the above. Gentle is
+// fades in place: an upgrade's glow is its gold tile fading (no widening ring), a downgrade's pulse its coral tile fading
+// (no growing ring), the well's ripple one ring fading where it is (no widening), labels fade without rising, a first's
+// sparkle is the still ring, and there are no dust puffs and no rise. Still is Stage 3's reduced motion: no puffs, glows,
+// pulses, ripples or rises, labels fading in place and the still ring.
 import { TIERS } from '../data/housing.js';
 import { p, U, quad } from './iso.js';
 import { UI, GOLD, GOLDC, TERRAIN } from './art/palette.js';
@@ -18,8 +25,10 @@ export function prefersReducedMotion() {
   try { return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
 }
 
-export function createEffects({ reducedMotion = prefersReducedMotion, onMilestone = null } = {}) {
+export function createEffects({ reducedMotion = prefersReducedMotion, motionLevel = null, onMilestone = null } = {}) {
   const reduced = () => (typeof reducedMotion === 'function' ? Boolean(reducedMotion()) : Boolean(reducedMotion));
+  const level = () => (typeof motionLevel === 'function' ? motionLevel() : motionLevel || (reduced() ? 'still' : 'full'));
+  const full = () => level() === 'full';
   let list = [];
   const age = (e, now) => (now - e.start) / EFFECT_MS[e.kind];
   // A rise ends early when its building is gone (an Undo or a demolish inside the 900 ms), so the work gang never
@@ -30,15 +39,17 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
 
   const fx = {
     get reducedMotion() { return reduced(); },
-    puff(x, y, now) { if (!reduced()) add({ kind: 'puff', x, y, start: now }); },
-    glow(x, y, now) { if (!reduced()) add({ kind: 'glow', x, y, start: now }); },
-    pulse(x, y, now) { if (!reduced()) add({ kind: 'pulse', x, y, start: now }); },
-    ripple(x, y, now) { if (!reduced()) add({ kind: 'ripple', x, y, start: now }); },
+    get motion() { return level(); },
+    puff(x, y, now) { if (full()) add({ kind: 'puff', x, y, start: now }); },
+    // Under Gentle a glow, pulse or ripple is drawn in place (e.still): it fades, but nothing widens or rises.
+    glow(x, y, now) { if (level() !== 'still') add({ kind: 'glow', x, y, still: !full(), start: now }); },
+    pulse(x, y, now) { if (level() !== 'still') add({ kind: 'pulse', x, y, still: !full(), start: now }); },
+    ripple(x, y, now) { if (level() !== 'still') add({ kind: 'ripple', x, y, still: !full(), start: now }); },
     label(x, y, text, color, now) { add({ kind: 'label', x, y, text, color, start: now }); },
-    // A first (early-game pass 3.6): a burst of small diamonds, or a still ring that fades under reduced motion.
-    sparkle(x, y, color, now) { add({ kind: 'sparkle', x, y, color, still: reduced(), start: now }); },
-    // Building `id` with footprint w x d at tile (x, y) rises from the ground over EFFECT_MS.rise.
-    rise(id, x, y, w, d, now) { if (!reduced()) add({ kind: 'rise', id, x, y, w, d, start: now }); },
+    // A first (early-game pass 3.6): a burst of small diamonds, or a still ring that fades under Gentle and Still.
+    sparkle(x, y, color, now) { add({ kind: 'sparkle', x, y, color, still: !full(), start: now }); },
+    // Building `id` with footprint w x d at tile (x, y) rises from the ground over EFFECT_MS.rise (Full only).
+    rise(id, x, y, w, d, now) { if (full()) add({ kind: 'rise', id, x, y, w, d, start: now }); },
     // id -> how far each rising building is up, in [0, 1). Given the world, a building no longer in it is dropped.
     risingIds(now, world = null) {
       prune(now, world);
@@ -46,8 +57,8 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
       for (const e of list) if (e.kind === 'rise') out.set(e.id, Math.max(0, age(e, now)));
       return out;
     },
-    // How far (art px) a label has risen at progress t in 0..1. Still under reduced motion.
-    labelLift(t) { return reduced() ? 0 : 10 * t; },
+    // How far (art px) a label has risen at progress t in 0..1. Still under Gentle and Still.
+    labelLift(t) { return full() ? 10 * t : 0; },
     fromEvents(world, events, now) {
       for (const ev of events) {
         if (ev.type === 'milestone') { if (onMilestone) onMilestone(ev.id); continue; }
@@ -76,14 +87,14 @@ export function createEffects({ reducedMotion = prefersReducedMotion, onMileston
           }
         } else if (e.kind === 'glow') {
           g.poly(quad(e.x - 0.5, e.y - 0.5, 1, 1, 0), GOLD, { alpha: (1 - t) * 0.45 });
-          g.poly(quad(e.x - 0.5, e.y - 0.5, 1, 1, 0), 'none', { stroke: GOLD, strokeWidth: 1.5 + t * 2, strokeAlpha: 1 - t });
+          g.poly(quad(e.x - 0.5, e.y - 0.5, 1, 1, 0), 'none', { stroke: GOLD, strokeWidth: e.still ? 1.5 : 1.5 + t * 2, strokeAlpha: 1 - t });
         } else if (e.kind === 'pulse') {
-          const r = 0.5 + t * 0.8;
-          g.poly(quad(e.x - r, e.y - r, 2 * r, 2 * r, 0), 'none', { stroke: UI.bad, strokeWidth: 2 - t, strokeAlpha: 1 - t });
+          const r = e.still ? 0.5 : 0.5 + t * 0.8;
+          g.poly(quad(e.x - r, e.y - r, 2 * r, 2 * r, 0), 'none', { stroke: UI.bad, strokeWidth: e.still ? 1.5 : 2 - t, strokeAlpha: 1 - t });
           g.poly(quad(e.x - 0.5, e.y - 0.5, 1, 1, 0), UI.bad, { alpha: (1 - t) * 0.25 });
         } else if (e.kind === 'ripple') {
-          // One water ring widening on the ground and fading: it never comes back, so it cannot flash.
-          const r = 0.35 + t * 0.75;
+          // One water ring widening on the ground and fading (in place under Gentle): it never comes back, so it cannot flash.
+          const r = e.still ? 0.75 : 0.35 + t * 0.75;
           g.poly(quad(e.x - r, e.y - r, 2 * r, 2 * r, 0), 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: (1 - t) * 0.7 });
           g.poly(quad(e.x - r, e.y - r, 2 * r, 2 * r, 0), 'none', { stroke: UI.water, strokeWidth: 1.4, strokeAlpha: 1 - t });
         } else if (e.kind === 'rise') {

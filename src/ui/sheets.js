@@ -16,9 +16,12 @@ import { closeSheet, openSheet } from './modes.js';
 import { CRITICAL_RANK } from './alerts.js';
 import { summaryData } from './hud.js';
 import { nearestTerrainTile } from './goalsList.js';
+import { demolishQuestion, causeFix } from './monumentSheet.js';
+import { noteView } from '../render/overlays.js';
+import { supplyNeeded } from '../sim/monuments.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
-  goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T } from './text.js';
+  goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -86,19 +89,41 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (!list.length) return el('p', { class: 'muted', text: T.noProblems });
     return el('ul', { class: 'problems' }, list.map((a) => {
       const t = alertText(a, world);
-      return el('li', { class: 'problem' }, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => onView(a) })]);
+      return el('li', { class: 'problem' }, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => { noteView(world, a.id); onView(a); } })]);
     }));
   }
 
   // A producer says what it is doing in words: making, growing or digging its good, waiting for its input, or not
   // working (the problems below say why).
+  // Stage 4 (Track C): a quarry cuts stone, and a quarry or brickworks no site needs says why it is idle in the monuments
+  // interface's line instead (src/ui/monumentSheet.js supplyLine), so this line is left out.
   function workLine(b) {
     const def = BUILDINGS[b.type];
     if (!def.produces) return null;
+    if (!b.paused && (b.blocked === 'idle' || !supplyNeeded(world, b))) return null;
     let text = T.notWorking;
     if (isWorking(world, b) && b.blocked === 'no_input') text = waitingText(def.consumes);
-    else if (isWorking(world, b) && !b.blocked) text = workingText(b.type);
+    else if (isWorking(world, b) && !b.blocked) text = def.produces.good === 'stone' ? UI4_TEXT.cuttingStone : workingText(b.type);
     return el('p', { class: 'work-status', text });
+  }
+
+  // Demolish (spec 4.16, 4.20): a monument or the palace asks first, with what is lost and the refund in words; anything else
+  // goes at once, as before.
+  function demolishNow(b) {
+    const go = () => { const r = placement.demolishOne(b.x, b.y); if (r.ok) close(); };
+    const question = demolishQuestion(world, b);
+    if (question) store.set({ confirmDialog: { text: question, confirmLabel: T.demolish, onConfirm: go } });
+    else go();
+  }
+
+  // Stage 4 (Track C, spec 6.3): a monument's sheet is its own: the monuments interface's rows (progress, crews, materials, pace,
+  // gold, prestige, or a finished monument's), its actions (Pause, View) and Demolish, with no workers row or problem list (the
+  // site's cause row says what holds it up).
+  function monumentSheet(b) {
+    const body = el('div', { class: 'body monument' });
+    body.append(...extra('building', b));
+    body.append(el('div', { class: 'actions' }, [...extra('actions', b), button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) })]));
+    return [head(buildingName(b.type)), body];
   }
 
   // Storage (spec 4.10): how full it is, then a row per good it can hold with its count and the good's line (what
@@ -149,7 +174,7 @@ export function createSheets({ container, store, world, placement, cameraControl
       } }));
     }
     // Rubble's Clear (Stage 3, src/ui/dangerSheets.js) is its demolish, with the price in its name.
-    if (b.type !== 'rubble') actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(b.x, b.y); if (r.ok) close(); } }));
+    if (b.type !== 'rubble') actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) }));
     body.append(actions);
     return [head(buildingName(b.type)), body];
   }
@@ -233,6 +258,10 @@ export function createSheets({ container, store, world, placement, cameraControl
     // Trade under its own heading, as Net above leaves it out: what caravans paid the city and what it paid them.
     body.append(el('h3', { text: T.tradeLastMonth }), row(T.tradeSales, `+${d.tradeIncome}`), row(T.tradeBought, `−${d.tradeSpent}`));
     // Food in store by kind: grain always, other foods once there are some.
+    // Stage 4 (spec 6.3, contract note 17): monument gold, paid daily, is not in Net either: its own row once there is some (a v4
+    // save has none until its first month end).
+    const monumentGold = Math.floor((world.stats.lastMonth && world.stats.lastMonth.monuments) || 0);
+    if (monumentGold > 0) body.append(el('h3', { text: UI4_TEXT.spendingHead }), row(UI4_TEXT.spendingRow, `−${monumentGold}`));
     body.append(el('h3', { text: T.foodInStore }), ...FOOD_GOODS.filter((g, i) => i === 0 || d.foodByGood[g] > 0).map((g) => row(goodName(g), `${d.foodByGood[g]}`)));
     body.append(row(T.lasts, d.monthsOfFood === null ? '–' : plural(d.monthsOfFood, 'month', 'months')));
     // Each good made against used last month (spec 4.10), in the data's order; only goods that moved.
@@ -302,7 +331,10 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (!list.length) alerts.push(el('p', { class: 'muted', text: T.noAlerts }));
     else alerts.push(el('ul', { class: 'alert-list' }, list.map((a) => {
       const t = alertText(a, world);
-      const fix = ALERT_FIX.has(a.code) ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onFixAlert(a) })] : [];
+      // Stage 4 (spec 4.16): a stalled site's fix is Show me for a missing guild or material (the card, its ghost near the site).
+      const stall = a.code === 'site_stalled' && world.buildings[a.id] ? causeFix(world, world.buildings[a.id], a.reason) : null;
+      const fix = ALERT_FIX.has(a.code) ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onFixAlert(a) })]
+        : stall && stall.showMe ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onShowMe(stall.showMe) })] : [];
       return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) }), ...fix]);
     })));
     body.append(...(phone ? [...alerts, ...map] : [...map, ...alerts]));
@@ -312,8 +344,13 @@ export function createSheets({ container, store, world, placement, cameraControl
 
   // View in the alert list: a building's alert goes through onView (it selects the building); a raid's alert sits at a
   // map point (Stage 3), so the sheet closes and the camera goes there.
+  // Stage 4: View outlines what it frames (ruling 281); a site stalled because its guild is short of workers or burning views
+  // that guild (spec 4.16 Stalls).
   function viewInList(a) {
     if ((a.id === undefined || a.id === null) && Number.isFinite(a.x) && Number.isFinite(a.y)) { close(); cameraControl.panTo(a.x + 0.5, a.y + 0.5); return; }
+    const stall = a.code === 'site_stalled' && world.buildings[a.id] ? causeFix(world, world.buildings[a.id], a.reason) : null;
+    if (stall && stall.view) { noteView(world, stall.view); onSelect(stall.view); return; }
+    noteView(world, a.id);
     onView(a);
   }
 
@@ -338,7 +375,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (s.sheet.kind === 'info') {
       const b = world.buildings[s.sheet.id];
       if (!b) { container.hidden = true; if (notifying) queueMicrotask(closeGone); else closeGone(); return; }
-      parts = b.type === 'house' ? houseSheet(b) : buildingSheet(b);
+      parts = b.type === 'house' ? houseSheet(b) : BUILDINGS[b.type].monument ? monumentSheet(b) : buildingSheet(b);
     } else if (s.sheet.kind === 'summary') parts = summarySheet();
     else if (s.sheet.kind === 'minimap') parts = minimapSheet();
     else if (custom[s.sheet.kind]) {

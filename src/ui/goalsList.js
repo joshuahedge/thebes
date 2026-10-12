@@ -15,7 +15,8 @@ import { milestoneIndex } from '../sim/progression.js';
 import { scoreOf } from '../sim/score.js';
 import { dailyProgress, swapDaily } from '../sim/daily.js';
 import { alertsFor } from '../sim/alerts.js';
-import { housesOf, population } from '../sim/world.js';
+import { stalledGuild } from '../sim/monuments.js';
+import { housesOf, population, allBuildings, isSite } from '../sim/world.js';
 import { TERRAIN_BY_NAME } from '../sim/terrain.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { el, button, clear, setText } from './components.js';
@@ -61,7 +62,14 @@ export function showMeTarget(world, goal, alerts = null) {
   if (kind === 'alert') {
     const codes = [].concat(show.code);
     const a = (alerts || alertsFor(world)).find((x) => codes.includes(x.code) && x.id && world.buildings[x.id]);
-    if (a) { const b = world.buildings[a.id]; return { x: b.x + b.w / 2, y: b.y + b.d / 2 }; }
+    if (a) {
+      let b = world.buildings[a.id];
+      // Stage 4: a stall goal aimed at the guild (show.guild) aims at the guild the stall names (the sim's stalledGuild:
+      // the planned guild that is burning or short of workers), not the site; the site when there is none.
+      const gid = show.guild ? stalledGuild(world, b, a.reason) : null;
+      if (gid !== null && world.buildings[gid]) b = world.buildings[gid];
+      return { x: b.x + b.w / 2, y: b.y + b.d / 2 };
+    }
   }
   if (kind === 'raid') {
     const r = world.raid.warning || world.raid.active;
@@ -72,6 +80,10 @@ export function showMeTarget(world, goal, alerts = null) {
       const step = len > 0 ? Math.min(RAID_SHOW_ME_TILES, len) / len : 0;
       return { x: cx + dx * step, y: cy + dy * step };
     }
+  }
+  if (kind === 'site') {                                // Stage 4: the newest monument site (the guild and brickworks goals, ruling 254)
+    const sites = allBuildings(world).filter(isSite);
+    if (sites.length) { const b = sites.reduce((a, c) => (c.id > a.id ? c : a)); return { x: b.x + b.w / 2, y: b.y + b.d / 2 }; }
   }
   if (kind === 'startRoad' && world.startRoad.length) {
     const [x, y] = world.startRoad[world.startRoad.length - 1];
@@ -108,7 +120,10 @@ const showMeButton = (goal, onShowMe) => button(T.showMe, { class: 'show-me prim
 function goalRow(world, goal, onShowMe) {
   const c = countOf(world, goal);
   return el('li', { class: 'goal' }, [
-    el('span', { class: 'text' }, [goal.text, ' ', c ? chip(c) : null, c ? ' ' : null, el('span', { class: 'reward small muted', text: rewardText(goal.reward) })]),
+    el('span', { class: 'text' }, [
+      goal.text, ' ', c ? chip(c) : null, c ? ' ' : null, el('span', { class: 'reward small muted', text: rewardText(goal.reward) }),
+      goal.why ? el('span', { class: 'why small muted', text: goal.why }) : null,   // Stage 4 (ruling 265): the opening goals say why
+    ]),
     showMeButton(goal, onShowMe),
   ]);
 }
@@ -161,12 +176,13 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
       // One row (ruling 170): the label, the words and the progress are one flow of words, two lines at most, on the button
       // that opens the goal in place (P8); then Show me. Open, the reward, All goals and Skip guide show too.
       const reward = el('span', { class: 'reward small muted', hidden: true });
+      const why = el('span', { class: 'why small muted', hidden: true });                   // Stage 4 (ruling 265): the goal's why, shown open
       const more = el('span', { class: 'more small', 'aria-hidden': 'true', hidden: true });   // the button's aria-expanded says the state
-      const open = el('button', { type: 'button', class: 'main open-goals', 'aria-expanded': 'false', onClick: () => onToggle() }, [el('span', { class: 'words' }, [label, ' ', text, ' ', progress, ' ', reward]), more]);
+      const open = el('button', { type: 'button', class: 'main open-goals', 'aria-expanded': 'false', onClick: () => onToggle() }, [el('span', { class: 'words' }, [label, ' ', text, ' ', progress, ' ', reward, why]), more]);
       const allGoals = el('button', { type: 'button', class: 'all-goals quiet', hidden: true, onClick: () => onOpen() }, [T.allGoals, el('span', { 'aria-hidden': 'true', text: ' ›' })]);
       const skip = button(T.skipGuide, { class: 'skip-guide quiet', hidden: true, onClick: () => onSkipGuide() });
       strip.append(open, el('span', { class: 'buttons' }, [showMe, allGoals, skip]));
-      parts = { text, progress, showMe, skip, label, open, reward, more, allGoals };
+      parts = { text, progress, showMe, skip, label, open, reward, more, allGoals, why };
     } else {
       const skip = button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() });
       strip.append(
@@ -178,7 +194,7 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
         ]),
         el('span', { class: 'buttons' }, [showMe, button(T.goals, { class: 'open-goals quiet', onClick: onOpen }), skip]),
       );
-      parts = { text, progress, showMe, skip, label, open: null, reward: null, more: null, allGoals: null };
+      parts = { text, progress, showMe, skip, label, open: null, reward: null, more: null, allGoals: null, why: null };
     }
     update(goal);
     paintOpen();
@@ -197,7 +213,9 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
     parts.progress.hidden = !c;
     if (c) { setText(parts.progress, c.text); parts.progress.setAttribute('aria-label', c.label); }
     if (parts.reward) setText(parts.reward, rewardText(goal.reward));
-    if (parts.open) parts.open.setAttribute('aria-label', goalWordsLabel(o ? `${T.goal} ${progressText(o.done, o.of)}` : T.goal, goal.text, c ? c.label : ''));
+    if (parts.why) { setText(parts.why, goal.why || ''); parts.why.hidden = !expanded || !goal.why; }
+    const said = expanded && goal.why ? `${goal.text}. ${goal.why}` : goal.text;          // Stage 4: open, the name says the why too
+    if (parts.open) parts.open.setAttribute('aria-label', goalWordsLabel(o ? `${T.goal} ${progressText(o.done, o.of)}` : T.goal, said, c ? c.label : ''));
     const skipHidden = !guideActive(world) || (shownPhone && !expanded);   // a phone's Skip guide is part of the open goal
     if (skipHidden && document.activeElement === parts.skip) (parts.open || parts.showMe).focus();   // Skip guide hides itself: keep focus in the strip
     parts.skip.hidden = skipHidden;
@@ -260,7 +278,7 @@ export function goalsSheet(world, { onShowMe, onSwap = (i) => swapDaily(world, i
     body.append(el('p', { class: 'muted', text: goalsProgressText(done + 1, chain.length + 1) }));   // Founded Thebes is done from the start
     if (skipHere() && guideActive(world)) body.append(el('p', { class: 'skip-row' }, [button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() })]));   // one tap, no confirm (spec 3.2)
     const open = openGoals(world, 3);
-    if (!open.length) body.append(el('p', { text: T.goalsDone }));
+    if (!open.length) body.append(el('p', { text: done === chain.length ? T.goalsDone : T.goalsNone }));   // a goal waiting on its `when` is hidden, not done
     const chapters = [];
     for (const g of open) if (!chapters.includes(g.chapter)) chapters.push(g.chapter);
     for (const ch of chapters) {

@@ -48,18 +48,23 @@ describe('ui title card', () => {
     const points = driftPoints(world);
     expect(points.length).toBe(4);
     for (const [x, y] of points) { expect(x >= 0 && x < world.size).toBe(true); expect(y >= 0 && y < world.size).toBe(true); }
-    const b = createBackdrop({ world, cam, cameraControl: cc, reducedMotion: () => reduced, driftMs: 1000 });
+    const b = createBackdrop({ world, cam, cameraControl: cc, reducedMotion: () => reduced, driftMs: 1000, holdMs: 400 });
     expect(b.points).toEqual(points);
     expect([cam.x, cam.y]).toEqual(points[0]);
     b.tick(0);
-    expect(cc.animating).toBe(true);
-    cc.tick(1000);
-    expect([cam.x, cam.y]).toEqual(points[1]);
-    b.tick(500);                                            // too early for the next drift
+    expect(cc.animating).toBe(false);                       // under Full it first holds the showcase
+    b.tick(399);
     expect(cc.animating).toBe(false);
-    b.tick(1000);
-    cc.tick(2000);
+    b.tick(400);
+    expect(cc.animating).toBe(true);
+    cc.tick(1400);
+    expect([cam.x, cam.y]).toEqual(points[1]);
+    b.tick(900);                                            // too early for the next drift
+    expect(cc.animating).toBe(false);
+    b.tick(1400);
+    cc.tick(2400);
     expect([cam.x, cam.y]).toEqual(points[2]);
+    for (const [x, y] of points) expect(Math.hypot(x - points[0][0], y - points[0][1]) <= 2).toBe(true);   // it breathes round the showcase
     b.stop();
     b.tick(3000);
     expect(cc.animating).toBe(false);

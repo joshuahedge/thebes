@@ -1,12 +1,14 @@
 // Trade (spec 4.15, tunable). A partner opens once the city reaches its milestone and the player pays routeCost
 // (scaled by difficulty: routeCostOf in src/sim/costs.js). buys: what it pays for the player's goods; sells: what it
 // asks for its own; each good with a yearly quota, a quarter of which each caravan carries. A new route's first
-// caravan brings a gift of the first good on its sale list.
+// caravan brings a gift of the first good on its sale list. A good with `from` is listed only once the city has reached
+// that milestone (Stage 4: Memphis's stone from City, ruling 255; Track A gates it in src/sim/trade.js); no partner buys
+// stone or bricks.
 export const PARTNERS = {
   memphis: {
     name: 'Memphis', milestone: 'market_town', routeCost: 300,
     buys: { grain: { price: 1, quota: 300 }, pottery: { price: 8, quota: 200 }, beer: { price: 10, quota: 160 } },
-    sells: { clay: { price: 2, quota: 300 }, figs: { price: 3, quota: 200 }, barley: { price: 3, quota: 200 } },
+    sells: { clay: { price: 2, quota: 300 }, figs: { price: 3, quota: 200 }, barley: { price: 3, quota: 200 }, stone: { price: 6, quota: 200, from: 'city' } },
     gift: { good: 'clay', n: 40 },
   },
   byblos: {

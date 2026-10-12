@@ -7,8 +7,12 @@ import { dailyProgress } from '../sim/daily.js';
 import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { CRITICAL } from './alerts.js';
 import { scoreOf } from '../sim/score.js';
+import { allBuildings, isSite } from '../sim/world.js';
+import { siteStatus } from '../sim/monuments.js';
+import { noteView } from '../render/overlays.js';
+import { SCORE_VERSION } from '../data/scoring.js';
 import { el, button } from './components.js';
-import { alertText, dateText, plural, progressText, closestAchievementText, viewLabel, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, TREND_MARKS, SCORE_TEXT, T } from './text.js';
+import { alertText, dateText, plural, progressText, closestAchievementText, viewLabel, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, TREND_MARKS, SCORE_TEXT, T, UI4_TEXT } from './text.js';
 
 const MINUTE = 60 * 1000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 
@@ -46,6 +50,10 @@ function trendRow(label, current, history, key) {
   ]);
 }
 
+// The month-end rows the score trend compares with (spec 4.17, 4.19; Track D): those holding a score made under this score
+// version. A row without a version is a score v1 row (MIGRATIONS[4] marks them; ruling 203).
+export const scoreTrendRows = (world) => world.history.filter((r) => Number.isFinite(r.score) && (Number.isInteger(r.version) ? r.version : 1) === SCORE_VERSION);
+
 // The unfinished achievement nearest to done: the highest share of its count, ties to the earlier one in
 // ACHIEVEMENTS. Recorded ones, ones already at their count, and ones not started are left out. Null if none.
 export function closestAchievement(world) {
@@ -72,6 +80,23 @@ function dailyRow(world, id) {
   return el('li', { class: done ? 'goal done' : 'goal' }, [el('span', { class: 'text', text: DAILY_TEXT[id] || id }), status]);
 }
 
+// Stage 4 (Track C, spec 4.17): each monument site's course and its pace, from siteStatus, oldest first: "Small pyramid: course
+// 6 of 8, about 3 years left at last month's pace" (not while it is stalled), "... not progressing: no stone", "... paused",
+// "... no road yet", or "... pace shows after a month of work". Nothing advances while the game is closed, so this is where the player left it.
+export function siteLines(world) {
+  const U = UI4_TEXT;
+  return allBuildings(world).filter(isSite).map((b) => {
+    const s = siteStatus(world, b);
+    let state = U.welcomeFirst;
+    if (!s.road) state = U.welcomeNoRoad;
+    else if (s.paused) state = U.welcomePaused;
+    else if (s.stalled && s.reason) state = U.welcomeStill(s.reason);   // stalled now: last month's pace is not what it is doing
+    else if (s.pace !== null) state = U.welcomePace(s.pace);
+    else if (s.last && !(s.last.units > 0) && s.reason) state = U.welcomeStill(s.reason);   // reason is null while a site works: that falls through to welcomeFirst, never a made-up cause
+    return U.welcomeSite(b.type, s.progress.course, s.progress.courses, state);
+  });
+}
+
 export function welcomeSheet({ world, savedAt, lastSpeed, now = () => Date.now(), getAlerts = () => [], onView = () => {}, onCarryOn = () => {}, onStayPaused = () => {} }) {
   return (body) => {
     body.append(el('p', { text: dateText(dateParts(world)) }), el('p', { class: 'muted', text: `${T.lastPlayed} ${elapsedText(savedAt, now())}` }));
@@ -80,8 +105,11 @@ export function welcomeSheet({ world, savedAt, lastSpeed, now = () => Date.now()
       trendRow(T.gold, world.gold, world.history, 'gold'),
       trendRow(T.mood, world.mood, world.history, 'mood'),
       // Stage 3 (spec 4.17, 4.19): the city score against the month-end rows that hold one (a version 3 save's rows do not).
-      trendRow(SCORE_TEXT.score, scoreOf(world).total, world.history.filter((r) => Number.isFinite(r.score)), 'score'),
+      // Stage 4: only rows of this score version, so a city does not seem to drop overnight when the formula changes.
+      trendRow(SCORE_TEXT.score, scoreOf(world).total, scoreTrendRows(world), 'score'),
     ]));
+    const sites = siteLines(world);
+    if (sites.length) body.append(el('h3', { text: UI4_TEXT.welcomeHead }), el('ul', { class: 'sites' }, sites.map((s) => el('li', { class: 'site', text: s }))));
     const goals = openGoals(world, 3);
     body.append(el('h3', { text: T.goals }), goals.length ? el('ul', { class: 'goals' }, goals.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
     if (world.daily) body.append(el('h3', { text: T.today }), el('ul', { class: 'goals today' }, world.daily.picks.map((id) => dailyRow(world, id))));
@@ -90,7 +118,7 @@ export function welcomeSheet({ world, savedAt, lastSpeed, now = () => Date.now()
     const alerts = [...getAlerts()].sort((a, b) => Number(CRITICAL.has(b.code)) - Number(CRITICAL.has(a.code)));   // critical ones first (stable)
     body.append(el('h3', { text: T.alerts }));
     if (!alerts.length) body.append(el('p', { class: 'muted', text: T.noAlerts }));
-    else body.append(el('ul', { class: 'alert-list' }, alerts.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => onView(a) })]); })));
+    else body.append(el('ul', { class: 'alert-list' }, alerts.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => { noteView(world, a.id); onView(a); } })]); })));
     body.append(el('div', { class: 'actions welcome-actions' }, [
       button(T.carryOn, { class: 'carry-on primary', onClick: () => onCarryOn(lastSpeed) }),
       button(T.stayPaused, { class: 'stay-paused', onClick: () => onStayPaused() }),

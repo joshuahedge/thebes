@@ -1,8 +1,8 @@
 // Records on the device (spec 4.19): localStorage RECORDS_KEY ('thebes.records'), separate from the save and read and
 // written inside try/catch, so private browsing never breaks the game. Stage 3 contract: Track 0 fixed the API and the
 // top-level shape; Track E implements it.
-//   { version: 1, cities: [ { id, seed, difficulty, scoreVersion, best, bestDay, medal, splits, updated } ],
-//     chronicle: [ { id, cityId, seed, difficulty, day, score, parts, splits, medal, feats, version, date } ] }
+//   { version: 1, cities: [ { id, seed, difficulty, scoreVersion, best, bestDay, medal, splits, updated[, older] } ],
+//     chronicle: [ { id, cityId, seed, difficulty, day, score, parts, splits, medal, feats, version, date[, built] } ] }
 // A city row: the city's id, seed and level, its best month-end city score (null until its first month end) with the
 // game day and medal of that month and the score version it was made under, the game day it first became each milestone
 // (world.splits), and when the device last noted it (ms). A chronicle entry: one per Seal this reign, with the seal's day,
@@ -11,8 +11,16 @@
 // row with the highest score per seed and level, and each milestone's earliest row; the chronicle's highest entry per
 // seed and level). boot.js writes a city row on every save, export carries the records beside the world (packSave's
 // records) and import merges them by id.
-import { RECORDS_KEY, RECORDS_MAX, SCORE_VERSION, SCORE_PARTS, SPLIT_MILESTONES, MEDALS, SCORE_FACTOR } from '../data/scoring.js';
+// Stage 4 (score v2, spec 4.19, Track D): a best keeps the score version it was made under, with its medal on that
+// version's scale, and is never compared with a best of another version. A city row's own best is its newest version's;
+// `older` ({ best, bestDay, medal, scoreVersion }, only when there is one) keeps its best from the version before, so a city
+// begun under score v1 keeps its v1 best ("older scoring") beside its first v2 one. A month-end row without a `version` is
+// a score v1 row. A chronicle entry keeps its own version's parts (a v1 seal has four), and `built` (only when there is
+// one) lists the kinds of each finished mastaba and pyramid at the seal, for the stamp's glyphs (STAMP_KINDS).
+import { RECORDS_KEY, RECORDS_MAX, SCORE_VERSION, SCORE_PARTS, PARTS_BY_VERSION, SPLITS, MEDALS, SCORE_FACTOR, STAMP_KINDS } from '../data/scoring.js';
+import { MONUMENT_KINDS } from '../data/monuments.js';
 import { medalFor } from '../sim/score.js';
+import { allBuildings, isFinished } from '../sim/world.js';
 
 export const RECORDS_VERSION = 1;
 export const emptyRecords = () => ({ version: RECORDS_VERSION, cities: [], chronicle: [] });
@@ -33,35 +41,60 @@ const isLevel = (d) => typeof d === 'string' && Object.hasOwn(SCORE_FACTOR, d);
 const isMedal = (m) => m === null || MEDALS.some((x) => x.id === m);
 const keyOf = (r) => `${r.seed}|${r.difficulty}`;
 
-// The milestone days of a splits object, whole days only, in SPLIT_MILESTONES order.
+// The split days of a splits object (Stage 4: all seven, SPLITS), whole days only, in that order.
 function cleanSplits(s) {
   const out = {};
-  if (isObj(s)) for (const id of SPLIT_MILESTONES) if (isInt(s[id]) && s[id] >= 0) out[id] = s[id];
+  if (isObj(s)) for (const id of SPLITS) if (isInt(s[id]) && s[id] >= 0) out[id] = s[id];
   return out;
 }
 
-// A city row as stored, or null when it is not one (an imported file can hold anything).
+// A city row as stored, or null when it is not one (an imported file can hold anything). Its `older` best stays only when
+// it is a best of an earlier version than the row's own.
 function cleanCity(c) {
   if (!isObj(c) || typeof c.id !== 'string' || !c.id || !isInt(c.seed) || !isLevel(c.difficulty)) return null;
   const best = isNum(c.best) ? c.best : null;
-  return {
+  const row = {
     id: c.id, seed: c.seed, difficulty: c.difficulty, scoreVersion: isInt(c.scoreVersion) ? c.scoreVersion : SCORE_VERSION,
     best, bestDay: best !== null && isInt(c.bestDay) ? c.bestDay : null, medal: best !== null && isMedal(c.medal) ? c.medal : null,
     splits: cleanSplits(c.splits), updated: isNum(c.updated) ? c.updated : 0,
   };
+  const o = c.older;
+  if (best !== null && isObj(o) && isNum(o.best) && isInt(o.scoreVersion) && o.scoreVersion < row.scoreVersion) {
+    row.older = { best: o.best, bestDay: isInt(o.bestDay) ? o.bestDay : null, medal: isMedal(o.medal) ? o.medal : null, scoreVersion: o.scoreVersion };
+  }
+  return row;
+}
+
+// The bests a city row holds, one per score version it has: [{ best, bestDay, medal, scoreVersion }].
+const bestsOf = (c) => [c, c.older].filter((x) => x && x.best !== null).map((x) => ({ best: x.best, bestDay: x.bestDay, medal: x.medal, scoreVersion: x.scoreVersion }));
+// A row with these bests: the highest of each version, the newest version's as the row's own and the one before it as
+// `older`; a row with none keeps its version and has no best.
+function withBests(row, list) {
+  const top = new Map();
+  for (const x of list) if (!top.has(x.scoreVersion) || x.best > top.get(x.scoreVersion).best) top.set(x.scoreVersion, x);
+  const [main, prev] = [...top.values()].sort((a, b) => b.scoreVersion - a.scoreVersion);
+  const out = { ...row, best: null, bestDay: null, medal: null };
+  delete out.older;
+  if (main) Object.assign(out, { scoreVersion: main.scoreVersion, best: main.best, bestDay: main.bestDay, medal: main.medal });
+  if (prev) out.older = { ...prev };
+  return out;
 }
 
 // A chronicle entry as stored, or null.
 function cleanEntry(e) {
   if (!isObj(e) || typeof e.id !== 'string' || !e.id || typeof e.cityId !== 'string' || !isInt(e.seed) || !isLevel(e.difficulty) || !isNum(e.score)) return null;
+  const version = isInt(e.version) ? e.version : SCORE_VERSION;
   const parts = {};
-  for (const p of SCORE_PARTS) parts[p] = isObj(e.parts) && isNum(e.parts[p]) ? e.parts[p] : 0;
-  return {
+  for (const p of PARTS_BY_VERSION[version] || SCORE_PARTS) parts[p] = isObj(e.parts) && isNum(e.parts[p]) ? e.parts[p] : 0;   // a v1 seal has four
+  const out = {
     id: e.id, cityId: e.cityId, seed: e.seed, difficulty: e.difficulty, day: isInt(e.day) ? e.day : 0, score: e.score, parts,
     splits: cleanSplits(e.splits), medal: isMedal(e.medal) ? e.medal : null,
-    feats: Array.isArray(e.feats) ? e.feats.filter((f) => typeof f === 'string') : [], version: isInt(e.version) ? e.version : SCORE_VERSION,
+    feats: Array.isArray(e.feats) ? e.feats.filter((f) => typeof f === 'string') : [], version,
     date: isNum(e.date) ? e.date : 0,
   };
+  const built = Array.isArray(e.built) ? e.built.filter((k) => STAMP_KINDS.includes(k)) : [];
+  if (built.length) out.built = built;
+  return out;
 }
 
 // Any value read back as records: the well-formed rows and entries, the rest dropped.
@@ -109,14 +142,13 @@ function capped(r, max = RECORDS_MAX) {
   };
 }
 
-// One city's two rows made one: the better best (with its day, medal and version), each milestone's earlier day, the
-// later note.
+// One city's two rows made one: the better best of each score version (never a v1 score against a v2 one: withBests),
+// each milestone's earlier day, the later note.
 function mergeCity(a, b) {
-  const better = b.best !== null && (a.best === null || b.best > a.best) ? b : a;
   const splits = { ...a.splits };
   for (const [id, day] of Object.entries(b.splits)) if (!(id in splits) || day < splits[id]) splits[id] = day;
   const newer = b.updated > a.updated ? b : a;
-  return { ...newer, best: better.best, bestDay: better.bestDay, medal: better.medal, scoreVersion: better.scoreVersion, splits: cleanSplits(splits), updated: Math.max(a.updated, b.updated) };
+  return withBests({ ...newer, splits: cleanSplits(splits), updated: Math.max(a.updated, b.updated) }, [...bestsOf(a), ...bestsOf(b)]);
 }
 
 // Two records merged by id (a city row keeps its better best and earlier splits; chronicle entries are unique), capped.
@@ -130,8 +162,13 @@ export function mergeRecords(a, b) {
   return capped({ cities: [...cities.values()], chronicle });
 }
 
-// The parts' total of a month-end row (its raw score), for the medal.
-const rawOf = (row) => SCORE_PARTS.reduce((s, p) => s + (isObj(row.parts) && isNum(row.parts[p]) ? row.parts[p] : 0), 0);
+// A month-end row's score version (a row without one is a score v1 row: MIGRATIONS[4] marks them, ruling 253).
+const rowVersion = (row) => (isInt(row.version) ? row.version : 1);
+// The parts' total of a month-end row (its raw score) over its own version's parts, for the medal.
+const rawOf = (row) => (PARTS_BY_VERSION[rowVersion(row)] || SCORE_PARTS).reduce((s, p) => s + (isObj(row.parts) && isNum(row.parts[p]) ? row.parts[p] : 0), 0);
+// The kinds of each finished mastaba and pyramid standing, in MONUMENT_KINDS order (the stamp's glyphs).
+const builtKinds = (world) => allBuildings(world).filter((b) => STAMP_KINDS.includes(b.type) && isFinished(b))
+  .map((b) => b.type).sort((x, y) => MONUMENT_KINDS.indexOf(x) - MONUMENT_KINDS.indexOf(y));
 
 export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, max = RECORDS_MAX } = {}) {
   function read() {
@@ -147,15 +184,16 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
     // What the device holds, or emptyRecords() when nothing, unreadable or blocked.
     load: read,
     // After every save: this city's row (seed, level, score version, best month-end score, splits). The world keeps 12
-    // month-end rows, so the best is the higher of the row's and those rows' scores.
+    // month-end rows, so the best is the higher of the row's and those rows' scores, version by version: each row counts
+    // under its own score version, with that version's medal (Stage 4).
     noteCity(world, now) {
       if (!world || !world.cityId) return;
       const r = read();
-      let best = null, bestDay = null, medal = null;
+      const bests = [];
       for (const row of world.history || []) {
-        if (isNum(row.score) && (best === null || row.score > best)) { best = row.score; bestDay = row.day; medal = medalFor(rawOf(row)); }
+        if (isNum(row.score)) bests.push({ best: row.score, bestDay: row.day, medal: medalFor(rawOf(row), rowVersion(row)), scoreVersion: rowVersion(row) });
       }
-      const row = { id: world.cityId, seed: world.seed, difficulty: world.difficulty, scoreVersion: SCORE_VERSION, best, bestDay, medal, splits: cleanSplits(world.splits), updated: now };
+      const row = withBests({ id: world.cityId, seed: world.seed, difficulty: world.difficulty, scoreVersion: SCORE_VERSION, splits: cleanSplits(world.splits), updated: now }, bests);
       const i = r.cities.findIndex((c) => c.id === row.id);
       if (i >= 0) r.cities[i] = mergeCity(r.cities[i], row); else r.cities.push(row);
       write(r);
@@ -166,6 +204,7 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
       const entry = cleanEntry({
         id: `${world.cityId || 'city'}:${world.seals.length}:${seal.day}`, cityId: world.cityId || 'city', seed: world.seed, difficulty: world.difficulty,
         day: seal.day, score: seal.score, parts: seal.parts, splits: world.splits, medal: seal.medal, feats: [...world.feats.earned], version: seal.version, date: now,
+        built: builtKinds(world),
       });
       if (!entry) return null;
       r.chronicle = r.chronicle.filter((e) => e.id !== entry.id);
@@ -175,27 +214,30 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
     },
     // Import: merges records from an exported file into the device's own.
     merge(other) { write(mergeRecords(read(), other)); },
-    // The n highest bests, one per seed and level, highest first: { seed, difficulty, score, medal, version, older }
-    // (older: made under an earlier score version, so labelled "older scoring").
+    // The n highest bests, one per seed, level and score version, highest first: { seed, difficulty, score, medal, version,
+    // older } (older: made under an earlier score version, so labelled "older scoring"; Stage 4: a v1 best is listed as
+    // itself, never folded into a v2 one).
     bests(n = 3) {
       const top = new Map();
       for (const c of read().cities) {
-        if (c.best === null) continue;
-        const k = keyOf(c);
-        if (!top.has(k) || c.best > top.get(k).best) top.set(k, c);
+        for (const x of bestsOf(c)) {
+          const k = `${keyOf(c)}|${x.scoreVersion}`;
+          if (!top.has(k) || x.best > top.get(k).best) top.set(k, { ...x, seed: c.seed, difficulty: c.difficulty });
+        }
       }
       return [...top.values()].sort((a, b) => b.best - a.best || a.seed - b.seed).slice(0, n)
         .map((c) => ({ seed: c.seed, difficulty: c.difficulty, score: c.best, medal: c.medal, version: c.scoreVersion, older: c.scoreVersion < SCORE_VERSION }));
     },
     // The personal best on one seed and level, leaving out one city (the one being played): { score, splits } with the
-    // highest best (null when none) and the earliest day of each milestone; null when no other city has that seed and level.
-    bestFor(seed, difficulty, { except = null } = {}) {
+    // highest best made under score `version` (this version by default; Stage 4: a t1 link asks for 1, ruling 259), null
+    // when none, and the earliest day of each milestone; null when no other city has that seed and level.
+    bestFor(seed, difficulty, { except = null, version = SCORE_VERSION } = {}) {
       const rows = read().cities.filter((c) => c.seed === seed && c.difficulty === difficulty && c.id !== except);
       if (!rows.length) return null;
       let score = null;
       const splits = {};
       for (const c of rows) {
-        if (c.best !== null && (score === null || c.best > score)) score = c.best;
+        for (const x of bestsOf(c)) if (x.scoreVersion === version && (score === null || x.best > score)) score = x.best;
         for (const [id, day] of Object.entries(c.splits)) if (!(id in splits) || day < splits[id]) splits[id] = day;
       }
       return { score, splits };

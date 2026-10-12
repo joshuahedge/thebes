@@ -267,7 +267,7 @@ describe('s3 contract clock and economy wiring', () => {
     runMonth(w, []);
     const row = w.history[w.history.length - 1];
     expect(row).toEqual({ day: w.day, people: population(w), gold: w.gold, mood: w.mood, ...scoreRow(w) });
-    expect(Object.keys(row.parts)).toEqual(['people', 'prosperity', 'culture', 'safety']);
+    expect(Object.keys(row.parts)).toEqual(['people', 'prosperity', 'culture', 'safety', 'monuments']);
   });
   it('records the day the city first became each milestone, once, two at a time when it jumps', () => {
     const w = makeTestWorld();
@@ -279,7 +279,7 @@ describe('s3 contract clock and economy wiring', () => {
     w.day = 300; home.residents = MILESTONES[1].population;
     updateMilestone(w);
     expect(w.splits).toEqual({ town: 90, market_town: 90 });                       // the first day stands
-    expect(splitMonths(w)).toEqual({ town: 3, market_town: 3, city: null, great_city: null, capital: null });
+    expect(splitMonths(w)).toEqual({ town: 3, market_town: 3, city: null, great_city: null, capital: null, pyramids: null, great_pyramid: null });
   });
   it('gives the test fixture raider entries for raid tests', () => {
     expect(makeTestWorld({ raiderEntries: [{ x: 31, y: 16 }] }).raiderEntries).toEqual([{ x: 31, y: 16 }]);
@@ -424,22 +424,22 @@ describe('s3 contract score seams', () => {
   it('scores with the version, factor, medals and next medal per level (Track E fills in the parts: tests/stage3/score)', () => {
     const w = street();
     const s = scoreOf(w);
-    expect([s.version, s.factor, s.raw, s.total]).toEqual([1, 1, Object.values(s.parts).reduce((a, b) => a + b, 0), Math.round(s.raw * s.factor)]);
+    expect([s.version, s.factor, s.raw, s.total]).toEqual([2, 1, Object.values(s.parts).reduce((a, b) => a + b, 0), Math.round(s.raw * s.factor)]);
     expect([s.medal, s.next]).toEqual([medalFor(s.raw), nextMedal(w, s.raw)]);
-    expect([Object.keys(s.parts), Object.keys(s.reasons)]).toEqual([['people', 'prosperity', 'culture', 'safety'], ['people', 'prosperity', 'culture', 'safety']]);
-    expect(Object.keys(scorePreview(w, 'well', 3, 9))).toEqual(['people', 'prosperity', 'culture', 'safety']);
-    expect([159, 160, 239, 240, 320, 400].map(medalFor)).toEqual([null, 'bronze', 'bronze', 'silver', 'gold', 'gold']);
+    expect([Object.keys(s.parts), Object.keys(s.reasons)]).toEqual([['people', 'prosperity', 'culture', 'safety', 'monuments'], ['people', 'prosperity', 'culture', 'safety', 'monuments']]);
+    expect(Object.keys(scorePreview(w, 'well', 3, 9))).toEqual(['people', 'prosperity', 'culture', 'safety', 'monuments']);
+    expect([199, 200, 299, 300, 400, 500].map(medalFor)).toEqual([null, 'bronze', 'bronze', 'silver', 'gold', 'gold']);
     w.difficulty = 'relaxed';
-    expect([scoreFactor(w), nextMedal(w, 200)]).toEqual([0.8, { medal: 'silver', points: 192 - 160 }]);
+    expect([scoreFactor(w), nextMedal(w, 200)]).toEqual([0.8, { medal: 'silver', points: 240 - 160 }]);
     w.difficulty = 'hard';
-    expect([nextMedal(w, 0), nextMedal(w, 320)]).toEqual([{ medal: 'bronze', points: 200 }, null]);
+    expect([nextMedal(w, 0), nextMedal(w, 400)]).toEqual([{ medal: 'bronze', points: 250 }, null]);
   });
   it('seals a reign in the world, as often as asked', () => {
     const w = street();
     w.day = 400;
     const s = scoreOf(w);
     const r = sealReign(w);
-    expect(r).toEqual({ ok: true, warnings: [], seal: { day: 400, score: s.total, parts: s.parts, medal: s.medal, version: 1 } });
+    expect(r).toEqual({ ok: true, warnings: [], seal: { day: 400, score: s.total, parts: s.parts, medal: s.medal, version: 2 } });
     sealReign(w);
     expect(w.seals.length).toBe(2);
   });

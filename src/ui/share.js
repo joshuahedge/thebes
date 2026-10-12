@@ -1,7 +1,7 @@
 // Sharing a score (spec 4.19): the weekly seed, the share link and its check, the emoji row and the picture card. Opt-in
 // only, labelled "friends' honour". Stage 3 contract: Track 0 fixed the names; Track E implements them. The interface reads
 // the date; the sim never does.
-import { SHARE, SCORE_PARTS, SPLIT_MILESTONES, SCORE_FACTOR } from '../data/scoring.js';
+import { SHARE, SCORE_PARTS, SCORE_FACTOR } from '../data/scoring.js';
 import { T as TER } from '../sim/terrain.js';
 import { allBuildings } from '../sim/world.js';
 import { hashKey } from '../sim/daily.js';
@@ -31,40 +31,45 @@ export const shareCheck = (body) => (hashKey(body) % 36 ** SHARE.checkLength).to
 const LEVEL_OF = Object.fromEntries(Object.entries(SHARE.difficulty).map(([level, c]) => [c, level]));
 const isPart = (n) => Number.isInteger(n) && n >= 0 && n <= 100;
 
-// The share link for a score: SHARE.base + '#t1.<seed>.<p|r|n|h>.<parts joined by ->.<months to each milestone
-// joined by -, x where not reached>.<4 base-36 check characters>'; '' for anything that is not a score.
+// The share link for a score: SHARE.base + '#t2.<seed>.<p|r|n|h>.<parts joined by ->.<months to each split
+// joined by -, x where not reached>.<4 base-36 check characters>'; '' for anything that is not a score. Stage 4: written
+// in SHARE.format (t2: five parts, seven splits, SHARE.formats).
 export function shareLink({ seed, difficulty, parts, splits } = {}) {
-  if (!Number.isInteger(seed) || seed < 0 || !SHARE.difficulty[difficulty] || !parts || !SCORE_PARTS.every((p) => isPart(parts[p]))) return '';
-  const months = SPLIT_MILESTONES.map((id) => (splits && Number.isInteger(splits[id]) ? splits[id] : 'x')).join('-');
-  const body = `${SHARE.format}.${seed}.${SHARE.difficulty[difficulty]}.${SCORE_PARTS.map((p) => parts[p]).join('-')}.${months}`;
+  const f = SHARE.formats[SHARE.format];
+  if (!Number.isInteger(seed) || seed < 0 || !SHARE.difficulty[difficulty] || !parts || !f.parts.every((p) => isPart(parts[p]))) return '';
+  const months = f.splits.map((id) => (splits && Number.isInteger(splits[id]) ? splits[id] : 'x')).join('-');
+  const body = `${SHARE.format}.${seed}.${SHARE.difficulty[difficulty]}.${f.parts.map((p) => parts[p]).join('-')}.${months}`;
   return `${SHARE.base}#${body}.${shareCheck(body)}`;
 }
 
-// Reads a location hash: { ok: true, seed, difficulty, parts, splits } for a good link, { ok: false, reason }
+// Reads a location hash: { ok: true, seed, difficulty, parts, splits, version, older } for a good link (Stage 4: a t1 link
+// still opens, with its four parts and five splits, version 1 and older: true; ruling 203), { ok: false, reason }
 // ('bad_check', 'newer_format', 'malformed') otherwise, and null for a hash that is not a share link at all.
 export function parseShareLink(hash) {
   const text = String(hash || '').replace(/^#/, '');
   const head = /^t(\d+)\./.exec(text);
   if (!head) return null;
-  if (`t${head[1]}` !== SHARE.format) return { ok: false, reason: Number(head[1]) > Number(SHARE.format.slice(1)) ? 'newer_format' : 'malformed' };
+  const f = SHARE.formats[`t${head[1]}`];
+  if (!f) return { ok: false, reason: Number(head[1]) > Number(SHARE.format.slice(1)) ? 'newer_format' : 'malformed' };
   const bits = text.split('.');
   const bad = { ok: false, reason: 'malformed' };
   if (bits.length !== 6) return bad;
   const [, seedText, level, partsText, splitsText, check] = bits;
   const parts = partsText.split('-'), months = splitsText.split('-');
-  if (!/^\d{1,10}$/.test(seedText) || !LEVEL_OF[level] || parts.length !== SCORE_PARTS.length || months.length !== SPLIT_MILESTONES.length) return bad;
+  if (!/^\d{1,10}$/.test(seedText) || !LEVEL_OF[level] || parts.length !== f.parts.length || months.length !== f.splits.length) return bad;
   if (!parts.every((p) => /^\d{1,3}$/.test(p) && isPart(Number(p))) || !months.every((m) => m === 'x' || /^\d{1,5}$/.test(m))) return bad;
   if (!new RegExp(`^[0-9a-z]{${SHARE.checkLength}}$`).test(check)) return bad;
   if (check !== shareCheck(bits.slice(0, 5).join('.'))) return { ok: false, reason: 'bad_check' };
   return {
     ok: true, seed: Number(seedText), difficulty: LEVEL_OF[level],
-    parts: Object.fromEntries(SCORE_PARTS.map((p, i) => [p, Number(parts[i])])),
-    splits: Object.fromEntries(SPLIT_MILESTONES.map((id, i) => [id, months[i] === 'x' ? null : Number(months[i])])),
+    parts: Object.fromEntries(f.parts.map((p, i) => [p, Number(parts[i])])),
+    splits: Object.fromEntries(f.splits.map((id, i) => [id, months[i] === 'x' ? null : Number(months[i])])),
+    version: f.version, older: f.version < SHARE.formats[SHARE.format].version,
   };
 }
 
-// A shared score's city score: the parts' total times its level's factor, rounded, as scoreOf counts it.
-export const sharedTotal = (link) => Math.round(SCORE_PARTS.reduce((s, p) => s + link.parts[p], 0) * SCORE_FACTOR[link.difficulty]);
+// A shared score's city score: its parts' total times its level's factor, rounded, as scoreOf counts it.
+export const sharedTotal = (link) => Math.round(Object.values(link.parts).reduce((s, v) => s + v, 0) * SCORE_FACTOR[link.difficulty]);
 
 // One line per part, a square per 20 points ("People 🟩🟩🟩⬜⬜"), joined with new lines; '' for anything else.
 export function emojiRow(parts) {

@@ -47,18 +47,20 @@ describe('sample city', () => {
 
 // tools/shots.ps1 -Stage4: the scenes, the two motions in today's settings, and where the monument scenes look.
 describe('s4 infra', () => {
-  it('sets full and reduced motion in the settings of today, reduced following the device', () => {
+  it('sets Motion Full, or follows the device (Gentle where it asks for less motion), or chooses Gentle or Still', () => {
     expect(STAGE4_SCENES).toEqual(['title', 'tutorial', 'site', 'pyramid', 'capstone', 'procession', 'palace', 'sitesheet', 'motion']);
     expect(MOTIONS).toEqual(['full', 'reduced']);
-    const settings = createSettings({ storage: null, root: document.createElement('div'), systemReducedMotion: () => true });
-    settings.set({ reducedMotion: 'on', ambient: false });
+    const settings = createSettings({ storage: null, root: document.createElement('div'), systemReducedMotion: () => true, watchSystem: () => () => {} });
+    settings.set({ motion: 'still' });
     expect(setMotion(settings, 'full')).toBe('full');
-    expect([settings.get().reducedMotion, settings.get().ambient, settings.reducedMotion()]).toEqual(['off', true, false]);
+    expect([settings.get().motion, settings.motionLevel(), settings.reducedMotion()]).toEqual(['full', 'full', false]);
     expect(setMotion(settings, 'reduced')).toBe('reduced');
-    expect([settings.get().reducedMotion, settings.get().ambient, settings.reducedMotion()]).toEqual(['system', true, true]);
+    expect([settings.get().motion, settings.motionLevel(), settings.reducedMotion()]).toEqual(['system', 'gentle', true]);
+    expect([setMotion(settings, 'still'), settings.motionLevel(), setMotion(settings, 'gentle'), settings.motionLevel()]).toEqual(['still', 'still', 'gentle', 'gentle']);
+    expect(['reducedMotion' in settings.get(), 'ambient' in settings.get()]).toEqual([false, false]);   // Stage 3's mirrors are retired
     let error = null;
-    try { setMotion(settings, 'gentle'); } catch (e) { error = e.message; }
-    expect(error).toBe('setMotion: no motion named gentle (full, reduced)');
+    try { setMotion(settings, 'calm'); } catch (e) { error = e.message; }
+    expect(error).toBe('setMotion: no motion named calm (full, reduced, gentle, still)');
   });
   it('finds open desert east of the river for a great pyramid on the seed-11 sample city', () => {
     const w = buildSampleCity(createWorld({ seed: 11 }));

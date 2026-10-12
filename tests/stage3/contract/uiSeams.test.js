@@ -31,7 +31,8 @@ import { rigUI, mountShell, fakeHistory } from '../../helpers/uiWorld.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
-const noStorage = { getItem: () => null, setItem: () => {} };
+// Stage 4 (Track G): the picture cards were seen on this device, so New city starts the city at once.
+const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true}' : null), setItem: () => {} };
 const STUB_PARTS = ['building', 'house', 'actions', 'summary'];
 
 async function bootRig({ platform = {}, store = createSaveStore({ idb: fakeIndexedDB(), local: null }) } = {}) {
@@ -269,8 +270,8 @@ describe('s3 contract placement seams', () => {
 });
 
 describe('s3 contract settings, title, sound and words', () => {
-  it('keeps Ambient motion (on) and On a fire (Just tell me) in settings, and only their own values', () => {
-    expect([DEFAULT_SETTINGS.ambient, DEFAULT_SETTINGS.fireReaction, FIRE_REACTIONS]).toEqual([true, 'inform', ['pause', 'goto', 'inform']]);
+  it('keeps On a fire (Just tell me) in settings with only its own values; ambient off still reads as Still (Stage 4 Motion)', () => {
+    expect([DEFAULT_SETTINGS.motion, DEFAULT_SETTINGS.fireReaction, FIRE_REACTIONS]).toEqual(['system', 'inform', ['pause', 'goto', 'inform']]);
     const data = {};
     const storage = { getItem: (k) => data[k] || null, setItem: (k, v) => { data[k] = v; } };
     const { root, cleanup } = mount();
@@ -278,7 +279,7 @@ describe('s3 contract settings, title, sound and words', () => {
       const s = createSettings({ storage, root, systemReducedMotion: () => false });
       s.set({ ambient: false, fireReaction: 'goto' });
       s.set({ ambient: 'no', fireReaction: 'panic', difficulty: 'peaceful' });
-      expect([s.get().ambient, s.get().fireReaction, s.get().difficulty]).toEqual([false, 'goto', 'peaceful']);
+      expect([s.get().ambient, s.get().motion, s.get().fireReaction, s.get().difficulty]).toEqual([undefined, 'still', 'goto', 'peaceful']);   // Stage 4: no mirror
       expect(createSettings({ storage, root, systemReducedMotion: () => false }).get().fireReaction).toBe('goto');
     } finally { cleanup(); }
   });

@@ -1,9 +1,9 @@
 // Overlays (spec 6.3): filled dot = has it, hollow ring = missing, one hue per overlay; desirability is graded instead,
 // one hue light to dark with hatching below zero. Plus the reach highlight for a selected building, the placement
 // ghost's three states (spec 6.5) and the placement preview's desirability tint (spec 4.7).
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { HOUSEHOLD_GOODS } from '../data/goods.js';
-import { housesOf, allBuildings } from '../sim/world.js';
+import { housesOf, allBuildings, isSite } from '../sim/world.js';
 import { houseStatus } from '../sim/housing.js';
 import { roadReach, touchesRoad } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
@@ -12,11 +12,13 @@ import { T as TILE, TERRAIN_BY_NAME } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 import { p, U, tileDiamond, quad } from './iso.js';
 import { UI, INK, TEAL_DARK } from './art/palette.js';
-import { rgba } from './art/ctx.js';
+import { rgba, makeDraw } from './art/ctx.js';
 import { ART, slotFor } from './art/registry.js';
-import { GUIDE_PULSE_MS, DESIRABILITY_STEPS } from '../data/ui.js';
+import { GUIDE_PULSE_MS, DESIRABILITY_STEPS, VIEW_OUTLINE } from '../data/ui.js';
 import { DEFENCE } from '../data/raids.js';
 import { canBurn, fireRiskOf, fireBand, staffedCover } from '../sim/fire.js';
+import { MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
+import { drawMonument } from './monuments.js';
 
 export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing', 'ground'];
 // Fire risk (Stage 3, Track D) is one deep ember red, light to dark by band; no other overlay uses a red.
@@ -171,36 +173,52 @@ export function groundTiles(world, range = null) {
   return { fertile, rocky };
 }
 
-const roomMemo = new WeakMap();   // world -> { key, room: Map type -> Set of tile indices }
+const roomMemo = new WeakMap();   // world -> { key, room: Map `type|rot` -> Set of tile indices }
 
 // The tile indices that belong to at least one free spot where a `type` building's whole footprint fits on its own ground
 // (every tile of the right terrain with nothing on it). Ground only: whether a road touches the spot, or the gold is there, is
 // the placement bar's business. Empty for a type with no terrain. Memoised on the buildings, roads and walls (the same
 // signature the other overlays use), so a ghost that moves around asks once.
-export function roomTiles(world, type) {
+// Stage 4 (Track C, spec 6.3, ruling 229): a monument's room is the opposite case, every tile of a free spot where its whole
+// footprint, in rotation `rot` (dimsOf), sits on dry ground that is not fertile land (desert, rocky, meadow, scrub, bank).
+// Worked out at the pick and on each rotation, then kept until the roads or buildings change (the memo's key).
+export function roomTiles(world, type, rot = 0) {
   const def = BUILDINGS[type];
-  if (!def || !def.terrain) return new Set();
+  if (!def || (!def.terrain && !def.monument)) return new Set();
   const key = `${world.roadVersion}|${world.wallVersion}|${world.nextId}|${buildingSignature(world)}`;
   let m = roomMemo.get(world);
   if (!m || m.key !== key) { m = { key, room: new Map() }; roomMemo.set(world, m); }
-  let room = m.room.get(type);
+  const { w, d } = dimsOf(type, rot);
+  const slot = `${type}|${w}x${d}`;
+  let room = m.room.get(slot);
   if (room) return room;
   room = new Set();
-  const want = TERRAIN_BY_NAME[def.terrain], n = world.size;
-  for (let y = 0; y + def.d <= n; y++) {
-    for (let x = 0; x + def.w <= n; x++) {
+  const n = world.size;
+  const want = def.terrain ? TERRAIN_BY_NAME[def.terrain] : null;
+  const ok = def.terrain
+    ? (i) => world.terrain[i] === want && groundFree(world, i)
+    : (i) => world.terrain[i] !== TILE.WATER && world.terrain[i] !== TILE.FERTILE && groundFree(world, i);
+  for (let y = 0; y + d <= n; y++) {
+    for (let x = 0; x + w <= n; x++) {
       let fits = true;
-      for (let dy = 0; dy < def.d && fits; dy++) for (let dx = 0; dx < def.w && fits; dx++) {
-        const i = idx(n, x + dx, y + dy);
-        fits = world.terrain[i] === want && groundFree(world, i);
-      }
+      for (let dy = 0; dy < d && fits; dy++) for (let dx = 0; dx < w && fits; dx++) fits = ok(idx(n, x + dx, y + dy));
       if (!fits) continue;
-      for (let dy = 0; dy < def.d; dy++) for (let dx = 0; dx < def.w; dx++) room.add(idx(n, x + dx, y + dy));
+      for (let dy = 0; dy < d; dy++) for (let dx = 0; dx < w; dx++) room.add(idx(n, x + dx, y + dy));
     }
   }
-  m.room.set(type, room);
+  m.room.set(slot, room);
   return room;
 }
+
+// Stage 4 (Track C): the rotation of the building being placed, which createUI's drawOverlay call does not pass (it passes the
+// type): the placement sets it when a tool starts and on each turn, and the Ground overlay and its legend read it.
+const placingRot = new WeakMap();   // world -> 0 | 1
+export const setPlacingRot = (world, rot) => { placingRot.set(world, rot === 1 ? 1 : 0); };
+export const placingRotOf = (world) => placingRot.get(world) || 0;
+
+// The pale gold wash a monument's room gets (the Monuments tint, src/data/ui.js CATEGORY_TINT), crisp-edged like the rest.
+export const MONUMENT_ROOM_HUE = '#E2B13C';
+export const MONUMENT_ROOM_ALPHA = 0.42;
 
 // Two small dots per tile as one repeating pattern on the art grid. A tile's centre is at (16a, 8(b + 1)) with a and b the same
 // parity, so the pattern's 32 x 16 art px cell holds two tile centres, (0, 8) and (16, 0); each gets a dot either side of it.
@@ -239,7 +257,21 @@ function groundLayer(g, tiles, kind, strength) {
 
 function drawGround(g, world, range, placing) {
   const { fertile, rocky } = groundTiles(world, range);
-  const room = placing && BUILDINGS[placing] && BUILDINGS[placing].terrain ? roomTiles(world, placing) : null;
+  const def = placing ? BUILDINGS[placing] : null;
+  if (def && def.monument) {
+    // A monument's room (ruling 229): fertile and rocky ground at half strength, a gold wash on every tile with room.
+    groundLayer(g, fertile, 'fertile', GROUND_ALPHA.dim);
+    groundLayer(g, rocky, 'rocky', GROUND_ALPHA.dim);
+    const room = roomTiles(world, placing, placingRotOf(world));
+    const r = range || { x0: 0, y0: 0, x1: world.size - 1, y1: world.size - 1 };
+    const gold = [];
+    for (let y = Math.max(0, r.y0); y <= Math.min(world.size - 1, r.y1); y++) {
+      for (let x = Math.max(0, r.x0); x <= Math.min(world.size - 1, r.x1); x++) if (room.has(idx(world.size, x, y))) gold.push([x, y]);
+    }
+    if (gold.length) g.polys(tilePolys(gold), MONUMENT_ROOM_HUE, { alpha: MONUMENT_ROOM_ALPHA });
+    return;
+  }
+  const room = def && def.terrain ? roomTiles(world, placing) : null;
   if (!room) {
     groundLayer(g, fertile, 'fertile', GROUND_ALPHA.bright);
     groundLayer(g, rocky, 'rocky', GROUND_ALPHA.bright);
@@ -368,10 +400,57 @@ export function rangeTiles(world, b) {
   return out;
 }
 
+// Stage 4 (Track C, spec 6.3): a monument site's reach, the road tiles within MONUMENT.crewReach (its guilds, quarries and
+// brickworks serve it from there) and within MONUMENT.supplyReach (it draws from storehouses there): { crew, supply }, tile
+// indices; empty for a site no road touches.
+export function siteReachTiles(world, b) {
+  return { crew: [...roadReach(world, b, MONUMENT.crewReach).keys()], supply: [...roadReach(world, b, MONUMENT.supplyReach).keys()] };
+}
+
+// Stage 4 (Track C, spec 6.3, ruling 281): View from the alert list, the banner or Welcome back outlines the building it selects
+// in the marker's colour with a white halo for VIEW_OUTLINE.holdMs, then fades out over fadeMs under Full motion; under Gentle
+// and Still it holds still and then goes. noteView(world, id) starts it (the View buttons call it); the clock and the Motion
+// level come from the interface (setViewClock, the monuments interface sets it); drawReachHighlight draws it on the selected
+// building, so it shows while View's selection does.
+const viewClocks = new WeakMap();   // world -> { now(), motion() }
+const viewed = new WeakMap();       // world -> { id, at }
+export const setViewClock = (world, clock) => { viewClocks.set(world, clock); };
+export function noteView(world, id) {
+  const clock = viewClocks.get(world);
+  if (Number.isInteger(id) && clock) viewed.set(world, { id, at: clock.now() });
+}
+// The outline's strength ms after View: 1 while it holds, easing to 0 over the fade under Full, else 0 once it has held.
+export function viewOutlineAlpha(ms, motion) {
+  if (ms < 0) return 0;
+  if (ms < VIEW_OUTLINE.holdMs) return 1;
+  if (motion === 'full' && ms < VIEW_OUTLINE.holdMs + VIEW_OUTLINE.fadeMs) return 1 - (ms - VIEW_OUTLINE.holdMs) / VIEW_OUTLINE.fadeMs;
+  return 0;
+}
+// The outline's strength on building `id` now (0 when View did not pick it, or its time has passed).
+export function viewOutlineOn(world, id) {
+  const v = viewed.get(world), clock = viewClocks.get(world);
+  if (!v || !clock || v.id !== id) return 0;
+  return viewOutlineAlpha(clock.now() - v.at, clock.motion());
+}
+
 export function drawReachHighlight(g, world, b) {
-  tintTiles(g, world, RANGE_OF[b.type] ? rangeTiles(world, b) : reachTiles(world, b), UI.housing, 0.22);
+  if (isSite(b)) {
+    // Both reaches: the 16-tile supply reach lighter, the 12-tile crew and producer reach at the usual strength.
+    const { crew, supply } = siteReachTiles(world, b);
+    const inner = new Set(crew);
+    tintTiles(g, world, supply.filter((t) => !inner.has(t)), UI.housing, 0.1);
+    tintTiles(g, world, crew, UI.housing, 0.22);
+  } else tintTiles(g, world, RANGE_OF[b.type] ? rangeTiles(world, b) : reachTiles(world, b), UI.housing, 0.22);
   g.poly(quad(b.x, b.y, b.w, b.d, 0), 'none', { stroke: UI.halo, strokeWidth: 2.2, strokeAlpha: 0.9 });
   g.poly(quad(b.x, b.y, b.w, b.d, 0), 'none', { stroke: UI.housing, strokeWidth: 1.2 });
+  // View's outline, over the reach's: the marker's colour, 2 CSS px on a white halo, and a faint wash inside.
+  const outline = viewOutlineOn(world, b.id);
+  if (outline > 0) {
+    const pts = quad(b.x, b.y, b.w, b.d, 0), css = cssScaleOf(g);
+    g.poly(pts, UI.problem, { alpha: 0.12 * outline });
+    g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 5 / css, strokeAlpha: 0.9 * outline });
+    g.poly(pts, 'none', { stroke: UI.problem, strokeWidth: 2.5 / css, strokeAlpha: outline });
+  }
 }
 
 // ghost = { x, y, w, d, state: 'ok' | 'warn' | 'bad' | 'demolish' | 'gate' }. A gate (Stage 3, a wall tile drawn over a
@@ -433,10 +512,44 @@ function drawRoadJoins(g, joins) {
   }
 }
 
+// Stage 4 (Track C, spec 6.5): a monument's ghost carries silhouette: { world, b }, the finished monument it stands for, drawn
+// by the live draw (render/monuments.js) at MONUMENT_PLACING.silhouetteAlpha and still, under the footprint's marks.
+// Every art primitive sets the context's alpha absolutely, so scaling globalAlpha around the draw does nothing: the monument is
+// drawn at full strength into an offscreen layer (the target's size and transform) and the layer is laid on once at the
+// silhouette's alpha, so it is one even 35% with no see-through between its own faces.
+let silhouetteLayer = null;
+function layerFor(w, h) {
+  if (!silhouetteLayer || silhouetteLayer.width !== w || silhouetteLayer.height !== h) {
+    silhouetteLayer = document.createElement('canvas');
+    silhouetteLayer.width = w;
+    silhouetteLayer.height = h;
+  }
+  return silhouetteLayer;
+}
+function drawSilhouette(g, { world, b }) {
+  const { ctx } = g;
+  const target = ctx.canvas;
+  if (!target || typeof ctx.getTransform !== 'function' || typeof document === 'undefined') {   // no canvas to layer on: the plain draw
+    drawMonument(g, world, b, { motion: 'still' });
+    return;
+  }
+  const layer = layerFor(target.width, target.height), lctx = layer.getContext('2d');
+  lctx.setTransform(1, 0, 0, 1, 0, 0);
+  lctx.clearRect(0, 0, layer.width, layer.height);
+  lctx.setTransform(ctx.getTransform());
+  drawMonument(makeDraw(lctx, g.scale, g.cssScale), world, b, { motion: 'still' });
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = MONUMENT_PLACING.silhouetteAlpha;
+  ctx.drawImage(layer, 0, 0);
+  ctx.restore();
+}
+
 export function drawGhost(g, ghost) {
   const { x, y, w, d, state, tiles, joins, badge } = ghost;
   const pts = quad(x, y, w, d, 0);
   const centre = p(x + w / 2, y + d / 2);
+  if (ghost.silhouette) drawSilhouette(g, ghost.silhouette);
   if (joins && joins.length) drawRoadJoins(g, joins);
   if (state === 'bad' && tiles && tiles.length) {
     // Part of the footprint is fine: each tile shows its own state, the good ones blue, the bad ones coral with a cross.

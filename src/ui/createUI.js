@@ -2,7 +2,7 @@
 // only through placement.js, speed.js and the sheets, which call src/sim/commands.js then assignLabour.
 import { MILESTONES } from '../data/progression.js';
 import { alertsFor } from '../sim/alerts.js';
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { CATEGORIES, toolForItem, categoryOfItem, AUTO_OVERLAY, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
 import { goalById, nextItemFor, guideActive, openGoals, goalProgress } from '../sim/goals.js';
 import { settle } from '../sim/settle.js';
@@ -21,7 +21,7 @@ import { createStore, INITIAL_UI_STATE } from './store.js';
 import { select, deselect, cancelTool, back, openSheet, closeSheet, setDock, isToolMode, pickCategory, enterScreenshot } from './modes.js';
 import { pickLayout, watchLayout, freeTop, cornersHeight, cornersBottom, TOPBAR_PX } from './layout.js';
 import { createBackStack } from './backstack.js';
-import { createSettings } from './settings.js';
+import { createSettings, gentleTipDue } from './settings.js';
 import { createSfx } from '../audio/sfx.js';
 import { createCameraControl, FRAME_MARGIN_PX } from './cameraControl.js';
 import { ART } from '../render/art/registry.js';
@@ -55,6 +55,9 @@ import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
 import { createDanger } from './danger.js';
 import { createScoreUi } from './scoreUi.js';
+import { createMonumentUi } from './monumentSheet.js';
+import { drawMonument } from '../render/monuments.js';
+import { layoutMarkers, drawMarkers, markerAt } from '../render/markers.js';
 import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires } from '../render/fire.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
@@ -81,9 +84,10 @@ export function createUI({
   let lastDay = world.day, ghostsDirty = true, ghostState = null, ghostList = [], tintList = [];
   // Stage 3: the danger and score interfaces, made below once their context exists. Until then (afterCommand can run
   // during construction) seams() is empty, so nothing calls them early.
-  let danger = null, scoreUi = null;
+  let danger = null, scoreUi = null, monumentUi = null;   // Stage 4: the monuments interface (Track C, ui/monumentSheet.js)
   let toastLow = null;   // { dock, mode, sheet, layout } while the toast sits low after a touch tick (leavePlan, setToastLow)
-  const seams = () => [danger, scoreUi].filter(Boolean);
+  const seams = () => [danger, scoreUi, monumentUi].filter(Boolean);
+  let markerLayout = [];                                 // Stage 4: this frame's problem markers on screen (render/markers.js)
   let saveFailed = false, destroyed = false;
   // The guidance row's controller (syncGuidance, below) runs from the tips' and captions' callbacks, which may fire
   // before it is wired up; until then it does nothing.
@@ -109,7 +113,9 @@ export function createUI({
   const fine = Boolean(win.matchMedia && win.matchMedia('(pointer: fine)').matches);
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), inputType: fine ? 'mouse' : 'touch', ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
   const toasts = createToasts({ container: $('toasts'), max: () => (store.get().layout === 'wide' ? MAX_TOASTS : MAX_TOASTS_PHONE) });
-  const effects = createEffects({ reducedMotion: settings.reducedMotion });
+  // Stage 4 (spec 5.4): the Motion level in use, 'full' | 'gentle' | 'still' (a test's stand-in settings may only have reducedMotion).
+  const motionLevel = () => (typeof settings.motionLevel === 'function' ? settings.motionLevel() : (settings.reducedMotion() ? 'still' : 'full'));
+  const effects = createEffects({ reducedMotion: settings.reducedMotion, motionLevel });   // Stage 4: Gentle's fades in place (Track E)
   // Tips and the idle nudge (early-game pass 3.4, 3.5): quiet, never over the map, both off under Help: Off. frameNow is
   // the latest frame's time, so the nudge counts only time the player actually watched. The tips' 3-minute gap and
   // five-an-hour cap count play time (playMs), which runs only while the game does. On a phone a tip closes itself after
@@ -213,7 +219,8 @@ export function createUI({
   };
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
-  const ambient = createAmbient({ enabled: () => settings.get().ambient && !settings.reducedMotion() });
+  monumentUi = createMonumentUi(seamCtx);
+  const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
     canResumeGuide: () => canResumeGuide(world, settings.get().help), onResumeGuide: () => { setGuide(world, true); refresh(); },
@@ -233,7 +240,7 @@ export function createUI({
   const customSheets = {
     ...menus, goals: goalsSheet(world, { onShowMe: showMe, recent: () => celebrations.recent(), skipHere: phone, onSkipGuide: skipGuide }),
     trade: tradeSheet({ world, afterCommand, onShowMe: showMeAt, toast: (text) => toasts.show(text) }),
-    ...danger.sheets, ...scoreUi.sheets,
+    ...danger.sheets, ...scoreUi.sheets, ...monumentUi.sheets,
   };
   if (welcome) {
     customSheets.welcome = welcomeSheet({
@@ -243,7 +250,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts] });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts] });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -278,8 +285,11 @@ export function createUI({
     placement.start(tool, { x: c.x, y: c.y });
     const g = store.get().ghost;
     if (g && tool.kind === 'building') {
-      const def = BUILDINGS[tool.type];
-      cameraControl.keepVisible(g.x + def.w / 2, g.y + def.d / 2, placingInsets(store.get()));
+      const { w, d } = dimsOf(tool.type, store.get().tool.rot || 0);
+      // Stage 4 (ruling 231): a monument's pick may also zoom out once to fit its footprint and silhouette (Track C's pickFit).
+      const fit = BUILDINGS[tool.type].monument ? monumentUi.pickFit(tool.type, g, placingInsets(store.get())) : null;
+      if (fit) cameraControl.keepVisible(g.x + w / 2, g.y + d / 2, placingInsets(store.get()), undefined, undefined, fit.extent || null, fit.zoom === undefined ? null : Math.min(fit.zoom, cam.zoom));   // out only, never in
+      else cameraControl.keepVisible(g.x + w / 2, g.y + d / 2, placingInsets(store.get()));
     }
   }
   const closeAnySheet = () => { const s = store.get(); if (s.sheet) store.set(closeSheet(s)); };
@@ -295,9 +305,16 @@ export function createUI({
     const def = tool.kind === 'building' ? BUILDINGS[tool.type] : null;
     placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : null);   // road, plot and demolish tools ignore the point
     const g = def ? store.get().ghost : null;
-    const keep = g ? { x: g.x + def.w / 2, y: g.y + def.d / 2 } : { x, y };
-    if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, placingInsets(store.get()));
-    else if (g) cameraControl.panToKeeping(x, y, keep.x, keep.y, placingInsets(store.get()));
+    const dims = g ? dimsOf(tool.type, store.get().tool.rot || 0) : null;
+    const keep = g ? { x: g.x + dims.w / 2, y: g.y + dims.d / 2 } : { x, y };
+    const insets = placingInsets(store.get());
+    // Stage 4 (ruling 231): a monument's ghost asks Track C's pickFit as pick() does, and the move takes its zoom (out only,
+    // never in; an instant cut under Gentle and Still, as every camera move) and keeps its silhouette's extent in view.
+    const fit = g && def.monument ? monumentUi.pickFit(tool.type, g, insets) : null;
+    const extent = fit ? fit.extent || null : null;
+    const zoom = fit && fit.zoom !== undefined ? Math.min(fit.zoom, cam.zoom) : null;
+    if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, zoom);
+    else if (g) cameraControl.panToKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, zoom);
     else cameraControl.panTo(x, y);
     const at = now();
     for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(x, y, at + i * SHOW_ME_PULSE_MS);
@@ -591,6 +608,11 @@ export function createUI({
         else placement.pointAt(t.x, t.y);                                                                      // a tap moves the ghost or sets a point
         return;
       }
+      // Stage 4 (ruling 281): a tap on a problem marker (its badge or stem) selects the marker's building, ahead of whatever
+      // building lies under the badge; Track C's markerTap may handle it first (a count badge zooms in).
+      const marker = markerAt(markerLayout, x, y);
+      if (marker && !monumentUi.markerTap(marker)) { store.set(select(s, marker.ids[0])); return; }   // as a building tap: no camera move
+      if (marker) return;
       const b = pickBuilding(world, cam, view(), x, y);
       if (b) store.set(select(s, b.id));
       else if (s.mode === 'selected') store.set(deselect(s));
@@ -608,12 +630,22 @@ export function createUI({
       const id = b ? b.id : null;
       if (id !== s.hoverId) { store.set({ hoverId: id }); canvas.title = b ? tooltipText(b) : ''; }
     },
+    // A press grabs the ghost on its footprint as turned (dimsOf), with half a tile of slack. A monument's ghost is also
+    // grabbed by its body (spec 6.5 "drag by the body"): the box reaches up the screen by the finished monument's drawn
+    // height, which Track C's optional monumentUi.grabExtent(type, rot) gives as { up } in art px (scaled with the camera
+    // like every drawn thing). The box is the footprint slid straight up the screen by up to that height: one tile down both
+    // axes is ART_TILE_H (16) art px straight down (iso.js p()), so the press may sit up to up / 16 such steps above it.
     ghostDragStart({ x, y }) {
       const s = store.get();
       if (!s.ghost || !s.tool || s.tool.kind !== 'building') return false;
-      const def = BUILDINGS[s.tool.type];
+      const rot = s.tool.rot || 0;
+      const { w, d } = dimsOf(s.tool.type, rot);
       const t = screenToTile(cam, view(), x, y);
-      return t.x >= s.ghost.x - 0.5 && t.x < s.ghost.x + def.w + 0.5 && t.y >= s.ghost.y - 0.5 && t.y < s.ghost.y + def.d + 0.5;
+      const body = BUILDINGS[s.tool.type].monument && typeof monumentUi.grabExtent === 'function' ? monumentUi.grabExtent(s.tool.type, rot) : null;
+      const reach = body && body.up > 0 ? body.up / 16 : 0;
+      const x0 = s.ghost.x - 0.5, y0 = s.ghost.y - 0.5, x1 = s.ghost.x + w + 0.5, y1 = s.ghost.y + d + 0.5;
+      const slide = Math.max(x0 - t.x, y0 - t.y, 0);                 // the least slide down that reaches the box's near sides
+      return slide <= reach && slide < Math.min(x1 - t.x, y1 - t.y);   // with no reach: the plain box test
     },
     ghostDrag({ x, y }) { const t = tileUnder(x, y); placement.moveGhost(t.x, t.y); },
     ghostDragEnd() {},
@@ -634,7 +666,7 @@ export function createUI({
       const s = store.get();
       store.set(s.layout === 'wide' ? { category: c.id } : { category: c.id, dock: 'tray' });
     },
-    rotate: () => {},                                  // nothing rotates in Stage 1 (mastabas come with monuments)
+    rotate: () => { if (typeof placement.rotate === 'function') placement.rotate(); },   // Stage 4: R turns a mastaba's ghost (Track C's placement.rotate, ruling 234)
     minimap: () => toggleSheet('minimap'), overlay: () => legend.cycle(),
     confirm: () => {
       const s = store.get();
@@ -870,8 +902,14 @@ export function createUI({
     const range = visibleTileRange(cam, v, world.size);
     const selected = s.selectedId !== null ? world.buildings[s.selectedId] : null;
     const ring = guide.marker(t);                                              // the guide's ring on its step's target (spec 3.2)
-    const still = { reducedMotion: settings.reducedMotion() };
+    const still = { reducedMotion: settings.reducedMotion(), motion: motionLevel() };   // Stage 4: Gentle's flames (Track E)
+    // Stage 4: the monuments' live draw (render/monuments.js) and the problem markers' layout (render/markers.js), once a frame.
+    const motion = motionLevel();
+    const ghostBox = s.ghost && s.tool && s.tool.kind === 'building' ? { type: s.tool.type, x: s.ghost.x, y: s.ghost.y, ...dimsOf(s.tool.type, s.tool.rot || 0) } : null;
+    const list = alerts.list();
+    markerLayout = layoutMarkers(world, list, cam, v);
     renderer.renderFrame(world, cam, {
+      live: (g, o) => drawMonument(g, world, o.b, { now: t, timeDays, motion, ghost: ghostBox, selectedId: s.selectedId }),
       view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
       ambient: (g, r) => ambient.draw(g, world, r, t),                          // Stage 3 (render/ambient.js, fire.js, units.js)
@@ -884,7 +922,7 @@ export function createUI({
         const shapes = ghosts();                                                // refreshes the tint as well
         drawDesirabilityTint(g, tintList);                                     // spec 4.7: teal wash nicer, coral hatching worse, under the ghost
         for (const ghost of shapes) drawGhost(g, ghost);
-        drawProblemMarkers(g, world, alerts.list(), r);                        // early-game pass 2.8: one badge per building with a problem
+        drawMarkers(g, world, list, r, markerLayout);                          // early-game pass 2.8, Stage 4 rulings 280-281: pinned to their buildings
       },
     });
     hud.render();
@@ -901,6 +939,8 @@ export function createUI({
     if (!on && tips.current()) tips.dismiss();
     tips.tick();
     tips.flush({ busy: tipsBusy(s) });                 // a tip held while a banner had a landscape phone's one row goes up once it clears
+    if (!tipsBusy(s) && gentleTipDue(settings)) fireTip('gentleMotion');   // Stage 4 (ruling 218): once, when it may show
+    else if (tips.current() === 'gentle_motion' && !gentleTipDue(settings)) tips.dismiss();   // its words stop being true once the level changes
     syncGuidance();                                    // and a caption held while the row was taken goes up once it is free
     measureGuidance();
     root.classList.toggle('nudge-play', world.speed === 0 && tips.current() === 'press_play');
@@ -920,6 +960,7 @@ export function createUI({
   return {
     store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
     danger, scoreUi, ambient, screenshotMode, frameGate, setGuidanceOpen,
+    monumentUi, motionLevel, markers: () => markerLayout,   // Stage 4
     allowFrame: (t) => frameGate.allow(t, world.speed === 0),
     destroy() {
       if (destroyed) return;
@@ -927,6 +968,7 @@ export function createUI({
       for (const s of seams()) s.destroy();
       cornerPicker.destroy(); panelPicker.destroy();
       guide.destroy(); stopSettingsWatch();            // the guide's store subscription and the shared settings' watch
+      if (!givenSettings) settings.destroy();          // settings made here: stop its device-motion watch
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
       for (const t of INPUTS) root.removeEventListener(t, onInput);
