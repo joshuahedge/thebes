@@ -87,6 +87,21 @@ describe('ui toasts', () => {
       expect([t.right <= panel.left, t.width < 200]).toEqual([true, true]);
     } finally { wide.cleanup(); }
   });
+  it('keeps a phone toast above the corner buttons, whatever the text size (spec 6.3)', async () => {
+    for (const [w, h] of [[375, 667], [390, 844], [360, 640]]) {
+      for (const size of [100, 125, 150]) {
+        const r = await rigUI({ width: w, height: h });
+        try {
+          r.ui.settings.set({ textSize: size });
+          r.ui.toasts.show('Housing plots: 6 laid for 60 gold', { action: 'Undo' });
+          const at = `${w}x${h} at ${size}%`, t = r.root.querySelector('#toasts .toast').getBoundingClientRect();
+          const tops = [...r.root.querySelectorAll('#corners button')].map((b) => b.getBoundingClientRect()).filter((b) => b.height > 0).map((b) => b.top);
+          expect([at, tops.length > 0]).toEqual([at, true]);
+          expect([at, t.bottom <= Math.min(...tops) + 0.5]).toEqual([at, true]);      // the Speed label makes the corner row taller as the text grows
+        } finally { r.cleanup(); }
+      }
+    }
+  });
   it('keeps a compact toast on the map side of the rail', async () => {
     const r = await rigUI({ width: 667, height: 375 });
     try {
