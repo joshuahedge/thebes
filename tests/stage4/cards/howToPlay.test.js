@@ -2,10 +2,10 @@ import { describe, it, expect } from '../../harness.js';
 import { boot } from '../../../src/boot.js';
 import { createSaveStore } from '../../../src/save/store.js';
 import { openSheet } from '../../../src/ui/modes.js';
-import { CARDS4_TEXT } from '../../../src/ui/text.js';
+import { CARDS4_TEXT, cards4Ahead } from '../../../src/ui/text.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory, fakeDoc } from '../../helpers/uiWorld.js';
-import { fire } from '../../helpers/dom.js';
+import { fire, key } from '../../helpers/dom.js';
 
 const memory = (data = {}) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } });
 const storedSettings = (storage) => JSON.parse(storage.getItem('thebes.settings') || '{}');
@@ -66,6 +66,45 @@ describe('s4 cards how to play', () => {
     } finally { b.cleanup(); }
   });
 
+  it('keeps the game\'s keys from acting behind the real cards even when focus is not on them', async () => {
+    const b = await bootWith({ storage: memory({ 'thebes.settings': JSON.stringify({ cardsSeen: true }) }) });
+    try {
+      fire(b.root.querySelector('#title .new-city'), 'click');
+      const g = b.api.game();
+      g.ui.speedControl.set(2);
+      b.api.hooks.pictureCards();
+      const d = document.querySelector('.picture-cards');
+      expect(g.world.speed).toBe(0);
+      d.querySelector('.pc-next').blur();                                          // a tap on the picture
+      for (const k of ['p', ' ', '+', '1', '2', '3']) key(b.root, k);                    // keys at the page behind (the game listens on the window)
+      expect([g.world.speed, d.isConnected]).toEqual([0, true]);
+      key(b.root, 'ArrowRight');
+      expect(document.activeElement === d.querySelector('.pc-next') || d.querySelector('.pc-count').textContent === '2 of 6').toBe(true);
+      key(b.root, 'Escape');
+      expect([document.querySelector('.picture-cards'), g.world.speed]).toEqual([null, 0]);
+      key(b.root, ' ');                                                             // the cards closed: the keys are the game's again (Space pauses and plays)
+      expect(g.world.speed).toBeGreaterThan(0);
+    } finally { b.cleanup(); }
+  });
+
+  it('words card 6 for the level: on the title the level the next city starts at, in a game its own', async () => {
+    const lastCard = () => { const d = document.querySelector('.picture-cards'); for (let i = 0; i < 5; i++) fire(d.querySelector('.pc-next'), 'click'); return d.querySelector('#pc-words').textContent; };
+    for (const level of ['peaceful', 'normal']) {
+      const b = await bootWith({ storage: memory({ 'thebes.settings': JSON.stringify({ difficulty: level }) }) });
+      try {
+        fire(b.root.querySelector('#title .new-city'), 'click');                  // the first city on a device: the cards on the title
+        expect([level, lastCard()]).toEqual([level, cards4Ahead(level !== 'peaceful')]);
+      } finally { b.cleanup(); }
+      const c = await bootWith({ storage: memory({ 'thebes.settings': JSON.stringify({ difficulty: level, cardsSeen: true }) }) });
+      try {
+        fire(c.root.querySelector('#title .new-city'), 'click');
+        expect(c.api.game().world.difficulty).toBe(level);
+        c.api.hooks.pictureCards();
+        expect([level, lastCard()]).toEqual([level, cards4Ahead(level !== 'peaceful')]);
+      } finally { c.cleanup(); }
+    }
+  });
+
   it('shows the real cards over the title before the first city on a device, and starts the city from Start building', async () => {
     const b = await bootWith();
     try {
@@ -83,5 +122,31 @@ describe('s4 cards how to play', () => {
     expect(Boolean(document.querySelector('.picture-cards'))).toBe(true);
     b.cleanup();
     expect([document.querySelector('.picture-cards'), b.api.game()]).toEqual([null, null]);
+  });
+
+  it('keeps every title button inside the card on a phone held sideways (844x390 and 667x375), How to play with them', async () => {
+    for (const [w, h] of [[844, 390], [667, 375]]) {
+      const frame = document.createElement('iframe');
+      frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${w}px;height:${h}px;border:0;`;
+      frame.src = '/index.html?nosw=1';
+      document.body.append(frame);
+      try {
+        let card = null;
+        for (let i = 0; i < 100 && !(card && card.querySelector('.how-to-play')); i++) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          card = frame.contentDocument && frame.contentDocument.querySelector('#title .title-card');
+        }
+        expect([w, h, Boolean(card)]).toEqual([w, h, true]);
+        const box = card.getBoundingClientRect();
+        const shown = [...card.querySelectorAll('.title-buttons button')].filter((b) => b.offsetParent !== null);
+        const names = shown.map((b) => b.className.split(' ')[0]);
+        expect([w, h, names.includes('how-to-play'), names.includes('sound')]).toEqual([w, h, true, true]);
+        for (const b of shown) {
+          const r = b.getBoundingClientRect();
+          expect([w, h, b.className, r.top >= box.top - 0.5, r.bottom <= box.bottom + 0.5, r.height >= 44 - 0.5]).toEqual([w, h, b.className, true, true, true]);
+        }
+        expect([w, h, card.scrollHeight <= card.clientHeight + 1]).toEqual([w, h, true]);   // nothing scrolls
+      } finally { frame.remove(); }
+    }
   });
 });

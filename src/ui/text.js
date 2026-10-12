@@ -1170,6 +1170,9 @@ export const MOTION4_TEXT = {};
 // "About four in ten people work" (the food card) is the sim's own share (ECONOMY.workerShare, src/sim/labour.js).
 const CARDS4_TENS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 export const cards4WorkShare = (share = ECONOMY.workerShare) => `About ${CARDS4_TENS[Math.max(0, Math.min(10, Math.round(share * 10)))]} in ten people work`;
+// The last card's words: fires and raiders to guard against, but on Peaceful (raids: false, src/data/difficulty.js) the city
+// never starts a raid clock, so there it names fires alone. The pause sentence is the same at every level.
+export const cards4Ahead = (raids = true) => `Later come fires ${raids ? 'and raiders ' : ''}to guard against, and monuments to raise. Pause any time: nothing happens while you plan.`;
 export const CARDS4_TEXT = {
   // The Settings sheet's Music rows (spec 5.5, ruling 269).
   music: 'Music', musicVolume: 'Music volume', quieter: 'Quieter music', louder: 'Louder music',
@@ -1206,7 +1209,7 @@ export const CARDS4_TEXT = {
     },
     ahead: {
       title: 'What lies ahead',
-      words: 'Later come fires and raiders to guard against, and monuments to raise. Pause any time: nothing happens while you plan.',
+      words: cards4Ahead(),             // the level with raids; the dialog asks cards4Ahead(raids) for the city's own level
       alt: 'A pyramid being built, with a tower and a firehouse beyond it, and a ring around the pyramid.',
     },
   },
