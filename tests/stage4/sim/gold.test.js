@@ -27,7 +27,7 @@ describe('s4 sim work gold', () => {
       guild(w, 16);
       const s = addRaw(w, 'obelisk_large', 20, 9);
       s.site.stock.stone = 80;
-      const rate = MONUMENT.goldPerUnit * cost, day = (2 / 3) * rate, month = 20 * rate;   // 6.4 a unit (Track F): 128, 160 and 102.4 a crew-month
+      const rate = MONUMENT.goldPerUnit * cost, day = (2 / 3) * rate, month = 20 * rate;   // 6.5 a unit (Track F): 130, 162.5 and 104 a crew-month
       expect(workGoldPerUnit(w)).toBe(rate);
       run(w, 1);
       expect([w.gold, near(s.site.carry, day % 1)]).toEqual([1000 - Math.floor(day), true]);
@@ -40,7 +40,7 @@ describe('s4 sim work gold', () => {
   });
 
   it('pays crews in the order their sites were founded, and a crew whose day would take the treasury below 0 does not work', () => {
-    const day = (2 / 3) * MONUMENT.goldPerUnit;                                  // a full crew's day: 4 1/4 gold at 6.4 a unit
+    const day = (2 / 3) * MONUMENT.goldPerUnit;                                  // a full crew's day: 4 1/3 gold at 6.5 a unit
     const w = city(Math.floor(day) + 1);
     guild(w, 16); guild(w, 22);
     const older = addRaw(w, 'obelisk_small', 20, 9), newer = addRaw(w, 'obelisk_small', 24, 9);
@@ -77,11 +77,11 @@ describe('s4 sim the gilding and the capstone', () => {
     run(w, 1);
     expect([s.site.reason, s.site.idle, s.site.laid.stone, w.gold]).toEqual(['waiting_gilding', 1, 0, 500]);
     w.gold = 1005;
-    run(w, 1);                                                                    // 1,000, then the crew's 4 (a carried fraction + 4 1/4)
+    run(w, 1);                                                                    // 1,000, then the crew's 4 (0.65 carried + 4 1/3)
     expect([s.site.extraPaid, w.gold, s.site.reason, near(s.site.laid.stone, 2 / 3), s.site.month.gold]).toEqual([true, 1, null, true, 1004]);
     w.gold = 1000;
     run(w, 1);
-    expect(w.gold).toBe(995);                                                     // paid once: now only the crew's 5 (the carried fractions add up to a whole)
+    expect(w.gold).toBe(995);                                                     // paid once: now only the crew's 5 (0.98 carried + 4 1/3)
   });
 
   it('pays the great pyramid\'s capstone the same way, scaled by the difficulty, and names no gold first when crews cannot be paid', () => {
@@ -97,7 +97,7 @@ describe('s4 sim the gilding and the capstone', () => {
     expect([s.site.reason, w.gold, s.site.extraPaid]).toEqual(['waiting_capstone', 6000, false]);
     w.gold = 6300;
     run(w, 1);
-    expect([s.site.extraPaid, s.site.reason, w.gold]).toEqual([true, null, 6300 - 6250 - 5]);   // 2/3 x 8 = 5.33: 5 now
+    expect([s.site.extraPaid, s.site.reason, w.gold]).toEqual([true, null, 6300 - 6250 - 5]);   // 2/3 x 8.125 = 5.42: 5 now
   });
 });
 
@@ -110,7 +110,7 @@ describe('s4 sim monument gold in the books', () => {
     run(w, 30);
     monthlyEconomy(w);
     monumentMonth(w);
-    expect([w.stats.lastMonth.monuments, w.stats.lastMonth.net]).toEqual([1128, -74]);   // 1,000 gilding and 20 units at 6.4; net: the guild's 64 wages and 10 upkeep
-    expect(w.gold).toBe(5000 - 1128 - 74);
+    expect([w.stats.lastMonth.monuments, w.stats.lastMonth.net]).toEqual([1130, -74]);   // 1,000 gilding and 20 units at 6.5; net: the guild's 64 wages and 10 upkeep
+    expect(w.gold).toBe(5000 - 1130 - 74);
   });
 });

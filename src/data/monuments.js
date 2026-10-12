@@ -59,9 +59,9 @@ export const MATERIALS = ['stone', 'bricks'];
 // The rules every kind shares (spec 4.5, 4.11, 4.16; rulings 184-191, 237-244).
 export const MONUMENT = {
   unitsPerCrewMonth: 20,   // a full crew lays 20 units a month (two-thirds of a unit a day); below MIN_STAFF_RATIO it stops
-  goldPerUnit: 6.4,        // work gold: 6.4 a unit laid (128 a full crew-month) x the difficulty's cost, whole gold, fraction carried
+  goldPerUnit: 6.5,        // work gold: 6.5 a unit laid (130 a full crew-month) x the difficulty's cost, whole gold, fraction carried
                            // (Track F: the spec's first value was 5; at 5 the capital run held 64,909 gold at year 6, over its
-                           // 60,000; at 6.4 it spends 68.2% of its taxes with four crews: tests/stage4/balance/capital.test.js)
+                           // 60,000; at 6.5 it spends 67.5-68.4% of its taxes with four crews: tests/stage4/balance/capital.test.js)
   crewReach: 12,           // a builders' guild works the nearest unpaused, unfinished site with room within this many road tiles
   producerReach: 12,       // a quarry or brickworks delivers to a site within its producer reach (BUILDINGS[..].producerReach)
   supplyReach: 16,         // a site also draws from storehouses within this many road tiles
