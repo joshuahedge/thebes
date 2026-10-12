@@ -1,7 +1,7 @@
 // Overlays (spec 6.3): filled dot = has it, hollow ring = missing, one hue per overlay; desirability is graded instead,
 // one hue light to dark with hatching below zero. Plus the reach highlight for a selected building, the placement
 // ghost's three states (spec 6.5) and the placement preview's desirability tint (spec 4.7).
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { HOUSEHOLD_GOODS } from '../data/goods.js';
 import { housesOf, allBuildings } from '../sim/world.js';
 import { houseStatus } from '../sim/housing.js';
@@ -17,6 +17,8 @@ import { ART, slotFor } from './art/registry.js';
 import { GUIDE_PULSE_MS, DESIRABILITY_STEPS } from '../data/ui.js';
 import { DEFENCE } from '../data/raids.js';
 import { canBurn, fireRiskOf, fireBand, staffedCover } from '../sim/fire.js';
+import { MONUMENT_PLACING } from '../data/monuments.js';
+import { drawMonument } from './monuments.js';
 
 export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing', 'ground'];
 // Fire risk (Stage 3, Track D) is one deep ember red, light to dark by band; no other overlay uses a red.
@@ -171,36 +173,52 @@ export function groundTiles(world, range = null) {
   return { fertile, rocky };
 }
 
-const roomMemo = new WeakMap();   // world -> { key, room: Map type -> Set of tile indices }
+const roomMemo = new WeakMap();   // world -> { key, room: Map `type|rot` -> Set of tile indices }
 
 // The tile indices that belong to at least one free spot where a `type` building's whole footprint fits on its own ground
 // (every tile of the right terrain with nothing on it). Ground only: whether a road touches the spot, or the gold is there, is
 // the placement bar's business. Empty for a type with no terrain. Memoised on the buildings, roads and walls (the same
 // signature the other overlays use), so a ghost that moves around asks once.
-export function roomTiles(world, type) {
+// Stage 4 (Track C, spec 6.3, ruling 229): a monument's room is the opposite case, every tile of a free spot where its whole
+// footprint, in rotation `rot` (dimsOf), sits on dry ground that is not fertile land (desert, rocky, meadow, scrub, bank).
+// Worked out at the pick and on each rotation, then kept until the roads or buildings change (the memo's key).
+export function roomTiles(world, type, rot = 0) {
   const def = BUILDINGS[type];
-  if (!def || !def.terrain) return new Set();
+  if (!def || (!def.terrain && !def.monument)) return new Set();
   const key = `${world.roadVersion}|${world.wallVersion}|${world.nextId}|${buildingSignature(world)}`;
   let m = roomMemo.get(world);
   if (!m || m.key !== key) { m = { key, room: new Map() }; roomMemo.set(world, m); }
-  let room = m.room.get(type);
+  const { w, d } = dimsOf(type, rot);
+  const slot = `${type}|${w}x${d}`;
+  let room = m.room.get(slot);
   if (room) return room;
   room = new Set();
-  const want = TERRAIN_BY_NAME[def.terrain], n = world.size;
-  for (let y = 0; y + def.d <= n; y++) {
-    for (let x = 0; x + def.w <= n; x++) {
+  const n = world.size;
+  const want = def.terrain ? TERRAIN_BY_NAME[def.terrain] : null;
+  const ok = def.terrain
+    ? (i) => world.terrain[i] === want && groundFree(world, i)
+    : (i) => world.terrain[i] !== TILE.WATER && world.terrain[i] !== TILE.FERTILE && groundFree(world, i);
+  for (let y = 0; y + d <= n; y++) {
+    for (let x = 0; x + w <= n; x++) {
       let fits = true;
-      for (let dy = 0; dy < def.d && fits; dy++) for (let dx = 0; dx < def.w && fits; dx++) {
-        const i = idx(n, x + dx, y + dy);
-        fits = world.terrain[i] === want && groundFree(world, i);
-      }
+      for (let dy = 0; dy < d && fits; dy++) for (let dx = 0; dx < w && fits; dx++) fits = ok(idx(n, x + dx, y + dy));
       if (!fits) continue;
-      for (let dy = 0; dy < def.d; dy++) for (let dx = 0; dx < def.w; dx++) room.add(idx(n, x + dx, y + dy));
+      for (let dy = 0; dy < d; dy++) for (let dx = 0; dx < w; dx++) room.add(idx(n, x + dx, y + dy));
     }
   }
-  m.room.set(type, room);
+  m.room.set(slot, room);
   return room;
 }
+
+// Stage 4 (Track C): the rotation of the building being placed, which createUI's drawOverlay call does not pass (it passes the
+// type): the placement sets it when a tool starts and on each turn, and the Ground overlay and its legend read it.
+const placingRot = new WeakMap();   // world -> 0 | 1
+export const setPlacingRot = (world, rot) => { placingRot.set(world, rot === 1 ? 1 : 0); };
+export const placingRotOf = (world) => placingRot.get(world) || 0;
+
+// The pale gold wash a monument's room gets (the Monuments tint, src/data/ui.js CATEGORY_TINT), crisp-edged like the rest.
+export const MONUMENT_ROOM_HUE = '#E2B13C';
+export const MONUMENT_ROOM_ALPHA = 0.42;
 
 // Two small dots per tile as one repeating pattern on the art grid. A tile's centre is at (16a, 8(b + 1)) with a and b the same
 // parity, so the pattern's 32 x 16 art px cell holds two tile centres, (0, 8) and (16, 0); each gets a dot either side of it.
@@ -239,7 +257,21 @@ function groundLayer(g, tiles, kind, strength) {
 
 function drawGround(g, world, range, placing) {
   const { fertile, rocky } = groundTiles(world, range);
-  const room = placing && BUILDINGS[placing] && BUILDINGS[placing].terrain ? roomTiles(world, placing) : null;
+  const def = placing ? BUILDINGS[placing] : null;
+  if (def && def.monument) {
+    // A monument's room (ruling 229): fertile and rocky ground at half strength, a gold wash on every tile with room.
+    groundLayer(g, fertile, 'fertile', GROUND_ALPHA.dim);
+    groundLayer(g, rocky, 'rocky', GROUND_ALPHA.dim);
+    const room = roomTiles(world, placing, placingRotOf(world));
+    const r = range || { x0: 0, y0: 0, x1: world.size - 1, y1: world.size - 1 };
+    const gold = [];
+    for (let y = Math.max(0, r.y0); y <= Math.min(world.size - 1, r.y1); y++) {
+      for (let x = Math.max(0, r.x0); x <= Math.min(world.size - 1, r.x1); x++) if (room.has(idx(world.size, x, y))) gold.push([x, y]);
+    }
+    if (gold.length) g.polys(tilePolys(gold), MONUMENT_ROOM_HUE, { alpha: MONUMENT_ROOM_ALPHA });
+    return;
+  }
+  const room = def && def.terrain ? roomTiles(world, placing) : null;
   if (!room) {
     groundLayer(g, fertile, 'fertile', GROUND_ALPHA.bright);
     groundLayer(g, rocky, 'rocky', GROUND_ALPHA.bright);
@@ -433,10 +465,20 @@ function drawRoadJoins(g, joins) {
   }
 }
 
+// Stage 4 (Track C, spec 6.5): a monument's ghost carries silhouette: { world, b }, the finished monument it stands for, drawn
+// by the live draw (render/monuments.js) at MONUMENT_PLACING.silhouetteAlpha and still, under the footprint's marks.
+function drawSilhouette(g, { world, b }) {
+  g.ctx.save();
+  g.ctx.globalAlpha *= MONUMENT_PLACING.silhouetteAlpha;
+  drawMonument(g, world, b, { motion: 'still' });
+  g.ctx.restore();
+}
+
 export function drawGhost(g, ghost) {
   const { x, y, w, d, state, tiles, joins, badge } = ghost;
   const pts = quad(x, y, w, d, 0);
   const centre = p(x + w / 2, y + d / 2);
+  if (ghost.silhouette) drawSilhouette(g, ghost.silhouette);
   if (joins && joins.length) drawRoadJoins(g, joins);
   if (state === 'bad' && tiles && tiles.length) {
     // Part of the footprint is fine: each tile shows its own state, the good ones blue, the bad ones coral with a cross.

@@ -47,9 +47,10 @@ describe('ui stage 2 cards', () => {
     expect(shownItems(w, 'industry').includes('gem_mine')).toBe(false);              // Capital's cards stay hidden until Great city
     w.milestone = 'capital';
     for (const c of CATEGORIES) {
-      const items = c.items.filter((i) => !['pyramid_small', 'pyramid_great'].includes(i));   // Stage 4: the pyramids also need prestige (Track C shows them locked with the count)
+      // Stage 4: the pyramids also need prestige; the small one shows locked with its count, the great one once that unlocks.
+      const items = c.items.filter((i) => i !== 'pyramid_great');
       expect([c.id, shownItems(w, c.id)]).toEqual([c.id, items]);
-      for (const item of items) expect([item, cardInfo(w, item).locked]).toEqual([item, false]);
+      for (const item of items) expect([item, cardInfo(w, item).locked]).toEqual([item, item === 'pyramid_small']);
     }
     expect(cardShown(w, 'road') && cardShown(w, 'demolish')).toBe(true);
   });
