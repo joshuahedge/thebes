@@ -21,7 +21,7 @@ import { createStore, INITIAL_UI_STATE } from './store.js';
 import { select, deselect, cancelTool, back, openSheet, closeSheet, setDock, isToolMode, pickCategory, enterScreenshot } from './modes.js';
 import { pickLayout, watchLayout, freeTop, cornersHeight, cornersBottom, TOPBAR_PX } from './layout.js';
 import { createBackStack } from './backstack.js';
-import { createSettings } from './settings.js';
+import { createSettings, gentleTipDue } from './settings.js';
 import { createSfx } from '../audio/sfx.js';
 import { createCameraControl, FRAME_MARGIN_PX } from './cameraControl.js';
 import { ART } from '../render/art/registry.js';
@@ -113,7 +113,9 @@ export function createUI({
   const fine = Boolean(win.matchMedia && win.matchMedia('(pointer: fine)').matches);
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), inputType: fine ? 'mouse' : 'touch', ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
   const toasts = createToasts({ container: $('toasts'), max: () => (store.get().layout === 'wide' ? MAX_TOASTS : MAX_TOASTS_PHONE) });
-  const effects = createEffects({ reducedMotion: settings.reducedMotion });
+  // Stage 4 (spec 5.4): the Motion level in use, 'full' | 'gentle' | 'still' (a test's stand-in settings may only have reducedMotion).
+  const motionLevel = () => (typeof settings.motionLevel === 'function' ? settings.motionLevel() : (settings.reducedMotion() ? 'still' : 'full'));
+  const effects = createEffects({ reducedMotion: settings.reducedMotion, motionLevel });   // Stage 4: Gentle's fades in place (Track E)
   // Tips and the idle nudge (early-game pass 3.4, 3.5): quiet, never over the map, both off under Help: Off. frameNow is
   // the latest frame's time, so the nudge counts only time the player actually watched. The tips' 3-minute gap and
   // five-an-hour cap count play time (playMs), which runs only while the game does. On a phone a tip closes itself after
@@ -218,9 +220,7 @@ export function createUI({
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
   monumentUi = createMonumentUi(seamCtx);
-  // Stage 4 (spec 5.4): the Motion level in use, 'full' | 'gentle' | 'still' (a test's stand-in settings may only have reducedMotion).
-  const motionLevel = () => (typeof settings.motionLevel === 'function' ? settings.motionLevel() : (settings.reducedMotion() ? 'still' : 'full'));
-  const ambient = createAmbient({ enabled: () => motionLevel() === 'full' });   // Stage 4: Track E adds Gentle's glints and smoke
+  const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
     canResumeGuide: () => canResumeGuide(world, settings.get().help), onResumeGuide: () => { setGuide(world, true); refresh(); },
@@ -902,7 +902,7 @@ export function createUI({
     const range = visibleTileRange(cam, v, world.size);
     const selected = s.selectedId !== null ? world.buildings[s.selectedId] : null;
     const ring = guide.marker(t);                                              // the guide's ring on its step's target (spec 3.2)
-    const still = { reducedMotion: settings.reducedMotion() };
+    const still = { reducedMotion: settings.reducedMotion(), motion: motionLevel() };   // Stage 4: Gentle's flames (Track E)
     // Stage 4: the monuments' live draw (render/monuments.js) and the problem markers' layout (render/markers.js), once a frame.
     const motion = motionLevel();
     const ghostBox = s.ghost && s.tool && s.tool.kind === 'building' ? { type: s.tool.type, x: s.ghost.x, y: s.ghost.y, ...dimsOf(s.tool.type, s.tool.rot || 0) } : null;
@@ -939,6 +939,7 @@ export function createUI({
     if (!on && tips.current()) tips.dismiss();
     tips.tick();
     tips.flush({ busy: tipsBusy(s) });                 // a tip held while a banner had a landscape phone's one row goes up once it clears
+    if (!tipsBusy(s) && gentleTipDue(settings)) fireTip('gentleMotion');   // Stage 4 (ruling 218): once, when it may show
     syncGuidance();                                    // and a caption held while the row was taken goes up once it is free
     measureGuidance();
     root.classList.toggle('nudge-play', world.speed === 0 && tips.current() === 'press_play');

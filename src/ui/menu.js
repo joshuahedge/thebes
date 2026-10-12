@@ -4,8 +4,8 @@ import { KEYS, APP_VERSION } from '../data/ui.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
-import { FIRE_REACTIONS, MOTION_SETTINGS } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT } from './text.js';
+import { FIRE_REACTIONS, MOTION_SETTINGS, motionStatus } from './settings.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, MOTION4_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
@@ -60,11 +60,30 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     return el('div', { class: 'row' }, [el('span', { text: label }), el('span', { class: 'choices', role: 'group', 'aria-label': label }, buttons)]);
   }
 
-  // Stage 4 (spec 5.4, ruling 216): one Motion row replaces Stage 3's Reduce motion and Ambient motion rows. Track E words
-  // what it is doing ("Motion: Gentle (your device asks for less motion)"); Track G adds Music and its volume.
+  // Stage 4 (spec 5.4, ruling 216, Track E): one Motion row replaces Stage 3's Reduce motion and Ambient motion rows. Under
+  // it, a status line says what it is doing ("Motion: Gentle (your device asks for less motion)", settings.js motionStatus)
+  // and a line says what that level moves. Both follow every change at once, a change of the device's own setting
+  // included (settings tell their subscribers), until the sheet closes. Track G adds Music and its volume.
+  function motionRow() {
+    const M = MOTION4_TEXT;
+    const row = choiceRow(M.motion, 'motion', MOTION_SETTINGS.map((m) => [m, M.choices[m]]));
+    const status = el('p', { class: 'motion-status small', 'aria-live': 'polite' });
+    const line = el('p', { class: 'motion-line small muted' });
+    const buttons = [...row.querySelectorAll('.choice.motion')];
+    const sync = () => {
+      const s = motionStatus(settings);
+      status.textContent = M.status(s);
+      line.textContent = M.levelLines[s.level];
+      for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.value === s.setting));
+    };
+    sync();
+    const stop = settings.subscribe(() => { if (status.isConnected) sync(); else stop(); });   // the sheet has closed: stop listening
+    return el('div', { class: 'motion-row' }, [row, status, line]);
+  }
+
   function settingsSheet(body) {
     const D = DANGER_UI_TEXT;
-    const motion = choiceRow(CONTRACT4_TEXT.motion, 'motion', MOTION_SETTINGS.map((m) => [m, CONTRACT4_TEXT.motionLevels[m]]));
+    const motion = motionRow();
     body.append(
       switchRow(T.sound, 'sound'), switchRow(T.vibration, 'vibration'),
       switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'),

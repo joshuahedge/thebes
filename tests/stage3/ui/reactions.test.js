@@ -145,13 +145,15 @@ describe('s3 ui sound and captions', () => {
 
 describe('s3 ui water ripple', () => {
   it('ripples each home a newly placed well is the first to water, and none under reduced motion', async () => {
+    // Stage 4 (spec 5.4): a device asking for less motion now gets Gentle, whose ripple is a ring fading in place
+    // (tests/stage4/motion); Still has none, as reduced motion had.
     for (const reduced of [false, true]) {
       const world = uiWorld();                                                        // a well at (15, 11) waters the huts at (12, 9) and (13, 9)
       const near = addRaw(world, 'house', 26, 9, { tier: 1, residents: 2 });
       const plot = addRaw(world, 'house', 27, 9);
       staffAll(world);
       expect(firstWatered(world, addRaw(world, 'well', 17, 11)).map((h) => h.id)).toEqual([]);   // its homes already have water
-      const r = await rigUI({ world, settings: settingsWith({}, reduced) });
+      const r = await rigUI({ world, settings: settingsWith(reduced ? { motion: 'still' } : {}, reduced) });
       try {
         r.ui.placement.start({ kind: 'building', type: 'well' }, null);
         r.ui.placement.moveGhost(27, 11);

@@ -148,7 +148,7 @@ describe('s3 balance dev scenes', () => {
       const [, at] = (await devScene(r.api, 'ambient')).split(' ');
       const [x, y] = at.split(',').map(Number);
       expect(g.world.terrain[idx(g.world.size, x, y)]).toBe(TERRAIN.WATER);
-      expect([g.ui.settings.get().ambient, g.ui.settings.reducedMotion(), g.cam.zoom]).toEqual([true, false, 1.5]);
+      expect([g.ui.settings.motionLevel(), g.ui.settings.reducedMotion(), g.cam.zoom]).toEqual(['full', false, 1.5]);   // Stage 4: Motion Full
     } finally { r.cleanup(); }
   });
 });

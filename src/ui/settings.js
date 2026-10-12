@@ -8,8 +8,10 @@
 // 'full', 'gentle' or 'still'; motionLevel() is the level in use ('full' | 'gentle' | 'still'), and reducedMotion() is
 // kept for Stage 1-3 code as "anything but Full". A stored Stage 3 setting migrates once: reduced motion 'on' or ambient
 // off -> 'still'; else reduced motion 'off' -> 'full'; else 'system'. set() still accepts the two old keys with the same
-// mapping (tests and src/dev/scenes.js setMotion use them). music (on by default) and musicVolume (0-100 in tens, 30 by
-// default) are separate from sound; cardsSeen is the device's "picture cards seen or skipped" flag.
+// mapping (Stage 1-3 tests and scenes write them); get() has only the Stage 4 keys (Track E retired its read-only mirrors).
+// A change of the device's own setting moves the level at once and tells every subscriber, as set() does, so the Settings
+// row's words and anything else that reads the level follow it (spec 5.4). music (on by default) and musicVolume (0-100
+// in tens, 30 by default) are separate from sound; cardsSeen is the device's "picture cards seen or skipped" flag.
 import { prefersReducedMotion } from '../render/effects.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 
@@ -52,14 +54,16 @@ export function motionFromLegacy({ reducedMotion, ambient } = {}) {
 // The level a Motion setting gives: 'system' follows the device (Gentle when it asks for less motion, ruling 216).
 export const motionLevelOf = (motion, deviceAsks) => (motion === 'system' ? (deviceAsks ? 'gentle' : 'full') : motion);
 
-// Stage 3's two settings as read-only mirrors of motion, kept in get() for Stage 3 readers (src/dev/scenes.js setMotion and
-// its test) until Track E retires them: reducedMotion 'off' for Full, 'system' while following the device, else 'on';
-// ambient false only for Still. Writing them goes through motionFromLegacy.
-// They are not enumerable, so they are never saved, spread or compared.
-const withMirrors = (v) => Object.defineProperties(v, {
-  reducedMotion: { value: v.motion === 'full' ? 'off' : v.motion === 'system' ? 'system' : 'on', enumerable: false },
-  ambient: { value: v.motion !== 'still', enumerable: false },
-});
+// What the Settings sheet's Motion row says (spec 5.4): the setting, the level it gives, whether it follows the device,
+// and whether the device asks for less motion (known only while following it: that is when it decides the level).
+export function motionStatus(settings) {
+  const setting = settings.get().motion, level = settings.motionLevel();
+  return { setting, level, device: setting === 'system', asks: setting === 'system' && level === 'gentle' };
+}
+
+// The one-time Gentle tip (ruling 218) is due while the city follows a device that asks for less motion; a player who
+// chose a level needs no telling. A stand-in settings object without motionLevel (a Stage 1-3 test's) never asks.
+export const gentleTipDue = (settings) => typeof settings.motionLevel === 'function' && motionStatus(settings).asks;
 
 // Reading the localStorage global itself throws when storage is blocked, so the default is resolved in a guard.
 function defaultStorage() {
@@ -97,7 +101,7 @@ export function createSettings({
     } catch (e) { return {}; }
   }
 
-  let value = withMirrors({ ...DEFAULT_SETTINGS, seenTips: DEFAULT_SETTINGS.seenTips.slice(), ...load() });
+  let value = { ...DEFAULT_SETTINGS, seenTips: DEFAULT_SETTINGS.seenTips.slice(), ...load() };
 
   function save() {
     try { if (storage) storage.setItem(key, JSON.stringify(value)); } catch (e) { /* full or blocked storage: the setting still applies this session */ }
@@ -113,18 +117,21 @@ export function createSettings({
     root.classList.toggle('reduce-motion', reducedMotion());
   }
 
+  const notify = () => { for (const fn of [...subs]) fn(value); };
   apply();
-  let unwatch = (typeof watchSystem === 'function' && watchSystem(() => apply())) || null;
+  // The device's own setting changed: under 'system' the level moves at once (spec 5.4), so the root and every
+  // subscriber hear of it as they do of set().
+  let unwatch = (typeof watchSystem === 'function' && watchSystem(() => { apply(); notify(); })) || null;
   return {
     get: () => value,
     set(patch) {
       const next = { ...value };
       for (const [k, v] of Object.entries(patch)) if (k in VALID && VALID[k](v)) next[k] = copy(v);
       if (!('motion' in patch)) { const m = motionFromLegacy(patch); if (m) next.motion = m; }
-      value = withMirrors(next);
+      value = next;
       save();
       apply();
-      for (const fn of [...subs]) fn(value);
+      notify();
     },
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
     motionLevel,
