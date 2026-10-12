@@ -1156,7 +1156,191 @@ export const ART4_TEXT = {};
 // Track C's words: the Monuments tab's cards and locks, the monument chips and confirm-bar line, the site, guild, quarry,
 // brickworks and palace sheets, the summary's Monuments section, Welcome back's site lines, the stall warnings' tier
 // words and View's outline. Add new lines just above the end marker.
-export const UI4_TEXT = {};
+import { extraGoldOf as ui4ExtraGold } from '../sim/costs.js';
+import { siteStatus as ui4SiteStatus } from '../sim/monuments.js';
+// Whole gold with thousands marked, as the spec writes it ("1,000 gold").
+export const ui4Gold = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const ui4Lower = (type) => buildingName(type).toLowerCase();
+const ui4Cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+export const UI4_TEXT = {
+  // The Monuments tab's cards (spec 4.4, 4.14, 6.3): the ground a monument stands on, and a prestige lock with its count.
+  desert: 'Desert',
+  desertTip: 'on the desert, not the fields',
+  needsPrestige: (need, have) => `Needs ${need} prestige (you have ${have})`,
+  needsMilestoneAndPrestige: (milestone, need) => `Needs ${milestone} and ${need} prestige`,
+  // The monument chips (spec 6.5, ruling 230), each the sim's own condition in words.
+  groundMet: 'Desert ground',
+  notOnFields: (fertile, of) => `Not on the fields: ${fertile} of ${of} tiles are fertile`,
+  roadLater: 'No road yet: crews and stone come by road',
+  crewMet: (n) => `Crew: ${plural(n, "builders' guild", "builders' guilds")} near`,
+  crewLater: "No builders' guild near",
+  supplyMet: (goods) => `${ui4Cap(listText(goods.map((g) => goodName(g).toLowerCase())))} near`,
+  supplyLater: (good) => `No ${goodName(good).toLowerCase()} near`,
+  founding: (cost, have) => `Founding ${ui4Gold(cost)} gold: you have ${ui4Gold(have)}`,
+  // The confirm bar's line (spec 6.5, ruling 251), after the score's "+N Monuments when finished" (Track D).
+  crewGold: (gold) => `then ${ui4Gold(gold)} gold a crew a month`,
+  finishedNicer: (n) => `finished: ${plural(n, 'home', 'homes')} nicer`,
+  whileBuilding: (n) => `while building: ${plural(n, 'home', 'homes')} less pleasant`,
+  oneOfEach: 'One of each kind counts: no prestige',
+  founded: (type) => `${buildingName(type)} founded`,
+  // The Ground overlay while a monument is placed (spec 6.3, ruling 229).
+  groundFertile: 'Fertile: no monuments here',
+  roomFor: (type) => `Gold: room for a ${ui4Lower(type)}`,
+  noRoomFor: (type) => `No room left for a ${ui4Lower(type)}`,
+};
+// One monument condition's chip words (src/sim/commands.js conditionsFor: ground, road, crew, supply, gold). firstGoods: the
+// materials of the first course, which the supply chip names when it is met. Ground refusals other than the fields keep the
+// shared words (conditionText).
+export function ui4ConditionText(cond, type, firstGoods = []) {
+  const U = UI4_TEXT;
+  if (cond.key === 'ground') {
+    if (cond.state === 'met') return U.groundMet;
+    if (cond.reason === 'not_on_fields') return U.notOnFields(cond.fertile, cond.of);
+    return conditionText(cond, type);
+  }
+  if (cond.key === 'road') return cond.state === 'met' ? CONDITION_TEXT.roadMet : cond.state === 'later' ? U.roadLater : CONDITION_TEXT.roadCant;
+  if (cond.key === 'crew') return cond.state === 'met' ? U.crewMet(cond.n) : U.crewLater;
+  if (cond.key === 'supply') return cond.state === 'met' ? U.supplyMet(firstGoods) : U.supplyLater(cond.good);
+  if (cond.key === 'gold') return U.founding(cond.cost, cond.have);
+  return conditionText(cond, type);
+}
+
+// Task C2: the sheets (spec 6.3, 4.16, 4.20; rulings 210, 236, 245, 258, 273, 275). Each row states what the sim's own function
+// returned (siteStatus, crewsFor, paceOf, guildSite, supplyNeeded, palaceQuote, demolishRefundFor).
+const ui4Months = (days) => {
+  const months = Math.max(1, Math.ceil(days / 30));
+  const y = Math.floor(months / 12), m = months % 12;
+  return [y ? plural(y, 'year', 'years') : '', m ? plural(m, 'month', 'months') : ''].filter(Boolean).join(' ');
+};
+const ui4MakerOf = { stone: 'quarry', bricks: 'brickworks' };
+const ui4Count = (n, type) => plural(n, ui4Lower(type), BUILDING_PLURALS[type] || `${ui4Lower(type)}s`);
+// Why a site is not progressing, short ("Not progressing: no stone"), by siteStatus's reason codes.
+const UI4_STALL_SHORT = {
+  no_road: 'no road', paused: 'paused', no_crew: 'no crew', crew_short: "its builders' guild is short of workers", crew_burning: "its builders' guild is on fire",
+  no_gold: 'no gold', waiting_gilding: 'waiting for gold for the gilding', waiting_capstone: 'waiting for gold for the capstone', no_stone: 'no stone', no_bricks: 'no bricks',
+};
+Object.assign(UI4_TEXT, {
+  progress: (course, courses, share) => `Course ${course + 1} of ${courses} · ${Math.floor(share * 100)}% done`,
+  crews: (n, max) => `Crews: ${n} of ${max}.${n ? ` ${ui4Count(n, 'builders_guild')} ${n === 1 ? 'works' : 'work'} here.` : ''}`,
+  // A stall's cause and its fix, the same words on the sheet, in the alert list and on Welcome back (spec 4.16 Stalls).
+  cause: {
+    no_road: 'No road yet: crews and stone come by road',
+    paused: 'Paused: no work and no work gold until you resume it',
+    no_crew: (reach) => `No crew: build a builders' guild within ${reach} road tiles`,
+    crew_short: "The builders' guild is short of workers",
+    crew_burning: "The builders' guild is on fire",
+    no_gold: 'No gold for the crews: work waits until the treasury is above 0',
+    waiting_gilding: (gold) => `Waiting for ${ui4Gold(gold)} gold for the gilding`,
+    waiting_capstone: (gold) => `Waiting for ${ui4Gold(gold)} gold for the capstone`,
+    // The spec's sentence only when nothing reaches the site; else what is true (a quarry that reaches it has not delivered yet).
+    material: (good, makers = 0, stores = 0) => {
+      const g = goodName(good).toLowerCase();
+      if (!makers && !stores) return `Waiting for ${g}: no ${ui4Lower(ui4MakerOf[good])} or storehouse with ${g} within reach`;
+      const parts = [makers ? ui4Count(makers, ui4MakerOf[good]) : '', stores ? ui4Count(stores, 'storehouse') : ''].filter(Boolean);
+      return `Waiting for ${g}: ${listText(parts)} ${makers + stores === 1 ? 'reaches' : 'reach'} this site, but none has arrived yet`;
+    },
+  },
+  stallShort: (reason) => UI4_STALL_SHORT[reason] || 'no work',
+  material: (good, onSite, makers, stores) => {
+    const parts = [makers ? ui4Count(makers, ui4MakerOf[good]) : '', stores ? ui4Count(stores, 'storehouse') : ''].filter(Boolean);
+    const reach = parts.length ? `${listText(parts)} ${makers + stores === 1 ? 'reaches' : 'reach'} this site.` : `No ${ui4Lower(ui4MakerOf[good])} or storehouse reaches this site.`;
+    return `${goodName(good)}: ${Math.floor(onSite)} on site. ${reach}`;
+  },
+  pace: (days) => `At last month's pace, about ${ui4Months(days)} to finish`,
+  notProgressing: (reason) => `Not progressing: ${UI4_STALL_SHORT[reason] || 'no work'}`,
+  paceLater: 'Pace shows after a month of work',
+  lastMonth: (gold, crews) => `Last month: ${ui4Gold(Math.floor(gold))} gold for ${plural(crews, 'crew', 'crews')}. Work stops if gold would go below 0.`,
+  workGold: (gold) => `Work gold: ${ui4Gold(gold)} gold a crew a month. Work stops if gold would go below 0.`,
+  prestige: (now, more) => `Prestige ${now} so far; +${more} when finished`,
+  otherHolds: (type) => `One of each kind counts: the other ${ui4Lower(type)} holds its prestige`,
+  finishedOn: (year, month) => `Finished in year ${year}, month ${month}`,
+  countsFor: (n) => `Counts for prestige: ${n}`,
+  otherCounts: (type) => `The other ${ui4Lower(type)} counts for prestige`,
+  homesNicer: (n) => (n ? `Makes ${plural(n, 'home', 'homes')} nicer` : 'Makes no homes nicer yet'),
+  // The supply buildings (spec 6.3, ruling 258).
+  crewAt: (type) => `Crew at work on the ${ui4Lower(type)}`,
+  crewShort: (type) => `Short of workers: the crew for the ${ui4Lower(type)} cannot start`,
+  crewBurning: (type) => `On fire: the crew for the ${ui4Lower(type)} cannot work`,
+  guildIdle: (reach) => `Idle: no monument site within ${reach} road tiles has room for a crew`,
+  sends: (good, type) => `Sends ${goodName(good).toLowerCase()} to the ${ui4Lower(type)}`,
+  supplyIdle: (good) => `Idle: no monument site needs ${goodName(good).toLowerCase()} within reach`,
+  cuttingStone: 'Cutting stone',
+  // Demolish asks first (spec 4.16, 4.20).
+  // lost: what the city's prestige loses (the best of each kind counts, so a second of the kind makes it less, or nothing).
+  tearDownSite: (type, course, courses, lost, refund) => `Tear down the ${ui4Lower(type)}? ${course ? `${course} of ${courses} courses are lost. ` : ''}${lost ? `The city loses ${lost} prestige. ` : ''}Refunds ${ui4Gold(refund)} gold (a quarter of its founding).`,
+  tearDownFinished: (type, lost, refund) => `Tear down the ${ui4Lower(type)}? ${lost ? `It is lost, and the city loses ${lost} prestige.` : 'It is lost; the city loses no prestige.'} Refunds ${ui4Gold(refund)} gold (a quarter of its founding).`,
+  tearDownPalace: (n, refund) => `Tear down the palace? ${n ? `Its ${plural(n, 'enlargement', 'enlargements')} ${n === 1 ? 'is' : 'are'} lost. ` : ''}Refunds ${ui4Gold(refund)} gold.`,
+  workBegun: (type) => `Work has begun on the ${ui4Lower(type)}: demolish it instead`,
+  plazasLaid: (n) => `${plural(n, 'plaza', 'plazas')} laid`,
+  // The palace (spec 4.20, rulings 271-275).
+  palaceStands: 'Your palace stands: tap to visit it',
+  palaceStyle: (name) => `Style: ${name}`,
+  palaceNicer: (values) => `Makes homes nicer up to ${values.length} tiles away (+${values[0]} beside it)`,
+  palaceMood: (n) => (n ? `Mood: +${n}` : 'Mood: none until it is enlarged'),
+  palaceNoRoad: 'No road yet: no desirability or mood until a road touches it',
+  palaceWorks: (to, days) => `Enlarging to ${to}: ${plural(days, 'day', 'days')} left`,
+  enlarge: (to, gold) => `Enlarge to ${to}: ${ui4Gold(gold)} gold`,
+  enlargeAsk: (to, gold) => `Enlarge the palace to ${to} for ${ui4Gold(gold)} gold? It is paid at once and cannot be undone.`,
+  enlargeOk: 'Enlarge',
+  enlarged: (to, days) => `Enlarging to ${to}: ready in ${plural(days, 'day', 'days')}`,
+  palaceDone: (to) => `The palace is now ${to}`,
+  enlargeWhy: {
+    works: (days) => `One enlargement at a time: ${plural(days, 'day', 'days')} left`,
+    last_style: 'The palace is at its grandest',
+    locked: (comes, milestone) => `${comes} ${milestone}`,
+    no_road: 'The palace needs a road first',
+    no_gold: (have) => `You have ${ui4Gold(have)} gold: enlarging can't put the treasury below 0`,
+  },
+});
+// A stall's cause in words (spec 4.16 Stalls, ruling 245), the same on the site sheet, in the alert list and on Welcome back,
+// by siteStatus's reason codes; '' for none. extraGold: the gilding's or capstone's gold for the city (extraGoldOf).
+export function ui4CauseText(reason, extraGold = 0, material = null) {
+  const C = UI4_TEXT.cause;
+  if (!reason) return '';
+  if (reason === 'no_crew') return C.no_crew(BUILDINGS.builders_guild.reach);
+  if (reason === 'waiting_gilding' || reason === 'waiting_capstone') return C[reason](extraGold);
+  // material: { makers, stores }, the counts that reach the site (siteStatus); none given: nothing reaches it.
+  if (reason === 'no_stone' || reason === 'no_bricks') return C.material(reason.slice(3), material ? material.makers : 0, material ? material.stores : 0);
+  return typeof C[reason] === 'string' ? C[reason] : '';
+}
+// Task C3: the stall warning (a warning, never a critical: ruling 211), the summary's Monuments section and spending row,
+// Welcome back's site lines and the palace's tip.
+ALERT_TEXT.site_stalled = (alert, world, b, name) => {
+  const good = alert.reason === 'no_stone' || alert.reason === 'no_bricks' ? alert.reason.slice(3) : null;
+  const m = good && b ? ui4SiteStatus(world, b).materials[good] : null;
+  return {
+    title: `${name} is not progressing`,
+    fix: ui4CauseText(alert.reason, b ? ui4ExtraGold(world, b.type) : 0, m ? { makers: m.makers.length, stores: m.stores.length } : null) || 'Have a look',
+  };
+};
+Object.assign(UI4_TEXT, {
+  monuments: 'Monuments',
+  siteLine: (type, course, courses) => `${buildingName(type)}: course ${course + 1} of ${courses}`,
+  finishedLine: (type) => `${buildingName(type)}: finished`,
+  noMonumentYet: 'No monument founded yet',
+  prestigeNext: (prestige, type, need, milestone) => `Prestige ${prestige}: the ${ui4Lower(type)} unlocks at ${need}${milestone ? ` and ${milestone}` : ''}`,
+  prestigeAll: (prestige, full) => `Prestige ${prestige} of ${full}`,
+  spendingHead: 'Monuments last month',
+  spendingRow: 'Work, gilding and capstone',
+  // Welcome back (spec 4.17): "Small pyramid: course 6 of 8, about 3 years left at last month's pace".
+  welcomeHead: 'Monument sites',
+  welcomeSite: (type, course, courses, state) => `${buildingName(type)}: course ${course + 1} of ${courses}, ${state}`,
+  welcomePace: (days) => `about ${ui4Months(days)} left at last month's pace`,
+  welcomeStill: (reason) => (UI4_STALL_SHORT[reason] ? `not progressing: ${UI4_STALL_SHORT[reason]}` : 'not progressing'),   // no invented cause: the caller only asks with a reason set
+  welcomePaused: 'paused',
+  welcomeNoRoad: 'no road yet',
+  welcomeFirst: 'pace shows after a month of work',
+});
+Object.assign(TIP_TEXT, { palace_grows: 'Your palace can grow: enlarge it on its sheet for more mood and nicer homes.' });
+// The palace's five styles, by PALACE_STYLES id: the name its sheet shows, the words after "Enlarge to", and the start of
+// "... come with City" while its milestone waits.
+export const UI4_PALACE_TEXT = {
+  courtyard: { name: 'Courtyard house', to: 'a courtyard house', comes: 'A courtyard house comes with' },
+  columned: { name: 'Columned hall', to: 'a columned hall', comes: 'A columned hall comes with' },
+  pylons: { name: 'Pylons and banners', to: 'pylons and banners', comes: 'Painted pylons come with' },
+  gilded: { name: 'Gilded palace', to: 'a gilded palace', comes: 'Gilded cornices come with' },
+  lapis: { name: 'Lapis and gold', to: 'lapis and gold', comes: 'Lapis and gold come with' },
+};
 // ── end s4 ui ────────────────────────────────────────────────────────────────────────────────────────────────────
 
 //

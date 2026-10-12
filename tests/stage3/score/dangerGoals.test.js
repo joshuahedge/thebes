@@ -204,13 +204,13 @@ describe('s3 score danger rewards', () => {
     w.tally.wallTiles = 7;
     expect(dailyMeasure(w, pool('wall10'))).toBe(7);
   });
-  it('adds six tips, each with its own trigger and words true to the rules', () => {
-    expect(TIPS.slice(14).map((t) => [t.id, t.trigger, t.priority])).toEqual([
+  it('adds six tips, each with its own trigger and words true to the rules', () => {   // (Stage 4's tips follow them)
+    expect(TIPS.slice(14, 20).map((t) => [t.id, t.trigger, t.priority])).toEqual([
       ['fire_risk', 'fireRisk', false], ['firebreaks', 'fireGrew', false], ['clearing_rubble', 'rubbleLeft', false],
       ['raider_targets', 'raidWarned', false], ['tribute_once', 'tributeOffered', false], ['wall_ring', 'wallDrawn', false],
     ]);
     expect(TIP_TEXT.fire_risk).toBe(`Watch fire risk from Town: a staffed firehouse within ${BUILDINGS.firehouse.reach} road tiles slows it.`);
-    for (const t of TIPS.slice(14)) expect([t.id, TIP_TEXT[t.id].length > 20]).toEqual([t.id, true]);
+    for (const t of TIPS.slice(14, 20)) expect([t.id, TIP_TEXT[t.id].length > 20]).toEqual([t.id, true]);
   });
   it('asks for each danger tip when its lesson is news', async () => {
     const r = await rigUI();

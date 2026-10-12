@@ -66,10 +66,12 @@ const SET_UP = {
   sheet: (g) => [raidUp(g), g.ui.store.get().sheet.kind, g.world.buildings[g.ui.store.get().selectedId].type],
   welcome: (g) => [g.ui.store.get().sheet.kind, g.world.speed],
   expanded: (g) => [g.ui.tips.current(), g.ui.store.get().guidanceOpen, document.body.dataset.guidance, g.world.speed],   // the goal's tip, open, on the row
+  'pyramid-placing': (g) => [g.ui.store.get().mode, g.ui.store.get().tool.type, g.ui.store.get().overlay, Boolean(document.querySelector('#confirm .conds.tall'))],   // Stage 4 (ruling 252)
 };
 const SET_UP_WANTED = {
   early: [true, null, 'goal', 0], plots: [true, 0], raid: [true, 0], 'raid-fire': [true, true], 'raid-overlay': [true, 'fire'],
   placing: [true, 'placing', 'well'], farm: [false, 'placing', 'farm_grain', 'ground'], 'farm-raid': [true, 'placing', 'farm_grain', 'ground'], sheet: [true, 'info', 'house'], welcome: ['welcome', 0], expanded: ['goals_list', true, 'tip', 0],
+  'pyramid-placing': ['placing', 'pyramid_great', 'ground', true],
 };
 
 // The budget checks for one measurement: [{ id, ok, got, limit }].
@@ -97,7 +99,7 @@ function budgetChecks(scene, m) {
 
 describe('mobile height budget', () => {
   it('names a page query for every mobile scene, and lists only checks it makes', () => {
-    expect(MOBILE_SCENES).toEqual(['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded']);
+    expect(MOBILE_SCENES).toEqual(['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'farm', 'farm-raid', 'sheet', 'welcome', 'expanded', 'pyramid-placing']);
     expect(MOBILE_SCENES.every((name) => typeof MOBILE_SCENE_PARAMS[name] === 'string')).toBe(true);
     const kinds = ['end', 'rows', 'edge'], sizes = SIZES.map(([w, h]) => `${w}x${h}`), texts = TEXT_SIZES.map((t) => `${t}%`);
     const unknown = [...NOT_YET].filter((id) => {

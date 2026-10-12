@@ -12,6 +12,7 @@
 import { alertsFor } from '../sim/alerts.js';
 import { tributeQuote } from '../sim/raids.js';
 import { summaryData } from './hud.js';
+import { noteView } from '../render/overlays.js';
 import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT } from './text.js';
 import { el, button, clear, setText } from './components.js';
 
@@ -104,7 +105,7 @@ export function createAlerts({ world, banner, live, onView = () => {}, onAction 
     const a = m.group[step % m.group.length];
     step += 1;
     if (isPointAlert(a)) onAction(a, 'view');
-    else onView(a);
+    else { noteView(world, a.id); onView(a); }                                    // Stage 4: View outlines what it frames (ruling 281)
   }
 
   // The phone's alert row (ruling 167): one line, the icon, the words and View. A raid warning's words are its countdown
