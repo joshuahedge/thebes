@@ -593,7 +593,7 @@ describe('ui tips', () => {
       } finally { r.cleanup(); }
     }
   });
-  it('in the game: Esc closes a tip on screen first, and goes Back after that', async () => {
+  it('in the game: on a phone Esc closes a tip on screen first, and goes Back after that; never ahead of an open sheet', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
@@ -603,6 +603,59 @@ describe('ui tips', () => {
       fire(r.root, 'keydown', { key: 'Escape' });
       expect(r.store.get().dock === 'tray').toBe(false);                       // then Back closes the tray
       expect(r.ui.settings.get().seenTips).toEqual(['press_play']);
+      r.ui.settings.set({ seenTips: [] });
+      expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
+      r.store.set(openSheet(r.store.get(), 'summary'));                        // the tip is off the screen under the sheet
+      fire(r.root, 'keydown', { key: 'Escape' });
+      expect([r.store.get().sheet, r.ui.tips.current()]).toEqual([null, 'press_play']);   // Esc closed the sheet; the tip is back
+    } finally { r.cleanup(); }
+  });
+  it('in the game: on a wide screen Esc goes Back as it always did, and leaves a tip to Got it', async () => {
+    const r = await rigUI({ width: 1280, height: 800 });
+    try {
+      expect(r.ui.tips.trigger('plotsPaused')).toBe(true);
+      r.store.set(openSheet(r.store.get(), 'summary'));
+      fire(r.root, 'keydown', { key: 'Escape' });
+      expect([r.store.get().sheet, r.ui.tips.current()]).toEqual([null, 'press_play']);   // the sheet went first, the tip stayed
+      fire(r.root, 'keydown', { key: 'Escape' });
+      expect(r.ui.tips.current()).toBe('press_play');
+    } finally { r.cleanup(); }
+  });
+  it('in the game: on a phone keyboard focus follows the guidance row when a caption, a tip, the legend or a sheet takes it, and comes back to Show me', async () => {
+    let t = 0;
+    const r = await rigUI({ width: 375, height: 667, now: () => t, world: runningUiWorld() });
+    r.renderer.renderFrame = () => {};
+    const visible = (n) => Boolean(n) && n !== document.body && n.isConnected && n.getClientRects().length > 0;
+    const showMe = () => r.root.querySelector('#goals .show-me');
+    try {
+      settle(r.world, []);
+      showMe().focus();
+      expect(document.activeElement).toBe(showMe());
+      r.ui.celebrations.show({ tier: 'first', text: 'Lay a road', reward: 25 });   // a caption takes the row: the strip hides
+      expect(document.body.dataset.guidance).toBe('caption');
+      expect(visible(document.activeElement)).toBe(true);                      // focus went somewhere on screen, not to the page
+      expect(r.root.querySelector('#goals').contains(document.activeElement)).toBe(false);
+      r.ui.celebrations.clear();                                               // the caption ends: the goal is back, and focus with it
+      expect([document.body.dataset.guidance, document.activeElement === showMe()]).toEqual(['goal', true]);
+      t = TIP_FIRST_DELAY_MS;
+      r.ui.onEvents([{ type: 'arrivals', count: 2 }]);                         // a tip takes the row: focus goes to its Got it
+      expect(r.ui.tips.current()).toBe('arrivals');
+      expect(['got it', document.activeElement === r.root.querySelector('#tip .got-it')]).toEqual(['got it', true]);
+      r.ui.celebrations.show({ tier: 'first', text: 'Place 6 housing plots', reward: 25 });   // waits behind the tip
+      fire(document.activeElement, 'click');                                  // Got it: the caption comes first,
+      expect(document.body.dataset.guidance).toBe('caption');
+      expect(visible(document.activeElement)).toBe(true);                      // and focus is somewhere on screen
+      r.ui.celebrations.clear();
+      expect(['after the caption', document.activeElement === showMe()]).toEqual(['after the caption', true]);   // then the goal, and Show me has it again
+      r.store.set({ overlay: 'food' });                                        // the legend takes the row: its ✕ has focus
+      expect(['legend', document.activeElement === r.root.querySelector('#legend .close')]).toEqual(['legend', true]);
+      r.store.set({ overlay: null });
+      expect(['legend off', document.activeElement === showMe()]).toEqual(['legend off', true]);
+      fire(r.root.querySelector('#goals .open-goals'), 'click');               // the words open the Goals sheet: focus goes into it
+      expect(r.store.get().sheet.kind).toBe('goals');
+      expect(r.root.querySelector('#sheet').contains(document.activeElement)).toBe(true);
+      r.store.set(back(r.store.get()));
+      expect(['sheet closed', document.activeElement === showMe()]).toEqual(['sheet closed', true]);
     } finally { r.cleanup(); }
   });
   it('in the game: destroying the interface empties the tip row and the Play ring', async () => {
