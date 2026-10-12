@@ -74,11 +74,17 @@ export async function boot(doc, win, {
   // Stage 4 (spec 4.1, ruling 262): the picture cards show before the first new city on this device (seen or skipped,
   // once), and any time through hooks.pictureCards. Track G implements src/ui/tutorial.js.
   // One set of cards at a time: a second New city while they show is ignored, and an onDone run at once leaves cards null.
-  let cards = null;
-  function openCards(after) {
-    if (cards) return;
+  // Track G: a second hooks.pictureCards(onDone) while they show joins them: its onDone runs when they close.
+  let cards = null, joined = [];
+  function openCards(after, { join = false } = {}) {
+    if (cards) { if (join) joined.push(after); return; }
     let done = false;
-    const shown = showCards({ root, doc, settings, onDone: () => { done = true; cards = null; settings.set({ cardsSeen: true }); after(); } });
+    const shown = showCards({ root, doc, settings, onDone: () => {
+      done = true; cards = null; settings.set({ cardsSeen: true });
+      const also = joined; joined = [];
+      after();
+      for (const fn of also) fn();
+    } });
     if (!done) cards = shown;
   }
   function withCards(go) {
@@ -146,7 +152,11 @@ export async function boot(doc, win, {
     },
     newCity() { withCards(() => startGame(freshWorld())); },   // Stage 4: the picture cards first, once a device
     // Stage 4 (spec 4.1): the picture cards any time (How to play on the title card and in the menu, Track G); onDone after.
-    pictureCards(onDone = () => {}) { openCards(onDone); },
+    // Track G: the game behind them is paused (spec 4.1); the player presses Play again when ready.
+    pictureCards(onDone = () => {}) {
+      if (current && current.world.speed > 0) current.ui.speedControl.set(0);
+      openCards(onDone, { join: true });
+    },
     async exportCity() {
       if (!current) return;
       const { ui, world } = current;
@@ -236,6 +246,7 @@ export async function boot(doc, win, {
       onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
       onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(freshWorld()))),
       onSound: (on) => settings.set({ sound: on, music: on }),   // Stage 4: Play muted turns the music off too, and is remembered (ruling 269)
+      onHowToPlay: () => hooks.pictureCards(),                   // Stage 4, Track G: How to play shows the picture cards (spec 4.1)
       onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); },
       onBring: () => hooks.importCity(),
       // Stage 3 (spec 4.19): records, stamps, This week's Nile and a shared score, from the score interface.

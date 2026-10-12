@@ -3,7 +3,7 @@
 import { TITLE_DRIFT_MS } from '../data/ui.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { el, button, clear } from './components.js';
-import { T, DIFFICULTY_NAMES, difficultyHint } from './text.js';
+import { T, DIFFICULTY_NAMES, difficultyHint, CARDS4_TEXT } from './text.js';
 
 // Relaxed, Normal or Hard for the next new city: three pressed-state buttons with the chosen level's line under them.
 // Choosing one tells onChoose (boot.js keeps it in settings.difficulty), so the last one used is chosen next time.
@@ -23,7 +23,9 @@ function difficultyRow(initial, onChoose) {
 
 // decorate (Stage 3): called once with (element, { buttonBox, newCity }) after the card is built, so the score interface
 // adds the records, stamps, This week's Nile and a shared score (src/ui/scoreUi.js titleDecor) without editing this file.
-export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, sound = false, difficulty = 'normal', message = null, onContinue, onNewCity, onSound, onDifficulty = () => {}, onInstall = () => {}, onBring = () => {}, decorate = null }) {
+// onHowToPlay (Stage 4, Track G, spec 4.1): How to play, before Play with sound, shows the picture cards (boot.js passes
+// hooks.pictureCards); no button without it.
+export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, sound = false, difficulty = 'normal', message = null, onContinue, onNewCity, onSound, onDifficulty = () => {}, onInstall = () => {}, onBring = () => {}, decorate = null, onHowToPlay = null }) {
   let on = Boolean(sound);
   const soundButton = button(on ? T.playMuted : T.playWithSound, { class: 'sound' });
   soundButton.addEventListener('click', () => { on = !on; soundButton.textContent = on ? T.playMuted : T.playWithSound; onSound(on); });
@@ -33,6 +35,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
   if (hasSave) buttons.push(button(T.continueGame, { class: 'continue primary', onClick: onContinue }));
   buttons.push(newCity);
   if (canBring) buttons.push(button(T.bringCity, { class: 'bring', onClick: onBring }));
+  if (typeof onHowToPlay === 'function') buttons.push(button(CARDS4_TEXT.howToPlay, { class: 'how-to-play', onClick: () => onHowToPlay() }));
   buttons.push(soundButton, install);
   const levels = difficultyRow(difficulty, onDifficulty);
   const buttonBox = el('div', { class: 'title-buttons' }, buttons.flatMap((b) => (b === newCity ? [b, levels] : [b])));   // the choice sits under New city

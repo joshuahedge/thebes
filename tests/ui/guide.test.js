@@ -27,7 +27,7 @@ import { mount, fire } from '../helpers/dom.js';
 async function bootWith(stored) {
   const shell = await mountShell(1280, 800);
   const history = fakeHistory();
-  const storage = { getItem: () => (stored ? JSON.stringify(stored) : null), setItem: () => {} };
+  const storage = { getItem: () => JSON.stringify({ cardsSeen: true, ...stored }), setItem: () => {} };   // Stage 4 (Track G): the picture cards were seen
   const api = await boot(document, window, {
     root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams('skipTitle=1&seed=8'),
     now: () => 0, clock: () => 1760000000000, storage, envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,

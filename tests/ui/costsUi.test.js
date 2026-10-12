@@ -25,7 +25,7 @@ function cityAt(difficulty, gold = 1000) {
 }
 
 function storageWith(value) {
-  const data = value ? { 'thebes.settings': JSON.stringify(value) } : {};
+  const data = { 'thebes.settings': JSON.stringify({ cardsSeen: true, ...value }) };   // Stage 4 (Track G): the picture cards were seen
   return { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, data };
 }
 

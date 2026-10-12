@@ -104,6 +104,11 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
   }
 
   function help(body, { close } = {}) {
+    // Stage 4, Track G (spec 4.1): the picture cards at the top of How to play, over the open sheet (hooks.pictureCards
+    // pauses the game behind them); the sheet is still open after.
+    if (typeof hooks.pictureCards === 'function') {
+      body.append(el('div', { class: 'actions show-cards' }, [button(CARDS4_TEXT.showCards, { class: 'show-cards primary', onClick: () => hooks.pictureCards() })]));
+    }
     body.append(el('p', { text: T.leaveMode }));
     body.append(el('h3', { text: T.shortcuts }));
     body.append(el('table', { class: 'shortcuts' }, [
