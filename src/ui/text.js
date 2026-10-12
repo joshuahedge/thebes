@@ -1310,7 +1310,7 @@ Object.assign(UI4_TEXT, {
   welcomeHead: 'Monument sites',
   welcomeSite: (type, course, courses, state) => `${buildingName(type)}: course ${course + 1} of ${courses}, ${state}`,
   welcomePace: (days) => `about ${ui4Months(days)} left at last month's pace`,
-  welcomeStill: (reason) => `not progressing: ${UI4_STALL_SHORT[reason] || 'no work'}`,
+  welcomeStill: (reason) => (UI4_STALL_SHORT[reason] ? `not progressing: ${UI4_STALL_SHORT[reason]}` : 'not progressing'),   // no invented cause: the caller only asks with a reason set
   welcomePaused: 'paused',
   welcomeNoRoad: 'no road yet',
   welcomeFirst: 'pace shows after a month of work',
