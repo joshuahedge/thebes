@@ -29,14 +29,15 @@
 // palaceQuote, palaceMood, prestigeOfBuilding, holdsPrestige, demolishRefundFor), so the tests set the world up both ways and
 // check the words follow (ruling 210, 252).
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
-import { MONUMENTS, MONUMENT, MATERIALS } from '../data/monuments.js';
+import { MONUMENTS, MONUMENT, MONUMENT_KINDS, MATERIALS } from '../data/monuments.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { MILESTONES } from '../data/progression.js';
 import { ART } from '../render/art/registry.js';
 import { pxPerArt, MIN_ZOOM } from '../render/camera.js';
 import { GOLD } from '../render/art/palette.js';
 import { allBuildings, housesOf, isSite, isFinished, isMonument } from '../sim/world.js';
-import { siteStatus, guildSite, guildsNear, supplyNeeded, prestigeOfBuilding, holdsPrestige } from '../sim/monuments.js';
+import * as monumentsSim from '../sim/monuments.js';
+import { siteStatus, guildSite, guildsNear, supplyNeeded, prestigeOf, prestigeOfBuilding, holdsPrestige } from '../sim/monuments.js';
 import { palaceQuote, enlargePalace, palaceMood } from '../sim/palace.js';
 import { workGoldPerUnit, extraGoldOf } from '../sim/costs.js';
 import { setPaused, demolishRefundFor } from '../sim/commands.js';
@@ -108,12 +109,18 @@ export function causeFix(world, b, reason, status = null) {
 }
 
 // A stall's cause in words (spec 4.16), the same on the sheet, in the alert list and on Welcome back; '' for none.
-export function causeText(world, b, reason) {
+// status: the site's siteStatus (taken when not given): the material stall says what reaches the site, since the sim sets
+// it whenever the course under way has none on site, a quarry's slow delivery included.
+export function causeText(world, b, reason, status = null) {
   const C = UI4_TEXT.cause;
   if (!reason) return '';
   if (reason === 'no_crew') return C.no_crew(MONUMENT.crewReach);
   if (reason === 'waiting_gilding' || reason === 'waiting_capstone') return C[reason](extraGoldOf(world, b.type));
-  if (reason === 'no_stone' || reason === 'no_bricks') return C.material(reason.slice(3));
+  if (reason === 'no_stone' || reason === 'no_bricks') {
+    const good = reason.slice(3);
+    const m = (status || siteStatus(world, b)).materials[good];
+    return C.material(good, m ? m.makers.length : 0, m ? m.stores.length : 0);
+  }
   return typeof C[reason] === 'string' ? C[reason] : '';
 }
 
@@ -123,7 +130,7 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
   const U = UI4_TEXT;
   const rows = [{ key: 'progress', text: U.progress(s.progress.course, s.progress.courses, s.progress.done), share: s.progress.done }];
   rows.push({ key: 'crews', text: U.crews(s.crews.guilds.length, s.crews.max) });
-  const cause = causeText(world, b, s.reason);
+  const cause = causeText(world, b, s.reason, s);
   if (cause) rows.push({ key: 'cause', reason: s.reason, text: cause, fix: causeFix(world, b, s.reason, s) });
   for (const g of MATERIALS) {
     const m = s.materials[g];
@@ -132,7 +139,7 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
   if (!s.paused && s.road) {
     let pace = U.paceLater;
     if (s.pace !== null) pace = U.pace(s.pace);
-    else if (s.last && !(s.last.units > 0)) pace = U.notProgressing(s.reason);
+    else if (s.last && !(s.last.units > 0) && s.reason) pace = U.notProgressing(s.reason);   // no reason: it works today (a crew that came this month)
     rows.push({ key: 'pace', text: pace });
   }
   rows.push({ key: 'gold', text: s.last ? U.lastMonth(s.last.gold, s.last.crews) : U.workGold(workGoldPerUnit(world) * MONUMENT.unitsPerCrewMonth) });
@@ -158,24 +165,31 @@ export function finishedRows(world, b) {
 }
 
 // A builders' guild's, quarry's or brickworks' line (spec 6.3, ruling 258), or '' (a working quarry says what it makes on the
-// Stage 1 work line). A quarry or brickworks serves the first site whose siteStatus lists it among its makers. sim: the sim
-// functions it reads (Track A's; a test hands in their contract shapes).
-const SUPPLY_SIM = { siteStatus, supplyNeeded, guildSite };
+// Stage 1 work line). A guild is in the crew plan for an open site (working there, or short of workers or on fire) or idle; a
+// quarry or brickworks that is needed (supplyNeeded) sends to the first site production.js delivers to (deliverySites, nearest
+// first), else it is idle. sim: the sim functions it reads (Track A's crewPlan and deliverySites; a test hands in their contract
+// shapes). Until Track A merges this branch has neither export: crewPlan then falls back to the guilds at work (guildSite) and
+// deliverySites to no site.
+const SUPPLY_SIM = {
+  siteStatus, supplyNeeded, guildSite,
+  crewPlan: monumentsSim.crewPlan || ((world) => new Map(allBuildings(world).filter((g) => g.type === 'builders_guild' && guildSite(world, g) !== null).map((g) => [g.id, guildSite(world, g)]))),
+  deliverySites: monumentsSim.deliverySites || (() => []),
+};
 export function supplyLine(world, b, sim = SUPPLY_SIM) {
   const U = UI4_TEXT;
   if (b.type === 'builders_guild') {
     if (b.paused) return '';
-    const id = sim.guildSite(world, b);
-    return id !== null ? U.crewAt(world.buildings[id].type) : U.guildIdle(MONUMENT.crewReach);
+    const id = sim.crewPlan(world).get(b.id);
+    if (id === undefined || !world.buildings[id]) return U.guildIdle(MONUMENT.crewReach);
+    const type = world.buildings[id].type;
+    if (sim.guildSite(world, b) === id) return U.crewAt(type);
+    return b.fire ? U.crewBurning(type) : U.crewShort(type);
   }
   const good = BUILDINGS[b.type].produces && BUILDINGS[b.type].produces.good;
   if (!good || !MATERIALS.includes(good) || b.paused) return '';
-  for (const site of allBuildings(world)) {
-    if (!isSite(site)) continue;
-    const m = sim.siteStatus(world, site).materials[good];
-    if (m && m.makers.includes(b.id)) return U.sends(good, site.type);
-  }
-  return sim.supplyNeeded(world, b) ? '' : U.supplyIdle(good);
+  if (!sim.supplyNeeded(world, b)) return U.supplyIdle(good);
+  const to = sim.deliverySites(world, b)[0];
+  return to ? U.sends(good, to.type) : '';
 }
 
 // The palace's rows (spec 6.3, 4.20): its style, then its desirability and mood while a road touches it (else that it needs
@@ -204,15 +218,23 @@ export function enlargeModel(world, b) {
   return { ok: false, text, quote: q, next };
 }
 
+// What the city's prestige loses if this monument goes: the city counts the best of each kind, so with a second of the kind
+// standing it is only the difference (0 for one that does not hold it).
+export function prestigeLoss(world, b) {
+  let rest = 0;
+  for (const k of MONUMENT_KINDS) rest += Math.max(0, ...allBuildings(world).filter((o) => o.type === k && o.id !== b.id).map(prestigeOfBuilding));
+  return prestigeOf(world) - rest;
+}
+
 // Demolish's question for a monument or the palace (spec 4.16, 4.20): what is lost and the refund, or null for anything else.
 export function demolishQuestion(world, b) {
   const U = UI4_TEXT;
   const refund = demolishRefundFor(world, b);
   if (b.type === 'palace') return U.tearDownPalace(b.style + (b.works ? 1 : 0), refund);
   if (!isMonument(b)) return null;
-  const counts = holdsPrestige(world, b) ? prestigeOfBuilding(b) : 0;
-  if (isFinished(b)) return U.tearDownFinished(b.type, counts, refund);
-  return U.tearDownSite(b.type, b.site.course, MONUMENTS[b.type].courses.length, counts > 0, refund);
+  const lost = prestigeLoss(world, b);
+  if (isFinished(b)) return U.tearDownFinished(b.type, lost, refund);
+  return U.tearDownSite(b.type, b.site.course, MONUMENTS[b.type].courses.length, lost, refund);
 }
 
 // ── The interface ────────────────────────────────────────────────────────────────────────────────────────────────

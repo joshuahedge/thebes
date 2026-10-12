@@ -2,8 +2,8 @@
 // for a site with work begun and the plaza toast (spec 4.16, 4.20, 6.3; rulings 236, 258, 271-275). Words checked against the
 // sim's own functions with the world set up both ways; Track A's state and functions are handed in to the contract's shapes.
 import { describe, it, expect } from '../../harness.js';
-import { finishedRows, supplyLine, palaceRows, enlargeModel, demolishQuestion, homesMadeNicer } from '../../../src/ui/monumentSheet.js';
-import { siteStatus, prestigeOfBuilding } from '../../../src/sim/monuments.js';
+import { finishedRows, supplyLine, palaceRows, enlargeModel, demolishQuestion, prestigeLoss, homesMadeNicer } from '../../../src/ui/monumentSheet.js';
+import { prestigeOf, prestigeOfBuilding } from '../../../src/sim/monuments.js';
 import { palaceQuote } from '../../../src/sim/palace.js';
 import { demolishRefundFor } from '../../../src/sim/commands.js';
 import { MONUMENTS } from '../../../src/data/monuments.js';
@@ -37,6 +37,8 @@ describe('s4 ui a finished monument\'s sheet', () => {
 });
 
 describe('s4 ui the supply buildings\' sheets', () => {
+  // Track A's crewPlan (guild id -> site id) and deliverySites (the sites a quarry sends to, nearest first) in the contract's shapes.
+  const planOf = (entries) => () => new Map(entries);
   it('says where a guild\'s crew works, or that no site in reach has room', () => {
     const w = city();
     const g = addRaw(w, 'builders_guild', 20, 11);
@@ -48,28 +50,42 @@ describe('s4 ui the supply buildings\' sheets', () => {
     expect(supplyLine(w, g)).toBe('');
   });
 
-  it('says which site a quarry or brickworks sends to, that it idles when no site needs its material, or nothing while it works', () => {
+  it('says a guild planned for a site but not at work is short of workers or on fire, not idle', () => {
     const w = city();
-    const q = addRaw(w, 'quarry', 20, 11), k = addRaw(w, 'brickworks', 24, 11);
-    const site = addRaw(w, 'colossus', 12, 11);
-    const sim = (needed, makers = []) => ({
-      supplyNeeded: () => needed, guildSite: () => null,
-      siteStatus: (world, b) => { const s = siteStatus(world, b); for (const m of Object.values(s.materials)) m.makers = makers; return s; },
-    });
-    expect([supplyLine(w, q, sim(true)), supplyLine(w, k, sim(true))]).toEqual(['', '']);
-    expect([supplyLine(w, q, sim(false)), supplyLine(w, k, sim(false))]).toEqual(['Idle: no monument site needs stone within reach', 'Idle: no monument site needs bricks within reach']);
-    expect(supplyLine(w, q, sim(false, [q.id]))).toBe('Sends stone to the colossus');
-    site.site.done = 10;                                                             // a finished monument is no site
-    expect(supplyLine(w, q, sim(false, [q.id]))).toBe('Idle: no monument site needs stone within reach');
+    const g = addRaw(w, 'builders_guild', 20, 11);
+    const site = addRaw(w, 'mastaba_small', 12, 11);
+    const sim = (plan) => ({ crewPlan: planOf(plan), guildSite: () => null });       // site.crews holds only guilds at work
+    expect(supplyLine(w, g, sim([[g.id, site.id]]))).toBe('Short of workers: the crew for the small mastaba cannot start');
+    g.fire = { stage: 'fire', days: 1 };
+    expect(supplyLine(w, g, sim([[g.id, site.id]]))).toBe('On fire: the crew for the small mastaba cannot work');
+    g.fire = null;
+    expect(supplyLine(w, g, sim([]))).toBe("Idle: no monument site within 12 road tiles has room for a crew");     // not in the plan
+    expect(supplyLine(w, g, { crewPlan: planOf([[g.id, site.id]]), guildSite: () => site.id })).toBe('Crew at work on the small mastaba');
   });
 
-  it('says a working quarry cuts stone, on its sheet', async () => {
+  it('says which site a quarry or brickworks sends to (the nearest that wants it), that it idles when no site needs its material, or nothing while it works', () => {
+    const w = city();
+    const q = addRaw(w, 'quarry', 20, 11), k = addRaw(w, 'brickworks', 24, 11);
+    const near = addRaw(w, 'colossus', 17, 11), far = addRaw(w, 'obelisk_small', 12, 11);
+    const sim = (needed, sites = []) => ({ supplyNeeded: () => needed, deliverySites: () => sites, crewPlan: planOf([]), guildSite: () => null });
+    expect([supplyLine(w, q, sim(true)), supplyLine(w, k, sim(true))]).toEqual(['', '']);                // the storehouse route: no site, no line
+    expect([supplyLine(w, q, sim(false)), supplyLine(w, k, sim(false))]).toEqual(['Idle: no monument site needs stone within reach', 'Idle: no monument site needs bricks within reach']);
+    expect(supplyLine(w, q, sim(true, [near, far]))).toBe('Sends stone to the colossus');               // two sites: the first deliverySites names
+    expect(supplyLine(w, q, sim(true, [far, near]))).toBe('Sends stone to the small obelisk');
+    // A paused site in reach is no use: supplyNeeded is false, so it idles however the site's makers list reads.
+    expect(supplyLine(w, q, sim(false, [near]))).toBe('Idle: no monument site needs stone within reach');
+    q.paused = true;
+    expect(supplyLine(w, q, sim(true, [near]))).toBe('');
+  });
+
+  it('says a working quarry cuts stone on its sheet while a site needs stone', async () => {
     const w = city();
     const q = addRaw(w, 'quarry', 20, 11, { staff: 10 });
+    addRaw(w, 'obelisk_small', 12, 11);                                              // an open site on the road, within reach, that needs stone
     const r = await rigUI({ width: 1280, height: 800, world: w });
     try {
       r.store.set(openSheet(r.store.get(), 'info', q.id));
-      expect(r.root.querySelector('#sheet .work-status').textContent).toBe('Cutting stone');
+      expect([...r.root.querySelectorAll('#sheet .work-status')].map((n) => n.textContent).includes('Cutting stone')).toBe(true);
     } finally { r.cleanup(); }
   });
 });
@@ -147,12 +163,16 @@ describe('s4 ui demolishing, undoing and plazas', () => {
     const w = city();
     const s = addRaw(w, 'pyramid_small', 12, 11);
     s.site.course = 7;
-    expect(demolishQuestion(w, s)).toBe('Tear down the small pyramid? 7 of 8 courses and their prestige are lost. Refunds 750 gold (a quarter of its founding).');
+    expect(demolishQuestion(w, s)).toBe('Tear down the small pyramid? 7 of 8 courses are lost. The city loses 70 prestige. Refunds 750 gold (a quarter of its founding).');
     expect(demolishRefundFor(w, s)).toBe(750);
     const first = addRaw(w, 'pyramid_small', 20, 20);
     first.site.course = 8; first.site.done = 5;                                     // the first holds the kind's prestige now
     expect(demolishQuestion(w, s)).toBe('Tear down the small pyramid? 7 of 8 courses are lost. Refunds 750 gold (a quarter of its founding).');
-    expect(demolishQuestion(w, first)).toBe(`Tear down the small pyramid? It and its ${prestigeOfBuilding(first)} prestige are lost. Refunds 750 gold (a quarter of its founding).`);
+    // The city counts the best of each kind: tearing down the holder drops it to the runner-up (160 to 70), a loss of 90, not 160.
+    expect([prestigeOfBuilding(first), prestigeOf(w), prestigeLoss(w, first), prestigeLoss(w, s)]).toEqual([160, 160, 90, 0]);
+    expect(demolishQuestion(w, first)).toBe('Tear down the small pyramid? It is lost, and the city loses 90 prestige. Refunds 750 gold (a quarter of its founding).');
+    s.site.course = 0;                                                               // a second of the kind at 0 holds nothing: the first's loss is all of 160
+    expect(demolishQuestion(w, first)).toBe('Tear down the small pyramid? It is lost, and the city loses 160 prestige. Refunds 750 gold (a quarter of its founding).');
     expect(demolishQuestion(w, addRaw(w, 'obelisk_small', 26, 11))).toBe('Tear down the small obelisk? Refunds 37 gold (a quarter of its founding).');
     const p = addRaw(w, 'palace', 2, 20);
     p.style = 3;
