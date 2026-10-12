@@ -99,6 +99,22 @@ describe('ui confirm bar', () => {
     press('touch'); press('pen'); press('mouse'); press(null);           // no pointerdown before the click: Enter or Space on the button
     press('touch'); fire(root.querySelector('.ok'), 'pointercancel'); press(null);   // a press that never became a click is forgotten
     expect(types).toEqual(['touch', 'pen', 'mouse', 'keyboard', 'touch', 'keyboard']);
+    // A press that ends off the tick never clicks it, so it is forgotten too: the next click with no press of its own (a screen
+    // reader's activate) counts as the keyboard (final review 10).
+    types.length = 0;
+    const ok = root.querySelector('.ok'), box = ok.getBoundingClientRect();
+    const inside = { clientX: box.left + box.width / 2, clientY: box.top + box.height / 2 };
+    fire(ok, 'pointerdown', { pointerType: 'touch', ...inside });
+    fire(ok, 'pointerup', { pointerType: 'touch', buttons: 0, clientX: box.right + 60, clientY: box.top - 60 });   // the finger slid off
+    press(null);
+    fire(ok, 'pointerdown', { pointerType: 'pen', ...inside });
+    fire(ok, 'pointerleave', { pointerType: 'pen', buttons: 1 });       // dragged off while still pressed
+    press(null);
+    fire(ok, 'pointerdown', { pointerType: 'touch', ...inside });
+    fire(ok, 'pointerup', { pointerType: 'touch', buttons: 0, ...inside });
+    fire(ok, 'pointerleave', { pointerType: 'touch', buttons: 0 });     // a lifted finger leaves after its up: the click still follows
+    fire(ok, 'click');
+    expect(types).toEqual(['keyboard', 'keyboard', 'touch']);
     cleanup();
   });
   it('keeps keyboard focus on the same control when the bar rebuilds', () => {

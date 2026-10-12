@@ -1,8 +1,11 @@
-// The confirm bar for placing, drawing and demolishing (spec 6.4-6.5): name, cost, a building's conditions, the reason when blocked,
-// what a service will do from the ghost's spot (early-game pass 2.6), rotate for buildings that rotate, Flip
-// for a mouse's road or wall (a touch plan has no L to flip, placement review P3), Undo, x and the tick. A drawing tool's
-// first line says how to draw (the preview's words: drag or tap tiles for a finger, a start and an end for a mouse). It never tucks away. onConfirm gets the input type of the tick's press
-// ('touch', 'pen', 'mouse' or 'keyboard', spec 6.7: decided when the press starts) so a touch tick can end the tool.
+// The confirm bar for placing, drawing and demolishing (spec 6.4-6.5). It never tucks away. It holds:
+// - the name and cost, a building's conditions and the reason when blocked;
+// - what a service will do from the ghost's spot (early-game pass 2.6);
+// - rotate for buildings that rotate, and Flip for a mouse's road or wall (a touch plan has no L to flip, placement review P3);
+// - Undo, x and the tick.
+// A drawing tool's first line says how to draw (the preview's words: drag or tap tiles for a finger, a start and an end for a
+// mouse). onConfirm gets the input type of the tick's press ('touch', 'pen', 'mouse' or 'keyboard', spec 6.7: decided when the
+// press starts, forgotten when it ends off the tick) so a touch tick can end the tool.
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
@@ -36,6 +39,13 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
   let pressType = null;
   const forgetPress = () => { pressType = null; };
   const rememberPress = (ev) => { pressType = ev.pointerType === 'pen' ? 'pen' : ev.pointerType === 'touch' ? 'touch' : 'mouse'; };
+  // A press that ends off the tick never becomes its click: forget it when the pointer is lifted outside the button (a finger is
+  // held to the button it pressed, so its up lands here wherever it is), or leaves the button still pressed (a pen or a mouse).
+  const releasePress = (ev) => {
+    const r = ev.currentTarget.getBoundingClientRect();
+    if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) pressType = null;
+  };
+  const leavePress = (ev) => { if (ev.buttons) pressType = null; };
   const confirmPressed = () => { const type = pressType || 'keyboard'; pressType = null; onConfirm(type); };
 
   function publishHeight() {
@@ -75,7 +85,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     if (s.layout === 'wide') controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
     else if (placement.canUndo()) controls.push(iconButton(T.undo, '↶', { class: 'undo', onClick: onUndo }));
     controls.push(iconButton(T.cancel, '✕', { class: 'cancel', onClick: onCancel }));
-    controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onPointerDown: rememberPress, onPointerCancel: forgetPress, onKeyDown: forgetPress, onClick: confirmPressed }));
+    controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onPointerDown: rememberPress, onPointerUp: releasePress, onPointerLeave: leavePress, onPointerCancel: forgetPress, onKeyDown: forgetPress, onClick: confirmPressed }));
     // A building that changes desirability keeps a line for it (css: .confirm.desire), so the bar never grows as the ghost moves.
     const desire = s.tool.kind === 'building' && (DESIRABILITY[s.tool.type] || []).length > 0;
     // A building's conditions, each with its own mark and words (placement review P9): met, later (it can be placed but will not

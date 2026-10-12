@@ -419,6 +419,10 @@ body:is([data-layout="portrait"], [data-layout="compact"]) #tip .tip-row .text {
 #cheer .more { pointer-events: auto; }
 #cheer .cheer:has(.more:not([hidden])) { pointer-events: auto; cursor: pointer; }   /* a cut caption can be tapped; any other still lets taps through to the map */
 #tip .body:has(.more:not([hidden])) { cursor: pointer; }
+/* The tip's and the caption's More and Less are real buttons, so each gets a 44 px target (spec 6.1, 6.8) without making the row
+   taller: an invisible box at least 44 px tall and wide that ends 1 px under the word and reaches up over the cut words (which
+   take the same tap) and never right, where Got it sits. */
+#tip .more::before, #cheer .more::before { content: ''; position: absolute; right: 0; bottom: -1px; width: max(100%, var(--tap)); height: max(calc(100% + 1px), var(--tap)); }
 /* At larger text a caption is one flow of head and gold, its why hidden from sight: "More ▾" has a place of its own at the end
    of the row, so it never sits over the head. */
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer:not(.open):has(.more:not([hidden])) { padding-right: calc(28px + 46px * var(--ui-scale)); }
@@ -433,14 +437,14 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 #tip .tip-row.open { display: flex; align-items: flex-start; max-height: var(--guidance-max, 40vh); overflow-y: auto; }
 #tip .tip-row.open .body { flex: 1 1 auto; flex-wrap: wrap; align-items: flex-start; }
 #tip .tip-row.open .text { display: block !important; flex: 1 1 0; overflow: visible !important; }   /* !important: the phone clamps above are more specific */
-#tip .tip-row.open .more { position: static; flex: 1 1 100%; padding: 0 4px; text-align: right; background: none; }
+#tip .tip-row.open .more { position: sticky; bottom: 0; flex: 1 1 100%; padding: 0 4px; text-align: right; background: var(--row-bg); box-shadow: 0 -8px 8px -2px var(--row-bg); }   /* sticky: Less stays in sight, on a fade that says the words scroll (P8) */
 /* Open: the caption's head, its gold and its why in full, at every text size (the why returns to sight where larger text hid it),
    in the grid the caption has at 100%: the star, the head and the gold on the first row, the why beneath, Less at the end. At
    larger text the gold sits under the head, so the head keeps the width of the row. */
 #cheer .cheer.open { display: grid !important; width: 100%; max-height: var(--guidance-max, 40vh); overflow: hidden auto !important; padding: 4px 12px; }   /* !important: the phone clamps above are more specific */
 #cheer .cheer.open .text { display: block !important; overflow: visible !important; }
 #cheer .cheer.open .why { position: static !important; display: block !important; width: auto !important; height: auto !important; clip: auto !important; overflow: visible !important; white-space: normal !important; }
-#cheer .cheer.open .more { position: static; grid-column: 2 / 4; grid-row: 4; justify-self: end; padding: 0; background: none; }   /* last: row 4 stays empty-height where the why is row 2 */
+#cheer .cheer.open .more { position: sticky; bottom: 0; grid-column: 2 / 4; grid-row: 4; justify-self: end; padding: 0 0 0 8px; background: var(--row-bg); box-shadow: 0 -8px 8px -2px var(--row-bg); }   /* last: row 4 stays empty-height where the why is row 2 */
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open .reward { grid-column: 2; grid-row: 2; justify-self: start; margin-left: 0; }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open { grid-template-columns: auto minmax(0, 1fr); }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer.open .why { grid-column: 2; grid-row: 3; }

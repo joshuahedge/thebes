@@ -11,6 +11,7 @@ function fakeHistory() {
     entries,
     get length() { return entries.length; },
     get state() { return entries[index].state; },
+    get index() { return index; },
     pushState(state) { entries.splice(index + 1); entries.push({ state }); index = entries.length - 1; },
     back() { if (index > 0) { index--; for (const fn of listeners) fn({ state: entries[index].state }); } },
     addListener(type, fn) { if (type === 'popstate') listeners.push(fn); },
@@ -37,20 +38,34 @@ describe('ui back stack', () => {
     expect(store.get().sheet).toBe(null);
     expect(bs.depth()).toBe(0);
   });
-  it('counts a guidance row opened in place as a step: Back closes it, and one closed another way leaves a stale entry (P8)', () => {
+  it('counts a guidance row opened in place as a step: Back closes it, and one closed another way takes its entry back (P8)', () => {
     const store = createStore(INITIAL_UI_STATE);
     const h = fakeHistory();
     const bs = createBackStack({ store, history: h, addListener: h.addListener, removeListener: h.removeListener });
     bs.start();
     store.set({ guidanceOpen: true });
-    expect([h.length, bs.depth()]).toEqual([2, 1]);
+    expect([h.length, bs.depth(), h.index]).toEqual([2, 1, 1]);
     h.back();                                  // the phone's Back
-    expect([store.get().guidanceOpen, bs.depth()]).toEqual([false, 0]);
+    expect([store.get().guidanceOpen, bs.depth(), h.index]).toEqual([false, 0, 0]);
     store.set({ guidanceOpen: true });
-    store.set({ guidanceOpen: false });        // a second tap closed it
-    expect(bs.depth()).toBe(0);
-    h.back();                                  // the stale entry expires with nothing open
-    expect([store.get().guidanceOpen, store.get().mode]).toEqual([false, 'browse']);
+    store.set({ guidanceOpen: false });        // a second tap closed it: its entry goes with it
+    expect([bs.depth(), h.index, store.get().guidanceOpen]).toEqual([0, 0, false]);
+  });
+  it('leaves no Back press that does nothing after many More, Less and Layers taps (final review 5)', () => {
+    const store = createStore(INITIAL_UI_STATE);
+    const h = fakeHistory();
+    const bs = createBackStack({ store, history: h, addListener: h.addListener, removeListener: h.removeListener });
+    bs.start();
+    store.set(select(store.get(), 1));         // a building selected: one step under the rest
+    for (let i = 0; i < 3; i++) { store.set({ guidanceOpen: true }); store.set({ guidanceOpen: false }); }   // More, Less
+    for (let i = 0; i < 2; i++) { store.set({ layersOpen: true }); store.set({ layersOpen: false }); }       // a Layers pick
+    store.set({ guidanceOpen: true }); store.set({ guidanceOpen: false });   // a map tap closed the row
+    expect([bs.depth(), h.index, store.get().mode]).toEqual([1, 1, 'selected']);
+    h.back();                                  // the first Back closes the selection ...
+    expect([store.get().mode, bs.depth(), h.index]).toEqual(['browse', 0, 0]);   // ... and the next one leaves the game
+    store.set({ guidanceOpen: true });
+    h.back();                                  // Back still closes an open row first
+    expect([store.get().guidanceOpen, h.index]).toEqual([false, 0]);
   });
   it('does not push twice for the same step and absorbs steps left by other means', () => {
     const store = createStore(INITIAL_UI_STATE);

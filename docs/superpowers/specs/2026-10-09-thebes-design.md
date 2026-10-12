@@ -214,7 +214,7 @@ Defence ranges are straight-line distances in tiles, not road reach: a **tower s
 - **Gardens** (1×1, Village) and **statues** (1×1, Town) are cheap and need no workers.
 - Tiers 6-9 need minimum desirability (section 4.6), with a lower value to keep the tier.
 - The house sheet shows the score and its three biggest causes, for example "14 of 20: +6 temple, +3 garden, −4 potter".
-- **While placing** any building, the ground it would change is tinted (a teal wash where homes get nicer, coral hatching where they get worse) and the confirm bar says "Makes 6 homes nicer" or "Makes 4 homes less pleasant".
+- **While placing** any building, the ground it would change is tinted (a teal wash where homes get nicer, coral hatching where they get worse) when a home or plot lies on that ground, and not at all when none does, and the confirm bar says "Makes 6 homes nicer" or "Makes 4 homes less pleasant".
 - The desirability overlay is a single-hue light-to-dark scale with a five-step legend whose steps start at the tiers' "to rise" values (20, 35, 50, 65), plus coral hatching below zero.
 
 ### 4.8 Workers
