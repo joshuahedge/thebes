@@ -14,6 +14,9 @@
 # end, which layers show and how much of the map is left clear, and the lines (each with the full measurement as JSON
 # under it) are saved to <Tag>-mobile-measure.txt beside the shots. -Mobile cannot be combined with -Stage2 or -Stage3;
 # -Only names scenes and -OnlySizes sizes (375x667). tests/ui/mobileBudget.test.js holds the budget on the same scenes.
+# The placement pass's before and after pairs (docs/superpowers/notes/screenshots/placement-*.png, from the placement review) were taken
+# with tests/screenshot.ps1 -Eval on main and on this branch: a farm picked (Ground on), a well ticked by touch, a road drawn by a finger, the
+# Layers picker, a tip opened in place, a no-road well and plots.
 # Usage: tools/shots.ps1 -Mobile -Tag before [-Only raid,sheet] [-OnlySizes 375x667,667x375] [-TextSizes 100,125,150]
 param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2, [switch]$Stage3, [switch]$Mobile, [string[]]$TextSizes = @('100', '150'))
 $ErrorActionPreference = 'Stop'

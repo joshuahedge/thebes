@@ -17,8 +17,10 @@
 // MOBILE_SCENE_PARAMS names and driven through the sim's commands and the interface's own paths (afterCommand, the
 // caption row, Show me, a tap's select), so the captions, tips and Undo toasts on screen come from the real code. They
 // leave the text size and reduced motion to the caller, which sets them first. measureRows() reads the rows under the
-// top bar off the page, for the review note's height budget (section 3). The 'expanded' scene (placement review P8) is a tip
-// opened in place, whose limit is 40% of the height at every size and text size.
+// top bar off the page, for the review note's height budget (section 3). Two scenes come from the placement review
+// (docs/superpowers/notes/2026-10-12-placement-ux-review.md): 'expanded' (P8) is a tip opened in place, whose limit is 40% of
+// the height at every size and text size, and 'farm' and 'farm-raid' (P16) are a grain farm being placed, with the Ground
+// overlay's legend alone in the guidance row, or under a raid warning's alert row.
 import { place, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
 import { allBuildings, housesOf } from '../sim/world.js';

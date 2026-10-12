@@ -82,7 +82,7 @@ It's a plain web page that installs to a phone's home screen, works offline, and
   - From Town, goals introduce each new need when the tier below it is common ("Your homes now want pottery: build a clay pit and a potter"), then ask for a number of homes at the new tier, so one new demand arrives at a time.
   - Danger goals (chapter "Danger"): "Build a firehouse" right after the Town goal, and "Build a tower and a barracks" right after the trading-post goal (skipped on Peaceful).
   - The goal list is data (`data/goals.js`). Missions will reuse it later.
-- **The goals strip on phones is one row** (portrait and compact): the count or label ("2 of 10"), the goal's words (two lines at most), a progress chip and **Show me**. The label and the words are one button that opens the **Goals sheet**, so there is no separate Goals button. **Skip guide** lives in the Goals sheet, one tap with no confirm. The Goals sheet also holds the reward and a **Recent** list of the last 10 captions (section 6.3). Wide screens keep their strip.
+- **The goals strip on phones is one row** (portrait and compact): the count or label ("2 of 10"), the goal's words (two lines at most), a progress chip and **Show me**. The label and the words are one button that **opens the goal in place** (section 6.3, "Open in place"), so there is no separate Goals button: the open goal shows its full words, its reward, Show me, **All goals ›** (which opens the **Goals sheet**) and, while the guide runs, **Skip guide** (one tap with no confirm; the Goals sheet has it too). The Goals sheet also holds the reward and a **Recent** list of the last 10 captions (section 6.3). Wide screens keep their strip.
 - **Next threshold bar:** a slim bar under the goals strip shows the next milestone ("Town: 83 of 150 people"). From Capital it shows the next medal instead ("Silver: 38 points to go"). A caption celebrates each step (section 6.3). On phones the bar shows only in **calm portrait play**: no banner, tip, caption, sheet or tool, never while the guide runs, and never on a landscape phone. The Goals sheet and the city summary always show it, and wide screens always show it under the strip.
 - First-time events add one-off goals instead of a separate tutorial: the first fire ("Build a firehouse near the fire"), the first raid warning ("Build a tower facing the east"), the first labour shortage, the first empty bazaar.
 
@@ -130,11 +130,14 @@ It's a plain web page that installs to a phone's home screen, works offline, and
 - Terrain types are river (impassable), riverbank, **fertile land** (needed for farms), desert, **rocky ground** (needed for the quarry and gem mine), and meadow, scrub and rocks as decoration.
 - Each map has one **trade entry** on an edge road and one or two **raider entry points** on other edges.
 - Generation guarantees enough fertile land near the start, at least one rocky patch within reach, and a connected buildable area.
+- **Fertile and rocky ground are shown by the Ground overlay** (section 6.3), never by the terrain art alone: the terrain is drawn feathered (section 5.2), but a farm, an orchard or a mine needs every tile of its footprint to be of its kind, so the overlay draws free fertile land and free rocky ground with crisp tile edges. Picking a farm, an orchard or a gem mine turns it on. The meadow's bright green tufts are decoration and never count.
+- **Terrain buildings land on their ground.** Picking a farm, an orchard or a mine puts its ghost on the nearest free ground of its kind (the nearest spot where the ground is right, even if its road or storage is still to come; section 6.5), up to three times the usual search distance away. The farm, beer, linen and "Make more jobs" goals' Show me aims at the nearest free fertile land, and the gem mine's at rocky ground, while that building is the next one the goal needs. Their cards say "Fertile land" or "Rocky ground", and their tooltips "on fertile land" or "on rocky ground".
 
 ### 4.5 Roads and reach
 
-- Roads are placed by **tapping a start and an end** (the game picks an L-shaped path, which the player can flip) or by dragging. Both show a preview and the total cost before ✓.
-- Buildings work only if they touch a road.
+- Roads are placed with a mouse by **clicking a start and an end** (the game picks an L-shaped path, which the player can flip) or by dragging. Both show a preview and the total cost before ✓.
+- **On touch and pen, a road is drawn with a finger** (section 6.5): a one-finger drag follows the finger tile by tile (a gap the finger skips is filled with a four-way step), a tap adds one tile or takes it off, and strokes add up into one plan with one ✓ and one Undo step. Walls, housing plots and demolition work the same way. A plan lays every tile it can and skips the blocked ones, which are drawn coral with ✕ and counted in the bar ("5 tiles · 4 skipped: something is in the way"). Two fingers always pan and zoom.
+- Buildings work only if they touch a road. **The player may place a building that lacks only its road** (section 6.5), in amber: it is built and paid for, but it does nothing, pays no upkeep or wages (section 4.11) and does not count for a "Build a …" goal until a road touches it. The ground (fertile, rocky, free) and the gold are never "later": they refuse. The sample cities and the balance runs place through the sim's strict default, which still refuses a building with no road.
 - **Reach**: a service building covers every tile reachable within its reach distance by walking along connected roads, starting from the road tiles next to it. A house is covered if any road tile next to it is covered.
 - Tapping a building highlights its reach. **Placing a service automatically shows the matching overlay** together with the reach preview.
 - Walkers move along roads inside each building's reach, for atmosphere only.
@@ -286,6 +289,7 @@ Defence ranges are straight-line distances in tiles, not road reach: a **tower s
 
 - **Balance target:** in a steady tier-4 town, wages plus upkeep plus soldiers' pay come to about 60–70% of tax income. Building costs and wages in `data/` are tuned to this, and the long-run test asserts the band. From Stage 3 the firehouses and defences a town needs are part of that spending, so they are the late-game gold sink until Stage 4's monuments.
 - **Pausing a building** stops its wages and upkeep. A paused barracks still pays its soldiers.
+- **A building that needs a road and has none beside it** (one the player placed before its road, or whose road was demolished) pays no upkeep and no wages, since it has no workers and does nothing. A "Build a …" goal counts only buildings that touch a road, or that need none (gardens, statues). The gold for a building is spent when it is placed, not when its road arrives; Undo refunds it until the month ends (section 6.5).
 - **Demolishing** refunds 25% of a building's cost. Roads and plots refund nothing. Clearing rubble costs gold instead (section 4.12). Undo (section 6.5) refunds in full.
 - **Difficulty** multiplies building, road, wall, route, rubble-clearing and festival costs (section 4.18), and so tribute, which is priced from towers. Upkeep, wages and soldiers' pay do not change.
 - **Debt.** The treasury can go down to −500. Any debt lowers mood, scaled with the debt. Below −500, nothing new can be built until it recovers.
@@ -811,17 +815,18 @@ The layout depends on the available space; controls depend on the input in use (
   3. **Tucked away**: swiping down or panning the map shrinks the dock to a single **Build** pill.
 - **Corner buttons** show at **every dock height**, never in the middle (in portrait at 125% text or more they hide while the tray is open if they would sit above half the screen):
   - bottom-left: pause and speed
-  - bottom-right: the **minimap** button with an **alert count badge**, and the **overlay** button
+  - bottom-right: the **minimap** button with an **alert count badge**, and the **Layers** button (opens the picker, below)
 - **Alerts** come in three tiers, one channel each:
 
 | Tier | Channel | Examples | Screen readers |
 |---|---|---|---|
 | Info | A caption (the caption row on wide screens, the guidance row on phones) | A blaze put out, a raid report, a citizen remark | Polite status |
-| Warning | The count badge, a row in the minimap sheet's list, and a problem marker on the map | A covered blaze, high fire risk, labour shortage, an empty bazaar, no storage | Polite status |
+| Warning | The count badge, a row in the minimap sheet's list, and a problem marker on the map | A covered blaze, high fire risk, labour shortage, an empty bazaar, no storage, plots with no road | Polite status |
 | Critical | **The one banner** under the top bar (the alert row on phones) | See the ranking below | `role="alert"` |
 
   - **Only one banner ever shows.** It holds the highest-ranked critical, ranked by how soon harm lands: **an active raid, then a fire no staffed firehouse reaches, then a raid warning, then debt, then save failing**. A fire burns out in 7-10 s and a warning gives about 60 s, so a fire is never hidden behind a raid that is months away. The others wait in the minimap list. On wide screens the banner shows "+2 more", which opens it. On phones there is no "+N more": the Map badge counts every alert the banner is not showing, criticals included, and the minimap sheet, opened from the badge or from the banner, lists alerts first (criticals first) and the map second.
   - **Repeats roll into one line**: "3 buildings on fire", whose View steps through them in turn.
+  - **Problem markers** on the map are at least 20 px across at any zoom, with a mark by cause: a road mark (two bars) for a building no road touches, "!" for the rest, and the down arrow for a home losing a tier. **Plots and homes with no road** also get a dashed amber outline on their tile, and one aggregate warning in the list, "6 plots have no road" ("N homes have no road" once any has people), with View and Show me (which opens the road tool aimed at the one nearest the middle of the screen). It counts in the Map badge and never takes the banner. The Press Play tip does not fire for plots when none of those just painted touches a road.
   - Banner words and buttons:
 
 | Critical | Banner | Buttons |
@@ -835,10 +840,11 @@ The layout depends on the available space; controls depend on the input in use (
   - **Minimap pins** can mark a map point as well as a building: the raid entry gets a pin with an arrow pointing in.
   - Banners never time out. They clear when the trouble does.
   - **Small phones.** In the portrait and compact layouts everything that appears over the map is kept to a budget, at any text size, so the rows never reach the middle of a 375×667 portrait phone or an 844×390 landscape phone. Wide layouts keep what they have.
-    - **At most two rows under the top bar:** an **alert row**, the one banner as one line (icon, words, View), and a **guidance row**. The guidance row shows one thing, in this order: the overlay legend (while an overlay is on), a tip, a caption, the goal (with the threshold bar in calm portrait play, section 4.1). Its words wrap to two lines at most; longer text is cut with "…", with the full words in the button's name and one tap away (the Goals sheet, the raid sheet, How to play).
+    - **At most two rows under the top bar:** an **alert row**, the one banner as one line (icon, words, View), and a **guidance row**. The guidance row shows one thing, in this order: the overlay legend (while an overlay is on), a tip, a caption, the goal (with the threshold bar in calm portrait play, section 4.1). Its words wrap to two lines at most; longer text is cut with "…", shows **More ▾** and opens in place with a tap (below), with the full words also in the button's name and one tap away (the Goals sheet, the raid sheet, How to play).
     - **One row on a landscape phone at 125% or 150% text:** the alert row when there is a banner, otherwise the guidance row.
     - **A sheet open:** the guidance row hides, so tips and captions wait (a caption that waits more than 10 s goes to Recent), and the alert row stays one line. In compact the rows stop at the sheet's left edge. The camera frames a selected building, the placing ghost and Show me in the part of the map left free below the measured rows, not below a fixed 48 px bar.
     - **A tool active** (placing, drawing, demolishing): the guidance row shows the goal or a caption, and tips wait.
+    - **Open in place.** A goal, tip or caption whose words are cut shows **More ▾** at its end. It shows only when the text is really cut (measured after the row is drawn, and again when the text size or the screen size changes). A tap on it, or on the cut words, opens the row where it is: every word shows, up to **40% of the screen's height** (longer text scrolls inside the row), easing open over 150 ms (at once under reduced motion). The goal's words are always the toggle, because the open goal holds more than its words: its reward, Show me, **All goals ›** (opens the Goals sheet) and, while the guide runs, Skip guide; the threshold bar steps aside. While a row is open a caption's timer stops (it stays at least 2 s after closing) and a tip's 20 s does not run. It closes on a second tap (**Less ▴**), Back, Esc, a tap on the map (the tap still does its own work), a sheet, a tool or an overlay starting, or the row's content changing. Captions and tips keep their polite live region; the **More** and **Less** controls are real buttons with `aria-expanded`. Wide screens keep their rows as they are.
     - **Captions** show one at a time, 3 s apart: **4 s** for goals, firsts, feats and remarks, **5 s** for milestones and **6 s** for info. At most two wait; an older one goes straight to **Recent**. Every caption is also written to Recent, the last 10, in the Goals sheet. While a banner is up only info captions show; the rest go to Recent. A goal caption reads as the strip itself changing ("✓ Lay a road · +25 gold", then "2 of 10 Place 6 housing plots").
     - **Tips** show one at a time. A tip takes the guidance row in place of the goal, and closes on **Got it**, on Esc, when its condition clears, or after **20 s of unpaused play** (so a paused game keeps it). While the game is paused a tip other than the Play tip waits, so a new player laying the first road while paused keeps the goal and Show me in sight; it shows once Play is pressed (a tip already up stays). The caps stay: none in the first 10 s of a session, at least 3 min between two, at most 5 an hour. A tip whose words are about the sheet or overlay that brought it (the house sheet's needs, the overlay's dot and ring) never waits, since its words would be false once that has closed: while the sheet or the legend has the row it is dropped unseen, and it can come again the next time. Tips are always listed in How to play.
     - **Toasts** show one at a time (the newest replaces the last), as wide as the screen allows up to **420 px** with 16 px sides, above the corner buttons: 4 s, or 6 s with Undo. Undo always undoes the last action, and also works from the confirm bar and with Ctrl+Z. Only the toast takes taps; the map beside it still does. The **Update ready** toast is the exception: it stays beside the newest toast, with its Restart, until Restart is used or its ✕ closes it.
@@ -850,8 +856,12 @@ The layout depends on the available space; controls depend on the input in use (
     | | 150% | 40% | 25% |
     | 844×390 and 667×375, landscape | 100% | 40% (two rows) | the rows stop at the sheet's edge |
     | | 125% and 150% | 40% (one row) | the rows stop at the sheet's edge |
-- **Overlays:** water, food, religion, goods, entertainment, desirability, **fire risk** and **Housing**.
+
+    The tests also hold two scenes from the placement review: a **tip opened in place** ("expanded", rows end by 40% at every size and text size, since an open row may reach 40%), and a **grain farm being placed** ("farm" with a calm city, where the Ground legend alone has the guidance row, and "farm-raid", where a raid warning's alert row sits above it), whose Ground legend and chips keep to the table's limits. On phones at 125% text or more the Ground legend's room line is kept for screen readers for that reason.
+- **Overlays:** water, food, religion, goods, entertainment, desirability, **fire risk**, **Housing** and **Ground**.
   - Housing shows each home's next blocking need.
+  - **Ground** shows where farms, orchards and mines can stand (section 4.4): free fertile land in leaf green with two dots a tile, free rocky ground in grey with diagonal hatching, tile edges crisp (not feathered), tiles with a building, a road or a wall left plain. Its legend reads "Ground · Fertile: farms and orchards · Rocky: mines". While a farm, orchard or mine is being placed, tiles that belong to at least one free spot where the whole footprint fits are drawn at full strength and the rest at half, and the legend adds "Bright: room for a farm" (or "No room left for a farm"); on a phone at 125% text or more that third line is kept for screen readers, since the bright tiles say it and the legend must fit the guidance row. Ground is not about road or gold, so "room" means the ground only. Picking a farm, an orchard or a gem mine turns it on, and like the service overlays it stays on until its ✕ or another overlay.
+  - **The Layers picker** chooses an overlay on every layout. The Layers button (the bottom-right corner on phones, a new Layers button under the minimap in the wide side panel, labelled "Layers: Water" when one is on) opens a small popover of the nine overlays and **Off**, each a 44 px button with its colour on the edge, the current one marked pressed: three columns on a phone at 100% text, two at 125% and more and in the side panel (a third of its width is too narrow for "Entertainment"). One tap picks and closes; tapping the current one turns it off; Off turns it off. Back, Esc, a tap outside, or a sheet opening closes it, and focus returns to the button. It is a popover, not a sheet, so it never cancels a tool or a selection. O still cycles through the nine. Held sideways at 125% or more the popover is shortened to what the top bar and corner row leave, with Off beside Ground, and scrolls the current choice into view.
   - Has-it versus missing is shown as a **filled dot versus a hollow ring**. Graded overlays (desirability, fire risk) use a single-hue light-to-dark scale with a legend.
   - The **fire-risk legend** reads, in words: "Low · Rising · High · Can catch fire", with the hatching drawn on the top two swatches, then "● a firehouse reaches it · ○ no firehouse reaches it" and "Roads, gardens, statues, wells and walls never burn" (bands in section 4.12). On a portrait phone that last line is kept for screen readers only, so the legend fits the guidance row.
   - The legend strip attaches under the top bar. On wide screens a critical banner shrinks a dot-and-ring legend to its marks (the words stay for screen readers). On phones the legend takes the guidance row while an overlay is on (the goal waits), so the full legend reads under a banner.
@@ -873,47 +883,56 @@ The layout depends on the available space; controls depend on the input in use (
 |---|---|---|---|
 | Browse | Dock or panel | Selects a building or house → info sheet | n/a |
 | Selected | Info sheet | Selects another; tapping empty ground closes | ✕, Back, Esc, tap empty |
-| Placing | **Confirm bar**: name, cost, **reason if blocked**, ⟳ rotate, Undo, ✕, ✓ | Moves the ghost to the tapped tile | ✕, Back, Esc, right-click |
-| Drawing (roads, walls, area paint) | Confirm bar with length or count and total cost | First tap sets the start, second sets the end | Same as Placing |
-| Demolishing | Red **Demolish** bar with count and refund, or the clearing cost for rubble | Marks a building, rubble or an area | Same as Placing |
+| Placing | **Confirm bar**: name, cost, a row of **condition chips** (section 6.5), **reason if blocked**, ⟳ rotate, Undo, ✕, ✓ | Moves the ghost to the tapped tile | ✓ with touch or pen (below), ✕, Back, Esc, right-click |
+| Drawing (roads, walls, area paint) | Confirm bar with length or count and total cost. Touch and pen: "Drag or tap tiles · two fingers move the map" until something is drawn | Touch and pen: **adds or takes off one tile**, and a one-finger drag draws (section 6.5). Mouse: first click sets the start, second sets the end | Same as Placing |
+| Demolishing | Red **Demolish** bar with count and refund, or the clearing cost for rubble | Touch and pen: adds or takes off a tile with something on it, and a drag marks a rectangle. Mouse: marks a building, rubble or an area | Same as Placing |
 | Overlay (combines with Browse) | Legend strip at the top (the guidance row on phones) | As Browse | ✕ on the strip, O |
 | Screenshot | Nothing: the whole interface is hidden | Restores the interface (pinch and drag still move the camera) | Tap, click, Esc, Back |
 
 - The confirm bar never tucks away.
+- **On touch and pen, ✓ ends the tool.** When a building, a road, a wall, plots or a demolition has been laid with a ✓ press by finger or pen, the mode goes back to Browse and the dock comes back as it was when the card was picked (usually the tray, on the same category, so the same card is one tap away). A service's overlay stays on, with its ✕, so the player can see its reach. For a building the camera moves the least that keeps the whole new building in view, above the dock, clear of the toast and below the rows under the top bar. The toast, "Well placed · Undo", stays 6 s and sits above the confirm bar while a tool is on (portrait) and above the dock after. The rule follows the **input type of the ✓ press** (section 6.7), so a touch tablet in the wide layout leaves the tool and a mouse click does not. **A mouse click, Enter and the keyboard keep placing repeatedly**, as before; a ✓ the game refuses keeps the tool.
+- **On phones the confirm bar's Undo is an icon button** (↶, 44×44 px, named "Undo" for screen readers), shown only when there is something to undo. The wide layout keeps the word button, disabled when there is nothing to undo.
 - Only one mode is active at a time, except overlays, which combine with Browse.
 - Each open sheet or mode adds a browser-history entry, so the phone's Back gesture closes it instead of leaving the game.
 
 ### 6.5 Placing and tools
 
 - **Touch placing:**
-  - The ghost appears in the middle of the map left free (on phones, below the rows under the top bar), snapped to the nearest valid tile.
+  - The ghost appears in the middle of the map left free (on phones, below the rows under the top bar), snapped to the nearest **fit**: the nearest spot where every condition holds, or failing that the one with the fewest conditions that are only "later" (below). A farm, orchard or mine looks up to three times as far for its ground (section 4.4).
   - **Tapping** a tile moves it there. A **drag that starts on the ghost** moves it, drawn just above the finger so it isn't hidden. Every other one-finger drag pans, and **two fingers always pan or zoom**.
   - Nothing is built until ✓.
 - **Mouse placing:**
-  - The ghost follows the cursor and **a click places it**. The game stays in placing mode so the player can place repeatedly, and Esc or right-click stops.
+  - The ghost follows the cursor and **a click places it**. The game stays in placing mode so the player can place repeatedly, and Esc or right-click stops. (With touch or pen, ✓ ends the tool: section 6.4.)
   - Hovering a card or building shows a tooltip with cost, needs and reach.
-- **Validity shown three ways:**
-  - **Can place:** a blue outline and a ✓ mark.
-  - **Can't place:** coral hatching with a ✕ and a **reason** in the confirm bar ("Needs fertile land", "Not enough gold", "Must touch a road").
-  - **"Won't work yet":** an amber state, for example no storage in reach. Placing is allowed, with a warning.
-- **Area painting:** housing plots, gardens and demolition are painted as a rectangle (tap the start and end, or drag), with a count and total cost and **one ✓**. Demolishing occupied homes at tier 5 or above asks first.
+- **Validity is judged one condition at a time, and shown three ways.** A building's placing preview checks each condition on its own and shows it as a **chip** in the confirm bar, full width under the name and buttons, each with a mark and words, never colour alone:
+  - **Conditions:** **Ground** ("Free ground", or "Fertile land" / "Rocky ground" for a terrain building, with a count when part right: "Fertile land: 2 of 4 tiles"); **Road** (for buildings that need one, and for housing plots: "Road beside it" or "No road yet"); **Works** (a store in reach for a producer, supply for a bazaar: "No granary near"); **Gold** (shown only when short: "Not enough gold: 60 needed, you have 40").
+  - **✓ met** (teal): the condition holds. **! later** (amber): placing is allowed, but it will not work until this is met. **✕ can't** (coral): it cannot be placed. The ghost takes the worst state, drawn as a blue outline and ✓ (can place), an amber outline and "!" (**"Won't work yet"**: placing is allowed, with a warning) or coral hatching and ✕ (can't place, with the **reason** in the confirm bar: "Needs fertile land", "Not enough gold", "Must touch a road"). The mark is a badge at least 20 px across at any zoom, at the footprint's centre.
+  - **Each footprint tile shows its own state** when the footprint is part right and part wrong: on the edge of the loam the two fertile tiles are blue and the two sand tiles coral with ✕, with a coral outline round all four.
+  - **Road is "later" for a building too.** For every building that needs a road, the player's ✓ places it without one: **it is amber, built and paid for, and does nothing until a road touches it** (section 4.5; the price and Undo are as for any building). Ground and gold never wait: they refuse. The toast says "Grain farm placed · needs a road". While the road is the missing condition and the ground is fine, the **free tiles where a road could join the footprint** get a dashed amber outline, a faint amber wash and a road mark (═), and the bar says "No road yet: draw one on a marked tile". The sim's own default is strict: `canPlace` refuses with the single reason unless it is called with `roadLater`, and only the interface (the player's commands) passes it, so the sample cities and the balance runs never place a road-less building.
+  - The chip row is reserved for every building tool (and a terrain building's has room for two chip rows from the start), so the bar keeps one height as the ghost moves.
+- **Area painting:** housing plots, gardens and demolition are painted as a rectangle with a count and total cost and **one ✓**. With a **mouse**, click the start and the end, or drag. Demolishing occupied homes at tier 5 or above asks first. Plots painted with no road say "6 plots placed · no road yet" ("· 2 with no road yet" when only some lack one) and are drawn amber.
+- **Drawing on touch and pen** (roads, walls, plots, demolition) builds one **plan** of tiles that grows until ✓ and is laid as one action with one Undo step:
+  - A one-finger **drag** draws. **Roads and walls follow the finger** tile by tile; when the finger skips tiles, the gap is filled with a four-way step, along the axis it moved most first. Dragging back over the last tiles of the stroke takes them off again. **Plots and demolition paint a rectangle** from where the finger went down to where it is.
+  - A **tap** adds one tile, or takes it off if it is already in the plan (demolition adds only a tile with something on it). There is no L and no Flip on touch.
+  - **Strokes add up.** Between strokes the player can pan with two fingers and carry on; a stroke interrupted by a second finger is dropped (earlier strokes stay). ✕ ends the tool and drops the whole plan. The bar counts tiles and gold as the plan grows.
+  - **A plan lays every tile it can and skips blocked ones.** Skipped tiles are drawn coral with ✕ and counted in the bar's amber reason line: "5 tiles · 4 skipped: something is in the way" (one reason's words when they all share it, "blocked" otherwise). A plan with nothing left to lay refuses with the reason; a plan the treasury cannot afford refuses with "Not enough gold". The sim cores take any list of tiles (`previewRoadTiles`/`drawRoadTiles`, the wall, plot and demolish equivalents, each with `skipBlocked` where blocked tiles are skipped); the L and rectangle commands are thin wrappers that stay strict, so a mouse L across a building still fails whole.
 - **Rotate** (⟳ in the confirm bar, or R) for non-square footprints such as mastabas.
 - **Undo:**
   - The last **10 actions** (placing, drawing, painting, demolishing) can be undone with a full refund, **until the current game-month ends**. The monthly tick clears the undo history, which closes the refund loophole at high speed.
-  - Undo sits in the confirm bar and in a toast after each action (one toast at a time on phones), and works with Ctrl+Z or Cmd+Z.
+  - Undo sits in the confirm bar (an icon on phones, shown only when there is something to undo) and in a toast after each action (one toast at a time on phones), and works with Ctrl+Z or Cmd+Z. A road-less building's gold comes back with Undo like any other.
 
 ### 6.6 Gestures (touch)
 
 | Gesture | Effect |
 |---|---|
-| One-finger drag | Pans (except a drag that starts on the ghost while placing) |
-| Two-finger drag or pinch | Pans or zooms, always |
-| Tap | Selects, or moves the ghost / sets a start or end point |
-| Double-tap | Zooms in |
+| One-finger drag | Pans, except a drag that starts on the ghost while placing, and **in a drawing tool** (road, wall, plots, demolish), where it draws (section 6.5) |
+| Two-finger drag or pinch | Pans or zooms, always (also in a drawing tool) |
+| Tap | Selects, or moves the ghost; in a drawing tool adds or takes off one tile |
+| Double-tap | Zooms in, **except while a tool is active**, where two quick taps are two taps (pinch and +/− still zoom) |
 | Long-press a build card | Shows building details |
 | Swipe on the dock handle | Changes the dock height |
 
-- Every pinch and drag action also has a **single-tap alternative** (WCAG 2.5.1 and 2.5.7): +/− zoom, tap start then tap end for lines and areas.
+- Every pinch and drag action also has a **single-tap alternative** (WCAG 2.5.1 and 2.5.7): +/− zoom, and tapping the tiles one at a time for lines and areas.
 - The canvas uses `touch-action: none` and the page uses `overscroll-behavior: none`, so pull-to-refresh and overscroll can't fire. The dock's grab handle sits above the home-bar safe area.
 
 ### 6.7 Mouse, keyboard and switching between inputs
@@ -926,18 +945,19 @@ The layout depends on the available space; controls depend on the input in use (
   - Space pauses or resumes; + and − change speed; 1–7 pick a category.
   - Arrow keys or WASD pan.
   - R rotates; M opens the minimap; O cycles overlays.
-  - Enter confirms; Esc goes back one step (on a phone layout it closes a tip on screen first, never ahead of an open sheet); Ctrl+Z or Cmd+Z undoes; ? lists shortcuts.
+  - Enter confirms (and keeps placing: only a ✓ press by finger or pen ends the tool); Esc goes back one step (an open row or the Layers picker closes first; on a phone layout a tip on screen closes next, never ahead of an open sheet); Ctrl+Z or Cmd+Z undoes; ? lists shortcuts.
   - Focus is visible and the tab order follows the screen layout. On a phone layout, when the guidance row changes what it shows, focus in it moves to what comes in (Got it, the legend's ✕, Show me; for a caption the banner's button or the map; for a sheet into the sheet), and comes back to the row once it has a button again.
   - Single-key shortcuts switch off while a text field has focus, and can be turned off in settings (WCAG 2.1.4).
 - **Switching between inputs:**
-  - The input type is decided **when each press starts** (pointer type), never partway through an action.
+  - The input type is decided **when each press starts** (pointer type), never partway through an action. A ✓ press decides whether the tool ends (touch and pen) or stays (mouse), and the drawing words in the bar ("Drag or tap tiles" or "Tap where it starts") follow the last press, a fine pointer counting as a mouse until the first touch.
   - On any device with a touchscreen, buttons keep touch sizes even when a mouse is in use.
   - Pens behave like a mouse for hover and like touch for confirming.
 
 ### 6.8 Accessibility summary
 
 - Interface elements are real DOM buttons with labels, so the menus, sheets, dock and panel all work with screen readers and keyboards. The map canvas has a text summary (city stats and alerts) instead of tile-by-tile access.
-- Colour is never the only signal: dots versus rings, ✓ and ✕ marks, hatching, icons.
+- Colour is never the only signal: dots versus rings, ✓ and ✕ marks, hatching, icons. Each placing condition has its own mark and words (✓ met, ! later, ✕ can't); the Ground overlay uses dots against hatching; a no-road problem has its road mark.
+- Rows that open in place use real buttons with `aria-expanded` (More and Less, the goal's words), and a goal's accessible name keeps its whole words even when they are cut. The Layers picker's buttons are named and `aria-pressed`, with Off. Undo on phones is an icon button named "Undo".
 - Contrast and text size follow section 6.1. Motion follows section 5.4.
 - Pausing is always available, with no forced timers, and everything (building, walls, tribute, the camera) works while paused. The first fire and the first raid warning pause the game automatically; later ones drop the speed to 1× (section 4.3, with the On a fire setting). Banners never time out.
 - Critical alerts use `role="alert"`; everything else uses a polite status region (section 6.3).
