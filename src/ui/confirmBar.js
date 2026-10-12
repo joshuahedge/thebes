@@ -1,6 +1,7 @@
 // The confirm bar for placing, drawing and demolishing (spec 6.4-6.5): name, cost, a building's conditions, the reason when blocked,
 // what a service will do from the ghost's spot (early-game pass 2.6), rotate for buildings that rotate, Flip
-// for roads, Undo, x and the tick. It never tucks away. onConfirm gets the input type of the tick's press
+// for a mouse's road or wall (a touch plan has no L to flip, placement review P3), Undo, x and the tick. A drawing tool's
+// first line says how to draw (the preview's words: drag or tap tiles for a finger, a start and an end for a mouse). It never tucks away. onConfirm gets the input type of the tick's press
 // ('touch', 'pen', 'mouse' or 'keyboard', spec 6.7: decided when the press starts) so a touch tick can end the tool.
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
@@ -57,7 +58,8 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const info = el('div', { class: 'info' }, [
       el('div', { class: 'title', text: titleOf(s.tool) }),
       el('div', { class: 'cost small muted', text: costText }),
-      el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' ? 'amber' : 'muted'}`, text: p.text }),
+      // A touch plan that skips tiles says how many in amber (placement review P5): what it lays is fine, the rest is passed over.
+      el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' || (p.skipped && p.skipped.length) ? 'amber' : 'muted'}`, text: p.text }),
       // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line. Homes
       // served read in teal; "no homes in reach yet" is not a gain, so it reads muted.
       // Stage 3: the score parts it would change ride on the same line ("Gives water to 6 homes · +3 Culture", spec 4.19).

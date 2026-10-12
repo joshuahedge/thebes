@@ -10,6 +10,7 @@ export const INITIAL_UI_STATE = {
   ghost: null,
   line: null,
   area: null,
+  plan: null,            // a touch plan in a drawing tool (placement review P3): { tiles: [[x, y], ...] }, strokes and taps added up until the tick
   overlay: null,
   sheet: null,
   dock: 'slim',

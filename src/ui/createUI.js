@@ -102,7 +102,11 @@ export function createUI({
   if (world.firsts === null) checkFirsts(world);
   if (world.achievements === null) checkAchievements(world);
   const sfx = givenSfx || createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
-  const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
+  // The input type starts as the device's main pointer (a mouse's fine pointer, else touch) and follows every press on the map
+  // (input.js) and every click elsewhere, a card picked included, so a drawing tool's first words fit the hand that picked it
+  // (placement review P3).
+  const fine = Boolean(win.matchMedia && win.matchMedia('(pointer: fine)').matches);
+  const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), inputType: fine ? 'mouse' : 'touch', ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
   const toasts = createToasts({ container: $('toasts'), max: () => (store.get().layout === 'wide' ? MAX_TOASTS : MAX_TOASTS_PHONE) });
   const effects = createEffects({ reducedMotion: settings.reducedMotion });
   // Tips and the idle nudge (early-game pass 3.4, 3.5): quiet, never over the map, both off under Help: Off. frameNow is
@@ -161,6 +165,10 @@ export function createUI({
   const INPUTS = ['pointerdown', 'pointermove', 'touchmove', 'keydown', 'wheel'];
   const onInput = () => frameGate.noteInput(now());
   for (const t of INPUTS) root.addEventListener(t, onInput);
+  // Set after the click has done its work (the bubble phase at the root): the confirm bar rebuilds when the state changes, and a
+  // rebuild between a press and its click would lose the click. A click from the keyboard has no pointer type and changes nothing.
+  const onPress = (ev) => { if (ev.pointerType) store.set({ inputType: ev.pointerType === 'pen' ? 'pen' : ev.pointerType === 'touch' ? 'touch' : 'mouse' }); };
+  root.addEventListener('click', onPress);
   const panelMinimap = createMinimap({ world, cam, view, size: 160, dpr: renderer.dpr });
   const sheetMinimap = createMinimap({ world, cam, view, size: 200, dpr: renderer.dpr });
 
@@ -547,6 +555,7 @@ export function createUI({
       const t = tileUnder(x, y);
       if (isToolMode(s.mode)) {
         if (s.tool.kind === 'building' && type === 'mouse') { placement.moveGhost(t.x, t.y); confirm(); }   // a click places (spec 6.5)
+        else if (s.tool.kind !== 'building' && type !== 'mouse') placement.toggleTile(t.x, t.y);             // a finger or pen adds or takes off one tile (placement review P3)
         else placement.pointAt(t.x, t.y);                                                                      // a tap moves the ghost or sets a point
         return;
       }
@@ -577,6 +586,8 @@ export function createUI({
     ghostDrag({ x, y }) { const t = tileUnder(x, y); placement.moveGhost(t.x, t.y); },
     ghostDragEnd() {},
     drawDrag({ x, y, phase }) { const t = tileUnder(x, y); placement.dragTo(t.x, t.y, phase); },
+    // A finger's or pen's stroke in a drawing tool (placement review P3); 'cancel' takes it back.
+    strokeDrag({ x, y, phase }) { if (phase === 'cancel') { placement.stroke(null, null, 'cancel'); return; } const t = tileUnder(x, y); placement.stroke(t.x, t.y, phase); },
     panStarted() {                                     // panning tucks the dock (spec 6.3); the confirm bar never tucks
       const s = store.get();
       if (s.layout === 'portrait' && !isToolMode(s.mode) && s.dock !== 'tucked') store.set(setDock(s, 'tucked'));
@@ -886,6 +897,7 @@ export function createUI({
       doc.removeEventListener('visibilitychange', onVisibility);
       for (const t of GESTURES) root.removeEventListener(t, onGesture);
       for (const t of INPUTS) root.removeEventListener(t, onInput);
+      root.removeEventListener('click', onPress);
       root.removeEventListener('focusin', onFocusIn);
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.

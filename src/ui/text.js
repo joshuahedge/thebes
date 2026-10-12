@@ -245,6 +245,17 @@ export function plotsPlacedText(total, roadless) {
   return roadless >= total ? `${base} · ${CONDITION_TEXT.placedNoRoadYet}` : `${base} · ${roadless} with no road yet`;
 }
 
+// A touch plan's words (placement review P3, P5). The bar's first line before anything is drawn, and how many tiles the plan
+// passes over and why: "2 skipped: something is in the way" (one reason's words when they all share it).
+export const DRAW_TEXT = {
+  idle: 'Drag or tap tiles · two fingers move the map',
+  skipped(skipped) {
+    const reasons = [...new Set(skipped.map((s) => s.reason))];
+    const why = reasonText(reasons.length === 1 ? reasons[0] : 'blocked');
+    return `${skipped.length} skipped: ${why.charAt(0).toLowerCase()}${why.slice(1)}`;
+  },
+};
+
 // One condition's words for its chip. cond is a conditionsFor condition; refused says a store in reach is built to hold the good
 // but turns it away (the placing preview works that out). Never invents a state: each sentence is the sim's own reason.
 export function conditionText(cond, type, { refused = false } = {}) {
@@ -511,7 +522,7 @@ export const T = {
   on: 'On', off: 'Off', version: 'Version', keyHead: 'Key', doesHead: 'Does', gestures: 'Touch',
   leaveMode: 'To leave any mode: ✕, Back, Esc or right-click.',
   shortcutsOff: 'Single-key shortcuts can be turned off in settings. Esc, Enter and Ctrl+Z always work.',
-  gesturesHelp: 'One finger pans. Two fingers pan or zoom. Tap to select, or to move the ghost. Double-tap zooms in. Tap a start and an end to draw a road or paint plots.',
+  gesturesHelp: 'One finger pans, and two fingers pan or zoom. Tap to select, or to move the ghost. Double-tap zooms in when no tool is open. With a road, wall, plots or Demolish, drag one finger over tiles or tap them one by one (tap again to take one off), then tick.',
   aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
   undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
   hoverHint: 'Hover a building or pick a card',

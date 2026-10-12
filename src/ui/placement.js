@@ -3,6 +3,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import {
   canPlace, conditionsFor, place, previewRoad, drawRoad, roadPath, previewHouses, paintHouses, previewDemolishArea, demolishArea, demolishAt, rectTiles,
+  previewRoadTiles, drawRoadTiles, previewHouseTiles, paintHouseTiles, previewDemolishTiles, demolishTiles,
 } from '../sim/commands.js';
 import { undo as undoCommand } from '../sim/undo.js';
 import { assignLabour } from '../sim/labour.js';
@@ -12,19 +13,58 @@ import { homesServedFrom } from '../sim/housing.js';
 import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
 import { costOf } from '../sim/costs.js';
 import { refusingStores } from '../sim/production.js';
-import { previewWall, drawWall } from '../sim/defence.js';
+import { previewWall, drawWall, previewWallTiles, drawWallTiles } from '../sim/defence.js';
 import { canBurn } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles, touchesRoad } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
-import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, T, DANGER_UI_TEXT } from './text.js';
+import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT } from './text.js';
 
 const footprintOf = (tool) => (tool.kind === 'building' ? { w: BUILDINGS[tool.type].w, d: BUILDINGS[tool.type].d } : { w: 1, d: 1 });
 
 // Tools drawn as a line from a start to an end, in an L that can be flipped (spec 6.4 Drawing mode): roads and walls.
 export const LINE_TOOLS = ['road', 'wall'];
 const isLine = (tool) => Boolean(tool) && LINE_TOOLS.includes(tool.kind);
+
+// A touch plan (placement review P3, P5): what a finger or pen has drawn and tapped in a drawing tool since it started, stroke by
+// stroke, until the tick. state.plan is { tiles: [[x, y], ...] }, each tile once, in the order it was added. Roads and walls
+// follow the finger tile by tile; plots and Demolish paint the rectangle from where the finger went down to where it is. A tap
+// adds one tile or takes it off. The mouse keeps its line (click a start, click an end, or drag) and Flip.
+const sameTile = (a, b) => Boolean(a) && Boolean(b) && a[0] === b[0] && a[1] === b[1];
+const tileKey = (t) => `${t[0]},${t[1]}`;
+
+// base, then the tiles of more not already in it.
+function joinTiles(base, more) {
+  const seen = new Set(base.map(tileKey));
+  const out = base.slice();
+  for (const t of more) { const k = tileKey(t); if (!seen.has(k)) { seen.add(k); out.push(t); } }
+  return out;
+}
+
+// The tiles a finger crossed between two tiles it was seen on (a quick finger skips some): four-way steps, along the axis it
+// moved most first, then the other. The first tile is left out, the last is in.
+export function fourWaySteps(x0, y0, x1, y1) {
+  const out = [];
+  let x = x0, y = y0;
+  const sx = Math.sign(x1 - x0), sy = Math.sign(y1 - y0);
+  const alongX = () => { while (x !== x1) { x += sx; out.push([x, y]); } };
+  const alongY = () => { while (y !== y1) { y += sy; out.push([x, y]); } };
+  if (Math.abs(x1 - x0) >= Math.abs(y1 - y0)) { alongX(); alongY(); } else { alongY(); alongX(); }
+  return out;
+}
+
+// A road or wall stroke goes on to tile t: each tile the finger crossed is added once; stepping back from the stroke's end onto
+// the tile before it takes the end off again (dragging back over the last tiles undoes them). Crossing a tile the stroke
+// already has (a loop) adds nothing and takes nothing off.
+function followFinger(stroke, t) {
+  for (const step of fourWaySteps(stroke.at[0], stroke.at[1], t[0], t[1])) {
+    const n = stroke.path.length;
+    if (n > 1 && sameTile(stroke.at, stroke.path[n - 1]) && sameTile(step, stroke.path[n - 2])) stroke.path.pop();
+    else if (!stroke.path.some((q) => sameTile(q, step))) stroke.path.push(step);
+    stroke.at = step;
+  }
+}
 
 export function snapGhost(world, tool, x, y) {
   const { w, d } = footprintOf(tool);
@@ -139,9 +179,12 @@ function basePreview(world, state) {
     const text = !warn ? '' : c.warnings[0] === 'needs_road' && joins.length ? CONDITION_TEXT.roadHint : warningLine(world, tool.type, x, y, c.warnings[0]);
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: c.warnings, text, effect, cost, count: 1, tiles: [], refund: 0, ...extra };
   }
+  if (state.plan && state.plan.tiles.length) return planPreview(world, tool, state.plan.tiles);
+  // Before anything is drawn the first line says how: a finger or pen drags or taps tiles; a mouse clicks a start and an end.
+  const touch = state.inputType === 'touch' || state.inputType === 'pen';
   if (isLine(tool)) {
     const l = state.line;
-    if (!l) return idle(T.tapStart);
+    if (!l) return idle(touch ? DRAW_TEXT.idle : T.tapStart);
     if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
     const tiles = roadPath(l.x0, l.y0, l.x1, l.y1, l.flip);
     const r = (tool.kind === 'road' ? previewRoad : previewWall)(world, l.x0, l.y0, l.x1, l.y1, l.flip);
@@ -157,7 +200,7 @@ function basePreview(world, state) {
     return { state: 'ok', reason: null, warnings: [], text: plural(r.tiles.length, 'tile', 'tiles'), effect: '', cost: r.cost, count: r.tiles.length, tiles, refund: 0 };
   }
   const a = state.area;
-  if (!a) return idle(T.tapStart);
+  if (!a) return idle(touch ? DRAW_TEXT.idle : T.tapStart);
   if (a.x1 === null) return idle(T.tapCorner, [[a.x0, a.y0]]);
   if (tool.kind === 'houses') {
     const r = previewHouses(world, a.x0, a.y0, a.x1, a.y1);
@@ -166,9 +209,44 @@ function basePreview(world, state) {
     const warn = r.warnings.length > 0;
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : plural(r.positions.length, 'plot', 'plots'), effect: '', cost: r.cost, count: r.positions.length, tiles, refund: 0 };
   }
-  const r = previewDemolishArea(world, a.x0, a.y0, a.x1, a.y1);
+  return demolishPreview(previewDemolishArea(world, a.x0, a.y0, a.x1, a.y1), rectTiles(a.x0, a.y0, a.x1, a.y1, world.size));
+}
+
+// A touch plan's preview (P3, P5): it lays every tile it can and skips the blocked ones. tiles are all the plan's tiles (the
+// ghost draws them), skipped the ones it passes over ([x, y], drawn coral with a cross), and the words count both: "8 tiles ·
+// 2 skipped: something is in the way". Gold short for the lot refuses it, as a line or an area does.
+function planPreview(world, tool, tiles) {
+  const skippedOf = (r) => (r.skipped || []).map((k) => [k.x, k.y]);
+  const withSkips = (text, r) => (r.skipped && r.skipped.length ? `${text} · ${DRAW_TEXT.skipped(r.skipped)}` : text);
+  // Nothing laid: the skipped tiles' reason when every tile was skipped, else nothing new to place.
+  const nothing = (r) => {
+    const skipped = skippedOf(r);
+    if (skipped.length === tiles.length) { const reasons = [...new Set(r.skipped.map((k) => k.reason))]; return { ...bad(reasons.length === 1 ? reasons[0] : 'blocked', 0, 0, tiles), skipped }; }
+    return { ...bad('nothing_to_place', 0, 0, tiles), skipped };
+  };
+  if (tool.kind === 'road' || tool.kind === 'wall') {
+    const wall = tool.kind === 'wall';
+    const r = (wall ? previewWallTiles : previewRoadTiles)(world, tiles, { skipBlocked: true });
+    if (r.reason === 'nothing_to_place' || (r.ok && !r.tiles.length)) return nothing(r);
+    if (!r.ok) return { ...bad(r.reason, r.cost, r.tiles.length, tiles), skipped: skippedOf(r) };
+    const gates = r.gates || [];
+    const text = wall ? DANGER_UI_TEXT.wallCount(r.tiles.length, gates.length) : plural(r.tiles.length, 'tile', 'tiles');
+    return { state: 'ok', reason: null, warnings: [], text: withSkips(text, r), effect: '', cost: r.cost, count: r.tiles.length, tiles, gates, skipped: skippedOf(r), refund: 0 };
+  }
+  if (tool.kind === 'houses') {
+    const r = previewHouseTiles(world, tiles);
+    if (r.reason === 'nothing_to_place') return nothing(r);
+    if (!r.ok) return { ...bad(r.reason, r.cost, r.positions.length, tiles), skipped: skippedOf(r) };
+    const warn = r.warnings.length > 0;
+    const text = warn ? warningText(r.warnings[0]) : plural(r.positions.length, 'plot', 'plots');
+    return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: withSkips(text, r), effect: '', cost: r.cost, count: r.positions.length, tiles, skipped: skippedOf(r), refund: 0 };
+  }
+  return demolishPreview(previewDemolishTiles(world, tiles), tiles);
+}
+
+// Demolish's preview, a rectangle's or a plan's: what it would take up, and its refund (or, Stage 3, what clearing rubble costs).
+function demolishPreview(r, tiles) {
   const count = r.buildingIds.length + r.roadTiles.length + r.wallTiles.length;
-  const tiles = rectTiles(a.x0, a.y0, a.x1, a.y1, world.size);
   if (!count) return bad('nothing_here', 0, 0, tiles);
   // Clearing rubble would cross the debt floor (Stage 3, spec 4.12): the bar says so in the rule's words.
   if (!r.ok) return bad(r.reason, -r.refund, count, tiles, DANGER_UI_TEXT.wouldPassDebt(-ECONOMY.debtFloor));
@@ -217,16 +295,23 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
       .filter(([x, y]) => world.occ[y * world.size + x] || world.road[y * world.size + x] || world.wall[y * world.size + x])
       .map(([x, y]) => ({ x, y, w: 1, d: 1, state: 'demolish' }));
   }
-  if (tool.kind === 'wall' && preview.gates && preview.gates.length) {
-    const gates = new Set(preview.gates);
-    return preview.tiles.map(([x, y]) => ({ x, y, w: 1, d: 1, state: gates.has(y * world.size + x) ? 'gate' : visual }));
-  }
-  return preview.tiles.map(([x, y]) => ({ x, y, w: 1, d: 1, state: visual }));
+  // A touch plan's skipped tiles are coral with a cross (P5); the rest show the plan's state, a gate its own mark.
+  const skipped = new Set((preview.skipped || []).map(tileKey));
+  const gates = new Set(tool.kind === 'wall' ? preview.gates || [] : []);
+  return preview.tiles.map(([x, y]) => ({ x, y, w: 1, d: 1, state: skipped.has(tileKey([x, y])) ? 'bad' : gates.has(y * world.size + x) ? 'gate' : visual }));
 }
 
 export function createPlacement({ world, store, afterCommand = () => {}, effects = null, now = () => performance.now() }) {
+  // The stroke a finger is drawing: the plan before it (base), where it went down (x0, y0), the tiles it has followed (path, roads
+  // and walls) and the tile it is on (at). Gone when the finger lifts, or with the tool.
+  let stroke = null;
+  const inMap = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < world.size && y < world.size;
+  const drawingTool = (s) => Boolean(s.tool) && s.tool.kind !== 'building';
+  const setPlan = (tiles) => store.set({ plan: tiles.length ? { tiles } : null, line: null, area: null });
+  const somethingAt = (x, y) => { const i = y * world.size + x; return Boolean(world.occ[i] || world.road[i] || world.wall[i]); };
   const api = {
     start(tool, centre = null) {
+      stroke = null;
       store.set(startToolPatch(store.get(), tool));
       if (tool.kind === 'building') {
         if (centre) { const at = nearestFit(world, tool, centre.x, centre.y); api.moveGhost(at.x, at.y); }   // early-game pass 2.6
@@ -245,17 +330,47 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (s.tool.kind === 'building') { api.moveGhost(x, y); return; }
       if (isLine(s.tool)) {
         const l = s.line;
-        store.set({ line: !l || l.x1 !== null ? { x0: x, y0: y, x1: null, y1: null, flip: false } : { ...l, x1: x, y1: y } });
+        store.set({ line: !l || l.x1 !== null ? { x0: x, y0: y, x1: null, y1: null, flip: false } : { ...l, x1: x, y1: y }, plan: null });
         return;
       }
       const a = s.area;
-      store.set({ area: !a || a.x1 !== null ? { x0: x, y0: y, x1: null, y1: null } : { ...a, x1: x, y1: y } });
+      store.set({ area: !a || a.x1 !== null ? { x0: x, y0: y, x1: null, y1: null } : { ...a, x1: x, y1: y }, plan: null });
+    },
+    // A finger's or pen's tap in a drawing tool (P3): adds the tile to the plan, or takes it off if it is there. Demolish adds only
+    // a tile with something on it, so the plan never holds a tile nothing marks.
+    toggleTile(x, y) {
+      const s = store.get();
+      if (!drawingTool(s) || !inMap(x, y)) return;
+      const tiles = s.plan ? s.plan.tiles : [];
+      const has = tiles.some((t) => sameTile(t, [x, y]));
+      if (!has && s.tool.kind === 'demolish' && !somethingAt(x, y)) return;
+      setPlan(has ? tiles.filter((t) => !sameTile(t, [x, y])) : [...tiles, [x, y]]);
+    },
+    // A finger's or pen's drag in a drawing tool (P3): 'start' on the tile it went down on, 'move' and 'end' on the tile it is
+    // on, 'cancel' when a second finger turned it into a pan (the stroke is taken back; the plan's earlier strokes stay).
+    stroke(x, y, phase) {
+      const s = store.get();
+      if (!drawingTool(s)) { stroke = null; return; }
+      if (phase === 'start') {
+        if (!inMap(x, y)) return;
+        stroke = { base: s.plan ? s.plan.tiles : [], x0: x, y0: y, path: [[x, y]], at: [x, y] };
+        setPlan(joinTiles(stroke.base, stroke.path));
+        return;
+      }
+      if (!stroke) return;
+      if (phase === 'cancel') { const { base } = stroke; stroke = null; setPlan(base); return; }
+      if (inMap(x, y) && !sameTile(stroke.at, [x, y])) {
+        if (isLine(s.tool)) followFinger(stroke, [x, y]);
+        else { stroke.at = [x, y]; stroke.path = rectTiles(stroke.x0, stroke.y0, x, y, world.size); }
+        setPlan(joinTiles(stroke.base, stroke.path));
+      }
+      if (phase === 'end') stroke = null;
     },
     // A mouse drag: 'start' sets the start, 'move' and 'end' set the end.
     dragTo(x, y, phase) {
       const s = store.get();
       if (!s.tool || s.tool.kind === 'building') return;
-      if (phase === 'start') { store.set(isLine(s.tool) ? { line: { x0: x, y0: y, x1: null, y1: null, flip: false } } : { area: { x0: x, y0: y, x1: null, y1: null } }); return; }
+      if (phase === 'start') { store.set(isLine(s.tool) ? { line: { x0: x, y0: y, x1: null, y1: null, flip: false }, plan: null } : { area: { x0: x, y0: y, x1: null, y1: null }, plan: null }); return; }
       if (isLine(s.tool) && s.line) store.set({ line: { ...s.line, x1: x, y1: y } });
       else if (!isLine(s.tool) && s.area) store.set({ area: { ...s.area, x1: x, y1: y } });
     },
@@ -275,7 +390,16 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (!p || p.state === 'bad' || p.state === 'idle') return { ok: false, reason: p ? p.reason : 'nothing_to_place' };
       const t = s.tool;
       let result, text, cx, cy;
-      if (t.kind === 'building') {
+      if (s.plan && t.kind !== 'building') {
+        // A touch plan lays what it can (P5): one command, one undo entry, for every stroke and tap since the tool started.
+        const tiles = s.plan.tiles;
+        result = t.kind === 'road' ? drawRoadTiles(world, tiles, { skipBlocked: true })
+          : t.kind === 'wall' ? drawWallTiles(world, tiles, { skipBlocked: true })
+            : t.kind === 'houses' ? paintHouseTiles(world, tiles) : demolishTiles(world, tiles);
+        const xs = tiles.map((q) => q[0]), ys = tiles.map((q) => q[1]);
+        cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 0.5; cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 0.5;
+        text = t.kind === 'road' ? T.roadLaid : t.kind === 'wall' ? T.wallBuilt : t.kind === 'houses' ? '' : T.demolished;
+      } else if (t.kind === 'building') {
         const def = BUILDINGS[t.type];
         result = place(world, t.type, s.ghost.x, s.ghost.y, { roadLater: true });   // only the player's placing waits for a road (P10)
         cx = s.ghost.x + def.w / 2; cy = s.ghost.y + def.d / 2;
@@ -300,7 +424,8 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         effects.puff(cx, cy, at);
         if (t.kind === 'building') effects.rise(result.id, s.ghost.x, s.ghost.y, BUILDINGS[t.type].w, BUILDINGS[t.type].d, at);   // the work-gang settle
       }
-      if (isLine(t)) store.set({ line: null });
+      if (s.plan) store.set({ plan: null });
+      else if (isLine(t)) store.set({ line: null });
       else if (t.kind !== 'building') store.set({ area: null });
       afterCommand({ kind: t.kind, result, text, undoable: true });
       return result;
@@ -322,7 +447,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (r.ok) { assignLabour(world); afterCommand({ kind: 'undo', result: r, text: T.undo, undoable: false }); }
       return r;
     },
-    cancel() { store.set(cancelTool(store.get())); },
+    cancel() { stroke = null; store.set(cancelTool(store.get())); },
   };
   return api;
 }
