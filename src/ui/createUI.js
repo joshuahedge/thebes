@@ -305,9 +305,16 @@ export function createUI({
     const def = tool.kind === 'building' ? BUILDINGS[tool.type] : null;
     placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : null);   // road, plot and demolish tools ignore the point
     const g = def ? store.get().ghost : null;
-    const keep = g ? { x: g.x + def.w / 2, y: g.y + def.d / 2 } : { x, y };
-    if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, placingInsets(store.get()));
-    else if (g) cameraControl.panToKeeping(x, y, keep.x, keep.y, placingInsets(store.get()));
+    const dims = g ? dimsOf(tool.type, store.get().tool.rot || 0) : null;
+    const keep = g ? { x: g.x + dims.w / 2, y: g.y + dims.d / 2 } : { x, y };
+    const insets = placingInsets(store.get());
+    // Stage 4 (ruling 231): a monument's ghost asks Track C's pickFit as pick() does, and the move takes its zoom (out only,
+    // never in; an instant cut under Gentle and Still, as every camera move) and keeps its silhouette's extent in view.
+    const fit = g && def.monument ? monumentUi.pickFit(tool.type, g, insets) : null;
+    const extent = fit ? fit.extent || null : null;
+    const zoom = fit && fit.zoom !== undefined ? Math.min(fit.zoom, cam.zoom) : null;
+    if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, zoom);
+    else if (g) cameraControl.panToKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, zoom);
     else cameraControl.panTo(x, y);
     const at = now();
     for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(x, y, at + i * SHOW_ME_PULSE_MS);
@@ -623,12 +630,22 @@ export function createUI({
       const id = b ? b.id : null;
       if (id !== s.hoverId) { store.set({ hoverId: id }); canvas.title = b ? tooltipText(b) : ''; }
     },
+    // A press grabs the ghost on its footprint as turned (dimsOf), with half a tile of slack. A monument's ghost is also
+    // grabbed by its body (spec 6.5 "drag by the body"): the box reaches up the screen by the finished monument's drawn
+    // height, which Track C's optional monumentUi.grabExtent(type, rot) gives as { up } in art px (scaled with the camera
+    // like every drawn thing). The box is the footprint slid straight up the screen by up to that height: one tile down both
+    // axes is ART_TILE_H (16) art px straight down (iso.js p()), so the press may sit up to up / 16 such steps above it.
     ghostDragStart({ x, y }) {
       const s = store.get();
       if (!s.ghost || !s.tool || s.tool.kind !== 'building') return false;
-      const def = BUILDINGS[s.tool.type];
+      const rot = s.tool.rot || 0;
+      const { w, d } = dimsOf(s.tool.type, rot);
       const t = screenToTile(cam, view(), x, y);
-      return t.x >= s.ghost.x - 0.5 && t.x < s.ghost.x + def.w + 0.5 && t.y >= s.ghost.y - 0.5 && t.y < s.ghost.y + def.d + 0.5;
+      const body = BUILDINGS[s.tool.type].monument && typeof monumentUi.grabExtent === 'function' ? monumentUi.grabExtent(s.tool.type, rot) : null;
+      const reach = body && body.up > 0 ? body.up / 16 : 0;
+      const x0 = s.ghost.x - 0.5, y0 = s.ghost.y - 0.5, x1 = s.ghost.x + w + 0.5, y1 = s.ghost.y + d + 0.5;
+      const slide = Math.max(x0 - t.x, y0 - t.y, 0);                 // the least slide down that reaches the box's near sides
+      return slide <= reach && slide < Math.min(x1 - t.x, y1 - t.y);   // with no reach: the plain box test
     },
     ghostDrag({ x, y }) { const t = tileUnder(x, y); placement.moveGhost(t.x, t.y); },
     ghostDragEnd() {},
