@@ -309,6 +309,24 @@ function workPay(world, b, units) {
 }
 
 const burning = (g) => Boolean(g.fire && g.fire.stage === 'fire');
+// Whether a guild's crew counts as burning (stallReason's rule: the fire stage, not a blaze), for the sheets' words.
+export const guildBurning = (g) => burning(g);
+// Whether a guild's crew counts as short of workers (stallReason's rule: under MIN_STAFF_RATIO and not burning).
+export const guildShort = (world, g) => !burning(g) && staffRatio(world, g) < MIN_STAFF_RATIO;
+
+// The guild a crew stall names (spec 4.16 Stalls: View selects it): the first guild today's crew plan sends to site b
+// whose crew is not working and that is short of workers (reason 'crew_short') or burning ('crew_burning'), by
+// stallReason's own rules; null for any other reason or when none is. site.crews holds only the working guilds, so it
+// is empty whenever the reason is one of these. plan: crewPlan(world) when the caller has it.
+export function stalledGuild(world, b, reason, plan = null) {
+  if (reason !== 'crew_short' && reason !== 'crew_burning') return null;
+  for (const [gid, sid] of plan || crewPlan(world)) {
+    const g = world.buildings[gid];
+    if (sid !== b.id || !g || isWorking(world, g)) continue;
+    if (reason === 'crew_short' ? guildShort(world, g) : burning(g)) return gid;
+  }
+  return null;
+}
 
 // Why an open site did no work today (ruling 245), the first that applies: no guild's crew in reach ('no_crew'); its
 // guilds' crews cannot work: one short of workers ('crew_short', ahead of 'crew_burning'); no crew's full day could be
@@ -316,7 +334,7 @@ const burning = (g) => Boolean(g.fire && g.fire.stage === 'fire');
 // 'waiting_capstone'); a material is missing ('no_stone', 'no_bricks': the first the course under way lacks).
 function stallReason(world, b, guilds, working, waiting, short) {
   if (!guilds.length) return 'no_crew';
-  if (!working.length) return guilds.some((g) => !burning(g) && staffRatio(world, g) < MIN_STAFF_RATIO) ? 'crew_short' : 'crew_burning';
+  if (!working.length) return guilds.some((g) => guildShort(world, g)) ? 'crew_short' : 'crew_burning';
   if (!working.some((g) => canPayNoDebt(world, workPay(world, b, crewDayUnits(world, g)).pay))) return 'no_gold';
   if (waiting) return `waiting_${MONUMENTS[b.type].extra.kind}`;
   return short ? `no_${short}` : 'no_gold';

@@ -8,7 +8,7 @@ import { setGuide } from '../../src/sim/commands.js';
 import { buildingAt, housesOf } from '../../src/sim/world.js';
 import { adjacentRoadTiles } from '../../src/sim/reach.js';
 import { select, openSheet, back } from '../../src/ui/modes.js';
-import { TIP_TEXT, T } from '../../src/ui/text.js';
+import { TIP_TEXT, TIP_HELP_TEXT, T } from '../../src/ui/text.js';
 import { TOKENS } from '../../src/ui/theme.js';
 import { fakeLocal } from '../helpers/fakeStorage.js';
 import { mount, fire } from '../helpers/dom.js';
@@ -273,7 +273,8 @@ describe('ui tips', () => {
     try {
       r.store.set(openSheet(r.store.get(), 'help'));
       const items = [...r.root.querySelectorAll('#sheet .tips-list li')].map((li) => li.textContent);
-      expect(items).toEqual(TIPS.map((t) => TIP_TEXT[t.id]));
+      expect(items).toEqual(TIPS.map((t) => TIP_HELP_TEXT[t.id] || TIP_TEXT[t.id]));   // Stage 4: a tip true only where it fires has help words
+      for (const words of Object.values(TIP_HELP_TEXT)) expect(words.split(/\s+/).length).toBeLessThanOrEqual(20);
       expect([...r.root.querySelectorAll('#sheet h3')].some((h) => h.textContent === T.tips)).toBe(true);
     } finally { r.cleanup(); }
   });

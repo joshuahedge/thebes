@@ -11,6 +11,7 @@ import { canPlace } from '../../../src/sim/commands.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { showMeTarget } from '../../../src/ui/goalsList.js';
 import { MONUMENT } from '../../../src/data/monuments.js';
+import { monumentDay, stalledGuild } from '../../../src/sim/monuments.js';
 import { CHAPTER_NAMES, OVERLAY_NAMES, OVERLAY_LEGEND, T } from '../../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 
@@ -111,6 +112,9 @@ describe('s4 score Monuments goals', () => {
     expect([goalMet(w, goalById('prestige_pyramids').need), ids(openGoals(w, 9))]).toEqual([true, ['prestige_pyramids', 'found_pyramid']]);
     w.prestigeUnlocks.pyramid_great = 6000;
     expect(ids(openGoals(w, 9))).toEqual(['prestige_pyramids', 'found_pyramid', 'found_great_pyramid']);
+    // M8 (final review): a kind with no prestige unlock counts nothing rather than throwing; one with an unlock counts.
+    expect([MONUMENTS.colossus.unlock.prestige, goalProgress(w, { need: { kind: 'unlocked', type: 'colossus' } })]).toEqual([undefined, null]);
+    expect(goalProgress(w, { need: { kind: 'unlocked', type: 'pyramid_great' } })).toEqual({ n: 300, of: 300 });
   });
   it('aims the guild and brickworks goals\' Show me at the newest site', () => {
     const w = city();
@@ -153,5 +157,19 @@ describe('s4 score first stall', () => {
     site.site.idle = MONUMENT.stallDays;
     expect(triggerEventGoals(w)).toEqual([]);                          // once per city
     expect(EVENT_GOALS.find((g) => g.id === 'fix_site').text).toBe('Get the monument site working again');
+  });
+
+  // I1/D2 (final review): Show me for a burning guild aims at that guild (the sim's stalledGuild), set up through monumentDay.
+  it("aims a burning guild's Show me at the guild the stall names, and at the site when no guild is named", () => {
+    const w = city('capital');
+    w.goals.completed.push(...MONUMENT_GOALS, 'fire_firehouse');                    // the fire's own goal is done: only the stall's
+    const site = addRaw(w, 'obelisk_small', 12, 11);
+    const g = addRaw(w, 'builders_guild', 20, 11, { staff: 16, fire: { stage: 'fire', days: 0, left: 10 } });
+    for (let i = 0; i < MONUMENT.stallDays; i++) { monumentDay(w); w.day += 1; }
+    expect([site.site.reason, site.site.crews, triggerEventGoals(w)]).toEqual(['crew_burning', [], ['fix_site']]);
+    const goal = openGoals(w, 1)[0];
+    expect([goal.text, goal.showMe.item, showMeTarget(w, goal)]).toEqual(["Save the small obelisk's guild from the fire", 'firehouse', { x: g.x + 1, y: g.y + 1 }]);
+    g.fire = null;                                                                     // the guild no longer burns: no guild named, the site
+    expect([stalledGuild(w, site, 'crew_burning'), showMeTarget(w, goal)]).toEqual([null, { x: site.x + 0.5, y: site.y + 0.5 }]);
   });
 });

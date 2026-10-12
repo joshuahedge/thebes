@@ -48,6 +48,9 @@ describe('s4 ui monument chips', () => {
     const w = capital();
     const far = preview(w, 'colossus', 20, 13);
     expect([far.state, chips(far)]).toEqual(['warn', { ground: '✓ Desert ground', road: '! No road yet: crews and stone come by road' }]);
+    // M3 (final review): the road chip names what the kind's recipe takes: a mastaba's courses take bricks and stone.
+    expect(chips(preview(w, 'mastaba_small', 20, 14)).road).toBe('! No road yet: crews, stone and bricks come by road');
+    expect(chips(preview(w, 'pyramid_small', 20, 14)).road).toBe('! No road yet: crews, stone and bricks come by road');
     const near = preview(w, 'colossus', 20, 11);
     expect(chips(near)).toEqual({ ground: '✓ Desert ground', road: '✓ Road beside it', crew: "! No builders' guild near", supply: '! No stone near' });
     addRaw(w, 'builders_guild', 24, 11);

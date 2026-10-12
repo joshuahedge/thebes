@@ -9,11 +9,11 @@ import { triage, bannerModel } from '../../../src/ui/alerts.js';
 import { createMinimap } from '../../../src/ui/minimap.js';
 import { viewOutlineAlpha, viewOutlineOn, drawReachHighlight } from '../../../src/render/overlays.js';
 import { alertsFor } from '../../../src/sim/alerts.js';
-import { paceOf } from '../../../src/sim/monuments.js';
+import { paceOf, monumentDay } from '../../../src/sim/monuments.js';
 import { createCamera } from '../../../src/render/camera.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
 import { p } from '../../../src/render/iso.js';
-import { MONUMENTS } from '../../../src/data/monuments.js';
+import { MONUMENTS, MONUMENT } from '../../../src/data/monuments.js';
 import { TIPS } from '../../../src/data/tips.js';
 import { VIEW_OUTLINE, ZOOM_STEP } from '../../../src/data/ui.js';
 import { alertText, TIP_TEXT, UI4_TEXT } from '../../../src/ui/text.js';
@@ -55,16 +55,20 @@ describe('s4 ui the stall warning', () => {
 
   it('offers Show me for a missing guild or material in the alert list, and View on the guild short of workers', async () => {
     const w = city();
-    const b = stall(w, 'pyramid_small', 12, 11, 'no_crew');
+    const b = stall(w, 'obelisk_small', 12, 11, 'no_crew');                          // takes 1 crew
     const r = await rigUI({ width: 1280, height: 800, world: w });
     try {
       r.store.set(openSheet(r.store.get(), 'minimap'));
-      const row = () => [...r.root.querySelectorAll('#sheet .alert-list li')].find((li) => li.textContent.includes('Small pyramid is not progressing'));
+      const row = () => [...r.root.querySelectorAll('#sheet .alert-list li')].find((li) => li.textContent.includes('Small obelisk is not progressing'));
       fire(row().querySelector('.show-me'), 'click');
       expect([r.store.get().mode, r.store.get().tool.type]).toEqual(['placing', 'builders_guild']);
       r.ui.placement.cancel();
-      const g = addRaw(r.world, 'builders_guild', 20, 11);
-      Object.assign(b.site, { reason: 'crew_short', crews: [g.id] });
+      // I1 (final review): the stall set up through the sim. The nearest guild holds the place but is short of workers, so
+      // site.crews is empty; a healthy guild farther off has no place. View selects the short one.
+      const g = addRaw(r.world, 'builders_guild', 14, 11, { staff: 3 });
+      addRaw(r.world, 'builders_guild', 18, 11, { staff: 16 });
+      for (let i = 0; i < MONUMENT.stallDays; i++) { monumentDay(r.world); r.world.day += 1; }
+      expect([b.site.reason, b.site.crews, b.site.idle >= MONUMENT.stallDays]).toEqual(['crew_short', [], true]);
       r.ui.refresh();
       r.store.set(openSheet(r.store.get(), 'minimap'));
       expect(row().querySelector('.show-me')).toBe(null);
@@ -121,8 +125,9 @@ describe('s4 ui View\'s outline and the marker taps', () => {
     expect(countBadgeTarget(w, { ids: [a.id] }, 1)).toBe(null);
     const r = await rigUI({ width: 1280, height: 800, world: w });
     try {
+      r.ui.settings.set({ motion: 'gentle' });                                         // M1: Gentle set here, not the machine's: a cut
       expect(r.ui.monumentUi.markerTap({ ids: [a.id], count: 1 })).toBe(false);
-      expect(r.ui.monumentUi.markerTap({ ids: [a.id, b.id], count: 2 })).toBe(true);   // headless Edge runs Gentle: a cut
+      expect(r.ui.monumentUi.markerTap({ ids: [a.id, b.id], count: 2 })).toBe(true);
       expect([r.cam.zoom, Math.abs(r.cam.x - 13) < 0.1, Math.abs(r.cam.y - 12) < 0.1]).toEqual([ZOOM_STEP, true, true]);
     } finally { r.cleanup(); }
   });
@@ -173,6 +178,12 @@ describe('s4 ui the summary\'s Monuments section and Welcome back\'s site lines'
     Object.assign(s.site, { course: 5, last: { units: 80, gold: 400, crews: 4 } });
     expect(siteLines(w)).toEqual([`Small pyramid: course 6 of 8, ${UI4_TEXT.welcomePace(paceOf(w, s))}`]);
     expect(siteLines(w)).toEqual(['Small pyramid: course 6 of 8, about 3 years left at last month\'s pace']);
+    // I2 (final review): laid 80 last month but stalled now: the stall, never last month's pace; one day short of a stall: the pace.
+    Object.assign(s.site, { reason: 'no_stone', idle: MONUMENT.stallDays - 1 });
+    expect(siteLines(w)).toEqual(["Small pyramid: course 6 of 8, about 3 years left at last month's pace"]);
+    s.site.idle = MONUMENT.stallDays;
+    expect(siteLines(w)).toEqual(['Small pyramid: course 6 of 8, not progressing: no stone']);
+    s.site.idle = 0;
     Object.assign(s.site, { last: { units: 0, gold: 0, crews: 0 }, reason: 'no_stone' });
     expect(siteLines(w)).toEqual(['Small pyramid: course 6 of 8, not progressing: no stone']);
     Object.assign(s.site, { last: { units: 0, gold: 0, crews: 0 }, reason: null });   // laid nothing last month but was working when the player left: no cause is invented

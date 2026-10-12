@@ -101,7 +101,7 @@ export const EVENT_GOALS = [
     causeShowMe: {
       no_crew: { category: 'monuments', item: 'builders_guild', target: 'alert', code: 'site_stalled' },
       crew_short: { category: 'homes', item: 'house', target: 'houses' },
-      crew_burning: { category: 'services', item: 'firehouse', target: 'alert', code: 'site_stalled' },
+      crew_burning: { category: 'services', item: 'firehouse', target: 'alert', code: 'site_stalled', guild: true },   // at the burning guild
       no_gold: null, waiting_gilding: null, waiting_capstone: null,
       no_stone: { category: 'monuments', item: 'quarry', target: 'alert', code: 'site_stalled' },
       no_bricks: { category: 'monuments', item: 'brickworks', target: 'alert', code: 'site_stalled' },

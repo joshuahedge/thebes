@@ -15,6 +15,7 @@ import { milestoneIndex } from '../sim/progression.js';
 import { scoreOf } from '../sim/score.js';
 import { dailyProgress, swapDaily } from '../sim/daily.js';
 import { alertsFor } from '../sim/alerts.js';
+import { stalledGuild } from '../sim/monuments.js';
 import { housesOf, population, allBuildings, isSite } from '../sim/world.js';
 import { TERRAIN_BY_NAME } from '../sim/terrain.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -61,7 +62,14 @@ export function showMeTarget(world, goal, alerts = null) {
   if (kind === 'alert') {
     const codes = [].concat(show.code);
     const a = (alerts || alertsFor(world)).find((x) => codes.includes(x.code) && x.id && world.buildings[x.id]);
-    if (a) { const b = world.buildings[a.id]; return { x: b.x + b.w / 2, y: b.y + b.d / 2 }; }
+    if (a) {
+      let b = world.buildings[a.id];
+      // Stage 4: a stall goal aimed at the guild (show.guild) aims at the guild the stall names (the sim's stalledGuild:
+      // the planned guild that is burning or short of workers), not the site; the site when there is none.
+      const gid = show.guild ? stalledGuild(world, b, a.reason) : null;
+      if (gid !== null && world.buildings[gid]) b = world.buildings[gid];
+      return { x: b.x + b.w / 2, y: b.y + b.d / 2 };
+    }
   }
   if (kind === 'raid') {
     const r = world.raid.warning || world.raid.active;

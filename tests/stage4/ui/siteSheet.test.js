@@ -2,10 +2,11 @@
 // with the world set up both ways. Track A's state (site.crews, site.reason, site.last, siteStatus's makers and stores) is set
 // by hand to the contract's shapes.
 import { describe, it, expect } from '../../harness.js';
-import { siteRows, causeText, causeFix } from '../../../src/ui/monumentSheet.js';
-import { siteStatus, siteProgress, paceOf, prestigeOfBuilding } from '../../../src/sim/monuments.js';
+import { siteRows, causeText, causeFix, supplyLine } from '../../../src/ui/monumentSheet.js';
+import { siteStatus, siteProgress, paceOf, prestigeOfBuilding, monumentDay, crewPlan, guildsNear, stalledGuild } from '../../../src/sim/monuments.js';
 import { workGoldPerUnit, extraGoldOf } from '../../../src/sim/costs.js';
-import { MONUMENTS } from '../../../src/data/monuments.js';
+import { MONUMENTS, MONUMENT } from '../../../src/data/monuments.js';
+import { DAYS_PER_MONTH } from '../../../src/sim/time.js';
 import { UI4_TEXT } from '../../../src/ui/text.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
@@ -58,14 +59,45 @@ describe('s4 ui the site sheet', () => {
     b.site.reason = 'no_stone';
     expect([cause().text, cause().fix.showMe.item]).toEqual(['Waiting for stone: no quarry or storehouse with stone within reach', 'quarry']);
     b.site.reason = 'no_gold';
-    expect([cause().text, cause().fix]).toEqual(['No gold for the crews: work waits until the treasury is above 0', null]);
-    const g = addRaw(w, 'builders_guild', 20, 11);
-    b.site.reason = 'crew_short'; b.site.crews = [g.id];
-    expect([cause().text, cause().fix]).toEqual(["The builders' guild is short of workers", { view: g.id }]);
-    b.site.reason = 'crew_burning';
-    expect(cause().text).toBe("The builders' guild is on fire");
+    expect([cause().text, cause().fix]).toEqual(['No gold for the crews: a crew works a day only when its pay leaves the treasury at 0 or more', null]);
     b.paused = true;
     expect([cause().text, siteStatus(w, b).reason]).toEqual(['Paused: no work and no work gold until you resume it', 'paused']);
+  });
+
+  // I1 (final review): the crew stalls set up through the sim (monumentDay), where site.crews holds only the working guilds.
+  it('aims View on a crew stall at the guild the crew plan sends here that is short or burning, not a free guild farther off', () => {
+    const w = city();
+    const b = addRaw(w, 'obelisk_small', 12, 11);                                    // takes 1 crew
+    const a = addRaw(w, 'builders_guild', 14, 11, { staff: 3 });                     // nearest: holds the place, under a quarter of 16
+    const free = addRaw(w, 'builders_guild', 18, 11, { staff: 16 });                 // healthy and in reach, but no place left for it
+    const day = () => { monumentDay(w); w.day += 1; return siteRows(w, b).find((r) => r.key === 'cause'); };
+    let cause = day();
+    expect([b.site.reason, b.site.crews, crewPlan(w).get(a.id), crewPlan(w).has(free.id)]).toEqual(['crew_short', [], b.id, false]);
+    expect([cause.text, cause.fix, stalledGuild(w, b, 'crew_short')]).toEqual(["The builders' guild is short of workers", { view: a.id }, a.id]);
+    expect(guildsNear(w, b)).toEqual([free.id]);                                    // what the old aim took
+    a.fire = { stage: 'blaze', days: 0, need: 3, fought: 0 };                       // a blaze is not burning: still short
+    expect([day().fix, b.site.reason, supplyLine(w, a)]).toEqual([{ view: a.id }, 'crew_short', UI4_TEXT.crewShort('obelisk_small')]);   // M9: the sim's burning rule
+    Object.assign(a, { staff: 16, fire: { stage: 'fire', days: 0, left: 10 } });
+    cause = day();
+    expect([b.site.reason, cause.text, cause.fix, supplyLine(w, a)]).toEqual(['crew_burning', "The builders' guild is on fire", { view: a.id }, UI4_TEXT.crewBurning('obelisk_small')]);
+    a.fire = null;                                                                   // it works again: no crew stall, nothing to aim at
+    day();
+    expect([b.site.reason === 'crew_short' || b.site.reason === 'crew_burning', stalledGuild(w, b, 'crew_burning'), causeFix(w, b, 'crew_burning')]).toEqual([false, null, null]);
+  });
+
+  // M2 (final review): the no-gold words are the sim's rule (canPayNoDebt on a crew's day's pay), set up both ways.
+  it('says a crew works a day only when its pay leaves the treasury at 0 or more, as the sim pays it', () => {
+    const w = city();
+    const b = addRaw(w, 'obelisk_small', 12, 11);
+    addRaw(w, 'builders_guild', 14, 11, { staff: 16 });
+    b.site.stock.stone = 20;
+    const pay = Math.floor(workGoldPerUnit(w) * (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH));   // a full crew's first day (no carry yet)
+    w.gold = pay - 1;
+    monumentDay(w);
+    expect([b.site.reason, w.gold, causeText(w, b, 'no_gold')]).toEqual(['no_gold', pay - 1, 'No gold for the crews: a crew works a day only when its pay leaves the treasury at 0 or more']);
+    w.gold = pay;                                                                    // the day's pay leaves exactly 0: it works
+    monumentDay(w);
+    expect([b.site.reason, w.gold]).toEqual([null, 0]);
   });
 
   it('words a material stall by what reaches the site: the spec sentence only when nothing does', () => {
@@ -99,6 +131,10 @@ describe('s4 ui the site sheet', () => {
     const rows = siteRows(w, b);
     const cause = rows.find((r) => r.key === 'cause');
     expect([cause.text, cause.fix.showMe.item, rows.some((r) => r.key === 'pace')]).toEqual(['No road yet: crews and stone come by road', 'road', false]);
+    // M3 (final review): what comes by road is the kind's recipe: a mastaba's courses take bricks and stone.
+    const m = addRaw(w, 'mastaba_small', 20, 20);
+    expect([MONUMENTS.mastaba_small.courses[0].bricks > 0, MONUMENTS.mastaba_small.courses.at(-1).stone > 0]).toEqual([true, true]);
+    expect(siteRows(w, m).find((r) => r.key === 'cause').text).toBe('No road yet: crews, stone and bricks come by road');
   });
 
   it('says each material on site and what reaches the site, from siteStatus', () => {
@@ -131,6 +167,12 @@ describe('s4 ui the site sheet', () => {
     expect(rowsOf(w, b).pace).toBe('Pace shows after a month of work');
     b.site.reason = 'no_crew';
     expect(rowsOf(w, b).pace).toBe('Not progressing: no crew');
+    // I2 (final review): a site stalled now never shows last month's pace beside its stall, set up both ways.
+    Object.assign(b.site, { last: { units: 40, gold: 200, crews: 2 }, reason: 'no_stone', idle: MONUMENT.stallDays - 1 });
+    expect([siteStatus(w, b).stalled, rowsOf(w, b).pace]).toEqual([false, UI4_TEXT.pace(paceOf(w, b))]);
+    b.site.idle = MONUMENT.stallDays;
+    expect([siteStatus(w, b).stalled, rowsOf(w, b).pace]).toEqual([true, 'Not progressing: no stone']);
+    b.site.idle = 0; b.site.reason = null;
     b.paused = true;
     expect(rowsOf(w, b).pace).toBe(undefined);
   });

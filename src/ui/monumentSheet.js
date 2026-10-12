@@ -37,7 +37,7 @@ import { pxPerArt, MIN_ZOOM } from '../render/camera.js';
 import { GOLD } from '../render/art/palette.js';
 import { allBuildings, housesOf, isSite, isFinished, isMonument } from '../sim/world.js';
 import * as monumentsSim from '../sim/monuments.js';
-import { siteStatus, guildSite, guildsNear, crewsFor, supplyNeeded, prestigeOf, prestigeOfBuilding, holdsPrestige } from '../sim/monuments.js';
+import { siteStatus, guildSite, supplyNeeded, prestigeOf, prestigeOfBuilding, holdsPrestige, stalledGuild, guildBurning } from '../sim/monuments.js';
 import { palaceQuote, enlargePalace, palaceMood } from '../sim/palace.js';
 import { workGoldPerUnit, extraGoldOf } from '../sim/costs.js';
 import { setPaused, demolishRefundFor } from '../sim/commands.js';
@@ -103,8 +103,9 @@ export function causeFix(world, b, reason, status = null) {
     return { showMe: { category: 'monuments', item, x: at.x, y: at.y } };
   }
   if (reason === 'crew_short' || reason === 'crew_burning') {
-    const guilds = (status ? status.crews : crewsFor(world, b)).guilds;   // the guilds at work on the site, from state when no status is given (guildsNear skips the ones already planned)
-    const id = guilds.length ? guilds[0] : guildsNear(world, b)[0];
+    // The guild the crew plan sends here whose crew cannot work for this reason (site.crews holds only the working ones,
+    // so it is empty here, and guildsNear skips every planned guild): the sim's own stalledGuild.
+    const id = stalledGuild(world, b, reason);
     return Number.isInteger(id) && world.buildings[id] ? { view: id } : null;
   }
   return null;
@@ -119,7 +120,7 @@ export function causeText(world, b, reason, status = null) {
     const m = (status || siteStatus(world, b)).materials[reason.slice(3)];
     return ui4CauseText(reason, 0, m ? { makers: m.makers.length, stores: m.stores.length } : null);
   }
-  return ui4CauseText(reason, extraGoldOf(world, b.type));
+  return ui4CauseText(reason, extraGoldOf(world, b.type), null, b.type);
 }
 
 // The site sheet's rows (spec 6.3), from siteStatus: [{ key, text, share?, fix? }] in the spec's order: progress, crews, the
@@ -136,7 +137,8 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
   }
   if (!s.paused && s.road) {
     let pace = U.paceLater;
-    if (s.pace !== null) pace = U.pace(s.pace);
+    if (s.stalled && s.reason) pace = U.notProgressing(s.reason);                         // stalled now: last month's pace is not what it is doing
+    else if (s.pace !== null) pace = U.pace(s.pace);
     else if (s.last && !(s.last.units > 0) && s.reason) pace = U.notProgressing(s.reason);   // no reason: it works today (a crew that came this month)
     rows.push({ key: 'pace', text: pace });
   }
@@ -181,7 +183,7 @@ export function supplyLine(world, b, sim = SUPPLY_SIM) {
     if (id === undefined || !world.buildings[id]) return U.guildIdle(MONUMENT.crewReach);
     const type = world.buildings[id].type;
     if (sim.guildSite(world, b) === id) return U.crewAt(type);
-    return b.fire ? U.crewBurning(type) : U.crewShort(type);
+    return guildBurning(b) ? U.crewBurning(type) : U.crewShort(type);   // the sim's burning: the fire stage, not a blaze
   }
   const good = BUILDINGS[b.type].produces && BUILDINGS[b.type].produces.good;
   if (!good || !MATERIALS.includes(good) || b.paused) return '';

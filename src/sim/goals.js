@@ -69,7 +69,8 @@ export function goalProgress(world, goal) {
     case 'all': return { n: need.of.filter((x) => goalMet(world, x)).length, of: need.of.length };
     case 'finished': { const of = need.n || 1; return { n: Math.min(finishedOf(world, need.type), of), of }; }   // Stage 4
     case 'unlocked': {                                                                  // the prestige its unlock needs
-      const of = MONUMENTS[need.type].unlock.prestige;
+      const of = MONUMENTS[need.type] ? MONUMENTS[need.type].unlock.prestige : undefined;
+      if (!Number.isFinite(of)) return null;                                           // a kind with no prestige unlock counts nothing
       return { n: goalMet(world, need) ? of : Math.min(prestigeOf(world), of), of };
     }
     default: return null;

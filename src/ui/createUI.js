@@ -940,6 +940,7 @@ export function createUI({
     tips.tick();
     tips.flush({ busy: tipsBusy(s) });                 // a tip held while a banner had a landscape phone's one row goes up once it clears
     if (!tipsBusy(s) && gentleTipDue(settings)) fireTip('gentleMotion');   // Stage 4 (ruling 218): once, when it may show
+    else if (tips.current() === 'gentle_motion' && !gentleTipDue(settings)) tips.dismiss();   // its words stop being true once the level changes
     syncGuidance();                                    // and a caption held while the row was taken goes up once it is free
     measureGuidance();
     root.classList.toggle('nudge-play', world.speed === 0 && tips.current() === 'press_play');

@@ -1162,6 +1162,8 @@ import { siteStatus as ui4SiteStatus } from '../sim/monuments.js';
 export const ui4Gold = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const ui4Lower = (type) => buildingName(type).toLowerCase();
 const ui4Cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// What a monument's crews and materials are, for "come by road": the crews and every material its courses use (its recipe).
+const ui4ByRoad = (type) => listText(['crews', ...['stone', 'bricks'].filter((g) => score4Monuments[type] && score4Monuments[type].courses.some((c) => c[g] > 0))]);
 export const UI4_TEXT = {
   // The Monuments tab's cards (spec 4.4, 4.14, 6.3): the ground a monument stands on, and a prestige lock with its count.
   desert: 'Desert',
@@ -1171,7 +1173,7 @@ export const UI4_TEXT = {
   // The monument chips (spec 6.5, ruling 230), each the sim's own condition in words.
   groundMet: 'Desert ground',
   notOnFields: (fertile, of) => `Not on the fields: ${fertile} of ${of} tiles are fertile`,
-  roadLater: 'No road yet: crews and stone come by road',
+  roadLater: (type) => `No road yet: ${ui4ByRoad(type)} come by road`,
   crewMet: (n) => `Crew: ${plural(n, "builders' guild", "builders' guilds")} near`,
   crewLater: "No builders' guild near",
   supplyMet: (goods) => `${ui4Cap(listText(goods.map((g) => goodName(g).toLowerCase())))} near`,
@@ -1198,7 +1200,7 @@ export function ui4ConditionText(cond, type, firstGoods = []) {
     if (cond.reason === 'not_on_fields') return U.notOnFields(cond.fertile, cond.of);
     return conditionText(cond, type);
   }
-  if (cond.key === 'road') return cond.state === 'met' ? CONDITION_TEXT.roadMet : cond.state === 'later' ? U.roadLater : CONDITION_TEXT.roadCant;
+  if (cond.key === 'road') return cond.state === 'met' ? CONDITION_TEXT.roadMet : cond.state === 'later' ? U.roadLater(type) : CONDITION_TEXT.roadCant;
   if (cond.key === 'crew') return cond.state === 'met' ? U.crewMet(cond.n) : U.crewLater;
   if (cond.key === 'supply') return cond.state === 'met' ? U.supplyMet(firstGoods) : U.supplyLater(cond.good);
   if (cond.key === 'gold') return U.founding(cond.cost, cond.have);
@@ -1224,12 +1226,12 @@ Object.assign(UI4_TEXT, {
   crews: (n, max) => `Crews: ${n} of ${max}.${n ? ` ${ui4Count(n, 'builders_guild')} ${n === 1 ? 'works' : 'work'} here.` : ''}`,
   // A stall's cause and its fix, the same words on the sheet, in the alert list and on Welcome back (spec 4.16 Stalls).
   cause: {
-    no_road: 'No road yet: crews and stone come by road',
+    no_road: (type) => UI4_TEXT.roadLater(type),
     paused: 'Paused: no work and no work gold until you resume it',
     no_crew: (reach) => `No crew: build a builders' guild within ${reach} road tiles`,
     crew_short: "The builders' guild is short of workers",
     crew_burning: "The builders' guild is on fire",
-    no_gold: 'No gold for the crews: work waits until the treasury is above 0',
+    no_gold: 'No gold for the crews: a crew works a day only when its pay leaves the treasury at 0 or more',
     waiting_gilding: (gold) => `Waiting for ${ui4Gold(gold)} gold for the gilding`,
     waiting_capstone: (gold) => `Waiting for ${ui4Gold(gold)} gold for the capstone`,
     // The spec's sentence only when nothing reaches the site; else what is true (a quarry that reaches it has not delivered yet).
@@ -1294,9 +1296,10 @@ Object.assign(UI4_TEXT, {
 });
 // A stall's cause in words (spec 4.16 Stalls, ruling 245), the same on the site sheet, in the alert list and on Welcome back,
 // by siteStatus's reason codes; '' for none. extraGold: the gilding's or capstone's gold for the city (extraGoldOf).
-export function ui4CauseText(reason, extraGold = 0, material = null) {
+export function ui4CauseText(reason, extraGold = 0, material = null, type = null) {
   const C = UI4_TEXT.cause;
   if (!reason) return '';
+  if (reason === 'no_road') return C.no_road(type);                       // type: the monument, whose recipe names what comes by road
   if (reason === 'no_crew') return C.no_crew(BUILDINGS.builders_guild.reach);
   if (reason === 'waiting_gilding' || reason === 'waiting_capstone') return C[reason](extraGold);
   // material: { makers, stores }, the counts that reach the site (siteStatus); none given: nothing reaches it.
@@ -1310,7 +1313,7 @@ ALERT_TEXT.site_stalled = (alert, world, b, name) => {
   const m = good && b ? ui4SiteStatus(world, b).materials[good] : null;
   return {
     title: `${name} is not progressing`,
-    fix: ui4CauseText(alert.reason, b ? ui4ExtraGold(world, b.type) : 0, m ? { makers: m.makers.length, stores: m.stores.length } : null) || 'Have a look',
+    fix: ui4CauseText(alert.reason, b ? ui4ExtraGold(world, b.type) : 0, m ? { makers: m.makers.length, stores: m.stores.length } : null, b ? b.type : null) || 'Have a look',
   };
 };
 Object.assign(UI4_TEXT, {
@@ -1403,7 +1406,7 @@ Object.assign(FIRST_TEXT, {
   first_guild: { head: "First builders' guild", why: `Its crew builds a monument site up to ${score4Monument.crewReach} road tiles away.` },
   first_course: { head: 'First course laid', why: "Half a monument's prestige comes course by course, half when it is finished." },
   first_monument: { head: 'First monument finished', why: `Prestige lifts the mood, +1 for every ${score4Prestige.moodPer}, and the Monuments score.` },
-  pyramids_unlocked: { head: 'The pyramids are unlocked', why: `A Capital with ${score4Monuments.pyramid_small.unlock.prestige} prestige can found the small pyramid.` },
+  pyramids_unlocked: { head: 'The small pyramid is unlocked', why: `A ${score4Milestone(score4Monuments.pyramid_small.unlock.milestone)} with ${score4Monuments.pyramid_small.unlock.prestige} prestige can found the small pyramid.` },
   first_palace: { head: 'First palace', why: 'Enlarge it on its sheet as the city grows grander.' },
 });
 Object.assign(ACHIEVEMENT_NAMES, {
@@ -1433,7 +1436,7 @@ Object.assign(TIP_TEXT, {
   storehouse_bridge: `A site draws from storehouses within ${score4Monument.supplyReach} road tiles: one between quarry and site bridges a long way.`,
   refuse_stone: 'Tap the storehouse your potters use and refuse stone, so its clay keeps its room.',
   pause_site: 'Pause a site on its sheet to send its crews to another site in reach.',
-  one_each: 'One of each kind counts for prestige: a second only makes homes nicer.',
+  one_each: "One of each kind counts for prestige, the furthest along. A second's site makes homes less pleasant; finished, nicer.",
 });
 // The masons (builders' guild), haulers (quarry) and brickmakers, by season, once the city has their building.
 CITIZEN_REMARKS.push(
@@ -1488,6 +1491,10 @@ export const MOTION4_TEXT = {
 Object.assign(TIP_TEXT, {
   gentle_motion: 'Your device asks for less motion, so the city moves gently. Settings → Motion changes it.',
 });
+// How to play lists every tip; a tip whose words hold only where it fires says there what is true on any device.
+export const TIP_HELP_TEXT = {
+  gentle_motion: 'While Settings → Motion follows the device, a device that asks for less motion moves the city gently.',
+};
 // ── end s4 motion ────────────────────────────────────────────────────────────────────────────────────────────────
 
 //
