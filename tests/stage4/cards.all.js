@@ -4,3 +4,4 @@ import './cards/music.test.js';
 import './cards/pictureCards.test.js';
 import './cards/howToPlay.test.js';
 import './cards/cardRules.test.js';
+import './cards/pictures.test.js';

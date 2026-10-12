@@ -44,6 +44,7 @@ import { openSheet, closeSheet, select, toggleOverlay } from '../ui/modes.js';
 import { freeTop } from '../ui/layout.js';
 import { placeName } from '../ui/danger.js';
 import { T, DANGER_UI_TEXT, CITIZEN_REMARKS, plotsPlacedText } from '../ui/text.js';
+import { tutorialScene } from './tutorialScenes.js';
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -475,13 +476,9 @@ async function title(api) {
   return 'title';
 }
 
-// The picture tutorial before play.
-// S4-TODO: the picture tutorial's first card, shown before the first city starts. Today: the title card.
-async function tutorial(api) {
-  if (api.phase() !== 'title') throw new Error('devScene tutorial: open the title card (/?nosw=1)');
-  await wait(300);
-  return 'tutorial (title card)';
-}
+// The picture cards (Track G, src/dev/tutorialScenes.js): on the title card, the cards' first card as a player first meets
+// them ({ card: i } for card i); on seed 7's fresh city, { picture: id } sets up that card's picture for tools/tutorial.ps1.
+const tutorial = (api, options) => tutorialScene(api, options);
 
 // The town centre where a 3x3 palace would stand: the free 3x3 of land (no building, road, wall or water) nearest the
 // point between the working temple and the bazaar nearest the middle of the city, framed at zoom 1; the point itself
