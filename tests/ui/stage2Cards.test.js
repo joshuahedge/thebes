@@ -19,7 +19,7 @@ import { setAccept } from '../../src/sim/commands.js';
 import { costOf } from '../../src/sim/costs.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { mount, fire, key } from '../helpers/dom.js';
-import { rigUI, uiWorld } from '../helpers/uiWorld.js';
+import { rigUI, uiWorld, runningUiWorld } from '../helpers/uiWorld.js';
 import { contrastIn } from '../helpers/contrast.js';
 
 const ids = (list) => list.map((c) => c.id);
@@ -70,7 +70,7 @@ describe('ui stage 2 cards', () => {
       r.world.milestone = 'town';                                                    // Market town is next: its card shows, locked
       r.ui.refresh();
       for (const sel of ['#dock .cat', '#rail .cat', '#panel .tab']) expect([sel, catsOf(r, sel)]).toEqual([sel, [...SHOWN, 'defence']]);
-      expect(r.root.querySelector('#rail .bottom').previousElementSibling.dataset.category).toBe('defence');   // the rail keeps x and tick below its categories
+      expect(r.root.querySelector('#rail .drawer').previousElementSibling.dataset.category).toBe('defence');   // the rail's categories come before its drawer
       key(r.root, '6');
       expect(r.store.get().category).toBe('defence');
       expect(r.root.querySelector('#dock .tray [data-item="trading_post"]').getAttribute('aria-disabled')).toBe('true');
@@ -262,7 +262,7 @@ describe('ui stage 2 cards', () => {
   });
   it('brings the storehouse tip once one is placed and the tool closes', async () => {
     let t = 0;
-    const r = await rigUI({ now: () => t });
+    const r = await rigUI({ now: () => t, world: runningUiWorld() });
     try {
       settle(r.world, []);
       r.world.milestone = 'town';

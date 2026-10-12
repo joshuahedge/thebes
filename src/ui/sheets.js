@@ -13,6 +13,7 @@ import { storeTotal, storeAccepts } from '../sim/production.js';
 import { openGoals, guideActive } from '../sim/goals.js';
 import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
+import { CRITICAL_RANK } from './alerts.js';
 import { summaryData } from './hud.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
@@ -21,6 +22,9 @@ import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHI
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
+// Criticals first, in the banner's rank (CRITICAL_RANK), then the rest in their own order (the sort is stable).
+const rankOf = (a) => { const i = CRITICAL_RANK.indexOf(a.code); return i < 0 ? CRITICAL_RANK.length : i; };
+export const criticalFirst = (list) => [...list].sort((a, b) => rankOf(a) - rankOf(b));
 
 // What each cause's button does. Show me opens a card and aims at the home or at the building the cause names (an
 // empty bazaar wants a granary beside it, an empty granary a farm beside it); View selects the building that is in
@@ -279,17 +283,22 @@ export function createSheets({ container, store, world, placement, cameraControl
     ]);
   }
 
+  // The minimap sheet: the map, then the alert list. On phones the list comes first, criticals first in the banner's
+  // rank, as the Map badge counts the criticals the one-line banner is not showing (ruling 167); wide screens keep the
+  // map first and the list in the sim's order.
   function minimapSheet() {
     const body = el('div', { class: 'body' });
     const canvas = minimap.canvas;
     canvas.onclick = (ev) => { const r = canvas.getBoundingClientRect(); const t = minimap.tileFromPoint(ev.clientX - r.left, ev.clientY - r.top); cameraControl.panTo(t.x + 0.5, t.y + 0.5); };
     const zoomIn = iconButton(T.zoomIn, '+', { class: 'zoom-in', onClick: () => cameraControl.zoomStep(ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
     const zoomOut = iconButton(T.zoomOut, '−', { class: 'zoom-out', onClick: () => cameraControl.zoomStep(1 / ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
-    body.append(el('div', { class: 'minimap-wrap' }, [canvas]), el('div', { class: 'actions' }, [zoomIn, zoomOut]));
-    const list = getAlerts();
-    body.append(el('h3', { text: T.alerts }));
-    if (!list.length) body.append(el('p', { class: 'muted', text: T.noAlerts }));
-    else body.append(el('ul', { class: 'alert-list' }, list.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) })]); })));
+    const map = [el('div', { class: 'minimap-wrap' }, [canvas]), el('div', { class: 'actions' }, [zoomIn, zoomOut])];
+    const phone = store.get().layout !== 'wide';
+    const list = phone ? criticalFirst(getAlerts()) : getAlerts();
+    const alerts = [el('h3', { text: T.alerts })];
+    if (!list.length) alerts.push(el('p', { class: 'muted', text: T.noAlerts }));
+    else alerts.push(el('ul', { class: 'alert-list' }, list.map((a) => { const t = alertText(a, world); return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) })]); })));
+    body.append(...(phone ? [...alerts, ...map] : [...map, ...alerts]));
     minimap.render(list);
     return [head(T.minimap), body];
   }
@@ -325,7 +334,13 @@ export function createSheets({ container, store, world, placement, cameraControl
       parts = b.type === 'house' ? houseSheet(b) : buildingSheet(b);
     } else if (s.sheet.kind === 'summary') parts = summarySheet();
     else if (s.sheet.kind === 'minimap') parts = minimapSheet();
-    else if (custom[s.sheet.kind]) { const body = el('div', { class: 'body' }); custom[s.sheet.kind](body, { close }); parts = [head(T[s.sheet.kind] || s.sheet.kind), body]; }
+    else if (custom[s.sheet.kind]) {
+      // A custom sheet is headed T[kind] unless it names its own heading for what it shows (setTitle: the raid sheet).
+      const body = el('div', { class: 'body' });
+      let title = T[s.sheet.kind] || s.sheet.kind;
+      custom[s.sheet.kind](body, { close, setTitle: (t) => { title = t; } });
+      parts = [head(title), body];
+    }
     else { container.hidden = true; return; }
     container.hidden = false;
     container.append(...parts);

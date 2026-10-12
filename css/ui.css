@@ -60,7 +60,7 @@ h2, h3 { margin: 0; }
 body[data-layout="portrait"] .wide-only, body[data-layout="compact"] .wide-only { display: none !important; }
 body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
 
-/* Critical banner, overlay legend and goals strip stack under the top bar in one column, so nothing overlaps whatever the text size. The banner wins; the legend shrinks to its icon. */
+/* Critical banner, overlay legend and goals strip stack under the top bar in one column, so nothing overlaps whatever the text size. On a phone only the alert row and one guidance row show (the guidance row rules below). */
 #under-bar { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + var(--topbar-h) + 6px); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
 #banner, #legend { position: static; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; max-width: 100%; }
 #under-bar > :empty { display: none; }
@@ -70,11 +70,11 @@ body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
 #legend .dot, #legend .ring { display: inline-block; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; }
 #legend .dot { background: currentColor; }
 #legend .ring { border: 2px solid currentColor; }
-/* Under a banner the legend shrinks to its dot and ring; the words stay for screen readers (sr-only). A graded scale (the
-   desirability bands) keeps its name and labels: swatches alone would be colour alone (spec 6.1). */
-body.has-banner #legend .strip:not(.graded) .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* On a wide screen under a banner the legend shrinks to its dot and ring; the words stay for screen readers (sr-only). A
+   graded scale (the desirability bands) keeps its name and labels: swatches alone would be colour alone (spec 6.1). A
+   phone's legend has the guidance row to itself, so it keeps its words. */
+body.has-banner[data-layout="wide"] #legend .strip:not(.graded) .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body[data-hand="left"] .confirm { flex-direction: row-reverse; }
-body[data-hand="left"] #rail .bottom { flex-direction: column-reverse; }
 
 /* Corner buttons: speed bottom-left, minimap and overlay bottom-right. Never in the middle. */
 #corners { position: fixed; left: var(--safe-left); right: var(--safe-right); bottom: calc(var(--safe-bottom) + var(--dock-slim) + 8px); display: flex; justify-content: space-between; padding: 0 8px; pointer-events: none; }
@@ -83,6 +83,7 @@ body[data-hand="left"] #rail .bottom { flex-direction: column-reverse; }
 body[data-dock="tray"] #corners { bottom: calc(var(--safe-bottom) + var(--dock-tray) + 8px); }
 body[data-dock="tucked"] #corners { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + 8px); }
 body[data-hand="left"] #corners { flex-direction: row-reverse; }
+#corners.over-half { visibility: hidden; }   /* the portrait tray is open and tall: the corners would sit in the middle of the map (corners.js) */
 .has-badge { position: relative; }
 .badge { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; border-radius: 10px; background: var(--coral-text); color: #FFFFFF; font-size: 12px; line-height: 20px; text-align: center; padding: 0 5px; }
 
@@ -134,7 +135,6 @@ body.panel-folded #panel > :not(.foldbar) { display: none; }
 /* Compact landscape: a slim rail on the right, trays as a drawer beside it. */
 #rail { position: fixed; top: calc(var(--safe-top) + var(--topbar-h)); right: 0; bottom: 0; width: calc(var(--rail-w) + var(--safe-right)); padding: 6px var(--safe-right) calc(6px + var(--safe-bottom)) 0; background: var(--parchment); border-left: 1px solid var(--parchment-3); display: flex; flex-direction: column; align-items: center; gap: 4px; overflow-y: auto; }
 #rail .cat { min-width: var(--tap); padding: 0; font-size: calc(18px * var(--ui-scale)); }
-#rail .bottom { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
 #rail .drawer { position: fixed; top: calc(var(--safe-top) + var(--topbar-h)); right: calc(var(--rail-w) + var(--safe-right)); bottom: 0; width: var(--drawer-w); background: var(--parchment-2); border-left: 1px solid var(--parchment-3); overflow-y: auto; }
 
 /* Sheets: a bottom sheet in portrait, a drawer in compact, the lower part of the panel column in wide. */
@@ -156,12 +156,26 @@ body[data-layout="wide"] #dock, body[data-layout="wide"] #rail, body[data-layout
 body[data-layout="compact"] #dock, body[data-layout="compact"] #panel { display: none; }
 body[data-layout="compact"] #corners { right: calc(var(--rail-w) + var(--safe-right)); bottom: calc(var(--safe-bottom) + 8px); }
 
-/* Toasts and the confirm dialog. */
-#toasts { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + var(--dock-slim) + 64px); display: flex; flex-direction: column; align-items: center; gap: 6px; }
-body[data-dock="tray"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tray) + 64px); }
-body[data-dock="tucked"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + 64px); }
+/* Toasts and the confirm dialog. A toast sits above the corner buttons (spec 6.3): 8 px gap + the 52 px row + 4 px at 100% text, and the
+   row grows about 20 px per whole step of text size (the Speed label, ruling 174), so the lift grows with --ui-scale. */
+body { --toast-lift: calc(64px + 20px * (var(--ui-scale) - 1)); }
+#toasts { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + var(--dock-slim) + var(--toast-lift)); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+body[data-dock="tray"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tray) + var(--toast-lift)); }
+body[data-dock="tucked"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + var(--toast-lift)); }
 body[data-layout="wide"] #toasts { bottom: 24px; left: calc(50% - var(--panel-w) / 2); }
-body[data-layout="compact"] #toasts { bottom: 64px; left: calc(50% - var(--rail-w) / 2); }
+body[data-layout="compact"] #toasts { bottom: calc(var(--safe-bottom) + var(--toast-lift)); }   /* the compact corners sit on the home-bar inset too */
+/* On a phone a toast may use the screen's width, up to 420 px, with 16 px at each side (ruling 169); the old half-screen box made
+   it wrap a word a line at larger text. The sides run to the screen edge, or in compact to the rail; the same sets as the corners
+   keep it clear of the card drawer, the confirm bar and a sheet. margin: auto centres the toast box when 420 px is narrower. */
+body[data-layout="portrait"] #toasts, body[data-layout="compact"] #toasts { left: calc(var(--safe-left) + 16px); right: calc(var(--safe-right) + 16px); max-width: 420px; margin: 0 auto; transform: none; }
+body[data-layout="compact"] #toasts { right: calc(var(--rail-w) + var(--safe-right) + 16px); }
+body[data-layout="compact"]:has(#confirm:not([hidden])) #toasts, body[data-layout="compact"]:has(#sheet:not([hidden])) #toasts { right: calc(var(--rail-w) + var(--drawer-w) + var(--safe-right) + 16px); }
+body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #toasts { right: calc(var(--rail-w) + var(--drawer-w) + 17px + var(--safe-right) + 16px); }
+body[data-layout="portrait"] .toast, body[data-layout="compact"] .toast { max-width: 100%; box-sizing: border-box; }
+/* The phone container is as wide as the screen allows, far wider than a short toast: only the toast takes taps, so the map
+   beside it still does (the column is otherwise an invisible strip over the tiles the player is placing on). */
+body:is([data-layout="portrait"], [data-layout="compact"]) #toasts { pointer-events: none; }
+body:is([data-layout="portrait"], [data-layout="compact"]) .toast { pointer-events: auto; }
 .toast { background: var(--ink); color: var(--parchment); border-radius: var(--radius); padding: 6px 8px 6px 14px; display: flex; gap: 12px; align-items: center; box-shadow: var(--shadow); }
 .toast button { min-height: var(--tap); background: transparent; color: var(--gold); border: none; font-weight: 600; }
 .toast button:focus-visible { outline-color: var(--gold); }
@@ -339,11 +353,75 @@ body.reduce-motion #cheer .cheer { animation: none; }
 body[data-layout="wide"] #tip { max-width: 440px; }
 /* A phone (portrait or compact) at 125% or 150% text has no room for a tip to stay up and cover the map: its words are 14 px
    scaled instead of the body size, its padding is tight, and the Tip label is kept for screen readers only, as the caption's
-   why is. createUI also closes the tip after TIP_AUTO_CLOSE_MS there (it stays seen, and How to play lists it). */
+   why is. On every phone, at any text size, createUI also closes a tip after TIP_AUTO_CLOSE_MS of unpaused play with it on
+   screen (ruling 171; it stays seen, and How to play lists it). */
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row { position: relative; padding: 0 2px 0 10px; gap: 4px; line-height: 1.25; }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .text { font-size: calc(14px * var(--ui-scale)); }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .got-it { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
+
+/* The guidance row on a phone (spec 6.3, rulings 163 and 164): under the alert row one of the overlay legend, a tip, a
+   caption or the goal shows, the one createUI names in data-guidance ('none' while a sheet is open, and on a landscape
+   phone at 125% text or more while a banner is up, ruling 172: its one row is the alert row). #tip and #cheer are
+   live regions that stay rendered: their contents hide instead. The goals strip is one row (ruling 170): the label, the
+   words and the progress are one flow of words on one button (two lines at most, cut with "…"; the button's name has all
+   of it), then Show me. A goal's caption drops its "Goal done:" lead from sight (screen readers keep it) and reads as the strip
+   changing: "✓ Lay a road +25 gold". */
+body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="legend"]) #legend,
+body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="goal"]) #goals { display: none !important; }
+body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="tip"]) #tip > *,
+body:is([data-layout="portrait"], [data-layout="compact"]):not([data-guidance="caption"]) #cheer > * { display: none !important; }
+.goal-strip.one-row { flex-wrap: nowrap; column-gap: 4px; padding: 0 4px 0 0; }
+.goal-strip.one-row .main { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; min-height: var(--tap); padding: 2px 4px 2px 12px; background: transparent; border-color: transparent; text-align: left; line-height: 1.25; }
+.goal-strip.one-row .words { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; min-width: 0; }
+.goal-strip.one-row .buttons { flex: none; flex-wrap: nowrap; margin-left: 0; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #cheer .cheer.led .lead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* A caption in the guidance row is two lines at most: at 100% text the head (with the gold beside it) takes two at most
+   and the why one beneath; at larger text the whole caption is one flow of two lines. Past that it is cut with "…": the
+   live region reads it whole, and the Goals sheet's Recent list has it in full. */
+body:is([data-layout="portrait"], [data-layout="compact"]) #cheer .cheer .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #cheer .cheer .why { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #cheer .cheer .text { display: inline; }
+#sheet .recent .why { display: block; }
+/* A tip in the guidance row is two lines at most too; How to play lists every tip in full, and the live region reads it whole. */
+body:is([data-layout="portrait"], [data-layout="compact"]) #tip .tip-row .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+#sheet .skip-row { margin: 4px 0; }
+#sheet .recent { list-style: none; padding: 0; margin: 4px 0; }
+#sheet .recent li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--parchment-2); }
+#sheet .recent .reward { flex: none; white-space: nowrap; }
+
+/* Landscape phones and large text (mobile UX review: ruling 172, section 4 items 8 and 9; spec 6.3 "Small phones").
+   Held sideways the alert row and the guidance row end by 40% of the height at 100% text: they sit 4 px apart, and the
+   banner and the legend keep 2 px above and below their 44 px buttons. At 125% and 150% only one row shows (createUI's
+   guidance rule). The rows stop at the left edge of the column beside the rail while a sheet or the card drawer holds
+   it, as the corner buttons do. */
+body[data-layout="compact"] #under-bar { gap: 4px; }
+body[data-layout="compact"] #banner .critical, body[data-layout="compact"] #legend .strip { padding-top: 2px; padding-bottom: 2px; }
+body[data-layout="compact"]:has(#sheet:not([hidden])) #under-bar { right: calc(var(--rail-w) + var(--drawer-w) + var(--safe-right) + 8px); }
+body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #under-bar { right: calc(var(--rail-w) + var(--drawer-w) + 17px + var(--safe-right) + 8px); }
+/* Held sideways the fire-risk legend keeps a plain strip's height at 100% text: its name and the four bands on one row,
+   the two firehouse keys beneath them on one line, the x beside both rows; what never burns is kept for screen readers,
+   as on a portrait phone (the building sheet's fire row says it for each building). */
+body[data-layout="compact"] #legend .strip.graded:has(.fire-keys) { display: inline-grid; grid-template-columns: auto minmax(0, auto) auto; column-gap: 8px; row-gap: 0; align-items: center; }
+body[data-layout="compact"] #legend .strip.graded:has(.fire-keys) > strong.text { grid-column: 1; grid-row: 1; }
+body[data-layout="compact"] #legend .strip.graded .scale:has(+ .fire-keys) { grid-column: 2; grid-row: 1; justify-self: start; }
+body[data-layout="compact"] #legend .strip.graded .fire-keys { grid-column: 1 / 3; grid-row: 2; column-gap: 8px; }
+body[data-layout="compact"] #legend .strip.graded:has(.fire-keys) .close { grid-column: 3; grid-row: 1 / 3; }
+body[data-layout="compact"] #legend .fire-keys .never-burn { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* The top bar on a phone at 150% text (section 4 item 8): each number wears its small picture (hud.js) in place of its
+   word, which stays for screen readers, and the gaps tighten, so a real city's numbers keep to one row. */
+#topbar .stat .glyph { display: none; }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat { gap: 2px; }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stats { column-gap: 6px; }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat .glyph { display: inline-block; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat .glyph.coin { width: 0.8em; height: 0.8em; border-radius: 50%; background: var(--gold); box-shadow: inset 0 0 0 1px #B98A4A; }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stat .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* The score chip (section 4 item 9) joins the numbers' flow, right after the date, on a landscape phone (where the bar's
+   far end is under ☰ and the rail) and on a portrait phone at 150% text (where one row of numbers leaves it no corner):
+   on the numbers' row where it fits, else at the start of the next. */
+body[data-layout="compact"] #topbar .stats, body[data-layout="portrait"][data-text-size="150"] #topbar .stats { padding-bottom: 0; }
+body[data-layout="compact"] #topbar .score-chip, body[data-layout="portrait"][data-text-size="150"] #topbar .score-chip { position: static; line-height: 1.2; }
 
 /* The idle nudge (early-game pass 3.5): its one line sits under the goals strip, so #goals stacks in a column. Show me
    gets a gold ring that pulses twice (under 1 flash a second, done in 2.4 s), then stays still until the
@@ -465,8 +543,9 @@ body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
 
 /* ── s3 ui (Track D) ── Track D's styles for the danger interface. Add new rules just above the end marker. */
-/* D1: the one banner (spec 6.3). Words first, then the buttons; on a narrow phone the buttons wrap under the words and
-   keep their 44 px. A raid warning's defence line sits on its own line; its countdown chip is the same row, one line. */
+/* D1: the one banner (spec 6.3), the wide screens' full banner: words first, then the buttons, which wrap under the words
+   when they must and keep their 44 px. A raid warning's defence line sits on its own line; its countdown chip is the same
+   row, one line. Phones have the one-line alert row below (.line). */
 #banner .critical { flex-wrap: wrap; row-gap: 4px; }
 #banner .critical .icon { flex: none; }
 #banner .critical .text { flex: 1 1 6em; }
@@ -474,17 +553,13 @@ body.screenshot #ui > :not(#live):not(#map-summary) { display: none !important; 
 #banner .critical .buttons { flex: 0 1 auto; max-width: 100%; display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
 #banner .critical .more { white-space: nowrap; }
 #banner .critical.chip .expand { font-weight: 700; text-align: left; padding: 0 4px; }
-/* A phone at larger text keeps the banner to its title and buttons: the fix stays for screen readers and in the alert
-   list (the minimap sheet), so the banner and the goals strip end above the middle of the screen (ruling 111). */
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #banner .critical .text > .small:not(.defence) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-/* The legend under a banner on a phone (ruling 111): one 44 px icon at the right end of the banner's row, so the goals
-   strip keeps its place; tapped, the full legend opens in its own row. Wide screens keep the full strip. */
-#legend .legend-icon { display: none; }
-body.has-banner:not([data-layout="wide"]) #legend .legend-icon { display: inline-flex; align-items: center; justify-content: center; padding: 0; box-shadow: var(--shadow); }
-body.has-banner:not([data-layout="wide"]) #legend:not(.open) .strip { display: none; }
-body.has-banner:not([data-layout="wide"]) #legend.open { flex-direction: row-reverse; align-items: center; }   /* open: the icon ends the strip's row */
-body.has-banner:not([data-layout="wide"]) #legend:not(.open):not(:empty) { position: absolute; top: 0; right: 0; }
-body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:empty)) { max-width: calc(100% - var(--tap) - 6px); }
+/* The phone's alert row (ruling 167): one row, the icon, the words and View side by side. The words wrap to two lines at
+   most and are cut with "…" past that; the full words are in the buttons' names, the alert list and the raid sheet. A
+   raid warning's words are its countdown chip, a button that opens the raid sheet. */
+#banner .critical.line { flex-wrap: nowrap; white-space: normal; }   /* normal: the goals strip's .chip rule would keep the words on one line */
+#banner .critical.line .buttons { flex: none; flex-wrap: nowrap; }
+#banner .critical.line strong, #banner .critical.line .warning { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+#banner .critical.line .warning { font-weight: 700; text-align: left; padding: 0 4px; max-width: 100%; }
 /* D2: an info caption (a blaze put out, a raid's report) is news, not a celebration: no star, a plain edge. */
 #cheer .cheer.info { border-color: var(--parchment-3); }
 #cheer .cheer.info .icon { display: none; }
@@ -501,6 +576,15 @@ body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:
 #sheet .tribute-actions button { flex: 1 1 10em; }
 /* D4: the fire-risk legend: the four bands, then the dot and ring and what never burns on a row of their own. */
 #legend .fire-keys { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; order: 4; flex-basis: 100%; }
+/* On a portrait phone the fire-risk legend has the guidance row to itself (ruling 164) and keeps it short: the name and the
+   four bands share a row where they fit, the two firehouse keys sit beneath beside the x, and what never burns is kept
+   for screen readers (the building sheet's fire row says it for each building). */
+body[data-layout="portrait"] #legend .strip.graded:has(.fire-keys) { display: inline-grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 6px; row-gap: 0; padding-left: 10px; }
+body[data-layout="portrait"] #legend .strip.graded:has(.fire-keys) > strong.text { grid-column: 1; grid-row: 1; }
+body[data-layout="portrait"] #legend .strip.graded .scale:has(+ .fire-keys) { grid-column: 2 / 4; grid-row: 1; }
+body[data-layout="portrait"] #legend .strip.graded .fire-keys { grid-column: 1 / 3; grid-row: 2; }
+body[data-layout="portrait"] #legend .strip.graded:has(.fire-keys) .close { grid-column: 3; grid-row: 2; margin-left: 0; }
+body[data-layout="portrait"] #legend .fire-keys .never-burn { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* ── end s3 ui ── */
 
 /* (A stable separator between the Stage 3 sections: leave these lines as they are.) */
@@ -561,15 +645,13 @@ body.has-banner:not([data-layout="wide"]) #banner:has(+ #legend:not(.open):not(:
 #sheet .feat .status { flex: none; white-space: nowrap; }
 #sheet .feat.earned .status { color: var(--teal); font-weight: 600; }
 #sheet .feat.lost .status { color: var(--ink-soft); }
-/* The opening chain's Founded Thebes row, and the next-threshold bar (spec 4.1): a slim line under the goals strip. It
-   steps aside on a phone while a critical banner is up (the plan's controller ruling 12), or while a tip or a caption
-   shows, so the rows under the top bar still end above the middle of the map (spec 6.1); a wide screen keeps it. */
+/* The opening chain's Founded Thebes row, and the next-threshold bar (spec 4.1): a slim line under the goals strip. On a
+   phone it shows only in calm portrait play (createUI's barAllowed: no banner, tool or guide; a tip, a caption or a sheet
+   already takes the whole guidance row); a wide screen keeps it. */
 #sheet .goals .founded { padding: 4px 0; }
 #goals .threshold { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box; margin-top: 4px; background: var(--parchment); color: var(--ink); border-radius: var(--radius); padding: 0 12px; box-shadow: var(--shadow); line-height: 1.6; }
 #goals .threshold-meter { flex: none; width: 48px; height: 6px; border-radius: 3px; background: var(--parchment-2); box-shadow: inset 0 0 0 1px var(--parchment-3); overflow: hidden; }
 #goals .threshold-meter .fill { display: block; height: 100%; background: var(--teal); }
-body:is([data-layout="portrait"], [data-layout="compact"]).has-banner #goals .threshold { display: none; }
-body:is([data-layout="portrait"], [data-layout="compact"]) #under-bar:has(#tip .tip-row, #cheer .cheer) #goals .threshold { display: none; }
 /* A citizen remark (spec 4.19): a quieter caption, with a speech mark for its icon and no gold. */
 #cheer .cheer.remark { border-color: var(--parchment-3); }
 #cheer .cheer.remark .text { font-weight: 400; font-style: italic; }

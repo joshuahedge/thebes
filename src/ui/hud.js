@@ -29,7 +29,16 @@ export function summaryData(world) {
   };
 }
 
-const stat = (label, cls) => el('span', { class: `stat ${cls}` }, [el('span', { class: 'label', text: label }), el('span', { class: 'value', text: '' })]);
+// A number with its word before it. The four a phone shows also carry a small picture (mobile UX review, section 4 item
+// 8): at 150% text a phone shows it in place of the word, which stays for screen readers (css/ui.css), so the numbers
+// keep to one row. The picture is decoration, hidden from screen readers: the gold coin (drawn in CSS), an ankh for the
+// people, a smile for the mood and the sun for the date.
+const GLYPHS = { gold: '', people: '☥', mood: '☺', date: '☼' };
+const stat = (label, cls) => {
+  const key = cls.split(' ')[0];
+  const glyph = key in GLYPHS ? el('span', { class: key === 'gold' ? 'glyph coin' : 'glyph', 'aria-hidden': 'true', text: GLYPHS[key] }) : null;
+  return el('span', { class: `stat ${cls}` }, [glyph, el('span', { class: 'label', text: label }), el('span', { class: 'value', text: '' })]);
+};
 
 // shortDate() says when the date reads "Y2 M1" rather than "Year 2, month 1, day 1": on a phone, and (createUI) in the
 // wide layout under 1000 px wide or at 150% text, where the long date would push the numbers onto another row.

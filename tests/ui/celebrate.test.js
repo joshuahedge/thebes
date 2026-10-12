@@ -3,7 +3,7 @@ import { createCelebrations } from '../../src/ui/celebrate.js';
 import { createEffects, EFFECT_MS } from '../../src/render/effects.js';
 import { makeDraw } from '../../src/render/art/ctx.js';
 import { GOLD } from '../../src/render/art/palette.js';
-import { CHEER_MS, CHEER_GAP_MS } from '../../src/data/ui.js';
+import { CHEER_MS, CHEER_GAP_MS, CHEER_WAITING_MAX, CHEER_HELD_MAX_MS, CHEER_RECENT_MAX } from '../../src/data/ui.js';
 import { FIRSTS, FIRST_REWARD } from '../../src/data/firsts.js';
 import { ACHIEVEMENTS } from '../../src/data/achievements.js';
 import { DAILY_POOL, DAILY_REWARD } from '../../src/data/daily.js';
@@ -12,6 +12,7 @@ import { setGuide } from '../../src/sim/commands.js';
 import { guideActive, goalById } from '../../src/sim/goals.js';
 import { FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, milestoneText, cheerReward, rewardText, T } from '../../src/ui/text.js';
 import { mount } from '../helpers/dom.js';
+import { openSheet } from '../../src/ui/modes.js';
 import { makeCanvas, pixelAt } from '../helpers/canvas.js';
 import { rigUI } from '../helpers/uiWorld.js';
 
@@ -50,32 +51,32 @@ function scene() {
 }
 
 describe('ui celebrate', () => {
-  it('shows one caption at a time, 3 s apart, each hidden after its time', () => {
+  it('shows one caption at a time, each for its tier\'s time, the next as the last one hides', () => {
     const { root, cleanup } = mount();
     try {
       const clock = fakeClock();
-      const cheers = createCelebrations({ container: root, setTimer: clock.setTimer, clearTimer: clock.clearTimer });
+      const cheers = createCelebrations({ container: root, setTimer: clock.setTimer, clearTimer: clock.clearTimer, now: () => 0 });
       const texts = () => [...root.querySelectorAll('.cheer .text')].map((n) => n.textContent);
+      expect(CHEER_MS).toEqual({ first: 4000, remark: 4000, milestone: 5000, info: 6000 });   // ruling 165
+      expect(Math.min(...Object.values(CHEER_MS)) >= CHEER_GAP_MS).toBe(true);   // every caption outlasts the 3 s gap, so the next waits for it to hide
       cheers.show({ tier: 'first', text: 'One', reward: 10 });
       cheers.show({ tier: 'first', text: 'Two' });
-      cheers.show({ tier: 'first', text: 'Three' });
       expect(texts()).toEqual(['One']);
-      expect(cheers.pending()).toBe(2);
+      expect(cheers.pending()).toBe(1);
       clock.advance(CHEER_MS.first - 1);
       expect(texts()).toEqual(['One']);
       clock.advance(1);
-      expect(texts()).toEqual([]);                                   // hidden at 2.5 s
-      clock.advance(CHEER_GAP_MS - CHEER_MS.first - 1);
-      expect(texts()).toEqual([]);                                   // and nothing until the gap is up
-      clock.advance(1);
-      expect(texts()).toEqual(['Two']);                              // 3 s after the first one started
-      expect(cheers.pending()).toBe(1);
-      clock.advance(CHEER_GAP_MS);
+      expect(texts()).toEqual(['Two']);                              // One hid at 4 s and Two went up at once
+      expect(cheers.pending()).toBe(0);
+      cheers.show({ tier: 'remark', text: 'Three' });
+      clock.advance(CHEER_MS.first);
       expect(texts()).toEqual(['Three']);
-      clock.advance(CHEER_GAP_MS);
+      clock.advance(CHEER_MS.remark - 1);
+      expect(texts()).toEqual(['Three']);                            // a remark stays 4 s too (it fell back to 2.5 s before)
+      clock.advance(1);
       expect(texts()).toEqual([]);
       expect(cheers.pending()).toBe(0);
-      cheers.show({ tier: 'first', text: 'Later' });                 // the gap has long passed: at once
+      cheers.show({ tier: 'first', text: 'Later' });                 // the row is free: at once
       expect(texts()).toEqual(['Later']);
       cheers.show({ tier: 'first', text: 'Dropped' });
       cheers.clear();
@@ -85,7 +86,56 @@ describe('ui celebrate', () => {
       expect(root.children.length).toBe(0);                          // clear cancelled the timers and the queue
     } finally { cleanup(); }
   });
-  it('writes the star, the words and the gold, holds a milestone for 4 s, and runs onShow when a caption appears', () => {
+  it('lets at most two wait, writes every caption to Recent (the last ten, newest first, in full) and tells onChange', () => {
+    const { root, cleanup } = mount();
+    try {
+      const clock = fakeClock();
+      let changes = 0;
+      const cheers = createCelebrations({ container: root, setTimer: clock.setTimer, clearTimer: clock.clearTimer, now: () => 0, onChange: () => { changes += 1; } });
+      const texts = () => [...root.querySelectorAll('.cheer .text')].map((n) => n.textContent);
+      expect([CHEER_WAITING_MAX, CHEER_RECENT_MAX]).toEqual([2, 10]);
+      cheers.show({ tier: 'first', lead: 'Goal done: ', text: 'Lay a road', reward: 25 });
+      expect([changes, cheers.showing()]).toEqual([1, true]);
+      for (const t of ['B', 'C', 'D']) cheers.show({ tier: 'first', text: t, why: `${t} why` });
+      expect(cheers.pending()).toBe(2);                              // B went straight to Recent: C and D wait
+      clock.advance(CHEER_MS.first);
+      expect(texts()).toEqual(['C']);
+      expect(changes).toBe(3);                                       // Lay a road hid, C went up
+      clock.advance(CHEER_MS.first);
+      expect(texts()).toEqual(['D']);
+      clock.advance(CHEER_MS.first);
+      expect([texts(), cheers.showing()]).toEqual([[], false]);
+      expect(cheers.recent().map((c) => c.text)).toEqual(['D', 'C', 'B', 'Goal done: Lay a road']);   // B too: it never showed
+      expect(cheers.recent()[3]).toEqual({ tier: 'first', text: 'Goal done: Lay a road', why: '', reward: 25 });
+      expect(cheers.recent()[2].why).toBe('B why');
+      for (let i = 0; i < 12; i++) cheers.show({ tier: 'info', text: `N${i}` });
+      expect(cheers.recent().length).toBe(10);
+      expect(cheers.recent()[0].text).toBe('N11');
+      const copy = cheers.recent();
+      copy.length = 0;
+      expect(cheers.recent().length).toBe(10);                       // a copy: the list is the interface's own
+    } finally { cleanup(); }
+  });
+  it('sends a caption skip() turns away to Recent only, when it is shown and when its turn comes', () => {
+    const { root, cleanup } = mount();
+    try {
+      const clock = fakeClock();
+      let banner = true;
+      const cheers = createCelebrations({ container: root, setTimer: clock.setTimer, clearTimer: clock.clearTimer, now: () => 0, skip: (item) => banner && item.tier !== 'info' });
+      const texts = () => [...root.querySelectorAll('.cheer .text')].map((n) => n.textContent);
+      cheers.show({ tier: 'first', text: 'Goal' });
+      expect([texts(), cheers.pending()]).toEqual([[], 0]);          // under a banner only info captions show
+      cheers.show({ tier: 'info', text: 'Report' });
+      expect(texts()).toEqual(['Report']);
+      banner = false;
+      cheers.show({ tier: 'first', text: 'Waits' });
+      banner = true;                                                 // a banner came up while it waited
+      clock.advance(CHEER_MS.info);
+      expect([texts(), cheers.pending()]).toEqual([[], 0]);
+      expect(cheers.recent().map((c) => c.text)).toEqual(['Waits', 'Report', 'Goal']);
+    } finally { cleanup(); }
+  });
+  it('writes the star, the words and the gold, holds a milestone for 5 s, and runs onShow when a caption appears', () => {
     const { root, cleanup } = mount();
     try {
       const clock = fakeClock();
@@ -103,7 +153,7 @@ describe('ui celebrate', () => {
       const ran = [];
       cheers.show({ tier: 'milestone', text: milestoneText('Town'), onShow: () => ran.push('town') });
       expect(ran).toEqual([]);                                       // still waiting its turn
-      clock.advance(CHEER_GAP_MS);
+      clock.advance(CHEER_MS.first);
       expect(ran).toEqual(['town']);
       const town = root.querySelector('.cheer');
       expect(town.classList.contains('milestone')).toBe(true);
@@ -231,7 +281,7 @@ describe('ui celebrate', () => {
       expect(cheer.children.length).toBe(0);
     } finally { r.cleanup(); }
   });
-  it('keeps every caption above 45% of the screen on a phone at every text size, with the why beneath only where it fits', async () => {
+  it('keeps every caption above 45% of the screen on a phone at every text size, in the goal\'s place, with the why beneath only where it fits', async () => {
     const captions = [
       ...FIRSTS.map((f) => ({ text: FIRST_TEXT[f.id].head, why: FIRST_TEXT[f.id].why, reward: FIRST_REWARD })),
       ...[...GOALS, ...EVENT_GOALS].map((g) => ({ text: `${T.goalDone}: ${g.text}`, reward: g.reward })),
@@ -239,38 +289,24 @@ describe('ui celebrate', () => {
       ...DAILY_POOL.map((d) => ({ text: `${T.dailyDone}: ${DAILY_TEXT[d.id]}`, reward: DAILY_REWARD })),
       { text: T.guideDone, reward: GUIDE_REWARD },
       { tier: 'milestone', text: milestoneText('Town') },
+      { tier: 'info', text: 'Raid from the east beaten: 2 towers stopped 9 of 12, soldiers stopped 3; 1 building burned, 40 gold stolen.' },
     ];
-    const tooLow = [], crampedAt = [];
+    const tooLow = [];
     for (const [w, h] of [[360, 640], [390, 844]]) {
       for (const size of [100, 125, 150]) {
         const r = await rigUI({ width: w, height: h });
         try {
-          r.ui.settings.set({ textSize: size, reducedMotion: 'on' });          // no slide-in, so the box is where it will rest
+          r.ui.settings.set({ textSize: size, reducedMotion: 'on' });
           setGuide(r.world, true);
           r.world.guide.done = false;
-          let worst = 0, worstAt = 0;                                          // the tallest guide strip: each guided step in turn
-          GUIDE_GOALS.forEach((id, i) => {
-            r.world.goals.completed = GUIDE_GOALS.slice(0, i);
-            r.ui.refresh();
-            const bottom = r.root.querySelector('#goals').getBoundingClientRect().bottom;
-            if (bottom > worst) { worst = bottom; worstAt = i; }
-          });
-          r.world.goals.completed = GUIDE_GOALS.slice(0, worstAt);
           r.ui.refresh();
-          const shape = () => r.root.querySelector('#cheer .cheer').getBoundingClientRect();
-          r.ui.celebrations.clear();
-          r.ui.celebrations.show({ tier: 'first', text: FIRST_TEXT.first_shack.head, reward: FIRST_REWARD });
-          const line = shape().height;                                         // one line of head and gold
-          // Where the strip alone leaves no room for even one line under the 45% mark (360x640 at 150%: the tallest strip
-          // ends at 42% of the screen), no caption can keep clear of it. The caption then only has to stay short.
-          const cramped = worst + 6 + line >= h * 0.45;
           for (const c of captions) {
             r.ui.celebrations.clear();
             r.ui.celebrations.show({ tier: 'first', ...c });
-            const box = shape();
-            if (cramped ? box.height > 4 * line : box.bottom >= h * 0.45) tooLow.push(`${w}x${h} at ${size}%: ${c.text} ends at ${Math.round(box.bottom)}`);
+            expect(getComputedStyle(r.root.querySelector('#goals')).display).toBe('none');   // the caption has the guidance row (ruling 164)
+            const box = r.root.querySelector('#cheer .cheer').getBoundingClientRect();
+            if (box.bottom >= h * 0.45) tooLow.push(`${w}x${h} at ${size}%: ${c.text} ends at ${Math.round(box.bottom)}`);
           }
-          if (cramped) crampedAt.push(`${w}x${h} at ${size}%`);
           r.ui.celebrations.clear();
           r.ui.celebrations.show({ tier: 'first', text: FIRST_TEXT.first_shack.head, why: FIRST_TEXT.first_shack.why, reward: FIRST_REWARD });
           const why = r.root.querySelector('#cheer .why');
@@ -280,7 +316,6 @@ describe('ui celebrate', () => {
       }
     }
     expect(tooLow).toEqual([]);
-    expect(crampedAt).toEqual(['360x640 at 150%']);                          // the one phone and size where the strip leaves no room
   });
   it('shows the why beneath on a wide screen at any text size, and drops it in the compact layout at larger text', async () => {
     for (const [w, h, size, shown] of [[1280, 800, 150, true], [740, 360, 100, true], [740, 360, 125, false], [740, 360, 150, false]]) {
@@ -315,7 +350,7 @@ describe('ui celebrate', () => {
       expect(ran).toEqual(['one']);                                  // its sound and sparkle come when it shows
       cheers.show({ tier: 'first', text: 'Two' });
       held = true;
-      clock.advance(CHEER_GAP_MS);
+      clock.advance(CHEER_MS.first);
       expect(root.children.length).toBe(0);                          // One hid on time; Two waits while held
       expect(cheers.pending()).toBe(1);
       held = false;
@@ -325,7 +360,29 @@ describe('ui celebrate', () => {
       expect(root.querySelectorAll('.cheer').length).toBe(1);
     } finally { cleanup(); }
   });
-  it('on a phone at larger text writes each caption as one flow of words, two lines at most', async () => {
+  it('sends a caption held back behind a sheet for more than 10 s to Recent only, and keeps one held by anything else', () => {
+    const { root, cleanup } = mount();
+    try {
+      const clock = fakeClock();
+      let held = true, sheet = false, t = 0;
+      const cheers = createCelebrations({ container: root, setTimer: clock.setTimer, clearTimer: clock.clearTimer, now: () => t, hold: () => held, dropHeld: () => sheet });
+      cheers.show({ tier: 'first', text: 'Old' });
+      t = 5000;
+      cheers.show({ tier: 'first', text: 'Newer' });
+      t = CHEER_HELD_MAX_MS + 1;
+      cheers.resume();
+      expect(cheers.pending()).toBe(2);                              // held by a tip or the legend: they wait as long as it takes
+      sheet = true;
+      cheers.resume();                                               // behind a sheet: Old has waited too long, Newer has not
+      expect(cheers.pending()).toBe(1);
+      held = false;
+      cheers.resume();
+      expect(root.querySelector('.cheer .text').textContent).toBe('Newer');
+      expect(cheers.recent().map((c) => c.text)).toEqual(['Newer', 'Old']);
+      expect(CHEER_HELD_MAX_MS).toBe(10000);
+    } finally { cleanup(); }
+  });
+  it('on a phone writes each caption in two lines at most, at larger text as one flow of words', async () => {
     const captions = [
       ...FIRSTS.map((f) => ({ text: FIRST_TEXT[f.id].head, why: FIRST_TEXT[f.id].why, reward: FIRST_REWARD })),
       ...[...GOALS, ...EVENT_GOALS].map((g) => ({ text: `${T.goalDone}: ${g.text}`, reward: g.reward })),
@@ -333,10 +390,11 @@ describe('ui celebrate', () => {
       ...DAILY_POOL.map((d) => ({ text: `${T.dailyDone}: ${DAILY_TEXT[d.id]}`, reward: DAILY_REWARD })),
       { text: T.guideDone, reward: GUIDE_REWARD },
       { tier: 'milestone', text: milestoneText('Town') },
+      { tier: 'info', text: 'Raid from the east beaten: 2 towers stopped 9 of 12, soldiers stopped 3; 1 building burned, 40 gold stolen.' },
     ];
     const tooTall = [];
     for (const [w, h] of [[360, 640], [390, 844], [740, 360], [844, 390]]) {
-      for (const size of [125, 150]) {
+      for (const size of [100, 125, 150]) {
         const r = await rigUI({ width: w, height: h });
         try {
           r.ui.settings.set({ textSize: size, reducedMotion: 'on' });
@@ -344,20 +402,28 @@ describe('ui celebrate', () => {
             r.ui.celebrations.clear();
             r.ui.celebrations.show({ tier: 'first', ...c });
             const node = r.root.querySelector('#cheer .cheer');
-            expect(getComputedStyle(node).display).toBe('block');
             const cs = getComputedStyle(node);
             const chrome = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((n, k) => n + parseFloat(cs[k]), 0);
-            const lines = (node.getBoundingClientRect().height - chrome) / parseFloat(cs.lineHeight);
-            if (lines > 2.05) tooTall.push(`${w}x${h} at ${size}%: ${c.text} is ${lines.toFixed(1)} lines`);
+            if (size > 100) {
+              expect([cs.display === 'grid', cs.webkitLineClamp]).toEqual([false, '2']);   // one flow of words, cut at two lines
+              const lines = (node.getBoundingClientRect().height - chrome) / parseFloat(cs.lineHeight);
+              if (lines > 2.05) tooTall.push(`${w}x${h} at ${size}%: ${c.text} is ${lines.toFixed(1)} lines`);
+            } else {
+              const text = node.querySelector('.text'), why = node.querySelector('.why');
+              const lh = (n) => parseFloat(getComputedStyle(n).lineHeight);
+              if (text.getBoundingClientRect().height > 2 * lh(text) + 1) tooTall.push(`${w}x${h} at ${size}%: ${c.text} has a head of more than two lines`);
+              if (why && why.getBoundingClientRect().height > lh(why) + 1) tooTall.push(`${w}x${h} at ${size}%: ${c.text} has a why of more than one line`);
+            }
             if (c.reward) expect(node.querySelector('.reward').getBoundingClientRect().right).toBeLessThanOrEqual(node.getBoundingClientRect().right);
+            expect(node.textContent).toContain(c.text);                         // cut on screen, whole in the live region
           }
         } finally { r.cleanup(); }
       }
     }
     expect(tooTall).toEqual([]);
   });
-  it('on a phone at larger text, and on any phone held sideways, a caption waits while a tip shows, and goes up once the tip has closed', async () => {
-    for (const [w, h, size, waits] of [[360, 640, 150, true], [390, 844, 125, true], [740, 360, 150, true], [740, 360, 100, true], [844, 390, 100, true], [360, 640, 100, false], [390, 844, 100, false], [1280, 800, 150, false]]) {
+  it('on a phone a caption waits while a tip has the guidance row, and goes up once the tip has closed; a wide screen shows both', async () => {
+    for (const [w, h, size, waits] of [[360, 640, 150, true], [390, 844, 125, true], [740, 360, 150, true], [740, 360, 100, true], [844, 390, 100, true], [360, 640, 100, true], [390, 844, 100, true], [1280, 800, 150, false]]) {
       const r = await rigUI({ width: w, height: h });
       try {
         r.ui.settings.set({ textSize: size, reducedMotion: 'on' });
@@ -371,26 +437,17 @@ describe('ui celebrate', () => {
         r.frame(16);
         expect([w, h, size, shown()]).toEqual([w, h, size, waits ? 0 : 1]);     // still waiting while the tip is up
         r.ui.tips.dismiss();
-        r.frame(32);
-        expect([w, h, size, shown()]).toEqual([w, h, size, 1]);
-        expect(r.root.querySelector('#cheer .text').textContent.startsWith(T.goalDone)).toBe(true);
+        expect([w, h, size, shown()]).toEqual([w, h, size, 1]);                 // up as soon as the row is free
+        expect(r.ui.celebrations.recent().some((c) => c.text.startsWith(T.goalDone))).toBe(true);   // the goal's caption, or in Recent if two newer ones queued behind it
       } finally { r.cleanup(); }
     }
   });
-  // The rows under the top bar together (final review): the goals strip at its tallest guided step, the Play tip and a
-  // goal caption, all showing at once. Spec 6.1: nothing over the middle of the map. Where the screen is too short for
-  // three rows, the measured end is pinned (so it cannot creep further) and the reason written down.
-  it('keeps the goals strip, a tip and a caption together above the middle of the screen', async () => {
-    const TIGHT = 'Here a caption waits while a tip shows (the test above), so in play these rows meet only when a tip arrives during the 2.5 s of a caption';
-    const EXCEPTIONS = {
-      '360x640 at 150%': [68, `the tallest guide strip alone ends at 42% here. ${TIGHT}`],
-      '740x360 at 100%': [54, `a 360 px tall phone held sideways: the top bar and three rows with 44 px tap targets need more than half of it. ${TIGHT}`],
-      '740x360 at 125%': [63, `a 360 px tall phone held sideways. ${TIGHT}`],
-      '740x360 at 150%': [71, `a 360 px tall phone held sideways. ${TIGHT}`],
-      '844x390 at 150%': [65, `a 390 px tall phone held sideways. ${TIGHT}`],
-    };
+  // The rows under the top bar together (final review; spec 6.1, nothing over the middle of the map). On a phone the goals
+  // strip, a tip and a caption share one guidance row (rulings 163 and 164), so the tallest of them alone counts; a wide
+  // screen stacks all three.
+  it('shows one of the goals strip, a tip and a caption at a time on a phone, so the rows end above the middle of the screen', async () => {
     const over = [];
-    for (const [w, h] of [[360, 640], [390, 844], [740, 360], [844, 390]]) {
+    for (const [w, h] of [[360, 640], [390, 844], [740, 360], [844, 390], [1280, 800]]) {
       for (const size of [100, 125, 150]) {
         const r = await rigUI({ width: w, height: h });
         try {
@@ -401,25 +458,51 @@ describe('ui celebrate', () => {
           GUIDE_GOALS.forEach((id, i) => {
             r.world.goals.completed = GUIDE_GOALS.slice(0, i);
             r.ui.refresh();
-            const bottom = r.root.querySelector('#goals').getBoundingClientRect().bottom;
+            const bottom = r.root.querySelector('#under-bar').getBoundingClientRect().bottom;
             if (bottom > worst) { worst = bottom; worstAt = i; }
           });
           r.world.goals.completed = GUIDE_GOALS.slice(0, worstAt);
           r.ui.refresh();
-          r.ui.celebrations.clear();
-          r.ui.celebrations.show({ tier: 'first', text: `${T.goalDone}: ${goalById('plots').text}`, reward: goalById('plots').reward });
-          expect(r.ui.tips.trigger('plotsPaused')).toBe(true);                // the tip arrives while the caption is up
-          for (const sel of ['#goals .goal-strip', '#tip .tip-row', '#cheer .cheer']) expect([sel, r.root.querySelector(sel) !== null]).toEqual([sel, true]);
-          const end = (r.root.querySelector('#under-bar').getBoundingClientRect().bottom / h) * 100;
           const key = `${w}x${h} at ${size}%`;
-          const allowed = EXCEPTIONS[key] ? EXCEPTIONS[key][0] : 50;
-          if (!(end < allowed)) over.push(`${key}: ends at ${end.toFixed(1)}%`);
-          if (EXCEPTIONS[key] && end < 50) over.push(`${key}: ends at ${end.toFixed(1)}%, so it needs no exception`);
+          const phone = r.store.get().layout !== 'wide';
+          const shownRows = () => ['#goals .goal-strip', '#tip .tip-row', '#cheer .cheer'].filter((sel) => { const n = r.root.querySelector(sel); return n && n.getBoundingClientRect().height > 2; });
+          const end = () => (r.root.querySelector('#under-bar').getBoundingClientRect().bottom / h) * 100;
+          if (!(end() < 50)) over.push(`${key} with the goal: ends at ${end().toFixed(1)}%`);
+          r.ui.celebrations.clear();
+          r.ui.celebrations.show({ tier: 'first', lead: `${T.goalDone}: `, text: goalById('plots').text, reward: goalById('plots').reward });
+          expect([key, shownRows()]).toEqual([key, phone ? ['#cheer .cheer'] : ['#goals .goal-strip', '#cheer .cheer']]);
+          if (!(end() < 50)) over.push(`${key} with a caption: ends at ${end().toFixed(1)}%`);
+          expect(r.ui.tips.trigger('plotsPaused')).toBe(true);                // the tip arrives while the caption is up: it takes the row
+          expect([key, shownRows()]).toEqual([key, phone ? ['#tip .tip-row'] : ['#goals .goal-strip', '#tip .tip-row', '#cheer .cheer']]);
+          if (phone && !(end() < 50)) over.push(`${key} with a tip: ends at ${end().toFixed(1)}%`);
         } finally { r.cleanup(); }
       }
     }
     expect(over).toEqual([]);
-    for (const [, reason] of Object.values(EXCEPTIONS)) expect(reason.length).toBeGreaterThan(40);
+  });
+  it('in the game: a phone words a goal\'s caption as the strip changing, shows only info captions under a banner, and lists every caption under Recent', async () => {
+    for (const [w, h] of [[390, 844], [1280, 800]]) {
+      const r = await rigUI({ width: w, height: h });
+      try {
+        const phone = w < 900, cheer = r.root.querySelector('#cheer');
+        r.ui.celebrations.clear();
+        r.ui.onEvents([{ type: 'goal', id: 'road', reward: 25 }]);
+        const node = cheer.querySelector('.cheer');
+        expect(node.querySelector('.text').textContent).toBe(`${T.goalDone}: ${GOALS[0].text}`);   // whole for screen readers
+        expect([w, node.querySelector('.icon').textContent, node.querySelector('.lead').getBoundingClientRect().width > 2]).toEqual([w, phone ? T.doneMark : '★', !phone]);   // "✓ Lay a road +25 gold" on a phone
+        r.ui.celebrations.clear();
+        r.world.gold = -5;                                                     // debt: a banner
+        r.ui.refresh();
+        r.ui.onEvents([{ type: 'first', id: 'first_family', reward: 10, x: 12.5, y: 9.5 }]);
+        expect([w, cheer.querySelectorAll('.cheer').length]).toEqual([w, phone ? 0 : 1]);   // a phone under a banner: to Recent only
+        r.ui.celebrations.clear();
+        r.ui.celebrations.show({ tier: 'info', text: 'The blaze at the potter is out.' });
+        expect([w, cheer.querySelectorAll('.cheer.info').length]).toEqual([w, 1]);   // info captions still show
+        r.store.set(openSheet(r.store.get(), 'goals'));
+        const recent = [...r.root.querySelectorAll('#sheet .recent li .text')].map((n) => n.firstChild.textContent);
+        expect(recent).toEqual(['The blaze at the potter is out.', FIRST_TEXT.first_family.head, `${T.goalDone}: ${GOALS[0].text}`]);   // newest first
+      } finally { r.cleanup(); }
+    }
   });
   it('bursts a sparkle of diamonds, or a still ring under reduced motion, gone after 1.2 s', () => {
     expect(EFFECT_MS.sparkle).toBe(1200);

@@ -90,14 +90,15 @@ export function createDanger(ctx) {
   }
 
   // D1: the banner's other buttons (src/ui/alerts.js). View on a raid's alert moves the camera to its map point (it has no
-  // building to select); "+N more" opens the minimap sheet, whose list holds every alert.
+  // building to select); "+N more" opens the minimap sheet, whose list holds every alert; a phone's countdown chip opens the
+  // raid sheet, which is the tribute sheet (ruling 167).
   function onAlertAction(alert, action) {
     if (action === 'view' && Number.isFinite(alert.x) && Number.isFinite(alert.y)) {
       const s = ctx.store.get();
       if (s.sheet) ctx.store.set(closeSheet(s));
       ctx.cameraControl.panTo(alert.x + 0.5, alert.y + 0.5);
     } else if (action === 'more') ctx.store.set(openSheet(ctx.store.get(), 'minimap'));
-    else if (action === 'tribute') ctx.store.set(openSheet(ctx.store.get(), 'tribute'));   // D3: the confirmation sheet
+    else if (action === 'tribute' || action === 'warning') ctx.store.set(openSheet(ctx.store.get(), 'tribute'));   // D3: the confirmation sheet
   }
 
   // D3: the sheets' parts (src/ui/dangerSheets.js). Each asks only of a real building in this city.

@@ -21,6 +21,11 @@ describe('ui accessibility', () => {
     const r = await rigUI({ width: 390, height: 844 });
     const unnamed = () => [...r.root.querySelectorAll('button, [role="button"]')].filter((b) => !nameOf(b)).map((b) => b.className);
     expect(unnamed()).toEqual([]);
+    // A raid warning: the phone's one-line chip and View, then (below, wide) the full banner's buttons.
+    r.world.raid.warning = { index: 1, entry: { x: 31, y: 16 }, dir: 'east', size: 6, tribute: 240, target: 'storehouse', day: r.world.day, arrives: r.world.day + 72, first: false };
+    r.world.gold = -5;
+    r.ui.refresh();
+    expect([r.root.querySelectorAll('#banner button').length, unnamed()]).toEqual([2, []]);
     for (const kind of ['summary', 'minimap', 'menu', 'settings', 'help', 'about']) {
       r.store.set(openSheet(r.store.get(), kind));
       expect(unnamed()).toEqual([]);
@@ -28,7 +33,7 @@ describe('ui accessibility', () => {
     r.store.set(select(r.store.get(), buildingAt(r.world, 15, 11).id));
     expect(unnamed()).toEqual([]);
     r.resize(1280, 800);
-    expect(unnamed()).toEqual([]);
+    expect([r.root.querySelectorAll('#banner button').length, unnamed()]).toEqual([4, []]);   // View, Pay tribute, Shrink, +1 more
     expect(r.canvas.getAttribute('aria-describedby')).toBe('map-summary');
     expect(r.root.querySelector('#map-summary').textContent.length).toBeGreaterThan(0);
     r.cleanup();

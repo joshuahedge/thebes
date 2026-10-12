@@ -5,6 +5,10 @@ import { createCamera, tileToScreen } from '../../src/render/camera.js';
 import { createRenderer } from '../../src/render/renderer.js';
 import { createUI } from '../../src/ui/createUI.js';
 
+// uiWorld, already running as the interface starts. On a paused phone a tip fired at the start (the test city's problem
+// marker) waits for Play in the one-tip slot (ruling 176) and would show ahead of the tip a test is after.
+export function runningUiWorld() { const w = uiWorld(); w.speed = 1; return w; }
+
 // Road along y = 10; huts north of it; services south of it. Fertile land is x < 8 (makeTestWorld's default).
 export function uiWorld() {
   const world = makeTestWorld({ gold: 1000 });

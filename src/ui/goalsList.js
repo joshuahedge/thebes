@@ -1,8 +1,10 @@
 // The goals list (spec 4.1; early-game pass 2.7, 3.3 and 3.7). The strip under the top bar shows the first
 // open goal with its progress ("2 of 6"), its reward, a filled Show me, Goals and, while the guide runs, Skip
-// guide; the whole row hides when no goal is open. The goals sheet shows up to three open goals grouped by
-// chapter, then today's daily goals. Goal state lives in the world (src/sim/goals.js, src/sim/daily.js):
-// this file reads it, and changes it only through swapDaily.
+// guide; the whole row hides when no goal is open. On a phone (ruling 170) the strip is one row: the label and the
+// goal's words are one button that opens the goals sheet, then the progress and Show me; the reward and Skip guide are
+// in the sheet. The goals sheet shows up to three open goals grouped by chapter, then today's daily goals, then the
+// Recent captions (ruling 165). Goal state lives in the world (src/sim/goals.js, src/sim/daily.js): this file reads
+// it, and changes it only through swapDaily.
 import { DAILY_REWARD } from '../data/daily.js';
 import { FOUNDED } from '../data/goals.js';
 import { MILESTONES } from '../data/progression.js';
@@ -15,7 +17,7 @@ import { alertsFor } from '../sim/alerts.js';
 import { housesOf, population } from '../sim/world.js';
 import { TERRAIN_BY_NAME } from '../sim/terrain.js';
 import { el, button, clear, setText } from './components.js';
-import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, progressText, progressLabel, dailyDoneText, swapLabel, showMeLabel, thresholdMilestoneText, thresholdMedalText } from './text.js';
+import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, cheerReward, progressText, progressLabel, dailyDoneText, swapLabel, showMeLabel, goalsOpenLabel, thresholdMilestoneText, thresholdMedalText } from './text.js';
 
 const FOCUS_CLASSES = ['show-me', 'open-goals', 'skip-guide'];
 
@@ -121,7 +123,9 @@ export function thresholdFor(world) {
   return { kind: 'medal', text: thresholdMedalText(s.next), share: clamp((s.raw - from) / (MEDALS[k].at - from)) };
 }
 
-export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGuide = () => {} }) {
+// phone(): a phone layout (portrait or compact), whose strip is one row. barAllowed(): whether the next-threshold bar may
+// show under the strip now (createUI: on a phone only in calm portrait play outside the guide, spec 4.1).
+export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGuide = () => {}, phone = () => false, barAllowed = () => true }) {
   const strip = el('div', { class: 'goal-strip', hidden: true });
   // The next-threshold bar under the strip: its words, and a meter that repeats them for sight (never alone).
   const barText = el('span', { class: 'threshold-text small' });
@@ -129,28 +133,39 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
   const meter = el('span', { class: 'threshold-meter', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100' }, [fill]);
   const bar = el('div', { class: 'threshold', hidden: true }, [barText, meter]);
   container.append(strip, bar);
-  let shownId, parts = null;
+  let shownId, shownPhone, parts = null;
 
-  // Rebuilt only when the goal changes (refreshChrome runs every day and command), so focus survives refreshes.
+  // Rebuilt only when the goal or the layout's kind changes (refreshChrome runs every day and command), so focus
+  // survives refreshes.
   function build(goal) {
     const focusedClass = strip.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => FOCUS_CLASSES.includes(c)) : null;
     clear(strip);
     parts = null;
+    strip.classList.toggle('one-row', shownPhone);
     if (!goal) return;
     const progress = el('span', { class: 'chip small', role: 'img' });
     const text = el('span', { class: 'text' });
     const showMe = showMeButton(goal, onShowMe);
-    const skip = button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() });
-    strip.append(
-      el('span', { class: 'main' }, [
-        el('span', { class: 'label small muted' }),        // "Goal", or the opening chain's count ("1 of 10")
-        text,
-        progress,
-        el('span', { class: 'reward small muted wide-only', text: rewardText(goal.reward) }),   // phones read the reward in the goals sheet
-      ]),
-      el('span', { class: 'buttons' }, [showMe, button(T.goals, { class: 'open-goals quiet', onClick: onOpen }), skip]),
-    );
-    parts = { text, progress, showMe, skip, label: strip.querySelector('.label') };
+    const label = el('span', { class: 'label small muted' });   // "Goal", or the opening chain's count ("1 of 10")
+    if (shownPhone) {
+      // One row (ruling 170): the label, the words and the progress are one flow of words, two lines at most, on the button
+      // that opens the goals sheet (its name has all of them, in case the words are cut); then Show me.
+      const open = el('button', { type: 'button', class: 'main open-goals', onClick: onOpen }, [el('span', { class: 'words' }, [label, ' ', text, ' ', progress])]);
+      strip.append(open, el('span', { class: 'buttons' }, [showMe]));
+      parts = { text, progress, showMe, skip: null, label, open };
+    } else {
+      const skip = button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() });
+      strip.append(
+        el('span', { class: 'main' }, [
+          label,
+          text,
+          progress,
+          el('span', { class: 'reward small muted wide-only', text: rewardText(goal.reward) }),   // phones read the reward in the goals sheet
+        ]),
+        el('span', { class: 'buttons' }, [showMe, button(T.goals, { class: 'open-goals quiet', onClick: onOpen }), skip]),
+      );
+      parts = { text, progress, showMe, skip, label, open: null };
+    }
     update(goal);
     if (focusedClass) {
       const again = strip.querySelector(`.${focusedClass}`);
@@ -166,6 +181,8 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
     const c = countOf(world, goal);
     parts.progress.hidden = !c;
     if (c) { setText(parts.progress, c.text); parts.progress.setAttribute('aria-label', c.label); }
+    if (parts.open) parts.open.setAttribute('aria-label', goalsOpenLabel(o ? `${T.goal} ${progressText(o.done, o.of)}` : T.goal, goal.text, c ? c.label : ''));
+    if (!parts.skip) return;
     const hide = !guideActive(world);
     if (hide && document.activeElement === parts.skip) parts.showMe.focus();   // Skip guide hides itself: keep focus in the strip
     parts.skip.hidden = hide;
@@ -173,7 +190,7 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
   // The bar shows with the strip, and on its own from Capital (the medals; every goal may be done by then).
   function renderBar(hasGoal) {
     const t = thresholdFor(world);
-    const show = Boolean(t) && (hasGoal || t.kind === 'medal');
+    const show = Boolean(t) && (hasGoal || t.kind === 'medal') && barAllowed();
     bar.hidden = !show;
     if (!show) return false;
     const pct = Math.round(t.share * 100);
@@ -189,19 +206,21 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
     strip.hidden = !goal;
     const barShown = renderBar(Boolean(goal));
     container.hidden = !goal && !barShown;            // no empty row, and so no gap, in #under-bar
-    if (id !== shownId) { shownId = id; build(goal); }
+    if (id !== shownId || phone() !== shownPhone) { shownId = id; shownPhone = phone(); build(goal); }
     else if (goal) update(goal);
   }
   render();
   return { render };
 }
 
-// The goals sheet: the chain's count, up to three open goals by chapter, then Today when daily goals are drawn.
-export function goalsSheet(world, { onShowMe, onSwap = (i) => swapDaily(world, i).ok }) {
+// The goals sheet: the chain's count, Skip guide where the strip has none (a phone, ruling 170: skipHere()), up to three
+// open goals by chapter, Today when daily goals are drawn, then Recent: the last captions (ruling 165), newest first.
+export function goalsSheet(world, { onShowMe, onSwap = (i) => swapDaily(world, i).ok, recent = () => [], skipHere = () => false, onSkipGuide = () => {} }) {
   function draw(body) {
     const chain = chainGoals(world);                   // Stage 3: a Peaceful city's chain has no raid goals
     const done = chain.filter((g) => world.goals.completed.includes(g.id)).length;   // event goals never count against the chain
     body.append(el('p', { class: 'muted', text: goalsProgressText(done + 1, chain.length + 1) }));   // Founded Thebes is done from the start
+    if (skipHere() && guideActive(world)) body.append(el('p', { class: 'skip-row' }, [button(T.skipGuide, { class: 'skip-guide quiet', onClick: () => onSkipGuide() })]));   // one tap, no confirm (spec 3.2)
     const open = openGoals(world, 3);
     if (!open.length) body.append(el('p', { text: T.goalsDone }));
     const chapters = [];
@@ -212,6 +231,12 @@ export function goalsSheet(world, { onShowMe, onSwap = (i) => swapDaily(world, i
       body.append(el('h3', { text: CHAPTER_NAMES[ch] || '' }), el('ul', { class: 'goals' }, rows));
     }
     if (world.daily) body.append(...today(body));
+    const past = recent();
+    if (past.length) {
+      body.append(el('h3', { text: T.recent }), el('ul', { class: 'recent' }, past.map((c) => el('li', { class: `recent-${c.tier}` }, [
+        el('span', { class: 'text' }, [c.text, c.why ? el('span', { class: 'why small muted', text: c.why }) : null]), c.reward > 0 ? el('span', { class: 'reward small teal', text: cheerReward(c.reward) }) : null,
+      ]))));
+    }
   }
   // Founded Thebes (spec 4.1): done in words, the tick decoration; it pays nothing, so no reward shows.
   function foundedRow() {

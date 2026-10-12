@@ -13,7 +13,7 @@ import { select, openSheet } from '../../src/ui/modes.js';
 import { T, TIP_TEXT, caravanText, dateText, partnerName } from '../../src/ui/text.js';
 import { setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { fire, key } from '../helpers/dom.js';
-import { rigUI, uiWorld } from '../helpers/uiWorld.js';
+import { rigUI, uiWorld, runningUiWorld } from '../helpers/uiWorld.js';
 
 // The test city at Market town with a staffed trading post south of the road (uiWorld's road runs along y = 10).
 function tradeWorld({ milestone = 'market_town', joined = true } = {}) {
@@ -184,7 +184,7 @@ describe('ui trade sheet', () => {
   });
   it('brings the trade tip once the first trading post is placed and the tool closes', async () => {
     let t = 0;
-    const r = await rigUI({ now: () => t });
+    const r = await rigUI({ now: () => t, world: runningUiWorld() });
     try {
       settle(r.world, []);
       r.world.milestone = 'market_town';

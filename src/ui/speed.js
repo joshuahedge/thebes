@@ -38,7 +38,9 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
       const states = [['▶', T.play], ...[1, 2, 3].map((s) => ['❚❚', SPEED_LABELS[s]])];
       const sizers = states.map(([g, w]) => el('span', { class: 'sizer', 'aria-hidden': 'true' }, [icon(g), el('span', { text: w })]));
       const main = el('button', { type: 'button', class: 'speed-main primary' }, [el('span', { class: 'face' }, [glyph, word]), ...sizers]);
-      const chevron = iconButton(T.speed, '▴', { class: 'speed-chevron', 'aria-expanded': 'false' });   // ▴ renders in every system font
+      // The chevron says its word like the other corner buttons (ruling 174): a bare ▴ read as "scroll up". Its name is the same word.
+      const chevron = iconButton(T.speed, '▴', { class: 'speed-chevron labelled', 'aria-expanded': 'false' });   // ▴ renders in every system font
+      chevron.append(el('span', { class: 'label', text: T.speed }));
       const options = el('div', { class: 'speed-options', hidden: true });
       for (const s of [1, 2, 3]) options.append(button(SPEED_LABELS[s], { onClick: () => { api.set(s); options.hidden = true; chevron.setAttribute('aria-expanded', 'false'); } }));
       main.addEventListener('click', () => api.toggle());
