@@ -90,6 +90,10 @@ export function driftPoints(world) {
   return [[cx - 4, cy - 3], [cx + 4, cy], [cx, cy + 4], [cx - 3, cy + 1]].map(([x, y]) => [clamp(x), clamp(y)]);
 }
 
+// Stage 4 (spec 5.4, ruling 247, Track E): the backdrop drifts under Full only. reducedMotion() is boot's
+// settings.reducedMotion ("anything but Full"), so under Gentle and Still the view holds still, and a drift under way when
+// the level leaves Full (the device's setting changed, read live) stops where it is at once; it starts again from the
+// next point when Full comes back.
 export function createBackdrop({ world, cam, cameraControl, reducedMotion = () => false, driftMs = TITLE_DRIFT_MS }) {
   const points = driftPoints(world);
   let i = 0, nextAt = null, stopped = false;
@@ -97,7 +101,11 @@ export function createBackdrop({ world, cam, cameraControl, reducedMotion = () =
   return {
     points,
     tick(now) {
-      if (stopped || reducedMotion()) return;          // reduced motion: the view stays still (spec 5.4)
+      if (stopped) return;
+      if (reducedMotion()) {                           // Gentle or Still: the view stays still (spec 5.4)
+        if (nextAt !== null) { cameraControl.cancel(); nextAt = null; }
+        return;
+      }
       if (nextAt !== null && now < nextAt) return;
       i = (i + 1) % points.length;
       cameraControl.panTo(points[i][0], points[i][1], driftMs);

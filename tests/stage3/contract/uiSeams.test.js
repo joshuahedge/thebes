@@ -278,7 +278,7 @@ describe('s3 contract settings, title, sound and words', () => {
       const s = createSettings({ storage, root, systemReducedMotion: () => false });
       s.set({ ambient: false, fireReaction: 'goto' });
       s.set({ ambient: 'no', fireReaction: 'panic', difficulty: 'peaceful' });
-      expect([s.get().ambient, s.get().motion, s.get().fireReaction, s.get().difficulty]).toEqual([false, 'still', 'goto', 'peaceful']);
+      expect([s.get().ambient, s.get().motion, s.get().fireReaction, s.get().difficulty]).toEqual([undefined, 'still', 'goto', 'peaceful']);   // Stage 4: no mirror
       expect(createSettings({ storage, root, systemReducedMotion: () => false }).get().fireReaction).toBe('goto');
     } finally { cleanup(); }
   });
