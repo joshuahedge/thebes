@@ -18,6 +18,6 @@ export function monthlyEconomy(world) {
   const soldiers = soldiersPayOf(world);               // spec 4.11: every soldier, in peace too, a paused barracks' as well
   const net = taxes - wages - upkeep - soldiers;
   world.gold += net;
-  world.stats.lastMonth = { taxes, wages, upkeep, soldiers, net };
+  world.stats.lastMonth = { taxes, wages, upkeep, soldiers, net, monuments: 0 };   // Stage 4: monumentMonth fills monuments (it is not in net: it was paid daily)
   if (net > 0) world.tally.profitMonths += 1;
 }

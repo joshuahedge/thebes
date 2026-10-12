@@ -21,6 +21,8 @@ import { fireDay } from './fire.js';
 import { raidDay, raidMonth } from './raids.js';
 import { checkFeats } from './feats.js';
 import { scoreRow } from './score.js';
+import { monumentDay, monumentMonth, updatePrestigeUnlocks } from './monuments.js';
+import { palaceDay } from './palace.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
 
@@ -34,6 +36,7 @@ export function runMonth(world, events = null) {
   const heldAfter = homeGoodsHeld(world);
   departures(world);
   monthlyEconomy(world);
+  monumentMonth(world, events);                        // Stage 4: last month's monument gold and each site's month (src/sim/monuments.js)
   const tradeSpent = tradeMonth(world, events);
   raidMonth(world, events);                            // Stage 3 (src/sim/raids.js)
   updateMood(world);
@@ -53,6 +56,9 @@ export function runMonth(world, events = null) {
 export function tickDay(world, events = null) {
   assignLabour(world);
   produceDay(world);
+  monumentDay(world, events);                          // Stage 4: crews, deliveries, courses and work gold (src/sim/monuments.js)
+  updatePrestigeUnlocks(world, events);                // the pyramids' prestige unlocks and the two Stage 4 splits
+  palaceDay(world, events);                            // the palace's works (src/sim/palace.js)
   fireDay(world, events);                              // Stage 3: fire, then raids and combat (src/sim/fire.js, raids.js)
   raidDay(world, events);
   world.day += 1;
