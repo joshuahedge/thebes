@@ -72,6 +72,28 @@ describe('ui camera control', () => {
       expect([move, close(sy, 600 - 300 - FRAME_MARGIN_PX, 0.01)]).toEqual([move, true]);   // just inside: the default margin, no more
     }
   });
+  it('keepVisible with an extent keeps the whole drawn building in the free band: its top as well as its ground', () => {
+    const insets = { top: 100, right: 0, bottom: 300, left: 0 };            // free band with an 8 px margin: y from 108 to 292
+    const cam = createCamera({ x: 32, y: 32, zoom: 1 });
+    const ctl = createCameraControl({ cam, view, reducedMotion: () => true, now: () => 0 });
+    ctl.keepVisible(32, 32, insets, 8, 0, { up: 30, down: 8 });              // 60 px up and 16 px down on screen at zoom 1; the point starts at y 300
+    let [, sy] = tileToScreen(cam, view(), 32, 32);
+    expect(close(sy + 16, 292, 0.01)).toBe(true);                            // its ground edge was under the band: up by the least
+    // a point whose roof is under the legend moves down by the least
+    const cam2 = createCamera({ x: 32, y: 32, zoom: 1 });
+    const ctl2 = createCameraControl({ cam: cam2, view, reducedMotion: () => true, now: () => 0 });
+    ctl2.keepVisible(32, 32, { top: 250, right: 0, bottom: 100, left: 0 }, 8, 0, { up: 30, down: 0 });   // roof at 300 - 60 = 240, band from 258
+    [, sy] = tileToScreen(cam2, view(), 32, 32);
+    expect(close(sy - 60, 258, 0.01)).toBe(true);
+  });
+  it('keepVisible with an extent taller than the band centres it in the band', () => {
+    const insets = { top: 100, right: 0, bottom: 400, left: 0 };            // band 108..192, 84 px
+    const cam = createCamera({ x: 32, y: 32, zoom: 1 });
+    const ctl = createCameraControl({ cam, view, reducedMotion: () => true, now: () => 0 });
+    ctl.keepVisible(32, 32, insets, 8, 0, { up: 60, down: 20 });             // 160 px of building
+    const [, sy] = tileToScreen(cam, view(), 32, 32);
+    expect(close(((sy - 120) + (sy + 40)) / 2, 150, 0.01)).toBe(true);
+  });
   it('panToKeeping centres a place and nudges the least to keep a second point in the free map, tween or jump', () => {
     const insets = { top: 0, right: 0, bottom: 200, left: 0 };            // free map: y from 48 to 352 with the margin, x from 48 to 752
     for (const reduced of [true, false]) {
