@@ -81,19 +81,22 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, no
     // Show me centres the place and still never leaves the ghost off screen. Works from where the camera will
     // be, not where it is, so it is right whether the move is tweened or a jump.
     // When the place and the point cannot both fit, the point wins and the place moves off centre.
-    panToKeeping(cx, cy, x, y, insets = NO_INSETS, margin = FRAME_MARGIN_PX, ms = CAMERA_PAN_MS) {
-      const centre = nudgedCentre(cam, view(), cx, cy, x, y, insets, margin) || { x: cx, y: cy };
-      begin(centre.x, centre.y, cam.zoom, ms);
+    // extent and zoom as keepVisible's (Stage 4: Show me for a monument passes the pick's fit, ruling 231).
+    panToKeeping(cx, cy, x, y, insets = NO_INSETS, margin = FRAME_MARGIN_PX, ms = CAMERA_PAN_MS, extent = null, zoom = null) {
+      const z = zoom === null ? cam.zoom : clampZoom(zoom);
+      const centre = nudgedCentre({ zoom: z }, view(), cx, cy, x, y, insets, margin, extent) || { x: cx, y: cy };
+      begin(centre.x, centre.y, z, ms);
     },
     // As panToKeeping, but (cx, cy) goes to the middle of the map the insets leave free rather than the middle of the
     // screen: a phone frames a place between the rows under the top bar and the sheet or bar below (ruling 168).
-    frameKeeping(cx, cy, x, y, insets = NO_INSETS, margin = FRAME_MARGIN_PX, ms = CAMERA_PAN_MS) {
+    frameKeeping(cx, cy, x, y, insets = NO_INSETS, margin = FRAME_MARGIN_PX, ms = CAMERA_PAN_MS, extent = null, zoom = null) {
       const v = view();
+      const z = zoom === null ? cam.zoom : clampZoom(zoom);
       const midX = insets.left + (v.width - insets.left - insets.right) / 2;
       const midY = insets.top + (v.height - insets.top - insets.bottom) / 2;
-      const framed = screenToTile({ x: cx, y: cy, zoom: cam.zoom }, v, v.width - midX, v.height - midY);
-      const centre = nudgedCentre(cam, v, framed.x, framed.y, x, y, insets, margin) || framed;
-      begin(centre.x, centre.y, cam.zoom, ms);
+      const framed = screenToTile({ x: cx, y: cy, zoom: z }, v, v.width - midX, v.height - midY);
+      const centre = nudgedCentre({ zoom: z }, v, framed.x, framed.y, x, y, insets, margin, extent) || framed;
+      begin(centre.x, centre.y, z, ms);
     },
   };
 }

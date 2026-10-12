@@ -19,8 +19,13 @@
 //     that extent ({ up, down } art px: the silhouette). Ruling 231.
 //   markerTap(marker) -> true when it handled a tap on a problem marker (src/render/markers.js); createUI otherwise selects
 //     the marker's front building. A count badge zooming in one step is C's (ruling 281).
+// Show me (createUI's showMeAt: a goal, a site's "No crew" row, a stall's alert row) asks pickFit too when it lands a
+// monument's ghost. And one optional hook (Task 0.5; createUI checks it is a function):
+//   grabExtent(type, rot) -> null, or { up }: how far a monument's ghost can be grabbed above its footprint (spec 6.5
+//     "drag by the body"), in art px at zoom 1 (createUI scales it with the camera as it draws).
 //
-// STUB: no sheets, no parts, no fit (the pick pans as for any building) and no marker handling of its own.
+// STUB: no sheets, no parts, no fit (the pick pans as for any building), no grab above the footprint and no marker
+// handling of its own.
 export function createMonumentUi(ctx) {
   return {
     sheets: {},
@@ -30,6 +35,8 @@ export function createMonumentUi(ctx) {
     onAlertAction(alert, action) {},
     onCommand(e) {},
     pickFit(type, ghost, insets) { return null; },
+    // STUB. Owned by C: the silhouette's height above the footprint in art px at zoom 1, from footprintExtent.
+    grabExtent(type, rot) { return null; },
     markerTap(marker) { return false; },
     destroy() {},
   };

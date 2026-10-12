@@ -4,3 +4,4 @@ import './contract/worldV5.test.js';
 import './contract/simSeams.test.js';
 import './contract/uiSeams.test.js';
 import './contract/followups.test.js';
+import './contract/followups2.test.js';
