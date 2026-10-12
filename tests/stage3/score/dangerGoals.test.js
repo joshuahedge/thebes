@@ -134,6 +134,15 @@ describe('s3 score danger rewards', () => {
     const gold = w.gold, events = [];
     expect(checkFirsts(w, events)).toEqual(['first_firehouse', 'first_fire_out', 'first_wall', 'first_tower', 'first_raid_beaten']);
     expect([w.gold - gold, events[0]]).toEqual([5 * FIRST_REWARD, { type: 'first', id: 'first_firehouse', reward: FIRST_REWARD, x: 3.5, y: 11.5 }]);
+    const far = city();                                       // a firehouse and a tower no road touches earn no first (P11)
+    addRaw(far, 'firehouse', 3, 20);
+    addRaw(far, 'tower', 6, 20);
+    expect([firstMet(far, FIRSTS[15]), firstMet(far, FIRSTS[18])]).toEqual([null, null]);
+    far.firsts = FIRSTS.slice(0, 15).map((f) => f.id);
+    const farGold = far.gold;
+    expect([checkFirsts(far, []), far.gold - farGold]).toEqual([[], 0]);
+    setRoad(far, 3, 21, 6, 21);                               // a road reaches both: now they count
+    expect([firstMet(far, FIRSTS[15]), firstMet(far, FIRSTS[18])]).toEqual([{ x: 3.5, y: 20.5 }, { x: 6.5, y: 20.5 }]);
     const out = city();
     out.tally.blazesOut = 1;
     expect(firstMet(out, FIRSTS.find((f) => f.id === 'first_fire_out'))).toEqual({ x: null, y: null });   // a blaze counts as much as a fire

@@ -5,12 +5,15 @@ import { allBuildings, housesOf, population } from './world.js';
 import { coveredBy } from './housing.js';
 import { laidRoadTiles } from './goals.js';
 import { raidsOn } from './costs.js';
+import { lacksRoad } from './reach.js';
 
 // Road tiles the player laid: every road tile that is not part of the generator's start road. One rule,
 // shared with the road goal (src/sim/goals.js).
 export const roadsLaid = laidRoadTiles;
 
-export const countType = (world, type) => allBuildings(world).filter((b) => b.type === type).length;
+// Buildings of a type that count: one that needs a road counts only once a road touches it (ruling P11), as the
+// "Build a" goals count them. Achievements and daily goals share it.
+export const countType = (world, type) => allBuildings(world).filter((b) => b.type === type && !lacksRoad(world, b)).length;
 
 // The counting measures; null for the yes/no ones.
 function count(world, m) {

@@ -5,6 +5,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { TIERS } from '../data/housing.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { allBuildings, housesOf, population } from './world.js';
+import { lacksRoad } from './reach.js';
 
 const centre = (b) => (b ? { x: b.x + b.w / 2, y: b.y + b.d / 2 } : { x: null, y: null });
 const isFull = (h) => h.tier >= 1 && h.residents >= TIERS[h.tier].capacity;
@@ -41,8 +42,8 @@ export function firstMet(world, def) {
       const all = allBuildings(world);
       return centre(all.find(holds(c.good)) || all.find(makes(c.good)));
     }
-    case 'building': {                                                   // Stage 3: the first one of a type, where it stands
-      const b = allBuildings(world).find((x) => x.type === c.type);
+    case 'building': {                                                   // Stage 3: the first one of a type a road touches (P11), where it stands
+      const b = allBuildings(world).find((x) => x.type === c.type && !lacksRoad(world, x));
       return b ? centre(b) : null;
     }
     case 'tallies':                                                      // Stage 3: tallies added together (blazes and fires put out)
