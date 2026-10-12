@@ -51,14 +51,14 @@ describe('ui panels', () => {
       } finally { r.cleanup(); }
     }
   });
-  it('rail: category icons open and close the drawer; tick and cross appear in tool modes', () => {
+  it('rail: category icons open and close the drawer, and the rail holds no tick or cross (the confirm bar has them)', () => {
     const { root, cleanup } = mount();
     const world = makeTestWorld({ gold: 1000 });
     setRoad(world, 0, 10, 31, 10);
     const store = createStore({ ...INITIAL_UI_STATE, layout: 'compact' });
     const placement = createPlacement({ world, store });
     const log = [];
-    createRail({ container: root, store, world, onPick: (i) => log.push(i), onConfirm: () => log.push('ok'), onCancel: () => log.push('cancel'), placement });
+    createRail({ container: root, store, world, onPick: (i) => log.push(i) });
     const cats = root.querySelectorAll('.cat');
     expect(cats.length).toBe(5);
     expect(root.querySelector('.drawer').hidden).toBe(true);
@@ -67,16 +67,9 @@ describe('ui panels', () => {
     expect(root.querySelectorAll('.drawer .card').length).toBe(3);   // plots, garden, statue (locked until Town)
     fire(cats[1], 'click');
     expect(root.querySelector('.drawer').hidden).toBe(true);
-    expect(root.querySelector('.bottom').hidden).toBe(true);
     placement.start({ kind: 'building', type: 'well' }, { x: 5, y: 20 });
-    placement.moveGhost(5, 20);                                    // the start lands on the nearest fit; put the ghost back where nothing fits
-    expect(root.querySelector('.bottom').hidden).toBe(false);
-    expect(root.querySelector('.ok').disabled).toBe(true);
-    placement.moveGhost(5, 9);
-    expect(root.querySelector('.ok').disabled).toBe(false);
-    fire(root.querySelector('.ok'), 'click');
-    fire(root.querySelector('.cancel'), 'click');
-    expect(log).toEqual(['ok', 'cancel']);
+    expect([root.querySelector('.bottom'), root.querySelector('.ok'), root.querySelector('.cancel')]).toEqual([null, null, null]);   // a tool's x and tick are the confirm bar's (ruling 173)
+    expect(log).toEqual([]);
     placement.cancel();
     fire(cats[1], 'click');
     expect(root.querySelector('.drawer').hidden).toBe(false);

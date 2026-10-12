@@ -39,7 +39,7 @@ import { createSheets } from './sheets.js';
 import { createMinimap } from './minimap.js';
 import { createAlerts, mapSummaryText } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
-import { createToasts } from './toasts.js';
+import { createToasts, MAX_TOASTS, MAX_TOASTS_PHONE } from './toasts.js';
 import { createCelebrations } from './celebrate.js';
 import { createTips } from './tips.js';
 import { createNudge, nudgeLineText, NUDGE_MAX_STEP_MS } from './nudge.js';
@@ -93,7 +93,7 @@ export function createUI({
   if (world.achievements === null) checkAchievements(world);
   const sfx = givenSfx || createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
-  const toasts = createToasts({ container: $('toasts') });
+  const toasts = createToasts({ container: $('toasts'), max: () => (store.get().layout === 'wide' ? MAX_TOASTS : MAX_TOASTS_PHONE) });
   const effects = createEffects({ reducedMotion: settings.reducedMotion });
   // Tips and the idle nudge (early-game pass 3.4, 3.5): quiet, never over the map, both off under Help: Off. frameNow is
   // the latest frame's time, so the nudge counts only time the player actually watched. The tips' 3-minute gap and
@@ -152,10 +152,10 @@ export function createUI({
   const dock = createDock({ container: $('dock'), store, world, onPick: pick });
   const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: confirm, onUndo: undo });
   const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas });
-  const rail = createRail({ container: $('rail'), store, world, onPick: pick, onConfirm: confirm, onCancel: () => placement.cancel(), placement });
+  const rail = createRail({ container: $('rail'), store, world, onPick: pick });
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
   const legend = createOverlayLegend({ container: $('legend'), store });
-  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count() });
+  const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: () => legend.cycle(), alertCount: () => alerts.count(), viewHeight: () => view().height });
   const goalsStrip = createGoalsStrip({ container: $('goals'), world, onShowMe: showMe, onOpen: () => toggleSheet('goals'), onSkipGuide: skipGuide });
   $('goals').append(nudgeRegion);                      // the nudge's one line sits under the strip and hides with it (early-game pass 3.5)
   // Stage 3 seams (the Stage 3 plan's contract): the danger interface (Track D, ui/danger.js) and the score interface
@@ -180,6 +180,7 @@ export function createUI({
   let lastHelp = settings.get().help;
   const stopSettingsWatch = settings.subscribe((v) => {
     sidePanel.render();
+    corners.render();                                    // a new text size moves the tray's top edge: the corners may need to step away from it (or back)
     if (v.help === lastHelp) return;
     lastHelp = v.help;
     if (v.help !== 'full' && world.guide.on) { setGuide(world, false); refresh(); }

@@ -144,7 +144,8 @@ describe('s3 ui alert tiers', () => {
       r.world.day = 72;                                                                    // raidDay brings them in on this day's step
       a.refresh();
       expect(r.banner.querySelector('.critical strong').textContent).toBe('Raiders from the east are after your storehouses. They arrive today.');
-      expect(D.chip('north', 90)).toBe('Raid from the north · 3 m 0 d');
+      expect(D.chip('north', 90)).toBe('Raid from the north · 3 months');             // no "0 d" when the days come out at 0 (ruling 174)
+      expect([D.chip('east', 31), D.chip('east', 30), D.chip('east', 29), D.chip('east', 0)]).toEqual(['Raid from the east · 1 m 1 d', 'Raid from the east · 1 month', 'Raid from the east · 29 d', 'Raid from the east · 0 d']);
     } finally { r.cleanup(); }
   });
 

@@ -30,6 +30,8 @@ describe('ui corner words', () => {
       expect(w.speed).toBe(0);
       expect(main.getAttribute('aria-label')).toBe('Play');
       expect(root.querySelector('.speed-chevron .icon').textContent).toBe('▴');
+      const chevron = root.querySelector('.speed-chevron');                       // the chevron says its word too, like the other corner buttons (ruling 174)
+      expect([chevron.querySelector('.label').textContent, chevron.getAttribute('aria-label')]).toEqual(['Speed', 'Speed']);
     } finally { cleanup(); }
   });
   it('keeps the speed button one width, so the chevron stays put between Play and every speed', async () => {
@@ -142,5 +144,47 @@ describe('ui corner words', () => {
       c.store.set(openSheet(c.store.get(), 'summary'));
       expect(box(c, '#corners .right').right).toBeLessThanOrEqual(box(c, '#sheet').left + 0.5);
     } finally { c.cleanup(); }
+  });
+  it('hides the corner buttons while the portrait tray is open if they would sit above half the screen, and brings them back with the tray', async () => {
+    // What the tray's open height and the corners' own height put them at: above half on a short screen or at larger text.
+    for (const [w, h, size, hidden] of [[375, 667, 100, false], [375, 667, 125, true], [375, 667, 150, true], [390, 844, 100, false], [390, 844, 125, false], [360, 640, 100, false], [360, 640, 125, true], [390, 844, 150, false]]) {
+      const r = await rigUI({ width: w, height: h });
+      try {
+        r.ui.settings.set({ textSize: size });
+        const at = `${w}x${h} at ${size}%`, corners = r.root.querySelector('#corners');
+        const state = () => [getComputedStyle(corners).visibility, corners.classList.contains('over-half')];
+        expect([at, ...state()]).toEqual([at, 'visible', false]);
+        fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');           // the tray opens
+        expect(r.store.get().dock).toBe('tray');
+        const top = corners.getBoundingClientRect().top - r.root.getBoundingClientRect().top;
+        expect([at, top < h / 2, ...state()]).toEqual(hidden ? [at, true, 'hidden', true] : [at, false, 'visible', false]);
+        r.store.set({ dock: 'slim' });
+        expect([at, ...state()]).toEqual([at, 'visible', false]);
+      } finally { r.cleanup(); }
+    }
+  });
+  it('follows a text size change while the tray stays open, and leaves a tool, a compact screen and a wide one alone', async () => {
+    const r = await rigUI({ width: 375, height: 667 });
+    try {
+      const corners = r.root.querySelector('#corners');
+      fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click');
+      expect(corners.classList.contains('over-half')).toBe(false);
+      r.ui.settings.set({ textSize: 150 });
+      expect(corners.classList.contains('over-half')).toBe(true);
+      r.ui.settings.set({ textSize: 100 });
+      expect(corners.classList.contains('over-half')).toBe(false);
+      r.ui.settings.set({ textSize: 150 });
+      r.ui.placement.start({ kind: 'building', type: 'well' }, { x: 14, y: 9 });                // a tool shows the confirm bar, and the corners ride on it, not on the tray
+      expect(corners.classList.contains('over-half')).toBe(false);
+      r.ui.placement.cancel();
+      r.resize(667, 375);                                                                       // compact: the rail, no tray under the corners
+      expect(corners.classList.contains('over-half')).toBe(false);
+    } finally { r.cleanup(); }
+    const wide = await rigUI({ width: 1280, height: 800 });
+    try {
+      wide.ui.settings.set({ textSize: 150 });
+      wide.store.set({ dock: 'tray' });
+      expect(wide.root.querySelector('#corners').classList.contains('over-half')).toBe(false);
+    } finally { wide.cleanup(); }
   });
 });

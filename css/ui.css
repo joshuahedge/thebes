@@ -74,7 +74,6 @@ body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
    desirability bands) keeps its name and labels: swatches alone would be colour alone (spec 6.1). */
 body.has-banner #legend .strip:not(.graded) .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body[data-hand="left"] .confirm { flex-direction: row-reverse; }
-body[data-hand="left"] #rail .bottom { flex-direction: column-reverse; }
 
 /* Corner buttons: speed bottom-left, minimap and overlay bottom-right. Never in the middle. */
 #corners { position: fixed; left: var(--safe-left); right: var(--safe-right); bottom: calc(var(--safe-bottom) + var(--dock-slim) + 8px); display: flex; justify-content: space-between; padding: 0 8px; pointer-events: none; }
@@ -83,6 +82,7 @@ body[data-hand="left"] #rail .bottom { flex-direction: column-reverse; }
 body[data-dock="tray"] #corners { bottom: calc(var(--safe-bottom) + var(--dock-tray) + 8px); }
 body[data-dock="tucked"] #corners { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + 8px); }
 body[data-hand="left"] #corners { flex-direction: row-reverse; }
+#corners.over-half { visibility: hidden; }   /* the portrait tray is open and tall: the corners would sit in the middle of the map (corners.js) */
 .has-badge { position: relative; }
 .badge { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; border-radius: 10px; background: var(--coral-text); color: #FFFFFF; font-size: 12px; line-height: 20px; text-align: center; padding: 0 5px; }
 
@@ -134,7 +134,6 @@ body.panel-folded #panel > :not(.foldbar) { display: none; }
 /* Compact landscape: a slim rail on the right, trays as a drawer beside it. */
 #rail { position: fixed; top: calc(var(--safe-top) + var(--topbar-h)); right: 0; bottom: 0; width: calc(var(--rail-w) + var(--safe-right)); padding: 6px var(--safe-right) calc(6px + var(--safe-bottom)) 0; background: var(--parchment); border-left: 1px solid var(--parchment-3); display: flex; flex-direction: column; align-items: center; gap: 4px; overflow-y: auto; }
 #rail .cat { min-width: var(--tap); padding: 0; font-size: calc(18px * var(--ui-scale)); }
-#rail .bottom { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
 #rail .drawer { position: fixed; top: calc(var(--safe-top) + var(--topbar-h)); right: calc(var(--rail-w) + var(--safe-right)); bottom: 0; width: var(--drawer-w); background: var(--parchment-2); border-left: 1px solid var(--parchment-3); overflow-y: auto; }
 
 /* Sheets: a bottom sheet in portrait, a drawer in compact, the lower part of the panel column in wide. */
@@ -161,7 +160,15 @@ body[data-layout="compact"] #corners { right: calc(var(--rail-w) + var(--safe-ri
 body[data-dock="tray"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tray) + 64px); }
 body[data-dock="tucked"] #toasts { bottom: calc(var(--safe-bottom) + var(--dock-tucked) + 64px); }
 body[data-layout="wide"] #toasts { bottom: 24px; left: calc(50% - var(--panel-w) / 2); }
-body[data-layout="compact"] #toasts { bottom: 64px; left: calc(50% - var(--rail-w) / 2); }
+body[data-layout="compact"] #toasts { bottom: 64px; }
+/* On a phone a toast may use the screen's width, up to 420 px, with 16 px at each side (ruling 169); the old half-screen box made
+   it wrap a word a line at larger text. The sides run to the screen edge, or in compact to the rail; the same sets as the corners
+   keep it clear of the card drawer, the confirm bar and a sheet. margin: auto centres the toast box when 420 px is narrower. */
+body[data-layout="portrait"] #toasts, body[data-layout="compact"] #toasts { left: calc(var(--safe-left) + 16px); right: calc(var(--safe-right) + 16px); max-width: 420px; margin: 0 auto; transform: none; }
+body[data-layout="compact"] #toasts { right: calc(var(--rail-w) + var(--safe-right) + 16px); }
+body[data-layout="compact"]:has(#confirm:not([hidden])) #toasts, body[data-layout="compact"]:has(#sheet:not([hidden])) #toasts { right: calc(var(--rail-w) + var(--drawer-w) + var(--safe-right) + 16px); }
+body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #toasts { right: calc(var(--rail-w) + var(--drawer-w) + 17px + var(--safe-right) + 16px); }
+body[data-layout="portrait"] .toast, body[data-layout="compact"] .toast { max-width: 100%; box-sizing: border-box; }
 .toast { background: var(--ink); color: var(--parchment); border-radius: var(--radius); padding: 6px 8px 6px 14px; display: flex; gap: 12px; align-items: center; box-shadow: var(--shadow); }
 .toast button { min-height: var(--tap); background: transparent; color: var(--gold); border: none; font-weight: 600; }
 .toast button:focus-visible { outline-color: var(--gold); }

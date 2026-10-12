@@ -694,7 +694,7 @@ export const DANGER_UI_TEXT = {};
 // renamed with "as"; imports are hoisted, so they sit here in the section and the shared lines at the top stay as they are).
 import { DAYS_PER_MONTH as duiMonthDays } from '../sim/time.js';
 // Directions as raids name them (src/sim/raids.js entryDir), and a span of game days in words ("2 months 12 days") and
-// as the countdown chip writes it ("2 m 12 d"). A game month is DAYS_PER_MONTH days (src/sim/time.js).
+// as the countdown chip writes it ("2 m 12 d", and "2 months" when the days come out at 0, ruling 174). A game month is DAYS_PER_MONTH days (src/sim/time.js).
 const duiDirWords = { north: 'north', east: 'east', south: 'south', west: 'west' };
 const duiDir = (dir) => duiDirWords[dir] || dir;
 function duiDuration(days) {
@@ -704,7 +704,8 @@ function duiDuration(days) {
 }
 const duiCountdown = (days) => {
   const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
-  return m ? `${m} m ${d} d` : `${d} d`;
+  if (!m) return `${d} d`;
+  return d ? `${m} m ${d} d` : plural(m, 'month', 'months');
 };
 // D1: the one banner (spec 6.3). The defence line follows tributeQuote (src/sim/raids.js): buildN is the towers needed
 // for the warned raid less the working towers, buildCost their price in this city; at 0 the towers can beat it (ruling 108).
