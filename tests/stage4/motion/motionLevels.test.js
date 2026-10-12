@@ -338,7 +338,7 @@ describe('s4 motion title backdrop', () => {
     const cam = createCamera({ x: 0, y: 0, zoom: 1 });
     let reduced = false, t = 0;
     const cc = createCameraControl({ cam, view: () => ({ width: 400, height: 300 }), reducedMotion: () => reduced, now: () => t });
-    const backdrop = createBackdrop({ world: w, cam, cameraControl: cc, reducedMotion: () => reduced, driftMs: 1000 });
+    const backdrop = createBackdrop({ world: w, cam, cameraControl: cc, reducedMotion: () => reduced, driftMs: 1000, holdMs: 0 });
     const at = () => [Math.round(cam.x * 100), Math.round(cam.y * 100)];
     const start = at();
     backdrop.tick(0); cc.tick(0);

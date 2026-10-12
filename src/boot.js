@@ -224,12 +224,22 @@ export async function boot(doc, win, {
     });
   }
 
+  // The title card's box on the screen the map fills (CSS px from #title's corner, which covers it), or null before it shows.
+  function titleCardBox() {
+    const box = root.querySelector('#title');
+    if (!title || !title.card || !box) return null;
+    const c = title.card.element.getBoundingClientRect(), o = box.getBoundingClientRect();
+    if (!c.width || !c.height) return null;
+    return { left: c.left - o.left, right: c.right - o.left, top: c.top - o.top, bottom: c.bottom - o.top };
+  }
+
   function showTitle(loaded) {
     loadedOk = loaded.state === 'ok';
     const world = buildSampleCity(createWorld({ seed: TITLE_SEED }));
     const cam = createCamera({ x: world.tradeEntry.x, y: world.size - 22, zoom: 1 });
     const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
-    const backdrop = createBackdrop({ world, cam, cameraControl, reducedMotion: settings.reducedMotion });
+    // The showcase is framed beside the card (art-direction review 4): the backdrop reads the card's box once it shows.
+    const backdrop = createBackdrop({ world, cam, cameraControl, reducedMotion: settings.reducedMotion, view, card: () => titleCardBox() });
     // Stage 4: the backdrop's monuments are drawn live as in the game (spec 5.7), still (it never ticks).
     const live = (g, o) => drawMonument(g, world, o.b, { now: now(), timeDays: world.day, motion: settings.motionLevel() });
     const loop = createGameLoop({ world, render: ({ now: t }) => { backdrop.tick(t); cameraControl.tick(t); renderer.renderFrame(world, cam, { view: view(), live }); music.tick(t); }, ...loopOptions });
@@ -257,6 +267,7 @@ export async function boot(doc, win, {
       }),
     });
     title = { card, loop, backdrop, world, cam };
+    backdrop.frame();
     if (flow.shouldShowGuide()) card.showGuide(guide);
     loop.start();
   }

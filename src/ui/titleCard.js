@@ -1,6 +1,8 @@
 // The title card (spec 4.1): Continue, New city with its difficulty under it (spec 4.18), Play with sound / Play muted
 // and Install over a paused, slowly drifting sample city. The backdrop only moves the camera; the sim behind it never ticks.
-import { TITLE_DRIFT_MS } from '../data/ui.js';
+import { TITLE_DRIFT_MS, TITLE_HOLD_MS } from '../data/ui.js';
+import { ART, slotFor } from '../render/art/registry.js';
+import { p, artToTile, ART_SCALE } from '../render/iso.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { el, button, clear } from './components.js';
 import { T, DIFFICULTY_NAMES, difficultyHint, CARDS4_TEXT } from './text.js';
@@ -86,38 +88,110 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
   };
 }
 
-// Four points around the sample city's centre; the camera drifts from one to the next. Stage 4 (spec 4.1): the first
-// (the one Gentle and Still hold) is ten tiles west and thirteen north of the middle of the sample city's colossus under
-// way (src/dev/sampleCity.js addShowcase), which puts the colossus about 370 px below and 100 px left of the screen's
-// middle, its finished small obelisk to its left and its palace to its right: in the band under the title card on a
-// laptop (1280x800) and a phone held upright (390x844), so they are on screen before the first tap.
-export function driftPoints(world) {
-  const cx = world.tradeEntry.x, cy = world.size - 22;
+// The backdrop's showcase (spec 4.1, 5.7 item 7): the sample city's finished small obelisk, its colossus under way and its
+// palace (src/dev/sampleCity.js addShowcase), as the box they fill on the map in art px [left, top, right, bottom] (their
+// footprints and their height), or null when the city has none of them.
+const SHOWCASE = ['obelisk_small', 'colossus', 'palace'];
+export function showcaseBox(world) {
+  const found = SHOWCASE.map((t) => Object.values(world.buildings || {}).find((b) => b && b.type === t)).filter(Boolean);
+  if (!found.length) return null;
+  let l = Infinity, t = Infinity, r = -Infinity, bt = -Infinity;
+  for (const b of found) {
+    const art = ART[slotFor(b, world)], h = art ? art.height : 40;
+    l = Math.min(l, p(b.x, b.y + b.d)[0]); r = Math.max(r, p(b.x + b.w, b.y)[0]);
+    t = Math.min(t, p(b.x + b.w / 2, b.y + b.d / 2)[1] - h); bt = Math.max(bt, p(b.x + b.w, b.y + b.d)[1]);
+  }
+  return [l, t, r, bt];
+}
+
+// Where on the screen the showcase goes and at what zoom (art-direction review 4, the F2 review): the largest of the four
+// bands round the title card (below, beside it on the right or the left, above) that holds the showcase at the largest of
+// the sprite cache's zooms (1, 0.75, 0.5), below first when two hold it as large. view { width, height } and card (the
+// card's box on screen, CSS px) as getBoundingClientRect gives them. Returns { x, y, zoom }: the screen point (CSS px) the
+// showcase's middle goes to.
+const FRAME_ZOOMS = [1, 0.75, 0.5];
+const FRAME_MARGIN = 10;
+export function showcaseFrame(box, view, card) {
+  const W = (box[2] - box[0]) * ART_SCALE, H = (box[3] - box[1]) * ART_SCALE, m = FRAME_MARGIN;
+  const c = card || { left: view.width / 2, right: view.width / 2, top: view.height / 2, bottom: view.height / 2 };
+  const bands = [
+    { x: 0, y: c.bottom, w: view.width, h: view.height - c.bottom },
+    { x: c.right, y: 0, w: view.width - c.right, h: view.height },
+    { x: 0, y: 0, w: c.left, h: view.height },
+    { x: 0, y: 0, w: view.width, h: c.top },
+  ];
+  let best = null;
+  for (const band of bands) {
+    const fit = Math.min((band.w - 2 * m) / W, (band.h - 2 * m) / H);
+    const zoom = FRAME_ZOOMS.find((z) => z <= fit + 1e-9) || 0;
+    const score = zoom || fit / 10;                    // none holds it even at 0.5: the band that comes nearest
+    if (!best || score > best.score + 1e-9) best = { score, zoom: zoom || FRAME_ZOOMS[FRAME_ZOOMS.length - 1], band };
+  }
+  const { band, zoom } = best;
+  return { x: band.x + band.w / 2, y: band.y + band.h / 2, zoom };
+}
+
+// The backdrop's drift points: the first (the one Gentle and Still hold) frames the showcase; the others breathe round it,
+// none more than a tile from it, so under Full the camera never leaves the showcase. With a frame ({ x, y, zoom } and
+// the view), the first is the camera tile that puts the showcase's middle at that screen point at that zoom. Without
+// one (no view yet), it is ten tiles west and thirteen north of the colossus's middle: the band under the card on a
+// laptop and a tall phone.
+const DRIFT_OFFSETS = [[0, 0], [0.7, -0.7], [0.4, 0.4], [-0.7, 0.7]];
+export function driftPoints(world, frame = null, view = null) {
   const clamp = (v) => Math.max(0, Math.min(world.size - 1, v));
-  return [[cx - 1, cy - 13], [cx + 4, cy], [cx, cy + 4], [cx - 3, cy + 1]].map(([x, y]) => [clamp(x), clamp(y)]);
+  const box = frame && view ? showcaseBox(world) : null;
+  let x0, y0;
+  if (box) {
+    const k = ART_SCALE * frame.zoom, mid = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
+    const t = artToTile(mid[0] - (frame.x - view.width / 2) / k, mid[1] - (frame.y - view.height / 2) / k);
+    [x0, y0] = [t.x, t.y];
+  } else [x0, y0] = [world.tradeEntry.x - 1, world.size - 35];
+  return DRIFT_OFFSETS.map(([dx, dy]) => [clamp(x0 + dx), clamp(y0 + dy)]);
 }
 
 // Stage 4 (spec 5.4, ruling 247, Track E): the backdrop drifts under Full only. reducedMotion() is boot's
 // settings.reducedMotion ("anything but Full"), so under Gentle and Still the view holds still, and a drift under way when
 // the level leaves Full (the device's setting changed, read live) stops where it is at once; it starts again from the
-// next point when Full comes back.
-export function createBackdrop({ world, cam, cameraControl, reducedMotion = () => false, driftMs = TITLE_DRIFT_MS }) {
-  const points = driftPoints(world);
-  let i = 0, nextAt = null, stopped = false;
+// next point when Full comes back. Under Full it first holds the showcase for holdMs. view() and card() (the title card's
+// box on screen, or null) frame the showcase beside the card: while they change (the card appears, the window turns),
+// the points are worked out again, and a view that is not drifting jumps to the new first point.
+export function createBackdrop({ world, cam, cameraControl, reducedMotion = () => false, driftMs = TITLE_DRIFT_MS, holdMs = TITLE_HOLD_MS, view = null, card = () => null }) {
+  let points = driftPoints(world);
+  let i = 0, nextAt = null, holdUntil = null, stopped = false, key = '';
   cameraControl.jumpTo(points[0][0], points[0][1]);
-  return {
+  const reframe = () => {
+    const v = view && view(), c = card && card();
+    if (!v || !c || !showcaseBox(world)) return;
+    const k = [v.width, v.height, c.left, c.top, c.right, c.bottom].map(Math.round).join(',');
+    if (k === key) return;
+    key = k;
+    const frame = showcaseFrame(showcaseBox(world), v, c);
+    points = driftPoints(world, frame, v);
+    api.points = points;
+    if (nextAt === null || reducedMotion()) {          // not drifting: the view moves to the new frame at once
+      cam.zoom = frame.zoom;
+      i = 0;
+      cameraControl.cancel();
+      cameraControl.jumpTo(points[0][0], points[0][1]);
+    } else cam.zoom = frame.zoom;
+  };
+  const api = {
     points,
     tick(now) {
       if (stopped) return;
+      reframe();
       if (reducedMotion()) {                           // Gentle or Still: the view stays still (spec 5.4)
         if (nextAt !== null) { cameraControl.cancel(); nextAt = null; }
         return;
       }
-      if (nextAt !== null && now < nextAt) return;
+      if (holdUntil === null) holdUntil = now + holdMs;   // Full: first hold the showcase a while (once)
+      if (now < holdUntil || (nextAt !== null && now < nextAt)) return;
       i = (i + 1) % points.length;
       cameraControl.panTo(points[i][0], points[i][1], driftMs);
       nextAt = now + driftMs;
     },
+    frame: reframe,                                    // frames the showcase now (boot calls it once the card shows)
     stop() { stopped = true; cameraControl.cancel(); },
   };
+  return api;
 }

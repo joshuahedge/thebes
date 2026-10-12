@@ -96,6 +96,7 @@ export const UPDATE_TOAST_MS = 20000;
 
 export const TITLE_SEED = 11;          // the sample city behind the title card
 export const TITLE_DRIFT_MS = 9000;    // one slow camera drift between two points of it
+export const TITLE_HOLD_MS = 8000;     // under Full, how long the backdrop holds the showcase before it first drifts
 
 // Celebration captions (early-game pass 3.6; spec 6.3, ruling 165): how long each tier's caption shows, and the least
 // time between two captions starting. Goals, firsts, feats and achievements are the 'first' tier; citizen remarks
