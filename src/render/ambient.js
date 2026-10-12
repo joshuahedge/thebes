@@ -33,8 +33,12 @@ export const LEVEL_HOLD_MS = 2000;           // the budget can drop one more kin
 export const RESTORE_AFTER_MS = 10000;       // and brings one back only after this long at under half the budget
 export const GENTLE_SMOKE_RISE_PX = 4;       // Gentle: a puff rises at most this far (spec 5.4)
 const FIELDS = ['farm_grain', 'farm_barley', 'farm_flax'];
-const SMOKE_FROM = { potter: [1.52, 0.52, 9], brewery: [0.66, 0.46, 10] };   // tile offsets and art height of the kiln and brewhouse
-const RARE_WINDOW_MS = 90000;                // one appearance per kind per window, starting 0-30 s in: 60-120 s apart
+// Tile offsets and art height of the potter's kiln, the brewhouse and (Stage 4) the brickworks' kiln top (src/render/art,
+// Track B's brickworks: the kiln's mouth at (1.56, 0.46), 14 art px up).
+export const SMOKE_FROM = { potter: [1.52, 0.52, 9], brewery: [0.66, 0.46, 10], brickworks: [1.56, 0.46, 14] };
+// One appearance per kind per window, starting up to RARE_JITTER_MS in, so they come rareEveryMs apart (45-90 s).
+const RARE_WINDOW_MS = (AMBIENT.rareEveryMs[0] + AMBIENT.rareEveryMs[1]) / 2;
+const RARE_JITTER_MS = (AMBIENT.rareEveryMs[1] - AMBIENT.rareEveryMs[0]) / 2;
 const RARE_MS = { bird: 9000, felucca: 40000, ducks: 24000 };
 const SALT = { glint: 501, ripple: 502, reed: 503, tree: 504, crop: 505, pool: 506, smoke: 507, rare: 508, wind: 509 };
 
@@ -83,14 +87,14 @@ export function riverRows(world, y0, y1) {
 // drift false (Gentle) it fades in and out where it starts.
 export function glintAt(world, x, y, now, rows, drift = true) {
   const seed = world.seed | 0, h = unit(x, y, seed + SALT.glint);
-  if (h > 0.7) return null;
+  if (h > AMBIENT.glintShare) return null;
   const life = between(AMBIENT.glintFadeMs, unit(y, x, seed + SALT.glint));
   const t = ((now + h * life * 7) % life) / life;
   const gy = y + 0.2 + unit(x + 7, y, seed) * 0.6 + (drift ? AMBIENT.glintDriftTilesPerSecond * (t * life) / 1000 : 0);
   const row = rows.get(Math.floor(gy));
   if (!row) return null;
   const gx = Math.min(row.right - 0.35, Math.max(row.left + 0.35, x + 0.2 + unit(x, y + 7, seed) * 0.6));
-  return { x: gx, y: gy, alpha: 0.75 * Math.sin(Math.PI * t) };
+  return { x: gx, y: gy, alpha: AMBIENT.glintAlpha * Math.sin(Math.PI * t) };
 }
 
 // Water glints: short pale strokes on the river's tiles in range. Strokes are batched into one path per step of
@@ -104,13 +108,13 @@ function drawGlints(g, world, range, now, rows, drift = true) {
     for (let x = Math.max(s[0], range.x0); x <= Math.min(s[1], range.x1); x++) {
       const gl = glintAt(world, x, y, now, rows, drift);
       if (!gl) continue;
-      const k = Math.round((gl.alpha / 0.75) * GLINT_STEPS);
+      const k = Math.round((gl.alpha / AMBIENT.glintAlpha) * GLINT_STEPS);
       if (k <= 0) continue;
       const q = p(gl.x, gl.y);
       (buckets[k] || (buckets[k] = [])).push(['M', [q[0] - 2.2, q[1] + 0.4]], ['L', [q[0] + 2.2, q[1] - 0.4]]);
     }
   }
-  for (let k = 1; k <= GLINT_STEPS; k++) if (buckets[k]) g.stroke(buckets[k], TERRAIN.foam, 0.7, (0.75 * k) / GLINT_STEPS);
+  for (let k = 1; k <= GLINT_STEPS; k++) if (buckets[k]) g.stroke(buckets[k], TERRAIN.foam, 0.7, (AMBIENT.glintAlpha * k) / GLINT_STEPS);
 }
 
 // Bank ripples: a faint line just inside each bank, shifting about a pixel back and forth over 5 s, out of step along it
@@ -192,24 +196,27 @@ function drawPoolGlint(g, b, rect, now, drift = true) {
 }
 
 // Smoke: puffs from a working kiln or brewhouse, or the roof of a lived-in Townhouse and up, one every 2-3 s, each
-// rising about a tile and fading over two of those periods, leaning with the wind. Under Gentle (inPlace) a puff fades
-// where it starts, rising GENTLE_SMOKE_RISE_PX at most, with no lean.
+// rising about a tile and fading over AMBIENT.smokeLifePeriods of those periods, leaning with the wind, so a puff is always
+// in the air. Under Gentle (inPlace) a puff fades where it starts, rising GENTLE_SMOKE_RISE_PX at most, with no lean.
 function drawSmoke(g, b, base, now, wind, inPlace = false) {
   const P = between(AMBIENT.smokeEveryMs, unit(b.id, 3, SALT.smoke)), off = unit(b.id, 4, SALT.smoke) * P;
   const rise = inPlace ? GENTLE_SMOKE_RISE_PX : 16 * AMBIENT.smokeRiseTiles;
   if (inPlace) wind = { x: 0, y: 0 };
-  for (let k = 0; k < 2; k++) {
-    const a = ((now + off) / (2 * P) + k / 2) % 1;          // this puff's age, 0 to 1 over its life of 2P: a new one every P
-    const alpha = 0.42 * Math.min(1, a / 0.15) * (1 - a);
-    const r = 1.6 + a * 2.6;
+  const n = AMBIENT.smokeLifePeriods, [r0, grow] = AMBIENT.smokeRadius;
+  for (let k = 0; k < n; k++) {
+    const a = ((now + off) / (n * P) + k / n) % 1;          // this puff's age, 0 to 1 over its life of nP: a new one every P
+    const alpha = AMBIENT.smokeAlpha * Math.min(1, a / 0.15) * (1 - a);
+    const r = r0 + a * grow;
     const drift = p(wind.x * a * 0.3, wind.y * a * 0.3);
     g.radial([base[0] + drift[0], base[1] - 2 - rise * a + drift[1]], r, r * 0.8, '#F4F0F2', alpha);
   }
 }
 
-function smokeBase(world, b) {
+// A kiln or brewhouse smokes while it works and nothing holds it (b.blocked: no input, no storage, or a brickworks no
+// monument site needs, 'idle'); a chimney while its home is lived in.
+export function smokeBase(world, b) {
   const at = SMOKE_FROM[b.type];
-  if (at) return isWorking(world, b) ? U(p(b.x + at[0], b.y + at[1]), at[2]) : null;
+  if (at) return isWorking(world, b) && !b.blocked ? U(p(b.x + at[0], b.y + at[1]), at[2]) : null;
   if (b.type === 'house' && b.tier >= 5 && b.residents > 0) {
     const def = ART[slotFor(b, world)];
     return U(p(b.x + b.w * 0.3, b.y + b.d * 0.3), Math.round(def.height * 0.8));
@@ -223,12 +230,12 @@ function artBox(range) {
   return { l: Math.min(...pts.map((q) => q[0])), r: Math.max(...pts.map((q) => q[0])), t: Math.min(...pts.map((q) => q[1])), b: Math.max(...pts.map((q) => q[1])) };
 }
 
-// Rare life on a fixed schedule from the real clock and the seed: kind k's n-th appearance starts 0-30 s into its n-th
-// 90 s window and lasts RARE_MS[k], so at most one of each is on screen and they come 60-120 s apart. Returns the
-// appearance under way as { t (0..1 through it), h (its own hash) }, or null.
+// Rare life on a fixed schedule from the real clock and the seed: kind k's n-th appearance starts 0-RARE_JITTER_MS into
+// its n-th RARE_WINDOW_MS window and lasts RARE_MS[k], so at most one of each is on screen and they come
+// AMBIENT.rareEveryMs apart (45-90 s). Returns the appearance under way as { t (0..1 through it), h (its own hash) }, or null.
 export function rareAt(world, kind, now) {
   const k = AMBIENT.rareKinds.indexOf(kind) + 1, n = Math.floor(now / RARE_WINDOW_MS);
-  const start = n * RARE_WINDOW_MS + unit(n, k, (world.seed | 0) + SALT.rare) * 30000;
+  const start = n * RARE_WINDOW_MS + unit(n, k, (world.seed | 0) + SALT.rare) * RARE_JITTER_MS;
   const t = (now - start) / RARE_MS[kind];
   return t >= 0 && t < 1 ? { t, h: unit(n, k + 10, (world.seed | 0) + SALT.rare) } : null;
 }
