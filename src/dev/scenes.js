@@ -29,6 +29,9 @@
 import { place, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { holdFestival } from '../sim/festival.js';
+import { tickDay } from '../sim/clock.js';
+import { processionsAt, PROCESSION_ID_BASE } from '../render/walkers.js';
+import { PROCESSION } from '../data/ambient.js';
 import { allBuildings, housesOf } from '../sim/world.js';
 import { coverageOf } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
@@ -543,9 +546,14 @@ async function capstone(api) {
 }
 
 // A festival at the working temple nearest the middle of the city, held through the sim's command as the temple
-// sheet's button holds it (with its caption), the temple framed.
-// S4-TODO: the festival procession walking the roads in the temple's reach (priests with a carried shrine, musicians,
-// dancers) and streamers on the temple (review note 7.1 item 3). Today: the festival is held, with nothing on the map.
+// sheet's button holds it (with its caption), and its procession framed close (spec 5.7 item 3): priests with the carried
+// shrine, musicians and dancers walking the roads in the temple's reach, streamers at the temple's front corners. The
+// sim then runs (its own tick, as play would) until the whole procession has filed out of the temple and the carried
+// shrine stands where least is built just in front of it (the day from PROCESSION_DAYS to PROCESSION_DAYS_MAX with the
+// most free tiles in the two rows before it, the earliest of equals), so nothing hides it; the
+// city stays paused, so it holds still for the shot, framed on the shrine at zoom 1.5. Returns the temple, the
+// festival's day and how many figures walk (render/walkers.js festivalSize).
+const PROCESSION_DAYS = 6, PROCESSION_DAYS_MAX = 40;
 async function procession(api) {
   const g = inGame(api, 'procession'), { world, ui } = g;
   const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
@@ -555,9 +563,25 @@ async function procession(api) {
   if (!result.ok) throw new Error(`devScene procession: no festival (${result.reason})`);
   ui.toasts.show(DANGER_UI_TEXT.festivalHeld);
   ui.afterCommand({ kind: 'festival', result, text: DANGER_UI_TEXT.festivalHeld, undoable: false });
-  focus(g, temple.x + temple.w / 2, temple.y + temple.d / 2);
+  const held = world.danger.festivalDay;
+  const mine = (w) => w.id >= PROCESSION_ID_BASE + temple.id * 16 && w.id < PROCESSION_ID_BASE + temple.id * 16 + 16;
+  const isShrine = (w) => w.id === PROCESSION_ID_BASE + temple.id * 16 + PROCESSION.order.indexOf('shrine');
+  const FRONT = [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2], [2, 2]];
+  const open = (w) => FRONT.filter(([dx, dy]) => freeLand(world, Math.floor(w.x) + dx, Math.floor(w.y) + dy)).length;
+  let days = PROCESSION_DAYS, best = -1;
+  for (let d = PROCESSION_DAYS; d <= PROCESSION_DAYS_MAX; d++) {
+    const s = processionsAt(world, held + d, null).find(isShrine);
+    if (s && open(s) > best) { best = open(s); days = d; }
+  }
+  for (let i = 0; i < days; i++) tickDay(world);
+  ui.refresh();
+  const figures = processionsAt(world, world.day, null).filter(mine);
+  if (!figures.length) throw new Error('devScene procession: no procession at the temple');
+  const shrine = figures.find(isShrine) || figures[0];
+  g.cam.zoom = 1.5;
+  focus(g, shrine.x, shrine.y);
   await wait(300);
-  return `procession ${temple.id} day ${world.danger.festivalDay}`;
+  return `procession ${temple.id} day ${held} figures ${figures.length}`;
 }
 
 // A monument's site sheet open.
