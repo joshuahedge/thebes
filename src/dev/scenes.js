@@ -44,6 +44,9 @@ import { openSheet, closeSheet, select, toggleOverlay } from '../ui/modes.js';
 import { freeTop } from '../ui/layout.js';
 import { placeName } from '../ui/danger.js';
 import { T, DANGER_UI_TEXT, CITIZEN_REMARKS, plotsPlacedText } from '../ui/text.js';
+import { makeBuilding, insertBuilding } from '../sim/world.js';   // Track B's monument scenes
+import { MONUMENTS } from '../data/monuments.js';
+import { BUILDINGS } from '../data/buildings.js';
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -459,14 +462,6 @@ export function monumentSpot(world, n = 7) {
   return { x: best.x, y: best.y, n };
 }
 
-// The middle of monumentSpot's square at a zoom, in the free map's middle.
-function frameSpot(g, zoom) {
-  const s = monumentSpot(g.world);
-  g.cam.zoom = zoom;
-  focus(g, s.x + s.n / 2, s.y + s.n / 2);
-  return s;
-}
-
 // The title card with its backdrop.
 // S4-TODO: the Stage 4 title backdrop has a finished small obelisk and a colossus under way (review note 7.1 item 7).
 async function title(api) {
@@ -512,34 +507,64 @@ async function palace(api) {
   return best ? `palace ${best.x},${best.y}` : `palace centre ${c.x},${c.y}`;
 }
 
-// A monument site under way, framed with its surroundings.
-// S4-TODO: a great pyramid's site part built (review note 3.3): cords and stakes, the paved apron, stockpiled blocks,
-// the ramp, crews with sleds and haulers, a few courses laid. Today: the open desert where it would go.
+// ── Track B: the monument scenes ──
+
+// A great pyramid at monumentSpot, its site written to the contract's shapes (b.site: course, laid, stock, crews), a road
+// along its front, and full builders' guilds on free desert beyond the road (as many as fit, at most `guilds`), whose
+// ids are its crews, as a site under way would have them. The sample city starts paused, so the scene stays as set.
+export function pyramidScene(world, { course, frac = 0, stock = { stone: 120, bricks: 40 }, guilds = 4 } = {}) {
+  const s = monumentSpot(world), N = world.size;
+  const b = insertBuilding(world, makeBuilding(world, 'pyramid_great', s.x, s.y));
+  const front = s.y + s.n;
+  for (let x = s.x - 1; x <= s.x + s.n; x++) world.road[idx(N, x, front)] = 1;
+  world.roadVersion++;
+  const crews = [], free = (x, y) => freeLand(world, x, y) && !world.road[idx(N, x, y)];
+  for (let x = s.x - 1; x + 1 <= s.x + s.n && crews.length < guilds; x += 2) {
+    if (![0, 1].every((dx) => [1, 2].every((dy) => free(x + dx, front + dy)))) continue;
+    const g = insertBuilding(world, makeBuilding(world, 'builders_guild', x, front + 1));
+    g.staff = BUILDINGS.builders_guild.workers;
+    crews.push(g.id);
+  }
+  const c = MONUMENTS.pyramid_great.courses[Math.min(course, MONUMENTS.pyramid_great.courses.length - 1)];
+  Object.assign(b.site, { course, laid: { stone: c.stone * frac, bricks: c.bricks * frac }, stock: { ...stock }, crews, idle: 0, reason: null });
+  return b;
+}
+
+// A great pyramid's site part built (review note 3.3): the paved apron, stockpiled blocks, five courses laid and the
+// sixth half laid, the ramp up the front, the guilds' crews at work; framed whole at zoom 0.75.
 async function site(api) {
   const g = inGame(api, 'site');
-  const s = frameSpot(g, 0.75);
+  const b = pyramidScene(g.world, { course: 5, frac: 0.55 });
+  g.cam.zoom = 0.75;
+  focus(g, b.x + b.w / 2 - 0.8, b.y + b.d / 2 - 0.8);
   await wait(200);
-  return `site ${s.x},${s.y} ${s.n}x${s.n}`;
+  return `site ${b.x},${b.y} course ${b.site.course} crews ${b.site.crews.length}`;
 }
 
-// A pyramid course going up, framed close.
-// S4-TODO: blocks appearing one at a time along the course, a gang dragging a block up the ramp, masons on the top
-// course (review note 3.3). Today: the same desert, close.
+// A pyramid course going up, framed close at zoom 1.5 on the course under way: blocks laid row by row, the ramp landing
+// on it, the gangs and the masons (review note 3.3).
 async function pyramid(api) {
   const g = inGame(api, 'pyramid');
-  const s = frameSpot(g, 1.5);
+  const b = pyramidScene(g.world, { course: 8, frac: 0.6, stock: { stone: 160, bricks: 120 } });
+  g.cam.zoom = 1.5;
+  focus(g, b.x + b.w / 2 - 2.2, b.y + b.d / 2 - 2.2);
   await wait(200);
-  return `pyramid ${s.x},${s.y}`;
+  return `pyramid ${b.x},${b.y} course ${b.site.course}`;
 }
 
-// A great pyramid's capstone set: the finished pyramid.
-// S4-TODO: white casing and the gold capstone, the shine crossing the gold, the milestone caption and sparkle, the
-// dedication procession starting (review note 3.3, 7.1). Today: the same desert, at zoom 1.
+// A great pyramid's capstone set: its last course is laid on screen, then a second later it is finished (course 12,
+// done today, its crews gone), so the capture, 1.8 s after the scene, falls in the one slow shine and the sparkle under
+// Full and in the still outline under Gentle. Framed whole at zoom 1.
 async function capstone(api) {
-  const g = inGame(api, 'capstone');
-  const s = frameSpot(g, 1);
+  const g = inGame(api, 'capstone'), { world } = g;
+  const b = pyramidScene(world, { course: 11, frac: 0.98, stock: { stone: 0, bricks: 0 } });
+  g.cam.zoom = 1;
+  focus(g, b.x + b.w / 2 - 1.2, b.y + b.d / 2 - 1.2);
+  setTimeout(() => {
+    Object.assign(b.site, { course: MONUMENTS.pyramid_great.courses.length, laid: { stone: 0, bricks: 0 }, crews: [], done: world.day, extraPaid: true });
+  }, 1000);
   await wait(200);
-  return `capstone ${s.x},${s.y}`;
+  return `capstone ${b.x},${b.y}`;
 }
 
 // A festival at the working temple nearest the middle of the city, held through the sim's command as the temple
