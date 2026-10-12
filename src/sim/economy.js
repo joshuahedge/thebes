@@ -3,6 +3,7 @@ import { TIERS } from '../data/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, housesOf } from './world.js';
 import { soldiersPayOf } from './costs.js';
+import { lacksRoad } from './reach.js';
 
 export function monthlyEconomy(world) {
   let taxes = 0;
@@ -10,7 +11,7 @@ export function monthlyEconomy(world) {
   let wages = 0;
   let upkeep = 0;
   for (const b of allBuildings(world)) {
-    if (b.paused) continue;
+    if (b.paused || lacksRoad(world, b)) continue;     // ruling P11: a building no road touches does nothing and costs nothing
     upkeep += BUILDINGS[b.type].upkeep;
     wages += b.staff * ECONOMY.wagePerWorker;
   }

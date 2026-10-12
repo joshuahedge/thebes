@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { GOALS, GOAL_REWARD } from '../../src/data/goals.js';
-import { goalMet, openGoals, checkGoals, goalById } from '../../src/sim/goals.js';
+import { goalMet, goalProgress, nextItemFor, openGoals, checkGoals, goalById } from '../../src/sim/goals.js';
 import { createWorld, HISTORY_MONTHS } from '../../src/sim/world.js';
 import { advanceDays, tickDay } from '../../src/sim/clock.js';
 import { drawRoad, paintHouses, place } from '../../src/sim/commands.js';
@@ -45,6 +45,24 @@ describe('goals', () => {
     expect(goalMet(w, { kind: 'people', n: 100 })).toBe(true);
     expect(goalMet(w, { kind: 'people', n: 150 })).toBe(false);
     expect(goalMet(w, { kind: 'nope' })).toBe(false);
+  });
+  it('counts only buildings a road touches for "Build a ..." goals (ruling P11)', () => {
+    const w = makeTestWorld({ gold: 5000 });
+    const well = goalById('well');
+    expect(place(w, 'well', 20, 21, { roadLater: true }).ok).toBe(true);
+    expect(goalMet(w, well.need)).toBe(false);
+    expect(goalProgress(w, well)).toEqual({ n: 0, of: 1 });
+    addRaw(w, 'farm_grain', 2, 20); addRaw(w, 'granary', 5, 11); addRaw(w, 'bazaar', 9, 11);
+    setRoad(w, 0, 10, 31, 10);
+    expect(goalMet(w, goalById('food').need)).toBe(false);       // the farm at y 20 is off the road
+    expect(goalProgress(w, goalById('food'))).toEqual({ n: 2, of: 3 });
+    expect(nextItemFor(w, goalById('food'))).toBe('farm_grain');
+    setRoad(w, 0, 22, 21, 22);                                    // a road along the farm and the well
+    expect(goalMet(w, well.need)).toBe(true);
+    expect(goalProgress(w, well)).toEqual({ n: 1, of: 1 });
+    expect(goalMet(w, goalById('food').need)).toBe(true);
+    addRaw(w, 'garden', 28, 28);                                  // a garden needs no road, so it counts on its own
+    expect(goalMet(w, { kind: 'building', type: 'garden', n: 1 })).toBe(true);
   });
   it('is checked daily by the clock, which also records a month row and a month event', () => {
     const w = createWorld({ seed: 2 });
