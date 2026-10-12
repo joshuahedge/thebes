@@ -104,6 +104,26 @@ describe('ui tips', () => {
       expect(r.tips.trigger('houseSheet')).toBe(true);
     } finally { r.cleanup(); }
   });
+  it('never holds a tip whose words are about what is on screen as it fires: busy, it is dropped unseen and can fire again', () => {
+    const r = rig();
+    try {
+      r.clock.t = TIP_FIRST_DELAY_MS;
+      expect(TIPS.filter((t) => t.waits === false).map((t) => t.id)).toEqual(['house_needs', 'overlay_keys']);
+      for (const key of ['houseSheet', 'overlayOn']) {
+        expect(r.tips.trigger(key, { busy: true })).toBe(false);
+        expect(r.tips.flush({ busy: false })).toBe(false);                     // nothing was held
+        expect([r.tips.current(), r.settings.get().seenTips || []]).toEqual([null, []]);
+      }
+      expect(r.tips.trigger('servicePlaced', { busy: true })).toBe(false);    // another tip still takes the slot,
+      expect(r.tips.trigger('houseSheet', { busy: true })).toBe(false);       // and a dropped one does not disturb it
+      expect(r.tips.flush({ busy: false })).toBe(true);
+      expect(r.tips.current()).toBe('service_reach');
+      r.tips.dismiss();
+      r.clock.t += TIP_GAP_MS;
+      expect(r.tips.trigger('houseSheet')).toBe(true);                         // free to show, it does
+      expect(r.tips.current()).toBe('house_needs');
+    } finally { r.cleanup(); }
+  });
   it('holds a tip while a tool is active, shows one at a time, and lets the Play tip jump the queue', () => {
     const r = rig();
     try {
@@ -270,31 +290,37 @@ describe('ui tips', () => {
       expect(r.ui.tips.current()).toBe('overlay_keys');
     } finally { r.cleanup(); }
   });
-  it('in the game: on a phone a tip waits while a sheet or the overlay legend has the guidance row, and one already up steps off the screen until the row is free', async () => {
+  it('in the game: on a phone a tip about a sheet or the overlay is dropped unseen while that has the guidance row, another tip waits for the row, and one already up steps off the screen until the row is free', async () => {
     let t = 0;
     const r = await rigUI({ width: 390, height: 844, now: () => t });
     const play = quietFrames(r);
+    const seenTip = (id) => (r.ui.settings.get().seenTips || []).includes(id);
     try {
       settle(r.world, []);
       r.ui.speedControl.set(1);
       t = TIP_FIRST_DELAY_MS;
       r.store.set(select(r.store.get(), buildingAt(r.world, 12, 9).id));
-      expect(r.ui.tips.current()).toBe(null);                                   // the house sheet has the screen: the tip waits (spec 6.3)
+      expect(r.ui.tips.current()).toBe(null);                                   // the house sheet has the screen (spec 6.3)
       r.store.set(back(r.store.get()));
       expect(r.store.get().sheet).toBe(null);
-      expect(r.ui.tips.current()).toBe('house_needs');                          // and shows once the sheet has closed
-      expect(document.body.dataset.guidance).toBe('tip');
-      r.store.set(openSheet(r.store.get(), 'summary'));                        // a sheet over a tip that is up: off the screen, still current
-      expect([r.ui.tips.current(), r.root.querySelector('#tip').children.length, document.body.dataset.guidance]).toEqual(['house_needs', 0, 'none']);
+      expect([r.ui.tips.current(), seenTip('house_needs')]).toEqual([null, false]);   // its words are about the sheet: dropped, not shown after it, and still unseen
+      r.store.set(openSheet(r.store.get(), 'summary'));
+      r.ui.onEvents([{ type: 'month' }]);
+      expect(r.ui.tips.current()).toBe(null);                                   // a tip whose words hold without the sheet waits for the row
       r.store.set(back(r.store.get()));
-      expect([r.root.querySelector('#tip .tip-row .text').textContent, document.body.dataset.guidance]).toEqual([TIP_TEXT.house_needs, 'tip']);   // written again, so it is read again
+      expect([r.ui.tips.current(), document.body.dataset.guidance]).toEqual(['month_summary', 'tip']);
+      r.store.set(openSheet(r.store.get(), 'summary'));                        // a sheet over a tip that is up: off the screen, still current
+      expect([r.ui.tips.current(), r.root.querySelector('#tip').children.length, document.body.dataset.guidance]).toEqual(['month_summary', 0, 'none']);
+      r.store.set(back(r.store.get()));
+      expect([r.root.querySelector('#tip .tip-row .text').textContent, document.body.dataset.guidance]).toEqual([TIP_TEXT.month_summary, 'tip']);   // written again, so it is read again
       r.ui.tips.dismiss();
       play(TIP_GAP_MS);
       r.store.set({ overlay: 'food' });
       expect(r.ui.tips.current()).toBe(null);                                   // the legend has the row
       expect(document.body.dataset.guidance).toBe('legend');
       r.store.set({ overlay: null });
-      expect(r.ui.tips.current()).toBe('overlay_keys');
+      expect([r.ui.tips.current(), seenTip('overlay_keys')]).toEqual([null, false]);   // not shown once the overlay is off ("Tap ✕ to close" would be false), and still unseen
+      expect(r.root.querySelector('#tip').children.length).toBe(0);
     } finally { r.cleanup(); }
   });
   it('in the game: arrivals, a month end, a goal, a demolish and a labour shortage each bring their tip, three minutes of play apart', async () => {

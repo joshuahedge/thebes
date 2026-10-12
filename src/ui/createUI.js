@@ -123,7 +123,8 @@ export function createUI({
   const nudgeRegion = el('div', { class: 'nudge', role: 'status', 'aria-live': 'polite' }, [nudgeLine]);   // stays rendered, so the line is announced when it appears
   let nudgeState = 'none';
   const helpOn = () => settings.get().help !== 'off';
-  // A tip waits while a tool is active, and on a phone while a sheet or the overlay legend has the guidance row.
+  // A tip waits while a tool is active, and on a phone while a sheet or the overlay legend has the guidance row; a tip
+  // whose words are about that sheet or overlay (waits: false in data/tips.js) is dropped unseen instead.
   const tipsBusy = (s) => isToolMode(s.mode) || (phone() && Boolean(s.sheet || s.overlay));
   const fireTip = (key) => tips.trigger(key, { busy: tipsBusy(store.get()) });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
