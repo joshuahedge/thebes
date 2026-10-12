@@ -6,12 +6,23 @@
 # up; when the hook is missing the scene is still captured (as the plain page), so the tool runs before Stage 3 exists.
 # Usage: tools/shots.ps1 -Tag before [-Stage2 | -Stage3] [-Only title,fresh] [-OnlySizes phone-portrait]
 # then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> before after [--stage2 | --stage3]
-param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2, [switch]$Stage3)
+#
+# -Mobile takes the mobile budget scenes instead (src/dev/scenes.js MOBILE_SCENES: early, plots, raid, raid-fire,
+# raid-overlay, placing, sheet, welcome, the busy moments of the mobile UX review) on four phones (390x844, 375x667,
+# 844x390, 667x375) at each of -TextSizes (default 100 and 150), reduced motion on, as <Tag>-<scene>-<size>-t<text>.png.
+# Each shot also measures the rows under the top bar (measureRows in src/dev/scenes.js): a line per shot says where they
+# end, which layers show and how much of the map is left clear, and the lines (each with the full measurement as JSON
+# under it) are saved to <Tag>-mobile-measure.txt beside the shots. -Mobile cannot be combined with -Stage2 or -Stage3;
+# -Only names scenes and -OnlySizes sizes (375x667). tests/ui/mobileBudget.test.js holds the budget on the same scenes.
+# Usage: tools/shots.ps1 -Mobile -Tag before [-Only raid,sheet] [-OnlySizes 375x667,667x375] [-TextSizes 100,125,150]
+param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2, [switch]$Stage3, [switch]$Mobile, [string[]]$TextSizes = @('100', '150'))
 $ErrorActionPreference = 'Stop'
 if ($Stage2 -and $Stage3) { Write-Error '-Stage2 and -Stage3 cannot be combined'; exit 2 }
+if ($Mobile -and ($Stage2 -or $Stage3)) { Write-Error '-Mobile cannot be combined with -Stage2 or -Stage3'; exit 2 }
 # `powershell -File ... -Only a,b` hands over one string "a,b": split it.
 $Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $OnlySizes = @($OnlySizes | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+$TextSizes = @($TextSizes | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $shot = Join-Path (Split-Path -Parent $PSScriptRoot) 'tests\screenshot.ps1'
 $sizes = @(
   @{ name = 'phone-portrait'; w = 390; h = 844 },
@@ -131,6 +142,46 @@ if (help) sheet.scrollTop += Math.min(Math.max(0, help.getBoundingClientRect().b
 # is. (The title card may not have window.__thebes at all, hence the guard.)
 function New-Stage3Scene([string]$Name) {
   "(async () => { return await ((window.__thebes && window.__thebes.devScene) ? window.__thebes.devScene('$Name') : Promise.resolve('no devScene')); })()"
+}
+
+# The mobile budget run (-Mobile): each scene is one call to the dev hook once the text size is set, on the city the scene
+# opens with (MOBILE_SCENE_PARAMS in src/dev/scenes.js: keep the two lists the same), then one measureRows().
+if ($Mobile) {
+  $sample = '/?skipTitle=1&nosw=1&seed=11&sample=1'
+  $mobileScenes = [ordered]@{
+    'early' = '/?skipTitle=1&nosw=1&seed=7'; 'plots' = '/?skipTitle=1&nosw=1&seed=7'; 'raid' = $sample; 'raid-fire' = $sample
+    'raid-overlay' = $sample; 'placing' = $sample; 'sheet' = $sample; 'welcome' = '/?welcome=1&nosw=1&seed=11&sample=1'
+  }
+  $phones = @('390x844', '375x667', '844x390', '667x375')
+  $measure = "(async () => JSON.stringify((await import('./src/dev/scenes.js')).measureRows()))()"
+  if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
+  $log = Join-Path $OutDir "$Tag-mobile-measure.txt"
+  Set-Content -LiteralPath $log -Value "# tools/shots.ps1 -Mobile -Tag $Tag, $(Get-Date -Format 'yyyy-MM-dd HH:mm')" -Encoding utf8
+  $pct = { param($v, $h) [math]::Round(100 * $v / $h) }
+  foreach ($name in $mobileScenes.Keys) {
+    if ($Only.Count -and -not ($Only -contains $name)) { continue }
+    foreach ($ts in $TextSizes) {
+      $eval = "(async () => { const t = window.__thebes; t.ui.settings.set({ textSize: $ts, reducedMotion: 'on' }); await new Promise((r) => setTimeout(r, 50)); return await t.devScene('$name'); })()"
+      foreach ($size in $phones) {
+        if ($OnlySizes.Count -and -not ($OnlySizes -contains $size)) { continue }
+        $w, $h = $size -split 'x'
+        $out = Join-Path $OutDir "$Tag-$name-$size-t$ts.png"
+        $lines = @(& $shot -Url $mobileScenes[$name] -Out $out -Width ([int]$w) -Height ([int]$h) -BudgetMs 700 -Eval $eval -Measure $measure)
+        $lines | Where-Object { $_ -notlike 'MEASURE *' } | ForEach-Object { Write-Output $_ }
+        $json = $lines | Where-Object { $_ -like 'MEASURE *' } | Select-Object -First 1
+        if (-not $json) { continue }
+        $json = $json.Substring(8)
+        $m = $json | ConvertFrom-Json
+        $layers = @($m.layers.PSObject.Properties.Name) -join '+'
+        $summary = "$name $size t$ts ($($m.layout)): rows end $(& $pct $m.rowsEnd $m.height)%, $($m.rows) rows ($layers), clear map $([math]::Round(100 * $m.clearMap))%, corners from $(& $pct $m.cornersTop $m.height)%"
+        Write-Output $summary
+        Add-Content -LiteralPath $log -Value $summary -Encoding utf8
+        Add-Content -LiteralPath $log -Value "  $json" -Encoding utf8
+      }
+    }
+  }
+  Write-Output "Measurements: $log"
+  exit 0
 }
 
 $scenarios = if ($Stage3) {

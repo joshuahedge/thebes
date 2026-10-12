@@ -1,16 +1,24 @@
-// Development scenes for the Stage 3 screenshots (tools/shots.ps1 -Stage3): window.__thebes.devScene(name) sets up one
-// scene and resolves with a short description when it is ready to capture. boot.js exposes devScene before the title
-// card shows; api is boot's returned object ({ phase, game, startGame, hooks }).
+// Development scenes for the screenshots: window.__thebes.devScene(name) sets up one scene and resolves with a short
+// description when it is ready to capture. boot.js exposes devScene before the title card shows; api is boot's returned
+// object ({ phase, game, startGame, hooks }).
 //
-// 'peaceful' runs on the title card (/?nosw=1) and chooses Peaceful, so its hint shows. The others run in a game,
-// opened on the seed-11 sample city (/?skipTitle=1&nosw=1&seed=11&sample=1), which starts paused, so each scene stays
-// as it is set: 'fire' (a home burning next to a blaze, the firehouses that reach them paused), 'tribute' (a later
-// raid's warning with the tribute sheet open), 'battle' (raiders at a wall with a gate and two towers, soldiers out),
-// 'score' (the city summary) and 'ambient' (river life close up). Where the sim would take years to get there, a scene
-// writes the contract's world state directly (a b.fire record, raid.warning, raid.active, soldiers, wall tiles), and it
-// builds what a player would through the commands. A scene that needs motion (flames, ambient life) turns reduced
-// motion off in the settings, because headless browsers ask for it.
-import { place, drawRoad, setPaused } from '../sim/commands.js';
+// The Stage 3 scenes (tools/shots.ps1 -Stage3, DEV_SCENES): 'peaceful' runs on the title card (/?nosw=1) and chooses
+// Peaceful, so its hint shows. The others run in a game, opened on the seed-11 sample city
+// (/?skipTitle=1&nosw=1&seed=11&sample=1), which starts paused, so each scene stays as it is set: 'fire' (a home burning
+// next to a blaze, the firehouses that reach them paused), 'tribute' (a later raid's warning with the tribute sheet open),
+// 'battle' (raiders at a wall with a gate and two towers, soldiers out), 'score' (the city summary) and 'ambient' (river
+// life close up). Where the sim would take years to get there, a scene writes the contract's world state directly (a
+// b.fire record, raid.warning, raid.active, soldiers, wall tiles), and it builds what a player would through the
+// commands. A scene that needs motion (flames, ambient life) turns reduced motion off in the settings, because headless
+// browsers ask for it.
+//
+// The mobile budget scenes (tools/shots.ps1 -Mobile, tests/ui/mobileBudget.test.js, MOBILE_SCENES): the busy moments of
+// phone play from the mobile UX review (docs/superpowers/notes/2026-10-12-mobile-ux-review.md), each opened on the city
+// MOBILE_SCENE_PARAMS names and driven through the sim's commands and the interface's own paths (afterCommand, the
+// caption row, Show me, a tap's select), so the captions, tips and Undo toasts on screen come from the real code. They
+// leave the text size and reduced motion to the caller, which sets them first. measureRows() reads the rows under the
+// top bar off the page, for the review note's height budget (section 3).
+import { place, drawRoad, paintHouses, setPaused } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
 import { allBuildings, housesOf } from '../sim/world.js';
 import { coverageOf } from '../sim/fire.js';
@@ -20,9 +28,12 @@ import { idx, inBounds } from '../sim/grid.js';
 import { T as TERRAIN } from '../sim/terrain.js';
 import { DEFENCE, RAIDS, UNITS } from '../data/raids.js';
 import { FIRE } from '../data/fire.js';
+import { TIP_FIRST_DELAY_MS } from '../data/tips.js';
+import { CHEER_GAP_MS } from '../data/ui.js';
 import { screenToTile } from '../render/camera.js';
-import { openSheet, closeSheet } from '../ui/modes.js';
-import { T } from '../ui/text.js';
+import { openSheet, closeSheet, select, toggleOverlay } from '../ui/modes.js';
+import { placeName } from '../ui/danger.js';
+import { T, DANGER_UI_TEXT, CITIZEN_REMARKS } from '../ui/text.js';
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -90,14 +101,13 @@ async function peaceful(api) {
 }
 
 // A home in the fire stage and its neighbour in a blaze (spec 4.12), the firehouses that reach them paused, so no
-// staffed firehouse reaches either: the critical fire banner, flames and smoke.
-async function fire(api) {
-  const g = inGame(api, 'fire'), { world } = g;
+// staffed firehouse reaches either. Returns the home in the fire stage.
+function lightFire(world, name) {
   const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
   const homes = housesOf(world).filter((h) => h.residents > 0 && h.w === 1 && adjacentRoadTiles(world, h).length).sort((a, b) => near(a) - near(b));
   const neighbour = (h) => housesOf(world).find((o) => o.residents > 0 && o.y === h.y && Math.abs(o.x - h.x) === 1);
   const home = homes.find((h) => neighbour(h));
-  if (!home) throw new Error('devScene fire: no pair of homes side by side');
+  if (!home) throw new Error(`devScene ${name}: no pair of homes side by side`);
   const next = neighbour(home);
   for (const f of allBuildings(world)) {
     if (f.type !== 'firehouse') continue;
@@ -111,6 +121,13 @@ async function fire(api) {
   world.danger.lastFireDay = world.day;
   world.danger.firePaused = true;                    // the city's first-time pause has happened (the game is paused)
   world.tally.fires += 2;
+  return home;
+}
+
+// The fire banner, flames and smoke: lightFire's home in the middle of the free map, motion on.
+async function fire(api) {
+  const g = inGame(api, 'fire'), { world } = g;
+  const home = lightFire(world, 'fire');
   g.ui.settings.set({ reducedMotion: 'off' });
   g.ui.refresh();
   focus(g, home.x + 0.5, home.y + 0.5);
@@ -118,9 +135,9 @@ async function fire(api) {
   return `fire ${home.id} ${coverageOf(world, home)}`;
 }
 
-// A later raid's warning (spec 4.13), so it carries a tribute, with the tribute sheet open (the warning's Pay tribute).
-async function tribute(api) {
-  const g = inGame(api, 'tribute'), { world } = g;
+// A later raid's warning (spec 4.13), so it carries a tribute: the first raid came from the east and was beaten, and the
+// second's warning went up 30 days ago. Returns the warning.
+function raiseWarning(world) {
   const r = world.raid;
   const entry = { ...(world.raiderEntries.find((e) => entryDir(world, e) === 'east') || world.raiderEntries[0]) };
   r.clockDay = r.clockDay === null ? 0 : r.clockDay;
@@ -131,12 +148,18 @@ async function tribute(api) {
   r.warning = { index: 1, entry, dir: entryDir(world, entry), size, tribute: tributeFor(world, size), target: raidTargetKind(world), day: world.day - 30, arrives: world.day - 30 + RAIDS.warningDays, first: false };
   r.index = 2;
   r.nextWarnDay = null;
+  return r.warning;
+}
+
+// raiseWarning's warning with the tribute sheet open (the warning's Pay tribute).
+async function tribute(api) {
+  const g = inGame(api, 'tribute'), { world } = g;
+  const w = raiseWarning(world);
   g.ui.refresh();
-  const w = r.warning;
-  const alert = g.ui.alerts.list().find((a) => a.code === 'raid_warning') || { code: 'raid_warning', x: entry.x, y: entry.y, dir: w.dir, arrives: w.arrives };
+  const alert = g.ui.alerts.list().find((a) => a.code === 'raid_warning') || { code: 'raid_warning', x: w.entry.x, y: w.entry.y, dir: w.dir, arrives: w.arrives };
   g.ui.alerts.action(alert, 'tribute');
   await wait(100);
-  return `tribute ${size} ${w.tribute}`;
+  return `tribute ${w.size} ${w.tribute}`;
 }
 
 // Raiders at a wall (spec 4.13, 5.4): the north road runs on past a wall line with a gate on it and a tower either
@@ -233,10 +256,209 @@ async function ambient(api) {
   return `ambient ${best.x},${best.y}`;
 }
 
-const SCENES = { peaceful, fire, tribute, battle, score, ambient };
+// ── The mobile budget scenes ──
 
-export async function devScene(api, name) {
+export const MOBILE_SCENES = ['early', 'plots', 'raid', 'raid-fire', 'raid-overlay', 'placing', 'sheet', 'welcome'];
+
+// The page query each mobile scene opens with (tools/shots.ps1 -Mobile adds nosw=1): 'early' and 'plots' on a new guided
+// city, seed 7, which starts paused; 'welcome' on Welcome back over the seed-11 sample city; the rest on that city.
+const SAMPLE_CITY = 'skipTitle=1&seed=11&sample=1';
+export const MOBILE_SCENE_PARAMS = {
+  early: 'skipTitle=1&seed=7', plots: 'skipTitle=1&seed=7', raid: SAMPLE_CITY, 'raid-fire': SAMPLE_CITY, 'raid-overlay': SAMPLE_CITY,
+  placing: SAMPLE_CITY, sheet: SAMPLE_CITY, welcome: 'welcome=1&seed=11&sample=1',
+};
+
+// A mobile scene's waits: as long as asked on the page, so the capture shows the settled screen; none with
+// options.quick, for a test that measures the rows (its clock has already moved past the session's first seconds).
+const settle = (options, ms) => wait(options && options.quick ? 0 : ms);
+
+// A road of `length` tiles on from the end of the start road, north if the land is free, else east, through the
+// command and afterCommand as the confirm bar's ✓ lays one (the Undo toast, the goal's caption, the tips it fires).
+// Returns the tiles beside it on the near side, where plots can go.
+function layRoad(g, length, name) {
+  const { world, ui } = g;
+  const [ex, ey] = world.startRoad[world.startRoad.length - 1];
+  let result = drawRoad(world, ex, ey, ex, ey - length), beside = { x0: ex + 1, y0: ey - length, x1: ex + 1, y1: ey - 1 };
+  if (!result.ok) { result = drawRoad(world, ex, ey, ex + length, ey); beside = { x0: ex + 1, y0: ey - 1, x1: ex + length, y1: ey - 1 }; }
+  if (!result.ok) throw new Error(`devScene ${name}: no room for a road off the start road (${result.reason})`);
+  assignLabour(world);
+  ui.afterCommand({ kind: 'road', result, text: T.roadLaid, undoable: true });
+  return beside;
+}
+
+// The house nearest the middle of the city, of the highest tier there is.
+function finestHome(world) {
+  const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
+  return housesOf(world).filter((h) => h.residents > 0).sort((a, b) => (b.tier - a.tier) || (near(a) - near(b)))[0];
+}
+
+// The caption a firehouse's success shows (src/ui/danger.js): the info tier, the longest-lived.
+const putOutCaption = (g, b) => g.ui.celebrations.show({ tier: 'info', text: DANGER_UI_TEXT.putOut('blaze', placeName(b)) });
+
+// The first minutes: a road laid off the start road on the new city once tips may show (none in the session's first
+// TIP_FIRST_DELAY_MS): the goals strip, the goal's caption, the tip it brings and the Undo toast.
+async function early(api, options) {
+  const g = inGame(api, 'early');
+  await settle(options, TIP_FIRST_DELAY_MS + 300);
+  layRoad(g, 5, 'early');
+  await settle(options, 200);
+  return `early tip ${g.ui.tips.current()}`;
+}
+
+// Plots while paused: a road, and once its caption's slot has passed, six plots beside it, the game still paused: Press
+// Play, a caption, two Undo toasts and the guide's strip. Quick, the caption row is emptied as the slot's end would
+// leave it, when nothing waits behind the road's caption.
+async function plots(api, options) {
+  const g = inGame(api, 'plots'), { world } = g;
+  const a = layRoad(g, 6, 'plots');
+  if (options && options.quick && !g.ui.celebrations.pending()) g.ui.celebrations.clear();
+  else await wait(CHEER_GAP_MS + 100);
+  const result = paintHouses(world, a.x0, a.y0, a.x1, a.y1);
+  if (!result.ok) throw new Error(`devScene plots: no plots beside the road (${result.reason})`);
+  assignLabour(world);
+  g.ui.afterCommand({ kind: 'houses', result, text: T.plotsPainted, undoable: true });
+  await settle(options, 200);
+  return `plots tip ${g.ui.tips.current()} speed ${world.speed}`;
+}
+
+// A raid warning (raiseWarning's) and a blaze put out elsewhere.
+async function raid(api, options) {
+  const g = inGame(api, 'raid');
+  raiseWarning(g.world);
+  g.ui.refresh();
+  await settle(options, 100);
+  putOutCaption(g, finestHome(g.world));
+  return 'raid';
+}
+
+// A raid warning and a fire nobody reaches (lightFire's), with a blaze put out elsewhere.
+async function raidFire(api, options) {
+  const g = inGame(api, 'raid-fire');
+  raiseWarning(g.world);
+  const home = lightFire(g.world, 'raid-fire');
+  g.ui.refresh();
+  await settle(options, 100);
+  putOutCaption(g, finestHome(g.world));
+  return `raid-fire ${home.id}`;
+}
+
+// A raid warning with the fire risk overlay on and a citizen's remark (the first whose building the city has).
+async function raidOverlay(api, options) {
+  const g = inGame(api, 'raid-overlay'), { world, ui } = g;
+  raiseWarning(world);
+  ui.refresh();
+  ui.store.set(toggleOverlay(ui.store.get(), 'fire'));
+  await settle(options, 200);
+  const has = new Set(allBuildings(world).map((b) => b.type));
+  const remark = CITIZEN_REMARKS.find((r) => has.has(r.type));
+  if (remark) ui.celebrations.show({ tier: 'remark', text: remark.text, icon: '❝' });
+  return `raid-overlay ${ui.store.get().overlay}`;
+}
+
+// Placing a well with a raid warning up, through Show me at the middle of the city: the ghost, the confirm bar and the
+// well's automatic Water overlay.
+async function placing(api, options) {
+  const g = inGame(api, 'placing'), { world, ui } = g;
+  raiseWarning(world);
+  ui.refresh();
+  await settle(options, 100);
+  ui.showMeAt({ category: 'services', item: 'well', x: world.focus.x, y: world.focus.y });
+  await settle(options, 500);
+  return `placing ${ui.store.get().mode}`;
+}
+
+// A house sheet with a raid warning up: finestHome selected as a tap on it selects it (createUI's actions.tap).
+async function sheet(api, options) {
+  const g = inGame(api, 'sheet'), { world, ui } = g;
+  raiseWarning(world);
+  ui.refresh();
+  const h = finestHome(world);
+  ui.store.set(select(ui.store.get(), h.id));
+  await settle(options, 500);
+  return `sheet ${h.id} tier ${h.tier}`;
+}
+
+// Welcome back (/?welcome=1): the card as the city opens.
+async function welcome(api, options) {
+  const g = inGame(api, 'welcome');
+  const open = g.ui.store.get().sheet;
+  if (!open || open.kind !== 'welcome') throw new Error('devScene welcome: Welcome back is not open (use ?welcome=1&seed=11&sample=1)');
+  await settle(options, 300);
+  return 'welcome';
+}
+
+const SCENES = {
+  peaceful, fire, tribute, battle, score, ambient,
+  early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, sheet, welcome,
+};
+
+export async function devScene(api, name, options = {}) {
   const scene = SCENES[name];
-  if (!scene) throw new Error(`devScene: no scene named ${name} (${DEV_SCENES.join(', ')})`);
-  return scene(api);
+  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES].join(', ')})`);
+  return scene(api, options);
+}
+
+// ── Measuring the rows (the mobile budget) ──
+
+// The layers under the top bar, by the container each lives in (index.html's #under-bar): the alert row (the critical
+// banner), then what the guidance row may hold (the overlay legend, the goal with its threshold bar and nudge line, a
+// tip, a caption).
+const ROW_LAYERS = { alert: '#banner', legend: '#legend', goal: '#goals', tip: '#tip', caption: '#cheer' };
+
+// The rows under the top bar, read off the page, for the height budget of the mobile UX review (section 3). frame is the
+// element that stands for the screen (a test's mounted shell); by default the window. Every box is in CSS px from the
+// screen's top left, { top, bottom, left, right }, or null when nothing of it shows.
+//   topBar       the top bar
+//   layers       each of ROW_LAYERS that shows (the union of its visible children)
+//   rows         how many rows the layers make: layers side by side (a legend icon beside the banner) are one row
+//   rowsEnd      where the last row ends (the top bar's bottom when there is none); rowsRight, the rows' right edge
+//   sheet        the open sheet (at the bottom in portrait, a side column in compact), or null
+//   bottomStart  where the first full-width bottom panel (dock, confirm bar, sheet) starts; rightEdge, where a side
+//                panel (rail, drawer, sheet, confirm bar) starts; clearMap, the share of the screen left clear between
+//   cornersTop   the top of the corner buttons
+export function measureRows(frame = null) {
+  const scope = frame || document;
+  const at = frame ? frame.getBoundingClientRect() : { left: 0, top: 0, width: innerWidth, height: innerHeight };
+  const W = at.width, H = at.height;
+  const visible = (n) => {
+    const cs = getComputedStyle(n);
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+    const r = n.getBoundingClientRect();
+    return r.width > 2 && r.height > 2;
+  };
+  const box = (nodes) => {
+    const rs = nodes.filter((n) => n && visible(n)).map((n) => n.getBoundingClientRect());
+    if (!rs.length) return null;
+    return {
+      top: Math.min(...rs.map((r) => r.top)) - at.top, bottom: Math.max(...rs.map((r) => r.bottom)) - at.top,
+      left: Math.min(...rs.map((r) => r.left)) - at.left, right: Math.max(...rs.map((r) => r.right)) - at.left,
+    };
+  };
+  const one = (sel) => box([scope.querySelector(sel)]);
+  const topBar = one('#topbar');
+  const layers = {};
+  for (const [name, sel] of Object.entries(ROW_LAYERS)) {
+    const container = scope.querySelector(sel);
+    const b = container ? box([...container.children]) : null;
+    if (b) layers[name] = b;
+  }
+  const bands = [];
+  for (const b of Object.values(layers).sort((p, q) => p.top - q.top)) {
+    const last = bands[bands.length - 1];
+    if (last && b.top < last.bottom - 1) last.bottom = Math.max(last.bottom, b.bottom);
+    else bands.push({ top: b.top, bottom: b.bottom });
+  }
+  const shown = Object.values(layers);
+  const rowsEnd = Math.max(topBar ? topBar.bottom : 0, ...shown.map((b) => b.bottom));
+  const rowsRight = shown.length ? Math.max(...shown.map((b) => b.right)) : 0;
+  const sheetBox = one('#sheet');
+  const panels = { dock: one('#dock'), confirm: one('#confirm'), sheet: sheetBox, rail: one('#rail'), drawer: one('#rail .drawer') };
+  const bottomStart = Math.min(H, ...['dock', 'confirm', 'sheet'].map((k) => panels[k]).filter((p) => p && p.left < W / 2 && p.right > W / 2).map((p) => p.top));
+  const rightEdge = Math.min(W, ...['rail', 'drawer', 'sheet', 'confirm'].map((k) => panels[k]).filter((p) => p && p.left > W / 3).map((p) => p.left));
+  const corners = box([...scope.querySelectorAll('#corners .group')]);
+  return {
+    width: W, height: H, layout: document.body.dataset.layout, textSize: Number(document.body.dataset.textSize),
+    topBar, layers, rows: bands.length, rowsEnd, rowsRight, sheet: sheetBox, bottomStart, rightEdge,
+    clearMap: Math.max(0, bottomStart - rowsEnd) * rightEdge / (W * H), cornersTop: corners ? corners.top : H,
+  };
 }
