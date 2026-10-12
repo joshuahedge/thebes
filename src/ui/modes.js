@@ -4,7 +4,7 @@ export const isToolMode = (mode) => mode === 'placing' || mode === 'drawing' || 
 
 export const toolMode = (tool) => (tool.kind === 'building' ? 'placing' : tool.kind === 'demolish' ? 'demolishing' : 'drawing');
 
-const CLEAR_TOOL = { tool: null, ghost: null, line: null, area: null };
+const CLEAR_TOOL = { tool: null, ghost: null, line: null, area: null, plan: null };
 
 export function startTool(state, tool) {
   return { ...CLEAR_TOOL, mode: toolMode(tool), tool, selectedId: null, sheet: null, dock: state.dock === 'tucked' ? 'slim' : state.dock };

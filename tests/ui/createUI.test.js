@@ -7,6 +7,7 @@ import { settle } from '../../src/sim/settle.js';
 import { select, openSheet } from '../../src/ui/modes.js';
 import { createSettings } from '../../src/ui/settings.js';
 import { createStore } from '../../src/ui/store.js';
+import { DRAW_TEXT } from '../../src/ui/text.js';
 
 describe('ui createUI', () => {
   it('places a well from the dock: card, ghost, tap, tick, building, then Undo from the toast', async () => {
@@ -155,6 +156,30 @@ describe('ui createUI', () => {
       expect(toast.bottom <= bar.top && bar.top - toast.bottom < 100).toBe(true);   // just above the corner row on the bar
       r.cleanup();
     });
+  });
+  it('draws a road with a finger: a drag draws and quick taps add tiles, with no pan or zoom, and a touch tick lays it and ends the tool (placement review P3, P4)', async () => {
+    const r = await rigUI();
+    fire(r.root.querySelector('#dock .cat[data-category="roads"]'), 'click');
+    fire(r.root.querySelector('#dock .tray .card[data-item="road"]'), 'click');
+    expect(r.store.get().mode).toBe('drawing');
+    r.store.set({ inputType: 'touch' });                                      // the test browser's pointer is a mouse's; the phone's is a finger
+    expect(r.root.querySelector('#confirm .reason').textContent).toBe(DRAW_TEXT.idle);
+    const cam0 = [r.cam.x, r.cam.y, r.cam.zoom];
+    const finger = (type, tx) => { const p = r.screenOf(tx + 0.5, 14.5); fire(r.canvas, type, { ...r.at(p.x, p.y), pointerId: 3, pointerType: 'touch' }); };
+    finger('pointerdown', 4);
+    for (let tx = 5; tx <= 8; tx++) finger('pointermove', tx);
+    finger('pointerup', 8);
+    r.tap(10, 14); r.tap(11, 14);                                              // two quick taps side by side: two tiles, not a zoom
+    expect(r.store.get().plan.tiles).toEqual([[4, 14], [5, 14], [6, 14], [7, 14], [8, 14], [10, 14], [11, 14]]);
+    expect([r.cam.x, r.cam.y, r.cam.zoom]).toEqual(cam0);
+    expect(r.root.querySelector('#confirm .reason').textContent).toBe('7 tiles');
+    expect(r.root.querySelector('#confirm .flip')).toBe(null);                  // no L to flip in a touch plan
+    const ok = r.root.querySelector('#confirm .ok');
+    fire(ok, 'pointerdown', { pointerType: 'touch' }); fire(ok, 'click');
+    expect([4, 8, 10, 11].map((x) => r.world.road[14 * r.world.size + x])).toEqual([1, 1, 1, 1]);
+    expect(r.world.road[14 * r.world.size + 9]).toBe(0);
+    expect([r.store.get().mode, r.store.get().plan]).toEqual(['browse', null]);
+    r.cleanup();
   });
   it('switches chrome with the viewport and keeps the camera and a placement through a rotation', async () => {
     const r = await rigUI({ width: 390, height: 844 });
