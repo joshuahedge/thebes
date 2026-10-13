@@ -1974,6 +1974,7 @@ Object.assign(TIP_HELP_TEXT, {
 import { FAVOUR as courtFavour, REQUESTS as courtRequests, COURT as courtRules, GOOD_VALUE as courtGoodValue } from '../data/court.js';
 import { DAYS_PER_MONTH as courtMonthDays, MONTHS_PER_YEAR as courtYearMonths } from '../sim/time.js';
 import { favourChange as courtFavourChange } from '../sim/court.js';
+import { UNIT_TYPES as courtUnitTypes } from '../data/armies.js';
 
 // Numbers and dates in the letters. Months are game months (30 days); a deadline is a game date, never a clock.
 const courtSigned = (n) => (n < 0 ? `−${-n}` : `+${n}`);
@@ -2035,13 +2036,20 @@ export function courtProblem(problem, e, world, stock = 0) {
   }
 }
 
+// " (room for 25)" when a card's choice can take fewer than it drew (v.room, from the choice's own effect), else ''.
+const courtRoom = (drawn, v, where = 'stores') => (v && Number.isFinite(v.room) && v.room < drawn ? ` The ${where} have room for ${v.room}.` : '');
+// What units away come back to, by kind ("barracks", "archery range"): the building that trained them.
+const courtHomeOf = (kind) => buildingName((courtUnitTypes[kind] || courtUnitTypes.soldier).building).toLowerCase();
+
 // The eight cards' words: title, a body from what the card drew (its args) and a view (what the interface read off the city: sick homes,
-// the workshop's name), and each choice's button.
+// the workshop's name, the room a capped choice has), and each choice's button.
 const COURT_CARD_WORDS = {
   sickness: { title: 'Sickness in a district', body: (a, v) => `${plural(v.sick, 'home is', 'homes are')} ill in one district. Sickness spreads between touching homes.`, choices: { quarantine: 'Quarantine the district', physicians: 'Pay the physicians' } },
   festival: { title: 'A festival for the capital', body: () => "The capital's priests ask Thebes to hold a festival.", choices: { hold: 'Hold the festival', decline: 'Decline' } },
-  caravan: { title: 'A merchant caravan', body: (a) => `Traders offer ${a.units} ${goodWord(a.good)} at ${a.price} gold each. The usual price is ${courtGoodValue[a.good] || 3}.`, choices: { buy: 'Buy the goods', pass: 'Pass' } },
-  deserters: { title: 'Deserters at the gate', body: (a) => `${a.n} soldiers who left the capital's army ask to settle in Thebes.`, choices: { settle: 'Let them settle', drive_off: 'Drive them off' } },
+  // v.room (ruling 444): what the choice can really take now (cardChoices caps the drawn number at the room in the stores or homes), said
+  // whenever it is less than the number drawn.
+  caravan: { title: 'A merchant caravan', body: (a, v) => `Traders offer ${a.units} ${goodWord(a.good)} at ${a.price} gold each. The usual price is ${courtGoodValue[a.good] || 3}.${courtRoom(a.units, v)}`, choices: { buy: 'Buy the goods', pass: 'Pass' } },
+  deserters: { title: 'Deserters at the gate', body: (a, v) => `${a.n} soldiers who left the capital's army ask to settle in Thebes.${courtRoom(a.n, v, 'homes')}`, choices: { settle: 'Let them settle', drive_off: 'Drive them off' } },
   temple_gift: { title: 'An offering for the temple', body: (a) => `The priests ask for ${a.n} ${goodWord(a.good)} for the temple's feast.`, choices: { donate: 'Donate the goods', keep: 'Keep them' } },
   lost_herd: { title: 'A lost herd', body: () => 'A herd of wild animals has wandered close to your land.', choices: { welcome: 'Welcome the herd', send_away: 'Send a herd to the capital' } },
   craftsmen_dispute: { title: "Craftsmen's dispute", body: (a, v) => `The craftsmen at the ${v.shop} want better pay.`, choices: { raise_wages: 'Raise their wages', let_it_stand: 'Let the dispute run' } },
@@ -2095,6 +2103,9 @@ export const S46_COURT_TEXT = {
     const out = r.kind === 'gold' ? [{ kind: 'gold', n: -r.amount }] : r.kind === 'soldiers' ? [] : [{ kind: 'goods', good: r.good, n: -r.amount }];
     const lines = out.map((e) => courtEffect(e, world));
     if (r.kind === 'soldiers') lines.push(`${courtAsk(r)} leave for ${courtMonths(courtRequests.soldiersMonths)}`);
+    // A raid already warned comes while they are away (they are gone far longer than a warning's days): say so (ruling 443).
+    const warned = world && world.raid && world.raid.warning;
+    if (r.kind === 'soldiers' && warned) lines.push(`A raid arrives in ${plural(Math.max(0, warned.arrives - world.day), 'day', 'days')}: these units will not fight it`);
     lines.push(courtFavourWords(r.met, world));
     if (r.gold > 0) lines.push(`${r.gold} gold join the treasury`);
     return `${lines.join('. ')}.`;
@@ -2107,7 +2118,27 @@ export const S46_COURT_TEXT = {
   choiceLabel: (card, choice) => COURT_CARD_WORDS[card].choices[choice],
   noLetters: 'No letters wait for you.', waiting: 'Waiting for you', pastLetters: 'Past letters', noPast: 'No past letters yet.',
   openRequest: 'Open request', noRequest: 'No request is open.',
-  awayHead: 'Away at the capital', awayLine: (a) => `${plural(a.n, 'trained unit', 'trained units')} back in ${courtDate(a.back)}`,
+  // A group whose building is gone (unitsAway's gone, ruling 443) leaves service on its return day (armyDay), and the line says so.
+  awayHead: 'Away at the capital',
+  awayLine: (a) => (a.gone
+    ? `${plural(a.n, 'trained unit', 'trained units')} due back in ${courtDate(a.back)} will leave service: their ${courtHomeOf(a.kind)} is gone`
+    : `${plural(a.n, 'trained unit', 'trained units')} back in ${courtDate(a.back)}`),
+  captionUnitsLost: (e) => {
+    const kinds = Object.keys(e.lost);
+    const n = kinds.reduce((s, k) => s + e.lost[k], 0);
+    const homes = [...new Set(kinds.map(courtHomeOf))].join(' and ');
+    return `${plural(n, 'trained unit', 'trained units')} back from the capital left service: their ${homes} ${homes.includes(' and ') ? 'are' : 'is'} gone`;
+  },
+  // The demolish question for a building units away come back to (sheets.js asks it through monumentSheet.js demolishQuestion).
+  demolishAway: (type, n) => `Tear down the ${buildingName(type).toLowerCase()}? ${plural(n, 'trained unit', 'trained units')} away at the capital come back to it: with it gone, they leave service.`,
+  demolishAwayShort: (n) => `${plural(n, 'trained unit', 'trained units')} away at the capital will leave service`,
+  // A raid already warned keeps the size and tribute fixed at its warning (raids.js raiseWarning), whatever favour does since (ruling 442).
+  warnedRaid: (w) => `The raid already warned keeps the size${w.tribute ? ` and tribute (${w.tribute} gold)` : ''} set at its warning`,
+  // The answer refused because the numbers on the letter changed while it was open (answerCard's 'changed', ruling 444).
+  captionChanged: 'The numbers on the letter changed: read it again before you choose',
+  // A letter that closed while it was on show (ruling 447): a request past its deadline, a card the court dropped as no longer needed.
+  letterClosed: (kind) => (kind === 'request' ? 'This letter is closed: its deadline passed.' : 'This letter is closed: it is no longer needed.'),
+  close: 'Close',
   cadence: `The court writes a request about every ${courtRequests.gapMonths[0]} to ${courtRequests.gapMonths[1]} months.`,
   closed: () => {
     const m = MILESTONES.find((x) => x.id === courtRules.from), c = MILESTONES.find((x) => x.id === courtRules.fallback);
@@ -2158,14 +2189,15 @@ ALERT_TEXT.court_letter = (alert, world) => {
 };
 
 Object.assign(FIRST_TEXT, {
-  first_letter: { head: 'First letter from the court', why: `Sending what it asks earns favour; at ${courtFavour.high} favour, tribute costs less.` },
+  // Words true on every difficulty (ruling 442): Peaceful has no raids or tribute, so favour's tribute effect is left to the court sheet.
+  first_letter: { head: 'First letter from the court', why: `Sending what it asks earns favour; at ${courtFavour.high} or more, the court sends gifts.` },
 });
 Object.assign(ACHIEVEMENT_NAMES, { friend_of_the_court: 'Friend of the court' });
 ACHIEVEMENT_TEXT.friend_of_the_court = 'Send the court what it asks 5 times';
 Object.assign(TIP_TEXT, {
   court_letters: 'A letter from the court asks for goods or gold: sending it earns favour, refusing or missing it costs favour.',
 });
-TIP_HELP_TEXT.court_letters = `The court writes from ${MILESTONES.find((x) => x.id === courtRules.from).name}: send what it asks for favour. At ${courtFavour.high}, gifts and cheaper tribute.`;
+TIP_HELP_TEXT.court_letters = `The court writes from ${MILESTONES.find((x) => x.id === courtRules.from).name}: send what it asks for favour. At ${courtFavour.high} or more, the court sends gifts.`;
 // ── end s46 court ──
 
 //

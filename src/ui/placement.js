@@ -17,6 +17,7 @@ import { homesCoveredBy } from '../sim/health.js';
 import { crimeHomesCoveredBy } from '../sim/crime.js';
 import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
 import { housesOf } from '../sim/world.js';
+import { unitsAwayFrom } from '../sim/armies.js';
 import { costOf, workGoldPerUnit } from '../sim/costs.js';
 import { monthlyBill, balanceWith } from '../sim/economy.js';
 import { prestigeByKind } from '../sim/prestige.js';
@@ -28,7 +29,7 @@ import { roadReach, adjacentRoadTiles, touchesRoad } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
-import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT } from './text.js';
+import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
 import { bridgeSpot } from '../sim/bridges.js';
 import { styleChoices } from './s46/wonders.js';
 
@@ -302,7 +303,7 @@ function basePreview(world, state) {
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : plural(r.positions.length, 'plot', 'plots'), effect: '', cost: r.cost, count: r.positions.length, tiles, refund: 0 };
   }
   if (tool.kind === 'plazas') return plazaPreview(previewPlazaTiles(world, rectTiles(a.x0, a.y0, a.x1, a.y1, world.size)));   // Stage 4 (ruling 250)
-  return demolishPreview(previewDemolishArea(world, a.x0, a.y0, a.x1, a.y1), rectTiles(a.x0, a.y0, a.x1, a.y1, world.size));
+  return demolishPreview(previewDemolishArea(world, a.x0, a.y0, a.x1, a.y1), rectTiles(a.x0, a.y0, a.x1, a.y1, world.size), world);
 }
 
 // Stage 4.6 (ruling 350): until a road is drawn the bar's cost line (empty then) says that a road can cross water, and what a bridge costs (the sim's price).
@@ -343,7 +344,7 @@ function planPreview(world, tool, tiles) {
     if (r.reason === 'nothing_to_place') return nothing(r);
     return { ...plazaPreview(r, tiles), skipped: skippedOf(r) };
   }
-  return demolishPreview(previewDemolishTiles(world, tiles), tiles);
+  return demolishPreview(previewDemolishTiles(world, tiles), tiles, world);
 }
 
 // Stage 4 (ruling 250): the plaza tool's preview, a rectangle's or a plan's (tiles: the plan's, else the plazas'). Track C
@@ -354,7 +355,7 @@ function plazaPreview(r, tiles = r.positions) {
 }
 
 // Demolish's preview, a rectangle's or a plan's: what it would take up, and its refund (or, Stage 3, what clearing rubble costs).
-function demolishPreview(r, tiles) {
+function demolishPreview(r, tiles, world = null) {
   const count = r.buildingIds.length + r.roadTiles.length + r.wallTiles.length;
   if (!count) return bad('nothing_here', 0, 0, tiles);
   // Clearing rubble would cross the debt floor (Stage 3, spec 4.12): the bar says so in the rule's words.
@@ -364,6 +365,9 @@ function demolishPreview(r, tiles) {
   const text = r.rubble
     ? [others ? plural(others, 'item', 'items') : '', DANGER_UI_TEXT.clearRubble(r.rubble, r.clearCost)].filter(Boolean).join(' · ')
     : `${plural(count, 'item', 'items')} · ${T.refund} ${r.refund}`;
+  // Stage 4.6 (ruling 443): units away at the capital whose building this takes leave service on their return: the bar warns in amber.
+  const away = world && world.army ? r.buildingIds.reduce((n, id) => n + unitsAwayFrom(world, id), 0) : 0;
+  if (away > 0) return { state: 'warn', reason: null, warnings: [], text: `${text} · ${S46_COURT_TEXT.demolishAwayShort(away)}`, effect: '', cost: -r.refund, count, tiles, refund: r.refund };
   return { state: 'ok', reason: null, warnings: [], text, effect: '', cost: -r.refund, count, tiles, refund: r.refund };
 }
 
