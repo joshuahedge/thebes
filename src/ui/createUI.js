@@ -59,7 +59,7 @@ import { createMonumentUi } from './monumentSheet.js';
 import { drawMonument } from '../render/monuments.js';
 import { layoutMarkers, drawMarkers, markerAt } from '../render/markers.js';
 import { unitsAt, drawUnitMarks } from '../render/units.js';
-import { drawFires } from '../render/fire.js';
+import { drawFires, drawScorch } from '../render/fire.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
 import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, T } from './text.js';
 
@@ -913,6 +913,7 @@ export function createUI({
       view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
       ambient: (g, r) => ambient.draw(g, world, r, t),                          // Stage 3 (render/ambient.js, fire.js, units.js)
+      scorch: (g, r) => drawScorch(g, world, r),                                // Stage 4.5 (ruling 310): the ground under a fire, at every motion level
       fire: (g, r) => drawFires(g, world, r, t, still),
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),
       drawOverlay: (g, r) => {
