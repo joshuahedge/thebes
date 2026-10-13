@@ -66,6 +66,7 @@ describe('s3 raids clock and warning', () => {
     addRaw(w, 'storehouse', 6, 11);
     Object.assign(w.raid, { clockDay: 0, nextWarnDay: 3000, index: 1 });
     w.speed = 3;
+    w.day = 3000;                                                                     // (the size grows with the years since the clock started)
     const size = raidSize(w);
     expect(size).toBeGreaterThan(RAIDS.firstSize);
     dayAt(w, 3000);

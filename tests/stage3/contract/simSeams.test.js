@@ -152,7 +152,8 @@ describe('s3 contract raid seams', () => {
     const at = (people, wealth) => { home.residents = people; w.gold = wealth - 5; expect(raidWealth(w)).toBe(wealth); return raidSize(w); };
     expect(at(250, 6000)).toBe(3);                                                    // 1 + 2 + 0.2 = 3.2
     expect(at(600, 15000)).toBe(8);                                                   // 1 + 4.8 + 2 = 7.8
-    expect(at(1000, 60000)).toBe(12);                                                 // 13, at most 12
+    expect(at(1000, 60000)).toBe(13);                                                 // 1 + 8 + 4 (Stage 4.5: the cap is 18, not 12)
+    expect(at(2000, 60000)).toBe(18);                                                 // 21, at most 18
     w.difficulty = 'relaxed';
     expect(at(1000, 60000)).toBe(7);                                                  // 6.5
     expect(at(0, 5)).toBe(2);                                                         // 1 x 0.5, at least 2
@@ -171,7 +172,7 @@ describe('s3 contract raid seams', () => {
     w.raid.index = 2;
     w.raid.warning = { index: 1, entry: { x: 31, y: 16 }, dir: 'east', size: 8, tribute: 360, target: 'storehouse', day: 800, arrives: 890, first: false };
     addRaw(w, 'tower', 3, 9, { staff: 4 });
-    expect(tributeQuote(w)).toEqual({ cost: 360, size: 8, towersNeeded: 3, towersHave: 1, buildN: 2, buildCost: 300, hidden: false, payable: true, reason: null });
+    expect(tributeQuote(w)).toEqual({ cost: 360, size: 8, towersNeeded: 3, towersHave: 1, buildN: 2, buildCost: 300, hidden: false, payable: true, reason: null, dirs: ['east'] });
     w.gold = 359;
     expect([tributeQuote(w).reason, payTribute(w).reason]).toEqual(['below_zero', 'below_zero']);
     w.gold = 1000;
@@ -241,9 +242,9 @@ describe('s3 contract clock and economy wiring', () => {
     let day = w.day;
     Object.defineProperty(w, 'day', { get: () => day, set: (v) => { day = v; if (v === 2) w.speed = 0; }, configurable: true, enumerable: true });   // the sim pausing on day 2
     const loop = createGameLoop({ world: w, render: () => {}, raf: () => 0, caf: () => {} });
-    loop.tick(0); loop.tick(250); loop.tick(500);
+    loop.tick(0); loop.tick(250); loop.tick(500); loop.tick(750);               // 0.75 days a frame at 3x: day 2 on the third frame
     expect([w.day, loop.accumulator]).toEqual([2, 0]);
-    loop.tick(750); loop.tick(1000);
+    loop.tick(1000); loop.tick(1250);
     expect(w.day).toBe(2);
     const c = street();
     tickDay(c, []);
@@ -299,7 +300,10 @@ describe('s3 contract commands', () => {
     expect(canPlace(w, 'firehouse', 12, 9).reason).toBe('occupied');
     expect(canPlace(w, 'tower', 12, 9).ok).toBe(true);
     expect(canPlace(w, 'tower', 14, 9).reason).toBe('occupied');                     // not on broken stone
-    expect(previewRoad(w, 12, 8, 12, 9).reason).toBe('blocked');
+    expect(previewRoad(w, 12, 8, 12, 9).gates).toEqual([wallTile]);                   // Stage 4.5 (ruling 309): a road crossing a wall makes a gate there
+    w.occ[wallTile] = 99;
+    expect(previewRoad(w, 12, 8, 12, 9).reason).toBe('blocked');                       // a tower on it still blocks the road
+    w.occ[wallTile] = 0;
     w.wall[idx(w.size, 16, 10)] = 40;                                                  // a gate: the road through it stays usable
     expect(drawRoad(w, 16, 9, 16, 10).ok).toBe(true);
   });

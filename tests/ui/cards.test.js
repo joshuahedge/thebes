@@ -9,7 +9,7 @@ describe('ui cards', () => {
   it('describes every item with its cost and state', () => {
     // the treasury may run to the debt floor (-500): a 30-gold well still fits, a 120-gold temple does not
     const w = makeTestWorld({ gold: -400 });
-    expect(cardInfo(w, 'well')).toEqual({ item: 'well', name: 'Well', cost: BUILDINGS.well.cost, costText: `${BUILDINGS.well.cost} gold`, affordable: true, locked: false, lockText: '', isNew: false, terrainText: '' });
+    expect(cardInfo(w, 'well')).toEqual({ item: 'well', name: 'Well', cost: BUILDINGS.well.cost, costText: `${BUILDINGS.well.cost} gold`, affordable: true, locked: false, lockText: '', isNew: false, terrainText: '', upkeepText: 'Costs 3 a month', upkeepTitle: '3 upkeep' });   // Stage 4.5: a well has no workers, so its bill is its upkeep
     expect(cardInfo(w, 'temple').affordable).toBe(false);
     expect(cardInfo(w, 'road').costText).toBe(`${ECONOMY.roadCost} gold per tile`);
     expect(cardInfo(w, 'house').costText).toBe(`${BUILDINGS.house.cost} gold per plot`);
@@ -22,7 +22,8 @@ describe('ui cards', () => {
     const w = makeTestWorld({ gold: 1000 });
     expect(['farm_grain', 'farm_fig', 'farm_barley', 'farm_flax'].map((t) => cardInfo(w, t).terrainText)).toEqual(Array(4).fill('Fertile land'));
     expect(cardInfo(w, 'gem_mine').terrainText).toBe('Rocky ground');
-    expect(['well', 'granary', 'road', 'house', 'demolish', 'clay_pit'].map((t) => cardInfo(w, t).terrainText)).toEqual(Array(6).fill(''));
+    expect(cardInfo(w, 'clay_pit').terrainText).toBe('Clay ground');                                  // Stage 4.5, ruling 312
+    expect(['well', 'granary', 'road', 'house', 'demolish'].map((t) => cardInfo(w, t).terrainText)).toEqual(Array(5).fill(''));
     const { root, cleanup } = mount();
     renderCards(root, { world: w, category: 'food', activeItem: null, onPick: () => {} });
     const farm = root.querySelector('.card[data-item="farm_grain"]');
@@ -35,7 +36,7 @@ describe('ui cards', () => {
     const w = makeTestWorld({ gold: -400 });
     const picked = [];
     const buttons = renderCards(root, { world: w, category: 'services', activeItem: 'well', onPick: (i) => picked.push(i) });
-    expect(buttons.length).toBe(6);                                  // the booth and the palace come with Town: shown, locked; the firehouse with the Village
+    expect(buttons.length).toBe(7);                                  // the booth, the physician and the palace come with Town: shown, locked; the firehouse with the Village
     expect(buttons[0].querySelector('.name').textContent).toBe('Well');
     expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
     expect(buttons[2].classList.contains('unaffordable')).toBe(true);

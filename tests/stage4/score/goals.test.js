@@ -28,14 +28,14 @@ function city(milestone = 'city') {
 const ids = (list) => list.map((g) => g.id);
 
 describe('s4 score opening goals', () => {
-  it('says the road rule and the fertile-land rule in the opening four, each with its why, and still opens at 1 of 10', () => {
+  it('says the road rule and the fertile-land rule in the opening four, each with its why, and still opens at 1 of 11 (the profit goal of Stage 4.5 made it eleven)', () => {
     expect(GOALS.slice(0, 4).map((g) => [g.id, g.text])).toEqual([
       ['road', 'Lay a road: buildings need one'], ['plots', 'Place 6 housing plots by the road'],
       ['well', "Build a well by the homes' road"], ['food', 'Farm on fertile land, granary, bazaar'],
     ]);
     for (const g of GOALS.slice(0, 4)) expect([g.id, g.text.length <= 37, typeof g.why, g.why.endsWith('.')]).toEqual([g.id, true, 'string', true]);
-    expect(GOALS.findIndex((g) => g.id === OPENING_LAST)).toBe(8);
-    expect(openingProgress(createWorld({ seed: 3 }))).toEqual({ done: 1, of: 10 });
+    expect(GOALS.findIndex((g) => g.id === OPENING_LAST)).toBe(9);
+    expect(openingProgress(createWorld({ seed: 3 }))).toEqual({ done: 1, of: 11 });
   });
   it('words each why as the sim plays it: no road, no work and no family; a well\'s water along the road; farms on fertile land', () => {
     const w = makeTestWorld();

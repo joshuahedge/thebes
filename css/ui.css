@@ -101,11 +101,11 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 #dock { position: fixed; left: 0; right: 0; bottom: 0; background: var(--parchment); border-top: 1px solid var(--parchment-3); border-radius: 16px 16px 0 0; box-shadow: var(--shadow); padding-bottom: var(--safe-bottom); display: flex; flex-direction: column; }
 #dock .handle { align-self: center; width: 44px; height: auto; margin: -10px 0; border: none; background: transparent; min-width: 0; min-height: var(--tap); padding: 0; box-shadow: none; touch-action: none; }
 #dock .handle::before { content: ""; display: block; width: 40px; height: 5px; border-radius: 3px; background: var(--parchment-3); margin: 8px auto; }
-#dock .cats { display: flex; justify-content: space-around; padding: 0 4px 6px; }
+#dock .cats { display: flex; justify-content: space-around; padding: 0 4px 3px; }
 #dock .cat { display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; min-width: var(--tap); padding: 2px 4px; font-size: calc(12px * var(--ui-scale)); border-radius: 8px; box-shadow: none; }
 #dock .cat[aria-pressed="true"] { color: var(--teal); font-weight: 600; box-shadow: none; }
 #dock .cat .icon { font-size: calc(20px * var(--ui-scale)); }
-#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 2px 12px 6px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; }
+#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 2px 12px 3px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; }
 #dock .pill { align-self: center; margin: 6px 0 8px; }
 #dock[data-height="slim"] .tray, #dock[data-height="slim"] .pill { display: none; }
 #dock[data-height="tray"] .pill { display: none; }
@@ -620,6 +620,8 @@ body[data-hand="left"] #corners .layers-picker { right: auto; left: 8px; }
    top bar and the corner row leave (five tight rows fit even at 150% text), and the open popover scrolls the current choice into view (layersPicker.js). */
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) .layers-picker .layer.off { grid-column: auto; }
 body[data-layout="compact"] #corners .layers-picker { gap: 2px; padding: 4px; max-height: calc(100vh - var(--topbar-h) - var(--safe-top) - var(--safe-bottom) - 76px); max-height: calc(100dvh - var(--topbar-h) - var(--safe-top) - var(--safe-bottom) - 76px); overscroll-behavior: contain; }
+/* Stage 4.5 (Health and Crime): twelve choices at 125% or 150% text would need six rows of two, taller than the short screen leaves; a wider popover (it grows leftwards, away from the confirm bar) holds them in four rows of three. */
+body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]) #corners .layers-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); width: min(540px, calc(100% - 16px)); }
 #panel .layers-row { position: relative; flex: none; padding: 0 8px 8px; }
 #panel .layers-button { width: 100%; font-size: calc(14px * var(--ui-scale)); }
 #panel .layers-button[aria-pressed="true"] { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }
@@ -1009,3 +1011,34 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
   #title { justify-content: flex-end; padding-right: max(12px, env(safe-area-inset-right)); }
 }
 /* ── end s4 balance ── */
+
+/* ── s45 (Stage 4.5, Task 4b) ── the forecast in the gold chip, and the cost lines on cards and the confirm bar. */
+/* It sits under the gold number, not beside it, and adds no width of its own (a grid whose chip is as wide as the gold line; the
+   forecast's words run on beneath the neighbouring numbers, which sit at the top of the row), so a phone's four numbers keep their
+   one row at every text size and the forecast adds a second line inside the bar's own height. Where the numbers have already wrapped
+   to two rows the bar has no room for a third line, and hud.js hides it (class tight). */
+#topbar .stats { align-items: flex-start; }
+#topbar .stat.gold { display: grid; grid-auto-flow: column; justify-content: start; align-items: center; column-gap: 3px; }
+#topbar .stat.gold .forecast { grid-column: 1 / span 3; grid-row: 2; width: 0; overflow: visible; justify-self: start; }
+#topbar .stats.tight .forecast { display: none; }
+#topbar .forecast { font-size: calc(12px * var(--ui-scale)); line-height: 1.2; color: var(--ink-soft); white-space: nowrap; cursor: pointer; }
+#topbar .forecast .short { display: none; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .forecast .long { display: none; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .forecast .short { display: inline; }
+/* Amber only when the sim says the treasury runs out within its window; the warning mark in the words says so as well. */
+#topbar .forecast.warn { color: var(--amber-text); font-weight: 600; }
+.card .upkeep { margin-top: -3px; font-size: calc(12px * var(--ui-scale)); line-height: 1.15; color: var(--ink-soft); }
+/* The upkeep line is up to two lines on a 124 px card (a farm's has the ground line besides), so a card gives back a few px to keep every tray inside --dock-tray. */
+.card { gap: 2px; padding: 5px 8px; }
+/* At 125% text and more the card keeps "Costs 46 a month" and leaves "· 10 workers" to screen readers and the tip (a wrapped third line would push the tray past its height). */
+body:is([data-text-size="125"], [data-text-size="150"]) .card .upkeep .crew { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.card .thumb { height: 47px; }
+#confirm .balance { white-space: normal; }
+/* A building with a monthly bill has one more line (its balance): the portrait bar's info keeps its room for it. */
+body[data-layout="portrait"] .confirm.bal .info { min-height: 4.65em; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) .confirm.bal .info { min-height: 5.7em; }
+body[data-layout="portrait"] .confirm.desire.bal .info { min-height: 5.7em; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) .confirm.desire.bal .info { min-height: 6.75em; }
+#tip .tip-row .tip-show-me { flex: none; white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .tip-show-me { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
+/* ── end s45 ── */

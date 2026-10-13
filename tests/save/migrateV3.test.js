@@ -50,17 +50,17 @@ describe('migrate v2 to v3', () => {
     expect(v3.tally === v2.tally).toBe(false);                    // a copy, not the same object
     for (const k of Object.keys(v2)) if (k !== 'version' && k !== 'tally') expect([k, v3[k]]).toEqual([k, v2[k]]);
     expect(Object.keys(v3).sort()).toEqual(REQUIRED.filter((k) => !V4_KEYS.includes(k)).sort());
-    expect(validateWorld(MIGRATIONS[4](MIGRATIONS[3](v3)))).toBe(true);                    // valid once versions 4 and 5 add its fields
+    expect(validateWorld(MIGRATIONS[5](MIGRATIONS[4](MIGRATIONS[3](v3))))).toBe(true);                    // valid once versions 4, 5 and 6 add its fields
   });
   it('runs through migrate, deserialize and unpackSave, and keeps the old costs', () => {
     const v2 = v2City();
-    expect(CURRENT_VERSION).toBe(5);
-    expect(migrate(v2)).toEqual(MIGRATIONS[4](MIGRATIONS[3](MIGRATIONS[2](v2))));
-    expect(deserialize(JSON.stringify(v2)).version).toBe(5);
+    expect(CURRENT_VERSION).toBe(6);
+    expect(migrate(v2)).toEqual(MIGRATIONS[5](MIGRATIONS[4](MIGRATIONS[3](MIGRATIONS[2](v2)))));
+    expect(deserialize(JSON.stringify(v2)).version).toBe(6);
     const back = unpackSave(JSON.stringify({ version: 1, savedAt: 1760000000000, lastSpeed: 2, world: v2 }));
     expect(back.savedAt).toBe(1760000000000);
     expect(back.lastSpeed).toBe(2);
-    expect(back.world.version).toBe(5);
+    expect(back.world.version).toBe(6);
     expect(back.world.difficulty).toBe('normal');
     for (const [id, b] of Object.entries(v2.buildings)) expect(back.world.buildings[id]).toEqual({ ...b, risk: 0, fire: null });
     expect(back.world.gold).toBe(v2.gold);

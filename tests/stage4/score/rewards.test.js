@@ -34,9 +34,9 @@ const finish = (w, type, x, y, extra = {}) => { const b = addRaw(w, type, x, y);
 
 describe('s4 score firsts and achievements', () => {
   it('celebrates the first guild, course, monument, the pyramids unlocked and the first palace, each once, at 10 gold', () => {
-    expect(ids(FIRSTS.slice(20))).toEqual(['first_guild', 'first_course', 'first_monument', 'pyramids_unlocked', 'first_palace']);
+    expect(ids(FIRSTS.slice(20, 25))).toEqual(['first_guild', 'first_course', 'first_monument', 'pyramids_unlocked', 'first_palace']);   // Stage 4.5 adds the physician and police post after them (tests/stage45/threatsUi.test.js)
     const w = city();
-    w.firsts = ids(FIRSTS.slice(0, 20));
+    w.firsts = ids([...FIRSTS.slice(0, 20), ...FIRSTS.slice(25)]);
     expect(checkFirsts(w)).toEqual([]);
     addRaw(w, 'builders_guild', 12, 11);
     const site = addRaw(w, 'obelisk_small', 16, 11);
@@ -53,7 +53,7 @@ describe('s4 score firsts and achievements', () => {
     expect(checkFirsts(w)).toEqual([]);
   });
   it('words each first as the monument rules have it', () => {
-    for (const f of FIRSTS.slice(20)) expect([f.id, FIRST_TEXT[f.id].head.length < 30, FIRST_TEXT[f.id].why.length > 20]).toEqual([f.id, true, true]);
+    for (const f of FIRSTS.slice(20, 25)) expect([f.id, FIRST_TEXT[f.id].head.length < 30, FIRST_TEXT[f.id].why.length > 20]).toEqual([f.id, true, true]);
     expect(FIRST_TEXT.first_guild.why).toBe(`Its crew builds a monument site up to ${MONUMENT.crewReach} road tiles away.`);
     for (const k of MONUMENT_KINDS) expect([k, MONUMENTS[k].prestige.courses]).toEqual([k, MONUMENTS[k].prestige.done]);   // "Half ... half"
     const w = city();
@@ -118,7 +118,7 @@ describe('s4 score feats and daily goals', () => {
     expect(featStatus(v, swift)).toBe('lost');
   });
   it('draws the three monument daily goals from City only while a site is under way, and counts the stone brought to sites', () => {
-    expect(DAILY_POOL.slice(18).map((d) => [d.id, DAILY_TEXT[d.id]])).toEqual([
+    expect(DAILY_POOL.slice(17).map((d) => [d.id, DAILY_TEXT[d.id]])).toEqual([
       ['course1', 'Lay a course on any monument'], ['quarry1', 'Build a quarry'], ['stone100', 'Bring 100 stone to a monument site'],
     ]);
     const w = city('market_town');

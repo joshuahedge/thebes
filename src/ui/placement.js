@@ -12,9 +12,12 @@ import { startTool as startToolPatch, cancelTool, select } from './modes.js';
 import { palaceOf } from '../sim/palace.js';
 import { AUTO_OVERLAY, NEAREST_FIT_RADIUS } from '../data/ui.js';
 import { homesServedFrom } from '../sim/housing.js';
+import { homesCoveredBy } from '../sim/health.js';
+import { crimeHomesCoveredBy } from '../sim/crime.js';
 import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
 import { housesOf } from '../sim/world.js';
 import { costOf, workGoldPerUnit } from '../sim/costs.js';
+import { monthlyBill, balanceWith } from '../sim/economy.js';
 import { prestigeByKind } from '../sim/prestige.js';
 import { setPlacingRot } from '../render/overlays.js';
 import { refusingStores } from '../sim/production.js';
@@ -24,7 +27,7 @@ import { roadReach, adjacentRoadTiles, touchesRoad } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
-import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText } from './text.js';
+import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT } from './text.js';
 
 // A building tool's footprint in its rotation (Stage 4: tool.rot 1 turns a mastaba a quarter, dimsOf; ruling 234).
 const footprintOf = (tool) => (tool.kind === 'building' ? dimsOf(tool.type, tool.rot || 0) : { w: 1, d: 1 });
@@ -36,6 +39,25 @@ export const fitRadiusOf = (type) => (BUILDINGS[type] && BUILDINGS[type].w * BUI
 
 // Tools drawn as a line from a start to an end, in an L that can be flipped (spec 6.4 Drawing mode): roads and walls.
 export const LINE_TOOLS = ['road', 'wall'];
+
+// Stage 4.5 (ruling 309): the Gate card is the road tool with tool.gate set; it takes wall and breach tiles only. A road
+// through a wall makes gates at the gate price, and the bar says so, in the price function's numbers.
+const roadOptions = (tool) => (tool.gate ? { gateOnly: true } : {});
+// Ruling 314: a road over water makes bridge tiles at the bridge price, and a crossing wider than the rule allows is refused with
+// how much water it holds ("Too wide to bridge here (6 tiles of water)"): the sim's own run length and price.
+function roadText(world, r) {
+  const gates = (r.gates || []).length, bridges = (r.bridges || []).length, roads = r.tiles.length - gates - bridges;
+  if (!gates && !bridges) return plural(r.tiles.length, 'tile', 'tiles');
+  const parts = [];
+  if (roads) parts.push(plural(roads, 'tile', 'tiles'));
+  if (gates) parts.push(S45_TEXT.gateNote(gates, costOf(world, 'gate')));
+  if (bridges) parts.push(S45_TEXT.bridgeNote(bridges, r.bridgeCost));
+  return parts.join(' · ');
+}
+const roadRefusalText = (r) => (r.reason === 'too_wide' ? S45_TEXT.tooWide(r.water) : reasonText(r.reason));
+const roadDoneText = (tool, result) => (tool.gate ? S45_TEXT.gateBuilt
+  : result.ok && result.bridges && result.bridges.length ? S45_TEXT.roadLaidBridge(result.bridges.length)
+    : result.ok && result.gates && result.gates.length ? S45_TEXT.roadLaidGates(result.gates.length) : T.roadLaid);
 const isLine = (tool) => Boolean(tool) && LINE_TOOLS.includes(tool.kind);
 
 // A touch plan (placement review P3, P5): what a finger or pen has drawn and tapped in a drawing tool since it started, stroke by
@@ -145,6 +167,17 @@ export function firehouseReachFrom(world, x, y) {
   return n;
 }
 
+// The homes a service would reach from the ghost's spot, counted as its own sheet will count them: the physician and the police
+// post count homes with people in them (homesCoveredBy, crimeHomesCoveredBy: the sheets' "Covers N homes"), so the bar and the
+// sheet agree; the water, food, faith and play services count every housing plot (homesServedFrom). Uncached either way.
+export function serviceHomesFrom(world, type, x, y) {
+  const def = BUILDINGS[type];
+  const p = { x, y, w: def.w, d: def.d };
+  if (type === 'physician') return homesCoveredBy(world, p, { cache: false });
+  if (type === 'police_post') return crimeHomesCoveredBy(world, p, { cache: false });
+  return homesServedFrom(world, type, x, y);
+}
+
 // A ghost's first warning in words. A producer with no store in reach that takes its good names the store it needs; when a
 // store there is built to hold the good but refuses it, the line says so, so the accept switch is not hidden.
 function warningLine(world, type, x, y, code) {
@@ -200,7 +233,7 @@ function basePreview(world, state) {
     // A service says how many homes it would reach from here (early-game pass 2.6); a firehouse, how many buildings that
     // can burn (Stage 3); other buildings say nothing.
     const effect = tool.type === 'firehouse' ? DANGER_UI_TEXT.firehouseCovers(firehouseReachFrom(world, x, y))
-      : def.reach ? effectText(tool.type, homesServedFrom(world, tool.type, x, y)) : '';
+      : def.reach ? effectText(tool.type, serviceHomesFrom(world, tool.type, x, y)) : '';
     const text = !warn ? '' : c.warnings[0] === 'needs_road' && joins.length ? CONDITION_TEXT.roadHint : warningLine(world, tool.type, x, y, c.warnings[0]);
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: c.warnings, text, effect, cost, count: 1, tiles: [], refund: 0, ...extra };
   }
@@ -212,8 +245,8 @@ function basePreview(world, state) {
     if (!l) return idle(touch ? DRAW_TEXT.idle : T.tapStart);
     if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
     const tiles = roadPath(l.x0, l.y0, l.x1, l.y1, l.flip);
-    const r = (tool.kind === 'road' ? previewRoad : previewWall)(world, l.x0, l.y0, l.x1, l.y1, l.flip);
-    if (!r.ok) return bad(r.reason, r.cost, r.tiles.length, tiles);
+    const r = tool.kind === 'road' ? previewRoad(world, l.x0, l.y0, l.x1, l.y1, l.flip, roadOptions(tool)) : previewWall(world, l.x0, l.y0, l.x1, l.y1, l.flip);
+    if (!r.ok) return bad(r.reason, r.cost, r.tiles.length, tiles, roadRefusalText(r));
     if (!r.tiles.length) return bad('nothing_to_place', 0, 0, tiles);
     if (tool.kind === 'wall') {
       // Stage 3 (spec 4.13, 6.4): only the tiles that get wall (standing wall is skipped), the gates among them marked, and
@@ -222,7 +255,7 @@ function basePreview(world, state) {
       const gates = r.gates || [];
       return { state: 'ok', reason: null, warnings: [], text: DANGER_UI_TEXT.wallCount(r.tiles.length, gates.length), effect: '', cost: r.cost, count: r.tiles.length, tiles: r.tiles.map(at), gates, refund: 0 };
     }
-    return { state: 'ok', reason: null, warnings: [], text: plural(r.tiles.length, 'tile', 'tiles'), effect: '', cost: r.cost, count: r.tiles.length, tiles, refund: 0 };
+    return { state: 'ok', reason: null, warnings: [], text: roadText(world, r), effect: '', cost: r.cost, count: r.tiles.length, tiles, gates: r.gates || [], bridges: r.bridges || [], refund: 0 };
   }
   const a = state.area;
   if (!a) return idle(touch ? DRAW_TEXT.idle : T.tapStart);
@@ -252,12 +285,12 @@ function planPreview(world, tool, tiles) {
   };
   if (tool.kind === 'road' || tool.kind === 'wall') {
     const wall = tool.kind === 'wall';
-    const r = (wall ? previewWallTiles : previewRoadTiles)(world, tiles, { skipBlocked: true });
+    const r = (wall ? previewWallTiles : previewRoadTiles)(world, tiles, wall ? { skipBlocked: true } : { skipBlocked: true, ...roadOptions(tool) });
     if (r.reason === 'nothing_to_place' || (r.ok && !r.tiles.length)) return nothing(r);
     if (!r.ok) return { ...bad(r.reason, r.cost, r.tiles.length, tiles), skipped: skippedOf(r) };
     const gates = r.gates || [];
-    const text = wall ? DANGER_UI_TEXT.wallCount(r.tiles.length, gates.length) : plural(r.tiles.length, 'tile', 'tiles');
-    return { state: 'ok', reason: null, warnings: [], text: withSkips(text, r), effect: '', cost: r.cost, count: r.tiles.length, tiles, gates, skipped: skippedOf(r), refund: 0 };
+    const text = wall ? DANGER_UI_TEXT.wallCount(r.tiles.length, gates.length) : roadText(world, r);
+    return { state: 'ok', reason: null, warnings: [], text: withSkips(text, r), effect: '', cost: r.cost, count: r.tiles.length, tiles, gates, bridges: r.bridges || [], skipped: skippedOf(r), refund: 0 };
   }
   if (tool.kind === 'houses') {
     const r = previewHouseTiles(world, tiles);
@@ -305,6 +338,9 @@ export function toolPreview(world, state) {
   p.nicerTone = '';
   p.score = '';                                         // Stage 3: the parts it would change, "+3 Culture" (scoreUi.js)
   p.line = '';                                          // Stage 4: a monument's line, the score's part first (monumentLine)
+  p.upkeep = '';                                        // Stage 4.5 (Task 4b): "Costs 46 a month · 10 workers" and "Monthly balance becomes -89"
+  p.balance = '';
+  p.balanceNet = 0;
   if (state.tool.kind === 'building' && isMonumentType(state.tool.type) && (p.state === 'ok' || p.state === 'warn')) {
     p.score = scoreLineFor(world, state.tool.type, state.ghost.x, state.ghost.y);
     p.line = [p.score, monumentLine(world, state.tool.type, state.ghost.x, state.ghost.y, rotOf(state.tool))].filter(Boolean).join(' · ');
@@ -313,6 +349,18 @@ export function toolPreview(world, state) {
     p.nicer = nicerText(d.better, d.worse);
     p.nicerTone = d.better && d.worse ? 'mixed' : d.better ? 'better' : d.worse ? 'worse' : '';
     p.score = scoreLineFor(world, state.tool.type, state.ghost.x, state.ghost.y);
+  }
+  if (state.tool.kind === 'building' && p.state !== 'idle') {
+    const bill = monthlyBill(state.tool.type);
+    if (bill.bill > 0) {
+      p.upkeep = S45_TEXT.upkeepLine(bill);
+      // A building no road touches costs nothing until one does (monthFigures), so its balance waits for the road; a spot that cannot
+      // be built on has no balance. The bar keeps the line's room either way (confirmBar.js), so it never grows as the ghost moves.
+      if ((p.state === 'ok' || p.state === 'warn') && !p.warnings.includes('needs_road')) {
+        p.balanceNet = balanceWith(world, state.tool.type);
+        p.balance = S45_TEXT.balanceLine(p.balanceNet);
+      }
+    }
   }
   return p;
 }
@@ -382,7 +430,7 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
   }
   // A touch plan's skipped tiles are coral with a cross (P5); the rest show the plan's state, a gate its own mark.
   const skipped = new Set((preview.skipped || []).map(tileKey));
-  const gates = new Set(tool.kind === 'wall' ? preview.gates || [] : []);
+  const gates = new Set(tool.kind === 'wall' || tool.kind === 'road' ? preview.gates || [] : []);
   return preview.tiles.map(([x, y]) => ({ x, y, w: 1, d: 1, state: skipped.has(tileKey([x, y])) ? 'bad' : gates.has(y * world.size + x) ? 'gate' : visual }));
 }
 
@@ -502,12 +550,12 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (s.plan && t.kind !== 'building') {
         // A touch plan lays what it can (P5): one command, one undo entry, for every stroke and tap since the tool started.
         const tiles = s.plan.tiles;
-        result = t.kind === 'road' ? drawRoadTiles(world, tiles, { skipBlocked: true })
+        result = t.kind === 'road' ? drawRoadTiles(world, tiles, { skipBlocked: true, ...roadOptions(t) })
           : t.kind === 'wall' ? drawWallTiles(world, tiles, { skipBlocked: true })
             : t.kind === 'houses' ? paintHouseTiles(world, tiles) : t.kind === 'plazas' ? paintPlazaTiles(world, tiles) : demolishTiles(world, tiles);
         const xs = tiles.map((q) => q[0]), ys = tiles.map((q) => q[1]);
         cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 0.5; cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 0.5;
-        text = t.kind === 'road' ? T.roadLaid : t.kind === 'wall' ? T.wallBuilt : t.kind === 'houses' ? '' : t.kind === 'plazas' ? UI4_TEXT.plazasLaid(result.ok ? result.ids.length : 0) : T.demolished;
+        text = t.kind === 'road' ? roadDoneText(t, result) : t.kind === 'wall' ? T.wallBuilt : t.kind === 'houses' ? '' : t.kind === 'plazas' ? UI4_TEXT.plazasLaid(result.ok ? result.ids.length : 0) : T.demolished;
       } else if (t.kind === 'building') {
         const def = footprintOf(t);
         result = place(world, t.type, s.ghost.x, s.ghost.y, { roadLater: true, rot: rotOf(t) });   // only the player's placing waits for a road (P10)
@@ -516,9 +564,9 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         text = isMonumentType(t.type) ? UI4_TEXT.founded(t.type) : `${buildingName(t.type)} ${T.placed.toLowerCase()}`;
         if (result.ok && t.type !== 'house' && result.warnings.includes('needs_road')) text += ` · ${CONDITION_TEXT.placedNoRoad}`;
       } else if (isLine(t)) {
-        result = (t.kind === 'road' ? drawRoad : drawWall)(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip);
+        result = t.kind === 'road' ? drawRoad(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip, roadOptions(t)) : drawWall(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip);
         cx = s.line.x1 + 0.5; cy = s.line.y1 + 0.5;
-        text = t.kind === 'road' ? T.roadLaid : T.wallBuilt;
+        text = t.kind === 'road' ? roadDoneText(t, result) : T.wallBuilt;
       } else {
         const a = s.area;
         result = t.kind === 'houses' ? paintHouses(world, a.x0, a.y0, a.x1, a.y1)

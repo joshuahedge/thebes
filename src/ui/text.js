@@ -8,7 +8,7 @@ import { FIRSTS } from '../data/firsts.js';
 import { GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
 import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
-import { ECONOMY } from '../data/economy.js';
+import { ECONOMY, FORECAST } from '../data/economy.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { roadCostOf } from '../sim/costs.js';
 import { producerRefused } from '../sim/production.js';
@@ -188,6 +188,7 @@ const REASONS = {
   blocked: 'Something is in the way',
   needs_fertile: 'Needs fertile land',
   needs_rocky: 'Needs rocky ground',
+  needs_clay: 'Needs clay ground',
   needs_road: 'Must touch a road',
   no_gold: 'Not enough gold',
   nothing_to_place: 'Nothing to place here',
@@ -215,7 +216,7 @@ export function warningText(code, type = null) {
 // is met) and cant (it cannot be placed).
 export const CONDITION_MARKS = { met: '✓', later: '!', cant: '✕' };
 export const CONDITION_STATE_WORDS = { met: 'Met', later: 'Not yet', cant: "Can't" };
-const TERRAIN_WORDS = { fertile: 'Fertile land', rocky: 'Rocky ground' };
+const TERRAIN_WORDS = { fertile: 'Fertile land', rocky: 'Rocky ground', clay: 'Clay ground' };
 export const CONDITION_TEXT = {
   group: 'Conditions',
   free: 'Free ground',
@@ -232,7 +233,7 @@ export const CONDITION_TEXT = {
   goldShort: (cost, have) => `Not enough gold: ${cost} needed, you have ${have}`,
   placedNoRoad: 'needs a road',
   placedNoRoadYet: 'no road yet',
-  onTerrain: { fertile: 'On fertile land', rocky: 'On rocky ground' },
+  onTerrain: { fertile: 'On fertile land', rocky: 'On rocky ground', clay: 'On clay ground' },
   // A building with this terrain in its definition: "On fertile land" for a tooltip, "Fertile land" (the chip's words, short enough
   // for a card at 150% text) for a card; '' for any other.
   terrainLine: (type, short = false) => (BUILDINGS[type] && BUILDINGS[type].terrain ? (short ? TERRAIN_WORDS[BUILDINGS[type].terrain] : CONDITION_TEXT.onTerrain[BUILDINGS[type].terrain]) || '' : ''),
@@ -264,7 +265,7 @@ export function conditionText(cond, type, { refused = false } = {}) {
   const def = BUILDINGS[type];
   if (cond.key === 'ground') {
     if (cond.state === 'met') return def && def.terrain ? C.terrain(def.terrain) : C.free;
-    if (cond.reason === 'needs_fertile' || cond.reason === 'needs_rocky') return C.terrainCount(cond.terrain, cond.fit, cond.of);
+    if (cond.reason === 'needs_fertile' || cond.reason === 'needs_rocky' || cond.reason === 'needs_clay') return C.terrainCount(cond.terrain, cond.fit, cond.of);
     if (cond.reason === 'occupied') return C.taken;
     if (cond.reason === 'water') return C.water;
     if (cond.reason === 'out_of_bounds') return C.offMap;
@@ -285,14 +286,14 @@ export function conditionText(cond, type, { refused = false } = {}) {
 }
 
 // What a service will do from the ghost's spot (early-game pass 2.6), counted by homesServedFrom.
-const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}`, booth: (homes) => `Entertains ${homes}` };
+const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}`, booth: (homes) => `Entertains ${homes}`, physician: (homes) => `Looks after ${homes}`, police_post: (homes) => `Watches over ${homes}` };
 export function effectText(type, n) {
   if (!EFFECTS[type]) return '';
   return n > 0 ? EFFECTS[type](plural(n, 'home', 'homes')) : T.noHomesInReach;
 }
 
 export function unlockText(type) {
-  const m = MILESTONES.find((ms) => ms.unlocks.includes(type));
+  const m = MILESTONES.find((ms) => ms.unlocks.includes(type === 'gate' ? 'wall' : type));   // the Gate card comes with the wall (Stage 4.5)
   return m ? `Unlocks at ${m.name}` : 'Comes later';
 }
 
@@ -365,11 +366,11 @@ export const OVERLAY_LEGEND = {
   goods: ['Has its goods', 'Goods missing'], entertainment: ['Has entertainment', 'No entertainment'], housing: ['Ready to grow', 'Next need missing'],
   // Ground (placement review P1) has no dot and ring: its two keys are the land it shows, free fertile land (leaf green with
   // dots) and free rocky ground (grey, hatched).
-  ground: ['Fertile: farms and orchards', 'Rocky: mines'],
+  ground: ['Fertile: farms and orchards', 'Rocky: mines', 'Clay: pits'],
 };
 // What the Ground overlay's third line says while a farm, orchard or mine is being placed: its brighter tiles are where the whole
 // building fits on its own ground (src/render/overlays.js roomTiles), or, with none left, that nothing is.
-const GROUND_THING = { farm_grain: 'a farm', farm_barley: 'a farm', farm_flax: 'a farm', farm_fig: 'an orchard', gem_mine: 'a mine' };
+const GROUND_THING = { farm_grain: 'a farm', farm_barley: 'a farm', farm_flax: 'a farm', farm_fig: 'an orchard', gem_mine: 'a mine', clay_pit: 'a clay pit' };
 export const groundThing = (type) => GROUND_THING[type] || null;
 export const groundRoomText = (type, any) => (any ? `Bright: room for ${groundThing(type)}` : `No room left for ${groundThing(type)}`);
 
@@ -404,7 +405,7 @@ export const progressLabel = (n, of) => `Progress ${progressText(n, of)}`;
 export const dailyDoneText = (n) => plural(n, 'daily goal done', 'daily goals done');
 export const swapLabel = (text) => `Swap: ${text}`;
 // The phone strip's words are one button that opens the goal in place (P8): its name carries the whole goal, since the words on
-// screen may be cut at two lines. label is "Goal" or the opening chain's "2 of 10"; count the goal's own.
+// screen may be cut at two lines. label is "Goal" or the opening chain's "2 of 11"; count the goal's own.
 export const goalWordsLabel = (label, text, count) => `${label}: ${text}${count ? `, ${count}` : ''}`;
 export const showMeLabel = (text) => `${T.showMe}: ${text}`;   // a goal's Show me names its goal, so several of them stay apart
 export const viewLabel = (what) => `${T.view}: ${what}`;         // a View names its alert or building, so several of them stay apart
@@ -416,22 +417,27 @@ export const DAILY_TEXT = {
   plots4: 'Place 4 housing plots', roads10: 'Lay 10 road tiles', upgrades3: 'Grow 3 homes a tier', well1: 'Build a well',
   bazaar1: 'Build a bazaar', temple1: 'Build a temple', farm1: 'Build a grain farm', people20: 'Gain 20 people',
   profit1: 'Have a month in profit', harvest100: 'Harvest 100 grain',
-  pottery30: 'Make 30 pottery', gardens3: 'Build 3 gardens', sell20: 'Sell 20 goods to caravans', statue1: 'Build a statue', booth1: 'Build a booth',
+  pottery30: 'Make 30 pottery', gardens3: 'Build 3 gardens', statue1: 'Build a statue', booth1: 'Build a booth',
 };
 export const milestoneText = (name) => `Your city is now a ${name}`;
 
 // Difficulty on the title card (spec 4.18): what the chosen level changes, from the data, on three lines (the title
 // card shows the hint with white-space: pre-line). First the danger: a level without raids never starts the raid clock
-// (raidsOn); otherwise the level's risk multiplier scales the size of every raid after the first, which is
-// RAIDS.firstSize at every level (raidSize; "about": a size is rounded and kept between 2 and 12), and the same
-// multiplier scales how fast fire risk builds up (dailyRiskOf). Then buildings and trade routes, scaled by the level's
-// cost multiplier ("about": each price is rounded to whole gold); a road is only 2 gold, so its rounded price per tile
-// is given as it is. The danger line stays short enough for one line on a landscape phone's title card.
+// (raidsOn) and, with it, has no sickness or thefts (threatsOn is raidsOn: healthStarted, crimeStarted); otherwise the
+// level's risk multiplier scales the size of every raid after the first, which is RAIDS.firstSize at every level (raidSize;
+// "about": a size is rounded and kept between RAIDS.minSize and RAIDS.maxSize), and the same multiplier scales how fast fire,
+// sickness and theft risk build up (dailyRiskOf, dailyHealthRiskOf, dailyCrimeRiskOf: each multiplies by riskOf). Then buildings
+// and trade routes, scaled by the level's cost multiplier ("about": each price is rounded to whole gold); a road is only 2
+// gold, so its rounded price per tile is given as it is. The danger line stays short enough for one line on a landscape phone's
+// title card.
 export function difficultyHint(level) {
   const { cost, risk, raids } = DIFFICULTIES[level];
   const by = Math.abs(Math.round((risk - 1) * 100));
-  const fire = risk === 1 ? 'Fire risk as usual.' : `Fire risk builds ${by}% ${risk < 1 ? 'slower' : 'faster'}.`;
-  const danger = raids === false ? `No raids. ${fire}` : risk === 1 ? 'Raids and fire risk as usual.' : `Later raids about ${by}% ${risk < 1 ? 'smaller' : 'bigger'}. ${fire}`;
+  const way = risk < 1 ? 'slower' : 'faster';
+  const fire = risk === 1 ? 'Fire risk as usual.' : `Fire risk builds ${by}% ${way}.`;
+  const danger = raids === false ? `No raids, sickness or thefts. ${fire}`
+    : risk === 1 ? 'Raids, fire, sickness and theft risk as usual.'
+      : `Later raids about ${by}% ${risk < 1 ? 'smaller' : 'bigger'}. Fire, sickness and theft risk build ${by}% ${way}.`;
   const pct = Math.round((cost - 1) * 100);
   const roads = `Roads: ${roadCostOf({ difficulty: level })} gold a tile.`;
   const rest = pct === 0 ? 'at their usual cost' : `cost about ${Math.abs(pct)}% ${pct < 0 ? 'less' : 'more'}`;
@@ -736,7 +742,7 @@ export const RAID_TEXT = {
     const q = raidsSim.tributeQuote(world);
     if (!q) return '';
     if (q.buildN === 0) return 'Your towers can beat this raid';
-    return `Build ${plural(q.buildN, 'tower', 'towers')} facing ${RAID_TEXT.dirs[world.raid.warning.dir]} (≈ ${q.buildCost} gold)`;
+    return `Build ${plural(q.buildN, 'tower', 'towers')} facing ${duiFacing(q.dirs)} (≈ ${q.buildCost} gold)`;
   },
 };
 // The raid alerts (raidAlerts). raid_warning: what is coming and the defence that would beat it. raid: the band on the map
@@ -746,16 +752,16 @@ export const RAID_TEXT = {
 Object.assign(ALERT_TEXT, {
   raid_warning: (alert, world) => {
     const w = world.raid.warning;
-    return { title: `Raiders from the ${RAID_TEXT.dirs[alert.dir]} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: RAID_TEXT.towers(world) };
+    return { title: `Raiders from ${duiFrom(alert.dirs || alert.dir)} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: RAID_TEXT.towers(world) };
   },
   raid: (alert, world) => {
     const a = world.raid.active;
-    const dir = RAID_TEXT.dirs[a ? a.dir : ''] || '';
-    const phase = a ? a.phase : 'attack';
+    const dir = alert.dirs && alert.dirs.length ? duiFrom(alert.dirs) : `the ${RAID_TEXT.dirs[a ? a.dir : ''] || ''}`;
+    const phase = alert.phase || (a ? a.phase : 'attack');
     const raiders = plural(alert.left, 'raider', 'raiders');
-    if (phase === 'retreat') return { title: `Raid from the ${dir}: ${raiders} falling back`, fix: 'Towers keep shooting as they go' };
+    if (phase === 'retreat') return { title: `Raid from ${dir}: ${raiders} falling back`, fix: 'Towers keep shooting as they go' };
     const fix = `Towers hit raiders within ${raidsData.DEFENCE.towerRange} tiles; soldiers fight within ${raidsData.DEFENCE.patrol} tiles of their barracks`;
-    return { title: phase === 'leave' ? `Raid from the ${dir}: ${raiders} leaving` : `Raid from the ${dir}: ${raiders}`, fix };
+    return { title: phase === 'leave' ? `Raid from ${dir}: ${raiders} leaving` : `Raid from ${dir}: ${raiders}`, fix };
   },
 });
 // The mood rows (spec 4.9): a raid in the last six months (raidMood), a festival (festivalMood).
@@ -793,6 +799,10 @@ import { DAYS_PER_MONTH as duiMonthDays } from '../sim/time.js';
 // as the countdown chip writes it ("2 m 12 d", and "2 months" when the days come out at 0, ruling 174). A game month is DAYS_PER_MONTH days (src/sim/time.js).
 const duiDirWords = { north: 'north', east: 'east', south: 'south', west: 'west' };
 const duiDir = (dir) => duiDirWords[dir] || dir;
+// One direction or a list (a two-sided raid, Stage 4.5): "the east", "the east and south"; "east", "east and south" after "facing".
+const duiDirsOf = (dirs) => [...new Set([].concat(dirs).map(duiDir))];
+const duiFrom = (dirs) => `the ${duiDirsOf(dirs).join(' and ')}`;
+const duiFacing = (dirs) => duiDirsOf(dirs).join(' and ');
 function duiDuration(days) {
   const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
   const parts = [m ? plural(m, 'month', 'months') : '', d || !m ? plural(d, 'day', 'days') : ''];
@@ -813,7 +823,7 @@ Object.assign(DANGER_UI_TEXT, {
   moreLabel: (n) => `${plural(n, 'more critical alert', 'more critical alerts')}: open the alert list`,
   payTribute: 'Pay tribute',
   collapse: 'Shrink', collapseLabel: 'Shrink the raid warning to its countdown', expand: 'Show the whole warning',
-  chip: (dir, days) => `Raid from the ${duiDir(dir)} · ${duiCountdown(days)}`,
+  chip: (dir, days) => `Raid from ${duiFrom(dir)} · ${duiCountdown(days)}`,
   // A phone's chip (ruling 167): its words are the button that opens the raid sheet, where the whole warning is.
   chipOpenLabel: (chip) => `${chip}: show the whole warning`,
   // The days until a warned raid arrives (warning.arrives less today): raidDay brings the raiders in on the arrives day.
@@ -821,20 +831,20 @@ Object.assign(DANGER_UI_TEXT, {
   withArrival: (title, days) => `${title}. ${DANGER_UI_TEXT.arrivesIn(days)}.`,
   arrivalLine: (days) => `${DANGER_UI_TEXT.arrivesIn(days)}.`,                // the tribute sheet's line
   defenceLine: (q, dir) => (q.buildN > 0
-    ? `${q.hidden ? 'Build' : 'or build'} ${plural(q.buildN, 'tower', 'towers')} facing ${duiDir(dir)} (≈ ${q.buildCost} gold)`
+    ? `${q.hidden ? 'Build' : 'or build'} ${plural(q.buildN, 'tower', 'towers')} facing ${duiFacing(dir)} (≈ ${q.buildCost} gold)`
     : 'Your towers can beat this raid'),
 });
 // D2: captions, the raid report and the Settings rows. A blaze or a fire goes out only where a firehouse reaches it
 // (src/sim/fire.js: a covered and staffed blaze, a covered fire at 25% x coverage a day), so the caption names the
 // firehouse. The report reads raid.last's fields (src/sim/raids.js): size, towers, byTowers, bySoldiers, burned, stolen.
-const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.stolen ? `${r.stolen} gold stolen` : ''].filter(Boolean).join(', ') || 'nothing lost';
+const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.stolen ? `${r.stolen} gold stolen` : '', r.foodStolen ? `${r.foodStolen} food stolen` : '', r.fled ? `${plural(r.fled, 'resident', 'residents')} fled` : ''].filter(Boolean).join(', ') || 'nothing lost';
 function duiRaidReport(r) {
-  const from = `Raid from the ${duiDir(r.dir)}`;
+  const from = `Raid from ${duiFrom(r.dirs || r.dir)}`;
   if (r.won) {
     const stopped = [r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : ''].filter(Boolean);
     return `${from} beaten: ${stopped.length ? `${stopped.join(', ')}; ` : ''}${duiLosses(r)}.`;
   }
-  const did = listText([r.burned ? `burned ${plural(r.burned, 'building', 'buildings')}` : '', r.stolen ? `took ${r.stolen} gold` : ''].filter(Boolean));
+  const did = listText([r.burned ? `burned ${plural(r.burned, 'building', 'buildings')}` : '', r.stolen ? `took ${r.stolen} gold` : '', r.foodStolen ? `took ${r.foodStolen} food` : '', r.fled ? `drove out ${plural(r.fled, 'resident', 'residents')}` : ''].filter(Boolean));
   const stopped = [r.byTowers ? `Towers stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `${r.byTowers ? 'soldiers' : 'Soldiers'} stopped ${r.bySoldiers}` : ''].filter(Boolean);
   return `${from}: ${did ? `raiders ${did}` : 'the raiders struck and left'}.${stopped.length ? ` ${stopped.join(', ')}.` : ''}`;
 }
@@ -891,7 +901,7 @@ Object.assign(DANGER_UI_TEXT, {
   raidSheetTitle: 'Raid warning',                                  // the raid sheet's heading on the first raid, which no tribute buys off
   capital: (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s),
   tributeCost: (cost) => `Pay ${cost} gold of tribute`, goldNow: 'Gold now', goldAfter: 'Gold afterwards',
-  cancels: (dir, size) => `Cancels the raid from the ${duiDir(dir)} (${plural(size, 'raider', 'raiders')}). The next raid still comes.`,
+  cancels: (dir, size) => `Cancels the raid from ${duiFrom(dir)} (${plural(size, 'raider', 'raiders')}${duiDirsOf(dir).length > 1 ? ' in two bands' : ''}). The next raid still comes.`,
   tributeBelowZero: (gold) => `You have ${gold} gold. Tribute can't put the treasury below 0.`,
   payGold: (cost) => `Pay ${cost} gold`, keepGold: 'Keep gold, defend', tributePaid: (cost) => `Tribute paid: ${cost} gold`,
 });
@@ -1028,11 +1038,22 @@ Object.assign(ACHIEVEMENT_TEXT, {
   raid_breaker: `Beat ${scoreAchievement('raid_breaker').n} raids`,
 });
 Object.assign(DAILY_TEXT, { firehouse1: 'Build a firehouse', wall10: `Draw ${scoreDaily('wall10').n} wall tiles`, tower1: 'Build a tower' });
+// The raider_targets tip says the order a band strikes in, from the sim (src/sim/raids.js pickTarget): strike k goes for RAIDS.pillage[k]
+// (a granary, a home) when it has one, else the RAIDS.targets kinds in order; a band makes RAIDS.strikes strikes.
+const PILLAGE_WORDS = { house: 'a home', granary: 'a granary' };
+export function raiderTargetsTip(raids = raidsData.RAIDS) {
+  const usual = `${listText(raids.targets.map(pluralName))}`;
+  const parts = Array.from({ length: raids.strikes }, (_, k) => {
+    const want = raids.pillage[k];
+    return want ? (PILLAGE_WORDS[want] || `a ${buildingName(want).toLowerCase()}`) : usual;
+  });
+  return `Raiders hit ${parts[0]}${parts.length > 1 ? ' first' : ''}${parts.slice(1).map((p) => `, then ${p}`).join('')}: guard those.`;
+}
 Object.assign(TIP_TEXT, {
   fire_risk: `Watch fire risk from Town: a staffed firehouse within ${BUILDINGS.firehouse.reach} road tiles slows it.`,
   firebreaks: 'Leave roads between buildings: fire spreads only to buildings that touch.',
   clearing_rubble: 'Clear rubble with Demolish: tap it or drag over it. Clearing costs gold.',
-  raider_targets: 'Guard trading posts, storehouses, bazaars and temples: raiders want those.',
+  raider_targets: raiderTargetsTip(),
   tribute_once: 'Pay tribute only if you must: it cancels this raid, not the next one.',
   wall_ring: 'Close your wall into a ring and set towers on it: raiders must break through.',
 });
@@ -1504,14 +1525,15 @@ export const TIP_HELP_TEXT = {
 // (A stable separator between the Stage 4 sections: leave these lines as they are.)
 //
 // ── s4 cards (Track G) ───────────────────────────────────────────────────────────────────────────────────────────
-// Track G's words: the six picture cards (titles, words, alt text), How to play, the Music rows and the reworded opening
+// Track G's words: the picture cards (titles, words, alt text), How to play, the Music rows and the reworded opening
 // goals and their whys (ruling 265). Add new lines just above the end marker.
 // "About four in ten people work" (the food card) is the sim's own share (ECONOMY.workerShare, src/sim/labour.js).
 const CARDS4_TENS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 export const cards4WorkShare = (share = ECONOMY.workerShare) => `About ${CARDS4_TENS[Math.max(0, Math.min(10, Math.round(share * 10)))]} in ten people work`;
-// The last card's words: fires and raiders to guard against, but on Peaceful (raids: false, src/data/difficulty.js) the city
-// never starts a raid clock, so there it names fires alone. The pause sentence is the same at every level.
-export const cards4Ahead = (raids = true) => `Later come fires ${raids ? 'and raiders ' : ''}to guard against, and monuments to raise. Pause any time: nothing happens while you plan.`;
+// The last card's words: fires, raiders, sickness and thieves to guard against, but on Peaceful (raids: false, src/data/difficulty.js)
+// the city never starts a raid clock and, with it (threatsOn is raidsOn, src/sim/costs.js), has no sickness or thieves either, so there
+// it names fires alone. The pause sentence is the same at every level.
+export const cards4Ahead = (raids = true) => `Later come fires${raids ? ', raiders, sickness and thieves' : ''} to guard against, and monuments to raise. Pause any time: nothing happens while you plan.`;
 export const CARDS4_TEXT = {
   // The Settings sheet's Music rows (spec 5.5, ruling 269).
   music: 'Music', musicVolume: 'Music volume', quieter: 'Quieter music', louder: 'Louder music',
@@ -1546,6 +1568,11 @@ export const CARDS4_TEXT = {
       words: 'The goal line shows what to do next. Show me opens the right card and puts it where it fits.',
       alt: 'The goals strip at the top of the screen, with a ring around its Show me button.',
     },
+    gold: {
+      title: 'Where gold comes from',
+      words: `Homes pay taxes every month; every building costs upkeep and ${ECONOMY.wagePerWorker} gold for each worker. Build homes before luxuries.`,
+      alt: 'The top bar with the gold chip showing a monthly forecast, a ring around it, above a village of homes, a well and a farm.',
+    },
     ahead: {
       title: 'What lies ahead',
       words: cards4Ahead(),             // the level with raids; the dialog asks cards4Ahead(raids) for the city's own level
@@ -1571,3 +1598,165 @@ export const LOOK4_TEXT = {};
 // Track F's words for the integrator. Add new lines just above the end marker.
 export const BALANCE4_TEXT = {};
 // ── end s4 balance ───────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections and Stage 4.5: leave these lines as they are.)
+//
+// ── s45 (Stage 4.5) ──────────────────────────────────────────────────────────────────────────────────────────────
+// Stage 4.5's words. Every sentence that states a rule or a price is built from the sim's own numbers. Add new lines just
+// above the end marker.
+// Whole months for words: "about 4 months" (rounded up; a treasury with days left is still in its last month).
+const monthsText = (monthsLeft) => Math.max(1, Math.ceil(monthsLeft));
+export const S45_TEXT = {
+  // The road tool's note when it crosses a wall (ruling 309): "Gate through the wall: 20 gold" (one gate), else "3 gates through the wall: 20 gold each".
+  gateNote: (n, price) => (n === 1 ? `Gate through the wall: ${price} gold` : `${n} gates through the wall: ${price} gold each`),
+  gateBuilt: 'Gate built',
+  roadLaidGates: (n) => `Road laid · ${plural(n, 'gate', 'gates')}`,
+  // Bridges (ruling 314): the bar's note "Bridge: 4 tiles, 100 gold" (the tiles of water crossed and what they cost together), the
+  // refusal for a crossing past the limit, and the toast. Their numbers come from the road tool's preview (src/sim/commands.js).
+  bridgeNote: (n, cost) => `Bridge: ${plural(n, 'tile', 'tiles')}, ${cost} gold`,
+  tooWide: (n) => `Too wide to bridge here (${plural(n, 'tile', 'tiles')} of water)`,
+  roadLaidBridge: (n) => `Road laid · bridge, ${plural(n, 'tile', 'tiles')}`,
+  // The month's forecast (Task 4b, ruling 316). Every number is the sim's (src/sim/economy.js monthForecast, monthlyBill,
+  // balanceWith, biggestCost), and a minus is a real minus sign. The top bar's gold chip says "+120 a month"; it adds the runway when the
+  // treasury would run out within FORECAST.amberMonths. A card says what one building costs when fully staffed; the confirm bar adds the
+  // balance with it. The summary's section is headed by what the balance is.
+  signed: (n) => `${n >= 0 ? '+' : '−'}${Math.abs(n)}`,
+  chipLabel: (f) => `Forecast ${f.net >= 0 ? 'plus' : 'minus'} ${Math.abs(f.net)} a month${f.runsOut ? `; ${f.gold < 0 ? 'the treasury is below 0' : `the treasury runs out in about ${plural(monthsText(f.monthsLeft), 'month', 'months')}`}` : ''}`,
+  upkeepBill: (b) => `Costs ${b.bill} a month`,
+  upkeepCrew: (b) => (b.workers ? ` · ${plural(b.workers, 'worker', 'workers')}` : ''),
+  upkeepLine: (b) => `${S45_TEXT.upkeepBill(b)}${S45_TEXT.upkeepCrew(b)}`,
+  upkeepTitle: (b) => `${b.upkeep} upkeep${b.workers ? `, and ${b.wages} in wages when all ${b.workers} workers are hired (${ECONOMY.wagePerWorker} each)` : ''}`,
+  balanceLine: (net) => `Monthly balance becomes ${S45_TEXT.signed(net)}`,
+  forecastHeadShort: 'Spending more than taxes bring in',
+  forecastHeadOk: 'Taxes cover the spending',
+  forecastNote: 'This month, as the city stands now.',
+  monthlyBalance: 'Monthly balance',
+  runsOutIn: (monthsLeft) => `At this rate the treasury runs out in about ${plural(monthsText(monthsLeft), 'month', 'months')}`,
+  belowZero: 'The treasury is below 0',
+  // The one-time warning tip (its Show me points at the building that costs the most a month).
+  warnTip: (f, big) => `${f.gold < 0 ? 'The treasury is below 0' : S45_TEXT.runsOutIn(f.monthsLeft)}.${big ? ` ${buildingName(big.type)} costs the most: ${big.cost} a month.` : ''}`,
+  warnTipHelp: `If the treasury would go below 0 within ${FORECAST.warnMonths} months, a tip names the building that costs the most.`,
+  // The mood breakdown's Jobs row while the Town penalty is phased in (ruling 325): the value beside it is the phased one.
+  jobsPhasing: (full, monthsLeft) => `Jobs (phasing in: ${S45_TEXT.signed(full)} in ${plural(monthsLeft, 'month', 'months')})`,
+};
+Object.assign(TIP_TEXT, { treasury_low: 'The treasury is heading below 0: tap the numbers in the top bar to see what each month costs.' });
+TIP_HELP_TEXT.treasury_low = S45_TEXT.warnTipHelp;
+Object.assign(REASONS, { not_wall: 'A gate goes on a wall', too_wide: 'Too wide to bridge here', bridge_shape: 'A bridge runs straight across, with land at both ends' });
+// ── end s45 ──────────────────────────────────────────────────────────────────────────────────────────────────────
+
+// ── s45 threats (Task 5b-5d: disease and crime) ──────────────────────────────────────────────────────────────────────
+// Every line follows src/sim/health.js (and crime.js): healthAlerts picks the alert, healthCause the reason no staffed physician
+// reaches the home, HEALTH_MOOD the mood row's numbers.
+import { HEALTH as healthNumbers, HEALTH_MOOD as healthMood } from '../data/health.js';
+import { healthCause as healthCauseOf } from '../sim/health.js';
+const minus = (n) => `${n < 0 ? '−' : ''}${Math.abs(n)}`;
+const anA = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
+export const HEALTH_TEXT = {
+  sick: (tier) => `Sickness in ${anA(tier)}`,                                      // the illness alert's title: "Sickness in a House"
+  sickMany: (n) => `Sickness in ${n} homes`,                                       // one alert per district: "Sickness in 3 homes"
+  cause: {
+    covered: `A staffed physician reaches it: it mends ${healthNumbers.coverFactor === 2 ? 'twice' : `${healthNumbers.coverFactor} times`} as fast and does not spread`,
+    no_road: 'No road beside it for a physician to reach: lay one',
+    none: 'Build a physician nearby',
+    short: 'Its physician is short of workers: more homes bring more workers',
+    burning: 'Its physician is burning: build another near it',
+    paused: 'Its physician is paused: resume it',
+  },
+  mood: `Illness (${minus(healthMood.each)} per ill home, at most ${minus(healthMood.max)})`,
+};
+Object.assign(ALERT_TEXT, {
+  illness: (alert, world, b) => ({ title: (alert.count || 1) > 1 ? HEALTH_TEXT.sickMany(alert.count) : HEALTH_TEXT.sick(b ? tierName(b.tier) : 'home'), fix: b ? HEALTH_TEXT.cause[healthCauseOf(world, b).cause] : HEALTH_TEXT.cause.none }),
+});
+Object.assign(MOOD_NAMES, { illness: HEALTH_TEXT.mood });
+import { CRIME as crimeNumbersRow, CRIME_MOOD as crimeMoodData } from '../data/crime.js';
+import { crimeCause as crimeCauseOf } from '../sim/crime.js';
+export const CRIME_TEXT = {
+  // The crime_risk alert: one per district, the homes in it at High risk or more that no staffed police post reaches.
+  title: (n) => `${plural(n, 'home', 'homes')} ${n === 1 ? 'has' : 'have'} a high crime risk`,
+  cause: {
+    covered: 'A staffed police post reaches it',
+    no_road: 'No road beside it for a police post to reach: lay one',
+    none: 'Build a police post nearby',
+    short: 'Its police post is short of workers: more homes bring more workers',
+    burning: 'Its police post is burning: build another near it',
+    paused: 'Its police post is paused: resume it',
+  },
+  mood: `Thefts (${minus(crimeMoodData.each)} each in the last ${crimeMoodData.days} days, at most ${minus(crimeMoodData.max)})`,
+  // The caption after a theft (the sim's 'theft' event): the treasury, or the store the goods came from.
+  caption: (e) => (e.kind === 'gold'
+    ? `A thief took ${e.amount} gold from the treasury${e.near ? ` near the ${buildingName(e.near).toLowerCase()}` : ''}`
+    : `A thief took ${e.amount} ${goodWord(e.good)} from the ${buildingName(e.store).toLowerCase()}`),
+};
+Object.assign(ALERT_TEXT, {
+  crime_risk: (alert, world, b) => ({ title: CRIME_TEXT.title(alert.count || 1), fix: b ? CRIME_TEXT.cause[crimeCauseOf(world, b).cause] : CRIME_TEXT.cause.none }),
+});
+Object.assign(MOOD_NAMES, { thefts: CRIME_TEXT.mood });
+// The Health and Crime overlays' names, legends and bands (src/data/health.js, crime.js): a band says the risk points it starts at, as
+// the fire overlay's do; the top band of Health is a home at the threshold that can fall ill (and an ill one), of Crime one that can cause a theft.
+import { HEALTH_BANDS as healthBandStarts } from '../data/health.js';
+import { CRIME_BANDS as crimeBandStarts } from '../data/crime.js';
+const healthBandNames = ['Low', 'Rising', 'High', 'Can fall ill'];
+const crimeBandNames = ['Low', 'Rising', 'High', 'Can cause a theft'];
+const bandWords = (name, noun, starts, k) => {
+  const from = starts[k], next = starts[k + 1];
+  return { label: name, words: `${name}: ${noun} risk ${next === undefined ? `${from} or more` : `${from} to ${next - 1}`}` };
+};
+Object.assign(OVERLAY_NAMES, { health: 'Health', crime: 'Crime' });
+Object.assign(OVERLAY_LEGEND, {
+  health: ['A staffed physician reaches it', 'No staffed physician reaches it'],
+  crime: ['A staffed police post reaches it', 'No staffed police post reaches it'],
+});
+Object.assign(DANGER_UI_TEXT, {
+  // The top band holds an ill home as well (its risk points went back to 0 when it fell ill), then homes at HEALTH.threshold or more.
+  healthBand: (k) => (k === healthBandStarts.length - 1
+    ? { label: healthBandNames[k], words: `${healthBandNames[k]}: health risk ${healthNumbers.threshold} or more (a home already ill is marked here too)` }
+    : bandWords(healthBandNames[k], 'health', healthBandStarts, k)),
+  crimeBand: (k) => bandWords(crimeBandNames[k], 'crime', crimeBandStarts, k),
+  homesOnlyNote: 'Homes with people in them',
+  // The strip of a Health or Crime overlay before its threat has begun, or on Peaceful: nothing is drawn, and the strip says why.
+  // The milestone is HEALTH.startsAt or CRIME.startsAt, named as the milestones are.
+  threatNotStarted: (kind, peaceful) => {
+    if (peaceful) return kind === 'health' ? 'There is no sickness on Peaceful' : 'There are no thieves on Peaceful';
+    const m = MILESTONES.find((x) => x.id === (kind === 'health' ? healthNumbers.startsAt : crimeNumbersRow.startsAt));
+    return kind === 'health' ? `Sickness starts when your city is a ${m.name}` : `Thieves start when your city is a ${m.name}`;
+  },
+});
+// The health and crime rows on a home's sheet and the physician's and police post's own rows (src/ui/dangerSheets.js healthRowModel,
+// crimeRowModel). Each reason is healthCause's or crimeCause's, the one the alerts word; "twice as fast" is HEALTH.coverFactor.
+Object.assign(DANGER_UI_TEXT, {
+  healthLabel: 'Health', crimeLabel: 'Crime risk',
+  healthCovered: 'covered by the physician',
+  healthMending: `covered by the physician, mending ${healthNumbers.coverFactor === 2 ? 'twice' : `${healthNumbers.coverFactor} times`} as fast`,
+  healthWhy: {
+    none: `no physician within ${healthNumbers.reach} road tiles`, no_road: 'no road beside it for a physician to reach',
+    short: 'the physician is short of workers', paused: 'the physician is paused', burning: 'the physician is burning',
+  },
+  crimeCovered: 'a police post reaches it',
+  crimeWhy: {
+    none: `no police post within ${crimeNumbersRow.reach} road tiles`, no_road: 'no road beside it for a police post to reach',
+    short: 'the police post is short of workers', paused: 'the police post is paused', burning: 'the police post is burning',
+  },
+  riskIs: (band) => `risk ${band.toLowerCase()}`,
+  illLeft: (days) => `ill, ${plural(days, 'day', 'days')} left`,
+  healthFactor: { well: 'no well reaches it', crowded: (n) => `more than ${n} people a tile`, poor: 'the street around it is unpleasant' },
+  crimeFactor: { tier: 'it is a low tier of home', mood: (n) => `city mood is below ${n}`, jobs: (pct) => `unemployment is above ${pct}%` },
+  healthNoun: 'Sickness risk', crimeNoun: 'Crime risk',
+  buildsFaster: (noun, list) => `${noun} builds faster: ${list.join('; ')}`,
+  buildPhysician: 'Build a physician near it', buildPolicePost: 'Build a police post near it',
+  coversHomesHealth: (n) => (n > 0 ? `Covers ${plural(n, 'home', 'homes')}` : 'No homes with people in reach yet'),
+  coversHomesCrime: (n) => (n > 0 ? `Covers ${plural(n, 'home', 'homes')}` : 'No homes with people in reach yet'),
+});
+// The tips (How to play lists them), the firsts: every number is the data's. The sickness tip says what a staffed physician does
+// (HEALTH.cut is a cut in how fast risk builds; a covered home does not pass an illness on and mends coverFactor times as fast); the
+// thieves tip what drives crime (CRIME's three things) and what a police post does to it: CRIME.cut is the cut of a fully staffed post,
+// scaled by its staffing (riskToday), so the tip says "up to".
+Object.assign(TIP_TEXT, {
+  sickness_spreads: `Sickness spreads between touching homes: a staffed physician within ${healthNumbers.reach} road tiles stops that and cures it ${healthNumbers.coverFactor === 2 ? 'twice' : `${healthNumbers.coverFactor} times`} as fast.`,
+  thieves_about: `Poor, unhappy or jobless homes breed thieves: a police post within ${crimeNumbersRow.reach} road tiles cuts risk by up to ${Math.round(crimeNumbersRow.cut * 100)}%.`,
+});
+Object.assign(FIRST_TEXT, {
+  first_physician: { head: 'First physician', why: `Staffed, it slows sickness and ends it faster up to ${healthNumbers.reach} road tiles away.` },
+  first_police_post: { head: 'First police post', why: `Staffed, it cuts the risk of thefts up to ${crimeNumbersRow.reach} road tiles away.` },
+});
+// ── end s45 threats ──────────────────────────────────────────────────────────────────────────────────────────────────

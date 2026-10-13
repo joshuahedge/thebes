@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../../harness.js';
-import { drawFires, roofPoint, FLAME_STEP_MS, SMOKE_PUFFS } from '../../../src/render/fire.js';
+import { drawFires, roofPoint, FLAME_STEP_MS, SMOKE_PUFFS, BLAZE_SMOKE_PUFFS } from '../../../src/render/fire.js';
 import { ART, slotFor } from '../../../src/render/art/registry.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
 import { p, U } from '../../../src/render/iso.js';
@@ -26,7 +26,7 @@ function frame(w, b, now, opts = {}, range = null) {
   const calls = { path: 0, radial: [], text: [] };
   const { path, radial, text } = g;
   g.path = (...a) => { calls.path++; return path(...a); };
-  g.radial = (q2, rx, ry, col, a) => { calls.radial.push(a); return radial(q2, rx, ry, col, a); };
+  g.radial = (q2, rx, ry, col, a) => { calls.radial.push(a); return opts.skipSmoke ? undefined : radial(q2, rx, ry, col, a); };   // skipSmoke: count the smoke but leave it off the canvas, so a test of the flames' shape sees only them
   g.text = (q2, s, o) => { calls.text.push(s); return text(q2, s, o); };
   drawFires(g, w, range, now, opts);
   return { c, calls };
@@ -52,7 +52,7 @@ describe('s3 art fire', () => {
     expect(roof).toEqual(U(p(11, 11), Math.round(ART[slotFor(blaze.b, blaze.w)].height * 0.62)));
     const a = frame(blaze.w, blaze.b, 1000, { reducedMotion: false });
     const b = frame(fire.w, fire.b, 1000, { reducedMotion: false });
-    expect([a.calls.path, a.calls.radial.length]).toEqual([2, 0]);              // one flame (its outer and inner shapes), no smoke
+    expect([a.calls.path, a.calls.radial.length]).toEqual([2, BLAZE_SMOKE_PUFFS * 2]);   // one flame (its outer and inner shapes) and, Stage 4.5, a thinner column of smoke
     expect([b.calls.path, b.calls.radial.length]).toEqual([6, SMOKE_PUFFS * 2]);   // three flames and the smoke column (a body and a pale top a puff)
     expect(look(b.c).n).toBeGreaterThan(look(a.c).n * 3);
   });
@@ -61,7 +61,7 @@ describe('s3 art fire', () => {
     let last = null, changes = 0;
     const means = [], sizes = [];
     for (let t = 0; t < 5000; t += 20) {
-      const { c } = frame(w, b, t, { reducedMotion: false });
+      const { c } = frame(w, b, t, { reducedMotion: false, skipSmoke: true });
       const h = canvasHash(c), l = look(c);
       if (last !== null && h !== last) {
         changes++;

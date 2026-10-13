@@ -30,7 +30,7 @@ import { idx, inBounds, NEIGHBOURS4 } from '../sim/grid.js';
 import { hash2 } from '../sim/rng.js';
 
 export const WALKER_CAP = 40;
-export const TILES_PER_DAY = 2;   // at 1x a day lasts 2/3 s, so a tile takes a third of a second
+export const TILES_PER_DAY = 2;   // at 1x a day lasts a second, so a tile takes half a second
 export const CITIZEN_RANGE = 4;
 export const CITIZEN_SHARE = 0.15;
 export const KIND_BY_TYPE = { well: 'water', temple: 'priest', bazaar: 'porter', granary: 'porter', firehouse: 'firefighter' };
@@ -47,7 +47,7 @@ export function walkerLoop(world, b, maxDist) {
 
 // The road path from tile `from` back down the reach's distances to a road tile beside the building (distance 1), the
 // lowest tile index at each step; then the loop out along it and back.
-function pathBack(world, reach, from) {
+export function pathBack(world, reach, from) {
   const path = [from];
   let cur = from, d = reach.get(from);
   while (d > 1) {

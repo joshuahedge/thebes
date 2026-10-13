@@ -16,25 +16,32 @@ function drawMonumentMark(ctx, b, scale) {
   ctx.fillRect(b.x * scale, b.y * scale, Math.max(1, b.w * scale), Math.max(1, b.d * scale));
 }
 
-const COLOURS = { [TER.DESERT]: TERRAIN.sand, [TER.FERTILE]: TERRAIN.fertile, [TER.ROCKY]: TERRAIN.rocky, [TER.WATER]: TERRAIN.water, [TER.BANK]: TERRAIN.bank, [TER.MEADOW]: TERRAIN.grass };
+const COLOURS = { [TER.DESERT]: TERRAIN.sand, [TER.FERTILE]: TERRAIN.fertile, [TER.ROCKY]: TERRAIN.rocky, [TER.WATER]: TERRAIN.water, [TER.BANK]: TERRAIN.bank, [TER.MEADOW]: TERRAIN.grass, [TER.CLAY]: TERRAIN.clay };
 
 const INTO = { east: [-1, 0], west: [1, 0], north: [0, 1], south: [0, -1] };
+
+// A map point's pin: its tile's centre, with the unit arrow into the map (from its dir, else towards the map's middle).
+function pointPin(world, a) {
+  const x = Math.max(0, Math.min(world.size - 1, a.x)) + 0.5, y = Math.max(0, Math.min(world.size - 1, a.y)) + 0.5;
+  const [dx, dy] = INTO[a.dir] || [world.size / 2 - x, world.size / 2 - y];
+  const len = Math.hypot(dx, dy) || 1;
+  return { x, y, point: true, dx: dx / len, dy: dy / len };
+}
 
 // The pins for a list of alerts, in tile units: { x, y, point, dx, dy }. A building's pin sits on its centre; a point
 // alert's at its tile's centre, with (dx, dy) the unit arrow into the map (from its dir, else towards the map's middle).
 export function minimapPins(world, alerts = []) {
   const out = [];
   for (const a of alerts) {
+    // A two-sided raid's alert carries a map point for each band ({ x, y, dir }): pin them all, each with its own arrow.
+    if (a.points && a.points.length) { for (const p of a.points) out.push(pointPin(world, p)); continue; }
     // An alert about many buildings (plots with no road) pins each of them.
     if (a.ids) { for (const id of a.ids) { const m = world.buildings[id]; if (m) out.push({ x: m.x + m.w / 2, y: m.y + m.d / 2, point: false, dx: 0, dy: 0 }); } continue; }
     const b = a.id ? world.buildings[a.id] : null;
     if (b) { out.push({ x: b.x + b.w / 2, y: b.y + b.d / 2, point: false, dx: 0, dy: 0 }); continue; }
     if (a.id !== undefined && a.id !== null) continue;          // a building that is gone
     if (!Number.isFinite(a.x) || !Number.isFinite(a.y)) continue;
-    const x = Math.max(0, Math.min(world.size - 1, a.x)) + 0.5, y = Math.max(0, Math.min(world.size - 1, a.y)) + 0.5;
-    let [dx, dy] = INTO[a.dir] || [world.size / 2 - x, world.size / 2 - y];
-    const len = Math.hypot(dx, dy) || 1;
-    out.push({ x, y, point: true, dx: dx / len, dy: dy / len });
+    out.push(pointPin(world, a));
   }
   return out;
 }

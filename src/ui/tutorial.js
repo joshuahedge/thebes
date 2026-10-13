@@ -1,4 +1,4 @@
-// The picture cards (spec 4.1, rulings 261-265): six cards, each a real game screenshot with one ring or arrow drawn
+// The picture cards (spec 4.1, rulings 261-265): the cards (src/data/tutorial.js lists them), each a real game screenshot with one ring or arrow drawn
 // live over it, a title and one or two sentences, read before the first city and any time from How to play. Stage 4
 // contract: Track 0 fixed the name and the wiring; Track G implements it (with src/data/tutorial.js, assets/tutorial/ and
 // tools/tutorial.ps1) and owns this file.
@@ -90,7 +90,7 @@ export function showPictureCards({
   const openerClasses = opener && typeof opener.className === 'string' && opener.className.trim() ? `${opener.tagName.toLowerCase()}.${opener.className.trim().split(/\s+/).join('.')}` : null;
   const motion = () => (settings && typeof settings.motionLevel === 'function' ? settings.motionLevel() : 'still');
   let index = 0, closed = false, known = marks || marksNow;
-  // Words follow the sim: Peaceful never starts a raid clock (src/data/difficulty.js raids: false), so card 6 does not
+  // Words follow the sim: Peaceful never starts a raid clock (src/data/difficulty.js raids: false), so the last card (What lies ahead) does not
   // promise it raiders there. No level given (or an unknown one) reads as a level with raids.
   const raids = !difficulty || !Object.hasOwn(DIFFICULTIES, difficulty) || DIFFICULTIES[difficulty].raids !== false;
 

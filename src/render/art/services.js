@@ -4,7 +4,7 @@
 // Each service and farm carries a small pennant in its emblem colour (spec 5.3) so it reads at phone zoom.
 // Granaries and bazaars show their stock and farms their crop (early-game pass 2.2, 2.3): each draws a stage
 // chosen by stages.js, and SERVICE_ART registers one slot per stage beside the plain type slot.
-import { box, tb, qd, crs, door, fence, pots, awn, col, rug, bed, pool, tile, p, U, quad, hs } from './primitives.js';
+import { box, tb, qd, crs, door, win, parapet, fence, pots, awn, col, rug, bed, pool, tile, p, U, quad, hs } from './primitives.js';
 import { palmAt, tufts } from './nature.js';
 import { fig } from './figures.js';
 import {
@@ -15,7 +15,7 @@ import { boundsFor } from '../iso.js';
 
 export const SERVICE_EMBLEM = {
   well: BLUE, farm_grain: LEAF2, granary: GREEN, bazaar: RED, temple: GOLD,
-  farm_fig: LEAF2, farm_barley: INDUSTRY_TINT, farm_flax: INDUSTRY_TINT, booth: PINK,
+  farm_fig: LEAF2, farm_barley: INDUSTRY_TINT, farm_flax: INDUSTRY_TINT, booth: PINK, physician: GREEN, police_post: '#3C5A8A',
 };
 
 export function pennant(g, q, h, color) {
@@ -370,6 +370,62 @@ export function booth(g, x, y) {
   fig(g, x + 0.46, y + 0.56, 'woman', 3, 0.85);
   pennant(g, U(p(x + 0.86, y + 0.12), 14.8), 6, SERVICE_EMBLEM.booth);
 }
+// Physician (1x1, Stage 4.5): a whitewashed surgery with a green band under its parapet, a green cross painted either side of
+// the door, a drying rack of herb bundles, a mat and water jars by the step, and a green pennant.
+const CROSS = '#3E8F5A';
+const HEALTH_EMBLEM = GREEN;      // the physician's pennant matches its card (green)
+export function physician(g, x, y) {
+  g.poly(quad(x + 0.08, y + 0.74, 0.7, 0.2, 0), '#E9D9B4');                      // the swept apron in front of the door
+  const F = box(g, x + 0.12, y + 0.12, 0.62, 0.6, 10, 0, WASH);
+  parapet(g, x + 0.12, y + 0.12, 0.62, 0.6, 10);
+  qd(g, F.L, 0, 1, 7.8, 9, GREEN);
+  qd(g, F.R, 0, 1, 7.8, 9, GREEN_DARK);
+  door(g, F, 0.16, 0.42, 6);
+  qd(g, F.L, 0.66, 0.76, 2.4, 6.6, CROSS);                                         // the cross on the lit wall, beside the door
+  qd(g, F.L, 0.56, 0.86, 3.8, 5.2, CROSS);
+  win(g, F.R, 0.2, 0.46, 4.2, 6.6);
+  qd(g, F.R, 0.62, 0.72, 2.6, 6.6, '#BFE0C4');                                      // and a paler one on the shaded wall
+  qd(g, F.R, 0.55, 0.79, 3.8, 5.2, '#BFE0C4');
+  g.line(U(p(x + 0.84, y + 0.26), 0), U(p(x + 0.84, y + 0.26), 9), WOOD, 0.6);       // the herb rack: two posts and a pole
+  g.line(U(p(x + 0.84, y + 0.62), 0), U(p(x + 0.84, y + 0.62), 9), WOOD, 0.6);
+  g.line(U(p(x + 0.84, y + 0.26), 9), U(p(x + 0.84, y + 0.62), 9), WOOD, 0.7);
+  for (const v of [0.32, 0.43, 0.54]) {
+    const q = U(p(x + 0.84, y + v), 9);
+    g.line(q, [q[0], q[1] + 3.2], '#8A6A4A', 0.4);
+    g.ell([q[0], q[1] + 4.2], 0.9, 1.5, v === 0.43 ? '#A8B84A' : GREEN, { outline: true });
+  }
+  g.poly(quad(x + 0.16, y + 0.8, 0.34, 0.14, 0), '#F2E2BC', { stroke: '#C9A86A', strokeWidth: 0.6 });   // a mat for the patient
+  pots(g, p(x + 0.66, y + 0.88), 2);
+  pennant(g, U(p(x + 0.18, y + 0.14), 10), 7, HEALTH_EMBLEM);
+}
+
+// Police post (1x1, Stage 4.5): a squat mudbrick watch-house with a blue band under its parapet, a barred window, a bench
+// by the door, a rack of two spears and a shield at the front corner, a lookout stool on the roof and a blue pennant.
+const POLICE = ['#4F6FA0', '#3C5A8A', '#2E4670'];
+export const POLICE_EMBLEM = POLICE[1];      // the police post's pennant matches its card
+export function policePost(g, x, y) {
+  g.poly(quad(x + 0.08, y + 0.74, 0.7, 0.2, 0), '#E9D9B4');                      // the swept apron in front of the door
+  const F = box(g, x + 0.14, y + 0.12, 0.6, 0.58, 11, 0, ['#DCB57E', '#CB9F66', '#A08274']);
+  crs(g, F, 11, '#8A6A4A', 2.8);
+  parapet(g, x + 0.14, y + 0.12, 0.6, 0.58, 11);
+  qd(g, F.L, 0, 1, 8.4, 9.6, POLICE[0]);
+  qd(g, F.R, 0, 1, 8.4, 9.6, POLICE[2]);
+  door(g, F, 0.18, 0.46, 6.2);
+  win(g, F.R, 0.3, 0.6, 4.6, 7.4);
+  for (const u of [0.38, 0.5]) g.line(F.R(u, 4.6), F.R(u, 7.4), '#CFC5D4', 0.5, 0.9);    // the bars
+  const S = box(g, x + 0.2, y + 0.18, 0.2, 0.2, 2.4, 11, WASH2);                // the lookout's stool and a little roof shade
+  qd(g, S.L, 0.2, 0.8, 0.4, 1.8, DOOR);
+  box(g, x + 0.46, y + 0.76, 0.3, 0.1, 2.4, 0, ['#D8B47A', '#C09A62', '#9C8072'], 0);   // a bench by the door
+  for (const dy of [0.78, 0.9]) {                                               // two spears leaning in a rack at the corner
+    const q = U(p(x + 0.86, y + dy), 0);
+    g.line(q, U(q, 14), WOOD, 0.55);
+    g.poly([U(q, 14), [q[0] + 0.9, q[1] - 15.4], [q[0] - 0.9, q[1] - 15.4]], '#CFC5D4', { outline: true });
+  }
+  const sh = U(p(x + 0.84, y + 0.2), 7);                                          // a round shield on the wall's corner
+  g.ell(sh, 2.2, 2.6, POLICE[1], { outline: true });
+  g.ell(sh, 0.9, 1.1, GOLD);
+  pennant(g, U(p(x + 0.7, y + 0.16), 11), 7, POLICE_EMBLEM);
+}
 
 // The plain type slots are what cards and assets show: a full granary, a piled bazaar, a green grain field, ripe
 // barley, flax in flower and a fig orchard in fruit.
@@ -392,6 +448,8 @@ export const SERVICE_ART = {
   garden: { w: 1, d: 1, height: 16, bounds: boundsFor(1, 1, 16), shadows: [], draw: garden },
   statue: { w: 1, d: 1, height: 22, bounds: boundsFor(1, 1, 22), shadows: [[0.2, 0.2, 0.6, 0.6, 4], [0.3, 0.28, 0.4, 0.42, 16]], draw: seatedStatue },
   booth: { w: 1, d: 1, height: 21, bounds: boundsFor(1, 1, 21), shadows: [[0.16, 0.14, 0.68, 0.6, 3], [0.14, 0.12, 0.72, 0.3, 13]], draw: booth },
+  physician: { w: 1, d: 1, height: 19, bounds: boundsFor(1, 1, 19), shadows: [[0.12, 0.12, 0.62, 0.6, 10]], draw: physician },
+  police_post: { w: 1, d: 1, height: 22, bounds: boundsFor(1, 1, 22), shadows: [[0.14, 0.12, 0.6, 0.58, 11]], draw: policePost },
 };
 // One slot per stage, named as slotFor (registry.js) names them: granary.s0-s3, bazaar.s0-s2, and g0-g3 for every
 // farm; each farm also keeps its plain type slot.

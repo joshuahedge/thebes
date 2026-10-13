@@ -9,11 +9,24 @@ import { rgba } from '../render/art/ctx.js';
 import { UI, TERRAIN } from '../render/art/palette.js';
 import { DESIRABILITY_STEPS } from '../data/ui.js';
 import { FIRE_BANDS } from '../data/fire.js';
+import { HEALTH_BANDS } from '../data/health.js';
+import { CRIME_BANDS } from '../data/crime.js';
+import { healthStarted } from '../sim/health.js';
+import { crimeStarted } from '../sim/crime.js';
+import { threatsOn } from '../sim/costs.js';
 import { toggleOverlay, cycleOverlay } from './modes.js';
 import { OVERLAY_NAMES, OVERLAY_LEGEND, desirabilityBand, groundThing, groundRoomText, T, DANGER_UI_TEXT, UI4_TEXT } from './text.js';
 import { el, iconButton, clear } from './components.js';
 
 const tint = (c) => `linear-gradient(${c}, ${c})`;
+// A banded risk overlay's swatch, as the map draws it (src/render/overlays.js drawFireRisk, drawHomeRisk): the band's tint, light
+// diagonal stripes on High, dense stripes both ways on the top band.
+function riskSwatch(hue, k) {
+  const base = tint(rgba(hue, FIRE_ALPHA[k]));
+  const one = `repeating-linear-gradient(135deg, ${rgba(hue, 0.6)} 0 1px, transparent 1px 5px)`;
+  const two = `repeating-linear-gradient(135deg, ${rgba(hue, 0.85)} 0 1px, transparent 1px 3px), repeating-linear-gradient(45deg, ${rgba(hue, 0.85)} 0 1px, transparent 1px 3px)`;
+  return { backgroundImage: k === 3 ? `${two}, ${base}` : k === 2 ? `${one}, ${base}` : base, backgroundColor: TERRAIN.sand };
+}
 // One graded overlay's legend: its bands in order, each band's { label, words }, and its swatch as the map draws it.
 const GRADED = {
   desirability: {
@@ -35,6 +48,18 @@ const GRADED = {
       const two = `repeating-linear-gradient(135deg, ${rgba(hue, 0.85)} 0 1px, transparent 1px 3px), repeating-linear-gradient(45deg, ${rgba(hue, 0.85)} 0 1px, transparent 1px 3px)`;
       return { backgroundImage: k === 3 ? `${two}, ${base}` : k === 2 ? `${one}, ${base}` : base, backgroundColor: TERRAIN.sand };
     },
+  },
+  health: {
+    bands: () => HEALTH_BANDS.map((_, k) => k),
+    band: (k) => DANGER_UI_TEXT.healthBand(k),
+    hatched: (k) => k >= 2,
+    swatch: (k) => riskSwatch(OVERLAY_HUE.health, k),
+  },
+  crime: {
+    bands: () => CRIME_BANDS.map((_, k) => k),
+    band: (k) => DANGER_UI_TEXT.crimeBand(k),
+    hatched: (k) => k >= 2,
+    swatch: (k) => riskSwatch(OVERLAY_HUE.crime, k),
   },
 };
 
@@ -63,9 +88,10 @@ function dotKeys(kind) {
 const GROUND_SWATCH = {
   fertile: { backgroundColor: TERRAIN.fertile, backgroundImage: `radial-gradient(#0B3D1A 1.1px, transparent 1.5px), radial-gradient(#0B3D1A 1.1px, transparent 1.5px), ${tint(rgba(GROUND_HUE.fertile, 0.4))}`, backgroundSize: '13px 12px, 13px 12px, auto', backgroundPosition: '3px 6px, 9px 6px, 0 0' },
   rocky: { backgroundColor: TERRAIN.sand, backgroundImage: `repeating-linear-gradient(135deg, ${rgba(GROUND_HUE.rocky, 0.85)} 0 1.5px, ${rgba(GROUND_HUE.rocky, 0.28)} 1.5px 4px)` },
+  clay: { backgroundColor: TERRAIN.sand, backgroundImage: `repeating-linear-gradient(135deg, ${rgba(GROUND_HUE.clay, 0.8)} 0 1.4px, transparent 1.4px 6px), ${tint(rgba(GROUND_HUE.clay, 0.34))}` },
 };
 function groundKeys(room) {
-  const [fertile, rocky] = OVERLAY_LEGEND.ground;
+  const [fertile, rocky, clay] = OVERLAY_LEGEND.ground;
   const key = (kind, words) => el('span', { class: 'key' }, [el('span', { class: 'swatch', style: GROUND_SWATCH[kind], 'aria-hidden': 'true' }), ' ', el('span', { class: 'text small', text: words })]);
   // Stage 4 (Track C, spec 6.3, ruling 229): while a monument is placed the keys are "Fertile: no monuments here" and the gold
   // room line ("Gold: room for a small mastaba"), which, like the farms' room line, a phone at 125% text or more keeps for
@@ -75,7 +101,7 @@ function groundKeys(room) {
     return el('span', { class: 'ground-keys' }, [key('fertile', UI4_TEXT.groundFertile), el('span', { class: 'text small room' }, [gold, ' ', room.words])]);
   }
   // The keys wrap among themselves under the name and the x, so the x never lands alone on a row of its own.
-  return el('span', { class: 'ground-keys' }, [key('fertile', fertile), key('rocky', rocky), ...(room ? [el('span', { class: 'text small room', text: room.words })] : [])]);
+  return el('span', { class: 'ground-keys' }, [key('fertile', fertile), key('rocky', rocky), key('clay', clay), ...(room ? [el('span', { class: 'text small room', text: room.words })] : [])]);
 }
 
 // The strip is the legend everywhere. Under a critical banner a wide screen keeps the dot and ring keys' words for
@@ -99,7 +125,8 @@ export function createOverlayLegend({ container, store, world = null }) {
 
   function render() {
     const s = store.get(), kind = s.overlay, room = roomWords(s);
-    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}`;
+    const off = world && (kind === 'health' || kind === 'crime') && !(kind === 'health' ? healthStarted(world) : crimeStarted(world));
+    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}|${off ? 'off' : ''}`;
     if (key === lastKey) return;
     lastKey = key;
     clear(container);
@@ -109,6 +136,8 @@ export function createOverlayLegend({ container, store, world = null }) {
     const close = iconButton(T.overlayOff, '✕', { class: 'close quiet', onClick: () => store.set(toggleOverlay(store.get(), kind)) });
     let keys;
     if (kind === 'fire') keys = [scale(kind), el('span', { class: 'fire-keys' }, [...dotKeys(kind), el('span', { class: 'text small never-burn', text: DANGER_UI_TEXT.neverBurnNote })])];
+    else if ((kind === 'health' || kind === 'crime') && world && !(kind === 'health' ? healthStarted(world) : crimeStarted(world))) keys = [el('span', { class: 'text small never-burn', text: DANGER_UI_TEXT.threatNotStarted(kind, !threatsOn(world)) })];   // nothing is drawn yet: the strip says why
+    else if (kind === 'health' || kind === 'crime') keys = [scale(kind), el('span', { class: 'fire-keys' }, [...dotKeys(kind), el('span', { class: 'text small never-burn', text: DANGER_UI_TEXT.homesOnlyNote })])];   // Stage 4.5: the fire strip's layout
     else if (graded) keys = [scale(kind)];
     else if (kind === 'ground') keys = [groundKeys(room)];
     else keys = dotKeys(kind);

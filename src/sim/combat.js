@@ -96,10 +96,11 @@ function breakTile(world, i) {
 //   raiders: each raider beside a soldier deals UNITS.raider.damage to the nearest; otherwise, while the band is
 //     blocked by a standing wall tile (active.blocked), it deals that to the tile, which breaks at 0.
 // Then wounded soldiers leave service (tally.soldiersWounded) and fallen raiders leave the band (byTowers, bySoldiers and
-// their tallies). Returns { fighting }: whether a raider and a soldier traded blows today (the band then waits).
+// their tallies). Returns { fighting, fightingBands }: whether a raider and a soldier traded blows today, and which bands
+// (0, or 1 of a two-sided raid) had a raider in those blows (a band that fought waits).
 export function combatDay(world, events = null) {
   const a = world.raid.active;
-  if (!a) return { fighting: false };
+  if (!a) return { fighting: false, fightingBands: [] };
   if (!a.towerIds) a.towerIds = [];
   a.shots = [];
   const killer = new Map();   // raider id -> 'tower' | 'soldier', set as it falls
@@ -118,12 +119,13 @@ export function combatDay(world, events = null) {
     if (!a.towerIds.includes(t.id)) a.towerIds.push(t.id);
   }
   let fighting = false;
+  const fought = new Set();
   for (const s of world.soldiers) {
     const home = homeOf(world, s);
     const foe = nearest(s, a.raiders.filter((r) => alive(r) && dist(home, r) <= DEFENCE.patrol));
     if (!foe) { if (s.task !== 'wait') walkHome(world, s); continue; }
     s.task = 'out';
-    if (dist(s, foe) <= BESIDE) { hurt(foe, UNITS.soldier.damage, 'soldier'); fighting = true; }
+    if (dist(s, foe) <= BESIDE) { hurt(foe, UNITS.soldier.damage, 'soldier'); fighting = true; fought.add(foe.band ? 1 : 0); }
     else stepTowards(s, foe, UNITS.soldier.speed, 0.8);
   }
   for (const r of a.raiders) {
@@ -133,9 +135,13 @@ export function combatDay(world, events = null) {
       foe.hp -= UNITS.raider.damage;
       foe.hit = true;
       fighting = true;
-    } else if (a.blocked !== null && a.blocked !== undefined && world.wall[a.blocked] > 0) {
-      world.wall[a.blocked] = Math.max(0, world.wall[a.blocked] - UNITS.raider.damage);
-      if (world.wall[a.blocked] === 0) breakTile(world, a.blocked);
+      fought.add(r.band ? 1 : 0);
+    } else {
+      const blocked = (r.band && a.second ? a.second : a).blocked;   // the wall tile in this raider's band's way
+      if (blocked !== null && blocked !== undefined && world.wall[blocked] > 0) {
+        world.wall[blocked] = Math.max(0, world.wall[blocked] - UNITS.raider.damage);
+        if (world.wall[blocked] === 0) breakTile(world, blocked);
+      }
     }
   }
   const wounded = world.soldiers.filter((s) => !alive(s)).length;
@@ -149,5 +155,5 @@ export function combatDay(world, events = null) {
     else { a.bySoldiers++; world.tally.raidersBySoldiers++; }
   }
   a.raiders = a.raiders.filter(alive);
-  return { fighting };
+  return { fighting, fightingBands: [...fought].sort() };
 }

@@ -438,3 +438,35 @@ Made while the plan was written (`plans/2026-10-12-thebes-stage-4-monuments.md`,
 306. The scroll hint (an edge fade with a chevron over the tray's right end, gone at the end, no height of its own, still) shows on every build tray that scrolls on a phone, not only Monuments. — Cost if wrong: a taste call, one CSS rule.
 307. A mastaba's supply chip warns about the stone for its top course even while bricks for the first courses are near ("No stone near", amber), so a player is not surprised by a stall later. — Cost if wrong: an amber chip on a spot where work can start.
 308. The live-draw budget test hands each frame on once drawn, as the page does; a canvas that is never shown made one call pay to play back 30 frames (93 ms) and the mean read 3 ms. The 1 ms limit is unchanged (0.85-0.96 ms measured). — Cost if wrong: the budget's margin is thin on a busy laptop; if it flakes, cache the finished courses (spec 5.7).
+
+## Part 12: Stage 4.5 (13 Oct 2026)
+
+From the plan `plans/2026-10-13-thebes-stage-4-5-polish-and-pressure.md` (rulings 309 to 321, as adopted; 316 as you amended it with your picks on the economy page) and the calls made while building (322 to 330).
+
+### The plan's rulings, as adopted (309-321)
+
+309. Roads may cross walls: each wall or breach tile a road crosses becomes a gate at the gate price (20 gold on Normal), drawn as a small gatehouse, and the bar names the gates. A Gate card starts that mode. — Cost if wrong: walls are easier to pierce by accident (the bar names the gates).
+310. Under Gentle, fires show flames changing shape at most once a second in place, plus a smoke column fading in place; scorch marks show under every level. — Cost if wrong: a motion-sensitive player who wants nothing moving chooses Still.
+311. 1x is 30 seconds a month (it was 20); game-day timings stretch with it, real-time interface timings do not. — Cost if wrong: late-game monuments feel slower at 1x (3x is still there).
+312. Clay is ground of its own along the river banks (40 to 90 tiles a map); a clay pit must stand on it; old maps gain clay on their free bank tiles and keep any pit already built. — Cost if wrong: fewer places for a clay pit.
+313. New cities take one of six river layouts from the seed; tests, dev flags and the sample and stress cities stay classic (unless `?variant=` names one); old saves keep their maps. — Cost if wrong: some seeds are harder (a river down the middle splits the town).
+314. Bridges: a road may cross water where the crossing is at most 4 tiles of water in a straight line, at 25 gold a tile; raiders use bridges like roads. — Cost if wrong: a wide river cannot be crossed (fords or wider bridges could come later).
+315. World version 6 holds the map layout, clay on old maps, each home's health and crime risk and illness, and the new tallies. — Cost if wrong: none.
+316. (As you amended it with your picks.) Debt is fixed by teaching and warning first: every card and the confirm bar say "Costs N a month" and what the monthly balance would become; the gold chip shows the month's forecast on phones too and turns amber only when the treasury would run out within 6 months; a one-time warning tip looks 3 months ahead and names the building that costs the most; a Gold picture card and an "End a month in profit" goal teach it. No softer first year, and the late-game treasury pile is left as it is. — Cost if wrong: players who never read still fall into debt (the floor at -500 stays).
+317. Raids grow 10% a year up to 1.5 times, are capped at 18 raiders, come as two bands from two entries 35% of the time from the 4th raid, and also strike granaries and homes. — Cost if wrong: late raids hit hard; towers and walls are the levers.
+318. Disease builds in homes with no well, crowded, or in poor surroundings; a physician covers it; illness costs residents gradually and spreads unless covered. — Cost if wrong: one more building type to place in every district.
+319. Crime builds in poor homes when mood is low and jobs are short; a police post covers it; thefts skim gold or goods. — Cost if wrong: tuning; it mostly punishes unhappy cities.
+320. Disease and crime follow the fire pattern (risk, cover, alerts, overlay, mood rows, goals) and are off on Peaceful. — Cost if wrong: Peaceful players never meet them.
+321. No score change in Stage 4.5. — Cost if wrong: Safety ignores disease and crime until a later score version.
+
+### While building (322-330)
+
+322. A monument's block unit goes from 5 to 3 so that, with the slower month, a new block still lands every 5 seconds or less at 1x (drawing only). — Cost if wrong: about 1.7 times as many block draws per course.
+323. Walkers, sleds and soldiers stay paced by game days, so with the slower month they move about a third slower on screen. — Cost if wrong: streets look calmer and slower; a drawing-only speed-up could follow later.
+324. Classic maps keep their own rock count (52 to 172), outside the 90 to 150 band, so old seeds and fixtures do not move; the band binds the five new layouts. — Cost if wrong: some classic maps are rock-poor, as they are today.
+325. The Town unemployment penalty to mood phases in over 6 months instead of arriving whole. — Cost if wrong: it softens a real consequence of building homes with no jobs.
+326. The selling daily goal is dropped (it waited 8 to 10 minutes for the first caravan), and the daily goals' time wording is corrected to "a few minutes". — Cost if wrong: none.
+327. New villagers are drawn walking from the trade entry's road to their door on arrival day (1 to 3 per arrival, at most 12 at once, none under Still), and leavers walk out at month end; the simulation does not see them. — Cost if wrong: none to the simulation.
+328. A raiding band strikes wealth first, then on its 2nd strike a granary (food stolen) and on its 3rd a home (a quarter of its people flee), falling back to the usual targets when there is none; going strictly "after the wealth" would almost never reach them with 3 strikes. — Cost if wrong: raids hurt food and people sooner than temples.
+329. The physician and the police post take 1 worker each (the plan said 4): with 4, the village run went to about 73% of taxes spent. — Cost if wrong: they are cheap to staff, so less is asked of the city for the same cover.
+330. Disease builds 0.15 risk points a day at base (at 0.3 the capital run fell one script step short); crime builds 0.05 a day in low-tier homes, 0.3 more while mood is below 45 and 0.2 more while more than a tenth of the workforce has no job, with a 2% a day theft draw at the threshold. — Cost if wrong: tuning.

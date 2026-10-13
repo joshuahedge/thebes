@@ -281,7 +281,7 @@ describe('s4 motion Gentle flames', () => {
     let changes = 0, last = null;
     for (let t = 0; t <= 20000; t += 20) {
       const pairs = gentleShapes(t, 7);
-      for (const [shape] of pairs) expect([1, 3].includes(shape)).toBe(true);
+      for (const [shape] of pairs) expect([0, 2].includes(shape)).toBe(true);   // Stage 4.5: LEAN steps 0 and 2, further apart than 1 and 3 were
       const sq = pairs.reduce((s, [, a]) => s + a * a, 0);
       expect(Math.abs(sq - 1) < 1e-9).toBe(true);                                 // cos and sin weights
       expect(pairs.reduce((s, [, a]) => Math.max(s, a), 0)).toBeGreaterThan(0.7);

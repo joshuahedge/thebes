@@ -56,7 +56,7 @@ export function createScoreUi(ctx) {
   function splitsBlock() {
     const reached = SPLITS.filter((id) => Number.isInteger(world.splits[id]));
     let best = null;
-    try { best = records() ? records().bestFor(world.seed, world.difficulty, { except: world.cityId }) : null; } catch (e) { best = null; }
+    try { best = records() ? records().bestFor(world.seed, world.difficulty, { except: world.cityId, variant: world.mapVariant }) : null; } catch (e) { best = null; }
     const bestDay = (id) => (best && Number.isInteger(best.splits[id]) ? best.splits[id] : null);
     return [
       el('h4', { class: 'splits-heading', text: SCORE_TEXT.splits }),
@@ -146,7 +146,7 @@ export function createScoreUi(ctx) {
   const clipboard = () => given('clipboard', () => nav().clipboard || null);
   function shareSheet(body) {
     const s = current();
-    const link = shareLink({ seed: world.seed, difficulty: world.difficulty, parts: s.parts, splits: splitMonths(world) });
+    const link = shareLink({ seed: world.seed, difficulty: world.difficulty, parts: s.parts, splits: splitMonths(world), variant: world.mapVariant });
     const rows = emojiRow(s.parts);
     const text = SHARE_TEXT.text(s.total, rows, link);
     const pic = preparePicture(s);
@@ -287,16 +287,18 @@ function drawGlyph(g, kind, cx, base, s) {
   g.stroke();
   g.fill();
 }
-const stampMaps = new Map();   // seed -> its generated map: a stamp row often repeats a seed (at most STAMP_MAX kept)
-function stampMap(seed) {
-  if (!stampMaps.has(seed)) {
+const stampMaps = new Map();   // 'seed|variant' -> its generated map: a stamp row often repeats a seed (at most STAMP_MAX kept)
+// A stamp draws the map its city really had: the entry's mapVariant ('classic' for a record from before Stage 4.5).
+export function stampMap(seed, variant = 'classic') {
+  const key = `${seed}|${variant}`;
+  if (!stampMaps.has(key)) {
     if (stampMaps.size >= STAMP_MAX) stampMaps.delete(stampMaps.keys().next().value);
-    stampMaps.set(seed, generateMap(seed));
+    stampMaps.set(key, generateMap(seed, undefined, variant));
   }
-  return stampMaps.get(seed);
+  return stampMaps.get(key);
 }
 function stampFor(entry, dpr) {
-  const map = stampMap(entry.seed);
+  const map = stampMap(entry.seed, entry.mapVariant || 'classic');
   const px = Math.round(STAMP_PX * dpr);
   const c = el('canvas', { class: 'stamp', role: 'img', 'aria-label': score4StampLabel(entry), width: px, height: px });
   c.style.width = `${STAMP_PX}px`; c.style.height = `${STAMP_PX}px`;
@@ -322,7 +324,7 @@ function stampFor(entry, dpr) {
 // newest STAMP_MAX, then "+N more"), This week's Nile under the difficulty choice, and a shared score link's friend score
 // with "Beat N?" and Start this seed above the buttons. boot.js calls titleDecor once per title card and passes the result
 // to createTitleCard as decorate, which calls it with (element, { buttonBox, newCity }).
-// opts: { records (src/save/records.js), shared (the page's location hash, '' for none), startSeed(seed) (starts a city on
+// opts: { records (src/save/records.js), shared (the page's location hash, '' for none), startSeed(seed, variant) (starts a city on
 // that seed, asking first when a city is saved, as New city does), clock, dpr (the stamps' pixel ratio) }.
 export function titleDecor({ records = null, shared = '', startSeed = () => {}, clock = () => Date.now(), dpr = (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1 } = {}) {
   return (element, { buttonBox, newCity } = {}) => {
@@ -364,11 +366,11 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
     }
     const total = sharedTotal(link);
     // Stage 4 (ruling 259): a t1 link (older scoring) is compared only with your best made under its own score version.
-    const best = records ? safe(() => records.bestFor(link.seed, link.difficulty, { version: link.version }), null) : null;
+    const best = records ? safe(() => records.bestFor(link.seed, link.difficulty, { version: link.version, variant: link.variant }), null) : null;
     const start = button(TITLE_SCORE_TEXT.startSeed, { class: 'start-seed primary', onClick: () => {
       const choice = buttonBox.querySelector(`.choice.difficulty[data-value="${link.difficulty}"]`);
       if (choice && choice.getAttribute('aria-pressed') !== 'true') choice.click();
-      startSeed(link.seed);
+      startSeed(link.seed, link.variant);
     } });
     element.insertBefore(el('section', { class: 'shared-score', 'aria-labelledby': 'shared-score-heading' }, [
       el('h2', { id: 'shared-score-heading', class: 'small', text: TITLE_SCORE_TEXT.friend }),

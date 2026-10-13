@@ -2,7 +2,7 @@ import { describe, it, expect } from '../harness.js';
 import { MILESTONES } from '../../src/data/progression.js';
 import { updateMilestone } from '../../src/sim/progression.js';
 import { place } from '../../src/sim/commands.js';
-import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
+import { makeTestWorld, setRoad, addRaw, layClay } from '../helpers/testWorld.js';
 
 const unlocksOf = (...ids) => ids.flatMap((id) => MILESTONES.find((m) => m.id === id).unlocks);
 
@@ -16,6 +16,7 @@ describe('sim new items', () => {
     expect(w.newItems).toEqual(unlocksOf('town'));
     expect(updateMilestone(w)).toBe(false);
     expect(w.newItems).toEqual(unlocksOf('town'));                                   // never twice
+    layClay(w, 16, 11); layClay(w, 20, 11);
     expect(place(w, 'clay_pit', 16, 11).ok).toBe(true);
     const left = unlocksOf('town').filter((t) => t !== 'clay_pit');
     expect(w.newItems).toEqual(left);

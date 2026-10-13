@@ -145,3 +145,5 @@ import './stage4/motion.all.js';
 import './stage4/cards.all.js';
 import './stage4/look.all.js';
 import './stage4/balance.all.js';
+// Stage 4.5: one aggregator (tests/stage45/all.js); each task adds its files there, never here.
+import './stage45/all.js';

@@ -33,7 +33,7 @@ export const BUILDINGS = {
   },
   clay_pit: {
     name: 'Clay pit', w: 2, d: 2, cost: 50, upkeep: 5, workers: 6, priority: 'industry', category: 'industry',
-    needsRoad: true, produces: { good: 'clay', perMonth: 40 }, producerReach: 12,
+    needsRoad: true, terrain: 'clay', produces: { good: 'clay', perMonth: 40 }, producerReach: 12,
   },
   potter: {
     name: 'Potter', w: 2, d: 2, cost: 90, upkeep: 8, workers: 8, priority: 'industry', category: 'industry',
@@ -85,10 +85,22 @@ export const BUILDINGS = {
     name: 'Firehouse', w: 1, d: 1, cost: 50, upkeep: 4, workers: 4, priority: 'safety', category: 'services',
     needsRoad: true, reach: 8,
   },
+  // Stage 4.5 (rulings 318, 319): the physician covers homes against illness and the police post against thefts, by road reach, as the
+  // firehouse covers fires (src/sim/health.js, crime.js; their reach is kept equal to HEALTH.reach and CRIME.reach by a data test).
+  physician: {
+    name: 'Physician', w: 1, d: 1, cost: 60, upkeep: 4, workers: 1, priority: 'safety', category: 'services',
+    needsRoad: true, reach: 8,
+  },
+  police_post: {
+    name: 'Police post', w: 1, d: 1, cost: 50, upkeep: 4, workers: 1, priority: 'safety', category: 'services',
+    needsRoad: true, reach: 8,
+  },
   tower: { name: 'Tower', w: 1, d: 1, cost: 150, upkeep: 8, workers: 4, priority: 'safety', category: 'defence', needsRoad: true },
   barracks: { name: 'Barracks', w: 2, d: 2, cost: 200, upkeep: 12, workers: 6, priority: 'safety', category: 'defence', needsRoad: true },
   wall: { name: 'Wall', w: 1, d: 1, cost: 8, upkeep: 0, workers: 0, category: 'defence', needsRoad: false, tile: true },
   gate: { name: 'Gate', w: 1, d: 1, cost: 20, upkeep: 0, workers: 0, category: null, needsRoad: false, tile: true, buildable: false },
+  // Stage 4.5 (ruling 314): a bridge tile is a road tile on water; this row is its price (costOf(world, 'bridge')). Never placed as a building.
+  bridge: { name: 'Bridge', w: 1, d: 1, cost: 25, upkeep: 0, workers: 0, category: null, needsRoad: false, tile: true, buildable: false },
   rubble: { name: 'Rubble', w: 1, d: 1, cost: 0, upkeep: 0, workers: 0, category: null, needsRoad: false, buildable: false },
   // Stage 4 (spec 4.7, 4.14, 4.16, 4.20). The supply buildings work at the monuments priority, last (spec 4.8), and idle
   // with no workers and no wages when no site needs them (Track A: src/sim/monuments.js, labour.js). The builders' guild's

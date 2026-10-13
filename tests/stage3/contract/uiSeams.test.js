@@ -64,14 +64,14 @@ describe('s3 contract render seams', () => {
   });
   it('asks the frame gate before drawing each frame, after running the day', () => {
     const w = makeTestWorld();
-    w.speed = 1;
+    w.speed = 3;
     const drawn = [];
     let allow = true;
     const loop = createGameLoop({ world: w, render: ({ now }) => drawn.push(now), allowFrame: () => allow, raf: () => 0, caf: () => {} });
     loop.tick(0); loop.tick(250);
     allow = false;
     loop.tick(500); loop.tick(750);
-    expect([drawn, w.day]).toEqual([[0, 250], 1]);                                      // the sim ran on; only the drawing waited
+    expect([drawn, w.day]).toEqual([[0, 250], 2]);                                      // the sim ran on; only the drawing waited
     const gate = createFrameGate();
     gate.noteInput(0);
     expect(typeof gate.allow(5000, true)).toBe('boolean');                           // the answer's type only: Track C decides its value

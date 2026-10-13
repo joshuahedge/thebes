@@ -5,6 +5,8 @@
 // words say what the sim does. Each function takes the danger interface's context (ctx) and returns DOM nodes.
 import { BUILDINGS } from '../data/buildings.js';
 import { FIRE } from '../data/fire.js';
+import { HEALTH } from '../data/health.js';
+import { CRIME } from '../data/crime.js';
 import { DEFENCE, FESTIVAL } from '../data/raids.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
 import { ECONOMY } from '../data/economy.js';
@@ -13,6 +15,8 @@ import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
 import { isWorking, staffRatio } from '../sim/labour.js';
 import { canBurn, fireStarted, fireRiskOf, fireBand, fireCause, clearRubble } from '../sim/fire.js';
 import { tributeQuote, payTribute } from '../sim/raids.js';
+import { healthStarted, canFallIll, healthCause, healthFactors, healthBandOf, illnessDaysLeft, homesCoveredBy } from '../sim/health.js';
+import { crimeStarted, canCommitCrime, crimeCause, crimeFactors, crimeBand, crimeRiskOf, crimeHomesCoveredBy } from '../sim/crime.js';
 import { festivalStatus, holdFestival } from '../sim/festival.js';
 import { rubbleCostOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
@@ -77,6 +81,61 @@ function firehouseRows(world, b) {
   return out;
 }
 
+// The health row and the crime row on a home's sheet (Stage 4.5, rulings 318, 319), each { text, action, factors } built from the
+// sim's own reasons (src/sim/health.js, crime.js): the cause is healthCause's or crimeCause's (the one the alerts word), the band
+// healthBandOf's or crimeBand's, the days left illnessDaysLeft's, the faster-building reasons healthFactors' and crimeFactors'.
+// Nothing for an empty plot, a home with nobody in it, on Peaceful (no disease or crime there), or before Town (disease) or Market
+// town (crime), when the risk has not started. action is null, { kind: 'showMe', item } or { kind: 'view', id }, as the fire row's.
+const coverAction = (c, item) => (c.cause === 'none' ? { kind: 'showMe', item } : c.service !== null && ['short', 'paused', 'burning'].includes(c.cause) ? { kind: 'view', id: c.service } : null);
+export function healthRowModel(world, b) {
+  if (!healthStarted(world) || !canFallIll(b)) return null;
+  const c = healthCause(world, b), covered = c.cause === 'covered';
+  const tail = covered ? (b.illness ? D.healthMending : D.healthCovered) : D.healthWhy[c.cause];
+  const band = healthBandOf(world, b);
+  const head = b.illness ? D.illLeft(illnessDaysLeft(world, b)) : band >= 1 ? D.riskIs(D.healthBand(band).label) : '';
+  const f = healthFactors(world, b);
+  const why = [f.well ? D.healthFactor.well : '', f.crowded ? D.healthFactor.crowded(HEALTH.crowdedPerTile) : '', f.poor ? D.healthFactor.poor : ''].filter(Boolean);
+  return { text: [head, tail].filter(Boolean).join(', '), action: coverAction(c, 'physician'), factors: !b.illness && why.length ? D.buildsFaster(D.healthNoun, why) : '' };
+}
+export function crimeRowModel(world, b) {
+  if (!crimeStarted(world) || !canCommitCrime(b)) return null;
+  const c = crimeCause(world, b), covered = c.cause === 'covered';
+  const tail = covered ? D.crimeCovered : D.crimeWhy[c.cause];
+  const band = crimeBand(crimeRiskOf(world, b));
+  const f = crimeFactors(world, b);
+  const why = [f.tier ? D.crimeFactor.tier : '', f.mood ? D.crimeFactor.mood(CRIME.moodBelow) : '', f.jobs ? D.crimeFactor.jobs(Math.round(CRIME.unemployedAbove * 100)) : ''].filter(Boolean);
+  return { text: `${D.crimeBand(band).label}, ${tail}`, action: coverAction(c, 'police_post'), factors: why.length ? D.buildsFaster(D.crimeNoun, why) : '' };
+}
+
+function threatRow(ctx, b, m, label, item, buildWords, serviceName) {
+  const out = [el('div', { class: 'row threat-row' }, [el('span', { class: 'muted', text: label }), el('span', { text: m.text })])];
+  if (m.factors) out.push(el('p', { class: 'small muted threat-factors', text: m.factors }));
+  if (m.action && m.action.kind === 'showMe') {
+    out.push(el('div', { class: 'fix threat-fix' }, [button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${buildWords}`, onClick: () => ctx.showMeAt({ category: 'services', item, ...centre(b) }) })]));
+  } else if (m.action) {
+    out.push(el('div', { class: 'fix threat-fix' }, [button(T.view, { class: 'view quiet', 'aria-label': viewLabel(serviceName), onClick: () => ctx.selectBuilding(m.action.id) })]));
+  }
+  return out;
+}
+
+// Rows after a home's checklist for disease and crime (the fire row is fireRow's).
+export function homeRows(ctx, b) {
+  const out = [];
+  const h = healthRowModel(ctx.world, b);
+  if (h) out.push(...threatRow(ctx, b, h, D.healthLabel, 'physician', D.buildPhysician, BUILDINGS.physician.name));
+  const c = crimeRowModel(ctx.world, b);
+  if (c) out.push(...threatRow(ctx, b, c, D.crimeLabel, 'police_post', D.buildPolicePost, BUILDINGS.police_post.name));
+  return out;
+}
+
+// The physician and the police post: how many homes with people in them they reach, or why they cover nothing.
+function serviceRows(world, b, kind) {
+  if (inFireStage(b)) return [line(D.coversNothingBurning)];
+  if (b.paused) return [line(D.coversNothingPaused)];
+  if (!isWorking(world, b)) return [line(D.coversNothingUntil(needed(b.type), BUILDINGS[b.type].workers))];
+  return [line(kind === 'health' ? D.coversHomesHealth(homesCoveredBy(world, b)) : D.coversHomesCrime(crimeHomesCoveredBy(world, b)), 'small')];
+}
+
 // The tower: its range, whether it shoots (only a working tower does, src/sim/combat.js), and its wall tile's hit points.
 // The tile is raised to DEFENCE.towerOnWallHp when raiders arrive and healed when the raid ends (ruling 8: the stored
 // value may read a plain wall's between raids), so at peace the row gives the full hit points the tile fights with, and
@@ -111,6 +170,8 @@ export function buildingParts(ctx, b) {
   if (b.type === 'rubble') return [line(D.rubbleRow(rubbleCostOf(world)), 'small'), line(D.rubbleDrag)];
   const out = fireRow(ctx, b);
   if (b.type === 'firehouse') out.push(...firehouseRows(world, b));
+  if (b.type === 'physician') out.push(...serviceRows(world, b, 'health'));
+  if (b.type === 'police_post') out.push(...serviceRows(world, b, 'crime'));
   if (b.type === 'tower') out.push(...towerRows(world, b));
   if (b.type === 'barracks') out.push(...barracksRows(world, b));
   return out;
@@ -172,15 +233,15 @@ export function tributeSheet(ctx) {
     const w = world.raid.warning;
     const left = Math.max(0, w.arrives - world.day);
     const phone = Boolean(ctx.store) && ctx.store.get().layout !== 'wide';
-    const title = alertText({ code: 'raid_warning', dir: w.dir }, world).title;
+    const title = alertText({ code: 'raid_warning', dir: w.dir, dirs: q.dirs }, world).title;
     const arrives = el('p', { class: 'arrives', text: phone || q.hidden ? D.withArrival(title, left) : D.arrivalLine(left) });   // as the banner says it
-    if (q.hidden) { setTitle(D.raidSheetTitle); body.append(arrives, el('p', { text: D.capital(D.defenceLine(q, w.dir)) })); return; }
+    if (q.hidden) { setTitle(D.raidSheetTitle); body.append(arrives, el('p', { text: D.capital(D.defenceLine(q, q.dirs)) })); return; }
     body.append(
       el('p', { class: 'tribute-cost', text: D.tributeCost(q.cost) }),
       arrives,
       row(D.goldNow, String(world.gold)), row(D.goldAfter, String(world.gold - q.cost)),
-      el('p', { class: 'cancels', text: D.cancels(w.dir, q.size) }),
-      el('p', { class: 'small muted', text: D.capital(D.defenceLine(q, w.dir)) }),
+      el('p', { class: 'cancels', text: D.cancels(q.dirs, q.size) }),
+      el('p', { class: 'small muted', text: D.capital(D.defenceLine(q, q.dirs)) }),
     );
     if (!q.payable) body.append(el('p', { class: 'why-not coral', text: D.tributeBelowZero(world.gold) }));
     const pay = button(D.payGold(q.cost), { class: 'pay', disabled: !q.payable, onClick: () => {

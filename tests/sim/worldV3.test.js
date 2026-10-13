@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { createWorld, STAGE3_TALLY, STAGE4_TALLY } from '../../src/sim/world.js';
+import { createWorld, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY } from '../../src/sim/world.js';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../../src/data/difficulty.js';
 
 describe('world v3', () => {
@@ -8,7 +8,7 @@ describe('world v3', () => {
     expect(w.difficulty).toBe('normal');
     expect(w.trade).toEqual({ routes: {}, orders: {}, drift: {}, used: {}, year: 1 });
     expect(w.newItems).toEqual([]);
-    const stage2 = Object.fromEntries(Object.entries(w.tally).filter(([k]) => !STAGE3_TALLY.includes(k) && !STAGE4_TALLY.includes(k)));   // Stage 3's: tests/sim/worldV4.test.js
+    const stage2 = Object.fromEntries(Object.entries(w.tally).filter(([k]) => !STAGE3_TALLY.includes(k) && !STAGE4_TALLY.includes(k) && !STAGE45_TALLY.includes(k)));   // Stage 3's: tests/sim/worldV4.test.js
     expect(stage2).toEqual({
       harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0,
       made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0,

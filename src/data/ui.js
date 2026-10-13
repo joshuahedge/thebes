@@ -6,8 +6,8 @@ export const CATEGORIES = [
   { id: 'homes', items: ['house', 'garden', 'statue', 'plaza', 'sphinx'] },
   { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
   { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'] },
-  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse', 'palace'] },
-  { id: 'defence', items: ['wall', 'tower', 'barracks'] },
+  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'police_post', 'palace'] },
+  { id: 'defence', items: ['wall', 'gate', 'tower', 'barracks'] },
   // Stage 4 (spec 4.14, ruling 207): everything a monument needs, in order, then the seven from the small obelisk up.
   { id: 'monuments', items: ['builders_guild', 'quarry', 'brickworks', ...MONUMENT_KINDS] },
 ];
@@ -24,6 +24,7 @@ export const visibleCategories = () => CATEGORIES.filter((c) => c.items.length >
 export function toolForItem(item) {
   if (item === 'road') return { kind: 'road' };
   if (item === 'wall') return { kind: 'wall' };       // drawn as a line, like a road (spec 6.4 Drawing mode)
+  if (item === 'gate') return { kind: 'road', gate: true };   // Stage 4.5 (ruling 309): the road tool, taking only wall tiles
   if (item === 'demolish') return { kind: 'demolish' };
   if (item === 'house') return { kind: 'houses' };
   if (item === 'plaza') return { kind: 'plazas' };     // Stage 4 (ruling 250): painted like plots
@@ -41,8 +42,8 @@ export const SHOW_ME_PULSES = 2;
 export const SHOW_ME_PULSE_MS = 400;
 export const GUIDE_PULSES = 2;          // the guide's map ring pulses twice when its step changes, then stays still (spec 3.2)
 export const GUIDE_PULSE_MS = 600;      // one pulse: under 3 flashes a second, done well within 5 s (spec 5.4)
-export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion', booth: 'entertainment', garden: 'desirability', statue: 'desirability', firehouse: 'fire',
-  farm_grain: 'ground', farm_fig: 'ground', farm_barley: 'ground', farm_flax: 'ground', gem_mine: 'ground', quarry: 'ground',   // placement review P1: the buildings that need fertile or rocky ground show it
+export const AUTO_OVERLAY = { well: 'water', bazaar: 'food', temple: 'religion', booth: 'entertainment', garden: 'desirability', statue: 'desirability', firehouse: 'fire', physician: 'health', police_post: 'crime',
+  farm_grain: 'ground', farm_fig: 'ground', farm_barley: 'ground', farm_flax: 'ground', gem_mine: 'ground', quarry: 'ground', clay_pit: 'ground',   // placement review P1: the buildings that need fertile or rocky ground show it
   ...Object.fromEntries(MONUMENT_KINDS.map((k) => [k, 'ground'])) };   // Stage 4 (Track C, ruling 229): picking a monument turns Ground on, with its gold room
 
 // The desirability overlay's bands (spec 4.7, 6.3): where each starts. Below the first is unpleasant (hatched); the

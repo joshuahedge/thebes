@@ -76,14 +76,18 @@ describe('s3 raids the raid', () => {
     arriveNow(w, 3, { day: 1000 });
     const events = runRaid(w);
     const hits = strikes(events);
-    expect(hits.map((e) => e.id)).toEqual([store.id, far.id, temple.id]);            // storehouses nearest first, then the next kind down
-    expect(hits.map((e) => e.stolen)).toEqual([30, 30, 27]);                           // 1% of the treasury a raider, at least 5: 10+10+10, 10+10+10, 9+9+9
-    expect(w.gold).toBe(1000 - 87);
+    const home = Object.values(w.buildings).find((b) => b.type === 'house' && b.x === 20);
+    // Stage 4.5 (ruling 317): the third strike goes for a home rather than the next kind down (the temple), which drives out a quarter of its people and steals no gold.
+    expect(hits.map((e) => e.id)).toEqual([store.id, far.id, home.id]);              // storehouses nearest first, then (no granary) the next storehouse, then a home
+    expect(hits.map((e) => e.stolen)).toEqual([30, 30, 0]);                            // 1% of the treasury a raider, at least 5: 10+10+10, 10+10+10; a home strike takes none
+    expect(hits[2].fled).toBe(2);                                                      // 10 residents x 25%, rounded down
+    expect(w.gold).toBe(1000 - 60);
     const end = ended(events);
     expect(end.won).toBe(false);
-    expect(end.report).toEqual({ index: 0, dir: 'east', size: 3, won: false, byTowers: 0, bySoldiers: 0, towers: 0, burned: 0, stolen: 87, day: w.day, burnedKinds: [], fires: end.report.fires });
+    expect(end.report).toEqual({ index: 0, dir: 'east', size: 3, won: false, byTowers: 0, bySoldiers: 0, towers: 0, burned: 0, stolen: 60, day: w.day, burnedKinds: [], fires: end.report.fires, fled: 2 });
     expect(w.raid.last).toEqual(end.report);
-    expect([w.raid.active, w.tally.raidsLost, w.tally.raidsBeaten, w.tally.goldStolen, w.raid.adaptation]).toEqual([null, 1, 0, 87, RAIDS.adaptLost]);
+    expect(temple.id in w.buildings).toBe(true);
+    expect([w.raid.active, w.tally.raidsLost, w.tally.raidsBeaten, w.tally.goldStolen, w.raid.adaptation]).toEqual([null, 1, 0, 60, RAIDS.adaptLost]);
     expect(w.raid.nextWarnDay).toBe(laterWarnDay(w, 1000));
     expect(raidMood(w)).toEqual({ raid: DANGER_MOOD.raidLost });
     w.day = end.report.day + DANGER_MOOD.raidDays - 1;
