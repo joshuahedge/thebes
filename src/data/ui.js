@@ -7,7 +7,7 @@ export const CATEGORIES = [
   { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
   { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'] },
   { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse', 'palace'] },
-  { id: 'defence', items: ['wall', 'tower', 'barracks'] },
+  { id: 'defence', items: ['wall', 'gate', 'tower', 'barracks'] },
   // Stage 4 (spec 4.14, ruling 207): everything a monument needs, in order, then the seven from the small obelisk up.
   { id: 'monuments', items: ['builders_guild', 'quarry', 'brickworks', ...MONUMENT_KINDS] },
 ];
@@ -24,6 +24,7 @@ export const visibleCategories = () => CATEGORIES.filter((c) => c.items.length >
 export function toolForItem(item) {
   if (item === 'road') return { kind: 'road' };
   if (item === 'wall') return { kind: 'wall' };       // drawn as a line, like a road (spec 6.4 Drawing mode)
+  if (item === 'gate') return { kind: 'road', gate: true };   // Stage 4.5 (ruling 309): the road tool, taking only wall tiles
   if (item === 'demolish') return { kind: 'demolish' };
   if (item === 'house') return { kind: 'houses' };
   if (item === 'plaza') return { kind: 'plazas' };     // Stage 4 (ruling 250): painted like plots

@@ -28,7 +28,7 @@ export function cardShown(world, item) {
   if (step > 0) return isUnlocked(world, PRESTIGE_UNLOCKS[step - 1]);
   if (step === 0) return milestoneIndex(world.milestone) + 1 >= milestoneIndex(MONUMENTS[item].unlock.milestone);
   const next = MILESTONES[milestoneIndex(world.milestone) + 1];
-  return Boolean(next && next.unlocks.includes(item));
+  return Boolean(next && next.unlocks.includes(item === 'gate' ? 'wall' : item));   // the Gate card shows with the Wall's
 }
 
 // A locked card's condition (spec 4.14): a prestige unlock says its count once its milestone is reached ("Needs 100 prestige
@@ -71,7 +71,8 @@ export function activeItemOf(tool) {
   if (tool.kind === 'building') return tool.type;
   if (tool.kind === 'houses') return 'house';
   if (tool.kind === 'plazas') return 'plaza';   // Stage 4 (ruling 250)
-  return tool.kind;   // 'road' or 'demolish'
+  if (tool.kind === 'road' && tool.gate) return 'gate';   // Stage 4.5 (ruling 309): the Gate card runs the road tool in gate mode
+  return tool.kind;   // 'road', 'wall' or 'demolish'
 }
 
 // What a tray of cards shows: its category, the active card and each shown card's affordable, locked and new state.

@@ -299,7 +299,10 @@ describe('s3 contract commands', () => {
     expect(canPlace(w, 'firehouse', 12, 9).reason).toBe('occupied');
     expect(canPlace(w, 'tower', 12, 9).ok).toBe(true);
     expect(canPlace(w, 'tower', 14, 9).reason).toBe('occupied');                     // not on broken stone
-    expect(previewRoad(w, 12, 8, 12, 9).reason).toBe('blocked');
+    expect(previewRoad(w, 12, 8, 12, 9).gates).toEqual([wallTile]);                   // Stage 4.5 (ruling 309): a road crossing a wall makes a gate there
+    w.occ[wallTile] = 99;
+    expect(previewRoad(w, 12, 8, 12, 9).reason).toBe('blocked');                       // a tower on it still blocks the road
+    w.occ[wallTile] = 0;
     w.wall[idx(w.size, 16, 10)] = 40;                                                  // a gate: the road through it stays usable
     expect(drawRoad(w, 16, 9, 16, 10).ok).toBe(true);
   });

@@ -338,45 +338,60 @@ function uniqueTiles(tiles) {
   return out;
 }
 
-// Why a road cannot be laid on one tile, else null.
-function roadTileReason(world, x, y) {
+// Why a road cannot be laid on one tile, else null. A wall tile is no obstacle (Stage 4.5, ruling 309: the road makes it a
+// gate); in gate mode (gateOnly) a tile with no wall on it is refused with 'not_wall'.
+function roadTileReason(world, x, y, gateOnly = false) {
   if (!isTile(x, y) || !inBounds(world.size, x, y)) return 'out_of_bounds';
   const i = idx(world.size, x, y);
   if (world.terrain[i] === T.WATER) return 'water';
-  if (world.occ[i] || (world.wall[i] && !world.road[i])) return 'blocked';   // a road never crosses a wall: draw wall over a road for a gate
+  if (world.occ[i]) return 'blocked';
+  if (gateOnly && !world.wall[i]) return 'not_wall';
   return null;
 }
 
 // The road tool's core (placement review P3, P5): what laying road on a list of tiles would do. { ok, reason, warnings,
-// tiles: the map indices that get road (free tiles, in order; a tile with road already is left as it is), cost, skipped:
-// [{ x, y, reason }] }. By default the first tile that cannot take a road refuses the lot ('out_of_bounds', 'water',
-// 'blocked'), as the mouse's L does; with skipBlocked (a touch plan) such tiles are skipped and the rest is laid. Fails with
-// 'no_gold' when the cost would cross the debt floor, keeping tiles, cost and skipped.
-export function previewRoadTiles(world, list, { skipBlocked = false } = {}) {
-  const tiles = [], skipped = [];
+// tiles: the map indices that change (free tiles that get road, and wall or breach tiles that become gates, in order; a
+// tile with road already is left as it is, a gate included), gates: the subset that are gates, cost, skipped:
+// [{ x, y, reason }] }. Stage 4.5 (ruling 309): a road may cross a wall; each standing wall tile it crosses without a road,
+// and each breach, becomes a gate at the gate price (costOf(world, 'gate')) instead of the road price. By default the
+// first tile that cannot take a road refuses the lot ('out_of_bounds', 'water', 'blocked'), as the mouse's L does; with
+// skipBlocked (a touch plan) such tiles are skipped and the rest is laid. With gateOnly (the Gate card) only wall and breach
+// tiles are accepted ('not_wall' for the rest). Fails with 'no_gold' when the cost would cross the debt floor, keeping
+// tiles, gates, cost and skipped.
+export function previewRoadTiles(world, list, { skipBlocked = false, gateOnly = false } = {}) {
+  const tiles = [], gates = [], skipped = [];
   for (const [x, y] of uniqueTiles(list)) {
-    const reason = roadTileReason(world, x, y);
+    const reason = roadTileReason(world, x, y, gateOnly);
     if (reason) {
-      if (!skipBlocked) return fail(reason, { tiles: [], cost: 0, skipped: [] });
+      if (!skipBlocked) return fail(reason, { tiles: [], gates: [], cost: 0, skipped: [] });
       skipped.push({ x, y, reason });
       continue;
     }
     const i = idx(world.size, x, y);
-    if (!world.road[i]) tiles.push(i);
+    const wall = world.wall[i];
+    if (wall < 0 || (wall > 0 && !world.road[i])) { tiles.push(i); gates.push(i); }
+    else if (!wall && !world.road[i]) tiles.push(i);
   }
-  const cost = tiles.length * roadCostOf(world);
-  if (!canAfford(world, cost)) return fail('no_gold', { tiles, cost, skipped });
-  return { ok: true, warnings: [], tiles, cost, skipped };
+  const cost = (tiles.length - gates.length) * roadCostOf(world) + gates.length * costOf(world, 'gate');
+  if (!canAfford(world, cost)) return fail('no_gold', { tiles, gates, cost, skipped });
+  return { ok: true, warnings: [], tiles, gates, cost, skipped };
 }
 
-// Lays the preview's tiles, charges for them and pushes one undo entry for the whole list.
+// Lays the preview's tiles, charges for them and pushes one undo entry for the whole list. A gate tile gets its road and its
+// wall's full gate hit points; the entry { kind: 'road', tiles: the tiles that were given road, cost, walls: [[tile index,
+// the wall's value before]] } lets undo take the road off again and put each wall (or breach) back.
 export function drawRoadTiles(world, list, options = {}) {
   const p = previewRoadTiles(world, list, options);
   if (!p.ok || p.tiles.length === 0) return p;
+  const gates = new Set(p.gates);
+  const walls = p.gates.map((t) => [t, world.wall[t]]);
+  const laid = p.tiles.filter((t) => !world.road[t]);
   for (const t of p.tiles) world.road[t] = 1;
+  for (const t of gates) world.wall[t] = DEFENCE.gateHp;
   world.roadVersion++;
+  if (gates.size) world.wallVersion++;
   spend(world, p.cost);
-  pushUndo(world, { kind: 'road', tiles: p.tiles.slice(), cost: p.cost });
+  pushUndo(world, { kind: 'road', tiles: laid, cost: p.cost, walls });
   return p;
 }
 
@@ -389,17 +404,17 @@ function lineTiles(world, x0, y0, x1, y1, flip) {
 
 // The mouse's road: an L, refused whole when any tile of it is blocked. Thin wrappers on the tile-list core, with the
 // shapes they always had.
-export function previewRoad(world, x0, y0, x1, y1, flip = false) {
+export function previewRoad(world, x0, y0, x1, y1, flip = false, options = {}) {
   const tiles = lineTiles(world, x0, y0, x1, y1, flip);
-  if (!tiles) return fail('out_of_bounds', { tiles: [], cost: 0 });
-  const { skipped, ...p } = previewRoadTiles(world, tiles);
+  if (!tiles) return fail('out_of_bounds', { tiles: [], gates: [], cost: 0 });
+  const { skipped, ...p } = previewRoadTiles(world, tiles, { ...options, skipBlocked: false });
   return p;
 }
 
-export function drawRoad(world, x0, y0, x1, y1, flip = false) {
+export function drawRoad(world, x0, y0, x1, y1, flip = false, options = {}) {
   const tiles = lineTiles(world, x0, y0, x1, y1, flip);
-  if (!tiles) return fail('out_of_bounds', { tiles: [], cost: 0 });
-  const { skipped, ...p } = drawRoadTiles(world, tiles);
+  if (!tiles) return fail('out_of_bounds', { tiles: [], gates: [], cost: 0 });
+  const { skipped, ...p } = drawRoadTiles(world, tiles, { ...options, skipBlocked: false });
   return p;
 }
 
