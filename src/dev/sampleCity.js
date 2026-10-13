@@ -25,9 +25,30 @@ function roadWest(world, x0, y, minX) {
   return minX;
 }
 
+// Stage 4.5 (ruling 312): a clay pit stands only on clay. The dev cities keep their layouts, so a pit's two-by-two spot
+// is laid as clay first (a fixture, like the milestone the stress city sets), where dry ground is free; never water.
+// The ground goes back as it was when the pit will not go.
+export function placeClayPit(world, x, y, { strict = false } = {}) {
+  const before = [];
+  for (const [tx, ty] of [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]]) {
+    if (tx < 0 || ty < 0 || tx >= world.size || ty >= world.size) return null;
+    const i = idx(world.size, tx, ty);
+    if (world.terrain[i] === T.WATER || world.occ[i] || world.road[i] || world.wall[i]) return null;
+    before.push([i, world.terrain[i]]);
+  }
+  for (const [i] of before) world.terrain[i] = T.CLAY;
+  const c = canPlace(world, 'clay_pit', x, y);
+  if (c.ok && !(strict && c.warnings.length)) return place(world, 'clay_pit', x, y);
+  for (const [i, t] of before) world.terrain[i] = t;
+  return null;
+}
+
 // The first spot in the list where the building can go (the river can take any one of them on some maps).
 function placeFirst(world, type, spots) {
-  for (const [x, y] of spots) if (place(world, type, x, y).ok) return true;
+  for (const [x, y] of spots) {
+    const r = type === 'clay_pit' ? placeClayPit(world, x, y) : place(world, type, x, y);
+    if (r && r.ok) return true;
+  }
   return false;
 }
 
@@ -114,6 +135,11 @@ function placeNear(world, type, cx, cy, maxR = 9) {
     for (let y = cy - r; y <= cy + r; y++) {
       for (let x = cx - r; x <= cx + r; x++) {
         if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) !== r) continue;
+        if (type === 'clay_pit') {
+          const r = placeClayPit(world, x, y, { strict: true });
+          if (r && r.ok) return r.id;
+          continue;
+        }
         const c = canPlace(world, type, x, y);
         if (c.ok && !c.warnings.length) return place(world, type, x, y).id;
       }
@@ -293,7 +319,10 @@ export function buildStressCity(world, { days = 60 } = {}) {
   const services = STRESS_SERVICES;
   for (let y = 2; y < size - 1; y += 4) roadRow(world, y);
   for (let y = 2; y < size - 3; y += 4) {
-    for (let x = 1; x < size - 2; x += 7) place(world, services[(x / 7 + y / 4) % services.length | 0], x, y + 1);
+    for (let x = 1; x < size - 2; x += 7) {
+      const type = services[(x / 7 + y / 4) % services.length | 0];
+      if (type === 'clay_pit') placeClayPit(world, x, y + 1); else place(world, type, x, y + 1);
+    }
   }
   for (let y = 2; y < size - 1; y += 4) {
     paintHouses(world, 0, y - 1, size - 1, y - 1);

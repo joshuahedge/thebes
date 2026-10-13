@@ -54,7 +54,7 @@ describe('data buildings, Stage 2', () => {
       garden: { w: 1, d: 1, category: 'homes', needsRoad: false, terrain: undefined },
       statue: { w: 1, d: 1, category: 'homes', needsRoad: false, terrain: undefined },
       farm_fig: big('food', 'fertile'),
-      clay_pit: big('industry', undefined),
+      clay_pit: big('industry', 'clay'),
       potter: big('industry', undefined),
       storehouse: big('industry', undefined),
       booth: { w: 1, d: 1, category: 'services', needsRoad: true, terrain: undefined },

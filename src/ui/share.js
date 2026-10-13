@@ -77,7 +77,7 @@ export function emojiRow(parts) {
   return SCORE_PARTS.map((p) => { const k = Math.floor(parts[p] / 20); return `${SCORE_TEXT.parts[p]} ${'🟩'.repeat(k)}${'⬜'.repeat(5 - k)}`; }).join('\n');
 }
 
-const TERRAIN_COLOURS = { [TER.DESERT]: TERRAIN.sand, [TER.FERTILE]: TERRAIN.fertile, [TER.ROCKY]: TERRAIN.rocky, [TER.WATER]: TERRAIN.water, [TER.BANK]: TERRAIN.bank, [TER.MEADOW]: TERRAIN.grass };
+const TERRAIN_COLOURS = { [TER.DESERT]: TERRAIN.sand, [TER.FERTILE]: TERRAIN.fertile, [TER.ROCKY]: TERRAIN.rocky, [TER.WATER]: TERRAIN.water, [TER.BANK]: TERRAIN.bank, [TER.MEADOW]: TERRAIN.grass, [TER.CLAY]: TERRAIN.clay };
 
 // A top-down map of the terrain (and, when given, the roads and buildings of a world) in the square (x, y, px):
 // the title card's stamps and the picture card when no view of the city is at hand.

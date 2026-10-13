@@ -4,3 +4,5 @@ import './trees.test.js';
 import './gates.test.js';
 import './fire.test.js';
 import './clock.test.js';
+import './clay.test.js';
+import './worldV6.test.js';

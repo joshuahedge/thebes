@@ -3,7 +3,8 @@ import { BUILDINGS } from '../data/buildings.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { PRESTIGE_UNLOCKS } from '../data/monuments.js';
-import { STAGE3_TALLY, STAGE4_TALLY } from '../sim/world.js';
+import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY } from '../sim/world.js';
+import { MAP_VARIANTS } from '../data/map.js';
 
 // Every top-level field createWorld produces (src/sim/world.js).
 export const REQUIRED = [
@@ -13,10 +14,10 @@ export const REQUIRED = [
   'firsts', 'achievements', 'daily', 'guide', 'tally',
   'difficulty', 'trade', 'newItems',
   'wall', 'wallVersion', 'raid', 'soldiers', 'nextUnitId', 'danger', 'splits', 'seals', 'feats', 'cityId',
-  'prestigeUnlocks',
+  'prestigeUnlocks', 'mapVariant',
 ];
 
-export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY];
+export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY, ...STAGE45_TALLY];
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isCounts = (v) => isRecord(v) && Object.values(v).every(Number.isFinite);       // tally.made: good -> units
 const isStrings = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
@@ -50,6 +51,8 @@ function isStage4Building(b) {
   if (def.palace && !(Number.isInteger(b.style) && b.style >= 0 && b.style < PALACE_STYLES.length && isWorks(b.works))) return false;
   return true;
 }
+// Stage 4.5 (version 6): a home's health and crime risk points and its illness (null or a record; Task 5 owns what is inside).
+const isStage45Building = (b) => b.type !== 'house' || (Number.isFinite(b.health) && Number.isFinite(b.crime) && (b.illness === null || isRecord(b.illness)));
 const isUnlockDays = (u) => isRecord(u) && PRESTIGE_UNLOCKS.every((k) => isDay(u[k]));
 
 // The save envelope (spec 4.17): wall-clock fields sit beside the world, never inside it.
@@ -81,6 +84,7 @@ export function validateWorld(w) {
   if (!isRecord(w.splits) || !Object.values(w.splits).every(Number.isInteger) || !Array.isArray(w.seals) || !w.seals.every(isRecord)) return false;
   if (!isFeats(w.feats) || !(w.cityId === null || (typeof w.cityId === 'string' && w.cityId.length > 0))) return false;
   if (!Object.values(w.buildings).every(isStage4Building) || !isUnlockDays(w.prestigeUnlocks)) return false;
+  if (typeof w.mapVariant !== 'string' || !MAP_VARIANTS.includes(w.mapVariant) || !Object.values(w.buildings).every(isStage45Building)) return false;
   return true;
 }
 

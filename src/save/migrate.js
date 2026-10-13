@@ -1,4 +1,5 @@
-import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, newPrestigeUnlocks } from '../sim/world.js';
+import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, newPrestigeUnlocks } from '../sim/world.js';
+import { addClay } from '../sim/mapgen.js';
 import { MILESTONES } from '../data/progression.js';
 import { RAIDS } from '../data/raids.js';
 
@@ -129,8 +130,39 @@ function v4ToV5(w) {
   };
 }
 
+// v5 -> v6 (Stage 4.5). The city keeps its map: mapVariant is 'classic' (it was always the river down the west side). Free bank
+// tiles turn to clay by the generator's own rule (addClay, seeded by the city's seed); a tile with a building, road or wall on it
+// does not change, and a clay pit already standing stays where it is ("an older pit"). Every home gets 0 health and crime risk
+// points and no illness (Task 5 fills them), and the new tallies start at zero. Every other field is kept as it was. A malformed
+// save is left for validateWorld to report.
+function v5ToV6(w) {
+  const tally = w.tally !== null && typeof w.tally === 'object' && !Array.isArray(w.tally) ? w.tally : {};
+  const buildings = {};
+  if (w.buildings && typeof w.buildings === 'object') {
+    for (const [id, b] of Object.entries(w.buildings)) {
+      buildings[id] = b && typeof b === 'object' && b.type === 'house' ? { ...b, health: 0, crime: 0, illness: null } : b;
+    }
+  }
+  let terrain = w.terrain;
+  const cells = Number.isInteger(w.size) && w.size > 0 ? w.size * w.size : 0;
+  const lists = (k) => Array.isArray(w[k]) && w[k].length === cells;
+  if (Array.isArray(terrain) && terrain.length === cells && cells && Number.isInteger(w.seed)) {
+    terrain = terrain.slice();
+    const bare = (i) => !(lists('occ') && w.occ[i]) && !(lists('road') && w.road[i]) && !(lists('wall') && w.wall[i]);
+    addClay(terrain, w.size, w.seed, bare);
+  }
+  return {
+    ...w,
+    version: 6,
+    terrain,
+    buildings,
+    mapVariant: 'classic',
+    tally: { ...tally, ...Object.fromEntries(STAGE45_TALLY.map((k) => [k, 0])) },
+  };
+}
+
 // Each entry upgrades a world from version N to N + 1. Add one whenever WORLD_VERSION goes up.
-export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5 };
+export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6 };
 
 // table and target are parameters so tests can drive a synthetic chain; production calls use the defaults.
 export function migrate(obj, table = MIGRATIONS, target = CURRENT_VERSION) {

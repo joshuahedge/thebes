@@ -25,7 +25,8 @@ export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 
 export const FIRE_HUE = '#9C2A1C';
 // The Ground overlay (placement review P1): free fertile land in a leaf green (darker than the meadow's lime, so the two read
 // apart), free rocky ground in a stone grey. The hues are for the tint, the dots and the hatching; the legend uses them too.
-export const GROUND_HUE = { fertile: '#27934A', rocky: '#5F5A54' };
+// Stage 4.5 (ruling 312): free clay ground along the banks, in terracotta (tint and wide hatching), for the clay pit.
+export const GROUND_HUE = { fertile: '#27934A', rocky: '#5F5A54', clay: '#C2552B' };
 export const OVERLAY_HUE = {
   water: UI.water, food: UI.food, religion: UI.religion, goods: UI.goods, entertainment: UI.entertainment, desirability: UI.desirability, fire: FIRE_HUE, housing: UI.housing,
   ground: GROUND_HUE.fertile,
@@ -159,18 +160,18 @@ export const GROUND_ALPHA = { bright: 1, dim: 0.5 };
 
 const groundFree = (world, i) => !world.occ[i] && !world.road[i] && !world.wall[i];
 
-// The free fertile and rocky tiles in range, as [[x, y]...] in row order (so tilePolys joins runs along x).
+// The free fertile, rocky and clay tiles in range, as [[x, y]...] in row order (so tilePolys joins runs along x).
 export function groundTiles(world, range = null) {
   const r = range || { x0: 0, y0: 0, x1: world.size - 1, y1: world.size - 1 };
-  const fertile = [], rocky = [];
+  const fertile = [], rocky = [], clay = [];
   for (let y = Math.max(0, r.y0); y <= Math.min(world.size - 1, r.y1); y++) {
     for (let x = Math.max(0, r.x0); x <= Math.min(world.size - 1, r.x1); x++) {
       const i = idx(world.size, x, y), t = world.terrain[i];
-      if ((t !== TILE.FERTILE && t !== TILE.ROCKY) || !groundFree(world, i)) continue;
-      (t === TILE.FERTILE ? fertile : rocky).push([x, y]);
+      if ((t !== TILE.FERTILE && t !== TILE.ROCKY && t !== TILE.CLAY) || !groundFree(world, i)) continue;
+      (t === TILE.FERTILE ? fertile : t === TILE.CLAY ? clay : rocky).push([x, y]);
     }
   }
-  return { fertile, rocky };
+  return { fertile, rocky, clay };
 }
 
 const roomMemo = new WeakMap();   // world -> { key, room: Map `type|rot` -> Set of tile indices }
@@ -250,18 +251,22 @@ function groundLayer(g, tiles, kind, strength) {
   if (kind === 'fertile') {
     g.polys(polys, GROUND_HUE.fertile, { alpha: 0.36 * strength });
     g.polys(polys, dotsPattern(g, '#0B3D1A', 0.9 * strength));
+  } else if (kind === 'clay') {
+    g.polys(polys, GROUND_HUE.clay, { alpha: 0.34 * strength });
+    g.hatchPolys(polys, GROUND_HUE.clay, { fill: 0, line: 0.8 * strength, gap: 6, width: 1.4 });
   } else {
     g.hatchPolys(polys, GROUND_HUE.rocky, { fill: 0.28 * strength, line: 0.85 * strength, gap: 4 });
   }
 }
 
 function drawGround(g, world, range, placing) {
-  const { fertile, rocky } = groundTiles(world, range);
+  const { fertile, rocky, clay } = groundTiles(world, range);
   const def = placing ? BUILDINGS[placing] : null;
   if (def && def.monument) {
     // A monument's room (ruling 229): fertile and rocky ground at half strength, a gold wash on every tile with room.
     groundLayer(g, fertile, 'fertile', GROUND_ALPHA.dim);
     groundLayer(g, rocky, 'rocky', GROUND_ALPHA.dim);
+    groundLayer(g, clay, 'clay', GROUND_ALPHA.dim);
     const room = roomTiles(world, placing, placingRotOf(world));
     const r = range || { x0: 0, y0: 0, x1: world.size - 1, y1: world.size - 1 };
     const gold = [];
@@ -275,13 +280,16 @@ function drawGround(g, world, range, placing) {
   if (!room) {
     groundLayer(g, fertile, 'fertile', GROUND_ALPHA.bright);
     groundLayer(g, rocky, 'rocky', GROUND_ALPHA.bright);
+    groundLayer(g, clay, 'clay', GROUND_ALPHA.bright);
     return;
   }
   const inRoom = ([x, y]) => room.has(idx(world.size, x, y));
   groundLayer(g, fertile.filter((t) => !inRoom(t)), 'fertile', GROUND_ALPHA.dim);
   groundLayer(g, rocky.filter((t) => !inRoom(t)), 'rocky', GROUND_ALPHA.dim);
+  groundLayer(g, clay.filter((t) => !inRoom(t)), 'clay', GROUND_ALPHA.dim);
   groundLayer(g, fertile.filter(inRoom), 'fertile', GROUND_ALPHA.bright);
   groundLayer(g, rocky.filter(inRoom), 'rocky', GROUND_ALPHA.bright);
+  groundLayer(g, clay.filter(inRoom), 'clay', GROUND_ALPHA.bright);
 }
 
 // The desirability overlay (spec 4.7, 6.3): each tile's score in one indigo, light to dark by the bands of

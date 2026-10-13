@@ -17,7 +17,7 @@ import { nudgeLineText } from '../../src/ui/nudge.js';
 import { toolPreview } from '../../src/ui/placement.js';
 import { setAccept } from '../../src/sim/commands.js';
 import { costOf } from '../../src/sim/costs.js';
-import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
+import { makeTestWorld, setRoad, addRaw, staffAll, layClay } from '../helpers/testWorld.js';
 import { mount, fire, key } from '../helpers/dom.js';
 import { rigUI, uiWorld, runningUiWorld } from '../helpers/uiWorld.js';
 import { contrastIn } from '../helpers/contrast.js';
@@ -90,6 +90,7 @@ describe('ui stage 2 cards', () => {
       expect(card('clay_pit').textContent).toContain(T.newBadge);                    // part of the card's name, so not colour alone
       expect(card('trading_post').querySelector('.new-badge')).toBe(null);           // locked: next milestone, not new
       expect(cardInfo(r.world, 'potter').isNew).toBe(true);
+      layClay(r.world, 17, 11);
       r.ui.placement.start({ kind: 'building', type: 'clay_pit' }, { x: 17, y: 11 });
       expect(r.ui.placement.confirm().ok).toBe(true);
       expect(r.world.newItems.includes('clay_pit')).toBe(false);
@@ -211,6 +212,7 @@ describe('ui stage 2 cards', () => {
     const sh = addRaw(w, 'storehouse', 14, 11);
     const pit = addRaw(w, 'clay_pit', 10, 11);
     staffAll(w);
+    layClay(w, 20, 11);
     const ghost = (world, x, y) => toolPreview(world, { tool: { kind: 'building', type: 'clay_pit' }, ghost: { x, y } });
     const alert = { code: 'no_storage', id: pit.id };
     expect(ghost(w, 20, 11).warnings).toEqual([]);                                   // the storehouse takes clay
@@ -228,6 +230,7 @@ describe('ui stage 2 cards', () => {
     setRoad(far, 0, 10, 31, 10);
     const distant = addRaw(far, 'storehouse', 28, 11);
     const lone = addRaw(far, 'clay_pit', 2, 11);
+    layClay(far, 6, 11);
     setAccept(far, distant.id, 'clay', false);
     expect(ghost(far, 6, 11).text).toBe('No storehouse within reach');
     expect(alertText({ code: 'no_storage', id: lone.id }, far).fix).toBe(`Build a storehouse within ${BUILDINGS.clay_pit.producerReach} road tiles`);

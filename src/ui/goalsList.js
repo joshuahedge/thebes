@@ -32,7 +32,7 @@ export function dateKeyOf(ms) {
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
 }
 
-// The free tile of a terrain ('fertile' or 'rocky') nearest to a point, as the tile's centre; null when there is none.
+// The free tile of a terrain ('fertile', 'rocky' or 'clay') nearest to a point, as the tile's centre; null when there is none.
 // Free means no building and no road on it, so Show me never aims at ground that is already built on. A farm or a mine
 // needs its terrain (canPlace checks), and the nearest ground of it can lie beyond the ghost's search around a bazaar or a
 // home: Show me aims here instead. The goals' rocky target and the house sheet's makers share it.
@@ -96,7 +96,7 @@ export function showMeTarget(world, goal, alerts = null) {
       return { x: sx / homes.length, y: sy / homes.length };
     }
   }
-  if (kind === 'fertile' || kind === 'rocky') {
+  if (kind === 'fertile' || kind === 'rocky' || kind === 'clay') {
     const item = nextItemFor(world, goal) || show.item;
     if (BUILDINGS[item] && BUILDINGS[item].terrain === kind) {
       const best = nearestTerrainTile(world, kind, world.focus);

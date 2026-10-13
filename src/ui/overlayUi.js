@@ -63,9 +63,10 @@ function dotKeys(kind) {
 const GROUND_SWATCH = {
   fertile: { backgroundColor: TERRAIN.fertile, backgroundImage: `radial-gradient(#0B3D1A 1.1px, transparent 1.5px), radial-gradient(#0B3D1A 1.1px, transparent 1.5px), ${tint(rgba(GROUND_HUE.fertile, 0.4))}`, backgroundSize: '13px 12px, 13px 12px, auto', backgroundPosition: '3px 6px, 9px 6px, 0 0' },
   rocky: { backgroundColor: TERRAIN.sand, backgroundImage: `repeating-linear-gradient(135deg, ${rgba(GROUND_HUE.rocky, 0.85)} 0 1.5px, ${rgba(GROUND_HUE.rocky, 0.28)} 1.5px 4px)` },
+  clay: { backgroundColor: TERRAIN.sand, backgroundImage: `repeating-linear-gradient(135deg, ${rgba(GROUND_HUE.clay, 0.8)} 0 1.4px, transparent 1.4px 6px), ${tint(rgba(GROUND_HUE.clay, 0.34))}` },
 };
 function groundKeys(room) {
-  const [fertile, rocky] = OVERLAY_LEGEND.ground;
+  const [fertile, rocky, clay] = OVERLAY_LEGEND.ground;
   const key = (kind, words) => el('span', { class: 'key' }, [el('span', { class: 'swatch', style: GROUND_SWATCH[kind], 'aria-hidden': 'true' }), ' ', el('span', { class: 'text small', text: words })]);
   // Stage 4 (Track C, spec 6.3, ruling 229): while a monument is placed the keys are "Fertile: no monuments here" and the gold
   // room line ("Gold: room for a small mastaba"), which, like the farms' room line, a phone at 125% text or more keeps for
@@ -75,7 +76,7 @@ function groundKeys(room) {
     return el('span', { class: 'ground-keys' }, [key('fertile', UI4_TEXT.groundFertile), el('span', { class: 'text small room' }, [gold, ' ', room.words])]);
   }
   // The keys wrap among themselves under the name and the x, so the x never lands alone on a row of its own.
-  return el('span', { class: 'ground-keys' }, [key('fertile', fertile), key('rocky', rocky), ...(room ? [el('span', { class: 'text small room', text: room.words })] : [])]);
+  return el('span', { class: 'ground-keys' }, [key('fertile', fertile), key('rocky', rocky), key('clay', clay), ...(room ? [el('span', { class: 'text small room', text: room.words })] : [])]);
 }
 
 // The strip is the legend everywhere. Under a critical banner a wide screen keeps the dot and ring keys' words for

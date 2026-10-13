@@ -123,7 +123,7 @@ describe('ground overlay (placement review P1)', () => {
     const g = groundTiles(w);
     expect(g.fertile.length).toBe(13 - 1 - 2 - 1);
     expect(g.fertile.some(([x, y]) => (x === 5 && y === 5) || (x === 6 && y === 5) || (x === 0 && y === 3))).toBe(false);
-    expect(groundTiles(w, { x0: 10, y0: 10, x1: 11, y1: 11 })).toEqual({ fertile: [], rocky: [[10, 10], [11, 10], [10, 11], [11, 11]] });
+    expect(groundTiles(w, { x0: 10, y0: 10, x1: 11, y1: 11 })).toEqual({ fertile: [], rocky: [[10, 10], [11, 10], [10, 11], [11, 11]], clay: [] });
   });
   it('finds the tiles with room for a whole footprint on its own ground, and memoises them until the buildings change', () => {
     const w = groundWorld();
