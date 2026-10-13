@@ -113,9 +113,9 @@ async function picker(api, options = {}) {
 
 export const WONDER_SCENES = {
   's46-wonders': all,
-  's46-wonders-sphinx': pair('s46-wonders-sphinx', 'great_sphinx', 0.9),
-  's46-wonders-temple': pair('s46-wonders-temple', 'sun_temple', 0.8),
-  's46-wonders-step': pair('s46-wonders-step', 'step_pyramid', 0.65),
+  's46-wonders-sphinx': pair('s46-wonders-sphinx', 'great_sphinx', 0.78),
+  's46-wonders-temple': pair('s46-wonders-temple', 'sun_temple', 0.68),
+  's46-wonders-step': pair('s46-wonders-step', 'step_pyramid', 0.56),
   's46-wonders-styles': styles,
   's46-wonders-picker': picker,
 };
