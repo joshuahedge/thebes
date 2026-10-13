@@ -133,6 +133,7 @@ export function createRenderer({
     const rising = opts.rising || null;   // building ids only: tree and walker ids start at 1e6
     ctx.setTransform(1, 0, 0, 1, ox, oy);
     if (opts.ambient) opts.ambient(g, range);              // Stage 3: ambient life over the terrain (render/ambient.js)
+    if (opts.scorch) opts.scorch(g, range);                // Stage 4.5: scorch marks under burning buildings and rubble (render/fire.js), under their sprites
     for (const o of objects) {
       if (!o.def) continue;
       const up = rising && rising.has(o.id) ? rising.get(o.id) : 1;
