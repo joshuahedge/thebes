@@ -43,6 +43,7 @@ describe('goals v2', () => {
       ['fire_firehouse', ['fire', 'blaze'], { kind: 'building', type: 'firehouse', n: 1 }],   // Stage 3 (tests/stage3/score/dangerGoals.test.js)
       ['raid_tower', 'raid_warning', { kind: 'building', type: 'tower', n: 1 }],
       ['fix_site', 'site_stalled', { kind: 'noAlert', code: 'site_stalled' }],   // Stage 4 (tests/stage4/score/goals.test.js)
+      ['court_letter', 'court_letter', { kind: 'courtAnswered' }],               // Stage 4.6 (tests/stage46/court/courtGoals.test.js)
     ]);
     for (const g of EVENT_GOALS) {
       expect([g.id, g.chapter, g.reward, g.text.length > 0, goalById(g.id) === g]).toEqual([g.id, 'event', EVENT_REWARD, true, true]);
