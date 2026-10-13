@@ -1011,8 +1011,8 @@ export const TITLE_SCORE_TEXT = {
   weekly: "This week's Nile", records: 'Your records', friend: "A friend's score", startSeed: 'Start this seed',
   badLink: "This score link can't be read", newerLink: 'This score link is from a newer version of Thebes',
   weeklyHint: (seed) => `Seed ${seed}: the same river for everyone this week`,
-  bestLine: (b) => `Best: ${b.score}${b.medal ? `, ${SCORE_TEXT.medals[b.medal].toLowerCase()}` : ''}, seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.older ? ', older scoring' : ''}`,
-  stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}`,
+  bestLine: (b) => `Best: ${b.score}${b.medal ? `, ${SCORE_TEXT.medals[b.medal].toLowerCase()}` : ''}, seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.mapSize && b.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(b.mapSize)}` : ''}${b.older ? ', older scoring' : ''}`,   // Stage 4.6 (ruling 333): a record from a Small or Large map says so; Normal says nothing, as before
+  stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}${e.mapSize && e.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(e.mapSize)}` : ''}`,
   moreStamps: (n) => `+${n} more`,
   friendLine: (total, seed, level) => `${total} on seed ${seed}, ${DIFFICULTY_NAMES[level] || level}. ${SHARE_TEXT.honour}`,
   partsLine: (parts) => Object.keys(SCORE_TEXT.parts).filter((p) => p in parts).map((p) => `${SCORE_TEXT.parts[p]} ${parts[p]}`).join(' · '),

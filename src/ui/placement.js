@@ -208,6 +208,11 @@ export function nicerFor(world, type, x, y) {
   return value;
 }
 
+// Stage 4.6 (UX rule 6, ruling 352): a building bound to its ground (terrain or water) offers Show me for every refusal that is about
+// the spot (ground, water, taken, off the map), not only the ones that quote the rule; a locked or one-only refusal has no spot to find.
+const SPOT_REFUSALS = ['occupied', 'water', 'out_of_bounds'];
+const groundBoundRefusal = (def, reason) => Boolean(def && (def.terrain || def.water) && (SPOT_REFUSALS.includes(reason) || /^needs_/.test(reason)));
+
 function basePreview(world, state) {
   const { tool } = state;
   if (!tool) return null;
@@ -230,7 +235,7 @@ function basePreview(world, state) {
     const joins = road && road.state === 'later' && ground.state === 'met' ? road.joins : [];
     const extra = { conditions: chips, footprint: c.tiles.map(({ x: tx, y: ty, state: st }) => ({ x: tx, y: ty, state: st })), joins };
     // Stage 4.6 (ruling 331): a ground or water refusal says why in the rule's own numbers ("Needs 2 of 4 tiles on clay (this spot has 1)") and offers Show me.
-    if (!c.ok) { const line = S46_MAP_TEXT.refusalLine(c.reason, ground, def); return { ...bad(c.reason, cost, 1, [], line || reasonText(c.reason)), showFit: Boolean(line), ...extra }; }
+    if (!c.ok) { const line = S46_MAP_TEXT.refusalLine(c.reason, ground, def); return { ...bad(c.reason, cost, 1, [], line || reasonText(c.reason)), showFit: Boolean(line) || groundBoundRefusal(def, c.reason), ...extra }; }
     const warn = c.warnings.length > 0;
     // A service says how many homes it would reach from here (early-game pass 2.6); a firehouse, how many buildings that
     // can burn (Stage 3); other buildings say nothing.

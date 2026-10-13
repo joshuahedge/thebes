@@ -103,7 +103,11 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // its own under the bar's words and buttons (css/ui.css .show-fit): it asks the Map seam (src/ui/s46/map.js, on the 'thebes:show-fit' event) to go to
     // the nearest place that fits.
     const showFit = p.showFit ? button(S46_MAP_TEXT.showFit, { class: 'show-fit', 'aria-label': S46_MAP_TEXT.showFitLabel(s.tool.kind === 'road' ? 'a bridge' : `a ${titleOf(s.tool).toLowerCase()}`), onClick: () => element.dispatchEvent(new CustomEvent('thebes:show-fit', { bubbles: true })) }) : null;
-    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit ? ' has-fit' : ''}` }, [info, ...controls, chips, showFit]);
+    // A building bound to its ground keeps the Show me row's room from the start (as its chips row does), empty until a refusal fills it, so the
+    // bar keeps one height as the ghost moves onto a refused spot and the corner buttons on it do not jump (ruling 352).
+    const bound = s.tool.kind === 'building' && Boolean(BUILDINGS[s.tool.type].terrain || BUILDINGS[s.tool.type].water);
+    const fitRoom = bound && !showFit ? el('div', { class: 'show-fit-room', 'aria-hidden': 'true' }) : null;
+    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}` }, [info, ...controls, chips, showFit, fitRoom]);
     element.append(bar);
     keepTallest(bar, s);
     publishHeight();

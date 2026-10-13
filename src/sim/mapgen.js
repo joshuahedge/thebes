@@ -420,7 +420,7 @@ function entriesFor(terrain, size, spec, scale = (n) => n) {
   const mid = Math.floor(size / 2);
   const wanted = spec.entries ? spec.entries(size).map((e) => ({ edge: e.edge, at: scale(e.at) })) : [{ edge: 'east', at: mid }, { edge: 'north', at: mid }];
   // Stage 4.6 (ruling 333): the entries scale with the area, two at least: a Large map (1.56 x the area) has a third, on the first one's edge,
-  // 30% of the map's side along it, so raids come from three sides of the walls.
+  // 30% of the map's side along it, so a Large map has three entries on two edges (two on the first, one on the second).
   if (Math.round(2 * areaScale(size)) > 2) wanted.push({ edge: wanted[0].edge, at: wanted[0].at < mid ? wanted[0].at + Math.round(size * 0.3) : wanted[0].at - Math.round(size * 0.3) });
   return wanted.map(({ edge, at }) => {
     const tile = (k) => (edge === 'east' ? { x: size - 1, y: k } : edge === 'west' ? { x: 0, y: k } : { x: k, y: 0 });

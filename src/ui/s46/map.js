@@ -8,13 +8,14 @@
 //    through createUI's showMeAt (the ghost lands there, the view follows it, the place pulses). With nowhere to go it says so in a toast.
 //  - The bridge tip: the first time the road tool meets water (a refusal of water, too_wide or bridge_shape, or a preview that lays a
 //    bridge, or a command that did) it fires 'roadMeetsWater' (MAP_TIPS), whose words are TIP_TEXT.bridges. The tip row carries a Show me to the
-//    nearest crossing (bridgeSpot from the middle of the view) while that tip is showing: createUI gives a Show me to one tip only (the treasury's),
+//    nearest crossing (bridgeSpot from the tile under the middle of the view, worked out when it is pressed) while that tip is showing: createUI gives a Show me to one tip only (the treasury's),
 //    so the seam adds this one to the row when it renders (a MutationObserver on #tip), and does nothing on a map with no crossing.
 import { seamBase } from './seam.js';
 import { toolPreview, fitTarget } from '../placement.js';
 import { bridgeSpot } from '../../sim/bridges.js';
 import { S46_MAP_TEXT, TIP_TEXT, T, buildingName } from '../text.js';
 import { button } from '../components.js';
+import { isCut, writeMore } from '../expand.js';
 
 const WATER_REFUSALS = ['water', 'too_wide', 'bridge_shape'];
 
@@ -46,22 +47,37 @@ export function createMapUi(ctx) {
       if ((p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) || (p.bridges && p.bridges.length)) ctx.fireTip('roadMeetsWater');
     };
     if (ctx.store.subscribe) { const un = ctx.store.subscribe(watch); if (typeof un === 'function') off.push(un); }
-    // The tip row's Show me.
+    // The tip row's Show me. The place is worked out when the button is pressed, from the tile under the middle of the view (the
+    // camera's centreTile), else the pick's ghost, else the city's focus: bridgeSpot takes a point on the map, not a pixel.
     const tipHost = host && host.querySelector ? host.querySelector('#tip') : null;
+    const viewTile = () => {
+      const cc = ctx.cameraControl;
+      if (cc && typeof cc.centreTile === 'function') return cc.centreTile();
+      const g = ctx.store.get().ghost;
+      return g ? { x: g.x, y: g.y } : world.focus;
+    };
+    // The row is measured (More or no More) before this button is added, and the button narrows the words: measure again, the way tips.js does.
+    const remeasure = (row) => {
+      const words = row.querySelector('.text'), more = row.querySelector('.more');
+      if (!words || !more) return;
+      more.hidden = true;
+      const open = row.classList.contains('open'), cut = !open && isCut(words);
+      if (cut || open) { writeMore(more, open); more.hidden = false; }
+    };
     const addTipShowMe = () => {
       const row = tipHost.querySelector('.tip-row');
       if (!row || row.querySelector('.tip-show-me')) return;
       const words = row.querySelector('.text');
       if (!words || words.textContent !== TIP_TEXT.bridges) return;
-      const c = ctx.cameraControl && ctx.cameraControl.centre ? ctx.cameraControl.centre() : world.focus;
-      const spot = bridgeSpot(world, c);
-      if (!spot) return;
+      if (!bridgeSpot(world, viewTile())) return;                                          // no crossing anywhere: the tip says its words and no more
       const go = button(T.showMe, { class: 'tip-show-me quiet', 'aria-label': `${T.showMe}: ${TIP_TEXT.bridges}`, onClick: () => {
+        const spot = bridgeSpot(world, viewTile());                                        // the crossing nearest where the player is looking now
         const got = row.querySelector('.got-it');
         if (got) got.click();                                                              // the tip closes, as the treasury tip's Show me does
-        ctx.showMeAt({ category: 'roads', item: 'road', x: spot.x + 0.5, y: spot.y + 0.5 });
+        if (spot) ctx.showMeAt({ category: 'roads', item: 'road', x: spot.x + 0.5, y: spot.y + 0.5 });
       } });
       row.insertBefore(go, row.querySelector('.got-it'));
+      remeasure(row);
     };
     if (tipHost && typeof MutationObserver === 'function') {
       const mo = new MutationObserver(addTipShowMe);
