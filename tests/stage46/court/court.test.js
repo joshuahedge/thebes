@@ -4,3 +4,4 @@
 import './courtSim.test.js';
 import './courtCards.test.js';
 import './courtGoals.test.js';
+import './courtUi.test.js';
