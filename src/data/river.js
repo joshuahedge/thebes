@@ -81,7 +81,7 @@ export const isWildlifeState = (s) => Boolean(s) && typeof s === 'object' && Arr
 // foods are listed in. RIVER_BUILDINGS: the nilometer, hunting lodge and fishing wharf, as BUILDINGS rows; a building that must touch
 // water says so with water: 'touch' or 'longSide' (src/sim/fit.js). RIVER_UNLOCKS: milestone id -> the types it unlocks. RIVER_DOCK:
 // build category id -> the items it adds to the dock, in order.
-// A producer row with hunts (the lodge: its hunters take a unit from a herd within HUNTING.reach, so it makes game only while a herd
+// A producer row with hunts (the lodge: its hunters take an animal (gamePerAnimal game) from a herd within HUNTING.reach, so it makes game only while a herd
 // is in reach, at most perHerdMonth a herd and perMonth in all) or fishes (the wharf: its boat takes fish from the water, more in
 // the flood season: FISHING) is worked by src/sim/production.js with src/sim/wildlife.js and flood.js.
 export const RIVER_GOODS = {
@@ -94,7 +94,7 @@ export const RIVER_BUILDINGS = {
     needsRoad: true, water: 'touch', desirability: [1],
   },
   hunting_lodge: {
-    // Ruling 434: 2 hunters (was 3): the herds in reach are hunted out within months (ruling 437), so the lodge is a small side food.
+    // Ruling 434: 2 hunters (was 3): ruling 460 made the herds last (one animal a herd a month, never below 2), and 2 hunters match two herds' yield.
     name: 'Hunting lodge', w: 2, d: 2, cost: 70, upkeep: 4, workers: 2, priority: 'essential', category: 'food',
     needsRoad: true, produces: { good: 'game', perMonth: HUNTING.maxMonth }, producerReach: 12, hunts: true, desirability: [-2, -1],
   },

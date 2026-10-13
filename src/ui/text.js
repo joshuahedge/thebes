@@ -1921,7 +1921,7 @@ export const S46_RIVER_TEXT = {
   // A lodge that has taken what it may this month (huntRest, src/sim/wildlife.js): the sim's reason, with its numbers.
   huntRest: (why) => (why === 'month'
     ? `The lodge has taken its ${rvHunting.maxMonth} this month; hunting resumes next month`
-    : why === 'small' ? `Its herds are down to ${rvHunting.keepAtLeast} animals: the hunters leave them to regrow, 1 ${rvRegrow}`   // ruling 460
+    : why === 'small' ? `Its herds have given this month or are down to ${rvHunting.keepAtLeast} animals: the hunters leave them to regrow, 1 ${rvRegrow}`   // ruling 460
     : `Its herds have given their ${rvHunting.perHerdMonth} this month; hunting resumes next month`),
   noHerds: `No herd within ${rvHunting.reach} tiles: the hunters have nothing to hunt. Herds graze on desert and rocky ground`,
   // Ruling 460: one animal a hunt, for gamePerAnimal game; the animals a herd gives a month (perHerdMonth / gamePerAnimal, as the sim counts them).
