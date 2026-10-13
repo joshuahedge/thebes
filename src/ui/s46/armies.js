@@ -41,8 +41,9 @@ function unitRows(world, b) {
   if (!m) return [];
   const out = [];
   if (b.type !== 'barracks') {            // the barracks' own rows are Stage 3's (dangerSheets.js); it gets the away line only
-    out.push(row(A.unitsLabel[m.kind], A.ofCap(m.n, m.cap)), row(D.patrol, D.tiles(UNIT_TYPES[m.kind].patrol)));
-    if (m.status === 'full') out.push(line(A.full(m.kind, m.n, m.cap)));
+    const awayN = m.away.reduce((s, g) => s + g.n, 0);
+    out.push(row(A.unitsLabel[m.kind], A.ofCap(m.n, m.cap, awayN)), row(D.patrol, D.tiles(UNIT_TYPES[m.kind].patrol)));
+    if (m.status === 'full') out.push(line(A.full(m.kind, m.n, m.cap, awayN)));
     else if (m.status === 'burning') out.push(line(D.notTrainingBurning));
     else if (m.status === 'paused') out.push(line(D.notTrainingPaused));
     else if (m.status === 'short') out.push(line(D.notTrainingUntil(m.short, BUILDINGS[b.type].workers)));

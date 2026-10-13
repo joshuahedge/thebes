@@ -973,7 +973,7 @@ export function scoreReasonText(r) {
     case 'no_bazaar': return `${plural(r.n, 'home has', 'homes have')} no bazaar`;
     case 'plain': return `Homes average ${r.value} of 50 desirability`;
     case 'fire_cover': return `No staffed firehouse reaches ${r.dir ? SCORE_SIDE_STREETS[r.dir] : plural(r.n, 'building', 'buildings')}`;
-    case 'towers': return `A raid this size needs ${plural(r.need, 'tower', 'towers')}; you have ${r.towers} working${r.soldiers ? ` and ${plural(r.soldiers, 'soldier', 'soldiers')}` : ''}`;
+    case 'towers': return `A raid this size needs ${plural(r.need, 'tower', 'towers')}; you have ${r.towers} working${r.soldiers ? ` and ${plural(r.soldiers, 'army unit', 'army units')}` : ''}`;   // every unit kind (score.js, ruling 386)
     case 'burned': return `${plural(r.n, 'building', 'buildings')} burned in the last year`;
     case 'raid_lost': return SCORE_TEXT.raidLost;
     default: return '';
@@ -1811,7 +1811,7 @@ export const S46_COURT_TEXT = {};
 // renamed with "as"; imports are hoisted, so they sit here in the section). Every number is the data's: UNIT_TYPES, ENEMY_TYPES,
 // ARMY and the matchup table (src/data/armies.js), and the counters are counterModel's (src/sim/armies.js).
 import { UNIT_TYPES as armUnits, ARMY as armArmy, ENEMY_KINDS as armEnemyKinds, matchup as armMatchup } from '../data/armies.js';
-import { counterModel as armCounterModel } from '../sim/armies.js';
+import { counterModel as armCounterModel, unitsAtHome as armUnitsAtHome } from '../sim/armies.js';
 import { DAYS_PER_MONTH as armMonthDays } from '../sim/time.js';
 const armCap = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 // The enemy kinds as a mix names them ("8 on foot, 4 archers, 2 chariots, 3 by boat"), and the units as the counters name them.
@@ -1839,7 +1839,11 @@ export const S46_ARMY_TEXT = {
     const t = c.traits, said = [];
     if (t.shootsTowers) said.push(`they shoot towers from ${t.range} tiles, then your units`);
     if (t.lands) said.push(`they land on a river bank within ${t.landWithin} tiles of the city`);
-    if (c.kind === 'chariot') said.push('fast');
+    // Their pace, from ENEMY_TYPES speeds as raids.js moves a band (ruling 383): a kind faster than the band it rides in keeps the
+    // band's pace while slower raiders are with it; a band of it alone is faster than raiders on foot.
+    const go = c.kind === 'chariot' ? 'ride' : 'move';
+    if (t.speed > t.pace) said.push(`they ${go} ${plural(t.speed, 'tile', 'tiles')} a day alone, but keep pace with the slower raiders beside them (${t.pace} a day)`);
+    else if (t.speed > t.footSpeed) said.push(`they ${go} ${plural(t.speed, 'tile', 'tiles')} a day, faster than raiders on foot (${t.footSpeed})`);
     if (t.turnedByWalls) said.push(`a wall${t.noRocky ? ' or rocky ground' : ''} turns them back once no raider on foot is with them`);
     const helps = c.helps.map((h, j) => (j ? `${armUnitPlural[h.unit]} ${armSituationWords[h.situation]} ${armFactor(h.factor)}` : `your ${armUnitPlural[h.unit]} ${armSituationWords[h.situation]} deal ${armFactor(h.factor)}`));
     const weak = c.weak.map((h) => `${armUnitPlural[h.unit]} ${armSituationWords[h.situation]} deal ${armFactor(h.factor)}`);
@@ -1849,8 +1853,9 @@ export const S46_ARMY_TEXT = {
   counters: (mix) => armCounterModel(mix).map((c) => S46_ARMY_TEXT.counterLine(c)),
   // The building sheets (src/ui/s46/armies.js), from UNIT_TYPES and the sim.
   unitsLabel: { soldier: 'Soldiers', archer: 'Archers', chariot: 'Chariots' },
-  ofCap: (n, cap) => `${n} of ${cap}`,
-  full: (kind, n, cap) => `Full: ${n} of ${cap} ${armUnitPlural[kind]}; it trains another when one is wounded`,
+  // A building's units of its cap; units away at the capital count toward the cap (trainSoldiers, ruling 381), so the sheet says them.
+  ofCap: (n, cap, away = 0) => (away > 0 ? `${n} here, ${away} away, of ${cap}` : `${n} of ${cap}`),
+  full: (kind, n, cap, away = 0) => `Full: ${away > 0 ? `${n} here and ${away} away, of ${cap}` : `${n} of ${cap}`} ${armUnitPlural[kind]}; it trains another when one is wounded`,
   trains: (kind) => `Trains one ${armUnitOne[kind]} every ${armUnits[kind].trainDays} days at full staff, slower when short of workers`,
   pay: (kind) => `Each ${armUnitOne[kind]} is paid ${armUnits[kind].pay} gold a month at home, in peace too`,
   patrolLine: (kind) => `Goes out to raiders within ${armUnits[kind].patrol} tiles`,
@@ -1876,6 +1881,22 @@ Object.assign(TIP_TEXT, {
   chariots_in_open: `Chariots deal ${armM('chariot', 'foot', 'open')} in the open, ${armArmy.wallNear}+ tiles from any wall, and cannot pass a gate: build stables outside.`,
   mixed_raid: 'Open the raid warning: it lists the raiders coming and what helps against each kind.',
 });
+// The raid under way (Stage 3's raid alert): with archers or chariots at home, its fix names each kind's patrol (UNIT_TYPES) in place
+// of the soldiers' alone; a city of soldiers only reads as before.
+const armRaidAlert = ALERT_TEXT.raid;
+const armBuildingWords = { soldier: 'barracks', archer: 'range', chariot: 'stables' };
+Object.assign(ALERT_TEXT, {
+  raid: (alert, world) => {
+    const out = armRaidAlert(alert, world);
+    const a = world.raid.active, home = armUnitsAtHome(world);
+    if ((alert.phase || (a ? a.phase : 'attack')) === 'retreat' || !(home.archer > 0 || home.chariot > 0)) return out;
+    const kinds = Object.keys(armUnitPlural).filter((k) => home[k] > 0);
+    const reach = kinds.map((k) => `${armUnitPlural[k]} within ${armUnits[k].patrol} tiles of their ${armBuildingWords[k]}`);
+    return { ...out, fix: `Towers hit raiders within ${raidsData.DEFENCE.towerRange} tiles; ${reach.join(', ')}` };
+  },
+});
+// The money sheets' row for every unit's pay (soldiersPayOf: soldiers, archers and chariots at home, ruling 386).
+Object.assign(T, { soldiersPay: 'Army pay' });
 // ── end s46 armies ──
 
 //

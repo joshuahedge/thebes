@@ -6,7 +6,7 @@
 //
 // Units: world.soldiers (every trained unit, each with kind: src/data/armies.js); away: world.army.away (newArmyState).
 import { UNIT_KINDS, UNIT_TYPES, ENEMY_TYPES, ENEMY_KINDS, MIX, MATCHUPS, SITUATIONS, footMix } from '../data/armies.js';
-import { RAID_SALT } from '../data/raids.js';
+import { RAID_SALT, UNITS } from '../data/raids.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings } from './world.js';
 import { hash2 } from './rng.js';
@@ -223,10 +223,15 @@ export function landable(world, x, y) {
 // ── The raid sheet's counters (ruling 341) ──
 // What helps against each enemy kind in a mix, read from the matchup table and the enemy's own row, for the words (text.js):
 // [{ kind, n, helps: [{ unit, situation, factor }] (factor > 1, biggest first), weak: [{ unit, situation, factor }] (factor < 1), traits }]
-// traits: { turnedByWalls (it cannot break walls, ruling 383), noRocky (chariots), shootsTowers + range, lands + landWithin }.
+// traits: { turnedByWalls (it cannot break walls, ruling 383), noRocky (chariots), shootsTowers + range, lands + landWithin,
+// speed (tiles a day for a band of this kind alone), pace (tiles a day of the band it rides in: raids.js bandSpeed, the slowest
+// kind's, with boats a band of their own), footSpeed (raiders on foot, for the comparison) }.
 // Kinds with none in the mix are left out; the order is ENEMY_KINDS'.
+const enemySpeed = (kind) => Math.min(ENEMY_TYPES[kind].speed, UNITS.raider.speed * 4);   // raids.js bandSpeed's cap
 export function counterModel(mix) {
   const out = [];
+  const land = ENEMY_KINDS.filter((k) => k !== 'boat' && mix && mix[k] > 0);
+  const landPace = land.length ? Math.min(...land.map(enemySpeed)) : 0;
   for (const kind of ENEMY_KINDS) {
     if (!mix || !(mix[kind] > 0)) continue;
     const helps = [], weak = [];
@@ -243,6 +248,7 @@ export function counterModel(mix) {
     out.push({ kind, n: mix[kind], helps, weak, traits: {
       turnedByWalls: !e.breaksWalls, noRocky: Number.isFinite(e.charge), shootsTowers: Number.isFinite(e.range), range: e.range || 0,
       lands: Number.isFinite(e.landWithin), landWithin: e.landWithin || 0,
+      speed: enemySpeed(kind), pace: kind === 'boat' ? enemySpeed(kind) : landPace, footSpeed: enemySpeed('foot'),
     } });
   }
   return out;
