@@ -32,6 +32,7 @@ import { holdFestival } from '../sim/festival.js';
 import { tickDay } from '../sim/clock.js';
 import { processionsAt, PROCESSION_ID_BASE } from '../render/walkers.js';
 import { PROCESSION } from '../data/ambient.js';
+import { entryPath } from '../render/newcomers.js';
 import { allBuildings, housesOf } from '../sim/world.js';
 import { coverageOf } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
@@ -775,11 +776,44 @@ async function clay(api, options = {}) {
   return `clay ${best.c} free clay tiles round (${best.x}, ${best.y})`;
 }
 
+// Stage 4.5 (Task 4c): newcomers on the road, mid-walk. The game is paused; the sim runs to the day before an arrival day, a home near
+// the middle of the city (one the roads join to the entry, 14 to 40 tiles from it) has three fewer residents (so the batch has room
+// for them), the day ticks over (the arrival batch puts them back, and the frame sees the home's residents rise), then the game runs
+// a quarter of the walk and pauses, framed on the middle of the walk. Not in STAGE45_SCENES: it is a shot, not a contract scene.
+async function newcomers(api) {
+  const g = inGame(api, 'newcomers'), { world } = g;
+  world.speed = 0;
+  while (world.day % 10 !== 9) tickDay(world);
+  const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
+  let pick = null;
+  for (const h of housesOf(world).filter((b) => b.residents >= 3).sort((a, b) => near(a) - near(b) || a.id - b.id)) {
+    const pts = entryPath(world, h);
+    if (pts && pts.length >= 14 && pts.length <= 40) { pick = { h, pts }; break; }
+  }
+  if (!pick) throw new Error('devScene newcomers: no home with a road walk of 14 to 40 tiles from the entry');
+  const { h, pts } = pick;
+  h.residents -= 3;
+  g.ui.refresh();
+  await wait(200);
+  h.residents += 3;
+  tickDay(world);
+  g.ui.refresh();
+  await wait(150);
+  const mid = pts[Math.floor(pts.length * 0.4)];
+  g.cam.zoom = 1;
+  focus(g, mid.x, mid.y);
+  world.speed = 1;
+  await wait(Math.max(1500, Math.min(12000, pts.length * 0.25 * 1000)));
+  world.speed = 0;
+  await wait(250);
+  return `newcomers to home ${h.id}, a walk of ${pts.length} tiles`;
+}
+
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
   early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded, 'pyramid-placing': pyramidPlacing,
   title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion,
-  variant, bridge, clay,
+  variant, bridge, clay, newcomers,
 };
 
 export async function devScene(api, name, options = {}) {

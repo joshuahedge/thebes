@@ -47,7 +47,7 @@ export function walkerLoop(world, b, maxDist) {
 
 // The road path from tile `from` back down the reach's distances to a road tile beside the building (distance 1), the
 // lowest tile index at each step; then the loop out along it and back.
-function pathBack(world, reach, from) {
+export function pathBack(world, reach, from) {
   const path = [from];
   let cur = from, d = reach.get(from);
   while (d > 1) {
