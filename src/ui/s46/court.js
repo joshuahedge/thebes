@@ -48,11 +48,14 @@ export function createCourtUi(ctx) {
   if (!ctx || !ctx.world) return seamBase();   // no city to speak for (the contract's empty-seam test makes one with no context)
   const world = ctx.world;
   let focusId = null;                          // the letter the sheet shows (null: the first unread, else the oldest)
+  let focusKind = null;                        // that letter's kind, kept to say why it closed if it goes while on show (ruling 447)
   const caption = (text) => ctx.celebrations.show({ tier: 'info', text });
 
+  // The letters the sheet can show: a request letter with no request open is a stale record.
+  const openLetters = () => world.court.letters.filter((l) => l.kind !== 'request' || world.court.request);
   // The letter the sheet shows: the one chosen (by "Next letter"), else the first not yet read, else the oldest waiting.
   const shownLetter = () => {
-    const letters = world.court.letters.filter((l) => l.kind !== 'request' || world.court.request);   // a request letter with no request open is a stale record
+    const letters = openLetters();
     return letters.find((l) => l.id === focusId) || letters.find((l) => !l.read) || letters[0] || null;
   };
   const openLetter = (id = null) => { focusId = id; ctx.store.set(openSheet(ctx.store.get(), 'letter')); };
@@ -66,6 +69,7 @@ export function createCourtUi(ctx) {
       else if (e.type === 'court_gift') caption(C.captionGift(e));
       else if (e.type === 'court_card') caption(C.captionCard(e));
       else if (e.type === 'court_letter_gone') caption(C.captionGone(e));
+      else if (e.type === 'units_lost') caption(C.captionUnitsLost(e));   // units back from the capital to a building that is gone (ruling 443)
     }
   }
   // After the player answered: the same captions, then the chrome (the alert row, the numbers) and any goal the answer finished.
@@ -131,9 +135,13 @@ export function createCourtUi(ctx) {
   function cardLetter(body, letter, close) {
     const choices = cardChoices(world, letter);
     // What the card read off the city for its words: the sick homes in its district, the workshop in dispute.
+    // A caravan's or the deserters' first choice takes no more than there is room for (ruling 444): the body says so from that effect.
+    const capped = { caravan: 'goods', deserters: 'people' }[letter.card];
+    const roomEffect = capped ? choices[0].effects.find((e) => e.kind === capped) : null;
     const view = {
       sick: letter.card === 'sickness' ? (choices[0].effects.find((e) => e.kind === 'faster') || { ids: [] }).ids.length : 0,
       shop: letter.card === 'craftsmen_dispute' && world.buildings[letter.args.id] ? buildingName(world.buildings[letter.args.id].type).toLowerCase() : '',
+      room: roomEffect ? roomEffect.n : undefined,
     };
     body.append(el('h3', { class: 'letter-ask', text: C.cardTitle(letter.card) }), el('p', { class: 'letter-body', text: C.cardBody(letter, view) }));
     body.append(el('div', { class: 'court-choices' }, choices.map((c, i) => {
@@ -143,8 +151,10 @@ export function createCourtUi(ctx) {
         problem: c.problem ? C.problem(c.problem, bad || null, world, bad && bad.good ? stockOf(world, bad.good) : 0) : '',
         onPick: () => {
           const events = [];
-          const res = answerCard(world, letter.id, c.id, events);
-          if (!res.ok) { ctx.refresh(); return; }
+          // The effects shown go with the answer: if the city changed since the sheet was drawn, nothing happens and the sheet shows the
+          // new numbers (ruling 444).
+          const res = answerCard(world, letter.id, c.id, events, undefined, c.effects);
+          if (!res.ok) { if (res.reason === 'changed') caption(C.captionChanged); ctx.refresh(); return; }
           focusId = null;
           close();
           answered(events, C.captionCard({ card: letter.card, choice: c.id }));
@@ -163,8 +173,17 @@ export function createCourtUi(ctx) {
   })[c.problem];
 
   function letterSheet(body, { close }) {
+    // The letter on show closed while it was open (a request past its deadline, a card the court dropped): the sheet says so, rather than
+    // swapping another letter in under the reader's finger (ruling 447). Only the court and Close remain.
+    if (focusId !== null && !openLetters().some((l) => l.id === focusId)) {
+      body.append(line(C.letterClosed(focusKind), 'letter-closed'), el('div', { class: 'actions letter-foot' }, [
+        button(C.openCourt, { class: 'open-court quiet', onClick: () => { focusId = null; openCourtSheet(); } }),
+        button(C.close, { class: 'close-letter quiet', onClick: () => { focusId = null; close(); } }),
+      ]));
+      return;
+    }
     const letter = shownLetter();
-    if (letter) focusId = letter.id;   // pinned (ruling 381): the daily rebuild keeps showing this letter until it is answered, put off or closed
+    if (letter) { focusId = letter.id; focusKind = letter.kind; }   // pinned (ruling 381): the daily rebuild keeps showing this letter until it is answered, put off or closed
     if (!letter) {
       body.append(line(C.noLetters, 'muted'), el('div', { class: 'actions' }, [button(C.openCourt, { class: 'open-court', onClick: openCourtSheet })]));
       return;
@@ -201,6 +220,7 @@ export function createCourtUi(ctx) {
       line(`${C.drift}.`),
     );
     if (!raids) body.append(line(C.peacefulNote));
+    else if (world.raid.warning) body.append(line(`${C.warnedRaid(world.raid.warning)}.`, 'small muted warned-raid'));   // fixed at its warning (ruling 442)
     // The rules of the other bands (the band in effect is the line above), then the gift clock whenever it runs (ruling 375).
     if (band !== 'high') body.append(line(`${C.ruleHighOf(raids)}.`));
     if (band !== 'low' && raids) body.append(line(`${C.ruleLowOf(raids)}.`));

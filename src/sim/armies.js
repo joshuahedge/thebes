@@ -29,16 +29,26 @@ export function unitsAtHome(world) {
   return out;
 }
 
-// The units away at the capital: [{ kind, n, back }] grouped by kind and return day, soonest first.
+// The building a unit away comes back to, or null when it is gone (demolished, burned to rubble) or no longer its kind's: then the unit
+// leaves service on its return day (armyDay).
+export function homeOf(world, u) {
+  const b = world.buildings[u.barracks];
+  return b && b.type === (UNIT_TYPES[u.kind] || UNIT_TYPES.soldier).building ? b : null;
+}
+// The units away at the capital: [{ kind, n, back, gone? }] grouped by kind, return day and whether their building is gone (gone: true, they
+// leave service on their return day, ruling 443), soonest first.
 export function unitsAway(world) {
   const groups = new Map();
   for (const u of world.army.away) {
-    const k = `${u.back}|${u.kind}`;
-    if (!groups.has(k)) groups.set(k, { kind: u.kind, n: 0, back: u.back });
+    const gone = !homeOf(world, u);
+    const k = `${u.back}|${u.kind}|${gone}`;
+    if (!groups.has(k)) groups.set(k, { kind: u.kind, n: 0, back: u.back, ...(gone ? { gone: true } : {}) });
     groups.get(k).n++;
   }
-  return [...groups.values()].sort((a, b) => a.back - b.back || UNIT_KINDS.indexOf(a.kind) - UNIT_KINDS.indexOf(b.kind));
+  return [...groups.values()].sort((a, b) => a.back - b.back || UNIT_KINDS.indexOf(a.kind) - UNIT_KINDS.indexOf(b.kind) || Number(Boolean(a.gone)) - Number(Boolean(b.gone)));
 }
+// How many units away at the capital come back to this building (the demolish question warns of them).
+export const unitsAwayFrom = (world, id) => world.army.away.filter((u) => u.barracks === id).length;
 
 // Sends n units to the capital for `days` days (the Court track's soldiers request; REQUESTS.soldiersMonths in src/data/court.js):
 // units at home leave (unitsAtHome's: waiting at their building or walking back to it after a raid, ruling 384a), soldiers first,
@@ -65,22 +75,24 @@ export function sendUnits(world, n, days, events = null) {
 }
 
 // One day: units whose return day has come are back, waiting at the building that trained them, unhurt (their kind's hit points,
-// unitHp); a unit whose building is gone, or is no longer its kind's, leaves service.
+// unitHp); a unit whose building is gone, or is no longer its kind's (homeOf), leaves service, and units_lost says so (ruling 443:
+// { type: 'units_lost', lost: kind -> n }; the court seam captions it).
 export function armyDay(world, events = null, hpOf = unitHp) {
   if (!world.army.away.length) return;
   const back = world.army.away.filter((u) => u.back <= world.day);
   if (!back.length) return;
   world.army.away = world.army.away.filter((u) => u.back > world.day);
-  const returned = {};
+  const returned = {}, lost = {};
   for (const u of back) {
-    const b = world.buildings[u.barracks];
-    if (!b || b.type !== (UNIT_TYPES[u.kind] || UNIT_TYPES.soldier).building) continue;
+    const b = homeOf(world, u);
+    if (!b) { lost[u.kind] = (lost[u.kind] || 0) + 1; continue; }
     const c = centre(b);
     world.soldiers.push({ id: u.id, kind: u.kind, barracks: u.barracks, x: c.x, y: c.y, hp: hpOf(u.kind), hit: false, task: 'wait' });
     returned[u.kind] = (returned[u.kind] || 0) + 1;
   }
   world.soldiers.sort((a, b) => a.id - b.id);
   if (events && Object.keys(returned).length) events.push({ type: 'units_back', returned });
+  if (events && Object.keys(lost).length) events.push({ type: 'units_lost', lost });
 }
 
 // ── Horses (ruling 385) ──
