@@ -59,9 +59,9 @@ describe('ui carry-overs', () => {
     r.cleanup();
   });
   it('keeps the legend words readable under a banner, and reads reduced motion live', async () => {
-    // A wide screen shrinks the legend to its dot and ring under a banner, the words kept for screen readers; a phone's
-    // legend has the guidance row to itself (spec 6.3, ruling 164), so there the words show in full.
-    for (const [w, h, sized] of [[1280, 800, true], [390, 844, false]]) {
+    // Stage 4.6 (UX ruling 407): a wide screen used to shrink the legend to its dot and ring under a banner, the words kept for screen readers
+    // only, which left a sighted player two unexplained marks; the words now show in full there as on a phone (spec 6.3, ruling 164).
+    for (const [w, h, sized] of [[1280, 800, false], [390, 844, false]]) {
       const r = await rigUI({ width: w, height: h });
       try {
         r.store.set({ overlay: 'water' });
