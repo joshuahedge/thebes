@@ -44,6 +44,13 @@ describe('s46 court goals and celebrations', () => {
     courtDay(b);
     expect(goalMet(b, goalById('court_letter').need)).toBe(true);
   });
+  it('is met by a card answered first, when no request could be made for the guided letter (ruling 380)', () => {
+    const w = courtWorld();
+    openCourt(w);
+    expect(goalMet(w, goalById('court_letter').need)).toBe(false);
+    w.tally.cardsPlayed = 1;
+    expect(goalMet(w, goalById('court_letter').need)).toBe(true);
+  });
   it('does not touch a Peaceful or young city: nothing triggers before the court opens', () => {
     const w = createWorld({ seed: 3 });
     for (let i = 0; i < 20; i++) w.day += MONTH;

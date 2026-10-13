@@ -22,7 +22,7 @@ export const COURT = { from: 'market_town', afterGoal: 'trade_route', fallback: 
 // (met: favour gained; missed: favour lost, also on refusing); soldiersMonths: how long sent units stay at the capital.
 // amounts: how much is asked, per kind. goods and food: [lo, hi] months of the city's output of the good (a working producer's
 // monthly output, or an open route's yearly quota / 12 for a good it only trades for), rounded to `step`, at least `min`; gold: [lo,
-// hi] months of taxes, at most `reserve` of the treasury; soldiers: [lo, hi] share of the units at home, at least 1, leaving at least
+// hi] months of taxes, at most `reserve` of the treasury (no gold request is made when that is under `min`: ruling 383); soldiers: [lo, hi] share of the units at home, at least 1, leaving at least
 // 1 at home. Every amount but soldiers' is multiplied by the difficulty's cost (DIFFICULTIES in src/data/difficulty.js), so an easier
 // level asks less and Hard asks more.
 // rewards: gold paid when met: goods and food by `share` of the asked amount's value (GOOD_VALUE), gold requests by `gold` of the amount,

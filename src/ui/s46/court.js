@@ -7,7 +7,8 @@
 //   onAlertAction / refresh / onCommand / destroy: none needed (the banner's View on a court letter opens the letter: see openFromBanner)
 // Every sentence comes from the sim's own data and functions (src/sim/court.js, src/data/court.js), through the words in src/ui/text.js
 // (S46_COURT_TEXT): a choice's consequence is the very list of effects the sim carries out. One panel at a time: a letter opens as a sheet,
-// reading it can pause the game as every sheet does, and nothing floats over the map.
+// and nothing floats over the map. An open sheet does not pause the game (createUI's sheets never do); the letter on show is pinned once
+// chosen (ruling 381), so a new letter arriving mid-read never swaps the buttons under a finger.
 import { BUILDINGS } from '../../data/buildings.js';
 import { FAVOUR } from '../../data/court.js';
 import { allBuildings } from '../../sim/world.js';
@@ -98,7 +99,6 @@ export function createCourtUi(ctx) {
       row(C.deadline, C.deadlineText(r, st.monthsLeft)),
       row(C.reward, C.rewardText(r)),
       row(C.ifRefused, C.refusedText(r)),
-      row(C.have, C.haveText(r, st), st.ok ? 'teal' : 'coral'),
     );
     if (r.kind === 'soldiers') body.append(line(C.soldiersNote));
     const sendProblem = st.ok ? '' : C.problem(st.reason, { have: st.have, need: st.need, kind: r.kind, good: r.good }, world, st.have);
@@ -124,7 +124,7 @@ export function createCourtUi(ctx) {
           answered(events, C.captionRefused({ favour: -r.missed }));
         },
       }),
-    ]));
+    ]), row(C.have, C.haveText(r, st), st.ok ? 'teal' : 'coral'));   // the choices come first, so Send shows without scrolling at the largest text (ruling 385)
     return r.kind === 'soldiers' ? viewButton(firstOf(world, 'barracks'), buildingName('barracks')) : r.kind === 'gold' ? null : viewButton(storeOf(world, r.good), buildingName(storeOf(world, r.good) ? storeOf(world, r.good).type : 'storehouse'));
   }
 
@@ -164,6 +164,7 @@ export function createCourtUi(ctx) {
 
   function letterSheet(body, { close }) {
     const letter = shownLetter();
+    if (letter) focusId = letter.id;   // pinned (ruling 381): the daily rebuild keeps showing this letter until it is answered, put off or closed
     if (!letter) {
       body.append(line(C.noLetters, 'muted'), el('div', { class: 'actions' }, [button(C.openCourt, { class: 'open-court', onClick: openCourtSheet })]));
       return;

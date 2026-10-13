@@ -186,6 +186,24 @@ describe('s46 court cards: sickness in a district', () => {
     courtDay(w);
     expect([potter.paused, weaver.paused]).toEqual([true, false]);
   });
+  it('quarantine lets go of a building the player took off pause, so a later pause of theirs is not undone (ruling 382)', () => {
+    const w = ready();
+    sicken(w, 3);
+    const weaver = addRaw(w, 'weaver', 17, 11);
+    weaver.staff = 8;
+    const l = letterFor(w, 'sickness');
+    answerCard(w, l.id, 'quarantine');
+    expect(weaver.paused).toBe(true);
+    w.day += 5;
+    courtDay(w);
+    weaver.paused = false;                                                        // the player resumes it
+    w.day += 1;
+    courtDay(w);
+    weaver.paused = true;                                                         // and pauses it again for their own reasons
+    w.day += 40;
+    courtDay(w);
+    expect(weaver.paused).toBe(true);
+  });
   it('physicians cost a fee per sick home (at least the minimum, by difficulty) and cure them at once', () => {
     const w = ready();
     sicken(w, 3);

@@ -1856,6 +1856,9 @@ const COURT_CARD_WORDS = {
   flood_omen: { title: 'An omen on the river', body: () => "The priests have read the river's omens and can tell you how high this year's flood will be.", choices: { pay_priests: 'Pay the priests', pass: 'Pass' } },
 };
 
+// The low-favour rule from the favour numbers (ruling 384): the raid step as a percentage of the size, at least one raider more (favourRaidSize).
+export const courtRuleLow = (f) => `At ${f.low} or less: raids one size step bigger (${Math.round(f.raidStep * 100)}% more, at least 1 raider), and tribute costs ${courtPct(f.tributeLow)}% more`;
+
 export const S46_COURT_TEXT = {
   letterHead: 'A letter from the court', courtHead: 'The court', favour: 'Favour', favourOf: (n) => `${n} of ${courtFavour.max}`,
   // The favour's mark: an icon beside the number, and always the words (never colour alone).
@@ -1867,7 +1870,7 @@ export const S46_COURT_TEXT = {
     low: `Raids come one size step bigger and tribute costs ${courtPct(courtFavour.tributeLow)}% more`,
   },
   ruleHigh: `At ${courtFavour.high} or more: a gift every ${courtFavour.giftEveryMonths} months, and tribute costs ${courtPct(courtFavour.tributeHigh)}% less`,
-  ruleLow: `At ${courtFavour.low} or less: raids one size step bigger (a quarter more, at least 1 raider), and tribute costs ${courtPct(courtFavour.tributeLow)}% more`,
+  ruleLow: courtRuleLow(courtFavour),
   nextGift: (months) => `Next gift in ${courtMonths(months)}`,
   // Letters.
   ask: courtAsk, requestTitle: (r) => `${courtVerb(r)} ${courtAsk(r)}`, sendLabel: (r) => `${courtVerb(r)} ${courtAsk(r)}`,

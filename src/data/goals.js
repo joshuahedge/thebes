@@ -117,7 +117,7 @@ export const EVENT_GOALS = [
     },
   },
   // Stage 4.6 (ruling 371, Court track): the first time a letter from the court arrives (the guided one: the trading goal opens the court), it joins the
-  // list at the front, and is met once that letter is answered (sent, refused or past its deadline). Show me opens the summary, where the court's row is.
+  // list at the front, and is met once that letter is answered (sent, refused or past its deadline; a card answered first counts too). Built as an event goal, not an opening-chain goal (ruling 380). Show me opens the summary, where the court's row is.
   { id: 'court_letter', trigger: 'court_letter', chapter: 'event', text: 'Answer the letter from the court', why: "Open it from the alert row or the summary. Sending what it asks earns the capital's favour.", reward: EVENT_REWARD, need: { kind: 'courtAnswered' }, showMe: null },
 ];
 
