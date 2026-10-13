@@ -190,19 +190,37 @@ if ($Stage4) {
   exit 0
 }
 
-# The Stage 4.6 checkpoint run (-Stage46): each scene is one call to a Stage 4.6 dev scene (src/dev/s46/*.js, the contract's list) under the
-# motion -Motion names (reduced = Gentle by default), at 390x844 and, for the clay pit and the mixed raid, also 1280x800. Shots are
+# The Stage 4.6 checkpoint run (-Stage46): each scene is one call to a Stage 4.6 dev scene (src/dev/s46/*.js, the contract's list), with the
+# options the list gives it, under the motion -Motion names (reduced = Gentle by default), at 390x844 and, where the list says, 1280x800.
+# The title card's two (title, whats-new) run on the title card: the 'title' scene, and for What's new a press of its button. Shots are
 # <Tag>-<scene>-<w>x<h>.png. -Only names scenes (the short names below), -OnlySizes sizes as 390x844.
 # Usage: tools/shots.ps1 -Stage46 -Tag s46-cp1 [-Only clay,mixed-raid] [-OnlySizes 390x844] [-Motion reduced]
+# The final review's set: tools/shots.ps1 -Stage46 -Tag s46-final (every scene below).
+function New-S46Scene([string]$Name, [string]$MotionName, [string]$Options) {
+  if ($Name -eq 'whats-new') {
+    return "(async () => { const t = window.__thebes; if (!(t && t.devScene)) return 'no devScene'; if (t.setMotion) t.setMotion('$MotionName'); await new Promise((r) => setTimeout(r, 50)); await t.devScene('title'); " +
+      "const b = document.querySelector('.whats-new-button'); if (!b) return 'no whats-new button'; b.click(); await new Promise((r) => setTimeout(r, 300)); return 'whats-new open: ' + Boolean(document.querySelector('.whats-new')); })()"
+  }
+  "(async () => { const t = window.__thebes; if (!(t && t.devScene)) return 'no devScene'; if (t.setMotion) t.setMotion('$MotionName'); await new Promise((r) => setTimeout(r, 50)); return await t.devScene('$Name', $Options); })()"
+}
 if ($Stage46) {
   $sample = '/?skipTitle=1&nosw=1&seed=11&sample=1'
   $early = '/?skipTitle=1&nosw=1&seed=7'
   $fresh = '/?skipTitle=1&nosw=1&seed=11'   # no sample=1: with it every new world (freshWorld) is built over with the sample city
-  # name = @(dev scene, url, sizes)
+  $titleUrl = '/?nosw=1'
+  $both = @('390x844', '1280x800')
+  # name = @(dev scene, url, sizes[, options as a JavaScript object literal])
   $s46Scenes = [ordered]@{
+    'title' = @('title', $titleUrl, @('390x844')); 'whats-new' = @('whats-new', $titleUrl, @('390x844'))
     'sizes-small' = @('s46-sizes-small', $fresh, @('390x844')); 'sizes-normal' = @('s46-sizes-normal', $fresh, @('390x844')); 'sizes-large' = @('s46-sizes-large', $fresh, @('390x844'))
-    'clay' = @('s46-clay', $early, @('390x844', '1280x800')); 'court-letter' = @('s46-court-letter', $sample, @('390x844'))
-    'mixed-raid' = @('s46-mixed-raid', $sample, @('390x844', '1280x800')); 'raid-sheet' = @('s46-raid-sheet', $sample, @('390x844'))
+    'speed-paused' = @('s46-speed', $sample, $both, '{ speed: 0 }'); 'speed-playing' = @('s46-speed', $sample, $both, '{ speed: 2 }')
+    'road-enter' = @('s46-hud', $sample, @('1280x800'), "{ view: 'road' }")
+    'clay' = @('s46-clay', $early, $both); 'court-letter' = @('s46-court-letter', $sample, @('390x844'))
+    'mixed-raid' = @('s46-mixed-raid', $sample, $both); 'raid-sheet' = @('s46-raid-sheet', $sample, @('390x844'))
+    'flood' = @('s46-flood', $sample, @('390x844')); 'wildlife' = @('s46-wildlife', $sample, @('390x844'))
+    'hunting' = @('s46-hunting', $sample, @('390x844')); 'hunting-sheet' = @('s46-hunting', $sample, @('390x844'), '{ sheet: true }')
+    'wharf' = @('s46-wharf', $sample, @('390x844')); 'wharf-sheet' = @('s46-wharf', $sample, @('390x844'), '{ sheet: true }')
+    'wonders' = @('s46-wonders', $sample, @('390x844')); 'styles' = @('s46-wonders-styles', $sample, @('390x844')); 'picker' = @('s46-wonders-picker', $sample, $both)
   }
   if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
   $mo = if ($Motion.Count -eq 1) { $Motion[0] } else { 'reduced' }
@@ -213,7 +231,8 @@ if ($Stage46) {
       if ($OnlySizes.Count -and -not ($OnlySizes -contains $size)) { continue }
       $w, $h = $size -split 'x'
       $out = Join-Path $OutDir "$Tag-$name-$size.png"
-      & $shot -Url $spec[1] -Out $out -Width ([int]$w) -Height ([int]$h) -BudgetMs 1800 -Eval (New-Stage4Scene $spec[0] $mo)
+      $opts = if ($spec.Count -ge 4) { $spec[3] } else { '{}' }
+      & $shot -Url $spec[1] -Out $out -Width ([int]$w) -Height ([int]$h) -BudgetMs 1800 -Eval (New-S46Scene $spec[0] $mo $opts)
     }
   }
   exit 0
