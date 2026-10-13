@@ -1,10 +1,13 @@
 // Stage 4.6, the Armies track's words: every sentence from the data or the sim, each checked with the world set up both ways.
 import { describe, it, expect } from '../../harness.js';
-import { alertText, S46_ARMY_TEXT as A, DANGER_UI_TEXT as D, TIP_TEXT, FIRST_TEXT } from '../../../src/ui/text.js';
-import { counterParts } from '../../../src/ui/dangerSheets.js';
+import { alertText, S46_ARMY_TEXT as A, DANGER_UI_TEXT as D, TIP_TEXT, FIRST_TEXT, T, scoreReasonText } from '../../../src/ui/text.js';
+import { counterParts, buildingParts } from '../../../src/ui/dangerSheets.js';
 import { armyRowsModel, createArmiesUi } from '../../../src/ui/s46/armies.js';
 import { MATCHUPS, ENEMY_TYPES, UNIT_TYPES, ARMY, footMix } from '../../../src/data/armies.js';
 import { armyAlerts } from '../../../src/sim/armies.js';
+import { trainSoldiers } from '../../../src/sim/combat.js';
+import { DEFENCE } from '../../../src/data/raids.js';
+import { BUILDINGS } from '../../../src/data/buildings.js';
 import { makeTestWorld, addRaw } from '../../helpers/testWorld.js';
 
 const EAST = { x: 31, y: 16 };
@@ -31,7 +34,7 @@ describe('s46 armies words: the warning and the raid sheet', () => {
     expect(lines).toEqual([
       '8 on foot: Your archers on a wall or tower deal 2x; chariots in the open 2x; soldiers holding a gate or breach 1.5x. But archers in melee deal half; chariots within 3 tiles of a wall deal half.',
       `4 archers: They shoot towers from ${ENEMY_TYPES.archer.range} tiles, then your units; a wall turns them back once no raider on foot is with them. Your chariots in the open deal 2x; soldiers holding a gate or breach 1.5x. But chariots within 3 tiles of a wall deal half.`,
-      '2 chariots: Fast; a wall or rocky ground turns them back once no raider on foot is with them. Your soldiers holding a gate or breach deal 1.5x.',
+      `2 chariots: They ride ${ENEMY_TYPES.chariot.speed} tiles a day alone, but keep pace with the slower raiders beside them (${ENEMY_TYPES.foot.speed} a day); a wall or rocky ground turns them back once no raider on foot is with them. Your soldiers holding a gate or breach deal 1.5x.`,
       `3 by boat: They land on a river bank within ${ENEMY_TYPES.boat.landWithin} tiles of the city. Your archers on a wall or tower deal 2x; chariots in the open 2x; soldiers holding a gate or breach 1.5x. But archers in melee deal half; chariots within 3 tiles of a wall deal half.`,
     ]);
     // The other way: change the table and the enemy's row, and the words follow.
@@ -41,11 +44,22 @@ describe('s46 armies words: the warning and the raid sheet', () => {
     try {
       const again = A.counters({ foot: 0, archer: 1, chariot: 1, boat: 0 });
       expect(again[0].startsWith('1 archer: They shoot towers from 6 tiles')).toBe(true);
-      expect(again[1]).toBe('1 chariot: Fast; a wall or rocky ground turns them back once no raider on foot is with them. Your chariots in the open deal 3x; soldiers holding a gate or breach 1.5x.');
+      expect(again[1]).toBe(`1 chariot: They ride ${ENEMY_TYPES.chariot.speed} tiles a day alone, but keep pace with the slower raiders beside them (${ENEMY_TYPES.archer.speed} a day); a wall or rocky ground turns them back once no raider on foot is with them. Your chariots in the open deal 3x; soldiers holding a gate or breach 1.5x.`);
     } finally {
       if (keep === undefined) delete MATCHUPS.chariot.chariot; else MATCHUPS.chariot.chariot = keep;
       ENEMY_TYPES.archer.range = range;
     }
+  });
+  it("says the chariots' pace from ENEMY_TYPES speeds as a band moves (ruling 383): fast alone, foot pace beside foot", () => {
+    const only = (mix) => A.counters(mix).find((l) => l.includes('chariot:') || l.includes('chariots:'));
+    expect(only({ foot: 0, archer: 0, chariot: 2, boat: 0 }).startsWith(`2 chariots: They ride ${ENEMY_TYPES.chariot.speed} tiles a day, faster than raiders on foot (${ENEMY_TYPES.foot.speed}); `)).toBe(true);
+    const keep = ENEMY_TYPES.chariot.speed;
+    try {
+      ENEMY_TYPES.chariot.speed = ENEMY_TYPES.foot.speed;        // the other way: no faster than foot, so nothing said about pace
+      expect(only({ foot: 4, archer: 0, chariot: 2, boat: 0 })).toBe('2 chariots: A wall or rocky ground turns them back once no raider on foot is with them. Your soldiers holding a gate or breach deal 1.5x.');
+      ENEMY_TYPES.chariot.speed = 3;
+      expect(only({ foot: 4, archer: 0, chariot: 2, boat: 0 }).startsWith(`2 chariots: They ride 3 tiles a day alone, but keep pace with the slower raiders beside them (${ENEMY_TYPES.foot.speed} a day)`)).toBe(true);
+    } finally { ENEMY_TYPES.chariot.speed = keep; }
   });
   it('puts the counters on the raid sheet for a mixed raid only', () => {
     const parts = counterParts(warned({ foot: 3, archer: 2, chariot: 0, boat: 0 }).raid.warning);
@@ -100,6 +114,62 @@ describe('s46 armies words: the building sheets', () => {
     w.army.away.push({ id: 7, kind: 'soldier', barracks: bar.id, back: w.day + 30 });
     expect(text(bar)).toEqual(['1 soldier away at the capital, back in 1 month']);
     expect(ui.sheetParts.building(null)).toEqual([]);
+  });
+});
+
+describe('s46 armies words: the barracks with soldiers away', () => {
+  // Ruling 381: units away at the capital count toward their building's cap, in trainSoldiers and on the sheet alike.
+  const rows = (w, b) => buildingParts({ world: w }, b).map((n) => n.textContent);
+  const soldier = (w, bar) => w.soldiers.push({ id: w.nextUnitId++, kind: 'soldier', barracks: bar.id, x: 11, y: 3, hp: UNIT_TYPES.soldier.hp, hit: false, task: 'wait' });
+  it('says full, and trains none, when the soldiers here and away fill it', () => {
+    const w = makeTestWorld();
+    const bar = addRaw(w, 'barracks', 10, 2, { staff: BUILDINGS.barracks.workers }), cap = DEFENCE.soldiersPerBarracks;
+    for (let k = 0; k < cap - 2; k++) soldier(w, bar);
+    for (let k = 0; k < 2; k++) w.army.away.push({ id: 900 + k, kind: 'soldier', barracks: bar.id, back: w.day + 60 });
+    const t = rows(w, bar);
+    expect(t).toContain(`Soldiers${cap - 2} here, 2 away, of ${cap}`);
+    expect(t).toContain(`Full: ${cap - 2} here and 2 away, of ${cap} soldiers; it trains another when one is wounded`);
+    expect(t.some((x) => x.startsWith('Trains one soldier'))).toBe(false);
+    for (let d = 0; d < 3 * DEFENCE.trainDays; d++) trainSoldiers(w);
+    expect(w.soldiers.filter((s) => s.barracks === bar.id).length).toBe(cap - 2);
+  });
+  it('the other way: with one away back home and one lost, it says it trains, and it does', () => {
+    const w = makeTestWorld();
+    const bar = addRaw(w, 'barracks', 10, 2, { staff: BUILDINGS.barracks.workers }), cap = DEFENCE.soldiersPerBarracks;
+    for (let k = 0; k < cap - 2; k++) soldier(w, bar);
+    w.army.away.push({ id: 900, kind: 'soldier', barracks: bar.id, back: w.day + 60 });
+    const t = rows(w, bar);
+    expect(t).toContain(`Soldiers${cap - 2} here, 1 away, of ${cap}`);
+    expect(t).toContain(D.trains(DEFENCE.trainDays));
+    expect(t.some((x) => x.startsWith('Full:'))).toBe(false);
+    for (let d = 0; d < DEFENCE.trainDays; d++) trainSoldiers(w);
+    expect(w.soldiers.filter((s) => s.barracks === bar.id).length).toBe(cap - 1);
+    expect(rows(w, bar)).toContain(`Full: ${cap - 1} here and 1 away, of ${cap} soldiers; it trains another when one is wounded`);
+  });
+  it('reads as before with none away', () => {
+    const w = makeTestWorld();
+    const bar = addRaw(w, 'barracks', 10, 2, { staff: BUILDINGS.barracks.workers }), cap = DEFENCE.soldiersPerBarracks;
+    for (let k = 0; k < cap; k++) soldier(w, bar);
+    expect(rows(w, bar)).toContain(`Full: ${cap} of ${cap} soldiers; it trains another when one is wounded`);
+    expect(rows(w, bar)).toContain(`Soldiers${cap} of ${cap}`);
+  });
+});
+
+describe('s46 armies words: the raid under way, pay and the score line', () => {
+  it("names each kind's patrol in the raid alert with archers or chariots at home, and the soldiers' alone without", () => {
+    const w = makeTestWorld();
+    const bar = addRaw(w, 'barracks', 10, 2), range = addRaw(w, 'archery_range', 2, 2);
+    w.raid.active = { phase: 'attack', dir: 'east', raiders: [] };
+    const alert = { code: 'raid', dirs: ['east'], left: 5, phase: 'attack' };
+    w.soldiers.push({ id: w.nextUnitId++, kind: 'soldier', barracks: bar.id, x: 11, y: 3, hp: 10, hit: false, task: 'wait' });
+    expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers fight within ${DEFENCE.patrol} tiles of their barracks`);
+    w.soldiers.push({ id: w.nextUnitId++, kind: 'archer', barracks: range.id, x: 3, y: 3, hp: 8, hit: false, task: 'wait' });
+    expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers within ${DEFENCE.patrol} tiles of their barracks, archers within ${UNIT_TYPES.archer.patrol} tiles of their range`);
+    expect(alertText({ ...alert, phase: 'retreat' }, w).fix).toBe('Towers keep shooting as they go');
+  });
+  it("labels unit pay as the army's, and counts every kind as army units in the score line", () => {
+    expect(T.soldiersPay).toBe('Army pay');
+    expect(scoreReasonText({ code: 'towers', need: 2, towers: 1, soldiers: 3 })).toBe('A raid this size needs 2 towers; you have 1 working and 3 army units');
   });
 });
 

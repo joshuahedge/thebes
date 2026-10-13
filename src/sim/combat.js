@@ -188,7 +188,7 @@ function breakTile(world, i) {
   if (id && world.buildings[id] && world.buildings[id].type === 'tower') removeBuilding(world, id);
 }
 
-// An archer's post (ruling 387): the standing wall tile (or a tower's tile) nearest the archer, within its patrol of its building,
+// An archer's post (ruling 380): the standing wall tile (or a tower's tile) nearest the archer, within its patrol of its building,
 // from which the foe is in range but not beside; posts other archers took today are passed over while another is free. null when
 // none (the archer then closes to its range in the open).
 function archerPost(world, u, foe, home, taken) {

@@ -23,6 +23,7 @@ import { canAfford } from '../sim/money.js';
 import { dateParts } from '../sim/clock.js';
 import { idx } from '../sim/grid.js';
 import { el, button } from './components.js';
+import { armyRowsModel } from './s46/armies.js';
 import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT, S46_ARMY_TEXT } from './text.js';
 
 const D = DANGER_UI_TEXT;
@@ -151,13 +152,16 @@ function towerRows(world, b) {
   return out;
 }
 
+// Stage 4.6 (Armies track, ruling 381): the barracks counts its soldiers away at the capital toward its four, as trainSoldiers
+// does (src/sim/combat.js), so the rows read armyRowsModel's held count and status, the same as the archery range's and stables'.
 function barracksRows(world, b) {
-  const n = world.soldiers.filter((s) => s.barracks === b.id).length;
-  const out = [row(D.soldiers, `${n} of ${DEFENCE.soldiersPerBarracks}`), row(D.patrol, D.tiles(DEFENCE.patrol))];
-  if (n >= DEFENCE.soldiersPerBarracks) out.push(line(D.barracksFull(n, DEFENCE.soldiersPerBarracks)));   // a full barracks trains none
-  else if (inFireStage(b)) out.push(line(D.notTrainingBurning));
-  else if (b.paused) out.push(line(D.notTrainingPaused));
-  else if (!isWorking(world, b)) out.push(line(D.notTrainingUntil(needed('barracks'), BUILDINGS.barracks.workers)));
+  const m = armyRowsModel(world, b);
+  const awayN = m.away.reduce((s, g) => s + g.n, 0);
+  const out = [row(D.soldiers, S46_ARMY_TEXT.ofCap(m.n, m.cap, awayN)), row(D.patrol, D.tiles(DEFENCE.patrol))];
+  if (m.status === 'full') out.push(line(S46_ARMY_TEXT.full('soldier', m.n, m.cap, awayN)));   // a full barracks trains none
+  else if (m.status === 'burning') out.push(line(D.notTrainingBurning));
+  else if (m.status === 'paused') out.push(line(D.notTrainingPaused));
+  else if (m.status === 'short') out.push(line(D.notTrainingUntil(m.short, BUILDINGS.barracks.workers)));
   else out.push(line(D.trains(DEFENCE.trainDays)));
   out.push(line(D.soldiersPay(DEFENCE.soldierPay)));
   if (world.raid.last) out.push(line(D.lastRaidSoldiers(world.raid.last)));
