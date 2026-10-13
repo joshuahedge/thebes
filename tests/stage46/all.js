@@ -11,3 +11,4 @@ import './court/court.test.js';
 import './armies/armies.test.js';
 import './wonders/wonders.test.js';
 import './ux/ux.test.js';
+import './wave1/wave1.test.js';

@@ -65,22 +65,28 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const demolish = s.tool.kind === 'demolish';
     // A demolish refunds, or (Stage 3) costs gold when it clears rubble: "Refund 7" or "20 gold", never a negative refund.
     const costText = demolish ? (p.refund > 0 ? `${T.refund} ${p.refund}` : p.refund < 0 ? DANGER_UI_TEXT.demolishCost(-p.refund) : '') : (p.cost ? `${p.cost} gold` : '');
+    // The words are the title, then `lines` (the cost, balance, reason, effect, nicer and monument lines): a portrait terrain bar lets the title sit
+    // beside the buttons and the lines run the whole width under them (css/ui.css .has-fit), keeping the room three lines need.
     const info = el('div', { class: 'info' }, [
       el('div', { class: 'title', text: titleOf(s.tool) }),
-      el('div', { class: 'cost small muted', text: [costText, p.upkeep, p.note].filter(Boolean).join(' · ') }),   // Stage 4.6 (ruling 350): the road tool's note on bridges, while nothing is drawn yet
-      // Stage 4.5 (Task 4b): what the month's balance becomes with it, from the sim's forecast (coral when it is below 0).
-      p.upkeep ? el('div', { class: `balance small ${p.balance && p.balanceNet < 0 ? 'coral' : 'muted'}`, text: p.balance || ' ' }) : null,   // a blocked spot keeps the line's room, empty
-      // A touch plan that skips tiles says how many in amber (placement review P5): what it lays is fine, the rest is passed over.
-      el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' || (p.skipped && p.skipped.length) ? 'amber' : 'muted'}`, text: p.text }),
-      // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line. Homes
-      // served read in teal; "no homes in reach yet" is not a gain, so it reads muted.
-      // Stage 3: the score parts it would change ride on the same line ("Gives water to 6 homes · +3 Culture", spec 4.19).
-      p.state === 'ok' && !p.line && (p.effect || p.score) ? el('div', { class: `effect small ${(p.effect === T.noHomesInReach || p.effect === DANGER_UI_TEXT.firehouseCovers(0)) && !p.score ? 'muted' : 'teal'}`, text: [p.effect, p.score].filter(Boolean).join(' · ') }) : null,
-      // What it does to the homes around it (spec 4.7), in words; teal when nicer, coral when less pleasant, ink when both.
-      p.nicer ? el('div', { class: `nicer small ${NICER_TONE[p.nicerTone]}`, text: p.nicer }) : null,
-      // Stage 4 (Track C, spec 6.5, ruling 251): a monument's line, placeable or waiting for its road: "+32 Monuments when finished ·
-      // then 130 gold a crew a month · finished: 9 homes nicer". Two lines at most on a phone (css), every word in its name.
-      p.line ? el('div', { class: 'monument-line small', title: p.line, 'aria-label': p.line, text: p.line }) : null,
+      el('div', { class: 'lines' }, [
+        el('div', { class: 'cost small muted', text: [costText, p.upkeep, p.note].filter(Boolean).join(' · ') }),   // Stage 4.6 (ruling 350): the road tool's note on bridges, while nothing is drawn yet
+        // Stage 4.5 (Task 4b): what the month's balance becomes with it, from the sim's forecast (coral when it is below 0).
+        p.upkeep ? el('div', { class: `balance small ${p.balance && p.balanceNet < 0 ? 'coral' : 'muted'}`, text: p.balance || ' ' }) : null,   // a blocked spot keeps the line's room, empty
+        // A touch plan that skips tiles says how many in amber (placement review P5): what it lays is fine, the rest is passed over.
+        // A refusal the conditions row already says word for word (a terrain building's "Needs 2 of 4 tiles on clay") is not said twice: the line
+        // stays in the bar for tests and tools but takes no room (hidden), so the bar stays under half the screen on a small phone (UX rule 2).
+        el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' || (p.skipped && p.skipped.length) ? 'amber' : 'muted'}`, text: p.text, hidden: p.state === 'bad' && (p.conditions || []).some((c) => c.state === 'cant' && c.text === p.text) }),
+        // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line. Homes
+        // served read in teal; "no homes in reach yet" is not a gain, so it reads muted.
+        // Stage 3: the score parts it would change ride on the same line ("Gives water to 6 homes · +3 Culture", spec 4.19).
+        p.state === 'ok' && !p.line && (p.effect || p.score) ? el('div', { class: `effect small ${(p.effect === T.noHomesInReach || p.effect === DANGER_UI_TEXT.firehouseCovers(0)) && !p.score ? 'muted' : 'teal'}`, text: [p.effect, p.score].filter(Boolean).join(' · ') }) : null,
+        // What it does to the homes around it (spec 4.7), in words; teal when nicer, coral when less pleasant, ink when both.
+        p.nicer ? el('div', { class: `nicer small ${NICER_TONE[p.nicerTone]}`, text: p.nicer }) : null,
+        // Stage 4 (Track C, spec 6.5, ruling 251): a monument's line, placeable or waiting for its road: "+32 Monuments when finished ·
+        // then 130 gold a crew a month · finished: 9 homes nicer". Two lines at most on a phone (css), every word in its name.
+        p.line ? el('div', { class: 'monument-line small', title: p.line, 'aria-label': p.line, text: p.line }) : null,
+      ]),
     ]);
     const controls = [];
     if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', onClick: () => placement.rotate() }));   // Stage 4: a mastaba turns (ruling 234)

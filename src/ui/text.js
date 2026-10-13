@@ -1961,6 +1961,12 @@ export const S46_COURT_TEXT = {
     steady: 'Now: no gifts, and raids and tribute as usual',
     low: `Now: ${courtLowEffect(courtFavour)}`,
   },
+  // On Peaceful (raidsOn false, src/sim/costs.js) there are no raids and no tribute, so favour's raid-size and tribute effects are never
+  // stated there: only what applies, the gifts. `raids` is the sim's own raidsOn(world).
+  bandNowOf: (band, raids = true) => (raids ? S46_COURT_TEXT.bandNow[band] : band === 'high' ? 'Now: the court sends gifts' : 'Now: no gifts'),
+  ruleHighOf: (raids = true) => (raids ? S46_COURT_TEXT.ruleHigh : `At ${courtFavour.high} or more: the court sends a gift, at most one every ${courtMonths(courtFavour.giftEveryMonths)}`),
+  ruleLowOf: (raids = true) => (raids ? S46_COURT_TEXT.ruleLow : ''),
+  peacefulNote: 'There are no raids or tribute on Peaceful, so favour only brings gifts.',
   drift: `Favour moves ${courtFavour.drift} a month toward ${courtFavour.start}`,
   ruleHigh: `At ${courtFavour.high} or more: tribute costs ${courtPct(courtFavour.tributeHigh)}% less, and the court sends a gift, at most one every ${courtMonths(courtFavour.giftEveryMonths)}`,
   ruleLow: courtRuleLow(courtFavour),
@@ -2138,7 +2144,7 @@ Object.assign(FIRST_TEXT, {
 });
 Object.assign(TIP_TEXT, {
   archers_on_walls: `Archers climb the nearest wall or tower on their own: from there they deal ${armM('archer', 'foot', 'wall')} to raiders on foot.`,
-  chariots_in_open: `Chariots deal ${armM('chariot', 'foot', 'open')} in open ground, ${armArmy.wallNear}+ tiles from walls, but cannot pass walls or gates: put stables beside it.`,
+  chariots_in_open: `Chariots deal ${armM('chariot', 'foot', 'open')} with no wall within ${armArmy.wallNear} tiles, but cannot pass walls or gates: put stables beside it.`,
   mixed_raid: 'Open the raid warning: it lists the raiders coming and what helps against each kind.',
 });
 // The raid under way (Stage 3's raid alert): with archers or chariots at home, its fix gives the reach of the units the city has

@@ -50,6 +50,7 @@ describe('s3 contract data', () => {
       potter: 1.0, brewery: 1.0, weaver: 0.5, jeweller: 0.5, granary: 0.5, storehouse: 0.5, trading_post: 0.5,
       bazaar: 0.3, booth: 0.3, barracks: 0.3, farm_grain: 0.15, farm_fig: 0.15, farm_barley: 0.15, farm_flax: 0.15, clay_pit: 0.15, gem_mine: 0.15,
       temple: 0.1, firehouse: 0.1, quarry: 0.15, brickworks: 1.0, builders_guild: 0.3,   // Stage 4's three supply buildings
+      archery_range: 0.3, stables: 0.5,   // Stage 4.6 (ruling 416): the range as the barracks, the stables higher for hay
     });
     for (const never of ['garden', 'statue', 'well', 'wall', 'gate', 'tower', 'rubble', 'house']) expect([never, FIRE_RISK[never]]).toEqual([never, undefined]);
     for (const t of Object.keys(FIRE_RISK)) expect([t, Boolean(BUILDINGS[t])]).toEqual([t, true]);
