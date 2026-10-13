@@ -31,8 +31,8 @@ describe('ui card pictures', () => {
     const items = visibleCategories().flatMap((c) => c.items);
     expect(items).toEqual(['road', 'demolish', 'house', 'garden', 'statue', 'plaza', 'sphinx', 'farm_grain', 'farm_fig', 'granary', 'clay_pit', 'potter', 'farm_barley', 'brewery',
       'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'police_post', 'palace',
-      'wall', 'gate', 'tower', 'barracks', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'colossus', 'mastaba_small',
-      'mastaba_large', 'pyramid_small', 'pyramid_great']);   // Stage 4: the plaza, sphinx, palace and the Monuments tab
+      'wall', 'gate', 'tower', 'barracks', 'archery_range', 'stables', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'colossus', 'mastaba_small',
+      'mastaba_large', 'pyramid_small', 'pyramid_great']);   // Stage 4: the plaza, sphinx, palace and the Monuments tab; Stage 4.6: the archery range and stables
     for (const item of items) {
       const c = drawThumb(document.createElement('canvas'), item, 1);
       expect([item, c.width, c.height]).toEqual([item, THUMB_W, THUMB_H]);

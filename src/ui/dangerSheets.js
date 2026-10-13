@@ -23,7 +23,7 @@ import { canAfford } from '../sim/money.js';
 import { dateParts } from '../sim/clock.js';
 import { idx } from '../sim/grid.js';
 import { el, button } from './components.js';
-import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT } from './text.js';
+import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT, S46_ARMY_TEXT } from './text.js';
 
 const D = DANGER_UI_TEXT;
 const centre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
@@ -219,6 +219,14 @@ export function summaryParts(ctx) {
   return [el('h3', { text: D.lastRaid }), el('p', { class: 'raid-report', text: D.raidReport(last) }), line(D.endedOn(dateText(dateParts({ day: last.day }))))];
 }
 
+// Stage 4.6 (Armies track, rulings 341, 388): a raid that brings more than raiders on foot lists, under its heading, each kind it
+// brings and what helps against it, read from the matchup table (S46_ARMY_TEXT.counters: src/sim/armies.js counterModel). The
+// warning's title names the mix. An all-foot raid's sheet is as before.
+export function counterParts(w) {
+  if (!w || !w.mix || !S46_ARMY_TEXT.isMixedMix(w.mix)) return [];
+  return [el('h3', { class: 'raid-counters-head', text: S46_ARMY_TEXT.countersHead }), el('ul', { class: 'raid-counters' }, S46_ARMY_TEXT.counters(w.mix).map((t) => el('li', { text: t })))];
+}
+
 // The tribute confirmation sheet (spec 4.13): the cost, when the raiders arrive, the gold afterwards, what it cancels and
 // what it does not, two buttons named for their outcome and neither the default; the rule's own words when it cannot be
 // paid. On phones it is also the raid sheet (ruling 167): the countdown chip's words open it, so its arrival line carries
@@ -235,13 +243,14 @@ export function tributeSheet(ctx) {
     const phone = Boolean(ctx.store) && ctx.store.get().layout !== 'wide';
     const title = alertText({ code: 'raid_warning', dir: w.dir, dirs: q.dirs }, world).title;
     const arrives = el('p', { class: 'arrives', text: phone || q.hidden ? D.withArrival(title, left) : D.arrivalLine(left) });   // as the banner says it
-    if (q.hidden) { setTitle(D.raidSheetTitle); body.append(arrives, el('p', { text: D.capital(D.defenceLine(q, q.dirs)) })); return; }
+    if (q.hidden) { setTitle(D.raidSheetTitle); body.append(arrives, el('p', { text: D.capital(D.defenceLine(q, q.dirs)) }), ...counterParts(w)); return; }
     body.append(
       el('p', { class: 'tribute-cost', text: D.tributeCost(q.cost) }),
       arrives,
       row(D.goldNow, String(world.gold)), row(D.goldAfter, String(world.gold - q.cost)),
       el('p', { class: 'cancels', text: D.cancels(q.dirs, q.size) }),
       el('p', { class: 'small muted', text: D.capital(D.defenceLine(q, q.dirs)) }),
+      ...counterParts(w),
     );
     if (!q.payable) body.append(el('p', { class: 'why-not coral', text: D.tributeBelowZero(world.gold) }));
     const pay = button(D.payGold(q.cost), { class: 'pay', disabled: !q.payable, onClick: () => {
