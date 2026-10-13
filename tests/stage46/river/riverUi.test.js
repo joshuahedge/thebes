@@ -106,7 +106,7 @@ describe('s46 river ui: the Nilometer, the lodge and the wharf', () => {
     herd(w, { x: 30, y: 21, size: 3 });
     const o = huntingOutlook(w, lodge);
     const t = text(riverRows(w, lodge));
-    expect([t.includes(R.herdsLine(2, 11)), t.includes(R.gameLine(o.month)), o.month]).toEqual([true, true, 9]);   // 6 from the big herd, 3 from the small
+    expect([t.includes(R.herdsLine(2, 11)), t.includes(R.gameLine(o.left, o.taken)), o.month, o.left]).toEqual([true, true, 9, 9]);   // 6 from the big herd, 3 from the small
     expect(t).toContain(`${HUNTING.perHerdMonth} a herd`);
     expect(t).toContain(`at most ${HUNTING.maxMonth}`);
     expect(t.includes(R.noHerds)).toBe(false);
@@ -119,7 +119,8 @@ describe('s46 river ui: the Nilometer, the lodge and the wharf', () => {
     setFlood(w, 'fair');
     w.day = dayOf(2, 8);
     expect(text(riverRows(w, wh))).toContain(`${FISHING.floodPerMonth} now`);
-    expect(text(riverRows(w, wh))).toContain(`${FISHING.reach} tiles`);
+    expect(text(riverRows(w, wh))).toContain(R.catchRule);
+    expect(text(riverRows(w, wh)).includes('tiles')).toBe(false);          // ruling 422: no sim reads a fishing distance, so the sheet names none
   });
   it('warns a workplace near a crocodile spot (not on Peaceful), says when it is scared, and leaves a home alone', () => {
     const w = riverWorld({ seed: 4 });

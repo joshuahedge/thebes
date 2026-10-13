@@ -104,12 +104,16 @@ export function huntRest(world, b) {
   return herds.length && !huntHerd(world, b) ? 'herds' : null;
 }
 // What the lodge can bring in a month with the herds as they stand: HUNTING.perHerdMonth for each herd in reach (at most the herd's size
-// left), no more than HUNTING.maxMonth.
+// left), no more than HUNTING.maxMonth. month counts the whole month, the animals already taken in it included; left (ruling 421) is what the
+// hunters may still take this month: each herd's HUNTING.perHerdMonth less what it has given this month (to any lodge), at most its size,
+// and no more than the lodge's own HUNTING.maxMonth less its taken (b.hunted). Both counts start afresh at the month's end (wildlifeMonth).
 export function huntingOutlook(world, b) {
   const herds = herdsInReach(world, b);
   const animals = herds.reduce((s, h) => s + h.size, 0);
   const month = Math.min(HUNTING.maxMonth, herds.reduce((s, h) => s + Math.min(HUNTING.perHerdMonth, h.size + (h.hunted || 0)), 0));
-  return { herds: herds.length, animals, month };
+  const taken = b.hunted || 0;
+  const left = Math.max(0, Math.min(HUNTING.maxMonth - taken, herds.reduce((s, h) => s + Math.max(0, Math.min(HUNTING.perHerdMonth - (h.hunted || 0), h.size)), 0)));
+  return { herds: herds.length, animals, month, left, taken };
 }
 // One animal taken from a herd by a lodge's hunters (the lodge counts it, b.hunted, against HUNTING.maxMonth): the herd shrinks, a herd that is no longer full starts regrowing, one at 0 is gone.
 export function takeGame(world, herd, lodge = null) {
