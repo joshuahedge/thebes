@@ -142,7 +142,7 @@ async function raidSheet(api, options = {}) {
   const alert = g.ui.alerts.list().find((a) => a.code === 'raid_warning') || { code: 'raid_warning', x: w.entry.x, y: w.entry.y, dir: w.dir, arrives: w.arrives };
   g.ui.alerts.action(alert, 'tribute');
   await wait(100);
-  const head = document.querySelector('.raid-mix');                              // the mix line and the counters in view
+  const head = document.querySelector('.tribute-cost') || document.querySelector('.raid-mix');   // the sheet's top: the cost, then the arrival line that names the mix
   let box = head && head.parentElement;
   while (box && box.scrollHeight <= box.clientHeight + 1) box = box.parentElement;
   if (head && box && options.scroll !== false) box.scrollTop += head.getBoundingClientRect().top - box.getBoundingClientRect().top - 72;   // below the sheet's heading

@@ -1,7 +1,7 @@
 // Stage 4.6, the Armies track's words: every sentence from the data or the sim, each checked with the world set up both ways.
 import { describe, it, expect } from '../../harness.js';
 import { alertText, S46_ARMY_TEXT as A, DANGER_UI_TEXT as D, TIP_TEXT, FIRST_TEXT, T, scoreReasonText } from '../../../src/ui/text.js';
-import { counterParts, buildingParts } from '../../../src/ui/dangerSheets.js';
+import { counterParts, buildingParts, arrivalText } from '../../../src/ui/dangerSheets.js';
 import { armyRowsModel, createArmiesUi } from '../../../src/ui/s46/armies.js';
 import { MATCHUPS, ENEMY_TYPES, UNIT_TYPES, ARMY, footMix } from '../../../src/data/armies.js';
 import { armyAlerts } from '../../../src/sim/armies.js';
@@ -63,9 +63,18 @@ describe('s46 armies words: the warning and the raid sheet', () => {
   });
   it('puts the counters on the raid sheet for a mixed raid only', () => {
     const parts = counterParts(warned({ foot: 3, archer: 2, chariot: 0, boat: 0 }).raid.warning);
-    expect([parts.length, parts[0].textContent, parts[1].textContent, parts[2].querySelectorAll('li').length]).toEqual([3, '5 raiders from the east: 3 on foot, 2 archers.', A.countersHead, 2]);
+    expect([parts.length, parts[0].textContent, parts[1].querySelectorAll('li').length]).toEqual([2, A.countersHead, 2]);
     expect(counterParts(warned(footMix(5)).raid.warning)).toEqual([]);
     expect(counterParts(null)).toEqual([]);
+  });
+  it("names a mixed raid's kinds once, in the sheet's arrival line, and an all-foot raid's line as before", () => {
+    const mixed = warned({ foot: 8, archer: 3, chariot: 3, boat: 0 }), alert = { code: 'raid_warning', x: 31, y: 16, dir: 'east', arrives: 1000 };
+    const title = alertText(alert, mixed).title;
+    expect(arrivalText(mixed.raid.warning, title, 60, true)).toBe(`14 raiders from the east are after your buildings: 8 on foot, 3 archers, 3 chariots. ${D.arrivesIn(60)}.`);
+    expect(arrivalText(mixed.raid.warning, title, 60, false)).toBe(`14 raiders from the east: 8 on foot, 3 archers, 3 chariots. ${D.arrivesIn(60)}.`);
+    const foot = warned(footMix(6)), footTitle = alertText(alert, foot).title;
+    expect(arrivalText(foot.raid.warning, footTitle, 60, true)).toBe(D.withArrival(footTitle, 60));
+    expect(arrivalText(foot.raid.warning, footTitle, 60, false)).toBe(D.arrivalLine(60));
   });
   it('words the raid report with what archers and chariots stopped and the towers that fell, only when there are any', () => {
     const base = { index: 6, dir: 'east', size: 9, won: true, byTowers: 2, bySoldiers: 1, towers: 1, burned: 0, stolen: 0, day: 1000 };
@@ -101,7 +110,8 @@ describe('s46 armies words: the building sheets', () => {
     expect(armyRowsModel(w, stab).horses).toEqual({ each: UNIT_TYPES.chariot.grain, now: UNIT_TYPES.chariot.grain, held: 40, hungry: false });
     w.army.fed = false;
     expect(armyRowsModel(w, stab).horses.hungry).toBe(true);
-    expect(alertText(armyAlerts(w)[0], w)).toEqual({ title: 'Chariot horses went hungry', fix: `Keep ${UNIT_TYPES.chariot.grain} grain a month in a granary or storehouse; until then chariots fight at ${Math.round(ARMY.hungry * 100)}%` });
+    expect(alertText(armyAlerts(w)[0], w)).toEqual({ title: 'Chariot horses went hungry', fix: `Keep ${UNIT_TYPES.chariot.grain} grain a month in a granary; until then chariots fight at ${Math.round(ARMY.hungry * 100)}%` });
+    expect(A.horses(UNIT_TYPES.chariot.grain, 6)).toBe(`Horses eat ${UNIT_TYPES.chariot.grain} grain a chariot a month (6 now), from granaries`);
   });
   it('builds the rows on the sheet: the range and stables in full, the barracks its away line only', () => {
     const w = makeTestWorld();
@@ -164,8 +174,26 @@ describe('s46 armies words: the raid under way, pay and the score line', () => {
     w.soldiers.push({ id: w.nextUnitId++, kind: 'soldier', barracks: bar.id, x: 11, y: 3, hp: 10, hit: false, task: 'wait' });
     expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers fight within ${DEFENCE.patrol} tiles of their barracks`);
     w.soldiers.push({ id: w.nextUnitId++, kind: 'archer', barracks: range.id, x: 3, y: 3, hp: 8, hit: false, task: 'wait' });
-    expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers within ${DEFENCE.patrol} tiles of their barracks, archers within ${UNIT_TYPES.archer.patrol} tiles of their range`);
+    expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; your units go out within ${DEFENCE.patrol} to ${UNIT_TYPES.archer.patrol} tiles`);
     expect(alertText({ ...alert, phase: 'retreat' }, w).fix).toBe('Towers keep shooting as they go');
+    w.soldiers = w.soldiers.filter((u) => u.kind === 'archer');
+    expect(alertText(alert, w).fix).toBe(`Towers hit raiders within ${DEFENCE.towerRange} tiles; your archers go out within ${UNIT_TYPES.archer.patrol} tiles`);
+  });
+  it("keeps every raid fix within the soldiers' line, so the wide banner keeps View beside the side panel", () => {
+    const w = makeTestWorld();
+    const bar = addRaw(w, 'barracks', 10, 2), range = addRaw(w, 'archery_range', 2, 2), stab = addRaw(w, 'stables', 6, 6);
+    const home = { soldier: bar, archer: range, chariot: stab };
+    w.raid.active = { phase: 'attack', dir: 'east', raiders: [] };
+    const alert = { code: 'raid', dirs: ['east', 'south'], left: 99, phase: 'attack' };
+    const budget = `Towers hit raiders within ${DEFENCE.towerRange} tiles; soldiers fight within ${DEFENCE.patrol} tiles of their barracks`.length;
+    const fixes = [];
+    for (let m = 1; m < 8; m++) {
+      w.soldiers = Object.keys(home).filter((k, i) => m & (1 << i)).map((k) => ({ id: w.nextUnitId++, kind: k, barracks: home[k].id, x: 3, y: 3, hp: 8, hit: false, task: 'wait' }));
+      for (const phase of ['attack', 'leave']) fixes.push(alertText({ ...alert, phase }, w).fix);
+    }
+    expect(fixes.length).toBe(14);
+    expect(fixes.filter((f) => f.length > budget)).toEqual([]);
+    expect(fixes.some((f) => f.includes(`${DEFENCE.patrol} to ${UNIT_TYPES.chariot.patrol} tiles`))).toBe(true);
   });
   it("labels unit pay as the army's, and counts every kind as army units in the score line", () => {
     expect(T.soldiersPay).toBe('Army pay');
@@ -190,5 +218,6 @@ describe('s46 armies words: firsts and tips', () => {
     expect(FIRST_TEXT.first_archery_range.why).toBe(`Its archers shoot raiders up to ${UNIT_TYPES.archer.range} tiles away, 2x from a wall or tower.`);
     expect(FIRST_TEXT.first_stables.why).toBe(`Its chariots deal 2x in the open; their horses eat ${UNIT_TYPES.chariot.grain} grain each a month.`);
     expect(TIP_TEXT.chariots_in_open.includes(`${ARMY.wallNear}+ tiles`)).toBe(true);
+    expect(TIP_TEXT.chariots_in_open.endsWith('but cannot pass walls or gates: put stables beside it.')).toBe(true);
   });
 });

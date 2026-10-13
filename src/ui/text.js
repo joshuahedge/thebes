@@ -754,7 +754,7 @@ Object.assign(ALERT_TEXT, {
     const w = world.raid.warning;
     // Stage 4.6 (Armies track, rulings 341, 388): a raid with more than raiders on foot says how many come ("14 raiders from the east
     // are after ...", short enough for the wide banner's one line) and names its kinds where there is room: first in the fix (the
-    // alert list) and in the raid sheet's mix line (dangerSheets.js counterParts).
+    // alert list) and in the raid sheet's arrival line (dangerSheets.js arrivalText).
     const mixed = w && w.mix && S46_ARMY_TEXT.isMixedMix(w.mix);
     const who = mixed ? `${w.size} raiders from ${duiFrom(alert.dirs || alert.dir)}` : `Raiders from ${duiFrom(alert.dirs || alert.dir)}`;
     const towers = RAID_TEXT.towers(world);
@@ -1811,7 +1811,7 @@ export const S46_COURT_TEXT = {};
 // renamed with "as"; imports are hoisted, so they sit here in the section). Every number is the data's: UNIT_TYPES, ENEMY_TYPES,
 // ARMY and the matchup table (src/data/armies.js), and the counters are counterModel's (src/sim/armies.js).
 import { UNIT_TYPES as armUnits, ARMY as armArmy, ENEMY_KINDS as armEnemyKinds, matchup as armMatchup } from '../data/armies.js';
-import { counterModel as armCounterModel, unitsAtHome as armUnitsAtHome } from '../sim/armies.js';
+import { counterModel as armCounterModel, unitsAtHome as armUnitsAtHome, feedTypes as armFeedTypes } from '../sim/armies.js';
 import { DAYS_PER_MONTH as armMonthDays } from '../sim/time.js';
 const armCap = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 // The enemy kinds as a mix names them ("8 on foot, 4 archers, 2 chariots, 3 by boat"), and the units as the counters name them.
@@ -1824,6 +1824,7 @@ const armSituationWords = {
 };
 const armFactor = (f) => (f === 0.5 ? 'half' : `${f}x`);
 const armMonths = (days) => Math.max(1, Math.round(days / armMonthDays));
+const armA = (noun) => `${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}`;
 const armM = (u, e, s) => armFactor(armMatchup(u, e, s));
 export const S46_ARMY_TEXT = {
   enemy: armEnemyWords, unitPlural: armUnitPlural, unitOne: armUnitOne, situation: armSituationWords, factor: armFactor,
@@ -1862,14 +1863,14 @@ export const S46_ARMY_TEXT = {
   archerDoes: `Shoots a raider up to ${armUnits.archer.range} tiles away; on a wall or tower it deals ${armM('archer', 'foot', 'wall')} to raiders on foot, ${armM('archer', 'foot', 'melee')} in melee`,
   chariotDoes: `Deals ${armM('chariot', 'foot', 'open')} in the open (no wall within ${armArmy.wallNear} tiles), ${armM('chariot', 'foot', 'nearWall')} nearer a wall; it cannot pass a gate`,
   away: (kind, n, days) => `${plural(n, armUnitOne[kind], armUnitPlural[kind])} away at the capital, back in ${plural(armMonths(days), 'month', 'months')}`,
-  horses: (each, now) => `Horses eat ${each} grain a chariot a month (${now} now), from granaries, then storehouses`,
+  horses: (each, now) => `Horses eat ${each} grain a chariot a month (${now} now), from ${listText(armFeedTypes().map(pluralName))}`,
   hungry: `The horses went hungry last month: chariots fight at ${Math.round(armArmy.hungry * 100)}% until a month's end feeds them`,
   grainHeld: (n) => `Grain in store: ${n}`,
   lastRaid: (kind, n, size) => `Last raid: ${armUnitPlural[kind]} stopped ${n} of ${size}`,
 };
 // The horses' alert (armyAlerts): an ordinary one on the first stables.
 Object.assign(ALERT_TEXT, {
-  horses_hungry: (alert) => ({ title: 'Chariot horses went hungry', fix: `Keep ${alert.need} grain a month in a granary or storehouse; until then chariots fight at ${Math.round(armArmy.hungry * 100)}%` }),
+  horses_hungry: (alert) => ({ title: 'Chariot horses went hungry', fix: `Keep ${alert.need} grain a month in ${armFeedTypes().map((t) => armA(buildingName(t).toLowerCase())).join(' or ')}; until then chariots fight at ${Math.round(armArmy.hungry * 100)}%` }),
 });
 // The firsts and the tips (How to play lists the tips).
 Object.assign(FIRST_TEXT, {
@@ -1878,21 +1879,23 @@ Object.assign(FIRST_TEXT, {
 });
 Object.assign(TIP_TEXT, {
   archers_on_walls: `Archers climb the nearest wall or tower on their own: from there they deal ${armM('archer', 'foot', 'wall')} to raiders on foot.`,
-  chariots_in_open: `Chariots deal ${armM('chariot', 'foot', 'open')} in the open, ${armArmy.wallNear}+ tiles from any wall, and cannot pass a gate: build stables outside.`,
+  chariots_in_open: `Chariots deal ${armM('chariot', 'foot', 'open')} in open ground, ${armArmy.wallNear}+ tiles from walls, but cannot pass walls or gates: put stables beside it.`,
   mixed_raid: 'Open the raid warning: it lists the raiders coming and what helps against each kind.',
 });
-// The raid under way (Stage 3's raid alert): with archers or chariots at home, its fix names each kind's patrol (UNIT_TYPES) in place
-// of the soldiers' alone; a city of soldiers only reads as before.
+// The raid under way (Stage 3's raid alert): with archers or chariots at home, its fix gives the reach of the units the city has
+// (UNIT_TYPES patrol, the nearest to the farthest: "your units go out within 8 to 12 tiles"; one kind alone by name), no longer than
+// the soldiers' line so the wide banner keeps its buttons beside the side panel (ruling 389a); each kind's own patrol is on its
+// building's sheet. A city of soldiers only reads as before.
 const armRaidAlert = ALERT_TEXT.raid;
-const armBuildingWords = { soldier: 'barracks', archer: 'range', chariot: 'stables' };
 Object.assign(ALERT_TEXT, {
   raid: (alert, world) => {
     const out = armRaidAlert(alert, world);
     const a = world.raid.active, home = armUnitsAtHome(world);
     if ((alert.phase || (a ? a.phase : 'attack')) === 'retreat' || !(home.archer > 0 || home.chariot > 0)) return out;
     const kinds = Object.keys(armUnitPlural).filter((k) => home[k] > 0);
-    const reach = kinds.map((k) => `${armUnitPlural[k]} within ${armUnits[k].patrol} tiles of their ${armBuildingWords[k]}`);
-    return { ...out, fix: `Towers hit raiders within ${raidsData.DEFENCE.towerRange} tiles; ${reach.join(', ')}` };
+    const reaches = kinds.map((k) => armUnits[k].patrol), lo = Math.min(...reaches), hi = Math.max(...reaches);
+    const who = kinds.length === 1 ? `your ${armUnitPlural[kinds[0]]}` : 'your units';
+    return { ...out, fix: `Towers hit raiders within ${raidsData.DEFENCE.towerRange} tiles; ${who} go out within ${lo === hi ? lo : `${lo} to ${hi}`} tiles` };
   },
 });
 // The money sheets' row for every unit's pay (soldiersPayOf: soldiers, archers and chariots at home, ruling 386).

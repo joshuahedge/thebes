@@ -4,7 +4,7 @@
 //                           stables the horses' grain), and on any unit building the units away at the capital
 //   onCommand(e)            the tip for a placed archery range or stables (one tip each, UX rule 5)
 //   onEvents(events)        the tip for the first raid warned with more than raiders on foot
-// The raid sheet's counters are in src/ui/dangerSheets.js (counterParts), the warning's mix in its title (text.js). Every sentence
+// The raid sheet's counters are in src/ui/dangerSheets.js (counterParts) and its mix in the arrival line there (arrivalText). Every sentence
 // is computed from the data (src/data/armies.js) and the sim (src/sim/armies.js).
 import { seamBase } from './seam.js';
 import { BUILDINGS } from '../../data/buildings.js';

@@ -16,7 +16,7 @@ import { UNITS, DEFENCE } from './raids.js';
 //   perBuilding units one building keeps (it trains another when one is wounded or leaves service)
 //   trainDays   days to train one at full staff (slower when short of workers, none below 25%)
 //   pay         gold a month for each unit at home, in peace too; units away at the capital are not paid
-//   grain       chariots only: grain each chariot's horses eat a month (armyMonth), from granaries then storehouses
+//   grain       chariots only: grain each chariot's horses eat a month (armyMonth), from the buildings that store grain (feedTypes: granaries)
 // The soldier's numbers are Stage 3's (UNITS.soldier, DEFENCE), read from there so the two never disagree.
 export const UNIT_TYPES = {
   soldier: { building: 'barracks', hp: UNITS.soldier.hp, speed: UNITS.soldier.speed, damage: UNITS.soldier.damage, range: 0, patrol: DEFENCE.patrol, perBuilding: DEFENCE.soldiersPerBarracks, trainDays: DEFENCE.trainDays, pay: DEFENCE.soldierPay },

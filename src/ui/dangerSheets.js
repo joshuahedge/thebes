@@ -223,17 +223,28 @@ export function summaryParts(ctx) {
   return [el('h3', { text: D.lastRaid }), el('p', { class: 'raid-report', text: D.raidReport(last) }), line(D.endedOn(dateText(dateParts({ day: last.day }))))];
 }
 
-// Stage 4.6 (Armies track, rulings 341, 388): a raid that brings more than raiders on foot lists, under its heading, each kind it
-// brings and what helps against it, read from the matchup table (S46_ARMY_TEXT.counters: src/sim/armies.js counterModel). The
-// warning's title names the mix. An all-foot raid's sheet is as before.
+// Stage 4.6 (Armies track, rulings 341, 388, 388a): a raid that brings more than raiders on foot names its kinds in the sheet's
+// arrival line, its first words under the cost (arrivalText), and lists, under its heading at the end, each kind it brings and what
+// helps against it, read from the matchup table (S46_ARMY_TEXT.counters: src/sim/armies.js counterModel). An all-foot raid's sheet
+// is as before.
+const isMixed = (w) => Boolean(w && w.mix && S46_ARMY_TEXT.isMixedMix(w.mix));
 export function counterParts(w) {
-  if (!w || !w.mix || !S46_ARMY_TEXT.isMixedMix(w.mix)) return [];
-  const from = `the ${[...new Set(warningDirs(w))].map((d) => DANGER_UI_TEXT.dir(d)).join(' and ')}`;
+  if (!isMixed(w)) return [];
   return [
-    el('p', { class: 'raid-mix', text: `${S46_ARMY_TEXT.mixLine(w.size, from, w.mix)}.` }),
     el('h3', { class: 'raid-counters-head', text: S46_ARMY_TEXT.countersHead }),
     el('ul', { class: 'raid-counters' }, S46_ARMY_TEXT.counters(w.mix).map((t) => el('li', { text: t }))),
   ];
+}
+// The sheet's arrival line for warning w, `left` days out. On a phone (and on the first raid's sheet) it carries the warning's
+// title, `title`, as the banner says it; on a wide screen, whose banner shows the title above, the arrival alone. A mixed raid's
+// kinds join it once: "14 raiders from the east are after your storehouses: 8 on foot, 3 archers, 3 chariots. They arrive in 2
+// months." on a phone, "14 raiders from the east: 8 on foot, 3 archers, 3 chariots. They arrive in 2 months." on a wide screen.
+export function arrivalText(w, title, left, withTitle) {
+  const D = DANGER_UI_TEXT;
+  if (!isMixed(w)) return withTitle ? D.withArrival(title, left) : D.arrivalLine(left);
+  if (withTitle) return D.withArrival(`${title}: ${S46_ARMY_TEXT.mixText(w.mix)}`, left);
+  const from = `the ${[...new Set(warningDirs(w))].map((d) => D.dir(d)).join(' and ')}`;
+  return D.withArrival(S46_ARMY_TEXT.mixLine(w.size, from, w.mix), left);
 }
 
 // The tribute confirmation sheet (spec 4.13): the cost, when the raiders arrive, the gold afterwards, what it cancels and
@@ -251,7 +262,7 @@ export function tributeSheet(ctx) {
     const left = Math.max(0, w.arrives - world.day);
     const phone = Boolean(ctx.store) && ctx.store.get().layout !== 'wide';
     const title = alertText({ code: 'raid_warning', dir: w.dir, dirs: q.dirs }, world).title;
-    const arrives = el('p', { class: 'arrives', text: phone || q.hidden ? D.withArrival(title, left) : D.arrivalLine(left) });   // as the banner says it
+    const arrives = el('p', { class: isMixed(w) ? 'arrives raid-mix' : 'arrives', text: arrivalText(w, title, left, phone || q.hidden) });   // as the banner says it
     if (q.hidden) { setTitle(D.raidSheetTitle); body.append(arrives, el('p', { text: D.capital(D.defenceLine(q, q.dirs)) }), ...counterParts(w)); return; }
     body.append(
       el('p', { class: 'tribute-cost', text: D.tributeCost(q.cost) }),

@@ -20,7 +20,9 @@ const kindOf = (u) => u.kind || 'soldier';
 // The hit points a unit of this kind has when trained or back from the capital (ruling 381).
 export const unitHp = (kind) => (UNIT_TYPES[kind] || UNIT_TYPES.soldier).hp;
 
-// The units at home now, by kind: { soldier, archer, chariot } (every UNIT_KINDS key, 0 when none). Wounded units have left the list.
+// The units at home now, by kind: { soldier, archer, chariot } (every UNIT_KINDS key, 0 when none): every unit in service that is
+// not away at the capital, waiting at its building or walking back to it after a raid (sendUnits takes the same units, ruling 384a).
+// Wounded units have left the list.
 export function unitsAtHome(world) {
   const out = Object.fromEntries(UNIT_KINDS.map((k) => [k, 0]));
   for (const u of world.soldiers) out[kindOf(u)] = (out[kindOf(u)] || 0) + 1;
@@ -39,13 +41,14 @@ export function unitsAway(world) {
 }
 
 // Sends n units to the capital for `days` days (the Court track's soldiers request; REQUESTS.soldiersMonths in src/data/court.js):
-// units waiting at home leave, soldiers first, then archers, then chariots, the newest of a kind first. Returns { ok, reason, sent }
+// units at home leave (unitsAtHome's: waiting at their building or walking back to it after a raid, ruling 384a), soldiers first,
+// then archers, then chariots, the newest of a kind first. Returns { ok, reason, sent }
 // (sent: kind -> n); fails with 'not_enough' (fewer than n waiting at home: nothing is sent) or 'raid' (a raid is under way). A unit
 // away is not paid and does not fight (tally.unitsSent counts it); on its return day it is back at the building that trained it
 // (armyDay), or leaves service if that building is gone.
 export function sendUnits(world, n, days, events = null) {
   if (world.raid.active) return { ok: false, reason: 'raid', sent: {} };
-  const home = world.soldiers.filter((u) => u.task === 'wait');
+  const home = world.soldiers.filter((u) => u.task !== 'out');      // no raid is under way, so none is out: every unit at home
   if (!Number.isInteger(n) || n < 1 || home.length < n) return { ok: false, reason: 'not_enough', sent: {} };
   const order = [...home].sort((a, b) => UNIT_KINDS.indexOf(kindOf(a)) - UNIT_KINDS.indexOf(kindOf(b)) || b.id - a.id);
   const ids = new Set(order.slice(0, n).map((u) => u.id));
@@ -85,21 +88,28 @@ export function armyDay(world, events = null, hpOf = unitHp) {
 export const chariotsAtHome = (world) => world.soldiers.filter((u) => kindOf(u) === 'chariot').length;
 export const horseGrainOf = (world) => chariotsAtHome(world) * UNIT_TYPES.chariot.grain;
 
-// The grain the city holds where horses can be fed: every granary's and storehouse's grain.
-const feedStores = (world) => allBuildings(world).filter((b) => (b.type === 'granary' || b.type === 'storehouse') && b.store && b.store.grain > 0)
-  .sort((a, b) => (a.type === b.type ? a.id - b.id : a.type === 'granary' ? -1 : 1));
-export const grainHeld = (world) => feedStores(world).reduce((s, b) => s + b.store.grain, 0);
+// The building types horses are fed from: those whose stores hold grain (BUILDINGS[type].stores), in BUILDINGS order (ruling 385a:
+// the granary; a storehouse holds no food). The words name them from this list.
+export const FEED_GOOD = 'grain';
+export const feedTypes = () => Object.keys(BUILDINGS).filter((t) => (BUILDINGS[t].stores || []).includes(FEED_GOOD));
+// The grain the city holds where horses can be fed.
+const feedStores = (world) => {
+  const types = feedTypes();
+  return allBuildings(world).filter((b) => types.includes(b.type) && b.store && b.store[FEED_GOOD] > 0)
+    .sort((a, b) => types.indexOf(a.type) - types.indexOf(b.type) || a.id - b.id);
+};
+export const grainHeld = (world) => feedStores(world).reduce((s, b) => s + b.store[FEED_GOOD], 0);
 
-// At the month's end the horses eat horseGrainOf(world) grain, from the granaries first (lowest id first), then the storehouses. If the
-// stores hold less, they eat what there is and world.army.fed turns false: until a month's end feeds them in full, chariots deal
+// At the month's end the horses eat horseGrainOf(world) grain from the feed stores (feedTypes order, lowest id first). If they hold
+// less, the horses eat what there is and world.army.fed turns false: until a month's end feeds them in full, chariots deal
 // ARMY.hungry of their damage (combat.js). Returns { need, ate }.
 export function feedHorses(world) {
   const need = horseGrainOf(world);
   let left = need;
   for (const b of feedStores(world)) {
     if (left <= 0) break;
-    const take = Math.min(left, b.store.grain);
-    b.store.grain -= take;
+    const take = Math.min(left, b.store[FEED_GOOD]);
+    b.store[FEED_GOOD] -= take;
     left -= take;
   }
   world.army.fed = left <= 0;

@@ -13,7 +13,7 @@ import { FIRSTS } from '../../../src/data/firsts.js';
 import { TIPS } from '../../../src/data/tips.js';
 import { UNITS, DEFENCE } from '../../../src/data/raids.js';
 import { UNIT_TYPES, UNIT_KINDS, ENEMY_TYPES, ARMY_BUILDINGS, ARMY_UNLOCKS, MATCHUPS, newArmyState, isArmyState } from '../../../src/data/armies.js';
-import { unitsAtHome, unitsAway, sendUnits, armyDay, unitHp, feedHorses, armyMonth, armyAlerts, horseGrainOf } from '../../../src/sim/armies.js';
+import { unitsAtHome, unitsAway, sendUnits, armyDay, unitHp, feedHorses, armyMonth, armyAlerts, horseGrainOf, feedTypes, grainHeld } from '../../../src/sim/armies.js';
 import { soldiersPayOf } from '../../../src/sim/costs.js';
 import { monthFigures } from '../../../src/sim/economy.js';
 import { makeTestWorld, addRaw } from '../../helpers/testWorld.js';
@@ -90,6 +90,19 @@ describe('s46 armies the soldiers request interface (Court codes against it)', (
     armyDay(w);
     expect([w.soldiers.length, w.army.away.length]).toEqual([0, 0]);
   });
+  it('sends the units unitsAtHome counts: one walking back after a raid goes, none while a raid is under way', () => {
+    const w = makeTestWorld({ size: 32 });
+    const bar = addRaw(w, 'barracks', 2, 2);
+    unitAt(w, 'soldier', bar, { task: 'back', x: 9, y: 9 });
+    unitAt(w, 'soldier', bar);
+    expect(unitsAtHome(w).soldier).toBe(2);
+    w.raid.active = { phase: 'attack', dir: 'east', raiders: [] };                   // the other way: a raid under way keeps them
+    expect(sendUnits(w, 2, 30)).toEqual({ ok: false, reason: 'raid', sent: {} });
+    w.raid.active = null;
+    expect(sendUnits(w, 2, 30)).toEqual({ ok: true, reason: null, sent: { soldier: 2 } });
+    expect([unitsAtHome(w).soldier, w.soldiers.length]).toEqual([0, 0]);
+    expect(sendUnits(w, 1, 30)).toEqual({ ok: false, reason: 'not_enough', sent: {} });
+  });
 });
 
 describe('s46 armies horses', () => {
@@ -97,16 +110,20 @@ describe('s46 armies horses', () => {
     const w = makeTestWorld({ size: 32 });
     const stab = addRaw(w, 'stables', 10, 2);
     const gran = addRaw(w, 'granary', 2, 10), store = addRaw(w, 'storehouse', 6, 10);
-    gran.store = { grain: 4 }; store.store = { grain: 10 };
+    const gran2 = addRaw(w, 'granary', 14, 10);
+    gran.store = { grain: 4 }; gran2.store = { grain: 10 }; store.store = { grain: 50 };   // a storehouse holds no food: never eaten from
+    expect(feedTypes()).toEqual(Object.keys(BUILDINGS).filter((t) => (BUILDINGS[t].stores || []).includes('grain')));
+    expect([feedTypes().includes('granary'), feedTypes().includes('storehouse')]).toEqual([true, false]);
     unitAt(w, 'chariot', stab); unitAt(w, 'chariot', stab);
     expect(horseGrainOf(w)).toBe(2 * UNIT_TYPES.chariot.grain);
+    expect(grainHeld(w)).toBe(14);
     expect(feedHorses(w)).toEqual({ need: 6, ate: 6 });
-    expect([gran.store.grain, store.store.grain, w.army.fed]).toEqual([0, 8, true]);
+    expect([gran.store.grain, gran2.store.grain, store.store.grain, w.army.fed]).toEqual([0, 8, 50, true]);
     expect(armyAlerts(w)).toEqual([]);
-    store.store.grain = 1;
+    gran2.store.grain = 1;
     const events = [];
     armyMonth(w, events);
-    expect([store.store.grain, w.army.fed, events]).toEqual([0, false, [{ type: 'horses_hungry', need: 6, ate: 1 }]]);
+    expect([gran2.store.grain, store.store.grain, w.army.fed, events]).toEqual([0, 50, false, [{ type: 'horses_hungry', need: 6, ate: 1 }]]);
     expect(armyAlerts(w)).toEqual([{ code: 'horses_hungry', id: stab.id, need: 6 }]);
     gran.store.grain = 50;
     armyMonth(w);
