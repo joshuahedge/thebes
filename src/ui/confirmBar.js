@@ -118,8 +118,8 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // in force carries a tick and aria-checked, so it is never colour alone) and one line says what the style in force costs and does, from the sim.
     const choices = s.tool.kind === 'building' && typeof placement.styleChoices === 'function' ? placement.styleChoices() : null;
     const styleRow = choices ? el('div', { class: 'style-row' }, [
-      el('div', { class: 'style-choices', role: 'radiogroup', 'aria-label': S46_WONDER_TEXT.styleGroup }, choices.map((c) => button(c.active ? `✓ ${c.name}` : c.name, {
-        class: `style-pick${c.active ? ' on' : ''}`, role: 'radio', 'aria-checked': String(c.active), 'aria-label': S46_WONDER_TEXT.styleLabel(c.name, c.line), dataset: { style: c.id }, onClick: () => placement.setStyle(c.id),
+      el('div', { class: 'style-choices', role: 'group', 'aria-label': S46_WONDER_TEXT.styleGroup }, choices.map((c) => button(c.active ? `✓ ${c.name}` : c.name, {
+        class: `style-pick${c.active ? ' on' : ''}`, 'aria-pressed': String(c.active), 'aria-label': S46_WONDER_TEXT.styleLabel(c.name, c.line), dataset: { style: c.id }, onClick: () => placement.setStyle(c.id),
       }))),
       el('div', { class: 'style-line small', text: (choices.find((c) => c.active) || choices[0]).line }),
     ]) : null;
