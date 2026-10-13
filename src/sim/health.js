@@ -10,8 +10,8 @@
 //   { type: 'illness', id, covered, cause }          a home fell ill (cause 'risk' or 'spread'); covered: a staffed physician
 //                                                     reaches it
 //   { type: 'illness_end', id }                      it recovered
-// Alerts (healthAlerts), in ascending id: { code: 'illness', id } warning (never critical), an ill home no staffed physician
-// reaches.
+// Alerts (healthAlerts), ascending first id: { code: 'illness', id, ids, count } warning (never critical), one per district (a
+// square of CRIME.districtTiles tiles, as crime's): the ill homes in it that no staffed physician reaches; id is the first.
 //
 // The day (healthDay), in this order: (1) every home ill when the day began takes its day, in ascending id, with the
 // coverage as the day began: it loses a resident (until it has lost its cap), a covered home (a staffed physician reaches it)
@@ -21,6 +21,7 @@
 // fall) < illnessChance once at the threshold; the length is hash2(id, day, seed + length), 20-40 days). A home with nobody in
 // it never builds risk.
 import { HEALTH, HEALTH_SALT, HEALTH_BANDS, HEALTH_MOOD } from '../data/health.js';
+import { CRIME } from '../data/crime.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { housesOf, allBuildings } from './world.js';
 import { atLeast } from './progression.js';
@@ -158,11 +159,18 @@ export function healthDay(world, events = null) {
   }
 }
 
-// Disease's alerts, in ascending id: { code: 'illness', id }, an ill home no staffed physician reaches.
+// Disease's alerts (see the header), ascending first id: one per district of ill homes no staffed physician reaches. The coverage
+// is read once for the whole list.
 export function healthAlerts(world) {
-  const out = [];
-  for (const b of illHomes(world)) if (!healthCovered(world, b)) out.push({ code: 'illness', id: b.id });
-  return out;
+  const groups = new Map();
+  let cover = null;
+  for (const b of illHomes(world)) {
+    if (((cover || (cover = healthCoverage(world))).get(b.id) || 0) >= HEALTH.staffedAt) continue;
+    const key = `${Math.floor(b.x / CRIME.districtTiles)},${Math.floor(b.y / CRIME.districtTiles)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(b.id);
+  }
+  return [...groups.values()].map((ids) => ({ code: 'illness', id: ids[0], ids, count: ids.length })).sort((p, q) => p.id - q.id);
 }
 
 // The mood row (ruling 318): { illness } while any home is ill, each ill home HEALTH_MOOD.each, at most HEALTH_MOOD.max; no key

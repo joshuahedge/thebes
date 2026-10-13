@@ -316,7 +316,7 @@ describe('s45 health alerts, mood and words', () => {
     const { w, ids } = town({ homes: [[6, 14]] });
     w.day = 3;
     fallIll(w, ids[0]);
-    expect(healthAlerts(w)).toEqual([{ code: 'illness', id: ids[0] }]);
+    expect(healthAlerts(w)).toEqual([{ code: 'illness', id: ids[0], ids: [ids[0]], count: 1 }]);
     expect(CRITICAL.has('illness')).toBe(false);
     const t = triage(w, computeAlerts(w));
     expect(t.ordinary.some((a) => a.code === 'illness')).toBe(true);
@@ -324,7 +324,35 @@ describe('s45 health alerts, mood and words', () => {
     const doc = physician(w, 7, 14);
     expect(healthAlerts(w)).toEqual([]);
     doc.staff = 0;                                                                       // no workers: not covered, so alerting again
-    expect(healthAlerts(w)).toEqual([{ code: 'illness', id: ids[0] }]);
+    expect(healthAlerts(w)).toEqual([{ code: 'illness', id: ids[0], ids: [ids[0]], count: 1 }]);
+  });
+  it('raises one warning per district of ill homes no staffed physician reaches, never one per home, and never critical', () => {
+    const { w, ids } = town({ homes: [[2, 14], [3, 14], [4, 14], [26, 14], [27, 14]] });
+    w.day = 3;
+    for (const id of ids) fallIll(w, id);
+    const [a, b, c, d, e] = ids;
+    expect(healthAlerts(w)).toEqual([{ code: 'illness', id: a, ids: [a, b, c], count: 3 }, { code: 'illness', id: d, ids: [d, e], count: 2 }]);
+    const t = triage(w, computeAlerts(w));
+    expect(t.ordinary.filter((x) => x.code === 'illness').length).toBe(2);
+    expect(t.critical.some((x) => x.code === 'illness')).toBe(false);
+    physician(w, 5, 14);                                                                 // reaches the west district only
+    expect(healthAlerts(w).map((x) => [x.id, x.count])).toEqual([[d, 2]]);
+    w.buildings[d].illness = null;                                                       // one of the east pair recovers
+    expect(healthAlerts(w)).toEqual([{ code: 'illness', id: e, ids: [e], count: 1 }]);
+    w.buildings[e].illness = null;
+    expect(healthAlerts(w)).toEqual([]);
+  });
+  it('words a district alert by its count, and one home by its tier', () => {
+    const { w, ids } = town({ homes: [[2, 14], [3, 14], [4, 14]] });
+    w.day = 3;
+    for (const id of ids) fallIll(w, id);
+    const [alert] = healthAlerts(w);
+    expect(alertText(alert, w).title).toBe(`Sickness in ${alert.count} homes`);
+    expect(alert.count).toBe(ids.length);
+    expect(alertText(alert, w).fix).toBe(HEALTH_TEXT.cause[healthCause(w, w.buildings[alert.id]).cause]);
+    w.buildings[ids[1]].illness = null; w.buildings[ids[2]].illness = null;
+    const [one] = healthAlerts(w);
+    expect(alertText(one, w).title).toBe(HEALTH_TEXT.sick('Cottage'));
   });
   it('words the alert from the sim\'s reason: build one, short of workers, paused, no road', () => {
     const { w, ids } = town({ homes: [[6, 14]] });

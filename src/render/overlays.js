@@ -17,8 +17,10 @@ import { ART, slotFor } from './art/registry.js';
 import { GUIDE_PULSE_MS, DESIRABILITY_STEPS, VIEW_OUTLINE } from '../data/ui.js';
 import { DEFENCE } from '../data/raids.js';
 import { canBurn, fireRiskOf, fireBand, staffedCover } from '../sim/fire.js';
-import { healthBandOf, healthCovered, canFallIll } from '../sim/health.js';
-import { crimeBand, crimeRiskOf, crimeCovered, canCommitCrime } from '../sim/crime.js';
+import { healthBandOf, healthCoverage, canFallIll } from '../sim/health.js';
+import { HEALTH } from '../data/health.js';
+import { CRIME } from '../data/crime.js';
+import { crimeBand, crimeRiskOf, crimeCoverage, canCommitCrime } from '../sim/crime.js';
 import { MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
 import { drawMonument } from './monuments.js';
 
@@ -392,18 +394,19 @@ function drawFireRisk(g, world, range) {
 
 // The Health and Crime overlays (Stage 4.5, rulings 318, 319): every home with people in it, tinted by its band in the overlay's hue
 // light to dark (FIRE_ALPHA's steps, as fire risk), with light diagonal hatching on High and dense cross-hatching on the top band
-// (an ill home, or one that can cause a theft), and a filled dot where a staffed physician or police post reaches it (healthCovered,
-// crimeCovered: the sheet's and the alerts' test) or a hollow ring where none does. Empty plots and every other building get
+// (an ill home, or one that can cause a theft), and a filled dot where a staffed physician or police post reaches it (coverage of HEALTH.staffedAt or CRIME.staffedAt, the
+// coverage map read once: the sheet's and the alerts' test) or a hollow ring where none does. Empty plots and every other building get
 // nothing. homeRiskMarks is the list the draw and the tests share.
 export function homeRiskMarks(world, kind, range = null) {
   const out = [];
+  const cover = kind === 'health' ? healthCoverage(world) : crimeCoverage(world), staffedAt = kind === 'health' ? HEALTH.staffedAt : CRIME.staffedAt;   // read once, not per home
   for (const b of housesOf(world)) {
     if (kind === 'health' ? !canFallIll(b) : !canCommitCrime(b)) continue;
     const x = b.x + b.w / 2, y = b.y + b.d / 2;
     if (range && (x < range.x0 || x > range.x1 + 1 || y < range.y0 || y > range.y1 + 1)) continue;
     out.push(kind === 'health'
-      ? { id: b.id, x, y, b, band: healthBandOf(world, b), has: healthCovered(world, b) }
-      : { id: b.id, x, y, b, band: crimeBand(crimeRiskOf(world, b)), has: crimeCovered(world, b) });
+      ? { id: b.id, x, y, b, band: healthBandOf(world, b), has: (cover.get(b.id) || 0) >= staffedAt }
+      : { id: b.id, x, y, b, band: crimeBand(crimeRiskOf(world, b)), has: (cover.get(b.id) || 0) >= staffedAt });
   }
   return out;
 }
