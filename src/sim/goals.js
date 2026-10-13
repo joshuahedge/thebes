@@ -55,6 +55,7 @@ export function goalMet(world, need) {
     case 'finished': return finishedOf(world, need.type) >= (need.n || 1);
     case 'unlocked': return Number.isInteger(world.prestigeUnlocks[need.type]);
     case 'crewNear': return crewNear(world);
+    case 'courtAnswered': return world.court.guided === 'answered';   // Stage 4.6: the court's first (guided) letter has been answered: sent, refused or missed
     default: return false;
   }
 }

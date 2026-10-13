@@ -1788,7 +1788,171 @@ export const S46_RIVER_TEXT = {};
 // The Court track's words, and only the Court track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
 // FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
 // states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
-export const S46_COURT_TEXT = {};
+import { FAVOUR as courtFavour, REQUESTS as courtRequests, COURT as courtRules, GOOD_VALUE as courtGoodValue } from '../data/court.js';
+import { DAYS_PER_MONTH as courtMonthDays, MONTHS_PER_YEAR as courtYearMonths } from '../sim/time.js';
+
+// Numbers and dates in the letters. Months are game months (30 days); a deadline is a game date, never a clock.
+const courtSigned = (n) => (n < 0 ? `−${-n}` : `+${n}`);
+const courtMonths = (n) => plural(n, 'month', 'months');
+const courtDate = (day) => { const m = Math.floor(day / courtMonthDays); return `Year ${Math.floor(m / courtYearMonths) + 1}, month ${(m % courtYearMonths) + 1}`; };
+const courtPct = (factor) => Math.round(Math.abs(1 - factor) * 100);
+const courtDays = (days) => courtMonths(Math.round(days / courtMonthDays));
+
+// What a request asks, in a phrase: "120 pottery", "400 gold", "3 trained units".
+const courtAsk = (r) => (r.kind === 'gold' ? `${r.amount} gold` : r.kind === 'soldiers' ? `${r.amount} trained ${r.amount === 1 ? 'unit' : 'units'}` : `${r.amount} ${goodWord(r.good)}`);
+const courtVerb = (r) => (r.kind === 'soldiers' ? 'Lend' : 'Send');
+
+// One effect of a card's choice as a sentence (src/sim/court.js cardChoices writes the list; this words it, and applyEffects carries it
+// out). `world` names the buildings a pause closes.
+export function courtEffect(e, world) {
+  switch (e.kind) {
+    case 'favour': return `Favour ${courtSigned(e.n)}`;
+    case 'gold': return e.n < 0 ? `${-e.n} gold leave the treasury` : `${e.n} gold join the treasury`;
+    case 'goods': return e.n < 0 ? `${-e.n} ${goodWord(e.good)} leave the stores` : `${e.n} ${goodWord(e.good)} arrive in the stores`;
+    case 'mood': return `Mood +${e.n} for ${courtDays(e.days)}, and the temple holds no festival for ${courtDays(e.every)}`;
+    case 'pause': {
+      if (e.ids.length === 1 && world.buildings[e.ids[0]]) return `The ${buildingName(world.buildings[e.ids[0]].type).toLowerCase()} stops work for ${courtDays(e.days)}`;
+      return `${plural(e.ids.length, 'workplace', 'workplaces')} in the district close for ${courtDays(e.days)}: their workers stay home`;
+    }
+    case 'faster': return `The ${plural(e.ids.length, 'sick home', 'sick homes')} recover ${e.factor === 2 ? 'twice' : `${e.factor} times`} as fast`;
+    case 'cure': return `The ${plural(e.ids.length, 'sick home', 'sick homes')} recover at once`;
+    case 'people': return `${plural(e.n, 'person settles', 'people settle')} in homes with room`;
+    case 'wages': return `Wages rise: ${e.perMonth} gold a month for ${courtMonths(e.months)} (${e.perMonth * e.months} in all)`;
+    case 'herd': return e.how === 'arrive' ? 'A herd settles near the edge of the map' : "The nearest herd is sent to the capital's hunting grounds";
+    case 'forecast': return "The priests tell you this year's flood level";
+    default: return '';
+  }
+}
+// A choice's whole consequence, before the tap: its effects in order, or "Nothing changes".
+export const courtConsequence = (effects, world) => (effects.length ? `${effects.map((e) => courtEffect(e, world)).join('. ')}.` : 'Nothing changes.');
+
+// Why a choice is off, in one line from the sim's own reasons (effectProblem, requestStatus): `e` is the effect that cannot happen, or
+// for a request the status ({ have, need }).
+export function courtProblem(problem, e, world, stock = 0) {
+  const need = e ? (e.need !== undefined ? e.need : Math.abs(e.n || 0)) : 0;
+  switch (problem) {
+    case 'no_gold': return e ? `Needs ${need} gold, and the treasury holds ${Math.max(0, world.gold)}` : 'Not enough gold';
+    case 'short': return e && e.good ? `Needs ${need} ${goodWord(e.good)}, and the stores hold ${stock}` : 'The stores do not hold enough';
+    case 'no_room': return e && e.kind === 'people' ? 'No home has room for them' : 'There is no room in the stores';
+    case 'too_soon': return 'A festival was held less than a year ago';
+    case 'none': return 'Nothing is left in the district to close';
+    case 'unavailable': return 'This cannot happen right now';
+    case 'raid': return 'Units cannot leave while a raid is under way';
+    case 'not_enough': return `${plural(e.have, 'trained unit is', 'trained units are')} at home, and this needs ${e.need}`;
+    default: return '';
+  }
+}
+
+// The eight cards' words: title, a body from what the card drew (its args) and a view (what the interface read off the city: sick homes,
+// the workshop's name), and each choice's button.
+const COURT_CARD_WORDS = {
+  sickness: { title: 'Sickness in a district', body: (a, v) => `${plural(v.sick, 'home is', 'homes are')} ill in one district. Sickness spreads between touching homes.`, choices: { quarantine: 'Quarantine the district', physicians: 'Pay the physicians' } },
+  festival: { title: 'A festival for the capital', body: () => "The capital's priests ask Thebes to hold a festival.", choices: { hold: 'Hold the festival', decline: 'Decline' } },
+  caravan: { title: 'A merchant caravan', body: (a) => `Traders offer ${a.units} ${goodWord(a.good)} at ${a.price} gold each. The usual price is ${courtGoodValue[a.good] || 3}.`, choices: { buy: 'Buy the goods', pass: 'Pass' } },
+  deserters: { title: 'Deserters at the gate', body: (a) => `${a.n} soldiers who left the capital's army ask to settle in Thebes.`, choices: { settle: 'Let them settle', drive_off: 'Drive them off' } },
+  temple_gift: { title: 'An offering for the temple', body: (a) => `The priests ask for ${a.n} ${goodWord(a.good)} for the temple's feast.`, choices: { donate: 'Donate the goods', keep: 'Keep them' } },
+  lost_herd: { title: 'A lost herd', body: () => 'A herd of wild animals has wandered close to your land.', choices: { welcome: 'Welcome the herd', send_away: 'Send a herd to the capital' } },
+  craftsmen_dispute: { title: "Craftsmen's dispute", body: (a, v) => `The craftsmen at the ${v.shop} want better pay.`, choices: { raise_wages: 'Raise their wages', let_it_stand: 'Let the dispute run' } },
+  flood_omen: { title: 'An omen on the river', body: () => "The priests have read the river's omens and can tell you how high this year's flood will be.", choices: { pay_priests: 'Pay the priests', pass: 'Pass' } },
+};
+
+export const S46_COURT_TEXT = {
+  letterHead: 'A letter from the court', courtHead: 'The court', favour: 'Favour', favourOf: (n) => `${n} of ${courtFavour.max}`,
+  // The favour's mark: an icon beside the number, and always the words (never colour alone).
+  favourMark: { high: '▲', steady: '◆', low: '▼' },
+  band: { high: 'The court is pleased', steady: 'The court is content', low: 'The court is displeased' },
+  bandNow: {
+    high: `Gifts come every ${courtFavour.giftEveryMonths} months and tribute costs ${courtPct(courtFavour.tributeHigh)}% less`,
+    steady: `Favour moves ${courtFavour.drift} a month toward ${courtFavour.start}`,
+    low: `Raids come one size step bigger and tribute costs ${courtPct(courtFavour.tributeLow)}% more`,
+  },
+  ruleHigh: `At ${courtFavour.high} or more: a gift every ${courtFavour.giftEveryMonths} months, and tribute costs ${courtPct(courtFavour.tributeHigh)}% less`,
+  ruleLow: `At ${courtFavour.low} or less: raids one size step bigger (a quarter more, at least 1 raider), and tribute costs ${courtPct(courtFavour.tributeLow)}% more`,
+  nextGift: (months) => `Next gift in ${courtMonths(months)}`,
+  // Letters.
+  ask: courtAsk, requestTitle: (r) => `${courtVerb(r)} ${courtAsk(r)}`, sendLabel: (r) => `${courtVerb(r)} ${courtAsk(r)}`,
+  refuseLabel: (r) => `Refuse (favour −${r.missed})`, later: 'Decide later',
+  asked: 'Asked', deadline: 'Deadline', reward: 'Reward', ifRefused: 'If refused or missed', have: 'You have',
+  deadlineText: (r, left) => `${courtDate(r.due)} (${courtMonths(left)} left)`,
+  rewardText: (r) => (r.gold > 0 ? `Favour +${r.met} and ${r.gold} gold` : `Favour +${r.met}`),
+  refusedText: (r) => `Favour −${r.missed}`,
+  haveText: (r, st) => (r.kind === 'gold' ? `${st.have} gold in the treasury` : r.kind === 'soldiers' ? `${plural(st.have, 'trained unit', 'trained units')} at home` : `${st.have} ${goodWord(r.good)} in the stores`),
+  soldiersNote: `They are away for ${courtRequests.soldiersMonths} months, unpaid, and do not fight.`,
+  guidedNote: 'The first letter from the court is a small request, and an easy one to answer.',
+  sendConsequence: (r, world) => {
+    const out = r.kind === 'gold' ? [{ kind: 'gold', n: -r.amount }] : r.kind === 'soldiers' ? [] : [{ kind: 'goods', good: r.good, n: -r.amount }];
+    const lines = out.map((e) => courtEffect(e, world));
+    if (r.kind === 'soldiers') lines.push(`${courtAsk(r)} leave for ${courtMonths(courtRequests.soldiersMonths)}`);
+    lines.push(`Favour +${r.met}`);
+    if (r.gold > 0) lines.push(`${r.gold} gold join the treasury`);
+    return `${lines.join('. ')}.`;
+  },
+  refuseConsequence: (r) => `Favour −${r.missed}. The request is closed.`,
+  problem: courtProblem, effect: courtEffect, consequence: courtConsequence,
+  // Cards.
+  cardTitle: (card) => COURT_CARD_WORDS[card].title,
+  cardBody: (letter, view) => COURT_CARD_WORDS[letter.card].body(letter.args || {}, view || {}),
+  choiceLabel: (card, choice) => COURT_CARD_WORDS[card].choices[choice],
+  noLetters: 'No letters wait for you.', waiting: 'Waiting for you', pastLetters: 'Past letters', noPast: 'No past letters yet.',
+  openRequest: 'Open request', noRequest: 'No request is open.',
+  awayHead: 'Away at the capital', awayLine: (a) => `${plural(a.n, 'trained unit', 'trained units')} back in ${courtDate(a.back)}`,
+  cadence: `The court writes a request about every ${courtRequests.gapMonths[0]} to ${courtRequests.gapMonths[1]} months.`,
+  closed: () => {
+    const m = MILESTONES.find((x) => x.id === courtRules.from), c = MILESTONES.find((x) => x.id === courtRules.fallback);
+    return `The court writes once a city is a ${m.name} and has opened a trade route (at the latest, a ${c.name}).`;
+  },
+  openCourt: 'Open the court', readLetter: 'Read the letter',
+  // The log of past letters, newest first on the court sheet.
+  logLine: (e) => {
+    if (e.kind === 'gift') return e.good ? `A gift from the court: ${e.n} ${goodWord(e.good)}` : `A gift from the court: ${e.gold} gold`;
+    if (e.kind === 'card') return `${COURT_CARD_WORDS[e.card].title}: ${COURT_CARD_WORDS[e.card].choices[e.choice].toLowerCase()}`;
+    const ask = courtAsk(e.request);
+    if (e.result === 'met') return `Sent ${ask}: favour ${courtSigned(e.favour)}${e.gold > 0 ? `, ${e.gold} gold` : ''}`;
+    return `${e.result === 'refused' ? 'Refused' : 'Missed'} ${ask}: favour ${courtSigned(e.favour)}`;
+  },
+  logDate: (day) => courtDate(day),
+  // Captions (the info tier) for what the court did.
+  captionMet: (e) => `Sent ${courtAsk(e.request)} to the court: favour ${courtSigned(e.favour)}`,
+  captionRefused: (e) => `Refused the court's request: favour ${courtSigned(e.favour)}`,
+  captionMissed: (e) => `The court's request for ${courtAsk(e.request)} passed its deadline: favour ${courtSigned(e.favour)}`,
+  captionGift: (e) => (e.good ? `A gift from the court: ${e.n} ${goodWord(e.good)}` : `A gift from the court: ${e.gold} gold`),
+  captionCard: (e) => `${COURT_CARD_WORDS[e.card].title}: ${COURT_CARD_WORDS[e.card].choices[e.choice].toLowerCase()}`,
+  captionGone: (e) => `The court's letter about ${COURT_CARD_WORDS[e.card].title.toLowerCase()} is no longer needed`,
+  // The alert row's words are short on purpose: a phone's row shows two lines at most, and at 150% text about 35 characters, so the ask and
+  // its deadline in game months must come first. The sheet it opens is headed "A letter from the court".
+  alertDue: (r, left) => `Court: due in ${courtMonths(left)}, ${courtAsk(r)}`,
+  alertRequest: (r, left) => `Court: ${courtAsk(r)} in ${courtMonths(left)}`,
+  alertCard: (card) => `Court: ${COURT_CARD_WORDS[card].title.toLowerCase()}`,
+  alertMore: (n) => ` (+${n - 1} more)`,
+};
+
+Object.assign(T, { letter: S46_COURT_TEXT.letterHead, court: S46_COURT_TEXT.courtHead });
+
+// The alert row's words: the title carries the deadline in game months (ruling 337), the fix says what to do. The letter is found by id.
+ALERT_TEXT.court_letter = (alert, world) => {
+  const C = S46_COURT_TEXT;
+  const letter = world.court.letters.find((l) => l.id === alert.letter);
+  if (!letter) return { title: C.letterHead, fix: '' };
+  const more = alert.count > 1 ? C.alertMore(alert.count) : '';
+  if (letter.kind === 'request' && world.court.request) {
+    const r = world.court.request;
+    const left = Math.max(0, Math.ceil((r.due - world.day) / courtMonthDays));
+    return alert.due
+      ? { title: C.alertDue(r, left), fix: 'Send it or refuse it: the summary opens the court' }
+      : { title: C.alertRequest(r, left) + more, fix: 'Open it to send what it asks, refuse it or decide later' };
+  }
+  return { title: C.alertCard(letter.card) + more, fix: 'Open it to choose: each choice says what it does' };
+};
+
+Object.assign(FIRST_TEXT, {
+  first_letter: { head: 'First letter from the court', why: `Sending what it asks earns favour; at ${courtFavour.high} favour, tribute costs less.` },
+});
+Object.assign(ACHIEVEMENT_NAMES, { friend_of_the_court: 'Friend of the court' });
+ACHIEVEMENT_TEXT.friend_of_the_court = 'Send the court what it asks 5 times';
+Object.assign(TIP_TEXT, {
+  court_letters: 'A letter from the court asks for goods or gold: sending it earns favour, refusing or missing it costs favour.',
+});
+TIP_HELP_TEXT.court_letters = `The court writes from ${MILESTONES.find((x) => x.id === courtRules.from).name}: send what it asks for favour. At ${courtFavour.high}, gifts and cheaper tribute.`;
 // ── end s46 court ──
 
 //

@@ -37,8 +37,9 @@ function withRow(type, row, fn) {
 }
 
 describe('s46 contract hooks', () => {
-  it('joins the tracks\' rows into the shared lists, empty until the tracks add theirs', () => {
-    expect([S46_GOODS, S46_BUILDINGS, S46_UNLOCKS, S46_DOCK, S46_FIRSTS, S46_ACHIEVEMENTS, S46_TIPS]).toEqual([{}, {}, {}, {}, [], [], []]);
+  it('joins the tracks\' rows into the shared lists', () => {
+    expect([S46_GOODS, S46_BUILDINGS, S46_UNLOCKS, S46_DOCK].every((o) => o !== null && typeof o === 'object' && !Array.isArray(o))).toBe(true);   // each track fills its own rows (src/data/s46.js joins them)
+    expect([S46_FIRSTS, S46_ACHIEVEMENTS, S46_TIPS].every(Array.isArray)).toBe(true);
     for (const t of Object.keys(S46_BUILDINGS)) expect(BUILDINGS[t]).toBe(S46_BUILDINGS[t]);
     for (const [m, types] of Object.entries(S46_UNLOCKS)) for (const t of types) expect(MILESTONES.find((x) => x.id === m).unlocks).toContain(t);
     for (const f of S46_FIRSTS) expect(FIRSTS).toContain(f);
