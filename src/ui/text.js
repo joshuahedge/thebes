@@ -1098,7 +1098,7 @@ export const CITIZEN_REMARKS = [
   { season: 'akhet', type: 'granary', text: 'The granary keepers are sweeping out the bins' },
   { season: 'akhet', type: 'temple', text: 'The priests say the river rose just as it should', flood: 'fair' },
   { season: 'akhet', type: 'bazaar', text: 'At the bazaar they talk of how high the river came', flood: 'fair' },
-  { season: 'akhet', type: 'house', text: 'Families mend their roofs while the fields lie under water' },
+  { season: 'akhet', type: 'house', text: 'Families mend their roofs while the fields lie under water', flood: 'fair' },
   { season: 'akhet', type: 'booth', text: 'The players at the booth are learning a flood song' },
   { season: 'peret', type: 'farm_grain', text: 'The young grain stands green and even in the fields' },
   { season: 'peret', type: 'farm_fig', text: 'The fig trees are heavy with fruit' },
@@ -1859,7 +1859,6 @@ TIP_HELP_TEXT.bridges = S46_MAP_TEXT.bridgeHelp(MAP.bridgeMax);
 // FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
 // states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
 import { FLOOD as rvFlood, FLOOD_LEVELS as rvLevels, HUNTING as rvHunting, FISHING as rvFishing, WILDLIFE as rvWildlife, floodLevelRow as rvLevelRow } from '../data/river.js';
-import { FOOD_SLOTS as rvFoodSlots } from '../data/goods.js';
 const rvName = (id) => capitalised(id);
 const rvPct = (id) => `${Math.round(rvLevelRow(id).harvest * 100)}%`;
 const rvMonths = (n) => plural(n, 'month', 'months');
@@ -1877,24 +1876,42 @@ export const S46_RIVER_TEXT = {
   herdCaption: (kind, size) => `A herd of ${size} ${(rvHerdName[kind] || [kind, kind])[size === 1 ? 0 : 1]} wanders in from the edge of the map`,
   // The farm sheet's floodplain row (ruling 334): "Floodplain: this year's flood gives 110%".
   floodRowLabel: 'Floodplain',
+  // The level holds twelve months, from the rise (ruling 360): it is "this year's" only from the rise to the year's end, the last flood's before.
   farmRow: (look) => {
-    if (look.applied) return `This year's flood (${rvName(look.applied.id)}) gives ${Math.round(look.applied.harvest * 100)}%, until the next flood in month ${rvFirstMonth}`;
+    if (look.applied) return `${look.phase === 'wait' || look.phase === 'forecast' ? 'The last flood' : "This year's flood"} (${rvName(look.applied.id)}) gives ${Math.round(look.applied.harvest * 100)}%, until the next flood in month ${rvFirstMonth}`;
     return `The flood decides this farm's harvest, from ${Math.round(Math.min(...rvLevels.map((l) => l.harvest)) * 100)}% to ${Math.round(Math.max(...rvLevels.map((l) => l.harvest)) * 100)}%; the first flood comes in month ${rvFirstMonth}`;
   },
   farmOff: 'Off the floodplain: the flood does not change its harvest',
   farmRowNext: (id) => `${rvName(id)} flood coming: ${rvPct(id)} from month ${rvFirstMonth}`,
   // The Nilometer's sheet.
   nilometerLabel: 'Next flood',
+  nilometerLabelNow: 'The flood now',
+  nilometerLabelLast: 'Last flood',
   nilometerNote: `Reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead (from month ${rvFirstMonth - rvFlood.forecastMonths})`,
   nilometerKnown: (id) => `${rvName(id)}: floodplain farms ${rvPct(id)}`,
   nilometerWaiting: (monthsLeft) => (monthsLeft > 0 ? `Known from month ${rvFirstMonth - rvFlood.forecastMonths}` : 'Known when the water rises'),
   nilometerIdle: 'It needs workers to read the river',
   nilometerNone: 'The first flood has not come yet',
+  // The Nilometer's row (floodLook's phase tells which flood is meant): the level it reads is the next flood's only before the rise; once the
+  // water is up it is this flood's, after it the last's, and the next one is unknown until month 4 (ruling 360).
+  nilometerRow: (look, working) => {
+    const next = (value) => ({ label: S46_RIVER_TEXT.nilometerLabel, value });
+    if (!working) return next(S46_RIVER_TEXT.nilometerIdle);
+    if (!look.on) return next(S46_RIVER_TEXT.nilometerNone);
+    if (look.phase === 'forecast' && look.level) return next(S46_RIVER_TEXT.nilometerKnown(look.level.id));
+    if ((look.phase === 'rising' || look.phase === 'high') && look.applied) return { label: S46_RIVER_TEXT.nilometerLabelNow, value: S46_RIVER_TEXT.nilometerKnown(look.applied.id) };
+    if (look.phase === 'draining' && look.applied) return { label: S46_RIVER_TEXT.nilometerLabelLast, value: S46_RIVER_TEXT.nilometerKnown(look.applied.id) };
+    return next(S46_RIVER_TEXT.nilometerWaiting(look.monthsTo === null ? 0 : look.monthsTo));
+  },
   // The hunting lodge's sheet.
   herdsLabel: 'Herds in reach',
   herdsLine: (herds, animals) => `${herds} (${plural(animals, 'animal', 'animals')})`,
   gameLabel: 'Game a month',
   gameLine: (month) => `up to ${month} now; ${rvHunting.perHerdMonth} a herd, at most ${rvHunting.maxMonth}`,
+  // A lodge that has taken what it may this month (huntRest, src/sim/wildlife.js): the sim's reason, with its numbers.
+  huntRest: (why) => (why === 'month'
+    ? `The lodge has taken its ${rvHunting.maxMonth} this month; hunting resumes next month`
+    : `Its herds have given their ${rvHunting.perHerdMonth} this month; hunting resumes next month`),
   noHerds: `No herd within ${rvHunting.reach} tiles: the hunters have nothing to hunt. Herds graze on desert and rocky ground`,
   huntRule: `Hunters walk up to ${rvHunting.reach} tiles. Each hunt takes 1 from a herd; a herd regrows 1 every ${rvMonths(rvWildlife.regrowMonths)}, and one at 0 is gone`,
   // The fishing wharf's sheet.
@@ -1904,7 +1921,7 @@ export const S46_RIVER_TEXT = {
   // Crocodiles beside a workplace (not on Peaceful).
   crocLabel: 'Crocodiles',
   crocNear: `Crocodiles bask nearby: work may pause for ${plural(rvWildlife.scareDays, 'day', 'days')}, at most once a month`,
-  crocNow: 'Scared by a crocodile: back to work tomorrow',
+  crocNow: `Scared by a crocodile: back to work in ${plural(rvWildlife.scareDays, 'day', 'days')}`,
   // The summary's river section.
   summaryHead: 'The river',
   floodLine: (look) => {
@@ -1918,8 +1935,6 @@ export const S46_RIVER_TEXT = {
   // Food from the floodplain: working floodplain farms' monthly food as they stand and in a plain year (floodOutlook).
   outlookLine: (o, coming) => `${coming ? 'When the flood comes' : 'Now'}, ${plural(o.farms, 'floodplain farm makes', 'floodplain farms make')} about ${o.now} food a month (${o.plain} in a plain year)`,
   herdsLine2: (n, animals, hunted) => `Herds: ${n} (${plural(animals, 'animal', 'animals')}); ${hunted} hunted so far`,
-  // The foods, in FOOD_SLOTS order, named for the words that list them.
-  foodsLine: (names) => listText(rvFoodSlots.filter((g) => names.includes(g)).map((g) => goodWord(g))),
 };
 // The firsts, the tips (How to play lists them) and the building plurals.
 Object.assign(BUILDING_PLURALS, { hunting_lodge: 'hunting lodges', fishing_wharf: 'fishing wharves', nilometer: 'nilometers' });

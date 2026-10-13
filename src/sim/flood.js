@@ -11,6 +11,7 @@
 // (FLOOD_LEVELS[..].harvest): the flood leaves its silt for the growing and harvest seasons after it. Farms off the floodplain are
 // unaffected.
 import { BUILDINGS } from '../data/buildings.js';
+import { FOOD_GOODS } from '../data/goods.js';
 import { FLOOD, FLOOD_LEVELS, FISHING, floodLevelRow, RIVER_SALT } from '../data/river.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { hash2 } from './rng.js';
@@ -189,14 +190,15 @@ export function floodLook(world) {
   return { on: true, phase, level, known: Boolean(level), applied, factor: applied ? applied.harvest : 1, monthsTo };
 }
 
-// The floodplain farms' monthly food, for the summary's forecast: working farms of food (grain, figs) on the floodplain, what they
-// make a month at full staff as they stand ({ now }) and at a plain year's level ({ plain }), so the difference is the flood's.
+// The floodplain farms' monthly food, for the summary's forecast: working farms of food (grain, figs: FOOD_GOODS) on the floodplain (barley
+// and flax are raw goods, not food, and are left out), what they make a month at full staff as they stand ({ now }) and at a plain year's
+// level ({ plain }), so the difference is the flood's.
 export function floodOutlook(world, level = null) {
   const l = level || appliedLevel(world);
   let farms = 0, now = 0, plain = 0;
   for (const b of Object.values(world.buildings)) {
     const def = BUILDINGS[b.type];
-    if (!isFloodFarm(b.type) || !onFloodplain(world, b)) continue;
+    if (!isFloodFarm(b.type) || !FOOD_GOODS.includes(def.produces.good) || !onFloodplain(world, b)) continue;
     if (!isWorking(b)) continue;
     const monthly = def.produces.perMonth * staffRatio(b);
     farms += 1;
