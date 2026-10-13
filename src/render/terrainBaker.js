@@ -8,9 +8,9 @@ import { idx, inBounds } from '../sim/grid.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { makeDraw } from './art/ctx.js';
 import { TERRAIN, LEAF2 } from './art/palette.js';
-import { rock, scrub, dune, tufts } from './art/nature.js';
+import { rock, scrub, dune, tufts, reeds } from './art/nature.js';
 import { defaultCreateCanvas, bucketFor } from './spriteCache.js';
-import { drawRiver } from './terrainWater.js';
+import { drawRiver, riverIsle, riverPools } from './terrainWater.js';
 import { drawRoads } from './terrainRoads.js';
 import { drawWalls, wallCode } from './terrainWalls.js';
 
@@ -95,6 +95,7 @@ const forTiles = (world, range, fn) => {
 // One terrain layer in up to three passes: a soft, slightly larger pass in a paler tone; the main fill; and,
 // when the style has a `second` tone, that tone offset by (3, 2) art px on about 60% of tiles for clumpy
 // texture. All tiles of the layer go into one path per pass, so overlapping blobs union instead of stacking alpha.
+// style.only (Stage 4.5), when given, is a predicate on the tile index that keeps a pass to those tiles (an island's land).
 function drawLayer(g, world, range, code, style) {
   const passes = [
     { expand: 0.2, fill: style.soft, alpha: 0.5, dx: 0, dy: 0, salt: 1, pick: () => true },
@@ -106,7 +107,7 @@ function drawLayer(g, world, range, code, style) {
     ctx.beginPath();
     let any = false;
     forTiles(world, range, (x, y, i) => {
-      if (world.terrain[i] !== code || !pass.pick(x, y)) return;
+      if (world.terrain[i] !== code || !pass.pick(x, y) || (style.only && !style.only(i))) return;
       const pts = blobFor(world, x, y, code, pass.salt, pass.expand);
       ctx.moveTo((pts[0][0] + pass.dx) * g.scale, (pts[0][1] + pass.dy) * g.scale);
       for (let k = 1; k < pts.length; k++) ctx.lineTo((pts[k][0] + pass.dx) * g.scale, (pts[k][1] + pass.dy) * g.scale);
@@ -176,30 +177,88 @@ export function drawGround(g, world, range) {
   drawLayer(g, world, range, T.MEADOW, { soft: TERRAIN.grassSoft, main: TERRAIN.grass, second: TERRAIN.grassSecond });
   drawLayer(g, world, range, T.BANK, { soft: TERRAIN.bankSecond, main: TERRAIN.bank, second: TERRAIN.bankSecond });
   drawLayer(g, world, range, T.CLAY, { soft: TERRAIN.claySoft, main: TERRAIN.clay, second: TERRAIN.claySecond });
-  forTiles(world, range, (x, y, i) => {
-    const t = world.terrain[i];
-    if (t === T.WATER || !isFree(world, i)) return;
-    const r = hash2(x, y, world.seed + 3);
-    if (t === T.FERTILE) fertileSpeckle(g, world, x, y);
-    if (t === T.MEADOW) tufts(g, x, y, 9, 0);
-    else if (t !== T.BANK && nearType(world, x, y, T.MEADOW)) tufts(g, x, y, 3, 5);
-    if (t === T.ROCKY || nearType(world, x, y, T.ROCKY)) {
-      const n = t === T.ROCKY ? 3 : 1;
-      for (let j = 0; j < n; j++) g.circ(p(x + hash2(x, y, 80 + j), y + hash2(x, y, 90 + j)), 0.9, j % 2 ? TERRAIN.pebbleLight : TERRAIN.pebble, { alpha: 0.8 });
+  forTiles(world, range, (x, y, i) => scatterTile(g, world, x, y, i));
+}
+
+// The scatter on one tile that sells the blend (see drawGround); an island's tiles take it again after the river is drawn.
+function scatterTile(g, world, x, y, i) {
+  const t = world.terrain[i];
+  if (t === T.WATER || !isFree(world, i)) return;
+  const r = hash2(x, y, world.seed + 3);
+  if (t === T.FERTILE) fertileSpeckle(g, world, x, y);
+  if (t === T.MEADOW) tufts(g, x, y, 9, 0);
+  else if (t !== T.BANK && nearType(world, x, y, T.MEADOW)) tufts(g, x, y, 3, 5);
+  if (t === T.ROCKY || nearType(world, x, y, T.ROCKY)) {
+    const n = t === T.ROCKY ? 3 : 1;
+    for (let j = 0; j < n; j++) g.circ(p(x + hash2(x, y, 80 + j), y + hash2(x, y, 90 + j)), 0.9, j % 2 ? TERRAIN.pebbleLight : TERRAIN.pebble, { alpha: 0.8 });
+  }
+  if (t === T.BANK) {
+    const q = p(x + 0.3 + r * 0.4, y + 0.3 + hash2(x, y, 4) * 0.4);
+    g.ell(q, 5 + r * 5, 1.6, TERRAIN.mud, { alpha: 0.7 });
+    g.ell([q[0] - 1, q[1] - 0.4], 3.5 + r * 3, 1.1, TERRAIN.mudDark, { alpha: 0.6 });
+  }
+  if (t === T.CLAY) claySpeckle(g, x, y);
+  if (t === T.DESERT) {
+    const cq = p(x + 0.5, y + 0.5);
+    if (r < 0.05) rock(g, cq);
+    else if (r < 0.11) scrub(g, cq);
+    else if (r > 0.9 && valueNoise(x, y, world.seed + 5, 7) > 0.55) dune(g, cq);
+  }
+}
+
+// An island in the river (Stage 4.5): the land inside the river's rows, drawn over the water with the same blended layers
+// and scatter as the shore, so it reads as ground with a bank round it.
+function drawIsle(g, world, range) {
+  const isle = riverIsle(world).filter(([x, y]) => x >= range.x0 - 1 && x <= range.x1 + 1 && y >= range.y0 - 1 && y <= range.y1 + 1);
+  if (!isle.length) return;
+  const mine = new Set(isle.map(([x, y]) => idx(world.size, x, y)));
+  const only = (i) => mine.has(i);
+  drawLayer(g, world, range, T.FERTILE, { soft: TERRAIN.fertileSoft, main: TERRAIN.fertile, second: null, only });
+  drawLayer(g, world, range, T.BANK, { soft: TERRAIN.bankSecond, main: TERRAIN.bank, second: TERRAIN.bankSecond, only });
+  drawLayer(g, world, range, T.CLAY, { soft: TERRAIN.claySoft, main: TERRAIN.clay, second: TERRAIN.claySecond, only });
+  for (const [x, y] of isle) scatterTile(g, world, x, y, idx(world.size, x, y));
+}
+
+// Pools (an oasis's lake, Stage 4.5): each water tile that is not the river drawn as a wavering blob in the river's own layers, a
+// bank halo, wet sand, shallows and water, with a deep patch where all four neighbours are water, ripples and a few reeds
+// on the shore. Tile blobs overlap and union, so the lake reads as one pool with a soft edge.
+function drawPools(g, world, range) {
+  const pools = riverPools(world).filter(([x, y]) => x >= range.x0 - 1 && x <= range.x1 + 1 && y >= range.y0 - 1 && y <= range.y1 + 1);
+  if (!pools.length) return;
+  const water = (x, y) => terrainAt(world, x, y, T.WATER) === T.WATER;
+  const inland = (x, y) => [-1, 0, 1].every((dy) => [-1, 0, 1].every((dx) => water(x + dx, y + dy)));   // all eight neighbours are water
+  const passes = [
+    { expand: 0.42, fill: TERRAIN.bank, alpha: 0.85, pick: () => true },
+    { expand: 0.28, fill: '#CDBE8E', alpha: 0.7, pick: () => true },
+    { expand: 0.12, fill: TERRAIN.shallows, alpha: 1, pick: () => true },
+    { expand: -0.1, fill: TERRAIN.water, alpha: 1, pick: () => true },
+    { expand: -0.12, fill: TERRAIN.waterDeep, alpha: 0.7, pick: (x, y) => inland(x, y) },
+  ];
+  const ctx = g.ctx;
+  for (const pass of passes) {
+    ctx.beginPath();
+    let any = false;
+    for (const [x, y] of pools) {
+      if (!pass.pick(x, y)) continue;
+      const pts = blobFor(world, x, y, T.WATER, 3, pass.expand);
+      ctx.moveTo(pts[0][0] * g.scale, pts[0][1] * g.scale);
+      for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0] * g.scale, pts[k][1] * g.scale);
+      ctx.closePath();
+      any = true;
     }
-    if (t === T.BANK) {
-      const q = p(x + 0.3 + r * 0.4, y + 0.3 + hash2(x, y, 4) * 0.4);
-      g.ell(q, 5 + r * 5, 1.6, TERRAIN.mud, { alpha: 0.7 });
-      g.ell([q[0] - 1, q[1] - 0.4], 3.5 + r * 3, 1.1, TERRAIN.mudDark, { alpha: 0.6 });
+    if (!any) continue;
+    ctx.globalAlpha = pass.alpha;
+    ctx.fillStyle = pass.fill;
+    ctx.fill('nonzero');
+    ctx.globalAlpha = 1;
+  }
+  for (const [x, y] of pools) {
+    for (let j = 0; j < 2; j++) {
+      const q = p(x + 0.15 + hash2(x, y, 11 + j) * 0.7, y + 0.15 + hash2(x, y, 21 + j) * 0.7);
+      g.stroke([['M', q], ['Q', [q[0] + 3, q[1] - 1.4], [q[0] + 6, q[1]]]], TERRAIN.ripple, 0.7, 0.65);
     }
-    if (t === T.CLAY) claySpeckle(g, x, y);
-    if (t === T.DESERT) {
-      const cq = p(x + 0.5, y + 0.5);
-      if (r < 0.05) rock(g, cq);
-      else if (r < 0.11) scrub(g, cq);
-      else if (r > 0.9 && valueNoise(x, y, world.seed + 5, 7) > 0.55) dune(g, cq);
-    }
-  });
+    if (hash2(x, y, world.seed + 61) < 0.28 && !inland(x, y)) reeds(g, p(x + 0.5, y + 0.55));
+  }
 }
 
 // A soft pad under every building footprint touching the range, so plots and buildings fade into the ground.
@@ -237,6 +296,8 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
   const range = { x0: ox - 2, y0: oy - 2, x1: ox + CHUNK + 1, y1: oy + CHUNK + 1 };
   drawGround(g, world, range);
   drawRiver(g, world, range);
+  drawPools(g, world, range);
+  drawIsle(g, world, range);
   drawPlots(g, world, range);
   drawRoads(g, world, range);
   drawWalls(g, world, range);

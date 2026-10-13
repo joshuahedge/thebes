@@ -51,6 +51,7 @@ import { makeBuilding, insertBuilding } from '../sim/world.js';   // Track B's m
 import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { tutorialScene } from './tutorialScenes.js';
+import { riverIsle, riverPools } from '../render/terrainWater.js';
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -705,15 +706,33 @@ async function motion(api) {
   return `motion ${ui.settings.get().motion} level ${ui.settings.motionLevel()}`;
 }
 
+// Stage 4.5 (Task 3, ruling 313): the river layouts. Open /?skipTitle=1&nosw=1&seed=<n>&variant=<name> (classic, east, middle,
+// wide-bends, island or oasis), then devScene('variant') pulls the camera out to the whole map: the zoom goes below the
+// buttons' minimum (zoom is set straight on the camera, as no player move can), so a phone shows the river's whole shape.
+export const STAGE45_SCENES = ['variant'];
+// options.look: 'island' or 'oasis' frames that feature close (zoom 0.4), else the whole map; options.zoom overrides the zoom.
+async function variant(api, options = {}) {
+  const g = inGame(api, 'variant');
+  const w = g.world, v = viewOf(g);
+  g.ui.cameraControl.cancel();
+  const feature = options.look === 'island' ? riverIsle(w) : options.look === 'oasis' ? riverPools(w) : [];
+  const at = feature.length ? { x: feature.reduce((s, t) => s + t[0], 0) / feature.length + 0.5, y: feature.reduce((s, t) => s + t[1], 0) / feature.length + 0.5 } : { x: w.size / 2, y: w.size / 2 };
+  g.cam.zoom = options.zoom || (feature.length ? 0.4 : Math.min(0.5, (v.width * 0.94) / (w.size * 64)));
+  g.ui.cameraControl.jumpTo(at.x, at.y);
+  await wait(300);
+  return `variant ${w.mapVariant} zoom ${g.cam.zoom.toFixed(3)}`;
+}
+
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
   early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded, 'pyramid-placing': pyramidPlacing,
   title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion,
+  variant,
 };
 
 export async function devScene(api, name, options = {}) {
   const scene = SCENES[name];
-  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES, ...STAGE4_SCENES].join(', ')})`);
+  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES, ...STAGE4_SCENES, ...STAGE45_SCENES].join(', ')})`);
   return scene(api, options);
 }
 
