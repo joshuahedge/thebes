@@ -1349,7 +1349,7 @@ ALERT_TEXT.site_stalled = (alert, world, b, name) => {
   const m = good && b ? ui4SiteStatus(world, b).materials[good] : null;
   return {
     title: `${name} is not progressing`,
-    fix: ui4CauseText(alert.reason, b ? ui4ExtraGold(world, b.type) : 0, m ? { makers: m.makers.length, stores: m.stores.length } : null, b ? b.type : null) || 'Have a look',
+    fix: ui4CauseText(alert.reason, b ? ui4ExtraGold(world, b.type, b.style) : 0, m ? { makers: m.makers.length, stores: m.stores.length } : null, b ? b.type : null) || 'Have a look',
   };
 };
 Object.assign(UI4_TEXT, {
@@ -2210,7 +2210,7 @@ export const S46_WONDER_TEXT = {
   // The button beside it names the style, so the line does not (the button's accessible name is styleLabel: the name and this line).
   styleLine(style, price) {
     const S = wondStyles[style], more = Math.round((S.goldFactor - 1) * 100);
-    const gold = more > 0 ? `${more}% more gold in all (${ui4Gold(price)} to found)` : 'no extra cost';
+    const gold = more > 0 ? `${more}% more gold in all (${Math.round(price)} to found)` : 'no extra cost';
     const nicer = S.desirability > 0 ? `, homes in reach +${S.desirability} nicer` : '';
     const look = { whitewashed: 'Plain white limestone', painted: 'Teal and ochre bands', gilded: 'Gold leaf' }[style];
     return more > 0 ? `${look}: ${gold}${nicer}` : `${look}, ${gold}${nicer}`;

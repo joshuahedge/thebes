@@ -87,7 +87,7 @@ const pair = (name, type, zoom) => async (api, options = {}) => {
 
 // The small pyramid, an existing kind, in every style, two by two: Classic first (as it was drawn before Stage 4.6), then the three offered.
 async function styles(api, options = {}) {
-  const { made } = await arena(api, 's46-wonders-styles', 32, 32, 16, (world, cx, cy) => ['classic', ...STYLES].map((style, i) => put(world, 'pyramid_small', cx - 5 + (i % 2) * 6, cy - 5 + Math.floor(i / 2) * 6, style)), options.zoom || 0.72);
+  const { made } = await arena(api, 's46-wonders-styles', 32, 32, 16, (world, cx, cy) => ['classic', ...STYLES].map((style, i) => put(world, 'pyramid_small', cx - 5 + (i % 2) * 6, cy - 5 + Math.floor(i / 2) * 6, style)), options.zoom || (globalThis.innerWidth < 600 ? 0.5 : 0.72));
   return `styles ${made.map((b) => b.style).join(' ')}`;
 }
 

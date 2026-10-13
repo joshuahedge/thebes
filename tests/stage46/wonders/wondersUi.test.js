@@ -3,11 +3,13 @@
 import { describe, it, expect } from '../../harness.js';
 import { toolPreview, ghostsFor, monumentLine } from '../../../src/ui/placement.js';
 import { styleChoices, styleRowText, createWondersUi } from '../../../src/ui/s46/wonders.js';
-import { costOf, workGoldPerUnit } from '../../../src/sim/costs.js';
+import { costOf, workGoldPerUnit, extraGoldOf } from '../../../src/sim/costs.js';
 import { desirabilityPreview } from '../../../src/sim/desirability.js';
 import { MONUMENTS, MONUMENT_KINDS } from '../../../src/data/monuments.js';
 import { PICKABLE_STYLES, NEW_MONUMENT_KINDS } from '../../../src/data/wonders.js';
-import { S46_WONDER_TEXT, TIP_TEXT } from '../../../src/ui/text.js';
+import { S46_WONDER_TEXT, TIP_TEXT, UI4_TEXT, ALERT_TEXT, ui4Gold } from '../../../src/ui/text.js';
+import { siteRows, causeText } from '../../../src/ui/monumentSheet.js';
+import { siteStatus } from '../../../src/sim/monuments.js';
 import { makeBuilding, insertBuilding } from '../../../src/sim/world.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 import { rigUI } from '../../helpers/uiWorld.js';
@@ -31,9 +33,9 @@ describe('s46 wonders style picker in the placing bar', () => {
       const { placement } = r.ui;
       placement.start({ kind: 'building', type: 'colossus' });
       placement.moveGhost(20, 11);
-      expect(picks(r.root).map((b) => [b.dataset.style, b.getAttribute('aria-checked'), b.textContent])).toEqual([
+      expect(picks(r.root).map((b) => [b.dataset.style, b.getAttribute('aria-pressed'), b.textContent])).toEqual([
         ['whitewashed', 'true', '✓ Whitewashed'], ['painted', 'false', 'Painted'], ['gilded', 'false', 'Gilded']]);
-      expect(r.root.querySelector('#confirm .style-choices').getAttribute('role')).toBe('radiogroup');
+      expect(r.root.querySelector('#confirm .style-choices').getAttribute('role')).toBe('group');
       expect(picks(r.root).map((b) => b.dataset.style)).toEqual(PICKABLE_STYLES);
       expect(r.root.querySelector('#confirm .style-line').textContent).toBe('Plain white limestone, no extra cost');
       placement.start({ kind: 'building', type: 'well' });
@@ -54,7 +56,7 @@ describe('s46 wonders style picker in the placing bar', () => {
         expect(b.getAttribute('aria-label').startsWith(`${b.textContent.replace('✓ ', '')}: `)).toBe(true);
       }
       fire(picks(r.root).find((b) => b.dataset.style === 'gilded'), 'click');
-      expect(picks(r.root).map((b) => [b.dataset.style, b.getAttribute('aria-checked'), b.textContent.startsWith('✓')])).toEqual([['whitewashed', 'false', false], ['painted', 'false', false], ['gilded', 'true', true]]);
+      expect(picks(r.root).map((b) => [b.dataset.style, b.getAttribute('aria-pressed'), b.textContent.startsWith('✓')])).toEqual([['whitewashed', 'false', false], ['painted', 'false', false], ['gilded', 'true', true]]);
     } finally { r.cleanup(); }
   });
 
@@ -67,7 +69,7 @@ describe('s46 wonders style picker in the placing bar', () => {
       expect(choices.map((c) => [c.id, c.name, c.active])).toEqual([['whitewashed', 'Whitewashed', false], ['painted', 'Painted', false], ['gilded', 'Gilded', true]]);
       expect(choices[0].line).toBe('Plain white limestone, no extra cost');
       expect(choices[1].line).toBe('Teal and ochre bands, no extra cost');
-      expect(choices[2].line).toBe(`Gold leaf: 10% more gold in all (${gilded.toLocaleString('en-GB')} to found), homes in reach +1 nicer`);
+      expect(choices[2].line).toBe(`Gold leaf: 10% more gold in all (${gilded} to found), homes in reach +1 nicer`);
       // the bar's own price and its monument line follow the style picked
       const tool = (style) => ({ kind: 'building', type: 'pyramid_small', style });
       const at = (style) => toolPreview(w, { tool: tool(style), ghost: { x: 20, y: 11 } });
@@ -183,5 +185,33 @@ describe('s46 wonders sheet row and tips', () => {
       expect(MONUMENT_KINDS.length).toBe(10);
       expect(MONUMENTS.great_sphinx.name).toBe('Great sphinx');
     } finally { r.cleanup(); }
+  });
+});
+
+describe('s46 wonders the site sheet follows the monument\'s style (fix round 1)', () => {
+  const site = (w, type, style) => insertBuilding(w, makeBuilding(w, type, 14, 11, 0, { style }));
+  it('quotes the crews\' work gold at the site\'s own style, both ways, at each difficulty', () => {
+    for (const difficulty of ['relaxed', 'normal', 'hard']) {
+      const w = capital(100000, difficulty);
+      const gold = (style) => siteRows(w, site(w, 'pyramid_small', style)).find((r) => r.key === 'gold').text;
+      const word = (style) => UI4_TEXT.workGold(Math.round(workGoldPerUnit(w, style) * 20));
+      expect([difficulty, gold('gilded')]).toEqual([difficulty, word('gilded')]);
+      expect([difficulty, gold('whitewashed')]).toEqual([difficulty, word('whitewashed')]);
+      expect(Math.round(workGoldPerUnit(w, 'gilded') * 20)).toBeGreaterThan(Math.round(workGoldPerUnit(w, 'whitewashed') * 20));
+    }
+  });
+
+  it('quotes the gilding and the capstone at the site\'s own style in the sheet, the alert fix and Welcome back\'s cause, as the sim holds the course for it', () => {
+    const w = capital(1050);
+    const gilded = site(w, 'obelisk_large', 'gilded'), plain = site(w, 'obelisk_large', 'whitewashed');
+    expect(extraGoldOf(w, 'obelisk_large', 'gilded')).toBe(1100);
+    expect(causeText(w, gilded, 'waiting_gilding')).toBe('Waiting for 1,100 gold for the gilding');
+    expect(causeText(w, plain, 'waiting_gilding')).toBe('Waiting for 1,000 gold for the gilding');
+    expect(siteRows(w, gilded, { ...siteStatus(w, gilded), reason: 'waiting_gilding' }).find((r) => r.key === 'cause').text).toBe('Waiting for 1,100 gold for the gilding');
+    expect(ALERT_TEXT.site_stalled({ reason: 'waiting_gilding' }, w, gilded, 'Large obelisk').fix).toBe('Waiting for 1,100 gold for the gilding');
+    expect(ALERT_TEXT.site_stalled({ reason: 'waiting_gilding' }, w, plain, 'Large obelisk').fix).toBe('Waiting for 1,000 gold for the gilding');
+    const pyramid = site(w, 'pyramid_great', 'gilded');
+    expect(causeText(w, pyramid, 'waiting_capstone')).toBe(`Waiting for ${ui4Gold(extraGoldOf(w, 'pyramid_great', 'gilded'))} gold for the capstone`);
+    expect(causeText(w, pyramid, 'waiting_capstone')).toBe('Waiting for 5,500 gold for the capstone');
   });
 });

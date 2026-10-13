@@ -122,7 +122,7 @@ export function causeText(world, b, reason, status = null) {
     const m = (status || siteStatus(world, b)).materials[reason.slice(3)];
     return ui4CauseText(reason, 0, m ? { makers: m.makers.length, stores: m.stores.length } : null);
   }
-  return ui4CauseText(reason, extraGoldOf(world, b.type), null, b.type);
+  return ui4CauseText(reason, extraGoldOf(world, b.type, b.style), null, b.type);
 }
 
 // The site sheet's rows (spec 6.3), from siteStatus: [{ key, text, share?, fix? }] in the spec's order: progress, crews, the
@@ -144,7 +144,7 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
     else if (s.last && !(s.last.units > 0) && s.reason) pace = U.notProgressing(s.reason);   // no reason: it works today (a crew that came this month)
     rows.push({ key: 'pace', text: pace });
   }
-  rows.push({ key: 'gold', text: s.last ? U.lastMonth(s.last.gold, s.last.crews) : U.workGold(workGoldPerUnit(world) * MONUMENT.unitsPerCrewMonth) });
+  rows.push({ key: 'gold', text: s.last ? U.lastMonth(s.last.gold, s.last.crews) : U.workGold(workGoldPerUnit(world, b.style) * MONUMENT.unitsPerCrewMonth) });
   rows.push({ key: 'prestige', text: s.prestige.holds ? U.prestige(s.prestige.now, s.prestige.more) : U.otherHolds(b.type) });
   return rows;
 }
