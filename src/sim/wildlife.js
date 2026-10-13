@@ -182,8 +182,17 @@ function moveHerds(world) {
   }
 }
 
+// A herd record saved before the River track filled its record in (a wave 1 build) lacks the fields below: give it the starting values.
+function tidy(w) {
+  if (!Array.isArray(w.scares)) w.scares = [];
+  if (!Number.isInteger(w.scareMonth)) w.scareMonth = -1;
+  if (!Number.isInteger(w.arrived)) w.arrived = 0;
+  if (typeof w.seeded !== 'boolean') w.seeded = w.herds.length > 0;
+}
+
 function releaseScares(world) {
   const w = world.wildlife;
+  tidy(w);
   if (!w.scares.length) return;
   w.scares = w.scares.filter((s) => {
     if (world.day < s.until) return true;
@@ -221,6 +230,7 @@ export function wildlifeDay(world, events = null) {
 export function wildlifeMonth(world, events = null) {
   if (!wildlifeOn(world)) return;
   const w = world.wildlife;
+  tidy(w);
   for (const b of Object.values(world.buildings)) if (b.hunted) b.hunted = 0;
   for (const h of w.herds) {
     h.hunted = 0;

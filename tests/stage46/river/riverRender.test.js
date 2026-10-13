@@ -310,3 +310,14 @@ describe('s46 river render: the art', () => {
     expect((error || '').includes('no city is open')).toBe(true);
   });
 });
+
+describe('s46 river render: a herd from before the track filled it in', () => {
+  it('draws at its place with no step recorded', () => {
+    const w = riverWorld();
+    const h = { id: 1, kind: 'ostrich', x: 34, y: 20, size: 4 };
+    w.wildlife.herds.push(h);
+    for (const motion of ['full', 'gentle', 'still']) {
+      for (const a of herdAnimals(w, h, 12.5, motion)) expect([a.x, a.y].every(Number.isFinite)).toBe(true);
+    }
+  });
+});

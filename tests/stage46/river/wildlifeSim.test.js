@@ -328,3 +328,18 @@ describe('s46 river wildlife: game and fish are foods (ruling 363)', () => {
   });
 });
 
+
+describe('s46 river wildlife: a record from before the track filled it in', () => {
+  it('plays on with the fields it lacks (a wave 1 build saved herds and nextId only)', () => {
+    const w = riverWorld({ seed: 2 });
+    w.wildlife = { herds: [], nextId: 1 };
+    stepRiver(w, MONTH * 3);
+    expect([w.wildlife.seeded, Array.isArray(w.wildlife.scares), w.wildlife.herds.length > 0]).toEqual([true, true, true]);
+    const old = riverWorld({ seed: 2 });
+    old.wildlife = { herds: [{ id: 1, kind: 'gazelle', x: 34, y: 20, size: 5 }], nextId: 2 };
+    stepRiver(old, YEAR + MONTH);
+    expect(old.wildlife.herds.length).toBeGreaterThan(0);
+    expect(old.wildlife.seeded).toBe(true);                                                  // it has herds: they are not seeded over
+    expect(old.wildlife.arrived).toBeGreaterThanOrEqual(1);                                  // and one wandered in by itself in year 1 (the count was missing: it starts at 0)
+  });
+});

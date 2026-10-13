@@ -58,7 +58,7 @@ const viewMid = (range) => ({ x: (range.x0 + range.x1) / 2, y: (range.y0 + range
 // (px, py, moved), and each animal keeps its own place about the centre and drifts a little about it.
 export function herdAnimals(world, h, timeDays, motion) {
   const m = moveOf(motion);
-  const f = motion === 'still' ? 1 : clamp((timeDays - h.moved) / WILDLIFE.moveEvery, 0, 1);
+  const f = motion === 'still' ? 1 : clamp((timeDays - (h.moved ?? -1e9)) / WILDLIFE.moveEvery, 0, 1);
   const cx = (h.px ?? h.x) + (h.x - (h.px ?? h.x)) * f + 0.5, cy = (h.py ?? h.y) + (h.y - (h.py ?? h.y)) * f + 0.5;
   const out = [];
   for (let i = 0; i < h.size; i++) {
@@ -68,7 +68,7 @@ export function herdAnimals(world, h, timeDays, motion) {
     const tx = Math.floor(x), ty = Math.floor(y);
     if (!inBounds(world.size, tx, ty) || world.terrain[idx(world.size, tx, ty)] === T.WATER || world.occ[idx(world.size, tx, ty)]) { x = cx; y = cy; }
     const flip = hash2(h.id, i + 120, (world.seed + SALT + 13) | 0) > 0.8;
-    out.push({ x, y, kind: h.kind, left: (h.dir < 0) !== flip, i });
+    out.push({ x, y, kind: h.kind, left: (h.dir === -1) !== flip, i });
   }
   return out;
 }
