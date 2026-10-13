@@ -296,7 +296,18 @@ export function setPaused(world, id, paused) {
   if (!def.workers && !def.upkeep && !def.monument) return fail('not_pausable');
   b.paused = Boolean(paused);
   if (b.paused) b.staff = 0;
+  releaseHolds(world, b.id);
   return { ok: true, warnings: [] };
+}
+
+// Ruling 423: the player's own pause or resume takes a building back from whatever paused it for a while: a crocodile scare (world.wildlife.scares)
+// and a court card's pause (a quarantine or a strike, world.court.effects). Neither lifts a pause afterwards that it did not set, so a workplace
+// the player pauses during a scare (resume, then pause, even within one game day) stays paused when the scare's days are up.
+function releaseHolds(world, id) {
+  const w = world.wildlife;
+  if (w && Array.isArray(w.scares) && w.scares.some((s) => s.id === id)) w.scares = w.scares.filter((s) => s.id !== id);
+  const c = world.court;
+  if (c && Array.isArray(c.effects)) for (const e of c.effects) if (e.kind === 'pause' && Array.isArray(e.ids)) e.ids = e.ids.filter((x) => x !== id);
 }
 
 export function setSpeed(world, speed) {
