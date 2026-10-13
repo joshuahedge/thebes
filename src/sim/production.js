@@ -5,6 +5,9 @@ import { buildingsInReach, touchesRoad } from './reach.js';
 import { isWorking, staffRatio } from './labour.js';
 import { materialOf, supplyNeeded, deliverySites, stockRoom } from './monuments.js';
 import { DAYS_PER_MONTH } from './time.js';
+import { HUNTING } from '../data/river.js';
+import { floodHarvestFactor, fishFactor } from './flood.js';
+import { huntHerd, takeGame } from './wildlife.js';
 
 export const storeTotal = (b) => Object.values(b.store).reduce((s, v) => s + v, 0);
 
@@ -102,10 +105,21 @@ export function produceDay(world) {
     // A full store that gives up its input counts as having room: each unit takes its input first (see makeOne).
     if (!sites.length && !targets.some(hasSpace) && !(input && inputSource(sources, targets, input))) { b.blocked = 'no_storage'; continue; }
     b.blocked = null;
-    b.progress += (perMonth / DAYS_PER_MONTH) * staffRatio(world, b);
+    // Stage 4.6 (River track, ruling 360): a floodplain farm's harvest follows the last flood; a wharf's boat lands more in the flood months.
+    const rate = (perMonth / DAYS_PER_MONTH) * staffRatio(world, b) * floodHarvestFactor(world, b) * (def.fishes ? fishFactor(world) : 1);
+    b.progress += rate;
     while (b.progress >= 1 - 1e-9) {
+      // A hunting lodge (rulings 364, 460) makes each unit of game from the animal in hand (b.gameLeft); with none, its hunters take one animal
+      // from a herd in reach (HUNTING.gamePerAnimal game); with none to take, or its HUNTING.maxMonth made, it waits (and banks no more than one).
+      if (def.hunts) {
+        const room = (b.hunted || 0) < HUNTING.maxMonth;
+        if (room && !((b.gameLeft || 0) > 0)) { const herd = huntHerd(world, b); if (herd) takeGame(world, herd, b); }
+        if (!room || !((b.gameLeft || 0) > 0)) { b.blocked = 'no_game'; b.progress = Math.min(b.progress, 1); break; }
+      }
       const why = makeOne(world, good, input, sources, targets, sites);
       if (why) { b.blocked = why; break; }
+      if (def.hunts) { b.gameLeft -= 1; b.hunted = (b.hunted || 0) + 1; }
+      if (def.fishes) world.tally.fished += 1;
       b.progress -= 1;
     }
   }

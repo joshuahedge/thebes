@@ -151,6 +151,47 @@ function claySpeckle(g, x, y) {
     g.line(q, [q[0] + 1, q[1] + 1.8], TERRAIN.clayCrack, 0.5, 0.4);
   }
   g.circ(p(x + hash2(x, y, 240), y + hash2(x, y, 241)), 0.6, TERRAIN.claySoft, { alpha: 0.8 });
+  // Small dug hollows (Stage 4.6, ruling 331): a dark pit with a sunlit rim on about half the tiles, so clay reads as worked ground.
+  if (hash2(x, y, 250) < 0.55) {
+    const q = p(x + 0.25 + hash2(x, y, 251) * 0.5, y + 0.25 + hash2(x, y, 252) * 0.5);
+    g.ell(q, 3.6, 1.6, TERRAIN.clayHollow, { alpha: 0.9 });
+    g.ell([q[0] - 0.3, q[1] + 1.1], 3.2, 0.7, TERRAIN.clayLip, { alpha: 0.8 });
+    g.ell([q[0] + 0.2, q[1] - 0.1], 2.1, 0.8, TERRAIN.clayCrack, { alpha: 0.55 });
+  }
+}
+
+// The map's decor choices (Stage 4.6, ruling 332), from world.mapParams: dune fields (bit 1) and dry wadis (bit 2), one byte a tile, worked
+// out once a world (the params never change).
+const shapeLayers = new WeakMap();
+export function shapeLayer(world) {
+  let layer = shapeLayers.get(world);
+  if (layer) return layer;
+  const n = world.size, P = world.mapParams || {};
+  layer = new Uint8Array(n * n);
+  for (const d of P.dunes || []) {
+    for (let y = Math.max(0, Math.floor(d.y - d.ry)); y <= Math.min(n - 1, Math.ceil(d.y + d.ry)); y++) {
+      for (let x = Math.max(0, Math.floor(d.x - d.rx)); x <= Math.min(n - 1, Math.ceil(d.x + d.rx)); x++) {
+        if (((x + 0.5 - d.x) / d.rx) ** 2 + ((y + 0.5 - d.y) / d.ry) ** 2 <= 1) layer[idx(n, x, y)] |= 1;
+      }
+    }
+  }
+  for (const w of P.wadis || []) for (const i of w.tiles) if (i >= 0 && i < layer.length) layer[i] |= 2;
+  shapeLayers.set(world, layer);
+  return layer;
+}
+
+// A dune field's crests and a wadi's gravel on one desert tile.
+function shapeTile(g, world, x, y, bits) {
+  const cq = p(x + 0.5, y + 0.5);
+  if (bits & 2) {
+    g.ell(cq, 15, 6, TERRAIN.wadi, { alpha: 0.6 });   // wide enough that neighbouring tiles' beds run together
+    g.stroke([['M', [cq[0] - 6, cq[1] + 0.4]], ['Q', [cq[0], cq[1] - 1.6], [cq[0] + 6, cq[1] + 0.6]]], TERRAIN.wadiCrack, 0.7, 0.7);
+    for (let j = 0; j < 3; j++) g.circ(p(x + 0.15 + hash2(x, y, 270 + j) * 0.7, y + 0.15 + hash2(x, y, 280 + j) * 0.7), 0.7, TERRAIN.wadiPebble, { alpha: 0.8 });
+  }
+  if ((bits & 1) && hash2(x, y, world.seed + 300) < 0.7) {
+    dune(g, [cq[0] + (hash2(x, y, 310) - 0.5) * 6, cq[1] + (hash2(x, y, 311) - 0.5) * 3]);
+    if (hash2(x, y, 312) < 0.4) dune(g, [cq[0] + 6, cq[1] - 3]);
+  }
 }
 
 const nearType = (world, x, y, code) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => terrainAt(world, x + dx, y + dy, -1) === code);
@@ -200,6 +241,8 @@ function scatterTile(g, world, x, y, i) {
   }
   if (t === T.CLAY) claySpeckle(g, x, y);
   if (t === T.DESERT) {
+    const bits = shapeLayer(world)[i];
+    if (bits) shapeTile(g, world, x, y, bits);
     const cq = p(x + 0.5, y + 0.5);
     if (r < 0.05) rock(g, cq);
     else if (r < 0.11) scrub(g, cq);

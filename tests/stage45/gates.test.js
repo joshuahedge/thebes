@@ -125,13 +125,13 @@ describe('s45 gates (interface)', () => {
   const store = (tool, extra = {}) => createStore({ ...INITIAL_UI_STATE, mode: 'drawing', tool, ...extra });
 
   it('puts a Gate card in Defence after Wall, shown and unlocked with the wall, and starts the road tool in gate mode', () => {
-    expect(CATEGORIES.find((c) => c.id === 'defence').items).toEqual(['wall', 'gate', 'tower', 'barracks']);
+    expect(CATEGORIES.find((c) => c.id === 'defence').items).toEqual(['wall', 'gate', 'tower', 'barracks', 'archery_range', 'stables']);   // Stage 4.6: the Armies track's two
     expect(toolForItem('gate')).toEqual({ kind: 'road', gate: true });
     expect(activeItemOf(toolForItem('gate'))).toBe('gate');
     expect(activeItemOf({ kind: 'road' })).toBe('road');
     const w = makeTestWorld();
     w.milestone = 'town';
-    expect([isUnlocked(w, 'gate'), cardShown(w, 'gate'), shownItems(w, 'defence')]).toEqual([false, true, ['wall', 'gate', 'tower', 'barracks']]);   // the next milestone's: greyed
+    expect([isUnlocked(w, 'gate'), cardShown(w, 'gate'), shownItems(w, 'defence')]).toEqual([false, true, ['wall', 'gate', 'tower', 'barracks', 'archery_range', 'stables']]);   // the next milestone's: greyed
     expect(cardInfo(w, 'gate').locked).toBe(true);
     expect(cardInfo(w, 'gate').lockText).toBe(cardInfo(w, 'wall').lockText);
     w.milestone = 'market_town';

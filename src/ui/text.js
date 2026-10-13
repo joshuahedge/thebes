@@ -5,11 +5,12 @@ import { MILESTONES } from '../data/progression.js';
 import { TIERS } from '../data/housing.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { FIRSTS } from '../data/firsts.js';
-import { GOODS } from '../data/goods.js';
+import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
 import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
 import { ECONOMY, FORECAST } from '../data/economy.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
+import { MAP } from '../data/map.js';
 import { roadCostOf } from '../sim/costs.js';
 import { producerRefused } from '../sim/production.js';
 import { isUnlocked } from '../sim/progression.js';
@@ -46,6 +47,10 @@ export function listText(items) {
 export const makerOf = (good) => Object.keys(BUILDINGS).find((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good) || null;
 export const storeFor = (good) => Object.keys(BUILDINGS).find((t) => (BUILDINGS[t].stores || []).includes(good)) || null;
 const pluralName = (type) => BUILDING_PLURALS[type] || `${buildingName(type).toLowerCase()}s`;
+// Every building that makes a food (FOOD_GOODS), in the data's order, and their names as a list: "grain farms, fig orchards, hunting lodges and
+// fishing wharves". The food causes and fixes name these, never grain alone (final review: game and fish fill a granary too).
+export const foodMakers = () => Object.keys(BUILDINGS).filter((t) => BUILDINGS[t].produces && FOOD_GOODS.includes(BUILDINGS[t].produces.good));
+export const foodMakersText = () => listText(foodMakers().map(pluralName));
 
 // Every good's line (spec 4.10): what makes it, what uses it and who trades it, built from the data so it never
 // drifts: "Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis and Byblos".
@@ -73,9 +78,12 @@ export function goodLine(good) {
 // A producer's status line on its sheet: "Making pottery from clay", "Growing figs", "Digging clay", or, when a
 // workshop has nothing to work, "Waiting for clay".
 const MAKE_VERBS = { clay: 'Digging', gems: 'Mining' };
+// Stage 4.6: the River track's two foods say what the crew does, not the good twice (final review: "Hunting game", "Fishing fish").
+const MAKE_LINES = { game: 'Hunting the herds', fish: 'Fishing the river' };
 export function workingText(type) {
   const def = BUILDINGS[type];
   const good = goodWord(def.produces.good);
+  if (MAKE_LINES[def.produces.good]) return MAKE_LINES[def.produces.good];
   return def.consumes ? `Making ${good} from ${goodWord(def.consumes)}` : `${MAKE_VERBS[def.produces.good] || 'Growing'} ${good}`;
 }
 export const waitingText = (good) => `Waiting for ${goodWord(good)}`;
@@ -96,8 +104,8 @@ export const CAUSE_TEXT = {
   no_road: { cause: 'No road beside it', fix: 'Lay a road next to it' },
   no_well: { cause: `No well within ${BUILDINGS.well.reach} road tiles`, fix: 'Build a well near it' },
   no_bazaar: { cause: `No bazaar within ${BUILDINGS.bazaar.reach} road tiles`, fix: 'Build a bazaar near it' },
-  bazaar_empty: { cause: 'The bazaar has no grain', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles of it` },
-  granary_empty: { cause: 'Its granary is empty', fix: 'Grain farms fill granaries' },
+  bazaar_empty: { cause: 'The bazaar has no food', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles of it` },
+  granary_empty: { cause: 'Its granary is empty', get fix() { return `${capitalised(foodMakersText())} fill granaries`; } },   // a getter: the plurals are set further down
   next_delivery: { cause: 'Food arrives at the next delivery', fix: '' },
   no_temple: { cause: `No temple within ${BUILDINGS.temple.reach} road tiles`, fix: 'Build a temple near it' },
   well_idle: idleWords('well'),
@@ -264,6 +272,8 @@ export function conditionText(cond, type, { refused = false } = {}) {
   const C = CONDITION_TEXT;
   const def = BUILDINGS[type];
   if (cond.key === 'ground') {
+    const mapWords = S46_MAP_TEXT.groundChip(cond, def || {});   // Stage 4.6 (ruling 331): the one set of words for every ground and water rule (the s46 map section)
+    if (mapWords) return mapWords;
     if (cond.state === 'met') return def && def.terrain ? C.terrain(def.terrain) : C.free;
     if (cond.reason === 'needs_fertile' || cond.reason === 'needs_rocky' || cond.reason === 'needs_clay') return C.terrainCount(cond.terrain, cond.fit, cond.of);
     if (cond.reason === 'occupied') return C.taken;
@@ -345,7 +355,7 @@ export function alertText(alert, world) {
       };
     }
     case 'understaffed': return { title: `${name} is short of workers`, fix: 'More homes bring more workers' };
-    case 'bazaar_empty': return { title: 'Bazaar has no food', fix: `Build a granary with grain within ${BUILDINGS.bazaar.supplyReach} road tiles` };
+    case 'bazaar_empty': return { title: 'Bazaar has no food', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles: ${foodMakersText()} fill it` };
     case 'labour_shortage': return { title: `Not enough workers for ${LEVEL_NAMES[alert.level] || alert.level}`, fix: "More homes, or pause buildings you don't need" };
     case 'unemployment': return { title: 'Too many people have no work', fix: 'Build farms, granaries, bazaars or temples' };
     case 'debt': return { title: 'The treasury is in debt', fix: "Pause buildings you don't need; taxes rise as homes grow" };
@@ -372,7 +382,7 @@ export const OVERLAY_LEGEND = {
 // building fits on its own ground (src/render/overlays.js roomTiles), or, with none left, that nothing is.
 const GROUND_THING = { farm_grain: 'a farm', farm_barley: 'a farm', farm_flax: 'a farm', farm_fig: 'an orchard', gem_mine: 'a mine', clay_pit: 'a clay pit' };
 export const groundThing = (type) => GROUND_THING[type] || null;
-export const groundRoomText = (type, any) => (any ? `Bright: room for ${groundThing(type)}` : `No room left for ${groundThing(type)}`);
+export const groundRoomText = (type, any) => (any && type === 'clay_pit' ? S46_MAP_TEXT.clayGuide : any ? `Bright: room for ${groundThing(type)}` : `No room left for ${groundThing(type)}`);   // Stage 4.6 (ruling 331): the clay pit's line says where clay lies
 
 // The desirability legend (spec 4.7, 6.3): a short label under each band's swatch, and words for screen readers that say
 // what the band is pleasant enough for. Band -1 is below zero; the others follow DESIRABILITY_STEPS (src/data/ui.js).
@@ -507,7 +517,7 @@ export const T = {
   welcome: 'Welcome back', lastPlayed: 'Last played', justNow: 'just now', aWhileAgo: 'a while ago', upFrom: 'up from', downFrom: 'down from', steadyAt: 'steady at', carryOn: 'Carry on', stayPaused: 'Stay paused',
   goalsHelp: 'Goals show under the top bar. Show me opens the right card and points at the place.',
   grain: 'Grain', lasts: 'Lasts', working: 'Working', jobs: 'Jobs',
-  workers: 'Workers', stock: 'Stock', problems: 'Problems', noProblems: 'No problems', reach: 'Reach', view: 'View',
+  workers: 'Workers', stock: 'Stock', problems: 'Problems', noProblems: 'No problems', reach: 'Reach', storesWithin: 'Stores within', view: 'View',   // storesWithin: a hunting lodge's and a fishing wharf's delivery reach (final review)
   residents: 'Residents', nextTier: 'To grow it needs', upgradesAtMonthEnd: 'Grows at the end of the month', emptyPlot: 'Waiting for people to move in',
   hasIt: 'Has it', missing: 'Missing',
   alerts: 'Alerts', noAlerts: 'All quiet', zoomIn: 'Zoom in', zoomOut: 'Zoom out', jumpTo: 'Jump to',
@@ -752,7 +762,13 @@ export const RAID_TEXT = {
 Object.assign(ALERT_TEXT, {
   raid_warning: (alert, world) => {
     const w = world.raid.warning;
-    return { title: `Raiders from ${duiFrom(alert.dirs || alert.dir)} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: RAID_TEXT.towers(world) };
+    // Stage 4.6 (Armies track, rulings 341, 388): a raid with more than raiders on foot says how many come ("14 raiders from the east
+    // are after ...", short enough for the wide banner's one line) and names its kinds where there is room: first in the fix (the
+    // alert list) and in the raid sheet's arrival line (dangerSheets.js arrivalText).
+    const mixed = w && w.mix && S46_ARMY_TEXT.isMixedMix(w.mix);
+    const who = mixed ? `${w.size} raiders from ${duiFrom(alert.dirs || alert.dir)}` : `Raiders from ${duiFrom(alert.dirs || alert.dir)}`;
+    const towers = RAID_TEXT.towers(world);
+    return { title: `${who} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: mixed ? `${capitalised(S46_ARMY_TEXT.mixText(w.mix))}${towers ? `. ${towers}` : ''}` : towers };
   },
   raid: (alert, world) => {
     const a = world.raid.active;
@@ -837,15 +853,18 @@ Object.assign(DANGER_UI_TEXT, {
 // D2: captions, the raid report and the Settings rows. A blaze or a fire goes out only where a firehouse reaches it
 // (src/sim/fire.js: a covered and staffed blaze, a covered fire at 25% x coverage a day), so the caption names the
 // firehouse. The report reads raid.last's fields (src/sim/raids.js): size, towers, byTowers, bySoldiers, burned, stolen.
-const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.stolen ? `${r.stolen} gold stolen` : '', r.foodStolen ? `${r.foodStolen} food stolen` : '', r.fled ? `${plural(r.fled, 'resident', 'residents')} fled` : ''].filter(Boolean).join(', ') || 'nothing lost';
+// Stage 4.6 (Armies track): archers and chariots stopped, and towers enemy archers brought down (raid.last's byArchers, byChariots,
+// towersLost, present only when not 0).
+const duiUnitsStopped = (r) => [r.byArchers ? `archers stopped ${r.byArchers}` : '', r.byChariots ? `chariots stopped ${r.byChariots}` : ''];
+const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.towersLost ? plural(r.towersLost, 'tower fell', 'towers fell') : '', r.stolen ? `${r.stolen} gold stolen` : '', r.foodStolen ? `${r.foodStolen} food stolen` : '', r.fled ? `${plural(r.fled, 'resident', 'residents')} fled` : ''].filter(Boolean).join(', ') || 'nothing lost';
 function duiRaidReport(r) {
   const from = `Raid from ${duiFrom(r.dirs || r.dir)}`;
   if (r.won) {
-    const stopped = [r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : ''].filter(Boolean);
+    const stopped = [r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : '', ...duiUnitsStopped(r)].filter(Boolean);
     return `${from} beaten: ${stopped.length ? `${stopped.join(', ')}; ` : ''}${duiLosses(r)}.`;
   }
   const did = listText([r.burned ? `burned ${plural(r.burned, 'building', 'buildings')}` : '', r.stolen ? `took ${r.stolen} gold` : '', r.foodStolen ? `took ${r.foodStolen} food` : '', r.fled ? `drove out ${plural(r.fled, 'resident', 'residents')}` : ''].filter(Boolean));
-  const stopped = [r.byTowers ? `Towers stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `${r.byTowers ? 'soldiers' : 'Soldiers'} stopped ${r.bySoldiers}` : ''].filter(Boolean);
+  const stopped = [r.byTowers ? `Towers stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `${r.byTowers ? 'soldiers' : 'Soldiers'} stopped ${r.bySoldiers}` : '', ...duiUnitsStopped(r)].filter(Boolean);
   return `${from}: ${did ? `raiders ${did}` : 'the raiders struck and left'}.${stopped.length ? ` ${stopped.join(', ')}.` : ''}`;
 }
 Object.assign(DANGER_UI_TEXT, {
@@ -964,7 +983,7 @@ export function scoreReasonText(r) {
     case 'no_bazaar': return `${plural(r.n, 'home has', 'homes have')} no bazaar`;
     case 'plain': return `Homes average ${r.value} of 50 desirability`;
     case 'fire_cover': return `No staffed firehouse reaches ${r.dir ? SCORE_SIDE_STREETS[r.dir] : plural(r.n, 'building', 'buildings')}`;
-    case 'towers': return `A raid this size needs ${plural(r.need, 'tower', 'towers')}; you have ${r.towers} working${r.soldiers ? ` and ${plural(r.soldiers, 'soldier', 'soldiers')}` : ''}`;
+    case 'towers': return `A raid this size needs ${plural(r.need, 'tower', 'towers')}; you have ${r.towers} working${r.soldiers ? ` and ${plural(r.soldiers, 'army unit', 'army units')}` : ''}`;   // every unit kind (score.js, ruling 386)
     case 'burned': return `${plural(r.n, 'building', 'buildings')} burned in the last year`;
     case 'raid_lost': return SCORE_TEXT.raidLost;
     default: return '';
@@ -1008,8 +1027,8 @@ export const TITLE_SCORE_TEXT = {
   weekly: "This week's Nile", records: 'Your records', friend: "A friend's score", startSeed: 'Start this seed',
   badLink: "This score link can't be read", newerLink: 'This score link is from a newer version of Thebes',
   weeklyHint: (seed) => `Seed ${seed}: the same river for everyone this week`,
-  bestLine: (b) => `Best: ${b.score}${b.medal ? `, ${SCORE_TEXT.medals[b.medal].toLowerCase()}` : ''}, seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.older ? ', older scoring' : ''}`,
-  stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}`,
+  bestLine: (b) => `Best: ${b.score}${b.medal ? `, ${SCORE_TEXT.medals[b.medal].toLowerCase()}` : ''}, seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.mapSize && b.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(b.mapSize)}` : ''}${b.older ? ', older scoring' : ''}`,   // Stage 4.6 (ruling 333): a record from a Small or Large map says so; Normal says nothing, as before
+  stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}${e.mapSize && e.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(e.mapSize)}` : ''}`,
   moreStamps: (n) => `+${n} more`,
   friendLine: (total, seed, level) => `${total} on seed ${seed}, ${DIFFICULTY_NAMES[level] || level}. ${SHARE_TEXT.honour}`,
   partsLine: (parts) => Object.keys(SCORE_TEXT.parts).filter((p) => p in parts).map((p) => `${SCORE_TEXT.parts[p]} ${parts[p]}`).join(' · '),
@@ -1081,13 +1100,13 @@ export const thresholdMedalText = (next) => `${SCORE_TEXT.medals[next.medal]}: $
 // Citizen remarks (spec 4.19): at least 24, by season, each heard only in a city with its building (`type`).
 export const CITIZEN_REMARKS = [
   { season: 'akhet', type: 'potter', text: 'The potters say the clay is good this year' },
-  { season: 'akhet', type: 'farm_grain', text: 'The farmers say the flood left rich black soil' },
-  { season: 'akhet', type: 'well', text: 'The water carriers say the wells are full and sweet' },
+  { season: 'akhet', type: 'farm_grain', text: 'The farmers say the flood left rich black soil', flood: 'fair' },   // Stage 4.6 (ruling 346): flood rows are heard only in a Fair or better year
+  { season: 'akhet', type: 'well', text: 'The water carriers say the wells are full and sweet', flood: 'fair' },
   { season: 'akhet', type: 'granary', text: 'The granary keepers are sweeping out the bins' },
-  { season: 'akhet', type: 'temple', text: 'The priests say the river rose just as it should' },
-  { season: 'akhet', type: 'bazaar', text: 'At the bazaar they talk of how high the river came' },
-  { season: 'akhet', type: 'house', text: 'Families mend their roofs while the fields lie under water' },
-  { season: 'akhet', type: 'booth', text: 'The players at the booth are learning a flood song' },
+  { season: 'akhet', type: 'temple', text: 'The priests say the river rose just as it should', flood: 'fair' },
+  { season: 'akhet', type: 'bazaar', text: 'At the bazaar they talk of how high the river came', flood: 'fair' },
+  { season: 'akhet', type: 'house', text: 'Families mend their roofs while the fields lie under water', flood: 'fair' },
+  { season: 'akhet', type: 'booth', text: 'The players at the booth are learning a flood song', flood: 'past' },   // final review: flood: 'past' rows wait for the city's first flood
   { season: 'peret', type: 'farm_grain', text: 'The young grain stands green and even in the fields' },
   { season: 'peret', type: 'farm_fig', text: 'The fig trees are heavy with fruit' },
   { season: 'peret', type: 'clay_pit', text: 'The diggers at the clay pit sing to keep time' },
@@ -1101,7 +1120,7 @@ export const CITIZEN_REMARKS = [
   { season: 'shemu', type: 'well', text: 'The water carriers rest in the shade at noon' },
   { season: 'shemu', type: 'trading_post', text: 'A trader says caravans pay well for Theban goods' },
   { season: 'shemu', type: 'jeweller', text: 'The jewellers are cutting stones for a wedding' },
-  { season: 'shemu', type: 'temple', text: 'The priests watch the river for the first rise' },
+  { season: 'shemu', type: 'temple', text: 'The priests watch the river for the first rise', flood: 'past' },
   { season: 'shemu', type: 'statue', text: 'People leave flowers at the foot of the statues' },
   { season: 'shemu', type: 'firehouse', text: 'The firefighters keep their jars full in the dry heat' },
 ];
@@ -1337,7 +1356,7 @@ ALERT_TEXT.site_stalled = (alert, world, b, name) => {
   const m = good && b ? ui4SiteStatus(world, b).materials[good] : null;
   return {
     title: `${name} is not progressing`,
-    fix: ui4CauseText(alert.reason, b ? ui4ExtraGold(world, b.type) : 0, m ? { makers: m.makers.length, stores: m.stores.length } : null, b ? b.type : null) || 'Have a look',
+    fix: ui4CauseText(alert.reason, b ? ui4ExtraGold(world, b.type, b.style) : 0, m ? { makers: m.makers.length, stores: m.stores.length } : null, b ? b.type : null) || 'Have a look',
   };
 };
 Object.assign(UI4_TEXT, {
@@ -1464,7 +1483,7 @@ Object.assign(TIP_TEXT, {
 });
 // The masons (builders' guild), haulers (quarry) and brickmakers, by season, once the city has their building.
 CITIZEN_REMARKS.push(
-  { season: 'akhet', type: 'builders_guild', text: 'The masons say the flood months are the time to build' },
+  { season: 'akhet', type: 'builders_guild', text: 'The masons say the flood months are the time to build', flood: 'past' },
   { season: 'akhet', type: 'builders_guild', text: 'The overseers check every course with a plumb line' },
   { season: 'peret', type: 'builders_guild', text: 'The masons are teaching their sons to dress a block' },
   { season: 'shemu', type: 'builders_guild', text: 'The masons sing as they haul the blocks up the ramp' },
@@ -1760,3 +1779,635 @@ Object.assign(FIRST_TEXT, {
   first_police_post: { head: 'First police post', why: `Staffed, it cuts the risk of thefts up to ${crimeNumbersRow.reach} road tiles away.` },
 });
 // ── end s45 threats ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 map (Map track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The Map track's words, and only the Map track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+// Terrain-bound refusals (ruling 331, "Why not here, everywhere"): one set of words for every building bound to its ground or to water
+// (farms, orchards, mines, clay pits, and the River track's wharf, lodge and nilometer), built from the rule the sim applies (src/sim/fit.js:
+// BUILDINGS[type].terrain / terrainMin / water) and from the spot's own count, so every refusal reads the same way.
+const MAP_GROUND = { fertile: 'fertile land', rocky: 'rocky ground', clay: 'clay' };
+export const S46_MAP_TEXT = {
+  ground: MAP_GROUND,
+  // "Needs 2 of 4 tiles on clay (this spot has 1)": the bar's line for a spot that is refused; the card's and the legend's use the rule alone.
+  needsTiles: (terrain, need, of, fit) => `Needs ${need} of ${of} tiles on ${MAP_GROUND[terrain]} (this spot has ${fit})`,
+  needsTilesRule: (terrain, need, of) => `Needs ${need} of ${of} tiles on ${MAP_GROUND[terrain]}`,
+  water: { touch: 'Must touch water', longSide: 'Must touch water along its long side' },
+  waterMet: 'Water beside it',
+  // Where clay lies, said on the clay pit's card and in the Ground legend: along the banks (src/sim/mapgen.js addClay turns bank tiles and the dry land
+  // beside them to clay, so every clay tile is within MAP.shapes.clay's reach of water; tests/stage46/map/clay.test.js holds it).
+  clayWhere: 'Clay ground, along the riverbanks',
+  clayGuide: 'Clay pits stand on clay: the reddish ground by the river',
+  showFit: 'Show me',
+  showFitLabel: (what) => `Show me where ${what} fits`,
+  noFit: (what) => `No room left for ${what} on this map`,
+  // The ground chip in the confirm bar: the rule met ("Clay ground", or "Clay ground: 3 of 4 tiles" when only part of the footprint is on it),
+  // or why not. cond is conditionsFor's ground condition; def the building's row.
+  groundChip(cond, def) {
+    const C = CONDITION_TEXT;
+    if (cond.water && cond.reason === 'needs_water') return S46_MAP_TEXT.water[cond.water];
+    if (cond.water && cond.state === 'met' && !def.terrain) return S46_MAP_TEXT.waterMet;
+    if (def && def.terrain && cond.terrain) {
+      if (cond.state === 'cant' && /^needs_(fertile|rocky|clay)$/.test(cond.reason)) return S46_MAP_TEXT.needsTiles(cond.terrain, Number.isInteger(cond.need) ? cond.need : cond.of, cond.of, cond.fit);
+      if (cond.state === 'met' && cond.fit < cond.of) return C.terrainCount(cond.terrain, cond.fit, cond.of);
+    }
+    return null;
+  },
+  // A bad building preview's first line (the bar's reason line): the ground chip's sentence for a ground or water refusal.
+  refusalLine(reason, ground, def) {
+    if (!ground || !def) return null;
+    if (reason === 'needs_water') return S46_MAP_TEXT.water[def.water] || reasonText(reason);
+    if (/^needs_(fertile|rocky|clay)$/.test(reason)) return S46_MAP_TEXT.needsTiles(ground.terrain, Number.isInteger(ground.need) ? ground.need : ground.of, ground.of, ground.fit);
+    return null;
+  },
+  // The card's line under the cost: where the ground lies, short (the clay pit's), else the ground's name as before.
+  cardLine: (type) => (type === 'clay_pit' ? S46_MAP_TEXT.clayWhere : ''),
+  cardTitle: (type) => {
+    const def = BUILDINGS[type];
+    if (!def || !def.terrain) return null;
+    const rule = S46_MAP_TEXT.needsTilesRule(def.terrain, Number.isInteger(def.terrainMin) ? def.terrainMin : def.w * def.d, def.w * def.d);
+    return type === 'clay_pit' ? `${rule}. ${S46_MAP_TEXT.clayWhere}.` : `${rule}.`;
+  },
+  // Bridges (ruling 350): the road card's line and title, the road tool's first line, the tip and its How to play words. cost is
+  // costOf(world, 'bridge'); max is MAP.bridgeMax (src/sim/bridges.js BRIDGE_MAX).
+  bridgeCard: (cost) => `Bridges over water: ${cost} gold a tile`,
+  bridgeCardTitle: (cost, max) => `A road crosses water on a bridge: ${cost} gold a tile, straight across at most ${max} tiles of water, with land at both ends.`,
+  bridgeBar: (cost) => `Water: a bridge, ${cost} gold a tile`,
+  bridgeTip: (max) => `Roads cross water on a bridge: straight across, up to ${max} tiles of water. The road bar shows the price.`,
+  bridgeHelp: (max) => `Roads cross water on a bridge: straight across, up to ${max} tiles of water. The road bar shows the price.`,
+  noBridge: 'No place on this map where a bridge fits',
+  // The size picker on the title card (ruling 333): one line each, from MAP_SIZES.
+  sizeLabel: 'Map size',
+  sizeGroup: 'Map size for new cities',
+  sizeNames: { small: 'Small', normal: 'Normal', large: 'Large' },
+  sizeHints: { small: 'Small: a quick city', normal: 'Normal: the usual map', large: 'Large: room for every monument' },
+  sizeWords: (id, size) => `${S46_MAP_TEXT.sizeNames[id]}, ${size} by ${size} tiles`,
+  // A share link or record that names a size: "Large 80 x 80".
+  sizeNote: (size) => `${size} x ${size} map`,
+};
+// The shared tables the words above join: a generic refusal for a water rule (the bar's line knows the rule; reasonText does not), the
+// card's ground line and the Ground legend's room line for the clay pit, and the bridge tip's words (ruling 350).
+Object.assign(REASONS, { needs_water: 'Must touch water' });
+const baseTerrainLine = CONDITION_TEXT.terrainLine;
+CONDITION_TEXT.terrainLine = (type, short = false) => (short && S46_MAP_TEXT.cardLine(type)) || baseTerrainLine(type, short);
+Object.assign(TIP_TEXT, { bridges: S46_MAP_TEXT.bridgeTip(MAP.bridgeMax) });
+TIP_HELP_TEXT.bridges = S46_MAP_TEXT.bridgeHelp(MAP.bridgeMax);
+// ── end s46 map ──
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 river (River track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The River track's words, and only the River track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+import { FLOOD as rvFlood, FLOOD_LEVELS as rvLevels, HUNTING as rvHunting, FISHING as rvFishing, WILDLIFE as rvWildlife, floodLevelRow as rvLevelRow } from '../data/river.js';
+const rvName = (id) => capitalised(id);
+const rvPct = (id) => `${Math.round(rvLevelRow(id).harvest * 100)}%`;
+const rvMonths = (n) => plural(n, 'month', 'months');
+const rvRegrow = rvWildlife.regrowMonths === 1 ? 'a month' : `every ${rvMonths(rvWildlife.regrowMonths)}`;   // how fast a herd regrows (ruling 460)
+const rvHerdName = { gazelle: ['gazelle', 'gazelles'], ostrich: ['ostrich', 'ostriches'] };
+const rvFirstMonth = rvFlood.months[0], rvLastMonth = rvFlood.months[rvFlood.months.length - 1];
+export const S46_RIVER_TEXT = {
+  levelName: rvName,
+  pct: rvPct,
+  // The levels, as the sim draws them: "Low 60%, Fair 90%, Good 110%, High 125%".
+  levelsLine: rvLevels.map((l) => `${rvName(l.id)} ${rvPct(l.id)}`).join(', '),
+  // Captions (a celebration of tier info) when the forecast or the water arrives (ruling 334).
+  forecastCaption: (id) => `The flood will be ${rvName(id)}: farms on the floodplain grow ${rvPct(id)}`,
+  riseCaption: (id) => `The Nile is rising: a ${rvName(id)} flood. Farms on the floodplain grow ${rvPct(id)}`,
+  scareCaption: (name, days) => `A crocodile scares the workers at the ${name.toLowerCase()}: they are back to work in ${plural(days, 'day', 'days')}`,
+  herdCaption: (kind, size) => `A herd of ${size} ${(rvHerdName[kind] || [kind, kind])[size === 1 ? 0 : 1]} wanders in from the edge of the map`,
+  // The farm sheet's floodplain row (ruling 334): "Floodplain: this year's flood gives 110%".
+  floodRowLabel: 'Floodplain',
+  // The level holds twelve months, from the rise (ruling 360): it is "this year's" only from the rise to the year's end, the last flood's before.
+  farmRow: (look) => {
+    if (look.applied) return `${look.phase === 'wait' || look.phase === 'forecast' ? 'The last flood' : "This year's flood"} (${rvName(look.applied.id)}) gives ${Math.round(look.applied.harvest * 100)}%, until the next flood in month ${rvFirstMonth}`;
+    return `The flood decides this farm's harvest, from ${Math.round(Math.min(...rvLevels.map((l) => l.harvest)) * 100)}% to ${Math.round(Math.max(...rvLevels.map((l) => l.harvest)) * 100)}%; the first flood comes in month ${rvFirstMonth}`;
+  },
+  farmOff: 'Off the floodplain: the flood does not change its harvest',
+  farmRowNext: (id) => `${rvName(id)} flood coming: ${rvPct(id)} from month ${rvFirstMonth}`,
+  // The Nilometer's sheet.
+  nilometerLabel: 'Next flood',
+  nilometerLabelNow: 'The flood now',
+  nilometerLabelLast: 'Last flood',
+  nilometerNote: `Reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead (from month ${rvFirstMonth - rvFlood.forecastMonths})`,
+  nilometerKnown: (id) => `${rvName(id)}: floodplain farms ${rvPct(id)}`,
+  nilometerWaiting: (monthsLeft) => (monthsLeft > 0 ? `Known from month ${rvFirstMonth - rvFlood.forecastMonths}` : 'Known when the water rises'),
+  nilometerIdle: 'It needs workers to read the river',
+  nilometerNone: 'The first flood has not come yet',
+  // The Nilometer's row (floodLook's phase tells which flood is meant): the level it reads is the next flood's only before the rise; once the
+  // water is up it is this flood's, after it the last's, and the next one is unknown until month 4 (ruling 360).
+  nilometerRow: (look, working) => {
+    const next = (value) => ({ label: S46_RIVER_TEXT.nilometerLabel, value });
+    if (!working) return next(S46_RIVER_TEXT.nilometerIdle);
+    if (!look.on) return next(S46_RIVER_TEXT.nilometerNone);
+    if (look.phase === 'forecast' && look.level) return next(S46_RIVER_TEXT.nilometerKnown(look.level.id));
+    if ((look.phase === 'rising' || look.phase === 'high') && look.applied) return { label: S46_RIVER_TEXT.nilometerLabelNow, value: S46_RIVER_TEXT.nilometerKnown(look.applied.id) };
+    if (look.phase === 'draining' && look.applied) return { label: S46_RIVER_TEXT.nilometerLabelLast, value: S46_RIVER_TEXT.nilometerKnown(look.applied.id) };
+    return next(S46_RIVER_TEXT.nilometerWaiting(look.monthsTo === null ? 0 : look.monthsTo));
+  },
+  // The hunting lodge's sheet.
+  herdsLabel: 'Herds in reach',
+  herdsLine: (herds, animals) => `${herds} (${plural(animals, 'animal', 'animals')})`,
+  // Ruling 421: what the hunters may still take this month (huntingOutlook's left: each herd's share less what it has given, the lodge's most
+  // less what it has taken), what it has taken, and the rule the two come from.
+  gameLabel: 'Game this month',
+  gameLine: (left, taken) => `${left} more${taken ? ` (${taken} taken)` : ''}; ${rvHunting.perHerdMonth} a herd a month, at most ${rvHunting.maxMonth}`,
+  // A lodge that has taken what it may this month (huntRest, src/sim/wildlife.js): the sim's reason, with its numbers.
+  huntRest: (why) => (why === 'month'
+    ? `The lodge has taken its ${rvHunting.maxMonth} this month; hunting resumes next month`
+    : why === 'small' ? `Its herds have given this month or are down to ${rvHunting.keepAtLeast} animals: the hunters leave them to regrow, 1 ${rvRegrow}`   // ruling 460
+    : `Its herds have given their ${rvHunting.perHerdMonth} this month; hunting resumes next month`),
+  noHerds: `No herd within ${rvHunting.reach} tiles: the hunters have nothing to hunt. Herds graze on desert and rocky ground`,
+  // Ruling 460: one animal a hunt, for gamePerAnimal game; the animals a herd gives a month (perHerdMonth / gamePerAnimal, as the sim counts them).
+  huntRule: `Hunters walk up to ${rvHunting.reach} tiles. Each hunt takes 1 animal for ${rvHunting.gamePerAnimal} game, ${Math.max(1, Math.floor(rvHunting.perHerdMonth / rvHunting.gamePerAnimal))} from a herd a month, and never takes a herd below ${rvHunting.keepAtLeast}; a herd regrows 1 ${rvRegrow}`,
+  // The fishing wharf's sheet.
+  catchLabel: 'Catch a month',
+  catchLine: (flood) => (flood ? `${rvFishing.floodPerMonth} now (the water is up)` : `${rvFishing.perMonth}, or ${rvFishing.floodPerMonth} in the flood months`),
+  // Ruling 422: what the sim does (src/sim/production.js): the catch is the wharf's monthly rate times its staffing, and the flood months' factor
+  // (fishFactor); no sim reads a distance, so the words name none.
+  catchRule: `The boat fishes the river off the pier: ${rvFishing.perMonth} a month with a full crew, ${rvFishing.floodPerMonth} in months ${rvFirstMonth} to ${rvLastMonth}; fewer hands land fewer`,
+  // Crocodiles beside a workplace (not on Peaceful).
+  crocLabel: 'Crocodiles',
+  crocNear: `Crocodiles bask nearby: work may pause for ${plural(rvWildlife.scareDays, 'day', 'days')}, at most once a month`,
+  crocNow: `Scared by a crocodile: back to work in ${plural(rvWildlife.scareDays, 'day', 'days')}`,
+  // The summary's river section.
+  summaryHead: 'The river',
+  floodLine: (look) => {
+    const lvl = look.level ? rvName(look.level.id) : null;
+    if (look.phase === 'wait') return `Next flood: month ${rvFirstMonth}, in ${rvMonths(look.monthsTo)}. Its level is not known yet; a Nilometer reads it ${rvMonths(rvFlood.forecastMonths)} ahead`;
+    if (look.phase === 'forecast') return `Next flood: ${lvl}, month ${rvFirstMonth}, in ${rvMonths(look.monthsTo)}. Floodplain farms will grow ${rvPct(look.level.id)}`;
+    if (look.phase === 'rising' || look.phase === 'high') return `The river is up: a ${lvl || rvName(look.applied.id)} flood. Floodplain farms grow ${Math.round(look.applied.harvest * 100)}% until the next flood`;
+    if (look.phase === 'draining') return `The water is draining: a ${rvName(look.applied.id)} flood. Floodplain farms grow ${Math.round(look.applied.harvest * 100)}% until the next flood`;
+    return look.applied ? `Last flood: ${rvName(look.applied.id)}. Floodplain farms grow ${Math.round(look.applied.harvest * 100)}% until the next flood, in ${rvMonths(look.monthsTo)}` : `The first flood comes in month ${rvFirstMonth}`;
+  },
+  // Food from the floodplain: working floodplain farms' monthly food as they stand and without the flood (floodOutlook's plain: the farms at 100%).
+  outlookLine: (o, coming) => `${coming ? 'When the flood comes' : 'Now'}, ${plural(o.farms, 'floodplain farm makes', 'floodplain farms make')} about ${o.now} food a month (${o.plain} without the flood)`,   // final review: no level gives 100%, so 'a plain year' named none
+  herdsLine2: (n, animals, hunted) => `Herds: ${n} (${plural(animals, 'animal', 'animals')}); ${hunted} hunted so far`,
+};
+// The firsts, the tips (How to play lists them) and the building plurals.
+Object.assign(BUILDING_PLURALS, { hunting_lodge: 'hunting lodges', fishing_wharf: 'fishing wharves', nilometer: 'nilometers' });
+Object.assign(FIRST_TEXT, {
+  first_nilometer: { head: 'First Nilometer', why: `Staffed, it reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead, before the water rises.` },
+  first_hunting_lodge: { head: 'First hunting lodge', why: `Its hunters bring game from herds up to ${rvHunting.reach} tiles away: game is a food.` },
+  first_fishing_wharf: { head: 'First fishing wharf', why: `Its boat lands ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood months: fish is a food.` },
+  first_flood: { head: 'First flood', why: `The Nile rose for the first time. Farms on the floodplain follow its level: ${rvLevels.map((l) => `${rvName(l.id)} ${rvPct(l.id)}`).join(', ')}.` },
+  first_game: { head: 'First game', why: 'Game reached a granary. Homes count it as a second kind of food.' },
+  first_fish: { head: 'First fish', why: 'Fish reached a granary. Homes count it as a second kind of food.' },
+});
+Object.assign(TIP_TEXT, {
+  nilometer_forecast: `A staffed Nilometer reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead: stock grain before a Low year.`,
+  hunters_range: `Hunters walk up to ${rvHunting.reach} tiles to herds on desert and rock, 1 animal a herd a month.`,
+  wharf_floods: `A wharf lands ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood. Its long side must touch water; Rotate turns it.`,
+  flood_rhythm: `The flood comes every year, months ${rvFirstMonth} to ${rvLastMonth}. It does no harm: floodplain farms grow more or less.`,
+});
+Object.assign(TIP_HELP_TEXT, {
+  nilometer_forecast: `The Nilometer reads the coming flood ${rvMonths(rvFlood.forecastMonths)} ahead.`,
+  hunters_range: `Hunting lodges: hunters reach herds up to ${rvHunting.reach} tiles away.`,
+  wharf_floods: `Fishing wharves land ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood.`,
+  flood_rhythm: `The Nile floods in months ${rvFirstMonth} to ${rvLastMonth}: ${S46_RIVER_TEXT.levelsLine} for floodplain farms.`,
+});
+// ── end s46 river ──
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 court (Court track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The Court track's words, and only the Court track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+import { FAVOUR as courtFavour, REQUESTS as courtRequests, COURT as courtRules, GOOD_VALUE as courtGoodValue } from '../data/court.js';
+import { DAYS_PER_MONTH as courtMonthDays, MONTHS_PER_YEAR as courtYearMonths } from '../sim/time.js';
+import { favourChange as courtFavourChange } from '../sim/court.js';
+import { UNIT_TYPES as courtUnitTypes } from '../data/armies.js';
+
+// Numbers and dates in the letters. Months are game months (30 days); a deadline is a game date, never a clock.
+const courtSigned = (n) => (n < 0 ? `−${-n}` : `+${n}`);
+const courtMonths = (n) => plural(n, 'month', 'months');
+const courtDate = (day) => { const m = Math.floor(day / courtMonthDays); return `Year ${Math.floor(m / courtYearMonths) + 1}, month ${(m % courtYearMonths) + 1}`; };
+const courtPct = (factor) => Math.round(Math.abs(1 - factor) * 100);
+const courtDays = (days) => courtMonths(Math.round(days / courtMonthDays));
+
+// What a request asks, in a phrase: "120 pottery", "400 gold", "3 trained units".
+const courtAsk = (r) => (r.kind === 'gold' ? `${r.amount} gold` : r.kind === 'soldiers' ? `${r.amount} trained ${r.amount === 1 ? 'unit' : 'units'}` : `${r.amount} ${goodWord(r.good)}`);
+const courtVerb = (r) => (r.kind === 'soldiers' ? 'Lend' : 'Send');
+// A change of favour by n, as it would really happen now (ruling 376): favour stays inside 0..100, so at 95 a gain of 11 reads
+// "Favour +5 (to 100)" and at 100 "Favour stays at 100". Without a world, the number as asked.
+const courtFavourWords = (n, world) => {
+  const real = world ? courtFavourChange(world, n) : n;
+  if (real === n) return `Favour ${courtSigned(n)}`;
+  const edge = n > 0 ? courtFavour.max : courtFavour.min;
+  return real === 0 ? `Favour stays at ${edge}` : `Favour ${courtSigned(real)} (to ${edge})`;
+};
+
+// One effect of a card's choice as a sentence (src/sim/court.js cardChoices writes the list; this words it, and applyEffects carries it
+// out). `world` names the buildings a pause closes.
+export function courtEffect(e, world) {
+  switch (e.kind) {
+    case 'favour': return courtFavourWords(e.n, world);
+    case 'gold': return e.n < 0 ? `${-e.n} gold leave the treasury` : `${e.n} gold join the treasury`;
+    case 'goods': return e.n < 0 ? `${-e.n} ${goodWord(e.good)} leave the stores` : `${e.n} ${goodWord(e.good)} arrive in the stores`;
+    case 'mood': return `Mood +${e.n} for ${courtDays(e.days)}, and the temple holds no festival for ${courtDays(e.every)}`;
+    case 'pause': {
+      if (e.ids.length === 1 && world.buildings[e.ids[0]]) return `The ${buildingName(world.buildings[e.ids[0]].type).toLowerCase()} stops work for ${courtDays(e.days)}`;
+      return `${plural(e.ids.length, 'workplace', 'workplaces')} in the district close for ${courtDays(e.days)}: their workers stay home`;
+    }
+    case 'faster': return `The ${plural(e.ids.length, 'sick home', 'sick homes')} recover ${e.factor === 2 ? 'twice' : `${e.factor} times`} as fast`;
+    case 'cure': return `The ${plural(e.ids.length, 'sick home', 'sick homes')} recover at once`;
+    case 'people': return `${plural(e.n, 'person settles', 'people settle')} in homes with room`;
+    case 'wages': return `Wages rise: ${e.perMonth} gold a month for ${courtMonths(e.months)} (${e.perMonth * e.months} in all)`;
+    case 'herd': return e.how === 'arrive' ? 'A herd settles near the edge of the map' : "The nearest herd is sent to the capital's hunting grounds";
+    case 'forecast': return "The priests tell you this year's flood level";
+    default: return '';
+  }
+}
+// A choice's whole consequence, before the tap: its effects in order, or "Nothing changes".
+export const courtConsequence = (effects, world) => (effects.length ? `${effects.map((e) => courtEffect(e, world)).join('. ')}.` : 'Nothing changes.');
+
+// Why a choice is off, in one line from the sim's own reasons (effectProblem, requestStatus): `e` is the effect that cannot happen, or
+// for a request the status ({ have, need }).
+export function courtProblem(problem, e, world, stock = 0) {
+  const need = e ? (e.need !== undefined ? e.need : Math.abs(e.n || 0)) : 0;
+  switch (problem) {
+    case 'no_gold': return e ? `Needs ${need} gold, and the treasury holds ${Math.max(0, world.gold)}` : 'Not enough gold';
+    case 'short': return e && e.good ? `Needs ${need} ${goodWord(e.good)}, and the stores hold ${stock}` : 'The stores do not hold enough';
+    case 'no_room': return e && e.kind === 'people' ? 'No home has room for them' : 'There is no room in the stores';
+    case 'too_soon': return 'A festival was held less than a year ago';
+    case 'none': return 'Nothing is left in the district to close';
+    case 'unavailable': return 'This cannot happen right now';
+    case 'raid': return 'Units cannot leave while a raid is under way';
+    case 'not_enough': return `${plural(e.have, 'trained unit is', 'trained units are')} at home, and this needs ${e.need}`;
+    default: return '';
+  }
+}
+
+// " (room for 25)" when a card's choice can take fewer than it drew (v.room, from the choice's own effect), else ''.
+const courtRoom = (drawn, v, where = 'stores') => (v && Number.isFinite(v.room) && v.room < drawn ? ` The ${where} have room for ${v.room}.` : '');
+// What units away come back to, by kind ("barracks", "archery range"): the building that trained them.
+const courtHomeOf = (kind) => buildingName((courtUnitTypes[kind] || courtUnitTypes.soldier).building).toLowerCase();
+
+// The eight cards' words: title, a body from what the card drew (its args) and a view (what the interface read off the city: sick homes,
+// the workshop's name, the room a capped choice has), and each choice's button.
+const COURT_CARD_WORDS = {
+  sickness: { title: 'Sickness in a district', body: (a, v) => `${plural(v.sick, 'home is', 'homes are')} ill in one district. Sickness spreads between touching homes.`, choices: { quarantine: 'Quarantine the district', physicians: 'Pay the physicians' } },
+  festival: { title: 'A festival for the capital', body: () => "The capital's priests ask Thebes to hold a festival.", choices: { hold: 'Hold the festival', decline: 'Decline' } },
+  // v.room (ruling 444): what the choice can really take now (cardChoices caps the drawn number at the room in the stores or homes), said
+  // whenever it is less than the number drawn.
+  caravan: { title: 'A merchant caravan', body: (a, v) => `Traders offer ${a.units} ${goodWord(a.good)} at ${a.price} gold each. The usual price is ${courtGoodValue[a.good] || 3}.${courtRoom(a.units, v)}`, choices: { buy: 'Buy the goods', pass: 'Pass' } },
+  deserters: { title: 'Deserters at the gate', body: (a, v) => `${a.n} soldiers who left the capital's army ask to settle in Thebes.${courtRoom(a.n, v, 'homes')}`, choices: { settle: 'Let them settle', drive_off: 'Drive them off' } },
+  temple_gift: { title: 'An offering for the temple', body: (a) => `The priests ask for ${a.n} ${goodWord(a.good)} for the temple's feast.`, choices: { donate: 'Donate the goods', keep: 'Keep them' } },
+  lost_herd: { title: 'A lost herd', body: () => 'A herd of wild animals has wandered close to your land.', choices: { welcome: 'Welcome the herd', send_away: 'Send a herd to the capital' } },
+  craftsmen_dispute: { title: "Craftsmen's dispute", body: (a, v) => `The craftsmen at the ${v.shop} want better pay.`, choices: { raise_wages: 'Raise their wages', let_it_stand: 'Let the dispute run' } },
+  flood_omen: { title: 'An omen on the river', body: () => "The priests have read the river's omens and can tell you how high this year's flood will be.", choices: { pay_priests: 'Pay the priests', pass: 'Pass' } },
+};
+
+// The low-favour rule from the favour numbers (ruling 384): the raid step as a percentage of the size, at least one raider more (favourRaidSize).
+const courtLowEffect = (f) => `raids one size step bigger (${Math.round(f.raidStep * 100)}% more, at least 1 raider), and tribute costs ${courtPct(f.tributeLow)}% more`;
+export const courtRuleLow = (f) => `At ${f.low} or less: ${courtLowEffect(f)}`;
+
+export const S46_COURT_TEXT = {
+  letterHead: 'A letter from the court', courtHead: 'The court', favour: 'Favour', favourOf: (n) => `${n} of ${courtFavour.max}`,
+  // The favour's mark: an icon beside the number, and always the words (never colour alone).
+  favourMark: { high: '▲', steady: '◆', low: '▼' },
+  band: { high: 'The court is pleased', steady: 'The court is content', low: 'The court is displeased' },
+  // The court sheet says what favour does now (bandNow), how it moves (drift), and the rules of the other bands (ruleHigh, ruleLow): the
+  // band in effect is never stated twice.
+  bandNow: {
+    high: `Now: tribute costs ${courtPct(courtFavour.tributeHigh)}% less, and the court sends gifts`,
+    steady: 'Now: no gifts, and raids and tribute as usual',
+    low: `Now: ${courtLowEffect(courtFavour)}`,
+  },
+  // On Peaceful (raidsOn false, src/sim/costs.js) there are no raids and no tribute, so favour's raid-size and tribute effects are never
+  // stated there: only what applies, the gifts. `raids` is the sim's own raidsOn(world).
+  bandNowOf: (band, raids = true) => (raids ? S46_COURT_TEXT.bandNow[band] : band === 'high' ? 'Now: the court sends gifts' : 'Now: no gifts'),
+  ruleHighOf: (raids = true) => (raids ? S46_COURT_TEXT.ruleHigh : `At ${courtFavour.high} or more: the court sends a gift, at most one every ${courtMonths(courtFavour.giftEveryMonths)}`),
+  ruleLowOf: (raids = true) => (raids ? S46_COURT_TEXT.ruleLow : ''),
+  peacefulNote: 'There are no raids or tribute on Peaceful, so favour only brings gifts.',
+  drift: `Favour moves ${courtFavour.drift} a month toward ${courtFavour.start}`,
+  ruleHigh: `At ${courtFavour.high} or more: tribute costs ${courtPct(courtFavour.tributeHigh)}% less, and the court sends a gift, at most one every ${courtMonths(courtFavour.giftEveryMonths)}`,
+  ruleLow: courtRuleLow(courtFavour),
+  // The gift clock (src/sim/court.js courtMonth, ruling 375): once started it runs on, and the gift comes at the first month's end on or
+  // after its day with favour at FAVOUR.high or more.
+  nextGift: (months) => `Next gift due in ${courtMonths(months)}: it comes at the first month's end from then with favour at ${courtFavour.high} or more`,
+  giftWaiting: `A gift is due: it comes at the first month's end with favour at ${courtFavour.high} or more`,
+  // Letters.
+  ask: courtAsk, requestTitle: (r) => `${courtVerb(r)} ${courtAsk(r)}`, sendLabel: (r) => `${courtVerb(r)} ${courtAsk(r)}`,
+  refuseLabel: (r, world) => {
+    const real = world ? courtFavourChange(world, -r.missed) : -r.missed;
+    return real === 0 ? `Refuse (favour stays at ${courtFavour.min})` : `Refuse (favour ${courtSigned(real)})`;
+  },
+  later: 'Decide later',
+  asked: 'Asked', deadline: 'Deadline', reward: 'Reward', ifRefused: 'If refused or missed', have: 'You have',
+  deadlineText: (r, left) => `${courtDate(r.due)} (${courtMonths(left)} left)`,
+  rewardText: (r, world) => (r.gold > 0 ? `${courtFavourWords(r.met, world)} and ${r.gold} gold` : courtFavourWords(r.met, world)),
+  refusedText: (r, world) => courtFavourWords(-r.missed, world),
+  haveText: (r, st) => (r.kind === 'gold' ? `${st.have} gold in the treasury` : r.kind === 'soldiers' ? `${plural(st.have, 'trained unit', 'trained units')} at home` : `${st.have} ${goodWord(r.good)} in the stores`),
+  soldiersNote: `They are away for ${courtRequests.soldiersMonths} months, unpaid, and do not fight.`,
+  guidedNote: 'The first letter from the court is a small request, and an easy one to answer.',
+  sendConsequence: (r, world) => {
+    const out = r.kind === 'gold' ? [{ kind: 'gold', n: -r.amount }] : r.kind === 'soldiers' ? [] : [{ kind: 'goods', good: r.good, n: -r.amount }];
+    const lines = out.map((e) => courtEffect(e, world));
+    if (r.kind === 'soldiers') lines.push(`${courtAsk(r)} leave for ${courtMonths(courtRequests.soldiersMonths)}`);
+    // A raid already warned comes while they are away (they are gone far longer than a warning's days): say so (ruling 443).
+    const warned = world && world.raid && world.raid.warning;
+    if (r.kind === 'soldiers' && warned) lines.push(`A raid arrives in ${plural(Math.max(0, warned.arrives - world.day), 'day', 'days')}: these units will not fight it`);
+    lines.push(courtFavourWords(r.met, world));
+    if (r.gold > 0) lines.push(`${r.gold} gold join the treasury`);
+    return `${lines.join('. ')}.`;
+  },
+  refuseConsequence: (r, world) => `${courtFavourWords(-r.missed, world)}. The request is closed.`,
+  problem: courtProblem, effect: courtEffect, consequence: courtConsequence,
+  // Cards.
+  cardTitle: (card) => COURT_CARD_WORDS[card].title,
+  cardBody: (letter, view) => COURT_CARD_WORDS[letter.card].body(letter.args || {}, view || {}),
+  choiceLabel: (card, choice) => COURT_CARD_WORDS[card].choices[choice],
+  noLetters: 'No letters wait for you.', waiting: 'Waiting for you', pastLetters: 'Past letters', noPast: 'No past letters yet.',
+  openRequest: 'Open request', noRequest: 'No request is open.',
+  // A group whose building is gone (unitsAway's gone, ruling 443) leaves service on its return day (armyDay), and the line says so.
+  awayHead: 'Away at the capital',
+  awayLine: (a) => (a.gone
+    ? `${plural(a.n, 'trained unit', 'trained units')} due back in ${courtDate(a.back)} will leave service: their ${courtHomeOf(a.kind)} is gone`
+    : `${plural(a.n, 'trained unit', 'trained units')} back in ${courtDate(a.back)}`),
+  captionUnitsLost: (e) => {
+    const kinds = Object.keys(e.lost);
+    const n = kinds.reduce((s, k) => s + e.lost[k], 0);
+    const homes = [...new Set(kinds.map(courtHomeOf))].join(' and ');
+    return `${plural(n, 'trained unit', 'trained units')} back from the capital left service: their ${homes} ${homes.includes(' and ') ? 'are' : 'is'} gone`;
+  },
+  // The demolish question for a building units away come back to (sheets.js asks it through monumentSheet.js demolishQuestion).
+  demolishAway: (type, n) => `Tear down the ${buildingName(type).toLowerCase()}? ${plural(n, 'trained unit', 'trained units')} away at the capital come back to it: with it gone, they leave service.`,
+  demolishAwayShort: (n) => `${plural(n, 'trained unit', 'trained units')} away at the capital will leave service`,
+  // A raid already warned keeps the size and tribute fixed at its warning (raids.js raiseWarning), whatever favour does since (ruling 442).
+  warnedRaid: (w) => `The raid already warned keeps the size${w.tribute ? ` and tribute (${w.tribute} gold)` : ''} set at its warning`,
+  // The answer refused because the numbers on the letter changed while it was open (answerCard's 'changed', ruling 444).
+  captionChanged: 'The numbers on the letter changed: read it again before you choose',
+  // A letter that closed while it was on show (ruling 447): a request past its deadline, a card the court dropped as no longer needed.
+  letterClosed: (kind) => (kind === 'request' ? 'This letter is closed: its deadline passed.' : 'This letter is closed: it is no longer needed.'),
+  close: 'Close',
+  cadence: `The court writes a request about every ${courtRequests.gapMonths[0]} to ${courtRequests.gapMonths[1]} months.`,
+  closed: () => {
+    const m = MILESTONES.find((x) => x.id === courtRules.from), c = MILESTONES.find((x) => x.id === courtRules.fallback);
+    return `The court writes once a city is a ${m.name} and has opened a trade route (at the latest, a ${c.name}).`;
+  },
+  openCourt: 'Open the court', readLetter: 'Read the letter',
+  // The log of past letters, newest first on the court sheet.
+  logLine: (e) => {
+    if (e.kind === 'gift') return e.good ? `A gift from the court: ${e.n} ${goodWord(e.good)}` : `A gift from the court: ${e.gold} gold`;
+    if (e.kind === 'card') return `${COURT_CARD_WORDS[e.card].title}: ${COURT_CARD_WORDS[e.card].choices[e.choice].toLowerCase()}`;
+    const ask = courtAsk(e.request);
+    if (e.result === 'met') return `Sent ${ask}: favour ${courtSigned(e.favour)}${e.gold > 0 ? `, ${e.gold} gold` : ''}`;
+    return `${e.result === 'refused' ? 'Refused' : 'Missed'} ${ask}: favour ${courtSigned(e.favour)}`;
+  },
+  logDate: (day) => courtDate(day),
+  // Captions (the info tier) for what the court did.
+  captionMet: (e) => `Sent ${courtAsk(e.request)} to the court: favour ${courtSigned(e.favour)}`,
+  captionRefused: (e) => `Refused the court's request: favour ${courtSigned(e.favour)}`,
+  captionMissed: (e) => `The court's request for ${courtAsk(e.request)} passed its deadline: favour ${courtSigned(e.favour)}`,
+  captionGift: (e) => (e.good ? `A gift from the court: ${e.n} ${goodWord(e.good)}` : `A gift from the court: ${e.gold} gold`),
+  captionCard: (e) => `${COURT_CARD_WORDS[e.card].title}: ${COURT_CARD_WORDS[e.card].choices[e.choice].toLowerCase()}`,
+  captionGone: (e) => `The court's letter about ${COURT_CARD_WORDS[e.card].title.toLowerCase()} is no longer needed`,
+  // The alert row's words are short on purpose: a phone's row shows two lines at most, and at 150% text about 35 characters, so the ask and
+  // its deadline in game months must come first. The sheet it opens is headed "A letter from the court".
+  alertDue: (r, left) => `Court: due in ${courtMonths(left)}, ${courtAsk(r)}`,
+  alertRequest: (r, left) => `Court: ${courtAsk(r)} in ${courtMonths(left)}`,
+  alertCard: (card) => `Court: ${COURT_CARD_WORDS[card].title.toLowerCase()}`,
+  alertMore: (n) => ` (+${n - 1} more)`,
+};
+
+Object.assign(T, { letter: S46_COURT_TEXT.letterHead, court: S46_COURT_TEXT.courtHead });
+
+// The alert row's words: the title carries the deadline in game months (ruling 337), the fix says what to do. The letter is found by id.
+ALERT_TEXT.court_letter = (alert, world) => {
+  const C = S46_COURT_TEXT;
+  const letter = world.court.letters.find((l) => l.id === alert.letter);
+  if (!letter) return { title: C.letterHead, fix: '' };
+  const more = alert.count > 1 ? C.alertMore(alert.count) : '';
+  if (letter.kind === 'request' && world.court.request) {
+    const r = world.court.request;
+    const left = Math.max(0, Math.ceil((r.due - world.day) / courtMonthDays));
+    return alert.due
+      ? { title: C.alertDue(r, left), fix: 'Send it or refuse it: the summary opens the court' }
+      : { title: C.alertRequest(r, left) + more, fix: 'Open it to send what it asks, refuse it or decide later' };
+  }
+  if (letter.kind !== 'card' || !COURT_CARD_WORDS[letter.card]) return { title: C.letterHead + more, fix: '' };   // a stale or unknown record
+  return { title: C.alertCard(letter.card) + more, fix: 'Open it to choose: each choice says what it does' };
+};
+
+Object.assign(FIRST_TEXT, {
+  // Words true on every difficulty (ruling 442): Peaceful has no raids or tribute, so favour's tribute effect is left to the court sheet.
+  first_letter: { head: 'First letter from the court', why: `Sending what it asks earns favour; at ${courtFavour.high} or more, the court sends gifts.` },
+});
+Object.assign(ACHIEVEMENT_NAMES, { friend_of_the_court: 'Friend of the court' });
+ACHIEVEMENT_TEXT.friend_of_the_court = 'Send the court what it asks 5 times';
+Object.assign(TIP_TEXT, {
+  court_letters: 'A letter from the court asks for goods or gold: sending it earns favour, refusing or missing it costs favour.',
+});
+TIP_HELP_TEXT.court_letters = `The court writes from ${MILESTONES.find((x) => x.id === courtRules.from).name}: send what it asks for favour. At ${courtFavour.high} or more, the court sends gifts.`;
+// ── end s46 court ──
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 armies (Armies track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The Armies track's words, and only the Armies track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+// Every track's section shares this module's top-level scope, so the Armies track's own names start with "arm" (its imports too,
+// renamed with "as"; imports are hoisted, so they sit here in the section). Every number is the data's: UNIT_TYPES, ENEMY_TYPES,
+// ARMY and the matchup table (src/data/armies.js), and the counters are counterModel's (src/sim/armies.js).
+import { UNIT_TYPES as armUnits, ARMY as armArmy, ENEMY_KINDS as armEnemyKinds, matchup as armMatchup } from '../data/armies.js';
+import { counterModel as armCounterModel, unitsAtHome as armUnitsAtHome, feedTypes as armFeedTypes } from '../sim/armies.js';
+import { DAYS_PER_MONTH as armMonthDays } from '../sim/time.js';
+const armCap = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
+// The enemy kinds as a mix names them ("8 on foot, 4 archers, 2 chariots, 3 by boat"), and the units as the counters name them.
+const armEnemyWords = { foot: (n) => `${n} on foot`, archer: (n) => plural(n, 'archer', 'archers'), chariot: (n) => plural(n, 'chariot', 'chariots'), boat: (n) => `${n} by boat` };
+const armUnitPlural = { soldier: 'soldiers', archer: 'archers', chariot: 'chariots' };
+const armUnitOne = { soldier: 'soldier', archer: 'archer', chariot: 'chariot' };
+// The situations of the matchup table (src/data/armies.js SITUATIONS), as the counters say them.
+const armSituationWords = {
+  wall: 'on a wall or tower', melee: 'in melee', open: 'in the open', nearWall: `within ${armArmy.wallNear} tiles of a wall`, gate: 'holding a gate or breach',
+};
+const armFactor = (f) => (f === 0.5 ? 'half' : `${f}x`);
+const armMonths = (days) => Math.max(1, Math.round(days / armMonthDays));
+const armA = (noun) => `${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}`;
+const armM = (u, e, s) => armFactor(armMatchup(u, e, s));
+export const S46_ARMY_TEXT = {
+  enemy: armEnemyWords, unitPlural: armUnitPlural, unitOne: armUnitOne, situation: armSituationWords, factor: armFactor,
+  // A raid's mix, the kinds it has in ENEMY_KINDS order: "8 on foot, 4 archers, 2 chariots" ('' for an empty mix).
+  mixText: (mix) => armEnemyKinds.filter((k) => mix && mix[k] > 0).map((k) => armEnemyWords[k](mix[k])).join(', '),
+  // The warning's line (ruling 341): "14 raiders from the east: 8 on foot, 4 archers, 2 chariots".
+  mixLine: (size, from, mix) => `${armCap(plural(size, 'raider', 'raiders'))} from ${from}: ${S46_ARMY_TEXT.mixText(mix)}`,
+  isMixedMix: (mix) => armEnemyKinds.some((k) => k !== 'foot' && mix[k] > 0),
+  countersHead: 'What helps against them',
+  // One line per enemy kind in the mix, from counterModel (the matchup table and the enemy's row): "4 archers: they shoot towers
+  // from 4 tiles, then your units. Your chariots in the open deal 2x; soldiers holding a gate or breach 1.5x."
+  counterLine(c) {
+    const t = c.traits, said = [];
+    if (t.shootsTowers) said.push(`they shoot towers from ${t.range} tiles, then your units`);
+    if (t.lands) said.push(`they land on a river bank within ${t.landWithin} tiles of the city`);
+    // Their pace, from ENEMY_TYPES speeds as raids.js moves a band (ruling 383): a kind faster than the band it rides in keeps the
+    // band's pace while slower raiders are with it; a band of it alone is faster than raiders on foot.
+    const go = c.kind === 'chariot' ? 'ride' : 'move';
+    if (t.speed > t.pace) said.push(`they ${go} ${plural(t.speed, 'tile', 'tiles')} a day alone, but keep pace with the slower raiders beside them (${t.pace} a day)`);
+    else if (t.speed > t.footSpeed) said.push(`they ${go} ${plural(t.speed, 'tile', 'tiles')} a day, faster than raiders on foot (${t.footSpeed})`);
+    if (t.turnedByWalls) said.push(`a wall${t.noRocky ? ' or rocky ground' : ''} turns them back once no raider on foot is with them`);
+    const helps = c.helps.map((h, j) => (j ? `${armUnitPlural[h.unit]} ${armSituationWords[h.situation]} ${armFactor(h.factor)}` : `your ${armUnitPlural[h.unit]} ${armSituationWords[h.situation]} deal ${armFactor(h.factor)}`));
+    const weak = c.weak.map((h) => `${armUnitPlural[h.unit]} ${armSituationWords[h.situation]} deal ${armFactor(h.factor)}`);
+    const parts = [said.length ? `${armCap(said.join('; '))}.` : '', helps.length ? `${armCap(helps.join('; '))}.` : '', weak.length ? `But ${weak.join('; ')}.` : ''].filter(Boolean);
+    return `${armEnemyWords[c.kind](c.n)}: ${parts.join(' ')}`;
+  },
+  counters: (mix) => armCounterModel(mix).map((c) => S46_ARMY_TEXT.counterLine(c)),
+  // The building sheets (src/ui/s46/armies.js), from UNIT_TYPES and the sim.
+  unitsLabel: { soldier: 'Soldiers', archer: 'Archers', chariot: 'Chariots' },
+  // A building's units of its cap; units away at the capital count toward the cap (trainSoldiers, ruling 381), so the sheet says them.
+  ofCap: (n, cap, away = 0) => (away > 0 ? `${n} here, ${away} away, of ${cap}` : `${n} of ${cap}`),
+  full: (kind, n, cap, away = 0) => `Full: ${away > 0 ? `${n} here and ${away} away, of ${cap}` : `${n} of ${cap}`} ${armUnitPlural[kind]}; it trains another when one is wounded`,
+  trains: (kind) => `Trains one ${armUnitOne[kind]} every ${armUnits[kind].trainDays} days at full staff, slower when short of workers`,
+  pay: (kind) => `Each ${armUnitOne[kind]} is paid ${armUnits[kind].pay} gold a month at home, in peace too`,
+  patrolLine: (kind) => `Goes out to raiders within ${armUnits[kind].patrol} tiles`,
+  archerDoes: `Shoots a raider up to ${armUnits.archer.range} tiles away; on a wall or tower it deals ${armM('archer', 'foot', 'wall')} to raiders on foot, ${armM('archer', 'foot', 'melee')} in melee`,
+  chariotDoes: `Deals ${armM('chariot', 'foot', 'open')} in the open (no wall within ${armArmy.wallNear} tiles), ${armM('chariot', 'foot', 'nearWall')} nearer a wall; it cannot pass a gate`,
+  away: (kind, n, days) => `${plural(n, armUnitOne[kind], armUnitPlural[kind])} away at the capital, back in ${plural(armMonths(days), 'month', 'months')}`,
+  horses: (each, now) => `Horses eat ${each} grain a chariot a month (${now} now), from ${listText(armFeedTypes().map(pluralName))}`,
+  hungry: `The horses went hungry last month: chariots fight at ${Math.round(armArmy.hungry * 100)}% until a month's end feeds them`,
+  grainHeld: (n) => `Grain in store: ${n}`,
+  lastRaid: (kind, n, size) => `Last raid: ${armUnitPlural[kind]} stopped ${n} of ${size}`,
+};
+// The horses' alert (armyAlerts): an ordinary one on the first stables.
+Object.assign(ALERT_TEXT, {
+  horses_hungry: (alert) => ({ title: 'Chariot horses went hungry', fix: `Keep ${alert.need} grain a month in ${armFeedTypes().map((t) => armA(buildingName(t).toLowerCase())).join(' or ')}; until then chariots fight at ${Math.round(armArmy.hungry * 100)}%` }),
+});
+// The firsts and the tips (How to play lists the tips).
+Object.assign(FIRST_TEXT, {
+  first_archery_range: { head: 'First archery range', why: `Its archers shoot raiders up to ${armUnits.archer.range} tiles away, ${armM('archer', 'foot', 'wall')} from a wall or tower.` },
+  first_stables: { head: 'First stables', why: `Its chariots deal ${armM('chariot', 'foot', 'open')} in the open; their horses eat ${armUnits.chariot.grain} grain each a month.` },
+});
+Object.assign(TIP_TEXT, {
+  archers_on_walls: `Archers climb the nearest wall or tower on their own: from there they deal ${armM('archer', 'foot', 'wall')} to raiders on foot.`,
+  chariots_in_open: `Chariots deal ${armM('chariot', 'foot', 'open')} with no wall within ${armArmy.wallNear} tiles, but cannot pass walls or gates: put stables beside it.`,
+  mixed_raid: 'Open the raid warning: it lists the raiders coming and what helps against each kind.',
+});
+// The raid under way (Stage 3's raid alert): with archers or chariots at home, its fix gives the reach of the units the city has
+// (UNIT_TYPES patrol, the nearest to the farthest: "your units go out within 8 to 12 tiles"; one kind alone by name), no longer than
+// the soldiers' line so the wide banner keeps its buttons beside the side panel (ruling 389a); each kind's own patrol is on its
+// building's sheet. A city of soldiers only reads as before.
+const armRaidAlert = ALERT_TEXT.raid;
+Object.assign(ALERT_TEXT, {
+  raid: (alert, world) => {
+    const out = armRaidAlert(alert, world);
+    const a = world.raid.active, home = armUnitsAtHome(world);
+    if ((alert.phase || (a ? a.phase : 'attack')) === 'retreat' || !(home.archer > 0 || home.chariot > 0)) return out;
+    const kinds = Object.keys(armUnitPlural).filter((k) => home[k] > 0);
+    const reaches = kinds.map((k) => armUnits[k].patrol), lo = Math.min(...reaches), hi = Math.max(...reaches);
+    const who = kinds.length === 1 ? `your ${armUnitPlural[kinds[0]]}` : 'your units';
+    return { ...out, fix: `Towers hit raiders within ${raidsData.DEFENCE.towerRange} tiles; ${who} go out within ${lo === hi ? lo : `${lo} to ${hi}`} tiles` };
+  },
+});
+// The money sheets' row for every unit's pay (soldiersPayOf: soldiers, archers and chariots at home, ruling 386).
+Object.assign(T, { soldiersPay: 'Army pay' });
+// ── end s46 armies ──
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 wonders (Wonders track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The Wonders track's words, and only the Wonders track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+import { MONUMENTS as wondMonuments, MONUMENT_KINDS as wondKinds } from '../data/monuments.js';
+import { MONUMENT_STYLES as wondStyles, NEW_MONUMENT_KINDS as wondNew } from '../data/wonders.js';
+import { DAYS_PER_MONTH as wondMonthDays, DAYS_PER_SECOND as wondDaysPerSecond } from '../sim/time.js';
+// Real time at a game speed, as the spec's table writes it: "9 min", "37 min 30 s", "1 min 30 s".
+const wondClock = (seconds) => { const m = Math.floor(seconds / 60), r = Math.round(seconds - m * 60); return m ? `${m} min${r ? ` ${r} s` : ''}` : `${r} s`; };
+const wondName = (id) => (id === 'classic' ? 'Classic' : id.charAt(0).toUpperCase() + id.slice(1));
+const wondMilestone = (id) => MILESTONES.find((m) => m.id === id).name;
+// The kind's facts, every one from MONUMENTS: the table pattern of spec 4.16 (gold, materials, crews, game time, real times at 1x and 3x).
+export function wondFacts(type) {
+  const m = wondMonuments[type], months = m.crewMonths / m.crews;
+  const stone = m.courses.reduce((n, c) => n + c.stone, 0), bricks = m.courses.reduce((n, c) => n + c.bricks, 0);
+  const seconds = (speed) => (months * wondMonthDays) / (speed * wondDaysPerSecond);
+  return { gold: m.founding, stone, bricks, crews: m.crews, months, at1x: wondClock(seconds(1)), at3x: wondClock(seconds(3)), reach: m.desirability.length, best: m.desirability[0], size: `${m.w} by ${m.d}`, milestone: wondMilestone(m.unlock.milestone) };
+}
+const wondMaterials = (f) => listText([f.stone ? `${ui4Gold(f.stone)} stone` : '', f.bricks ? `${ui4Gold(f.bricks)} bricks` : ''].filter(Boolean));
+// What each new kind is, in a few words (flavour, not a rule), for its first's line.
+const WOND_KIND_WORDS = {
+  great_sphinx: 'a lion of stone with the face of the king',
+  sun_temple: 'two pylons round a tall sun pillar crowned by a gold disc',
+  step_pyramid: 'a pyramid of five stone steps with a small chapel on top',
+};
+// The table of spec 4.16 for a kind in one sentence, every figure from MONUMENTS: gold, materials, crews, game time, the real times at 1x and 3x.
+const wondKindLine = (type) => {
+  const f = wondFacts(type);
+  return `${buildingName(type)}: ${WOND_KIND_WORDS[type]}. ${f.size} tiles, ${ui4Gold(f.gold)} gold to found, ${wondMaterials(f)}. Up to ${f.crews} crews build it in ${f.months} game months: about ${f.at1x} at 1x, ${f.at3x} at 3x.`;
+};
+// The tip and its How to play line, short (a tip keeps to 20 words): gold, crews, the time at 1x, and what it does for homes.
+const wondTip = (type, where) => { const f = wondFacts(type); return `${buildingName(type)} ${where}: ${ui4Gold(f.gold)} gold, ${f.crews} crews, ${f.at1x} at 1x. Homes within ${f.reach} tiles get nicer.`; };
+export const S46_WONDER_TEXT = {
+  styleNames: Object.fromEntries(Object.keys(wondStyles).map((id) => [id, wondName(id)])),
+  styleGroup: 'Style of the monument',
+  styleLabel: (name, line) => `${name}: ${line}`,
+  // The bar's line for the style in force: what it costs and does, from MONUMENT_STYLES (goldFactor, desirability) and the sim's price for this kind.
+  // The button beside it names the style, so the line does not (the button's accessible name is styleLabel: the name and this line).
+  styleLine(style, price) {
+    const S = wondStyles[style], more = Math.round((S.goldFactor - 1) * 100);
+    const gold = more > 0 ? `${more}% more gold in all (${Math.round(price)} to found)` : 'no extra cost';
+    const nicer = S.desirability > 0 ? `, homes in reach +${S.desirability} nicer` : '';
+    const look = { whitewashed: 'Plain white limestone', painted: 'Teal and ochre bands', gilded: 'Gold leaf' }[style];
+    return more > 0 ? `${look}: ${gold}${nicer}` : `${look}, ${gold}${nicer}`;
+  },
+  // The sheet's row for a monument founded in a style (a Classic one has none).
+  styleRow(style, price) {
+    const S = wondStyles[style], more = Math.round((S.goldFactor - 1) * 100);
+    const parts = [more > 0 ? `${more}% more gold in all` : 'no extra cost'];
+    if (S.desirability > 0) parts.push(`homes in reach +${S.desirability} nicer`);
+    return `Style: ${wondName(style)} (${parts.join(', ')})`;
+  },
+  // The styles' tip (20 words at most): the offered styles that cost something say what they cost and do, from MONUMENT_STYLES.
+  styleTip: (() => {
+    const dear = Object.keys(wondStyles).filter((id) => wondStyles[id].pick && (wondStyles[id].goldFactor !== 1 || wondStyles[id].desirability));
+    return `Pick a style on the bar. ${dear.map((id) => `${wondName(id)} costs ${Math.round((wondStyles[id].goldFactor - 1) * 100)}% more gold in all, and homes in reach get +${wondStyles[id].desirability} nicer`).join('; ')}.`;
+  })(),
+  kindLine: wondKindLine,
+  kindTip: (type) => wondTip(type, 'unlocked'),
+  kindHelp: (type) => wondTip(type, `(${wondFacts(type).milestone})`),
+  sevenWonders: (n) => `Finish ${n} different kinds of monument (there are ${wondKinds.length})`,
+};
+Object.assign(FIRST_TEXT, Object.fromEntries(wondNew.map((type) => [`first_${type}`, { head: `First ${buildingName(type).toLowerCase()}`, why: `${wondMonuments[type].prestige.courses + wondMonuments[type].prestige.done} prestige when finished. ${wondFacts(type).crews} crews build it in ${wondFacts(type).months} game months: ${wondFacts(type).at1x} at 1x, ${wondFacts(type).at3x} at 3x.` }])));
+Object.assign(TIP_TEXT, Object.fromEntries(wondNew.map((type) => [`wonder_${type}`, S46_WONDER_TEXT.kindTip(type)])), { monument_styles: S46_WONDER_TEXT.styleTip });
+TIP_HELP_TEXT.monument_styles = S46_WONDER_TEXT.styleTip;
+for (const type of wondNew) TIP_HELP_TEXT[`wonder_${type}`] = S46_WONDER_TEXT.kindHelp(type);
+// "Seven wonders" still asks for seven kinds, now of ten (ruling 396): the words say so.
+ACHIEVEMENT_TEXT.seven_wonders = S46_WONDER_TEXT.sevenWonders(score4Achievement('seven_wonders').n);
+// ── end s46 wonders ──
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 ux (UX track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The UX track's words, and only the UX track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+export const S46_UX_TEXT = {
+  // Ruling 400: the key hints on the confirm bar (shown only where there is a keyboard).
+  keyEnter: 'Enter', keyEsc: 'Esc',
+  // Ruling 404: the wide top bar's play, pause and speed. Each step has a picture (never colour alone), a word, and a name for assistive
+  // technology that says what pressing it does; the pressed one is the state, and only it shows its word ("Paused" or the speed).
+  speedGlyphs: ['❚❚', '▶', '▶▶', '▶▶▶'],
+  speedGroup: 'Game speed',
+  pausedWord: 'Paused',
+  playingState: (speedLabel) => `Playing at ${speedLabel}`,   // ruling 419: the state while running, beside the action the button names
+  speedStepLabel: (s) => (s === 0 ? 'Pause' : `Play at ${SPEED_LABELS[s]} speed`),
+  // keys: whether Keyboard shortcuts is on (Space, + and - only work then: src/ui/keyboard.js); off, the title names no key (final review).
+  speedStepTitle: (s, keys = true) => (s === 0 ? (keys ? 'Pause (Space)' : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ' (+ and - change it)' : ''}`),
+  // Rulings 401-403: the version and What's new on the title card. The notes themselves are src/data/releases.js.
+  versionLine: (version, stamp = null) => `Version ${version}${stamp ? ` · build ${stamp}` : ''}`,
+  whatsNew: 'What\'s new', whatsNewTitle: 'What\'s new in Thebes', newHead: 'New', fixedHead: 'Fixed', newestTag: 'newest',
+  // build: the version's short build stamp (src/data/releases.js), or null while the running build's is still being read.
+  releaseHead: (version, dateText, build = null) => `Version ${version} · ${dateText}${build ? ` · build ${build}` : ''}`,
+};
+// ── end s46 ux ──

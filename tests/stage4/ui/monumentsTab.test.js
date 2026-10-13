@@ -18,7 +18,7 @@ function finished(w, type, x, y) {
 }
 
 describe('s4 ui the Monuments tab', () => {
-  it('holds the guild, quarry, brickworks and the seven monuments in order, shown greyed while City is next', () => {
+  it('holds the guild, quarry, brickworks and the ten monuments in order (Stage 4.6: the great sphinx, sun temple and step pyramid by cost), shown greyed while City is next', () => {
     const w = makeTestWorld();
     expect(CATEGORIES.find((c) => c.id === 'monuments').items).toEqual(['builders_guild', 'quarry', 'brickworks', ...MONUMENT_KINDS]);
     w.milestone = 'town';
@@ -27,7 +27,7 @@ describe('s4 ui the Monuments tab', () => {
     expect(shownItems(w, 'monuments')).toEqual(['builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large']);
     expect(shownItems(w, 'monuments').every((t) => cardInfo(w, t).locked)).toBe(true);
     w.milestone = 'city';
-    expect(shownItems(w, 'monuments').map((t) => cardInfo(w, t).locked)).toEqual([false, false, false, false, false, true, true]);
+    expect(shownItems(w, 'monuments').map((t) => cardInfo(w, t).locked)).toEqual([false, false, false, false, false, true, true, true]);   // the great sphinx, the colossus and the small mastaba wait for Great city
   });
 
   it('shows the small pyramid greyed from Great city and the great pyramid once the small one unlocks (ruling 243)', () => {

@@ -85,7 +85,7 @@ export const GUIDE_GOALS = ['road', 'plots', 'well', 'food', 'temple'];
 // an alert with its trigger code appears, once per city, and completes when the trouble has cleared.
 // A null showMe means Show me opens the city summary.
 export const EVENT_GOALS = [
-  { id: 'fix_bazaar', trigger: 'bazaar_empty', chapter: 'event', text: 'Get grain to the bazaar', reward: EVENT_REWARD, need: { kind: 'noAlert', code: 'bazaar_empty' }, showMe: { category: 'food', item: 'granary', target: 'alert', code: 'bazaar_empty' } },
+  { id: 'fix_bazaar', trigger: 'bazaar_empty', chapter: 'event', text: 'Get food to the bazaar', reward: EVENT_REWARD, need: { kind: 'noAlert', code: 'bazaar_empty' }, showMe: { category: 'food', item: 'granary', target: 'alert', code: 'bazaar_empty' } },
   { id: 'more_workers', trigger: 'labour_shortage', chapter: 'event', text: 'Find more workers: place more homes', reward: EVENT_REWARD, need: { kind: 'noAlert', code: 'labour_shortage' }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'more_jobs', trigger: 'unemployment', chapter: 'event', text: 'Make more jobs: build a farm or a bazaar', reward: EVENT_REWARD, need: { kind: 'noAlert', code: 'unemployment' }, showMe: { category: 'food', item: 'farm_grain', target: 'fertile' } },
   { id: 'out_of_debt', trigger: 'debt', chapter: 'event', text: 'Get out of debt', reward: EVENT_REWARD, need: { kind: 'gold', n: 0 }, showMe: null },
@@ -116,6 +116,9 @@ export const EVENT_GOALS = [
       no_bricks: { category: 'monuments', item: 'brickworks', target: 'alert', code: 'site_stalled' },
     },
   },
+  // Stage 4.6 (ruling 371, Court track): the first time a letter from the court arrives (the guided one: the trading goal opens the court), it joins the
+  // list at the front, and is met once that letter is answered (sent, refused or past its deadline; a card answered first counts too). Built as an event goal, not an opening-chain goal (ruling 380). Show me opens the summary, where the court's row is.
+  { id: 'court_letter', trigger: 'court_letter', chapter: 'event', text: 'Answer the letter from the court', why: "Open it from the alert row or the summary. Sending what it asks earns the capital's favour.", reward: EVENT_REWARD, need: { kind: 'courtAnswered' }, showMe: null },
 ];
 
 // The opening chain (spec 4.1): Founded Thebes, already ticked when a city starts (an endowed start: it pays nothing and is

@@ -59,9 +59,9 @@ describe('ui carry-overs', () => {
     r.cleanup();
   });
   it('keeps the legend words readable under a banner, and reads reduced motion live', async () => {
-    // A wide screen shrinks the legend to its dot and ring under a banner, the words kept for screen readers; a phone's
-    // legend has the guidance row to itself (spec 6.3, ruling 164), so there the words show in full.
-    for (const [w, h, sized] of [[1280, 800, true], [390, 844, false]]) {
+    // Stage 4.6 (UX ruling 407): a wide screen used to shrink the legend to its dot and ring under a banner, the words kept for screen readers
+    // only, which left a sighted player two unexplained marks; the words now show in full there as on a phone (spec 6.3, ruling 164).
+    for (const [w, h, sized] of [[1280, 800, false], [390, 844, false]]) {
       const r = await rigUI({ width: w, height: h });
       try {
         r.store.set({ overlay: 'water' });
@@ -94,7 +94,7 @@ describe('ui carry-overs', () => {
   it('names the fix for an empty bazaar, keeps every summary label in T, and clears sprites when the pixel ratio changes', async () => {
     const w = makeTestWorld();
     const bazaar = addRaw(w, 'bazaar', 10, 10);
-    expect(alertText({ code: 'bazaar_empty', id: bazaar.id }, w)).toEqual({ title: 'Bazaar has no food', fix: `Build a granary with grain within ${BUILDINGS.bazaar.supplyReach} road tiles` });   // it may still sell goods
+    expect(alertText({ code: 'bazaar_empty', id: bazaar.id }, w)).toEqual({ title: 'Bazaar has no food', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles: grain farms, fig orchards, hunting lodges and fishing wharves fill it` });   // it may still sell goods
     for (const k of ['grain', 'lasts', 'working', 'jobs']) expect(typeof T[k]).toBe('string');
     const src = await (await fetch('/src/ui/sheets.js')).text();
     expect(/row\('[A-Z]/.test(src)).toBe(false);                               // no literal labels left in the sheets

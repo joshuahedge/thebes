@@ -145,20 +145,29 @@ describe('s3 score citizen remarks', () => {
     for (const s of ['akhet', 'peret', 'shemu']) expect([s, CITIZEN_REMARKS.filter((r) => r.season === s).length >= 8]).toEqual([s, true]);
     for (const r of CITIZEN_REMARKS) expect([r.text, Boolean(BUILDINGS[r.type])]).toEqual([r.text, true]);
     expect(new Set(CITIZEN_REMARKS.map((r) => r.text)).size).toBe(CITIZEN_REMARKS.length);
-    expect(SEASONS.map((s, i) => `${i + 1}:${s}`).join(' ')).toBe('1:akhet 2:akhet 3:akhet 4:akhet 5:peret 6:peret 7:peret 8:peret 9:shemu 10:shemu 11:shemu 12:shemu');
+    expect(SEASONS.map((s, i) => `${i + 1}:${s}`).join(' ')).toBe('1:peret 2:peret 3:shemu 4:shemu 5:shemu 6:shemu 7:akhet 8:akhet 9:akhet 10:akhet 11:peret 12:peret');   // Stage 4.6 (ruling 346): the flood is months 7-10
   });
   it('picks one every third month from the season\'s remarks whose building the city has, the same each time', () => {
     const w = makeTestWorld();
     addRaw(w, 'house', 0, 0, { tier: 1, residents: 5 });
     addRaw(w, 'well', 2, 0);
-    w.day = 3 * 30;                                                         // month index 3: the 4th month, Akhet
+    addRaw(w, 'granary', 6, 0);
+    w.day = 3 * 30;                                                         // month index 3: the 4th month, Shemu (Stage 4.6: months 3-6)
     const r = remarkFor(w);
-    expect(CITIZEN_REMARKS.filter((x) => x.season === 'akhet' && ['house', 'well'].includes(x.type)).map((x) => x.text)).toContain(r);
+    expect(CITIZEN_REMARKS.filter((x) => x.season === 'shemu' && ['house', 'well', 'granary'].includes(x.type)).map((x) => x.text)).toContain(r);
     expect(remarkFor(w)).toBe(r);
     w.day = 4 * 30;
     expect(remarkFor(w)).toBe(null);                                        // not a third month
-    w.day = 6 * 30;                                                         // the 7th month, Peret: only the house's remark
-    expect(remarkFor(w)).toBe(CITIZEN_REMARKS.find((x) => x.season === 'peret' && x.type === 'house').text);
+    w.day = 6 * 30;                                                         // the 7th month, Akhet: only the granary's remark (the house's and the well's speak of the river rising, heard only in a Fair or better flood year)
+    const plain = CITIZEN_REMARKS.find((x) => x.season === 'akhet' && x.type === 'granary').text;
+    expect(remarkFor(w)).toBe(plain);
+    w.milestone = 'town';
+    w.flood = { year: 1, level: 'good', forecast: null, from: 180, to: 269, applied: 'good', risen: true };   // the water has risen (final review: a level drawn for a flood still to come is not heard)
+    const heard = new Set();
+    for (let seed = 1; seed <= 40; seed++) { w.seed = seed; heard.add(remarkFor(w)); }
+    expect([...heard].sort()).toEqual(CITIZEN_REMARKS.filter((x) => x.season === 'akhet' && ['house', 'well', 'granary'].includes(x.type)).map((x) => x.text).sort());   // a Good year: all three are heard
+    w.flood.level = 'low';
+    for (let seed = 1; seed <= 40; seed++) { w.seed = seed; expect(remarkFor(w)).toBe(plain); }   // a Low year: the river did not rise as it should
     expect(REMARK_EVERY_MONTHS).toBe(3);
     const bare = makeTestWorld();
     bare.day = 90;

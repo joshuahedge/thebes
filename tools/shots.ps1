@@ -18,6 +18,7 @@
 # (and the same with reduced: stage-4-reduced s4before-reduced s4final-reduced; one contact sheet a size)
 # then: python tools/contact.py docs/superpowers/notes/screenshots/raw docs/superpowers/notes/screenshots <prefix> before after [--stage2 | --stage3]
 #
+# -Stage46 takes the Stage 4.6 checkpoint scenes (see its block below).
 # -Mobile takes the mobile budget scenes instead (src/dev/scenes.js MOBILE_SCENES: early, plots, raid, raid-fire,
 # raid-overlay, placing, farm, farm-raid, sheet, welcome, the busy moments of the mobile UX review, expanded, a tip opened in place, and pyramid-placing, the great pyramid's ghost (Stage 4, ruling 252)) on four phones (390x844, 375x667,
 # 844x390, 667x375) at each of -TextSizes (default 100 and 150), reduced motion on, as <Tag>-<scene>-<size>-t<text>.png.
@@ -29,7 +30,7 @@
 # with tests/screenshot.ps1 -Eval on main and on this branch: a farm picked (Ground on), a well ticked by touch, a road drawn by a finger, the
 # Layers picker, a tip opened in place, a no-road well and plots.
 # Usage: tools/shots.ps1 -Mobile -Tag before [-Only raid,sheet] [-OnlySizes 375x667,667x375] [-TextSizes 100,125,150]
-param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2, [switch]$Stage3, [switch]$Stage4, [string[]]$Motion = @('full', 'reduced'), [switch]$Mobile, [string[]]$TextSizes = @('100', '150'))
+param([string]$Tag = 'before', [string]$OutDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\superpowers\notes\screenshots\raw'), [string[]]$Only = @(), [string[]]$OnlySizes = @(), [switch]$Stage2, [switch]$Stage3, [switch]$Stage4, [switch]$Stage46, [string[]]$Motion = @('full', 'reduced'), [switch]$Mobile, [string[]]$TextSizes = @('100', '150'))
 $ErrorActionPreference = 'Stop'
 if ($Stage2 -and $Stage3) { Write-Error '-Stage2 and -Stage3 cannot be combined'; exit 2 }
 if ($Mobile -and ($Stage2 -or $Stage3)) { Write-Error '-Mobile cannot be combined with -Stage2 or -Stage3'; exit 2 }
@@ -184,6 +185,54 @@ if ($Stage4) {
         $out = Join-Path $OutDir "$Tag-$mo-$name-$($sz.name).png"
         & $shot -Url $stage4Scenes[$name] -Out $out -Width $sz.w -Height $sz.h -BudgetMs 1800 -Eval (New-Stage4Scene $name $mo)
       }
+    }
+  }
+  exit 0
+}
+
+# The Stage 4.6 checkpoint run (-Stage46): each scene is one call to a Stage 4.6 dev scene (src/dev/s46/*.js, the contract's list), with the
+# options the list gives it, under the motion -Motion names (reduced = Gentle by default), at 390x844 and, where the list says, 1280x800.
+# The title card's two (title, whats-new) run on the title card: the 'title' scene, and for What's new a press of its button. Shots are
+# <Tag>-<scene>-<w>x<h>.png. -Only names scenes (the short names below), -OnlySizes sizes as 390x844.
+# Usage: tools/shots.ps1 -Stage46 -Tag s46-cp1 [-Only clay,mixed-raid] [-OnlySizes 390x844] [-Motion reduced]
+# The final review's set: tools/shots.ps1 -Stage46 -Tag s46-final (every scene below).
+function New-S46Scene([string]$Name, [string]$MotionName, [string]$Options) {
+  if ($Name -eq 'whats-new') {
+    return "(async () => { const t = window.__thebes; if (!(t && t.devScene)) return 'no devScene'; if (t.setMotion) t.setMotion('$MotionName'); await new Promise((r) => setTimeout(r, 50)); await t.devScene('title'); " +
+      "const b = document.querySelector('.whats-new-button'); if (!b) return 'no whats-new button'; b.click(); await new Promise((r) => setTimeout(r, 300)); return 'whats-new open: ' + Boolean(document.querySelector('.whats-new')); })()"
+  }
+  "(async () => { const t = window.__thebes; if (!(t && t.devScene)) return 'no devScene'; if (t.setMotion) t.setMotion('$MotionName'); await new Promise((r) => setTimeout(r, 50)); return await t.devScene('$Name', $Options); })()"
+}
+if ($Stage46) {
+  $sample = '/?skipTitle=1&nosw=1&seed=11&sample=1'
+  $early = '/?skipTitle=1&nosw=1&seed=7'
+  $fresh = '/?skipTitle=1&nosw=1&seed=11'   # no sample=1: with it every new world (freshWorld) is built over with the sample city
+  $titleUrl = '/?nosw=1'
+  $both = @('390x844', '1280x800')
+  # name = @(dev scene, url, sizes[, options as a JavaScript object literal])
+  $s46Scenes = [ordered]@{
+    'title' = @('title', $titleUrl, @('390x844')); 'whats-new' = @('whats-new', $titleUrl, @('390x844'))
+    'sizes-small' = @('s46-sizes-small', $fresh, @('390x844')); 'sizes-normal' = @('s46-sizes-normal', $fresh, @('390x844')); 'sizes-large' = @('s46-sizes-large', $fresh, @('390x844'))
+    'speed-paused' = @('s46-speed', $sample, $both, '{ speed: 0 }'); 'speed-playing' = @('s46-speed', $sample, $both, '{ speed: 2 }')
+    'road-enter' = @('s46-hud', $sample, @('1280x800'), "{ view: 'road' }")
+    'clay' = @('s46-clay', $early, $both); 'court-letter' = @('s46-court-letter', $sample, @('390x844'))
+    'mixed-raid' = @('s46-mixed-raid', $sample, $both); 'raid-sheet' = @('s46-raid-sheet', $sample, @('390x844'))
+    'flood' = @('s46-flood', $sample, @('390x844')); 'wildlife' = @('s46-wildlife', $sample, @('390x844'))
+    'hunting' = @('s46-hunting', $sample, @('390x844')); 'hunting-sheet' = @('s46-hunting', $sample, @('390x844'), '{ sheet: true }')
+    'wharf' = @('s46-wharf', $sample, @('390x844')); 'wharf-sheet' = @('s46-wharf', $sample, @('390x844'), '{ sheet: true }')
+    'wonders' = @('s46-wonders', $sample, @('390x844')); 'styles' = @('s46-wonders-styles', $sample, @('390x844')); 'picker' = @('s46-wonders-picker', $sample, $both)
+  }
+  if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
+  $mo = if ($Motion.Count -eq 1) { $Motion[0] } else { 'reduced' }
+  foreach ($name in $s46Scenes.Keys) {
+    if ($Only.Count -and -not ($Only -contains $name)) { continue }
+    $spec = $s46Scenes[$name]
+    foreach ($size in $spec[2]) {
+      if ($OnlySizes.Count -and -not ($OnlySizes -contains $size)) { continue }
+      $w, $h = $size -split 'x'
+      $out = Join-Path $OutDir "$Tag-$name-$size.png"
+      $opts = if ($spec.Count -ge 4) { $spec[3] } else { '{}' }
+      & $shot -Url $spec[1] -Out $out -Width ([int]$w) -Height ([int]$h) -BudgetMs 1800 -Eval (New-S46Scene $spec[0] $mo $opts)
     }
   }
   exit 0

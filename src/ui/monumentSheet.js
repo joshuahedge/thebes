@@ -29,7 +29,7 @@
 // palaceQuote, palaceMood, prestigeOfBuilding, holdsPrestige, demolishRefundFor), so the tests set the world up both ways and
 // check the words follow (ruling 210, 252).
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
-import { MONUMENTS, MONUMENT, MATERIALS, MONUMENT_KINDS, PRESTIGE, PRESTIGE_UNLOCKS } from '../data/monuments.js';
+import { MONUMENTS, MONUMENT, MATERIALS, MONUMENT_KINDS, PRESTIGE_UNLOCKS } from '../data/monuments.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { MILESTONES } from '../data/progression.js';
 import { ART } from '../render/art/registry.js';
@@ -46,11 +46,12 @@ import { touchesRoad } from '../sim/reach.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { milestoneIndex, atLeast } from '../sim/progression.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../sim/time.js';
+import { unitsAwayFrom } from '../sim/armies.js';
 import { FRAME_MARGIN_PX } from './cameraControl.js';
 import { cameraOf } from './minimap.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { el, button } from './components.js';
-import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT, ui4CauseText } from './text.js';
+import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT, ui4CauseText, S46_COURT_TEXT } from './text.js';
 import { setViewClock } from '../render/overlays.js';
 import { ZOOM_STEP } from '../data/ui.js';
 
@@ -122,7 +123,7 @@ export function causeText(world, b, reason, status = null) {
     const m = (status || siteStatus(world, b)).materials[reason.slice(3)];
     return ui4CauseText(reason, 0, m ? { makers: m.makers.length, stores: m.stores.length } : null);
   }
-  return ui4CauseText(reason, extraGoldOf(world, b.type), null, b.type);
+  return ui4CauseText(reason, extraGoldOf(world, b.type, b.style), null, b.type);
 }
 
 // The site sheet's rows (spec 6.3), from siteStatus: [{ key, text, share?, fix? }] in the spec's order: progress, crews, the
@@ -144,7 +145,7 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
     else if (s.last && !(s.last.units > 0) && s.reason) pace = U.notProgressing(s.reason);   // no reason: it works today (a crew that came this month)
     rows.push({ key: 'pace', text: pace });
   }
-  rows.push({ key: 'gold', text: s.last ? U.lastMonth(s.last.gold, s.last.crews) : U.workGold(workGoldPerUnit(world) * MONUMENT.unitsPerCrewMonth) });
+  rows.push({ key: 'gold', text: s.last ? U.lastMonth(s.last.gold, s.last.crews) : U.workGold(workGoldPerUnit(world, b.style) * MONUMENT.unitsPerCrewMonth) });
   rows.push({ key: 'prestige', text: s.prestige.holds ? U.prestige(s.prestige.now, s.prestige.more) : U.otherHolds(b.type) });
   return rows;
 }
@@ -228,9 +229,12 @@ export function prestigeLoss(world, b) {
   return prestigeOf(world) - rest;
 }
 
-// Demolish's question for a monument or the palace (spec 4.16, 4.20): what is lost and the refund, or null for anything else.
+// Demolish's question for a monument or the palace (spec 4.16, 4.20): what is lost and the refund; Stage 4.6 (ruling 443): for a building
+// units away at the capital come back to, that they leave service; null for anything else.
 export function demolishQuestion(world, b) {
   const U = UI4_TEXT;
+  const away = world.army ? unitsAwayFrom(world, b.id) : 0;
+  if (away > 0) return S46_COURT_TEXT.demolishAway(b.type, away);
   const refund = demolishRefundFor(world, b);
   if (b.type === 'palace') return U.tearDownPalace(b.style + (b.works ? 1 : 0), refund);
   if (!isMonument(b)) return null;
@@ -243,7 +247,7 @@ export function demolishQuestion(world, b) {
 
 // The city summary's Monuments section (spec 6.3), from City: each site with its course (and its share done, for the bar), each
 // finished monument, then the city's prestige and what it unlocks next (the next prestige unlock not yet reached, with its
-// milestone while that waits), or the prestige of all seven once both are reached. [] before City.
+// milestone while that waits), or the prestige of all ten kinds once both are reached. [] before City.
 export function summaryRows(world) {
   if (!atLeast(world, 'city')) return [];
   const U = UI4_TEXT;
@@ -262,7 +266,7 @@ export function summaryRows(world) {
   if (next) {
     const u = MONUMENTS[next].unlock;
     rows.push({ key: 'prestige', text: U.prestigeNext(p, next, u.prestige, atLeast(world, u.milestone) ? '' : MILESTONES[milestoneIndex(u.milestone)].name) });
-  } else rows.push({ key: 'prestige', text: U.prestigeAll(p, PRESTIGE.scoreFull) });
+  } else rows.push({ key: 'prestige', text: U.prestigeAll(p, MONUMENT_KINDS.reduce((sum, k) => sum + MONUMENTS[k].prestige.courses + MONUMENTS[k].prestige.done, 0)) });   // Stage 4.6: of every kind's share (1,080 for ten), not the score's 700
   return rows;
 }
 

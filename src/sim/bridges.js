@@ -52,3 +52,40 @@ export function bridgeVerdicts(world, tiles) {
   }
   return out;
 }
+
+// Stage 4.6 (ruling 350): the nearest place a road can cross the water: a straight run of 1 to BRIDGE_MAX water tiles along a row or a
+// column, with a free land tile at each end (no building on it; the road's own tiles may be there already) and no bridge standing on it
+// yet. `from` is a point { x, y } on the map (the centre of the view, the road's start); the answer is the run's middle tile and its
+// ends, { x, y, from: [x, y], to: [x, y], water, vertical }, or null when the map has none. The bridge tip's and the road bar's Show me
+// aim at it, so every word they say about crossing ("up to 4 tiles of water, straight across") is the rule bridgeRuns / runReason apply.
+export function bridgeSpot(world, from) {
+  const n = world.size, at = (x, y) => idx(n, x, y);
+  const water = (x, y) => world.terrain[at(x, y)] === T.WATER;
+  const land = (x, y) => inBounds(n, x, y) && !water(x, y) && !world.occ[at(x, y)];
+  let best = null;
+  const consider = (vertical, a, b0, b1) => {
+    const run = b1 - b0 + 1;
+    const cell = (b) => (vertical ? [a, b] : [b, a]);
+    const [x0, y0] = cell(b0 - 1), [x1, y1] = cell(b1 + 1);
+    if (run > BRIDGE_MAX || !land(x0, y0) || !land(x1, y1)) return;
+    let laid = true;
+    for (let b = b0; b <= b1; b++) { const [x, y] = cell(b); if (!world.road[at(x, y)]) laid = false; }
+    if (laid) return;
+    const [mx, my] = cell(b0 + Math.floor(run / 2));
+    const d = (mx + 0.5 - from.x) ** 2 + (my + 0.5 - from.y) ** 2;
+    if (!best || d < best.d - 1e-9 || (Math.abs(d - best.d) < 1e-9 && run < best.water)) best = { d, x: mx, y: my, from: [x0, y0], to: [x1, y1], water: run, vertical };
+  };
+  for (let a = 0; a < n; a++) {
+    for (const vertical of [false, true]) {
+      let start = -1;
+      for (let b = 0; b <= n; b++) {
+        const wet = b < n && water(vertical ? a : b, vertical ? b : a);
+        if (wet && start < 0) start = b;
+        if (!wet && start >= 0) { consider(vertical, a, start, b - 1); start = -1; }
+      }
+    }
+  }
+  if (!best) return null;
+  const { d, ...spot } = best;
+  return spot;
+}
