@@ -59,6 +59,9 @@ export function createCameraControl({ cam, view, reducedMotion = () => false, no
     },
     jumpTo(x, y) { tween = null; cam.x = x; cam.y = y; },
     centre() { const v = view(); return { x: v.width / 2, y: v.height / 2 }; },
+    // The map tile under the middle of the view (tile coordinates, where centre() is in screen pixels): what a Show me that looks for
+    // the nearest place to where the player is looking starts from.
+    centreTile() { const v = view(); return screenToTile(cam, v, v.width / 2, v.height / 2); },
     cancel() { tween = null; },
     tick(t = now()) {
       if (!tween) return false;

@@ -18,7 +18,9 @@ import { alertsFor } from '../sim/alerts.js';
 import { stalledGuild } from '../sim/monuments.js';
 import { housesOf, population, allBuildings, isSite } from '../sim/world.js';
 import { TERRAIN_BY_NAME } from '../sim/terrain.js';
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, dimsOf } from '../data/buildings.js';
+import { nearestFit } from './placement.js';
+import { canPlace } from '../sim/commands.js';
 import { el, button, clear, setText } from './components.js';
 import { isCut, writeMore } from './expand.js';
 import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, cheerReward, progressText, progressLabel, dailyDoneText, swapLabel, showMeLabel, goalWordsLabel, thresholdMilestoneText, thresholdMedalText } from './text.js';
@@ -99,6 +101,12 @@ export function showMeTarget(world, goal, alerts = null) {
   if (kind === 'fertile' || kind === 'rocky' || kind === 'clay') {
     const item = nextItemFor(world, goal) || show.item;
     if (BUILDINGS[item] && BUILDINGS[item].terrain === kind) {
+      // Stage 4.6 (ruling 331): a building with a looser ground rule (the clay pit needs 2 of its 4 tiles on clay, so the nearest clay tile
+      // may not hold one) is shown the nearest spot it fits, found by the placing search, else, with no fit, the nearest tile of the ground.
+      if (Number.isInteger(BUILDINGS[item].terrainMin)) {
+        const at = nearestFit(world, { kind: 'building', type: item }, world.focus.x, world.focus.y, null, world.size);
+        if (canPlace(world, item, at.x, at.y, { roadLater: true }).ok) { const { w, d } = dimsOf(item, 0); return { x: at.x + w / 2, y: at.y + d / 2 }; }
+      }
       const best = nearestTerrainTile(world, kind, world.focus);
       if (best) return best;
     }

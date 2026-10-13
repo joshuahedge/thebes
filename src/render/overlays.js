@@ -10,6 +10,7 @@ import { isWorking } from '../sim/labour.js';
 import { desirabilityField } from '../sim/desirability.js';
 import { T as TILE, TERRAIN_BY_NAME } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
+import { fitOf } from '../sim/fit.js';
 import { p, U, tileDiamond, quad } from './iso.js';
 import { UI, INK, TEAL_DARK } from './art/palette.js';
 import { rgba, makeDraw } from './art/ctx.js';
@@ -198,21 +199,29 @@ export function roomTiles(world, type, rot = 0) {
   let m = roomMemo.get(world);
   if (!m || m.key !== key) { m = { key, room: new Map() }; roomMemo.set(world, m); }
   const { w, d } = dimsOf(type, rot);
-  const slot = `${type}|${w}x${d}`;
+  const slot = `${type}|${w}x${d}|${def.terrainMin}`;   // the rule is part of the key: a changed terrainMin works the room out again
   let room = m.room.get(slot);
   if (room) return room;
   room = new Set();
   const n = world.size;
   const want = def.terrain ? TERRAIN_BY_NAME[def.terrain] : null;
+  // Stage 4.6 (ruling 331): a row with terrainMin (the clay pit: 2 of its 4 tiles) fits wherever the sim's own fitOf says so, with
+  // no water under it and every tile free; the room is then the footprint's tiles of that ground. Rows without terrainMin keep
+  // the every-tile rule.
+  const loose = Boolean(def.terrain) && Number.isInteger(def.terrainMin);
   const ok = def.terrain
-    ? (i) => world.terrain[i] === want && groundFree(world, i)
+    ? (i) => (loose ? world.terrain[i] !== TILE.WATER : world.terrain[i] === want) && groundFree(world, i)
     : (i) => world.terrain[i] !== TILE.WATER && world.terrain[i] !== TILE.FERTILE && groundFree(world, i);
   for (let y = 0; y + d <= n; y++) {
     for (let x = 0; x + w <= n; x++) {
       let fits = true;
       for (let dy = 0; dy < d && fits; dy++) for (let dx = 0; dx < w && fits; dx++) fits = ok(idx(n, x + dx, y + dy));
       if (!fits) continue;
-      for (let dy = 0; dy < d; dy++) for (let dx = 0; dx < w; dx++) room.add(idx(n, x + dx, y + dy));
+      if (loose && !fitOf(world, type, x, y, rot).ok) continue;
+      for (let dy = 0; dy < d; dy++) for (let dx = 0; dx < w; dx++) {
+        const i = idx(n, x + dx, y + dy);
+        if (!loose || world.terrain[i] === want) room.add(i);
+      }
     }
   }
   m.room.set(slot, room);

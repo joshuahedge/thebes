@@ -49,7 +49,10 @@ export const TERRAIN = {
   grass: '#86B04A', grassAlt: '#86AE45', grassSoft: '#B3C272', grassSecond: '#74A03E',
   fertile: '#A8885C', fertileSecond: '#C2A274', fertileSoft: '#BC9C6E', fertileSpeck: '#6E5234', fertileTuft: '#5E8E32',
   bank: '#B9A978', bankSecond: '#C9B98A', mud: '#7A5E40', mudDark: '#5E4630',
-  clay: '#B9825A', claySoft: '#CB9C74', claySecond: '#A36E48', clayCrack: '#7E5236',   // Stage 4.5: terracotta ground along the banks
+  // Stage 4.6 (ruling 331): clay is its own ground at phone zoom: a saturated terracotta (loam is a dull olive-brown, sand pale, rock grey-beige), with dark
+  // cracks and small dug hollows. clayHollow is the shade inside a hollow, clayLip the sun on its rim.
+  clay: '#C9582F', claySoft: '#DD7F52', claySecond: '#AD4627', clayCrack: '#6A2F1C', clayHollow: '#8C3A20', clayLip: '#E9A57A',   // terracotta ground along the banks
+  wadi: '#CDB07C', wadiPebble: '#A8906E', wadiCrack: '#B79B6A',   // Stage 4.6: a dry riverbed on the desert (decor)
   rocky: '#D3B582', rockySecond: '#C4A574', rockySoft: '#E0C898', pebble: '#B39C82', pebbleLight: '#D9C7A8',
   water: '#2E8C96', waterDeep: '#1E6A7C', waterLight: '#86CBC4', shallows: '#4DB6AE', foam: '#DDF4F1', ripple: '#B8E6E2',
   road: '#DCC08C', roadEdge: '#C2A274', roadPebble: '#B39466', roadPebbleLight: '#F2E2BC',

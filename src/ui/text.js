@@ -10,6 +10,7 @@ import { PARTNERS } from '../data/trade.js';
 import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
 import { ECONOMY, FORECAST } from '../data/economy.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
+import { MAP } from '../data/map.js';
 import { roadCostOf } from '../sim/costs.js';
 import { producerRefused } from '../sim/production.js';
 import { isUnlocked } from '../sim/progression.js';
@@ -264,6 +265,8 @@ export function conditionText(cond, type, { refused = false } = {}) {
   const C = CONDITION_TEXT;
   const def = BUILDINGS[type];
   if (cond.key === 'ground') {
+    const mapWords = S46_MAP_TEXT.groundChip(cond, def || {});   // Stage 4.6 (ruling 331): the one set of words for every ground and water rule (the s46 map section)
+    if (mapWords) return mapWords;
     if (cond.state === 'met') return def && def.terrain ? C.terrain(def.terrain) : C.free;
     if (cond.reason === 'needs_fertile' || cond.reason === 'needs_rocky' || cond.reason === 'needs_clay') return C.terrainCount(cond.terrain, cond.fit, cond.of);
     if (cond.reason === 'occupied') return C.taken;
@@ -372,7 +375,7 @@ export const OVERLAY_LEGEND = {
 // building fits on its own ground (src/render/overlays.js roomTiles), or, with none left, that nothing is.
 const GROUND_THING = { farm_grain: 'a farm', farm_barley: 'a farm', farm_flax: 'a farm', farm_fig: 'an orchard', gem_mine: 'a mine', clay_pit: 'a clay pit' };
 export const groundThing = (type) => GROUND_THING[type] || null;
-export const groundRoomText = (type, any) => (any ? `Bright: room for ${groundThing(type)}` : `No room left for ${groundThing(type)}`);
+export const groundRoomText = (type, any) => (any && type === 'clay_pit' ? S46_MAP_TEXT.clayGuide : any ? `Bright: room for ${groundThing(type)}` : `No room left for ${groundThing(type)}`);   // Stage 4.6 (ruling 331): the clay pit's line says where clay lies
 
 // The desirability legend (spec 4.7, 6.3): a short label under each band's swatch, and words for screen readers that say
 // what the band is pleasant enough for. Band -1 is below zero; the others follow DESIRABILITY_STEPS (src/data/ui.js).
@@ -1008,8 +1011,8 @@ export const TITLE_SCORE_TEXT = {
   weekly: "This week's Nile", records: 'Your records', friend: "A friend's score", startSeed: 'Start this seed',
   badLink: "This score link can't be read", newerLink: 'This score link is from a newer version of Thebes',
   weeklyHint: (seed) => `Seed ${seed}: the same river for everyone this week`,
-  bestLine: (b) => `Best: ${b.score}${b.medal ? `, ${SCORE_TEXT.medals[b.medal].toLowerCase()}` : ''}, seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.older ? ', older scoring' : ''}`,
-  stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}`,
+  bestLine: (b) => `Best: ${b.score}${b.medal ? `, ${SCORE_TEXT.medals[b.medal].toLowerCase()}` : ''}, seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.mapSize && b.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(b.mapSize)}` : ''}${b.older ? ', older scoring' : ''}`,   // Stage 4.6 (ruling 333): a record from a Small or Large map says so; Normal says nothing, as before
+  stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}${e.mapSize && e.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(e.mapSize)}` : ''}`,
   moreStamps: (n) => `+${n} more`,
   friendLine: (total, seed, level) => `${total} on seed ${seed}, ${DIFFICULTY_NAMES[level] || level}. ${SHARE_TEXT.honour}`,
   partsLine: (parts) => Object.keys(SCORE_TEXT.parts).filter((p) => p in parts).map((p) => `${SCORE_TEXT.parts[p]} ${parts[p]}`).join(' · '),
@@ -1768,7 +1771,75 @@ Object.assign(FIRST_TEXT, {
 // The Map track's words, and only the Map track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
 // FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
 // states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
-export const S46_MAP_TEXT = {};
+// Terrain-bound refusals (ruling 331, "Why not here, everywhere"): one set of words for every building bound to its ground or to water
+// (farms, orchards, mines, clay pits, and the River track's wharf, lodge and nilometer), built from the rule the sim applies (src/sim/fit.js:
+// BUILDINGS[type].terrain / terrainMin / water) and from the spot's own count, so every refusal reads the same way.
+const MAP_GROUND = { fertile: 'fertile land', rocky: 'rocky ground', clay: 'clay' };
+export const S46_MAP_TEXT = {
+  ground: MAP_GROUND,
+  // "Needs 2 of 4 tiles on clay (this spot has 1)": the bar's line for a spot that is refused; the card's and the legend's use the rule alone.
+  needsTiles: (terrain, need, of, fit) => `Needs ${need} of ${of} tiles on ${MAP_GROUND[terrain]} (this spot has ${fit})`,
+  needsTilesRule: (terrain, need, of) => `Needs ${need} of ${of} tiles on ${MAP_GROUND[terrain]}`,
+  water: { touch: 'Must touch water', longSide: 'Must touch water along its long side' },
+  waterMet: 'Water beside it',
+  // Where clay lies, said on the clay pit's card and in the Ground legend: along the banks (src/sim/mapgen.js addClay turns bank tiles and the dry land
+  // beside them to clay, so every clay tile is within MAP.shapes.clay's reach of water; tests/stage46/map/clay.test.js holds it).
+  clayWhere: 'Clay ground, along the riverbanks',
+  clayGuide: 'Clay pits stand on clay: the reddish ground by the river',
+  showFit: 'Show me',
+  showFitLabel: (what) => `Show me where ${what} fits`,
+  noFit: (what) => `No room left for ${what} on this map`,
+  // The ground chip in the confirm bar: the rule met ("Clay ground", or "Clay ground: 3 of 4 tiles" when only part of the footprint is on it),
+  // or why not. cond is conditionsFor's ground condition; def the building's row.
+  groundChip(cond, def) {
+    const C = CONDITION_TEXT;
+    if (cond.water && cond.reason === 'needs_water') return S46_MAP_TEXT.water[cond.water];
+    if (cond.water && cond.state === 'met' && !def.terrain) return S46_MAP_TEXT.waterMet;
+    if (def && def.terrain && cond.terrain) {
+      if (cond.state === 'cant' && /^needs_(fertile|rocky|clay)$/.test(cond.reason)) return S46_MAP_TEXT.needsTiles(cond.terrain, Number.isInteger(cond.need) ? cond.need : cond.of, cond.of, cond.fit);
+      if (cond.state === 'met' && cond.fit < cond.of) return C.terrainCount(cond.terrain, cond.fit, cond.of);
+    }
+    return null;
+  },
+  // A bad building preview's first line (the bar's reason line): the ground chip's sentence for a ground or water refusal.
+  refusalLine(reason, ground, def) {
+    if (!ground || !def) return null;
+    if (reason === 'needs_water') return S46_MAP_TEXT.water[def.water] || reasonText(reason);
+    if (/^needs_(fertile|rocky|clay)$/.test(reason)) return S46_MAP_TEXT.needsTiles(ground.terrain, Number.isInteger(ground.need) ? ground.need : ground.of, ground.of, ground.fit);
+    return null;
+  },
+  // The card's line under the cost: where the ground lies, short (the clay pit's), else the ground's name as before.
+  cardLine: (type) => (type === 'clay_pit' ? S46_MAP_TEXT.clayWhere : ''),
+  cardTitle: (type) => {
+    const def = BUILDINGS[type];
+    if (!def || !def.terrain) return null;
+    const rule = S46_MAP_TEXT.needsTilesRule(def.terrain, Number.isInteger(def.terrainMin) ? def.terrainMin : def.w * def.d, def.w * def.d);
+    return type === 'clay_pit' ? `${rule}. ${S46_MAP_TEXT.clayWhere}.` : `${rule}.`;
+  },
+  // Bridges (ruling 350): the road card's line and title, the road tool's first line, the tip and its How to play words. cost is
+  // costOf(world, 'bridge'); max is MAP.bridgeMax (src/sim/bridges.js BRIDGE_MAX).
+  bridgeCard: (cost) => `Bridges over water: ${cost} gold a tile`,
+  bridgeCardTitle: (cost, max) => `A road crosses water on a bridge: ${cost} gold a tile, straight across at most ${max} tiles of water, with land at both ends.`,
+  bridgeBar: (cost) => `Water: a bridge, ${cost} gold a tile`,
+  bridgeTip: (max) => `Roads cross water on a bridge: straight across, up to ${max} tiles of water. The road bar shows the price.`,
+  bridgeHelp: (max) => `Roads cross water on a bridge: straight across, up to ${max} tiles of water. The road bar shows the price.`,
+  noBridge: 'No place on this map where a bridge fits',
+  // The size picker on the title card (ruling 333): one line each, from MAP_SIZES.
+  sizeLabel: 'Map size',
+  sizeGroup: 'Map size for new cities',
+  sizeNames: { small: 'Small', normal: 'Normal', large: 'Large' },
+  sizeHints: { small: 'Small: a quick city', normal: 'Normal: the usual map', large: 'Large: room for every monument' },
+  sizeWords: (id, size) => `${S46_MAP_TEXT.sizeNames[id]}, ${size} by ${size} tiles`,
+  // A share link or record that names a size: "Large 80 x 80".
+  sizeNote: (size) => `${size} x ${size} map`,
+};
+// The shared tables the words above join: a generic refusal for a water rule (the bar's line knows the rule; reasonText does not), the
+// card's ground line and the Ground legend's room line for the clay pit, and the bridge tip's words (ruling 350).
+Object.assign(REASONS, { needs_water: 'Must touch water' });
+const baseTerrainLine = CONDITION_TEXT.terrainLine;
+CONDITION_TEXT.terrainLine = (type, short = false) => (short && S46_MAP_TEXT.cardLine(type)) || baseTerrainLine(type, short);
+Object.assign(TIP_TEXT, { bridges: S46_MAP_TEXT.bridgeTip(MAP.bridgeMax) });
+TIP_HELP_TEXT.bridges = S46_MAP_TEXT.bridgeHelp(MAP.bridgeMax);
 // ── end s46 map ──
 
 //
