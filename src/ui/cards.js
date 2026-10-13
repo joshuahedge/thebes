@@ -12,7 +12,8 @@ import { costOf, roadCostOf } from '../sim/costs.js';
 import { monthlyBill } from '../sim/economy.js';
 import { canAfford } from '../sim/money.js';
 import { CATEGORIES } from '../data/ui.js';
-import { buildingName, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT } from './text.js';
+import { buildingName, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT, S46_MAP_TEXT } from './text.js';
+import { MAP } from '../data/map.js';
 import { el, clear } from './components.js';
 import { drawThumb } from './thumbs.js';
 
@@ -67,7 +68,10 @@ export function cardInfo(world, item) {
   // Stage 4.5 (Task 4b): what the building costs a month when fully staffed, from the sim (monthlyBill): "Costs 46 a month · 10 workers".
   const bill = BUILDINGS[item] && !locked ? monthlyBill(item) : null;
   const upkeep = bill && bill.bill > 0 ? { text: S45_TEXT.upkeepLine(bill), title: S45_TEXT.upkeepTitle(bill) } : { text: '', title: '' };
-  return { item, name: buildingName(item), cost, costText, affordable: canAfford(world, cost), locked, lockText: locked ? lockTextOf(world, item) : '', isNew, terrainText: isMonumentItem(item) ? UI4_TEXT.groundCard : CONDITION_TEXT.terrainLine(item, true), upkeepText: upkeep.text, upkeepTitle: upkeep.title };
+  // Stage 4.6 (rulings 331, 350): a terrain card's tooltip says its rule from the sim's row ("Needs 2 of 4 tiles on clay. Clay ground, along the
+  // riverbanks."), and the road card says a road crosses water on a bridge, at the sim's price (costOf(world, 'bridge')) and the rule's reach.
+  const terrainText = item === 'road' ? S46_MAP_TEXT.bridgeCard(costOf(world, 'bridge')) : isMonumentItem(item) ? UI4_TEXT.groundCard : CONDITION_TEXT.terrainLine(item, true);
+  return { item, name: buildingName(item), cost, costText, affordable: canAfford(world, cost), locked, lockText: locked ? lockTextOf(world, item) : '', isNew, terrainText, upkeepText: upkeep.text, upkeepTitle: upkeep.title };
 }
 
 export function activeItemOf(tool) {
@@ -89,6 +93,9 @@ export function cardsKey(world, category, activeItem) {
   });
   return `${category}|${activeItem}|${states.join(',')}`;
 }
+
+// The tooltip of a card's ground line (Stage 4.6, rulings 331, 350): the rule in full, from the sim's own row and price.
+const terrainTitleOf = (world, item) => (item === 'road' ? S46_MAP_TEXT.bridgeCardTitle(costOf(world, 'bridge'), MAP.bridgeMax) : S46_MAP_TEXT.cardTitle(item));
 
 // Locked and unaffordable cards keep their words and marks; an affordable cost gets a coin (decoration only).
 function costLine(info) {
@@ -118,7 +125,7 @@ export function renderCards(container, { world, category, activeItem = null, onP
     const badge = info.isNew ? el('span', { class: 'new-badge', text: T.newBadge }) : null;
     // A monument's tooltip says where it stands (spec 4.4): "Small obelisk: on dry ground, not the fields".
     const b = el('button', { type: 'button', class: cls, dataset: { item }, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null, title: isMonumentItem(item) ? `${info.name}: ${UI4_TEXT.groundTip}` : null }, [
-      thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), info.upkeepText ? upkeepSpan(item, info) : null, info.terrainText ? el('span', { class: 'terrain', text: info.terrainText }) : null, badge,
+      thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), info.upkeepText ? upkeepSpan(item, info) : null, info.terrainText ? el('span', { class: 'terrain', title: terrainTitleOf(world, item), text: info.terrainText }) : null, badge,
     ]);
     if (!info.locked) b.addEventListener('click', () => onPick(item));
     return b;

@@ -24,7 +24,9 @@ export function mapPrint(m) {
 }
 const LAYOUTS = ['classic', 'east', 'middle', 'wide-bends', 'island', 'oasis'];
 const SEEDS = [1, 3, 7, 11, 42, 1234];
-// Taken at e9f2307 (before Stage 4.6): layout -> the prints of SEEDS in order.
+// Taken at e9f2307 (before Stage 4.6): layout -> the prints of SEEDS in order. Classic at 64 must never move (ruling 332). The other five
+// layouts draw the Map track's seeded shape choices (meander, pools, outcrops, groves, wide clay; ruling 332), so their prints moved on
+// purpose: AFTER holds them as the Map track left them (tests/stage46/map holds what the choices guarantee).
 const BEFORE = {
   classic: ['607276e', '98a0019b', 'ad53af4b', 'dfdff5e8', '2e774056', '9e9d65d0'],
   east: ['e3c86066', 'f491d03b', '97a31e45', '2d9e9b5b', 'a2672ccd', 'df1d0246'],
@@ -33,14 +35,24 @@ const BEFORE = {
   island: ['1b9c71cb', 'b23fee63', '9bb1c748', '8b4512c1', 'b3615dd6', '6c9de8bb'],
   oasis: ['48da32c', 'f2a3ad70', '2bf4d64e', '2643c37', 'd38fbe59', 'd3aacd0a'],
 };
+const AFTER = {
+  east: ['9dcd201d', '38d9cfe5', '80981850', 'b58bd47f', '22fd39a0', 'aa7409a5'],
+  middle: ['1a3a7653', 'b8358476', '8e4c4ac1', 'e58f8194', '94b28e0f', '18bb7efe'],
+  'wide-bends': ['9ed0a181', '15e2c928', 'eb3b2faa', '29cda2e1', '1ee67e21', '38566363'],
+  island: ['76715fc2', '28512582', 'bf663dca', '6dfbcfeb', '51362798', 'e6f29ab1'],
+  oasis: ['f1111e10', '2405eee2', 'e63602e2', '4b4027d7', '24b847df', 'acfddb54'],
+};
 
 const count = (m, t) => m.terrain.filter((v) => v === t).length;
 
 describe('s46 contract map sizes', () => {
-  it('draws every layout at 64 exactly as before Stage 4.6', () => {
+  it('draws classic at 64 exactly as before Stage 4.6, and the other layouts with the shape choices of the Map track', () => {
     const now = Object.fromEntries(LAYOUTS.map((v) => [v, SEEDS.map((s) => mapPrint(generateMap(s, 64, v)))]));
-    expect(now).toEqual(BEFORE);
+    expect(now.classic).toEqual(BEFORE.classic);
+    const { classic, ...others } = now;
+    expect(others).toEqual(AFTER);
     expect(LAYOUTS).toEqual(MAP_VARIANTS);
+    for (const s of SEEDS) expect(generateMap(s, 64, 'classic').params).toEqual({});
   });
   it('offers Small 48, Normal 64 (the default) and Large 80', () => {
     expect(MAP_SIZES).toEqual({ small: 48, normal: 64, large: 80 });
@@ -59,12 +71,12 @@ describe('s46 contract map sizes', () => {
           expect([at, m.startRoad[0]]).toEqual([at, [m.tradeEntry.x, size - 1]]);
           for (const [x, y] of m.startRoad) expect([at, x, y, [T.WATER, T.ROCKY].includes(m.terrain[idx(size, x, y)])]).toEqual([at, x, y, false]);
           expect([at, m.focus.x >= 0 && m.focus.x < size && m.focus.y >= 0 && m.focus.y < size]).toEqual([at, true]);
-          expect([at, m.raiderEntries.length]).toEqual([at, 2]);
+          expect([at, m.raiderEntries.length]).toEqual([at, size === 80 ? 3 : 2]);   // Stage 4.6 (ruling 333): the entries scale with the area, two at least
           for (const e of m.raiderEntries) {
             const edge = e.x === 0 || e.y === 0 || e.x === size - 1 || e.y === size - 1;
             expect([at, e, edge, m.terrain[idx(size, e.x, e.y)] === T.WATER]).toEqual([at, e, true, false]);
           }
-          expect(m.params).toEqual({});
+          expect(typeof m.params.meander.strength).toBe('number');                   // every map but classic at 64 draws its shape choices (ruling 332)
         }
       }
     }

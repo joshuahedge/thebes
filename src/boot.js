@@ -3,7 +3,7 @@
 // always reopens paused. ?skipTitle=1 boots straight into a new city and ?welcome=1 shows the Welcome back card (development flags:
 // they write nothing until the first autosave, which then replaces the saved city).
 import { createWorld } from './sim/world.js';
-import { MAP_VARIANTS, DEFAULT_MAP_SIZE, isMapSize } from './data/map.js';
+import { MAP_VARIANTS, MAP_SIZES, MAP_SIZE_IDS, DEFAULT_MAP_SIZE, isMapSize } from './data/map.js';
 import { setSpeed, setGuide, setCityId } from './sim/commands.js';
 import { createCamera } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
@@ -127,6 +127,10 @@ export async function boot(doc, win, {
   // Stage 4.6 (ruling 333): the map's size. size: what New city's picker, a shared link or a record names (the Map track passes it);
   // else ?size=48|64|80 (the dev flag, for the shots and the Large measurement); else Normal.
   const sizeParam = Number(params.get('size'));
+  // The size the title card's picker last chose for the next new city (it starts as the dev flag's size, else Normal); a chosen seed (This
+  // week's Nile, a shared link) takes its own size, never this.
+  let newCitySize = isMapSize(sizeParam) ? sizeParam : DEFAULT_MAP_SIZE;
+  const sizeIdOf = (n) => MAP_SIZE_IDS.find((k) => MAP_SIZES[k] === n) || 'normal';
   function freshWorld({ seed = null, variant = null, size = null } = {}) {
     const chosen = !Number.isInteger(seed) && params.has('seed');
     // variant: the layout a shared score's link names (Start this seed), which beats the seed's own pick.
@@ -163,7 +167,7 @@ export async function boot(doc, win, {
       }
       return r.ok;
     },
-    newCity() { withCards(() => startGame(freshWorld())); },   // Stage 4: the picture cards first, once a device
+    newCity() { withCards(() => startGame(freshWorld({ size: newCitySize }))); },   // Stage 4: the picture cards first, once a device
     // Stage 4 (spec 4.1): the picture cards any time (How to play on the title card and in the menu, Track G); onDone after.
     // Track G: the game behind them is paused (spec 4.1); the player presses Play again when ready.
     pictureCards(onDone = () => {}) {
@@ -222,7 +226,7 @@ export async function boot(doc, win, {
   function blockIfNewer(loaded) { saveBlocked = loaded.state === 'error' && loaded.code === 'newer_version'; }
 
   // Spec 4.17: with a saved city, a new one asks first and offers to export the old one. seed: a chosen seed (spec 4.19).
-  function confirmNewCity(loaded, seed = null, variant = null) {
+  function confirmNewCity(loaded, seed = null, variant = null, size = null) {
     if (!title) return;
     title.card.showPanel((body, back) => {
       const exportFirst = button(T.exportFirst, { class: 'export-first', onClick: async () => {
@@ -231,7 +235,7 @@ export async function boot(doc, win, {
           if (r === 'downloaded' && title) title.card.setMessage(T.exported);
         } catch (e) { if (title) title.card.setMessage(T.exportFailed); }
       } });
-      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => withCards(() => startGame(freshWorld({ seed, variant }))) });
+      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => withCards(() => startGame(freshWorld({ seed, variant, size: seed === null ? newCitySize : size }))) });
       body.append(el('p', { text: T.newCityConfirm }), el('div', { class: 'actions' }, [exportFirst, start, button(T.back, { class: 'panel-back', onClick: back })]));
     });
   }
@@ -267,7 +271,8 @@ export async function boot(doc, win, {
       container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), canBring: flow.canBring(), sound: settings.get().sound, message,
       difficulty: settings.get().difficulty, onDifficulty: (level) => settings.set({ difficulty: level }),   // spec 4.18: freshWorld reads it
       onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
-      onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(freshWorld()))),
+      onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(freshWorld({ size: newCitySize })))),
+      mapSize: sizeIdOf(newCitySize), onMapSize: (id) => { newCitySize = MAP_SIZES[id]; },   // Stage 4.6 (ruling 333): the size picker
       onSound: (on) => settings.set({ sound: on, music: on }),   // Stage 4: Play muted turns the music off too, and is remembered (ruling 269)
       onHowToPlay: () => hooks.pictureCards(),                   // Stage 4, Track G: How to play shows the picture cards (spec 4.1)
       onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); },
@@ -275,7 +280,7 @@ export async function boot(doc, win, {
       // Stage 3 (spec 4.19): records, stamps, This week's Nile and a shared score, from the score interface.
       decorate: titleDecor({
         records, shared: (win.location && win.location.hash) || '', clock,
-        startSeed: (seed, variant = null) => (loaded.state === 'ok' ? confirmNewCity(loaded, seed, variant) : withCards(() => startGame(freshWorld({ seed, variant })))),
+        startSeed: (seed, variant = null, size = null) => (loaded.state === 'ok' ? confirmNewCity(loaded, seed, variant, size || DEFAULT_MAP_SIZE) : withCards(() => startGame(freshWorld({ seed, variant, size: size || DEFAULT_MAP_SIZE })))),
       }),
     });
     title = { card, loop, backdrop, world, cam };

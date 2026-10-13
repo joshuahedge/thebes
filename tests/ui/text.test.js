@@ -59,8 +59,8 @@ describe('ui text', () => {
     expect(conditionText(ground('met', null), 'well')).toBe('Free ground');
     expect(conditionText(ground('met', null), 'farm_grain')).toBe('Fertile land');
     expect(conditionText(ground('met', null), 'gem_mine')).toBe('Rocky ground');
-    expect(conditionText(ground('cant', 'needs_fertile', { terrain: 'fertile', fit: 2, of: 4 }), 'farm_grain')).toBe('Fertile land: 2 of 4 tiles');
-    expect(conditionText(ground('cant', 'needs_rocky', { terrain: 'rocky', fit: 0, of: 4 }), 'gem_mine')).toBe('Rocky ground: 0 of 4 tiles');
+    expect(conditionText(ground('cant', 'needs_fertile', { terrain: 'fertile', fit: 2, of: 4 }), 'farm_grain')).toBe('Needs 4 of 4 tiles on fertile land (this spot has 2)');   // Stage 4.6 (ruling 331)
+    expect(conditionText(ground('cant', 'needs_rocky', { terrain: 'rocky', fit: 0, of: 4 }), 'gem_mine')).toBe('Needs 4 of 4 tiles on rocky ground (this spot has 0)');
     expect([conditionText(ground('cant', 'occupied'), 'well'), conditionText(ground('cant', 'water'), 'well'), conditionText(ground('cant', 'out_of_bounds'), 'well')]).toEqual(['Ground taken', 'Water here', 'Off the map']);
     expect(conditionText({ key: 'road', state: 'met', reason: null }, 'well')).toBe('Road beside it');
     expect(conditionText({ key: 'road', state: 'later', reason: 'needs_road' }, 'well')).toBe('No road yet');

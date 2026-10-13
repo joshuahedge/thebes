@@ -27,7 +27,8 @@ import { roadReach, adjacentRoadTiles, touchesRoad } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
-import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT } from './text.js';
+import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT } from './text.js';
+import { bridgeSpot } from '../sim/bridges.js';
 
 // A building tool's footprint in its rotation (Stage 4: tool.rot 1 turns a mastaba a quarter, dimsOf; ruling 234).
 const footprintOf = (tool) => (tool.kind === 'building' ? dimsOf(tool.type, tool.rot || 0) : { w: 1, d: 1 });
@@ -127,7 +128,7 @@ function ringTiles(cx, cy, r) {
 // Stage 4 (Track C): a monument or the palace searches fitRadiusOf (16) in its rotation; a monument's crew and supply count as
 // "later" conditions like the road (canPlace's warnings), so a spot near a guild and a quarry wins; monuments have no terrain,
 // so no three-times reach.
-export function nearestFit(world, tool, x, y, maxR = null) {
+export function nearestFit(world, tool, x, y, maxR = null, farR = null) {
   const start = snapGhost(world, tool, x, y);
   if (!tool || tool.kind !== 'building') return start;
   if (maxR === null) maxR = fitRadiusOf(tool.type);
@@ -146,7 +147,7 @@ export function nearestFit(world, tool, x, y, maxR = null) {
   };
   const clean = scan(0, maxR);
   if (clean) return clean;
-  if (!warned && BUILDINGS[tool.type].terrain) { const far = scan(maxR + 1, maxR * 3); if (far) return far; }
+  if (!warned && (BUILDINGS[tool.type].terrain || BUILDINGS[tool.type].water)) { const far = scan(maxR + 1, farR === null ? maxR * 3 : farR); if (far) return far; }   // farR (Stage 4.6, ruling 331): Show me and the pick look the whole map over, where the ground it needs may lie
   return warned ? { x: warned.x, y: warned.y } : start;
 }
 
@@ -228,7 +229,8 @@ function basePreview(world, state) {
     // The tiles where a road would join are shown only while the spot itself is fine: a footprint on water has no use for them.
     const joins = road && road.state === 'later' && ground.state === 'met' ? road.joins : [];
     const extra = { conditions: chips, footprint: c.tiles.map(({ x: tx, y: ty, state: st }) => ({ x: tx, y: ty, state: st })), joins };
-    if (!c.ok) return { ...bad(c.reason, cost, 1), ...extra };
+    // Stage 4.6 (ruling 331): a ground or water refusal says why in the rule's own numbers ("Needs 2 of 4 tiles on clay (this spot has 1)") and offers Show me.
+    if (!c.ok) { const line = S46_MAP_TEXT.refusalLine(c.reason, ground, def); return { ...bad(c.reason, cost, 1, [], line || reasonText(c.reason)), showFit: Boolean(line), ...extra }; }
     const warn = c.warnings.length > 0;
     // A service says how many homes it would reach from here (early-game pass 2.6); a firehouse, how many buildings that
     // can burn (Stage 3); other buildings say nothing.
@@ -270,6 +272,10 @@ function basePreview(world, state) {
   if (tool.kind === 'plazas') return plazaPreview(previewPlazaTiles(world, rectTiles(a.x0, a.y0, a.x1, a.y1, world.size)));   // Stage 4 (ruling 250)
   return demolishPreview(previewDemolishArea(world, a.x0, a.y0, a.x1, a.y1), rectTiles(a.x0, a.y0, a.x1, a.y1, world.size));
 }
+
+// Stage 4.6 (ruling 350): until a road is drawn the bar's cost line (empty then) says that a road can cross water, and what a bridge costs (the sim's price).
+const bridgeNote = (world, tool) => (tool.kind === 'road' && !tool.gate ? S46_MAP_TEXT.bridgeBar(costOf(world, 'bridge')) : '');
+const WATER_REFUSALS = ['water', 'too_wide', 'bridge_shape'];
 
 // A touch plan's preview (P3, P5): it lays every tile it can and skips the blocked ones. tiles are all the plan's tiles (the
 // ghost draws them), skipped the ones it passes over ([x, y], drawn coral with a cross), and the words count both: "8 tiles ·
@@ -334,6 +340,8 @@ function demolishPreview(r, tiles) {
 export function toolPreview(world, state) {
   const p = basePreview(world, state);
   if (!p) return p;
+  if (state.tool.kind === 'road' && !state.tool.gate && p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) p.showFit = true;   // Stage 4.6 (ruling 350): Show me finds a crossing
+  p.note = p.state === 'idle' ? bridgeNote(world, state.tool) : '';
   p.nicer = '';
   p.nicerTone = '';
   p.score = '';                                         // Stage 3: the parts it would change, "+3 Culture" (scoreUi.js)
@@ -434,6 +442,28 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
   return preview.tiles.map(([x, y]) => ({ x, y, w: 1, d: 1, state: skipped.has(tileKey([x, y])) ? 'bad' : gates.has(y * world.size + x) ? 'gate' : visual }));
 }
 
+// Stage 4.6 (ruling 331, 350): where Show me goes from a refused spot: a terrain or water building, the nearest origin where it fits on the
+// whole map (nearestFit, the one search the pick and every Show me use) or null when none does; the road tool, the nearest crossing of the water
+// (bridgeSpot) from the road's end. Returns { kind: 'building', item, x, y } with the footprint's centre, { kind: 'bridge', x, y } or null.
+export function fitTarget(world, state) {
+  const { tool } = state;
+  if (!tool) return null;
+  if (tool.kind === 'building') {
+    const g = state.ghost || world.focus, def = BUILDINGS[tool.type], rot = rotOf(tool);
+    const at = nearestFit(world, tool, g.x, g.y, null, world.size);
+    if (!canPlace(world, tool.type, at.x, at.y, { roadLater: true, rot }).ok) return null;
+    const { w, d } = dimsOf(tool.type, rot);
+    return { kind: 'building', item: tool.type, x: at.x + w / 2, y: at.y + d / 2, def };
+  }
+  if (tool.kind === 'road') {
+    const l = state.line, tiles = state.plan ? state.plan.tiles : [];
+    const from = tiles.length ? { x: tiles[tiles.length - 1][0], y: tiles[tiles.length - 1][1] } : l ? { x: l.x0, y: l.y0 } : world.focus;
+    const spot = bridgeSpot(world, from);
+    return spot ? { kind: 'bridge', x: spot.x + 0.5, y: spot.y + 0.5, spot } : null;
+  }
+  return null;
+}
+
 export function createPlacement({ world, store, afterCommand = () => {}, effects = null, now = () => performance.now() }) {
   // The stroke a finger is drawing: the plan before it (base), where it went down (x0, y0), the tiles it has followed (path, roads
   // and walls) and the tile it is on (at). Gone when the finger lifts, or with the tool.
@@ -453,7 +483,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       store.set(startToolPatch(store.get(), tool));
       if (tool.kind === 'building') {
         setPlacingRot(world, rotOf(tool));                                     // Stage 4: the Ground overlay's room follows the turn
-        if (centre) { const at = nearestFit(world, tool, centre.x, centre.y); api.moveGhost(at.x, at.y); }   // early-game pass 2.6
+        if (centre) { const at = nearestFit(world, tool, centre.x, centre.y, null, world.size); api.moveGhost(at.x, at.y); }   // Stage 4.6 (ruling 331): the whole map for the ground a building is bound to   // early-game pass 2.6
         if (AUTO_OVERLAY[tool.type]) store.set({ overlay: AUTO_OVERLAY[tool.type] });
       }
     },

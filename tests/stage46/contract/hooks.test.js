@@ -37,8 +37,9 @@ function withRow(type, row, fn) {
 }
 
 describe('s46 contract hooks', () => {
-  it('joins the tracks\' rows into the shared lists, empty until the tracks add theirs', () => {
-    expect([S46_GOODS, S46_BUILDINGS, S46_UNLOCKS, S46_DOCK, S46_FIRSTS, S46_ACHIEVEMENTS, S46_TIPS]).toEqual([{}, {}, {}, {}, [], [], []]);
+  it('joins the tracks\' rows into the shared lists (records and lists: each track adds its own rows, so the shapes are held, not the rows)', () => {
+    expect([S46_GOODS, S46_BUILDINGS, S46_UNLOCKS, S46_DOCK].map((v) => Object.prototype.toString.call(v))).toEqual(Array(4).fill('[object Object]'));
+    expect([S46_FIRSTS, S46_ACHIEVEMENTS, S46_TIPS].every(Array.isArray)).toBe(true);
     for (const t of Object.keys(S46_BUILDINGS)) expect(BUILDINGS[t]).toBe(S46_BUILDINGS[t]);
     for (const [m, types] of Object.entries(S46_UNLOCKS)) for (const t of types) expect(MILESTONES.find((x) => x.id === m).unlocks).toContain(t);
     for (const f of S46_FIRSTS) expect(FIRSTS).toContain(f);
@@ -69,11 +70,15 @@ describe('s46 contract hooks', () => {
     w.milestone = 'capital';
     setRoad(w, 0, 6, 23, 6);
     layClay(w, 4, 4, 1, 2);                                                          // 2 of the pit's 4 tiles at (4, 4)
-    expect(tileBound('clay_pit')).toBe(true);
-    expect(canPlace(w, 'clay_pit', 4, 4).reason).toBe('needs_clay');
-    expect(fitOf(w, 'clay_pit', 4, 4)).toEqual({ terrain: 'clay', fit: 2, of: 4, need: 4, water: null, wet: 0, ok: false, reason: 'needs_clay' });
-    expect(fitReason(w, 'clay_pit', 4, 4)).toBe(null);                               // tile-bound: commands.js refuses it tile by tile
-    withRow('test_pit', { ...BUILDINGS.clay_pit, terrainMin: 2 }, () => {
+    expect(tileBound('clay_pit')).toBe(false);                                       // Stage 4.6 (ruling 331): the clay pit needs 2 of its 4 tiles
+    expect(canPlace(w, 'clay_pit', 4, 4).ok).toBe(true);
+    withRow('test_tilepit', { ...BUILDINGS.clay_pit, terrainMin: undefined }, () => {   // a pit that needs every tile on clay, as before Stage 4.6
+      expect(tileBound('test_tilepit')).toBe(true);
+      expect(canPlace(w, 'test_tilepit', 4, 4).reason).toBe('needs_clay');
+      expect(fitOf(w, 'test_tilepit', 4, 4)).toEqual({ terrain: 'clay', fit: 2, of: 4, need: 4, water: null, wet: 0, ok: false, reason: 'needs_clay' });
+      expect(fitReason(w, 'test_tilepit', 4, 4)).toBe(null);                          // tile-bound: commands.js refuses it tile by tile
+    });
+    withRow('test_pit',{ ...BUILDINGS.clay_pit, terrainMin: 2 }, () => {
       expect(tileBound('test_pit')).toBe(false);
       expect(fitOf(w, 'test_pit', 4, 4)).toEqual({ terrain: 'clay', fit: 2, of: 4, need: 2, water: null, wet: 0, ok: true, reason: null });
       expect(canPlace(w, 'test_pit', 4, 4).ok).toBe(true);
@@ -84,7 +89,7 @@ describe('s46 contract hooks', () => {
       expect([c.state, c.conditions[0].reason, c.conditions[0].fit, c.conditions[0].need, c.tiles.every((t) => t.state === 'met')]).toEqual(['cant', 'needs_clay', 0, 2, true]);
       expect(conditionsFor(w, 'test_pit', 4, 4).conditions[0]).toEqual({ key: 'ground', state: 'met', reason: null, terrain: 'clay', fit: 2, of: 4, need: 2 });
     });
-    expect(conditionsFor(w, 'clay_pit', 20, 4).conditions[0]).toEqual({ key: 'ground', state: 'cant', reason: 'needs_clay', terrain: 'clay', fit: 0, of: 4 });
+    expect(conditionsFor(w, 'clay_pit', 20, 4).conditions[0]).toEqual({ key: 'ground', state: 'cant', reason: 'needs_clay', terrain: 'clay', fit: 0, of: 4, need: 2 });
   });
   it('makes a water building touch water, a long-side one along its long side', () => {
     const w = makeTestWorld({ size: 24, fertile: [] });

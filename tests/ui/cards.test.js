@@ -22,8 +22,9 @@ describe('ui cards', () => {
     const w = makeTestWorld({ gold: 1000 });
     expect(['farm_grain', 'farm_fig', 'farm_barley', 'farm_flax'].map((t) => cardInfo(w, t).terrainText)).toEqual(Array(4).fill('Fertile land'));
     expect(cardInfo(w, 'gem_mine').terrainText).toBe('Rocky ground');
-    expect(cardInfo(w, 'clay_pit').terrainText).toBe('Clay ground');                                  // Stage 4.5, ruling 312
-    expect(['well', 'granary', 'road', 'house', 'demolish'].map((t) => cardInfo(w, t).terrainText)).toEqual(Array(5).fill(''));
+    expect(cardInfo(w, 'clay_pit').terrainText).toBe('Clay ground, along the riverbanks');             // Stage 4.5, ruling 312; Stage 4.6 (ruling 331) says where it lies
+    expect(['well', 'granary', 'house', 'demolish'].map((t) => cardInfo(w, t).terrainText)).toEqual(Array(4).fill(''));
+    expect(cardInfo(w, 'road').terrainText).toBe('Bridges over water: 25 gold a tile');                  // Stage 4.6 (ruling 350): the road card says roads cross water
     const { root, cleanup } = mount();
     renderCards(root, { world: w, category: 'food', activeItem: null, onPick: () => {} });
     const farm = root.querySelector('.card[data-item="farm_grain"]');
