@@ -620,6 +620,8 @@ body[data-hand="left"] #corners .layers-picker { right: auto; left: 8px; }
    top bar and the corner row leave (five tight rows fit even at 150% text), and the open popover scrolls the current choice into view (layersPicker.js). */
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) .layers-picker .layer.off { grid-column: auto; }
 body[data-layout="compact"] #corners .layers-picker { gap: 2px; padding: 4px; max-height: calc(100vh - var(--topbar-h) - var(--safe-top) - var(--safe-bottom) - 76px); max-height: calc(100dvh - var(--topbar-h) - var(--safe-top) - var(--safe-bottom) - 76px); overscroll-behavior: contain; }
+/* Stage 4.5 (Health and Crime): twelve choices at 125% or 150% text would need six rows of two, taller than the short screen leaves; a wider popover (it grows leftwards, away from the confirm bar) holds them in four rows of three. */
+body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]) #corners .layers-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); width: min(540px, calc(100% - 16px)); }
 #panel .layers-row { position: relative; flex: none; padding: 0 8px 8px; }
 #panel .layers-button { width: 100%; font-size: calc(14px * var(--ui-scale)); }
 #panel .layers-button[aria-pressed="true"] { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }

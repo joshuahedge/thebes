@@ -17,23 +17,28 @@ import { ART, slotFor } from './art/registry.js';
 import { GUIDE_PULSE_MS, DESIRABILITY_STEPS, VIEW_OUTLINE } from '../data/ui.js';
 import { DEFENCE } from '../data/raids.js';
 import { canBurn, fireRiskOf, fireBand, staffedCover } from '../sim/fire.js';
+import { healthBandOf, healthCovered, canFallIll } from '../sim/health.js';
+import { crimeBand, crimeRiskOf, crimeCovered, canCommitCrime } from '../sim/crime.js';
 import { MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
 import { drawMonument } from './monuments.js';
 
-export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'housing', 'ground'];
+export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground'];
 // Fire risk (Stage 3, Track D) is one deep ember red, light to dark by band; no other overlay uses a red.
 export const FIRE_HUE = '#9C2A1C';
+// Stage 4.5 (rulings 318, 319): Health in an olive green and Crime in a deep violet, each graded like fire risk (light to dark by band).
+export const HEALTH_HUE = '#6F8F1F';
+export const CRIME_HUE = '#5E3A8C';
 // The Ground overlay (placement review P1): free fertile land in a leaf green (darker than the meadow's lime, so the two read
 // apart), free rocky ground in a stone grey. The hues are for the tint, the dots and the hatching; the legend uses them too.
 // Stage 4.5 (ruling 312): free clay ground along the banks, in terracotta (tint and wide hatching), for the clay pit.
 export const GROUND_HUE = { fertile: '#27934A', rocky: '#5F5A54', clay: '#C2552B' };
 export const OVERLAY_HUE = {
-  water: UI.water, food: UI.food, religion: UI.religion, goods: UI.goods, entertainment: UI.entertainment, desirability: UI.desirability, fire: FIRE_HUE, housing: UI.housing,
+  water: UI.water, food: UI.food, religion: UI.religion, goods: UI.goods, entertainment: UI.entertainment, desirability: UI.desirability, fire: FIRE_HUE, health: HEALTH_HUE, crime: CRIME_HUE, housing: UI.housing,
   ground: GROUND_HUE.fertile,
 };
 export const SERVICE_TYPES = { water: ['well'], food: ['bazaar'], religion: ['temple'], goods: ['bazaar'], entertainment: ['booth'], housing: [] };
 // Overlays that draw a graded scale over the ground instead of dots and rings (spec 6.3); their legend is a scale too.
-export const GRADED_OVERLAYS = ['desirability', 'fire'];
+export const GRADED_OVERLAYS = ['desirability', 'fire', 'health', 'crime'];
 
 export function houseMark(world, house, kind) {
   const s = houseStatus(world, house);
@@ -114,6 +119,7 @@ export function drawOverlay(g, world, kind, range, placing = null) {
   if (kind === 'ground') { drawGround(g, world, range, placing); return; }
   if (kind === 'desirability') { drawDesirability(g, world, range); return; }
   if (kind === 'fire') { drawFireRisk(g, world, range); return; }
+  if (kind === 'health' || kind === 'crime') { drawHomeRisk(g, world, range, kind); return; }
   if (!SERVICE_TYPES[kind]) return;
   const color = OVERLAY_HUE[kind];
   const tiles = new Set();
@@ -382,6 +388,36 @@ function drawFireRisk(g, world, range) {
   g.hatchPolys(byBand[2], FIRE_HUE, { fill: 0, line: 0.6, gap: 5 });
   if (byBand[3].length) g.polys(byBand[3], crossHatch(g, FIRE_HUE, 3));
   for (const m of marks) mark(g, m, FIRE_HUE);
+}
+
+// The Health and Crime overlays (Stage 4.5, rulings 318, 319): every home with people in it, tinted by its band in the overlay's hue
+// light to dark (FIRE_ALPHA's steps, as fire risk), with light diagonal hatching on High and dense cross-hatching on the top band
+// (an ill home, or one that can cause a theft), and a filled dot where a staffed physician or police post reaches it (healthCovered,
+// crimeCovered: the sheet's and the alerts' test) or a hollow ring where none does. Empty plots and every other building get
+// nothing. homeRiskMarks is the list the draw and the tests share.
+export function homeRiskMarks(world, kind, range = null) {
+  const out = [];
+  for (const b of housesOf(world)) {
+    if (kind === 'health' ? !canFallIll(b) : !canCommitCrime(b)) continue;
+    const x = b.x + b.w / 2, y = b.y + b.d / 2;
+    if (range && (x < range.x0 || x > range.x1 + 1 || y < range.y0 || y > range.y1 + 1)) continue;
+    out.push(kind === 'health'
+      ? { id: b.id, x, y, b, band: healthBandOf(world, b), has: healthCovered(world, b) }
+      : { id: b.id, x, y, b, band: crimeBand(crimeRiskOf(world, b)), has: crimeCovered(world, b) });
+  }
+  return out;
+}
+
+function drawHomeRisk(g, world, range, kind) {
+  const hue = OVERLAY_HUE[kind];
+  const marks = homeRiskMarks(world, kind, range);
+  const foot = (m) => tilePolys(Array.from({ length: m.b.w * m.b.d }, (_, k) => [m.b.x + (k % m.b.w), m.b.y + Math.floor(k / m.b.w)]));
+  const byBand = [[], [], [], []];
+  for (const m of marks) byBand[m.band].push(...foot(m));
+  byBand.forEach((polys, k) => g.polys(polys, hue, { alpha: FIRE_ALPHA[k] }));
+  g.hatchPolys(byBand[2], hue, { fill: 0, line: 0.6, gap: 5 });
+  if (byBand[3].length) g.polys(byBand[3], crossHatch(g, hue, 3));
+  for (const m of marks) mark(g, m, hue);
 }
 
 // The placement preview's tint (spec 4.7): a teal wash on the tiles a building would make nicer, coral hatching on

@@ -19,7 +19,7 @@ import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
 const STAGE1 = ['road', 'plots', 'well', 'food', 'temple', 'profit', 'homes_cottage', 'people100', 'homes_house', 'town'];   // Stage 4.5 added profit after the temple
 const STAGE2 = ['pottery', 'homes_townhouse', 'booth_gardens', 'manor', 'market_town', 'trade_route', 'city', 'beer', 'fine_manors',
   'great_city', 'linen', 'villas', 'capital', 'jewellery', 'estate'];
-const DANGER = ['firehouse', 'defences'];   // Stage 3's chain goals, after Town and after the trade route (tests/stage3/score/dangerGoals.test.js)
+const DANGER = ['firehouse', 'physician', 'defences', 'police_post'];   // Stage 3's chain goals, after Town and after the trade route (tests/stage3/score/dangerGoals.test.js), and Stage 4.5's physician and police post (tests/stage45/threatsUi.test.js)
 const MONUMENTS4 = GOALS.filter((g) => g.chapter === 'monuments').map((g) => g.id);   // Stage 4's chain goals (tests/stage4/score/goals.test.js)
 const notDanger = (g) => !DANGER.includes(g.id) && !MONUMENTS4.includes(g.id);
 const first = (id) => FIRSTS.find((f) => f.id === id);
@@ -60,7 +60,7 @@ describe('sim goals and rewards for Stage 2', () => {
   it('lists the chain only as far as the milestone the city has reached, so no later goal shows ahead of a waiting one', () => {
     const waiting = [['pottery', 'town'], ['homes_townhouse', 'town'], ['booth_gardens', 'town'], ['trade_route', 'market_town'], ['defences', 'market_town'], ['beer', 'city'],
       ['fine_manors', 'city'], ['linen', 'great_city'], ['villas', 'great_city'], ['jewellery', 'capital'], ['estate', 'capital']];
-    expect(GOALS.filter((g) => g.from && !MONUMENTS4.includes(g.id)).map((g) => [g.id, g.from])).toEqual(waiting);
+    expect(GOALS.filter((g) => g.from && !MONUMENTS4.includes(g.id) && !DANGER.includes(g.id)).map((g) => [g.id, g.from])).toEqual(waiting.filter((x) => x[0] !== 'defences'));   // defences, like the physician and police post, is a danger goal (tests/stage3/score/dangerGoals.test.js)
     const w = town();
     const open = () => openGoals(w, Infinity).map((g) => g.id);
     const endsAt = { village: 'pottery', town: 'trade_route', market_town: 'beer', city: 'linen', great_city: 'jewellery', capital: null };
@@ -98,9 +98,9 @@ describe('sim goals and rewards for Stage 2', () => {
     w.day = 5;
     tickDay(w);                                                            // mid-month: the Town goal pays, the milestone waits for the month end
     expect([w.goals.completed.includes('town'), w.milestone]).toEqual([true, 'village']);
-    expect(openGoals(w).map((g) => g.id)).toEqual(['firehouse', 'pottery', 'homes_townhouse']);   // Stage 3: the firehouse comes right after Town
+    expect(openGoals(w).map((g) => g.id)).toEqual(['firehouse', 'physician', 'pottery']);   // Stage 3: the firehouse comes right after Town; Stage 4.5: and the physician
     crowd.residents = 140;                                                 // some leave before the month turns
-    expect(openGoals(w).map((g) => g.id)).toEqual(['firehouse', 'pottery', 'homes_townhouse']);   // Stage 3: the firehouse comes right after Town
+    expect(openGoals(w).map((g) => g.id)).toEqual(['firehouse', 'physician', 'pottery']);   // Stage 3: the firehouse comes right after Town; Stage 4.5: and the physician
   });
   it('makes a city that had 150 people this month a Town at the month end, even if a few left before it', () => {
     const w = makeTestWorld();
@@ -114,7 +114,7 @@ describe('sim goals and rewards for Stage 2', () => {
     tickDay(w);                                                            // the month end
     expect([w.day % 30, w.milestone, population(w) < 150]).toEqual([0, 'town', true]);
     const pottery = goalById('pottery');
-    expect(openGoals(w).map((g) => g.id)).toContain('pottery');           // after any first-time trouble the Town brings (unemployment here)
+    expect(openGoals(w, Infinity).map((g) => g.id)).toContain('pottery');   // after any first-time trouble the Town brings (unemployment here) and the physician
     for (const t of typesIn(pottery.need)) expect([t, isUnlocked(w, t)]).toEqual([t, true]);   // its buildings can be placed now
   });
   it('lists no goal with locked buildings once the month has turned, at every people milestone', () => {

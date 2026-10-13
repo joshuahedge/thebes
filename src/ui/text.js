@@ -286,7 +286,7 @@ export function conditionText(cond, type, { refused = false } = {}) {
 }
 
 // What a service will do from the ghost's spot (early-game pass 2.6), counted by homesServedFrom.
-const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}`, booth: (homes) => `Entertains ${homes}` };
+const EFFECTS = { well: (homes) => `Gives water to ${homes}`, bazaar: (homes) => `Feeds ${homes}`, temple: (homes) => `Serves ${homes}`, booth: (homes) => `Entertains ${homes}`, physician: (homes) => `Looks after ${homes}`, police_post: (homes) => `Watches over ${homes}` };
 export function effectText(type, n) {
   if (!EFFECTS[type]) return '';
   return n > 0 ? EFFECTS[type](plural(n, 'home', 'homes')) : T.noHomesInReach;
@@ -1653,7 +1653,7 @@ Object.assign(ALERT_TEXT, {
   illness: (alert, world, b) => ({ title: HEALTH_TEXT.sick(b ? tierName(b.tier) : 'home'), fix: b ? HEALTH_TEXT.cause[healthCauseOf(world, b).cause] : HEALTH_TEXT.cause.none }),
 });
 Object.assign(MOOD_NAMES, { illness: HEALTH_TEXT.mood });
-import { CRIME_MOOD as crimeMoodData } from '../data/crime.js';
+import { CRIME as crimeNumbersRow, CRIME_MOOD as crimeMoodData } from '../data/crime.js';
 import { crimeCause as crimeCauseOf } from '../sim/crime.js';
 export const CRIME_TEXT = {
   // The crime_risk alert: one per district, the homes in it at High risk or more that no staffed police post reaches.
@@ -1676,4 +1676,60 @@ Object.assign(ALERT_TEXT, {
   crime_risk: (alert, world, b) => ({ title: CRIME_TEXT.title(alert.count || 1), fix: b ? CRIME_TEXT.cause[crimeCauseOf(world, b).cause] : CRIME_TEXT.cause.none }),
 });
 Object.assign(MOOD_NAMES, { thefts: CRIME_TEXT.mood });
+// The Health and Crime overlays' names, legends and bands (src/data/health.js, crime.js): a band says the risk points it starts at, as
+// the fire overlay's do; the top band of Health is an ill home or one that can fall ill, of Crime one that can cause a theft.
+import { HEALTH_BANDS as healthBandStarts } from '../data/health.js';
+import { CRIME_BANDS as crimeBandStarts } from '../data/crime.js';
+const healthBandNames = ['Low', 'Rising', 'High', 'Ill or can fall ill'];
+const crimeBandNames = ['Low', 'Rising', 'High', 'Can cause a theft'];
+const bandWords = (name, noun, starts, k) => {
+  const from = starts[k], next = starts[k + 1];
+  return { label: name, words: `${name}: ${noun} risk ${next === undefined ? `${from} or more` : `${from} to ${next - 1}`}` };
+};
+Object.assign(OVERLAY_NAMES, { health: 'Health', crime: 'Crime' });
+Object.assign(OVERLAY_LEGEND, {
+  health: ['A staffed physician reaches it', 'No staffed physician reaches it'],
+  crime: ['A staffed police post reaches it', 'No staffed police post reaches it'],
+});
+Object.assign(DANGER_UI_TEXT, {
+  healthBand: (k) => bandWords(healthBandNames[k], 'health', healthBandStarts, k),
+  crimeBand: (k) => bandWords(crimeBandNames[k], 'crime', crimeBandStarts, k),
+  homesOnlyNote: 'Homes with people in them',
+});
+// The health and crime rows on a home's sheet and the physician's and police post's own rows (src/ui/dangerSheets.js healthRowModel,
+// crimeRowModel). Each reason is healthCause's or crimeCause's, the one the alerts word; "twice as fast" is HEALTH.coverFactor.
+Object.assign(DANGER_UI_TEXT, {
+  healthLabel: 'Health', crimeLabel: 'Crime risk',
+  healthCovered: 'covered by the physician',
+  healthMending: `covered by the physician, mending ${healthNumbers.coverFactor === 2 ? 'twice' : `${healthNumbers.coverFactor} times`} as fast`,
+  healthWhy: {
+    none: `no physician within ${healthNumbers.reach} road tiles`, no_road: 'no road beside it for a physician to reach',
+    short: 'the physician is short of workers', paused: 'the physician is paused', burning: 'the physician is burning',
+  },
+  crimeCovered: 'a police post reaches it',
+  crimeWhy: {
+    none: `no police post within ${crimeNumbersRow.reach} road tiles`, no_road: 'no road beside it for a police post to reach',
+    short: 'the police post is short of workers', paused: 'the police post is paused', burning: 'the police post is burning',
+  },
+  riskIs: (band) => `risk ${band.toLowerCase()}`,
+  illLeft: (days) => `ill, ${plural(days, 'day', 'days')} left`,
+  healthFactor: { well: 'no well reaches it', crowded: (n) => `more than ${n} people a tile`, poor: 'the street around it is unpleasant' },
+  crimeFactor: { tier: 'it is a low tier of home', mood: (n) => `city mood is below ${n}`, jobs: (pct) => `unemployment is above ${pct}%` },
+  healthNoun: 'Sickness risk', crimeNoun: 'Crime risk',
+  buildsFaster: (noun, list) => `${noun} builds faster: ${list.join('; ')}`,
+  buildPhysician: 'Build a physician near it', buildPolicePost: 'Build a police post near it',
+  coversHomesHealth: (n) => (n > 0 ? `Covers ${plural(n, 'home', 'homes')}` : 'No homes with people in reach yet'),
+  coversHomesCrime: (n) => (n > 0 ? `Covers ${plural(n, 'home', 'homes')}` : 'No homes with people in reach yet'),
+});
+// The tips (How to play lists them), the firsts: every number is the data's. The sickness tip says what a staffed physician does
+// (HEALTH.cut is a cut in how fast risk builds; a covered home does not pass an illness on and mends coverFactor times as fast); the
+// thieves tip what drives crime (CRIME's three things) and what a staffed police post does to it.
+Object.assign(TIP_TEXT, {
+  sickness_spreads: `Sickness spreads between touching homes: a staffed physician within ${healthNumbers.reach} road tiles stops that and cures it ${healthNumbers.coverFactor === 2 ? 'twice' : `${healthNumbers.coverFactor} times`} as fast.`,
+  thieves_about: `Thieves come from poor, unhappy or jobless homes: a staffed police post within ${crimeNumbersRow.reach} road tiles cuts the risk ${Math.round(crimeNumbersRow.cut * 100)}%.`,
+});
+Object.assign(FIRST_TEXT, {
+  first_physician: { head: 'First physician', why: `Staffed, it slows sickness and ends it faster up to ${healthNumbers.reach} road tiles away.` },
+  first_police_post: { head: 'First police post', why: `Staffed, it cuts the risk of thefts up to ${crimeNumbersRow.reach} road tiles away.` },
+});
 // ── end s45 threats ──────────────────────────────────────────────────────────────────────────────────────────────────
