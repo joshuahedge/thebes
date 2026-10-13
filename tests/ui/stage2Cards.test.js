@@ -39,7 +39,7 @@ describe('ui stage 2 cards', () => {
     w.milestone = 'town';
     expect(shownItems(w, 'industry')).toEqual(['clay_pit', 'potter', 'storehouse', 'trading_post']);
     expect(cardInfo(w, 'trading_post').lockText).toBe('Unlocks at Market town');
-    expect(shownItems(w, 'defence').map((i) => [i, cardInfo(w, i).locked])).toEqual([['wall', true], ['gate', true], ['tower', true], ['barracks', true]]);   // Stage 4.5: the Gate card comes after the Wall
+    expect(shownItems(w, 'defence').map((i) => [i, cardInfo(w, i).locked])).toEqual([['wall', true], ['gate', true], ['tower', true], ['barracks', true], ['archery_range', true], ['stables', true]]);   // Stage 4.5: the Gate card comes after the Wall; Stage 4.6: the Armies track's two
     w.milestone = 'market_town';
     expect(shownItems(w, 'industry')).toEqual(['clay_pit', 'potter', 'farm_barley', 'brewery', 'storehouse', 'trading_post']);
     w.milestone = 'city';
