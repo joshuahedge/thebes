@@ -15,7 +15,7 @@ import { boundsFor } from '../iso.js';
 
 export const SERVICE_EMBLEM = {
   well: BLUE, farm_grain: LEAF2, granary: GREEN, bazaar: RED, temple: GOLD,
-  farm_fig: LEAF2, farm_barley: INDUSTRY_TINT, farm_flax: INDUSTRY_TINT, booth: PINK, physician: GREEN,
+  farm_fig: LEAF2, farm_barley: INDUSTRY_TINT, farm_flax: INDUSTRY_TINT, booth: PINK, physician: GREEN, police_post: '#3C5A8A',
 };
 
 export function pennant(g, q, h, color) {
@@ -399,6 +399,34 @@ export function physician(g, x, y) {
   pennant(g, U(p(x + 0.18, y + 0.14), 10), 7, HEALTH_EMBLEM);
 }
 
+// Police post (1x1, Stage 4.5): a squat mudbrick watch-house with a blue band under its parapet, a barred window, a bench
+// by the door, a rack of two spears and a shield at the front corner, a lookout stool on the roof and a blue pennant.
+const POLICE = ['#4F6FA0', '#3C5A8A', '#2E4670'];
+export const POLICE_EMBLEM = POLICE[1];      // the police post's pennant matches its card
+export function policePost(g, x, y) {
+  g.poly(quad(x + 0.08, y + 0.74, 0.7, 0.2, 0), '#E9D9B4');                      // the swept apron in front of the door
+  const F = box(g, x + 0.14, y + 0.12, 0.6, 0.58, 11, 0, ['#DCB57E', '#CB9F66', '#A08274']);
+  crs(g, F, 11, '#8A6A4A', 2.8);
+  parapet(g, x + 0.14, y + 0.12, 0.6, 0.58, 11);
+  qd(g, F.L, 0, 1, 8.4, 9.6, POLICE[0]);
+  qd(g, F.R, 0, 1, 8.4, 9.6, POLICE[2]);
+  door(g, F, 0.18, 0.46, 6.2);
+  win(g, F.R, 0.3, 0.6, 4.6, 7.4);
+  for (const u of [0.38, 0.5]) g.line(F.R(u, 4.6), F.R(u, 7.4), '#CFC5D4', 0.5, 0.9);    // the bars
+  const S = box(g, x + 0.2, y + 0.18, 0.2, 0.2, 2.4, 11, WASH2);                // the lookout's stool and a little roof shade
+  qd(g, S.L, 0.2, 0.8, 0.4, 1.8, DOOR);
+  box(g, x + 0.46, y + 0.76, 0.3, 0.1, 2.4, 0, ['#D8B47A', '#C09A62', '#9C8072'], 0);   // a bench by the door
+  for (const dy of [0.78, 0.9]) {                                               // two spears leaning in a rack at the corner
+    const q = U(p(x + 0.86, y + dy), 0);
+    g.line(q, U(q, 14), WOOD, 0.55);
+    g.poly([U(q, 14), [q[0] + 0.9, q[1] - 15.4], [q[0] - 0.9, q[1] - 15.4]], '#CFC5D4', { outline: true });
+  }
+  const sh = U(p(x + 0.84, y + 0.2), 7);                                          // a round shield on the wall's corner
+  g.ell(sh, 2.2, 2.6, POLICE[1], { outline: true });
+  g.ell(sh, 0.9, 1.1, GOLD);
+  pennant(g, U(p(x + 0.7, y + 0.16), 11), 7, POLICE_EMBLEM);
+}
+
 // The plain type slots are what cards and assets show: a full granary, a piled bazaar, a green grain field, ripe
 // barley, flax in flower and a fig orchard in fruit.
 export const PLAIN_STAGE = { granary: 3, bazaar: 2, farm_grain: 2, farm_barley: 3, farm_flax: 3, farm_fig: 3 };
@@ -421,6 +449,7 @@ export const SERVICE_ART = {
   statue: { w: 1, d: 1, height: 22, bounds: boundsFor(1, 1, 22), shadows: [[0.2, 0.2, 0.6, 0.6, 4], [0.3, 0.28, 0.4, 0.42, 16]], draw: seatedStatue },
   booth: { w: 1, d: 1, height: 21, bounds: boundsFor(1, 1, 21), shadows: [[0.16, 0.14, 0.68, 0.6, 3], [0.14, 0.12, 0.72, 0.3, 13]], draw: booth },
   physician: { w: 1, d: 1, height: 19, bounds: boundsFor(1, 1, 19), shadows: [[0.12, 0.12, 0.62, 0.6, 10]], draw: physician },
+  police_post: { w: 1, d: 1, height: 22, bounds: boundsFor(1, 1, 22), shadows: [[0.14, 0.12, 0.6, 0.58, 11]], draw: policePost },
 };
 // One slot per stage, named as slotFor (registry.js) names them: granary.s0-s3, bazaar.s0-s2, and g0-g3 for every
 // farm; each farm also keeps its plain type slot.

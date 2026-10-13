@@ -30,7 +30,7 @@ describe('ui card pictures', () => {
   it('draws a picture for every card, sized for the screen', () => {
     const items = visibleCategories().flatMap((c) => c.items);
     expect(items).toEqual(['road', 'demolish', 'house', 'garden', 'statue', 'plaza', 'sphinx', 'farm_grain', 'farm_fig', 'granary', 'clay_pit', 'potter', 'farm_barley', 'brewery',
-      'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'palace',
+      'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'police_post', 'palace',
       'wall', 'gate', 'tower', 'barracks', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'colossus', 'mastaba_small',
       'mastaba_large', 'pyramid_small', 'pyramid_great']);   // Stage 4: the plaza, sphinx, palace and the Monuments tab
     for (const item of items) {

@@ -20,8 +20,9 @@ export const newRaidState = () => ({ clockDay: null, nextWarnDay: null, index: 0
 
 // Danger the city remembers (Stage 3, spec 4.9, 4.12, 4.13, 4.19): the day of every building burned in the last
 // 360 days (oldest first: mood looks back 180 days and Safety 360), the last day a building reached the fire stage,
-// the day of the last festival, and whether the city has had its one first-time pause for a fire no firehouse reaches.
-export const newDangerState = () => ({ burnDays: [], lastFireDay: null, festivalDay: null, firePaused: false });
+// the day of the last festival, whether the city has had its one first-time pause for a fire no firehouse reaches, and (Stage 4.5)
+// the day of every theft in the last 90 days (src/sim/crime.js).
+export const newDangerState = () => ({ burnDays: [], lastFireDay: null, festivalDay: null, firePaused: false, theftDays: [] });
 
 // The tallies a city starts with. Stage 1-2's, then Stage 3's (spec 4.12, 4.13): fires started (blazes, by ignition,
 // spread or a raid), blazes and fires put out, buildings burned, rubble tiles cleared, raids that arrived, raids beaten

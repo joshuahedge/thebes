@@ -18,7 +18,7 @@ describe('s3 contract world v4', () => {
     expect(w.raid).toEqual(newRaidState());
     expect(w.soldiers).toEqual([]);
     expect(w.nextUnitId).toBe(1);
-    expect(w.danger).toEqual({ burnDays: [], lastFireDay: null, festivalDay: null, firePaused: false });
+    expect(w.danger).toEqual({ burnDays: [], lastFireDay: null, festivalDay: null, firePaused: false, theftDays: [] });   // Stage 4.5: the days of the last 90 days' thefts
     expect(w.danger).toEqual(newDangerState());
     expect([w.splits, w.seals, w.feats, w.cityId]).toEqual([{}, [], { earned: [], lost: [], counters: {} }, null]);
     expect(JSON.parse(JSON.stringify(w))).toEqual(w);
