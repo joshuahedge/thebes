@@ -7,7 +7,7 @@
 // A flame's shape (its tip's sway and its embers) steps once every FLAME_STEP_MS, so it changes at 2 Hz at most, each
 // building out of step by its id; its colours and size never change, so nothing flashes, and it is orange and gold,
 // never a saturated red. Smoke puffs rise and fade smoothly over SMOKE_RISE_MS. Under reduced motion a burning building
-// shows still flames and the word "Burning" (ART_TEXT.burning) on a pale label, and no smoke.
+// shows still flames and the word "Burning" (ART_TEXT.burning) on a pale label, and smoke only in Gentle (fading in place); Still has none.
 //
 // Stage 4.5 (ruling 310): both Full and Gentle show a smoke column on every fire (a blaze gets a thinner one; a fire's is
 // the full column), Gentle's fading in place; Gentle's two flame shapes sit further apart so the change reads; the
@@ -38,7 +38,7 @@ export const BLAZE_SMOKE_PUFFS = 3;            // Stage 4.5: a blaze's thinner c
 export const FLAME = { outer: '#E07B39', mid: '#F2A93B', core: '#FCE6A6', ember: '#F6C05A', smoke: '#6F6470', smokeLight: '#E4DCE2' };
 const SMOKE_ALPHA = 0.7;                       // a puff's peak opacity (it fades in, then out as it rises)
 const LEAN = [-0.8, 0.5, 1, -0.3];            // the tip's sway at each of four steps, in art px per unit of size
-const LABEL = { fill: '#FFF8EA', text: '#3B2A14', size: 7, below: 9, gap: 1 };   // below: art px from the roof point down to the pill's middle   // 14 CSS px at zoom 1 (spec 6.1's 12 px floor)
+const LABEL = { fill: '#FFF8EA', text: '#3B2A14', size: 7, below: 9, gap: 1 };   // 7 art px is 14 CSS px at zoom 1 (spec 6.1's 12 px floor); below: art px from the roof point down to the pill's middle
 // Flame sizes (a unit flame is 6.5 art px tall): one for a blaze, and a fire's three (left, right, middle).
 const BLAZE_SIZE = 1.5, FIRE_SIZES = [1.9, 1.8, 2.5];
 
