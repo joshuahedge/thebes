@@ -57,7 +57,7 @@ export const WILDLIFE = {
 };
 // The hunting lodge's hunters and the fishing wharf's boat. HUNTING.reach: tiles from the lodge's middle to a herd's centre.
 export const HUNTING = { reach: 12, perHerdMonth: 6, maxMonth: 24 };
-export const FISHING = { reach: 8, perMonth: 20, floodPerMonth: 30 };
+export const FISHING = { perMonth: 20, floodPerMonth: 30 };   // ruling 422: no reach; the boat fishes the water its pier stands on (fit: water longSide)
 
 // world.wildlife: herds: [{ id, kind, x, y, size, max, regrow }] in id order (x, y: the herd's centre tile; size: animals now;
 // max: the size it regrows to; regrow: the day it next regrows 1, or null while full); nextId: the next herd's id. A herd at 0 is

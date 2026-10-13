@@ -1906,8 +1906,10 @@ export const S46_RIVER_TEXT = {
   // The hunting lodge's sheet.
   herdsLabel: 'Herds in reach',
   herdsLine: (herds, animals) => `${herds} (${plural(animals, 'animal', 'animals')})`,
-  gameLabel: 'Game a month',
-  gameLine: (month) => `up to ${month} now; ${rvHunting.perHerdMonth} a herd, at most ${rvHunting.maxMonth}`,
+  // Ruling 421: what the hunters may still take this month (huntingOutlook's left: each herd's share less what it has given, the lodge's most
+  // less what it has taken), what it has taken, and the rule the two come from.
+  gameLabel: 'Game this month',
+  gameLine: (left, taken) => `${left} more${taken ? ` (${taken} taken)` : ''}; ${rvHunting.perHerdMonth} a herd a month, at most ${rvHunting.maxMonth}`,
   // A lodge that has taken what it may this month (huntRest, src/sim/wildlife.js): the sim's reason, with its numbers.
   huntRest: (why) => (why === 'month'
     ? `The lodge has taken its ${rvHunting.maxMonth} this month; hunting resumes next month`
@@ -1917,7 +1919,9 @@ export const S46_RIVER_TEXT = {
   // The fishing wharf's sheet.
   catchLabel: 'Catch a month',
   catchLine: (flood) => (flood ? `${rvFishing.floodPerMonth} now (the water is up)` : `${rvFishing.perMonth}, or ${rvFishing.floodPerMonth} in the flood months`),
-  catchRule: `The boat works the water within ${rvFishing.reach} tiles: ${rvFishing.perMonth} a month, ${rvFishing.floodPerMonth} in months ${rvFirstMonth} to ${rvLastMonth}`,
+  // Ruling 422: what the sim does (src/sim/production.js): the catch is the wharf's monthly rate times its staffing, and the flood months' factor
+  // (fishFactor); no sim reads a distance, so the words name none.
+  catchRule: `The boat fishes the river off the pier: ${rvFishing.perMonth} a month with a full crew, ${rvFishing.floodPerMonth} in months ${rvFirstMonth} to ${rvLastMonth}; fewer hands land fewer`,
   // Crocodiles beside a workplace (not on Peaceful).
   crocLabel: 'Crocodiles',
   crocNear: `Crocodiles bask nearby: work may pause for ${plural(rvWildlife.scareDays, 'day', 'days')}, at most once a month`,

@@ -38,7 +38,7 @@ export function riverRows(world, b) {
     const rest = isWorking(world, b) ? huntRest(world, b) : null;       // a staffed lodge that has had its share says so (the work line leaves it out)
     out.push(row(R.herdsLabel, R.herdsLine(o.herds, o.animals)));
     if (rest) out.push(line(R.huntRest(rest), 'small'));
-    if (o.herds) out.push(row(R.gameLabel, R.gameLine(o.month)));
+    if (o.herds) out.push(row(R.gameLabel, R.gameLine(o.left, o.taken)));   // ruling 421: what is left this month, not the month's whole share
     else out.push(line(R.noHerds, 'small coral'));
     out.push(line(R.huntRule));
   }
