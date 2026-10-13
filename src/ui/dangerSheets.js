@@ -14,7 +14,7 @@ import { allBuildings } from '../sim/world.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
 import { isWorking, staffRatio } from '../sim/labour.js';
 import { canBurn, fireStarted, fireRiskOf, fireBand, fireCause, clearRubble } from '../sim/fire.js';
-import { tributeQuote, payTribute } from '../sim/raids.js';
+import { tributeQuote, payTribute, warningDirs } from '../sim/raids.js';
 import { healthStarted, canFallIll, healthCause, healthFactors, healthBandOf, illnessDaysLeft, homesCoveredBy } from '../sim/health.js';
 import { crimeStarted, canCommitCrime, crimeCause, crimeFactors, crimeBand, crimeRiskOf, crimeHomesCoveredBy } from '../sim/crime.js';
 import { festivalStatus, holdFestival } from '../sim/festival.js';
@@ -224,7 +224,12 @@ export function summaryParts(ctx) {
 // warning's title names the mix. An all-foot raid's sheet is as before.
 export function counterParts(w) {
   if (!w || !w.mix || !S46_ARMY_TEXT.isMixedMix(w.mix)) return [];
-  return [el('h3', { class: 'raid-counters-head', text: S46_ARMY_TEXT.countersHead }), el('ul', { class: 'raid-counters' }, S46_ARMY_TEXT.counters(w.mix).map((t) => el('li', { text: t })))];
+  const from = `the ${[...new Set(warningDirs(w))].map((d) => DANGER_UI_TEXT.dir(d)).join(' and ')}`;
+  return [
+    el('p', { class: 'raid-mix', text: `${S46_ARMY_TEXT.mixLine(w.size, from, w.mix)}.` }),
+    el('h3', { class: 'raid-counters-head', text: S46_ARMY_TEXT.countersHead }),
+    el('ul', { class: 'raid-counters' }, S46_ARMY_TEXT.counters(w.mix).map((t) => el('li', { text: t }))),
+  ];
 }
 
 // The tribute confirmation sheet (spec 4.13): the cost, when the raiders arrive, the gold afterwards, what it cancels and

@@ -752,11 +752,13 @@ export const RAID_TEXT = {
 Object.assign(ALERT_TEXT, {
   raid_warning: (alert, world) => {
     const w = world.raid.warning;
-    // Stage 4.6 (Armies track, ruling 341): a raid with more than raiders on foot names its mix ("14 raiders from the east (8 on foot,
-    // 4 archers, 2 chariots) are after ...").
+    // Stage 4.6 (Armies track, rulings 341, 388): a raid with more than raiders on foot says how many come ("14 raiders from the east
+    // are after ...", short enough for the wide banner's one line) and names its kinds where there is room: first in the fix (the
+    // alert list) and in the raid sheet's mix line (dangerSheets.js counterParts).
     const mixed = w && w.mix && S46_ARMY_TEXT.isMixedMix(w.mix);
-    const who = mixed ? `${w.size} raiders from ${duiFrom(alert.dirs || alert.dir)} (${S46_ARMY_TEXT.mixText(w.mix)})` : `Raiders from ${duiFrom(alert.dirs || alert.dir)}`;
-    return { title: `${who} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: RAID_TEXT.towers(world) };
+    const who = mixed ? `${w.size} raiders from ${duiFrom(alert.dirs || alert.dir)}` : `Raiders from ${duiFrom(alert.dirs || alert.dir)}`;
+    const towers = RAID_TEXT.towers(world);
+    return { title: `${who} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: mixed ? `${capitalised(S46_ARMY_TEXT.mixText(w.mix))}${towers ? `. ${towers}` : ''}` : towers };
   },
   raid: (alert, world) => {
     const a = world.raid.active;
