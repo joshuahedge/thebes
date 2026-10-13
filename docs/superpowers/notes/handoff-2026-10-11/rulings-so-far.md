@@ -470,3 +470,153 @@ From the plan `plans/2026-10-13-thebes-stage-4-5-polish-and-pressure.md` (ruling
 328. A raiding band strikes wealth first, then on its 2nd strike a granary (food stolen) and on its 3rd a home (a quarter of its people flee), falling back to the usual targets when there is none; going strictly "after the wealth" would almost never reach them with 3 strikes. — Cost if wrong: raids hurt food and people sooner than temples.
 329. The physician and the police post take 1 worker each (the plan said 4): with 4, the village run went to about 73% of taxes spent. — Cost if wrong: they are cheap to staff, so less is asked of the city for the same cover.
 330. Disease builds 0.15 risk points a day at base (at 0.3 the capital run fell one script step short); crime builds 0.05 a day in low-tier homes, 0.3 more while mood is below 45 and 0.2 more while more than a tenth of the workforce has no job, with a 2% a day theft draw at the threshold. — Cost if wrong: tuning.
+
+## Part 13: Stage 4.6 (13 Oct 2026)
+
+From the plan `plans/2026-10-13-thebes-stage-4-6-land-court-armies.md` (rulings 331 to 344, as adopted, with later retunes noted), the contract note `notes/2026-10-13-stage-4-6-contract.md` (345 to 349), each track's own calls (Map 350-359, River 360-369, Court 370-379, Armies 380-389, Wonders 390-399, UX 400-409), and the controller's calls at integration, balance and the final review (410 on). Every ruling keeps the number it was first given.
+
+**Number clashes.** In its fix round the Court track reused 380 to 385, which are the Armies track's numbers (the Armies track's came first, and its own sub-rulings already use the letter a), so the Court's later ones carry a c: 380c to 385c. The Court's code comments still cite them as plain 380 to 385, so read each by the file it is in. The Map track's fix round reused 352 for a different decision from the one its first report numbered 352; the later one is 352a here and the first 352 is listed as not recovered. Rulings with no text anywhere in the repo, the ledger or the commit messages are listed as "text not recovered" rather than guessed.
+
+### The plan's rulings (331-344)
+
+331. Clay draws as its own ground at every Ground setting; a clay pit fits where at least 2 of its 4 tiles are clay (was 4 of 4); clay patches are 2-3 tiles wide, so every map has at least 8 places a pit fits; the card, the guidance row and every refusal say where clay is, with Show me to the nearest fit, from one shared helper for every terrain-bound building. — Cost if wrong: clay pits are easier to place (pottery comes a little sooner).
+332. Each river variant draws seeded shape choices (meander strength and length, 0-2 side channels or oxbows, 2-5 rock outcrops, dune fields, palm groves, 0-2 dry wadis) within ruling 313's invariants, tested over 50 seeds per size and layout; classic at 64 draws exactly as before. — Cost if wrong: some seeds look busier.
+333. New city offers Small 48, Normal 64 and Large 80; rock, clay, raider entries and herds scale with area; the weekly seed stays Normal; share links add `&size=` for Small and Large, and records and stamps carry the size while Normal keeps every older link and key. — Cost if wrong: Large may run slower on an old phone (Track 0 measured it first: see 410).
+334. The Nile floods every year in months 7-9 at a seeded level (Low 15%, Fair 35%, Good 35%, High 15%) that scales floodplain harvests 0.6, 0.9, 1.1 and 1.25; a Nilometer forecasts it 3 months ahead; no damage and no deaths. — Cost if wrong: a Low year pinches food (granaries and trade are the levers); see 435.
+335. Herds of gazelle and ostrich (4-8 animals, home range 6) are sim entities that a hunting lodge thins and that regrow; a fishing wharf fishes the river (20 a month, 30 in flood months); game and fish are foods; birds, hippos, crocodiles and jumping fish are render-only, at most 40 drawn; a crocodile scare pauses a riverside building for a day, never on Peaceful. The lodge's crew was cut in 434 and its take reworked in 460. — Cost if wrong: one more food chain to balance.
+336. Favour runs 0-100, starts at 50 and drifts 1 a month toward 50; at 70 or more a gift every 6 months and tribute 20% cheaper, at 30 or less raids one size step bigger and tribute 20% dearer; shown with an icon and a number, never in the top bar. — Cost if wrong: one more meter to watch.
+337. Requests (goods, gold, food or soldiers) start in year 2 and come every 8-14 months, with 6-12 month deadlines; met gives favour +10 to +15 and a reward, missed or refused -10 to -20; the letter states the amount, deadline, reward and cost of refusing from the sim. — Cost if wrong: a busy player may miss one (the deadline sits in the alert row).
+338. An event card every 12-18 months with two choices that each state their exact effect, built with eight cards (sickness, festival, caravan, deserters, temple gift, lost herd, craftsmen's dispute, flood omen); threat cards are off on Peaceful. — Cost if wrong: cards repeat in long games (more can come in Stage 5).
+339. Letters arrive in the alert row (below a raid and uncovered fire, above debt), open as one sheet and queue; past letters are in Recent; the opening chapter gets one guided easy request after the trading goal. — Cost if wrong: none.
+340. Three unit types (soldiers at barracks, archers at an archery range, chariots at stables) with a typed matchup table the combat reads; units guard on their own. The archery range's upkeep 8 and 4 workers and the archers' pay of 6 were set in balance (431, 432). — Cost if wrong: less control than a war game (by design).
+341. Enemy archers from the 3rd raid, river boats from the 5th on maps whose river reaches an edge, enemy chariots from the 6th; a seeded mix by raid and difficulty; the warning and the raid sheet name the mix and the counters from the sim. — Cost if wrong: late raids need a planned defence.
+342. Three new monument kinds (great sphinx, sun temple, step pyramid) in the 4.16 table pattern. The sphinx's id is `great_sphinx` (345). — Cost if wrong: more to build in a long game (that is the point).
+343. Every monument offers Whitewashed, Painted or Gilded (+10% gold, +1 desirability); old monuments stay classic. — Cost if wrong: none.
+344. World version 7 holds every new field; no score change in Stage 4.6 (favour, food and the soldiers' types are not scored yet; see 414). — Cost if wrong: the score ignores the court until a later score version.
+
+### Track 0: the contract (345-349)
+
+345. The new monuments' ids are `great_sphinx` ("Great sphinx"), `sun_temple` and `step_pyramid`: `sphinx` is already the 1x1 statue on the Homes card. — Cost if wrong: the card says "Great sphinx" where the plan said "Sphinx"; a rename is words only.
+346. The flood stays in game months 7-9 and the season calendar moves to match: Akhet (the flood) is months 7-10, Peret 11-2, Shemu 3-6; remarks about the river rising only show in a year whose flood is Fair or better. The design spec says so too (it had Akhet on months 1-4). — Cost if wrong: remarks shift by half a year; nothing in the sim changes.
+347. World version 7 holds one record per track (`flood`, `floodplain`, `wildlife`, `court`, `army`) plus `mapSize` and `mapParams`, each starting from its track's own function so new and migrated cities agree; `world.soldiers` keeps its name for every unit kind; every raid record carries `mix`, every monument `style`, and `mapSize` always equals `size`. — Cost if wrong: a field found after Stage 4.6 is on main needs a version 8.
+348. Every terrain-bound building follows one helper, `src/sim/fit.js`, read from its `BUILDINGS` row (`terrain`, `terrainMin`, `water`); the Map track owns it and the River track only declares `water`. — Cost if wrong: a new kind of ground rule needs a row field in Map's file.
+349. The court and the army meet only through two interfaces: favour's raid size and tribute come from `src/sim/court.js` and are called from `raids.js`, which draws the mix from the favour-adjusted size (the first raid ignores favour); soldiers requests use `src/sim/armies.js` (`unitsAtHome`, `unitsAway`, `sendUnits`, `armyDay`), and units away are unpaid and do not fight. — Cost if wrong: favour cannot tilt a raid toward one enemy kind (by design, it only grows or shrinks it).
+
+### Track Map (350-359)
+
+350. (Josh's ask mid-run.) A road that crosses water is called out as a bridge: the road card and the road bar say it, with the sim's price per tile; the first time a drawn road meets water a tip says it, with Show me to the nearest straight crossing; a road too wide or crooked to bridge offers the same Show me; How to play lists it. — Cost if wrong: one more tip.
+351. Text not recovered.
+352. Text not recovered (the Map report's first use of this number; see 352a).
+352a. (Map fix round 1; clash with 352.) A building bound to its ground (terrain or water) offers Show me for every refusal that is about the spot (taken, water, off the map), not only for the ones that quote the rule, and its confirm bar keeps the Show me row's room from the start so the bar does not change height. — Cost if wrong: an empty row of space on the bar of a terrain building.
+353-359. Text not recovered (the Map track's report is not in the repo and none of its code comments cite them).
+
+### Track River (360-369)
+
+360. The floodplain is the fertile land within 3 tiles of water; a farm counts as on it when at least half its footprint is; a floodplain farm's harvest follows the last flood that rose and holds until the next one; farms off the floodplain are unaffected. — Cost if wrong: a farm half on the edge gets the flood's gain or loss.
+361. The flood, the herds and the crocodile scare start at Town, and the Nilometer, hunting lodge and fishing wharf unlock at Town, not Village as the plan said (UX rule 5: nothing new in the first minutes). — Cost if wrong: a Village player waits for the new foods.
+362. The water on screen spreads over the floodplain in month 7, stands through month 9 and drains in month 10, by level (1, 2, 3 and 3 tiles from the river); a still blue sheen under Gentle and Still, a slow shimmer under Full. — Cost if wrong: a taste call; render only.
+363. Game and fish are foods: granaries store them, and any two of grain, figs, game and fish meet a home's "two foods" need (the housing words name the second food that is easiest to bring). — Cost if wrong: a home can meet its second-food need with fish alone.
+364. Herds step a tile every 3 days within their home range, move off when a building comes within 3 tiles, and start at 6 on a Normal map (area scales it, at least 3, at most 12); a lodge's hunters take one animal at a time from the nearest herd within 12 tiles, at most 6 a month from a herd and 24 a month in all; a new herd may wander in from an edge once a year. Sustainable hunting replaced the take rate in 460. — Cost if wrong: herds are hunted out fast (437 found they were).
+365. The hunting lodge and fishing wharf burn like a booth or bazaar (fire risk 0.3); the Nilometer is stone and takes none. — Cost if wrong: none.
+366. The crocodile scare: a building within 2 tiles of a crocodile spot (5 spots on a Normal map) pauses for 1 day, at most once a month, with a 50% chance a month that one happens at all, and a caption; it is off on Peaceful and before Town, and never hurts anyone. — Cost if wrong: a riverside workplace loses a day now and then.
+367. Wildlife on screen: at most 40 animals drawn at once, Gentle at half the drift and Still none; hunters walk out from a working lodge and a fishing boat works off a working wharf. Hunters walk straight across water (render only; see the follow-ups). — Cost if wrong: a hunter's path can look wrong.
+368. The priests' forecast: the Court's Flood omen card buys the level of the next flood without a Nilometer, once; a working Nilometer reads it 3 months ahead (month 4). — Cost if wrong: none.
+369. (Fix round 1.) The Nilometer row says "Next flood" with a level only before the rise ("The flood now", "Last flood" and "Known from month 4" otherwise); the summary's food forecast counts food farms (grain, figs) only; a staffed lodge that has had its herds' share or its month's most reads as resting with the sim's reason; the house remark about fields under water is only heard in a Fair or better year. — Cost if wrong: none.
+
+### Track Court (370-379)
+
+370. Low favour grows a raid by one step: a quarter of its size, at least one raider more, never past the 18-raider cap; the first raid ignores favour. — Cost if wrong: late raids at low favour are harder.
+371. The court opens once the city is a Market town and has finished the trading goal (a City opens it anyway); the guided letter comes 10 days later, a small request (40% of a household or raw good in store, else of a food, else 40 to 100 gold) with a 12 month deadline; it joins the first-time goals. — Cost if wrong: a city that never opens a route meets the court at City.
+372. The festival card's Hold choice is the temple's own festival (its price, mood and length), so it counts as the year's festival. — Cost if wrong: none.
+373. Text not recovered.
+374. A city short of food is never asked for it: a food request never takes the last of the stock. — Cost if wrong: none.
+375. (Fix round 2.) The gift clock starts the first time favour reaches 70 and keeps running; the gift comes at the first month's end on or after its day with favour at 70 or more, and the court sheet says exactly that. — Cost if wrong: a gift can be a few days late.
+376. (Fix round 2.) A choice's favour line is the change that will really happen at either end of 0-100 ("+5" at 95, not "+11"). — Cost if wrong: none.
+377-379. Text not recovered.
+380c. (Fix round 1; clash with Armies 380.) The court's first-letter goal is an event goal, not an opening-chain goal, met when the letter is answered (sent, refused or missed), or when a card was answered first. — Cost if wrong: the guide's chain does not wait for the court.
+381c. (Fix round 1; clash with 381.) An open letter is pinned: the daily rebuild keeps showing it until it is answered, put off or closed, so a new letter arriving mid-read never swaps the buttons under a finger. — Cost if wrong: a newer letter waits a little.
+382c. (Fix round 1; clash with 382.) A quarantine or strike takes its pause back when the player pauses or resumes that building themselves, so it never undoes a pause the player set later. — Cost if wrong: none (the same idea as 423 for the scare).
+383c. (Fix round 1; clash with 383.) A gold request never asks for more than half the treasury (reserve 0.5), and none is made when that is under 100. — Cost if wrong: a rich city is asked relatively little.
+384c. (Fix round 1; clash with 384.) The low-favour rule's words are built from the favour numbers (the percentage and the one-raider minimum), tested against the sim with the step changed. — Cost if wrong: none.
+385c. (Fix round 1; clash with 385.) A request's choices come before its figures on the letter sheet, so Send shows without scrolling at the largest text. — Cost if wrong: none.
+
+### Track Armies (380-389)
+
+380. Matchups are a typed table in `src/data/armies.js` (archers 2x against foot on or beside a wall or tower and 0.5x in melee; chariots 2x against archers and foot in the open and 0.5x within 3 tiles of a wall; soldiers 1.5x holding a gate or a breach); where more than one situation applies the multipliers multiply; an archer takes the nearest wall or tower post within its patrol. — Cost if wrong: an unusual stacking (an archer on a wall in melee hits at 2 x 0.5).
+381. Units have hit points (archer 8, chariot 16, the soldier's as in Stage 3) and come back from the capital at full; units away at the capital count toward their building's cap on the sheet and in training, and the barracks counts its soldiers away too. — Cost if wrong: none.
+382. A raid's mix is seeded: each kind but foot takes a share of the raid (archers 15% plus 3% a raid up to 35%, chariots 12% plus 3% a raid up to 25%, boats 25%), times the difficulty's factor (0.75, 1 or 1.25) and a jitter of 30%; foot keep at least 40%; a kind that may come brings at least 1 from a raid of 4; the first raid is always on foot. — Cost if wrong: a raid can bring several kinds at once.
+383. A band with no wall-breaker left (foot and boat raiders break walls; archers and chariots do not) is turned by a wall, and chariots cannot cross rocky ground; a chariot's pace is its own, foot pace beside slower raiders. — Cost if wrong: a wall can turn a whole band.
+384. River raiders by boat from the 5th raid, on a river that reaches an edge and only on a raid from one side: they land on a bank within 4 tiles of a building and fight as foot. — Cost if wrong: a boat raid on a quiet bank.
+384a. (Fix round 2.) `sendUnits` takes every unit `unitsAtHome` counts, including units walking back after a raid; a raid under way still refuses. — Cost if wrong: none.
+385. Chariots' horses eat 3 grain a chariot a month; a month without it halves the chariots' damage until they are fed. — Cost if wrong: a stables is a grain bill as well as a pay bill.
+385a. (Fix round 2.) Horses eat from the buildings whose stores hold grain (the granary), and the words and the alert name them from the data, not storehouses. — Cost if wrong: none.
+386. Pay: every unit at home is paid by its kind (soldier at the barracks' rate, archer 6, chariot 10) and units away are unpaid; the score's tower line counts army units (but see 414). — Cost if wrong: chariots are dear to keep.
+387. The archery range and the stables unlock with Market town, not Town: raids and walls start there, and a locked Defence tab would show from the first minutes. — Cost if wrong: archers arrive a little later than the plan.
+388. A mixed raid's warning says how many come ("14 raiders from the east are after your storehouses") and keeps its banner to one line; the alert list and the raid sheet's first line name the kinds, above the counters. — Cost if wrong: none.
+388a. (Fix round 2.) The tribute sheet names a mixed raid's kinds once, in its arrival line under the cost; the counters stay at the end. — Cost if wrong: none.
+389. The range and the stables carry their own desirability rows in the data file (range -4, -2; stables -6, -4, -2). — Cost if wrong: a street with stables is less pleasant.
+389a. (Fix round 2.) The raid under way names the units' reach as one range ("within 8 to 12 tiles"), never longer than the soldiers' line, so View stays beside the side panel at 1280x800. — Cost if wrong: none.
+
+### Track Wonders (390-399)
+
+390. The great sphinx (3x2) sits between the large obelisk and the colossus: stone only, 720 of it in six courses, 500 gold to found, 18 months with its two crews, prestige 20, a desirability profile like the colossus's, unlocked at Great city. — Cost if wrong: a number of the table; the sphinx may feel cheap.
+391. The sun temple (3x3) sits between the large mastaba and the small pyramid: 3,000 bricks for the three core courses and 3,000 stone for the three facing courses, 2,500 to found, 75 months with its four crews, the widest desirability reach (6 tiles, all high), unlocked at Capital. — Cost if wrong: a number of the table.
+392. The step pyramid (4x4) sits between the small and the great pyramid: ten courses of stone with the ramp's bricks (9,180 and 1,620), 4,500 to found, 135 months with four crews, no capstone; it comes with Capital and not by prestige (a prestige gate would put it out of reach of the monument that earns it). — Cost if wrong: a number of the table.
+393. A monument with no word about style (a dev scene, a test, a monument from before Stage 4.6) is `'classic'` and is drawn exactly as before, checked pixel for pixel; a style the data does not know falls back to it. — Cost if wrong: none.
+394. Gilded costs 10% more of all the gold a monument takes (founding, work gold, gilding and the capstone) and adds +1 desirability once finished (this states 343's "+10% gold" precisely). — Cost if wrong: a gilded site draws a little more gold from the treasury.
+395. The style picker is a row of its own in the placing bar: three 44 px pressed buttons (the one in force teal with a tick) and one line saying what it costs and does from the sim; the price, the crew's monthly gold, the homes made nicer and the ghost follow the pick; the next monument starts on the last style chosen. — Cost if wrong: one more row on the confirm bar.
+396. "Seven wonders" still asks for 7 kinds, now of ten, and its words say so (see 411). — Cost if wrong: an easier achievement.
+397-399. Text not recovered.
+
+### Track UX (400-409)
+
+400. (Josh's ask.) Enter lays a pending placement (a ghost, a drawn road, wall, plot or plaza) whatever has focus, and Esc takes it back; the bar's own buttons, the toast's Undo and open sheets keep their own Enter; the tick shows an Enter hint where there is a keyboard. — Cost if wrong: a focused card no longer takes Enter while a placement waits.
+401. (Josh's ask.) The version follows the stages ("Version 4.6"), one constant in `src/data/ui.js`, shown small on the title card with the short build stamp. — Cost if wrong: one number to keep up each release.
+402. A "What's new" button on the title card opens one panel of releases, newest first, each split into New and Fixed in plain words; a test fails when the newest entry differs from the version constant. — Cost if wrong: one more file to keep up each release.
+403. (Josh's ask.) What's new lists every past build, not just the latest: version, date, build stamp and notes for 1.0, 1.1, 2.0, 3.0, 3.1, 3.2, 4.0, 4.5 and 4.6. Playable old builds (old copies hosted on the site) are not built: they cannot load newer saves, and every copy adds to the site and its offline cache. — Cost if wrong: Josh wanted to play old versions and asks again.
+404. The wide top bar's Pause and the three speeds are one row of 44 px steps, each with a picture and a name that says what pressing it does; the pressed one is filled and alone carries its word (Paused or the speed). — Cost if wrong: the row is a little wider.
+405. The cartouche heading's tie (a bar on one end of a loop) is reshaped so it no longer reads as a glitch. — Cost if wrong: a taste call (see 409).
+406. Enemy chariots fly a banner on a pole behind the car, so they read apart from your own at phone zoom. — Cost if wrong: a taste call.
+407. The legibility review's five findings: F1 the overlay legend keeps its words under an alert on a wide screen; F2 the bottom category row scrolls at 125% and 150% text; F3 the confirm bar's words get the full row on a wide screen; F4 the cartouche tie (405); F5 the score chip clears the frieze. — Cost if wrong: none.
+408. (Fix round 1.) The banner is an addition: the raider keeps his head and spear and the car its shield. — Cost if wrong: none.
+409. (Fix round 1.) The cartouche tie straddles the loop's end so it no longer reads as a text cursor; the phone's confirm bar drops the Enter hint so the bar keeps one height. — Cost if wrong: none.
+
+### Controller rulings: integration and the final review (410-425)
+
+410. The Map track adds a month-end road-reach cache: each working provider's road reach is merged once a month into one set of road tiles per need, and a home is covered when a road tile beside it is in the set (the `coveredBy` rule exactly, from the providers' side). Measured on the stress city: month end 1,269 to 100 ms at Large and 455 to 44 ms at Normal. — Cost if wrong: a little Map track time.
+411. "Seven wonders" stays 7 kinds of the 10 (the name still fits and it is easier). — Cost if wrong: an easier achievement.
+412. Wave 2 (River, Wonders, UX) cuts from `stage-4-6` after wave 1 is integrated, not from the contract commit: River needs Map's fit helper and seasons, and UX edits HUD files others touch. — Cost if wrong: none.
+413. Court letters are not critical-rank for sound and announcements: no chime and a polite live region; the rank stays below a raid or uncovered fire and above debt (UX rule 9). — Cost if wrong: a player who listens for alerts hears nothing for a letter.
+414. The score's defence term counts foot soldiers only, so archers and chariots change no score (ruling 344). — Cost if wrong: an army of archers adds no Safety.
+415. Non-classic layouts at 64 draw new shapes against Stage 4.5 (332 is the point); a Stage 4.5 share link of a non-classic layout opens a different map. — Cost if wrong: an old link's map differs.
+416. The archery range and the stables get fire risk: 0.3 and 0.5 (the range as the barracks, the stables higher for hay and straw). — Cost if wrong: a stables burns often.
+417. The screenshot tool has a hard time limit (`-MaxSeconds`, 150 by default) with a reaper that kills the script, its Edge and its server, after three stalls on a lost DevTools reply. — Cost if wrong: a scene slower than 150 s needs `-MaxSeconds`.
+418. New monument kinds add prestige (1,080 for all ten against 700 for the full score); the score's prestige term stays capped, so new kinds just reach it sooner. — Cost if wrong: a slightly easier full prestige score.
+419. Play and pause are drawn: one SVG per step at the same height (pause as two solid bars with a clear gap, play a triangle); on a phone the corner button turns amber with a Paused tag on its top edge when paused and stays lapis when playing, with no extra height, and its description carries the state for a screen reader. — Cost if wrong: a taste call.
+420. The style picker's buttons start at their names' width and share what is left, wrapping rather than clipping ("Whitewashe"); a test holds every name whole at 1280x800, 390x844 and 375x667, at 100% and 150% text. — Cost if wrong: a second row of buttons on a narrow panel.
+421. The lodge's row says what game is left this month, not what was already taken ("Game this month: 5 more (4 taken); 6 a herd a month, at most 24"). — Cost if wrong: none.
+422. Fishing has no reach: the wharf's boat works the water its pier stands on, so the "within 8 tiles" line and its field are gone; the line says the catch is the full crew's month, more in flood months, fewer with fewer hands. — Cost if wrong: none.
+423. A player's own pause or resume takes a building back from a crocodile scare and from a court card's pause, so the scare's end never unpauses a workplace the player paused meanwhile (the same for a resume and a pause within one game day). — Cost if wrong: none.
+424. `nearestFit` searches both turns of a building that turns; the other turn wins only with a better kind of fit (clean before warned, near before far, anything before none), so Show me lands a fishing wharf turned to a north-south river, and a mastaba is not turned under the player for a tile. — Cost if wrong: a wharf's Show me lands it turned.
+425. The balance pass and the final review run in parallel (balance only touches Stage 4.6 numbers; the fix wave covers both). — Cost if wrong: the reviewer misses a bug that balance made (the re-review sees both).
+
+### Balance (430-437)
+
+From `notes/2026-10-13-economy-review.md`, "Stage 4.6 balance pass". The 10-year village now holds 68.2% (it was 71.9%).
+
+430. The balance village swaps its third farm for the wharf and lodge and its third tower for the archery range: the longrun village already spends 68.2%, so three buildings costing 98 a month cannot sit on top of it inside 70%. — Cost if wrong: a village that builds all three on top of a full village runs at about 81% (still about +1,200 a year).
+431. Archers are paid 6 (was 8). — Cost if wrong: archers are a little cheap to keep.
+432. The archery range has upkeep 8 and 4 workers (were 10 and 6). — Cost if wrong: a range is cheap defence beside a barracks (48 a month against 68).
+433. A gift at favour 70 or more is half a month to a month of taxes or output (was 1-2 months): 5,090 gold over 10 years (was 10,160, more than the village's own profit). — Cost if wrong: the court feels less generous.
+434. The hunting lodge has 2 workers (was 3). — Cost if wrong: none worth naming.
+435. Flood levels stay as in 334: a Low year leaves a granary village fed (the granary falls to 333 at the lowest), and two Low years running on the Stage 4.6 village empty the granary while homes stay fed. — Cost if wrong: two Low years running bite a village without a granary.
+436. Request amounts stay: all 11 requests in the run were met within a month (gold 770-860 against 544 taxes a month, fish 40-60 against 20 a month). — Cost if wrong: a gold request takes about six months of a small village's profit.
+437. (A finding, not tuned.) The lodge brought 11 game in 8 years, because the herds in its reach were hunted out within a month or two; sustainable hunting needed a sim change, which is 460. — Cost if wrong: the lodge stays a token building.
+
+### The final review's call (460)
+
+460. Sustainable hunting: a hunt takes 1 animal, which is 6 game, at most 1 animal from a herd a month, never below 2 animals in a herd; a herd regrows 1 a month; the lodge's cap stays 24 game a month. Built in the fix wave. — Cost if wrong: hunting is steadier than the plan pictured.
+
+### Fix wave (440-459)
+
+To be added by the controller.
