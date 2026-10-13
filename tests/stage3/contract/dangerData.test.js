@@ -32,7 +32,7 @@ describe('s3 contract data', () => {
   it('unlocks the firehouse with the Village and the wall, tower and barracks with Market town, and gives each a card', () => {
     const at = (type) => MILESTONES.find((m) => m.unlocks.includes(type)).id;
     expect(['firehouse', 'wall', 'tower', 'barracks'].map(at)).toEqual(['village', 'market_town', 'market_town', 'market_town']);
-    expect(CATEGORIES.find((c) => c.id === 'services').items.slice(-2)).toEqual(['firehouse', 'palace']);   // Stage 4: the palace comes last
+    expect(CATEGORIES.find((c) => c.id === 'services').items.slice(-3)).toEqual(['firehouse', 'physician', 'palace']);   // Stage 4: the palace comes last; Stage 4.5: the physician before it
     expect(CATEGORIES.find((c) => c.id === 'defence').items).toEqual(['wall', 'gate', 'tower', 'barracks']);   // Stage 4.5: the Gate card (ruling 309)
     for (const slot of ['firehouse', 'tower', 'barracks', 'wall', 'gate', 'rubble']) expect([slot, typeof (ART[slot] && ART[slot].draw)]).toEqual([slot, 'function']);
   });

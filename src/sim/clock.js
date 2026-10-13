@@ -18,6 +18,7 @@ import { checkGoals, triggerEventGoals } from './goals.js';
 import { population, HISTORY_MONTHS } from './world.js';
 import { goodsMonthStart, homeGoodsHeld, recordGoodsMonth } from './goodsMonth.js';
 import { fireDay } from './fire.js';
+import { healthDay } from './health.js';
 import { raidDay, raidMonth } from './raids.js';
 import { checkFeats } from './feats.js';
 import { scoreRow } from './score.js';
@@ -61,6 +62,7 @@ export function tickDay(world, events = null) {
   palaceDay(world, events);                            // the palace's works (src/sim/palace.js)
   fireDay(world, events);                              // Stage 3: fire, then raids and combat (src/sim/fire.js, raids.js)
   raidDay(world, events);
+  healthDay(world, events);                            // Stage 4.5: disease (src/sim/health.js)
   world.day += 1;
   if (world.day % ARRIVAL_EVERY === 0) {
     const count = arrivalsBatch(world);

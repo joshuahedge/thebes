@@ -211,7 +211,7 @@ describe('ui createUI', () => {
     expect(document.body.dataset.layout).toBe('wide');
     expect([shown('dock'), shown('panel'), shown('rail')]).toEqual([false, true, false]);
     expect(r.root.querySelectorAll('#topbar .speed button').length).toBe(4);
-    expect(r.root.querySelectorAll('#panel .cards .card').length).toBe(6);    // the services grid, the booth and the palace locked until Town
+    expect(r.root.querySelectorAll('#panel .cards .card').length).toBe(7);    // the services grid, the booth, the physician and the palace locked until Town
     expect(r.root.querySelector('#panel .minimap canvas')).toBeTruthy();
     r.cleanup();
   });

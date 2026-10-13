@@ -6,7 +6,7 @@
 // prestige as well (MONUMENTS[..].unlock, PRESTIGE_UNLOCKS in src/data/monuments.js), so they are in no list here.
 export const MILESTONES = [
   { id: 'village', name: 'Village', population: 0, unlocks: ['house', 'well', 'farm_grain', 'granary', 'bazaar', 'temple', 'garden', 'firehouse'] },
-  { id: 'town', name: 'Town', population: 150, unlocks: ['farm_fig', 'clay_pit', 'potter', 'storehouse', 'booth', 'statue', 'palace'] },
+  { id: 'town', name: 'Town', population: 150, unlocks: ['farm_fig', 'clay_pit', 'potter', 'storehouse', 'booth', 'statue', 'palace', 'physician'] },
   { id: 'market_town', name: 'Market town', population: 250, unlocks: ['trading_post', 'wall', 'tower', 'barracks'] },
   { id: 'city', name: 'City', population: 400, unlocks: ['farm_barley', 'brewery', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'plaza'] },
   { id: 'great_city', name: 'Great city', population: 650, unlocks: ['farm_flax', 'weaver', 'colossus', 'mastaba_small', 'sphinx'] },
