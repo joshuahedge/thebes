@@ -8,7 +8,7 @@ import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.j
 
 describe('goals', () => {
   it('lists the opening chain in order and shows three at a time', () => {
-    expect(GOALS.slice(0, 9).map((g) => g.id)).toEqual(['road', 'plots', 'well', 'food', 'temple', 'homes_cottage', 'people100', 'homes_house', 'town']);   // Stage 2's follow
+    expect(GOALS.slice(0, 10).map((g) => g.id)).toEqual(['road', 'plots', 'well', 'food', 'temple', 'profit', 'homes_cottage', 'people100', 'homes_house', 'town']);   // Stage 2's follow
     for (const g of GOALS) { expect(g.text.length).toBeGreaterThan(0); expect(g.reward).toBe(GOAL_REWARD); expect(typeof g.showMe.category).toBe('string'); }
     const w = createWorld({ seed: 2 });
     expect(openGoals(w).map((g) => g.id)).toEqual(['road', 'plots', 'well']);

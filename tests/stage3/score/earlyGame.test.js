@@ -17,12 +17,12 @@ import { openSheet, closeSheet } from '../../../src/ui/modes.js';
 const opening = GOALS.slice(0, GOALS.findIndex((g) => g.id === OPENING_LAST) + 1).map((g) => g.id);
 
 describe('s3 score founded thebes', () => {
-  it('counts Founded Thebes as done from the start, so the opening chain opens at 1 of 10', () => {
+  it('counts Founded Thebes as done from the start, so the opening chain opens at 1 of 11', () => {
     const w = createWorld({ seed: 3 });
-    expect([FOUNDED.text, opening.length + 1, GOALS.some((g) => g.id === FOUNDED.id)]).toEqual(['Founded Thebes', 10, false]);
-    expect(openingProgress(w)).toEqual({ done: 1, of: 10 });
+    expect([FOUNDED.text, opening.length + 1, GOALS.some((g) => g.id === FOUNDED.id)]).toEqual(['Founded Thebes', 11, false]);
+    expect(openingProgress(w)).toEqual({ done: 1, of: 11 });
     w.goals.completed.push('road', 'plots');
-    expect(openingProgress(w)).toEqual({ done: 3, of: 10 });
+    expect(openingProgress(w)).toEqual({ done: 3, of: 11 });
     w.goals.completed.push(...opening);
     expect(openingProgress(w)).toBe(null);
   });
@@ -31,10 +31,10 @@ describe('s3 score founded thebes', () => {
     try {
       const world = makeTestWorld();
       const strip = createGoalsStrip({ container: root, world, onShowMe() {}, onOpen() {} });
-      expect(root.querySelector('.goal-strip .label').textContent).toBe('1 of 10');
+      expect(root.querySelector('.goal-strip .label').textContent).toBe('1 of 11');
       world.goals.completed.push('road');
       strip.render();
-      expect(root.querySelector('.goal-strip .label').textContent).toBe('2 of 10');
+      expect(root.querySelector('.goal-strip .label').textContent).toBe('2 of 11');
       world.goals.completed.push(...opening);
       strip.render();
       expect(root.querySelector('.goal-strip .label').textContent).toBe(T.goal);

@@ -132,8 +132,8 @@ describe('ui goals v2', () => {
       expect(r.world.day).toBe(day);
       expect(r.world.guide.done).toBe(true);                         // road, plots, well, food and temple all done
       expect(r.world.gold).toBeGreaterThan(gold);
-      expect(r.root.querySelector('#goals .text').textContent).toBe(goalById('homes_cottage').text);
-      expect(r.root.querySelector('#goals .chip').textContent).toBe(progressText(0, 8));
+      expect(r.root.querySelector('#goals .text').textContent).toBe(goalById('profit').text);   // Stage 4.5: the profit goal follows the temple
+      expect(r.root.querySelector('#goals .chip').hidden).toBe(true);                           // it counts nothing, so no chip
       expect(r.root.querySelector('#goals .skip-guide').hidden).toBe(true);
     } finally { r.cleanup(); }
   });

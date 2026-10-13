@@ -27,8 +27,8 @@ function readyCity() {
 
 describe('goals v2', () => {
   it('lists the chain in chapters, the guide goals and the event goals', () => {
-    expect(ids(GOALS.slice(0, 9))).toEqual(['road', 'plots', 'well', 'food', 'temple', 'homes_cottage', 'people100', 'homes_house', 'town']);
-    expect(GOALS.slice(0, 9).map((g) => g.chapter)).toEqual(['first_homes', 'first_homes', 'first_homes', 'feed', 'feed', 'grow', 'grow', 'grow', 'grow']);
+    expect(ids(GOALS.slice(0, 10))).toEqual(['road', 'plots', 'well', 'food', 'temple', 'profit', 'homes_cottage', 'people100', 'homes_house', 'town']);
+    expect(GOALS.slice(0, 10).map((g) => g.chapter)).toEqual(['first_homes', 'first_homes', 'first_homes', 'feed', 'feed', 'grow', 'grow', 'grow', 'grow', 'grow']);
     expect(goalById('homes_cottage').need).toEqual({ kind: 'tier', tier: 3, n: 8 });
     expect(goalById('homes_cottage').text).toBe('Grow 8 homes to Cottage or better');
     expect(goalById('homes_house').need).toEqual({ kind: 'tier', tier: 4, n: 8 });
