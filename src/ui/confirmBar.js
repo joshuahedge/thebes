@@ -9,7 +9,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
-import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT } from './text.js';
+import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' && tool.gate ? buildingName('gate') : tool.kind === 'road' || tool.kind === 'wall' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : tool.kind === 'plazas' ? buildingName('plaza') : T.demolish);
@@ -57,7 +57,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
   function render() {
     const s = store.get();
     // The bar rebuilds on every change, so remember which control had focus and put it back (spec 6.8).
-    const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'ok'].includes(c)) : null;
+    const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'ok', 'show-fit'].includes(c)) : null;
     clear(element);
     if (!isToolMode(s.mode) || !s.tool) { element.hidden = true; heldKey = null; publishHeight(); return; }
     element.hidden = false;
@@ -67,7 +67,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const costText = demolish ? (p.refund > 0 ? `${T.refund} ${p.refund}` : p.refund < 0 ? DANGER_UI_TEXT.demolishCost(-p.refund) : '') : (p.cost ? `${p.cost} gold` : '');
     const info = el('div', { class: 'info' }, [
       el('div', { class: 'title', text: titleOf(s.tool) }),
-      el('div', { class: 'cost small muted', text: [costText, p.upkeep].filter(Boolean).join(' · ') }),
+      el('div', { class: 'cost small muted', text: [costText, p.upkeep, p.note].filter(Boolean).join(' · ') }),   // Stage 4.6 (ruling 350): the road tool's note on bridges, while nothing is drawn yet
       // Stage 4.5 (Task 4b): what the month's balance becomes with it, from the sim's forecast (coral when it is below 0).
       p.upkeep ? el('div', { class: `balance small ${p.balance && p.balanceNet < 0 ? 'coral' : 'muted'}`, text: p.balance || ' ' }) : null,   // a blocked spot keeps the line's room, empty
       // A touch plan that skips tiles says how many in amber (placement review P5): what it lays is fine, the rest is passed over.
@@ -99,7 +99,11 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // A terrain building's and (Stage 4, ruling 230) a monument's row keep room for two rows of chips from the start.
     const chips = s.tool.kind === 'building' ? el('div', { class: `conds${BUILDINGS[s.tool.type].terrain || BUILDINGS[s.tool.type].monument ? ` tall${element.getBoundingClientRect().width <= NARROW_BAR ? ' narrow' : ''}` : ''}`, role: 'group', 'aria-label': CONDITION_TEXT.group }, (p.conditions || []).map((c) =>
       el('span', { class: `cond ${c.state}`, role: 'img', 'aria-label': c.label }, [el('span', { class: 'mark', 'aria-hidden': 'true', text: c.mark }), ` ${c.text}`]))) : null;
-    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}` }, [info, ...controls, chips]);
+    // Stage 4.6 (rulings 331, 350): a refused terrain or water spot, and a road that meets water too wide or crooked to bridge, offer Show me on a row of
+    // its own under the bar's words and buttons (css/ui.css .show-fit): it asks the Map seam (src/ui/s46/map.js, on the 'thebes:show-fit' event) to go to
+    // the nearest place that fits.
+    const showFit = p.showFit ? button(S46_MAP_TEXT.showFit, { class: 'show-fit', 'aria-label': S46_MAP_TEXT.showFitLabel(s.tool.kind === 'road' ? 'a bridge' : `a ${titleOf(s.tool).toLowerCase()}`), onClick: () => element.dispatchEvent(new CustomEvent('thebes:show-fit', { bubbles: true })) }) : null;
+    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit ? ' has-fit' : ''}` }, [info, ...controls, chips, showFit]);
     element.append(bar);
     keepTallest(bar, s);
     publishHeight();

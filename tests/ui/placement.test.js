@@ -43,12 +43,13 @@ describe('ui placement', () => {
     pl.moveGhost(7, 8);                                              // fertile land ends at x = 7: two tiles of four are sand
     const p = pl.preview();
     expect(p.state).toBe('bad');
-    expect(p.text).toBe(reasonText('needs_fertile'));
+    expect(p.text).toBe('Needs 4 of 4 tiles on fertile land (this spot has 2)');   // Stage 4.6 (ruling 331): the rule's own numbers
+    expect(p.showFit).toBe(true);
     expect(p.conditions.map((c) => [c.key, c.state, c.text])).toEqual([
-      ['ground', 'cant', 'Fertile land: 2 of 4 tiles'], ['road', 'met', 'Road beside it'], ['works', 'later', 'No granary near'],
+      ['ground', 'cant', 'Needs 4 of 4 tiles on fertile land (this spot has 2)'], ['road', 'met', 'Road beside it'], ['works', 'later', 'No granary near'],
     ]);
     expect(p.conditions.map((c) => c.mark).join('')).toBe('✕✓!');
-    expect(p.conditions[0].label).toBe("Can't: Fertile land: 2 of 4 tiles");
+    expect(p.conditions[0].label).toBe("Can't: Needs 4 of 4 tiles on fertile land (this spot has 2)");
     expect(p.joins).toEqual([]);                                     // the road is already there, and the spot is not fit to build on
     const [ghost] = ghostsFor(world, store.get());
     expect(ghost.tiles.map((t) => `${t.x},${t.y}:${t.state}`).sort()).toEqual(['7,8:met', '7,9:met', '8,8:cant', '8,9:cant']);

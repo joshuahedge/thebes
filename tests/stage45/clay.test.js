@@ -70,7 +70,7 @@ describe('s45 clay (map)', () => {
 
 describe('s45 clay (the clay pit)', () => {
   const pit = (w, x, y) => canPlace(w, 'clay_pit', x, y, { roadLater: true });
-  it('stands only on clay: refused elsewhere with the sim own reason, placed where all four tiles are clay', () => {
+  it('stands on clay: refused elsewhere with the sim own reason, placed where 2 of its 4 tiles are clay (Stage 4.6, ruling 331; was all four)', () => {
     const w = makeTestWorld({ clay: [[10, 10, 3, 3]], gold: 1000 });
     w.milestone = 'town';
     expect(BUILDINGS.clay_pit.terrain).toBe('clay');
@@ -78,7 +78,8 @@ describe('s45 clay (the clay pit)', () => {
     expect(pit(w, 11, 11).ok).toBe(true);
     expect(pit(w, 20, 20)).toEqual({ ok: false, reason: 'needs_clay', warnings: [] });
     expect(pit(w, 2, 2).reason).toBe('needs_clay');                          // fertile land is not clay
-    expect(pit(w, 12, 10).reason).toBe('needs_clay');                        // half on clay, half off
+    expect(pit(w, 12, 10).ok).toBe(true);                                    // half on clay, half off: 2 of 4 is enough
+    expect(pit(w, 12, 12).reason).toBe('needs_clay');                        // 1 of 4 is not
     expect(checkTiles(w, 'clay_pit', 12, 12)).toBe('needs_clay');
     expect(reasonText('needs_clay')).toBe('Needs clay ground');
     layClay(w, 20, 20);
@@ -86,7 +87,7 @@ describe('s45 clay (the clay pit)', () => {
     expect(place(w, 'clay_pit', 10, 10, { roadLater: true }).ok).toBe(true);
     expect(pit(w, 11, 11).reason).toBe('occupied');
   });
-  it('words its ground chip from the sim: "Clay ground" when met, "Clay ground: 2 of 4 tiles" when two of four are clay', () => {
+  it('words its ground chip from the sim: "Clay ground" when met, "Clay ground: 2 of 4 tiles" when two of four are clay, and why not when fewer', () => {
     const w = makeTestWorld({ clay: [[10, 10, 3, 3]], gold: 1000 });
     w.milestone = 'town';
     const ground = (x, y) => conditionsFor(w, 'clay_pit', x, y, { roadLater: true }).conditions.find((c) => c.key === 'ground');
@@ -95,14 +96,16 @@ describe('s45 clay (the clay pit)', () => {
     expect(conditionText(met, 'clay_pit')).toBe(CONDITION_TEXT.terrain('clay'));
     expect(conditionText(met, 'clay_pit')).toBe('Clay ground');
     const half = ground(12, 10);
-    expect([half.state, half.reason, half.terrain, half.fit, half.of]).toEqual(['cant', 'needs_clay', 'clay', 2, 4]);
+    expect([half.state, half.reason, half.terrain, half.fit, half.of, half.need]).toEqual(['met', null, 'clay', 2, 4, 2]);
     expect(conditionText(half, 'clay_pit')).toBe(`Clay ground: ${half.fit} of ${half.of} tiles`);
+    const one = ground(12, 12);
+    expect([one.state, one.reason, one.fit, conditionText(one, 'clay_pit')]).toEqual(['cant', 'needs_clay', 1, 'Needs 2 of 4 tiles on clay (this spot has 1)']);
     const none = ground(20, 20);
-    expect([none.fit, conditionText(none, 'clay_pit')]).toEqual([0, 'Clay ground: 0 of 4 tiles']);
+    expect([none.fit, conditionText(none, 'clay_pit')]).toEqual([0, 'Needs 2 of 4 tiles on clay (this spot has 0)']);
   });
   it('says "Clay ground" on its card, and nothing on a card with no terrain', () => {
     const w = makeTestWorld({ gold: 1000 });
-    expect(cardInfo(w, 'clay_pit').terrainText).toBe('Clay ground');
+    expect(cardInfo(w, 'clay_pit').terrainText).toBe('Clay ground, along the riverbanks');   // Stage 4.6 (ruling 331): where clay lies
     expect(CONDITION_TEXT.terrainLine('clay_pit')).toBe('On clay ground');
     expect(['potter', 'storehouse', 'well'].map((t) => cardInfo(w, t).terrainText)).toEqual(['', '', '']);
   });
@@ -129,7 +132,7 @@ describe('s45 clay (the Ground overlay and the pick)', () => {
     expect(store.get().overlay).toBe('ground');
     const w = makeTestWorld({ clay: [[20, 20, 3, 3]], gold: 1000 });
     w.milestone = 'town';
-    expect(nearestFit(w, { kind: 'building', type: 'clay_pit' }, 14, 20)).toEqual({ x: 20, y: 20 });
+    expect(nearestFit(w, { kind: 'building', type: 'clay_pit' }, 14, 20)).toEqual({ x: 19, y: 20 });   // 2 of 4 tiles on clay is enough (Stage 4.6): one column in
     const bare = makeTestWorld({ gold: 1000 });
     bare.milestone = 'town';
     expect(nearestFit(bare, { kind: 'building', type: 'clay_pit' }, 14, 20)).toEqual({ x: 14, y: 20 });   // no clay at all: the snapped point, so the bar says why
