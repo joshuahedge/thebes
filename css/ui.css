@@ -1050,6 +1050,37 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 /* ── end s46 river ── */
 
 /* ── s46 court (Court track) ── the Court track's styles. Add new rules just above the end marker. */
+/* The letter sheet: the ask, its rows, then each choice as a button with what it does under it (every choice states its exact effect). */
+#sheet .letter h3.letter-ask { margin: 8px 0 4px; font-family: var(--serif); font-size: calc(18px * var(--ui-scale)); }
+#sheet .letter .letter-body { margin: 4px 0 8px; }
+#sheet .letter .small { margin: 4px 0; }
+#sheet .choices { display: grid; gap: 14px; margin: 14px 0 6px; }
+#sheet .choice { display: flex; flex-direction: column; gap: 4px; }
+#sheet .choice > button { width: 100%; padding: 8px 12px; white-space: normal; }
+#sheet .choice > button:disabled { opacity: 0.55; }
+#sheet .choice p { margin: 0; }
+#sheet .letter-foot { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+/* The court sheet and the summary's row: favour is an icon, a number and words, with a bar that repeats it and marks the two thresholds. */
+#sheet .favour-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 8px 0 6px; }
+#sheet .favour-mark { font-size: calc(18px * var(--ui-scale)); line-height: 1; }
+#sheet .favour-number { font-family: var(--serif); font-size: calc(28px * var(--ui-scale)); line-height: 1; }
+#sheet .favour-band { font-weight: 600; margin-left: auto; }
+#sheet .favour-head.high .favour-mark, #sheet .favour-head.high .favour-band { color: var(--teal); }
+#sheet .favour-head.low .favour-mark, #sheet .favour-head.low .favour-band { color: var(--coral-text); }
+#sheet .favour-meter { position: relative; height: 12px; margin: 4px 0 8px; border: 1px solid var(--ink-line); border-radius: 6px; background: var(--parchment-2); overflow: hidden; }
+#sheet .favour-meter .fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--ink-soft); }
+#sheet .favour-meter.high .fill { background: var(--teal); }
+#sheet .favour-meter.low .fill { background: var(--coral-text); }
+#sheet .favour-meter .tick { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--ink); opacity: 0.6; }
+#sheet .favour-now { margin: 4px 0; font-weight: 600; }
+#sheet .letters-waiting, #sheet .letters-past, #sheet .units-away { list-style: none; padding-left: 0; margin: 4px 0; }
+#sheet .letters-waiting li, #sheet .letters-past li, #sheet .units-away li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; padding: 4px 0; border-bottom: 1px solid var(--parchment-2); }
+#sheet .letters-past li { display: block; }
+#sheet .court-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+/* A letter in the alert row: a letter is news, not harm, so it is teal with an envelope (the words say it too), not the coral warning. */
+#banner .critical[data-code="court_letter"] { background: var(--teal-soft); border-color: var(--teal); }
+#banner .critical[data-code="court_letter"] .icon { display: none; }
+#banner .critical[data-code="court_letter"]::before { content: '\2709'; flex: none; color: var(--teal); font-size: calc(18px * var(--ui-scale)); line-height: 1; }
 /* ── end s46 court ── */
 
 /* ── s46 armies (Armies track) ── the Armies track's styles. Add new rules just above the end marker. */
