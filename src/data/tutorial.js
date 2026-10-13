@@ -1,4 +1,4 @@
-// The picture cards (spec 4.1, rulings 261-264): six cards read before the first city and any time from How to play,
+// The picture cards (spec 4.1, rulings 261-264): seven cards read before the first city and any time from How to play,
 // each one real game screenshot with one ring or arrow, a title and one or two plain sentences (their words, and each
 // picture's alt text, live in src/ui/text.js CARDS4_TEXT.cards under the card's id). Track G owns this file.
 //
@@ -18,6 +18,7 @@ export const TUTORIAL_CARDS = [
   { id: 'homes', mark: 'ring' },    // housing plots on a road and a well beside them: a ring on the well
   { id: 'farm', mark: 'arrow' },    // the Ground layer on, fertile land green by the river, a farm on it: an arrow to Layers
   { id: 'food', mark: 'ring' },     // a granary and a bazaar by the homes, a building sheet: a ring on its workers row
+  { id: 'gold', mark: 'ring' },     // Stage 4.5: the top bar over a village, its gold chip showing the month's forecast: a ring on the forecast
   { id: 'goals', mark: 'ring' },    // the goals strip: a ring on Show me
   { id: 'ahead', mark: 'ring' },    // a pyramid under way, a tower and a firehouse beyond: a ring on the pyramid
 ];

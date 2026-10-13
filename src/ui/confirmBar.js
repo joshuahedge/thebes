@@ -67,7 +67,9 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const costText = demolish ? (p.refund > 0 ? `${T.refund} ${p.refund}` : p.refund < 0 ? DANGER_UI_TEXT.demolishCost(-p.refund) : '') : (p.cost ? `${p.cost} gold` : '');
     const info = el('div', { class: 'info' }, [
       el('div', { class: 'title', text: titleOf(s.tool) }),
-      el('div', { class: 'cost small muted', text: costText }),
+      el('div', { class: 'cost small muted', text: [costText, p.upkeep].filter(Boolean).join(' · ') }),
+      // Stage 4.5 (Task 4b): what the month's balance becomes with it, from the sim's forecast (coral when it is below 0).
+      p.upkeep ? el('div', { class: `balance small ${p.balance && p.balanceNet < 0 ? 'coral' : 'muted'}`, text: p.balance || ' ' }) : null,   // a blocked spot keeps the line's room, empty
       // A touch plan that skips tiles says how many in amber (placement review P5): what it lays is fine, the rest is passed over.
       el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' || (p.skipped && p.skipped.length) ? 'amber' : 'muted'}`, text: p.text }),
       // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line. Homes
@@ -97,7 +99,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // A terrain building's and (Stage 4, ruling 230) a monument's row keep room for two rows of chips from the start.
     const chips = s.tool.kind === 'building' ? el('div', { class: `conds${BUILDINGS[s.tool.type].terrain || BUILDINGS[s.tool.type].monument ? ` tall${element.getBoundingClientRect().width <= NARROW_BAR ? ' narrow' : ''}` : ''}`, role: 'group', 'aria-label': CONDITION_TEXT.group }, (p.conditions || []).map((c) =>
       el('span', { class: `cond ${c.state}`, role: 'img', 'aria-label': c.label }, [el('span', { class: 'mark', 'aria-hidden': 'true', text: c.mark }), ` ${c.text}`]))) : null;
-    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}` }, [info, ...controls, chips]);
+    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}` }, [info, ...controls, chips]);
     element.append(bar);
     keepTallest(bar, s);
     publishHeight();

@@ -5,6 +5,7 @@
     "homes": { "mark": {"kind":"ring","x":300,"y":326.2,"w":147.7,"h":156.9} },
     "farm": { "mark": {"kind":"arrow","x":518.4,"y":498.9,"angle":60} },
     "food": { "mark": {"kind":"ring","x":300,"y":395.3,"w":570.8,"h":54.4,"pad":2,"radius":12} },
+    "gold": { "mark": {"kind":"ring","x":53.2,"y":49.1,"w":78.5,"h":24.6,"pad":4,"radius":10} },
     "goals": { "mark": {"kind":"ring","x":511.5,"y":118.5,"w":140,"h":67.7,"pad":2} },
     "ahead": { "mark": {"kind":"ring","x":315.4,"y":325.2,"w":354.5,"h":326.8} }
   }

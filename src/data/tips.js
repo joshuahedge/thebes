@@ -61,7 +61,15 @@ const TIPS_S4_BALANCE = [
 ];
 // ── end s4 balance ──
 
-export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE];
+// ── s45 (Stage 4.5, Task 4b) ── the one-time treasury warning: the first time the sim's forecast (monthForecast, src/sim/economy.js)
+// shows the treasury going below 0 within FORECAST.warnMonths. Its words name the city's own numbers and its Show me points at the
+// building that costs the most a month (createUI).
+const TIPS_S45 = [
+  { id: 'treasury_low', trigger: 'treasuryLow', priority: false },             // a month ended with the treasury forecast below 0 within 3 months
+];
+// ── end s45 ──
+
+export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE, ...TIPS_S45];
 
 export const TIP_GAP_MS = 180000;          // at least 3 minutes between two tips
 export const TIP_HOURLY_MAX = 5;           // and at most five in any hour
