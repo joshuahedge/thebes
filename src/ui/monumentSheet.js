@@ -46,11 +46,12 @@ import { touchesRoad } from '../sim/reach.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { milestoneIndex, atLeast } from '../sim/progression.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../sim/time.js';
+import { unitsAwayFrom } from '../sim/armies.js';
 import { FRAME_MARGIN_PX } from './cameraControl.js';
 import { cameraOf } from './minimap.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { el, button } from './components.js';
-import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT, ui4CauseText } from './text.js';
+import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT, ui4CauseText, S46_COURT_TEXT } from './text.js';
 import { setViewClock } from '../render/overlays.js';
 import { ZOOM_STEP } from '../data/ui.js';
 
@@ -228,9 +229,12 @@ export function prestigeLoss(world, b) {
   return prestigeOf(world) - rest;
 }
 
-// Demolish's question for a monument or the palace (spec 4.16, 4.20): what is lost and the refund, or null for anything else.
+// Demolish's question for a monument or the palace (spec 4.16, 4.20): what is lost and the refund; Stage 4.6 (ruling 443): for a building
+// units away at the capital come back to, that they leave service; null for anything else.
 export function demolishQuestion(world, b) {
   const U = UI4_TEXT;
+  const away = world.army ? unitsAwayFrom(world, b.id) : 0;
+  if (away > 0) return S46_COURT_TEXT.demolishAway(b.type, away);
   const refund = demolishRefundFor(world, b);
   if (b.type === 'palace') return U.tearDownPalace(b.style + (b.works ? 1 : 0), refund);
   if (!isMonument(b)) return null;

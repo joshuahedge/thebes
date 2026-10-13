@@ -13,3 +13,4 @@ import './wonders/wonders.test.js';
 import './ux/ux.test.js';
 import './wave1/wave1.test.js';
 import './wave2/wave2.test.js';
+import './final/court.test.js';
