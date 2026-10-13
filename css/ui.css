@@ -1054,11 +1054,11 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 #sheet .letter h3.letter-ask { margin: 8px 0 4px; font-family: var(--serif); font-size: calc(18px * var(--ui-scale)); }
 #sheet .letter .letter-body { margin: 4px 0 8px; }
 #sheet .letter .small { margin: 4px 0; }
-#sheet .choices { display: grid; gap: 14px; margin: 14px 0 6px; }
-#sheet .choice { display: flex; flex-direction: column; gap: 4px; }
-#sheet .choice > button { width: 100%; padding: 8px 12px; white-space: normal; }
-#sheet .choice > button:disabled { opacity: 0.55; }
-#sheet .choice p { margin: 0; }
+#sheet .court-choices { display: grid; gap: 14px; margin: 14px 0 6px; }
+#sheet .court-choice { display: flex; flex-direction: column; gap: 4px; }
+#sheet .court-choice > button { width: 100%; padding: 8px 12px; white-space: normal; }
+#sheet .court-choice > button:disabled { opacity: 0.55; }
+#sheet .court-choice p { margin: 0; }
 #sheet .letter-foot { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
 /* The court sheet and the summary's row: favour is an icon, a number and words, with a bar that repeats it and marks the two thresholds. */
 #sheet .favour-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 8px 0 6px; }

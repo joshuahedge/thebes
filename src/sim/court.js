@@ -31,7 +31,6 @@ import { FOOD_GOODS, FOOD_SLOTS, HOUSEHOLD_GOODS, RAW_GOODS } from '../data/good
 import { allBuildings } from './world.js';
 import { isWorking } from './labour.js';
 import { atLeast } from './progression.js';
-import { canAfford } from './money.js';
 import { festivalCostOf, threatsOn } from './costs.js';
 import { monthFigures } from './economy.js';
 import { storeAccepts, storeTotal } from './production.js';
@@ -59,12 +58,20 @@ export const dateOfDay = (day) => ({ year: Math.floor(day / DAYS_PER_YEAR) + 1, 
 // 'high' (gifts, cheaper tribute), 'low' (bigger raids, dearer tribute) or 'steady'.
 export const favourBand = (world) => (world.court.favour >= FAVOUR.high ? 'high' : world.court.favour <= FAVOUR.low ? 'low' : 'steady');
 
-// Changes favour by n, kept inside FAVOUR.min..max; returns how much it really changed.
+// How much favour would really change by n now: favour stays inside FAVOUR.min..max, so at 95 a gain of 11 is +5 (ruling 376).
+export const favourChange = (world, n) => Math.max(FAVOUR.min, Math.min(FAVOUR.max, world.court.favour + n)) - world.court.favour;
+// Changes favour by n, kept inside FAVOUR.min..max; returns how much it really changed. Reaching FAVOUR.high starts the gift clock.
 export function addFavour(world, n) {
+  const d = favourChange(world, n);
+  world.court.favour += d;
+  startGiftClock(world);
+  return d;
+}
+// The gift clock (ruling 375): the first time favour is at FAVOUR.high or more (by a change, or at a month's end), the next gift is due
+// FAVOUR.giftEveryMonths months on. Once running it never stops: see courtMonth.
+function startGiftClock(world) {
   const c = world.court;
-  const before = c.favour;
-  c.favour = Math.max(FAVOUR.min, Math.min(FAVOUR.max, before + n));
-  return c.favour - before;
+  if (c.nextGiftDay === null && c.favour >= FAVOUR.high) c.nextGiftDay = world.day + FAVOUR.giftEveryMonths * DAYS_PER_MONTH;
 }
 
 // Favour's effect on a raid (ruling 336), called by raids.js: the raid size a warning fixes now, after the usual rule and its caps. At
@@ -319,8 +326,8 @@ function probed(world, key, fn) {
   return e.v[key];
 }
 export const RIVER_HOOKS = {
-  canArrive: (world) => probed(world, 'arrive', (w) => herdArrives(w, null)),
-  canLeave: (world) => probed(world, 'leave', (w) => herdLeaves(w, null)),
+  canArrive: (world) => probed(world, 'arrive', (w) => herdArrives(w, [])),
+  canLeave: (world) => probed(world, 'leave', (w) => herdLeaves(w, [])),
   canForecast: (world) => probed(world, 'forecast', (w) => buyForecast(w).ok),
 };
 
@@ -470,9 +477,10 @@ function settleIn(world, n) {
 // { ok, reason }.
 export function applyEffects(world, effects, events = null) {
   const c = world.court;
+  const out = events || [];   // the River track's hooks always get an array to push into
   for (const e of effects) {
     if (e.kind === 'herd') {
-      const herd = e.how === 'arrive' ? herdArrives(world, events) : herdLeaves(world, events);
+      const herd = e.how === 'arrive' ? herdArrives(world, out) : herdLeaves(world, out);
       if (!herd) return fail('unavailable');
     } else if (e.kind === 'forecast' && !buyForecast(world).ok) return fail('unavailable');
   }
@@ -597,8 +605,11 @@ export function courtDay(world, events = null, hooks = RIVER_HOOKS) {
   if (c.nextCardDay !== null && world.day >= c.nextCardDay) issueCard(world, events, hooks);
 }
 
-// The month's court work: wages raised by a dispute are paid; favour drifts one point toward FAVOUR.start; at high favour a gift comes
-// every FAVOUR.giftEveryMonths months (gold, or a household good when the stores have room for it).
+// The month's court work: wages raised by a dispute are paid; favour drifts one point toward FAVOUR.start; then the gift (ruling 375).
+// The gift clock starts the first time favour is at FAVOUR.high or more and never stops: favour drifting below FAVOUR.high does not
+// cancel a gift. The gift comes at the first month's end on or after its due day with favour at FAVOUR.high or more (else it waits for
+// one), and the next is then due FAVOUR.giftEveryMonths months on. So gifts come at most every FAVOUR.giftEveryMonths months, and only
+// at a month's end with favour at FAVOUR.high or more, which is what the court sheet says (S46_COURT_TEXT.nextGift, giftWaiting).
 export function courtMonth(world, events = null) {
   const c = world.court;
   if (!c.awake) return;
@@ -611,9 +622,8 @@ export function courtMonth(world, events = null) {
   c.effects = keep;
   if (c.favour > FAVOUR.start) c.favour = Math.max(FAVOUR.start, c.favour - FAVOUR.drift);
   else if (c.favour < FAVOUR.start) c.favour = Math.min(FAVOUR.start, c.favour + FAVOUR.drift);
-  if (c.favour < FAVOUR.high) { c.nextGiftDay = null; return; }
-  if (c.nextGiftDay === null) { c.nextGiftDay = world.day + FAVOUR.giftEveryMonths * DAYS_PER_MONTH; return; }
-  if (world.day < c.nextGiftDay) return;
+  if (c.nextGiftDay === null) { startGiftClock(world); return; }
+  if (world.day < c.nextGiftDay || c.favour < FAVOUR.high) return;
   c.nextGiftDay = world.day + FAVOUR.giftEveryMonths * DAYS_PER_MONTH;
   giveGift(world, events);
 }
@@ -643,7 +653,8 @@ function giveGift(world, events) {
 export function courtAlerts(world) {
   const c = world.court;
   if (!c.awake) return [];
-  const unread = c.letters.filter((l) => !l.read);
+  // A request letter with no request open is a stale record: it is never raised (the letter sheet skips it too).
+  const unread = c.letters.filter((l) => !l.read && (l.kind !== 'request' || (c.request && c.request.id === l.id)));
   if (unread.length) return [{ code: 'court_letter', letter: unread[0].id, count: unread.length }];
   if (c.request && monthsLeft(world, c.request.due) <= COURT.reminderMonths) return [{ code: 'court_letter', letter: c.request.id, count: 1, due: true }];
   return [];

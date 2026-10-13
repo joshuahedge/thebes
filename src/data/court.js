@@ -4,7 +4,8 @@
 
 // ── Favour (ruling 336) ──
 // start: a new city's favour and a migrated one's; drift: points a month toward start; high / low: the thresholds (inclusive) for
-// gifts and cheaper tribute, and for bigger raids and dearer tribute; giftEveryMonths: a gift at high favour this often;
+// gifts and cheaper tribute, and for bigger raids and dearer tribute; giftEveryMonths: gifts come at most this often, at a month's end
+// with favour at high or more (the clock starts the first time favour reaches high and never stops: ruling 375);
 // tributeHigh / tributeLow: the tribute multiplier at high and low favour (src/sim/court.js favourTributeFactor); raidStep: one size
 // step at low favour is this share of the raid's size, at least one raider more and never past RAIDS.maxSize (favourRaidSize, ruling
 // 370). Favour is never scored (ruling 344).
@@ -52,7 +53,7 @@ export const GOOD_VALUE = {
 };
 
 // ── Gifts at high favour (ruling 336) ──
-// A gift every FAVOUR.giftEveryMonths months while favour is at FAVOUR.high or more: gold (months of taxes) or a household good
+// A gift at most every FAVOUR.giftEveryMonths months, at a month's end with favour at FAVOUR.high or more (ruling 375): gold (months of taxes) or a household good
 // (months of its output, else `min`), seeded; goods that find no room in a store come as gold. Rounded to `step`.
 export const GIFTS = { gold: { months: [1, 2], min: 50, step: 10 }, goods: { months: [1, 2], min: 20, step: 5 } };
 

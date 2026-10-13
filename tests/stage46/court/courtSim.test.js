@@ -15,6 +15,7 @@ import { alertsFor } from '../../../src/sim/alerts.js';
 import { unitsAtHome, unitsAway } from '../../../src/sim/armies.js';
 import { tickDay } from '../../../src/sim/clock.js';
 import { triage } from '../../../src/ui/alerts.js';
+import { alertText } from '../../../src/ui/text.js';
 import { courtWorld, openCourt, runCourt, MONTH, YEAR } from './courtHelpers.js';
 
 const withUnits = (w, n) => {
@@ -392,6 +393,19 @@ describe('s46 court letters and alerts', () => {
     const alerts = [{ code: 'debt' }, ...courtAlerts(w), { code: 'raid_warning', arrives: w.day + 10, dir: 'east' }];
     expect(triage(w, alerts).critical.map((a) => a.code)).toEqual(['raid_warning', 'court_letter', 'debt']);
   });
+  it('never raises a request letter with no request open (a stale record), and words an unknown letter by its head', () => {
+    const w = courtWorld();
+    guided(w);
+    const stale = { id: 70, kind: 'request', day: w.day, read: false };
+    w.court.request = null;
+    w.court.letters = [stale];
+    expect(courtAlerts(w)).toEqual([]);
+    w.court.letters.push({ id: 71, kind: 'card', card: 'festival', day: w.day, read: false, args: {} });
+    expect(courtAlerts(w)).toEqual([{ code: 'court_letter', letter: 71, count: 1 }]);
+    expect(alertText({ code: 'court_letter', letter: 70, count: 1 }, w)).toEqual({ title: 'A letter from the court', fix: '' });
+    w.court.letters.push({ id: 72, kind: 'card', card: 'no_such_card', day: w.day, read: false, args: {} });
+    expect(alertText({ code: 'court_letter', letter: 72, count: 1 }, w).title).toBe('A letter from the court');
+  });
   it('says nothing before the court opens, and is empty on a fresh city', () => {
     expect(courtAlerts(createWorld({ seed: 2 }))).toEqual([]);
   });
@@ -413,6 +427,35 @@ describe('s46 court gifts', () => {
     v.court.favour = 69;
     for (let m = 1; m <= 14; m++) { v.day += MONTH; v.court.favour = 69; courtMonth(v); }
     expect([v.tally.gifts, v.court.nextGiftDay]).toEqual([0, null]);
+  });
+  it("keeps the gift clock running when favour drifts below 70, and pays at the first month's end from its day with favour at 70 or more (ruling 375)", () => {
+    const w = courtWorld({ open: true });
+    w.court.guided = 'answered';
+    w.day = 2 * YEAR;                                                            // a month's end
+    w.court.favour = 60;
+    expect(addFavour(w, 12)).toBe(12);                                           // a request met: 72, and the clock starts
+    const due = w.day + FAVOUR.giftEveryMonths * MONTH;
+    expect(w.court.nextGiftDay).toBe(due);
+    const events = [];
+    for (let m = 1; m <= FAVOUR.giftEveryMonths; m++) { w.day += MONTH; courtMonth(w, events); }   // drift alone: 72 -> 66
+    expect([w.day, w.court.favour, w.tally.gifts, w.court.nextGiftDay]).toEqual([due, 66, 0, due]);   // due, but favour is under 70: it waits
+    w.day += MONTH; courtMonth(w, events);
+    expect([w.tally.gifts, w.court.nextGiftDay]).toEqual([0, due]);
+    addFavour(w, 10);                                                            // 75 mid-month
+    w.day += MONTH; courtMonth(w, events);                                       // 74 at the month's end: the gift comes
+    expect([w.court.favour, w.tally.gifts, events.filter((e) => e.type === 'court_gift').length]).toEqual([74, 1, 1]);
+    expect(w.court.nextGiftDay).toBe(w.day + FAVOUR.giftEveryMonths * MONTH);
+    // Held at 70 or more the whole time, the gift comes at its day exactly.
+    const h = courtWorld({ open: true });
+    h.day = 2 * YEAR;
+    h.court.favour = 72;
+    courtMonth(h);                                                               // 71, the clock starts here
+    const hDue = h.court.nextGiftDay;
+    expect(hDue).toBe(h.day + FAVOUR.giftEveryMonths * MONTH);
+    for (let m = 1; m < FAVOUR.giftEveryMonths; m++) { h.day += MONTH; h.court.favour = 72; courtMonth(h); }
+    expect(h.tally.gifts).toBe(0);
+    h.day += MONTH; h.court.favour = 72; courtMonth(h);
+    expect([h.day, h.tally.gifts]).toEqual([hDue, 1]);
   });
   it('a gift of goods that finds no room comes as gold', () => {
     const w = courtWorld({ open: true, seed: 11 });
