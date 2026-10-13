@@ -157,6 +157,7 @@ function v5ToV6(w) {
     terrain,
     buildings,
     mapVariant: 'classic',
+    danger: w.danger && typeof w.danger === 'object' ? { ...w.danger, theftDays: [] } : w.danger,
     tally: { ...tally, ...Object.fromEntries(STAGE45_TALLY.map((k) => [k, 0])) },
   };
 }

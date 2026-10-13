@@ -6,6 +6,7 @@ import { atLeast } from './progression.js';
 import { wantedNeeds } from './housing.js';
 import { fireMood } from './fire.js';
 import { healthMood } from './health.js';
+import { crimeMood } from './crime.js';
 import { raidMood } from './raids.js';
 import { festivalMood } from './festival.js';
 import { monumentMood } from './prestige.js';
@@ -50,7 +51,7 @@ export function updateMood(world) {
   const debt = world.gold < 0 ? -Math.min(MOOD.debtMax, Math.round(-world.gold / MOOD.debtPerPoint)) + 0 : 0;
   // Stage 3's danger terms (spec 4.9): each module reports only the terms that apply now, so a calm city's breakdown is
   // the same four rows as before. fire, burned (fire.js); raid (raids.js); festival (festival.js).
-  const danger = { ...fireMood(world), ...raidMood(world), ...festivalMood(world), ...healthMood(world) };
+  const danger = { ...fireMood(world), ...raidMood(world), ...festivalMood(world), ...healthMood(world), ...crimeMood(world) };
   // Stage 4's rows (spec 4.9), each only while it is not 0: Monuments (+1 for every 70 prestige, at most +10) and Palace.
   const monuments = monumentMood(world), palace = palaceMood(world);
   if (monuments) danger.monuments = monuments;

@@ -34,7 +34,7 @@ const isRaid = (r) => isRecord(r) && isDay(r.clockDay) && isDay(r.nextWarnDay) &
   && (r.warning === null || isRecord(r.warning)) && (r.active === null || isRecord(r.active)) && (r.last === null || isRecord(r.last))
   && Number.isFinite(r.adaptation);
 const isDanger = (d) => isRecord(d) && Array.isArray(d.burnDays) && d.burnDays.every(Number.isInteger) && isDay(d.lastFireDay)
-  && isDay(d.festivalDay) && typeof d.firePaused === 'boolean';
+  && isDay(d.festivalDay) && typeof d.firePaused === 'boolean' && (d.theftDays === undefined || (Array.isArray(d.theftDays) && d.theftDays.every(Number.isInteger)));
 const isFeats = (f) => isRecord(f) && isStrings(f.earned) && isStrings(f.lost) && isCounts(f.counters);
 // Stage 4 (version 5): every building's rotation; a monument's site (src/sim/world.js newSite: Track A may add fields
 // inside it, never remove these); the palace's style and works; the prestige unlock days.

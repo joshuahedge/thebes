@@ -1653,4 +1653,27 @@ Object.assign(ALERT_TEXT, {
   illness: (alert, world, b) => ({ title: HEALTH_TEXT.sick(b ? tierName(b.tier) : 'home'), fix: b ? HEALTH_TEXT.cause[healthCauseOf(world, b).cause] : HEALTH_TEXT.cause.none }),
 });
 Object.assign(MOOD_NAMES, { illness: HEALTH_TEXT.mood });
+import { CRIME_MOOD as crimeMoodData } from '../data/crime.js';
+import { crimeCause as crimeCauseOf } from '../sim/crime.js';
+export const CRIME_TEXT = {
+  // The crime_risk alert: one per district, the homes in it at High risk or more that no staffed police post reaches.
+  title: (n) => `${plural(n, 'home', 'homes')} ${n === 1 ? 'has' : 'have'} a high crime risk`,
+  cause: {
+    covered: 'A staffed police post reaches it',
+    no_road: 'No road beside it for a police post to reach: lay one',
+    none: 'Build a police post nearby',
+    short: 'Its police post is short of workers: more homes bring more workers',
+    burning: 'Its police post is burning: build another near it',
+    paused: 'Its police post is paused: resume it',
+  },
+  mood: `Thefts (${minus(crimeMoodData.each)} each in the last ${crimeMoodData.days} days, at most ${minus(crimeMoodData.max)})`,
+  // The caption after a theft (the sim's 'theft' event): the treasury, or the store the goods came from.
+  caption: (e) => (e.kind === 'gold'
+    ? `A thief took ${e.amount} gold from the treasury${e.near ? ` near the ${buildingName(e.near).toLowerCase()}` : ''}`
+    : `A thief took ${e.amount} ${goodWord(e.good)} from the ${buildingName(e.store).toLowerCase()}`),
+};
+Object.assign(ALERT_TEXT, {
+  crime_risk: (alert, world, b) => ({ title: CRIME_TEXT.title(alert.count || 1), fix: b ? CRIME_TEXT.cause[crimeCauseOf(world, b).cause] : CRIME_TEXT.cause.none }),
+});
+Object.assign(MOOD_NAMES, { thefts: CRIME_TEXT.mood });
 // ── end s45 threats ──────────────────────────────────────────────────────────────────────────────────────────────────

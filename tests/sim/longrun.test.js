@@ -39,7 +39,7 @@ function realVillage() {
 // village): enough for a raid of nine (towers needed = raiders / 3, rounded up). Towers never burn.
 const LATER = [
   { milestone: 'town', steps: [['firehouse', 8, 11], ['firehouse', 21, 11], ['physician', 15, 11]] },   // Stage 4.5: and a physician, whose reach takes in the homes
-  { milestone: 'market_town', steps: [['tower', 14, 11], ['tower', 22, 11], ['tower', 26, 11]] },
+  { milestone: 'market_town', steps: [['tower', 14, 11], ['tower', 22, 11], ['tower', 26, 11], ['police_post', 23, 11]] },   // Stage 4.5: and a police post
 ];
 
 function checkSane(w) {
@@ -108,7 +108,7 @@ describe('longrun', () => {
     expect(share).toBeGreaterThanOrEqual(0.6);
     expect(share).toBeLessThanOrEqual(0.7);
     // Its firehouses and towers are what bring it into the band: the same town without them spends under 50%.
-    const without = year.reduce((n, m) => n + m.spent, 0) - 12 * (2 * 4 + 3 * 8 + 4 + (5 * 4 + 1) * ECONOMY.wagePerWorker);   // Stage 4.5: and the physician's upkeep and one wage
+    const without = year.reduce((n, m) => n + m.spent, 0) - 12 * (2 * 4 + 3 * 8 + 4 + 4 + (5 * 4 + 2) * ECONOMY.wagePerWorker);   // Stage 4.5: and the physician's and the police post's upkeep and one wage each
     expect(without / year.reduce((n, m) => n + m.taxes, 0)).toBeLessThan(0.5);
   });
 });

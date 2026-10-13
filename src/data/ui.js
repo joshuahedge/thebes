@@ -6,7 +6,7 @@ export const CATEGORIES = [
   { id: 'homes', items: ['house', 'garden', 'statue', 'plaza', 'sphinx'] },
   { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
   { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'] },
-  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'palace'] },
+  { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'police_post', 'palace'] },
   { id: 'defence', items: ['wall', 'gate', 'tower', 'barracks'] },
   // Stage 4 (spec 4.14, ruling 207): everything a monument needs, in order, then the seven from the small obelisk up.
   { id: 'monuments', items: ['builders_guild', 'quarry', 'brickworks', ...MONUMENT_KINDS] },
