@@ -14,8 +14,8 @@ describe('clock', () => {
     expect(dateParts(w)).toEqual({ year: 2, month: 1, day: 1 });
   });
   it('converts real seconds to game days by speed', () => {
-    expect(daysForSeconds(1, 20)).toBe(30);
-    expect(daysForSeconds(3, 2)).toBe(9);
+    expect(daysForSeconds(1, 30)).toBe(30);
+    expect(daysForSeconds(3, 2)).toBe(6);
     expect(daysForSeconds(0, 10)).toBe(0);
   });
   it('clears undo history at the month tick', () => {

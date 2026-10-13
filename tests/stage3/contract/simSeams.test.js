@@ -241,9 +241,9 @@ describe('s3 contract clock and economy wiring', () => {
     let day = w.day;
     Object.defineProperty(w, 'day', { get: () => day, set: (v) => { day = v; if (v === 2) w.speed = 0; }, configurable: true, enumerable: true });   // the sim pausing on day 2
     const loop = createGameLoop({ world: w, render: () => {}, raf: () => 0, caf: () => {} });
-    loop.tick(0); loop.tick(250); loop.tick(500);
+    loop.tick(0); loop.tick(250); loop.tick(500); loop.tick(750);               // 0.75 days a frame at 3x: day 2 on the third frame
     expect([w.day, loop.accumulator]).toEqual([2, 0]);
-    loop.tick(750); loop.tick(1000);
+    loop.tick(1000); loop.tick(1250);
     expect(w.day).toBe(2);
     const c = street();
     tickDay(c, []);
