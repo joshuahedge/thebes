@@ -11,7 +11,7 @@
 import { seamBase } from './seam.js';
 import { BUILDINGS } from '../../data/buildings.js';
 import { floodLook, floodOutlook, isFloodFarm, onFloodplain, isFloodSeason } from '../../sim/flood.js';
-import { huntingOutlook, crocsNear, scareable, scareOf } from '../../sim/wildlife.js';
+import { huntingOutlook, huntRest, crocsNear, scareable, scareOf } from '../../sim/wildlife.js';
 import { isWorking } from '../../sim/labour.js';
 import { el } from '../components.js';
 import { S46_RIVER_TEXT as R, buildingName } from '../text.js';
@@ -30,18 +30,14 @@ export function riverRows(world, b) {
     } else if (look.on) out.push(line(R.farmOff));
   }
   if (b.type === 'nilometer') {
-    const f = world.flood;
-    const working = isWorking(world, b);
-    let value;
-    if (!working) value = R.nilometerIdle;
-    else if (look.known && look.level) value = R.nilometerKnown(look.level.id);
-    else if (!look.on) value = R.nilometerNone;
-    else value = R.nilometerWaiting(look.monthsTo === null ? 0 : look.monthsTo);
-    out.push(row(R.nilometerLabel, value), line(R.nilometerNote));
+    const r = R.nilometerRow(look, isWorking(world, b));            // the level reads as the next flood's only before the rise (floodLook's phase)
+    out.push(row(r.label, r.value), line(R.nilometerNote));
   }
   if (b.type === 'hunting_lodge') {
     const o = huntingOutlook(world, b);
+    const rest = isWorking(world, b) ? huntRest(world, b) : null;       // a staffed lodge that has had its share says so (the work line leaves it out)
     out.push(row(R.herdsLabel, R.herdsLine(o.herds, o.animals)));
+    if (rest) out.push(line(R.huntRest(rest), 'small'));
     if (o.herds) out.push(row(R.gameLabel, R.gameLine(o.month)));
     else out.push(line(R.noHerds, 'small coral'));
     out.push(line(R.huntRule));

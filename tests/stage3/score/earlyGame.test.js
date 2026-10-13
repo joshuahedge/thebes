@@ -151,21 +151,23 @@ describe('s3 score citizen remarks', () => {
     const w = makeTestWorld();
     addRaw(w, 'house', 0, 0, { tier: 1, residents: 5 });
     addRaw(w, 'well', 2, 0);
+    addRaw(w, 'granary', 6, 0);
     w.day = 3 * 30;                                                         // month index 3: the 4th month, Shemu (Stage 4.6: months 3-6)
     const r = remarkFor(w);
-    expect(CITIZEN_REMARKS.filter((x) => x.season === 'shemu' && ['house', 'well'].includes(x.type)).map((x) => x.text)).toContain(r);
+    expect(CITIZEN_REMARKS.filter((x) => x.season === 'shemu' && ['house', 'well', 'granary'].includes(x.type)).map((x) => x.text)).toContain(r);
     expect(remarkFor(w)).toBe(r);
     w.day = 4 * 30;
     expect(remarkFor(w)).toBe(null);                                        // not a third month
-    w.day = 6 * 30;                                                         // the 7th month, Akhet: only the house's remark (the well's speaks of the river rising, heard only in a Fair or better flood year)
-    expect(remarkFor(w)).toBe(CITIZEN_REMARKS.find((x) => x.season === 'akhet' && x.type === 'house').text);
+    w.day = 6 * 30;                                                         // the 7th month, Akhet: only the granary's remark (the house's and the well's speak of the river rising, heard only in a Fair or better flood year)
+    const plain = CITIZEN_REMARKS.find((x) => x.season === 'akhet' && x.type === 'granary').text;
+    expect(remarkFor(w)).toBe(plain);
     w.milestone = 'town';
     w.flood = { year: 1, level: 'good', forecast: null, from: 180, to: 269, applied: null, risen: false };
     const heard = new Set();
     for (let seed = 1; seed <= 40; seed++) { w.seed = seed; heard.add(remarkFor(w)); }
-    expect([...heard].sort()).toEqual(CITIZEN_REMARKS.filter((x) => x.season === 'akhet' && ['house', 'well'].includes(x.type)).map((x) => x.text).sort());   // a Good year: both are heard
+    expect([...heard].sort()).toEqual(CITIZEN_REMARKS.filter((x) => x.season === 'akhet' && ['house', 'well', 'granary'].includes(x.type)).map((x) => x.text).sort());   // a Good year: all three are heard
     w.flood.level = 'low';
-    for (let seed = 1; seed <= 40; seed++) { w.seed = seed; expect(remarkFor(w)).toBe(CITIZEN_REMARKS.find((x) => x.season === 'akhet' && x.type === 'house').text); }   // a Low year: the river did not rise as it should
+    for (let seed = 1; seed <= 40; seed++) { w.seed = seed; expect(remarkFor(w)).toBe(plain); }   // a Low year: the river did not rise as it should
     expect(REMARK_EVERY_MONTHS).toBe(3);
     const bare = makeTestWorld();
     bare.day = 90;

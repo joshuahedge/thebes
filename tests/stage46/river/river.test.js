@@ -5,3 +5,4 @@ import './wildlifeSim.test.js';
 import './riverUi.test.js';
 import './riverRender.test.js';
 import './riverScenes.test.js';
+import './riverRound1.test.js';

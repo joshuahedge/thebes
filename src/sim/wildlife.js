@@ -96,6 +96,13 @@ export function herdsInReach(world, b) {
 }
 // The herd a hunt takes from now: the nearest in reach that has lost fewer than HUNTING.perHerdMonth animals this month, or null.
 export const huntHerd = (world, b) => herdsInReach(world, b).find((h) => (h.hunted || 0) < HUNTING.perHerdMonth) || null;
+// Why a working lodge is resting, from the sim's own counts: 'month' (it has taken HUNTING.maxMonth this month), 'herds' (every herd in reach
+// has given HUNTING.perHerdMonth this month), or null (it can hunt now, or no herd is in reach: that is huntingOutlook's herds = 0).
+export function huntRest(world, b) {
+  if ((b.hunted || 0) >= HUNTING.maxMonth) return 'month';
+  const herds = herdsInReach(world, b);
+  return herds.length && !huntHerd(world, b) ? 'herds' : null;
+}
 // What the lodge can bring in a month with the herds as they stand: HUNTING.perHerdMonth for each herd in reach (at most the herd's size
 // left), no more than HUNTING.maxMonth.
 export function huntingOutlook(world, b) {
