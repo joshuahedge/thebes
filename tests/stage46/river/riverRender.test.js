@@ -195,7 +195,7 @@ describe('s46 river render: the animals (ruling 335, 367)', () => {
     const w = riverWorld({ seed: 2 });
     herd(w, { dir: -1 });
     herd(w, { kind: 'ostrich', x: 40, y: 30, dir: 1, hx: 40, hy: 30, px: 40, py: 30 });
-    addRaw(w, 'hunting_lodge', 32, 11).staff = 3;
+    addRaw(w, 'hunting_lodge', 32, 11).staff = 2;
     const wh = addRaw(w, 'fishing_wharf', 22, 11); wh.rot = 1; wh.w = 1; wh.d = 2; wh.staff = 3;
     for (const motion of ['full', 'gentle', 'still']) {
       for (const t of [0, 3.3, 40, 111]) {

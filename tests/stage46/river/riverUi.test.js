@@ -287,9 +287,9 @@ describe('s46 river ui: the cards, the dock and the refusals (rulings 348, 361)'
     expect(CATEGORIES.find((c) => c.id === 'services').items).toContain('nilometer');
     expect(shownItems(w, 'food').slice(-2)).toEqual(['hunting_lodge', 'fishing_wharf']);
   });
-  it('prices them as the plan says: 80, 70 and 80 gold, upkeep 3, 4 and 4, 2, 3 and 3 workers', () => {
+  it('prices them as the plan says: 80, 70 and 80 gold, upkeep 3, 4 and 4, 2, 2 and 3 workers (ruling 434: the lodge had 3)', () => {
     const rows = ['nilometer', 'hunting_lodge', 'fishing_wharf'].map((t) => [BUILDINGS[t].cost, BUILDINGS[t].upkeep, BUILDINGS[t].workers, BUILDINGS[t].w, BUILDINGS[t].d, BUILDINGS[t].category]);
-    expect(rows).toEqual([[80, 3, 2, 1, 1, 'services'], [70, 4, 3, 2, 2, 'food'], [80, 4, 3, 2, 1, 'food']]);
+    expect(rows).toEqual([[80, 3, 2, 1, 1, 'services'], [70, 4, 2, 2, 2, 'food'], [80, 4, 3, 2, 1, 'food']]);
   });
   it('refuses a wharf away from the water or with only its short end on it, and a Nilometer away from the water, with Map\'s one line, and offers the nearest fit', () => {
     const w = riverWorld();

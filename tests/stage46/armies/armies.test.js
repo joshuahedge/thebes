@@ -26,7 +26,7 @@ const unitAt = (w, kind, b, extra = {}) => {
 
 describe('s46 armies data', () => {
   it('prices the archery range and the stables as the plan says, in Defence, with Market town (ruling 387)', () => {
-    expect(['w', 'd', 'cost', 'upkeep', 'workers', 'category'].map((k) => BUILDINGS.archery_range[k])).toEqual([2, 2, 180, 10, 6, 'defence']);
+    expect(['w', 'd', 'cost', 'upkeep', 'workers', 'category'].map((k) => BUILDINGS.archery_range[k])).toEqual([2, 2, 180, 8, 4, 'defence']);   // ruling 432: upkeep 8 and 4 workers (were 10 and 6)
     expect(['w', 'd', 'cost', 'upkeep', 'workers', 'category'].map((k) => BUILDINGS.stables[k])).toEqual([2, 3, 300, 14, 6, 'defence']);
     expect(ARMY_UNLOCKS).toEqual({ market_town: ['archery_range', 'stables'] });
     for (const t of ['archery_range', 'stables']) {

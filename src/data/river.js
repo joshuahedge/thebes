@@ -91,7 +91,8 @@ export const RIVER_BUILDINGS = {
     needsRoad: true, water: 'touch', desirability: [1],
   },
   hunting_lodge: {
-    name: 'Hunting lodge', w: 2, d: 2, cost: 70, upkeep: 4, workers: 3, priority: 'essential', category: 'food',
+    // Ruling 434: 2 hunters (was 3): the herds in reach are hunted out within months (ruling 437), so the lodge is a small side food.
+    name: 'Hunting lodge', w: 2, d: 2, cost: 70, upkeep: 4, workers: 2, priority: 'essential', category: 'food',
     needsRoad: true, produces: { good: 'game', perMonth: HUNTING.maxMonth }, producerReach: 12, hunts: true, desirability: [-2, -1],
   },
   fishing_wharf: {

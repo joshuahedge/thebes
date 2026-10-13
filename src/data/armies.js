@@ -20,7 +20,7 @@ import { UNITS, DEFENCE } from './raids.js';
 // The soldier's numbers are Stage 3's (UNITS.soldier, DEFENCE), read from there so the two never disagree.
 export const UNIT_TYPES = {
   soldier: { building: 'barracks', hp: UNITS.soldier.hp, speed: UNITS.soldier.speed, damage: UNITS.soldier.damage, range: 0, patrol: DEFENCE.patrol, perBuilding: DEFENCE.soldiersPerBarracks, trainDays: DEFENCE.trainDays, pay: DEFENCE.soldierPay },
-  archer: { building: 'archery_range', hp: 8, speed: 2, damage: 2, range: 3, patrol: 10, perBuilding: 4, trainDays: 30, pay: 8 },
+  archer: { building: 'archery_range', hp: 8, speed: 2, damage: 2, range: 3, patrol: 10, perBuilding: 4, trainDays: 30, pay: 6 },   // ruling 431: pay 6 (was 8), as an archer has two-thirds of a soldier's hp and damage
   chariot: { building: 'stables', hp: 16, speed: 3, damage: 4, range: 0, patrol: 12, perBuilding: 3, trainDays: 45, pay: 10, grain: 3 },
 };
 export const UNIT_KINDS = Object.keys(UNIT_TYPES);
@@ -106,7 +106,8 @@ export const isArmyState = (a) => Boolean(a) && typeof a === 'object' && !Array.
 // Market town, the walls' milestone (ruling 387: the plan put the range at Town, which would show a locked Defence tab from the first
 // minutes; raids and walls start at Market town). ARMY_DOCK: category id -> items.
 export const ARMY_BUILDINGS = {
-  archery_range: { name: 'Archery range', w: 2, d: 2, cost: 180, upkeep: 10, workers: 6, priority: 'safety', category: 'defence', needsRoad: true, desirability: [-4, -2] },
+  archery_range: { name: 'Archery range', w: 2, d: 2, cost: 180, upkeep: 8, workers: 4, priority: 'safety', category: 'defence', needsRoad: true, desirability: [-4, -2] },
+  // Ruling 432: the archery range runs as a tower does, upkeep 8 and 4 workers (were 10 and 6); with ruling 431 a range and its four archers cost 48 a month (were 66).
   stables: { name: 'Stables', w: 2, d: 3, cost: 300, upkeep: 14, workers: 6, priority: 'safety', category: 'defence', needsRoad: true, desirability: [-6, -4, -2] },
 };
 export const ARMY_UNLOCKS = { market_town: ['archery_range', 'stables'] };
