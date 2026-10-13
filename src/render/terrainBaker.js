@@ -141,6 +141,16 @@ function fertileSpeckle(g, world, x, y) {
   }
 }
 
+// Clay's texture (Stage 4.5): a few dark crack strokes and light flecks on each tile, positions hung off the tile as fertileSpeckle's are.
+function claySpeckle(g, x, y) {
+  for (let j = 0; j < 2; j++) {
+    const q = p(x + 0.2 + hash2(x, y, 210 + j) * 0.6, y + 0.2 + hash2(x, y, 220 + j) * 0.6);
+    g.line(q, [q[0] + 2.4 + hash2(x, y, 230 + j) * 2, q[1] + 0.6], TERRAIN.clayCrack, 0.6, 0.55);
+    g.line(q, [q[0] + 1, q[1] + 1.8], TERRAIN.clayCrack, 0.5, 0.4);
+  }
+  g.circ(p(x + hash2(x, y, 240), y + hash2(x, y, 241)), 0.6, TERRAIN.claySoft, { alpha: 0.8 });
+}
+
 const nearType = (world, x, y, code) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => terrainAt(world, x + dx, y + dy, -1) === code);
 
 // Sand everywhere, faint blotches and dots, then the blended layers, then the scatter that sells the blend:
@@ -165,6 +175,7 @@ export function drawGround(g, world, range) {
   drawLayer(g, world, range, T.FERTILE, { soft: TERRAIN.fertileSoft, main: TERRAIN.fertile, second: null });
   drawLayer(g, world, range, T.MEADOW, { soft: TERRAIN.grassSoft, main: TERRAIN.grass, second: TERRAIN.grassSecond });
   drawLayer(g, world, range, T.BANK, { soft: TERRAIN.bankSecond, main: TERRAIN.bank, second: TERRAIN.bankSecond });
+  drawLayer(g, world, range, T.CLAY, { soft: TERRAIN.claySoft, main: TERRAIN.clay, second: TERRAIN.claySecond });
   forTiles(world, range, (x, y, i) => {
     const t = world.terrain[i];
     if (t === T.WATER || !isFree(world, i)) return;
@@ -181,6 +192,7 @@ export function drawGround(g, world, range) {
       g.ell(q, 5 + r * 5, 1.6, TERRAIN.mud, { alpha: 0.7 });
       g.ell([q[0] - 1, q[1] - 0.4], 3.5 + r * 3, 1.1, TERRAIN.mudDark, { alpha: 0.6 });
     }
+    if (t === T.CLAY) claySpeckle(g, x, y);
     if (t === T.DESERT) {
       const cq = p(x + 0.5, y + 0.5);
       if (r < 0.05) rock(g, cq);

@@ -1,8 +1,8 @@
 // Goals (spec 4.1, early-game pass 3.2 and 3.3): the opening chain in chapters, then the economy's goals to
 // the Capital, and first-time troubles that become goals. Plain data: needs are declarative so missions can
 // define goals the same way later; src/sim/goals.js evaluates them. Need kinds: road, houses, building, people,
-// tier, routes (open trade routes), noAlert, gold, all. A showMe target is startRoad, houses, focus, alert, fertile, rocky or
-// raid (any target the interface does not know points at the city's focus). fertile and rocky aim at the nearest free ground of
+// tier, routes (open trade routes), noAlert, gold, all. A showMe target is startRoad, houses, focus, alert, fertile, rocky, clay or
+// raid (any target the interface does not know points at the city's focus). fertile, rocky and clay aim at the nearest free ground of
 // that kind while the goal's next building needs it (a farm, a mine), else at the focus. A goal with `from` (a milestone id)
 // waits for that milestone (or the people it takes), where its buildings unlock or its tier can be reached: the list
 // the player sees ends before it, so nothing later shows ahead of it (openGoals in src/sim/goals.js). Stage 3: a goal
@@ -38,7 +38,7 @@ export const GOALS = [
   // From Town (spec 4.1, 4.6): each new need arrives with the goal that builds its chain, then a count of homes at
   // the tier that needs it, so one new demand comes at a time; the milestones and the trade route sit between.
   // Each text stays short enough for a two-line caption on a phone at 150% text (tests/ui/celebrate.test.js).
-  { id: 'pottery', chapter: 'goods', from: 'town', text: 'Build a clay pit, storehouse and potter', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] }, showMe: { category: 'industry', item: 'clay_pit', target: 'focus' } },
+  { id: 'pottery', chapter: 'goods', from: 'town', text: 'Build a clay pit, storehouse and potter', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] }, showMe: { category: 'industry', item: 'clay_pit', target: 'clay' } },
   { id: 'homes_townhouse', chapter: 'goods', from: 'town', text: 'Grow 8 homes to Townhouse or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 5, n: 8 }, showMe: { category: 'industry', item: 'potter', target: 'houses' } },
   { id: 'booth_gardens', chapter: 'goods', from: 'town', text: 'Build a booth and two gardens', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'booth', n: 1 }, { kind: 'building', type: 'garden', n: 2 }] }, showMe: { category: 'services', item: 'booth', target: 'houses' } },
   { id: 'manor', chapter: 'goods', text: 'Grow a Manor from four Townhouses', reward: GOAL_REWARD, need: { kind: 'tier', tier: 6, n: 1 }, showMe: { category: 'homes', item: 'garden', target: 'houses' } },

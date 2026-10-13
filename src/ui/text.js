@@ -188,6 +188,7 @@ const REASONS = {
   blocked: 'Something is in the way',
   needs_fertile: 'Needs fertile land',
   needs_rocky: 'Needs rocky ground',
+  needs_clay: 'Needs clay ground',
   needs_road: 'Must touch a road',
   no_gold: 'Not enough gold',
   nothing_to_place: 'Nothing to place here',
@@ -215,7 +216,7 @@ export function warningText(code, type = null) {
 // is met) and cant (it cannot be placed).
 export const CONDITION_MARKS = { met: '✓', later: '!', cant: '✕' };
 export const CONDITION_STATE_WORDS = { met: 'Met', later: 'Not yet', cant: "Can't" };
-const TERRAIN_WORDS = { fertile: 'Fertile land', rocky: 'Rocky ground' };
+const TERRAIN_WORDS = { fertile: 'Fertile land', rocky: 'Rocky ground', clay: 'Clay ground' };
 export const CONDITION_TEXT = {
   group: 'Conditions',
   free: 'Free ground',
@@ -232,7 +233,7 @@ export const CONDITION_TEXT = {
   goldShort: (cost, have) => `Not enough gold: ${cost} needed, you have ${have}`,
   placedNoRoad: 'needs a road',
   placedNoRoadYet: 'no road yet',
-  onTerrain: { fertile: 'On fertile land', rocky: 'On rocky ground' },
+  onTerrain: { fertile: 'On fertile land', rocky: 'On rocky ground', clay: 'On clay ground' },
   // A building with this terrain in its definition: "On fertile land" for a tooltip, "Fertile land" (the chip's words, short enough
   // for a card at 150% text) for a card; '' for any other.
   terrainLine: (type, short = false) => (BUILDINGS[type] && BUILDINGS[type].terrain ? (short ? TERRAIN_WORDS[BUILDINGS[type].terrain] : CONDITION_TEXT.onTerrain[BUILDINGS[type].terrain]) || '' : ''),
@@ -264,7 +265,7 @@ export function conditionText(cond, type, { refused = false } = {}) {
   const def = BUILDINGS[type];
   if (cond.key === 'ground') {
     if (cond.state === 'met') return def && def.terrain ? C.terrain(def.terrain) : C.free;
-    if (cond.reason === 'needs_fertile' || cond.reason === 'needs_rocky') return C.terrainCount(cond.terrain, cond.fit, cond.of);
+    if (cond.reason === 'needs_fertile' || cond.reason === 'needs_rocky' || cond.reason === 'needs_clay') return C.terrainCount(cond.terrain, cond.fit, cond.of);
     if (cond.reason === 'occupied') return C.taken;
     if (cond.reason === 'water') return C.water;
     if (cond.reason === 'out_of_bounds') return C.offMap;
@@ -365,11 +366,11 @@ export const OVERLAY_LEGEND = {
   goods: ['Has its goods', 'Goods missing'], entertainment: ['Has entertainment', 'No entertainment'], housing: ['Ready to grow', 'Next need missing'],
   // Ground (placement review P1) has no dot and ring: its two keys are the land it shows, free fertile land (leaf green with
   // dots) and free rocky ground (grey, hatched).
-  ground: ['Fertile: farms and orchards', 'Rocky: mines'],
+  ground: ['Fertile: farms and orchards', 'Rocky: mines', 'Clay: pits'],
 };
 // What the Ground overlay's third line says while a farm, orchard or mine is being placed: its brighter tiles are where the whole
 // building fits on its own ground (src/render/overlays.js roomTiles), or, with none left, that nothing is.
-const GROUND_THING = { farm_grain: 'a farm', farm_barley: 'a farm', farm_flax: 'a farm', farm_fig: 'an orchard', gem_mine: 'a mine' };
+const GROUND_THING = { farm_grain: 'a farm', farm_barley: 'a farm', farm_flax: 'a farm', farm_fig: 'an orchard', gem_mine: 'a mine', clay_pit: 'a clay pit' };
 export const groundThing = (type) => GROUND_THING[type] || null;
 export const groundRoomText = (type, any) => (any ? `Bright: room for ${groundThing(type)}` : `No room left for ${groundThing(type)}`);
 

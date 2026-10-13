@@ -49,6 +49,7 @@ export const TERRAIN = {
   grass: '#86B04A', grassAlt: '#86AE45', grassSoft: '#B3C272', grassSecond: '#74A03E',
   fertile: '#A8885C', fertileSecond: '#C2A274', fertileSoft: '#BC9C6E', fertileSpeck: '#6E5234', fertileTuft: '#5E8E32',
   bank: '#B9A978', bankSecond: '#C9B98A', mud: '#7A5E40', mudDark: '#5E4630',
+  clay: '#B9825A', claySoft: '#CB9C74', claySecond: '#A36E48', clayCrack: '#7E5236',   // Stage 4.5: terracotta ground along the banks
   rocky: '#D3B582', rockySecond: '#C4A574', rockySoft: '#E0C898', pebble: '#B39C82', pebbleLight: '#D9C7A8',
   water: '#2E8C96', waterDeep: '#1E6A7C', waterLight: '#86CBC4', shallows: '#4DB6AE', foam: '#DDF4F1', ripple: '#B8E6E2',
   road: '#DCC08C', roadEdge: '#C2A274', roadPebble: '#B39466', roadPebbleLight: '#F2E2BC',

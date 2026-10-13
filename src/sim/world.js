@@ -2,10 +2,11 @@ import { ECONOMY } from '../data/economy.js';
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { PRESTIGE_UNLOCKS } from '../data/monuments.js';
-import { generateMap } from './mapgen.js';
+import { MAP_VARIANTS } from '../data/map.js';
+import { generateMap, variantFor } from './mapgen.js';
 import { idx, footprint } from './grid.js';
 
-export const WORLD_VERSION = 5;
+export const WORLD_VERSION = 6;
 export const HISTORY_MONTHS = 12;   // month-end rows kept for the Welcome back trends
 
 // The trade state a city starts with (Stage 2): no routes open, no orders, no price drift drawn, no quota used.
@@ -31,10 +32,13 @@ export const STAGE3_TALLY = ['fires', 'blazesOut', 'firesOut', 'burned', 'rubble
 // Stage 4's (spec 4.16, 4.19, 4.20): stone and bricks laid on monuments, stone and bricks delivered to sites (by a quarry,
 // a brickworks or a site's draw from a storehouse), courses finished, monuments finished and palace enlargements paid for.
 export const STAGE4_TALLY = ['stoneLaid', 'bricksLaid', 'stoneDelivered', 'bricksDelivered', 'courses', 'monumentsDone', 'enlargements'];
+// Stage 4.5's (world version 6; Task 5 counts them): illnesses begun and cured, thefts and the gold they took.
+export const STAGE45_TALLY = ['illnesses', 'illnessesCured', 'thefts', 'theftGold'];
 export const newTally = () => ({
   harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0, made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0,
   ...Object.fromEntries(STAGE3_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE4_TALLY.map((k) => [k, 0])),
+  ...Object.fromEntries(STAGE45_TALLY.map((k) => [k, 0])),
 });
 
 // The prestige unlocks a city has reached (Stage 4, spec 4.14, ruling 243): monument type -> the day the city first had
@@ -61,10 +65,13 @@ export const newSite = () => ({
   month: { units: 0, gold: 0, crews: 0, crewDays: 0, starvedDays: 0 }, last: null, starved: false, done: null,
 });
 
+// mapVariant (Stage 4.5, ruling 313) is one of MAP_VARIANTS, or 'auto' to let the seed pick (variantFor); it is ignored when a
+// map is passed, whose own variant (map.variant, else 'classic') is kept.
 // difficulty is a DIFFICULTIES key (spec 4.18), fixed for the city's life; anything else starts a Normal city. cityId
 // is the id the interface gives a new city for its records (spec 4.19: the sim never reads the clock); null until then.
-export function createWorld({ seed = 1, size = 64, map = null, difficulty = 'normal', cityId = null } = {}) {
-  const m = map || generateMap(seed, size);
+export function createWorld({ seed = 1, size = 64, map = null, difficulty = 'normal', cityId = null, mapVariant = 'classic' } = {}) {
+  const variant = mapVariant === 'auto' ? variantFor(seed) : MAP_VARIANTS.includes(mapVariant) ? mapVariant : 'classic';
+  const m = map || generateMap(seed, size, variant);
   const n = m.size * m.size;
   const world = {
     version: WORLD_VERSION,
@@ -114,6 +121,8 @@ export function createWorld({ seed = 1, size = 64, map = null, difficulty = 'nor
     cityId: typeof cityId === 'string' && cityId ? cityId : null,
     // Stage 4 (world version 5).
     prestigeUnlocks: newPrestigeUnlocks(),              // monument type -> the day its prestige unlock was first reached, or null
+    // Stage 4.5 (world version 6).
+    mapVariant: m.variant || 'classic',                 // the river layout (MAP_VARIANTS); 'classic' for a city from before it
   };
   for (const [x, y] of m.startRoad) world.road[idx(world.size, x, y)] = 1;
   return world;
@@ -143,7 +152,8 @@ export function makeBuilding(world, type, x, y, rot = 0) {
   const dims = dimsOf(type, rot);
   // risk: fire risk points (spec 4.12); fire: null, or the blaze or fire burning in it (src/sim/fire.js).
   const b = { id: world.nextId++, type, x, y, w: dims.w, d: dims.d, rot: dims.rot, staff: 0, paused: false, store: {}, progress: 0, blocked: null, risk: 0, fire: null };
-  if (type === 'house') Object.assign(b, { tier: 0, residents: 0, stock: {}, met: {}, downTimer: 0, leftThisMonth: 0, stockedFor: 0 });
+  // Stage 4.5 (world version 6): a home's disease and crime risk points (health, crime; Task 5 builds them) and its illness (null, or the illness it has).
+  if (type === 'house') Object.assign(b, { tier: 0, residents: 0, stock: {}, met: {}, downTimer: 0, leftThisMonth: 0, stockedFor: 0, health: 0, crime: 0, illness: null });
   if (type === 'storehouse') b.accepts = {};   // good -> false where the player refused it (setAccept, spec 4.10)
   if (def.monument) b.site = newSite();          // Stage 4: a monument is founded as a site (spec 4.16)
   if (def.palace) Object.assign(b, { style: 0, works: null });   // Stage 4: PALACE_STYLES index; works: null or { style, left } (spec 4.20)

@@ -9,8 +9,8 @@ import { makeTestWorld, setRoad } from '../../helpers/testWorld.js';
 describe('s3 contract world v4', () => {
   it('creates a version 4 world with no walls, no raid clock, no soldiers, no danger, no splits, seals or feats', () => {
     const w = createWorld({ seed: 4 });
-    expect(WORLD_VERSION).toBe(5);
-    expect(w.version).toBe(5);
+    expect(WORLD_VERSION).toBe(6);
+    expect(w.version).toBe(6);
     expect(w.wall.length).toBe(w.size * w.size);
     expect(w.wall.every((v) => v === 0)).toBe(true);
     expect(w.wallVersion).toBe(0);
