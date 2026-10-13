@@ -240,7 +240,7 @@ export function place(world, type, x, y, { roadLater = false, rot = 0, style = n
 // is refused when that would take the treasury below the debt floor.
 export const demolishRefundFor = (world, b) => {
   if (b.type === 'rubble') return -rubbleCostOf(world);
-  return b.type === 'house' ? 0 : Math.floor(costOf(world, b.type) * ECONOMY.demolishRefund);
+  return b.type === 'house' ? 0 : Math.floor(costOf(world, b.type, { style: b.style }) * ECONOMY.demolishRefund);
 };
 
 // One tile: a building (or a rubble tile), else a wall tile (a gate keeps its road), else a road. Walls and roads refund
