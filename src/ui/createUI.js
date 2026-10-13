@@ -14,6 +14,7 @@ import { allBuildings } from '../sim/world.js';
 import { touchesRoad } from '../sim/reach.js';
 import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
+import { newcomersAt } from '../render/newcomers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
@@ -921,7 +922,7 @@ export function createUI({
     markerLayout = layoutMarkers(world, list, cam, v);
     renderer.renderFrame(world, cam, {
       live: (g, o) => drawMonument(g, world, o.b, { now: t, timeDays, motion, ghost: ghostBox, selectedId: s.selectedId }),
-      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
+      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
       ambient: (g, r) => ambient.draw(g, world, r, t),                          // Stage 3 (render/ambient.js, fire.js, units.js)
       scorch: (g, r) => drawScorch(g, world, r),                                // Stage 4.5 (ruling 310): the ground under a fire, at every motion level

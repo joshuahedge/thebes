@@ -12,7 +12,7 @@
 import { p, U } from './primitives.js';
 import { SHADOW, TEAL, TEAL_DARK, BLUE, GOLD, ORANGE, WOOD, MUD, RED, STONE } from './palette.js';
 
-export const FIGURE_KINDS = ['citizen', 'woman', 'water', 'porter', 'priest', 'farmer', 'noble', 'fisher', 'hauler', 'firefighter', 'mason', 'musician', 'dancer', 'shrine', 'standard'];
+export const FIGURE_KINDS = ['citizen', 'woman', 'water', 'porter', 'priest', 'farmer', 'noble', 'fisher', 'hauler', 'firefighter', 'mason', 'musician', 'dancer', 'shrine', 'standard', 'newcomer'];
 export const UNIT_KINDS = ['raider', 'soldier'];
 export const UNIT_SCALE = 1.5;
 
@@ -41,7 +41,7 @@ export function fig(g, gx, gy, kind, z = 0, sc = 1) {
   } else {
     g.poly([[X - 2 * s, Y], [X + 2 * s, Y], [X + 1.6 * s, Y - 8.7 * s], [X - 1.6 * s, Y - 8.7 * s]], cl, { outline: true });
   }
-  const hand = kind === 'hauler' || kind === 'dancer' ? -13.2 : -5;   // a hauler holds both arms up to the brick on its head; a dancer raises hers
+  const hand = kind === 'hauler' || kind === 'dancer' || kind === 'newcomer' ? -13.2 : -5;   // a hauler holds both arms up to the brick on its head; a dancer raises hers
   g.line([X - 1.8 * s, Y - 8.4 * s], [X - 2.4 * s, Y + hand * s], sk, 0.9 * s);
   g.line([X + 1.8 * s, Y - 8.4 * s], [X + 2.4 * s, Y + hand * s], sk, 0.9 * s);
   const collar = { noble: GOLD, woman: TEAL, firefighter: RED, dancer: GOLD, musician: TEAL }[kind] || BLUE;
@@ -63,6 +63,12 @@ export function fig(g, gx, gy, kind, z = 0, sc = 1) {
   if (kind === 'porter') g.ell([X, Y - 12.8 * s], 2.6 * s, 1.2 * s, '#D9B060', { outline: true });
   if (kind === 'farmer') g.line([X + 2.4 * s, Y - 5 * s], [X + 5 * s, Y + 0.8 * s], WOOD, 0.8 * s);
   if (kind === 'hauler') brick(g, X + 0.2 * s, Y - 12.4 * s, s);
+  if (kind === 'newcomer') {                                      // moving in: a cloth bundle held up on the head, a sack on the back
+    g.ell([X - 3.4 * s, Y - 6.2 * s], 1.6 * s, 2.2 * s, '#B07A3A', { outline: true });
+    g.ell([X, Y - 13 * s], 3.4 * s, 2.1 * s, ORANGE, { outline: true });
+    g.line([X - 2.6 * s, Y - 13 * s], [X + 2.6 * s, Y - 13 * s], '#FAF6EC', 0.6 * s);
+    g.circ([X, Y - 15.2 * s], 0.9 * s, ORANGE, { outline: true });
+  }
   if (kind === 'firefighter') {                                   // a leather bucket of water in the right hand
     g.poly([[X + 1.2 * s, Y - 5.4 * s], [X + 3.8 * s, Y - 5.4 * s], [X + 3.4 * s, Y - 2.2 * s], [X + 1.6 * s, Y - 2.2 * s]], '#8A4A2A', { outline: true });
     g.ell([X + 2.5 * s, Y - 5.4 * s], 1.3 * s, 0.45 * s, '#4FB3B5');
