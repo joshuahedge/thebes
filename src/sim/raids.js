@@ -70,6 +70,8 @@ import { igniteBuilding } from './fire.js';
 import { flowField, tileCost } from './pathfinding.js';
 import { healWalls } from './defence.js';
 import { trainSoldiers, combatDay, soldiersHome } from './combat.js';
+import { favourRaidSize, favourTributeFactor } from './court.js';
+import { footMix } from '../data/armies.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 
@@ -113,7 +115,8 @@ export function raidSize(world) {
   if (world.raid.index === 0) return RAIDS.firstSize;
   const wealth = Math.min(RAIDS.wealthMax, Math.max(0, (raidWealth(world) - RAIDS.wealthBase) / RAIDS.wealthStep));
   const raw = 1 + population(world) / RAIDS.peoplePerRaider + wealth;
-  return Math.max(RAIDS.minSize, Math.min(RAIDS.maxSize, Math.round(raw * riskOf(world) * world.raid.adaptation * sizeGrowth(world))));
+  // Stage 4.6 (ruling 336): favour's size step (src/sim/court.js, the Court track's); the Armies track keeps this call.
+  return favourRaidSize(world, Math.max(RAIDS.minSize, Math.min(RAIDS.maxSize, Math.round(raw * riskOf(world) * world.raid.adaptation * sizeGrowth(world)))));
 }
 
 // Raids grow with the years since the raid clock started (Stage 4.5, ruling 317): 1 + RAIDS.growthPerYear a year, at most
@@ -137,7 +140,9 @@ export const warningDirs = (w) => (w.second ? [w.dir, w.second.dir] : [w.dir]);
 
 // A raid's tribute (spec 4.13): round(RAIDS.tributeShare x towers needed x the tower's price in this city), fixed when
 // the warning appears (warning.tribute; null for the first raid, which cannot be paid off).
-export const tributeFor = (world, size) => Math.round(RAIDS.tributeShare * towersNeeded(size) * costOf(world, 'tower'));
+// Stage 4.6 (ruling 336): times favour's factor (src/sim/court.js, the Court track's); the Armies track keeps this call and prices the
+// total of a mixed raid.
+export const tributeFor = (world, size) => Math.round(favourTributeFactor(world) * RAIDS.tributeShare * towersNeeded(size) * costOf(world, 'tower'));
 
 // The day a later warning appears (spec 4.13): RAIDS.laterMin to RAIDS.laterMax days after fromDay (the last raid's
 // arrival day, or the day a cancelled raid would have arrived), drawn by hash2(seed, the next raid's index, salt).
@@ -190,7 +195,8 @@ function raiseWarning(world, events) {
   const second = !first && index >= RAIDS.twoSidedFrom && entries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < RAIDS.twoSidedChance
     ? secondBand(world, index, entry, single + 1) : null;
   const size = second ? single + 1 : single;
-  const w = { index, entry, dir: entryDir(world, entry), size, tribute: first ? null : tributeFor(world, size), target: raidTargetKind(world), day: world.day, arrives: world.day + RAIDS.warningDays, first };
+  // Stage 4.6 (world version 7): mix, the raid's composition by enemy kind (src/data/armies.js); all on foot until the Armies track draws it.
+  const w = { index, entry, dir: entryDir(world, entry), size, tribute: first ? null : tributeFor(world, size), target: raidTargetKind(world), day: world.day, arrives: world.day + RAIDS.warningDays, first, mix: footMix(size) };
   if (second) w.second = second;
   r.warning = w;
   r.index = index + 1;
@@ -304,10 +310,10 @@ function arrive(world, events) {
   const r = world.raid, w = r.warning;
   const raiders = [];
   warningBands(w).forEach((band, k) => {
-    for (let n = 0; n < band.size; n++) raiders.push({ id: world.nextUnitId++, x: 0, y: 0, hp: UNITS.raider.hp, hit: false, ...(k ? { band: 1 } : {}) });
+    for (let n = 0; n < band.size; n++) raiders.push({ id: world.nextUnitId++, kind: 'foot', x: 0, y: 0, hp: UNITS.raider.hp, hit: false, ...(k ? { band: 1 } : {}) });
   });
   const a = {
-    index: w.index, entry: { ...w.entry }, dir: w.dir, size: w.size, target: w.target, day: world.day, raiders, phase: 'attack', targetId: null,
+    index: w.index, entry: { ...w.entry }, dir: w.dir, size: w.size, mix: { ...(w.mix || footMix(w.size)) }, target: w.target, day: world.day, raiders, phase: 'attack', targetId: null,
     struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [], x: w.entry.x, y: w.entry.y, blocked: null, towerIds: [], fires: [], burnedKinds: [],
   };
   if (w.second) a.second = { entry: { ...w.second.entry }, dir: w.second.dir, x: w.second.entry.x, y: w.second.entry.y, phase: 'attack', targetId: null, struck: [], wait: 0, blocked: null };
@@ -426,7 +432,7 @@ function trackFires(world, rec) {
 function endRaid(world, events, won) {
   const r = world.raid, a = r.active;
   const report = {
-    index: a.index, dir: a.dir, size: a.size, won, byTowers: a.byTowers, bySoldiers: a.bySoldiers, towers: a.towerIds.length, burned: a.burned,
+    index: a.index, dir: a.dir, size: a.size, mix: { ...(a.mix || footMix(a.size)) }, won, byTowers: a.byTowers, bySoldiers: a.bySoldiers, towers: a.towerIds.length, burned: a.burned,
     stolen: a.stolen, day: world.day, burnedKinds: a.burnedKinds.slice(), fires: a.fires.map((f) => ({ ...f })),
     ...(a.second ? { dirs: [a.dir, a.second.dir] } : {}), ...(a.foodStolen ? { foodStolen: a.foodStolen } : {}), ...(a.fled ? { fled: a.fled } : {}),
   };

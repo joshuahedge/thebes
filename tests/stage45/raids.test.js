@@ -164,7 +164,7 @@ describe('s45 two-sided raids', () => {
     const seed = seedWhere(3, true);
     expect(run(seed, 3)).toBe(run(seed, 3));
     const w = city(); w.seed = seedWhere(3, false); due(w, { index: 3 }); dayAt(w, 3000);
-    expect(Object.keys(w.raid.warning).sort()).toEqual(['arrives', 'day', 'dir', 'entry', 'first', 'index', 'size', 'target', 'tribute']);
+    expect(Object.keys(w.raid.warning).sort()).toEqual(['arrives', 'day', 'dir', 'entry', 'first', 'index', 'mix', 'size', 'target', 'tribute']);   // mix: Stage 4.6 (src/data/armies.js)
     expect(Object.keys(raidAlerts(w)[0]).sort()).toEqual(['arrives', 'code', 'dir', 'x', 'y']);
   });
   it('has no raids on Peaceful', () => {

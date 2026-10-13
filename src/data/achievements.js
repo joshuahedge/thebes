@@ -15,6 +15,8 @@
 //   jobs       at least `people` people and unemployment at most `rate`
 //   safeYear   at least `people` people and no building burned for `days` days (counted from Town where its day is known)
 // raids: true marks an achievement about raids, which a Peaceful city (no raids, spec 4.18) never earns or lists.
+import { S46_ACHIEVEMENTS } from './s46.js';
+
 export const ACHIEVEMENTS = [
   { id: 'way_in', measure: { kind: 'roads', n: 10 } },
   { id: 'neighbours', measure: { kind: 'homes', n: 10 } },
@@ -62,4 +64,6 @@ export const ACHIEVEMENTS = [
   { id: 'stone_upon_stone', measure: { kind: 'tally', key: 'stoneLaid', n: 5000 } },
   { id: 'gilded_tip', measure: { kind: 'finished', type: 'obelisk_large', n: 1 } },
   { id: 'lapis_and_gold', measure: { kind: 'palaceStyle', n: 4 } },
+  // Stage 4.6: each track's achievements (src/data/s46.js S46_ACHIEVEMENTS), with their names and conditions in its text.js section.
+  ...S46_ACHIEVEMENTS,
 ];

@@ -14,7 +14,9 @@ import { PALACE_STYLES } from '../data/palace.js';
 
 const scaled = (world, base) => Math.max(1, Math.round(base * DIFFICULTIES[world.difficulty].cost));
 
-export const costOf = (world, type) => scaled(world, BUILDINGS[type].cost);
+// Stage 4.6 (Track 0 for the Wonders track): options.style is a monument's style (canPlace, conditionsFor and place pass it); the
+// Wonders track prices it here (MONUMENT_STYLES[style].goldFactor). Until then it changes nothing.
+export const costOf = (world, type, options = {}) => scaled(world, BUILDINGS[type].cost);
 
 export const roadCostOf = (world) => scaled(world, ECONOMY.roadCost);
 

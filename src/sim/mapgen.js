@@ -56,13 +56,20 @@ export const variantFor = (seed) => MAP_VARIANTS[Math.floor(hash2(seed, 0, MAP.v
 // so every fixture, dev scene and old seed keeps its map. The others share its terrain rules (water, a one-tile bank, the
 // fertile band, meadow, clay) and differ in where the river runs, how it bends, an island in it or a lake in the desert, and
 // where the rock lies (always off the river: no patch within MAP.rockAwayTiles of water, none on the start area).
+//
+// size (Stage 4.6, ruling 333): MAP_SIZES' 48, 64 or 80 (any size works; tests use small ones). The layouts' positions were drawn
+// for 64 (MAP.size): at another size each position across or down the map (where the river runs, where rock and a lake may lie,
+// where the raiders come in) is scaled by size / 64 (at), and widths, bends and distances stay as they are. At 64 `at` is the
+// identity, so every layout draws exactly as before (tests/stage46/contract/mapSizes.test.js holds the fingerprints). Counts that
+// should grow with the area (rock, clay, raider entries) are the Map track's (ruling 333), not scaled here.
 export function generateMap(seed, size = MAP.size, variant = 'classic') {
   const v = MAP_VARIANTS.includes(variant) ? variant : 'classic';
   const spec = MAP.variants[v];
+  const at = (n) => (size === MAP.size ? n : Math.round((n * size) / MAP.size));
   const rng = createRng(seed);
   const terrain = new Array(size * size).fill(T.DESERT);
   const phase = rng.range(0, Math.PI * 2);
-  const base = spec.riverBaseX === undefined ? MAP.riverBaseX : spec.riverBaseX;
+  const base = at(spec.riverBaseX === undefined ? MAP.riverBaseX : spec.riverBaseX);
   const wave1 = spec.wave1 || MAP.riverWave1, wave2 = spec.wave2 || MAP.riverWave2;
   const rawX = (y) => base + wave1.amp * Math.sin(y / wave1.period + phase) + wave2.amp * Math.sin(y / wave2.period + phase * 2);
   const riverX = spec.mirror ? (y) => size - 1 - rawX(y) : rawX;
@@ -72,7 +79,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   let isl = null;
   if (spec.island) {
     const I = spec.island;
-    const yc = I.minY + rng.int(I.spanY);
+    const yc = at(I.minY) + rng.int(at(I.spanY));
     isl = { cy: yc + 0.5, half: I.halfMin + rng.range(0, I.halfExtra), lx: I.lxMin + rng.range(0, I.lxExtra), ix: Math.round(riverX(yc)) };
   }
   const islandEase = (y) => {
@@ -113,7 +120,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   // turns to clay first, so the lake always has a little.
   if (spec.lake) {
     const L = spec.lake;
-    const lake = { x: L.minX + rng.int(L.spanX), y: L.minY + rng.int(L.spanY), r: L.rMin + rng.range(0, L.rExtra) };
+    const lake = { x: at(L.minX) + rng.int(at(L.spanX)), y: at(L.minY) + rng.int(at(L.spanY)), r: L.rMin + rng.range(0, L.rExtra) };
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const d = Math.hypot(x - lake.x, y - lake.y);
@@ -139,7 +146,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   if (v === 'classic') {
     const patches = rp.min + rng.int(rp.extra);
     for (let p = 0; p < patches; p++) {
-      const px = rp.minX + rng.int(size - rp.marginX), py = rp.minY + rng.int(size - rp.marginY), r = rp.radiusMin + rng.int(rp.radiusExtra);
+      const px = at(rp.minX) + rng.int(size - at(rp.marginX)), py = at(rp.minY) + rng.int(size - at(rp.marginY)), r = rp.radiusMin + rng.int(rp.radiusExtra);
       for (let y = py - r - 1; y <= py + r + 1; y++) {
         for (let x = px - r - 1; x <= px + r + 1; x++) {
           if (x < 0 || y < 0 || x >= size || y >= size) continue;
@@ -148,7 +155,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
       }
     }
   } else {
-    addRocks(terrain, size, seed, rng, spec.rocks, focus);
+    addRocks(terrain, size, seed, rng, { ranges: spec.rocks.ranges.map(([x0, x1]) => [at(x0), at(x1)]) }, focus, at);
   }
 
   addClay(terrain, size, seed);
@@ -160,15 +167,16 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
     const i = idx(size, ex, y);
     if (terrain[i] === T.WATER || terrain[i] === T.ROCKY) terrain[i] = T.DESERT;
   }
-  const raiderEntries = entriesFor(terrain, size, spec);
-  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v };
+  const raiderEntries = entriesFor(terrain, size, spec, at);
+  // params (Stage 4.6, world.mapParams): the seeded shape choices the Map track draws (ruling 332), for display and replays; none yet.
+  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v, params: {} };
 }
 
 // Rock for a variant: round patches (radius 3, a wavering edge) in the x ranges the variant names, taking the ranges in turn, until
 // the map holds MAP.rockTarget rocky tiles (so 90-130, a patch adding at most 41) and every range has had a patch. A patch whose centre lies within MAP.rockAwayTiles
 // of water, or near the start area (the focus), is skipped, so the rock is always off the river and out of the way of the first
 // homes; the tries are capped.
-function addRocks(terrain, size, seed, rng, rocks, focus) {
+function addRocks(terrain, size, seed, rng, rocks, focus, at = (n) => n) {
   const rp = MAP.rockPatches;
   const waterNear = (px, py, r) => {
     for (let y = Math.max(0, py - r); y <= Math.min(size - 1, py + r); y++) {
@@ -179,7 +187,7 @@ function addRocks(terrain, size, seed, rng, rocks, focus) {
   let count = 0, placed = 0;
   for (let tries = 0; tries < MAP.rockTries && (count < MAP.rockTarget || placed < rocks.ranges.length); tries++) {
     const [x0, x1] = rocks.ranges[placed % rocks.ranges.length];
-    const px = x0 + rng.int(x1 - x0 + 1), py = rp.minY + rng.int(size - rp.marginY), r = rp.radiusMin;
+    const px = x0 + rng.int(x1 - x0 + 1), py = at(rp.minY) + rng.int(size - at(rp.marginY)), r = rp.radiusMin;
     if (Math.hypot(px - focus.x, py - focus.y) < MAP.rockAwayStart || waterNear(px, py, MAP.rockAwayTiles)) continue;
     placed++;
     for (let y = py - r - 1; y <= py + r + 1; y++) {
@@ -196,9 +204,9 @@ function addRocks(terrain, size, seed, rng, rocks, focus) {
 // The raiders' two entries on the map's edges. A variant names where each starts (an edge and a position along it); a spot
 // that is water slides along the edge to the nearest land tile, so an entry is always land. Classic keeps the middle of the
 // east edge and of the north edge.
-function entriesFor(terrain, size, spec) {
+function entriesFor(terrain, size, spec, scale = (n) => n) {
   const mid = Math.floor(size / 2);
-  const wanted = spec.entries ? spec.entries(size) : [{ edge: 'east', at: mid }, { edge: 'north', at: mid }];
+  const wanted = spec.entries ? spec.entries(size).map((e) => ({ edge: e.edge, at: scale(e.at) })) : [{ edge: 'east', at: mid }, { edge: 'north', at: mid }];
   return wanted.map(({ edge, at }) => {
     const tile = (k) => (edge === 'east' ? { x: size - 1, y: k } : edge === 'west' ? { x: 0, y: k } : { x: k, y: 0 });
     for (let d = 0; d < size; d++) {

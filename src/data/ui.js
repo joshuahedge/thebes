@@ -1,6 +1,7 @@
 // Interface data: what the build dock shows and in what order, key bindings, and gesture and timing tunables.
 import { TIERS } from './housing.js';
 import { MONUMENT_KINDS } from './monuments.js';
+import { S46_DOCK } from './s46.js';
 export const CATEGORIES = [
   { id: 'roads', items: ['road', 'demolish'] },
   { id: 'homes', items: ['house', 'garden', 'statue', 'plaza', 'sphinx'] },
@@ -11,6 +12,8 @@ export const CATEGORIES = [
   // Stage 4 (spec 4.14, ruling 207): everything a monument needs, in order, then the seven from the small obelisk up.
   { id: 'monuments', items: ['builders_guild', 'quarry', 'brickworks', ...MONUMENT_KINDS] },
 ];
+// Stage 4.6: each track's dock items (src/data/s46.js S46_DOCK: category id -> items) after the category's own.
+for (const c of CATEGORIES) if (S46_DOCK[c.id]) c.items.push(...S46_DOCK[c.id].filter((t) => !c.items.includes(t)));
 
 export const CATEGORY_ICONS = { roads: '═', homes: '⌂', food: '❋', industry: '⚒', services: '✚', defence: '⛊', monuments: '▲' };
 

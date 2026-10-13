@@ -1,3 +1,5 @@
+import { S46_GOODS } from './s46.js';
+
 // Goods (spec 4.10). kind: 'food' (homes eat it: grain from tier 3, figs as the second food from tier 7),
 // 'household' (homes use it from the tier that needs it), 'raw' (only workshops use it), and from Stage 4 'material'
 // (only monument sites use it: homes never want it and bazaars never sell it). perResidentPerMonth is what a home uses,
@@ -16,10 +18,15 @@ export const GOODS = {
   // Stage 4 (spec 4.10, 4.16): quarries make stone, brickworks turn clay into bricks; storehouses keep both.
   stone: { name: 'Stone', kind: 'material' },
   bricks: { name: 'Bricks', kind: 'material' },
+  // Stage 4.6: the River track's game and fish (src/data/river.js RIVER_GOODS), joined by src/data/s46.js.
+  ...S46_GOODS,
 };
 
 const ofKind = (kind) => Object.keys(GOODS).filter((k) => GOODS[k].kind === kind);
 export const FOOD_GOODS = ofKind('food');            // grain first: the food every home from tier 3 eats
+// Stage 4.6 (Track 0): the order foods are named in, everywhere a list of foods is shown or counted (the River track's game and fish
+// take the last two slots once RIVER_GOODS has them). FOOD_GOODS keeps the goods that exist, in GOODS order.
+export const FOOD_SLOTS = ['grain', 'figs', 'game', 'fish'];
 export const HOUSEHOLD_GOODS = ofKind('household');
 export const RAW_GOODS = ofKind('raw');
 export const MATERIAL_GOODS = ofKind('material');    // Stage 4: stone, bricks (src/data/monuments.js MATERIALS)

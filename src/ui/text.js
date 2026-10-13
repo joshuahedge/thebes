@@ -1760,3 +1760,63 @@ Object.assign(FIRST_TEXT, {
   first_police_post: { head: 'First police post', why: `Staffed, it cuts the risk of thefts up to ${crimeNumbersRow.reach} road tiles away.` },
 });
 // ── end s45 threats ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 map (Map track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The Map track's words, and only the Map track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+export const S46_MAP_TEXT = {};
+// ── end s46 map ──
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 river (River track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The River track's words, and only the River track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+export const S46_RIVER_TEXT = {};
+// ── end s46 river ──
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 court (Court track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The Court track's words, and only the Court track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+export const S46_COURT_TEXT = {};
+// ── end s46 court ──
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 armies (Armies track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The Armies track's words, and only the Armies track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+export const S46_ARMY_TEXT = {};
+// ── end s46 armies ──
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 wonders (Wonders track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The Wonders track's words, and only the Wonders track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+export const S46_WONDER_TEXT = {};
+// ── end s46 wonders ──
+
+//
+// (A stable separator between the Stage 4.6 sections: leave these lines as they are.)
+//
+// ── s46 ux (UX track) ─────────────────────────────────────────────────────────────────────────────────────────
+// The UX track's words, and only the UX track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
+// FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
+// states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+export const S46_UX_TEXT = {};
+// ── end s46 ux ──

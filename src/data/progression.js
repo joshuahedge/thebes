@@ -1,3 +1,5 @@
+import { S46_UNLOCKS } from './s46.js';
+
 // Milestones (spec 4.14) and the buildings each unlocks. Byblos, the second trade partner, opens at Great city
 // through src/data/trade.js. Stage 3: the firehouse comes with the Village (fire risk itself starts at Town), and the
 // wall (whose gates are walls drawn on roads), tower and barracks with Market town, where the raid clock starts.
@@ -12,3 +14,6 @@ export const MILESTONES = [
   { id: 'great_city', name: 'Great city', population: 650, unlocks: ['farm_flax', 'weaver', 'colossus', 'mastaba_small', 'sphinx'] },
   { id: 'capital', name: 'Capital', population: 1000, unlocks: ['gem_mine', 'jeweller', 'mastaba_large'] },
 ];
+
+// Stage 4.6: each track's unlocks (src/data/s46.js S46_UNLOCKS: milestone id -> types) join their milestone's list, after its own.
+for (const m of MILESTONES) if (S46_UNLOCKS[m.id]) m.unlocks.push(...S46_UNLOCKS[m.id].filter((t) => !m.unlocks.includes(t)));

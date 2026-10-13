@@ -9,6 +9,7 @@ import { drawWall } from '../../../src/sim/defence.js';
 import { removeBuilding } from '../../../src/sim/world.js';
 import { idx } from '../../../src/sim/grid.js';
 import { RAIDS, UNITS, DEFENCE } from '../../../src/data/raids.js';
+import { footMix } from '../../../src/data/armies.js';
 import { DANGER_MOOD } from '../../../src/data/mood.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 
@@ -84,7 +85,7 @@ describe('s3 raids the raid', () => {
     expect(w.gold).toBe(1000 - 60);
     const end = ended(events);
     expect(end.won).toBe(false);
-    expect(end.report).toEqual({ index: 0, dir: 'east', size: 3, won: false, byTowers: 0, bySoldiers: 0, towers: 0, burned: 0, stolen: 60, day: w.day, burnedKinds: [], fires: end.report.fires, fled: 2 });
+    expect(end.report).toEqual({ index: 0, dir: 'east', size: 3, mix: footMix(3), won: false, byTowers: 0, bySoldiers: 0, towers: 0, burned: 0, stolen: 60, day: w.day, burnedKinds: [], fires: end.report.fires, fled: 2 });
     expect(w.raid.last).toEqual(end.report);
     expect(temple.id in w.buildings).toBe(true);
     expect([w.raid.active, w.tally.raidsLost, w.tally.raidsBeaten, w.tally.goldStolen, w.raid.adaptation]).toEqual([null, 1, 0, 60, RAIDS.adaptLost]);
@@ -278,7 +279,7 @@ describe('s3 raids soldiers', () => {
     for (let d = 0; d < DEFENCE.trainDays - 1; d++) trainSoldiers(w);
     expect(w.soldiers.length).toBe(0);
     trainSoldiers(w);
-    expect(w.soldiers).toEqual([{ id: 1, barracks: b.id, x: 5, y: 5, hp: UNITS.soldier.hp, hit: false, task: 'wait' }]);
+    expect(w.soldiers).toEqual([{ id: 1, kind: 'soldier', barracks: b.id, x: 5, y: 5, hp: UNITS.soldier.hp, hit: false, task: 'wait' }]);
     for (let d = 0; d < 5 * DEFENCE.trainDays; d++) trainSoldiers(w);
     expect(w.soldiers.length).toBe(DEFENCE.soldiersPerBarracks);
     expect(b.progress).toBe(0);
