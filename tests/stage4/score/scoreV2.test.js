@@ -32,11 +32,12 @@ describe('s4 score Monuments part', () => {
     finished(w, 'obelisk_small', 10, 11);
     expect(words(w)).toBe('Found a large obelisk: +30 prestige when finished');
     finished(w, 'obelisk_large', 12, 11);
-    expect([reason(w), words(w)]).toEqual([{ code: 'locked', type: 'colossus', first: false, milestone: 'great_city' }, 'The colossus comes with Great city']);
+    // Stage 4.6: the kinds are in the order of their cost, so the great sphinx (Great city) comes before the colossus
+    expect([reason(w), words(w)]).toEqual([{ code: 'locked', type: 'great_sphinx', first: false, milestone: 'great_city' }, 'The great sphinx comes with Great city']);
     w.milestone = 'capital';
-    for (const [k, x] of [['colossus', 14], ['mastaba_small', 17], ['mastaba_large', 21]]) finished(w, k, x, 11);
-    expect(prestigeOf(w)).toBe(270);
-    expect(words(w)).toBe('The small pyramid needs 100 prestige (you have 270)');   // the day before updatePrestigeUnlocks records it
+    for (const [k, x] of [['great_sphinx', 14], ['colossus', 18], ['mastaba_small', 21], ['mastaba_large', 25], ['sun_temple', 29]]) finished(w, k, x, 11);
+    expect(prestigeOf(w)).toBe(440);   // the seven kinds' 270 so far, the great sphinx's 40 and the sun temple's 130
+    expect(words(w)).toBe('The small pyramid needs 100 prestige (you have 440)');   // the day before updatePrestigeUnlocks records it
     updatePrestigeUnlocks(w);
     expect(words(w)).toBe('Found a small pyramid: +160 prestige when finished');
   });

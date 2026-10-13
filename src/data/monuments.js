@@ -1,5 +1,6 @@
 // Monuments (spec 4.16, rulings 179-243), every number a first value: Josh's playtest sets the final ones (ruling 224).
-// Seven kinds, each a building type in BUILDINGS (monument: true, category 'monuments'), founded as a site and built
+// Seven kinds from Stage 4, and from Stage 4.6 three more (the great sphinx, the sun temple and the step pyramid: rulings 345, 390-392),
+// listed here in the order of their cost, small to great, which is the order of the Monuments tab. Each a building type in BUILDINGS (monument: true, category 'monuments'), founded as a site and built
 // course by course by builders' guild crews from stone and bricks. Times are game time with the kind's most crews and
 // full supply: a full crew lays MONUMENT.unitsPerCrewMonth units a month, so a kind takes crewMonths / crews months.
 //   name        the card's and the sheet's name
@@ -13,7 +14,7 @@
 //   prestige    { courses, done }: the share earned course by course (rounded down, ruling 242) and on completion
 //   desirability  the finished monument's values by distance 1-6 (spec 4.7); a site under way gives SITE_DESIRABILITY
 //   unlock      { milestone } or { milestone, prestige }: the pyramids also need that much prestige (ruling 200)
-export const MONUMENT_KINDS = ['obelisk_small', 'obelisk_large', 'colossus', 'mastaba_small', 'mastaba_large', 'pyramid_small', 'pyramid_great'];
+export const MONUMENT_KINDS = ['obelisk_small', 'obelisk_large', 'great_sphinx', 'colossus', 'mastaba_small', 'mastaba_large', 'sun_temple', 'pyramid_small', 'step_pyramid', 'pyramid_great'];
 
 // n courses of the same recipe.
 const even = (n, stone, bricks = 0) => Array.from({ length: n }, () => ({ stone, bricks }));
@@ -26,6 +27,12 @@ export const MONUMENTS = {
   obelisk_large: {
     name: 'Large obelisk', w: 1, d: 1, rotates: false, crews: 2, crewMonths: 18, courses: even(4, 90),
     founding: 400, extra: { kind: 'gilding', gold: 1000 }, prestige: { courses: 15, done: 15 }, desirability: [10, 8, 6, 4, 2, 1], unlock: { milestone: 'city' },
+  },
+  // Stage 4.6 (ruling 390): between the large obelisk and the colossus: stone only, 720 of it (the large obelisk's 360, the colossus's 960),
+  // 18 months with its two crews (9 and 24); a desirability profile like the colossus's; it comes with the colossus, at Great city.
+  great_sphinx: {
+    name: 'Great sphinx', w: 3, d: 2, rotates: false, crews: 2, crewMonths: 36, courses: even(6, 120),
+    founding: 500, extra: null, prestige: { courses: 20, done: 20 }, desirability: [12, 10, 8, 6, 4, 2], unlock: { milestone: 'great_city' },
   },
   colossus: {
     name: 'Colossus', w: 2, d: 2, rotates: false, crews: 2, crewMonths: 48, courses: even(6, 160),
@@ -41,10 +48,23 @@ export const MONUMENTS = {
     name: 'Large mastaba', w: 4, d: 3, rotates: true, crews: 4, crewMonths: 240, courses: [...even(4, 0, 960), ...even(1, 960)],
     founding: 2000, extra: null, prestige: { courses: 55, done: 55 }, desirability: [14, 12, 10, 8, 6, 4], unlock: { milestone: 'capital' },
   },
+  // Stage 4.6 (ruling 391): between the large mastaba and the small pyramid: bricks for the three core courses and stone for the three
+  // facing courses (3,000 of each; 6,000 units against 4,800 and 7,680), 75 months with its four crews (60 and 96), the widest
+  // desirability reach of the lot (6 tiles, all of it high); it comes with the large mastaba, at Capital.
+  sun_temple: {
+    name: 'Sun temple', w: 3, d: 3, rotates: false, crews: 4, crewMonths: 300, courses: [...even(3, 0, 1000), ...even(3, 1000)],
+    founding: 2500, extra: null, prestige: { courses: 65, done: 65 }, desirability: [15, 13, 11, 9, 7, 5], unlock: { milestone: 'capital' },
+  },
   // Stone for the courses, bricks for the ramp (15% of each course): 6,528 stone and 1,152 bricks.
   pyramid_small: {
     name: 'Small pyramid', w: 4, d: 4, rotates: false, crews: 4, crewMonths: 384, courses: even(8, 816, 144),
     founding: 3000, extra: null, prestige: { courses: 80, done: 80 }, desirability: [16, 14, 12, 10, 8, 6], unlock: { milestone: 'capital', prestige: 100 },
+  },
+  // Stage 4.6 (ruling 392): between the small and the great pyramid: ten courses of stone with the ramp's 15% in bricks (9,180 and 1,620; 10,800
+  // units against 7,680 and 14,400), 135 months with four crews (96 and 180), no capstone; it comes with Capital (not by prestige: ruling 392).
+  step_pyramid: {
+    name: 'Step pyramid', w: 4, d: 4, rotates: false, crews: 4, crewMonths: 540, courses: even(10, 918, 162),
+    founding: 4500, extra: null, prestige: { courses: 105, done: 105 }, desirability: [20, 17, 14, 11, 9, 7], unlock: { milestone: 'capital' },
   },
   // 12,240 stone and 2,160 bricks, then the gold capstone.
   pyramid_great: {

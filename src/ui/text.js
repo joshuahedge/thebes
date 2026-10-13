@@ -1349,7 +1349,7 @@ ALERT_TEXT.site_stalled = (alert, world, b, name) => {
   const m = good && b ? ui4SiteStatus(world, b).materials[good] : null;
   return {
     title: `${name} is not progressing`,
-    fix: ui4CauseText(alert.reason, b ? ui4ExtraGold(world, b.type) : 0, m ? { makers: m.makers.length, stores: m.stores.length } : null, b ? b.type : null) || 'Have a look',
+    fix: ui4CauseText(alert.reason, b ? ui4ExtraGold(world, b.type, b.style) : 0, m ? { makers: m.makers.length, stores: m.stores.length } : null, b ? b.type : null) || 'Have a look',
   };
 };
 Object.assign(UI4_TEXT, {
@@ -2273,7 +2273,70 @@ Object.assign(T, { soldiersPay: 'Army pay' });
 // The Wonders track's words, and only the Wonders track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
 // FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
 // states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
-export const S46_WONDER_TEXT = {};
+import { MONUMENTS as wondMonuments, MONUMENT_KINDS as wondKinds } from '../data/monuments.js';
+import { MONUMENT_STYLES as wondStyles, NEW_MONUMENT_KINDS as wondNew } from '../data/wonders.js';
+import { DAYS_PER_MONTH as wondMonthDays, DAYS_PER_SECOND as wondDaysPerSecond } from '../sim/time.js';
+// Real time at a game speed, as the spec's table writes it: "9 min", "37 min 30 s", "1 min 30 s".
+const wondClock = (seconds) => { const m = Math.floor(seconds / 60), r = Math.round(seconds - m * 60); return m ? `${m} min${r ? ` ${r} s` : ''}` : `${r} s`; };
+const wondName = (id) => (id === 'classic' ? 'Classic' : id.charAt(0).toUpperCase() + id.slice(1));
+const wondMilestone = (id) => MILESTONES.find((m) => m.id === id).name;
+// The kind's facts, every one from MONUMENTS: the table pattern of spec 4.16 (gold, materials, crews, game time, real times at 1x and 3x).
+export function wondFacts(type) {
+  const m = wondMonuments[type], months = m.crewMonths / m.crews;
+  const stone = m.courses.reduce((n, c) => n + c.stone, 0), bricks = m.courses.reduce((n, c) => n + c.bricks, 0);
+  const seconds = (speed) => (months * wondMonthDays) / (speed * wondDaysPerSecond);
+  return { gold: m.founding, stone, bricks, crews: m.crews, months, at1x: wondClock(seconds(1)), at3x: wondClock(seconds(3)), reach: m.desirability.length, best: m.desirability[0], size: `${m.w} by ${m.d}`, milestone: wondMilestone(m.unlock.milestone) };
+}
+const wondMaterials = (f) => listText([f.stone ? `${ui4Gold(f.stone)} stone` : '', f.bricks ? `${ui4Gold(f.bricks)} bricks` : ''].filter(Boolean));
+// What each new kind is, in a few words (flavour, not a rule), for its first's line.
+const WOND_KIND_WORDS = {
+  great_sphinx: 'a lion of stone with the face of the king',
+  sun_temple: 'two pylons round a tall sun pillar crowned by a gold disc',
+  step_pyramid: 'a pyramid of five stone steps with a small chapel on top',
+};
+// The table of spec 4.16 for a kind in one sentence, every figure from MONUMENTS: gold, materials, crews, game time, the real times at 1x and 3x.
+const wondKindLine = (type) => {
+  const f = wondFacts(type);
+  return `${buildingName(type)}: ${WOND_KIND_WORDS[type]}. ${f.size} tiles, ${ui4Gold(f.gold)} gold to found, ${wondMaterials(f)}. Up to ${f.crews} crews build it in ${f.months} game months: about ${f.at1x} at 1x, ${f.at3x} at 3x.`;
+};
+// The tip and its How to play line, short (a tip keeps to 20 words): gold, crews, the time at 1x, and what it does for homes.
+const wondTip = (type, where) => { const f = wondFacts(type); return `${buildingName(type)} ${where}: ${ui4Gold(f.gold)} gold, ${f.crews} crews, ${f.at1x} at 1x. Homes within ${f.reach} tiles get nicer.`; };
+export const S46_WONDER_TEXT = {
+  styleNames: Object.fromEntries(Object.keys(wondStyles).map((id) => [id, wondName(id)])),
+  styleGroup: 'Style of the monument',
+  styleLabel: (name, line) => `${name}: ${line}`,
+  // The bar's line for the style in force: what it costs and does, from MONUMENT_STYLES (goldFactor, desirability) and the sim's price for this kind.
+  // The button beside it names the style, so the line does not (the button's accessible name is styleLabel: the name and this line).
+  styleLine(style, price) {
+    const S = wondStyles[style], more = Math.round((S.goldFactor - 1) * 100);
+    const gold = more > 0 ? `${more}% more gold in all (${Math.round(price)} to found)` : 'no extra cost';
+    const nicer = S.desirability > 0 ? `, homes in reach +${S.desirability} nicer` : '';
+    const look = { whitewashed: 'Plain white limestone', painted: 'Teal and ochre bands', gilded: 'Gold leaf' }[style];
+    return more > 0 ? `${look}: ${gold}${nicer}` : `${look}, ${gold}${nicer}`;
+  },
+  // The sheet's row for a monument founded in a style (a Classic one has none).
+  styleRow(style, price) {
+    const S = wondStyles[style], more = Math.round((S.goldFactor - 1) * 100);
+    const parts = [more > 0 ? `${more}% more gold in all` : 'no extra cost'];
+    if (S.desirability > 0) parts.push(`homes in reach +${S.desirability} nicer`);
+    return `Style: ${wondName(style)} (${parts.join(', ')})`;
+  },
+  // The styles' tip (20 words at most): the offered styles that cost something say what they cost and do, from MONUMENT_STYLES.
+  styleTip: (() => {
+    const dear = Object.keys(wondStyles).filter((id) => wondStyles[id].pick && (wondStyles[id].goldFactor !== 1 || wondStyles[id].desirability));
+    return `Pick a style on the bar. ${dear.map((id) => `${wondName(id)} costs ${Math.round((wondStyles[id].goldFactor - 1) * 100)}% more gold in all, and homes in reach get +${wondStyles[id].desirability} nicer`).join('; ')}.`;
+  })(),
+  kindLine: wondKindLine,
+  kindTip: (type) => wondTip(type, 'unlocked'),
+  kindHelp: (type) => wondTip(type, `(${wondFacts(type).milestone})`),
+  sevenWonders: (n) => `Finish ${n} different kinds of monument (there are ${wondKinds.length})`,
+};
+Object.assign(FIRST_TEXT, Object.fromEntries(wondNew.map((type) => [`first_${type}`, { head: `First ${buildingName(type).toLowerCase()}`, why: `${wondMonuments[type].prestige.courses + wondMonuments[type].prestige.done} prestige when finished. ${wondFacts(type).crews} crews build it in ${wondFacts(type).months} game months: ${wondFacts(type).at1x} at 1x, ${wondFacts(type).at3x} at 3x.` }])));
+Object.assign(TIP_TEXT, Object.fromEntries(wondNew.map((type) => [`wonder_${type}`, S46_WONDER_TEXT.kindTip(type)])), { monument_styles: S46_WONDER_TEXT.styleTip });
+TIP_HELP_TEXT.monument_styles = S46_WONDER_TEXT.styleTip;
+for (const type of wondNew) TIP_HELP_TEXT[`wonder_${type}`] = S46_WONDER_TEXT.kindHelp(type);
+// "Seven wonders" still asks for seven kinds, now of ten (ruling 396): the words say so.
+ACHIEVEMENT_TEXT.seven_wonders = S46_WONDER_TEXT.sevenWonders(score4Achievement('seven_wonders').n);
 // ── end s46 wonders ──
 
 //

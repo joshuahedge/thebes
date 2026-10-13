@@ -160,8 +160,8 @@ describe('data milestones to Capital', () => {
       town: ['farm_fig', 'clay_pit', 'potter', 'storehouse', 'booth', 'statue', 'palace', 'physician', 'nilometer', 'hunting_lodge', 'fishing_wharf'],   // Stage 4.6: the River track's (ruling 361)
       market_town: ['trading_post', 'wall', 'tower', 'barracks', 'police_post', 'archery_range', 'stables'],   // Stage 4.6: the Armies track's (ruling 387)
       city: ['farm_barley', 'brewery', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'plaza'],
-      great_city: ['farm_flax', 'weaver', 'colossus', 'mastaba_small', 'sphinx'],
-      capital: ['gem_mine', 'jeweller', 'mastaba_large'],
+      great_city: ['farm_flax', 'weaver', 'colossus', 'mastaba_small', 'sphinx', 'great_sphinx'],   // Stage 4.6: the great sphinx
+      capital: ['gem_mine', 'jeweller', 'mastaba_large', 'sun_temple', 'step_pyramid'],   // Stage 4.6: the sun temple and the step pyramid
     });
   });
   it('unlocks every building exactly once, and nothing that does not exist', () => {
@@ -196,6 +196,8 @@ describe('data desirability', () => {
       builders_guild: [-4, -3, -2, -1], quarry: [-6, -5, -4, -3, -2, -1], brickworks: [-4, -3, -2, -1], plaza: [2, 1], sphinx: [10, 8, 6, 4, 2], palace: [4, 3, 2, 1],
       obelisk_small: [6, 5, 4, 3, 2, 1], obelisk_large: [10, 8, 6, 4, 2, 1], colossus: [12, 10, 8, 6, 4, 2], mastaba_small: [10, 8, 6, 4, 2, 1],
       mastaba_large: [14, 12, 10, 8, 6, 4], pyramid_small: [16, 14, 12, 10, 8, 6], pyramid_great: [24, 20, 16, 12, 10, 8],
+      // Stage 4.6 (Wonders, rulings 390-392): the great sphinx like the colossus, the sun temple's wide reach, the step pyramid between the pyramids
+      great_sphinx: [12, 10, 8, 6, 4, 2], sun_temple: [15, 13, 11, 9, 7, 5], step_pyramid: [20, 17, 14, 11, 9, 7],
     });
   });
   it('gives homes values by tier, from an empty plot to an Estate', () => {
