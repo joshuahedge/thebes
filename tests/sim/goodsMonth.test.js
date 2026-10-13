@@ -27,7 +27,7 @@ describe('sim goods month', () => {
     const home = addRaw(w, 'house', 12, 9, { tier: 3, residents: 12, stock: { grain: 3, pottery: 1 } });
     addRaw(w, 'bazaar', 9, 11, { store: { grain: 40 } });
     staffAll(w);
-    expect(homeGoodsHeld(w)).toEqual({ grain: 43, figs: 0, pottery: 1, beer: 0, linen: 0, jewellery: 0 });
+    expect(homeGoodsHeld(w)).toEqual({ grain: 43, figs: 0, game: 0, fish: 0, pottery: 1, beer: 0, linen: 0, jewellery: 0 });
     runMonth(w);
     const m = w.stats.lastMonth;
     expect(m.used.grain).toBe(3);                                     // 12 residents eat 3 grain a month

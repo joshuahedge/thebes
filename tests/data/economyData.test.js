@@ -15,13 +15,13 @@ const pick = (b, keys) => Object.fromEntries(keys.map((k) => [k, b[k]]));
 
 describe('data goods', () => {
   it('lists the ten goods with their kinds and household use', () => {
-    expect(Object.keys(GOODS)).toEqual(['grain', 'figs', 'pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'stone', 'bricks']);   // Stage 4: the two materials
-    expect(FOOD_GOODS).toEqual(['grain', 'figs']);
+    expect(Object.keys(GOODS)).toEqual(['grain', 'figs', 'pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'stone', 'bricks', 'game', 'fish']);   // Stage 4: the two materials; Stage 4.6: the River track's two foods
+    expect(FOOD_GOODS).toEqual(['grain', 'figs', 'game', 'fish']);
     expect(HOUSEHOLD_GOODS).toEqual(['pottery', 'beer', 'linen', 'jewellery']);
     expect(RAW_GOODS).toEqual(['clay', 'barley', 'flax', 'gems']);
     expect(MATERIAL_GOODS).toEqual(['stone', 'bricks']);
     const use = Object.fromEntries([...FOOD_GOODS, ...HOUSEHOLD_GOODS].map((g) => [g, GOODS[g].perResidentPerMonth]));
-    expect(use).toEqual({ grain: 0.25, figs: 0.25, pottery: 0.05, beer: 0.05, linen: 0.04, jewellery: 0.03 });
+    expect(use).toEqual({ grain: 0.25, figs: 0.25, game: 0.25, fish: 0.25, pottery: 0.05, beer: 0.05, linen: 0.04, jewellery: 0.03 });
     for (const g of RAW_GOODS) expect([g, 'perResidentPerMonth' in GOODS[g]]).toEqual([g, false]);
     for (const [g, def] of Object.entries(GOODS)) expect([g, typeof def.name, def.name.length > 0]).toEqual([g, 'string', true]);
   });
@@ -80,6 +80,7 @@ describe('data buildings, Stage 2', () => {
     expect(made).toEqual({
       farm_grain: 'grain 30', farm_fig: 'figs 24', clay_pit: 'clay 40', potter: 'pottery 30', farm_barley: 'barley 30',
       brewery: 'beer 25', farm_flax: 'flax 24', weaver: 'linen 20', gem_mine: 'gems 15', jeweller: 'jewellery 15', quarry: 'stone 30', brickworks: 'bricks 30',
+      hunting_lodge: 'game 24', fishing_wharf: 'fish 20',   // Stage 4.6: the River track's (ruling 335)
     });
     expect(used).toEqual({ potter: 'clay', brewery: 'barley', weaver: 'flax', jeweller: 'gems', brickworks: 'clay' });
     for (const t of Object.keys(used).filter((k) => k !== 'brickworks')) {   // the brickworks makes a material (Stage 4)
@@ -87,7 +88,7 @@ describe('data buildings, Stage 2', () => {
     }
   });
   it('stores food in granaries and everything else in storehouses, and sells the six goods homes use', () => {
-    expect(BUILDINGS.granary.stores).toEqual(['grain', 'figs']);
+    expect(BUILDINGS.granary.stores).toEqual(['grain', 'figs', 'game', 'fish']);   // Stage 4.6 (ruling 363)
     expect(BUILDINGS.granary.capacity).toBe(600);
     expect(BUILDINGS.storehouse.stores).toEqual(['pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'stone', 'bricks']);
     expect(BUILDINGS.storehouse.capacity).toBe(800);
@@ -95,8 +96,8 @@ describe('data buildings, Stage 2', () => {
       const homes = [BUILDINGS.granary, BUILDINGS.storehouse].filter((s) => s.stores.includes(g));
       expect([g, homes.length]).toEqual([g, 1]);                                   // every good has exactly one kind of store
     }
-    expect(BUILDINGS.bazaar.sells).toEqual(['grain', 'figs', 'pottery', 'beer', 'linen', 'jewellery']);
-    expect(BUILDINGS.bazaar.stock).toEqual({ grain: 300, figs: 200, pottery: 100, beer: 100, linen: 100, jewellery: 100 });
+    expect(BUILDINGS.bazaar.sells).toEqual(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'jewellery']);
+    expect(BUILDINGS.bazaar.stock).toEqual({ grain: 300, figs: 200, game: 100, fish: 100, pottery: 100, beer: 100, linen: 100, jewellery: 100 });
     expect(Object.keys(BUILDINGS.bazaar.stock)).toEqual(BUILDINGS.bazaar.sells);
   });
   it('makes the booth an entertainment service with a reach of 8 road tiles', () => {
@@ -156,7 +157,7 @@ describe('data milestones to Capital', () => {
     ]);
     expect(Object.fromEntries(MILESTONES.map((m) => [m.id, m.unlocks]))).toEqual({
       village: ['house', 'well', 'farm_grain', 'granary', 'bazaar', 'temple', 'garden', 'firehouse'],
-      town: ['farm_fig', 'clay_pit', 'potter', 'storehouse', 'booth', 'statue', 'palace', 'physician'],
+      town: ['farm_fig', 'clay_pit', 'potter', 'storehouse', 'booth', 'statue', 'palace', 'physician', 'nilometer', 'hunting_lodge', 'fishing_wharf'],   // Stage 4.6: the River track's (ruling 361)
       market_town: ['trading_post', 'wall', 'tower', 'barracks', 'police_post', 'archery_range', 'stables'],   // Stage 4.6: the Armies track's (ruling 387)
       city: ['farm_barley', 'brewery', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'plaza'],
       great_city: ['farm_flax', 'weaver', 'colossus', 'mastaba_small', 'sphinx'],
