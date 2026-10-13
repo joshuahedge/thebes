@@ -111,12 +111,12 @@ export function raiderChariot(gIn, gx, gy, z = 0, sc = UNIT_SCALE * 0.8) {
   horse(g, X + 3 * s, Y, s, ENEMY_HORSE, ENEMY_HORSE_DARK, '#1A1216', RAIDER.crest);
   car(g, X - 5 * s, Y + 0.4 * s, s, RAIDER.kilt, RAIDER.rim);
   g.circ([X - 7.4 * s, Y - 5.8 * s], 2.4 * s, '#6E5A3E', { stroke: RAIDER.rim, strokeWidth: 0.5 * s });   // the round shield
-  const dx = X - 5 * s, dy = Y - 8 * s;
-  g.poly([[dx - 1.4 * s, dy], [dx + 1.4 * s, dy], [dx + 1.6 * s, dy - 3.2 * s], [dx - 1.6 * s, dy - 3.2 * s]], RAIDER.body);
-  g.line([dx - 0.6 * s, dy - 2 * s], [dx - 2.6 * s, dy - 17 * s], WOOD, 0.6 * s);         // the spear, held high
-  g.poly([[dx - 2.6 * s, dy - 18.6 * s], [dx - 2 * s, dy - 16.4 * s], [dx - 3.2 * s, dy - 16.6 * s]], STONE[2]);
-  g.circ([dx, dy - 4.8 * s], 1.4 * s, RAIDER.body);
-  g.path([['M', [dx - 1.7 * s, dy - 5 * s]], ['Q', [dx - 0.4 * s, dy - 10 * s], [dx + 2.4 * s, dy - 7.4 * s]], ['Q', [dx + 0.4 * s, dy - 7.6 * s], [dx - 1.7 * s, dy - 5 * s]], ['Z']], RAIDER.crest);
+  // Stage 4.6 UX (ruling 406): a tall pole from the car's back with a dark swallow-tailed banner streaming behind it, so an enemy chariot is
+  // told from yours by its outline at a distance and not by its darker horse (colour alone): no friendly unit carries a flag on a pole.
+  const bx = X - 9.4 * s, by = Y - 5 * s;
+  g.line([bx, by], [bx, by - 16.5 * s], WOOD, 0.7 * s);
+  g.poly([[bx, by - 16.5 * s], [bx - 8.4 * s, by - 15.2 * s], [bx - 5.9 * s, by - 12.9 * s], [bx - 8.4 * s, by - 10.6 * s], [bx, by - 11.7 * s]], RAIDER.body, { outline: true });
+  g.line([bx - 0.8 * s, by - 14 * s], [bx - 6.4 * s, by - 13.5 * s], RAIDER.crest, 0.9 * s);
 }
 
 // A boat raider, landed: a crested raider with no shield, a long oar held upright beside him, its blade above his head.

@@ -2,7 +2,7 @@
 // The page pauses when hidden and reopens paused; the UI says so when it comes back.
 import { setSpeed } from '../sim/commands.js';
 import { el, button, iconButton, icon, setText, clear } from './components.js';
-import { SPEED_LABELS, T, pauseSpeedText } from './text.js';
+import { SPEED_LABELS, T, pauseSpeedText, S46_UX_TEXT } from './text.js';
 
 export function createSpeedControl({ world, store, afterCommand = () => {}, onPausedHidden = () => {}, doc = document }) {
   const mounted = [];     // render callbacks
@@ -55,11 +55,23 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
       paint();
       mounted.push(paint);
     },
+    // The wide top bar (ruling 404): Pause and the three speeds as one row of steps. Every step has a picture and a name that says what pressing it
+    // does; the pressed step is the state, and it can be read without colour: it is filled and it alone carries its word ("Paused", or the
+    // speed "2×"), where the others are a picture alone, which keeps the whole row about as wide as the old four words were. data-state on the
+    // bar says playing or paused, which the stylesheet uses to tell the two apart by more than the one step.
     mountBar(container) {
-      const buttons = [0, 1, 2, 3].map((s) => button(SPEED_LABELS[s], { 'aria-pressed': String(world.speed === s), onClick: () => api.set(s) }));
+      const buttons = [0, 1, 2, 3].map((s) => el('button', { type: 'button', class: `speed-step step-${s}`, 'aria-label': S46_UX_TEXT.speedStepLabel(s), title: S46_UX_TEXT.speedStepTitle(s), 'aria-pressed': String(world.speed === s), onClick: () => api.set(s) },
+        [el('span', { class: 'icon', 'aria-hidden': 'true', text: S46_UX_TEXT.speedGlyphs[s] }), el('span', { class: 'word', 'aria-hidden': 'true', text: s === 0 ? S46_UX_TEXT.pausedWord : SPEED_LABELS[s] })]));
       clear(container);
+      container.setAttribute('role', 'group');
+      container.setAttribute('aria-label', S46_UX_TEXT.speedGroup);
       container.append(...buttons);
-      mounted.push(() => buttons.forEach((b, s) => b.setAttribute('aria-pressed', String(world.speed === s))));
+      const paint = () => {
+        container.dataset.state = world.speed === 0 ? 'paused' : 'playing';
+        buttons.forEach((b, s) => b.setAttribute('aria-pressed', String(world.speed === s)));
+      };
+      paint();
+      mounted.push(paint);
     },
     render() { for (const fn of mounted) fn(); },
   };
