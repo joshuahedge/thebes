@@ -106,7 +106,7 @@ describe('s46 river ui: the Nilometer, the lodge and the wharf', () => {
     herd(w, { x: 30, y: 21, size: 3 });
     const o = huntingOutlook(w, lodge);
     const t = text(riverRows(w, lodge));
-    expect([t.includes(R.herdsLine(2, 11)), t.includes(R.gameLine(o.left, o.taken)), o.month, o.left]).toEqual([true, true, 9, 9]);   // 6 from the big herd, 3 from the small
+    expect([t.includes(R.herdsLine(2, 11)), t.includes(R.gameLine(o.left, o.taken)), o.month, o.left]).toEqual([true, true, 12, 12]);   // ruling 460: one animal (6 game) from each herd
     expect(t).toContain(`${HUNTING.perHerdMonth} a herd`);
     expect(t).toContain(`at most ${HUNTING.maxMonth}`);
     expect(t.includes(R.noHerds)).toBe(false);
@@ -198,7 +198,7 @@ describe('s46 river ui: the summary', () => {
     let t = text(riverSummary(w));
     expect([o.farms, o.plain, o.now]).toEqual([1, 30, 18]);
     expect(t).toContain(R.outlookLine(o, false));
-    expect(t).toContain('about 18 food a month (30 in a plain year)');
+    expect(t).toContain('about 18 food a month (30 without the flood)');
     w.day = dayOf(2, 2);
     w.flood = { year: 2, level: 'high', forecast: 'high', from: seasonDays(2).from, to: seasonDays(2).to, applied: 'low', risen: false };
     o = floodOutlook(w, floodLevelRow('high'));

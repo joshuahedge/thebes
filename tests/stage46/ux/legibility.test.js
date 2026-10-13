@@ -58,7 +58,7 @@ describe('s46 ux legibility', () => {
       expect(ok.right <= bar.getBoundingClientRect().right + 0.5).toBe(true);
     } finally { r.cleanup(); }
   });
-  it('F4: a sheet\'s heading cartouche has two round ends and a thin tie that crosses the loop end, not a bar floating inside it that reads as a text cursor', async () => {
+  it('F4: a sheet\'s heading cartouche has two round ends and no tie that could read as a text cursor', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       r.store.set(openSheet(r.store.get(), 'summary'));
@@ -66,10 +66,8 @@ describe('s46 ux legibility', () => {
       const cs = getComputedStyle(h2), tie = getComputedStyle(h2, '::after'), box = h2.getBoundingClientRect();
       expect(parseFloat(cs.borderTopRightRadius) >= box.height / 2 - 0.5).toBe(true);
       expect(Math.abs(parseFloat(cs.borderTopRightRadius) - parseFloat(cs.borderTopLeftRadius)) < 0.5).toBe(true);   // the ends match
-      // Fix round 1 (ruling 409): the tie straddles the loop's end line (its far side is outside the box, its near side inside) and stands a little
-      // proud of it top and bottom, so it is part of the outline; a bar wholly inside the loop beside the last letter reads as a caret.
-      expect([parseFloat(tie.width) <= 3.5, parseFloat(tie.width) >= 2, parseFloat(tie.right) <= 0, parseFloat(tie.right) + parseFloat(tie.width) > 1]).toEqual([true, true, true, true]);
-      expect(parseFloat(tie.height) > box.height).toBe(true);                // taller than the loop: it crosses the line
+      // Fix round 1 (ruling 409) moved the tie onto the loop's end; the final review (ruling 450) found it still read as a caret, so it is gone.
+      expect(tie.content).toBe('none');
     } finally { r.cleanup(); }
   });
   it('F5: the score chip sits clear of the frieze under the top bar', async () => {

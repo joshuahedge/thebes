@@ -163,7 +163,7 @@ export function createUI({
   const fireTip = (key) => tips.trigger(key, { busy: tipsBusy(store.get()) });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
   const placement = createPlacement({ world, store, afterCommand, effects, now });
-  const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
+  const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc, keys: () => settings.get().keyboardShortcuts !== false });
   const alerts = createAlerts({
     world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root,
     onAction: (a, kind) => { for (const s of seams()) s.onAlertAction(a, kind); },   // Stage 3: Pay tribute and the like
@@ -243,6 +243,7 @@ export function createUI({
   let lastHelp = settings.get().help;
   const stopSettingsWatch = settings.subscribe((v) => {
     sidePanel.render();
+    speedControl.render();                               // Keyboard shortcuts on or off: the speed steps' titles name the keys only when on
     corners.render();                                    // a new text size moves the tray's top edge: the corners may need to step away from it (or back)
     if (v.help === lastHelp) return;
     lastHelp = v.help;

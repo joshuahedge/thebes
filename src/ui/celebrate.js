@@ -40,8 +40,12 @@ export function remarkFor(world) {
   const season = SEASONS[m % SEASONS.length];
   const has = new Set(allBuildings(world).map((b) => b.type));
   // Stage 4.6 (ruling 346): a remark that speaks of the river rising (flood: 'fair') is heard only in a year whose flood is Fair or better.
-  const fair = floodFairOrBetter(world);
-  const pool = CITIZEN_REMARKS.filter((r) => r.season === season && has.has(r.type) && (!r.flood || fair));
+  // Final review: only once this year's water has risen (a Fair level drawn for a flood still to come is not yet a flood to talk of), and a
+  // remark that only speaks of floods (flood: 'past') waits for the city's first one (world.flood.applied: the last flood that rose).
+  const f = world.flood || {};
+  const fair = Boolean(f.risen) && floodFairOrBetter(world);
+  const past = Boolean(f.applied);
+  const pool = CITIZEN_REMARKS.filter((r) => r.season === season && has.has(r.type) && (!r.flood || (r.flood === 'past' ? past : fair)));
   if (!pool.length) return null;
   return pool[Math.min(pool.length - 1, Math.floor(hash2(world.seed, m, REMARK_SALT) * pool.length))].text;
 }
