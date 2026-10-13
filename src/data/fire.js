@@ -31,6 +31,7 @@ export const FIRE_RISK = {
   farm_grain: FARMS, farm_fig: FARMS, farm_barley: FARMS, farm_flax: FARMS, clay_pit: FARMS, gem_mine: FARMS,
   temple: 0.1, firehouse: 0.1,
   quarry: FARMS, brickworks: 1.0, builders_guild: 0.3,   // Stage 4: the quarry as the gem mine, the brickworks a kiln, the guild timber and rope
+  archery_range: 0.3, stables: 0.5,                      // Stage 4.6 (ruling 416): the range like the barracks (timber and bowstrings), the stables higher (hay and straw)
 };
 
 // Index = tier, as TIERS: an empty plot (0) never burns; hut and shack 0.3; cottage, house, townhouse 0.25; manor up 0.2.

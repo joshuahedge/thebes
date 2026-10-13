@@ -170,7 +170,8 @@ function safetyTerms(world) {
   let defence = { value: 1, reason: null };
   if (raidsOn(world) && world.raid.clockDay !== null) {
     const need = towersNeeded(raidSize(world));
-    const towers = workingTowers(world), soldiers = world.soldiers.length;
+    // Ruling 414 (344): only foot soldiers count here, so archers and chariots (Stage 4.6) leave every score as it was.
+    const towers = workingTowers(world), soldiers = world.soldiers.filter((u) => (u.kind || 'soldier') === 'soldier').length;
     defence = { value: Math.min(1, (towers + soldiers / 3) / need), reason: { code: 'towers', need, towers, soldiers } };
   }
   const since = (day) => world.day - day < T.recordDays;

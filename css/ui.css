@@ -1060,6 +1060,14 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 /* Show me in the confirm bar (rulings 331, 350): a button 44px high across a row of its own, under the words, buttons and chips. */
 .confirm.has-fit { flex-wrap: wrap; row-gap: 6px; }
 .confirm .show-fit, .confirm .show-fit-room { flex: 1 0 100%; order: 10; min-height: var(--tap); }   /* the room is the empty row a terrain building keeps for Show me, so the bar holds one height */
+/* A terrain building's bar on a portrait phone stays under half of a small screen's height at the largest text (UX rule 2): the words column
+   beside the three buttons is only ~150px wide, so its lines wrapped to two or three each. The words flow instead as the bar's own rows (the
+   title beside the buttons, then each line across the whole width), so a line the width holds takes one row, not two. */
+body[data-layout="portrait"] .confirm.has-fit { row-gap: 0; }
+body[data-layout="portrait"] .confirm.has-fit .info { display: contents; }
+body[data-layout="portrait"] .confirm.has-fit .info > .lines { order: 3; flex: 1 0 100%; min-height: calc(3 * 1.45 * 12px * var(--ui-scale)); }   /* room for the three lines a warning or an effect takes, so the bar does not bob */
+body[data-layout="portrait"] .confirm.has-fit .info > .title { order: 0; flex: 1 1 0; min-width: 0; }
+body[data-layout="portrait"] .confirm.has-fit .conds, body[data-layout="portrait"] .confirm.has-fit .show-fit, body[data-layout="portrait"] .confirm.has-fit .show-fit-room { margin-top: 6px; }
 /* ── end s46 map ── */
 
 /* ── s46 river (River track) ── the River track's styles. Add new rules just above the end marker. */

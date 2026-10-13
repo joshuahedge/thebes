@@ -34,12 +34,12 @@ const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve
 
 // The page as the scene's query opens it, at the given size: the real game loop runs (the city is paused), and the
 // interface's clock can be moved on (skip) past the session's first moments.
-async function bootScene(name, width, height) {
+async function bootScene(name, width, height, params = MOBILE_SCENE_PARAMS[name]) {
   const shell = await mountShell(width, height);
   const history = fakeHistory();
   let skew = 0;
   const api = await boot(document, window, {
-    root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams(MOBILE_SCENE_PARAMS[name]),
+    root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams(params),
     now: () => performance.now() + skew, clock: () => 1760000000000, storage: noStorage,
     envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,
     uiOptions: { getSize: () => ({ width, height }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage: noStorage },
@@ -133,6 +133,46 @@ describe('mobile height budget', () => {
         }
       }
       for (const id of NOT_YET) if (id.startsWith(`${name} `) && !made.has(id)) wrong.push(`${id}: no longer checked, take it off NOT_YET`);
+      expect(wrong).toEqual([]);
+    });
+  }
+});
+
+// Stage 4.6 (UX rule 2): a court letter, the Court track's dev scene 's46-court-letter' on the sample city, as a sheet and as the alert row
+// alone, on a small and a tall phone at each text size. The rows obey the budget above (a sheet leaves only the alert row; the letter alone
+// in the row is one row), and the sheet may scroll but its Send button is reachable: scrolled to, it sits on screen and is a 44 px target.
+describe('mobile height budget: a court letter (Stage 4.6)', () => {
+  const PHONES = [[375, 667], [390, 844]];
+  for (const [what, options] of [['as a sheet', {}], ['in the alert row, unread', { alert: true }]]) {
+    it(`holds the budget with a court letter ${what}, and Send is reachable`, async () => {
+      const wrong = [];
+      for (const [width, height] of PHONES) {
+        for (const textSize of TEXT_SIZES) {
+          const r = await bootScene('s46-court-letter', width, height, 'skipTitle=1&seed=11&sample=1');
+          try {
+            const g = r.api.game();
+            g.ui.settings.set({ textSize, reducedMotion: 'on' });
+            await frame();
+            const said = await devScene(r.api, 's46-court-letter', { ...options, quick: true });
+            await frame(); await frame();
+            const m = measureRows(r.root);
+            const at = `${width}x${height} ${textSize}%`;
+            expect([at, said.startsWith('court letter: ') && !said.includes('no request')]).toEqual([at, true]);
+            for (const c of budgetChecks('s46-court-letter', m)) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);
+            if (options.alert) {
+              expect([at, Boolean(r.root.querySelector('#banner .critical[data-code="court_letter"]'))]).toEqual([at, true]);
+            } else {
+              expect([at, g.ui.store.get().sheet.kind]).toEqual([at, 'letter']);
+              const send = r.root.querySelector('#sheet .court-choice.send button');
+              expect([at, Boolean(send)]).toEqual([at, true]);
+              send.scrollIntoView({ block: 'nearest' });
+              const b = send.getBoundingClientRect(), frameBox = r.root.getBoundingClientRect();
+              if (b.height < 44 - 0.5 || b.width < 44 - 0.5) wrong.push(`${at} send: ${Math.round(b.width)}x${Math.round(b.height)} is under 44x44`);
+              if (b.top < frameBox.top - 1 || b.bottom > frameBox.bottom + 1) wrong.push(`${at} send: not on screen (${Math.round(b.top)}..${Math.round(b.bottom)} of ${Math.round(frameBox.height)})`);
+            }
+          } finally { r.cleanup(); }
+        }
+      }
       expect(wrong).toEqual([]);
     });
   }

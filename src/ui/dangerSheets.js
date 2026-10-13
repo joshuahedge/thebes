@@ -270,7 +270,6 @@ export function tributeSheet(ctx) {
       row(D.goldNow, String(world.gold)), row(D.goldAfter, String(world.gold - q.cost)),
       el('p', { class: 'cancels', text: D.cancels(q.dirs, q.size) }),
       el('p', { class: 'small muted', text: D.capital(D.defenceLine(q, q.dirs)) }),
-      ...counterParts(w),
     );
     if (!q.payable) body.append(el('p', { class: 'why-not coral', text: D.tributeBelowZero(world.gold) }));
     const pay = button(D.payGold(q.cost), { class: 'pay', disabled: !q.payable, onClick: () => {
@@ -280,6 +279,7 @@ export function tributeSheet(ctx) {
       ctx.toasts.show(D.tributePaid(r.cost));
       ctx.afterCommand({ kind: 'tribute', result: r, text: D.tributePaid(r.cost), undoable: false });
     } });
-    body.append(el('div', { class: 'actions tribute-actions' }, [pay, button(D.keepGold, { class: 'keep', onClick: close })]));
+    // The two buttons come before the counters list (UX rule 2): on a phone the list ran to a screen of its own and pushed them off it.
+    body.append(el('div', { class: 'actions tribute-actions' }, [pay, button(D.keepGold, { class: 'keep', onClick: close })]), ...counterParts(w));
   };
 }

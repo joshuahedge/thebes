@@ -217,7 +217,7 @@ describe('s46 armies words: firsts and tips', () => {
   it('words the firsts and tips from the data', () => {
     expect(FIRST_TEXT.first_archery_range.why).toBe(`Its archers shoot raiders up to ${UNIT_TYPES.archer.range} tiles away, 2x from a wall or tower.`);
     expect(FIRST_TEXT.first_stables.why).toBe(`Its chariots deal 2x in the open; their horses eat ${UNIT_TYPES.chariot.grain} grain each a month.`);
-    expect(TIP_TEXT.chariots_in_open.includes(`${ARMY.wallNear}+ tiles`)).toBe(true);
+    expect(TIP_TEXT.chariots_in_open.includes(`no wall within ${ARMY.wallNear} tiles`)).toBe(true);   // the sim's open is a wall more than wallNear tiles away: see s46 wave1
     expect(TIP_TEXT.chariots_in_open.endsWith('but cannot pass walls or gates: put stables beside it.')).toBe(true);
   });
 });

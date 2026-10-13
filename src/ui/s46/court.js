@@ -12,6 +12,7 @@
 import { BUILDINGS } from '../../data/buildings.js';
 import { FAVOUR } from '../../data/court.js';
 import { allBuildings } from '../../sim/world.js';
+import { raidsOn } from '../../sim/costs.js';
 import {
   courtOpen, favourBand, requestStatus, sendRequest, refuseRequest, readLetter, cardChoices, answerCard, monthsLeft, stockOf,
 } from '../../sim/court.js';
@@ -187,6 +188,7 @@ export function createCourtUi(ctx) {
     const c = world.court;
     if (!courtOpen(world)) { body.append(line(C.closed(), 'muted')); return; }
     const band = favourBand(world);
+    const raids = raidsOn(world);
     body.append(
       el('div', { class: `favour-head ${band}` }, [
         el('span', { class: 'favour-mark', 'aria-hidden': 'true', text: C.favourMark[band] }),
@@ -195,12 +197,13 @@ export function createCourtUi(ctx) {
         el('span', { class: 'favour-band', text: C.band[band] }),
       ]),
       favourMeter(world),
-      el('p', { class: 'favour-now', text: `${C.bandNow[band]}.` }),
+      el('p', { class: 'favour-now', text: `${C.bandNowOf(band, raids)}.` }),
       line(`${C.drift}.`),
     );
+    if (!raids) body.append(line(C.peacefulNote));
     // The rules of the other bands (the band in effect is the line above), then the gift clock whenever it runs (ruling 375).
-    if (band !== 'high') body.append(line(`${C.ruleHigh}.`));
-    if (band !== 'low') body.append(line(`${C.ruleLow}.`));
+    if (band !== 'high') body.append(line(`${C.ruleHighOf(raids)}.`));
+    if (band !== 'low' && raids) body.append(line(`${C.ruleLowOf(raids)}.`));
     if (c.nextGiftDay !== null) {
       const left = monthsLeft(world, c.nextGiftDay);
       body.append(line(`${left > 0 ? C.nextGift(left) : C.giftWaiting}.`, 'small muted gift-due'));
