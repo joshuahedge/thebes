@@ -119,7 +119,7 @@ describe('s45 clay (the Ground overlay and the pick)', () => {
     w.wall[idx(w.size, 6, 6)] = 5;
     expect(groundTiles(w).clay.length).toBe(12 - 3 - 1);
     const room = roomTiles(w, 'clay_pit');
-    expect([room.size, room.has(idx(w.size, 4, 5)), room.has(idx(w.size, 10, 10))]).toEqual([4, true, false]);   // the strip has no room for 2 x 2
+    expect([room.size, room.has(idx(w.size, 4, 5)), room.has(idx(w.size, 10, 10))]).toEqual([7, true, true]);   // Stage 4.6 (ruling 331): 2 of 4 tiles on clay is a spot, so the one-wide strip has room too; (6, 5) has none (a spot over it runs onto the road or the wall)
     expect(groundTiles(w, { x0: 10, y0: 10, x1: 10, y1: 10 }).clay).toEqual([[10, 10]]);
   });
   it('has a clay key in the legend, turns Ground on when a clay pit is picked, and lands the ghost on the nearest free clay', () => {

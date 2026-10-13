@@ -1059,7 +1059,7 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 }
 /* Show me in the confirm bar (rulings 331, 350): a button 44px high across a row of its own, under the words, buttons and chips. */
 .confirm.has-fit { flex-wrap: wrap; row-gap: 6px; }
-.confirm .show-fit { flex: 1 0 100%; order: 10; min-height: var(--tap); }
+.confirm .show-fit, .confirm .show-fit-room { flex: 1 0 100%; order: 10; min-height: var(--tap); }   /* the room is the empty row a terrain building keeps for Show me, so the bar holds one height */
 /* ── end s46 map ── */
 
 /* ── s46 river (River track) ── the River track's styles. Add new rules just above the end marker. */

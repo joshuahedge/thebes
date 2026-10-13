@@ -241,3 +241,65 @@ describe('s46 map bridges in the guidance row: the tip carries a Show me to the 
     } finally { q.cleanup(); }
   });
 });
+
+describe('s46 map bridges in the guidance row: the tip\'s Show me aims at the crossing nearest the view, not at a pixel', () => {
+  // Two crossings far apart: the river is dry but for a 3-tile pool at rows 4 and 28.
+  function twoCrossings() {
+    const w = makeTestWorld({ size: 32, fertile: [], gold: 5000 });
+    for (const y of [4, 28]) for (let x = 10; x <= 12; x++) w.terrain[idx(32, x, y)] = T.WATER;
+    return w;
+  }
+  function tipSeam(w, centreTile) {
+    const root = document.createElement('div');
+    root.innerHTML = '<div id="tip"><div class="tip-row"><span class="body"><span class="text"></span><button class="more" hidden></button></span><button class="got-it">Got it</button></div></div>';
+    root.querySelector('.text').textContent = TIP_TEXT.bridges;
+    document.body.append(root);
+    const shown = [], store = createStore(INITIAL_UI_STATE);
+    const ui = createMapUi({ world: w, store, root, fireTip: () => {}, showMeAt: (a) => shown.push(a), toasts: { show: () => {} }, cameraControl: { centre: () => ({ x: 187, y: 333 }), centreTile: () => centreTile.at } });
+    return { root, shown, ui, cleanup() { ui.destroy(); root.remove(); } };
+  }
+  it('goes to the crossing nearest the tile under the middle of the view, worked out when the button is pressed', () => {
+    const w = twoCrossings();
+    const centreTile = { at: { x: 11, y: 5 } };
+    const t = tipSeam(w, centreTile);
+    try {
+      const button = t.root.querySelector('.tip-show-me');
+      expect(Boolean(button)).toBe(true);
+      fire(button, 'click');
+      const north = bridgeSpot(w, { x: 11, y: 5 }), south = bridgeSpot(w, { x: 11, y: 27 });
+      expect([Math.abs(north.y - 4) <= 1, Math.abs(south.y - 28) <= 1]).toEqual([true, true]);
+      expect(t.shown).toEqual([{ category: 'roads', item: 'road', x: north.x + 0.5, y: north.y + 0.5 }]);
+      centreTile.at = { x: 11, y: 27 };                                                   // the player looks south now; the tip's row is still up
+      fire(button, 'click');
+      expect(t.shown[1]).toEqual({ category: 'roads', item: 'road', x: south.x + 0.5, y: south.y + 0.5 });
+      expect(t.shown[1].y).toBeGreaterThan(20);                                           // a pixel centre (187, 333) read as a tile would always pick the same end
+    } finally { t.cleanup(); }
+  });
+  it('measures the tip\'s words again once the button has narrowed them: a cut row shows More', () => {
+    const w = twoCrossings();
+    const proto = HTMLElement.prototype, saved = Object.getOwnPropertyDescriptor(proto, 'scrollHeight');
+    Object.defineProperty(proto, 'scrollHeight', { configurable: true, get() { return this.classList.contains('text') ? 60 : 0; } });
+    Object.defineProperty(proto, 'clientHeight', { configurable: true, get() { return this.classList.contains('text') ? 30 : 0; } });
+    const t = tipSeam(w, { at: { x: 11, y: 5 } });
+    try {
+      const more = t.root.querySelector('.more');
+      expect([more.hidden, more.textContent.startsWith('More')]).toEqual([false, true]);
+    } finally {
+      t.cleanup();
+      delete proto.clientHeight;
+      if (saved) Object.defineProperty(proto, 'scrollHeight', saved); else delete proto.scrollHeight;
+    }
+  });
+  it('gives the camera a centreTile that is the tile at the middle of the view, in tile coordinates (not the pixel centre)', async () => {
+    const r = await rigUI({});
+    try {
+      const cc = r.ui.cameraControl;
+      for (const [x, y] of [[12, 10], [20, 25], [5, 3]]) {
+        cc.jumpTo(x, y);
+        const c = cc.centreTile();
+        expect([Math.abs(c.x - x) < 0.01, Math.abs(c.y - y) < 0.01]).toEqual([true, true]);
+      }
+      expect(cc.centre()).toEqual({ x: 195, y: 422 });                                    // the pixel centre, which is what bridgeSpot was being given
+    } finally { r.cleanup(); }
+  });
+});
