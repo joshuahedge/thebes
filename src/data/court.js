@@ -55,7 +55,7 @@ export const GOOD_VALUE = {
 // ── Gifts at high favour (ruling 336) ──
 // A gift at most every FAVOUR.giftEveryMonths months, at a month's end with favour at FAVOUR.high or more (ruling 375): gold (months of taxes) or a household good
 // (months of its output, else `min`), seeded; goods that find no room in a store come as gold. Rounded to `step`.
-export const GIFTS = { gold: { months: [1, 2], min: 50, step: 10 }, goods: { months: [1, 2], min: 20, step: 5 } };
+export const GIFTS = { gold: { months: [0.5, 1], min: 50, step: 10 }, goods: { months: [0.5, 1], min: 20, step: 5 } };   // ruling 433: half a month to a month (was 1-2)
 
 // ── Event cards (ruling 338) ──
 // gapMonths: [min, max] between cards; none while a raid is under way. COURT_CARDS: { id, threat (off on Peaceful), choices:

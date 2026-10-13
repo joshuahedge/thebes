@@ -87,8 +87,8 @@ describe('s46 armies words: the building sheets', () => {
   it('says how many units a building holds, whether it trains and why not, its pay and what its units do', () => {
     const w = makeTestWorld();
     const range = addRaw(w, 'archery_range', 2, 2), stab = addRaw(w, 'stables', 6, 2), bar = addRaw(w, 'barracks', 10, 2);
-    expect(armyRowsModel(w, range)).toEqual({ kind: 'archer', n: 0, cap: UNIT_TYPES.archer.perBuilding, away: [], status: 'short', short: 2 });
-    range.staff = 6;
+    expect(armyRowsModel(w, range)).toEqual({ kind: 'archer', n: 0, cap: UNIT_TYPES.archer.perBuilding, away: [], status: 'short', short: 1 });   // ruling 432: a quarter of its 4 workers
+    range.staff = 4;
     expect(armyRowsModel(w, range).status).toBe('training');
     range.paused = true;
     expect(armyRowsModel(w, range).status).toBe('paused');
