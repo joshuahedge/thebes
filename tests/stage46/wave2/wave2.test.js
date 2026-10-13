@@ -138,24 +138,25 @@ describe('s46 wave2 hunting lodge sheet', () => {
     w.wildlife.seeded = true;
     const big = herd(w, { size: 8 });
     const small = herd(w, { x: 30, y: 21, size: 3, max: 3 });
-    const fresh = HUNTING.perHerdMonth + 3;                                  // 6 from the big herd, all 3 of the small
+    const fresh = 2 * HUNTING.perHerdMonth;                                  // ruling 460: one animal (6 game) from each herd, the small one too (3 > 2)
     expect([huntingOutlook(w, lodge).left, huntingOutlook(w, lodge).taken]).toEqual([fresh, 0]);
     expect(text(riverRows(w, lodge))).toContain(R.gameLine(fresh, 0));
-    for (let i = 0; i < 4; i++) takeGame(w, big, lodge);                     // this lodge takes 4 from the big herd
+    takeGame(w, big, lodge);                                                  // this lodge's hunters take an animal from the big herd: 6 game in hand
+    lodge.gameLeft -= 4; lodge.hunted = 4;                                    // and it has made 4 of them
     let o = huntingOutlook(w, lodge);
-    expect([o.left, o.taken]).toEqual([HUNTING.perHerdMonth - 4 + 3, 4]);   // 2 more from the big herd, 3 from the small: not "up to 9" again
+    expect([o.left, o.taken]).toEqual([HUNTING.gamePerAnimal - 4 + HUNTING.perHerdMonth, 4]);   // 2 in hand, 6 from the small herd: not "up to 12" again
     expect(text(riverRows(w, lodge))).toContain(R.gameLine(o.left, 4));
     expect(R.gameLine(5, 4)).toBe(`5 more (4 taken); ${HUNTING.perHerdMonth} a herd a month, at most ${HUNTING.maxMonth}`);
-    takeGame(w, small, other);                                                // another lodge's hunters take 1 from the small herd: its share is shared
+    takeGame(w, small, other);                                                // another lodge's hunters take the small herd's animal: its share is shared
     o = huntingOutlook(w, lodge);
-    expect([o.left, o.taken]).toEqual([HUNTING.perHerdMonth - 4 + 2, 4]);
+    expect([o.left, o.taken]).toEqual([HUNTING.gamePerAnimal - 4, 4]);
     lodge.hunted = HUNTING.maxMonth - 1;                                     // the lodge's own month nearly spent: the lodge's most binds
     expect(huntingOutlook(w, lodge).left).toBe(1);
     lodge.hunted = 4;
     for (const b of [lodge, other]) b.hunted = b.hunted || 0;
     wildlifeMonth(w);                                                         // the month's end: both counts start afresh
     o = huntingOutlook(w, lodge);
-    expect([o.taken, o.left]).toEqual([0, Math.min(HUNTING.perHerdMonth, big.size) + Math.min(HUNTING.perHerdMonth, small.size)]);
+    expect([o.taken, o.left, small.size]).toEqual([0, lodge.gameLeft + HUNTING.perHerdMonth, HUNTING.keepAtLeast]);   // the small herd, down to 2, rests
   });
 });
 

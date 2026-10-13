@@ -81,7 +81,7 @@ describe('s46 river fix 1: the food forecast counts food only', () => {
     const o = floodOutlook(w);
     expect([o.farms, o.plain, o.now]).toEqual([grainOnly.farms, grainOnly.plain, grainOnly.now]);
     expect([o.farms, o.plain]).toEqual([1, 30]);
-    expect(text(riverSummary(w))).toContain('1 floodplain farm makes about 33 food a month (30 in a plain year)');
+    expect(text(riverSummary(w))).toContain('1 floodplain farm makes about 33 food a month (30 without the flood)');
     addFarm(w, 23, 15, 'farm_fig');                                        // figs are food: they count
     expect(floodOutlook(w).farms).toBe(2);
   });
