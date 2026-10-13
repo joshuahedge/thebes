@@ -4,6 +4,7 @@ import { describe, it, expect } from '../../harness.js';
 import './combat.test.js';
 import './raids.test.js';
 import './words.test.js';
+import './art.test.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
 import { MILESTONES } from '../../../src/data/progression.js';
 import { CATEGORIES } from '../../../src/data/ui.js';
