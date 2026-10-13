@@ -3,6 +3,7 @@
 // always reopens paused. ?skipTitle=1 boots straight into a new city and ?welcome=1 shows the Welcome back card (development flags:
 // they write nothing until the first autosave, which then replaces the saved city).
 import { createWorld } from './sim/world.js';
+import { MAP_VARIANTS } from './data/map.js';
 import { setSpeed, setGuide, setCityId } from './sim/commands.js';
 import { createCamera } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
@@ -56,7 +57,7 @@ export async function boot(doc, win, {
   let api = null;
   let current = null;        // { world, ui, loop, cam } while the game runs (declared before the music: its seed and mood read it)
   let title = null;          // { card, loop, backdrop } while the title shows
-  win.__thebes = { devScene: (name) => devScene(api, name), setMotion: (motion) => setMotion(settings, motion) };   // setMotion: tools/shots.ps1 -Stage4
+  win.__thebes = { devScene: (name, options) => devScene(api, name, options), setMotion: (motion) => setMotion(settings, motion) };   // setMotion: tools/shots.ps1 -Stage4
   // One audio context for the whole page: every game (New city, import) shares it.
   const sfx = createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
   // Stage 4 (spec 5.5): one music for the page (the title card plays too), unlocked by the first gesture, quiet while the
@@ -119,8 +120,14 @@ export async function boot(doc, win, {
   // the settings hold for new cities (spec 4.18). The sample and stress cities of the development flags never guide.
   // seed: a chosen seed (This week's Nile, a shared score's Start this seed); otherwise the flag's or a random one. Each
   // new city gets its id for the records here (spec 4.19: the interface gives it, the sim never reads the clock).
+  // Stage 4.5 (ruling 313): the river layout comes from the seed ('auto'), for New city, This week's Nile and a shared score's
+  // seed alike; a seed chosen with ?seed=, and the sample and stress cities, stay classic, so the dev flags and the shots do not
+  // move, unless ?variant= names one.
+  const variantParam = params.get('variant');
   function freshWorld({ seed = null } = {}) {
-    const world = createWorld({ seed: Number.isInteger(seed) ? seed : seedOf(), difficulty: settings.get().difficulty, cityId: newCityId(clock()) });
+    const chosen = !Number.isInteger(seed) && params.has('seed');
+    const mapVariant = MAP_VARIANTS.includes(variantParam) ? variantParam : chosen || stress || sample ? 'classic' : 'auto';
+    const world = createWorld({ seed: Number.isInteger(seed) ? seed : seedOf(), difficulty: settings.get().difficulty, cityId: newCityId(clock()), mapVariant });
     if (stress) buildStressCity(world); else if (sample) buildSampleCity(world);
     if (params.has('speed')) setSpeed(world, Number(params.get('speed')));
     setGuide(world, settings.get().help === 'full' && !stress && !sample);

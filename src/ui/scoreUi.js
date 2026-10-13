@@ -17,7 +17,7 @@ import { isMonument, isSite } from '../sim/world.js';
 import { downloadFile } from '../save/exportImport.js';
 import { openSheet } from './modes.js';
 import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, weeklySeed, drawMapSquare, medalColour } from './share.js';
-import { generateMap } from '../sim/mapgen.js';
+import { generateMap, variantFor } from '../sim/mapgen.js';
 import { el, button, setText } from './components.js';
 import {
   SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
@@ -291,7 +291,7 @@ const stampMaps = new Map();   // seed -> its generated map: a stamp row often r
 function stampMap(seed) {
   if (!stampMaps.has(seed)) {
     if (stampMaps.size >= STAMP_MAX) stampMaps.delete(stampMaps.keys().next().value);
-    stampMaps.set(seed, generateMap(seed));
+    stampMaps.set(seed, generateMap(seed, undefined, variantFor(seed)));   // a new city's layout is its seed's (ruling 313); cosmetic for an older city
   }
   return stampMaps.get(seed);
 }
