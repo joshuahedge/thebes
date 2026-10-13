@@ -6,7 +6,7 @@ import { fire } from '../../helpers/dom.js';
 import { addRaw } from '../../helpers/testWorld.js';
 import { allBuildings } from '../../../src/sim/world.js';
 import { openSheet } from '../../../src/ui/modes.js';
-import { courtDay, stockOf, cardChoices, favourBand, favourTributeFactor, favourRaidSize } from '../../../src/sim/court.js';
+import { courtDay, courtMonth, addFavour, stockOf, cardChoices, favourBand, favourTributeFactor, favourRaidSize } from '../../../src/sim/court.js';
 import { COURT, FAVOUR, REQUESTS } from '../../../src/data/court.js';
 import { S46_COURT_TEXT as C, courtRuleLow, alertText } from '../../../src/ui/text.js';
 import { createS46Seams } from '../../../src/ui/s46/index.js';
@@ -91,7 +91,7 @@ describe('s46 court ui: a request letter', () => {
     open(r, 'letter');
     const q = r.world.court.request;
     const t = sheetText(r);
-    for (const s of [C.requestTitle(q), C.deadlineText(q, 8), C.rewardText(q), C.refusedText(q), C.haveText(q, { have: 200 }), C.sendConsequence(q, r.world), C.refuseLabel(q)]) expect([s, t.includes(s)]).toEqual([s, true]);
+    for (const s of [C.requestTitle(q), C.deadlineText(q, 8), C.rewardText(q, r.world), C.refusedText(q, r.world), C.haveText(q, { have: 200 }), C.sendConsequence(q, r.world), C.refuseLabel(q, r.world), C.refuseConsequence(q, r.world)]) expect([s, t.includes(s)]).toEqual([s, true]);
     expect(r.root.querySelector('#sheet h2').textContent).toBe('A letter from the court');
     // Change the world: more asked, a different good, a nearer deadline: the sheet follows.
     q.amount = 90; q.good = 'gems'; q.met = 14; q.gold = 300;
@@ -109,7 +109,7 @@ describe('s46 court ui: a request letter', () => {
     open(r, 'letter');
     const q = r.world.court.request;
     const gold = r.world.gold, stock = stockOf(r.world, 'pottery');
-    fire(r.root.querySelector('#sheet .choice.send button'), 'click');
+    fire(r.root.querySelector('#sheet .court-choice.send button'), 'click');
     expect([stockOf(r.world, 'pottery'), r.world.court.favour, r.world.court.request, r.store.get().sheet]).toEqual([stock - 60, FAVOUR.start + q.met, null, null]);
     expect(r.world.gold).toBeGreaterThanOrEqual(gold + q.gold);                  // the reward, and any goal the answer finished
     expect(r.root.querySelector('#cheer').textContent).toContain('Sent 60 pottery to the court');
@@ -119,13 +119,13 @@ describe('s46 court ui: a request letter', () => {
   test('turns Send off and says why in one line when the stores hold too little, and on again when they do', async () => {
     const r = await rig({ amount: 260 });
     open(r, 'letter');
-    const send = () => r.root.querySelector('#sheet .choice.send button');
+    const send = () => r.root.querySelector('#sheet .court-choice.send button');
     expect(send().disabled).toBe(true);
-    expect(r.root.querySelector('#sheet .choice.send .why-not').textContent).toBe('Needs 260 pottery, and the stores hold 200');
+    expect(r.root.querySelector('#sheet .court-choice.send .why-not').textContent).toBe('Needs 260 pottery, and the stores hold 200');
     for (const b of allBuildings(r.world)) if (b.type === 'storehouse') b.store.pottery = 260;
     r.ui.refresh();
     expect(send().disabled).toBe(false);
-    expect(r.root.querySelector('#sheet .choice.send .why-not')).toBe(null);
+    expect(r.root.querySelector('#sheet .court-choice.send .why-not')).toBe(null);
     r.cleanup();
   });
   test('asks for gold from the treasury and for units, and says why units cannot go during a raid', async () => {
@@ -135,14 +135,14 @@ describe('s46 court ui: a request letter', () => {
     expect(sheetText(g)).toContain('400 gold leave the treasury');
     g.world.gold = 399;
     g.ui.refresh();
-    expect(g.root.querySelector('#sheet .choice.send button').disabled).toBe(true);
-    expect(g.root.querySelector('#sheet .choice.send .why-not').textContent).toBe('Needs 400 gold, and the treasury holds 399');
+    expect(g.root.querySelector('#sheet .court-choice.send button').disabled).toBe(true);
+    expect(g.root.querySelector('#sheet .court-choice.send .why-not').textContent).toBe('Needs 400 gold, and the treasury holds 399');
     g.cleanup();
     const s = await rig({ kind: 'soldiers', amount: 2 });
     open(s, 'letter');
     expect(sheetText(s)).toContain('Lend 2 trained units');
     expect(sheetText(s)).toContain(C.soldiersNote);
-    expect(s.root.querySelector('#sheet .choice.send .why-not').textContent).toBe('0 trained units are at home, and this needs 2');
+    expect(s.root.querySelector('#sheet .court-choice.send .why-not').textContent).toBe('0 trained units are at home, and this needs 2');
     expect(C.problem('raid', { have: 5, need: 2 }, s.world)).toBe('Units cannot leave while a raid is under way');   // requestStatus gives 'raid' while one is active (courtSim)
     s.cleanup();
   });
@@ -152,9 +152,36 @@ describe('s46 court ui: a request letter', () => {
     fire(r.root.querySelector('#sheet .later'), 'click');
     expect([r.store.get().sheet, r.world.court.letters.length, r.world.court.request.id]).toEqual([null, 1, r.world.court.request.id]);
     open(r, 'letter');
-    fire(r.root.querySelector('#sheet .choice.refuse button'), 'click');
+    fire(r.root.querySelector('#sheet .court-choice.refuse button'), 'click');
     expect([r.world.court.favour, r.world.court.request, r.world.court.letters.length, r.world.tally.requestsMissed]).toEqual([FAVOUR.start - 15, null, 0, 1]);
     expect(r.root.querySelector('#cheer').textContent).toContain('Refused');
+    r.cleanup();
+  });
+  test('words a change of favour as it will really happen at both ends of 0..100, and does that (ruling 376)', async () => {
+    const r = await rig();
+    r.world.court.favour = 95;
+    open(r, 'letter');
+    const q = r.world.court.request;                                               // met 12, missed 15
+    expect(C.sendConsequence(q, r.world)).toContain('Favour +5 (to 100)');
+    expect(sheetText(r)).toContain('Favour +5 (to 100) and 120 gold');
+    expect(sheetText(r).includes('Favour +12')).toBe(false);
+    r.world.court.favour = 100;
+    r.ui.refresh();
+    expect(sheetText(r)).toContain('Favour stays at 100');
+    r.world.court.favour = 5;
+    r.ui.refresh();
+    expect(C.refuseConsequence(q, r.world)).toBe('Favour −5 (to 0). The request is closed.');
+    expect(r.root.querySelector('#sheet .court-choice.refuse button').textContent).toBe('Refuse (favour −5)');
+    fire(r.root.querySelector('#sheet .court-choice.refuse button'), 'click');
+    expect(r.world.court.favour).toBe(0);
+    expect(r.root.querySelector('#cheer').textContent).toContain('favour −5');
+    // A card's favour line follows the same rule.
+    const w = courtCity();
+    w.court.favour = 2;
+    expect(C.effect({ kind: 'favour', n: -3 }, w)).toBe('Favour −2 (to 0)');
+    expect(C.effect({ kind: 'favour', n: 8 }, w)).toBe('Favour +8');
+    w.court.favour = 0;
+    expect(C.effect({ kind: 'favour', n: -3 }, w)).toBe('Favour stays at 0');
     r.cleanup();
   });
   test('says the first letter is small and easy, and the goal waits for it', async () => {
@@ -197,7 +224,7 @@ describe('s46 court ui: a card letter', () => {
   };
   test('lists two choices, each with its exact effect from the sim, and does what it says', async () => {
     const r = await cardCity('temple_gift', { good: 'grain', n: 100 });
-    const choices = r.root.querySelectorAll('#sheet .choice');
+    const choices = r.root.querySelectorAll('#sheet .court-choice');
     expect(choices.length).toBe(2);
     const letter = r.world.court.letters[0];
     const sim = cardChoices(r.world, letter);
@@ -212,7 +239,7 @@ describe('s46 court ui: a card letter', () => {
   });
   test('turns a choice off with the sim\'s reason, leaving the other one live', async () => {
     const r = await cardCity('festival', {}, (w) => { w.gold = 50; });
-    const [hold, decline] = r.root.querySelectorAll('#sheet .choice');
+    const [hold, decline] = r.root.querySelectorAll('#sheet .court-choice');
     expect(hold.querySelector('button').disabled).toBe(true);
     expect(/^Needs \d+ gold, and the treasury holds 50$/.test(hold.querySelector('.why-not').textContent)).toBe(true);
     expect(decline.querySelector('button').disabled).toBe(false);
@@ -258,13 +285,32 @@ describe('s46 court ui: the summary and the court sheet', () => {
       r.world.court.favour = f;
       open(r, 'court');
       const t = sheetText(r);
-      expect([f, favourBand(r.world), t.includes(C.band[band]), t.includes(String(f)), t.includes(C.bandNow[band])]).toEqual([f, band, true, true, true]);
-      expect(t).toContain(C.ruleHigh);
-      expect(t).toContain(C.ruleLow);
+      expect([f, favourBand(r.world), t.includes(C.band[band]), t.includes(String(f)), t.includes(C.bandNow[band]), t.includes(C.drift)]).toEqual([f, band, true, true, true, true]);
+      // The band in effect is stated once (bandNow); the other bands' rules follow.
+      expect([band, t.includes(C.ruleHigh), t.includes(C.ruleLow)]).toEqual([band, band !== 'high', band !== 'low']);
       const meter = r.root.querySelector('#sheet .favour-meter');
       expect(meter.getAttribute('aria-valuenow')).toBe(String(f));
       expect(meter.getAttribute('aria-label')).toContain(C.band[band]);
     }
+    r.cleanup();
+  });
+  test('says when the next gift is due and that it needs favour at 70 or more then, and the sim pays it just so (ruling 375)', async () => {
+    const r = await rig();
+    r.world.day = 2 * YEAR;
+    open(r, 'court');
+    expect(sheetText(r).includes('gift is due') || sheetText(r).includes('Next gift')).toBe(false);   // no clock yet
+    r.world.court.favour = 60;
+    addFavour(r.world, 12);
+    r.ui.refresh();
+    expect(sheetText(r)).toContain(`${C.nextGift(FAVOUR.giftEveryMonths)}.`);
+    expect(C.nextGift(6)).toBe("Next gift due in 6 months: it comes at the first month's end from then with favour at 70 or more");
+    for (let m = 1; m <= FAVOUR.giftEveryMonths; m++) { r.world.day += MONTH; courtMonth(r.world); }   // drift to 66 by the due month
+    r.ui.refresh();
+    expect([r.world.court.favour, r.world.tally.gifts, sheetText(r).includes(`${C.giftWaiting}.`)]).toEqual([66, 0, true]);
+    r.world.court.favour = FAVOUR.high + 1;
+    r.world.day += MONTH; courtMonth(r.world);
+    r.ui.refresh();
+    expect([r.world.tally.gifts, sheetText(r).includes(`${C.nextGift(FAVOUR.giftEveryMonths)}.`)]).toEqual([1, true]);
     r.cleanup();
   });
   test('words the tribute and raid effects of favour as the sim applies them, both ways', async () => {
@@ -294,6 +340,10 @@ describe('s46 court ui: the summary and the court sheet', () => {
       }
     } finally { FAVOUR.raidStep = saved; }
     open(r, 'court');
+    expect(C.bandNow.low).toContain(`${Math.round(FAVOUR.raidStep * 100)}% more, at least 1 raider`);   // in the low band the rule is stated once, as what holds now
+    expect(sheetText(r)).toContain(C.bandNow.low);
+    r.world.court.favour = FAVOUR.low + 1;
+    r.ui.refresh();
     expect(sheetText(r)).toContain(C.ruleLow);
   });
   test('keeps the letter on show when another arrives while the sheet is open, so a tap on Send never lands on a card', async () => {

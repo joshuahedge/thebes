@@ -16,7 +16,6 @@ import {
   courtOpen, favourBand, requestStatus, sendRequest, refuseRequest, readLetter, cardChoices, answerCard, monthsLeft, stockOf,
 } from '../../sim/court.js';
 import { unitsAway } from '../../sim/armies.js';
-import { DAYS_PER_MONTH } from '../../sim/time.js';
 import { openSheet } from '../modes.js';
 import { el, button } from '../components.js';
 import { S46_COURT_TEXT as C, buildingName, plural } from '../text.js';
@@ -82,13 +81,13 @@ export function createCourtUi(ctx) {
   // ── The letter sheet ──
   // A choice: its button, then what it does in words (the sim's own list of effects), then why not when it cannot be made.
   function choice({ label, primary = false, consequence, problem = '', onPick, cls = '' }) {
-    return el('div', { class: `choice ${cls}` }, [
+    return el('div', { class: `court-choice ${cls}` }, [
       button(label, { class: primary ? 'primary' : '', disabled: Boolean(problem), onClick: onPick }),
       el('p', { class: 'small muted consequence', text: consequence }),
       problem ? el('p', { class: 'small coral why-not', text: problem }) : null,
     ]);
   }
-  const viewButton = (b, what) => (b ? button(`View ${what.toLowerCase()}`, { class: 'view quiet', 'aria-label': `View: ${what.toLowerCase()}`, onClick: () => ctx.selectBuilding(b.id) }) : null);
+  const viewButton = (b, what) => (b ? button(`View ${what.toLowerCase()}`, { class: 'view quiet', onClick: () => ctx.selectBuilding(b.id) }) : null);
 
   function requestLetter(body, close) {
     const r = world.court.request;
@@ -97,12 +96,12 @@ export function createCourtUi(ctx) {
     if (r.guided) body.append(line(C.guidedNote));
     body.append(
       row(C.deadline, C.deadlineText(r, st.monthsLeft)),
-      row(C.reward, C.rewardText(r)),
-      row(C.ifRefused, C.refusedText(r)),
+      row(C.reward, C.rewardText(r, world)),
+      row(C.ifRefused, C.refusedText(r, world)),
     );
     if (r.kind === 'soldiers') body.append(line(C.soldiersNote));
     const sendProblem = st.ok ? '' : C.problem(st.reason, { have: st.have, need: st.need, kind: r.kind, good: r.good }, world, st.have);
-    body.append(el('div', { class: 'choices' }, [
+    body.append(el('div', { class: 'court-choices' }, [
       choice({
         label: C.sendLabel(r), primary: true, cls: 'send', consequence: C.sendConsequence(r, world), problem: sendProblem,
         onPick: () => {
@@ -115,13 +114,13 @@ export function createCourtUi(ctx) {
         },
       }),
       choice({
-        label: C.refuseLabel(r), cls: 'refuse', consequence: C.refuseConsequence(r),
+        label: C.refuseLabel(r, world), cls: 'refuse', consequence: C.refuseConsequence(r, world),
         onPick: () => {
           const events = [];
-          refuseRequest(world, events);
+          const res = refuseRequest(world, events);
           focusId = null;
           close();
-          answered(events, C.captionRefused({ favour: -r.missed }));
+          answered(events, C.captionRefused({ favour: res.favour }));
         },
       }),
     ]), row(C.have, C.haveText(r, st), st.ok ? 'teal' : 'coral'));   // the choices come first, so Send shows without scrolling at the largest text (ruling 385)
@@ -136,7 +135,7 @@ export function createCourtUi(ctx) {
       shop: letter.card === 'craftsmen_dispute' && world.buildings[letter.args.id] ? buildingName(world.buildings[letter.args.id].type).toLowerCase() : '',
     };
     body.append(el('h3', { class: 'letter-ask', text: C.cardTitle(letter.card) }), el('p', { class: 'letter-body', text: C.cardBody(letter, view) }));
-    body.append(el('div', { class: 'choices' }, choices.map((c, i) => {
+    body.append(el('div', { class: 'court-choices' }, choices.map((c, i) => {
       const bad = c.effects.find((e) => problemEffect(c, e));
       return choice({
         label: C.choiceLabel(letter.card, c.id), primary: i === 0, cls: c.id, consequence: C.consequence(c.effects, world),
@@ -197,9 +196,15 @@ export function createCourtUi(ctx) {
       ]),
       favourMeter(world),
       el('p', { class: 'favour-now', text: `${C.bandNow[band]}.` }),
-      line(`${C.ruleHigh}.`), line(`${C.ruleLow}.`),
+      line(`${C.drift}.`),
     );
-    if (band === 'high' && c.nextGiftDay !== null) body.append(line(`${C.nextGift(Math.max(1, Math.ceil((c.nextGiftDay - world.day) / DAYS_PER_MONTH)))}.`));
+    // The rules of the other bands (the band in effect is the line above), then the gift clock whenever it runs (ruling 375).
+    if (band !== 'high') body.append(line(`${C.ruleHigh}.`));
+    if (band !== 'low') body.append(line(`${C.ruleLow}.`));
+    if (c.nextGiftDay !== null) {
+      const left = monthsLeft(world, c.nextGiftDay);
+      body.append(line(`${left > 0 ? C.nextGift(left) : C.giftWaiting}.`, 'small muted gift-due'));
+    }
     // Letters waiting, and the request open.
     body.append(el('h3', { text: C.waiting }));
     if (!c.letters.length) body.append(line(C.noLetters));

@@ -1790,6 +1790,7 @@ export const S46_RIVER_TEXT = {};
 // states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
 import { FAVOUR as courtFavour, REQUESTS as courtRequests, COURT as courtRules, GOOD_VALUE as courtGoodValue } from '../data/court.js';
 import { DAYS_PER_MONTH as courtMonthDays, MONTHS_PER_YEAR as courtYearMonths } from '../sim/time.js';
+import { favourChange as courtFavourChange } from '../sim/court.js';
 
 // Numbers and dates in the letters. Months are game months (30 days); a deadline is a game date, never a clock.
 const courtSigned = (n) => (n < 0 ? `−${-n}` : `+${n}`);
@@ -1801,12 +1802,20 @@ const courtDays = (days) => courtMonths(Math.round(days / courtMonthDays));
 // What a request asks, in a phrase: "120 pottery", "400 gold", "3 trained units".
 const courtAsk = (r) => (r.kind === 'gold' ? `${r.amount} gold` : r.kind === 'soldiers' ? `${r.amount} trained ${r.amount === 1 ? 'unit' : 'units'}` : `${r.amount} ${goodWord(r.good)}`);
 const courtVerb = (r) => (r.kind === 'soldiers' ? 'Lend' : 'Send');
+// A change of favour by n, as it would really happen now (ruling 376): favour stays inside 0..100, so at 95 a gain of 11 reads
+// "Favour +5 (to 100)" and at 100 "Favour stays at 100". Without a world, the number as asked.
+const courtFavourWords = (n, world) => {
+  const real = world ? courtFavourChange(world, n) : n;
+  if (real === n) return `Favour ${courtSigned(n)}`;
+  const edge = n > 0 ? courtFavour.max : courtFavour.min;
+  return real === 0 ? `Favour stays at ${edge}` : `Favour ${courtSigned(real)} (to ${edge})`;
+};
 
 // One effect of a card's choice as a sentence (src/sim/court.js cardChoices writes the list; this words it, and applyEffects carries it
 // out). `world` names the buildings a pause closes.
 export function courtEffect(e, world) {
   switch (e.kind) {
-    case 'favour': return `Favour ${courtSigned(e.n)}`;
+    case 'favour': return courtFavourWords(e.n, world);
     case 'gold': return e.n < 0 ? `${-e.n} gold leave the treasury` : `${e.n} gold join the treasury`;
     case 'goods': return e.n < 0 ? `${-e.n} ${goodWord(e.good)} leave the stores` : `${e.n} ${goodWord(e.good)} arrive in the stores`;
     case 'mood': return `Mood +${e.n} for ${courtDays(e.days)}, and the temple holds no festival for ${courtDays(e.every)}`;
@@ -1857,28 +1866,39 @@ const COURT_CARD_WORDS = {
 };
 
 // The low-favour rule from the favour numbers (ruling 384): the raid step as a percentage of the size, at least one raider more (favourRaidSize).
-export const courtRuleLow = (f) => `At ${f.low} or less: raids one size step bigger (${Math.round(f.raidStep * 100)}% more, at least 1 raider), and tribute costs ${courtPct(f.tributeLow)}% more`;
+const courtLowEffect = (f) => `raids one size step bigger (${Math.round(f.raidStep * 100)}% more, at least 1 raider), and tribute costs ${courtPct(f.tributeLow)}% more`;
+export const courtRuleLow = (f) => `At ${f.low} or less: ${courtLowEffect(f)}`;
 
 export const S46_COURT_TEXT = {
   letterHead: 'A letter from the court', courtHead: 'The court', favour: 'Favour', favourOf: (n) => `${n} of ${courtFavour.max}`,
   // The favour's mark: an icon beside the number, and always the words (never colour alone).
   favourMark: { high: '▲', steady: '◆', low: '▼' },
   band: { high: 'The court is pleased', steady: 'The court is content', low: 'The court is displeased' },
+  // The court sheet says what favour does now (bandNow), how it moves (drift), and the rules of the other bands (ruleHigh, ruleLow): the
+  // band in effect is never stated twice.
   bandNow: {
-    high: `Gifts come every ${courtFavour.giftEveryMonths} months and tribute costs ${courtPct(courtFavour.tributeHigh)}% less`,
-    steady: `Favour moves ${courtFavour.drift} a month toward ${courtFavour.start}`,
-    low: `Raids come one size step bigger and tribute costs ${courtPct(courtFavour.tributeLow)}% more`,
+    high: `Now: tribute costs ${courtPct(courtFavour.tributeHigh)}% less, and the court sends gifts`,
+    steady: 'Now: no gifts, and raids and tribute as usual',
+    low: `Now: ${courtLowEffect(courtFavour)}`,
   },
-  ruleHigh: `At ${courtFavour.high} or more: a gift every ${courtFavour.giftEveryMonths} months, and tribute costs ${courtPct(courtFavour.tributeHigh)}% less`,
+  drift: `Favour moves ${courtFavour.drift} a month toward ${courtFavour.start}`,
+  ruleHigh: `At ${courtFavour.high} or more: tribute costs ${courtPct(courtFavour.tributeHigh)}% less, and the court sends a gift, at most one every ${courtMonths(courtFavour.giftEveryMonths)}`,
   ruleLow: courtRuleLow(courtFavour),
-  nextGift: (months) => `Next gift in ${courtMonths(months)}`,
+  // The gift clock (src/sim/court.js courtMonth, ruling 375): once started it runs on, and the gift comes at the first month's end on or
+  // after its day with favour at FAVOUR.high or more.
+  nextGift: (months) => `Next gift due in ${courtMonths(months)}: it comes at the first month's end from then with favour at ${courtFavour.high} or more`,
+  giftWaiting: `A gift is due: it comes at the first month's end with favour at ${courtFavour.high} or more`,
   // Letters.
   ask: courtAsk, requestTitle: (r) => `${courtVerb(r)} ${courtAsk(r)}`, sendLabel: (r) => `${courtVerb(r)} ${courtAsk(r)}`,
-  refuseLabel: (r) => `Refuse (favour −${r.missed})`, later: 'Decide later',
+  refuseLabel: (r, world) => {
+    const real = world ? courtFavourChange(world, -r.missed) : -r.missed;
+    return real === 0 ? `Refuse (favour stays at ${courtFavour.min})` : `Refuse (favour ${courtSigned(real)})`;
+  },
+  later: 'Decide later',
   asked: 'Asked', deadline: 'Deadline', reward: 'Reward', ifRefused: 'If refused or missed', have: 'You have',
   deadlineText: (r, left) => `${courtDate(r.due)} (${courtMonths(left)} left)`,
-  rewardText: (r) => (r.gold > 0 ? `Favour +${r.met} and ${r.gold} gold` : `Favour +${r.met}`),
-  refusedText: (r) => `Favour −${r.missed}`,
+  rewardText: (r, world) => (r.gold > 0 ? `${courtFavourWords(r.met, world)} and ${r.gold} gold` : courtFavourWords(r.met, world)),
+  refusedText: (r, world) => courtFavourWords(-r.missed, world),
   haveText: (r, st) => (r.kind === 'gold' ? `${st.have} gold in the treasury` : r.kind === 'soldiers' ? `${plural(st.have, 'trained unit', 'trained units')} at home` : `${st.have} ${goodWord(r.good)} in the stores`),
   soldiersNote: `They are away for ${courtRequests.soldiersMonths} months, unpaid, and do not fight.`,
   guidedNote: 'The first letter from the court is a small request, and an easy one to answer.',
@@ -1886,11 +1906,11 @@ export const S46_COURT_TEXT = {
     const out = r.kind === 'gold' ? [{ kind: 'gold', n: -r.amount }] : r.kind === 'soldiers' ? [] : [{ kind: 'goods', good: r.good, n: -r.amount }];
     const lines = out.map((e) => courtEffect(e, world));
     if (r.kind === 'soldiers') lines.push(`${courtAsk(r)} leave for ${courtMonths(courtRequests.soldiersMonths)}`);
-    lines.push(`Favour +${r.met}`);
+    lines.push(courtFavourWords(r.met, world));
     if (r.gold > 0) lines.push(`${r.gold} gold join the treasury`);
     return `${lines.join('. ')}.`;
   },
-  refuseConsequence: (r) => `Favour −${r.missed}. The request is closed.`,
+  refuseConsequence: (r, world) => `${courtFavourWords(-r.missed, world)}. The request is closed.`,
   problem: courtProblem, effect: courtEffect, consequence: courtConsequence,
   // Cards.
   cardTitle: (card) => COURT_CARD_WORDS[card].title,
@@ -1944,6 +1964,7 @@ ALERT_TEXT.court_letter = (alert, world) => {
       ? { title: C.alertDue(r, left), fix: 'Send it or refuse it: the summary opens the court' }
       : { title: C.alertRequest(r, left) + more, fix: 'Open it to send what it asks, refuse it or decide later' };
   }
+  if (letter.kind !== 'card' || !COURT_CARD_WORDS[letter.card]) return { title: C.letterHead + more, fix: '' };   // a stale or unknown record
   return { title: C.alertCard(letter.card) + more, fix: 'Open it to choose: each choice says what it does' };
 };
 
