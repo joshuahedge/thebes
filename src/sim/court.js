@@ -20,7 +20,7 @@
 // Events (pushed into the events array; never saved): { type: 'court_letter', id, kind, card }, { type: 'court_letter_gone', id, card },
 // { type: 'court_request', result: 'met' | 'refused' | 'missed', request, favour, gold }, { type: 'court_card', card, choice },
 // { type: 'court_gift', gold, good, n }.
-import { FAVOUR, COURT, REQUESTS, REQUEST_KINDS, GOOD_VALUE, GIFTS, CARDS, COURT_CARDS, CARD_NUMBERS, COURT_SALT } from '../data/court.js';
+import { FAVOUR, COURT, REQUESTS, REQUEST_KINDS, GOOD_VALUE, GIFTS, CARDS, COURT_CARDS, CARD_NUMBERS, COURT_SALT, newCourtState } from '../data/court.js';
 import { RAIDS, FESTIVAL } from '../data/raids.js';
 import { HEALTH } from '../data/health.js';
 import { CRIME } from '../data/crime.js';
@@ -38,8 +38,8 @@ import { partnerUnlocked } from './trade.js';
 import { vacancies } from './immigration.js';
 import { illHomes } from './health.js';
 import { unitsAtHome, sendUnits } from './armies.js';
-import { herdArrives, herdLeaves } from './wildlife.js';
-import { buyForecast } from './flood.js';
+import { herdArrives, herdLeaves, huntingOutlook } from './wildlife.js';
+import { buyForecast, fishFactor } from './flood.js';
 import { hash2 } from './rng.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 
@@ -116,12 +116,16 @@ export function putGoods(world, good, n) {
 }
 
 // What the city makes of a good a month: its working producers' output at their staffing, else (for a good it only trades for) an open
-// route's yearly quota / 12; 0 when it neither makes it nor can trade for it.
+// route's yearly quota / 12; 0 when it neither makes it nor can trade for it. A hunting lodge counts what its herds can give this month
+// (huntingOutlook's month, not its HUNTING.maxMonth ceiling), and a fishing wharf its flood-month catch while the water is up (fishFactor),
+// as production.js makes them (ruling 448).
 export function outputPerMonth(world, good) {
   let n = 0;
   for (const b of allBuildings(world)) {
     const def = BUILDINGS[b.type];
-    if (def.produces && def.produces.good === good && isWorking(world, b)) n += def.produces.perMonth * (b.staff / def.workers);
+    if (!def.produces || def.produces.good !== good || !isWorking(world, b)) continue;
+    const month = def.hunts ? huntingOutlook(world, b).month : def.produces.perMonth * (def.fishes ? fishFactor(world) : 1);
+    n += month * (b.staff / def.workers);
   }
   if (n > 0) return n;
   for (const [id, p] of Object.entries(PARTNERS)) {
@@ -317,18 +321,16 @@ const workshops = (world) => allBuildings(world).filter((b) => BUILDINGS[b.type]
 const room = (world) => vacancies(world).reduce((n, v) => n + v.free, 0);
 
 // The Stage 4.6 hooks the lost herd and the flood omen cards call (the River track's), probed on a copy of the world so asking never
-// changes it; cached for the day. A card whose hook cannot act is not drawn.
-const probes = new WeakMap();
-function probed(world, key, fn) {
-  let e = probes.get(world);
-  if (!e || e.day !== world.day) { e = { day: world.day, v: {} }; probes.set(world, e); }
-  if (!(key in e.v)) e.v[key] = Boolean(fn(structuredClone(world)));
-  return e.v[key];
-}
+// changes it. A card whose hook cannot act is not drawn. Worked out afresh on every call, never cached (ruling 445): a cache kept for the
+// day let the interface's asking before a day's tick decide the sim's own draws that day (a replay with the sheet open could differ from
+// one without), and kept a button on after a Nilometer was built that day. The hooks change only world.wildlife (herdArrives,
+// herdLeaves) and world.flood (buyForecast), so the copy is the world with those two records copied.
+const scratch = (world) => ({ ...world, wildlife: structuredClone(world.wildlife), flood: structuredClone(world.flood) });
+const probed = (world, fn) => Boolean(fn(scratch(world)));
 export const RIVER_HOOKS = {
-  canArrive: (world) => probed(world, 'arrive', (w) => herdArrives(w, [])),
-  canLeave: (world) => probed(world, 'leave', (w) => herdLeaves(w, [])),
-  canForecast: (world) => probed(world, 'forecast', (w) => buyForecast(w).ok),
+  canArrive: (world) => probed(world, (w) => herdArrives(w, [])),
+  canLeave: (world) => probed(world, (w) => herdLeaves(w, [])),
+  canForecast: (world) => probed(world, (w) => buyForecast(w).ok),
 };
 
 // What each card needs to be drawn, and what it draws: args (kept on the letter), or null when the card cannot come now. `id` is the
@@ -378,7 +380,7 @@ const CARD_ARGS = {
   lost_herd: (world, id, hooks) => (hooks.canArrive(world) && hooks.canLeave(world) ? {} : null),
   craftsmen_dispute(world, id) {
     const list = workshops(world);
-    return list.length ? { id: list[Math.floor(draw(world, id, world.day, 'cardPick') * list.length)].id } : null;
+    return list.length ? { id: list[Math.floor(draw(world, id, world.day, 'spare1') * list.length)].id } : null;   // its own salt: issueCard's pick is cardPick
   },
   flood_omen: (world, id, hooks) => (hooks.canForecast(world) ? {} : null),
 };
@@ -395,10 +397,13 @@ export function eligibleCards(world, hooks = RIVER_HOOKS) {
   return out;
 }
 
-// Whether a card letter no longer applies (its sickness has passed, its workshop is gone): the court drops it.
-export function cardStale(world, letter) {
+// Whether a card letter no longer applies (its sickness has passed, its workshop is gone, no herd can come or go, the flood can no longer
+// be foretold): the court drops it (ruling 445).
+export function cardStale(world, letter, hooks = RIVER_HOOKS) {
   if (letter.card === 'sickness') return sickIn(world, letter.args.cx, letter.args.cy).length === 0;
   if (letter.card === 'craftsmen_dispute') { const b = world.buildings[letter.args.id]; return !b || !BUILDINGS[b.type].consumes; }
+  if (letter.card === 'lost_herd') return !hooks.canArrive(world) && !hooks.canLeave(world);
+  if (letter.card === 'flood_omen') return !hooks.canForecast(world);
   return false;
 }
 
@@ -512,13 +517,16 @@ export function applyEffects(world, effects, events = null) {
 }
 
 // Answers a card letter with one of its choices: carries out the effects the choice lists (fails with the first problem, doing
-// nothing), removes the letter and writes it into the card history.
-export function answerCard(world, letterId, choiceId, events = null, hooks = RIVER_HOOKS) {
+// nothing), removes the letter and writes it into the card history. `shown` is the list of effects the player read on the letter: the
+// sheet is not rebuilt while focus is inside it, so the city may have changed since, and when the effects worked out now differ the answer
+// fails with 'changed' (nothing happens; the sheet then shows the new numbers): what is applied is always what was shown (ruling 444).
+export function answerCard(world, letterId, choiceId, events = null, hooks = RIVER_HOOKS, shown = null) {
   const c = world.court;
   const letter = letterFor(world, letterId);
   if (!letter || letter.kind !== 'card') return fail('no_letter');
   const choice = cardChoices(world, letter, hooks).find((x) => x.id === choiceId);
   if (!choice) return fail('no_choice');
+  if (shown && JSON.stringify(shown) !== JSON.stringify(choice.effects)) return fail('changed', { effects: choice.effects });
   if (choice.problem) return fail(choice.problem);
   const done = applyEffects(world, choice.effects, events);
   if (!done.ok) return done;
@@ -585,10 +593,18 @@ function issueCard(world, events, hooks) {
   if (events) events.push({ type: 'court_letter', id, kind: 'card', card: chosen.card });
 }
 
+// A court record saved by a build with only Track 0's v7 record (before the Court track) lacks the fields the Court track added (awake,
+// guided, nextGiftDay, effects, log, lastCard): they take newCourtState's starting values, as the River track's tidy does (ruling 446).
+function tidy(c) {
+  const d = newCourtState();
+  for (const k of Object.keys(d)) if (c[k] === undefined) c[k] = d[k];
+}
+
 // One day of the court: the court opens when its conditions are met; running choices end; a request past its deadline is missed (favour
 // falls by the number its letter named); a card whose cause has passed is dropped; the next request and card come when due.
 export function courtDay(world, events = null, hooks = RIVER_HOOKS) {
   const c = world.court;
+  tidy(c);
   if (!c.awake) { tryOpen(world); return; }
   endEffects(world);
   if (c.request && world.day >= c.request.due) {
@@ -597,7 +613,7 @@ export function courtDay(world, events = null, hooks = RIVER_HOOKS) {
     world.tally.requestsMissed += 1;
     resolveRequest(world, 'missed', favour, 0, events);
   }
-  for (const l of c.letters.filter((x) => x.kind === 'card' && cardStale(world, x))) {
+  for (const l of c.letters.filter((x) => x.kind === 'card' && cardStale(world, x, hooks))) {
     removeLetter(world, l.id);
     if (events) events.push({ type: 'court_letter_gone', id: l.id, card: l.card });
   }
@@ -605,13 +621,16 @@ export function courtDay(world, events = null, hooks = RIVER_HOOKS) {
   if (c.nextCardDay !== null && world.day >= c.nextCardDay) issueCard(world, events, hooks);
 }
 
-// The month's court work: wages raised by a dispute are paid; favour drifts one point toward FAVOUR.start; then the gift (ruling 375).
+// The month's court work: wages raised by a dispute are paid; then the gift (ruling 375), read from favour as the month ends; then favour
+// drifts one point toward FAVOUR.start. The gift is checked (and its clock started) before the drift (ruling 440), so a city held at
+// exactly FAVOUR.high gets its gift, as every gift sentence says ("70 or more").
 // The gift clock starts the first time favour is at FAVOUR.high or more and never stops: favour drifting below FAVOUR.high does not
 // cancel a gift. The gift comes at the first month's end on or after its due day with favour at FAVOUR.high or more (else it waits for
 // one), and the next is then due FAVOUR.giftEveryMonths months on. So gifts come at most every FAVOUR.giftEveryMonths months, and only
 // at a month's end with favour at FAVOUR.high or more, which is what the court sheet says (S46_COURT_TEXT.nextGift, giftWaiting).
 export function courtMonth(world, events = null) {
   const c = world.court;
+  tidy(c);
   if (!c.awake) return;
   const keep = [];
   for (const e of c.effects) {
@@ -620,12 +639,13 @@ export function courtMonth(world, events = null) {
     if (e.left > 1) keep.push({ ...e, left: e.left - 1 });
   }
   c.effects = keep;
+  if (c.nextGiftDay === null) startGiftClock(world);
+  else if (world.day >= c.nextGiftDay && c.favour >= FAVOUR.high) {
+    c.nextGiftDay = world.day + FAVOUR.giftEveryMonths * DAYS_PER_MONTH;
+    giveGift(world, events);
+  }
   if (c.favour > FAVOUR.start) c.favour = Math.max(FAVOUR.start, c.favour - FAVOUR.drift);
   else if (c.favour < FAVOUR.start) c.favour = Math.min(FAVOUR.start, c.favour + FAVOUR.drift);
-  if (c.nextGiftDay === null) { startGiftClock(world); return; }
-  if (world.day < c.nextGiftDay || c.favour < FAVOUR.high) return;
-  c.nextGiftDay = world.day + FAVOUR.giftEveryMonths * DAYS_PER_MONTH;
-  giveGift(world, events);
 }
 
 // The gift (see GIFTS): gold or a household good the city makes, seeded; a good with no room in the stores comes as its value in gold.

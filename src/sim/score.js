@@ -40,7 +40,7 @@ import { desirabilityField, houseDesirability } from './desirability.js';
 import { openRoutes } from './trade.js';
 import { canBurn, fireStarted, fireCoverage } from './fire.js';
 import { FIRE } from '../data/fire.js';
-import { raidSize, towersNeeded, workingTowers } from './raids.js';
+import { baseRaidSize, towersNeeded, workingTowers } from './raids.js';
 import { raidsOn } from './costs.js';
 
 const zeroParts = () => Object.fromEntries(SCORE_PARTS.map((p) => [p, 0]));
@@ -169,7 +169,7 @@ function safetyTerms(world) {
   }
   let defence = { value: 1, reason: null };
   if (raidsOn(world) && world.raid.clockDay !== null) {
-    const need = towersNeeded(raidSize(world));
+    const need = towersNeeded(baseRaidSize(world));   // before favour's step: favour never moves the score (rulings 344, 441)
     // Ruling 414 (344): only foot soldiers count here, so archers and chariots (Stage 4.6) leave every score as it was.
     const towers = workingTowers(world), soldiers = world.soldiers.filter((u) => (u.kind || 'soldier') === 'soldier').length;
     defence = { value: Math.min(1, (towers + soldiers / 3) / need), reason: { code: 'towers', need, towers, soldiers } };

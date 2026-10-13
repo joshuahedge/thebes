@@ -123,7 +123,7 @@ async function mixedRaid(api) {
   g.cam.zoom = portrait ? 1.25 : 1.7;
   focus(g, ex + 0.5, wallY - (portrait ? 3.5 : 2.5));
   await wait(100);
-  return `mixed raid ${raiders.length} raiders (${Object.entries(mix).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(', ')}) ${archers.length} archers on the wall ${chariots.length} chariots in the open ${towers.length} towers`;
+  return `mixed raid ${size} raiders, ${raiders.length} left (${Object.entries(mix).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(', ')}) ${archers.length} archers on the wall ${chariots.length} chariots in the open ${towers.length} towers`;
 }
 
 async function raidSheet(api, options = {}) {

@@ -125,10 +125,16 @@ export function raidWealth(world) {
 // between RAIDS.minSize and RAIDS.maxSize. The warning fixes it; Safety's defence term (score.js) reads it for "now".
 export function raidSize(world) {
   if (world.raid.index === 0) return RAIDS.firstSize;
+  // Stage 4.6 (ruling 336): favour's size step (src/sim/court.js, the Court track's); the Armies track keeps this call.
+  return favourRaidSize(world, baseRaidSize(world));
+}
+// The raid size before favour's step (the first raid's is RAIDS.firstSize): the city score's defence term reads this one, so favour never
+// moves the score (rulings 344, 441).
+export function baseRaidSize(world) {
+  if (world.raid.index === 0) return RAIDS.firstSize;
   const wealth = Math.min(RAIDS.wealthMax, Math.max(0, (raidWealth(world) - RAIDS.wealthBase) / RAIDS.wealthStep));
   const raw = 1 + population(world) / RAIDS.peoplePerRaider + wealth;
-  // Stage 4.6 (ruling 336): favour's size step (src/sim/court.js, the Court track's); the Armies track keeps this call.
-  return favourRaidSize(world, Math.max(RAIDS.minSize, Math.min(RAIDS.maxSize, Math.round(raw * riskOf(world) * world.raid.adaptation * sizeGrowth(world)))));
+  return Math.max(RAIDS.minSize, Math.min(RAIDS.maxSize, Math.round(raw * riskOf(world) * world.raid.adaptation * sizeGrowth(world))));
 }
 
 // Raids grow with the years since the raid clock started (Stage 4.5, ruling 317): 1 + RAIDS.growthPerYear a year, at most
@@ -330,17 +336,21 @@ function arrive(world, events) {
   const r = world.raid, w = r.warning;
   const raiders = [];
   // Stage 4.6: each raider's kind from the mix (raiderKinds' round-robin; a two-sided raid's band 1 takes the odd places, a boat band
-  // is all boats). Boats whose bank has been built on since the warning land on a bank boatLanding finds now, else beside the band
-  // on foot.
+  // is all boats). Boats whose bank has been built on since the warning land on a bank boatLanding finds now (its bank, edge and mouth);
+  // with no bank left they come with band 0, on foot: the raid is then one band, its boats counted on foot (ruling 449).
+  if (w.second && w.second.boat && !landable(world, w.second.entry.x, w.second.entry.y)) {
+    const again = boatLanding(world, w.index);
+    if (again) Object.assign(w.second, { entry: { ...again.bank }, dir: again.dir, from: { ...again.from } });
+    else {
+      const m = w.mix || footMix(w.size);
+      w.mix = { ...m, foot: m.foot + (m.boat || 0), boat: 0 };
+      delete w.second;
+    }
+  }
   const mix = w.mix || footMix(w.size), bands = warningBands(w), land = raiderKinds(mix), kinds = [[], []];
   if (w.second && w.second.boat) {
     kinds[0] = land;
     kinds[1] = new Array(bands[1].size).fill('boat');
-    if (!landable(world, w.second.entry.x, w.second.entry.y)) {
-      const again = boatLanding(world, w.index);
-      w.second.entry = again ? { ...again.bank } : { ...w.entry };
-      if (again) w.second.dir = again.dir;
-    }
   } else if (w.second) land.forEach((kind, j) => kinds[j % 2 === 1 && kinds[1].length < bands[1].size ? 1 : 0].push(kind));
   else kinds[0] = land;
   bands.forEach((band, k) => {
