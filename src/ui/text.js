@@ -292,7 +292,7 @@ export function effectText(type, n) {
 }
 
 export function unlockText(type) {
-  const m = MILESTONES.find((ms) => ms.unlocks.includes(type));
+  const m = MILESTONES.find((ms) => ms.unlocks.includes(type === 'gate' ? 'wall' : type));   // the Gate card comes with the wall (Stage 4.5)
   return m ? `Unlocks at ${m.name}` : 'Comes later';
 }
 
@@ -1571,3 +1571,18 @@ export const LOOK4_TEXT = {};
 // Track F's words for the integrator. Add new lines just above the end marker.
 export const BALANCE4_TEXT = {};
 // ── end s4 balance ───────────────────────────────────────────────────────────────────────────────────────────────
+
+//
+// (A stable separator between the Stage 4 sections and Stage 4.5: leave these lines as they are.)
+//
+// ── s45 (Stage 4.5) ──────────────────────────────────────────────────────────────────────────────────────────────
+// Stage 4.5's words. Every sentence that states a rule or a price is built from the sim's own numbers. Add new lines just
+// above the end marker.
+export const S45_TEXT = {
+  // The road tool's note when it crosses a wall (ruling 309): "Gate through the wall: 20 gold" (one gate), else "3 gates through the wall: 20 gold each".
+  gateNote: (n, price) => (n === 1 ? `Gate through the wall: ${price} gold` : `${n} gates through the wall: ${price} gold each`),
+  gateBuilt: 'Gate built',
+  roadLaidGates: (n) => `Road laid · ${plural(n, 'gate', 'gates')}`,
+};
+Object.assign(REASONS, { not_wall: 'A gate goes on a wall' });
+// ── end s45 ──────────────────────────────────────────────────────────────────────────────────────────────────────

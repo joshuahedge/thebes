@@ -212,22 +212,41 @@ export function wallPiece(g, x, y, links = {}) {
   if (L.s === 2) stubAt('s');
 }
 
-// A gate: the wall drawn over a road (spec 4.13). Two tall piers at the tile's ends along the wall, joined by a painted
-// lintel high enough for the road to pass under. alongX: the wall runs along x (the road crosses along y).
+// A gate (spec 4.13; Stage 4.5, ruling 309: a road drawn through a wall): a small gatehouse. Two squat towers, thicker and a
+// few px taller than the wall, each with a capstone and corner merlons, joined over the road by a painted lintel with an
+// arch under it, high enough for the road to pass under, and three merlons along its top. alongX: the wall runs along x
+// (the road crosses along y). Drawn back to front: the back tower, the lintel, the front tower.
+export const GATE = { towerLen: 0.3, towerT: 0.5, towerH: 14, lintelT: 0.4, lintelH: 3.4 };
 export function gatePiece(g, x, y, alongX = true) {
-  const t = WALL.t + 0.06, a = 0.5 - t / 2, H = WALL.gateH, pier = 0.26;
-  const pierAt = (u) => (alongX ? band(g, x + u, y + a, pier, t, H) : band(g, x + a, y + u, t, pier, H));
-  const capAt = (u) => (alongX ? box(g, x + u - 0.02, y + a - 0.03, pier + 0.04, t + 0.06, 1.2, H, CAP, 0) : box(g, x + a - 0.03, y + u - 0.02, t + 0.06, pier + 0.04, 1.2, H, CAP, 0));
-  pierAt(0); capAt(0);
-  const Lt = alongX ? box(g, x + pier, y + a, 1 - 2 * pier, t, 2.6, H - 2.6, MUD2, 0) : box(g, x + a, y + pier, t, 1 - 2 * pier, 2.6, H - 2.6, MUD2, 0);
-  const F = alongX ? Lt.L : Lt.R;                                                // the lintel's face toward the viewer
-  g.path([['M', F(0, 0)], ['L', F(0, -2.4)], ['Q', F(0.06, 0), F(0.5, 0)], ['Q', F(0.94, 0), F(1, -2.4)], ['L', F(1, 0)], ['Z']], MUD2[1]);   // the arch
-  g.stroke([['M', F(0, -2.4)], ['Q', F(0.06, 0), F(0.5, 0)], ['Q', F(0.94, 0), F(1, -2.4)]], INK, 0.5, 0.4);
-  qd(g, F, 0, 1, 0.3, 0.9, RED);
-  qd(g, F, 0, 1, 0.9, 1.6, TEAL);
-  qd(g, F, 0, 1, 1.6, 2.2, GOLD);
+  const { towerLen: tl, towerT: tt, towerH: H, lintelT: lt, lintelH: lh } = GATE;
+  const at = (u, v, w, d, h, z, C) => (alongX ? box(g, x + u, y + v, w, d, h, z, C, 0) : box(g, x + v, y + u, d, w, h, z, C, 0));   // u along the wall, v across it
+  const tower = (u) => {
+    const v = 0.5 - tt / 2;
+    const F = at(u, v, tl, tt, H, 0, MUD2);
+    for (let c = 2; c < H - 0.5; c += 2.2) {                                              // courses on both faces
+      g.line(F.L(0, c), F.L(1, c), '#9A7A5A', 0.4, 0.28);
+      g.line(F.R(0, c), F.R(1, c), '#7E6A5E', 0.4, 0.28);
+    }
+    g.line(F.L(0, 0), F.L(1, 0), INK, 0.9, 0.22);
+    g.line(F.R(0, 0), F.R(1, 0), INK, 0.9, 0.22);
+    qd(g, F.L, 0.3, 0.7, H * 0.55, H * 0.55 + 2.4, DOOR);                                  // an arrow slit
+    at(u - 0.02, v - 0.03, tl + 0.04, tt + 0.06, 1.3, H, CAP);                              // the capstone
+    const m = 0.08;
+    for (const [mu, mv] of [[0.02, 0.02], [tl - m - 0.02, 0.02], [0.02, tt - m - 0.02], [tl - m - 0.02, tt - m - 0.02]]) at(u + mu, v + mv, m, m, 1.7, H + 1.3, CAP);
+  };
+  tower(0);
+  const v = 0.5 - lt / 2, z0 = WALL.gateH - lh;
+  const Lt = at(tl, v, 1 - 2 * tl, lt, lh, z0, MUD2);
+  const F = alongX ? Lt.L : Lt.R;                                                       // the lintel's face toward the viewer
+  g.path([['M', F(0, 0)], ['L', F(0, -2.6)], ['Q', F(0.08, 0), F(0.5, 0)], ['Q', F(0.92, 0), F(1, -2.6)], ['L', F(1, 0)], ['Z']], MUD2[1]);   // the arch
+  g.stroke([['M', F(0, -2.6)], ['Q', F(0.08, 0), F(0.5, 0)], ['Q', F(0.92, 0), F(1, -2.6)]], INK, 0.5, 0.4);
+  qd(g, F, 0, 1, 0.4, 1.3, RED);
+  qd(g, F, 0, 1, 1.3, 2.2, TEAL);
+  qd(g, F, 0, 1, 2.2, 3.0, GOLD);
   g.line(F(0, 0), F(1, 0), INK, 0.6, 0.35);
-  pierAt(1 - pier); capAt(1 - pier);
+  at(tl - 0.01, v - 0.03, 1 - 2 * tl + 0.02, lt + 0.06, 1, WALL.gateH, CAP);             // the lintel's coping
+  for (const mu of [0.2, 0.46, 0.72]) at(tl + mu * (1 - 2 * tl), v + 0.02, 0.08, lt - 0.04, 1.5, WALL.gateH + 1, CAP);
+  tower(1 - tl);
 }
 
 // A breach (spec 4.13): broken stone where a wall tile was knocked down: low ragged stumps along the line and fallen
@@ -266,7 +285,7 @@ export const DEFENCE_ART = {
   tower: { w: 1, d: 1, height: 31, bounds: boundsFor(1, 1, 31), shadows: [[0.2, 0.2, 0.6, 0.6, 24]], draw: tower },
   barracks: { w: 2, d: 2, height: 19, bounds: boundsFor(2, 2, 19), shadows: [[0.12, 0.12, 1.76, 0.66, 11], [1.34, 0.78, 0.54, 0.5, 7]], draw: barracks },
   wall: { w: 1, d: 1, height: 9, bounds: [-32, -20, 32, 28], shadows: [], draw: wallRun },
-  gate: { w: 1, d: 1, height: 12, bounds: [-32, -22, 32, 30], shadows: [], draw: gateRun },
+  gate: { w: 1, d: 1, height: 18, bounds: [-32, -28, 32, 30], shadows: [], draw: gateRun },
   rubble: { ...RUBBLE_SLOT, draw: (g, x, y) => rubble(g, x, y, 0) },
 };
 for (let v = 0; v < RUBBLE_VARIANTS; v++) DEFENCE_ART[`rubble.v${v}`] = { ...RUBBLE_SLOT, draw: (g, x, y) => rubble(g, x, y, v) };
