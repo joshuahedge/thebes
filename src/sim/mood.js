@@ -1,4 +1,6 @@
 import { MOOD } from '../data/mood.js';
+import { FORECAST } from '../data/economy.js';
+import { DAYS_PER_MONTH } from './time.js';
 import { housesOf } from './world.js';
 import { atLeast } from './progression.js';
 import { wantedNeeds } from './housing.js';
@@ -7,6 +9,28 @@ import { raidMood } from './raids.js';
 import { festivalMood } from './festival.js';
 import { monumentMood } from './prestige.js';
 import { palaceMood } from './palace.js';
+
+// Stage 4.5 (ruling 325): the Town unemployment penalty comes in over FORECAST.phaseMonths months from the day the city first
+// reached Town (world.splits.town, which updateMilestone records), so a city of homes with no work does not crash in one month.
+// Computed from the state: { factor (0 to 1, the share of the full penalty in force), monthsLeft (whole months until it is full) }.
+// A city whose Town day was never recorded (a save from before the splits existed) has the full penalty, as before.
+export function unemploymentPhase(world) {
+  const start = world.splits ? world.splits.town : undefined;
+  if (!Number.isInteger(start)) return { factor: 1, monthsLeft: 0 };
+  const months = Math.max(0, Math.floor((world.day - start) / DAYS_PER_MONTH));
+  const factor = Math.min(1, months / FORECAST.phaseMonths);
+  return { factor, monthsLeft: FORECAST.phaseMonths - Math.min(months, FORECAST.phaseMonths) };
+}
+
+// The Town unemployment penalty (mood points, 0 or negative): `now` is what is in force (phased), `full` what it will be once
+// the phase-in is over, `monthsLeft` the months until then. All three are 0 before Town or with no workforce.
+export function jobsPenalty(world) {
+  const L = world.labour;
+  if (!atLeast(world, 'town') || !(L.workforce > 0)) return { now: 0, full: 0, monthsLeft: 0 };
+  const raw = Math.max(0, (L.workforce - L.employed) / L.workforce - MOOD.unemploymentThreshold) * MOOD.unemploymentWeight;
+  const phase = unemploymentPhase(world);
+  return { now: -Math.round(raw * phase.factor) + 0, full: -Math.round(raw) + 0, monthsLeft: phase.monthsLeft };
+}
 
 export function updateMood(world) {
   let wanting = 0;
@@ -20,12 +44,7 @@ export function updateMood(world) {
   const fedShare = wanting ? fed / wanting : 1;
   const food = Math.round(MOOD.fedWeight * (fedShare - 0.5) * 2) + 0;
 
-  let jobs = 0;
-  const L = world.labour;
-  if (atLeast(world, 'town') && L.workforce > 0) {
-    const unemployment = (L.workforce - L.employed) / L.workforce;
-    jobs = -Math.round(Math.max(0, unemployment - MOOD.unemploymentThreshold) * MOOD.unemploymentWeight) + 0;
-  }
+  const jobs = jobsPenalty(world).now;
 
   const debt = world.gold < 0 ? -Math.min(MOOD.debtMax, Math.round(-world.gold / MOOD.debtPerPoint)) + 0 : 0;
   // Stage 3's danger terms (spec 4.9): each module reports only the terms that apply now, so a calm city's breakdown is
