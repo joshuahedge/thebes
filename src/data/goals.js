@@ -6,7 +6,7 @@
 // that kind while the goal's next building needs it (a farm, a mine), else at the focus. A goal with `from` (a milestone id)
 // waits for that milestone (or the people it takes), where its buildings unlock or its tier can be reached: the list
 // the player sees ends before it, so nothing later shows ahead of it (openGoals in src/sim/goals.js). Stage 3: a goal
-// with `raids: true` is about raids, so a Peaceful city (no raids, spec 4.18) never lists it; an event goal's trigger
+// with `raids: true` is about raids (or, from Stage 4.5, disease and crime, which Peaceful lacks too), so a Peaceful city (no raids, spec 4.18) never lists it; an event goal's trigger
 // may be a list of alert codes, and dirText words it by the direction raiders come from (openGoals).
 // Stage 4 (Track D): the opening four say the road rule and the fertile-land rule, each with a one-sentence `why` (ruling
 // 265; shown when the goal is opened in place and in the Goals sheet), and the Monuments chapter. New need kinds: finished
@@ -39,6 +39,8 @@ export const GOALS = [
   { id: 'town', chapter: 'grow', text: 'Reach 150 people to become a Town', reward: GOAL_REWARD, need: { kind: 'people', n: 150 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   // Stage 3 (spec 4.1, 4.19): fire risk begins at Town, so the firehouse comes right after it.
   { id: 'firehouse', chapter: 'danger', text: 'Build a firehouse', reward: GOAL_REWARD, need: { kind: 'building', type: 'firehouse', n: 1 }, showMe: { category: 'services', item: 'firehouse', target: 'houses' } },
+  // Stage 4.5 (ruling 320): disease starts at Town, so the physician comes right after the firehouse (not on Peaceful, which has none).
+  { id: 'physician', chapter: 'danger', from: 'town', raids: true, text: 'Build a physician', reward: GOAL_REWARD, need: { kind: 'building', type: 'physician', n: 1 }, showMe: { category: 'services', item: 'physician', target: 'houses' } },
   // From Town (spec 4.1, 4.6): each new need arrives with the goal that builds its chain, then a count of homes at
   // the tier that needs it, so one new demand comes at a time; the milestones and the trade route sit between.
   // Each text stays short enough for a two-line caption on a phone at 150% text (tests/ui/celebrate.test.js).
@@ -50,6 +52,8 @@ export const GOALS = [
   { id: 'trade_route', chapter: 'goods', from: 'market_town', text: 'Build a trading post and open a route', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'trading_post', n: 1 }, { kind: 'routes', n: 1 }] }, showMe: { category: 'industry', item: 'trading_post', target: 'startRoad' } },
   // Stage 3: the raid clock starts at Market town; the defences come after the trade route (not on Peaceful).
   { id: 'defences', chapter: 'danger', from: 'market_town', raids: true, text: 'Build a tower and a barracks', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'tower', n: 1 }, { kind: 'building', type: 'barracks', n: 1 }] }, showMe: { category: 'defence', item: 'tower', target: 'raid' } },
+  // Stage 4.5 (ruling 320): crime starts at Market town, with the police post (not on Peaceful).
+  { id: 'police_post', chapter: 'danger', from: 'market_town', raids: true, text: 'Build a police post', reward: GOAL_REWARD, need: { kind: 'building', type: 'police_post', n: 1 }, showMe: { category: 'services', item: 'police_post', target: 'houses' } },
   { id: 'city', chapter: 'grand', text: 'Reach 400 people to become a City', reward: GOAL_REWARD, need: { kind: 'people', n: 400 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'beer', chapter: 'grand', from: 'city', text: 'Build a barley farm, brewery, orchard', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_barley', n: 1 }, { kind: 'building', type: 'brewery', n: 1 }, { kind: 'building', type: 'farm_fig', n: 1 }] }, showMe: { category: 'industry', item: 'farm_barley', target: 'fertile' } },
   { id: 'fine_manors', chapter: 'grand', from: 'city', text: 'Grow 2 homes to Fine manor or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 7, n: 2 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },

@@ -25,7 +25,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { housesOf, allBuildings } from './world.js';
 import { atLeast } from './progression.js';
 import { riskOf, threatsOn } from './costs.js';
-import { roadReach, reachDistance } from './reach.js';
+import { roadReach, reachDistance, adjacentRoadTiles as adjacentRoadTilesOf } from './reach.js';
 import { isWorking } from './labour.js';
 import { desirabilityField, houseDesirability } from './desirability.js';
 import { hash2 } from './rng.js';
@@ -170,4 +170,23 @@ export function healthAlerts(world) {
 export function healthMood(world) {
   const n = illHomes(world).length;
   return n ? { illness: Math.max(HEALTH_MOOD.max, n * HEALTH_MOOD.each) } : {};
+}
+
+// The band a home shows on the Health overlay and its sheet: an ill home is in the top band (it has already fallen ill, and its
+// risk points went back to 0 when it did), a healthy one by its risk points. 0 for a home that cannot fall ill.
+export const healthBandOf = (world, b) => (b.type === 'house' && b.illness ? 3 : healthBand(healthRiskOf(world, b)));
+
+// The days an ill home has left at this pace (a covered illness runs out HEALTH.coverFactor times as fast), or 0 for a healthy one.
+export function illnessDaysLeft(world, b) {
+  if (!b.illness) return 0;
+  return Math.max(1, Math.ceil(b.illness.left / (healthCovered(world, b) ? HEALTH.coverFactor : 1)));
+}
+
+// The homes a physician at this home's place would cover now: homes with people in them within its road reach (the sheet's
+// "Covers N homes"; same test as healthCoverage, which also needs the physician working).
+export function homesCoveredBy(world, p) {
+  const reach = roadReach(world, p, HEALTH.reach);
+  let n = 0;
+  for (const h of housesOf(world)) if (canFallIll(h) && adjacentRoadTilesOf(world, h).some((t) => reach.has(t))) n++;
+  return n;
 }

@@ -51,6 +51,11 @@ describe('s3 score danger goals', () => {
     w.milestone = 'market_town';
     w.goals.completed.push('pottery', 'homes_townhouse', 'booth_gardens', 'manor', 'market_town', 'trade_route');
     addRaw(w, 'house', 0, 0, { tier: 1, residents: 250 });
+    expect(ids(openGoals(w))).toEqual(['physician', 'defences', 'police_post']);   // Stage 4.5: the physician (from Town) is still open, and the police post comes with the defences
+    w.difficulty = 'peaceful';
+    expect(ids(openGoals(w))).toEqual(['city']);                             // none of the three on Peaceful: Stage 4.5's disease and crime are off too
+    w.difficulty = 'normal';
+    w.goals.completed.push('physician', 'police_post');
     expect(ids(openGoals(w))).toEqual(['defences', 'city']);
     w.difficulty = 'peaceful';
     expect(ids(openGoals(w))).toEqual(['city']);

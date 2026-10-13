@@ -25,6 +25,7 @@ import { housesOf, allBuildings } from './world.js';
 import { atLeast } from './progression.js';
 import { riskOf, threatsOn } from './costs.js';
 import { hash2 } from './rng.js';
+import { roadReach, adjacentRoadTiles } from './reach.js';
 import { coverageMap, coverCause } from './serviceCover.js';
 
 // The days of the thefts still inside the mood row's window (a save written before this field existed has none: it starts empty).
@@ -179,4 +180,12 @@ export function crimeAlerts(world) {
 export function crimeMood(world) {
   const n = theftDays(world).filter((d) => world.day - d <= CRIME_MOOD.days).length;
   return n ? { thefts: Math.max(CRIME_MOOD.max, n * CRIME_MOOD.each) } : {};
+}
+
+// The homes a police post would cover now: homes with people in them within its road reach (the sheet's "Covers N homes").
+export function crimeHomesCoveredBy(world, p) {
+  const reach = roadReach(world, p, CRIME.reach);
+  let n = 0;
+  for (const h of housesOf(world)) if (canCommitCrime(h) && adjacentRoadTiles(world, h).some((t) => reach.has(t))) n++;
+  return n;
 }

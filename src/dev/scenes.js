@@ -41,6 +41,10 @@ import { idx, inBounds } from '../sim/grid.js';
 import { T as TERRAIN } from '../sim/terrain.js';
 import { DEFENCE, RAIDS, UNITS } from '../data/raids.js';
 import { FIRE } from '../data/fire.js';
+import { HEALTH } from '../data/health.js';
+import { CRIME } from '../data/crime.js';
+import { fallIll } from '../sim/health.js';
+import { CRIME_TEXT } from '../ui/text.js';
 import { TIP_FIRST_DELAY_MS } from '../data/tips.js';
 import { CHEER_GAP_MS, CHEER_MS } from '../data/ui.js';
 import { screenToTile } from '../render/camera.js';
@@ -876,11 +880,134 @@ async function raid2Active(api) {
   return `raid2-active ${raiders.length} raiders from ${w.dir} (${at[0].x},${at[0].y}) and ${w.second.dir} (${at[1].x},${at[1].y})`;
 }
 
+// ── Stage 4.5 (Task 5): disease and crime shots. Not in STAGE45_SCENES (they are shots, not contract scenes). Open the seed-11 sample
+// city (/?skipTitle=1&nosw=1&seed=11&sample=1), then devScene('illness') or devScene('crime'), each with options.look:
+//   illness: (default) the ill homes close up, a cloth over each door and no physician reaching them; 'alert' the Map sheet with the
+//            warning in its list; 'overlay' the Health overlay on the whole street; 'building' a physician close up.
+//   crime:   (default) the Crime overlay over the street, risk spread across its homes, a police post covering some; 'alert' the Map
+//            sheet with the district warning; 'building' the police post close up; 'caption' a theft's caption.
+// Both leave motion to the caller (the cloth is still at every level).
+const nearFocus = (world) => (b) => Math.abs(b.x + b.w / 2 - world.focus.x) + Math.abs(b.y + b.d / 2 - world.focus.y);
+
+// The homes with people in them and a road beside them, nearest the focus first (1x1 homes only: a 2x2 shows its door differently).
+function streetHomes(world) {
+  const near = nearFocus(world);
+  return housesOf(world).filter((h) => h.residents > 0 && h.w === 1 && adjacentRoadTiles(world, h).length).sort((a, b) => near(a) - near(b) || a.id - b.id);
+}
+
+// Pauses every service of this type whose road reach takes in one of the homes, so none covers them (scenes that show the problem).
+function pauseCover(world, type, reachTiles, homes) {
+  for (const f of allBuildings(world)) {
+    if (f.type !== type) continue;
+    const reach = roadReach(world, f, reachTiles);
+    if (homes.some((b) => adjacentRoadTiles(world, b).some((t) => reach.has(t)))) setPaused(world, f.id, true);
+  }
+  assignLabour(world);
+}
+
+// A free 1x1 spot beside a road near (x, y) where the building goes down, searched in rings; null when there is none.
+function spotNearRoad(world, type, x, y, maxR = 12) {
+  for (let r = 0; r <= maxR; r++) {
+    for (let yy = y - r; yy <= y + r; yy++) {
+      for (let xx = x - r; xx <= x + r; xx++) {
+        if (Math.max(Math.abs(xx - x), Math.abs(yy - y)) !== r) continue;
+        if (canPlace(world, type, xx, yy).ok) return [xx, yy];
+      }
+    }
+  }
+  return null;
+}
+
+async function illness(api, options = {}) {
+  const g = inGame(api, 'illness'), { world } = g;
+  const sick = streetHomes(world).slice(0, 3);
+  if (sick.length < 3) throw new Error('devScene illness: no street of homes near the focus');
+  world.milestone = ['town', 'market_town', 'city', 'great_city', 'capital'].includes(world.milestone) ? world.milestone : 'town';
+  pauseCover(world, 'physician', HEALTH.reach, sick);
+  for (const h of sick) { world.day += 0; fallIll(world, h.id, null, 'risk'); h.illness.left = Math.min(h.illness.left, 18); }
+  g.ui.cameraControl.cancel();
+  g.ui.store.set({ overlay: null });
+  g.ui.refresh();
+  const look = options.look || 'cloth';
+  if (look === 'alert') {
+    g.ui.store.set(openSheet(g.ui.store.get(), 'minimap'));
+    await wait(200);
+    return `illness alert ${sick.map((h) => h.id).join(',')}`;
+  }
+  if (look === 'overlay') {
+    g.ui.store.set({ overlay: 'health' });
+    g.cam.zoom = options.zoom || 0.9;
+    focus(g, sick[0].x + 0.5, sick[0].y + 0.5);
+    await wait(250);
+    return 'illness overlay';
+  }
+  if (look === 'building') {
+    const doc = allBuildings(world).find((b) => b.type === 'physician');
+    if (!doc) throw new Error('devScene illness: the city has no physician');
+    setPaused(world, doc.id, false);
+    assignLabour(world);
+    g.ui.refresh();
+    g.cam.zoom = options.zoom || 2.6;
+    focus(g, doc.x + 0.5, doc.y + 0.5);
+    await wait(250);
+    return `illness building ${doc.id}`;
+  }
+  g.cam.zoom = options.zoom || 2.2;
+  focus(g, sick[1].x + 0.5, sick[1].y + 0.5);
+  await wait(250);
+  return `illness ${sick.map((h) => h.id).join(',')}`;
+}
+
+async function crime(api, options = {}) {
+  const g = inGame(api, 'crime'), { world } = g;
+  const homes = streetHomes(world);
+  if (homes.length < 8) throw new Error('devScene crime: no street of homes near the focus');
+  world.milestone = ['market_town', 'city', 'great_city', 'capital'].includes(world.milestone) ? world.milestone : 'market_town';
+  world.mood = Math.min(world.mood, CRIME.moodBelow - 5);
+  const near = homes.slice(0, 24);
+  near.forEach((h, i) => { h.crime = [8, 30, 64, 105, 40, 72, 15, 95][i % 8]; });
+  const at = near[near.length >> 1];
+  if (!allBuildings(world).some((b) => b.type === 'police_post')) {
+    const spot = spotNearRoad(world, 'police_post', at.x, at.y + 1);
+    if (spot) place(world, 'police_post', spot[0], spot[1]);
+  }
+  assignLabour(world);
+  g.ui.cameraControl.cancel();
+  g.ui.refresh();
+  const look = options.look || 'overlay';
+  if (look === 'alert') {
+    g.ui.store.set(openSheet(g.ui.store.get(), 'minimap'));
+    await wait(200);
+    return 'crime alert';
+  }
+  if (look === 'caption') {
+    g.ui.celebrations.show({ tier: 'info', text: CRIME_TEXT.caption({ kind: 'gold', amount: 40, near: 'bazaar' }) });
+    g.cam.zoom = 1;
+    focus(g, at.x + 0.5, at.y + 0.5);
+    await wait(250);
+    return 'crime caption';
+  }
+  if (look === 'building') {
+    const post = allBuildings(world).find((b) => b.type === 'police_post');
+    if (!post) throw new Error('devScene crime: no police post stands (no free spot near the street)');
+    g.cam.zoom = options.zoom || 2.6;
+    focus(g, post.x + 0.5, post.y + 0.5);
+    await wait(250);
+    return `crime building ${post.id}`;
+  }
+  g.ui.store.set({ overlay: 'crime' });
+  g.cam.zoom = options.zoom || 0.9;
+  focus(g, at.x + 0.5, at.y + 0.5);
+  await wait(250);
+  return `crime overlay ${near.length} homes`;
+}
+
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
   early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded, 'pyramid-placing': pyramidPlacing,
   title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion,
   variant, bridge, clay, newcomers, raid2, 'raid2-sheet': raid2Sheet, 'raid2-active': raid2Active,
+  illness, crime,
 };
 
 export async function devScene(api, name, options = {}) {

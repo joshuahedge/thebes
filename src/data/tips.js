@@ -66,6 +66,8 @@ const TIPS_S4_BALANCE = [
 // building that costs the most a month (createUI).
 const TIPS_S45 = [
   { id: 'treasury_low', trigger: 'treasuryLow', priority: true },              // a month ended with the treasury forecast below 0 within 3 months
+  { id: 'sickness_spreads', trigger: 'illness', priority: false },             // Task 5b: a home fell ill (the first time)
+  { id: 'thieves_about', trigger: 'theft', priority: false },                  // Task 5c: a thief took gold or goods (the first time)
 ];
 // ── end s45 ──
 

@@ -58,7 +58,7 @@ describe('overlays', () => {
     expect(marks.length).toBe(2);
     expect(marks.find((m) => m.id === hut.id)).toEqual({ id: hut.id, x: 12.5, y: 11.5, has: true, need: null });
     expect(overlayMarks(w, 'water', { x0: 0, y0: 0, x1: 8, y1: 31 }).length).toBe(0);
-    expect(OVERLAYS.length).toBe(9);                                   // Stage 3 adds fire risk, the placement review Ground
+    expect(OVERLAYS.length).toBe(11);                                  // Stage 3 adds fire risk, the placement review Ground, Stage 4.5 Health and Crime
   });
   it('lists the tiles a building reaches', () => {
     const w = riverWorld();
