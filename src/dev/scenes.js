@@ -809,11 +809,78 @@ async function newcomers(api) {
   return `newcomers to home ${h.id}, a walk of ${pts.length} tiles`;
 }
 
+// Stage 4.5 (Task 5a, ruling 317): a two-sided raid. raiseTwoSided is raiseWarning's later raid with its total size one more,
+// split over two bands from two entries on different edges (the east entry and another edge's), as the sim raises one.
+function raiseTwoSided(world) {
+  const w = raiseWarning(world);
+  const first = world.raiderEntries.find((e) => entryDir(world, e) === 'east') || world.raiderEntries[0];
+  const other = world.raiderEntries.find((e) => entryDir(world, e) !== entryDir(world, first)) || world.raiderEntries.find((e) => e.x !== first.x || e.y !== first.y);
+  if (!other) throw new Error('devScene raid2: the map has no second raider entry');
+  const total = w.size + 1;
+  w.size = total;
+  w.tribute = tributeFor(world, total);
+  w.second = { entry: { ...other }, dir: entryDir(world, other), size: Math.floor(total / 2) };
+  return w;
+}
+
+// The two-band warning on the banner (on a phone, the countdown chip), and the same with the raid sheet open ('raid2-sheet').
+async function raid2(api) {
+  const g = inGame(api, 'raid2'), { world } = g;
+  const w = raiseTwoSided(world);
+  g.ui.refresh();
+  await wait(100);
+  return `raid2 ${w.size} raiders from ${w.dir} and ${w.second.dir}`;
+}
+async function raid2Sheet(api) {
+  const g = inGame(api, 'raid2-sheet'), { world } = g;
+  const w = raiseTwoSided(world);
+  g.ui.refresh();
+  const alert = g.ui.alerts.list().find((a) => a.code === 'raid_warning');
+  g.ui.alerts.action(alert, 'tribute');
+  await wait(100);
+  return `raid2-sheet ${w.size} raiders from ${w.dir} and ${w.second.dir}`;
+}
+
+// A two-band raid under way: each band on its way in from its entry, 14 tiles from the middle of the city, the game paused.
+async function raid2Active(api) {
+  const g = inGame(api, 'raid2-active'), { world } = g;
+  const w = raiseTwoSided(world);
+  const r = world.raid;
+  r.warning = null;
+  const place2 = (entry) => {
+    const dx = world.focus.x - entry.x, dy = world.focus.y - entry.y, len = Math.hypot(dx, dy) || 1;
+    for (let k = Math.max(0, len - 14); k < len; k++) {        // 14 tiles out from the middle of the city, or the first free land on the way in
+      const x = Math.round(entry.x + (dx / len) * k), y = Math.round(entry.y + (dy / len) * k);
+      if (freeLand(world, x, y)) return { x, y };
+    }
+    return { x: entry.x, y: entry.y };
+  };
+  const bands = [{ entry: w.entry, dir: w.dir, size: w.size - w.second.size }, w.second];
+  const raiders = [];
+  bands.forEach((b, k) => { for (let n = 0; n < b.size; n++) raiders.push({ id: world.nextUnitId++, x: 0, y: 0, hp: UNITS.raider.hp, hit: false, ...(k ? { band: 1 } : {}) }); });
+  const at = bands.map((b) => place2(b.entry));
+  const slots = [[0, 0], [0.25, 0.2], [-0.25, 0.2], [0.25, -0.2], [-0.25, -0.2], [0, 0.32], [0, -0.32]];
+  for (const u of raiders) { const k = u.band ? 1 : 0, [dx, dy] = slots[u.id % slots.length]; u.x = at[k].x + 0.5 + dx; u.y = at[k].y + 0.5 + dy; }
+  r.clockDay = r.clockDay === null ? 0 : r.clockDay;
+  r.active = {
+    index: 1, entry: { ...w.entry }, dir: w.dir, size: w.size, target: raidTargetKind(world), day: world.day - 3, raiders, phase: 'attack', targetId: null,
+    struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [], x: at[0].x, y: at[0].y, blocked: null, towerIds: [], fires: [], burnedKinds: [],
+    second: { entry: { ...w.second.entry }, dir: w.second.dir, x: at[1].x, y: at[1].y, phase: 'attack', targetId: null, struck: [], wait: 0, blocked: null },
+  };
+  world.tally.raids += 1;
+  g.ui.refresh();
+  g.ui.cameraControl.cancel();
+  g.cam.zoom = 0.5;
+  focus(g, (at[0].x + at[1].x) / 2 + 0.5, (at[0].y + at[1].y) / 2 + 0.5);
+  await wait(200);
+  return `raid2-active ${raiders.length} raiders from ${w.dir} (${at[0].x},${at[0].y}) and ${w.second.dir} (${at[1].x},${at[1].y})`;
+}
+
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
   early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded, 'pyramid-placing': pyramidPlacing,
   title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion,
-  variant, bridge, clay, newcomers,
+  variant, bridge, clay, newcomers, raid2, 'raid2-sheet': raid2Sheet, 'raid2-active': raid2Active,
 };
 
 export async function devScene(api, name, options = {}) {

@@ -152,7 +152,8 @@ describe('s3 contract raid seams', () => {
     const at = (people, wealth) => { home.residents = people; w.gold = wealth - 5; expect(raidWealth(w)).toBe(wealth); return raidSize(w); };
     expect(at(250, 6000)).toBe(3);                                                    // 1 + 2 + 0.2 = 3.2
     expect(at(600, 15000)).toBe(8);                                                   // 1 + 4.8 + 2 = 7.8
-    expect(at(1000, 60000)).toBe(12);                                                 // 13, at most 12
+    expect(at(1000, 60000)).toBe(13);                                                 // 1 + 8 + 4 (Stage 4.5: the cap is 18, not 12)
+    expect(at(2000, 60000)).toBe(18);                                                 // 21, at most 18
     w.difficulty = 'relaxed';
     expect(at(1000, 60000)).toBe(7);                                                  // 6.5
     expect(at(0, 5)).toBe(2);                                                         // 1 x 0.5, at least 2
@@ -171,7 +172,7 @@ describe('s3 contract raid seams', () => {
     w.raid.index = 2;
     w.raid.warning = { index: 1, entry: { x: 31, y: 16 }, dir: 'east', size: 8, tribute: 360, target: 'storehouse', day: 800, arrives: 890, first: false };
     addRaw(w, 'tower', 3, 9, { staff: 4 });
-    expect(tributeQuote(w)).toEqual({ cost: 360, size: 8, towersNeeded: 3, towersHave: 1, buildN: 2, buildCost: 300, hidden: false, payable: true, reason: null });
+    expect(tributeQuote(w)).toEqual({ cost: 360, size: 8, towersNeeded: 3, towersHave: 1, buildN: 2, buildCost: 300, hidden: false, payable: true, reason: null, dirs: ['east'] });
     w.gold = 359;
     expect([tributeQuote(w).reason, payTribute(w).reason]).toEqual(['below_zero', 'below_zero']);
     w.gold = 1000;

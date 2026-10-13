@@ -737,7 +737,7 @@ export const RAID_TEXT = {
     const q = raidsSim.tributeQuote(world);
     if (!q) return '';
     if (q.buildN === 0) return 'Your towers can beat this raid';
-    return `Build ${plural(q.buildN, 'tower', 'towers')} facing ${RAID_TEXT.dirs[world.raid.warning.dir]} (≈ ${q.buildCost} gold)`;
+    return `Build ${plural(q.buildN, 'tower', 'towers')} facing ${duiFacing(q.dirs)} (≈ ${q.buildCost} gold)`;
   },
 };
 // The raid alerts (raidAlerts). raid_warning: what is coming and the defence that would beat it. raid: the band on the map
@@ -747,16 +747,16 @@ export const RAID_TEXT = {
 Object.assign(ALERT_TEXT, {
   raid_warning: (alert, world) => {
     const w = world.raid.warning;
-    return { title: `Raiders from the ${RAID_TEXT.dirs[alert.dir]} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: RAID_TEXT.towers(world) };
+    return { title: `Raiders from ${duiFrom(alert.dirs || alert.dir)} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: RAID_TEXT.towers(world) };
   },
   raid: (alert, world) => {
     const a = world.raid.active;
-    const dir = RAID_TEXT.dirs[a ? a.dir : ''] || '';
-    const phase = a ? a.phase : 'attack';
+    const dir = alert.dirs && alert.dirs.length ? duiFrom(alert.dirs) : `the ${RAID_TEXT.dirs[a ? a.dir : ''] || ''}`;
+    const phase = alert.phase || (a ? a.phase : 'attack');
     const raiders = plural(alert.left, 'raider', 'raiders');
-    if (phase === 'retreat') return { title: `Raid from the ${dir}: ${raiders} falling back`, fix: 'Towers keep shooting as they go' };
+    if (phase === 'retreat') return { title: `Raid from ${dir}: ${raiders} falling back`, fix: 'Towers keep shooting as they go' };
     const fix = `Towers hit raiders within ${raidsData.DEFENCE.towerRange} tiles; soldiers fight within ${raidsData.DEFENCE.patrol} tiles of their barracks`;
-    return { title: phase === 'leave' ? `Raid from the ${dir}: ${raiders} leaving` : `Raid from the ${dir}: ${raiders}`, fix };
+    return { title: phase === 'leave' ? `Raid from ${dir}: ${raiders} leaving` : `Raid from ${dir}: ${raiders}`, fix };
   },
 });
 // The mood rows (spec 4.9): a raid in the last six months (raidMood), a festival (festivalMood).
@@ -794,6 +794,10 @@ import { DAYS_PER_MONTH as duiMonthDays } from '../sim/time.js';
 // as the countdown chip writes it ("2 m 12 d", and "2 months" when the days come out at 0, ruling 174). A game month is DAYS_PER_MONTH days (src/sim/time.js).
 const duiDirWords = { north: 'north', east: 'east', south: 'south', west: 'west' };
 const duiDir = (dir) => duiDirWords[dir] || dir;
+// One direction or a list (a two-sided raid, Stage 4.5): "the east", "the east and south"; "east", "east and south" after "facing".
+const duiDirsOf = (dirs) => [...new Set([].concat(dirs).map(duiDir))];
+const duiFrom = (dirs) => `the ${duiDirsOf(dirs).join(' and ')}`;
+const duiFacing = (dirs) => duiDirsOf(dirs).join(' and ');
 function duiDuration(days) {
   const m = Math.floor(days / duiMonthDays), d = days % duiMonthDays;
   const parts = [m ? plural(m, 'month', 'months') : '', d || !m ? plural(d, 'day', 'days') : ''];
@@ -814,7 +818,7 @@ Object.assign(DANGER_UI_TEXT, {
   moreLabel: (n) => `${plural(n, 'more critical alert', 'more critical alerts')}: open the alert list`,
   payTribute: 'Pay tribute',
   collapse: 'Shrink', collapseLabel: 'Shrink the raid warning to its countdown', expand: 'Show the whole warning',
-  chip: (dir, days) => `Raid from the ${duiDir(dir)} · ${duiCountdown(days)}`,
+  chip: (dir, days) => `Raid from ${duiFrom(dir)} · ${duiCountdown(days)}`,
   // A phone's chip (ruling 167): its words are the button that opens the raid sheet, where the whole warning is.
   chipOpenLabel: (chip) => `${chip}: show the whole warning`,
   // The days until a warned raid arrives (warning.arrives less today): raidDay brings the raiders in on the arrives day.
@@ -822,20 +826,20 @@ Object.assign(DANGER_UI_TEXT, {
   withArrival: (title, days) => `${title}. ${DANGER_UI_TEXT.arrivesIn(days)}.`,
   arrivalLine: (days) => `${DANGER_UI_TEXT.arrivesIn(days)}.`,                // the tribute sheet's line
   defenceLine: (q, dir) => (q.buildN > 0
-    ? `${q.hidden ? 'Build' : 'or build'} ${plural(q.buildN, 'tower', 'towers')} facing ${duiDir(dir)} (≈ ${q.buildCost} gold)`
+    ? `${q.hidden ? 'Build' : 'or build'} ${plural(q.buildN, 'tower', 'towers')} facing ${duiFacing(dir)} (≈ ${q.buildCost} gold)`
     : 'Your towers can beat this raid'),
 });
 // D2: captions, the raid report and the Settings rows. A blaze or a fire goes out only where a firehouse reaches it
 // (src/sim/fire.js: a covered and staffed blaze, a covered fire at 25% x coverage a day), so the caption names the
 // firehouse. The report reads raid.last's fields (src/sim/raids.js): size, towers, byTowers, bySoldiers, burned, stolen.
-const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.stolen ? `${r.stolen} gold stolen` : ''].filter(Boolean).join(', ') || 'nothing lost';
+const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.stolen ? `${r.stolen} gold stolen` : '', r.foodStolen ? `${r.foodStolen} food stolen` : '', r.fled ? `${plural(r.fled, 'resident', 'residents')} fled` : ''].filter(Boolean).join(', ') || 'nothing lost';
 function duiRaidReport(r) {
-  const from = `Raid from the ${duiDir(r.dir)}`;
+  const from = `Raid from ${duiFrom(r.dirs || r.dir)}`;
   if (r.won) {
     const stopped = [r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : ''].filter(Boolean);
     return `${from} beaten: ${stopped.length ? `${stopped.join(', ')}; ` : ''}${duiLosses(r)}.`;
   }
-  const did = listText([r.burned ? `burned ${plural(r.burned, 'building', 'buildings')}` : '', r.stolen ? `took ${r.stolen} gold` : ''].filter(Boolean));
+  const did = listText([r.burned ? `burned ${plural(r.burned, 'building', 'buildings')}` : '', r.stolen ? `took ${r.stolen} gold` : '', r.foodStolen ? `took ${r.foodStolen} food` : '', r.fled ? `drove out ${plural(r.fled, 'resident', 'residents')}` : ''].filter(Boolean));
   const stopped = [r.byTowers ? `Towers stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `${r.byTowers ? 'soldiers' : 'Soldiers'} stopped ${r.bySoldiers}` : ''].filter(Boolean);
   return `${from}: ${did ? `raiders ${did}` : 'the raiders struck and left'}.${stopped.length ? ` ${stopped.join(', ')}.` : ''}`;
 }
@@ -892,7 +896,7 @@ Object.assign(DANGER_UI_TEXT, {
   raidSheetTitle: 'Raid warning',                                  // the raid sheet's heading on the first raid, which no tribute buys off
   capital: (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s),
   tributeCost: (cost) => `Pay ${cost} gold of tribute`, goldNow: 'Gold now', goldAfter: 'Gold afterwards',
-  cancels: (dir, size) => `Cancels the raid from the ${duiDir(dir)} (${plural(size, 'raider', 'raiders')}). The next raid still comes.`,
+  cancels: (dir, size) => `Cancels the raid from ${duiFrom(dir)} (${plural(size, 'raider', 'raiders')}${duiDirsOf(dir).length > 1 ? ' in two bands' : ''}). The next raid still comes.`,
   tributeBelowZero: (gold) => `You have ${gold} gold. Tribute can't put the treasury below 0.`,
   payGold: (cost) => `Pay ${cost} gold`, keepGold: 'Keep gold, defend', tributePaid: (cost) => `Tribute paid: ${cost} gold`,
 });
