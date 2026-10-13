@@ -22,7 +22,7 @@ describe('ui dock', () => {
     expect(root.dataset.height).toBe('tray');
     expect(document.body.dataset.dock).toBe('tray');
     const cards = root.querySelectorAll('.tray .card');
-    expect(cards.length).toBe(3);                                  // grain farm, fig orchard (locked until Town), granary
+    expect(cards.length).toBe(5);                                  // Stage 4.6: the hunting lodge and fishing wharf too (locked until Town); grain farm, fig orchard (locked until Town), granary
     fire(cards[1], 'click');                                       // a locked card does nothing
     fire(cards[2], 'click');
     expect(picked).toEqual(['granary']);

@@ -1,6 +1,6 @@
 import { TIERS, MAX_TIER, LEAVE_CAP, DOWNGRADE_AFTER_MONTHS } from '../data/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
+import { FOOD_GOODS, FOOD_SLOTS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { allBuildings, housesOf } from './world.js';
 import { touchesRoad, roadReach, reachDistance, buildingsInReach } from './reach.js';
 import { isWorking } from './labour.js';
@@ -71,6 +71,8 @@ export function leaveCap(house) {
 }
 
 const foodOnHand = (house) => FOOD_GOODS.reduce((s, g) => s + (house.stock[g] || 0), 0);
+// How many kinds of food a home has in stock (Stage 4.6, ruling 363): two kinds meet the 'twoFoods' need, whichever two.
+const foodKinds = (house) => FOOD_GOODS.filter((g) => (house.stock[g] || 0) > 0).length;
 
 // A house is judged on the residents it was stocked for: newcomers who arrived since the last delivery
 // eat from the household's stock (so it may run out early) but do not make the house count as unfed.
@@ -116,7 +118,7 @@ export function monthlyHousing(world, events = null) {
       water: cov.water.has(h.id),
       religion: cov.religion.has(h.id),
       entertainment: cov.entertainment.has(h.id),
-      twoFoods: FOOD_GOODS.every((g) => (h.stock[g] || 0) > 0),   // grain and figs both in stock before the month's eating
+      twoFoods: foodKinds(h) >= 2,   // two kinds of food in stock before the month's eating (Stage 4.6, ruling 363: any two of grain, figs, game, fish)
       food: wants.includes('food') ? consumeFood(h) : false,
     };
     for (const g of HOUSEHOLD_GOODS) if (wants.includes(g)) met[g] = consumeGood(h, g);
@@ -189,7 +191,7 @@ export function desirabilityTarget(tier) {
 // The checklist is judged live from the world as it is now, not from the snapshot the last monthly tick
 // stored in house.met, so a plot beside a road or a brand-new hut is never shown as missing what it has.
 // Only the downgrade countdown is timer-based. Household goods count as met while the stock covers the month's
-// use (the monthly check's rule); two kinds of food means grain and figs are both in stock. desirability is
+// use (the monthly check's rule); two kinds of food means any two of the foods are in stock (Stage 4.6, ruling 363). desirability is
 // there only for homes whose checklist has the row; merge is false only for a Townhouse with no square to join.
 function liveNeeds(world, house) {
   const foodNeed = needToMeet(house, FOOD_GOODS[0]);
@@ -199,7 +201,7 @@ function liveNeeds(world, house) {
     religion: coveredBy(world, house, 'religion'),
     entertainment: coveredBy(world, house, 'entertainment'),
     food: foodNeed > 0 && foodOnHand(house) >= foodNeed,
-    twoFoods: FOOD_GOODS.every((g) => (house.stock[g] || 0) > 0),
+    twoFoods: foodKinds(house) >= 2,
   };
   for (const good of HOUSEHOLD_GOODS) {
     const n = needToMeet(house, good);
@@ -278,8 +280,8 @@ export function needCause(world, house, need) {
     return roadless ? { code: `${kind}_no_road`, id: roadless.id } : { code: `no_${kind}`, id: null };
   }
   if (need === 'food') return foodCause(world, house);
-  const good = need === 'twoFoods' ? FOOD_GOODS.find((g) => !((house.stock[g] || 0) > 0)) : need;
-  return goodCause(world, house, good);
+  if (need === 'twoFoods') return twoFoodsCause(world, house);
+  return goodCause(world, house, need);
 }
 
 // The bazaars reaching the home that sell `good` (any of FOOD_GOODS for food): no_bazaar, bazaar_no_road or
@@ -310,6 +312,14 @@ function foodCause(world, house) {
   const bare = working.find((bz) => supply.get(bz.id).length);
   if (bare) return { code: 'granary_idle', id: supply.get(bare.id)[0].id };
   return { code: 'bazaar_empty', id: working[0].id };
+}
+
+// The second food a home lacks (Stage 4.6, ruling 363): of the foods it has none of (in FOOD_SLOTS order: grain, figs, game, fish), the first
+// one whose delivery is on its way, else the first one in order, so the words name the food the player can most easily bring.
+function twoFoodsCause(world, house) {
+  const missing = FOOD_SLOTS.filter((g) => FOOD_GOODS.includes(g) && !((house.stock[g] || 0) > 0));
+  const causes = missing.map((g) => goodCause(world, house, g));
+  return causes.find((c) => c.code === 'next_delivery') || causes[0];
 }
 
 function goodCause(world, house, good) {

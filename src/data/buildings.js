@@ -13,13 +13,13 @@ export const BUILDINGS = {
   },
   granary: {
     name: 'Granary', w: 2, d: 2, cost: 80, upkeep: 6, workers: 6, priority: 'essential', category: 'food',
-    needsRoad: true, stores: ['grain', 'figs'], capacity: 600,
+    needsRoad: true, stores: ['grain', 'figs', 'game', 'fish'], capacity: 600,   // Stage 4.6 (ruling 363): game and fish are foods too
   },
   // stock: the most of each good a bazaar keeps (spec 4.10).
   bazaar: {
     name: 'Bazaar', w: 2, d: 2, cost: 60, upkeep: 8, workers: 6, priority: 'services', category: 'services',
     needsRoad: true, sells: [...FOOD_GOODS, ...HOUSEHOLD_GOODS], capacity: 300, reach: 10, supplyReach: 16,
-    stock: { grain: 300, figs: 200, pottery: 100, beer: 100, linen: 100, jewellery: 100 },
+    stock: { grain: 300, figs: 200, game: 100, fish: 100, pottery: 100, beer: 100, linen: 100, jewellery: 100 },
   },
   temple: {
     name: 'Temple', w: 2, d: 2, cost: 120, upkeep: 10, workers: 6, priority: 'services', category: 'services',

@@ -32,7 +32,7 @@ describe('s3 contract data', () => {
   it('unlocks the firehouse with the Village and the wall, tower and barracks with Market town, and gives each a card', () => {
     const at = (type) => MILESTONES.find((m) => m.unlocks.includes(type)).id;
     expect(['firehouse', 'wall', 'tower', 'barracks'].map(at)).toEqual(['village', 'market_town', 'market_town', 'market_town']);
-    expect(CATEGORIES.find((c) => c.id === 'services').items.slice(-4)).toEqual(['firehouse', 'physician', 'police_post', 'palace']);   // Stage 4: the palace comes last; Stage 4.5: the physician and police post before it
+    expect(CATEGORIES.find((c) => c.id === 'services').items.slice(-5)).toEqual(['firehouse', 'physician', 'police_post', 'palace', 'nilometer']);   // Stage 4: the palace comes last; Stage 4.5: the physician and police post before it; Stage 4.6: the River track's Nilometer after it
     expect(CATEGORIES.find((c) => c.id === 'defence').items).toEqual(['wall', 'gate', 'tower', 'barracks', 'archery_range', 'stables']);   // Stage 4.5: the Gate card (ruling 309); Stage 4.6: the Armies track's two
     for (const slot of ['firehouse', 'tower', 'barracks', 'wall', 'gate', 'rubble']) expect([slot, typeof (ART[slot] && ART[slot].draw)]).toEqual([slot, 'function']);
   });
@@ -50,6 +50,7 @@ describe('s3 contract data', () => {
       potter: 1.0, brewery: 1.0, weaver: 0.5, jeweller: 0.5, granary: 0.5, storehouse: 0.5, trading_post: 0.5,
       bazaar: 0.3, booth: 0.3, barracks: 0.3, farm_grain: 0.15, farm_fig: 0.15, farm_barley: 0.15, farm_flax: 0.15, clay_pit: 0.15, gem_mine: 0.15,
       temple: 0.1, firehouse: 0.1, quarry: 0.15, brickworks: 1.0, builders_guild: 0.3,   // Stage 4's three supply buildings
+      hunting_lodge: 0.3, fishing_wharf: 0.3,   // Stage 4.6 (River track, ruling 365)
       archery_range: 0.3, stables: 0.5,   // Stage 4.6 (ruling 416): the range as the barracks, the stables higher for hay
     });
     for (const never of ['garden', 'statue', 'well', 'wall', 'gate', 'tower', 'rubble', 'house']) expect([never, FIRE_RISK[never]]).toEqual([never, undefined]);

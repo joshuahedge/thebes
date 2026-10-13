@@ -48,7 +48,7 @@ describe('s46 contract world v7', () => {
     for (const k of NEW_KEYS) expect(REQUIRED).toContain(k);
     expect([w.mapSize, w.mapParams]).toEqual([64, {}]);
     expect(w.flood).toEqual(newFloodState());
-    expect(w.flood).toEqual({ year: null, level: null, forecast: null, from: null, to: null });
+    expect(w.flood).toEqual({ year: null, level: null, forecast: null, from: null, to: null, applied: null, risen: false });   // the River track added applied and risen inside the record
     expect(w.wildlife).toEqual(newWildlifeState());
     expect(w.court).toEqual(newCourtState());
     expect([w.court.favour, FAVOUR.start, w.court.letters, w.court.request, w.court.cards]).toEqual([50, 50, [], null, []]);

@@ -86,5 +86,6 @@ export const TIP_AUTO_CLOSE_MS = 20000;    // on a phone a tip closes itself aft
 // season's remarks whose building the city has (the pool and its words: CITIZEN_REMARKS in src/ui/text.js).
 export const REMARK_EVERY_MONTHS = 3;
 export const REMARK_SALT = 9301;
-// The seasons by month of the year (1-12): Akhet, the flood, months 1-4; Peret, the growing, 5-8; Shemu, the harvest, 9-12.
-export const SEASONS = ['akhet', 'akhet', 'akhet', 'akhet', 'peret', 'peret', 'peret', 'peret', 'shemu', 'shemu', 'shemu', 'shemu'];
+// The seasons by month of the year (1-12): Akhet, the flood, months 7-10 (the water rises in 7, stands through 9 and drains in 10: FLOOD in
+// src/data/river.js); Peret, the growing, 11-2; Shemu, the harvest, 3-6 (Stage 4.6, ruling 346; they were 1-4, 5-8 and 9-12).
+export const SEASONS = ['shemu', 'shemu', 'shemu', 'shemu', 'shemu', 'shemu', 'akhet', 'akhet', 'akhet', 'akhet', 'peret', 'peret'];

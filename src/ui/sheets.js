@@ -22,6 +22,7 @@ import { nearestTerrainTile } from './goalsList.js';
 import { demolishQuestion, causeFix } from './monumentSheet.js';
 import { noteView } from '../render/overlays.js';
 import { supplyNeeded } from '../sim/monuments.js';
+import { huntRest } from '../sim/wildlife.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
   goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT } from './text.js';
@@ -104,6 +105,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     const def = BUILDINGS[b.type];
     if (!def.produces) return null;
     if (!b.paused && (b.blocked === 'idle' || !supplyNeeded(world, b))) return null;
+    if (b.blocked === 'no_game' && isWorking(world, b) && huntRest(world, b)) return null;   // Stage 4.6 (ruling 369): a lodge that has had its share is resting, not broken: the River rows say why
     let text = T.notWorking;
     if (isWorking(world, b) && b.blocked === 'no_input') text = waitingText(def.consumes);
     else if (isWorking(world, b) && !b.blocked) text = def.produces.good === 'stone' ? UI4_TEXT.cuttingStone : workingText(b.type);

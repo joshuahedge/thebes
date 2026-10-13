@@ -31,9 +31,9 @@ describe('ui stage 2 cards', () => {
     const w = makeTestWorld();
     expect(ids(shownCategories(w))).toEqual(SHOWN);                                 // Industry shows at Village: its Town cards, locked
     expect(shownItems(w, 'homes')).toEqual(['house', 'garden', 'statue']);
-    expect(shownItems(w, 'food')).toEqual(['farm_grain', 'farm_fig', 'granary']);
+    expect(shownItems(w, 'food')).toEqual(['farm_grain', 'farm_fig', 'granary', 'hunting_lodge', 'fishing_wharf']);   // Stage 4.6: the River track's two, locked until Town
     expect(shownItems(w, 'industry')).toEqual(['clay_pit', 'potter', 'storehouse']);
-    expect(shownItems(w, 'services')).toEqual(['well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'palace']);   // Stage 4: the palace comes with Town; Stage 4.5: the physician too
+    expect(shownItems(w, 'services')).toEqual(['well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'palace', 'nilometer']);   // Stage 4: the palace comes with Town; Stage 4.5: the physician too; Stage 4.6: the Nilometer
     expect(shownItems(w, 'defence')).toEqual([]);                                     // Market town's cards: hidden until Town
     expect([cardInfo(w, 'garden').locked, cardInfo(w, 'statue').locked, cardInfo(w, 'potter').lockText]).toEqual([false, true, 'Unlocks at Town']);
     w.milestone = 'town';
