@@ -17,7 +17,7 @@ import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT } from './tex
 import { el, button, clear, setText } from './components.js';
 
 // The sim has no severity field, so the UI decides (1a follow-up). CRITICAL_RANK is the banner's order (spec 6.3): how
-// soon harm lands. A fire no staffed firehouse reaches burns out in 7-10 s at 1x, a warning gives about 60 s, so the fire
+// soon harm lands. A fire no staffed firehouse reaches burns out in 10-15 s at 1x, a warning gives about 90 s, so the fire
 // is never hidden behind raiders who are months away (ruling 166).
 export const CRITICAL_RANK = ['raid', 'fire', 'raid_warning', 'debt', 'save_failed'];
 export const CRITICAL = new Set(CRITICAL_RANK);

@@ -3,3 +3,4 @@
 import './trees.test.js';
 import './gates.test.js';
 import './fire.test.js';
+import './clock.test.js';

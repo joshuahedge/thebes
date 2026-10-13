@@ -1,5 +1,6 @@
 import { describe, it, expect } from '../harness.js';
 import { createGameLoop, MAX_FRAME_SECONDS, MAX_DAYS_PER_FRAME } from '../../src/render/loop.js';
+import { DAYS_PER_SECOND } from '../../src/sim/time.js';
 import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
 
 function harness(speed) {
@@ -25,9 +26,9 @@ describe('game loop', () => {
     expect(w.day).toBe(0);
     advance(loop, 0, 1000);
     expect(w.day).toBe(1);
-    expect(Math.abs(frames[frames.length - 1].timeDays - 1.5) < 1e-9).toBe(true);
+    expect(Math.abs(frames[frames.length - 1].timeDays - 1) < 1e-9).toBe(true);
     advance(loop, 1000, 2000);
-    expect(w.day).toBe(3);
+    expect(w.day).toBe(2);
     expect(frames.length).toBe(9);
   });
   it('does nothing while paused and scales with speed', () => {
@@ -39,13 +40,13 @@ describe('game loop', () => {
     const fast = harness(3);
     fast.loop.tick(0);
     advance(fast.loop, 0, 1000);
-    expect(fast.w.day).toBe(4);
+    expect(fast.w.day).toBe(3);
   });
   it('caps a long gap so a background tab never spirals', () => {
     const { w, loop } = harness(3);
     loop.tick(0);
     loop.tick(120000);
-    expect(w.day).toBeLessThanOrEqual(Math.ceil(MAX_FRAME_SECONDS * 1.5 * 3));
+    expect(w.day).toBeLessThanOrEqual(Math.ceil(MAX_FRAME_SECONDS * DAYS_PER_SECOND * 3));
     expect(w.day).toBeLessThanOrEqual(MAX_DAYS_PER_FRAME);
   });
   it('caps the days stepped in one frame', () => {

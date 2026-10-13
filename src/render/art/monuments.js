@@ -1,7 +1,7 @@
 // The seven monuments (spec 5.1, 5.7; rulings 182, 183, 221, 257), drawn live from their building's site every frame
 // (src/render/monuments.js drawMonument), never from the sprite cache. A site is founded as stakes and cords on a paved
 // apron with a stockpile corner; its courses rise block by block (a block is BLOCK_UNITS units, so with one full crew at
-// 1x a new block shows at least every 5 s); a mudbrick ramp climbs the face towards the viewer as the courses rise on a
+// 1x a new block shows at least every 5 s: 3 units at 2/3 a second); a mudbrick ramp climbs the face towards the viewer as the courses rise on a
 // mastaba or a pyramid, timber scaffolding round an obelisk or the colossus. Finished, the ramp, stakes and scaffold go:
 // a pyramid stands in smooth white casing with a gold capstone, the large obelisk with a gilded tip, the colossus is
 // painted, a mastaba is a stepped whitewashed bench. The apron stays, so a neighbour's drawing never reaches the body
@@ -15,7 +15,7 @@ import { WASH, WASH2, MUD, MUD2, STONE, GOLDC, TEAL, TEAL_DARK, BLUE, RED, RED_D
 import { MONUMENTS, MONUMENT_KINDS, MONUMENT } from '../../data/monuments.js';
 import { boundsFor } from '../iso.js';
 
-export const BLOCK_UNITS = 5;                               // units of material a block stands for (spec 5.7: a block every 5 s)
+export const BLOCK_UNITS = 3;                               // units of material a block stands for (spec 5.7: a block at least every 5 s at 1x; a full crew lays 2/3 of a unit a second)
 // The pyramids' quarried limestone: paler and greyer than the sand it stands on, its shaded face a cool lavender-grey
 // (spec 5.1), so a site is the brightest, heaviest thing in the view rather than a darker patch of desert.
 export const CORE = ['#F8F0DE', '#EEE3CA', '#B9ACB6'];

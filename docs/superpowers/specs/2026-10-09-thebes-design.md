@@ -19,7 +19,7 @@ It's a plain web page that installs to a phone's home screen, works offline, and
 | Challenge | City troubles plus **automatic defence**. Fires start from Town and raiders come from Market town; walls, towers and soldiers fight on their own; players can pay **tribute** to avoid a raid (not the first). |
 | Score | Five named parts, each out of 100 (score v2 from Stage 4: People, Prosperity, Culture, Safety and Monuments), measured from the city's state, times a difficulty factor. Personal bests per seed and difficulty live on the device. No leaderboard (section 4.19). |
 | Core systems | Housing upgrades, production chains, trade, desirability, monuments. River flooding is deferred. |
-| Monuments | Seven monuments that rise course by course on screen, from a one-minute obelisk to an hour-long great pyramid (at 1×), built by builders' guild crews from stone and bricks, paid for as the work happens, never into debt, and safe from fire and raiders (section 4.16). |
+| Monuments | Seven monuments that rise course by course on screen, from a minute-and-a-half obelisk to a great pyramid of about 90 minutes (at 1×), built by builders' guild crews from stone and bricks, paid for as the work happens, never into debt, and safe from fire and raiders (section 4.16). |
 | Motion | One **Motion** setting, Full, Gentle or Still. A device that asks for less motion gets **Gentle**, where walkers, crews and processions still move and the city fades and glints in place (section 5.4). |
 | Service coverage | **Reach along roads** decides coverage; **walkers are drawn for looks only**. |
 | Housing | Nine tiers. Tiers 6–9 are 2×2 with **capacities 100 / 125 / 150 / 180**, so an upgrade never shrinks the city. |
@@ -117,7 +117,7 @@ It's a plain web page that installs to a phone's home screen, works offline, and
 ### 4.3 Time
 
 - The simulation advances one **game-day** per tick. There are 30 days to a month and 12 months to a year.
-- Speeds are pause, 1×, 2× and 3×. At 1×, a day is two-thirds of a second, a month is 20 seconds and a year is 4 minutes.
+- Speeds are pause, 1×, 2× and 3×. At 1×, a day is a second, a month is 30 seconds and a year is 6 minutes.
 - Economy steps (taxes, wages, soldiers' pay, consumption, upkeep, immigration, mood, the score) run monthly. Production, movement, fire, raiders and combat run daily.
 - The game **pauses when the page is hidden** (another app or tab, or the phone is locked) and **always reopens paused** (section 4.17). Nothing happens while the player is away.
 
@@ -125,13 +125,13 @@ It's a plain web page that installs to a phone's home screen, works offline, and
 
 | Event | Game time | At 1× |
 |---|---|---|
-| A blaze before it grows into a fire | 3 days | 2 s |
-| A covered blaze being put out | 1 or 2 days (seeded) | under 1.5 s |
-| A fire burning | 10-15 days (seeded) | 7-10 s |
-| Raid warning to arrival | 3 months (90 days) | 60 s |
-| First raid warning | 2 game-years after the city first has 250 people | 8 min |
-| Later raid warnings | 2-4 game-years after the last raid (seeded) | 8-16 min |
-| A festival's mood bonus, then the wait before the next | 3 months, 12 months | 1 min, 4 min |
+| A blaze before it grows into a fire | 3 days | 3 s |
+| A covered blaze being put out | 1 or 2 days (seeded) | 1 or 2 s |
+| A fire burning | 10-15 days (seeded) | 10-15 s |
+| Raid warning to arrival | 3 months (90 days) | 90 s |
+| First raid warning | 2 game-years after the city first has 250 people | 12 min |
+| Later raid warnings | 2-4 game-years after the last raid (seeded) | 12-24 min |
+| A festival's mood bonus, then the wait before the next | 3 months, 12 months | 1 min 30 s, 6 min |
 
 **Speed reactions.** "Drop to 1×" turns 2× or 3× into 1× and leaves a paused game paused.
 
@@ -611,13 +611,13 @@ Monuments are the late game: long projects the player founds, supplies and watch
 
 | Monument | Footprint | Courses | Most crews | Work (crew-months) | Time | At 1× | At 3× | One course at 1× | Unlocks |
 |---|---|---|---|---|---|---|---|---|---|
-| Small obelisk | 1×1 | 3 | 1 | 3 | 3 months | 1 min | 20 s | 20 s | City |
-| Large obelisk (gilded tip) | 1×1 | 4 | 2 | 18 | 9 months | 3 min | 1 min | 45 s | City |
-| Colossus (seated statue) | 2×2 | 6 | 2 | 48 | 2 years | 8 min | 2 min 40 s | 1 min 20 s | Great city |
-| Small mastaba | 3×2, rotates | 4 | 3 | 108 | 3 years | 12 min | 4 min | 3 min | Great city |
-| Large mastaba | 4×3, rotates | 5 | 4 | 240 | 5 years | 20 min | 6 min 40 s | 4 min | Capital |
-| Small pyramid | 4×4 | 8 | 4 | 384 | 8 years | 32 min | about 11 min | 4 min | Capital and 100 prestige |
-| Great pyramid (gold capstone) | 7×7 | 12 | 4 | 720 | 15 years | 60 min | 20 min | 5 min | Capital and 300 prestige |
+| Small obelisk | 1×1 | 3 | 1 | 3 | 3 months | 1 min 30 s | 30 s | 30 s | City |
+| Large obelisk (gilded tip) | 1×1 | 4 | 2 | 18 | 9 months | 4 min 30 s | 1 min 30 s | about 1 min 8 s | City |
+| Colossus (seated statue) | 2×2 | 6 | 2 | 48 | 2 years | 12 min | 4 min | 2 min | Great city |
+| Small mastaba | 3×2, rotates | 4 | 3 | 108 | 3 years | 18 min | 6 min | 4 min 30 s | Great city |
+| Large mastaba | 4×3, rotates | 5 | 4 | 240 | 5 years | 30 min | 10 min | 6 min | Capital |
+| Small pyramid | 4×4 | 8 | 4 | 384 | 8 years | 48 min | 16 min | 6 min | Capital and 100 prestige |
+| Great pyramid (gold capstone) | 7×7 | 12 | 4 | 720 | 15 years | 90 min | 30 min | 7 min 30 s | Capital and 300 prestige |
 
 The target feel: a small monument is a reward inside one phone session, a mastaba spans one or two, and the great pyramid is an evening or two of play (three or four sessions at 3×). It stays an achievement because it needs Capital, 300 prestige, four guilds and three or four quarries first. A 15-year build sees four to seven raids and many fires: the city carries on around the project.
 
@@ -878,10 +878,10 @@ The city's own seat, which grows grander as the city does. It is a civic buildin
 | Style | Look | Can be enlarged to it from | Price to enlarge (× difficulty cost) | Works (game days, at 1×) | Desirability (by distance 1-6) | Mood |
 |---|---|---|---|---|---|---|
 | 1. Courtyard house | A mudbrick house round a courtyard with a palm | (as built, Town) | — | — | 4, 3, 2, 1 | — |
-| 2. Columned hall | Whitewashed walls, a hall of painted columns | Market town | 600 | 30 (20 s) | 6, 5, 4, 3, 2 | +1 |
-| 3. Pylons and banners | Painted pylon gate with flagpoles and banners | City | 1,500 | 60 (40 s) | 8, 7, 6, 5, 4, 3 | +2 |
-| 4. Gilded | Gilded cornices, a pair of statues and two small obelisks at the gate | Great city | 4,000 | 90 (1 min) | 10, 9, 8, 6, 4, 2 | +3 |
-| 5. Lapis and gold | A grand palace in lapis and gold with a pool court | Capital | 10,000 | 120 (1 min 20 s) | 14, 12, 10, 8, 6, 4 | +4 |
+| 2. Columned hall | Whitewashed walls, a hall of painted columns | Market town | 600 | 30 (30 s) | 6, 5, 4, 3, 2 | +1 |
+| 3. Pylons and banners | Painted pylon gate with flagpoles and banners | City | 1,500 | 60 (1 min) | 8, 7, 6, 5, 4, 3 | +2 |
+| 4. Gilded | Gilded cornices, a pair of statues and two small obelisks at the gate | Great city | 4,000 | 90 (1 min 30 s) | 10, 9, 8, 6, 4, 2 | +3 |
+| 5. Lapis and gold | A grand palace in lapis and gold with a pool court | Capital | 10,000 | 120 (2 min) | 14, 12, 10, 8, 6, 4 | +4 |
 
 - **Enlarging** is the player's choice: **Enlarge the palace** on its sheet, one style at a time, once the city has reached that style's milestone. The button names the next style and its price ("Enlarge to a columned hall: 600 gold"), or why it waits ("Painted pylons come with City", "You have 900 gold: enlarging can't put the treasury below 0", "The palace needs a road first"). A confirmation names the price; the gold is paid in full at once, and it is not undone by Undo.
 - **The works.** Scaffolding and a few workers stand round the palace for the works' days (game time, so nothing happens while paused or closed); the old style and its desirability hold until they end, then the new style shows with a caption ("The palace is now a columned hall") and a small sparkle under Full motion. One enlargement at a time.
@@ -1090,7 +1090,7 @@ The layout depends on the available space; controls depend on the input in use (
 | Warning | The count badge, a row in the minimap sheet's list, and a problem marker on the map | A covered blaze, high fire risk, labour shortage, an empty bazaar, no storage, plots with no road, a stalled monument site | Polite status |
 | Critical | **The one banner** under the top bar (the alert row on phones) | See the ranking below | `role="alert"` |
 
-  - **Only one banner ever shows.** It holds the highest-ranked critical, ranked by how soon harm lands: **an active raid, then a fire no staffed firehouse reaches, then a raid warning, then debt, then save failing**. A fire burns out in 7-10 s and a warning gives about 60 s, so a fire is never hidden behind a raid that is months away. The others wait in the minimap list. On wide screens the banner shows "+2 more", which opens it. On phones there is no "+N more": the Map badge counts every alert the banner is not showing, criticals included, and the minimap sheet, opened from the badge or from the banner, lists alerts first (criticals first) and the map second.
+  - **Only one banner ever shows.** It holds the highest-ranked critical, ranked by how soon harm lands: **an active raid, then a fire no staffed firehouse reaches, then a raid warning, then debt, then save failing**. A fire burns out in 10-15 s and a warning gives about 90 s, so a fire is never hidden behind a raid that is months away. The others wait in the minimap list. On wide screens the banner shows "+2 more", which opens it. On phones there is no "+N more": the Map badge counts every alert the banner is not showing, criticals included, and the minimap sheet, opened from the badge or from the banner, lists alerts first (criticals first) and the map second.
   - **Repeats roll into one line**: "3 buildings on fire", whose View steps through them in turn.
   - **Problem markers** on the map are at least 20 px across at any zoom, with a mark by cause: a road mark (two bars) for a building no road touches, "!" for the rest, and the down arrow for a home losing a tier. **Plots and homes with no road** also get a dashed amber outline on their tile, one road-mark badge (the same 20 px badge a building with no road gets) over each group of them whose tiles touch along an edge, set over the plot nearest the group's middle, and one aggregate warning in the list, "6 plots have no road" ("N homes have no road" once any has people), with View and Show me (which opens the road tool aimed at the one nearest the middle of the screen). It counts in the Map badge and never takes the banner. The Press Play tip does not fire for plots when none of those just painted touches a road.
   - **Which building a marker belongs to** (Stage 4, from Joshua's playtest: a red badge floating between buildings was hard to place). Every marker is tied to its own building in three ways, at every zoom and every Motion level, with nothing pulsing:
@@ -1520,7 +1520,7 @@ Each stage ends playable and shareable at the link, and each gets its own step-b
    - ambient life (5.6)
    - world version 4 with its migration
 4. **Monuments and a grander city:**
-   - the seven monuments rising course by course: blocks, ramp, sleds and work gangs, casing, the gilded tip and the gold capstone, with the times of 4.16 (a minute for the small obelisk, an hour at 1× for the great pyramid with four crews)
+   - the seven monuments rising course by course: blocks, ramp, sleds and work gangs, casing, the gilded tip and the gold capstone, with the times of 4.16 (a minute and a half for the small obelisk, 90 minutes at 1× for the great pyramid with four crews)
    - the builders' guild, quarry and brickworks; crews; stone and bricks delivered to sites and bridged by storehouses; idling with no wages; Memphis's stone (4.10, 4.15, 4.16)
    - monuments as the late-game gold sink: founding, work gold, gilding and capstone, never below 0, the Monuments spending row, and the capital run's band (4.11, 9)
    - prestige measured from state, the pyramids' prestige unlocks, the mood term (4.9, 4.14, 4.16)

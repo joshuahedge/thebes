@@ -5,7 +5,7 @@
 //   id            the style's key (art slot palace.s<index>, words PALACE_TEXT in src/ui/text.js)
 //   milestone     the milestone the city must have reached to enlarge to it (the first is as built)
 //   price         gold to enlarge to it (x the difficulty's cost); 0 for the first
-//   days          the works' game days (30 at 1x is 20 s)
+//   days          the works' game days (30 at 1x is 30 s)
 //   desirability  its values by distance 1-6 (spec 4.7), only while a road touches it
 //   mood          its Palace mood row (spec 4.9), only while a road touches it: +1 a style above the first
 export const PALACE_STYLES = [
