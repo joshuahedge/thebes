@@ -4,3 +4,4 @@
 import './enter.test.js';
 import './speed.test.js';
 import './legibility.test.js';
+import './releases.test.js';
