@@ -98,12 +98,12 @@ describe('s46 river wildlife: the herds (ruling 335, 364)', () => {
 });
 
 describe('s46 river wildlife: hunting (ruling 335, 364)', () => {
-  it('brings up to 6 game a month from one herd in reach, taking each from the herd, and waits when none is left this month', () => {
+  it('brings 6 game a month from one herd in reach, from one animal (ruling 460), and waits when the herd has given its animal this month', () => {
     const { w, lodge, granary } = lodgeWorld();
     const h = herd(w, { size: 8, max: 8 });
     expect(herdsInReach(w, lodge).map((x) => x.id)).toEqual([h.id]);
     expect(Math.round(monthOfGame(w))).toBe(HUNTING.perHerdMonth);
-    expect([h.size, w.tally.hunted, w.tally.made.game]).toEqual([2, 6, 6]);
+    expect([h.size, w.tally.hunted, w.tally.made.game, HUNTING.gamePerAnimal]).toEqual([7, 1, 6, HUNTING.perHerdMonth]);
     expect([granary.store.game, lodge.blocked]).toEqual([6, 'no_game']);                    // the herd's month is spent
     expect(lodge.progress).toBeLessThan(1.0001);                                            // and no more than one unit is banked
   });
@@ -137,19 +137,19 @@ describe('s46 river wildlife: hunting (ruling 335, 364)', () => {
     lodge.staff = 3; lodge.paused = true;
     expect(monthOfGame(w)).toBe(0);
   });
-  it('shrinks a herd by 1 a hunt, regrows 1 every 2 months to its size, and is gone at 0', () => {
+  it('shrinks a herd by 1 a hunt, regrows 1 a month to its size (ruling 460), and is gone at 0', () => {
     const w = riverWorld();
     w.wildlife.seeded = true;
     w.day = dayOf(2, 1);
     const h = herd(w, { size: 5, max: 8, moved: w.day });
     takeGame(w, h);
     takeGame(w, h);
-    expect([h.size, h.hunted, h.regrow, w.tally.hunted]).toEqual([3, 2, w.day + 2 * MONTH, 2]);
+    expect([h.size, h.hunted, h.regrow, w.tally.hunted]).toEqual([3, 2, w.day + WILDLIFE.regrowMonths * MONTH, 2]);
     stepRiver(w, 2 * MONTH);
-    expect([h.size, h.hunted]).toEqual([4, 0]);
+    expect([h.size, h.hunted, WILDLIFE.regrowMonths]).toEqual([5, 0, 1]);
     const sizes = [];
     for (let m = 0; m < 5; m++) { stepRiver(w, MONTH); sizes.push(h.size); }
-    expect(sizes).toEqual([4, 5, 5, 6, 6]);                                                  // one more every second month
+    expect(sizes).toEqual([6, 7, 8, 8, 8]);                                                  // one more a month, to its size
     stepRiver(w, MONTH * 20);
     expect([h.size, h.regrow]).toEqual([8, null]);                                           // never past its size
     const one = herd(w, { size: 1, max: 1 });

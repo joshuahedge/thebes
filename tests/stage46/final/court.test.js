@@ -327,11 +327,13 @@ describe('s46 final court: food requests size a lodge and a wharf as they make f
     const lodge = addRaw(w, 'hunting_lodge', 26, 11, { staff: BUILDINGS.hunting_lodge.workers });
     expect(outputPerMonth(w, 'game')).toBe(0);
     w.wildlife.herds.push({ id: w.wildlife.nextId++, kind: 'gazelle', x: 28, y: 14, size: 4, max: 6, regrow: null, hx: 28, hy: 14, px: 28, py: 14, moved: 0, hunted: 0, dir: 1 });
-    expect(huntingOutlook(w, lodge).month).toBe(4);
-    expect(outputPerMonth(w, 'game')).toBe(4);
+    // Read the herd's month from the hunting rule itself (ruling 460 changed it), never a typed number.
+    const month = huntingOutlook(w, lodge).month;
+    expect(month > 0).toBe(true);
+    expect(outputPerMonth(w, 'game')).toBe(month);
     expect(outputPerMonth(w, 'game') < HUNTING.maxMonth).toBe(true);
-    lodge.staff = 2;
-    expect(outputPerMonth(w, 'game')).toBe(4 * 2 / BUILDINGS.hunting_lodge.workers);
+    lodge.staff = 1;
+    expect(outputPerMonth(w, 'game')).toBe(month * 1 / BUILDINGS.hunting_lodge.workers);
   });
   it('counts a wharf\'s flood-month catch while the water is up, and its usual catch otherwise', () => {
     const w = courtWorld({ open: true });

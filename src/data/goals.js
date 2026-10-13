@@ -85,7 +85,7 @@ export const GUIDE_GOALS = ['road', 'plots', 'well', 'food', 'temple'];
 // an alert with its trigger code appears, once per city, and completes when the trouble has cleared.
 // A null showMe means Show me opens the city summary.
 export const EVENT_GOALS = [
-  { id: 'fix_bazaar', trigger: 'bazaar_empty', chapter: 'event', text: 'Get grain to the bazaar', reward: EVENT_REWARD, need: { kind: 'noAlert', code: 'bazaar_empty' }, showMe: { category: 'food', item: 'granary', target: 'alert', code: 'bazaar_empty' } },
+  { id: 'fix_bazaar', trigger: 'bazaar_empty', chapter: 'event', text: 'Get food to the bazaar', reward: EVENT_REWARD, need: { kind: 'noAlert', code: 'bazaar_empty' }, showMe: { category: 'food', item: 'granary', target: 'alert', code: 'bazaar_empty' } },
   { id: 'more_workers', trigger: 'labour_shortage', chapter: 'event', text: 'Find more workers: place more homes', reward: EVENT_REWARD, need: { kind: 'noAlert', code: 'labour_shortage' }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'more_jobs', trigger: 'unemployment', chapter: 'event', text: 'Make more jobs: build a farm or a bazaar', reward: EVENT_REWARD, need: { kind: 'noAlert', code: 'unemployment' }, showMe: { category: 'food', item: 'farm_grain', target: 'fertile' } },
   { id: 'out_of_debt', trigger: 'debt', chapter: 'event', text: 'Get out of debt', reward: EVENT_REWARD, need: { kind: 'gold', n: 0 }, showMe: null },

@@ -15,3 +15,4 @@ import './wave1/wave1.test.js';
 import './wave2/wave2.test.js';
 import './balance/balance.test.js';
 import './final/court.test.js';
+import './final/riverux.test.js';

@@ -166,7 +166,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (def.stores) body.append(...storeSection(b));
     else for (const [good, n] of Object.entries(b.store)) body.append(row(`${T.stock}: ${goodName(good)}`, String(n)));
     const reach = def.reach || def.supplyReach || def.producerReach;
-    if (reach) body.append(row(T.reach, `${reach} road tiles`));
+    // A lodge's or wharf's reach is where it delivers, not where its crew goes (that is the River rows' straight-line tiles): said so (final review).
+    if (reach) body.append(row(def.hunts || def.fishes ? T.storesWithin : T.reach, `${reach} road tiles`));
     body.append(...extra('building', b));
     body.append(el('h3', { text: T.problems }), problems(b.id));
     const actions = el('div', { class: 'actions' }, extra('actions', b));

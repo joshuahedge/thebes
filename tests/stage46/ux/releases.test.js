@@ -28,7 +28,10 @@ describe('s46 ux releases', () => {
       expect([r.version, Array.isArray(r.new), Array.isArray(r.fixed), r.new.length + r.fixed.length > 0]).toEqual([r.version, true, true, true]);
       for (const line of [...r.new, ...r.fixed]) expect([r.version, typeof line === 'string' && line.length > 10 && line.length < 330]).toEqual([r.version, true]);
     }
-    expect(RELEASES.filter((r) => r.provisional).map((r) => r.version)).toEqual(['4.6']);   // only the current build is a draft, until the controller finalises it
+    expect(RELEASES.filter((r) => 'provisional' in r).map((r) => r.version)).toEqual([]);   // final review: the 4.6 notes are final
+    // Every entry has a build (final review, Josh's ask): the newest the running build's ('live'), every other its merge commit's short sha.
+    expect(RELEASES.map((r, i) => [r.version, i === 0 ? r.build === 'live' : /^[0-9a-f]{7}$/.test(r.build)])).toEqual(RELEASES.map((r) => [r.version, true]));
+    expect(new Set(RELEASES.map((r) => r.build)).size).toBe(RELEASES.length);
   });
   it('formats a date without Date', () => {
     expect([releaseDateText('2026-10-13'), releaseDateText('2026-01-05'), releaseDateText('nonsense')]).toEqual(['13 Oct 2026', '5 Jan 2026', 'nonsense']);

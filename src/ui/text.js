@@ -5,7 +5,7 @@ import { MILESTONES } from '../data/progression.js';
 import { TIERS } from '../data/housing.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { FIRSTS } from '../data/firsts.js';
-import { GOODS } from '../data/goods.js';
+import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
 import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
 import { ECONOMY, FORECAST } from '../data/economy.js';
@@ -47,6 +47,10 @@ export function listText(items) {
 export const makerOf = (good) => Object.keys(BUILDINGS).find((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good) || null;
 export const storeFor = (good) => Object.keys(BUILDINGS).find((t) => (BUILDINGS[t].stores || []).includes(good)) || null;
 const pluralName = (type) => BUILDING_PLURALS[type] || `${buildingName(type).toLowerCase()}s`;
+// Every building that makes a food (FOOD_GOODS), in the data's order, and their names as a list: "grain farms, fig orchards, hunting lodges and
+// fishing wharves". The food causes and fixes name these, never grain alone (final review: game and fish fill a granary too).
+export const foodMakers = () => Object.keys(BUILDINGS).filter((t) => BUILDINGS[t].produces && FOOD_GOODS.includes(BUILDINGS[t].produces.good));
+export const foodMakersText = () => listText(foodMakers().map(pluralName));
 
 // Every good's line (spec 4.10): what makes it, what uses it and who trades it, built from the data so it never
 // drifts: "Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis and Byblos".
@@ -73,10 +77,13 @@ export function goodLine(good) {
 
 // A producer's status line on its sheet: "Making pottery from clay", "Growing figs", "Digging clay", or, when a
 // workshop has nothing to work, "Waiting for clay".
-const MAKE_VERBS = { clay: 'Digging', gems: 'Mining', game: 'Hunting', fish: 'Fishing' };   // Stage 4.6: the River track's two foods
+const MAKE_VERBS = { clay: 'Digging', gems: 'Mining' };
+// Stage 4.6: the River track's two foods say what the crew does, not the good twice (final review: "Hunting game", "Fishing fish").
+const MAKE_LINES = { game: 'Hunting the herds', fish: 'Fishing the river' };
 export function workingText(type) {
   const def = BUILDINGS[type];
   const good = goodWord(def.produces.good);
+  if (MAKE_LINES[def.produces.good]) return MAKE_LINES[def.produces.good];
   return def.consumes ? `Making ${good} from ${goodWord(def.consumes)}` : `${MAKE_VERBS[def.produces.good] || 'Growing'} ${good}`;
 }
 export const waitingText = (good) => `Waiting for ${goodWord(good)}`;
@@ -97,8 +104,8 @@ export const CAUSE_TEXT = {
   no_road: { cause: 'No road beside it', fix: 'Lay a road next to it' },
   no_well: { cause: `No well within ${BUILDINGS.well.reach} road tiles`, fix: 'Build a well near it' },
   no_bazaar: { cause: `No bazaar within ${BUILDINGS.bazaar.reach} road tiles`, fix: 'Build a bazaar near it' },
-  bazaar_empty: { cause: 'The bazaar has no grain', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles of it` },
-  granary_empty: { cause: 'Its granary is empty', fix: 'Grain farms fill granaries' },
+  bazaar_empty: { cause: 'The bazaar has no food', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles of it` },
+  granary_empty: { cause: 'Its granary is empty', get fix() { return `${capitalised(foodMakersText())} fill granaries`; } },   // a getter: the plurals are set further down
   next_delivery: { cause: 'Food arrives at the next delivery', fix: '' },
   no_temple: { cause: `No temple within ${BUILDINGS.temple.reach} road tiles`, fix: 'Build a temple near it' },
   well_idle: idleWords('well'),
@@ -348,7 +355,7 @@ export function alertText(alert, world) {
       };
     }
     case 'understaffed': return { title: `${name} is short of workers`, fix: 'More homes bring more workers' };
-    case 'bazaar_empty': return { title: 'Bazaar has no food', fix: `Build a granary with grain within ${BUILDINGS.bazaar.supplyReach} road tiles` };
+    case 'bazaar_empty': return { title: 'Bazaar has no food', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles: ${foodMakersText()} fill it` };
     case 'labour_shortage': return { title: `Not enough workers for ${LEVEL_NAMES[alert.level] || alert.level}`, fix: "More homes, or pause buildings you don't need" };
     case 'unemployment': return { title: 'Too many people have no work', fix: 'Build farms, granaries, bazaars or temples' };
     case 'debt': return { title: 'The treasury is in debt', fix: "Pause buildings you don't need; taxes rise as homes grow" };
@@ -510,7 +517,7 @@ export const T = {
   welcome: 'Welcome back', lastPlayed: 'Last played', justNow: 'just now', aWhileAgo: 'a while ago', upFrom: 'up from', downFrom: 'down from', steadyAt: 'steady at', carryOn: 'Carry on', stayPaused: 'Stay paused',
   goalsHelp: 'Goals show under the top bar. Show me opens the right card and points at the place.',
   grain: 'Grain', lasts: 'Lasts', working: 'Working', jobs: 'Jobs',
-  workers: 'Workers', stock: 'Stock', problems: 'Problems', noProblems: 'No problems', reach: 'Reach', view: 'View',
+  workers: 'Workers', stock: 'Stock', problems: 'Problems', noProblems: 'No problems', reach: 'Reach', storesWithin: 'Stores within', view: 'View',   // storesWithin: a hunting lodge's and a fishing wharf's delivery reach (final review)
   residents: 'Residents', nextTier: 'To grow it needs', upgradesAtMonthEnd: 'Grows at the end of the month', emptyPlot: 'Waiting for people to move in',
   hasIt: 'Has it', missing: 'Missing',
   alerts: 'Alerts', noAlerts: 'All quiet', zoomIn: 'Zoom in', zoomOut: 'Zoom out', jumpTo: 'Jump to',
@@ -1099,7 +1106,7 @@ export const CITIZEN_REMARKS = [
   { season: 'akhet', type: 'temple', text: 'The priests say the river rose just as it should', flood: 'fair' },
   { season: 'akhet', type: 'bazaar', text: 'At the bazaar they talk of how high the river came', flood: 'fair' },
   { season: 'akhet', type: 'house', text: 'Families mend their roofs while the fields lie under water', flood: 'fair' },
-  { season: 'akhet', type: 'booth', text: 'The players at the booth are learning a flood song' },
+  { season: 'akhet', type: 'booth', text: 'The players at the booth are learning a flood song', flood: 'past' },   // final review: flood: 'past' rows wait for the city's first flood
   { season: 'peret', type: 'farm_grain', text: 'The young grain stands green and even in the fields' },
   { season: 'peret', type: 'farm_fig', text: 'The fig trees are heavy with fruit' },
   { season: 'peret', type: 'clay_pit', text: 'The diggers at the clay pit sing to keep time' },
@@ -1113,7 +1120,7 @@ export const CITIZEN_REMARKS = [
   { season: 'shemu', type: 'well', text: 'The water carriers rest in the shade at noon' },
   { season: 'shemu', type: 'trading_post', text: 'A trader says caravans pay well for Theban goods' },
   { season: 'shemu', type: 'jeweller', text: 'The jewellers are cutting stones for a wedding' },
-  { season: 'shemu', type: 'temple', text: 'The priests watch the river for the first rise' },
+  { season: 'shemu', type: 'temple', text: 'The priests watch the river for the first rise', flood: 'past' },
   { season: 'shemu', type: 'statue', text: 'People leave flowers at the foot of the statues' },
   { season: 'shemu', type: 'firehouse', text: 'The firefighters keep their jars full in the dry heat' },
 ];
@@ -1476,7 +1483,7 @@ Object.assign(TIP_TEXT, {
 });
 // The masons (builders' guild), haulers (quarry) and brickmakers, by season, once the city has their building.
 CITIZEN_REMARKS.push(
-  { season: 'akhet', type: 'builders_guild', text: 'The masons say the flood months are the time to build' },
+  { season: 'akhet', type: 'builders_guild', text: 'The masons say the flood months are the time to build', flood: 'past' },
   { season: 'akhet', type: 'builders_guild', text: 'The overseers check every course with a plumb line' },
   { season: 'peret', type: 'builders_guild', text: 'The masons are teaching their sons to dress a block' },
   { season: 'shemu', type: 'builders_guild', text: 'The masons sing as they haul the blocks up the ramp' },
@@ -1862,6 +1869,7 @@ import { FLOOD as rvFlood, FLOOD_LEVELS as rvLevels, HUNTING as rvHunting, FISHI
 const rvName = (id) => capitalised(id);
 const rvPct = (id) => `${Math.round(rvLevelRow(id).harvest * 100)}%`;
 const rvMonths = (n) => plural(n, 'month', 'months');
+const rvRegrow = rvWildlife.regrowMonths === 1 ? 'a month' : `every ${rvMonths(rvWildlife.regrowMonths)}`;   // how fast a herd regrows (ruling 460)
 const rvHerdName = { gazelle: ['gazelle', 'gazelles'], ostrich: ['ostrich', 'ostriches'] };
 const rvFirstMonth = rvFlood.months[0], rvLastMonth = rvFlood.months[rvFlood.months.length - 1];
 export const S46_RIVER_TEXT = {
@@ -1913,9 +1921,11 @@ export const S46_RIVER_TEXT = {
   // A lodge that has taken what it may this month (huntRest, src/sim/wildlife.js): the sim's reason, with its numbers.
   huntRest: (why) => (why === 'month'
     ? `The lodge has taken its ${rvHunting.maxMonth} this month; hunting resumes next month`
+    : why === 'small' ? `Its herds are down to ${rvHunting.keepAtLeast} animals: the hunters leave them to regrow, 1 ${rvRegrow}`   // ruling 460
     : `Its herds have given their ${rvHunting.perHerdMonth} this month; hunting resumes next month`),
   noHerds: `No herd within ${rvHunting.reach} tiles: the hunters have nothing to hunt. Herds graze on desert and rocky ground`,
-  huntRule: `Hunters walk up to ${rvHunting.reach} tiles. Each hunt takes 1 from a herd; a herd regrows 1 every ${rvMonths(rvWildlife.regrowMonths)}, and one at 0 is gone`,
+  // Ruling 460: one animal a hunt, for gamePerAnimal game; the animals a herd gives a month (perHerdMonth / gamePerAnimal, as the sim counts them).
+  huntRule: `Hunters walk up to ${rvHunting.reach} tiles. Each hunt takes 1 animal for ${rvHunting.gamePerAnimal} game, ${Math.max(1, Math.floor(rvHunting.perHerdMonth / rvHunting.gamePerAnimal))} from a herd a month, and never takes a herd below ${rvHunting.keepAtLeast}; a herd regrows 1 ${rvRegrow}`,
   // The fishing wharf's sheet.
   catchLabel: 'Catch a month',
   catchLine: (flood) => (flood ? `${rvFishing.floodPerMonth} now (the water is up)` : `${rvFishing.perMonth}, or ${rvFishing.floodPerMonth} in the flood months`),
@@ -1936,8 +1946,8 @@ export const S46_RIVER_TEXT = {
     if (look.phase === 'draining') return `The water is draining: a ${rvName(look.applied.id)} flood. Floodplain farms grow ${Math.round(look.applied.harvest * 100)}% until the next flood`;
     return look.applied ? `Last flood: ${rvName(look.applied.id)}. Floodplain farms grow ${Math.round(look.applied.harvest * 100)}% until the next flood, in ${rvMonths(look.monthsTo)}` : `The first flood comes in month ${rvFirstMonth}`;
   },
-  // Food from the floodplain: working floodplain farms' monthly food as they stand and in a plain year (floodOutlook).
-  outlookLine: (o, coming) => `${coming ? 'When the flood comes' : 'Now'}, ${plural(o.farms, 'floodplain farm makes', 'floodplain farms make')} about ${o.now} food a month (${o.plain} in a plain year)`,
+  // Food from the floodplain: working floodplain farms' monthly food as they stand and without the flood (floodOutlook's plain: the farms at 100%).
+  outlookLine: (o, coming) => `${coming ? 'When the flood comes' : 'Now'}, ${plural(o.farms, 'floodplain farm makes', 'floodplain farms make')} about ${o.now} food a month (${o.plain} without the flood)`,   // final review: no level gives 100%, so 'a plain year' named none
   herdsLine2: (n, animals, hunted) => `Herds: ${n} (${plural(animals, 'animal', 'animals')}); ${hunted} hunted so far`,
 };
 // The firsts, the tips (How to play lists them) and the building plurals.
@@ -1952,7 +1962,7 @@ Object.assign(FIRST_TEXT, {
 });
 Object.assign(TIP_TEXT, {
   nilometer_forecast: `A staffed Nilometer reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead: stock grain before a Low year.`,
-  hunters_range: `Hunters walk up to ${rvHunting.reach} tiles to herds on desert and rock. A herd regrows slowly.`,
+  hunters_range: `Hunters walk up to ${rvHunting.reach} tiles to herds on desert and rock, 1 animal a herd a month.`,
   wharf_floods: `A wharf lands ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood. Its long side must touch water; Rotate turns it.`,
   flood_rhythm: `The flood comes every year, months ${rvFirstMonth} to ${rvLastMonth}. It does no harm: floodplain farms grow more or less.`,
 });
@@ -2392,10 +2402,12 @@ export const S46_UX_TEXT = {
   pausedWord: 'Paused',
   playingState: (speedLabel) => `Playing at ${speedLabel}`,   // ruling 419: the state while running, beside the action the button names
   speedStepLabel: (s) => (s === 0 ? 'Pause' : `Play at ${SPEED_LABELS[s]} speed`),
-  speedStepTitle: (s) => (s === 0 ? 'Pause (Space)' : `Play at ${SPEED_LABELS[s]} speed (+ and - change it)`),
+  // keys: whether Keyboard shortcuts is on (Space, + and - only work then: src/ui/keyboard.js); off, the title names no key (final review).
+  speedStepTitle: (s, keys = true) => (s === 0 ? (keys ? 'Pause (Space)' : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ' (+ and - change it)' : ''}`),
   // Rulings 401-403: the version and What's new on the title card. The notes themselves are src/data/releases.js.
   versionLine: (version, stamp = null) => `Version ${version}${stamp ? ` · build ${stamp}` : ''}`,
   whatsNew: 'What\'s new', whatsNewTitle: 'What\'s new in Thebes', newHead: 'New', fixedHead: 'Fixed', newestTag: 'newest',
-  releaseHead: (version, dateText) => `Version ${version} · ${dateText}`,
+  // build: the version's short build stamp (src/data/releases.js), or null while the running build's is still being read.
+  releaseHead: (version, dateText, build = null) => `Version ${version} · ${dateText}${build ? ` · build ${build}` : ''}`,
 };
 // ── end s46 ux ──
