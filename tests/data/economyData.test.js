@@ -188,7 +188,7 @@ describe('data desirability', () => {
       farm_grain: [-2, -1], farm_fig: [-2, -1], farm_barley: [-2, -1], farm_flax: [-2, -1],
       clay_pit: [-6, -5, -4, -3, -2, -1], potter: [-4, -3, -2, -1], brewery: [-4, -3, -2, -1], weaver: [-4, -3, -2, -1],
       jeweller: [-4, -3, -2, -1], gem_mine: [-8, -6, -4, -2], trading_post: [-3, -2, -1],
-      firehouse: [-1], tower: [-2, -1], barracks: [-4, -2], rubble: [-3, -1], wall: [], gate: [],
+      firehouse: [-1], tower: [-2, -1], barracks: [-4, -2], rubble: [-3, -1], wall: [], gate: [], bridge: [],
       // Stage 4: the supply buildings, plaza, sphinx, the palace's first style and each monument's finished values
       builders_guild: [-4, -3, -2, -1], quarry: [-6, -5, -4, -3, -2, -1], brickworks: [-4, -3, -2, -1], plaza: [2, 1], sphinx: [10, 8, 6, 4, 2], palace: [4, 3, 2, 1],
       obelisk_small: [6, 5, 4, 3, 2, 1], obelisk_large: [10, 8, 6, 4, 2, 1], colossus: [12, 10, 8, 6, 4, 2], mastaba_small: [10, 8, 6, 4, 2, 1],

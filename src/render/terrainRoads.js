@@ -4,6 +4,7 @@
 import { p } from './iso.js';
 import { hash2 } from '../sim/rng.js';
 import { idx, inBounds } from '../sim/grid.js';
+import { T } from '../sim/terrain.js';
 import { TERRAIN, SHADOW } from './art/palette.js';
 
 const isRoad = (world, x, y) => inBounds(world.size, x, y) && Boolean(world.road[idx(world.size, x, y)]);
@@ -42,7 +43,7 @@ export function drawRoads(g, world, range) {
   if (ruts.length) g.stroke(ruts, TERRAIN.roadEdge, 0.7, 0.7);
   for (let y = range.y0; y <= range.y1; y++) {
     for (let x = range.x0; x <= range.x1; x++) {
-      if (!isRoad(world, x, y)) continue;
+      if (!isRoad(world, x, y) || world.terrain[idx(world.size, x, y)] === T.WATER) continue;   // a bridge has its deck instead (terrainBridges.js)
       for (let j = 0; j < 2; j++) {
         g.circ(p(x + 0.2 + hash2(x, y, 20 + j) * 0.6, y + 0.2 + hash2(x, y, 30 + j) * 0.6), 0.6, j ? TERRAIN.roadPebbleLight : TERRAIN.roadPebble);
       }

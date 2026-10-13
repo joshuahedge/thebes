@@ -1584,6 +1584,11 @@ export const S45_TEXT = {
   gateNote: (n, price) => (n === 1 ? `Gate through the wall: ${price} gold` : `${n} gates through the wall: ${price} gold each`),
   gateBuilt: 'Gate built',
   roadLaidGates: (n) => `Road laid · ${plural(n, 'gate', 'gates')}`,
+  // Bridges (ruling 314): the bar's note "Bridge: 4 tiles, 100 gold" (the tiles of water crossed and what they cost together), the
+  // refusal for a crossing past the limit, and the toast. Their numbers come from the road tool's preview (src/sim/commands.js).
+  bridgeNote: (n, cost) => `Bridge: ${plural(n, 'tile', 'tiles')}, ${cost} gold`,
+  tooWide: (n) => `Too wide to bridge here (${plural(n, 'tile', 'tiles')} of water)`,
+  roadLaidBridge: (n) => `Road laid · bridge, ${plural(n, 'tile', 'tiles')}`,
 };
-Object.assign(REASONS, { not_wall: 'A gate goes on a wall' });
+Object.assign(REASONS, { not_wall: 'A gate goes on a wall', too_wide: 'Too wide to bridge here', bridge_shape: 'A bridge runs straight across, with land at both ends' });
 // ── end s45 ──────────────────────────────────────────────────────────────────────────────────────────────────────

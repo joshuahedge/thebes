@@ -40,13 +40,21 @@ export const LINE_TOOLS = ['road', 'wall'];
 // Stage 4.5 (ruling 309): the Gate card is the road tool with tool.gate set; it takes wall and breach tiles only. A road
 // through a wall makes gates at the gate price, and the bar says so, in the price function's numbers.
 const roadOptions = (tool) => (tool.gate ? { gateOnly: true } : {});
+// Ruling 314: a road over water makes bridge tiles at the bridge price, and a crossing wider than the rule allows is refused with
+// how much water it holds ("Too wide to bridge here (6 tiles of water)"): the sim's own run length and price.
 function roadText(world, r) {
-  const gates = (r.gates || []).length, roads = r.tiles.length - gates;
-  if (!gates) return plural(r.tiles.length, 'tile', 'tiles');
-  const note = S45_TEXT.gateNote(gates, costOf(world, 'gate'));
-  return roads ? `${plural(roads, 'tile', 'tiles')} · ${note}` : note;
+  const gates = (r.gates || []).length, bridges = (r.bridges || []).length, roads = r.tiles.length - gates - bridges;
+  if (!gates && !bridges) return plural(r.tiles.length, 'tile', 'tiles');
+  const parts = [];
+  if (roads) parts.push(plural(roads, 'tile', 'tiles'));
+  if (gates) parts.push(S45_TEXT.gateNote(gates, costOf(world, 'gate')));
+  if (bridges) parts.push(S45_TEXT.bridgeNote(bridges, bridges * costOf(world, 'bridge')));
+  return parts.join(' · ');
 }
-const roadDoneText = (tool, result) => (tool.gate ? S45_TEXT.gateBuilt : result.ok && result.gates && result.gates.length ? S45_TEXT.roadLaidGates(result.gates.length) : T.roadLaid);
+const roadRefusalText = (r) => (r.reason === 'too_wide' ? S45_TEXT.tooWide(r.water) : reasonText(r.reason));
+const roadDoneText = (tool, result) => (tool.gate ? S45_TEXT.gateBuilt
+  : result.ok && result.bridges && result.bridges.length ? S45_TEXT.roadLaidBridge(result.bridges.length)
+    : result.ok && result.gates && result.gates.length ? S45_TEXT.roadLaidGates(result.gates.length) : T.roadLaid);
 const isLine = (tool) => Boolean(tool) && LINE_TOOLS.includes(tool.kind);
 
 // A touch plan (placement review P3, P5): what a finger or pen has drawn and tapped in a drawing tool since it started, stroke by
@@ -224,7 +232,7 @@ function basePreview(world, state) {
     if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
     const tiles = roadPath(l.x0, l.y0, l.x1, l.y1, l.flip);
     const r = tool.kind === 'road' ? previewRoad(world, l.x0, l.y0, l.x1, l.y1, l.flip, roadOptions(tool)) : previewWall(world, l.x0, l.y0, l.x1, l.y1, l.flip);
-    if (!r.ok) return bad(r.reason, r.cost, r.tiles.length, tiles);
+    if (!r.ok) return bad(r.reason, r.cost, r.tiles.length, tiles, roadRefusalText(r));
     if (!r.tiles.length) return bad('nothing_to_place', 0, 0, tiles);
     if (tool.kind === 'wall') {
       // Stage 3 (spec 4.13, 6.4): only the tiles that get wall (standing wall is skipped), the gates among them marked, and
@@ -233,7 +241,7 @@ function basePreview(world, state) {
       const gates = r.gates || [];
       return { state: 'ok', reason: null, warnings: [], text: DANGER_UI_TEXT.wallCount(r.tiles.length, gates.length), effect: '', cost: r.cost, count: r.tiles.length, tiles: r.tiles.map(at), gates, refund: 0 };
     }
-    return { state: 'ok', reason: null, warnings: [], text: roadText(world, r), effect: '', cost: r.cost, count: r.tiles.length, tiles, gates: r.gates || [], refund: 0 };
+    return { state: 'ok', reason: null, warnings: [], text: roadText(world, r), effect: '', cost: r.cost, count: r.tiles.length, tiles, gates: r.gates || [], bridges: r.bridges || [], refund: 0 };
   }
   const a = state.area;
   if (!a) return idle(touch ? DRAW_TEXT.idle : T.tapStart);
@@ -268,7 +276,7 @@ function planPreview(world, tool, tiles) {
     if (!r.ok) return { ...bad(r.reason, r.cost, r.tiles.length, tiles), skipped: skippedOf(r) };
     const gates = r.gates || [];
     const text = wall ? DANGER_UI_TEXT.wallCount(r.tiles.length, gates.length) : roadText(world, r);
-    return { state: 'ok', reason: null, warnings: [], text: withSkips(text, r), effect: '', cost: r.cost, count: r.tiles.length, tiles, gates, skipped: skippedOf(r), refund: 0 };
+    return { state: 'ok', reason: null, warnings: [], text: withSkips(text, r), effect: '', cost: r.cost, count: r.tiles.length, tiles, gates, bridges: r.bridges || [], skipped: skippedOf(r), refund: 0 };
   }
   if (tool.kind === 'houses') {
     const r = previewHouseTiles(world, tiles);

@@ -34,8 +34,10 @@ describe('commands: roads', () => {
     setRoad(w, 0, 10, 31, 10);
     place(w, 'temple', 12, 8);
     expect(previewRoad(w, 10, 9, 15, 9).reason).toBe('blocked');
-    w.terrain[idx(w.size, 20, 20)] = 3;
-    expect(previewRoad(w, 18, 20, 22, 20).reason).toBe('water');
+    for (let x = 20; x <= 24; x++) w.terrain[idx(w.size, x, 20)] = 3;
+    expect(previewRoad(w, 18, 20, 26, 20).reason).toBe('too_wide');          // Stage 4.5 (ruling 314): up to 4 tiles of water bridge; 5 do not
+    w.terrain[idx(w.size, 12, 20)] = 3;
+    expect(previewRoad(w, 10, 20, 14, 20).bridges).toEqual([idx(w.size, 12, 20)]);
   });
   it('bumps roadVersion on draw and again on undo', () => {
     const w = makeTestWorld({ gold: 100 });
@@ -156,16 +158,18 @@ describe('commands: tile lists (placement review P3, P5)', () => {
     expect([strict.ok, strict.reason, strict.tiles, strict.cost]).toEqual([false, 'blocked', [], 0]);
     const p = previewRoadTiles(w, tiles, { skipBlocked: true });
     expect(p.ok).toBe(true);
-    expect(p.tiles).toEqual([[11, 11], [12, 11], [14, 11], [16, 11]].map(([x, y]) => idx(w.size, x, y)));   // each once; the road at (12, 10) is there already
-    expect(p.cost).toBe(8);
-    expect(p.skipped).toEqual([{ x: 13, y: 11, reason: 'blocked' }, { x: 15, y: 11, reason: 'water' }]);
+    expect(p.tiles).toEqual([[11, 11], [12, 11], [14, 11], [15, 11], [16, 11]].map(([x, y]) => idx(w.size, x, y)));   // each once; the road at (12, 10) is there already; (15, 11) is one tile of water between two of land: a bridge (Stage 4.5)
+    expect(p.bridges).toEqual([idx(w.size, 15, 11)]);
+    expect(p.cost).toBe(4 * 2 + 25);
+    expect(p.skipped).toEqual([{ x: 13, y: 11, reason: 'blocked' }]);
+    expect(previewRoadTiles(w, [[14, 11], [15, 11]], { skipBlocked: true }).skipped).toEqual([{ x: 15, y: 11, reason: 'bridge_shape' }]);   // no land after it: not a bridge
     expect(previewRoadTiles(w, [[40, 3], [1.5, 2]], { skipBlocked: true }).skipped.map((s) => s.reason)).toEqual(['out_of_bounds', 'out_of_bounds']);
     const gold = w.gold;
     const r = drawRoadTiles(w, tiles, { skipBlocked: true });
     expect(r.ok).toBe(true);
     expect(w.road[idx(w.size, 16, 11)]).toBe(1);
-    expect(w.road[idx(w.size, 15, 11)]).toBe(0);
-    expect(w.gold).toBe(gold - 8);
+    expect(w.road[idx(w.size, 15, 11)]).toBe(1);
+    expect(w.gold).toBe(gold - 33);
     expect(w.undo.length).toBe(2);                                  // the well, then the road: one entry for the whole plan
     undo(w);
     expect(w.road[idx(w.size, 11, 11)]).toBe(0);
@@ -175,9 +179,9 @@ describe('commands: tile lists (placement review P3, P5)', () => {
     const w = makeTestWorld({ gold: 1000 });
     setRoad(w, 0, 10, 31, 10);
     place(w, 'temple', 12, 8);
-    expect(previewRoad(w, 10, 9, 15, 9)).toEqual({ ok: false, reason: 'blocked', warnings: [], tiles: [], gates: [], cost: 0 });
-    expect(previewRoad(w, 0, 5, 2, 5)).toEqual({ ok: true, warnings: [], tiles: [0, 1, 2].map((x) => idx(w.size, x, 5)), gates: [], cost: 6 });   // Stage 4.5: gates, the wall tiles a road makes gates
-    expect(Object.keys(drawRoad(w, 0, 5, 2, 5)).sort()).toEqual(['cost', 'gates', 'ok', 'tiles', 'warnings']);
+    expect(previewRoad(w, 10, 9, 15, 9)).toEqual({ ok: false, reason: 'blocked', warnings: [], tiles: [], gates: [], bridges: [], cost: 0 });
+    expect(previewRoad(w, 0, 5, 2, 5)).toEqual({ ok: true, warnings: [], tiles: [0, 1, 2].map((x) => idx(w.size, x, 5)), gates: [], bridges: [], cost: 6 });   // Stage 4.5: gates, the wall tiles a road makes gates; bridges, the water tiles it bridges
+    expect(Object.keys(drawRoad(w, 0, 5, 2, 5)).sort()).toEqual(['bridges', 'cost', 'gates', 'ok', 'tiles', 'warnings']);
     expect(Object.keys(previewHouses(w, 20, 20, 21, 20)).sort()).toEqual(['cost', 'ok', 'positions', 'warnings']);
   });
   it('paints plots on a list of tiles and counts the ones it skips', () => {

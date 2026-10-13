@@ -10,6 +10,7 @@ import { groundShadow } from './art/primitives.js';
 import { TERRAIN } from './art/palette.js';
 import { createSpriteCache, drawSprite } from './spriteCache.js';
 import { createTerrainBaker, drawTileGrid } from './terrainBaker.js';
+import { isBridgeTile, DECK } from './terrainBridges.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
@@ -158,6 +159,7 @@ export function createRenderer({
       const sprite = spriteCache.get(slot, zoom, dpr);
       if (!sprite) continue;
       const q = p(o.x, o.y);
+      if (o.id >= 2e6 && isBridgeTile(world, Math.floor(o.x), Math.floor(o.y))) q[1] -= DECK.z + DECK.h;   // a figure on a bridge stands on its deck (Stage 4.5)
       const [px, py] = toDevice(q[0], q[1]);
       if (rising && rising.has(o.id)) drawRising(ctx, sprite, px, py, zoom, dpr, rising.get(o.id));
       else drawSprite(ctx, sprite, px, py, zoom, dpr);

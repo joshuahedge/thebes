@@ -12,6 +12,7 @@ import { rock, scrub, dune, tufts, reeds } from './art/nature.js';
 import { defaultCreateCanvas, bucketFor } from './spriteCache.js';
 import { drawRiver, riverIsle, riverPools } from './terrainWater.js';
 import { drawRoads } from './terrainRoads.js';
+import { drawBridges } from './terrainBridges.js';
 import { drawWalls, wallCode } from './terrainWalls.js';
 
 export { CHUNK };
@@ -300,6 +301,7 @@ export function bakeChunk(world, cx, cy, scale, createCanvas = defaultCreateCanv
   drawIsle(g, world, range);
   drawPlots(g, world, range);
   drawRoads(g, world, range);
+  drawBridges(g, world, range);
   drawWalls(g, world, range);
   // Cut the chunk to its diamond, dilated by about one device pixel so anti-aliased edges leave no hairline
   // gap; both chunks draw identical content in the overlap, so the overdraw is harmless. The cut is one mask
