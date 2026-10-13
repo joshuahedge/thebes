@@ -32,8 +32,9 @@ const WHILE_HIDDEN = new Set(['back', 'panLeft', 'panRight', 'panUp', 'panDown']
 const KEYBOARD_QUERY = '(any-pointer: fine) and (any-hover: hover)';
 function noteKeyboard(doc, win) {
   const body = doc && doc.body;
-  if (!body) return;
-  try { if (!body.dataset.keyboard && win && typeof win.matchMedia === 'function' && win.matchMedia(KEYBOARD_QUERY).matches) body.dataset.keyboard = 'fine'; } catch (e) { /* no media queries here */ }
+  if (!body) return false;
+  try { if (!body.dataset.keyboard && win && typeof win.matchMedia === 'function' && win.matchMedia(KEYBOARD_QUERY).matches) { body.dataset.keyboard = 'fine'; return true; } } catch (e) { /* no media queries here */ }
+  return false;
 }
 
 // pending(target) (ruling 400): true while a placement waits for its Enter and the focused element should not keep that Enter. A
@@ -43,7 +44,7 @@ export function createKeyboard({ target = window, settings = null, cam, cameraCo
   const run = (fn, ...args) => { if (typeof fn === 'function') fn(...args); };
   const pan = (dx, dy) => { if (cameraControl) cameraControl.cancel(); panBy(cam, dx, dy); };
   const doc = target && target.ownerDocument ? target.ownerDocument : (typeof document !== 'undefined' ? document : null);
-  noteKeyboard(doc, doc && doc.defaultView);
+  const markedFine = noteKeyboard(doc, doc && doc.defaultView);
   const onKey = (ev) => {
     if (isTyping(ev.target)) return;
     const name = matchKey(ev);
@@ -65,5 +66,5 @@ export function createKeyboard({ target = window, settings = null, cam, cameraCo
     ev.preventDefault();
   };
   target.addEventListener('keydown', onKey);
-  return { detach() { target.removeEventListener('keydown', onKey); } };
+  return { detach() { target.removeEventListener('keydown', onKey); if (markedFine && doc.body.dataset.keyboard === 'fine') delete doc.body.dataset.keyboard; } };   // the mark this made goes with it (a real key press's 'used' stays)
 }
