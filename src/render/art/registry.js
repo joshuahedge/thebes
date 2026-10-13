@@ -14,12 +14,14 @@ import { SUPPLY_ART, SUPPLY_TYPES, supplySlot } from './supply.js';
 import { PLAZA_ART, plazaEdges, sphinxFacing } from './plaza.js';
 import { PALACE_ART } from './palace.js';
 import { granaryStage, storehouseStage, bazaarStage, farmStage, FARM_TYPES } from './stages.js';
+import { S46_ART, s46Slot } from './s46.js';
 
 export { boundsFor } from '../iso.js';
 
 export const ART = {
   ...HOUSE_ART, ...SERVICE_ART, ...INDUSTRY_ART, ...NATURE_ART, ...FIGURE_ART, ...DEFENCE_ART,
   ...SUPPLY_ART, ...PLAZA_ART, ...PALACE_ART, ...MONUMENT_ART,
+  ...S46_ART,                                         // Stage 4.6: the River and Armies tracks' buildings and figures (art/s46.js)
 };
 
 // The art slot a building shows: houses by tier, granaries, storehouses and bazaars by how full they are
@@ -30,6 +32,8 @@ export const ART = {
 // which of its neighbours are plazas (plaza.js plazaEdges) and a sphinx by the way it faces (sphinxFacing), both of which
 // need the world (without one, their plain slots). Everything else is its type.
 export function slotFor(b, world = null) {
+  const s46 = s46Slot(b, world);                       // Stage 4.6: a River or Armies building's own slot (art/s46.js), else on as before
+  if (s46) return s46;
   if (b.type === 'house') return `house.t${b.tier}`;
   if (b.type === 'palace') return `palace.s${b.style || 0}${b.works ? '.w' : ''}`;   // spec 4.20; live monuments are their type
   if (SUPPLY_TYPES.includes(b.type)) return supplySlot(b);

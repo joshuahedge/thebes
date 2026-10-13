@@ -1,5 +1,6 @@
 import { FOOD_GOODS, HOUSEHOLD_GOODS, RAW_GOODS, MATERIAL_GOODS } from './goods.js';
 import { MONUMENTS, MONUMENT_KINDS, MONUMENT } from './monuments.js';
+import { S46_BUILDINGS } from './s46.js';
 
 // w = footprint along x, d = footprint along y. reach values are in road tiles. A producer makes `perMonth` units
 // at full staff; one with `consumes` (a workshop) turns one unit of that good into one unit of its own.
@@ -122,6 +123,10 @@ export const BUILDINGS = {
   plaza: { name: 'Plaza', w: 1, d: 1, cost: 8, upkeep: 0, workers: 0, category: 'homes', needsRoad: false },
   sphinx: { name: 'Sphinx', w: 1, d: 1, cost: 150, upkeep: 0, workers: 0, category: 'homes', needsRoad: false },
   palace: { name: 'Palace', w: 3, d: 3, cost: 300, upkeep: 0, workers: 0, category: 'services', needsRoad: true, palace: true, oneOnly: true },
+  // Stage 4.6: the River track's nilometer, hunting lodge and fishing wharf, and the Armies track's archery range and stables
+  // (src/data/river.js RIVER_BUILDINGS, armies.js ARMY_BUILDINGS), joined by src/data/s46.js. Terrain-bound rows may carry
+  // terrainMin (how many footprint tiles must be its terrain; default all) and water ('touch' | 'longSide'): src/sim/fit.js.
+  ...S46_BUILDINGS,
   // The seven monuments (src/data/monuments.js): cost is the founding; a site has no workers or upkeep of its own (its
   // crews are the guilds'); rotates: the mastabas turn a quarter while placing (place's { rot }).
   ...Object.fromEntries(MONUMENT_KINDS.map((k) => {

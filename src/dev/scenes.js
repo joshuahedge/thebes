@@ -58,6 +58,9 @@ import { BUILDINGS } from '../data/buildings.js';
 import { tutorialScene } from './tutorialScenes.js';
 import { riverIsle, riverPools } from '../render/terrainWater.js';
 import { bridgeRuns, BRIDGE_MAX } from '../sim/bridges.js';
+// Stage 4.6: every track's scenes ('s46-...'), each in the track's own file under src/dev/s46/ (index.js joins them).
+import { S46_SCENES, STAGE46_SCENES } from './s46/index.js';
+export { STAGE46_SCENES };
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -1008,11 +1011,12 @@ const SCENES = {
   title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion,
   variant, bridge, clay, newcomers, raid2, 'raid2-sheet': raid2Sheet, 'raid2-active': raid2Active,
   illness, crime,
+  ...S46_SCENES,
 };
 
 export async function devScene(api, name, options = {}) {
   const scene = SCENES[name];
-  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES, ...STAGE4_SCENES, ...STAGE45_SCENES].join(', ')})`);
+  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES, ...STAGE4_SCENES, ...STAGE45_SCENES, ...STAGE46_SCENES].join(', ')})`);
   return scene(api, options);
 }
 

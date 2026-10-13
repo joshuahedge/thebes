@@ -25,6 +25,7 @@ import { checkFeats } from './feats.js';
 import { scoreRow } from './score.js';
 import { monumentDay, monumentMonth, updatePrestigeUnlocks } from './monuments.js';
 import { palaceDay } from './palace.js';
+import { s46Day, s46Month } from './s46.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
 
@@ -41,6 +42,7 @@ export function runMonth(world, events = null) {
   monumentMonth(world, events);                        // Stage 4: last month's monument gold and each site's month (src/sim/monuments.js)
   const tradeSpent = tradeMonth(world, events);
   raidMonth(world, events);                            // Stage 3 (src/sim/raids.js)
+  s46Month(world, events);                             // Stage 4.6: the flood, the herds, the army, the court (src/sim/s46.js)
   updateMood(world);
   const milestoneChanged = updateMilestone(world);
   if (milestoneChanged && events) events.push({ type: 'milestone', id: world.milestone });
@@ -65,6 +67,7 @@ export function tickDay(world, events = null) {
   raidDay(world, events);
   healthDay(world, events);                            // Stage 4.5: disease and crime (src/sim/health.js, crime.js)
   crimeDay(world, events);
+  s46Day(world, events);                               // Stage 4.6: the flood, the herds, the army, the court (src/sim/s46.js)
   world.day += 1;
   if (world.day % ARRIVAL_EVERY === 0) {
     const count = arrivalsBatch(world);

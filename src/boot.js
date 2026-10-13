@@ -3,7 +3,7 @@
 // always reopens paused. ?skipTitle=1 boots straight into a new city and ?welcome=1 shows the Welcome back card (development flags:
 // they write nothing until the first autosave, which then replaces the saved city).
 import { createWorld } from './sim/world.js';
-import { MAP_VARIANTS } from './data/map.js';
+import { MAP_VARIANTS, DEFAULT_MAP_SIZE, isMapSize } from './data/map.js';
 import { setSpeed, setGuide, setCityId } from './sim/commands.js';
 import { createCamera } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
@@ -124,11 +124,15 @@ export async function boot(doc, win, {
   // seed alike; a seed chosen with ?seed=, and the sample and stress cities, stay classic, so the dev flags and the shots do not
   // move, unless ?variant= names one.
   const variantParam = params.get('variant');
-  function freshWorld({ seed = null, variant = null } = {}) {
+  // Stage 4.6 (ruling 333): the map's size. size: what New city's picker, a shared link or a record names (the Map track passes it);
+  // else ?size=48|64|80 (the dev flag, for the shots and the Large measurement); else Normal.
+  const sizeParam = Number(params.get('size'));
+  function freshWorld({ seed = null, variant = null, size = null } = {}) {
     const chosen = !Number.isInteger(seed) && params.has('seed');
     // variant: the layout a shared score's link names (Start this seed), which beats the seed's own pick.
     const mapVariant = MAP_VARIANTS.includes(variant) ? variant : MAP_VARIANTS.includes(variantParam) ? variantParam : chosen || stress || sample ? 'classic' : 'auto';
-    const world = createWorld({ seed: Number.isInteger(seed) ? seed : seedOf(), difficulty: settings.get().difficulty, cityId: newCityId(clock()), mapVariant });
+    const mapSize = isMapSize(size) ? size : isMapSize(sizeParam) ? sizeParam : DEFAULT_MAP_SIZE;
+    const world = createWorld({ seed: Number.isInteger(seed) ? seed : seedOf(), size: mapSize, difficulty: settings.get().difficulty, cityId: newCityId(clock()), mapVariant });
     if (stress) buildStressCity(world); else if (sample) buildSampleCity(world);
     if (params.has('speed')) setSpeed(world, Number(params.get('speed')));
     setGuide(world, settings.get().help === 'full' && !stress && !sample);
@@ -201,7 +205,7 @@ export async function boot(doc, win, {
     stopGame();
     if (fromSave) setSpeed(world, 0);                   // the game always reopens paused (spec 4.17)
     if (!world.cityId) setCityId(world, newCityId(clock()));   // a city from before Stage 3 gets its records id at load
-    const cam = createCamera({ x: stress ? 32 : world.focus.x, y: stress ? 32 : world.focus.y, zoom: 1 });
+    const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1 });   // the stress city fills the map: its middle
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings, hooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install(), onBring: () => hooks.importCity() }) }, ...uiOptions });
     const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: (f) => { ui.render(f); music.tick(f.now); }, allowFrame: ui.allowFrame, ...loopOptions });
@@ -311,6 +315,7 @@ export async function boot(doc, win, {
     game: () => current,
     titleView: () => (title ? { world: title.world, cam: title.cam } : null),   // Stage 4 (Track F): the backdrop's city and camera, for the title scene
     startGame, hooks, records, music,
+    freshWorld,                                         // Stage 4.6: a new world as New city makes it ({ seed, variant, size }), for the dev scenes
     destroy() {
       win.removeEventListener('beforeinstallprompt', onPrompt); showNotice(root.querySelector('#notice'), null); leaveTitle(); stopGame();
       if (cards) { cards.close(); cards = null; }

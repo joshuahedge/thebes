@@ -147,3 +147,5 @@ import './stage4/look.all.js';
 import './stage4/balance.all.js';
 // Stage 4.5: one aggregator (tests/stage45/all.js); each task adds its files there, never here.
 import './stage45/all.js';
+// Stage 4.6: one aggregator (tests/stage46/all.js) for Track 0's contract and the six tracks; nothing is added here.
+import './stage46/all.js';

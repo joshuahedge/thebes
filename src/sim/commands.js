@@ -13,6 +13,7 @@ import { storeAccepts } from './production.js';
 import { guildsNear, supplyNear, remainingNeed } from './monuments.js';
 import { DEFENCE } from '../data/raids.js';
 import { bridgeVerdicts } from './bridges.js';
+import { tileBound, fitOf, fitReason } from './fit.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 const storesAny = (o, goods) => (BUILDINGS[o.type].stores || []).some((g) => goods.includes(g));
@@ -44,7 +45,9 @@ function tileReason(world, type, tx, ty) {
   if (world.terrain[i] === T.WATER) return 'water';
   if (world.occ[i] || world.road[i]) return 'occupied';
   if (world.wall[i] && !(type === 'tower' && world.wall[i] > 0)) return 'occupied';   // a tower may stand on a standing wall tile (spec 4.13)
-  if (def.terrain && world.terrain[i] !== TERRAIN_BY_NAME[def.terrain]) return 'needs_' + def.terrain;
+  // Stage 4.6: a building that needs every footprint tile on its ground refuses tile by tile; one with a looser rule (terrainMin, a
+  // water rule) is judged on the whole footprint by src/sim/fit.js (checkTiles, conditionsFor).
+  if (def.terrain && tileBound(type) && world.terrain[i] !== TERRAIN_BY_NAME[def.terrain]) return 'needs_' + def.terrain;
   if (def.monument && world.terrain[i] === TERRAIN_BY_NAME.fertile) return 'not_on_fields';
   return null;
 }
@@ -58,6 +61,8 @@ export function checkTiles(world, type, x, y, rot = 0) {
     const reason = tileReason(world, type, tx, ty);
     if (reason) return reason;
   }
+  const fit = fitReason(world, type, x, y, rot);        // Stage 4.6: the footprint's ground and water rule (src/sim/fit.js)
+  if (fit) return fit;
   if (BUILDINGS[type].needsRoad && !touchesRoad(world, { x, y, w, d })) return 'needs_road';
   return null;
 }
@@ -116,11 +121,13 @@ function placementWarnings(world, type, x, y, roadLater = false, rot = 0) {
 // ('not_on_fields'), before its prestige unlock ('locked') and when founding would take the treasury below 0 ('no_gold');
 // a second palace refuses with 'one_only'. A monument's warnings add 'no_crew' and 'no_stone' / 'no_bricks' once a road
 // touches it.
-export function canPlace(world, type, x, y, { roadLater = false, rot = 0 } = {}) {
+// Stage 4.6 (Track 0 for the Wonders track): style names a monument's style (src/data/wonders.js MONUMENT_STYLES); it reaches the
+// price through costOf's options (src/sim/costs.js) and the building through makeBuilding. Ignored by every other type.
+export function canPlace(world, type, x, y, { roadLater = false, rot = 0, style = null } = {}) {
   const reason = checkTiles(world, type, x, y, rot);
   const later = reason === 'needs_road' && roadLater;
   if (reason && !later) return fail(reason);
-  if (!canPay(world, type, costOf(world, type))) return fail('no_gold');
+  if (!canPay(world, type, costOf(world, type, { style }))) return fail('no_gold');
   return { ok: true, warnings: placementWarnings(world, type, x, y, later, rot) };
 }
 
@@ -143,7 +150,7 @@ export function canPlace(world, type, x, y, { roadLater = false, rot = 0 } = {})
 //             monument, would take the treasury below 0, and its gold condition carries floor: 0).
 //   tiles: [{ x, y, state: 'met' | 'cant', reason }], one per footprint tile in footprint order.
 // A refusal before any tile (unknown, locked, one_only, a fractional spot) has state 'cant' and no conditions or tiles.
-export function conditionsFor(world, type, x, y, { roadLater = false, rot = 0 } = {}) {
+export function conditionsFor(world, type, x, y, { roadLater = false, rot = 0, style = null } = {}) {
   const first = typeReason(world, type, x, y);
   if (first) return { ok: false, reason: first, warnings: [], state: 'cant', conditions: [], tiles: [] };
   const def = BUILDINGS[type];
@@ -154,12 +161,16 @@ export function conditionsFor(world, type, x, y, { roadLater = false, rot = 0 } 
   });
   const conditions = [];
   const blocked = tiles.find((t) => t.reason);
-  const ground = { key: 'ground', state: blocked ? 'cant' : 'met', reason: blocked ? blocked.reason : null };
+  const fitBlock = blocked ? null : fitReason(world, type, x, y, rot);   // Stage 4.6: the footprint's own rule, once every tile is free
+  const ground = { key: 'ground', state: blocked || fitBlock ? 'cant' : 'met', reason: blocked ? blocked.reason : fitBlock };
   const terrainAt = (t) => inBounds(world.size, t.x, t.y) && world.terrain[idx(world.size, t.x, t.y)];
   if (def.terrain) {
     const want = TERRAIN_BY_NAME[def.terrain];
     Object.assign(ground, { terrain: def.terrain, fit: tiles.filter((t) => terrainAt(t) === want).length, of: tiles.length });
   }
+  // Stage 4.6 (src/sim/fit.js): a looser ground rule says how many tiles it needs; a water rule how many water tiles count.
+  if (def.terrain && !tileBound(type)) ground.need = fitOf(world, type, x, y, rot).need;
+  if (def.water) Object.assign(ground, { water: def.water, wet: fitOf(world, type, x, y, rot).wet });
   if (def.monument) Object.assign(ground, { fertile: tiles.filter((t) => terrainAt(t) === TERRAIN_BY_NAME.fertile).length, of: tiles.length });
   conditions.push(ground);
   if (def.needsRoad || type === 'house') {
@@ -174,7 +185,7 @@ export function conditionsFor(world, type, x, y, { roadLater = false, rot = 0 } 
   }
   const m = monumentChecks(world, type, x, y, rot);
   if (m) conditions.push(m.crew, m.supply);
-  const cost = costOf(world, type);
+  const cost = costOf(world, type, { style });
   const floor = def.monument ? { floor: 0 } : {};   // Stage 4: a monument's gold may not go below 0
   conditions.push(canPay(world, type, cost)
     ? { key: 'gold', state: 'met', reason: null, cost, have: world.gold, ...floor }
@@ -203,11 +214,11 @@ function roadJoins(world, b) {
 // Stage 4: rot (0 or 1) turns a mastaba; the building keeps it (b.rot) and its swapped footprint. A monument is founded as a
 // site (makeBuilding gives it an empty b.site); its undo entry is the same 'place' entry, which undo refuses once work has
 // begun on it (src/sim/undo.js, ruling 236).
-export function place(world, type, x, y, { roadLater = false, rot = 0 } = {}) {
-  const check = canPlace(world, type, x, y, { roadLater, rot });
+export function place(world, type, x, y, { roadLater = false, rot = 0, style = null } = {}) {
+  const check = canPlace(world, type, x, y, { roadLater, rot, style });
   if (!check.ok) return check;
-  const cost = costOf(world, type);
-  const b = insertBuilding(world, makeBuilding(world, type, x, y, rot));
+  const cost = costOf(world, type, { style });
+  const b = insertBuilding(world, makeBuilding(world, type, x, y, rot, { style }));
   spend(world, cost);
   // A tower on a standing wall tile gives the tile its 80 hit points (spec 4.13); undo puts the old value back.
   const walls = [];

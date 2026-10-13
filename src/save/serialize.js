@@ -3,8 +3,12 @@ import { BUILDINGS } from '../data/buildings.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { PRESTIGE_UNLOCKS } from '../data/monuments.js';
-import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY } from '../sim/world.js';
+import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY } from '../sim/world.js';
 import { MAP_VARIANTS } from '../data/map.js';
+import { isFloodState, isWildlifeState } from '../data/river.js';
+import { isCourtState } from '../data/court.js';
+import { isArmyState, UNIT_KINDS } from '../data/armies.js';
+import { MONUMENT_STYLE_IDS } from '../data/wonders.js';
 
 // Every top-level field createWorld produces (src/sim/world.js).
 export const REQUIRED = [
@@ -15,9 +19,10 @@ export const REQUIRED = [
   'difficulty', 'trade', 'newItems',
   'wall', 'wallVersion', 'raid', 'soldiers', 'nextUnitId', 'danger', 'splits', 'seals', 'feats', 'cityId',
   'prestigeUnlocks', 'mapVariant',
+  'mapSize', 'mapParams', 'flood', 'floodplain', 'wildlife', 'court', 'army',
 ];
 
-export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY, ...STAGE45_TALLY];
+export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY, ...STAGE45_TALLY, ...STAGE46_TALLY];
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isCounts = (v) => isRecord(v) && Object.values(v).every(Number.isFinite);       // tally.made: good -> units
 const isStrings = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
@@ -54,6 +59,17 @@ function isStage4Building(b) {
 // Stage 4.5 (version 6): a home's health and crime risk points and its illness (null or a record; src/sim/health.js owns what is inside).
 const isStage45Building = (b) => b.type !== 'house' || (Number.isFinite(b.health) && Number.isFinite(b.crime) && (b.illness === null || isRecord(b.illness)));
 const isUnlockDays = (u) => isRecord(u) && PRESTIGE_UNLOCKS.every((k) => isDay(u[k]));
+// Stage 4.6 (version 7): the map's size (always the world's size) and shape choices, the floodplain (one 0 or 1 a tile), and each
+// track's record, judged by the track's own check in its data file (src/data/river.js, court.js, armies.js), so a track tightens its
+// own; a monument's style; a unit's kind where it has one (the sim gives every unit one; a test's hand-made unit may have none).
+const isStage46Building = (b) => !BUILDINGS[b.type].monument || MONUMENT_STYLE_IDS.includes(b.style);
+const isUnitKind = (u) => u.kind === undefined || UNIT_KINDS.includes(u.kind);
+function isStage46(w, cells) {
+  if (w.mapSize !== w.size || !isRecord(w.mapParams)) return false;
+  if (!Array.isArray(w.floodplain) || w.floodplain.length !== cells || !w.floodplain.every((v) => v === 0 || v === 1)) return false;
+  if (!isFloodState(w.flood) || !isWildlifeState(w.wildlife) || !isCourtState(w.court) || !isArmyState(w.army)) return false;
+  return Object.values(w.buildings).every(isStage46Building) && w.soldiers.every(isUnitKind);
+}
 
 // The save envelope (spec 4.17): wall-clock fields sit beside the world, never inside it.
 export const SAVE_VERSION = 1;
@@ -85,6 +101,7 @@ export function validateWorld(w) {
   if (!isFeats(w.feats) || !(w.cityId === null || (typeof w.cityId === 'string' && w.cityId.length > 0))) return false;
   if (!Object.values(w.buildings).every(isStage4Building) || !isUnlockDays(w.prestigeUnlocks)) return false;
   if (typeof w.mapVariant !== 'string' || !MAP_VARIANTS.includes(w.mapVariant) || !Object.values(w.buildings).every(isStage45Building)) return false;
+  if (!isStage46(w, cells)) return false;
   return true;
 }
 

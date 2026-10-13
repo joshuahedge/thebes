@@ -55,6 +55,8 @@ import { tradeSheet } from './tradeSheet.js';
 import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
 import { createDanger } from './danger.js';
+import { createS46Seams } from './s46/index.js';
+import { s46Walkers, s46Ground } from '../render/s46.js';
 import { createScoreUi } from './scoreUi.js';
 import { createMonumentUi } from './monumentSheet.js';
 import { drawMonument } from '../render/monuments.js';
@@ -88,8 +90,9 @@ export function createUI({
   // Stage 3: the danger and score interfaces, made below once their context exists. Until then (afterCommand can run
   // during construction) seams() is empty, so nothing calls them early.
   let danger = null, scoreUi = null, monumentUi = null;   // Stage 4: the monuments interface (Track C, ui/monumentSheet.js)
+  let s46 = [];                                          // Stage 4.6: the tracks' seams (src/ui/s46/index.js), in track order
   let toastLow = null;   // { dock, mode, sheet, layout } while the toast sits low after a touch tick (leavePlan, setToastLow)
-  const seams = () => [danger, scoreUi, monumentUi].filter(Boolean);
+  const seams = () => [danger, scoreUi, monumentUi, ...s46].filter(Boolean);
   let markerLayout = [];                                 // Stage 4: this frame's problem markers on screen (render/markers.js)
   let saveFailed = false, destroyed = false;
   // The guidance row's controller (syncGuidance, below) runs from the tips' and captions' callbacks, which may fire
@@ -227,6 +230,7 @@ export function createUI({
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
   monumentUi = createMonumentUi(seamCtx);
+  s46 = createS46Seams(seamCtx);
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
@@ -248,6 +252,7 @@ export function createUI({
     ...menus, goals: goalsSheet(world, { onShowMe: showMe, recent: () => celebrations.recent(), skipHere: phone, onSkipGuide: skipGuide }),
     trade: tradeSheet({ world, afterCommand, onShowMe: showMeAt, toast: (text) => toasts.show(text) }),
     ...danger.sheets, ...scoreUi.sheets, ...monumentUi.sheets,
+    ...Object.assign({}, ...s46.map((s) => s.sheets)),   // Stage 4.6: the tracks' sheets (a court letter, the court)
   };
   if (welcome) {
     customSheets.welcome = welcomeSheet({
@@ -257,7 +262,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts] });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)] });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -923,9 +928,10 @@ export function createUI({
     markerLayout = layoutMarkers(world, list, cam, v);
     renderer.renderFrame(world, cam, {
       live: (g, o) => drawMonument(g, world, o.b, { now: t, timeDays, motion, ghost: ghostBox, selectedId: s.selectedId }),
-      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
+      // Stage 4.6: the tracks' figures (src/render/s46.js: the River track's animals) join the walkers, depth-sorted with them.
+      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
-      ambient: (g, r) => ambient.draw(g, world, r, t),                          // Stage 3 (render/ambient.js, fire.js, units.js)
+      ambient: (g, r) => { s46Ground(g, world, r, t, motion); ambient.draw(g, world, r, t); },   // Stage 4.6: the tracks' ground layer (the flood's water) under Stage 3's ambient life (render/ambient.js, fire.js, units.js)
       scorch: (g, r) => drawScorch(g, world, r),                                // Stage 4.5 (ruling 310): the ground under a fire, at every motion level
       fire: (g, r) => { drawFires(g, world, r, t, still); drawIllness(g, world, r); },   // Stage 4.5: and the cloth over an ill home's door (render/illness.js)
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),

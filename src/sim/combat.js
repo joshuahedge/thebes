@@ -75,7 +75,7 @@ export function trainSoldiers(world, events = null) {
     if (b.progress < DEFENCE.trainDays - 1e-9) continue;   // 5/6 staffing adds up in floating point
     b.progress = 0;
     const c = centre(b);
-    world.soldiers.push({ id: world.nextUnitId++, barracks: b.id, x: c.x, y: c.y, hp: UNITS.soldier.hp, hit: false, task: 'wait' });
+    world.soldiers.push({ id: world.nextUnitId++, kind: 'soldier', barracks: b.id, x: c.x, y: c.y, hp: UNITS.soldier.hp, hit: false, task: 'wait' });   // kind: Stage 4.6 (src/data/armies.js)
   }
 }
 

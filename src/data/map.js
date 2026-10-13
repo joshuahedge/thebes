@@ -40,3 +40,26 @@ export const MAP = {
 // The six river layouts (Stage 4.5, ruling 313). A new city's UI passes 'auto' and the seed picks one; everything else
 // (tests, the dev scenes, the sample, stress and title cities) asks for 'classic'.
 export const MAP_VARIANTS = ['classic', 'east', 'middle', 'wide-bends', 'island', 'oasis'];
+
+// ── s46 map (Stage 4.6, Map track) ── map sizes, the shape choices' salts and the Map track's lists. Track 0 put the sizes here;
+// the Map track owns this file.
+// Map sizes (ruling 333): tiles a side. Normal is the default, the weekly seed's, and every city's from before Stage 4.6 (world.mapSize
+// 64); the title, sample and stress cities and the test fixtures stay Normal. createWorld takes any of them (and, for tests, any size
+// with a map passed in).
+export const MAP_SIZES = { small: 48, normal: 64, large: 80 };
+export const MAP_SIZE_IDS = Object.keys(MAP_SIZES);
+export const DEFAULT_MAP_SIZE = MAP_SIZES.normal;
+export const isMapSize = (n) => Object.values(MAP_SIZES).includes(n);
+// Salts for the generator's seeded shape choices (ruling 332): hash2(seed, k, MAP_SALT.x) or createRng((seed ^ MAP_SALT.x) >>> 0), as
+// MAP.clay.salt is used. Never draw a shape choice from the generator's own rng stream: classic at 64 must keep its fingerprints.
+// Registered by Track 0 (unique across the game: tests/stage46/contract/salts.test.js).
+export const MAP_SALT = {
+  meander: 4601, channels: 4602, oxbow: 4603, outcrops: 4604, dunes: 4605, groves: 4606, wadis: 4607, clayWide: 4608,
+  shapePick: 4609, spare1: 4610, spare2: 4611,
+};
+// The Map track's rows in the Stage 4.6 lists (src/data/s46.js joins every track's): tallies, firsts, achievements, tips.
+export const MAP_TALLY = [];
+export const MAP_FIRSTS = [];
+export const MAP_ACHIEVEMENTS = [];
+export const MAP_TIPS = [];
+// ── end s46 map ──

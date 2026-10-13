@@ -36,7 +36,7 @@ describe('s3 ui alert tiers', () => {
   it('ranks an active raid, a fire no staffed firehouse reaches, a raid warning, debt and save failing as critical, in that order (ruling 166)', () => {
     const r = rig();
     try {
-      expect(CRITICAL_RANK).toEqual(['raid', 'fire', 'raid_warning', 'debt', 'save_failed']);
+      expect(CRITICAL_RANK).toEqual(['raid', 'fire', 'raid_warning', 'court_letter', 'debt', 'save_failed']);   // Stage 4.6: the court's letter (ruling 339)
       for (const c of CRITICAL_RANK) expect(CRITICAL.has(c)).toBe(true);
       for (const c of ['blaze', 'fire_risk', 'no_storage']) expect(CRITICAL.has(c)).toBe(false);
       const list = [{ code: 'save_failed' }, { code: 'debt' }, { code: 'fire', id: r.potter.id }, { code: 'blaze', id: r.granary.id },

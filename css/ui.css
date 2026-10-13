@@ -1042,3 +1042,22 @@ body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) 
 #tip .tip-row .tip-show-me { flex: none; white-space: nowrap; }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .tip-show-me { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
 /* ── end s45 ── */
+
+/* ── s46 map (Map track) ── the Map track's styles. Add new rules just above the end marker. */
+/* ── end s46 map ── */
+
+/* ── s46 river (River track) ── the River track's styles. Add new rules just above the end marker. */
+/* ── end s46 river ── */
+
+/* ── s46 court (Court track) ── the Court track's styles. Add new rules just above the end marker. */
+/* ── end s46 court ── */
+
+/* ── s46 armies (Armies track) ── the Armies track's styles. Add new rules just above the end marker. */
+/* ── end s46 armies ── */
+
+/* ── s46 wonders (Wonders track) ── the Wonders track's styles. Add new rules just above the end marker. */
+/* ── end s46 wonders ── */
+
+/* ── s46 ux (UX track) ── the UX track's styles: the top bar and speed control, and the shared legibility tokens (it may also edit
+   the :root tokens at the top of this file, in their own lines). Add new rules just above the end marker. */
+/* ── end s46 ux ── */
