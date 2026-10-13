@@ -26,7 +26,7 @@ describe('s3 contract data', () => {
     expect(pick(BUILDINGS.wall, [...KEYS.filter((k) => k !== 'priority'), 'tile'])).toEqual({ name: 'Wall', w: 1, d: 1, cost: 8, upkeep: 0, workers: 0, category: 'defence', needsRoad: false, tile: true });
     expect(pick(BUILDINGS.gate, ['name', 'cost', 'upkeep', 'tile', 'buildable'])).toEqual({ name: 'Gate', cost: 20, upkeep: 0, tile: true, buildable: false });
     expect(pick(BUILDINGS.rubble, ['name', 'w', 'd', 'cost', 'upkeep', 'workers', 'needsRoad', 'buildable'])).toEqual({ name: 'Rubble', w: 1, d: 1, cost: 0, upkeep: 0, workers: 0, needsRoad: false, buildable: false });
-    expect(BUILDABLE).toEqual(Object.keys(BUILDINGS).filter((t) => t !== 'gate' && t !== 'rubble'));
+    expect(BUILDABLE).toEqual(Object.keys(BUILDINGS).filter((t) => t !== 'gate' && t !== 'rubble' && t !== 'bridge'));
     expect(BUILDINGS.firehouse.reach).toBe(FIRE.reach);
   });
   it('unlocks the firehouse with the Village and the wall, tower and barracks with Market town, and gives each a card', () => {

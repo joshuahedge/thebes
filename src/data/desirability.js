@@ -37,6 +37,7 @@ export const DESIRABILITY = {
   rubble: [-3, -1],
   wall: [],
   gate: [],
+  bridge: [],           // Stage 4.5 (ruling 314): a bridge tile changes nothing
   // Stage 4 (spec 4.7).
   builders_guild: WORKSHOP,
   quarry: [-6, -5, -4, -3, -2, -1],

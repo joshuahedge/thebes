@@ -12,6 +12,7 @@ import { pushUndo } from './undo.js';
 import { storeAccepts } from './production.js';
 import { guildsNear, supplyNear, remainingNeed } from './monuments.js';
 import { DEFENCE } from '../data/raids.js';
+import { bridgeVerdicts } from './bridges.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 const storesAny = (o, goods) => (BUILDINGS[o.type].stores || []).some((g) => goods.includes(g));
@@ -339,11 +340,12 @@ function uniqueTiles(tiles) {
 }
 
 // Why a road cannot be laid on one tile, else null. A wall tile is no obstacle (Stage 4.5, ruling 309: the road makes it a
-// gate); in gate mode (gateOnly) a tile with no wall on it is refused with 'not_wall'.
-function roadTileReason(world, x, y, gateOnly = false) {
+// gate); in gate mode (gateOnly) a tile with no wall on it is refused with 'not_wall'. A water tile is refused here ('water')
+// unless the caller has found it in a bridgeable run (bridgeOk, ruling 314).
+function roadTileReason(world, x, y, gateOnly = false, bridgeOk = false) {
   if (!isTile(x, y) || !inBounds(world.size, x, y)) return 'out_of_bounds';
   const i = idx(world.size, x, y);
-  if (world.terrain[i] === T.WATER) return 'water';
+  if (world.terrain[i] === T.WATER && !bridgeOk) return 'water';
   if (world.occ[i]) return 'blocked';
   if (gateOnly && !world.wall[i]) return 'not_wall';
   return null;
@@ -351,7 +353,10 @@ function roadTileReason(world, x, y, gateOnly = false) {
 
 // The road tool's core (placement review P3, P5): what laying road on a list of tiles would do. { ok, reason, warnings,
 // tiles: the map indices that change (free tiles that get road, and wall or breach tiles that become gates, in order; a
-// tile with road already is left as it is, a gate included), gates: the subset that are gates, cost, skipped:
+// tile with road already is left as it is, a gate included), gates: the subset that are gates, bridges: the water tiles that get
+// a bridge (Stage 4.5, ruling 314: a straight run of at most BRIDGE_MAX tiles of water with land at both ends, each tile at
+// costOf(world, 'bridge'); a longer or bent run refuses with 'too_wide' (water: how many tiles of water it holds) or
+// 'bridge_shape', and a touch plan skips its tiles with that reason), cost, skipped:
 // [{ x, y, reason }] }. Stage 4.5 (ruling 309): a road may cross a wall; each standing wall tile it crosses without a road,
 // and each breach, becomes a gate at the gate price (costOf(world, 'gate')) instead of the road price. By default the
 // first tile that cannot take a road refuses the lot ('out_of_bounds', 'water', 'blocked'), as the mouse's L does; with
@@ -359,27 +364,33 @@ function roadTileReason(world, x, y, gateOnly = false) {
 // tiles are accepted ('not_wall' for the rest). Fails with 'no_gold' when the cost would cross the debt floor, keeping
 // tiles, gates, cost and skipped.
 export function previewRoadTiles(world, list, { skipBlocked = false, gateOnly = false } = {}) {
-  const tiles = [], gates = [], skipped = [];
-  for (const [x, y] of uniqueTiles(list)) {
-    const reason = roadTileReason(world, x, y, gateOnly);
+  const tiles = [], gates = [], bridges = [], skipped = [];
+  const ordered = uniqueTiles(list);
+  const verdicts = gateOnly ? [] : bridgeVerdicts(world, ordered);
+  for (let k = 0; k < ordered.length; k++) {
+    const [x, y] = ordered[k];
+    const v = verdicts[k];
+    const onWater = inBounds(world.size, x, y) && world.terrain[idx(world.size, x, y)] === T.WATER && !gateOnly;
+    const reason = v ? v.reason : roadTileReason(world, x, y, gateOnly, onWater);
     if (reason) {
-      if (!skipBlocked) return fail(reason, { tiles: [], gates: [], cost: 0, skipped: [] });
+      if (!skipBlocked) return fail(reason, { tiles: [], gates: [], bridges: [], cost: 0, skipped: [], ...(v ? { water: v.water } : {}) });
       skipped.push({ x, y, reason });
       continue;
     }
     const i = idx(world.size, x, y);
     const wall = world.wall[i];
     if (wall < 0 || (wall > 0 && !world.road[i])) { tiles.push(i); gates.push(i); }
-    else if (!wall && !world.road[i]) tiles.push(i);
+    else if (!wall && !world.road[i]) { tiles.push(i); if (onWater) bridges.push(i); }
   }
-  const cost = (tiles.length - gates.length) * roadCostOf(world) + gates.length * costOf(world, 'gate');
-  if (!canAfford(world, cost)) return fail('no_gold', { tiles, gates, cost, skipped });
-  return { ok: true, warnings: [], tiles, gates, cost, skipped };
+  const cost = (tiles.length - gates.length - bridges.length) * roadCostOf(world) + gates.length * costOf(world, 'gate') + bridges.length * costOf(world, 'bridge');
+  if (!canAfford(world, cost)) return fail('no_gold', { tiles, gates, bridges, cost, skipped });
+  return { ok: true, warnings: [], tiles, gates, bridges, cost, skipped };
 }
 
 // Lays the preview's tiles, charges for them and pushes one undo entry for the whole list. A gate tile gets its road and its
 // wall's full gate hit points; the entry { kind: 'road', tiles: the tiles that were given road, cost, walls: [[tile index,
 // the wall's value before]] } lets undo take the road off again and put each wall (or breach) back.
+// A bridge tile (ruling 314) is a tile of the list that is water: its road is set like any other, and undo takes it off again.
 export function drawRoadTiles(world, list, options = {}) {
   const p = previewRoadTiles(world, list, options);
   if (!p.ok || p.tiles.length === 0) return p;
@@ -406,14 +417,14 @@ function lineTiles(world, x0, y0, x1, y1, flip) {
 // shapes they always had.
 export function previewRoad(world, x0, y0, x1, y1, flip = false, options = {}) {
   const tiles = lineTiles(world, x0, y0, x1, y1, flip);
-  if (!tiles) return fail('out_of_bounds', { tiles: [], gates: [], cost: 0 });
+  if (!tiles) return fail('out_of_bounds', { tiles: [], gates: [], bridges: [], cost: 0 });
   const { skipped, ...p } = previewRoadTiles(world, tiles, { ...options, skipBlocked: false });
   return p;
 }
 
 export function drawRoad(world, x0, y0, x1, y1, flip = false, options = {}) {
   const tiles = lineTiles(world, x0, y0, x1, y1, flip);
-  if (!tiles) return fail('out_of_bounds', { tiles: [], gates: [], cost: 0 });
+  if (!tiles) return fail('out_of_bounds', { tiles: [], gates: [], bridges: [], cost: 0 });
   const { skipped, ...p } = drawRoadTiles(world, tiles, { ...options, skipBlocked: false });
   return p;
 }

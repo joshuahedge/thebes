@@ -9,6 +9,7 @@ import { MAP_VARIANTS } from '../../src/data/map.js';
 import { riverSpans, riverIsle, riverPools } from '../../src/render/terrainWater.js';
 import { buildSampleCity } from '../../src/dev/sampleCity.js';
 import { boot } from '../../src/boot.js';
+import { STAGE45_SCENES, devScene } from '../../src/dev/scenes.js';
 import { createSaveStore } from '../../src/save/store.js';
 import { fakeIndexedDB } from '../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../helpers/uiWorld.js';
@@ -167,6 +168,17 @@ describe('s45 variants (what each one is)', () => {
         }
       }
       expect([seed, bank + clay >= 12, fertile >= 12, clay >= 1]).toEqual([seed, true, true, true]);
+    }
+  });
+});
+
+describe('s45 variants (the dev scenes)', () => {
+  it('names the variant, bridge and clay scenes, and refuses with no city open', async () => {
+    expect(STAGE45_SCENES).toEqual(['variant', 'bridge', 'clay']);
+    for (const name of STAGE45_SCENES) {
+      let error = null;
+      try { await devScene({ game: () => null }, name); } catch (e) { error = e.message; }
+      expect([name, error]).toEqual([name, `devScene ${name}: no city is open (use ?skipTitle=1&sample=1)`]);
     }
   });
 });

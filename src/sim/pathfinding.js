@@ -10,13 +10,13 @@ import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { T } from './terrain.js';
 
 // What crossing a tile costs a raider (spec 4.13): open ground and roads 1; water and buildings cannot be crossed
-// (Infinity); a standing wall, gate or tower-on-wall tile 1 + its hit points / 2 (the days one raider needs to break
+// (Infinity), but a bridge (Stage 4.5, ruling 314: a road tile on water) is crossed like any road, 1; a standing wall, gate or tower-on-wall tile 1 + its hit points / 2 (the days one raider needs to break
 // it); a breach 1. A tower stands on a wall tile with the wall's hit points (DEFENCE.towerOnWallHp), so its tile is a
 // wall tile here; a tower on open ground is a building.
 export function tileCost(world, x, y) {
   if (!inBounds(world.size, x, y)) return Infinity;
   const i = idx(world.size, x, y);
-  if (world.terrain[i] === T.WATER) return Infinity;
+  if (world.terrain[i] === T.WATER) return world.road[i] ? 1 : Infinity;
   if (world.wall[i] > 0) return 1 + world.wall[i] / 2;
   if (world.wall[i] < 0) return 1;
   return world.occ[i] ? Infinity : 1;

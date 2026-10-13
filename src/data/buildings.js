@@ -89,6 +89,8 @@ export const BUILDINGS = {
   barracks: { name: 'Barracks', w: 2, d: 2, cost: 200, upkeep: 12, workers: 6, priority: 'safety', category: 'defence', needsRoad: true },
   wall: { name: 'Wall', w: 1, d: 1, cost: 8, upkeep: 0, workers: 0, category: 'defence', needsRoad: false, tile: true },
   gate: { name: 'Gate', w: 1, d: 1, cost: 20, upkeep: 0, workers: 0, category: null, needsRoad: false, tile: true, buildable: false },
+  // Stage 4.5 (ruling 314): a bridge tile is a road tile on water; this row is its price (costOf(world, 'bridge')). Never placed as a building.
+  bridge: { name: 'Bridge', w: 1, d: 1, cost: 25, upkeep: 0, workers: 0, category: null, needsRoad: false, tile: true, buildable: false },
   rubble: { name: 'Rubble', w: 1, d: 1, cost: 0, upkeep: 0, workers: 0, category: null, needsRoad: false, buildable: false },
   // Stage 4 (spec 4.7, 4.14, 4.16, 4.20). The supply buildings work at the monuments priority, last (spec 4.8), and idle
   // with no workers and no wages when no site needs them (Track A: src/sim/monuments.js, labour.js). The builders' guild's

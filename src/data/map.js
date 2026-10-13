@@ -9,6 +9,7 @@ export const MAP = {
   // Clay (Stage 4.5, ruling 312): stretches of 4-10 bank tiles (some a second tile deep) turn to clay until a map holds its
   // target, 40-66 tiles; a stretch adds at most 20, so a map ends with at most 85. salt keys the draws apart from the generator's.
   clay: { targetMin: 40, targetExtra: 26, stretchMin: 4, stretchExtra: 7, deepChance: 0.45, maxTries: 400, salt: 0x51A7C1A9 },
+  bridgeMax: 4,         // the most tiles of water one bridge may cross, in a straight line (ruling 314)
   variantSalt: 0x0A1E,
   // The rock of a variant (every one but classic, which keeps its own patches): round patches of radius 3 until the map holds
   // rockTarget rocky tiles (so 90-130), none with its centre within rockAwayTiles of water or rockAwayStart of the start area.

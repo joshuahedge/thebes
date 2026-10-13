@@ -52,6 +52,7 @@ import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { tutorialScene } from './tutorialScenes.js';
 import { riverIsle, riverPools } from '../render/terrainWater.js';
+import { bridgeRuns, BRIDGE_MAX } from '../sim/bridges.js';
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -709,7 +710,7 @@ async function motion(api) {
 // Stage 4.5 (Task 3, ruling 313): the river layouts. Open /?skipTitle=1&nosw=1&seed=<n>&variant=<name> (classic, east, middle,
 // wide-bends, island or oasis), then devScene('variant') pulls the camera out to the whole map: the zoom goes below the
 // buttons' minimum (zoom is set straight on the camera, as no player move can), so a phone shows the river's whole shape.
-export const STAGE45_SCENES = ['variant'];
+export const STAGE45_SCENES = ['variant', 'bridge', 'clay'];
 // options.look: 'island' or 'oasis' frames that feature close (zoom 0.4), else the whole map; options.zoom overrides the zoom.
 async function variant(api, options = {}) {
   const g = inGame(api, 'variant');
@@ -723,11 +724,62 @@ async function variant(api, options = {}) {
   return `variant ${w.mapVariant} zoom ${g.cam.zoom.toFixed(3)}`;
 }
 
+// 'bridge': a road laid straight across the river on the narrowest crossing nearest the start (the road tool's own command,
+// so the bridge is the sim's), with homes painted along both banks, close up (zoom 1.6, or options.zoom).
+async function bridge(api, options = {}) {
+  const g = inGame(api, 'bridge');
+  const w = g.world, n = w.size;
+  w.gold = Math.max(w.gold, 20000);
+  let best = null;
+  for (let y = 4; y < n - 4; y++) {
+    const row = [];
+    for (let x = 0; x < n; x++) row.push([x, y]);
+    for (const r of bridgeRuns(w, row)) {
+      if (!(r.straight && r.bounded && r.n >= 3 && r.n <= BRIDGE_MAX)) continue;
+      const score = Math.abs(y - w.focus.y) + (r.n === 3 ? 0 : 2);
+      if (!best || score < best.score) best = { score, y, from: row[r.from][0], to: row[r.to][0] };
+    }
+  }
+  if (!best) throw new Error('devScene bridge: no crossing of 3 or 4 tiles of water on this map');
+  const result = drawRoad(w, best.from - 6, best.y, best.to + 6, best.y);
+  if (!result.ok) throw new Error(`devScene bridge: the road would not go down (${result.reason})`);
+  for (const [x0, x1] of [[best.from - 6, best.from - 1], [best.to + 1, best.to + 6]]) {
+    paintHouses(w, x0, best.y - 1, x1, best.y - 1);
+    paintHouses(w, x0, best.y + 1, x1, best.y + 1);
+  }
+  g.ui.cameraControl.cancel();
+  g.cam.zoom = options.zoom || 1.6;
+  const mid = (best.from + best.to) / 2 + 0.5;
+  g.ui.cameraControl.jumpTo(mid, best.y + 0.5);
+  await wait(400);
+  return `bridge ${best.to - best.from + 1} tiles at y ${best.y}, ${result.bridges.length} bridge tiles for ${result.cost} gold`;
+}
+
+// 'clay': the Ground overlay on, with the 14 x 14 stretch of the map holding the most free clay in the middle.
+async function clay(api, options = {}) {
+  const g = inGame(api, 'clay');
+  const w = g.world, n = w.size, K = 14;
+  let best = null;
+  for (let y0 = 0; y0 + K <= n; y0 += 2) {
+    for (let x0 = 0; x0 + K <= n; x0 += 2) {
+      let c = 0;
+      for (let y = y0; y < y0 + K; y++) for (let x = x0; x < x0 + K; x++) if (w.terrain[idx(n, x, y)] === TERRAIN.CLAY && !w.occ[idx(n, x, y)] && !w.road[idx(n, x, y)]) c++;
+      if (!best || c > best.c) best = { c, x: x0 + K / 2, y: y0 + K / 2 };
+    }
+  }
+  g.ui.store.set({ overlay: 'ground' });
+  g.ui.cameraControl.cancel();
+  g.cam.zoom = options.zoom || 1;
+  g.ui.cameraControl.jumpTo(best.x, best.y);
+  await wait(400);
+  return `clay ${best.c} free clay tiles round (${best.x}, ${best.y})`;
+}
+
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
   early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded, 'pyramid-placing': pyramidPlacing,
   title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion,
-  variant,
+  variant, bridge, clay,
 };
 
 export async function devScene(api, name, options = {}) {
