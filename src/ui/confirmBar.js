@@ -9,7 +9,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
-import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT } from './text.js';
+import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' && tool.gate ? buildingName('gate') : tool.kind === 'road' || tool.kind === 'wall' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : tool.kind === 'plazas' ? buildingName('plaza') : T.demolish);
@@ -58,6 +58,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const s = store.get();
     // The bar rebuilds on every change, so remember which control had focus and put it back (spec 6.8).
     const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'ok', 'show-fit'].includes(c)) : null;
+    const focusedStyle = element.contains(document.activeElement) ? document.activeElement.dataset.style || null : null;   // Stage 4.6: the style button that had focus
     clear(element);
     if (!isToolMode(s.mode) || !s.tool) { element.hidden = true; heldKey = null; publishHeight(); return; }
     element.hidden = false;
@@ -113,13 +114,25 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // bar keeps one height as the ghost moves onto a refused spot and the corner buttons on it do not jump (ruling 352).
     const bound = s.tool.kind === 'building' && Boolean(BUILDINGS[s.tool.type].terrain || BUILDINGS[s.tool.type].water);
     const fitRoom = bound && !showFit ? el('div', { class: 'show-fit-room', 'aria-hidden': 'true' }) : null;
-    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}` }, [info, ...controls, chips, showFit, fitRoom]);
+    // Stage 4.6 (Wonders track, ruling 343): a monument's style picker, a row of its own under the conditions: each offered style is a button (the one
+    // in force carries a tick and aria-checked, so it is never colour alone) and one line says what the style in force costs and does, from the sim.
+    const choices = s.tool.kind === 'building' && typeof placement.styleChoices === 'function' ? placement.styleChoices() : null;
+    const styleRow = choices ? el('div', { class: 'style-row' }, [
+      el('div', { class: 'style-choices', role: 'radiogroup', 'aria-label': S46_WONDER_TEXT.styleGroup }, choices.map((c) => button(c.active ? `✓ ${c.name}` : c.name, {
+        class: `style-pick${c.active ? ' on' : ''}`, role: 'radio', 'aria-checked': String(c.active), 'aria-label': S46_WONDER_TEXT.styleLabel(c.name, c.line), dataset: { style: c.id }, onClick: () => placement.setStyle(c.id),
+      }))),
+      el('div', { class: 'style-line small', text: (choices.find((c) => c.active) || choices[0]).line }),
+    ]) : null;
+    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}${styleRow ? ' has-style' : ''}` }, [info, ...controls, chips, showFit, fitRoom, styleRow]);
     element.append(bar);
     keepTallest(bar, s);
     publishHeight();
     if (focusedClass) {
       const again = element.querySelector(`.${focusedClass}`);
       if (again && !again.disabled) again.focus();
+    } else if (focusedStyle) {
+      const again = element.querySelector(`[data-style="${focusedStyle}"]`);
+      if (again) again.focus();
     }
   }
   render();

@@ -1111,6 +1111,15 @@ body[data-layout="portrait"] .confirm.has-fit .conds, body[data-layout="portrait
 /* ── end s46 armies ── */
 
 /* ── s46 wonders (Wonders track) ── the Wonders track's styles. Add new rules just above the end marker. */
+/* The style picker in a monument's confirm bar (src/ui/confirmBar.js, ruling 343): a row of its own at the foot of the bar, three buttons that each
+   share the width, the one in force teal with a tick (and aria-checked: never colour alone), and one line under them for what it costs and does. */
+.confirm.has-style { flex-wrap: wrap; row-gap: 6px; }
+.confirm .style-row { flex: 1 0 100%; order: 11; display: flex; flex-direction: column; gap: 4px; }
+.confirm .style-choices { display: flex; gap: 6px; }
+.confirm .style-pick { flex: 1 1 0; min-width: 0; min-height: var(--tap); padding: 0 4px; font-size: calc(13px * min(var(--ui-scale), 1.15)); line-height: 1.2; white-space: nowrap; overflow: hidden; }   /* the text size is capped here, so "Whitewashed" keeps to one line in a third of a 375 px phone at 150% */
+.confirm .style-pick[aria-checked="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); font-weight: 600; }
+.confirm .style-line { color: var(--ink); font-size: calc(12px * var(--ui-scale)); }
+.style-row-text { margin: 4px 0; }
 /* ── end s46 wonders ── */
 
 /* ── s46 ux (UX track) ── the UX track's styles: the top bar and speed control, and the shared legibility tokens (it may also edit
