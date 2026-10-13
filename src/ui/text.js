@@ -1629,3 +1629,28 @@ Object.assign(TIP_TEXT, { treasury_low: 'The treasury is heading below 0: tap th
 TIP_HELP_TEXT.treasury_low = S45_TEXT.warnTipHelp;
 Object.assign(REASONS, { not_wall: 'A gate goes on a wall', too_wide: 'Too wide to bridge here', bridge_shape: 'A bridge runs straight across, with land at both ends' });
 // ── end s45 ──────────────────────────────────────────────────────────────────────────────────────────────────────
+
+// ── s45 threats (Task 5b-5d: disease and crime) ──────────────────────────────────────────────────────────────────────
+// Every line follows src/sim/health.js (and crime.js): healthAlerts picks the alert, healthCause the reason no staffed physician
+// reaches the home, HEALTH_MOOD the mood row's numbers.
+import { HEALTH as healthNumbers, HEALTH_MOOD as healthMood } from '../data/health.js';
+import { healthCause as healthCauseOf } from '../sim/health.js';
+const minus = (n) => `${n < 0 ? '−' : ''}${Math.abs(n)}`;
+const anA = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
+export const HEALTH_TEXT = {
+  sick: (tier) => `Sickness in ${anA(tier)}`,                                      // the illness alert's title: "Sickness in a House"
+  cause: {
+    covered: `A staffed physician reaches it: it mends ${healthNumbers.coverFactor === 2 ? 'twice' : `${healthNumbers.coverFactor} times`} as fast and does not spread`,
+    no_road: 'No road beside it for a physician to reach: lay one',
+    none: 'Build a physician nearby',
+    short: 'Its physician is short of workers: more homes bring more workers',
+    burning: 'Its physician is burning: build another near it',
+    paused: 'Its physician is paused: resume it',
+  },
+  mood: `Illness (${minus(healthMood.each)} per ill home, at most ${minus(healthMood.max)})`,
+};
+Object.assign(ALERT_TEXT, {
+  illness: (alert, world, b) => ({ title: HEALTH_TEXT.sick(b ? tierName(b.tier) : 'home'), fix: b ? HEALTH_TEXT.cause[healthCauseOf(world, b).cause] : HEALTH_TEXT.cause.none }),
+});
+Object.assign(MOOD_NAMES, { illness: HEALTH_TEXT.mood });
+// ── end s45 threats ──────────────────────────────────────────────────────────────────────────────────────────────────

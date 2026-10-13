@@ -55,13 +55,14 @@ function placeFirst(world, type, spots) {
 // Stage 3 (spec 4.12): fire risk builds from Town, and a firehouse reaches FIRE.reach road tiles. Each street keeps two
 // spots on its south row free of homes, four tiles either side of the north road; their two firehouses reach the whole
 // street (nine tiles either side) and the north road up to the next street. They are built the day the city becomes a
-// Town, like a careful player.
+// Town, like a careful player. Stage 4.5: a physician beside the north road on each street's south row does the same for illness.
 const FIRE_DX = [-4, 4];
 
 // Paints a street's south row of homes around its two firehouse spots (the wells at five tiles are skipped as built).
 function paintAroundFirehouses(world, ex, y) {
   paintHouses(world, ex - 9, y, ex - 5, y);
-  paintHouses(world, ex - 3, y, ex + 3, y);
+  paintHouses(world, ex - 3, y, ex - 2, y);   // Stage 4.5: (ex - 1, y) stays free for the street's physician (ex is the north road)
+  paintHouses(world, ex, y, ex + 3, y);
   paintHouses(world, ex + 5, y, ex + 9, y);
 }
 
@@ -78,6 +79,7 @@ const reachedByAny = (world, b) => allBuildings(world).some((f) => f.type === 'f
 function addFirehouses(world, streets) {
   const ex = world.tradeEntry.x;
   for (const y of streets) for (const dx of FIRE_DX) place(world, 'firehouse', ex + dx, y + 1);
+  for (const y of streets) place(world, 'physician', ex - 1, y + 1);   // Stage 4.5: and a physician whose reach (8 road tiles) takes in the street's homes
   for (let guard = 0; guard < 8; guard++) {
     const b = allBuildings(world).find((x) => canBurn(x) && adjacentRoadTiles(world, x).length && !reachedByAny(world, x));
     if (!b) return;

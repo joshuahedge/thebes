@@ -32,6 +32,7 @@ export const DESIRABILITY = {
   // Stage 3 (spec 4.7). Rubble is 1x1, so each tile of a burned building's rubble counts on its own. Walls and gates
   // change nothing.
   firehouse: [-1],
+  physician: [],        // Stage 4.5 (ruling 318): neither pleasant nor unpleasant
   tower: [-2, -1],
   barracks: [-4, -2],
   rubble: [-3, -1],

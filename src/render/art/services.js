@@ -4,7 +4,7 @@
 // Each service and farm carries a small pennant in its emblem colour (spec 5.3) so it reads at phone zoom.
 // Granaries and bazaars show their stock and farms their crop (early-game pass 2.2, 2.3): each draws a stage
 // chosen by stages.js, and SERVICE_ART registers one slot per stage beside the plain type slot.
-import { box, tb, qd, crs, door, fence, pots, awn, col, rug, bed, pool, tile, p, U, quad, hs } from './primitives.js';
+import { box, tb, qd, crs, door, win, parapet, fence, pots, awn, col, rug, bed, pool, tile, p, U, quad, hs } from './primitives.js';
 import { palmAt, tufts } from './nature.js';
 import { fig } from './figures.js';
 import {
@@ -15,7 +15,7 @@ import { boundsFor } from '../iso.js';
 
 export const SERVICE_EMBLEM = {
   well: BLUE, farm_grain: LEAF2, granary: GREEN, bazaar: RED, temple: GOLD,
-  farm_fig: LEAF2, farm_barley: INDUSTRY_TINT, farm_flax: INDUSTRY_TINT, booth: PINK,
+  farm_fig: LEAF2, farm_barley: INDUSTRY_TINT, farm_flax: INDUSTRY_TINT, booth: PINK, physician: GREEN,
 };
 
 export function pennant(g, q, h, color) {
@@ -370,6 +370,34 @@ export function booth(g, x, y) {
   fig(g, x + 0.46, y + 0.56, 'woman', 3, 0.85);
   pennant(g, U(p(x + 0.86, y + 0.12), 14.8), 6, SERVICE_EMBLEM.booth);
 }
+// Physician (1x1, Stage 4.5): a whitewashed surgery with a green band under its parapet, a green cross painted either side of
+// the door, a drying rack of herb bundles, a mat and water jars by the step, and a green pennant.
+const CROSS = '#3E8F5A';
+const HEALTH_EMBLEM = GREEN;      // the physician's pennant matches its card (green)
+export function physician(g, x, y) {
+  g.poly(quad(x + 0.08, y + 0.74, 0.7, 0.2, 0), '#E9D9B4');                      // the swept apron in front of the door
+  const F = box(g, x + 0.12, y + 0.12, 0.62, 0.6, 10, 0, WASH);
+  parapet(g, x + 0.12, y + 0.12, 0.62, 0.6, 10);
+  qd(g, F.L, 0, 1, 7.8, 9, GREEN);
+  qd(g, F.R, 0, 1, 7.8, 9, GREEN_DARK);
+  door(g, F, 0.16, 0.42, 6);
+  qd(g, F.L, 0.66, 0.76, 2.4, 6.6, CROSS);                                         // the cross on the lit wall, beside the door
+  qd(g, F.L, 0.56, 0.86, 3.8, 5.2, CROSS);
+  win(g, F.R, 0.2, 0.46, 4.2, 6.6);
+  qd(g, F.R, 0.62, 0.72, 2.6, 6.6, '#BFE0C4');                                      // and a paler one on the shaded wall
+  qd(g, F.R, 0.55, 0.79, 3.8, 5.2, '#BFE0C4');
+  g.line(U(p(x + 0.84, y + 0.26), 0), U(p(x + 0.84, y + 0.26), 9), WOOD, 0.6);       // the herb rack: two posts and a pole
+  g.line(U(p(x + 0.84, y + 0.62), 0), U(p(x + 0.84, y + 0.62), 9), WOOD, 0.6);
+  g.line(U(p(x + 0.84, y + 0.26), 9), U(p(x + 0.84, y + 0.62), 9), WOOD, 0.7);
+  for (const v of [0.32, 0.43, 0.54]) {
+    const q = U(p(x + 0.84, y + v), 9);
+    g.line(q, [q[0], q[1] + 3.2], '#8A6A4A', 0.4);
+    g.ell([q[0], q[1] + 4.2], 0.9, 1.5, v === 0.43 ? '#A8B84A' : GREEN, { outline: true });
+  }
+  g.poly(quad(x + 0.16, y + 0.8, 0.34, 0.14, 0), '#F2E2BC', { stroke: '#C9A86A', strokeWidth: 0.6 });   // a mat for the patient
+  pots(g, p(x + 0.66, y + 0.88), 2);
+  pennant(g, U(p(x + 0.18, y + 0.14), 10), 7, HEALTH_EMBLEM);
+}
 
 // The plain type slots are what cards and assets show: a full granary, a piled bazaar, a green grain field, ripe
 // barley, flax in flower and a fig orchard in fruit.
@@ -392,6 +420,7 @@ export const SERVICE_ART = {
   garden: { w: 1, d: 1, height: 16, bounds: boundsFor(1, 1, 16), shadows: [], draw: garden },
   statue: { w: 1, d: 1, height: 22, bounds: boundsFor(1, 1, 22), shadows: [[0.2, 0.2, 0.6, 0.6, 4], [0.3, 0.28, 0.4, 0.42, 16]], draw: seatedStatue },
   booth: { w: 1, d: 1, height: 21, bounds: boundsFor(1, 1, 21), shadows: [[0.16, 0.14, 0.68, 0.6, 3], [0.14, 0.12, 0.72, 0.3, 13]], draw: booth },
+  physician: { w: 1, d: 1, height: 19, bounds: boundsFor(1, 1, 19), shadows: [[0.12, 0.12, 0.62, 0.6, 10]], draw: physician },
 };
 // One slot per stage, named as slotFor (registry.js) names them: granary.s0-s3, bazaar.s0-s2, and g0-g3 for every
 // farm; each farm also keeps its plain type slot.

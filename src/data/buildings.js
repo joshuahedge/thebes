@@ -85,6 +85,12 @@ export const BUILDINGS = {
     name: 'Firehouse', w: 1, d: 1, cost: 50, upkeep: 4, workers: 4, priority: 'safety', category: 'services',
     needsRoad: true, reach: 8,
   },
+  // Stage 4.5 (ruling 318): the physician covers homes against illness by road reach, as the
+  // firehouse covers fires (src/sim/health.js; its reach is kept equal to HEALTH.reach by a data test).
+  physician: {
+    name: 'Physician', w: 1, d: 1, cost: 60, upkeep: 4, workers: 1, priority: 'safety', category: 'services',
+    needsRoad: true, reach: 8,
+  },
   tower: { name: 'Tower', w: 1, d: 1, cost: 150, upkeep: 8, workers: 4, priority: 'safety', category: 'defence', needsRoad: true },
   barracks: { name: 'Barracks', w: 2, d: 2, cost: 200, upkeep: 12, workers: 6, priority: 'safety', category: 'defence', needsRoad: true },
   wall: { name: 'Wall', w: 1, d: 1, cost: 8, upkeep: 0, workers: 0, category: 'defence', needsRoad: false, tile: true },
