@@ -1,7 +1,7 @@
 import { S46_GOODS } from './s46.js';
 
 // Goods (spec 4.10). kind: 'food' (homes eat it: grain from tier 3, figs as the second food from tier 7),
-// 'household' (homes use it from the tier that needs it), 'raw' (only workshops use it), and from Stage 4 'material'
+// (Stage 4.6: game and fish are foods too, and any two foods meet the second-food need.) 'household' (homes use it from the tier that needs it), 'raw' (only workshops use it), and from Stage 4 'material'
 // (only monument sites use it: homes never want it and bazaars never sell it). perResidentPerMonth is what a home uses,
 // rounded up per home; raw goods and materials have none.
 export const GOODS = {

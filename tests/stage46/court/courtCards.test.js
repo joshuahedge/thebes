@@ -7,7 +7,7 @@ import { COURT_CARDS, COURT_CARD_IDS, CARDS, CARD_NUMBERS, FAVOUR } from '../../
 import { FESTIVAL } from '../../../src/data/raids.js';
 import { HEALTH } from '../../../src/data/health.js';
 import {
-  courtDay, courtMonth, eligibleCards, cardChoices, answerCard, applyEffects, effectProblem, cardStale, stockOf, letterOf, roomFor,
+  RIVER_HOOKS, courtDay, courtMonth, eligibleCards, cardChoices, answerCard, applyEffects, effectProblem, cardStale, stockOf, letterOf, roomFor,
 } from '../../../src/sim/court.js';
 import { festivalMood, festivalStatus } from '../../../src/sim/festival.js';
 import { festivalCostOf } from '../../../src/sim/costs.js';
@@ -76,7 +76,7 @@ describe('s46 court cards: when they come', () => {
     a.day = a.court.nextCardDay; b.day = b.court.nextCardDay;
     courtDay(a); courtDay(b);
     expect(a.court.letters).toEqual(b.court.letters);
-    expect(a.court.letters.filter((l) => l.kind === 'card').every((l) => l.card !== 'lost_herd' && l.card !== 'flood_omen')).toBe(true);
+    expect(a.court.letters.filter((l) => l.kind === 'card').every((l) => cardChoices(a, l).every((c) => c.problem !== 'unavailable'))).toBe(true);   // no card is drawn whose choice cannot happen
   });
   it('does not draw the lost herd or the flood omen until the River hooks can act, and draws them when they can (both ways)', () => {
     const w = ready();
@@ -86,7 +86,9 @@ describe('s46 court cards: when they come', () => {
     expect([on.includes('lost_herd'), on.includes('flood_omen')]).toEqual([true, true]);
     const half = eligibleCards(w, { ...ALL_HOOKS, canLeave: () => false }).map((e) => e.card);
     expect(half.includes('lost_herd')).toBe(false);                            // both choices must be able to happen
-    expect(eligibleCards(w).map((e) => e.card).filter((c) => c === 'lost_herd' || c === 'flood_omen')).toEqual([]);   // the stubs say no
+    const real = eligibleCards(w).map((e) => e.card);                                  // the River track's real hooks decide: no herd here to send, but the priests can read the year's flood
+    expect([real.includes('lost_herd'), real.includes('flood_omen')]).toEqual([RIVER_HOOKS.canArrive(w) && RIVER_HOOKS.canLeave(w), RIVER_HOOKS.canForecast(w)]);
+    expect(real.includes('flood_omen')).toBe(true);
   });
   it('is off on Peaceful for the sickness, and the other cards stay', () => {
     const w = ready({ difficulty: 'peaceful' });
@@ -331,15 +333,20 @@ describe('s46 court cards: the River hooks', () => {
     expect(choiceOf(w, herd, 'welcome').effects).toEqual([{ kind: 'herd', how: 'arrive' }]);
     expect(choiceOf(w, herd, 'send_away').effects).toEqual([{ kind: 'herd', how: 'leave' }, { kind: 'favour', n: CARD_NUMBERS.lost_herd.sendFavour }]);
     const favour = w.court.favour;
-    expect(answerCard(w, herd.id, 'send_away', null, ALL_HOOKS)).toEqual({ ok: false, reason: 'unavailable' });   // the stub hook does nothing: no favour is given
+    expect(answerCard(w, herd.id, 'send_away', null, ALL_HOOKS)).toEqual({ ok: false, reason: 'unavailable' });   // no herd to send: no favour is given
     expect(w.court.favour).toBe(favour);
     expect(w.court.letters.some((l) => l.id === herd.id)).toBe(true);
     const omen = letterFor(w, 'flood_omen', ALL_HOOKS);
     const gold = w.gold;
     expect(choiceOf(w, omen, 'pay_priests').effects).toEqual([{ kind: 'forecast' }, { kind: 'gold', n: -CARD_NUMBERS.flood_omen.price }]);
+    w.milestone = 'village';                                                          // the river does not flood in a village: the priests cannot read it, and nothing is charged
     expect(answerCard(w, omen.id, 'pay_priests', null, ALL_HOOKS)).toEqual({ ok: false, reason: 'unavailable' });
     expect(w.gold).toBe(gold);
-    expect(answerCard(w, omen.id, 'pass', null, ALL_HOOKS).ok).toBe(true);
+    w.milestone = 'market_town';
+    const paid = answerCard(w, omen.id, 'pay_priests', null, ALL_HOOKS);              // the real hook: the level is known, the gold goes once
+    expect([paid.ok, w.gold, w.flood.forecast !== null && w.flood.forecast === w.flood.level]).toEqual([true, gold - CARD_NUMBERS.flood_omen.price, true]);
+    const w2 = ready(), omen2 = letterFor(w2, 'flood_omen', ALL_HOOKS);
+    expect(answerCard(w2, omen2.id, 'pass', null, ALL_HOOKS).ok).toBe(true);
   });
   it('prices the priests by the difficulty', () => {
     const w = ready({ difficulty: 'hard' });

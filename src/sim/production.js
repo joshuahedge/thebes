@@ -5,6 +5,9 @@ import { buildingsInReach, touchesRoad } from './reach.js';
 import { isWorking, staffRatio } from './labour.js';
 import { materialOf, supplyNeeded, deliverySites, stockRoom } from './monuments.js';
 import { DAYS_PER_MONTH } from './time.js';
+import { HUNTING } from '../data/river.js';
+import { floodHarvestFactor, fishFactor } from './flood.js';
+import { huntHerd, takeGame } from './wildlife.js';
 
 export const storeTotal = (b) => Object.values(b.store).reduce((s, v) => s + v, 0);
 
@@ -102,10 +105,17 @@ export function produceDay(world) {
     // A full store that gives up its input counts as having room: each unit takes its input first (see makeOne).
     if (!sites.length && !targets.some(hasSpace) && !(input && inputSource(sources, targets, input))) { b.blocked = 'no_storage'; continue; }
     b.blocked = null;
-    b.progress += (perMonth / DAYS_PER_MONTH) * staffRatio(world, b);
+    // Stage 4.6 (River track, ruling 360): a floodplain farm's harvest follows the last flood; a wharf's boat lands more in the flood months.
+    const rate = (perMonth / DAYS_PER_MONTH) * staffRatio(world, b) * floodHarvestFactor(world, b) * (def.fishes ? fishFactor(world) : 1);
+    b.progress += rate;
     while (b.progress >= 1 - 1e-9) {
+      // A hunting lodge's hunters take each animal from a herd in reach (ruling 364): with none to take, it waits (and banks no more than one).
+      const herd = def.hunts && (b.hunted || 0) < HUNTING.maxMonth ? huntHerd(world, b) : null;
+      if (def.hunts && !herd) { b.blocked = 'no_game'; b.progress = Math.min(b.progress, 1); break; }
       const why = makeOne(world, good, input, sources, targets, sites);
       if (why) { b.blocked = why; break; }
+      if (herd) takeGame(world, herd, b);
+      if (def.fishes) world.tally.fished += 1;
       b.progress -= 1;
     }
   }

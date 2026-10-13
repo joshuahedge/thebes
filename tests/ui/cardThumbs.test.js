@@ -29,10 +29,10 @@ const SHOWN = ['roads', 'homes', 'food', 'industry', 'services'];
 describe('ui card pictures', () => {
   it('draws a picture for every card, sized for the screen', () => {
     const items = visibleCategories().flatMap((c) => c.items);
-    expect(items).toEqual(['road', 'demolish', 'house', 'garden', 'statue', 'plaza', 'sphinx', 'farm_grain', 'farm_fig', 'granary', 'clay_pit', 'potter', 'farm_barley', 'brewery',
-      'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'police_post', 'palace',
+    expect(items).toEqual(['road', 'demolish', 'house', 'garden', 'statue', 'plaza', 'sphinx', 'farm_grain', 'farm_fig', 'granary', 'hunting_lodge', 'fishing_wharf', 'clay_pit', 'potter', 'farm_barley', 'brewery',
+      'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'police_post', 'palace', 'nilometer',
       'wall', 'gate', 'tower', 'barracks', 'archery_range', 'stables', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'colossus', 'mastaba_small',
-      'mastaba_large', 'pyramid_small', 'pyramid_great']);   // Stage 4: the plaza, sphinx, palace and the Monuments tab; Stage 4.6: the archery range and stables
+      'mastaba_large', 'pyramid_small', 'pyramid_great']);   // Stage 4: the plaza, sphinx, palace and the Monuments tab; Stage 4.6: the archery range and stables, and the River track's three
     for (const item of items) {
       const c = drawThumb(document.createElement('canvas'), item, 1);
       expect([item, c.width, c.height]).toEqual([item, THUMB_W, THUMB_H]);
@@ -175,7 +175,7 @@ describe('ui card pictures', () => {
       try {
         fire(r.root.querySelector(`${width === 844 ? '#rail' : '#panel'} ${width === 844 ? '.cat' : '.tab'}[data-category="services"]`), 'click');
         const cards = [...r.root.querySelectorAll(`${host} .card`)];
-        expect([width, cards.length]).toEqual([width, 7]);
+        expect([width, cards.length]).toEqual([width, 8]);
         for (const c of cards) {
           const box = c.getBoundingClientRect();
           const pic = c.querySelector('.thumb').getBoundingClientRect();
