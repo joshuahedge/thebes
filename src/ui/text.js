@@ -2346,5 +2346,19 @@ ACHIEVEMENT_TEXT.seven_wonders = S46_WONDER_TEXT.sevenWonders(score4Achievement(
 // The UX track's words, and only the UX track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
 // FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
 // states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
-export const S46_UX_TEXT = {};
+export const S46_UX_TEXT = {
+  // Ruling 400: the key hints on the confirm bar (shown only where there is a keyboard).
+  keyEnter: 'Enter', keyEsc: 'Esc',
+  // Ruling 404: the wide top bar's play, pause and speed. Each step has a picture (never colour alone), a word, and a name for assistive
+  // technology that says what pressing it does; the pressed one is the state, and only it shows its word ("Paused" or the speed).
+  speedGlyphs: ['❚❚', '▶', '▶▶', '▶▶▶'],
+  speedGroup: 'Game speed',
+  pausedWord: 'Paused',
+  speedStepLabel: (s) => (s === 0 ? 'Pause' : `Play at ${SPEED_LABELS[s]} speed`),
+  speedStepTitle: (s) => (s === 0 ? 'Pause (Space)' : `Play at ${SPEED_LABELS[s]} speed (+ and - change it)`),
+  // Rulings 401-403: the version and What's new on the title card. The notes themselves are src/data/releases.js.
+  versionLine: (version, stamp = null) => `Version ${version}${stamp ? ` · build ${stamp}` : ''}`,
+  whatsNew: 'What\'s new', whatsNewTitle: 'What\'s new in Thebes', newHead: 'New', fixedHead: 'Fixed', newestTag: 'newest',
+  releaseHead: (version, dateText) => `Version ${version} · ${dateText}`,
+};
 // ── end s46 ux ──

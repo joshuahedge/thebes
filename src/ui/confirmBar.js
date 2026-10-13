@@ -9,7 +9,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
-import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT } from './text.js';
+import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT, S46_UX_TEXT } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' && tool.gate ? buildingName('gate') : tool.kind === 'road' || tool.kind === 'wall' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : tool.kind === 'plazas' ? buildingName('plaza') : T.demolish);
@@ -96,8 +96,12 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // the wide layout keeps the word button, greyed out when there is nothing to undo.
     if (s.layout === 'wide') controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
     else if (placement.canUndo()) controls.push(iconButton(T.undo, '↶', { class: 'undo', onClick: onUndo }));
-    controls.push(iconButton(T.cancel, '✕', { class: 'cancel', onClick: onCancel }));
-    controls.push(iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, disabled: p.state === 'bad' || p.state === 'idle', onPointerDown: rememberPress, onPointerUp: releasePress, onPointerLeave: leavePress, onPointerCancel: forgetPress, onKeyDown: forgetPress, onClick: confirmPressed }));
+    // Stage 4.6 (ruling 400): Enter lays what is waiting and Esc takes it back whatever has focus (keyboard.js, createUI's placementPending), and where
+    // there is a keyboard the tick says so: a small "Enter" on it (css, body[data-keyboard]), and the keys in the buttons' tooltips and keyshortcuts.
+    controls.push(iconButton(T.cancel, '✕', { class: 'cancel', title: `${T.cancel} (${S46_UX_TEXT.keyEsc})`, 'aria-keyshortcuts': 'Escape', onClick: onCancel }));
+    const ok = iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, title: `${T.confirm} (${S46_UX_TEXT.keyEnter})`, 'aria-keyshortcuts': 'Enter', disabled: p.state === 'bad' || p.state === 'idle', onPointerDown: rememberPress, onPointerUp: releasePress, onPointerLeave: leavePress, onPointerCancel: forgetPress, onKeyDown: forgetPress, onClick: confirmPressed });
+    ok.append(el('span', { class: 'keyhint', 'aria-hidden': 'true', text: S46_UX_TEXT.keyEnter }));
+    controls.push(ok);
     // A building that changes desirability keeps a line for it (css: .confirm.desire), so the bar never grows as the ghost moves.
     const desire = s.tool.kind === 'building' && (DESIRABILITY[s.tool.type] || []).length > 0;
     // A building's conditions, each with its own mark and words (placement review P9): met, later (it can be placed but will not

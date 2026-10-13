@@ -5,8 +5,9 @@ import { ART, slotFor } from '../render/art/registry.js';
 import { p, artToTile, ART_SCALE } from '../render/iso.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { el, button, clear } from './components.js';
-import { T, DIFFICULTY_NAMES, difficultyHint, CARDS4_TEXT, S46_MAP_TEXT } from './text.js';
+import { T, DIFFICULTY_NAMES, difficultyHint, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT } from './text.js';
 import { MAP_SIZES, MAP_SIZE_IDS } from '../data/map.js';
+import { versionLine, renderWhatsNew } from './s46/whatsNew.js';   // Stage 4.6 (rulings 401-403): the version line and the What's new panel
 
 // Relaxed, Normal or Hard for the next new city: three pressed-state buttons with the chosen level's line under them.
 // Choosing one tells onChoose (boot.js keeps it in settings.difficulty), so the last one used is chosen next time.
@@ -57,18 +58,21 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
   if (canBring) buttons.push(button(T.bringCity, { class: 'bring', onClick: onBring }));
   if (typeof onHowToPlay === 'function') buttons.push(button(CARDS4_TEXT.howToPlay, { class: 'how-to-play', onClick: () => onHowToPlay() }));
   buttons.push(soundButton, install);
+  buttons.push(button(S46_UX_TEXT.whatsNew, { class: 'whats-new-button', onClick: () => showWhatsNew() }));   // Stage 4.6 (ruling 402): one panel of releases, newest first
   const levels = difficultyRow(difficulty, onDifficulty);
   levels.append(sizeRow(mapSize, onMapSize));   // Stage 4.6: the size sits with the difficulty under New city, so This week's Nile (placed after `levels`) comes below both
   const buttonBox = el('div', { class: 'title-buttons' }, buttons.flatMap((b) => (b === newCity ? [b, levels] : [b])));   // the choice sits under New city
   const element = el('div', { class: 'title-card', role: 'dialog', 'aria-labelledby': 'title-name' }, [
     el('h1', { id: 'title-name', text: 'Thebes' }),
     el('p', { class: 'tagline muted', text: T.tagline }),
+    versionLine(),   // Stage 4.6 (ruling 401): "Version 4.6 · build 989a650", small
     message ? el('p', { class: 'message coral', text: message }) : null,
     buttonBox,
   ]);
   let guide = null;
   const showPanelNode = (children) => { guide = el('div', { class: 'guide' }, children); buttonBox.hidden = true; element.append(guide); };
   const showCard = () => { if (guide) { guide.remove(); guide = null; } buttonBox.hidden = false; buttons[0].focus(); };
+  const showWhatsNew = () => { showCard(); const body = el('div', { class: 'guide-body' }); const { top } = renderWhatsNew(body, showCard); showPanelNode([body]); top.focus(); };
   if (typeof decorate === 'function') decorate(element, { buttonBox, newCity });
   clear(container);
   container.append(element);
