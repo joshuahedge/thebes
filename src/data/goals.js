@@ -95,6 +95,7 @@ export const EVENT_GOALS = [
   {
     id: 'raid_tower', trigger: 'raid_warning', chapter: 'event', raids: true, text: 'Build a tower facing the raiders', reward: EVENT_REWARD, need: { kind: 'building', type: 'tower', n: 1 }, showMe: { category: 'defence', item: 'tower', target: 'raid' },
     dirText: { east: 'Build a tower facing the east', west: 'Build a tower facing the west', north: 'Build a tower facing the north', south: 'Build a tower facing the south' },
+    dirsText: 'Build towers facing {dirs}',   // a two-sided raid from two edges names both ("east and south"), in band order; at most 36 characters
   },
   // Stage 4 (spec 4.19): the first stalled monument site, worded and aimed by its cause (ruling 245's reason codes); it is
   // done once no site is stalled. A cause with no build card to fix it (gold) opens the city summary.

@@ -20,7 +20,7 @@ import { createPlacement } from '../../src/ui/placement.js';
 import { select, openSheet } from '../../src/ui/modes.js';
 import { OVERLAY_NAMES, OVERLAY_LEGEND, DANGER_UI_TEXT as D, TIP_TEXT, FIRST_TEXT, CRIME_TEXT, effectText, alertText } from '../../src/ui/text.js';
 import { fallIll, healthBandOf, healthCovered, illnessDaysLeft } from '../../src/sim/health.js';
-import { crimeCovered, steal } from '../../src/sim/crime.js';
+import { crimeCovered, steal, dailyCrimeRiskOf } from '../../src/sim/crime.js';
 import { openGoals } from '../../src/sim/goals.js';
 import { checkFirsts } from '../../src/sim/firsts.js';
 import { scoreRow } from '../../src/sim/score.js';
@@ -128,7 +128,8 @@ describe('s45 health and crime overlays', () => {
       store.set({ overlay: 'health' });
       const bands = [...root.querySelectorAll('.band')];
       expect(bands.map((b) => b.textContent)).toEqual(['Low', 'Rising', 'High', 'Ill or can fall ill']);
-      expect(bands.map((b) => b.getAttribute('aria-label'))).toEqual(['Low: health risk 0 to 24', 'Rising: health risk 25 to 59', 'High: health risk 60 to 99', 'Ill or can fall ill: health risk 100 or more']);
+      expect(bands.map((b) => b.getAttribute('aria-label'))).toEqual(['Low: health risk 0 to 24', 'Rising: health risk 25 to 59', 'High: health risk 60 to 99', `Ill or can fall ill: ill, or health risk ${HEALTH.threshold} or more`]);
+      expect(HEALTH_BANDS[HEALTH_BANDS.length - 1]).toBe(HEALTH.threshold);          // the top band's start is the threshold the words name
       expect(bands.map((b) => b.querySelector('.swatch').classList.contains('hatch'))).toEqual([false, false, true, true]);
       expect([...root.querySelectorAll('.fire-keys .key')].map((k) => k.textContent.trim())).toEqual(OVERLAY_LEGEND.health);
       expect(root.querySelector('.never-burn').textContent).toBe(D.homesOnlyNote);
@@ -420,10 +421,41 @@ describe('s45 goals, tips and firsts', () => {
     expect(TIPS.find((t) => t.id === 'sickness_spreads').trigger).toBe('illness');
     expect(TIPS.find((t) => t.id === 'thieves_about').trigger).toBe('theft');
     expect(TIP_TEXT.sickness_spreads).toBe('Sickness spreads between touching homes: a staffed physician within 8 road tiles stops that and cures it twice as fast.');
-    expect(TIP_TEXT.thieves_about).toBe('Thieves come from poor, unhappy or jobless homes: a staffed police post within 8 road tiles cuts the risk 80%.');
+    expect(TIP_TEXT.thieves_about).toBe('Poor, unhappy or jobless homes breed thieves: a police post within 8 road tiles cuts risk by up to 80%.');
     for (const id of ['sickness_spreads', 'thieves_about']) expect(TIP_TEXT[id].split(/\s+/).length).toBeLessThanOrEqual(20);
     expect(HEALTH.reach).toBe(8);
     expect(CRIME.cut).toBe(0.8);
+  });
+  it('says the thieves tip cut is "up to" the data, and a post short of staff cuts less', () => {
+    const { w, ids } = city([[4, 9]]);
+    w.mood = 30;                                                                            // crime builds from a low mood
+    const home = w.buildings[ids[0]];
+    const bare = dailyCrimeRiskOf(w, home);
+    expect(bare).toBeGreaterThan(0);
+    const post = addRaw(w, 'police_post', 5, 11);
+    staffAll(w);
+    expect(Math.abs(dailyCrimeRiskOf(w, home) - bare * (1 - CRIME.cut)) < 1e-9).toBe(true);              // fully staffed: the whole of the data's cut
+    expect(TIP_TEXT.thieves_about).toContain(`by up to ${Math.round(CRIME.cut * 100)}%`);
+    post.staff = 0.6;                                                                       // short of staff but working: a smaller cut
+    const part = dailyCrimeRiskOf(w, home);
+    expect(Math.abs(part - bare * (1 - CRIME.cut * 0.6)) < 1e-9).toBe(true);
+    expect(part > bare * (1 - CRIME.cut) && part < bare).toBe(true);
+    expect(TIP_TEXT.thieves_about.includes('cuts risk by up to')).toBe(true);
+  });
+  it('words the top Health band so an ill home (risk 0) and a home at the threshold are both in it, both ways', () => {
+    const { w, ids } = city([[4, 9], [6, 9]]);
+    const [ill, ripe] = homesOf(w, ids);
+    w.day = 5;
+    fallIll(w, ill.id);
+    expect([ill.health, healthBandOf(w, ill)]).toEqual([0, 3]);                             // ill, with no risk points
+    ripe.health = HEALTH.threshold;
+    expect(healthBandOf(w, ripe)).toBe(3);                                                  // not ill, at the threshold
+    ripe.health = HEALTH.threshold - 1;
+    expect(healthBandOf(w, ripe)).toBe(2);                                                  // one point short: High
+    const top = D.healthBand(3).words;
+    expect([top.includes(': ill, or health risk'), top.includes(`${HEALTH.threshold} or more`)]).toEqual([true, true]);
+    expect(D.healthBand(2).words.includes('ill,')).toBe(false);
+    expect(D.crimeBand(3).words.includes('ill')).toBe(false);
   });
   it('says what a card will cover from the ghost\'s spot', () => {
     expect(effectText('physician', 3)).toBe('Looks after 3 homes');

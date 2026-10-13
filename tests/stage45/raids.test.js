@@ -4,12 +4,14 @@
 // total; the first raid stays 3 and cannot be paid off; Peaceful has none. Every sentence is computed from the sim's own
 // numbers, and each is tested for a single band and for two.
 import { describe, it, expect } from '../harness.js';
-import { raidDay, raidAlerts, raidSize, raidWealth, sizeGrowth, tributeFor, tributeQuote, towersNeeded, warningBands, warningDirs } from '../../src/sim/raids.js';
+import { raidDay, raidAlerts, raidDirs, raidSize, raidWealth, sizeGrowth, tributeFor, tributeQuote, towersNeeded, warningBands, warningDirs } from '../../src/sim/raids.js';
 import { hash2 } from '../../src/sim/rng.js';
 import { serialize, deserialize } from '../../src/save/serialize.js';
 import { RAIDS, RAID_SALT, UNITS } from '../../src/data/raids.js';
 import { population } from '../../src/sim/world.js';
-import { alertText, DANGER_UI_TEXT as D, RAID_TEXT } from '../../src/ui/text.js';
+import { alertText, DANGER_UI_TEXT as D, RAID_TEXT, TIP_TEXT, raiderTargetsTip } from '../../src/ui/text.js';
+import { openGoals, triggerEventGoals } from '../../src/sim/goals.js';
+import { minimapPins } from '../../src/ui/minimap.js';
 import { triage, bannerModel } from '../../src/ui/alerts.js';
 import { boot } from '../../src/boot.js';
 import { createSaveStore } from '../../src/save/store.js';
@@ -460,5 +462,104 @@ describe('s45 two-band warning fits a phone', () => {
       }
     }
     expect(wrong).toEqual([]);
+  });
+});
+
+// Ruling 317's words, checked against the sim (Task 5 fixer): what a band strikes in what order, which edges a two-sided raid names
+// (one when both bands come from one edge), and where its pins sit on the minimap.
+describe('s45 raid words follow the sim', () => {
+  function strikeTypes() {
+    const w = makeTestWorld({ gold: 1000, raiderEntries: [EAST] });
+    setRoad(w, 0, 13, 31, 13);
+    w.milestone = 'market_town';
+    addRaw(w, 'storehouse', 6, 15);
+    addRaw(w, 'granary', 14, 15, { store: { grain: 100 } });
+    addRaw(w, 'house', 22, 14, { tier: 3, residents: 10 });
+    w.raid.index = 2; w.raid.clockDay = 0;
+    w.raid.warning = { index: 1, entry: { ...EAST }, dir: 'east', size: 3, tribute: 240, target: 'storehouse', day: 900, arrives: 1000, first: false };
+    w.day = 1000;
+    const events = [];
+    raidDay(w, events);
+    for (let k = 0; k < 300 && w.raid.active; k++) { w.day += 1; raidDay(w, events); }
+    return events.filter((e) => e.type === 'raid_strike').map((e) => (e.id in w.buildings ? w.buildings[e.id].type : '?'));
+  }
+  it('says the raider_targets tip in the order a band strikes: the usual targets, then a granary, then a home', () => {
+    expect(strikeTypes()).toEqual(['storehouse', 'granary', 'house']);
+    expect(TIP_TEXT.raider_targets).toBe('Raiders hit trading posts, storehouses, bazaars and temples first, then a granary, then a home: guard those.');
+    expect(raiderTargetsTip()).toBe(TIP_TEXT.raider_targets);
+    expect(TIP_TEXT.raider_targets.split(/\s+/).length).toBeLessThanOrEqual(20);
+  });
+  it('rewords the tip when the data changes, and the sim strikes in that new order', () => {
+    const was = RAIDS.pillage.slice();
+    try {
+      RAIDS.pillage.splice(0, RAIDS.pillage.length, null, 'house', 'granary');
+      expect(strikeTypes()).toEqual(['storehouse', 'house', 'granary']);
+      expect(raiderTargetsTip()).toBe('Raiders hit trading posts, storehouses, bazaars and temples first, then a home, then a granary: guard those.');
+    } finally { RAIDS.pillage.splice(0, RAIDS.pillage.length, ...was); }
+    expect(raiderTargetsTip({ ...RAIDS, strikes: 2, targets: ['temple'] })).toBe('Raiders hit temples first, then a granary: guard those.');
+  });
+
+  // A warned raid on a map whose entries are all on the east edge (the second band falls back to the same edge), or on two edges.
+  function twoBands(entries) {
+    const w = city({ entries });
+    const seed = seedWhere(3, true);
+    w.seed = seed;
+    due(w, { index: 3 });
+    dayAt(w, 3000);
+    return w;
+  }
+  it('names both edges in the tower goal, the title, the tribute sheet and the pins when the bands come from two edges', () => {
+    const w = twoBands([EAST, NORTH]);
+    const warn = w.raid.warning;
+    expect(warn.second).toBeTruthy();
+    expect(raidDirs(w)).toEqual(warningDirs(warn));
+    expect(new Set(raidDirs(w)).size).toBe(2);
+    const alert = raidAlerts(w).find((x) => x.code === 'raid_warning');
+    const words = warningDirs(warn).join(' and ');
+    expect(triggerEventGoals(w, [alert])).toEqual(['raid_tower']);
+    expect(openGoals(w)[0].text).toBe(`Build towers facing ${words}`);
+    expect(openGoals(w)[0].text.length).toBeLessThanOrEqual(36);
+    expect(D.cancels(tributeQuote(w).dirs, warn.size)).toContain(' in two bands');
+    expect(alert.points).toEqual(warningBands(warn).map((b) => ({ x: b.entry.x, y: b.entry.y, dir: b.dir })));
+    const pins = minimapPins(w, [alert]);
+    expect(pins.map((q) => [q.x, q.y, q.point])).toEqual(warningBands(warn).map((b) => [b.entry.x + 0.5, b.entry.y + 0.5, true]));
+    expect(pins[0].dx !== pins[1].dx || pins[0].dy !== pins[1].dy).toBe(true);        // each pin's arrow points in from its own edge
+    // One band on one edge: one goal direction, one pin, as before.
+    const single = warned1();
+    const one = raidAlerts(single).find((x) => x.code === 'raid_warning');
+    expect([one.points, minimapPins(single, [one]).length]).toEqual([undefined, 1]);
+    expect(raidDirs(single)).toEqual(['east']);
+    function warned1() { const c = city(); c.raid.warning = { index: 3, entry: { ...EAST }, dir: 'east', size: 6, tribute: tributeFor(c, 6), target: 'storehouse', day: 910, arrives: 1000, first: false }; return c; }
+  });
+  it('says one direction, and no "two bands", when both bands come from one edge, with the size still the total', () => {
+    const w = twoBands([{ x: 31, y: 10 }, { x: 31, y: 20 }]);
+    const warn = w.raid.warning, q = tributeQuote(w);
+    expect(warn.second).toBeTruthy();
+    expect([warn.dir, warn.second.dir]).toEqual(['east', 'east']);
+    const alert = raidAlerts(w).find((x) => x.code === 'raid_warning');
+    expect(triggerEventGoals(w, [alert])).toEqual(['raid_tower']);
+    expect(openGoals(w)[0].text).toBe('Build a tower facing the east');
+    expect(alertText(alert, w).title).toBe(`Raiders from the east are after your ${RAID_TEXT.targets(warn.target)}`);
+    const said = D.cancels(q.dirs, q.size);
+    expect(said).toBe(`Cancels the raid from the east (${q.size} raiders). The next raid still comes.`);
+    expect(said.includes('two bands')).toBe(false);
+    expect(q.size).toBe(warn.size);                                                   // the total
+    expect(minimapPins(w, [alert]).length).toBe(2);                                   // two bands, two entries on the map
+    expect(RAID_TEXT.towers(w).includes(' and ')).toBe(false);
+  });
+  it('names the live bands of a raid under way on the map, one pin each', () => {
+    const w = city();
+    addRaw(w, 'storehouse', 6, 15);
+    warnTwo(w);
+    raidDay(w, []);
+    let alert = raidAlerts(w).find((x) => x.code === 'raid');
+    expect(alert.points.map((q) => q.dir)).toEqual(['east', 'north']);
+    expect(minimapPins(w, [alert]).length).toBe(2);
+    expect(raidDirs(w)).toEqual(['east', 'north']);
+    w.raid.active.raiders = w.raid.active.raiders.filter((u) => u.band);                // the east band is gone
+    alert = raidAlerts(w).find((x) => x.code === 'raid');
+    expect(alert.points.map((q) => q.dir)).toEqual(['north']);
+    expect(minimapPins(w, [alert]).length).toBe(1);
+    expect(raidDirs(w)).toEqual(['north']);
   });
 });

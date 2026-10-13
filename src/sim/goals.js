@@ -10,6 +10,7 @@ import { idx } from './grid.js';
 import { atLeast, milestoneIndex } from './progression.js';
 import { openRoutes } from './trade.js';
 import { raidsOn } from './costs.js';
+import { raidDirs } from './raids.js';
 import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { isMonument, isFinished } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
@@ -117,18 +118,17 @@ function unfinished(world) {
   };
 }
 
-// The direction raids come from now: the warning's, the band's, else the last raid's; null before any.
-function raidDir(world) {
-  const r = world.raid;
-  const x = r.warning || r.active || r.last;
-  return x ? x.dir : null;
-}
+// The directions raids come from now (raids.js raidDirs), distinct, in band order: one or two; none before any raid.
+const raidDirsNow = (world) => [...new Set(raidDirs(world))];
 // Stage 4: the first stalled site's alert ({ code, id, reason }), or null.
 const firstStall = (world) => monumentAlerts(world)[0] || null;
 // A goal worded for this city: one with dirText names the raiders' direction ("Build a tower facing the east"); one with
 // causeText (Stage 4) names the first stalled site and its cause ("Get stone to the small obelisk"), and aims Show me by it.
 function worded(world, g) {
-  if (g.dirText && g.dirText[raidDir(world)]) return { ...g, text: g.dirText[raidDir(world)] };
+  const dirs = raidDirsNow(world);
+  if (g.dirText && dirs.length && dirs.every((d) => g.dirText[d]) && (dirs.length === 1 || g.dirsText)) {
+    return { ...g, text: dirs.length === 1 ? g.dirText[dirs[0]] : g.dirsText.replace('{dirs}', dirs.join(' and ')) };   // two bands from two edges name both
+  }
   if (g.causeText) {
     const a = firstStall(world);
     if (a && a.reason in g.causeText) {

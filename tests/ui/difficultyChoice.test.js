@@ -64,9 +64,9 @@ describe('ui difficulty choice', () => {
   });
   it('says what each level changes, from the data', () => {
     // Stage 3 (Track F): the first line names the danger (tests/stage3/balance/difficultyHint.test.js ties it to the sim).
-    expect(difficultyHint('relaxed')).toBe('Later raids about 50% smaller. Fire risk builds 50% slower.\nBuildings and trade routes cost about 20% less.\nRoads: 2 gold a tile.');
-    expect(difficultyHint('normal')).toBe('Raids and fire risk as usual.\nBuildings and trade routes at their usual cost.\nRoads: 2 gold a tile.');
-    expect(difficultyHint('hard')).toBe('Later raids about 50% bigger. Fire risk builds 50% faster.\nBuildings and trade routes cost about 25% more.\nRoads: 3 gold a tile.');
+    expect(difficultyHint('relaxed')).toBe('Later raids about 50% smaller. Fire, sickness and theft risk build 50% slower.\nBuildings and trade routes cost about 20% less.\nRoads: 2 gold a tile.');
+    expect(difficultyHint('normal')).toBe('Raids, fire, sickness and theft risk as usual.\nBuildings and trade routes at their usual cost.\nRoads: 2 gold a tile.');
+    expect(difficultyHint('hard')).toBe('Later raids about 50% bigger. Fire, sickness and theft risk build 50% faster.\nBuildings and trade routes cost about 25% more.\nRoads: 3 gold a tile.');
   });
   it('ties the hint to the sim: the road price is the one a city of that level charges, the percentage is the level\'s', () => {
     for (const level of DIFFICULTY_ORDER) {

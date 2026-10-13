@@ -250,18 +250,37 @@ function bandCentre(a, k = 0) {
   return { x: Math.floor(crew.reduce((s, u) => s + u.x, 0) / n), y: Math.floor(crew.reduce((s, u) => s + u.y, 0) / n) };
 }
 
+// The directions raids come from now, one per band, in band order (a single band's is one): the warning's, else the live bands'
+// of the raid under way, else the last raid's; [] before any raid. Two bands from one edge name it twice (words dedupe it).
+export function raidDirs(world) {
+  const r = world.raid;
+  if (r.warning) return warningDirs(r.warning);
+  if (r.active) {
+    const live = liveKs(r.active);
+    return (live.length ? live : bandKs(r.active)).map((k) => bandRec(r.active, k).dir);
+  }
+  if (r.last) return r.last.dirs ? r.last.dirs.slice() : [r.last.dir];
+  return [];
+}
+
 // Raids' alerts, both critical: { code: 'raid', x, y, left } while raiders are on the map (x, y: the first live band's
-// centre; left: raiders still on the map; dirs and phase: the live bands' directions and the first one's phase, of a
-// two-sided raid only) and
-// { code: 'raid_warning', x, y, dir, arrives } while a raid is on its way (x, y: its entry; dirs: both directions of a
-// two-sided raid). A warning and a raid are never up at once.
+// centre; left: raiders still on the map; dirs, points and phase: the live bands' directions and centres ({ x, y, dir } each) and
+// the first one's phase, of a two-sided raid only) and
+// { code: 'raid_warning', x, y, dir, arrives } while a raid is on its way (x, y: its entry; dirs and points: both directions and
+// both entries ({ x, y, dir } each) of a two-sided raid). A warning and a raid are never up at once.
 export function raidAlerts(world) {
   const r = world.raid, out = [];
   if (r.active) {
-    const a = r.active, live = liveKs(a);
-    out.push({ code: 'raid', ...bandCentre(a, live.length ? live[0] : 0), left: a.raiders.length, ...(a.second ? { dirs: live.map((k) => bandRec(a, k).dir), phase: bandRec(a, live.length ? live[0] : 0).phase } : {}) });
+    const a = r.active, live = liveKs(a), first = live.length ? live[0] : 0;
+    out.push({
+      code: 'raid', ...bandCentre(a, first), left: a.raiders.length,
+      ...(a.second ? { dirs: live.map((k) => bandRec(a, k).dir), points: live.map((k) => ({ ...bandCentre(a, k), dir: bandRec(a, k).dir })), phase: bandRec(a, first).phase } : {}),
+    });
   }
-  if (r.warning) out.push({ code: 'raid_warning', x: r.warning.entry.x, y: r.warning.entry.y, dir: r.warning.dir, arrives: r.warning.arrives, ...(r.warning.second ? { dirs: warningDirs(r.warning) } : {}) });
+  if (r.warning) {
+    const w = r.warning;
+    out.push({ code: 'raid_warning', x: w.entry.x, y: w.entry.y, dir: w.dir, arrives: w.arrives, ...(w.second ? { dirs: warningDirs(w), points: warningBands(w).map((b) => ({ x: b.entry.x, y: b.entry.y, dir: b.dir })) } : {}) });
+  }
   return out;
 }
 

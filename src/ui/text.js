@@ -423,16 +423,21 @@ export const milestoneText = (name) => `Your city is now a ${name}`;
 
 // Difficulty on the title card (spec 4.18): what the chosen level changes, from the data, on three lines (the title
 // card shows the hint with white-space: pre-line). First the danger: a level without raids never starts the raid clock
-// (raidsOn); otherwise the level's risk multiplier scales the size of every raid after the first, which is
-// RAIDS.firstSize at every level (raidSize; "about": a size is rounded and kept between 2 and 12), and the same
-// multiplier scales how fast fire risk builds up (dailyRiskOf). Then buildings and trade routes, scaled by the level's
-// cost multiplier ("about": each price is rounded to whole gold); a road is only 2 gold, so its rounded price per tile
-// is given as it is. The danger line stays short enough for one line on a landscape phone's title card.
+// (raidsOn) and, with it, has no sickness or thefts (threatsOn is raidsOn: healthStarted, crimeStarted); otherwise the
+// level's risk multiplier scales the size of every raid after the first, which is RAIDS.firstSize at every level (raidSize;
+// "about": a size is rounded and kept between RAIDS.minSize and RAIDS.maxSize), and the same multiplier scales how fast fire,
+// sickness and theft risk build up (dailyRiskOf, dailyHealthRiskOf, dailyCrimeRiskOf: each multiplies by riskOf). Then buildings
+// and trade routes, scaled by the level's cost multiplier ("about": each price is rounded to whole gold); a road is only 2
+// gold, so its rounded price per tile is given as it is. The danger line stays short enough for one line on a landscape phone's
+// title card.
 export function difficultyHint(level) {
   const { cost, risk, raids } = DIFFICULTIES[level];
   const by = Math.abs(Math.round((risk - 1) * 100));
-  const fire = risk === 1 ? 'Fire risk as usual.' : `Fire risk builds ${by}% ${risk < 1 ? 'slower' : 'faster'}.`;
-  const danger = raids === false ? `No raids. ${fire}` : risk === 1 ? 'Raids and fire risk as usual.' : `Later raids about ${by}% ${risk < 1 ? 'smaller' : 'bigger'}. ${fire}`;
+  const way = risk < 1 ? 'slower' : 'faster';
+  const fire = risk === 1 ? 'Fire risk as usual.' : `Fire risk builds ${by}% ${way}.`;
+  const danger = raids === false ? `No raids, sickness or thefts. ${fire}`
+    : risk === 1 ? 'Raids, fire, sickness and theft risk as usual.'
+      : `Later raids about ${by}% ${risk < 1 ? 'smaller' : 'bigger'}. Fire, sickness and theft risk build ${by}% ${way}.`;
   const pct = Math.round((cost - 1) * 100);
   const roads = `Roads: ${roadCostOf({ difficulty: level })} gold a tile.`;
   const rest = pct === 0 ? 'at their usual cost' : `cost about ${Math.abs(pct)}% ${pct < 0 ? 'less' : 'more'}`;
@@ -1033,11 +1038,22 @@ Object.assign(ACHIEVEMENT_TEXT, {
   raid_breaker: `Beat ${scoreAchievement('raid_breaker').n} raids`,
 });
 Object.assign(DAILY_TEXT, { firehouse1: 'Build a firehouse', wall10: `Draw ${scoreDaily('wall10').n} wall tiles`, tower1: 'Build a tower' });
+// The raider_targets tip says the order a band strikes in, from the sim (src/sim/raids.js pickTarget): strike k goes for RAIDS.pillage[k]
+// (a granary, a home) when it has one, else the RAIDS.targets kinds in order; a band makes RAIDS.strikes strikes.
+const PILLAGE_WORDS = { house: 'a home', granary: 'a granary' };
+export function raiderTargetsTip(raids = raidsData.RAIDS) {
+  const usual = `${listText(raids.targets.map(pluralName))}`;
+  const parts = Array.from({ length: raids.strikes }, (_, k) => {
+    const want = raids.pillage[k];
+    return want ? (PILLAGE_WORDS[want] || `a ${buildingName(want).toLowerCase()}`) : usual;
+  });
+  return `Raiders hit ${parts[0]}${parts.length > 1 ? ' first' : ''}${parts.slice(1).map((p) => `, then ${p}`).join('')}: guard those.`;
+}
 Object.assign(TIP_TEXT, {
   fire_risk: `Watch fire risk from Town: a staffed firehouse within ${BUILDINGS.firehouse.reach} road tiles slows it.`,
   firebreaks: 'Leave roads between buildings: fire spreads only to buildings that touch.',
   clearing_rubble: 'Clear rubble with Demolish: tap it or drag over it. Clearing costs gold.',
-  raider_targets: 'Guard trading posts, storehouses, bazaars and temples: raiders want those.',
+  raider_targets: raiderTargetsTip(),
   tribute_once: 'Pay tribute only if you must: it cancels this raid, not the next one.',
   wall_ring: 'Close your wall into a ring and set towers on it: raiders must break through.',
 });
@@ -1639,6 +1655,7 @@ const minus = (n) => `${n < 0 ? '−' : ''}${Math.abs(n)}`;
 const anA = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
 export const HEALTH_TEXT = {
   sick: (tier) => `Sickness in ${anA(tier)}`,                                      // the illness alert's title: "Sickness in a House"
+  sickMany: (n) => `Sickness in ${n} homes`,                                       // one alert per district: "Sickness in 3 homes"
   cause: {
     covered: `A staffed physician reaches it: it mends ${healthNumbers.coverFactor === 2 ? 'twice' : `${healthNumbers.coverFactor} times`} as fast and does not spread`,
     no_road: 'No road beside it for a physician to reach: lay one',
@@ -1650,7 +1667,7 @@ export const HEALTH_TEXT = {
   mood: `Illness (${minus(healthMood.each)} per ill home, at most ${minus(healthMood.max)})`,
 };
 Object.assign(ALERT_TEXT, {
-  illness: (alert, world, b) => ({ title: HEALTH_TEXT.sick(b ? tierName(b.tier) : 'home'), fix: b ? HEALTH_TEXT.cause[healthCauseOf(world, b).cause] : HEALTH_TEXT.cause.none }),
+  illness: (alert, world, b) => ({ title: (alert.count || 1) > 1 ? HEALTH_TEXT.sickMany(alert.count) : HEALTH_TEXT.sick(b ? tierName(b.tier) : 'home'), fix: b ? HEALTH_TEXT.cause[healthCauseOf(world, b).cause] : HEALTH_TEXT.cause.none }),
 });
 Object.assign(MOOD_NAMES, { illness: HEALTH_TEXT.mood });
 import { CRIME as crimeNumbersRow, CRIME_MOOD as crimeMoodData } from '../data/crime.js';
@@ -1692,7 +1709,10 @@ Object.assign(OVERLAY_LEGEND, {
   crime: ['A staffed police post reaches it', 'No staffed police post reaches it'],
 });
 Object.assign(DANGER_UI_TEXT, {
-  healthBand: (k) => bandWords(healthBandNames[k], 'health', healthBandStarts, k),
+  // The top band holds an ill home as well (its risk points went back to 0 when it fell ill), then homes at HEALTH.threshold or more.
+  healthBand: (k) => (k === healthBandStarts.length - 1
+    ? { label: healthBandNames[k], words: `${healthBandNames[k]}: ill, or health risk ${healthNumbers.threshold} or more` }
+    : bandWords(healthBandNames[k], 'health', healthBandStarts, k)),
   crimeBand: (k) => bandWords(crimeBandNames[k], 'crime', crimeBandStarts, k),
   homesOnlyNote: 'Homes with people in them',
 });
@@ -1723,10 +1743,11 @@ Object.assign(DANGER_UI_TEXT, {
 });
 // The tips (How to play lists them), the firsts: every number is the data's. The sickness tip says what a staffed physician does
 // (HEALTH.cut is a cut in how fast risk builds; a covered home does not pass an illness on and mends coverFactor times as fast); the
-// thieves tip what drives crime (CRIME's three things) and what a staffed police post does to it.
+// thieves tip what drives crime (CRIME's three things) and what a police post does to it: CRIME.cut is the cut of a fully staffed post,
+// scaled by its staffing (riskToday), so the tip says "up to".
 Object.assign(TIP_TEXT, {
   sickness_spreads: `Sickness spreads between touching homes: a staffed physician within ${healthNumbers.reach} road tiles stops that and cures it ${healthNumbers.coverFactor === 2 ? 'twice' : `${healthNumbers.coverFactor} times`} as fast.`,
-  thieves_about: `Thieves come from poor, unhappy or jobless homes: a staffed police post within ${crimeNumbersRow.reach} road tiles cuts the risk ${Math.round(crimeNumbersRow.cut * 100)}%.`,
+  thieves_about: `Poor, unhappy or jobless homes breed thieves: a police post within ${crimeNumbersRow.reach} road tiles cuts risk by up to ${Math.round(crimeNumbersRow.cut * 100)}%.`,
 });
 Object.assign(FIRST_TEXT, {
   first_physician: { head: 'First physician', why: `Staffed, it slows sickness and ends it faster up to ${healthNumbers.reach} road tiles away.` },
