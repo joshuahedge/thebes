@@ -15,10 +15,11 @@ import { T } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 
 // Cosmetic trees on free ground, decided by a hash of the tile and the seed. A building placed on the tile
-// hides the tree, because occupancy wins.
+// hides the tree, because occupancy wins; so does a road, and (Stage 4.5) a wall tile, a gate or a breach.
+// Plots, plazas, rubble and monument sites are buildings, so world.occ covers them.
 export function decorAt(world, x, y) {
   const i = idx(world.size, x, y);
-  if (world.occ[i] || world.road[i]) return null;
+  if (world.occ[i] || world.road[i] || (world.wall && world.wall[i] !== 0)) return null;
   const t = world.terrain[i];
   const r = hash2(x, y, world.seed + 7);
   if (t === T.MEADOW) return r < 0.08 ? 'palm' : r < 0.12 ? 'acacia' : null;
