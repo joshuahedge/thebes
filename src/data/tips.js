@@ -5,6 +5,9 @@
 // waits: false marks a tip whose words are about what is on screen as it fires (a house sheet, the overlay): it never
 // waits in the held slot, because its words would be false once that has closed. When it cannot show at once (on a phone
 // the sheet or the overlay legend has the guidance row, spec 6.3) it is dropped unseen, so it can fire again next time.
+import { S46_TIPS } from './s46.js';
+import { FLOOD } from './river.js';
+
 const TIPS_BASE = [
   { id: 'press_play', trigger: 'plotsPaused', priority: true },          // plots placed while paused
   { id: 'arrivals', trigger: 'arrivals', priority: false },              // families arrived
@@ -71,7 +74,8 @@ const TIPS_S45 = [
 ];
 // ── end s45 ──
 
-export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE, ...TIPS_S45];
+// Stage 4.6: each track's tips (src/data/s46.js S46_TIPS), with their words in the track's text.js section.
+export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE, ...TIPS_S45, ...S46_TIPS];
 
 export const TIP_GAP_MS = 180000;          // at least 3 minutes between two tips
 export const TIP_HOURLY_MAX = 5;           // and at most five in any hour
@@ -83,5 +87,10 @@ export const TIP_AUTO_CLOSE_MS = 20000;    // on a phone a tip closes itself aft
 // season's remarks whose building the city has (the pool and its words: CITIZEN_REMARKS in src/ui/text.js).
 export const REMARK_EVERY_MONTHS = 3;
 export const REMARK_SALT = 9301;
-// The seasons by month of the year (1-12): Akhet, the flood, months 1-4; Peret, the growing, 5-8; Shemu, the harvest, 9-12.
-export const SEASONS = ['akhet', 'akhet', 'akhet', 'akhet', 'peret', 'peret', 'peret', 'peret', 'shemu', 'shemu', 'shemu', 'shemu'];
+// The seasons by month of the year (1-12): Akhet, the flood, months 7-10 (the water rises in 7, stands through 9 and drains in 10: FLOOD in
+// src/data/river.js); Peret, the growing, 11-2; Shemu, the harvest, 3-6 (Stage 4.6, ruling 346; they were 1-4, 5-8 and 9-12).
+// Built from FLOOD (final review: it was typed by hand): Akhet is the flood's months and its drain months; Peret the four months after them;
+// Shemu the rest. Index 0 is month 1.
+const AKHET_MONTHS = [...FLOOD.months, ...FLOOD.drainMonths];
+const PERET_MONTHS = [1, 2, 3, 4].map((k) => ((Math.max(...AKHET_MONTHS) - 1 + k) % 12) + 1);
+export const SEASONS = Array.from({ length: 12 }, (_, i) => (AKHET_MONTHS.includes(i + 1) ? 'akhet' : PERET_MONTHS.includes(i + 1) ? 'peret' : 'shemu'));

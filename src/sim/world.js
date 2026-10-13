@@ -2,11 +2,17 @@ import { ECONOMY } from '../data/economy.js';
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { PRESTIGE_UNLOCKS } from '../data/monuments.js';
-import { MAP_VARIANTS } from '../data/map.js';
+import { MAP_VARIANTS, DEFAULT_MAP_SIZE } from '../data/map.js';
+import { S46_TALLY } from '../data/s46.js';
+import { newFloodState, newWildlifeState } from '../data/river.js';
+import { newCourtState } from '../data/court.js';
+import { newArmyState } from '../data/armies.js';
+import { MONUMENT_STYLE_IDS, MONUMENT_STYLE_DEFAULT } from '../data/wonders.js';
 import { generateMap, variantFor } from './mapgen.js';
+import { floodplainOf } from './flood.js';
 import { idx, footprint } from './grid.js';
 
-export const WORLD_VERSION = 6;
+export const WORLD_VERSION = 7;
 export const HISTORY_MONTHS = 12;   // month-end rows kept for the Welcome back trends
 
 // The trade state a city starts with (Stage 2): no routes open, no orders, no price drift drawn, no quota used.
@@ -35,11 +41,15 @@ export const STAGE3_TALLY = ['fires', 'blazesOut', 'firesOut', 'burned', 'rubble
 export const STAGE4_TALLY = ['stoneLaid', 'bricksLaid', 'stoneDelivered', 'bricksDelivered', 'courses', 'monumentsDone', 'enlargements'];
 // Stage 4.5's (world version 6; src/sim/health.js and crime.js count them): illnesses begun and cured, thefts and the gold they took.
 export const STAGE45_TALLY = ['illnesses', 'illnessesCured', 'thefts', 'theftGold'];
+// Stage 4.6's (world version 7): every track's, joined in src/data/s46.js from each track's own list (RIVER_TALLY and the rest), so a
+// track adds a key in its own data file and new and migrated cities both start it at 0.
+export const STAGE46_TALLY = S46_TALLY;
 export const newTally = () => ({
   harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0, made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0,
   ...Object.fromEntries(STAGE3_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE4_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE45_TALLY.map((k) => [k, 0])),
+  ...Object.fromEntries(STAGE46_TALLY.map((k) => [k, 0])),
 });
 
 // The prestige unlocks a city has reached (Stage 4, spec 4.14, ruling 243): monument type -> the day the city first had
@@ -66,13 +76,15 @@ export const newSite = () => ({
   month: { units: 0, gold: 0, crews: 0, crewDays: 0, starvedDays: 0 }, last: null, starved: false, done: null,
 });
 
+// size (Stage 4.6, ruling 333): the map's tiles a side, one of MAP_SIZES (48, 64 or 80; DEFAULT_MAP_SIZE when not given); ignored when
+// a map is passed, whose own size is kept (the tests' small maps).
 // mapVariant (Stage 4.5, ruling 313) is one of MAP_VARIANTS, or 'auto' to let the seed pick (variantFor); it is ignored when a
 // map is passed, whose own variant (map.variant, else 'classic') is kept.
 // difficulty is a DIFFICULTIES key (spec 4.18), fixed for the city's life; anything else starts a Normal city. cityId
 // is the id the interface gives a new city for its records (spec 4.19: the sim never reads the clock); null until then.
-export function createWorld({ seed = 1, size = 64, map = null, difficulty = 'normal', cityId = null, mapVariant = 'classic' } = {}) {
+export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, difficulty = 'normal', cityId = null, mapVariant = 'classic' } = {}) {
   const variant = mapVariant === 'auto' ? variantFor(seed) : MAP_VARIANTS.includes(mapVariant) ? mapVariant : 'classic';
-  const m = map || generateMap(seed, size, variant);
+  const m = map || generateMap(seed, Number.isInteger(size) && size > 0 ? size : DEFAULT_MAP_SIZE, variant);
   const n = m.size * m.size;
   const world = {
     version: WORLD_VERSION,
@@ -124,6 +136,14 @@ export function createWorld({ seed = 1, size = 64, map = null, difficulty = 'nor
     prestigeUnlocks: newPrestigeUnlocks(),              // monument type -> the day its prestige unlock was first reached, or null
     // Stage 4.5 (world version 6).
     mapVariant: m.variant || 'classic',                 // the river layout (MAP_VARIANTS); 'classic' for a city from before it
+    // Stage 4.6 (world version 7). Each track's record starts from its own data file's function, as the v6 -> v7 migration's does.
+    mapSize: m.size,                                    // the map's size (MAP_SIZES; always equal to size), what links and bests carry
+    mapParams: { ...(m.params || {}) },                 // the generator's seeded shape choices (Map track, ruling 332); {} for a classic map
+    flood: newFloodState(),                             // this year's flood (River track, src/data/river.js)
+    floodplain: floodplainOf(m.terrain, m.size),        // 1 per fertile tile within the flood's reach of water, else 0 (src/sim/flood.js)
+    wildlife: newWildlifeState(),                       // the herds (River track)
+    court: newCourtState(),                             // favour, the letters, the active request, the card history (Court track)
+    army: newArmyState(),                               // units away at the capital (Armies track); units at home are world.soldiers
   };
   for (const [x, y] of m.startRoad) world.road[idx(world.size, x, y)] = 1;
   return world;
@@ -148,7 +168,9 @@ export function population(world) {
 }
 
 // rot (Stage 4, ruling 234): 0, or 1 for a type that rotates (the mastabas), which swaps w and d; any other type keeps 0.
-export function makeBuilding(world, type, x, y, rot = 0) {
+// style (Stage 4.6, Wonders track): a monument's style (src/data/wonders.js MONUMENT_STYLE_IDS; MONUMENT_STYLE_DEFAULT when not one);
+// ignored by every other type.
+export function makeBuilding(world, type, x, y, rot = 0, { style = null } = {}) {
   const def = BUILDINGS[type];
   const dims = dimsOf(type, rot);
   // risk: fire risk points (spec 4.12); fire: null, or the blaze or fire burning in it (src/sim/fire.js).
@@ -157,6 +179,7 @@ export function makeBuilding(world, type, x, y, rot = 0) {
   if (type === 'house') Object.assign(b, { tier: 0, residents: 0, stock: {}, met: {}, downTimer: 0, leftThisMonth: 0, stockedFor: 0, health: 0, crime: 0, illness: null });
   if (type === 'storehouse') b.accepts = {};   // good -> false where the player refused it (setAccept, spec 4.10)
   if (def.monument) b.site = newSite();          // Stage 4: a monument is founded as a site (spec 4.16)
+  if (def.monument) b.style = MONUMENT_STYLE_IDS.includes(style) ? style : MONUMENT_STYLE_DEFAULT;   // Stage 4.6 (ruling 343)
   if (def.palace) Object.assign(b, { style: 0, works: null });   // Stage 4: PALACE_STYLES index; works: null or { style, left } (spec 4.20)
   return b;
 }

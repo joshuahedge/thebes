@@ -11,10 +11,16 @@ import { FIRE } from '../data/fire.js';
 import { FESTIVAL, DEFENCE } from '../data/raids.js';
 import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { PALACE_STYLES } from '../data/palace.js';
+import { UNIT_TYPES } from '../data/armies.js';
+import { MONUMENT_STYLES } from '../data/wonders.js';
 
 const scaled = (world, base) => Math.max(1, Math.round(base * DIFFICULTIES[world.difficulty].cost));
 
-export const costOf = (world, type) => scaled(world, BUILDINGS[type].cost);
+// Stage 4.6 (Wonders track, rulings 343, 394): a monument's style multiplies all the gold it takes (MONUMENT_STYLES[style].goldFactor: Gilded
+// 1.1): its founding here, its work gold (workGoldPerUnit) and its gilding or capstone (extraGoldOf). A style the data does not know, or no
+// style, is 1, and so is anything that is not a monument.
+export const styleGoldFactor = (style) => (MONUMENT_STYLES[style] ? MONUMENT_STYLES[style].goldFactor : 1);
+export const costOf = (world, type, options = {}) => scaled(world, BUILDINGS[type].cost * (BUILDINGS[type].monument ? styleGoldFactor(options.style) : 1));
 
 export const roadCostOf = (world) => scaled(world, ECONOMY.roadCost);
 
@@ -37,15 +43,17 @@ export const raidsOn = (world) => DIFFICULTIES[world.difficulty].raids !== false
 export const threatsOn = (world) => raidsOn(world);
 
 // Soldiers' pay for a month (spec 4.11): per soldier, in peace too and from a paused barracks; never scaled.
-export const soldiersPayOf = (world) => world.soldiers.length * DEFENCE.soldierPay;
+// Stage 4.6 (Armies track, ruling 386): every unit at home by its kind's pay (UNIT_TYPES[kind].pay; a soldier's is DEFENCE.soldierPay);
+// units away at the capital are not in world.soldiers, so they are not paid.
+export const soldiersPayOf = (world) => world.soldiers.reduce((s, u) => s + (UNIT_TYPES[u.kind] || UNIT_TYPES.soldier).pay, 0);
 
 // Stage 4 (spec 4.11, 4.16, 4.20). A monument's founding is costOf(world, type) (its BUILDINGS cost). Work gold is
 // MONUMENT.goldPerUnit for each unit laid times the difficulty's cost, NOT rounded here: the site pays whole gold and
 // carries the fraction (ruling 240). The gilding and the capstone, and each palace style's price, are rounded like any cost.
-export const workGoldPerUnit = (world) => MONUMENT.goldPerUnit * DIFFICULTIES[world.difficulty].cost;
-export const extraGoldOf = (world, type) => {
+export const workGoldPerUnit = (world, style = null) => MONUMENT.goldPerUnit * DIFFICULTIES[world.difficulty].cost * styleGoldFactor(style);
+export const extraGoldOf = (world, type, style = null) => {
   const m = MONUMENTS[type];
-  return m && m.extra ? scaled(world, m.extra.gold) : 0;
+  return m && m.extra ? scaled(world, m.extra.gold * styleGoldFactor(style)) : 0;
 };
 export const palacePriceOf = (world, style) => (style > 0 && PALACE_STYLES[style] ? scaled(world, PALACE_STYLES[style].price) : 0);
 

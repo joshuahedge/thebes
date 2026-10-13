@@ -1042,3 +1042,192 @@ body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) 
 #tip .tip-row .tip-show-me { flex: none; white-space: nowrap; }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #tip .tip-row .tip-show-me { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
 /* ── end s45 ── */
+
+/* ── s46 map (Map track) ── the Map track's styles. Add new rules just above the end marker. */
+/* The map size picker under the difficulty on the title card (ruling 333), laid out as the difficulty row is. */
+.title-size { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 4px 0 0; }
+.title-size .choices { justify-content: center; }
+.title-size .size-hint { margin: 0; }
+/* A phone held sideways (the height query the title rules above use): the size picker is one row, its label beside the three buttons, and its
+   line hides (each button still has its size in its name, and the line is its description), so the card still fits without scrolling. */
+@media (max-height: 480px) {
+  .title-size { flex-direction: row; justify-content: center; gap: 8px; margin: 0; }
+  .title-size .size-hint { display: none; }
+  /* The card is wider there, so the four buttons under it (This week's Nile, How to play, Play with sound, Install) share one row, which pays for the picker's row. */
+  .title-card { width: min(680px, 100%); }
+  .title-buttons > .title-weekly, .title-buttons > .how-to-play, .title-buttons > .sound, .title-buttons > .install { flex: 1 1 22%; }
+}
+/* Show me in the confirm bar (rulings 331, 350): a button 44px high across a row of its own, under the words, buttons and chips. */
+.confirm.has-fit { flex-wrap: wrap; row-gap: 6px; }
+.confirm .show-fit, .confirm .show-fit-room { flex: 1 0 100%; order: 10; min-height: var(--tap); }   /* the room is the empty row a terrain building keeps for Show me, so the bar holds one height */
+/* A terrain building's bar on a portrait phone stays under half of a small screen's height at the largest text (UX rule 2): the words column
+   beside the three buttons is only ~150px wide, so its lines wrapped to two or three each. The words flow instead as the bar's own rows (the
+   title beside the buttons, then each line across the whole width), so a line the width holds takes one row, not two. */
+body[data-layout="portrait"] .confirm.has-fit { row-gap: 0; }
+body[data-layout="portrait"] .confirm.has-fit .info { display: contents; }
+body[data-layout="portrait"] .confirm.has-fit .info > .lines { order: 3; flex: 1 0 100%; min-height: calc(3 * 1.45 * 12px * var(--ui-scale)); }   /* room for the three lines a warning or an effect takes, so the bar does not bob */
+body[data-layout="portrait"] .confirm.has-fit .info > .title { order: 0; flex: 1 1 0; min-width: 0; }
+body[data-layout="portrait"] .confirm.has-fit .conds, body[data-layout="portrait"] .confirm.has-fit .show-fit, body[data-layout="portrait"] .confirm.has-fit .show-fit-room { margin-top: 6px; }
+/* ── end s46 map ── */
+
+/* ── s46 river (River track) ── the River track's styles. Add new rules just above the end marker. */
+/* ── end s46 river ── */
+
+/* ── s46 court (Court track) ── the Court track's styles. Add new rules just above the end marker. */
+/* The letter sheet: the ask, its rows, then each choice as a button with what it does under it (every choice states its exact effect). */
+#sheet .letter h3.letter-ask { margin: 8px 0 4px; font-family: var(--serif); font-size: calc(18px * var(--ui-scale)); }
+#sheet .letter .letter-body { margin: 4px 0 8px; }
+#sheet .letter .small { margin: 4px 0; }
+#sheet .court-choices { display: grid; gap: 14px; margin: 14px 0 6px; }
+#sheet .court-choice { display: flex; flex-direction: column; gap: 4px; }
+#sheet .court-choice > button { width: 100%; padding: 8px 12px; white-space: normal; }
+#sheet .court-choice > button:disabled { opacity: 0.55; }
+#sheet .court-choice p { margin: 0; }
+#sheet .letter-foot { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+/* The court sheet and the summary's row: favour is an icon, a number and words, with a bar that repeats it and marks the two thresholds. */
+#sheet .favour-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 8px 0 6px; }
+#sheet .favour-mark { font-size: calc(18px * var(--ui-scale)); line-height: 1; }
+#sheet .favour-number { font-family: var(--serif); font-size: calc(28px * var(--ui-scale)); line-height: 1; }
+#sheet .favour-band { font-weight: 600; margin-left: auto; }
+#sheet .favour-head.high .favour-mark, #sheet .favour-head.high .favour-band { color: var(--teal); }
+#sheet .favour-head.low .favour-mark, #sheet .favour-head.low .favour-band { color: var(--coral-text); }
+#sheet .favour-meter { position: relative; height: 12px; margin: 4px 0 8px; border: 1px solid var(--ink-line); border-radius: 6px; background: var(--parchment-2); overflow: hidden; }
+#sheet .favour-meter .fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--ink-soft); }
+#sheet .favour-meter.high .fill { background: var(--teal); }
+#sheet .favour-meter.low .fill { background: var(--coral-text); }
+#sheet .favour-meter .tick { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--ink); opacity: 0.6; }
+#sheet .favour-now { margin: 4px 0; font-weight: 600; }
+#sheet .letters-waiting, #sheet .letters-past, #sheet .units-away { list-style: none; padding-left: 0; margin: 4px 0; }
+#sheet .letters-waiting li, #sheet .letters-past li, #sheet .units-away li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; padding: 4px 0; border-bottom: 1px solid var(--parchment-2); }
+#sheet .letters-past li { display: block; }
+#sheet .court-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+/* A letter in the alert row: a letter is news, not harm, so it is teal with an envelope (the words say it too), not the coral warning. */
+#banner .critical[data-code="court_letter"] { background: var(--teal-soft); border-color: var(--teal); }
+#banner .critical[data-code="court_letter"] .icon { display: none; }
+#banner .critical[data-code="court_letter"]::before { content: '\2709'; flex: none; color: var(--teal); font-size: calc(18px * var(--ui-scale)); line-height: 1; }
+/* ── end s46 court ── */
+
+/* ── s46 armies (Armies track) ── the Armies track's styles. Add new rules just above the end marker. */
+/* ── end s46 armies ── */
+
+/* ── s46 wonders (Wonders track) ── the Wonders track's styles. Add new rules just above the end marker. */
+/* The style picker in a monument's confirm bar (src/ui/confirmBar.js, ruling 343): a row of its own at the foot of the bar, three buttons that each
+   share the width, the one in force teal with a tick (and aria-checked: never colour alone), and one line under them for what it costs and does. */
+.confirm.has-style { flex-wrap: wrap; row-gap: 6px; }
+.confirm .style-row { flex: 1 0 100%; order: 11; display: flex; flex-direction: column; gap: 4px; }
+.confirm .style-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Ruling 420: each button starts at its own words' width and the row shares out what is left, so "✓ Whitewashed" (the widest, bold when in force)
+   is never cut to "Whitewashe" in the wide layout's 320 px side panel; where the three cannot fit one row they wrap to a second, never clip. */
+.confirm .style-pick { flex: 1 1 auto; min-width: var(--tap); min-height: var(--tap); padding: 0 6px; font-size: calc(13px * min(var(--ui-scale), 1.15)); line-height: 1.2; white-space: nowrap; }   /* the text size is capped here, so the three keep one row on a 375 px phone at 150% */
+.confirm .style-pick[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); font-weight: 600; }
+.confirm .style-line { color: var(--ink); font-size: calc(12px * var(--ui-scale)); }
+.style-row-text { margin: 4px 0; }
+/* ── end s46 wonders ── */
+
+/* ── s46 ux (UX track) ── the UX track's styles: the top bar and speed control, and the shared legibility tokens (it may also edit
+   the :root tokens at the top of this file, in their own lines). Add new rules just above the end marker. */
+/* Ruling 400: the Enter hint on the confirm bar's tick. Only where there is a keyboard: body[data-keyboard] is set by keyboard.js, 'fine' when
+   a mouse or trackpad is attached (the wide layout shows it then) and 'used' once a real key has been pressed (any layout). The hint stacks
+   under the tick so the button stays 44 px tall and grows by a word's width, not a second button's. */
+.confirm .ok .keyhint { display: none; }
+body[data-keyboard="used"] .confirm .ok, body[data-keyboard="fine"][data-layout="wide"] .confirm .ok { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 0 8px; line-height: 1.1; }
+body[data-keyboard="used"] .confirm .ok .keyhint, body[data-keyboard="fine"][data-layout="wide"] .confirm .ok .keyhint { display: block; font-size: calc(13px * var(--ui-scale)); letter-spacing: 0.02em; opacity: 0.95; }
+body[data-keyboard="used"] .confirm .ok .icon, body[data-keyboard="fine"][data-layout="wide"] .confirm .ok .icon { width: auto; }
+
+/* Fix round 1, ruling 409 (phone bar): on an upright phone the words sit beside the buttons by design (the bar keeps one height while the ghost
+   moves, and the corner buttons sit on it; stacking would cover a further row of map). A keyboard on a phone is rare, and the hint widened the tick
+   and squeezed the words further, so the portrait bar shows the tick alone (its title and aria-keyshortcuts still say Enter). The landscape-phone
+   (compact) bar already stacks its words over the buttons, so it keeps the hint. */
+body[data-layout="portrait"] .confirm .ok .keyhint { display: none !important; }
+body[data-layout="portrait"][data-keyboard="used"] .confirm .ok { display: inline-flex; flex-direction: row; padding: 0; }
+/* Ruling 404: the wide top bar's steps. Pause and the three speeds are one row of 44 px steps, each with its picture (pause bars, then one, two
+   and three arrows); the pressed one is the state and alone carries its word ("Paused", "1×", "2×", "3×"). It is filled: lapis with gold ink
+   while playing, amber with a heavy edge while paused, so the two states differ in the picture, the word and the shape of the fill and not
+   only a colour. Only the pressed step has a word, so the row stays about as wide as the old four words were (the numbers beside it keep one row). */
+#topbar .speed-bar { display: flex; gap: 4px; align-items: stretch; }
+.speed-bar .speed-step { display: inline-flex; align-items: center; justify-content: center; gap: 0.4em; padding: 0 8px; font-weight: 600; white-space: nowrap; }
+.speed-bar .speed-step .icon { width: auto; }
+.speed-bar .speed-step:not([aria-pressed="true"]) .word { display: none; }
+.speed-bar .speed-step[aria-pressed="true"] { background: var(--lapis); color: var(--lapis-ink); border-color: var(--lapis); box-shadow: inset 0 0 0 2px var(--lapis), inset 0 0 0 3px rgba(245, 217, 138, 0.5); }
+.speed-bar .step-0[aria-pressed="true"] { background: var(--amber-soft); color: var(--ink); border-color: var(--amber-text); box-shadow: inset 0 0 0 2px var(--amber-text); }
+
+/* Ruling 419 (Josh: playing or paused should be unmistakable): the speed pictures are drawn (src/ui/speed.js speedPicture), all one height that
+   grows with the text size: pause is two solid bars with a clear gap, play a triangle of the same height and weight. On a phone the corner button
+   says the state as well as the action: paused it turns amber with a heavy edge (the wide bar's Paused step) and a "Paused" tag sits on its top
+   edge, outside its height, so the corner row never grows; running it stays lapis with the pause bars and the speed. */
+.speed-picture { display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
+.speed-picture svg { display: block; height: calc(14px * var(--ui-scale)); width: auto; }
+#corners .speed-main { position: relative; }
+#corners .speed-main[data-state="paused"] { background: var(--amber-soft); color: var(--ink); border-color: var(--amber-text); box-shadow: inset 0 0 0 2px var(--amber-text); }
+#corners .speed-main .state-tag { display: none; }
+body.nudge-play #corners .speed-main[data-state="paused"] { box-shadow: 0 0 0 3px var(--gold), inset 0 0 0 2px var(--amber-text); }   /* the Play tip's gold ring still shows on the paused button */
+#corners .speed-main[data-state="paused"] .state-tag { display: block; position: absolute; left: 50%; top: 0; transform: translate(-50%, -55%); padding: 0 6px; border-radius: 6px; background: var(--amber-text); color: #FFFFFF; font-size: calc(12px * var(--ui-scale)); font-weight: 600; line-height: 1.3; white-space: nowrap; pointer-events: none; }
+
+/* Ruling 407, finding F1: on a wide screen under an alert the overlay legend kept only its dot and ring ("Has water", "No water" read by screen readers
+   only), so a sighted player met two unexplained marks. The words come back: the strip grows sideways, not taller. */
+body.has-banner[data-layout="wide"] #legend .strip:not(.graded) .text { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
+
+/* Ruling 407, finding F3: on a wide screen the confirm bar's buttons sat beside its words and left them about 60 px (a road's cost read one word a
+   line). The words take the full row and the buttons go under them, at the right. */
+body[data-layout="wide"] .confirm { flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
+body[data-layout="wide"] .confirm .info { flex: 1 1 100%; }
+
+/* Ruling 407, finding F2: at 125% and 150% text seven category labels do not fit a phone's width ("Monuments" ran off the edge and the words touched).
+   The row scrolls sideways instead, from the left, and a fade at the right edge shows there is more; the icons keep their size. */
+body[data-text-size="125"] #dock .cats, body[data-text-size="150"] #dock .cats { justify-content: flex-start; gap: 2px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+body[data-text-size="125"] #dock .cats::-webkit-scrollbar, body[data-text-size="150"] #dock .cats::-webkit-scrollbar { display: none; }
+body[data-text-size="125"] #dock .cat, body[data-text-size="150"] #dock .cat { flex: 0 0 auto; scroll-snap-align: start; padding: 2px 6px; }
+body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
+
+/* Ruling 407, finding F5: the score chip sat on the frieze under the bar; lifted clear of it. */
+#topbar .score-chip { bottom: 6px; }
+/* Ruling 405, finding F4: the cartouche's tie was a 4 px bar flush against a square end, with a round end opposite: heavy on one side, it read
+   as a glitch in the sheet's heading. Both ends are round now and the tie is a thin bar set in from the right end, inside the outline, so the
+   heading still reads as a cartouche (a loop with a tie) and nothing sits heavier than the line itself. */
+#sheet .head h2, .title-card h1 { border-radius: 0.75em; }
+/* Final review (ruling 450): the tie still read as a text cursor after "Thebes" and every sheet heading, so it is gone: the round loop alone is the
+   cartouche, and the heading keeps its even padding. (Fix round 1, ruling 409, had moved the tie onto the loop's end; it still read as a caret.) */
+#sheet .head h2::after, .title-card h1::after { content: none; }
+/* Rulings 401-403: the version line under the tagline, the What's new button, and its panel (the title card's one panel at a time, with Back).
+   The panel scrolls inside the card; its Back sits at the top and the foot. Lists read as plain bullets, New and Fixed in small headings. */
+.title-card .version { margin: -4px 0 4px; letter-spacing: 0.02em; }
+.title-card .whats-new { text-align: left; max-height: max(260px, calc(100dvh - 190px)); overflow-y: auto; padding-right: 4px; }
+.title-card .whats-new-head { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 1; background: var(--parchment); padding-bottom: 6px; }
+.title-card .whats-new-head h2 { font-family: var(--serif); font-size: calc(20px * var(--ui-scale)); margin: 0; }
+.title-card .release { padding: 8px 0 4px; border-top: 1px solid var(--parchment-3); }
+.title-card .release h3 { font-size: calc(16px * var(--ui-scale)); margin: 0; }
+.title-card .release .newest { color: var(--teal); font-weight: 600; }
+.title-card .release .release-title { margin: 0 0 2px; color: var(--ink-soft); }
+.title-card .release h4 { margin: 6px 0 2px; font-size: calc(12px * var(--ui-scale)); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+.title-card .release ul.notes { margin: 0; padding-left: 20px; }
+.title-card .release ul.notes li { margin: 2px 0; }
+/* On a phone held upright How to play and What's new share one row (the DOM keeps How to play beside Play with sound, which tests pin; order lays
+   the pair above Play with sound and Install), so the new button costs the card no row and the sample city's showcase keeps its room. */
+.title-buttons > .how-to-play, .title-buttons > .whats-new-button { order: 5; }
+.title-buttons > .sound, .title-buttons > .install { order: 6; }
+@media (min-height: 481px) {
+  .title-buttons { flex-flow: row wrap; }
+  .title-buttons > * { flex: 1 1 100%; }
+  .title-buttons > .how-to-play, .title-buttons > .whats-new-button { flex: 1 1 calc(50% - 4px); }
+}
+/* A short phone held upright (360x640): the version line costs the card a line, which the sample city's showcase below it needed (the
+   title scene's balance test); the card's own gaps give it back. */
+@media (min-height: 481px) and (max-height: 700px) {
+  .title-card { padding-top: 18px; padding-bottom: 18px; gap: 6px; }
+  .title-card .tagline { margin: 0; }
+  .title-card .version { margin: -4px 0 0; }
+}
+.title-card:has(> .guide .whats-new) > .tagline, .title-card:has(> .guide .whats-new) > .version { display: none; }   /* the list takes the card's room */
+/* A phone held sideways: with What's new the card has five small buttons (This week's Nile, How to play, What's new, Play with sound, Install);
+   they size by their words and share one row where they fit (they did in two rows of two before), so the card still ends inside 390 px. */
+@media (max-height: 480px) {
+  .title-card .version { margin: -2px 0 -3px; line-height: 1.2; }
+  .title-buttons > .title-weekly, .title-buttons > .how-to-play, .title-buttons > .whats-new-button, .title-buttons > .sound, .title-buttons > .install { flex: 1 1 auto; }
+  .title-card .whats-new { max-height: 60vh; }
+}
+/* At 667x375 the card has no spare line (the tagline is already gone): the version sits in the card's bottom padding instead of a row of its own. */
+@media (max-height: 400px) {
+  .title-card { padding: 8px 24px 18px; }
+  .title-card .version { position: absolute; left: 0; right: 0; bottom: 2px; margin: 0; line-height: 1.2; }
+}
+/* ── end s46 ux ── */

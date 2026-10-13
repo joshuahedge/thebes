@@ -4,6 +4,7 @@ import { tickDay } from '../../../src/sim/clock.js';
 import { hash2 } from '../../../src/sim/rng.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { RAIDS, RAID_SALT, DEFENCE, FESTIVAL } from '../../../src/data/raids.js';
+import { footMix } from '../../../src/data/armies.js';
 import { alertText, reasonText, MOOD_NAMES, RAID_TEXT } from '../../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 
@@ -54,7 +55,7 @@ describe('s3 raids clock and warning', () => {
     const events = dayAt(w, 820);
     const entry = ENTRIES[Math.floor(hash2(w.seed, 0, RAID_SALT.entry) * ENTRIES.length)];
     const dir = entry.x === 31 ? 'east' : 'north';
-    expect(w.raid.warning).toEqual({ index: 0, entry, dir, size: RAIDS.firstSize, tribute: null, target: 'building', day: 820, arrives: 820 + RAIDS.warningDays, first: true });
+    expect(w.raid.warning).toEqual({ index: 0, entry, dir, size: RAIDS.firstSize, tribute: null, target: 'building', day: 820, arrives: 820 + RAIDS.warningDays, first: true, mix: footMix(RAIDS.firstSize) });
     expect(events).toEqual([{ type: 'raid_warning', index: 0, entry, dir, size: 3, tribute: null, target: 'building', arrives: 910, first: true }]);
     expect([w.speed, w.raid.index]).toEqual([0, 1]);                                  // the first warning pauses the game
     expect(tributeQuote(w).hidden).toBe(true);

@@ -72,10 +72,10 @@ describe('s4 score firsts and achievements', () => {
     expect(FIRST_TEXT.pyramids_unlocked.why).toBe('A Capital with 100 prestige can found the small pyramid.');
   });
   it('counts the six new achievements from the city\'s state, Lapis and gold by the palace\'s style', () => {
-    const six = ACHIEVEMENTS.slice(36);
+    const six = ACHIEVEMENTS.slice(36, 42);                                  // Stage 4.6's achievements follow these (src/data/s46.js)
     expect(ids(six)).toEqual(['monument_builder', 'renowned', 'seven_wonders', 'stone_upon_stone', 'gilded_tip', 'lapis_and_gold']);
     expect(six.map((a) => [ACHIEVEMENT_NAMES[a.id], ACHIEVEMENT_TEXT[a.id]])).toEqual([
-      ['Monument builder', 'Finish 3 monuments'], ['Renowned', 'Reach 300 prestige'], ['Seven wonders', 'Finish one of each of the 7 monuments'],
+      ['Monument builder', 'Finish 3 monuments'], ['Renowned', 'Reach 300 prestige'], ['Seven wonders', 'Finish 7 different kinds of monument (there are 10)'],
       ['Stone upon stone', 'Lay 5,000 stone on monuments'], ['Gilded tip', 'Finish the large obelisk with its gilded tip'], ['Lapis and gold', 'Enlarge the palace to lapis and gold'],
     ]);
     const w = city('capital');

@@ -11,6 +11,7 @@ import { healthAlerts } from './health.js';
 import { crimeAlerts } from './crime.js';
 import { raidAlerts } from './raids.js';
 import { monumentAlerts, hasMonumentWork } from './monuments.js';
+import { s46Alerts } from './s46.js';
 
 export function alertsFor(world) {
   const alerts = [];
@@ -34,6 +35,7 @@ export function alertsFor(world) {
   alerts.push(...fireAlerts(world), ...raidAlerts(world));   // Stage 3: fire (fire, blaze, fire_risk) and raids (raid_warning, raid)
   alerts.push(...healthAlerts(world), ...crimeAlerts(world));   // Stage 4.5: illness and crime_risk (warnings, never criticals)
   alerts.push(...monumentAlerts(world));                     // Stage 4: site_stalled (a warning, never a critical: ruling 211)
+  alerts.push(...s46Alerts(world));                          // Stage 4.6: the tracks' alerts (src/sim/s46.js), e.g. the court's letters
   for (const level of world.labour.shortLevels || []) alerts.push({ code: 'labour_shortage', level });
   const L = world.labour;
   if (atLeast(world, 'town') && L.workforce > 0 && (L.workforce - L.employed) / L.workforce > MOOD.unemploymentThreshold) {

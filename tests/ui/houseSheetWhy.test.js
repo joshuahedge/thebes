@@ -44,12 +44,12 @@ describe('ui house sheet why', () => {
     expect(CAUSE_TEXT.no_well.cause).toBe('No well within 5 road tiles');
     expect(CAUSE_TEXT.no_bazaar.cause).toBe('No bazaar within 10 road tiles');
     expect(CAUSE_TEXT.no_temple.cause).toBe('No temple within 10 road tiles');
-    expect(CAUSE_TEXT.bazaar_empty.cause).toBe('The bazaar has no grain');
+    expect(CAUSE_TEXT.bazaar_empty.cause).toBe('The bazaar has no food');
     expect(CAUSE_TEXT.next_delivery.cause).toBe('Food arrives at the next delivery');
     for (const code of ['no_road', 'no_well', 'no_bazaar', 'bazaar_empty', 'next_delivery', 'no_temple']) expect(CAUSE_TEXT[code].cause.length).toBeGreaterThan(0);
     for (const code of ['no_road', 'no_well', 'no_bazaar', 'bazaar_empty', 'no_temple']) expect(CAUSE_TEXT[code].fix.length).toBeGreaterThan(0);
     expect(CAUSE_TEXT.bazaar_empty.fix).toBe('Build a granary within 16 road tiles of it');
-    expect(CAUSE_TEXT.granary_empty).toEqual({ cause: 'Its granary is empty', fix: 'Grain farms fill granaries' });
+    expect([CAUSE_TEXT.granary_empty.cause, CAUSE_TEXT.granary_empty.fix]).toEqual(['Its granary is empty', 'Grain farms, fig orchards, hunting lodges and fishing wharves fill granaries']);
     const world = makeTestWorld();
     const bazaar = addRaw(world, 'bazaar', 9, 11);
     expect(causeText({ code: 'bazaar_idle', id: bazaar.id }, world)).toEqual({ cause: 'The bazaar is short of workers', fix: 'More homes bring more workers' });

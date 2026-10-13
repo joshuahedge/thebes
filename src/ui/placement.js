@@ -2,6 +2,7 @@
 // by assignLabour so derived state is fresh while paused (1a follow-up).
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { MONUMENTS, MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
+import { MONUMENT_STYLES, MONUMENT_STYLE_PICK_DEFAULT } from '../data/wonders.js';
 import {
   canPlace, conditionsFor, place, previewRoad, drawRoad, roadPath, previewHouses, paintHouses, previewDemolishArea, demolishArea, demolishAt, rectTiles,
   previewRoadTiles, drawRoadTiles, previewHouseTiles, paintHouseTiles, previewDemolishTiles, demolishTiles, previewPlazaTiles, paintPlazaTiles,
@@ -16,6 +17,7 @@ import { homesCoveredBy } from '../sim/health.js';
 import { crimeHomesCoveredBy } from '../sim/crime.js';
 import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
 import { housesOf } from '../sim/world.js';
+import { unitsAwayFrom } from '../sim/armies.js';
 import { costOf, workGoldPerUnit } from '../sim/costs.js';
 import { monthlyBill, balanceWith } from '../sim/economy.js';
 import { prestigeByKind } from '../sim/prestige.js';
@@ -27,11 +29,16 @@ import { roadReach, adjacentRoadTiles, touchesRoad } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
-import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT } from './text.js';
+import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
+import { bridgeSpot } from '../sim/bridges.js';
+import { styleChoices } from './s46/wonders.js';
 
 // A building tool's footprint in its rotation (Stage 4: tool.rot 1 turns a mastaba a quarter, dimsOf; ruling 234).
 const footprintOf = (tool) => (tool.kind === 'building' ? dimsOf(tool.type, tool.rot || 0) : { w: 1, d: 1 });
 const rotOf = (tool) => (tool && tool.rot) || 0;
+// Stage 4.6 (Wonders track, ruling 343): the style a monument's tool carries (the bar's picker sets it, createPlacement.start gives it the last
+// one chosen), null for anything else. A tool made without one reads as the picker's default.
+const styleOfTool = (tool) => (tool && tool.kind === 'building' && BUILDINGS[tool.type].monument ? (MONUMENT_STYLES[tool.style] && MONUMENT_STYLES[tool.style].pick ? tool.style : MONUMENT_STYLE_PICK_DEFAULT) : null);
 const isMonumentType = (type) => Boolean(BUILDINGS[type] && BUILDINGS[type].monument);
 // How far a picked building's ghost looks for a fit (spec 6.5, ruling 232): 16 tiles for footprints of 3x3 and up
 // (MONUMENT_PLACING.bigArea tiles: the 4x3 mastaba, the pyramids and the palace), else NEAREST_FIT_RADIUS.
@@ -127,27 +134,49 @@ function ringTiles(cx, cy, r) {
 // Stage 4 (Track C): a monument or the palace searches fitRadiusOf (16) in its rotation; a monument's crew and supply count as
 // "later" conditions like the road (canPlace's warnings), so a spot near a guild and a quarry wins; monuments have no terrain,
 // so no three-times reach.
-export function nearestFit(world, tool, x, y, maxR = null) {
-  const start = snapGhost(world, tool, x, y);
-  if (!tool || tool.kind !== 'building') return start;
-  if (maxR === null) maxR = fitRadiusOf(tool.type);
-  const rot = rotOf(tool);
+// One turn's search: the nearest origin about `start` where the tool fits with that turn, ranked as the search finds it: tier 0 a clean fit
+// within maxR, 1 a fit with warnings within maxR (the fewest), 2 a clean fit further out, 3 a fit with warnings further out; r is its ring.
+// null when nothing fits.
+function fitSearch(world, tool, start, rot, maxR, farR) {
   let warned = null;
-  const scan = (from, to) => {
+  const scan = (from, to, far) => {
     for (let r = from; r <= to; r++) {
       for (const [tx, ty] of ringTiles(start.x, start.y, r)) {
-        const c = canPlace(world, tool.type, tx, ty, { roadLater: true, rot });   // off-map origins fail here as out_of_bounds
+        const c = canPlace(world, tool.type, tx, ty, { roadLater: true, rot, style: styleOfTool(tool) });   // off-map origins fail here as out_of_bounds
         if (!c.ok) continue;
-        if (!c.warnings.length) return { x: tx, y: ty };
-        if (!warned || c.warnings.length < warned.n) warned = { x: tx, y: ty, n: c.warnings.length };
+        if (!c.warnings.length) return { x: tx, y: ty, tier: far ? 2 : 0, r, n: 0 };
+        if (!warned || c.warnings.length < warned.n) warned = { x: tx, y: ty, tier: far ? 3 : 1, r, n: c.warnings.length };
       }
     }
     return null;
   };
-  const clean = scan(0, maxR);
+  const clean = scan(0, maxR, false);
   if (clean) return clean;
-  if (!warned && BUILDINGS[tool.type].terrain) { const far = scan(maxR + 1, maxR * 3); if (far) return far; }
-  return warned ? { x: warned.x, y: warned.y } : start;
+  if (!warned && (BUILDINGS[tool.type].terrain || BUILDINGS[tool.type].water)) { const far = scan(maxR + 1, farR === null ? maxR * 3 : farR, true); if (far) return far; }   // farR (Stage 4.6, ruling 331): Show me and the pick look the whole map over, where the ground it needs may lie
+  return warned;
+}
+
+// The nearest spot that fits: { x, y }, and rot for a building that turns. Ruling 424: a building that turns (a fishing wharf, a mastaba) is
+// searched in both turns, and the other turn wins only with a better kind of fit (a clean fit before one with warnings, a near one before a far
+// one, anything before none); the turn in hand keeps a fit of the same kind even a ring or two further, so a mastaba is not turned under the
+// player for a tile. A wharf picked or shown beside a river running the other way lands turned to fit instead of refused. Callers take rot with
+// x and y when it is there.
+export function nearestFit(world, tool, x, y, maxR = null, farR = null) {
+  const start = snapGhost(world, tool, x, y);
+  if (!tool || tool.kind !== 'building') return start;
+  if (maxR === null) maxR = fitRadiusOf(tool.type);
+  const rot = rotOf(tool);
+  const rots = BUILDINGS[tool.type].rotates ? [rot, rot ? 0 : 1] : [rot];
+  let best = null;
+  for (const r of rots) {
+    if (best && best.tier === 0) break;                                       // a clean near fit in the turn in hand: nothing beats it
+    const t = r === rot ? tool : { ...tool, rot: r };
+    const found = fitSearch(world, t, r === rot ? start : snapGhost(world, t, x, y), r, maxR, farR);
+    if (found && (!best || found.tier < best.tier)) best = { ...found, rot: r };
+  }
+  const turns = rots.length > 1;
+  if (!best) return turns ? { x: start.x, y: start.y, rot } : { x: start.x, y: start.y };
+  return turns ? { x: best.x, y: best.y, rot: best.rot } : { x: best.x, y: best.y };
 }
 
 // conditions: a building's chips for the confirm bar ([] for lines and areas); footprint: each of its tiles' own state; joins: the
@@ -207,6 +236,11 @@ export function nicerFor(world, type, x, y) {
   return value;
 }
 
+// Stage 4.6 (UX rule 6, ruling 352): a building bound to its ground (terrain or water) offers Show me for every refusal that is about
+// the spot (ground, water, taken, off the map), not only the ones that quote the rule; a locked or one-only refusal has no spot to find.
+const SPOT_REFUSALS = ['occupied', 'water', 'out_of_bounds'];
+const groundBoundRefusal = (def, reason) => Boolean(def && (def.terrain || def.water) && (SPOT_REFUSALS.includes(reason) || /^needs_/.test(reason)));
+
 function basePreview(world, state) {
   const { tool } = state;
   if (!tool) return null;
@@ -214,9 +248,9 @@ function basePreview(world, state) {
     const def = BUILDINGS[tool.type];
     if (!state.ghost) return idle('');
     const { x, y } = state.ghost;
-    const cost = costOf(world, tool.type);
+    const cost = costOf(world, tool.type, { style: styleOfTool(tool) });
     // Every condition on its own (P9); a building that lacks only a road can still be placed, in amber (P10).
-    const c = conditionsFor(world, tool.type, x, y, { roadLater: true, rot: rotOf(tool) });
+    const c = conditionsFor(world, tool.type, x, y, { roadLater: true, rot: rotOf(tool), style: styleOfTool(tool) });
     const refused = c.warnings.includes('no_storage') && refusingStores(world, { id: -1, x, y, w: def.w, d: def.d }, def.produces.good, def.producerReach).length > 0;
     const chips = c.conditions.filter((k) => k.key !== 'gold' || k.state !== 'met').map((k) => {
       // Stage 4 (Track C, spec 6.5, ruling 230): a monument's chips say its own words (ground, road, crew, supply, founding).
@@ -228,7 +262,8 @@ function basePreview(world, state) {
     // The tiles where a road would join are shown only while the spot itself is fine: a footprint on water has no use for them.
     const joins = road && road.state === 'later' && ground.state === 'met' ? road.joins : [];
     const extra = { conditions: chips, footprint: c.tiles.map(({ x: tx, y: ty, state: st }) => ({ x: tx, y: ty, state: st })), joins };
-    if (!c.ok) return { ...bad(c.reason, cost, 1), ...extra };
+    // Stage 4.6 (ruling 331): a ground or water refusal says why in the rule's own numbers ("Needs 2 of 4 tiles on clay (this spot has 1)") and offers Show me.
+    if (!c.ok) { const line = S46_MAP_TEXT.refusalLine(c.reason, ground, def); return { ...bad(c.reason, cost, 1, [], line || reasonText(c.reason)), showFit: Boolean(line) || groundBoundRefusal(def, c.reason), ...extra }; }
     const warn = c.warnings.length > 0;
     // A service says how many homes it would reach from here (early-game pass 2.6); a firehouse, how many buildings that
     // can burn (Stage 3); other buildings say nothing.
@@ -268,8 +303,12 @@ function basePreview(world, state) {
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : plural(r.positions.length, 'plot', 'plots'), effect: '', cost: r.cost, count: r.positions.length, tiles, refund: 0 };
   }
   if (tool.kind === 'plazas') return plazaPreview(previewPlazaTiles(world, rectTiles(a.x0, a.y0, a.x1, a.y1, world.size)));   // Stage 4 (ruling 250)
-  return demolishPreview(previewDemolishArea(world, a.x0, a.y0, a.x1, a.y1), rectTiles(a.x0, a.y0, a.x1, a.y1, world.size));
+  return demolishPreview(previewDemolishArea(world, a.x0, a.y0, a.x1, a.y1), rectTiles(a.x0, a.y0, a.x1, a.y1, world.size), world);
 }
+
+// Stage 4.6 (ruling 350): until a road is drawn the bar's cost line (empty then) says that a road can cross water, and what a bridge costs (the sim's price).
+const bridgeNote = (world, tool) => (tool.kind === 'road' && !tool.gate ? S46_MAP_TEXT.bridgeBar(costOf(world, 'bridge')) : '');
+const WATER_REFUSALS = ['water', 'too_wide', 'bridge_shape'];
 
 // A touch plan's preview (P3, P5): it lays every tile it can and skips the blocked ones. tiles are all the plan's tiles (the
 // ghost draws them), skipped the ones it passes over ([x, y], drawn coral with a cross), and the words count both: "8 tiles ·
@@ -305,7 +344,7 @@ function planPreview(world, tool, tiles) {
     if (r.reason === 'nothing_to_place') return nothing(r);
     return { ...plazaPreview(r, tiles), skipped: skippedOf(r) };
   }
-  return demolishPreview(previewDemolishTiles(world, tiles), tiles);
+  return demolishPreview(previewDemolishTiles(world, tiles), tiles, world);
 }
 
 // Stage 4 (ruling 250): the plaza tool's preview, a rectangle's or a plan's (tiles: the plan's, else the plazas'). Track C
@@ -316,7 +355,7 @@ function plazaPreview(r, tiles = r.positions) {
 }
 
 // Demolish's preview, a rectangle's or a plan's: what it would take up, and its refund (or, Stage 3, what clearing rubble costs).
-function demolishPreview(r, tiles) {
+function demolishPreview(r, tiles, world = null) {
   const count = r.buildingIds.length + r.roadTiles.length + r.wallTiles.length;
   if (!count) return bad('nothing_here', 0, 0, tiles);
   // Clearing rubble would cross the debt floor (Stage 3, spec 4.12): the bar says so in the rule's words.
@@ -326,6 +365,9 @@ function demolishPreview(r, tiles) {
   const text = r.rubble
     ? [others ? plural(others, 'item', 'items') : '', DANGER_UI_TEXT.clearRubble(r.rubble, r.clearCost)].filter(Boolean).join(' · ')
     : `${plural(count, 'item', 'items')} · ${T.refund} ${r.refund}`;
+  // Stage 4.6 (ruling 443): units away at the capital whose building this takes leave service on their return: the bar warns in amber.
+  const away = world && world.army ? r.buildingIds.reduce((n, id) => n + unitsAwayFrom(world, id), 0) : 0;
+  if (away > 0) return { state: 'warn', reason: null, warnings: [], text: `${text} · ${S46_COURT_TEXT.demolishAwayShort(away)}`, effect: '', cost: -r.refund, count, tiles, refund: r.refund };
   return { state: 'ok', reason: null, warnings: [], text, effect: '', cost: -r.refund, count, tiles, refund: r.refund };
 }
 
@@ -334,6 +376,8 @@ function demolishPreview(r, tiles) {
 export function toolPreview(world, state) {
   const p = basePreview(world, state);
   if (!p) return p;
+  if (state.tool.kind === 'road' && !state.tool.gate && p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) p.showFit = true;   // Stage 4.6 (ruling 350): Show me finds a crossing
+  p.note = p.state === 'idle' ? bridgeNote(world, state.tool) : '';
   p.nicer = '';
   p.nicerTone = '';
   p.score = '';                                         // Stage 3: the parts it would change, "+3 Culture" (scoreUi.js)
@@ -343,7 +387,7 @@ export function toolPreview(world, state) {
   p.balanceNet = 0;
   if (state.tool.kind === 'building' && isMonumentType(state.tool.type) && (p.state === 'ok' || p.state === 'warn')) {
     p.score = scoreLineFor(world, state.tool.type, state.ghost.x, state.ghost.y);
-    p.line = [p.score, monumentLine(world, state.tool.type, state.ghost.x, state.ghost.y, rotOf(state.tool))].filter(Boolean).join(' · ');
+    p.line = [p.score, monumentLine(world, state.tool.type, state.ghost.x, state.ghost.y, rotOf(state.tool), styleOfTool(state.tool))].filter(Boolean).join(' · ');
   } else if (state.tool.kind === 'building' && (p.state === 'ok' || p.state === 'warn')) {
     const d = nicerFor(world, state.tool.type, state.ghost.x, state.ghost.y);
     p.nicer = nicerText(d.better, d.worse);
@@ -371,21 +415,21 @@ export function toolPreview(world, state) {
 // nicer and the homes the site makes less pleasant (desirabilityPreview, finished and as a site). Parts that are 0 are left out. Memoised per ghost
 // spot on the desirability field, as nicerFor is.
 const lineMemo = new WeakMap();   // world -> { field, key, value }
-export function monumentLine(world, type, x, y, rot = 0) {
+export function monumentLine(world, type, x, y, rot = 0, style = null) {
   const field = desirabilityField(world);
   // "One of each kind counts" is true only once the standing one holds the kind's whole share (it is finished): while it is
   // unfinished, paused or at course 0, a second that gets further earns prestige up to the difference. Its state is in the key.
   const first = prestigeByKind(world)[type];
   const standing = first.id !== null ? world.buildings[first.id] : null;
   const held = Boolean(standing && standing.site && standing.site.done !== null);
-  const key = `${type}|${x}|${y}|${rot}|${world.difficulty}|${world.nextId}|${held}`;
+  const key = `${type}|${x}|${y}|${rot}|${style}|${world.difficulty}|${world.nextId}|${held}`;
   const m = lineMemo.get(world);
   if (m && m.field === field && m.key === key) return m.value;
   const U = UI4_TEXT;
   const parts = [];
   if (held) parts.push(U.oneOfEach);
-  parts.push(U.crewGold(workGoldPerUnit(world) * MONUMENT.unitsPerCrewMonth));
-  const done = desirabilityPreview(world, type, x, y, { rot });
+  parts.push(U.crewGold(workGoldPerUnit(world, style) * MONUMENT.unitsPerCrewMonth));   // Stage 4.6: a gilded site pays 10% more a crew
+  const done = desirabilityPreview(world, type, x, y, { rot, style });
   if (done.better) parts.push(U.finishedNicer(done.better));
   const site = desirabilityPreview(world, type, x, y, { rot, site: true });
   if (site.worse) parts.push(U.whileBuilding(site.worse));
@@ -402,7 +446,7 @@ function finishedGhost(tool, ghost, w, d) {
     course: m.courses.length, laid: { stone: 0, bricks: 0 }, stock: { stone: 0, bricks: 0 }, carry: 0, extraPaid: Boolean(m.extra), crews: [], idle: 0, reason: null,
     month: { units: 0, gold: 0, crews: 0, crewDays: 0, starvedDays: 0 }, last: null, starved: false, done: 0,
   };
-  return { id: -1, type: tool.type, x: ghost.x, y: ghost.y, w, d, rot: rotOf(tool), staff: 0, paused: false, store: {}, site };
+  return { id: -1, type: tool.type, x: ghost.x, y: ghost.y, w, d, rot: rotOf(tool), staff: 0, paused: false, store: {}, site, style: styleOfTool(tool) };   // Stage 4.6: the silhouette wears the style picked
 }
 
 // Ghost shapes for drawGhost. Demolish marks only the tiles that have something on them.
@@ -434,10 +478,34 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
   return preview.tiles.map(([x, y]) => ({ x, y, w: 1, d: 1, state: skipped.has(tileKey([x, y])) ? 'bad' : gates.has(y * world.size + x) ? 'gate' : visual }));
 }
 
+// Stage 4.6 (ruling 331, 350): where Show me goes from a refused spot: a terrain or water building, the nearest origin where it fits on the
+// whole map (nearestFit, the one search the pick and every Show me use) or null when none does; the road tool, the nearest crossing of the water
+// (bridgeSpot) from the road's end. Returns { kind: 'building', item, x, y } with the footprint's centre, { kind: 'bridge', x, y } or null.
+export function fitTarget(world, state) {
+  const { tool } = state;
+  if (!tool) return null;
+  if (tool.kind === 'building') {
+    const g = state.ghost || world.focus, def = BUILDINGS[tool.type];
+    const at = nearestFit(world, tool, g.x, g.y, null, world.size);
+    const rot = at.rot === undefined ? rotOf(tool) : at.rot;                  // ruling 424: the turn it fits in, which may not be the one in hand
+    if (!canPlace(world, tool.type, at.x, at.y, { roadLater: true, rot, style: styleOfTool(tool) }).ok) return null;
+    const { w, d } = dimsOf(tool.type, rot);
+    return { kind: 'building', item: tool.type, x: at.x + w / 2, y: at.y + d / 2, def, rot };
+  }
+  if (tool.kind === 'road') {
+    const l = state.line, tiles = state.plan ? state.plan.tiles : [];
+    const from = tiles.length ? { x: tiles[tiles.length - 1][0], y: tiles[tiles.length - 1][1] } : l ? { x: l.x0, y: l.y0 } : world.focus;
+    const spot = bridgeSpot(world, from);
+    return spot ? { kind: 'bridge', x: spot.x + 0.5, y: spot.y + 0.5, spot } : null;
+  }
+  return null;
+}
+
 export function createPlacement({ world, store, afterCommand = () => {}, effects = null, now = () => performance.now() }) {
   // The stroke a finger is drawing: the plan before it (base), where it went down (x0, y0), the tiles it has followed (path, roads
   // and walls) and the tile it is on (at). Gone when the finger lifts, or with the tool.
   let stroke = null;
+  let lastStyle = null;   // Stage 4.6: the style the player last picked for a monument, which the next monument's tool starts on
   const inMap = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < world.size && y < world.size;
   const drawingTool = (s) => Boolean(s.tool) && s.tool.kind !== 'building';
   const setPlan = (tiles) => store.set({ plan: tiles.length ? { tiles } : null, line: null, area: null });
@@ -447,13 +515,18 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
   const api = {
     start(tool, centre = null) {
       stroke = null;
+      if (tool.kind === 'building' && BUILDINGS[tool.type].monument && !tool.style) tool = { ...tool, style: lastStyle || MONUMENT_STYLE_PICK_DEFAULT };
       // Stage 4 (spec 4.20, ruling 271): while a palace stands its card selects it (its sheet opens) instead of starting a tool.
       const palace = tool.kind === 'building' && tool.type === 'palace' ? palaceOf(world) : null;
       if (palace) { store.set(select(store.get(), palace.id)); return; }
       store.set(startToolPatch(store.get(), tool));
       if (tool.kind === 'building') {
         setPlacingRot(world, rotOf(tool));                                     // Stage 4: the Ground overlay's room follows the turn
-        if (centre) { const at = nearestFit(world, tool, centre.x, centre.y); api.moveGhost(at.x, at.y); }   // early-game pass 2.6
+        if (centre) {
+          const at = nearestFit(world, tool, centre.x, centre.y, null, world.size);
+          if (at.rot !== undefined && at.rot !== rotOf(tool)) { store.set({ tool: { ...store.get().tool, rot: at.rot } }); setPlacingRot(world, at.rot); }   // ruling 424: land turned to fit
+          api.moveGhost(at.x, at.y);
+        }   // Stage 4.6 (ruling 331): the whole map for the ground a building is bound to   // early-game pass 2.6
         if (AUTO_OVERLAY[tool.type]) store.set({ overlay: AUTO_OVERLAY[tool.type] });
       }
     },
@@ -529,6 +602,21 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       store.set({ tool, ghost: snapGhost(world, tool, cx - Math.floor((now.w - 1) / 2), cy - Math.floor((now.d - 1) / 2)) });
       return true;
     },
+    // Stage 4.6 (Wonders track, ruling 343): the confirm bar's style picker for a monument. style() is the one in force (null for any other tool);
+    // setStyle(id) takes one of the offered styles (MONUMENT_STYLES pick: true) and the silhouette, the price and the lines follow it.
+    style: () => styleOfTool(store.get().tool),
+    // The picker's choices ([{ id, name, active, line }], with the consequence of each in words) for a monument tool, else null.
+    styleChoices() {
+      const t = store.get().tool, style = styleOfTool(t);
+      return style === null ? null : styleChoices(world, t.type, style);
+    },
+    setStyle(id) {
+      const s = store.get();
+      if (!s.tool || styleOfTool(s.tool) === null || !MONUMENT_STYLES[id] || !MONUMENT_STYLES[id].pick) return false;
+      lastStyle = id;
+      store.set({ tool: { ...s.tool, style: id } });
+      return true;
+    },
     preview: () => toolPreview(world, store.get()),
     ghosts: () => ghostsFor(world, store.get()),
     // The desirability tint under a building's ghost (spec 4.7): the tiles it would change, while it can go there and a
@@ -558,7 +646,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         text = t.kind === 'road' ? roadDoneText(t, result) : t.kind === 'wall' ? T.wallBuilt : t.kind === 'houses' ? '' : t.kind === 'plazas' ? UI4_TEXT.plazasLaid(result.ok ? result.ids.length : 0) : T.demolished;
       } else if (t.kind === 'building') {
         const def = footprintOf(t);
-        result = place(world, t.type, s.ghost.x, s.ghost.y, { roadLater: true, rot: rotOf(t) });   // only the player's placing waits for a road (P10)
+        result = place(world, t.type, s.ghost.x, s.ghost.y, { roadLater: true, rot: rotOf(t), style: styleOfTool(t) });   // only the player's placing waits for a road (P10)
         cx = s.ghost.x + def.w / 2; cy = s.ghost.y + def.d / 2;
         // Stage 4 (ruling 233): a monument is founded, "Small obelisk founded · Undo" ("· needs a road" with none).
         text = isMonumentType(t.type) ? UI4_TEXT.founded(t.type) : `${buildingName(t.type)} ${T.placed.toLowerCase()}`;

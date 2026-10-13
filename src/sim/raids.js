@@ -46,6 +46,15 @@
 //                        burned goes up and its type joins burnedKinds. The report keeps both and goes on counting, so
 //                        raid.last.burned can still rise after the raid ends while its fires burn out
 //   active.burnedKinds   the types the raid's fires burned down, in order (the report names one kind: "1 storehouse")
+// Stage 4.6 (Armies track, rulings 341, 382-384): every warning, raid and report carries mix ({ foot, archer, chariot, boat },
+// adding up to size: drawMix in src/sim/armies.js, from the size favour's hooks give, so favour changes the total and never the
+// proportions), and each raider its kind. Boats (from raid index 4, a raid from one side, a river reaching a map edge and a bank
+// within reach of the city: boatLanding) are the raid's second band: warning.second = { entry: the bank, dir: the edge the river
+// brings them from, size: mix.boat, boat: true, from: the river's mouth }; they land on the bank on arrival and leave from it. A band
+// moves at its slowest kind's pace (ENEMY_TYPES speed: a band of chariots alone is fast). Only raiders that break walls (foot, boat)
+// hit a wall in their band's way: a band with none of them left that meets a standing wall, or (with chariots) rocky ground, while
+// attacking turns back (retreat; active.turned counts the bands turned), and one leaving slips away. The report adds byArchers,
+// byChariots, towersLost (towers enemy archers brought down) and turned when there are any.
 // A day of a raid (raidDay): combat (combat.js); the end when no raider is left; retreat once RAIDS.retreatShare of the
 // raiders (rounded up) have fallen; then, unless a raider is fighting, the band waits out a strike or takes one step: to
 // the target it is after (attack), back to its entry (leave, after RAIDS.strikes strikes; retreat), or stops before a
@@ -70,6 +79,11 @@ import { igniteBuilding } from './fire.js';
 import { flowField, tileCost } from './pathfinding.js';
 import { healWalls } from './defence.js';
 import { trainSoldiers, combatDay, soldiersHome } from './combat.js';
+import { favourRaidSize, favourTributeFactor } from './court.js';
+import { footMix, ENEMY_TYPES } from '../data/armies.js';
+import { drawMix, boatLanding, raiderKinds, landable, enemyMayCome } from './armies.js';
+import { raiderHp } from './combat.js';
+import { T } from './terrain.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 
@@ -111,6 +125,13 @@ export function raidWealth(world) {
 // between RAIDS.minSize and RAIDS.maxSize. The warning fixes it; Safety's defence term (score.js) reads it for "now".
 export function raidSize(world) {
   if (world.raid.index === 0) return RAIDS.firstSize;
+  // Stage 4.6 (ruling 336): favour's size step (src/sim/court.js, the Court track's); the Armies track keeps this call.
+  return favourRaidSize(world, baseRaidSize(world));
+}
+// The raid size before favour's step (the first raid's is RAIDS.firstSize): the city score's defence term reads this one, so favour never
+// moves the score (rulings 344, 441).
+export function baseRaidSize(world) {
+  if (world.raid.index === 0) return RAIDS.firstSize;
   const wealth = Math.min(RAIDS.wealthMax, Math.max(0, (raidWealth(world) - RAIDS.wealthBase) / RAIDS.wealthStep));
   const raw = 1 + population(world) / RAIDS.peoplePerRaider + wealth;
   return Math.max(RAIDS.minSize, Math.min(RAIDS.maxSize, Math.round(raw * riskOf(world) * world.raid.adaptation * sizeGrowth(world))));
@@ -137,7 +158,9 @@ export const warningDirs = (w) => (w.second ? [w.dir, w.second.dir] : [w.dir]);
 
 // A raid's tribute (spec 4.13): round(RAIDS.tributeShare x towers needed x the tower's price in this city), fixed when
 // the warning appears (warning.tribute; null for the first raid, which cannot be paid off).
-export const tributeFor = (world, size) => Math.round(RAIDS.tributeShare * towersNeeded(size) * costOf(world, 'tower'));
+// Stage 4.6 (ruling 336): times favour's factor (src/sim/court.js, the Court track's); the Armies track keeps this call and prices the
+// total of a mixed raid.
+export const tributeFor = (world, size) => Math.round(favourTributeFactor(world) * RAIDS.tributeShare * towersNeeded(size) * costOf(world, 'tower'));
 
 // The day a later warning appears (spec 4.13): RAIDS.laterMin to RAIDS.laterMax days after fromDay (the last raid's
 // arrival day, or the day a cancelled raid would have arrived), drawn by hash2(seed, the next raid's index, salt).
@@ -190,13 +213,17 @@ function raiseWarning(world, events) {
   const second = !first && index >= RAIDS.twoSidedFrom && entries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < RAIDS.twoSidedChance
     ? secondBand(world, index, entry, single + 1) : null;
   const size = second ? single + 1 : single;
-  const w = { index, entry, dir: entryDir(world, entry), size, tribute: first ? null : tributeFor(world, size), target: raidTargetKind(world), day: world.day, arrives: world.day + RAIDS.warningDays, first };
+  // Stage 4.6 (rulings 341, 382, 384): the raid's mix by enemy kind, drawn from the total; boats only on a raid from one side.
+  const landing = !first && !second && enemyMayCome('boat', index) ? boatLanding(world, index) : null;
+  const mix = first ? footMix(size) : drawMix(world, index, size, { boats: Boolean(landing) });
+  const w = { index, entry, dir: entryDir(world, entry), size, tribute: first ? null : tributeFor(world, size), target: raidTargetKind(world), day: world.day, arrives: world.day + RAIDS.warningDays, first, mix };
   if (second) w.second = second;
+  else if (mix.boat > 0) w.second = { entry: { ...landing.bank }, dir: landing.dir, size: mix.boat, boat: true, from: { ...landing.from } };
   r.warning = w;
   r.index = index + 1;
   if (first) setSpeed(world, 0);
   else if (world.speed > 1) setSpeed(world, 1);
-  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(second ? { dirs: warningDirs(w), second: { ...second, entry: { ...second.entry } } } : {}) });
+  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}) });
 }
 
 // The second band of a two-sided raid (ruling 317): an entry other than the first's, by hash2(seed, index, RAID_SALT.entry2),
@@ -240,6 +267,11 @@ const bandRec = (a, k) => (k ? a.second : a);
 const bandOf = (u) => (u.band ? 1 : 0);
 const crewOf = (a, k) => a.raiders.filter((u) => bandOf(u) === k);
 const bandKs = (a) => (a.second ? [0, 1] : [0]);
+const enemyDef = (u) => ENEMY_TYPES[u.kind] || ENEMY_TYPES.foot;
+// Stage 4.6: a band moves at its slowest kind's pace, and only its wall-breakers (foot, boat) hit a wall in its way.
+const bandSpeed = (a, k) => Math.min(...crewOf(a, k).map((u) => enemyDef(u).speed), UNITS.raider.speed * 4);
+const canBreak = (a, k) => crewOf(a, k).some((u) => enemyDef(u).breaksWalls);
+const hasChariots = (a, k) => crewOf(a, k).some((u) => u.kind === 'chariot');
 const liveKs = (a) => bandKs(a).filter((k) => a.raiders.some((u) => bandOf(u) === k));
 
 // A band's centre as a map tile: the mean of its raiders' points, or its entry when none is left.
@@ -303,14 +335,35 @@ function placeBand(a, k = 0) {
 function arrive(world, events) {
   const r = world.raid, w = r.warning;
   const raiders = [];
-  warningBands(w).forEach((band, k) => {
-    for (let n = 0; n < band.size; n++) raiders.push({ id: world.nextUnitId++, x: 0, y: 0, hp: UNITS.raider.hp, hit: false, ...(k ? { band: 1 } : {}) });
+  // Stage 4.6: each raider's kind from the mix (raiderKinds' round-robin; a two-sided raid's band 1 takes the odd places, a boat band
+  // is all boats). Boats whose bank has been built on since the warning land on a bank boatLanding finds now (its bank, edge and mouth);
+  // with no bank left they come with band 0, on foot: the raid is then one band, its boats counted on foot (ruling 449).
+  if (w.second && w.second.boat && !landable(world, w.second.entry.x, w.second.entry.y)) {
+    const again = boatLanding(world, w.index);
+    if (again) Object.assign(w.second, { entry: { ...again.bank }, dir: again.dir, from: { ...again.from } });
+    else {
+      const m = w.mix || footMix(w.size);
+      w.mix = { ...m, foot: m.foot + (m.boat || 0), boat: 0 };
+      delete w.second;
+    }
+  }
+  const mix = w.mix || footMix(w.size), bands = warningBands(w), land = raiderKinds(mix), kinds = [[], []];
+  if (w.second && w.second.boat) {
+    kinds[0] = land;
+    kinds[1] = new Array(bands[1].size).fill('boat');
+  } else if (w.second) land.forEach((kind, j) => kinds[j % 2 === 1 && kinds[1].length < bands[1].size ? 1 : 0].push(kind));
+  else kinds[0] = land;
+  bands.forEach((band, k) => {
+    for (let n = 0; n < band.size; n++) {
+      const kind = kinds[k][n] || 'foot';
+      raiders.push({ id: world.nextUnitId++, kind, x: 0, y: 0, hp: raiderHp(kind), hit: false, ...(k ? { band: 1 } : {}) });
+    }
   });
   const a = {
-    index: w.index, entry: { ...w.entry }, dir: w.dir, size: w.size, target: w.target, day: world.day, raiders, phase: 'attack', targetId: null,
-    struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [], x: w.entry.x, y: w.entry.y, blocked: null, towerIds: [], fires: [], burnedKinds: [],
+    index: w.index, entry: { ...w.entry }, dir: w.dir, size: w.size, mix: { ...mix }, target: w.target, day: world.day, raiders, phase: 'attack', targetId: null,
+    struck: [], wait: 0, byTowers: 0, bySoldiers: 0, byArchers: 0, byChariots: 0, burned: 0, stolen: 0, shots: [], x: w.entry.x, y: w.entry.y, blocked: null, towerIds: [], fires: [], burnedKinds: [],
   };
-  if (w.second) a.second = { entry: { ...w.second.entry }, dir: w.second.dir, x: w.second.entry.x, y: w.second.entry.y, phase: 'attack', targetId: null, struck: [], wait: 0, blocked: null };
+  if (w.second) a.second = { entry: { ...w.second.entry }, dir: w.second.dir, x: w.second.entry.x, y: w.second.entry.y, phase: 'attack', targetId: null, struck: [], wait: 0, blocked: null, ...(w.second.boat ? { boat: true } : {}) };
   placeBand(a, 0);
   if (a.second) placeBand(a, 1);
   r.active = a;
@@ -426,7 +479,8 @@ function trackFires(world, rec) {
 function endRaid(world, events, won) {
   const r = world.raid, a = r.active;
   const report = {
-    index: a.index, dir: a.dir, size: a.size, won, byTowers: a.byTowers, bySoldiers: a.bySoldiers, towers: a.towerIds.length, burned: a.burned,
+    index: a.index, dir: a.dir, size: a.size, mix: { ...(a.mix || footMix(a.size)) }, won, byTowers: a.byTowers, bySoldiers: a.bySoldiers, towers: a.towerIds.length, burned: a.burned,
+    ...(a.byArchers ? { byArchers: a.byArchers } : {}), ...(a.byChariots ? { byChariots: a.byChariots } : {}), ...(a.towersLost ? { towersLost: a.towersLost } : {}), ...(a.turned ? { turned: a.turned } : {}),
     stolen: a.stolen, day: world.day, burnedKinds: a.burnedKinds.slice(), fires: a.fires.map((f) => ({ ...f })),
     ...(a.second ? { dirs: [a.dir, a.second.dir] } : {}), ...(a.foodStolen ? { foodStolen: a.foodStolen } : {}), ...(a.fled ? { fled: a.fled } : {}),
   };
@@ -482,7 +536,8 @@ function bandDay(world, a, k, events) {
     rec.phase = rec.struck.length >= RAIDS.strikes ? 'leave' : 'attack';
     rec.targetId = null;
   }
-  for (let step = 0; step < UNITS.raider.speed; step++) {
+  const speed = bandSpeed(a, k);
+  for (let step = 0; step < speed; step++) {
     let goals;
     if (rec.phase === 'attack') {
       let t = rec.targetId ? world.buildings[rec.targetId] : null;
@@ -496,13 +551,31 @@ function bandDay(world, a, k, events) {
     if (field.dist[here] === 0 || field.dist[here] === Infinity) return reach(world, a, k, events);
     const [nx, ny] = field.next(rec.x, rec.y);
     const ni = idx(world.size, nx, ny);
-    if (world.wall[ni] > 0) { rec.blocked = ni; return; }
+    if (world.wall[ni] > 0) {
+      if (canBreak(a, k)) { rec.blocked = ni; return; }
+      return turnBack(world, a, k, events);                    // Stage 4.6 (ruling 383): no wall-breaker left in the band
+    }
+    if (world.terrain[ni] === T.ROCKY && rec.phase === 'attack' && !canBreak(a, k) && hasChariots(a, k)) return turnBack(world, a, k, events);
     rec.blocked = null;
     rec.x = nx;
     rec.y = ny;
     placeBand(a, k);
     if (field.dist[ni] === 0) return reach(world, a, k, events);
   }
+}
+
+// Stage 4.6 (ruling 383): band k, with no raider left that breaks walls, meets a wall (or, with chariots, rocky ground): attacking,
+// it turns back (retreat, counted in active.turned); leaving or retreating, it slips away from where it stands.
+function turnBack(world, a, k, events) {
+  const rec = bandRec(a, k);
+  rec.blocked = null;
+  if (rec.phase === 'attack') {
+    rec.phase = 'retreat';
+    rec.targetId = null;
+    a.turned = (a.turned || 0) + 1;
+    return;
+  }
+  return reach(world, a, k, events);
 }
 
 // Band k is at its goal: its target (a strike), or its entry (it leaves the map; the raid ends when no band is left, lost

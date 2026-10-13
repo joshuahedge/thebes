@@ -291,7 +291,7 @@ function extraDue(b, course = b.site.course) {
 // now, false when paying would take the treasury below 0 (the course waits). It counts in the month's gold.
 function payExtra(world, b) {
   if (!extraDue(b)) return true;
-  const cost = extraGoldOf(world, b.type);
+  const cost = extraGoldOf(world, b.type, b.style);
   if (!canPayNoDebt(world, cost)) return false;
   world.gold -= cost;
   b.site.extraPaid = true;
@@ -303,7 +303,7 @@ function payExtra(world, b) {
 // gold; { pay, carry } with 0 <= carry < 1. A sum within EPS of a whole number is that number, so a month of a full
 // crew pays exactly 20 x workGoldPerUnit (130 at Normal, src/data/monuments.js), less a fraction it carries.
 function workPay(world, b, units) {
-  const owed = snap(b.site.carry + units * workGoldPerUnit(world));
+  const owed = snap(b.site.carry + units * workGoldPerUnit(world, b.style));   // Stage 4.6: a gilded site pays 10% more (ruling 394)
   const pay = Math.floor(owed);
   return { pay, carry: owed - pay };
 }

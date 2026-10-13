@@ -61,14 +61,14 @@ describe('distribution of many goods', () => {
     const at = (tier) => sorted(wantedGoods(addRaw(w, 'house', 2 * tier, 20, { tier, residents: 5 })));
     expect(at(0)).toEqual([]);
     expect(at(1)).toEqual([]);
-    expect(at(2)).toEqual(sorted(['grain', 'figs']));
-    expect(at(3)).toEqual(sorted(['grain', 'figs']));
-    expect(at(4)).toEqual(sorted(['grain', 'figs', 'pottery']));
-    expect(at(5)).toEqual(sorted(['grain', 'figs', 'pottery']));
-    expect(at(6)).toEqual(sorted(['grain', 'figs', 'pottery', 'beer']));
-    expect(at(7)).toEqual(sorted(['grain', 'figs', 'pottery', 'beer', 'linen']));
-    expect(at(8)).toEqual(sorted(['grain', 'figs', 'pottery', 'beer', 'linen', 'jewellery']));
-    expect(at(9)).toEqual(sorted(['grain', 'figs', 'pottery', 'beer', 'linen', 'jewellery']));
+    expect(at(2)).toEqual(sorted(['grain', 'figs', 'game', 'fish']));   // Stage 4.6: game and fish are foods too
+    expect(at(3)).toEqual(sorted(['grain', 'figs', 'game', 'fish']));
+    expect(at(4)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery']));
+    expect(at(5)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery']));
+    expect(at(6)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery', 'beer']));
+    expect(at(7)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen']));
+    expect(at(8)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'jewellery']));
+    expect(at(9)).toEqual(sorted(['grain', 'figs', 'game', 'fish', 'pottery', 'beer', 'linen', 'jewellery']));
   });
   it('tops a home up to one month of each household good it wants, rounded up, and no more', () => {
     const w = street();

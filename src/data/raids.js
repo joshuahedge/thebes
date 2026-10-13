@@ -33,7 +33,8 @@ export const RAIDS = {
   targets: ['trading_post', 'storehouse', 'bazaar', 'temple'],   // then any other building that is not a home
 };
 
-export const RAID_SALT = { gap: 8101, entry: 8102, two: 8103, entry2: 8104 };
+// Stage 4.6 (Track 0 registered them for the Armies track): the raid's mix by enemy kind, the second band's, a boat's entry and its bank.
+export const RAID_SALT = { gap: 8101, entry: 8102, two: 8103, entry2: 8104, mix: 8105, mix2: 8106, boatEntry: 8107, boatBank: 8108 };
 
 // Units (spec 4.13): hit points, tiles moved a day, damage dealt a day.
 export const UNITS = {

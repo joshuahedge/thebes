@@ -55,6 +55,8 @@ import { tradeSheet } from './tradeSheet.js';
 import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
 import { createDanger } from './danger.js';
+import { createS46Seams } from './s46/index.js';
+import { s46Walkers, s46Ground } from '../render/s46.js';
 import { createScoreUi } from './scoreUi.js';
 import { createMonumentUi } from './monumentSheet.js';
 import { drawMonument } from '../render/monuments.js';
@@ -88,8 +90,9 @@ export function createUI({
   // Stage 3: the danger and score interfaces, made below once their context exists. Until then (afterCommand can run
   // during construction) seams() is empty, so nothing calls them early.
   let danger = null, scoreUi = null, monumentUi = null;   // Stage 4: the monuments interface (Track C, ui/monumentSheet.js)
+  let s46 = [];                                          // Stage 4.6: the tracks' seams (src/ui/s46/index.js), in track order
   let toastLow = null;   // { dock, mode, sheet, layout } while the toast sits low after a touch tick (leavePlan, setToastLow)
-  const seams = () => [danger, scoreUi, monumentUi].filter(Boolean);
+  const seams = () => [danger, scoreUi, monumentUi, ...s46].filter(Boolean);
   let markerLayout = [];                                 // Stage 4: this frame's problem markers on screen (render/markers.js)
   let saveFailed = false, destroyed = false;
   // The guidance row's controller (syncGuidance, below) runs from the tips' and captions' callbacks, which may fire
@@ -160,7 +163,7 @@ export function createUI({
   const fireTip = (key) => tips.trigger(key, { busy: tipsBusy(store.get()) });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
   const placement = createPlacement({ world, store, afterCommand, effects, now });
-  const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc });
+  const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc, keys: () => settings.get().keyboardShortcuts !== false });
   const alerts = createAlerts({
     world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root,
     onAction: (a, kind) => { for (const s of seams()) s.onAlertAction(a, kind); },   // Stage 3: Pay tribute and the like
@@ -227,6 +230,7 @@ export function createUI({
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
   monumentUi = createMonumentUi(seamCtx);
+  s46 = createS46Seams(seamCtx);
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
@@ -239,6 +243,7 @@ export function createUI({
   let lastHelp = settings.get().help;
   const stopSettingsWatch = settings.subscribe((v) => {
     sidePanel.render();
+    speedControl.render();                               // Keyboard shortcuts on or off: the speed steps' titles name the keys only when on
     corners.render();                                    // a new text size moves the tray's top edge: the corners may need to step away from it (or back)
     if (v.help === lastHelp) return;
     lastHelp = v.help;
@@ -248,6 +253,7 @@ export function createUI({
     ...menus, goals: goalsSheet(world, { onShowMe: showMe, recent: () => celebrations.recent(), skipHere: phone, onSkipGuide: skipGuide }),
     trade: tradeSheet({ world, afterCommand, onShowMe: showMeAt, toast: (text) => toasts.show(text) }),
     ...danger.sheets, ...scoreUi.sheets, ...monumentUi.sheets,
+    ...Object.assign({}, ...s46.map((s) => s.sheets)),   // Stage 4.6: the tracks' sheets (a court letter, the court)
   };
   if (welcome) {
     customSheets.welcome = welcomeSheet({
@@ -257,7 +263,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts] });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)] });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -693,7 +699,17 @@ export function createUI({
     undo, help: () => toggleSheet('help'),
   };
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
-  const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions, hidden: () => Boolean(store.get().screenshot) });
+  // Stage 4.6 (ruling 400): a placement waits for its Enter when a tool has something to lay (a ghost, a finished line or plan) and nothing
+  // else holds the screen (a sheet, a dialog, the Layers picker). Then Enter lays it whichever card or corner button has focus, as a
+  // click on the map leaves the card that started the tool focused; the bar's own buttons, the toast's Undo and the alert, tip and
+  // goal rows keep their Enter, so a keyboard user can still press Cancel or Undo.
+  const placementPending = (target) => {
+    const s = store.get();
+    if (!isToolMode(s.mode) || !s.tool || s.sheet || s.confirmDialog || s.layersOpen || s.screenshot) return false;
+    if (target && typeof target.closest === 'function' && target.closest('#confirm, #toasts, #banner, #tip, #cheer, #goals, .confirm-dialog, [role="dialog"]')) return false;
+    return placement.preview().state !== 'idle';
+  };
+  const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions, hidden: () => Boolean(store.get().screenshot), pending: placementPending });
 
   // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free (in
   // compact with the corner buttons along the map's bottom, measured).
@@ -923,9 +939,10 @@ export function createUI({
     markerLayout = layoutMarkers(world, list, cam, v);
     renderer.renderFrame(world, cam, {
       live: (g, o) => drawMonument(g, world, o.b, { now: t, timeDays, motion, ghost: ghostBox, selectedId: s.selectedId }),
-      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
+      // Stage 4.6: the tracks' figures (src/render/s46.js: the River track's animals) join the walkers, depth-sorted with them.
+      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
-      ambient: (g, r) => ambient.draw(g, world, r, t),                          // Stage 3 (render/ambient.js, fire.js, units.js)
+      ambient: (g, r) => { s46Ground(g, world, r, t, motion); ambient.draw(g, world, r, t); },   // Stage 4.6: the tracks' ground layer (the flood's water) under Stage 3's ambient life (render/ambient.js, fire.js, units.js)
       scorch: (g, r) => drawScorch(g, world, r),                                // Stage 4.5 (ruling 310): the ground under a fire, at every motion level
       fire: (g, r) => { drawFires(g, world, r, t, still); drawIllness(g, world, r); },   // Stage 4.5: and the cloth over an ill home's door (render/illness.js)
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),

@@ -146,7 +146,7 @@ describe('s45 variants (what each one is)', () => {
       const longest = Math.max(...Object.values(columns).map((ys) => { let best = 1, run = 1; for (let k = 1; k < ys.length; k++) { run = ys[k] === ys[k - 1] + 1 ? run + 1 : 1; best = Math.max(best, run); } return best; }));
       expect([seed, longest >= 4 && longest <= 8]).toEqual([seed, true]);
       for (const [x, y] of isle) expect([seed, riverSpans(w)[y][0] < x && x < riverSpans(w)[y][1]]).toEqual([seed, true]);   // land with water either side of it
-      expect(riverPools(w).length).toBe(0);
+      expect([seed, riverPools(w).length > 0]).toEqual([seed, (w.mapParams.pools || []).length > 0]);   // Stage 4.6 (ruling 332): the only other water is its side channels and oxbow lakes
     }
   });
   it('oasis adds a lake of its own, ringed by bank and fertile land, with a little clay on its edge', () => {

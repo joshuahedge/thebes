@@ -31,15 +31,15 @@ describe('ui stage 2 cards', () => {
     const w = makeTestWorld();
     expect(ids(shownCategories(w))).toEqual(SHOWN);                                 // Industry shows at Village: its Town cards, locked
     expect(shownItems(w, 'homes')).toEqual(['house', 'garden', 'statue']);
-    expect(shownItems(w, 'food')).toEqual(['farm_grain', 'farm_fig', 'granary']);
+    expect(shownItems(w, 'food')).toEqual(['farm_grain', 'farm_fig', 'granary', 'hunting_lodge', 'fishing_wharf']);   // Stage 4.6: the River track's two, locked until Town
     expect(shownItems(w, 'industry')).toEqual(['clay_pit', 'potter', 'storehouse']);
-    expect(shownItems(w, 'services')).toEqual(['well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'palace']);   // Stage 4: the palace comes with Town; Stage 4.5: the physician too
+    expect(shownItems(w, 'services')).toEqual(['well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'palace', 'nilometer']);   // Stage 4: the palace comes with Town; Stage 4.5: the physician too; Stage 4.6: the Nilometer
     expect(shownItems(w, 'defence')).toEqual([]);                                     // Market town's cards: hidden until Town
     expect([cardInfo(w, 'garden').locked, cardInfo(w, 'statue').locked, cardInfo(w, 'potter').lockText]).toEqual([false, true, 'Unlocks at Town']);
     w.milestone = 'town';
     expect(shownItems(w, 'industry')).toEqual(['clay_pit', 'potter', 'storehouse', 'trading_post']);
     expect(cardInfo(w, 'trading_post').lockText).toBe('Unlocks at Market town');
-    expect(shownItems(w, 'defence').map((i) => [i, cardInfo(w, i).locked])).toEqual([['wall', true], ['gate', true], ['tower', true], ['barracks', true]]);   // Stage 4.5: the Gate card comes after the Wall
+    expect(shownItems(w, 'defence').map((i) => [i, cardInfo(w, i).locked])).toEqual([['wall', true], ['gate', true], ['tower', true], ['barracks', true], ['archery_range', true], ['stables', true]]);   // Stage 4.5: the Gate card comes after the Wall; Stage 4.6: the Armies track's two
     w.milestone = 'market_town';
     expect(shownItems(w, 'industry')).toEqual(['clay_pit', 'potter', 'farm_barley', 'brewery', 'storehouse', 'trading_post']);
     w.milestone = 'city';

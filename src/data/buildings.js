@@ -1,5 +1,6 @@
 import { FOOD_GOODS, HOUSEHOLD_GOODS, RAW_GOODS, MATERIAL_GOODS } from './goods.js';
 import { MONUMENTS, MONUMENT_KINDS, MONUMENT } from './monuments.js';
+import { S46_BUILDINGS } from './s46.js';
 
 // w = footprint along x, d = footprint along y. reach values are in road tiles. A producer makes `perMonth` units
 // at full staff; one with `consumes` (a workshop) turns one unit of that good into one unit of its own.
@@ -12,13 +13,13 @@ export const BUILDINGS = {
   },
   granary: {
     name: 'Granary', w: 2, d: 2, cost: 80, upkeep: 6, workers: 6, priority: 'essential', category: 'food',
-    needsRoad: true, stores: ['grain', 'figs'], capacity: 600,
+    needsRoad: true, stores: ['grain', 'figs', 'game', 'fish'], capacity: 600,   // Stage 4.6 (ruling 363): game and fish are foods too
   },
   // stock: the most of each good a bazaar keeps (spec 4.10).
   bazaar: {
     name: 'Bazaar', w: 2, d: 2, cost: 60, upkeep: 8, workers: 6, priority: 'services', category: 'services',
     needsRoad: true, sells: [...FOOD_GOODS, ...HOUSEHOLD_GOODS], capacity: 300, reach: 10, supplyReach: 16,
-    stock: { grain: 300, figs: 200, pottery: 100, beer: 100, linen: 100, jewellery: 100 },
+    stock: { grain: 300, figs: 200, game: 100, fish: 100, pottery: 100, beer: 100, linen: 100, jewellery: 100 },
   },
   temple: {
     name: 'Temple', w: 2, d: 2, cost: 120, upkeep: 10, workers: 6, priority: 'services', category: 'services',
@@ -33,7 +34,7 @@ export const BUILDINGS = {
   },
   clay_pit: {
     name: 'Clay pit', w: 2, d: 2, cost: 50, upkeep: 5, workers: 6, priority: 'industry', category: 'industry',
-    needsRoad: true, terrain: 'clay', produces: { good: 'clay', perMonth: 40 }, producerReach: 12,
+    needsRoad: true, terrain: 'clay', terrainMin: 2, produces: { good: 'clay', perMonth: 40 }, producerReach: 12,   // Stage 4.6 (ruling 331): 2 of its 4 tiles on clay
   },
   potter: {
     name: 'Potter', w: 2, d: 2, cost: 90, upkeep: 8, workers: 8, priority: 'industry', category: 'industry',
@@ -122,6 +123,10 @@ export const BUILDINGS = {
   plaza: { name: 'Plaza', w: 1, d: 1, cost: 8, upkeep: 0, workers: 0, category: 'homes', needsRoad: false },
   sphinx: { name: 'Sphinx', w: 1, d: 1, cost: 150, upkeep: 0, workers: 0, category: 'homes', needsRoad: false },
   palace: { name: 'Palace', w: 3, d: 3, cost: 300, upkeep: 0, workers: 0, category: 'services', needsRoad: true, palace: true, oneOnly: true },
+  // Stage 4.6: the River track's nilometer, hunting lodge and fishing wharf, and the Armies track's archery range and stables
+  // (src/data/river.js RIVER_BUILDINGS, armies.js ARMY_BUILDINGS), joined by src/data/s46.js. Terrain-bound rows may carry
+  // terrainMin (how many footprint tiles must be its terrain; default all) and water ('touch' | 'longSide'): src/sim/fit.js.
+  ...S46_BUILDINGS,
   // The seven monuments (src/data/monuments.js): cost is the founding; a site has no workers or upkeep of its own (its
   // crews are the guilds'); rotates: the mastabas turn a quarter while placing (place's { rot }).
   ...Object.fromEntries(MONUMENT_KINDS.map((k) => {

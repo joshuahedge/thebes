@@ -18,7 +18,7 @@ describe('ui corner words', () => {
       const ctl = createSpeedControl({ world: w, store: createStore(INITIAL_UI_STATE) });
       ctl.mountCorner(root.querySelector('#c'));
       const main = root.querySelector('.speed-main');
-      const parts = () => [main.querySelector('.icon').textContent, main.querySelector('.word').textContent];
+      const parts = () => [main.querySelector('.face .icon').dataset.glyph, main.querySelector('.face .word').textContent];   // ruling 419: the picture is drawn; data-glyph names it
       expect(parts()).toEqual(['▶', 'Play']);
       expect(main.getAttribute('aria-label')).toBe(T.play);
       expect(main.querySelector('.icon').getAttribute('aria-hidden')).toBe('true');

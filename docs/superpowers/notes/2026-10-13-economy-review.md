@@ -154,3 +154,24 @@ The sensible opening never gets near 0 (lowest 1,266 of 2,000), so it needs no h
 6. Daily goals: drop the selling goal and reword "about five minutes": yes / no.
 7. Phase in the Town unemployment penalty over 6 months: yes / leave it.
 8. Late-game treasury pile (117k at year 10): leave as is / ask for a gold sink.
+
+## Stage 4.6 balance pass (13 Oct 2026, rulings 430-437)
+
+Measured with `tests/stage46/balance/villageRun.js` (the 10-year village on its 48-tile map with a side channel of the river, so its farms are on the floodplain and a wharf has water); the test is `tests/stage46/balance/balance.test.js`. Share = wages, upkeep and soldiers' pay over taxes, last 12 months.
+
+| Village | Before | After |
+|---|---|---|
+| Longrun village, no Stage 4.6 buildings | 68.2% | 68.2% |
+| Everything on top: 3 farms, 3 towers + lodge, wharf, archery range, court | 84.7% | 81.1% |
+| Stage 4.6 village: 2 farms, 2 towers + lodge, wharf, archery range, court | 71.9% (73.3% in years 2-7) | 68.2% (69.3% in years 2-7) |
+
+The longrun village already spends 68.2%, so any Stage 4.6 running cost on top pushes it past 70%: the three buildings cost 98 a month against 544 of taxes (18 points). No retune of Stage 4.6 numbers alone can hold the band with everything on top; the band holds when the new buildings do old jobs, which is how the Stage 4.6 village is built.
+
+- **430.** The Stage 4.6 balance village swaps its third farm for the wharf and lodge and its third tower for the archery range; the band is checked on it, and the everything-on-top village is measured (81.1%) but not held to it. — Cost if wrong: a player who builds all three on top of a full village runs at about 81% (still about +1,200 a year at 272 people).
+- **431.** Archers are paid 6 a month (was 8): an archer has two-thirds of a soldier's hp and damage. — Cost if wrong: archers are a little cheap to keep.
+- **432.** The archery range runs as a tower does: upkeep 8 and 4 workers (were 10 and 6); with 431 a range and its four archers cost 48 a month (were 66). — Cost if wrong: a range is cheap defence beside a barracks and its soldiers (48 against 68 a month).
+- **433.** A gift at favour 70+ is half a month to a month of taxes (gold) or of a good's output (was 1-2 months). Before: 13 gifts, 10,160 gold over 10 years, 16% of taxes and more than the everything-on-top village's whole profit (8,611); after: 5,090 gold, 8% of taxes and 26% of the Stage 4.6 village's profit, each 290-520 against 544 a month. — Cost if wrong: the court feels less generous.
+- **434.** The hunting lodge has 2 workers (was 3), since its herds give little after the first months (437). — Cost if wrong: none worth naming (12 gold a month either way).
+- **435.** The flood levels stay (Low 0.6). A Low year 5 on the longrun village leaves its granary at 333 at the lowest and no home hungry; Low years 5 and 6 on the Stage 4.6 village empty the granary for 8 months and still no home goes hungry; only a Low flood every year (not a real draw) leaves 2-4 of 17 homes hungry from year 5. — Cost if wrong: two Low years running bite a village without a granary.
+- **436.** Request amounts stay. In 10 years the village got 11 requests: gold 770-860 against 544 a month of taxes, fish 40-60 against the wharf's 20 a month, two soldiers' requests of 2 archers; every one was met within a month of its letter. — Cost if wrong: a gold request takes about six months of a small village's profit.
+- **437.** Finding, not tuned: the hunting lodge brings 11 game in 8 years. Hunters take up to 6 a month from a herd of 4-8 that regrows 1 every 2 months, so herds in reach are gone within a month or two; sustainable hunting needs a sim change (a yield per animal, or hunters who leave a breeding stock), not a number. — Cost if wrong: the lodge stays a token building until Stage 5.

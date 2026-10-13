@@ -5,7 +5,9 @@
 # for driving the interface into a state: open a sheet, pick a tool; what it returns is printed as "EVAL <value>".
 # -Measure is page JavaScript run after the settle time, just before the capture (awaited too), printed as
 # "MEASURE <value>" (tools/shots.ps1 -Mobile measures the rows under the top bar). -Dpr sets the device pixel ratio.
-param([string]$Url = '/', [string]$Out = 'shot.png', [int]$Width = 1280, [int]$Height = 800, [int]$BudgetMs = 1500, [string]$Eval = '', [double]$Dpr = 1, [string]$Measure = '')
+# -MaxSeconds is a hard limit: whatever hangs (a DevTools reply that never comes on a loaded machine, a crashed page),
+# a reaper stops this script, its Edge and its server after that many seconds, so a caller never waits forever.
+param([string]$Url = '/', [string]$Out = 'shot.png', [int]$Width = 1280, [int]$Height = 800, [int]$BudgetMs = 1500, [string]$Eval = '', [double]$Dpr = 1, [string]$Measure = '', [int]$MaxSeconds = 150)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") |
@@ -20,6 +22,10 @@ $server = Start-Process -FilePath python -ArgumentList "`"$(Join-Path $PSScriptR
 $profileDir = Join-Path $env:TEMP ('thebes-shot-' + [guid]::NewGuid().ToString('N'))
 $browser = $null
 $socket = $null
+$reaperScript = "Start-Sleep -Seconds $MaxSeconds; Stop-Process -Id $PID -Force -ErrorAction SilentlyContinue; Stop-Process -Id $($server.Id) -Force -ErrorAction SilentlyContinue; " +
+  "Get-CimInstance Win32_Process -Filter `"Name='msedge.exe'`" | Where-Object { `$_.CommandLine -like '*$(Split-Path -Leaf $profileDir)*' } | ForEach-Object { Stop-Process -Id `$_.ProcessId -Force -ErrorAction SilentlyContinue }"
+$reaperArgs = @('-NoProfile', '-EncodedCommand', [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($reaperScript)))
+$reaper = Start-Process -FilePath powershell -ArgumentList $reaperArgs -PassThru -WindowStyle Hidden
 try {
   $up = $false
   for ($i = 0; $i -lt 40 -and -not $up; $i++) {
@@ -99,6 +105,7 @@ try {
   [IO.File]::WriteAllBytes($outPath, [Convert]::FromBase64String($shot.result.data))
   if (Test-Path $outPath) { Write-Output "Wrote $outPath" } else { Write-Output 'NO SCREENSHOT'; exit 1 }
 } finally {
+  if ($reaper) { Stop-Process -Id $reaper.Id -Force -ErrorAction SilentlyContinue }
   if ($socket) { $socket.Dispose() }
   if ($browser) { Stop-Process -Id $browser.Id -Force -ErrorAction SilentlyContinue }
   Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue

@@ -1,7 +1,13 @@
-import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, newPrestigeUnlocks } from '../sim/world.js';
+import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, newPrestigeUnlocks } from '../sim/world.js';
 import { addClay } from '../sim/mapgen.js';
+import { floodplainOf } from '../sim/flood.js';
 import { MILESTONES } from '../data/progression.js';
 import { RAIDS } from '../data/raids.js';
+import { BUILDINGS } from '../data/buildings.js';
+import { S46_UNLOCKS } from '../data/s46.js';
+import { newFloodState, newWildlifeState } from '../data/river.js';
+import { newCourtState } from '../data/court.js';
+import { newArmyState, footMix } from '../data/armies.js';
 
 export const CURRENT_VERSION = WORLD_VERSION;
 
@@ -173,8 +179,65 @@ function v5ToV6(w) {
   };
 }
 
+// The Stage 4.6 build items a city of this milestone has already unlocked (each track's S46_UNLOCKS, src/data/s46.js), in the
+// milestones' order, so their cards say "New" (as Stage 3's and Stage 4's did).
+function stage46Unlocked(milestone) {
+  const reached = MILESTONES.findIndex((m) => m.id === milestone);
+  const out = [];
+  for (let i = 0; i <= reached; i++) for (const t of S46_UNLOCKS[MILESTONES[i].id] || []) out.push(t);
+  return out;
+}
+
+const isRec = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+// A raid record (a warning, the raid under way, the last report) with its mix by enemy kind: all on foot, as every raid before Stage
+// 4.6 was. Raiders under way are on foot. A record that is not one is left for validateWorld to report.
+const withMix = (r) => (isRec(r) && !isRec(r.mix) && Number.isInteger(r.size) ? { ...r, mix: footMix(r.size) } : r);
+function raidV7(raid) {
+  if (!isRec(raid)) return raid;
+  const active = withMix(raid.active);
+  if (isRec(active) && Array.isArray(active.raiders)) active.raiders = active.raiders.map((u) => (isRec(u) && u.kind === undefined ? { ...u, kind: 'foot' } : u));
+  return { ...raid, warning: withMix(raid.warning), active, last: withMix(raid.last) };
+}
+
+// v6 -> v7 (Stage 4.6, ruling 344). The city keeps its map: mapSize is its size (64 for every city from before), with no shape
+// choices (mapParams {}), and its floodplain is worked out from its terrain. The tracks' records start as a new city's do (each track's
+// own function: the flood not yet drawn, no herds, favour 50 with no letters, no units away). Every unit gets kind 'soldier', every
+// raid record its mix (all on foot) and every raider kind 'foot'; every monument, site or finished, is 'classic' (drawn as before).
+// The new tallies start at zero, and Stage 4.6 build items the city's milestone has unlocked join newItems. Every other field is kept
+// as it was. A malformed save is left for validateWorld to report.
+function v6ToV7(w) {
+  const tally = w.tally !== null && typeof w.tally === 'object' && !Array.isArray(w.tally) ? w.tally : {};
+  const buildings = {};
+  if (w.buildings && typeof w.buildings === 'object') {
+    for (const [id, b] of Object.entries(w.buildings)) {
+      const monument = isRec(b) && Object.hasOwn(BUILDINGS, b.type) && BUILDINGS[b.type].monument;
+      buildings[id] = monument ? { ...b, style: 'classic' } : b;
+    }
+  }
+  const cells = Number.isInteger(w.size) && w.size > 0 ? w.size * w.size : 0;
+  const floodplain = Array.isArray(w.terrain) && cells && w.terrain.length === cells ? floodplainOf(w.terrain, w.size) : [];
+  const items = Array.isArray(w.newItems) ? w.newItems.slice() : w.newItems;
+  if (Array.isArray(items)) for (const t of stage46Unlocked(w.milestone)) if (!items.includes(t)) items.push(t);
+  return {
+    ...w,
+    version: 7,
+    buildings,
+    newItems: items,
+    soldiers: Array.isArray(w.soldiers) ? w.soldiers.map((u) => (isRec(u) && u.kind === undefined ? { ...u, kind: 'soldier' } : u)) : w.soldiers,
+    raid: raidV7(w.raid),
+    tally: { ...tally, ...Object.fromEntries(STAGE46_TALLY.map((k) => [k, 0])) },
+    mapSize: w.size,
+    mapParams: {},
+    flood: newFloodState(),
+    floodplain,
+    wildlife: newWildlifeState(),
+    court: newCourtState(),
+    army: newArmyState(),
+  };
+}
+
 // Each entry upgrades a world from version N to N + 1. Add one whenever WORLD_VERSION goes up.
-export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6 };
+export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6, 6: v6ToV7 };
 
 // table and target are parameters so tests can drive a synthetic chain; production calls use the defaults.
 export function migrate(obj, table = MIGRATIONS, target = CURRENT_VERSION) {

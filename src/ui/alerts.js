@@ -19,8 +19,13 @@ import { el, button, clear, setText } from './components.js';
 // The sim has no severity field, so the UI decides (1a follow-up). CRITICAL_RANK is the banner's order (spec 6.3): how
 // soon harm lands. A fire no staffed firehouse reaches burns out in 10-15 s at 1x, a warning gives about 90 s, so the fire
 // is never hidden behind raiders who are months away (ruling 166).
-export const CRITICAL_RANK = ['raid', 'fire', 'raid_warning', 'debt', 'save_failed'];
+// Stage 4.6 (ruling 339): a letter from the court ('court_letter', src/sim/court.js) is ranked below an active raid, an uncovered fire
+// and a raid warning, and above debt.
+export const CRITICAL_RANK = ['raid', 'fire', 'raid_warning', 'court_letter', 'debt', 'save_failed'];
 export const CRITICAL = new Set(CRITICAL_RANK);
+// Ruling 413: a letter from the court (and its due reminder) is polite: it takes the alert row and its place in the order, but never the
+// critical-alert chime (onNewCritical) and never an assertive announcement. Harm that lands soon is what urges.
+export const POLITE = new Set(['court_letter']);
 
 const keyOf = (a) => `${a.code}:${a.id === undefined ? '' : a.id}:${a.level || ''}${a.count ? `:${a.count}` : ''}`;   // a count joins the key so "6 plots" becoming "7 plots" is announced
 const rankOf = (a) => CRITICAL_RANK.indexOf(a.code);
@@ -175,7 +180,7 @@ export function createAlerts({ world, banner, live, onView = () => {}, onAction 
     let fresh = false;
     if (criticalKeys !== lastCriticalKeys) {
       const before = new Set((lastCriticalKeys || '').split('|').filter(Boolean));
-      fresh = current.critical.some((a) => !before.has(keyOf(a)));
+      fresh = current.critical.some((a) => !POLITE.has(a.code) && !before.has(keyOf(a)));
       if (fresh) onNewCritical();   // a fresh problem, not a cleared one
       lastCriticalKeys = criticalKeys;
       step = 0;

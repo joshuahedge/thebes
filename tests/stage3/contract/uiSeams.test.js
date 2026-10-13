@@ -301,7 +301,7 @@ describe('s3 contract settings, title, sound and words', () => {
   });
   it('gives every track its own words object, and the contract its own words', () => {
     for (const o of [FIRE_TEXT, RAID_TEXT, ART_TEXT, DANGER_UI_TEXT, SCORE_TEXT, BALANCE_TEXT]) expect(o !== null && typeof o === 'object').toBe(true);
-    expect([T.soldiersPay, T.wallBuilt, reasonText('no_rubble')]).toEqual(["Soldiers' pay", 'Wall built', 'No rubble here']);
+    expect([T.soldiersPay, T.wallBuilt, reasonText('no_rubble')]).toEqual(['Army pay', 'Wall built', 'No rubble here']);
   });
   it('lets a track word its own alert codes through ALERT_TEXT, the one table alertText reads first', () => {
     const w = makeTestWorld();
