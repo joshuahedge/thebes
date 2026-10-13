@@ -88,4 +88,4 @@ export const REMARK_EVERY_MONTHS = 3;
 export const REMARK_SALT = 9301;
 // The seasons by month of the year (1-12): Akhet, the flood, months 7-10 (the water rises in 7, stands through 9 and drains in 10: FLOOD in
 // src/data/river.js); Peret, the growing, 11-2; Shemu, the harvest, 3-6 (Stage 4.6, ruling 346; they were 1-4, 5-8 and 9-12).
-export const SEASONS = ['shemu', 'shemu', 'shemu', 'shemu', 'shemu', 'shemu', 'akhet', 'akhet', 'akhet', 'akhet', 'peret', 'peret'];
+export const SEASONS = ['peret', 'peret', 'shemu', 'shemu', 'shemu', 'shemu', 'akhet', 'akhet', 'akhet', 'akhet', 'peret', 'peret'];   // months 1-2 Peret, as ruling 346 says (they read Shemu until the wave 2 integration)

@@ -835,7 +835,7 @@ A score says how well the city is doing, in a way you can compare between cities
 
 **More for the early game** (each passes the test "skipping it costs you nothing"):
 - The endowed start and the next-threshold bar (section 4.1), and the "+N" previews above.
-- **Citizen remarks.** Short lines in the caption row ("The potters say the clay is good this year"), at most one every 3 game-months and only when the caption row is free (on phones, the guidance row, section 6.3). Each is chosen by `hash2(seed, month index)` from a pool of at least 24 in `text.js`, by season (Akhet: months 1-4, Peret: 5-8, Shemu: 9-12), and only from remarks whose building the city has. They follow the Help setting (none when Help is Off).
+- **Citizen remarks.** Short lines in the caption row ("The potters say the clay is good this year"), at most one every 3 game-months and only when the caption row is free (on phones, the guidance row, section 6.3). Each is chosen by `hash2(seed, month index)` from a pool of at least 24 in `text.js`, by season (Akhet, the flood: months 7-10; Peret: 11-2; Shemu: 3-6. Stage 4.6, ruling 346, moved them from 1-4, 5-8 and 9-12 so the remarks agree with the flood in months 7-9 and its draining in 10), and only from remarks whose building the city has. They follow the Help setting (none when Help is Off).
 - **A soft coin tick** when the month's taxes arrive (if sound is on), and **a ripple** on each home that a newly placed well first waters (a ring fading in place under Gentle motion, none under Still). Section 5.4.
 
 **Danger in the goals and rewards** (data plus words, as in Stage 2):

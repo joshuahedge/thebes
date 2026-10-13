@@ -24,7 +24,7 @@ const yearOf = (w) => Math.floor(w.day / YEAR) + 1;
 
 describe('s46 river flood: the calendar (ruling 346)', () => {
   it('puts Akhet on months 7-10 (the flood and its draining), Peret on 11-2 and Shemu on 3-6', () => {
-    expect(SEASONS.map((s, i) => `${i + 1}:${s}`).join(' ')).toBe('1:shemu 2:shemu 3:shemu 4:shemu 5:shemu 6:shemu 7:akhet 8:akhet 9:akhet 10:akhet 11:peret 12:peret');
+    expect(SEASONS.map((s, i) => `${i + 1}:${s}`).join(' ')).toBe('1:peret 2:peret 3:shemu 4:shemu 5:shemu 6:shemu 7:akhet 8:akhet 9:akhet 10:akhet 11:peret 12:peret');
     const akhet = SEASONS.map((s, i) => (s === 'akhet' ? i + 1 : 0)).filter(Boolean);
     expect(akhet).toEqual([...FLOOD.months, ...FLOOD.drainMonths]);                       // the data and the calendar agree
   });
