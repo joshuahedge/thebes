@@ -68,12 +68,12 @@ export function bannerModel(world, critical) {
     const q = tributeQuote(world);
     // Track B's raid_warning fix words the same towers the defence line does (ruling 6: D words the banner's defence),
     // so with a quote the row carries the title and the defence line only, never the defence twice.
-    if (q) { m.defence = D.defenceLine(q, top.dir); m.tribute = !q.hidden; m.fix = ''; }
+    if (q) { m.defence = D.defenceLine(q, q.dirs); m.tribute = !q.hidden; m.fix = ''; }
     // Spec 6.3: the title carries the countdown ("… storehouses. They arrive in 2 months 12 days."), so it stays at
     // every text size; the chip abbreviates it. raidDay brings the raiders in on the arrives day (src/sim/raids.js).
     const left = Math.max(0, top.arrives - world.day);
     m.title = D.withArrival(m.title, left);
-    m.chip = D.chip(top.dir, left);
+    m.chip = D.chip(top.dirs || top.dir, left);
   }
   return m;
 }

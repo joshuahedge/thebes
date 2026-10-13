@@ -59,9 +59,10 @@ describe('s3 contract data', () => {
   });
   it('sets the raid, unit, defence and festival numbers of spec 4.13', () => {
     expect(RAIDS).toEqual({
-      clockPeople: 250, firstWarnAfter: 720, warningDays: 90, laterMin: 720, laterMax: 1440, firstSize: 3, minSize: 2, maxSize: 12,
+      clockPeople: 250, firstWarnAfter: 720, warningDays: 90, laterMin: 720, laterMax: 1440, firstSize: 3, minSize: 2, maxSize: 18, growthPerYear: 0.1, growthMax: 1.5,
       peoplePerRaider: 125, wealthBase: 5000, wealthStep: 5000, wealthMax: 4, adaptLost: 0.6, adaptStep: 0.2, raidersPerTower: 3,
       tributeShare: 0.8, strikes: 3, strikeDays: 2, stealShare: 0.01, stealMin: 5, stealMax: 50, retreatShare: 0.5,
+      twoSidedFrom: 3, twoSidedChance: 0.35, pillage: [null, 'granary', 'house'], foodShare: 0.5, fleeShare: 0.25,
       targets: ['trading_post', 'storehouse', 'bazaar', 'temple'],
     });
     for (const t of RAIDS.targets) expect(Boolean(BUILDINGS[t])).toBe(true);

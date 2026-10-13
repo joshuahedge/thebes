@@ -172,15 +172,15 @@ export function tributeSheet(ctx) {
     const w = world.raid.warning;
     const left = Math.max(0, w.arrives - world.day);
     const phone = Boolean(ctx.store) && ctx.store.get().layout !== 'wide';
-    const title = alertText({ code: 'raid_warning', dir: w.dir }, world).title;
+    const title = alertText({ code: 'raid_warning', dir: w.dir, dirs: q.dirs }, world).title;
     const arrives = el('p', { class: 'arrives', text: phone || q.hidden ? D.withArrival(title, left) : D.arrivalLine(left) });   // as the banner says it
-    if (q.hidden) { setTitle(D.raidSheetTitle); body.append(arrives, el('p', { text: D.capital(D.defenceLine(q, w.dir)) })); return; }
+    if (q.hidden) { setTitle(D.raidSheetTitle); body.append(arrives, el('p', { text: D.capital(D.defenceLine(q, q.dirs)) })); return; }
     body.append(
       el('p', { class: 'tribute-cost', text: D.tributeCost(q.cost) }),
       arrives,
       row(D.goldNow, String(world.gold)), row(D.goldAfter, String(world.gold - q.cost)),
-      el('p', { class: 'cancels', text: D.cancels(w.dir, q.size) }),
-      el('p', { class: 'small muted', text: D.capital(D.defenceLine(q, w.dir)) }),
+      el('p', { class: 'cancels', text: D.cancels(q.dirs, q.size) }),
+      el('p', { class: 'small muted', text: D.capital(D.defenceLine(q, q.dirs)) }),
     );
     if (!q.payable) body.append(el('p', { class: 'why-not coral', text: D.tributeBelowZero(world.gold) }));
     const pay = button(D.payGold(q.cost), { class: 'pay', disabled: !q.payable, onClick: () => {
