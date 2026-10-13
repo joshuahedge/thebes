@@ -2,6 +2,9 @@
 // Describe names start with 's46 wave2'.
 import { describe, it, expect } from '../../harness.js';
 import { rigUI } from '../../helpers/uiWorld.js';
+import { makeTestWorld, setRoad } from '../../helpers/testWorld.js';
+import { fire } from '../../helpers/dom.js';
+import { PICKABLE_STYLES } from '../../../src/data/wonders.js';
 import { S46_UX_TEXT, SPEED_LABELS, T } from '../../../src/ui/text.js';
 
 const rect = (node) => node.getBoundingClientRect();
@@ -69,5 +72,41 @@ describe('s46 wave2 play and pause', () => {
       r.ui.speedControl.set(2);
       expect(bar.getAttribute('aria-description')).toBe(S46_UX_TEXT.playingState(SPEED_LABELS[2]));
     } finally { r.cleanup(); }
+  });
+});
+
+// ── The style picker fits (ruling 420) ──
+describe('s46 wave2 style picker fits', () => {
+  const capital = () => {
+    const w = makeTestWorld({ gold: 20000 });
+    setRoad(w, 0, 10, 31, 10);
+    w.milestone = 'capital';
+    w.prestigeUnlocks.pyramid_small = 0;
+    return w;
+  };
+  it('shows the whole name of every style button, whichever is in force, in the wide side panel and on phones, at 100% and 150% text', async () => {
+    for (const [w, h] of [[1280, 800], [390, 844], [375, 667]]) {
+      for (const size of [100, 150]) {
+        const r = await rigUI({ width: w, height: h, world: capital() });
+        try {
+          r.ui.settings.set({ textSize: size });
+          r.ui.placement.start({ kind: 'building', type: 'pyramid_small' });
+          r.ui.placement.moveGhost(20, 11);
+          for (const style of PICKABLE_STYLES) {
+            fire(r.root.querySelector(`#confirm .style-pick[data-style="${style}"]`), 'click');
+            const bar = rect(r.root.querySelector('#confirm .confirm'));
+            const picks = [...r.root.querySelectorAll('#confirm .style-pick')];
+            expect(picks.length).toBe(3);
+            for (const b of picks) {
+              const box = rect(b), at = `${w}x${h} ${size}% ${style} in force: ${b.dataset.style}`;
+              expect([at, b.scrollWidth <= b.clientWidth + 0.5, box.left >= bar.left - 0.5, box.right <= bar.right + 0.5, box.height >= 43.5]).toEqual([at, true, true, true, true]);
+            }
+            expect(picks.find((b) => b.dataset.style === style).textContent.startsWith('✓')).toBe(true);
+          }
+          const rows = new Set([...r.root.querySelectorAll('#confirm .style-pick')].map((b) => Math.round(rect(b).top)));
+          if (w >= 375) expect([w, h, size, rows.size]).toEqual([w, h, size, 1]);   // one row on these screens
+        } finally { r.cleanup(); }
+      }
+    }
   });
 });
