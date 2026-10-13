@@ -114,12 +114,12 @@ describe('s45 forecast (the sim)', () => {
 });
 
 describe('s45 forecast (cards and the confirm bar)', () => {
-  it('puts "Upkeep N a month · N workers" on every card that has a bill, from the sim, and nothing on roads, plots and monuments', () => {
+  it('puts "Costs N a month · N workers" on every card that has a bill, from the sim, and nothing on roads, plots and monuments', () => {
     const w = city();
     w.milestone = 'capital';                                          // every card unlocked
-    expect(cardInfo(w, 'farm_grain').upkeepText).toBe('Upkeep 46 a month · 10 workers');
-    expect(cardInfo(w, 'well').upkeepText).toBe('Upkeep 3 a month');
-    expect(cardInfo(w, 'booth').upkeepText).toBe(`Upkeep ${monthlyBill('booth').bill} a month · 4 workers`);
+    expect(cardInfo(w, 'farm_grain').upkeepText).toBe('Costs 46 a month · 10 workers');
+    expect(cardInfo(w, 'well').upkeepText).toBe('Costs 3 a month');
+    expect(cardInfo(w, 'booth').upkeepText).toBe(`Costs ${monthlyBill('booth').bill} a month · 4 workers`);
     for (const t of ['road', 'house', 'demolish', 'statue', 'wall']) expect([t, cardInfo(w, t).upkeepText]).toEqual([t, '']);
     for (const category of ['homes', 'services', 'food', 'industry', 'defence', 'monuments']) {
       for (const item of shownItems(w, category)) {
@@ -133,11 +133,11 @@ describe('s45 forecast (cards and the confirm bar)', () => {
     try {
       r.store.set({ dock: 'tray', category: 'food' });
       const farm = r.root.querySelector('.card[data-item="farm_grain"]');
-      expect(farm && farm.querySelector('.upkeep').textContent).toBe('Upkeep 46 a month · 10 workers');
+      expect(farm && farm.querySelector('.upkeep').textContent).toBe('Costs 46 a month · 10 workers');
       expect(farm.querySelector('.upkeep').title).toBe(S45_TEXT.upkeepTitle(monthlyBill('farm_grain')));
     } finally { r.cleanup(); }
   });
-  it('says "Upkeep N a month" and "Monthly balance becomes +X or -X" in the bar, computed by the sim, with a staffed workforce or none', () => {
+  it('says "Costs N a month" and "Monthly balance becomes +X or -X" in the bar, computed by the sim, with a staffed workforce or none', () => {
     for (const residents of [0, 100]) {
       const w = makeTestWorld({ gold: 5000 });
       setRoad(w, 0, 10, 31, 10);
@@ -148,7 +148,7 @@ describe('s45 forecast (cards and the confirm bar)', () => {
       expect(['ok', 'warn']).toContain(p.state);
       expect(p.warnings.includes('needs_road')).toBe(false);
       const net = balanceWith(w, 'farm_grain');
-      expect([residents, p.upkeep, p.balance, p.balanceNet]).toEqual([residents, 'Upkeep 46 a month · 10 workers', `Monthly balance becomes ${S45_TEXT.signed(net)}`, net]);
+      expect([residents, p.upkeep, p.balance, p.balanceNet]).toEqual([residents, 'Costs 46 a month · 10 workers', `Monthly balance becomes ${S45_TEXT.signed(net)}`, net]);
       addRaw(w, 'farm_grain', 2, 11);
       assignLabour(w);
       expect(monthFigures(w).net).toBe(net);                          // and the month, once built, is that
@@ -158,7 +158,7 @@ describe('s45 forecast (cards and the confirm bar)', () => {
     const w = makeTestWorld({ gold: 5000 });
     setRoad(w, 0, 10, 31, 10);
     const lone = toolPreview(w, { ...INITIAL_UI_STATE, tool: { kind: 'building', type: 'temple' }, ghost: { x: 20, y: 20 } });
-    expect([lone.warnings.includes('needs_road'), lone.upkeep, lone.balance]).toEqual([true, 'Upkeep 34 a month · 6 workers', '']);
+    expect([lone.warnings.includes('needs_road'), lone.upkeep, lone.balance]).toEqual([true, 'Costs 34 a month · 6 workers', '']);
     for (const tool of [{ kind: 'road' }, { kind: 'houses' }, { kind: 'demolish' }]) {
       const p = toolPreview(w, { ...INITIAL_UI_STATE, tool, ghost: null });
       expect([tool.kind, p ? p.upkeep || '' : '', p ? p.balance || '' : '']).toEqual([tool.kind, '', '']);
@@ -170,7 +170,7 @@ describe('s45 forecast (cards and the confirm bar)', () => {
       r.ui.placement.start({ kind: 'building', type: 'well' }, { x: 16, y: 9 });
       r.ui.placement.moveGhost(16, 9);
       const bar = r.root.querySelector('#confirm');
-      expect(bar.querySelector('.cost').textContent).toBe(`${BUILDINGS.well.cost} gold · Upkeep 3 a month`);
+      expect(bar.querySelector('.cost').textContent).toBe(`${BUILDINGS.well.cost} gold · Costs 3 a month`);
       const net = balanceWith(r.world, 'well');
       expect(bar.querySelector('.balance').textContent).toBe(S45_TEXT.balanceLine(net));
       expect(bar.querySelector('.balance').classList.contains('coral')).toBe(net < 0);
@@ -307,7 +307,7 @@ describe('s45 forecast (the warning tip)', () => {
   };
   it('is the one new tip, on its own trigger, with words short enough for the tip row', () => {
     const tip = TIPS.find((x) => x.id === 'treasury_low');
-    expect([tip.trigger, tip.priority, TIPS.filter((x) => x.trigger === 'treasuryLow').length]).toEqual(['treasuryLow', false, 1]);
+    expect([tip.trigger, tip.priority, TIPS.filter((x) => x.trigger === 'treasuryLow').length]).toEqual(['treasuryLow', true, 1]);
     expect(TIP_TEXT.treasury_low.split(/\s+/).length).toBeLessThanOrEqual(20);
     expect(TIP_HELP_TEXT.treasury_low).toBe(S45_TEXT.warnTipHelp);
     expect(S45_TEXT.warnTipHelp).toContain(`${FORECAST.warnMonths} months`);
@@ -330,6 +330,16 @@ describe('s45 forecast (the warning tip)', () => {
       expect(r.store.get().sheet).toEqual({ kind: 'info', id: big.id });
       r.ui.onEvents([{ type: 'month' }]);                             // once only: it was seen
       expect(r.ui.tips.current()).toBe(null);
+    } finally { r.cleanup(); }
+  });
+  it('is a priority tip: it fires seconds after another tip, past the tip gap', async () => {
+    const world = lowCity();
+    const r = await make(world);
+    try {
+      expect(r.ui.tips.trigger('arrivals')).toBe(true);                // another tip was shown just now: the gap would hold an ordinary one
+      expect(r.ui.tips.current()).toBe('arrivals');
+      r.ui.onEvents([{ type: 'month' }]);
+      expect(r.ui.tips.current()).toBe('treasury_low');
     } finally { r.cleanup(); }
   });
   it('stays quiet while the treasury is deep, or the month gains, however negative the month is', async () => {

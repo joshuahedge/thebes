@@ -42,7 +42,7 @@ export function monthForecast(world) {
 }
 
 // What one building costs a month when it is fully staffed: its upkeep plus ECONOMY.wagePerWorker for each of its workers
-// (the card's "Upkeep 46 a month · 10 workers" for a farm).
+// (the card's "Costs 46 a month · 10 workers" for a farm).
 export function monthlyBill(type) {
   const def = BUILDINGS[type];
   return { upkeep: def.upkeep, workers: def.workers, wages: def.workers * ECONOMY.wagePerWorker, bill: def.upkeep + def.workers * ECONOMY.wagePerWorker };

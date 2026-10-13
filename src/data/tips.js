@@ -65,7 +65,7 @@ const TIPS_S4_BALANCE = [
 // shows the treasury going below 0 within FORECAST.warnMonths. Its words name the city's own numbers and its Show me points at the
 // building that costs the most a month (createUI).
 const TIPS_S45 = [
-  { id: 'treasury_low', trigger: 'treasuryLow', priority: false },             // a month ended with the treasury forecast below 0 within 3 months
+  { id: 'treasury_low', trigger: 'treasuryLow', priority: true },              // a month ended with the treasury forecast below 0 within 3 months
 ];
 // ── end s45 ──
 

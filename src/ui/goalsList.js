@@ -171,7 +171,7 @@ export function createGoalsStrip({ container, world, onShowMe, onOpen, onSkipGui
     const progress = el('span', { class: 'chip small', role: 'img' });
     const text = el('span', { class: 'text' });
     const showMe = showMeButton(goal, onShowMe);
-    const label = el('span', { class: 'label small muted' });   // "Goal", or the opening chain's count ("1 of 10")
+    const label = el('span', { class: 'label small muted' });   // "Goal", or the opening chain's count ("1 of 11")
     if (shownPhone) {
       // One row (ruling 170): the label, the words and the progress are one flow of words, two lines at most, on the button
       // that opens the goal in place (P8); then Show me. Open, the reward, All goals and Skip guide show too.

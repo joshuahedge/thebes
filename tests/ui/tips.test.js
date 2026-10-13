@@ -139,7 +139,7 @@ describe('ui tips', () => {
       expect(r.tips.trigger('monthEnd')).toBe(false);                          // one at a time
       expect(r.tips.trigger('plotsPaused', { busy: true })).toBe(true);        // priority: past a tool, and it replaces the tip
       expect(r.tips.current()).toBe('press_play');
-      expect(TIPS.filter((t) => t.priority).map((t) => t.id)).toEqual(['press_play']);
+      expect(TIPS.filter((t) => t.priority).map((t) => t.id)).toEqual(['press_play', 'treasury_low']);
     } finally { r.cleanup(); }
     const early = rig();
     try { expect(early.tips.trigger('plotsPaused')).toBe(true); }             // and before the first delay

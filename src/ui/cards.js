@@ -64,7 +64,7 @@ export function cardInfo(world, item) {
   const isNew = !locked && (world.newItems || []).includes(item);
   // terrainText: "Fertile land" or "Rocky ground" for a building that needs it (placement review P15), "Not on the fields" for a monument (ruling 299)
   // (spec 4.4), else ''.
-  // Stage 4.5 (Task 4b): what the building costs a month when fully staffed, from the sim (monthlyBill): "Upkeep 46 a month · 10 workers".
+  // Stage 4.5 (Task 4b): what the building costs a month when fully staffed, from the sim (monthlyBill): "Costs 46 a month · 10 workers".
   const bill = BUILDINGS[item] && !locked ? monthlyBill(item) : null;
   const upkeep = bill && bill.bill > 0 ? { text: S45_TEXT.upkeepLine(bill), title: S45_TEXT.upkeepTitle(bill) } : { text: '', title: '' };
   return { item, name: buildingName(item), cost, costText, affordable: canAfford(world, cost), locked, lockText: locked ? lockTextOf(world, item) : '', isNew, terrainText: isMonumentItem(item) ? UI4_TEXT.groundCard : CONDITION_TEXT.terrainLine(item, true), upkeepText: upkeep.text, upkeepTitle: upkeep.title };
@@ -97,7 +97,7 @@ function costLine(info) {
   return info.cost ? [el('span', { class: 'coin', 'aria-hidden': 'true' }), info.costText] : [info.costText];
 }
 
-// "Upkeep 46 a month" and, after it, " · 10 workers" in a span of its own (css hides that part from the eye at large text).
+// "Costs 46 a month" and, after it, " · 10 workers" in a span of its own (css hides that part from the eye at large text).
 function upkeepSpan(item, info) {
   const bill = monthlyBill(item), crew = S45_TEXT.upkeepCrew(bill);
   return el('span', { class: 'upkeep', title: info.upkeepTitle }, [el('span', { class: 'bill', text: S45_TEXT.upkeepBill(bill) }), crew ? el('span', { class: 'crew', text: crew }) : null]);

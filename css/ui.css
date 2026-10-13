@@ -1028,7 +1028,7 @@ body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .forecast .sh
 .card .upkeep { margin-top: -3px; font-size: calc(12px * var(--ui-scale)); line-height: 1.15; color: var(--ink-soft); }
 /* The upkeep line is up to two lines on a 124 px card (a farm's has the ground line besides), so a card gives back a few px to keep every tray inside --dock-tray. */
 .card { gap: 2px; padding: 5px 8px; }
-/* At 125% text and more the card keeps "Upkeep 46 a month" and leaves "· 10 workers" to screen readers and the tip (a wrapped third line would push the tray past its height). */
+/* At 125% text and more the card keeps "Costs 46 a month" and leaves "· 10 workers" to screen readers and the tip (a wrapped third line would push the tray past its height). */
 body:is([data-text-size="125"], [data-text-size="150"]) .card .upkeep .crew { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .card .thumb { height: 47px; }
 #confirm .balance { white-space: normal; }

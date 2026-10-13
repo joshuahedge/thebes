@@ -79,7 +79,7 @@ describe('ui layout: landscape phones and large text', () => {
     const r = await rigUI({ width: 844, height: 390, now: () => t, world: runningUiWorld() });
     r.renderer.renderFrame = () => {};
     try {
-      r.ui.settings.set({ textSize: 150 });
+      r.ui.settings.set({ textSize: 150, seenTips: ['treasury_low'] });
       settle(r.world, []);
       t = TIP_FIRST_DELAY_MS;
       debt(r, true);
