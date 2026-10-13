@@ -153,6 +153,8 @@ export function readLetter(world, id) {
 }
 
 // ── Requests (ruling 337) ──
+// The most a gold request may ask: REQUESTS.amounts.gold.reserve of the treasury, rounded down to the step (ruling 383).
+const goldCap = (world) => { const A = REQUESTS.amounts.gold; return Math.floor((world.gold * A.reserve) / A.step) * A.step; };
 // The amount a request asks for (see REQUESTS.amounts): kind 'goods' / 'food' for the good, 'gold' for months of taxes, 'soldiers' for a
 // share of the units at home.
 function askAmount(world, kind, good, id) {
@@ -166,7 +168,7 @@ function askAmount(world, kind, good, id) {
     const taxes = monthFigures(world).taxes;
     const base = taxes > 0 ? taxes : world.gold * 0.1;
     const amount = roundTo(base * span(A.months, u) * costScale(world), A.step, A.min);
-    return Math.min(amount, Math.max(A.min, Math.floor((world.gold * A.reserve) / A.step) * A.step));
+    return Math.min(amount, goldCap(world));
   }
   return roundTo(outputPerMonth(world, good) * span(A.months, u) * costScale(world), A.step, A.min);
 }
@@ -182,7 +184,7 @@ function rewardOf(world, kind, good, amount, id) {
 function askableKinds(world, id) {
   return REQUEST_KINDS.filter((k) => {
     if (k === 'goods' || k === 'food') return askableGoods(world, k, id).length > 0;
-    if (k === 'gold') return world.gold >= REQUESTS.amounts.gold.min;
+    if (k === 'gold') return goldCap(world) >= REQUESTS.amounts.gold.min;   // the ask never passes REQUESTS.amounts.gold.reserve of the treasury (ruling 383)
     return unitsHome(world) >= 2;
   });
 }
@@ -539,6 +541,9 @@ function endEffects(world) {
   if (!c.effects.length) return;
   const keep = [];
   for (const e of c.effects) {
+    // A building the player has taken off pause since the court paused it is theirs again: the court lets go of it, so it does not
+    // undo a pause the player sets later in the same month (ruling 382).
+    if (e.kind === 'pause') e.ids = e.ids.filter((id) => world.buildings[id] && world.buildings[id].paused);
     if (e.kind === 'pause' && world.day >= e.until) {
       for (const id of e.ids) if (world.buildings[id]) world.buildings[id].paused = false;
     } else keep.push(e);

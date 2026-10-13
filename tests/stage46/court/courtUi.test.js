@@ -8,7 +8,7 @@ import { allBuildings } from '../../../src/sim/world.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { courtDay, stockOf, cardChoices, favourBand, favourTributeFactor, favourRaidSize } from '../../../src/sim/court.js';
 import { COURT, FAVOUR, REQUESTS } from '../../../src/data/court.js';
-import { S46_COURT_TEXT as C, alertText } from '../../../src/ui/text.js';
+import { S46_COURT_TEXT as C, courtRuleLow, alertText } from '../../../src/ui/text.js';
 import { createS46Seams } from '../../../src/ui/s46/index.js';
 import { createCourtUi } from '../../../src/ui/s46/court.js';
 import { COURT_SCENES } from '../../../src/dev/s46/court.js';
@@ -278,6 +278,37 @@ describe('s46 court ui: the summary and the court sheet', () => {
     expect([favourRaidSize(r.world, 8), favourTributeFactor(r.world)]).toEqual([8, 1]);
     open(r, 'court');
     expect(sheetText(r)).toContain(C.bandNow.steady);
+  });
+  test('words the low-favour raid rule from the data: the percentage and the one-raider minimum, tested against the sim with the step changed (ruling 384)', async () => {
+    const r = await rig();
+    r.world.court.favour = FAVOUR.low;
+    const grown = (size, step) => size + Math.max(1, Math.round(size * step));
+    expect(favourRaidSize(r.world, 8)).toBe(grown(8, FAVOUR.raidStep));
+    expect(C.ruleLow).toContain(`${Math.round(FAVOUR.raidStep * 100)}% more, at least 1 raider`);
+    const saved = FAVOUR.raidStep;
+    try {
+      for (const step of [0.5, 0.1]) {
+        FAVOUR.raidStep = step;                                                   // retuned: the sim moves, and the words built from a copy of the data move with it
+        expect([step, favourRaidSize(r.world, 8)]).toEqual([step, grown(8, step)]);
+        expect(courtRuleLow({ ...FAVOUR })).toContain(`${Math.round(step * 100)}% more, at least 1 raider`);
+      }
+    } finally { FAVOUR.raidStep = saved; }
+    open(r, 'court');
+    expect(sheetText(r)).toContain(C.ruleLow);
+  });
+  test('keeps the letter on show when another arrives while the sheet is open, so a tap on Send never lands on a card', async () => {
+    const r = await rig();
+    open(r, 'letter');
+    expect(sheetText(r)).toContain('Send 60 pottery');
+    const id = r.world.court.nextId++;
+    r.world.court.letters.push({ id, kind: 'card', card: 'flood_omen', day: r.world.day, read: false, args: {} });
+    r.world.day += 1;
+    r.ui.refresh();
+    expect(sheetText(r)).toContain('Send 60 pottery');
+    expect(r.root.querySelector('#sheet .letter').getAttribute('data-letter') === String(id)).toBe(false);
+    fire(r.root.querySelector('#sheet .next-letter'), 'click');                  // the player asks for the next one: now it shows
+    expect(r.root.querySelector('#sheet .letter').getAttribute('data-letter')).toBe(String(id));
+    r.cleanup();
   });
   test('lists the letters waiting, the units away and the past letters, newest first', async () => {
     const r = await rig();

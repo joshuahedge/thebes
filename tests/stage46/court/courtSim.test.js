@@ -239,6 +239,21 @@ describe('s46 court requests', () => {
     courtDay(w);
     expect(w.court.request.id).toBeGreaterThan(first.id);
   });
+  it('never asks for more gold than the reserve share of the treasury, and does not ask at all when that is under the minimum (ruling 383)', () => {
+    const A = REQUESTS.amounts.gold;
+    const asked = (gold, seed) => {
+      const v = courtWorld({ seed });
+      v.court.awake = true; v.court.guided = 'answered'; v.court.nextRequestDay = YEAR; v.day = YEAR;
+      v.gold = gold;
+      courtDay(v);
+      return v.court.request;
+    };
+    for (let seed = 1; seed <= 60; seed++) {
+      expect(Boolean(asked(150, seed) && asked(150, seed).kind === 'gold')).toBe(false);          // 50% of 150 is under the 100 minimum
+      const r = asked(300, seed);
+      if (r && r.kind === 'gold') expect(r.amount).toBeLessThanOrEqual(Math.floor(300 * A.reserve));
+    }
+  });
   it('can ask for soldiers only of a city with two or more units, never all of them, and for gold only of a city that has it', () => {
     const w = courtWorld({ seed: 3 });
     withUnits(w, 1);
