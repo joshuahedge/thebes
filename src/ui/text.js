@@ -1525,14 +1525,15 @@ export const TIP_HELP_TEXT = {
 // (A stable separator between the Stage 4 sections: leave these lines as they are.)
 //
 // ── s4 cards (Track G) ───────────────────────────────────────────────────────────────────────────────────────────
-// Track G's words: the six picture cards (titles, words, alt text), How to play, the Music rows and the reworded opening
+// Track G's words: the picture cards (titles, words, alt text), How to play, the Music rows and the reworded opening
 // goals and their whys (ruling 265). Add new lines just above the end marker.
 // "About four in ten people work" (the food card) is the sim's own share (ECONOMY.workerShare, src/sim/labour.js).
 const CARDS4_TENS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 export const cards4WorkShare = (share = ECONOMY.workerShare) => `About ${CARDS4_TENS[Math.max(0, Math.min(10, Math.round(share * 10)))]} in ten people work`;
-// The last card's words: fires and raiders to guard against, but on Peaceful (raids: false, src/data/difficulty.js) the city
-// never starts a raid clock, so there it names fires alone. The pause sentence is the same at every level.
-export const cards4Ahead = (raids = true) => `Later come fires ${raids ? 'and raiders ' : ''}to guard against, and monuments to raise. Pause any time: nothing happens while you plan.`;
+// The last card's words: fires, raiders, sickness and thieves to guard against, but on Peaceful (raids: false, src/data/difficulty.js)
+// the city never starts a raid clock and, with it (threatsOn is raidsOn, src/sim/costs.js), has no sickness or thieves either, so there
+// it names fires alone. The pause sentence is the same at every level.
+export const cards4Ahead = (raids = true) => `Later come fires${raids ? ', raiders, sickness and thieves' : ''} to guard against, and monuments to raise. Pause any time: nothing happens while you plan.`;
 export const CARDS4_TEXT = {
   // The Settings sheet's Music rows (spec 5.5, ruling 269).
   music: 'Music', musicVolume: 'Music volume', quieter: 'Quieter music', louder: 'Louder music',
@@ -1621,7 +1622,6 @@ export const S45_TEXT = {
   // treasury would run out within FORECAST.amberMonths. A card says what one building costs when fully staffed; the confirm bar adds the
   // balance with it. The summary's section is headed by what the balance is.
   signed: (n) => `${n >= 0 ? '+' : '−'}${Math.abs(n)}`,
-  chip: (net) => `${net >= 0 ? '+' : '−'}${Math.abs(net)} a month`,
   chipLabel: (f) => `Forecast ${f.net >= 0 ? 'plus' : 'minus'} ${Math.abs(f.net)} a month${f.runsOut ? `; ${f.gold < 0 ? 'the treasury is below 0' : `the treasury runs out in about ${plural(monthsText(f.monthsLeft), 'month', 'months')}`}` : ''}`,
   upkeepBill: (b) => `Costs ${b.bill} a month`,
   upkeepCrew: (b) => (b.workers ? ` · ${plural(b.workers, 'worker', 'workers')}` : ''),
@@ -1634,7 +1634,6 @@ export const S45_TEXT = {
   monthlyBalance: 'Monthly balance',
   runsOutIn: (monthsLeft) => `At this rate the treasury runs out in about ${plural(monthsText(monthsLeft), 'month', 'months')}`,
   belowZero: 'The treasury is below 0',
-  forecastLasts: 'The treasury is growing',
   // The one-time warning tip (its Show me points at the building that costs the most a month).
   warnTip: (f, big) => `${f.gold < 0 ? 'The treasury is below 0' : S45_TEXT.runsOutIn(f.monthsLeft)}.${big ? ` ${buildingName(big.type)} costs the most: ${big.cost} a month.` : ''}`,
   warnTipHelp: `If the treasury would go below 0 within ${FORECAST.warnMonths} months, a tip names the building that costs the most.`,
@@ -1694,10 +1693,10 @@ Object.assign(ALERT_TEXT, {
 });
 Object.assign(MOOD_NAMES, { thefts: CRIME_TEXT.mood });
 // The Health and Crime overlays' names, legends and bands (src/data/health.js, crime.js): a band says the risk points it starts at, as
-// the fire overlay's do; the top band of Health is an ill home or one that can fall ill, of Crime one that can cause a theft.
+// the fire overlay's do; the top band of Health is a home at the threshold that can fall ill (and an ill one), of Crime one that can cause a theft.
 import { HEALTH_BANDS as healthBandStarts } from '../data/health.js';
 import { CRIME_BANDS as crimeBandStarts } from '../data/crime.js';
-const healthBandNames = ['Low', 'Rising', 'High', 'Ill or can fall ill'];
+const healthBandNames = ['Low', 'Rising', 'High', 'Can fall ill'];
 const crimeBandNames = ['Low', 'Rising', 'High', 'Can cause a theft'];
 const bandWords = (name, noun, starts, k) => {
   const from = starts[k], next = starts[k + 1];
@@ -1711,10 +1710,17 @@ Object.assign(OVERLAY_LEGEND, {
 Object.assign(DANGER_UI_TEXT, {
   // The top band holds an ill home as well (its risk points went back to 0 when it fell ill), then homes at HEALTH.threshold or more.
   healthBand: (k) => (k === healthBandStarts.length - 1
-    ? { label: healthBandNames[k], words: `${healthBandNames[k]}: ill, or health risk ${healthNumbers.threshold} or more` }
+    ? { label: healthBandNames[k], words: `${healthBandNames[k]}: health risk ${healthNumbers.threshold} or more (a home already ill is marked here too)` }
     : bandWords(healthBandNames[k], 'health', healthBandStarts, k)),
   crimeBand: (k) => bandWords(crimeBandNames[k], 'crime', crimeBandStarts, k),
   homesOnlyNote: 'Homes with people in them',
+  // The strip of a Health or Crime overlay before its threat has begun, or on Peaceful: nothing is drawn, and the strip says why.
+  // The milestone is HEALTH.startsAt or CRIME.startsAt, named as the milestones are.
+  threatNotStarted: (kind, peaceful) => {
+    if (peaceful) return kind === 'health' ? 'There is no sickness on Peaceful' : 'There are no thieves on Peaceful';
+    const m = MILESTONES.find((x) => x.id === (kind === 'health' ? healthNumbers.startsAt : crimeNumbersRow.startsAt));
+    return kind === 'health' ? `Sickness starts when your city is a ${m.name}` : `Thieves start when your city is a ${m.name}`;
+  },
 });
 // The health and crime rows on a home's sheet and the physician's and police post's own rows (src/ui/dangerSheets.js healthRowModel,
 // crimeRowModel). Each reason is healthCause's or crimeCause's, the one the alerts word; "twice as fast" is HEALTH.coverFactor.

@@ -17,10 +17,10 @@ import { ART, slotFor } from './art/registry.js';
 import { GUIDE_PULSE_MS, DESIRABILITY_STEPS, VIEW_OUTLINE } from '../data/ui.js';
 import { DEFENCE } from '../data/raids.js';
 import { canBurn, fireRiskOf, fireBand, staffedCover } from '../sim/fire.js';
-import { healthBandOf, healthCoverage, canFallIll } from '../sim/health.js';
+import { healthBandOf, healthCoverage, canFallIll, healthStarted } from '../sim/health.js';
 import { HEALTH } from '../data/health.js';
 import { CRIME } from '../data/crime.js';
-import { crimeBand, crimeRiskOf, crimeCoverage, canCommitCrime } from '../sim/crime.js';
+import { crimeBand, crimeRiskOf, crimeCoverage, canCommitCrime, crimeStarted } from '../sim/crime.js';
 import { MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
 import { drawMonument } from './monuments.js';
 
@@ -399,6 +399,7 @@ function drawFireRisk(g, world, range) {
 // nothing. homeRiskMarks is the list the draw and the tests share.
 export function homeRiskMarks(world, kind, range = null) {
   const out = [];
+  if (!(kind === 'health' ? healthStarted(world) : crimeStarted(world))) return out;   // before the threat starts, and on Peaceful, no home is marked
   const cover = kind === 'health' ? healthCoverage(world) : crimeCoverage(world), staffedAt = kind === 'health' ? HEALTH.staffedAt : CRIME.staffedAt;   // read once, not per home
   for (const b of housesOf(world)) {
     if (kind === 'health' ? !canFallIll(b) : !canCommitCrime(b)) continue;

@@ -12,6 +12,8 @@ import { startTool as startToolPatch, cancelTool, select } from './modes.js';
 import { palaceOf } from '../sim/palace.js';
 import { AUTO_OVERLAY, NEAREST_FIT_RADIUS } from '../data/ui.js';
 import { homesServedFrom } from '../sim/housing.js';
+import { homesCoveredBy } from '../sim/health.js';
+import { crimeHomesCoveredBy } from '../sim/crime.js';
 import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
 import { housesOf } from '../sim/world.js';
 import { costOf, workGoldPerUnit } from '../sim/costs.js';
@@ -165,6 +167,17 @@ export function firehouseReachFrom(world, x, y) {
   return n;
 }
 
+// The homes a service would reach from the ghost's spot, counted as its own sheet will count them: the physician and the police
+// post count homes with people in them (homesCoveredBy, crimeHomesCoveredBy: the sheets' "Covers N homes"), so the bar and the
+// sheet agree; the water, food, faith and play services count every housing plot (homesServedFrom). Uncached either way.
+export function serviceHomesFrom(world, type, x, y) {
+  const def = BUILDINGS[type];
+  const p = { x, y, w: def.w, d: def.d };
+  if (type === 'physician') return homesCoveredBy(world, p, { cache: false });
+  if (type === 'police_post') return crimeHomesCoveredBy(world, p, { cache: false });
+  return homesServedFrom(world, type, x, y);
+}
+
 // A ghost's first warning in words. A producer with no store in reach that takes its good names the store it needs; when a
 // store there is built to hold the good but refuses it, the line says so, so the accept switch is not hidden.
 function warningLine(world, type, x, y, code) {
@@ -220,7 +233,7 @@ function basePreview(world, state) {
     // A service says how many homes it would reach from here (early-game pass 2.6); a firehouse, how many buildings that
     // can burn (Stage 3); other buildings say nothing.
     const effect = tool.type === 'firehouse' ? DANGER_UI_TEXT.firehouseCovers(firehouseReachFrom(world, x, y))
-      : def.reach ? effectText(tool.type, homesServedFrom(world, tool.type, x, y)) : '';
+      : def.reach ? effectText(tool.type, serviceHomesFrom(world, tool.type, x, y)) : '';
     const text = !warn ? '' : c.warnings[0] === 'needs_road' && joins.length ? CONDITION_TEXT.roadHint : warningLine(world, tool.type, x, y, c.warnings[0]);
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: c.warnings, text, effect, cost, count: 1, tiles: [], refund: 0, ...extra };
   }

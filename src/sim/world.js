@@ -33,7 +33,7 @@ export const STAGE3_TALLY = ['fires', 'blazesOut', 'firesOut', 'burned', 'rubble
 // Stage 4's (spec 4.16, 4.19, 4.20): stone and bricks laid on monuments, stone and bricks delivered to sites (by a quarry,
 // a brickworks or a site's draw from a storehouse), courses finished, monuments finished and palace enlargements paid for.
 export const STAGE4_TALLY = ['stoneLaid', 'bricksLaid', 'stoneDelivered', 'bricksDelivered', 'courses', 'monumentsDone', 'enlargements'];
-// Stage 4.5's (world version 6; Task 5 counts them): illnesses begun and cured, thefts and the gold they took.
+// Stage 4.5's (world version 6; src/sim/health.js and crime.js count them): illnesses begun and cured, thefts and the gold they took.
 export const STAGE45_TALLY = ['illnesses', 'illnessesCured', 'thefts', 'theftGold'];
 export const newTally = () => ({
   harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0, made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0,
@@ -153,7 +153,7 @@ export function makeBuilding(world, type, x, y, rot = 0) {
   const dims = dimsOf(type, rot);
   // risk: fire risk points (spec 4.12); fire: null, or the blaze or fire burning in it (src/sim/fire.js).
   const b = { id: world.nextId++, type, x, y, w: dims.w, d: dims.d, rot: dims.rot, staff: 0, paused: false, store: {}, progress: 0, blocked: null, risk: 0, fire: null };
-  // Stage 4.5 (world version 6): a home's disease and crime risk points (health, crime; Task 5 builds them) and its illness (null, or the illness it has).
+  // Stage 4.5 (world version 6): a home's disease and crime risk points (health, crime; src/sim/health.js and crime.js build them) and its illness (null, or the illness it has).
   if (type === 'house') Object.assign(b, { tier: 0, residents: 0, stock: {}, met: {}, downTimer: 0, leftThisMonth: 0, stockedFor: 0, health: 0, crime: 0, illness: null });
   if (type === 'storehouse') b.accepts = {};   // good -> false where the player refused it (setAccept, spec 4.10)
   if (def.monument) b.site = newSite();          // Stage 4: a monument is founded as a site (spec 4.16)

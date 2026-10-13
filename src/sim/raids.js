@@ -284,8 +284,9 @@ export function raidAlerts(world) {
   return out;
 }
 
-// Where each raider stands in the band's tile, by its id: the centre and eleven spots around it.
-const SLOTS = [[0, 0], [0.25, 0.2], [-0.25, 0.2], [0.25, -0.2], [-0.25, -0.2], [0, 0.32], [0, -0.32], [0.32, 0], [-0.32, 0], [0.16, 0.34], [-0.16, -0.34], [0.34, -0.16]];
+// Where each raider stands in the band's tile, by its id: the centre and eighteen spots around it, one for each of the most a raid can
+// total (RAIDS.maxSize 18, and a two-sided raid adds one). A band's ids run in a row, so no two raiders in a band share a spot.
+const SLOTS = [[0, 0], [0.25, 0.2], [-0.25, 0.2], [0.25, -0.2], [-0.25, -0.2], [0, 0.32], [0, -0.32], [0.32, 0], [-0.32, 0], [0.16, 0.34], [-0.16, -0.34], [0.34, -0.16], [-0.16, 0.34], [0.16, -0.34], [-0.34, 0.16], [-0.34, -0.16], [0.34, 0.16], [0.12, -0.1], [-0.12, 0.1]];
 function placeBand(a, k = 0) {
   const rec = bandRec(a, k);
   for (const u of crewOf(a, k)) {

@@ -108,6 +108,18 @@ describe('s45 world v6', () => {
     for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) expect(v6.terrain[idx(v5.size, 40 + dx, 10 + dy)]).toBe(v5.terrain[idx(v5.size, 40 + dx, 10 + dy)]);
     expect(validateWorld(v6)).toBe(true);
   });
+  it('drops the selling daily goal from today\'s picks, snapshots and done list on the way to 6, and leaves the other goals and a day with none alone', () => {
+    const v5 = v5City();
+    v5.daily = { date: '2026-10-12', picks: ['pottery30', 'sell20', 'gardens3'], base: { pottery30: 0, sell20: 4, gardens3: 1 }, done: ['sell20', 'gardens3'], swapped: false };
+    const d = MIGRATIONS[5](v5).daily;
+    expect(d).toEqual({ date: '2026-10-12', picks: ['pottery30', 'gardens3'], base: { pottery30: 0, gardens3: 1 }, done: ['gardens3'], swapped: false });
+    expect(validateWorld(MIGRATIONS[5](v5))).toBe(true);
+    const kept = { date: '2026-10-12', picks: ['pottery30', 'gardens3'], base: { pottery30: 0, gardens3: 1 }, done: [], swapped: true };
+    v5.daily = kept;
+    expect(MIGRATIONS[5](v5).daily).toEqual(kept);
+    v5.daily = null;
+    expect(MIGRATIONS[5](v5).daily).toBe(null);
+  });
   it('runs through migrate and deserialize, and reports a malformed version 5 save as corrupt', () => {
     const v5 = v5City();
     expect(migrate(v5)).toEqual(MIGRATIONS[5](v5));

@@ -51,7 +51,7 @@ function isStage4Building(b) {
   if (def.palace && !(Number.isInteger(b.style) && b.style >= 0 && b.style < PALACE_STYLES.length && isWorks(b.works))) return false;
   return true;
 }
-// Stage 4.5 (version 6): a home's health and crime risk points and its illness (null or a record; Task 5 owns what is inside).
+// Stage 4.5 (version 6): a home's health and crime risk points and its illness (null or a record; src/sim/health.js owns what is inside).
 const isStage45Building = (b) => b.type !== 'house' || (Number.isFinite(b.health) && Number.isFinite(b.crime) && (b.illness === null || isRecord(b.illness)));
 const isUnlockDays = (u) => isRecord(u) && PRESTIGE_UNLOCKS.every((k) => isDay(u[k]));
 

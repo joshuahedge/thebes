@@ -11,6 +11,9 @@ import { DESIRABILITY_STEPS } from '../data/ui.js';
 import { FIRE_BANDS } from '../data/fire.js';
 import { HEALTH_BANDS } from '../data/health.js';
 import { CRIME_BANDS } from '../data/crime.js';
+import { healthStarted } from '../sim/health.js';
+import { crimeStarted } from '../sim/crime.js';
+import { threatsOn } from '../sim/costs.js';
 import { toggleOverlay, cycleOverlay } from './modes.js';
 import { OVERLAY_NAMES, OVERLAY_LEGEND, desirabilityBand, groundThing, groundRoomText, T, DANGER_UI_TEXT, UI4_TEXT } from './text.js';
 import { el, iconButton, clear } from './components.js';
@@ -122,7 +125,8 @@ export function createOverlayLegend({ container, store, world = null }) {
 
   function render() {
     const s = store.get(), kind = s.overlay, room = roomWords(s);
-    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}`;
+    const off = world && (kind === 'health' || kind === 'crime') && !(kind === 'health' ? healthStarted(world) : crimeStarted(world));
+    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}|${off ? 'off' : ''}`;
     if (key === lastKey) return;
     lastKey = key;
     clear(container);
@@ -132,6 +136,7 @@ export function createOverlayLegend({ container, store, world = null }) {
     const close = iconButton(T.overlayOff, '✕', { class: 'close quiet', onClick: () => store.set(toggleOverlay(store.get(), kind)) });
     let keys;
     if (kind === 'fire') keys = [scale(kind), el('span', { class: 'fire-keys' }, [...dotKeys(kind), el('span', { class: 'text small never-burn', text: DANGER_UI_TEXT.neverBurnNote })])];
+    else if ((kind === 'health' || kind === 'crime') && world && !(kind === 'health' ? healthStarted(world) : crimeStarted(world))) keys = [el('span', { class: 'text small never-burn', text: DANGER_UI_TEXT.threatNotStarted(kind, !threatsOn(world)) })];   // nothing is drawn yet: the strip says why
     else if (kind === 'health' || kind === 'crime') keys = [scale(kind), el('span', { class: 'fire-keys' }, [...dotKeys(kind), el('span', { class: 'text small never-burn', text: DANGER_UI_TEXT.homesOnlyNote })])];   // Stage 4.5: the fire strip's layout
     else if (graded) keys = [scale(kind)];
     else if (kind === 'ground') keys = [groundKeys(room)];

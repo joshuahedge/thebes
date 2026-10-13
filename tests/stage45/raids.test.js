@@ -208,6 +208,19 @@ describe('s45 two bands on the map', () => {
     expect(a.raiders.filter((u) => !u.band).every((u) => near(u, EAST))).toBe(true);
     expect(a.raiders.filter((u) => u.band).every((u) => near(u, NORTH))).toBe(true);
   });
+  it('stands every raider of a full band on its own spot: 18 in one band, and the biggest two-sided raid (19) in both', () => {
+    const spots = (list) => new Set(list.map((u) => `${u.x.toFixed(3)},${u.y.toFixed(3)}`)).size;
+    const one = city();
+    warnTwo(one, { size: RAIDS.maxSize });
+    delete one.raid.warning.second;
+    raidDay(one);
+    expect([one.raid.active.raiders.length, spots(one.raid.active.raiders)]).toEqual([18, 18]);
+    const two = city();
+    warnTwo(two, { size: RAIDS.maxSize + 1 });
+    raidDay(two);
+    const a = two.raid.active.raiders;
+    expect([a.length, spots(a.filter((u) => !u.band)), spots(a.filter((u) => u.band))]).toEqual([19, 10, 9]);
+  });
   it('moves each band on its own, and the raid is over only when both have left: lost, with both directions in the report', () => {
     const w = city();
     addRaw(w, 'storehouse', 6, 15);

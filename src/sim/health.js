@@ -192,8 +192,8 @@ export function illnessDaysLeft(world, b) {
 
 // The homes a physician at this home's place would cover now: homes with people in them within its road reach (the sheet's
 // "Covers N homes"; same test as healthCoverage, which also needs the physician working).
-export function homesCoveredBy(world, p) {
-  const reach = roadReach(world, p, HEALTH.reach);
+export function homesCoveredBy(world, p, opts) {
+  const reach = roadReach(world, p, HEALTH.reach, opts);
   let n = 0;
   for (const h of housesOf(world)) if (canFallIll(h) && adjacentRoadTilesOf(world, h).some((t) => reach.has(t))) n++;
   return n;
