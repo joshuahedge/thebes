@@ -14,7 +14,7 @@ import { allBuildings } from '../sim/world.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
 import { isWorking, staffRatio } from '../sim/labour.js';
 import { canBurn, fireStarted, fireRiskOf, fireBand, fireCause, clearRubble } from '../sim/fire.js';
-import { tributeQuote, payTribute } from '../sim/raids.js';
+import { tributeQuote, payTribute, warningDirs } from '../sim/raids.js';
 import { healthStarted, canFallIll, healthCause, healthFactors, healthBandOf, illnessDaysLeft, homesCoveredBy } from '../sim/health.js';
 import { crimeStarted, canCommitCrime, crimeCause, crimeFactors, crimeBand, crimeRiskOf, crimeHomesCoveredBy } from '../sim/crime.js';
 import { festivalStatus, holdFestival } from '../sim/festival.js';
@@ -23,7 +23,8 @@ import { canAfford } from '../sim/money.js';
 import { dateParts } from '../sim/clock.js';
 import { idx } from '../sim/grid.js';
 import { el, button } from './components.js';
-import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT } from './text.js';
+import { armyRowsModel } from './s46/armies.js';
+import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT, S46_ARMY_TEXT } from './text.js';
 
 const D = DANGER_UI_TEXT;
 const centre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
@@ -151,13 +152,16 @@ function towerRows(world, b) {
   return out;
 }
 
+// Stage 4.6 (Armies track, ruling 381): the barracks counts its soldiers away at the capital toward its four, as trainSoldiers
+// does (src/sim/combat.js), so the rows read armyRowsModel's held count and status, the same as the archery range's and stables'.
 function barracksRows(world, b) {
-  const n = world.soldiers.filter((s) => s.barracks === b.id).length;
-  const out = [row(D.soldiers, `${n} of ${DEFENCE.soldiersPerBarracks}`), row(D.patrol, D.tiles(DEFENCE.patrol))];
-  if (n >= DEFENCE.soldiersPerBarracks) out.push(line(D.barracksFull(n, DEFENCE.soldiersPerBarracks)));   // a full barracks trains none
-  else if (inFireStage(b)) out.push(line(D.notTrainingBurning));
-  else if (b.paused) out.push(line(D.notTrainingPaused));
-  else if (!isWorking(world, b)) out.push(line(D.notTrainingUntil(needed('barracks'), BUILDINGS.barracks.workers)));
+  const m = armyRowsModel(world, b);
+  const awayN = m.away.reduce((s, g) => s + g.n, 0);
+  const out = [row(D.soldiers, S46_ARMY_TEXT.ofCap(m.n, m.cap, awayN)), row(D.patrol, D.tiles(DEFENCE.patrol))];
+  if (m.status === 'full') out.push(line(S46_ARMY_TEXT.full('soldier', m.n, m.cap, awayN)));   // a full barracks trains none
+  else if (m.status === 'burning') out.push(line(D.notTrainingBurning));
+  else if (m.status === 'paused') out.push(line(D.notTrainingPaused));
+  else if (m.status === 'short') out.push(line(D.notTrainingUntil(m.short, BUILDINGS.barracks.workers)));
   else out.push(line(D.trains(DEFENCE.trainDays)));
   out.push(line(D.soldiersPay(DEFENCE.soldierPay)));
   if (world.raid.last) out.push(line(D.lastRaidSoldiers(world.raid.last)));
@@ -219,6 +223,30 @@ export function summaryParts(ctx) {
   return [el('h3', { text: D.lastRaid }), el('p', { class: 'raid-report', text: D.raidReport(last) }), line(D.endedOn(dateText(dateParts({ day: last.day }))))];
 }
 
+// Stage 4.6 (Armies track, rulings 341, 388, 388a): a raid that brings more than raiders on foot names its kinds in the sheet's
+// arrival line, its first words under the cost (arrivalText), and lists, under its heading at the end, each kind it brings and what
+// helps against it, read from the matchup table (S46_ARMY_TEXT.counters: src/sim/armies.js counterModel). An all-foot raid's sheet
+// is as before.
+const isMixed = (w) => Boolean(w && w.mix && S46_ARMY_TEXT.isMixedMix(w.mix));
+export function counterParts(w) {
+  if (!isMixed(w)) return [];
+  return [
+    el('h3', { class: 'raid-counters-head', text: S46_ARMY_TEXT.countersHead }),
+    el('ul', { class: 'raid-counters' }, S46_ARMY_TEXT.counters(w.mix).map((t) => el('li', { text: t }))),
+  ];
+}
+// The sheet's arrival line for warning w, `left` days out. On a phone (and on the first raid's sheet) it carries the warning's
+// title, `title`, as the banner says it; on a wide screen, whose banner shows the title above, the arrival alone. A mixed raid's
+// kinds join it once: "14 raiders from the east are after your storehouses: 8 on foot, 3 archers, 3 chariots. They arrive in 2
+// months." on a phone, "14 raiders from the east: 8 on foot, 3 archers, 3 chariots. They arrive in 2 months." on a wide screen.
+export function arrivalText(w, title, left, withTitle) {
+  const D = DANGER_UI_TEXT;
+  if (!isMixed(w)) return withTitle ? D.withArrival(title, left) : D.arrivalLine(left);
+  if (withTitle) return D.withArrival(`${title}: ${S46_ARMY_TEXT.mixText(w.mix)}`, left);
+  const from = `the ${[...new Set(warningDirs(w))].map((d) => D.dir(d)).join(' and ')}`;
+  return D.withArrival(S46_ARMY_TEXT.mixLine(w.size, from, w.mix), left);
+}
+
 // The tribute confirmation sheet (spec 4.13): the cost, when the raiders arrive, the gold afterwards, what it cancels and
 // what it does not, two buttons named for their outcome and neither the default; the rule's own words when it cannot be
 // paid. On phones it is also the raid sheet (ruling 167): the countdown chip's words open it, so its arrival line carries
@@ -234,14 +262,15 @@ export function tributeSheet(ctx) {
     const left = Math.max(0, w.arrives - world.day);
     const phone = Boolean(ctx.store) && ctx.store.get().layout !== 'wide';
     const title = alertText({ code: 'raid_warning', dir: w.dir, dirs: q.dirs }, world).title;
-    const arrives = el('p', { class: 'arrives', text: phone || q.hidden ? D.withArrival(title, left) : D.arrivalLine(left) });   // as the banner says it
-    if (q.hidden) { setTitle(D.raidSheetTitle); body.append(arrives, el('p', { text: D.capital(D.defenceLine(q, q.dirs)) })); return; }
+    const arrives = el('p', { class: isMixed(w) ? 'arrives raid-mix' : 'arrives', text: arrivalText(w, title, left, phone || q.hidden) });   // as the banner says it
+    if (q.hidden) { setTitle(D.raidSheetTitle); body.append(arrives, el('p', { text: D.capital(D.defenceLine(q, q.dirs)) }), ...counterParts(w)); return; }
     body.append(
       el('p', { class: 'tribute-cost', text: D.tributeCost(q.cost) }),
       arrives,
       row(D.goldNow, String(world.gold)), row(D.goldAfter, String(world.gold - q.cost)),
       el('p', { class: 'cancels', text: D.cancels(q.dirs, q.size) }),
       el('p', { class: 'small muted', text: D.capital(D.defenceLine(q, q.dirs)) }),
+      ...counterParts(w),
     );
     if (!q.payable) body.append(el('p', { class: 'why-not coral', text: D.tributeBelowZero(world.gold) }));
     const pay = button(D.payGold(q.cost), { class: 'pay', disabled: !q.payable, onClick: () => {

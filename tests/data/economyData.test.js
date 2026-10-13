@@ -7,6 +7,7 @@ import { DESIRABILITY, HOUSE_DESIRABILITY } from '../../src/data/desirability.js
 import { PARTNERS, CARAVAN_EVERY_MONTHS, PRICE_DRIFT, TRADE_REACH, ARBITRAGE_MARGIN } from '../../src/data/trade.js';
 import { PRIORITY_LEVELS } from '../../src/data/labour.js';
 import { TERRAIN_BY_NAME } from '../../src/sim/terrain.js';
+import { S46_BUILDINGS } from '../../src/data/s46.js';
 
 const STAGE2 = ['garden', 'statue', 'farm_fig', 'clay_pit', 'potter', 'storehouse', 'booth', 'trading_post',
   'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller'];
@@ -156,7 +157,7 @@ describe('data milestones to Capital', () => {
     expect(Object.fromEntries(MILESTONES.map((m) => [m.id, m.unlocks]))).toEqual({
       village: ['house', 'well', 'farm_grain', 'granary', 'bazaar', 'temple', 'garden', 'firehouse'],
       town: ['farm_fig', 'clay_pit', 'potter', 'storehouse', 'booth', 'statue', 'palace', 'physician'],
-      market_town: ['trading_post', 'wall', 'tower', 'barracks', 'police_post'],
+      market_town: ['trading_post', 'wall', 'tower', 'barracks', 'police_post', 'archery_range', 'stables'],   // Stage 4.6: the Armies track's (ruling 387)
       city: ['farm_barley', 'brewery', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'plaza'],
       great_city: ['farm_flax', 'weaver', 'colossus', 'mastaba_small', 'sphinx'],
       capital: ['gem_mine', 'jeweller', 'mastaba_large'],
@@ -182,7 +183,8 @@ describe('data desirability', () => {
   it('gives every building but housing the spec 4.7 values, and only buildings that exist', () => {
     const types = Object.keys(BUILDINGS).filter((t) => t !== 'house');
     expect(Object.keys(DESIRABILITY).sort()).toEqual(types.sort());
-    expect(DESIRABILITY).toEqual({
+    // Stage 4.6 (ruling 389): a track building's values come from its own row (each track tests its own); the rest are spec 4.7's.
+    expect(Object.fromEntries(Object.entries(DESIRABILITY).filter(([t]) => !S46_BUILDINGS[t]))).toEqual({
       garden: [3, 2, 1], statue: [8, 6, 4, 2], temple: [6, 6, 4, 4, 2, 2], booth: [3, 2, 1],
       bazaar: [-2, -1, 0, 1, 2, 3], well: [1], granary: [-8, -6, -4, -2], storehouse: [-6, -4, -2],
       farm_grain: [-2, -1], farm_fig: [-2, -1], farm_barley: [-2, -1], farm_flax: [-2, -1],

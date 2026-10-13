@@ -755,7 +755,13 @@ export const RAID_TEXT = {
 Object.assign(ALERT_TEXT, {
   raid_warning: (alert, world) => {
     const w = world.raid.warning;
-    return { title: `Raiders from ${duiFrom(alert.dirs || alert.dir)} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: RAID_TEXT.towers(world) };
+    // Stage 4.6 (Armies track, rulings 341, 388): a raid with more than raiders on foot says how many come ("14 raiders from the east
+    // are after ...", short enough for the wide banner's one line) and names its kinds where there is room: first in the fix (the
+    // alert list) and in the raid sheet's arrival line (dangerSheets.js arrivalText).
+    const mixed = w && w.mix && S46_ARMY_TEXT.isMixedMix(w.mix);
+    const who = mixed ? `${w.size} raiders from ${duiFrom(alert.dirs || alert.dir)}` : `Raiders from ${duiFrom(alert.dirs || alert.dir)}`;
+    const towers = RAID_TEXT.towers(world);
+    return { title: `${who} are after your ${RAID_TEXT.targets(w ? w.target : 'building')}`, fix: mixed ? `${capitalised(S46_ARMY_TEXT.mixText(w.mix))}${towers ? `. ${towers}` : ''}` : towers };
   },
   raid: (alert, world) => {
     const a = world.raid.active;
@@ -840,15 +846,18 @@ Object.assign(DANGER_UI_TEXT, {
 // D2: captions, the raid report and the Settings rows. A blaze or a fire goes out only where a firehouse reaches it
 // (src/sim/fire.js: a covered and staffed blaze, a covered fire at 25% x coverage a day), so the caption names the
 // firehouse. The report reads raid.last's fields (src/sim/raids.js): size, towers, byTowers, bySoldiers, burned, stolen.
-const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.stolen ? `${r.stolen} gold stolen` : '', r.foodStolen ? `${r.foodStolen} food stolen` : '', r.fled ? `${plural(r.fled, 'resident', 'residents')} fled` : ''].filter(Boolean).join(', ') || 'nothing lost';
+// Stage 4.6 (Armies track): archers and chariots stopped, and towers enemy archers brought down (raid.last's byArchers, byChariots,
+// towersLost, present only when not 0).
+const duiUnitsStopped = (r) => [r.byArchers ? `archers stopped ${r.byArchers}` : '', r.byChariots ? `chariots stopped ${r.byChariots}` : ''];
+const duiLosses = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.towersLost ? plural(r.towersLost, 'tower fell', 'towers fell') : '', r.stolen ? `${r.stolen} gold stolen` : '', r.foodStolen ? `${r.foodStolen} food stolen` : '', r.fled ? `${plural(r.fled, 'resident', 'residents')} fled` : ''].filter(Boolean).join(', ') || 'nothing lost';
 function duiRaidReport(r) {
   const from = `Raid from ${duiFrom(r.dirs || r.dir)}`;
   if (r.won) {
-    const stopped = [r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : ''].filter(Boolean);
+    const stopped = [r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : '', ...duiUnitsStopped(r)].filter(Boolean);
     return `${from} beaten: ${stopped.length ? `${stopped.join(', ')}; ` : ''}${duiLosses(r)}.`;
   }
   const did = listText([r.burned ? `burned ${plural(r.burned, 'building', 'buildings')}` : '', r.stolen ? `took ${r.stolen} gold` : '', r.foodStolen ? `took ${r.foodStolen} food` : '', r.fled ? `drove out ${plural(r.fled, 'resident', 'residents')}` : ''].filter(Boolean));
-  const stopped = [r.byTowers ? `Towers stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `${r.byTowers ? 'soldiers' : 'Soldiers'} stopped ${r.bySoldiers}` : ''].filter(Boolean);
+  const stopped = [r.byTowers ? `Towers stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `${r.byTowers ? 'soldiers' : 'Soldiers'} stopped ${r.bySoldiers}` : '', ...duiUnitsStopped(r)].filter(Boolean);
   return `${from}: ${did ? `raiders ${did}` : 'the raiders struck and left'}.${stopped.length ? ` ${stopped.join(', ')}.` : ''}`;
 }
 Object.assign(DANGER_UI_TEXT, {
@@ -967,7 +976,7 @@ export function scoreReasonText(r) {
     case 'no_bazaar': return `${plural(r.n, 'home has', 'homes have')} no bazaar`;
     case 'plain': return `Homes average ${r.value} of 50 desirability`;
     case 'fire_cover': return `No staffed firehouse reaches ${r.dir ? SCORE_SIDE_STREETS[r.dir] : plural(r.n, 'building', 'buildings')}`;
-    case 'towers': return `A raid this size needs ${plural(r.need, 'tower', 'towers')}; you have ${r.towers} working${r.soldiers ? ` and ${plural(r.soldiers, 'soldier', 'soldiers')}` : ''}`;
+    case 'towers': return `A raid this size needs ${plural(r.need, 'tower', 'towers')}; you have ${r.towers} working${r.soldiers ? ` and ${plural(r.soldiers, 'army unit', 'army units')}` : ''}`;   // every unit kind (score.js, ruling 386)
     case 'burned': return `${plural(r.n, 'building', 'buildings')} burned in the last year`;
     case 'raid_lost': return SCORE_TEXT.raidLost;
     default: return '';
@@ -2057,7 +2066,99 @@ TIP_HELP_TEXT.court_letters = `The court writes from ${MILESTONES.find((x) => x.
 // The Armies track's words, and only the Armies track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
 // FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
 // states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
-export const S46_ARMY_TEXT = {};
+// Every track's section shares this module's top-level scope, so the Armies track's own names start with "arm" (its imports too,
+// renamed with "as"; imports are hoisted, so they sit here in the section). Every number is the data's: UNIT_TYPES, ENEMY_TYPES,
+// ARMY and the matchup table (src/data/armies.js), and the counters are counterModel's (src/sim/armies.js).
+import { UNIT_TYPES as armUnits, ARMY as armArmy, ENEMY_KINDS as armEnemyKinds, matchup as armMatchup } from '../data/armies.js';
+import { counterModel as armCounterModel, unitsAtHome as armUnitsAtHome, feedTypes as armFeedTypes } from '../sim/armies.js';
+import { DAYS_PER_MONTH as armMonthDays } from '../sim/time.js';
+const armCap = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
+// The enemy kinds as a mix names them ("8 on foot, 4 archers, 2 chariots, 3 by boat"), and the units as the counters name them.
+const armEnemyWords = { foot: (n) => `${n} on foot`, archer: (n) => plural(n, 'archer', 'archers'), chariot: (n) => plural(n, 'chariot', 'chariots'), boat: (n) => `${n} by boat` };
+const armUnitPlural = { soldier: 'soldiers', archer: 'archers', chariot: 'chariots' };
+const armUnitOne = { soldier: 'soldier', archer: 'archer', chariot: 'chariot' };
+// The situations of the matchup table (src/data/armies.js SITUATIONS), as the counters say them.
+const armSituationWords = {
+  wall: 'on a wall or tower', melee: 'in melee', open: 'in the open', nearWall: `within ${armArmy.wallNear} tiles of a wall`, gate: 'holding a gate or breach',
+};
+const armFactor = (f) => (f === 0.5 ? 'half' : `${f}x`);
+const armMonths = (days) => Math.max(1, Math.round(days / armMonthDays));
+const armA = (noun) => `${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}`;
+const armM = (u, e, s) => armFactor(armMatchup(u, e, s));
+export const S46_ARMY_TEXT = {
+  enemy: armEnemyWords, unitPlural: armUnitPlural, unitOne: armUnitOne, situation: armSituationWords, factor: armFactor,
+  // A raid's mix, the kinds it has in ENEMY_KINDS order: "8 on foot, 4 archers, 2 chariots" ('' for an empty mix).
+  mixText: (mix) => armEnemyKinds.filter((k) => mix && mix[k] > 0).map((k) => armEnemyWords[k](mix[k])).join(', '),
+  // The warning's line (ruling 341): "14 raiders from the east: 8 on foot, 4 archers, 2 chariots".
+  mixLine: (size, from, mix) => `${armCap(plural(size, 'raider', 'raiders'))} from ${from}: ${S46_ARMY_TEXT.mixText(mix)}`,
+  isMixedMix: (mix) => armEnemyKinds.some((k) => k !== 'foot' && mix[k] > 0),
+  countersHead: 'What helps against them',
+  // One line per enemy kind in the mix, from counterModel (the matchup table and the enemy's row): "4 archers: they shoot towers
+  // from 4 tiles, then your units. Your chariots in the open deal 2x; soldiers holding a gate or breach 1.5x."
+  counterLine(c) {
+    const t = c.traits, said = [];
+    if (t.shootsTowers) said.push(`they shoot towers from ${t.range} tiles, then your units`);
+    if (t.lands) said.push(`they land on a river bank within ${t.landWithin} tiles of the city`);
+    // Their pace, from ENEMY_TYPES speeds as raids.js moves a band (ruling 383): a kind faster than the band it rides in keeps the
+    // band's pace while slower raiders are with it; a band of it alone is faster than raiders on foot.
+    const go = c.kind === 'chariot' ? 'ride' : 'move';
+    if (t.speed > t.pace) said.push(`they ${go} ${plural(t.speed, 'tile', 'tiles')} a day alone, but keep pace with the slower raiders beside them (${t.pace} a day)`);
+    else if (t.speed > t.footSpeed) said.push(`they ${go} ${plural(t.speed, 'tile', 'tiles')} a day, faster than raiders on foot (${t.footSpeed})`);
+    if (t.turnedByWalls) said.push(`a wall${t.noRocky ? ' or rocky ground' : ''} turns them back once no raider on foot is with them`);
+    const helps = c.helps.map((h, j) => (j ? `${armUnitPlural[h.unit]} ${armSituationWords[h.situation]} ${armFactor(h.factor)}` : `your ${armUnitPlural[h.unit]} ${armSituationWords[h.situation]} deal ${armFactor(h.factor)}`));
+    const weak = c.weak.map((h) => `${armUnitPlural[h.unit]} ${armSituationWords[h.situation]} deal ${armFactor(h.factor)}`);
+    const parts = [said.length ? `${armCap(said.join('; '))}.` : '', helps.length ? `${armCap(helps.join('; '))}.` : '', weak.length ? `But ${weak.join('; ')}.` : ''].filter(Boolean);
+    return `${armEnemyWords[c.kind](c.n)}: ${parts.join(' ')}`;
+  },
+  counters: (mix) => armCounterModel(mix).map((c) => S46_ARMY_TEXT.counterLine(c)),
+  // The building sheets (src/ui/s46/armies.js), from UNIT_TYPES and the sim.
+  unitsLabel: { soldier: 'Soldiers', archer: 'Archers', chariot: 'Chariots' },
+  // A building's units of its cap; units away at the capital count toward the cap (trainSoldiers, ruling 381), so the sheet says them.
+  ofCap: (n, cap, away = 0) => (away > 0 ? `${n} here, ${away} away, of ${cap}` : `${n} of ${cap}`),
+  full: (kind, n, cap, away = 0) => `Full: ${away > 0 ? `${n} here and ${away} away, of ${cap}` : `${n} of ${cap}`} ${armUnitPlural[kind]}; it trains another when one is wounded`,
+  trains: (kind) => `Trains one ${armUnitOne[kind]} every ${armUnits[kind].trainDays} days at full staff, slower when short of workers`,
+  pay: (kind) => `Each ${armUnitOne[kind]} is paid ${armUnits[kind].pay} gold a month at home, in peace too`,
+  patrolLine: (kind) => `Goes out to raiders within ${armUnits[kind].patrol} tiles`,
+  archerDoes: `Shoots a raider up to ${armUnits.archer.range} tiles away; on a wall or tower it deals ${armM('archer', 'foot', 'wall')} to raiders on foot, ${armM('archer', 'foot', 'melee')} in melee`,
+  chariotDoes: `Deals ${armM('chariot', 'foot', 'open')} in the open (no wall within ${armArmy.wallNear} tiles), ${armM('chariot', 'foot', 'nearWall')} nearer a wall; it cannot pass a gate`,
+  away: (kind, n, days) => `${plural(n, armUnitOne[kind], armUnitPlural[kind])} away at the capital, back in ${plural(armMonths(days), 'month', 'months')}`,
+  horses: (each, now) => `Horses eat ${each} grain a chariot a month (${now} now), from ${listText(armFeedTypes().map(pluralName))}`,
+  hungry: `The horses went hungry last month: chariots fight at ${Math.round(armArmy.hungry * 100)}% until a month's end feeds them`,
+  grainHeld: (n) => `Grain in store: ${n}`,
+  lastRaid: (kind, n, size) => `Last raid: ${armUnitPlural[kind]} stopped ${n} of ${size}`,
+};
+// The horses' alert (armyAlerts): an ordinary one on the first stables.
+Object.assign(ALERT_TEXT, {
+  horses_hungry: (alert) => ({ title: 'Chariot horses went hungry', fix: `Keep ${alert.need} grain a month in ${armFeedTypes().map((t) => armA(buildingName(t).toLowerCase())).join(' or ')}; until then chariots fight at ${Math.round(armArmy.hungry * 100)}%` }),
+});
+// The firsts and the tips (How to play lists the tips).
+Object.assign(FIRST_TEXT, {
+  first_archery_range: { head: 'First archery range', why: `Its archers shoot raiders up to ${armUnits.archer.range} tiles away, ${armM('archer', 'foot', 'wall')} from a wall or tower.` },
+  first_stables: { head: 'First stables', why: `Its chariots deal ${armM('chariot', 'foot', 'open')} in the open; their horses eat ${armUnits.chariot.grain} grain each a month.` },
+});
+Object.assign(TIP_TEXT, {
+  archers_on_walls: `Archers climb the nearest wall or tower on their own: from there they deal ${armM('archer', 'foot', 'wall')} to raiders on foot.`,
+  chariots_in_open: `Chariots deal ${armM('chariot', 'foot', 'open')} in open ground, ${armArmy.wallNear}+ tiles from walls, but cannot pass walls or gates: put stables beside it.`,
+  mixed_raid: 'Open the raid warning: it lists the raiders coming and what helps against each kind.',
+});
+// The raid under way (Stage 3's raid alert): with archers or chariots at home, its fix gives the reach of the units the city has
+// (UNIT_TYPES patrol, the nearest to the farthest: "your units go out within 8 to 12 tiles"; one kind alone by name), no longer than
+// the soldiers' line so the wide banner keeps its buttons beside the side panel (ruling 389a); each kind's own patrol is on its
+// building's sheet. A city of soldiers only reads as before.
+const armRaidAlert = ALERT_TEXT.raid;
+Object.assign(ALERT_TEXT, {
+  raid: (alert, world) => {
+    const out = armRaidAlert(alert, world);
+    const a = world.raid.active, home = armUnitsAtHome(world);
+    if ((alert.phase || (a ? a.phase : 'attack')) === 'retreat' || !(home.archer > 0 || home.chariot > 0)) return out;
+    const kinds = Object.keys(armUnitPlural).filter((k) => home[k] > 0);
+    const reaches = kinds.map((k) => armUnits[k].patrol), lo = Math.min(...reaches), hi = Math.max(...reaches);
+    const who = kinds.length === 1 ? `your ${armUnitPlural[kinds[0]]}` : 'your units';
+    return { ...out, fix: `Towers hit raiders within ${raidsData.DEFENCE.towerRange} tiles; ${who} go out within ${lo === hi ? lo : `${lo} to ${hi}`} tiles` };
+  },
+});
+// The money sheets' row for every unit's pay (soldiersPayOf: soldiers, archers and chariots at home, ruling 386).
+Object.assign(T, { soldiersPay: 'Army pay' });
 // ── end s46 armies ──
 
 //

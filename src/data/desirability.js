@@ -5,6 +5,7 @@
 // the palace its style's (PALACE_STYLES, while a road touches it): src/sim/desirability.js valuesOf reads them.
 import { MONUMENTS, MONUMENT_KINDS } from './monuments.js';
 import { PALACE_STYLES } from './palace.js';
+import { S46_BUILDINGS } from './s46.js';
 
 const FARM = [-2, -1];
 const WORKSHOP = [-4, -3, -2, -1];
@@ -48,6 +49,8 @@ export const DESIRABILITY = {
   sphinx: [10, 8, 6, 4, 2],
   palace: PALACE_STYLES[0].desirability,
   ...Object.fromEntries(MONUMENT_KINDS.map((k) => [k, MONUMENTS[k].desirability])),
+  // Stage 4.6 (ruling 389): a track building's row carries its own values (desirability), [] when it has none.
+  ...Object.fromEntries(Object.entries(S46_BUILDINGS).map(([t, b]) => [t, b.desirability || []])),
 };
 
 // Index = tier, as TIERS: an empty plot adds nothing; Hut -2, -1; Shack -1; Cottage 0; House 1; Townhouse 1, 1;

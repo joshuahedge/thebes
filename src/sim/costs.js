@@ -11,6 +11,7 @@ import { FIRE } from '../data/fire.js';
 import { FESTIVAL, DEFENCE } from '../data/raids.js';
 import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { PALACE_STYLES } from '../data/palace.js';
+import { UNIT_TYPES } from '../data/armies.js';
 
 const scaled = (world, base) => Math.max(1, Math.round(base * DIFFICULTIES[world.difficulty].cost));
 
@@ -39,7 +40,9 @@ export const raidsOn = (world) => DIFFICULTIES[world.difficulty].raids !== false
 export const threatsOn = (world) => raidsOn(world);
 
 // Soldiers' pay for a month (spec 4.11): per soldier, in peace too and from a paused barracks; never scaled.
-export const soldiersPayOf = (world) => world.soldiers.length * DEFENCE.soldierPay;
+// Stage 4.6 (Armies track, ruling 386): every unit at home by its kind's pay (UNIT_TYPES[kind].pay; a soldier's is DEFENCE.soldierPay);
+// units away at the capital are not in world.soldiers, so they are not paid.
+export const soldiersPayOf = (world) => world.soldiers.reduce((s, u) => s + (UNIT_TYPES[u.kind] || UNIT_TYPES.soldier).pay, 0);
 
 // Stage 4 (spec 4.11, 4.16, 4.20). A monument's founding is costOf(world, type) (its BUILDINGS cost). Work gold is
 // MONUMENT.goldPerUnit for each unit laid times the difficulty's cost, NOT rounded here: the site pays whole gold and

@@ -7,7 +7,12 @@
 // The drawing glides each one from where it was drawn to its new spot over the next game day, from a per-world record
 // kept outside the world (a WeakMap, like walkers.js's loops), so nothing is saved and a reload shows each unit where it
 // stands. A soldier standing on its own barracks waits in the barracks' yard, in a row by id.
+// Stage 4.6 (Armies track): each kind has its own figure slot (src/render/art/armies.js): your 'soldier', 'archer' and 'chariot',
+// and raiders as 'raider' (on foot), 'raider_archer', 'raider_chariot' and 'raider_boat'; a unit waiting at home stands in its
+// building's yard. Health bars read the kind's hit points (UNIT_TYPES, ENEMY_TYPES), coloured by side. Archers' shots (by 'archer')
+// and enemy archers' (by 'enemy') leave from the shooter's chest, a tower's from its platform.
 import { UNITS } from '../data/raids.js';
+import { UNIT_TYPES, ENEMY_TYPES } from '../data/armies.js';
 import { ART } from './art/registry.js';
 import { p, U } from './iso.js';
 
@@ -33,15 +38,16 @@ const dirOf = (dx, dy) => (Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : dx < 0 ?
 function standing(world) {
   const out = [];
   const active = world.raid && world.raid.active;
-  if (active && active.raiders) for (const u of active.raiders) out.push({ u, kind: 'raider', x: u.x + 0.5, y: u.y + 0.5 });
+  if (active && active.raiders) for (const u of active.raiders) out.push({ u, kind: RAIDER_SLOT[u.kind] || 'raider', side: 'raider', max: (ENEMY_TYPES[u.kind] || ENEMY_TYPES.foot).hp, x: u.x + 0.5, y: u.y + 0.5 });
   const waiting = new Map();                 // barracks id -> soldiers waiting in its yard so far
   for (const u of world.soldiers || []) {
     const b = world.buildings[u.barracks];
     const home = b && u.x >= b.x && u.x < b.x + b.w && u.y >= b.y && u.y < b.y + b.d;
-    if (!home) { out.push({ u, kind: 'soldier', x: u.x + 0.5, y: u.y + 0.5 }); continue; }
+    const kind = UNIT_TYPES[u.kind] ? u.kind : 'soldier', max = UNIT_TYPES[kind].hp;
+    if (!home) { out.push({ u, kind, side: 'soldier', max, x: u.x + 0.5, y: u.y + 0.5 }); continue; }
     const rank = waiting.get(b.id) || 0;
     waiting.set(b.id, rank + 1);
-    out.push({ u, kind: 'soldier', x: b.x + 0.35 + 0.42 * rank, y: b.y + b.d - 0.28 });
+    out.push({ u, kind, side: 'soldier', max, x: b.x + 0.35 + 0.42 * rank, y: b.y + b.d - 0.28 });
   }
   return out;
 }
@@ -65,6 +71,7 @@ function placed(world, timeDays) {
   return out;
 }
 
+const RAIDER_SLOT = { foot: 'raider', archer: 'raider_archer', chariot: 'raider_chariot', boat: 'raider_boat' };
 const inRange = (x, y, r) => !r || (x >= r.x0 && x <= r.x1 + 1 && y >= r.y0 && y <= r.y1 + 1);
 
 // The units in range as walker entries: { id: UNIT_ID_BASE + unit id, kind: 'raider' | 'soldier', x, y, dir }, moving
@@ -77,16 +84,16 @@ export function unitsAt(world, timeDays, range = null) {
 }
 
 function healthBar(g, s) {
-  const max = UNITS[s.kind].hp, share = clamp01(s.u.hp / max);
+  const max = s.max || UNITS[s.side || s.kind].hp, share = clamp01(s.u.hp / max);
   const [x, y] = U(p(s.x, s.y), BAR.lift), w = BAR.w, h = BAR.h;
   const rect = (x0, x1) => [[x0, y - h / 2], [x1, y - h / 2], [x1, y + h / 2], [x0, y + h / 2]];
   g.poly(rect(x - w / 2 - 0.4, x + w / 2 + 0.4), BAR_COLOUR.back, { alpha: 0.8 });
-  if (share > 0) g.poly(rect(x - w / 2, x - w / 2 + w * share), BAR_COLOUR[s.kind]);
+  if (share > 0) g.poly(rect(x - w / 2, x - w / 2 + w * share), BAR_COLOUR[s.side || s.kind]);
 }
 
 // A tower shot's path in art px: from the tower's platform to the raider's chest.
 function shotPath(shot) {
-  const from = U(p(shot.from.x + 0.5, shot.from.y + 0.5), ART.tower.height - 6);
+  const from = shot.by === 'archer' || shot.by === 'enemy' ? U(p(shot.from.x + 0.5, shot.from.y + 0.5), 14) : U(p(shot.from.x + 0.5, shot.from.y + 0.5), ART.tower.height - 6);
   const to = U(p(shot.to.x + 0.5, shot.to.y + 0.5), 10);
   return { from, to };
 }
