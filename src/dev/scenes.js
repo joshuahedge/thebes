@@ -924,7 +924,7 @@ async function illness(api, options = {}) {
   if (sick.length < 3) throw new Error('devScene illness: no street of homes near the focus');
   world.milestone = ['town', 'market_town', 'city', 'great_city', 'capital'].includes(world.milestone) ? world.milestone : 'town';
   pauseCover(world, 'physician', HEALTH.reach, sick);
-  for (const h of sick) { world.day += 0; fallIll(world, h.id, null, 'risk'); h.illness.left = Math.min(h.illness.left, 18); }
+  for (const h of sick) { fallIll(world, h.id, null, 'risk'); h.illness.left = Math.min(h.illness.left, 18); }
   g.ui.cameraControl.cancel();
   g.ui.store.set({ overlay: null });
   g.ui.refresh();

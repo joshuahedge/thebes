@@ -92,7 +92,7 @@ describe('s3 score share score', () => {
       const link = shareLink({ seed: r.world.seed, difficulty: r.world.difficulty, parts: s.parts, splits: splitMonths(r.world) });
       expect(sheet(r).querySelector('h2').textContent).toBe(T.shareScore);
       expect(sheet(r).querySelector('.share-link-text').value).toBe(link);
-      expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: r.world.seed, difficulty: 'normal', parts: s.parts, splits: { ...splitMonths(r.world) }, version: 2, older: false });
+      expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: r.world.seed, difficulty: 'normal', parts: s.parts, splits: { ...splitMonths(r.world) }, version: 2, older: false, variant: r.world.mapVariant });
       expect(sheet(r).querySelector('.emoji-row').textContent).toBe(emojiRow(s.parts));
       expect(sheet(r).querySelector('.honour').textContent).toBe(SHARE_TEXT.honourHelp);
     } finally { r.cleanup(); }

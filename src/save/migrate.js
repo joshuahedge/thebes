@@ -130,10 +130,20 @@ function v4ToV5(w) {
   };
 }
 
+// Today's daily goals without one goal id (a goal that left the pool): out of the picks, the snapshots and the done list. A day
+// that is not the usual shape is left for validateWorld to report.
+function dropDaily(d, id) {
+  if (!d || typeof d !== 'object' || !Array.isArray(d.picks) || !Array.isArray(d.done) || !d.base || typeof d.base !== 'object') return d;
+  const base = { ...d.base };
+  delete base[id];
+  return { ...d, picks: d.picks.filter((p) => p !== id), done: d.done.filter((p) => p !== id), base };
+}
+
 // v5 -> v6 (Stage 4.5). The city keeps its map: mapVariant is 'classic' (it was always the river down the west side). Free bank
 // tiles turn to clay by the generator's own rule (addClay, seeded by the city's seed); a tile with a building, road or wall on it
 // does not change, and a clay pit already standing stays where it is ("an older pit"). Every home gets 0 health and crime risk
-// points and no illness (Task 5 fills them), and the new tallies start at zero. Every other field is kept as it was. A malformed
+// points and no illness, and the new tallies start at zero. Today's daily goals lose the selling goal, which left the pool in Stage
+// 4.5 (its id leaves the picks, the snapshots and the done list). Every other field is kept as it was. A malformed
 // save is left for validateWorld to report.
 function v5ToV6(w) {
   const tally = w.tally !== null && typeof w.tally === 'object' && !Array.isArray(w.tally) ? w.tally : {};
@@ -157,6 +167,7 @@ function v5ToV6(w) {
     terrain,
     buildings,
     mapVariant: 'classic',
+    daily: dropDaily(w.daily, 'sell20'),
     danger: w.danger && typeof w.danger === 'object' ? { ...w.danger, theftDays: [] } : w.danger,
     tally: { ...tally, ...Object.fromEntries(STAGE45_TALLY.map((k) => [k, 0])) },
   };

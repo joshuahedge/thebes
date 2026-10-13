@@ -52,17 +52,3 @@ export function bridgeVerdicts(world, tiles) {
   }
   return out;
 }
-
-// Whether a straight line of tiles from the first to the last, along one row or column, has a bridgeable run of at most
-// `most` tiles of water (the narrow spots of a map).
-export function hasBridgeSpot(world, most = BRIDGE_MAX) {
-  const n = world.size;
-  for (let a = 0; a < n; a++) {
-    for (const vertical of [false, true]) {
-      const line = [];
-      for (let b = 0; b < n; b++) line.push(vertical ? [a, b] : [b, a]);
-      if (bridgeRuns(world, line).some((r) => r.n <= most && r.straight && r.bounded)) return true;
-    }
-  }
-  return false;
-}

@@ -23,13 +23,13 @@ describe('s3 score sharing', () => {
     const body = 't2.202641.n.72-65-58-40-36.14-20-x-x-x-x-x';
     expect(link).toBe(`https://joshuahedge.github.io/thebes/#${body}.${shareCheck(body)}`);
     expect(/^[0-9a-z]{4}$/.test(shareCheck(body))).toBe(true);
-    expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: 202641, difficulty: 'normal', parts: PARTS, splits: SPLITS, version: 2, older: false });
+    expect(parseShareLink(new URL(link).hash)).toEqual({ ok: true, seed: 202641, difficulty: 'normal', parts: PARTS, splits: SPLITS, version: 2, older: false, variant: 'classic' });
     expect(sharedTotal(parseShareLink(new URL(link).hash))).toBe(271);
     const hard = parseShareLink(new URL(shareLink({ seed: 7, difficulty: 'hard', parts: PARTS, splits: {} })).hash);
     expect([hard.difficulty, hard.splits.town, sharedTotal(hard)]).toEqual(['hard', null, Math.round(271 * 1.25)]);
     expect([shareLink({}), shareLink({ seed: 1, difficulty: 'easy', parts: PARTS }), shareLink({ seed: 1, difficulty: 'normal', parts: { ...PARTS, safety: 101 } }), shareLink({ seed: 1, difficulty: 'normal', parts: V1 })]).toEqual(['', '', '', '']);
     const old = 't1.202641.n.72-65-58-40.14-20-x-x-x';
-    expect(parseShareLink(`#${old}.${shareCheck(old)}`)).toEqual({ ok: true, seed: 202641, difficulty: 'normal', parts: V1, splits: V1_SPLITS, version: 1, older: true });
+    expect(parseShareLink(`#${old}.${shareCheck(old)}`)).toEqual({ ok: true, seed: 202641, difficulty: 'normal', parts: V1, splits: V1_SPLITS, version: 1, older: true, variant: 'classic' });   // a link with no layout named is classic
     expect(sharedTotal(parseShareLink(`#${old}.${shareCheck(old)}`))).toBe(235);
   });
   it('says a typo, a newer link and a broken one apart, and ignores a hash that is no share link', () => {

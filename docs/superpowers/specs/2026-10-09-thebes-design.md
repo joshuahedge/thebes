@@ -478,12 +478,12 @@ Raids are the second danger. They are telegraphed with a countdown, a direction 
 | Wealth | the treasury (if above 0) plus the base cost of every standing building except roads, walls, the palace, monuments and monument sites (so gold spent on a monument instead of hoarded makes raids a little smaller) |
 | Wealth term | (wealth − 5,000) ÷ 5,000, at least 0 and at most 4 (10,000 → 1; 25,000 or more → 4) |
 | Raw size | 1 + people term + wealth term |
-| Raiders | round(raw size × the difficulty's risk multiplier × adaptation), at least 2 and at most **12** |
+| Raiders | round(raw size × the difficulty's risk multiplier × adaptation), at least 2 and at most **18** (Stage 4.5, ruling 317: it was 12; the size also grows 10% a year up to 1.5x, and a two-sided raid totals one more, split between its two bands) |
 | First raid | always **3** raiders, at every difficulty (one staffed tower beats it) |
 | Adaptation | starts at 1. A **lost** raid sets it to 0.6; every later raid (beaten, lost or paid off) then adds 0.2, up to 1. So after a lost raid the next one is ×0.6 and the one after ×0.8 |
 | Towers needed | ceil(raiders ÷ 3): the staffed towers that would beat this raid |
 
-Examples on Normal: 250 people and 6,000 wealth → 1 + 2 + 0.2 = 3.2 → 3 raiders. 600 people and 15,000 → 1 + 4.8 + 2 = 7.8 → 8. 1,000 people and a large treasury → 13 → 12 (on Relaxed, 6.5 → 7).
+Examples on Normal: 250 people and 6,000 wealth → 1 + 2 + 0.2 = 3.2 → 3 raiders. 600 people and 15,000 → 1 + 4.8 + 2 = 7.8 → 8. 1,000 people and a large treasury → 13 (the cap is 18; on Relaxed, 6.5 → 7).
 
 **What raiders want.** Raiders head for wealth, in this order: **trading post, storehouse, bazaar, temple**, then any other building that isn't a home, the palace, a monument or a monument site. Raiders are after what they can carry, so they **never target a monument, a site or the palace**; one blocks their path like any building. A raid can still slow a monument: it can set a guild, quarry or brickworks alight, and its crew or deliveries stop until the fire is out. The warning names the kind at the top of the list that the city has ("Raiders from the east are after your storehouses"). When they arrive they go for the nearest building of that kind, or the next kind down if none stands.
 
@@ -938,7 +938,7 @@ The ground reads as one painted landscape, not a grid of diamonds. Gameplay stil
   - Flames change **shape** (tip sway, embers rising) at 2 Hz or less. They never flash brightness and never use a saturated-red flash. Nothing pulses for longer than 5 s.
   - A burned home shows the empty-plot look; rubble has its own heap of broken mudbrick, distinct in shape from both.
 - **Units:**
-  - Raiders and soldiers are drawn 1.5× the size of citizen figures and are few (at most 12 raiders and 4 soldiers per barracks).
+  - Raiders and soldiers are drawn 1.5× the size of citizen figures and are few (at most 18 raiders in a raid, which a two-sided raid brings as 19 in two bands, and 4 soldiers per barracks).
   - Raiders are dark silhouettes against the sand, with a crested helmet and a round shield. Soldiers wear white kilts and carry tall spears and teal shields. They differ by shape, not just colour.
   - A unit's health bar appears only once it has been hit.
   - Tower arrows are thin strokes that fly for 0.3 s.

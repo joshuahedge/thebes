@@ -11,16 +11,18 @@ import { HEALTH, HEALTH_BANDS } from '../../src/data/health.js';
 import { CRIME, CRIME_BANDS } from '../../src/data/crime.js';
 import { GOALS, GOAL_REWARD } from '../../src/data/goals.js';
 import { FIRSTS } from '../../src/data/firsts.js';
+import { MILESTONES } from '../../src/data/progression.js';
 import { TIPS } from '../../src/data/tips.js';
 import { healthRowModel, crimeRowModel, homeRows } from '../../src/ui/dangerSheets.js';
 import { alertShowMe } from '../../src/ui/threatFix.js';
 import { createOverlayLegend } from '../../src/ui/overlayUi.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
-import { createPlacement } from '../../src/ui/placement.js';
+import { createPlacement, toolPreview } from '../../src/ui/placement.js';
+import { homesServedFrom } from '../../src/sim/housing.js';
 import { select, openSheet } from '../../src/ui/modes.js';
-import { OVERLAY_NAMES, OVERLAY_LEGEND, DANGER_UI_TEXT as D, TIP_TEXT, FIRST_TEXT, CRIME_TEXT, effectText, alertText } from '../../src/ui/text.js';
-import { fallIll, healthBandOf, healthCovered, illnessDaysLeft } from '../../src/sim/health.js';
-import { crimeCovered, steal, dailyCrimeRiskOf } from '../../src/sim/crime.js';
+import { OVERLAY_NAMES, OVERLAY_LEGEND, DANGER_UI_TEXT as D, TIP_TEXT, FIRST_TEXT, CRIME_TEXT, T, effectText, alertText } from '../../src/ui/text.js';
+import { fallIll, healthBandOf, healthCovered, illnessDaysLeft, homesCoveredBy } from '../../src/sim/health.js';
+import { crimeCovered, steal, dailyCrimeRiskOf, crimeHomesCoveredBy } from '../../src/sim/crime.js';
 import { openGoals } from '../../src/sim/goals.js';
 import { checkFirsts } from '../../src/sim/firsts.js';
 import { scoreRow } from '../../src/sim/score.js';
@@ -101,6 +103,32 @@ describe('s45 health and crime overlays', () => {
     post.staff = 0;
     expect(homeRiskMarks(w, 'crime').some((m) => m.has)).toBe(false);
   });
+  it('draws nothing for homes before the threat starts or on Peaceful, and the strip says why instead of showing bands', () => {
+    for (const [kind, before, started] of [['health', 'village', 'town'], ['crime', 'town', 'market_town']]) {
+      const { w, ids } = city([[10, 9], [12, 9]]);
+      w.milestone = before;
+      const [a] = homesOf(w, ids);
+      if (kind === 'health') a.health = 120; else a.crime = 120;
+      expect([kind, homeRiskMarks(w, kind).length]).toEqual([kind, 0]);                     // not started: no home is marked
+      const { root, cleanup } = mount();
+      try {
+        const store = createStore(INITIAL_UI_STATE);
+        createOverlayLegend({ container: root, store, world: w });
+        store.set({ overlay: kind });
+        expect([root.querySelectorAll('.band').length, root.querySelector('.never-burn').textContent]).toEqual([0, D.threatNotStarted(kind, false)]);
+        expect(root.querySelector('.never-burn').textContent.includes(MILESTONES.find((m) => m.name === (before === 'village' ? 'Town' : 'Market town')).name)).toBe(true);
+        w.milestone = started;
+        store.set({ overlay: null }); store.set({ overlay: kind });
+        expect([homeRiskMarks(w, kind).length, root.querySelectorAll('.band').length]).toEqual([2, 4]);   // started: marks and the four bands
+        w.difficulty = 'peaceful';
+        expect(homeRiskMarks(w, kind).length).toBe(0);
+        store.set({ overlay: null }); store.set({ overlay: kind });
+        expect([root.querySelectorAll('.band').length, root.querySelector('.never-burn').textContent]).toEqual([0, D.threatNotStarted(kind, true)]);
+        expect(D.threatNotStarted('health', true)).toBe('There is no sickness on Peaceful');
+        expect(D.threatNotStarted('crime', true)).toBe('There are no thieves on Peaceful');
+      } finally { cleanup(); }
+    }
+  });
   it('draws the bands light to dark, hatched on High and above, plain below', () => {
     for (const kind of ['health', 'crime']) {
       const { w, ids } = city([[10, 9], [12, 9]]);
@@ -127,8 +155,8 @@ describe('s45 health and crime overlays', () => {
       createOverlayLegend({ container: root, store });
       store.set({ overlay: 'health' });
       const bands = [...root.querySelectorAll('.band')];
-      expect(bands.map((b) => b.textContent)).toEqual(['Low', 'Rising', 'High', 'Ill or can fall ill']);
-      expect(bands.map((b) => b.getAttribute('aria-label'))).toEqual(['Low: health risk 0 to 24', 'Rising: health risk 25 to 59', 'High: health risk 60 to 99', `Ill or can fall ill: ill, or health risk ${HEALTH.threshold} or more`]);
+      expect(bands.map((b) => b.textContent)).toEqual(['Low', 'Rising', 'High', 'Can fall ill']);
+      expect(bands.map((b) => b.getAttribute('aria-label'))).toEqual(['Low: health risk 0 to 24', 'Rising: health risk 25 to 59', 'High: health risk 60 to 99', `Can fall ill: health risk ${HEALTH.threshold} or more (a home already ill is marked here too)`]);
       expect(HEALTH_BANDS[HEALTH_BANDS.length - 1]).toBe(HEALTH.threshold);          // the top band's start is the threshold the words name
       expect(bands.map((b) => b.querySelector('.swatch').classList.contains('hatch'))).toEqual([false, false, true, true]);
       expect([...root.querySelectorAll('.fire-keys .key')].map((k) => k.textContent.trim())).toEqual(OVERLAY_LEGEND.health);
@@ -452,14 +480,25 @@ describe('s45 goals, tips and firsts', () => {
     expect(healthBandOf(w, ripe)).toBe(3);                                                  // not ill, at the threshold
     ripe.health = HEALTH.threshold - 1;
     expect(healthBandOf(w, ripe)).toBe(2);                                                  // one point short: High
-    const top = D.healthBand(3).words;
-    expect([top.includes(': ill, or health risk'), top.includes(`${HEALTH.threshold} or more`)]).toEqual([true, true]);
+    const top = D.healthBand(3).words;                                                   // an ill home is in this band, so the words say so, and no healthy home is called ill
+    expect([top.includes('a home already ill is marked here too'), top.includes(`${HEALTH.threshold} or more`), D.healthBand(3).label.includes('Ill')]).toEqual([true, true, false]);
     expect(D.healthBand(2).words.includes('ill,')).toBe(false);
     expect(D.crimeBand(3).words.includes('ill')).toBe(false);
   });
   it('says what a card will cover from the ghost\'s spot', () => {
     expect(effectText('physician', 3)).toBe('Looks after 3 homes');
     expect(effectText('police_post', 1)).toBe('Watches over 1 home');
+  });
+  it('counts the same homes in the ghost\'s bar as the placed card\'s sheet: homes with people in them, not empty plots', () => {
+    const { w } = city([[4, 9], [6, 9]]);
+    addRaw(w, 'house', 8, 9, { tier: 0, residents: 0 });                                    // an empty plot in reach
+    const bar = (type, x, y) => toolPreview(w, { tool: { kind: 'building', type }, ghost: { x, y } }).effect;
+    expect(homesServedFrom(w, 'physician', 6, 11)).toBe(3);                                 // the plot counts for the old count...
+    expect([bar('physician', 6, 11), bar('police_post', 6, 11)]).toEqual(['Looks after 2 homes', 'Watches over 2 homes']);   // ...and not for the bar
+    const doc = addRaw(w, 'physician', 6, 11), post = addRaw(w, 'police_post', 7, 11);
+    expect([homesCoveredBy(w, doc), crimeHomesCoveredBy(w, post)]).toEqual([2, 2]);          // what the sheets say
+    for (const id of Object.keys(w.buildings)) if (w.buildings[id].type === 'house') { w.buildings[id].residents = 0; w.buildings[id].tier = 0; }
+    expect([bar('physician', 12, 11), homesCoveredBy(w, doc)]).toEqual([T.noHomesInReach, 0]);   // nobody home: the bar and the sheet both say none
   });
 });
 

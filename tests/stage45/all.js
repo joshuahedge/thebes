@@ -15,3 +15,4 @@ import './raids.test.js';   // Task 5a: tougher raids (growth, two-sided raids, 
 import './health.test.js';   // Task 5b: disease (risk, physician cover, illness, spread, alerts, mood, words)
 import './crime.test.js';   // Task 5c: crime (risk, police post cover, thefts, alerts, mood, words, save)
 import './threatsUi.test.js';   // Task 5d: overlays, the cloth, sheet rows, Show me, the caption, goals, tips, firsts
+import './variantLinks.test.js';   // review fixes: the map variant in share links, Start this seed and personal bests

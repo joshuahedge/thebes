@@ -3,7 +3,7 @@
 // undo works as for roads; the bar's words are the sim's own run length and price.
 import { describe, it, expect } from '../harness.js';
 import { previewRoad, drawRoad, previewRoadTiles, drawRoadTiles, demolishAt, canPlace } from '../../src/sim/commands.js';
-import { bridgeRuns, bridgeVerdicts, hasBridgeSpot, runReason, BRIDGE_MAX } from '../../src/sim/bridges.js';
+import { bridgeRuns, bridgeVerdicts, runReason, BRIDGE_MAX } from '../../src/sim/bridges.js';
 import { undo } from '../../src/sim/undo.js';
 import { costOf, roadCostOf } from '../../src/sim/costs.js';
 import { flowField, tileCost } from '../../src/sim/pathfinding.js';
@@ -17,6 +17,20 @@ import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
 import { S45_TEXT, reasonText } from '../../src/ui/text.js';
 import { isBridgeTile, bridgeTiles } from '../../src/render/terrainBridges.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
+
+// Whether a straight line of tiles along one row or column has a bridgeable run of at most `most` tiles of water (the narrow
+// spots of a map). Only this test reads it: the rule itself is bridgeRuns and bridgeVerdicts.
+function hasBridgeSpot(world, most = BRIDGE_MAX) {
+  const n = world.size;
+  for (let a = 0; a < n; a++) {
+    for (const vertical of [false, true]) {
+      const line = [];
+      for (let b = 0; b < n; b++) line.push(vertical ? [a, b] : [b, a]);
+      if (bridgeRuns(world, line).some((r) => r.n <= most && r.straight && r.bounded)) return true;
+    }
+  }
+  return false;
+}
 
 // A 32 x 32 test world with a river of `width` water tiles down x = 10 .. 10 + width - 1, and gold to spare.
 function rivered(width = 3, difficulty = 'normal') {

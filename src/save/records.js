@@ -42,7 +42,9 @@ const isLevel = (d) => typeof d === 'string' && Object.hasOwn(SCORE_FACTOR, d);
 const isMedal = (m) => m === null || MEDALS.some((x) => x.id === m);
 // The river layout a row's city had (Stage 4.5): a known one, else 'classic' (every record from before it was classic).
 const variantOf = (v) => (MAP_VARIANTS.includes(v) ? v : 'classic');
-const keyOf = (r) => `${r.seed}|${r.difficulty}`;
+// A personal best is per seed, level and river layout. A classic city keeps the key it always had (seed|level), so every record from
+// before Stage 4.5 stays where it was; another layout adds its name (seed|level|east).
+const keyOf = (r) => (variantOf(r.mapVariant) === 'classic' ? `${r.seed}|${r.difficulty}` : `${r.seed}|${r.difficulty}|${r.mapVariant}`);
 
 // The split days of a splits object (Stage 4: all seven, SPLITS), whole days only, in that order.
 function cleanSplits(s) {
@@ -225,17 +227,18 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
       for (const c of read().cities) {
         for (const x of bestsOf(c)) {
           const k = `${keyOf(c)}|${x.scoreVersion}`;
-          if (!top.has(k) || x.best > top.get(k).best) top.set(k, { ...x, seed: c.seed, difficulty: c.difficulty });
+          if (!top.has(k) || x.best > top.get(k).best) top.set(k, { ...x, seed: c.seed, difficulty: c.difficulty, mapVariant: variantOf(c.mapVariant) });
         }
       }
       return [...top.values()].sort((a, b) => b.best - a.best || a.seed - b.seed).slice(0, n)
-        .map((c) => ({ seed: c.seed, difficulty: c.difficulty, score: c.best, medal: c.medal, version: c.scoreVersion, older: c.scoreVersion < SCORE_VERSION }));
+        .map((c) => ({ seed: c.seed, difficulty: c.difficulty, ...(c.mapVariant !== 'classic' ? { mapVariant: c.mapVariant } : {}), score: c.best, medal: c.medal, version: c.scoreVersion, older: c.scoreVersion < SCORE_VERSION }));
     },
     // The personal best on one seed and level, leaving out one city (the one being played): { score, splits } with the
     // highest best made under score `version` (this version by default; Stage 4: a t1 link asks for 1, ruling 259), null
-    // when none, and the earliest day of each milestone; null when no other city has that seed and level.
-    bestFor(seed, difficulty, { except = null, version = SCORE_VERSION } = {}) {
-      const rows = read().cities.filter((c) => c.seed === seed && c.difficulty === difficulty && c.id !== except);
+    // when none, and the earliest day of each milestone; null when no other city has that seed, level and river layout (variant,
+    // 'classic' when not given: the layout of every record from before Stage 4.5).
+    bestFor(seed, difficulty, { except = null, version = SCORE_VERSION, variant = 'classic' } = {}) {
+      const rows = read().cities.filter((c) => c.seed === seed && c.difficulty === difficulty && variantOf(c.mapVariant) === variantOf(variant) && c.id !== except);
       if (!rows.length) return null;
       let score = null;
       const splits = {};

@@ -2,6 +2,7 @@
 // only, labelled "friends' honour". Stage 3 contract: Track 0 fixed the names; Track E implements them. The interface reads
 // the date; the sim never does.
 import { SHARE, SCORE_PARTS, SCORE_FACTOR } from '../data/scoring.js';
+import { MAP_VARIANTS } from '../data/map.js';
 import { T as TER } from '../sim/terrain.js';
 import { allBuildings } from '../sim/world.js';
 import { hashKey } from '../sim/daily.js';
@@ -33,20 +34,23 @@ const isPart = (n) => Number.isInteger(n) && n >= 0 && n <= 100;
 
 // The share link for a score: SHARE.base + '#t2.<seed>.<p|r|n|h>.<parts joined by ->.<months to each split
 // joined by -, x where not reached>.<4 base-36 check characters>'; '' for anything that is not a score. Stage 4: written
-// in SHARE.format (t2: five parts, seven splits, SHARE.formats).
-export function shareLink({ seed, difficulty, parts, splits } = {}) {
+// in SHARE.format (t2: five parts, seven splits, SHARE.formats). Stage 4.5: a city on another river layout than the classic one
+// adds '&variant=<name>' after the check (not part of it), so Start this seed builds the same map; classic adds nothing.
+export function shareLink({ seed, difficulty, parts, splits, variant = 'classic' } = {}) {
   const f = SHARE.formats[SHARE.format];
   if (!Number.isInteger(seed) || seed < 0 || !SHARE.difficulty[difficulty] || !parts || !f.parts.every((p) => isPart(parts[p]))) return '';
   const months = f.splits.map((id) => (splits && Number.isInteger(splits[id]) ? splits[id] : 'x')).join('-');
   const body = `${SHARE.format}.${seed}.${SHARE.difficulty[difficulty]}.${f.parts.map((p) => parts[p]).join('-')}.${months}`;
-  return `${SHARE.base}#${body}.${shareCheck(body)}`;
+  const tail = MAP_VARIANTS.includes(variant) && variant !== 'classic' ? `&variant=${variant}` : '';   // classic is left out, so every older link means the same city it always did
+  return `${SHARE.base}#${body}.${shareCheck(body)}${tail}`;
 }
 
-// Reads a location hash: { ok: true, seed, difficulty, parts, splits, version, older } for a good link (Stage 4: a t1 link
+// Reads a location hash: { ok: true, seed, difficulty, parts, splits, version, older, variant } for a good link (variant: the
+// '&variant=' name, 'classic' when the link has none, as every older link; an unknown name reads as 'newer_format'. Stage 4: a t1 link
 // still opens, with its four parts and five splits, version 1 and older: true; ruling 203), { ok: false, reason }
 // ('bad_check', 'newer_format', 'malformed') otherwise, and null for a hash that is not a share link at all.
 export function parseShareLink(hash) {
-  const text = String(hash || '').replace(/^#/, '');
+  const [text, ...extra] = String(hash || '').replace(/^#/, '').split('&');
   const head = /^t(\d+)\./.exec(text);
   if (!head) return null;
   const f = SHARE.formats[`t${head[1]}`];
@@ -60,11 +64,14 @@ export function parseShareLink(hash) {
   if (!parts.every((p) => /^\d{1,3}$/.test(p) && isPart(Number(p))) || !months.every((m) => m === 'x' || /^\d{1,5}$/.test(m))) return bad;
   if (!new RegExp(`^[0-9a-z]{${SHARE.checkLength}}$`).test(check)) return bad;
   if (check !== shareCheck(bits.slice(0, 5).join('.'))) return { ok: false, reason: 'bad_check' };
+  const named = extra.find((e) => e.startsWith('variant='));
+  const variant = named ? named.slice('variant='.length) : 'classic';
+  if (!MAP_VARIANTS.includes(variant)) return { ok: false, reason: 'newer_format' };
   return {
     ok: true, seed: Number(seedText), difficulty: LEVEL_OF[level],
     parts: Object.fromEntries(f.parts.map((p, i) => [p, Number(parts[i])])),
     splits: Object.fromEntries(f.splits.map((id, i) => [id, months[i] === 'x' ? null : Number(months[i])])),
-    version: f.version, older: f.version < SHARE.formats[SHARE.format].version,
+    version: f.version, older: f.version < SHARE.formats[SHARE.format].version, variant,
   };
 }
 

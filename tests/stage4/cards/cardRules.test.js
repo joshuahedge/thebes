@@ -11,7 +11,9 @@ import { produceDay } from '../../../src/sim/production.js';
 import { createGameLoop } from '../../../src/render/loop.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { raidDay } from '../../../src/sim/raids.js';
-import { raidsOn } from '../../../src/sim/costs.js';
+import { raidsOn, threatsOn } from '../../../src/sim/costs.js';
+import { healthStarted } from '../../../src/sim/health.js';
+import { crimeStarted } from '../../../src/sim/crime.js';
 import { RAIDS } from '../../../src/data/raids.js';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../../../src/data/difficulty.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
@@ -71,7 +73,7 @@ describe('s4 cards the rules on the cards', () => {
     expect([made(10, 10), made(5, 10)]).toEqual([10, 5]);                       // half the workers, half the grain
   });
 
-  it('card 6: pause any time, and nothing happens while you plan', () => {
+  it('the last card: pause any time, and nothing happens while you plan', () => {
     expect(W.ahead.words).toContain('Pause any time: nothing happens while you plan');
     const w = makeTestWorld();
     setRoad(w, 0, 10, 20, 10);
@@ -91,11 +93,11 @@ describe('s4 cards the rules on the cards', () => {
     loop.stop();
   });
 
-  it('card 6: fires and raiders to guard against, but not on Peaceful, whose city never starts a raid clock', () => {
+  it('the last card: fires, raiders, sickness and thieves to guard against, but only fires on Peaceful, whose city never starts a raid clock or has sickness or thieves', () => {
     expect(W.ahead.words).toBe(cards4Ahead(true));                              // the stored words are the level with raids
-    expect(cards4Ahead(true)).toContain('Later come fires and raiders to guard against, and monuments to raise.');
+    expect(cards4Ahead(true)).toContain('Later come fires, raiders, sickness and thieves to guard against, and monuments to raise.');
     expect(cards4Ahead(false)).toContain('Later come fires to guard against, and monuments to raise.');
-    expect(cards4Ahead(false).includes('raiders')).toBe(false);
+    expect(['raiders', 'sickness', 'thieves'].map((k) => cards4Ahead(false).includes(k))).toEqual([false, false, false]);
     for (const level of DIFFICULTY_ORDER) {
       const w = createWorld({ seed: 3, difficulty: level });
       w.tally.peakPeople = RAIDS.clockPeople;                                   // a city of the size that starts the clock
@@ -103,6 +105,10 @@ describe('s4 cards the rules on the cards', () => {
       const clock = w.raid.clockDay !== null;
       expect([level, clock, raidsOn(w), DIFFICULTIES[level].raids]).toEqual([level, level !== 'peaceful', level !== 'peaceful', level !== 'peaceful']);
       expect([level, cards4Ahead(DIFFICULTIES[level].raids).includes('raiders')]).toEqual([level, clock]);   // the words promise raiders exactly where the sim sends them
+      const words = cards4Ahead(DIFFICULTIES[level].raids);
+      w.milestone = 'market_town';                                                // far enough on for both to begin where they can
+      expect([level, words.includes('sickness'), words.includes('thieves')]).toEqual([level, healthStarted(w), crimeStarted(w)]);   // sickness and thieves exactly where the sim has them
+      expect([level, threatsOn(w)]).toEqual([level, level !== 'peaceful']);
     }
   });
 });

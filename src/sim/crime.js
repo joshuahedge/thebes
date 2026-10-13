@@ -183,8 +183,8 @@ export function crimeMood(world) {
 }
 
 // The homes a police post would cover now: homes with people in them within its road reach (the sheet's "Covers N homes").
-export function crimeHomesCoveredBy(world, p) {
-  const reach = roadReach(world, p, CRIME.reach);
+export function crimeHomesCoveredBy(world, p, opts) {
+  const reach = roadReach(world, p, CRIME.reach, opts);
   let n = 0;
   for (const h of housesOf(world)) if (canCommitCrime(h) && adjacentRoadTiles(world, h).some((t) => reach.has(t))) n++;
   return n;

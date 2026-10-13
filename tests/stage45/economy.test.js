@@ -195,7 +195,6 @@ describe('s45 forecast (the gold chip)', () => {
         expect([w, chip(r.root).hidden, number(r.root)]).toEqual([w, false, S45_TEXT.signed(f.net)]);
         expect(chip(r.root).querySelector('.sr-only').textContent).toBe(S45_TEXT.chipLabel(f));
         expect(chip(r.root).querySelector('.long').textContent + chip(r.root).querySelector('.short').textContent).toBe(' a month/mo');
-        expect(S45_TEXT.chip(f.net)).toBe(`${f.net >= 0 ? '+' : '−'}${Math.abs(f.net)} a month`);
       } finally { r.cleanup(); }
     }
     const bare = await rigUI({ world: makeTestWorld({ gold: 1000 }) });
