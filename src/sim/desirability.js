@@ -9,6 +9,7 @@
 import { DESIRABILITY, HOUSE_DESIRABILITY } from '../data/desirability.js';
 import { SITE_DESIRABILITY } from '../data/monuments.js';
 import { PALACE_STYLES } from '../data/palace.js';
+import { MONUMENT_STYLES } from '../data/wonders.js';
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { allBuildings, housesOf } from './world.js';
 import { idx, inBounds } from './grid.js';
@@ -23,8 +24,13 @@ export function valuesOf(b) {
   if (b.type === 'house') return HOUSE_DESIRABILITY[b.tier] || [];
   if (b.site && b.site.done === null) return SITE_DESIRABILITY;
   if (b.type === 'palace') return (PALACE_STYLES[b.style] || PALACE_STYLES[0]).desirability;
+  // Stage 4.6 (ruling 343): a finished Gilded monument adds MONUMENT_STYLES.gilded.desirability (+1) at every distance its kind reaches.
+  if (b.site && MONUMENT_STYLES[b.style] && MONUMENT_STYLES[b.style].desirability) return (DESIRABILITY[b.type] || []).map((v) => v + MONUMENT_STYLES[b.style].desirability);
   return DESIRABILITY[b.type] || [];
 }
+
+// Stage 4.6: the desirability a monument's style adds at every distance (MONUMENT_STYLES: Gilded +1), 0 for any other.
+const styleValue = (style) => (MONUMENT_STYLES[style] ? MONUMENT_STYLES[style].desirability : 0);
 
 // Whether a building gives its values now: one that needs a road and has none gives nothing (rulings P10, P11), except a
 // finished monument, which needs no road for its desirability (ruling 228).
@@ -62,7 +68,7 @@ function signature(world) {
     h = Math.imul(h ^ b.x, 16777619);
     h = Math.imul(h ^ b.y, 16777619);
     h = Math.imul(h ^ ((b.tier | 0) * 16 + b.w * 4 + b.d), 16777619);
-    h = Math.imul(h ^ ((b.style | 0) * 2 + (b.site && b.site.done !== null ? 1 : 0)), 16777619);   // Stage 4: a palace's style, a monument finished
+    h = Math.imul(h ^ ((b.style | 0) * 2 + (b.site && b.site.done !== null ? 1 : 0) + (typeof b.style === 'string' ? 4 * styleValue(b.style) : 0)), 16777619);   // Stage 4: a palace's style, a monument finished; Stage 4.6: a monument's style value (a string: only a monument's, so the pass stays cheap)
   }
   return `${list.length}:${h}:${world.roadVersion}`;
 }
@@ -120,12 +126,14 @@ export function desirabilityContributors(world, house, n = 3) {
 // with their change v, and how many housing plots (any tier, empty ones too, as homesServedFrom counts) would get
 // a better or a worse best tile. Stage 4: rot turns a mastaba's footprint; a monument previews its finished values unless
 // site is true (the site's dust and noise: "while building: N homes less pleasant", spec 4.7).
-export function desirabilityPreview(world, type, x, y, { rot = 0, site = false } = {}) {
+export function desirabilityPreview(world, type, x, y, { rot = 0, site = false, style = null } = {}) {
   const def = BUILDINGS[type];
   const tiles = [];
   if (!def) return { better: 0, worse: 0, tiles };
   const { w, d } = dimsOf(type, rot);
-  const vals = site && def.monument ? SITE_DESIRABILITY : (DESIRABILITY[type] || []);
+  const bonus = !site && def.monument && MONUMENT_STYLES[style] ? MONUMENT_STYLES[style].desirability : 0;   // Stage 4.6: a Gilded one is one nicer at every distance
+  const own = DESIRABILITY[type] || [];
+  const vals = site && def.monument ? SITE_DESIRABILITY : bonus ? own.map((v) => v + bonus) : own;
   const delta = new Map();
   spread(world.size, x, y, w, d, vals, (i, tx, ty, v) => {
     tiles.push({ x: tx, y: ty, v });

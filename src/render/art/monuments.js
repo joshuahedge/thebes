@@ -1,4 +1,4 @@
-// The seven monuments (spec 5.1, 5.7; rulings 182, 183, 221, 257), drawn live from their building's site every frame
+// The monuments (spec 5.1, 5.7; rulings 182, 183, 221, 257; from Stage 4.6 ten kinds and four styles), drawn live from their building's site every frame
 // (src/render/monuments.js drawMonument), never from the sprite cache. A site is founded as stakes and cords on a paved
 // apron with a stockpile corner; its courses rise block by block (a block is BLOCK_UNITS units, so with one full crew at
 // 1x a new block shows at least every 5 s: 3 units at 2/3 a second); a mudbrick ramp climbs the face towards the viewer as the courses rise on a
@@ -13,6 +13,7 @@
 import { box, tb, qd, p, U, quad, groundShadow } from './primitives.js';
 import { WASH, WASH2, MUD, MUD2, STONE, GOLDC, TEAL, TEAL_DARK, BLUE, RED, RED_DARK, GOLD, WOOD, DOOR, OUTLINE, INK } from './palette.js';
 import { MONUMENTS, MONUMENT_KINDS, MONUMENT } from '../../data/monuments.js';
+import { MONUMENT_STYLE_IDS } from '../../data/wonders.js';
 import { boundsFor } from '../iso.js';
 
 export const BLOCK_UNITS = 3;                               // units of material a block stands for (spec 5.7: a block at least every 5 s at 1x; a full crew lays 2/3 of a unit a second)
@@ -38,7 +39,32 @@ export const MONUMENT_LOOK = {
   mastaba_large: { family: 'mastaba', height: 24, margin: 0.34 },
   pyramid_small: { family: 'pyramid', height: 54, margin: 0.34 },
   pyramid_great: { family: 'pyramid', height: 100, margin: 0.38 },
+  // Stage 4.6 (ruling 390-392): the great sphinx (a lion lying along x, built like the colossus from parts), the sun temple (a platform, two
+  // pylons and a tall sun pillar crowned by a disc, from parts) and the step pyramid (five tiers of two courses, no casing).
+  great_sphinx: { family: 'sphinx', height: 34, margin: 0.14 },
+  sun_temple: { family: 'temple', height: 50, margin: 0.2 },
+  step_pyramid: { family: 'step', height: 70, margin: 0.34 },
 };
+
+// ── the styles (Stage 4.6, ruling 343) ──
+// A monument is founded in Whitewashed, Painted or Gilded (src/data/wonders.js MONUMENT_STYLES), or is 'classic': every monument from before
+// Stage 4.6, which draws exactly as it did (its tones below are the old colours). TONES gives the colours a finished body and its accents are
+// painted in; each family's drawing reads them, so a style is one set of colours, never a second drawing. Under every motion level they are
+// still colours (nothing here moves). stone: the sandstone of a seated or lying figure; wall, wall2: whitewashed tiers (alternate courses);
+// shaft: an obelisk's shaft; ped: its pedestal; a1, a2: the main and second band pairs (lit, shaded); r: the thin red band's pair; a3: a
+// figure's name and stripes; collar: a figure's collar; stripe: a headcloth's stripes; door: a door's lintel; cap: a capstone's, a crown's or a
+// disc's metal [top, lit, shaded] (a pyramid's capstone stays gold where it was paid for); gold: whether `cap` is gold (it shines).
+const OCHRE = ['#EFC384', '#DCA45F', '#B38670'];
+const OCHRE_PALE = ['#F6E2B8', '#E7CB96', '#BDA79A'];
+const ORANGE_PAIR = ['#E07B39', '#B85F2A'];
+export const TONES = {
+  classic: { stone: SANDSTONE, wall: WASH, wall2: WASH2, shaft: ROSE, ped: STONE, a1: [TEAL, TEAL_DARK], a2: [GOLD, GOLDC[2]], r: [RED, RED_DARK], a3: BLUE, collar: GOLD, stripe: BLUE, door: RED, cap: GOLDC, gold: true },
+  whitewashed: { stone: ['#F4ECDA', '#E8DCC4', '#BDB0BE'], wall: WASH, wall2: WASH2, shaft: ['#FBF6EA', '#F0E8DA', '#CDC1CF'], ped: STONE, a1: ['#C9BDD0', '#A99DB4'], a2: ['#DDD4C4', '#C2B8A8'], r: ['#C9BDD0', '#A99DB4'], a3: '#A59DB2', collar: '#E2D8C6', stripe: '#B7AAC6', door: '#8A7F94', cap: ['#FFFFFF', '#F3EBDD', '#CFC4D4'], gold: false },
+  painted: { stone: OCHRE, wall: OCHRE_PALE, wall2: OCHRE, shaft: OCHRE, ped: OCHRE_PALE, a1: [TEAL, TEAL_DARK], a2: ORANGE_PAIR, r: ORANGE_PAIR, a3: TEAL, collar: '#E6A23C', stripe: TEAL, door: TEAL, cap: ['#E9A74B', '#D9892F', '#A9692C'], gold: true },
+  gilded: { stone: SANDSTONE, wall: WASH, wall2: WASH2, shaft: ROSE, ped: STONE, a1: [GOLD, GOLDC[2]], a2: [GOLDC[0], GOLDC[1]], r: [GOLDC[0], GOLDC[1]], a3: GOLD, collar: GOLD, stripe: GOLD, door: GOLD, cap: GOLDC, gold: true },
+};
+// A style the art knows, else classic (a ghost, a card or a hand-made record may carry none).
+export const styleOf = (style) => (MONUMENT_STYLE_IDS.includes(style) ? style : 'classic');
 
 // The blocks of course i of a kind: one per BLOCK_UNITS units of its recipe.
 export function blocksIn(type, i) {
@@ -50,7 +76,8 @@ export function blocksIn(type, i) {
 // finished or not, the stockpile and the crews. A building with no site (a card) is finished.
 export function siteLook(b) {
   const m = MONUMENTS[b.type], n = m.courses.length, s = b.site;
-  if (!s) return { type: b.type, n, course: n, frac: 0, blocks: 1, laid: 0, done: true, stock: { stone: 0, bricks: 0 }, crews: 0 };
+  const style = styleOf(b.style);
+  if (!s) return { type: b.type, n, course: n, frac: 0, blocks: 1, laid: 0, done: true, stock: { stone: 0, bricks: 0 }, crews: 0, style };
   const done = s.done !== null && s.done !== undefined;
   const course = done ? n : Math.min(n, s.course || 0);
   let frac = 0;
@@ -61,7 +88,7 @@ export function siteLook(b) {
   const blocks = blocksIn(b.type, course);
   return {
     type: b.type, n, course, frac, blocks, laid: Math.floor(frac * blocks + 1e-9), done,
-    stock: { stone: (s.stock && s.stock.stone) || 0, bricks: (s.stock && s.stock.bricks) || 0 }, crews: (s.crews || []).length,
+    stock: { stone: (s.stock && s.stock.stone) || 0, bricks: (s.stock && s.stock.bricks) || 0 }, crews: (s.crews || []).length, style,
   };
 }
 
@@ -79,6 +106,7 @@ export function builtHeight(type, look) {
   const share = (look.course + look.laid / look.blocks) / look.n;
   if (L.family === 'obelisk') return 4 + L.shaft * share + 4;
   if (L.family === 'pyramid') return L.height * 0.9 * share;
+  if (L.family === 'step') return L.height * STEP_CORE * share;
   if (L.family === 'mastaba') return L.height * Math.min(1, share * look.n / Math.max(1, look.n - 1));
   return L.height * share + 4;
 }
@@ -282,8 +310,26 @@ function pyramidSite(g, x, y, w, look, newest) {
   return ramp(g, x + 0.1, bx + side - k - (side - 2 * k) * 0.25, by + side + 0.26, 0.36, by + side - k, z1);
 }
 
-export function pyramidFinished(g, x, y, w, type) {
-  const { L, bx, by, side } = pyramidGeom(type, x, y, w);
+// A band across both faces of a finished pyramid between the fractions f0 and f1 of the way from the foot to the apex: `lit` on the sunlit face,
+// `dark` on the shaded one.
+function pyramidBand(g, A, Bp, C, apex, f0, f1, lit, dark) {
+  const at = (q, f) => [q[0] + (apex[0] - q[0]) * f, q[1] + (apex[1] - q[1]) * f];
+  g.poly([at(A, f0), at(Bp, f0), at(Bp, f1), at(A, f1)], lit);
+  g.poly([at(Bp, f0), at(C, f0), at(C, f1), at(Bp, f1)], dark);
+}
+// The bands a style paints round a pyramid, [from, to, band]: whitewashed one pale line; painted teal, orange and teal again; gilded gold, a gold line, gold.
+const PYRAMID_BANDS = {
+  whitewashed: [[0.04, 0.07, 'a1']],                                          // a thin lavender line at the foot: the casing is otherwise plain, so it differs from classic's
+  painted: [[0.05, 0.12, 'a1'], [0.15, 0.19, 'a2'], [0.22, 0.25, 'a1']],
+  gilded: [[0.05, 0.11, 'a1'], [0.15, 0.17, 'a2'], [0.2, 0.22, 'a1']],
+};
+
+export function pyramidFinished(g, x, y, w, type, style = 'classic') {
+  const T = TONES[style], { L, bx, by, side } = pyramidGeom(type, x, y, w);
+  // The capstone is gold in the classic look and for the great pyramid, whose capstone is paid for (MONUMENTS.pyramid_great.extra); a
+  // Whitewashed or Painted small pyramid wears its own style's stone.
+  const paid = Boolean(MONUMENTS[type].extra && MONUMENTS[type].extra.kind === 'capstone');
+  const cap3 = paid ? GOLDC : T.cap, goldCap = paid || T.gold;
   const apex = U(p(bx + side / 2, by + side / 2), L.height);
   const A = p(bx, by + side), Bp = p(bx + side, by + side), C = p(bx + side, by);
   shadedFace(g, A, Bp, apex, CASING[1], true);
@@ -294,16 +340,17 @@ export function pyramidFinished(g, x, y, w, type) {
     segs.push(['M', at(A)], ['L', at(Bp)], ['L', at(C)]);
   }
   g.stroke(segs, '#B8AAB8', 0.45, 0.4);
+  for (const [f0, f1, k] of PYRAMID_BANDS[style] || []) pyramidBand(g, A, Bp, C, apex, f0, f1, T[k][0], T[k][1]);
   g.stroke([['M', A], ['L', apex], ['L', C]], OUTLINE, 0.6, 0.4);
   foot(g, A, Bp, C);
   g.line(Bp, apex, '#FFFFFF', 1.2, 0.85);                                    // the lit edge
   // the gold capstone: the top sixth, a separate stone with a dark gold joint under it
   const t = 1 / 6, cap = (q) => [apex[0] + (q[0] - apex[0]) * t, apex[1] + (q[1] - apex[1]) * t];
-  g.poly([cap(A), cap(Bp), apex], GOLDC[1]);
-  g.poly([cap(Bp), cap(C), apex], GOLDC[2]);
-  g.stroke([['M', cap(A)], ['L', cap(Bp)], ['L', cap(C)]], '#7E5A22', 0.8, 0.95);
-  g.line(cap(Bp), apex, '#FFF4C8', 0.8, 0.95);
-  return { apex, cap: [cap(A), cap(Bp), cap(C)] };
+  g.poly([cap(A), cap(Bp), apex], cap3[1]);
+  g.poly([cap(Bp), cap(C), apex], cap3[2]);
+  g.stroke([['M', cap(A)], ['L', cap(Bp)], ['L', cap(C)]], goldCap ? '#7E5A22' : '#8E809A', 0.8, 0.95);
+  g.line(cap(Bp), apex, goldCap ? '#FFF4C8' : '#FFFFFF', 0.8, 0.95);
+  return { apex, cap: goldCap ? [cap(A), cap(Bp), cap(C)] : null };
 }
 
 // ── mastabas ──
@@ -337,20 +384,22 @@ function mastabaSite(g, x, y, w, d, look, newest) {
   return ramp(g, x + 0.1, G.bx + G.B.w - k - 0.35, G.by + G.B.d + 0.22, 0.3, G.by + G.B.d - k, z1);
 }
 
-export function mastabaFinished(g, x, y, w, d, type) {
-  const G = mastabaGeom(type, x, y, w, d), ink = inkFor();
+export function mastabaFinished(g, x, y, w, d, type, style = 'classic') {
+  const T = TONES[style], G = mastabaGeom(type, x, y, w, d), ink = inkFor();
+  const banded = style === 'painted' || style === 'gilded';                   // Stage 4.6: a painted or gilded mastaba wears a band on every tier
   let F0 = null;
   for (let i = 0; i < G.tiers; i++) {
     const [tx, ty, tw, td] = tier(G, i);
-    const F = slab(g, tx, ty, tw, td, G.ch, i * G.ch, 0.04, i % 2 ? WASH2 : WASH, ink);
+    const F = slab(g, tx, ty, tw, td, G.ch, i * G.ch, 0.04, i % 2 ? T.wall2 : T.wall, ink);
     if (i === 0) F0 = F;
+    if (banded) { flush(g, ink); qd(g, F.L, 0, 1, G.ch * 0.5, G.ch * 0.5 + 2, T.a1[0]); qd(g, F.R, 0, 1, G.ch * 0.5, G.ch * 0.5 + 2, T.a1[1]); }
   }
   flush(g, ink);
   qd(g, F0.L, 0.62, 0.74, 0, G.ch - 1.6, DOOR);                             // the false door and its lintel
-  qd(g, F0.L, 0.58, 0.78, G.ch - 1.6, G.ch - 0.8, RED, { alpha: 0.8 });
+  qd(g, F0.L, 0.58, 0.78, G.ch - 1.6, G.ch - 0.8, T.door, { alpha: 0.8 });
   qd(g, F0.L, 0.2, 0.3, 0, G.ch * 0.6, '#E2D6C2');                           // the offering niche
   const [tx, ty, tw, td] = tier(G, G.tiers - 1);
-  g.line(U(p(tx, ty + td), G.L.height), U(p(tx + tw, ty + td), G.L.height), TEAL, 0.9);   // a teal line along the cornice
+  g.line(U(p(tx, ty + td), G.L.height), U(p(tx + tw, ty + td), G.L.height), T.a1[0], 0.9);   // a teal line along the cornice (its style's colour)
   box(g, G.bx + G.B.w * 0.55, G.by + G.B.d + 0.06, 0.24, 0.14, 2, 0, STONE, 0);   // the offering table
 }
 
@@ -387,18 +436,18 @@ function obeliskSite(g, x, y, look, newest) {
   return null;
 }
 
-export function obeliskFinished(g, x, y, type) {
-  const G = obeliskGeom(type, x, y), ink = inkFor();
-  const P = slab(g, G.cx - 0.24, G.cy - 0.24, 0.48, 0.48, G.ped, 0, 0, STONE, ink);
+export function obeliskFinished(g, x, y, type, style = 'classic') {
+  const T = TONES[style], G = obeliskGeom(type, x, y), ink = inkFor();
+  const P = slab(g, G.cx - 0.24, G.cy - 0.24, 0.48, 0.48, G.ped, 0, 0, T.ped, ink);
   flush(g, ink);
-  qd(g, P.L, 0, 1, 1.2, 2.2, TEAL); qd(g, P.R, 0, 1, 1.2, 2.2, TEAL_DARK);
-  const F = obeliskShaft(g, G, 0, G.L.shaft, ROSE, ink);
+  qd(g, P.L, 0, 1, 1.2, 2.2, T.a1[0]); qd(g, P.R, 0, 1, 1.2, 2.2, T.a1[1]);
+  const F = obeliskShaft(g, G, 0, G.L.shaft, T.shaft, ink);
   flush(g, ink);
-  for (const s of [G.L.shaft * 0.6, G.L.shaft * 0.82]) {                   // painted bands, 2 px
-    qd(g, F.L, 0, 1, s, s + 2, TEAL); qd(g, F.R, 0, 1, s, s + 2, TEAL_DARK);
+  for (const s of style === 'painted' ? [G.L.shaft * 0.34, G.L.shaft * 0.6, G.L.shaft * 0.82] : [G.L.shaft * 0.6, G.L.shaft * 0.82]) {   // painted bands, 2 px (a painted one has a third)
+    qd(g, F.L, 0, 1, s, s + 2, T.a1[0]); qd(g, F.R, 0, 1, s, s + 2, T.a1[1]);
   }
   const r0 = G.L.shaft * 0.82 + 2, r1 = r0 + 1.4;
-  qd(g, F.L, 0, 1, r0, r1, RED); qd(g, F.R, 0, 1, r0, r1, RED_DARK);
+  qd(g, F.L, 0, 1, r0, r1, T.r[0]); qd(g, F.R, 0, 1, r0, r1, T.r[1]);
   qd(g, F.L, 0.3, 0.7, 3, G.L.shaft * 0.55, '#C9A396', { alpha: 0.8 });     // the carved column, a shade darker
   const glyphs = [];
   for (let s = 4.4; s < G.L.shaft * 0.53; s += 3.2) glyphs.push(['M', F.L(0.38, s)], ['L', F.L(0.62, s + 0.6)]);
@@ -407,11 +456,12 @@ export function obeliskFinished(g, x, y, type) {
   foot(g, P.L(0, 0), P.L(1, 0), P.R(0, 0));
   const top = G.ped + G.L.shaft, hw = G.topW / 2, tipH = G.L.height - top;
   const a = U(p(G.cx - hw, G.cy + hw), top), b = U(p(G.cx + hw, G.cy + hw), top), c = U(p(G.cx + hw, G.cy - hw), top), t = U(p(G.cx, G.cy), top + tipH);
-  const gilded = MONUMENTS[type].extra && MONUMENTS[type].extra.kind === 'gilding';
+  // the tip is gold where it was paid for (MONUMENTS.obelisk_large.extra) and in the Gilded style; a Painted one's is teal; else polished pale stone
+  const gilded = (MONUMENTS[type].extra && MONUMENTS[type].extra.kind === 'gilding') || style === 'gilded', tinted = style === 'painted' && !gilded;
   // the pyramidion: gilded on the large obelisk (its paid extra, MONUMENTS.obelisk_large.extra); the small one's is
   // polished pale, so its rose shaft still ends in a bright point without taking the gilding's meaning
-  g.poly([a, b, t], gilded ? GOLDC[1] : STONE[0]);
-  g.poly([b, c, t], gilded ? GOLDC[2] : STONE[2]);
+  g.poly([a, b, t], gilded ? GOLDC[1] : tinted ? TEAL : STONE[0]);
+  g.poly([b, c, t], gilded ? GOLDC[2] : tinted ? TEAL_DARK : STONE[2]);
   g.line(b, t, gilded ? '#FFF4C8' : '#FFFFFF', 0.8, 0.95);
   return { apex: t, cap: gilded ? [a, b, c] : null };
 }
@@ -432,13 +482,17 @@ const COLOSSUS = [
 ];
 const colossusZ = (type, look) => MONUMENT_LOOK[type].height * (look.course + look.laid / look.blocks) / look.n;
 
-// The parts overlap on screen, so each part's edges are stroked as it is drawn.
-function colossusSite(g, x, y, look, newest) {
+// A figure built of parts rises with the course under way (Stage 4.6: the colossus, the great sphinx and the sun temple share it): parts
+// [x, y, w, d, z, h] (tiles and art px, back to front) grow as the height Z = H x (courses done + the share of the one under way) / n passes
+// them, the newest block's slab fading in on top, scaffolding round `scaf` ([x, y, w, d] in tiles) while it rises. `extra(g, Z)` draws what is
+// not a box (the temple's disc) once Z reaches it. The parts overlap on screen, so each part's edges are stroked as it is drawn.
+function partsSite(g, x, y, look, newest, parts, scaf, extra = null) {
   const H = MONUMENT_LOOK[look.type].height, Z = colossusZ(look.type, look), per = H / look.n / look.blocks;
   const Zs = newest ? Math.max(0, Z - per) : Z;                              // the newest block's slab fades in on top
   const ink = inkFor();
-  scaffold(g, x + 0.5, y + 0.42, 1.0, 1.0, Math.min(H, Z) + 6, true);
-  for (const [px, py, pw, pd, z, h] of COLOSSUS) {
+  const top = Math.min(H, Z) + 6, [sx, sy, sw, sd] = scaf;
+  scaffold(g, x + sx, y + sy, sw, sd, top, true);
+  for (const [px, py, pw, pd, z, h] of parts) {
     if (z < Zs) {
       const hh = Math.min(h, Zs - z), F = slab(g, x + px, y + py, pw, pd, hh, z, 0, SANDSTONE, ink);
       if (hh > 8) ink.joint.push(['M', F.L(0, 8)], ['L', F.L(1, 8)]);
@@ -447,31 +501,179 @@ function colossusSite(g, x, y, look, newest) {
     const lo = Math.max(z, Zs), hi = Math.min(z + h, Z);
     if (newest && hi > lo) alphaBox(g, x + px, y + py, pw, pd, hi - lo, lo + newest.drop, SANDSTONE, newest.alpha);
   }
-  scaffold(g, x + 0.5, y + 0.42, 1.0, 1.0, Math.min(H, Z) + 6, false);
+  if (extra) extra(g, Zs);
+  scaffold(g, x + sx, y + sy, sw, sd, top, false);
   return null;
 }
+const colossusSite = (g, x, y, look, newest) => partsSite(g, x, y, look, newest, COLOSSUS, [0.5, 0.42, 1.0, 1.0]);
 
-export function colossusFinished(g, x, y) {
-  const ink = inkFor();
+export function colossusFinished(g, x, y, style = 'classic') {
+  const T = TONES[style], ink = inkFor();
   const parts = COLOSSUS.map(([px, py, pw, pd, z, h], i) => {
-    const F = slab(g, x + px, y + py, pw, pd, h, z, i === 6 ? -0.02 : 0, i === 0 ? STONE : i === 8 ? GOLDC : SANDSTONE, ink);
+    const F = slab(g, x + px, y + py, pw, pd, h, z, i === 6 ? -0.02 : 0, i === 0 ? T.ped : i === 8 ? T.cap : T.stone, ink);
     flush(g, ink);
     return F;
   });
   const [P, Th, , Tr, , , Hc] = parts;
-  qd(g, P.L, 0, 1, 2.6, 4.4, TEAL); qd(g, P.R, 0, 1, 2.6, 4.4, TEAL_DARK);
-  qd(g, P.L, 0, 1, 7.8, 9, GOLD); qd(g, P.R, 0, 1, 7.8, 9, GOLDC[2]);
-  qd(g, P.L, 0.36, 0.64, 5, 7, BLUE, { alpha: 0.75 });                       // the king's name on the plinth
-  qd(g, Th.R, 0, 1, 15, 17.4, BLUE, { alpha: 0.8 });
-  qd(g, Tr.L, 0, 1, 11.4, 15, GOLD);                                         // the gold collar
+  qd(g, P.L, 0, 1, 2.6, 4.4, T.a1[0]); qd(g, P.R, 0, 1, 2.6, 4.4, T.a1[1]);
+  qd(g, P.L, 0, 1, 7.8, 9, T.a2[0]); qd(g, P.R, 0, 1, 7.8, 9, T.a2[1]);
+  qd(g, P.L, 0.36, 0.64, 5, 7, T.a3, { alpha: 0.75 });                       // the king's name on the plinth
+  qd(g, Th.R, 0, 1, 15, 17.4, T.a3, { alpha: 0.8 });
+  qd(g, Tr.L, 0, 1, 11.4, 15, T.collar);                                     // the gold collar
   for (let s = 1; s < 11; s += 2.4) {                                        // the headcloth's blue stripes
-    qd(g, Hc.L, 0, 0.24, s, s + 1.1, BLUE); qd(g, Hc.L, 0.76, 1, s, s + 1.1, BLUE);
-    qd(g, Hc.R, 0, 1, s, s + 1.1, BLUE, { alpha: 0.85 });
+    qd(g, Hc.L, 0, 0.24, s, s + 1.1, T.stripe); qd(g, Hc.L, 0.76, 1, s, s + 1.1, T.stripe);
+    qd(g, Hc.R, 0, 1, s, s + 1.1, T.stripe, { alpha: 0.85 });
   }
-  qd(g, Hc.L, 0.3, 0.7, 1.2, 8.6, SANDSTONE[1]);                             // the face
+  qd(g, Hc.L, 0.3, 0.7, 1.2, 8.6, T.stone[1]);                               // the face
   qd(g, Hc.L, 0.36, 0.46, 5.4, 6.4, DOOR); qd(g, Hc.L, 0.54, 0.64, 5.4, 6.4, DOOR);
   qd(g, Hc.L, 0.44, 0.56, 2.4, 3, RED, { alpha: 0.7 });
   return { apex: U(p(x + 1, y + 0.8), 45), cap: null };
+}
+
+// ── the great sphinx (Stage 4.6, ruling 390): a lion lying along +x, its head to the +x end, built of parts like the colossus ──
+
+// Each part: [x, y, w, d, z, h], in the 3x2 footprint's tiles and art px, back to front.
+const SPHINX = [
+  [0.14, 0.2, 2.55, 1.6, 0, 5],         // 0 the plinth
+  [0.35, 0.6, 0.95, 0.8, 5, 9],         // 1 the haunches
+  [1.3, 0.66, 0.62, 0.68, 5, 7.5],      // 2 the back
+  [1.92, 0.54, 0.7, 0.2, 5, 3.6],       // 3 the far forepaw
+  [1.92, 0.74, 0.38, 0.52, 5, 12],      // 4 the chest
+  [1.92, 1.26, 0.7, 0.2, 5, 3.6],       // 5 the near forepaw
+  [1.96, 0.7, 0.48, 0.6, 17, 14],       // 6 the head in its headcloth
+  [2.0, 0.74, 0.4, 0.52, 31, 2.4],      // 7 the crown band
+];
+
+export function sphinxFinished(g, x, y, style = 'classic') {
+  const T = TONES[style], ink = inkFor();
+  const parts = SPHINX.map(([px, py, pw, pd, z, h], i) => {
+    const F = slab(g, x + px, y + py, pw, pd, h, z, i === 6 ? -0.02 : 0, i === 0 ? T.ped : i === 7 ? T.cap : T.stone, ink);
+    flush(g, ink);
+    return F;
+  });
+  const [P, Ha, Bk, , Ch, , Hd] = parts;
+  qd(g, P.L, 0, 1, 1.4, 2.6, T.a1[0]); qd(g, P.R, 0, 1, 1.4, 2.6, T.a1[1]);       // the plinth's two painted bands
+  qd(g, P.L, 0, 1, 3.5, 4.5, T.a2[0]); qd(g, P.R, 0, 1, 3.5, 4.5, T.a2[1]);
+  qd(g, P.L, 0.4, 0.6, 2.9, 3.4, T.a3, { alpha: 0.7 });                            // the king's name
+  qd(g, Bk.L, 0, 1, 4.6, 5.8, T.a1[0]); qd(g, Ha.L, 0, 1, 6, 7.2, T.a1[0]);        // a painted band along the flank
+  g.stroke([['M', Ha.L(0.3, 0.6)], ['L', Ha.L(0.36, 5)], ['L', Ha.L(0.66, 8)]], T.stone[2], 0.7, 0.8);   // the haunch
+  qd(g, Ch.L, 0, 1, 7, 11, T.collar); qd(g, Ch.R, 0, 1, 7, 11, T.collar, { alpha: 0.85 });   // the broad collar
+  for (let s = 1; s < 11; s += 2.4) {                                              // the headcloth's stripes
+    qd(g, Hd.L, 0, 0.3, s, s + 1.1, T.stripe); qd(g, Hd.R, 0, 0.16, s, s + 1.1, T.stripe, { alpha: 0.85 }); qd(g, Hd.R, 0.84, 1, s, s + 1.1, T.stripe, { alpha: 0.85 });
+  }
+  qd(g, Hd.R, 0.2, 0.8, 1.2, 9.6, T.stone[1]);                                     // the face looks along the body's line, to +x
+  qd(g, Hd.R, 0.3, 0.42, 5.8, 6.8, DOOR); qd(g, Hd.R, 0.58, 0.7, 5.8, 6.8, DOOR);
+  qd(g, Hd.R, 0.46, 0.54, 3.2, 5.4, T.stone[2], { alpha: 0.8 });
+  qd(g, Hd.R, 0.4, 0.6, 1.8, 2.5, T.r[0], { alpha: 0.7 });
+  return { apex: U(p(x + 2.2, y + 1.0), 34), cap: null };
+}
+
+// ── the sun temple (ruling 391): a platform and court, two pylons with masts, and a tall sun pillar crowned by a disc ──
+
+const TEMPLE = [
+  [0.2, 0.2, 2.6, 2.6, 0, 5],           // 0 the platform
+  [0.5, 0.5, 2.0, 2.0, 5, 4],           // 1 the court
+  [1.1, 0.75, 0.8, 0.8, 9, 24],         // 2 the sun pillar
+  [0.62, 1.85, 0.72, 0.55, 9, 17],      // 3 the left pylon
+  [1.66, 1.85, 0.72, 0.55, 9, 17],      // 4 the right pylon
+  [1.34, 1.9, 0.32, 0.45, 20, 6],       // 5 the lintel over the gate
+  [1.3, 0.95, 0.4, 0.4, 33, 3.5],       // 6 the disc's stand
+];
+const TEMPLE_DISC = { x: 1.5, y: 1.15, z: 41, r: 7 };   // the sun disc over the pillar: its middle in tiles and art px, and its radius in art px
+
+// The disc: a ring, a face, and twelve short rays; `g` draws it upright (a circle on screen).
+function sunDisc(g, x, y, T) {
+  const c = U(p(x + TEMPLE_DISC.x, y + TEMPLE_DISC.y), TEMPLE_DISC.z), r = TEMPLE_DISC.r;
+  const rays = [];
+  for (let k = 0; k < 12; k++) { const a = (k * Math.PI) / 6; rays.push(['M', [c[0] + Math.cos(a) * (r + 1.2), c[1] + Math.sin(a) * (r + 1.2)]], ['L', [c[0] + Math.cos(a) * (r + 3.4), c[1] + Math.sin(a) * (r + 3.4)]]); }
+  g.stroke(rays, T.a2[1], 0.9, 0.95);
+  g.ell(c, r, r, T.a1[0], { outline: true });
+  g.ell(c, r * 0.74, r * 0.74, T.cap[0]);
+  g.ell([c[0] - r * 0.22, c[1] - r * 0.22], r * 0.3, r * 0.3, '#FFFFFF', { alpha: 0.55 });
+  return { apex: [c[0], c[1] - r - 3], cap: T.gold ? [[c[0] - r, c[1]], [c[0], c[1] + r], [c[0] + r, c[1]]] : null };
+}
+
+export function templeFinished(g, x, y, style = 'classic') {
+  const T = TONES[style], ink = inkFor();
+  const parts = TEMPLE.map(([px, py, pw, pd, z, h], i) => {
+    const F = slab(g, x + px, y + py, pw, pd, h, z, i === 2 ? 0.1 : i === 3 || i === 4 ? 0.05 : 0, i === 6 ? T.cap : i === 1 || i === 5 ? T.wall2 : T.wall, ink);
+    flush(g, ink);
+    return F;
+  });
+  const [P, Co, Pi, Pl, Pr, Li] = parts;
+  qd(g, P.L, 0, 1, 1.4, 2.6, T.a1[0]); qd(g, P.R, 0, 1, 1.4, 2.6, T.a1[1]);       // the platform's painted band
+  qd(g, Co.L, 0, 1, 1.6, 2.4, T.a2[0]); qd(g, Co.R, 0, 1, 1.6, 2.4, T.a2[1]);
+  qd(g, Pi.L, 0, 1, 16, 18.6, T.a1[0]); qd(g, Pi.R, 0, 1, 16, 18.6, T.a1[1]);     // the pillar's band, and a thin one below its top
+  qd(g, Pi.L, 0, 1, 21.4, 22.6, T.a2[0]); qd(g, Pi.R, 0, 1, 21.4, 22.6, T.a2[1]);
+  for (const Py of [Pl, Pr]) {
+    qd(g, Py.L, 0, 1, 12.6, 15, T.a1[0]); qd(g, Py.R, 0, 1, 12.6, 15, T.a1[1]);   // each pylon's band under its cornice
+    qd(g, Py.L, 0.16, 0.26, 2, 12, '#8E8296', { alpha: 0.45 }); qd(g, Py.L, 0.74, 0.84, 2, 12, '#8E8296', { alpha: 0.45 });   // the mast slots
+  }
+  qd(g, Li.L, 0, 1, 1.6, 4.2, T.door);                                             // the lintel's painted face
+  for (const [mx, my] of [[0.98, 2.12], [2.02, 2.12]]) {                           // a mast on each pylon, a pennant at its top
+    const base = U(p(x + mx, y + my), 26), top = U(base, 12);
+    g.line(base, top, WOOD, 0.8);
+    g.poly([top, [top[0] + 6, top[1] + 1.8], [top[0], top[1] + 4.2]], T.a1[0], { outline: true });
+  }
+  return sunDisc(g, x, y, T);
+}
+
+// The sun temple's disc and masts are drawn on the site once the pillar is up (Z reaches the disc's stand).
+function templeSite(g, x, y, look, newest) {
+  return partsSite(g, x, y, look, newest, TEMPLE, [0.95, 0.6, 1.1, 1.1], (gg, Z) => { if (Z >= TEMPLE_DISC.z - 1.5) sunDisc(gg, x, y, TONES.classic); });
+}
+const sphinxSite = (g, x, y, look, newest) => partsSite(g, x, y, look, newest, SPHINX, [0.4, 0.5, 2.1, 1.0]);
+
+// ── the step pyramid (ruling 392): five tiers of two courses, no casing; a small chapel and a pyramidion crown it ──
+
+const STEP_TIERS = 5, STEP_CORE = 0.92;
+function stepGeom(type, x, y, w) {
+  const L = MONUMENT_LOOK[type], B = bodyOf(type, w, w), n = MONUMENTS[type].courses.length;
+  return { L, B, n, per: n / STEP_TIERS, ch: (L.height * STEP_CORE) / n, set: ((B.w / 2) * 0.72) / (STEP_TIERS - 1), bx: x + B.x, by: y + B.y, side: B.w };
+}
+// The rectangle of the tier course i lies in: [x, y, w, d].
+function stepTier(G, i) {
+  const k = Math.min(STEP_TIERS - 1, Math.floor(i / G.per)) * G.set;
+  return [G.bx + k, G.by + k, G.side - 2 * k, G.side - 2 * k];
+}
+
+function stepSite(g, x, y, w, look, newest) {
+  const G = stepGeom(look.type, x, y, w), ink = inkFor();
+  for (let i = 0; i < Math.min(look.course, G.n); i++) {
+    const [tx, ty, tw, td] = stepTier(G, i);
+    const F = slab(g, tx, ty, tw, td, G.ch, i * G.ch, 0, i % 2 ? CORE2 : CORE, ink);
+    joints(ink, F, tw, td, G.ch, 0.45, i % 2);
+  }
+  if (look.course < G.n && look.laid > 0) {
+    const [tx, ty, tw, td] = stepTier(G, look.course);
+    courseUnderWay(g, tx, ty, tw, td, look.course * G.ch, G.ch, look, newest, look.course % 2 ? CORE2 : CORE, ink);
+  }
+  flush(g, ink);
+  if (look.course > 0) foot(g, p(G.bx, G.by + G.side), p(G.bx + G.side, G.by + G.side), p(G.bx + G.side, G.by));
+  const [tx, ty, tw, td] = stepTier(G, Math.min(look.course, G.n - 1));
+  return ramp(g, x + 0.1, tx + tw * 0.75, G.by + G.side + 0.26, 0.36, ty + td, look.course * G.ch);
+}
+
+export function stepFinished(g, x, y, w, type, style = 'classic') {
+  const T = TONES[style], G = stepGeom(type, x, y, w), ink = inkFor(), h = G.ch * G.per, top = h * STEP_TIERS;
+  for (let t = 0; t < STEP_TIERS; t++) {
+    const [tx, ty, tw, td] = stepTier(G, t * G.per);
+    const F = slab(g, tx, ty, tw, td, h, t * h, 0.05, t % 2 ? T.wall2 : T.wall, ink);
+    flush(g, ink);
+    if (style === 'painted' || style === 'gilded' || style === 'classic') {      // a painted band round the middle of each tier; Whitewashed stays plain
+      qd(g, F.L, 0, 1, h * 0.5, h * 0.5 + 2.4, t % 2 ? T.a2[0] : T.a1[0]); qd(g, F.R, 0, 1, h * 0.5, h * 0.5 + 2.4, t % 2 ? T.a2[1] : T.a1[1]);
+    } else g.line(F.L(0, h - 0.8), F.L(1, h - 0.8), T.a1[0], 0.8, 0.8);          // Whitewashed: a thin lavender line under each cornice
+  }
+  const [tx, ty, tw, td] = stepTier(G, G.n - 1), cx = tx + tw / 2, cy = ty + td / 2, c = 0.27;
+  const Ch = slab(g, cx - c, cy - c, c * 2, c * 2, 6, top, 0.02, T.wall, ink);   // the chapel on the top tier
+  flush(g, ink);
+  qd(g, Ch.L, 0.34, 0.66, 0, 4, DOOR);
+  qd(g, Ch.L, 0, 1, 4.4, 5.6, T.door); qd(g, Ch.R, 0, 1, 4.4, 5.6, T.a1[1]);
+  const a = U(p(cx - c, cy + c), top + 6), b = U(p(cx + c, cy + c), top + 6), cc = U(p(cx + c, cy - c), top + 6), apex = U(p(cx, cy), top + 12);
+  g.poly([a, b, apex], T.cap[1]);
+  g.poly([b, cc, apex], T.cap[2]);
+  g.line(b, apex, T.gold ? '#FFF4C8' : '#FFFFFF', 0.7, 0.9);
+  return { apex, cap: T.gold ? [a, b, cc] : null };
 }
 
 // ── the scene ──
@@ -494,24 +696,43 @@ export function drawSite(g, x, y, w, d, look, newest = null) {
   if (fam === 'pyramid') r = pyramidSite(g, x, y, w, look, newest);
   else if (fam === 'mastaba') r = mastabaSite(g, x, y, w, d, look, newest);
   else if (fam === 'obelisk') r = obeliskSite(g, x, y, look, newest);
+  else if (fam === 'step') r = stepSite(g, x, y, w, look, newest);
+  else if (fam === 'sphinx') r = sphinxSite(g, x, y, look, newest);
+  else if (fam === 'temple') r = templeSite(g, x, y, look, newest);
   else r = colossusSite(g, x, y, look, newest);
   if (founded) stakes(g, x, y, B, true);
   if (fam === 'obelisk') stockpile(g, x + 0.76, y + 0.36, look, 0.5);
   else if (fam === 'colossus') stockpile(g, x + 1.74, y + 0.36, look, 0.6);
+  else if (fam === 'sphinx') stockpile(g, x + 2.74, y + 0.26, look, 0.4);
+  else if (fam === 'temple') stockpile(g, x + 2.62, y + 0.34, look, 0.45);
   else stockpile(g, x + B.x + B.w + 0.05, y + d * 0.45, look, Math.min(1, B.x / 0.3));
+  if (look.style !== 'classic') pennant(g, x, y, w, d, look.style);
   return r;
+}
+
+// A site founded in a style flies that style's colour from a pole at the apron's right corner (Stage 4.6, ruling 343), so the choice shows from
+// the first stake: a white flag for Whitewashed, teal for Painted, gold for Gilded. Still: it does not flutter under any motion level.
+function pennant(g, x, y, w, d, style) {
+  const T = TONES[style], base = U(p(x + w - 0.16, y + 0.16), 0), top = U(base, 13), c = style === 'whitewashed' ? T.cap[0] : T.a1[0];
+  g.line(base, top, WOOD, 0.8);
+  g.poly([top, [top[0] + 7, top[1] + 2], [top[0], top[1] + 5]], c, { outline: true });
+  if (style === 'painted') g.poly([[top[0], top[1] + 3.2], [top[0] + 5, top[1] + 2.6], [top[0], top[1] + 5]], T.a2[0]);
 }
 
 // The finished monument at (x, y), w x d. Returns { apex, cap } (art px): where the gold's shine and sparkle go
 // (cap null: no gold to shine on).
-export function drawFinished(g, x, y, w, d, type) {
+export function drawFinished(g, x, y, w, d, type, style = 'classic') {
   const fam = MONUMENT_LOOK[type].family;
+  style = styleOf(style);
   apron(g, x, y, w, d);
   shadow(g, x, y, type, w, d, MONUMENT_LOOK[type].height);
-  if (fam === 'pyramid') return pyramidFinished(g, x, y, w, type);
-  if (fam === 'mastaba') { mastabaFinished(g, x, y, w, d, type); return { apex: null, cap: null }; }
-  if (fam === 'obelisk') return obeliskFinished(g, x, y, type);
-  return colossusFinished(g, x, y);
+  if (fam === 'pyramid') return pyramidFinished(g, x, y, w, type, style);
+  if (fam === 'mastaba') { mastabaFinished(g, x, y, w, d, type, style); return { apex: null, cap: null }; }
+  if (fam === 'obelisk') return obeliskFinished(g, x, y, type, style);
+  if (fam === 'step') return stepFinished(g, x, y, w, type, style);
+  if (fam === 'sphinx') return sphinxFinished(g, x, y, style);
+  if (fam === 'temple') return templeFinished(g, x, y, style);
+  return colossusFinished(g, x, y, style);
 }
 
 // ── where the work happens (Task B3: the gangs, the masons, the course-done dust) ──
@@ -531,9 +752,14 @@ export function courseTop(type, x, y, w, d, i) {
   } else if (fam === 'obelisk') {
     const G = obeliskGeom(type, x, y), zz = (i + 1) * G.seg, hw = shaftW(G, zz) / 2;
     [x0, y0, x1, y1, z] = [G.cx - hw, G.cy - hw, G.cx + hw, G.cy + hw, G.ped + zz];
+  } else if (fam === 'step') {
+    const G = stepGeom(type, x, y, w), [tx, ty, tw, td] = stepTier(G, i);
+    [x0, y0, x1, y1, z] = [tx, ty, tx + tw, ty + td, (i + 1) * G.ch];
   } else {
     const H = MONUMENT_LOOK[type].height, zz = (i + 1) * H / MONUMENTS[type].courses.length;
-    [x0, y0, x1, y1] = zz <= COLOSSUS[0][5] ? [x + 0.22, y + 0.2, x + 1.78, y + 1.8] : [x + 0.6, y + 0.5, x + 1.4, y + 1.42];
+    if (fam === 'sphinx') [x0, y0, x1, y1] = zz <= SPHINX[0][5] ? [x + 0.14, y + 0.2, x + 2.69, y + 1.8] : [x + 0.35, y + 0.6, x + 2.44, y + 1.4];
+    else if (fam === 'temple') [x0, y0, x1, y1] = zz <= TEMPLE[0][5] ? [x + 0.2, y + 0.2, x + 2.8, y + 2.8] : [x + 0.62, y + 0.75, x + 2.38, y + 2.4];
+    else [x0, y0, x1, y1] = zz <= COLOSSUS[0][5] ? [x + 0.22, y + 0.2, x + 1.78, y + 1.8] : [x + 0.6, y + 0.5, x + 1.4, y + 1.42];
     z = zz;
   }
   return [U(p(x0, y1), z), U(p(x1, y1), z), U(p(x1, y0), z)];
@@ -544,8 +770,8 @@ export function courseTop(type, x, y, w, d, i) {
 // way the sleds go when there is no ramp yet (or never one): along the apron in front, { x0, x1, y, z }.
 export function workSpots(type, x, y, w, d, look) {
   const fam = MONUMENT_LOOK[type].family;
-  if (fam === 'obelisk' || fam === 'colossus') {
-    const z = builtHeight(type, look) - 4, c = fam === 'obelisk' ? [x + 0.5, y + 0.5] : [x + 1, y + 1];
+  if (fam === 'obelisk' || fam === 'colossus' || fam === 'sphinx' || fam === 'temple') {
+    const z = builtHeight(type, look) - 4, c = fam === 'obelisk' ? [x + 0.5, y + 0.5] : fam === 'sphinx' ? [x + 1.4, y + 1] : fam === 'temple' ? [x + 1.5, y + 1.5] : [x + 1, y + 1];
     return { masons: [[c[0] + 0.16, c[1] + 0.3, z], [c[0] + 0.32, c[1] + 0.1, z]], path: { x0: x + 0.1, x1: x + w * 0.62, y: y + d - 0.1, z: 0 } };
   }
   const path = { x0: x + 0.12, x1: x + w * 0.6, y: y + d - 0.14, z: 0 };
@@ -553,6 +779,9 @@ export function workSpots(type, x, y, w, d, look) {
   if (fam === 'pyramid') {
     const G = pyramidGeom(type, x, y, w), c = Math.min(look.course, G.n - 1), k = c * G.step;
     rect = [G.bx + k, G.by + k, G.side - 2 * k, G.side - 2 * k]; z = c * G.ch;
+  } else if (fam === 'step') {
+    const G = stepGeom(type, x, y, w), c = Math.min(look.course, G.n - 1);
+    rect = stepTier(G, c); z = c * G.ch;
   } else {
     const G = mastabaGeom(type, x, y, w, d), c = Math.min(look.course, G.tiers - 1);
     rect = tier(G, c); z = c * G.ch;
