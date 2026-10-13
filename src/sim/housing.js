@@ -6,6 +6,7 @@ import { touchesRoad, roadReach, reachDistance, buildingsInReach } from './reach
 import { isWorking } from './labour.js';
 import { desirabilityField, houseDesirability } from './desirability.js';
 import { MERGE_TIER, mergeSquare, mergeHouses, splitHouse } from './merge.js';
+import { computeCoverage as computeCoverageByReach } from './coverage.js';
 import { bazaarsByHouse, topUpHouse, monthlyNeed } from './distribution.js';
 
 export const needsOf = (tier) => (tier >= 1 && tier <= MAX_TIER ? TIERS[tier].needs : []);
@@ -34,13 +35,9 @@ export function coveredBy(world, house, need) {
   return false;
 }
 
-export function computeCoverage(world) {
-  const cov = { water: new Set(), religion: new Set(), entertainment: new Set() };
-  for (const h of housesOf(world)) {
-    for (const need of Object.keys(cov)) if (coveredBy(world, h, need)) cov[need].add(h.id);
-  }
-  return cov;
-}
+// The month's coverage of every home (the coveredBy rule for all of them at once): worked from the providers' road reach, src/sim/coverage.js
+// (Stage 4.6, ruling 410), so the month end no longer asks every building about every home.
+export const computeCoverage = computeCoverageByReach;
 
 // How many housing plots (any tier, empty ones too) a service of this type placed at (x, y) would reach along
 // the roads: the coveredBy rule applied to a building that is not there yet (early-game pass 2.6). Uncached, so a
