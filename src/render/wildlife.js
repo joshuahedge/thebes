@@ -4,9 +4,9 @@
 // cap. The River track owns this file. Called through src/render/s46.js s46Walkers.
 //
 // Nothing here is saved or drawn from a sim draw: positions are hash2 of a herd's id or a tile (RIVER_SALT.ambient), so the same
-// city shows the same life every time. Figure ids: WILDLIFE_ID_BASE + a number below 100000 (units 100000+, processions 200000+,
-// dedications 600000+, streamers 900000+, newcomers 1200000+): herd animals id x 16 + i, birds 20000 + tile, hippos 30000 + tile,
-// crocodiles 40000 + tile, leaps 50000 + tile, hunters 60000 + building x 4 + k, boats 80000 + building.
+// city shows the same life every time. Figure ids: WILDLIFE_ID_BASE + a number below 600000 (units 100000+, processions 200000+,
+// dedications 600000+, streamers 900000+, newcomers 1200000+), in three ranges that never meet (wildlifeIds; the final
+// review found a lodge with id 5000 took the boat id of building 0): herd animals, then tile animals, then lodge and wharf figures.
 import { BUILDINGS } from '../data/buildings.js';
 import { WILDLIFE, HUNTING, RIVER_SALT } from '../data/river.js';
 import { hash2 } from '../sim/rng.js';
@@ -17,6 +17,16 @@ import { wharfSide } from './art/river.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
 
 export const WILDLIFE_ID_BASE = 1400000;
+// The three ranges, each its own: a herd animal herd id x 16 + i (i below 16; herd ids below 12500), a tile animal 200000 + tile x 4 + slot (a
+// bird 0, hippo 1, crocodile 2, leap 3; maps up to 158 tiles a side), a lodge or wharf figure 300000 + building id x 3 + slot (hunters 0 and 1,
+// the boat 2; building ids below 100000). A building owns its three slots, so a hunter and a boat can never share an id.
+export const TILE_SLOT = { bird: 0, hippo: 1, croc: 2, leap: 3 };
+export const wildlifeIds = {
+  herd: (herdId, i) => WILDLIFE_ID_BASE + herdId * 16 + i,
+  tile: (slot, tile) => WILDLIFE_ID_BASE + 200000 + tile * 4 + TILE_SLOT[slot],
+  hunter: (buildingId, k) => WILDLIFE_ID_BASE + 300000 + buildingId * 3 + k,
+  boat: (buildingId) => WILDLIFE_ID_BASE + 300000 + buildingId * 3 + 2,
+};
 
 const SALT = RIVER_SALT.ambient;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -93,7 +103,7 @@ export function huntersOf(world, b, timeDays, motion) {
       const eastward = (target.x - target.y) >= (home.x - home.y);              // on screen, out is to the right when the herd lies that way
       left = back ? eastward : out1 ? !eastward : false;
     }
-    out.push({ id: WILDLIFE_ID_BASE + 60000 + b.id * 4 + k, kind: left ? 'hunter_l' : 'hunter', x, y, dir: left ? 3 : 1 });
+    out.push({ id: wildlifeIds.hunter(b.id, k), kind: left ? 'hunter_l' : 'hunter', x, y, dir: left ? 3 : 1 });
   }
   return out;
 }
@@ -116,7 +126,7 @@ export function boatOf(world, b, timeDays, motion) {
   let x = base.x + (long ? drift : 0), y = base.y + (long ? 0 : drift);
   if (!wet(world, Math.floor(x), Math.floor(y))) { x = base.x; y = base.y; }
   const left = long ? Math.cos(timeDays * m.pace * 0.7 + b.id) < 0 : false;
-  return { id: WILDLIFE_ID_BASE + 80000 + b.id, kind: left ? 'boat_l' : 'boat', x, y, dir: left ? 3 : 1 };
+  return { id: wildlifeIds.boat(b.id), kind: left ? 'boat_l' : 'boat', x, y, dir: left ? 3 : 1 };
 }
 
 // ── The animals in range ──
@@ -133,7 +143,7 @@ export function animalsAt(world, timeDays, range, motion) {
   for (const h of herds) {
     for (const a of herdAnimals(world, h, timeDays, motion)) {
       if (drawn >= cap) break;
-      out.push({ id: WILDLIFE_ID_BASE + h.id * 16 + a.i, kind: a.left ? `${a.kind}_l` : a.kind, x: a.x, y: a.y, dir: a.left ? 3 : 1 });
+      out.push({ id: wildlifeIds.herd(h.id, a.i), kind: a.left ? `${a.kind}_l` : a.kind, x: a.x, y: a.y, dir: a.left ? 3 : 1 });
       drawn += 1;
     }
   }
@@ -152,16 +162,16 @@ export function animalsAt(world, timeDays, range, motion) {
   pick(sp.birds, 14, (s) => {
     const heron = s.h < 0.3, left = s.h > 0.5;
     const down = !heron && motion === 'full' && (Math.floor(timeDays / 5 + s.h * 7) % 3 === 0);
-    return { id: WILDLIFE_ID_BASE + 20000 + s.i, kind: `${heron ? 'heron' : down ? 'ibis_d' : 'ibis'}${left ? '_l' : ''}`.replace('ibis_d_l', 'ibis_dl'), x: s.x + 0.5, y: s.y + 0.5, dir: left ? 3 : 1 };
+    return { id: wildlifeIds.tile('bird', s.i), kind: `${heron ? 'heron' : down ? 'ibis_d' : 'ibis'}${left ? '_l' : ''}`.replace('ibis_d_l', 'ibis_dl'), x: s.x + 0.5, y: s.y + 0.5, dir: left ? 3 : 1 };
   });
   pick(sp.hippos, 4, (s) => {
     const under = motion === 'full' && ((timeDays / 4 + s.h * 9) % 3) > 2.2;                      // dives for a few days of every twelve
-    return { id: WILDLIFE_ID_BASE + 30000 + s.i, kind: under ? 'splash0' : s.h > 0.5 ? 'hippo_l' : 'hippo', x: s.x + 0.5, y: s.y + 0.5, dir: 1 };
+    return { id: wildlifeIds.tile('hippo', s.i), kind: under ? 'splash0' : s.h > 0.5 ? 'hippo_l' : 'hippo', x: s.x + 0.5, y: s.y + 0.5, dir: 1 };
   });
   const crocs = crocSpots(world).map(([x, y]) => ({ i: idx(world.size, x, y), x, y, h: hash2(x, y, (world.seed + SALT + 4) | 0) }));
   pick(crocs, 4, (s) => {
     const sx = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => !wet(world, s.x + dx, s.y + dy)) || [0, 0];
-    return { id: WILDLIFE_ID_BASE + 40000 + s.i, kind: s.h > 0.5 ? 'croc_l' : 'croc', x: s.x + 0.5 + sx[0] * 0.3, y: s.y + 0.5 + sx[1] * 0.3, dir: 1 };
+    return { id: wildlifeIds.tile('croc', s.i), kind: s.h > 0.5 ? 'croc_l' : 'croc', x: s.x + 0.5 + sx[0] * 0.3, y: s.y + 0.5 + sx[1] * 0.3, dir: 1 };
   });
   if (!still) {
     pick(sp.leaps, 3, (s) => {
@@ -170,7 +180,7 @@ export function animalsAt(world, timeDays, range, motion) {
       let kind = null;
       if (motion === 'full') kind = step === 0 ? 'leap0' : step === 1 ? 'leap1' : step === 2 ? 'splash0' : step === 3 ? 'splash1' : null;
       else kind = step <= 2 ? `splash${step}` : null;                                           // Gentle: a ring of ripples spreading in place
-      return kind ? { id: WILDLIFE_ID_BASE + 50000 + s.i, kind, x: s.x + 0.5, y: s.y + 0.5, dir: 1 } : null;
+      return kind ? { id: wildlifeIds.tile('leap', s.i), kind, x: s.x + 0.5, y: s.y + 0.5, dir: 1 } : null;
     });
   }
   // Hunters and boats at the working lodges and wharves in view.

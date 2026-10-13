@@ -39,11 +39,20 @@ const notes = (head, list) => (list && list.length
 
 // The panel: render(body, back) as the title card's showPanel gives them. Every release in RELEASES order (newest first), each as a heading
 // with its date and title, then New and Fixed lists (a list with nothing in it is left out). Back is at the top and the foot of a long list.
-export function renderWhatsNew(body, back, releases = RELEASES) {
+// Each heading carries its build (final review, Josh's ask): a past version its merge commit, the newest ('live') the running build's stamp,
+// read like the version line's (stamp, or read() a moment later; none when it cannot be read).
+export function renderWhatsNew(body, back, releases = RELEASES, { stamp = null, read = readBuildStamp } = {}) {
   const top = button(T.back, { class: 'guide-back whats-new-back', onClick: back });
   const foot = button(T.back, { class: 'guide-back whats-new-back', onClick: back });
+  const live = [];
+  const headText = (r, s) => S46_UX_TEXT.releaseHead(r.version, releaseDateText(r.date), r.build === 'live' ? s : r.build || null);
+  const head = (r) => {
+    const text = document.createTextNode(headText(r, stamp));
+    if (r.build === 'live') live.push([text, r]);
+    return text;
+  };
   const list = el('div', { class: 'releases' }, releases.map((r, i) => el('section', { class: 'release', 'aria-labelledby': `release-${r.version}` }, [
-    el('h3', { id: `release-${r.version}` }, [S46_UX_TEXT.releaseHead(r.version, releaseDateText(r.date)), i === 0 ? el('span', { class: 'newest small', text: ` ${S46_UX_TEXT.newestTag}` }) : null]),
+    el('h3', { id: `release-${r.version}` }, [head(r), i === 0 ? el('span', { class: 'newest small', text: ` ${S46_UX_TEXT.newestTag}` }) : null]),
     el('p', { class: 'release-title', text: r.title }),
     ...notes(S46_UX_TEXT.newHead, r.new),
     ...notes(S46_UX_TEXT.fixedHead, r.fixed),
@@ -51,5 +60,8 @@ export function renderWhatsNew(body, back, releases = RELEASES) {
   const scroller = el('div', { class: 'whats-new', tabindex: '-1' }, [el('div', { class: 'whats-new-head' }, [top, el('h2', { text: S46_UX_TEXT.whatsNewTitle })]), list, el('div', { class: 'actions' }, [foot])]);
   scroller.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); back(); } });
   body.append(scroller);
+  if (live.length && !stamp && typeof read === 'function') {
+    Promise.resolve(read()).then((s) => { if (s) for (const [text, r] of live) text.textContent = headText(r, s); }).catch(() => {});
+  }
   return { scroller, top };
 }

@@ -5,8 +5,8 @@
 //
 // Herds (ruling 364): from the Town on, a Normal map holds WILDLIFE.startHerds herds (area scales it) on desert and rocky ground away from
 // buildings. A herd steps a tile every WILDLIFE.moveEvery days within WILDLIFE.homeRange of its home, and moves off when a building comes
-// within WILDLIFE.awayFrom tiles. A hunting lodge's hunters take one animal at a time from the nearest herd within HUNTING.reach tiles
-// that has lost fewer than HUNTING.perHerdMonth this month (src/sim/production.js asks huntHerd, then takeGame). A herd regrows 1 every
+// within WILDLIFE.awayFrom tiles. A hunting lodge's hunters take one animal (HUNTING.gamePerAnimal game) from the nearest herd within HUNTING.reach
+// tiles that has not given its animal this month and has more than HUNTING.keepAtLeast (ruling 460; src/sim/production.js asks huntHerd, then takeGame). A herd regrows 1 every
 // WILDLIFE.regrowMonths months up to its size, and one at 0 is gone. A new herd may wander in from a map edge once a year.
 import { BUILDINGS } from '../data/buildings.js';
 import { MILESTONES } from '../data/progression.js';
@@ -94,30 +94,40 @@ const gap = (b, h) => { const c = centre(b); return Math.hypot(c.x - (h.x + 0.5)
 export function herdsInReach(world, b) {
   return world.wildlife.herds.filter((h) => h.size > 0 && gap(b, h) <= HUNTING.reach).sort((p, q) => gap(b, p) - gap(b, q) || p.id - q.id);
 }
-// The herd a hunt takes from now: the nearest in reach that has lost fewer than HUNTING.perHerdMonth animals this month, or null.
-export const huntHerd = (world, b) => herdsInReach(world, b).find((h) => (h.hunted || 0) < HUNTING.perHerdMonth) || null;
-// Why a working lodge is resting, from the sim's own counts: 'month' (it has taken HUNTING.maxMonth this month), 'herds' (every herd in reach
-// has given HUNTING.perHerdMonth this month), or null (it can hunt now, or no herd is in reach: that is huntingOutlook's herds = 0).
+// Ruling 460: a hunt takes one animal, which brings HUNTING.gamePerAnimal game; a herd gives one animal a month (HUNTING.perHerdMonth game);
+// hunters never take a herd below HUNTING.keepAtLeast animals. A lodge carries the game of its last animal (b.gameLeft) until it has made it.
+export const ANIMALS_PER_HERD_MONTH = Math.max(1, Math.floor(HUNTING.perHerdMonth / HUNTING.gamePerAnimal));
+const gaveThisMonth = (h) => (h.hunted || 0) >= ANIMALS_PER_HERD_MONTH;
+const huntable = (h) => !gaveThisMonth(h) && h.size > HUNTING.keepAtLeast;
+// The herd a hunt takes from now: the nearest in reach that has not given its animal this month and has more than HUNTING.keepAtLeast, or null.
+export const huntHerd = (world, b) => herdsInReach(world, b).find(huntable) || null;
+// Why a working lodge is resting, from the sim's own counts: 'month' (it has made HUNTING.maxMonth game this month), 'herds' (every herd in reach
+// has given its animal this month), 'small' (the herds in reach that have not are down to HUNTING.keepAtLeast: the hunters let them regrow), or
+// null (it can hunt now, has game in hand, or no herd is in reach: that is huntingOutlook's herds = 0).
 export function huntRest(world, b) {
   if ((b.hunted || 0) >= HUNTING.maxMonth) return 'month';
+  if ((b.gameLeft || 0) > 0) return null;
   const herds = herdsInReach(world, b);
-  return herds.length && !huntHerd(world, b) ? 'herds' : null;
+  if (!herds.length || huntHerd(world, b)) return null;
+  return herds.every(gaveThisMonth) ? 'herds' : 'small';
 }
-// What the lodge can bring in a month with the herds as they stand: HUNTING.perHerdMonth for each herd in reach (at most the herd's size
-// left), no more than HUNTING.maxMonth. month counts the whole month, the animals already taken in it included; left (ruling 421) is what the
-// hunters may still take this month: each herd's HUNTING.perHerdMonth less what it has given this month (to any lodge), at most its size,
-// and no more than the lodge's own HUNTING.maxMonth less its taken (b.hunted). Both counts start afresh at the month's end (wildlifeMonth).
+// What the lodge can bring in a month with the herds as they stand, in game: HUNTING.perHerdMonth for each herd in reach that can give its animal
+// this month (or has given it), no more than HUNTING.maxMonth. month counts the whole month, the game already made in it included; left (ruling
+// 421) is what it may still bring this month: the game in hand and HUNTING.perHerdMonth from each herd that can still give its animal (to any
+// lodge), no more than the lodge's HUNTING.maxMonth less what it has made (b.hunted, game). Both counts start afresh at the month's end.
 export function huntingOutlook(world, b) {
   const herds = herdsInReach(world, b);
   const animals = herds.reduce((s, h) => s + h.size, 0);
-  const month = Math.min(HUNTING.maxMonth, herds.reduce((s, h) => s + Math.min(HUNTING.perHerdMonth, h.size + (h.hunted || 0)), 0));
+  const month = Math.min(HUNTING.maxMonth, herds.filter((h) => gaveThisMonth(h) || huntable(h)).length * HUNTING.perHerdMonth);
   const taken = b.hunted || 0;
-  const left = Math.max(0, Math.min(HUNTING.maxMonth - taken, herds.reduce((s, h) => s + Math.max(0, Math.min(HUNTING.perHerdMonth - (h.hunted || 0), h.size)), 0)));
+  const left = Math.max(0, Math.min(HUNTING.maxMonth - taken, (b.gameLeft || 0) + herds.filter(huntable).length * HUNTING.perHerdMonth));
   return { herds: herds.length, animals, month, left, taken };
 }
-// One animal taken from a herd by a lodge's hunters (the lodge counts it, b.hunted, against HUNTING.maxMonth): the herd shrinks, a herd that is no longer full starts regrowing, one at 0 is gone.
+// One animal taken from a herd by a lodge's hunters: the herd shrinks, a herd that is no longer full starts regrowing, one at 0 is gone (only
+// the Court can empty one: hunters keep HUNTING.keepAtLeast). The lodge gains HUNTING.gamePerAnimal game in hand (b.gameLeft), which it makes
+// one unit at a time, each counted against HUNTING.maxMonth (b.hunted: game this month).
 export function takeGame(world, herd, lodge = null) {
-  if (lodge) lodge.hunted = (lodge.hunted || 0) + 1;
+  if (lodge) lodge.gameLeft = (lodge.gameLeft || 0) + HUNTING.gamePerAnimal;
   herd.size -= 1;
   herd.hunted = (herd.hunted || 0) + 1;
   world.tally.hunted += 1;
@@ -157,14 +167,17 @@ export function crocsNear(world, b) {
     return Math.hypot(dx, dy) <= WILDLIFE.crocReach;
   });
 }
-// Whether a building is one a crocodile can scare: it has workers (a home or garden has none) and the city has threats on (not Peaceful).
-export const scareable = (world, b) => Boolean(BUILDINGS[b.type].workers) && threatsOn(world);
+// Whether a building is one a crocodile can scare: it has workers (a home or garden has none), the city has threats on (not Peaceful) and the
+// crocodiles are in the city yet (wildlifeOn: from the Town on, as wildlifeDay draws the scare; final review: a Village sheet warned of a scare
+// that could not happen).
+export const scareable = (world, b) => Boolean(BUILDINGS[b.type].workers) && threatsOn(world) && wildlifeOn(world);
 // The scare's day in a month (0-based day of the month) and whether this month has one (a draw: scareChance).
 const monthIndexOf = (day) => Math.floor(day / DAYS_PER_MONTH);
 export const scareDayOf = (world, month) => Math.floor(hash2(month, 1, salt(world, 'crocScare')) * DAYS_PER_MONTH);
 export const scareHappens = (world, month) => hash2(month, 2, salt(world, 'crocScare')) < WILDLIFE.scareChance;
 // The scare a building is under now ({ id, until }) or null.
-export const scareOf = (world, b) => world.wildlife.scares.find((s) => s.id === b.id) || null;
+// A wave 1 v7 save has no scares list until the first day tidies it: a sheet opened before that reads none (final review).
+export const scareOf = (world, b) => ((world.wildlife && world.wildlife.scares) || []).find((s) => s.id === b.id) || null;
 
 // ── Days and months ──
 function moveHerds(world) {

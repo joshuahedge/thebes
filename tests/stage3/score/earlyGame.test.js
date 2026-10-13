@@ -162,7 +162,7 @@ describe('s3 score citizen remarks', () => {
     const plain = CITIZEN_REMARKS.find((x) => x.season === 'akhet' && x.type === 'granary').text;
     expect(remarkFor(w)).toBe(plain);
     w.milestone = 'town';
-    w.flood = { year: 1, level: 'good', forecast: null, from: 180, to: 269, applied: null, risen: false };
+    w.flood = { year: 1, level: 'good', forecast: null, from: 180, to: 269, applied: 'good', risen: true };   // the water has risen (final review: a level drawn for a flood still to come is not heard)
     const heard = new Set();
     for (let seed = 1; seed <= 40; seed++) { w.seed = seed; heard.add(remarkFor(w)); }
     expect([...heard].sort()).toEqual(CITIZEN_REMARKS.filter((x) => x.season === 'akhet' && ['house', 'well', 'granary'].includes(x.type)).map((x) => x.text).sort());   // a Good year: all three are heard

@@ -52,11 +52,14 @@ export const HERD_KIND_IDS = Object.keys(HERD_KINDS);
 // days; awayFrom: tiles a herd keeps from buildings (it moves off when one comes nearer); apart: tiles between two herds at the start;
 // crocs: crocodile spots on a Normal map (area scales it), crocApart: tiles between two spots.
 export const WILDLIFE = {
-  homeRange: 6, regrowMonths: 2, ambientCap: 40, crocReach: 2, scareDays: 1, scareChance: 0.5,
+  homeRange: 6, regrowMonths: 1, ambientCap: 40, crocReach: 2, scareDays: 1, scareChance: 0.5,
   from: 'town', startHerds: 6, minHerds: 3, maxHerds: 12, moveEvery: 3, awayFrom: 3, apart: 8, crocs: 5, crocApart: 6,
 };
 // The hunting lodge's hunters and the fishing wharf's boat. HUNTING.reach: tiles from the lodge's middle to a herd's centre.
-export const HUNTING = { reach: 12, perHerdMonth: 6, maxMonth: 24 };
+// Ruling 460 (the balance pass found herds hunted out within months): a hunt takes ONE animal and brings gamePerAnimal game; a herd gives
+// perHerdMonth game a month (perHerdMonth / gamePerAnimal animals: one); hunters never take a herd below keepAtLeast animals; a lodge brings at
+// most maxMonth game a month. With a herd regrowing 1 a month (WILDLIFE.regrowMonths), a herd in reach is a steady perHerdMonth a month.
+export const HUNTING = { reach: 12, perHerdMonth: 6, maxMonth: 24, gamePerAnimal: 6, keepAtLeast: 2 };
 export const FISHING = { perMonth: 20, floodPerMonth: 30 };   // ruling 422: no reach; the boat fishes the water its pier stands on (fit: water longSide)
 
 // world.wildlife: herds: [{ id, kind, x, y, size, max, regrow }] in id order (x, y: the herd's centre tile; size: animals now;

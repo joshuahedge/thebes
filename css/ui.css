@@ -1185,12 +1185,9 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
    as a glitch in the sheet's heading. Both ends are round now and the tie is a thin bar set in from the right end, inside the outline, so the
    heading still reads as a cartouche (a loop with a tie) and nothing sits heavier than the line itself. */
 #sheet .head h2, .title-card h1 { border-radius: 0.75em; }
-#sheet .head h2 { padding-right: 20px; }   /* room for the tie after the last letter */
-/* Fix round 1, ruling 409 (tie): a 2 px bar floating inside the loop's end read as a text cursor after the last letter. The tie now sits ON the
-   loop's end, straddling its stroke and standing a little proud of it top and bottom, the way a cartouche's end bar crosses the line: it is
-   part of the outline and cannot be mistaken for a caret in the words. The right padding stays, so the letters keep clear of it. */
-#sheet .head h2::after { right: -1px; top: -3px; bottom: -3px; width: 3px; border-radius: 1.5px; background: var(--ink-soft); }
-.title-card h1::after { right: -1px; top: -4px; bottom: -4px; width: 3px; border-radius: 1.5px; background: var(--ink); }
+/* Final review (ruling 450): the tie still read as a text cursor after "Thebes" and every sheet heading, so it is gone: the round loop alone is the
+   cartouche, and the heading keeps its even padding. (Fix round 1, ruling 409, had moved the tie onto the loop's end; it still read as a caret.) */
+#sheet .head h2::after, .title-card h1::after { content: none; }
 /* Rulings 401-403: the version line under the tagline, the What's new button, and its panel (the title card's one panel at a time, with Back).
    The panel scrolls inside the card; its Back sits at the top and the foot. Lists read as plain bullets, New and Fixed in small headings. */
 .title-card .version { margin: -4px 0 4px; letter-spacing: 0.02em; }

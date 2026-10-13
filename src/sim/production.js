@@ -109,12 +109,16 @@ export function produceDay(world) {
     const rate = (perMonth / DAYS_PER_MONTH) * staffRatio(world, b) * floodHarvestFactor(world, b) * (def.fishes ? fishFactor(world) : 1);
     b.progress += rate;
     while (b.progress >= 1 - 1e-9) {
-      // A hunting lodge's hunters take each animal from a herd in reach (ruling 364): with none to take, it waits (and banks no more than one).
-      const herd = def.hunts && (b.hunted || 0) < HUNTING.maxMonth ? huntHerd(world, b) : null;
-      if (def.hunts && !herd) { b.blocked = 'no_game'; b.progress = Math.min(b.progress, 1); break; }
+      // A hunting lodge (rulings 364, 460) makes each unit of game from the animal in hand (b.gameLeft); with none, its hunters take one animal
+      // from a herd in reach (HUNTING.gamePerAnimal game); with none to take, or its HUNTING.maxMonth made, it waits (and banks no more than one).
+      if (def.hunts) {
+        const room = (b.hunted || 0) < HUNTING.maxMonth;
+        if (room && !((b.gameLeft || 0) > 0)) { const herd = huntHerd(world, b); if (herd) takeGame(world, herd, b); }
+        if (!room || !((b.gameLeft || 0) > 0)) { b.blocked = 'no_game'; b.progress = Math.min(b.progress, 1); break; }
+      }
       const why = makeOne(world, good, input, sources, targets, sites);
       if (why) { b.blocked = why; break; }
-      if (herd) takeGame(world, herd, b);
+      if (def.hunts) { b.gameLeft -= 1; b.hunted = (b.hunted || 0) + 1; }
       if (def.fishes) world.tally.fished += 1;
       b.progress -= 1;
     }
