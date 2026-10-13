@@ -48,14 +48,14 @@ const swipe = (node, dx, dy = 0) => {
 
 describe('s4 cards picture cards: the dialog', () => {
   it('gives every card a title, its words and its picture\'s alt text', () => {
-    expect(TUTORIAL_CARDS.map((c) => c.id)).toEqual(['road', 'homes', 'farm', 'food', 'goals', 'ahead']);
+    expect(TUTORIAL_CARDS.map((c) => c.id)).toEqual(['road', 'homes', 'farm', 'food', 'gold', 'goals', 'ahead']);   // Stage 4.5 added Gold after Food
     for (const c of TUTORIAL_CARDS) {
       const w = CARDS4_TEXT.cards[c.id];
       expect([c.id, w.title.length > 0, w.words.length > 0, w.alt.length > 0, w.words.split('. ').length <= 3]).toEqual([c.id, true, true, true, true]);
     }
   });
 
-  it('shows six cards, each a picture with its alt text and mark, a title and words, and moves by Next, Back, the dots, the arrow keys and a swipe', async () => {
+  it('shows seven cards, each a picture with its alt text and mark, a title and words, and moves by Next, Back, the dots, the arrow keys and a swipe', async () => {
     const r = await rig();
     try {
       const { d, q } = r;
@@ -64,11 +64,11 @@ describe('s4 cards picture cards: the dialog', () => {
         const w = CARDS4_TEXT.cards[id];
         const current = [...d.querySelectorAll('.pc-dot')].findIndex((b) => b.getAttribute('aria-current') === 'step');
         expect([q('.pc-count').textContent, q('.pc-picture').getAttribute('src'), q('.pc-picture').alt, q('#pc-title').textContent, q('#pc-words').textContent, r.c.index(), current])
-          .toEqual([`${i + 1} of 6`, `${TUTORIAL.dir}${id}.webp`, w.alt, w.title, w.words, i, i]);
+          .toEqual([`${i + 1} of 7`, `${TUTORIAL.dir}${id}.webp`, w.alt, w.title, w.words, i, i]);
       };
       showing('road', 0);
-      expect([q('.pc-back').disabled, document.activeElement === q('.pc-next'), q('.pc-next').textContent, d.querySelectorAll('.pc-dot').length]).toEqual([true, true, CARDS4_TEXT.next, 6]);
-      expect(q('.pc-dot').getAttribute('aria-label')).toBe(CARDS4_TEXT.dot(1, 6));
+      expect([q('.pc-back').disabled, document.activeElement === q('.pc-next'), q('.pc-next').textContent, d.querySelectorAll('.pc-dot').length]).toEqual([true, true, CARDS4_TEXT.next, 7]);
+      expect(q('.pc-dot').getAttribute('aria-label')).toBe(CARDS4_TEXT.dot(1, 7));
       const ring = q('.pc-mark rect.line');                                     // a ring 10 px out from the 40 px box at (300, 320)
       expect([q('.pc-mark').dataset.kind, q('.pc-mark').getAttribute('aria-hidden'), d.querySelectorAll('.pc-mark .halo').length, ring.getAttribute('x'), ring.getAttribute('y'), ring.getAttribute('width'), ring.getAttribute('rx')])
         .toEqual(['ring', 'true', 1, '270', '290', '60', '30']);
@@ -80,19 +80,19 @@ describe('s4 cards picture cards: the dialog', () => {
       expect([q('.pc-mark').dataset.kind, d.querySelectorAll('.pc-mark path').length]).toEqual(['arrow', 2]);
       key(d, 'ArrowLeft');
       showing('homes', 1);
-      fire(d.querySelectorAll('.pc-dot')[4], 'click');
-      showing('goals', 4);
+      fire(d.querySelectorAll('.pc-dot')[5], 'click');
+      showing('goals', 5);
       swipe(q('.pc-stage'), -80);
-      showing('ahead', 5);
+      showing('ahead', 6);
       expect(q('.pc-next').textContent).toBe(CARDS4_TEXT.start);
       swipe(q('.pc-stage'), -20);                                                // too short
       swipe(q('.pc-stage'), -60, 120);                                           // more up than across
       key(d, 'ArrowRight');                                                      // nothing after the last
-      showing('ahead', 5);
+      showing('ahead', 6);
       swipe(q('.pc-stage'), 80);
-      showing('goals', 4);
+      showing('goals', 5);
       fire(q('.pc-back'), 'click');
-      showing('food', 3);
+      showing('gold', 4);
       let heard = 0;
       const listen = () => { heard++; };
       r.shell.root.addEventListener('keydown', listen);
@@ -108,7 +108,7 @@ describe('s4 cards picture cards: the dialog', () => {
       try {
         expect([r.history.pushed, r.l.fns.length]).toEqual([1, 1]);           // one history entry of its own, while it shows
         if (how === 'start') {
-          for (let i = 0; i < 5; i++) fire(r.q('.pc-next'), 'click');
+          for (let i = 0; i < 6; i++) fire(r.q('.pc-next'), 'click');
           fire(r.q('.pc-next'), 'click');
         } else if (how === 'skip') fire(r.q('.pc-skip'), 'click');
         else if (how === 'close') fire(r.q('.pc-close'), 'click');
@@ -183,7 +183,7 @@ describe('s4 cards picture cards: the dialog', () => {
     for (const [difficulty, raids] of [['peaceful', false], ['relaxed', true], ['normal', true], ['hard', true], [undefined, true], ['nonsense', true]]) {
       const r = await rig({ difficulty });
       try {
-        r.c.go(5);
+        r.c.go(6);
         const words = r.q('#pc-words').textContent;
         expect([difficulty, words.includes('raiders'), words]).toEqual([difficulty, raids, cards4Ahead(raids)]);
         expect(words.endsWith('Pause any time: nothing happens while you plan.')).toBe(true);

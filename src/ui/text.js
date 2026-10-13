@@ -8,7 +8,7 @@ import { FIRSTS } from '../data/firsts.js';
 import { GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
 import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
-import { ECONOMY } from '../data/economy.js';
+import { ECONOMY, FORECAST } from '../data/economy.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { roadCostOf } from '../sim/costs.js';
 import { producerRefused } from '../sim/production.js';
@@ -1547,6 +1547,11 @@ export const CARDS4_TEXT = {
       words: 'The goal line shows what to do next. Show me opens the right card and puts it where it fits.',
       alt: 'The goals strip at the top of the screen, with a ring around its Show me button.',
     },
+    gold: {
+      title: 'Where gold comes from',
+      words: `Homes pay taxes every month; every building costs upkeep and ${ECONOMY.wagePerWorker} gold for each worker. Build homes before luxuries.`,
+      alt: 'The top bar with the gold chip showing a monthly forecast, a ring around it, above a village of homes, a well and a farm.',
+    },
     ahead: {
       title: 'What lies ahead',
       words: cards4Ahead(),             // the level with raids; the dialog asks cards4Ahead(raids) for the city's own level
@@ -1579,6 +1584,8 @@ export const BALANCE4_TEXT = {};
 // ── s45 (Stage 4.5) ──────────────────────────────────────────────────────────────────────────────────────────────
 // Stage 4.5's words. Every sentence that states a rule or a price is built from the sim's own numbers. Add new lines just
 // above the end marker.
+// Whole months for words: "about 4 months" (rounded up; a treasury with days left is still in its last month).
+const monthsText = (monthsLeft) => Math.max(1, Math.ceil(monthsLeft));
 export const S45_TEXT = {
   // The road tool's note when it crosses a wall (ruling 309): "Gate through the wall: 20 gold" (one gate), else "3 gates through the wall: 20 gold each".
   gateNote: (n, price) => (n === 1 ? `Gate through the wall: ${price} gold` : `${n} gates through the wall: ${price} gold each`),
@@ -1589,6 +1596,32 @@ export const S45_TEXT = {
   bridgeNote: (n, cost) => `Bridge: ${plural(n, 'tile', 'tiles')}, ${cost} gold`,
   tooWide: (n) => `Too wide to bridge here (${plural(n, 'tile', 'tiles')} of water)`,
   roadLaidBridge: (n) => `Road laid · bridge, ${plural(n, 'tile', 'tiles')}`,
+  // The month's forecast (Task 4b, ruling 316). Every number is the sim's (src/sim/economy.js monthForecast, monthlyBill,
+  // balanceWith, biggestCost), and a minus is a real minus sign. The top bar's gold chip says "+120 a month"; it adds the runway when the
+  // treasury would run out within FORECAST.amberMonths. A card says what one building costs when fully staffed; the confirm bar adds the
+  // balance with it. The summary's section is headed by what the balance is.
+  signed: (n) => `${n >= 0 ? '+' : '−'}${Math.abs(n)}`,
+  chip: (net) => `${net >= 0 ? '+' : '−'}${Math.abs(net)} a month`,
+  chipLabel: (f) => `Forecast ${f.net >= 0 ? 'plus' : 'minus'} ${Math.abs(f.net)} a month${f.runsOut ? `; ${f.gold < 0 ? 'the treasury is below 0' : `the treasury runs out in about ${plural(monthsText(f.monthsLeft), 'month', 'months')}`}` : ''}`,
+  upkeepBill: (b) => `Upkeep ${b.bill} a month`,
+  upkeepCrew: (b) => (b.workers ? ` · ${plural(b.workers, 'worker', 'workers')}` : ''),
+  upkeepLine: (b) => `${S45_TEXT.upkeepBill(b)}${S45_TEXT.upkeepCrew(b)}`,
+  upkeepTitle: (b) => `Upkeep ${b.upkeep}${b.workers ? `, and ${b.wages} in wages when all ${b.workers} workers are hired (${ECONOMY.wagePerWorker} each)` : ''}`,
+  balanceLine: (net) => `Monthly balance becomes ${S45_TEXT.signed(net)}`,
+  forecastHeadShort: 'Spending more than taxes bring in',
+  forecastHeadOk: 'Taxes cover the spending',
+  forecastNote: 'This month, as the city stands now.',
+  monthlyBalance: 'Monthly balance',
+  runsOutIn: (monthsLeft) => `At this rate the treasury runs out in about ${plural(monthsText(monthsLeft), 'month', 'months')}`,
+  belowZero: 'The treasury is below 0',
+  forecastLasts: 'The treasury is growing',
+  // The one-time warning tip (its Show me points at the building that costs the most a month).
+  warnTip: (f, big) => `${f.gold < 0 ? 'The treasury is below 0' : S45_TEXT.runsOutIn(f.monthsLeft)}.${big ? ` ${buildingName(big.type)} costs the most: ${big.cost} a month.` : ''}`,
+  warnTipHelp: `If the treasury would go below 0 within ${FORECAST.warnMonths} months, a tip names the building that costs the most.`,
+  // The mood breakdown's Jobs row while the Town penalty is phased in (ruling 325): the value beside it is the phased one.
+  jobsPhasing: (full, monthsLeft) => `Jobs (phasing in: ${S45_TEXT.signed(full)} in ${plural(monthsLeft, 'month', 'months')})`,
 };
+Object.assign(TIP_TEXT, { treasury_low: 'The treasury is heading below 0: tap the numbers in the top bar to see what each month costs.' });
+TIP_HELP_TEXT.treasury_low = S45_TEXT.warnTipHelp;
 Object.assign(REASONS, { not_wall: 'A gate goes on a wall', too_wide: 'Too wide to bridge here', bridge_shape: 'A bridge runs straight across, with land at both ends' });
 // ── end s45 ──────────────────────────────────────────────────────────────────────────────────────────────────────

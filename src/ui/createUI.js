@@ -61,7 +61,8 @@ import { layoutMarkers, drawMarkers, markerAt } from '../render/markers.js';
 import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
-import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, TIP_TEXT, T } from './text.js';
+import { monthForecast, biggestCost } from '../sim/economy.js';
 
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
@@ -130,6 +131,10 @@ export function createUI({
     container: $('tip'), settings, now, playNow: () => playMs, frameNow: () => tipMs, autoCloseMs: () => (phone() ? TIP_AUTO_CLOSE_MS : 0),
     restoreFocus: () => handGuidanceFocus(guidance === undefined ? null : guidance),   // Got it's button is gone: on to what has the row now
     onChange: () => guidanceChanged(), onToggle: () => toggleGuidance(),
+    // Stage 4.5 (Task 4b): the treasury warning names the city's own numbers (the sim's forecast and its costliest building), and
+    // its Show me goes to that building (its sheet opens, where it can be paused or taken down), or to the summary when none costs.
+    textFor: (id) => (id === 'treasury_low' ? S45_TEXT.warnTip(monthForecast(world), biggestCost(world)) : TIP_TEXT[id]),
+    showMeFor: (id) => (id === 'treasury_low' ? () => { const big = biggestCost(world); if (!(big && selectBuilding(big.id))) openSummary('forecast'); } : null),
   });
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
   // (hoisted) forwards settle's events to onEvents, which shows them. On a phone they take the guidance row (spec 6.3,
@@ -182,7 +187,7 @@ export function createUI({
   const speedBar = el('div', { class: 'speed-bar' });
   speedControl.mountBar(speedBar);
   const hud = createHud({
-    world, store, container: $('topbar'), speedBar, onOpenSummary: () => toggleSheet('summary'), onOpenMenu: () => toggleSheet('menu'),
+    world, store, container: $('topbar'), speedBar, onOpenSummary: openSummary, onOpenMenu: () => toggleSheet('menu'),
     // The long date ("Year 2, month 1, day 1") only where the wide top bar has room for it beside a real city's numbers:
     // 1000 px and wider, below 150% text. Narrower, it would push the last number onto a second row.
     shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150 || view().width < WIDE_LONG_DATE_PX,
@@ -419,6 +424,12 @@ export function createUI({
   // startDaily does nothing before the opening chain is done or once that date's goals exist, so calling it at
   // start, after every command and on every new game day is cheap: it draws the moment the chain finishes.
   function syncDaily() { startDaily(world, sessionDate); }
+  // The top bar's numbers open the summary; the gold chip's forecast opens it at its forecast section (Stage 4.5, Task 4b), and a tap
+  // on whichever is open closes it.
+  function openSummary(section = null) {
+    const s = store.get();
+    store.set(s.sheet && s.sheet.kind === 'summary' && (s.sheet.id || null) === section ? closeSheet(s) : openSheet(s, 'summary', section));
+  }
   function toggleSheet(kind) {
     const s = store.get();
     store.set(s.sheet && s.sheet.kind === kind ? closeSheet(s) : openSheet(s, kind));
@@ -537,7 +548,7 @@ export function createUI({
     for (const e of events) {
       if (e.type === 'upgrade') sfx.play('upgrade');
       else if (e.type === 'arrivals') fireTip('arrivals');
-      else if (e.type === 'month') fireTip('monthEnd');
+      else if (e.type === 'month') { fireTip('monthEnd'); if (monthForecast(world).goesBelow) fireTip('treasuryLow'); }
       else if (e.type === 'goal') fireTip('goalDone');
       const cheer = e.type === 'achievement' && quiet ? null : cheerFor(e);
       if (cheer) celebrations.show(cheer);

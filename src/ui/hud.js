@@ -3,11 +3,12 @@
 import { population, housesOf, allBuildings } from '../sim/world.js';
 import { dateParts } from '../sim/clock.js';
 import { monthlyNeed } from '../sim/distribution.js';
+import { monthForecast } from '../sim/economy.js';
 import { wantedGoods } from '../sim/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { el, iconButton, setText } from './components.js';
-import { T, dateText, shortDateText } from './text.js';
+import { T, S45_TEXT, dateText, shortDateText } from './text.js';
 
 export function summaryData(world) {
   const last = world.stats.lastMonth || { taxes: 0, wages: 0, upkeep: 0, net: 0 };
@@ -42,29 +43,58 @@ const stat = (label, cls) => {
 
 // shortDate() says when the date reads "Y2 M1" rather than "Year 2, month 1, day 1": on a phone, and (createUI) in the
 // wide layout under 1000 px wide or at 150% text, where the long date would push the numbers onto another row.
-export function createHud({ world, store, container, speedBar = null, onOpenSummary = () => {}, onOpenMenu = () => {}, shortDate = () => store.get().layout !== 'wide' }) {
+export function createHud({ world, store, container, speedBar = null, onOpenSummary = (section) => {}, onOpenMenu = () => {}, shortDate = () => store.get().layout !== 'wide' }) {
   const gold = stat(T.gold, 'gold'), people = stat(T.people, 'people'), mood = stat(T.mood, 'mood'), date = stat(T.date, 'date');
   const income = stat(T.income, 'income wide-only'), jobless = stat(T.jobless, 'jobless wide-only'), food = stat(T.food, 'food wide-only');
   // Stage 3 (spec 4.19): the score chip, a small "Score 247" on the summary button. It starts empty and hidden; the score
   // interface fills it after every command and game day (src/ui/scoreUi.js), so the top bar's numbers are unchanged.
   const scoreChip = el('span', { class: 'score-chip small', hidden: true });
+  // Stage 4.5 (Task 4b, ruling 316): the month's forecast in the gold chip, "+120 a month", on phones too. It turns amber (with a
+  // mark, so colour is never alone) only when the sim says the treasury runs out within FORECAST.amberMonths; a tap on it opens the
+  // summary at its forecast section. Hidden until the city has anything to forecast.
+  // The words for the eye ("+120" then " a month", which a phone shortens to "/mo": css) and the sentence for a screen reader.
+  const forecastNum = el('span'), forecastText = el('span', { 'aria-hidden': 'true' }, [forecastNum, el('span', { class: 'long', text: ' a month' }), el('span', { class: 'short', text: '/mo' })]), forecastWords = el('span', { class: 'sr-only' });
+  const forecast = el('span', { class: 'forecast', hidden: true }, [forecastText, forecastWords]);
+  gold.append(forecast);
   // No aria-label here: it would replace the visible numbers as the accessible name (spec 6.8). The hint is read as part of the name.
-  const stats = el('button', { type: 'button', class: 'stats quiet', title: T.summary, onClick: onOpenSummary }, [gold, people, mood, date, income, jobless, food, scoreChip, el('span', { class: 'sr-only', text: T.openSummary })]);
+  const stats = el('button', { type: 'button', class: 'stats quiet', title: T.summary, onClick: (ev) => onOpenSummary(ev && ev.target && ev.target.closest && ev.target.closest('.forecast') ? 'forecast' : null) }, [gold, people, mood, date, income, jobless, food, scoreChip, el('span', { class: 'sr-only', text: T.openSummary })]);
   const menu = iconButton(T.menu, '☰', { class: 'menu' });
   menu.addEventListener('click', onOpenMenu);
   const bar = el('div', { class: 'speed wide-only' });
   if (speedBar) bar.append(speedBar);
   container.append(stats, el('span', { class: 'spacer' }), bar, menu);
 
-  function render() {
+  function renderNumbers() {
     const d = summaryData(world);
-    setText(gold.lastChild, String(d.gold));
+    setText(gold.querySelector('.value'), String(d.gold));
+    const f = monthForecast(world);
+    forecast.hidden = !f.active;
+    if (f.active) {
+      forecast.classList.toggle('warn', f.runsOut);
+      setText(forecastNum, `${f.runsOut ? '⚠ ' : ''}${S45_TEXT.signed(f.net)}`);
+      setText(forecastWords, S45_TEXT.chipLabel(f));
+      forecast.title = S45_TEXT.chipLabel(f);
+    }
     setText(people.lastChild, String(d.people));
     setText(mood.lastChild, String(d.mood));
     setText(date.lastChild, shortDate() ? shortDateText(d.date) : dateText(d.date));
     setText(income.lastChild, (d.net >= 0 ? '+' : '') + String(d.net));
     setText(jobless.lastChild, String(d.jobless));
     setText(food.lastChild, d.monthsOfFood === null ? '–' : `${d.monthsOfFood} mo`);
+  }
+  // The forecast is a second line under the gold; where the numbers have already wrapped to two rows the bar has no room for a third
+  // line, so it hides (css .tight). Measured only when what is shown, or the room for it, changes.
+  let lastKey = '';
+  function fitForecast(key) {
+    if (key === lastKey) return;
+    const tops = new Set([...stats.querySelectorAll('.stat')].filter((st) => st.offsetParent !== null).map((st) => st.offsetTop));
+    lastKey = tops.size ? key : '';                    // not laid out yet (the bar is not on the page): measure again next time
+    if (tops.size) stats.classList.toggle('tight', tops.size > 1);
+  }
+  const textOf = (n) => n.querySelector('.value').textContent;
+  function render() {
+    renderNumbers();
+    fitForecast([textOf(gold), textOf(people), textOf(mood), textOf(date), textOf(income), textOf(jobless), textOf(food), container.clientWidth, document.body.dataset.textSize, store.get().layout].join('|'));
   }
   render();
   return { render };

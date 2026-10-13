@@ -15,6 +15,7 @@ import { homesServedFrom } from '../sim/housing.js';
 import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
 import { housesOf } from '../sim/world.js';
 import { costOf, workGoldPerUnit } from '../sim/costs.js';
+import { monthlyBill, balanceWith } from '../sim/economy.js';
 import { prestigeByKind } from '../sim/prestige.js';
 import { setPlacingRot } from '../render/overlays.js';
 import { refusingStores } from '../sim/production.js';
@@ -324,6 +325,9 @@ export function toolPreview(world, state) {
   p.nicerTone = '';
   p.score = '';                                         // Stage 3: the parts it would change, "+3 Culture" (scoreUi.js)
   p.line = '';                                          // Stage 4: a monument's line, the score's part first (monumentLine)
+  p.upkeep = '';                                        // Stage 4.5 (Task 4b): "Upkeep 46 a month · 10 workers" and "Monthly balance becomes -89"
+  p.balance = '';
+  p.balanceNet = 0;
   if (state.tool.kind === 'building' && isMonumentType(state.tool.type) && (p.state === 'ok' || p.state === 'warn')) {
     p.score = scoreLineFor(world, state.tool.type, state.ghost.x, state.ghost.y);
     p.line = [p.score, monumentLine(world, state.tool.type, state.ghost.x, state.ghost.y, rotOf(state.tool))].filter(Boolean).join(' · ');
@@ -332,6 +336,18 @@ export function toolPreview(world, state) {
     p.nicer = nicerText(d.better, d.worse);
     p.nicerTone = d.better && d.worse ? 'mixed' : d.better ? 'better' : d.worse ? 'worse' : '';
     p.score = scoreLineFor(world, state.tool.type, state.ghost.x, state.ghost.y);
+  }
+  if (state.tool.kind === 'building' && p.state !== 'idle') {
+    const bill = monthlyBill(state.tool.type);
+    if (bill.bill > 0) {
+      p.upkeep = S45_TEXT.upkeepLine(bill);
+      // A building no road touches costs nothing until one does (monthFigures), so its balance waits for the road; a spot that cannot
+      // be built on has no balance. The bar keeps the line's room either way (confirmBar.js), so it never grows as the ghost moves.
+      if ((p.state === 'ok' || p.state === 'warn') && !p.warnings.includes('needs_road')) {
+        p.balanceNet = balanceWith(world, state.tool.type);
+        p.balance = S45_TEXT.balanceLine(p.balanceNet);
+      }
+    }
   }
   return p;
 }

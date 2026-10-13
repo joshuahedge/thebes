@@ -79,7 +79,7 @@ describe('s4 cards how to play', () => {
       for (const k of ['p', ' ', '+', '1', '2', '3']) key(b.root, k);                    // keys at the page behind (the game listens on the window)
       expect([g.world.speed, d.isConnected]).toEqual([0, true]);
       key(b.root, 'ArrowRight');
-      expect(document.activeElement === d.querySelector('.pc-next') || d.querySelector('.pc-count').textContent === '2 of 6').toBe(true);
+      expect(document.activeElement === d.querySelector('.pc-next') || d.querySelector('.pc-count').textContent === '2 of 7').toBe(true);
       key(b.root, 'Escape');
       expect([document.querySelector('.picture-cards'), g.world.speed]).toEqual([null, 0]);
       key(b.root, ' ');                                                             // the cards closed: the keys are the game's again (Space pauses and plays)
@@ -87,8 +87,8 @@ describe('s4 cards how to play', () => {
     } finally { b.cleanup(); }
   });
 
-  it('words card 6 for the level: on the title the level the next city starts at, in a game its own', async () => {
-    const lastCard = () => { const d = document.querySelector('.picture-cards'); for (let i = 0; i < 5; i++) fire(d.querySelector('.pc-next'), 'click'); return d.querySelector('#pc-words').textContent; };
+  it('words the last card for the level: on the title the level the next city starts at, in a game its own', async () => {
+    const lastCard = () => { const d = document.querySelector('.picture-cards'); for (let i = 0; i < 6; i++) fire(d.querySelector('.pc-next'), 'click'); return d.querySelector('#pc-words').textContent; };
     for (const level of ['peaceful', 'normal']) {
       const b = await bootWith({ storage: memory({ 'thebes.settings': JSON.stringify({ difficulty: level }) }) });
       try {
@@ -111,7 +111,7 @@ describe('s4 cards how to play', () => {
       fire(b.root.querySelector('#title .new-city'), 'click');
       const d = document.querySelector('.picture-cards');
       expect([b.api.phase(), Boolean(d), document.activeElement === d.querySelector('.pc-next'), storedSettings(b.storage).cardsSeen === true]).toEqual(['title', true, true, false]);
-      for (let i = 0; i < 6; i++) fire(d.querySelector('.pc-next'), 'click');
+      for (let i = 0; i < 7; i++) fire(d.querySelector('.pc-next'), 'click');   // six Nexts to the last card, then Start building
       expect([b.api.phase(), document.querySelector('.picture-cards'), storedSettings(b.storage).cardsSeen]).toEqual(['game', null, true]);
     } finally { b.cleanup(); }
   });

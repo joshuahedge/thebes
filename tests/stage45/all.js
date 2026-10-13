@@ -9,3 +9,4 @@ import './worldV6.test.js';
 import './variants.test.js';
 import './bridges.test.js';
 import './stamps.test.js';
+import './economy.test.js';   // Task 4b: the forecast, the cost lines, the gold chip, the warning tip, the Gold card and goal, the unemployment phase-in

@@ -150,6 +150,17 @@ const PICTURES = {
     await wait(50);
     return { clip, mark: boxRing(g, clip, row, { radius: 12, widen: 10 }) };
   },
+  // Stage 4.5 (Task 4b): the top bar's gold chip with its monthly forecast ("+N a month") over the village: a ring on the forecast.
+  async gold(g) {
+    const v = village(g);
+    const chip = document.querySelector('#topbar .forecast');
+    for (let t = 0; chip && chip.hidden && t < 20; t++) await wait(50);   // the top bar draws it on the next frame
+    if (!chip || chip.hidden) throw new Error('devScene tutorial: no forecast in the gold chip');
+    const clip = clipAt(0);
+    putTileAt(g, v.start.x - 6, v.start.y + 0.5, 195, clip.y + 250, 0.9);
+    await wait(50);
+    return { clip, mark: boxRing(g, clip, chip.firstElementChild || chip, { pad: 4, radius: 10, widen: 6 }) };   // the words' own box: the chip itself is 0 wide (css), its text runs on
+  },
   // The goals strip, the start road below it: a ring on Show me.
   async goals(g) {
     const show = [...document.querySelectorAll('#goals button')].find((b) => b.offsetParent && /show me/i.test(b.textContent));
