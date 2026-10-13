@@ -105,7 +105,7 @@ function mirrored(g, X) {
 }
 
 // A raider chariot: a dark horse with a red plume and a dark car, driving the other way to yours, a crested driver with a spear held
-// high, and a round shield hung on the car's back.
+// high, a round shield hung on the car's back, and a banner on a pole behind it (Stage 4.6 UX, ruling 406).
 export function raiderChariot(gIn, gx, gy, z = 0, sc = UNIT_SCALE * 0.8) {
   const c = U(p(gx, gy), z), X = c[0], Y = c[1], s = sc, g = mirrored(gIn, X);
   horse(g, X + 3 * s, Y, s, ENEMY_HORSE, ENEMY_HORSE_DARK, '#1A1216', RAIDER.crest);
@@ -117,6 +117,14 @@ export function raiderChariot(gIn, gx, gy, z = 0, sc = UNIT_SCALE * 0.8) {
   g.poly([[dx - 2.6 * s, dy - 18.6 * s], [dx - 2 * s, dy - 16.4 * s], [dx - 3.2 * s, dy - 16.6 * s]], STONE[2]);
   g.circ([dx, dy - 4.8 * s], 1.4 * s, RAIDER.body);
   g.path([['M', [dx - 1.7 * s, dy - 5 * s]], ['Q', [dx - 0.4 * s, dy - 10 * s], [dx + 2.4 * s, dy - 7.4 * s]], ['Q', [dx + 0.4 * s, dy - 7.6 * s], [dx - 1.7 * s, dy - 5 * s]], ['Z']], RAIDER.crest);
+  // Stage 4.6 UX (ruling 406, fix round 1: ruling 408): an addition beside the driver, not in place of him. A tall pole stayed to the car's back,
+  // clear of the driver's spear and the shield, with a dark swallow-tailed banner streaming behind it, so an enemy chariot is told from yours
+  // by its outline at a distance and not by its darker horse (colour alone): no friendly unit carries a flag on a pole.
+  const bx = X - 10.6 * s, by = Y - 2.4 * s, top = by - 18.6 * s;
+  g.line([X - 7.4 * s, by], [bx, by], WOOD, 0.6 * s);
+  g.line([bx, by], [bx, top], WOOD, 0.7 * s);
+  g.poly([[bx, top], [bx - 8.4 * s, top + 1.3 * s], [bx - 5.9 * s, top + 3.6 * s], [bx - 8.4 * s, top + 5.9 * s], [bx, top + 4.8 * s]], RAIDER.body, { outline: true });
+  g.line([bx - 0.8 * s, top + 2.5 * s], [bx - 6.4 * s, top + 3 * s], RAIDER.crest, 0.9 * s);
 }
 
 // A boat raider, landed: a crested raider with no shield, a long oar held upright beside him, its blade above his head.

@@ -698,7 +698,17 @@ export function createUI({
     undo, help: () => toggleSheet('help'),
   };
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
-  const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions, hidden: () => Boolean(store.get().screenshot) });
+  // Stage 4.6 (ruling 400): a placement waits for its Enter when a tool has something to lay (a ghost, a finished line or plan) and nothing
+  // else holds the screen (a sheet, a dialog, the Layers picker). Then Enter lays it whichever card or corner button has focus, as a
+  // click on the map leaves the card that started the tool focused; the bar's own buttons, the toast's Undo and the alert, tip and
+  // goal rows keep their Enter, so a keyboard user can still press Cancel or Undo.
+  const placementPending = (target) => {
+    const s = store.get();
+    if (!isToolMode(s.mode) || !s.tool || s.sheet || s.confirmDialog || s.layersOpen || s.screenshot) return false;
+    if (target && typeof target.closest === 'function' && target.closest('#confirm, #toasts, #banner, #tip, #cheer, #goals, .confirm-dialog, [role="dialog"]')) return false;
+    return placement.preview().state !== 'idle';
+  };
+  const keyboard = createKeyboard({ target: keyTarget, settings, cam, cameraControl, actions: keyActions, hidden: () => Boolean(store.get().screenshot), pending: placementPending });
 
   // The sheet's footprint in CSS px, so a selected building is panned into the part of the map it leaves free (in
   // compact with the corner buttons along the map's bottom, measured).
