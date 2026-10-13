@@ -405,7 +405,7 @@ export const progressLabel = (n, of) => `Progress ${progressText(n, of)}`;
 export const dailyDoneText = (n) => plural(n, 'daily goal done', 'daily goals done');
 export const swapLabel = (text) => `Swap: ${text}`;
 // The phone strip's words are one button that opens the goal in place (P8): its name carries the whole goal, since the words on
-// screen may be cut at two lines. label is "Goal" or the opening chain's "2 of 10"; count the goal's own.
+// screen may be cut at two lines. label is "Goal" or the opening chain's "2 of 11"; count the goal's own.
 export const goalWordsLabel = (label, text, count) => `${label}: ${text}${count ? `, ${count}` : ''}`;
 export const showMeLabel = (text) => `${T.showMe}: ${text}`;   // a goal's Show me names its goal, so several of them stay apart
 export const viewLabel = (what) => `${T.view}: ${what}`;         // a View names its alert or building, so several of them stay apart
@@ -417,7 +417,7 @@ export const DAILY_TEXT = {
   plots4: 'Place 4 housing plots', roads10: 'Lay 10 road tiles', upgrades3: 'Grow 3 homes a tier', well1: 'Build a well',
   bazaar1: 'Build a bazaar', temple1: 'Build a temple', farm1: 'Build a grain farm', people20: 'Gain 20 people',
   profit1: 'Have a month in profit', harvest100: 'Harvest 100 grain',
-  pottery30: 'Make 30 pottery', gardens3: 'Build 3 gardens', sell20: 'Sell 20 goods to caravans', statue1: 'Build a statue', booth1: 'Build a booth',
+  pottery30: 'Make 30 pottery', gardens3: 'Build 3 gardens', statue1: 'Build a statue', booth1: 'Build a booth',
 };
 export const milestoneText = (name) => `Your city is now a ${name}`;
 
@@ -1603,10 +1603,10 @@ export const S45_TEXT = {
   signed: (n) => `${n >= 0 ? '+' : '−'}${Math.abs(n)}`,
   chip: (net) => `${net >= 0 ? '+' : '−'}${Math.abs(net)} a month`,
   chipLabel: (f) => `Forecast ${f.net >= 0 ? 'plus' : 'minus'} ${Math.abs(f.net)} a month${f.runsOut ? `; ${f.gold < 0 ? 'the treasury is below 0' : `the treasury runs out in about ${plural(monthsText(f.monthsLeft), 'month', 'months')}`}` : ''}`,
-  upkeepBill: (b) => `Upkeep ${b.bill} a month`,
+  upkeepBill: (b) => `Costs ${b.bill} a month`,
   upkeepCrew: (b) => (b.workers ? ` · ${plural(b.workers, 'worker', 'workers')}` : ''),
   upkeepLine: (b) => `${S45_TEXT.upkeepBill(b)}${S45_TEXT.upkeepCrew(b)}`,
-  upkeepTitle: (b) => `Upkeep ${b.upkeep}${b.workers ? `, and ${b.wages} in wages when all ${b.workers} workers are hired (${ECONOMY.wagePerWorker} each)` : ''}`,
+  upkeepTitle: (b) => `${b.upkeep} upkeep${b.workers ? `, and ${b.wages} in wages when all ${b.workers} workers are hired (${ECONOMY.wagePerWorker} each)` : ''}`,
   balanceLine: (net) => `Monthly balance becomes ${S45_TEXT.signed(net)}`,
   forecastHeadShort: 'Spending more than taxes bring in',
   forecastHeadOk: 'Taxes cover the spending',

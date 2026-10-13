@@ -325,7 +325,7 @@ export function toolPreview(world, state) {
   p.nicerTone = '';
   p.score = '';                                         // Stage 3: the parts it would change, "+3 Culture" (scoreUi.js)
   p.line = '';                                          // Stage 4: a monument's line, the score's part first (monumentLine)
-  p.upkeep = '';                                        // Stage 4.5 (Task 4b): "Upkeep 46 a month · 10 workers" and "Monthly balance becomes -89"
+  p.upkeep = '';                                        // Stage 4.5 (Task 4b): "Costs 46 a month · 10 workers" and "Monthly balance becomes -89"
   p.balance = '';
   p.balanceNet = 0;
   if (state.tool.kind === 'building' && isMonumentType(state.tool.type) && (p.state === 'ok' || p.state === 'warn')) {

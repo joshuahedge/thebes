@@ -9,7 +9,7 @@ describe('ui cards', () => {
   it('describes every item with its cost and state', () => {
     // the treasury may run to the debt floor (-500): a 30-gold well still fits, a 120-gold temple does not
     const w = makeTestWorld({ gold: -400 });
-    expect(cardInfo(w, 'well')).toEqual({ item: 'well', name: 'Well', cost: BUILDINGS.well.cost, costText: `${BUILDINGS.well.cost} gold`, affordable: true, locked: false, lockText: '', isNew: false, terrainText: '', upkeepText: 'Upkeep 3 a month', upkeepTitle: 'Upkeep 3' });   // Stage 4.5: a well has no workers, so its bill is its upkeep
+    expect(cardInfo(w, 'well')).toEqual({ item: 'well', name: 'Well', cost: BUILDINGS.well.cost, costText: `${BUILDINGS.well.cost} gold`, affordable: true, locked: false, lockText: '', isNew: false, terrainText: '', upkeepText: 'Costs 3 a month', upkeepTitle: '3 upkeep' });   // Stage 4.5: a well has no workers, so its bill is its upkeep
     expect(cardInfo(w, 'temple').affordable).toBe(false);
     expect(cardInfo(w, 'road').costText).toBe(`${ECONOMY.roadCost} gold per tile`);
     expect(cardInfo(w, 'house').costText).toBe(`${BUILDINGS.house.cost} gold per plot`);
