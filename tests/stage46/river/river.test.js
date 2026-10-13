@@ -3,3 +3,5 @@
 import './floodSim.test.js';
 import './wildlifeSim.test.js';
 import './riverUi.test.js';
+import './riverRender.test.js';
+import './riverScenes.test.js';
