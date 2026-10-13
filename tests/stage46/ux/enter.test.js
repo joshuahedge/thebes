@@ -139,6 +139,9 @@ describe('s46 ux enter confirms a placement', () => {
       key(button, ' ');                                                       // Space on a button stays the button's (pause is not Enter)
       expect(log).toEqual(['confirm']);
       expect(document.body.dataset.keyboard === 'used').toBe(false);          // only a real (trusted) key press says a keyboard is in use
+      const marked = document.body.dataset.keyboard;                           // 'fine' where a mouse is attached (a headless Edge has one), else none
+      expect(marked === 'fine' || marked === undefined).toBe(true);
     } finally { kb.detach(); cleanup(); }
+    expect(document.body.dataset.keyboard === undefined).toBe(true);            // detach takes the mark it made away: nothing leaks into the next game
   });
 });
