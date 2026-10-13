@@ -123,7 +123,7 @@ describe('s4 cards pictures', () => {
     try {
       expect(await devScene(s.api, 'tutorial', { card: 2 })).toBe('tutorial card 3');
       const d = document.querySelector('.picture-cards');
-      expect([d.querySelector('.pc-count').textContent, d.querySelector('#pc-title').textContent]).toEqual(['3 of 6', CARDS4_TEXT.cards.farm.title]);
+      expect([d.querySelector('.pc-count').textContent, d.querySelector('#pc-title').textContent]).toEqual(['3 of 7', CARDS4_TEXT.cards.farm.title]);
     } finally { s.cleanup(); }
     expect(document.querySelector('.picture-cards')).toBe(null);
   });

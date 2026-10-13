@@ -26,8 +26,8 @@ import { allBuildings, housesOf } from '../sim/world.js';
 import { roadReach, reachDistance } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
 import { openSheet, closeSheet } from './modes.js';
-import { buildingName, tierName, DANGER_UI_TEXT } from './text.js';
-import { tributeSheet, buildingParts, fireRow, actionParts, summaryParts } from './dangerSheets.js';
+import { buildingName, tierName, DANGER_UI_TEXT, CRIME_TEXT } from './text.js';
+import { tributeSheet, buildingParts, fireRow, homeRows, actionParts, summaryParts } from './dangerSheets.js';
 
 // The homes a newly placed water provider is the first to water (spec 5.4's ripple): those it reaches by the coveredBy rule
 // (src/sim/housing.js) that no other working water provider reaches. Plots count, as "Gives water to N homes" counts them.
@@ -72,6 +72,8 @@ export function createDanger(ctx) {
         const b = ctx.world.buildings[e.id];
         if (b) caption(D.putOut(e.stage, placeName(b)));
       } else if (e.type === 'burned') reacted.delete(e.id);
+      else if (e.type === 'theft') { caption(CRIME_TEXT.caption(e)); if (ctx.fireTip) ctx.fireTip('theft'); }   // Stage 4.5 (ruling 319): what a thief took, and the tip
+      else if (e.type === 'illness') { if (ctx.fireTip) ctx.fireTip('illness'); }                               // Stage 4.5 (ruling 318): the tip, the first time a home falls ill
       else if (e.type === 'raid_warning') ctx.sfx.play('horn');              // once, as the warning appears (spec 5.5)
       else if (e.type === 'raid_end' && e.report) caption(D.raidReport(e.report));
       else if (e.type === 'month' && ctx.world.stats.lastMonth && ctx.world.stats.lastMonth.taxes > 0) ctx.sfx.play('coin');   // the month's taxes arrived
@@ -107,7 +109,7 @@ export function createDanger(ctx) {
     sheets: { tribute: tributeSheet(ctx) },
     sheetParts: {
       building: (b) => (real(b) ? buildingParts(ctx, b) : []),
-      house: (h) => (real(h) ? fireRow(ctx, h) : []),
+      house: (h) => (real(h) ? [...fireRow(ctx, h), ...homeRows(ctx, h)] : []),
       actions: (b) => (real(b) ? actionParts(ctx, b) : []),
       summary: () => (ctx.world ? summaryParts(ctx) : []),
     },

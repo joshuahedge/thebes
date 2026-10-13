@@ -26,14 +26,14 @@ describe('s3 contract data', () => {
     expect(pick(BUILDINGS.wall, [...KEYS.filter((k) => k !== 'priority'), 'tile'])).toEqual({ name: 'Wall', w: 1, d: 1, cost: 8, upkeep: 0, workers: 0, category: 'defence', needsRoad: false, tile: true });
     expect(pick(BUILDINGS.gate, ['name', 'cost', 'upkeep', 'tile', 'buildable'])).toEqual({ name: 'Gate', cost: 20, upkeep: 0, tile: true, buildable: false });
     expect(pick(BUILDINGS.rubble, ['name', 'w', 'd', 'cost', 'upkeep', 'workers', 'needsRoad', 'buildable'])).toEqual({ name: 'Rubble', w: 1, d: 1, cost: 0, upkeep: 0, workers: 0, needsRoad: false, buildable: false });
-    expect(BUILDABLE).toEqual(Object.keys(BUILDINGS).filter((t) => t !== 'gate' && t !== 'rubble'));
+    expect(BUILDABLE).toEqual(Object.keys(BUILDINGS).filter((t) => t !== 'gate' && t !== 'rubble' && t !== 'bridge'));
     expect(BUILDINGS.firehouse.reach).toBe(FIRE.reach);
   });
   it('unlocks the firehouse with the Village and the wall, tower and barracks with Market town, and gives each a card', () => {
     const at = (type) => MILESTONES.find((m) => m.unlocks.includes(type)).id;
     expect(['firehouse', 'wall', 'tower', 'barracks'].map(at)).toEqual(['village', 'market_town', 'market_town', 'market_town']);
-    expect(CATEGORIES.find((c) => c.id === 'services').items.slice(-2)).toEqual(['firehouse', 'palace']);   // Stage 4: the palace comes last
-    expect(CATEGORIES.find((c) => c.id === 'defence').items).toEqual(['wall', 'tower', 'barracks']);
+    expect(CATEGORIES.find((c) => c.id === 'services').items.slice(-4)).toEqual(['firehouse', 'physician', 'police_post', 'palace']);   // Stage 4: the palace comes last; Stage 4.5: the physician and police post before it
+    expect(CATEGORIES.find((c) => c.id === 'defence').items).toEqual(['wall', 'gate', 'tower', 'barracks']);   // Stage 4.5: the Gate card (ruling 309)
     for (const slot of ['firehouse', 'tower', 'barracks', 'wall', 'gate', 'rubble']) expect([slot, typeof (ART[slot] && ART[slot].draw)]).toEqual([slot, 'function']);
   });
   it('sets the fire numbers of spec 4.12', () => {
@@ -59,9 +59,10 @@ describe('s3 contract data', () => {
   });
   it('sets the raid, unit, defence and festival numbers of spec 4.13', () => {
     expect(RAIDS).toEqual({
-      clockPeople: 250, firstWarnAfter: 720, warningDays: 90, laterMin: 720, laterMax: 1440, firstSize: 3, minSize: 2, maxSize: 12,
+      clockPeople: 250, firstWarnAfter: 720, warningDays: 90, laterMin: 720, laterMax: 1440, firstSize: 3, minSize: 2, maxSize: 18, growthPerYear: 0.1, growthMax: 1.5,
       peoplePerRaider: 125, wealthBase: 5000, wealthStep: 5000, wealthMax: 4, adaptLost: 0.6, adaptStep: 0.2, raidersPerTower: 3,
       tributeShare: 0.8, strikes: 3, strikeDays: 2, stealShare: 0.01, stealMin: 5, stealMax: 50, retreatShare: 0.5,
+      twoSidedFrom: 3, twoSidedChance: 0.35, pillage: [null, 'granary', 'house'], foodShare: 0.5, fleeShare: 0.25,
       targets: ['trading_post', 'storehouse', 'bazaar', 'temple'],
     });
     for (const t of RAIDS.targets) expect(Boolean(BUILDINGS[t])).toBe(true);

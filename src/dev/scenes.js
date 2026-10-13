@@ -32,6 +32,7 @@ import { holdFestival } from '../sim/festival.js';
 import { tickDay } from '../sim/clock.js';
 import { processionsAt, PROCESSION_ID_BASE } from '../render/walkers.js';
 import { PROCESSION } from '../data/ambient.js';
+import { entryPath } from '../render/newcomers.js';
 import { allBuildings, housesOf } from '../sim/world.js';
 import { coverageOf } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
@@ -40,6 +41,10 @@ import { idx, inBounds } from '../sim/grid.js';
 import { T as TERRAIN } from '../sim/terrain.js';
 import { DEFENCE, RAIDS, UNITS } from '../data/raids.js';
 import { FIRE } from '../data/fire.js';
+import { HEALTH } from '../data/health.js';
+import { CRIME } from '../data/crime.js';
+import { fallIll } from '../sim/health.js';
+import { CRIME_TEXT } from '../ui/text.js';
 import { TIP_FIRST_DELAY_MS } from '../data/tips.js';
 import { CHEER_GAP_MS, CHEER_MS } from '../data/ui.js';
 import { screenToTile } from '../render/camera.js';
@@ -51,6 +56,8 @@ import { makeBuilding, insertBuilding } from '../sim/world.js';   // Track B's m
 import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { tutorialScene } from './tutorialScenes.js';
+import { riverIsle, riverPools } from '../render/terrainWater.js';
+import { bridgeRuns, BRIDGE_MAX } from '../sim/bridges.js';
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -705,15 +712,307 @@ async function motion(api) {
   return `motion ${ui.settings.get().motion} level ${ui.settings.motionLevel()}`;
 }
 
+// Stage 4.5 (Task 3, ruling 313): the river layouts. Open /?skipTitle=1&nosw=1&seed=<n>&variant=<name> (classic, east, middle,
+// wide-bends, island or oasis), then devScene('variant') pulls the camera out to the whole map: the zoom goes below the
+// buttons' minimum (zoom is set straight on the camera, as no player move can), so a phone shows the river's whole shape.
+export const STAGE45_SCENES = ['variant', 'bridge', 'clay'];
+// options.look: 'island' or 'oasis' frames that feature close (zoom 0.4), else the whole map; options.zoom overrides the zoom.
+async function variant(api, options = {}) {
+  const g = inGame(api, 'variant');
+  const w = g.world, v = viewOf(g);
+  g.ui.cameraControl.cancel();
+  const feature = options.look === 'island' ? riverIsle(w) : options.look === 'oasis' ? riverPools(w) : [];
+  const at = feature.length ? { x: feature.reduce((s, t) => s + t[0], 0) / feature.length + 0.5, y: feature.reduce((s, t) => s + t[1], 0) / feature.length + 0.5 } : { x: w.size / 2, y: w.size / 2 };
+  g.cam.zoom = options.zoom || (feature.length ? 0.4 : Math.min(0.5, (v.width * 0.94) / (w.size * 64)));
+  g.ui.cameraControl.jumpTo(at.x, at.y);
+  await wait(300);
+  return `variant ${w.mapVariant} zoom ${g.cam.zoom.toFixed(3)}`;
+}
+
+// 'bridge': a road laid straight across the river on the narrowest crossing nearest the start (the road tool's own command,
+// so the bridge is the sim's), with homes painted along both banks, close up (zoom 1.6, or options.zoom).
+async function bridge(api, options = {}) {
+  const g = inGame(api, 'bridge');
+  const w = g.world, n = w.size;
+  w.gold = Math.max(w.gold, 20000);
+  let best = null;
+  for (let y = 4; y < n - 4; y++) {
+    const row = [];
+    for (let x = 0; x < n; x++) row.push([x, y]);
+    for (const r of bridgeRuns(w, row)) {
+      if (!(r.straight && r.bounded && r.n >= 3 && r.n <= BRIDGE_MAX)) continue;
+      const score = Math.abs(y - w.focus.y) + (r.n === 3 ? 0 : 2);
+      if (!best || score < best.score) best = { score, y, from: row[r.from][0], to: row[r.to][0] };
+    }
+  }
+  if (!best) throw new Error('devScene bridge: no crossing of 3 or 4 tiles of water on this map');
+  const result = drawRoad(w, best.from - 6, best.y, best.to + 6, best.y);
+  if (!result.ok) throw new Error(`devScene bridge: the road would not go down (${result.reason})`);
+  for (const [x0, x1] of [[best.from - 6, best.from - 1], [best.to + 1, best.to + 6]]) {
+    paintHouses(w, x0, best.y - 1, x1, best.y - 1);
+    paintHouses(w, x0, best.y + 1, x1, best.y + 1);
+  }
+  g.ui.cameraControl.cancel();
+  g.cam.zoom = options.zoom || 1.6;
+  const mid = (best.from + best.to) / 2 + 0.5;
+  g.ui.cameraControl.jumpTo(mid, best.y + 0.5);
+  await wait(400);
+  return `bridge ${best.to - best.from + 1} tiles at y ${best.y}, ${result.bridges.length} bridge tiles for ${result.cost} gold`;
+}
+
+// 'clay': the Ground overlay on, with the 14 x 14 stretch of the map holding the most free clay in the middle.
+async function clay(api, options = {}) {
+  const g = inGame(api, 'clay');
+  const w = g.world, n = w.size, K = 14;
+  let best = null;
+  for (let y0 = 0; y0 + K <= n; y0 += 2) {
+    for (let x0 = 0; x0 + K <= n; x0 += 2) {
+      let c = 0;
+      for (let y = y0; y < y0 + K; y++) for (let x = x0; x < x0 + K; x++) if (w.terrain[idx(n, x, y)] === TERRAIN.CLAY && !w.occ[idx(n, x, y)] && !w.road[idx(n, x, y)]) c++;
+      if (!best || c > best.c) best = { c, x: x0 + K / 2, y: y0 + K / 2 };
+    }
+  }
+  g.ui.store.set({ overlay: 'ground' });
+  g.ui.cameraControl.cancel();
+  g.cam.zoom = options.zoom || 1;
+  g.ui.cameraControl.jumpTo(best.x, best.y);
+  await wait(400);
+  return `clay ${best.c} free clay tiles round (${best.x}, ${best.y})`;
+}
+
+// Stage 4.5 (Task 4c): newcomers on the road, mid-walk. The game is paused; the sim runs to the day before an arrival day, a home near
+// the middle of the city (one the roads join to the entry, 14 to 40 tiles from it) has three fewer residents (so the batch has room
+// for them), the day ticks over (the arrival batch puts them back, and the frame sees the home's residents rise), then the game runs
+// a quarter of the walk and pauses, framed on the middle of the walk. Not in STAGE45_SCENES: it is a shot, not a contract scene.
+async function newcomers(api) {
+  const g = inGame(api, 'newcomers'), { world } = g;
+  world.speed = 0;
+  while (world.day % 10 !== 9) tickDay(world);
+  const near = (b) => Math.abs(b.x - world.focus.x) + Math.abs(b.y - world.focus.y);
+  let pick = null;
+  for (const h of housesOf(world).filter((b) => b.residents >= 3).sort((a, b) => near(a) - near(b) || a.id - b.id)) {
+    const pts = entryPath(world, h);
+    if (pts && pts.length >= 14 && pts.length <= 40) { pick = { h, pts }; break; }
+  }
+  if (!pick) throw new Error('devScene newcomers: no home with a road walk of 14 to 40 tiles from the entry');
+  const { h, pts } = pick;
+  h.residents -= 3;
+  g.ui.refresh();
+  await wait(200);
+  h.residents += 3;
+  tickDay(world);
+  g.ui.refresh();
+  await wait(150);
+  const mid = pts[Math.floor(pts.length * 0.4)];
+  g.cam.zoom = 1;
+  focus(g, mid.x, mid.y);
+  world.speed = 1;
+  await wait(Math.max(1500, Math.min(12000, pts.length * 0.25 * 1000)));
+  world.speed = 0;
+  await wait(250);
+  return `newcomers to home ${h.id}, a walk of ${pts.length} tiles`;
+}
+
+// Stage 4.5 (Task 5a, ruling 317): a two-sided raid. raiseTwoSided is raiseWarning's later raid with its total size one more,
+// split over two bands from two entries on different edges (the east entry and another edge's), as the sim raises one.
+function raiseTwoSided(world) {
+  const w = raiseWarning(world);
+  const first = world.raiderEntries.find((e) => entryDir(world, e) === 'east') || world.raiderEntries[0];
+  const other = world.raiderEntries.find((e) => entryDir(world, e) !== entryDir(world, first)) || world.raiderEntries.find((e) => e.x !== first.x || e.y !== first.y);
+  if (!other) throw new Error('devScene raid2: the map has no second raider entry');
+  const total = w.size + 1;
+  w.size = total;
+  w.tribute = tributeFor(world, total);
+  w.second = { entry: { ...other }, dir: entryDir(world, other), size: Math.floor(total / 2) };
+  return w;
+}
+
+// The two-band warning on the banner (on a phone, the countdown chip), and the same with the raid sheet open ('raid2-sheet').
+async function raid2(api) {
+  const g = inGame(api, 'raid2'), { world } = g;
+  const w = raiseTwoSided(world);
+  g.ui.refresh();
+  await wait(100);
+  return `raid2 ${w.size} raiders from ${w.dir} and ${w.second.dir}`;
+}
+async function raid2Sheet(api) {
+  const g = inGame(api, 'raid2-sheet'), { world } = g;
+  const w = raiseTwoSided(world);
+  g.ui.refresh();
+  const alert = g.ui.alerts.list().find((a) => a.code === 'raid_warning');
+  g.ui.alerts.action(alert, 'tribute');
+  await wait(100);
+  return `raid2-sheet ${w.size} raiders from ${w.dir} and ${w.second.dir}`;
+}
+
+// A two-band raid under way: each band on its way in from its entry, 14 tiles from the middle of the city, the game paused.
+async function raid2Active(api) {
+  const g = inGame(api, 'raid2-active'), { world } = g;
+  const w = raiseTwoSided(world);
+  const r = world.raid;
+  r.warning = null;
+  const place2 = (entry) => {
+    const dx = world.focus.x - entry.x, dy = world.focus.y - entry.y, len = Math.hypot(dx, dy) || 1;
+    for (let k = Math.max(0, len - 14); k < len; k++) {        // 14 tiles out from the middle of the city, or the first free land on the way in
+      const x = Math.round(entry.x + (dx / len) * k), y = Math.round(entry.y + (dy / len) * k);
+      if (freeLand(world, x, y)) return { x, y };
+    }
+    return { x: entry.x, y: entry.y };
+  };
+  const bands = [{ entry: w.entry, dir: w.dir, size: w.size - w.second.size }, w.second];
+  const raiders = [];
+  bands.forEach((b, k) => { for (let n = 0; n < b.size; n++) raiders.push({ id: world.nextUnitId++, x: 0, y: 0, hp: UNITS.raider.hp, hit: false, ...(k ? { band: 1 } : {}) }); });
+  const at = bands.map((b) => place2(b.entry));
+  const slots = [[0, 0], [0.25, 0.2], [-0.25, 0.2], [0.25, -0.2], [-0.25, -0.2], [0, 0.32], [0, -0.32]];
+  for (const u of raiders) { const k = u.band ? 1 : 0, [dx, dy] = slots[u.id % slots.length]; u.x = at[k].x + 0.5 + dx; u.y = at[k].y + 0.5 + dy; }
+  r.clockDay = r.clockDay === null ? 0 : r.clockDay;
+  r.active = {
+    index: 1, entry: { ...w.entry }, dir: w.dir, size: w.size, target: raidTargetKind(world), day: world.day - 3, raiders, phase: 'attack', targetId: null,
+    struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [], x: at[0].x, y: at[0].y, blocked: null, towerIds: [], fires: [], burnedKinds: [],
+    second: { entry: { ...w.second.entry }, dir: w.second.dir, x: at[1].x, y: at[1].y, phase: 'attack', targetId: null, struck: [], wait: 0, blocked: null },
+  };
+  world.tally.raids += 1;
+  g.ui.refresh();
+  g.ui.cameraControl.cancel();
+  g.cam.zoom = 0.5;
+  focus(g, (at[0].x + at[1].x) / 2 + 0.5, (at[0].y + at[1].y) / 2 + 0.5);
+  await wait(200);
+  return `raid2-active ${raiders.length} raiders from ${w.dir} (${at[0].x},${at[0].y}) and ${w.second.dir} (${at[1].x},${at[1].y})`;
+}
+
+// ── Stage 4.5 (Task 5): disease and crime shots. Not in STAGE45_SCENES (they are shots, not contract scenes). Open the seed-11 sample
+// city (/?skipTitle=1&nosw=1&seed=11&sample=1), then devScene('illness') or devScene('crime'), each with options.look:
+//   illness: (default) the ill homes close up, a cloth over each door and no physician reaching them; 'alert' the Map sheet with the
+//            warning in its list; 'overlay' the Health overlay on the whole street; 'building' a physician close up.
+//   crime:   (default) the Crime overlay over the street, risk spread across its homes, a police post covering some; 'alert' the Map
+//            sheet with the district warning; 'building' the police post close up; 'caption' a theft's caption.
+// Both leave motion to the caller (the cloth is still at every level).
+const nearFocus = (world) => (b) => Math.abs(b.x + b.w / 2 - world.focus.x) + Math.abs(b.y + b.d / 2 - world.focus.y);
+
+// The homes with people in them and a road beside them, nearest the focus first (1x1 homes only: a 2x2 shows its door differently).
+function streetHomes(world) {
+  const near = nearFocus(world);
+  return housesOf(world).filter((h) => h.residents > 0 && h.w === 1 && adjacentRoadTiles(world, h).length).sort((a, b) => near(a) - near(b) || a.id - b.id);
+}
+
+// Pauses every service of this type whose road reach takes in one of the homes, so none covers them (scenes that show the problem).
+function pauseCover(world, type, reachTiles, homes) {
+  for (const f of allBuildings(world)) {
+    if (f.type !== type) continue;
+    const reach = roadReach(world, f, reachTiles);
+    if (homes.some((b) => adjacentRoadTiles(world, b).some((t) => reach.has(t)))) setPaused(world, f.id, true);
+  }
+  assignLabour(world);
+}
+
+// A free 1x1 spot beside a road near (x, y) where the building goes down, searched in rings; null when there is none.
+function spotNearRoad(world, type, x, y, maxR = 12) {
+  for (let r = 0; r <= maxR; r++) {
+    for (let yy = y - r; yy <= y + r; yy++) {
+      for (let xx = x - r; xx <= x + r; xx++) {
+        if (Math.max(Math.abs(xx - x), Math.abs(yy - y)) !== r) continue;
+        if (canPlace(world, type, xx, yy).ok) return [xx, yy];
+      }
+    }
+  }
+  return null;
+}
+
+async function illness(api, options = {}) {
+  const g = inGame(api, 'illness'), { world } = g;
+  const sick = streetHomes(world).slice(0, 3);
+  if (sick.length < 3) throw new Error('devScene illness: no street of homes near the focus');
+  world.milestone = ['town', 'market_town', 'city', 'great_city', 'capital'].includes(world.milestone) ? world.milestone : 'town';
+  pauseCover(world, 'physician', HEALTH.reach, sick);
+  for (const h of sick) { fallIll(world, h.id, null, 'risk'); h.illness.left = Math.min(h.illness.left, 18); }
+  g.ui.cameraControl.cancel();
+  g.ui.store.set({ overlay: null });
+  g.ui.refresh();
+  const look = options.look || 'cloth';
+  if (look === 'alert') {
+    g.ui.store.set(openSheet(g.ui.store.get(), 'minimap'));
+    await wait(200);
+    return `illness alert ${sick.map((h) => h.id).join(',')}`;
+  }
+  if (look === 'overlay') {
+    g.ui.store.set({ overlay: 'health' });
+    g.cam.zoom = options.zoom || 0.9;
+    focus(g, sick[0].x + 0.5, sick[0].y + 0.5);
+    await wait(250);
+    return 'illness overlay';
+  }
+  if (look === 'building') {
+    const doc = allBuildings(world).find((b) => b.type === 'physician');
+    if (!doc) throw new Error('devScene illness: the city has no physician');
+    setPaused(world, doc.id, false);
+    assignLabour(world);
+    g.ui.refresh();
+    g.cam.zoom = options.zoom || 2.6;
+    focus(g, doc.x + 0.5, doc.y + 0.5);
+    await wait(250);
+    return `illness building ${doc.id}`;
+  }
+  g.cam.zoom = options.zoom || 2.2;
+  focus(g, sick[1].x + 0.5, sick[1].y + 0.5);
+  await wait(250);
+  return `illness ${sick.map((h) => h.id).join(',')}`;
+}
+
+async function crime(api, options = {}) {
+  const g = inGame(api, 'crime'), { world } = g;
+  const homes = streetHomes(world);
+  if (homes.length < 8) throw new Error('devScene crime: no street of homes near the focus');
+  world.milestone = ['market_town', 'city', 'great_city', 'capital'].includes(world.milestone) ? world.milestone : 'market_town';
+  world.mood = Math.min(world.mood, CRIME.moodBelow - 5);
+  const near = homes.slice(0, 24);
+  near.forEach((h, i) => { h.crime = [8, 30, 64, 105, 40, 72, 15, 95][i % 8]; });
+  const at = near[near.length >> 1];
+  if (!allBuildings(world).some((b) => b.type === 'police_post')) {
+    const spot = spotNearRoad(world, 'police_post', at.x, at.y + 1);
+    if (spot) place(world, 'police_post', spot[0], spot[1]);
+  }
+  assignLabour(world);
+  g.ui.cameraControl.cancel();
+  g.ui.refresh();
+  const look = options.look || 'overlay';
+  if (look === 'alert') {
+    g.ui.store.set(openSheet(g.ui.store.get(), 'minimap'));
+    await wait(200);
+    return 'crime alert';
+  }
+  if (look === 'caption') {
+    g.ui.celebrations.show({ tier: 'info', text: CRIME_TEXT.caption({ kind: 'gold', amount: 40, near: 'bazaar' }) });
+    g.cam.zoom = 1;
+    focus(g, at.x + 0.5, at.y + 0.5);
+    await wait(250);
+    return 'crime caption';
+  }
+  if (look === 'building') {
+    const post = allBuildings(world).find((b) => b.type === 'police_post');
+    if (!post) throw new Error('devScene crime: no police post stands (no free spot near the street)');
+    g.cam.zoom = options.zoom || 2.6;
+    focus(g, post.x + 0.5, post.y + 0.5);
+    await wait(250);
+    return `crime building ${post.id}`;
+  }
+  g.ui.store.set({ overlay: 'crime' });
+  g.cam.zoom = options.zoom || 0.9;
+  focus(g, at.x + 0.5, at.y + 0.5);
+  await wait(250);
+  return `crime overlay ${near.length} homes`;
+}
+
 const SCENES = {
   peaceful, fire, tribute, battle, score, ambient,
   early, plots, raid, 'raid-fire': raidFire, 'raid-overlay': raidOverlay, placing, farm, 'farm-raid': farmRaid, sheet, welcome, expanded, 'pyramid-placing': pyramidPlacing,
   title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion,
+  variant, bridge, clay, newcomers, raid2, 'raid2-sheet': raid2Sheet, 'raid2-active': raid2Active,
+  illness, crime,
 };
 
 export async function devScene(api, name, options = {}) {
   const scene = SCENES[name];
-  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES, ...STAGE4_SCENES].join(', ')})`);
+  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES, ...STAGE4_SCENES, ...STAGE45_SCENES].join(', ')})`);
   return scene(api, options);
 }
 

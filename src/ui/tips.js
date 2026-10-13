@@ -23,10 +23,11 @@ import { TIP_TEXT, T } from './text.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 
-export function createTips({ container, settings, now = () => performance.now(), playNow = now, frameNow = now, autoCloseMs = () => 0, restoreFocus = () => {}, onChange = () => {}, onToggle = () => {} }) {
+export function createTips({ container, settings, now = () => performance.now(), playNow = now, frameNow = now, autoCloseMs = () => 0, restoreFocus = () => {}, onChange = () => {}, onToggle = () => {}, textFor = (id) => TIP_TEXT[id], showMeFor = () => null }) {
   const started = now();
   const shownAt = [];      // the play time at which each tip of this session appeared
   let showing = null;      // the id on screen
+  let showingText = '';    // its words, worked out when it appeared (textFor: a tip may name the city's own numbers)
   let shownFrame = 0;      // the frame-clock time it appeared
   let waiting = null;      // { tip, at }: a tip held back by an active tool, and when
   let onScreen = true;     // false while setShown(false) keeps the tip off the screen
@@ -49,11 +50,14 @@ export function createTips({ container, settings, now = () => performance.now(),
     clear(container);
     row = words = more = null;
     if (!showing || !onScreen) return;
-    words = el('span', { class: 'text', text: TIP_TEXT[showing] });
+    words = el('span', { class: 'text', text: showingText });
     more = el('button', { type: 'button', class: 'more quiet', 'aria-expanded': 'false', hidden: true });
     // A tap on More, or on the cut words, opens or closes the tip (More shows only while the words are cut, or open).
     const body = el('span', { class: 'body', onClick: () => { if (!more.hidden) onToggle(); } }, [el('span', { class: 'label small muted', text: T.tip }), words, more]);
-    row = el('div', { class: 'tip-row' }, [body, button(T.gotIt, { class: 'got-it quiet', onClick: () => api.dismiss() })]);
+    // Stage 4.5 (Task 4b): a tip may carry a Show me (showMeFor(id) gives its action, or null), which does it and closes the tip.
+    const act = showMeFor(showing);
+    const showMe = act ? button(T.showMe, { class: 'tip-show-me quiet', 'aria-label': `${T.showMe}: ${showingText}`, onClick: () => { api.dismiss(); act(); } }) : null;
+    row = el('div', { class: 'tip-row' }, [body, showMe, button(T.gotIt, { class: 'got-it quiet', onClick: () => api.dismiss() })]);
     container.append(row);
     paintOpen();
   }
@@ -83,6 +87,7 @@ export function createTips({ container, settings, now = () => performance.now(),
     }
     if (!allowed(tip, t)) return false;
     showing = tip.id;
+    showingText = textFor(tip.id);
     open = false;
     shownFrame = frameNow();
     shownAt.push(playNow());

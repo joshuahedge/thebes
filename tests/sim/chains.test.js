@@ -5,7 +5,7 @@ import { alertsFor } from '../../src/sim/alerts.js';
 import { makeBuilding } from '../../src/sim/world.js';
 import { BUILDINGS } from '../../src/data/buildings.js';
 import { DAYS_PER_MONTH } from '../../src/sim/time.js';
-import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
+import { makeTestWorld, setRoad, addRaw, staffAll, layClay } from '../helpers/testWorld.js';
 
 // Road along y = 10; 2x2 buildings at y = 8 touch it. Two such buildings at x and x' (x' >= x + 2) sit x' - x road
 // tiles apart, so with a producer reach of 12 a store 12 along is in reach and one 13 along is not.
@@ -260,6 +260,7 @@ describe('production chains', () => {
   });
   it('warns on placement when no store within reach accepts the good', () => {
     const w = row();
+    layClay(w, 10, 8);
     const store = addRaw(w, 'storehouse', 13, 8);
     w.milestone = 'town';                                  // clay pits unlock at Town
     expect(canPlace(w, 'clay_pit', 10, 8).warnings).toEqual([]);

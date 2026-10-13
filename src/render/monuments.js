@@ -42,7 +42,7 @@ export const OUTLINE_MS = 1500;                      // the still outline for a 
 export const DUST_MS = 1200;                         // the course-done dust, Full only
 export const GANG = {
   haulers: 4,            // a crew's gang hauling its sled (spec 5.7: four or five)
-  tripDays: 6,           // game days a sled takes up and back (4 s at 1x): up loaded for upShare of it, down empty
+  tripDays: 6,           // game days a sled takes up and back (6 s at 1x): up loaded for upShare of it, down empty
   upShare: 0.6,
   spacing: 0.16,         // tiles between the haulers in a file, and from the sled to the first pair
   scale: 0.7,            // the figures' size: a little smaller than a walker, so a gang fits the ramp

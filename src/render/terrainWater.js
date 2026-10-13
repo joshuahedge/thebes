@@ -9,26 +9,58 @@ import { idx } from '../sim/grid.js';
 import { TERRAIN } from './art/palette.js';
 import { reeds } from './art/nature.js';
 
-const spanCache = new WeakMap(); // world -> { spans, minWidth }; terrain never changes in Stage 1
+const spanCache = new WeakMap(); // world -> { spans, minWidth, pools, isle }; terrain never changes after the map is made
 export const SHALLOWS_TILES = 0.25; // the shallows strip's width inside each bank, in tiles (a quarter tile across on screen)
+
+// The river is the biggest piece of water (4-connected). Any other piece is a pool (an oasis's lake, Stage 4.5): drawn as a
+// blob of its own, never as part of a river row. Land inside the river's rows (an island, Stage 4.5) is drawn over the water.
+function waterPieces(world) {
+  const n = world.size, piece = new Int32Array(n * n).fill(-1), sizes = [];
+  for (let s = 0; s < n * n; s++) {
+    if (world.terrain[s] !== T.WATER || piece[s] >= 0) continue;
+    const id = sizes.length, queue = [s];
+    piece[s] = id;
+    for (let k = 0; k < queue.length; k++) {
+      const i = queue[k], x = i % n, y = (i - x) / n;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
+        const j = ny * n + nx;
+        if (world.terrain[j] === T.WATER && piece[j] < 0) { piece[j] = id; queue.push(j); }
+      }
+    }
+    sizes.push(queue.length);
+  }
+  let river = 0;
+  for (let k = 1; k < sizes.length; k++) if (sizes[k] > sizes[river]) river = k;
+  return { piece, river };
+}
 
 function riverData(world) {
   let data = spanCache.get(world);
   if (data) return data;
-  const spans = [];
-  for (let y = 0; y < world.size; y++) {
+  const n = world.size, { piece, river } = waterPieces(world);
+  const spans = [], pools = [], isle = [];
+  for (let y = 0; y < n; y++) {
     let a = -1, b = -1;
-    for (let x = 0; x < world.size; x++) {
-      if (world.terrain[idx(world.size, x, y)] === T.WATER) { if (a < 0) a = x; b = x; }
+    for (let x = 0; x < n; x++) {
+      const i = idx(n, x, y);
+      if (piece[i] === river) { if (a < 0) a = x; b = x; } else if (piece[i] >= 0) pools.push([x, y]);
     }
     spans.push(a < 0 ? null : [a, b]);
+    if (a >= 0) for (let x = a; x <= b; x++) if (world.terrain[idx(n, x, y)] !== T.WATER) isle.push([x, y]);
   }
   let minWidth = Infinity;
   for (const s of spans) if (s) minWidth = Math.min(minWidth, s[1] - s[0] + 1);
-  data = { spans, minWidth };
+  data = { spans, minWidth, pools, isle };
   spanCache.set(world, data);
   return data;
 }
+
+// The water that is not the river: [[x, y], ...] in row order (an oasis's lake; empty on most maps).
+export const riverPools = (world) => riverData(world).pools;
+// The land inside the river's rows, an island's tiles: [[x, y], ...] in row order (empty on most maps).
+export const riverIsle = (world) => riverData(world).isle;
 
 export const riverSpans = (world) => riverData(world).spans;
 

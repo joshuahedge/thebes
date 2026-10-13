@@ -36,11 +36,11 @@ describe('s3 score records', () => {
     const w = city({ scores: [100, 240, 200], splits: { town: 300 } });
     r.noteCity(w, 1000);
     // The rows carry no version, so they are score v1 rows (Stage 4): the best keeps v1 and v1's medal (240 of 400 is silver).
-    expect(r.load().cities).toEqual([{ id: 'a', seed: 11, difficulty: 'normal', scoreVersion: 1, best: 240, bestDay: 60, medal: 'silver', splits: { town: 300 }, updated: 1000 }]);
+    expect(r.load().cities).toEqual([{ id: 'a', seed: 11, difficulty: 'normal', mapVariant: 'classic', scoreVersion: 1, best: 240, bestDay: 60, medal: 'silver', splits: { town: 300 }, updated: 1000 }]);
     w.history = [{ day: 400, people: 0, gold: 0, mood: 60, score: 150, parts: parts(37.5) }];   // the 240 has left the 12 rows
     w.splits.market_town = 500;
     r.noteCity(w, 2000);
-    expect(r.load().cities[0]).toEqual({ id: 'a', seed: 11, difficulty: 'normal', scoreVersion: 1, best: 240, bestDay: 60, medal: 'silver', splits: { town: 300, market_town: 500 }, updated: 2000 });
+    expect(r.load().cities[0]).toEqual({ id: 'a', seed: 11, difficulty: 'normal', mapVariant: 'classic', scoreVersion: 1, best: 240, bestDay: 60, medal: 'silver', splits: { town: 300, market_town: 500 }, updated: 2000 });
     r.noteCity(city({ id: 'b', scores: [] }), 3000);                       // no month end yet: a row, but no best
     expect(r.load().cities[1].best).toBe(null);
     r.noteCity({ ...w, cityId: null }, 4000);                             // no id: nothing
@@ -78,7 +78,7 @@ describe('s3 score records', () => {
     w.feats.earned = ['swift_town'];
     w.seals.push({ day: 800, score: 247, parts: { people: 72, prosperity: 65, culture: 58, safety: 52 }, medal: 'silver', version: 1 });
     const e = r.addSeal(w, w.seals[0], 5000);
-    expect(e).toEqual({ id: 'a:1:800', cityId: 'a', seed: 11, difficulty: 'normal', day: 800, score: 247, parts: { people: 72, prosperity: 65, culture: 58, safety: 52 },   // a v1 seal keeps v1's four parts
+    expect(e).toEqual({ id: 'a:1:800', cityId: 'a', seed: 11, difficulty: 'normal', mapVariant: 'classic', day: 800, score: 247, parts: { people: 72, prosperity: 65, culture: 58, safety: 52 },   // a v1 seal keeps v1's four parts
       splits: { town: 300 }, medal: 'silver', feats: ['swift_town'], version: 1, date: 5000 });
     w.seals.push({ day: 900, score: 250, parts: parts(62.5), medal: 'silver', version: 1 });
     r.addSeal(w, w.seals[1], 6000);
@@ -95,7 +95,7 @@ describe('s3 score records', () => {
     ], chronicle: [mine.chronicle[0], { id: 'z:1:30', cityId: 'z', seed: 3, difficulty: 'hard', day: 30, score: 50, parts: parts(10), splits: {}, medal: null, feats: [], version: 1, date: 1 }, { id: 'x' }] };
     const m = mergeRecords(mine, theirs);
     expect(m.cities.map((c) => c.id)).toEqual(['a', 'z']);
-    expect(m.cities[0]).toEqual({ id: 'a', seed: 11, difficulty: 'normal', scoreVersion: 1, best: 260, bestDay: 90, medal: 'silver', splits: { town: 400, market_town: 800 }, updated: 10 });
+    expect(m.cities[0]).toEqual({ id: 'a', seed: 11, difficulty: 'normal', mapVariant: 'classic', scoreVersion: 1, best: 260, bestDay: 90, medal: 'silver', splits: { town: 400, market_town: 800 }, updated: 10 });
     expect(m.chronicle.map((e) => e.id)).toEqual(['a:1:60', 'z:1:30']);
     const storage = memory(mine);
     createRecords({ storage }).merge(theirs);

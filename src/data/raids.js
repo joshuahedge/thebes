@@ -8,7 +8,9 @@ export const RAIDS = {
   laterMax: 1440,            //   cancelled raid would have arrived), seeded between the two
   firstSize: 3,              // the first raid, at every difficulty
   minSize: 2,
-  maxSize: 12,
+  maxSize: 18,               // Stage 4.5 (ruling 317): was 12
+  growthPerYear: 0.1,        // size x (1 + this per year since the raid clock started) ...
+  growthMax: 1.5,            // ... at most this
   peoplePerRaider: 125,      // people term = people / 125
   wealthBase: 5000,          // wealth term = clamp((wealth - 5000) / 5000, 0, 4)
   wealthStep: 5000,
@@ -23,10 +25,15 @@ export const RAIDS = {
   stealMin: 5,               // ... at least 5 ...
   stealMax: 50,              // ... at most 50, never taking the treasury below 0
   retreatShare: 0.5,         // the band turns back once this share (rounded up) has fallen
+  twoSidedFrom: 3,           // raid index (the 4th raid) from which a raid may come as two bands ...
+  twoSidedChance: 0.35,      // ... with this chance, seeded by hash2(seed, raid index, RAID_SALT.two)
+  pillage: [null, 'granary', 'house'],   // a band's strikes by number: the 2nd goes for a granary, the 3rd for a home (else the usual targets)
+  foodShare: 0.5,            // a strike at a granary takes this share of each good it holds (rounded up) ...
+  fleeShare: 0.25,           // ... and one at a home makes this share of its residents flee (at least 1)
   targets: ['trading_post', 'storehouse', 'bazaar', 'temple'],   // then any other building that is not a home
 };
 
-export const RAID_SALT = { gap: 8101, entry: 8102 };
+export const RAID_SALT = { gap: 8101, entry: 8102, two: 8103, entry2: 8104 };
 
 // Units (spec 4.13): hit points, tiles moved a day, damage dealt a day.
 export const UNITS = {

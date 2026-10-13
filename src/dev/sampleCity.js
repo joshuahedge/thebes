@@ -25,22 +25,44 @@ function roadWest(world, x0, y, minX) {
   return minX;
 }
 
+// Stage 4.5 (ruling 312): a clay pit stands only on clay. The dev cities keep their layouts, so a pit's two-by-two spot
+// is laid as clay first (a fixture, like the milestone the stress city sets), where dry ground is free; never water.
+// The ground goes back as it was when the pit will not go.
+export function placeClayPit(world, x, y, { strict = false } = {}) {
+  const before = [];
+  for (const [tx, ty] of [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]]) {
+    if (tx < 0 || ty < 0 || tx >= world.size || ty >= world.size) return null;
+    const i = idx(world.size, tx, ty);
+    if (world.terrain[i] === T.WATER || world.occ[i] || world.road[i] || world.wall[i]) return null;
+    before.push([i, world.terrain[i]]);
+  }
+  for (const [i] of before) world.terrain[i] = T.CLAY;
+  const c = canPlace(world, 'clay_pit', x, y);
+  if (c.ok && !(strict && c.warnings.length)) return place(world, 'clay_pit', x, y);
+  for (const [i, t] of before) world.terrain[i] = t;
+  return null;
+}
+
 // The first spot in the list where the building can go (the river can take any one of them on some maps).
 function placeFirst(world, type, spots) {
-  for (const [x, y] of spots) if (place(world, type, x, y).ok) return true;
+  for (const [x, y] of spots) {
+    const r = type === 'clay_pit' ? placeClayPit(world, x, y) : place(world, type, x, y);
+    if (r && r.ok) return true;
+  }
   return false;
 }
 
 // Stage 3 (spec 4.12): fire risk builds from Town, and a firehouse reaches FIRE.reach road tiles. Each street keeps two
 // spots on its south row free of homes, four tiles either side of the north road; their two firehouses reach the whole
 // street (nine tiles either side) and the north road up to the next street. They are built the day the city becomes a
-// Town, like a careful player.
+// Town, like a careful player. Stage 4.5: a physician beside the north road on each street's south row does the same for illness.
 const FIRE_DX = [-4, 4];
 
 // Paints a street's south row of homes around its two firehouse spots (the wells at five tiles are skipped as built).
 function paintAroundFirehouses(world, ex, y) {
   paintHouses(world, ex - 9, y, ex - 5, y);
-  paintHouses(world, ex - 3, y, ex + 3, y);
+  paintHouses(world, ex - 3, y, ex - 2, y);   // Stage 4.5: (ex - 1, y) stays free for the street's physician (ex is the north road)
+  paintHouses(world, ex, y, ex + 3, y);
   paintHouses(world, ex + 5, y, ex + 9, y);
 }
 
@@ -57,6 +79,7 @@ const reachedByAny = (world, b) => allBuildings(world).some((f) => f.type === 'f
 function addFirehouses(world, streets) {
   const ex = world.tradeEntry.x;
   for (const y of streets) for (const dx of FIRE_DX) place(world, 'firehouse', ex + dx, y + 1);
+  for (const y of streets) place(world, 'physician', ex - 1, y + 1);   // Stage 4.5: and a physician whose reach (8 road tiles) takes in the street's homes
   for (let guard = 0; guard < 8; guard++) {
     const b = allBuildings(world).find((x) => canBurn(x) && adjacentRoadTiles(world, x).length && !reachedByAny(world, x));
     if (!b) return;
@@ -114,6 +137,11 @@ function placeNear(world, type, cx, cy, maxR = 9) {
     for (let y = cy - r; y <= cy + r; y++) {
       for (let x = cx - r; x <= cx + r; x++) {
         if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) !== r) continue;
+        if (type === 'clay_pit') {
+          const r = placeClayPit(world, x, y, { strict: true });
+          if (r && r.ok) return r.id;
+          continue;
+        }
         const c = canPlace(world, type, x, y);
         if (c.ok && !c.warnings.length) return place(world, type, x, y).id;
       }
@@ -293,7 +321,10 @@ export function buildStressCity(world, { days = 60 } = {}) {
   const services = STRESS_SERVICES;
   for (let y = 2; y < size - 1; y += 4) roadRow(world, y);
   for (let y = 2; y < size - 3; y += 4) {
-    for (let x = 1; x < size - 2; x += 7) place(world, services[(x / 7 + y / 4) % services.length | 0], x, y + 1);
+    for (let x = 1; x < size - 2; x += 7) {
+      const type = services[(x / 7 + y / 4) % services.length | 0];
+      if (type === 'clay_pit') placeClayPit(world, x, y + 1); else place(world, type, x, y + 1);
+    }
   }
   for (let y = 2; y < size - 1; y += 4) {
     paintHouses(world, 0, y - 1, size - 1, y - 1);

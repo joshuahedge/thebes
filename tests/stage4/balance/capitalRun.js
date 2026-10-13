@@ -29,6 +29,8 @@ function capitalWorld() {
   for (let y = 17; y < 24; y++) for (let x = 0; x < SIZE; x++) terrain[idx(SIZE, x, y)] = T.FERTILE;
   for (let y = 21; y < 23; y++) for (let x = 10; x < 14; x++) terrain[idx(SIZE, x, y)] = T.ROCKY;
   for (const x0 of [10, 24, 26]) for (let y = 24; y < 26; y++) for (let x = x0; x < x0 + 2; x++) terrain[idx(SIZE, x, y)] = T.ROCKY;
+  // Stage 4.5 (ruling 312): the four clay pits the script lays stand on clay.
+  for (const [x0, y0] of [[18, 21], [14, 21], [28, 24], [30, 24]]) for (let y = y0; y < y0 + 2; y++) for (let x = x0; x < x0 + 2; x++) terrain[idx(SIZE, x, y)] = T.CLAY;
   const raiderEntries = [{ x: 47, y: 24 }, { x: 24, y: 0 }];
   const map = { size: SIZE, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries };
   return createWorld({ seed: 5, size: SIZE, map });

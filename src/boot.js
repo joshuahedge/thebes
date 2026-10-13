@@ -3,6 +3,7 @@
 // always reopens paused. ?skipTitle=1 boots straight into a new city and ?welcome=1 shows the Welcome back card (development flags:
 // they write nothing until the first autosave, which then replaces the saved city).
 import { createWorld } from './sim/world.js';
+import { MAP_VARIANTS } from './data/map.js';
 import { setSpeed, setGuide, setCityId } from './sim/commands.js';
 import { createCamera } from './render/camera.js';
 import { createRenderer } from './render/renderer.js';
@@ -56,7 +57,7 @@ export async function boot(doc, win, {
   let api = null;
   let current = null;        // { world, ui, loop, cam } while the game runs (declared before the music: its seed and mood read it)
   let title = null;          // { card, loop, backdrop } while the title shows
-  win.__thebes = { devScene: (name) => devScene(api, name), setMotion: (motion) => setMotion(settings, motion) };   // setMotion: tools/shots.ps1 -Stage4
+  win.__thebes = { devScene: (name, options) => devScene(api, name, options), setMotion: (motion) => setMotion(settings, motion) };   // setMotion: tools/shots.ps1 -Stage4
   // One audio context for the whole page: every game (New city, import) shares it.
   const sfx = createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
   // Stage 4 (spec 5.5): one music for the page (the title card plays too), unlocked by the first gesture, quiet while the
@@ -79,7 +80,7 @@ export async function boot(doc, win, {
   function openCards(after, { join = false } = {}) {
     if (cards) { if (join) joined.push(after); return; }
     let done = false;
-    // difficulty: the city's own level in a game, the level the next new city will start at on the title (card 6's words).
+    // difficulty: the city's own level in a game, the level the next new city will start at on the title (the What lies ahead card's words).
     const shown = showCards({ root, doc, settings, difficulty: current ? current.world.difficulty : settings.get().difficulty, onDone: () => {
       done = true; cards = null; settings.set({ cardsSeen: true });
       const also = joined; joined = [];
@@ -119,8 +120,15 @@ export async function boot(doc, win, {
   // the settings hold for new cities (spec 4.18). The sample and stress cities of the development flags never guide.
   // seed: a chosen seed (This week's Nile, a shared score's Start this seed); otherwise the flag's or a random one. Each
   // new city gets its id for the records here (spec 4.19: the interface gives it, the sim never reads the clock).
-  function freshWorld({ seed = null } = {}) {
-    const world = createWorld({ seed: Number.isInteger(seed) ? seed : seedOf(), difficulty: settings.get().difficulty, cityId: newCityId(clock()) });
+  // Stage 4.5 (ruling 313): the river layout comes from the seed ('auto'), for New city, This week's Nile and a shared score's
+  // seed alike; a seed chosen with ?seed=, and the sample and stress cities, stay classic, so the dev flags and the shots do not
+  // move, unless ?variant= names one.
+  const variantParam = params.get('variant');
+  function freshWorld({ seed = null, variant = null } = {}) {
+    const chosen = !Number.isInteger(seed) && params.has('seed');
+    // variant: the layout a shared score's link names (Start this seed), which beats the seed's own pick.
+    const mapVariant = MAP_VARIANTS.includes(variant) ? variant : MAP_VARIANTS.includes(variantParam) ? variantParam : chosen || stress || sample ? 'classic' : 'auto';
+    const world = createWorld({ seed: Number.isInteger(seed) ? seed : seedOf(), difficulty: settings.get().difficulty, cityId: newCityId(clock()), mapVariant });
     if (stress) buildStressCity(world); else if (sample) buildSampleCity(world);
     if (params.has('speed')) setSpeed(world, Number(params.get('speed')));
     setGuide(world, settings.get().help === 'full' && !stress && !sample);
@@ -210,7 +218,7 @@ export async function boot(doc, win, {
   function blockIfNewer(loaded) { saveBlocked = loaded.state === 'error' && loaded.code === 'newer_version'; }
 
   // Spec 4.17: with a saved city, a new one asks first and offers to export the old one. seed: a chosen seed (spec 4.19).
-  function confirmNewCity(loaded, seed = null) {
+  function confirmNewCity(loaded, seed = null, variant = null) {
     if (!title) return;
     title.card.showPanel((body, back) => {
       const exportFirst = button(T.exportFirst, { class: 'export-first', onClick: async () => {
@@ -219,7 +227,7 @@ export async function boot(doc, win, {
           if (r === 'downloaded' && title) title.card.setMessage(T.exported);
         } catch (e) { if (title) title.card.setMessage(T.exportFailed); }
       } });
-      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => withCards(() => startGame(freshWorld({ seed }))) });
+      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => withCards(() => startGame(freshWorld({ seed, variant }))) });
       body.append(el('p', { text: T.newCityConfirm }), el('div', { class: 'actions' }, [exportFirst, start, button(T.back, { class: 'panel-back', onClick: back })]));
     });
   }
@@ -263,7 +271,7 @@ export async function boot(doc, win, {
       // Stage 3 (spec 4.19): records, stamps, This week's Nile and a shared score, from the score interface.
       decorate: titleDecor({
         records, shared: (win.location && win.location.hash) || '', clock,
-        startSeed: (seed) => (loaded.state === 'ok' ? confirmNewCity(loaded, seed) : withCards(() => startGame(freshWorld({ seed })))),
+        startSeed: (seed, variant = null) => (loaded.state === 'ok' ? confirmNewCity(loaded, seed, variant) : withCards(() => startGame(freshWorld({ seed, variant })))),
       }),
     });
     title = { card, loop, backdrop, world, cam };

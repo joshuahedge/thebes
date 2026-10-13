@@ -33,6 +33,9 @@ export const riskOf = (world) => DIFFICULTIES[world.difficulty].risk;
 // Whether this city has raids at all: every level but Peaceful (spec 4.18).
 export const raidsOn = (world) => DIFFICULTIES[world.difficulty].raids !== false;
 
+// Whether this city has disease and crime (Stage 4.5, ruling 320): the same levels as raids, so Peaceful has neither.
+export const threatsOn = (world) => raidsOn(world);
+
 // Soldiers' pay for a month (spec 4.11): per soldier, in peace too and from a paused barracks; never scaled.
 export const soldiersPayOf = (world) => world.soldiers.length * DEFENCE.soldierPay;
 

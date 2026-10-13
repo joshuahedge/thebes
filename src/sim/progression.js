@@ -26,7 +26,10 @@ export function updateMilestone(world) {
 
 // Stage 4: a kind that unlocks by prestige (the pyramids) is unlocked once the city has recorded the day it reached it
 // (world.prestigeUnlocks, src/sim/monuments.js updatePrestigeUnlocks), which needs its milestone too (spec 4.14).
+// Stage 4.5 (ruling 309): the Gate card comes with the wall, so 'gate' is unlocked whenever 'wall' is (it has no milestone entry of
+// its own).
 export function isUnlocked(world, type) {
+  if (type === 'gate') type = 'wall';
   if (PRESTIGE_UNLOCKS.includes(type)) return Number.isInteger(world.prestigeUnlocks[type]);
   const cur = milestoneIndex(world.milestone);
   for (let i = 0; i <= cur; i++) if (MILESTONES[i].unlocks.includes(type)) return true;

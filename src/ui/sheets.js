@@ -1,6 +1,7 @@
 // Info sheets, the city summary and the minimap sheet (spec 6.3). One sheet at a time, every one with an x.
 // A home's sheet says why it is not growing: each missing need names its cause and its fix, with Show me
 // (early-game pass 2.10). Show me itself lives in createUI (showMeAt); this file only hands it a target.
+import { alertShowMe } from './threatFix.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
@@ -15,13 +16,15 @@ import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
 import { CRITICAL_RANK } from './alerts.js';
 import { summaryData } from './hud.js';
+import { monthForecast } from '../sim/economy.js';
+import { jobsPenalty } from '../sim/mood.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { demolishQuestion, causeFix } from './monumentSheet.js';
 import { noteView } from '../render/overlays.js';
 import { supplyNeeded } from '../sim/monuments.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
-  goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT } from './text.js';
+  goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -252,6 +255,17 @@ export function createSheets({ container, store, world, placement, cameraControl
     const d = summaryData(world);
     const body = el('div', { class: 'body' });
     body.append(row(T.difficulty, DIFFICULTY_NAMES[d.difficulty] || d.difficulty));
+    // Stage 4.5 (Task 4b): the month ahead, as the city stands now (the sim's forecast): headed by what the balance is, so the gold
+    // chip's tap lands on "Spending more than taxes bring in" when the treasury is shrinking.
+    const f = monthForecast(world);
+    if (f.active) {
+      body.append(el('h3', { text: f.net < 0 ? S45_TEXT.forecastHeadShort : S45_TEXT.forecastHeadOk, dataset: { section: 'forecast' } }), el('p', { class: 'muted small', text: S45_TEXT.forecastNote }),
+        row(T.taxes, `+${f.taxes}`), row(T.wages, `−${f.wages}`), row(T.upkeep, `−${f.upkeep}`));
+      if (f.soldiers > 0) body.append(row(T.soldiersPay, `−${f.soldiers}`));
+      body.append(row(S45_TEXT.monthlyBalance, S45_TEXT.signed(f.net)));
+      if (f.gold < 0 && f.net < 0) body.append(el('p', { class: 'coral', text: `${S45_TEXT.belowZero}.` }));
+      else if (f.monthsLeft !== null) body.append(el('p', { class: f.runsOut ? 'amber' : 'muted', text: `${S45_TEXT.runsOutIn(f.monthsLeft)}.` }));
+    }
     body.append(el('h3', { text: T.incomeVsSpending }), row(T.taxes, `+${d.taxes}`), row(T.wages, `−${d.wages}`), row(T.upkeep, `−${d.upkeep}`));
     if (d.soldiers > 0) body.append(row(T.soldiersPay, `−${d.soldiers}`));       // spec 6.3: soldiers' pay on its own row
     body.append(row(T.net, (d.net >= 0 ? '+' : '') + d.net));
@@ -270,7 +284,9 @@ export function createSheets({ container, store, world, placement, cameraControl
     body.append(el('h3', { text: T.employment }), row(T.working, `${d.working} of ${d.workforce}`), row(T.jobless, `${d.jobless}`), row(T.jobs, `${d.jobs}`));
     body.append(el('h3', { text: T.moodBreakdown }), row(T.mood, `${d.mood}`));
     // The starting mood is a level, the rest are swings from it (early-game pass 2.10: plain English rows).
-    for (const [k, v] of Object.entries(d.moodBreakdown || {})) body.append(row(MOOD_NAMES[k] || k, k === 'base' ? String(v) : (v >= 0 ? '+' : '') + v));
+    // Stage 4.5 (ruling 325): while the Town unemployment penalty is being phased in, the Jobs row says what comes at the end of it.
+    const jobs = jobsPenalty(world);
+    for (const [k, v] of Object.entries(d.moodBreakdown || {})) body.append(row(k === 'jobs' && jobs.monthsLeft > 0 && jobs.full < v ? S45_TEXT.jobsPhasing(jobs.full, jobs.monthsLeft) : MOOD_NAMES[k] || k, k === 'base' ? String(v) : (v >= 0 ? '+' : '') + v));
     body.append(el('h3', { text: T.goals }));
     const open = openGoals(world, 3);
     body.append(open.length ? el('ul', { class: 'goals' }, open.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
@@ -333,8 +349,10 @@ export function createSheets({ container, store, world, placement, cameraControl
       const t = alertText(a, world);
       // Stage 4 (spec 4.16): a stalled site's fix is Show me for a missing guild or material (the card, its ghost near the site).
       const stall = a.code === 'site_stalled' && world.buildings[a.id] ? causeFix(world, world.buildings[a.id], a.reason) : null;
+      const threat = alertShowMe(world, a);
       const fix = ALERT_FIX.has(a.code) ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onFixAlert(a) })]
-        : stall && stall.showMe ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onShowMe(stall.showMe) })] : [];
+        : stall && stall.showMe ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onShowMe(stall.showMe) })]
+        : threat ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onShowMe(threat) })] : [];   // Stage 4.5: an illness or crime alert with no physician or police post in reach
       return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) }), ...fix]);
     })));
     body.append(...(phone ? [...alerts, ...map] : [...map, ...alerts]));
@@ -358,6 +376,7 @@ export function createSheets({ container, store, world, placement, cameraControl
   // is rebuilt inside a store notification, closing it there would hand the subscribers after this one an older state,
   // so the close waits for a microtask and checks again; outside a notification it closes at once.
   let notifying = false;
+  let scrolledFor = null;     // the sheet state a scroll to a section was last done for
   function closeGone() {
     const now = store.get();
     if (now.sheet && now.sheet.kind === 'info' && !world.buildings[now.sheet.id]) store.set(closeSheet(now));
@@ -388,6 +407,12 @@ export function createSheets({ container, store, world, placement, cameraControl
     else { container.hidden = true; return; }
     container.hidden = false;
     container.append(...parts);
+    // The gold chip's tap opens the summary at its forecast section (once per opening, so a later redraw leaves the scroll alone).
+    if (s.sheet !== scrolledFor) {
+      scrolledFor = s.sheet;
+      const target = s.sheet.kind === 'summary' && s.sheet.id === 'forecast' ? container.querySelector('[data-section="forecast"]') : null;
+      if (target && target.scrollIntoView) target.scrollIntoView({ block: 'start' });
+    }
     if (focusIndex >= 0) {
       const again = container.querySelectorAll('button')[focusIndex];
       if (again && again.className === focusClass && !again.disabled) again.focus();

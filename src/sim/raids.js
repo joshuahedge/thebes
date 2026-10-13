@@ -30,6 +30,13 @@
 // Alerts (raidAlerts): { code: 'raid_warning', x, y, dir, arrives } and { code: 'raid', x, y, left } (left: raiders still
 // on the map), both critical and pinned at a map point (x, y: the entry, or the band's centre while it is on the map).
 //
+// Stage 4.5 (ruling 317): from raid index RAIDS.twoSidedFrom a raid may come as two bands from two entries (a seeded
+// RAIDS.twoSidedChance). Then warning.size is the total, warning.second = { entry, dir, size } is the second band (the
+// first band's size is the total less it, rounded up), and the warning, its event and the raid_warning alert carry
+// dirs: [the first band's direction, the second's]. On arrival active.second is the second band's own record (entry, dir,
+// x, y, phase, targetId, struck, wait, blocked), its raiders carry band: 1, active.gone counts raiders that left the map,
+// and the report (raid.last) carries dirs. active.foodStolen and active.fled (and the report's) count what granary
+// strikes took and how many residents fled home strikes. A single-band raid has none of these (the old shapes).
 // Track B's fields (the contract lets the owner add them inside its records):
 //   active.x, active.y   the band's tile: the band moves as one, UNITS.raider.speed tiles a day, along flowField; each
 //                        raider stands at the tile's centre plus a small offset by its id (SLOTS), so they read as a group
@@ -56,6 +63,9 @@ import { spend } from './money.js';
 import { hash2 } from './rng.js';
 import { setSpeed } from './commands.js';
 import { idx, ring, inBounds } from './grid.js';
+import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
+import { removeResidents } from './housing.js';
+import { splitHouse } from './merge.js';
 import { igniteBuilding } from './fire.js';
 import { flowField, tileCost } from './pathfinding.js';
 import { healWalls } from './defence.js';
@@ -103,8 +113,27 @@ export function raidSize(world) {
   if (world.raid.index === 0) return RAIDS.firstSize;
   const wealth = Math.min(RAIDS.wealthMax, Math.max(0, (raidWealth(world) - RAIDS.wealthBase) / RAIDS.wealthStep));
   const raw = 1 + population(world) / RAIDS.peoplePerRaider + wealth;
-  return Math.max(RAIDS.minSize, Math.min(RAIDS.maxSize, Math.round(raw * riskOf(world) * world.raid.adaptation)));
+  return Math.max(RAIDS.minSize, Math.min(RAIDS.maxSize, Math.round(raw * riskOf(world) * world.raid.adaptation * sizeGrowth(world))));
 }
+
+// Raids grow with the years since the raid clock started (Stage 4.5, ruling 317): 1 + RAIDS.growthPerYear a year, at most
+// RAIDS.growthMax; 1 before the clock has started.
+export function sizeGrowth(world) {
+  const start = world.raid.clockDay;
+  if (start === null || start === undefined) return 1;
+  const years = Math.max(0, world.day - start) / (DAYS_PER_MONTH * MONTHS_PER_YEAR);
+  return Math.min(RAIDS.growthMax, 1 + RAIDS.growthPerYear * years);
+}
+
+// The bands of a raid warned (or arriving): [{ entry, dir, size }], one or two; the second's size is warning.second.size
+// and the first's the rest of warning.size.
+export function warningBands(w) {
+  if (!w.second) return [{ entry: w.entry, dir: w.dir, size: w.size }];
+  return [{ entry: w.entry, dir: w.dir, size: w.size - w.second.size }, { ...w.second }];
+}
+
+// The directions a warned raid comes from, one per band, in band order ([dir] for a single band).
+export const warningDirs = (w) => (w.second ? [w.dir, w.second.dir] : [w.dir]);
 
 // A raid's tribute (spec 4.13): round(RAIDS.tributeShare x towers needed x the tower's price in this city), fixed when
 // the warning appears (warning.tribute; null for the first raid, which cannot be paid off).
@@ -121,13 +150,14 @@ export function laterWarnDay(world, fromDay) {
 // { cost, size, towersNeeded, towersHave, buildN, buildCost, hidden, payable, reason }
 // cost: the warning's tribute (null for the first raid); hidden: the first raid; buildN: max(0, towers needed - working
 // towers); buildCost: buildN x the tower's price; payable and reason: what payTribute would say now (reason null when
-// payable).
+// payable); dirs: the directions it comes from (two for a two-sided raid, whose size is the total, so the tribute and the
+// towers needed price the total).
 export function tributeQuote(world) {
   const w = world.raid.warning;
   if (!w) return null;
   const need = towersNeeded(w.size), have = workingTowers(world), buildN = Math.max(0, need - have);
   const reason = w.first ? 'first_raid' : world.gold - w.tribute < 0 ? 'below_zero' : null;
-  return { cost: w.tribute, size: w.size, towersNeeded: need, towersHave: have, buildN, buildCost: buildN * costOf(world, 'tower'), hidden: Boolean(w.first), payable: !reason, reason };
+  return { cost: w.tribute, size: w.size, towersNeeded: need, towersHave: have, buildN, buildCost: buildN * costOf(world, 'tower'), hidden: Boolean(w.first), payable: !reason, reason, dirs: warningDirs(w) };
 }
 
 // The payTribute command (spec 4.13, 7.3): pays the warned raid's tribute and cancels the raid: no raiders, no report,
@@ -156,13 +186,28 @@ function raiseWarning(world, events) {
   if (!entries.length) return;
   const index = r.index, first = index === 0;
   const entry = { ...entries[Math.floor(hash2(world.seed, index, RAID_SALT.entry) * entries.length)] };
-  const size = raidSize(world);
+  const single = raidSize(world);
+  const second = !first && index >= RAIDS.twoSidedFrom && entries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < RAIDS.twoSidedChance
+    ? secondBand(world, index, entry, single + 1) : null;
+  const size = second ? single + 1 : single;
   const w = { index, entry, dir: entryDir(world, entry), size, tribute: first ? null : tributeFor(world, size), target: raidTargetKind(world), day: world.day, arrives: world.day + RAIDS.warningDays, first };
+  if (second) w.second = second;
   r.warning = w;
   r.index = index + 1;
   if (first) setSpeed(world, 0);
   else if (world.speed > 1) setSpeed(world, 1);
-  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first });
+  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(second ? { dirs: warningDirs(w), second: { ...second, entry: { ...second.entry } } } : {}) });
+}
+
+// The second band of a two-sided raid (ruling 317): an entry other than the first's, by hash2(seed, index, RAID_SALT.entry2),
+// from an edge the first does not use when the map has one; the total is split, the first band taking the larger half.
+function secondBand(world, index, entry, total) {
+  const others = world.raiderEntries.filter((e) => e.x !== entry.x || e.y !== entry.y);
+  const dir = entryDir(world, entry);
+  const otherEdge = others.filter((e) => entryDir(world, e) !== dir);
+  const pool = otherEdge.length ? otherEdge : others;
+  const e = { ...pool[Math.floor(hash2(world.seed, index, RAID_SALT.entry2) * pool.length)] };
+  return { entry: e, dir: entryDir(world, e), size: Math.floor(total / 2) };
 }
 
 // The day's raid step (spec 4.3, 4.13), run by tickDay after fireDay; world.day is the day being simulated. Barracks
@@ -189,51 +234,91 @@ export function raidDay(world, events = null) {
 // STUB. The month-end raid step, run by runMonth before mood (nothing required yet; kept so a later rule has its seam).
 export function raidMonth(world, events = null) {}
 
-// The band's centre as a map tile: the mean of its raiders' points, or the entry when none is left.
-function bandCentre(a) {
-  if (!a.raiders.length) return { x: a.entry.x, y: a.entry.y };
-  const n = a.raiders.length;
-  return { x: Math.floor(a.raiders.reduce((s, u) => s + u.x, 0) / n), y: Math.floor(a.raiders.reduce((s, u) => s + u.y, 0) / n) };
+// A raid's bands (Stage 4.5, ruling 317): band 0 is the active record itself, band 1 (a two-sided raid) is active.second;
+// a raider belongs to band 1 when it has band: 1.
+const bandRec = (a, k) => (k ? a.second : a);
+const bandOf = (u) => (u.band ? 1 : 0);
+const crewOf = (a, k) => a.raiders.filter((u) => bandOf(u) === k);
+const bandKs = (a) => (a.second ? [0, 1] : [0]);
+const liveKs = (a) => bandKs(a).filter((k) => a.raiders.some((u) => bandOf(u) === k));
+
+// A band's centre as a map tile: the mean of its raiders' points, or its entry when none is left.
+function bandCentre(a, k = 0) {
+  const crew = crewOf(a, k);
+  if (!crew.length) return { x: bandRec(a, k).entry.x, y: bandRec(a, k).entry.y };
+  const n = crew.length;
+  return { x: Math.floor(crew.reduce((s, u) => s + u.x, 0) / n), y: Math.floor(crew.reduce((s, u) => s + u.y, 0) / n) };
 }
 
-// Raids' alerts, both critical: { code: 'raid', x, y, left } while raiders are on the map (x, y: the band's centre;
-// left: raiders still on the map) and { code: 'raid_warning', x, y, dir, arrives } while a raid is on its way (x, y: its
-// entry). A warning and a raid are never up at once.
+// The directions raids come from now, one per band, in band order (a single band's is one): the warning's, else the live bands'
+// of the raid under way, else the last raid's; [] before any raid. Two bands from one edge name it twice (words dedupe it).
+export function raidDirs(world) {
+  const r = world.raid;
+  if (r.warning) return warningDirs(r.warning);
+  if (r.active) {
+    const live = liveKs(r.active);
+    return (live.length ? live : bandKs(r.active)).map((k) => bandRec(r.active, k).dir);
+  }
+  if (r.last) return r.last.dirs ? r.last.dirs.slice() : [r.last.dir];
+  return [];
+}
+
+// Raids' alerts, both critical: { code: 'raid', x, y, left } while raiders are on the map (x, y: the first live band's
+// centre; left: raiders still on the map; dirs, points and phase: the live bands' directions and centres ({ x, y, dir } each) and
+// the first one's phase, of a two-sided raid only) and
+// { code: 'raid_warning', x, y, dir, arrives } while a raid is on its way (x, y: its entry; dirs and points: both directions and
+// both entries ({ x, y, dir } each) of a two-sided raid). A warning and a raid are never up at once.
 export function raidAlerts(world) {
   const r = world.raid, out = [];
-  if (r.active) out.push({ code: 'raid', ...bandCentre(r.active), left: r.active.raiders.length });
-  if (r.warning) out.push({ code: 'raid_warning', x: r.warning.entry.x, y: r.warning.entry.y, dir: r.warning.dir, arrives: r.warning.arrives });
+  if (r.active) {
+    const a = r.active, live = liveKs(a), first = live.length ? live[0] : 0;
+    out.push({
+      code: 'raid', ...bandCentre(a, first), left: a.raiders.length,
+      ...(a.second ? { dirs: live.map((k) => bandRec(a, k).dir), points: live.map((k) => ({ ...bandCentre(a, k), dir: bandRec(a, k).dir })), phase: bandRec(a, first).phase } : {}),
+    });
+  }
+  if (r.warning) {
+    const w = r.warning;
+    out.push({ code: 'raid_warning', x: w.entry.x, y: w.entry.y, dir: w.dir, arrives: w.arrives, ...(w.second ? { dirs: warningDirs(w), points: warningBands(w).map((b) => ({ x: b.entry.x, y: b.entry.y, dir: b.dir })) } : {}) });
+  }
   return out;
 }
 
-// Where each raider stands in the band's tile, by its id: the centre and eleven spots around it.
-const SLOTS = [[0, 0], [0.25, 0.2], [-0.25, 0.2], [0.25, -0.2], [-0.25, -0.2], [0, 0.32], [0, -0.32], [0.32, 0], [-0.32, 0], [0.16, 0.34], [-0.16, -0.34], [0.34, -0.16]];
-function placeBand(a) {
-  for (const u of a.raiders) {
+// Where each raider stands in the band's tile, by its id: the centre and eighteen spots around it, one for each of the most a raid can
+// total (RAIDS.maxSize 18, and a two-sided raid adds one). A band's ids run in a row, so no two raiders in a band share a spot.
+const SLOTS = [[0, 0], [0.25, 0.2], [-0.25, 0.2], [0.25, -0.2], [-0.25, -0.2], [0, 0.32], [0, -0.32], [0.32, 0], [-0.32, 0], [0.16, 0.34], [-0.16, -0.34], [0.34, -0.16], [-0.16, 0.34], [0.16, -0.34], [-0.34, 0.16], [-0.34, -0.16], [0.34, 0.16], [0.12, -0.1], [-0.12, 0.1]];
+function placeBand(a, k = 0) {
+  const rec = bandRec(a, k);
+  for (const u of crewOf(a, k)) {
     const [dx, dy] = SLOTS[u.id % SLOTS.length];
-    u.x = a.x + 0.5 + dx;
-    u.y = a.y + 0.5 + dy;
+    u.x = rec.x + 0.5 + dx;
+    u.y = rec.y + 0.5 + dy;
   }
 }
 
 // The raiders arrive at the warned entry (spec 4.13): the warning becomes the raid under way, every standing wall tile
 // is at its full hit points (a tower on a wall tile at DEFENCE.towerOnWallHp), tally.raids counts it, 2x or 3x drops to
-// 1x, and raid_start is pushed. They make their first move the next day.
+// 1x, and raid_start is pushed. They make their first move the next day. A two-sided raid's second band stands at its own
+// entry (active.second).
 function arrive(world, events) {
   const r = world.raid, w = r.warning;
   const raiders = [];
-  for (let k = 0; k < w.size; k++) raiders.push({ id: world.nextUnitId++, x: 0, y: 0, hp: UNITS.raider.hp, hit: false });
+  warningBands(w).forEach((band, k) => {
+    for (let n = 0; n < band.size; n++) raiders.push({ id: world.nextUnitId++, x: 0, y: 0, hp: UNITS.raider.hp, hit: false, ...(k ? { band: 1 } : {}) });
+  });
   const a = {
     index: w.index, entry: { ...w.entry }, dir: w.dir, size: w.size, target: w.target, day: world.day, raiders, phase: 'attack', targetId: null,
     struck: [], wait: 0, byTowers: 0, bySoldiers: 0, burned: 0, stolen: 0, shots: [], x: w.entry.x, y: w.entry.y, blocked: null, towerIds: [], fires: [], burnedKinds: [],
   };
-  placeBand(a);
+  if (w.second) a.second = { entry: { ...w.second.entry }, dir: w.second.dir, x: w.second.entry.x, y: w.second.entry.y, phase: 'attack', targetId: null, struck: [], wait: 0, blocked: null };
+  placeBand(a, 0);
+  if (a.second) placeBand(a, 1);
   r.active = a;
   r.warning = null;
   world.tally.raids += 1;
   healWalls(world);
   if (world.speed > 1) setSpeed(world, 1);
-  if (events) events.push({ type: 'raid_start', index: a.index, dir: a.dir, size: a.size });
+  if (events) events.push({ type: 'raid_start', index: a.index, dir: a.dir, size: a.size, ...(a.second ? { dirs: [a.dir, a.second.dir] } : {}) });
 }
 
 // The tiles next to a building that a raider could stand on: its strike goals.
@@ -241,39 +326,83 @@ function ringGoals(world, b) {
   return ring(b.x, b.y, b.w, b.d).filter(([x, y]) => inBounds(world.size, x, y) && tileCost(world, x, y) !== Infinity);
 }
 
-// The building the band goes for next, or null (see the header): the warned kind first, then each kind below it, then
-// any building but a home or rubble; nearest first, ties to the lower id; one it can reach.
-function pickTarget(world, a) {
-  const at = idx(world.size, a.x, a.y), here = { x: a.x + 0.5, y: a.y + 0.5 };
-  const kinds = RAIDS.targets.includes(a.target) ? RAIDS.targets.slice(RAIDS.targets.indexOf(a.target)) : [];
-  const groups = [...kinds.map((k) => (b) => b.type === k), (b) => b.type !== 'house' && b.type !== 'rubble' && !raidProof(b)];
-  for (const match of groups) {
-    const near = allBuildings(world).filter((b) => match(b) && !a.struck.includes(b.id))
+// The building band k goes for next, or null (see the header): by strike number RAIDS.pillage (the 2nd strike a granary,
+// the 3rd a home with people in it), else the warned kind first, then each kind below it, then any building but a home or
+// rubble, then a home; nearest first, ties to the lower id; one it can reach and neither band has struck.
+function pickTarget(world, a, k) {
+  const rec = bandRec(a, k);
+  const at = idx(world.size, rec.x, rec.y), here = { x: rec.x + 0.5, y: rec.y + 0.5 };
+  const taken = (b) => bandKs(a).some((j) => bandRec(a, j).struck.includes(b.id));
+  const nearestOf = (match) => {
+    const near = allBuildings(world).filter((b) => match(b) && !taken(b))
       .map((b) => ({ b, d: Math.hypot(b.x + b.w / 2 - here.x, b.y + b.d / 2 - here.y) }))
       .sort((p, q) => p.d - q.d || p.b.id - q.b.id);
     for (const { b } of near) if (flowField(world, ringGoals(world, b)).dist[at] !== Infinity) return b;
+    return null;
+  };
+  const lived = (b) => b.type === 'house' && b.residents > 0;
+  const want = RAIDS.pillage[rec.struck.length];
+  if (want) {
+    const t = nearestOf((b) => (want === 'house' ? lived(b) : b.type === want));
+    if (t) return t;
+  }
+  const kinds = RAIDS.targets.includes(a.target) ? RAIDS.targets.slice(RAIDS.targets.indexOf(a.target)) : [];
+  const groups = [...kinds.map((kind) => (b) => b.type === kind), (b) => b.type !== 'house' && b.type !== 'rubble' && !raidProof(b), lived];
+  for (const match of groups) {
+    const t = nearestOf(match);
+    if (t) return t;
   }
   return null;
 }
 
-// A strike (spec 4.13): a blaze through the fire system (Track A's igniteBuilding; the building is followed while it
-// burns, see trackFires), and each raider steals RAIDS.stealShare of the treasury, at least RAIDS.stealMin and at most
-// RAIDS.stealMax, never taking it below 0. The band stays RAIDS.strikeDays days, this one included.
-function strike(world, a, b, events) {
-  if (igniteBuilding(world, b.id, events, 'raid')) a.fires.push({ id: b.id, type: b.type });
-  let stolen = 0;
-  for (let k = 0; k < a.raiders.length; k++) {
-    const take = Math.min(Math.max(0, world.gold), Math.max(RAIDS.stealMin, Math.min(RAIDS.stealMax, Math.round(world.gold * RAIDS.stealShare))));
-    world.gold -= take;
-    stolen += take;
+// The food a granary strike takes: RAIDS.foodShare of each good it holds, rounded up. Returns the units taken.
+function takeFood(b) {
+  let n = 0;
+  for (const good of Object.keys(b.store)) {
+    const take = Math.min(b.store[good], Math.ceil(b.store[good] * RAIDS.foodShare));
+    if (take > 0) { b.store[good] -= take; n += take; }
+  }
+  return n;
+}
+
+// The residents a home strike drives out: RAIDS.fleeShare of them, at least 1 (removeResidents; an emptied 2x2 home
+// splits into plots as when people leave). Returns how many fled.
+function frighten(world, b) {
+  const n = Math.min(b.residents, Math.max(1, Math.floor(b.residents * RAIDS.fleeShare)));
+  removeResidents(b, n);
+  if (b.residents === 0 && b.w > 1) splitHouse(world, b);
+  return n;
+}
+
+// A strike (spec 4.13) by band k. A granary loses RAIDS.foodShare of its food and a home RAIDS.fleeShare of its residents
+// (they flee; no blaze, no gold taken). Any other building: a blaze through the fire system (Track A's igniteBuilding; the
+// building is followed while it burns, see trackFires), and each raider of the band steals RAIDS.stealShare of the
+// treasury, at least RAIDS.stealMin and at most RAIDS.stealMax, never taking it below 0 (a granary burns too, but its
+// raiders take food, not gold). The band stays RAIDS.strikeDays days, this one included.
+function strike(world, a, k, b, events) {
+  const rec = bandRec(a, k);
+  let stolen = 0, food = 0, fled = 0;
+  if (b.type === 'house') fled = frighten(world, b);
+  else {
+    if (igniteBuilding(world, b.id, events, 'raid')) a.fires.push({ id: b.id, type: b.type });
+    if (b.type === 'granary') food = takeFood(b);
+    else {
+      for (let n = 0; n < crewOf(a, k).length; n++) {
+        const take = Math.min(Math.max(0, world.gold), Math.max(RAIDS.stealMin, Math.min(RAIDS.stealMax, Math.round(world.gold * RAIDS.stealShare))));
+        world.gold -= take;
+        stolen += take;
+      }
+    }
   }
   a.stolen += stolen;
   world.tally.goldStolen += stolen;
-  a.struck.push(b.id);
-  a.targetId = b.id;
-  a.phase = 'strike';
-  a.wait = RAIDS.strikeDays;
-  if (events) events.push({ type: 'raid_strike', id: b.id, stolen });
+  if (food) a.foodStolen = (a.foodStolen || 0) + food;
+  if (fled) a.fled = (a.fled || 0) + fled;
+  rec.struck.push(b.id);
+  rec.targetId = b.id;
+  rec.phase = 'strike';
+  rec.wait = RAIDS.strikeDays;
+  if (events) events.push({ type: 'raid_strike', id: b.id, stolen, ...(food ? { food } : {}), ...(fled ? { fled } : {}) });
 }
 
 // Follows the raid's fires (active.fires, then the report's): one put out is dropped; one whose building is gone on a
@@ -290,14 +419,16 @@ function trackFires(world, rec) {
 }
 
 // The raid is over (spec 4.13): no raider is left on the map. Beaten (won) when the raiders retreated or all fell, lost
-// when the band left after its strikes. The report becomes raid.last; the tallies, the adaptation (a lost raid sets
+// when a band left after its strikes. The report becomes raid.last; the tallies, the adaptation (a lost raid sets
 // RAIDS.adaptLost, any other adds RAIDS.adaptStep up to 1) and the next warning (laterWarnDay after the arrival day)
-// follow; hit wall tiles heal; soldiers out walk back.
+// follow; hit wall tiles heal; soldiers out walk back. A two-sided raid's report carries dirs, a granary strike's food
+// (foodStolen) and a home strike's fled residents (fled) are kept when there are any.
 function endRaid(world, events, won) {
   const r = world.raid, a = r.active;
   const report = {
     index: a.index, dir: a.dir, size: a.size, won, byTowers: a.byTowers, bySoldiers: a.bySoldiers, towers: a.towerIds.length, burned: a.burned,
     stolen: a.stolen, day: world.day, burnedKinds: a.burnedKinds.slice(), fires: a.fires.map((f) => ({ ...f })),
+    ...(a.second ? { dirs: [a.dir, a.second.dir] } : {}), ...(a.foodStolen ? { foodStolen: a.foodStolen } : {}), ...(a.fled ? { fled: a.fled } : {}),
   };
   r.active = null;
   r.last = report;
@@ -309,58 +440,81 @@ function endRaid(world, events, won) {
   if (events) events.push({ type: 'raid_end', won, report: JSON.parse(JSON.stringify(report)) });
 }
 
-// One day of the raid under way (see the header).
+// One day of the raid under way (see the header): combat for every raider, the end when none is left (beaten unless a band
+// already got away), retreat of every band once RAIDS.retreatShare of the whole raid has fallen, then each band's day.
 function raidStep(world, events) {
   const a = world.raid.active;
-  if (!Number.isInteger(a.x)) Object.assign(a, bandCentre(a));      // a raid set up in the contract's shape alone
+  if (!Number.isInteger(a.x)) Object.assign(a, bandCentre(a, 0));      // a raid set up in the contract's shape alone
   if (a.blocked === undefined) a.blocked = null;
   if (!a.towerIds) a.towerIds = [];
   if (!a.fires) a.fires = [];
   if (!a.burnedKinds) a.burnedKinds = [];
-  const { fighting } = combatDay(world, events);
-  if (!a.raiders.length) return endRaid(world, events, true);
-  if (a.phase !== 'retreat' && a.size - a.raiders.length >= Math.ceil(a.size * RAIDS.retreatShare)) {
-    a.phase = 'retreat';
-    a.targetId = null;
-    a.wait = 0;
+  if (a.second) {
+    if (!Number.isInteger(a.second.x)) Object.assign(a.second, bandCentre(a, 1));
+    for (const [key, v] of [['blocked', null], ['phase', 'attack'], ['targetId', null], ['wait', 0]]) if (a.second[key] === undefined) a.second[key] = v;
+    if (!a.second.struck) a.second.struck = [];
   }
-  if (fighting) return;
-  if (a.phase === 'strike') {
-    a.wait -= 1;
-    if (a.wait > 0) return;
-    a.phase = a.struck.length >= RAIDS.strikes ? 'leave' : 'attack';
-    a.targetId = null;
-  }
-  for (let step = 0; step < UNITS.raider.speed; step++) {
-    let goals;
-    if (a.phase === 'attack') {
-      let t = a.targetId ? world.buildings[a.targetId] : null;
-      if (!t || flowField(world, ringGoals(world, t)).dist[idx(world.size, a.x, a.y)] === Infinity) t = pickTarget(world, a);
-      if (t) { a.targetId = t.id; goals = ringGoals(world, t); }
-      else { a.phase = 'leave'; a.targetId = null; }
+  const { fightingBands } = combatDay(world, events);
+  if (!a.raiders.length) return endRaid(world, events, !a.left);
+  if (a.size - a.raiders.length - (a.gone || 0) >= Math.ceil(a.size * RAIDS.retreatShare)) {
+    for (const k of liveKs(a)) {
+      const rec = bandRec(a, k);
+      if (rec.phase === 'retreat') continue;
+      rec.phase = 'retreat';
+      rec.targetId = null;
+      rec.wait = 0;
     }
-    if (a.phase !== 'attack') goals = [[a.entry.x, a.entry.y]];
-    const field = flowField(world, goals);
-    const here = idx(world.size, a.x, a.y);
-    if (field.dist[here] === 0 || field.dist[here] === Infinity) return reach(world, a, events);
-    const [nx, ny] = field.next(a.x, a.y);
-    const ni = idx(world.size, nx, ny);
-    if (world.wall[ni] > 0) { a.blocked = ni; return; }
-    a.blocked = null;
-    a.x = nx;
-    a.y = ny;
-    placeBand(a);
-    if (field.dist[ni] === 0) return reach(world, a, events);
+  }
+  for (const k of liveKs(a)) {
+    if (world.raid.active !== a) return;                      // the last band has left: the raid is over
+    if (!fightingBands.includes(k)) bandDay(world, a, k, events);
   }
 }
 
-// The band is at its goal: its target (a strike), or its entry (it leaves the map and the raid ends). A band that can
-// no longer reach its entry slips away at once.
-function reach(world, a, events) {
-  if (a.phase === 'attack') return strike(world, a, world.buildings[a.targetId], events);
-  const won = a.phase === 'retreat';
-  a.raiders = [];
-  return endRaid(world, events, won);
+// One day of band k when it is not fighting: it waits out a strike, then takes one step: to the target it is after
+// (attack), back to its entry (leave, after RAIDS.strikes strikes; retreat), or stops before a standing wall tile and hits
+// it the next day.
+function bandDay(world, a, k, events) {
+  const rec = bandRec(a, k);
+  if (rec.phase === 'strike') {
+    rec.wait -= 1;
+    if (rec.wait > 0) return;
+    rec.phase = rec.struck.length >= RAIDS.strikes ? 'leave' : 'attack';
+    rec.targetId = null;
+  }
+  for (let step = 0; step < UNITS.raider.speed; step++) {
+    let goals;
+    if (rec.phase === 'attack') {
+      let t = rec.targetId ? world.buildings[rec.targetId] : null;
+      if (!t || flowField(world, ringGoals(world, t)).dist[idx(world.size, rec.x, rec.y)] === Infinity) t = pickTarget(world, a, k);
+      if (t) { rec.targetId = t.id; goals = ringGoals(world, t); }
+      else { rec.phase = 'leave'; rec.targetId = null; }
+    }
+    if (rec.phase !== 'attack') goals = [[rec.entry.x, rec.entry.y]];
+    const field = flowField(world, goals);
+    const here = idx(world.size, rec.x, rec.y);
+    if (field.dist[here] === 0 || field.dist[here] === Infinity) return reach(world, a, k, events);
+    const [nx, ny] = field.next(rec.x, rec.y);
+    const ni = idx(world.size, nx, ny);
+    if (world.wall[ni] > 0) { rec.blocked = ni; return; }
+    rec.blocked = null;
+    rec.x = nx;
+    rec.y = ny;
+    placeBand(a, k);
+    if (field.dist[ni] === 0) return reach(world, a, k, events);
+  }
+}
+
+// Band k is at its goal: its target (a strike), or its entry (it leaves the map; the raid ends when no band is left, lost
+// if one left after its strikes and beaten otherwise). A band that can no longer reach its entry slips away at once.
+function reach(world, a, k, events) {
+  const rec = bandRec(a, k);
+  if (rec.phase === 'attack') return strike(world, a, k, world.buildings[rec.targetId], events);
+  const n = crewOf(a, k).length;
+  a.raiders = a.raiders.filter((u) => bandOf(u) !== k);
+  a.gone = (a.gone || 0) + n;
+  if (rec.phase === 'leave') a.left = true;
+  if (!a.raiders.length) endRaid(world, events, !a.left);
 }
 
 // The raid mood term (spec 4.9, DANGER_MOOD): { raid: raidBeaten or raidLost } for raidDays after the last raid ended,

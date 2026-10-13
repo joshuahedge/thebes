@@ -9,8 +9,8 @@ import { makeTestWorld, setRoad } from '../../helpers/testWorld.js';
 describe('s3 contract world v4', () => {
   it('creates a version 4 world with no walls, no raid clock, no soldiers, no danger, no splits, seals or feats', () => {
     const w = createWorld({ seed: 4 });
-    expect(WORLD_VERSION).toBe(5);
-    expect(w.version).toBe(5);
+    expect(WORLD_VERSION).toBe(6);
+    expect(w.version).toBe(6);
     expect(w.wall.length).toBe(w.size * w.size);
     expect(w.wall.every((v) => v === 0)).toBe(true);
     expect(w.wallVersion).toBe(0);
@@ -18,7 +18,7 @@ describe('s3 contract world v4', () => {
     expect(w.raid).toEqual(newRaidState());
     expect(w.soldiers).toEqual([]);
     expect(w.nextUnitId).toBe(1);
-    expect(w.danger).toEqual({ burnDays: [], lastFireDay: null, festivalDay: null, firePaused: false });
+    expect(w.danger).toEqual({ burnDays: [], lastFireDay: null, festivalDay: null, firePaused: false, theftDays: [] });   // Stage 4.5: the days of the last 90 days' thefts
     expect(w.danger).toEqual(newDangerState());
     expect([w.splits, w.seals, w.feats, w.cityId]).toEqual([{}, [], { earned: [], lost: [], counters: {} }, null]);
     expect(JSON.parse(JSON.stringify(w))).toEqual(w);

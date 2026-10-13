@@ -58,7 +58,7 @@ describe('overlays', () => {
     expect(marks.length).toBe(2);
     expect(marks.find((m) => m.id === hut.id)).toEqual({ id: hut.id, x: 12.5, y: 11.5, has: true, need: null });
     expect(overlayMarks(w, 'water', { x0: 0, y0: 0, x1: 8, y1: 31 }).length).toBe(0);
-    expect(OVERLAYS.length).toBe(9);                                   // Stage 3 adds fire risk, the placement review Ground
+    expect(OVERLAYS.length).toBe(11);                                  // Stage 3 adds fire risk, the placement review Ground, Stage 4.5 Health and Crime
   });
   it('lists the tiles a building reaches', () => {
     const w = riverWorld();
@@ -123,7 +123,7 @@ describe('ground overlay (placement review P1)', () => {
     const g = groundTiles(w);
     expect(g.fertile.length).toBe(13 - 1 - 2 - 1);
     expect(g.fertile.some(([x, y]) => (x === 5 && y === 5) || (x === 6 && y === 5) || (x === 0 && y === 3))).toBe(false);
-    expect(groundTiles(w, { x0: 10, y0: 10, x1: 11, y1: 11 })).toEqual({ fertile: [], rocky: [[10, 10], [11, 10], [10, 11], [11, 11]] });
+    expect(groundTiles(w, { x0: 10, y0: 10, x1: 11, y1: 11 })).toEqual({ fertile: [], rocky: [[10, 10], [11, 10], [10, 11], [11, 11]], clay: [] });
   });
   it('finds the tiles with room for a whole footprint on its own ground, and memoises them until the buildings change', () => {
     const w = groundWorld();

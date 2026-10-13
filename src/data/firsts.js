@@ -34,4 +34,7 @@ export const FIRSTS = [
   { id: 'first_monument', check: { kind: 'tally', key: 'monumentsDone', n: 1 } },
   { id: 'pyramids_unlocked', check: { kind: 'unlocked', type: 'pyramid_small' } },
   { id: 'first_palace', check: { kind: 'building', type: 'palace' } },
+  // Stage 4.5 (Task 5): the physician and the police post.
+  { id: 'first_physician', check: { kind: 'building', type: 'physician' } },
+  { id: 'first_police_post', check: { kind: 'building', type: 'police_post' } },
 ];

@@ -1,12 +1,12 @@
 // Goals (spec 4.1, early-game pass 3.2 and 3.3): the opening chain in chapters, then the economy's goals to
 // the Capital, and first-time troubles that become goals. Plain data: needs are declarative so missions can
 // define goals the same way later; src/sim/goals.js evaluates them. Need kinds: road, houses, building, people,
-// tier, routes (open trade routes), noAlert, gold, all. A showMe target is startRoad, houses, focus, alert, fertile, rocky or
-// raid (any target the interface does not know points at the city's focus). fertile and rocky aim at the nearest free ground of
+// tier, routes (open trade routes), noAlert, gold, all. A showMe target is startRoad, houses, focus, alert, fertile, rocky, clay or
+// raid (any target the interface does not know points at the city's focus). fertile, rocky and clay aim at the nearest free ground of
 // that kind while the goal's next building needs it (a farm, a mine), else at the focus. A goal with `from` (a milestone id)
 // waits for that milestone (or the people it takes), where its buildings unlock or its tier can be reached: the list
 // the player sees ends before it, so nothing later shows ahead of it (openGoals in src/sim/goals.js). Stage 3: a goal
-// with `raids: true` is about raids, so a Peaceful city (no raids, spec 4.18) never lists it; an event goal's trigger
+// with `raids: true` is about raids (or, from Stage 4.5, disease and crime, which Peaceful lacks too), so a Peaceful city (no raids, spec 4.18) never lists it; an event goal's trigger
 // may be a list of alert codes, and dirText words it by the direction raiders come from (openGoals).
 // Stage 4 (Track D): the opening four say the road rule and the fertile-land rule, each with a one-sentence `why` (ruling
 // 265; shown when the goal is opened in place and in the Goals sheet), and the Monuments chapter. New need kinds: finished
@@ -29,16 +29,22 @@ export const GOALS = [
   { id: 'well', chapter: 'first_homes', text: "Build a well by the homes' road", why: `A well gives water along the road for ${BUILDINGS.well.reach} tiles, so huts become shacks.`, reward: GOAL_REWARD, need: { kind: 'building', type: 'well', n: 1 }, showMe: { category: 'services', item: 'well', target: 'houses' } },
   { id: 'food', chapter: 'feed', text: 'Farm on fertile land, granary, bazaar', why: 'Farms need the fertile land by the river: Layers → Ground shows it. Each needs a road.', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_grain', n: 1 }, { kind: 'building', type: 'granary', n: 1 }, { kind: 'building', type: 'bazaar', n: 1 }] }, showMe: { category: 'food', item: 'farm_grain', target: 'fertile' } },
   { id: 'temple', chapter: 'feed', text: 'Build a temple', reward: GOAL_REWARD, need: { kind: 'building', type: 'temple', n: 1 }, showMe: { category: 'services', item: 'temple', target: 'houses' } },
+  // Stage 4.5 (Task 4b, ruling 316): right after the guided start, the first time taxes outrun the bills. It is met by the month's
+  // own tally (world.tally.profitMonths, the same count the "First month in profit" caption uses); its Show me opens the homes card (homes pay the taxes),
+  // where the forecast section would say what the month brings. It makes the opening chain eleven goals long.
+  { id: 'profit', chapter: 'grow', text: 'End a month in profit', why: 'Homes pay taxes; every building costs upkeep and wages. Build homes before luxuries.', reward: GOAL_REWARD, need: { kind: 'profit' }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'homes_cottage', chapter: 'grow', text: 'Grow 8 homes to Cottage or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 3, n: 8 }, showMe: { category: 'services', item: 'bazaar', target: 'houses' } },
   { id: 'people100', chapter: 'grow', text: 'Reach 100 people', reward: GOAL_REWARD, need: { kind: 'people', n: 100 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'homes_house', chapter: 'grow', text: 'Grow 8 homes to House or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 4, n: 8 }, showMe: { category: 'services', item: 'temple', target: 'houses' } },
   { id: 'town', chapter: 'grow', text: 'Reach 150 people to become a Town', reward: GOAL_REWARD, need: { kind: 'people', n: 150 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   // Stage 3 (spec 4.1, 4.19): fire risk begins at Town, so the firehouse comes right after it.
   { id: 'firehouse', chapter: 'danger', text: 'Build a firehouse', reward: GOAL_REWARD, need: { kind: 'building', type: 'firehouse', n: 1 }, showMe: { category: 'services', item: 'firehouse', target: 'houses' } },
+  // Stage 4.5 (ruling 320): disease starts at Town, so the physician comes right after the firehouse (not on Peaceful, which has none).
+  { id: 'physician', chapter: 'danger', from: 'town', raids: true, text: 'Build a physician', reward: GOAL_REWARD, need: { kind: 'building', type: 'physician', n: 1 }, showMe: { category: 'services', item: 'physician', target: 'houses' } },
   // From Town (spec 4.1, 4.6): each new need arrives with the goal that builds its chain, then a count of homes at
   // the tier that needs it, so one new demand comes at a time; the milestones and the trade route sit between.
   // Each text stays short enough for a two-line caption on a phone at 150% text (tests/ui/celebrate.test.js).
-  { id: 'pottery', chapter: 'goods', from: 'town', text: 'Build a clay pit, storehouse and potter', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] }, showMe: { category: 'industry', item: 'clay_pit', target: 'focus' } },
+  { id: 'pottery', chapter: 'goods', from: 'town', text: 'Build a clay pit, storehouse and potter', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] }, showMe: { category: 'industry', item: 'clay_pit', target: 'clay' } },
   { id: 'homes_townhouse', chapter: 'goods', from: 'town', text: 'Grow 8 homes to Townhouse or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 5, n: 8 }, showMe: { category: 'industry', item: 'potter', target: 'houses' } },
   { id: 'booth_gardens', chapter: 'goods', from: 'town', text: 'Build a booth and two gardens', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'booth', n: 1 }, { kind: 'building', type: 'garden', n: 2 }] }, showMe: { category: 'services', item: 'booth', target: 'houses' } },
   { id: 'manor', chapter: 'goods', text: 'Grow a Manor from four Townhouses', reward: GOAL_REWARD, need: { kind: 'tier', tier: 6, n: 1 }, showMe: { category: 'homes', item: 'garden', target: 'houses' } },
@@ -46,6 +52,8 @@ export const GOALS = [
   { id: 'trade_route', chapter: 'goods', from: 'market_town', text: 'Build a trading post and open a route', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'trading_post', n: 1 }, { kind: 'routes', n: 1 }] }, showMe: { category: 'industry', item: 'trading_post', target: 'startRoad' } },
   // Stage 3: the raid clock starts at Market town; the defences come after the trade route (not on Peaceful).
   { id: 'defences', chapter: 'danger', from: 'market_town', raids: true, text: 'Build a tower and a barracks', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'tower', n: 1 }, { kind: 'building', type: 'barracks', n: 1 }] }, showMe: { category: 'defence', item: 'tower', target: 'raid' } },
+  // Stage 4.5 (ruling 320): crime starts at Market town, with the police post (not on Peaceful).
+  { id: 'police_post', chapter: 'danger', from: 'market_town', raids: true, text: 'Build a police post', reward: GOAL_REWARD, need: { kind: 'building', type: 'police_post', n: 1 }, showMe: { category: 'services', item: 'police_post', target: 'houses' } },
   { id: 'city', chapter: 'grand', text: 'Reach 400 people to become a City', reward: GOAL_REWARD, need: { kind: 'people', n: 400 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'beer', chapter: 'grand', from: 'city', text: 'Build a barley farm, brewery, orchard', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_barley', n: 1 }, { kind: 'building', type: 'brewery', n: 1 }, { kind: 'building', type: 'farm_fig', n: 1 }] }, showMe: { category: 'industry', item: 'farm_barley', target: 'fertile' } },
   { id: 'fine_manors', chapter: 'grand', from: 'city', text: 'Grow 2 homes to Fine manor or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 7, n: 2 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
@@ -87,6 +95,7 @@ export const EVENT_GOALS = [
   {
     id: 'raid_tower', trigger: 'raid_warning', chapter: 'event', raids: true, text: 'Build a tower facing the raiders', reward: EVENT_REWARD, need: { kind: 'building', type: 'tower', n: 1 }, showMe: { category: 'defence', item: 'tower', target: 'raid' },
     dirText: { east: 'Build a tower facing the east', west: 'Build a tower facing the west', north: 'Build a tower facing the north', south: 'Build a tower facing the south' },
+    dirsText: 'Build towers facing {dirs}',   // a two-sided raid from two edges names both ("east and south"), in band order; at most 36 characters
   },
   // Stage 4 (spec 4.19): the first stalled monument site, worded and aimed by its cause (ruling 245's reason codes); it is
   // done once no site is stalled. A cause with no build card to fix it (gold) opens the city summary.
@@ -110,7 +119,7 @@ export const EVENT_GOALS = [
 ];
 
 // The opening chain (spec 4.1): Founded Thebes, already ticked when a city starts (an endowed start: it pays nothing and is
-// never in GOALS, so nothing completes it), and the goals up to and including OPENING_LAST make ten, so the strip opens
-// at "1 of 10".
+// never in GOALS, so nothing completes it), and the goals up to and including OPENING_LAST make eleven, so the strip opens
+// at "1 of 11" (Stage 4.5 added the profit goal after the temple).
 export const FOUNDED = { id: 'founded', chapter: 'first_homes', text: 'Founded Thebes' };
 export const OPENING_LAST = 'town';

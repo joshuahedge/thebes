@@ -10,15 +10,20 @@ import { groundShadow } from './art/primitives.js';
 import { TERRAIN } from './art/palette.js';
 import { createSpriteCache, drawSprite } from './spriteCache.js';
 import { createTerrainBaker, drawTileGrid } from './terrainBaker.js';
+import { isBridgeTile, DECK } from './terrainBridges.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 
+// Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
+const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
+
 // Cosmetic trees on free ground, decided by a hash of the tile and the seed. A building placed on the tile
-// hides the tree, because occupancy wins.
+// hides the tree, because occupancy wins; so does a road, and (Stage 4.5) a wall tile, a gate or a breach.
+// Plots, plazas, rubble and monument sites are buildings, so world.occ covers them.
 export function decorAt(world, x, y) {
   const i = idx(world.size, x, y);
-  if (world.occ[i] || world.road[i]) return null;
+  if (world.occ[i] || world.road[i] || (world.wall && world.wall[i] !== 0)) return null;
   const t = world.terrain[i];
   const r = hash2(x, y, world.seed + 7);
   if (t === T.MEADOW) return r < 0.08 ? 'palm' : r < 0.12 ? 'acacia' : null;
@@ -54,12 +59,12 @@ export function collectObjects(world, range, walkers = [], registry = ART) {
   for (let y = range.y0; y <= range.y1; y++) {
     for (let x = range.x0; x <= range.x1; x++) {
       const slot = decorAt(world, x, y);
-      if (slot) out.push({ key: depthKey(x, y, 1, 1), id: 1e6 + idx(world.size, x, y), slot, def: registry[slot], x, y });
+      if (slot) out.push({ key: depthKey(x, y, 1, 1), id: DECOR_ID_BASE + idx(world.size, x, y), slot, def: registry[slot], x, y });
     }
   }
   for (const wk of walkers) {
     if (wk.x < range.x0 || wk.x > range.x1 + 1 || wk.y < range.y0 || wk.y > range.y1 + 1) continue;
-    out.push({ key: wk.x + wk.y + 0.01, id: 2e6 + wk.id, slot: `fig.${wk.kind}`, def: null, x: wk.x, y: wk.y });
+    out.push({ key: wk.x + wk.y + 0.01, id: FIGURE_ID_BASE + wk.id, slot: `fig.${wk.kind}`, def: null, x: wk.x, y: wk.y });
   }
   out.sort(compareDepth);
   return out;
@@ -132,6 +137,7 @@ export function createRenderer({
     const rising = opts.rising || null;   // building ids only: tree and walker ids start at 1e6
     ctx.setTransform(1, 0, 0, 1, ox, oy);
     if (opts.ambient) opts.ambient(g, range);              // Stage 3: ambient life over the terrain (render/ambient.js)
+    if (opts.scorch) opts.scorch(g, range);                // Stage 4.5: scorch marks under burning buildings and rubble (render/fire.js), under their sprites
     for (const o of objects) {
       if (!o.def) continue;
       const up = rising && rising.has(o.id) ? rising.get(o.id) : 1;
@@ -152,10 +158,11 @@ export function createRenderer({
         live++;
         continue;
       }
-      const slot = opts.treeSlot && o.id >= 1e6 && o.id < 2e6 ? opts.treeSlot(o) : o.slot;   // Stage 3: swaying trees (decor ids are 1e6..2e6)
+      const slot = opts.treeSlot && o.id >= DECOR_ID_BASE && o.id < FIGURE_ID_BASE ? opts.treeSlot(o) : o.slot;   // Stage 3: swaying trees (decor ids run from DECOR_ID_BASE up to FIGURE_ID_BASE)
       const sprite = spriteCache.get(slot, zoom, dpr);
       if (!sprite) continue;
       const q = p(o.x, o.y);
+      if (o.id >= FIGURE_ID_BASE && isBridgeTile(world, Math.floor(o.x), Math.floor(o.y))) q[1] -= DECK.z + DECK.h;   // a figure on a bridge stands on its deck (Stage 4.5)
       const [px, py] = toDevice(q[0], q[1]);
       if (rising && rising.has(o.id)) drawRising(ctx, sprite, px, py, zoom, dpr, rising.get(o.id));
       else drawSprite(ctx, sprite, px, py, zoom, dpr);

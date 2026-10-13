@@ -45,7 +45,7 @@ async function bootWith({ storage, params = '' }) {
 describe('ui costs by difficulty', () => {
   it('shows each city its own costs on cards, and judges them affordable against those', () => {
     const hard = cityAt('hard');
-    expect(cardInfo(hard, 'well')).toEqual({ item: 'well', name: 'Well', cost: 38, costText: '38 gold', affordable: true, locked: false, lockText: '', isNew: false, terrainText: '' });
+    expect(cardInfo(hard, 'well')).toEqual({ item: 'well', name: 'Well', cost: 38, costText: '38 gold', affordable: true, locked: false, lockText: '', isNew: false, terrainText: '', upkeepText: 'Costs 3 a month', upkeepTitle: '3 upkeep' });
     expect(cardInfo(hard, 'road').costText).toBe('3 gold per tile');
     expect(cardInfo(hard, 'house').costText).toBe('6 gold per plot');
     expect(cardInfo(cityAt('relaxed'), 'temple').costText).toBe('96 gold');
@@ -78,7 +78,7 @@ describe('ui costs by difficulty', () => {
       placement.start({ kind: 'building', type: 'well' }, { x: 12, y: 9 });
       placement.moveGhost(12, 9);
       bar.render();
-      expect(root.querySelector('.cost').textContent).toBe('38 gold');
+      expect(root.querySelector('.cost').textContent).toBe('38 gold · Costs 3 a month');   // Stage 4.5: the price, then the monthly bill
       placement.confirm();
       expect(world.gold).toBe(1000 - 38);
     } finally { cleanup(); }

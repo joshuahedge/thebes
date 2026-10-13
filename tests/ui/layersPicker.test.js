@@ -25,7 +25,7 @@ describe('ui layers picker (placement review P2)', () => {
     expect(r.picker.node.hidden).toBe(false);
     const buttons = [...r.picker.node.querySelectorAll('button.layer')];
     expect(buttons.map((b) => b.textContent)).toEqual([...OVERLAYS.map((k) => OVERLAY_NAMES[k]), T.layersOff]);
-    expect(buttons.length).toBe(10);                                        // nine overlays and Off
+    expect(buttons.length).toBe(12);                                        // eleven overlays and Off
     expect(buttons.map((b) => b.getAttribute('aria-pressed') === 'true')).toEqual(buttons.map((b) => b.dataset.layer === 'fire'));
     r.cleanup();
   });
