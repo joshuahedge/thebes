@@ -19,9 +19,11 @@ describe('s46 armies words: the warning and the raid sheet', () => {
   it('names a mixed raid\'s kinds in the warning, and an all-foot raid as before', () => {
     const mixed = warned({ foot: 8, archer: 4, chariot: 2, boat: 0 });
     const alert = { code: 'raid_warning', x: 31, y: 16, dir: 'east', arrives: 1000 };
-    expect(alertText(alert, mixed).title).toBe('14 raiders from the east (8 on foot, 4 archers, 2 chariots) are after your buildings');
+    expect(alertText(alert, mixed).title).toBe('14 raiders from the east are after your buildings');
+    expect(alertText(alert, mixed).fix.startsWith('8 on foot, 4 archers, 2 chariots. ')).toBe(true);
     expect(A.mixLine(14, 'the east', mixed.raid.warning.mix)).toBe('14 raiders from the east: 8 on foot, 4 archers, 2 chariots');
     expect(alertText(alert, warned(footMix(6))).title).toBe('Raiders from the east are after your buildings');
+    expect(alertText(alert, warned(footMix(6))).fix.includes('on foot')).toBe(false);
     expect(A.mixText({ foot: 1, archer: 1, chariot: 1, boat: 3 })).toBe('1 on foot, 1 archer, 1 chariot, 3 by boat');
   });
   it('lists what helps against each kind on the raid sheet, read from the matchup table and the enemy rows', () => {
@@ -47,7 +49,7 @@ describe('s46 armies words: the warning and the raid sheet', () => {
   });
   it('puts the counters on the raid sheet for a mixed raid only', () => {
     const parts = counterParts(warned({ foot: 3, archer: 2, chariot: 0, boat: 0 }).raid.warning);
-    expect([parts.length, parts[0].textContent, parts[1].querySelectorAll('li').length]).toEqual([2, A.countersHead, 2]);
+    expect([parts.length, parts[0].textContent, parts[1].textContent, parts[2].querySelectorAll('li').length]).toEqual([3, '5 raiders from the east: 3 on foot, 2 archers.', A.countersHead, 2]);
     expect(counterParts(warned(footMix(5)).raid.warning)).toEqual([]);
     expect(counterParts(null)).toEqual([]);
   });

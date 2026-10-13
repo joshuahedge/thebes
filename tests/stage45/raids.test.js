@@ -552,8 +552,8 @@ describe('s45 raid words follow the sim', () => {
     const alert = raidAlerts(w).find((x) => x.code === 'raid_warning');
     expect(triggerEventGoals(w, [alert])).toEqual(['raid_tower']);
     expect(openGoals(w)[0].text).toBe('Build a tower facing the east');
-    // Stage 4.6 (ruling 341): a mixed raid's title names its mix (the 4th raid may bring archers); the direction is said once either way.
-    const who = S46_ARMY_TEXT.isMixedMix(warn.mix) ? `${warn.size} raiders from the east (${S46_ARMY_TEXT.mixText(warn.mix)})` : 'Raiders from the east';
+    // Stage 4.6 (ruling 388): a mixed raid's title says how many come (the 4th raid may bring archers); the direction is said once either way.
+    const who = S46_ARMY_TEXT.isMixedMix(warn.mix) ? `${warn.size} raiders from the east` : 'Raiders from the east';
     expect(alertText(alert, w).title).toBe(`${who} are after your ${RAID_TEXT.targets(warn.target)}`);
     const said = D.cancels(q.dirs, q.size);
     expect(said).toBe(`Cancels the raid from the east (${q.size} raiders). The next raid still comes.`);
