@@ -133,27 +133,49 @@ function ringTiles(cx, cy, r) {
 // Stage 4 (Track C): a monument or the palace searches fitRadiusOf (16) in its rotation; a monument's crew and supply count as
 // "later" conditions like the road (canPlace's warnings), so a spot near a guild and a quarry wins; monuments have no terrain,
 // so no three-times reach.
+// One turn's search: the nearest origin about `start` where the tool fits with that turn, ranked as the search finds it: tier 0 a clean fit
+// within maxR, 1 a fit with warnings within maxR (the fewest), 2 a clean fit further out, 3 a fit with warnings further out; r is its ring.
+// null when nothing fits.
+function fitSearch(world, tool, start, rot, maxR, farR) {
+  let warned = null;
+  const scan = (from, to, far) => {
+    for (let r = from; r <= to; r++) {
+      for (const [tx, ty] of ringTiles(start.x, start.y, r)) {
+        const c = canPlace(world, tool.type, tx, ty, { roadLater: true, rot, style: styleOfTool(tool) });   // off-map origins fail here as out_of_bounds
+        if (!c.ok) continue;
+        if (!c.warnings.length) return { x: tx, y: ty, tier: far ? 2 : 0, r, n: 0 };
+        if (!warned || c.warnings.length < warned.n) warned = { x: tx, y: ty, tier: far ? 3 : 1, r, n: c.warnings.length };
+      }
+    }
+    return null;
+  };
+  const clean = scan(0, maxR, false);
+  if (clean) return clean;
+  if (!warned && (BUILDINGS[tool.type].terrain || BUILDINGS[tool.type].water)) { const far = scan(maxR + 1, farR === null ? maxR * 3 : farR, true); if (far) return far; }   // farR (Stage 4.6, ruling 331): Show me and the pick look the whole map over, where the ground it needs may lie
+  return warned;
+}
+
+// The nearest spot that fits: { x, y }, and rot for a building that turns. Ruling 424: a building that turns (a fishing wharf, a mastaba) is
+// searched in both turns, and the other turn wins only with a better kind of fit (a clean fit before one with warnings, a near one before a far
+// one, anything before none); the turn in hand keeps a fit of the same kind even a ring or two further, so a mastaba is not turned under the
+// player for a tile. A wharf picked or shown beside a river running the other way lands turned to fit instead of refused. Callers take rot with
+// x and y when it is there.
 export function nearestFit(world, tool, x, y, maxR = null, farR = null) {
   const start = snapGhost(world, tool, x, y);
   if (!tool || tool.kind !== 'building') return start;
   if (maxR === null) maxR = fitRadiusOf(tool.type);
   const rot = rotOf(tool);
-  let warned = null;
-  const scan = (from, to) => {
-    for (let r = from; r <= to; r++) {
-      for (const [tx, ty] of ringTiles(start.x, start.y, r)) {
-        const c = canPlace(world, tool.type, tx, ty, { roadLater: true, rot, style: styleOfTool(tool) });   // off-map origins fail here as out_of_bounds
-        if (!c.ok) continue;
-        if (!c.warnings.length) return { x: tx, y: ty };
-        if (!warned || c.warnings.length < warned.n) warned = { x: tx, y: ty, n: c.warnings.length };
-      }
-    }
-    return null;
-  };
-  const clean = scan(0, maxR);
-  if (clean) return clean;
-  if (!warned && (BUILDINGS[tool.type].terrain || BUILDINGS[tool.type].water)) { const far = scan(maxR + 1, farR === null ? maxR * 3 : farR); if (far) return far; }   // farR (Stage 4.6, ruling 331): Show me and the pick look the whole map over, where the ground it needs may lie
-  return warned ? { x: warned.x, y: warned.y } : start;
+  const rots = BUILDINGS[tool.type].rotates ? [rot, rot ? 0 : 1] : [rot];
+  let best = null;
+  for (const r of rots) {
+    if (best && best.tier === 0) break;                                       // a clean near fit in the turn in hand: nothing beats it
+    const t = r === rot ? tool : { ...tool, rot: r };
+    const found = fitSearch(world, t, r === rot ? start : snapGhost(world, t, x, y), r, maxR, farR);
+    if (found && (!best || found.tier < best.tier)) best = { ...found, rot: r };
+  }
+  const turns = rots.length > 1;
+  if (!best) return turns ? { x: start.x, y: start.y, rot } : { x: start.x, y: start.y };
+  return turns ? { x: best.x, y: best.y, rot: best.rot } : { x: best.x, y: best.y };
 }
 
 // conditions: a building's chips for the confirm bar ([] for lines and areas); footprint: each of its tiles' own state; joins: the
@@ -459,11 +481,12 @@ export function fitTarget(world, state) {
   const { tool } = state;
   if (!tool) return null;
   if (tool.kind === 'building') {
-    const g = state.ghost || world.focus, def = BUILDINGS[tool.type], rot = rotOf(tool);
+    const g = state.ghost || world.focus, def = BUILDINGS[tool.type];
     const at = nearestFit(world, tool, g.x, g.y, null, world.size);
+    const rot = at.rot === undefined ? rotOf(tool) : at.rot;                  // ruling 424: the turn it fits in, which may not be the one in hand
     if (!canPlace(world, tool.type, at.x, at.y, { roadLater: true, rot, style: styleOfTool(tool) }).ok) return null;
     const { w, d } = dimsOf(tool.type, rot);
-    return { kind: 'building', item: tool.type, x: at.x + w / 2, y: at.y + d / 2, def };
+    return { kind: 'building', item: tool.type, x: at.x + w / 2, y: at.y + d / 2, def, rot };
   }
   if (tool.kind === 'road') {
     const l = state.line, tiles = state.plan ? state.plan.tiles : [];
@@ -495,7 +518,11 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       store.set(startToolPatch(store.get(), tool));
       if (tool.kind === 'building') {
         setPlacingRot(world, rotOf(tool));                                     // Stage 4: the Ground overlay's room follows the turn
-        if (centre) { const at = nearestFit(world, tool, centre.x, centre.y, null, world.size); api.moveGhost(at.x, at.y); }   // Stage 4.6 (ruling 331): the whole map for the ground a building is bound to   // early-game pass 2.6
+        if (centre) {
+          const at = nearestFit(world, tool, centre.x, centre.y, null, world.size);
+          if (at.rot !== undefined && at.rot !== rotOf(tool)) { store.set({ tool: { ...store.get().tool, rot: at.rot } }); setPlacingRot(world, at.rot); }   // ruling 424: land turned to fit
+          api.moveGhost(at.x, at.y);
+        }   // Stage 4.6 (ruling 331): the whole map for the ground a building is bound to   // early-game pass 2.6
         if (AUTO_OVERLAY[tool.type]) store.set({ overlay: AUTO_OVERLAY[tool.type] });
       }
     },

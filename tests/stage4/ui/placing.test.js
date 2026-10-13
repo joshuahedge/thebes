@@ -345,7 +345,10 @@ describe('s4 ui the Ground overlay for a monument', () => {
     w.milestone = 'great_city';
     const r = await rigUI({ width: 1280, height: 800, world: w });
     try {
-      r.ui.placement.start({ kind: 'building', type: 'mastaba_small' }, { x: 8, y: 12 });
+      r.ui.placement.start({ kind: 'building', type: 'mastaba_small' }, { x: 8, y: 12 });   // Stage 4.6 (ruling 424): the pick lands turned, where it fits
+      expect(r.store.get().tool.rot).toBe(1);
+      r.ui.placement.start({ kind: 'building', type: 'mastaba_small' });                   // the tool in its first turn, the ghost moved by hand
+      r.ui.placement.moveGhost(8, 12);
       const legend = () => r.root.querySelector('#legend').textContent;
       expect([r.store.get().overlay, legend().includes('Fertile: no monuments here'), legend().includes('No room left for a small mastaba')]).toEqual(['ground', true, true]);
       r.ui.placement.rotate();

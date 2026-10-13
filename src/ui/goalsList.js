@@ -105,7 +105,8 @@ export function showMeTarget(world, goal, alerts = null) {
       // may not hold one) is shown the nearest spot it fits, found by the placing search, else, with no fit, the nearest tile of the ground.
       if (Number.isInteger(BUILDINGS[item].terrainMin)) {
         const at = nearestFit(world, { kind: 'building', type: item }, world.focus.x, world.focus.y, null, world.size);
-        if (canPlace(world, item, at.x, at.y, { roadLater: true }).ok) { const { w, d } = dimsOf(item, 0); return { x: at.x + w / 2, y: at.y + d / 2 }; }
+        const rot = at.rot || 0;                                             // ruling 424: the turn the search found it fits in
+        if (canPlace(world, item, at.x, at.y, { roadLater: true, rot }).ok) { const { w, d } = dimsOf(item, rot); return { x: at.x + w / 2, y: at.y + d / 2 }; }
       }
       const best = nearestTerrainTile(world, kind, world.focus);
       if (best) return best;

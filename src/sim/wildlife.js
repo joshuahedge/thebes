@@ -208,7 +208,8 @@ function releaseScares(world) {
   w.scares = w.scares.filter((s) => {
     if (world.day < s.until) return true;
     const b = world.buildings[s.id];
-    if (b && b.paused) b.paused = false;        // paused by the scare: it works again (the player's own pause is never a scare's)
+    if (b && b.paused) b.paused = false;        // paused by the scare: it works again. A player who paused or resumed it since took it back (ruling 423:
+                                                // setPaused drops the scare), so a pause still under a scare here is the scare's own
     return false;
   });
 }

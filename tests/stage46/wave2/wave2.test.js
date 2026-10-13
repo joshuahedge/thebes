@@ -9,7 +9,11 @@ import { HUNTING, FISHING } from '../../../src/data/river.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
 import { produceDay } from '../../../src/sim/production.js';
 import { riverWorld as riverCity, addGranary, dayOf, MONTH } from '../river/riverHelpers.js';
-import { huntingOutlook, takeGame, wildlifeMonth } from '../../../src/sim/wildlife.js';
+import { huntingOutlook, takeGame, wildlifeMonth, wildlifeDay, scareOf } from '../../../src/sim/wildlife.js';
+import { setPaused, canPlace } from '../../../src/sim/commands.js';
+import { nearestFit, fitTarget } from '../../../src/ui/placement.js';
+import { courtDay } from '../../../src/sim/court.js';
+import { WILDLIFE } from '../../../src/data/river.js';
 import { riverRows } from '../../../src/ui/s46/river.js';
 import { S46_RIVER_TEXT as R } from '../../../src/ui/text.js';
 import { riverWorld, addRaw as addRiverRaw } from '../river/riverHelpers.js';
@@ -177,4 +181,78 @@ describe('s46 wave2 fishing wharf sheet', () => {
     expect(full.sheet).toContain(R.catchRule);
   });
   const text = (nodes) => nodes.map((n) => n.textContent).join(' | ');
+});
+
+// ── A scare or a court pause lifts only the pause it set (ruling 423) ──
+describe('s46 wave2 the player own pause survives', () => {
+  const scared = () => {
+    const w = riverCity();
+    const wharf = addRiverRaw(w, 'fishing_wharf', 22, 11);
+    wharf.rot = 1; wharf.w = 1; wharf.d = 2;
+    wharf.staff = BUILDINGS.fishing_wharf.workers;
+    w.day = dayOf(2, 3);
+    wharf.paused = true;                                                       // what the scare does (wildlifeDay)
+    w.wildlife.seeded = true;
+    w.wildlife.scares.push({ id: wharf.id, until: w.day + WILDLIFE.scareDays });
+    return { w, wharf };
+  };
+  const daysPast = (w, n, step) => { for (let i = 0; i < n; i++) { step(w); w.day += 1; } };
+  it('lifts the pause a crocodile scare set when its days are up', () => {
+    const { w, wharf } = scared();
+    daysPast(w, WILDLIFE.scareDays + 1, (x) => wildlifeDay(x));
+    expect([wharf.paused, scareOf(w, wharf)]).toEqual([false, null]);
+  });
+  it('keeps a pause the player set during the scare, even a resume and a pause within the scare day', () => {
+    const { w, wharf } = scared();
+    expect(setPaused(w, wharf.id, false).ok).toBe(true);                       // the player resumes it ...
+    expect(setPaused(w, wharf.id, true).ok).toBe(true);                        // ... and pauses it again, the same day
+    expect(scareOf(w, wharf)).toBe(null);                                      // the scare let go of it: the pause is the player's
+    daysPast(w, WILDLIFE.scareDays + 1, (x) => wildlifeDay(x));
+    expect(wharf.paused).toBe(true);
+  });
+  it('keeps a pause the player set during a court card pause (a quarantine), and still lifts the pause the court set', () => {
+    const w = riverCity();
+    const a = addRiverRaw(w, 'fishing_wharf', 22, 11), b = addRiverRaw(w, 'granary', 24, 11);
+    a.rot = 1; a.w = 1; a.d = 2;
+    w.court.awake = true;
+    a.paused = true; b.paused = true;
+    w.court.effects.push({ kind: 'pause', ids: [a.id, b.id], until: w.day + 5 });
+    setPaused(w, a.id, false);
+    setPaused(w, a.id, true);                                                  // the player's own, within the same day
+    daysPast(w, 6, (x) => courtDay(x));
+    expect([a.paused, b.paused]).toEqual([true, false]);
+  });
+});
+
+// ── Show me and the card pick turn a wharf to fit (ruling 424) ──
+describe('s46 wave2 wharf lands turned to fit', () => {
+  const WHARF = { kind: 'building', type: 'fishing_wharf' };
+  // riverCity's river runs north to south (x 20-21), so a wharf's long side meets it only turned (rot 1: one wide, two deep).
+  const fits = (w, at) => canPlace(w, 'fishing_wharf', at.x, at.y, { roadLater: true, rot: at.rot }).ok;
+  it('searches both turns: the turn in hand finds no bank beside a north-south river, the other does, near', () => {
+    const w = riverCity();
+    expect(canPlace(w, 'fishing_wharf', 22, 12, { roadLater: true, rot: 0 }).ok).toBe(false);
+    const at = nearestFit(w, WHARF, 22, 12, null, w.size);
+    expect([at.rot, fits(w, at), Math.abs(at.x - 22) + Math.abs(at.y - 12) <= 4]).toEqual([1, true, true]);
+    const same = nearestFit(w, { ...WHARF, rot: 1 }, 22, 12, null, w.size);   // already turned: it stays turned
+    expect(same.rot).toBe(1);
+  });
+  it('lands the card pick and Show me from the bar in the turn that fits', async () => {
+    const w = riverCity();
+    w.milestone = 'city';
+    const r = await rigUI({ width: 390, height: 844, world: w });
+    try {
+      r.ui.placement.start({ ...WHARF }, { x: 22, y: 12 });                   // the card pick, with the view's middle beside the river
+      let s = r.store.get();
+      expect([s.tool.rot, fits(w, { ...s.ghost, rot: s.tool.rot }), r.ui.placement.preview().state !== 'bad']).toEqual([1, true, true]);
+      r.ui.placement.start({ ...WHARF, rot: 0 });                              // the turn the player had, on a refused spot
+      r.ui.placement.moveGhost(30, 20);
+      expect(r.ui.placement.preview().state).toBe('bad');
+      const target = fitTarget(w, r.store.get());
+      expect([target.kind, target.rot]).toEqual(['building', 1]);
+      r.ui.showMeAt({ item: 'fishing_wharf', x: target.x, y: target.y });     // Show me
+      s = r.store.get();
+      expect([s.tool.rot, fits(w, { ...s.ghost, rot: s.tool.rot })]).toEqual([1, true]);
+    } finally { r.cleanup(); }
+  });
 });
