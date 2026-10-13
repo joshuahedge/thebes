@@ -19,7 +19,7 @@ import { mount } from '../../helpers/dom.js';
 import { rigUI } from '../../helpers/uiWorld.js';
 
 const ids = (list) => list.map((g) => g.id);
-const STAGE1 = ['road', 'plots', 'well', 'food', 'temple', 'homes_cottage', 'people100', 'homes_house', 'town'];
+const STAGE1 = ['road', 'plots', 'well', 'food', 'temple', 'profit', 'homes_cottage', 'people100', 'homes_house', 'town'];
 const pool = (id) => DAILY_POOL.find((d) => d.id === id);
 const ach = (id) => ACHIEVEMENTS.find((a) => a.id === id);
 // A city past its opening chain, guide done.
@@ -187,7 +187,7 @@ describe('s3 score danger rewards', () => {
     expect(s(w)).toEqual({ n: 0, of: 1 });
   });
   it('adds three daily goals: a firehouse from Town, ten wall tiles and a tower from Market town, none of the defence ones on Peaceful', () => {
-    expect(DAILY_POOL.slice(15, 18).map((d) => [d.id, d.measure, d.n, d.from, Boolean(d.raids)])).toEqual([
+    expect(DAILY_POOL.slice(14, 17).map((d) => [d.id, d.measure, d.n, d.from, Boolean(d.raids)])).toEqual([
       ['firehouse1', { kind: 'buildings', type: 'firehouse' }, 1, 'town', false],
       ['wall10', { kind: 'tally', key: 'wallTiles' }, 10, 'market_town', true],
       ['tower1', { kind: 'buildings', type: 'tower' }, 1, 'market_town', true],

@@ -48,6 +48,7 @@ export function goalMet(world, need) {
     case 'routes': return openRoutes(world) >= need.n;
     case 'noAlert': return !hasAlert(world, need.code);
     case 'gold': return world.gold >= need.n;
+    case 'profit': return world.tally.profitMonths >= 1;                              // Stage 4.5: a month ended with taxes above the bills
     case 'all': return need.of.every((x) => goalMet(world, x));
     case 'any': return need.of.some((x) => goalMet(world, x));                         // Stage 4
     case 'finished': return finishedOf(world, need.type) >= (need.n || 1);
@@ -185,7 +186,7 @@ export function settleGoals(world, events = null) {
 }
 
 // The opening chain's count (spec 4.1): Founded Thebes, done from the start, and the goals up to OPENING_LAST, as
-// { done, of } ("1 of 10" for a new city); null once every one of them is done.
+// { done, of } ("1 of 11" for a new city); null once every one of them is done.
 export function openingProgress(world) {
   const opening = GOALS.slice(0, GOALS.findIndex((g) => g.id === OPENING_LAST) + 1);
   const done = opening.filter((g) => world.goals.completed.includes(g.id)).length;

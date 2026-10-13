@@ -29,6 +29,10 @@ export const GOALS = [
   { id: 'well', chapter: 'first_homes', text: "Build a well by the homes' road", why: `A well gives water along the road for ${BUILDINGS.well.reach} tiles, so huts become shacks.`, reward: GOAL_REWARD, need: { kind: 'building', type: 'well', n: 1 }, showMe: { category: 'services', item: 'well', target: 'houses' } },
   { id: 'food', chapter: 'feed', text: 'Farm on fertile land, granary, bazaar', why: 'Farms need the fertile land by the river: Layers → Ground shows it. Each needs a road.', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_grain', n: 1 }, { kind: 'building', type: 'granary', n: 1 }, { kind: 'building', type: 'bazaar', n: 1 }] }, showMe: { category: 'food', item: 'farm_grain', target: 'fertile' } },
   { id: 'temple', chapter: 'feed', text: 'Build a temple', reward: GOAL_REWARD, need: { kind: 'building', type: 'temple', n: 1 }, showMe: { category: 'services', item: 'temple', target: 'houses' } },
+  // Stage 4.5 (Task 4b, ruling 316): right after the guided start, the first time taxes outrun the bills. It is met by the month's
+  // own tally (world.tally.profitMonths, the same count the "First month in profit" caption uses); its Show me opens the homes card (homes pay the taxes),
+  // where the forecast section would say what the month brings. It makes the opening chain eleven goals long.
+  { id: 'profit', chapter: 'grow', text: 'End a month in profit', why: 'Homes pay taxes; every building costs upkeep and wages. Build homes before luxuries.', reward: GOAL_REWARD, need: { kind: 'profit' }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'homes_cottage', chapter: 'grow', text: 'Grow 8 homes to Cottage or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 3, n: 8 }, showMe: { category: 'services', item: 'bazaar', target: 'houses' } },
   { id: 'people100', chapter: 'grow', text: 'Reach 100 people', reward: GOAL_REWARD, need: { kind: 'people', n: 100 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'homes_house', chapter: 'grow', text: 'Grow 8 homes to House or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 4, n: 8 }, showMe: { category: 'services', item: 'temple', target: 'houses' } },
@@ -110,7 +114,7 @@ export const EVENT_GOALS = [
 ];
 
 // The opening chain (spec 4.1): Founded Thebes, already ticked when a city starts (an endowed start: it pays nothing and is
-// never in GOALS, so nothing completes it), and the goals up to and including OPENING_LAST make ten, so the strip opens
-// at "1 of 10".
+// never in GOALS, so nothing completes it), and the goals up to and including OPENING_LAST make eleven, so the strip opens
+// at "1 of 11" (Stage 4.5 added the profit goal after the temple).
 export const FOUNDED = { id: 'founded', chapter: 'first_homes', text: 'Founded Thebes' };
 export const OPENING_LAST = 'town';

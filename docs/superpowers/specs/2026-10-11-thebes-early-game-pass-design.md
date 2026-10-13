@@ -99,7 +99,7 @@
 - Milestones (Town) use the milestone tier in place of the old toast.
 
 ### 3.7 Daily goals (no streaks)
-- Three small goals per local day once the opening chain is done (after "Build a temple"), seeded by the date and the city's seed, filtered to what the city can do, each finishable in about five minutes: for example "Place 4 housing plots", "Grow 3 homes a tier", "Lay 10 road tiles", "Build a well", "Have a month in profit", "Gain 20 people", "Store 100 grain".
+- Three small goals per local day once the opening chain is done (after "Build a temple"), seeded by the date and the city's seed, filtered to what the city can do, each finishable in a few minutes at 1x (under two at 3x; measured in Stage 4.5): for example "Place 4 housing plots", "Grow 3 homes a tier", "Lay 10 road tiles", "Build a well", "Have a month in profit", "Gain 20 people", "Store 100 grain".
 - Progress counts from a snapshot taken when the day's goals are first drawn. Each pays 25 gold. One free swap per day. No streaks, no day counts, no "missed" messages, nothing expires mid-session: yesterday's unfinished goals simply give way to today's. A lifetime count per city ("12 daily goals done").
 - Shown under "Today" in the goals sheet and on the Welcome back card. The date comes from the device clock through the interface; the simulation only sees the date key it is given.
 

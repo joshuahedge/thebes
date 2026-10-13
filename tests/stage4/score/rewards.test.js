@@ -118,7 +118,7 @@ describe('s4 score feats and daily goals', () => {
     expect(featStatus(v, swift)).toBe('lost');
   });
   it('draws the three monument daily goals from City only while a site is under way, and counts the stone brought to sites', () => {
-    expect(DAILY_POOL.slice(18).map((d) => [d.id, DAILY_TEXT[d.id]])).toEqual([
+    expect(DAILY_POOL.slice(17).map((d) => [d.id, DAILY_TEXT[d.id]])).toEqual([
       ['course1', 'Lay a course on any monument'], ['quarry1', 'Build a quarry'], ['stone100', 'Bring 100 stone to a monument site'],
     ]);
     const w = city('market_town');
