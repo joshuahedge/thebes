@@ -19,7 +19,7 @@
 // one) lists the kinds of each finished mastaba and pyramid at the seal, for the stamp's glyphs (STAMP_KINDS).
 import { RECORDS_KEY, RECORDS_MAX, SCORE_VERSION, SCORE_PARTS, PARTS_BY_VERSION, SPLITS, MEDALS, SCORE_FACTOR, STAMP_KINDS } from '../data/scoring.js';
 import { MONUMENT_KINDS } from '../data/monuments.js';
-import { MAP_VARIANTS } from '../data/map.js';
+import { MAP_VARIANTS, DEFAULT_MAP_SIZE, isMapSize } from '../data/map.js';
 import { medalFor } from '../sim/score.js';
 import { allBuildings, isFinished } from '../sim/world.js';
 
@@ -44,7 +44,11 @@ const isMedal = (m) => m === null || MEDALS.some((x) => x.id === m);
 const variantOf = (v) => (MAP_VARIANTS.includes(v) ? v : 'classic');
 // A personal best is per seed, level and river layout. A classic city keeps the key it always had (seed|level), so every record from
 // before Stage 4.5 stays where it was; another layout adds its name (seed|level|east).
-const keyOf = (r) => (variantOf(r.mapVariant) === 'classic' ? `${r.seed}|${r.difficulty}` : `${r.seed}|${r.difficulty}|${r.mapVariant}`);
+// Stage 4.6 (ruling 333): a map size other than Normal adds its size too (seed|level|layout|80), so a Normal city keeps the key it always had
+// and every record from before stays where it was; a row carries `mapSize` only when it is not Normal.
+const sizeOf = (n) => (isMapSize(n) ? n : DEFAULT_MAP_SIZE);
+const sizeField = (n) => (sizeOf(n) === DEFAULT_MAP_SIZE ? {} : { mapSize: sizeOf(n) });
+const keyOf = (r) => `${r.seed}|${r.difficulty}${variantOf(r.mapVariant) === 'classic' ? '' : `|${r.mapVariant}`}${sizeOf(r.mapSize) === DEFAULT_MAP_SIZE ? '' : `|${sizeOf(r.mapSize)}`}`;
 
 // The split days of a splits object (Stage 4: all seven, SPLITS), whole days only, in that order.
 function cleanSplits(s) {
@@ -59,7 +63,7 @@ function cleanCity(c) {
   if (!isObj(c) || typeof c.id !== 'string' || !c.id || !isInt(c.seed) || !isLevel(c.difficulty)) return null;
   const best = isNum(c.best) ? c.best : null;
   const row = {
-    id: c.id, seed: c.seed, difficulty: c.difficulty, mapVariant: variantOf(c.mapVariant), scoreVersion: isInt(c.scoreVersion) ? c.scoreVersion : SCORE_VERSION,
+    id: c.id, seed: c.seed, difficulty: c.difficulty, mapVariant: variantOf(c.mapVariant), ...sizeField(c.mapSize), scoreVersion: isInt(c.scoreVersion) ? c.scoreVersion : SCORE_VERSION,
     best, bestDay: best !== null && isInt(c.bestDay) ? c.bestDay : null, medal: best !== null && isMedal(c.medal) ? c.medal : null,
     splits: cleanSplits(c.splits), updated: isNum(c.updated) ? c.updated : 0,
   };
@@ -92,7 +96,7 @@ function cleanEntry(e) {
   const parts = {};
   for (const p of PARTS_BY_VERSION[version] || SCORE_PARTS) parts[p] = isObj(e.parts) && isNum(e.parts[p]) ? e.parts[p] : 0;   // a v1 seal has four
   const out = {
-    id: e.id, cityId: e.cityId, seed: e.seed, difficulty: e.difficulty, mapVariant: variantOf(e.mapVariant), day: isInt(e.day) ? e.day : 0, score: e.score, parts,
+    id: e.id, cityId: e.cityId, seed: e.seed, difficulty: e.difficulty, mapVariant: variantOf(e.mapVariant), ...sizeField(e.mapSize), day: isInt(e.day) ? e.day : 0, score: e.score, parts,
     splits: cleanSplits(e.splits), medal: isMedal(e.medal) ? e.medal : null,
     feats: Array.isArray(e.feats) ? e.feats.filter((f) => typeof f === 'string') : [], version,
     date: isNum(e.date) ? e.date : 0,
@@ -198,7 +202,7 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
       for (const row of world.history || []) {
         if (isNum(row.score)) bests.push({ best: row.score, bestDay: row.day, medal: medalFor(rawOf(row), rowVersion(row)), scoreVersion: rowVersion(row) });
       }
-      const row = withBests({ id: world.cityId, seed: world.seed, difficulty: world.difficulty, mapVariant: variantOf(world.mapVariant), scoreVersion: SCORE_VERSION, splits: cleanSplits(world.splits), updated: now }, bests);
+      const row = withBests({ id: world.cityId, seed: world.seed, difficulty: world.difficulty, mapVariant: variantOf(world.mapVariant), ...sizeField(world.mapSize), scoreVersion: SCORE_VERSION, splits: cleanSplits(world.splits), updated: now }, bests);
       const i = r.cities.findIndex((c) => c.id === row.id);
       if (i >= 0) r.cities[i] = mergeCity(r.cities[i], row); else r.cities.push(row);
       write(r);
@@ -207,7 +211,7 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
     addSeal(world, seal, now) {
       const r = read();
       const entry = cleanEntry({
-        id: `${world.cityId || 'city'}:${world.seals.length}:${seal.day}`, cityId: world.cityId || 'city', seed: world.seed, difficulty: world.difficulty, mapVariant: world.mapVariant,
+        id: `${world.cityId || 'city'}:${world.seals.length}:${seal.day}`, cityId: world.cityId || 'city', seed: world.seed, difficulty: world.difficulty, mapVariant: world.mapVariant, mapSize: world.mapSize,
         day: seal.day, score: seal.score, parts: seal.parts, splits: world.splits, medal: seal.medal, feats: [...world.feats.earned], version: seal.version, date: now,
         built: builtKinds(world),
       });
@@ -227,18 +231,19 @@ export function createRecords({ storage = defaultStorage(), key = RECORDS_KEY, m
       for (const c of read().cities) {
         for (const x of bestsOf(c)) {
           const k = `${keyOf(c)}|${x.scoreVersion}`;
-          if (!top.has(k) || x.best > top.get(k).best) top.set(k, { ...x, seed: c.seed, difficulty: c.difficulty, mapVariant: variantOf(c.mapVariant) });
+          if (!top.has(k) || x.best > top.get(k).best) top.set(k, { ...x, seed: c.seed, difficulty: c.difficulty, mapVariant: variantOf(c.mapVariant), mapSize: sizeOf(c.mapSize) });
         }
       }
       return [...top.values()].sort((a, b) => b.best - a.best || a.seed - b.seed).slice(0, n)
-        .map((c) => ({ seed: c.seed, difficulty: c.difficulty, ...(c.mapVariant !== 'classic' ? { mapVariant: c.mapVariant } : {}), score: c.best, medal: c.medal, version: c.scoreVersion, older: c.scoreVersion < SCORE_VERSION }));
+        .map((c) => ({ seed: c.seed, difficulty: c.difficulty, ...(c.mapVariant !== 'classic' ? { mapVariant: c.mapVariant } : {}), ...sizeField(c.mapSize), score: c.best, medal: c.medal, version: c.scoreVersion, older: c.scoreVersion < SCORE_VERSION }));
     },
     // The personal best on one seed and level, leaving out one city (the one being played): { score, splits } with the
     // highest best made under score `version` (this version by default; Stage 4: a t1 link asks for 1, ruling 259), null
     // when none, and the earliest day of each milestone; null when no other city has that seed, level and river layout (variant,
     // 'classic' when not given: the layout of every record from before Stage 4.5).
-    bestFor(seed, difficulty, { except = null, version = SCORE_VERSION, variant = 'classic' } = {}) {
-      const rows = read().cities.filter((c) => c.seed === seed && c.difficulty === difficulty && variantOf(c.mapVariant) === variantOf(variant) && c.id !== except);
+    // Stage 4.6 (ruling 333): and map size (Normal when not given).
+    bestFor(seed, difficulty, { except = null, version = SCORE_VERSION, variant = 'classic', size = DEFAULT_MAP_SIZE } = {}) {
+      const rows = read().cities.filter((c) => c.seed === seed && c.difficulty === difficulty && variantOf(c.mapVariant) === variantOf(variant) && sizeOf(c.mapSize) === sizeOf(size) && c.id !== except);
       if (!rows.length) return null;
       let score = null;
       const splits = {};

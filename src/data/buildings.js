@@ -34,7 +34,7 @@ export const BUILDINGS = {
   },
   clay_pit: {
     name: 'Clay pit', w: 2, d: 2, cost: 50, upkeep: 5, workers: 6, priority: 'industry', category: 'industry',
-    needsRoad: true, terrain: 'clay', produces: { good: 'clay', perMonth: 40 }, producerReach: 12,
+    needsRoad: true, terrain: 'clay', terrainMin: 2, produces: { good: 'clay', perMonth: 40 }, producerReach: 12,   // Stage 4.6 (ruling 331): 2 of its 4 tiles on clay
   },
   potter: {
     name: 'Potter', w: 2, d: 2, cost: 90, upkeep: 8, workers: 8, priority: 'industry', category: 'industry',

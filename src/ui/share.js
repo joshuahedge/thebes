@@ -2,7 +2,7 @@
 // only, labelled "friends' honour". Stage 3 contract: Track 0 fixed the names; Track E implements them. The interface reads
 // the date; the sim never does.
 import { SHARE, SCORE_PARTS, SCORE_FACTOR } from '../data/scoring.js';
-import { MAP_VARIANTS } from '../data/map.js';
+import { MAP_VARIANTS, MAP_SIZES, DEFAULT_MAP_SIZE } from '../data/map.js';
 import { T as TER } from '../sim/terrain.js';
 import { allBuildings } from '../sim/world.js';
 import { hashKey } from '../sim/daily.js';
@@ -35,18 +35,21 @@ const isPart = (n) => Number.isInteger(n) && n >= 0 && n <= 100;
 // The share link for a score: SHARE.base + '#t2.<seed>.<p|r|n|h>.<parts joined by ->.<months to each split
 // joined by -, x where not reached>.<4 base-36 check characters>'; '' for anything that is not a score. Stage 4: written
 // in SHARE.format (t2: five parts, seven splits, SHARE.formats). Stage 4.5: a city on another river layout than the classic one
-// adds '&variant=<name>' after the check (not part of it), so Start this seed builds the same map; classic adds nothing.
-export function shareLink({ seed, difficulty, parts, splits, variant = 'classic' } = {}) {
+// adds '&variant=<name>' after the check (not part of it), so Start this seed builds the same map; classic adds nothing. Stage 4.6 (ruling 333):
+// a city on a Small or Large map adds '&size=48' or '&size=80' the same way; Normal adds nothing, so every older link means the same map.
+export function shareLink({ seed, difficulty, parts, splits, variant = 'classic', size = DEFAULT_MAP_SIZE } = {}) {
   const f = SHARE.formats[SHARE.format];
   if (!Number.isInteger(seed) || seed < 0 || !SHARE.difficulty[difficulty] || !parts || !f.parts.every((p) => isPart(parts[p]))) return '';
   const months = f.splits.map((id) => (splits && Number.isInteger(splits[id]) ? splits[id] : 'x')).join('-');
   const body = `${SHARE.format}.${seed}.${SHARE.difficulty[difficulty]}.${f.parts.map((p) => parts[p]).join('-')}.${months}`;
   const tail = MAP_VARIANTS.includes(variant) && variant !== 'classic' ? `&variant=${variant}` : '';   // classic is left out, so every older link means the same city it always did
-  return `${SHARE.base}#${body}.${shareCheck(body)}${tail}`;
+  const sized = Object.values(MAP_SIZES).includes(size) && size !== DEFAULT_MAP_SIZE ? `&size=${size}` : '';
+  return `${SHARE.base}#${body}.${shareCheck(body)}${tail}${sized}`;
 }
 
 // Reads a location hash: { ok: true, seed, difficulty, parts, splits, version, older, variant } for a good link (variant: the
-// '&variant=' name, 'classic' when the link has none, as every older link; an unknown name reads as 'newer_format'. Stage 4: a t1 link
+// '&variant=' name, 'classic' when the link has none, as every older link; an unknown name reads as 'newer_format'; size: the '&size=' number,
+// absent when the link has none (Normal, as every older link), and a size that is not Small, Normal or Large reads as 'newer_format' too. Stage 4: a t1 link
 // still opens, with its four parts and five splits, version 1 and older: true; ruling 203), { ok: false, reason }
 // ('bad_check', 'newer_format', 'malformed') otherwise, and null for a hash that is not a share link at all.
 export function parseShareLink(hash) {
@@ -67,11 +70,14 @@ export function parseShareLink(hash) {
   const named = extra.find((e) => e.startsWith('variant='));
   const variant = named ? named.slice('variant='.length) : 'classic';
   if (!MAP_VARIANTS.includes(variant)) return { ok: false, reason: 'newer_format' };
+  const sizeNamed = extra.find((e) => e.startsWith('size='));
+  const size = sizeNamed ? Number(sizeNamed.slice('size='.length)) : DEFAULT_MAP_SIZE;
+  if (!Object.values(MAP_SIZES).includes(size)) return { ok: false, reason: 'newer_format' };
   return {
     ok: true, seed: Number(seedText), difficulty: LEVEL_OF[level],
     parts: Object.fromEntries(f.parts.map((p, i) => [p, Number(parts[i])])),
     splits: Object.fromEntries(f.splits.map((id, i) => [id, months[i] === 'x' ? null : Number(months[i])])),
-    version: f.version, older: f.version < SHARE.formats[SHARE.format].version, variant,
+    version: f.version, older: f.version < SHARE.formats[SHARE.format].version, variant, ...(sizeNamed ? { size } : {}),   // size only when the link names one: a Normal link reads as it always did
   };
 }
 
