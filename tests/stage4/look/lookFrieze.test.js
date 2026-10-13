@@ -57,11 +57,12 @@ describe('s4 look frieze and cartouches', () => {
       expect([cs.fontFamily, cs.boxShadow.startsWith(cssRgb(TOKENS.inkSoft)) && cs.boxShadow.includes('inset'), parseFloat(cs.borderTopLeftRadius) >= h2.getBoundingClientRect().height / 2]).toEqual([SERIF, true, true]);
       expect([tie.content, tie.position, parseFloat(tie.width) >= 2]).toEqual(['""', 'absolute', true]);
       // Ruling 18 and the art-direction review (5): the tie joins the outline or goes. Stage 4.6 (UX ruling 405) reshaped it: a flush 4 px bar on a
-      // square end read as a glitch beside the round end, so both ends are round and the tie is a thin bar set in from the right end, inside
-      // the outline, shorter than the loop (tests/stage46/ux/legibility.test.js holds the finding; this keeps the tie a part of the shape).
+      // square end read as a glitch beside the round end, so both ends are round; fix round 1 (ruling 409): a bar floating inside the end read as a
+      // text cursor, so the tie now crosses the loop's end line, a little taller than the loop (tests/stage46/ux/legibility.test.js holds the finding;
+      // this keeps the tie a part of the shape).
       const box = h2.getBoundingClientRect(), width = parseFloat(tie.width);
-      expect([parseFloat(tie.right) >= 4, parseFloat(tie.top) > 0, parseFloat(tie.bottom) > 0, width >= 1 && width <= 2.5, tie.backgroundColor]).toEqual([true, true, true, true, cssRgb(TOKENS.inkSoft)]);
-      expect(parseFloat(tie.height) < box.height).toBe(true);
+      expect([parseFloat(tie.right) <= 0 && parseFloat(tie.right) + width > 1, parseFloat(tie.top) < 0, parseFloat(tie.bottom) < 0, width >= 2 && width <= 3.5, tie.backgroundColor]).toEqual([true, true, true, true, cssRgb(TOKENS.inkSoft)]);
+      expect(parseFloat(tie.height) > box.height).toBe(true);
       expect(parseFloat(cs.borderTopRightRadius) >= box.height / 2 - 0.5).toBe(true);   // a round end, like the start
       // A section title is no cartouche: the serif face at a normal weight, no outline, a thin ink rule after its words.
       const h3cs = getComputedStyle(h3), rule = pseudo(h3, '::after');
@@ -82,7 +83,7 @@ describe('s4 look frieze and cartouches', () => {
       const h1 = card.element.querySelector('h1');
       expect([h1.textContent, getComputedStyle(h1).fontFamily, pseudo(card.element, '::before').height]).toEqual(['Thebes', SERIF, '4px']);
       const h1tie = pseudo(h1, '::after');                                                   // the name's tie joins its outline too
-      expect([h1tie.position, parseFloat(h1tie.right) >= 4, parseFloat(h1tie.top) > 0, parseFloat(h1tie.width) >= 1, parseFloat(h1tie.height) < h1.getBoundingClientRect().height]).toEqual(['absolute', true, true, true, true]);
+      expect([h1tie.position, parseFloat(h1tie.right) <= 0, parseFloat(h1tie.top) < 0, parseFloat(h1tie.width) >= 2, parseFloat(h1tie.height) > h1.getBoundingClientRect().height]).toEqual(['absolute', true, true, true, true]);   // it crosses the loop's end (ruling 409)
       const glyph = pseudo(h1, '::before');
       expect([glyph.content, glyph.backgroundImage.startsWith('url("data:image/svg+xml'), parseFloat(glyph.width) > 0]).toEqual(['""', true, true]);
       expect(r.root.querySelector('#title').textContent.includes('☥')).toBe(false);              // the glyph is a picture, never a word

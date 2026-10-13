@@ -1120,9 +1120,15 @@ body[data-layout="portrait"] .confirm.has-fit .conds, body[data-layout="portrait
    under the tick so the button stays 44 px tall and grows by a word's width, not a second button's. */
 .confirm .ok .keyhint { display: none; }
 body[data-keyboard="used"] .confirm .ok, body[data-keyboard="fine"][data-layout="wide"] .confirm .ok { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 0 8px; line-height: 1.1; }
-body[data-keyboard="used"] .confirm .ok .keyhint, body[data-keyboard="fine"][data-layout="wide"] .confirm .ok .keyhint { display: block; font-size: calc(12px * var(--ui-scale)); letter-spacing: 0.02em; opacity: 0.95; }
+body[data-keyboard="used"] .confirm .ok .keyhint, body[data-keyboard="fine"][data-layout="wide"] .confirm .ok .keyhint { display: block; font-size: calc(13px * var(--ui-scale)); letter-spacing: 0.02em; opacity: 0.95; }
 body[data-keyboard="used"] .confirm .ok .icon, body[data-keyboard="fine"][data-layout="wide"] .confirm .ok .icon { width: auto; }
 
+/* Fix round 1, ruling 409 (phone bar): on an upright phone the words sit beside the buttons by design (the bar keeps one height while the ghost
+   moves, and the corner buttons sit on it; stacking would cover a further row of map). A keyboard on a phone is rare, and the hint widened the tick
+   and squeezed the words further, so the portrait bar shows the tick alone (its title and aria-keyshortcuts still say Enter). The landscape-phone
+   (compact) bar already stacks its words over the buttons, so it keeps the hint. */
+body[data-layout="portrait"] .confirm .ok .keyhint { display: none !important; }
+body[data-layout="portrait"][data-keyboard="used"] .confirm .ok { display: inline-flex; flex-direction: row; padding: 0; }
 /* Ruling 404: the wide top bar's steps. Pause and the three speeds are one row of 44 px steps, each with its picture (pause bars, then one, two
    and three arrows); the pressed one is the state and alone carries its word ("Paused", "1×", "2×", "3×"). It is filled: lapis with gold ink
    while playing, amber with a heavy edge while paused, so the two states differ in the picture, the word and the shape of the fill and not
@@ -1157,8 +1163,11 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
    heading still reads as a cartouche (a loop with a tie) and nothing sits heavier than the line itself. */
 #sheet .head h2, .title-card h1 { border-radius: 0.75em; }
 #sheet .head h2 { padding-right: 20px; }   /* room for the tie after the last letter */
-#sheet .head h2::after { right: 8px; top: 24%; bottom: 24%; width: 2px; border-radius: 1px; background: var(--ink-soft); }
-.title-card h1::after { right: 9px; top: 24%; bottom: 24%; width: 2px; border-radius: 1px; background: var(--ink); }
+/* Fix round 1, ruling 409 (tie): a 2 px bar floating inside the loop's end read as a text cursor after the last letter. The tie now sits ON the
+   loop's end, straddling its stroke and standing a little proud of it top and bottom, the way a cartouche's end bar crosses the line: it is
+   part of the outline and cannot be mistaken for a caret in the words. The right padding stays, so the letters keep clear of it. */
+#sheet .head h2::after { right: -1px; top: -3px; bottom: -3px; width: 3px; border-radius: 1.5px; background: var(--ink-soft); }
+.title-card h1::after { right: -1px; top: -4px; bottom: -4px; width: 3px; border-radius: 1.5px; background: var(--ink); }
 /* Rulings 401-403: the version line under the tagline, the What's new button, and its panel (the title card's one panel at a time, with Back).
    The panel scrolls inside the card; its Back sits at the top and the foot. Lists read as plain bullets, New and Fixed in small headings. */
 .title-card .version { margin: -4px 0 4px; letter-spacing: 0.02em; }
