@@ -9,7 +9,7 @@ import { hash2 } from '../../src/sim/rng.js';
 import { serialize, deserialize } from '../../src/save/serialize.js';
 import { RAIDS, RAID_SALT, UNITS } from '../../src/data/raids.js';
 import { population } from '../../src/sim/world.js';
-import { alertText, DANGER_UI_TEXT as D, RAID_TEXT, TIP_TEXT, raiderTargetsTip } from '../../src/ui/text.js';
+import { alertText, DANGER_UI_TEXT as D, RAID_TEXT, TIP_TEXT, raiderTargetsTip, S46_ARMY_TEXT } from '../../src/ui/text.js';
 import { openGoals, triggerEventGoals } from '../../src/sim/goals.js';
 import { minimapPins } from '../../src/ui/minimap.js';
 import { triage, bannerModel } from '../../src/ui/alerts.js';
@@ -552,7 +552,9 @@ describe('s45 raid words follow the sim', () => {
     const alert = raidAlerts(w).find((x) => x.code === 'raid_warning');
     expect(triggerEventGoals(w, [alert])).toEqual(['raid_tower']);
     expect(openGoals(w)[0].text).toBe('Build a tower facing the east');
-    expect(alertText(alert, w).title).toBe(`Raiders from the east are after your ${RAID_TEXT.targets(warn.target)}`);
+    // Stage 4.6 (ruling 388): a mixed raid's title says how many come (the 4th raid may bring archers); the direction is said once either way.
+    const who = S46_ARMY_TEXT.isMixedMix(warn.mix) ? `${warn.size} raiders from the east` : 'Raiders from the east';
+    expect(alertText(alert, w).title).toBe(`${who} are after your ${RAID_TEXT.targets(warn.target)}`);
     const said = D.cancels(q.dirs, q.size);
     expect(said).toBe(`Cancels the raid from the east (${q.size} raiders). The next raid still comes.`);
     expect(said.includes('two bands')).toBe(false);

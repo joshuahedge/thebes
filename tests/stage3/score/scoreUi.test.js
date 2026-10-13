@@ -34,7 +34,7 @@ describe('s3 score words', () => {
     ]).toEqual([
       'Town: 83 of 150 people', 'Most homes are Townhouses', '12% of workers have no job', 'No trade route yet', 'Only 1 trade route is open',
       '4 homes have no entertainment', '1 home has no temple', 'No staffed firehouse reaches the east streets', 'No staffed firehouse reaches 1 building',
-      'A raid this size needs 3 towers; you have 1 working', 'A raid this size needs 1 tower; you have 0 working and 2 soldiers',
+      'A raid this size needs 3 towers; you have 1 working', 'A raid this size needs 1 tower; you have 0 working and 2 army units',
       '1 building burned in the last year', 'The treasury is 120 gold in debt', '',
     ]);
     expect([scoreChipText(247), medalText('silver'), medalText(null), nextMedalText({ medal: 'gold', points: 38 }), nextMedalText({ medal: 'bronze', points: 1 }), nextMedalText(null)])
