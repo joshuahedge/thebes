@@ -145,7 +145,7 @@ describe('s3 score citizen remarks', () => {
     for (const s of ['akhet', 'peret', 'shemu']) expect([s, CITIZEN_REMARKS.filter((r) => r.season === s).length >= 8]).toEqual([s, true]);
     for (const r of CITIZEN_REMARKS) expect([r.text, Boolean(BUILDINGS[r.type])]).toEqual([r.text, true]);
     expect(new Set(CITIZEN_REMARKS.map((r) => r.text)).size).toBe(CITIZEN_REMARKS.length);
-    expect(SEASONS.map((s, i) => `${i + 1}:${s}`).join(' ')).toBe('1:shemu 2:shemu 3:shemu 4:shemu 5:shemu 6:shemu 7:akhet 8:akhet 9:akhet 10:akhet 11:peret 12:peret');   // Stage 4.6 (ruling 346): the flood is months 7-10
+    expect(SEASONS.map((s, i) => `${i + 1}:${s}`).join(' ')).toBe('1:peret 2:peret 3:shemu 4:shemu 5:shemu 6:shemu 7:akhet 8:akhet 9:akhet 10:akhet 11:peret 12:peret');   // Stage 4.6 (ruling 346): the flood is months 7-10
   });
   it('picks one every third month from the season\'s remarks whose building the city has, the same each time', () => {
     const w = makeTestWorld();
