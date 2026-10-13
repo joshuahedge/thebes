@@ -3,3 +3,5 @@
 import './wondersData.test.js';
 import './wondersSim.test.js';
 import './wondersArt.test.js';
+import './wondersUi.test.js';
+import './wondersScenes.test.js';
