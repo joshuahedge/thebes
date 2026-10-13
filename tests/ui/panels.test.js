@@ -21,7 +21,7 @@ describe('ui panels', () => {
     fire(tabs[4], 'click');
     expect(store.get().category).toBe('services');
     expect(tabs[4].getAttribute('aria-pressed')).toBe('true');
-    expect(root.querySelectorAll('.cards .card').length).toBe(7);   // Stage 4: the palace, and (4.5) the physician, locked until Town
+    expect(root.querySelectorAll('.cards .card').length).toBe(8);   // Stage 4: the palace, and (4.5) the physician, locked until Town
     fire(root.querySelectorAll('.cards .card')[2], 'click');
     expect(picked).toEqual(['temple']);
     fire(root.querySelector('.fold'), 'click');

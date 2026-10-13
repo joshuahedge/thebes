@@ -28,6 +28,7 @@ import { monthIndex } from '../sim/clock.js';
 import { hash2 } from '../sim/rng.js';
 import { el, clear } from './components.js';
 import { isCut, writeMore } from './expand.js';
+import { floodFairOrBetter } from '../sim/flood.js';
 import { cheerReward, CITIZEN_REMARKS, score4CourseText, score4FinishText, score4FinishWhy, score4PalaceText } from './text.js';
 
 // The citizen remark for the month that has just begun (spec 4.19, ruling 130), or null: only at a month index that is a
@@ -38,7 +39,9 @@ export function remarkFor(world) {
   if (m <= 0 || m % REMARK_EVERY_MONTHS !== 0) return null;
   const season = SEASONS[m % SEASONS.length];
   const has = new Set(allBuildings(world).map((b) => b.type));
-  const pool = CITIZEN_REMARKS.filter((r) => r.season === season && has.has(r.type));
+  // Stage 4.6 (ruling 346): a remark that speaks of the river rising (flood: 'fair') is heard only in a year whose flood is Fair or better.
+  const fair = floodFairOrBetter(world);
+  const pool = CITIZEN_REMARKS.filter((r) => r.season === season && has.has(r.type) && (!r.flood || fair));
   if (!pool.length) return null;
   return pool[Math.min(pool.length - 1, Math.floor(hash2(world.seed, m, REMARK_SALT) * pool.length))].text;
 }
