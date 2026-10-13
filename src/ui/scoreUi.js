@@ -17,7 +17,7 @@ import { isMonument, isSite } from '../sim/world.js';
 import { downloadFile } from '../save/exportImport.js';
 import { openSheet } from './modes.js';
 import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, weeklySeed, drawMapSquare, medalColour } from './share.js';
-import { generateMap, variantFor } from '../sim/mapgen.js';
+import { generateMap } from '../sim/mapgen.js';
 import { el, button, setText } from './components.js';
 import {
   SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
@@ -287,16 +287,18 @@ function drawGlyph(g, kind, cx, base, s) {
   g.stroke();
   g.fill();
 }
-const stampMaps = new Map();   // seed -> its generated map: a stamp row often repeats a seed (at most STAMP_MAX kept)
-function stampMap(seed) {
-  if (!stampMaps.has(seed)) {
+const stampMaps = new Map();   // 'seed|variant' -> its generated map: a stamp row often repeats a seed (at most STAMP_MAX kept)
+// A stamp draws the map its city really had: the entry's mapVariant ('classic' for a record from before Stage 4.5).
+export function stampMap(seed, variant = 'classic') {
+  const key = `${seed}|${variant}`;
+  if (!stampMaps.has(key)) {
     if (stampMaps.size >= STAMP_MAX) stampMaps.delete(stampMaps.keys().next().value);
-    stampMaps.set(seed, generateMap(seed, undefined, variantFor(seed)));   // a new city's layout is its seed's (ruling 313); cosmetic for an older city
+    stampMaps.set(key, generateMap(seed, undefined, variant));
   }
-  return stampMaps.get(seed);
+  return stampMaps.get(key);
 }
 function stampFor(entry, dpr) {
-  const map = stampMap(entry.seed);
+  const map = stampMap(entry.seed, entry.mapVariant || 'classic');
   const px = Math.round(STAMP_PX * dpr);
   const c = el('canvas', { class: 'stamp', role: 'img', 'aria-label': score4StampLabel(entry), width: px, height: px });
   c.style.width = `${STAMP_PX}px`; c.style.height = `${STAMP_PX}px`;

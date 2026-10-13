@@ -48,7 +48,7 @@ function roadText(world, r) {
   const parts = [];
   if (roads) parts.push(plural(roads, 'tile', 'tiles'));
   if (gates) parts.push(S45_TEXT.gateNote(gates, costOf(world, 'gate')));
-  if (bridges) parts.push(S45_TEXT.bridgeNote(bridges, bridges * costOf(world, 'bridge')));
+  if (bridges) parts.push(S45_TEXT.bridgeNote(bridges, r.bridgeCost));
   return parts.join(' · ');
 }
 const roadRefusalText = (r) => (r.reason === 'too_wide' ? S45_TEXT.tooWide(r.water) : reasonText(r.reason));

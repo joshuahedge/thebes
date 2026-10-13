@@ -8,3 +8,4 @@ import './clay.test.js';
 import './worldV6.test.js';
 import './variants.test.js';
 import './bridges.test.js';
+import './stamps.test.js';

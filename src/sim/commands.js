@@ -356,7 +356,7 @@ function roadTileReason(world, x, y, gateOnly = false, bridgeOk = false) {
 // tile with road already is left as it is, a gate included), gates: the subset that are gates, bridges: the water tiles that get
 // a bridge (Stage 4.5, ruling 314: a straight run of at most BRIDGE_MAX tiles of water with land at both ends, each tile at
 // costOf(world, 'bridge'); a longer or bent run refuses with 'too_wide' (water: how many tiles of water it holds) or
-// 'bridge_shape', and a touch plan skips its tiles with that reason), cost, skipped:
+// 'bridge_shape', and a touch plan skips its tiles with that reason), bridgeCost (the bridges' share of cost), cost, skipped:
 // [{ x, y, reason }] }. Stage 4.5 (ruling 309): a road may cross a wall; each standing wall tile it crosses without a road,
 // and each breach, becomes a gate at the gate price (costOf(world, 'gate')) instead of the road price. By default the
 // first tile that cannot take a road refuses the lot ('out_of_bounds', 'water', 'blocked'), as the mouse's L does; with
@@ -382,9 +382,10 @@ export function previewRoadTiles(world, list, { skipBlocked = false, gateOnly = 
     if (wall < 0 || (wall > 0 && !world.road[i])) { tiles.push(i); gates.push(i); }
     else if (!wall && !world.road[i]) { tiles.push(i); if (onWater) bridges.push(i); }
   }
-  const cost = (tiles.length - gates.length - bridges.length) * roadCostOf(world) + gates.length * costOf(world, 'gate') + bridges.length * costOf(world, 'bridge');
-  if (!canAfford(world, cost)) return fail('no_gold', { tiles, gates, bridges, cost, skipped });
-  return { ok: true, warnings: [], tiles, gates, bridges, cost, skipped };
+  const bridgeCost = bridges.length * costOf(world, 'bridge');
+  const cost = (tiles.length - gates.length - bridges.length) * roadCostOf(world) + gates.length * costOf(world, 'gate') + bridgeCost;
+  if (!canAfford(world, cost)) return fail('no_gold', { tiles, gates, bridges, bridgeCost, cost, skipped });
+  return { ok: true, warnings: [], tiles, gates, bridges, bridgeCost, cost, skipped };
 }
 
 // Lays the preview's tiles, charges for them and pushes one undo entry for the whole list. A gate tile gets its road and its
