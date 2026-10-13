@@ -253,7 +253,7 @@ function dust(g, edge, t) {
 function drawScene(g, world, b, look, { now, timeDays, motion }) {
   const m = siteMemo(world, b, look, now);
   if (look.done) {
-    const mark = drawFinished(g, b.x, b.y, b.w, b.d, b.type);
+    const mark = drawFinished(g, b.x, b.y, b.w, b.d, b.type, look.style);
     const age = now - m.doneAt;
     if (motion === 'full') {
       if (age >= 0 && age < SHINE_MS) shine(g, mark, age / SHINE_MS);
@@ -299,7 +299,7 @@ export function minimapGlyph(ctx, b, scale, dpr = 1) {
   ctx.beginPath();
   if (fam === 'pyramid') { ctx.moveTo(x0, y0 + d); ctx.lineTo(x0 + w, y0 + d); ctx.lineTo(cx, y0); ctx.closePath(); }
   else if (fam === 'obelisk') { const bw = Math.max(3 * dpr, w * 0.4); ctx.rect(cx - bw / 2, y0 - d * 0.3, bw, d * 1.3); }
-  else if (fam === 'mastaba') { ctx.rect(x0, y0 + d * 0.3, w, d * 0.7); ctx.rect(x0 + w * 0.2, y0, w * 0.6, d * 0.3); }
+  else if (fam === 'mastaba' || fam === 'step') { ctx.rect(x0, y0 + d * 0.3, w, d * 0.7); ctx.rect(x0 + w * 0.2, y0, w * 0.6, d * 0.3); }   // Stage 4.6: the step pyramid's stepped glyph
   else { ctx.rect(x0 + w * 0.15, y0 + d * 0.35, w * 0.7, d * 0.65); ctx.rect(cx - w * 0.15, y0, w * 0.3, d * 0.35); }
   ctx.stroke();
   ctx.fill();                                              // over the stroke's inner half, so a small glyph keeps its colour

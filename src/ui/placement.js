@@ -2,6 +2,7 @@
 // by assignLabour so derived state is fresh while paused (1a follow-up).
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { MONUMENTS, MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
+import { MONUMENT_STYLES, MONUMENT_STYLE_PICK_DEFAULT } from '../data/wonders.js';
 import {
   canPlace, conditionsFor, place, previewRoad, drawRoad, roadPath, previewHouses, paintHouses, previewDemolishArea, demolishArea, demolishAt, rectTiles,
   previewRoadTiles, drawRoadTiles, previewHouseTiles, paintHouseTiles, previewDemolishTiles, demolishTiles, previewPlazaTiles, paintPlazaTiles,
@@ -29,10 +30,14 @@ import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
 import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT } from './text.js';
 import { bridgeSpot } from '../sim/bridges.js';
+import { styleChoices } from './s46/wonders.js';
 
 // A building tool's footprint in its rotation (Stage 4: tool.rot 1 turns a mastaba a quarter, dimsOf; ruling 234).
 const footprintOf = (tool) => (tool.kind === 'building' ? dimsOf(tool.type, tool.rot || 0) : { w: 1, d: 1 });
 const rotOf = (tool) => (tool && tool.rot) || 0;
+// Stage 4.6 (Wonders track, ruling 343): the style a monument's tool carries (the bar's picker sets it, createPlacement.start gives it the last
+// one chosen), null for anything else. A tool made without one reads as the picker's default.
+const styleOfTool = (tool) => (tool && tool.kind === 'building' && BUILDINGS[tool.type].monument ? (MONUMENT_STYLES[tool.style] && MONUMENT_STYLES[tool.style].pick ? tool.style : MONUMENT_STYLE_PICK_DEFAULT) : null);
 const isMonumentType = (type) => Boolean(BUILDINGS[type] && BUILDINGS[type].monument);
 // How far a picked building's ghost looks for a fit (spec 6.5, ruling 232): 16 tiles for footprints of 3x3 and up
 // (MONUMENT_PLACING.bigArea tiles: the 4x3 mastaba, the pyramids and the palace), else NEAREST_FIT_RADIUS.
@@ -137,7 +142,7 @@ export function nearestFit(world, tool, x, y, maxR = null, farR = null) {
   const scan = (from, to) => {
     for (let r = from; r <= to; r++) {
       for (const [tx, ty] of ringTiles(start.x, start.y, r)) {
-        const c = canPlace(world, tool.type, tx, ty, { roadLater: true, rot });   // off-map origins fail here as out_of_bounds
+        const c = canPlace(world, tool.type, tx, ty, { roadLater: true, rot, style: styleOfTool(tool) });   // off-map origins fail here as out_of_bounds
         if (!c.ok) continue;
         if (!c.warnings.length) return { x: tx, y: ty };
         if (!warned || c.warnings.length < warned.n) warned = { x: tx, y: ty, n: c.warnings.length };
@@ -220,9 +225,9 @@ function basePreview(world, state) {
     const def = BUILDINGS[tool.type];
     if (!state.ghost) return idle('');
     const { x, y } = state.ghost;
-    const cost = costOf(world, tool.type);
+    const cost = costOf(world, tool.type, { style: styleOfTool(tool) });
     // Every condition on its own (P9); a building that lacks only a road can still be placed, in amber (P10).
-    const c = conditionsFor(world, tool.type, x, y, { roadLater: true, rot: rotOf(tool) });
+    const c = conditionsFor(world, tool.type, x, y, { roadLater: true, rot: rotOf(tool), style: styleOfTool(tool) });
     const refused = c.warnings.includes('no_storage') && refusingStores(world, { id: -1, x, y, w: def.w, d: def.d }, def.produces.good, def.producerReach).length > 0;
     const chips = c.conditions.filter((k) => k.key !== 'gold' || k.state !== 'met').map((k) => {
       // Stage 4 (Track C, spec 6.5, ruling 230): a monument's chips say its own words (ground, road, crew, supply, founding).
@@ -356,7 +361,7 @@ export function toolPreview(world, state) {
   p.balanceNet = 0;
   if (state.tool.kind === 'building' && isMonumentType(state.tool.type) && (p.state === 'ok' || p.state === 'warn')) {
     p.score = scoreLineFor(world, state.tool.type, state.ghost.x, state.ghost.y);
-    p.line = [p.score, monumentLine(world, state.tool.type, state.ghost.x, state.ghost.y, rotOf(state.tool))].filter(Boolean).join(' · ');
+    p.line = [p.score, monumentLine(world, state.tool.type, state.ghost.x, state.ghost.y, rotOf(state.tool), styleOfTool(state.tool))].filter(Boolean).join(' · ');
   } else if (state.tool.kind === 'building' && (p.state === 'ok' || p.state === 'warn')) {
     const d = nicerFor(world, state.tool.type, state.ghost.x, state.ghost.y);
     p.nicer = nicerText(d.better, d.worse);
@@ -384,21 +389,21 @@ export function toolPreview(world, state) {
 // nicer and the homes the site makes less pleasant (desirabilityPreview, finished and as a site). Parts that are 0 are left out. Memoised per ghost
 // spot on the desirability field, as nicerFor is.
 const lineMemo = new WeakMap();   // world -> { field, key, value }
-export function monumentLine(world, type, x, y, rot = 0) {
+export function monumentLine(world, type, x, y, rot = 0, style = null) {
   const field = desirabilityField(world);
   // "One of each kind counts" is true only once the standing one holds the kind's whole share (it is finished): while it is
   // unfinished, paused or at course 0, a second that gets further earns prestige up to the difference. Its state is in the key.
   const first = prestigeByKind(world)[type];
   const standing = first.id !== null ? world.buildings[first.id] : null;
   const held = Boolean(standing && standing.site && standing.site.done !== null);
-  const key = `${type}|${x}|${y}|${rot}|${world.difficulty}|${world.nextId}|${held}`;
+  const key = `${type}|${x}|${y}|${rot}|${style}|${world.difficulty}|${world.nextId}|${held}`;
   const m = lineMemo.get(world);
   if (m && m.field === field && m.key === key) return m.value;
   const U = UI4_TEXT;
   const parts = [];
   if (held) parts.push(U.oneOfEach);
-  parts.push(U.crewGold(workGoldPerUnit(world) * MONUMENT.unitsPerCrewMonth));
-  const done = desirabilityPreview(world, type, x, y, { rot });
+  parts.push(U.crewGold(workGoldPerUnit(world, style) * MONUMENT.unitsPerCrewMonth));   // Stage 4.6: a gilded site pays 10% more a crew
+  const done = desirabilityPreview(world, type, x, y, { rot, style });
   if (done.better) parts.push(U.finishedNicer(done.better));
   const site = desirabilityPreview(world, type, x, y, { rot, site: true });
   if (site.worse) parts.push(U.whileBuilding(site.worse));
@@ -415,7 +420,7 @@ function finishedGhost(tool, ghost, w, d) {
     course: m.courses.length, laid: { stone: 0, bricks: 0 }, stock: { stone: 0, bricks: 0 }, carry: 0, extraPaid: Boolean(m.extra), crews: [], idle: 0, reason: null,
     month: { units: 0, gold: 0, crews: 0, crewDays: 0, starvedDays: 0 }, last: null, starved: false, done: 0,
   };
-  return { id: -1, type: tool.type, x: ghost.x, y: ghost.y, w, d, rot: rotOf(tool), staff: 0, paused: false, store: {}, site };
+  return { id: -1, type: tool.type, x: ghost.x, y: ghost.y, w, d, rot: rotOf(tool), staff: 0, paused: false, store: {}, site, style: styleOfTool(tool) };   // Stage 4.6: the silhouette wears the style picked
 }
 
 // Ghost shapes for drawGhost. Demolish marks only the tiles that have something on them.
@@ -456,7 +461,7 @@ export function fitTarget(world, state) {
   if (tool.kind === 'building') {
     const g = state.ghost || world.focus, def = BUILDINGS[tool.type], rot = rotOf(tool);
     const at = nearestFit(world, tool, g.x, g.y, null, world.size);
-    if (!canPlace(world, tool.type, at.x, at.y, { roadLater: true, rot }).ok) return null;
+    if (!canPlace(world, tool.type, at.x, at.y, { roadLater: true, rot, style: styleOfTool(tool) }).ok) return null;
     const { w, d } = dimsOf(tool.type, rot);
     return { kind: 'building', item: tool.type, x: at.x + w / 2, y: at.y + d / 2, def };
   }
@@ -473,6 +478,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
   // The stroke a finger is drawing: the plan before it (base), where it went down (x0, y0), the tiles it has followed (path, roads
   // and walls) and the tile it is on (at). Gone when the finger lifts, or with the tool.
   let stroke = null;
+  let lastStyle = null;   // Stage 4.6: the style the player last picked for a monument, which the next monument's tool starts on
   const inMap = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < world.size && y < world.size;
   const drawingTool = (s) => Boolean(s.tool) && s.tool.kind !== 'building';
   const setPlan = (tiles) => store.set({ plan: tiles.length ? { tiles } : null, line: null, area: null });
@@ -482,6 +488,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
   const api = {
     start(tool, centre = null) {
       stroke = null;
+      if (tool.kind === 'building' && BUILDINGS[tool.type].monument && !tool.style) tool = { ...tool, style: lastStyle || MONUMENT_STYLE_PICK_DEFAULT };
       // Stage 4 (spec 4.20, ruling 271): while a palace stands its card selects it (its sheet opens) instead of starting a tool.
       const palace = tool.kind === 'building' && tool.type === 'palace' ? palaceOf(world) : null;
       if (palace) { store.set(select(store.get(), palace.id)); return; }
@@ -564,6 +571,21 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       store.set({ tool, ghost: snapGhost(world, tool, cx - Math.floor((now.w - 1) / 2), cy - Math.floor((now.d - 1) / 2)) });
       return true;
     },
+    // Stage 4.6 (Wonders track, ruling 343): the confirm bar's style picker for a monument. style() is the one in force (null for any other tool);
+    // setStyle(id) takes one of the offered styles (MONUMENT_STYLES pick: true) and the silhouette, the price and the lines follow it.
+    style: () => styleOfTool(store.get().tool),
+    // The picker's choices ([{ id, name, active, line }], with the consequence of each in words) for a monument tool, else null.
+    styleChoices() {
+      const t = store.get().tool, style = styleOfTool(t);
+      return style === null ? null : styleChoices(world, t.type, style);
+    },
+    setStyle(id) {
+      const s = store.get();
+      if (!s.tool || styleOfTool(s.tool) === null || !MONUMENT_STYLES[id] || !MONUMENT_STYLES[id].pick) return false;
+      lastStyle = id;
+      store.set({ tool: { ...s.tool, style: id } });
+      return true;
+    },
     preview: () => toolPreview(world, store.get()),
     ghosts: () => ghostsFor(world, store.get()),
     // The desirability tint under a building's ghost (spec 4.7): the tiles it would change, while it can go there and a
@@ -593,7 +615,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         text = t.kind === 'road' ? roadDoneText(t, result) : t.kind === 'wall' ? T.wallBuilt : t.kind === 'houses' ? '' : t.kind === 'plazas' ? UI4_TEXT.plazasLaid(result.ok ? result.ids.length : 0) : T.demolished;
       } else if (t.kind === 'building') {
         const def = footprintOf(t);
-        result = place(world, t.type, s.ghost.x, s.ghost.y, { roadLater: true, rot: rotOf(t) });   // only the player's placing waits for a road (P10)
+        result = place(world, t.type, s.ghost.x, s.ghost.y, { roadLater: true, rot: rotOf(t), style: styleOfTool(t) });   // only the player's placing waits for a road (P10)
         cx = s.ghost.x + def.w / 2; cy = s.ghost.y + def.d / 2;
         // Stage 4 (ruling 233): a monument is founded, "Small obelisk founded · Undo" ("· needs a road" with none).
         text = isMonumentType(t.type) ? UI4_TEXT.founded(t.type) : `${buildingName(t.type)} ${T.placed.toLowerCase()}`;

@@ -18,17 +18,28 @@ export const MONUMENT_STYLES = {
   gilded: { pick: true, goldFactor: 1.1, desirability: 1 },
 };
 export const MONUMENT_STYLE_IDS = Object.keys(MONUMENT_STYLES);
-// The style makeBuilding gives a monument placed with no style named (place(world, type, x, y, { style })). 'classic' until the
-// Wonders track's picker lands; it then names the picker's default here.
+// The style makeBuilding gives a monument placed with no style named (place(world, type, x, y, { style })): 'classic', so a sample city, a
+// dev scene or a test that founds one with no word about style gets the monument as it was drawn before Stage 4.6 (ruling 393). The
+// placing bar always names one: PICK_DEFAULT is the style it starts on.
 export const MONUMENT_STYLE_DEFAULT = 'classic';
+export const MONUMENT_STYLE_PICK_DEFAULT = 'whitewashed';
+// The styles the placing bar offers, in its order (classic is never offered).
+export const PICKABLE_STYLES = MONUMENT_STYLE_IDS.filter((id) => MONUMENT_STYLES[id].pick);
 
 // ── The Wonders track's rows in the Stage 4.6 lists (src/data/s46.js joins them) ──
 // WONDER_UNLOCKS: milestone id -> the new kinds that unlock with it (a kind that also needs prestige says so in its MONUMENTS unlock,
-// as the pyramids do, and stays out of this list).
-export const WONDER_UNLOCKS = {};
+// as the pyramids do, and stays out of this list). Ruling 392: the step pyramid comes with Capital and no prestige, because a prestige
+// unlock is one more key in world.prestigeUnlocks and an older save has no such key (the migration is Track 0's).
+export const WONDER_UNLOCKS = { great_city: ['great_sphinx'], capital: ['sun_temple', 'step_pyramid'] };
 export const WONDER_TALLY = [];
-export const WONDER_FIRSTS = [];
+// One first for each new kind: the first one founded (a road touches it, as every first of a building counts).
+export const WONDER_FIRSTS = NEW_MONUMENT_KINDS.map((type) => ({ id: `first_${type}`, check: { kind: 'building', type } }));
 export const WONDER_ACHIEVEMENTS = [];
-export const WONDER_TIPS = [];
+// One tip for each new kind, shown once when its card unlocks (fired by the Wonders seam's refresh, src/ui/s46/wonders.js), and one on styles,
+// shown once the first monument has been founded (a tip fired while a tool is active waits for it to end). Their words are TIP_TEXT and TIP_HELP_TEXT (src/ui/text.js, the s46 wonders section).
+export const WONDER_TIPS = [
+  ...NEW_MONUMENT_KINDS.map((type) => ({ id: `wonder_${type}`, trigger: `${type}Unlocked`, priority: false })),
+  { id: 'monument_styles', trigger: 'monumentFounded', priority: false },
+];
 // Salts: render-only variation for the styles' paint (hash2(b.id, k, WONDER_SALT.paint)); the sim draws nothing for Wonders.
 export const WONDER_SALT = { paint: 4681, spare1: 4682 };
