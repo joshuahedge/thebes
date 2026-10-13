@@ -76,6 +76,28 @@ describe('s45 newcomers arrive', () => {
     expect(out.length).toBe(1);
     expect(Math.hypot(out[0].x - (h.x + 0.5), out[0].y - (h.y + 0.5))).toBeLessThan(1.5);
   });
+  it('reads a merge of homes as no arrivals, and a split as no leavers, even on a month day', () => {
+    const { w, hs } = town();
+    const [h] = hs;
+    w.day = 29; newcomersAt(w, 29, null, 'full');
+    h.w = 2; h.residents += 4;                                   // two homes merged: the survivor takes both households
+    w.day = 30;
+    expect(newcomersAt(w, 30, null, 'full')).toEqual([]);
+    expect(newcomersAt(w, 31, null, 'full')).toEqual([]);
+    w.day = 59; newcomersAt(w, 59, null, 'full');
+    h.w = 1; h.residents -= 4;                                   // and split again: the plot keeps its id, residents fall
+    w.day = 60;
+    expect(newcomersAt(w, 60, null, 'full')).toEqual([]);
+    expect(newcomersAt(w, 61, null, 'full')).toEqual([]);
+  });
+  it('shows nothing for a frame that saw more days than the detection window', () => {
+    const { w, hs } = town();
+    w.day = 9; newcomersAt(w, 9, null, 'full');
+    hs[0].residents += 4;
+    w.day = 40;
+    expect(newcomersAt(w, 40, null, 'full')).toEqual([]);
+    expect(newcomersAt(w, 41, null, 'full')).toEqual([]);
+  });
 });
 
 describe('s45 newcomers limits', () => {
