@@ -2354,6 +2354,7 @@ export const S46_UX_TEXT = {
   speedGlyphs: ['❚❚', '▶', '▶▶', '▶▶▶'],
   speedGroup: 'Game speed',
   pausedWord: 'Paused',
+  playingState: (speedLabel) => `Playing at ${speedLabel}`,   // ruling 419: the state while running, beside the action the button names
   speedStepLabel: (s) => (s === 0 ? 'Pause' : `Play at ${SPEED_LABELS[s]} speed`),
   speedStepTitle: (s) => (s === 0 ? 'Pause (Space)' : `Play at ${SPEED_LABELS[s]} speed (+ and - change it)`),
   // Rulings 401-403: the version and What's new on the title card. The notes themselves are src/data/releases.js.

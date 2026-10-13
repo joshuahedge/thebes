@@ -18,7 +18,7 @@ describe('s46 ux speed control', () => {
       expect(list.length).toBe(4);
       list.forEach((b, s) => {
         expect([s, b.getAttribute('aria-label')]).toEqual([s, S46_UX_TEXT.speedStepLabel(s)]);
-        expect([s, b.querySelector('.icon').textContent, b.querySelector('.icon').getAttribute('aria-hidden')]).toEqual([s, S46_UX_TEXT.speedGlyphs[s], 'true']);
+        expect([s, b.querySelector('.icon').dataset.glyph, b.querySelector('.icon').getAttribute('aria-hidden')]).toEqual([s, S46_UX_TEXT.speedGlyphs[s], 'true']);
         const box = b.getBoundingClientRect();
         expect([s, box.height >= 43.5, box.width >= 43.5]).toEqual([s, true, true]);
       });
@@ -45,7 +45,7 @@ describe('s46 ux speed control', () => {
       expect(list.map(word)).toEqual(['', '', SPEED_LABELS[2], '']);              // playing at 2x: the speed in words on the pressed step
       expect(fill(list[2]) === idleFill).toBe(false);
       expect(fill(list[2]) === pausedFill).toBe(false);                           // playing and paused do not share a fill
-      expect(list[2].querySelector('.icon').textContent === list[0].querySelector('.icon').textContent).toBe(false);   // nor a picture
+      expect(list[2].querySelector('.icon').dataset.glyph === list[0].querySelector('.icon').dataset.glyph).toBe(false);   // nor a picture
     } finally { r.cleanup(); }
   });
   it('stays about as wide as the old four words were, so the numbers beside it keep their one row', async () => {
