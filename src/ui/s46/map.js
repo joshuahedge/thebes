@@ -93,8 +93,9 @@ export function createMapUi(ctx) {
     // Stage 4.7 (Task 2): the first building within reach of an oasis fires the oasis tip (the first itself is the sim's, src/sim/firsts.js).
     onCommand(e) {
       if (e && e.kind === 'road' && e.result && e.result.ok && e.result.bridges && e.result.bridges.length) ctx.fireTip('roadMeetsWater');
-      const built = e && e.kind === 'building' && e.result && e.result.ok && ctx.world && ctx.world.buildings[e.result.id];
-      if (built && builtNearOasis(ctx.world, built)) ctx.fireTip('oasisBuilt');
+      // a building, or the plots and plazas of one drawing (houses and plazas come back as a list of ids), as the sim's own tally counts them
+      const ids = e && e.result && e.result.ok && ctx.world ? (e.kind === 'building' ? [e.result.id] : e.kind === 'houses' || e.kind === 'plazas' ? e.result.ids || [] : []) : [];
+      if (ids.some((id) => ctx.world.buildings[id] && builtNearOasis(ctx.world, ctx.world.buildings[id]))) ctx.fireTip('oasisBuilt');
     },
     destroy() { for (const f of off) f(); off = []; },
   };

@@ -25,9 +25,17 @@ export function inOasisPool(world, x, y) {
   if (!world.oases || !world.oases.length || !inBounds(world.size, x, y) || world.terrain[idx(world.size, x, y)] !== T.WATER) return false;
   return world.oases.some((o) => Math.hypot(x - o.x, y - o.y) <= o.r);
 }
-// The oasis whose pool lies within `tiles` of (x, y), else null.
+// The oasis with a pool tile within `tiles` of (x, y) (distance to the nearest pool tile, not to the oasis's centre), else null.
 export function oasisNear(world, x, y, tiles = OASES.near) {
-  return (world.oases || []).find((o) => Math.hypot(x - o.x, y - o.y) <= o.r + tiles) || null;
+  for (const o of world.oases || []) {
+    if (Math.hypot(x - o.x, y - o.y) > o.r + tiles) continue;   // cheap reject: no pool tile can be nearer than this
+    for (let py = Math.floor(o.y - o.r); py <= Math.ceil(o.y + o.r); py++) {
+      for (let px = Math.floor(o.x - o.r); px <= Math.ceil(o.x + o.r); px++) {
+        if (Math.hypot(x - px, y - py) <= tiles && inOasisPool(world, px, py)) return o;
+      }
+    }
+  }
+  return null;
 }
 // Whether a building's footprint stands within OASES.near tiles of an oasis (src/data/s47.js: the "An oasis in the desert" first).
 export function builtNearOasis(world, b) {

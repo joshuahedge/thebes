@@ -7,7 +7,7 @@ import { T, TERRAIN_BY_NAME } from './terrain.js';
 import { hash2 } from './rng.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { MAP } from '../data/map.js';
-import { RESOURCES, S47_SALT, resourceReach } from '../data/s47.js';
+import { RESOURCES, OASES, S47_SALT, resourceReach } from '../data/s47.js';
 
 // The three buildings the guarantee counts, by the key of RESOURCES.
 export const RESOURCE_TYPES = { clay: 'clay_pit', mine: 'gem_mine', farm: 'farm_grain' };
@@ -77,7 +77,8 @@ const DRY = (t) => t === T.DESERT || t === T.MEADOW || t === T.FERTILE;
 const CLAY_INLAND = 4;   // the farthest from water (tiles) the clay repair widens inland (Task 1 review: 48 island seed 185 once reached 5)
 const OPEN = (t) => t === T.DESERT || t === T.MEADOW;   // ground a repair may take without touching what the generator made on purpose
 
-export function repairResources(map, seed, ranges = null, { mine = true } = {}) {
+// avoid: [{ x, y, r }] (the oases): the mine's rocky blob keeps OASES.fromRock tiles from a pool, as the generator keeps every outcrop (Task 2 review).
+export function repairResources(map, seed, ranges = null, { mine = true, avoid = [] } = {}) {
   const { size, terrain, focus } = map;
   const reach = resourceReach(size);
   const salt = (seed + S47_SALT.resources) | 0;
@@ -150,9 +151,15 @@ export function repairResources(map, seed, ranges = null, { mine = true } = {}) 
     const rock = [];
     for (let i = 0; i < terrain.length; i++) if (terrain[i] === T.ROCKY) rock.push(i);
     const toRock = (i) => rock.reduce((m, r) => Math.min(m, Math.hypot((r % size) - (i % size), Math.floor(r / size) - Math.floor(i / size))), 99);
-    const fits = (i, awayWater, maxDist) => {
+    // The oases' pool tiles: a blob keeps OASES.fromRock tiles from them (the blob reaches 3 out) while a site that does can be found.
+    const pools = [];
+    for (const o of avoid) for (let py = Math.floor(o.y - o.r); py <= Math.ceil(o.y + o.r); py++) for (let px = Math.floor(o.x - o.r); px <= Math.ceil(o.x + o.r); px++) {
+      if (inBounds(size, px, py) && terrain[idx(size, px, py)] === T.WATER && Math.hypot(px - o.x, py - o.y) <= o.r) pools.push([px, py]);
+    }
+    const fits = (i, awayWater, maxDist, clear) => {
       const x = i % size, y = (i - x) / size, d = dist(i);
       if (d < MAP.rockAwayStart || d > maxDist || wd[i] <= awayWater) return false;
+      if (clear && pools.some(([px, py]) => Math.max(Math.abs(px - x), Math.abs(py - y)) <= OASES.fromRock + 3)) return false;
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
         if (!inBounds(size, x + dx, y + dy)) return false;
         const j = (y + dy) * size + x + dx;
@@ -161,9 +168,11 @@ export function repairResources(map, seed, ranges = null, { mine = true } = {}) 
       return true;
     };
     const inRange = (i) => !ranges || ranges.some(([x0, x1]) => (i % size) >= x0 && (i % size) <= x1);   // in the x ranges the layout keeps its rock in, if one is open
-    for (const [keep, awayWater, maxDist] of [[true, MAP.rockAwayTiles, reach - 2], [true, 7, reach - 2], [false, 7, reach - 2], [false, 7, reach - 1]]) {
+    const stages = [[true, MAP.rockAwayTiles, reach - 2], [true, 7, reach - 2], [false, 7, reach - 2], [false, 7, reach - 1]];
+    // first every stage with the pools' gap kept; only a map that has no such site (a stage found none) takes the gap's tiles too
+    for (const [keep, awayWater, maxDist, clear] of [...stages.map((s) => [...s, true]), ...(pools.length ? stages.map((s) => [...s, false]) : [])]) {
       const sites = [];
-      for (let i = 0; i < terrain.length; i++) if ((!keep || inRange(i)) && fits(i, awayWater, maxDist)) sites.push(i);
+      for (let i = 0; i < terrain.length; i++) if ((!keep || inRange(i)) && fits(i, awayWater, maxDist, clear)) sites.push(i);
       if (!sites.length) continue;
       const scored = sites.map((i) => ({ i, s: rock.length ? Math.round(toRock(i)) : 0 })).sort((a, b) => a.s - b.s || tie(a.i, 1) - tie(b.i, 1) || a.i - b.i);
       const c = scored[0].i, cx = c % size, cy = (c - cx) / size;
