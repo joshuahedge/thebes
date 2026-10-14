@@ -208,6 +208,9 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
     const i = idx(size, ex, y);
     if (terrain[i] === T.WATER || terrain[i] === T.ROCKY) terrain[i] = T.DESERT;
   }
+  // INVARIANT: repairResources is the LAST edit generateMap makes to the terrain, so the guarantee holds on the map the player gets. Whatever
+  // later changes terrain (oases, Task 2; hills, Task 3) runs BEFORE this call; what runs after it (entries, dunes and wadis, params) must
+  // not write the terrain (dunes and wadis are decor). The 200-seed guarantee test (tests/stage47/resources/guarantee.test.js) holds it.
   // Stage 4.7 (Task 1, ruling 461): every map holds, within reach of the start area, 2 clay-pit fits, a gem-mine fit and 6 grain-farm fits.
   // A draw that missed is mended here, deterministically (src/sim/resources.js, S47_SALT.resources); a map that already holds them is
   // untouched, so classic at Normal stays as it was except for the seeds that failed.

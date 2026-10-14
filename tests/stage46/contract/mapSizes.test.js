@@ -36,12 +36,14 @@ const BEFORE = {
   oasis: ['48da32c', 'f2a3ad70', '2bf4d64e', '2643c37', 'd38fbe59', 'd3aacd0a'],
 };
 const AFTER = {
-  east: ['8a9916dc', '217014a', '80981850', 'b58bd47f', '22fd39a0', '7fc4ffb7'],
-  middle: ['1942e720', '931bef8f', '8e4c4ac1', 'e58f8194', '94b28e0f', '266e929e'],
-  'wide-bends': ['9ed0a181', '9dafb4cf', '45387b1b', '29cda2e1', 'e1ac57c9', '38566363'],
-  island: ['c0288ce1', '3e0b9cc5', '622e1bc4', '6dfbcfeb', '67b49ee2', '7ad515a1'],
-  oasis: ['8f4c1fb7', '2257f57f', '3a0ab0f3', '4b4027d7', 'b1c4acf', 'a200a034'],
+  east: ['57d0b754', 'fb94e1b8', '80981850', 'b58bd47f', '22fd39a0', '2ef14505'],
+  middle: ['1942e720', '2867a47', '8e4c4ac1', 'e58f8194', '94b28e0f', '266e929e'],
+  'wide-bends': ['9ed0a181', '9dafb4cf', '188f0492', '29cda2e1', '6015afe4', '38566363'],
+  island: ['94ade120', '3e0b9cc5', '34807062', '6dfbcfeb', '29145e2', '7ad515a1'],
+  oasis: ['5901b6cf', '33b7f93f', '9c4b851b', '4b4027d7', 'cfa79367', 'a200a034'],
 };
+// Stage 4.7 Task 1 review minors: the mine blob draws from its own salt (S47_SALT.mineBlob) and the clay repair stops 4 tiles from water, so the repaired
+// seeds moved again (non-classic maps only; classic at 64 is untouched).
 // Stage 4.7 Task 1 (ruling 461): AFTER is the Map track's set with the resource repair on top (clay, mine and farms near the start): a seed that already
 // held them keeps its Stage 4.6 print (east 7, 11, 42; middle 7, 11, 42; wide-bends 1, 11, 1234; island 11; oasis 11), the others moved. Classic at 64 is
 // not in AFTER: its prints are the Stage 4.6 ones (the mine repair is off for it, and none of these six seeds needed clay).
