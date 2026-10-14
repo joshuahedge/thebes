@@ -15,7 +15,8 @@ export const S47_SALT = {
   resources: 4708,    // Task 1: the start-area resource repair
   carts: 4709,        // Task 5: any sim draw the carts need
   cartLook: 4710,     // Task 6: a cart's look and pace on screen (render)
-  spare1: 4711, spare2: 4712, spare3: 4713, spare4: 4714,
+  mineBlob: 4711,     // Task 1: the mine repair's ragged blob edge (it drew from the resources salt + 2, which is cartLook's)
+  spare2: 4712, spare3: 4713, spare4: 4714,
 };
 
 // Tallies for Stage 4.7's firsts and summaries (world.tally; new and migrated cities start them at 0): buildings placed within 4 tiles

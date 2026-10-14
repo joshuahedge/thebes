@@ -69,6 +69,28 @@ describe('s47 resources guarantee', () => {
     expect(bad.slice(0, 8)).toEqual([]);
   });
 
+  it('never widens clay more than 4 tiles from water, and the mine blob draws from its own registered salt (Task 1 review minors)', () => {
+    expect(S47_SALT.mineBlob).toBe(4711);
+    expect(Object.values(S47_SALT).filter((s) => s === S47_SALT.mineBlob).length).toBe(1);
+    const far = [];
+    const cases = [[48, 'island', 185], ...SIZES.flatMap((size) => LAYOUTS.flatMap((variant) => Array.from({ length: 60 }, (_, k) => [size, variant, k + 1])))];
+    for (const [size, variant, seed] of cases) {
+      const m = generateMap(seed, size, variant), N = m.size;
+      const wd = new Uint8Array(N * N).fill(255), queue = [];
+      m.terrain.forEach((t, i) => { if (t === T.WATER) { wd[i] = 0; queue.push(i); } });
+      for (let k = 0; k < queue.length; k++) {
+        const x = queue[k] % N, y = (queue[k] - x) / N;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          if (x + dx < 0 || y + dy < 0 || x + dx >= N || y + dy >= N) continue;
+          const n = (y + dy) * N + x + dx;
+          if (wd[n] > wd[queue[k]] + 1) { wd[n] = wd[queue[k]] + 1; queue.push(n); }
+        }
+      }
+      m.terrain.forEach((t, i) => { if (t === T.CLAY && wd[i] > 4) far.push(`${variant} ${size} #${seed}: clay ${i % N},${Math.floor(i / N)} is ${wd[i]} from water`); });
+    }
+    expect(far.slice(0, 6)).toEqual([]);
+  });
+
   it('mends a map that lacks each resource: clay widened along the bank, a rocky patch beside the rock, the fertile band widened', () => {
     const base = generateMap(12, 64, 'classic'), reach = resourceReach(64);
     const strip = (from, to) => {

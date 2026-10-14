@@ -74,6 +74,7 @@ export function resourceCounts(map, reach) {
 //   farm   fewer than 6 farm fits in reach: the fertile band is widened over the open ground beside it
 // ranges: the x ranges the layout keeps its rock in (a skirt stays in them when it can). mine: false skips the mine repair (classic at Normal, ruling 332/351: its rock never moves). Returns the tiles changed per kind: { clay, mine, farm } (all 0 when nothing needed mending).
 const DRY = (t) => t === T.DESERT || t === T.MEADOW || t === T.FERTILE;
+const CLAY_INLAND = 4;   // the farthest from water (tiles) the clay repair widens inland (Task 1 review: 48 island seed 185 once reached 5)
 const OPEN = (t) => t === T.DESERT || t === T.MEADOW;   // ground a repair may take without touching what the generator made on purpose
 
 export function repairResources(map, seed, ranges = null, { mine = true } = {}) {
@@ -95,6 +96,16 @@ export function repairResources(map, seed, ranges = null, { mine = true } = {}) 
     return out;
   };
   const byNear = (a, b) => dist(a) - dist(b) || tie(a) - tie(b) || a - b;
+  // Chebyshev tiles from the nearest water tile (255 where there is none), one breadth-first pass; water never changes in a repair.
+  let wdCache = null;
+  const waterDist = () => {
+    if (wdCache) return wdCache;
+    const wd = new Uint8Array(size * size).fill(255);
+    const queue = [];
+    for (let i = 0; i < terrain.length; i++) if (terrain[i] === T.WATER) { wd[i] = 0; queue.push(i); }
+    for (let k = 0; k < queue.length; k++) for (const n of near8(queue[k])) if (wd[n] > wd[queue[k]] + 1) { wd[n] = wd[queue[k]] + 1; queue.push(n); }
+    return (wdCache = wd);
+  };
 
   // Clay: widen the clay patch nearest the start; with none in reach (or every third round, if widening is not enough), turn the bank
   // stretch nearest the start to clay first.
@@ -123,7 +134,8 @@ export function repairResources(map, seed, ranges = null, { mine = true } = {}) 
       // the dry ground inland of the clay in reach: one layer, nearest the start first, at most 10 tiles a round
       const front = [];
       for (let i = 0; i < terrain.length; i++) if (terrain[i] === T.CLAY && !road.has(i) && dist(i) <= reach) front.push(i);
-      const targets = [...new Set(front.flatMap(near4))].filter((n) => DRY(terrain[n]) && !road.has(n) && dist(n) <= reach + 2).sort(byNear).slice(0, 10);
+      const wd = waterDist();   // clay stays within CLAY_INLAND tiles of water: the widening never leaves the bank's neighbourhood
+      const targets = [...new Set(front.flatMap(near4))].filter((n) => DRY(terrain[n]) && !road.has(n) && dist(n) <= reach + 2 && wd[n] <= CLAY_INLAND).sort(byNear).slice(0, 10);
       for (const n of targets) { terrain[n] = T.CLAY; grown++; }
       done.clay += grown;
       stalled = !grown;
@@ -134,10 +146,7 @@ export function repairResources(map, seed, ranges = null, { mine = true } = {}) 
   // generator's own rules for an outcrop), in reach, and as near the existing rock as it can be: so an outcrop just out of reach gains a skirt.
   const mendMine = () => {
     if (enough('mine')) return;
-    const wd = new Uint8Array(size * size).fill(255);
-    const queue = [];
-    for (let i = 0; i < terrain.length; i++) if (terrain[i] === T.WATER) { wd[i] = 0; queue.push(i); }
-    for (let k = 0; k < queue.length; k++) for (const n of near8(queue[k])) if (wd[n] > wd[queue[k]] + 1) { wd[n] = wd[queue[k]] + 1; queue.push(n); }
+    const wd = waterDist();
     const rock = [];
     for (let i = 0; i < terrain.length; i++) if (terrain[i] === T.ROCKY) rock.push(i);
     const toRock = (i) => rock.reduce((m, r) => Math.min(m, Math.hypot((r % size) - (i % size), Math.floor(r / size) - Math.floor(i / size))), 99);
@@ -162,7 +171,7 @@ export function repairResources(map, seed, ranges = null, { mine = true } = {}) 
         if (!inBounds(size, x, y)) continue;
         const j = y * size + x;
         if (!OPEN(terrain[j]) || road.has(j)) continue;
-        if (Math.hypot(x - cx, y - cy) <= 2 + hash2(x, y, salt + 2) * 0.9) { terrain[j] = T.ROCKY; done.mine++; }
+        if (Math.hypot(x - cx, y - cy) <= 2 + hash2(x, y, (seed + S47_SALT.mineBlob) | 0) * 0.9) { terrain[j] = T.ROCKY; done.mine++; }
       }
       return;
     }
