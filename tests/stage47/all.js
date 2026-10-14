@@ -2,3 +2,4 @@
 // tests/run-tests.ps1 -Grep "s47 <area>" runs one area. tests/all.js imports this file once.
 import './contract/contract.test.js';
 import './resources/diagnostic.test.js';
+import './resources/guarantee.test.js';

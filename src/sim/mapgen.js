@@ -3,6 +3,7 @@ import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { T } from './terrain.js';
 import { MAP, MAP_VARIANTS, MAP_SALT, areaScale } from '../data/map.js';
 import { LAND_VERSION, newLandFor } from '../data/s47.js';
+import { repairResources } from './resources.js';
 
 // Clay (Stage 4.5, ruling 312): the bank tiles are chained along the water, so a stretch is a walk of 4-10 of them from a
 // seeded start, 8-neighbour steps in a fixed order; some stretches are two tiles deep, taking the dry land tile beside each
@@ -177,11 +178,11 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   if (spec.clearStart || varied) for (let y = size - MAP.clearStartRows; y < size; y++) nearEdge = spec.mirror ? Math.min(nearEdge, riverX(y)) : Math.max(nearEdge, riverX(y));
   const ex = Math.round(nearEdge) + (spec.mirror ? -MAP.tradeRoadOffsetX : MAP.tradeRoadOffsetX);
   const focus = { x: ex + (spec.mirror ? -MAP.focusOffset.x : MAP.focusOffset.x), y: size + MAP.focusOffset.y };
-
   const rp = MAP.rockPatches;
+  const rockRanges = (spec.rocks ? spec.rocks.ranges : [[rp.minX, rp.minX + MAP.size - rp.marginX - 1]]).map(([x0, x1]) => [at(x0), at(x1)]);   // the x ranges rock sits in (classic's is its patches' box)
   if (varied) {
     // Outcrop clusters (ruling 332) in the variant's x ranges (classic's is its patches' box), the rock scaled by the map's area.
-    const ranges = (spec.rocks ? spec.rocks.ranges : [[rp.minX, rp.minX + MAP.size - rp.marginX - 1]]).map(([x0, x1]) => [at(x0), at(x1)]);
+    const ranges = rockRanges;
     params.outcrops = addOutcrops(terrain, size, seed, ranges, focus, at);
     addPools(terrain, size, seed, riverX, focus, ex, params);
     addGroves(terrain, size, seed, params);
@@ -207,6 +208,10 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
     const i = idx(size, ex, y);
     if (terrain[i] === T.WATER || terrain[i] === T.ROCKY) terrain[i] = T.DESERT;
   }
+  // Stage 4.7 (Task 1, ruling 461): every map holds, within reach of the start area, 2 clay-pit fits, a gem-mine fit and 6 grain-farm fits.
+  // A draw that missed is mended here, deterministically (src/sim/resources.js, S47_SALT.resources); a map that already holds them is
+  // untouched, so classic at Normal stays as it was except for the seeds that failed.
+  const repaired = repairResources({ size, terrain, focus, startRoad }, seed, rockRanges);
   const raiderEntries = entriesFor(terrain, size, spec, at);
   // params (Stage 4.6, world.mapParams): the seeded shape choices (ruling 332), for display and replays: the meander's strength and length,
   // the outcrop clusters placed, the side channels and oxbow lakes (pools), palm groves, dune fields and wadis (the last two are only drawn).
@@ -215,7 +220,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   // in, each drawing from S47_SALT, never the rng stream above). land marks it in world.mapParams; oases: [{ x, y, r }] (world.oases).
   const oases = [];
   if (newLandFor(v, size)) params.land = LAND_VERSION;
-  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v, params, oases };
+  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v, params, oases, repaired };
 }
 
 // ── Stage 4.6 (ruling 332): the seeded shape choices. Each has its own stream (MAP_SALT), so classic at Normal, which draws none, never

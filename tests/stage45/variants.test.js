@@ -84,7 +84,7 @@ describe('s45 variants (the six layouts)', () => {
     for (const v of MAP_VARIANTS) {
       for (const seed of SEEDS) {
         const m = generateMap(seed, 64, v), tag = `${v} ${seed}`;
-        const rocky = count(m, T.ROCKY);
+        const rocky = count(m, T.ROCKY) - m.repaired.mine;   // Stage 4.7 (ruling 461): the resource repair's rock is on top of what the patches drew
         // Classic keeps its own patches, draw for draw (so the fixtures and old seeds do not move): its rock is 52-172.
         expect([tag, v === 'classic' ? rocky >= 40 && rocky <= 180 : rocky >= 90 && rocky <= 150]).toEqual([tag, true]);
         expect([tag, count(m, T.FERTILE) >= 400]).toEqual([tag, true]);
@@ -109,7 +109,7 @@ describe('s45 variants (the six layouts)', () => {
         expect([tag, free]).toEqual([tag, 49]);                                    // the start area is all buildable
         expect([tag, waterWithin(m, m.focus.x, m.focus.y, 24) <= 24]).toEqual([tag, true]);   // and near the river
         for (const [x, y] of m.startRoad) expect(at(m, x, y) === T.WATER).toBe(false);
-        const clay = count(m, T.CLAY);
+        const clay = count(m, T.CLAY) - m.repaired.clay;   // likewise the repair's clay
         expect([tag, clay >= 40 && clay <= 90]).toEqual([tag, true]);
       }
     }
