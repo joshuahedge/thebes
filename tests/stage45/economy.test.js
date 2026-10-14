@@ -434,7 +434,7 @@ describe('s45 unemployment phase-in', () => {
     w.splits = {};
     expect(unemploymentPhase(w)).toEqual({ factor: 1, monthsLeft: 0 });
     expect(jobsPenalty(w).now).toBe(-85);
-    expect(WORLD_VERSION).toBe(7);                                    // world.splits.town is the start day, recorded since Stage 3 (Stage 4.6's version 7 added nothing for it)
+    expect(WORLD_VERSION).toBe(8);                                    // world.splits.town is the start day, recorded since Stage 3 (versions 7 and 8 added nothing for it)
   });
   it('records the Town day when the city first becomes a Town, and the phase counts from it', () => {
     const w = makeTestWorld({ gold: 1000 });

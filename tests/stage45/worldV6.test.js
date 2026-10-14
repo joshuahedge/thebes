@@ -31,7 +31,7 @@ const count = (terrain, t) => terrain.filter((v) => v === t).length;
 describe('s45 world v6', () => {
   it('creates a version 6 world: a classic map by default, no illness, no risk points, the new tallies at zero', () => {
     const w = createWorld({ seed: 4 });
-    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([7, 7, 7]);
+    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([8, 8, 8]);
     expect(w.mapVariant).toBe('classic');
     expect(STAGE45_TALLY).toEqual(['illnesses', 'illnessesCured', 'thefts', 'theftGold']);
     for (const k of STAGE45_TALLY) { expect([k, w.tally[k]]).toEqual([k, 0]); expect(TALLY_KEYS).toContain(k); }
@@ -122,8 +122,8 @@ describe('s45 world v6', () => {
   });
   it('runs through migrate and deserialize, and reports a malformed version 5 save as corrupt', () => {
     const v5 = v5City();
-    expect(migrate(v5)).toEqual(MIGRATIONS[6](MIGRATIONS[5](v5)));
-    expect(deserialize(JSON.stringify(v5)).version).toBe(7);
+    expect(migrate(v5)).toEqual(MIGRATIONS[7](MIGRATIONS[6](MIGRATIONS[5](v5))));
+    expect(deserialize(JSON.stringify(v5)).version).toBe(8);
     expect(deserialize(JSON.stringify(v5)).mapVariant).toBe('classic');
     let msg = null;
     try { deserialize(JSON.stringify({ version: 5 })); } catch (e) { msg = e.message; }

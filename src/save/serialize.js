@@ -3,7 +3,8 @@ import { BUILDINGS } from '../data/buildings.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { PRESTIGE_UNLOCKS } from '../data/monuments.js';
-import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY } from '../sim/world.js';
+import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY } from '../sim/world.js';
+import { isOasis, isOrders, isCart } from '../data/s47.js';
 import { MAP_VARIANTS } from '../data/map.js';
 import { isFloodState, isWildlifeState } from '../data/river.js';
 import { isCourtState } from '../data/court.js';
@@ -20,9 +21,10 @@ export const REQUIRED = [
   'wall', 'wallVersion', 'raid', 'soldiers', 'nextUnitId', 'danger', 'splits', 'seals', 'feats', 'cityId',
   'prestigeUnlocks', 'mapVariant',
   'mapSize', 'mapParams', 'flood', 'floodplain', 'wildlife', 'court', 'army',
+  'oases', 'carts',
 ];
 
-export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY, ...STAGE45_TALLY, ...STAGE46_TALLY];
+export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY, ...STAGE45_TALLY, ...STAGE46_TALLY, ...STAGE47_TALLY];
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isCounts = (v) => isRecord(v) && Object.values(v).every(Number.isFinite);       // tally.made: good -> units
 const isStrings = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
@@ -71,6 +73,11 @@ function isStage46(w, cells) {
   return Object.values(w.buildings).every(isStage46Building) && w.soldiers.every(isUnitKind);
 }
 
+// Stage 4.7 (version 8; src/data/s47.js has the shapes): the oases, the carts on the road, and every store's orders.
+const isStage47Building = (b) => !BUILDINGS[b.type].stores || isOrders(b.orders, BUILDINGS[b.type].stores);
+const isStage47 = (w) => Array.isArray(w.oases) && w.oases.every(isOasis) && Array.isArray(w.carts) && w.carts.every(isCart)
+  && Object.values(w.buildings).every(isStage47Building);
+
 // The save envelope (spec 4.17): wall-clock fields sit beside the world, never inside it.
 export const SAVE_VERSION = 1;
 
@@ -102,6 +109,7 @@ export function validateWorld(w) {
   if (!Object.values(w.buildings).every(isStage4Building) || !isUnlockDays(w.prestigeUnlocks)) return false;
   if (typeof w.mapVariant !== 'string' || !MAP_VARIANTS.includes(w.mapVariant) || !Object.values(w.buildings).every(isStage45Building)) return false;
   if (!isStage46(w, cells)) return false;
+  if (!isStage47(w)) return false;
   return true;
 }
 

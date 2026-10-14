@@ -2,6 +2,7 @@ import { createRng, valueNoise, hash2 } from './rng.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { T } from './terrain.js';
 import { MAP, MAP_VARIANTS, MAP_SALT, areaScale } from '../data/map.js';
+import { LAND_VERSION, newLandFor } from '../data/s47.js';
 
 // Clay (Stage 4.5, ruling 312): the bank tiles are chained along the water, so a stretch is a walk of 4-10 of them from a
 // seeded start, 8-neighbour steps in a fixed order; some stretches are two tiles deep, taking the dry land tile beside each
@@ -210,7 +211,11 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   // params (Stage 4.6, world.mapParams): the seeded shape choices (ruling 332), for display and replays: the meander's strength and length,
   // the outcrop clusters placed, the side channels and oxbow lakes (pools), palm groves, dune fields and wadis (the last two are only drawn).
   if (varied) addDunesAndWadis(terrain, size, seed, focus, ex, params);
-  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v, params };
+  // Stage 4.7 (Task 0 contract): every map but classic at Normal gets the new land (hills, oases, the grass band; Tasks 1-3 fill them
+  // in, each drawing from S47_SALT, never the rng stream above). land marks it in world.mapParams; oases: [{ x, y, r }] (world.oases).
+  const oases = [];
+  if (newLandFor(v, size)) params.land = LAND_VERSION;
+  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v, params, oases };
 }
 
 // ── Stage 4.6 (ruling 332): the seeded shape choices. Each has its own stream (MAP_SALT), so classic at Normal, which draws none, never
