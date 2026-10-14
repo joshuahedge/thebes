@@ -72,11 +72,11 @@ export function resourceCounts(map, reach) {
 //   mine   no gem-mine fit in reach: a rocky patch is grown on open ground nearest the existing rock (a skirt for an outcrop that lies
 //          just out of reach), kept off the river and the start area as the generator keeps every outcrop
 //   farm   fewer than 6 farm fits in reach: the fertile band is widened over the open ground beside it
-// ranges: the x ranges the layout keeps its rock in (a skirt stays in them when it can). Returns the tiles changed per kind: { clay, mine, farm } (all 0 when nothing needed mending).
+// ranges: the x ranges the layout keeps its rock in (a skirt stays in them when it can). mine: false skips the mine repair (classic at Normal, ruling 332/351: its rock never moves). Returns the tiles changed per kind: { clay, mine, farm } (all 0 when nothing needed mending).
 const DRY = (t) => t === T.DESERT || t === T.MEADOW || t === T.FERTILE;
 const OPEN = (t) => t === T.DESERT || t === T.MEADOW;   // ground a repair may take without touching what the generator made on purpose
 
-export function repairResources(map, seed, ranges = null) {
+export function repairResources(map, seed, ranges = null, { mine = true } = {}) {
   const { size, terrain, focus } = map;
   const reach = resourceReach(size);
   const salt = (seed + S47_SALT.resources) | 0;
@@ -180,7 +180,7 @@ export function repairResources(map, seed, ranges = null) {
   };
 
   mendClay();
-  mendMine();
+  if (mine) mendMine();
   mendFarm();
   if (done.clay || done.mine || done.farm) { mendClay(); mendFarm(); }   // mending clay takes fertile ground, a farm band takes open ground: once more in case one undid another
   return done;

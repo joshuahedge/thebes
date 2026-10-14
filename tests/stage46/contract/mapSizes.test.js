@@ -42,20 +42,16 @@ const AFTER = {
   island: ['c0288ce1', '3e0b9cc5', '622e1bc4', '6dfbcfeb', '67b49ee2', '7ad515a1'],
   oasis: ['8f4c1fb7', '2257f57f', '3a0ab0f3', '4b4027d7', 'b1c4acf', 'a200a034'],
 };
-// Stage 4.7 Task 1 (ruling 461): every map holds clay, a mine spot and farms near the start (src/sim/resources.js repairResources). AFTER
-// above is the Map track's set with the repair on top: a seed that already held them keeps its Stage 4.6 print (east 7, 11, 42; middle 7,
-// 11, 42; wide-bends 1, 11, 1234; island 11; oasis 11), the others moved. Classic at 64 moved for all six of these seeds: each lacked a
-// gem-mine spot (rock lay 20-30 tiles out) and gained a rocky patch of 17-21 tiles. BEFORE.classic is what Stage 4.6 drew; NOW.classic
-// is what these seeds draw now. tests/stage47/resources pins the 33 classic seeds in 1-200 that need no repair and so keep their old prints.
-const NOW = { classic: ['234f81a4', '8fce3ddb', 'bb9b631d', '7586f8e', '39d3b53c', 'bc0a5219'] };
+// Stage 4.7 Task 1 (ruling 461): AFTER is the Map track's set with the resource repair on top (clay, mine and farms near the start): a seed that already
+// held them keeps its Stage 4.6 print (east 7, 11, 42; middle 7, 11, 42; wide-bends 1, 11, 1234; island 11; oasis 11), the others moved. Classic at 64 is
+// not in AFTER: its prints are the Stage 4.6 ones (the mine repair is off for it, and none of these six seeds needed clay).
 
 const count = (m, t) => m.terrain.filter((v) => v === t).length;
 
 describe('s46 contract map sizes', () => {
   it('draws classic at 64 exactly as before Stage 4.6, and the other layouts with the shape choices of the Map track', () => {
     const now = Object.fromEntries(LAYOUTS.map((v) => [v, SEEDS.map((s) => mapPrint(generateMap(s, 64, v)))]));
-    expect(now.classic).toEqual(NOW.classic);
-    expect(NOW.classic.some((p, i) => p === BEFORE.classic[i])).toBe(false);   // all six moved (Stage 4.7 Task 1, ruling 461); the seeds that did not are in tests/stage47/resources
+    expect(now.classic).toEqual(BEFORE.classic);
     const { classic, ...others } = now;
     expect(others).toEqual(AFTER);
     expect(LAYOUTS).toEqual(MAP_VARIANTS);
