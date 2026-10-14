@@ -2416,4 +2416,22 @@ export const S46_UX_TEXT = {
 // Stage 4.7's words. Task 0 adds only the refusal for the hills ground (src/sim/terrain.js groundRefusal); Task 3 owns the hills'
 // other words (the Ground overlay legend, How to play). Later tasks add their own lines just above the end marker.
 Object.assign(REASONS, { hills: 'Hills: nothing can be built here' });
+// Task 2 (rulings 462, 463): the oasis. Every number comes from the sim's own data (src/data/s47.js OASES). "Must touch the river" is the shared
+// refusal (REASONS.needs_river, src/sim/fit.js): a fishing wharf beside only an oasis pool.
+import { OASES as s47Oases } from '../data/s47.js';
+export const S47_OASIS_TEXT = {
+  first: { head: 'An oasis in the desert', why: `You built within ${s47Oases.near} tiles of an oasis: ${s47Oases.pool[0]} to ${s47Oases.pool[1]} tiles of water in the sand, with palms and fertile ground round it, far from the river.` },
+  tip: 'Oases hold palms, fertile ground and a little clay. A fishing wharf must touch the river, not an oasis.',
+  tipHelp: `Oases lie in open desert: ${s47Oases.pool[0]} to ${s47Oases.pool[1]} tiles of water, palms, fertile ground. A wharf must touch the river.`,
+  needsRiver: 'Must touch the river',
+};
+Object.assign(REASONS, { needs_river: S47_OASIS_TEXT.needsRiver });
+FIRST_TEXT.first_oasis = S47_OASIS_TEXT.first;
+TIP_TEXT.oasis_green = S47_OASIS_TEXT.tip;
+TIP_HELP_TEXT.oasis_green = S47_OASIS_TEXT.tipHelp;
+{
+  const baseChip = S46_MAP_TEXT.groundChip, baseRefusal = S46_MAP_TEXT.refusalLine;
+  S46_MAP_TEXT.groundChip = (cond, def) => (cond && cond.water && cond.reason === 'needs_river' ? S47_OASIS_TEXT.needsRiver : baseChip(cond, def));
+  S46_MAP_TEXT.refusalLine = (reason, ground, def) => (reason === 'needs_river' ? S47_OASIS_TEXT.needsRiver : baseRefusal(reason, ground, def));
+}
 // ── end s47 ──

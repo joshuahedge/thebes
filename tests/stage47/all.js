@@ -3,3 +3,5 @@
 import './contract/contract.test.js';
 import './resources/diagnostic.test.js';
 import './resources/guarantee.test.js';
+import './land/oases.test.js';
+import './land/grass.test.js';

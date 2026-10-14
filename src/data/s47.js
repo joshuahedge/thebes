@@ -16,7 +16,8 @@ export const S47_SALT = {
   carts: 4709,        // Task 5: any sim draw the carts need
   cartLook: 4710,     // Task 6: a cart's look and pace on screen (render)
   mineBlob: 4711,     // Task 1: the mine repair's ragged blob edge (it drew from the resources salt + 2, which is cartLook's)
-  spare2: 4712, spare3: 4713, spare4: 4714,
+  herdOasis: 4712,    // Task 2: where a herd aimed at an oasis stands (src/sim/wildlife.js)
+  spare3: 4713, spare4: 4714,
 };
 
 // Tallies for Stage 4.7's firsts and summaries (world.tally; new and migrated cities start them at 0): buildings placed within 4 tiles
@@ -62,3 +63,30 @@ export const isCart = (c) => isRec(c) && ['id', 'from', 'to', 'left', 'turn', 'd
 // ground and `farm` grain-farm fits on fertile ground, counted as footprints that do not overlap (what the player can actually build).
 export const RESOURCES = { reach: 20, clay: 2, mine: 1, farm: 6 };
 export const resourceReach = (size) => Math.round((RESOURCES.reach * size) / 64);
+
+// Task 2 (ruling 463): desert oases (src/sim/oases.js draws and reads them). Counts by map size: Small (size <= smallMax), Normal, Large (size >= largeMin).
+// A site keeps fromRiver tiles from any other water, fromEdge from a map edge, fromStart from the start area's centre and fromEntry from a raider
+// entry or the trade entry, and apart from another oasis; the pool is 3-8 water tiles, the zone (a square of side 2 x zone + 1) is open desert or
+// meadow, and `clay` tiles of clay lie beside the pool. A building within `near` tiles of an oasis is "An oasis in the desert" (the first).
+export const OASES = {
+  small: [0, 1], normal: [0, 2], large: [1, 3], smallMax: 56, largeMin: 72,
+  fromRiver: 12, fromEdge: 8, fromStart: 16, fromEntry: 12, apart: 14, fromRock: 8,   // fromRock: no rock within this many tiles of a pool (the generator keeps rock 8 off water)
+  pool: [3, 8], zone: 5, clay: [3, 7], near: 4, tries: 600, decorNear: 6,   // decorNear: tiles from a pool's edge that palms grow (src/render/renderer.js)
+  herdShare: 0.5,   // of a herd's spawn tries, the share aimed at an oasis (when the map has one)
+  herdReach: [3, 9], // a herd aimed at an oasis stands this many tiles from its pool's edge
+};
+
+// Task 2 (ruling 462): the green band (src/render/grass.js). river / oasis: tiles the moisture reaches from water (an oasis has its own, smaller
+// halo); noise: how far (tiles) two octaves of value noise push the edge about; tiers: the moisture a tint pass starts at, each pass a
+// colour and an alpha; they stack, so the green deepens towards the water.
+export const GRASS = {
+  river: 14, oasis: 6, noise: 6, noiseScale: 6, noise2: 2.4, noiseScale2: 2.4, decorFrom: 0.18, jitter: 2, wander: 1.8,
+  tiers: [0.06, 0.18, 0.30, 0.44, 0.58, 0.74],
+  colours: ['#DCD895', '#CBD47F', '#B8CB6B', '#A4C15A', '#93B84F', '#84AE48'],
+  alphas: [0.42, 0.38, 0.38, 0.4, 0.42, 0.45],
+};
+
+// Task 2: "An oasis in the desert" (the first, when a building first goes up within OASES.near tiles of an oasis: tally oasisBuilds) and its
+// tip (How to play lists every tip). Joined into FIRSTS (firsts.js) and TIPS (tips.js); the words are in src/ui/text.js (the s47 section).
+export const S47_FIRSTS = [{ id: 'first_oasis', check: { kind: 'tally', key: 'oasisBuilds', n: 1 } }];
+export const S47_TIPS = [{ id: 'oasis_green', trigger: 'oasisBuilt', priority: false }];

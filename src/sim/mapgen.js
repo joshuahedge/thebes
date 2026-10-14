@@ -4,6 +4,7 @@ import { T } from './terrain.js';
 import { MAP, MAP_VARIANTS, MAP_SALT, areaScale } from '../data/map.js';
 import { LAND_VERSION, newLandFor } from '../data/s47.js';
 import { repairResources } from './resources.js';
+import { placeOases } from './oases.js';
 
 // Clay (Stage 4.5, ruling 312): the bank tiles are chained along the water, so a stretch is a walk of 4-10 of them from a
 // seeded start, 8-neighbour steps in a fixed order; some stretches are two tiles deep, taking the dry land tile beside each
@@ -208,6 +209,12 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
     const i = idx(size, ex, y);
     if (terrain[i] === T.WATER || terrain[i] === T.ROCKY) terrain[i] = T.DESERT;
   }
+  // Stage 4.7 (Task 2, ruling 463): desert oases on a map with new land, drawn from S47_SALT (src/sim/oases.js). They are terrain edits, so they run
+  // BEFORE the resource repair below (which stays the last edit); the entries are read first so no oasis lies near one (an oasis keeps >= 8 tiles from
+  // every edge, so it never changes where an entry slides to). Task 3's hills must run before the repair too.
+  const raiderEntries = entriesFor(terrain, size, spec, at);
+  const placed = newLandFor(v, size) ? placeOases(terrain, size, seed, { focus, targets: [...raiderEntries, tradeEntry] }) : { oases: [], clay: 0 };
+  const oases = placed.oases;
   // INVARIANT: repairResources is the LAST edit generateMap makes to the terrain, so the guarantee holds on the map the player gets. Whatever
   // later changes terrain (oases, Task 2; hills, Task 3) runs BEFORE this call; what runs after it (entries, dunes and wadis, params) must
   // not write the terrain (dunes and wadis are decor). The 200-seed guarantee test (tests/stage47/resources/guarantee.test.js) holds it.
@@ -215,15 +222,13 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   // A draw that missed is mended here, deterministically (src/sim/resources.js, S47_SALT.resources); a map that already holds them is
   // untouched, so classic at Normal stays as it was except for the seeds that failed.
   const repaired = repairResources({ size, terrain, focus, startRoad }, seed, rockRanges, { mine: newLandFor(v, size) });   // classic at Normal keeps its rock (controller ruling: weekly seeds, links and records stay put); its clay and farms are mended
-  const raiderEntries = entriesFor(terrain, size, spec, at);
   // params (Stage 4.6, world.mapParams): the seeded shape choices (ruling 332), for display and replays: the meander's strength and length,
   // the outcrop clusters placed, the side channels and oxbow lakes (pools), palm groves, dune fields and wadis (the last two are only drawn).
   if (varied) addDunesAndWadis(terrain, size, seed, focus, ex, params);
   // Stage 4.7 (Task 0 contract): every map but classic at Normal gets the new land (hills, oases, the grass band; Tasks 1-3 fill them
   // in, each drawing from S47_SALT, never the rng stream above). land marks it in world.mapParams; oases: [{ x, y, r }] (world.oases).
-  const oases = [];
   if (newLandFor(v, size)) params.land = LAND_VERSION;
-  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v, params, oases, repaired };
+  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v, params, oases, oasisClay: placed.clay, repaired };
 }
 
 // ── Stage 4.6 (ruling 332): the seeded shape choices. Each has its own stream (MAP_SALT), so classic at Normal, which draws none, never
