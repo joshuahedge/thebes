@@ -14,6 +14,8 @@ import { isBridgeTile, DECK } from './terrainBridges.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
+import { hasNewLand } from '../data/s47.js';
+import { landTrees, LAND_TREES } from './grass.js';
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
@@ -24,12 +26,12 @@ const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
 export function decorAt(world, x, y) {
   const i = idx(world.size, x, y);
   if (world.occ[i] || world.road[i] || (world.wall && world.wall[i] !== 0)) return null;
-  const t = world.terrain[i];
+  const t = world.terrain[i], land = hasNewLand(world);
   const r = hash2(x, y, world.seed + 7);
-  if (t === T.MEADOW) return r < 0.08 ? 'palm' : r < 0.12 ? 'acacia' : null;
-  if (t === T.FERTILE) return r < 0.025 ? 'palm' : null;
-  if (t === T.BANK) return r < 0.06 ? 'palm' : null;
-  if (t === T.DESERT) return r < 0.006 ? 'acacia' : null;
+  if (t === T.MEADOW) return r < 0.08 ? 'palm' : r < 0.12 ? 'acacia' : land ? LAND_TREES[landTrees(world)[i]] : null;
+  if (t === T.FERTILE) return r < 0.025 ? 'palm' : land ? LAND_TREES[landTrees(world)[i]] : null;
+  if (t === T.BANK) return r < 0.06 ? 'palm' : land ? LAND_TREES[landTrees(world)[i]] : null;
+  if (t === T.DESERT) return r < 0.006 ? 'acacia' : land ? LAND_TREES[landTrees(world)[i]] : null;
   return null;
 }
 

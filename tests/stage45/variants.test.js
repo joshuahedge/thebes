@@ -109,7 +109,7 @@ describe('s45 variants (the six layouts)', () => {
         expect([tag, free]).toEqual([tag, 49]);                                    // the start area is all buildable
         expect([tag, waterWithin(m, m.focus.x, m.focus.y, 24) <= 24]).toEqual([tag, true]);   // and near the river
         for (const [x, y] of m.startRoad) expect(at(m, x, y) === T.WATER).toBe(false);
-        const clay = count(m, T.CLAY) - m.repaired.clay;   // likewise the repair's clay
+        const clay = count(m, T.CLAY) - m.repaired.clay - m.oasisClay;   // likewise the repair's clay and the oases' (Stage 4.7)
         expect([tag, clay >= 40 && clay <= 90]).toEqual([tag, true]);
       }
     }
@@ -146,7 +146,7 @@ describe('s45 variants (what each one is)', () => {
       const longest = Math.max(...Object.values(columns).map((ys) => { let best = 1, run = 1; for (let k = 1; k < ys.length; k++) { run = ys[k] === ys[k - 1] + 1 ? run + 1 : 1; best = Math.max(best, run); } return best; }));
       expect([seed, longest >= 4 && longest <= 8]).toEqual([seed, true]);
       for (const [x, y] of isle) expect([seed, riverSpans(w)[y][0] < x && x < riverSpans(w)[y][1]]).toEqual([seed, true]);   // land with water either side of it
-      expect([seed, riverPools(w).length > 0]).toEqual([seed, (w.mapParams.pools || []).length > 0]);   // Stage 4.6 (ruling 332): the only other water is its side channels and oxbow lakes
+      expect([seed, riverPools(w).length > 0]).toEqual([seed, (w.mapParams.pools || []).length > 0 || w.oases.length > 0]);   // Stage 4.6 (ruling 332): the only other water is its side channels and oxbow lakes
     }
   });
   it('oasis adds a lake of its own, ringed by bank and fertile land, with a little clay on its edge', () => {

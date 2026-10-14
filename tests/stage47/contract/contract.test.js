@@ -128,7 +128,7 @@ describe('s47 contract new land gate', () => {
       }
     }
     const w = createWorld({ seed: 5, size: 80, mapVariant: 'classic' });
-    expect([hasNewLand(w), w.mapParams.land, w.oases]).toEqual([true, 1, []]);
+    expect([hasNewLand(w), w.mapParams.land, w.oases.length >= 1]).toEqual([true, 1, true]);   // Task 2: a Large map holds 1-3 oases
   });
 });
 

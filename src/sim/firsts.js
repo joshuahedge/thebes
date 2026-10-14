@@ -6,6 +6,7 @@ import { TIERS } from '../data/housing.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { allBuildings, housesOf, population, isFinished } from './world.js';
 import { lacksRoad } from './reach.js';
+import { builtNearOasis } from './oases.js';
 
 const centre = (b) => (b ? { x: b.x + b.w / 2, y: b.y + b.d / 2 } : { x: null, y: null });
 const isFull = (h) => h.tier >= 1 && h.residents >= TIERS[h.tier].capacity;
@@ -16,6 +17,8 @@ const makes = (good) => (b) => Boolean(BUILDINGS[b.type].produces && BUILDINGS[b
 const TALLY_PLACE = { harvested: holdsFood, caravans: (b) => b.type === 'trading_post' };
 // Stage 4: the first course shows on the first site with a course laid, the first monument on the first finished one.
 Object.assign(TALLY_PLACE, { courses: (b) => Boolean(b.site) && b.site.course > 0, monumentsDone: isFinished });
+// Stage 4.7: the first building within reach of an oasis (its place takes the world too).
+Object.assign(TALLY_PLACE, { oasisBuilds: (b, world) => builtNearOasis(world, b) });
 
 // null when the first has not happened; otherwise where it happened: the centre of the building that shows
 // it (the first lived-in home, the first full home, the first granary holding food, the first home at the
@@ -38,7 +41,7 @@ export function firstMet(world, def) {
     }
     case 'tally':
       if ((world.tally[c.key] || 0) < c.n) return null;
-      return centre(TALLY_PLACE[c.key] ? allBuildings(world).find(TALLY_PLACE[c.key]) : null);
+      return centre(TALLY_PLACE[c.key] ? allBuildings(world).find((b) => TALLY_PLACE[c.key](b, world)) : null);
     case 'made': {
       if (((world.tally.made || {})[c.good] || 0) < c.n) return null;
       const all = allBuildings(world);

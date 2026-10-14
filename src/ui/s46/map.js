@@ -13,6 +13,7 @@
 import { seamBase } from './seam.js';
 import { toolPreview, fitTarget } from '../placement.js';
 import { bridgeSpot } from '../../sim/bridges.js';
+import { builtNearOasis } from '../../sim/oases.js';
 import { S46_MAP_TEXT, TIP_TEXT, T, buildingName } from '../text.js';
 import { button } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
@@ -89,8 +90,11 @@ export function createMapUi(ctx) {
   return {
     ...seamBase(),
     // A road command that laid a bridge: the tip too, for a road drawn some other way (the keyboard, a test).
+    // Stage 4.7 (Task 2): the first building within reach of an oasis fires the oasis tip (the first itself is the sim's, src/sim/firsts.js).
     onCommand(e) {
       if (e && e.kind === 'road' && e.result && e.result.ok && e.result.bridges && e.result.bridges.length) ctx.fireTip('roadMeetsWater');
+      const built = e && e.kind === 'building' && e.result && e.result.ok && ctx.world && ctx.world.buildings[e.result.id];
+      if (built && builtNearOasis(ctx.world, built)) ctx.fireTip('oasisBuilt');
     },
     destroy() { for (const f of off) f(); off = []; },
   };

@@ -13,6 +13,7 @@ import { MILESTONES } from '../data/progression.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
 import { WILDLIFE, HUNTING, HERD_KINDS, HERD_KIND_IDS, RIVER_SALT } from '../data/river.js';
 import { areaScale } from '../data/map.js';
+import { OASES, S47_SALT } from '../data/s47.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { hash2 } from './rng.js';
 import { idx, inBounds } from './grid.js';
@@ -60,12 +61,19 @@ const kindFor = (world, id) => (hash2(id, 0, salt(world, 'herdKind')) < 0.6 ? 'g
 
 // A free spot for a herd of a kind: seeded tries over the map, on its ground, WILDLIFE.awayFrom tiles from buildings and WILDLIFE.apart from other herds.
 function spotFor(world, kind, key, edge = false) {
-  const n = world.size;
+  const n = world.size, oases = world.oases || [], oasisSalt = (world.seed + S47_SALT.herdOasis) | 0;
   for (let k = 0; k < 400; k++) {
     let x = Math.floor(hash2(key, k * 2, salt(world, 'herdSpawn')) * n), y = Math.floor(hash2(key, k * 2 + 1, salt(world, 'herdSpawn')) * n);
     if (edge) {                                  // a map edge: one of the four sides, 1-3 tiles in
       const side = Math.floor(hash2(key, k + 1000, salt(world, 'herdWander')) * 4), d = 1 + Math.floor(hash2(key, k + 2000, salt(world, 'herdWander')) * 3);
       if (side === 0) y = d; else if (side === 1) y = n - 1 - d; else if (side === 2) x = d; else x = n - 1 - d;
+    }
+    // Stage 4.7 (ruling 463): herds favour oases. On a map with an oasis, OASES.herdShare of the tries aim at one: a seeded oasis and a spot
+    // OASES.herdReach tiles from its pool's edge (S47_SALT.herdOasis). With no oasis this draws nothing, so every other map spawns as before.
+    if (!edge && oases.length && hash2(key, k * 3 + 5000, oasisSalt) < OASES.herdShare) {
+      const o = oases[Math.floor(hash2(key, k * 3 + 5001, oasisSalt) * oases.length)];
+      const a = hash2(key, k * 3 + 5002, oasisSalt) * Math.PI * 2, rr = o.r + OASES.herdReach[0] + hash2(key, k * 3 + 5003, oasisSalt) * (OASES.herdReach[1] - OASES.herdReach[0]);
+      x = Math.round(o.x + Math.cos(a) * rr); y = Math.round(o.y + Math.sin(a) * rr);
     }
     if (!inBounds(n, x, y) || !groundOk(kind, terrainAt(world, x, y)) || !free(world, x, y)) continue;
     if (buildingNear(world, x, y, WILDLIFE.awayFrom) !== Infinity) continue;

@@ -105,7 +105,7 @@ describe('s46 map generator (ruling 332, 333): every layout at every size keeps 
           for (const [x, y] of m.startRoad) if (at(m, x, y) === T.WATER) fail('start road on water');
           if (m.startRoad[0][0] !== m.tradeEntry.x || m.startRoad[0][1] !== size - 1) fail('start road');
           if (v !== 'classic' && !bridgeSpot(bare(m), m.focus)) fail('no bridge spot');
-          const clay = count(m, T.CLAY) - m.repaired.clay, lo = Math.round(MAP.clay.targetMin * area), hi = lo + Math.round(MAP.clay.targetExtra * area) + MAP.shapes.clay.cap;
+          const clay = count(m, T.CLAY) - m.repaired.clay - m.oasisClay, lo = Math.round(MAP.clay.targetMin * area), hi = lo + Math.round(MAP.clay.targetExtra * area) + MAP.shapes.clay.cap;
           if (clay < lo - 1 || clay > hi) fail(`clay ${clay} (want ${lo}-${hi})`);
           for (let i = 0; i < m.terrain.length; i++) if (m.terrain[i] === T.CLAY && wd[i] > 4) { fail(`clay ${wd[i]} tiles from water`); break; }
           const places = pitPlaces(m);
@@ -162,7 +162,7 @@ describe('s46 map generator: the seeded shape choices (ruling 332)', () => {
       for (const wd of wadis) if (wd.tiles.length < S.wadis.minLen || wd.tiles.length > S.wadis.maxLen || wd.tiles.some((i) => m.terrain[i] !== T.DESERT)) bad.push(`${tag} wadi`);
       // The river is still the one piece of water that runs the length of the map; a side channel or an oxbow is a pool of its own.
       if (!riverSpans(w).every(Boolean)) bad.push(`${tag} river broken`);
-      if ((riverPools(w).length > 0) !== (pools.length > 0 || v === 'oasis')) bad.push(`${tag} pools ${riverPools(w).length}`);
+      if ((riverPools(w).length > 0) !== (pools.length > 0 || v === 'oasis' || w.oases.length > 0)) bad.push(`${tag} pools ${riverPools(w).length}`);
     }
     expect(bad.slice(0, 12)).toEqual([]);
     expect(seen.channels > 20 && seen.oxbows > 20 && seen.none > 20 && seen.wadis > 20 && seen.groves > 500 && seen.dunes > 500 && seen.clusters > 500).toBe(true);   // all of them occur

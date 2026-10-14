@@ -9,6 +9,8 @@ import { BUILDINGS } from '../data/buildings.js';
 import { makeDraw } from './art/ctx.js';
 import { TERRAIN, LEAF2 } from './art/palette.js';
 import { rock, scrub, dune, tufts, reeds } from './art/nature.js';
+import { hasNewLand, GRASS } from '../data/s47.js';
+import { moistureOf, moistureAt, decorDraw } from './grass.js';
 import { defaultCreateCanvas, bucketFor } from './spriteCache.js';
 import { drawRiver, riverIsle, riverPools } from './terrainWater.js';
 import { drawRoads } from './terrainRoads.js';
@@ -66,20 +68,28 @@ export function cornerWeight(world, x, y, code) {
   return n / 4;
 }
 
+// The same with a test in place of a terrain code: the share of the four tiles meeting at corner (x, y) for which test(tx, ty) holds (off-map
+// tiles count as matching). Used by the green band, whose tiles are the ones past a moisture level.
+export function cornerShare(world, x, y, test) {
+  let n = 0;
+  for (const [tx, ty] of [[x - 1, y - 1], [x, y - 1], [x - 1, y], [x, y]]) if (!inBounds(world.size, tx, ty) || test(tx, ty)) n++;
+  return n / 4;
+}
+
 // The tile's diamond as 8 art points (corners and edge midpoints), each pushed out from the tile centre
 // where the terrain continues and pulled in where it stops, plus value noise. `expand` adds a uniform
 // push (tiles) for the soft outer pass.
-export function blobFor(world, x, y, code, salt, expand) {
+export function blobFor(world, x, y, code, salt, expand, test = null, wander = 1) {
   const cx = x + 0.5, cy = y + 0.5;
   const seed = world.seed + salt + code * 101;
   const push = (px, py, w, k) => {
     const n = valueNoise(px * 3.1 + k, py * 3.1, seed, 1.3) - 0.5;
-    const amt = (w - 0.5) * BLEND * 1.5 + n * BLEND + expand;
+    const amt = (w - 0.5) * BLEND * 1.5 * wander + n * BLEND * wander + expand;
     const f = 1 + 2 * amt;
     return p(cx + (px - cx) * f, cy + (py - cy) * f);
   };
   const corners = [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]];
-  const weights = corners.map(([ax, ay]) => cornerWeight(world, ax, ay, code));
+  const weights = corners.map(([ax, ay]) => (test ? cornerShare(world, ax, ay, test) : cornerWeight(world, ax, ay, code)));
   const out = [];
   for (let k = 0; k < 4; k++) {
     const [ax, ay] = corners[k], [bx, by] = corners[(k + 1) % 4];
@@ -196,6 +206,55 @@ function shapeTile(g, world, x, y, bits) {
 
 const nearType = (world, x, y, code) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => terrainAt(world, x + dx, y + dy, -1) === code);
 
+// The green band (Stage 4.7, ruling 462): on a map with new land, dry ground (sand, loam, meadow) takes a green wash that deepens towards the water, from
+// ONE moisture field (src/render/grass.js). Each tier of GRASS.tiers is one path of the tiles past its moisture level, drawn as the same wavering blobs
+// as every layer, so the edge of each is soft and noisy; the tiers stack (pale sage far out, rich green by the water), so the band fades through scrub
+// into sand with no hard line. Rock is left alone. The sim's fertile land does not move; this is only how the ground is drawn.
+const BAND_GROUND = (t) => t === T.DESERT || t === T.FERTILE || t === T.MEADOW;
+function drawGrassBand(g, world, range) {
+  const field = moistureOf(world);
+  if (!field) return;
+  const n = world.size, tiles = [];
+  forTiles(world, range, (x, y, i) => { if (field[i] >= GRASS.tiers[0] && BAND_GROUND(world.terrain[i])) tiles.push([x, y, field[i]]); });
+  if (!tiles.length) return;
+  const ctx = g.ctx;
+  GRASS.tiers.forEach((from, k) => {
+    const test = (tx, ty) => { const j = idx(n, tx, ty), t = world.terrain[j]; return t === T.ROCKY ? false : BAND_GROUND(t) ? field[j] >= from : true; };
+    ctx.beginPath();
+    let any = false;
+    for (const [x, y, m] of tiles) {
+      if (m < from) continue;
+      const pts = blobFor(world, x, y, -1 - k, 5 + k, 0.04, test, GRASS.wander);
+      ctx.moveTo(pts[0][0] * g.scale, pts[0][1] * g.scale);
+      for (let q = 1; q < pts.length; q++) ctx.lineTo(pts[q][0] * g.scale, pts[q][1] * g.scale);
+      ctx.closePath();
+      any = true;
+    }
+    if (!any) return;
+    ctx.globalAlpha = GRASS.alphas[k];
+    ctx.fillStyle = GRASS.colours[k];
+    ctx.fill('nonzero');
+    ctx.globalAlpha = 1;
+  });
+}
+
+// What grows in the band, on the ground (the trees are decorAt's): grass tufts, thick by the water and thinning out, a little scrub where the green gives out, and
+// reeds on the banks. Positions hang off the tile, so chunks agree at a border.
+function bandScatter(g, world, x, y, i, t) {
+  const m = moistureAt(world, i);
+  if (m <= 0) return;
+  const u = decorDraw(world, x, y, 1);
+  if (t === T.BANK) {
+    if (m > 0.5 && decorDraw(world, x, y, 3) < 0.22) reeds(g, p(x + 0.25 + u * 0.5, y + 0.55));
+    return;
+  }
+  if (t !== T.DESERT && t !== T.MEADOW) return;
+  const tiers = GRASS.tiers;
+  const n = m >= tiers[3] ? 4 : m >= tiers[2] ? 3 : m >= tiers[1] ? (u < 0.8 ? 2 : 1) : m >= tiers[0] ? (u < 0.55 ? 1 : 0) : 0;
+  if (n && t === T.DESERT) tufts(g, x, y, n, 2);
+  if (m < tiers[1] && m > 0.02 && decorDraw(world, x, y, 2) < 0.17) scrub(g, p(x + 0.25 + u * 0.5, y + 0.3 + decorDraw(world, x, y, 4) * 0.4));
+}
+
 // Sand everywhere, faint blotches and dots, then the blended layers, then the scatter that sells the blend:
 // loam speckles on fertile land, tufts across meadow borders, pebbles across rocky borders, mud on the banks,
 // rocks, scrub and dunes.
@@ -216,6 +275,7 @@ export function drawGround(g, world, range) {
   });
   drawLayer(g, world, range, T.ROCKY, { soft: TERRAIN.rockySoft, main: TERRAIN.rocky, second: TERRAIN.rockySecond });
   drawLayer(g, world, range, T.FERTILE, { soft: TERRAIN.fertileSoft, main: TERRAIN.fertile, second: null });
+  drawGrassBand(g, world, range);   // Stage 4.7: new land only
   drawLayer(g, world, range, T.MEADOW, { soft: TERRAIN.grassSoft, main: TERRAIN.grass, second: TERRAIN.grassSecond });
   drawLayer(g, world, range, T.BANK, { soft: TERRAIN.bankSecond, main: TERRAIN.bank, second: TERRAIN.bankSecond });
   drawLayer(g, world, range, T.CLAY, { soft: TERRAIN.claySoft, main: TERRAIN.clay, second: TERRAIN.claySecond });
@@ -240,6 +300,7 @@ function scatterTile(g, world, x, y, i) {
     g.ell([q[0] - 1, q[1] - 0.4], 3.5 + r * 3, 1.1, TERRAIN.mudDark, { alpha: 0.6 });
   }
   if (t === T.CLAY) claySpeckle(g, x, y);
+  if (hasNewLand(world)) bandScatter(g, world, x, y, i, t);
   if (t === T.DESERT) {
     const bits = shapeLayer(world)[i];
     if (bits) shapeTile(g, world, x, y, bits);
