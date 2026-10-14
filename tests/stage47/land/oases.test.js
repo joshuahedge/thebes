@@ -9,7 +9,7 @@ import { T } from '../../../src/sim/terrain.js';
 import { idx, inBounds } from '../../../src/sim/grid.js';
 import { bridgeSpot } from '../../../src/sim/bridges.js';
 import { oasisRange, inOasisPool, oasisNear, poolTiles } from '../../../src/sim/oases.js';
-import { canPlace, place } from '../../../src/sim/commands.js';
+import { canPlace, place, paintHouseTiles, paintPlazaTiles } from '../../../src/sim/commands.js';
 import { fitOf } from '../../../src/sim/fit.js';
 import { firstMet } from '../../../src/sim/firsts.js';
 import { FIRSTS } from '../../../src/data/firsts.js';
@@ -88,8 +88,8 @@ describe('s47 oases', () => {
     expect(bad.slice(0, 8)).toEqual([]);
   });
 
-  it('keeps the plan\'s distances: 12 from the river, 8 from an edge, off the start area, raider entries, the trade entry and the bridge spot', () => {
-    const bad = [];
+  it('keeps the plan\'s distances: 12 from the river, 8 from an edge and from rock, off the start area, raider entries, the trade entry and the bridge spot', () => {
+    const bad = [], mended = new Set();
     for (const { size, variant, seed, m } of maps()) {
       if (!m.oases.length) continue;
       const pool = new Set(poolOf(m)), tag = `${size} ${variant} #${seed}`;
@@ -101,6 +101,13 @@ describe('s47 oases', () => {
         const x = i % size, y = Math.floor(i / size);
         if (other.some(([wx, wy]) => Math.max(Math.abs(wx - x), Math.abs(wy - y)) < OASES.fromRiver)) bad.push(`${tag}: pool ${x},${y} within ${OASES.fromRiver} of the river`);
         if (edgeDist(size, x, y) < OASES.fromEdge) bad.push(`${tag}: pool ${x},${y} within ${OASES.fromEdge} of an edge`);
+        // the 8-tile gap to rock (OASES.fromRock) holds on the finished map: outcrops, hills and their rocky skirts keep it. The one thing that may
+        // break it is Task 1's mine repair, and only on a map where no site keeps the gap (the repair prefers one that does): counted below
+        for (let ry = y - OASES.fromRock; ry <= y + OASES.fromRock; ry++) for (let rx = x - OASES.fromRock; rx <= x + OASES.fromRock; rx++) {
+          if (inBounds(size, rx, ry) && (m.terrain[idx(size, rx, ry)] === T.ROCKY || m.terrain[idx(size, rx, ry)] === T.HILLS)) {
+            if (m.repaired.mine > 0) mended.add(tag); else bad.push(`${tag}: rock or hills ${rx},${ry} within ${OASES.fromRock} of pool ${x},${y}`);
+          }
+        }
       }
       for (const o of m.oases) {
         if (Math.hypot(o.x - m.focus.x, o.y - m.focus.y) < 11 + o.r + 1) bad.push(`${tag}: oasis ${o.x},${o.y} on the start area`);
@@ -109,6 +116,7 @@ describe('s47 oases', () => {
       }
     }
     expect(bad.slice(0, 8)).toEqual([]);
+    expect(mended.size <= 25).toBe(true);   // of 1800 maps, the 17 or so with no other room for the guaranteed mine (src/sim/resources.js mendMine prefers a site that keeps the gap)   // of 1800 maps, only the few with no other room for the guaranteed mine (see src/sim/resources.js mendMine)
   });
 
   it('never cuts the start area off from a raider entry or the trade entry, nor moves the bridge spot, on 200 seeds of every size and layout', () => {
@@ -145,7 +153,10 @@ describe('s47 oases', () => {
     expect(pool.length >= 3).toBe(true);
     const river = w.terrain.findIndex((t, i) => t === T.WATER && !pool.includes(i));
     expect(inOasisPool(w, river % 64, Math.floor(river / 64))).toBe(false);
-    expect(oasisNear(w, o.x + Math.floor(o.r) + OASES.near, o.y)).toBe(o);
+    // "within 4 tiles" is measured to the nearest pool tile, not the centre: a tile OASES.near from the pool's eastmost tile counts, one more does not
+    const east = pool.map((i) => [i % 64, Math.floor(i / 64)]).filter(([, y]) => y === o.y).reduce((m, [x]) => Math.max(m, x), o.x);
+    expect(oasisNear(w, east + OASES.near, o.y)).toBe(o);
+    expect(oasisNear(w, east + OASES.near + 1, o.y)).toBe(null);
     expect(oasisNear(w, o.x + Math.ceil(o.r) + OASES.near + 3, o.y)).toBe(null);
   });
 });
@@ -191,6 +202,26 @@ describe('s47 oasis wharf', () => {
   });
 });
 
+describe('s47 oasis nilometer', () => {
+  it('refuses a Nilometer beside only an oasis pool with the same "Must touch the river", and still lets one stand by the river', () => {
+    const w = wharfWorld();
+    const pool = new Set(poolTiles(w));
+    const at = (x, y) => fitOf(w, 'nilometer', x, y, 0);
+    let atPool = null, atRiver = null;
+    for (let y = 1; y < w.size - 1 && !(atPool && atRiver); y++) for (let x = 1; x < w.size - 1; x++) {
+      const f = at(x, y);
+      if (!atPool && f.reason === 'needs_river' && N4.some(([dx, dy]) => pool.has(idx(w.size, x + dx, y + dy)))) atPool = [x, y];
+      if (!atRiver && f.ok && f.wet > 0) atRiver = [x, y];
+    }
+    expect(atPool !== null && atRiver !== null).toBe(true);
+    const c = canPlace(w, 'nilometer', atPool[0], atPool[1]);
+    expect([c.ok, c.reason]).toEqual([false, 'needs_river']);
+    expect(fitOf(w, 'nilometer', 2, 2, 0).reason).toBe('needs_water');   // far from all water the old refusal stands
+    w.oases = [];   // with the oasis taken away the same spot is ordinary water's
+    expect(at(atPool[0], atPool[1]).ok).toBe(true);
+  });
+});
+
 describe('s47 oasis first', () => {
   it('records "An oasis in the desert" when a building first goes up within 4 tiles of an oasis, and not for one farther off', () => {
     const w = wharfWorld();
@@ -203,8 +234,8 @@ describe('s47 oasis first', () => {
       for (let x = 1; x < w.size - 1; x++) {
         if (!free(x, y)) continue;
         const d = Math.hypot(x - o.x, y - o.y);
-        if (!near && d > o.r + 2 && d <= o.r + OASES.near - 0.5 && canPlace(w, 'well', x, y, { roadLater: true }).ok) near = [x, y];
-        if (!far && w.oases.every((q) => Math.hypot(x - q.x, y - q.y) > q.r + OASES.near + 8) && canPlace(w, 'well', x, y, { roadLater: true }).ok) far = [x, y];
+        if (!near && d > o.r + 2 && oasisNear(w, x, y, OASES.near - 0.5) && canPlace(w, 'well', x, y, { roadLater: true }).ok) near = [x, y];
+        if (!far && !oasisNear(w, x, y, OASES.near + 8) && canPlace(w, 'well', x, y, { roadLater: true }).ok) far = [x, y];
       }
     }
     expect(near !== null && far !== null).toBe(true);
@@ -219,6 +250,35 @@ describe('s47 oasis first', () => {
     expect(fired).toEqual([]);
     seam.onCommand({ kind: 'building', result: { ok: true, id: rNear.id } });
     expect(fired).toEqual(['oasisBuilt']);
+  });
+
+  it('fires the tip for plots and plazas drawn near an oasis too (they come back as a list of ids), and not for those far off', () => {
+    for (const kind of ['houses', 'plazas']) {
+      const w = wharfWorld();
+      w.milestone = 'city';   // the plaza unlocks with the City
+      const o = w.oases[0];
+      const free = (x, y) => inBounds(w.size, x, y) && w.terrain[idx(w.size, x, y)] === T.DESERT && !w.occ[idx(w.size, x, y)];
+      let near = null, far = null;
+      for (let y = 1; y < w.size - 1 && !(near && far); y++) {
+        for (let x = 1; x < w.size - 1; x++) {
+          if (!free(x, y)) continue;
+          const d = Math.hypot(x - o.x, y - o.y);
+          if (!near && d > o.r + 2 && oasisNear(w, x, y, OASES.near - 0.5)) near = [x, y];
+          if (!far && !oasisNear(w, x, y, OASES.near + 6)) far = [x, y];
+        }
+      }
+      expect(near !== null && far !== null).toBe(true);
+      const paint = kind === 'houses' ? paintHouseTiles : paintPlazaTiles;
+      const fired = [], seam = createMapUi({ world: w, fireTip: (t) => fired.push(t) });
+      const rFar = paint(w, [far]);
+      expect([kind, rFar.ok, rFar.ids.length]).toEqual([kind, true, 1]);
+      seam.onCommand({ kind, result: rFar });
+      expect([kind, fired]).toEqual([kind, []]);
+      const rNear = paint(w, [near]);
+      expect([kind, rNear.ok, rNear.ids.length]).toEqual([kind, true, 1]);
+      seam.onCommand({ kind, result: rNear });
+      expect([kind, fired]).toEqual([kind, ['oasisBuilt']]);
+    }
   });
 
   it('has its words: the first, the tip (listed in How to play) and their numbers from the sim\'s data', () => {

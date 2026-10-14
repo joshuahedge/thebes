@@ -23,7 +23,7 @@ export const tileBound = (type) => {
   return Boolean(def && def.terrain) && !Number.isInteger(def.terrainMin);
 };
 
-// riverOnly (the fishing wharf, Stage 4.7): an oasis pool does not count as water; it is too small to fish (ruling 463).
+// riverOnly (the fishing wharf and the Nilometer, Stage 4.7): an oasis pool does not count as water; it is too small to fish (ruling 463).
 const water = (world, x, y, riverOnly = false) => inBounds(world.size, x, y) && world.terrain[idx(world.size, x, y)] === T.WATER && !(riverOnly && inOasisPool(world, x, y));
 
 // The water tiles along a side of the footprint: the row above (n) or below (s), the column left (w) or right (e).
@@ -54,9 +54,9 @@ export function fitOf(world, type, x, y, rot = 0) {
   if (def.water) {
     const sides = def.water === 'longSide' ? (w > d ? ['n', 's'] : d > w ? ['w', 'e'] : ['n', 's', 'w', 'e']) : ['n', 's', 'w', 'e'];
     const count = (riverOnly) => (def.water === 'longSide' ? Math.max(...sides.map((s) => sideWater(world, x, y, w, d, s, riverOnly))) : sides.reduce((n, s) => n + sideWater(world, x, y, w, d, s, riverOnly), 0));
-    out.wet = count(Boolean(def.fishes));
+    out.wet = count(Boolean(def.fishes || def.riverOnly));
     // Stage 4.7 (ruling 463): a wharf beside only an oasis pool says so: "Must touch the river" (needs_river), not "Must touch water".
-    if (!out.wet && out.ok) { out.ok = false; out.reason = def.fishes && count(false) ? 'needs_river' : 'needs_water'; }
+    if (!out.wet && out.ok) { out.ok = false; out.reason = (def.fishes || def.riverOnly) && count(false) ? 'needs_river' : 'needs_water'; }
   }
   return out;
 }

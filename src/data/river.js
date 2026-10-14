@@ -91,7 +91,7 @@ export const RIVER_GOODS = {
 export const RIVER_BUILDINGS = {
   nilometer: {
     name: 'Nilometer', w: 1, d: 1, cost: 80, upkeep: 3, workers: 2, priority: 'services', category: 'services',
-    needsRoad: true, water: 'touch', desirability: [1],
+    needsRoad: true, water: 'touch', riverOnly: true, desirability: [1],   // riverOnly: an oasis pool is not the river it measures (Stage 4.7)
   },
   hunting_lodge: {
     // Ruling 434: 2 hunters (was 3): ruling 460 made the herds last (one animal a herd a month, never below 2), and 2 hunters match two herds' yield.

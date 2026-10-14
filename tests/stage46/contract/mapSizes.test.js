@@ -36,7 +36,7 @@ const BEFORE = {
   oasis: ['48da32c', 'f2a3ad70', '2bf4d64e', '2643c37', 'd38fbe59', 'd3aacd0a'],
 };
 const AFTER = {
-  east: ['57d0b754', 'fb94e1b8', '80981850', 'f5771bc3', '22fd39a0', '17b0d0db'],
+  east: ['57d0b754', 'fb94e1b8', '80981850', 'f5771bc3', '22fd39a0', '5d553901'],
   middle: ['1942e720', '2867a47', '8e4c4ac1', '532ee850', '94b28e0f', 'b79b35b'],
   'wide-bends': ['9ed0a181', '9dafb4cf', '188f0492', 'e9c8270c', '6015afe4', 'e4c70685'],
   island: ['94ade120', '3e0b9cc5', '34807062', '204c5b6d', '29145e2', 'd50eb1f7'],
