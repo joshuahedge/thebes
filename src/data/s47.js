@@ -55,3 +55,9 @@ export const isOrders = (orders, stores) => isRec(orders)
 export const CART_STATES = ['out', 'back', 'return'];
 export const isCart = (c) => isRec(c) && ['id', 'from', 'to', 'left', 'turn', 'due'].every((k) => Number.isInteger(c[k]))
   && typeof c.good === 'string' && isNum(c.amount) && isNum(c.len) && CART_STATES.includes(c.state);
+
+// Task 1 (ruling 461): what every new map holds near the start area. reach: tiles from the start area's centre (map.focus) at Normal
+// (64), scaled linearly with the map's size; then, within that reach, at least `clay` clay-pit fits, `mine` gem-mine fits on rocky
+// ground and `farm` grain-farm fits on fertile ground, counted as footprints that do not overlap (what the player can actually build).
+export const RESOURCES = { reach: 20, clay: 2, mine: 1, farm: 6 };
+export const resourceReach = (size) => Math.round((RESOURCES.reach * size) / 64);
