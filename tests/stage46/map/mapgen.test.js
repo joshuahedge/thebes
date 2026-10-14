@@ -80,7 +80,7 @@ describe('s46 map generator (ruling 332, 333): every layout at every size keeps 
         for (const seed of SEEDS) {
           const m = generateMap(seed, size, v), tag = `${v} ${size} seed ${seed}`;
           const fail = (what) => bad.push(`${tag}: ${what}`);
-          const rock = count(m, T.ROCKY), target = Math.round(MAP.rockTarget * area), classicNormal = v === 'classic' && size === 64;
+          const rock = count(m, T.ROCKY) - m.repaired.mine, target = Math.round(MAP.rockTarget * area), classicNormal = v === 'classic' && size === 64;
           if (classicNormal ? rock < 40 || rock > 180 : rock < target || rock > target + 30) fail(`rock ${rock} (want ${target}+)`);
           if (count(m, T.WATER) <= size) fail('no river');
           if (count(m, T.FERTILE) < 250 * area) fail(`fertile ${count(m, T.FERTILE)}`);
@@ -105,7 +105,7 @@ describe('s46 map generator (ruling 332, 333): every layout at every size keeps 
           for (const [x, y] of m.startRoad) if (at(m, x, y) === T.WATER) fail('start road on water');
           if (m.startRoad[0][0] !== m.tradeEntry.x || m.startRoad[0][1] !== size - 1) fail('start road');
           if (v !== 'classic' && !bridgeSpot(bare(m), m.focus)) fail('no bridge spot');
-          const clay = count(m, T.CLAY), lo = Math.round(MAP.clay.targetMin * area), hi = lo + Math.round(MAP.clay.targetExtra * area) + MAP.shapes.clay.cap;
+          const clay = count(m, T.CLAY) - m.repaired.clay, lo = Math.round(MAP.clay.targetMin * area), hi = lo + Math.round(MAP.clay.targetExtra * area) + MAP.shapes.clay.cap;
           if (clay < lo - 1 || clay > hi) fail(`clay ${clay} (want ${lo}-${hi})`);
           for (let i = 0; i < m.terrain.length; i++) if (m.terrain[i] === T.CLAY && wd[i] > 4) { fail(`clay ${wd[i]} tiles from water`); break; }
           const places = pitPlaces(m);
