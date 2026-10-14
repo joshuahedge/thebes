@@ -211,7 +211,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   // Stage 4.7 (Task 1, ruling 461): every map holds, within reach of the start area, 2 clay-pit fits, a gem-mine fit and 6 grain-farm fits.
   // A draw that missed is mended here, deterministically (src/sim/resources.js, S47_SALT.resources); a map that already holds them is
   // untouched, so classic at Normal stays as it was except for the seeds that failed.
-  const repaired = repairResources({ size, terrain, focus, startRoad }, seed, rockRanges);
+  const repaired = repairResources({ size, terrain, focus, startRoad }, seed, rockRanges, { mine: newLandFor(v, size) });   // classic at Normal keeps its rock (controller ruling: weekly seeds, links and records stay put); its clay and farms are mended
   const raiderEntries = entriesFor(terrain, size, spec, at);
   // params (Stage 4.6, world.mapParams): the seeded shape choices (ruling 332), for display and replays: the meander's strength and length,
   // the outcrop clusters placed, the side channels and oxbow lakes (pools), palm groves, dune fields and wadis (the last two are only drawn).
