@@ -17,7 +17,7 @@ import { seasonDays, isFloodFarm, onFloodplain } from '../../sim/flood.js';
 import { crocSpots, herdArrives, herdsInReach } from '../../sim/wildlife.js';
 import { wharfSide } from '../../render/art/river.js';
 import { FLOOD_LEVEL_IDS, floodLevelRow } from '../../data/river.js';
-import { T } from '../../sim/terrain.js';
+import { T, buildable } from '../../sim/terrain.js';
 import { idx, inBounds } from '../../sim/grid.js';
 import { screenToTile } from '../../render/camera.js';
 import { freeTop } from '../../ui/layout.js';
@@ -93,7 +93,7 @@ function addFloodFarms(world, at, n = 3) {
     out.push(b);
     for (const j of [0, 1]) {                                   // a road tile beside each (so no problem marker hangs over the farm in the shot)
       const i = idx(world.size, b.x + 2, b.y + j);
-      if (inBounds(world.size, b.x + 2, b.y + j) && world.terrain[i] !== T.WATER && !world.occ[i]) world.road[i] = 1;
+      if (inBounds(world.size, b.x + 2, b.y + j) && buildable(world, i) && !world.occ[i]) world.road[i] = 1;
     }
   }
   world.roadVersion += 1;
@@ -233,7 +233,7 @@ async function wharf(api, options = {}) {
   b.staff = 3; b.blocked = null; b.paused = false;
   for (const [dx, dy] of [[-1, 0], [b.w, 0], [0, -1], [0, b.d]]) {   // a road tile on a dry side, so no problem marker hangs over the shot
     const x = b.x + dx, y = b.y + dy;
-    if (inBounds(world.size, x, y) && world.terrain[idx(world.size, x, y)] !== T.WATER && !world.occ[idx(world.size, x, y)]) { world.road[idx(world.size, x, y)] = 1; world.roadVersion += 1; break; }
+    if (inBounds(world.size, x, y) && buildable(world, idx(world.size, x, y)) && !world.occ[idx(world.size, x, y)]) { world.road[idx(world.size, x, y)] = 1; world.roadVersion += 1; break; }
   }
   g.ui.refresh();
   zoomFor(g, 1.9, 2);
@@ -259,7 +259,7 @@ async function nilometer(api, options = {}) {
   b.staff = 2; b.paused = false;
   for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
     const x = b.x + dx, y = b.y + dy;
-    if (inBounds(world.size, x, y) && world.terrain[idx(world.size, x, y)] !== T.WATER && !world.occ[idx(world.size, x, y)]) { world.road[idx(world.size, x, y)] = 1; world.roadVersion += 1; break; }
+    if (inBounds(world.size, x, y) && buildable(world, idx(world.size, x, y)) && !world.occ[idx(world.size, x, y)]) { world.road[idx(world.size, x, y)] = 1; world.roadVersion += 1; break; }
   }
   g.ui.refresh();
   zoomFor(g, 2, 2);

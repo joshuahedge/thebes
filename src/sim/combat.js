@@ -27,7 +27,7 @@ import { UNIT_TYPES, UNIT_OF_BUILDING, ENEMY_TYPES, ARMY, matchup } from '../dat
 import { allBuildings, removeBuilding } from './world.js';
 import { isWorking, staffRatio } from './labour.js';
 import { idx, inBounds } from './grid.js';
-import { T } from './terrain.js';
+import { T, passable } from './terrain.js';
 
 export const BESIDE = 1;
 
@@ -74,7 +74,7 @@ function clearLine(world, a, b, pass) {
 }
 
 // A chariot's ground (ruling 340): no standing wall or gate, no water but a bridge.
-const chariotGround = (world) => (i) => !(world.wall[i] > 0) && (world.terrain[i] !== T.WATER || Boolean(world.road[i]));
+const chariotGround = (world) => (i) => !(world.wall[i] > 0) && passable(world, i);   // Stage 4.7: passable (src/sim/terrain.js)
 // An enemy chariot's charge (ruling 341): neither, nor rocky ground.
 const chargeGround = (world) => { const g = chariotGround(world); return (i) => g(i) && world.terrain[i] !== T.ROCKY; };
 

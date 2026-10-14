@@ -8,7 +8,7 @@ import { houseStatus } from '../sim/housing.js';
 import { roadReach, touchesRoad } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
 import { desirabilityField } from '../sim/desirability.js';
-import { T as TILE, TERRAIN_BY_NAME } from '../sim/terrain.js';
+import { T as TILE, TERRAIN_BY_NAME, buildable } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 import { fitOf } from '../sim/fit.js';
 import { p, U, tileDiamond, quad } from './iso.js';
@@ -210,8 +210,8 @@ export function roomTiles(world, type, rot = 0) {
   // the every-tile rule.
   const loose = Boolean(def.terrain) && Number.isInteger(def.terrainMin);
   const ok = def.terrain
-    ? (i) => (loose ? world.terrain[i] !== TILE.WATER : world.terrain[i] === want) && groundFree(world, i)
-    : (i) => world.terrain[i] !== TILE.WATER && world.terrain[i] !== TILE.FERTILE && groundFree(world, i);
+    ? (i) => (loose ? buildable(world, i) : world.terrain[i] === want) && groundFree(world, i)   // Stage 4.7: buildable (src/sim/terrain.js)
+    : (i) => buildable(world, i) && world.terrain[i] !== TILE.FERTILE && groundFree(world, i);
   for (let y = 0; y + d <= n; y++) {
     for (let x = 0; x + w <= n; x++) {
       let fits = true;
@@ -332,7 +332,7 @@ export function desirabilityBands(world, range = null) {
   for (let y = Math.max(0, r.y0); y <= Math.min(world.size - 1, r.y1); y++) {
     for (let x = Math.max(0, r.x0); x <= Math.min(world.size - 1, r.x1); x++) {
       const i = idx(world.size, x, y);
-      if (world.terrain[i] === TILE.WATER) continue;
+      if (!buildable(world, i)) continue;   // Stage 4.7: no band on water or hills (src/sim/terrain.js)
       const id = world.occ[i];
       if (id && world.buildings[id].type !== 'house') continue;
       const v = field[i];

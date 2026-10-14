@@ -30,7 +30,7 @@ const validAfter = (fn) => { const w = JSON.parse(serialize(createWorld({ seed: 
 describe('s4 contract world v5', () => {
   it('creates a version 5 world with no prestige unlocks and the Stage 4 tallies at zero', () => {
     const w = createWorld({ seed: 4 });
-    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([7, 7, 7]);
+    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([8, 8, 8]);
     expect(w.prestigeUnlocks).toEqual({ pyramid_small: null, pyramid_great: null });
     expect(w.prestigeUnlocks).toEqual(newPrestigeUnlocks());
     expect(STAGE4_TALLY).toEqual(['stoneLaid', 'bricksLaid', 'stoneDelivered', 'bricksDelivered', 'courses', 'monumentsDone', 'enlargements']);
@@ -122,8 +122,8 @@ describe('s4 contract migrate v4 to v5', () => {
   });
   it('runs through migrate and deserialize, and reports a malformed version 4 save as corrupt', () => {
     const v4 = v4City();
-    expect(migrate(v4)).toEqual(MIGRATIONS[6](MIGRATIONS[5](MIGRATIONS[4](v4))));
-    expect(deserialize(JSON.stringify(v4)).version).toBe(7);
+    expect(migrate(v4)).toEqual(MIGRATIONS[7](MIGRATIONS[6](MIGRATIONS[5](MIGRATIONS[4](v4)))));
+    expect(deserialize(JSON.stringify(v4)).version).toBe(8);
     let msg = null;
     try { deserialize(JSON.stringify({ version: 4 })); } catch (e) { msg = e.message; }
     expect(msg).toBe('corrupt_save');

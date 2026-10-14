@@ -11,7 +11,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { WILDLIFE, HUNTING, RIVER_SALT } from '../data/river.js';
 import { hash2 } from '../sim/rng.js';
 import { idx, inBounds } from '../sim/grid.js';
-import { T } from '../sim/terrain.js';
+import { T, buildable } from '../sim/terrain.js';
 import { crocSpots, herdsInReach, wildlifeOn } from '../sim/wildlife.js';
 import { wharfSide } from './art/river.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
@@ -76,7 +76,7 @@ export function herdAnimals(world, h, timeDays, motion) {
     const phase = timeDays * m.pace + hash2(h.id, i + 80, (world.seed + SALT + 12) | 0) * Math.PI * 2;
     let x = cx + Math.cos(a) * r + Math.sin(phase) * m.amp, y = cy + Math.sin(a) * r + Math.cos(phase * 0.8) * m.amp;
     const tx = Math.floor(x), ty = Math.floor(y);
-    if (!inBounds(world.size, tx, ty) || world.terrain[idx(world.size, tx, ty)] === T.WATER || world.occ[idx(world.size, tx, ty)]) { x = cx; y = cy; }
+    if (!inBounds(world.size, tx, ty) || !buildable(world, idx(world.size, tx, ty)) || world.occ[idx(world.size, tx, ty)]) { x = cx; y = cy; }   // Stage 4.7: dry open land (no bridge, no hills)
     const flip = hash2(h.id, i + 120, (world.seed + SALT + 13) | 0) > 0.8;
     out.push({ x, y, kind: h.kind, left: (h.dir === -1) !== flip, i });
   }

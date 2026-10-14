@@ -2411,3 +2411,9 @@ export const S46_UX_TEXT = {
   releaseHead: (version, dateText, build = null) => `Version ${version} · ${dateText}${build ? ` · build ${build}` : ''}`,
 };
 // ── end s46 ux ──
+
+// ── s47 (Stage 4.7) ──────────────────────────────────────────
+// Stage 4.7's words. Task 0 adds only the refusal for the hills ground (src/sim/terrain.js groundRefusal); Task 3 owns the hills'
+// other words (the Ground overlay legend, How to play). Later tasks add their own lines just above the end marker.
+Object.assign(REASONS, { hills: 'Hills: nothing can be built here' });
+// ── end s47 ──

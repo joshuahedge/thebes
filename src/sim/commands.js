@@ -2,7 +2,7 @@ import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { ECONOMY } from '../data/economy.js';
 import { MONUMENTS } from '../data/monuments.js';
 import { footprint, idx, inBounds, ring } from './grid.js';
-import { T, TERRAIN_BY_NAME } from './terrain.js';
+import { T, TERRAIN_BY_NAME, buildable, groundRefusal } from './terrain.js';
 import { makeBuilding, insertBuilding, removeBuilding, buildingAt, allBuildings, isFinished, isSite } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { canAfford, spend, refund } from './money.js';
@@ -42,7 +42,8 @@ function tileReason(world, type, tx, ty) {
   const def = BUILDINGS[type];
   if (!inBounds(world.size, tx, ty)) return 'out_of_bounds';
   const i = idx(world.size, tx, ty);
-  if (world.terrain[i] === T.WATER) return 'water';
+  const ground = groundRefusal(world, i);   // Stage 4.7: the one ground rule (src/sim/terrain.js buildable): water or hills
+  if (ground) return ground;
   if (world.occ[i] || world.road[i]) return 'occupied';
   if (world.wall[i] && !(type === 'tower' && world.wall[i] > 0)) return 'occupied';   // a tower may stand on a standing wall tile (spec 4.13)
   // Stage 4.6: a building that needs every footprint tile on its ground refuses tile by tile; one with a looser rule (terrainMin, a
@@ -207,7 +208,7 @@ function roadJoins(world, b) {
   return ring(b.x, b.y, b.w, b.d).filter(([tx, ty]) => {
     if (!inBounds(world.size, tx, ty)) return false;
     const i = idx(world.size, tx, ty);
-    return world.terrain[i] !== T.WATER && !world.occ[i] && !world.wall[i];
+    return buildable(world, i) && !world.occ[i] && !world.wall[i];   // Stage 4.7: buildable (src/sim/terrain.js)
   });
 }
 
@@ -367,7 +368,8 @@ function uniqueTiles(tiles) {
 function roadTileReason(world, x, y, gateOnly = false, bridgeOk = false) {
   if (!isTile(x, y) || !inBounds(world.size, x, y)) return 'out_of_bounds';
   const i = idx(world.size, x, y);
-  if (world.terrain[i] === T.WATER && !bridgeOk) return 'water';
+  const ground = groundRefusal(world, i);   // Stage 4.7: water or hills (src/sim/terrain.js); only water can take a bridge
+  if (ground && !(ground === 'water' && bridgeOk)) return ground;
   if (world.occ[i]) return 'blocked';
   if (gateOnly && !world.wall[i]) return 'not_wall';
   return null;

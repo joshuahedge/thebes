@@ -12,13 +12,13 @@ import { raidSize, tributeFor, raidTargetKind, entryDir } from '../../sim/raids.
 import { drawMix } from '../../sim/armies.js';
 import { raiderHp } from '../../sim/combat.js';
 import { idx, inBounds } from '../../sim/grid.js';
-import { T as TERRAIN } from '../../sim/terrain.js';
+import { buildable } from '../../sim/terrain.js';
 import { DEFENCE, RAIDS } from '../../data/raids.js';
 import { UNIT_TYPES, footMix } from '../../data/armies.js';
 import { screenToTile } from '../../render/camera.js';
 import { freeTop } from '../../ui/layout.js';
 
-const freeLand = (world, x, y) => inBounds(world.size, x, y) && !world.occ[idx(world.size, x, y)] && world.terrain[idx(world.size, x, y)] !== TERRAIN.WATER;
+const freeLand = (world, x, y) => inBounds(world.size, x, y) && !world.occ[idx(world.size, x, y)] && buildable(world, idx(world.size, x, y));
 
 // The camera on a map point, in the middle of the map's free area (as the Stage 3 scenes' focus).
 function focus(g, x, y, kind = 'browse') {

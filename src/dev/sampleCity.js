@@ -11,7 +11,7 @@ import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { TIERS } from '../data/housing.js';
 import { MONUMENTS } from '../data/monuments.js';
-import { T } from '../sim/terrain.js';
+import { T, buildable } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 
 const water = (world, x, y) => world.terrain[idx(world.size, x, y)] === T.WATER;
@@ -33,7 +33,7 @@ export function placeClayPit(world, x, y, { strict = false } = {}) {
   for (const [tx, ty] of [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]]) {
     if (tx < 0 || ty < 0 || tx >= world.size || ty >= world.size) return null;
     const i = idx(world.size, tx, ty);
-    if (world.terrain[i] === T.WATER || world.occ[i] || world.road[i] || world.wall[i]) return null;
+    if (!buildable(world, i) || world.occ[i] || world.road[i] || world.wall[i]) return null;   // Stage 4.7: never paints clay over hills
     before.push([i, world.terrain[i]]);
   }
   for (const [i] of before) world.terrain[i] = T.CLAY;

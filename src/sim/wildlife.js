@@ -17,7 +17,7 @@ import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { hash2 } from './rng.js';
 import { idx, inBounds } from './grid.js';
 import { threatsOn } from './costs.js';
-import { T } from './terrain.js';
+import { T, passable } from './terrain.js';
 
 const milestoneIndex = (id) => MILESTONES.findIndex((m) => m.id === id);
 const atLeast = (world, id) => milestoneIndex(world.milestone) >= milestoneIndex(id);
@@ -44,7 +44,7 @@ function buildingNear(world, x, y, r) {
   }
   return best;
 }
-const free = (world, x, y) => inBounds(world.size, x, y) && !world.occ[idx(world.size, x, y)] && !world.road[idx(world.size, x, y)];
+const free = (world, x, y) => inBounds(world.size, x, y) && passable(world, idx(world.size, x, y)) && !world.occ[idx(world.size, x, y)] && !world.road[idx(world.size, x, y)];   // Stage 4.7: passable
 
 const newHerd = (world, kind, x, y, day) => {
   const w = world.wildlife, k = HERD_KINDS[kind];
