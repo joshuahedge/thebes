@@ -1,0 +1,4 @@
+// Version 5.0: one aggregator. Each task adds its own files here (tests/v50/<task>/...); describe names start with 'v50 <area>', so
+// tests/run-tests.ps1 -Grep "v50 <area>" runs one area. tests/all.js imports this file once.
+import './contract/advice.test.js';
+import './contract/contract.test.js';

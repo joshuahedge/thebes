@@ -14,6 +14,7 @@ import { MAP } from '../data/map.js';
 import { roadCostOf } from '../sim/costs.js';
 import { producerRefused } from '../sim/production.js';
 import { isUnlocked } from '../sim/progression.js';
+import { makerOf, storeFor, goodMakers } from '../sim/advice.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -43,9 +44,9 @@ export function listText(items) {
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }
 
-// The building that makes a good and the one that stores it, from the data (null when there is none).
-export const makerOf = (good) => Object.keys(BUILDINGS).find((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good) || null;
-export const storeFor = (good) => Object.keys(BUILDINGS).find((t) => (BUILDINGS[t].stores || []).includes(good)) || null;
+// The building that makes a good and the one that stores it, and goodMakers (the raw producer, then the workshop): from the data, in
+// src/sim/advice.js since Version 5.0 (the advice's fixes use them), re-exported here for the interface.
+export { makerOf, storeFor, goodMakers };
 const pluralName = (type) => BUILDING_PLURALS[type] || `${buildingName(type).toLowerCase()}s`;
 // Every building that makes a food (FOOD_GOODS), in the data's order, and their names as a list: "grain farms, fig orchards, hunting lodges and
 // fishing wharves". The food causes and fixes name these, never grain alone (final review: game and fish fill a granary too).
@@ -122,14 +123,6 @@ export const CAUSE_TEXT = {
   no_square: { cause: 'No 2×2 square of plots around it', fix: `Make a square with three plots beside it, empty or ${TIERS[5].name}s` },
 };
 
-// The buildings that make a good, in the order they are built: the raw producer, then the workshop ("clay pit,
-// potter"; figs: "fig orchard").
-export function goodMakers(good) {
-  const maker = makerOf(good);
-  if (!maker) return [];
-  const input = BUILDINGS[maker].consumes;
-  return [input ? makerOf(input) : null, maker].filter(Boolean);
-}
 const milestoneOf = (type) => MILESTONES.find((m) => m.unlocks.includes(type)) || null;
 const capitalised = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
