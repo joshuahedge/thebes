@@ -186,7 +186,7 @@ describe('s47 contract salts and scenes', () => {
     expect(Object.values(S47_SALT).every((v) => v >= 4701 && v <= 4719)).toBe(true);
     for (const k of ['hills', 'oases', 'grass', 'carts']) expect(Object.keys(S47_SALT)).toContain(k);
   });
-  it('registers the five Stage 4.7 dev scenes', () => {
-    expect(STAGE47_SCENES).toEqual(['s47-grass', 's47-oasis', 's47-hills', 's47-house-spots', 's47-carts']);
+  it('registers the Stage 4.7 dev scenes (Task 7 adds s47-quota, s47-raid-wealth, s47-estate)', () => {
+    expect(STAGE47_SCENES).toEqual(['s47-grass', 's47-oasis', 's47-hills', 's47-house-spots', 's47-carts', 's47-quota', 's47-raid-wealth', 's47-estate']);
   });
 });

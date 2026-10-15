@@ -1,12 +1,22 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
+import { useOf } from '../data/housing.js';
 import { allBuildings, housesOf } from './world.js';
 import { buildingsInReach, roadReach, reachDistance } from './reach.js';
 import { isWorking } from './labour.js';
 
 // A home's use of a good in a month, rounded up per home (spec 4.10). Every food has the same rate, so a home's
-// food need is monthlyNeed(house, FOOD_GOODS[0]) whatever mix of foods meets it.
-export const monthlyNeed = (house, good) => Math.ceil(house.residents * GOODS[good].perResidentPerMonth);
+// food need is monthlyNeed(house, FOOD_GOODS[0]) whatever mix of foods meets it. Stage 4.7 (ruling 471): a household good's rate is
+// times the tier's use (useOf: 1.5 a Villa, 2 an Estate, else 1); `tier` (default the home's own) asks it for another tier, so a home
+// can be judged and stocked for the tier it is growing into.
+// (The product is rounded to a millionth before it is rounded up when a use applies, so 150 x 0.04 x 1.5 is 9, not 10; the plain rate keeps
+// its old sum exactly, so no home below a Villa moves.)
+const isHousehold = (good) => GOODS[good].kind === 'household';
+export function monthlyNeed(house, good, tier = house.tier) {
+  const use = isHousehold(good) ? useOf(tier || 0) : 1;
+  const n = house.residents * GOODS[good].perResidentPerMonth;
+  return use === 1 ? Math.ceil(n) : Math.ceil(Math.round(n * use * 1e6) / 1e6);
+}
 
 const foodOnHand = (house) => FOOD_GOODS.reduce((s, g) => s + (house.stock[g] || 0), 0);
 
@@ -74,13 +84,15 @@ const heldBy = (bazaars, good) => (bazaars || []).reduce((s, { b }) => s + (b.st
 // short from whichever food is there, grain first. Any other home fills its need from the food its bazaars hold
 // most of (ties go to grain), then from the other, so a surplus of one food is eaten down rather than left to fill
 // the stores. Each household good is topped up to its own month's need.
-export function topUpHouse(world, house, goods, bazaars, { twoFoods = false } = {}) {
+// Stage 4.7 (ruling 471): a home that wants three kinds of food (kinds: 3) takes each food up to a third of the need first; `tier` is the
+// tier whose use the household goods are topped up for (a home growing into a Villa stocks for one).
+export function topUpHouse(world, house, goods, bazaars, { twoFoods = false, kinds = twoFoods ? 2 : 1, tier = house.tier } = {}) {
   let foods = goods.filter((g) => FOOD_GOODS.includes(g));
   if (foods.length) {
     const need = monthlyNeed(house, FOOD_GOODS[0]);
-    if (twoFoods) {
-      const half = Math.ceil(need / 2);
-      for (const g of foods) takeFrom(bazaars, house, g, Math.min(half - (house.stock[g] || 0), need - foodOnHand(house)));
+    if (kinds > 1) {
+      const part = Math.ceil(need / kinds);
+      for (const g of foods) takeFrom(bazaars, house, g, Math.min(part - (house.stock[g] || 0), need - foodOnHand(house)));
     } else {
       foods = foods.slice().sort((a, b) => heldBy(bazaars, b) - heldBy(bazaars, a));   // stable: ties keep grain first
     }
@@ -88,6 +100,6 @@ export function topUpHouse(world, house, goods, bazaars, { twoFoods = false } = 
     for (const g of foods) gap -= takeFrom(bazaars, house, g, gap);
   }
   for (const good of goods) {
-    if (!FOOD_GOODS.includes(good)) takeFrom(bazaars, house, good, monthlyNeed(house, good) - (house.stock[good] || 0));
+    if (!FOOD_GOODS.includes(good)) takeFrom(bazaars, house, good, monthlyNeed(house, good, Math.max(tier, house.tier)) - (house.stock[good] || 0));
   }
 }

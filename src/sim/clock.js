@@ -27,6 +27,7 @@ import { monumentDay, monumentMonth, updatePrestigeUnlocks } from './monuments.j
 import { palaceDay } from './palace.js';
 import { s46Day, s46Month } from './s46.js';
 import { cartDay } from './carts.js';
+import { pressureMonth } from './pressure.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
 
@@ -44,6 +45,7 @@ export function runMonth(world, events = null) {
   const tradeSpent = tradeMonth(world, events);
   raidMonth(world, events);                            // Stage 3 (src/sim/raids.js)
   s46Month(world, events);                             // Stage 4.6: the flood, the herds, the army, the court (src/sim/s46.js)
+  pressureMonth(world, events);                        // Stage 4.7 (Task 7): the yearly quota and the warnings a year ahead (src/sim/pressure.js)
   updateMood(world);
   const milestoneChanged = updateMilestone(world);
   if (milestoneChanged && events) events.push({ type: 'milestone', id: world.milestone });

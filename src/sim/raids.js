@@ -63,6 +63,7 @@
 // beaten in retreat. A target is the nearest (straight line from the band) unstruck building of the warned kind, else of
 // each kind below it in RAIDS.targets, else any other building but a home or rubble, that the band can reach.
 import { RAIDS, RAID_SALT, UNITS } from '../data/raids.js';
+import { RAIDS_LATE } from '../data/s47.js';
 import { DANGER_MOOD } from '../data/mood.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, population } from './world.js';
@@ -123,11 +124,32 @@ export function raidWealth(world) {
 // The raiders a raid warned now would bring (spec 4.13): RAIDS.firstSize for the first raid (index 0) at every level;
 // otherwise round((1 + people / 125 + clamp((wealth - 5000) / 5000, 0, 4)) x the difficulty's risk x adaptation),
 // between RAIDS.minSize and RAIDS.maxSize. The warning fixes it; Safety's defence term (score.js) reads it for "now".
+// Stage 4.7 (Task 7, ruling 470): plus wealthDraw, the late-game wealth term, on top of favour's step (so it may pass RAIDS.maxSize).
 export function raidSize(world) {
   if (world.raid.index === 0) return RAIDS.firstSize;
   // Stage 4.6 (ruling 336): favour's size step (src/sim/court.js, the Court track's); the Armies track keeps this call.
-  return favourRaidSize(world, baseRaidSize(world));
+  return favourRaidSize(world, baseRaidSize(world)) + wealthDraw(world);
 }
+
+// The game year a day falls in (1 from the first day).
+const yearOf = (day) => Math.floor(day / (DAYS_PER_MONTH * MONTHS_PER_YEAR)) + 1;
+// Whether the late-game raid rules apply on this day (ruling 470): from RAIDS_LATE.fromYear, never on Peaceful.
+export const lateRaids = (world) => raidsOn(world) && yearOf(world.day) >= RAIDS_LATE.fromYear;
+// The raiders the city's wealth draws (Stage 4.7, ruling 470): from RAIDS_LATE.fromYear, one for each RAIDS_LATE.goldPer gold in the treasury
+// and one for each RAIDS_LATE.peoplePer people, at most RAIDS_LATE.cap for the difficulty; 0 before then, on Peaceful and for the first raid.
+// The score's defence term reads baseRaidSize, which leaves it out (ruling 441), so wealth never moves the score.
+export function wealthDraw(world) {
+  if (!lateRaids(world) || world.raid.index === 0) return 0;
+  return Math.min(wealthCap(world), wealthTerms(world).total);
+}
+// The two terms before the cap: { gold, people, total }.
+export function wealthTerms(world) {
+  const gold = Math.floor(Math.max(0, world.gold) / RAIDS_LATE.goldPer), people = Math.floor(population(world) / RAIDS_LATE.peoplePer);
+  return { gold, people, total: gold + people };
+}
+export const wealthCap = (world) => RAIDS_LATE.cap[world.difficulty] || 0;
+// The chance a raid from RAIDS.twoSidedFrom on comes as two bands: RAIDS.twoSidedChance, RAIDS_LATE.twoSidedChance from its year (ruling 470).
+export const twoSidedChance = (world) => (lateRaids(world) ? RAIDS_LATE.twoSidedChance : RAIDS.twoSidedChance);
 // The raid size before favour's step (the first raid's is RAIDS.firstSize): the city score's defence term reads this one, so favour never
 // moves the score (rulings 344, 441).
 export function baseRaidSize(world) {
@@ -210,20 +232,22 @@ function raiseWarning(world, events) {
   const index = r.index, first = index === 0;
   const entry = { ...entries[Math.floor(hash2(world.seed, index, RAID_SALT.entry) * entries.length)] };
   const single = raidSize(world);
-  const second = !first && index >= RAIDS.twoSidedFrom && entries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < RAIDS.twoSidedChance
+  const second = !first && index >= RAIDS.twoSidedFrom && entries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < twoSidedChance(world)
     ? secondBand(world, index, entry, single + 1) : null;
   const size = second ? single + 1 : single;
   // Stage 4.6 (rulings 341, 382, 384): the raid's mix by enemy kind, drawn from the total; boats only on a raid from one side.
   const landing = !first && !second && enemyMayCome('boat', index) ? boatLanding(world, index) : null;
   const mix = first ? footMix(size) : drawMix(world, index, size, { boats: Boolean(landing) });
   const w = { index, entry, dir: entryDir(world, entry), size, tribute: first ? null : tributeFor(world, size), target: raidTargetKind(world), day: world.day, arrives: world.day + RAIDS.warningDays, first, mix };
+  const wealth = first ? 0 : wealthDraw(world);
+  if (wealth > 0) w.wealth = wealth;   // Stage 4.7 (ruling 470): the raiders the city's wealth drew, said in the warning
   if (second) w.second = second;
   else if (mix.boat > 0) w.second = { entry: { ...landing.bank }, dir: landing.dir, size: mix.boat, boat: true, from: { ...landing.from } };
   r.warning = w;
   r.index = index + 1;
   if (first) setSpeed(world, 0);
   else if (world.speed > 1) setSpeed(world, 1);
-  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}) });
+  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.wealth ? { wealth: w.wealth } : {}), ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}) });
 }
 
 // The second band of a two-sided raid (ruling 317): an entry other than the first's, by hash2(seed, index, RAID_SALT.entry2),

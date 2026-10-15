@@ -4,7 +4,7 @@
 // total; the first raid stays 3 and cannot be paid off; Peaceful has none. Every sentence is computed from the sim's own
 // numbers, and each is tested for a single band and for two.
 import { describe, it, expect } from '../harness.js';
-import { raidDay, raidAlerts, raidDirs, raidSize, raidWealth, sizeGrowth, tributeFor, tributeQuote, towersNeeded, warningBands, warningDirs } from '../../src/sim/raids.js';
+import { raidDay, raidAlerts, raidDirs, raidSize, baseRaidSize, wealthDraw, wealthCap, raidWealth, sizeGrowth, tributeFor, tributeQuote, towersNeeded, warningBands, warningDirs } from '../../src/sim/raids.js';
 import { hash2 } from '../../src/sim/rng.js';
 import { serialize, deserialize } from '../../src/save/serialize.js';
 import { RAIDS, RAID_SALT, UNITS } from '../../src/data/raids.js';
@@ -64,12 +64,14 @@ describe('s45 raids grow with the years', () => {
     expect(Math.round(at(YEAR * 3)[0] * 1000)).toBe(1300);
     expect(Math.round(at(YEAR * 5)[0] * 1000)).toBe(1500);
     expect(at(YEAR * 9)[0]).toBe(RAIDS.growthMax);                                    // at most 1.5
-    // The size is the unchanged formula times the growth: people / 125 and the wealth term, rounded after.
+    // The size is the unchanged formula times the growth: people / 125 and the wealth term, rounded after. From year 10 (day YEAR * 9) Stage
+    // 4.7's late wealth term (ruling 470, wealthDraw) comes on top; before it, it is 0.
     const wealth = Math.min(RAIDS.wealthMax, Math.max(0, (raidWealth(w) - RAIDS.wealthBase) / RAIDS.wealthStep));
     const raw = 1 + population(w) / RAIDS.peoplePerRaider + wealth;
     for (const day of [0, YEAR, YEAR * 2.5, YEAR * 5, YEAR * 9]) {
       const [growth, size] = at(day);
-      expect([day, size]).toEqual([day, Math.max(RAIDS.minSize, Math.min(RAIDS.maxSize, Math.round(raw * growth)))]);
+      expect([day, size - wealthDraw(w)]).toEqual([day, Math.max(RAIDS.minSize, Math.min(RAIDS.maxSize, Math.round(raw * growth)))]);
+      expect([day, wealthDraw(w) > 0]).toEqual([day, day >= YEAR * 9]);
     }
     expect(at(YEAR * 9)[1]).toBeGreaterThan(at(0)[1]);
     // The clock has not started: nothing grows.
@@ -82,6 +84,10 @@ describe('s45 raids grow with the years', () => {
     w.raid.index = 1;
     w.day = YEAR * 10;
     expect(RAIDS.maxSize).toBe(18);
+    expect(baseRaidSize(w)).toBe(18);
+    // Stage 4.7 (ruling 470): from year 10 the wealth term comes on top of the capped size, itself capped by difficulty (6 on Normal).
+    expect(raidSize(w)).toBe(18 + wealthCap(w));
+    w.day = YEAR * 8;
     expect(raidSize(w)).toBe(18);
     w.raid.index = 0;
     expect(raidSize(w)).toBe(RAIDS.firstSize);                                        // the first raid stays 3 at every age

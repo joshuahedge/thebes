@@ -4,7 +4,7 @@ import { DIFFICULTIES } from '../data/difficulty.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { PRESTIGE_UNLOCKS } from '../data/monuments.js';
 import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY } from '../sim/world.js';
-import { isOasis, isOrders, isCart } from '../data/s47.js';
+import { isOasis, isOrders, isCart, isQuota, isYearMade } from '../data/s47.js';
 import { MAP_VARIANTS } from '../data/map.js';
 import { isFloodState, isWildlifeState } from '../data/river.js';
 import { isCourtState } from '../data/court.js';
@@ -70,6 +70,7 @@ function isStage46(w, cells) {
   if (w.mapSize !== w.size || !isRecord(w.mapParams)) return false;
   if (!Array.isArray(w.floodplain) || w.floodplain.length !== cells || !w.floodplain.every((v) => v === 0 || v === 1)) return false;
   if (!isFloodState(w.flood) || !isWildlifeState(w.wildlife) || !isCourtState(w.court) || !isArmyState(w.army)) return false;
+  if (!isQuota(w.court.quota) || !isYearMade(w.court.yearMade)) return false;   // Stage 4.7 (Task 7): the yearly quota, src/data/s47.js
   return Object.values(w.buildings).every(isStage46Building) && w.soldiers.every(isUnitKind);
 }
 
