@@ -10,3 +10,5 @@ import './hills/walk.test.js';
 import './hills/art.test.js';
 import './hills/review.test.js';
 import './spots/spots.test.js';
+import './carts/carts.test.js';
+import './carts/tip.test.js';

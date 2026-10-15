@@ -2463,4 +2463,62 @@ export const S47_SPOTS_TEXT = {
 FIRST_TEXT.first_good_spot = S47_SPOTS_TEXT.first;
 TIP_TEXT.house_spots = S47_SPOTS_TEXT.tip;
 TIP_HELP_TEXT.house_spots = S47_SPOTS_TEXT.tipHelp;
+// Task 5 (ruling 466): storehouse orders and carts. Every number comes from the sim: the amounts and speed from src/data/s47.js CARTS, the rest from
+// src/sim/carts.js (fetchPreview, fetchStatus, farGoodTip, setFetch's refusals), so a sentence here is only ever a sentence about what the sim does.
+import { CARTS as s47Carts } from '../data/s47.js';
+const cartDir = { north: 'north', north_east: 'north-east', east: 'east', south_east: 'south-east', south: 'south', south_west: 'south-west', west: 'west', north_west: 'north-west' };
+const cartGood = (good) => goodName(good).toLowerCase();
+const cartStore = (type) => buildingName(type).toLowerCase();
+const cartTiles = (n) => plural(n, 'road tile', 'road tiles');
+const cartDays = (n) => plural(n, 'day', 'days');
+// "from the storehouse 34 road tiles east": the store the goods come from, how far along the roads and which way it lies.
+const cartWhere = (src) => `from the ${cartStore(src.type)} ${cartTiles(src.len)}${src.dir ? ` ${cartDir[src.dir]}` : ''}`;
+export const S47_CARTS_TEXT = {
+  group: 'Fetch', add: 'Fetch a good', clear: 'Stop fetching', set: 'Fetch', change: 'Change', showSource: 'Show the store',
+  amountLabel: (good) => `${goodName(good)}: fetch up to`,
+  setLabel: (good) => `Fetch ${cartGood(good)}`, clearLabel: (good) => `Stop fetching ${cartGood(good)}`,
+  help: `A ${cartStore('storehouse')} or ${cartStore('granary')} can Fetch a good from other stores by road: one cart, ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day each way. It never takes a store below what that store fetches for itself.`,
+  // The consequence of an order before the tap: Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 34 road tiles (5 days each way).
+  consequence: (pv) => (pv.source
+    ? `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: one cart, ${pv.perTrip} a trip, from the nearest store with ${cartGood(pv.good)}, ${cartTiles(pv.source.len)} (${cartDays(pv.source.days)} each way)${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`
+    : `Fetch ${cartGood(pv.good)}: no store with ${cartGood(pv.good)} is linked by road`),
+  where: cartWhere,
+  // The order's live line: "Fetching pottery: 40 on the way, back in 3 days, from the storehouse 34 road tiles east".
+  status: (st) => {
+    const g = cartGood(st.good), head = `Fetching ${g}`;
+    switch (st.state) {
+      case 'out': case 'back': return `${head}: ${st.amount} on the way, ${st.days ? `back in ${cartDays(st.days)}` : 'back today'}${st.source ? `, ${cartWhere(st.source)}` : ''}`;
+      case 'return': return `${head}: the road is cut, so the cart turned round${st.days ? ` (${cartDays(st.days)} to go)` : ''}`;
+      case 'other': return `${head}: the cart is fetching another good first`;
+      case 'full': return `${head}: ${st.held} held of ${st.fetch}, no cart needed`;
+      case 'refused': return `${head}: this store refuses ${g}, so no cart goes`;
+      case 'unstaffed': return `${head}: no cart goes while this store is short of workers (${st.staff} of ${st.workers}) or off the road`;
+      case 'no_room': return `${head}: no cart goes, the store is full`;
+      case 'no_source': return `${head}: no store with ${g} to spare is linked by road`;
+      default: return `${head}: a cart sets out next for ${st.amount}, ${cartWhere(st.source)}`;
+    }
+  },
+  // Refusals (setFetch's result): each says why.
+  refusal: (r) => {
+    const g = r.good ? cartGood(r.good) : 'that';
+    switch (r.reason) {
+      case 'not_storage': return 'Only a storehouse or a granary can fetch goods';
+      case 'cannot_store': return `This store cannot hold ${g}`;
+      case 'refuses': return `This store refuses ${g}: let it accept ${g} first`;
+      case 'bad_amount': return `Choose a whole number from 1 to ${r.max}`;
+      case 'no_source': return `No store with ${g} is linked by road`;
+      case 'no_order': return `This store is not fetching ${g}`;
+      default: return 'Nothing is here';
+    }
+  },
+  lost: (e) => `A cart lost ${e.amount} ${cartGood(e.good)}: no store had room for them`,
+  first: { head: 'The first cart home', why: `A cart brought goods from another store along the roads: ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day each way.` },
+  tip: 'Some homes wait on a good only a far store holds. Set a storehouse near them to Fetch it.',
+  tipHelp: `Open a store to Fetch goods from other stores by cart: ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day.`,
+  // The tip with the city's own good (farGoodTip): "Set a storehouse near these homes to Fetch pottery".
+  tipFor: (tip) => `Set a ${cartStore('storehouse')} near these homes to Fetch ${cartGood(tip.good)}`,
+};
+FIRST_TEXT.first_cart_trip = S47_CARTS_TEXT.first;
+TIP_TEXT.fetch_far = S47_CARTS_TEXT.tip;
+TIP_HELP_TEXT.fetch_far = S47_CARTS_TEXT.tipHelp;
 // ── end s47 ──

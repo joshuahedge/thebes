@@ -19,6 +19,8 @@ const TALLY_PLACE = { harvested: holdsFood, caravans: (b) => b.type === 'trading
 Object.assign(TALLY_PLACE, { courses: (b) => Boolean(b.site) && b.site.course > 0, monumentsDone: isFinished });
 // Stage 4.7: the first building within reach of an oasis (its place takes the world too).
 Object.assign(TALLY_PLACE, { oasisBuilds: (b, world) => builtNearOasis(world, b) });
+// Stage 4.7 (Task 5): the first cart trip shows on the first store with an order.
+Object.assign(TALLY_PLACE, { cartTrips: (b) => Boolean(b.orders) && Object.keys(b.orders).length > 0 });
 
 // null when the first has not happened; otherwise where it happened: the centre of the building that shows
 // it (the first lived-in home, the first full home, the first granary holding food, the first home at the
