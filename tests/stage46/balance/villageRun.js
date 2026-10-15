@@ -7,6 +7,9 @@
 // archers the third tower's; farms 3 and towers 3 with extras is everything on top. The player reads every letter at the month's
 // end, sends a request as soon as the stores and treasury hold enough, and answers a card with its first choice that can be made.
 // lowYears forces those years' floods Low (the Low-year check): a list of game years, or 'all'.
+// Stage 4.7 (Task 8): the player also sends the capital's yearly tribute (ruling 469; asked from year 8, sent as soon as the stores hold it all and, from
+// month 10, whatever they hold), and with the extras at Market town lays a second granary at the east end of the street (beside the last homes) that
+// Fetches fish from the first (the wharf's catch piles up there; the village's grain is eaten as it is made and never rests in a store) (ruling 466): one fetch order, with its store's wages and upkeep, so the 60-70% check covers the carts' cost.
 import { advanceDays } from '../../../src/sim/clock.js';
 import { ECONOMY } from '../../../src/data/economy.js';
 import { COURT } from '../../../src/data/court.js';
@@ -15,6 +18,8 @@ import { housesOf, population, allBuildings } from '../../../src/sim/world.js';
 import { atLeast } from '../../../src/sim/progression.js';
 import { floodplainOf } from '../../../src/sim/flood.js';
 import { readLetter, requestStatus, sendRequest, cardChoices, answerCard, outputPerMonth } from '../../../src/sim/court.js';
+import { quotaOf, quotaStatus, sendQuota } from '../../../src/sim/pressure.js';
+import { setFetch } from '../../../src/sim/carts.js';
 import { monthFigures } from '../../../src/sim/economy.js';
 import { T } from '../../../src/sim/terrain.js';
 import { idx } from '../../../src/sim/grid.js';
@@ -53,9 +58,11 @@ const later = (towers) => [
   { milestone: 'town', steps: [['firehouse', 8, 11], ['firehouse', 21, 11], ['physician', 15, 11]] },
   { milestone: 'market_town', steps: [['tower', 14, 11], ['tower', 22, 11], ...(towers >= 3 ? [['tower', 26, 11]] : []), ['police_post', 23, 11]] },
 ];
+const FETCH = { milestone: 'market_town', steps: [['granary', 27, 10], ['fetch', 'fish', 100]] };
 const EXTRAS = [
   { milestone: 'town', steps: [['road', 9, 8, 9, 11], ['fishing_wharf', 10, 8], ['hunting_lodge', 8, 13]] },
   { milestone: 'market_town', steps: [['archery_range', 10, 9]], court: true },
+
 ];
 
 const homesUnfed = (w) => housesOf(w).filter((h) => h.tier > 0 && h.met && h.met.food === false && h.residents > 0).length;
@@ -75,6 +82,16 @@ function courtTurn(w, log) {
     const done = sendRequest(w);
     if (done.ok) Object.assign(log.requests.find((r) => r.id === id), { result: 'met', metDay: w.day });
   }
+  // The yearly tribute (Stage 4.7): sent once the stores hold all of it, and from month 10 whatever they hold.
+  const q = quotaOf(w);
+  if (q && q.result === null) {
+    const st = quotaStatus(w);
+    const monthOfYear = (Math.floor(w.day / 30) % 12) + 1;
+    if (st.completes || (monthOfYear >= 10 && st.shipNow > 0)) {
+      const r = sendQuota(w);
+      if (r.met) log.quotas.push({ year: q.year, goods: q.goods.map((g) => `${g.amount} ${g.good}`).join(', '), early: r.early, favour: r.favour, gift: r.gift });
+    }
+  }
   for (const l of c.letters.filter((x) => x.kind === 'card')) {
     const choice = cardChoices(w, l).find((x) => !x.problem);
     if (!choice) continue;
@@ -90,11 +107,12 @@ const forceLow = (w, years) => {
 };
 
 // Runs the village month by month for `years`; returns the world, each month's figures and the court's log.
-export function runVillage46({ extras = true, channel = true, lowYears = [], years = 10, farms = 3, towers = 3 } = {}) {
+export function runVillage46({ extras = true, channel = true, lowYears = [], years = 10, farms = 3, towers = 3, fetch = false } = {}) {
   const w = village({ channel, farms });
-  const plans = [...later(towers), ...(extras ? EXTRAS : [])].map((l) => ({ ...l, done: false }));
+  const plans = [...later(towers), ...(extras ? EXTRAS : []), ...(extras && fetch ? [FETCH] : [])].map((l) => ({ ...l, done: false }));
   const months = [];
-  const log = { requests: [], cards: [], gifts: [] };
+  const log = { requests: [], cards: [], gifts: [], quotas: [], asked: [] };
+  const fetches = [];
   let lowestGold = w.gold;
   for (let month = 0; month < years * 12; month++) {
     forceLow(w, lowYears);
@@ -104,6 +122,8 @@ export function runVillage46({ extras = true, channel = true, lowYears = [], yea
     forceLow(w, lowYears);
     lowestGold = Math.min(lowestGold, w.gold);
     const s = w.stats.lastMonth;
+    for (const e of events) if (e.type === 'court_quota' && e.result === 'asked') log.asked.push({ year: e.quota.year, goods: e.quota.goods.map((g) => `${g.amount} ${g.good}`).join(', '), gift: e.quota.gift });
+    for (const e of events) if (e.type === 'court_quota' && e.result === 'missed') log.asked.push({ year: e.quota.year, missed: true });
     for (const e of events) if (e.type === 'court_gift') log.gifts.push({ gold: e.gold, good: e.good, n: e.n, taxes: s.taxes, month });
     months.push({
       spent: s.wages + s.upkeep + s.soldiers, taxes: s.taxes, wages: s.wages, upkeep: s.upkeep, soldiers: s.soldiers,
@@ -111,11 +131,15 @@ export function runVillage46({ extras = true, channel = true, lowYears = [], yea
       made: { ...(s.made || {}) }, gifts: w.tally.gifts - giftsBefore,
     });
     courtTurn(w, log);
+    for (let i = fetches.length - 1; i >= 0; i--) if (setFetch(w, fetches[i].id, fetches[i].good, fetches[i].amount).ok) fetches.splice(i, 1);
     for (const l of plans) {
       if (l.done || !atLeast(w, l.milestone)) continue;
+      let last = null;
       for (const st of l.steps) {
+        if (st[0] === 'fetch') { fetches.push({ id: last, good: st[1], amount: st[2] }); continue; }   // set as soon as a store can be drawn on
         const r = st[0] === 'road' ? drawRoad(w, st[1], st[2], st[3], st[4]) : place(w, st[0], st[1], st[2]);
         if (!r.ok) throw new Error(`${st[0]} refused at ${st[1]},${st[2]}: ${r.reason}`);
+        if (r.id !== undefined) last = r.id;
       }
       if (l.court && !w.goals.completed.includes(COURT.afterGoal)) w.goals.completed.push(COURT.afterGoal);
       l.done = true;

@@ -31,10 +31,10 @@ function city({ people = 600, gold = 2000, difficulty = 'normal', day = LATE, in
 }
 
 describe('s47 raids wealth: the size', () => {
-  it('draws one raider for each 10,000 gold and each 500 people from year 10, capped by difficulty, none before, on Peaceful or for the first raid', () => {
-    const w = city({ people: 1200, gold: 34000 });
-    expect(wealthTerms(w)).toEqual({ gold: 3, people: 2, total: 5 });
-    expect(wealthDraw(w)).toBe(5);
+  it('draws one raider for each 40,000 gold and each 500 people from year 10, capped by difficulty, none before, on Peaceful or for the first raid', () => {
+    const w = city({ people: 1200, gold: 94000 });
+    expect(wealthTerms(w)).toEqual({ gold: 2, people: 2, total: 4 });
+    expect(wealthDraw(w)).toBe(4);
     w.day = LATE - 1;                                                       // year 9's last day
     expect([lateRaids(w), wealthDraw(w)]).toEqual([false, 0]);
     w.day = LATE;
@@ -45,7 +45,7 @@ describe('s47 raids wealth: the size', () => {
       expect([d, wealthCap(rich), wealthDraw(rich)]).toEqual([d, cap, cap]);
       expect(RAIDS_LATE.cap[d]).toBe(cap);
     }
-    const poor = city({ people: 499, gold: 9999 });
+    const poor = city({ people: 499, gold: RAIDS_LATE.goldPer - 1 });
     expect(wealthDraw(poor)).toBe(0);
     expect(Math.floor(population(poor) / RAIDS_LATE.peoplePer)).toBe(0);
   });
@@ -77,7 +77,7 @@ describe('s47 raids wealth: the size', () => {
 describe('s47 raids wealth: the warning', () => {
   it('fixes the wealth term in the warning and its event, and the raid sheet says it; a year-9 raid has none and says none', () => {
     for (const [day, wealth] of [[LATE + 30, 4], [LATE - 60, 0]]) {
-      const w = city({ people: 1000, gold: 25000, day });
+      const w = city({ people: 1000, gold: 85000, day });
       const events = [];
       raidDay(w, events);
       const warn = w.raid.warning;
@@ -112,8 +112,8 @@ describe('s47 raids wealth: the warning', () => {
       pressureMonth(w, events);
       const e = events.find((x) => x.type === 'raids_grow');
       expect([d, Boolean(e)]).toEqual([d, warned]);
-      if (e) expect(P.raidsGrow(e)).toBe(`From year ${RAIDS_LATE.fromYear} raids grow with your wealth: one more raider for each ${RAIDS_LATE.goldPer} gold and each ${RAIDS_LATE.peoplePer} people, up to ${RAIDS_LATE.cap[d]} more`);
+      if (e) expect(P.raidsGrow(e)).toBe(`From year ${RAIDS_LATE.fromYear} raids grow with your wealth: one more raider for each ${RAIDS_LATE.goldPer.toLocaleString('en-US')} gold and each ${RAIDS_LATE.peoplePer} people, up to ${RAIDS_LATE.cap[d]} more`);
     }
-    expect(TIP_HELP_TEXT.raids_wealth).toContain(`per ${RAIDS_LATE.goldPer} gold and ${RAIDS_LATE.peoplePer} people: up to ${RAIDS_LATE.cap.relaxed}-${RAIDS_LATE.cap.hard} more raiders, by level.`);
+    expect(TIP_HELP_TEXT.raids_wealth).toContain(`per ${RAIDS_LATE.goldPer.toLocaleString('en-US')} gold and ${RAIDS_LATE.peoplePer} people: up to ${RAIDS_LATE.cap.relaxed}-${RAIDS_LATE.cap.hard} more raiders, by level.`);
   });
 });

@@ -150,10 +150,12 @@ export const isYearMade = (y) => y === undefined || y === null || (isRec(y) && N
 
 // Raids grow with wealth (ruling 470, src/sim/raids.js wealthDraw). From year `fromYear` a raid's size (every raid but the first) gains one raider
 // for each `goldPer` gold in the treasury and one for each `peoplePer` people, at most `cap` by difficulty (none on Peaceful, which has no raids);
-// the score's defence term keeps baseRaidSize, without it (ruling 441). From the same year a raid from the 4th on comes as two bands when its
+// the score's defence term keeps baseRaidSize, without it (ruling 441). goldPer is 40,000 (Task 8's tuning, ruling 474: the capital run's treasury
+// runs from 70,000 at year 7 to 167,000 at year 15, so the gold term climbs from 2 to 4 over years 10-15 and the whole term reaches the Normal cap
+// of 6 in the last of them, where a 10,000 step sat at the cap from year 10 on). From the same year a raid from the 4th on comes as two bands when its
 // seeded draw (hash2(seed, raid index, RAID_SALT.two), the draw ruling 317 uses) is under `twoSidedChance` (was RAIDS.twoSidedChance). The warning
 // comes at the start of year `warnYear`.
-export const RAIDS_LATE = { fromYear: 10, warnYear: 9, goldPer: 10000, peoplePer: 500, cap: { peaceful: 0, relaxed: 3, normal: 6, hard: 9 }, twoSidedChance: 0.6 };
+export const RAIDS_LATE = { fromYear: 10, warnYear: 9, goldPer: 40000, peoplePer: 500, cap: { peaceful: 0, relaxed: 3, normal: 6, hard: 9 }, twoSidedChance: 0.6 };
 
 // Task 7's first (S47_FIRSTS: the first yearly quota met) and tips (S47_TIPS): the quota's (when one is asked), the raids' (at their warning a
 // year ahead, or the first warning that carries the wealth term) and the upper tiers' (a home reaches a tier whose next one asks for three kinds
