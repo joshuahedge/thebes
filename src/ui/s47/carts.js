@@ -1,8 +1,10 @@
 // The Fetch control on a store's sheet (Stage 4.7, Task 6, ruling 467). One panel: a storehouse's or granary's sheet gains a "Fetch goods" row (hidden until any
 // store stands, cartsUnlocked) that opens the list of goods the store may hold. Each good has a toggle (a switch: Fetching / Off), a stepper for how much to
 // fetch up to (steps of one cart's load), and the words under it, every one from the sim:
-//   before the tap   the exact consequence (fetchPreview through S47_CARTS_TEXT.consequence) and what the source store gives (sourceNote: a store with no order of
-//                    its own for the good can be emptied, one with an order keeps it), with Show me to that store (fetchSourceId)
+//   before the tap   the exact consequence in one short line (fetchPreview through S47_CARTS_TEXT.consequenceRow: it respects what the store already holds, as the
+//                    live status does) and what the source store gives (sourceNote: a store with no order of its own for the good can be emptied, one with an
+//                    order keeps it), with Show me to that store (fetchSourceId); a good no store can spare is one muted line, and when a store holds it all the
+//                    same (holderOf) the reason and Show me to that store are there before any tap
 //   with an order    the live status line (fetchStatus)
 //   a refusal        why (setFetch's reason), and Show me to the store that holds the good when there is one (holderOf), or to the accept switch of a refused good
 // Seam shape: src/ui/s46/seam.js, with one more sheet part, `store(b)`, which sheets.js calls under a store's "Stored n of m" row. Nothing here floats over the map (UX rule 1): the panel is the sheet. Goods on the road are shown by the sheet's stock rows
@@ -15,6 +17,12 @@ import { el, button } from '../components.js';
 import { S47_CARTS_TEXT as W, goodName } from '../text.js';
 
 const stepOf = CARTS.perTrip;
+// The stepper's moves: one cart load (20) at a time up to 200, then 100 at a time up to the store's capacity (a store holds hundreds); never below one load.
+export const FINE_TO = 200, COARSE_STEP = 100;
+export function stepAmount(amount, dir, cap) {
+  if (dir > 0) return Math.min(cap, amount >= FINE_TO ? amount + COARSE_STEP : Math.min(FINE_TO, amount + stepOf));
+  return Math.max(stepOf, amount > FINE_TO ? Math.max(FINE_TO, amount - COARSE_STEP) : amount - stepOf);
+}
 
 export function createCartsUi(ctx) {
   const { world } = ctx;
@@ -50,6 +58,7 @@ export function createCartsUi(ctx) {
     ]);
     sw.addEventListener('click', () => {
       if (on) {
+        drafts.set(key, order.fetch);                                                // switched off: the amount it had comes back as the draft
         const r = clearFetch(world, b.id, good);
         refused.delete(key);
         ctx.afterCommand({ kind: 'fetch', result: r, undoable: false });
@@ -60,7 +69,7 @@ export function createCartsUi(ctx) {
       ctx.afterCommand({ kind: 'fetch', result: r, undoable: false });
     });
     const move = (delta) => {
-      const next = Math.max(stepOf, Math.min(cap, amount + delta));
+      const next = stepAmount(amount, delta, cap);
       if (next === amount) return;
       if (on) {
         const r = setFetch(world, b.id, good, next);
@@ -68,36 +77,37 @@ export function createCartsUi(ctx) {
         ctx.afterCommand({ kind: 'fetch', result: r, undoable: false });
       } else { drafts.set(key, next); refresh(); }
     };
-    const less = button('−', { class: 'step less', 'aria-label': W.less(good), disabled: amount <= stepOf, onClick: () => move(-stepOf) });
-    const more = button('+', { class: 'step more', 'aria-label': W.more(good), disabled: amount >= cap, onClick: () => move(stepOf) });
+    const less = button('−', { class: 'step less', 'aria-label': W.less(good), disabled: amount <= stepOf, onClick: () => move(-1) });
+    const more = button('+', { class: 'step more', 'aria-label': W.more(good), disabled: amount >= cap, onClick: () => move(1) });
     const value = el('output', { class: 'value', 'aria-live': 'polite', text: W.upTo(amount) });
     const stepper = el('span', { class: 'stepper', role: 'group', 'aria-label': W.amountLabel(good) }, [less, value, more]);
     const li = el('li', { class: 'fetch-good', dataset: { good } }, [el('div', { class: 'fetch-row' }, [sw, stepper])]);
     // What it would do (before the tap) or what it is doing (an order).
     const note = (text, cls = 'small muted') => li.append(el('p', { class: `fetch-line ${cls}`, text }));
     const status = fetchStatus(world, b.id, good);
-    if (status) {
-      note(W.status(status), 'small fetch-status');
-    } else {
-      const pv = fetchPreview(world, b.id, good, amount);
-      note(W.consequence(pv), 'small fetch-consequence');
-      if (pv.source) note(W.sourceNote(good, pv.source), 'small muted fetch-source');
-    }
+    // A note with its Show me beside it on one row, so a good costs one line more, not a line and a button.
+    const noteWith = (text, cls, show) => li.append(el('div', { class: 'fetch-note' }, [el('p', { class: `fetch-line small ${cls}`, text }), show]));
     const sourceId = fetchSourceId(world, b.id, good);
     const sourceStore = sourceId !== null ? world.buildings[sourceId] : null;
-    if (sourceStore) li.append(showMeButton(W.showSourceLabel(good, sourceStore.type), sourceId));
+    const toSource = sourceStore ? showMeButton(W.showSourceLabel(good, sourceStore.type), sourceId) : null;
+    if (status) {
+      note(W.status(status), 'small fetch-status');
+      if (toSource) li.append(el('div', { class: 'fetch-note' }, [toSource]));
+    } else {
+      const pv = fetchPreview(world, b.id, good, amount);
+      note(W.consequenceRow(pv), pv.source ? 'small fetch-consequence' : 'small muted fetch-consequence');
+      if (pv.source) noteWith(W.sourceNote(good, pv.source), 'muted fetch-source', toSource);
+      else {
+        // No store can be drawn on: when one holds the good all the same, say why it cannot and where it is, before any tap.
+        const h = holderOf(world, b.id, good);
+        if (h) noteWith(W.holderNote(good, h), 'muted fetch-holder', showMeButton(W.showHolderLabel(good, h.type), h.id));
+      }
+    }
     // A refusal says why, and where to look.
     const ref = refused.get(key);
     if (ref && ref.day === world.day && !on) {
       li.append(el('p', { class: 'fetch-line small coral fetch-refusal', role: 'status', text: W.refusal(ref.result) }));
       if (ref.result.reason === 'refuses') li.append(acceptShowMe(good));
-      else if (ref.result.reason === 'no_source') {
-        const h = holderOf(world, b.id, good);
-        if (h) {
-          li.append(el('p', { class: 'fetch-line small muted fetch-holder', text: W.holderNote(good, h) }));
-          li.append(showMeButton(W.showHolderLabel(good, h.type), h.id));
-        }
-      }
     }
     return li;
   }
@@ -120,7 +130,7 @@ export function createCartsUi(ctx) {
       }
       return out;
     }
-    out.push(el('p', { class: 'small muted fetch-help', text: W.help }));
+    if (!orders.length) out.push(el('p', { class: 'small muted fetch-help', text: W.help }));   // once a store has an order the help is spent (How to play keeps it)
     out.push(el('ul', { class: 'fetch-goods' }, BUILDINGS[b.type].stores.map((good) => goodRow(b, good))));
     return out;
   }

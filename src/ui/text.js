@@ -2479,9 +2479,15 @@ export const S47_CARTS_TEXT = {
   setLabel: (good) => `Fetch ${cartGood(good)}`, clearLabel: (good) => `Stop fetching ${cartGood(good)}`,
   help: `A ${cartStore('storehouse')} or ${cartStore('granary')} can Fetch a good from other stores by road: one cart, ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day each way. It never takes a store below what that store fetches for itself.`,
   // The consequence of an order before the tap: Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 34 road tiles (a round trip takes 9 days).
-  consequence: (pv) => (pv.source
-    ? `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: one cart, ${pv.perTrip} a trip, from the nearest store with ${cartGood(pv.good)}, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`
-    : `Fetch ${cartGood(pv.good)}: no store with ${cartGood(pv.good)} to spare is linked by road`),
+  consequence: (pv) => (!pv.source ? `Fetch ${cartGood(pv.good)}: no store with ${cartGood(pv.good)} to spare is linked by road`
+    : pv.state === 'full' ? `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: ${pv.held} held of ${pv.fetch}, no cart needed`
+    : pv.state === 'no_room' ? `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: no cart goes, the store is full`
+    : `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: one cart, ${pv.perTrip} a trip, from the nearest store with ${cartGood(pv.good)}, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`),
+  // The same, short, for a row of the store sheet (the good and the amount are in the row's own switch and stepper).
+  consequenceRow: (pv) => (!pv.source ? `No store with ${cartGood(pv.good)} to spare is linked by road`
+    : pv.state === 'full' ? `${pv.held} held of ${pv.fetch}, no cart needed`
+    : pv.state === 'no_room' ? 'No cart goes, the store is full'
+    : `One cart, ${pv.perTrip} a trip, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`),
   where: cartWhere,
   // The Fetch control on a store's sheet (src/ui/s47/carts.js). Every number it shows comes from fetchPreview, fetchStatus, roadGoods and holderOf.
   head: 'Fetch goods', none: 'No orders', count: (n) => plural(n, 'order', 'orders'), on: 'Fetching', off: 'Off',

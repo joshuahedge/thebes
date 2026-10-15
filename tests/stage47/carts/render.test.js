@@ -94,6 +94,28 @@ describe('s47 carts render: where a cart is drawn', () => {
   });
 });
 
+describe('s47 carts render: a cut road does not make a drawn cart vanish', () => {
+  it('a cart drawn on its route is still drawn there when the road is cut (the route is remembered), and one never drawn is not', () => {
+    const { w, home } = tripWorld();
+    step(w, 2);
+    const before = cartsAt(w, w.day + 0.5, null, 'full');
+    expect(before.length).toBe(1);
+    w.road[10 * w.size + 20] = 0; w.roadVersion++;                                      // the cut, before the sim has noticed it
+    expect(cartPath(w, cartOf(w, home.id))).toBe(null);                                 // no road joins the stores any more
+    const after = cartsAt(w, w.day + 0.5, null, 'full');
+    expect(after.length).toBe(1);
+    expect([after[0].x, after[0].y, after[0].kind]).toEqual([before[0].x, before[0].y, before[0].kind]);
+    const later = cartsAt(w, w.day + 1.5, null, 'full');                                // and it keeps moving along the remembered route
+    expect(later.length).toBe(1);
+    expect(later[0].x > before[0].x).toBe(true);
+    // the same cut on a cart that was never drawn: nothing to draw it on
+    const { w: w2 } = tripWorld();
+    step(w2, 2);
+    w2.road[10 * w2.size + 20] = 0; w2.roadVersion++;
+    expect(cartsAt(w2, w2.day + 0.5, null, 'full')).toEqual([]);
+  });
+});
+
 describe('s47 carts render: at most 30 on screen, the nearest the middle of the view', () => {
   // 40 stores on both sides of a long street, each with a cart to one source: the sim has one cart per store.
   function crowd() {

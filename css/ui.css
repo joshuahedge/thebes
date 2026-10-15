@@ -1258,6 +1258,9 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
 #sheet .fetch-row .stepper button { font-size: calc(20px * var(--ui-scale)); line-height: 1; padding: 0; }
 #sheet .fetch-row .stepper .value { min-width: 4.8em; text-align: center; font-variant-numeric: tabular-nums; font-size: calc(14px * var(--ui-scale)); }
 #sheet .fetch-line { margin: 4px 0 0; }
+#sheet .fetch-note { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#sheet .fetch-note .fetch-line { flex: 1 1 0; min-width: 0; }
+#sheet .fetch-note .show-me { flex: none; margin: 2px 0; }
 #sheet .fetch-good .show-me { margin-top: 4px; }
 #sheet .road-line { margin: 2px 0 0; font-weight: 600; }
 #sheet .fetch-good .show-me { border: 1px solid var(--ink-line); }
