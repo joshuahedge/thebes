@@ -250,7 +250,7 @@ function dangerItems(world, alerts, out) {
   const fires = alerts.filter((a) => a.code === 'fire'), risks = alerts.filter((a) => a.code === 'fire_risk');
   if (fires.length + risks.length) {
     const ids = [...fires, ...risks].map((a) => a.id).sort((a, b) => a - b);
-    const first = world.buildings[fires.length ? fires[0].id : ids[0]];
+    const first = world.buildings[fires.length ? Math.min(...fires.map((a) => a.id)) : ids[0]];   // a burning one first, the lowest id of them (alert order is not id order)
     const c = fireCause(world, first);
     out.push(item('fire', 'fire', fires.length * ADVICE.burning + risks.length * ADVICE.fireRisk, ids.length, first.id,
       { burning: fires.length, atRisk: risks.length, ids, cause: c.cause, service: c.firehouse }, coverFix(world, c.cause, c.firehouse, 'firehouse', first)));

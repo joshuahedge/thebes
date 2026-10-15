@@ -2,3 +2,5 @@
 // tests/run-tests.ps1 -Grep "v50 <area>" runs one area. tests/all.js imports this file once.
 import './contract/advice.test.js';
 import './contract/contract.test.js';
+import './advice/topbar.test.js';
+import './advice/advice.test.js';

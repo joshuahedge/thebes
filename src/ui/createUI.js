@@ -53,6 +53,7 @@ import { createNudge, nudgeLineText, NUDGE_MAX_STEP_MS } from './nudge.js';
 import { TIP_AUTO_CLOSE_MS } from '../data/tips.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
+import { createAdviceUi } from './adviceUi.js';
 import { welcomeSheet } from './welcomeBack.js';
 import { tradeSheet } from './tradeSheet.js';
 import { createGuide, canResumeGuide } from './guide.js';
@@ -144,7 +145,7 @@ export function createUI({
     // Stage 4.5 (Task 4b): the treasury warning names the city's own numbers (the sim's forecast and its costliest building), and
     // its Show me goes to that building (its sheet opens, where it can be paused or taken down), or to the summary when none costs.
     textFor: (id) => (id === 'treasury_low' ? S45_TEXT.warnTip(monthForecast(world), biggestCost(world)) : id === 'fetch_far' ? fetchFarWords() : TIP_TEXT[id]),
-    showMeFor: (id) => (id === 'treasury_low' ? () => { const big = biggestCost(world); if (!(big && selectBuilding(big.id))) openSummary('forecast'); } : id === 'fetch_far' ? fetchFarShowMe : null),
+    showMeFor: (id) => (id === 'city_advice' ? () => toggleSheet('advice') : id === 'treasury_low' ? () => { const big = biggestCost(world); if (!(big && selectBuilding(big.id))) openSummary('forecast'); } : id === 'fetch_far' ? fetchFarShowMe : null),
   });
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
   // (hoisted) forwards settle's events to onEvents, which shows them. On a phone they take the guidance row (spec 6.3,
@@ -196,8 +197,10 @@ export function createUI({
 
   const speedBar = el('div', { class: 'speed-bar' });
   speedControl.mountBar(speedBar);
+  // Version 5.0 (Task 1): City advice. Read at a command and every fifth game day (refreshChrome), shown by the top-bar button, the summary's link and a tip.
+  const advice = createAdviceUi({ world, settings, showMeAt, selectBuilding, openSummary, toast: (text) => toasts.show(text) });
   const hud = createHud({
-    world, store, container: $('topbar'), speedBar, onOpenSummary: openSummary, onOpenMenu: () => toggleSheet('menu'),
+    world, store, container: $('topbar'), speedBar, onOpenSummary: openSummary, onOpenMenu: () => toggleSheet('menu'), onOpenAdvice: () => toggleSheet('advice'), advice: advice.state,
     // The long date ("Year 2, month 1, day 1") only where the wide top bar has room for it beside a real city's numbers:
     // 1000 px and wider, below 150% text. Narrower, it would push the last number onto a second row.
     shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150 || view().width < WIDE_LONG_DATE_PX,
@@ -257,6 +260,7 @@ export function createUI({
   const customSheets = {
     ...menus, goals: goalsSheet(world, { onShowMe: showMe, recent: () => celebrations.recent(), skipHere: phone, onSkipGuide: skipGuide }),
     trade: tradeSheet({ world, afterCommand, onShowMe: showMeAt, toast: (text) => toasts.show(text) }),
+    advice: advice.sheet,
     ...danger.sheets, ...scoreUi.sheets, ...monumentUi.sheets,
     ...Object.assign({}, ...s46.map((s) => s.sheets)),   // Stage 4.6: the tracks' sheets (a court letter, the court)
   };
@@ -268,7 +272,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)] });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)] });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -488,7 +492,9 @@ export function createUI({
     nudge.noteAction();                                // a command is a meaningful action (early-game pass 3.5)
     // The Play tip says the plots stay empty while paused: true only when one of them touches a road (placement review P14).
     if (e.undoable && e.kind === 'houses' && world.speed === 0 && plotsTouchRoad(e)) fireTip('plotsPaused');
+    advice.markStale();                                // Version 5.0 (Task 1): what holds the city back may have changed: read it again on this refresh
     if (e.undoable && e.kind === 'houses') fireTip('houseSpots');   // Stage 4.7 (Task 4): the spots arrive with the first plot; the tip waits for the tool to end
+    if (e.undoable && e.kind === 'houses') fireTip('cityAdvice');   // Version 5.0 (Task 1): the advice button has just appeared (after the spots tip: the first one held keeps the slot)
     if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type] && BUILDINGS[store.get().tool.type].reach) fireTip('servicePlaced');   // a reach tip: a garden has none
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
@@ -520,6 +526,7 @@ export function createUI({
   }
   function refreshChrome() {
     alerts.refresh();
+    advice.refresh();
     hud.render(); dock.render(); sidePanel.render(); rail.render(); guide.render(); confirmBar.render(); corners.render(); legend.render(); goalsStrip.render();
     measureKey = '';                                   // a goal's words may have changed: "More ▾" is measured again next frame
     setText($('map-summary'), mapSummaryText(world, alerts.list()));

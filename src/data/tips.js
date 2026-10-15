@@ -75,8 +75,14 @@ const TIPS_S45 = [
 ];
 // ── end s45 ──
 
+// ── v50 (Version 5.0) ── Task 1: the City advice button comes with the first home (words: text.js, the v50 advice section; src/ui/createUI.js afterCommand)
+const TIPS_V50 = [
+  { id: 'city_advice', trigger: 'cityAdvice', priority: false },                // the first plot laid: the advice button has appeared
+];
+// ── end v50 ──
+
 // Stage 4.6: each track's tips (src/data/s46.js S46_TIPS), with their words in the track's text.js section.
-export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE, ...TIPS_S45, ...S46_TIPS, ...S47_TIPS];
+export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE, ...TIPS_S45, ...S46_TIPS, ...S47_TIPS, ...TIPS_V50];
 
 export const TIP_GAP_MS = 180000;          // at least 3 minutes between two tips
 export const TIP_HOURLY_MAX = 5;           // and at most five in any hour
