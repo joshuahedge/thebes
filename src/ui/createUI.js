@@ -67,7 +67,8 @@ import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
-import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, TIP_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, T } from './text.js';
+import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
 
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
@@ -140,8 +141,8 @@ export function createUI({
     onChange: () => guidanceChanged(), onToggle: () => toggleGuidance(),
     // Stage 4.5 (Task 4b): the treasury warning names the city's own numbers (the sim's forecast and its costliest building), and
     // its Show me goes to that building (its sheet opens, where it can be paused or taken down), or to the summary when none costs.
-    textFor: (id) => (id === 'treasury_low' ? S45_TEXT.warnTip(monthForecast(world), biggestCost(world)) : TIP_TEXT[id]),
-    showMeFor: (id) => (id === 'treasury_low' ? () => { const big = biggestCost(world); if (!(big && selectBuilding(big.id))) openSummary('forecast'); } : null),
+    textFor: (id) => (id === 'treasury_low' ? S45_TEXT.warnTip(monthForecast(world), biggestCost(world)) : id === 'fetch_far' ? fetchFarWords() : TIP_TEXT[id]),
+    showMeFor: (id) => (id === 'treasury_low' ? () => { const big = biggestCost(world); if (!(big && selectBuilding(big.id))) openSummary('forecast'); } : id === 'fetch_far' ? fetchFarShowMe : null),
   });
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
   // (hoisted) forwards settle's events to onEvents, which shows them. On a phone they take the guidance row (spec 6.3,
@@ -561,7 +562,7 @@ export function createUI({
     for (const e of events) {
       if (e.type === 'upgrade') sfx.play('upgrade');
       else if (e.type === 'arrivals') fireTip('arrivals');
-      else if (e.type === 'month') { fireTip('monthEnd'); if (monthForecast(world).goesBelow) fireTip('treasuryLow'); }
+      else if (e.type === 'month') { fireTip('monthEnd'); if (monthForecast(world).goesBelow) fireTip('treasuryLow'); if (!(settings.get().seenTips || []).includes('fetch_far') && farGoodTip(world)) fireTip('goodsFar'); }
       else if (e.type === 'goal') fireTip('goalDone');
       const cheer = e.type === 'achievement' && quiet ? null : cheerFor(e);
       if (cheer) celebrations.show(cheer);
@@ -572,6 +573,9 @@ export function createUI({
   function cheerSound() { sfx.play('goal'); sfx.buzz(20); }
   // The caption for one sim event, or null. Achievements stay quiet while the guide runs (spec 3.8): the sim
   // still records them, and the summary shows them as done once the guide ends.
+  // Stage 4.7 (Task 5): the far-store tip names the city's own good, and its Show me goes to the far store holding it (src/sim/carts.js farGoodTip).
+  function fetchFarWords() { const t = farGoodTip(world); return t ? S47_CARTS_TEXT.tipFor(t) : TIP_TEXT.fetch_far; }
+  function fetchFarShowMe() { const t = farGoodTip(world); if (t) selectBuilding(t.far); }
   function cheerFor(e) {
     if (e.type === 'milestone') {
       const m = MILESTONES.find((x) => x.id === e.id);
@@ -593,6 +597,7 @@ export function createUI({
     if (e.type === 'daily') return DAILY_TEXT[e.id] ? { tier: 'first', text: `${T.dailyDone}: ${DAILY_TEXT[e.id]}`, reward: e.reward, onShow: cheerSound } : null;
     if (e.type === 'guide_done') return { tier: 'first', text: T.guideDone, reward: e.reward, onShow: cheerSound };
     if (e.type === 'caravan') { const c = caravanText(e); return { tier: 'first', text: c.text, why: c.why, onShow: cheerSound }; }
+    if (e.type === 'cartLost') return { tier: 'info', text: S47_CARTS_TEXT.lost(e) };   // Stage 4.7 (Task 5): goods a cart could not put down anywhere
     return null;
   }
   // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js). On a phone

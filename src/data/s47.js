@@ -53,11 +53,20 @@ export const isOrders = (orders, stores) => isRec(orders)
 //   amount  units carried (taken from `from` the day the cart sets out)
 //   len     road tiles one way (the path's length when it set out)
 //   left    the day it set out; turn: the day it reaches `from`; due: the day it is home
-//   state   'out' (on the way to the source), 'back' (on the way home with the goods), 'return' (the road broke: the goods go back
-//           to the source)
+//   state   'out' (on the way to the source), 'back' (on the way home with the goods), 'return' (the road broke: it turns round)
+//   Task 5 adds two fields, set only while state is 'return' (see the contract note, section 12): at, the road tiles from home along
+//   the route where it turned; dest, 'home' (it broke on the way out: the goods went back to the source at once) or 'source' (it broke
+//   on the way back: it carries the goods back to the source, where they are put on the shelf on the due day). In 'return', turn is
+//   the break day and due is the break day plus the distance it had travelled on that leg over the speed, rounded up.
 export const CART_STATES = ['out', 'back', 'return'];
+export const CART_DESTS = ['home', 'source'];
 export const isCart = (c) => isRec(c) && ['id', 'from', 'to', 'left', 'turn', 'due'].every((k) => Number.isInteger(c[k]))
-  && typeof c.good === 'string' && isNum(c.amount) && isNum(c.len) && CART_STATES.includes(c.state);
+  && typeof c.good === 'string' && isNum(c.amount) && isNum(c.len) && CART_STATES.includes(c.state)
+  && (c.state !== 'return' || (CART_DESTS.includes(c.dest) && Number.isInteger(c.at) && c.at >= 0));
+
+// Task 5 (ruling 466): the carts' numbers, all tunable here. perTrip: the most a cart carries a trip; speed: road tiles a game day each
+// way; defaultFetch: the amount a new order fetches up to. A trip's days are worked out in src/sim/carts.js tripTimes.
+export const CARTS = { perTrip: 20, speed: 8, defaultFetch: 100 };
 
 // Task 1 (ruling 461): what every new map holds near the start area. reach: tiles from the start area's centre (map.focus) at Normal
 // (64), scaled linearly with the map's size; then, within that reach, at least `clay` clay-pit fits, `mine` gem-mine fits on rocky
@@ -100,7 +109,7 @@ export const GRASS = {
 // Task 2: "An oasis in the desert" (the first, when a building first goes up within OASES.near tiles of an oasis: tally oasisBuilds) and its
 // tip (How to play lists every tip). Joined into FIRSTS (firsts.js) and TIPS (tips.js); the words are in src/ui/text.js (the s47 section).
 // Task 4: "A good spot", the first plot laid on a Good spot (tally goodSpotPlots).
-export const S47_FIRSTS = [{ id: 'first_oasis', check: { kind: 'tally', key: 'oasisBuilds', n: 1 } }, { id: 'first_good_spot', check: { kind: 'tally', key: 'goodSpotPlots', n: 1 } }];
+export const S47_FIRSTS = [{ id: 'first_oasis', check: { kind: 'tally', key: 'oasisBuilds', n: 1 } }, { id: 'first_good_spot', check: { kind: 'tally', key: 'goodSpotPlots', n: 1 } }, { id: 'first_cart_trip', check: { kind: 'tally', key: 'cartTrips', n: 1 } }];
 // Task 3: the hills tip fires the first time a placing check is refused for hills (src/ui/s46/map.js): words in text.js, listed in How to play.
 // Task 4: the next-house spots tip fires when the first plot is laid and the house tool stays on (src/ui/createUI.js afterCommand); it waits for the tool to end.
-export const S47_TIPS = [{ id: 'oasis_green', trigger: 'oasisBuilt', priority: false }, { id: 'hills_ground', trigger: 'hillsMet', priority: false }, { id: 'house_spots', trigger: 'houseSpots', priority: false }];
+export const S47_TIPS = [{ id: 'oasis_green', trigger: 'oasisBuilt', priority: false }, { id: 'hills_ground', trigger: 'hillsMet', priority: false }, { id: 'house_spots', trigger: 'houseSpots', priority: false }, { id: 'fetch_far', trigger: 'goodsFar', priority: false }];

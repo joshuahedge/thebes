@@ -26,6 +26,7 @@ import { scoreRow } from './score.js';
 import { monumentDay, monumentMonth, updatePrestigeUnlocks } from './monuments.js';
 import { palaceDay } from './palace.js';
 import { s46Day, s46Month } from './s46.js';
+import { cartDay } from './carts.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
 
@@ -60,6 +61,7 @@ export function runMonth(world, events = null) {
 export function tickDay(world, events = null) {
   assignLabour(world);
   produceDay(world);
+  cartDay(world, events);                               // Stage 4.7: the stores' carts move on, then set out (src/sim/carts.js)
   monumentDay(world, events);                          // Stage 4: crews, deliveries, courses and work gold (src/sim/monuments.js)
   updatePrestigeUnlocks(world, events);                // the pyramids' prestige unlocks and the two Stage 4 splits
   palaceDay(world, events);                            // the palace's works (src/sim/palace.js)
