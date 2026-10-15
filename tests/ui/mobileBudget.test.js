@@ -177,3 +177,35 @@ describe('mobile height budget: a court letter (Stage 4.6)', () => {
     });
   }
 });
+
+// Stage 4.7 (Task 3 review): the Ground legend with its hills key, on a hilly map (the s47-hills scene), on a small and a tall phone at each text
+// size: the rows obey the budget (the legend alone in the guidance row) and every key, the hills' among them, is on screen inside the frame.
+describe('mobile height budget: the Ground legend with hills (Stage 4.7)', () => {
+  const PHONES = [[375, 667], [390, 844]];
+  it('holds the budget with the hills key, and the key is inside the frame', async () => {
+    const wrong = [];
+    for (const [width, height] of PHONES) {
+      for (const textSize of TEXT_SIZES) {
+        const r = await bootScene('s47-hills', width, height, 'skipTitle=1&seed=11&sample=1');
+        try {
+          const g = r.api.game();
+          g.ui.settings.set({ textSize, reducedMotion: 'on' });
+          await frame();
+          const said = await devScene(r.api, 's47-hills', { quick: true });
+          const g2 = r.api.game();                                  // the scene started a new city, so a new game
+          g2.ui.alerts.refresh();                                   // the scene's gold fixture leaves the fresh city's debt banner stale
+          g2.ui.store.set({ overlay: 'ground' });
+          await frame(); await frame();
+          const at = `${width}x${height} ${textSize}%`;
+          expect([at, said.includes('hills [{') ? 'hilly' : said]).toEqual([at, 'hilly']);                      // a hilly map
+          const key = r.root.querySelector('#legend .ground-keys .key:last-of-type');
+          expect([at, Boolean(key)]).toEqual([at, true]);
+          const b = key.getBoundingClientRect(), box = r.root.getBoundingClientRect();
+          if (b.left < box.left - 1 || b.right > box.right + 1) wrong.push(`${at}: the hills key is outside the frame (${Math.round(b.left)}..${Math.round(b.right)} of ${Math.round(box.width)})`);
+          for (const c of budgetChecks('s47-hills', measureRows(r.root))) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);
+        } finally { r.cleanup(); }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+});

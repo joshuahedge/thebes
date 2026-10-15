@@ -8,3 +8,4 @@ import './land/grass.test.js';
 import './hills/hills.test.js';
 import './hills/walk.test.js';
 import './hills/art.test.js';
+import './hills/review.test.js';

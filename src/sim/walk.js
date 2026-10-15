@@ -42,7 +42,23 @@ export function nearestPassable(world, x, y) {
 
 // The tile path from tile a to tile b (indices) as an array of tile indices, a first and b last, or null (no way over passable ground, or more than
 // WALK.expand tiles to look at).
+// Task 3 review: memoised (the null result too) per world on roadVersion + the terrain array + (a, b), so a unit that cannot reach its target (a post
+// across the river) does not search the whole map every day. The answer is a pure function of those, so the cache never changes a result, and a
+// loaded game (empty cache) walks the same paths as a played one.
+const pathMemo = new WeakMap();   // world -> { version, terrain, map: Map(a * size^2 + b -> tile path | null) }
+export const PATH_MEMO_MAX = 600;
 export function findPath(world, a, b) {
+  let c = pathMemo.get(world);
+  if (!c || c.version !== world.roadVersion || c.terrain !== world.terrain) { c = { version: world.roadVersion, terrain: world.terrain, map: new Map() }; pathMemo.set(world, c); }
+  const key = a * world.size * world.size + b;
+  if (c.map.has(key)) return c.map.get(key);
+  const path = searchPath(world, a, b);
+  if (c.map.size >= PATH_MEMO_MAX) c.map.clear();
+  c.map.set(key, path);
+  return path;
+}
+export const pathMemoSize = (world) => { const c = pathMemo.get(world); return c ? c.map.size : 0; };
+function searchPath(world, a, b) {
   const n = world.size;
   if (a === b) return [a];
   const bx = b % n, by = (b - bx) / n;
