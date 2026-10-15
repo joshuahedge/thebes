@@ -18,3 +18,4 @@ import './areas/budget.test.js';
 import './roads/sim.test.js';
 import './roads/ui.test.js';
 import './roads/budget.test.js';
+import './roads/walls.test.js';

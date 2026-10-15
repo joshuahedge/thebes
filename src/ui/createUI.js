@@ -965,6 +965,7 @@ export function createUI({
     lastFrameAt = t;
     frameNow = t;
     cameraControl.tick(t);
+    placement.settle();                                 // Version 5.0 (Task 6): a dragged route's end, found once a frame
     if (toastLow && !$('toasts').querySelector('.toast')) setToastLow(null);   // the toast it was moved for has gone
     const s = store.get();
     const v = view();
