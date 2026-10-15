@@ -110,6 +110,7 @@ describe('s47 contract world v8', () => {
   it('keeps an old city off the new land: a Stage 4.6 map of a varied layout migrates without the land key', () => {
     const { v7 } = v7City({ seed: 21, mapVariant: 'wide-bends' });
     expect(Object.keys(v7.mapParams).length).toBeGreaterThan(0);                    // Stage 4.6 shape choices
+    for (let i = 0; i < v7.terrain.length; i++) if (v7.terrain[i] === T.HILLS) v7.terrain[i] = T.ROCKY;   // a city made before version 8 has no hills (the helper's map is a new one)
     const v8 = MIGRATIONS[7](v7);
     expect([v8.mapParams, v8.terrain, hasNewLand(v8)]).toEqual([v7.mapParams, v7.terrain, false]);
     expect(v8.terrain.includes(T.HILLS)).toBe(false);

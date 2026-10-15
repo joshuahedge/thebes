@@ -84,7 +84,7 @@ describe('s45 variants (the six layouts)', () => {
     for (const v of MAP_VARIANTS) {
       for (const seed of SEEDS) {
         const m = generateMap(seed, 64, v), tag = `${v} ${seed}`;
-        const rocky = count(m, T.ROCKY) - m.repaired.mine;   // Stage 4.7 (ruling 461): the resource repair's rock is on top of what the patches drew
+        const rocky = count(m, T.ROCKY) - m.repaired.mine - m.hillSkirt;   // Stage 4.7: the resource repair's rock (ruling 461) and the hills' rocky skirts (ruling 464) are on top of what the patches drew
         // Classic keeps its own patches, draw for draw (so the fixtures and old seeds do not move): its rock is 52-172.
         expect([tag, v === 'classic' ? rocky >= 40 && rocky <= 180 : rocky >= 90 && rocky <= 150]).toEqual([tag, true]);
         expect([tag, count(m, T.FERTILE) >= 400]).toEqual([tag, true]);

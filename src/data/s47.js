@@ -17,7 +17,8 @@ export const S47_SALT = {
   cartLook: 4710,     // Task 6: a cart's look and pace on screen (render)
   mineBlob: 4711,     // Task 1: the mine repair's ragged blob edge (it drew from the resources salt + 2, which is cartLook's)
   herdOasis: 4712,    // Task 2: where a herd aimed at an oasis stands (src/sim/wildlife.js)
-  spare3: 4713, spare4: 4714,
+  hillLook: 4713,     // Task 3: each hill tile's height and look (render: src/render/hills.js, never the sim)
+  spare4: 4714,
 };
 
 // Tallies for Stage 4.7's firsts and summaries (world.tally; new and migrated cities start them at 0): buildings placed within 4 tiles
@@ -76,6 +77,16 @@ export const OASES = {
   herdReach: [3, 9], // a herd aimed at an oasis stands this many tiles from its pool's edge
 };
 
+// Task 3 (ruling 464): hills (src/sim/hills.js draws and reads them). count: clusters on a Normal map, scaled by the map's area (Small 1-3,
+// Large 3-8), in the x ranges the layout keeps its rock in; size: hill tiles a cluster (every one in a 2 x 2 block of hill tiles); skirt: tiles of rocky ground round it (1 or 2; skirtRagged: the share of the second ring's tiles that are
+// rock). A cluster keeps fromWater tiles from any water, fromOasis from an oasis pool (the oasis keeps 8 tiles from rock, the skirt takes 2 and a
+// tile of room), fromStart from the start area's centre, fromEntry from a raider entry, the trade entry and the bridge spot, fromRoad from the start
+// road and fromEdge from a map edge; apart is the gap between two clusters. All distances in tiles (Chebyshev, except the Euclidean ones to a point).
+export const HILLS = {
+  count: [2, 5], size: [4, 14], skirt: [1, 2], skirtRagged: 0.6,
+  fromWater: 7, fromOasis: 11, fromStart: 13, fromEntry: 8, fromRoad: 4, fromEdge: 3, apart: 5, tries: 500,
+};
+
 // Task 2 (ruling 462): the green band (src/render/grass.js). river / oasis: tiles the moisture reaches from water (an oasis has its own, smaller
 // halo); noise: how far (tiles) two octaves of value noise push the edge about; tiers: the moisture a tint pass starts at, each pass a
 // colour and an alpha; they stack, so the green deepens towards the water.
@@ -89,4 +100,5 @@ export const GRASS = {
 // Task 2: "An oasis in the desert" (the first, when a building first goes up within OASES.near tiles of an oasis: tally oasisBuilds) and its
 // tip (How to play lists every tip). Joined into FIRSTS (firsts.js) and TIPS (tips.js); the words are in src/ui/text.js (the s47 section).
 export const S47_FIRSTS = [{ id: 'first_oasis', check: { kind: 'tally', key: 'oasisBuilds', n: 1 } }];
-export const S47_TIPS = [{ id: 'oasis_green', trigger: 'oasisBuilt', priority: false }];
+// Task 3: the hills tip fires the first time a placing check is refused for hills (src/ui/s46/map.js): words in text.js, listed in How to play.
+export const S47_TIPS = [{ id: 'oasis_green', trigger: 'oasisBuilt', priority: false }, { id: 'hills_ground', trigger: 'hillsMet', priority: false }];

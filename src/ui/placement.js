@@ -238,7 +238,7 @@ export function nicerFor(world, type, x, y) {
 
 // Stage 4.6 (UX rule 6, ruling 352): a building bound to its ground (terrain or water) offers Show me for every refusal that is about
 // the spot (ground, water, taken, off the map), not only the ones that quote the rule; a locked or one-only refusal has no spot to find.
-const SPOT_REFUSALS = ['occupied', 'water', 'out_of_bounds'];
+const SPOT_REFUSALS = ['occupied', 'water', 'hills', 'out_of_bounds'];   // Stage 4.7: hills too (ruling 464)
 const groundBoundRefusal = (def, reason) => Boolean(def && (def.terrain || def.water) && (SPOT_REFUSALS.includes(reason) || /^needs_/.test(reason)));
 
 function basePreview(world, state) {

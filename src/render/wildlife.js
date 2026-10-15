@@ -11,8 +11,9 @@ import { BUILDINGS } from '../data/buildings.js';
 import { WILDLIFE, HUNTING, RIVER_SALT } from '../data/river.js';
 import { hash2 } from '../sim/rng.js';
 import { idx, inBounds } from '../sim/grid.js';
-import { T, buildable } from '../sim/terrain.js';
+import { T, buildable, passable } from '../sim/terrain.js';
 import { crocSpots, herdsInReach, wildlifeOn } from '../sim/wildlife.js';
+import { walkPath, pathLengths, pointAlong } from '../sim/walk.js';
 import { wharfSide } from './art/river.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
 
@@ -85,23 +86,44 @@ export function herdAnimals(world, h, timeDays, motion) {
 
 // ── Hunters and boats ──
 const working = (b) => !b.paused && !(b.fire && b.fire.stage === 'fire') && b.staff / BUILDINGS[b.type].workers >= MIN_STAFF_RATIO;
-// A lodge's hunters: two walkers going out to the nearest herd in reach and back (standing at the door when none is in reach or under Still).
+// The way a lodge's hunters walk to a herd (Stage 4.7, ruling 472): a path over passable land (src/sim/walk.js), round the river and any hills, over a
+// bridge, the straight line across open ground. Kept per world and (lodge, herd tile), until the roads change (a bridge opens or closes a way).
+const huntPaths = new WeakMap();   // world -> { version, map: Map(`lodge|tile` -> { pts, cum } | null) }
+function huntPath(world, b, herd, home) {
+  let c = huntPaths.get(world);
+  if (!c || c.version !== world.roadVersion || c.terrain !== world.terrain) { c = { version: world.roadVersion, terrain: world.terrain, map: new Map() }; huntPaths.set(world, c); }
+  const key = `${b.id}|${herd.x},${herd.y}|${Math.floor(home.x)},${Math.floor(home.y)}`;
+  if (c.map.has(key)) return c.map.get(key);
+  if (c.map.size > 400) c.map.clear();
+  const pts = walkPath(world, home, { x: herd.x + 0.5, y: herd.y + 0.5 });
+  const entry = pts ? { pts, cum: pathLengths(pts) } : null;
+  c.map.set(key, entry);
+  return entry;
+}
+// A lodge's hunters: two walkers going out to the nearest herd in reach that they can walk to (over passable land) and back, standing at the door when
+// none is in reach, none can be walked to, or under Still.
 export function huntersOf(world, b, timeDays, motion) {
   const m = moveOf(motion), out = [];
-  const herds = herdsInReach(world, b);
   const home = { x: b.x + b.w / 2, y: b.y + b.d + 0.35 };
+  let way = null;
+  if (m.walk > 0) for (const h of herdsInReach(world, b)) { way = huntPath(world, b, h, home); if (way) break; }
   for (let k = 0; k < 2; k++) {
-    const target = herds[0] ? { x: herds[0].x + 0.5 - 1.2 * Math.sign(herds[0].x + 0.5 - home.x), y: herds[0].y + 0.5 - 1.2 * Math.sign(herds[0].y + 0.5 - home.y) } : null;
     let x = home.x + 0.4 * k, y = home.y, left = false;
-    if (target && m.walk > 0) {
-      const L = Math.max(0.5, Math.min(HUNTING.reach, Math.hypot(target.x - home.x, target.y - home.y)));
+    if (way) {
+      const total = way.cum[way.cum.length - 1];
+      const L = Math.max(0.5, total - 1.2);                                    // they stop a step short of the herd
       const cycle = 2 * L + 6;                                                  // out, a rest at the herd, back, a rest at the door
       const s = (timeDays * m.walk + k * 5 + hash2(b.id, k, (world.seed + SALT + 20) | 0) * cycle) % cycle;
       const out1 = s < L, back = s >= L + 3 && s < 2 * L + 3;
-      const fr = out1 ? s / L : back ? 1 - (s - L - 3) / L : s < L + 3 ? 1 : 0;
-      x = home.x + (target.x - home.x) * fr + 0.3 * k; y = home.y + (target.y - home.y) * fr;
-      const eastward = (target.x - target.y) >= (home.x - home.y);              // on screen, out is to the right when the herd lies that way
-      left = back ? eastward : out1 ? !eastward : false;
+      const along = out1 ? s : back ? L - (s - L - 3) : s < L + 3 ? L : 0;
+      const at = pointAlong(way.pts, way.cum, along);
+      x = at.x; y = at.y;
+      if (k && along > 0 && along < L) {                                        // the second walks a step beside the first, where that ground is open
+        const sx = x + 0.3 * k, sy = y;
+        if (inBounds(world.size, Math.floor(sx), Math.floor(sy)) && passable(world, idx(world.size, Math.floor(sx), Math.floor(sy)))) x = sx;
+      } else if (k) x += 0.3 * k;
+      const onScreen = at.dx - at.dy;                                           // the leg's direction on screen: right when x - y grows
+      left = (out1 || back) ? (back ? onScreen > 0 : onScreen < 0) : false;      // walking back reverses the leg's out direction
     }
     out.push({ id: wildlifeIds.hunter(b.id, k), kind: left ? 'hunter_l' : 'hunter', x, y, dir: left ? 3 : 1 });
   }
@@ -170,7 +192,7 @@ export function animalsAt(world, timeDays, range, motion) {
   });
   const crocs = crocSpots(world).map(([x, y]) => ({ i: idx(world.size, x, y), x, y, h: hash2(x, y, (world.seed + SALT + 4) | 0) }));
   pick(crocs, 4, (s) => {
-    const sx = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => !wet(world, s.x + dx, s.y + dy)) || [0, 0];
+    const sx = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => inBounds(world.size, s.x + dx, s.y + dy) && buildable(world, idx(world.size, s.x + dx, s.y + dy))) || [0, 0];   // Stage 4.7: the bank it lies by is open land (src/sim/terrain.js)
     return { id: wildlifeIds.tile('croc', s.i), kind: s.h > 0.5 ? 'croc_l' : 'croc', x: s.x + 0.5 + sx[0] * 0.3, y: s.y + 0.5 + sx[1] * 0.3, dir: 1 };
   });
   if (!still) {

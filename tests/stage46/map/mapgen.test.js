@@ -80,7 +80,7 @@ describe('s46 map generator (ruling 332, 333): every layout at every size keeps 
         for (const seed of SEEDS) {
           const m = generateMap(seed, size, v), tag = `${v} ${size} seed ${seed}`;
           const fail = (what) => bad.push(`${tag}: ${what}`);
-          const rock = count(m, T.ROCKY) - m.repaired.mine, target = Math.round(MAP.rockTarget * area), classicNormal = v === 'classic' && size === 64;
+          const rock = count(m, T.ROCKY) - m.repaired.mine - m.hillSkirt, target = Math.round(MAP.rockTarget * area), classicNormal = v === 'classic' && size === 64;
           if (classicNormal ? rock < 40 || rock > 180 : rock < target || rock > target + 30) fail(`rock ${rock} (want ${target}+)`);
           if (count(m, T.WATER) <= size) fail('no river');
           if (count(m, T.FERTILE) < 250 * area) fail(`fertile ${count(m, T.FERTILE)}`);

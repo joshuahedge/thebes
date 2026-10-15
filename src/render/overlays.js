@@ -34,7 +34,8 @@ export const CRIME_HUE = '#5E3A8C';
 // The Ground overlay (placement review P1): free fertile land in a leaf green (darker than the meadow's lime, so the two read
 // apart), free rocky ground in a stone grey. The hues are for the tint, the dots and the hatching; the legend uses them too.
 // Stage 4.5 (ruling 312): free clay ground along the banks, in terracotta (tint and wide hatching), for the clay pit.
-export const GROUND_HUE = { fertile: '#27934A', rocky: '#5F5A54', clay: '#C2552B' };
+// Stage 4.7 (ruling 464): hills in a deep lavender, wide hatching and a heavy wash (the hills' ground is never free: nothing passes or builds there).
+export const GROUND_HUE = { fertile: '#27934A', rocky: '#5F5A54', clay: '#C2552B', hills: '#5B3E7C' };
 export const OVERLAY_HUE = {
   water: UI.water, food: UI.food, religion: UI.religion, goods: UI.goods, entertainment: UI.entertainment, desirability: UI.desirability, fire: FIRE_HUE, health: HEALTH_HUE, crime: CRIME_HUE, housing: UI.housing,
   ground: GROUND_HUE.fertile,
@@ -183,6 +184,17 @@ export function groundTiles(world, range = null) {
   return { fertile, rocky, clay };
 }
 
+// The hill tiles in range, [[x, y]...] in row order (Stage 4.7): the Ground overlay marks them and its legend names them. Kept apart from groundTiles,
+// whose three lists are the free ground a building may take.
+export function hillGroundTiles(world, range = null) {
+  const r = range || { x0: 0, y0: 0, x1: world.size - 1, y1: world.size - 1 };
+  const out = [];
+  for (let y = Math.max(0, r.y0); y <= Math.min(world.size - 1, r.y1); y++) {
+    for (let x = Math.max(0, r.x0); x <= Math.min(world.size - 1, r.x1); x++) if (world.terrain[idx(world.size, x, y)] === TILE.HILLS) out.push([x, y]);
+  }
+  return out;
+}
+
 const roomMemo = new WeakMap();   // world -> { key, room: Map `type|rot` -> Set of tile indices }
 
 // The tile indices that belong to at least one free spot where a `type` building's whole footprint fits on its own ground
@@ -271,6 +283,8 @@ function groundLayer(g, tiles, kind, strength) {
   } else if (kind === 'clay') {
     g.polys(polys, GROUND_HUE.clay, { alpha: 0.34 * strength });
     g.hatchPolys(polys, GROUND_HUE.clay, { fill: 0, line: 0.8 * strength, gap: 6, width: 1.4 });
+  } else if (kind === 'hills') {
+    g.hatchPolys(polys, GROUND_HUE.hills, { fill: 0.5 * strength, line: 0.95 * strength, gap: 8, width: 2.6 });
   } else {
     g.hatchPolys(polys, GROUND_HUE.rocky, { fill: 0.28 * strength, line: 0.85 * strength, gap: 4 });
   }
@@ -278,6 +292,7 @@ function groundLayer(g, tiles, kind, strength) {
 
 function drawGround(g, world, range, placing) {
   const { fertile, rocky, clay } = groundTiles(world, range);
+  groundLayer(g, hillGroundTiles(world, range), 'hills', GROUND_ALPHA.bright);   // Stage 4.7: hills always at full strength, whatever is being placed
   const def = placing ? BUILDINGS[placing] : null;
   if (def && def.monument) {
     // A monument's room (ruling 229): fertile and rocky ground at half strength, a gold wash on every tile with room.

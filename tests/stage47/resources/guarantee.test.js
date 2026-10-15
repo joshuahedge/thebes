@@ -49,8 +49,10 @@ describe('s47 resources guarantee', () => {
 
   it('draws the repair from the resources salt, never the generator stream: a different seed repairs differently, the salt is registered', () => {
     expect(S47_SALT.resources).toBe(4708);
-    const a = generateMap(1, 64, 'east'), b = generateMap(3, 64, 'east');
-    expect(a.repaired.mine > 0 && b.repaired.mine > 0).toBe(true);
+    const mended = [];   // two seeds whose mine had to be mended (a hills' skirt may already give a map its rock)
+    for (let seed = 1; seed <= 80 && mended.length < 2; seed++) { const m = generateMap(seed, 64, 'east'); if (m.repaired.mine > 0) mended.push(m); }
+    expect(mended.length).toBe(2);
+    const [a, b] = mended;
     const rockOf = (m) => m.terrain.map((t, i) => (t === T.ROCKY ? i : -1)).filter((i) => i >= 0).join(',');
     expect(rockOf(a) === rockOf(b)).toBe(false);
   });

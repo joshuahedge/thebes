@@ -18,7 +18,7 @@ import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { hash2 } from './rng.js';
 import { idx, inBounds } from './grid.js';
 import { threatsOn } from './costs.js';
-import { T, passable } from './terrain.js';
+import { T, buildable } from './terrain.js';
 
 const milestoneIndex = (id) => MILESTONES.findIndex((m) => m.id === id);
 const atLeast = (world, id) => milestoneIndex(world.milestone) >= milestoneIndex(id);
@@ -45,7 +45,7 @@ function buildingNear(world, x, y, r) {
   }
   return best;
 }
-const free = (world, x, y) => inBounds(world.size, x, y) && passable(world, idx(world.size, x, y)) && !world.occ[idx(world.size, x, y)] && !world.road[idx(world.size, x, y)];   // Stage 4.7: passable
+const free = (world, x, y) => inBounds(world.size, x, y) && buildable(world, idx(world.size, x, y)) && !world.occ[idx(world.size, x, y)] && !world.road[idx(world.size, x, y)];   // Stage 4.7 (ruling 472): a herd never stands on water or hills (a bridge is a road tile, which a herd leaves alone anyway)
 
 const newHerd = (world, kind, x, y, day) => {
   const w = world.wildlife, k = HERD_KINDS[kind];
@@ -155,7 +155,7 @@ export function crocSpots(world) {
   for (let y = 1; y < n - 1; y++) {
     for (let x = 1; x < n - 1; x++) {
       if (world.terrain[idx(n, x, y)] !== T.WATER) continue;
-      const dry = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => world.terrain[idx(n, x + dx, y + dy)] !== T.WATER);
+      const dry = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => buildable(world, idx(n, x + dx, y + dy)));   // Stage 4.7: open land beside it (src/sim/terrain.js)
       if (dry) cands.push({ x, y, h: hash2(x, y, salt(world, 'crocSpot')) });
     }
   }
