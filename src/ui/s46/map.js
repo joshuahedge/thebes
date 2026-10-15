@@ -99,7 +99,7 @@ export function createMapUi(ctx) {
     onCommand(e) {
       if (e && e.kind === 'road' && e.result && e.result.ok && e.result.bridges && e.result.bridges.length) ctx.fireTip('roadMeetsWater');
       // a building, or the plots and plazas of one drawing (houses and plazas come back as a list of ids), as the sim's own tally counts them
-      const ids = e && e.result && e.result.ok && ctx.world ? (e.kind === 'building' ? [e.result.id] : e.kind === 'houses' || e.kind === 'plazas' ? e.result.ids || [] : []) : [];
+      const ids = e && e.result && e.result.ok && ctx.world ? (e.kind === 'building' ? [e.result.id] : e.kind === 'houses' || e.kind === 'plazas' || e.kind === 'areas' ? e.result.ids || [] : []) : [];
       if (ids.some((id) => ctx.world.buildings[id] && builtNearOasis(ctx.world, ctx.world.buildings[id]))) ctx.fireTip('oasisBuilt');
     },
     destroy() { for (const f of off) f(); off = []; },

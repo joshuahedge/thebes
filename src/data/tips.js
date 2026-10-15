@@ -81,6 +81,9 @@ const TIPS_V50 = [
   // Task 3 (rulings 540-549): the new layers arrive with the first home (Home progress) and at Town (Goods supply and Workers); Show me opens the Layers picker.
   { id: 'layer_progress', trigger: 'layerProgress', priority: false },           // the first plot laid: Layers has Home progress
   { id: 'layers_town', trigger: 'layersTown', priority: false },                 // the city became a Town: Layers has Goods supply and Workers
+  // Task 4 (rulings 550-559): Build another (a button on every building sheet) and drag areas (farms, gardens, statues).
+  { id: 'build_another', trigger: 'buildAnother', priority: false },            // the first building placed: its sheet can copy it
+  { id: 'drag_areas', trigger: 'dragAreas', priority: false },                  // the first farm, garden or statue placed: the bar can lay an area
 ];
 // ── end v50 ──
 

@@ -56,6 +56,8 @@ import { TIP_AUTO_CLOSE_MS } from '../data/tips.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { createAdviceUi } from './adviceUi.js';
+import { anotherFor, canCopy } from './another.js';
+import { areaKindOf } from '../data/areas.js';
 import { welcomeSheet } from './welcomeBack.js';
 import { tradeSheet } from './tradeSheet.js';
 import { createGuide, canResumeGuide } from './guide.js';
@@ -208,7 +210,7 @@ export function createUI({
     shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150 || view().width < WIDE_LONG_DATE_PX,
   });
   const dock = createDock({ container: $('dock'), store, world, onPick: pick });
-  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo });
+  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo, onArea: (type, on) => (on ? placement.startArea(type) : pick(type)) });
   // The Layers picker (placement review P2): one popover for the corner button on a phone and one under the minimap on a wide
   // screen, sharing store.layersOpen; the layout's own host shows the one that counts. Closing it with focus inside hands focus
   // back to the Layers button that opened it.
@@ -274,7 +276,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)] });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)] });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -322,10 +324,10 @@ export function createUI({
   // never starts on top of a home, and the view keeps the ghost on screen even when that tile is several tiles
   // off. On a phone the place sits in the middle of the map left free below the rows (ruling 168). The goals strip, the
   // goals sheet and the house sheet all come through here.
-  function showMeAt({ category, item, x, y }) {
+  function showMeAt({ category, item, x, y, tool: given = null }) {   // given (Version 5.0, Task 4): Build another's tool, with the style, turn and settings it copies
     closeAnySheet();
     store.set(pickCategory(store.get(), category || categoryOfItem(item)));
-    const tool = toolForItem(item);
+    const tool = given || toolForItem(item);
     const def = tool.kind === 'building' ? BUILDINGS[tool.type] : null;
     placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : null);   // road, plot and demolish tools ignore the point
     const g = def ? store.get().ghost : null;
@@ -342,6 +344,15 @@ export function createUI({
     else cameraControl.panTo(x, y);
     const at = now();
     for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(x, y, at + i * SHOW_ME_PULSE_MS);
+  }
+  // Build another (Version 5.0, Task 4, ruling 505): the building's sheet closes and its card opens with the same type, style and settings in hand, the ghost on the nearest
+  // tile beside it. Refused (the sim's own rule, src/ui/another.js) it returns { ok: false, text, fix } and the sheet says why with Show me; nothing starts.
+  function buildAnother(id) {
+    const b = world.buildings[id];
+    if (!b) return { ok: false, text: '', fix: null };
+    const r = anotherFor(world, b);
+    if (r.ok) { showMeAt({ category: categoryOfItem(r.item), item: r.item, x: r.at.x, y: r.at.y, tool: r.tool }); }
+    return r;
   }
   // A goal's Show me: the next building it still needs, at its target. A goal with nowhere to point (debt)
   // opens the city summary instead, and the trade route goal, once a trading post stands, opens that post's trade
@@ -499,6 +510,8 @@ export function createUI({
     if (e.undoable && e.kind === 'houses') fireTip('cityAdvice');   // Version 5.0 (Task 1): the advice button has just appeared (after the spots tip: the first one held keeps the slot)
     if (e.undoable && e.kind === 'houses') fireTip('layerProgress');   // Version 5.0 (Task 3): Home progress comes with the first home (the picker shows it from now); after the others, and again with the next plot if a tip had the slot
     if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type] && BUILDINGS[store.get().tool.type].reach) fireTip('servicePlaced');   // a reach tip: a garden has none
+    // Version 5.0 (Task 4): The drag-area tip comes with the first farm, garden or statue placed (a tool's tip is held until it ends); Build another's with the first building sheet opened (below).
+    if (e.undoable && e.kind === 'building' && areaKindOf(store.get().tool && store.get().tool.type)) fireTip('dragAreas');
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'trading_post') fireTip('tradingPostPlaced');
@@ -797,6 +810,7 @@ export function createUI({
         if (b.tier >= 5) fireTip('desirabilityShown');   // its next tier needs a pleasant street (spec 4.7)
         if (b.tier === 5) fireTip('townhouseSheet');      // it grows by joining three plots beside it (spec 4.6)
       }
+      else if (canCopy(b)) fireTip('buildAnother');   // Version 5.0 (Task 4): the first building sheet opened brings Build another's tip (its button is on the sheet)
     }
     if (s.overlay && s.overlay !== 'ground' && !LAYER_OVERLAYS.includes(s.overlay) && s.overlay !== seenOverlay && !isToolMode(s.mode)) fireTip('overlayOn');   // Ground's legend says it all: the tip's dot and ring are other overlays'
     tips.flush({ busy: tipsBusy(s) });
