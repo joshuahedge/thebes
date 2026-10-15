@@ -9,7 +9,27 @@
 
 export const RELEASES = [
   {
-    version: '4.6', date: '2026-10-13', title: 'Living land, the court, armies and wonders', build: 'live',
+    version: '4.7', date: '2026-10-15', title: 'Land and logistics', build: 'live',
+    new: [
+      'After you place a house, the plots that suit the next one light up: Good where water and a bazaar are in reach, Fair where one of them is. Done ends the house tool.',
+      'A storehouse or granary can Fetch a good from another store, by cart along the roads, at any distance. Set it from the store\'s sheet, which says what it will do before you tap and where the cart is after.',
+      'Every new map has clay, a mine site and farmland near the start.',
+      'Green now grows along the river and around oases, and fades out slowly into the desert instead of lying in patches.',
+      'Oases form in the desert: a small pool with palms, rich soil and a little clay.',
+      'Long belts of rock cross the land, and some carry ridges of hills that nothing can be built on or walked over.',
+      'Hunters, herds and soldiers walk round water and hills instead of through them.',
+      'From year 8 the capital asks a yearly tribute of goods, with a warning a year ahead and reminders. Send it from the court sheet: meet it for favour and a gift, miss it and favour falls.',
+      'From year 10 raids grow with your wealth, and say so in the warning.',
+      'Villas and Estates need a third kind of food and more household goods.',
+    ],
+    fixed: [
+      'A Fair flood now gives x1.0 of a normal harvest (it was x0.9), so an average year is a small gain.',
+      'Clay stranded in a far store no longer stops homes upgrading: a store near them can Fetch it, and a tip points at the homes that wait.',
+      'Your existing cities keep their land, with no hills, oases or new green. A Villa or Estate from before has two months to find a third food before it steps down a tier.',
+    ],
+  },
+  {
+    version: '4.6', date: '2026-10-13', title: 'Living land, the court, armies and wonders', build: 'ed005c5',
     new: [
       'Choose a Small, Normal or Large map for a new city, and every new map is shaped a little differently.',
       'The Nile floods every year in its season: a rhythm to plan around, not a disaster. Fields it reaches grow more in a high flood and less in a low one; a Nilometer tells you ahead.',
