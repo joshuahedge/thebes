@@ -123,7 +123,9 @@ function roadMark(h, x, y, R) {
 }
 
 const PLOT_BOUNDS = [-16, -8, 16, 24];   // art px round a plot's tile point (its diamond), for the view cull
-export const CROWD = { plots: 150, zoom: 0.6 };
+// Version 5.0 (Task 8): the outlines hide above plots and come back only at show or fewer, so a pan that moves the count about 150 does not flip them each frame.
+export const CROWD = { plots: 150, show: 120, zoom: 0.6 };
+const crowdMemo = new WeakMap();   // world -> whether the outlines are hidden for a crowd
 
 // A plot with no road beside it: a dashed amber outline on its tile (Stage 3's, kept with the pinned badges).
 function dashedAmberTile(g, x, y) {
@@ -142,7 +144,11 @@ export function drawMarkers(g, world, alerts, range, layout = []) {
   // zoomed out can hold: its stress city has about a thousand) is left to the road badges that already say "road" over each connected group (roadlessPlotBadges), as the
   // tile outlines there are smaller than a finger and cost a frame's time over; at any nearer zoom, or with fewer, every plot has its dashed outline as ever.
   const plots = roadlessPlots(world, range).filter((t) => !g.cull || g.cull.sees(t.x, t.y, PLOT_BOUNDS));
-  if (!(plots.length > CROWD.plots && (g.cssScale || g.scale) / ART_SCALE <= CROWD.zoom)) for (const t of plots) dashedAmberTile(g, t.x, t.y);
+  const far = (g.cssScale || g.scale) / ART_SCALE <= CROWD.zoom;
+  let crowded = far && !!crowdMemo.get(world);
+  if (far) { if (plots.length > CROWD.plots) crowded = true; else if (plots.length <= CROWD.show) crowded = false; }
+  crowdMemo.set(world, crowded);
+  if (!crowded) for (const t of plots) dashedAmberTile(g, t.x, t.y);
   if (!layout.length) return;
   const css = g.cssScale || g.scale, ringW = MARKER.ring / css;
   for (const m of layout) {
