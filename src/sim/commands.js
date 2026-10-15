@@ -15,6 +15,8 @@ import { DEFENCE } from '../data/raids.js';
 import { bridgeVerdicts } from './bridges.js';
 import { tileBound, fitOf, fitReason } from './fit.js';
 import { noteBuilt } from './oases.js';
+// Stage 4.7 (Task 4): every housing plot laid counts (world.tally.plotsLaid), so the next-house spots (src/sim/spots.js) stay unlocked once the first is placed.
+const notePlot = (world, b) => { if (b && b.type === 'house') world.tally.plotsLaid = (world.tally.plotsLaid || 0) + 1; };
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 const storesAny = (o, goods) => (BUILDINGS[o.type].stores || []).some((g) => goods.includes(g));
@@ -222,6 +224,7 @@ export function place(world, type, x, y, { roadLater = false, rot = 0, style = n
   const cost = costOf(world, type, { style });
   const b = insertBuilding(world, makeBuilding(world, type, x, y, rot, { style }));
   noteBuilt(world, b);   // Stage 4.7: a building within 4 tiles of an oasis is the first's tally
+  notePlot(world, b);
   spend(world, cost);
   // A tower on a standing wall tile gives the tile its 80 hit points (spec 4.13); undo puts the old value back.
   const walls = [];
@@ -489,7 +492,7 @@ export function previewHouseTiles(world, list) {
 export function paintHouseTiles(world, list) {
   const p = previewHouseTiles(world, list);
   if (!p.ok) return { ...p, ids: [] };
-  const ids = p.positions.map(([x, y]) => { const b = insertBuilding(world, makeBuilding(world, 'house', x, y)); noteBuilt(world, b); return b.id; });
+  const ids = p.positions.map(([x, y]) => { const b = insertBuilding(world, makeBuilding(world, 'house', x, y)); noteBuilt(world, b); notePlot(world, b); return b.id; });
   spend(world, p.cost);
   pushUndo(world, { kind: 'place', ids, cost: p.cost });
   return { ok: true, warnings: p.warnings, ids, cost: p.cost, skipped: p.skipped };

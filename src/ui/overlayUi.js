@@ -18,6 +18,7 @@ import { toggleOverlay, cycleOverlay } from './modes.js';
 import { OVERLAY_NAMES, OVERLAY_LEGEND, S47_HILLS_TEXT, desirabilityBand, groundThing, groundRoomText, T, DANGER_UI_TEXT, UI4_TEXT } from './text.js';
 import { T as TILE } from '../sim/terrain.js';
 import { el, iconButton, clear } from './components.js';
+import { spotsOn, spotsLegend } from './s47/spots.js';
 
 const tint = (c) => `linear-gradient(${c}, ${c})`;
 // A banded risk overlay's swatch, as the map draws it (src/render/overlays.js drawFireRisk, drawHomeRisk): the band's tint, light
@@ -129,11 +130,12 @@ export function createOverlayLegend({ container, store, world = null }) {
   function render() {
     const s = store.get(), kind = s.overlay, room = roomWords(s);
     const off = world && (kind === 'health' || kind === 'crime') && !(kind === 'health' ? healthStarted(world) : crimeStarted(world));
-    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}|${off ? 'off' : ''}`;
+    const spots = !kind && spotsOn(s, world);   // Stage 4.7 (Task 4): the house tool's spots have the row when no overlay does
+    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}|${off ? 'off' : ''}|${spots ? 'spots' : ''}`;
     if (key === lastKey) return;
     lastKey = key;
     clear(container);
-    if (!kind) return;
+    if (!kind) { if (spots) container.append(spotsLegend()); return; }
     const graded = GRADED_OVERLAYS.includes(kind);
     const name = el('strong', { class: 'text', text: OVERLAY_NAMES[kind] });
     const close = iconButton(T.overlayOff, '✕', { class: 'close quiet', onClick: () => store.set(toggleOverlay(store.get(), kind)) });

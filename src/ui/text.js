@@ -2443,4 +2443,20 @@ export const S47_HILLS_TEXT = {
 };
 TIP_TEXT.hills_ground = S47_HILLS_TEXT.tip;
 TIP_HELP_TEXT.hills_ground = S47_HILLS_TEXT.tipHelp;
+// Task 4 (ruling 465): the next-house spots. While the house tool is on and a plot has been laid, a free tile where a plot could go is Good (a well and a bazaar reach
+// it along the roads) or Fair (one of them does), drawn with a drop for water and a basket for a bazaar (src/render/spots.js; the rules are the sim's, src/sim/spots.js).
+// The legend sits in the guidance row, the tip says it once, How to play lists it. Done ends the house tool, which now stays on after a plot is laid, by touch too.
+export const S47_SPOTS_TEXT = {
+  group: 'Spots for the next house',
+  good: 'Good', goodWords: 'water and a bazaar in reach',
+  fair: 'Fair', fairWords: 'one of them in reach',
+  goodLabel: 'Good: water and a bazaar in reach. Marked with a drop and a basket',
+  fairLabel: 'Fair: water or a bazaar in reach. Marked with a hatched tile and one of them',
+  water: 'Water', market: 'Bazaar',
+  tip: 'While you place homes, bright plots have water and a bazaar in reach; hatched plots have one of them.',
+  tipHelp: 'Placing homes: bright plots have water and a bazaar in reach, hatched plots have one of them. Done ends it.',
+  done: 'Done', doneLabel: 'Done placing homes',
+};
+TIP_TEXT.house_spots = S47_SPOTS_TEXT.tip;
+TIP_HELP_TEXT.house_spots = S47_SPOTS_TEXT.tipHelp;
 // ── end s47 ──

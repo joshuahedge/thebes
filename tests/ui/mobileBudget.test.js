@@ -209,3 +209,39 @@ describe('mobile height budget: the Ground legend with hills (Stage 4.7)', () =>
     expect(wrong).toEqual([]);
   });
 });
+
+// Stage 4.7 (Task 4): the house tool with its spots (the s47-house-spots scene, the sample city with a well beside the free plots): the legend of Good and Fair has the guidance row alone
+// (the alert row may sit above it), it and the Done button are inside the frame, Done is a 44 px target, on a small and a tall phone at each text size.
+describe('mobile height budget: the house tool with its spots (Stage 4.7)', () => {
+  const PHONES = [[375, 667], [390, 844]];
+  it('holds the budget with the spots legend, and Done is reachable', async () => {
+    const wrong = [];
+    for (const [width, height] of PHONES) {
+      for (const textSize of TEXT_SIZES) {
+        const r = await bootScene('s47-house-spots', width, height, 'skipTitle=1&seed=11&sample=1');
+        try {
+          r.api.game().ui.settings.set({ textSize, reducedMotion: 'on' });
+          await frame();
+          const said = await devScene(r.api, 's47-house-spots', {});
+          const g = r.api.game();
+          g.ui.alerts.refresh();
+          await frame(); await frame();
+          const at = `${width}x${height} ${textSize}%`;
+          expect([at, /\b[1-9]\d* good and [1-9]\d* fair\b/.test(said) ? 'both kinds' : said]).toEqual([at, 'both kinds']);
+          expect([at, g.ui.store.get().tool && g.ui.store.get().tool.kind, document.body.dataset.guidance]).toEqual([at, 'houses', 'legend']);
+          const box = r.root.getBoundingClientRect();
+          const legend = r.root.querySelector('#legend .strip.spots');
+          if (!legend) { wrong.push(`${at}: no spots legend`); continue; }
+          for (const [name, n] of [['legend', legend], ['done', r.root.querySelector('#confirm .done')]]) {
+            if (!n) { wrong.push(`${at}: no ${name}`); continue; }
+            const b = n.getBoundingClientRect();
+            if (b.left < box.left - 1 || b.right > box.right + 1 || b.top < box.top - 1 || b.bottom > box.bottom + 1) wrong.push(`${at}: the ${name} is outside the frame`);
+            if (name === 'done' && (b.height < 44 - 0.5 || b.width < 44 - 0.5)) wrong.push(`${at}: Done is ${Math.round(b.width)}x${Math.round(b.height)}, under 44x44`);
+          }
+          for (const c of budgetChecks('s47-house-spots', measureRows(r.root))) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);
+        } finally { r.cleanup(); }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+});

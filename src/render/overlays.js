@@ -141,7 +141,7 @@ export function drawOverlay(g, world, kind, range, placing = null) {
 
 // Tiles [[x, y]...] as polygons for one path: tiles side by side along x are one parallelogram, so a screenful of ground is
 // a few hundred polygons and not thousands of diamonds. That is most of an overlay's cost: the canvas fills by edges.
-function tilePolys(tiles) {
+export function tilePolys(tiles) {
   const out = [];
   let first = null, last = null;
   const close = () => out.push([p(first[0], first[1]), p(last[0] + 1, first[1]), p(last[0] + 1, first[1] + 1), p(first[0], first[1] + 1)]);

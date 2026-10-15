@@ -602,6 +602,12 @@ body[data-layout="wide"] #legend .strip.ground { display: inline-flex; flex-wrap
 body[data-layout="wide"] #legend .strip.ground > .close { order: 3; }
 body[data-layout="wide"] #legend .strip.ground .ground-keys { padding-bottom: 0; }
 body[data-layout="wide"] #legend .strip.ground .ground-keys .room { flex-basis: auto; }
+/* Stage 4.7 (Task 4, ruling 465): the next-house spots' legend (ui/s47/spots.js), the Good and Fair keys each with the swatch the map draws, wrapping among
+   themselves in the guidance row; and the Done button that ends the house tool (confirmBar.js), a word 44 px tall. */
+#legend .strip.spots { flex-wrap: wrap; row-gap: 2px; column-gap: 14px; max-width: 100%; box-sizing: border-box; padding: 4px 12px; }
+#legend .strip.spots .key { gap: 6px; }
+#legend .strip.spots .spot-swatch { flex: 0 0 auto; display: block; }
+.confirm .done { font-weight: 600; padding: 0 8px; font-size: calc(16px * min(var(--ui-scale), 1.15)); }   /* narrow as the x it replaces, so the bar keeps one height as plots come and go (tests/ui/placementFit.test.js) */
 /* The Layers picker (placement review P2, ui/layersPicker.js): a popover of every overlay and Off. Three columns at 100% text,
    two from 125%, each button 44 px tall at least; the current layer is teal. On a phone it rides above the Layers corner
    button (its right edge on the button's; the left edge instead in left-handed mode); on a wide screen it opens under the
