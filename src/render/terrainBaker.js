@@ -274,6 +274,7 @@ export function drawGround(g, world, range) {
     for (let j = 0; j < 4; j++) g.circ(p(x + hash2(x, y, 40 + j), y + hash2(x, y, 50 + j)), 0.7, j % 2 ? TERRAIN.dotLight : TERRAIN.dotDark, { alpha: 0.7 });
   });
   drawLayer(g, world, range, T.ROCKY, { soft: TERRAIN.rockySoft, main: TERRAIN.rocky, second: TERRAIN.rockySecond });
+  drawLayer(g, world, range, T.HILLS, { soft: TERRAIN.rockySoft, main: TERRAIN.rockySecond, second: TERRAIN.rocky });   // Stage 4.7: the ground under the hill sprites (src/render/hills.js stands on it)
   drawLayer(g, world, range, T.FERTILE, { soft: TERRAIN.fertileSoft, main: TERRAIN.fertile, second: null });
   drawGrassBand(g, world, range);   // Stage 4.7: new land only
   drawLayer(g, world, range, T.MEADOW, { soft: TERRAIN.grassSoft, main: TERRAIN.grass, second: TERRAIN.grassSecond });

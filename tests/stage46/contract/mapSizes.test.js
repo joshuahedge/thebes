@@ -36,12 +36,14 @@ const BEFORE = {
   oasis: ['48da32c', 'f2a3ad70', '2bf4d64e', '2643c37', 'd38fbe59', 'd3aacd0a'],
 };
 const AFTER = {
-  east: ['57d0b754', 'fb94e1b8', '80981850', 'f5771bc3', '22fd39a0', '5d553901'],
-  middle: ['1942e720', '2867a47', '8e4c4ac1', '532ee850', '94b28e0f', 'b79b35b'],
-  'wide-bends': ['9ed0a181', '9dafb4cf', '188f0492', 'e9c8270c', '6015afe4', 'e4c70685'],
-  island: ['94ade120', '3e0b9cc5', '34807062', '204c5b6d', '29145e2', 'd50eb1f7'],
-  oasis: ['5901b6cf', '33b7f93f', '9c4b851b', '4b4027d7', 'cfa79367', 'cd644ad3'],
+  east: ['e90394f2', '35072960', '1b45be77', '183fd603', 'bf45fcd6', '62a087b1'],
+  middle: ['488a51c0', '74c3267e', '1eb3812b', 'fc2d3566', '20362b57', 'a93c558b'],
+  'wide-bends': ['804ab1d1', '8bbe2b58', '6c3b49cc', 'e42f37dc', 'be813b4a', 'a81034dd'],
+  island: ['29e87480', '3f2bc1eb', '4ed080e9', 'beb3bdfc', '776667e2', '4321d8bc'],
+  oasis: ['780f2c97', 'fc6af487', 'c8d2c278', '15962ae', '24af1456', 'ac47c0a9'],
 };
+// Stage 4.7 Task 3 (ruling 464): hills (and their rocky skirts) are terrain on every map but classic at Normal, so every non-classic seed here moved once more
+// (a few keep their print where no cluster found room); classic at 64 is not in AFTER and is untouched.
 // Stage 4.7 Task 2 (ruling 463): the oases are terrain on every map but classic at Normal, so a seed that holds one (or two) moved again: seeds 11 and 1234 of east, middle, wide-bends and island, and seed 1234 of oasis (the generator's other draws are untouched). Classic at 64 is not in AFTER.
 // Stage 4.7 Task 1 review minors: the mine blob draws from its own salt (S47_SALT.mineBlob) and the clay repair stops 4 tiles from water, so the repaired
 // seeds moved again (non-classic maps only; classic at 64 is untouched).

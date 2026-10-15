@@ -5,6 +5,7 @@ import { MAP, MAP_VARIANTS, MAP_SALT, areaScale } from '../data/map.js';
 import { LAND_VERSION, newLandFor } from '../data/s47.js';
 import { repairResources } from './resources.js';
 import { placeOases } from './oases.js';
+import { placeHills } from './hills.js';
 
 // Clay (Stage 4.5, ruling 312): the bank tiles are chained along the water, so a stretch is a walk of 4-10 of them from a
 // seeded start, 8-neighbour steps in a fixed order; some stretches are two tiles deep, taking the dry land tile beside each
@@ -215,6 +216,9 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   const raiderEntries = entriesFor(terrain, size, spec, at);
   const placed = newLandFor(v, size) ? placeOases(terrain, size, seed, { focus, targets: [...raiderEntries, tradeEntry] }) : { oases: [], clay: 0 };
   const oases = placed.oases;
+  // Stage 4.7 (Task 3, ruling 464): hills on a map with new land, after the oases (they keep 11 tiles from a pool) and before the repair; each with its rocky skirt.
+  const placedHills = newLandFor(v, size) ? placeHills(terrain, size, seed, { focus, targets: [...raiderEntries, tradeEntry], startRoad, oases, ranges: rockRanges }) : { hills: [], skirt: 0 };
+  if (placedHills.hills.length) params.hills = placedHills.hills;
   // INVARIANT: repairResources is the LAST edit generateMap makes to the terrain, so the guarantee holds on the map the player gets. Whatever
   // later changes terrain (oases, Task 2; hills, Task 3) runs BEFORE this call; what runs after it (entries, dunes and wadis, params) must
   // not write the terrain (dunes and wadis are decor). The 200-seed guarantee test (tests/stage47/resources/guarantee.test.js) holds it.
@@ -228,7 +232,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   // Stage 4.7 (Task 0 contract): every map but classic at Normal gets the new land (hills, oases, the grass band; Tasks 1-3 fill them
   // in, each drawing from S47_SALT, never the rng stream above). land marks it in world.mapParams; oases: [{ x, y, r }] (world.oases).
   if (newLandFor(v, size)) params.land = LAND_VERSION;
-  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v, params, oases, oasisClay: placed.clay, repaired };
+  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v, params, oases, oasisClay: placed.clay, repaired, hillSkirt: placedHills.skirt };
 }
 
 // ── Stage 4.6 (ruling 332): the seeded shape choices. Each has its own stream (MAP_SALT), so classic at Normal, which draws none, never
@@ -446,7 +450,7 @@ function entriesFor(terrain, size, spec, scale = (n) => n) {
       for (const k of d ? [at - d, at + d] : [at]) {
         if (k < 0 || k >= size) continue;
         const e = tile(k);
-        if (terrain[idx(size, e.x, e.y)] !== T.WATER) return e;
+        if (terrain[idx(size, e.x, e.y)] !== T.WATER && terrain[idx(size, e.x, e.y)] !== T.HILLS) return e;
       }
     }
     return tile(at);

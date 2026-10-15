@@ -14,6 +14,7 @@ import { seamBase } from './seam.js';
 import { toolPreview, fitTarget } from '../placement.js';
 import { bridgeSpot } from '../../sim/bridges.js';
 import { builtNearOasis } from '../../sim/oases.js';
+import { T as T47 } from '../../sim/terrain.js';
 import { S46_MAP_TEXT, TIP_TEXT, T, buildingName } from '../text.js';
 import { button } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
@@ -37,15 +38,19 @@ export function createMapUi(ctx) {
     const host = ctx.root || (ctx.doc && ctx.doc.body);
     if (host && host.addEventListener) { host.addEventListener('thebes:show-fit', onShowFit); off.push(() => host.removeEventListener('thebes:show-fit', onShowFit)); }
     // The tip: watched on the store, only while the road tool has a line or a plan to judge.
+    // Stage 4.7 (ruling 464): the hills tip too, the first time a building's ghost or a road's line is refused for hills (on a map that has any).
     let lastKey = '';
+    const hasHills = world.terrain.includes(T47.HILLS);
     const watch = () => {
       const s = ctx.store.get();
-      if (!s.tool || s.tool.kind !== 'road' || s.tool.gate || !(s.line || s.plan)) { lastKey = ''; return; }
-      const key = `${s.tool.kind}|${JSON.stringify(s.line)}|${JSON.stringify(s.plan)}`;
+      const road = s.tool && s.tool.kind === 'road' && !s.tool.gate && (s.line || s.plan), ghost = hasHills && s.tool && s.tool.kind === 'building' && s.ghost;
+      if (!road && !ghost) { lastKey = ''; return; }
+      const key = road ? `${s.tool.kind}|${JSON.stringify(s.line)}|${JSON.stringify(s.plan)}` : `${s.tool.type}|${s.ghost.x},${s.ghost.y}|${s.rot || 0}`;
       if (key === lastKey) return;
       lastKey = key;
       const p = toolPreview(world, s);
-      if ((p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) || (p.bridges && p.bridges.length)) ctx.fireTip('roadMeetsWater');
+      if (road && ((p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) || (p.bridges && p.bridges.length))) ctx.fireTip('roadMeetsWater');
+      if (hasHills && p.state === 'bad' && p.reason === 'hills') ctx.fireTip('hillsMet');
     };
     if (ctx.store.subscribe) { const un = ctx.store.subscribe(watch); if (typeof un === 'function') off.push(un); }
     // The tip row's Show me. The place is worked out when the button is pressed, from the tile under the middle of the view (the

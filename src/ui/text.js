@@ -2434,4 +2434,13 @@ TIP_HELP_TEXT.oasis_green = S47_OASIS_TEXT.tipHelp;
   S46_MAP_TEXT.groundChip = (cond, def) => (cond && cond.water && cond.reason === 'needs_river' ? S47_OASIS_TEXT.needsRiver : baseChip(cond, def));
   S46_MAP_TEXT.refusalLine = (reason, ground, def) => (reason === 'needs_river' ? S47_OASIS_TEXT.needsRiver : baseRefusal(reason, ground, def));
 }
+// Task 3 (ruling 464): hills. The Ground overlay's key (shown only on a map that has hills), the tip the first refused placing check on hills fires (and
+// How to play, which lists every tip, so it says what comes later: mines on the rocky ground round the hills, no dates), and the refusal above.
+export const S47_HILLS_TEXT = {
+  groundKey: 'Hills: nothing passes or builds here',
+  tip: 'Hills: nothing passes or builds here. Mines will come to the rocky ground around them later.',
+  tipHelp: 'Hills block roads, buildings and walkers. Mines will come to the rocky ground around them later.',
+};
+TIP_TEXT.hills_ground = S47_HILLS_TEXT.tip;
+TIP_HELP_TEXT.hills_ground = S47_HILLS_TEXT.tipHelp;
 // ── end s47 ──
