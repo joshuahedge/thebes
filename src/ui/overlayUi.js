@@ -18,7 +18,7 @@ import { toggleOverlay, cycleOverlay } from './modes.js';
 import { OVERLAY_NAMES, OVERLAY_LEGEND, S47_HILLS_TEXT, desirabilityBand, groundThing, groundRoomText, T, DANGER_UI_TEXT, UI4_TEXT } from './text.js';
 import { T as TILE } from '../sim/terrain.js';
 import { el, iconButton, clear } from './components.js';
-import { spotsOn, spotsLegend } from './s47/spots.js';
+import { spotsOn, spotsLegend, spotsEmpty } from './s47/spots.js';
 
 const tint = (c) => `linear-gradient(${c}, ${c})`;
 // A banded risk overlay's swatch, as the map draws it (src/render/overlays.js drawFireRisk, drawHomeRisk): the band's tint, light
@@ -95,7 +95,9 @@ const GROUND_SWATCH = {
 };
 function groundKeys(room, hills = false) {
   const [fertile, rocky, clay] = OVERLAY_LEGEND.ground;
-  const key = (kind, words) => el('span', { class: 'key' }, [el('span', { class: 'swatch', style: GROUND_SWATCH[kind], 'aria-hidden': 'true' }), ' ', el('span', { class: 'text small', text: words })]);
+  // Stage 4.7 (Task 3 review): the hills key is "Hills" with its rule after it; at large text on a phone the rule is for screen readers only (css/ui.css .hills-words), so the legend fits the budget under a banner.
+  const key = (kind, words) => el('span', { class: 'key' }, [el('span', { class: 'swatch', style: GROUND_SWATCH[kind], 'aria-hidden': 'true' }), ' ',
+    kind === 'hills' ? el('span', { class: 'text small' }, [words.split(':')[0], el('span', { class: 'hills-words', text: words.slice(words.split(':')[0].length) })]) : el('span', { class: 'text small', text: words })]);
   // Stage 4 (Track C, spec 6.3, ruling 229): while a monument is placed the keys are "Fertile: no monuments here" and the gold
   // room line ("Gold: room for a small mastaba"), which, like the farms' room line, a phone at 125% text or more keeps for
   // screen readers (css/ui.css .room).
@@ -131,11 +133,11 @@ export function createOverlayLegend({ container, store, world = null }) {
     const s = store.get(), kind = s.overlay, room = roomWords(s);
     const off = world && (kind === 'health' || kind === 'crime') && !(kind === 'health' ? healthStarted(world) : crimeStarted(world));
     const spots = !kind && spotsOn(s, world);   // Stage 4.7 (Task 4): the house tool's spots have the row when no overlay does
-    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}|${off ? 'off' : ''}|${spots ? 'spots' : ''}`;
+    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}|${off ? 'off' : ''}|${spots ? (spotsEmpty(world) ? 'spots-none' : 'spots') : ''}`;
     if (key === lastKey) return;
     lastKey = key;
     clear(container);
-    if (!kind) { if (spots) container.append(spotsLegend()); return; }
+    if (!kind) { if (spots) container.append(spotsLegend(world)); return; }
     const graded = GRADED_OVERLAYS.includes(kind);
     const name = el('strong', { class: 'text', text: OVERLAY_NAMES[kind] });
     const close = iconButton(T.overlayOff, '✕', { class: 'close quiet', onClick: () => store.set(toggleOverlay(store.get(), kind)) });

@@ -13,11 +13,14 @@ import { coveredBy } from '../../../src/sim/housing.js';
 import { removeBuilding, housesOf, buildingAt } from '../../../src/sim/world.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
 import { TIPS, TIP_FIRST_DELAY_MS } from '../../../src/data/tips.js';
+import { FIRSTS } from '../../../src/data/firsts.js';
+import { firstMet } from '../../../src/sim/firsts.js';
 import { settle } from '../../../src/sim/settle.js';
 import { makeDraw } from '../../../src/render/art/ctx.js';
 import { drawHouseSpots, iconSize, ICON_MIN_CSS_SCALE } from '../../../src/render/spots.js';
 import { spotsOn, spotsLegend } from '../../../src/ui/s47/spots.js';
-import { TIP_TEXT, TIP_HELP_TEXT, S47_SPOTS_TEXT as W } from '../../../src/ui/text.js';
+import { TIP_TEXT, TIP_HELP_TEXT, FIRST_TEXT, S47_SPOTS_TEXT as W, buildingName } from '../../../src/ui/text.js';
+import { paintHouses } from '../../../src/sim/commands.js';
 
 // uiWorld: a road along y = 10 (x 0-31), a staffed bazaar at (9, 11) (reach 10) and a staffed well at (15, 11) (reach 5), houses at (12, 9) and (13, 9). A second well far
 // east gives a water-only stretch.
@@ -88,6 +91,57 @@ describe('s47 house spots: the sim coverage', () => {
     expect(w.tally.plotsLaid).toBe(1);
     removeBuilding(w, laid.id);
     expect(spotsUnlocked(w)).toBe(true);                                      // the tally keeps it: the plots are gone, the spots stay
+  });
+});
+
+describe('s47 house spots: the first', () => {
+  it('records "A good spot" the first time a plot goes on a Good tile, not for Fair or unmarked ones, and not before the spots are on', () => {
+    const first = FIRSTS.find((f) => f.id === 'first_good_spot');
+    expect(first.check).toEqual({ kind: 'tally', key: 'goodSpotPlots', n: 1 });
+    expect([FIRST_TEXT.first_good_spot.head, FIRST_TEXT.first_good_spot.why.length > 30]).toEqual(['A good spot', true]);
+    const w = spotWorld();
+    expect([spotAt(w, 7, 9), spotAt(w, 22, 9), spotAt(w, 17, 9)]).toEqual([SPOT.fair, null, SPOT.good]);
+    expect(place(w, 'house', 7, 9).ok && place(w, 'house', 22, 9).ok).toBe(true);   // Fair, and unmarked
+    expect([w.tally.goodSpotPlots, firstMet(w, first)]).toEqual([0, null]);
+    expect(place(w, 'house', 17, 9).ok).toBe(true);                                 // Good
+    expect([w.tally.goodSpotPlots, firstMet(w, first) !== null]).toEqual([1, true]);
+    // the plots tool counts each plot of a drawing by the mark it had before the drawing: a row of three, the middle one Good
+    const v = spotWorld();
+    const marks = [16, 17, 18].map((x) => spotAt(v, x, 9));
+    const laid = paintHouses(v, 16, 9, 18, 9);
+    expect([laid.ok, v.tally.goodSpotPlots, v.tally.plotsLaid]).toEqual([true, marks.filter((k) => k === SPOT.good).length, 3]);
+    // nothing has been laid and no home stands: the spots are not on yet, so the first plot is not a Good-spot plot
+    const empty = spotWorld();
+    for (const b of housesOf(empty)) removeBuilding(empty, b.id);
+    expect(spotAt(empty, 17, 9)).toBe(SPOT.good);
+    expect(place(empty, 'house', 17, 9).ok).toBe(true);
+    expect(empty.tally.goodSpotPlots).toBe(0);
+  });
+});
+
+describe('s47 house spots: no marks', () => {
+  it('says one true line, from the data, when no tile is marked, and the keys return when one is', async () => {
+    const w = spotWorld({ eastWell: false });
+    for (const b of Object.values(w.buildings)) if (b.type === 'well' || b.type === 'bazaar') b.paused = true;   // nothing works: nothing is reached
+    expect(houseSpots(w).list.length).toBe(0);
+    const line = W.none();
+    expect(line).toContain(buildingName('bazaar').toLowerCase());
+    expect(line).toContain(buildingName('well').toLowerCase());
+    expect(line).toContain('Good');
+    const legend = spotsLegend(w);
+    expect(legend.querySelectorAll('.key, svg').length).toBe(0);                    // no keys promising marks that are not there
+    expect(legend.textContent).toBe(line);
+    const r = await rigUI({ world: w });
+    try {
+      r.ui.placement.start({ kind: 'houses' });
+      r.frame(0);
+      expect(r.root.querySelector('#legend .strip.spots.none').textContent).toBe(line);
+      for (const b of Object.values(r.world.buildings)) b.paused = false;           // the well and the bazaar work again
+      r.ui.refresh();
+      expect(r.root.querySelector('#legend .strip.spots.none')).toBe(null);
+      expect(r.root.querySelectorAll('#legend .strip.spots .key').length).toBe(2);
+    } finally { r.cleanup(); }
+    expect(spotsLegend(spotWorld()).querySelectorAll('.key').length).toBe(2);
   });
 });
 

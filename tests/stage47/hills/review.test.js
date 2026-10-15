@@ -57,6 +57,18 @@ describe('s47 review walk memo', () => {
     expect(pathMemoSize(w)).toBe(1);                               // the cache started over
     expect(PATH_MEMO_MAX >= 100).toBe(true);
   });
+  it('forgets the cache when the terrain array is swapped for a new one (a ford made in a copy)', () => {
+    const w = arena();
+    const a = idx(40, 20, 20), b = idx(40, 33, 20);
+    expect(findPath(w, a, b)).toBe(null);
+    expect(pathMemoSize(w)).toBe(1);
+    const copy = Array.from(w.terrain);
+    for (const x of [26, 27]) copy[idx(40, x, 20)] = T.DESERT;                // a ford on their row, in a new array
+    w.terrain = copy;                                                         // the road version did not move: the key's terrain part did
+    const path = findPath(w, a, b);
+    expect(path !== null && path.length > 13).toBe(true);
+    expect(pathMemoSize(w)).toBe(1);                                          // started over, then the one new search
+  });
   it('a unit that cannot reach its barracks searches once, not every day', () => {
     const w = arena();
     w.milestone = 'market_town';
