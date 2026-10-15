@@ -12,3 +12,6 @@ import './layers/slices.test.js';
 import './layers/draw.test.js';
 import './layers/budget.test.js';
 import './layers/ui.test.js';
+import './areas/sim.test.js';
+import './areas/ui.test.js';
+import './areas/budget.test.js';

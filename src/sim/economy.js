@@ -50,12 +50,12 @@ export function monthlyBill(type) {
 
 // The month's balance if a building of this type were added now: this month's net less its upkeep and the wages of the workers
 // the city could give it. Labour fills jobs from the workforce, so the wages grow by the jobs the workforce can still fill.
-export function balanceWith(world, type) {
+export function balanceWith(world, type, count = 1) {   // count: Version 5.0 (Task 4) an area adds several at once
   const f = monthFigures(world);
   const def = BUILDINGS[type], L = world.labour;
   const filled = (jobs) => Math.min(L.workforce, jobs);
-  const more = filled(L.jobs + def.workers) - filled(L.jobs);
-  return f.net - def.upkeep - more * ECONOMY.wagePerWorker;
+  const more = filled(L.jobs + count * def.workers) - filled(L.jobs);
+  return f.net - count * def.upkeep - more * ECONOMY.wagePerWorker;
 }
 
 // The building costing the most a month now (upkeep plus the wages of its staff): { id, type, cost }, the lowest id on a tie,

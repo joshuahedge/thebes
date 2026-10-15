@@ -2691,3 +2691,12 @@ TIP_HELP_TEXT.layer_progress = V50_LAYERS_TEXT.tipProgressHelp;
 TIP_TEXT.layers_town = V50_LAYERS_TEXT.tipTown;
 TIP_HELP_TEXT.layers_town = V50_LAYERS_TEXT.tipTownHelp;
 // ── end v50 layers ──
+
+// ── v50 areas (Version 5.0, Task 4, rulings 550-559) ──────────────────────────────────────────────────────────────────
+// Build another (a button on every building sheet) and drag areas (a farm, garden or statue tool's ▦ button); the bar's and the sheets' sentences are in src/ui/areaText.js.
+// The tips come with the first building placed and the first farm, garden or statue; How to play lists them with the others.
+TIP_TEXT.build_another = 'Open a building, then Build another: the same one, with the same settings, ready to place.';
+TIP_HELP_TEXT.build_another = 'Build another, on every building sheet, copies the type, style and store settings. It says why when it cannot.';
+TIP_TEXT.drag_areas = 'Placing a farm, garden or statue? The area button lays several at once: drag over the land.';
+TIP_HELP_TEXT.drag_areas = 'The area button on farms, gardens and statues drags a rectangle; the total shows before you confirm.';
+// ── end v50 areas ──

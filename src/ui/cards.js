@@ -79,6 +79,7 @@ export function activeItemOf(tool) {
   if (tool.kind === 'building') return tool.type;
   if (tool.kind === 'houses') return 'house';
   if (tool.kind === 'plazas') return 'plaza';   // Stage 4 (ruling 250)
+  if (tool.kind === 'areas') return tool.type;   // Version 5.0 (Task 4): an area of farms, gardens or statues lights its own card
   if (tool.kind === 'road' && tool.gate) return 'gate';   // Stage 4.5 (ruling 309): the Gate card runs the road tool in gate mode
   return tool.kind;   // 'road', 'wall' or 'demolish'
 }

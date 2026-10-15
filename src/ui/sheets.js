@@ -27,6 +27,8 @@ import { huntRest } from '../sim/wildlife.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 import { S47_PRESSURE_TEXT, buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
   contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
+import { ANOTHER_TEXT } from './areaText.js';
+import { canCopy } from './another.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -53,9 +55,18 @@ const withoutTwoFoods = (rows) => (rows.some((c) => c.need === 'threeFoods') ? r
 
 // parts (Stage 3): the danger and score interfaces' sheet parts (src/ui/danger.js), each { building(b), house(h),
 // actions(b), summary() } returning arrays of nodes, added in the list's order at fixed places in the sheets below.
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [] }) {
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [] }) {
   const close = () => store.set(closeSheet(store.get()));
   const extra = (kind, ...args) => parts.flatMap((p) => (p && typeof p[kind] === 'function' ? p[kind](...args) || [] : []));
+
+  // Build another (Version 5.0, Task 4, ruling 505): the button on a building's sheet. When the sim says no, the sheet says why under its buttons, with Show me where there is something to show;
+  // the note belongs to the sheet it was said on (it goes with that sheet). When it says yes the tool starts and the sheet closes.
+  let anotherNote = null;
+  const anotherButton = (b) => (canCopy(b) ? button(ANOTHER_TEXT.button, { class: 'another', 'aria-label': ANOTHER_TEXT.label(b.type), onClick: () => {
+    const r = onBuildAnother(b.id);
+    if (r && !r.ok) { anotherNote = { sheet: store.get().sheet, id: b.id, text: r.text, fix: r.fix }; render(); }
+  } }) : null);
+  const anotherLine = (b) => (anotherNote && anotherNote.id === b.id ? el('p', { class: 'another-note coral small', role: 'status' }, [anotherNote.text, anotherNote.fix ? button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${anotherNote.text}`, onClick: () => onAnotherFix(anotherNote.fix) }) : null]) : null);
 
   function head(title) {
     return el('div', { class: 'head' }, [el('h2', { text: title }), iconButton(T.close, '✕', { class: 'close', onClick: close })]);
@@ -100,7 +111,7 @@ export function createSheets({ container, store, world, placement, cameraControl
   function monumentSheet(b) {
     const body = el('div', { class: 'body monument' });
     body.append(...extra('building', b));
-    body.append(el('div', { class: 'actions' }, [...extra('actions', b), button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) })]));
+    body.append(el('div', { class: 'actions' }, [...extra('actions', b), anotherButton(b), button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) })].filter(Boolean)), ...[anotherLine(b)].filter(Boolean));
     return [head(buildingName(b.type)), body];
   }
 
@@ -158,8 +169,8 @@ export function createSheets({ container, store, world, placement, cameraControl
       } }));
     }
     // Rubble's Clear (Stage 3, src/ui/dangerSheets.js) is its demolish, with the price in its name.
-    if (b.type !== 'rubble') actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) }));
-    body.append(actions);
+    if (b.type !== 'rubble') actions.append(...[anotherButton(b), button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) })].filter(Boolean));
+    body.append(actions, ...[anotherLine(b)].filter(Boolean));
     return [head(buildingName(b.type)), body];
   }
 
@@ -249,7 +260,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (s.downgradeIn !== null && lost) body.append(el('p', { class: 'coral', text: `Loses ${NEED_NAMES[lost].toLowerCase()} in ${plural(s.downgradeIn, 'month', 'months')}` }));
     else if (s.missingNow.includes('desirability')) body.append(el('p', { class: 'coral keep-warning', text: keepWarningText(tierName(s.tier), s.downgradeIn) }));
     body.append(...extra('house', h));
-    body.append(el('div', { class: 'actions' }, [button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(h.x, h.y); if (r.ok) close(); } })]));
+    body.append(el('div', { class: 'actions' }, [anotherButton(h), button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(h.x, h.y); if (r.ok) close(); } })].filter(Boolean)), ...[anotherLine(h)].filter(Boolean));
     return [head(tierName(s.tier)), body];
   }
 
@@ -388,6 +399,7 @@ export function createSheets({ container, store, world, placement, cameraControl
 
   function render() {
     const s = store.get();
+    if (anotherNote && anotherNote.sheet !== s.sheet) anotherNote = null;   // Build another's refusal goes with the sheet it was said on
     // A rebuild drops keyboard focus: put it back on the button at the same position when its class matches (spec 6.8).
     const buttons = [...container.querySelectorAll('button')];
     const focusIndex = buttons.indexOf(document.activeElement);
