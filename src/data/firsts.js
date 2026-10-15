@@ -4,6 +4,7 @@
 // fullHome, tier { tier }, tally { key, n }, made { good, n } (units of a good produced, world.tally.made), and from
 // Stage 3 building { type } (one stands) and tallies { keys, n } (the tallies added together).
 import { S46_FIRSTS } from './s46.js';
+import { S47_FIRSTS } from './s47.js';
 
 export const FIRST_REWARD = 10;
 
@@ -41,4 +42,6 @@ export const FIRSTS = [
   { id: 'first_police_post', check: { kind: 'building', type: 'police_post' } },
   // Stage 4.6: each track's firsts (src/data/s46.js S46_FIRSTS), with their words in the track's text.js section.
   ...S46_FIRSTS,
+  // Stage 4.7 (src/data/s47.js S47_FIRSTS): an oasis in the desert.
+  ...S47_FIRSTS,
 ];

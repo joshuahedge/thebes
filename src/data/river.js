@@ -16,7 +16,7 @@ export const FLOOD = { months: [7, 8, 9], drainMonths: [10], forecastMonths: 3, 
 // water spreads over the floodplain (tiles from the river; render only: the whole floodplain is 3 tiles wide).
 export const FLOOD_LEVELS = [
   { id: 'low', chance: 0.15, harvest: 0.6, spread: 1 },
-  { id: 'fair', chance: 0.35, harvest: 0.9, spread: 2 },
+  { id: 'fair', chance: 0.35, harvest: 1.0, spread: 2 },
   { id: 'good', chance: 0.35, harvest: 1.1, spread: 3 },
   { id: 'high', chance: 0.15, harvest: 1.25, spread: 3 },
 ];
@@ -91,7 +91,7 @@ export const RIVER_GOODS = {
 export const RIVER_BUILDINGS = {
   nilometer: {
     name: 'Nilometer', w: 1, d: 1, cost: 80, upkeep: 3, workers: 2, priority: 'services', category: 'services',
-    needsRoad: true, water: 'touch', desirability: [1],
+    needsRoad: true, water: 'touch', riverOnly: true, desirability: [1],   // riverOnly: an oasis pool is not the river it measures (Stage 4.7)
   },
   hunting_lodge: {
     // Ruling 434: 2 hunters (was 3): ruling 460 made the herds last (one animal a herd a month, never below 2), and 2 hunters match two herds' yield.

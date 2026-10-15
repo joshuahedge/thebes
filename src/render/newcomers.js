@@ -9,6 +9,7 @@ import { DAYS_PER_MONTH } from '../sim/time.js';
 import { housesOf } from '../sim/world.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
 import { idx, inBounds, NEIGHBOURS4 } from '../sim/grid.js';
+import { passable } from '../sim/terrain.js';
 import { ambientState } from './ambient.js';
 import { pathBack, TILES_PER_DAY } from './walkers.js';
 
@@ -39,7 +40,8 @@ function entryTree(world) {
       for (const [dx, dy] of NEIGHBOURS4) {
         if (!inBounds(world.size, x + dx, y + dy)) continue;
         const nt = idx(world.size, x + dx, y + dy);
-        if (world.road[nt] && !map.has(nt)) { map.set(nt, { d: map.get(t).d + 1, p: t }); queue.push(nt); }
+        // Stage 4.7: the shared passable rule (src/sim/terrain.js; a road tile is always passable today).
+        if (world.road[nt] && passable(world, nt) && !map.has(nt)) { map.set(nt, { d: map.get(t).d + 1, p: t }); queue.push(nt); }
       }
     }
   }

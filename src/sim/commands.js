@@ -2,7 +2,7 @@ import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { ECONOMY } from '../data/economy.js';
 import { MONUMENTS } from '../data/monuments.js';
 import { footprint, idx, inBounds, ring } from './grid.js';
-import { T, TERRAIN_BY_NAME } from './terrain.js';
+import { T, TERRAIN_BY_NAME, buildable, groundRefusal } from './terrain.js';
 import { makeBuilding, insertBuilding, removeBuilding, buildingAt, allBuildings, isFinished, isSite } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { canAfford, spend, refund } from './money.js';
@@ -14,6 +14,15 @@ import { guildsNear, supplyNear, remainingNeed } from './monuments.js';
 import { DEFENCE } from '../data/raids.js';
 import { bridgeVerdicts } from './bridges.js';
 import { tileBound, fitOf, fitReason } from './fit.js';
+import { noteBuilt } from './oases.js';
+import { onGoodSpot } from './spots.js';   // Stage 4.7 (Task 4): the spots' first; spots.js reads checkTiles from here, both only at call time
+// Stage 4.7 (Task 4): every housing plot laid counts (world.tally.plotsLaid), so the next-house spots (src/sim/spots.js) stay unlocked once the first is placed.
+// good: the plot went on a Good spot the player could see (the tool's mark, src/sim/spots.js), the tally of the first "A good spot" (goodSpotPlots).
+const notePlot = (world, b, good = false) => {
+  if (!b || b.type !== 'house') return;
+  world.tally.plotsLaid = (world.tally.plotsLaid || 0) + 1;
+  if (good) world.tally.goodSpotPlots = (world.tally.goodSpotPlots || 0) + 1;
+};
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 const storesAny = (o, goods) => (BUILDINGS[o.type].stores || []).some((g) => goods.includes(g));
@@ -42,7 +51,8 @@ function tileReason(world, type, tx, ty) {
   const def = BUILDINGS[type];
   if (!inBounds(world.size, tx, ty)) return 'out_of_bounds';
   const i = idx(world.size, tx, ty);
-  if (world.terrain[i] === T.WATER) return 'water';
+  const ground = groundRefusal(world, i);   // Stage 4.7: the one ground rule (src/sim/terrain.js buildable): water or hills
+  if (ground) return ground;
   if (world.occ[i] || world.road[i]) return 'occupied';
   if (world.wall[i] && !(type === 'tower' && world.wall[i] > 0)) return 'occupied';   // a tower may stand on a standing wall tile (spec 4.13)
   // Stage 4.6: a building that needs every footprint tile on its ground refuses tile by tile; one with a looser rule (terrainMin, a
@@ -207,7 +217,7 @@ function roadJoins(world, b) {
   return ring(b.x, b.y, b.w, b.d).filter(([tx, ty]) => {
     if (!inBounds(world.size, tx, ty)) return false;
     const i = idx(world.size, tx, ty);
-    return world.terrain[i] !== T.WATER && !world.occ[i] && !world.wall[i];
+    return buildable(world, i) && !world.occ[i] && !world.wall[i];   // Stage 4.7: buildable (src/sim/terrain.js)
   });
 }
 
@@ -218,7 +228,10 @@ export function place(world, type, x, y, { roadLater = false, rot = 0, style = n
   const check = canPlace(world, type, x, y, { roadLater, rot, style });
   if (!check.ok) return check;
   const cost = costOf(world, type, { style });
+  const good = type === 'house' && onGoodSpot(world, x, y);   // judged before the plot takes the tile
   const b = insertBuilding(world, makeBuilding(world, type, x, y, rot, { style }));
+  noteBuilt(world, b);   // Stage 4.7: a building within 4 tiles of an oasis is the first's tally
+  notePlot(world, b, good);
   spend(world, cost);
   // A tower on a standing wall tile gives the tile its 80 hit points (spec 4.13); undo puts the old value back.
   const walls = [];
@@ -367,7 +380,8 @@ function uniqueTiles(tiles) {
 function roadTileReason(world, x, y, gateOnly = false, bridgeOk = false) {
   if (!isTile(x, y) || !inBounds(world.size, x, y)) return 'out_of_bounds';
   const i = idx(world.size, x, y);
-  if (world.terrain[i] === T.WATER && !bridgeOk) return 'water';
+  const ground = groundRefusal(world, i);   // Stage 4.7: water or hills (src/sim/terrain.js); only water can take a bridge
+  if (ground && !(ground === 'water' && bridgeOk)) return ground;
   if (world.occ[i]) return 'blocked';
   if (gateOnly && !world.wall[i]) return 'not_wall';
   return null;
@@ -485,7 +499,8 @@ export function previewHouseTiles(world, list) {
 export function paintHouseTiles(world, list) {
   const p = previewHouseTiles(world, list);
   if (!p.ok) return { ...p, ids: [] };
-  const ids = p.positions.map(([x, y]) => insertBuilding(world, makeBuilding(world, 'house', x, y)).id);
+  const good = p.positions.map(([x, y]) => onGoodSpot(world, x, y));   // each judged before any plot of this drawing is laid
+  const ids = p.positions.map(([x, y], k) => { const b = insertBuilding(world, makeBuilding(world, 'house', x, y)); noteBuilt(world, b); notePlot(world, b, good[k]); return b.id; });
   spend(world, p.cost);
   pushUndo(world, { kind: 'place', ids, cost: p.cost });
   return { ok: true, warnings: p.warnings, ids, cost: p.cost, skipped: p.skipped };
@@ -524,7 +539,7 @@ export function previewPlazaTiles(world, list) {
 export function paintPlazaTiles(world, list) {
   const p = previewPlazaTiles(world, list);
   if (!p.ok) return { ...p, ids: [] };
-  const ids = p.positions.map(([x, y]) => insertBuilding(world, makeBuilding(world, 'plaza', x, y)).id);
+  const ids = p.positions.map(([x, y]) => { const b = insertBuilding(world, makeBuilding(world, 'plaza', x, y)); noteBuilt(world, b); return b.id; });
   spend(world, p.cost);
   pushUndo(world, { kind: 'place', ids, cost: p.cost });
   const fresh = world.newItems.indexOf('plaza');

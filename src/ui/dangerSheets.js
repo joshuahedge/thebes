@@ -24,7 +24,7 @@ import { dateParts } from '../sim/clock.js';
 import { idx } from '../sim/grid.js';
 import { el, button } from './components.js';
 import { armyRowsModel } from './s46/armies.js';
-import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT, S46_ARMY_TEXT } from './text.js';
+import { alertText, dateText, plural, viewLabel, T, DANGER_UI_TEXT, S46_ARMY_TEXT, S47_PRESSURE_TEXT } from './text.js';
 
 const D = DANGER_UI_TEXT;
 const centre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
@@ -263,10 +263,13 @@ export function tributeSheet(ctx) {
     const phone = Boolean(ctx.store) && ctx.store.get().layout !== 'wide';
     const title = alertText({ code: 'raid_warning', dir: w.dir, dirs: q.dirs }, world).title;
     const arrives = el('p', { class: isMixed(w) ? 'arrives raid-mix' : 'arrives', text: arrivalText(w, title, left, phone || q.hidden) });   // as the banner says it
+    // Stage 4.7 (Task 7, ruling 470): "14 raiders: your wealth draws 4 more", fixed at the warning (warning.wealth, src/sim/raids.js wealthDraw).
+    const wealth = w.wealth ? el('p', { class: 'raid-wealth', text: `${S47_PRESSURE_TEXT.wealthLine(w)}.` }) : null;
     if (q.hidden) { setTitle(D.raidSheetTitle); body.append(arrives, el('p', { text: D.capital(D.defenceLine(q, q.dirs)) }), ...counterParts(w)); return; }
     body.append(
       el('p', { class: 'tribute-cost', text: D.tributeCost(q.cost) }),
       arrives,
+      ...(wealth ? [wealth] : []),
       row(D.goldNow, String(world.gold)), row(D.goldAfter, String(world.gold - q.cost)),
       el('p', { class: 'cancels', text: D.cancels(q.dirs, q.size) }),
       el('p', { class: 'small muted', text: D.capital(D.defenceLine(q, q.dirs)) }),

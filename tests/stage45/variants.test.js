@@ -80,13 +80,13 @@ describe('s45 variants (the six layouts)', () => {
     const terrains = MAP_VARIANTS.map((v) => JSON.stringify(generateMap(8, 64, v).terrain));
     expect(new Set(terrains).size).toBe(6);
   });
-  it('keeps fertile banks, 90-150 rocky tiles off the river (130 at most from the patches), land raider entries and a buildable start, for 30 seeds of every variant', () => {
+  it('keeps fertile banks, 100-520 rocky tiles off the river (rock belts and the hills on them; classic keeps its patches), land raider entries and a buildable start, for 30 seeds of every variant', () => {
     for (const v of MAP_VARIANTS) {
       for (const seed of SEEDS) {
         const m = generateMap(seed, 64, v), tag = `${v} ${seed}`;
-        const rocky = count(m, T.ROCKY);
+        const rocky = count(m, T.ROCKY) + count(m, T.HILLS) - m.repaired.mine;   // Stage 4.7: the resource repair's rock (ruling 461) is on top of what the patches or belts drew; Task 3b: hills stand on the belts, so they count
         // Classic keeps its own patches, draw for draw (so the fixtures and old seeds do not move): its rock is 52-172.
-        expect([tag, v === 'classic' ? rocky >= 40 && rocky <= 180 : rocky >= 90 && rocky <= 150]).toEqual([tag, true]);
+        expect([tag, v === 'classic' ? rocky >= 40 && rocky <= 180 : rocky >= 100 && rocky <= 520]).toEqual([tag, true]);
         expect([tag, count(m, T.FERTILE) >= 400]).toEqual([tag, true]);
         let nearFertile = 0, minRock = 99;
         for (let y = 0; y < m.size; y++) {
@@ -109,7 +109,7 @@ describe('s45 variants (the six layouts)', () => {
         expect([tag, free]).toEqual([tag, 49]);                                    // the start area is all buildable
         expect([tag, waterWithin(m, m.focus.x, m.focus.y, 24) <= 24]).toEqual([tag, true]);   // and near the river
         for (const [x, y] of m.startRoad) expect(at(m, x, y) === T.WATER).toBe(false);
-        const clay = count(m, T.CLAY);
+        const clay = count(m, T.CLAY) - m.repaired.clay - m.oasisClay;   // likewise the repair's clay and the oases' (Stage 4.7)
         expect([tag, clay >= 40 && clay <= 90]).toEqual([tag, true]);
       }
     }
@@ -122,18 +122,20 @@ describe('s45 variants (the six layouts)', () => {
 describe('s45 variants (what each one is)', () => {
   const centre = (m) => {
     const xs = [];
-    for (let y = 0; y < m.size; y++) { const row = []; for (let x = 0; x < m.size; x++) if (at(m, x, y) === T.WATER) row.push(x); if (row.length) xs.push((row[0] + row[row.length - 1]) / 2); }
+    for (let y = 0; y < m.size; y++) { const row = []; for (let x = 0; x < m.size; x++) if (at(m, x, y) === T.WATER && !(m.oases || []).some((o) => Math.hypot(x - o.x, y - o.y) <= o.r)) row.push(x); if (row.length) xs.push((row[0] + row[row.length - 1]) / 2); }
     return { mean: xs.reduce((a, b) => a + b, 0) / xs.length, range: Math.max(...xs) - Math.min(...xs) };
   };
   it('east runs the river down the east side with the rock on the west, middle down the middle with rock on both sides', () => {
+    let both = 0;
     for (const seed of SEEDS) {
       const east = generateMap(seed, 64, 'east'), middle = generateMap(seed, 64, 'middle'), classic = generateMap(seed);
       expect([seed, centre(east).mean > 48, centre(classic).mean < 16]).toEqual([seed, true, true]);
       expect([seed, Math.abs(centre(middle).mean - 32) < 4]).toEqual([seed, true]);
-      const side = (m, left) => { let n = 0; for (let y = 0; y < m.size; y++) for (let x = 0; x < m.size; x++) if (at(m, x, y) === T.ROCKY && (x < 32) === left) n++; return n; };
-      expect([seed, side(east, true) > 80, side(east, false) < 10]).toEqual([seed, true, true]);
-      expect([seed, side(middle, true) >= 20, side(middle, false) >= 20]).toEqual([seed, true, true]);
+      const side = (m, left) => { let n = 0; for (let y = 0; y < m.size; y++) for (let x = 0; x < m.size; x++) if ((at(m, x, y) === T.ROCKY || at(m, x, y) === T.HILLS) && (x < 32) === left) n++; return n; };
+      expect([seed, side(east, true) > 80, side(east, false) < 10 + east.repaired.mine]).toEqual([seed, true, true]);
+      if (side(middle, true) >= 20 && side(middle, false) >= 20) both++;   // Task 3b: an oasis drawn in one of middle's rock ranges can leave it no belt (the oases are placed first), so nearly all seeds (29 of 30), not every one
     }
+    expect(both >= SEEDS.length * 0.9).toBe(true);
   });
   it('wide-bends meanders more than any other variant, and the island splits the river round 4-8 rows of land', () => {
     for (const seed of SEEDS) {
@@ -146,7 +148,7 @@ describe('s45 variants (what each one is)', () => {
       const longest = Math.max(...Object.values(columns).map((ys) => { let best = 1, run = 1; for (let k = 1; k < ys.length; k++) { run = ys[k] === ys[k - 1] + 1 ? run + 1 : 1; best = Math.max(best, run); } return best; }));
       expect([seed, longest >= 4 && longest <= 8]).toEqual([seed, true]);
       for (const [x, y] of isle) expect([seed, riverSpans(w)[y][0] < x && x < riverSpans(w)[y][1]]).toEqual([seed, true]);   // land with water either side of it
-      expect([seed, riverPools(w).length > 0]).toEqual([seed, (w.mapParams.pools || []).length > 0]);   // Stage 4.6 (ruling 332): the only other water is its side channels and oxbow lakes
+      expect([seed, riverPools(w).length > 0]).toEqual([seed, (w.mapParams.pools || []).length > 0 || w.oases.length > 0]);   // Stage 4.6 (ruling 332): the only other water is its side channels and oxbow lakes
     }
   });
   it('oasis adds a lake of its own, ringed by bank and fertile land, with a little clay on its edge', () => {

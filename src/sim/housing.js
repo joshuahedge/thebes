@@ -1,4 +1,4 @@
-import { TIERS, MAX_TIER, LEAVE_CAP, DOWNGRADE_AFTER_MONTHS } from '../data/housing.js';
+import { TIERS, MAX_TIER, LEAVE_CAP, DOWNGRADE_AFTER_MONTHS, useOf } from '../data/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { FOOD_GOODS, FOOD_SLOTS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { allBuildings, housesOf } from './world.js';
@@ -71,14 +71,20 @@ export function leaveCap(house) {
 }
 
 const foodOnHand = (house) => FOOD_GOODS.reduce((s, g) => s + (house.stock[g] || 0), 0);
-// How many kinds of food a home has in stock (Stage 4.6, ruling 363): two kinds meet the 'twoFoods' need, whichever two.
+// How many kinds of food a home has in stock (Stage 4.6, ruling 363): two kinds meet the 'twoFoods' need, whichever two; Stage 4.7 (ruling
+// 471): three kinds meet the top two tiers' 'threeFoods'.
 const foodKinds = (house) => FOOD_GOODS.filter((g) => (house.stock[g] || 0) > 0).length;
+// The kinds of food a home's wants ask for: 3 (threeFoods), 2 (twoFoods) or 1.
+const kindsWanted = (wants) => (wants.includes('threeFoods') ? 3 : wants.includes('twoFoods') ? 2 : 1);
+// The tier a home is stocked and judged for: the next one (a home stocks for the tier it grows into), the top tier its own.
+const growingInto = (house) => Math.min(house.tier + 1, MAX_TIER);
 
 // A house is judged on the residents it was stocked for: newcomers who arrived since the last delivery
 // eat from the household's stock (so it may run out early) but do not make the house count as unfed.
 // stockedFor 0 means no delivery has been recorded yet, so the house is judged on its current residents.
-const needToMeet = (house, good) =>
-  monthlyNeed({ residents: Math.min(house.residents, house.stockedFor || house.residents) }, good);
+// Stage 4.7 (ruling 471): at the tier's own use of household goods, or at `tier`'s (the next tier's, for growing into it).
+const needToMeet = (house, good, tier = house.tier) =>
+  monthlyNeed({ residents: Math.min(house.residents, house.stockedFor || house.residents) }, good, tier);
 const foodNeedToMeet = (house) => needToMeet(house, FOOD_GOODS[0]);
 
 function consumeFood(house) {
@@ -97,11 +103,13 @@ function consumeFood(house) {
 
 // A household good is met when the stock covers the month's use at the monthly check (spec 4.10), judged like food
 // on the residents it was stocked for; the month's use is then taken from the stock.
+// Stage 4.7 (ruling 471): also whether the stock would meet the next tier's use (`next`), which is what growing into it asks.
 function consumeGood(house, good) {
   const needMet = needToMeet(house, good);
+  const needNext = needToMeet(house, good, growingInto(house));
   const available = house.stock[good] || 0;
   house.stock[good] = available - Math.min(available, monthlyNeed(house, good));
-  return needMet > 0 && available >= needMet;
+  return { met: needMet > 0 && available >= needMet, next: needNext > 0 && available >= needNext };
 }
 
 export function monthlyHousing(world, events = null) {
@@ -119,11 +127,13 @@ export function monthlyHousing(world, events = null) {
       religion: cov.religion.has(h.id),
       entertainment: cov.entertainment.has(h.id),
       twoFoods: foodKinds(h) >= 2,   // two kinds of food in stock before the month's eating (Stage 4.6, ruling 363: any two of grain, figs, game, fish)
+      threeFoods: foodKinds(h) >= 3,   // Stage 4.7 (ruling 471): three kinds, for a Villa and an Estate
       food: wants.includes('food') ? consumeFood(h) : false,
     };
-    for (const g of HOUSEHOLD_GOODS) if (wants.includes(g)) met[g] = consumeGood(h, g);
+    const metNext = {};   // household goods at the next tier's use (ruling 471): what growing into it asks
+    for (const g of HOUSEHOLD_GOODS) if (wants.includes(g)) { const r = consumeGood(h, g); met[g] = r.met; metNext[g] = r.next; }
     h.met = met;
-    topUpHouse(world, h, wantedGoods(h), bazaars.get(h.id), { twoFoods: wants.includes('twoFoods') });
+    topUpHouse(world, h, wantedGoods(h), bazaars.get(h.id), { kinds: kindsWanted(wants), tier: growingInto(h) });
     h.stockedFor = h.residents;
 
     // Tiers 6-9 also want a pleasant street (spec 4.6): rising needs the next tier's "to rise" desirability and
@@ -137,7 +147,7 @@ export function monthlyHousing(world, events = null) {
     let home = h;
     if (currentOk) {
       h.downTimer = 0;
-      if (next <= MAX_TIER && needsOf(next).every((n) => met[n]) && (rise === null || value >= rise)) {
+      if (next <= MAX_TIER && needsOf(next).every((n) => (n in metNext ? metNext[n] : met[n])) && (rise === null || value >= rise)) {
         if (TIERS[next].size > h.w) {
           // A Townhouse becomes a Manor only by joining a 2x2 square (spec 4.6); with no square it waits.
           const origin = mergeSquare(world, h);
@@ -193,8 +203,11 @@ export function desirabilityTarget(tier) {
 // Only the downgrade countdown is timer-based. Household goods count as met while the stock covers the month's
 // use (the monthly check's rule); two kinds of food means any two of the foods are in stock (Stage 4.6, ruling 363). desirability is
 // there only for homes whose checklist has the row; merge is false only for a Townhouse with no square to join.
-function liveNeeds(world, house) {
+// Stage 4.7 (ruling 471): household goods are judged at the use of the tier the checklist is for (the next tier; the top tier its own), so
+// a Fine manor's pottery row reads against a Villa's use; `now` judges them at the home's own tier (what it is missing now).
+function liveNeeds(world, house, { now = false } = {}) {
   const foodNeed = needToMeet(house, FOOD_GOODS[0]);
+  const goodsTier = now ? house.tier : growingInto(house);
   const met = {
     road: touchesRoad(world, house),
     water: coveredBy(world, house, 'water'),
@@ -202,9 +215,10 @@ function liveNeeds(world, house) {
     entertainment: coveredBy(world, house, 'entertainment'),
     food: foodNeed > 0 && foodOnHand(house) >= foodNeed,
     twoFoods: foodKinds(house) >= 2,
+    threeFoods: foodKinds(house) >= 3,
   };
   for (const good of HOUSEHOLD_GOODS) {
-    const n = needToMeet(house, good);
+    const n = needToMeet(house, good, goodsTier);
     met[good] = n > 0 && (house.stock[good] || 0) >= n;
   }
   const target = desirabilityTarget(house.tier);
@@ -228,7 +242,8 @@ export function houseStatus(world, house) {
   const keep = keepOf(tier);
   const value = target !== null || keep !== null ? houseDesirability(world, house) : null;
   if (target !== null) checklist.push({ need: 'desirability', met: met.desirability, value, target, keep });
-  const missingNow = tier >= 1 ? ['road', ...needsOf(tier)].filter((n) => !met[n]) : [];
+  const metNow = useOf(tier) === useOf(Math.min(tier + 1, MAX_TIER)) ? met : liveNeeds(world, house, { now: true });
+  const missingNow = tier >= 1 ? ['road', ...needsOf(tier)].filter((n) => !metNow[n]) : [];
   if (keep !== null && value < keep) missingNow.push('desirability');
   const mergeNeeded = tier === MERGE_TIER - 1;
   return {
@@ -280,7 +295,7 @@ export function needCause(world, house, need) {
     return roadless ? { code: `${kind}_no_road`, id: roadless.id } : { code: `no_${kind}`, id: null };
   }
   if (need === 'food') return foodCause(world, house);
-  if (need === 'twoFoods') return twoFoodsCause(world, house);
+  if (need === 'twoFoods' || need === 'threeFoods') return twoFoodsCause(world, house);
   return goodCause(world, house, need);
 }
 
@@ -315,11 +330,12 @@ function foodCause(world, house) {
 }
 
 // The second food a home lacks (Stage 4.6, ruling 363): of the foods it has none of (in FOOD_SLOTS order: grain, figs, game, fish), the first
-// one whose delivery is on its way, else the first one in order, so the words name the food the player can most easily bring.
+// one whose delivery is on its way, else (Stage 4.7) the first held only in a far store (a Fetch order fixes that), else the first one in order,
+// so the words name the food the player can most easily bring. Also the cause for threeFoods.
 function twoFoodsCause(world, house) {
   const missing = FOOD_SLOTS.filter((g) => FOOD_GOODS.includes(g) && !((house.stock[g] || 0) > 0));
   const causes = missing.map((g) => goodCause(world, house, g));
-  return causes.find((c) => c.code === 'next_delivery') || causes[0];
+  return causes.find((c) => c.code === 'next_delivery') || causes.find((c) => c.code === 'good_far') || causes[0];
 }
 
 function goodCause(world, house, good) {
@@ -328,9 +344,38 @@ function goodCause(world, house, good) {
   const holds = (b) => (b.store[good] || 0) > 0;
   const coming = working.find((bz) => holds(bz) || goodStoresFor(world, bz, good).some(holds));
   if (coming) return { code: 'next_delivery', id: coming.id, good };
+  const far = farHolder(world, working, good);
+  if (far) return far;
   const kept = working.find((bz) => goodStoresFor(world, bz, good).length);
   if (kept) return { code: 'good_unmade', good, id: kept.id };
   return { code: 'no_good', good, id: working[0].id };
+}
+
+// Stage 4.7 (Task 7, ruling 471): the good is held, but only in a store beyond every reaching bazaar's supply reach: good_far { good, id: the
+// nearest such store by road from one of those bazaars (ties: the lower id), bazaar, len (road tiles) }. Its remedy is a Fetch order on a store
+// near the bazaar (src/sim/carts.js, ruling 466); the house sheet's Show me selects the far store. null when no store linked by road holds it.
+function farHolder(world, bazaars, good) {
+  let best = null;
+  for (const bz of bazaars) {
+    const rm = roadReach(world, bz, Infinity);
+    for (const s of allBuildings(world)) {
+      if (!(BUILDINGS[s.type].stores || []).includes(good) || !((s.store[good] || 0) > 0)) continue;
+      const len = reachDistance(rm, world, s);
+      if (Number.isFinite(len) && (!best || len < best.len || (len === best.len && s.id < best.id))) best = { code: 'good_far', good, id: s.id, bazaar: bz.id, len };
+    }
+  }
+  return best;
+}
+
+// Stage 4.7 (Task 8): the same 'good_far' cause for a good wherever it is wanted (the tribute quota's sheet), not for one home: no working bazaar that
+// sells the good has it on its stall or a store of it within its supply reach, while a store holding it is linked by road to one of them. Returns
+// { code: 'good_far', good, id, bazaar, len } or null (the good is within a bazaar's reach, nobody sells it, or no linked store holds it).
+export function farHeld(world, good) {
+  const bazaars = allBuildings(world).filter((b) => (BUILDINGS[b.type].sells || []).includes(good) && isWorking(world, b));
+  if (!bazaars.length) return null;
+  const holds = (b) => (b.store[good] || 0) > 0;
+  if (bazaars.some((bz) => holds(bz) || goodStoresFor(world, bz, good).some(holds))) return null;
+  return farHolder(world, bazaars, good);
 }
 
 // Buildings whose reach takes in the home and whose def passes `matches`, nearest first, working or not: the

@@ -8,11 +8,12 @@ import { newFloodState, newWildlifeState } from '../data/river.js';
 import { newCourtState } from '../data/court.js';
 import { newArmyState } from '../data/armies.js';
 import { MONUMENT_STYLE_IDS, MONUMENT_STYLE_DEFAULT } from '../data/wonders.js';
+import { S47_TALLY } from '../data/s47.js';
 import { generateMap, variantFor } from './mapgen.js';
 import { floodplainOf } from './flood.js';
 import { idx, footprint } from './grid.js';
 
-export const WORLD_VERSION = 7;
+export const WORLD_VERSION = 8;
 export const HISTORY_MONTHS = 12;   // month-end rows kept for the Welcome back trends
 
 // The trade state a city starts with (Stage 2): no routes open, no orders, no price drift drawn, no quota used.
@@ -44,12 +45,15 @@ export const STAGE45_TALLY = ['illnesses', 'illnessesCured', 'thefts', 'theftGol
 // Stage 4.6's (world version 7): every track's, joined in src/data/s46.js from each track's own list (RIVER_TALLY and the rest), so a
 // track adds a key in its own data file and new and migrated cities both start it at 0.
 export const STAGE46_TALLY = S46_TALLY;
+// Stage 4.7's (world version 8): src/data/s47.js S47_TALLY (an oasis's first, the carts, the yearly quota).
+export const STAGE47_TALLY = S47_TALLY;
 export const newTally = () => ({
   harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0, made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0,
   ...Object.fromEntries(STAGE3_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE4_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE45_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE46_TALLY.map((k) => [k, 0])),
+  ...Object.fromEntries(STAGE47_TALLY.map((k) => [k, 0])),
 });
 
 // The prestige unlocks a city has reached (Stage 4, spec 4.14, ruling 243): monument type -> the day the city first had
@@ -144,6 +148,9 @@ export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, dif
     wildlife: newWildlifeState(),                       // the herds (River track)
     court: newCourtState(),                             // favour, the letters, the active request, the card history (Court track)
     army: newArmyState(),                               // units away at the capital (Armies track); units at home are world.soldiers
+    // Stage 4.7 (world version 8; src/data/s47.js has the shapes). New land (hills, oases, the grass band) is in terrain and mapParams.
+    oases: (m.oases || []).map((o) => ({ ...o })),      // [{ x, y, r }]: the generator's oases (Task 2), for display and herds
+    carts: [],                                          // the stores' carts on the road (Task 5): src/data/s47.js isCart
   };
   for (const [x, y] of m.startRoad) world.road[idx(world.size, x, y)] = 1;
   return world;
@@ -178,6 +185,7 @@ export function makeBuilding(world, type, x, y, rot = 0, { style = null } = {}) 
   // Stage 4.5 (world version 6): a home's disease and crime risk points (health, crime; src/sim/health.js and crime.js build them) and its illness (null, or the illness it has).
   if (type === 'house') Object.assign(b, { tier: 0, residents: 0, stock: {}, met: {}, downTimer: 0, leftThisMonth: 0, stockedFor: 0, health: 0, crime: 0, illness: null });
   if (type === 'storehouse') b.accepts = {};   // good -> false where the player refused it (setAccept, spec 4.10)
+  if (def.stores) b.orders = {};                 // Stage 4.7 (Task 5): good -> { fetch } for each good the store fetches (src/data/s47.js isOrders)
   if (def.monument) b.site = newSite();          // Stage 4: a monument is founded as a site (spec 4.16)
   if (def.monument) b.style = MONUMENT_STYLE_IDS.includes(style) ? style : MONUMENT_STYLE_DEFAULT;   // Stage 4.6 (ruling 343)
   if (def.palace) Object.assign(b, { style: 0, works: null });   // Stage 4: PALACE_STYLES index; works: null or { style, left } (spec 4.20)

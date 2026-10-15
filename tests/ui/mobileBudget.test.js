@@ -177,3 +177,164 @@ describe('mobile height budget: a court letter (Stage 4.6)', () => {
     });
   }
 });
+
+// Stage 4.7 (Task 3 review): the Ground legend with its hills key, on a hilly map (the s47-hills scene), on a small and a tall phone at each text
+// size: the rows obey the budget (the legend alone in the guidance row) and every key, the hills' among them, is on screen inside the frame.
+describe('mobile height budget: the Ground legend with hills (Stage 4.7)', () => {
+  const PHONES = [[375, 667], [390, 844]];
+  it('holds the budget with the hills key, and the key is inside the frame', async () => {
+    const wrong = [];
+    for (const [width, height] of PHONES) {
+      for (const [textSize, banner] of TEXT_SIZES.flatMap((t) => [[t, false], [t, true]])) {   // each with the alert row clear, and under the scene's debt banner
+        const r = await bootScene('s47-hills', width, height, 'skipTitle=1&seed=11&sample=1');
+        try {
+          const g = r.api.game();
+          g.ui.settings.set({ textSize, reducedMotion: 'on' });
+          await frame();
+          const said = await devScene(r.api, 's47-hills', { quick: true });
+          const g2 = r.api.game();                                  // the scene started a new city, so a new game
+          if (!banner) g2.ui.alerts.refresh();                      // the scene's gold fixture leaves the fresh city's debt banner stale: cleared, or kept as the banner variant
+          g2.ui.store.set({ overlay: 'ground' });
+          await frame(); await frame();
+          const at = `${width}x${height} ${textSize}%${banner ? ' under the debt banner' : ''}`;
+          expect([at, Boolean(r.root.querySelector('#banner .critical'))]).toEqual([at, banner]);   // the variant has the banner it names
+          expect([at, said.includes('hills [{') ? 'hilly' : said]).toEqual([at, 'hilly']);                      // a hilly map
+          const key = r.root.querySelector('#legend .ground-keys .key:last-of-type');
+          expect([at, Boolean(key)]).toEqual([at, true]);
+          const b = key.getBoundingClientRect(), box = r.root.getBoundingClientRect();
+          if (b.left < box.left - 1 || b.right > box.right + 1) wrong.push(`${at}: the hills key is outside the frame (${Math.round(b.left)}..${Math.round(b.right)} of ${Math.round(box.width)})`);
+          for (const c of budgetChecks('s47-hills', measureRows(r.root))) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);
+        } finally { r.cleanup(); }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+});
+
+// Stage 4.7 (Task 4): the house tool with its spots (the s47-house-spots scene, the sample city with a well beside the free plots): the legend of Good and Fair has the guidance row alone
+// (the alert row may sit above it), it and the Done button are inside the frame, Done is a 44 px target, on a small and a tall phone at each text size.
+describe('mobile height budget: the house tool with its spots (Stage 4.7)', () => {
+  const PHONES = [[375, 667], [390, 844]];
+  it('holds the budget with the spots legend, and Done is reachable', async () => {
+    const wrong = [];
+    for (const [width, height] of PHONES) {
+      for (const textSize of TEXT_SIZES) {
+        const r = await bootScene('s47-house-spots', width, height, 'skipTitle=1&seed=11&sample=1');
+        try {
+          r.api.game().ui.settings.set({ textSize, reducedMotion: 'on' });
+          await frame();
+          const said = await devScene(r.api, 's47-house-spots', {});
+          const g = r.api.game();
+          g.ui.alerts.refresh();
+          await frame(); await frame();
+          const at = `${width}x${height} ${textSize}%`;
+          expect([at, /\b[1-9]\d* good and [1-9]\d* fair\b/.test(said) ? 'both kinds' : said]).toEqual([at, 'both kinds']);
+          expect([at, g.ui.store.get().tool && g.ui.store.get().tool.kind, document.body.dataset.guidance]).toEqual([at, 'houses', 'legend']);
+          const box = r.root.getBoundingClientRect();
+          const legend = r.root.querySelector('#legend .strip.spots');
+          if (!legend) { wrong.push(`${at}: no spots legend`); continue; }
+          for (const [name, n] of [['legend', legend], ['done', r.root.querySelector('#confirm .done')]]) {
+            if (!n) { wrong.push(`${at}: no ${name}`); continue; }
+            const b = n.getBoundingClientRect();
+            if (b.left < box.left - 1 || b.right > box.right + 1 || b.top < box.top - 1 || b.bottom > box.bottom + 1) wrong.push(`${at}: the ${name} is outside the frame`);
+            if (name === 'done' && (b.height < 44 - 0.5 || b.width < 44 - 0.5)) wrong.push(`${at}: Done is ${Math.round(b.width)}x${Math.round(b.height)}, under 44x44`);
+          }
+          for (const c of budgetChecks('s47-house-spots', measureRows(r.root))) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);
+        } finally { r.cleanup(); }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+});
+
+// Stage 4.7 (Task 6): a store's sheet with the Fetch list open (the s47-carts scene, sheet: true: the near storehouse with an order and a cart on the road), on a small and a tall
+// phone at each text size: the rows obey the budget (a sheet leaves only the alert row), the panel is inside the frame with no sideways scroll, and every control in it (the
+// Fetch row, each switch and stepper button, Show me) is a 44 px target that scrolled to sits on screen, on the first good and the last.
+describe('mobile height budget: the store sheet with Fetch open (Stage 4.7)', () => {
+  const PHONES = [[375, 667], [390, 844]];
+  it('holds the budget, the panel fits the width and its controls are reachable 44 px targets', async () => {
+    const wrong = [];
+    for (const [width, height] of PHONES) {
+      for (const textSize of TEXT_SIZES) {
+        const r = await bootScene('s47-carts', width, height, 'skipTitle=1&seed=11&sample=1');
+        try {
+          r.api.game().ui.settings.set({ textSize, reducedMotion: 'on' });
+          await frame();
+          const said = await devScene(r.api, 's47-carts', { sheet: true });
+          const g = r.api.game();
+          g.ui.alerts.refresh();
+          await frame(); await frame();
+          const at = `${width}x${height} ${textSize}%`;
+          expect([at, said.includes('cart out, 20 pottery')]).toEqual([at, true]);
+          expect([at, g.ui.store.get().sheet.kind]).toEqual([at, 'info']);
+          const sheet = r.root.querySelector('#sheet'), panel = sheet.querySelector('.fetch-panel');
+          if (!panel) { wrong.push(`${at}: no Fetch panel`); continue; }
+          expect([at, panel.querySelector('.fetch-head').getAttribute('aria-expanded')]).toEqual([at, 'true']);
+          const box = r.root.getBoundingClientRect();
+          if (sheet.scrollWidth > sheet.clientWidth + 1) wrong.push(`${at}: the sheet scrolls sideways (${sheet.scrollWidth} of ${sheet.clientWidth})`);
+          const rows = [...panel.querySelectorAll('.fetch-good')];
+          const controls = [panel.querySelector('.fetch-head'), ...[rows[0], rows[rows.length - 1]].flatMap((li) => [...li.querySelectorAll('button')])];
+          for (const n of controls) {
+            n.scrollIntoView({ block: 'nearest' });
+            const b = n.getBoundingClientRect();
+            const name = n.getAttribute('aria-label') || n.textContent;
+            if (b.height < 44 - 0.5 || b.width < 44 - 0.5) wrong.push(`${at} ${name}: ${Math.round(b.width)}x${Math.round(b.height)} is under 44x44`);
+            if (b.left < box.left - 1 || b.right > box.right + 1) wrong.push(`${at} ${name}: outside the frame sideways (${Math.round(b.left)}..${Math.round(b.right)} of ${Math.round(box.width)})`);
+            if (b.top < box.top - 1 || b.bottom > box.bottom + 1) wrong.push(`${at} ${name}: not on screen when scrolled to`);
+          }
+          for (const c of budgetChecks('sheet', measureRows(r.root))) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);
+        } finally { r.cleanup(); }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+});
+
+// Stage 4.7 (Task 7, rulings 469 and 471): the court sheet with the yearly tribute (the s47-quota scene: year 8, part of it sent) and an Estate's sheet with
+// what keeps it (the s47-estate scene: three kinds of food missing, linen and pottery held only in a far store), on a small and a tall phone at each text size:
+// the rows obey the budget (a sheet leaves only the alert row), the sheet never scrolls sideways, and each control named (Send, the tribute's Show me; the
+// keep list's Show me buttons) is a 44 px target that, scrolled to, sits on screen inside the frame.
+describe('mobile height budget: the court sheet with the tribute and an Estate\'s sheet (Stage 4.7)', () => {
+  const PHONES = [[375, 667], [390, 844]];
+  const SCENES = [
+    ['s47-quota', (said) => said.includes('year 8'), (sheet) => [sheet.querySelector('.quota-send button'), sheet.querySelector('.quota-actions .show-me')], ['.quota-send button']],
+    ['s47-estate', (said) => said.includes('estate #'), (sheet) => [...sheet.querySelectorAll('.keep-list .show-me')], ['.keep-list .show-me']],
+  ];
+  for (const [scene, setUp, controlsOf, required] of SCENES) {
+    it(`holds the budget with ${scene}, the sheet fits the width and its controls are reachable 44 px targets`, async () => {
+      const wrong = [];
+      for (const [width, height] of PHONES) {
+        for (const textSize of TEXT_SIZES) {
+          const r = await bootScene(scene, width, height, 'skipTitle=1&seed=11&sample=1');
+          try {
+            r.api.game().ui.settings.set({ textSize, reducedMotion: 'on' });
+            await frame();
+            const said = await devScene(r.api, scene, { quick: true });
+            const g = r.api.game();
+            g.ui.settings.set({ textSize, reducedMotion: 'on' });
+            g.ui.refresh();
+            await frame(); await frame();
+            const at = `${scene} ${width}x${height} ${textSize}%`;
+            expect([at, setUp(said)]).toEqual([at, true]);
+            const sheet = r.root.querySelector('#sheet');
+            for (const sel of required) if (!sheet.querySelector(sel)) wrong.push(`${at}: no ${sel}`);   // the control the scene is for must be there on its own (a missing Send never passes behind a Show me)
+            const controls = controlsOf(sheet).filter(Boolean);
+            if (!controls.length) { wrong.push(`${at}: no controls`); continue; }
+            const box = r.root.getBoundingClientRect();
+            if (sheet.scrollWidth > sheet.clientWidth + 1) wrong.push(`${at}: the sheet scrolls sideways (${sheet.scrollWidth} of ${sheet.clientWidth})`);
+            for (const n of controls) {
+              n.scrollIntoView({ block: 'nearest' });
+              const b = n.getBoundingClientRect();
+              const name = n.getAttribute('aria-label') || n.textContent;
+              if (b.height < 44 - 0.5 || b.width < 44 - 0.5) wrong.push(`${at} ${name}: ${Math.round(b.width)}x${Math.round(b.height)} is under 44x44`);
+              if (b.left < box.left - 1 || b.right > box.right + 1) wrong.push(`${at} ${name}: outside the frame sideways`);
+              if (b.top < box.top - 1 || b.bottom > box.bottom + 1) wrong.push(`${at} ${name}: not on screen when scrolled to`);
+            }
+            for (const c of budgetChecks('sheet', measureRows(r.root))) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);
+          } finally { r.cleanup(); }
+        }
+      }
+      expect(wrong).toEqual([]);
+    });
+  }
+});

@@ -10,7 +10,7 @@
 // or demolishing a tower needs no change to the wall layer.
 import { DEFENCE } from '../data/raids.js';
 import { idx, inBounds } from './grid.js';
-import { T } from './terrain.js';
+import { groundRefusal } from './terrain.js';
 import { isUnlocked } from './progression.js';
 import { canAfford, spend } from './money.js';
 import { costOf } from './costs.js';
@@ -46,7 +46,8 @@ function raiderTiles(world) {
 function wallTileReason(world, x, y, raiders) {
   if (!Number.isInteger(x) || !Number.isInteger(y) || !inBounds(world.size, x, y)) return 'out_of_bounds';
   const i = idx(world.size, x, y);
-  if (world.terrain[i] === T.WATER) return 'water';
+  const ground = groundRefusal(world, i);   // Stage 4.7: water or hills (src/sim/terrain.js)
+  if (ground) return ground;
   if (world.occ[i] || raiders.has(i)) return 'blocked';
   return null;
 }

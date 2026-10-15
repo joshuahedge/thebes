@@ -21,6 +21,9 @@ import { openSheet } from '../modes.js';
 import { el, button } from '../components.js';
 import { S46_COURT_TEXT as C, buildingName, plural } from '../text.js';
 import { seamBase } from './seam.js';
+import { quotaNodes } from '../s47/pressure.js';
+import { sendQuota, quotaStatus } from '../../sim/pressure.js';
+import { S47_PRESSURE_TEXT } from '../text.js';
 
 const line = (text, cls = 'small muted') => el('p', { class: cls, text });
 const row = (label, value, cls = '') => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { class: cls, text: value })]);
@@ -228,6 +231,20 @@ export function createCourtUi(ctx) {
       const left = monthsLeft(world, c.nextGiftDay);
       body.append(line(`${left > 0 ? C.nextGift(left) : C.giftWaiting}.`, 'small muted gift-due'));
     }
+    // Stage 4.7 (Task 7, ruling 469): the yearly tribute, a standing letter (src/ui/s47/pressure.js). Send ships from the stores; the sim's
+    // events give the captions (the tribute met), and a part shipment says what left.
+    body.append(...quotaNodes(world, {
+      send: () => {
+        const events = [];
+        const res = sendQuota(world, events);
+        if (!res.ok) { caption(S47_PRESSURE_TEXT.empty); ctx.refresh(); return; }
+        const text = res.met ? S47_PRESSURE_TEXT.captionMet(res) : S47_PRESSURE_TEXT.captionShipped(res.shipped);
+        caption(text);
+        answered(events, text);
+      },
+      select: (id) => ctx.selectBuilding(id),
+      showMeAt: (target) => ctx.showMeAt(target),
+    }));
     // Letters waiting, and the request open.
     body.append(el('h3', { text: C.waiting }));
     if (!c.letters.length) body.append(line(C.noLetters));
@@ -248,6 +265,9 @@ export function createCourtUi(ctx) {
     if (!courtOpen(world)) return [];
     const c = world.court;
     const nodes = [el('h3', { text: C.courtHead, dataset: { section: 'court' } }), row(C.favour, favourLine(world))];
+    // Stage 4.7 (Task 7, ruling 469): the yearly tribute while one is owed: what is sent and the months left (the court sheet has the rest).
+    const qs = quotaStatus(world);
+    if (qs && qs.result === null) nodes.push(row(S47_PRESSURE_TEXT.quotaHead, S47_PRESSURE_TEXT.summaryLine(qs), 'quota-summary'));
     const actions = [];
     if (c.letters.length) {
       const unread = c.letters.some((l) => !l.read);

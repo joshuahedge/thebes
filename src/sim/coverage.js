@@ -38,3 +38,15 @@ export function computeCoverage(world) {
   }
   return cov;
 }
+
+// Stage 4.7 (Task 4): the road tiles within the road reach of at least one working bazaar (a building that `sells`), the way bazaarsByHouse
+// (src/sim/distribution.js) finds the bazaars that reach a home: a home is reached when a road tile beside it is in this set.
+export function bazaarTiles(world) {
+  const set = new Set();
+  for (const b of allBuildings(world)) {
+    const def = BUILDINGS[b.type];
+    if (!def.sells || !isWorking(world, b)) continue;
+    for (const t of roadReach(world, b, def.reach).keys()) set.add(t);
+  }
+  return set;
+}

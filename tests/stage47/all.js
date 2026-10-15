@@ -1,0 +1,30 @@
+// Stage 4.7: one aggregator. Each task adds its own files here (tests/stage47/<task>/...); describe names start with 's47 <area>', so
+// tests/run-tests.ps1 -Grep "s47 <area>" runs one area. tests/all.js imports this file once.
+import './contract/contract.test.js';
+import './resources/diagnostic.test.js';
+import './resources/guarantee.test.js';
+import './land/oases.test.js';
+import './land/grass.test.js';
+import './land/belts.test.js';
+import './land/review3b.test.js';
+import './hills/hills.test.js';
+import './hills/walk.test.js';
+import './hills/art.test.js';
+import './hills/review.test.js';
+import './spots/spots.test.js';
+import './carts/carts.test.js';
+import './carts/tip.test.js';
+import './carts/review.test.js';
+import './carts/render.test.js';
+import './carts/ui.test.js';
+import './carts/uiReview.test.js';
+import './pressure/quota.test.js';
+import './pressure/raids.test.js';
+import './pressure/tiers.test.js';
+import './pressure/balance.test.js';
+import './pressure/review.test.js';
+import './balance/village.test.js';
+import './balance/district.test.js';
+import './balance/flood.test.js';
+import './final/final.test.js';
+import './final/releases.test.js';

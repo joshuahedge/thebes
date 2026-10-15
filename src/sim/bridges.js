@@ -3,7 +3,7 @@
 // costOf(world, 'bridge') a tile. These functions are the rule: the road tool's preview and command, the bar's words and the
 // tests all read them.
 import { idx, inBounds } from './grid.js';
-import { T } from './terrain.js';
+import { T, buildable } from './terrain.js';
 import { MAP } from '../data/map.js';
 
 export const BRIDGE_MAX = MAP.bridgeMax;
@@ -61,7 +61,7 @@ export function bridgeVerdicts(world, tiles) {
 export function bridgeSpot(world, from) {
   const n = world.size, at = (x, y) => idx(n, x, y);
   const water = (x, y) => world.terrain[at(x, y)] === T.WATER;
-  const land = (x, y) => inBounds(n, x, y) && !water(x, y) && !world.occ[at(x, y)];
+  const land = (x, y) => inBounds(n, x, y) && buildable(world, at(x, y)) && !world.occ[at(x, y)];   // Stage 4.7: a bridge ends on open land, never on hills (src/sim/terrain.js)
   let best = null;
   const consider = (vertical, a, b0, b1) => {
     const run = b1 - b0 + 1;

@@ -38,7 +38,7 @@ import { coverageOf } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
 import { raidSize, tributeFor, raidTargetKind, entryDir } from '../sim/raids.js';
 import { idx, inBounds } from '../sim/grid.js';
-import { T as TERRAIN } from '../sim/terrain.js';
+import { T as TERRAIN, buildable } from '../sim/terrain.js';
 import { DEFENCE, RAIDS, UNITS } from '../data/raids.js';
 import { FIRE } from '../data/fire.js';
 import { HEALTH } from '../data/health.js';
@@ -61,6 +61,9 @@ import { bridgeRuns, BRIDGE_MAX } from '../sim/bridges.js';
 // Stage 4.6: every track's scenes ('s46-...'), each in the track's own file under src/dev/s46/ (index.js joins them).
 import { S46_SCENES, STAGE46_SCENES } from './s46/index.js';
 export { STAGE46_SCENES };
+// Stage 4.7: the 's47-...' scenes (src/dev/s47/index.js; each task fills its own).
+import { S47_SCENES, STAGE47_SCENES } from './s47/index.js';
+export { STAGE47_SCENES };
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -101,7 +104,7 @@ function northRoadEnd(world) {
   return { x: ex, y };
 }
 
-const freeLand = (world, x, y) => inBounds(world.size, x, y) && !world.occ[idx(world.size, x, y)] && world.terrain[idx(world.size, x, y)] !== TERRAIN.WATER;
+const freeLand = (world, x, y) => inBounds(world.size, x, y) && !world.occ[idx(world.size, x, y)] && buildable(world, idx(world.size, x, y));
 
 // The title card with Peaceful chosen (spec 4.18): its hint names what the level changes.
 async function peaceful(api) {
@@ -480,7 +483,7 @@ export function monumentSpot(world, n = 7) {
       for (let dy = -1; dy <= n && ok; dy++) {
         for (let dx = -1; dx <= n && ok; dx++) {
           const i = at(x + dx, y + dy), inside = dx >= 0 && dx < n && dy >= 0 && dy < n;
-          if (world.occ[i] || world.road[i] || (world.wall && world.wall[i]) || world.terrain[i] === TERRAIN.WATER) ok = false;
+          if (world.occ[i] || world.road[i] || (world.wall && world.wall[i]) || !buildable(world, i)) ok = false;
           else if (inside && world.terrain[i] !== TERRAIN.DESERT) ok = false;
         }
       }
@@ -1012,11 +1015,12 @@ const SCENES = {
   variant, bridge, clay, newcomers, raid2, 'raid2-sheet': raid2Sheet, 'raid2-active': raid2Active,
   illness, crime,
   ...S46_SCENES,
+  ...S47_SCENES,
 };
 
 export async function devScene(api, name, options = {}) {
   const scene = SCENES[name];
-  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES, ...STAGE4_SCENES, ...STAGE45_SCENES, ...STAGE46_SCENES].join(', ')})`);
+  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES, ...STAGE4_SCENES, ...STAGE45_SCENES, ...STAGE46_SCENES, ...STAGE47_SCENES].join(', ')})`);
   return scene(api, options);
 }
 

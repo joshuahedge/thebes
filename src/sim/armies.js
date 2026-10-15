@@ -12,7 +12,7 @@ import { allBuildings } from './world.js';
 import { hash2 } from './rng.js';
 import { riskOf } from './costs.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
-import { T } from './terrain.js';
+import { T, buildable } from './terrain.js';
 
 const centre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
 const kindOf = (u) => u.kind || 'soldier';
@@ -239,7 +239,7 @@ export function boatLanding(world, index) {
 export function landable(world, x, y) {
   if (!inBounds(world.size, x, y)) return false;
   const i = idx(world.size, x, y);
-  return world.terrain[i] !== T.WATER && !world.occ[i] && world.wall[i] === 0;
+  return buildable(world, i) && !world.occ[i] && world.wall[i] === 0;   // Stage 4.7: dry open land, not a bridge, not hills
 }
 
 // ── The raid sheet's counters (ruling 341) ──

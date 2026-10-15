@@ -5,7 +5,7 @@ import { MILESTONES } from '../data/progression.js';
 import { TIERS } from '../data/housing.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { FIRSTS } from '../data/firsts.js';
-import { GOODS, FOOD_GOODS } from '../data/goods.js';
+import { GOODS, FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
 import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
 import { ECONOMY, FORECAST } from '../data/economy.js';
@@ -163,6 +163,7 @@ export function causeText(cause, world, need = null) {
   const good = cause.good || (need && GOODS[need] ? need : null);
   if (cause.code === 'next_delivery' && need !== 'food' && (good || need === 'twoFoods')) return { cause: good ? `The next delivery brings ${goodWord(good)}` : T.bothFoodsComing, fix: '' };
   if ((cause.code === 'no_good' || cause.code === 'good_unmade') && good) return goodWords(cause.code, good, world);
+  if (cause.code === 'good_far') return S47_PRESSURE_TEXT.goodFar(cause, world);   // Stage 4.7 (Task 7): held only in a far store
   const t = CAUSE_TEXT[cause.code];
   if (!t) return null;
   if (!t.paused) return t;
@@ -1875,7 +1876,7 @@ const rvFirstMonth = rvFlood.months[0], rvLastMonth = rvFlood.months[rvFlood.mon
 export const S46_RIVER_TEXT = {
   levelName: rvName,
   pct: rvPct,
-  // The levels, as the sim draws them: "Low 60%, Fair 90%, Good 110%, High 125%".
+  // The levels, as the sim draws them: "Low 60%, Fair 100%, Good 110%, High 125%".
   levelsLine: rvLevels.map((l) => `${rvName(l.id)} ${rvPct(l.id)}`).join(', '),
   // Captions (a celebration of tier info) when the forecast or the water arrives (ruling 334).
   forecastCaption: (id) => `The flood will be ${rvName(id)}: farms on the floodplain grow ${rvPct(id)}`,
@@ -1923,9 +1924,9 @@ export const S46_RIVER_TEXT = {
     ? `The lodge has taken its ${rvHunting.maxMonth} this month; hunting resumes next month`
     : why === 'small' ? `Its herds have given this month or are down to ${rvHunting.keepAtLeast} animals: the hunters leave them to regrow, 1 ${rvRegrow}`   // ruling 460
     : `Its herds have given their ${rvHunting.perHerdMonth} this month; hunting resumes next month`),
-  noHerds: `No herd within ${rvHunting.reach} tiles: the hunters have nothing to hunt. Herds graze on desert and rocky ground`,
+  noHerds: `No herd within ${rvHunting.reach} tiles in a straight line: the hunters have nothing to hunt. Herds graze on desert and rocky ground`,
   // Ruling 460: one animal a hunt, for gamePerAnimal game; the animals a herd gives a month (perHerdMonth / gamePerAnimal, as the sim counts them).
-  huntRule: `Hunters walk up to ${rvHunting.reach} tiles. Each hunt takes 1 animal for ${rvHunting.gamePerAnimal} game, ${Math.max(1, Math.floor(rvHunting.perHerdMonth / rvHunting.gamePerAnimal))} from a herd a month, and never takes a herd below ${rvHunting.keepAtLeast}; a herd regrows 1 ${rvRegrow}`,
+  huntRule: `Herds within ${rvHunting.reach} tiles in a straight line count; the hunters walk round water and hills, so their walk can be longer. Each hunt takes 1 animal for ${rvHunting.gamePerAnimal} game, ${Math.max(1, Math.floor(rvHunting.perHerdMonth / rvHunting.gamePerAnimal))} from a herd a month, and never takes a herd below ${rvHunting.keepAtLeast}; a herd regrows 1 ${rvRegrow}`,
   // The fishing wharf's sheet.
   catchLabel: 'Catch a month',
   catchLine: (flood) => (flood ? `${rvFishing.floodPerMonth} now (the water is up)` : `${rvFishing.perMonth}, or ${rvFishing.floodPerMonth} in the flood months`),
@@ -1947,14 +1948,14 @@ export const S46_RIVER_TEXT = {
     return look.applied ? `Last flood: ${rvName(look.applied.id)}. Floodplain farms grow ${Math.round(look.applied.harvest * 100)}% until the next flood, in ${rvMonths(look.monthsTo)}` : `The first flood comes in month ${rvFirstMonth}`;
   },
   // Food from the floodplain: working floodplain farms' monthly food as they stand and without the flood (floodOutlook's plain: the farms at 100%).
-  outlookLine: (o, coming) => `${coming ? 'When the flood comes' : 'Now'}, ${plural(o.farms, 'floodplain farm makes', 'floodplain farms make')} about ${o.now} food a month (${o.plain} without the flood)`,   // final review: no level gives 100%, so 'a plain year' named none
+  outlookLine: (o, coming) => `${coming ? 'When the flood comes' : 'Now'}, ${plural(o.farms, 'floodplain farm makes', 'floodplain farms make')} about ${o.now} food a month (${o.plain} without the flood)`,   // final review: 'a plain year' named no level; since Stage 4.7 (ruling 473) a Fair flood gives 100%, so it still says without the flood
   herdsLine2: (n, animals, hunted) => `Herds: ${n} (${plural(animals, 'animal', 'animals')}); ${hunted} hunted so far`,
 };
 // The firsts, the tips (How to play lists them) and the building plurals.
 Object.assign(BUILDING_PLURALS, { hunting_lodge: 'hunting lodges', fishing_wharf: 'fishing wharves', nilometer: 'nilometers' });
 Object.assign(FIRST_TEXT, {
   first_nilometer: { head: 'First Nilometer', why: `Staffed, it reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead, before the water rises.` },
-  first_hunting_lodge: { head: 'First hunting lodge', why: `Its hunters bring game from herds up to ${rvHunting.reach} tiles away: game is a food.` },
+  first_hunting_lodge: { head: 'First hunting lodge', why: `Its hunters bring game from herds within ${rvHunting.reach} tiles in a straight line: game is a food.` },
   first_fishing_wharf: { head: 'First fishing wharf', why: `Its boat lands ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood months: fish is a food.` },
   first_flood: { head: 'First flood', why: `The Nile rose for the first time. Farms on the floodplain follow its level: ${rvLevels.map((l) => `${rvName(l.id)} ${rvPct(l.id)}`).join(', ')}.` },
   first_game: { head: 'First game', why: 'Game reached a granary. Homes count it as a second kind of food.' },
@@ -1962,13 +1963,13 @@ Object.assign(FIRST_TEXT, {
 });
 Object.assign(TIP_TEXT, {
   nilometer_forecast: `A staffed Nilometer reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead: stock grain before a Low year.`,
-  hunters_range: `Hunters walk up to ${rvHunting.reach} tiles to herds on desert and rock, 1 animal a herd a month.`,
+  hunters_range: `Hunters reach herds within ${rvHunting.reach} tiles in a straight line, walking round water and hills.`,
   wharf_floods: `A wharf lands ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood. Its long side must touch water; Rotate turns it.`,
   flood_rhythm: `The flood comes every year, months ${rvFirstMonth} to ${rvLastMonth}. It does no harm: floodplain farms grow more or less.`,
 });
 Object.assign(TIP_HELP_TEXT, {
   nilometer_forecast: `The Nilometer reads the coming flood ${rvMonths(rvFlood.forecastMonths)} ahead.`,
-  hunters_range: `Hunting lodges: hunters reach herds up to ${rvHunting.reach} tiles away.`,
+  hunters_range: `Hunting lodges: herds within ${rvHunting.reach} tiles in a straight line count; hunters walk round water and hills.`,
   wharf_floods: `Fishing wharves land ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood.`,
   flood_rhythm: `The Nile floods in months ${rvFirstMonth} to ${rvLastMonth}: ${S46_RIVER_TEXT.levelsLine} for floodplain farms.`,
 });
@@ -2411,3 +2412,230 @@ export const S46_UX_TEXT = {
   releaseHead: (version, dateText, build = null) => `Version ${version} · ${dateText}${build ? ` · build ${build}` : ''}`,
 };
 // ── end s46 ux ──
+
+// ── s47 (Stage 4.7) ──────────────────────────────────────────
+// Stage 4.7's words. Task 0 adds only the refusal for the hills ground (src/sim/terrain.js groundRefusal); Task 3 owns the hills'
+// other words (the Ground overlay legend, How to play). Later tasks add their own lines just above the end marker.
+Object.assign(REASONS, { hills: 'Hills: nothing can be built here' });
+// Task 2 (rulings 462, 463): the oasis. Every number comes from the sim's own data (src/data/s47.js OASES). "Must touch the river" is the shared
+// refusal (REASONS.needs_river, src/sim/fit.js): a fishing wharf beside only an oasis pool.
+import { OASES as s47Oases } from '../data/s47.js';
+export const S47_OASIS_TEXT = {
+  first: { head: 'An oasis in the desert', why: `You built within ${s47Oases.near} tiles of an oasis: ${s47Oases.pool[0]} to ${s47Oases.pool[1]} tiles of water in the sand, with palms and fertile ground round it, far from the river.` },
+  tip: 'Oases hold palms, fertile ground and a little clay. A fishing wharf must touch the river, not an oasis.',
+  tipHelp: `Oases lie in open desert: ${s47Oases.pool[0]} to ${s47Oases.pool[1]} tiles of water, palms, fertile ground. A wharf must touch the river.`,
+  needsRiver: 'Must touch the river',
+};
+Object.assign(REASONS, { needs_river: S47_OASIS_TEXT.needsRiver });
+FIRST_TEXT.first_oasis = S47_OASIS_TEXT.first;
+TIP_TEXT.oasis_green = S47_OASIS_TEXT.tip;
+TIP_HELP_TEXT.oasis_green = S47_OASIS_TEXT.tipHelp;
+{
+  const baseChip = S46_MAP_TEXT.groundChip, baseRefusal = S46_MAP_TEXT.refusalLine;
+  S46_MAP_TEXT.groundChip = (cond, def) => (cond && cond.water && cond.reason === 'needs_river' ? S47_OASIS_TEXT.needsRiver : baseChip(cond, def));
+  S46_MAP_TEXT.refusalLine = (reason, ground, def) => (reason === 'needs_river' ? S47_OASIS_TEXT.needsRiver : baseRefusal(reason, ground, def));
+}
+// Task 3 (ruling 464): hills. The Ground overlay's key (shown only on a map that has hills), the tip the first refused placing check on hills fires (and
+// How to play, which lists every tip, so it says what comes later: mines on the rocky ground round the hills, no dates), and the refusal above.
+export const S47_HILLS_TEXT = {
+  groundKey: 'Hills: nothing passes or builds here',
+  tip: 'Hills: nothing passes or builds here. Mines will come to the rocky ground around them later.',
+  tipHelp: 'Hills block roads, buildings and walkers. Mines will come to the rocky ground around them later.',
+};
+TIP_TEXT.hills_ground = S47_HILLS_TEXT.tip;
+TIP_HELP_TEXT.hills_ground = S47_HILLS_TEXT.tipHelp;
+// Task 4 (ruling 465): the next-house spots. While the house tool is on and a plot has been laid, a free tile where a plot could go is Good (a well and a bazaar reach
+// it along the roads) or Fair (one of them does), drawn with a drop for water and a basket for a bazaar (src/render/spots.js; the rules are the sim's, src/sim/spots.js).
+// The legend sits in the guidance row, the tip says it once, How to play lists it. Done ends the house tool, which now stays on after a plot is laid, by touch too.
+export const S47_SPOTS_TEXT = {
+  group: 'Spots for the next house',
+  good: 'Good', goodWords: 'water and a bazaar in reach',
+  fair: 'Fair', fairWords: 'one of them in reach',
+  goodLabel: 'Good: water and a bazaar in reach. Marked with a drop and a basket',
+  fairLabel: 'Fair: water or a bazaar in reach. Marked with a hatched tile and one of them',
+  water: 'Water', market: 'Bazaar',
+  tip: 'While you place homes, bright plots have water and a bazaar in reach; hatched plots have one of them.',
+  tipHelp: 'Placing homes: bright plots have water and a bazaar in reach, hatched plots have one of them. Done ends it.',
+  done: 'Done', doneLabel: 'Done placing homes',
+  // No tile is marked (no road a working well or bazaar reaches has a free tile beside it): one true line, no keys to promise marks that are not there. Names from the data.
+  none: () => { const b = buildingName('bazaar').toLowerCase(), w = buildingName('well').toLowerCase(); return `No plot has water and a ${b} in reach yet: a ${w} and a ${b} beside a road make Good plots`; },
+  first: { head: 'A good spot', why: `You laid a plot where a ${buildingName('well').toLowerCase()} and a ${buildingName('bazaar').toLowerCase()} both reach it along the roads: the best place for the next home.` },
+};
+FIRST_TEXT.first_good_spot = S47_SPOTS_TEXT.first;
+TIP_TEXT.house_spots = S47_SPOTS_TEXT.tip;
+TIP_HELP_TEXT.house_spots = S47_SPOTS_TEXT.tipHelp;
+// Task 5 (ruling 466): storehouse orders and carts. Every number comes from the sim: the amounts and speed from src/data/s47.js CARTS, the rest from
+// src/sim/carts.js (fetchPreview, fetchStatus, farGoodTip, setFetch's refusals), so a sentence here is only ever a sentence about what the sim does.
+import { CARTS as s47Carts } from '../data/s47.js';
+const cartDir = { north: 'north', north_east: 'north-east', east: 'east', south_east: 'south-east', south: 'south', south_west: 'south-west', west: 'west', north_west: 'north-west' };
+const cartGood = (good) => goodName(good).toLowerCase();
+const cartStore = (type) => buildingName(type).toLowerCase();
+const cartTiles = (n) => plural(n, 'road tile', 'road tiles');
+const cartDays = (n) => plural(n, 'day', 'days');
+// "from the storehouse 34 road tiles east": the store the goods come from, how far along the roads and which way it lies.
+const cartWhere = (src) => `from the ${cartStore(src.type)} ${cartTiles(src.len)}${src.dir ? ` ${cartDir[src.dir]}` : ''}`;
+export const S47_CARTS_TEXT = {
+  group: 'Fetch', add: 'Fetch a good', clear: 'Stop fetching', set: 'Fetch', change: 'Change', showSource: 'Show the store',
+  amountLabel: (good) => `${goodName(good)}: fetch up to`,
+  setLabel: (good) => `Fetch ${cartGood(good)}`, clearLabel: (good) => `Stop fetching ${cartGood(good)}`,
+  help: `A ${cartStore('storehouse')} or ${cartStore('granary')} can Fetch a good from other stores by road: one cart, ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day each way. It never takes a store below what that store fetches for itself.`,
+  // The consequence of an order before the tap: Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 34 road tiles (a round trip takes 9 days).
+  consequence: (pv) => (!pv.source ? `Fetch ${cartGood(pv.good)}: no store with ${cartGood(pv.good)} to spare is linked by road`
+    : pv.state === 'full' ? `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: ${pv.held} held of ${pv.fetch}, no cart needed`
+    : pv.state === 'no_room' ? `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: no cart goes, the store is full`
+    : `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: one cart, ${pv.perTrip} a trip, from the nearest store with ${cartGood(pv.good)}, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`),
+  // The same, short, for a row of the store sheet (the good and the amount are in the row's own switch and stepper).
+  consequenceRow: (pv) => (!pv.source ? `No store with ${cartGood(pv.good)} to spare is linked by road`
+    : pv.state === 'full' ? `${pv.held} held of ${pv.fetch}, no cart needed`
+    : pv.state === 'no_room' ? 'No cart goes, the store is full'
+    : `One cart, ${pv.perTrip} a trip, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`),
+  where: cartWhere,
+  // The Fetch control on a store's sheet (src/ui/s47/carts.js). Every number it shows comes from fetchPreview, fetchStatus, roadGoods and holderOf.
+  head: 'Fetch goods', none: 'No orders', count: (n) => plural(n, 'order', 'orders'), on: 'Fetching', off: 'Off',
+  less: (good) => `Fetch less ${cartGood(good)}`, more: (good) => `Fetch more ${cartGood(good)}`, upTo: (n) => `up to ${n}`,
+  showMe: 'Show me', showSourceLabel: (good, type) => `Show me the ${cartStore(type)} the ${cartGood(good)} comes from`, showHolderLabel: (good, type) => `Show me the ${cartStore(type)} that holds ${cartGood(good)}`,
+  // What the source gives: a store with no order for the good of its own can be emptied; one with an order keeps it and gives only the rest.
+  sourceNote: (good, src) => (src.keeps > 0
+    ? `That ${cartStore(src.type)} keeps ${src.keeps} ${cartGood(good)} for its own order and gives only the rest (${src.spare} to spare)`
+    : `That ${cartStore(src.type)} has no order for ${cartGood(good)} of its own, so it can be emptied (${src.spare} to spare)`),
+  // Why a store that holds the good cannot be drawn on (holderOf).
+  holderNote: (good, h) => (h.why === 'unlinked' ? `A ${cartStore(h.type)} holds ${cartGood(good)}, but no road joins it to this store` : `A ${cartStore(h.type)} holds ${cartGood(good)}, but keeps it for its own order`),
+  // Goods on the road, from the sim's roadGoods: "20 pottery on the road to the storehouse", "to here", "back here".
+  road: (r, kind) => (kind === 'leaving'
+    ? `${r.amount} ${cartGood(r.good)} on the road${r.type ? ` to the ${cartStore(r.type)}` : ''}`
+    : `${r.amount} ${cartGood(r.good)} on the road ${r.back ? 'back here' : 'to here'}`),
+  // The order's live line: "Fetching pottery: 40 on the way, back in 3 days, from the storehouse 34 road tiles east".
+  status: (st) => {
+    const g = cartGood(st.good), head = `Fetching ${g}`;
+    switch (st.state) {
+      case 'out': case 'back': return `${head}: ${st.amount} on the way, ${st.days ? `back in ${cartDays(st.days)}` : 'back today'}${st.source ? `, ${cartWhere(st.source)}` : ''}`;
+      case 'return': return `${head}: the road is cut, so the cart turned round${st.days ? ` (${cartDays(st.days)} to go)` : ''}`;
+      case 'other': return `${head}: the cart serves another good first`;
+      case 'full': return `${head}: ${st.held} held of ${st.fetch}, no cart needed`;
+      case 'refused': return `${head}: this store refuses ${g}, so no cart goes`;
+      case 'unstaffed': return `${head}: no cart goes while this store is short of workers (${st.staff} of ${st.workers}) or off the road`;
+      case 'no_room': return `${head}: no cart goes, the store is full`;
+      case 'no_source': return `${head}: no store with ${g} to spare is linked by road`;
+      default: return `${head}: a cart sets out next for ${st.amount}, ${cartWhere(st.source)}`;
+    }
+  },
+  // Refusals (setFetch's result): each says why.
+  refusal: (r) => {
+    const g = r.good ? cartGood(r.good) : 'that';
+    switch (r.reason) {
+      case 'not_storage': return 'Only a storehouse or a granary can fetch goods';
+      case 'cannot_store': return `This store cannot hold ${g}`;
+      case 'refuses': return `This store refuses ${g}: let it accept ${g} first`;
+      case 'bad_amount': return `Choose a whole number from 1 to ${r.max}`;
+      case 'no_source': return `No store with ${g} to spare is linked by road`;
+      case 'no_order': return `This store is not fetching ${g}`;
+      default: return 'Nothing is here';
+    }
+  },
+  lost: (e) => `A cart lost ${e.amount} ${cartGood(e.good)}: no store had room for them`,
+  first: { head: 'The first cart home', why: `A cart brought goods from another store along the roads: ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day each way.` },
+  tip: 'Some homes wait on a good only a far store holds. Set a storehouse near them to Fetch it.',
+  tipHelp: `Open a store to Fetch goods from other stores by cart: ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day.`,
+  // The tip with the city's own good (farGoodTip): "Set a storehouse near these homes to Fetch pottery".
+  tipFor: (tip) => `Set a ${cartStore('storehouse')} near these homes to Fetch ${cartGood(tip.good)}`,
+};
+FIRST_TEXT.first_cart_trip = S47_CARTS_TEXT.first;
+TIP_TEXT.fetch_far = S47_CARTS_TEXT.tip;
+TIP_HELP_TEXT.fetch_far = S47_CARTS_TEXT.tipHelp;
+// Task 7 (rulings 469-471): late-game pressure. The yearly tribute (src/sim/pressure.js quotaStatus, quotaAsk; numbers in src/data/s47.js QUOTA), raids that
+// grow with wealth (src/sim/raids.js wealthDraw; RAIDS_LATE) and the tougher upper tiers (src/data/housing.js: threeFoods and use). Every number comes from the
+// sim's own function or data.
+import { QUOTA as s47Quota, RAIDS_LATE as s47Late } from '../data/s47.js';
+import { useOf as s47UseOf } from '../data/housing.js';
+const s47Pct = (x) => `${Math.round(x * 1000) / 10}%`;
+const s47List = (items, last = 'and') => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} ${last} ${items[items.length - 1]}`);
+const s47Goods = (rows, key = 'amount') => s47List(rows.filter((g) => g[key] > 0).map((g) => `${g[key]} ${cartGood(g.good)}`));
+const s47Carry = (carry) => s47List(Object.entries(carry).map(([good, n]) => `${n} ${cartGood(good)}`));
+// "10-15%", "3-9": the range over the levels, from the data (How to play's words are short: a tip's help is at most 20 words).
+const s47Range = (vals, fmt = String) => { const lo = Math.min(...vals), hi = Math.max(...vals); return lo === hi ? fmt(lo) : `${fmt(lo).replace('%', '')}-${fmt(hi)}`; };
+const s47Shares = () => s47Range(Object.values(s47Quota.share), s47Pct);
+const s47Caps = () => s47Range(['relaxed', 'normal', 'hard'].map((d) => s47Late.cap[d]));
+const s47Times = (x) => `${x}×`;
+const s47Num = (n) => n.toLocaleString('en-US');
+NEED_NAMES.threeFoods = 'Three kinds of food';
+// The tougher tiers, from the housing data: the tiers that ask for three kinds of food, "a villa and an estate", and the household goods they use more of.
+const s47Upper = TIERS.filter((t) => t && t.needs.includes('threeFoods'));
+const s47An = (name) => `${/^[aeiou]/i.test(name) ? 'an' : 'a'} ${name.toLowerCase()}`;
+const s47UpperGoods = () => s47List(HOUSEHOLD_GOODS.filter((g) => s47Upper.some((t) => t.needs.includes(g) && (t.use || 1) > 1)).map(cartGood));
+export const S47_PRESSURE_TEXT = {
+  // ── The yearly tribute (ruling 469): a standing letter on the court sheet ──
+  quotaHead: 'Yearly tribute',
+  quotaIntro: (difficulty) => `Each year the capital asks ${s47Pct(s47Quota.share[difficulty] ?? s47Quota.share.normal)} of last year's output of up to ${s47Quota.goods} goods you made most of, never more than your stores held, due by the year's end`,
+  quotaTitle: (st) => `Year ${st.year}: ${s47Goods(st.goods)}`,
+  progress: (st) => `${st.sent} of ${st.total} sent`,
+  progressLabel: (st) => `Tribute sent: ${st.sent} of ${st.total}`,
+  summaryLine: (st) => `${st.sent} of ${st.total} sent, ${courtMonths(st.monthsLeft)} left`,
+  goodRow: (g) => `${g.sent} of ${g.amount}${g.carried ? ` (${g.carried} carried from last year)` : ''}, ${g.have} in store`,
+  due: 'Due',
+  dueText: (st) => `${courtDate(st.due - 1)}, the year's end (${courtMonths(st.monthsLeft)} left)`,
+  ifMet: 'If met',
+  ifMetText: (st) => (st.early
+    ? `favour ${courtSigned(st.favour)} by month ${s47Quota.early} (${courtMonths(st.earlyLeft)} left), ${courtSigned(st.favourLate)} after; and ${st.gift} gold`
+    : `favour ${courtSigned(st.favour)} and ${st.gift} gold`),
+  ifMissed: 'If missed',
+  ifMissedText: (st) => `favour ${courtSigned(st.missFavour)}${Object.keys(st.carry).length ? `, and ${s47Carry(st.carry)} carries into next year's tribute` : ''}`,
+  sendLabel: (st) => (st.completes ? 'Send the tribute' : 'Send what the stores hold'),
+  sendConsequence: (st) => {
+    if (!st.shipNow) return 'Nothing to ship yet: the stores hold none of what is owed';
+    const ships = s47Goods(st.goods, 'ship');
+    if (st.completes) return `Ships ${ships}: the tribute is met, favour ${courtSigned(st.favour)} and ${st.gift} gold`;
+    const owed = st.goods.map((g) => ({ good: g.good, owed: g.left - g.ship }));
+    return `Ships ${ships}; ${s47Goods(owed, 'owed')} still owed`;
+  },
+  empty: 'The stores hold none of what is still owed',
+  showMe: 'Show me',
+  showMaker: (good, item) => `Show me where to build a ${buildingName(item).toLowerCase()} for ${cartGood(good)}`,
+  showStore: (good) => `Show me a store with ${cartGood(good)}`,
+  metLine: (st) => `Year ${st.year}'s tribute was met in ${courtDate(st.metDay)}`,
+  nextLine: (year, months) => `The next tribute is asked at the start of year ${year}, in ${courtMonths(months)}`,
+  // The warning a year ahead (QUOTA.warnYear): a caption at the year's start, and the court sheet's line all that year, with what would be asked today.
+  warning: (preview) => `From year ${s47Quota.fromYear} the capital asks a yearly tribute of the goods you make, due by each year's end, never more than your stores held${preview.length ? `. At today's output: ${s47Goods(preview, 'base')}` : ''}`,
+  captionWarning: 'Next year the capital starts asking a yearly tribute: the court sheet says what',
+  captionReminder: (e) => `The yearly tribute is due in ${courtMonths(e.months)}: ${s47Goods(e.owed, 'left')} still owed. Open the court to send it.`,
+  captionAsked: (e) => `The capital asks its yearly tribute: ${s47Goods(e.quota.goods)} by the year's end`,
+  captionMet: (e) => `Yearly tribute sent: favour ${courtSigned(e.favour)}, ${e.gift} gold`,
+  captionMissed: (e) => `The yearly tribute was missed: favour ${courtSigned(e.favour)}${e.carry && Object.keys(e.carry).length ? `; ${s47Carry(e.carry)} carries into next year's` : ''}`,
+  captionShipped: (shipped) => `Shipped ${s47Carry(shipped)} to the capital`,
+  logLine: (e) => (e.result === 'met'
+    ? `Year ${e.year}'s tribute met: favour ${courtSigned(e.favour)}, ${e.gold} gold`
+    : `Year ${e.year}'s tribute missed (${s47Goods(e.goods.map((g) => ({ good: g.good, owed: Math.max(0, g.amount - g.sent) })), 'owed')} short): favour ${courtSigned(e.favour)}`),
+  first: { head: 'Tribute delivered', why: `You sent the capital its yearly tribute: favour +${s47Quota.favourMet}, or +${s47Quota.favourEarly} by month ${s47Quota.early}, and a gift of gold.` },
+  tip: `The capital asks a yearly tribute: open the court to send it. Met by month ${s47Quota.early}, it earns more favour.`,
+  tipHelp: `Tribute from year ${s47Quota.fromYear}: ${s47Shares()} of a year's output, capped by your stores. Met: +${s47Quota.favourMet} favour (+${s47Quota.favourEarly} early); missed: −${s47Quota.favourMissed}.`,
+  // ── Raids grow with wealth (ruling 470) ──
+  wealthLine: (w) => `${plural(w.size, 'raider', 'raiders')}: your wealth draws ${w.wealth} more`,
+  raidsGrow: (e) => `From year ${e.year} raids grow with your wealth: one more raider for each ${s47Num(e.goldPer)} gold and each ${s47Num(e.peoplePer)} people, up to ${e.cap} more`,
+  tipRaids: 'Raids now grow with your wealth: the warning says how many raiders your gold and people draw.',
+  tipRaidsHelp: `From year ${s47Late.fromYear}, raids gain one raider per ${s47Num(s47Late.goldPer)} gold and ${s47Num(s47Late.peoplePer)} people: up to ${s47Caps()} more raiders, by level.`,
+  // ── The upper tiers (ruling 471), from the housing data ──
+  useHead: 'Uses a month',
+  // "12 pottery, 12 beer and 9 linen (1.5× the usual), and food of three kinds".
+  useLine: (tier, rows) => {
+    const use = s47UseOf(tier);
+    const kinds = TIERS[tier].needs.includes('threeFoods') ? 'three' : TIERS[tier].needs.includes('twoFoods') ? 'two' : null;
+    const goods = s47Goods(rows);
+    return `${goods ? `${goods}${use !== 1 ? ` (${s47Times(use)} the usual)` : ''}` : 'no household goods'}${kinds ? `, and food of ${kinds} kinds` : ''}`;
+  },
+  keepHead: (name) => `To keep ${name.toLowerCase()}`,
+  tipTiers: `${s47Upper.map((t) => s47An(t.name)).join(' and ').replace(/^a/, 'A')} need ${NEED_NAMES.threeFoods.toLowerCase()} and use more ${s47UpperGoods()}.`,
+  tipTiersHelp: `A ${TIERS[8].name} and an ${TIERS[9].name} need three kinds of food and use ${s47Times(s47UseOf(8))} and ${s47Times(s47UseOf(9))} the household goods.`,
+  // The house sheet's cause when the good is held only in a store beyond the bazaars' supply reach (src/sim/housing.js good_far).
+  goodFar: (cause, world) => {
+    const s = world.buildings[cause.id];
+    return { cause: `${goodName(cause.good)} is held only in a ${cartStore(s ? s.type : 'storehouse')} ${cartTiles(cause.len)} from the bazaar`, fix: 'A store near the bazaar can Fetch it by cart' };
+  },
+  showFar: (cause, world) => { const s = world.buildings[cause.id]; return `Show me the ${cartStore(s ? s.type : 'storehouse')} that holds ${cartGood(cause.good)}`; },
+};
+FIRST_TEXT.first_quota_met = S47_PRESSURE_TEXT.first;
+Object.assign(TIP_TEXT, { tribute_quota: S47_PRESSURE_TEXT.tip, raids_wealth: S47_PRESSURE_TEXT.tipRaids, upper_tiers: S47_PRESSURE_TEXT.tipTiers });
+Object.assign(TIP_HELP_TEXT, { tribute_quota: S47_PRESSURE_TEXT.tipHelp, raids_wealth: S47_PRESSURE_TEXT.tipRaidsHelp, upper_tiers: S47_PRESSURE_TEXT.tipTiersHelp });
+{
+  const baseLog = S46_COURT_TEXT.logLine;
+  S46_COURT_TEXT.logLine = (e) => (e.kind === 'quota' ? S47_PRESSURE_TEXT.logLine(e) : baseLog(e));
+}
+// ── end s47 ──

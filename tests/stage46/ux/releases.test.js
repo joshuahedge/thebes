@@ -15,10 +15,10 @@ const newerThan = (a, b) => { const x = versionParts(a), y = versionParts(b); re
 describe('s46 ux releases', () => {
   it('the newest release is the build the game says it is (ruling 401)', () => {
     expect(RELEASES[0].version).toBe(APP_VERSION);
-    expect(APP_VERSION).toBe('4.6');
+    expect(APP_VERSION).toBe('4.7');
   });
   it('lists every build, newest first, with a date and plain notes (ruling 403)', () => {
-    expect(RELEASES.map((r) => r.version)).toEqual(['4.6', '4.5', '4.0', '3.2', '3.1', '3.0', '2.0', '1.1', '1.0']);
+    expect(RELEASES.map((r) => r.version)).toEqual(['4.7', '4.6', '4.5', '4.0', '3.2', '3.1', '3.0', '2.0', '1.1', '1.0']);
     for (let i = 1; i < RELEASES.length; i++) {
       expect([RELEASES[i - 1].version, newerThan(RELEASES[i - 1].version, RELEASES[i].version)]).toEqual([RELEASES[i - 1].version, true]);
       expect(RELEASES[i - 1].date >= RELEASES[i].date).toBe(true);           // dates never go backwards as versions go up
@@ -28,7 +28,7 @@ describe('s46 ux releases', () => {
       expect([r.version, Array.isArray(r.new), Array.isArray(r.fixed), r.new.length + r.fixed.length > 0]).toEqual([r.version, true, true, true]);
       for (const line of [...r.new, ...r.fixed]) expect([r.version, typeof line === 'string' && line.length > 10 && line.length < 330]).toEqual([r.version, true]);
     }
-    expect(RELEASES.filter((r) => 'provisional' in r).map((r) => r.version)).toEqual([]);   // final review: the 4.6 notes are final
+    expect(RELEASES.filter((r) => 'provisional' in r).map((r) => r.version)).toEqual([]);   // final review: the 4.6 notes are final; every stage since keeps its own
     // Every entry has a build (final review, Josh's ask): the newest the running build's ('live'), every other its merge commit's short sha.
     expect(RELEASES.map((r, i) => [r.version, i === 0 ? r.build === 'live' : /^[0-9a-f]{7}$/.test(r.build)])).toEqual(RELEASES.map((r) => [r.version, true]));
     expect(new Set(RELEASES.map((r) => r.build)).size).toBe(RELEASES.length);
