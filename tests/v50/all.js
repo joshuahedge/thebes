@@ -15,3 +15,6 @@ import './layers/ui.test.js';
 import './areas/sim.test.js';
 import './areas/ui.test.js';
 import './areas/budget.test.js';
+import './roads/sim.test.js';
+import './roads/ui.test.js';
+import './roads/budget.test.js';

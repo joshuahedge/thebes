@@ -110,7 +110,8 @@ describe('s46 map seam: the tip fires when a road meets water, Show me finds a c
     const store = createStore(INITIAL_UI_STATE), fired = [], shown = [], toasts = [];
     const root = document.createElement('div');
     document.body.append(root);
-    const ui = createMapUi({ world, store, root, fireTip: (k) => fired.push(k), showMeAt: (a) => shown.push(a), toasts: { show: (t) => toasts.push(t) } });
+    const ui = createMapUi({ world, store, root, fireTip: (k) => { if (k !== 'roadRoute') fired.push(k); },   // Version 5.0 (Task 5): the seam also fires Route's tip (tests/v50/roads), which this test is not about
+    showMeAt: (a) => shown.push(a), toasts: { show: (t) => toasts.push(t) } });
     const pl = createPlacement({ world, store });
     return { store, pl, ui, fired, shown, toasts, root, cleanup() { ui.destroy(); root.remove(); } };
   }

@@ -37,10 +37,8 @@ export const AREA_TEXT = {
   areaLabel: (type) => `Drag an area of ${areaCount(type, 2).replace(/^2 /, '')}`,
   oneLabel: (type) => `Place one ${buildingName(type).toLowerCase()}`,
   spacingGroup: 'Spacing',
-  // One spacing's button name for a screen reader: what it would lay in the area drawn now, or the rule when nothing is drawn.
-  spacingLabel: (gap, type, r) => `${SPACING_NAMES[gap]} tile: ${r ? (r.positions.length ? `${areaCount(type, r.positions.length)}, ${r.cost} gold` : 'nothing fits') : `one ${buildingName(type).toLowerCase()} every ${gap === 1 ? 'tile' : `${gap} tiles`} each way`}`,
-  idle: 'Drag over the land to lay several · two fingers move the map',
-  idleMouse: 'Click a corner, then the opposite one',
+  // One spacing's button name for a screen reader (it starts with the button's visible words, 'Every 2nd'): what it would lay in the area drawn now, or the rule when nothing is drawn.
+  spacingLabel: (gap, type, r) => `${SPACING_NAMES[gap]}${gap === 1 ? '' : ' tile'}: ${r ? (r.positions.length ? `${areaCount(type, r.positions.length)}, ${r.cost} gold` : 'nothing fits') : `one ${buildingName(type).toLowerCase()} every ${gap === 1 ? 'tile' : `${gap} tiles`} each way`}`,
 };
 
 // Build another: the button, its refusal and the line that says what a copy takes with it (shown before the tick, ruling 505).

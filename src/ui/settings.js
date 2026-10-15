@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS = {
   sound: false, vibration: true, textSize: 100, leftHanded: false, keyboardShortcuts: true, help: 'full', seenTips: [], difficulty: 'normal',
   fireReaction: 'inform', motion: 'system', music: true, musicVolume: 30, cardsSeen: false,
   adviceSeen: [],   // Version 5.0: the keys of the City advice items shown when its sheet was last open (the button's dot, src/ui/adviceSheet.js)
+  roadMode: 'straight',   // Version 5.0 (Task 5): the road bar's shape, 'straight' (the L and the finger) or 'route' (the cheapest way between two points); per device
 };
 
 const isBool = (v) => typeof v === 'boolean';
@@ -35,6 +36,7 @@ const VALID = {
   help: (v) => HELP_LEVELS.includes(v),
   seenTips: (v) => Array.isArray(v) && v.every((s) => typeof s === 'string'),
   adviceSeen: (v) => Array.isArray(v) && v.every((s) => typeof s === 'string'),
+  roadMode: (v) => v === 'straight' || v === 'route',
   difficulty: (v) => DIFFICULTY_ORDER.includes(v),
   fireReaction: (v) => FIRE_REACTIONS.includes(v),
   motion: (v) => MOTION_SETTINGS.includes(v),

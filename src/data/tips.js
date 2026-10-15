@@ -84,6 +84,8 @@ const TIPS_V50 = [
   // Task 4 (rulings 550-559): Build another (a button on every building sheet) and drag areas (farms, gardens, statues).
   { id: 'build_another', trigger: 'buildAnother', priority: false },            // the first building placed: its sheet can copy it
   { id: 'drag_areas', trigger: 'dragAreas', priority: false },                  // the first farm, garden or statue placed: the bar can lay an area
+  // Task 5 (rulings 560-569): the road bar's Route shape.
+  { id: 'road_route', trigger: 'roadRoute', priority: false },                  // the first road laid, or a straight road refused for what is in its way: Route goes round it
 ];
 // ── end v50 ──
 

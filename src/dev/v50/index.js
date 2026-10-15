@@ -7,13 +7,14 @@ import { adviceScene } from './advice.js';
 import { houseStepScene } from './houseStep.js';
 import { layersScene } from './layers.js';
 import { areasScene } from './areas.js';
+import { roadsScene } from './roads.js';
 
 export const V50_SCENES = {
   'v50-advice': adviceScene,                    // Task 1: the advice sheet open over a city with several problems ranked (options: gold, sheet, dot)
   'v50-house-step': houseStepScene,             // Task 2: a house sheet with its next-step line (options: state next | waiting | kept, gold, quick)
   'v50-layers': layersScene,                    // Task 3: the home progress, goods supply and workers layers (options: layer, good, workers, motion, zoom, quick)
   'v50-areas': areasScene,                      // Task 4: Build another and drag areas (options: view another | another-bar | refused | farm | garden | broke, gold, spacing, motion, quick)
-  'v50-roads': stub('v50-roads'),               // Task 5: a routed road round a hill with a bridge, its cost before confirm
+  'v50-roads': roadsScene,                      // Task 5: a routed road round hills and buildings with a bridge, its cost before confirm (options: view route | straight | refused | boxed, gold, motion, zoom, quick)
   'v50-grand': stub('v50-grand'),               // Task 7: a grand district with a Villa and an Estate
 };
 export const VERSION50_SCENES = Object.keys(V50_SCENES);
