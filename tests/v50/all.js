@@ -25,3 +25,4 @@ import './grand/ui.test.js';
 import './grand/balance.test.js';
 import './balance/carried.test.js';
 import './balance/advice.test.js';
+import './docs/releases.test.js';

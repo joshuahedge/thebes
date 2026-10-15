@@ -181,8 +181,9 @@ describe('s46 final releases: every version has its build (ruling 459)', () => {
     renderWhatsNew(host, () => {}, RELEASES, { stamp: 'abc1234' });
     const heads = [...host.querySelectorAll('.release h3')].map((h) => h.textContent);
     expect(heads[0].startsWith(S46_UX_TEXT.releaseHead(RELEASES[0].version, releaseDateText(RELEASES[0].date), 'abc1234'))).toBe(true);
-    expect(heads[1].startsWith(`Version 4.6 · ${releaseDateText(RELEASES[1].date)} · build ed005c5`)).toBe(true);   // Stage 4.7: 4.6 gets its merge commit
-    expect(heads[2].startsWith(`Version 4.5 · ${releaseDateText(RELEASES[2].date)} · build b444b16`)).toBe(true);
+    expect(heads[1].startsWith(`Version 4.7 · ${releaseDateText(RELEASES[1].date)} · build eef5ccb`)).toBe(true);   // Version 5.0: 4.7 gets its merge commit
+    expect(heads[2].startsWith(`Version 4.6 · ${releaseDateText(RELEASES[2].date)} · build ed005c5`)).toBe(true);
+    expect(heads[3].startsWith(`Version 4.5 · ${releaseDateText(RELEASES[3].date)} · build b444b16`)).toBe(true);
     const later = document.createElement('div');                              // the stamp read a moment later
     renderWhatsNew(later, () => {}, RELEASES, { read: async () => 'def5678' });
     expect(later.querySelector('.release h3').textContent.includes('build')).toBe(false);
@@ -194,7 +195,7 @@ describe('s46 final releases: every version has its build (ruling 459)', () => {
     expect(none.querySelector('.release h3').textContent.includes('build')).toBe(false);
   });
   it('says the 4.6 flood and speed lines as the game does them', () => {
-    const r46 = RELEASES.find((r) => r.version === '4.6');   // Stage 4.7: the newest entry is 4.7
+    const r46 = RELEASES.find((r) => r.version === '4.6');   // Version 5.0: the newest entry is 5.0
     const notes = r46.new.join(' ');
     expect(notes.includes('grow more in a high flood and less in a low one')).toBe(true);
     expect(notes.includes('the one in use also says its word')).toBe(true);

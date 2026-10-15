@@ -712,3 +712,79 @@ From the plan `plans/2026-10-14-thebes-stage-4-7-land-and-logistics.md` (rulings
 494. Fetch is on offer from the first store (the granary at Village; goods other than foods from the Town's storehouse); an order is refused, saying why, when no linked store has any to spare now. — Cost if wrong: a Fetch set before the goods exist is refused and must be set again.
 495. The far-good tip fires only for household goods (pottery, beer, linen, jewellery), judged at the tier the home is growing into; foods are not looked at. — Cost if wrong: a far granary does not raise the tip.
 496. The Fetch panel sits under "Stored" on the store sheet; its stepper moves by one cart load (20) up to 200, then by 100s, and the sheet shows the load on both legs of a trip; a cart whose road was just cut keeps its last drawn route (drawing only). — Cost if wrong: none.
+
+## Part 15: Version 5.0 (15-16 Oct 2026)
+
+Plan rulings 501-509 (see the plan) accepted as written. Task rulings below; "Cost if wrong" after the dash.
+
+510. Advice is in points: a home weighs the tier it would rise to; weights in src/data/advice.js. — The order may feel off; all numbers are in one data file.
+511. Homes are grouped by their next step, so each home counts once, under its first unmet need. — A later need looks smaller than it is.
+512. "Running out" compares stores and bazaar stalls against last month's use minus production, under 3 months. — Ignores carts and trade; a one-month dip can trigger it.
+513. A locked fix weighs half and offers nothing to build; an unaffordable fix is shown, marked. — An unaffordable fix can top the list.
+514. One cause-to-fix table, kept in the sim. — None.
+515. The next step skips rows that are waiting or locked. — It shows the next thing to build rather than "waiting".
+516. The buildings version sits beside the world (not saved); the world stays at version 8. — Writing straight into world.buildings bypasses it (only old tests do).
+517. The chunk index drives the renderer (Task 0) and tap-picking (Task 6). — None.
+518. The advice "seen" marker is the settings key adviceSeen, per device. — Two cities on one device share the dot.
+519. Each danger kind is one item, fixed by the first affected building's own cause (lowest burning id for fire). — One Show me for two districts.
+520. The Advice button comes with the first house and stays for the session. — An empty city never sees it.
+521. The sheet shows the top 5 with the sim's numbers, cause, fix words and price; unaffordable fixes are marked in words. — Show me can open a card the confirm bar then refuses.
+522. The dot compares the top-five keys with adviceSeen; advice is read at commands and every 5th game day; opening the sheet refreshes the cache. — The dot can lag a daily danger by up to 4 days.
+523. A Show me with no legal tile toasts why and starts no tool. — None.
+524. A phone's top bar is tightened to fit the Advice button. — Slightly tighter numbers.
+525. The advice tip fires after the spots tip, so it can wait up to 3 minutes. — A late tip; the dot still shows.
+530. The house sheet's first line is labelled Next step, Waiting, Locked, Ready, Kept or Empty; the label word is the cue. — Wording only.
+531. The line says "this home". — Counting homes with the same step would need advice-style grouping.
+532. A fix needing several makers names and prices only the first one the city lacks; the advice sheet prices the sum. — Two places price differently.
+533. Every build Show me (step line, checklist rows, advice) refuses with why when no tile fits. — Changes old silent-ghost behaviour.
+534. An empty plot on a road shows Empty: and drops "Waiting for people to move in". — One line of text.
+535. Opening the advice sheet refreshes the dot's cached keys. — None.
+540. Home progress, Goods supply and Workers join OVERLAYS after Ground, read-only from the sim. — A rename or reorder.
+541. Home progress comes with the first home; Goods supply and Workers at Town; goods chips as their makers unlock. — Constants in src/data/layers.js.
+542. Home progress states: ready, one missing, two or more; the icon is the row nextStep names. — Icon tuning.
+543. Goods supply marks homes that ask for the good and stores/bazaars holding it (0.5 or more); the pick is UI state, not saved. — None for saves.
+544. Jobless are shared out over districts by residents (largest remainder); the legend says "shared out". — A district can show people who count elsewhere.
+545. One cache signature covers all three lists. — A stock edited outside a day tick shows a day late.
+546. New hues: cyan, umber, steel. — A palette change.
+547. On phones the Goods supply legend drops its name and puts picker and x on one row. — CSS only.
+548. Large draw cost measured (stress city, zoom 0.5). 548a: layer lists build in bounded slices (about 6 ms a frame) and the previous list is drawn until the new one is whole (worst frame 262 -> 39 ms). — A new home's mark can lag about a second on a huge city.
+549. Show me for a good held only in a far store opens the store near the bazaar that should Fetch it. — Words and tests only.
+550. Build another copies type, turn, style, a store's Fetch orders and refused goods (only those the new building accepts). — A copied order idles until a store near it holds the good.
+551. Build another is refused by the placing rule (locked, only one, gold, no room) with the sim's numbers. — None.
+552. The refusal shows on the sheet, with Show me where there is something to show. — None.
+553. Farm areas pack whole footprints by rows or columns; skipped means ground the sim refuses. — Not perfectly packed.
+554. Gardens and statues use spacing 1, 2 or 3 (default 2). — None.
+555. An area is all or nothing against the treasury, as plots. — A player lays two smaller areas.
+556. One building vs an area is a 44 px icon in the bar. — Less discoverable than a card.
+557. The tool is {kind:'areas'}; at most 600 skipped tiles drawn, all counted. — None.
+558. Tips: build_another on the first building sheet, drag_areas on the first farm/garden/statue. — Two more tips.
+560. Route's price is previewRoadTiles' own answer for the chosen tiles. — A pricing change touches router and preview.
+561. Straight is the default (finger-follow and the L unchanged); Route is remembered per device (roadMode) and introduced by a tip. — Players may not find Route.
+562. A bridge is one move over 1 to BRIDGE_MAX water tiles, judged by bridges.js runReason. — None.
+563. Step weights: gold, then existing road, then fewer bends; a route may cross your wall as a gate, and the bar says "1 gate in your wall (raiders still treat it as wall)". A gate keeps the wall's 40 HP. — Walled districts could get gates the player did not picture.
+564. The search is capped at 60,000 states, then refuses "too far". — A future huge map needs a higher cap.
+565. Refusals: too_wide, boxed_in, hemmed_in, no_way, too_far, each with a Show me place. — Words only.
+566. In Route a tap or drag sets start and end; Flip is hidden. — Differs from Straight.
+567. The Route tip fires on the first road, or when a straight road is refused by something in its way. — A late tip.
+570. Fling: Full about 350 ms, Gentle about 110 ms, Still none; any touch stops it and that one tap does nothing else. — The stop tap is swallowed.
+571. Show me glides (Full 380 ms, Gentle 170 ms, Still a jump) and comes in to zoom 0.75 when further out; any touch cancels a glide or zoom tween. — A zoomed-out player gets zoomed in.
+572. Zoom steps keep the tile under the finger fixed. — None.
+573. Two-finger double tap zooms out, also with a tool open. — An accidental zoom-out while drawing.
+574. Hit-testing reads the chunk index, identical answers. — None.
+575. The renderer skips what is off the canvas (pixel-identical, tested); the terrain ring round the view is baked ahead on idle frames. — A 48 px margin could miss an oversized shadow.
+576. More than 150 roadless plots at zoom 0.6 or less show road badges without amber outlines; they return at 120 or fewer (601). — A crowded overview loses the amber wash.
+577. Roadless plot lists are memoised on roads and buildings versions. — A direct world edit would show stale plots.
+578. A dragged route is searched at most once a frame and always settles on lift. — The preview lags a fast drag.
+579. Large/Normal frame mean at zoom 0.5: 1.77x before, 1.14x after (target 1.25x). — None.
+580. A low street names the cheapest decoration that closes the gap alone, else the one that lifts most, at its tile, with the score before and after. — An early sphinx costs more than gardens would.
+581. A stuck chain names its missing step from the sim's own blocks; paused, short-staffed or no-game makers are never answered with "another maker" (587). — Order may differ from a player's guess.
+582. A workshop is named beside its input's store or the bazaar's store; a hunting lodge beside the nearest herd. — None.
+583. New goals: third_food, villa_street (Fine manor's street to 50), estate_street (a Villa's street to 65). — Three more goals.
+584. No balance data was tuned: supply chains and workers were the blocker, not desirability numbers. — The target is only reached with advice-following play.
+585. A grand homes tip on the first Fine manor. — One more tip.
+586. The grand balance run needs one piece of hand-play the advice never states (a workshop in the open with its own store that Fetches the input, when no room is left beside the store holding it). Without it: Villa month 92, no Estate in ten years. With it: Villa month 86, Estate month 97. — A real player without that trick may not get an Estate (follow-up).
+587. See 581.
+588. The third food goal counts food a home holds in stock, as the home check does. — It completes later than "build a lodge" suggests.
+600. A warned raid weighs 3 per tower short (controller ruling, changed from the proposed 2), so the first warned raid (2 of 6 towers) ranks first. — A cheap booth fix shows second while a raid is 75 days out.
+601. The crowd rule has hysteresis: hide above 150, show at 120 or fewer. — Outlines reappear a little late.
+602. The terrain ring is baked one chunk per idle frame within the baker's capacity of 32. — The ring cannot cover a very wide view.
