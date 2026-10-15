@@ -13,3 +13,5 @@ import './spots/spots.test.js';
 import './carts/carts.test.js';
 import './carts/tip.test.js';
 import './carts/review.test.js';
+import './carts/render.test.js';
+import './carts/ui.test.js';

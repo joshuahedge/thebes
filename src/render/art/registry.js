@@ -15,6 +15,7 @@ import { PLAZA_ART, plazaEdges, sphinxFacing } from './plaza.js';
 import { PALACE_ART } from './palace.js';
 import { granaryStage, storehouseStage, bazaarStage, farmStage, FARM_TYPES } from './stages.js';
 import { S46_ART, s46Slot } from './s46.js';
+import { S47_ART } from './s47.js';
 
 export { boundsFor } from '../iso.js';
 
@@ -22,6 +23,7 @@ export const ART = {
   ...HOUSE_ART, ...SERVICE_ART, ...INDUSTRY_ART, ...NATURE_ART, ...FIGURE_ART, ...DEFENCE_ART,
   ...SUPPLY_ART, ...PLAZA_ART, ...PALACE_ART, ...MONUMENT_ART,
   ...S46_ART,                                         // Stage 4.6: the River and Armies tracks' buildings and figures (art/s46.js)
+  ...S47_ART,                                         // Stage 4.7: the carts (art/s47.js)
 };
 
 // The art slot a building shows: houses by tier, granaries, storehouses and bazaars by how full they are

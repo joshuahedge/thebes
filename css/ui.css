@@ -1239,3 +1239,25 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
   .title-card .version { position: absolute; left: 0; right: 0; bottom: 2px; margin: 0; line-height: 1.2; }
 }
 /* ── end s46 ux ── */
+
+/* Stage 4.7 (Task 6, ruling 467): the Fetch control on a store's sheet (src/ui/s47/carts.js). One panel: a "Fetch goods" row that opens the list of goods the
+   store may hold, each a switch and a stepper (44 px targets, wrapping under the switch on a narrow phone), with the sim's words under it. Goods on the road are
+   said under the stock rows. */
+#sheet .fetch-panel { margin: 8px 0; scroll-margin-top: 60px; }
+#sheet .fetch-head { width: 100%; display: flex; align-items: center; gap: 8px; text-align: left; }
+#sheet .fetch-head .label { font-weight: 600; flex: 1 1 auto; }
+#sheet .fetch-head .summary { flex: none; }
+#sheet .fetch-head .chev { flex: none; }
+#sheet .fetch-goods { list-style: none; padding-left: 0; margin: 4px 0 0; }
+#sheet .fetch-good { padding: 6px 0; border-bottom: 1px solid var(--parchment-2); }
+#sheet .fetch-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+#sheet .fetch-row .switch { flex: 1 1 9em; width: auto; min-width: 0; gap: 8px; }
+#sheet .fetch-row .switch .state { font-weight: 600; flex: none; }
+#sheet .fetch-row .switch[aria-checked="false"] .state { color: var(--ink-soft, inherit); }
+#sheet .fetch-row .stepper { display: flex; align-items: center; gap: 4px; flex: none; margin-left: auto; }
+#sheet .fetch-row .stepper button { font-size: calc(20px * var(--ui-scale)); line-height: 1; padding: 0; }
+#sheet .fetch-row .stepper .value { min-width: 4.8em; text-align: center; font-variant-numeric: tabular-nums; font-size: calc(14px * var(--ui-scale)); }
+#sheet .fetch-line { margin: 4px 0 0; }
+#sheet .fetch-good .show-me { margin-top: 4px; }
+#sheet .road-line { margin: 2px 0 0; font-weight: 600; }
+#sheet .fetch-good .show-me { border: 1px solid var(--ink-line); }

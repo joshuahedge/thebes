@@ -11,6 +11,7 @@ import { allBuildings } from '../sim/world.js';
 import { setPaused, setAccept } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { storeTotal, storeAccepts } from '../sim/production.js';
+import { roadGoods } from '../sim/carts.js';
 import { openGoals, guideActive } from '../sim/goals.js';
 import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
@@ -25,7 +26,7 @@ import { supplyNeeded } from '../sim/monuments.js';
 import { huntRest } from '../sim/wildlife.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
-  goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT } from './text.js';
+  goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -137,12 +138,17 @@ export function createSheets({ container, store, world, placement, cameraControl
   function storeSection(b) {
     const def = BUILDINGS[b.type];
     const switches = b.type === 'storehouse';
-    const out = [row(T.stored, progressText(storeTotal(b), def.capacity)), el('h3', { text: T.stock })];
+    // Stage 4.7 (Task 6): the Fetch control (src/ui/s47/carts.js, the seam's `store` part) sits right under how full the store is, so it is not buried under the stock rows.
+    const out = [row(T.stored, progressText(storeTotal(b), def.capacity)), ...extra('store', b), el('h3', { text: T.stock })];
     if (switches) out.push(el('p', { class: 'small muted', text: T.acceptHelp }));
+    // Stage 4.7 (Task 6): goods a cart has taken out of this store, or is bringing to it, are said under their row so they never seem to vanish.
+    const road = roadGoods(world, b.id);
+    const onRoad = (good) => [...road.leaving.filter((r) => r.good === good).map((r) => CART_W.road(r, 'leaving')), ...road.arriving.filter((r) => r.good === good).map((r) => CART_W.road(r, 'arriving'))]
+      .map((text) => el('p', { class: 'road-line small teal', text }));
     out.push(el('ul', { class: 'store-goods' }, def.stores.map((good) => {
       const n = String(b.store[good] || 0);
       const line = el('p', { class: 'good-line small muted', text: goodLine(good) });
-      if (!switches) return el('li', { dataset: { good } }, [el('div', { class: 'row' }, [el('span', { text: goodName(good) }), el('span', { text: n })]), line]);
+      if (!switches) return el('li', { dataset: { good } }, [el('div', { class: 'row' }, [el('span', { text: goodName(good) }), el('span', { text: n })]), ...onRoad(good), line]);
       const on = storeAccepts(b, good);
       const sw = el('button', { type: 'button', role: 'switch', class: 'switch accept', 'aria-checked': String(on), dataset: { good } }, [
         el('span', { class: 'good' }, [goodName(good), ' ', el('span', { class: 'count small muted', text: n })]),
@@ -152,7 +158,7 @@ export function createSheets({ container, store, world, placement, cameraControl
         const r = setAccept(world, b.id, good, !on);
         if (r.ok) { afterCommand({ kind: 'accept', result: r, undoable: false }); render(); }
       });
-      return el('li', { dataset: { good } }, [sw, line]);
+      return el('li', { dataset: { good } }, [sw, ...onRoad(good), line]);
     })));
     return out;
   }

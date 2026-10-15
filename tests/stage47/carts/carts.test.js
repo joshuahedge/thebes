@@ -473,7 +473,7 @@ describe('s47 carts: status, consequence and words from the sim', () => {
     const home = store(w, 'storehouse', 2);
     store(w, 'storehouse', 30, { pottery: 50 });
     const pv = fetchPreview(w, home.id, 'pottery', 100);
-    expect(pv.source).toEqual({ id: w.nextId - 1, type: 'storehouse', len: 28, days: 4, roundTrip: 7, dir: 'east' });
+    expect(pv.source).toEqual({ id: w.nextId - 1, type: 'storehouse', len: 28, days: 4, roundTrip: 7, dir: 'east', spare: 50, keeps: 0 });
     expect(W.consequence(pv)).toBe('Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 28 road tiles (a round trip takes 7 days)');
     expect(W.consequence(fetchPreview(w, home.id, 'linen', 100))).toBe('Fetch linen: no store with linen to spare is linked by road');
     home.staff = 0;
