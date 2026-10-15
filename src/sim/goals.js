@@ -15,6 +15,11 @@ import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { isMonument, isFinished } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { prestigeOf, monumentAlerts } from './monuments.js';
+import { BUILDINGS } from '../data/buildings.js';
+import { FOOD_GOODS } from '../data/goods.js';
+import { TIERS } from '../data/housing.js';
+import { desirabilityField, houseDesirability } from './desirability.js';
+import { desirabilityFix } from './advice.js';
 
 const SETTLE_MAX = 20;   // settleGoals stops after this many completions in one go
 
@@ -29,6 +34,23 @@ const hasAlert = (world, code) => alertsFor(world).some((a) => a.code === code);
 // plan, and a guild near the only open site is planned to it, so the goal would never be met.
 const finishedOf = (world, type) => allBuildings(world).filter((b) => b.type === type && isFinished(b)).length;
 const crewNear = (world) => allBuildings(world).some((b) => isMonument(b) && touchesRoad(world, b) && buildingsInReach(world, b, MONUMENT.crewReach, (o) => o.type === 'builders_guild').length > 0);
+
+// Version 5.0 (Task 7): the kinds of food the city makes: each food with a maker that can work (on a road), as a "Build a" goal counts it.
+const FOOD_MAKERS = FOOD_GOODS.map((g) => Object.keys(BUILDINGS).filter((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === g));
+export const foodKinds = (world) => FOOD_MAKERS.filter((types) => types.some((t) => countOf(world, t) > 0)).length;
+// The pleasantest street among the homes that could rise to `tier` (a tier below it, or higher): { home, value } (houseDesirability, the
+// first such home in id order on a tie), or null while there is none.
+export function bestStreet(world, tier) {
+  const field = desirabilityField(world);
+  let best = null;
+  for (const h of housesOf(world)) {
+    if (h.tier < tier - 1) continue;
+    const value = houseDesirability(world, h, field);
+    if (!best || value > best.value) best = { home: h, value };
+  }
+  return best;
+}
+const streetMet = (world, tier) => { const s = bestStreet(world, tier); return Boolean(s) && s.value >= TIERS[tier].desirability.rise; };
 
 // Road the player laid: road tiles that are not part of the generator's start road (an exact set
 // difference, so taking up a start-road tile and laying one elsewhere still counts the new tile).
@@ -55,6 +77,8 @@ export function goalMet(world, need) {
     case 'finished': return finishedOf(world, need.type) >= (need.n || 1);
     case 'unlocked': return Number.isInteger(world.prestigeUnlocks[need.type]);
     case 'crewNear': return crewNear(world);
+    case 'foods': return foodKinds(world) >= need.n;                                    // Version 5.0 (Task 7)
+    case 'desirability': return streetMet(world, need.tier);
     case 'courtAnswered': return world.court.guided === 'answered' || world.tally.cardsPlayed > 0;   // Stage 4.6 (ruling 380): the court's first letter has been answered: the guided request (sent, refused or missed), or a card if one came first
     default: return false;
   }
@@ -75,6 +99,11 @@ export function goalProgress(world, goal) {
       const of = MONUMENTS[need.type] ? MONUMENTS[need.type].unlock.prestige : undefined;
       if (!Number.isFinite(of)) return null;                                           // a kind with no prestige unlock counts nothing
       return { n: goalMet(world, need) ? of : Math.min(prestigeOf(world), of), of };
+    }
+    case 'foods': return { n: Math.min(foodKinds(world), need.n), of: need.n };          // Version 5.0 (Task 7)
+    case 'desirability': {                                                              // the best street's score of the tier's rise
+      const of = TIERS[need.tier].desirability.rise, s = bestStreet(world, need.tier);
+      return { n: s ? Math.max(0, Math.min(Math.floor(s.value), of)) : 0, of };
     }
     default: return null;
   }
@@ -200,6 +229,11 @@ export function nextItemFor(world, goal) {
   if (goal.need.kind === 'all') {
     const part = goal.need.of.find((p) => p.kind === 'building' && !goalMet(world, p));
     if (part) return part.type;
+  }
+  if (goal.need.kind === 'desirability') {   // Version 5.0 (Task 7): the decoration the best street's house sheet names (desirabilityFix)
+    const s = bestStreet(world, goal.need.tier);
+    const fix = s ? desirabilityFix(world, s.home) : null;
+    if (fix) return fix.item;
   }
   return goal.showMe ? goal.showMe.item : null;
 }

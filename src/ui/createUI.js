@@ -52,7 +52,7 @@ import { createToasts, MAX_TOASTS, MAX_TOASTS_PHONE } from './toasts.js';
 import { createCelebrations } from './celebrate.js';
 import { createTips } from './tips.js';
 import { createNudge, nudgeLineText, NUDGE_MAX_STEP_MS } from './nudge.js';
-import { TIP_AUTO_CLOSE_MS } from '../data/tips.js';
+import { TIP_AUTO_CLOSE_MS, GRAND_TIP_TIER } from '../data/tips.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { createAdviceUi } from './adviceUi.js';
@@ -593,7 +593,7 @@ export function createUI({
     // achievement stays in the summary list, so a batch never queues three captions for one moment.
     const quiet = events.some((e) => e.type === 'milestone');
     for (const e of events) {
-      if (e.type === 'upgrade') sfx.play('upgrade');
+      if (e.type === 'upgrade') { sfx.play('upgrade'); if (e.to === GRAND_TIP_TIER) fireTip('grandHomes'); }   // Version 5.0 (Task 7): the first Fine manor: how a Villa and an Estate are reached
       else if (e.type === 'arrivals') fireTip('arrivals');
       else if (e.type === 'month') { fireTip('monthEnd'); if (monthForecast(world).goesBelow) fireTip('treasuryLow'); if (!(settings.get().seenTips || []).includes('fetch_far') && farGoodTip(world)) fireTip('goodsFar'); }
       else if (e.type === 'goal') fireTip('goalDone');

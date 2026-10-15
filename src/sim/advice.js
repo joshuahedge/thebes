@@ -3,12 +3,12 @@
 // fire/health/crime causes and the raid's quote), so every number the advice sheet (Task 1) and a house sheet's next step (Task 2) say is the
 // sim's, and a fix is never something the sim would refuse: a building is named only once it is unlocked, with its price and whether the
 // treasury can pay it (canAfford, the placing rule). Pure and deterministic: no randomness, no clock; ties break on fixed orders and ids.
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { MILESTONES } from '../data/progression.js';
 import { ADVICE, ADVICE_KINDS } from '../data/advice.js';
 import { allBuildings, housesOf } from './world.js';
-import { houseStatus, needCause, needsOf } from './housing.js';
+import { houseStatus, needCause, needsOf, desirabilityTarget, goodStoresFor } from './housing.js';
 import { alertsFor } from './alerts.js';
 import { monthForecast, biggestCost } from './economy.js';
 import { isUnlocked } from './progression.js';
@@ -22,6 +22,9 @@ import { DAYS_PER_MONTH } from './time.js';
 import { buildingsInReach } from './reach.js';
 import { storeAccepts } from './production.js';
 import { isStore, canStaff, findSource } from './carts.js';
+import { desirabilityField, houseDesirability, scoreWith } from './desirability.js';
+import { DESIRABILITY } from '../data/desirability.js';
+import { checkTiles } from './commands.js';
 
 // ── The goods' makers (moved here from src/ui/text.js, which re-exports them) ──
 
@@ -56,7 +59,7 @@ const CAUSE_FIX = {
   well_idle: VIEW, granary_idle: VIEW, bazaar_idle: VIEW, temple_idle: VIEW, booth_idle: VIEW,
   well_no_road: VIEW, bazaar_no_road: VIEW, temple_no_road: VIEW, booth_no_road: VIEW,
   no_booth: { item: 'booth', at: 'home' },
-  low_desirability: { item: 'garden', at: 'home' },
+  low_desirability: { item: 'garden', at: 'home' },   // Version 5.0 (Task 7): nextStep and the rows name desirabilityFix's decoration and tile; this is the fallback when none helps
   no_square: { item: 'house', at: 'home' },
   // No store for the good near the bazaar: that store beside the bazaar, while it and the good's makers are unlocked (a store would stay empty).
   no_good: (world, cause) => {
@@ -67,12 +70,50 @@ const CAUSE_FIX = {
   good_unmade: (world, cause) => unmadeFix(world, cause),
 };
 
-// The fix for a good nothing makes: its first maker the city has none of (else its last), or null while a maker is locked.
+// The fix for a good nothing makes: its first maker the city has none of, or null while a maker is locked; with every maker standing, the step
+// the chain lacks (moreOf), with near: the id of the building it goes beside.
 export function unmadeFix(world, cause) {
   const makers = goodMakers(cause.good);
   if (!makers.length || makers.some((t) => !isUnlocked(world, t))) return null;
-  const item = makers.find((t) => !allBuildings(world).some((b) => b.type === t)) || makerOf(cause.good);
-  return { item, at: BUILDINGS[item].terrain ? 'terrain' : 'building' };
+  const missing = makers.find((t) => !allBuildings(world).some((b) => b.type === t));
+  const more = missing ? { item: missing, near: inputHolder(world, missing) } : moreOf(world, cause.good);
+  const out = { item: more.item, at: BUILDINGS[more.item].terrain ? 'terrain' : 'building' };
+  if (more.near !== null) out.near = more.near;
+  return out;
+}
+
+// Version 5.0 (Task 7): the store holding most of a workshop's input (a weaver goes beside the storehouse where the flax is, as it takes its input
+// from a store within its producer reach), the lower id on a tie; null for a maker with no input, or while no store holds any.
+export function inputHolder(world, type) {
+  const input = BUILDINGS[type].consumes;
+  if (!input) return null;
+  let best = null;
+  for (const b of allBuildings(world)) if (isStore(b) && (b.store[input] || 0) > 0 && (!best || b.store[input] > best.store[input])) best = b;
+  return best ? best.id : null;
+}
+
+// Version 5.0 (Task 7): with every maker of a good standing, where its chain is stuck, read from the sim's own blocks (b.blocked): a maker with
+// nowhere to put what it makes ('no_storage', or its stores filled: 'storage_full') wants the good's store beside it; a workshop idle for want of its input ('no_input') wants a store
+// beside the input's producer when that one has nowhere to put it, else another workshop beside a store where the input lies unused (out of the
+// idle one's reach), else more of the input (another barley farm, not a brewery that would wait too). Otherwise another workshop (or the good's
+// only maker). { item, near: the id of the building it goes beside, or null }.
+export function moreOf(world, good) {
+  const maker = makerOf(good);
+  const all = allBuildings(world);
+  const stuckAt = (type) => all.find((b) => b.type === type && (b.blocked === 'no_storage' || b.blocked === 'storage_full'));
+  const storeBy = (g, b) => (b && storeFor(g) && isUnlocked(world, storeFor(g)) ? { item: storeFor(g), near: b.id } : null);
+  const full = storeBy(good, stuckAt(maker));
+  if (full) return full;
+  const input = BUILDINGS[maker].consumes;
+  const idle = input && makerOf(input) ? all.find((b) => b.type === maker && b.blocked === 'no_input') : null;
+  if (idle) {
+    const raw = storeBy(input, stuckAt(makerOf(input)));
+    if (raw) return raw;
+    const held = inputHolder(world, maker);
+    if (held !== null) return { item: maker, near: held };
+    return { item: makerOf(input), near: idle.id };
+  }
+  return { item: maker, near: null };
 }
 
 // Version 5.0 (Task 3 review fix): the store that should set the Fetch order for a good held only in a far store (a good_far cause): the nearest store
@@ -84,6 +125,58 @@ export function fetchStoreFor(world, cause) {
   const near = buildingsInReach(world, bazaar, BUILDINGS[bazaar.type].supplyReach, (o) => isStore(o) && BUILDINGS[o.type].stores.includes(cause.good) && o.id !== cause.id);
   const hit = near.find(({ b }) => canStaff(world, b) && storeAccepts(b, cause.good) && findSource(world, b, cause.good));
   return hit ? hit.b : null;
+}
+
+// Version 5.0 (Task 7): which decoration lifts a low street, and where. Of ADVICE.decor's buildings that are unlocked, each is tried at every
+// free tile within its reach of the home (the placing rule's own tile check) and kept at the one that raises the home's score most (ties: the
+// nearer tile, then the first in reading order). The pick is the cheapest that lifts the home to its target on its own, else the one that lifts
+// it most (ties: the cheaper, then ADVICE.decor's order). Returns { item, at: 'near', target (the tile's centre), spot: { x, y }, dist (tiles
+// from the home, 1 = beside it), from, to, needs } or null when the street is high enough or nothing unlocked has a tile that lifts it.
+export function desirabilityFix(world, house) {
+  const needs = house.tier >= 1 ? desirabilityTarget(house.tier) : null;
+  if (needs === null) return null;
+  const field = desirabilityField(world);
+  const from = houseDesirability(world, house, field);
+  if (from >= needs) return null;
+  const options = [];
+  for (const type of ADVICE.decor) {
+    if (!BUILDINGS[type] || !isUnlocked(world, type)) continue;
+    const spot = decorSpot(world, house, type, field, from);
+    if (spot) options.push({ type, cost: costOf(world, type), ...spot });
+  }
+  if (!options.length) return null;
+  const closing = options.filter((o) => from + o.gain >= needs).sort((a, b) => a.cost - b.cost)[0];
+  const pick = closing || options.slice().sort((a, b) => b.gain - a.gain || a.cost - b.cost)[0];
+  return { item: pick.type, at: 'near', target: { x: pick.x + 0.5, y: pick.y + 0.5 }, spot: { x: pick.x, y: pick.y }, dist: pick.dist, from, to: from + pick.gain, needs };
+}
+
+// The free tile within reach of the home where one `type` raises its score most: { x, y, gain, dist }, or null when none raises it.
+function decorSpot(world, house, type, field, from) {
+  const r = (DESIRABILITY[type] || []).length;
+  const { w, d } = dimsOf(type);
+  let best = null;
+  for (let y = house.y - r - d + 1; y <= house.y + house.d - 1 + r; y++) {
+    for (let x = house.x - r - w + 1; x <= house.x + house.w - 1 + r; x++) {
+      const dist = Math.max(house.x - (x + w - 1), x - (house.x + house.w - 1), house.y - (y + d - 1), y - (house.y + house.d - 1));
+      if (dist < 1 || dist > r) continue;
+      const gain = scoreWith(world, house, type, x, y, field) - from;
+      if (gain <= 0 || (best && (gain < best.gain || (gain === best.gain && dist >= best.dist)))) continue;
+      if (checkTiles(world, type, x, y) !== null) continue;
+      best = { x, y, gain, dist };
+    }
+  }
+  return best;
+}
+
+// Version 5.0 (Task 7): the herd nearest a place (the hunting lodge's fix aims at it: hunters take game from herds within HUNTING.reach of the
+// lodge), as its centre tile's centre, or null when the city has no herd.
+export function herdNear(world, from) {
+  let best = null, bestD = Infinity;
+  for (const h of (world.wildlife && world.wildlife.herds) || []) {
+    const dd = (h.x + 0.5 - from.x) ** 2 + (h.y + 0.5 - from.y) ** 2;
+    if (dd < bestD) { bestD = dd; best = { x: h.x + 0.5, y: h.y + 0.5 }; }
+  }
+  return best;
 }
 
 // The CAUSE_FIX record for a needCause result, or null.
@@ -125,8 +218,31 @@ function fixFor(world, cause, home, need) {
     if (near) return { fix: { select: near.id, target: centreOf(near), why: cause.code, fetch: true } };
   }
   if (f.view || f.select) return b ? { fix: { select: b.id, target: centreOf(b), why: cause.code } } : {};
+  if (cause.code === 'low_desirability') {   // Task 7: the decoration that lifts it most, at its tile (the garden near the home only when none has a tile that helps)
+    const d = desirabilityFix(world, home);
+    if (d) return { fix: d };
+  }
   if (f.item !== 'road' && !isUnlocked(world, f.item)) return { locked: { item: f.item, milestone: (milestoneOf(f.item) || { id: null }).id } };
-  return { fix: { item: f.item, at: f.at === 'terrain' ? 'terrain' : 'near', target: centreOf(f.at !== 'home' && b ? b : home) } };
+  const by = f.near !== undefined ? world.buildings[f.near] || null : null;   // Task 7: the building the chain is stuck at (moreOf)
+  if (by) return { fix: { item: f.item, at: f.at === 'terrain' ? 'terrain' : 'near', target: centreOf(by), near: by.id } };
+  const near = centreOf(f.at !== 'home' && b ? b : home);
+  if (BUILDINGS[f.item] && BUILDINGS[f.item].hunts) {   // Task 7: a hunting lodge goes by the herd nearest the bazaar, where its hunters find game
+    const herd = herdNear(world, near);
+    if (herd) return { fix: { item: f.item, at: 'near', target: herd, herd: true } };
+  }
+  if (cause.code === 'good_unmade' && f.at === 'building' && b) {   // Task 7: a workshop goes by the store the bazaar draws the good from, which it fills (and takes its input from)
+    const [store] = goodStoresFor(world, b, cause.good);
+    if (store) return { fix: { item: f.item, at: 'near', target: centreOf(store), store: store.id } };
+  }
+  return { fix: { item: f.item, at: f.at === 'terrain' ? 'terrain' : 'near', target: near } };
+}
+
+// Version 5.0 (Task 7): a cause's build fix as nextStep and the advice give it (the item and where: a low street's decoration at its tile, a
+// workshop by the store it works with, a lodge by a herd), for the house sheet's checklist rows, so a row's Show me and the next step agree.
+// { item, at, target, ... } or null when the fix builds nothing or waits on an unlock.
+export function buildFixFor(world, house, cause, need) {
+  const r = cause ? fixFor(world, cause, house, need) : {};
+  return r.fix && r.fix.item ? r.fix : null;
 }
 
 // ── A home's next step (Task 2) ──

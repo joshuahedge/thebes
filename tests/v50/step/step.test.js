@@ -89,7 +89,8 @@ const CAUSES = [
   { code: 'no_booth', make: () => townhouse(),
     text: (w) => `Next step: a booth near here (${gold(costOf(w, 'booth'))}) gives this home entertainment`, action: T.showMe, after: (w) => { addRaw(w, 'booth', 16, 11); staffAll(w); } },
   { code: 'low_desirability', make: () => townhouse({ booth: true }),
-    text: (w) => `Next step: a garden near here (${gold(costOf(w, 'garden'))}) gives this home a pleasanter street`, action: T.showMe, after: (w, h) => { for (let i = 0; i < 12 && houseDesirability(w, h) < TIERS[6].desirability.rise; i++) addRaw(w, 'statue', 8 + i, 8); } },
+    // Version 5.0 (Task 7): the decoration that lifts the street most, beside the home (a sphinx at Capital; tests/v50/grand prove the pick), with the score before and after.
+    text: (w) => `Next step: a sphinx beside this home (${gold(costOf(w, 'sphinx'))}) raises its desirability from -1 to 9 (it needs ${TIERS[6].desirability.rise})`, action: T.showMe, after: (w, h) => { for (let i = 0; i < 12 && houseDesirability(w, h) < TIERS[6].desirability.rise; i++) addRaw(w, 'statue', 8 + i, 8); } },
   { code: 'no_square', make: () => townhouse({ booth: true, statues: true }),
     text: (w) => `Next step: house plots beside this home (${gold(costOf(w, 'house'))} a plot) give it room to become a ${TIERS[6].name}`, action: T.showMe,
     after: (w, h) => { for (const [x, y] of [[13, 9], [12, 8], [13, 8]]) addRaw(w, 'house', x, y, { tier: 0 }); } },

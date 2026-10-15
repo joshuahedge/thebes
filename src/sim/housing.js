@@ -422,7 +422,7 @@ function graneriesFor(world, bazaar) {
 
 // The stores a bazaar draws one good from (restockBazaars' rule): any store of that good within its supply reach,
 // nearest first, holding it or not. Household goods and the second food are traced through these.
-function goodStoresFor(world, bazaar, good) {
+export function goodStoresFor(world, bazaar, good) {
   const def = BUILDINGS[bazaar.type];
   return buildingsInReach(world, bazaar, def.supplyReach, (o) => (BUILDINGS[o.type].stores || []).includes(good)).map((e) => e.b);
 }

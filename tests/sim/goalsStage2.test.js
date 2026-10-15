@@ -15,10 +15,13 @@ import { milestoneIndex, isUnlocked } from '../../src/sim/progression.js';
 import { population } from '../../src/sim/world.js';
 import { tickDay } from '../../src/sim/clock.js';
 import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
+import { houseDesirability } from '../../src/sim/desirability.js';
+import { desirabilityFix } from '../../src/sim/advice.js';
+import { TIERS } from '../../src/data/housing.js';
 
 const STAGE1 = ['road', 'plots', 'well', 'food', 'temple', 'profit', 'homes_cottage', 'people100', 'homes_house', 'town'];   // Stage 4.5 added profit after the temple
 const STAGE2 = ['pottery', 'homes_townhouse', 'booth_gardens', 'manor', 'market_town', 'trade_route', 'city', 'beer', 'fine_manors',
-  'great_city', 'linen', 'villas', 'capital', 'jewellery', 'estate'];
+  'great_city', 'linen', 'third_food', 'villa_street', 'villas', 'capital', 'jewellery', 'estate_street', 'estate'];   // Version 5.0 (Task 7): a third food and the two streets
 const DANGER = ['firehouse', 'physician', 'defences', 'police_post'];   // Stage 3's chain goals, after Town and after the trade route (tests/stage3/score/dangerGoals.test.js), and Stage 4.5's physician and police post (tests/stage45/threatsUi.test.js)
 const MONUMENTS4 = GOALS.filter((g) => g.chapter === 'monuments').map((g) => g.id);   // Stage 4's chain goals (tests/stage4/score/goals.test.js)
 const notDanger = (g) => !DANGER.includes(g.id) && !MONUMENTS4.includes(g.id);
@@ -39,7 +42,7 @@ function town() {
 describe('sim goals and rewards for Stage 2', () => {
   it('keeps the opening chain and goes on from Town in two chapters, one new need at a time', () => {
     expect(GOALS.filter(notDanger).map((g) => g.id)).toEqual([...STAGE1, ...STAGE2]);
-    expect(GOALS.filter(notDanger).slice(10).map((g) => g.chapter)).toEqual([...Array(6).fill('goods'), ...Array(9).fill('grand')]);
+    expect(GOALS.filter(notDanger).slice(10).map((g) => g.chapter)).toEqual([...Array(6).fill('goods'), ...Array(12).fill('grand')]);
     expect(goalById('pottery').need).toEqual({ kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] });
     expect(goalById('trade_route').need).toEqual({ kind: 'all', of: [{ kind: 'building', type: 'trading_post', n: 1 }, { kind: 'routes', n: 1 }] });
     expect([goalById('market_town').need, goalById('capital').need, goalById('estate').need]).toEqual([{ kind: 'people', n: 250 }, { kind: 'people', n: 1000 }, { kind: 'tier', tier: 9, n: 1 }]);
@@ -59,7 +62,7 @@ describe('sim goals and rewards for Stage 2', () => {
   });
   it('lists the chain only as far as the milestone the city has reached, so no later goal shows ahead of a waiting one', () => {
     const waiting = [['pottery', 'town'], ['homes_townhouse', 'town'], ['booth_gardens', 'town'], ['trade_route', 'market_town'], ['defences', 'market_town'], ['beer', 'city'],
-      ['fine_manors', 'city'], ['linen', 'great_city'], ['villas', 'great_city'], ['jewellery', 'capital'], ['estate', 'capital']];
+      ['fine_manors', 'city'], ['linen', 'great_city'], ['third_food', 'great_city'], ['villa_street', 'great_city'], ['villas', 'great_city'], ['jewellery', 'capital'], ['estate_street', 'capital'], ['estate', 'capital']];
     expect(GOALS.filter((g) => g.from && !MONUMENTS4.includes(g.id) && !DANGER.includes(g.id)).map((g) => [g.id, g.from])).toEqual(waiting.filter((x) => x[0] !== 'defences'));   // defences, like the physician and police post, is a danger goal (tests/stage3/score/dangerGoals.test.js)
     const w = town();
     const open = () => openGoals(w, Infinity).map((g) => g.id);
@@ -157,7 +160,10 @@ describe('sim goals and rewards for Stage 2', () => {
     const crowd = addRaw(w, 'house', 0, 0, { tier: 1, residents: 150 });  // stands in for the city's people
     let hx = 0, bx = 0;                                                     // homes along y = 20, buildings along y = 24
     setRoad(w, 0, 23, 31, 23);                                             // above the buildings: each counts once a road touches it
-    const home = (tier) => { addRaw(w, 'house', hx, 20, tier >= 6 ? { tier, w: 2, d: 2, residents: 1 } : { tier, residents: 1 }); hx += 2; };
+    const home = (tier) => { const h = addRaw(w, 'house', hx, 20, tier >= 6 ? { tier, w: 2, d: 2, residents: 1 } : { tier, residents: 1 }); hx += 2; return h; };
+    // Version 5.0 (Task 7): the street goal's decorations, each where the house sheet names it, until the home scores the tier's rise.
+    const decorate = (h, tier) => { while (houseDesirability(w, h) < TIERS[tier].desirability.rise) { const f = desirabilityFix(w, h); addRaw(w, f.item, f.spot.x, f.spot.y); } };
+    let fine = null, villa = null;
     const build = (...types) => { for (const t of types) { addRaw(w, t, bx, 24); bx += 2; } };
     const people = (n) => { crowd.residents += n - population(w); };
     const steps = [
@@ -172,12 +178,15 @@ describe('sim goals and rewards for Stage 2', () => {
       [() => { w.trade.routes.memphis = { since: w.day, gifted: false }; }, ['trade_route']],
       [() => { people(400); w.milestone = 'city'; }, ['city']],
       [() => build('farm_barley', 'brewery', 'farm_fig'), ['beer']],
-      [() => { home(7); home(7); }, ['fine_manors']],
+      [() => { home(7); fine = home(7); }, ['fine_manors']],
       [() => { people(650); w.milestone = 'great_city'; }, ['great_city']],
       [() => build('farm_flax', 'weaver'), ['linen']],
-      [() => { home(8); home(8); }, ['villas']],
+      [() => build('farm_grain', 'hunting_lodge'), ['third_food']],                   // figs (the beer goal's orchard), grain and game: three kinds
+      [() => decorate(fine, 8), ['villa_street']],
+      [() => { home(8); villa = home(8); }, ['villas']],
       [() => { people(1000); w.milestone = 'capital'; }, ['capital']],
       [() => build('gem_mine', 'jeweller'), ['jewellery']],
+      [() => decorate(villa, 9), ['estate_street']],
       [() => home(9), ['estate']],
     ];
     const gold = w.gold;

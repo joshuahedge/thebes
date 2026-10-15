@@ -86,7 +86,10 @@ const TIPS_V50 = [
   { id: 'drag_areas', trigger: 'dragAreas', priority: false },                  // the first farm, garden or statue placed: the bar can lay an area
   // Task 5 (rulings 560-569): the road bar's Route shape.
   { id: 'road_route', trigger: 'roadRoute', priority: false },                  // the first road laid, or a straight road refused for what is in its way: Route goes round it
+  // Task 7 (rulings 580-599): the first Fine manor (GRAND_TIP_TIER): how a Villa and an Estate are reached (the goals bring each want in turn).
+  { id: 'grand_homes', trigger: 'grandHomes', priority: false },
 ];
+export const GRAND_TIP_TIER = 7;                 // Task 7: the grand homes tip comes with the first home to grow to this tier (a Fine manor)
 // ── end v50 ──
 
 // Stage 4.6: each track's tips (src/data/s46.js S46_TIPS), with their words in the track's text.js section.

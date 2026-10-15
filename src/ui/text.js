@@ -2707,3 +2707,9 @@ TIP_HELP_TEXT.drag_areas = 'The area button on farms, gardens and statues drags 
 TIP_TEXT.road_route = 'Something in the way? Switch the road bar to Route: pick two ends and the road finds a way round.';
 TIP_HELP_TEXT.road_route = 'Route finds the cheapest way between two points, with a bridge where one fits. Straight keeps the L and finger.';
 // ── end v50 roads ──
+
+// ── v50 grand (Version 5.0, Task 7, rulings 580-599) ─────────────────────────────────────────────────────────────────
+// Grand homes: the tip comes with the first Fine manor; How to play lists it with the others. The tier names and desirability numbers are TIERS'.
+TIP_TEXT.grand_homes = `A ${TIERS[7].name}! For a ${TIERS[8].name}: linen, a third food, desirability ${TIERS[8].desirability.rise}. Its next step names each.`;
+TIP_HELP_TEXT.grand_homes = `A ${TIERS[8].name} needs linen, three foods and desirability ${TIERS[8].desirability.rise}; an ${TIERS[9].name} adds jewellery and ${TIERS[9].desirability.rise}. Statues and sphinxes help most.`;
+// ── end v50 grand ──
