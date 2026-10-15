@@ -24,8 +24,12 @@ import { CRIME } from '../data/crime.js';
 import { crimeBand, crimeRiskOf, crimeCoverage, canCommitCrime, crimeStarted } from '../sim/crime.js';
 import { MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
 import { drawMonument } from './monuments.js';
+import { LAYER_HUE } from '../data/layers.js';
+import { drawProgress, drawSupply, drawWorkers } from './layers.js';   // Version 5.0 (Task 3): a cycle (layers.js reads tilePolys and mark), safe: each is used only inside functions
+import { layerUnlocked } from '../sim/layers.js';
 
-export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground'];
+// Version 5.0 (Task 3, rulings 540-549): Home progress, Goods supply and Workers (src/render/layers.js) join the table after Ground, so the order of the first eleven is unchanged.
+export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers'];
 // Fire risk (Stage 3, Track D) is one deep ember red, light to dark by band; no other overlay uses a red.
 export const FIRE_HUE = '#9C2A1C';
 // Stage 4.5 (rulings 318, 319): Health in an olive green and Crime in a deep violet, each graded like fire risk (light to dark by band).
@@ -39,10 +43,14 @@ export const GROUND_HUE = { fertile: '#27934A', rocky: '#5F5A54', clay: '#C2552B
 export const OVERLAY_HUE = {
   water: UI.water, food: UI.food, religion: UI.religion, goods: UI.goods, entertainment: UI.entertainment, desirability: UI.desirability, fire: FIRE_HUE, health: HEALTH_HUE, crime: CRIME_HUE, housing: UI.housing,
   ground: GROUND_HUE.fertile,
+  progress: LAYER_HUE.progress, supply: LAYER_HUE.supply, workers: LAYER_HUE.workers,
 };
 export const SERVICE_TYPES = { water: ['well'], food: ['bazaar'], religion: ['temple'], goods: ['bazaar'], entertainment: ['booth'], housing: [] };
 // Overlays that draw a graded scale over the ground instead of dots and rings (spec 6.3); their legend is a scale too.
 export const GRADED_OVERLAYS = ['desirability', 'fire', 'health', 'crime'];
+// The three Version 5.0 layers (their legends, keys and picker are their own: src/ui/overlayUi.js), and the ones the Layers picker and the O key offer now.
+export const LAYER_OVERLAYS = ['progress', 'supply', 'workers'];
+export const availableOverlays = (world) => OVERLAYS.filter((k) => !world || !LAYER_OVERLAYS.includes(k) || layerUnlocked(world, k));
 
 export function houseMark(world, house, kind) {
   const s = houseStatus(world, house);
@@ -105,7 +113,7 @@ function tintTiles(g, world, tiles, color, alpha) {
   }
 }
 
-function mark(g, m, color) {
+export function mark(g, m, color) {
   const c = U(p(m.x, m.y), 6);
   if (m.has) {
     g.circ(c, 4.8, INK, { alpha: 0.6 });
@@ -118,8 +126,12 @@ function mark(g, m, color) {
   }
 }
 
-// `placing` is the type of the building being placed, if any: the Ground overlay brightens the tiles that have room for it.
-export function drawOverlay(g, world, kind, range, placing = null) {
+// `placing` is the type of the building being placed, if any: the Ground overlay brightens the tiles that have room for it. `good` is the good the Goods supply
+// layer shows (pottery, beer, linen, jewellery or food).
+export function drawOverlay(g, world, kind, range, placing = null, good = 'pottery') {
+  if (kind === 'progress') { drawProgress(g, world, range); return; }
+  if (kind === 'supply') { drawSupply(g, world, range, good); return; }
+  if (kind === 'workers') { drawWorkers(g, world, range); return; }
   if (kind === 'ground') { drawGround(g, world, range, placing); return; }
   if (kind === 'desirability') { drawDesirability(g, world, range); return; }
   if (kind === 'fire') { drawFireRisk(g, world, range); return; }

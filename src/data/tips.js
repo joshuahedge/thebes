@@ -78,6 +78,9 @@ const TIPS_S45 = [
 // ── v50 (Version 5.0) ── Task 1: the City advice button comes with the first home (words: text.js, the v50 advice section; src/ui/createUI.js afterCommand)
 const TIPS_V50 = [
   { id: 'city_advice', trigger: 'cityAdvice', priority: false },                // the first plot laid: the advice button has appeared
+  // Task 3 (rulings 540-549): the new layers arrive with the first home (Home progress) and at Town (Goods supply and Workers); Show me opens the Layers picker.
+  { id: 'layer_progress', trigger: 'layerProgress', priority: false },           // the first plot laid: Layers has Home progress
+  { id: 'layers_town', trigger: 'layersTown', priority: false },                 // the city became a Town: Layers has Goods supply and Workers
 ];
 // ── end v50 ──
 

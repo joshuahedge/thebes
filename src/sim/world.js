@@ -204,6 +204,8 @@ export const isFinished = (b) => isMonument(b) && Boolean(b.site) && b.site.done
 const buildingVersions = new WeakMap();
 export const buildingsVersion = (world) => buildingVersions.get(world) || 0;
 const bumpBuildings = (world) => buildingVersions.set(world, buildingsVersion(world) + 1);
+// Version 5.0 (Task 3): a change to a building that is not a placing or a removal (a pause, which a layer's cache must see at once) says so with one more.
+export const touchBuildings = bumpBuildings;
 
 export function insertBuilding(world, b) {
   bumpBuildings(world);
