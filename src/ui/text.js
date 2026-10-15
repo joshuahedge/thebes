@@ -1923,9 +1923,9 @@ export const S46_RIVER_TEXT = {
     ? `The lodge has taken its ${rvHunting.maxMonth} this month; hunting resumes next month`
     : why === 'small' ? `Its herds have given this month or are down to ${rvHunting.keepAtLeast} animals: the hunters leave them to regrow, 1 ${rvRegrow}`   // ruling 460
     : `Its herds have given their ${rvHunting.perHerdMonth} this month; hunting resumes next month`),
-  noHerds: `No herd within ${rvHunting.reach} tiles: the hunters have nothing to hunt. Herds graze on desert and rocky ground`,
+  noHerds: `No herd within ${rvHunting.reach} tiles in a straight line: the hunters have nothing to hunt. Herds graze on desert and rocky ground`,
   // Ruling 460: one animal a hunt, for gamePerAnimal game; the animals a herd gives a month (perHerdMonth / gamePerAnimal, as the sim counts them).
-  huntRule: `Hunters walk up to ${rvHunting.reach} tiles. Each hunt takes 1 animal for ${rvHunting.gamePerAnimal} game, ${Math.max(1, Math.floor(rvHunting.perHerdMonth / rvHunting.gamePerAnimal))} from a herd a month, and never takes a herd below ${rvHunting.keepAtLeast}; a herd regrows 1 ${rvRegrow}`,
+  huntRule: `Herds within ${rvHunting.reach} tiles in a straight line count; the hunters walk round water and hills, so their walk can be longer. Each hunt takes 1 animal for ${rvHunting.gamePerAnimal} game, ${Math.max(1, Math.floor(rvHunting.perHerdMonth / rvHunting.gamePerAnimal))} from a herd a month, and never takes a herd below ${rvHunting.keepAtLeast}; a herd regrows 1 ${rvRegrow}`,
   // The fishing wharf's sheet.
   catchLabel: 'Catch a month',
   catchLine: (flood) => (flood ? `${rvFishing.floodPerMonth} now (the water is up)` : `${rvFishing.perMonth}, or ${rvFishing.floodPerMonth} in the flood months`),
@@ -1954,7 +1954,7 @@ export const S46_RIVER_TEXT = {
 Object.assign(BUILDING_PLURALS, { hunting_lodge: 'hunting lodges', fishing_wharf: 'fishing wharves', nilometer: 'nilometers' });
 Object.assign(FIRST_TEXT, {
   first_nilometer: { head: 'First Nilometer', why: `Staffed, it reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead, before the water rises.` },
-  first_hunting_lodge: { head: 'First hunting lodge', why: `Its hunters bring game from herds up to ${rvHunting.reach} tiles away: game is a food.` },
+  first_hunting_lodge: { head: 'First hunting lodge', why: `Its hunters bring game from herds within ${rvHunting.reach} tiles in a straight line: game is a food.` },
   first_fishing_wharf: { head: 'First fishing wharf', why: `Its boat lands ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood months: fish is a food.` },
   first_flood: { head: 'First flood', why: `The Nile rose for the first time. Farms on the floodplain follow its level: ${rvLevels.map((l) => `${rvName(l.id)} ${rvPct(l.id)}`).join(', ')}.` },
   first_game: { head: 'First game', why: 'Game reached a granary. Homes count it as a second kind of food.' },
@@ -1962,13 +1962,13 @@ Object.assign(FIRST_TEXT, {
 });
 Object.assign(TIP_TEXT, {
   nilometer_forecast: `A staffed Nilometer reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead: stock grain before a Low year.`,
-  hunters_range: `Hunters walk up to ${rvHunting.reach} tiles to herds on desert and rock, 1 animal a herd a month.`,
+  hunters_range: `Hunters reach herds within ${rvHunting.reach} tiles in a straight line, walking round water and hills.`,
   wharf_floods: `A wharf lands ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood. Its long side must touch water; Rotate turns it.`,
   flood_rhythm: `The flood comes every year, months ${rvFirstMonth} to ${rvLastMonth}. It does no harm: floodplain farms grow more or less.`,
 });
 Object.assign(TIP_HELP_TEXT, {
   nilometer_forecast: `The Nilometer reads the coming flood ${rvMonths(rvFlood.forecastMonths)} ahead.`,
-  hunters_range: `Hunting lodges: hunters reach herds up to ${rvHunting.reach} tiles away.`,
+  hunters_range: `Hunting lodges: herds within ${rvHunting.reach} tiles in a straight line count; hunters walk round water and hills.`,
   wharf_floods: `Fishing wharves land ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood.`,
   flood_rhythm: `The Nile floods in months ${rvFirstMonth} to ${rvLastMonth}: ${S46_RIVER_TEXT.levelsLine} for floodplain farms.`,
 });

@@ -95,7 +95,7 @@ export function hillField(world) {
       }
     }
   }
-  const out = { seed: world.seed, v, tiles, m };
+  const out = { seed: world.seed, v, tiles, m, patches: new Map() };   // patches: tile index -> { patch, slot }, filled by hillsIn
   fieldCache.set(world.terrain, out);
   return out;
 }
@@ -116,11 +116,14 @@ export const hillSlotAt = (world, x, y) => slotOf(hillPatch(world, x, y));
 
 // The hill objects of a frame, for renderer.collectObjects: [{ x, y, slot, i }] for each hill tile in range (the slots registered in `registry`).
 export function hillsIn(world, range, registry = ART) {
-  const { tiles } = hillField(world), n = world.size, out = [];
+  const field = hillField(world), { tiles } = field, n = world.size, out = [];
   for (const i of tiles) {
     const x = i % n, y = (i - x) / n;
     if (x < range.x0 - 1 || x > range.x1 + 1 || y < range.y0 - 1 || y > range.y1 + 1) continue;
-    const patch = hillPatch(world, x, y), slot = slotOf(patch);
+    // Task 3 review: a tile's heights, look and slot never change while the terrain stands, so they are worked out once (kept with the field), not every frame.
+    let hit = field.patches.get(i);
+    if (!hit) { const patch = hillPatch(world, x, y); hit = { patch, slot: slotOf(patch) }; field.patches.set(i, hit); }
+    const { patch, slot } = hit;
     if (!registry[slot]) registry[slot] = hillDef(patch);
     out.push({ x, y, slot, i });
   }

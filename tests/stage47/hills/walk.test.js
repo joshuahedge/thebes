@@ -56,12 +56,12 @@ describe('s47 walk', () => {
     const w = arena({ hills: false, river: true });
     const a = { x: 20.5, y: 20.5 }, b = { x: 33.5, y: 20.5 };
     expect(walkPath(w, a, b)).toBe(null);                       // the river runs the whole map: no way across
-    w.terrain[idx(40, 26, 39)] = T.DESERT; w.terrain[idx(40, 27, 39)] = T.DESERT;   // a ford at the foot of the map
+    w.terrain[idx(40, 26, 39)] = T.DESERT; w.terrain[idx(40, 27, 39)] = T.DESERT; w.roadVersion += 1;   // a ford at the foot of the map (the walk's memo is keyed on roadVersion: terrain never changes in play)
     const round = walkPath(w, a, b);
     expect(round !== null && pathLengths(round).pop() > 40).toBe(true);
     expect(along(w, round).every((q) => tileOk(w, q.x, q.y))).toBe(true);
     w.terrain[idx(40, 26, 39)] = T.WATER; w.terrain[idx(40, 27, 39)] = T.WATER;
-    w.road[idx(40, 26, 20)] = 1; w.road[idx(40, 27, 20)] = 1;   // a bridge on the row they stand on (a road on water, ruling 314)
+    w.road[idx(40, 26, 20)] = 1; w.road[idx(40, 27, 20)] = 1; w.roadVersion += 1;   // a bridge on the row they stand on (a road on water, ruling 314)
     const over = walkPath(w, a, b);
     expect(over !== null && pathLengths(over).pop() < 15).toBe(true);
     expect(along(w, over).every((q) => tileOk(w, q.x, q.y))).toBe(true);
@@ -157,7 +157,7 @@ describe('s47 soldiers', () => {
     post(w, { x: 33.5, y: 8.5 });
     const seen = walk(w, 40);
     expect(seen.every((s) => s.x > 27.5)).toBe(true);           // no wading the river
-    w.road[idx(40, 26, 8)] = 1; w.road[idx(40, 27, 8)] = 1;     // a bridge on their row
+    w.road[idx(40, 26, 8)] = 1; w.road[idx(40, 27, 8)] = 1; w.roadVersion += 1;     // a bridge on their row
     const crossed = walk(w, 40);
     expect(crossed.every((s) => tileOk(w, s.x, s.y))).toBe(true);
     expect(w.soldiers[0].task).toBe('wait');
