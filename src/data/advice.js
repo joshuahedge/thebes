@@ -15,6 +15,9 @@ export const ADVICE = {
   tower: 10,               // each tower short of what a raid this size needs
   towerWarned: 2,          // times this while a raid is warned
   locked: 0.5,             // homes held back by a need whose fix is not unlocked yet: times this (the words name the milestone)
+  // Task 7: the decorations a low street's fix chooses from (src/sim/advice.js desirabilityFix), each once it is unlocked: the cheapest that
+  // lifts the home to its target alone, else the one that lifts it most, at the free tile where it lifts it most.
+  decor: ['garden', 'statue', 'sphinx'],
 };
 
 // The kinds of advice, in the order that breaks a tie of weight (most urgent first). See the contract, section 1.

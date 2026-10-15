@@ -24,16 +24,19 @@ export const CAPITAL_YEARS = 6;
 // elsewhere. Stage 4: three rocky patches on the desert south of the fields for the quarries. The trade entry is the
 // east end of the farm street, which the script lays; the raider entries are the two mapgen gives a 48-tile map (the
 // middle of the east edge and of the north edge).
-function capitalWorld() {
-  const terrain = new Array(SIZE * SIZE).fill(T.DESERT);
-  for (let y = 17; y < 24; y++) for (let x = 0; x < SIZE; x++) terrain[idx(SIZE, x, y)] = T.FERTILE;
-  for (let y = 21; y < 23; y++) for (let x = 10; x < 14; x++) terrain[idx(SIZE, x, y)] = T.ROCKY;
-  for (const x0 of [10, 24, 26]) for (let y = 24; y < 26; y++) for (let x = x0; x < x0 + 2; x++) terrain[idx(SIZE, x, y)] = T.ROCKY;
+function capitalWorld(size = SIZE) {
+  const terrain = new Array(size * size).fill(T.DESERT);
+  for (let y = 17; y < 24; y++) for (let x = 0; x < size; x++) terrain[idx(size, x, y)] = T.FERTILE;
+  for (let y = 21; y < 23; y++) for (let x = 10; x < 14; x++) terrain[idx(size, x, y)] = T.ROCKY;
+  for (const x0 of [10, 24, 26]) for (let y = 24; y < 26; y++) for (let x = x0; x < x0 + 2; x++) terrain[idx(size, x, y)] = T.ROCKY;
   // Stage 4.5 (ruling 312): the four clay pits the script lays stand on clay.
-  for (const [x0, y0] of [[18, 21], [14, 21], [28, 24], [30, 24]]) for (let y = y0; y < y0 + 2; y++) for (let x = x0; x < x0 + 2; x++) terrain[idx(SIZE, x, y)] = T.CLAY;
+  for (const [x0, y0] of [[18, 21], [14, 21], [28, 24], [30, 24]]) for (let y = y0; y < y0 + 2; y++) for (let x = x0; x < x0 + 2; x++) terrain[idx(size, x, y)] = T.CLAY;
+  // Version 5.0 (Task 7): a bigger map (the grand district run, tests/v50/grand/grandRun.js) keeps all of this where it is and adds room east,
+  // with a rocky patch there for a gem mine; the entries stay where the 48-tile map has them.
+  if (size > SIZE) for (let y = 25; y < 27; y++) for (let x = 52; x < 56; x++) terrain[idx(size, x, y)] = T.ROCKY;
   const raiderEntries = [{ x: 47, y: 24 }, { x: 24, y: 0 }];
-  const map = { size: SIZE, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries };
-  return createWorld({ seed: 5, size: SIZE, map });
+  const map = { size, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries };
+  return createWorld({ seed: 5, size, map });
 }
 
 // Each step: the milestone it waits for, what it costs now, and the command. A step that fails for any reason but gold
@@ -134,9 +137,9 @@ function insanity(w, m) {
 // Runs the script month by month: each month end, the next steps whose milestone, population, wait and price allow.
 // months: one row per month end, from the books (stats.lastMonth), the labour market (world.labour) and the crews at
 // work that day (every site's site.crews). insane: every month end's insanity (none, in a sound run).
-export function runCapital(monthsToRun) {
+export function runCapital(monthsToRun, { size = SIZE } = {}) {
   const started = performance.now();
-  const w = capitalWorld();
+  const w = capitalWorld(size);
   let next = 0, lowestGold = w.gold, net = 0, spent = 0, capitalMonth = null;
   const made = [], months = [], insane = [];
   const tryBuild = () => {

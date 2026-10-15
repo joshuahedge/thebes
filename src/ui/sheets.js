@@ -5,7 +5,7 @@ import { alertShowMe } from './threatFix.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
-import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor } from '../sim/advice.js';
+import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor } from '../sim/advice.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { setPaused, setAccept } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
@@ -205,9 +205,12 @@ export function createSheets({ container, store, world, placement, cameraControl
       if (!building) return li;
       action = button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(building.type)), onClick: () => onSelect(building.id) });
     } else {
-      const near = centreOf(fix.at !== 'home' && building ? building : h);
-      const at = fix.at === 'terrain' ? nearestTerrainTile(world, BUILDINGS[fix.item].terrain, near) || near : near;
-      const target = { category: fix.category, item: fix.item, x: at.x, y: at.y };
+      // Version 5.0 (Task 7): the item and the place are the next step's (buildFixFor): a low street's decoration at its tile, a workshop by its store.
+      const step = buildFixFor(world, h, cause, c.need);
+      const item = step ? step.item : fix.item;
+      const near = step ? step.target : centreOf(fix.at !== 'home' && building ? building : h);
+      const at = (step ? step.at : fix.at) === 'terrain' ? nearestTerrainTile(world, BUILDINGS[item].terrain, near) || near : near;
+      const target = { category: categoryOfItem(item), item, x: at.x, y: at.y };
       action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${words.fix}`, onClick: () => onShowMeBuild(target) });
     }
     li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix }), action]));

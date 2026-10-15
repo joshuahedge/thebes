@@ -2,12 +2,12 @@
 // /?skipTitle=1&nosw=1&seed=11&sample=1 first. Each starts as a stub (the open city as it is, said plainly so a shot is never mistaken
 // for the real one); the task named beside it replaces its stub with an async (api, options) => description, using src/dev/s46/base.js
 // (inGame, wait, sampleAt) or its own helpers in a file beside this one. Names start with 'v50-'.
-import { stub } from '../s46/base.js';
 import { adviceScene } from './advice.js';
 import { houseStepScene } from './houseStep.js';
 import { layersScene } from './layers.js';
 import { areasScene } from './areas.js';
 import { roadsScene } from './roads.js';
+import { grandScene } from './grand.js';
 
 export const V50_SCENES = {
   'v50-advice': adviceScene,                    // Task 1: the advice sheet open over a city with several problems ranked (options: gold, sheet, dot)
@@ -15,6 +15,6 @@ export const V50_SCENES = {
   'v50-layers': layersScene,                    // Task 3: the home progress, goods supply and workers layers (options: layer, good, workers, motion, zoom, quick)
   'v50-areas': areasScene,                      // Task 4: Build another and drag areas (options: view another | another-bar | refused | farm | garden | broke, gold, spacing, motion, quick)
   'v50-roads': roadsScene,                      // Task 5: a routed road round hills and buildings with a bridge, its cost before confirm (options: view route | straight | refused | boxed, gold, motion, zoom, quick)
-  'v50-grand': stub('v50-grand'),               // Task 7: a grand district with a Villa and an Estate
+  'v50-grand': grandScene,                      // Task 7: a Fine manor's next step to a Villa: the street's decoration and its tile, or a lodge by a herd (options: view street | food | goals, gold, quick)
 };
 export const VERSION50_SCENES = Object.keys(V50_SCENES);

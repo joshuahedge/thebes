@@ -20,3 +20,6 @@ import './roads/ui.test.js';
 import './roads/budget.test.js';
 import './roads/walls.test.js';
 import './camera/camera.test.js';
+import './grand/sim.test.js';
+import './grand/ui.test.js';
+import './grand/balance.test.js';

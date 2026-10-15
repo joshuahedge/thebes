@@ -10,7 +10,8 @@ import { DAILY_REWARD } from '../data/daily.js';
 import { FOUNDED } from '../data/goals.js';
 import { MILESTONES } from '../data/progression.js';
 import { MEDALS } from '../data/scoring.js';
-import { openGoals, goalProgress, guideActive, chainGoals, openingProgress, nextItemFor } from '../sim/goals.js';
+import { openGoals, goalProgress, guideActive, chainGoals, openingProgress, nextItemFor, bestStreet } from '../sim/goals.js';
+import { desirabilityFix, herdNear } from '../sim/advice.js';
 import { milestoneIndex } from '../sim/progression.js';
 import { scoreOf } from '../sim/score.js';
 import { dailyProgress, swapDaily } from '../sim/daily.js';
@@ -86,6 +87,19 @@ export function showMeTarget(world, goal, alerts = null) {
   if (kind === 'site') {                                // Stage 4: the newest monument site (the guild and brickworks goals, ruling 254)
     const sites = allBuildings(world).filter(isSite);
     if (sites.length) { const b = sites.reduce((a, c) => (c.id > a.id ? c : a)); return { x: b.x + b.w / 2, y: b.y + b.d / 2 }; }
+  }
+  // Version 5.0 (Task 7): 'grand' at the tile the best street's house sheet names for its decoration (desirabilityFix), else at that home;
+  // 'herd' at the herd nearest the homes (a hunting lodge's hunters take game within their reach), else at the homes.
+  if (kind === 'grand') {
+    const s = bestStreet(world, show.tier);
+    if (s) { const fix = desirabilityFix(world, s.home); return fix ? fix.target : { x: s.home.x + s.home.w / 2, y: s.home.y + s.home.d / 2 }; }
+  }
+  if (kind === 'herd') {
+    const homes = housesOf(world);
+    const from = homes.length ? { x: homes.reduce((n, h) => n + h.x + h.w / 2, 0) / homes.length, y: homes.reduce((n, h) => n + h.y + h.d / 2, 0) / homes.length } : world.focus;
+    const herd = herdNear(world, from);
+    if (herd) return herd;
+    if (homes.length) return from;
   }
   if (kind === 'startRoad' && world.startRoad.length) {
     const [x, y] = world.startRoad[world.startRoad.length - 1];

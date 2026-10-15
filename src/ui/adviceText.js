@@ -5,8 +5,9 @@
 import { MILESTONES } from '../data/progression.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings } from '../sim/world.js';
-import { goodMakers, makerOf } from '../sim/advice.js';
-import { GROUND } from './nextStepText.js';
+import { goodMakers, moreOf, inputHolder, herdNear } from '../sim/advice.js';
+import { goodStoresFor } from '../sim/housing.js';
+import { GROUND, STEP_TEXT } from './nextStepText.js';
 import { costOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
 import {
@@ -37,6 +38,8 @@ export const ADVICE_TEXT = {
   locked: (item, milestone) => `${buildingName(item)} comes with ${milestoneName(milestone)}`,
   seeEmployment: 'See who works where', seeForecast: "See this month's money",
   // A Show me with no tile to show (the fix's ground or room is gone): the toast says why.
+  // Task 7: "Place a statue beside the first of them: it raises its desirability from 22 to 30 (it needs 35)".
+  decor: (f, n) => `Place ${an(buildingName(f.item).toLowerCase())} ${f.dist <= 1 ? 'beside' : `${f.dist} tiles from`} ${n > 1 ? 'the first of them' : 'it'}: it ${STEP_TEXT.lifts(f.from, f.to, f.needs)}`,
   noRoom: (item, reason) => `No place for ${an(buildingName(item).toLowerCase())} near there: ${reason.toLowerCase()}`,
 };
 
@@ -56,9 +59,20 @@ export function unmadeBuilds(world, good, cause = null) {
   const makers = goodMakers(good);
   const missing = makers.filter((t) => !allBuildings(world).some((b) => b.type === t));
   const at = cause && cause.id !== null && cause.id !== undefined ? world.buildings[cause.id] : null;
-  const place = (t) => (BUILDINGS[t].terrain ? ` on ${GROUND[BUILDINGS[t].terrain] || 'the right ground'}` : at ? ` near the ${buildingName(at.type).toLowerCase()}` : '');
-  return missing.length ? { types: missing, words: listText(missing.map((t) => `${an(buildingName(t).toLowerCase())}${place(t)}`)) }
-    : { types: [makerOf(good)], words: `another ${buildingName(makerOf(good)).toLowerCase()}${place(makerOf(good))}` };
+  const [store] = at && BUILDINGS[at.type].sells ? goodStoresFor(world, at, good) : [];   // Task 7: a workshop goes by the store the bazaar draws the good from (the fix's target)
+  const near = store || at;
+  const place = (t) => (BUILDINGS[t].terrain ? ` on ${GROUND[BUILDINGS[t].terrain] || 'the right ground'}` : near ? ` near the ${buildingName(near.type).toLowerCase()}` : '');
+  // A workshop goes by the store holding its input when one does (the fix's own place: unmadeFix), else as place says.
+  const holder = (t) => (BUILDINGS[t].terrain || inputHolder(world, t) === null ? null : world.buildings[inputHolder(world, t)]);
+  const where = (t) => (BUILDINGS[t].hunts && herdNear(world, world.focus) ? ` ${STEP_TEXT.herd}` : holder(t) ? ` near the ${buildingName(holder(t).type).toLowerCase()}` : place(t));
+  if (missing.length) return { types: missing, words: listText(missing.map((t) => `${an(buildingName(t).toLowerCase())}${where(t)}`)) };
+  // Version 5.0 (Task 7): every maker stands, so the words name the one step the chain lacks (src/sim/advice.js moreOf: a store by a stuck maker,
+  // more of the input, another workshop by the store holding it), the one priced and the one Show me starts, by the building it goes beside.
+  const more = moreOf(world, good);
+  const by = more.near !== null ? world.buildings[more.near] : null;
+  const name = buildingName(more.item).toLowerCase();
+  const word = allBuildings(world).some((b) => b.type === more.item) ? `another ${name}` : an(name);
+  return { types: [more.item], words: `${word}${BUILDINGS[more.item].terrain ? place(more.item) : by ? ` near the ${buildingName(by.type).toLowerCase()}` : place(more.item)}` };
 }
 // The price of a list of buildings (the sum of costOf; the placing rule's debt floor for the whole sum) and how it reads: "Clay pit and potter: 160 gold".
 const priceList = (world, types) => ({ gold: types.reduce((s, t) => s + costOf(world, t), 0), what: capitalised(listText(types.map((t) => buildingName(t).toLowerCase()))) });
@@ -87,6 +101,8 @@ export function adviceWords(a, world) {
         const good = d.cause.good || d.need, verb = goodMakers(good).some((t) => BUILDINGS[t].consumes) ? 'Make' : 'Grow';
         out.fix = forMany(`${verb} ${goodWord(good)}: ${unmadeBuilds(world, good, d.cause).words}`, n);
       }
+      // Version 5.0 (Task 7): a low street names the decoration and its place, for the first home (the one Show me goes to).
+      if (a.fix && a.fix.from !== undefined) out.fix = ADVICE_TEXT.decor(a.fix, n);
       break;
     }
     case 'stranded': {

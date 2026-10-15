@@ -17,7 +17,7 @@ export const GROUND = { fertile: 'fertile land', rocky: 'rocky ground', clay: 'c
 // What a need is, said as what the home gets ("gives this home water").
 const GIVES = {
   road: 'road access', water: 'water', food: 'food', religion: 'a temple in reach', pottery: 'pottery', entertainment: 'entertainment', beer: 'beer',
-  twoFoods: 'a second kind of food', linen: 'linen', jewellery: 'jewellery', desirability: 'a pleasanter street', merge: `room to become a ${TIERS[6].name}`,
+  twoFoods: 'a second kind of food', threeFoods: 'a third kind of food', linen: 'linen', jewellery: 'jewellery', desirability: 'a pleasanter street', merge: `room to become a ${TIERS[6].name}`,
 };
 const needWord = (need) => (NEED_NAMES[need] || need).toLowerCase();
 const gives = (need) => GIVES[need] || needWord(need);
@@ -35,6 +35,10 @@ export const STEP_TEXT = {
   ready: (name, n) => `this home grows to ${an(name)} at the month's end (${days(n)})`,
   locked: (item, milestone, need) => `the ${buildingName(item).toLowerCase()} comes with ${milestoneName(milestone)}; this home's ${need} waits for it`,
   // The price in the parentheses: "30 gold", "5 gold a tile", and when the treasury cannot pay it, how much it has (colour is never the only cue).
+  // Version 5.0 (Task 7): where a decoration goes, what it does to the street, and a hunting lodge's place.
+  spot: (dist) => (dist <= 1 ? 'beside this home' : `${dist} tiles from this home`),
+  lifts: (from, to, needs) => `raises its desirability from ${Math.round(from)} to ${Math.round(to)} (it needs ${needs})`,
+  herd: 'by the nearest herd',
   price: (gold, unit, have, short) => `${gold} gold${unit ? ` a ${unit}` : ''}${short ? `, more than the ${have} you have` : ''}`,
 };
 
@@ -96,12 +100,21 @@ export function stepWords(world, home, step) {
   let rest;
   if (f.item === 'road') rest = `a road beside this home ${price('tile')} gives it ${gives(step.need)}`;
   else if (f.item === 'house') rest = `house plots beside this home ${price('plot')} give it ${gives(step.need)}`;
-  else {
+  else if (f.from !== undefined) {
+    // Version 5.0 (Task 7): a low street's decoration, which and where (src/sim/advice.js desirabilityFix): "a statue beside this home (60 gold)
+    // raises its desirability from 22 to 30 (it needs 35)".
+    rest = `${an(buildingName(f.item).toLowerCase())} ${STEP_TEXT.spot(f.dist)} ${price()} ${STEP_TEXT.lifts(f.from, f.to, f.needs)}`;
+  } else {
     const def = BUILDINGS[f.item];
+    // Task 7: a workshop or store goes by the building the fix names (the store it works with, a stuck maker), a hunting lodge by a herd.
+    const by = f.near !== undefined ? world.buildings[f.near] : f.store !== undefined ? world.buildings[f.store] : null;
     const nearHome = !b || f.target.x === home.x + home.w / 2 && f.target.y === home.y + home.d / 2;
-    const place = f.at === 'terrain' && def.terrain ? `on ${GROUND[def.terrain] || 'the right ground'}` : nearHome ? 'near here' : `near the ${buildingName(b.type).toLowerCase()}`;
-    const first = c.code === 'good_unmade' && lacking(world, c.good || step.need).length > 1;   // a clay pit now, a potter after it: the first only starts the good
-    const result = first ? `starts ${gives(step.need)} for this home` : `gives this home ${gives(step.need)}`;
+    const place = f.at === 'terrain' && def.terrain ? `on ${GROUND[def.terrain] || 'the right ground'}` : f.herd ? STEP_TEXT.herd
+      : by ? `near the ${buildingName(by.type).toLowerCase()}` : nearHome ? 'near here' : `near the ${buildingName(b.type).toLowerCase()}`;
+    const good = c.good || step.need;
+    const makes = goodMakers(good).includes(f.item) || c.code !== 'good_unmade';
+    const first = c.code === 'good_unmade' && lacking(world, good).length > 1;   // a clay pit now, a potter after it: the first only starts the good
+    const result = !makes ? `helps make ${gives(step.need)} for this home` : first ? `starts ${gives(step.need)} for this home` : `gives this home ${gives(step.need)}`;
     rest = `${an(buildingName(f.item).toLowerCase())} ${place} ${price()} ${result}`;
   }
   out.action = { label: T.showMe, aria: `${T.showMe}: ${rest}`, build: stepTarget(world, f) };
