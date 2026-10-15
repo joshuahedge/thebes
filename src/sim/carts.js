@@ -9,6 +9,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { HOUSEHOLD_GOODS } from '../data/goods.js';
 import { CARTS } from '../data/s47.js';
+import { MAX_TIER } from '../data/housing.js';
 import { allBuildings, housesOf } from './world.js';
 import { roadReach, reachDistance, touchesRoad, adjacentRoadTiles } from './reach.js';
 import { storeTotal, storeAccepts } from './production.js';
@@ -382,8 +383,9 @@ export function farGoodTip(world) {
   for (const h of housesOf(world)) {
     if (h.tier < 1 || h.residents < 1) continue;
     const wants = wantedNeeds(h);
+    const grows = Math.max(h.tier, Math.min(h.tier + 1, MAX_TIER));   // stocked for the tier it grows into (ruling 471), as topUpHouse does
     for (const g of HOUSEHOLD_GOODS) {
-      if (wants.includes(g) && (h.stock[g] || 0) < monthlyNeed(h, g)) {
+      if (wants.includes(g) && (h.stock[g] || 0) < monthlyNeed(h, g, grows)) {
         if (!waiting.has(g)) waiting.set(g, []);
         waiting.get(g).push(h);
       }

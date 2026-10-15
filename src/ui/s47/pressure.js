@@ -14,7 +14,7 @@ import { MAX_TIER } from '../../data/housing.js';
 import { allBuildings } from '../../sim/world.js';
 import { quotaStatus, quotaAsk, nextQuotaDay, quotaOf } from '../../sim/pressure.js';
 import { courtOpen, monthsLeft, dateOfDay } from '../../sim/court.js';
-import { needsOf } from '../../sim/housing.js';
+import { needsOf, farHeld } from '../../sim/housing.js';
 import { monthlyNeed } from '../../sim/distribution.js';
 import { el, button } from '../components.js';
 import { S47_PRESSURE_TEXT as P, tierName, goodName } from '../text.js';
@@ -25,6 +25,19 @@ const line = (text, cls = 'small muted') => el('p', { class: cls, text });
 const rule = (label, value, cls) => el('p', { class: `small quota-rule ${cls}` }, [el('strong', { text: `${label}: ` }), `${value}.`]);
 // The first store that holds some of a good (for Show me), or null.
 const storeWith = (world, good) => allBuildings(world).find((b) => (BUILDINGS[b.type].stores || []).includes(good) && (b.store[good] || 0) > 0) || null;
+
+// A good still owed that the stores hold only far from every bazaar (the house sheet's good_far, src/sim/housing.js farHeld): its row says so, names
+// Fetch, and its Show me selects that store.
+function farRow(world, g, act) {
+  if (g.sent >= g.amount || g.have < 1) return [];
+  const cause = farHeld(world, g.good);
+  if (!cause) return [];
+  const words = P.goodFar(cause, world);
+  return [
+    el('p', { class: 'small muted quota-far' }, [`${words.cause}. ${words.fix}.`]),
+    el('div', { class: 'actions quota-far-actions' }, [button(P.showMe, { class: 'show-me quiet', 'aria-label': P.showFar(cause, world), onClick: () => act.select(cause.id) })]),
+  ];
+}
 
 // The quota's bar: the share sent, with the numbers beside it and as its name (colour is never the only cue).
 function quotaBar(st) {
@@ -65,6 +78,7 @@ export function quotaNodes(world, act) {
     return el('li', { class: done ? 'met' : 'owed', dataset: { good: g.good } }, [
       el('span', { class: done ? 'tick' : 'cross', 'aria-hidden': 'true', text: done ? '✓' : '·' }), ' ',
       el('span', { class: 'name', text: goodName(g.good) }), ' ', el('span', { class: 'small', text: P.goodRow(g) }),
+      ...farRow(world, g, act),
     ]);
   })));
   nodes.push(rule(P.due, P.dueText(st), 'quota-due'), rule(P.ifMet, P.ifMetText(st), 'quota-if-met'), rule(P.ifMissed, P.ifMissedText(st), 'quota-if-missed'));
@@ -103,6 +117,7 @@ export function createPressureUi(ctx) {
         else if (e.result === 'met') caption(P.captionMet(e));
         else if (e.result === 'missed') caption(P.captionMissed(e));
       } else if (e.type === 'quota_warning') caption(P.captionWarning);
+      else if (e.type === 'quota_reminder') caption(P.captionReminder(e));
       else if (e.type === 'raids_grow') { caption(P.raidsGrow(e)); tip('raidsGrow'); }
       else if (e.type === 'raid_warning' && e.wealth) tip('raidsGrow');
       else if (e.type === 'upgrade' && e.to >= MAX_TIER - 2) tip('upperTiers');

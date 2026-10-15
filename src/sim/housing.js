@@ -330,11 +330,12 @@ function foodCause(world, house) {
 }
 
 // The second food a home lacks (Stage 4.6, ruling 363): of the foods it has none of (in FOOD_SLOTS order: grain, figs, game, fish), the first
-// one whose delivery is on its way, else the first one in order, so the words name the food the player can most easily bring.
+// one whose delivery is on its way, else (Stage 4.7) the first held only in a far store (a Fetch order fixes that), else the first one in order,
+// so the words name the food the player can most easily bring. Also the cause for threeFoods.
 function twoFoodsCause(world, house) {
   const missing = FOOD_SLOTS.filter((g) => FOOD_GOODS.includes(g) && !((house.stock[g] || 0) > 0));
   const causes = missing.map((g) => goodCause(world, house, g));
-  return causes.find((c) => c.code === 'next_delivery') || causes[0];
+  return causes.find((c) => c.code === 'next_delivery') || causes.find((c) => c.code === 'good_far') || causes[0];
 }
 
 function goodCause(world, house, good) {
@@ -364,6 +365,17 @@ function farHolder(world, bazaars, good) {
     }
   }
   return best;
+}
+
+// Stage 4.7 (Task 8): the same 'good_far' cause for a good wherever it is wanted (the tribute quota's sheet), not for one home: no working bazaar that
+// sells the good has it on its stall or a store of it within its supply reach, while a store holding it is linked by road to one of them. Returns
+// { code: 'good_far', good, id, bazaar, len } or null (the good is within a bazaar's reach, nobody sells it, or no linked store holds it).
+export function farHeld(world, good) {
+  const bazaars = allBuildings(world).filter((b) => (BUILDINGS[b.type].sells || []).includes(good) && isWorking(world, b));
+  if (!bazaars.length) return null;
+  const holds = (b) => (b.store[good] || 0) > 0;
+  if (bazaars.some((bz) => holds(bz) || goodStoresFor(world, bz, good).some(holds))) return null;
+  return farHolder(world, bazaars, good);
 }
 
 // Buildings whose reach takes in the home and whose def passes `matches`, nearest first, working or not: the

@@ -2569,7 +2569,7 @@ export const S47_PRESSURE_TEXT = {
   dueText: (st) => `${courtDate(st.due - 1)}, the year's end (${courtMonths(st.monthsLeft)} left)`,
   ifMet: 'If met',
   ifMetText: (st) => (st.early
-    ? `favour ${courtSigned(st.favour)} by month ${s47Quota.early} (${courtMonths(st.earlyLeft)} left), ${courtSigned(s47Quota.favourMet)} after; and ${st.gift} gold`
+    ? `favour ${courtSigned(st.favour)} by month ${s47Quota.early} (${courtMonths(st.earlyLeft)} left), ${courtSigned(st.favourLate)} after; and ${st.gift} gold`
     : `favour ${courtSigned(st.favour)} and ${st.gift} gold`),
   ifMissed: 'If missed',
   ifMissedText: (st) => `favour ${courtSigned(st.missFavour)}${Object.keys(st.carry).length ? `, and ${s47Carry(st.carry)} carries into next year's tribute` : ''}`,
@@ -2582,12 +2582,14 @@ export const S47_PRESSURE_TEXT = {
     return `Ships ${ships}; ${s47Goods(owed, 'owed')} still owed`;
   },
   empty: 'The stores hold none of what is still owed',
+  showMe: 'Show me',
   showStore: (good) => `Show me a store with ${cartGood(good)}`,
   metLine: (st) => `Year ${st.year}'s tribute was met in ${courtDate(st.metDay)}`,
   nextLine: (year, months) => `The next tribute is asked at the start of year ${year}, in ${courtMonths(months)}`,
   // The warning a year ahead (QUOTA.warnYear): a caption at the year's start, and the court sheet's line all that year, with what would be asked today.
   warning: (preview) => `From year ${s47Quota.fromYear} the capital asks a yearly tribute of the goods you make, due by each year's end${preview.length ? `. At today's output: ${s47Goods(preview, 'base')}` : ''}`,
   captionWarning: 'Next year the capital starts asking a yearly tribute: the court sheet says what',
+  captionReminder: (e) => `The yearly tribute is due in ${courtMonths(e.months)}: ${s47Goods(e.owed, 'left')} still owed. Open the court to send it.`,
   captionAsked: (e) => `The capital asks its yearly tribute: ${s47Goods(e.quota.goods)} by the year's end`,
   captionMet: (e) => `Yearly tribute sent: favour ${courtSigned(e.favour)}, ${e.gift} gold`,
   captionMissed: (e) => `The yearly tribute was missed: favour ${courtSigned(e.favour)}${e.carry && Object.keys(e.carry).length ? `; ${s47Carry(e.carry)} carries into next year's` : ''}`,
@@ -2602,7 +2604,7 @@ export const S47_PRESSURE_TEXT = {
   wealthLine: (w) => `${plural(w.size, 'raider', 'raiders')}: your wealth draws ${w.wealth} more`,
   raidsGrow: (e) => `From year ${e.year} raids grow with your wealth: one more raider for each ${e.goldPer} gold and each ${e.peoplePer} people, up to ${e.cap} more`,
   tipRaids: 'Raids now grow with your wealth: the warning says how many raiders your gold and people draw.',
-  tipRaidsHelp: `From year ${s47Late.fromYear} raids gain a raider per ${s47Late.goldPer} gold and per ${s47Late.peoplePer} people, up to ${s47Caps()}. Never on Peaceful.`,
+  tipRaidsHelp: `From year ${s47Late.fromYear}, raids gain one raider per ${s47Late.goldPer} gold and ${s47Late.peoplePer} people: up to ${s47Caps()} more raiders, by level.`,
   // ── The upper tiers (ruling 471), from the housing data ──
   useHead: 'Uses a month',
   // "12 pottery, 12 beer and 9 linen (1.5× the usual), and food of three kinds".
