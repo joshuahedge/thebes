@@ -77,8 +77,8 @@ export function findSource(world, home, good, stores = storesOf(world)) {
   return best;
 }
 
-// Room a store has for more goods (all its goods share the capacity).
 const holdsGoods = (c) => c.state === 'out' || c.state === 'back' || (c.state === 'return' && c.dest === 'source');
+// Room a store has for more goods (all its goods share the capacity).
 export const roomOf = (b) => Math.max(0, BUILDINGS[b.type].capacity - storeTotal(b));
 
 // A store can send a cart when it works (not paused, not burning, enough of its staff) and a road touches it.
@@ -150,14 +150,16 @@ export function holderOf(world, id, good) {
 // ── What the interface says (the words are text.js's; these are the parts, from the sim) ──
 
 // The consequence of an order before it is set: one cart, perTrip a trip, from the nearest store that can spare the good, len road tiles, days
-// each way. { good, fetch, perTrip, source: { id, type, len, days, dir } | null, staffed }. source is null when no store can spare it (the order
+// each way. { good, fetch, perTrip, held, state: 'full' | 'no_room' | null, source: { id, type, len, days, roundTrip, dir, spare, keeps } | null, staffed }. source is null when no store can spare it (the order
 // would be refused).
 export function fetchPreview(world, id, good, amount = CARTS.defaultFetch) {
   const b = world.buildings[id];
   if (!isStore(b)) return null;
   const found = findSource(world, b, good);
+  const held = heldOf(b, good);
   return {
     good, fetch: amount, perTrip: CARTS.perTrip, speed: CARTS.speed,
+    held, state: held >= amount ? 'full' : roomOf(b) < 1 ? 'no_room' : null,   // the live status's 'full' and 'no_room' (fetchStatus), so the line before the tap and the line after agree
     source: found ? {
       id: found.b.id, type: found.b.type, len: found.len, days: legDays(found.len), roundTrip: roundTripDays(found.len), dir: directionTo(b, found.b),
       spare: found.surplus, keeps: orderOf(found.b, good) ? orderOf(found.b, good).fetch : 0,   // what it can give, and what it keeps for its own order (0: no order of its own, so it can be emptied)

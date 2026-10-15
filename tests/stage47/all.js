@@ -15,3 +15,4 @@ import './carts/tip.test.js';
 import './carts/review.test.js';
 import './carts/render.test.js';
 import './carts/ui.test.js';
+import './carts/uiReview.test.js';

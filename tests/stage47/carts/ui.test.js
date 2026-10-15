@@ -182,21 +182,21 @@ describe('s47 carts ui: the words are the sim\'s', () => {
     try {
       expand(r);
       const pv = fetchPreview(w, home.id, 'pottery', 100);
-      expect(lineOf(row(r, 'pottery'), '.fetch-consequence')).toBe(W.consequence(pv));
-      expect(lineOf(row(r, 'pottery'), '.fetch-consequence')).toContain('a round trip takes 7 days');
+      expect(lineOf(row(r, 'pottery'), '.fetch-consequence')).toBe(W.consequenceRow(pv));
+      expect(lineOf(row(r, 'pottery'), '.fetch-consequence')).toBe('One cart, 20 a trip, 28 road tiles (a round trip takes 7 days)');
       expect(lineOf(row(r, 'pottery'), '.fetch-source')).toBe('That storehouse has no order for pottery of its own, so it can be emptied (80 to spare)');
       far.orders = { pottery: { fetch: 50 } };                                           // now the source keeps 50 for itself
       r.store.set(select(r.store.get(), far.id)); r.store.set(select(r.store.get(), home.id));
       expect(lineOf(row(r, 'pottery'), '.fetch-source')).toBe('That storehouse keeps 50 pottery for its own order and gives only the rest (30 to spare)');
       expect(W.sourceNote('pottery', fetchPreview(w, home.id, 'pottery', 100).source)).toBe(lineOf(row(r, 'pottery'), '.fetch-source'));
       // a good no store holds to spare: the consequence says so, and there is no source line and no Show me
-      expect(lineOf(row(r, 'beer'), '.fetch-consequence')).toBe('Fetch beer: no store with beer to spare is linked by road');
+      expect(lineOf(row(r, 'beer'), '.fetch-consequence')).toBe('No store with beer to spare is linked by road');
       expect(row(r, 'beer').querySelector('.fetch-source')).toBe(null);
       expect(row(r, 'beer').querySelector('.show-me')).toBe(null);
       // the amount in the consequence follows the stepper
       click(row(r, 'linen').querySelector('.stepper .more'));
-      expect(lineOf(row(r, 'linen'), '.fetch-consequence')).toBe(W.consequence(fetchPreview(w, home.id, 'linen', 120)));
-      expect(lineOf(row(r, 'linen'), '.fetch-consequence')).toContain('up to 120');
+      expect(lineOf(row(r, 'linen'), '.fetch-consequence')).toBe(W.consequenceRow(fetchPreview(w, home.id, 'linen', 120)));
+      expect(row(r, 'linen').querySelector('.stepper .value').textContent).toBe('up to 120');
     } finally { r.cleanup(); }
   });
 
