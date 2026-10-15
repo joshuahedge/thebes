@@ -142,6 +142,17 @@ describe('v50 layers: the map', () => {
     const [lx, ly] = s.at(6, 6);
     expect(pixelAt(s.c, lx, ly)[3]).toBe(255);                                       // the number's label at the district's middle
   });
+  it('Workers: the jobless number sits at the own centre of its district, however the map is panned (a range that cuts the district does not move it)', () => {
+    const w = makeTestWorld();
+    addRaw(w, 'house', 2, 2, { tier: 2, residents: 30 });
+    w.labour = { workforce: 100, employed: 60, jobs: 60, shortLevels: [] };
+    for (const range of [ALL, { x0: 3, y0: 3, x1: 31, y1: 31 }, { x0: 0, y0: 0, x1: 8, y1: 8 }]) {
+      const s = scene(3, 3, 2, 700);
+      drawOverlay(s.g, w, 'workers', range);
+      const [lx, ly] = s.at(6, 6);
+      expect([range.x0, pixelAt(s.c, lx, ly)[3]]).toEqual([range.x0, 255]);
+    }
+  });
   it('only what is in the range is drawn, and the badges are left off when the map is too small to hold them (the washes stay)', () => {
     const { w } = street();
     const none = scene(12, 11);

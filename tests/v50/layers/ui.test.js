@@ -65,6 +65,7 @@ describe('v50 layers: the Layers picker', () => {
   it('names each new layer, with words for every key it draws', () => {
     expect(['progress', 'supply', 'workers'].map((k) => OVERLAY_NAMES[k])).toEqual(['Home progress', 'Goods supply', 'Workers']);
     for (const k of LAYER_OVERLAYS) expect([k, OVERLAY_LEGEND[k].length]).toEqual([k, 3]);
+    expect(W.newcomer.words).toContain('placed or resumed');
     expect(W.stopped.words).toContain(`${Math.round(MIN_STAFF_RATIO * 100)}%`);                       // the sim's own staff line
     expect(W.jobless.words).toContain(JOBLESS_BANDS.map((b, i) => (JOBLESS_BANDS[i + 1] ? `${b.from} to ${JOBLESS_BANDS[i + 1].from - 1}` : `${b.from} or more`)).join(', '));
     expect(TIP_HELP_TEXT.layer_progress).toContain('first home');                                // How to play says when each comes
@@ -96,8 +97,8 @@ describe('v50 layers: the legend row', () => {
     const legend = createOverlayLegend({ container: root, store, world });
     return { root, store, legend, strip: () => root.querySelector('.strip'), cleanup };
   };
-  it('Home progress and Workers: a strip with the name, three keys each carrying its words, and an x that turns the layer off', () => {
-    for (const [kind, words] of [['progress', [W.ready, W.one, W.many]], ['workers', [W.short, W.stopped, W.jobless]]]) {
+  it('Home progress and Workers: a strip with the name, its keys each carrying its words (Workers adds a note on when a count is taken), and an x that turns the layer off', () => {
+    for (const [kind, words] of [['progress', [W.ready, W.one, W.many]], ['workers', [W.short, W.stopped, W.jobless, W.newcomer]]]) {
       const r = legendFor(kind, cityAt('town'));
       try {
         const strip = r.strip();
@@ -106,7 +107,8 @@ describe('v50 layers: the legend row', () => {
         const keys = [...strip.querySelectorAll('.key')];
         expect([kind, keys.map((k) => k.getAttribute('aria-label'))]).toEqual([kind, words.map((x) => x.words)]);
         expect([kind, keys.map((k) => k.querySelector('.text').textContent)]).toEqual([kind, words.map((x) => x.label)]);   // the label is on screen, the words are for a screen reader
-        expect([kind, keys.every((k) => k.querySelector('svg.layer-swatch'))]).toEqual([kind, true]);
+        expect([kind, keys.filter((k) => !k.classList.contains('note')).every((k) => k.querySelector('svg.layer-swatch'))]).toEqual([kind, true]);
+        expect([kind, keys.filter((k) => k.classList.contains('note')).length]).toEqual([kind, kind === 'workers' ? 1 : 0]);
         expect([kind, strip.querySelector('.goods-pick')]).toEqual([kind, null]);
         fire(strip.querySelector('.close'), 'click');
         expect([kind, r.store.get().overlay]).toEqual([kind, null]);

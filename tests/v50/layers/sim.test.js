@@ -7,6 +7,7 @@ import { houseStatus } from '../../../src/sim/housing.js';
 import { nextStep } from '../../../src/sim/advice.js';
 import { setPaused, demolishAt } from '../../../src/sim/commands.js';
 import { advanceDays } from '../../../src/sim/clock.js';
+import { assignLabour } from '../../../src/sim/labour.js';
 import { removeBuilding, buildingsVersion } from '../../../src/sim/world.js';
 import { MIN_STAFF_RATIO } from '../../../src/data/labour.js';
 import { CRIME } from '../../../src/data/crime.js';
@@ -199,6 +200,23 @@ describe('v50 layers: workers', () => {
     delete farm.staff;
     changed(w);                                                      // placed and not yet staffed (the day's labour has not run)
     expect([workersState(w).shorts[0].staff, workersState(w).shorts[0].short, workersState(w).shorts[0].stopped]).toEqual([0, 10, true]);
+  });
+  it('a workplace placed or resumed mid-day shows its shortfall until the count on the next day, which hires it (what the Workers key says)', () => {
+    const { w, farm } = farmStreet();
+    addRaw(w, 'house', 12, 11, { tier: 4, residents: 100 });                  // people to work
+    assignLabour(w);                                                          // the day's count: the farm is staffed
+    changed(w);
+    expect(workersState(w).shorts).toEqual([]);
+    setPaused(w, farm.id, true);
+    assignLabour(w);                                                          // the next count: paused, so it hires nobody
+    changed(w);
+    setPaused(w, farm.id, false);                                             // resumed mid-day
+    expect(workersState(w).shorts.map((x) => [x.id, x.short])).toEqual([[farm.id, 10]]);
+    const fresh = addRaw(w, 'farm_grain', 8, 11);                             // placed mid-day
+    expect(workersState(w).shorts.map((x) => x.id).sort()).toEqual([farm.id, fresh.id].sort());
+    assignLabour(w);                                                          // the next count hires them
+    changed(w);
+    expect(workersState(w).shorts).toEqual([]);
   });
   it('a paused workplace, one with no road beside it and one that needs no workers are not listed: the sim counts no jobs for them', () => {
     const { w, farm } = farmStreet();

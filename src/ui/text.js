@@ -2674,6 +2674,7 @@ export const V50_LAYERS_TEXT = {
   // Workers: short of staff, not working, and the jobless.
   short: { label: 'Short', words: 'Label with a minus: how many workers a workplace lacks' },
   stopped: { label: 'Not working', words: `Hatched: below ${v50Staff} of the workers it needs, so it does not work` },
+  newcomer: { label: 'New: counted next day', words: 'A workplace placed or resumed during the day shows its shortfall until the count on the next day' },
   jobless: { label: 'Jobless', words: `Shaded district with a number: people with no work, shared out over the districts by where people live (${v50Bands.join(', ')}, the last hatched)` },
   tipProgress: 'Layers has a new one: Home progress shows how close each home is to its next tier.',
   tipProgressHelp: 'Home progress (from your first home): a tick means all met, an icon the missing need, a number how many.',
