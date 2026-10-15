@@ -212,8 +212,10 @@ export function createSheets({ container, store, world, placement, cameraControl
       const near = step ? step.target : centreOf(fix.at !== 'home' && building ? building : h);
       const at = (step ? step.at : fix.at) === 'terrain' ? nearestTerrainTile(world, BUILDINGS[item].terrain, near) || near : near;
       const target = { category: categoryOfItem(item), item, x: at.x, y: at.y };
-      // A low street's decoration is said as the next step says it (which building, where, its price, the street before and after), not the general line.
-      const rest = step && step.from !== undefined ? stepWords(world, h, { reason: null, need: c.need, cause, fix: step, cost: priceOf(world, step), afford: canAfford(world, priceOf(world, step)) }).rest : null;
+      // A low street's decoration, a workshop by its store and a hunting lodge by the herd are said as the next step says them (which building, where, its price, what it gives),
+      // not the general line, so the words and the aria-label name what Show me starts.
+      const named = step && (step.from !== undefined || step.herd || step.near !== undefined || step.store !== undefined);
+      const rest = named ? stepWords(world, h, { reason: null, need: c.need, cause, fix: step, cost: priceOf(world, step), afford: canAfford(world, priceOf(world, step)) }).rest : null;
       if (rest) said = rest.charAt(0).toUpperCase() + rest.slice(1);
       action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${said}`, onClick: () => onShowMeBuild(target) });
     }

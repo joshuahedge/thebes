@@ -21,12 +21,14 @@ export function createGestures(handlers, { now = () => performance.now(), double
   }
 
   function pointerDown(id, x, y, type, button = 0) {
-    pointers.set(id, { x, y, startX: x, startY: y, prevX: x, prevY: y, type, button, inPinch: false });
+    pointers.set(id, { x, y, startX: x, startY: y, prevX: x, prevY: y, type, button, inPinch: false, downAt: now() });
     if (pointers.size === 2) {
+      // Version 5.0 (Task 8): both fingers count from the first one's touch-down, and a finger that already moved past the drag threshold (a drag a second finger joins) is not a tap
+      const lone = [...pointers.values()].some((p) => Math.hypot(p.x - p.startX, p.y - p.startY) >= DRAG_THRESHOLD_PX);
       if (dragging) { dragging = false; call('onDragEnd', { x, y, type, button, pinch: true }); }
       for (const p of pointers.values()) p.inPinch = true;
       pinch = pair();
-      two = { t: now(), x: pinch.cx, y: pinch.cy, ok: true };
+      two = { t: Math.min(...[...pointers.values()].map((p) => p.downAt)), x: pinch.cx, y: pinch.cy, ok: !lone && !dragging };
       call('onPinchStart', { cx: pinch.cx, cy: pinch.cy });
     } else if (pointers.size > 2) { two = null; lastTwo = null; }
   }

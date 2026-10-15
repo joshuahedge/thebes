@@ -144,7 +144,8 @@ export function createRenderer({
   const dprOf = typeof dpr === 'function' ? dpr : () => dpr;
   let currentDpr = dprOf();
   const ctx = canvas.getContext('2d');
-  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, live: 0, ms: 0, frames: 0, stale: 0 };
+  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, live: 0, ms: 0, frames: 0, stale: 0, prebakes: 0 };
+  let ring = { key: '', done: false };   // Version 5.0 (Task 8): the ring of chunks round the view that is baked, so a fling finds them ready
 
   function renderFrame(world, cam, opts = {}) {
     const started = performance.now();
@@ -182,6 +183,35 @@ export function createRenderer({
       const [px, py] = toDevice(o[0], o[1]);
       drawSprite(ctx, sprite, px, py, zoom, dpr);
       chunks++;
+    }
+
+    // 1b. Version 5.0 (Task 8): the culled chunks are not baked while they are off the canvas, so a fast fling would bake at the leading edge (two a frame) and
+    // hitch on a phone. On a frame with nothing to bake, one chunk of the ring round the visible chunks is baked ahead, nearest the view first, never past what the
+    // baker holds (it would evict the chunks in view). Once the ring is whole the pass is skipped until the view or the zoom moves it or a visible chunk re-bakes.
+    let prebakes = 0;
+    if (cullControl.on && baker.capacity) {
+      if (bakes > 0 || stale > 0) ring.done = false;
+      else {
+        const vis = visibleChunks(range);
+        let cx0 = Infinity, cx1 = -Infinity, cy0 = Infinity, cy1 = -Infinity;
+        for (const { cx, cy } of vis) { cx0 = Math.min(cx0, cx); cx1 = Math.max(cx1, cx); cy0 = Math.min(cy0, cy); cy1 = Math.max(cy1, cy); }
+        const rk = `,,,||`;
+        if (rk !== ring.key) ring = { key: rk, done: false };
+        if (!ring.done && vis.length) {
+          const n = Math.ceil(world.size / CHUNK), mid = [(cx0 + cx1) / 2, (cy0 + cy1) / 2];
+          let next = null, best = Infinity;
+          for (let cy = Math.max(0, cy0 - 1); cy <= Math.min(n - 1, cy1 + 1); cy++) {
+            for (let cx = Math.max(0, cx0 - 1); cx <= Math.min(n - 1, cx1 + 1); cx++) {
+              if (cx >= cx0 && cx <= cx1 && cy >= cy0 && cy <= cy1 && chunkShows(cam, view, cx, cy)) continue;   // in view: drawn above
+              if (baker.peek(world, cx, cy, zoom, dpr).fresh) continue;
+              const d = Math.hypot(cx - mid[0], cy - mid[1]);
+              if (d < best) { best = d; next = { cx, cy }; }
+            }
+          }
+          if (next && baker.size(world) < baker.capacity) { baker.get(world, next.cx, next.cy, zoom, dpr, true); prebakes++; }
+          else ring.done = true;                                         // whole, or the baker is full
+        }
+      }
     }
 
     // 2. Ground shadows, drawn in art px with the art origin placed by the camera.
@@ -231,7 +261,7 @@ export function createRenderer({
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
+    stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.prebakes = prebakes; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
     stats.ms = performance.now() - started; stats.frames++;
     return stats;
   }

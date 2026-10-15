@@ -23,3 +23,4 @@ import './camera/camera.test.js';
 import './grand/sim.test.js';
 import './grand/ui.test.js';
 import './grand/balance.test.js';
+import './balance/carried.test.js';

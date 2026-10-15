@@ -510,5 +510,5 @@ export function createTerrainBaker({ createCanvas = defaultCreateCanvas, counter
     return e.sprite;
   }
 
-  return { get, peek, size: (world) => entryFor(world).map.size, clear: (world) => perWorld.delete(world) };
+  return { get, peek, capacity: maxChunks, size: (world) => entryFor(world).map.size, clear: (world) => perWorld.delete(world) };
 }

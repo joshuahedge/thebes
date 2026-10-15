@@ -719,6 +719,7 @@ export function roadlessPlotBadges(world, range = null) {
   const key = `${world.roadVersion}|${buildingsVersion(world)}`;   // Version 5.0 (Task 6): the groups depend on the roads and which homes stand where, not on their staff or tier
   let m = plotBadgeMemo.get(world);
   if (!m || m.key !== key) { m = { key, list: groupRoadless(world) }; plotBadgeMemo.set(world, m); }
+  for (const b of m.list) { const art = ART[slotFor(world.buildings[b.id])]; b.lift = (art ? art.height : 0) + b.liftBase; }   // the sprite's height follows the tier, which the memo does not key on
   if (!range) return m.list;
   return m.list.filter((b) => b.x >= range.x0 && b.x <= range.x1 + 1 && b.y >= range.y0 && b.y <= range.y1 + 1);
 }
@@ -746,8 +747,7 @@ function groupRoadless(world) {
     const mid = group.reduce((s, h) => [s[0] + (h.x + h.w / 2) / group.length, s[1] + (h.y + h.d / 2) / group.length], [0, 0]);
     const d = (h) => Math.hypot(h.x + h.w / 2 - mid[0], h.y + h.d / 2 - mid[1]);
     const pick = group.reduce((a, h) => (d(h) < d(a) - 1e-9 || (Math.abs(d(h) - d(a)) <= 1e-9 && h.id < a.id) ? h : a));
-    const art = ART[slotFor(pick)];                                         // an empty plot has no sprite: the badge sits just over its tile
-    out.push({ id: pick.id, ids: group.map((h) => h.id).sort((a, b) => a - b), x: pick.x + pick.w / 2, y: pick.y + pick.d / 2, lift: (art ? art.height : 0) + 4 * (pick.w + pick.d) + BADGE_R + 1 });
+    out.push({ id: pick.id, ids: group.map((h) => h.id).sort((a, b) => a - b), x: pick.x + pick.w / 2, y: pick.y + pick.d / 2, liftBase: 4 * (pick.w + pick.d) + BADGE_R + 1, lift: 0 });   // lift = the pick's sprite height (an empty plot has none: just over its tile) + liftBase, refreshed on each read
   }
   return out;
 }
