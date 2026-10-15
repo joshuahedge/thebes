@@ -1264,3 +1264,20 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
 #sheet .fetch-good .show-me { margin-top: 4px; }
 #sheet .road-line { margin: 2px 0 0; font-weight: 600; }
 #sheet .fetch-good .show-me { border: 1px solid var(--ink-line); }
+/* Stage 4.7 (Task 7, ruling 469): the yearly tribute on the court sheet (src/ui/s47/pressure.js): the bar with its words beside it, a row per good with a mark
+   (✓ shipped, never colour alone), the rules as wrapping lines, and Send as the court's choices are. Ruling 471: the house sheet's "Uses a month" row and the top
+   tier's keep list. Ruling 470: the raid sheet's wealth line. */
+#sheet .quota-title { margin: 4px 0; font-weight: 600; }
+#sheet .quota-progress { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+#sheet .quota-progress .meter { flex: 1 1 auto; width: auto; height: 10px; }
+#sheet .quota-progress .quota-sent { flex: none; }
+#sheet .quota-goods { list-style: none; padding-left: 0; margin: 4px 0; }
+#sheet .quota-goods li { padding: 2px 0; }
+#sheet .quota-goods .tick { color: var(--teal); font-weight: 700; }
+#sheet .quota-goods .name { font-weight: 600; }
+#sheet .quota-rule { margin: 4px 0; }
+#sheet .quota-send { margin: 10px 0 4px; }
+#sheet .quota-actions { margin: 4px 0 8px; }
+#sheet .tier-use { align-items: baseline; gap: 8px; }
+#sheet .tier-use > span:last-child { text-align: right; }
+#sheet .raid-wealth { font-weight: 600; }

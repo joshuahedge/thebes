@@ -120,7 +120,41 @@ export const GRASS = {
 // Task 2: "An oasis in the desert" (the first, when a building first goes up within OASES.near tiles of an oasis: tally oasisBuilds) and its
 // tip (How to play lists every tip). Joined into FIRSTS (firsts.js) and TIPS (tips.js); the words are in src/ui/text.js (the s47 section).
 // Task 4: "A good spot", the first plot laid on a Good spot (tally goodSpotPlots).
-export const S47_FIRSTS = [{ id: 'first_oasis', check: { kind: 'tally', key: 'oasisBuilds', n: 1 } }, { id: 'first_good_spot', check: { kind: 'tally', key: 'goodSpotPlots', n: 1 } }, { id: 'first_cart_trip', check: { kind: 'tally', key: 'cartTrips', n: 1 } }];
+export const S47_FIRSTS = [{ id: 'first_oasis', check: { kind: 'tally', key: 'oasisBuilds', n: 1 } }, { id: 'first_good_spot', check: { kind: 'tally', key: 'goodSpotPlots', n: 1 } }, { id: 'first_cart_trip', check: { kind: 'tally', key: 'cartTrips', n: 1 } }, { id: 'first_quota_met', check: { kind: 'tally', key: 'quotasMet', n: 1 } }];
 // Task 3: the hills tip fires the first time a placing check is refused for hills (src/ui/s46/map.js): words in text.js, listed in How to play.
 // Task 4: the next-house spots tip fires when the first plot is laid and the house tool stays on (src/ui/createUI.js afterCommand); it waits for the tool to end.
-export const S47_TIPS = [{ id: 'oasis_green', trigger: 'oasisBuilt', priority: false }, { id: 'hills_ground', trigger: 'hillsMet', priority: false }, { id: 'house_spots', trigger: 'houseSpots', priority: false }, { id: 'fetch_far', trigger: 'goodsFar', priority: false }];
+export const S47_TIPS = [{ id: 'oasis_green', trigger: 'oasisBuilt', priority: false }, { id: 'hills_ground', trigger: 'hillsMet', priority: false }, { id: 'house_spots', trigger: 'houseSpots', priority: false }, { id: 'fetch_far', trigger: 'goodsFar', priority: false },
+  { id: 'tribute_quota', trigger: 'quotaAsked', priority: false }, { id: 'raids_wealth', trigger: 'raidsGrow', priority: false }, { id: 'upper_tiers', trigger: 'upperTiers', priority: false }];   // Task 7: see QUOTA, RAIDS_LATE below
+
+// ── Task 7 (rulings 469-471): late-game pressure ──
+// The yearly tribute quota (ruling 469, src/sim/pressure.js). From the first day of year `fromYear` (a city whose court is open) the capital asks,
+// at each year's start, a shipment due by the year's end: up to `goods` goods, the household goods and foods the city made most of last year by
+// value (GOOD_VALUE, src/data/court.js), each `share` (by difficulty) of last year's output of it, rounded to `step` (at least `min`); a good whose
+// year's output is under `least` is not asked. Last year's output is tally.made's rise since the year began (the snapshot court.yearMade, taken
+// at every year's start); with no snapshot a year old (an old save) or none made, the court's own outputPerMonth x 12 (a working producer's output,
+// or an open route's yearly quota for a good the city only trades for). Met (every good shipped): favour + favourMet, or + favourEarly when met
+// by the end of month `early`, and a gift of `giftShare` of the quota's value in gold (rounded to giftStep, at least giftMin). Missed at the
+// year's end: favour - favourMissed, and what was not shipped of each good's own ask carries into next year's quota (once: a carried part is
+// never carried again). The warning comes at the start of year `warnYear`. On at every level, Peaceful too (it is not a threat).
+export const QUOTA = {
+  fromYear: 8, warnYear: 7, goods: 3, least: 40, step: 5, min: 5, early: 6,
+  share: { peaceful: 0.1, relaxed: 0.1, normal: 0.125, hard: 0.15 },
+  favourMet: 5, favourEarly: 8, favourMissed: 15, giftShare: 0.2, giftStep: 10, giftMin: 20,
+};
+// world.court.quota: null, or { year, day, due, early (the last day that counts as early), gift, goods: [{ good, amount, base, carried, sent }],
+// result: null | 'met' | 'missed', metDay }. amount = base + carried. world.court.yearMade: null, or { day, made: { [good]: n } } (tally.made then).
+const isQuotaGood = (g) => isRec(g) && typeof g.good === 'string' && ['amount', 'base', 'carried', 'sent'].every((k) => isNum(g[k]));
+export const isQuota = (q) => q === undefined || q === null || (isRec(q) && ['year', 'day', 'due', 'early'].every((k) => Number.isInteger(q[k]))
+  && isNum(q.gift) && Array.isArray(q.goods) && q.goods.every(isQuotaGood) && [null, 'met', 'missed'].includes(q.result));
+export const isYearMade = (y) => y === undefined || y === null || (isRec(y) && Number.isInteger(y.day) && isRec(y.made));
+
+// Raids grow with wealth (ruling 470, src/sim/raids.js wealthDraw). From year `fromYear` a raid's size (every raid but the first) gains one raider
+// for each `goldPer` gold in the treasury and one for each `peoplePer` people, at most `cap` by difficulty (none on Peaceful, which has no raids);
+// the score's defence term keeps baseRaidSize, without it (ruling 441). From the same year a raid from the 4th on comes as two bands when its
+// seeded draw (hash2(seed, raid index, RAID_SALT.two), the draw ruling 317 uses) is under `twoSidedChance` (was RAIDS.twoSidedChance). The warning
+// comes at the start of year `warnYear`.
+export const RAIDS_LATE = { fromYear: 10, warnYear: 9, goldPer: 10000, peoplePer: 500, cap: { peaceful: 0, relaxed: 3, normal: 6, hard: 9 }, twoSidedChance: 0.6 };
+
+// Task 7's first (S47_FIRSTS: the first yearly quota met) and tips (S47_TIPS): the quota's (when one is asked), the raids' (at their warning a
+// year ahead, or the first warning that carries the wealth term) and the upper tiers' (a home reaches a tier whose next one asks for three kinds
+// of food). How to play lists every tip.

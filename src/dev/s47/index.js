@@ -5,6 +5,7 @@
 import { grassScene, oasisScene, hillsScene } from './land.js';
 import { houseSpotsScene } from './spots.js';
 import { cartsScene } from './carts.js';
+import { quotaScene, raidWealthScene, estateScene } from './pressure.js';
 
 export const S47_SCENES = {
   's47-grass': grassScene,                      // Task 2: the green river band on a new map
@@ -12,5 +13,8 @@ export const S47_SCENES = {
   's47-hills': hillsScene,                      // Task 3: hills with their rocky skirt
   's47-house-spots': houseSpotsScene,         // Task 4: Good / Fair plots while the house tool is on
   's47-carts': cartsScene,                      // Tasks 5-6: a far district holding pottery, homes that wait on it, a near storehouse to set to Fetch it
+  's47-quota': quotaScene,                      // Task 7: the court sheet with the yearly tribute
+  's47-raid-wealth': raidWealthScene,           // Task 7: a year-11 raid whose size carries the wealth term
+  's47-estate': estateScene,                    // Task 7: an Estate's sheet: what keeps it, the third food, Show me to a far store
 };
 export const STAGE47_SCENES = Object.keys(S47_SCENES);

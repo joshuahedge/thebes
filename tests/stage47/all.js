@@ -18,3 +18,7 @@ import './carts/review.test.js';
 import './carts/render.test.js';
 import './carts/ui.test.js';
 import './carts/uiReview.test.js';
+import './pressure/quota.test.js';
+import './pressure/raids.test.js';
+import './pressure/tiers.test.js';
+import './pressure/balance.test.js';

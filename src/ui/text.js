@@ -163,6 +163,7 @@ export function causeText(cause, world, need = null) {
   const good = cause.good || (need && GOODS[need] ? need : null);
   if (cause.code === 'next_delivery' && need !== 'food' && (good || need === 'twoFoods')) return { cause: good ? `The next delivery brings ${goodWord(good)}` : T.bothFoodsComing, fix: '' };
   if ((cause.code === 'no_good' || cause.code === 'good_unmade') && good) return goodWords(cause.code, good, world);
+  if (cause.code === 'good_far') return S47_PRESSURE_TEXT.goodFar(cause, world);   // Stage 4.7 (Task 7): held only in a far store
   const t = CAUSE_TEXT[cause.code];
   if (!t) return null;
   if (!t.paused) return t;
@@ -2541,4 +2542,92 @@ export const S47_CARTS_TEXT = {
 FIRST_TEXT.first_cart_trip = S47_CARTS_TEXT.first;
 TIP_TEXT.fetch_far = S47_CARTS_TEXT.tip;
 TIP_HELP_TEXT.fetch_far = S47_CARTS_TEXT.tipHelp;
+// Task 7 (rulings 469-471): late-game pressure. The yearly tribute (src/sim/pressure.js quotaStatus, quotaAsk; numbers in src/data/s47.js QUOTA), raids that
+// grow with wealth (src/sim/raids.js wealthDraw; RAIDS_LATE) and the tougher upper tiers (src/data/housing.js: threeFoods and use). Every number comes from the
+// sim's own function or data.
+import { QUOTA as s47Quota, RAIDS_LATE as s47Late } from '../data/s47.js';
+import { useOf as s47UseOf } from '../data/housing.js';
+const s47Pct = (x) => `${Math.round(x * 1000) / 10}%`;
+const s47List = (items, last = 'and') => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} ${last} ${items[items.length - 1]}`);
+const s47Goods = (rows, key = 'amount') => s47List(rows.filter((g) => g[key] > 0).map((g) => `${g[key]} ${cartGood(g.good)}`));
+const s47Carry = (carry) => s47List(Object.entries(carry).map(([good, n]) => `${n} ${cartGood(good)}`));
+// "10-15%", "3-9": the range over the levels, from the data (How to play's words are short: a tip's help is at most 20 words).
+const s47Range = (vals, fmt = String) => { const lo = Math.min(...vals), hi = Math.max(...vals); return lo === hi ? fmt(lo) : `${fmt(lo).replace('%', '')}-${fmt(hi)}`; };
+const s47Shares = () => s47Range(Object.values(s47Quota.share), s47Pct);
+const s47Caps = () => s47Range(['relaxed', 'normal', 'hard'].map((d) => s47Late.cap[d]));
+const s47Times = (x) => `${x}×`;
+export const S47_PRESSURE_TEXT = {
+  // ── The yearly tribute (ruling 469): a standing letter on the court sheet ──
+  quotaHead: 'Yearly tribute',
+  quotaIntro: (difficulty) => `Each year the capital asks ${s47Pct(s47Quota.share[difficulty] ?? s47Quota.share.normal)} of last year's output of up to ${s47Quota.goods} goods you made most of, due by the year's end`,
+  quotaTitle: (st) => `Year ${st.year}: ${s47Goods(st.goods)}`,
+  progress: (st) => `${st.sent} of ${st.total} sent`,
+  progressLabel: (st) => `Tribute sent: ${st.sent} of ${st.total}`,
+  summaryLine: (st) => `${st.sent} of ${st.total} sent, ${courtMonths(st.monthsLeft)} left`,
+  goodRow: (g) => `${g.sent} of ${g.amount}${g.carried ? ` (${g.carried} carried from last year)` : ''}, ${g.have} in store`,
+  due: 'Due',
+  dueText: (st) => `${courtDate(st.due - 1)}, the year's end (${courtMonths(st.monthsLeft)} left)`,
+  ifMet: 'If met',
+  ifMetText: (st) => (st.early
+    ? `favour ${courtSigned(st.favour)} by month ${s47Quota.early} (${courtMonths(st.earlyLeft)} left), ${courtSigned(s47Quota.favourMet)} after; and ${st.gift} gold`
+    : `favour ${courtSigned(st.favour)} and ${st.gift} gold`),
+  ifMissed: 'If missed',
+  ifMissedText: (st) => `favour ${courtSigned(st.missFavour)}${Object.keys(st.carry).length ? `, and ${s47Carry(st.carry)} carries into next year's tribute` : ''}`,
+  sendLabel: (st) => (st.completes ? 'Send the tribute' : 'Send what the stores hold'),
+  sendConsequence: (st) => {
+    if (!st.shipNow) return 'Nothing to ship yet: the stores hold none of what is owed';
+    const ships = s47Goods(st.goods, 'ship');
+    if (st.completes) return `Ships ${ships}: the tribute is met, favour ${courtSigned(st.favour)} and ${st.gift} gold`;
+    const owed = st.goods.map((g) => ({ good: g.good, owed: g.left - g.ship }));
+    return `Ships ${ships}; ${s47Goods(owed, 'owed')} still owed`;
+  },
+  empty: 'The stores hold none of what is still owed',
+  showStore: (good) => `Show me a store with ${cartGood(good)}`,
+  metLine: (st) => `Year ${st.year}'s tribute was met in ${courtDate(st.metDay)}`,
+  nextLine: (year, months) => `The next tribute is asked at the start of year ${year}, in ${courtMonths(months)}`,
+  // The warning a year ahead (QUOTA.warnYear): a caption at the year's start, and the court sheet's line all that year, with what would be asked today.
+  warning: (preview) => `From year ${s47Quota.fromYear} the capital asks a yearly tribute of the goods you make, due by each year's end${preview.length ? `. At today's output: ${s47Goods(preview, 'base')}` : ''}`,
+  captionWarning: 'Next year the capital starts asking a yearly tribute: the court sheet says what',
+  captionAsked: (e) => `The capital asks its yearly tribute: ${s47Goods(e.quota.goods)} by the year's end`,
+  captionMet: (e) => `Yearly tribute sent: favour ${courtSigned(e.favour)}, ${e.gift} gold`,
+  captionMissed: (e) => `The yearly tribute was missed: favour ${courtSigned(e.favour)}${e.carry && Object.keys(e.carry).length ? `; ${s47Carry(e.carry)} carries into next year's` : ''}`,
+  captionShipped: (shipped) => `Shipped ${s47Carry(shipped)} to the capital`,
+  logLine: (e) => (e.result === 'met'
+    ? `Year ${e.year}'s tribute met: favour ${courtSigned(e.favour)}, ${e.gold} gold`
+    : `Year ${e.year}'s tribute missed (${s47Goods(e.goods.map((g) => ({ good: g.good, owed: Math.max(0, g.amount - g.sent) })), 'owed')} short): favour ${courtSigned(e.favour)}`),
+  first: { head: 'Tribute delivered', why: `You sent the capital its yearly tribute: favour +${s47Quota.favourMet}, or +${s47Quota.favourEarly} by month ${s47Quota.early}, and a gift of gold.` },
+  tip: `The capital asks a yearly tribute: open the court to send it. Met by month ${s47Quota.early}, it earns more favour.`,
+  tipHelp: `From year ${s47Quota.fromYear} the court asks ${s47Shares()} of a year's output as tribute. Met: +${s47Quota.favourMet} favour (+${s47Quota.favourEarly} early); missed: −${s47Quota.favourMissed}.`,
+  // ── Raids grow with wealth (ruling 470) ──
+  wealthLine: (w) => `${plural(w.size, 'raider', 'raiders')}: your wealth draws ${w.wealth} more`,
+  raidsGrow: (e) => `From year ${e.year} raids grow with your wealth: one more raider for each ${e.goldPer} gold and each ${e.peoplePer} people, up to ${e.cap} more`,
+  tipRaids: 'Raids now grow with your wealth: the warning says how many raiders your gold and people draw.',
+  tipRaidsHelp: `From year ${s47Late.fromYear} raids gain a raider per ${s47Late.goldPer} gold and per ${s47Late.peoplePer} people, up to ${s47Caps()}. Never on Peaceful.`,
+  // ── The upper tiers (ruling 471), from the housing data ──
+  useHead: 'Uses a month',
+  // "12 pottery, 12 beer and 9 linen (1.5× the usual), and food of three kinds".
+  useLine: (tier, rows) => {
+    const use = s47UseOf(tier);
+    const kinds = TIERS[tier].needs.includes('threeFoods') ? 'three' : TIERS[tier].needs.includes('twoFoods') ? 'two' : null;
+    const goods = s47Goods(rows);
+    return `${goods ? `${goods}${use !== 1 ? ` (${s47Times(use)} the usual)` : ''}` : 'no household goods'}${kinds ? `, and food of ${kinds} kinds` : ''}`;
+  },
+  keepHead: (name) => `To keep ${name.toLowerCase()}`,
+  tipTiers: `A ${TIERS[8].name.toLowerCase()} and an ${TIERS[9].name.toLowerCase()} need three kinds of food and use more pottery, beer, linen and jewellery.`,
+  tipTiersHelp: `A ${TIERS[8].name} and an ${TIERS[9].name} need three kinds of food and use ${s47Times(s47UseOf(8))} and ${s47Times(s47UseOf(9))} the household goods.`,
+  // The house sheet's cause when the good is held only in a store beyond the bazaars' supply reach (src/sim/housing.js good_far).
+  goodFar: (cause, world) => {
+    const s = world.buildings[cause.id];
+    return { cause: `${goodName(cause.good)} is held only in a ${cartStore(s ? s.type : 'storehouse')} ${cartTiles(cause.len)} from the bazaar`, fix: 'A store near the bazaar can Fetch it by cart' };
+  },
+  showFar: (cause, world) => { const s = world.buildings[cause.id]; return `Show me the ${cartStore(s ? s.type : 'storehouse')} that holds ${cartGood(cause.good)}`; },
+};
+NEED_NAMES.threeFoods = 'Three kinds of food';
+FIRST_TEXT.first_quota_met = S47_PRESSURE_TEXT.first;
+Object.assign(TIP_TEXT, { tribute_quota: S47_PRESSURE_TEXT.tip, raids_wealth: S47_PRESSURE_TEXT.tipRaids, upper_tiers: S47_PRESSURE_TEXT.tipTiers });
+Object.assign(TIP_HELP_TEXT, { tribute_quota: S47_PRESSURE_TEXT.tipHelp, raids_wealth: S47_PRESSURE_TEXT.tipRaidsHelp, upper_tiers: S47_PRESSURE_TEXT.tipTiersHelp });
+{
+  const baseLog = S46_COURT_TEXT.logLine;
+  S46_COURT_TEXT.logLine = (e) => (e.kind === 'quota' ? S47_PRESSURE_TEXT.logLine(e) : baseLog(e));
+}
 // ── end s47 ──
