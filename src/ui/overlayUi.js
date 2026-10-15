@@ -3,7 +3,7 @@
 // label per band, hatched as on the map. Overlays combine with browsing, so the strip never changes the mode.
 // Stage 3 (Track D): the scale is general (GRADED, one entry per graded overlay); fire risk's adds the dot and ring for
 // "a firehouse reaches it" and a line on what never burns.
-import { OVERLAYS, OVERLAY_HUE, GROUND_HUE, GRADED_OVERLAYS, DESIRABILITY_ALPHA, FIRE_ALPHA, roomTiles, placingRotOf, MONUMENT_ROOM_HUE, MONUMENT_ROOM_ALPHA } from '../render/overlays.js';
+import { OVERLAYS, OVERLAY_HUE, GROUND_HUE, GRADED_OVERLAYS, LAYER_OVERLAYS, availableOverlays, DESIRABILITY_ALPHA, FIRE_ALPHA, roomTiles, placingRotOf, MONUMENT_ROOM_HUE, MONUMENT_ROOM_ALPHA } from '../render/overlays.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { rgba } from '../render/art/ctx.js';
 import { UI, TERRAIN } from '../render/art/palette.js';
@@ -19,6 +19,7 @@ import { OVERLAY_NAMES, OVERLAY_LEGEND, S47_HILLS_TEXT, desirabilityBand, ground
 import { T as TILE } from '../sim/terrain.js';
 import { el, iconButton, clear } from './components.js';
 import { spotsOn, spotsLegend, spotsEmpty } from './s47/spots.js';
+import { layerStrip, layerKey } from './layersLegend.js';   // Version 5.0 (Task 3): the legends of Home progress, Goods supply (with its good picker) and Workers
 
 const tint = (c) => `linear-gradient(${c}, ${c})`;
 // A banded risk overlay's swatch, as the map draws it (src/render/overlays.js drawFireRisk, drawHomeRisk): the band's tint, light
@@ -133,11 +134,12 @@ export function createOverlayLegend({ container, store, world = null }) {
     const s = store.get(), kind = s.overlay, room = roomWords(s);
     const off = world && (kind === 'health' || kind === 'crime') && !(kind === 'health' ? healthStarted(world) : crimeStarted(world));
     const spots = !kind && spotsOn(s, world);   // Stage 4.7 (Task 4): the house tool's spots have the row when no overlay does
-    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}|${off ? 'off' : ''}|${spots ? (spotsEmpty(world) ? 'spots-none' : 'spots') : ''}`;
+    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}|${off ? 'off' : ''}|${spots ? (spotsEmpty(world) ? 'spots-none' : 'spots') : ''}|${kind && LAYER_OVERLAYS.includes(kind) ? layerKey(kind, store, world) : ''}`;
     if (key === lastKey) return;
     lastKey = key;
     clear(container);
     if (!kind) { if (spots) container.append(spotsLegend(world)); return; }
+    if (LAYER_OVERLAYS.includes(kind)) { container.append(layerStrip(kind, store, world)); return; }
     const graded = GRADED_OVERLAYS.includes(kind);
     const name = el('strong', { class: 'text', text: OVERLAY_NAMES[kind] });
     const close = iconButton(T.overlayOff, '✕', { class: 'close quiet', onClick: () => store.set(toggleOverlay(store.get(), kind)) });
@@ -152,5 +154,5 @@ export function createOverlayLegend({ container, store, world = null }) {
   }
   render();
   store.subscribe(render);
-  return { render, cycle: () => store.set(cycleOverlay(store.get(), OVERLAYS)) };
+  return { render, cycle: () => store.set(cycleOverlay(store.get(), availableOverlays(world))) };
 }

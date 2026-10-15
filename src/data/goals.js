@@ -18,6 +18,11 @@
 // reason ('{site}' is the site's name), else its own text and showMe.
 import { BUILDINGS } from './buildings.js';
 import { MONUMENTS } from './monuments.js';
+import { TIERS } from './housing.js';
+import { GOODS } from './goods.js';
+
+// Version 5.0 (Task 7): the street goals' one sentence (ruling 265's why).
+const STREET_WHY = 'Gardens, statues and sphinxes beside it raise it; workshops, farms and stores near it lower it. Its house sheet names the best one and where.';
 
 export const GOAL_REWARD = 25;
 export const EVENT_REWARD = 10;    // a first-time trouble put right
@@ -65,12 +70,19 @@ export const GOALS = [
   { id: 'finish_obelisk', chapter: 'monuments', from: 'city', text: 'Finish the small obelisk', reward: GOAL_REWARD, need: { kind: 'finished', type: 'obelisk_small', n: 1 }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },
   { id: 'great_city', chapter: 'grand', text: 'Reach 650 people for a Great city', reward: GOAL_REWARD, need: { kind: 'people', n: 650 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'linen', chapter: 'grand', from: 'great_city', text: 'Build a flax farm and a weaver', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_flax', n: 1 }, { kind: 'building', type: 'weaver', n: 1 }] }, showMe: { category: 'industry', item: 'farm_flax', target: 'fertile' } },
+  // Version 5.0 (Task 7, rulings 580-599): once Fine manors stand and the weaver comes, a Villa's other two wants come one at a time: a third kind
+  // of food (need foods: the most kinds of food any one home holds in stock, as the home check counts them, so a maker whose food no bazaar carries to a home does not count), then a Fine manor's street raised to the Villa's desirability
+  // (need desirability: a home a tier below `tier` scoring that tier's rise, src/sim/desirability.js), and the same for an Estate after the
+  // jewellery. The numbers and names come from the data (TIERS, GOODS); Show me 'grand' aims at the decoration the house sheet names (desirabilityFix).
+  { id: 'third_food', chapter: 'grand', from: 'great_city', text: `Bring in a third food: ${GOODS.game.name.toLowerCase()} or ${GOODS.fish.name.toLowerCase()}`, why: `${TIERS[8].name}s need three kinds of food. A hunting lodge by a herd or a fishing wharf on the river adds one.`, reward: GOAL_REWARD, need: { kind: 'foods', n: 3 }, showMe: { category: 'food', item: 'hunting_lodge', target: 'herd' } },
+  { id: 'villa_street', chapter: 'grand', from: 'great_city', text: `Raise a ${TIERS[7].name}'s desirability to ${TIERS[8].desirability.rise}`, why: STREET_WHY, reward: GOAL_REWARD, need: { kind: 'desirability', tier: 8 }, showMe: { category: 'homes', item: 'statue', target: 'grand', tier: 8 } },
   { id: 'villas', chapter: 'grand', from: 'great_city', text: 'Grow 2 homes to Villa or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 8, n: 2 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
   // Stage 4: from Great city a colossus or a small mastaba, and the brickworks once a mastaba is founded.
   { id: 'found_colossus', chapter: 'monuments', from: 'great_city', text: 'Found a colossus or a small mastaba', reward: GOAL_REWARD, need: { kind: 'any', of: [{ kind: 'building', type: 'colossus', n: 1 }, { kind: 'building', type: 'mastaba_small', n: 1 }] }, showMe: { category: 'monuments', item: 'colossus', target: 'focus' } },
   { id: 'brickworks', chapter: 'monuments', from: 'great_city', when: { kind: 'any', of: [{ kind: 'building', type: 'mastaba_small', n: 1 }, { kind: 'building', type: 'mastaba_large', n: 1 }] }, text: 'Build a brickworks', reward: GOAL_REWARD, need: { kind: 'building', type: 'brickworks', n: 1 }, showMe: { category: 'monuments', item: 'brickworks', target: 'site' } },
   { id: 'capital', chapter: 'grand', text: 'Reach 1,000 people for the Capital', reward: GOAL_REWARD, need: { kind: 'people', n: 1000 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'jewellery', chapter: 'grand', from: 'capital', text: 'Build a gem mine and a jeweller', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'gem_mine', n: 1 }, { kind: 'building', type: 'jeweller', n: 1 }] }, showMe: { category: 'industry', item: 'gem_mine', target: 'rocky' } },
+  { id: 'estate_street', chapter: 'grand', from: 'capital', text: `Raise a ${TIERS[8].name}'s desirability to ${TIERS[9].desirability.rise}`, why: STREET_WHY, reward: GOAL_REWARD, need: { kind: 'desirability', tier: 9 }, showMe: { category: 'homes', item: 'statue', target: 'grand', tier: 9 } },
   { id: 'estate', chapter: 'grand', from: 'capital', text: 'Grow an Estate', reward: GOAL_REWARD, need: { kind: 'tier', tier: 9, n: 1 }, showMe: { category: 'homes', item: 'statue', target: 'houses' } },
   // Stage 4: at Capital the pyramids' prestige, then each pyramid once its prestige unlock is reached (ruling 243).
   { id: 'prestige_pyramids', chapter: 'monuments', from: 'capital', text: `Reach ${MONUMENTS.pyramid_small.unlock.prestige} prestige to unlock the small pyramid`, why: `The great pyramid unlocks at ${MONUMENTS.pyramid_great.unlock.prestige} prestige.`, reward: GOAL_REWARD, need: { kind: 'unlocked', type: 'pyramid_small' }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },

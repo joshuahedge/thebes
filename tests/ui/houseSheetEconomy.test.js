@@ -18,10 +18,11 @@ import {
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { fire } from '../helpers/dom.js';
 import { rigUI, runningUiWorld } from '../helpers/uiWorld.js';
+import { desirabilityFix } from '../../src/sim/advice.js';
 
 // A Town street along y = 10 with a home at (12, 9), a well, a temple and a bazaar in reach of it, and a granary.
 function street({ tier = 4, residents = 16, stock = { grain: 10 } } = {}) {
-  const w = makeTestWorld({ gold: 5000 });
+  const w = makeTestWorld({ gold: 5000, clay: [[24, 20, 4, 4]] });   // Version 5.0: Show me says why when no ground takes the building, so a clay pit needs clay to stand on
   w.milestone = 'town';
   setRoad(w, 0, 10, 31, 10);
   const home = addRaw(w, 'house', 12, 9, { tier, residents, stock: { ...stock }, stockedFor: residents });
@@ -165,7 +166,7 @@ describe('ui house sheet for the economy', () => {
       sheetTellsTheTruth(r);
     } finally { r.cleanup(); }
   });
-  it("shows the desirability score and its three biggest causes, with a garden's Show me while it falls short", async () => {
+  it("shows the desirability score and its three biggest causes, with the next step's decoration's Show me while it falls short", async () => {
     const w = makeTestWorld({ gold: 5000 });
     w.milestone = 'town';
     setRoad(w, 0, 10, 31, 10);
@@ -182,7 +183,8 @@ describe('ui house sheet for the economy', () => {
       expect(words(row, '.desirability')).toBe('7 of 20: +6 temple, +3 garden, −2 potter');        // spec 4.7's form
       expect(words(row, '.cause')).toBe(CAUSE_TEXT.low_desirability.cause);
       fire(row.querySelector('.show-me'), 'click');
-      expect(r.store.get().tool).toEqual({ kind: 'building', type: 'garden' });
+      expect(r.store.get().tool).toEqual({ kind: 'building', type: 'statue' });              // Version 5.0 (Task 7): the decoration desirabilityFix names (a statue lifts 7 most at Town)
+      expect(desirabilityFix(w, home).item).toBe('statue');
       addRaw(w, 'statue', 11, 9);
       addRaw(w, 'statue', 13, 9);
       r.store.set(select(r.store.get(), home.id));

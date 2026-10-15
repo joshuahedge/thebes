@@ -86,7 +86,7 @@ describe('ui sheets', () => {
     r.house.downTimer = 1;
     r.house.residents = 0; r.house.tier = 0;
     r.sheets.render();
-    expect(r.root.textContent).toContain(T.emptyPlot);
+    expect(r.root.textContent).toContain('people move in as the city draws them');   // Version 5.0: the sheet's first line says it (the next-step line's Empty:), once
     r.cleanup();
   });
   it('shows the summary, the minimap with zoom buttons and alerts, and custom sheets', () => {

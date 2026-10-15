@@ -10,14 +10,16 @@ import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
 import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT, S46_UX_TEXT, S47_SPOTS_TEXT } from './text.js';
+import { AREA_TEXT } from './areaText.js';
+import { ROUTE_TEXT } from './routeText.js';
 import { el, button, iconButton, clear } from './components.js';
 
-const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' && tool.gate ? buildingName('gate') : tool.kind === 'road' || tool.kind === 'wall' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : tool.kind === 'plazas' ? buildingName('plaza') : T.demolish);
+const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' && tool.gate ? buildingName('gate') : tool.kind === 'road' || tool.kind === 'wall' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : tool.kind === 'plazas' ? buildingName('plaza') : tool.kind === 'areas' ? AREA_TEXT.title(tool.type) : T.demolish);
 const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted' };
 const NARROW_BAR = 365;   // px: a bar this narrow at 150% text can need a chip row for each condition (css/ui.css .conds.tall.narrow)
 const rotates = (tool) => tool.kind === 'building' && Boolean(BUILDINGS[tool.type].rotates);   // none in Stage 1 (mastabas come with monuments)
 
-export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo }) {
+export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo, onArea = (type, on) => (on ? placement.startArea(type) : placement.start({ kind: 'building', type })) }) {
   const element = el('div', { id: 'confirm', hidden: true });
   container.append(element);
 
@@ -57,15 +59,16 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
   function render() {
     const s = store.get();
     // The bar rebuilds on every change, so remember which control had focus and put it back (spec 6.8).
-    const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'done', 'ok', 'show-fit'].includes(c)) : null;
+    const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'done', 'ok', 'show-fit', 'area-toggle'].includes(c)) : null;
     const focusedStyle = element.contains(document.activeElement) ? document.activeElement.dataset.style || null : null;   // Stage 4.6: the style button that had focus
+    const focusedShape = element.contains(document.activeElement) ? document.activeElement.dataset.shape || null : null;   // Version 5.0 (Task 5): the road shape button that had focus
     clear(element);
     if (!isToolMode(s.mode) || !s.tool) { element.hidden = true; heldKey = null; publishHeight(); return; }
     element.hidden = false;
     const p = placement.preview();
     const demolish = s.tool.kind === 'demolish';
     // A demolish refunds, or (Stage 3) costs gold when it clears rubble: "Refund 7" or "20 gold", never a negative refund.
-    const costText = demolish ? (p.refund > 0 ? `${T.refund} ${p.refund}` : p.refund < 0 ? DANGER_UI_TEXT.demolishCost(-p.refund) : '') : (p.cost ? `${p.cost} gold` : '');
+    const costText = demolish ? (p.refund > 0 ? `${T.refund} ${p.refund}` : p.refund < 0 ? DANGER_UI_TEXT.demolishCost(-p.refund) : '') : (p.costText || (p.cost ? `${p.cost} gold` : ''));
     // The words are the title, then `lines` (the cost, balance, reason, effect, nicer and monument lines): a portrait terrain bar lets the title sit
     // beside the buttons and the lines run the whole width under them (css/ui.css .has-fit), keeping the room three lines need.
     const info = el('div', { class: 'info' }, [
@@ -87,11 +90,19 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
         // Stage 4 (Track C, spec 6.5, ruling 251): a monument's line, placeable or waiting for its road: "+32 Monuments when finished ·
         // then 130 gold a crew a month · finished: 9 homes nicer". Two lines at most on a phone (css), every word in its name.
         p.line ? el('div', { class: 'monument-line small', title: p.line, 'aria-label': p.line, text: p.line }) : null,
+        // Version 5.0 (Task 4, ruling 505): what Build another copies from the first building (its Fetch orders), said before the tick.
+        p.copy ? el('div', { class: 'copy-line small teal', text: p.copy }) : null,
       ]),
     ]);
     const controls = [];
+    // Version 5.0 (Task 4): a farm, garden or statue tool offers a drag area (a 44 px icon named for what it does); the area tool offers one at a time again.
+    const areaType = typeof placement.areaType === 'function' ? placement.areaType() : null;
+    if (areaType) {
+      const on = s.tool.kind === 'areas';
+      controls.push(iconButton(on ? AREA_TEXT.oneLabel(areaType) : AREA_TEXT.areaLabel(areaType), on ? '▢' : '▦', { class: 'area-toggle', 'aria-pressed': String(on), title: on ? AREA_TEXT.one : AREA_TEXT.area, onClick: () => onArea(areaType, !on) }));
+    }
     if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', onClick: () => placement.rotate() }));   // Stage 4: a mastaba turns (ruling 234)
-    if ((s.tool.kind === 'road' || s.tool.kind === 'wall') && s.line && s.line.x1 !== null) controls.push(button(T.flip, { class: 'flip', onClick: () => placement.flip() }));
+    if ((s.tool.kind === 'road' || s.tool.kind === 'wall') && !s.tool.route && s.line && s.line.x1 !== null) controls.push(button(T.flip, { class: 'flip', onClick: () => placement.flip() }));
     // On a phone Undo is a small icon and only when there is something to undo (the toast after a placement keeps the word);
     // the wide layout keeps the word button, greyed out when there is nothing to undo.
     if (s.layout === 'wide') controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
@@ -117,6 +128,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // its own under the bar's words and buttons (css/ui.css .show-fit): it asks the Map seam (src/ui/s46/map.js, on the 'thebes:show-fit' event) to go to
     // the nearest place that fits.
     const showFit = p.showFit ? button(S46_MAP_TEXT.showFit, { class: 'show-fit', 'aria-label': S46_MAP_TEXT.showFitLabel(s.tool.kind === 'road' ? 'a bridge' : `a ${titleOf(s.tool).toLowerCase()}`), onClick: () => element.dispatchEvent(new CustomEvent('thebes:show-fit', { bubbles: true })) }) : null;
+    if (showFit && p.routed && p.at && p.reason !== 'too_wide') showFit.setAttribute('aria-label', ROUTE_TEXT.showMeLabel);   // Version 5.0 (Task 5): a routed road's refusal shows what is in the way, not a bridge
     // A building bound to its ground keeps the Show me row's room from the start (as its chips row does), empty until a refusal fills it, so the
     // bar keeps one height as the ghost moves onto a refused spot and the corner buttons on it do not jump (ruling 352).
     const bound = s.tool.kind === 'building' && Boolean(BUILDINGS[s.tool.type].terrain || BUILDINGS[s.tool.type].water);
@@ -130,7 +142,17 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
       }))),
       el('div', { class: 'style-line small', text: (choices.find((c) => c.active) || choices[0]).line }),
     ]) : null;
-    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}${styleRow ? ' has-style' : ''}` }, [info, ...controls, chips, showFit, fitRoom, styleRow]);
+    // Version 5.0 (Task 4): a garden or statue area asks how far apart: three buttons (the one in force ticked and aria-pressed), each named for what it would lay now.
+    const spacing = typeof placement.spacingChoices === 'function' ? placement.spacingChoices() : null;
+    const spacingRow = spacing ? el('div', { class: 'area-row' }, [el('div', { class: 'area-choices', role: 'group', 'aria-label': AREA_TEXT.spacingGroup }, spacing.map((c) => button(c.active ? `✓ ${c.name}` : c.name, {
+      class: `area-pick${c.active ? ' on' : ''}`, 'aria-pressed': String(c.active), 'aria-label': c.label, dataset: { gap: String(c.gap) }, onClick: () => placement.setSpacing(c.gap),
+    })))]) : null;
+    // Version 5.0 (Task 5, rulings 560-569): the road tool asks its shape, Route or Straight: two buttons (the one in force ticked and aria-pressed), each named for what it does.
+    const shape = typeof placement.routeMode === 'function' ? placement.routeMode() : null;
+    const routeRow = shape ? el('div', { class: 'route-row' }, [el('div', { class: 'route-choices', role: 'group', 'aria-label': ROUTE_TEXT.group }, [['route', ROUTE_TEXT.route, ROUTE_TEXT.routeLabel], ['straight', ROUTE_TEXT.straight, ROUTE_TEXT.straightLabel]].map(([id, name, label]) => button(shape === id ? `✓ ${name}` : name, {
+      class: `route-pick${shape === id ? ' on' : ''}`, 'aria-pressed': String(shape === id), 'aria-label': label, dataset: { shape: id }, onClick: () => placement.setRoute(id === 'route'),
+    })))]) : null;
+    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}${styleRow ? ' has-style' : ''}${spacingRow ? ' has-area' : ''}${routeRow ? ' has-route' : ''}` }, [info, ...controls, chips, showFit, fitRoom, styleRow, spacingRow, routeRow]);
     element.append(bar);
     keepTallest(bar, s);
     publishHeight();
@@ -139,6 +161,9 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
       if (again && !again.disabled) again.focus();
     } else if (focusedStyle) {
       const again = element.querySelector(`[data-style="${focusedStyle}"]`);
+      if (again) again.focus();
+    } else if (focusedShape) {
+      const again = element.querySelector(`[data-shape="${focusedShape}"]`);
       if (again) again.focus();
     }
   }

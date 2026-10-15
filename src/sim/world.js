@@ -197,7 +197,18 @@ export const isMonument = (b) => Boolean(b && BUILDINGS[b.type] && BUILDINGS[b.t
 export const isSite = (b) => isMonument(b) && Boolean(b.site) && b.site.done === null;
 export const isFinished = (b) => isMonument(b) && Boolean(b.site) && b.site.done !== null;
 
+// Version 5.0 (Task 0, contract section 4): how many times this world's buildings have changed (one more for every insertBuilding and
+// removeBuilding), so a cache by place (the render's chunk index, src/render/chunkIndex.js) knows when to rebuild. Kept beside the world, not
+// in it: never saved, 0 for a world just made or loaded. A world's buildings change only through these two functions (a merge or split
+// removes and inserts), so a footprint never moves without a bump.
+const buildingVersions = new WeakMap();
+export const buildingsVersion = (world) => buildingVersions.get(world) || 0;
+const bumpBuildings = (world) => buildingVersions.set(world, buildingsVersion(world) + 1);
+// Version 5.0 (Task 3): a change to a building that is not a placing or a removal (a pause, which a layer's cache must see at once) says so with one more.
+export const touchBuildings = bumpBuildings;
+
 export function insertBuilding(world, b) {
+  bumpBuildings(world);
   world.buildings[b.id] = b;
   for (const [x, y] of footprint(b.x, b.y, b.w, b.d)) world.occ[idx(world.size, x, y)] = b.id;
   return b;
@@ -206,6 +217,7 @@ export function insertBuilding(world, b) {
 export function removeBuilding(world, id) {
   const b = world.buildings[id];
   if (!b) return null;
+  bumpBuildings(world);
   for (const [x, y] of footprint(b.x, b.y, b.w, b.d)) world.occ[idx(world.size, x, y)] = 0;
   delete world.buildings[id];
   return b;

@@ -9,7 +9,27 @@
 
 export const RELEASES = [
   {
-    version: '4.7', date: '2026-10-15', title: 'Land and logistics', build: 'live',
+    version: '5.0', date: '2026-10-16', title: 'Know your city', build: 'live',
+    new: [
+      'A City advice button in the top bar opens a sheet that ranks what holds your city back: homes stuck for want of a good, a raid on its way, a street too plain, a shortage coming. Each item shows its cause, the fix, the price and a Show me. A dot says when the advice has changed.',
+      'Every house sheet starts with the one next step for that home, with its price and a Show me, or says why there is nothing to do yet.',
+      'Three new layers: Home progress (which homes are ready to grow and what each is missing), Goods supply (who asks for a good and which stores and bazaars hold it) and Workers (where the jobs and the jobless are).',
+      'Build another on every building sheet copies that building, with its style and a store\'s Fetch orders, and tells you why when it cannot.',
+      'Drag areas for farms, gardens and statues, like plots: the bar shows the total and what was skipped before you confirm, and one Undo takes it all back.',
+      'Roads that find their way: Route takes two ends and lays the cheapest road round buildings and hills, over existing road, and over water by a bridge where one is allowed. It shows the tiles, bridges and price first. Straight is still there.',
+      'A smoother camera: a quick swipe flings the map, Show me glides to the place and frames it, zoom stays under your fingers, and a two-finger double tap zooms out. Gentle shortens these and Still turns them off.',
+      'Grand homes are within reach: new goals ask for a third kind of food and a better street, and the advice names the decoration that lifts a low street most, and where to put it.',
+      'Large maps draw faster, so zooming out on one no longer drags.',
+    ],
+    fixed: [
+      'Show me now says why when no tile fits, instead of opening a card that cannot be placed.',
+      'A checklist row for a workshop or a hunting lodge says what its Show me will build, where, and what it costs.',
+      'The new layers no longer make a big city stutter each game day.',
+      'A street score below zero reads with a minus sign in the advice.',
+    ],
+  },
+  {
+    version: '4.7', date: '2026-10-15', title: 'Land and logistics', build: 'eef5ccb',
     new: [
       'After you place a house, the plots that suit the next one light up: Good where water and a bazaar are in reach, Fair where one of them is. Done ends the house tool.',
       'A storehouse or granary can Fetch a good from another store, by cart along the roads, at any distance. Set it from the store\'s sheet, which says what it will do before you tap and where the cart is after.',

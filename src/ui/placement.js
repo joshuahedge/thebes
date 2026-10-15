@@ -8,6 +8,12 @@ import {
   previewRoadTiles, drawRoadTiles, previewHouseTiles, paintHouseTiles, previewDemolishTiles, demolishTiles, previewPlazaTiles, paintPlazaTiles,
 } from '../sim/commands.js';
 import { undo as undoCommand } from '../sim/undo.js';
+import { previewAreaTiles, paintAreaTiles } from '../sim/areas.js';
+import { routeRoad, drawRoute } from '../sim/route.js';
+import { ROUTE_TEXT } from './routeText.js';
+import { applySettings, settingsThatApply } from '../sim/another.js';
+import { areaKindOf, AREA_SPACINGS, AREA_SPACING_DEFAULT } from '../data/areas.js';
+import { AREA_TEXT, ANOTHER_TEXT, SPACING_NAMES } from './areaText.js';
 import { assignLabour } from '../sim/labour.js';
 import { startTool as startToolPatch, cancelTool, select } from './modes.js';
 import { palaceOf } from '../sim/palace.js';
@@ -16,7 +22,7 @@ import { homesServedFrom } from '../sim/housing.js';
 import { homesCoveredBy } from '../sim/health.js';
 import { crimeHomesCoveredBy } from '../sim/crime.js';
 import { desirabilityField, desirabilityPreview } from '../sim/desirability.js';
-import { housesOf } from '../sim/world.js';
+import { housesOf, buildingsVersion } from '../sim/world.js';
 import { unitsAwayFrom } from '../sim/armies.js';
 import { costOf, workGoldPerUnit } from '../sim/costs.js';
 import { monthlyBill, balanceWith } from '../sim/economy.js';
@@ -29,7 +35,7 @@ import { roadReach, adjacentRoadTiles, touchesRoad } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
-import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
+import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, goodName, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
 import { bridgeSpot } from '../sim/bridges.js';
 import { styleChoices } from './s46/wonders.js';
 
@@ -66,6 +72,9 @@ const roadDoneText = (tool, result) => (tool.gate ? S45_TEXT.gateBuilt
   : result.ok && result.bridges && result.bridges.length ? S45_TEXT.roadLaidBridge(result.bridges.length)
     : result.ok && result.gates && result.gates.length ? S45_TEXT.roadLaidGates(result.gates.length) : T.roadLaid);
 const isLine = (tool) => Boolean(tool) && LINE_TOOLS.includes(tool.kind);
+// Version 5.0 (Task 5): the road tool in Route mode (tool.route; the Gate card never routes): two ends, and the cheapest way between them.
+const ROUTE_END_MS = 16;   // Version 5.0 (Task 6): the least time between two ends of a dragged route (one frame)
+const isRoute = (tool) => Boolean(tool) && tool.kind === 'road' && !tool.gate && Boolean(tool.route);
 
 // A touch plan (placement review P3, P5): what a finger or pen has drawn and tapped in a drawing tool since it started, stroke by
 // stroke, until the tick. state.plan is { tiles: [[x, y], ...] }, each tile once, in the order it was added. Roads and walls
@@ -277,6 +286,11 @@ function basePreview(world, state) {
   const touch = state.inputType === 'touch' || state.inputType === 'pen';
   if (isLine(tool)) {
     const l = state.line;
+    if (isRoute(tool)) {                                                                          // Version 5.0 (Task 5): the routed road, two ends and the search between them
+      if (!l) return idle(touch ? ROUTE_TEXT.idleTouch : ROUTE_TEXT.idleMouse);
+      if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
+      return routePreview(world, l);
+    }
     if (!l) return idle(touch ? DRAW_TEXT.idle : T.tapStart);
     if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
     const tiles = roadPath(l.x0, l.y0, l.x1, l.y1, l.flip);
@@ -303,7 +317,20 @@ function basePreview(world, state) {
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text: warn ? warningText(r.warnings[0]) : plural(r.positions.length, 'plot', 'plots'), effect: '', cost: r.cost, count: r.positions.length, tiles, refund: 0 };
   }
   if (tool.kind === 'plazas') return plazaPreview(previewPlazaTiles(world, rectTiles(a.x0, a.y0, a.x1, a.y1, world.size)));   // Stage 4 (ruling 250)
+  if (tool.kind === 'areas') return areaPreview(world, tool, rectTiles(a.x0, a.y0, a.x1, a.y1, world.size));                  // Version 5.0 (Task 4)
   return demolishPreview(previewDemolishArea(world, a.x0, a.y0, a.x1, a.y1), rectTiles(a.x0, a.y0, a.x1, a.y1, world.size), world);
+}
+
+// Version 5.0 (Task 5, rulings 560-569): the routed road's preview between two ends (routeRoad, src/sim/route.js: its cost is previewRoadTiles' own for the tiles it
+// chose, so the bar's price is what drawRoute charges). tiles are every tile of the way (the ghost draws them, existing road too); a refusal says why and carries `at`,
+// the first tile of what is in the way, for Show me. A route nothing is dear enough to refuse still shows, with the treasury's verdict ('no_gold').
+function routePreview(world, l) {
+  const r = routeRoad(world, l.x0, l.y0, l.x1, l.y1);
+  const tiles = r.path.length ? r.path : [[l.x0, l.y0]];
+  if (!r.ok && r.reason !== 'no_gold') return { ...bad(r.reason, 0, 0, tiles, ROUTE_TEXT.refusal(world, r)), at: r.at, water: r.water, routed: true };
+  if (!r.ok) return { ...bad('no_gold', r.cost, r.tiles.length, tiles, [ROUTE_TEXT.summary(r), reasonText('no_gold')].join(' · ')), bridges: r.bridges, gates: r.gates, at: null, routed: true };
+  if (!r.tiles.length) return { ...bad('nothing_to_place', 0, 0, tiles), at: null, routed: true };
+  return { state: 'ok', reason: null, warnings: [], text: ROUTE_TEXT.summary(r), effect: '', cost: r.cost, count: r.tiles.length, tiles, gates: r.gates, bridges: r.bridges, crossings: r.crossings, used: r.used, refund: 0, at: null, routed: true };
 }
 
 // Stage 4.6 (ruling 350): until a road is drawn the bar's cost line (empty then) says that a road can cross water, and what a bridge costs (the sim's price).
@@ -344,7 +371,42 @@ function planPreview(world, tool, tiles) {
     if (r.reason === 'nothing_to_place') return nothing(r);
     return { ...plazaPreview(r, tiles), skipped: skippedOf(r) };
   }
+  if (tool.kind === 'areas') return areaPreview(world, tool, tiles);
   return demolishPreview(previewDemolishTiles(world, tiles), tiles, world);
+}
+
+// previewAreaTiles runs for the tool and for each spacing button on every bar render; the answer depends only on the tiles, the type, the spacing and the world
+// (buildings, roads, the treasury, the day), so it is kept per rectangle and spacing while those hold (ruling 560: one call, not four, per render).
+const areaMemo = new WeakMap();
+export function areaPreviewOf(world, type, tiles, spacing) {
+  const sig = `${buildingsVersion(world)}|${world.roadVersion}|${world.gold}|${world.day}`;
+  let m = areaMemo.get(world);
+  if (!m || m.sig !== sig) { m = { sig, map: new Map() }; areaMemo.set(world, m); }
+  let h = tiles.length;
+  for (let i = 0; i < tiles.length; i++) h = (Math.imul(h, 31) + tiles[i][0] * 4099 + tiles[i][1]) | 0;
+  const key = `${type}|${spacing || 0}|${tiles.length}|${h}`;
+  let r = m.map.get(key);
+  if (!r) { if (m.map.size > 24) m.map.clear(); r = previewAreaTiles(world, type, tiles, { spacing }); m.map.set(key, r); }
+  return r;
+}
+
+// Version 5.0 (Task 4, rulings 550-559): a farm, garden or statue area's preview, a rectangle's or a plan's tiles (previewAreaTiles, src/sim/areas.js: the count, the price,
+// the tiles the ground refuses). boxes are the buildings it would lay (ghostsFor draws each at its own size); skipped the refused tiles. The cost line says
+// "6 farms · 240 gold"; a treasury that cannot pay the lot refuses it, saying how many it can pay for (the sim lays all or nothing, as plots do).
+function areaPreview(world, tool, tiles) {
+  const r = areaPreviewOf(world, tool.type, tiles, tool.spacing);
+  const skipped = r.skipped.map((k) => [k.x, k.y]);
+  const { w, d } = dimsOf(tool.type, 0);
+  const boxes = r.positions.map(([x, y]) => ({ x, y, w, d }));
+  const n = r.positions.length;
+  const costText = n ? AREA_TEXT.costLine(tool.type, n, r.cost) : '';
+  if (r.reason === 'nothing_to_place') return { ...bad('nothing_to_place', 0, 0, [], AREA_TEXT.nothing(tool.type, r.skipped)), skipped, boxes: [] };
+  if (!r.ok && r.reason !== 'no_gold') return { ...bad(r.reason, 0, 0, tiles), skipped, boxes: [] };
+  const skipText = r.skipped.length ? AREA_TEXT.skipped(r.skipped) : '';
+  if (r.reason === 'no_gold') return { ...bad('no_gold', r.cost, n, r.positions, [AREA_TEXT.noGold(tool.type, r), skipText].filter(Boolean).join(' · ')), skipped, boxes, costText };
+  const warn = r.warnings.length > 0;
+  const text = [warn ? warningText(r.warnings[0], tool.type) : '', skipText].filter(Boolean).join(' · ');
+  return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text, effect: '', cost: r.cost, count: n, tiles: r.positions, skipped, boxes, costText, refund: 0, conditions: [], footprint: [], joins: [] };
 }
 
 // Stage 4 (ruling 250): the plaza tool's preview, a rectangle's or a plan's (tiles: the plan's, else the plazas'). Track C
@@ -376,7 +438,7 @@ function demolishPreview(r, tiles, world = null) {
 export function toolPreview(world, state) {
   const p = basePreview(world, state);
   if (!p) return p;
-  if (state.tool.kind === 'road' && !state.tool.gate && p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) p.showFit = true;   // Stage 4.6 (ruling 350): Show me finds a crossing
+  if (state.tool.kind === 'road' && !state.tool.gate && p.state === 'bad' && (WATER_REFUSALS.includes(p.reason) || (p.routed && p.at))) p.showFit = true;   // Stage 4.6 (ruling 350): Show me finds a crossing; Version 5.0 (Task 5): a routed road's refusal shows what is in the way
   p.note = p.state === 'idle' ? bridgeNote(world, state.tool) : '';
   p.nicer = '';
   p.nicerTone = '';
@@ -393,6 +455,15 @@ export function toolPreview(world, state) {
     p.nicer = nicerText(d.better, d.worse);
     p.nicerTone = d.better && d.worse ? 'mixed' : d.better ? 'better' : d.worse ? 'worse' : '';
     p.score = scoreLineFor(world, state.tool.type, state.ghost.x, state.ghost.y);
+  }
+  // Version 5.0 (Task 4): Build another's copied settings are said before the tick (ruling 505); an area says what its buildings cost a month together.
+  p.copy = state.tool.kind === 'building' && state.tool.copy ? ANOTHER_TEXT.copy(settingsThatApply(state.tool.type, state.tool.copy), goodName) : '';   // only what applySettings would write
+  if (state.tool.kind === 'areas' && p.count > 0 && (p.state === 'ok' || p.state === 'warn')) {
+    const bill = monthlyBill(state.tool.type);
+    if (bill.bill > 0) {
+      p.upkeep = AREA_TEXT.upkeepFor(bill, p.count);
+      if (!p.warnings.includes('needs_road')) { p.balanceNet = balanceWith(world, state.tool.type, p.count); p.balance = S45_TEXT.balanceLine(p.balanceNet); }
+    }
   }
   if (state.tool.kind === 'building' && p.state !== 'idle') {
     const bill = monthlyBill(state.tool.type);
@@ -449,6 +520,8 @@ function finishedGhost(tool, ghost, w, d) {
   return { id: -1, type: tool.type, x: ghost.x, y: ghost.y, w, d, rot: rotOf(tool), staff: 0, paused: false, store: {}, site, style: styleOfTool(tool) };   // Stage 4.6: the silhouette wears the style picked
 }
 
+const AREA_SKIP_DRAWN = 600;
+
 // Ghost shapes for drawGhost. Demolish marks only the tiles that have something on them.
 export function ghostsFor(world, state, preview = toolPreview(world, state)) {
   const { tool } = state;
@@ -472,6 +545,11 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
       .filter(([x, y]) => world.occ[y * world.size + x] || world.road[y * world.size + x] || world.wall[y * world.size + x])
       .map(([x, y]) => ({ x, y, w: 1, d: 1, state: 'demolish' }));
   }
+  // Version 5.0 (Task 4): an area draws each building it would lay at its own size, and the tiles the ground refused as skipped (coral with a cross; the
+  // first AREA_SKIP_DRAWN of them, the bar's words count them all).
+  if (tool.kind === 'areas' && preview.boxes) {
+    return [...preview.boxes.map((b) => ({ ...b, state: visual })), ...(preview.skipped || []).slice(0, AREA_SKIP_DRAWN).map(([x, y]) => ({ x, y, w: 1, d: 1, state: 'bad' }))];
+  }
   // A touch plan's skipped tiles are coral with a cross (P5); the rest show the plan's state, a gate its own mark.
   const skipped = new Set((preview.skipped || []).map(tileKey));
   const gates = new Set(tool.kind === 'wall' || tool.kind === 'road' ? preview.gates || [] : []);
@@ -493,6 +571,10 @@ export function fitTarget(world, state) {
     return { kind: 'building', item: tool.type, x: at.x + w / 2, y: at.y + d / 2, def, rot };
   }
   if (tool.kind === 'road') {
+    if (isRoute(tool) && state.line && state.line.x1 !== null) {                  // Version 5.0 (Task 5): a routed road's refusal shows what is in the way (too wide: where a bridge fits, below)
+      const p = toolPreview(world, state);
+      if (p.routed && p.state === 'bad' && p.reason !== 'too_wide' && p.at) return { kind: 'spot', x: p.at[0] + 0.5, y: p.at[1] + 0.5 };
+    }
     const l = state.line, tiles = state.plan ? state.plan.tiles : [];
     const from = tiles.length ? { x: tiles[tiles.length - 1][0], y: tiles[tiles.length - 1][1] } : l ? { x: l.x0, y: l.y0 } : world.focus;
     const spot = bridgeSpot(world, from);
@@ -501,10 +583,29 @@ export function fitTarget(world, state) {
   return null;
 }
 
-export function createPlacement({ world, store, afterCommand = () => {}, effects = null, now = () => performance.now() }) {
+export function createPlacement({ world, store, afterCommand = () => {}, effects = null, now = () => performance.now(), roadMode = null }) {
   // The stroke a finger is drawing: the plan before it (base), where it went down (x0, y0), the tiles it has followed (path, roads
   // and walls) and the tile it is on (at). Gone when the finger lifts, or with the tool.
   let stroke = null;
+  const lastSpacing = {};   // Version 5.0 (Task 4): the spacing last chosen for a garden or statue area, by type
+  let lastRoad = 'straight';   // Version 5.0 (Task 5): the road bar's shape when no settings hold it (a test's stand-in): 'straight' or 'route'
+  const roadShape = () => (roadMode ? roadMode.get() : lastRoad);
+  // Version 5.0 (Task 6): a routed road's end follows a drag, and each new end is a search (15-42 ms on a desktop, about four times that on a phone). So the end a drag
+  // reaches is only noted (pendingEnd), and applied when a frame's time has passed since the last one and twice what that last one cost (a drag never gives the search more than
+  // a third of the thread), at the next frame's settle() or on lift, always on the tile the finger lifts on. The line keeps its last end until then, so the preview is the
+  // last route found.
+  let pendingEnd = null, lastEndAt = -Infinity, endCost = 0;
+  const applyEnd = (x, y) => {
+    pendingEnd = null;
+    const s = store.get();
+    if (!s.line || (s.line.x1 === x && s.line.y1 === y)) return;
+    const began = now();
+    store.set({ line: { ...s.line, x1: x, y1: y } });    // the store's listeners ask for the preview here, and the search runs
+    lastEndAt = now(); endCost = lastEndAt - began;
+  };
+  const settle = () => { if (pendingEnd && now() - lastEndAt >= Math.max(ROUTE_END_MS, 2 * endCost)) applyEnd(pendingEnd[0], pendingEnd[1]); };
+  const followEnd = (x, y) => { pendingEnd = [x, y]; settle(); };
+  const dropEnd = () => { pendingEnd = null; lastEndAt = -Infinity; };
   let lastStyle = null;   // Stage 4.6: the style the player last picked for a monument, which the next monument's tool starts on
   const inMap = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < world.size && y < world.size;
   const drawingTool = (s) => Boolean(s.tool) && s.tool.kind !== 'building';
@@ -513,8 +614,40 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
   // The tiles of a stroke the plan takes: all of them, except that demolish takes only a tile with something on it, as a tap does.
   const marked = (tool, tiles) => (tool.kind === 'demolish' ? tiles.filter(([x, y]) => somethingAt(x, y)) : tiles);
   const api = {
-    start(tool, centre = null) {
+    // Version 5.0 (Task 4, rulings 550-559): the area tool for a farm, garden or statue (tool { kind: 'areas', type, spacing }): dragged like plots, laid as one
+    // undo step. The spacing is the last one chosen for the type (gardens and statues; a farm's is the building's own size). false for any other type.
+    startArea(type) {
+      if (!areaKindOf(type)) return false;
       stroke = null;
+      store.set(startToolPatch(store.get(), { kind: 'areas', type, spacing: lastSpacing[type] || AREA_SPACING_DEFAULT }));
+      if (AUTO_OVERLAY[type]) store.set({ overlay: AUTO_OVERLAY[type] });
+      return true;
+    },
+    // The type an area could be laid of with the tool in hand (a farm, garden or statue tool, single or as an area), else null: the bar's Drag an area / Place one.
+    areaType() {
+      const t = store.get().tool;
+      return t && (t.kind === 'areas' || t.kind === 'building') && areaKindOf(t.type) ? t.type : null;
+    },
+    setSpacing(gap) {
+      const s = store.get();
+      if (!s.tool || s.tool.kind !== 'areas' || areaKindOf(s.tool.type) !== 'spread' || !AREA_SPACINGS.includes(gap)) return false;
+      lastSpacing[s.tool.type] = gap;
+      store.set({ tool: { ...s.tool, spacing: gap } });
+      return true;
+    },
+    // The spacing buttons for a garden or statue area ([{ gap, name, active, label }]), each label what that spacing would lay in the area drawn now (the
+    // sim's count and price), or its rule while nothing is drawn; null for any other tool.
+    spacingChoices() {
+      const s = store.get(), t = s.tool;
+      if (!t || t.kind !== 'areas' || areaKindOf(t.type) !== 'spread') return null;
+      const a = s.area;
+      const tiles = s.plan && s.plan.tiles.length ? s.plan.tiles : a && a.x1 !== null ? rectTiles(a.x0, a.y0, a.x1, a.y1, world.size) : null;
+      return AREA_SPACINGS.map((gap) => ({ gap, name: SPACING_NAMES[gap], active: (t.spacing || AREA_SPACING_DEFAULT) === gap, label: AREA_TEXT.spacingLabel(gap, t.type, tiles ? areaPreviewOf(world, t.type, tiles, gap) : null) }));
+    },
+    start(tool, centre = null) {
+      if (tool.kind === 'areas') { api.startArea(tool.type); if (tool.spacing) api.setSpacing(tool.spacing); return; }
+      stroke = null; dropEnd();
+      if (tool.kind === 'road' && !tool.gate && !tool.route && roadShape() === 'route') tool = { ...tool, route: true };   // Version 5.0 (Task 5): the road bar starts in the shape last chosen
       if (tool.kind === 'building' && BUILDINGS[tool.type].monument && !tool.style) tool = { ...tool, style: lastStyle || MONUMENT_STYLE_PICK_DEFAULT };
       // Stage 4 (spec 4.20, ruling 271): while a palace stands its card selects it (its sheet opens) instead of starting a tool.
       const palace = tool.kind === 'building' && tool.type === 'palace' ? palaceOf(world) : null;
@@ -541,6 +674,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (!s.tool) return;
       if (s.tool.kind === 'building') { api.moveGhost(x, y); return; }
       if (isLine(s.tool)) {
+        dropEnd();
         const l = s.line;
         store.set({ line: !l || l.x1 !== null ? { x0: x, y0: y, x1: null, y1: null, flip: false } : { ...l, x1: x, y1: y }, plan: null });
         return;
@@ -553,6 +687,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
     toggleTile(x, y) {
       const s = store.get();
       if (!drawingTool(s) || !inMap(x, y)) return;
+      if (isRoute(s.tool)) { api.pointAt(x, y); return; }                    // Version 5.0 (Task 5): in Route a tap sets the start, then the end
       const tiles = s.plan ? s.plan.tiles : [];
       const has = tiles.some((t) => sameTile(t, [x, y]));
       if (!has && s.tool.kind === 'demolish' && !somethingAt(x, y)) return;
@@ -563,6 +698,18 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
     stroke(x, y, phase) {
       const s = store.get();
       if (!drawingTool(s)) { stroke = null; return; }
+      if (isRoute(s.tool)) {                                                 // Version 5.0 (Task 5): in Route a finger's drag is a mouse's: down is the start, where it is now the end
+        if (phase === 'start') { if (inMap(x, y)) { dropEnd(); stroke = { was: s.line }; store.set({ line: { x0: x, y0: y, x1: null, y1: null, flip: false }, plan: null }); } return; }
+        if (!stroke) return;
+        if (phase === 'cancel') { const { was } = stroke; stroke = null; dropEnd(); store.set({ line: was || null }); return; }
+        if (phase === 'end') {                                               // Task 6: the lift settles the route, on the tile the finger lifts on
+          stroke = null;
+          if (inMap(x, y)) applyEnd(x, y); else if (pendingEnd) applyEnd(pendingEnd[0], pendingEnd[1]);
+          return;
+        }
+        if (inMap(x, y) && s.line) followEnd(x, y);
+        return;
+      }
       if (phase === 'start') {
         if (!inMap(x, y)) return;
         stroke = { base: s.plan ? s.plan.tiles : [], x0: x, y0: y, path: [[x, y]], at: [x, y] };
@@ -582,11 +729,36 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
     dragTo(x, y, phase) {
       const s = store.get();
       if (!s.tool || s.tool.kind === 'building') return;
-      if (phase === 'start') { store.set(isLine(s.tool) ? { line: { x0: x, y0: y, x1: null, y1: null, flip: false }, plan: null } : { area: { x0: x, y0: y, x1: null, y1: null }, plan: null }); return; }
-      if (isLine(s.tool) && s.line) store.set({ line: { ...s.line, x1: x, y1: y } });
+      if (phase === 'start') { dropEnd(); store.set(isLine(s.tool) ? { line: { x0: x, y0: y, x1: null, y1: null, flip: false }, plan: null } : { area: { x0: x, y0: y, x1: null, y1: null }, plan: null }); return; }
+      if (isRoute(s.tool) && s.line) { if (phase === 'end') applyEnd(x, y); else followEnd(x, y); }   // Version 5.0 (Task 6): the routed road's end is found once a frame, and on lift
+      else if (isLine(s.tool) && s.line) store.set({ line: { ...s.line, x1: x, y1: y } });
       else if (!isLine(s.tool) && s.area) store.set({ area: { ...s.area, x1: x, y1: y } });
     },
+    // Version 5.0 (Task 6): once a frame, the end a routed drag has reached since the last one (a frame's time and twice the last search's having passed). Nothing pending: nothing happens.
+    settle,
     flip() { const s = store.get(); if (s.line) store.set({ line: { ...s.line, flip: !s.line.flip } }); },
+    // Version 5.0 (Task 5, rulings 560-569): the road bar's Route / Straight toggle. routeMode() is 'route', 'straight', or null for any tool that is not the road (the
+    // Gate card has no shapes). setRoute(on) switches the road in hand and remembers the choice (settings, per device); the two ends carry over (a Straight plan's first and last
+    // tile become Route's start and end), so nothing already drawn is lost. false for any other tool.
+    routeMode() {
+      const t = store.get().tool;
+      return t && t.kind === 'road' && !t.gate ? (t.route ? 'route' : 'straight') : null;
+    },
+    setRoute(on) {
+      const s = store.get(), t = s.tool;
+      if (!t || t.kind !== 'road' || t.gate) return false;
+      on = Boolean(on);
+      if (Boolean(t.route) === on) return true;
+      stroke = null; dropEnd();
+      lastRoad = on ? 'route' : 'straight';
+      if (roadMode) roadMode.set(lastRoad);
+      const { route, ...rest } = t;
+      const tool = on ? { ...rest, route: true } : rest;
+      const plan = s.plan && s.plan.tiles.length ? s.plan.tiles : null;
+      if (on && plan) store.set({ tool, plan: null, line: { x0: plan[0][0], y0: plan[0][1], x1: plan.length > 1 ? plan[plan.length - 1][0] : null, y1: plan.length > 1 ? plan[plan.length - 1][1] : null, flip: false } });
+      else store.set({ tool });
+      return true;
+    },
     // Stage 4 (Track C, spec 6.5, ruling 234): ⟳ and R turn a mastaba's ghost a quarter about its centre tile, swapping its
     // footprint (tool.rot 0 or 1); the Ground overlay's room is worked out again for the new turn. The camera does not move. Any
     // other tool, or a building that does not rotate, is left as it is (false).
@@ -640,27 +812,30 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         const tiles = s.plan.tiles;
         result = t.kind === 'road' ? drawRoadTiles(world, tiles, { skipBlocked: true, ...roadOptions(t) })
           : t.kind === 'wall' ? drawWallTiles(world, tiles, { skipBlocked: true })
-            : t.kind === 'houses' ? paintHouseTiles(world, tiles) : t.kind === 'plazas' ? paintPlazaTiles(world, tiles) : demolishTiles(world, tiles);
+            : t.kind === 'houses' ? paintHouseTiles(world, tiles) : t.kind === 'plazas' ? paintPlazaTiles(world, tiles) : t.kind === 'areas' ? paintAreaTiles(world, t.type, tiles, { spacing: t.spacing }) : demolishTiles(world, tiles);
         const xs = tiles.map((q) => q[0]), ys = tiles.map((q) => q[1]);
         cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 0.5; cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 0.5;
-        text = t.kind === 'road' ? roadDoneText(t, result) : t.kind === 'wall' ? T.wallBuilt : t.kind === 'houses' ? '' : t.kind === 'plazas' ? UI4_TEXT.plazasLaid(result.ok ? result.ids.length : 0) : T.demolished;
+        text = t.kind === 'road' ? roadDoneText(t, result) : t.kind === 'wall' ? T.wallBuilt : t.kind === 'houses' ? '' : t.kind === 'plazas' ? UI4_TEXT.plazasLaid(result.ok ? result.ids.length : 0) : t.kind === 'areas' ? AREA_TEXT.laid(t.type, result.ok ? result.ids.length : 0) : T.demolished;
       } else if (t.kind === 'building') {
         const def = footprintOf(t);
         result = place(world, t.type, s.ghost.x, s.ghost.y, { roadLater: true, rot: rotOf(t), style: styleOfTool(t) });   // only the player's placing waits for a road (P10)
+        if (result.ok && t.copy) applySettings(world, result.id, t.copy);                                              // Version 5.0 (Task 4, ruling 505): Build another's settings, shown in the bar before the tick
         cx = s.ghost.x + def.w / 2; cy = s.ghost.y + def.d / 2;
         // Stage 4 (ruling 233): a monument is founded, "Small obelisk founded · Undo" ("· needs a road" with none).
         text = isMonumentType(t.type) ? UI4_TEXT.founded(t.type) : `${buildingName(t.type)} ${T.placed.toLowerCase()}`;
         if (result.ok && t.type !== 'house' && result.warnings.includes('needs_road')) text += ` · ${CONDITION_TEXT.placedNoRoad}`;
       } else if (isLine(t)) {
-        result = t.kind === 'road' ? drawRoad(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip, roadOptions(t)) : drawWall(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip);
+        result = isRoute(t) ? drawRoute(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1)                    // Version 5.0 (Task 5): the route the bar showed, laid as one command
+          : t.kind === 'road' ? drawRoad(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip, roadOptions(t)) : drawWall(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip);
         cx = s.line.x1 + 0.5; cy = s.line.y1 + 0.5;
-        text = t.kind === 'road' ? roadDoneText(t, result) : T.wallBuilt;
+        text = isRoute(t) ? ROUTE_TEXT.laid(result) : t.kind === 'road' ? roadDoneText(t, result) : T.wallBuilt;
       } else {
         const a = s.area;
         result = t.kind === 'houses' ? paintHouses(world, a.x0, a.y0, a.x1, a.y1)
-          : t.kind === 'plazas' ? paintPlazaTiles(world, rectTiles(a.x0, a.y0, a.x1, a.y1, world.size)) : demolishArea(world, a.x0, a.y0, a.x1, a.y1);
+          : t.kind === 'plazas' ? paintPlazaTiles(world, rectTiles(a.x0, a.y0, a.x1, a.y1, world.size))
+          : t.kind === 'areas' ? paintAreaTiles(world, t.type, rectTiles(a.x0, a.y0, a.x1, a.y1, world.size), { spacing: t.spacing }) : demolishArea(world, a.x0, a.y0, a.x1, a.y1);
         cx = (a.x0 + a.x1) / 2 + 0.5; cy = (a.y0 + a.y1) / 2 + 0.5;
-        text = t.kind === 'houses' ? '' : t.kind === 'plazas' ? UI4_TEXT.plazasLaid(result.ok ? result.ids.length : 0) : T.demolished;
+        text = t.kind === 'houses' ? '' : t.kind === 'plazas' ? UI4_TEXT.plazasLaid(result.ok ? result.ids.length : 0) : t.kind === 'areas' ? AREA_TEXT.laid(t.type, result.ok ? result.ids.length : 0) : T.demolished;
       }
       if (!result.ok) return result;
       // Plots say how many were laid and, when a road is missing, that (placement review P14): counted after the paint, from the world.

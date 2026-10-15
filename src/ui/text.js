@@ -14,6 +14,9 @@ import { MAP } from '../data/map.js';
 import { roadCostOf } from '../sim/costs.js';
 import { producerRefused } from '../sim/production.js';
 import { isUnlocked } from '../sim/progression.js';
+import { makerOf, storeFor, goodMakers, fetchStoreFor } from '../sim/advice.js';
+import { JOBLESS_BANDS } from '../data/layers.js';
+import { MIN_STAFF_RATIO } from '../data/labour.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -43,9 +46,9 @@ export function listText(items) {
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }
 
-// The building that makes a good and the one that stores it, from the data (null when there is none).
-export const makerOf = (good) => Object.keys(BUILDINGS).find((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good) || null;
-export const storeFor = (good) => Object.keys(BUILDINGS).find((t) => (BUILDINGS[t].stores || []).includes(good)) || null;
+// The building that makes a good and the one that stores it, and goodMakers (the raw producer, then the workshop): from the data, in
+// src/sim/advice.js since Version 5.0 (the advice's fixes use them), re-exported here for the interface.
+export { makerOf, storeFor, goodMakers };
 const pluralName = (type) => BUILDING_PLURALS[type] || `${buildingName(type).toLowerCase()}s`;
 // Every building that makes a food (FOOD_GOODS), in the data's order, and their names as a list: "grain farms, fig orchards, hunting lodges and
 // fishing wharves". The food causes and fixes name these, never grain alone (final review: game and fish fill a granary too).
@@ -122,14 +125,6 @@ export const CAUSE_TEXT = {
   no_square: { cause: 'No 2×2 square of plots around it', fix: `Make a square with three plots beside it, empty or ${TIERS[5].name}s` },
 };
 
-// The buildings that make a good, in the order they are built: the raw producer, then the workshop ("clay pit,
-// potter"; figs: "fig orchard").
-export function goodMakers(good) {
-  const maker = makerOf(good);
-  if (!maker) return [];
-  const input = BUILDINGS[maker].consumes;
-  return [input ? makerOf(input) : null, maker].filter(Boolean);
-}
 const milestoneOf = (type) => MILESTONES.find((m) => m.unlocks.includes(type)) || null;
 const capitalised = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -540,7 +535,7 @@ export const T = {
   on: 'On', off: 'Off', version: 'Version', keyHead: 'Key', doesHead: 'Does', gestures: 'Touch',
   leaveMode: 'To leave any mode: ✕, Back, Esc or right-click.',
   shortcutsOff: 'Single-key shortcuts can be turned off in settings. Esc, Enter and Ctrl+Z always work.',
-  gesturesHelp: 'One finger pans, and two fingers pan or zoom. Tap to select, or to move the ghost. Double-tap zooms in when no tool is open. With a road, wall, plots or Demolish, drag one finger over tiles or tap them one by one (tap again to take one off), then tick.',
+  gesturesHelp: 'One finger pans (a quick swipe carries on and slows to a stop; touch the map to stop it, and under Motion: Still it stays put), and two fingers pan or zoom, the map staying under them. Tap to select, or to move the ghost. Double-tap zooms in when no tool is open; tapping twice with two fingers zooms out. Show me glides to the place. With a road, wall, plots or Demolish, drag one finger over tiles or tap them one by one (tap again to take one off), then tick.',
   aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
   undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
   hoverHint: 'Hover a building or pick a card',
@@ -647,7 +642,7 @@ export const cheerReward = (n) => rewardText(n);
 export const TIP_TEXT = {
   press_play: 'Press Play so people can move in: plots stay empty while paused.',
   arrivals: 'Place more plots: families arrive a few times a month while there is room.',
-  house_needs: 'Read what this home needs to grow, then tap Show me for the fix.',
+  house_needs: 'Read the Next step at the top of this home, then tap Show me for the fix.',
   service_reach: 'Look at the coloured tiles: they are the homes this reaches by road.',
   problem_marker: 'Tap a building with a red badge to see what is wrong and how to fix it.',
   month_summary: "Tap the numbers in the top bar to see this month's taxes, wages and food.",
@@ -2627,9 +2622,16 @@ export const S47_PRESSURE_TEXT = {
   // The house sheet's cause when the good is held only in a store beyond the bazaars' supply reach (src/sim/housing.js good_far).
   goodFar: (cause, world) => {
     const s = world.buildings[cause.id];
-    return { cause: `${goodName(cause.good)} is held only in a ${cartStore(s ? s.type : 'storehouse')} ${cartTiles(cause.len)} from the bazaar`, fix: 'A store near the bazaar can Fetch it by cart' };
+    // Version 5.0 (Task 3 review): the fix names the store Show me opens: the one near the bazaar that should set the Fetch order (fetchStoreFor), else, with none
+    // there, the far store that holds the good.
+    const near = fetchStoreFor(world, cause);
+    return { cause: `${goodName(cause.good)} is held only in a ${cartStore(s ? s.type : 'storehouse')} ${cartTiles(cause.len)} from the bazaar`,
+      fix: near ? `The ${cartStore(near.type)} near the bazaar can Fetch it by cart` : 'No store near the bazaar can Fetch it yet; Show me the one that holds it' };
   },
-  showFar: (cause, world) => { const s = world.buildings[cause.id]; return `Show me the ${cartStore(s ? s.type : 'storehouse')} that holds ${cartGood(cause.good)}`; },
+  showFar: (cause, world) => {
+    const near = fetchStoreFor(world, cause), s = world.buildings[cause.id];
+    return near ? `Show me the ${cartStore(near.type)} near the bazaar that can Fetch ${cartGood(cause.good)}` : `Show me the ${cartStore(s ? s.type : 'storehouse')} that holds ${cartGood(cause.good)}`;
+  },
 };
 FIRST_TEXT.first_quota_met = S47_PRESSURE_TEXT.first;
 Object.assign(TIP_TEXT, { tribute_quota: S47_PRESSURE_TEXT.tip, raids_wealth: S47_PRESSURE_TEXT.tipRaids, upper_tiers: S47_PRESSURE_TEXT.tipTiers });
@@ -2639,3 +2641,75 @@ Object.assign(TIP_HELP_TEXT, { tribute_quota: S47_PRESSURE_TEXT.tipHelp, raids_w
   S46_COURT_TEXT.logLine = (e) => (e.kind === 'quota' ? S47_PRESSURE_TEXT.logLine(e) : baseLog(e));
 }
 // ── end s47 ──
+
+// ── v50 advice (Version 5.0, Task 1) ──────────────────────────────────────────────────────────────────────────────────
+// The City advice button (a scroll in the top bar, from the first home) and its sheet; the sheet's sentences are built from the advice items in
+// src/ui/adviceText.js. The tip fires when the first home is laid; How to play lists it with the others.
+T.advice = 'City advice';
+T.adviceNew = 'City advice: something new';
+T.adviceLead = 'What holds your city back, worst first.';
+TIP_TEXT.city_advice = 'The scroll button at the top shows what holds your city back, and what each fix costs.';
+TIP_HELP_TEXT.city_advice = 'The scroll button opens City advice: what holds your city back, with costs and Show me. A dot marks news.';
+// ── end v50 advice ──
+
+// ── v50 layers (Version 5.0, Task 3, rulings 540-549) ─────────────────────────────────────────────────────────────────
+// Home progress, Goods supply and Workers (src/render/layers.js, legends in src/ui/overlayUi.js, the good picker in the legend row). Every number said here is the sim's: the
+// jobless bands are JOBLESS_BANDS, the staff a workplace needs to work is MIN_STAFF_RATIO. Each key has a short label (the strip) and words (a screen reader, and the
+// map's cue in full): wash against hatching, an icon, a number, never a colour alone.
+Object.assign(OVERLAY_NAMES, { progress: 'Home progress', supply: 'Goods supply', workers: 'Workers' });
+const v50Bands = JOBLESS_BANDS.map((b, i) => (JOBLESS_BANDS[i + 1] ? `${b.from} to ${JOBLESS_BANDS[i + 1].from - 1}` : `${b.from} or more`));
+const v50Staff = `${Math.round(MIN_STAFF_RATIO * 100)}%`;
+export const V50_LAYERS_TEXT = {
+  // Home progress: three keys, each a label and its words.
+  ready: { label: 'All met', words: 'Tick: every need met, so it grows at the month\'s end, or keeps its top tier' },
+  one: { label: '1 missing', words: 'Icon: one need missing, the one the icon shows' },
+  many: { label: '2+ missing', words: 'Hatched, with a number: two or more needs missing; the icon is the first, the number how many' },
+  // Goods supply: the good picker and its keys.
+  pick: 'Good',
+  pickName: (good) => (good === 'food' ? 'Foods' : goodName(good)),
+  pickAria: (good) => `${good === 'food' ? 'Foods' : goodName(good)} supply`,
+  has: { label: 'Has it', words: 'Filled dot: this home has the good it needs' },
+  lacks: { label: 'Lacks it', words: 'Hollow ring on hatching: this home lacks the good it needs' },
+  holds: { label: 'Held', words: 'Label: a store or bazaar that holds the good, and how much' },
+  // Workers: short of staff, not working, and the jobless.
+  short: { label: 'Short', words: 'Label with a minus: how many workers a workplace lacks' },
+  stopped: { label: 'Not working', words: `Hatched: below ${v50Staff} of the workers it needs, so it does not work` },
+  newcomer: { label: 'New: counted next day', words: 'A workplace placed or resumed during the day shows its shortfall until the count on the next day' },
+  jobless: { label: 'Jobless', words: `Shaded district with a number: people with no work, shared out over the districts by where people live (${v50Bands.join(', ')}, the last hatched)` },
+  tipProgress: 'Layers has a new one: Home progress shows how close each home is to its next tier.',
+  tipProgressHelp: 'Home progress (from your first home): a tick means all met, an icon the missing need, a number how many.',
+  tipTown: 'Town brings two more layers: Goods supply and Workers.',
+  tipTownHelp: 'Goods supply (Layers, from Town): who lacks a good, what stores hold. Workers: staff short, people jobless.',
+};
+Object.assign(OVERLAY_LEGEND, {
+  progress: [V50_LAYERS_TEXT.ready.words, V50_LAYERS_TEXT.one.words, V50_LAYERS_TEXT.many.words],
+  supply: [V50_LAYERS_TEXT.has.words, V50_LAYERS_TEXT.lacks.words, V50_LAYERS_TEXT.holds.words],
+  workers: [V50_LAYERS_TEXT.short.words, V50_LAYERS_TEXT.stopped.words, V50_LAYERS_TEXT.jobless.words],
+});
+TIP_TEXT.layer_progress = V50_LAYERS_TEXT.tipProgress;
+TIP_HELP_TEXT.layer_progress = V50_LAYERS_TEXT.tipProgressHelp;
+TIP_TEXT.layers_town = V50_LAYERS_TEXT.tipTown;
+TIP_HELP_TEXT.layers_town = V50_LAYERS_TEXT.tipTownHelp;
+// ── end v50 layers ──
+
+// ── v50 areas (Version 5.0, Task 4, rulings 550-559) ──────────────────────────────────────────────────────────────────
+// Build another (a button on every building sheet) and drag areas (a farm, garden or statue tool's ▦ button); the bar's and the sheets' sentences are in src/ui/areaText.js.
+// The tips come with the first building placed and the first farm, garden or statue; How to play lists them with the others.
+TIP_TEXT.build_another = 'Open a building, then Build another: the same one, with the same settings, ready to place.';
+TIP_HELP_TEXT.build_another = 'Build another, on every building sheet, copies the type, style and store settings. It says why when it cannot.';
+TIP_TEXT.drag_areas = 'Placing a farm, garden or statue? The area button lays several at once: drag over the land.';
+TIP_HELP_TEXT.drag_areas = 'The area button on farms, gardens and statues drags a rectangle; the total shows before you confirm.';
+// ── end v50 areas ──
+
+// ── v50 roads (Version 5.0, Task 5, rulings 560-569) ─────────────────────────────────────────────────────────────────
+// Routed roads: the road bar's Route / Straight toggle; the bar's and the refusals' sentences are in src/ui/routeText.js. The tip comes with the first road laid, or the first
+// straight road refused for what lies in its way; How to play lists it with the others.
+TIP_TEXT.road_route = 'Something in the way? Switch the road bar to Route: pick two ends and the road finds a way round.';
+TIP_HELP_TEXT.road_route = 'Route finds the cheapest way between two points, with a bridge where one fits. Straight keeps the L and finger.';
+// ── end v50 roads ──
+
+// ── v50 grand (Version 5.0, Task 7, rulings 580-599) ─────────────────────────────────────────────────────────────────
+// Grand homes: the tip comes with the first Fine manor; How to play lists it with the others. The tier names and desirability numbers are TIERS'.
+TIP_TEXT.grand_homes = `A ${TIERS[7].name}! For a ${TIERS[8].name}: linen, a third food, desirability ${TIERS[8].desirability.rise}. Its next step names each.`;
+TIP_HELP_TEXT.grand_homes = `A ${TIERS[8].name} needs linen, three foods and desirability ${TIERS[8].desirability.rise}; an ${TIERS[9].name} adds jewellery and ${TIERS[9].desirability.rise}. Statues and sphinxes help most.`;
+// ── end v50 grand ──

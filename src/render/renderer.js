@@ -17,6 +17,7 @@ import { idx } from '../sim/grid.js';
 import { hasNewLand, GRASS } from '../data/s47.js';
 import { landTrees, LAND_TREES, moistureAt } from './grass.js';
 import { hillsIn } from './hills.js';
+import { buildingsInRange } from './chunkIndex.js';
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
@@ -46,29 +47,73 @@ export function drawMapEdge(g, size) {
   for (const [width, alpha] of EDGE_FADE) g.poly(pts, 'none', { stroke: TERRAIN.edgeFade, strokeWidth: width, strokeAlpha: alpha });
 }
 
-const intersects = (b, r) => b.x <= r.x1 && b.x + b.w - 1 >= r.x0 && b.y <= r.y1 && b.y + b.d - 1 >= r.y0;
+// Version 5.0 (Task 6): what the view can show, for collectObjects. The range collectObjects is given is the tile-space box round the view's four corners, and the view is a
+// tilted rectangle in it: at the minimum zoom that box holds up to twice the tiles the screen does, and (on a big map) a city's worth of sprites that are off the canvas. A
+// sprite whose art bounds (its registry def's `bounds`, art px from p(x, y)) lie wholly outside the view and a margin is left out, and so are its shadow and its sort: the
+// pixels are those of a frame that drew them. The margin (CULL_MARGIN art px, and the sprite's height again for its shadow) covers what is drawn beyond the bounds.
+export const CULL_MARGIN = 48;
+export const cullControl = { on: true };   // a test switches it off to draw a frame the old way and compare the pixels
+export function viewCull(cam, view) {
+  const k = ART_SCALE * cam.zoom, c = p(cam.x, cam.y);
+  const m = CULL_MARGIN * k, ox = view.width / 2 - c[0] * k, oy = view.height / 2 - c[1] * k;
+  const left = -m, top = -m, right = view.width + m, bottom = view.height + m;
+  return {
+    // Is a sprite with these art bounds at tile point (x, y) near the view (null bounds: yes)?
+    sees(x, y, bounds, height = 0) {
+      if (!bounds) return true;
+      const sx = ox + (x - y) * 16 * k, sy = oy + (x + y) * 8 * k, h = height * k;
+      return sx + bounds[2] * k + h >= left && sx + bounds[0] * k - h <= right && sy + bounds[3] * k + h >= top && sy + bounds[1] * k - h <= bottom;
+    },
+    // The x tiles of row y that can show something the size of `reach` art px (a tree): the part of the row inside the view and its margin, as [x0, x1] (empty when x0 > x1).
+    row(y, reach) {
+      const r = reach * k;
+      // sx = ox + (x - y) * 16k within [left - r, right + r]; sy = oy + (x + y) * 8k within [top - r, bottom + r]
+      const a0 = y + (left - r - ox) / (16 * k), a1 = y + (right + r - ox) / (16 * k);
+      const b0 = (top - r - oy) / (8 * k) - y, b1 = (bottom + r - oy) / (8 * k) - y;
+      return [Math.ceil(Math.max(a0, b0)), Math.floor(Math.min(a1, b1))];
+    },
+  };
+}
+// Does terrain chunk (cx, cy) (its diamond of CHUNK x CHUNK tiles, its bake a little wider) meet the view? Tested on the diamond's four corners' screen box.
+function chunkShows(cam, view, cx, cy) {
+  const k = ART_SCALE * cam.zoom, c = p(cam.x, cam.y), m = CULL_MARGIN * k;
+  const ox = view.width / 2 - c[0] * k, oy = view.height / 2 - c[1] * k;
+  const x0 = cx * CHUNK, y0 = cy * CHUNK, x1 = x0 + CHUNK, y1 = y0 + CHUNK;
+  const left = ox + (x0 - y1) * 16 * k, right = ox + (x1 - y0) * 16 * k, top = oy + (x0 + y0) * 8 * k, bottom = oy + (x1 + y1) * 8 * k;
+  return right >= -m && left <= view.width + m && bottom >= -m && top <= view.height + m;
+}
+const TREE_REACH = 64;   // art px a tree or hill tile can reach past its tile's point (the tallest is about 56 high)
 
-export function collectObjects(world, range, walkers = [], registry = ART) {
+// Version 5.0 (Task 0): the buildings in range come from the chunk index (src/render/chunkIndex.js), the same ones in the same order as a
+// pass over every building, so a large city draws only what is near the view. Task 6: with `screen` ({ cam, view }) the objects the view cannot show are left out (viewCull).
+export function collectObjects(world, range, walkers = [], registry = ART, screen = null) {
   const out = [];
-  for (const b of Object.values(world.buildings)) {
-    if (!intersects(b, range)) continue;
+  const cull = screen && cullControl.on ? viewCull(screen.cam, screen.view) : null;
+  for (const b of buildingsInRange(world, range)) {
     const slot = slotFor(b, world);
     const def = registry[slot];
     if (!def || !(def.draw || def.png)) continue;
+    if (cull && !def.live && !cull.sees(b.x, b.y, def.bounds, def.height)) continue;
     const o = { key: depthKey(b.x, b.y, b.w, b.d), id: b.id, slot, def, x: b.x, y: b.y };
     if (def.live) o.b = b;                             // Stage 4: a monument is drawn live from its building (opts.live)
     out.push(o);
   }
   for (let y = range.y0; y <= range.y1; y++) {
-    for (let x = range.x0; x <= range.x1; x++) {
+    let x0 = range.x0, x1 = range.x1;
+    if (cull) { const [a, b] = cull.row(y, TREE_REACH); if (a > x0) x0 = a; if (b < x1) x1 = b; }
+    for (let x = x0; x <= x1; x++) {
       const slot = decorAt(world, x, y);
       if (slot) out.push({ key: depthKey(x, y, 1, 1), id: DECOR_ID_BASE + idx(world.size, x, y), slot, def: registry[slot], x, y });
     }
   }
   // Stage 4.7 (ruling 464): hill tiles, each a sprite at its own depth (src/render/hills.js); their ids share the trees' range but are never swayed (`still`)
-  for (const h of hillsIn(world, range, registry)) out.push({ key: depthKey(h.x, h.y, 1, 1), id: DECOR_ID_BASE + h.i, slot: h.slot, def: registry[h.slot], x: h.x, y: h.y, still: true });
+  for (const h of hillsIn(world, range, registry)) {
+    if (cull && !cull.sees(h.x, h.y, registry[h.slot].bounds, registry[h.slot].height)) continue;
+    out.push({ key: depthKey(h.x, h.y, 1, 1), id: DECOR_ID_BASE + h.i, slot: h.slot, def: registry[h.slot], x: h.x, y: h.y, still: true });
+  }
   for (const wk of walkers) {
     if (wk.x < range.x0 || wk.x > range.x1 + 1 || wk.y < range.y0 || wk.y > range.y1 + 1) continue;
+    if (cull) { const fd = registry[`fig.${wk.kind}`]; if (fd && !cull.sees(wk.x, wk.y, fd.bounds, fd.height)) continue; }
     out.push({ key: wk.x + wk.y + 0.01, id: FIGURE_ID_BASE + wk.id, slot: `fig.${wk.kind}`, def: null, x: wk.x, y: wk.y });
   }
   out.sort(compareDepth);
@@ -99,7 +144,8 @@ export function createRenderer({
   const dprOf = typeof dpr === 'function' ? dpr : () => dpr;
   let currentDpr = dprOf();
   const ctx = canvas.getContext('2d');
-  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, live: 0, ms: 0, frames: 0, stale: 0 };
+  const stats = { chunks: 0, bakes: 0, objects: 0, sprites: 0, live: 0, ms: 0, frames: 0, stale: 0, prebakes: 0 };
+  let ring = { key: '', done: false };   // Version 5.0 (Task 8): the ring of chunks round the view that is baked, so a fling finds them ready
 
   function renderFrame(world, cam, opts = {}) {
     const started = performance.now();
@@ -117,6 +163,7 @@ export function createRenderer({
     const toDevice = (ax, ay) => { const [sx, sy] = artToScreen(cam, view, ax, ay); return [sx * dpr, sy * dpr]; };
     const [ox, oy] = toDevice(0, 0);
     const g = makeDraw(ctx, ART_SCALE * zoom * dpr, ART_SCALE * zoom);   // the CSS px an art px takes, for marks that keep their size on screen
+    g.cull = cullControl.on ? viewCull(cam, view) : null;   // Version 5.0 (Task 6): what the view can show, for a pass over the range's tiles that draws each one (markers.js)
 
     // 0. The map edge band, in art px with the art origin placed by the camera; the chunks cover its inner half.
     ctx.setTransform(1, 0, 0, 1, ox, oy);
@@ -126,6 +173,7 @@ export function createRenderer({
     // 1. Terrain chunks. Stale or missing chunks bake a few per frame; the rest show next frame.
     let bakes = 0, chunks = 0, stale = 0;
     for (const { cx, cy } of visibleChunks(range)) {
+      if (cullControl.on && !chunkShows(cam, view, cx, cy)) continue;                  // Version 5.0 (Task 6): a chunk wholly off the canvas is neither baked nor drawn
       const peeked = baker.peek(world, cx, cy, zoom, dpr);
       let sprite = peeked.fresh ? peeked.sprite : null;
       if (!sprite && bakes < maxBakesPerFrame) { sprite = baker.get(world, cx, cy, zoom, dpr, true); bakes++; }
@@ -137,8 +185,37 @@ export function createRenderer({
       chunks++;
     }
 
+    // 1b. Version 5.0 (Task 8): the culled chunks are not baked while they are off the canvas, so a fast fling would bake at the leading edge (two a frame) and
+    // hitch on a phone. On a frame with nothing to bake, one chunk of the ring round the visible chunks is baked ahead, nearest the view first, never past what the
+    // baker holds (it would evict the chunks in view). Once the ring is whole the pass is skipped until the view or the zoom moves it or a visible chunk re-bakes.
+    let prebakes = 0;
+    if (cullControl.on && baker.capacity) {
+      if (bakes > 0 || stale > 0) ring.done = false;
+      else {
+        const vis = visibleChunks(range);
+        let cx0 = Infinity, cx1 = -Infinity, cy0 = Infinity, cy1 = -Infinity;
+        for (const { cx, cy } of vis) { cx0 = Math.min(cx0, cx); cx1 = Math.max(cx1, cx); cy0 = Math.min(cy0, cy); cy1 = Math.max(cy1, cy); }
+        const rk = `${cx0},${cy0},${cx1},${cy1}|${zoom}|${dpr}`;
+        if (rk !== ring.key) ring = { key: rk, done: false };
+        if (!ring.done && vis.length) {
+          const n = Math.ceil(world.size / CHUNK), mid = [(cx0 + cx1) / 2, (cy0 + cy1) / 2];
+          let next = null, best = Infinity;
+          for (let cy = Math.max(0, cy0 - 1); cy <= Math.min(n - 1, cy1 + 1); cy++) {
+            for (let cx = Math.max(0, cx0 - 1); cx <= Math.min(n - 1, cx1 + 1); cx++) {
+              if (cx >= cx0 && cx <= cx1 && cy >= cy0 && cy <= cy1 && chunkShows(cam, view, cx, cy)) continue;   // in view: drawn above
+              if (baker.peek(world, cx, cy, zoom, dpr).fresh) continue;
+              const d = Math.hypot(cx - mid[0], cy - mid[1]);
+              if (d < best) { best = d; next = { cx, cy }; }
+            }
+          }
+          if (next && baker.size(world) < baker.capacity) { baker.get(world, next.cx, next.cy, zoom, dpr, true); prebakes++; }
+          else ring.done = true;                                         // whole, or the baker is full
+        }
+      }
+    }
+
     // 2. Ground shadows, drawn in art px with the art origin placed by the camera.
-    const objects = collectObjects(world, range, opts.walkers || [], registry);
+    const objects = collectObjects(world, range, opts.walkers || [], registry, { cam, view });
     const rising = opts.rising || null;   // building ids only: tree and walker ids start at 1e6
     ctx.setTransform(1, 0, 0, 1, ox, oy);
     if (opts.ambient) opts.ambient(g, range);              // Stage 3: ambient life over the terrain (render/ambient.js)
@@ -184,7 +261,7 @@ export function createRenderer({
     if (opts.grid) drawTileGrid(g, range);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
+    stats.chunks = chunks; stats.bakes = bakes; stats.stale = stale; stats.prebakes = prebakes; stats.objects = objects.length; stats.sprites = sprites; stats.live = live;
     stats.ms = performance.now() - started; stats.frames++;
     return stats;
   }

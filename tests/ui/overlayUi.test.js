@@ -6,7 +6,7 @@ import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 
 describe('ui overlay legend', () => {
-  it('shows name, dot, ring and a close button for the current overlay, and cycles through all eleven', () => {
+  it('shows name, dot, ring and a close button for the current overlay, and cycles through all fourteen', () => {
     const { root, cleanup } = mount();
     const store = createStore(INITIAL_UI_STATE);
     const legend = createOverlayLegend({ container: root, store });
@@ -25,8 +25,8 @@ describe('ui overlay legend', () => {
     expect(store.get().overlay).toBe(null);
     expect(root.querySelector('.strip')).toBe(null);
     const seen = [];
-    for (let i = 0; i < 12; i++) { legend.cycle(); seen.push(store.get().overlay); }
-    expect(seen).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', null]);
+    for (let i = 0; i < 15; i++) { legend.cycle(); seen.push(store.get().overlay); }
+    expect(seen).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers', null]);   // Version 5.0: the three layers follow Ground (with no world the legend cycles all)
     cleanup();
   });
   it('shows the Ground overlay as two swatches with their words and no dot or ring, and says what the bright tiles are while a farm, orchard or mine is placed', () => {

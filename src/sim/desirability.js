@@ -108,6 +108,19 @@ function bestTile(world, house, field = desirabilityField(world)) {
 // judging many homes, so they are all judged on the same field.
 export const houseDesirability = (world, house, field = desirabilityField(world)) => bestTile(world, house, field).v;
 
+// Version 5.0 (Task 7): the score a home would have with one more building of `type` at (x, y), counted as the field counts it (its
+// DESIRABILITY values by distance; the decorations a low street's fix places need no road, so they count at once): the best tile of the
+// home's footprint with that building's value added. Only reads the world.
+export function scoreWith(world, house, type, x, y, field = desirabilityField(world)) {
+  const vals = DESIRABILITY[type] || [];
+  const { w, d } = dimsOf(type);
+  let best = -Infinity;
+  for (let ty = house.y; ty < house.y + house.d; ty++) {
+    for (let tx = house.x; tx < house.x + house.w; tx++) best = Math.max(best, field[idx(world.size, tx, ty)] + valueAt(vals, x, y, w, d, tx, ty));
+  }
+  return best;
+}
+
 // The buildings that most change a home's score, at its best tile: [{ id, type, value }], largest effect first
 // (by size, either sign; ties by id). The house sheet's "14 of 20: +6 temple, +3 garden, -4 potter".
 export function desirabilityContributors(world, house, n = 3) {
