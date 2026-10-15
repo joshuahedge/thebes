@@ -127,7 +127,7 @@ describe('v50 balance: the terrain ring round the view is baked ahead when the f
     expect(frames(renderer, w, cam, 3).prebakes).toBe(0);
     cam.x += CHUNK;                                                      // one whole chunk along, onto chunks the old ring baked
     const moved = renderer.renderFrame(w, cam, { view: V });
-    expect(moved.stale).toBe(0);
+    expect([moved.bakes, moved.stale]).toEqual([0, 0]);                  // nothing to bake on the moved frame, so only the ring key can start the prebake
     let pre = moved.prebakes;
     for (let i = 0; i < 20; i++) pre += renderer.renderFrame(w, cam, { view: V }).prebakes;
     expect(pre).toBeGreaterThan(0);                                      // the ring key follows the visible chunk range, so the new ring is baked (a constant key left it skipped)
