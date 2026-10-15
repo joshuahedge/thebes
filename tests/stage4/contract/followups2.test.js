@@ -66,7 +66,7 @@ describe('s4 contract follow-ups 2: Show me for a monument', () => {
       expect([asked.length, framed[1][1], r.cam.zoom]).toEqual([2, 0.6, 0.6]);
       r.store.set({ tool: null });
       r.ui.showMeAt({ category: 'homes', item: 'house', x: 14, y: 9 });           // not a monument: no fit asked
-      expect([asked.length, framed[2]]).toEqual([2, [null, null]]);
+      expect([asked.length, framed[2]]).toEqual([2, [null, 0.75]]);               // Version 5.0 (Task 6): no fit, but Show me comes in to SHOW_ME_MIN_ZOOM from the 0.6 the last one left
     } finally { r.cleanup(); }
   });
   it('cuts to the fit at once under Gentle, and passes it to the wide screen\'s pan too', async () => {
@@ -75,7 +75,13 @@ describe('s4 contract follow-ups 2: Show me for a monument', () => {
       r.ui.settings.set({ motion: 'gentle' });
       const asked = standIn(r, () => 0.5);
       r.ui.showMeAt({ category: 'monuments', item: 'pyramid_great', x: 20, y: 5 });
-      expect([asked.length, r.ui.cameraControl.animating, r.cam.zoom]).toEqual([1, false, 0.5]);
+      expect([asked.length, r.ui.cameraControl.animating]).toEqual([1, true]);
+      r.ui.cameraControl.tick(1e12);
+      expect([r.ui.cameraControl.animating, r.cam.zoom]).toEqual([false, 0.5]);
+      r.ui.settings.set({ motion: 'still' });                                       // and a cut under Still
+      r.cam.zoom = 1; r.store.set({ tool: null });
+      r.ui.showMeAt({ category: 'monuments', item: 'pyramid_great', x: 20, y: 5 });
+      expect([r.ui.cameraControl.animating, r.cam.zoom]).toEqual([false, 0.5]);
     } finally { r.cleanup(); }
   });
 });

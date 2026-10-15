@@ -535,7 +535,7 @@ export const T = {
   on: 'On', off: 'Off', version: 'Version', keyHead: 'Key', doesHead: 'Does', gestures: 'Touch',
   leaveMode: 'To leave any mode: ✕, Back, Esc or right-click.',
   shortcutsOff: 'Single-key shortcuts can be turned off in settings. Esc, Enter and Ctrl+Z always work.',
-  gesturesHelp: 'One finger pans, and two fingers pan or zoom. Tap to select, or to move the ghost. Double-tap zooms in when no tool is open. With a road, wall, plots or Demolish, drag one finger over tiles or tap them one by one (tap again to take one off), then tick.',
+  gesturesHelp: 'One finger pans (a quick swipe carries on and slows to a stop; touch the map to stop it, and under Motion: Still it stays put), and two fingers pan or zoom, the map staying under them. Tap to select, or to move the ghost. Double-tap zooms in when no tool is open; tapping twice with two fingers zooms out. Show me glides to the place. With a road, wall, plots or Demolish, drag one finger over tiles or tap them one by one (tap again to take one off), then tick.',
   aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
   undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
   hoverHint: 'Hover a building or pick a card',
