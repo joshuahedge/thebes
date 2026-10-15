@@ -19,3 +19,4 @@ import './roads/sim.test.js';
 import './roads/ui.test.js';
 import './roads/budget.test.js';
 import './roads/walls.test.js';
+import './camera/camera.test.js';

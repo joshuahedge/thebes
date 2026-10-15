@@ -3,7 +3,7 @@
 import { MILESTONES } from '../data/progression.js';
 import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
-import { CATEGORIES, toolForItem, categoryOfItem, AUTO_OVERLAY, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
+import { CATEGORIES, toolForItem, categoryOfItem, AUTO_OVERLAY, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS, SHOW_ME_MIN_ZOOM } from '../data/ui.js';
 import { goalById, nextItemFor, guideActive, openGoals, goalProgress } from '../sim/goals.js';
 import { settle } from '../sim/settle.js';
 import { startDaily } from '../sim/daily.js';
@@ -171,7 +171,7 @@ export function createUI({
   // the priority tip and never waits.
   const tipsBusy = (s) => isToolMode(s.mode) || (phone() && Boolean(s.sheet || s.overlay || alertHasRow() || world.speed === 0));
   const fireTip = (key) => tips.trigger(key, { busy: tipsBusy(store.get()) });
-  const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
+  const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, motionLevel, now });   // Version 5.0 (Task 6): the level, for Show me's glide and the fling
   const placement = createPlacement({ world, store, afterCommand, effects, now, roadMode: { get: () => settings.get().roadMode, set: (v) => settings.set({ roadMode: v }) } });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc, keys: () => settings.get().keyboardShortcuts !== false });
   const alerts = createAlerts({
@@ -339,9 +339,15 @@ export function createUI({
     const fit = g && def.monument ? monumentUi.pickFit(tool.type, g, insets) : null;
     const extent = fit ? fit.extent || null : null;
     const zoom = fit && fit.zoom !== undefined ? Math.min(fit.zoom, cam.zoom) : null;
-    if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, zoom);
-    else if (g) cameraControl.panToKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, zoom);
-    else cameraControl.panTo(x, y);
+    // Version 5.0 (Task 6): Show me glides there (a short glide under Gentle, a jump under Still) and frames the place: when the view is further out than SHOW_ME_MIN_ZOOM and
+    // no monument's fit asks for a zoom, it comes in to that (Still too: a change of scale, not a movement).
+    const framed = zoom === null && cam.zoom < SHOW_ME_MIN_ZOOM ? SHOW_ME_MIN_ZOOM : zoom;
+    cameraControl.glide(() => {
+      if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, framed);
+      else if (g) cameraControl.panToKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, framed);
+      else if (framed !== null) cameraControl.panToKeeping(x, y, x, y, insets, undefined, undefined, null, framed);
+      else cameraControl.panTo(x, y);
+    });
     const at = now();
     for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(x, y, at + i * SHOW_ME_PULSE_MS);
   }

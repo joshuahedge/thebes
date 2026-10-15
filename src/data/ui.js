@@ -87,6 +87,25 @@ export const PAN_STEP_PX = 48;
 export const ZOOM_STEP = 1.25;
 export const WHEEL_ZOOM_STEP = 1.1;
 export const CAMERA_PAN_MS = 350;
+// Version 5.0 (Task 6, rulings 570-579): the smoother camera.
+// Fling: a touch or pen swipe lifted still moving keeps panning, its speed (screen px a second) dying away exponentially with the time constant for the Motion level (Full
+// glides about 0.35 s, Gentle about a third of that, Still not at all); it stops below FLING_STOP_PX_S, and any touch stops it. The speed is read from the last
+// FLING_WINDOW_MS of the drag, and a finger that rested FLING_REST_MS before lifting leaves none.
+export const FLING_MIN_PX_S = 400;
+export const FLING_MAX_PX_S = 3500;
+export const FLING_STOP_PX_S = 30;
+export const FLING_WINDOW_MS = 100;
+export const FLING_REST_MS = 80;
+export const FLING_TAU_MS = { full: 350, gentle: 110 };
+// Show me's glide to the place it frames: at least SHOW_ME_GLIDE_MS (Full) growing with the distance, SHOW_ME_GENTLE_MS under Gentle, a jump under Still. It also
+// comes in to SHOW_ME_MIN_ZOOM when the view is further out (a place is framed to be seen, not to be a speck).
+export const SHOW_ME_GLIDE_MS = 380;
+export const SHOW_ME_GLIDE_MAX_MS = 800;
+export const SHOW_ME_GLIDE_MS_PER_TILE = 14;
+export const SHOW_ME_GENTLE_MS = 170;
+export const SHOW_ME_MIN_ZOOM = 0.75;
+// A two-finger tap (both down and up within TWO_TAP_MS, neither moving more than DRAG_THRESHOLD_PX); two within DOUBLE_TAP_MS zoom out a step.
+export const TWO_TAP_MS = 250;
 export const TOAST_MS = 4000;
 export const UNDO_TOAST_MS = 6000;
 export const GHOST_FINGER_OFFSET_PX = 48;

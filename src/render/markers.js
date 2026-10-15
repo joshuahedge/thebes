@@ -23,7 +23,7 @@ import { artToScreen, visibleTileRange } from './camera.js';
 import { makeDraw } from './art/ctx.js';
 import { ART, slotFor } from './art/registry.js';
 import { UI, INK } from './art/palette.js';
-import { p, U, quad, depthKey } from './iso.js';
+import { p, U, quad, depthKey, ART_SCALE } from './iso.js';
 import { MONUMENT_LOOK } from './art/monuments.js';
 import { monumentTop } from './monuments.js';
 
@@ -122,6 +122,9 @@ function roadMark(h, x, y, R) {
   for (const dy of [-gap, gap]) h.line([x - half, y + dy], [x + half, y + dy], UI.halo, Math.max(1.6, 0.3 * R), 1);
 }
 
+const PLOT_BOUNDS = [-16, -8, 16, 24];   // art px round a plot's tile point (its diamond), for the view cull
+export const CROWD = { plots: 150, zoom: 0.6 };
+
 // A plot with no road beside it: a dashed amber outline on its tile (Stage 3's, kept with the pinned badges).
 function dashedAmberTile(g, x, y) {
   const pts = quad(x, y, 1, 1, 0);
@@ -135,7 +138,11 @@ function dashedAmberTile(g, x, y) {
 // Draws the layout: the road-less plots' dashed outlines, then each marker's footprint rings (in art px, on the map),
 // then its stem, roof dot and badge (in CSS px, so they keep their size at any zoom), back to front.
 export function drawMarkers(g, world, alerts, range, layout = []) {
-  for (const t of roadlessPlots(world, range)) dashedAmberTile(g, t.x, t.y);
+  // Version 5.0 (Task 6): the plots off the canvas are not drawn, and a crowd of them seen from far out (more than CROWD.plots on screen at CROWD.zoom or less, as a Large map
+  // zoomed out can hold: its stress city has about a thousand) is left to the road badges that already say "road" over each connected group (roadlessPlotBadges), as the
+  // tile outlines there are smaller than a finger and cost a frame's time over; at any nearer zoom, or with fewer, every plot has its dashed outline as ever.
+  const plots = roadlessPlots(world, range).filter((t) => !g.cull || g.cull.sees(t.x, t.y, PLOT_BOUNDS));
+  if (!(plots.length > CROWD.plots && (g.cssScale || g.scale) / ART_SCALE <= CROWD.zoom)) for (const t of plots) dashedAmberTile(g, t.x, t.y);
   if (!layout.length) return;
   const css = g.cssScale || g.scale, ringW = MARKER.ring / css;
   for (const m of layout) {

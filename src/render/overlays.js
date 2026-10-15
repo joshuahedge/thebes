@@ -3,7 +3,7 @@
 // ghost's three states (spec 6.5) and the placement preview's desirability tint (spec 4.7).
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { HOUSEHOLD_GOODS } from '../data/goods.js';
-import { housesOf, allBuildings, isSite } from '../sim/world.js';
+import { housesOf, allBuildings, isSite, buildingsVersion } from '../sim/world.js';
 import { houseStatus } from '../sim/housing.js';
 import { roadReach, touchesRoad } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
@@ -693,13 +693,20 @@ export function problemMarkers(world, alerts, range = null) {
 
 // The homes and plots in view with no road beside them: each gets a dashed amber outline on its tile (drawProblemMarkers), since a
 // plot with no road is a pale patch that nothing else marks. range is the visible tile range, as for problemMarkers.
+// Version 5.0 (Task 6): the whole list is kept while the roads and the buildings are as they were (roadVersion, buildingsVersion: a house's place and the road beside it are all
+// it depends on), so a frame filters a list instead of asking every home whether a road touches it.
+const plotsMemo = new WeakMap();   // world -> { key, list }
 export function roadlessPlots(world, range = null) {
-  const out = [];
-  for (const b of housesOf(world)) {
-    if (range && (b.x < range.x0 - 1 || b.x > range.x1 + 1 || b.y < range.y0 - 1 || b.y > range.y1 + 1)) continue;
-    if (!touchesRoad(world, b)) out.push({ id: b.id, x: b.x, y: b.y });
+  const key = `${world.roadVersion}|${buildingsVersion(world)}`;
+  let m = plotsMemo.get(world);
+  if (!m || m.key !== key) {
+    const list = [];
+    for (const b of housesOf(world)) if (!touchesRoad(world, b)) list.push({ id: b.id, x: b.x, y: b.y });
+    m = { key, list };
+    plotsMemo.set(world, m);
   }
-  return out;
+  if (!range) return m.list;
+  return m.list.filter((b) => !(b.x < range.x0 - 1 || b.x > range.x1 + 1 || b.y < range.y0 - 1 || b.y > range.y1 + 1));
 }
 
 // One road badge per connected group of homes and plots with no road beside them (final review 7): the outlines alone are thin,
@@ -709,7 +716,7 @@ export function roadlessPlots(world, range = null) {
 // runs every frame); range keeps the ones in view.
 const plotBadgeMemo = new WeakMap();   // world -> { key, list }
 export function roadlessPlotBadges(world, range = null) {
-  const key = `${world.roadVersion}|${world.nextId}|${buildingSignature(world)}`;
+  const key = `${world.roadVersion}|${buildingsVersion(world)}`;   // Version 5.0 (Task 6): the groups depend on the roads and which homes stand where, not on their staff or tier
   let m = plotBadgeMemo.get(world);
   if (!m || m.key !== key) { m = { key, list: groupRoadless(world) }; plotBadgeMemo.set(world, m); }
   if (!range) return m.list;
