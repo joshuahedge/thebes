@@ -43,7 +43,7 @@ const stat = (label, cls) => {
 
 // shortDate() says when the date reads "Y2 M1" rather than "Year 2, month 1, day 1": on a phone, and (createUI) in the
 // wide layout under 1000 px wide or at 150% text, where the long date would push the numbers onto another row.
-export function createHud({ world, store, container, speedBar = null, onOpenSummary = (section) => {}, onOpenMenu = () => {}, shortDate = () => store.get().layout !== 'wide' }) {
+export function createHud({ world, store, container, speedBar = null, onOpenSummary = (section) => {}, onOpenMenu = () => {}, onOpenAdvice = () => {}, advice = () => ({ shown: false, dot: false }), shortDate = () => store.get().layout !== 'wide' }) {
   const gold = stat(T.gold, 'gold'), people = stat(T.people, 'people'), mood = stat(T.mood, 'mood'), date = stat(T.date, 'date');
   const income = stat(T.income, 'income wide-only'), jobless = stat(T.jobless, 'jobless wide-only'), food = stat(T.food, 'food wide-only');
   // Stage 3 (spec 4.19): the score chip, a small "Score 247" on the summary button. It starts empty and hidden; the score
@@ -62,7 +62,19 @@ export function createHud({ world, store, container, speedBar = null, onOpenSumm
   menu.addEventListener('click', onOpenMenu);
   const bar = el('div', { class: 'speed wide-only' });
   if (speedBar) bar.append(speedBar);
-  container.append(stats, el('span', { class: 'spacer' }), bar, menu);
+  // Version 5.0 (Task 1): the City advice button, a scroll, between the numbers and the menu. It comes with the first home (hidden before), and a dot on
+  // it says something new has appeared since the sheet was last open (advice(): { shown, dot }, from src/ui/adviceSheet.js). The dot is a shape and the
+  // name says it too, so colour is never the only cue.
+  const scroll = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  for (const [k, v] of [['viewBox', '0 0 24 24'], ['width', '22'], ['height', '22'], ['fill', 'none'], ['stroke', 'currentColor'], ['stroke-width', '2'], ['stroke-linecap', 'round'], ['stroke-linejoin', 'round'], ['aria-hidden', 'true'], ['class', 'icon scroll']]) scroll.setAttribute(k, v);
+  for (const d of ['M19 17V5a2 2 0 0 0-2-2H4', 'M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3']) {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    scroll.append(path);
+  }
+  const adviceDot = el('span', { class: 'advice-dot', 'aria-hidden': 'true', hidden: true });
+  const adviceButton = el('button', { type: 'button', class: 'advice', 'aria-label': T.advice, title: T.advice, hidden: true, onClick: () => onOpenAdvice() }, [scroll, adviceDot]);
+  container.append(stats, el('span', { class: 'spacer' }), bar, adviceButton, menu);
 
   function renderNumbers() {
     const d = summaryData(world);
@@ -81,6 +93,11 @@ export function createHud({ world, store, container, speedBar = null, onOpenSumm
     setText(income.lastChild, (d.net >= 0 ? '+' : '') + String(d.net));
     setText(jobless.lastChild, String(d.jobless));
     setText(food.lastChild, d.monthsOfFood === null ? '–' : `${d.monthsOfFood} mo`);
+    const adv = advice();
+    if (adviceButton.hidden === adv.shown) adviceButton.hidden = !adv.shown;
+    if (adviceDot.hidden === adv.dot) adviceDot.hidden = !adv.dot;
+    const name = adv.dot ? T.adviceNew : T.advice;
+    if (adviceButton.title !== name) { adviceButton.title = name; adviceButton.setAttribute('aria-label', name); }
   }
   // The forecast is a second line under the gold; where the numbers have already wrapped to two rows the bar has no room for a third
   // line, so it hides (css .tight). Measured only when what is shown, or the room for it, changes.
@@ -94,7 +111,7 @@ export function createHud({ world, store, container, speedBar = null, onOpenSumm
   const textOf = (n) => n.querySelector('.value').textContent;
   function render() {
     renderNumbers();
-    fitForecast([textOf(gold), textOf(people), textOf(mood), textOf(date), textOf(income), textOf(jobless), textOf(food), container.clientWidth, document.body.dataset.textSize, store.get().layout].join('|'));
+    fitForecast([textOf(gold), textOf(people), textOf(mood), textOf(date), textOf(income), textOf(jobless), textOf(food), container.clientWidth, document.body.dataset.textSize, store.get().layout, adviceButton.hidden].join('|'));
   }
   render();
   return { render };

@@ -3,13 +3,17 @@
 // the one that counts). One tap picks and closes; the current one turns it off. It is a popover, not a sheet, so it never
 // cancels a tool or deselects. Back, Esc (modes.back: store.layersOpen), a tap outside, a sheet or a dialog opening close it.
 // O still cycles the overlays.
-import { OVERLAYS, OVERLAY_HUE } from '../render/overlays.js';
+// Version 5.0 (Task 3): with a world, Home progress, Goods supply and Workers appear only once the city has reached their milestone (src/data/layers.js LAYER_UNLOCK);
+// a hidden choice is out of the tab order and the screen reader's list, and the one in use stays shown whatever the city has.
+import { OVERLAYS, OVERLAY_HUE, LAYER_OVERLAYS } from '../render/overlays.js';
+import { layerUnlocked } from '../sim/layers.js';
 import { OVERLAY_NAMES, T } from './text.js';
 import { el, button } from './components.js';
 
 // store: the interface's store. restoreFocus: called when the popover closes with keyboard focus inside it (the button just
 // pressed is hidden by then), so focus goes back to the Layers button instead of dropping to the page.
-export function createLayersPicker({ store, restoreFocus = () => {}, doc = document }) {
+export function createLayersPicker({ store, world = null, restoreFocus = () => {}, doc = document }) {
+  const offered = (kind, current) => !world || !LAYER_OVERLAYS.includes(kind) || kind === current || layerUnlocked(world, kind);
   const swatch = (hue) => el('span', { class: 'hue', style: { background: hue }, 'aria-hidden': 'true' });
   const choices = OVERLAYS.map((kind) => button('', { class: 'layer', dataset: { layer: kind }, 'aria-pressed': 'false' }));
   OVERLAYS.forEach((kind, i) => { choices[i].append(swatch(OVERLAY_HUE[kind]), el('span', { class: 'name', text: OVERLAY_NAMES[kind] })); });
@@ -37,7 +41,7 @@ export function createLayersPicker({ store, restoreFocus = () => {}, doc = docum
     if (s.layersOpen && (s.sheet || s.confirmDialog || s.screenshot)) { store.set({ layersOpen: false }); return; }
     const open = s.layersOpen;
     node.hidden = !open;
-    choices.forEach((b, i) => b.setAttribute('aria-pressed', String(s.overlay === OVERLAYS[i])));
+    choices.forEach((b, i) => { b.setAttribute('aria-pressed', String(s.overlay === OVERLAYS[i])); b.hidden = !offered(OVERLAYS[i], s.overlay); });
     off.setAttribute('aria-pressed', String(!s.overlay));
     if (open === wasOpen) return;
     wasOpen = open;

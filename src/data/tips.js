@@ -75,8 +75,25 @@ const TIPS_S45 = [
 ];
 // ── end s45 ──
 
+// ── v50 (Version 5.0) ── Task 1: the City advice button comes with the first home (words: text.js, the v50 advice section; src/ui/createUI.js afterCommand)
+const TIPS_V50 = [
+  { id: 'city_advice', trigger: 'cityAdvice', priority: false },                // the first plot laid: the advice button has appeared
+  // Task 3 (rulings 540-549): the new layers arrive with the first home (Home progress) and at Town (Goods supply and Workers); Show me opens the Layers picker.
+  { id: 'layer_progress', trigger: 'layerProgress', priority: false },           // the first plot laid: Layers has Home progress
+  { id: 'layers_town', trigger: 'layersTown', priority: false },                 // the city became a Town: Layers has Goods supply and Workers
+  // Task 4 (rulings 550-559): Build another (a button on every building sheet) and drag areas (farms, gardens, statues).
+  { id: 'build_another', trigger: 'buildAnother', priority: false },            // the first building placed: its sheet can copy it
+  { id: 'drag_areas', trigger: 'dragAreas', priority: false },                  // the first farm, garden or statue placed: the bar can lay an area
+  // Task 5 (rulings 560-569): the road bar's Route shape.
+  { id: 'road_route', trigger: 'roadRoute', priority: false },                  // the first road laid, or a straight road refused for what is in its way: Route goes round it
+  // Task 7 (rulings 580-599): the first Fine manor (GRAND_TIP_TIER): how a Villa and an Estate are reached (the goals bring each want in turn).
+  { id: 'grand_homes', trigger: 'grandHomes', priority: false },
+];
+export const GRAND_TIP_TIER = 7;                 // Task 7: the grand homes tip comes with the first home to grow to this tier (a Fine manor)
+// ── end v50 ──
+
 // Stage 4.6: each track's tips (src/data/s46.js S46_TIPS), with their words in the track's text.js section.
-export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE, ...TIPS_S45, ...S46_TIPS, ...S47_TIPS];
+export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE, ...TIPS_S45, ...S46_TIPS, ...S47_TIPS, ...TIPS_V50];
 
 export const TIP_GAP_MS = 180000;          // at least 3 minutes between two tips
 export const TIP_HOURLY_MAX = 5;           // and at most five in any hour

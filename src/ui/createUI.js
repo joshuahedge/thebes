@@ -3,7 +3,7 @@
 import { MILESTONES } from '../data/progression.js';
 import { alertsFor } from '../sim/alerts.js';
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
-import { CATEGORIES, toolForItem, categoryOfItem, AUTO_OVERLAY, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS } from '../data/ui.js';
+import { CATEGORIES, toolForItem, categoryOfItem, AUTO_OVERLAY, UNDO_TOAST_MS, UPDATE_TOAST_MS, SHOW_ME_PULSES, SHOW_ME_PULSE_MS, SHOW_ME_MIN_ZOOM } from '../data/ui.js';
 import { goalById, nextItemFor, guideActive, openGoals, goalProgress } from '../sim/goals.js';
 import { settle } from '../sim/settle.js';
 import { startDaily } from '../sim/daily.js';
@@ -16,7 +16,8 @@ import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/ca
 import { walkersAt } from '../render/walkers.js';
 import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
-import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint } from '../render/overlays.js';
+import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, LAYER_OVERLAYS } from '../render/overlays.js';
+import { LAYER_UNLOCK } from '../data/layers.js';
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
@@ -46,13 +47,17 @@ import { createOverlayLegend } from './overlayUi.js';
 import { spotsOn } from './s47/spots.js';
 import { drawHouseSpots } from '../render/spots.js';
 import { createLayersPicker } from './layersPicker.js';
+import { resolveSupplyGood } from '../sim/layers.js';
 import { createToasts, MAX_TOASTS, MAX_TOASTS_PHONE } from './toasts.js';
 import { createCelebrations } from './celebrate.js';
 import { createTips } from './tips.js';
 import { createNudge, nudgeLineText, NUDGE_MAX_STEP_MS } from './nudge.js';
-import { TIP_AUTO_CLOSE_MS } from '../data/tips.js';
+import { TIP_AUTO_CLOSE_MS, GRAND_TIP_TIER } from '../data/tips.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
+import { createAdviceUi } from './adviceUi.js';
+import { anotherFor, canCopy } from './another.js';
+import { areaKindOf } from '../data/areas.js';
 import { welcomeSheet } from './welcomeBack.js';
 import { tradeSheet } from './tradeSheet.js';
 import { createGuide, canResumeGuide } from './guide.js';
@@ -144,7 +149,7 @@ export function createUI({
     // Stage 4.5 (Task 4b): the treasury warning names the city's own numbers (the sim's forecast and its costliest building), and
     // its Show me goes to that building (its sheet opens, where it can be paused or taken down), or to the summary when none costs.
     textFor: (id) => (id === 'treasury_low' ? S45_TEXT.warnTip(monthForecast(world), biggestCost(world)) : id === 'fetch_far' ? fetchFarWords() : TIP_TEXT[id]),
-    showMeFor: (id) => (id === 'treasury_low' ? () => { const big = biggestCost(world); if (!(big && selectBuilding(big.id))) openSummary('forecast'); } : id === 'fetch_far' ? fetchFarShowMe : null),
+    showMeFor: (id) => (id === 'city_advice' ? () => toggleSheet('advice') : id === 'layer_progress' || id === 'layers_town' ? () => store.set({ layersOpen: true }) : id === 'treasury_low' ? () => { const big = biggestCost(world); if (!(big && selectBuilding(big.id))) openSummary('forecast'); } : id === 'fetch_far' ? fetchFarShowMe : null),
   });
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
   // (hoisted) forwards settle's events to onEvents, which shows them. On a phone they take the guidance row (spec 6.3,
@@ -166,8 +171,8 @@ export function createUI({
   // the priority tip and never waits.
   const tipsBusy = (s) => isToolMode(s.mode) || (phone() && Boolean(s.sheet || s.overlay || alertHasRow() || world.speed === 0));
   const fireTip = (key) => tips.trigger(key, { busy: tipsBusy(store.get()) });
-  const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
-  const placement = createPlacement({ world, store, afterCommand, effects, now });
+  const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, motionLevel, now });   // Version 5.0 (Task 6): the level, for Show me's glide and the fling
+  const placement = createPlacement({ world, store, afterCommand, effects, now, roadMode: { get: () => settings.get().roadMode, set: (v) => settings.set({ roadMode: v }) } });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc, keys: () => settings.get().keyboardShortcuts !== false });
   const alerts = createAlerts({
     world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root,
@@ -196,21 +201,23 @@ export function createUI({
 
   const speedBar = el('div', { class: 'speed-bar' });
   speedControl.mountBar(speedBar);
+  // Version 5.0 (Task 1): City advice. Read at a command and every fifth game day (refreshChrome), shown by the top-bar button, the summary's link and a tip.
+  const advice = createAdviceUi({ world, settings, showMeAt, selectBuilding, openSummary, toast: (text) => toasts.show(text) });
   const hud = createHud({
-    world, store, container: $('topbar'), speedBar, onOpenSummary: openSummary, onOpenMenu: () => toggleSheet('menu'),
+    world, store, container: $('topbar'), speedBar, onOpenSummary: openSummary, onOpenMenu: () => toggleSheet('menu'), onOpenAdvice: () => toggleSheet('advice'), advice: advice.state,
     // The long date ("Year 2, month 1, day 1") only where the wide top bar has room for it beside a real city's numbers:
     // 1000 px and wider, below 150% text. Narrower, it would push the last number onto a second row.
     shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150 || view().width < WIDE_LONG_DATE_PX,
   });
   const dock = createDock({ container: $('dock'), store, world, onPick: pick });
-  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo });
+  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo, onArea: (type, on) => (on ? placement.startArea(type) : pick(type)) });
   // The Layers picker (placement review P2): one popover for the corner button on a phone and one under the minimap on a wide
   // screen, sharing store.layersOpen; the layout's own host shows the one that counts. Closing it with focus inside hands focus
   // back to the Layers button that opened it.
   const toggleLayers = () => { const s = store.get(); store.set({ layersOpen: !s.layersOpen }); };
   const restoreLayersFocus = () => { const b = store.get().layout === 'wide' ? sidePanel.layersButton : corners.layersButton; if (b && b.offsetParent !== null) b.focus({ preventScroll: true }); };
-  const cornerPicker = createLayersPicker({ store, restoreFocus: restoreLayersFocus, doc });
-  const panelPicker = createLayersPicker({ store, restoreFocus: restoreLayersFocus, doc });
+  const cornerPicker = createLayersPicker({ store, world, restoreFocus: restoreLayersFocus, doc });
+  const panelPicker = createLayersPicker({ store, world, restoreFocus: restoreLayersFocus, doc });
   const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas, onLayers: toggleLayers, pickerNode: panelPicker.node });
   const rail = createRail({ container: $('rail'), store, world, onPick: pick });
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
@@ -257,6 +264,7 @@ export function createUI({
   const customSheets = {
     ...menus, goals: goalsSheet(world, { onShowMe: showMe, recent: () => celebrations.recent(), skipHere: phone, onSkipGuide: skipGuide }),
     trade: tradeSheet({ world, afterCommand, onShowMe: showMeAt, toast: (text) => toasts.show(text) }),
+    advice: advice.sheet,
     ...danger.sheets, ...scoreUi.sheets, ...monumentUi.sheets,
     ...Object.assign({}, ...s46.map((s) => s.sheets)),   // Stage 4.6: the tracks' sheets (a court letter, the court)
   };
@@ -268,7 +276,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onFixAlert: fixAlert, onSelect: selectBuilding, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)] });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)] });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -316,12 +324,16 @@ export function createUI({
   // never starts on top of a home, and the view keeps the ghost on screen even when that tile is several tiles
   // off. On a phone the place sits in the middle of the map left free below the rows (ruling 168). The goals strip, the
   // goals sheet and the house sheet all come through here.
-  function showMeAt({ category, item, x, y }) {
+  function showMeAt({ category, item, x, y, tool: given = null }) {   // given (Version 5.0, Task 4): Build another's tool, with the style, turn and settings it copies
     closeAnySheet();
     store.set(pickCategory(store.get(), category || categoryOfItem(item)));
-    const tool = toolForItem(item);
+    const tool = given || toolForItem(item);
     const def = tool.kind === 'building' ? BUILDINGS[tool.type] : null;
-    placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : null);   // road, plot and demolish tools ignore the point
+    // Version 5.0 (final review): Show me from a road bar's own refusal (the spot a Route is blocked at, a bridge's place) leaves the road tool as it is, so the player's start and end
+    // (or plan) stay; starting it again would clear them. Any other tool, or a gate card, starts as before.
+    const open = store.get().tool;
+    const keepRoad = tool.kind === 'road' && !tool.gate && open && open.kind === 'road' && !open.gate;
+    if (!keepRoad) placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : null);   // road, plot and demolish tools ignore the point
     const g = def ? store.get().ghost : null;
     const dims = g ? dimsOf(tool.type, store.get().tool.rot || 0) : null;
     const keep = g ? { x: g.x + dims.w / 2, y: g.y + dims.d / 2 } : { x, y };
@@ -331,11 +343,26 @@ export function createUI({
     const fit = g && def.monument ? monumentUi.pickFit(tool.type, g, insets) : null;
     const extent = fit ? fit.extent || null : null;
     const zoom = fit && fit.zoom !== undefined ? Math.min(fit.zoom, cam.zoom) : null;
-    if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, zoom);
-    else if (g) cameraControl.panToKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, zoom);
-    else cameraControl.panTo(x, y);
+    // Version 5.0 (Task 6): Show me glides there (a short glide under Gentle, a jump under Still) and frames the place: when the view is further out than SHOW_ME_MIN_ZOOM and
+    // no monument's fit asks for a zoom, it comes in to that (Still too: a change of scale, not a movement).
+    const framed = zoom === null && cam.zoom < SHOW_ME_MIN_ZOOM ? SHOW_ME_MIN_ZOOM : zoom;
+    cameraControl.glide(() => {
+      if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, framed);
+      else if (g) cameraControl.panToKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, framed);
+      else if (framed !== null) cameraControl.panToKeeping(x, y, x, y, insets, undefined, undefined, null, framed);
+      else cameraControl.panTo(x, y);
+    });
     const at = now();
     for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(x, y, at + i * SHOW_ME_PULSE_MS);
+  }
+  // Build another (Version 5.0, Task 4, ruling 505): the building's sheet closes and its card opens with the same type, style and settings in hand, the ghost on the nearest
+  // tile beside it. Refused (the sim's own rule, src/ui/another.js) it returns { ok: false, text, fix } and the sheet says why with Show me; nothing starts.
+  function buildAnother(id) {
+    const b = world.buildings[id];
+    if (!b) return { ok: false, text: '', fix: null };
+    const r = anotherFor(world, b);
+    if (r.ok) { showMeAt({ category: categoryOfItem(r.item), item: r.item, x: r.at.x, y: r.at.y, tool: r.tool }); }
+    return r;
   }
   // A goal's Show me: the next building it still needs, at its target. A goal with nowhere to point (debt)
   // opens the city summary instead, and the trade route goal, once a trading post stands, opens that post's trade
@@ -488,8 +515,15 @@ export function createUI({
     nudge.noteAction();                                // a command is a meaningful action (early-game pass 3.5)
     // The Play tip says the plots stay empty while paused: true only when one of them touches a road (placement review P14).
     if (e.undoable && e.kind === 'houses' && world.speed === 0 && plotsTouchRoad(e)) fireTip('plotsPaused');
+    advice.markStale();                                // Version 5.0 (Task 1): what holds the city back may have changed: read it again on this refresh
     if (e.undoable && e.kind === 'houses') fireTip('houseSpots');   // Stage 4.7 (Task 4): the spots arrive with the first plot; the tip waits for the tool to end
+    if (e.undoable && e.kind === 'houses') fireTip('cityAdvice');   // Version 5.0 (Task 1): the advice button has just appeared (after the spots tip: the first one held keeps the slot)
+    if (e.undoable && e.kind === 'houses') fireTip('layerProgress');   // Version 5.0 (Task 3): Home progress comes with the first home (the picker shows it from now); after the others, and again with the next plot if a tip had the slot
     if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type] && BUILDINGS[store.get().tool.type].reach) fireTip('servicePlaced');   // a reach tip: a garden has none
+    // Version 5.0 (Task 4): The drag-area tip comes with the first farm, garden or statue placed (a tool's tip is held until it ends); Build another's with the first building sheet opened (below).
+    if (e.undoable && e.kind === 'building' && areaKindOf(store.get().tool && store.get().tool.type)) fireTip('dragAreas');
+    // Version 5.0 (Task 5): Route's tip, with the first road laid by the finger or the L (a tool's tip is held until it ends); the Map seam also fires it when a straight road is refused for what is in its way.
+    if (e.undoable && e.kind === 'road' && store.get().tool && !store.get().tool.gate && !store.get().tool.route) fireTip('roadRoute');
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'trading_post') fireTip('tradingPostPlaced');
@@ -520,6 +554,7 @@ export function createUI({
   }
   function refreshChrome() {
     alerts.refresh();
+    advice.refresh();
     hud.render(); dock.render(); sidePanel.render(); rail.render(); guide.render(); confirmBar.render(); corners.render(); legend.render(); goalsStrip.render();
     measureKey = '';                                   // a goal's words may have changed: "More ▾" is measured again next frame
     setText($('map-summary'), mapSummaryText(world, alerts.list()));
@@ -562,10 +597,11 @@ export function createUI({
     // achievement stays in the summary list, so a batch never queues three captions for one moment.
     const quiet = events.some((e) => e.type === 'milestone');
     for (const e of events) {
-      if (e.type === 'upgrade') sfx.play('upgrade');
+      if (e.type === 'upgrade') { sfx.play('upgrade'); if (e.to === GRAND_TIP_TIER) fireTip('grandHomes'); }   // Version 5.0 (Task 7): the first Fine manor: how a Villa and an Estate are reached
       else if (e.type === 'arrivals') fireTip('arrivals');
       else if (e.type === 'month') { fireTip('monthEnd'); if (monthForecast(world).goesBelow) fireTip('treasuryLow'); if (!(settings.get().seenTips || []).includes('fetch_far') && farGoodTip(world)) fireTip('goodsFar'); }
       else if (e.type === 'goal') fireTip('goalDone');
+      else if (e.type === 'milestone' && e.id === LAYER_UNLOCK.supply.milestone) fireTip('layersTown');   // Version 5.0 (Task 3): Goods supply and Workers come with Town
       const cheer = e.type === 'achievement' && quiet ? null : cheerFor(e);
       if (cheer) celebrations.show(cheer);
     }
@@ -786,8 +822,9 @@ export function createUI({
         if (b.tier >= 5) fireTip('desirabilityShown');   // its next tier needs a pleasant street (spec 4.7)
         if (b.tier === 5) fireTip('townhouseSheet');      // it grows by joining three plots beside it (spec 4.6)
       }
+      else if (canCopy(b)) fireTip('buildAnother');   // Version 5.0 (Task 4): the first building sheet opened brings Build another's tip (its button is on the sheet)
     }
-    if (s.overlay && s.overlay !== 'ground' && s.overlay !== seenOverlay && !isToolMode(s.mode)) fireTip('overlayOn');   // Ground's legend says it all: the tip's dot and ring are other overlays'
+    if (s.overlay && s.overlay !== 'ground' && !LAYER_OVERLAYS.includes(s.overlay) && s.overlay !== seenOverlay && !isToolMode(s.mode)) fireTip('overlayOn');   // Ground's legend says it all: the tip's dot and ring are other overlays'
     tips.flush({ busy: tipsBusy(s) });
     seenMode = s.mode; seenSheet = s.sheet; seenOverlay = s.overlay;
     syncGuidance();
@@ -938,6 +975,7 @@ export function createUI({
     lastFrameAt = t;
     frameNow = t;
     cameraControl.tick(t);
+    placement.settle();                                 // Version 5.0 (Task 6): a dragged route's end, found once a frame
     if (toastLow && !$('toasts').querySelector('.toast')) setToastLow(null);   // the toast it was moved for has gone
     const s = store.get();
     const v = view();
@@ -960,7 +998,7 @@ export function createUI({
       fire: (g, r) => { drawFires(g, world, r, t, still); drawIllness(g, world, r); },   // Stage 4.5: and the cloth over an ill home's door (render/illness.js)
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),
       drawOverlay: (g, r) => {
-        if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null);   // Ground brightens the tiles with room for the building being placed
+        if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null, resolveSupplyGood(world, s.supplyGood));   // Ground brightens the tiles with room for the building being placed; Goods supply shows the picked good
         else if (spotsOn(s, world)) drawHouseSpots(g, world, r);                // Stage 4.7 (Task 4): the next house's Good and Fair spots, in this layer, while the house tool is on
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
         if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change

@@ -12,6 +12,7 @@ export const INITIAL_UI_STATE = {
   area: null,
   plan: null,            // a touch plan in a drawing tool (placement review P3): { tiles: [[x, y], ...] }, strokes and taps added up until the tick
   overlay: null,
+  supplyGood: null,      // Version 5.0 (Task 3): the good the Goods supply layer shows (null: the first the picker offers; src/sim/layers.js resolveSupplyGood)
   sheet: null,
   dock: 'slim',
   category: 'roads',

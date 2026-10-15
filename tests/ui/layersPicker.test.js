@@ -25,7 +25,7 @@ describe('ui layers picker (placement review P2)', () => {
     expect(r.picker.node.hidden).toBe(false);
     const buttons = [...r.picker.node.querySelectorAll('button.layer')];
     expect(buttons.map((b) => b.textContent)).toEqual([...OVERLAYS.map((k) => OVERLAY_NAMES[k]), T.layersOff]);
-    expect(buttons.length).toBe(12);                                        // eleven overlays and Off
+    expect(buttons.length).toBe(15);                                        // fourteen overlays (Version 5.0: Home progress, Goods supply and Workers) and Off; with no world the picker offers all
     expect(buttons.map((b) => b.getAttribute('aria-pressed') === 'true')).toEqual(buttons.map((b) => b.dataset.layer === 'fire'));
     r.cleanup();
   });
@@ -145,12 +145,13 @@ describe('ui layers picker in the interface', () => {
     const picker = r.root.querySelector('#corners .layers-picker');
     const columns = () => getComputedStyle(picker).gridTemplateColumns.split(' ').length;
     expect(columns()).toBe(3);
-    for (const b of picker.querySelectorAll('button.layer')) expect(b.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+    const offered = () => [...picker.querySelectorAll('button.layer')].filter((b) => !b.hidden);   // Version 5.0: a layer the city has not reached is hidden
+    for (const b of offered()) expect(b.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
     document.body.dataset.textSize = '125';
     expect(columns()).toBe(2);
     document.body.dataset.textSize = '150';
     expect(columns()).toBe(2);
-    for (const b of picker.querySelectorAll('button.layer')) expect(b.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+    for (const b of offered()) expect(b.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
     const box = picker.getBoundingClientRect(), root = r.root.getBoundingClientRect();
     expect([box.left >= root.left, box.right <= root.right, box.top >= root.top]).toEqual([true, true, true]);   // on the screen at the biggest text
     r.cleanup();
@@ -164,7 +165,7 @@ describe('ui layers picker in the interface', () => {
     const picker = r.root.querySelector('#corners .layers-picker'), root = r.root.getBoundingClientRect();
     const box = picker.getBoundingClientRect(), bar = r.root.querySelector('#confirm').getBoundingClientRect(), top = r.root.querySelector('#topbar').getBoundingClientRect();
     expect([box.left >= root.left, box.right <= bar.left + 1, box.top >= top.bottom - 1]).toEqual([true, true, true]);   // not cut at the left edge, not over the bar, not under the top bar
-    for (const b of picker.querySelectorAll('button.layer')) {
+    for (const b of [...picker.querySelectorAll('button.layer')].filter((x) => !x.hidden)) {
       const q = b.getBoundingClientRect();
       expect([b.dataset.layer, q.left >= box.left - 1, q.right <= box.right + 1, q.top >= box.top - 1, q.bottom <= box.bottom + 1]).toEqual([b.dataset.layer, true, true, true, true]);
       expect(q.height).toBeGreaterThanOrEqual(44);

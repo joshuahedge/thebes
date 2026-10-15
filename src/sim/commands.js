@@ -3,7 +3,7 @@ import { ECONOMY } from '../data/economy.js';
 import { MONUMENTS } from '../data/monuments.js';
 import { footprint, idx, inBounds, ring } from './grid.js';
 import { T, TERRAIN_BY_NAME, buildable, groundRefusal } from './terrain.js';
-import { makeBuilding, insertBuilding, removeBuilding, buildingAt, allBuildings, isFinished, isSite } from './world.js';
+import { makeBuilding, insertBuilding, removeBuilding, buildingAt, allBuildings, isFinished, isSite, touchBuildings } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { canAfford, spend, refund } from './money.js';
 import { costOf, roadCostOf, rubbleCostOf, canPayNoDebt } from './costs.js';
@@ -31,7 +31,7 @@ const isTile = (x, y) => Number.isInteger(x) && Number.isInteger(y);
 
 // Stage 4: what a type's placing pays, and whether it may take the treasury below the debt floor. A monument's founding
 // never takes it below 0 (ruling 227); every other building may go down to ECONOMY.debtFloor.
-const canPay = (world, type, cost) => (BUILDINGS[type].monument ? canPayNoDebt(world, cost) : canAfford(world, cost));
+export const canPay = (world, type, cost) => (BUILDINGS[type].monument ? canPayNoDebt(world, cost) : canAfford(world, cost));
 
 // Why a building cannot go at x, y before any tile is looked at, else null.
 function typeReason(world, type, x, y) {
@@ -47,7 +47,7 @@ function typeReason(world, type, x, y) {
 
 // Why one footprint tile cannot take the building, else null. Stage 4: a monument stands on any dry ground but the fields
 // (ruling 226): a fertile tile refuses with 'not_on_fields'.
-function tileReason(world, type, tx, ty) {
+export function tileReason(world, type, tx, ty) {
   const def = BUILDINGS[type];
   if (!inBounds(world.size, tx, ty)) return 'out_of_bounds';
   const i = idx(world.size, tx, ty);
@@ -112,7 +112,7 @@ function monumentChecks(world, type, x, y, rot = 0) {
 }
 
 // roadLater: canPlace let the building through without a road, so it carries the plot's warning.
-function placementWarnings(world, type, x, y, roadLater = false, rot = 0) {
+export function placementWarnings(world, type, x, y, roadLater = false, rot = 0) {
   const { w, d } = dimsOf(type, rot);
   const warnings = [];
   // A plot can be placed off the road but no one moves in until one touches it; gardens and statues need none.
@@ -310,6 +310,7 @@ export function setPaused(world, id, paused) {
   b.paused = Boolean(paused);
   if (b.paused) b.staff = 0;
   releaseHolds(world, b.id);
+  touchBuildings(world);   // the layers' caches (src/sim/layers.js) key on the buildings' version
   return { ok: true, warnings: [] };
 }
 

@@ -110,7 +110,8 @@ describe('s46 map seam: the tip fires when a road meets water, Show me finds a c
     const store = createStore(INITIAL_UI_STATE), fired = [], shown = [], toasts = [];
     const root = document.createElement('div');
     document.body.append(root);
-    const ui = createMapUi({ world, store, root, fireTip: (k) => fired.push(k), showMeAt: (a) => shown.push(a), toasts: { show: (t) => toasts.push(t) } });
+    const ui = createMapUi({ world, store, root, fireTip: (k) => { if (k !== 'roadRoute') fired.push(k); },   // Version 5.0 (Task 5): the seam also fires Route's tip (tests/v50/roads), which this test is not about
+    showMeAt: (a) => shown.push(a), toasts: { show: (t) => toasts.push(t) } });
     const pl = createPlacement({ world, store });
     return { store, pl, ui, fired, shown, toasts, root, cleanup() { ui.destroy(); root.remove(); } };
   }
@@ -196,7 +197,7 @@ describe('s46 map bridges in the game: the confirm bar offers Show me to a refus
       const show = bar.querySelector('.show-fit');
       expect([Boolean(show), show && show.getAttribute('aria-label')]).toEqual([true, 'Show me where a bridge fits']);
       fire(show, 'click');
-      expect([r.ui.store.get().tool.kind, r.ui.store.get().line]).toEqual(['road', null]);   // the road tool starts afresh at the crossing
+      expect([r.ui.store.get().tool.kind, r.ui.store.get().line]).toEqual(['road', { x0: 18, y0: 5, x1: 21, y1: 5, flip: false }]);   // Version 5.0 (final review): the road tool stays as it is, the player's start and end kept; the view moves to the crossing
       r.ui.placement.pointAt(19, 5); r.ui.placement.pointAt(23, 5);
       r.frame(3);
       expect(bar.querySelector('.reason').textContent).toBe('2 tiles · Bridge: 3 tiles, 75 gold');

@@ -3,7 +3,7 @@
 // ghost's three states (spec 6.5) and the placement preview's desirability tint (spec 4.7).
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { HOUSEHOLD_GOODS } from '../data/goods.js';
-import { housesOf, allBuildings, isSite } from '../sim/world.js';
+import { housesOf, allBuildings, isSite, buildingsVersion } from '../sim/world.js';
 import { houseStatus } from '../sim/housing.js';
 import { roadReach, touchesRoad } from '../sim/reach.js';
 import { isWorking } from '../sim/labour.js';
@@ -24,8 +24,12 @@ import { CRIME } from '../data/crime.js';
 import { crimeBand, crimeRiskOf, crimeCoverage, canCommitCrime, crimeStarted } from '../sim/crime.js';
 import { MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
 import { drawMonument } from './monuments.js';
+import { LAYER_HUE } from '../data/layers.js';
+import { drawProgress, drawSupply, drawWorkers } from './layers.js';   // Version 5.0 (Task 3): a cycle (layers.js reads tilePolys and mark), safe: each is used only inside functions
+import { layerUnlocked } from '../sim/layers.js';
 
-export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground'];
+// Version 5.0 (Task 3, rulings 540-549): Home progress, Goods supply and Workers (src/render/layers.js) join the table after Ground, so the order of the first eleven is unchanged.
+export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers'];
 // Fire risk (Stage 3, Track D) is one deep ember red, light to dark by band; no other overlay uses a red.
 export const FIRE_HUE = '#9C2A1C';
 // Stage 4.5 (rulings 318, 319): Health in an olive green and Crime in a deep violet, each graded like fire risk (light to dark by band).
@@ -39,10 +43,14 @@ export const GROUND_HUE = { fertile: '#27934A', rocky: '#5F5A54', clay: '#C2552B
 export const OVERLAY_HUE = {
   water: UI.water, food: UI.food, religion: UI.religion, goods: UI.goods, entertainment: UI.entertainment, desirability: UI.desirability, fire: FIRE_HUE, health: HEALTH_HUE, crime: CRIME_HUE, housing: UI.housing,
   ground: GROUND_HUE.fertile,
+  progress: LAYER_HUE.progress, supply: LAYER_HUE.supply, workers: LAYER_HUE.workers,
 };
 export const SERVICE_TYPES = { water: ['well'], food: ['bazaar'], religion: ['temple'], goods: ['bazaar'], entertainment: ['booth'], housing: [] };
 // Overlays that draw a graded scale over the ground instead of dots and rings (spec 6.3); their legend is a scale too.
 export const GRADED_OVERLAYS = ['desirability', 'fire', 'health', 'crime'];
+// The three Version 5.0 layers (their legends, keys and picker are their own: src/ui/overlayUi.js), and the ones the Layers picker and the O key offer now.
+export const LAYER_OVERLAYS = ['progress', 'supply', 'workers'];
+export const availableOverlays = (world) => OVERLAYS.filter((k) => !world || !LAYER_OVERLAYS.includes(k) || layerUnlocked(world, k));
 
 export function houseMark(world, house, kind) {
   const s = houseStatus(world, house);
@@ -105,7 +113,7 @@ function tintTiles(g, world, tiles, color, alpha) {
   }
 }
 
-function mark(g, m, color) {
+export function mark(g, m, color) {
   const c = U(p(m.x, m.y), 6);
   if (m.has) {
     g.circ(c, 4.8, INK, { alpha: 0.6 });
@@ -118,8 +126,12 @@ function mark(g, m, color) {
   }
 }
 
-// `placing` is the type of the building being placed, if any: the Ground overlay brightens the tiles that have room for it.
-export function drawOverlay(g, world, kind, range, placing = null) {
+// `placing` is the type of the building being placed, if any: the Ground overlay brightens the tiles that have room for it. `good` is the good the Goods supply
+// layer shows (pottery, beer, linen, jewellery or food).
+export function drawOverlay(g, world, kind, range, placing = null, good = 'pottery') {
+  if (kind === 'progress') { drawProgress(g, world, range); return; }
+  if (kind === 'supply') { drawSupply(g, world, range, good); return; }
+  if (kind === 'workers') { drawWorkers(g, world, range); return; }
   if (kind === 'ground') { drawGround(g, world, range, placing); return; }
   if (kind === 'desirability') { drawDesirability(g, world, range); return; }
   if (kind === 'fire') { drawFireRisk(g, world, range); return; }
@@ -681,13 +693,20 @@ export function problemMarkers(world, alerts, range = null) {
 
 // The homes and plots in view with no road beside them: each gets a dashed amber outline on its tile (drawProblemMarkers), since a
 // plot with no road is a pale patch that nothing else marks. range is the visible tile range, as for problemMarkers.
+// Version 5.0 (Task 6): the whole list is kept while the roads and the buildings are as they were (roadVersion, buildingsVersion: a house's place and the road beside it are all
+// it depends on), so a frame filters a list instead of asking every home whether a road touches it.
+const plotsMemo = new WeakMap();   // world -> { key, list }
 export function roadlessPlots(world, range = null) {
-  const out = [];
-  for (const b of housesOf(world)) {
-    if (range && (b.x < range.x0 - 1 || b.x > range.x1 + 1 || b.y < range.y0 - 1 || b.y > range.y1 + 1)) continue;
-    if (!touchesRoad(world, b)) out.push({ id: b.id, x: b.x, y: b.y });
+  const key = `${world.roadVersion}|${buildingsVersion(world)}`;
+  let m = plotsMemo.get(world);
+  if (!m || m.key !== key) {
+    const list = [];
+    for (const b of housesOf(world)) if (!touchesRoad(world, b)) list.push({ id: b.id, x: b.x, y: b.y });
+    m = { key, list };
+    plotsMemo.set(world, m);
   }
-  return out;
+  if (!range) return m.list;
+  return m.list.filter((b) => !(b.x < range.x0 - 1 || b.x > range.x1 + 1 || b.y < range.y0 - 1 || b.y > range.y1 + 1));
 }
 
 // One road badge per connected group of homes and plots with no road beside them (final review 7): the outlines alone are thin,
@@ -697,9 +716,10 @@ export function roadlessPlots(world, range = null) {
 // runs every frame); range keeps the ones in view.
 const plotBadgeMemo = new WeakMap();   // world -> { key, list }
 export function roadlessPlotBadges(world, range = null) {
-  const key = `${world.roadVersion}|${world.nextId}|${buildingSignature(world)}`;
+  const key = `${world.roadVersion}|${buildingsVersion(world)}`;   // Version 5.0 (Task 6): the groups depend on the roads and which homes stand where, not on their staff or tier
   let m = plotBadgeMemo.get(world);
   if (!m || m.key !== key) { m = { key, list: groupRoadless(world) }; plotBadgeMemo.set(world, m); }
+  for (const b of m.list) { const art = ART[slotFor(world.buildings[b.id])]; b.lift = (art ? art.height : 0) + b.liftBase; }   // the sprite's height follows the tier, which the memo does not key on
   if (!range) return m.list;
   return m.list.filter((b) => b.x >= range.x0 && b.x <= range.x1 + 1 && b.y >= range.y0 && b.y <= range.y1 + 1);
 }
@@ -727,8 +747,7 @@ function groupRoadless(world) {
     const mid = group.reduce((s, h) => [s[0] + (h.x + h.w / 2) / group.length, s[1] + (h.y + h.d / 2) / group.length], [0, 0]);
     const d = (h) => Math.hypot(h.x + h.w / 2 - mid[0], h.y + h.d / 2 - mid[1]);
     const pick = group.reduce((a, h) => (d(h) < d(a) - 1e-9 || (Math.abs(d(h) - d(a)) <= 1e-9 && h.id < a.id) ? h : a));
-    const art = ART[slotFor(pick)];                                         // an empty plot has no sprite: the badge sits just over its tile
-    out.push({ id: pick.id, ids: group.map((h) => h.id).sort((a, b) => a - b), x: pick.x + pick.w / 2, y: pick.y + pick.d / 2, lift: (art ? art.height : 0) + 4 * (pick.w + pick.d) + BADGE_R + 1 });
+    out.push({ id: pick.id, ids: group.map((h) => h.id).sort((a, b) => a - b), x: pick.x + pick.w / 2, y: pick.y + pick.d / 2, liftBase: 4 * (pick.w + pick.d) + BADGE_R + 1, lift: 0 });   // lift = the pick's sprite height (an empty plot has none: just over its tile) + liftBase, refreshed on each read
   }
   return out;
 }

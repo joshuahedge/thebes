@@ -20,6 +20,7 @@ import { button } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
 
 const WATER_REFUSALS = ['water', 'too_wide', 'bridge_shape'];
+const ROUTE_TIP_REFUSALS = ['blocked', 'hills', 'water', 'too_wide', 'bridge_shape'];
 
 export function createMapUi(ctx) {
   let off = [];
@@ -33,7 +34,7 @@ export function createMapUi(ctx) {
         ctx.toasts.show(state.tool && state.tool.kind === 'road' ? S46_MAP_TEXT.noBridge : S46_MAP_TEXT.noFit(`a ${buildingName(state.tool.type).toLowerCase()}`));
         return;
       }
-      ctx.showMeAt({ category: target.kind === 'bridge' ? 'roads' : undefined, item: target.kind === 'bridge' ? 'road' : target.item, x: target.x, y: target.y });
+      ctx.showMeAt({ category: target.kind === 'building' ? undefined : 'roads', item: target.kind === 'building' ? target.item : 'road', x: target.x, y: target.y });   // a bridge's place, or (Version 5.0, Task 5) the spot a routed road is blocked at
     };
     const host = ctx.root || (ctx.doc && ctx.doc.body);
     if (host && host.addEventListener) { host.addEventListener('thebes:show-fit', onShowFit); off.push(() => host.removeEventListener('thebes:show-fit', onShowFit)); }
@@ -51,6 +52,7 @@ export function createMapUi(ctx) {
       const p = toolPreview(world, s);
       if (road && ((p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) || (p.bridges && p.bridges.length))) ctx.fireTip('roadMeetsWater');
       if (hasHills && p.state === 'bad' && p.reason === 'hills') ctx.fireTip('hillsMet');
+      if (road && !s.tool.route && p.state === 'bad' && ROUTE_TIP_REFUSALS.includes(p.reason)) ctx.fireTip('roadRoute');   // Version 5.0 (Task 5): the straight road met something Route goes round
     };
     if (ctx.store.subscribe) { const un = ctx.store.subscribe(watch); if (typeof un === 'function') off.push(un); }
     // The tip row's Show me. The place is worked out when the button is pressed, from the tile under the middle of the view (the
@@ -99,7 +101,7 @@ export function createMapUi(ctx) {
     onCommand(e) {
       if (e && e.kind === 'road' && e.result && e.result.ok && e.result.bridges && e.result.bridges.length) ctx.fireTip('roadMeetsWater');
       // a building, or the plots and plazas of one drawing (houses and plazas come back as a list of ids), as the sim's own tally counts them
-      const ids = e && e.result && e.result.ok && ctx.world ? (e.kind === 'building' ? [e.result.id] : e.kind === 'houses' || e.kind === 'plazas' ? e.result.ids || [] : []) : [];
+      const ids = e && e.result && e.result.ok && ctx.world ? (e.kind === 'building' ? [e.result.id] : e.kind === 'houses' || e.kind === 'plazas' || e.kind === 'areas' ? e.result.ids || [] : []) : [];
       if (ids.some((id) => ctx.world.buildings[id] && builtNearOasis(ctx.world, ctx.world.buildings[id]))) ctx.fireTip('oasisBuilt');
     },
     destroy() { for (const f of off) f(); off = []; },

@@ -326,7 +326,8 @@ describe('ui house sheet why', () => {
         const plain = tileToScreen({ x: target.x, y: target.y, zoom: 1 }, { width: 390, height: 844 }, 19.5, 9.5);
         expect(plain[0] > 390).toBe(true);                                      // a pan to the target alone would leave the ghost's centre off the phone
         r.ui.showMeAt(target);
-        if (motion === 'tween') { expect(r.ui.cameraControl.animating).toBe(true); r.ui.cameraControl.tick(1e6); }
+        if (motion === 'tween') expect(r.ui.cameraControl.animating).toBe(true);
+        r.ui.cameraControl.tick(1e9);                                           // Version 5.0 (Task 6): Show me glides under Gentle too: let it land
         const g = r.store.get().ghost;
         expect(r.store.get().tool.type).toBe('well');
         expect(g).toEqual({ x: 19, y: 9 });
@@ -373,6 +374,7 @@ describe('ui house sheet why', () => {
       try {
         r.ui.settings.set({ textSize: text });
         r.ui.showMeAt({ category: 'services', item: 'well', x: 13, y: 9.5 });
+        r.ui.cameraControl.tick(1e9);                                           // Version 5.0 (Task 6): the glide lands
         const centre = r.screenOf(13, 9.5), m = measureRows(r.root), portrait = height > width;
         const bottom = portrait ? Math.min(height * 0.3, 240) : height - m.cornersTop, right = portrait ? 0 : 56 + 268;
         const middle = { x: (width - right) / 2, y: (m.rowsEnd + height - bottom) / 2 };
@@ -383,6 +385,7 @@ describe('ui house sheet why', () => {
     const wide = await rigUI({ width: 1280, height: 800 });
     try {
       wide.ui.showMeAt({ category: 'services', item: 'well', x: 13, y: 9.5 });
+      wide.ui.cameraControl.tick(1e9);
       const centre = wide.screenOf(13, 9.5);
       expect(Math.abs(centre.x - 640) < 1 && Math.abs(centre.y - 400) < 1).toBe(true);   // wide: the middle of the screen, as before
     } finally { wide.cleanup(); }

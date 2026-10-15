@@ -5,9 +5,8 @@ import { alertShowMe } from './threatFix.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
+import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, lockedFixFor, priceOf } from '../sim/advice.js';
 import { desirabilityContributors } from '../sim/desirability.js';
-import { isUnlocked } from '../sim/progression.js';
-import { allBuildings } from '../sim/world.js';
 import { setPaused, setAccept } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { storeTotal, storeAccepts } from '../sim/production.js';
@@ -21,12 +20,16 @@ import { monthForecast } from '../sim/economy.js';
 import { jobsPenalty } from '../sim/mood.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { demolishQuestion, causeFix } from './monumentSheet.js';
+import { stepWords } from './nextStepText.js';
+import { canAfford } from '../sim/money.js';
 import { noteView } from '../render/overlays.js';
 import { supplyNeeded } from '../sim/monuments.js';
 import { huntRest } from '../sim/wildlife.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 import { S47_PRESSURE_TEXT, buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
-  goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
+  contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
+import { ANOTHER_TEXT } from './areaText.js';
+import { canCopy } from './another.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -34,51 +37,15 @@ const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: '
 const rankOf = (a) => { const i = CRITICAL_RANK.indexOf(a.code); return i < 0 ? CRITICAL_RANK.length : i; };
 export const criticalFirst = (list) => [...list].sort((a, b) => rankOf(a) - rankOf(b));
 
-// What each cause's button does. Show me opens a card and aims at the home or at the building the cause names (an
-// empty bazaar wants a granary beside it, an empty granary a farm beside it); View selects the building that is in
-// reach but not working, or near but without a road (its own sheet then says how to fix it). next_delivery needs
-// nothing from the player, so it has neither.
-const CAUSE_FIX = {
-  no_road: { category: 'roads', item: 'road', at: 'home' },
-  no_well: { category: 'services', item: 'well', at: 'home' },
-  no_bazaar: { category: 'services', item: 'bazaar', at: 'home' },
-  bazaar_empty: { category: 'food', item: 'granary', at: 'building' },
-  granary_empty: { category: 'food', item: 'farm_grain', at: 'building' },
-  no_temple: { category: 'services', item: 'temple', at: 'home' },
-  well_idle: { view: true },
-  granary_idle: { view: true },
-  bazaar_idle: { view: true },
-  temple_idle: { view: true },
-  well_no_road: { view: true },
-  bazaar_no_road: { view: true },
-  temple_no_road: { view: true },
-  no_booth: { category: 'services', item: 'booth', at: 'home' },
-  booth_idle: { view: true },
-  booth_no_road: { view: true },
-  low_desirability: { category: 'homes', item: 'garden', at: 'home' },
-  no_square: { category: 'homes', item: 'house', at: 'home' },
-  // No store for the good near the bazaar: Show me that store beside the bazaar. Nothing makes it there: Show me the
-  // first of its makers the city has none of (a clay pit, then a potter), else the workshop, beside the bazaar; a maker
-  // that needs fertile or rocky ground aims at the nearest free tile of it instead (at: 'terrain'), which can lie well
-  // beyond the ghost's search around the bazaar. Neither while the building, or any of the good's makers, is not
-  // unlocked yet (the words then name the milestone; a store would stay empty).
-  no_good: (cause, world) => {
-    const item = storeFor(cause.good);
-    const usable = item && isUnlocked(world, item) && goodMakers(cause.good).every((t) => isUnlocked(world, t));
-    return usable ? { category: categoryOfItem(item), item, at: 'building' } : null;
-  },
-  // Stage 4.7 (Task 7, ruling 471): the good is held only in a store beyond the bazaars' supply reach: Show me selects that store (its own
-  // sheet holds the Fetch control's source side), and the words name Fetch as the remedy.
-  good_far: { select: true },
-  good_unmade: (cause, world) => unmadeFix(cause, world),
-};
+// What each cause's button does (Version 5.0: the table is the sim's, src/sim/advice.js causeFix, so a house sheet's rows and its next step
+// and the city advice agree). Show me opens a card and aims at the home or at the building the cause names (an empty bazaar wants a granary
+// beside it, an empty granary a farm beside it); View selects the building that is in reach but not working, or near but without a road (its
+// own sheet then says how to fix it); select (a good held only in a far store) selects that store, whose sheet holds Fetch. next_delivery
+// needs nothing from the player, so it has neither; nor has a good whose store or makers are not unlocked yet (the words name the milestone).
+const withCategory = (f) => (f && f.item ? { ...f, category: categoryOfItem(f.item) } : f);
+const fixOf = (cause, world) => withCategory(needFix(world, cause));
 // The fix for a good nothing makes: its first maker the city has none of (else its last), or null while a maker is locked. The quota's Show me uses it too (src/ui/s47/pressure.js).
-export function unmadeFix(cause, world) {
-  const makers = goodMakers(cause.good);
-  if (!makers.length || makers.some((t) => !isUnlocked(world, t))) return null;
-  const item = makers.find((t) => !allBuildings(world).some((b) => b.type === t)) || makerOf(cause.good);
-  return { category: categoryOfItem(item), item, at: BUILDINGS[item].terrain ? 'terrain' : 'building' };
-}
+export const unmadeFix = (cause, world) => withCategory(simUnmadeFix(world, cause));
 // The alerts that carry a fix button in the list besides View (Show me opens the tool and aims at the place): many plots with no
 // road want the road tool (placement review P13). onFixAlert aims it, at the plot nearest the view.
 const ALERT_FIX = new Set(['plots_no_road']);
@@ -89,9 +56,18 @@ const withoutTwoFoods = (rows) => (rows.some((c) => c.need === 'threeFoods') ? r
 
 // parts (Stage 3): the danger and score interfaces' sheet parts (src/ui/danger.js), each { building(b), house(h),
 // actions(b), summary() } returning arrays of nodes, added in the list's order at fixed places in the sheets below.
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onFixAlert = () => {}, onSelect = () => {}, afterCommand = () => {}, custom = {}, parts = [] }) {
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [] }) {
   const close = () => store.set(closeSheet(store.get()));
   const extra = (kind, ...args) => parts.flatMap((p) => (p && typeof p[kind] === 'function' ? p[kind](...args) || [] : []));
+
+  // Build another (Version 5.0, Task 4, ruling 505): the button on a building's sheet. When the sim says no, the sheet says why under its buttons, with Show me where there is something to show;
+  // the note belongs to the sheet it was said on (it goes with that sheet). When it says yes the tool starts and the sheet closes.
+  let anotherNote = null;
+  const anotherButton = (b) => (canCopy(b) ? button(ANOTHER_TEXT.button, { class: 'another', 'aria-label': ANOTHER_TEXT.label(b.type), onClick: () => {
+    const r = onBuildAnother(b.id);
+    if (r && !r.ok) { anotherNote = { sheet: store.get().sheet, id: b.id, text: r.text, fix: r.fix }; render(); }
+  } }) : null);
+  const anotherLine = (b) => (anotherNote && anotherNote.id === b.id ? el('p', { class: 'another-note coral small', role: 'status' }, [anotherNote.text, anotherNote.fix ? button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${anotherNote.text}`, onClick: () => onAnotherFix(anotherNote.fix) }) : null]) : null);
 
   function head(title) {
     return el('div', { class: 'head' }, [el('h2', { text: title }), iconButton(T.close, '✕', { class: 'close', onClick: close })]);
@@ -136,7 +112,7 @@ export function createSheets({ container, store, world, placement, cameraControl
   function monumentSheet(b) {
     const body = el('div', { class: 'body monument' });
     body.append(...extra('building', b));
-    body.append(el('div', { class: 'actions' }, [...extra('actions', b), button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) })]));
+    body.append(el('div', { class: 'actions' }, [...extra('actions', b), anotherButton(b), button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) })].filter(Boolean)), ...[anotherLine(b)].filter(Boolean));
     return [head(buildingName(b.type)), body];
   }
 
@@ -194,8 +170,8 @@ export function createSheets({ container, store, world, placement, cameraControl
       } }));
     }
     // Rubble's Clear (Stage 3, src/ui/dangerSheets.js) is its demolish, with the price in its name.
-    if (b.type !== 'rubble') actions.append(button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) }));
-    body.append(actions);
+    if (b.type !== 'rubble') actions.append(...[anotherButton(b), button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) })].filter(Boolean));
+    body.append(actions, ...[anotherLine(b)].filter(Boolean));
     return [head(buildingName(b.type)), body];
   }
 
@@ -217,24 +193,41 @@ export function createSheets({ container, store, world, placement, cameraControl
     const words = cause ? causeText(cause, world, c.need) : null;
     if (!words) return li;
     li.append(el('p', { class: 'cause small', text: words.cause }));
-    const fix = typeof CAUSE_FIX[cause.code] === 'function' ? CAUSE_FIX[cause.code](cause, world) : CAUSE_FIX[cause.code];
+    const fix = fixOf(cause, world);
     // Nothing to build or view (goods on their way, a building not unlocked yet): the fix's words alone, when it has any.
     if (!fix) { if (words.fix) li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix })])); return li; }
     const building = cause.id !== null ? world.buildings[cause.id] : null;
-    let action;
+    let action, said = words.fix;
     if (fix.select) {
       if (!building) return li;
-      action = button(T.showMe, { class: 'show-me primary', 'aria-label': S47_PRESSURE_TEXT.showFar(cause, world), onClick: () => onSelect(building.id) });
+      const target = fetchStoreFor(world, cause) || building;   // the store near the bazaar that should set the Fetch order, else the one that holds the good
+      action = button(T.showMe, { class: 'show-me primary', 'aria-label': S47_PRESSURE_TEXT.showFar(cause, world), onClick: () => onSelect(target.id) });
     } else if (fix.view) {
       if (!building) return li;
       action = button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(building.type)), onClick: () => onSelect(building.id) });
     } else {
-      const near = centreOf(fix.at !== 'home' && building ? building : h);
-      const at = fix.at === 'terrain' ? nearestTerrainTile(world, BUILDINGS[fix.item].terrain, near) || near : near;
-      const target = { category: fix.category, item: fix.item, x: at.x, y: at.y };
-      action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${words.fix}`, onClick: () => onShowMe(target) });
+      // Version 5.0 (Task 7): the item and the place are the next step's (buildFixFor): a low street's decoration at its tile, a workshop by its store.
+      const step = buildFixFor(world, h, cause, c.need);
+      if (!step) {   // an item not unlocked yet: the step line's own Locked words, and no Show me the sim would refuse (final review)
+        const locked = lockedFixFor(world, h, cause, c.need);
+        if (locked) {
+          const rest = stepWords(world, h, { reason: 'locked', need: c.need, cause, locked }).rest;
+          li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: rest.charAt(0).toUpperCase() + rest.slice(1) })]));
+          return li;
+        }
+      }
+      const item = step ? step.item : fix.item;
+      const near = step ? step.target : centreOf(fix.at !== 'home' && building ? building : h);
+      const at = (step ? step.at : fix.at) === 'terrain' ? nearestTerrainTile(world, BUILDINGS[item].terrain, near) || near : near;
+      const target = { category: categoryOfItem(item), item, x: at.x, y: at.y };
+      // A low street's decoration, a workshop by its store and a hunting lodge by the herd are said as the next step says them (which building, where, its price, what it gives),
+      // not the general line, so the words and the aria-label name what Show me starts.
+      const named = step && (step.from !== undefined || step.herd || step.near !== undefined || step.store !== undefined);
+      const rest = named ? stepWords(world, h, { reason: null, need: c.need, cause, fix: step, cost: priceOf(world, step), afford: canAfford(world, priceOf(world, step)) }).rest : null;
+      if (rest) said = rest.charAt(0).toUpperCase() + rest.slice(1);
+      action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${said}`, onClick: () => onShowMeBuild(target) });
     }
-    li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix }), action]));
+    li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: said }), action]));
     return li;
   }
 
@@ -244,10 +237,22 @@ export function createSheets({ container, store, world, placement, cameraControl
     return (b && b.type === 'house' ? tierName(b.tier) : buildingName(d.type)).toLowerCase();
   }
 
+  // Version 5.0 (Task 2): the line at the top of a home's sheet from the sim's nextStep: the one thing to do next with its price and a Show me (or View), or
+  // why there is nothing to do (waiting on a delivery, locked behind a milestone, ready to grow, kept, an empty plot). The full checklist stays below.
+  function stepLine(h, step) {
+    const w = stepWords(world, h, step);
+    const text = el('span', { class: 'step-text' }, [el('strong', { class: 'step-label', text: w.label }), ' ' + w.rest]);
+    const a = w.action;
+    const act = !a ? null : button(a.label, { class: a.select !== undefined && a.label === T.view ? 'view quiet' : 'show-me primary', 'aria-label': a.aria, onClick: () => (a.select !== undefined ? onSelect(a.select) : onShowMeBuild(a.build)) });
+    return el('div', { class: w.short ? 'step-line short' : 'step-line', dataset: { reason: step.reason === null ? 'next' : step.reason } }, [text, act]);
+  }
+
   function houseSheet(h) {
     const s = houseStatus(world, h);
+    const step = nextStep(world, h);
     const body = el('div', { class: 'body' });
-    if (s.tier === 0) body.append(el('p', { class: 'muted', text: T.emptyPlot }));
+    body.append(stepLine(h, step));
+    if (s.tier === 0 && step.reason !== 'empty') body.append(el('p', { class: 'muted', text: T.emptyPlot }));
     const share = s.capacity ? Math.min(1, s.residents / s.capacity) : 0;
     body.append(el('div', { class: 'row residents' }, [
       el('span', { class: 'muted', text: T.residents }),
@@ -272,7 +277,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (s.downgradeIn !== null && lost) body.append(el('p', { class: 'coral', text: `Loses ${NEED_NAMES[lost].toLowerCase()} in ${plural(s.downgradeIn, 'month', 'months')}` }));
     else if (s.missingNow.includes('desirability')) body.append(el('p', { class: 'coral keep-warning', text: keepWarningText(tierName(s.tier), s.downgradeIn) }));
     body.append(...extra('house', h));
-    body.append(el('div', { class: 'actions' }, [button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(h.x, h.y); if (r.ok) close(); } })]));
+    body.append(el('div', { class: 'actions' }, [anotherButton(h), button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(h.x, h.y); if (r.ok) close(); } })].filter(Boolean)), ...[anotherLine(h)].filter(Boolean));
     return [head(tierName(s.tier)), body];
   }
 
@@ -280,6 +285,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     const d = summaryData(world);
     const body = el('div', { class: 'body' });
     body.append(row(T.difficulty, DIFFICULTY_NAMES[d.difficulty] || d.difficulty));
+    // Version 5.0 (Task 1): the figures stay here; what holds the city back is its own sheet, one tap away (from the first home).
+    if (adviceOn()) body.append(el('div', { class: 'actions advice-link' }, [button(T.advice, { class: 'open-advice', 'aria-label': `${T.advice}: ${T.adviceLead.toLowerCase()}`, onClick: () => onOpenAdvice() })]));
     // Stage 4.5 (Task 4b): the month ahead, as the city stands now (the sim's forecast): headed by what the balance is, so the gold
     // chip's tap lands on "Spending more than taxes bring in" when the treasury is shrinking.
     const f = monthForecast(world);
@@ -306,7 +313,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     // Each good made against used last month (spec 4.10), in the data's order; only goods that moved.
     const moved = Object.keys(GOODS).filter((g) => d.made[g] || d.used[g]);
     body.append(el('h3', { text: T.goodsLastMonth }), ...(moved.length ? moved.map((g) => row(goodName(g), madeUsedText(d.made[g] || 0, d.used[g] || 0))) : [el('p', { class: 'muted', text: T.noGoodsYet })]));
-    body.append(el('h3', { text: T.employment }), row(T.working, `${d.working} of ${d.workforce}`), row(T.jobless, `${d.jobless}`), row(T.jobs, `${d.jobs}`));
+    body.append(el('h3', { text: T.employment, dataset: { section: 'employment' } }), row(T.working, `${d.working} of ${d.workforce}`), row(T.jobless, `${d.jobless}`), row(T.jobs, `${d.jobs}`));
     body.append(el('h3', { text: T.moodBreakdown }), row(T.mood, `${d.mood}`));
     // The starting mood is a level, the rest are swings from it (early-game pass 2.10: plain English rows).
     // Stage 4.5 (ruling 325): while the Town unemployment penalty is being phased in, the Jobs row says what comes at the end of it.
@@ -409,6 +416,7 @@ export function createSheets({ container, store, world, placement, cameraControl
 
   function render() {
     const s = store.get();
+    if (anotherNote && anotherNote.sheet !== s.sheet) anotherNote = null;   // Build another's refusal goes with the sheet it was said on
     // A rebuild drops keyboard focus: put it back on the button at the same position when its class matches (spec 6.8).
     const buttons = [...container.querySelectorAll('button')];
     const focusIndex = buttons.indexOf(document.activeElement);
@@ -435,7 +443,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     // The gold chip's tap opens the summary at its forecast section (once per opening, so a later redraw leaves the scroll alone).
     if (s.sheet !== scrolledFor) {
       scrolledFor = s.sheet;
-      const target = s.sheet.kind === 'summary' && s.sheet.id === 'forecast' ? container.querySelector('[data-section="forecast"]') : null;
+      const target = s.sheet.kind === 'summary' && (s.sheet.id === 'forecast' || s.sheet.id === 'employment') ? container.querySelector(`[data-section="${s.sheet.id}"]`) : null;
       if (target && target.scrollIntoView) target.scrollIntoView({ block: 'start' });
     }
     if (focusIndex >= 0) {

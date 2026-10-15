@@ -338,3 +338,135 @@ describe('mobile height budget: the court sheet with the tribute and an Estate\'
     });
   }
 });
+
+// Version 5.0 (Task 1): the City advice sheet (the v50-advice scene: the sample city, its top five problems; once with the treasury deep in debt, so the dearest
+// fixes say they cannot be paid) and the top bar with the advice button and its dot, on a small and a tall phone at each text size: the rows obey the budget (a
+// sheet leaves only the alert row; the bar alone, the budget of every scene above), the sheet never scrolls sideways, every Show me and View in it is a 44 px
+// target that, scrolled to, sits on screen inside the frame, and the button, with its dot, is a 44 px target inside the bar.
+describe('v50 mobile height budget: the City advice sheet and button', () => {
+  const PHONES = [[375, 667], [390, 844]];
+  for (const [what, options] of [['with the treasury in hand', {}], ['with the treasury deep in debt (dearest fixes marked)', { gold: -470 }]]) {
+    it(`holds the budget with the advice sheet ${what}, and every control is a reachable 44 px target`, async () => {
+      const wrong = [];
+      for (const [width, height] of PHONES) {
+        for (const textSize of TEXT_SIZES) {
+          const r = await bootScene('v50-advice', width, height, 'skipTitle=1&seed=11&sample=1');
+          try {
+            r.api.game().ui.settings.set({ textSize, reducedMotion: 'on' });
+            await frame();
+            const said = await devScene(r.api, 'v50-advice', { ...options, quick: true });
+            const g = r.api.game();
+            g.ui.settings.set({ textSize, reducedMotion: 'on' });
+            g.ui.refresh();
+            await frame(); await frame();
+            const at = `${width}x${height} ${textSize}%${options.gold ? ' in debt' : ''}`;
+            expect([at, said.includes('5 shown'), g.ui.store.get().sheet.kind]).toEqual([at, true, 'advice']);
+            const sheet = r.root.querySelector('#sheet');
+            const items = [...sheet.querySelectorAll('.advice-item')];
+            if (items.length !== 5) wrong.push(`${at}: ${items.length} items, not 5`);
+            if (options.gold && !sheet.querySelector('.cost.short')) wrong.push(`${at}: no fix is marked as more than the treasury can pay`);
+            const box = r.root.getBoundingClientRect();
+            if (sheet.scrollWidth > sheet.clientWidth + 1) wrong.push(`${at}: the sheet scrolls sideways (${sheet.scrollWidth} of ${sheet.clientWidth})`);
+            const buttons = [...sheet.querySelectorAll('.advice-item button'), sheet.querySelector('.close')];
+            for (const n of buttons) {
+              n.scrollIntoView({ block: 'nearest' });
+              const b = n.getBoundingClientRect();
+              const name = n.getAttribute('aria-label') || n.textContent;
+              if (!n.getAttribute('aria-label') || !n.getAttribute('aria-label').trim()) wrong.push(`${at} ${name}: no accessible name`);
+              if (b.height < 44 - 0.5 || b.width < 44 - 0.5) wrong.push(`${at} ${name}: ${Math.round(b.width)}x${Math.round(b.height)} is under 44x44`);
+              if (b.left < box.left - 1 || b.right > box.right + 1) wrong.push(`${at} ${name}: outside the frame sideways`);
+              if (b.top < box.top - 1 || b.bottom > box.bottom + 1) wrong.push(`${at} ${name}: not on screen when scrolled to`);
+            }
+            for (const li of items) {
+              const b = li.getBoundingClientRect();
+              if (b.right > box.right + 1 || b.left < box.left - 1) wrong.push(`${at} ${li.dataset.key}: item outside the frame sideways`);
+            }
+            for (const c of budgetChecks('sheet', measureRows(r.root))) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);
+          } finally { r.cleanup(); }
+        }
+      }
+      expect(wrong).toEqual([]);
+    });
+  }
+  it('holds the budget with the advice button and its dot in the bar, a 44 px target inside it', async () => {
+    const wrong = [];
+    for (const [width, height] of PHONES) {
+      for (const textSize of TEXT_SIZES) {
+        const r = await bootScene('v50-advice', width, height, 'skipTitle=1&seed=11&sample=1');
+        try {
+          r.api.game().ui.settings.set({ textSize, reducedMotion: 'on' });
+          await frame();
+          await devScene(r.api, 'v50-advice', { sheet: false, quick: true });
+          const g = r.api.game();
+          g.ui.settings.set({ textSize, reducedMotion: 'on' });
+          g.ui.refresh();
+          await frame(); await frame();
+          const at = `${width}x${height} ${textSize}%`;
+          const btn = r.root.querySelector('#topbar .advice'), bar = r.root.querySelector('#topbar').getBoundingClientRect(), b = btn.getBoundingClientRect();
+          expect([at, btn.hidden, btn.querySelector('.advice-dot').hidden, btn.getAttribute('aria-label')]).toEqual([at, false, false, 'City advice: something new']);
+          if (b.width < 44 - 0.5 || b.height < 44 - 0.5) wrong.push(`${at}: the button is ${Math.round(b.width)}x${Math.round(b.height)}, under 44x44`);
+          if (b.left < bar.left || b.right > bar.right + 0.5 || b.top < bar.top - 0.5 || b.bottom > bar.bottom + 0.5) wrong.push(`${at}: the button is outside the bar`);
+          const stats = r.root.querySelector('#topbar .stats');
+          if (stats.scrollWidth > stats.clientWidth + 1 || stats.getBoundingClientRect().right > b.left + 0.5) wrong.push(`${at}: the numbers run into the button`);
+          for (const c of budgetChecks('advice-bar', measureRows(r.root))) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);   // no sheet open: the bar and its rows alone
+        } finally { r.cleanup(); }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+});
+
+// Version 5.0 (Task 2): a house sheet with its next-step line (the v50-house-step scene: a Townhouse-street fixture; the line says a next step with its price and
+// Show me, a wait on a delivery, or that an Estate is kept; once more with the treasury too small for the price, which says so in words) on a small and a tall phone at each text
+// size: the rows obey the budget (a sheet leaves only the alert row), the sheet never scrolls sideways, the line is on screen at the top of the sheet without scrolling
+// and takes no more than 30% of the phone's height,
+// the checklist is still below it, and its Show me is a named 44 px target that, scrolled to, sits inside the frame.
+describe('v50 mobile height budget: the house sheet\'s next-step line', () => {
+  const PHONES = [[375, 667], [390, 844]];
+  const CASES = [['next', {}], ['next, the price more than the treasury has', { state: 'next', gold: -480 }], ['waiting', { state: 'waiting' }], ['kept', { state: 'kept' }]];
+  for (const [what, options] of CASES) {
+    it(`holds the budget with the line for a home that is ${what}, and the line and its button fit the screen`, async () => {
+      const wrong = [];
+      const state = options.state || (what === 'next' ? 'next' : what);
+      for (const [width, height] of PHONES) {
+        for (const textSize of TEXT_SIZES) {
+          const r = await bootScene('v50-house-step', width, height, 'skipTitle=1&seed=11&sample=1');
+          try {
+            r.api.game().ui.settings.set({ textSize, reducedMotion: 'on' });
+            await frame();
+            const said = await devScene(r.api, 'v50-house-step', { state, ...options, quick: true });
+            const g = r.api.game();
+            g.ui.settings.set({ textSize, reducedMotion: 'on' });
+            g.ui.refresh();
+            await frame(); await frame();
+            const at = `${width}x${height} ${textSize}% ${what}`;
+            expect([at, g.ui.store.get().sheet.kind, said.includes(`step ${state === 'next' ? 'next' : state}`)]).toEqual([at, 'info', true]);
+            const sheet = r.root.querySelector('#sheet'), box = r.root.getBoundingClientRect();
+            const line = sheet.querySelector('.step-line');
+            if (!line) { wrong.push(`${at}: no next-step line`); continue; }
+            if (sheet.scrollWidth > sheet.clientWidth + 1) wrong.push(`${at}: the sheet scrolls sideways (${sheet.scrollWidth} of ${sheet.clientWidth})`);
+            const s = sheet.getBoundingClientRect(), q = line.getBoundingClientRect(), head = sheet.querySelector('.head').getBoundingClientRect();
+            if (q.top < head.bottom - 1 || q.bottom > s.bottom + 1) wrong.push(`${at}: the line is not on screen at the top of the sheet (${Math.round(q.top)}-${Math.round(q.bottom)} in ${Math.round(head.bottom)}-${Math.round(s.bottom)})`);
+            if (q.height > height * 0.3) wrong.push(`${at}: the line takes ${Math.round(q.height)} px, over 30% of the phone's ${height}`);
+            if (!sheet.querySelector('.checklist li')) wrong.push(`${at}: the checklist is gone`);
+            if (line.scrollWidth > line.clientWidth + 1) wrong.push(`${at}: the line's words run past it`);
+            const btn = line.querySelector('button');
+            if ((state === 'next') !== Boolean(btn)) wrong.push(`${at}: the button is ${btn ? 'there' : 'missing'}`);
+            for (const n of [btn, sheet.querySelector('.close')].filter(Boolean)) {
+              n.scrollIntoView({ block: 'nearest' });
+              const b = n.getBoundingClientRect(), name = n.getAttribute('aria-label') || n.textContent;
+              if (!n.getAttribute('aria-label') || !n.getAttribute('aria-label').trim()) wrong.push(`${at} ${name}: no accessible name`);
+              if (b.height < 44 - 0.5 || b.width < 44 - 0.5) wrong.push(`${at} ${name}: ${Math.round(b.width)}x${Math.round(b.height)} is under 44x44`);
+              if (b.left < box.left - 1 || b.right > box.right + 1) wrong.push(`${at} ${name}: outside the frame sideways`);
+              if (b.top < box.top - 1 || b.bottom > box.bottom + 1) wrong.push(`${at} ${name}: not on screen when scrolled to`);
+            }
+            sheet.scrollTop = 0;
+            if (options.gold && !line.classList.contains('short')) wrong.push(`${at}: the price is not marked as more than the treasury has`);
+            for (const c of budgetChecks('sheet', measureRows(r.root))) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);
+          } finally { r.cleanup(); }
+        }
+      }
+      expect(wrong).toEqual([]);
+    });
+  }
+});

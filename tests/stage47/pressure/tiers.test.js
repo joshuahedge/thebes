@@ -130,14 +130,14 @@ describe('s47 upper tiers: the house sheet', () => {
     const cause = needCause(w, home, 'pottery');
     expect([cause.code, cause.id, cause.good, cause.bazaar, cause.len > BUILDINGS.bazaar.supplyReach]).toEqual(['good_far', far.id, 'pottery', bazaar.id, true]);
     const words = causeText(cause, w, 'pottery');
-    expect(words).toEqual({ cause: `Pottery is held only in a storehouse ${cause.len} road tiles from the bazaar`, fix: 'A store near the bazaar can Fetch it by cart' });
+    expect(words).toEqual({ cause: `Pottery is held only in a storehouse ${cause.len} road tiles from the bazaar`, fix: 'The storehouse near the bazaar can Fetch it by cart' });
     const r = await rigUI({ world: w });
     try {
       r.store.set(select(r.store.get(), home.id));
       const btn = r.root.querySelector('#sheet .checklist li[data-need="pottery"] .show-me');
       expect(btn.getAttribute('aria-label')).toBe(P.showFar(cause, w));
       fire(btn, 'click');
-      expect(r.store.get().selectedId).toBe(far.id);
+      expect(r.store.get().selectedId).toBe(near.id);   // Version 5.0: the store near the bazaar that should set the Fetch order (src/sim/advice.js fetchStoreFor)
     } finally { r.cleanup(); }
     near.store.pottery = 5;                                                    // in reach now: it comes with the next delivery
     expect(needCause(w, home, 'pottery').code).toBe('next_delivery');
