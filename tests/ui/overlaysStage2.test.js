@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../harness.js';
-import { OVERLAYS, OVERLAY_HUE, GRADED_OVERLAYS, DESIRABILITY_ALPHA, houseMark, drawOverlay, drawDesirabilityTint, hatchTiles, desirabilityStep, desirabilityBands } from '../../src/render/overlays.js';
+import { OVERLAYS, OVERLAY_HUE, GRADED_OVERLAYS, LAYER_OVERLAYS, DESIRABILITY_ALPHA, houseMark, drawOverlay, drawDesirabilityTint, hatchTiles, desirabilityStep, desirabilityBands } from '../../src/render/overlays.js';
 import { AUTO_OVERLAY, DESIRABILITY_STEPS } from '../../src/data/ui.js';
 import { TIERS } from '../../src/data/housing.js';
 import { createOverlayLegend } from '../../src/ui/overlayUi.js';
@@ -56,11 +56,11 @@ function street(tier, extra = {}) {
 }
 
 describe('stage 2 overlays', () => {
-  it('lists the eleven overlays in order, with a name, a hue and a legend each, and shows the new ones on placing', () => {
-    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground']);   // Stage 3: fire risk; the placement review: Ground
+  it('lists the fourteen overlays in order, with a name, a hue and a legend each, and shows the new ones on placing', () => {
+    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers']);   // Stage 3: fire risk; the placement review: Ground
     for (const o of OVERLAYS) {
       expect([o, typeof OVERLAY_NAMES[o], typeof OVERLAY_HUE[o]]).toEqual([o, 'string', 'string']);
-      if (!GRADED_OVERLAYS.includes(o)) expect([o, OVERLAY_LEGEND[o].length]).toEqual([o, o === 'ground' ? 3 : 2]);   // Ground: fertile, rocky and (Stage 4.5) clay
+      if (!GRADED_OVERLAYS.includes(o)) expect([o, OVERLAY_LEGEND[o].length]).toEqual([o, o === 'ground' || LAYER_OVERLAYS.includes(o) ? 3 : 2]);   // Ground: fertile, rocky and (Stage 4.5) clay
     }
     expect(GRADED_OVERLAYS).toEqual(['desirability', 'fire', 'health', 'crime']);   // Stage 4.5: Health and Crime are banded like fire risk
     expect([AUTO_OVERLAY.booth, AUTO_OVERLAY.garden, AUTO_OVERLAY.statue, AUTO_OVERLAY.well]).toEqual(['entertainment', 'desirability', 'desirability', 'water']);

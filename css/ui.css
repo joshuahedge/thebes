@@ -1309,3 +1309,33 @@ body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size] #topb
 body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .menu { padding: 0; width: var(--tap); }
 body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .advice { margin-right: 2px; }
 body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .stat { gap: 2px; }
+
+/* Version 5.0 (Task 3, rulings 540-549): the legends of Home progress, Goods supply and Workers (ui/layersLegend.js). The name, the keys (each a swatch as the map draws it and a
+   short label) and the x on one row that wraps among itself; Goods supply adds the good picker on a row of its own, five buttons at most, each 44 px at least, wrapping to a
+   second row at large text. On a phone at 125% text or more the name and the keys' labels are for screen readers only (the strip's aria-label and each key's words still say
+   them; the swatches show what the map shows), so the strip keeps the budget under a banner (tests/v50/layers/budget.test.js). */
+#legend .strip.layer { flex-wrap: wrap; align-items: center; row-gap: 0; column-gap: 10px; max-width: 100%; box-sizing: border-box; }
+#legend .strip.layer .layer-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; flex: 1 1 0; min-width: 0; }
+#legend .strip.layer .layer-swatch { display: block; flex: 0 0 auto; }
+#legend .strip.layer .key { gap: 4px; }
+#legend .strip.layer .close { margin-left: auto; }
+#legend .strip.layer .goods-pick { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 0 0 4px; }
+#legend .strip.layer .goods-pick .good { min-width: var(--tap); min-height: var(--tap); padding: 2px 10px; font-size: calc(13px * var(--ui-scale)); line-height: 1.15; }
+#legend .strip.layer .goods-pick .good[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); box-shadow: none; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #legend .strip.layer > strong.text,
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #legend .strip.layer .key .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Goods supply on a phone: the picker is the strip's second row with the x at its end (the name is for screen readers: the Layers button says it and the picked good is pressed),
+   so the strip is the keys' row and the picker's row, nothing taller (tests/v50/layers/budget.test.js: 375x667 under the court banner). */
+body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply > strong.text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply { padding-top: 2px; padding-bottom: 2px; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .layer-keys { order: 1; flex: 1 1 100%; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .goods-pick { order: 2; flex: 1 1 0; min-width: 0; padding-bottom: 0; gap: 3px; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .goods-pick .good { padding: 2px 4px; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .close { order: 3; flex: 0 0 auto; margin-left: 0; align-self: flex-start; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .goods-pick .good { font-size: calc(13px * min(var(--ui-scale), 1.15)); }   /* at 150% the five goods stay one row beside the x (as the Done button's cap) */
+body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply { column-gap: 2px; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #legend .strip.layer.supply .close { padding: 0; min-width: var(--tap); width: var(--tap); }
+/* Held sideways (compact) the keys, the picker and the x share one row (the strip is wide enough at 100% text; at larger text the legend yields to the alert row, ruling 172). */
+body[data-layout="compact"] #legend .strip.layer.supply { flex-wrap: nowrap; }
+body[data-layout="compact"] #legend .strip.layer.supply .layer-keys { flex: 0 1 auto; }
+body[data-layout="compact"] #legend .strip.layer.supply .goods-pick { flex: 1 1 auto; flex-wrap: nowrap; }

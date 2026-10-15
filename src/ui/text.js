@@ -15,6 +15,8 @@ import { roadCostOf } from '../sim/costs.js';
 import { producerRefused } from '../sim/production.js';
 import { isUnlocked } from '../sim/progression.js';
 import { makerOf, storeFor, goodMakers, fetchStoreFor } from '../sim/advice.js';
+import { JOBLESS_BANDS } from '../data/layers.js';
+import { MIN_STAFF_RATIO } from '../data/labour.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -2649,3 +2651,42 @@ T.adviceLead = 'What holds your city back, worst first.';
 TIP_TEXT.city_advice = 'The scroll button at the top shows what holds your city back, and what each fix costs.';
 TIP_HELP_TEXT.city_advice = 'The scroll button opens City advice: what holds your city back, with costs and Show me. A dot marks news.';
 // ── end v50 advice ──
+
+// ── v50 layers (Version 5.0, Task 3, rulings 540-549) ─────────────────────────────────────────────────────────────────
+// Home progress, Goods supply and Workers (src/render/layers.js, legends in src/ui/overlayUi.js, the good picker in the legend row). Every number said here is the sim's: the
+// jobless bands are JOBLESS_BANDS, the staff a workplace needs to work is MIN_STAFF_RATIO. Each key has a short label (the strip) and words (a screen reader, and the
+// map's cue in full): wash against hatching, an icon, a number, never a colour alone.
+Object.assign(OVERLAY_NAMES, { progress: 'Home progress', supply: 'Goods supply', workers: 'Workers' });
+const v50Bands = JOBLESS_BANDS.map((b, i) => (JOBLESS_BANDS[i + 1] ? `${b.from} to ${JOBLESS_BANDS[i + 1].from - 1}` : `${b.from} or more`));
+const v50Staff = `${Math.round(MIN_STAFF_RATIO * 100)}%`;
+export const V50_LAYERS_TEXT = {
+  // Home progress: three keys, each a label and its words.
+  ready: { label: 'All met', words: 'Tick: every need met, so it grows at the month\'s end, or keeps its top tier' },
+  one: { label: '1 missing', words: 'Icon: one need missing, the one the icon shows' },
+  many: { label: '2+ missing', words: 'Hatched, with a number: two or more needs missing; the icon is the first, the number how many' },
+  // Goods supply: the good picker and its keys.
+  pick: 'Good',
+  pickName: (good) => (good === 'food' ? 'Foods' : goodName(good)),
+  pickAria: (good) => `${good === 'food' ? 'Foods' : goodName(good)} supply`,
+  has: { label: 'Has it', words: 'Filled dot: this home has the good it needs' },
+  lacks: { label: 'Lacks it', words: 'Hollow ring on hatching: this home lacks the good it needs' },
+  holds: { label: 'Held', words: 'Label: a store or bazaar that holds the good, and how much' },
+  // Workers: short of staff, not working, and the jobless.
+  short: { label: 'Short', words: 'Label with a minus: how many workers a workplace lacks' },
+  stopped: { label: 'Not working', words: `Hatched: below ${v50Staff} of the workers it needs, so it does not work` },
+  jobless: { label: 'Jobless', words: `Shaded district with a number: people with no work, shared out over the districts by where people live (${v50Bands.join(', ')}, the last hatched)` },
+  tipProgress: 'Layers has a new one: Home progress shows how close each home is to its next tier.',
+  tipProgressHelp: 'Home progress (from your first home): a tick means all met, an icon the missing need, a number how many.',
+  tipTown: 'Town brings two more layers: Goods supply and Workers.',
+  tipTownHelp: 'Goods supply (Layers, from Town): who lacks a good, what stores hold. Workers: staff short, people jobless.',
+};
+Object.assign(OVERLAY_LEGEND, {
+  progress: [V50_LAYERS_TEXT.ready.words, V50_LAYERS_TEXT.one.words, V50_LAYERS_TEXT.many.words],
+  supply: [V50_LAYERS_TEXT.has.words, V50_LAYERS_TEXT.lacks.words, V50_LAYERS_TEXT.holds.words],
+  workers: [V50_LAYERS_TEXT.short.words, V50_LAYERS_TEXT.stopped.words, V50_LAYERS_TEXT.jobless.words],
+});
+TIP_TEXT.layer_progress = V50_LAYERS_TEXT.tipProgress;
+TIP_HELP_TEXT.layer_progress = V50_LAYERS_TEXT.tipProgressHelp;
+TIP_TEXT.layers_town = V50_LAYERS_TEXT.tipTown;
+TIP_HELP_TEXT.layers_town = V50_LAYERS_TEXT.tipTownHelp;
+// ── end v50 layers ──

@@ -16,7 +16,8 @@ import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/ca
 import { walkersAt } from '../render/walkers.js';
 import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
-import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint } from '../render/overlays.js';
+import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, LAYER_OVERLAYS } from '../render/overlays.js';
+import { LAYER_UNLOCK } from '../data/layers.js';
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
@@ -46,6 +47,7 @@ import { createOverlayLegend } from './overlayUi.js';
 import { spotsOn } from './s47/spots.js';
 import { drawHouseSpots } from '../render/spots.js';
 import { createLayersPicker } from './layersPicker.js';
+import { resolveSupplyGood } from '../sim/layers.js';
 import { createToasts, MAX_TOASTS, MAX_TOASTS_PHONE } from './toasts.js';
 import { createCelebrations } from './celebrate.js';
 import { createTips } from './tips.js';
@@ -145,7 +147,7 @@ export function createUI({
     // Stage 4.5 (Task 4b): the treasury warning names the city's own numbers (the sim's forecast and its costliest building), and
     // its Show me goes to that building (its sheet opens, where it can be paused or taken down), or to the summary when none costs.
     textFor: (id) => (id === 'treasury_low' ? S45_TEXT.warnTip(monthForecast(world), biggestCost(world)) : id === 'fetch_far' ? fetchFarWords() : TIP_TEXT[id]),
-    showMeFor: (id) => (id === 'city_advice' ? () => toggleSheet('advice') : id === 'treasury_low' ? () => { const big = biggestCost(world); if (!(big && selectBuilding(big.id))) openSummary('forecast'); } : id === 'fetch_far' ? fetchFarShowMe : null),
+    showMeFor: (id) => (id === 'city_advice' ? () => toggleSheet('advice') : id === 'layer_progress' || id === 'layers_town' ? () => store.set({ layersOpen: true }) : id === 'treasury_low' ? () => { const big = biggestCost(world); if (!(big && selectBuilding(big.id))) openSummary('forecast'); } : id === 'fetch_far' ? fetchFarShowMe : null),
   });
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
   // (hoisted) forwards settle's events to onEvents, which shows them. On a phone they take the guidance row (spec 6.3,
@@ -212,8 +214,8 @@ export function createUI({
   // back to the Layers button that opened it.
   const toggleLayers = () => { const s = store.get(); store.set({ layersOpen: !s.layersOpen }); };
   const restoreLayersFocus = () => { const b = store.get().layout === 'wide' ? sidePanel.layersButton : corners.layersButton; if (b && b.offsetParent !== null) b.focus({ preventScroll: true }); };
-  const cornerPicker = createLayersPicker({ store, restoreFocus: restoreLayersFocus, doc });
-  const panelPicker = createLayersPicker({ store, restoreFocus: restoreLayersFocus, doc });
+  const cornerPicker = createLayersPicker({ store, world, restoreFocus: restoreLayersFocus, doc });
+  const panelPicker = createLayersPicker({ store, world, restoreFocus: restoreLayersFocus, doc });
   const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas, onLayers: toggleLayers, pickerNode: panelPicker.node });
   const rail = createRail({ container: $('rail'), store, world, onPick: pick });
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
@@ -495,6 +497,7 @@ export function createUI({
     advice.markStale();                                // Version 5.0 (Task 1): what holds the city back may have changed: read it again on this refresh
     if (e.undoable && e.kind === 'houses') fireTip('houseSpots');   // Stage 4.7 (Task 4): the spots arrive with the first plot; the tip waits for the tool to end
     if (e.undoable && e.kind === 'houses') fireTip('cityAdvice');   // Version 5.0 (Task 1): the advice button has just appeared (after the spots tip: the first one held keeps the slot)
+    if (e.undoable && e.kind === 'houses') fireTip('layerProgress');   // Version 5.0 (Task 3): Home progress comes with the first home (the picker shows it from now); after the others, and again with the next plot if a tip had the slot
     if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type] && BUILDINGS[store.get().tool.type].reach) fireTip('servicePlaced');   // a reach tip: a garden has none
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
@@ -573,6 +576,7 @@ export function createUI({
       else if (e.type === 'arrivals') fireTip('arrivals');
       else if (e.type === 'month') { fireTip('monthEnd'); if (monthForecast(world).goesBelow) fireTip('treasuryLow'); if (!(settings.get().seenTips || []).includes('fetch_far') && farGoodTip(world)) fireTip('goodsFar'); }
       else if (e.type === 'goal') fireTip('goalDone');
+      else if (e.type === 'milestone' && e.id === LAYER_UNLOCK.supply.milestone) fireTip('layersTown');   // Version 5.0 (Task 3): Goods supply and Workers come with Town
       const cheer = e.type === 'achievement' && quiet ? null : cheerFor(e);
       if (cheer) celebrations.show(cheer);
     }
@@ -794,7 +798,7 @@ export function createUI({
         if (b.tier === 5) fireTip('townhouseSheet');      // it grows by joining three plots beside it (spec 4.6)
       }
     }
-    if (s.overlay && s.overlay !== 'ground' && s.overlay !== seenOverlay && !isToolMode(s.mode)) fireTip('overlayOn');   // Ground's legend says it all: the tip's dot and ring are other overlays'
+    if (s.overlay && s.overlay !== 'ground' && !LAYER_OVERLAYS.includes(s.overlay) && s.overlay !== seenOverlay && !isToolMode(s.mode)) fireTip('overlayOn');   // Ground's legend says it all: the tip's dot and ring are other overlays'
     tips.flush({ busy: tipsBusy(s) });
     seenMode = s.mode; seenSheet = s.sheet; seenOverlay = s.overlay;
     syncGuidance();
@@ -967,7 +971,7 @@ export function createUI({
       fire: (g, r) => { drawFires(g, world, r, t, still); drawIllness(g, world, r); },   // Stage 4.5: and the cloth over an ill home's door (render/illness.js)
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),
       drawOverlay: (g, r) => {
-        if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null);   // Ground brightens the tiles with room for the building being placed
+        if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null, resolveSupplyGood(world, s.supplyGood));   // Ground brightens the tiles with room for the building being placed; Goods supply shows the picked good
         else if (spotsOn(s, world)) drawHouseSpots(g, world, r);                // Stage 4.7 (Task 4): the next house's Good and Fair spots, in this layer, while the house tool is on
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
         if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change
