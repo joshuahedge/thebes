@@ -36,14 +36,15 @@ const BEFORE = {
   oasis: ['48da32c', 'f2a3ad70', '2bf4d64e', '2643c37', 'd38fbe59', 'd3aacd0a'],
 };
 const AFTER = {
-  east: ['b34443c', 'b189f2ed', '262dacb2', 'a2397bdd', 'b3c1cee', 'a90d01bd'],
-  middle: ['883f4b15', 'e1e39053', '7373d0f4', '96eaef7e', '873d4b81', 'ab9c922b'],
-  'wide-bends': ['883f4aef', '67db2d5f', 'a586da7d', '56a3b6c', '4f855311', '4e07014c'],
-  island: ['37f3682a', '60cf5b7b', 'a8bb5874', '67777806', '68493eba', '26940650'],
-  oasis: ['2746c3cd', '8fa768ef', 'ea16a660', '9ffc5449', '37c08dd5', 'f9882fd1'],
+  east: ['d562593c', '1f15b668', 'ed55cf99', '242f9637', '92a815e', '56b187f5'],
+  middle: ['7ac36543', '2bb38229', 'c17d77c6', '8f357168', 'bf9c1a4', '8de3263e'],
+  'wide-bends': ['42620959', '3b21ba52', '6c7e8542', '9bd45a55', '8dcc2691', 'b33635aa'],
+  island: ['a754f478', 'b1bbaa4a', '11b50137', 'f2e42b3f', '83bce82b', 'b9fd928'],
+  oasis: ['fb568110', 'f540e459', '59efc15d', 'f0a014db', '621c807f', '710fc76a'],
 };
 // Stage 4.7 Task 3b: every non-classic map moved again: its rock lies in long belts with the hills on them (no outcrop patches, no groves) and its meadow follows the
-// water (no noise meadow). Classic at 64 is not in AFTER and is untouched.
+// water (no noise meadow). Review round 1 moved them once more (belts reach the map's edges, a last-resort belt on every map, the mine repair's rock a belt fragment).
+// Classic at 64 is not in AFTER and is untouched.
 // Stage 4.7 Task 3 (ruling 464): hills (and their rocky skirts) are terrain on every map but classic at Normal, so every non-classic seed here moved once more
 // (a few keep their print where no cluster found room); classic at 64 is not in AFTER and is untouched.
 // Stage 4.7 Task 2 (ruling 463): the oases are terrain on every map but classic at Normal, so a seed that holds one (or two) moved again: seeds 11 and 1234 of east, middle, wide-bends and island, and seed 1234 of oasis (the generator's other draws are untouched). Classic at 64 is not in AFTER.

@@ -98,7 +98,7 @@ describe('s47 grass band', () => {
     for (let y = 0; y < 80; y++) {
       for (let x = 0; x < 80; x++) {
         const i = idx(80, x, y), d = decorAt(w, x, y), o = oldDecor(w, x, y);
-        if (o && d !== o) lost++;
+        if (o && d !== o && !(o === 'acacia' && w.terrain[i] === T.DESERT && f[i] < GRASS.tiers[0])) lost++;   // Task 3b: the desert's own acacias stay only where the green reaches
         if (w.terrain[i] !== T.DESERT && w.terrain[i] !== T.MEADOW) continue;   // Task 3b: the moist fringe is meadow now, not sand
         if (f[i] >= 0.5) { wetN++; if (d) wet++; } else if (f[i] === 0) { dryN++; if (d) dry++; }
       }

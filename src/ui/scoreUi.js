@@ -309,7 +309,7 @@ function stampFor(entry, dpr) {
   const r = px / 2, ring = 3 * dpr;
   g.save();
   g.beginPath(); g.arc(r, r, r - ring, 0, Math.PI * 2); g.clip();
-  drawMapSquare(g, { size: map.size, terrain: map.terrain }, 0, 0, px);
+  drawMapSquare(g, { size: map.size, terrain: map.terrain, land: Boolean(map.params && map.params.land) }, 0, 0, px);
   g.restore();
   g.strokeStyle = medalColour(entry.medal); g.lineWidth = ring;
   g.beginPath(); g.arc(r, r, r - ring / 2, 0, Math.PI * 2); g.stroke();

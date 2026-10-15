@@ -80,13 +80,13 @@ describe('s45 variants (the six layouts)', () => {
     const terrains = MAP_VARIANTS.map((v) => JSON.stringify(generateMap(8, 64, v).terrain));
     expect(new Set(terrains).size).toBe(6);
   });
-  it('keeps fertile banks, 60-520 rocky tiles off the river (rock belts and the hills on them; classic keeps its patches), land raider entries and a buildable start, for 30 seeds of every variant', () => {
+  it('keeps fertile banks, 100-520 rocky tiles off the river (rock belts and the hills on them; classic keeps its patches), land raider entries and a buildable start, for 30 seeds of every variant', () => {
     for (const v of MAP_VARIANTS) {
       for (const seed of SEEDS) {
         const m = generateMap(seed, 64, v), tag = `${v} ${seed}`;
         const rocky = count(m, T.ROCKY) + count(m, T.HILLS) - m.repaired.mine;   // Stage 4.7: the resource repair's rock (ruling 461) is on top of what the patches or belts drew; Task 3b: hills stand on the belts, so they count
         // Classic keeps its own patches, draw for draw (so the fixtures and old seeds do not move): its rock is 52-172.
-        expect([tag, v === 'classic' ? rocky >= 40 && rocky <= 180 : rocky >= 60 && rocky <= 520]).toEqual([tag, true]);
+        expect([tag, v === 'classic' ? rocky >= 40 && rocky <= 180 : rocky >= 100 && rocky <= 520]).toEqual([tag, true]);
         expect([tag, count(m, T.FERTILE) >= 400]).toEqual([tag, true]);
         let nearFertile = 0, minRock = 99;
         for (let y = 0; y < m.size; y++) {
@@ -133,9 +133,9 @@ describe('s45 variants (what each one is)', () => {
       expect([seed, Math.abs(centre(middle).mean - 32) < 4]).toEqual([seed, true]);
       const side = (m, left) => { let n = 0; for (let y = 0; y < m.size; y++) for (let x = 0; x < m.size; x++) if ((at(m, x, y) === T.ROCKY || at(m, x, y) === T.HILLS) && (x < 32) === left) n++; return n; };
       expect([seed, side(east, true) > 80, side(east, false) < 10 + east.repaired.mine]).toEqual([seed, true, true]);
-      if (side(middle, true) >= 20 && side(middle, false) >= 20) both++;   // Task 3b: an oasis drawn in one of middle's rock ranges can leave it no belt (the oases are placed first), so most seeds, not all
+      if (side(middle, true) >= 20 && side(middle, false) >= 20) both++;   // Task 3b: an oasis drawn in one of middle's rock ranges can leave it no belt (the oases are placed first), so nearly all seeds (29 of 30), not every one
     }
-    expect(both >= SEEDS.length * 0.7).toBe(true);
+    expect(both >= SEEDS.length * 0.9).toBe(true);
   });
   it('wide-bends meanders more than any other variant, and the island splits the river round 4-8 rows of land', () => {
     for (const seed of SEEDS) {

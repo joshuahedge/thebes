@@ -78,7 +78,7 @@ const CLAY_INLAND = 4;   // the farthest from water (tiles) the clay repair wide
 const OPEN = (t) => t === T.DESERT || t === T.MEADOW;   // ground a repair may take without touching what the generator made on purpose
 
 // avoid: [{ x, y, r }] (the oases): the mine's rocky blob keeps OASES.fromRock tiles from a pool, as the generator keeps every outcrop (Task 2 review).
-export function repairResources(map, seed, ranges = null, { mine = true, avoid = [] } = {}) {
+export function repairResources(map, seed, ranges = null, { mine = true, avoid = [], belt = false } = {}) {
   const { size, terrain, focus } = map;
   const reach = resourceReach(size);
   const salt = (seed + S47_SALT.resources) | 0;
@@ -176,11 +176,26 @@ export function repairResources(map, seed, ranges = null, { mine = true, avoid =
       if (!sites.length) continue;
       const scored = sites.map((i) => ({ i, s: rock.length ? Math.round(toRock(i)) : 0 })).sort((a, b) => a.s - b.s || tie(a.i, 1) - tie(b.i, 1) || a.i - b.i);
       const c = scored[0].i, cx = c % size, cy = (c - cx) / size;
-      for (let y = cy - 3; y <= cy + 3; y++) for (let x = cx - 3; x <= cx + 3; x++) {
+      if (!belt) {
+        for (let y = cy - 3; y <= cy + 3; y++) for (let x = cx - 3; x <= cx + 3; x++) {
+          if (!inBounds(size, x, y)) continue;
+          const j = y * size + x;
+          if (!OPEN(terrain[j]) || road.has(j)) continue;
+          if (Math.hypot(x - cx, y - cy) <= 2 + hash2(x, y, (seed + S47_SALT.mineBlob) | 0) * 0.9) { terrain[j] = T.ROCKY; done.mine++; }
+        }
+        return;
+      }
+      // Stage 4.7 (Task 3b): on a map with rock belts the added rock is a short belt fragment, not a round blob: the same core (radius 2, so the mine still fits) drawn out
+      // along a heading near the river's into a tapered piece about 9 tiles long, so it reads as part of the rock language. Tiles that fail the distances are skipped.
+      const mb = (seed + S47_SALT.mineBlob) | 0, a = (hash2(cx, cy, mb + 1) - 0.5) * 1.0, ax = Math.sin(a), ay = Math.cos(a), L = 4.6;
+      for (let y = cy - 6; y <= cy + 6; y++) for (let x = cx - 6; x <= cx + 6; x++) {
         if (!inBounds(size, x, y)) continue;
         const j = y * size + x;
         if (!OPEN(terrain[j]) || road.has(j)) continue;
-        if (Math.hypot(x - cx, y - cy) <= 2 + hash2(x, y, (seed + S47_SALT.mineBlob) | 0) * 0.9) { terrain[j] = T.ROCKY; done.mine++; }
+        const dx = x - cx, dy = y - cy, along = dx * ax + dy * ay, across = Math.abs(-dx * ay + dy * ax), core = Math.hypot(dx, dy) <= 2 + hash2(x, y, mb) * 0.9;
+        const frag = Math.abs(along) <= L && across <= 0.6 + 1.7 * Math.pow(1 - (along / L) ** 2, 0.7) + (hash2(x, y, mb + 2) - 0.5) * 0.8;
+        if (!core && !(frag && wd[j] > 5 && dist(j) >= MAP.rockAwayStart && !(clear && pools.some(([px, py]) => Math.max(Math.abs(px - x), Math.abs(py - y)) <= OASES.fromRock)))) continue;
+        terrain[j] = T.ROCKY; done.mine++;
       }
       return;
     }

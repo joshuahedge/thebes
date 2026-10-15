@@ -60,6 +60,14 @@ export function scrub(g, c) {
   g.circ([c[0] + 1, c[1] - 3], 1, '#9CC45A');
 }
 
+// A dry shrub (Stage 4.7 Task 3b): the drab olive-grey bush of open desert, away from any water, so vivid green is only ever by the water.
+export function dryShrub(g, c) {
+  g.ell([c[0] + 2.5, c[1] + 0.5], 4, 1.2, SHADOW, { alpha: 0.09 });
+  g.circ([c[0] - 1.6, c[1] - 0.9], 1.9, '#8A8760');
+  g.circ([c[0] + 1.2, c[1] - 1.6], 2.1, '#9A9672');
+  g.circ([c[0] + 0.3, c[1] - 0.1], 1.6, '#7C7A58');
+}
+
 export function dune(g, c) {
   g.stroke([['M', [c[0] - 9, c[1] + 1]], ['Q', [c[0], c[1] - 3.5], [c[0] + 9, c[1] + 1]]], '#F7EAC8', 1, 0.85);
   g.stroke([['M', [c[0] - 8, c[1] + 2.2]], ['Q', [c[0], c[1] - 1.4], [c[0] + 8, c[1] + 2.2]]], '#CDB283', 0.8, 0.45);

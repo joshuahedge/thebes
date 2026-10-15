@@ -84,7 +84,8 @@ describe('s46 map generator (ruling 332, 333): every layout at every size keeps 
           const fail = (what) => bad.push(`${tag}: ${what}`);
           // Stage 4.7 (Task 3b): a new map's rock lies in belts (BELTS.area a Normal map, scaled by area; hills stand on it and count); classic at Normal keeps its patches
           const rock = count(m, T.ROCKY) + count(m, T.HILLS) - m.repaired.mine, target = Math.round(BELTS.area * area), classicNormal = v === 'classic' && size === 64;
-          if (classicNormal ? rock < 40 || rock > 180 : rock < target * 0.25 || rock > target * 2.4) fail(`rock ${rock} (want ${Math.round(target * 0.25)}-${Math.round(target * 2.4)})`);
+          const floor = size === 48 ? 0.25 : BELTS.floor;   // Small maps: a lake and a narrow rock range can leave a belt or two (BELTS.floor is the generator's aim; the worst Small map of 1,000 holds 0.30)
+          if (classicNormal ? rock < 40 || rock > 180 : rock < target * floor || rock > target * 2.4) fail(`rock ${rock} (want ${Math.round(target * floor)}-${Math.round(target * 2.4)})`);
           if (count(m, T.WATER) <= size) fail('no river');
           if (count(m, T.FERTILE) < 250 * area) fail(`fertile ${count(m, T.FERTILE)}`);
           const wd = waterDist(m, 8);

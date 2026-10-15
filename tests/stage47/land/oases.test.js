@@ -116,7 +116,7 @@ describe('s47 oases', () => {
       }
     }
     expect(bad.slice(0, 8)).toEqual([]);
-    expect(mended.size <= 25).toBe(true);   // of 1800 maps, the 17 or so with no other room for the guaranteed mine (src/sim/resources.js mendMine prefers a site that keeps the gap)   // of 1800 maps, only the few with no other room for the guaranteed mine (see src/sim/resources.js mendMine)
+    expect(mended.size <= 40).toBe(true);   // of 3400 maps (Task 3b: 26 with the belts and the fragment, 17 before; 0.8%), those with no other room for the guaranteed mine (src/sim/resources.js mendMine prefers a site that keeps the gap)   // of 1800 maps, only the few with no other room for the guaranteed mine (see src/sim/resources.js mendMine)
   });
 
   it('never cuts the start area off from a raider entry or the trade entry, nor moves the bridge spot, on 200 seeds of every size and layout', () => {

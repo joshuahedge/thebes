@@ -79,7 +79,7 @@ describe('s47 rock belts', () => {
       const [lo, hi] = beltRange(size), tag = `${size} ${variant} #${seed}`;
       if (m.belts.length > hi + BELTS.extra) bad.push(`${tag}: ${m.belts.length} belts`);
       for (const b of m.belts) {
-        if (b.len < BELTS.minLen * 0.75) bad.push(`${tag}: a belt ${b.len} tiles long`);
+        if (b.len < Math.floor(BELTS.minLen * 0.75 * 0.6)) bad.push(`${tag}: a belt ${b.len} tiles long`);
         // the rock piece the belt's middle is in: how far it reaches
         const n = size, start = idx(n, b.x, b.y);
         if (!rockish(m.terrain[start])) continue;

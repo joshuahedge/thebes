@@ -8,7 +8,7 @@ import { idx, inBounds } from '../sim/grid.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { makeDraw } from './art/ctx.js';
 import { TERRAIN, LEAF2 } from './art/palette.js';
-import { rock, scrub, dune, tufts, reeds } from './art/nature.js';
+import { rock, scrub, dryShrub, dune, tufts, reeds } from './art/nature.js';
 import { hasNewLand, GRASS } from '../data/s47.js';
 import { moistureOf, moistureAt, decorDraw } from './grass.js';
 import { defaultCreateCanvas, bucketFor } from './spriteCache.js';
@@ -237,6 +237,26 @@ function drawGrassBand(g, world, range) {
     ctx.fill('nonzero');
     ctx.globalAlpha = 1;
   });
+  // Task 3b: the river's fringe is the greenest land: over fertile loam the tiers above are a thin wash, so the loam by the water takes two near-opaque
+  // passes of meadow green (the loam's speckle and tufts are drawn over it, so farmland still reads; the Ground overlay is the exact cue for where farms fit).
+  [[GRASS.tiers[3], TERRAIN.grassSoft, 0.75], [GRASS.tiers[4], TERRAIN.grass, 0.6]].forEach(([from, colour, alpha], k) => {
+    const test = (tx, ty) => { const j = idx(n, tx, ty), t = world.terrain[j]; return t === T.FERTILE ? field[j] >= from : t === T.ROCKY ? false : !BAND_GROUND(t); };
+    ctx.beginPath();
+    let any = false;
+    for (const [x, y, m] of tiles) {
+      if (m < from || world.terrain[idx(n, x, y)] !== T.FERTILE) continue;
+      const pts = blobFor(world, x, y, -20 - k, 25 + k, 0.04, test, GRASS.wander);
+      ctx.moveTo(pts[0][0] * g.scale, pts[0][1] * g.scale);
+      for (let q = 1; q < pts.length; q++) ctx.lineTo(pts[q][0] * g.scale, pts[q][1] * g.scale);
+      ctx.closePath();
+      any = true;
+    }
+    if (!any) return;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = colour;
+    ctx.fill('nonzero');
+    ctx.globalAlpha = 1;
+  });
 }
 
 // What grows in the band, on the ground (the trees are decorAt's): grass tufts, thick by the water and thinning out, a little scrub where the green gives out, and
@@ -253,7 +273,7 @@ function bandScatter(g, world, x, y, i, t) {
   const tiers = GRASS.tiers;
   const n = m >= tiers[3] ? 4 : m >= tiers[2] ? 3 : m >= tiers[1] ? (u < 0.8 ? 2 : 1) : m >= tiers[0] ? (u < 0.55 ? 1 : 0) : 0;
   if (n && t === T.DESERT) tufts(g, x, y, n, 2);
-  if (m < tiers[1] && m > 0.02 && decorDraw(world, x, y, 2) < 0.17) scrub(g, p(x + 0.25 + u * 0.5, y + 0.3 + decorDraw(world, x, y, 4) * 0.4));
+  if (m < tiers[1] && m >= tiers[0] && decorDraw(world, x, y, 2) < 0.17) scrub(g, p(x + 0.25 + u * 0.5, y + 0.3 + decorDraw(world, x, y, 4) * 0.4));   // vivid scrub only where the green reaches
 }
 
 // Sand everywhere, faint blotches and dots, then the blended layers, then the scatter that sells the blend:
@@ -287,6 +307,14 @@ export function drawGround(g, world, range) {
   forTiles(world, range, (x, y, i) => scatterTile(g, world, x, y, i));
 }
 
+// Which shrub a desert tile of draw r (the scatter's hash) carries: 'scrub' (vivid green), 'dry' (the drab olive-grey bush) or null. Task 3b: on a new map vivid scrub only
+// grows where there is moisture (the band's reach, GRASS.tiers[0]); out in the open desert a tile carries a dry shrub, and a sparser one (r < 0.08 of 0.05-0.11).
+export function shrubKind(world, i, r) {
+  if (r < 0.05 || r >= 0.11) return null;
+  if (!hasNewLand(world) || moistureAt(world, i) >= GRASS.tiers[0]) return 'scrub';
+  return r < 0.08 ? 'dry' : null;
+}
+
 // The scatter on one tile that sells the blend (see drawGround); an island's tiles take it again after the river is drawn.
 function scatterTile(g, world, x, y, i) {
   const t = world.terrain[i];
@@ -313,7 +341,8 @@ function scatterTile(g, world, x, y, i) {
     if (bits) shapeTile(g, world, x, y, bits);
     const cq = p(x + 0.5, y + 0.5);
     if (r < 0.05) rock(g, cq);
-    else if (r < 0.11) scrub(g, cq);
+    else if (shrubKind(world, i, r) === 'scrub') scrub(g, cq);
+    else if (shrubKind(world, i, r) === 'dry') dryShrub(g, cq);
     else if (r > 0.9 && valueNoise(x, y, world.seed + 5, 7) > 0.55) dune(g, cq);
   }
 }
