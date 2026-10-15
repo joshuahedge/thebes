@@ -10,6 +10,8 @@ import { createWorld } from '../../../src/sim/world.js';
 import { riverPools, riverSpans } from '../../../src/render/terrainWater.js';
 import { shapeLayer } from '../../../src/render/terrainBaker.js';
 import { canPlace } from '../../../src/sim/commands.js';
+import { BELTS } from '../../../src/data/s47.js';
+import { beltRange } from '../../../src/sim/belts.js';
 
 const SIZES = Object.values(MAP_SIZES);
 const SEEDS = Array.from({ length: 50 }, (_, k) => k + 1);
@@ -80,8 +82,10 @@ describe('s46 map generator (ruling 332, 333): every layout at every size keeps 
         for (const seed of SEEDS) {
           const m = generateMap(seed, size, v), tag = `${v} ${size} seed ${seed}`;
           const fail = (what) => bad.push(`${tag}: ${what}`);
-          const rock = count(m, T.ROCKY), target = Math.round(MAP.rockTarget * area), classicNormal = v === 'classic' && size === 64;
-          if (classicNormal ? rock < 40 || rock > 180 : rock < target || rock > target + 30) fail(`rock ${rock} (want ${target}+)`);
+          // Stage 4.7 (Task 3b): a new map's rock lies in belts (BELTS.area a Normal map, scaled by area; hills stand on it and count); classic at Normal keeps its patches
+          const rock = count(m, T.ROCKY) + count(m, T.HILLS) - m.repaired.mine, target = Math.round(BELTS.area * area), classicNormal = v === 'classic' && size === 64;
+          const floor = size === 48 ? 0.25 : BELTS.floor;   // Small maps: a lake and a narrow rock range can leave a belt or two (BELTS.floor is the generator's aim; the worst Small map of 1,000 holds 0.30)
+          if (classicNormal ? rock < 40 || rock > 180 : rock < target * floor || rock > target * 2.4) fail(`rock ${rock} (want ${Math.round(target * floor)}-${Math.round(target * 2.4)})`);
           if (count(m, T.WATER) <= size) fail('no river');
           if (count(m, T.FERTILE) < 250 * area) fail(`fertile ${count(m, T.FERTILE)}`);
           const wd = waterDist(m, 8);
@@ -105,7 +109,7 @@ describe('s46 map generator (ruling 332, 333): every layout at every size keeps 
           for (const [x, y] of m.startRoad) if (at(m, x, y) === T.WATER) fail('start road on water');
           if (m.startRoad[0][0] !== m.tradeEntry.x || m.startRoad[0][1] !== size - 1) fail('start road');
           if (v !== 'classic' && !bridgeSpot(bare(m), m.focus)) fail('no bridge spot');
-          const clay = count(m, T.CLAY), lo = Math.round(MAP.clay.targetMin * area), hi = lo + Math.round(MAP.clay.targetExtra * area) + MAP.shapes.clay.cap;
+          const clay = count(m, T.CLAY) - m.repaired.clay - m.oasisClay, lo = Math.round(MAP.clay.targetMin * area), hi = lo + Math.round(MAP.clay.targetExtra * area) + MAP.shapes.clay.cap;
           if (clay < lo - 1 || clay > hi) fail(`clay ${clay} (want ${lo}-${hi})`);
           for (let i = 0; i < m.terrain.length; i++) if (m.terrain[i] === T.CLAY && wd[i] > 4) { fail(`clay ${wd[i]} tiles from water`); break; }
           const places = pitPlaces(m);
@@ -144,15 +148,13 @@ describe('s46 map generator: the seeded shape choices (ruling 332)', () => {
       const m = generateMap(seed, size, v), p = m.params, tag = `${v} ${size} ${seed}`;
       const w = createWorld({ seed, size, mapVariant: v });
       if (!(p.meander.strength >= S.meander.strength[0] && p.meander.strength <= S.meander.strength[1] && p.meander.length >= S.meander.length[0] && p.meander.length <= S.meander.length[1])) bad.push(`${tag} meander`);
-      if (!(p.outcrops >= 1 && p.outcrops <= 5)) bad.push(`${tag} outcrops ${p.outcrops}`);
+      if (!(p.outcrops >= 1 && p.outcrops <= beltRange(size)[1] + BELTS.extra)) bad.push(`${tag} belts ${p.outcrops}`);   // Task 3b: on a new map params.outcrops counts the rock belts
       if (p.outcrops >= 2) seen.clusters++;
       const pools = p.pools || [];
       if (pools.length > S.pools.max) bad.push(`${tag} pools ${pools.length}`);
       for (const pool of pools) { seen.pools++; seen[pool.kind === 'channel' ? 'channels' : 'oxbows']++; }
       if (!pools.length) seen.none++;
-      const groves = p.groves || [];
-      if (groves.length) seen.groves++;
-      if (dunes0(p) > 3 || groves.length > 3 || groves.some((g) => g.r < S.groves.rMin || g.r > S.groves.rMin + S.groves.rExtra)) bad.push(`${tag} groves`);
+      if (p.groves !== undefined) bad.push(`${tag} groves`);   // Task 3b: no groves on a new map: meadow follows the water
       const dunes = p.dunes || [];
       if (dunes.length) seen.dunes++;
       if (dunes.length > 3) bad.push(`${tag} dunes ${dunes.length}`);
@@ -162,10 +164,10 @@ describe('s46 map generator: the seeded shape choices (ruling 332)', () => {
       for (const wd of wadis) if (wd.tiles.length < S.wadis.minLen || wd.tiles.length > S.wadis.maxLen || wd.tiles.some((i) => m.terrain[i] !== T.DESERT)) bad.push(`${tag} wadi`);
       // The river is still the one piece of water that runs the length of the map; a side channel or an oxbow is a pool of its own.
       if (!riverSpans(w).every(Boolean)) bad.push(`${tag} river broken`);
-      if ((riverPools(w).length > 0) !== (pools.length > 0 || v === 'oasis')) bad.push(`${tag} pools ${riverPools(w).length}`);
+      if ((riverPools(w).length > 0) !== (pools.length > 0 || v === 'oasis' || w.oases.length > 0)) bad.push(`${tag} pools ${riverPools(w).length}`);
     }
     expect(bad.slice(0, 12)).toEqual([]);
-    expect(seen.channels > 20 && seen.oxbows > 20 && seen.none > 20 && seen.wadis > 20 && seen.groves > 500 && seen.dunes > 500 && seen.clusters > 500).toBe(true);   // all of them occur
+    expect(seen.channels > 20 && seen.oxbows > 20 && seen.none > 20 && seen.wadis > 20 && seen.dunes > 500 && seen.clusters > 500).toBe(true);   // all of them occur
   });
   it('keeps dune fields, wadis and groves on buildable ground: a house goes up on them, and the baker reads them from the params', () => {
     let wadiTiles = 0, duneTiles = 0;
@@ -182,7 +184,7 @@ describe('s46 map generator: the seeded shape choices (ruling 332)', () => {
         const x = i % w.size, y = (i - x) / w.size;
         if (!w.occ[i] && !w.road[i] && layer[i] & 2) expect(canPlace(w, 'house', x, y).ok).toBe(true);
       }
-      for (const g of w.mapParams.groves) expect(w.terrain.filter((t) => t === T.MEADOW).length).toBeGreaterThan(g.r);
+      expect(w.mapParams.groves).toBe(undefined);   // Task 3b: the meadow is the water's fringe, not groves
     }
     expect(wadiTiles > 20 && duneTiles > 40).toBe(true);
     expect(shapeLayer({ size: 8, mapParams: {} }).every((v) => v === 0)).toBe(true);        // a world with none: nothing marked

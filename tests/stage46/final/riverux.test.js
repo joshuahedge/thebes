@@ -95,8 +95,8 @@ describe('s46 final words: flood remarks after a flood (ruling 453)', () => {
 });
 
 describe('s46 final words: the floodplain outlook (ruling 454)', () => {
-  it('says "without the flood" for the farms at 100%, since no flood level gives 100%', () => {
-    expect(FLOOD_LEVELS.some((l) => l.harvest === 1)).toBe(false);
+  it('says "without the flood" for the farms at 100%; since Stage 4.7 (ruling 473) only a Fair flood gives 100%, and the words never call it a plain year', () => {
+    expect(FLOOD_LEVELS.filter((l) => l.harvest === 1).map((l) => l.id)).toEqual(['fair']);
     const line = R.outlookLine({ farms: 2, now: 66, plain: 60 }, false);
     expect([line.includes('(60 without the flood)'), line.includes('plain year')]).toEqual([true, false]);
   });
@@ -181,7 +181,8 @@ describe('s46 final releases: every version has its build (ruling 459)', () => {
     renderWhatsNew(host, () => {}, RELEASES, { stamp: 'abc1234' });
     const heads = [...host.querySelectorAll('.release h3')].map((h) => h.textContent);
     expect(heads[0].startsWith(S46_UX_TEXT.releaseHead(RELEASES[0].version, releaseDateText(RELEASES[0].date), 'abc1234'))).toBe(true);
-    expect(heads[1].startsWith(`Version 4.5 · ${releaseDateText(RELEASES[1].date)} · build b444b16`)).toBe(true);
+    expect(heads[1].startsWith(`Version 4.6 · ${releaseDateText(RELEASES[1].date)} · build ed005c5`)).toBe(true);   // Stage 4.7: 4.6 gets its merge commit
+    expect(heads[2].startsWith(`Version 4.5 · ${releaseDateText(RELEASES[2].date)} · build b444b16`)).toBe(true);
     const later = document.createElement('div');                              // the stamp read a moment later
     renderWhatsNew(later, () => {}, RELEASES, { read: async () => 'def5678' });
     expect(later.querySelector('.release h3').textContent.includes('build')).toBe(false);
@@ -193,10 +194,11 @@ describe('s46 final releases: every version has its build (ruling 459)', () => {
     expect(none.querySelector('.release h3').textContent.includes('build')).toBe(false);
   });
   it('says the 4.6 flood and speed lines as the game does them', () => {
-    const notes = RELEASES[0].new.join(' ');
+    const r46 = RELEASES.find((r) => r.version === '4.6');   // Stage 4.7: the newest entry is 4.7
+    const notes = r46.new.join(' ');
     expect(notes.includes('grow more in a high flood and less in a low one')).toBe(true);
     expect(notes.includes('the one in use also says its word')).toBe(true);
-    expect(RELEASES[0].fixed.join(' ').includes('2 of its 4 tiles')).toBe(true);
+    expect(r46.fixed.join(' ').includes('2 of its 4 tiles')).toBe(true);
     expect(BUILDINGS.clay_pit.terrainMin).toBe(2);
   });
 });

@@ -14,6 +14,7 @@ import { allBuildings } from '../sim/world.js';
 import { touchesRoad } from '../sim/reach.js';
 import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
+import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
@@ -42,6 +43,8 @@ import { createSheets } from './sheets.js';
 import { createMinimap } from './minimap.js';
 import { createAlerts, mapSummaryText, nearestOf } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
+import { spotsOn } from './s47/spots.js';
+import { drawHouseSpots } from '../render/spots.js';
 import { createLayersPicker } from './layersPicker.js';
 import { createToasts, MAX_TOASTS, MAX_TOASTS_PHONE } from './toasts.js';
 import { createCelebrations } from './celebrate.js';
@@ -56,6 +59,7 @@ import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
 import { createDanger } from './danger.js';
 import { createS46Seams } from './s46/index.js';
+import { createS47Seams } from './s47/index.js';
 import { s46Walkers, s46Ground } from '../render/s46.js';
 import { createScoreUi } from './scoreUi.js';
 import { createMonumentUi } from './monumentSheet.js';
@@ -65,7 +69,8 @@ import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
-import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, TIP_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, T } from './text.js';
+import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
 
 const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date from this width up (at 100% and 125% text)
@@ -138,15 +143,15 @@ export function createUI({
     onChange: () => guidanceChanged(), onToggle: () => toggleGuidance(),
     // Stage 4.5 (Task 4b): the treasury warning names the city's own numbers (the sim's forecast and its costliest building), and
     // its Show me goes to that building (its sheet opens, where it can be paused or taken down), or to the summary when none costs.
-    textFor: (id) => (id === 'treasury_low' ? S45_TEXT.warnTip(monthForecast(world), biggestCost(world)) : TIP_TEXT[id]),
-    showMeFor: (id) => (id === 'treasury_low' ? () => { const big = biggestCost(world); if (!(big && selectBuilding(big.id))) openSummary('forecast'); } : null),
+    textFor: (id) => (id === 'treasury_low' ? S45_TEXT.warnTip(monthForecast(world), biggestCost(world)) : id === 'fetch_far' ? fetchFarWords() : TIP_TEXT[id]),
+    showMeFor: (id) => (id === 'treasury_low' ? () => { const big = biggestCost(world); if (!(big && selectBuilding(big.id))) openSummary('forecast'); } : id === 'fetch_far' ? fetchFarShowMe : null),
   });
   // Celebrations (early-game pass 3.6) replace the goal and milestone toasts. Created this early because afterCommand
   // (hoisted) forwards settle's events to onEvents, which shows them. On a phone they take the guidance row (spec 6.3,
   // rulings 163-165): a caption waits while a sheet, the overlay legend or a tip has the row, or the alert row has a
   // landscape phone's one row (behind a sheet or that alert row for 10 s at most, spec 6.3), and under a banner only info
   // captions show (the rest are in the Goals sheet's Recent list).
-  const holdCaptions = () => { const s = store.get(); return phone() && Boolean(s.sheet || s.overlay || tips.current() || alertHasRow()); };
+  const holdCaptions = () => { const s = store.get(); return phone() && Boolean(s.sheet || s.overlay || spotsOn(s, world) || tips.current() || alertHasRow()); };
   const skipCaption = (item) => phone() && item.tier !== 'info' && root.classList.contains('has-banner');
   const celebrations = createCelebrations({ container: $('cheer'), hold: holdCaptions, skip: skipCaption, dropHeld: () => Boolean(store.get().sheet) || alertHasRow(), now, onChange: () => guidanceChanged(), onToggle: () => toggleGuidance() });
   const nudge = createNudge({ now: () => frameNow });
@@ -230,7 +235,7 @@ export function createUI({
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
   monumentUi = createMonumentUi(seamCtx);
-  s46 = createS46Seams(seamCtx);
+  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
@@ -354,7 +359,9 @@ export function createUI({
     const before = store.get();
     const r = placement.confirm();
     if (!r.ok) { toasts.show(reasonText(r.reason)); return r; }
-    if ((type === 'touch' || type === 'pen') && before.tool) {
+    // Stage 4.7 (Task 4, ruling 465): the house tool is the one tool a touch tick does not end: it stays on, with a Done button, so the next plot's good spots can be
+    // chosen. Every other tool (and a building) still ends after a touch tick.
+    if ((type === 'touch' || type === 'pen') && before.tool && before.tool.kind !== 'houses') {
       store.set(cancelTool(store.get()));
       if (before.tool.kind === 'building' && before.ghost) {
         const def = BUILDINGS[before.tool.type];
@@ -481,6 +488,7 @@ export function createUI({
     nudge.noteAction();                                // a command is a meaningful action (early-game pass 3.5)
     // The Play tip says the plots stay empty while paused: true only when one of them touches a road (placement review P14).
     if (e.undoable && e.kind === 'houses' && world.speed === 0 && plotsTouchRoad(e)) fireTip('plotsPaused');
+    if (e.undoable && e.kind === 'houses') fireTip('houseSpots');   // Stage 4.7 (Task 4): the spots arrive with the first plot; the tip waits for the tool to end
     if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type] && BUILDINGS[store.get().tool.type].reach) fireTip('servicePlaced');   // a reach tip: a garden has none
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
@@ -556,7 +564,7 @@ export function createUI({
     for (const e of events) {
       if (e.type === 'upgrade') sfx.play('upgrade');
       else if (e.type === 'arrivals') fireTip('arrivals');
-      else if (e.type === 'month') { fireTip('monthEnd'); if (monthForecast(world).goesBelow) fireTip('treasuryLow'); }
+      else if (e.type === 'month') { fireTip('monthEnd'); if (monthForecast(world).goesBelow) fireTip('treasuryLow'); if (!(settings.get().seenTips || []).includes('fetch_far') && farGoodTip(world)) fireTip('goodsFar'); }
       else if (e.type === 'goal') fireTip('goalDone');
       const cheer = e.type === 'achievement' && quiet ? null : cheerFor(e);
       if (cheer) celebrations.show(cheer);
@@ -567,6 +575,9 @@ export function createUI({
   function cheerSound() { sfx.play('goal'); sfx.buzz(20); }
   // The caption for one sim event, or null. Achievements stay quiet while the guide runs (spec 3.8): the sim
   // still records them, and the summary shows them as done once the guide ends.
+  // Stage 4.7 (Task 5): the far-store tip names the city's own good, and its Show me goes to the far store holding it (src/sim/carts.js farGoodTip).
+  function fetchFarWords() { const t = farGoodTip(world); return t ? S47_CARTS_TEXT.tipFor(t) : TIP_TEXT.fetch_far; }
+  function fetchFarShowMe() { const t = farGoodTip(world); if (t) selectBuilding(t.far); }
   function cheerFor(e) {
     if (e.type === 'milestone') {
       const m = MILESTONES.find((x) => x.id === e.id);
@@ -588,6 +599,7 @@ export function createUI({
     if (e.type === 'daily') return DAILY_TEXT[e.id] ? { tier: 'first', text: `${T.dailyDone}: ${DAILY_TEXT[e.id]}`, reward: e.reward, onShow: cheerSound } : null;
     if (e.type === 'guide_done') return { tier: 'first', text: T.guideDone, reward: e.reward, onShow: cheerSound };
     if (e.type === 'caravan') { const c = caravanText(e); return { tier: 'first', text: c.text, why: c.why, onShow: cheerSound }; }
+    if (e.type === 'cartLost') return { tier: 'info', text: S47_CARTS_TEXT.lost(e) };   // Stage 4.7 (Task 5): goods a cart could not put down anywhere
     return null;
   }
   // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js). On a phone
@@ -818,6 +830,7 @@ export function createUI({
     if (s.sheet || alertHasRow()) return 'none';
     if (s.overlay) return 'legend';
     if (tips.current()) return 'tip';
+    if (spotsOn(s, world)) return 'legend';   // Stage 4.7: the house tool's spots legend has the row once no tip does (the Play tip, a priority tip, shows over it while the tool is on)
     if (celebrations.showing()) return 'caption';
     return 'goal';
   }
@@ -940,7 +953,7 @@ export function createUI({
     renderer.renderFrame(world, cam, {
       live: (g, o) => drawMonument(g, world, o.b, { now: t, timeDays, motion, ghost: ghostBox, selectedId: s.selectedId }),
       // Stage 4.6: the tracks' figures (src/render/s46.js: the River track's animals) join the walkers, depth-sorted with them.
-      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
+      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion), ...cartsAt(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
       ambient: (g, r) => { s46Ground(g, world, r, t, motion); ambient.draw(g, world, r, t); },   // Stage 4.6: the tracks' ground layer (the flood's water) under Stage 3's ambient life (render/ambient.js, fire.js, units.js)
       scorch: (g, r) => drawScorch(g, world, r),                                // Stage 4.5 (ruling 310): the ground under a fire, at every motion level
@@ -948,6 +961,7 @@ export function createUI({
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null);   // Ground brightens the tiles with room for the building being placed
+        else if (spotsOn(s, world)) drawHouseSpots(g, world, r);                // Stage 4.7 (Task 4): the next house's Good and Fair spots, in this layer, while the house tool is on
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
         if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change
         const shapes = ghosts();                                                // refreshes the tint as well
@@ -959,7 +973,7 @@ export function createUI({
     hud.render();
     if (s.layout === 'wide' && !s.panelFolded) panelMinimap.render(alerts.list());
     if (s.sheet && s.sheet.kind === 'minimap') sheetMinimap.render(alerts.list());
-    if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; syncDaily(); refreshDaily(); }
+    if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; syncDaily(); refreshDaily(); if (spotsOn(store.get(), world)) legend.render(); }   // the spots move with the day (a well finished, a road laid): the legend's empty or keyed words follow
     tickNudge(s);
   }
   // Once a frame (early-game pass 3.5): the nudge's glow on Show me, then its one line, then nothing more. The Play tip's

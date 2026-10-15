@@ -11,6 +11,7 @@ import { allBuildings } from '../sim/world.js';
 import { setPaused, setAccept } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { storeTotal, storeAccepts } from '../sim/production.js';
+import { roadGoods } from '../sim/carts.js';
 import { openGoals, guideActive } from '../sim/goals.js';
 import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
@@ -24,8 +25,8 @@ import { noteView } from '../render/overlays.js';
 import { supplyNeeded } from '../sim/monuments.js';
 import { huntRest } from '../sim/wildlife.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
-import { buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
-  goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT } from './text.js';
+import { S47_PRESSURE_TEXT, buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
+  goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -66,17 +67,25 @@ const CAUSE_FIX = {
     const usable = item && isUnlocked(world, item) && goodMakers(cause.good).every((t) => isUnlocked(world, t));
     return usable ? { category: categoryOfItem(item), item, at: 'building' } : null;
   },
-  good_unmade: (cause, world) => {
-    const makers = goodMakers(cause.good);
-    if (!makers.length || makers.some((t) => !isUnlocked(world, t))) return null;
-    const item = makers.find((t) => !allBuildings(world).some((b) => b.type === t)) || makerOf(cause.good);
-    return { category: categoryOfItem(item), item, at: BUILDINGS[item].terrain ? 'terrain' : 'building' };
-  },
+  // Stage 4.7 (Task 7, ruling 471): the good is held only in a store beyond the bazaars' supply reach: Show me selects that store (its own
+  // sheet holds the Fetch control's source side), and the words name Fetch as the remedy.
+  good_far: { select: true },
+  good_unmade: (cause, world) => unmadeFix(cause, world),
 };
+// The fix for a good nothing makes: its first maker the city has none of (else its last), or null while a maker is locked. The quota's Show me uses it too (src/ui/s47/pressure.js).
+export function unmadeFix(cause, world) {
+  const makers = goodMakers(cause.good);
+  if (!makers.length || makers.some((t) => !isUnlocked(world, t))) return null;
+  const item = makers.find((t) => !allBuildings(world).some((b) => b.type === t)) || makerOf(cause.good);
+  return { category: categoryOfItem(item), item, at: BUILDINGS[item].terrain ? 'terrain' : 'building' };
+}
 // The alerts that carry a fix button in the list besides View (Show me opens the tool and aims at the place): many plots with no
 // road want the road tool (placement review P13). onFixAlert aims it, at the plot nearest the view.
 const ALERT_FIX = new Set(['plots_no_road']);
 const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
+
+// Three kinds of food includes two, so a list that has the first leaves the second out (never "Two kinds of food ✓" beside "Three kinds of food ✗").
+const withoutTwoFoods = (rows) => (rows.some((c) => c.need === 'threeFoods') ? rows.filter((c) => c.need !== 'twoFoods') : rows);
 
 // parts (Stage 3): the danger and score interfaces' sheet parts (src/ui/danger.js), each { building(b), house(h),
 // actions(b), summary() } returning arrays of nodes, added in the list's order at fixed places in the sheets below.
@@ -137,12 +146,17 @@ export function createSheets({ container, store, world, placement, cameraControl
   function storeSection(b) {
     const def = BUILDINGS[b.type];
     const switches = b.type === 'storehouse';
-    const out = [row(T.stored, progressText(storeTotal(b), def.capacity)), el('h3', { text: T.stock })];
+    // Stage 4.7 (Task 6): the Fetch control (src/ui/s47/carts.js, the seam's `store` part) sits right under how full the store is, so it is not buried under the stock rows.
+    const out = [row(T.stored, progressText(storeTotal(b), def.capacity)), ...extra('store', b), el('h3', { text: T.stock })];
     if (switches) out.push(el('p', { class: 'small muted', text: T.acceptHelp }));
+    // Stage 4.7 (Task 6): goods a cart has taken out of this store, or is bringing to it, are said under their row so they never seem to vanish.
+    const road = roadGoods(world, b.id);
+    const onRoad = (good) => [...road.leaving.filter((r) => r.good === good).map((r) => CART_W.road(r, 'leaving')), ...road.arriving.filter((r) => r.good === good).map((r) => CART_W.road(r, 'arriving'))]
+      .map((text) => el('p', { class: 'road-line small teal', text }));
     out.push(el('ul', { class: 'store-goods' }, def.stores.map((good) => {
       const n = String(b.store[good] || 0);
       const line = el('p', { class: 'good-line small muted', text: goodLine(good) });
-      if (!switches) return el('li', { dataset: { good } }, [el('div', { class: 'row' }, [el('span', { text: goodName(good) }), el('span', { text: n })]), line]);
+      if (!switches) return el('li', { dataset: { good } }, [el('div', { class: 'row' }, [el('span', { text: goodName(good) }), el('span', { text: n })]), ...onRoad(good), line]);
       const on = storeAccepts(b, good);
       const sw = el('button', { type: 'button', role: 'switch', class: 'switch accept', 'aria-checked': String(on), dataset: { good } }, [
         el('span', { class: 'good' }, [goodName(good), ' ', el('span', { class: 'count small muted', text: n })]),
@@ -152,7 +166,7 @@ export function createSheets({ container, store, world, placement, cameraControl
         const r = setAccept(world, b.id, good, !on);
         if (r.ok) { afterCommand({ kind: 'accept', result: r, undoable: false }); render(); }
       });
-      return el('li', { dataset: { good } }, [sw, line]);
+      return el('li', { dataset: { good } }, [sw, ...onRoad(good), line]);
     })));
     return out;
   }
@@ -208,7 +222,10 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (!fix) { if (words.fix) li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix })])); return li; }
     const building = cause.id !== null ? world.buildings[cause.id] : null;
     let action;
-    if (fix.view) {
+    if (fix.select) {
+      if (!building) return li;
+      action = button(T.showMe, { class: 'show-me primary', 'aria-label': S47_PRESSURE_TEXT.showFar(cause, world), onClick: () => onSelect(building.id) });
+    } else if (fix.view) {
       if (!building) return li;
       action = button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(building.type)), onClick: () => onSelect(building.id) });
     } else {
@@ -240,10 +257,15 @@ export function createSheets({ container, store, world, placement, cameraControl
       ]),
     ]));
     if (s.next) {
-      const rows = s.merge.needed ? [...s.checklist, { need: 'merge', met: s.merge.ready }] : s.checklist;
+      const rows = withoutTwoFoods(s.merge.needed ? [...s.checklist, { need: 'merge', met: s.merge.ready }] : s.checklist);
       body.append(el('h3', { text: `${T.nextTier} (${s.next.name})` }));
       body.append(el('ul', { class: 'checklist' }, rows.map((c) => needRow(h, c))));
       if (s.tier >= 1 && rows.every((c) => c.met)) body.append(el('p', { class: 'teal', text: T.upgradesAtMonthEnd }));
+    } else if (s.tier >= 1) {
+      // Stage 4.7 (Task 7, ruling 471): the top tier has no next one, so its sheet lists what keeps it (its own needs, the street's "to keep"
+      // value), each with its cause and Show me as a checklist row does.
+      body.append(el('h3', { class: 'keep-head', text: S47_PRESSURE_TEXT.keepHead(s.name) }));
+      body.append(el('ul', { class: 'checklist keep-list' }, withoutTwoFoods(s.checklist).map((c) => needRow(h, c))));
     }
     // The warning month (spec 4.6): a need running out names the need; a street below the tier's keep value names the tier.
     const lost = s.missingNow.find((n) => n !== 'desirability');

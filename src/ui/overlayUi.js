@@ -15,8 +15,10 @@ import { healthStarted } from '../sim/health.js';
 import { crimeStarted } from '../sim/crime.js';
 import { threatsOn } from '../sim/costs.js';
 import { toggleOverlay, cycleOverlay } from './modes.js';
-import { OVERLAY_NAMES, OVERLAY_LEGEND, desirabilityBand, groundThing, groundRoomText, T, DANGER_UI_TEXT, UI4_TEXT } from './text.js';
+import { OVERLAY_NAMES, OVERLAY_LEGEND, S47_HILLS_TEXT, desirabilityBand, groundThing, groundRoomText, T, DANGER_UI_TEXT, UI4_TEXT } from './text.js';
+import { T as TILE } from '../sim/terrain.js';
 import { el, iconButton, clear } from './components.js';
+import { spotsOn, spotsLegend, spotsEmpty } from './s47/spots.js';
 
 const tint = (c) => `linear-gradient(${c}, ${c})`;
 // A banded risk overlay's swatch, as the map draws it (src/render/overlays.js drawFireRisk, drawHomeRisk): the band's tint, light
@@ -89,10 +91,13 @@ const GROUND_SWATCH = {
   fertile: { backgroundColor: TERRAIN.fertile, backgroundImage: `radial-gradient(#0B3D1A 1.1px, transparent 1.5px), radial-gradient(#0B3D1A 1.1px, transparent 1.5px), ${tint(rgba(GROUND_HUE.fertile, 0.4))}`, backgroundSize: '13px 12px, 13px 12px, auto', backgroundPosition: '3px 6px, 9px 6px, 0 0' },
   rocky: { backgroundColor: TERRAIN.sand, backgroundImage: `repeating-linear-gradient(135deg, ${rgba(GROUND_HUE.rocky, 0.85)} 0 1.5px, ${rgba(GROUND_HUE.rocky, 0.28)} 1.5px 4px)` },
   clay: { backgroundColor: TERRAIN.sand, backgroundImage: `repeating-linear-gradient(135deg, ${rgba(GROUND_HUE.clay, 0.8)} 0 1.4px, transparent 1.4px 6px), ${tint(rgba(GROUND_HUE.clay, 0.34))}` },
+  hills: { backgroundColor: TERRAIN.hillsSoft, backgroundImage: `repeating-linear-gradient(135deg, ${rgba(GROUND_HUE.hills, 0.95)} 0 2.4px, ${rgba(GROUND_HUE.hills, 0.5)} 2.4px 7px)` },   // Stage 4.7: wide lavender hatching, as the map draws it
 };
-function groundKeys(room) {
+function groundKeys(room, hills = false) {
   const [fertile, rocky, clay] = OVERLAY_LEGEND.ground;
-  const key = (kind, words) => el('span', { class: 'key' }, [el('span', { class: 'swatch', style: GROUND_SWATCH[kind], 'aria-hidden': 'true' }), ' ', el('span', { class: 'text small', text: words })]);
+  // Stage 4.7 (Task 3 review): the hills key is "Hills" with its rule after it; at large text on a phone the rule is for screen readers only (css/ui.css .hills-words), so the legend fits the budget under a banner.
+  const key = (kind, words) => el('span', { class: 'key' }, [el('span', { class: 'swatch', style: GROUND_SWATCH[kind], 'aria-hidden': 'true' }), ' ',
+    kind === 'hills' ? el('span', { class: 'text small' }, [words.split(':')[0], el('span', { class: 'hills-words', text: words.slice(words.split(':')[0].length) })]) : el('span', { class: 'text small', text: words })]);
   // Stage 4 (Track C, spec 6.3, ruling 229): while a monument is placed the keys are "Fertile: no monuments here" and the gold
   // room line ("Gold: room for a small mastaba"), which, like the farms' room line, a phone at 125% text or more keeps for
   // screen readers (css/ui.css .room).
@@ -101,7 +106,7 @@ function groundKeys(room) {
     return el('span', { class: 'ground-keys' }, [key('fertile', UI4_TEXT.groundFertile), el('span', { class: 'text small room' }, [gold, ' ', room.words])]);
   }
   // The keys wrap among themselves under the name and the x, so the x never lands alone on a row of its own.
-  return el('span', { class: 'ground-keys' }, [key('fertile', fertile), key('rocky', rocky), key('clay', clay), ...(room ? [el('span', { class: 'text small room', text: room.words })] : [])]);
+  return el('span', { class: 'ground-keys' }, [key('fertile', fertile), key('rocky', rocky), key('clay', clay), ...(hills ? [key('hills', S47_HILLS_TEXT.groundKey)] : []), ...(room ? [el('span', { class: 'text small room', text: room.words })] : [])]);
 }
 
 // The strip is the legend everywhere. Under a critical banner a wide screen keeps the dot and ring keys' words for
@@ -109,6 +114,7 @@ function groundKeys(room) {
 // on, in place of the goal, so it reads in full under a banner too (spec 6.3, ruling 164).
 export function createOverlayLegend({ container, store, world = null }) {
   let lastKey = undefined;
+  const hasHills = Boolean(world && world.terrain.includes(TILE.HILLS));   // Stage 4.7: the Ground legend names hills on a map that has them
 
   // The Ground overlay's third line, while a farm, orchard or mine is being placed: where its brighter tiles are. Stage 4: while
   // a monument is placed, where its gold room is in its current rotation (or that none is left).
@@ -126,11 +132,12 @@ export function createOverlayLegend({ container, store, world = null }) {
   function render() {
     const s = store.get(), kind = s.overlay, room = roomWords(s);
     const off = world && (kind === 'health' || kind === 'crime') && !(kind === 'health' ? healthStarted(world) : crimeStarted(world));
-    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}|${off ? 'off' : ''}`;
+    const spots = !kind && spotsOn(s, world);   // Stage 4.7 (Task 4): the house tool's spots have the row when no overlay does
+    const key = `${kind}|${room ? room.words : ''}|${room && room.monument ? 'm' : ''}|${off ? 'off' : ''}|${spots ? (spotsEmpty(world) ? 'spots-none' : 'spots') : ''}`;
     if (key === lastKey) return;
     lastKey = key;
     clear(container);
-    if (!kind) return;
+    if (!kind) { if (spots) container.append(spotsLegend(world)); return; }
     const graded = GRADED_OVERLAYS.includes(kind);
     const name = el('strong', { class: 'text', text: OVERLAY_NAMES[kind] });
     const close = iconButton(T.overlayOff, '✕', { class: 'close quiet', onClick: () => store.set(toggleOverlay(store.get(), kind)) });
@@ -139,7 +146,7 @@ export function createOverlayLegend({ container, store, world = null }) {
     else if ((kind === 'health' || kind === 'crime') && world && !(kind === 'health' ? healthStarted(world) : crimeStarted(world))) keys = [el('span', { class: 'text small never-burn', text: DANGER_UI_TEXT.threatNotStarted(kind, !threatsOn(world)) })];   // nothing is drawn yet: the strip says why
     else if (kind === 'health' || kind === 'crime') keys = [scale(kind), el('span', { class: 'fire-keys' }, [...dotKeys(kind), el('span', { class: 'text small never-burn', text: DANGER_UI_TEXT.homesOnlyNote })])];   // Stage 4.5: the fire strip's layout
     else if (graded) keys = [scale(kind)];
-    else if (kind === 'ground') keys = [groundKeys(room)];
+    else if (kind === 'ground') keys = [groundKeys(room, hasHills)];
     else keys = dotKeys(kind);
     container.append(el('div', { class: graded ? 'strip graded' : kind === 'ground' ? 'strip ground' : 'strip', role: 'group', 'aria-label': `${OVERLAY_NAMES[kind]} ${T.overlay.toLowerCase()}` }, kind === 'ground' ? [name, close, ...keys] : [name, ...keys, close]));
   }

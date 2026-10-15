@@ -26,6 +26,8 @@ import { scoreRow } from './score.js';
 import { monumentDay, monumentMonth, updatePrestigeUnlocks } from './monuments.js';
 import { palaceDay } from './palace.js';
 import { s46Day, s46Month } from './s46.js';
+import { cartDay } from './carts.js';
+import { pressureMonth } from './pressure.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
 
@@ -43,6 +45,7 @@ export function runMonth(world, events = null) {
   const tradeSpent = tradeMonth(world, events);
   raidMonth(world, events);                            // Stage 3 (src/sim/raids.js)
   s46Month(world, events);                             // Stage 4.6: the flood, the herds, the army, the court (src/sim/s46.js)
+  pressureMonth(world, events);                        // Stage 4.7 (Task 7): the yearly quota and the warnings a year ahead (src/sim/pressure.js)
   updateMood(world);
   const milestoneChanged = updateMilestone(world);
   if (milestoneChanged && events) events.push({ type: 'milestone', id: world.milestone });
@@ -60,6 +63,7 @@ export function runMonth(world, events = null) {
 export function tickDay(world, events = null) {
   assignLabour(world);
   produceDay(world);
+  cartDay(world, events);                               // Stage 4.7: the stores' carts move on, then set out (src/sim/carts.js)
   monumentDay(world, events);                          // Stage 4: crews, deliveries, courses and work gold (src/sim/monuments.js)
   updatePrestigeUnlocks(world, events);                // the pyramids' prestige unlocks and the two Stage 4 splits
   palaceDay(world, events);                            // the palace's works (src/sim/palace.js)

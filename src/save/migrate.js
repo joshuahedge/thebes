@@ -1,4 +1,4 @@
-import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, newPrestigeUnlocks } from '../sim/world.js';
+import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, newPrestigeUnlocks } from '../sim/world.js';
 import { addClay } from '../sim/mapgen.js';
 import { floodplainOf } from '../sim/flood.js';
 import { MILESTONES } from '../data/progression.js';
@@ -236,8 +236,31 @@ function v6ToV7(w) {
   };
 }
 
+// v7 -> v8 (Stage 4.7, ruling 468). The city keeps its map exactly: its terrain is not touched (no hills, no oases are added) and its
+// mapParams are kept as they were, without the land key, so the grass band and the other new land never appear under an old city
+// (src/data/s47.js hasNewLand). No oases, no carts on the road, every granary and storehouse with no orders, and the new tallies at 0.
+// Every other field is kept as it was. A malformed save is left for validateWorld to report.
+function v7ToV8(w) {
+  const tally = isRec(w.tally) ? w.tally : {};
+  const buildings = {};
+  if (isRec(w.buildings)) {
+    for (const [id, b] of Object.entries(w.buildings)) {
+      const store = isRec(b) && Object.hasOwn(BUILDINGS, b.type) && Boolean(BUILDINGS[b.type].stores);
+      buildings[id] = store && !isRec(b.orders) ? { ...b, orders: {} } : b;
+    }
+  }
+  return {
+    ...w,
+    version: 8,
+    buildings: isRec(w.buildings) ? buildings : w.buildings,
+    tally: { ...tally, ...Object.fromEntries(STAGE47_TALLY.map((k) => [k, 0])) },
+    oases: [],
+    carts: [],
+  };
+}
+
 // Each entry upgrades a world from version N to N + 1. Add one whenever WORLD_VERSION goes up.
-export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6, 6: v6ToV7 };
+export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6, 6: v6ToV7, 7: v7ToV8 };
 
 // table and target are parameters so tests can drive a synthetic chain; production calls use the defaults.
 export function migrate(obj, table = MIGRATIONS, target = CURRENT_VERSION) {

@@ -2,6 +2,12 @@ import { createRng, valueNoise, hash2 } from './rng.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { T } from './terrain.js';
 import { MAP, MAP_VARIANTS, MAP_SALT, areaScale } from '../data/map.js';
+import { LAND_VERSION, GRASS, newLandFor } from '../data/s47.js';
+import { repairResources } from './resources.js';
+import { placeOases } from './oases.js';
+import { placeHills } from './hills.js';
+import { placeBelts } from './belts.js';
+import { moistureField } from './moisture.js';
 
 // Clay (Stage 4.5, ruling 312): the bank tiles are chained along the water, so a stretch is a walk of 4-10 of them from a
 // seeded start, 8-neighbour steps in a fixed order; some stretches are two tiles deep, taking the dry land tile beside each
@@ -96,6 +102,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   // Stage 4.6 (ruling 332): every map but classic at Normal draws seeded shape choices (src/data/map.js MAP.shapes); classic at Normal
   // draws exactly as before and keeps params {}.
   const varied = v !== 'classic' || size !== MAP.size;
+  const newLand = newLandFor(v, size);   // Stage 4.7: the same maps; Task 3b: green only from water (no noise meadow, no groves) and rock in belts
   const SH = MAP.shapes, params = {};
   const mean = varied ? meanderFor(seed) : null;
   if (mean) params.meander = mean;
@@ -137,7 +144,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
       if (dist <= hw) t = T.WATER;
       else if (dist <= MAP.bankHalfWidth) t = T.BANK;
       else if (dist <= MAP.fertileBase + valueNoise(x, y, seed, MAP.fertileNoiseScale) * MAP.fertileNoise) t = T.FERTILE;
-      else if (valueNoise(x, y, seed + 17, MAP.meadowNoiseScale) > MAP.meadowThreshold) t = T.MEADOW;
+      else if (!newLand && valueNoise(x, y, seed + 17, MAP.meadowNoiseScale) > MAP.meadowThreshold) t = T.MEADOW;   // a new map's meadow is laid from the moisture field below (green only by water)
       terrain[idx(size, x, y)] = t;
     }
   }
@@ -176,14 +183,13 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   if (spec.clearStart || varied) for (let y = size - MAP.clearStartRows; y < size; y++) nearEdge = spec.mirror ? Math.min(nearEdge, riverX(y)) : Math.max(nearEdge, riverX(y));
   const ex = Math.round(nearEdge) + (spec.mirror ? -MAP.tradeRoadOffsetX : MAP.tradeRoadOffsetX);
   const focus = { x: ex + (spec.mirror ? -MAP.focusOffset.x : MAP.focusOffset.x), y: size + MAP.focusOffset.y };
-
   const rp = MAP.rockPatches;
+  const rockRanges = (spec.rocks ? spec.rocks.ranges : [[rp.minX, rp.minX + MAP.size - rp.marginX - 1]]).map(([x0, x1]) => [at(x0), at(x1)]);   // the x ranges rock sits in (classic's is its patches' box)
+  let placedBelts = { belts: [], made: 0 };   // laid after the oases, below
   if (varied) {
-    // Outcrop clusters (ruling 332) in the variant's x ranges (classic's is its patches' box), the rock scaled by the map's area.
-    const ranges = (spec.rocks ? spec.rocks.ranges : [[rp.minX, rp.minX + MAP.size - rp.marginX - 1]]).map(([x0, x1]) => [at(x0), at(x1)]);
-    params.outcrops = addOutcrops(terrain, size, seed, ranges, focus, at);
+    // Stage 4.7 (Task 3b): a new map (every one but classic at Normal) has no outcrop clusters and no groves: its rock lies in long belts (src/sim/belts.js, laid after the
+    // oases) and its meadow follows the water (the moisture field, below). params.outcrops counts the belts; the side channels and oxbow lakes are as before.
     addPools(terrain, size, seed, riverX, focus, ex, params);
-    addGroves(terrain, size, seed, params);
   } else if (v === 'classic') {
     const patches = rp.min + rng.int(rp.extra);
     for (let p = 0; p < patches; p++) {
@@ -206,11 +212,36 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
     const i = idx(size, ex, y);
     if (terrain[i] === T.WATER || terrain[i] === T.ROCKY) terrain[i] = T.DESERT;
   }
+  // Stage 4.7 (Task 2, ruling 463): desert oases on a map with new land, drawn from S47_SALT (src/sim/oases.js). They are terrain edits, so they run
+  // BEFORE the resource repair below (which stays the last edit); the entries are read first so no oasis lies near one (an oasis keeps >= 8 tiles from
+  // every edge, so it never changes where an entry slides to). Task 3's hills must run before the repair too.
   const raiderEntries = entriesFor(terrain, size, spec, at);
+  const placed = newLandFor(v, size) ? placeOases(terrain, size, seed, { focus, targets: [...raiderEntries, tradeEntry] }) : { oases: [], clay: 0 };
+  const oases = placed.oases;
+  // Stage 4.7 (Task 3, ruling 464): hills on a map with new land, after the oases (they keep 11 tiles from a pool) and before the repair; each with its rocky skirt.
+  if (newLand) { placedBelts = placeBelts(terrain, size, seed, { focus, ranges: rockRanges, oases, startRoad }); params.outcrops = placedBelts.belts.length; }
+  const placedHills = newLand ? placeHills(terrain, size, seed, { focus, targets: [...raiderEntries, tradeEntry], startRoad, oases, belts: placedBelts.belts }) : { hills: [], skirt: 0 };   // Task 3b: the spines of the rock belts
+  if (placedHills.hills.length) params.hills = placedHills.hills;
+  // Stage 4.7 (Task 3b): meadow only where the moisture field is high (src/sim/moisture.js, the field the picture draws from): a fringe of green along the water, the river
+  // and every oasis, channel and lake, and nowhere in open desert. It runs after the oases and the hills (it reads only the water) and before the repair.
+  if (newLand) {
+    const wet = moistureField(terrain, size, seed, oases);
+    for (let i = 0; i < terrain.length; i++) if (terrain[i] === T.DESERT && wet[i] >= GRASS.meadowFrom) terrain[i] = T.MEADOW;
+  }
+  // INVARIANT: repairResources is the LAST edit generateMap makes to the terrain, so the guarantee holds on the map the player gets. Whatever
+  // later changes terrain (oases, Task 2; hills, Task 3) runs BEFORE this call; what runs after it (entries, dunes and wadis, params) must
+  // not write the terrain (dunes and wadis are decor). The 200-seed guarantee test (tests/stage47/resources/guarantee.test.js) holds it.
+  // Stage 4.7 (Task 1, ruling 461): every map holds, within reach of the start area, 2 clay-pit fits, a gem-mine fit and 6 grain-farm fits.
+  // A draw that missed is mended here, deterministically (src/sim/resources.js, S47_SALT.resources); a map that already holds them is
+  // untouched, so classic at Normal stays as it was except for the seeds that failed.
+  const repaired = repairResources({ size, terrain, focus, startRoad }, seed, rockRanges, { mine: newLand, avoid: oases, belt: newLand });   // classic at Normal keeps its rock (controller ruling: weekly seeds, links and records stay put); its clay and farms are mended
   // params (Stage 4.6, world.mapParams): the seeded shape choices (ruling 332), for display and replays: the meander's strength and length,
   // the outcrop clusters placed, the side channels and oxbow lakes (pools), palm groves, dune fields and wadis (the last two are only drawn).
   if (varied) addDunesAndWadis(terrain, size, seed, focus, ex, params);
-  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v, params };
+  // Stage 4.7 (Task 0 contract): every map but classic at Normal gets the new land (hills, oases, the grass band; Tasks 1-3 fill them
+  // in, each drawing from S47_SALT, never the rng stream above). land marks it in world.mapParams; oases: [{ x, y, r }] (world.oases).
+  if (newLandFor(v, size)) params.land = LAND_VERSION;
+  return { size, terrain, tradeEntry, startRoad, focus, raiderEntries, variant: v, params, oases, oasisClay: placed.clay, repaired, hillSkirt: placedHills.skirt, belts: placedBelts.belts.map(({ x, y, len }) => ({ x, y, len })), beltRock: placedBelts.made };
 }
 
 // ── Stage 4.6 (ruling 332): the seeded shape choices. Each has its own stream (MAP_SALT), so classic at Normal, which draws none, never
@@ -241,52 +272,6 @@ function waterDistance(terrain, size, cap) {
     }
   }
   return d;
-}
-
-// Outcrop clusters: 2-5 centres (every x range of the layout gets one first), each grown by round patches of radius 3, 2 or 1 within a few
-// tiles of its centre, the clusters taking turns, until the map holds MAP.rockTarget x area rocky tiles. A patch whose centre lies within
-// MAP.rockAwayTiles of water, or near the start area (the focus), is skipped, so the rock is always off the river and out of the first homes'
-// way. Returns how many clusters it placed.
-function addOutcrops(terrain, size, seed, ranges, focus, at) {
-  const rp = MAP.rockPatches, S = MAP.shapes.outcrops;
-  const rng = createRng((seed ^ MAP_SALT.outcrops) >>> 0);
-  const target = Math.round(MAP.rockTarget * areaScale(size));
-  const clusters = S.min + rng.int(S.extra);
-  const wd = waterDistance(terrain, size, MAP.rockAwayTiles);
-  const ok = (px, py) => px >= 0 && py >= 0 && px < size && py < size && Math.hypot(px - focus.x, py - focus.y) >= MAP.rockAwayStart && wd[idx(size, px, py)] > MAP.rockAwayTiles;
-  const centres = [];
-  for (let c = 0; c < clusters; c++) {
-    const [x0, x1] = ranges[c % ranges.length];
-    for (let t = 0; t < 60; t++) {
-      const px = x0 + rng.int(x1 - x0 + 1), py = at(rp.minY) + rng.int(size - at(rp.marginY));
-      if (ok(px, py)) { centres.push([px, py, x0, x1]); break; }
-    }
-  }
-  const stamp = (px, py, r) => {
-    let n = 0;
-    for (let y = py - r - 1; y <= py + r + 1; y++) {
-      for (let x = px - r - 1; x <= px + r + 1; x++) {
-        if (!inBounds(size, x, y)) continue;
-        const i = idx(size, x, y);
-        if (terrain[i] === T.WATER || terrain[i] === T.ROCKY) continue;
-        if ((x - px) ** 2 + (y - py) ** 2 <= r * r + valueNoise(x, y, seed + 31, rp.edgeNoiseScale) * rp.edgeNoise) { terrain[i] = T.ROCKY; n++; }
-      }
-    }
-    return n;
-  };
-  let count = 0;
-  for (let t = 0; t < S.tries && count < target && centres.length; t++) {
-    const [cx, cy, x0, x1] = centres[t % centres.length];
-    let px = cx, py = cy;
-    if (t >= centres.length) {
-      const spread = t < S.tries / 2 ? S.spread : S.spread * 2;   // a cluster crowded out of room reaches further in the second half of the tries
-      px = Math.min(x1, Math.max(x0, px + Math.round(rng.range(-spread, spread)))); py += Math.round(rng.range(-spread, spread));   // and stays in its x range
-      if (!ok(px, py)) continue;
-    }
-    const need = target - count;
-    count += stamp(px, py, need >= 30 ? 3 : need >= 14 ? 2 : 1);
-  }
-  return centres.length;
 }
 
 // Side channels and oxbow lakes: up to MAP.shapes.pools.max pieces of water of their own (so the river stays the biggest piece, and the
@@ -343,32 +328,6 @@ function addPools(terrain, size, seed, riverX, focus, ex, params) {
     }
   }
   if (pools.length) params.pools = pools;
-}
-
-// Palm groves: 1-3 patches of meadow on the desert, 3-7 tiles from water, radius 2-3.5 with a wavering edge (meadow carries palms and
-// acacias, src/render/renderer.js decorAt). Writes params.groves.
-function addGroves(terrain, size, seed, params) {
-  const G = MAP.shapes.groves;
-  const rng = createRng((seed ^ MAP_SALT.groves) >>> 0);
-  const wd = waterDistance(terrain, size, G.nearMax + 1);
-  const groves = [];
-  const n = G.min + rng.int(G.extra);
-  for (let k = 0; k < n; k++) {
-    for (let t = 0; t < G.tries; t++) {
-      const x = rng.int(size), y = rng.int(size), i = idx(size, x, y);
-      if (terrain[i] !== T.DESERT || wd[i] < G.nearMin || wd[i] > G.nearMax) continue;
-      const r = round2(G.rMin + rng.range(0, G.rExtra));
-      for (let y2 = Math.floor(y - r) - 1; y2 <= Math.ceil(y + r) + 1; y2++) {
-        for (let x2 = Math.floor(x - r) - 1; x2 <= Math.ceil(x + r) + 1; x2++) {
-          if (!inBounds(size, x2, y2) || terrain[idx(size, x2, y2)] !== T.DESERT) continue;
-          if (Math.hypot(x2 - x, y2 - y) <= r + (valueNoise(x2, y2, seed + 59, 3) - 0.5) * 1.2) terrain[idx(size, x2, y2)] = T.MEADOW;
-        }
-      }
-      groves.push({ x, y, r });
-      break;
-    }
-  }
-  if (groves.length) params.groves = groves;
 }
 
 // Dune fields and dry wadis: decor on buildable desert (the ground stays desert; src/render/terrainBaker.js draws them from the params).
@@ -428,7 +387,7 @@ function entriesFor(terrain, size, spec, scale = (n) => n) {
       for (const k of d ? [at - d, at + d] : [at]) {
         if (k < 0 || k >= size) continue;
         const e = tile(k);
-        if (terrain[idx(size, e.x, e.y)] !== T.WATER) return e;
+        if (terrain[idx(size, e.x, e.y)] !== T.WATER && terrain[idx(size, e.x, e.y)] !== T.HILLS) return e;
       }
     }
     return tile(at);

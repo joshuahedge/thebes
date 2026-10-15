@@ -9,7 +9,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
-import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT, S46_UX_TEXT } from './text.js';
+import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT, S46_UX_TEXT, S47_SPOTS_TEXT } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' && tool.gate ? buildingName('gate') : tool.kind === 'road' || tool.kind === 'wall' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : tool.kind === 'plazas' ? buildingName('plaza') : T.demolish);
@@ -57,7 +57,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
   function render() {
     const s = store.get();
     // The bar rebuilds on every change, so remember which control had focus and put it back (spec 6.8).
-    const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'ok', 'show-fit'].includes(c)) : null;
+    const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'done', 'ok', 'show-fit'].includes(c)) : null;
     const focusedStyle = element.contains(document.activeElement) ? document.activeElement.dataset.style || null : null;   // Stage 4.6: the style button that had focus
     clear(element);
     if (!isToolMode(s.mode) || !s.tool) { element.hidden = true; heldKey = null; publishHeight(); return; }
@@ -95,10 +95,13 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // On a phone Undo is a small icon and only when there is something to undo (the toast after a placement keeps the word);
     // the wide layout keeps the word button, greyed out when there is nothing to undo.
     if (s.layout === 'wide') controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
-    else if (placement.canUndo()) controls.push(iconButton(T.undo, '↶', { class: 'undo', onClick: onUndo }));
+    else if (placement.canUndo() || s.tool.kind === 'houses') controls.push(iconButton(T.undo, '↶', { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));   // Stage 4.7: the house tool stays on, so its Undo is always there (greyed with nothing to undo) and the bar does not widen when the first plot goes down
     // Stage 4.6 (ruling 400): Enter lays what is waiting and Esc takes it back whatever has focus (keyboard.js, createUI's placementPending), and where
     // there is a keyboard the tick says so: a small "Enter" on it (css, body[data-keyboard]), and the keys in the buttons' tooltips and keyshortcuts.
-    controls.push(iconButton(T.cancel, '✕', { class: 'cancel', title: `${T.cancel} (${S46_UX_TEXT.keyEsc})`, 'aria-keyshortcuts': 'Escape', onClick: onCancel }));
+    // Stage 4.7 (Task 4, ruling 465): the house tool stays on after a plot is laid (by touch too), so with nothing waiting to be laid the way out is a clear Done
+    // (a word, 44 px, named for what it ends); with plots waiting the x takes them back, as every tool's does.
+    if (s.tool.kind === 'houses' && !s.plan && !s.area) controls.push(button(S47_SPOTS_TEXT.done, { class: 'done', 'aria-label': S47_SPOTS_TEXT.doneLabel, title: `${S47_SPOTS_TEXT.doneLabel} (${S46_UX_TEXT.keyEsc})`, 'aria-keyshortcuts': 'Escape', onClick: onCancel }));
+    else controls.push(iconButton(T.cancel, '✕', { class: 'cancel', title: `${T.cancel} (${S46_UX_TEXT.keyEsc})`, 'aria-keyshortcuts': 'Escape', onClick: onCancel }));
     const ok = iconButton(T.confirm, '✓', { class: `ok ${demolish ? 'danger' : 'primary'}`, title: `${T.confirm} (${S46_UX_TEXT.keyEnter})`, 'aria-keyshortcuts': 'Enter', disabled: p.state === 'bad' || p.state === 'idle', onPointerDown: rememberPress, onPointerUp: releasePress, onPointerLeave: leavePress, onPointerCancel: forgetPress, onKeyDown: forgetPress, onClick: confirmPressed });
     ok.append(el('span', { class: 'keyhint', 'aria-hidden': 'true', text: S46_UX_TEXT.keyEnter }));
     controls.push(ok);

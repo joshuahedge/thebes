@@ -123,10 +123,10 @@ describe('data tiers 5-9', () => {
     ]);
     for (let t = 1; t <= MAX_TIER; t++) expect(TIERS[t].tier).toBe(t);
   });
-  it('adds one new demand per tier, beer and two foods together at Fine manor', () => {
+  it('adds one new demand per tier, beer and two foods together at Fine manor, linen and three foods at Villa (Stage 4.7, ruling 471)', () => {
     const added = [];
     for (let t = 5; t <= MAX_TIER; t++) added.push(TIERS[t].needs.filter((n) => !TIERS[t - 1].needs.includes(n)));
-    expect(added).toEqual([['pottery'], ['entertainment'], ['beer', 'twoFoods'], ['linen'], ['jewellery']]);
+    expect(added).toEqual([['pottery'], ['entertainment'], ['beer', 'twoFoods'], ['linen', 'threeFoods'], ['jewellery']]);
     for (let t = 2; t <= MAX_TIER; t++) for (const n of TIERS[t - 1].needs) expect([t, n, TIERS[t].needs.includes(n)]).toEqual([t, n, true]);
   });
   it('asks tiers 6-9 for desirability to rise and a lower value to keep, and nothing below', () => {

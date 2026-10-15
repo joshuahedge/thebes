@@ -49,8 +49,8 @@ describe('s46 river flood: the level', () => {
     for (let y = 1; y <= 40; y++) if (levelOfYear(w, y) !== levelOfYear(other, y)) differs++;
     expect(differs).toBeGreaterThan(5);                                                      // another city's years differ
   });
-  it('has the multipliers 0.6, 0.9, 1.1 and 1.25 for Low, Fair, Good and High', () => {
-    expect(FLOOD_LEVELS.map((l) => [l.id, l.harvest])).toEqual([['low', 0.6], ['fair', 0.9], ['good', 1.1], ['high', 1.25]]);
+  it('has the multipliers 0.6, 1.0, 1.1 and 1.25 for Low, Fair, Good and High', () => {
+    expect(FLOOD_LEVELS.map((l) => [l.id, l.harvest])).toEqual([['low', 0.6], ['fair', 1.0], ['good', 1.1], ['high', 1.25]]);
     expect(FLOOD_LEVELS.reduce((s, l) => s + l.chance, 0)).toBeGreaterThan(0.999);
   });
 });

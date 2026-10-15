@@ -14,6 +14,9 @@ import { isBridgeTile, DECK } from './terrainBridges.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
+import { hasNewLand, GRASS } from '../data/s47.js';
+import { landTrees, LAND_TREES, moistureAt } from './grass.js';
+import { hillsIn } from './hills.js';
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
@@ -24,12 +27,12 @@ const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
 export function decorAt(world, x, y) {
   const i = idx(world.size, x, y);
   if (world.occ[i] || world.road[i] || (world.wall && world.wall[i] !== 0)) return null;
-  const t = world.terrain[i];
+  const t = world.terrain[i], land = hasNewLand(world);
   const r = hash2(x, y, world.seed + 7);
-  if (t === T.MEADOW) return r < 0.08 ? 'palm' : r < 0.12 ? 'acacia' : null;
-  if (t === T.FERTILE) return r < 0.025 ? 'palm' : null;
-  if (t === T.BANK) return r < 0.06 ? 'palm' : null;
-  if (t === T.DESERT) return r < 0.006 ? 'acacia' : null;
+  if (t === T.MEADOW) return r < 0.08 ? 'palm' : r < 0.12 ? 'acacia' : land ? LAND_TREES[landTrees(world)[i]] : null;
+  if (t === T.FERTILE) return r < 0.025 ? 'palm' : land ? LAND_TREES[landTrees(world)[i]] : null;
+  if (t === T.BANK) return r < 0.06 ? 'palm' : land ? LAND_TREES[landTrees(world)[i]] : null;
+  if (t === T.DESERT) return r < 0.006 ? (!land || moistureAt(world, i) >= GRASS.tiers[0] ? 'acacia' : null) : land ? LAND_TREES[landTrees(world)[i]] : null;   // Task 3b: a new map's acacias stand only where the green reaches
   return null;
 }
 
@@ -62,6 +65,8 @@ export function collectObjects(world, range, walkers = [], registry = ART) {
       if (slot) out.push({ key: depthKey(x, y, 1, 1), id: DECOR_ID_BASE + idx(world.size, x, y), slot, def: registry[slot], x, y });
     }
   }
+  // Stage 4.7 (ruling 464): hill tiles, each a sprite at its own depth (src/render/hills.js); their ids share the trees' range but are never swayed (`still`)
+  for (const h of hillsIn(world, range, registry)) out.push({ key: depthKey(h.x, h.y, 1, 1), id: DECOR_ID_BASE + h.i, slot: h.slot, def: registry[h.slot], x: h.x, y: h.y, still: true });
   for (const wk of walkers) {
     if (wk.x < range.x0 || wk.x > range.x1 + 1 || wk.y < range.y0 || wk.y > range.y1 + 1) continue;
     out.push({ key: wk.x + wk.y + 0.01, id: FIGURE_ID_BASE + wk.id, slot: `fig.${wk.kind}`, def: null, x: wk.x, y: wk.y });
@@ -158,7 +163,7 @@ export function createRenderer({
         live++;
         continue;
       }
-      const slot = opts.treeSlot && o.id >= DECOR_ID_BASE && o.id < FIGURE_ID_BASE ? opts.treeSlot(o) : o.slot;   // Stage 3: swaying trees (decor ids run from DECOR_ID_BASE up to FIGURE_ID_BASE)
+      const slot = opts.treeSlot && !o.still && o.id >= DECOR_ID_BASE && o.id < FIGURE_ID_BASE ? opts.treeSlot(o) : o.slot;   // Stage 3: swaying trees (decor ids run from DECOR_ID_BASE up to FIGURE_ID_BASE)
       const sprite = spriteCache.get(slot, zoom, dpr);
       if (!sprite) continue;
       const q = p(o.x, o.y);

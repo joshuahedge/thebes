@@ -27,7 +27,8 @@ import { UNIT_TYPES, UNIT_OF_BUILDING, ENEMY_TYPES, ARMY, matchup } from '../dat
 import { allBuildings, removeBuilding } from './world.js';
 import { isWorking, staffRatio } from './labour.js';
 import { idx, inBounds } from './grid.js';
-import { T } from './terrain.js';
+import { T, passable } from './terrain.js';
+import { walkPath, pathLengths, pointAlong } from './walk.js';
 
 export const BESIDE = 1;
 
@@ -63,6 +64,23 @@ const tileOf = (world, pt) => {
   return inBounds(world.size, x, y) ? idx(world.size, x, y) : -1;
 };
 
+// Moves a foot soldier or archer up to `by` tiles towards a point over passable ground (Stage 4.7, ruling 472: src/sim/walk.js), stopping `short` of
+// it. Where a straight line to the point crosses only passable ground it is stepTowards, exactly as before; where water or hills lie between, the
+// unit follows the shortest walk round them (over a bridge, if there is one) and stays put when there is none. A unit standing on ground it cannot
+// walk (a post on a wall's far side of the water, say) steps straight as it always did.
+function stepFoot(world, u, to, by, short = 0) {
+  const here = tileOf(world, u), there = tileOf(world, to);
+  if (here < 0 || there < 0 || !passable(world, here)) { stepTowards(u, to, by, short); return; }
+  if (clearLine(world, u, to, (i) => passable(world, i))) { stepTowards(u, to, by, short); return; }
+  const path = walkPath(world, u, to);
+  if (!path) return;
+  const cum = pathLengths(path), move = Math.min(by, cum[cum.length - 1] - short);
+  if (move <= 0) return;
+  const at = pointAlong(path, cum, move);
+  u.x = at.x;
+  u.y = at.y;
+}
+
 // Whether a straight line from a to b crosses only tiles that pass(i) allows (checked every quarter tile, the end included).
 function clearLine(world, a, b, pass) {
   const d = dist(a, b), steps = Math.max(1, Math.ceil(d * 4));
@@ -74,7 +92,7 @@ function clearLine(world, a, b, pass) {
 }
 
 // A chariot's ground (ruling 340): no standing wall or gate, no water but a bridge.
-const chariotGround = (world) => (i) => !(world.wall[i] > 0) && (world.terrain[i] !== T.WATER || Boolean(world.road[i]));
+const chariotGround = (world) => (i) => !(world.wall[i] > 0) && passable(world, i);   // Stage 4.7: passable (src/sim/terrain.js)
 // An enemy chariot's charge (ruling 341): neither, nor rocky ground.
 const chargeGround = (world) => { const g = chariotGround(world); return (i) => g(i) && world.terrain[i] !== T.ROCKY; };
 
@@ -139,7 +157,7 @@ function walkHome(world, s) {
   const home = homeOf(world, s);
   const speed = unitDef(s).speed;
   if (kindOf(s) === 'chariot') driveTowards(world, s, home, speed);
-  else stepTowards(s, home, speed);
+  else stepFoot(world, s, home, speed);
   if (dist(s, home) < 1e-6 || (kindOf(s) === 'chariot' && dist(s, home) < 0.5 && dist(s, home) > 0)) { s.x = home.x; s.y = home.y; s.task = 'wait'; }
   else s.task = 'back';
 }
@@ -257,8 +275,8 @@ export function combatDay(world, events = null) {
     s.task = 'out';
     if (kind === 'archer') {
       const post = archerPost(world, s, foe, home, posts);
-      if (post) stepTowards(s, post, def.speed);
-      else if (dist(s, foe) > def.range) stepTowards(s, foe, def.speed, def.range - 0.2);
+      if (post) stepFoot(world, s, post, def.speed);
+      else if (dist(s, foe) > def.range) stepFoot(world, s, foe, def.speed, def.range - 0.2);
       if (dist(s, foe) <= def.range) {
         hurt(foe, unitDamage(world, s, foe), 'archer');
         a.shots.push({ from: { x: s.x, y: s.y }, to: { x: foe.x, y: foe.y }, by: 'archer' });
@@ -268,7 +286,7 @@ export function combatDay(world, events = null) {
     }
     if (dist(s, foe) <= BESIDE) { hurt(foe, unitDamage(world, s, foe), kind); fighting = true; fought.add(foe.band ? 1 : 0); }
     else if (kind === 'chariot') driveTowards(world, s, foe, def.speed, 0.8);
-    else stepTowards(s, foe, def.speed, 0.8);
+    else stepFoot(world, s, foe, def.speed, 0.8);
   }
   for (const r of a.raiders) {
     if (!alive(r)) continue;

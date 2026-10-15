@@ -3,6 +3,7 @@
 // larger pin with an arrow pointing into the map from the edge they come from (spec 4.13), so the pin says where by shape.
 import { T as TER } from '../sim/terrain.js';
 import { TERRAIN, UI, INK } from '../render/art/palette.js';
+import { hasNewLand } from '../data/s47.js';
 import { allBuildings, isMonument } from '../sim/world.js';
 import { screenToTile } from '../render/camera.js';
 import * as monumentArt from '../render/monuments.js';   // Track B's minimapGlyph, once it is there (a namespace import never fails)
@@ -16,7 +17,7 @@ function drawMonumentMark(ctx, b, scale) {
   ctx.fillRect(b.x * scale, b.y * scale, Math.max(1, b.w * scale), Math.max(1, b.d * scale));
 }
 
-const COLOURS = { [TER.DESERT]: TERRAIN.sand, [TER.FERTILE]: TERRAIN.fertile, [TER.ROCKY]: TERRAIN.rocky, [TER.WATER]: TERRAIN.water, [TER.BANK]: TERRAIN.bank, [TER.MEADOW]: TERRAIN.grass, [TER.CLAY]: TERRAIN.clay };
+const COLOURS = { [TER.DESERT]: TERRAIN.sand, [TER.FERTILE]: TERRAIN.fertile, [TER.ROCKY]: TERRAIN.rocky, [TER.WATER]: TERRAIN.water, [TER.BANK]: TERRAIN.bank, [TER.MEADOW]: TERRAIN.grass, [TER.CLAY]: TERRAIN.clay, [TER.HILLS]: TERRAIN.hills };
 
 const INTO = { east: [-1, 0], west: [1, 0], north: [0, 1], south: [0, -1] };
 
@@ -66,10 +67,11 @@ export function createMinimap({ world, cam, view, size = 160, dpr = 1 }) {
   // Terrain never changes in Stage 1, so it is baked once.
   const ground = document.createElement('canvas');
   ground.width = canvas.width; ground.height = canvas.height;
-  const gctx = ground.getContext('2d');
+  const gctx = ground.getContext('2d'), land = hasNewLand(world);
   for (let y = 0; y < world.size; y++) {
     for (let x = 0; x < world.size; x++) {
-      gctx.fillStyle = COLOURS[world.terrain[y * world.size + x]] || TERRAIN.sand;
+      const t = world.terrain[y * world.size + x];
+      gctx.fillStyle = (land && t === TER.ROCKY ? TERRAIN.beltRock : COLOURS[t]) || TERRAIN.sand;   // Task 3b: a new map's rock is drawn in the belt's body colour
       gctx.fillRect(x * scale, y * scale, Math.ceil(scale), Math.ceil(scale));
     }
   }

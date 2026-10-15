@@ -36,12 +36,23 @@ const BEFORE = {
   oasis: ['48da32c', 'f2a3ad70', '2bf4d64e', '2643c37', 'd38fbe59', 'd3aacd0a'],
 };
 const AFTER = {
-  east: ['9dcd201d', '38d9cfe5', '80981850', 'b58bd47f', '22fd39a0', 'aa7409a5'],
-  middle: ['1a3a7653', 'b8358476', '8e4c4ac1', 'e58f8194', '94b28e0f', '18bb7efe'],
-  'wide-bends': ['9ed0a181', '15e2c928', 'eb3b2faa', '29cda2e1', '1ee67e21', '38566363'],
-  island: ['76715fc2', '28512582', 'bf663dca', '6dfbcfeb', '51362798', 'e6f29ab1'],
-  oasis: ['f1111e10', '2405eee2', 'e63602e2', '4b4027d7', '24b847df', 'acfddb54'],
+  east: ['d562593c', '1f15b668', 'ed55cf99', '242f9637', '92a815e', '56b187f5'],
+  middle: ['7ac36543', '2bb38229', 'c17d77c6', '8f357168', 'bf9c1a4', '8de3263e'],
+  'wide-bends': ['42620959', '3b21ba52', '6c7e8542', '9bd45a55', '8dcc2691', 'b33635aa'],
+  island: ['a754f478', 'b1bbaa4a', '11b50137', 'f2e42b3f', '83bce82b', 'b9fd928'],
+  oasis: ['fb568110', 'f540e459', '59efc15d', 'f0a014db', '621c807f', '710fc76a'],
 };
+// Stage 4.7 Task 3b: every non-classic map moved again: its rock lies in long belts with the hills on them (no outcrop patches, no groves) and its meadow follows the
+// water (no noise meadow). Review round 1 moved them once more (belts reach the map's edges, a last-resort belt on every map, the mine repair's rock a belt fragment).
+// Classic at 64 is not in AFTER and is untouched.
+// Stage 4.7 Task 3 (ruling 464): hills (and their rocky skirts) are terrain on every map but classic at Normal, so every non-classic seed here moved once more
+// (a few keep their print where no cluster found room); classic at 64 is not in AFTER and is untouched.
+// Stage 4.7 Task 2 (ruling 463): the oases are terrain on every map but classic at Normal, so a seed that holds one (or two) moved again: seeds 11 and 1234 of east, middle, wide-bends and island, and seed 1234 of oasis (the generator's other draws are untouched). Classic at 64 is not in AFTER.
+// Stage 4.7 Task 1 review minors: the mine blob draws from its own salt (S47_SALT.mineBlob) and the clay repair stops 4 tiles from water, so the repaired
+// seeds moved again (non-classic maps only; classic at 64 is untouched).
+// Stage 4.7 Task 1 (ruling 461): AFTER is the Map track's set with the resource repair on top (clay, mine and farms near the start): a seed that already
+// held them keeps its Stage 4.6 print (east 7, 11, 42; middle 7, 11, 42; wide-bends 1, 11, 1234; island 11; oasis 11), the others moved. Classic at 64 is
+// not in AFTER: its prints are the Stage 4.6 ones (the mine repair is off for it, and none of these six seeds needed clay).
 
 const count = (m, t) => m.terrain.filter((v) => v === t).length;
 

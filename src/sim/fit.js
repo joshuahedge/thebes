@@ -10,11 +10,12 @@
 //               not that ground refuses on its own (tile reason 'needs_<terrain>', as before Stage 4.6); with fewer, any tile may be
 //               other dry ground and the footprint as a whole refuses with 'needs_<terrain>' when too few are
 //   water       'touch': a footprint tile has a water tile beside it (4 directions); 'longSide': a water tile lies along one of the
-//               footprint's long sides (either side of a square footprint). It refuses with 'needs_water'. A footprint tile is never
+//               footprint's long sides (either side of a square footprint). It refuses with 'needs_water' (a wharf, which fishes, counts the river's water only: Stage 4.7 needs_river). A footprint tile is never
 //               water itself (that is the tile reason 'water', as for every building)
 import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { footprint, idx, inBounds } from './grid.js';
 import { T, TERRAIN_BY_NAME } from './terrain.js';
+import { inOasisPool } from './oases.js';
 
 // Whether the per-tile terrain check applies: a building that needs every footprint tile on its ground (the rule before Stage 4.6).
 export const tileBound = (type) => {
@@ -22,13 +23,14 @@ export const tileBound = (type) => {
   return Boolean(def && def.terrain) && !Number.isInteger(def.terrainMin);
 };
 
-const water = (world, x, y) => inBounds(world.size, x, y) && world.terrain[idx(world.size, x, y)] === T.WATER;
+// riverOnly (the fishing wharf and the Nilometer, Stage 4.7): an oasis pool does not count as water; it is too small to fish (ruling 463).
+const water = (world, x, y, riverOnly = false) => inBounds(world.size, x, y) && world.terrain[idx(world.size, x, y)] === T.WATER && !(riverOnly && inOasisPool(world, x, y));
 
 // The water tiles along a side of the footprint: the row above (n) or below (s), the column left (w) or right (e).
-function sideWater(world, x, y, w, d, side) {
+function sideWater(world, x, y, w, d, side, riverOnly = false) {
   let n = 0;
-  if (side === 'n' || side === 's') { const ty = side === 'n' ? y - 1 : y + d; for (let tx = x; tx < x + w; tx++) if (water(world, tx, ty)) n++; }
-  else { const tx = side === 'w' ? x - 1 : x + w; for (let ty = y; ty < y + d; ty++) if (water(world, tx, ty)) n++; }
+  if (side === 'n' || side === 's') { const ty = side === 'n' ? y - 1 : y + d; for (let tx = x; tx < x + w; tx++) if (water(world, tx, ty, riverOnly)) n++; }
+  else { const tx = side === 'w' ? x - 1 : x + w; for (let ty = y; ty < y + d; ty++) if (water(world, tx, ty, riverOnly)) n++; }
   return n;
 }
 
@@ -37,7 +39,7 @@ function sideWater(world, x, y, w, d, side) {
 //     0, of, 0 without a terrain rule)
 //   water, wet: its water rule (null without one) and the water tiles that count for it (beside the footprint for 'touch', along the
 //     best long side for 'longSide')
-//   ok, reason: whether the rule holds, else 'needs_<terrain>' or 'needs_water'
+//   ok, reason: whether the rule holds, else 'needs_<terrain>', 'needs_water' or (a wharf beside only an oasis pool) 'needs_river'
 export function fitOf(world, type, x, y, rot = 0) {
   const def = BUILDINGS[type];
   const { w, d } = dimsOf(type, rot);
@@ -51,8 +53,10 @@ export function fitOf(world, type, x, y, rot = 0) {
   }
   if (def.water) {
     const sides = def.water === 'longSide' ? (w > d ? ['n', 's'] : d > w ? ['w', 'e'] : ['n', 's', 'w', 'e']) : ['n', 's', 'w', 'e'];
-    out.wet = def.water === 'longSide' ? Math.max(...sides.map((s) => sideWater(world, x, y, w, d, s))) : sides.reduce((n, s) => n + sideWater(world, x, y, w, d, s), 0);
-    if (!out.wet && out.ok) { out.ok = false; out.reason = 'needs_water'; }
+    const count = (riverOnly) => (def.water === 'longSide' ? Math.max(...sides.map((s) => sideWater(world, x, y, w, d, s, riverOnly))) : sides.reduce((n, s) => n + sideWater(world, x, y, w, d, s, riverOnly), 0));
+    out.wet = count(Boolean(def.fishes || def.riverOnly));
+    // Stage 4.7 (ruling 463): a wharf beside only an oasis pool says so: "Must touch the river" (needs_river), not "Must touch water".
+    if (!out.wet && out.ok) { out.ok = false; out.reason = (def.fishes || def.riverOnly) && count(false) ? 'needs_river' : 'needs_water'; }
   }
   return out;
 }
