@@ -117,7 +117,11 @@ export function adviceWords(a, world) {
       const drain = d.used - d.made, goods = d.need === 'food' ? 'food' : goodWord(d.need);
       out.what = `${d.need === 'food' ? 'Food' : goodName(d.need)} runs out in about ${monthWord(d.monthsLeft)}`;
       out.why = `The city holds ${d.held} ${goods}; ${drain} more ${drain === 1 ? 'was' : 'were'} used than made last month, and ${homesText(a.count)} need${a.count === 1 ? 's' : ''} it`;
-      out.fix = a.fix ? `Build ${builds(world, a.fix)} to make more` : '';
+      // A store makes nothing: when the fix is a store (the maker has nowhere to put what it makes) the words say it gives room, beside the maker it goes by.
+      const by = a.fix && a.fix.near !== undefined ? world.buildings[a.fix.near] : null;
+      out.fix = !a.fix ? '' : BUILDINGS[a.fix.item].stores
+        ? `Build ${builds(world, a.fix)}${by ? ` near the ${buildingName(by.type).toLowerCase()}` : ''} so there is room to keep more`
+        : `Build ${builds(world, a.fix)} to make more`;
       break;
     }
     case 'workers_short': {

@@ -244,6 +244,35 @@ describe('v50 step: the line on the house sheet', () => {
     } finally { r.cleanup(); }
   });
 
+  it('a checklist row whose fix is locked (a booth before Town) says the step line\'s Locked words and has no Show me; at Town it offers one', () => {
+    const townhouse = (milestone) => {
+      const { w, home } = street({ tier: 5, milestone, stock: {} });
+      addRaw(w, 'well', 14, 11);
+      addRaw(w, 'temple', 20, 11);
+      const bazaar = addRaw(w, 'bazaar', 9, 11);
+      bazaar.store = Object.fromEntries([['grain', 300], ...HOUSEHOLD_GOODS.map((g) => [g, 300])]);
+      home.stock = Object.fromEntries([['grain', 30], ...HOUSEHOLD_GOODS.map((g) => [g, Math.ceil(TIERS[5].capacity * GOODS[g].perResidentPerMonth * 2)])]);
+      staffAll(w);
+      return { w, home };
+    };
+    const closed = townhouse('village');
+    const r = rig(closed.w);
+    try {
+      r.open(closed.home);
+      const row = rowFor(r.root, 'entertainment');
+      const town = MILESTONES.find((m) => m.id === 'town').name;
+      expect(row.querySelector('.fix .small').textContent).toBe(`The ${buildingName('booth').toLowerCase()} comes with ${town}; this home's entertainment waits for it`);   // the step line's Locked words, as it would say them
+      expect([row.querySelector('.show-me'), row.querySelector('.view')]).toEqual([null, null]);
+      expect(r.shown).toEqual([]);
+    } finally { r.cleanup(); }
+    const open = townhouse('town');
+    const r2 = rig(open.w);
+    try {
+      r2.open(open.home);
+      expect(rowFor(r2.root, 'entertainment').querySelector('.show-me') !== null).toBe(true);
+    } finally { r2.cleanup(); }
+  });
+
   it('ready and kept: the line and no button, the keep list still below for the top tier', () => {
     const { w, home } = street();
     addRaw(w, 'well', 14, 11);

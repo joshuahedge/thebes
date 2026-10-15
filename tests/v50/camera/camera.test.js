@@ -459,3 +459,97 @@ describe('v50 camera: a crowd of roadless plots seen from far out', () => {
     expect(drawn(w, 2, null)).toBe(3 * 60);
   });
 });
+
+// Version 5.0 (final review): a touch stops a Show me glide and a zoom tween as it stops a fling; a fling stopped over a Route or area tool is not a tap that lays anything; the two-finger
+// double tap zooms out with a tool open; a pinch that begins in the middle of a Route or area stroke lays nothing.
+describe('v50 camera: final review, touches and tools', () => {
+  const clock = { t: 5000 };
+  async function uiRig(tool) {
+    const r = await rigUI({ now: () => clock.t });
+    r.world.milestone = 'capital';
+    r.finger = (name, id, tx, ty) => { const p = r.screenOf(tx + 0.5, ty + 0.5); fire(r.canvas, name, { ...r.at(p.x, p.y), pointerId: id, pointerType: 'touch', button: 0 }); };
+    r.px = (name, id, x, y) => fire(r.canvas, name, { ...r.at(x, y), pointerId: id, pointerType: 'touch', button: 0 });
+    if (tool) { r.ui.placement.start(tool); if (tool.kind === 'road') r.ui.placement.setRoute(true); }
+    return r;
+  }
+  const flingIt = (r) => {                                                // 160 px in 80 ms from the middle of the map, in Browse
+    r.px('pointerdown', 1, 100, 300);
+    for (let i = 1; i <= 8; i++) { clock.t += 10; r.px('pointermove', 1, 100 + i * 20, 300); }
+    r.px('pointerup', 1, 260, 300);
+  };
+  const lines = (r) => { const s = r.store.get(); return [s.line, s.plan ? s.plan.tiles.length : 0, s.area]; };
+
+  it('a touch stops a Show me glide and a zoom tween, not only a fling, and the map stays where it was stopped', async () => {
+    const r = await uiRig(null);
+    try {
+      r.ui.settings.set({ motion: 'full' });
+      const cc = r.ui.cameraControl;
+      for (const start of [() => cc.glide(() => cc.panTo(r.cam.x + 20, r.cam.y + 20)), () => cc.zoomStep(ZOOM_STEP, 200, 300)]) {
+        start();
+        expect(cc.animating).toBe(true);
+        clock.t += 40; cc.tick(clock.t);
+        r.px('pointerdown', 4, 100, 100);
+        expect(cc.animating).toBe(false);
+        const was = [r.cam.x, r.cam.y, r.cam.zoom];
+        clock.t += 500; cc.tick(clock.t);
+        expect([r.cam.x, r.cam.y, r.cam.zoom]).toEqual(was);
+        r.px('pointerup', 4, 100, 100);
+        clock.t += 1000;
+      }
+    } finally { r.cleanup(); }
+  });
+
+  it('a fling stopped by a tap with the Route tool open sets no start; one stopped over an area tool starts no area; the next tap is a tap', async () => {
+    for (const tool of [{ kind: 'road' }, { kind: 'areas', type: 'farm_grain' }]) {
+      const r = await uiRig(null);
+      try {
+        flingIt(r);
+        expect(r.ui.cameraControl.flinging).toBe(true);
+        const gold = r.world.gold, count = Object.keys(r.world.buildings).length;
+        r.ui.placement.start(tool);                                           // the player picks the tool while the map still slides
+        if (tool.kind === 'road') r.ui.placement.setRoute(true);
+        const before = lines(r);
+        r.finger('pointerdown', 2, 14, 13); r.finger('pointerup', 2, 14, 13);   // the touch that stops the map
+        expect(r.ui.cameraControl.flinging).toBe(false);
+        expect(lines(r)).toEqual(before);                                     // no start, no area, nothing laid
+        expect([r.world.gold, Object.keys(r.world.buildings).length]).toEqual([gold, count]);
+        clock.t += 1000;
+        r.finger('pointerdown', 3, 14, 13); r.finger('pointerup', 3, 14, 13);   // the next tap is a tap as ever
+        expect(JSON.stringify(lines(r)) === JSON.stringify(before)).toBe(false);
+      } finally { r.cleanup(); }
+    }
+  });
+
+  it('a two-finger double tap zooms out with the Route tool or an area tool open, and sets nothing', async () => {
+    for (const tool of [{ kind: 'road' }, { kind: 'areas', type: 'farm_grain' }]) {
+      const r = await uiRig(tool);
+      try {
+        r.cam.zoom = 1.5;
+        const before = lines(r), z = r.cam.zoom;
+        const two = () => { r.px('pointerdown', 5, 170, 300); r.px('pointerdown', 6, 230, 300); r.px('pointerup', 5, 170, 300); r.px('pointerup', 6, 230, 300); };
+        two(); two();
+        expect(r.cam.zoom).toBeLessThan(z);
+        expect(lines(r)).toEqual(before);
+      } finally { r.cleanup(); }
+    }
+  });
+
+  it('a pinch that begins in the middle of a Route or an area stroke takes the stroke back and lays nothing, even when both fingers lift', async () => {
+    for (const tool of [{ kind: 'road' }, { kind: 'areas', type: 'farm_grain' }]) {
+      const r = await uiRig(tool);
+      try {
+        const gold = r.world.gold, count = Object.keys(r.world.buildings).length, roads = r.world.road.reduce((s, v) => s + (v ? 1 : 0), 0);
+        const before = lines(r);
+        r.finger('pointerdown', 7, 2, 14);
+        for (const [tx, ty] of [[4, 14], [8, 15], [12, 16]]) r.finger('pointermove', 7, tx, ty);
+        expect(JSON.stringify(lines(r)) === JSON.stringify(before)).toBe(false);                                 // the stroke is showing
+        r.finger('pointerdown', 8, 18, 20);                                   // a second finger: a pinch
+        expect(lines(r)).toEqual(before);                                     // the stroke is gone: only a stroke's own marks are taken back
+        r.finger('pointermove', 8, 20, 22);
+        r.finger('pointerup', 8, 20, 22); r.finger('pointerup', 7, 12, 16);
+        expect(lines(r)).toEqual(before);
+        expect([r.world.gold, Object.keys(r.world.buildings).length, r.world.road.reduce((s, v) => s + (v ? 1 : 0), 0)]).toEqual([gold, count, roads]);
+      } finally { r.cleanup(); }
+    }
+  });
+});

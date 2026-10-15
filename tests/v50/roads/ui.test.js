@@ -259,6 +259,23 @@ describe('v50 roads ui: the confirm bar', () => {
     expect(r.root.querySelector('#confirm .show-fit').getAttribute('aria-label').includes('bridge')).toBe(true);
     r.cleanup();
   });
+  it('Show me from a route\'s refusal keeps the start and the end the player set (it moves the view; it does not restart the road tool)', async () => {
+    const world = city();
+    lay(world, T.WATER, 18, 0, 24, 31);
+    for (let x = 18; x <= 24; x++) world.road[idx(world.size, x, 10)] = 0;
+    world.roadVersion++;
+    const r = await rigUI({ world });
+    await pickRoad(r);
+    fire(r.root.querySelectorAll('#confirm .route-pick')[0], 'click');
+    r.tap(2, 20, 'mouse'); r.tap(28, 20, 'mouse');
+    const line = { ...r.store.get().line };
+    expect([line.x0, line.y0, line.x1, line.y1]).toEqual([2, 20, 28, 20]);
+    fire(r.root.querySelector('#confirm .show-fit'), 'click');
+    expect(r.store.get().line).toEqual(line);                                      // both ends still there
+    expect([r.store.get().tool.kind, r.store.get().tool.route, r.store.get().mode]).toEqual(['road', true, 'drawing']);
+    expect(r.root.querySelector('#confirm .reason').textContent.startsWith('No way across')).toBe(true);   // and the bar still says why
+    r.cleanup();
+  });
 });
 
 describe('v50 roads ui: progressive disclosure', () => {

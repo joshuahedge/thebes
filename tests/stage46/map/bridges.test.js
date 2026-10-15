@@ -197,7 +197,7 @@ describe('s46 map bridges in the game: the confirm bar offers Show me to a refus
       const show = bar.querySelector('.show-fit');
       expect([Boolean(show), show && show.getAttribute('aria-label')]).toEqual([true, 'Show me where a bridge fits']);
       fire(show, 'click');
-      expect([r.ui.store.get().tool.kind, r.ui.store.get().line]).toEqual(['road', null]);   // the road tool starts afresh at the crossing
+      expect([r.ui.store.get().tool.kind, r.ui.store.get().line]).toEqual(['road', { x0: 18, y0: 5, x1: 21, y1: 5, flip: false }]);   // Version 5.0 (final review): the road tool stays as it is, the player's start and end kept; the view moves to the crossing
       r.ui.placement.pointAt(19, 5); r.ui.placement.pointAt(23, 5);
       r.frame(3);
       expect(bar.querySelector('.reason').textContent).toBe('2 tiles · Bridge: 3 tiles, 75 gold');

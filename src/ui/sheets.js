@@ -5,7 +5,7 @@ import { alertShowMe } from './threatFix.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
-import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, priceOf } from '../sim/advice.js';
+import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, lockedFixFor, priceOf } from '../sim/advice.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { setPaused, setAccept } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
@@ -208,6 +208,14 @@ export function createSheets({ container, store, world, placement, cameraControl
     } else {
       // Version 5.0 (Task 7): the item and the place are the next step's (buildFixFor): a low street's decoration at its tile, a workshop by its store.
       const step = buildFixFor(world, h, cause, c.need);
+      if (!step) {   // an item not unlocked yet: the step line's own Locked words, and no Show me the sim would refuse (final review)
+        const locked = lockedFixFor(world, h, cause, c.need);
+        if (locked) {
+          const rest = stepWords(world, h, { reason: 'locked', need: c.need, cause, locked }).rest;
+          li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: rest.charAt(0).toUpperCase() + rest.slice(1) })]));
+          return li;
+        }
+      }
       const item = step ? step.item : fix.item;
       const near = step ? step.target : centreOf(fix.at !== 'home' && building ? building : h);
       const at = (step ? step.at : fix.at) === 'terrain' ? nearestTerrainTile(world, BUILDINGS[item].terrain, near) || near : near;
