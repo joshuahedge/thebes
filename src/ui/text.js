@@ -640,7 +640,7 @@ export const cheerReward = (n) => rewardText(n);
 export const TIP_TEXT = {
   press_play: 'Press Play so people can move in: plots stay empty while paused.',
   arrivals: 'Place more plots: families arrive a few times a month while there is room.',
-  house_needs: 'Read what this home needs to grow, then tap Show me for the fix.',
+  house_needs: 'Read the Next step at the top of this home, then tap Show me for the fix.',
   service_reach: 'Look at the coloured tiles: they are the homes this reaches by road.',
   problem_marker: 'Tap a building with a red badge to see what is wrong and how to fix it.',
   month_summary: "Tap the numbers in the top bar to see this month's taxes, wages and food.",

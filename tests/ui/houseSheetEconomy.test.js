@@ -21,7 +21,7 @@ import { rigUI, runningUiWorld } from '../helpers/uiWorld.js';
 
 // A Town street along y = 10 with a home at (12, 9), a well, a temple and a bazaar in reach of it, and a granary.
 function street({ tier = 4, residents = 16, stock = { grain: 10 } } = {}) {
-  const w = makeTestWorld({ gold: 5000 });
+  const w = makeTestWorld({ gold: 5000, clay: [[24, 20, 4, 4]] });   // Version 5.0: Show me says why when no ground takes the building, so a clay pit needs clay to stand on
   w.milestone = 'town';
   setRoad(w, 0, 10, 31, 10);
   const home = addRaw(w, 'house', 12, 9, { tier, residents, stock: { ...stock }, stockedFor: residents });

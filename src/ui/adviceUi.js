@@ -9,11 +9,9 @@ import { ADVICE_TEXT } from './adviceText.js';
 import { nearestFit } from './placement.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { reasonText } from './text.js';
+import { GROUND } from './nextStepText.js';       // what a building bound to ground needs when no tile of it has room (the sim's own refusal for a tile says "Needs fertile land")
 
 export const ADVICE_EVERY_DAYS = 5;
-
-// The ground words for a building bound to one: what it needs when no tile of it has room (the sim's own refusal for a tile says "Needs fertile land").
-const GROUND = { fertile: 'fertile land', rocky: 'rocky ground', clay: 'clay ground' };
 
 // Why a build fix has nowhere to go, or null when a tile near `at` takes it (a price the treasury cannot pay is not a refusal: the confirm bar says it).
 // The same search Show me runs (nearestFit over the whole map) and the sim's own placing rule (canPlace), so Show me is refused exactly when its ghost
@@ -49,16 +47,24 @@ export function createAdviceUi({ world, settings, showMeAt, selectBuilding, open
     if (f.view) { openSummary(f.section); return; }
     const def = BUILDINGS[f.item];
     const at = f.at === 'terrain' && def && def.terrain ? nearestTerrainTile(world, def.terrain, f.target) || f.target : f.target;
-    const why = showMeRefusal(world, f.item, at);
-    if (why) { toast(ADVICE_TEXT.noRoom(f.item, why)); return; }
-    showMeAt({ category: categoryOfItem(f.item), item: f.item, x: at.x, y: at.y });
+    showMe({ category: categoryOfItem(f.item), item: f.item, x: at.x, y: at.y });
+  }
+
+  // A Show me for a build ({ category, item, x, y }: the advice's, a house sheet's next step and its checklist rows): refused with why in a toast when no tile near
+  // it takes the building, else its card and ghost.
+  function showMe(target) {
+    const why = showMeRefusal(world, target.item, target);
+    if (why) { toast(ADVICE_TEXT.noRoom(target.item, why)); return; }
+    showMeAt(target);
   }
 
   return {
     refresh,
+    showMe,
     markStale: () => { stale = true; },
     state: () => ({ shown, dot: shown && adviceHasNew(keys, seen()) }),
-    sheet: adviceSheet({ world, settings, onFix: fix }),
+    // Opening or redrawing the sheet reads the advice afresh: the button's cached keys become the ones the sheet just marked seen.
+    sheet: adviceSheet({ world, settings, onFix: fix, onRead: (k) => { keys = k; stale = false; day = world.day; } }),
     on: () => shown,
     fix,
   };

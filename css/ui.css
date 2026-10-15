@@ -1293,6 +1293,15 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
 #sheet .advice-item button { flex: none; }
 #sheet .advice-well { font-weight: 600; margin: 4px 0; }
 #sheet .advice-link { margin: 0 0 8px; padding-top: 0; }
+/* Version 5.0 (Task 2): the next-step line at the top of a house sheet: its word first (Next step, Waiting, Locked, Ready, Kept, Empty: the word is the cue, the
+   left edge only echoes it), the words wrapping, and Show me or View a 44 px target beside them or under them. */
+#sheet .step-line { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 0 0 8px; padding: 6px 10px; background: var(--parchment-2); border-left: 4px solid var(--teal); border-radius: 6px; }
+#sheet .step-line[data-reason='waiting'], #sheet .step-line[data-reason='locked'], #sheet .step-line[data-reason='empty'] { border-left-color: var(--amber-text); }
+#sheet .step-line[data-reason='kept'], #sheet .step-line[data-reason='ready'] { border-left-color: var(--teal); }
+#sheet .step-line .step-text { flex: 1 1 11em; min-width: 0; }
+#sheet .step-line .step-label { margin-right: 2px; }
+#sheet .step-line.short .step-text { color: var(--coral-text); }
+#sheet .step-line button { flex: none; }
 /* A phone's bar makes room for the advice button (a 44 px target beside the 44 px menu button): 4 px ends, the numbers run to the buttons, 3 px between
    them, and the menu button 44 px wide whatever the text size (its glyph grew with it). */
 body:is([data-layout="portrait"], [data-layout="compact"]) #topbar { padding-left: max(4px, var(--safe-left)); padding-right: max(4px, var(--safe-right)); gap: 0; }
