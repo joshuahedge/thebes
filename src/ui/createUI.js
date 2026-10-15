@@ -42,6 +42,8 @@ import { createSheets } from './sheets.js';
 import { createMinimap } from './minimap.js';
 import { createAlerts, mapSummaryText, nearestOf } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
+import { spotsOn } from './s47/spots.js';
+import { drawHouseSpots } from '../render/spots.js';
 import { createLayersPicker } from './layersPicker.js';
 import { createToasts, MAX_TOASTS, MAX_TOASTS_PHONE } from './toasts.js';
 import { createCelebrations } from './celebrate.js';
@@ -146,7 +148,7 @@ export function createUI({
   // rulings 163-165): a caption waits while a sheet, the overlay legend or a tip has the row, or the alert row has a
   // landscape phone's one row (behind a sheet or that alert row for 10 s at most, spec 6.3), and under a banner only info
   // captions show (the rest are in the Goals sheet's Recent list).
-  const holdCaptions = () => { const s = store.get(); return phone() && Boolean(s.sheet || s.overlay || tips.current() || alertHasRow()); };
+  const holdCaptions = () => { const s = store.get(); return phone() && Boolean(s.sheet || s.overlay || spotsOn(s, world) || tips.current() || alertHasRow()); };
   const skipCaption = (item) => phone() && item.tier !== 'info' && root.classList.contains('has-banner');
   const celebrations = createCelebrations({ container: $('cheer'), hold: holdCaptions, skip: skipCaption, dropHeld: () => Boolean(store.get().sheet) || alertHasRow(), now, onChange: () => guidanceChanged(), onToggle: () => toggleGuidance() });
   const nudge = createNudge({ now: () => frameNow });
@@ -354,7 +356,9 @@ export function createUI({
     const before = store.get();
     const r = placement.confirm();
     if (!r.ok) { toasts.show(reasonText(r.reason)); return r; }
-    if ((type === 'touch' || type === 'pen') && before.tool) {
+    // Stage 4.7 (Task 4, ruling 465): the house tool is the one tool a touch tick does not end: it stays on, with a Done button, so the next plot's good spots can be
+    // chosen. Every other tool (and a building) still ends after a touch tick.
+    if ((type === 'touch' || type === 'pen') && before.tool && before.tool.kind !== 'houses') {
       store.set(cancelTool(store.get()));
       if (before.tool.kind === 'building' && before.ghost) {
         const def = BUILDINGS[before.tool.type];
@@ -481,6 +485,7 @@ export function createUI({
     nudge.noteAction();                                // a command is a meaningful action (early-game pass 3.5)
     // The Play tip says the plots stay empty while paused: true only when one of them touches a road (placement review P14).
     if (e.undoable && e.kind === 'houses' && world.speed === 0 && plotsTouchRoad(e)) fireTip('plotsPaused');
+    if (e.undoable && e.kind === 'houses') fireTip('houseSpots');   // Stage 4.7 (Task 4): the spots arrive with the first plot; the tip waits for the tool to end
     if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type] && BUILDINGS[store.get().tool.type].reach) fireTip('servicePlaced');   // a reach tip: a garden has none
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
@@ -818,6 +823,7 @@ export function createUI({
     if (s.sheet || alertHasRow()) return 'none';
     if (s.overlay) return 'legend';
     if (tips.current()) return 'tip';
+    if (spotsOn(s, world)) return 'legend';   // Stage 4.7: the house tool's spots legend has the row once no tip does (the Play tip, a priority tip, shows over it while the tool is on)
     if (celebrations.showing()) return 'caption';
     return 'goal';
   }
@@ -948,6 +954,7 @@ export function createUI({
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null);   // Ground brightens the tiles with room for the building being placed
+        else if (spotsOn(s, world)) drawHouseSpots(g, world, r);                // Stage 4.7 (Task 4): the next house's Good and Fair spots, in this layer, while the house tool is on
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
         if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change
         const shapes = ghosts();                                                // refreshes the tint as well
