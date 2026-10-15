@@ -1,7 +1,8 @@
 // Version 5.0 (Task 1): the City advice sheet and the top-bar button's state. The sheet lists the top ADVICE.top items of cityAdvice (src/sim/advice.js),
 // worst first: each a sentence with its numbers, its cause, what to do, what the fix costs (marked in words when the treasury cannot pay it) and a
 // Show me or View. Nothing to fix says "All is well" and the next milestone. The advice is read when the sheet opens or is redrawn, and the
-// button's dot is read from the same list at every command and every fifth game day (never per frame: it asks every home for its next step).
+// button's dot is read from the same list at every command and every fifth game day (never per frame: it asks every home for its next step), and
+// again each time the sheet is read (onRead), so the dot never compares what the sheet showed with keys cached days ago.
 // The dot says something appeared that the player has not seen: the keys of the top items when the sheet was last open are kept in the settings
 // (adviceSeen, per device), and the dot shows while the top items hold a key not in them (contract, section 5).
 import { MILESTONES } from '../data/progression.js';
@@ -31,12 +32,13 @@ export function nextMilestone(world) {
 
 // The custom sheet 'advice' (createUI registers it): onFix(item) does the item's Show me or View. Opening it, and every redraw of it, marks what it
 // shows as seen.
-export function adviceSheet({ world, settings, onFix = () => {} }) {
+export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => {} }) {
   return (body) => {
     const list = cityAdvice(world);
     const top = list.slice(0, ADVICE.top);
     const keys = top.map((a) => a.key);
     if (!sameKeys(keys, settings.get().adviceSeen || [])) settings.set({ adviceSeen: keys });
+    onRead(keys);
     if (!top.length) {
       const next = nextMilestone(world);
       body.append(el('p', { class: 'advice-well', text: ADVICE_TEXT.allWell }));

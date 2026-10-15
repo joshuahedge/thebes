@@ -4,3 +4,6 @@ import './contract/advice.test.js';
 import './contract/contract.test.js';
 import './advice/topbar.test.js';
 import './advice/advice.test.js';
+import './step/review.test.js';
+import './step/step.test.js';
+import './step/reasons.test.js';

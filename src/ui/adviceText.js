@@ -3,9 +3,13 @@
 // number: how many homes, how many months, how much the fix costs and whether the treasury can pay it. A fix is only ever named once it is
 // unlocked (the item's fix is null otherwise, and the words say which milestone brings it).
 import { MILESTONES } from '../data/progression.js';
+import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings } from '../sim/world.js';
+import { goodMakers, makerOf } from '../sim/advice.js';
+import { costOf } from '../sim/costs.js';
+import { canAfford } from '../sim/money.js';
 import {
-  NEED_NAMES, buildingName, goodName, plural, causeText, alertText, tierName,
+  NEED_NAMES, buildingName, goodName, plural, causeText, alertText, tierName, listText,
   S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT,
 } from './text.js';
 
@@ -42,6 +46,18 @@ const builds = (world, fix) => {
   return have ? `another ${name}` : an(name);
 };
 
+// What the fix for a good nothing makes builds, as the words name it: the makers the city lacks, in the order they are built (a clay pit, then a
+// potter), or "another potter" when every maker stands. The cost line prices exactly these (every building named is priced, none unnamed), and
+// Show me starts the first. Version 5.0 review: the house sheet's cause words name every maker, so a price for one of them was a half truth.
+export function unmadeBuilds(world, good) {
+  const makers = goodMakers(good);
+  const missing = makers.filter((t) => !allBuildings(world).some((b) => b.type === t));
+  return missing.length ? { types: missing, words: listText(missing.map((t) => an(buildingName(t).toLowerCase()))) } : { types: [makerOf(good)], words: `another ${buildingName(makerOf(good)).toLowerCase()}` };
+}
+// The price of a list of buildings (the sum of costOf; the placing rule's debt floor for the whole sum) and how it reads: "Clay pit and potter: 160 gold".
+const priceList = (world, types) => ({ gold: types.reduce((s, t) => s + costOf(world, t), 0), what: capitalised(listText(types.map((t) => buildingName(t).toLowerCase()))) });
+const capitalised = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
 // The danger kinds' cause lines already say what to do ("No firehouse within 12 road tiles: build one near it"), so their fix line stays empty.
 const DANGER = ['fire', 'illness', 'crime'];
 
@@ -60,6 +76,11 @@ export function adviceWords(a, world) {
       out.what = `${homesText(n)} ${n === 1 ? 'is' : 'are'} held back by ${NEED_NAMES[d.need].toLowerCase()}`;
       out.why = forMany(c.cause, n);
       out.fix = a.fix ? forMany(c.fix, n) : '';
+      // A good nothing makes: the words name the makers the city lacks, and the cost line below prices all of them.
+      if (a.fix && d.cause.code === 'good_unmade') {
+        const good = d.cause.good || d.need, verb = goodMakers(good).some((t) => BUILDINGS[t].consumes) ? 'Make' : 'Grow';
+        out.fix = forMany(`${verb} ${goodWord(good)} near it: ${unmadeBuilds(world, good).words}`, n);
+      }
       break;
     }
     case 'stranded': {
@@ -124,7 +145,13 @@ export function adviceWords(a, world) {
   if (f && f.item) {
     out.cost = f.item === 'road' ? ADVICE_TEXT.costRoad(a.cost)
       : a.kind === 'raid_towers' && d.buildN > 1 ? ADVICE_TEXT.costEach(buildingName(f.item), a.cost) : ADVICE_TEXT.cost(buildingName(f.item), a.cost);
-    out.short = a.afford === false;
+    let afford = a.afford;
+    if (a.kind === 'home_need' && d.cause.code === 'good_unmade') {          // every maker the words name, priced (the sum)
+      const p = priceList(world, unmadeBuilds(world, d.cause.good || d.need).types);
+      out.cost = ADVICE_TEXT.cost(p.what, p.gold);
+      afford = canAfford(world, p.gold);
+    }
+    out.short = afford === false;
     if (out.short) out.cost = ADVICE_TEXT.short(out.cost, world.gold);
     if (!out.fix && !DANGER.includes(a.kind)) out.fix = `Build ${builds(world, f)}`;
     out.action = { label: ADVICE_TEXT.show, aria: `${ADVICE_TEXT.show}: ${out.what}` };

@@ -5,7 +5,7 @@ import { alertShowMe } from './threatFix.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
-import { causeFix as needFix, unmadeFix as simUnmadeFix } from '../sim/advice.js';
+import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep } from '../sim/advice.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { setPaused, setAccept } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
@@ -20,6 +20,7 @@ import { monthForecast } from '../sim/economy.js';
 import { jobsPenalty } from '../sim/mood.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { demolishQuestion, causeFix } from './monumentSheet.js';
+import { stepWords } from './nextStepText.js';
 import { noteView } from '../render/overlays.js';
 import { supplyNeeded } from '../sim/monuments.js';
 import { huntRest } from '../sim/wildlife.js';
@@ -52,7 +53,7 @@ const withoutTwoFoods = (rows) => (rows.some((c) => c.need === 'threeFoods') ? r
 
 // parts (Stage 3): the danger and score interfaces' sheet parts (src/ui/danger.js), each { building(b), house(h),
 // actions(b), summary() } returning arrays of nodes, added in the list's order at fixed places in the sheets below.
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onFixAlert = () => {}, onSelect = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [] }) {
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [] }) {
   const close = () => store.set(closeSheet(store.get()));
   const extra = (kind, ...args) => parts.flatMap((p) => (p && typeof p[kind] === 'function' ? p[kind](...args) || [] : []));
 
@@ -195,7 +196,7 @@ export function createSheets({ container, store, world, placement, cameraControl
       const near = centreOf(fix.at !== 'home' && building ? building : h);
       const at = fix.at === 'terrain' ? nearestTerrainTile(world, BUILDINGS[fix.item].terrain, near) || near : near;
       const target = { category: fix.category, item: fix.item, x: at.x, y: at.y };
-      action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${words.fix}`, onClick: () => onShowMe(target) });
+      action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${words.fix}`, onClick: () => onShowMeBuild(target) });
     }
     li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix }), action]));
     return li;
@@ -207,10 +208,22 @@ export function createSheets({ container, store, world, placement, cameraControl
     return (b && b.type === 'house' ? tierName(b.tier) : buildingName(d.type)).toLowerCase();
   }
 
+  // Version 5.0 (Task 2): the line at the top of a home's sheet from the sim's nextStep: the one thing to do next with its price and a Show me (or View), or
+  // why there is nothing to do (waiting on a delivery, locked behind a milestone, ready to grow, kept, an empty plot). The full checklist stays below.
+  function stepLine(h, step) {
+    const w = stepWords(world, h, step);
+    const text = el('span', { class: 'step-text' }, [el('strong', { class: 'step-label', text: w.label }), ' ' + w.rest]);
+    const a = w.action;
+    const act = !a ? null : button(a.label, { class: a.select !== undefined && a.label === T.view ? 'view quiet' : 'show-me primary', 'aria-label': a.aria, onClick: () => (a.select !== undefined ? onSelect(a.select) : onShowMeBuild(a.build)) });
+    return el('div', { class: w.short ? 'step-line short' : 'step-line', dataset: { reason: step.reason === null ? 'next' : step.reason } }, [text, act]);
+  }
+
   function houseSheet(h) {
     const s = houseStatus(world, h);
+    const step = nextStep(world, h);
     const body = el('div', { class: 'body' });
-    if (s.tier === 0) body.append(el('p', { class: 'muted', text: T.emptyPlot }));
+    body.append(stepLine(h, step));
+    if (s.tier === 0 && step.reason !== 'empty') body.append(el('p', { class: 'muted', text: T.emptyPlot }));
     const share = s.capacity ? Math.min(1, s.residents / s.capacity) : 0;
     body.append(el('div', { class: 'row residents' }, [
       el('span', { class: 'muted', text: T.residents }),
