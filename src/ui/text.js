@@ -2478,10 +2478,10 @@ export const S47_CARTS_TEXT = {
   amountLabel: (good) => `${goodName(good)}: fetch up to`,
   setLabel: (good) => `Fetch ${cartGood(good)}`, clearLabel: (good) => `Stop fetching ${cartGood(good)}`,
   help: `A ${cartStore('storehouse')} or ${cartStore('granary')} can Fetch a good from other stores by road: one cart, ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day each way. It never takes a store below what that store fetches for itself.`,
-  // The consequence of an order before the tap: Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 34 road tiles (5 days each way).
+  // The consequence of an order before the tap: Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 34 road tiles (a round trip takes 9 days).
   consequence: (pv) => (pv.source
-    ? `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: one cart, ${pv.perTrip} a trip, from the nearest store with ${cartGood(pv.good)}, ${cartTiles(pv.source.len)} (${cartDays(pv.source.days)} each way)${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`
-    : `Fetch ${cartGood(pv.good)}: no store with ${cartGood(pv.good)} is linked by road`),
+    ? `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: one cart, ${pv.perTrip} a trip, from the nearest store with ${cartGood(pv.good)}, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`
+    : `Fetch ${cartGood(pv.good)}: no store with ${cartGood(pv.good)} to spare is linked by road`),
   where: cartWhere,
   // The order's live line: "Fetching pottery: 40 on the way, back in 3 days, from the storehouse 34 road tiles east".
   status: (st) => {
@@ -2489,7 +2489,7 @@ export const S47_CARTS_TEXT = {
     switch (st.state) {
       case 'out': case 'back': return `${head}: ${st.amount} on the way, ${st.days ? `back in ${cartDays(st.days)}` : 'back today'}${st.source ? `, ${cartWhere(st.source)}` : ''}`;
       case 'return': return `${head}: the road is cut, so the cart turned round${st.days ? ` (${cartDays(st.days)} to go)` : ''}`;
-      case 'other': return `${head}: the cart is fetching another good first`;
+      case 'other': return `${head}: the cart serves another good first`;
       case 'full': return `${head}: ${st.held} held of ${st.fetch}, no cart needed`;
       case 'refused': return `${head}: this store refuses ${g}, so no cart goes`;
       case 'unstaffed': return `${head}: no cart goes while this store is short of workers (${st.staff} of ${st.workers}) or off the road`;
@@ -2506,7 +2506,7 @@ export const S47_CARTS_TEXT = {
       case 'cannot_store': return `This store cannot hold ${g}`;
       case 'refuses': return `This store refuses ${g}: let it accept ${g} first`;
       case 'bad_amount': return `Choose a whole number from 1 to ${r.max}`;
-      case 'no_source': return `No store with ${g} is linked by road`;
+      case 'no_source': return `No store with ${g} to spare is linked by road`;
       case 'no_order': return `This store is not fetching ${g}`;
       default: return 'Nothing is here';
     }
