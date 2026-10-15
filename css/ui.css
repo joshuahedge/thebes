@@ -1281,3 +1281,22 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
 #sheet .tier-use { align-items: baseline; gap: 8px; }
 #sheet .tier-use > span:last-child { text-align: right; }
 #sheet .raid-wealth { font-weight: 600; }
+
+/* ── Version 5.0: City advice ── the scroll button between the numbers and the menu (a dot while something new is in the top items), and the sheet. */
+#topbar .advice { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--tap); padding: 0; }
+#topbar .advice .scroll { width: 22px; height: 22px; display: block; }
+#topbar .advice .advice-dot { position: absolute; top: 5px; right: 5px; width: 11px; height: 11px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 2px var(--parchment); }
+#sheet .advice-list { list-style: none; padding-left: 0; margin: 6px 0; }
+#sheet .advice-item { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 6px 10px; padding: 8px 0; border-bottom: 1px solid var(--parchment-2); }
+#sheet .advice-item .text { flex: 1 1 10em; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#sheet .advice-item .cost.short { color: var(--coral-text); font-weight: 600; }
+#sheet .advice-item button { flex: none; }
+#sheet .advice-well { font-weight: 600; margin: 4px 0; }
+#sheet .advice-link { margin: 0 0 8px; padding-top: 0; }
+/* A phone's bar makes room for the advice button (a 44 px target beside the 44 px menu button): 4 px ends, the numbers run to the buttons, 3 px between
+   them, and the menu button 44 px wide whatever the text size (its glyph grew with it). */
+body:is([data-layout="portrait"], [data-layout="compact"]) #topbar { padding-left: max(4px, var(--safe-left)); padding-right: max(4px, var(--safe-right)); gap: 0; }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size] #topbar .stats { column-gap: 3px; padding: 0; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .menu { padding: 0; width: var(--tap); }
+body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .advice { margin-right: 2px; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .stat { gap: 2px; }

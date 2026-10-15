@@ -2632,3 +2632,13 @@ Object.assign(TIP_HELP_TEXT, { tribute_quota: S47_PRESSURE_TEXT.tipHelp, raids_w
   S46_COURT_TEXT.logLine = (e) => (e.kind === 'quota' ? S47_PRESSURE_TEXT.logLine(e) : baseLog(e));
 }
 // ── end s47 ──
+
+// ── v50 advice (Version 5.0, Task 1) ──────────────────────────────────────────────────────────────────────────────────
+// The City advice button (a scroll in the top bar, from the first home) and its sheet; the sheet's sentences are built from the advice items in
+// src/ui/adviceText.js. The tip fires when the first home is laid; How to play lists it with the others.
+T.advice = 'City advice';
+T.adviceNew = 'City advice: something new';
+T.adviceLead = 'What holds your city back, worst first.';
+TIP_TEXT.city_advice = 'The scroll button at the top shows what holds your city back, and what each fix costs.';
+TIP_HELP_TEXT.city_advice = 'The scroll button opens City advice: what holds your city back, with costs and Show me. A dot marks news.';
+// ── end v50 advice ──

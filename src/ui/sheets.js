@@ -52,7 +52,7 @@ const withoutTwoFoods = (rows) => (rows.some((c) => c.need === 'threeFoods') ? r
 
 // parts (Stage 3): the danger and score interfaces' sheet parts (src/ui/danger.js), each { building(b), house(h),
 // actions(b), summary() } returning arrays of nodes, added in the list's order at fixed places in the sheets below.
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onFixAlert = () => {}, onSelect = () => {}, afterCommand = () => {}, custom = {}, parts = [] }) {
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onFixAlert = () => {}, onSelect = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [] }) {
   const close = () => store.set(closeSheet(store.get()));
   const extra = (kind, ...args) => parts.flatMap((p) => (p && typeof p[kind] === 'function' ? p[kind](...args) || [] : []));
 
@@ -243,6 +243,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     const d = summaryData(world);
     const body = el('div', { class: 'body' });
     body.append(row(T.difficulty, DIFFICULTY_NAMES[d.difficulty] || d.difficulty));
+    // Version 5.0 (Task 1): the figures stay here; what holds the city back is its own sheet, one tap away (from the first home).
+    if (adviceOn()) body.append(el('div', { class: 'actions advice-link' }, [button(T.advice, { class: 'open-advice', 'aria-label': `${T.advice}: ${T.adviceLead.toLowerCase()}`, onClick: () => onOpenAdvice() })]));
     // Stage 4.5 (Task 4b): the month ahead, as the city stands now (the sim's forecast): headed by what the balance is, so the gold
     // chip's tap lands on "Spending more than taxes bring in" when the treasury is shrinking.
     const f = monthForecast(world);
@@ -269,7 +271,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     // Each good made against used last month (spec 4.10), in the data's order; only goods that moved.
     const moved = Object.keys(GOODS).filter((g) => d.made[g] || d.used[g]);
     body.append(el('h3', { text: T.goodsLastMonth }), ...(moved.length ? moved.map((g) => row(goodName(g), madeUsedText(d.made[g] || 0, d.used[g] || 0))) : [el('p', { class: 'muted', text: T.noGoodsYet })]));
-    body.append(el('h3', { text: T.employment }), row(T.working, `${d.working} of ${d.workforce}`), row(T.jobless, `${d.jobless}`), row(T.jobs, `${d.jobs}`));
+    body.append(el('h3', { text: T.employment, dataset: { section: 'employment' } }), row(T.working, `${d.working} of ${d.workforce}`), row(T.jobless, `${d.jobless}`), row(T.jobs, `${d.jobs}`));
     body.append(el('h3', { text: T.moodBreakdown }), row(T.mood, `${d.mood}`));
     // The starting mood is a level, the rest are swings from it (early-game pass 2.10: plain English rows).
     // Stage 4.5 (ruling 325): while the Town unemployment penalty is being phased in, the Jobs row says what comes at the end of it.
@@ -398,7 +400,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     // The gold chip's tap opens the summary at its forecast section (once per opening, so a later redraw leaves the scroll alone).
     if (s.sheet !== scrolledFor) {
       scrolledFor = s.sheet;
-      const target = s.sheet.kind === 'summary' && s.sheet.id === 'forecast' ? container.querySelector('[data-section="forecast"]') : null;
+      const target = s.sheet.kind === 'summary' && (s.sheet.id === 'forecast' || s.sheet.id === 'employment') ? container.querySelector(`[data-section="${s.sheet.id}"]`) : null;
       if (target && target.scrollIntoView) target.scrollIntoView({ block: 'start' });
     }
     if (focusIndex >= 0) {
