@@ -103,7 +103,7 @@ export const HILLS = {
 // A belt keeps fromWater tiles from any water, fromOasis from an oasis pool (an oasis keeps 8 tiles clear of rock), fromRoad from the start road, fromStart from the start area's centre, fromEdge from the map's edge and apart from another belt (centrelines).
 export const BELTS = {
   count: [2, 3], length: [20, 40], width: [4.4, 6.2], pulse: 1.0, taper: 6, bend: 0.4, slant: 0.5, minLen: 14, area: 240, extra: 3, tries: 300,
-  fromWater: 6, fromStart: 11, fromEdge: 2, apart: 7, fromOasis: 9, fromRoad: 4, least: 0.5, spread: 8,
+  fromWater: 6, fromStart: 11, fromEdge: 2, apart: 7, fromOasis: 9, fromRoad: 4, least: 0.5, spread: 8, floor: 0.45,
 };
 
 // Task 2 (ruling 462) retuned by Task 3b: the green band (src/render/grass.js, and the sim's one moisture field, src/sim/moisture.js). river / oasis: tiles the

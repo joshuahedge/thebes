@@ -7,6 +7,7 @@ import { T as TER } from '../sim/terrain.js';
 import { allBuildings } from '../sim/world.js';
 import { hashKey } from '../sim/daily.js';
 import { TERRAIN, UI } from '../render/art/palette.js';
+import { hasNewLand } from '../data/s47.js';
 import { SCORE_TEXT, SHARE_TEXT, medalText, DIFFICULTY_NAMES } from './text.js';
 
 // The ISO week of a local date: { year, week }, the week-year being the year of that week's Thursday.
@@ -94,11 +95,12 @@ const TERRAIN_COLOURS = { [TER.DESERT]: TERRAIN.sand, [TER.FERTILE]: TERRAIN.fer
 
 // A top-down map of the terrain (and, when given, the roads and buildings of a world) in the square (x, y, px):
 // the title card's stamps and the picture card when no view of the city is at hand.
-export function drawMapSquare(g, { size, terrain, road = null, buildings = [] }, x, y, px) {
+export function drawMapSquare(g, { size, terrain, road = null, buildings = [], land = false }, x, y, px) {   // land: a map with new land draws its rock in the belt's colour (Task 3b)
   const s = px / size;
   for (let ty = 0; ty < size; ty++) {
     for (let tx = 0; tx < size; tx++) {
-      g.fillStyle = TERRAIN_COLOURS[terrain[ty * size + tx]] || TERRAIN.sand;
+      const t = terrain[ty * size + tx];
+      g.fillStyle = (land && t === TER.ROCKY ? TERRAIN.beltRock : TERRAIN_COLOURS[t]) || TERRAIN.sand;
       g.fillRect(x + tx * s, y + ty * s, Math.ceil(s), Math.ceil(s));
     }
   }
@@ -130,7 +132,7 @@ export function pictureCard(world, score, { createCanvas = null, view = null } =
   if (view && view.width > 0 && view.height > 0) {
     const s = Math.min(view.width, view.height);
     g.drawImage(view, (view.width - s) / 2, (view.height - s) / 2, s, s, 30, 30, side, side);
-  } else drawMapSquare(g, { size: world.size, terrain: world.terrain, road: world.road, buildings: allBuildings(world) }, 30, 30, side);
+  } else drawMapSquare(g, { size: world.size, terrain: world.terrain, road: world.road, buildings: allBuildings(world), land: hasNewLand(world) }, 30, 30, side);
   g.strokeStyle = CARD.paper2; g.lineWidth = 4; g.strokeRect(30, 30, side, side);
   const x = 30 + side + 50, right = CARD.w - 50;
   g.textBaseline = 'alphabetic';

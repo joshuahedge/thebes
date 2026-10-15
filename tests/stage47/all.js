@@ -6,6 +6,7 @@ import './resources/guarantee.test.js';
 import './land/oases.test.js';
 import './land/grass.test.js';
 import './land/belts.test.js';
+import './land/review3b.test.js';
 import './hills/hills.test.js';
 import './hills/walk.test.js';
 import './hills/art.test.js';

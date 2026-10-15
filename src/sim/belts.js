@@ -54,6 +54,7 @@ export function placeBelts(terrain, size, seed, { focus, ranges, oases = [], sta
   }
   const wd = distFrom(size, water), pd = distFrom(size, pools), rd = distFrom(size, startRoad.map(([x, y]) => idx(size, x, y)));
   const clear = (i) => wd[i] > BELTS.fromWater && pd[i] >= BELTS.fromOasis && rd[i] >= BELTS.fromRoad;
+  let minScale = 1;   // the share of BELTS.minLen a belt must reach: 1 until a map would have no belt at all (below)
   let spread = 0;   // tiles the layout's x ranges are widened by: 0 until a map would be left with too little rock (below)
   const inRange = (x) => ranges.some(([x0, x1]) => x >= x0 - spread && x <= x1 + spread);
   const edge = (x, y) => Math.min(x, y, size - 1 - x, size - 1 - y);
@@ -71,9 +72,9 @@ export function placeBelts(terrain, size, seed, { focus, ranges, oases = [], sta
     const [x0, x1] = ranges[ri].map((v, j) => v + (j ? spread : -spread));
     for (let t = 0; t < BELTS.tries; t++) {
       const u = (j) => hash2(k * 7919 + t, j, salt);
-      const len = (BELTS.length[0] + u(3) * (BELTS.length[1] - BELTS.length[0])) * Math.max(0.75, scale);
-      const heading = (u(4) - 0.5) * 2 * BELTS.slant;   // radians off the +y line (the way the river runs)
-      const reach = Math.min(size / 2 - 4, (len / 2) * Math.cos(heading) + 3);   // the middle is drawn far enough from the edges for the whole belt to fit
+      const len = (BELTS.length[0] + u(3) * (BELTS.length[1] - BELTS.length[0])) * Math.max(0.75, scale) * Math.min(1, minScale + 0.2);   // the last-resort tries draw shorter belts
+      const heading = (u(4) - 0.5) * 2 * (minScale < 1 ? 1.45 : BELTS.slant);   // radians off the +y line (the way the river runs)
+      const reach = Math.min(size / 2 - 4, (len / 2) * Math.cos(heading) * 0.7 + 3);   // the middle is drawn far enough from the edges for most of the belt to fit (the edge cuts the rest)
       const sx = x0 + 2 + u(1) * Math.max(1, x1 - x0 - 3), sy = reach + u(2) * (size - 2 * reach);
       if (!usable(sx, sy)) continue;
       const bend = (s) => heading + (valueNoise(s * 0.5 + 40 * k, 7 + t, salt, 5) - 0.5) * 2 * BELTS.bend;
@@ -92,7 +93,7 @@ export function placeBelts(terrain, size, seed, { focus, ranges, oases = [], sta
       const back = walk(-1), fwd = walk(1);
       const path = [...back.reverse(), [sx, sy], ...fwd];
       const length = (path.length - 1) * STEP;
-      if (length < BELTS.minLen * Math.max(0.75, scale)) continue;
+      if (length < BELTS.minLen * Math.max(0.75, scale) * minScale) continue;
       const W = BELTS.width[0] + u(5) * (BELTS.width[1] - BELTS.width[0]);
       const line = path.map(([x, y], n) => {
         const s = n * STEP, fromEnd = Math.min(s, length - s);
@@ -131,6 +132,13 @@ export function placeBelts(terrain, size, seed, { focus, ranges, oases = [], sta
     spread = 0;
     if (!lay(total + 2 + ri, ri)) { spread = BELTS.spread; lay(total + 2 + ri + ranges.length, ri); }
   }
-  spread = spread0;
+  // every map holds at least one belt, and rock for BELTS.floor of its target: a map the ranges and the oases leave none (a small lake layout) widens the ranges to the whole map, then shortens the belt
+  const enough = () => belts.length && made >= target * BELTS.floor;   // and at least BELTS.floor of the rock a map wants
+  for (const [sp, ms] of [[BELTS.spread * 2, 1], [size, 1], [size, 0.6]]) {
+    if (enough()) break;
+    spread = sp; minScale = ms;
+    for (let k = 0; k < 8 && !enough(); k++) lay(total + 10 + k, k % ranges.length);
+  }
+  spread = spread0; minScale = 1;
   return { belts, made };
 }

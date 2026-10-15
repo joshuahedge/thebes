@@ -77,6 +77,15 @@ describe('s47 hills', () => {
     expect([...seen['64 east']].every((n) => n >= 2 && n <= 5) && seen['64 east'].size >= 3).toBe(true);   // the seeded draw really varies
   });
 
+  it('gives every new-land map at least one rock belt (200 seeds of every size and layout), and none on classic at Normal', () => {
+    const bad = [];
+    for (const { size, variant, seed, m } of maps()) {
+      if (classicNormal(variant, size)) { if (m.belts.length) bad.push(`${size} ${variant} #${seed}: belts on classic 64`); continue; }
+      if (!m.belts.length) bad.push(`${size} ${variant} #${seed}: no belt`);
+    }
+    expect(bad.slice(0, 8)).toEqual([]);
+  });
+
   it('keeps the plan\'s distances: 7 from any water, 9 from an oasis pool, off the start area, raider entries, the trade entry, the bridge spot and the start road', () => {
     const bad = [];
     for (const { size, variant, seed, m } of maps()) {

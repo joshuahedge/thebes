@@ -54,6 +54,7 @@ export const TERRAIN = {
   clay: '#C9582F', claySoft: '#DD7F52', claySecond: '#AD4627', clayCrack: '#6A2F1C', clayHollow: '#8C3A20', clayLip: '#E9A57A',   // terracotta ground along the banks
   wadi: '#CDB07C', wadiPebble: '#A8906E', wadiCrack: '#B79B6A',   // Stage 4.6: a dry riverbed on the desert (decor)
   rocky: '#D3B582', rockySecond: '#C4A574', rockySoft: '#E0C898', pebble: '#B39C82', pebbleLight: '#D9C7A8',
+  beltRock: '#B2A68C',   // Stage 4.7 Task 3b: the body of a rock belt on a new map (src/render/rockBelts.js), also the rock on the minimap and the share card
   hills: '#93806F', hillsSoft: '#B49E80', hillsSecond: '#A58D74',   // Stage 4.7: hill ground under the mounds, and the hills' colour on the minimap and the share card
   water: '#2E8C96', waterDeep: '#1E6A7C', waterLight: '#86CBC4', shallows: '#4DB6AE', foam: '#DDF4F1', ripple: '#B8E6E2',
   road: '#DCC08C', roadEdge: '#C2A274', roadPebble: '#B39466', roadPebbleLight: '#F2E2BC',

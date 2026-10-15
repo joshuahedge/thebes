@@ -10,10 +10,10 @@
 import { p } from './iso.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
-import { SHADOW } from './art/palette.js';
+import { SHADOW, TERRAIN } from './art/palette.js';
 
 export const BELT = {
-  scree: '#E0CDA2', edge: '#CDBE9B', body: '#B2A68C', hill: '#87806C',
+  scree: '#E0CDA2', edge: '#CDBE9B', body: TERRAIN.beltRock, hill: '#87806C',
   rim: '#F6EDD2', toe: '#6A5A78',
   boulder: '#A09282', boulderLit: '#D7CBB2', boulderShade: '#7D707E',
   strata: '#6C5F66', strataLit: '#F3E9CC',

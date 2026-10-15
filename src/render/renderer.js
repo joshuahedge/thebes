@@ -14,8 +14,8 @@ import { isBridgeTile, DECK } from './terrainBridges.js';
 import { hash2 } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
-import { hasNewLand } from '../data/s47.js';
-import { landTrees, LAND_TREES } from './grass.js';
+import { hasNewLand, GRASS } from '../data/s47.js';
+import { landTrees, LAND_TREES, moistureAt } from './grass.js';
 import { hillsIn } from './hills.js';
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
@@ -32,7 +32,7 @@ export function decorAt(world, x, y) {
   if (t === T.MEADOW) return r < 0.08 ? 'palm' : r < 0.12 ? 'acacia' : land ? LAND_TREES[landTrees(world)[i]] : null;
   if (t === T.FERTILE) return r < 0.025 ? 'palm' : land ? LAND_TREES[landTrees(world)[i]] : null;
   if (t === T.BANK) return r < 0.06 ? 'palm' : land ? LAND_TREES[landTrees(world)[i]] : null;
-  if (t === T.DESERT) return r < 0.006 ? 'acacia' : land ? LAND_TREES[landTrees(world)[i]] : null;
+  if (t === T.DESERT) return r < 0.006 ? (!land || moistureAt(world, i) >= GRASS.tiers[0] ? 'acacia' : null) : land ? LAND_TREES[landTrees(world)[i]] : null;   // Task 3b: a new map's acacias stand only where the green reaches
   return null;
 }
 
