@@ -78,7 +78,7 @@ export function createMapInput({ canvas, cam, view, cameraControl, store, action
 
   const onDown = (ev) => {
     stoppedFling = Boolean(cameraControl.flinging);                     // any touch stops a fling, and is not a tap on whatever is under it
-    if (stoppedFling) cameraControl.cancel();
+    cameraControl.cancel();                                              // and any touch stops a Show me glide or a zoom tween too (a fling alone also swallows the tap)
     const type = ev.pointerType === 'pen' ? 'pen' : ev.pointerType === 'touch' ? 'touch' : 'mouse';
     store.set({ inputType: type });
     root.dataset.input = type;

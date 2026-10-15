@@ -47,6 +47,7 @@ async function topBar(w, h, size, { gold, people, day, income, jobless, food }, 
 
 const TYPICAL = { gold: 2493, people: 317, day: 360, income: 233, jobless: 72, food: 7.3 };
 const BIG = { gold: 123456, people: 1317, day: 11 * 360 + 300, income: -1234, jobless: 312, food: 12.5 };
+const LATE = { gold: 166748, people: 1090, day: 15 * 360, income: 1850, jobless: 40, food: 9.6 };   // the late balance run's figures at year 15 (contract section 13)
 
 describe('v50 advice top bar', () => {
   it('holds the numbers on one row (two at 125% text, as before) beside the advice and menu buttons on the phones the budget names', async () => {
@@ -70,6 +71,16 @@ describe('v50 advice top bar', () => {
           const m = await topBar(w, h, size, nums, { dot: true });
           if (m.rows > 2 || m.cut.length || m.overflow || !m.clear || !m.menuIn || !m.advice.inBar || !m.advice.beforeMenu) wrong.push(`${w}x${h} ${size}% ${name}: ${JSON.stringify(m)}`);
         }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+  it('keeps the figures of the late game (166,748 gold, 1,090 people) on at most two rows, whole and clear, at 375 wide and 150% text and on the other phones and sizes', async () => {
+    const wrong = [];
+    for (const [w, h] of [[375, 667], [360, 640], [390, 844]]) {
+      for (const size of [100, 125, 150]) {
+        const m = await topBar(w, h, size, LATE, { dot: true });
+        if (m.rows > 2 || m.cut.length || m.overflow || !m.clear || !m.menuIn || !m.advice.inBar || !m.advice.beforeMenu) wrong.push(`${w}x${h} ${size}%: ${JSON.stringify(m)}`);
       }
     }
     expect(wrong).toEqual([]);

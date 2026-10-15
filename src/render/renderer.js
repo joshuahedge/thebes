@@ -195,7 +195,7 @@ export function createRenderer({
         const vis = visibleChunks(range);
         let cx0 = Infinity, cx1 = -Infinity, cy0 = Infinity, cy1 = -Infinity;
         for (const { cx, cy } of vis) { cx0 = Math.min(cx0, cx); cx1 = Math.max(cx1, cx); cy0 = Math.min(cy0, cy); cy1 = Math.max(cy1, cy); }
-        const rk = `,,,||`;
+        const rk = `${cx0},${cy0},${cx1},${cy1}|${zoom}|${dpr}`;
         if (rk !== ring.key) ring = { key: rk, done: false };
         if (!ring.done && vis.length) {
           const n = Math.ceil(world.size / CHUNK), mid = [(cx0 + cx1) / 2, (cy0 + cy1) / 2];

@@ -248,6 +248,13 @@ export function buildFixFor(world, house, cause, need) {
   return r.fix && r.fix.item ? r.fix : null;
 }
 
+// Version 5.0 (final review): the build fix a cause would make when its item is not unlocked yet, { item, milestone }, else null: a checklist row says what the next step
+// says (Locked: it comes with the milestone) instead of offering a Show me the sim would refuse.
+export function lockedFixFor(world, house, cause, need) {
+  const r = cause ? fixFor(world, cause, house, need) : {};
+  return r.locked || null;
+}
+
 // ── A home's next step (Task 2) ──
 
 // Three kinds of food includes two (the house sheet's rule), so a list with the first leaves the second out.
@@ -339,8 +346,10 @@ function runningOutItems(world, out) {
     const homes = housesOf(world).filter((h) => h.tier >= 1 && needsOf(h.tier).includes(need));
     if (!homes.length) continue;
     const make = need === 'food' ? { item: 'farm_grain', at: 'terrain' } : unmadeFix(world, { good: need });
+    // Review fix: the fix goes beside the building the chain is stuck at (make.near: a store beside the maker with nowhere to put its goods) when unmadeFix names one.
+    const by = make && make.near !== undefined ? world.buildings[make.near] || null : null;
     const fixed = make && isUnlocked(world, make.item)
-      ? priced(world, { item: make.item, at: BUILDINGS[make.item].terrain ? 'terrain' : 'near', target: centreOf(store) })
+      ? priced(world, { item: make.item, at: BUILDINGS[make.item].terrain ? 'terrain' : 'near', target: centreOf(by || store), ...(by ? { near: by.id } : {}) })
       : undefined;
     const data = { need, goods, held, used, made, monthsLeft: Math.round((held / drain) * 10) / 10, homes: homes.map((h) => h.id), store: store.id };
     out.push(item(`running_out:${need}`, 'running_out', homes.reduce((s, h) => s + h.tier, 0), homes.length, store.id, data, fixed));

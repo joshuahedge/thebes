@@ -125,6 +125,21 @@ describe('v50 advice words: the city', () => {
     expect(home.tier).toBe(5);
   });
 
+  it('a good running out because its maker has nowhere to put it: the fix goes beside that maker and says it gives room, not that it makes more', () => {
+    const { w } = street({ tier: 5, milestone: 'town' });
+    addRaw(w, 'storehouse', 4, 8, { store: { pottery: 40 } });
+    addRaw(w, 'clay_pit', 2, 20, { staff: 4 });
+    const potter = addRaw(w, 'potter', 40, 30);
+    staffAll(w);
+    potter.blocked = 'no_storage';
+    w.stats.lastMonth = { used: { pottery: 30 }, made: {} };
+    const { a, t } = words(w, 'running_out', (x) => x.data.need === 'pottery');
+    expect([a.fix.item, a.fix.near, a.fix.target]).toEqual(['storehouse', potter.id, { x: potter.x + potter.w / 2, y: potter.y + potter.d / 2 }]);   // beside the maker, not the store that holds the stock
+    expect(t.fix).toBe('Build another storehouse near the potter so there is room to keep more');
+    expect(t.fix.includes('make more')).toBe(false);
+    expect(t.cost).toBe(`Storehouse: ${costOf(w, 'storehouse')} gold`);
+  });
+
   it('food running out names the grain farm: "a grain farm" with none, "another" with one', () => {
     const { w } = street({ tier: 4 });
     addRaw(w, 'granary', 4, 8, { store: { grain: 40 } });

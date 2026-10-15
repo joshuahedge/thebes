@@ -9,8 +9,8 @@
 //                           needs 20), a raid needing 6 towers with 2 working (40), 6 homes by water (12)
 //   late     year 15       the same two (108, 100), then 14 homes sick (42) and 17 at crime risk (34); 8 towers, no raid item
 //   grand    year 10       home_need, 16 homes by entertainment (96), then crime in 25 homes (50), 8 homes held back by room for a manor (48), a raid short 3 towers (30)
-//   the capital run's first raid warning (month 22, 18 raiders, 2 of 6 towers): booth 108, sphinx 100, the raid 80 (4 towers short, doubled while warned), crime 54;
-//                           the second warning (year 12, 24 raiders): the raid first at 120. Left as is: the booth costs 50 gold and the raid item is third of five shown.
+//   the capital run's first raid warning (month 22, 18 raiders, 2 of 6 towers): the raid 120 (4 towers short, tripled while warned; ruling 600), booth 108, sphinx 100;
+//                           the second warning (year 12, 24 raiders): the raid first at 180.
 import { describe, it, expect } from '../../harness.js';
 import { villageRun46 } from '../../stage46/balance/villageRun.js';
 import { capitalRun } from '../../stage4/balance/capitalRun.js';
@@ -58,18 +58,19 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     expect(sensible(w, items[2]).what).toContain('needs 6 towers; 2 are working');
   });
 
-  it('a raid that is warned and short of towers is within the first three of the advice, and first once it is the late raid (24 raiders)', () => {
+  it('a raid that is warned and short of towers is first at the first warning (18 raiders, 2 of 6 towers) and at the second (24 raiders)', () => {
     const w = deserialize(serialize(capitalRun().w));
     const seen = [];
     for (let m = 0; m < 80 && seen.length < 2; m++) {
       const events = [];
       advanceDays(w, 30, events);
-      if (events.some((e) => e.type === 'raid_warning')) { const items = top(w, 5); seen.push(items.map((x) => x.kind)); }
+      if (events.some((e) => e.type === 'raid_warning')) { const items = top(w, 5); seen.push({ kinds: items.map((x) => x.kind), raid: items.find((x) => x.kind === 'raid_towers'), size: w.raid.warning && w.raid.warning.size }); }
     }
     expect(seen.length).toBe(2);
-    expect(seen[0].indexOf('raid_towers')).toBeLessThanOrEqual(2);
-    expect(seen[1][0]).toBe('raid_towers');
-    expect(ADVICE.towerWarned).toBe(2);
+    expect(seen[0].kinds[0]).toBe('raid_towers');                                      // ruling 600: ahead of the booth (108) and the sphinx (100)
+    expect([seen[0].size, seen[0].raid.data.need, seen[0].raid.data.have, seen[0].raid.count, seen[0].raid.weight]).toEqual([18, 6, 2, 4, 4 * ADVICE.tower * 3]);
+    expect(seen[1].kinds[0]).toBe('raid_towers');
+    expect(ADVICE.towerWarned).toBe(3);
   });
 
   it('the late run, at year 15, names the same two homes\' wants, then sickness and crime; its towers are enough, so no raid item', () => {

@@ -12,7 +12,7 @@ import { createGestures } from '../../../src/ui/gestures.js';
 import { drawMarkers, CROWD } from '../../../src/render/markers.js';
 import { createRenderer, cullControl } from '../../../src/render/renderer.js';
 import { createSpriteCache } from '../../../src/render/spriteCache.js';
-import { createCamera } from '../../../src/render/camera.js';
+import { createCamera, CHUNK } from '../../../src/render/camera.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { buildStressCity } from '../../../src/dev/sampleCity.js';
 import { DRAG_THRESHOLD_PX, TWO_TAP_MS } from '../../../src/data/ui.js';
@@ -118,6 +118,19 @@ describe('v50 balance: the terrain ring round the view is baked ahead when the f
     cam.x += 5; cam.y += 5;
     const moved = renderer.renderFrame(w, cam, { view: V });
     expect([moved.bakes, moved.stale]).toEqual([0, 0]);
+  });
+  it('a pan of one whole chunk onto chunks already baked finds them ready, then the idle frames bake the new ring round the moved view', () => {
+    const w = buildStressCity(createWorld({ seed: 3, size: 128 }));
+    const renderer = createRenderer({ canvas: makeCanvas(V.width, V.height), dpr: 1, spriteCache: createSpriteCache() });
+    const cam = createCamera({ x: 40, y: 40, zoom: 1 });
+    frames(renderer, w, cam, 80);                                        // the ring round the first view is whole
+    expect(frames(renderer, w, cam, 3).prebakes).toBe(0);
+    cam.x += CHUNK;                                                      // one whole chunk along, onto chunks the old ring baked
+    const moved = renderer.renderFrame(w, cam, { view: V });
+    expect(moved.stale).toBe(0);
+    let pre = moved.prebakes;
+    for (let i = 0; i < 20; i++) pre += renderer.renderFrame(w, cam, { view: V }).prebakes;
+    expect(pre).toBeGreaterThan(0);                                      // the ring key follows the visible chunk range, so the new ring is baked (a constant key left it skipped)
   });
   it('is the old behaviour with the cull off: no pre-baking', () => {
     const w = buildStressCity(createWorld({ seed: 3, size: 64 }));

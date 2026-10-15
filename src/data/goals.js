@@ -71,7 +71,7 @@ export const GOALS = [
   { id: 'great_city', chapter: 'grand', text: 'Reach 650 people for a Great city', reward: GOAL_REWARD, need: { kind: 'people', n: 650 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'linen', chapter: 'grand', from: 'great_city', text: 'Build a flax farm and a weaver', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'farm_flax', n: 1 }, { kind: 'building', type: 'weaver', n: 1 }] }, showMe: { category: 'industry', item: 'farm_flax', target: 'fertile' } },
   // Version 5.0 (Task 7, rulings 580-599): once Fine manors stand and the weaver comes, a Villa's other two wants come one at a time: a third kind
-  // of food (need foods: kinds of food the city makes, a working maker of each), then a Fine manor's street raised to the Villa's desirability
+  // of food (need foods: the most kinds of food any one home holds in stock, as the home check counts them, so a maker whose food no bazaar carries to a home does not count), then a Fine manor's street raised to the Villa's desirability
   // (need desirability: a home a tier below `tier` scoring that tier's rise, src/sim/desirability.js), and the same for an Estate after the
   // jewellery. The numbers and names come from the data (TIERS, GOODS); Show me 'grand' aims at the decoration the house sheet names (desirabilityFix).
   { id: 'third_food', chapter: 'grand', from: 'great_city', text: `Bring in a third food: ${GOODS.game.name.toLowerCase()} or ${GOODS.fish.name.toLowerCase()}`, why: `${TIERS[8].name}s need three kinds of food. A hunting lodge by a herd or a fishing wharf on the river adds one.`, reward: GOAL_REWARD, need: { kind: 'foods', n: 3 }, showMe: { category: 'food', item: 'hunting_lodge', target: 'herd' } },

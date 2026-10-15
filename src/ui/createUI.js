@@ -329,7 +329,11 @@ export function createUI({
     store.set(pickCategory(store.get(), category || categoryOfItem(item)));
     const tool = given || toolForItem(item);
     const def = tool.kind === 'building' ? BUILDINGS[tool.type] : null;
-    placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : null);   // road, plot and demolish tools ignore the point
+    // Version 5.0 (final review): Show me from a road bar's own refusal (the spot a Route is blocked at, a bridge's place) leaves the road tool as it is, so the player's start and end
+    // (or plan) stay; starting it again would clear them. Any other tool, or a gate card, starts as before.
+    const open = store.get().tool;
+    const keepRoad = tool.kind === 'road' && !tool.gate && open && open.kind === 'road' && !open.gate;
+    if (!keepRoad) placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : null);   // road, plot and demolish tools ignore the point
     const g = def ? store.get().ghost : null;
     const dims = g ? dimsOf(tool.type, store.get().tool.rot || 0) : null;
     const keep = g ? { x: g.x + dims.w / 2, y: g.y + dims.d / 2 } : { x, y };
