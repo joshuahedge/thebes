@@ -41,16 +41,34 @@ export function yearOutput(world, good) {
   return outputPerMonth(world, good) * MONTHS_PER_YEAR;
 }
 
+// The most a good's stores held at any month end this year (ruling 480: a quota asks only goods that rest in the stores; farms fill the granary and the
+// bazaars empty it again, so the year's output alone can be far more than a store ever held). court.yearMade.kept[good], kept by pressureMonth;
+// with no such record (an old save, or a snapshot from before it) what the stores hold now.
+export function keptOf(world, good) {
+  const y = world.court.yearMade;
+  return y && y.kept ? y.kept[good] || 0 : stockOf(world, good);
+}
+function keepStock(world) {
+  const y = world.court.yearMade;
+  if (!y) return;
+  if (!y.kept) y.kept = {};
+  for (const good of QUOTA_POOL) y.kept[good] = Math.max(y.kept[good] || 0, stockOf(world, good));
+}
+
 // What the year's quota would ask now (ruling 469): [{ good, base }], up to QUOTA.goods goods from QUOTA_POOL, those the city made (or traded
-// for) most of by value last year, each with a year's output of at least QUOTA.least, base = QUOTA.share (by difficulty) of it, rounded.
+// for) most of by value last year, each with a year's output of at least QUOTA.least, base = QUOTA.share (by difficulty) of it, rounded, and never more than the stores held (ruling 480: keptOf, askOf; a good whose stores never held QUOTA.min is not asked).
 export function quotaAsk(world) {
   const share = QUOTA.share[world.difficulty] ?? QUOTA.share.normal;
-  const rows = QUOTA_POOL.map((good, i) => ({ good, i, out: yearOutput(world, good) }))
-    .filter((r) => r.out >= QUOTA.least)
+  const rows = QUOTA_POOL.map((good, i) => ({ good, i, out: yearOutput(world, good), kept: keptOf(world, good) }))
+    .filter((r) => r.out >= QUOTA.least && r.kept >= QUOTA.min)
     .sort((a, b) => b.out * (GOOD_VALUE[b.good] || 1) - a.out * (GOOD_VALUE[a.good] || 1) || a.i - b.i)
     .slice(0, QUOTA.goods);
-  return rows.sort((a, b) => a.i - b.i).map((r) => ({ good: r.good, base: roundTo(r.out * share, QUOTA.step, QUOTA.min), out: Math.round(r.out) }));
+  return rows.sort((a, b) => a.i - b.i).map((r) => ({ good: r.good, base: askOf(r.out * share, r.kept), out: Math.round(r.out) }));
 }
+
+// A good's ask: its share of the year's output rounded to QUOTA.step (at least QUOTA.min) as ever, but when that is more than the stores held, what they
+// held rounded down to the step (still at least QUOTA.min: a good whose stores never held that much is not asked at all).
+const askOf = (want, kept) => { const base = roundTo(want, QUOTA.step, QUOTA.min); return base <= kept ? base : Math.max(QUOTA.min, Math.floor(kept / QUOTA.step) * QUOTA.step); };
 
 // The gift a met quota pays (fixed when it is asked): QUOTA.giftShare of the quota's value, rounded.
 const giftFor = (goods) => roundTo(QUOTA.giftShare * goods.reduce((n, g) => n + g.amount * (GOOD_VALUE[g.good] || 1), 0), QUOTA.giftStep, QUOTA.giftMin);
@@ -181,12 +199,13 @@ function quotaReminder(world, events) {
 
 // At every month's end (runMonth): the year's work on the month end that begins a year (see the head of this file).
 export function pressureMonth(world, events = null) {
+  keepStock(world);
   if (world.day % DAYS_PER_YEAR !== 0) { quotaReminder(world, events); return; }
   const c = world.court;
   const year = dateOfDay(world.day).year;
   const carry = endQuotaYear(world, events);
   if (courtOpen(world) && year >= QUOTA.fromYear) askQuota(world, carry, events);
-  if (courtOpen(world)) c.yearMade = { day: world.day, made: { ...(world.tally.made || {}) } };   // a closed court keeps no record (it asks nothing)
+  if (courtOpen(world)) { c.yearMade = { day: world.day, made: { ...(world.tally.made || {}) }, kept: {} }; keepStock(world); }   // a closed court keeps no record (it asks nothing)
   if (events && year === QUOTA.warnYear && courtOpen(world)) events.push({ type: 'quota_warning', year: QUOTA.fromYear });
   if (events && year === RAIDS_LATE.warnYear && raidsOn(world)) {
     events.push({ type: 'raids_grow', year: RAIDS_LATE.fromYear, cap: RAIDS_LATE.cap[world.difficulty] || 0, goldPer: RAIDS_LATE.goldPer, peoplePer: RAIDS_LATE.peoplePer });

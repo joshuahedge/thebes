@@ -354,6 +354,7 @@ function dispatch(world, home, stores) {
   if (!trip) return;
   const { good, found, amount } = trip;
   found.b.store[good] -= amount;
+  if (found.b.store[good] <= 0) delete found.b.store[good];
   const { turn, due } = tripTimes(found.len, world.day);
   world.carts.push({ id: home.id, from: found.b.id, to: home.id, good, amount, len: found.len, left: world.day, turn, due, state: 'out' });
 }

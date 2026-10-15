@@ -973,7 +973,7 @@ export function createUI({
     hud.render();
     if (s.layout === 'wide' && !s.panelFolded) panelMinimap.render(alerts.list());
     if (s.sheet && s.sheet.kind === 'minimap') sheetMinimap.render(alerts.list());
-    if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; syncDaily(); refreshDaily(); }
+    if (world.day !== lastDay) { lastDay = world.day; ghostsDirty = true; syncDaily(); refreshDaily(); if (spotsOn(store.get(), world)) legend.render(); }   // the spots move with the day (a well finished, a road laid): the legend's empty or keyed words follow
     tickNudge(s);
   }
   // Once a frame (early-game pass 3.5): the nudge's glow on Show me, then its one line, then nothing more. The Play tip's

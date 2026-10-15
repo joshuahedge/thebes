@@ -105,7 +105,7 @@ export function createCartsUi(ctx) {
     }
     // A refusal says why, and where to look.
     const ref = refused.get(key);
-    if (ref && ref.day === world.day && !on) {
+    if (ref && ref.day === world.day) {
       li.append(el('p', { class: 'fetch-line small coral fetch-refusal', role: 'status', text: W.refusal(ref.result) }));
       if (ref.result.reason === 'refuses') li.append(acceptShowMe(good));
     }

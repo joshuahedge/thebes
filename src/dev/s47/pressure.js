@@ -10,7 +10,8 @@ import { setGuide, previewHouses, paintHouses, canPlace, place } from '../../sim
 import { assignLabour } from '../../sim/labour.js';
 import { allBuildings, housesOf } from '../../sim/world.js';
 import { courtDay, outputPerMonth } from '../../sim/court.js';
-import { pressureMonth, quotaOf, sendQuota } from '../../sim/pressure.js';
+import { pressureMonth, quotaOf, sendQuota, QUOTA_POOL } from '../../sim/pressure.js';
+import { MONTHS_PER_YEAR } from '../../sim/time.js';
 import { raidDay, wealthDraw } from '../../sim/raids.js';
 import { mergeSquare, mergeHouses } from '../../sim/merge.js';
 import { touchesRoad } from '../../sim/reach.js';
@@ -51,7 +52,12 @@ export const quotaScene = async (api, options = {}) => {
   } else {
     w.day = (QUOTA.fromYear - 1) * YEAR;
     w.court.yearMade = null;                                     // a year's output from the court's own outputPerMonth (no snapshot a year old)
+    // Ruling 480: only goods that rested in a store are asked, so each good the city makes rests there a moment (as a year's worth of stock at the ask), then the stores are emptied again.
+    const rested = QUOTA_POOL.filter((good) => outputPerMonth(w, good) > 0).map((good) => ({ good, store: storeFor(w, good) })).filter((r) => r.store);
+    const before = rested.map((r) => r.store.store[r.good] || 0);
+    for (const r of rested) r.store.store[r.good] = Math.ceil(outputPerMonth(w, r.good) * MONTHS_PER_YEAR);
     pressureMonth(w);                                            // asks year 8's quota, as the month end that begins the year does
+    rested.forEach((r, i) => { r.store.store[r.good] = before[i]; if (!r.store.store[r.good]) delete r.store.store[r.good]; });
     const q = quotaOf(w);
     w.day += 2 * MONTH;
     if (q && state === 'met') {
