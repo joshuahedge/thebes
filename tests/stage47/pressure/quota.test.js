@@ -1,9 +1,10 @@
 // Stage 4.7, Task 7 (ruling 469): the yearly tribute quota (src/sim/pressure.js) and its words on the court sheet (src/ui/s47/pressure.js).
 import { describe, it, expect } from '../../harness.js';
 import { courtWorld, YEAR, MONTH } from '../../stage46/court/courtHelpers.js';
-import { pressureMonth, quotaAsk, quotaOf, quotaStatus, sendQuota, yearOutput, carryIfMissed, nextQuotaDay } from '../../../src/sim/pressure.js';
+import { pressureMonth, quotaAsk, quotaOf, quotaStatus, sendQuota, yearOutput, carryIfMissed, nextQuotaDay, keptOf, QUOTA_POOL } from '../../../src/sim/pressure.js';
 import { outputPerMonth, stockOf, favourChange } from '../../../src/sim/court.js';
-import { QUOTA } from '../../../src/data/s47.js';
+import { QUOTA, RAIDS_LATE } from '../../../src/data/s47.js';
+import { TIERS, useOf } from '../../../src/data/housing.js';
 import { GOOD_VALUE } from '../../../src/data/court.js';
 import { serialize, deserialize, validateWorld } from '../../../src/save/serialize.js';
 import { quotaNodes } from '../../../src/ui/s47/pressure.js';
@@ -19,7 +20,7 @@ function quotaCity({ difficulty = 'normal', made = { pottery: 800, grain: 4000 }
   const w = courtWorld({ open: true, difficulty });
   w.day = (QUOTA.fromYear - 1) * YEAR;
   w.tally.made = { ...made };
-  w.court.yearMade = snapshot ? { day: w.day - YEAR, made: {} } : null;
+  w.court.yearMade = snapshot ? { day: w.day - YEAR, made: {}, kept: Object.fromEntries(QUOTA_POOL.map((g) => [g, 1e6])) } : null;   // the stores held plenty (ruling 480 has its own tests below)
   w.court.letters = []; w.court.request = null; w.court.nextRequestDay = w.day + 10 * YEAR; w.court.nextCardDay = w.day + 10 * YEAR;
   return w;
 }
@@ -72,7 +73,68 @@ describe('s47 quota: when it is asked', () => {
     // The snapshot is taken at each year's start with the court open, so next year's output is this year's rise.
     const v = quotaCity({ made: { pottery: 900 } });
     pressureMonth(v);
-    expect(v.court.yearMade).toEqual({ day: v.day, made: { pottery: 900 } });
+    expect([v.court.yearMade.day, v.court.yearMade.made]).toEqual([v.day, { pottery: 900 }]);
+    expect(v.court.yearMade.kept.pottery).toBe(stockOf(v, 'pottery'));      // the new year's record of what the stores hold starts at once
+  });
+});
+
+describe('s47 quota: only what the stores held (ruling 480)', () => {
+  const drain = (w) => { for (const b of allBuildings(w)) for (const g of QUOTA_POOL) if (b.store && b.store[g]) b.store[g] = 0; };
+  it('keeps the most each good\'s stores held at any month end of the year, and asks no grain when the granary was drained at every month end', () => {
+    const w = quotaCity({ made: { pottery: 800, grain: 4000 }, snapshot: false });
+    w.day = (QUOTA.fromYear - 2) * YEAR;
+    w.court.yearMade = { day: w.day, made: {}, kept: {} };
+    const stores = allBuildings(w).filter((b) => b.store);
+    // Eleven month ends with the granary drained (the farms fill it, the bazaars empty it again), pottery resting in the storehouse at the fourth.
+    for (let m = 1; m <= 11; m++) {
+      w.day += MONTH;
+      drain(w);
+      if (m === 4) store(w, 'storehouse').store.pottery = 120;
+      pressureMonth(w);
+      if (m === 4) store(w, 'storehouse').store.pottery = 0;
+    }
+    expect(stores.length).toBeGreaterThan(0);
+    expect([keptOf(w, 'pottery'), keptOf(w, 'grain')]).toEqual([120, 0]);
+    w.tally.made = { pottery: 800, grain: 4000 };
+    drain(w);
+    w.day = (QUOTA.fromYear - 1) * YEAR;
+    pressureMonth(w);
+    const q = quotaOf(w);
+    expect(q.goods.map((g) => g.good)).toEqual(['pottery']);                               // no grain: it was eaten and bought as made, never kept
+    expect(q.goods[0].base).toBe(100);                                                      // 12.5% of 800 is 100; the stores held 120
+  });
+
+  it('asks no more than the stores held: grain left in a store is asked, up to that, rounded down to 5 when the share is more; under QUOTA.min a good is not asked', () => {
+    const w = quotaCity({ made: { pottery: 800, grain: 4000 } });
+    w.court.yearMade.kept = { pottery: 44, grain: 300 };
+    const ask = Object.fromEntries(quotaAsk(w).map((a) => [a.good, a.base]));
+    expect(ask).toEqual({ pottery: 40, grain: 300 });                                        // 100 asked of pottery, 44 held: 40; grain 500 asked, 300 held
+    w.court.yearMade.kept = { pottery: QUOTA.min - 1, grain: QUOTA.min };
+    expect(Object.fromEntries(quotaAsk(w).map((a) => [a.good, a.base]))).toEqual({ grain: QUOTA.min });
+    w.court.yearMade.kept = { pottery: 100000, grain: 100000 };                              // plenty held: the share of the output, as before
+    expect(Object.fromEntries(quotaAsk(w).map((a) => [a.good, a.base]))).toEqual({ pottery: 100, grain: 500 });
+  });
+
+  it('with no record of what was held (an old save) reads what the stores hold now', () => {
+    const w = quotaCity({ made: { pottery: 800, grain: 4000 } });
+    delete w.court.yearMade.kept;
+    drain(w);
+    expect(quotaAsk(w)).toEqual([]);
+    store(w, 'storehouse').store.pottery = 60;
+    expect(quotaAsk(w).map((a) => [a.good, a.base])).toEqual([['pottery', 60]]);
+    const old = JSON.parse(serialize(w));
+    delete old.court.yearMade.kept;                                                          // a snapshot from before the record: still loads
+    expect(validateWorld(old)).toBe(true);
+    const bad = JSON.parse(serialize(w));
+    bad.court.yearMade.kept = 5;
+    expect(validateWorld(bad)).toBe(false);
+  });
+
+  it('says it in the quota words: the intro, the warning and the tip\'s help', () => {
+    expect(P.quotaIntro('normal')).toContain('never more than your stores held');
+    expect(P.warning([])).toContain('never more than your stores held');
+    expect(TIP_HELP_TEXT.tribute_quota).toContain('capped by your stores');           // the tip's help is short (20 words); the intro and warning say it in full
+    expect(TIP_HELP_TEXT.tribute_quota.split(' ').length <= 20).toBe(true);
   });
 });
 
@@ -248,6 +310,14 @@ describe('s47 quota: warnings, saves and words', () => {
     const shares = Object.values(QUOTA.share).map((x) => x * 100);
     expect(TIP_HELP_TEXT.tribute_quota).toContain(`${Math.min(...shares)}-${Math.max(...shares)}% of a year's output`);
     expect(TIP_HELP_TEXT.tribute_quota).toContain(`+${QUOTA.favourMet} favour (+${QUOTA.favourEarly} early); missed: −${QUOTA.favourMissed}`);
-    expect(TIP_HELP_TEXT.tribute_quota).toContain(`From year ${QUOTA.fromYear}`);
+    expect(TIP_HELP_TEXT.tribute_quota).toContain(`Tribute from year ${QUOTA.fromYear}`);
+    // The other two tips' help quotes only the data too (the raids' and the upper tiers').
+    const caps = ['relaxed', 'normal', 'hard'].map((d) => RAIDS_LATE.cap[d]);
+    expect(TIP_HELP_TEXT.raids_wealth).toContain(`From year ${RAIDS_LATE.fromYear}`);
+    expect(TIP_HELP_TEXT.raids_wealth).toContain(`${RAIDS_LATE.goldPer.toLocaleString('en-US')} gold and ${RAIDS_LATE.peoplePer.toLocaleString('en-US')} people`);
+    expect(TIP_HELP_TEXT.raids_wealth).toContain(`up to ${Math.min(...caps)}-${Math.max(...caps)} more raiders`);
+    expect(TIP_HELP_TEXT.upper_tiers).toContain(`${useOf(8)}× and ${useOf(9)}× the household goods`);
+    expect(TIP_HELP_TEXT.upper_tiers).toContain(`${TIERS[8].name} and an ${TIERS[9].name}`);
+    expect(TIP_TEXT.tribute_quota).toContain(`month ${QUOTA.early}`);
   });
 });

@@ -237,12 +237,13 @@ export function createCourtUi(ctx) {
       send: () => {
         const events = [];
         const res = sendQuota(world, events);
-        if (!res.ok) { ctx.refresh(); return; }
+        if (!res.ok) { caption(S47_PRESSURE_TEXT.empty); ctx.refresh(); return; }
         const text = res.met ? S47_PRESSURE_TEXT.captionMet(res) : S47_PRESSURE_TEXT.captionShipped(res.shipped);
         caption(text);
         answered(events, text);
       },
       select: (id) => ctx.selectBuilding(id),
+      showMeAt: (target) => ctx.showMeAt(target),
     }));
     // Letters waiting, and the request open.
     body.append(el('h3', { text: C.waiting }));

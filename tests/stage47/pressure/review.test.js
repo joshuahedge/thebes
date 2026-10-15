@@ -4,7 +4,7 @@
 import { describe, it, expect } from '../../harness.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 import { courtWorld, YEAR, MONTH } from '../../stage46/court/courtHelpers.js';
-import { pressureMonth, quotaOf, quotaAsk, quotaStatus, sendQuota, yearOutput } from '../../../src/sim/pressure.js';
+import { pressureMonth, quotaOf, quotaAsk, quotaStatus, sendQuota, yearOutput, QUOTA_POOL } from '../../../src/sim/pressure.js';
 import { outputPerMonth, stockOf } from '../../../src/sim/court.js';
 import { QUOTA, RAIDS_LATE } from '../../../src/data/s47.js';
 import { RAIDS } from '../../../src/data/raids.js';
@@ -20,7 +20,7 @@ function quotaCity({ made = { pottery: 800, grain: 4000 }, snapshot = true } = {
   const w = courtWorld({ open: true });
   w.day = (QUOTA.fromYear - 1) * YEAR;
   w.tally.made = { ...made };
-  w.court.yearMade = snapshot ? { day: w.day - YEAR, made: {} } : null;
+  w.court.yearMade = snapshot ? { day: w.day - YEAR, made: {}, kept: Object.fromEntries(QUOTA_POOL.map((g) => [g, 1e6])) } : null;
   w.court.letters = []; w.court.request = null; w.court.nextRequestDay = w.day + 10 * YEAR; w.court.nextCardDay = w.day + 10 * YEAR;
   return w;
 }
@@ -132,7 +132,7 @@ describe('s47 review7 quota sheet words and far stores', () => {
     expect(TIP_HELP_TEXT.raids_wealth).toContain('up to 3-9 more raiders, by level');
   });
 
-  it('points a quota good held only in a far store to that store, naming Fetch; a store near a bazaar does not', () => {
+  it('says nothing of Fetch on a quota good held only in a far store, because Send ships it from any store at any distance', () => {
     const w = quotaCity();
     addRaw(w, 'bazaar', 3, 8);
     const near = store(w, 'storehouse');
@@ -143,19 +143,13 @@ describe('s47 review7 quota sheet words and far stores', () => {
     far.store.pottery = 120;
     const picked = [];
     const act = { send: () => sendQuota(w), select: (id) => picked.push(id) };
-    expect(quotaOf(w).goods.some((g) => g.good === 'pottery')).toBe(true);
-    const cause = farHeld(w, 'pottery');
-    expect([cause.code, cause.id]).toEqual(['good_far', far.id]);
-    const rowOf = () => quotaNodes(w, act).find((n) => n.classList && n.classList.contains('quota-goods')).querySelector('li[data-good="pottery"]');
-    const row = rowOf();
-    const words = P.goodFar(cause, w);
-    expect(row.querySelector('.quota-far').textContent).toBe(`${words.cause}. ${words.fix}.`);
-    expect(words.fix).toContain('Fetch');
-    row.querySelector('.quota-far-actions .show-me').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(picked).toEqual([far.id]);
-    near.store.pottery = 50;                                        // pottery near the bazaar too: no far row on it
-    expect(rowOf().querySelector('.quota-far')).toBe(null);
-    expect(stockOf(w, 'pottery')).toBe(170);
+    expect(farHeld(w, 'pottery').code).toBe('good_far');                      // a house would be told to Fetch it; the tribute is not
+    const list = quotaNodes(w, act).find((n) => n.classList && n.classList.contains('quota-goods'));
+    expect(list.querySelector('.quota-far, .quota-far-actions')).toBe(null);
+    expect(list.textContent.includes('Fetch')).toBe(false);
+    expect(quotaStatus(w).goods.find((g) => g.good === 'pottery').have).toBe(120);   // the status counts the far store, and Send takes from it
+    const sent = sendQuota(w);
+    expect([sent.ok, sent.shipped.pottery > 0, far.store.pottery < 120]).toEqual([true, true, true]);
   });
 });
 

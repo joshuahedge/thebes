@@ -39,7 +39,7 @@ function swatch(kind) {
   }
   root.append(svg('polygon', { points: tile, fill: 'none', stroke: SPOT_HUE.edge, 'stroke-width': good ? 1.2 : 0.8, 'stroke-opacity': good ? 0.95 : 0.6 }));
   if (good) { root.append(iconNode('water', 7.2, 3.4, 0.9)); root.append(iconNode('market', 18.6, 3.4, 0.9)); }
-  else { root.append(iconNode('water', 8.8, 4.4, 0.72)); root.append(svg('path', { d: 'M17 4.2 L17 11.8', stroke: SPOT_HUE.edge, 'stroke-width': 0.8, 'stroke-opacity': 0.7 })); root.append(iconNode('market', 18.2, 4.4, 0.72)); }
+  else root.append(iconNode('water', 12.6, 4.4, 0.72));   // the map draws one icon on a Fair tile (the one it has), so the key shows one (its words say water or a bazaar)
   return root;
 }
 

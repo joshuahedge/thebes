@@ -70,17 +70,22 @@ const CAUSE_FIX = {
   // Stage 4.7 (Task 7, ruling 471): the good is held only in a store beyond the bazaars' supply reach: Show me selects that store (its own
   // sheet holds the Fetch control's source side), and the words name Fetch as the remedy.
   good_far: { select: true },
-  good_unmade: (cause, world) => {
-    const makers = goodMakers(cause.good);
-    if (!makers.length || makers.some((t) => !isUnlocked(world, t))) return null;
-    const item = makers.find((t) => !allBuildings(world).some((b) => b.type === t)) || makerOf(cause.good);
-    return { category: categoryOfItem(item), item, at: BUILDINGS[item].terrain ? 'terrain' : 'building' };
-  },
+  good_unmade: (cause, world) => unmadeFix(cause, world),
 };
+// The fix for a good nothing makes: its first maker the city has none of (else its last), or null while a maker is locked. The quota's Show me uses it too (src/ui/s47/pressure.js).
+export function unmadeFix(cause, world) {
+  const makers = goodMakers(cause.good);
+  if (!makers.length || makers.some((t) => !isUnlocked(world, t))) return null;
+  const item = makers.find((t) => !allBuildings(world).some((b) => b.type === t)) || makerOf(cause.good);
+  return { category: categoryOfItem(item), item, at: BUILDINGS[item].terrain ? 'terrain' : 'building' };
+}
 // The alerts that carry a fix button in the list besides View (Show me opens the tool and aims at the place): many plots with no
 // road want the road tool (placement review P13). onFixAlert aims it, at the plot nearest the view.
 const ALERT_FIX = new Set(['plots_no_road']);
 const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
+
+// Three kinds of food includes two, so a list that has the first leaves the second out (never "Two kinds of food ✓" beside "Three kinds of food ✗").
+const withoutTwoFoods = (rows) => (rows.some((c) => c.need === 'threeFoods') ? rows.filter((c) => c.need !== 'twoFoods') : rows);
 
 // parts (Stage 3): the danger and score interfaces' sheet parts (src/ui/danger.js), each { building(b), house(h),
 // actions(b), summary() } returning arrays of nodes, added in the list's order at fixed places in the sheets below.
@@ -252,7 +257,7 @@ export function createSheets({ container, store, world, placement, cameraControl
       ]),
     ]));
     if (s.next) {
-      const rows = s.merge.needed ? [...s.checklist, { need: 'merge', met: s.merge.ready }] : s.checklist;
+      const rows = withoutTwoFoods(s.merge.needed ? [...s.checklist, { need: 'merge', met: s.merge.ready }] : s.checklist);
       body.append(el('h3', { text: `${T.nextTier} (${s.next.name})` }));
       body.append(el('ul', { class: 'checklist' }, rows.map((c) => needRow(h, c))));
       if (s.tier >= 1 && rows.every((c) => c.met)) body.append(el('p', { class: 'teal', text: T.upgradesAtMonthEnd }));
@@ -260,7 +265,7 @@ export function createSheets({ container, store, world, placement, cameraControl
       // Stage 4.7 (Task 7, ruling 471): the top tier has no next one, so its sheet lists what keeps it (its own needs, the street's "to keep"
       // value), each with its cause and Show me as a checklist row does.
       body.append(el('h3', { class: 'keep-head', text: S47_PRESSURE_TEXT.keepHead(s.name) }));
-      body.append(el('ul', { class: 'checklist keep-list' }, s.checklist.map((c) => needRow(h, c))));
+      body.append(el('ul', { class: 'checklist keep-list' }, withoutTwoFoods(s.checklist).map((c) => needRow(h, c))));
     }
     // The warning month (spec 4.6): a need running out names the need; a street below the tier's keep value names the tier.
     const lost = s.missingNow.find((n) => n !== 'desirability');

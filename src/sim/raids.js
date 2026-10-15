@@ -345,10 +345,15 @@ export function raidAlerts(world) {
 // share a spot (the first nineteen are as Stage 4.5 drew them, the rest ring the edge).
 export const SLOTS = [[0, 0], [0.25, 0.2], [-0.25, 0.2], [0.25, -0.2], [-0.25, -0.2], [0, 0.32], [0, -0.32], [0.32, 0], [-0.32, 0], [0.16, 0.34], [-0.16, -0.34], [0.34, -0.16], [-0.16, 0.34], [0.16, -0.34], [-0.34, 0.16], [-0.34, -0.16], [0.34, 0.16], [0.12, -0.1], [-0.12, 0.1],
   [0.44, 0.06], [-0.44, -0.06], [0.06, 0.44], [-0.06, -0.44], [0.42, 0.3], [-0.42, -0.3], [0.42, -0.3], [-0.42, 0.3], [0.3, 0.44], [-0.3, -0.44]];
+const OLD_SLOTS = 19;
+// The spot of a raider by its id in a band of `size`: a band of up to 19 stands where Stage 4.5 drew it (the early raids and weekly seeds keep their look);
+// a bigger one (the wealth term) uses every spot.
+export const bandSlot = (id, size) => SLOTS[id % (size > OLD_SLOTS ? SLOTS.length : OLD_SLOTS)];
 function placeBand(a, k = 0) {
   const rec = bandRec(a, k);
-  for (const u of crewOf(a, k)) {
-    const [dx, dy] = SLOTS[u.id % SLOTS.length];
+  const crew = crewOf(a, k);
+  for (const u of crew) {
+    const [dx, dy] = bandSlot(u.id, crew.length);
     u.x = rec.x + 0.5 + dx;
     u.y = rec.y + 0.5 + dy;
   }

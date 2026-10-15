@@ -142,15 +142,15 @@ export const QUOTA = {
   favourMet: 5, favourEarly: 8, favourMissed: 15, giftShare: 0.2, giftStep: 10, giftMin: 20,
 };
 // world.court.quota: null, or { year, day, due, early (the last day that counts as early), gift, goods: [{ good, amount, base, carried, sent }],
-// result: null | 'met' | 'missed', metDay }. amount = base + carried. world.court.yearMade: null, or { day, made: { [good]: n } } (tally.made then).
+// result: null | 'met' | 'missed', metDay }. amount = base + carried. world.court.yearMade: null, or { day, made: { [good]: n } (tally.made then), kept?: { [good]: n } (the most the stores held at a month end this year, ruling 480) }.
 const isQuotaGood = (g) => isRec(g) && typeof g.good === 'string' && ['amount', 'base', 'carried', 'sent'].every((k) => isNum(g[k]));
 export const isQuota = (q) => q === undefined || q === null || (isRec(q) && ['year', 'day', 'due', 'early'].every((k) => Number.isInteger(q[k]))
   && isNum(q.gift) && Array.isArray(q.goods) && q.goods.every(isQuotaGood) && [null, 'met', 'missed'].includes(q.result));
-export const isYearMade = (y) => y === undefined || y === null || (isRec(y) && Number.isInteger(y.day) && isRec(y.made));
+export const isYearMade = (y) => y === undefined || y === null || (isRec(y) && Number.isInteger(y.day) && isRec(y.made) && (y.kept === undefined || isRec(y.kept)));
 
 // Raids grow with wealth (ruling 470, src/sim/raids.js wealthDraw). From year `fromYear` a raid's size (every raid but the first) gains one raider
 // for each `goldPer` gold in the treasury and one for each `peoplePer` people, at most `cap` by difficulty (none on Peaceful, which has no raids);
-// the score's defence term keeps baseRaidSize, without it (ruling 441). goldPer is 40,000 (Task 8's tuning, ruling 474: the capital run's treasury
+// the score's defence term keeps baseRaidSize, without it (ruling 441). goldPer is 40,000 (Task 8's tuning, ruling 478: the capital run's treasury
 // runs from 70,000 at year 7 to 167,000 at year 15, so the gold term climbs from 2 to 4 over years 10-15 and the whole term reaches the Normal cap
 // of 6 in the last of them, where a 10,000 step sat at the cap from year 10 on). From the same year a raid from the 4th on comes as two bands when its
 // seeded draw (hash2(seed, raid index, RAID_SALT.two), the draw ruling 317 uses) is under `twoSidedChance` (was RAIDS.twoSidedChance). The warning

@@ -297,10 +297,10 @@ describe('mobile height budget: the store sheet with Fetch open (Stage 4.7)', ()
 describe('mobile height budget: the court sheet with the tribute and an Estate\'s sheet (Stage 4.7)', () => {
   const PHONES = [[375, 667], [390, 844]];
   const SCENES = [
-    ['s47-quota', (said) => said.includes('year 8'), (sheet) => [sheet.querySelector('.quota-send button'), sheet.querySelector('.quota-actions .show-me')]],
-    ['s47-estate', (said) => said.includes('estate #'), (sheet) => [...sheet.querySelectorAll('.keep-list .show-me')]],
+    ['s47-quota', (said) => said.includes('year 8'), (sheet) => [sheet.querySelector('.quota-send button'), sheet.querySelector('.quota-actions .show-me')], ['.quota-send button']],
+    ['s47-estate', (said) => said.includes('estate #'), (sheet) => [...sheet.querySelectorAll('.keep-list .show-me')], ['.keep-list .show-me']],
   ];
-  for (const [scene, setUp, controlsOf] of SCENES) {
+  for (const [scene, setUp, controlsOf, required] of SCENES) {
     it(`holds the budget with ${scene}, the sheet fits the width and its controls are reachable 44 px targets`, async () => {
       const wrong = [];
       for (const [width, height] of PHONES) {
@@ -317,6 +317,7 @@ describe('mobile height budget: the court sheet with the tribute and an Estate\'
             const at = `${scene} ${width}x${height} ${textSize}%`;
             expect([at, setUp(said)]).toEqual([at, true]);
             const sheet = r.root.querySelector('#sheet');
+            for (const sel of required) if (!sheet.querySelector(sel)) wrong.push(`${at}: no ${sel}`);   // the control the scene is for must be there on its own (a missing Send never passes behind a Show me)
             const controls = controlsOf(sheet).filter(Boolean);
             if (!controls.length) { wrong.push(`${at}: no controls`); continue; }
             const box = r.root.getBoundingClientRect();

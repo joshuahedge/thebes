@@ -10,14 +10,16 @@
 import { BUILDINGS } from '../../data/buildings.js';
 import { QUOTA } from '../../data/s47.js';
 import { HOUSEHOLD_GOODS } from '../../data/goods.js';
-import { MAX_TIER } from '../../data/housing.js';
+import { TIERS } from '../../data/housing.js';
 import { allBuildings } from '../../sim/world.js';
 import { quotaStatus, quotaAsk, nextQuotaDay, quotaOf } from '../../sim/pressure.js';
 import { courtOpen, monthsLeft, dateOfDay } from '../../sim/court.js';
-import { needsOf, farHeld } from '../../sim/housing.js';
+import { needsOf } from '../../sim/housing.js';
 import { monthlyNeed } from '../../sim/distribution.js';
 import { el, button } from '../components.js';
 import { S47_PRESSURE_TEXT as P, tierName, goodName } from '../text.js';
+import { unmadeFix } from '../sheets.js';
+import { nearestTerrainTile } from '../goalsList.js';
 import { seamBase } from '../s46/seam.js';
 
 const line = (text, cls = 'small muted') => el('p', { class: cls, text });
@@ -25,19 +27,6 @@ const line = (text, cls = 'small muted') => el('p', { class: cls, text });
 const rule = (label, value, cls) => el('p', { class: `small quota-rule ${cls}` }, [el('strong', { text: `${label}: ` }), `${value}.`]);
 // The first store that holds some of a good (for Show me), or null.
 const storeWith = (world, good) => allBuildings(world).find((b) => (BUILDINGS[b.type].stores || []).includes(good) && (b.store[good] || 0) > 0) || null;
-
-// A good still owed that the stores hold only far from every bazaar (the house sheet's good_far, src/sim/housing.js farHeld): its row says so, names
-// Fetch, and its Show me selects that store.
-function farRow(world, g, act) {
-  if (g.sent >= g.amount || g.have < 1) return [];
-  const cause = farHeld(world, g.good);
-  if (!cause) return [];
-  const words = P.goodFar(cause, world);
-  return [
-    el('p', { class: 'small muted quota-far' }, [`${words.cause}. ${words.fix}.`]),
-    el('div', { class: 'actions quota-far-actions' }, [button(P.showMe, { class: 'show-me quiet', 'aria-label': P.showFar(cause, world), onClick: () => act.select(cause.id) })]),
-  ];
-}
 
 // The quota's bar: the share sent, with the numbers beside it and as its name (colour is never the only cue).
 function quotaBar(st) {
@@ -78,7 +67,6 @@ export function quotaNodes(world, act) {
     return el('li', { class: done ? 'met' : 'owed', dataset: { good: g.good } }, [
       el('span', { class: done ? 'tick' : 'cross', 'aria-hidden': 'true', text: done ? '✓' : '·' }), ' ',
       el('span', { class: 'name', text: goodName(g.good) }), ' ', el('span', { class: 'small', text: P.goodRow(g) }),
-      ...farRow(world, g, act),
     ]);
   })));
   nodes.push(rule(P.due, P.dueText(st), 'quota-due'), rule(P.ifMet, P.ifMetText(st), 'quota-if-met'), rule(P.ifMissed, P.ifMissedText(st), 'quota-if-missed'));
@@ -90,6 +78,17 @@ export function quotaNodes(world, act) {
   const shown = st.goods.find((g) => g.left > 0 && g.have > 0);
   const store = shown ? storeWith(world, shown.good) : null;
   if (store) nodes.push(el('div', { class: 'actions quota-actions' }, [button(P.showStore(shown.good), { class: 'show-me quiet', onClick: () => act.select(store.id) })]));
+  else if (st.shipNow <= 0 && act.showMeAt) {
+    // Nothing to ship: Show me where the first owed good is made (its first maker the city has none of), as a house's unmade good does (sheets.js).
+    const owed = st.goods.find((g) => g.left > 0);
+    const fix = owed ? unmadeFix({ good: owed.good }, world) : null;
+    if (fix) {
+      const home = allBuildings(world).find((b) => (BUILDINGS[b.type].stores || []).includes(owed.good)) || allBuildings(world)[0];
+      const near = home ? { x: home.x + home.w / 2, y: home.y + home.d / 2 } : { x: world.size / 2, y: world.size / 2 };
+      const at = fix.at === 'terrain' ? nearestTerrainTile(world, BUILDINGS[fix.item].terrain, near) || near : near;
+      nodes.push(el('div', { class: 'actions quota-actions' }, [button(P.showMe, { class: 'show-me quiet', 'aria-label': P.showMaker(owed.good, fix.item), onClick: () => act.showMeAt({ category: fix.category, item: fix.item, x: at.x, y: at.y }) })]));
+    }
+  }
   return nodes;
 }
 
@@ -97,11 +96,13 @@ export function quotaNodes(world, act) {
 export function tierUse(house, tier) {
   return HOUSEHOLD_GOODS.filter((g) => needsOf(tier).includes(g)).map((good) => ({ good, amount: monthlyNeed(house, good, tier) }));
 }
+// Whether a tier asks for three kinds of food (the tougher tiers, from the housing data).
+const asksThreeFoods = (tier) => !!TIERS[tier] && TIERS[tier].needs.includes('threeFoods');
 // The tier whose use the house sheet states: the next tier for a Fine manor (it is growing into a Villa), else the home's own; null for a home
 // below that (its goods are the usual and its checklist says them).
 export function useTierOf(house) {
-  if (house.tier >= MAX_TIER - 1) return house.tier;
-  if (house.tier === MAX_TIER - 2) return house.tier + 1;
+  if (asksThreeFoods(house.tier)) return house.tier;
+  if (asksThreeFoods(house.tier + 1)) return house.tier + 1;
   return null;
 }
 
@@ -120,7 +121,7 @@ export function createPressureUi(ctx) {
       else if (e.type === 'quota_reminder') caption(P.captionReminder(e));
       else if (e.type === 'raids_grow') { caption(P.raidsGrow(e)); tip('raidsGrow'); }
       else if (e.type === 'raid_warning' && e.wealth) tip('raidsGrow');
-      else if (e.type === 'upgrade' && e.to >= MAX_TIER - 2) tip('upperTiers');
+      else if (e.type === 'upgrade' && (asksThreeFoods(e.to) || asksThreeFoods(e.to + 1))) tip('upperTiers');
     }
   }
   // The house sheet's row for the tougher tiers: what the tier uses a month, from the housing data.

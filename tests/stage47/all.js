@@ -26,3 +26,4 @@ import './pressure/review.test.js';
 import './balance/village.test.js';
 import './balance/district.test.js';
 import './balance/flood.test.js';
+import './final/final.test.js';
