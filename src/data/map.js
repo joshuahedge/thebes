@@ -51,8 +51,8 @@ export const areaScale = (size) => (size * size) / (MAP.size * MAP.size);
 //   meander   strength x the river's swing, length x its wavelength; edge: tiles the river's middle keeps off the map's edges
 //   pools     side channels and oxbow lakes: up to `max`, each 4-7 tiles off the river (a gap of land all round: never joined to it);
 //             a channel is 1 wide and 6-10 long, an oxbow an ellipse; clear: how far from rock, water and the start area they sit
-//   outcrops  2-5 rocky clusters (patches of radius 3, 2 or 1 within 3 tiles of a centre), the map's rock still MAP.rockTarget x area
-//   groves    1-3 meadow patches (palms and acacias) 3-7 tiles from water, radius 2-3.5
+//   outcrops  (Stage 4.7 Task 3b: classic-only history; a new map lays rock belts, src/sim/belts.js) 2-5 rocky clusters (patches of radius 3, 2 or 1 within 3 tiles of a centre), the map's rock still MAP.rockTarget x area
+//   groves    (no longer drawn: a new map's meadow follows the water) 1-3 meadow patches (palms and acacias) 3-7 tiles from water, radius 2-3.5
 //   dunes     1-3 fields of dune crests on far desert; wadis 0-2 dry riverbeds (desert, buildable) running towards the water
 //   clay      wide: the patches are 2-3 tiles across (the bank tile and one or two inland), a stretch holding at most `cap` tiles
 MAP.shapes = {

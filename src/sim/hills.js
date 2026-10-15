@@ -1,14 +1,14 @@
-// Hills (Stage 4.7, Task 3, ruling 464). On every map with new land (src/data/s47.js newLandFor) generateMap places clusters of hills: terrain
-// T.HILLS, which nothing builds on and nothing walks over (src/sim/terrain.js buildable / passable), each ringed by a 1-2 tile rocky skirt (today's
-// rocky ground, where mines stand now and quarries come later). The draws are hash2 keyed by the seed with S47_SALT.hills (how many, where),
-// S47_SALT.hillShape (a cluster's tiles) and S47_SALT.hillSkirt (the skirt's width and ragged edge), never the generator's rng stream, so a map
-// is still a function of (seed, size, layout).
+// Hills (Stage 4.7, Task 3, ruling 464; reworked in Task 3b as the spines of the rock belts, src/sim/belts.js). On every map with new land
+// (src/data/s47.js newLandFor) generateMap places spines of hills: terrain T.HILLS, which nothing builds on and nothing walks over (src/sim/terrain.js
+// buildable / passable). A spine is a stretch of 4-10 tiles of a belt's middle, 2-3 tiles wide, standing on the belt's rocky ground: the belt is the hills'
+// foot (a mine stands on the plain rocky ground along it, quarries later). The draws are hash2 keyed by the seed with S47_SALT.hills (how many, which belt,
+// where, how long) and S47_SALT.hillShape (how wide), never the generator's rng stream, so a map is still a function of (seed, size, layout).
 //
-// A cluster is refused (and the next draw tried) unless it keeps every promise the plan makes: its tiles on open desert or meadow in the x ranges the layout keeps its rock in (never rock, which
-// stays an outcrop, nor loam, clay, a bank or water; every tile in a 2 x 2 block of hill tiles, so a cluster is a mound with a middle), HILLS.fromWater tiles from any water, HILLS.fromOasis from an oasis pool (so the skirt keeps the oasis's 8-tile gap to
-// rock), HILLS.fromStart from the start area's centre, HILLS.fromEntry from a raider entry, the trade entry and the bridge spot, HILLS.fromRoad from the
-// start road, HILLS.fromEdge from a map edge and HILLS.apart from another cluster; and it must not cut any land off: every tile the start area could
-// reach (by land, joined across the water at the bridge spot) before the cluster is still reachable after it, apart from the hill tiles themselves.
+// A spine is refused (and the next draw tried) unless it keeps every promise the plan makes: its tiles on rocky ground (the belt's body), HILLS.fromWater
+// tiles from any water, HILLS.fromOasis from an oasis pool, HILLS.fromStart from the start area's centre, HILLS.fromEntry from a raider entry, the trade
+// entry and the bridge spot, HILLS.fromRoad from the start road, HILLS.fromEdge from a map edge, HILLS.ends from either end of its belt and HILLS.apart from
+// another spine; and it must not cut any land off: every tile the start area could reach (by land, joined across the water at the bridge spot) before the
+// spine is still reachable after it, apart from the hill tiles themselves. Every hill tile has rock (or hills) on all eight sides: the belt's ground is the spine's foot.
 import { T } from './terrain.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { hash2 } from './rng.js';
@@ -53,82 +53,50 @@ export function landReach(terrain, size, from, spot = null) {
   return seen;
 }
 
-// A cluster's tiles for a centre: { core: [[x, y]], skirt: [[x, y]] } from the shape draws, or null when it cannot reach HILLS.size[0] tiles.
-// ok(x, y) says whether a tile may be hills.
-function shapeAt(size, seed, cx, cy, k, ok) {
-  const sh = (a, b) => hash2(a, b, (seed + S47_SALT.hillShape) | 0);
-  const want = HILLS.size[0] + Math.floor(sh(k, 1) * (HILLS.size[1] - HILLS.size[0] + 1));
-  if (!ok(cx, cy)) return null;
-  const core = [[cx, cy]], inCore = new Set([`${cx},${cy}`]);
-  while (core.length < want) {
-    let best = null;
-    for (const [px, py] of core) {
-      for (const [dx, dy] of NEIGHBOURS4) {
-        const x = px + dx, y = py + dy, key = `${x},${y}`;
-        if (inCore.has(key) || !ok(x, y)) continue;
-        // compact: the draw and the distance from the centre, less a share for each tile of the cluster already beside it (a 2 x 2 block fills first)
-        const beside = NEIGHBOURS4.reduce((m, [ex, ey]) => m + (inCore.has(`${x + ex},${y + ey}`) ? 1 : 0), 0);
-        const score = sh(x * 131 + y, k * 7 + 2) * 1.0 + Math.hypot(x - cx, y - cy) * 0.3 - 0.9 * beside;
-        if (!best || score < best.score - 1e-9 || (Math.abs(score - best.score) < 1e-9 && (y < best.y || (y === best.y && x < best.x)))) best = { x, y, score };
+// A spine's tiles for a belt line, a start and a length: the rocky tiles within `half` of the line's points from index i0 to i1, in one 8-neighbour piece,
+// each with at least two hill neighbours (no straggler). ok(x, y) says whether a tile may be hills. Null when it holds fewer than HILLS.minTiles.
+function spineAt(size, line, i0, i1, half, ok) {
+  const seen = new Set(), core = [];
+  for (let n = i0; n <= i1; n++) {
+    const [px, py] = line[n];
+    for (let y = Math.floor(py - half); y <= Math.ceil(py + half); y++) {
+      for (let x = Math.floor(px - half); x <= Math.ceil(px + half); x++) {
+        const key = y * size + x;
+        if (seen.has(key) || !inBounds(size, x, y) || Math.hypot(x + 0.5 - px, y + 0.5 - py) > half) continue;
+        seen.add(key);
+        if (ok(x, y)) core.push([x, y]);
       }
     }
-    if (!best) break;
-    core.push([best.x, best.y]);
-    inCore.add(`${best.x},${best.y}`);
   }
-  // Every hill tile belongs to a 2 x 2 block of hill tiles (a mound with a middle for the picture to raise: src/render/hills.js); a tile that hangs off the
-  // cluster by itself is dropped, and a cluster that is left with fewer than HILLS.size[0] tiles is refused.
-  const hill = (x, y) => inCore.has(`${x},${y}`);
-  const blocked = core.filter(([x, y]) => [[0, 0], [-1, 0], [0, -1], [-1, -1]].some(([bx, by]) => hill(x + bx, y + by) && hill(x + bx + 1, y + by) && hill(x + bx, y + by + 1) && hill(x + bx + 1, y + by + 1)));
-  // and it stays one piece: of what is left, the largest 8-neighbour component
-  const left = new Set(blocked.map(([x, y]) => `${x},${y}`));
+  const has = new Set(core.map(([x, y]) => y * size + x));
+  const kept = core.filter(([x, y]) => { let m = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && has.has((y + dy) * size + x + dx)) m++; return m >= 2; });
+  const left = new Set(kept.map(([x, y]) => y * size + x));
   let best = [];
-  for (const [sx, sy] of blocked) {
-    if (!left.has(`${sx},${sy}`)) continue;
+  for (const [sx, sy] of kept) {
+    if (!left.has(sy * size + sx)) continue;
     const comp = [[sx, sy]];
-    left.delete(`${sx},${sy}`);
+    left.delete(sy * size + sx);
     for (let q = 0; q < comp.length; q++) {
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-        const key = `${comp[q][0] + dx},${comp[q][1] + dy}`;
-        if (left.delete(key)) comp.push(key.split(',').map(Number));
+        const x = comp[q][0] + dx, y = comp[q][1] + dy;
+        if (left.delete(y * size + x)) comp.push([x, y]);
       }
     }
     if (comp.length > best.length) best = comp;
   }
-  if (best.length < HILLS.size[0]) return null;
-  core.length = 0;
-  core.push(...best);
-  // The rocky skirt: every tile beside the cluster (8 directions), and, on a cluster whose draw says two tiles wide, a ragged second ring.
-  const width = HILLS.skirt[0] + Math.floor(hash2(k, 3, (seed + S47_SALT.hillSkirt) | 0) * (HILLS.skirt[1] - HILLS.skirt[0] + 1));
-  const skirt = [], seen = new Set(core.map(([x, y]) => `${x},${y}`));
-  const ring = (from, outer) => {
-    const next = [];
-    for (const [px, py] of from) {
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-        const x = px + dx, y = py + dy, key = `${x},${y}`;
-        if (seen.has(key) || !inBounds(size, x, y)) continue;
-        seen.add(key);
-        if (outer && hash2(x, y, (seed + S47_SALT.hillSkirt) | 0) >= HILLS.skirtRagged) continue;
-        next.push([x, y]);
-      }
-    }
-    return next;
-  };
-  let front = core;
-  for (let w = 0; w < width; w++) { front = ring(front, w > 0); skirt.push(...front); }
-  return { core, skirt };
+  return best.length >= HILLS.minTiles ? best : null;
 }
 
-// Places the hills on `terrain` in place and returns { hills, skirt }: the clusters ([{ x, y, n }]: a cluster's centre tile and its hill tiles; possibly
-// none) and how many tiles of rocky skirt they made. ctx: focus (the start area's centre); targets: the points that must stay joined to it (the raider
-// entries and the trade entry), each { x, y }; startRoad: [[x, y]] (the trade road's first tiles); oases: [{ x, y, r }] as placed; ranges: [[x0, x1]] the x
-// ranges the layout keeps its rock in (a hill is rock's kin: it stands where the outcrops do, so a layout keeps its character), or null for anywhere.
-export function placeHills(terrain, size, seed, { focus, targets, startRoad = [], oases = [], ranges = null }) {
+// Places the hills on `terrain` in place and returns { hills, skirt }: the spines ([{ x, y, n }]: a spine's middle tile and its hill tiles; possibly none)
+// and skirt, always 0 now (the belt is the skirt; the field stays for the callers that subtract it). ctx: focus (the start area's centre); targets: the points
+// that must stay joined to it (the raider entries and the trade entry), each { x, y }; startRoad: [[x, y]] (the trade road's first tiles); oases:
+// [{ x, y, r }] as placed; belts: [{ line: [[x, y, w]], len }] from placeBelts.
+export function placeHills(terrain, size, seed, { focus, targets, startRoad = [], oases = [], belts = [] }) {
   const [lo, hi] = hillRange(size);
-  const salt = (seed + S47_SALT.hills) | 0;
+  const salt = (seed + S47_SALT.hills) | 0, shapeSalt = (seed + S47_SALT.hillShape) | 0;
   const want = lo + Math.floor(hash2(seed, 1, salt) * (hi - lo + 1));
   const out = [];
-  let skirt = 0;
+  if (!belts.length) return { hills: out, skirt: 0 };
   const wd = waterDist(terrain, size);
   const spot = bridgeSpot({ size, terrain, road: new Uint8Array(size * size), occ: new Uint8Array(size * size) }, focus);
   const pools = [];
@@ -142,41 +110,47 @@ export function placeHills(terrain, size, seed, { focus, targets, startRoad = []
   let reach = landReach(terrain, size, focus, spot);
   const keep = targets.filter((t) => reach[idx(size, t.x, t.y)]);
   const taken = [];   // every hill tile so far, for HILLS.apart
+  const ok = (x, y) => {
+    if (!inBounds(size, x, y) || edge(x, y) < HILLS.fromEdge) return false;
+    const i = idx(size, x, y);
+    if (terrain[i] !== T.ROCKY) return false;   // the belt's rock only: hills stand where the ground is rock
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {   // and with rock all round them, so a spine's foot is always the belt's rocky ground
+      if (!inBounds(size, x + dx, y + dy)) return false;
+      const t = terrain[idx(size, x + dx, y + dy)];
+      if (t !== T.ROCKY && t !== T.HILLS) return false;
+    }
+    if (wd[i] < HILLS.fromWater) return false;
+    if (Math.hypot(x - focus.x, y - focus.y) < HILLS.fromStart) return false;
+    if (targets.some((e) => Math.hypot(x - e.x, y - e.y) < HILLS.fromEntry)) return false;
+    if (spot && Math.hypot(x - spot.x, y - spot.y) < HILLS.fromEntry) return false;
+    if (pools.some((q) => cheb(x, y, q) < HILLS.fromOasis)) return false;
+    if (startRoad.some((q) => cheb(x, y, q) < HILLS.fromRoad)) return false;
+    if (taken.some((q) => cheb(x, y, q) < HILLS.apart)) return false;
+    return true;
+  };
   for (let k = 0; k < HILLS.tries && out.length < want; k++) {
-    const cx = Math.floor(hash2(k, 2, salt) * size), cy = Math.floor(hash2(k, 3, salt) * size);
-    const ok = (x, y) => {
-      if (!inBounds(size, x, y) || edge(x, y) < HILLS.fromEdge) return false;
-      if (ranges && !ranges.some(([x0, x1]) => x >= x0 && x <= x1)) return false;
-      const i = idx(size, x, y), t = terrain[i];
-      if (t !== T.DESERT && t !== T.MEADOW) return false;   // open ground only: an outcrop keeps its rock (the layouts count it)
-      if (wd[i] < HILLS.fromWater) return false;
-      if (Math.hypot(x - focus.x, y - focus.y) < HILLS.fromStart) return false;
-      if (targets.some((e) => Math.hypot(x - e.x, y - e.y) < HILLS.fromEntry)) return false;
-      if (spot && Math.hypot(x - spot.x, y - spot.y) < HILLS.fromEntry) return false;
-      if (pools.some((q) => cheb(x, y, q) < HILLS.fromOasis)) return false;
-      if (startRoad.some((q) => cheb(x, y, q) < HILLS.fromRoad)) return false;
-      if (taken.some((q) => cheb(x, y, q) < HILLS.apart)) return false;
-      return true;
-    };
-    const s = shapeAt(size, seed, cx, cy, k, ok);
-    if (!s) continue;
+    const u = (j) => hash2(k, j, salt);
+    const belt = belts[Math.floor(u(2) * belts.length)], line = belt.line, per = 2;   // line points a tile
+    const margin = Math.round(HILLS.ends * per), fit = line.length - 1 - 2 * margin;   // the line points a spine may use
+    const span = Math.min(fit, Math.round((HILLS.spine[0] + u(3) * (HILLS.spine[1] - HILLS.spine[0])) * per)), room = fit - span;   // a short belt takes a shorter spine
+    if (span < HILLS.spine[0] * per) continue;
+    const i0 = margin + Math.floor(u(4) * (room + 1)), half = HILLS.half[0] + hash2(k, 5, shapeSalt) * (HILLS.half[1] - HILLS.half[0]);
+    const core = spineAt(size, line, i0, i0 + span, half, ok);
+    if (!core) continue;
     // apply, then keep it only if everything the start area reached is still reached (the hill tiles aside)
     const undo = [];
-    const set = (list, t, only) => { let n = 0; for (const [x, y] of list) { const i = idx(size, x, y); if (only && !only.includes(terrain[i])) continue; undo.push([i, terrain[i]]); terrain[i] = t; n++; } return n; };
-    const hillsInReach = s.core.filter(([x, y]) => reach[idx(size, x, y)]).length;
-    set(s.core, T.HILLS);
-    const made = set(s.skirt, T.ROCKY, [T.DESERT, T.MEADOW]);
+    for (const [x, y] of core) { const i = idx(size, x, y); undo.push([i, terrain[i]]); terrain[i] = T.HILLS; }
+    const hillsInReach = core.filter(([x, y]) => reach[idx(size, x, y)]).length;
     const now = landReach(terrain, size, focus, spot);
     let was = 0, is = 0;
     for (let i = 0; i < now.length; i++) { was += reach[i]; is += now[i]; }
     if (keep.every((t) => now[idx(size, t.x, t.y)]) && was - hillsInReach === is) {
-      out.push({ x: Math.round(s.core.reduce((m, [x]) => m + x, 0) / s.core.length), y: Math.round(s.core.reduce((m, [, y]) => m + y, 0) / s.core.length), n: s.core.length });
-      taken.push(...s.core);
-      skirt += made;
-      reach = now;   // the next cluster is judged against the map as it now stands
+      out.push({ x: Math.round(core.reduce((m, [x]) => m + x, 0) / core.length), y: Math.round(core.reduce((m, [, y]) => m + y, 0) / core.length), n: core.length });
+      taken.push(...core);
+      reach = now;   // the next spine is judged against the map as it now stands
       continue;
     }
     for (let j = undo.length - 1; j >= 0; j--) terrain[undo[j][0]] = undo[j][1];
   }
-  return { hills: out, skirt };
+  return { hills: out, skirt: 0 };
 }

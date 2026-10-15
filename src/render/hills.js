@@ -2,12 +2,14 @@
 // tile, depth-sorted with the buildings, trees and walkers (a figure in front of a hill is drawn over it, one behind it under it). Look only: nothing
 // here reads or writes the sim beyond the terrain, and the draws are hash2 keyed by the seed with S47_SALT.hillLook (a render salt).
 //
-// A hill is a smooth dome on a fine grid (HILL.sub points a tile). The height at a point is the dome's profile of its distance in from the nearest tile that
-// is not a hill (so it is 0 all round the cluster and meets the rocky skirt flush, with no cliff), scaled by the cluster's size and bent by a little noise.
-// A tile is the 4 x 4 points of its own patch, drawn as triangles lit from the lower left (a slope turned towards +y is lit, one turned towards +x lies in a
-// lavender shadow, as every building's faces are), cut into sand-stone strata by contour lines at fixed heights (so the layers run on from tile to tile),
-// with a few boulders on the slopes. Its slot is `hill.<hash of its heights>.<look>`: hillsIn registers the entry in the art registry the first time a
-// world needs it, so the registry holds only the looks the maps have used.
+// A hill is a mesa or a ridge (Task 3b: the spine of a rock belt, src/sim/hills.js), on a fine grid (HILL.sub points a tile). The height at a point is a profile of its
+// distance in from the nearest tile that is not a hill (so it is 0 all round the spine and meets the belt's rocky ground flush): a steep cliff over the first
+// HILL.cliff tiles, then a short rise to the ridge line, cut into HILL.steps ledges (a flat tread and a riser each, so the faces stand in steps, not as a
+// pyramid), scaled by the spine's size and bent a little by noise so the top is ridged, not flat. A tile is the points of its own patch, drawn as triangles
+// lit from the lower left (a slope turned towards +y is lit, one turned towards +x lies in a lavender shadow, as every building's faces are), cut into strata
+// by contour lines at fixed heights (so the layers run on from tile to tile), with a few boulders on the ledges. The ridge stands about 2.5-3 house heights.
+// Its slot is `hill.<hash of its heights>.<look>`: hillsIn registers the entry in the art registry the first time a world needs it, so the registry holds only
+// the looks the maps have used.
 import { p, U as up, hs } from './iso.js';
 import { hash2, valueNoise } from '../sim/rng.js';
 import { T } from '../sim/terrain.js';
@@ -17,18 +19,20 @@ import { ART } from './art/registry.js';
 import { SHADOW } from './art/palette.js';
 
 export const HILL = {
-  sub: 3,            // grid points a tile is cut into each way
-  reach: 1.6,        // tiles in from the edge of a cluster where the dome is at its full height
-  unit: 23,          // art px of height of a 2 x 2 cluster's middle (bigger clusters stand higher)
-  grow: 0.45,        // how much taller the biggest cluster (14 tiles) stands than the smallest (share of the unit)
-  noise: 0.45,       // share of the height the noise bends it by
-  band: 6,           // art px between the strata lines
+  sub: 4,            // grid points a tile is cut into each way
+  reach: 1.6,        // tiles in from the edge of a spine where the ridge is at its full height
+  cliff: 0.8,        // tiles in over which the cliff face climbs (most of the height)
+  unit: 40,          // art px of height of a ridge (a house is about 16: 2.5 houses), a bigger spine standing a little higher
+  grow: 0.2,         // how much taller the biggest spine stands than the smallest (share of the unit)
+  steps: 2,          // ledges on a stepped face
+  noise: 0.2,        // share of the height the noise bends it by
+  band: 5,           // art px between the strata lines
   looks: 4,          // sprite variants a patch has (boulders)
   light: [-0.2, 0.7, 0.55],   // the direction the light comes from, in tile coordinates (x, y, up): from the +y side and above
-  // the sand-stone ramp by how lit a slope is (0 shadow ... 1 full light): lavender shadow, rock, sand-stone, pale top
-  ramp: [[0.0, '#8E7684'], [0.25, '#A98F8C'], [0.45, '#C4A57B'], [0.62, '#D8C08E'], [0.88, '#E6D2A2'], [1.0, '#F0E2BC']],
-  layer: '#B58A5C',  // the tone every other layer takes a little of
-  line: '#6E5668', rock: '#B39C82', rockLight: '#D9C7A8', rockShade: '#8E7684',
+  // the rock ramp by how lit a slope is (0 shadow ... 1 full light): lavender shadow, grey-beige rock, a pale top
+  ramp: [[0.0, '#8A7B88'], [0.25, '#9C8F98'], [0.45, '#B0A598'], [0.62, '#C6BAA4'], [0.88, '#DACEB4'], [1.0, '#E7DDC4']],
+  layer: '#9C8268',  // the tone every other layer takes a little of
+  line: '#5E5064', rock: '#A09282', rockLight: '#D7CBB2', rockShade: '#7D707E',
 };
 
 const mix = (a, b, t) => {
@@ -49,6 +53,14 @@ function tint(col) {
 }
 
 // ── Heights ──
+const smooth = (t) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c); };
+// The ridge's profile of the distance d (tiles) in from the edge: 0 at the edge, 1 at the line, a cliff then a rise, in HILL.steps ledges.
+// `bench` (0..1, from noise along the spine) says how much of it is stepped: 0 a sheer cliff, 1 benches all the way up, so a spine is a cliff in one place and a
+// terraced face in another, never the same step on every side (a pyramid).
+function ridge(d, bench) {
+  const t = Math.min(0.9999, 0.84 * smooth(d / HILL.cliff) + 0.16 * smooth((d - HILL.cliff) / (HILL.reach - HILL.cliff))), s = t * HILL.steps, f = Math.floor(s);
+  return t + bench * ((f + smooth((s - f - 0.5) / 0.5)) / HILL.steps - t);
+}
 const fieldCache = new WeakMap();   // terrain -> { seed, v: Int16Array((n * sub + 1)^2) heights in art px, tiles: [tile index], m }
 // Every grid point's height in art px, and the list of hill tiles; once a world (terrain never changes in play).
 export function hillField(world) {
@@ -74,7 +86,7 @@ export function hillField(world) {
     const done = new Uint8Array(m * m);
     for (const i of tiles) {
       const tx = i % n, ty = (i - tx) / n, size = sizes[comp[i]];
-      const peak = HILL.unit * (1 + HILL.grow * Math.min(1, Math.max(0, (size - 4) / 10)));
+      const peak = HILL.unit * (1 + HILL.grow * Math.min(1, Math.max(0, (size - 6) / 20)));
       for (let j = 0; j <= S; j++) {
         for (let k = 0; k <= S; k++) {
           const gx = tx * S + k, gy = ty * S + j, node = gy * m + gx;
@@ -88,9 +100,8 @@ export function hillField(world) {
               d = Math.min(d, Math.hypot(Math.max(ex - X, 0, X - (ex + 1)), Math.max(ey - Y, 0, Y - (ey + 1))));
             }
           }
-          const t = Math.min(1, d / HILL.reach), dome = 0.35 * Math.sin((t * Math.PI) / 2) + 0.65 * t * t * (3 - 2 * t);   // a gentle foot, a steeper middle, a rounded top
-          const bend = 1 + (valueNoise(X * 2.4, Y * 2.4, salt, 1) - 0.5) * 2 * HILL.noise;
-          v[node] = d <= 0 ? 0 : Math.max(0, Math.round(peak * dome * bend));
+          const bend = 1 + (valueNoise(X, Y, salt, 2.2) - 0.5) * 2 * HILL.noise;
+          v[node] = d <= 0 ? 0 : Math.max(0, Math.round(peak * ridge(Math.min(d, HILL.reach), smooth((valueNoise(X + 31, Y + 17, salt + 3, 3) - 0.3) / 0.4)) * bend));
         }
       }
     }
@@ -181,7 +192,7 @@ function slope(g, tri, L) {
       const p0 = tri[i], p1 = tri[(i + 1) % 3];
       if ((p0[2] - z) * (p1[2] - z) < 0) { const t = (z - p0[2]) / (p1[2] - p0[2]); seg.push(screen([p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t, z])); }
     }
-    if (seg.length === 2) g.line(seg[0], seg[1], HILL.line, 0.55, 0.34);
+    if (seg.length === 2) g.line(seg[0], seg[1], HILL.line, 0.55, 0.22);
   }
 }
 

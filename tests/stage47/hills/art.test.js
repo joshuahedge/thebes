@@ -65,10 +65,12 @@ describe('s47 hills art', () => {
     const px = (ax, ay) => pixelAt(sprite.canvas, sprite.ax + ax * sprite.scale, sprite.ay + ay * sprite.scale);
     const { hts } = hillPatch(w, 11, 11), S = HILL.sub, top = hts.indexOf(Math.max(...hts)), tk = top % (S + 1), tj = Math.floor(top / (S + 1));
     const tx = (tk / S - tj / S) * 16, ty = (tk / S + tj / S) * 8;
-    expect(px(tx, ty - Math.max(...hts) + 3)[3] > 0).toBe(true);
-    const tones = new Set();
-    for (let s = 0.1; s < 1; s += 0.08) tones.add(px(tx * (1 - s * 0.5), ty * (1 + s * 0.2) - Math.max(...hts) * (1 - s) + 1).join(','));
-    expect(tones.size >= 3).toBe(true);
+    let inkTop = null;                                                   // the first inked row down the middle: the mound reaches its height
+    for (let ay = ty - Math.max(...hts) - 12; ay <= ty && inkTop === null; ay++) if (px(tx, ay)[3] > 0) inkTop = ay;
+    expect(inkTop !== null && inkTop >= ty - Math.max(...hts) - 10 && inkTop <= ty - Math.max(...hts) + 12).toBe(true);
+    const tones = new Set();   // the strata and the lit and shaded faces: several tones over the sprite
+    for (let ay = -Math.max(...hts); ay <= 8; ay += 2) for (let ax = -14; ax <= 14; ax += 2) { const c = px(ax, ay); if (c[3] > 200) tones.add(c.slice(0, 3).map((v) => v >> 3).join(',')); }
+    expect(tones.size >= 4).toBe(true);
   });
 
   it('is sorted with buildings and walkers by depth: a walker or a house in front of a hill is drawn after it, one behind it before', () => {

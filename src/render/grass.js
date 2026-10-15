@@ -4,73 +4,22 @@
 // It is how the ground is DRAWN: the sim's fertile land (where farms fit) does not move, and a map without new land (classic at Normal,
 // every city saved before world version 8: mapParams.land) has no field and draws exactly as before.
 //
-// The field: distance to water (the river and the old lakes reach GRASS.river tiles, an oasis pool GRASS.oasis, so an oasis has its own
-// small halo), pushed about by two octaves of value noise (S47_SALT.grass) so the edge wanders, then 1 at the water's edge falling to 0.
+// The field (Task 3b: src/sim/moisture.js, shared with the generator): distance to water (the river and the old lakes reach GRASS.river tiles, an oasis pool
+// GRASS.oasis, so an oasis has its own small halo), pushed about by two octaves of value noise so the edge wanders, then 1 at the water's edge falling to 0.
+// MEADOW only lies where the field is GRASS.meadowFrom or more, so the green hugs the water.
 import { hasNewLand, S47_SALT, GRASS, OASES } from '../data/s47.js';
-import { valueNoise, hash2 } from '../sim/rng.js';
+import { hash2 } from '../sim/rng.js';
+import { moistureField } from '../sim/moisture.js';
 import { T } from '../sim/terrain.js';
-import { inOasisPool, oasisNear } from '../sim/oases.js';
+import { oasisNear } from '../sim/oases.js';
 
 const fields = new WeakMap();   // world -> Float32Array of moisture 0..1 per tile (terrain never changes in play), or null without new land
 
-// Distance (tiles, chamfer 1 / 1.414) from the nearest source tile, two sweeps over the grid.
-function chamfer(size, source) {
-  const INF = 1e9, d = new Float32Array(size * size);
-  for (let i = 0; i < d.length; i++) d[i] = source[i] ? 0 : INF;
-  const D = Math.SQRT2;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const i = y * size + x;
-      let v = d[i];
-      if (x > 0) v = Math.min(v, d[i - 1] + 1);
-      if (y > 0) {
-        v = Math.min(v, d[i - size] + 1);
-        if (x > 0) v = Math.min(v, d[i - size - 1] + D);
-        if (x < size - 1) v = Math.min(v, d[i - size + 1] + D);
-      }
-      d[i] = v;
-    }
-  }
-  for (let y = size - 1; y >= 0; y--) {
-    for (let x = size - 1; x >= 0; x--) {
-      const i = y * size + x;
-      let v = d[i];
-      if (x < size - 1) v = Math.min(v, d[i + 1] + 1);
-      if (y < size - 1) {
-        v = Math.min(v, d[i + size] + 1);
-        if (x < size - 1) v = Math.min(v, d[i + size + 1] + D);
-        if (x > 0) v = Math.min(v, d[i + size - 1] + D);
-      }
-      d[i] = v;
-    }
-  }
-  return d;
-}
-
-// The world's moisture field (0 dry .. 1 at the water), cached; null when the map has no new land.
+// The world's moisture field (0 dry .. 1 at the water), cached; null when the map has no new land. The field itself is the sim's
+// (src/sim/moisture.js: the generator lays meadow from the same numbers).
 export function moistureOf(world) {
   if (fields.has(world)) return fields.get(world);
-  let field = null;
-  if (hasNewLand(world)) {
-    const n = world.size, river = new Uint8Array(n * n), pool = new Uint8Array(n * n);
-    for (let i = 0; i < river.length; i++) {
-      if (world.terrain[i] !== T.WATER) continue;
-      if (inOasisPool(world, i % n, Math.floor(i / n))) pool[i] = 1; else river[i] = 1;
-    }
-    const dr = chamfer(n, river), dp = pool.some(Boolean) ? chamfer(n, pool) : null;
-    const salt = (world.seed + S47_SALT.grass) | 0;
-    field = new Float32Array(n * n);
-    for (let y = 0; y < n; y++) {
-      for (let x = 0; x < n; x++) {
-        const i = y * n + x;
-        if (world.terrain[i] === T.WATER) { field[i] = 1; continue; }
-        const shift = (valueNoise(x, y, salt, GRASS.noiseScale) - 0.5) * GRASS.noise + (valueNoise(x, y, salt + 1, GRASS.noiseScale2) - 0.5) * GRASS.noise2 + (hash2(x, y, salt + 2) - 0.5) * GRASS.jitter;   // the last term breaks a tier's edge into ragged tiles
-        let m = Math.min(1, Math.max(0, 1 - (dr[i] + shift) / GRASS.river));
-        if (dp) m = Math.max(m, Math.min(1, Math.max(0, 1 - (dp[i] + shift) / GRASS.oasis)));
-        field[i] = m;
-      }
-    }
-  }
+  const field = hasNewLand(world) ? moistureField(world.terrain, world.size, world.seed, world.oases || []) : null;
   fields.set(world, field);
   return field;
 }

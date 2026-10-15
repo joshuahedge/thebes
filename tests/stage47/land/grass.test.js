@@ -99,7 +99,7 @@ describe('s47 grass band', () => {
       for (let x = 0; x < 80; x++) {
         const i = idx(80, x, y), d = decorAt(w, x, y), o = oldDecor(w, x, y);
         if (o && d !== o) lost++;
-        if (w.terrain[i] !== T.DESERT) continue;
+        if (w.terrain[i] !== T.DESERT && w.terrain[i] !== T.MEADOW) continue;   // Task 3b: the moist fringe is meadow now, not sand
         if (f[i] >= 0.5) { wetN++; if (d) wet++; } else if (f[i] === 0) { dryN++; if (d) dry++; }
       }
     }
