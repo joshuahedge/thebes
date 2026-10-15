@@ -98,7 +98,7 @@ const CAUSES = [
   { code: 'good_unmade', make: () => { const r = pottery(); addRaw(r.w, 'storehouse', 4, 8); staffAll(r.w); return r; },
     text: (w) => `Next step: a clay pit on clay ground (${gold(costOf(w, 'clay_pit'))}) starts pottery for this home`, action: T.showMe, after: (w) => { Object.values(w.buildings).find((b) => b.type === 'storehouse').store.pottery = 40; } },
   { code: 'good_far', make: () => { const r = pottery(); addRaw(r.w, 'storehouse', 4, 8); r.far = addRaw(r.w, 'storehouse', 31, 8, { store: { pottery: 40 } }); staffAll(r.w); setRoad(r.w, 30, 10, 31, 10); return r; },
-    text: (w, h, r) => `Next step: have a store near the bazaar fetch pottery by cart (it is held ${nextStep(w, h).cause.len} road tiles from the bazaar)`, action: T.showMe, after: (w, h, r) => { r.far.store.pottery = 0; Object.values(w.buildings).find((b) => b.type === 'storehouse').store.pottery = 40; } },
+    text: (w, h, r) => `Next step: have the storehouse near the bazaar fetch pottery by cart (it is held ${nextStep(w, h).cause.len} road tiles from the bazaar)`, action: T.showMe, after: (w, h, r) => { r.far.store.pottery = 0; Object.values(w.buildings).find((b) => b.type === 'storehouse').store.pottery = 40; } },
 ];
 
 describe('v50 step: every cause code, the line and the same city with the cause gone', () => {

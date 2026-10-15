@@ -110,7 +110,7 @@ describe('v50 contract advice: homes held back', () => {
     checkItems(w, cityAdvice(w));
   });
 
-  it('a good held only in a far store is stranded: select that store (Fetch is set up there); gone once a store in reach holds it', () => {
+  it('a good held only in a far store is stranded: select the store near the bazaar that should Fetch it (else the far store); gone once a store in reach holds it', () => {
     const { w, bazaar, home } = street({ milestone: 'town' });
     const near = addRaw(w, 'storehouse', 4, 8);
     const far = addRaw(w, 'storehouse', 50, 8, { store: { pottery: 40 } });
@@ -118,7 +118,10 @@ describe('v50 contract advice: homes held back', () => {
     const [a] = ofKind(w, 'stranded');
     expect([a.key, a.count, a.weight, a.data.good, a.data.store, a.data.bazaar]).toEqual([`stranded:pottery:${far.id}`, 1, 5, 'pottery', far.id, bazaar.id]);
     expect(a.data.len).toBe(needCause(w, home, 'pottery').len);
-    expect(a.fix).toEqual({ select: far.id, target: centre(far), why: 'good_far' });
+    expect(a.fix).toEqual({ select: near.id, target: centre(near), why: 'good_far', fetch: true });   // Version 5.0 (Task 3 review): Show me opens the store that sets the Fetch order
+    near.paused = true;                                                                              // none near can fetch: the far store, as before
+    expect(ofKind(w, 'stranded')[0].fix).toEqual({ select: far.id, target: centre(far), why: 'good_far' });
+    near.paused = false;
     near.store.pottery = 5;
     expect(ofKind(w, 'stranded')).toEqual([]);
   });

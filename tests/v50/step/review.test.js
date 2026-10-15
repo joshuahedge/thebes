@@ -69,7 +69,7 @@ describe('v50 step review: a fix names what it prices', () => {
     const a = cityAdvice(w).find((x) => x.kind === 'home_need' && x.data.need === 'pottery');
     expect([a.data.cause.code, a.fix.item]).toEqual(['good_unmade', 'clay_pit']);
     let t = adviceWords(a, w);
-    expect(t.fix).toBe('Make pottery near it: a clay pit and a potter');
+    expect(t.fix).toBe('Make pottery: a clay pit on clay ground and a potter near the bazaar');
     expect(t.cost).toBe(ADVICE_TEXT.cost('Clay pit and potter', costOf(w, 'clay_pit') + costOf(w, 'potter')));
     expect(t.short).toBe(false);
     w.gold = ECONOMY.debtFloor + costOf(w, 'clay_pit') + costOf(w, 'potter') - 1;       // the placing rule's floor: enough for either, not for both
@@ -83,12 +83,12 @@ describe('v50 step review: a fix names what it prices', () => {
     staffAll(w);
     const c = cityAdvice(w).find((x) => x.kind === 'home_need' && x.data.need === 'pottery');
     t = adviceWords(c, w);
-    expect([c.fix.item, t.fix, t.cost]).toEqual(['potter', 'Make pottery near it: a potter', ADVICE_TEXT.cost('Potter', costOf(w, 'potter'))]);
+    expect([c.fix.item, t.fix, t.cost]).toEqual(['potter', 'Make pottery: a potter near the bazaar', ADVICE_TEXT.cost('Potter', costOf(w, 'potter'))]);
     addRaw(w, 'potter', 30, 20);
     staffAll(w);
     const d = cityAdvice(w).find((x) => x.kind === 'home_need' && x.data.need === 'pottery');
     t = adviceWords(d, w);
-    expect([d.fix.item, t.fix, t.cost]).toEqual(['potter', 'Make pottery near it: another potter', ADVICE_TEXT.cost('Potter', costOf(w, 'potter'))]);   // both stand: the last again
+    expect([d.fix.item, t.fix, t.cost]).toEqual(['potter', 'Make pottery: another potter near the bazaar', ADVICE_TEXT.cost('Potter', costOf(w, 'potter'))]);   // both stand: the last again
   });
 
   it('the house sheet\'s next step names only the first maker, which is the one priced and the one Show me starts', () => {

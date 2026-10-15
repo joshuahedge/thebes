@@ -5,7 +5,7 @@ import { alertShowMe } from './threatFix.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
-import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep } from '../sim/advice.js';
+import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor } from '../sim/advice.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { setPaused, setAccept } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
@@ -188,7 +188,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     let action;
     if (fix.select) {
       if (!building) return li;
-      action = button(T.showMe, { class: 'show-me primary', 'aria-label': S47_PRESSURE_TEXT.showFar(cause, world), onClick: () => onSelect(building.id) });
+      const target = fetchStoreFor(world, cause) || building;   // the store near the bazaar that should set the Fetch order, else the one that holds the good
+      action = button(T.showMe, { class: 'show-me primary', 'aria-label': S47_PRESSURE_TEXT.showFar(cause, world), onClick: () => onSelect(target.id) });
     } else if (fix.view) {
       if (!building) return li;
       action = button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(building.type)), onClick: () => onSelect(building.id) });

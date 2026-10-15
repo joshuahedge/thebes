@@ -15,7 +15,7 @@ Returns every problem, ranked: `[{ key, kind, weight, count, id, data, fix, cost
 | kind | from | count | weight | data | fix |
 |---|---|---|---|---|---|
 | `home_need` | each home's `nextStep` (reason null or locked), grouped by `need:cause.code:cause.id`; key `home_need:<need>:<code>:<id or ->` | homes | Σ tier each would rise to (top tier: the tier it keeps); × `ADVICE.locked` (0.5) when the fix is locked | `need, cause, homes[], points, locked` | the first home's step |
-| `stranded` | the same, cause `good_far`; key `stranded:<good>:<far store id>` | homes | as above | + `good, store, bazaar, len` | `select` the far store (Fetch is set up there) |
+| `stranded` | the same, cause `good_far`; key `stranded:<good>:<far store id>` | homes | as above | + `good, store, bazaar, len` | `select` the store near the bazaar that should set the Fetch order (`fetchStoreFor`, `fetch: true`), else the far store |
 | `running_out` | stores + bazaar stalls of a home good (food = all foods) vs last month's `used - made` (`stats.lastMonth`); counted when held > 0 and held/drain < `ADVICE.runOutMonths` (3) and some home's own tier needs it | homes needing it | Σ their tiers | `need, goods, held, used, made, monthsLeft (1 dp), homes[], store` (the biggest holder) | build a grain farm (food) or `unmadeFix`'s maker, near that store |
 | `workers_short` | `world.labour`: `jobs - employed` > 0 | workers short | × `workerShort` (0.5) | `short, jobs, workforce, levels, ids` (understaffed alert ids) | `view: 'summary', section: 'employment'` |
 | `jobless` | the `unemployment` alert (Town+, share > MOOD threshold) | jobless | × `jobless` (0.25) | `jobless, workforce, jobs` | summary, employment |

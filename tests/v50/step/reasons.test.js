@@ -193,20 +193,30 @@ describe('v50 step: the line on the house sheet', () => {
     } finally { r.cleanup(); }
   });
 
-  it('a far store\'s Show me selects that store and is named for it', () => {
-    const { w, home } = pottery();
-    addRaw(w, 'storehouse', 4, 8);
-    const far = addRaw(w, 'storehouse', 31, 8, { store: { pottery: 40 } });
-    staffAll(w);
-    setRoad(w, 30, 10, 31, 10);
-    const r = rig(w);
-    try {
-      r.open(home);
-      const btn = r.root.querySelector('.step-line button');
-      expect([btn.textContent, btn.getAttribute('aria-label')]).toEqual([T.showMe, S47_PRESSURE_TEXT.showFar(nextStep(w, home).cause, w)]);
-      fire(btn, 'click');
-      expect(r.selected).toEqual([far.id]);
-    } finally { r.cleanup(); }
+  it('a good held in a far store: Show me opens the store near the bazaar that should set the Fetch order, in the line and in the checklist row; with none near, the far store, and the words say so', () => {
+    for (const near of [true, false]) {
+      const { w, home } = pottery();
+      const nearStore = near ? addRaw(w, 'storehouse', 4, 8) : null;
+      const far = addRaw(w, 'storehouse', 31, 8, { store: { pottery: 40 } });
+      staffAll(w);
+      setRoad(w, 30, 10, 31, 10);
+      const step = nextStep(w, home);
+      expect([step.cause.code, step.fix.select, step.fix.fetch]).toEqual(['good_far', near ? nearStore.id : far.id, near ? true : undefined]);
+      const r = rig(w);
+      try {
+        r.open(home);
+        const line = r.root.querySelector('.step-line');
+        const btn = line.querySelector('button');
+        expect([btn.textContent, btn.getAttribute('aria-label')]).toEqual([T.showMe, S47_PRESSURE_TEXT.showFar(step.cause, w)]);
+        expect(btn.getAttribute('aria-label')).toBe(near ? 'Show me the storehouse near the bazaar that can Fetch pottery' : 'Show me the storehouse that holds pottery');
+        expect(line.textContent).toContain(near ? 'have the storehouse near the bazaar fetch pottery by cart' : `pottery is held only in a storehouse ${step.cause.len} road tiles from the bazaar, and no store near the bazaar can fetch it yet`);
+        fire(btn, 'click');
+        const row = rowFor(r.root, 'pottery');
+        expect(row.querySelector('.fix').textContent).toContain(near ? 'The storehouse near the bazaar can Fetch it by cart' : 'No store near the bazaar can Fetch it yet; Show me the one that holds it');
+        fire(row.querySelector('.show-me'), 'click');                           // the checklist row opens the same store
+        expect(r.selected).toEqual([near ? nearStore.id : far.id, near ? nearStore.id : far.id]);
+      } finally { r.cleanup(); }
+    }
   });
 
   it('waiting, locked and empty have the line and no button; an empty plot does not say it twice, a roadless one keeps its old line', () => {
