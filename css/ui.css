@@ -1354,3 +1354,10 @@ body[data-layout="compact"] #legend .strip.layer.supply .goods-pick { flex: 1 1 
 body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .copy-line { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 #sheet .another-note { margin: 6px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 #sheet .another-note .show-me { min-height: var(--tap); }
+
+/* Version 5.0 (Task 5): the road bar's Route / Straight toggle, a row of its own under the bar's words and buttons, as the area bar's spacing row is. */
+.confirm.has-route { flex-wrap: wrap; row-gap: 6px; }
+.confirm .route-row { flex: 1 0 100%; order: 12; display: flex; flex-direction: column; gap: 4px; }
+.confirm .route-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.confirm .route-pick { flex: 1 1 auto; min-width: var(--tap); min-height: var(--tap); padding: 0 6px; font-size: calc(13px * min(var(--ui-scale), 1.15)); line-height: 1.2; white-space: nowrap; }
+.confirm .route-pick[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); font-weight: 600; }

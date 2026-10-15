@@ -33,9 +33,8 @@ export function anotherOf(world, b) {
   return { ok: true, type: b.type, style, rot: b.rot || 0, cost, copy: settingsOf(b) };
 }
 
-// Writes a copy's settings on building `id`, only for goods the new building can hold. Returns { fetch, refuses } as written.
-export function applySettings(world, id, copy) {
-  const b = world.buildings[id];
+// Writes a copy's settings on a building (or a stand-in of the same shape), only for goods it can hold. Returns { fetch, refuses } as written.
+function writeSettings(b, copy) {
   const done = { fetch: [], refuses: [] };
   if (!b || !copy) return done;
   const stores = BUILDINGS[b.type].stores || [];
@@ -50,4 +49,19 @@ export function applySettings(world, id, copy) {
     done.fetch.push(o);
   }
   return done;
+}
+
+// Writes a copy's settings on building `id` once it stands: only the goods the new building can hold.
+export function applySettings(world, id, copy) {
+  return writeSettings(world.buildings[id], copy);
+}
+
+// What applySettings would write on a new building of `type` (the same rule, run on a blank stand-in shaped as insertBuilding makes it), or null when
+// nothing would be written: the bar says only this, so its line never lists a good the copy would drop.
+export function settingsThatApply(type, copy) {
+  const def = BUILDINGS[type];
+  if (!def || !copy) return null;
+  const stand = { type, ...(type === 'storehouse' ? { accepts: {} } : {}), ...(def.stores ? { orders: {} } : {}) };
+  const done = writeSettings(stand, copy);
+  return done.fetch.length || done.refuses.length ? done : null;
 }

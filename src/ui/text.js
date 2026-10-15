@@ -2700,3 +2700,10 @@ TIP_HELP_TEXT.build_another = 'Build another, on every building sheet, copies th
 TIP_TEXT.drag_areas = 'Placing a farm, garden or statue? The area button lays several at once: drag over the land.';
 TIP_HELP_TEXT.drag_areas = 'The area button on farms, gardens and statues drags a rectangle; the total shows before you confirm.';
 // ── end v50 areas ──
+
+// ── v50 roads (Version 5.0, Task 5, rulings 560-569) ─────────────────────────────────────────────────────────────────
+// Routed roads: the road bar's Route / Straight toggle; the bar's and the refusals' sentences are in src/ui/routeText.js. The tip comes with the first road laid, or the first
+// straight road refused for what lies in its way; How to play lists it with the others.
+TIP_TEXT.road_route = 'Something in the way? Switch the road bar to Route: pick two ends and the road finds a way round.';
+TIP_HELP_TEXT.road_route = 'Route finds the cheapest way between two points, with a bridge where one fits. Straight keeps the L and finger.';
+// ── end v50 roads ──

@@ -37,7 +37,7 @@ function sameCosts(a, b) {
 }
 
 // A binary heap of [priority, tile], smallest first; ties go to the lower tile index, so the search is deterministic.
-function heapPush(h, p, t) {
+export function heapPush(h, p, t) {
   h.push([p, t]);
   let i = h.length - 1;
   while (i > 0) {
@@ -47,7 +47,7 @@ function heapPush(h, p, t) {
   }
   h[i] = [p, t];
 }
-function heapPop(h) {
+export function heapPop(h) {
   const top = h[0], last = h.pop();
   if (h.length) {
     let i = 0;

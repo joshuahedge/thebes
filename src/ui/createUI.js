@@ -172,7 +172,7 @@ export function createUI({
   const tipsBusy = (s) => isToolMode(s.mode) || (phone() && Boolean(s.sheet || s.overlay || alertHasRow() || world.speed === 0));
   const fireTip = (key) => tips.trigger(key, { busy: tipsBusy(store.get()) });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, now });
-  const placement = createPlacement({ world, store, afterCommand, effects, now });
+  const placement = createPlacement({ world, store, afterCommand, effects, now, roadMode: { get: () => settings.get().roadMode, set: (v) => settings.set({ roadMode: v }) } });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc, keys: () => settings.get().keyboardShortcuts !== false });
   const alerts = createAlerts({
     world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root,
@@ -512,6 +512,8 @@ export function createUI({
     if (e.undoable && e.kind === 'building' && store.get().tool && AUTO_OVERLAY[store.get().tool.type] && BUILDINGS[store.get().tool.type].reach) fireTip('servicePlaced');   // a reach tip: a garden has none
     // Version 5.0 (Task 4): The drag-area tip comes with the first farm, garden or statue placed (a tool's tip is held until it ends); Build another's with the first building sheet opened (below).
     if (e.undoable && e.kind === 'building' && areaKindOf(store.get().tool && store.get().tool.type)) fireTip('dragAreas');
+    // Version 5.0 (Task 5): Route's tip, with the first road laid by the finger or the L (a tool's tip is held until it ends); the Map seam also fires it when a straight road is refused for what is in its way.
+    if (e.undoable && e.kind === 'road' && store.get().tool && !store.get().tool.gate && !store.get().tool.route) fireTip('roadRoute');
     if (e.undoable && e.kind === 'demolish') fireTip('demolished');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'storehouse') fireTip('storehousePlaced');
     if (e.undoable && e.kind === 'building' && store.get().tool && store.get().tool.type === 'trading_post') fireTip('tradingPostPlaced');
