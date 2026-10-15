@@ -58,11 +58,10 @@ export function runLate({ defend = true, send = true, fetchClay = true } = {}) {
   const w = deserialize(serialize(base.w));
   const main = allBuildings(w).find((b) => b.type === 'storehouse' && b.x === 22 && b.y === 18);
   const fetch = fetchClay && main ? setFetch(w, main.id, 'clay', 200) : null;
-  const months = [], raids = [], quotas = [], snapshots = {}, built = [], insane = [];
+  const months = [], raids = [], quotas = [], snapshots = {}, yearly = {}, built = [], insane = [];
   let lowestGold = w.gold;
-  const snap = (year) => {
-    snapshots[year] = { gold: Math.round(w.gold), favour: w.court.favour, people: population(w), tiers: tiers(w), towers: workingTowers(w), raidsLost: w.tally.raidsLost, raidsBeaten: w.tally.raidsBeaten || 0 };
-  };
+  const snapRow = () => ({ gold: Math.round(w.gold), favour: w.court.favour, people: population(w), tiers: tiers(w), towers: workingTowers(w), raidsLost: w.tally.raidsLost, raidsBeaten: w.tally.raidsBeaten || 0 });
+  const snap = (year) => { snapshots[year] = snapRow(); };
   const firstMonth = Math.round(w.day / DAYS_PER_MONTH) + 1;
   const lastMonth = LATE_YEARS * MONTHS_PER_YEAR;
   for (let m = firstMonth; m <= lastMonth; m++) {
@@ -90,9 +89,11 @@ export function runLate({ defend = true, send = true, fetchClay = true } = {}) {
     months.push({ month: m, gold: w.gold, favour: w.court.favour, people: population(w), taxes: w.stats.lastMonth.taxes, unfed });
     const year = Math.floor(w.day / YEAR_DAYS) + 1;
     if (w.day % YEAR_DAYS === 0 && [9, 11].includes(year)) snap(year - 1);   // the end of years 8 and 10
+    if (w.day % YEAR_DAYS === 0) yearly[year - 1] = snapRow();               // every year's end, for the record
   }
   snap(LATE_YEARS);
-  return { w, fetch, months, raids, quotas, snapshots, built, lowestGold, insane, elapsed: performance.now() - started };
+  yearly[LATE_YEARS] = snapRow();
+  return { w, fetch, months, raids, quotas, snapshots, yearly, built, lowestGold, insane, elapsed: performance.now() - started };
 }
 
 let shared = null;

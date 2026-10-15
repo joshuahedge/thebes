@@ -16,7 +16,7 @@ export const FLOOD = { months: [7, 8, 9], drainMonths: [10], forecastMonths: 3, 
 // water spreads over the floodplain (tiles from the river; render only: the whole floodplain is 3 tiles wide).
 export const FLOOD_LEVELS = [
   { id: 'low', chance: 0.15, harvest: 0.6, spread: 1 },
-  { id: 'fair', chance: 0.35, harvest: 0.9, spread: 2 },
+  { id: 'fair', chance: 0.35, harvest: 1.0, spread: 2 },
   { id: 'good', chance: 0.35, harvest: 1.1, spread: 3 },
   { id: 'high', chance: 0.15, harvest: 1.25, spread: 3 },
 ];

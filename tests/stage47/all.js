@@ -23,3 +23,6 @@ import './pressure/raids.test.js';
 import './pressure/tiers.test.js';
 import './pressure/balance.test.js';
 import './pressure/review.test.js';
+import './balance/village.test.js';
+import './balance/district.test.js';
+import './balance/flood.test.js';

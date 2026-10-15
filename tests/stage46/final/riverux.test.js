@@ -95,8 +95,8 @@ describe('s46 final words: flood remarks after a flood (ruling 453)', () => {
 });
 
 describe('s46 final words: the floodplain outlook (ruling 454)', () => {
-  it('says "without the flood" for the farms at 100%, since no flood level gives 100%', () => {
-    expect(FLOOD_LEVELS.some((l) => l.harvest === 1)).toBe(false);
+  it('says "without the flood" for the farms at 100%; since Stage 4.7 (ruling 473) only a Fair flood gives 100%, and the words never call it a plain year', () => {
+    expect(FLOOD_LEVELS.filter((l) => l.harvest === 1).map((l) => l.id)).toEqual(['fair']);
     const line = R.outlookLine({ farms: 2, now: 66, plain: 60 }, false);
     expect([line.includes('(60 without the flood)'), line.includes('plain year')]).toEqual([true, false]);
   });

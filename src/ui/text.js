@@ -1876,7 +1876,7 @@ const rvFirstMonth = rvFlood.months[0], rvLastMonth = rvFlood.months[rvFlood.mon
 export const S46_RIVER_TEXT = {
   levelName: rvName,
   pct: rvPct,
-  // The levels, as the sim draws them: "Low 60%, Fair 90%, Good 110%, High 125%".
+  // The levels, as the sim draws them: "Low 60%, Fair 100%, Good 110%, High 125%".
   levelsLine: rvLevels.map((l) => `${rvName(l.id)} ${rvPct(l.id)}`).join(', '),
   // Captions (a celebration of tier info) when the forecast or the water arrives (ruling 334).
   forecastCaption: (id) => `The flood will be ${rvName(id)}: farms on the floodplain grow ${rvPct(id)}`,
@@ -1948,7 +1948,7 @@ export const S46_RIVER_TEXT = {
     return look.applied ? `Last flood: ${rvName(look.applied.id)}. Floodplain farms grow ${Math.round(look.applied.harvest * 100)}% until the next flood, in ${rvMonths(look.monthsTo)}` : `The first flood comes in month ${rvFirstMonth}`;
   },
   // Food from the floodplain: working floodplain farms' monthly food as they stand and without the flood (floodOutlook's plain: the farms at 100%).
-  outlookLine: (o, coming) => `${coming ? 'When the flood comes' : 'Now'}, ${plural(o.farms, 'floodplain farm makes', 'floodplain farms make')} about ${o.now} food a month (${o.plain} without the flood)`,   // final review: no level gives 100%, so 'a plain year' named none
+  outlookLine: (o, coming) => `${coming ? 'When the flood comes' : 'Now'}, ${plural(o.farms, 'floodplain farm makes', 'floodplain farms make')} about ${o.now} food a month (${o.plain} without the flood)`,   // final review: 'a plain year' named no level; since Stage 4.7 (ruling 473) a Fair flood gives 100%, so it still says without the flood
   herdsLine2: (n, animals, hunted) => `Herds: ${n} (${plural(animals, 'animal', 'animals')}); ${hunted} hunted so far`,
 };
 // The firsts, the tips (How to play lists them) and the building plurals.
@@ -2556,6 +2556,7 @@ const s47Range = (vals, fmt = String) => { const lo = Math.min(...vals), hi = Ma
 const s47Shares = () => s47Range(Object.values(s47Quota.share), s47Pct);
 const s47Caps = () => s47Range(['relaxed', 'normal', 'hard'].map((d) => s47Late.cap[d]));
 const s47Times = (x) => `${x}×`;
+const s47Num = (n) => n.toLocaleString('en-US');
 export const S47_PRESSURE_TEXT = {
   // ── The yearly tribute (ruling 469): a standing letter on the court sheet ──
   quotaHead: 'Yearly tribute',
@@ -2602,9 +2603,9 @@ export const S47_PRESSURE_TEXT = {
   tipHelp: `From year ${s47Quota.fromYear} the court asks ${s47Shares()} of a year's output as tribute. Met: +${s47Quota.favourMet} favour (+${s47Quota.favourEarly} early); missed: −${s47Quota.favourMissed}.`,
   // ── Raids grow with wealth (ruling 470) ──
   wealthLine: (w) => `${plural(w.size, 'raider', 'raiders')}: your wealth draws ${w.wealth} more`,
-  raidsGrow: (e) => `From year ${e.year} raids grow with your wealth: one more raider for each ${e.goldPer} gold and each ${e.peoplePer} people, up to ${e.cap} more`,
+  raidsGrow: (e) => `From year ${e.year} raids grow with your wealth: one more raider for each ${s47Num(e.goldPer)} gold and each ${s47Num(e.peoplePer)} people, up to ${e.cap} more`,
   tipRaids: 'Raids now grow with your wealth: the warning says how many raiders your gold and people draw.',
-  tipRaidsHelp: `From year ${s47Late.fromYear}, raids gain one raider per ${s47Late.goldPer} gold and ${s47Late.peoplePer} people: up to ${s47Caps()} more raiders, by level.`,
+  tipRaidsHelp: `From year ${s47Late.fromYear}, raids gain one raider per ${s47Num(s47Late.goldPer)} gold and ${s47Num(s47Late.peoplePer)} people: up to ${s47Caps()} more raiders, by level.`,
   // ── The upper tiers (ruling 471), from the housing data ──
   useHead: 'Uses a month',
   // "12 pottery, 12 beer and 9 linen (1.5× the usual), and food of three kinds".
