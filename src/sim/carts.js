@@ -43,6 +43,8 @@ export function tripTimes(len, day) {
   const turn = day + legDays(len);
   return { turn, due: Math.max(turn + 1, day + Math.ceil((2 * len) / CARTS.speed)) };
 }
+// Days the whole round trip takes, as the sim counts it (the due day less the day it sets out).
+export const roundTripDays = (len) => tripTimes(len, 0).due;
 
 // The eight compass words from one point to another (y grows to the south, as the raids' directions and the score's say it).
 export function compass(dx, dy) {
@@ -123,14 +125,14 @@ export function fetchPreview(world, id, good, amount = CARTS.defaultFetch) {
   const found = findSource(world, b, good);
   return {
     good, fetch: amount, perTrip: CARTS.perTrip, speed: CARTS.speed,
-    source: found ? { id: found.b.id, type: found.b.type, len: found.len, days: legDays(found.len), dir: directionTo(b, found.b) } : null,
+    source: found ? { id: found.b.id, type: found.b.type, len: found.len, days: legDays(found.len), roundTrip: roundTripDays(found.len), dir: directionTo(b, found.b) } : null,
     staffed: canStaff(world, b),
   };
 }
 
 // The order's live status for the store sheet. state:
 //   'out' | 'back' | 'return'   a cart of this order is on the road (amount carried, days to its due day, the source it goes to, len, dir)
-//   'other'                     the store's one cart is on the road for another good
+//   'other'                     the store's one cart is on the road for another good, or another order goes first
 //   'full'                      the store already holds the amount
 //   'refused'                   the store's accept switch for the good is off
 //   'unstaffed'                 no cart: the store is paused, burning, without a road or short of workers (staff, workers in the result)
@@ -156,6 +158,8 @@ export function fetchStatus(world, id, good) {
   if (roomOf(b) < 1) return { ...out, state: 'no_room' };
   const found = findSource(world, b, good);
   if (!found) return { ...out, state: 'no_source' };
+  const next = nextTrip(world, b);
+  if (next && next.good !== good) return { ...out, state: 'other' };   // another order goes first: this one waits its turn
   return { ...out, state: 'ready', amount: Math.min(CARTS.perTrip, order.fetch - out.held, found.surplus, roomOf(b)), days: legDays(found.len), source: describe(found.b, found.len) };
 }
 
@@ -253,7 +257,9 @@ function advance(world, c, events) {
     if (holdsGoods(c)) lostEvent(events, c, land(world, c, [src]).lost);
     return false;
   }
-  if ((c.state === 'out' || c.state === 'back') && src && !Number.isFinite(roadLen(world, home, src))) {
+  // A cart on its way back whose day has come lands first: it is home, so a road cut that day changes nothing (no turning round at the door).
+  const arriving = c.state === 'back' && day >= c.due;
+  if (!arriving && (c.state === 'out' || c.state === 'back') && src && !Number.isFinite(roadLen(world, home, src))) {
     const leg = c.state === 'out' ? c.left : c.turn;
     const travelled = Math.min(c.len, Math.max(0, (day - leg) * CARTS.speed));
     if (c.state === 'out') {
@@ -286,10 +292,12 @@ function advance(world, c, events) {
 // Sets out a cart from a store, when it has an order to fill, a free cart and the staff for it. The order with the biggest share of its amount
 // still to fetch goes first (so one good cannot starve another of the one cart); it takes the nearest source that can spare the good, and the
 // trip carries what is wanted, what the source can spare and what fits at home, up to CARTS.perTrip.
-function dispatch(world, home, stores) {
-  if (cartOf(world, home.id) || !canStaff(world, home)) return;
+// The order a free, staffed cart would serve now: { good, found, amount } or null. The day's dispatch and the order's status line both use it, so
+// the words name the order that really goes first.
+export function nextTrip(world, home, stores = storesOf(world)) {
+  if (cartOf(world, home.id) || !canStaff(world, home)) return null;
   const room = roomOf(home);
-  if (room < 1) return;
+  if (room < 1) return null;
   const wanting = ordersOf(home)
     .map((o) => ({ ...o, gap: o.fetch - heldOf(home, o.good) }))
     .filter((o) => o.gap > 0 && storeAccepts(home, o.good))
@@ -299,11 +307,17 @@ function dispatch(world, home, stores) {
     if (!found) continue;
     const amount = Math.min(CARTS.perTrip, o.gap, found.surplus, room);
     if (amount < 1) continue;
-    found.b.store[o.good] -= amount;
-    const { turn, due } = tripTimes(found.len, world.day);
-    world.carts.push({ id: home.id, from: found.b.id, to: home.id, good: o.good, amount, len: found.len, left: world.day, turn, due, state: 'out' });
-    return;
+    return { good: o.good, found, amount };
   }
+  return null;
+}
+function dispatch(world, home, stores) {
+  const trip = nextTrip(world, home, stores);
+  if (!trip) return;
+  const { good, found, amount } = trip;
+  found.b.store[good] -= amount;
+  const { turn, due } = tripTimes(found.len, world.day);
+  world.carts.push({ id: home.id, from: found.b.id, to: home.id, good, amount, len: found.len, left: world.day, turn, due, state: 'out' });
 }
 
 // Every day (tickDay, after the producers): the carts on the road move on, then the stores with an order and a free cart send one.

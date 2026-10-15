@@ -63,7 +63,7 @@ describe('s47 carts: orders (validation)', () => {
     expect(setFetch(w, home.id, 'pottery', 2.5).reason).toBe('bad_amount');
     expect(setFetch(w, home.id, 'pottery', 801)).toEqual({ ok: false, reason: 'bad_amount', warnings: [], good: 'pottery', max: 800 });
     expect(setFetch(w, home.id, 'linen').reason).toBe('no_source');                   // no store holds linen
-    expect(W.refusal(setFetch(w, home.id, 'linen'))).toBe('No store with linen is linked by road');
+    expect(W.refusal(setFetch(w, home.id, 'linen'))).toBe('No store with linen to spare is linked by road');
     setAccept(w, home.id, 'pottery', false);
     expect(setFetch(w, home.id, 'pottery').reason).toBe('refuses');
     setAccept(w, home.id, 'pottery', true);
@@ -82,7 +82,7 @@ describe('s47 carts: orders (validation)', () => {
     expect(roadLen(w, home, far)).toBe(Infinity);
     const r = setFetch(w, home.id, 'pottery');
     expect(r.reason).toBe('no_source');
-    expect(W.refusal(r)).toBe('No store with pottery is linked by road');
+    expect(W.refusal(r)).toBe('No store with pottery to spare is linked by road');
     setRoad(w, 16, 10, 16, 10);
     expect(setFetch(w, home.id, 'pottery').ok).toBe(true);
   });
@@ -473,11 +473,11 @@ describe('s47 carts: status, consequence and words from the sim', () => {
     const home = store(w, 'storehouse', 2);
     store(w, 'storehouse', 30, { pottery: 50 });
     const pv = fetchPreview(w, home.id, 'pottery', 100);
-    expect(pv.source).toEqual({ id: w.nextId - 1, type: 'storehouse', len: 28, days: 4, dir: 'east' });
-    expect(W.consequence(pv)).toBe('Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 28 road tiles (4 days each way)');
-    expect(W.consequence(fetchPreview(w, home.id, 'linen', 100))).toBe('Fetch linen: no store with linen is linked by road');
+    expect(pv.source).toEqual({ id: w.nextId - 1, type: 'storehouse', len: 28, days: 4, roundTrip: 7, dir: 'east' });
+    expect(W.consequence(pv)).toBe('Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 28 road tiles (a round trip takes 7 days)');
+    expect(W.consequence(fetchPreview(w, home.id, 'linen', 100))).toBe('Fetch linen: no store with linen to spare is linked by road');
     home.staff = 0;
-    expect(W.consequence(fetchPreview(w, home.id, 'pottery', 100))).toBe('Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 28 road tiles (4 days each way). No cart goes until this store has its workers and a road');
+    expect(W.consequence(fetchPreview(w, home.id, 'pottery', 100))).toBe('Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 28 road tiles (a round trip takes 7 days). No cart goes until this store has its workers and a road');
   });
 
   it('the live statuses of an order with no cart: full, refused, unstaffed, no room, no source', () => {
