@@ -27,3 +27,4 @@ import './balance/village.test.js';
 import './balance/district.test.js';
 import './balance/flood.test.js';
 import './final/final.test.js';
+import './final/releases.test.js';
