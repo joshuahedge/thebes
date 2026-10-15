@@ -78,8 +78,12 @@ export function stepWords(world, home, step) {
     // A building in reach that is not serving the home (its own sheet says how to fix it), or the far store that holds a good (Fetch).
     const n = b ? buildingName(b.type).toLowerCase() : 'building';
     if (f.why === 'good_far') {
+      // f.fetch: the store Show me opens is the one near the bazaar that should set the Fetch order (the sim's fetchStoreFor); without one, it opens the store holding the good.
       out.action = { label: T.showMe, aria: S47_PRESSURE_TEXT.showFar(c, world), select: f.select };
-      return done(STEP_LABELS.next, `have a store near the bazaar fetch ${goodName(c.good).toLowerCase()} by cart (it is held ${plural(c.len, 'road tile', 'road tiles')} from the bazaar)`);
+      const good = goodName(c.good).toLowerCase(), held = world.buildings[c.id], at = plural(c.len, 'road tile', 'road tiles');
+      return done(STEP_LABELS.next, f.fetch
+        ? `have the ${buildingName(world.buildings[f.select].type).toLowerCase()} near the bazaar fetch ${good} by cart (it is held ${at} from the bazaar)`
+        : `${good} is held only in a ${buildingName(held ? held.type : 'storehouse').toLowerCase()} ${at} from the bazaar, and no store near the bazaar can fetch it yet`);
     }
     out.action = { label: T.view, aria: viewLabel(buildingName(b ? b.type : 'building')), select: f.select };
     const rest = /no_road$/.test(c.code) ? `lay a road beside the ${n}`

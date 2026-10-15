@@ -19,6 +19,9 @@ import { healthCause } from './health.js';
 import { crimeCause } from './crime.js';
 import { tributeQuote, towersNeeded, workingTowers, raidSize } from './raids.js';
 import { DAYS_PER_MONTH } from './time.js';
+import { buildingsInReach } from './reach.js';
+import { storeAccepts } from './production.js';
+import { isStore, canStaff, findSource } from './carts.js';
 
 // ── The goods' makers (moved here from src/ui/text.js, which re-exports them) ──
 
@@ -72,6 +75,17 @@ export function unmadeFix(world, cause) {
   return { item, at: BUILDINGS[item].terrain ? 'terrain' : 'building' };
 }
 
+// Version 5.0 (Task 3 review fix): the store that should set the Fetch order for a good held only in a far store (a good_far cause): the nearest store
+// to the cause's bazaar, within its supply reach, that is built to hold the good, works, takes it and could draw it from the far store (the sim's own
+// setFetch tests: storeAccepts, findSource), or null when no store stands near the bazaar. The lower id breaks a tie in distance.
+export function fetchStoreFor(world, cause) {
+  const bazaar = cause && cause.code === 'good_far' ? world.buildings[cause.bazaar] : null;
+  if (!bazaar) return null;
+  const near = buildingsInReach(world, bazaar, BUILDINGS[bazaar.type].supplyReach, (o) => isStore(o) && BUILDINGS[o.type].stores.includes(cause.good) && o.id !== cause.id);
+  const hit = near.find(({ b }) => canStaff(world, b) && storeAccepts(b, cause.good) && findSource(world, b, cause.good));
+  return hit ? hit.b : null;
+}
+
 // The CAUSE_FIX record for a needCause result, or null.
 export function causeFix(world, cause) {
   const f = cause ? CAUSE_FIX[cause.code] : null;
@@ -106,6 +120,10 @@ function fixFor(world, cause, home, need) {
   const f = causeFix(world, cause);
   if (!f) { const locked = lockedOf(world, cause, need); return locked ? { locked } : {}; }
   const b = cause.id !== null && cause.id !== undefined ? world.buildings[cause.id] || null : null;
+  if (cause.code === 'good_far') {   // Show me opens the store that should set the Fetch order (near the bazaar) when there is one, else the store that holds the good
+    const near = fetchStoreFor(world, cause);
+    if (near) return { fix: { select: near.id, target: centreOf(near), why: cause.code, fetch: true } };
+  }
   if (f.view || f.select) return b ? { fix: { select: b.id, target: centreOf(b), why: cause.code } } : {};
   if (f.item !== 'road' && !isUnlocked(world, f.item)) return { locked: { item: f.item, milestone: (milestoneOf(f.item) || { id: null }).id } };
   return { fix: { item: f.item, at: f.at === 'terrain' ? 'terrain' : 'near', target: centreOf(f.at !== 'home' && b ? b : home) } };

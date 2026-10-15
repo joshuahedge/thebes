@@ -14,7 +14,7 @@ import { MAP } from '../data/map.js';
 import { roadCostOf } from '../sim/costs.js';
 import { producerRefused } from '../sim/production.js';
 import { isUnlocked } from '../sim/progression.js';
-import { makerOf, storeFor, goodMakers } from '../sim/advice.js';
+import { makerOf, storeFor, goodMakers, fetchStoreFor } from '../sim/advice.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -2620,9 +2620,16 @@ export const S47_PRESSURE_TEXT = {
   // The house sheet's cause when the good is held only in a store beyond the bazaars' supply reach (src/sim/housing.js good_far).
   goodFar: (cause, world) => {
     const s = world.buildings[cause.id];
-    return { cause: `${goodName(cause.good)} is held only in a ${cartStore(s ? s.type : 'storehouse')} ${cartTiles(cause.len)} from the bazaar`, fix: 'A store near the bazaar can Fetch it by cart' };
+    // Version 5.0 (Task 3 review): the fix names the store Show me opens: the one near the bazaar that should set the Fetch order (fetchStoreFor), else, with none
+    // there, the far store that holds the good.
+    const near = fetchStoreFor(world, cause);
+    return { cause: `${goodName(cause.good)} is held only in a ${cartStore(s ? s.type : 'storehouse')} ${cartTiles(cause.len)} from the bazaar`,
+      fix: near ? `The ${cartStore(near.type)} near the bazaar can Fetch it by cart` : 'No store near the bazaar can Fetch it yet; Show me the one that holds it' };
   },
-  showFar: (cause, world) => { const s = world.buildings[cause.id]; return `Show me the ${cartStore(s ? s.type : 'storehouse')} that holds ${cartGood(cause.good)}`; },
+  showFar: (cause, world) => {
+    const near = fetchStoreFor(world, cause), s = world.buildings[cause.id];
+    return near ? `Show me the ${cartStore(near.type)} near the bazaar that can Fetch ${cartGood(cause.good)}` : `Show me the ${cartStore(s ? s.type : 'storehouse')} that holds ${cartGood(cause.good)}`;
+  },
 };
 FIRST_TEXT.first_quota_met = S47_PRESSURE_TEXT.first;
 Object.assign(TIP_TEXT, { tribute_quota: S47_PRESSURE_TEXT.tip, raids_wealth: S47_PRESSURE_TEXT.tipRaids, upper_tiers: S47_PRESSURE_TEXT.tipTiers });

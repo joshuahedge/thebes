@@ -6,6 +6,7 @@ import { MILESTONES } from '../data/progression.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings } from '../sim/world.js';
 import { goodMakers, makerOf } from '../sim/advice.js';
+import { GROUND } from './nextStepText.js';
 import { costOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
 import {
@@ -49,10 +50,15 @@ const builds = (world, fix) => {
 // What the fix for a good nothing makes builds, as the words name it: the makers the city lacks, in the order they are built (a clay pit, then a
 // potter), or "another potter" when every maker stands. The cost line prices exactly these (every building named is priced, none unnamed), and
 // Show me starts the first. Version 5.0 review: the house sheet's cause words name every maker, so a price for one of them was a half truth.
-export function unmadeBuilds(world, good) {
+// Version 5.0 (Task 3 review): each maker says where it goes, as the fix does: a maker bound to ground (the clay pit) on that ground, any other near the
+// building the cause names (the bazaar that would sell the good), never "near it" for the home.
+export function unmadeBuilds(world, good, cause = null) {
   const makers = goodMakers(good);
   const missing = makers.filter((t) => !allBuildings(world).some((b) => b.type === t));
-  return missing.length ? { types: missing, words: listText(missing.map((t) => an(buildingName(t).toLowerCase()))) } : { types: [makerOf(good)], words: `another ${buildingName(makerOf(good)).toLowerCase()}` };
+  const at = cause && cause.id !== null && cause.id !== undefined ? world.buildings[cause.id] : null;
+  const place = (t) => (BUILDINGS[t].terrain ? ` on ${GROUND[BUILDINGS[t].terrain] || 'the right ground'}` : at ? ` near the ${buildingName(at.type).toLowerCase()}` : '');
+  return missing.length ? { types: missing, words: listText(missing.map((t) => `${an(buildingName(t).toLowerCase())}${place(t)}`)) }
+    : { types: [makerOf(good)], words: `another ${buildingName(makerOf(good)).toLowerCase()}${place(makerOf(good))}` };
 }
 // The price of a list of buildings (the sum of costOf; the placing rule's debt floor for the whole sum) and how it reads: "Clay pit and potter: 160 gold".
 const priceList = (world, types) => ({ gold: types.reduce((s, t) => s + costOf(world, t), 0), what: capitalised(listText(types.map((t) => buildingName(t).toLowerCase()))) });
@@ -79,7 +85,7 @@ export function adviceWords(a, world) {
       // A good nothing makes: the words name the makers the city lacks, and the cost line below prices all of them.
       if (a.fix && d.cause.code === 'good_unmade') {
         const good = d.cause.good || d.need, verb = goodMakers(good).some((t) => BUILDINGS[t].consumes) ? 'Make' : 'Grow';
-        out.fix = forMany(`${verb} ${goodWord(good)} near it: ${unmadeBuilds(world, good).words}`, n);
+        out.fix = forMany(`${verb} ${goodWord(good)}: ${unmadeBuilds(world, good, d.cause).words}`, n);
       }
       break;
     }
