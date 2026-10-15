@@ -8,11 +8,12 @@ import { describe, it, expect } from '../../harness.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 import { desirabilityFix, nextStep, moreOf, unmadeFix, buildFixFor, cityAdvice } from '../../../src/sim/advice.js';
 import { houseDesirability } from '../../../src/sim/desirability.js';
-import { desirabilityTarget, needCause } from '../../../src/sim/housing.js';
-import { checkTiles } from '../../../src/sim/commands.js';
+import { desirabilityTarget, needCause, houseStatus } from '../../../src/sim/housing.js';
+import { checkTiles, canPlace, place } from '../../../src/sim/commands.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { isUnlocked } from '../../../src/sim/progression.js';
 import { removeBuilding } from '../../../src/sim/world.js';
+import { produceDay } from '../../../src/sim/production.js';
 import { goalMet, goalProgress, goalById, nextItemFor, foodKinds, bestStreet } from '../../../src/sim/goals.js';
 import { ADVICE } from '../../../src/data/advice.js';
 import { DESIRABILITY } from '../../../src/data/desirability.js';
@@ -103,6 +104,27 @@ describe('v50 grand sim: a low street names the decoration and its tile', () => 
   });
 });
 
+describe('v50 grand sim: the named decoration goes through the placing rule', () => {
+  it('can be placed at its tile and, once placed, gives the street exactly the score it promised, for what it costs', () => {
+    const { world: w, home } = grandDistrict('street');
+    const fix = desirabilityFix(w, home), gold = w.gold, cost = costOf(w, fix.item);
+    expect(canPlace(w, fix.item, fix.spot.x, fix.spot.y).ok).toBe(true);
+    const r = place(w, fix.item, fix.spot.x, fix.spot.y);
+    expect([r.ok, w.gold, houseDesirability(w, home)]).toEqual([true, gold - cost, fix.to]);
+    expect(place(w, fix.item, fix.spot.x, fix.spot.y).ok).toBe(false);                // the tile is taken now
+  });
+
+  it('is offered with its price and unaffordable when the treasury cannot pay it: the step says so and the placing rule refuses', () => {
+    const { world: w, home } = grandDistrict('street', -5000);
+    const step = nextStep(w, home), f = step.fix;
+    expect([step.reason, f.item, step.cost, step.afford]).toEqual([null, desirabilityFix(w, home).item, costOf(w, f.item), false]);
+    const refused = canPlace(w, f.item, f.spot.x, f.spot.y);
+    expect([refused.ok, refused.reason]).toEqual([false, 'no_gold']);
+    expect(place(w, f.item, f.spot.x, f.spot.y).ok).toBe(false);
+    expect(houseDesirability(w, home)).toBe(f.from);                                    // nothing was built
+  });
+});
+
 // A brewery chain on a flat map: a road along y = 10, a storehouse and a bazaar on it; the brewery and the barley farm as each case lays them.
 function chain() {
   const w = makeTestWorld({ size: 40, fertile: [[0, 0, 8, 40]] });
@@ -132,6 +154,19 @@ describe('v50 grand sim: where a chain is stuck', () => {
     c.store.store.barley = 0;
     c.farm.blocked = 'no_storage';
     expect(moreOf(c.w, 'beer')).toEqual({ item: 'storehouse', near: c.farm.id });      // the farm has nowhere to put it: a store by the farm
+  });
+
+  it('never asks for another maker when the one that stands is paused, short of workers or has no game: the workers item and its sheet say why', () => {
+    const cause = { code: 'good_unmade', good: 'beer', id: null };
+    for (const why of ['paused', 'understaffed', 'no_game']) {
+      const c = chain();
+      expect([why, moreOf(c.w, 'beer'), unmadeFix(c.w, cause)]).toEqual([why, { item: 'brewery', near: null }, { item: 'brewery', at: 'building' }]);   // healthy: another brewery
+      if (why === 'paused') c.brewery.paused = true; else c.brewery.blocked = why;
+      expect([why, moreOf(c.w, 'beer'), unmadeFix(c.w, cause)]).toEqual([why, null, null]);
+    }
+    const c = chain();                                                                   // a store that is full is a real block: its store comes first, whoever else is short
+    c.brewery.blocked = 'no_storage';
+    expect(moreOf(c.w, 'beer')).toEqual({ item: 'storehouse', near: c.brewery.id });
   });
 
   it('puts a missing workshop by the store holding its input, and the words of the fix say so', () => {
@@ -169,20 +204,22 @@ describe('v50 grand sim: goals lead to a Villa and an Estate, one want at a time
     for (const id of ['third_food', 'villa_street', 'estate_street']) expect(goalById(id).text.length).toBeLessThanOrEqual(40);
   });
 
-  it('counts a third food only when the city makes three kinds, each by a maker on a road', () => {
-    const c = chain();
+  it('counts a third food only when a home holds three kinds in stock, as the home check does: a lodge with no herd makes none', () => {
+    const { world: w, home } = grandDistrict('food');
     const third = goalById('third_food');
-    addRaw(c.w, 'farm_grain', 2, 14);
-    addRaw(c.w, 'farm_fig', 2, 17);
-    setRoad(c.w, 0, 13, 7, 13);
-    setRoad(c.w, 0, 16, 7, 16);
-    expect([foodKinds(c.w), goalMet(c.w, third.need), goalProgress(c.w, third)]).toEqual([2, false, { n: 2, of: 3 }]);
-    const lodge = addRaw(c.w, 'hunting_lodge', 30, 20);                               // off the road: it cannot work, so it does not count
-    expect(goalMet(c.w, third.need)).toBe(false);
-    setRoad(c.w, 29, 19, 33, 19);
-    expect([foodKinds(c.w), goalMet(c.w, third.need), goalProgress(c.w, third)]).toEqual([3, true, { n: 3, of: 3 }]);
-    removeBuilding(c.w, lodge.id);
-    expect(goalMet(c.w, third.need)).toBe(false);
+    w.wildlife.herds = [];
+    expect([foodKinds(w), goalMet(w, third.need), goalProgress(w, third)]).toEqual([2, false, { n: 2, of: 3 }]);
+    const lodge = addRaw(w, 'hunting_lodge', 3, 11);                                    // on the road, staffed, but no herd to take game from
+    staffAll(w);
+    for (let day = 0; day < 30; day++) produceDay(w);
+    expect([lodge.blocked, home.stock.game || 0]).toEqual(['no_game', 0]);
+    expect([foodKinds(w), goalMet(w, third.need), goalProgress(w, third)]).toEqual([2, false, { n: 2, of: 3 }]);
+    expect(houseStatus(w, home).checklist.find((c) => c.need === 'threeFoods').met).toBe(false);   // the home check agrees
+    home.stock.game = 12;                                                               // game reaches the home
+    expect([foodKinds(w), goalMet(w, third.need), goalProgress(w, third)]).toEqual([3, true, { n: 3, of: 3 }]);
+    expect(houseStatus(w, home).checklist.find((c) => c.need === 'threeFoods').met).toBe(true);
+    removeBuilding(w, lodge.id);
+    expect(goalMet(w, third.need)).toBe(true);                                          // stock is what counts, not the maker
   });
 
   it('meets the street goal when a home a tier below scores the tier\'s rise, and not a point before; its Show me and card are the next step\'s', () => {

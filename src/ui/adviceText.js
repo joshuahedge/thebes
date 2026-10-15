@@ -69,6 +69,7 @@ export function unmadeBuilds(world, good, cause = null) {
   // Version 5.0 (Task 7): every maker stands, so the words name the one step the chain lacks (src/sim/advice.js moreOf: a store by a stuck maker,
   // more of the input, another workshop by the store holding it), the one priced and the one Show me starts, by the building it goes beside.
   const more = moreOf(world, good);
+  if (!more) return { types: [], words: '' };
   const by = more.near !== null ? world.buildings[more.near] : null;
   const name = buildingName(more.item).toLowerCase();
   const word = allBuildings(world).some((b) => b.type === more.item) ? `another ${name}` : an(name);

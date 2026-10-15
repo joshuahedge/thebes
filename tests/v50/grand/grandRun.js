@@ -6,8 +6,14 @@
 // road routed to it when the ghost has none; a far good's fix sets the Fetch order on the store the sheet opens. As the confirm bar says, a maker
 // with no store in reach gets the good's store beside it, and one that would still stand idle is taken back; a workshop with no room by its input
 // is built in the open with a store that Fetches the input. It keeps RESERVE in the treasury, builds no workplace the workforce cannot staff and
-// at most BUILDS_A_MONTH things a month, and sends the yearly tribute (the late run's rule). Two choices on the first day are the capital run's
-// own leftovers (below). Nothing else is scripted: the Villa and the Estate come from the advice (the proof the advice is good).
+// at most BUILDS_A_MONTH things a month, and sends the yearly tribute (the late run's rule). The Villa and the Estate come from the advice, with
+// the hand-play below (a player's own moves that no advice line or next step says; ruling 586 records the satellite):
+//   - the clay fetch and the beer ignore order, set on the first day (the capital run's own leftovers, below);
+//   - the road to each ghost that needs one, routed to the nearest road, and a step taken back (undo) when it would stand idle: what the confirm
+//     bar's "needs a road" and "no input in reach" say, but no advice names the route;
+//   - the satellite workshop (satellite below): a workshop (the second weaver, the jeweller) in the open with its own store that Fetches its input
+//     (flax, gems), when there is no room by the store holding it. No advice says that (moreOf names a workshop beside the store holding the input); without it the run
+//     reaches a Villa (month 92) but no Estate in ten years (measured when this was written).
 import { runCapital, CAPITAL_YEARS } from '../../stage4/balance/capitalRun.js';
 import { advanceDays } from '../../../src/sim/clock.js';
 import { place, canPlace, tileReason } from '../../../src/sim/commands.js';

@@ -14,7 +14,7 @@ import { costOf } from '../../../src/sim/costs.js';
 import { select } from '../../../src/ui/modes.js';
 import { stepWords, STEP_LABELS, STEP_TEXT } from '../../../src/ui/nextStepText.js';
 import { adviceWords, ADVICE_TEXT } from '../../../src/ui/adviceText.js';
-import { TIP_TEXT, TIP_HELP_TEXT, buildingName } from '../../../src/ui/text.js';
+import { TIP_TEXT, TIP_HELP_TEXT, CAUSE_TEXT, buildingName } from '../../../src/ui/text.js';
 import { TIERS } from '../../../src/data/housing.js';
 import { grandDistrict } from '../../../src/dev/v50/grand.js';
 
@@ -37,6 +37,38 @@ describe('v50 grand ui: the next step names the decoration and its tile', () => 
         expect([pick, r.store.get().tool]).toEqual([pick, { kind: 'building', type: f.item }]);
       }
     } finally { r.cleanup(); }
+  });
+
+  it('says the same words on the checklist row as the next step: the building, its tile, the price and the street before and after', async () => {
+    const { world: w, home } = grandDistrict('street');
+    const step = nextStep(w, home);
+    const rest = stepWords(w, home, step).rest;
+    const said = rest.charAt(0).toUpperCase() + rest.slice(1);
+    const r = await rigUI({ world: w });
+    try {
+      r.store.set(select(r.store.get(), home.id));
+      await flush();
+      const row = r.root.querySelector('#sheet .checklist li[data-need="desirability"]');
+      const fix = row.querySelector('.fix .small');
+      expect(fix.textContent).toBe(said);
+      expect(fix.textContent.includes(CAUSE_TEXT.low_desirability.fix)).toBe(false);
+      expect(row.querySelector('.show-me').getAttribute('aria-label')).toBe(`Show me: ${said}`);
+    } finally { r.cleanup(); }
+  });
+
+  it('says so on the row and in the step when the treasury cannot pay for the decoration, and writes a score below zero with a minus sign', async () => {
+    const { world: w, home } = grandDistrict('street', -5000);
+    const words = stepWords(w, home, nextStep(w, home));
+    expect(words.short).toBe(true);
+    expect(words.rest).toContain(`more than the ${w.gold} you have`);
+    const r = await rigUI({ world: w });
+    try {
+      r.store.set(select(r.store.get(), home.id));
+      await flush();
+      expect(r.root.querySelector('#sheet .checklist li[data-need="desirability"] .fix .small').textContent).toContain(`more than the ${w.gold} you have`);
+    } finally { r.cleanup(); }
+    expect(STEP_TEXT.lifts(-5, 3.2, 35)).toBe('raises its desirability from −5 to 3 (it needs 35)');
+    expect(ADVICE_TEXT.decor({ item: 'statue', dist: 2, from: -12, to: -4, needs: 35 }, 1)).toBe('Place a statue 2 tiles from it: it raises its desirability from −12 to −4 (it needs 35)');
   });
 
   it('names a hunting lodge by the nearest herd for a third food, and the tip says what a Villa and an Estate want', () => {

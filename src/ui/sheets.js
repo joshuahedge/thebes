@@ -5,7 +5,7 @@ import { alertShowMe } from './threatFix.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
-import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor } from '../sim/advice.js';
+import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, priceOf } from '../sim/advice.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { setPaused, setAccept } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
@@ -21,6 +21,7 @@ import { jobsPenalty } from '../sim/mood.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { demolishQuestion, causeFix } from './monumentSheet.js';
 import { stepWords } from './nextStepText.js';
+import { canAfford } from '../sim/money.js';
 import { noteView } from '../render/overlays.js';
 import { supplyNeeded } from '../sim/monuments.js';
 import { huntRest } from '../sim/wildlife.js';
@@ -196,7 +197,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     // Nothing to build or view (goods on their way, a building not unlocked yet): the fix's words alone, when it has any.
     if (!fix) { if (words.fix) li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix })])); return li; }
     const building = cause.id !== null ? world.buildings[cause.id] : null;
-    let action;
+    let action, said = words.fix;
     if (fix.select) {
       if (!building) return li;
       const target = fetchStoreFor(world, cause) || building;   // the store near the bazaar that should set the Fetch order, else the one that holds the good
@@ -211,9 +212,12 @@ export function createSheets({ container, store, world, placement, cameraControl
       const near = step ? step.target : centreOf(fix.at !== 'home' && building ? building : h);
       const at = (step ? step.at : fix.at) === 'terrain' ? nearestTerrainTile(world, BUILDINGS[item].terrain, near) || near : near;
       const target = { category: categoryOfItem(item), item, x: at.x, y: at.y };
-      action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${words.fix}`, onClick: () => onShowMeBuild(target) });
+      // A low street's decoration is said as the next step says it (which building, where, its price, the street before and after), not the general line.
+      const rest = step && step.from !== undefined ? stepWords(world, h, { reason: null, need: c.need, cause, fix: step, cost: priceOf(world, step), afford: canAfford(world, priceOf(world, step)) }).rest : null;
+      if (rest) said = rest.charAt(0).toUpperCase() + rest.slice(1);
+      action = button(T.showMe, { class: 'show-me primary', 'aria-label': `${T.showMe}: ${said}`, onClick: () => onShowMeBuild(target) });
     }
-    li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix }), action]));
+    li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: said }), action]));
     return li;
   }
 

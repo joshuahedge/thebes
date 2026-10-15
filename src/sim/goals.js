@@ -15,8 +15,7 @@ import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { isMonument, isFinished } from './world.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { prestigeOf, monumentAlerts } from './monuments.js';
-import { BUILDINGS } from '../data/buildings.js';
-import { FOOD_GOODS } from '../data/goods.js';
+import { foodKinds as homeFoodKinds } from './housing.js';
 import { TIERS } from '../data/housing.js';
 import { desirabilityField, houseDesirability } from './desirability.js';
 import { desirabilityFix } from './advice.js';
@@ -35,9 +34,9 @@ const hasAlert = (world, code) => alertsFor(world).some((a) => a.code === code);
 const finishedOf = (world, type) => allBuildings(world).filter((b) => b.type === type && isFinished(b)).length;
 const crewNear = (world) => allBuildings(world).some((b) => isMonument(b) && touchesRoad(world, b) && buildingsInReach(world, b, MONUMENT.crewReach, (o) => o.type === 'builders_guild').length > 0);
 
-// Version 5.0 (Task 7): the kinds of food the city makes: each food with a maker that can work (on a road), as a "Build a" goal counts it.
-const FOOD_MAKERS = FOOD_GOODS.map((g) => Object.keys(BUILDINGS).filter((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === g));
-export const foodKinds = (world) => FOOD_MAKERS.filter((types) => types.some((t) => countOf(world, t) > 0)).length;
+// Version 5.0 (Task 7): the most kinds of food any home holds in stock: what the home check counts for a third food (housing.js foodKinds), so a lodge
+// with no herd, or a store no bazaar draws from, does not meet the goal; the homes' own stock does.
+export const foodKinds = (world) => housesOf(world).reduce((most, h) => Math.max(most, homeFoodKinds(h)), 0);
 // The pleasantest street among the homes that could rise to `tier` (a tier below it, or higher): { home, value } (houseDesirability, the
 // first such home in id order on a tie), or null while there is none.
 export function bestStreet(world, tier) {
