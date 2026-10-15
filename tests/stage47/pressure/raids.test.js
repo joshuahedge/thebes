@@ -114,6 +114,6 @@ describe('s47 raids wealth: the warning', () => {
       expect([d, Boolean(e)]).toEqual([d, warned]);
       if (e) expect(P.raidsGrow(e)).toBe(`From year ${RAIDS_LATE.fromYear} raids grow with your wealth: one more raider for each ${RAIDS_LATE.goldPer} gold and each ${RAIDS_LATE.peoplePer} people, up to ${RAIDS_LATE.cap[d]} more`);
     }
-    expect(TIP_HELP_TEXT.raids_wealth).toContain(`per ${RAIDS_LATE.goldPer} gold and per ${RAIDS_LATE.peoplePer} people, up to ${RAIDS_LATE.cap.relaxed}-${RAIDS_LATE.cap.hard}.`);
+    expect(TIP_HELP_TEXT.raids_wealth).toContain(`per ${RAIDS_LATE.goldPer} gold and ${RAIDS_LATE.peoplePer} people: up to ${RAIDS_LATE.cap.relaxed}-${RAIDS_LATE.cap.hard} more raiders, by level.`);
   });
 });

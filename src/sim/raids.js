@@ -340,9 +340,11 @@ export function raidAlerts(world) {
   return out;
 }
 
-// Where each raider stands in the band's tile, by its id: the centre and eighteen spots around it, one for each of the most a raid can
-// total (RAIDS.maxSize 18, and a two-sided raid adds one). A band's ids run in a row, so no two raiders in a band share a spot.
-const SLOTS = [[0, 0], [0.25, 0.2], [-0.25, 0.2], [0.25, -0.2], [-0.25, -0.2], [0, 0.32], [0, -0.32], [0.32, 0], [-0.32, 0], [0.16, 0.34], [-0.16, -0.34], [0.34, -0.16], [-0.16, 0.34], [0.16, -0.34], [-0.34, 0.16], [-0.34, -0.16], [0.34, 0.16], [0.12, -0.1], [-0.12, 0.1]];
+// Where each raider stands in the band's tile, by its id: the centre and spots around it, enough for the most a raid can total (RAIDS.maxSize
+// 18 plus the wealth term's biggest cap, RAIDS_LATE.cap, and a two-sided raid adds one). A band's ids run in a row, so no two raiders in a band
+// share a spot (the first nineteen are as Stage 4.5 drew them, the rest ring the edge).
+export const SLOTS = [[0, 0], [0.25, 0.2], [-0.25, 0.2], [0.25, -0.2], [-0.25, -0.2], [0, 0.32], [0, -0.32], [0.32, 0], [-0.32, 0], [0.16, 0.34], [-0.16, -0.34], [0.34, -0.16], [-0.16, 0.34], [0.16, -0.34], [-0.34, 0.16], [-0.34, -0.16], [0.34, 0.16], [0.12, -0.1], [-0.12, 0.1],
+  [0.44, 0.06], [-0.44, -0.06], [0.06, 0.44], [-0.06, -0.44], [0.42, 0.3], [-0.42, -0.3], [0.42, -0.3], [-0.42, 0.3], [0.3, 0.44], [-0.3, -0.44]];
 function placeBand(a, k = 0) {
   const rec = bandRec(a, k);
   for (const u of crewOf(a, k)) {

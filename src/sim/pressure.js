@@ -31,15 +31,13 @@ export const quotaOf = (world) => world.court.quota || null;
 export const quotaYearOn = (world, day = world.day) => dateOfDay(day).year >= QUOTA.fromYear;
 
 // Last year's output of a good (ruling 469): tally.made's rise since the snapshot taken a year ago (scaled to a year if the snapshot is older
-// or newer); with no snapshot (an old save in its first year back), or none of the good made, the court's outputPerMonth x 12 (a working
-// producer's output, or an open route's yearly quota for a good the city only trades for).
+// or newer). With a snapshot the quota asks only what the city really made (a good it made none of is not asked); with no snapshot (an old
+// save in its first year back) the court's outputPerMonth x 12 (a working producer's output, or an open route's yearly quota for a good the
+// city only trades for) stands in.
 export function yearOutput(world, good) {
   const y = world.court.yearMade;
   const made = (world.tally.made && world.tally.made[good]) || 0;
-  if (y && world.day > y.day) {
-    const n = (made - (y.made[good] || 0)) * (DAYS_PER_YEAR / (world.day - y.day));
-    if (n > 0) return n;
-  }
+  if (y && world.day > y.day) return Math.max(0, (made - (y.made[good] || 0)) * (DAYS_PER_YEAR / (world.day - y.day)));
   return outputPerMonth(world, good) * MONTHS_PER_YEAR;
 }
 
@@ -91,7 +89,7 @@ export function quotaStatus(world, q = quotaOf(world)) {
   return {
     year: q.year, result: q.result, metDay: q.metDay, goods, share: total ? sent / total : 1, total, sent,
     monthsLeft: monthsLeft(world, q.due), earlyLeft: early ? monthsLeft(world, q.early + 1) : 0, early,
-    shipNow, completes, favour: favourChange(world, early ? QUOTA.favourEarly : QUOTA.favourMet), gift: q.gift,
+    shipNow, completes, favour: favourChange(world, early ? QUOTA.favourEarly : QUOTA.favourMet), favourLate: favourChange(world, QUOTA.favourMet), gift: q.gift,
     missFavour: favourChange(world, -QUOTA.favourMissed), carry: carryIfMissed(q), due: q.due,
   };
 }
@@ -169,9 +167,21 @@ export function nextQuotaDay(world) {
   return Math.max(nextYearStart, (QUOTA.fromYear - 1) * DAYS_PER_YEAR);
 }
 
+// The reminders (ruling 469): at the month ends 3 months and 1 month before an open, unmet quota is due, { type: 'quota_reminder', months, owed }
+// (owed: what is still owed, [{ good, left }]).
+function quotaReminder(world, events) {
+  const q = quotaOf(world);
+  if (!events || !q || q.result !== null || world.day >= q.due) return;
+  const months = monthsLeft(world, q.due);
+  if (months !== 3 && months !== 1) return;
+  if (world.day !== q.due - months * DAYS_PER_MONTH) return;
+  const owed = q.goods.map((g) => ({ good: g.good, left: Math.max(0, g.amount - g.sent) })).filter((g) => g.left > 0);
+  if (owed.length) events.push({ type: 'quota_reminder', months, owed });
+}
+
 // At every month's end (runMonth): the year's work on the month end that begins a year (see the head of this file).
 export function pressureMonth(world, events = null) {
-  if (world.day % DAYS_PER_YEAR !== 0) return;
+  if (world.day % DAYS_PER_YEAR !== 0) { quotaReminder(world, events); return; }
   const c = world.court;
   const year = dateOfDay(world.day).year;
   const carry = endQuotaYear(world, events);

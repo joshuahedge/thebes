@@ -22,3 +22,4 @@ import './pressure/quota.test.js';
 import './pressure/raids.test.js';
 import './pressure/tiers.test.js';
 import './pressure/balance.test.js';
+import './pressure/review.test.js';
