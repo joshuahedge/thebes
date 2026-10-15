@@ -246,3 +246,46 @@ describe('mobile height budget: the house tool with its spots (Stage 4.7)', () =
     expect(wrong).toEqual([]);
   });
 });
+
+// Stage 4.7 (Task 6): a store's sheet with the Fetch list open (the s47-carts scene, sheet: true: the near storehouse with an order and a cart on the road), on a small and a tall
+// phone at each text size: the rows obey the budget (a sheet leaves only the alert row), the panel is inside the frame with no sideways scroll, and every control in it (the
+// Fetch row, each switch and stepper button, Show me) is a 44 px target that scrolled to sits on screen, on the first good and the last.
+describe('mobile height budget: the store sheet with Fetch open (Stage 4.7)', () => {
+  const PHONES = [[375, 667], [390, 844]];
+  it('holds the budget, the panel fits the width and its controls are reachable 44 px targets', async () => {
+    const wrong = [];
+    for (const [width, height] of PHONES) {
+      for (const textSize of TEXT_SIZES) {
+        const r = await bootScene('s47-carts', width, height, 'skipTitle=1&seed=11&sample=1');
+        try {
+          r.api.game().ui.settings.set({ textSize, reducedMotion: 'on' });
+          await frame();
+          const said = await devScene(r.api, 's47-carts', { sheet: true });
+          const g = r.api.game();
+          g.ui.alerts.refresh();
+          await frame(); await frame();
+          const at = `${width}x${height} ${textSize}%`;
+          expect([at, said.includes('cart out, 20 pottery')]).toEqual([at, true]);
+          expect([at, g.ui.store.get().sheet.kind]).toEqual([at, 'info']);
+          const sheet = r.root.querySelector('#sheet'), panel = sheet.querySelector('.fetch-panel');
+          if (!panel) { wrong.push(`${at}: no Fetch panel`); continue; }
+          expect([at, panel.querySelector('.fetch-head').getAttribute('aria-expanded')]).toEqual([at, 'true']);
+          const box = r.root.getBoundingClientRect();
+          if (sheet.scrollWidth > sheet.clientWidth + 1) wrong.push(`${at}: the sheet scrolls sideways (${sheet.scrollWidth} of ${sheet.clientWidth})`);
+          const rows = [...panel.querySelectorAll('.fetch-good')];
+          const controls = [panel.querySelector('.fetch-head'), ...[rows[0], rows[rows.length - 1]].flatMap((li) => [...li.querySelectorAll('button')])];
+          for (const n of controls) {
+            n.scrollIntoView({ block: 'nearest' });
+            const b = n.getBoundingClientRect();
+            const name = n.getAttribute('aria-label') || n.textContent;
+            if (b.height < 44 - 0.5 || b.width < 44 - 0.5) wrong.push(`${at} ${name}: ${Math.round(b.width)}x${Math.round(b.height)} is under 44x44`);
+            if (b.left < box.left - 1 || b.right > box.right + 1) wrong.push(`${at} ${name}: outside the frame sideways (${Math.round(b.left)}..${Math.round(b.right)} of ${Math.round(box.width)})`);
+            if (b.top < box.top - 1 || b.bottom > box.bottom + 1) wrong.push(`${at} ${name}: not on screen when scrolled to`);
+          }
+          for (const c of budgetChecks('sheet', measureRows(r.root))) if (!c.ok) wrong.push(`${c.id}: ${c.got}, limit ${c.limit}`);
+        } finally { r.cleanup(); }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+});

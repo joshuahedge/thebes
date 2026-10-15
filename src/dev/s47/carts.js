@@ -2,14 +2,18 @@
 // the balance task tunes against it). The seed-11 sample city (classic, 64), with its pottery taken away and its potter paused, so its homes that want pottery for
 // the next tier have none within their bazaars' reach; a far district up the north road (a storehouse holding pottery and linen, a granary of grain, 40-odd
 // road tiles from the bazaars); and the near storehouse (the sample city's, beside the bazaars) with no order yet: setting it to Fetch pottery is what the
-// scene is for. options: seed (11), variant ('classic'), size (64), zoom (0.5), order (true sets the near storehouse to Fetch pottery up to 100, so a cart is
-// on the road after a few days), days (days to run before the shot, 3 with an order), chrome (false: screenshot mode).
+// scene is for. options: seed (11), variant ('classic'), size (64), zoom (1: phone zoom), order (true sets the near storehouse to Fetch pottery up to 100, so a cart is
+// on the road after a few days), days (days to run before the shot, 3 with an order), chrome (false: screenshot mode), view ('cart': the camera on the cart
+// when one is on the road, else the route's middle; 'map': the whole map as before), sheet (true: the near storehouse's sheet is open, with its Fetch list when fetchOpen
+// is not false). The shots tool sets the motion first (window.__thebes.setMotion).
 import { buildSampleCity } from '../sampleCity.js';
 import { setGuide, place, drawRoad, setPaused } from '../../sim/commands.js';
 import { allBuildings, housesOf } from '../../sim/world.js';
 import { assignLabour } from '../../sim/labour.js';
 import { advanceDays } from '../../sim/clock.js';
-import { setFetch, farGoodTip, cartOf } from '../../sim/carts.js';
+import { setFetch, farGoodTip, cartOf, cartPath } from '../../sim/carts.js';
+import { cartsAt, pointOnPath } from '../../render/carts.js';
+import { select } from '../../ui/modes.js';
 import { wait, inGame } from '../s46/base.js';
 
 // Takes the city's pottery away, lays the far district and returns what the scene stands on: { near, far, farGranary, tip }. Works on the seed-11 classic 64 sample
@@ -41,7 +45,7 @@ export function buildCartsCity(world) {
 
 export const cartsScene = async (api, options = {}) => {
   inGame(api, 's47-carts');
-  const o = { seed: 11, variant: 'classic', size: 64, zoom: 0.5, order: true, ...options };
+  const o = { seed: 11, variant: 'classic', size: 64, zoom: 1, order: true, view: 'cart', ...options };
   const world = api.freshWorld({ seed: o.seed, variant: o.variant, size: o.size });
   if (!allBuildings(world).length) buildSampleCity(world);   // with ?sample=1 freshWorld has laid it already
   setGuide(world, false);
@@ -54,8 +58,24 @@ export const cartsScene = async (api, options = {}) => {
   api.startGame(world, { saveNow: false });
   const g = api.game();
   g.ui.cameraControl.cancel();
-  g.cam.zoom = o.zoom;
-  g.ui.cameraControl.jumpTo(world.size / 2, world.size / 2);
+  g.cam.zoom = o.view === 'map' ? 0.5 : o.zoom;
+  let at = { x: world.size / 2, y: world.size / 2 };
+  const near = info.near ? world.buildings[info.near] : null;
+  if (o.view !== 'map' && near) {
+    const c = cartOf(world, near.id), shown = cartsAt(world, world.day, null, 'full')[0];
+    const path = c ? cartPath(world, c) : null;
+    at = shown ? { x: shown.x, y: shown.y } : path ? pointOnPath(world, path, 0.5) : { x: near.x, y: near.y };
+  }
+  if (o.sheet && near) at = { x: near.x + near.w / 2, y: near.y + near.d / 2 - 2 };
+  g.ui.cameraControl.jumpTo(at.x, at.y);
+  if (o.sheet && near) {
+    g.ui.store.set(select(g.ui.store.get(), near.id));
+    await wait(200);
+    const head = document.querySelector('#sheet .fetch-head');
+    if (head && o.fetchOpen !== false && head.getAttribute('aria-expanded') !== 'true') head.click();
+    const panel = document.querySelector('#sheet .fetch-panel');
+    if (panel && o.fetchOpen !== false) panel.scrollIntoView({ block: 'start' });
+  }
   await wait(400);
   if (o.chrome === false) g.ui.screenshotMode();
   const cart = info.near ? cartOf(world, info.near) : null;

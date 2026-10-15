@@ -14,6 +14,7 @@ import { allBuildings } from '../sim/world.js';
 import { touchesRoad } from '../sim/reach.js';
 import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/camera.js';
 import { walkersAt } from '../render/walkers.js';
+import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
 import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint } from '../render/overlays.js';
 import { createEffects } from '../render/effects.js';
@@ -58,6 +59,7 @@ import { createGuide, canResumeGuide } from './guide.js';
 import { el, setText, clear } from './components.js';
 import { createDanger } from './danger.js';
 import { createS46Seams } from './s46/index.js';
+import { createS47Seams } from './s47/index.js';
 import { s46Walkers, s46Ground } from '../render/s46.js';
 import { createScoreUi } from './scoreUi.js';
 import { createMonumentUi } from './monumentSheet.js';
@@ -233,7 +235,7 @@ export function createUI({
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
   monumentUi = createMonumentUi(seamCtx);
-  s46 = createS46Seams(seamCtx);
+  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
@@ -951,7 +953,7 @@ export function createUI({
     renderer.renderFrame(world, cam, {
       live: (g, o) => drawMonument(g, world, o.b, { now: t, timeDays, motion, ghost: ghostBox, selectedId: s.selectedId }),
       // Stage 4.6: the tracks' figures (src/render/s46.js: the River track's animals) join the walkers, depth-sorted with them.
-      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
+      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion), ...cartsAt(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
       ambient: (g, r) => { s46Ground(g, world, r, t, motion); ambient.draw(g, world, r, t); },   // Stage 4.6: the tracks' ground layer (the flood's water) under Stage 3's ambient life (render/ambient.js, fire.js, units.js)
       scorch: (g, r) => drawScorch(g, world, r),                                // Stage 4.5 (ruling 310): the ground under a fire, at every motion level

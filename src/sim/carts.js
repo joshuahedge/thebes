@@ -78,6 +78,7 @@ export function findSource(world, home, good, stores = storesOf(world)) {
 }
 
 // Room a store has for more goods (all its goods share the capacity).
+const holdsGoods = (c) => c.state === 'out' || c.state === 'back' || (c.state === 'return' && c.dest === 'source');
 export const roomOf = (b) => Math.max(0, BUILDINGS[b.type].capacity - storeTotal(b));
 
 // A store can send a cart when it works (not paused, not burning, enough of its staff) and a road touches it.
@@ -114,6 +115,38 @@ export function clearFetch(world, id, good) {
   return { ok: true, warnings: [] };
 }
 
+// Goods on the road, for a store's sheet so they never seem to vanish: what left this store on a cart and has not come home (leaving: [{ good, amount, to }],
+// to the store it is bound for) and what is coming to this store (arriving: [{ good, amount, from }]). A cart that turned back with its goods carries them to the
+// source (state 'return', dest 'source'); one turned back on the way out has already put them back on the shelf (nothing on the road).
+export function roadGoods(world, id) {
+  const leaving = [], arriving = [];
+  for (const c of world.carts) {
+    if (!holdsGoods(c)) continue;
+    const bound = c.state === 'return' ? c.from : c.to;
+    const typeOf = (sid) => (world.buildings[sid] ? world.buildings[sid].type : null);
+    if (c.from === id && bound !== id) leaving.push({ good: c.good, amount: c.amount, to: bound, type: typeOf(bound) });
+    if (bound === id) arriving.push({ good: c.good, amount: c.amount, from: c.from === id ? null : c.from, type: c.from === id ? null : typeOf(c.from), back: c.state === 'return' });
+  }
+  return { leaving, arriving };
+}
+
+// Why no order can be set for a good although some store holds it: the nearest other store (by the straight line between their centres, the lower id on a tie) that
+// is built to hold the good and holds some, with why it cannot be drawn on: 'unlinked' (no road joins it to this store) or 'kept' (it holds no more than its own
+// order for the good). null when no other store holds any, or one can be drawn on (then there is a source, not a refusal). For the refusal's Show me.
+export function holderOf(world, id, good) {
+  const b = world.buildings[id];
+  if (!isStore(b) || findSource(world, b, good)) return null;
+  const c = centreOf(b);
+  let best = null;
+  for (const o of storesOf(world)) {
+    if (o.id === id || !BUILDINGS[o.type].stores.includes(good) || heldOf(o, good) < 1) continue;
+    const oc = centreOf(o), d = Math.abs(oc.x - c.x) + Math.abs(oc.y - c.y);
+    if (!best || d < best.d || (d === best.d && o.id < best.b.id)) best = { b: o, d };
+  }
+  if (!best) return null;
+  return { id: best.b.id, type: best.b.type, why: Number.isFinite(roadLen(world, b, best.b)) ? 'kept' : 'unlinked' };
+}
+
 // ── What the interface says (the words are text.js's; these are the parts, from the sim) ──
 
 // The consequence of an order before it is set: one cart, perTrip a trip, from the nearest store that can spare the good, len road tiles, days
@@ -125,7 +158,10 @@ export function fetchPreview(world, id, good, amount = CARTS.defaultFetch) {
   const found = findSource(world, b, good);
   return {
     good, fetch: amount, perTrip: CARTS.perTrip, speed: CARTS.speed,
-    source: found ? { id: found.b.id, type: found.b.type, len: found.len, days: legDays(found.len), roundTrip: roundTripDays(found.len), dir: directionTo(b, found.b) } : null,
+    source: found ? {
+      id: found.b.id, type: found.b.type, len: found.len, days: legDays(found.len), roundTrip: roundTripDays(found.len), dir: directionTo(b, found.b),
+      spare: found.surplus, keeps: orderOf(found.b, good) ? orderOf(found.b, good).fetch : 0,   // what it can give, and what it keeps for its own order (0: no order of its own, so it can be emptied)
+    } : null,
     staffed: canStaff(world, b),
   };
 }
@@ -240,7 +276,6 @@ function land(world, cart, targets) {
   return { puts, lost: left };
 }
 
-const holdsGoods = (c) => c.state === 'out' || c.state === 'back' || (c.state === 'return' && c.dest === 'source');
 const lostEvent = (events, cart, lost) => { if (events && lost > 0) events.push({ type: 'cartLost', id: cart.id, good: cart.good, amount: lost }); };
 
 // One cart's day. Returns true while the cart stays on the road. What happens when something on the way changes (documented in the contract

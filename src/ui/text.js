@@ -2483,6 +2483,20 @@ export const S47_CARTS_TEXT = {
     ? `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: one cart, ${pv.perTrip} a trip, from the nearest store with ${cartGood(pv.good)}, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`
     : `Fetch ${cartGood(pv.good)}: no store with ${cartGood(pv.good)} to spare is linked by road`),
   where: cartWhere,
+  // The Fetch control on a store's sheet (src/ui/s47/carts.js). Every number it shows comes from fetchPreview, fetchStatus, roadGoods and holderOf.
+  head: 'Fetch goods', none: 'No orders', count: (n) => plural(n, 'order', 'orders'), on: 'Fetching', off: 'Off',
+  less: (good) => `Fetch less ${cartGood(good)}`, more: (good) => `Fetch more ${cartGood(good)}`, upTo: (n) => `up to ${n}`,
+  showMe: 'Show me', showSourceLabel: (good, type) => `Show me the ${cartStore(type)} the ${cartGood(good)} comes from`, showHolderLabel: (good, type) => `Show me the ${cartStore(type)} that holds ${cartGood(good)}`,
+  // What the source gives: a store with no order for the good of its own can be emptied; one with an order keeps it and gives only the rest.
+  sourceNote: (good, src) => (src.keeps > 0
+    ? `That ${cartStore(src.type)} keeps ${src.keeps} ${cartGood(good)} for its own order and gives only the rest (${src.spare} to spare)`
+    : `That ${cartStore(src.type)} has no order for ${cartGood(good)} of its own, so it can be emptied (${src.spare} to spare)`),
+  // Why a store that holds the good cannot be drawn on (holderOf).
+  holderNote: (good, h) => (h.why === 'unlinked' ? `A ${cartStore(h.type)} holds ${cartGood(good)}, but no road joins it to this store` : `A ${cartStore(h.type)} holds ${cartGood(good)}, but keeps it for its own order`),
+  // Goods on the road, from the sim's roadGoods: "20 pottery on the road to the storehouse", "to here", "back here".
+  road: (r, kind) => (kind === 'leaving'
+    ? `${r.amount} ${cartGood(r.good)} on the road${r.type ? ` to the ${cartStore(r.type)}` : ''}`
+    : `${r.amount} ${cartGood(r.good)} on the road ${r.back ? 'back here' : 'to here'}`),
   // The order's live line: "Fetching pottery: 40 on the way, back in 3 days, from the storehouse 34 road tiles east".
   status: (st) => {
     const g = cartGood(st.good), head = `Fetching ${g}`;
