@@ -12,6 +12,7 @@ import { rock, scrub, dune, tufts, reeds } from './art/nature.js';
 import { hasNewLand, GRASS } from '../data/s47.js';
 import { moistureOf, moistureAt, decorDraw } from './grass.js';
 import { defaultCreateCanvas, bucketFor } from './spriteCache.js';
+import { drawBeltGround, beltScatter, screeScatter } from './rockBelts.js';
 import { drawRiver, riverIsle, riverPools } from './terrainWater.js';
 import { drawRoads } from './terrainRoads.js';
 import { drawBridges } from './terrainBridges.js';
@@ -273,8 +274,11 @@ export function drawGround(g, world, range) {
     if (world.terrain[i] === T.WATER) return;
     for (let j = 0; j < 4; j++) g.circ(p(x + hash2(x, y, 40 + j), y + hash2(x, y, 50 + j)), 0.7, j % 2 ? TERRAIN.dotLight : TERRAIN.dotDark, { alpha: 0.7 });
   });
-  drawLayer(g, world, range, T.ROCKY, { soft: TERRAIN.rockySoft, main: TERRAIN.rocky, second: TERRAIN.rockySecond });
-  drawLayer(g, world, range, T.HILLS, { soft: TERRAIN.rockySoft, main: TERRAIN.rockySecond, second: TERRAIN.rocky });   // Stage 4.7: the ground under the hill sprites (src/render/hills.js stands on it)
+  if (hasNewLand(world)) drawBeltGround(g, world, range, { blobFor, forTiles });   // Stage 4.7 (Task 3b): rock belts, a distinct landmark (src/render/rockBelts.js); the ground under the hill sprites too
+  else {
+    drawLayer(g, world, range, T.ROCKY, { soft: TERRAIN.rockySoft, main: TERRAIN.rocky, second: TERRAIN.rockySecond });
+    drawLayer(g, world, range, T.HILLS, { soft: TERRAIN.rockySoft, main: TERRAIN.rockySecond, second: TERRAIN.rocky });   // Stage 4.7: the ground under the hill sprites (src/render/hills.js stands on it)
+  }
   drawLayer(g, world, range, T.FERTILE, { soft: TERRAIN.fertileSoft, main: TERRAIN.fertile, second: null });
   drawGrassBand(g, world, range);   // Stage 4.7: new land only
   drawLayer(g, world, range, T.MEADOW, { soft: TERRAIN.grassSoft, main: TERRAIN.grass, second: TERRAIN.grassSecond });
@@ -291,7 +295,9 @@ function scatterTile(g, world, x, y, i) {
   if (t === T.FERTILE) fertileSpeckle(g, world, x, y);
   if (t === T.MEADOW) tufts(g, x, y, 9, 0);
   else if (t !== T.BANK && nearType(world, x, y, T.MEADOW)) tufts(g, x, y, 3, 5);
-  if (t === T.ROCKY || nearType(world, x, y, T.ROCKY)) {
+  if (hasNewLand(world) && (t === T.ROCKY || nearType(world, x, y, T.ROCKY) || nearType(world, x, y, T.HILLS))) {
+    if (t === T.ROCKY) beltScatter(g, world, x, y, i); else if (t !== T.BANK) screeScatter(g, world, x, y);
+  } else if (t === T.ROCKY || nearType(world, x, y, T.ROCKY)) {
     const n = t === T.ROCKY ? 3 : 1;
     for (let j = 0; j < n; j++) g.circ(p(x + hash2(x, y, 80 + j), y + hash2(x, y, 90 + j)), 0.9, j % 2 ? TERRAIN.pebbleLight : TERRAIN.pebble, { alpha: 0.8 });
   }

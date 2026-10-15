@@ -18,7 +18,7 @@ export const S47_SALT = {
   mineBlob: 4711,     // Task 1: the mine repair's ragged blob edge (it drew from the resources salt + 2, which is cartLook's)
   herdOasis: 4712,    // Task 2: where a herd aimed at an oasis stands (src/sim/wildlife.js)
   hillLook: 4713,     // Task 3: each hill tile's height and look (render: src/render/hills.js, never the sim)
-  spare4: 4714,
+  belts: 4714,        // Task 3b: where a rock belt runs, how long and wide (src/sim/belts.js)
 };
 
 // Tallies for Stage 4.7's firsts and summaries (world.tally; new and migrated cities start them at 0): buildings placed within 4 tiles
@@ -86,24 +86,35 @@ export const OASES = {
   herdReach: [3, 9], // a herd aimed at an oasis stands this many tiles from its pool's edge
 };
 
-// Task 3 (ruling 464): hills (src/sim/hills.js draws and reads them). count: clusters on a Normal map, scaled by the map's area (Small 1-3,
-// Large 3-8), in the x ranges the layout keeps its rock in; size: hill tiles a cluster (every one in a 2 x 2 block of hill tiles); skirt: tiles of rocky ground round it (1 or 2; skirtRagged: the share of the second ring's tiles that are
-// rock). A cluster keeps fromWater tiles from any water, fromOasis from an oasis pool (the oasis keeps 8 tiles from rock, the skirt takes 2 and a
-// tile of room), fromStart from the start area's centre, fromEntry from a raider entry, the trade entry and the bridge spot, fromRoad from the start
-// road and fromEdge from a map edge; apart is the gap between two clusters. All distances in tiles (Chebyshev, except the Euclidean ones to a point).
+// Task 3 (ruling 464) as reworked by Task 3b: hills (src/sim/hills.js draws and reads them) are the spines of the rock belts below: a stretch of
+// `spine` tiles (4-10) of a belt's middle, `half` tiles each side of its centreline (so 2-3 wide), stood on the belt's rocky ground (no skirt of its own:
+// the belt is the skirt). count: spines on a Normal map, scaled by the map's area (Small 1-3, Large 3-8). A spine keeps fromWater tiles from any water,
+// fromOasis from an oasis pool, fromStart from the start area's centre, fromEntry from a raider entry, the trade entry and the bridge spot, fromRoad from
+// the start road and fromEdge from a map edge; apart is the gap between two spines; ends: tiles it keeps from either end of its belt. All distances in
+// tiles (Chebyshev, except the Euclidean ones to a point).
 export const HILLS = {
-  count: [2, 5], size: [4, 14], skirt: [1, 2], skirtRagged: 0.6,
-  fromWater: 7, fromOasis: 11, fromStart: 13, fromEntry: 8, fromRoad: 4, fromEdge: 3, apart: 5, tries: 500,
+  count: [2, 5], spine: [4, 10], half: [1.0, 1.6], ends: 4, minTiles: 6,
+  fromWater: 7, fromOasis: 9, fromStart: 13, fromEntry: 8, fromRoad: 4, fromEdge: 3, apart: 5, tries: 120,
 };
 
-// Task 2 (ruling 462): the green band (src/render/grass.js). river / oasis: tiles the moisture reaches from water (an oasis has its own, smaller
-// halo); noise: how far (tiles) two octaves of value noise push the edge about; tiers: the moisture a tint pass starts at, each pass a
-// colour and an alpha; they stack, so the green deepens towards the water.
+// Task 3b: rock belts (src/sim/belts.js), the map's rocky ground on a new map: `count` long, narrow belts on a Normal map (scaled by the map's area), each
+// `length` tiles at Normal (scaled by size / 64) and `width` wide in the body (pulsing by `pulse`, narrowing over `taper` tiles at each end), bending along a
+// heading `bend` radians either side of a river-ward line; together `area` rocky tiles at Normal (scaled by area), more belts being tried until they hold it.
+// A belt keeps fromWater tiles from any water, fromOasis from an oasis pool (an oasis keeps 8 tiles clear of rock), fromRoad from the start road, fromStart from the start area's centre, fromEdge from the map's edge and apart from another belt (centrelines).
+export const BELTS = {
+  count: [2, 3], length: [20, 40], width: [4.4, 6.2], pulse: 1.0, taper: 6, bend: 0.4, slant: 0.5, minLen: 14, area: 240, extra: 3, tries: 300,
+  fromWater: 6, fromStart: 11, fromEdge: 2, apart: 7, fromOasis: 9, fromRoad: 4, least: 0.5, spread: 8,
+};
+
+// Task 2 (ruling 462) retuned by Task 3b: the green band (src/render/grass.js, and the sim's one moisture field, src/sim/moisture.js). river / oasis: tiles the
+// moisture reaches from water (an oasis has its own halo); noise: how far (tiles) two octaves of value noise push the edge about; tiers: the moisture a tint
+// pass starts at, each pass a colour and an alpha; they stack, so the green deepens towards the water. meadowFrom: the moisture at which open desert is
+// MEADOW on a new map (src/sim/mapgen.js): green ground only close to water, never in open desert.
 export const GRASS = {
-  river: 14, oasis: 6, noise: 6, noiseScale: 6, noise2: 2.4, noiseScale2: 2.4, decorFrom: 0.18, jitter: 2, wander: 1.8,
-  tiers: [0.06, 0.18, 0.30, 0.44, 0.58, 0.74],
-  colours: ['#DCD895', '#CBD47F', '#B8CB6B', '#A4C15A', '#93B84F', '#84AE48'],
-  alphas: [0.42, 0.38, 0.38, 0.4, 0.42, 0.45],
+  river: 10, oasis: 7, noise: 4, noiseScale: 6, noise2: 2, noiseScale2: 2.4, decorFrom: 0.2, jitter: 1.5, wander: 1.4, meadowFrom: 0.42,
+  tiers: [0.08, 0.2, 0.32, 0.46, 0.6, 0.76],
+  colours: ['#E6DCA6', '#D9D48E', '#BFCF72', '#A9C45C', '#93B84F', '#84AE48'],
+  alphas: [0.3, 0.3, 0.38, 0.4, 0.42, 0.45],
 };
 
 // Task 2: "An oasis in the desert" (the first, when a building first goes up within OASES.near tiles of an oasis: tally oasisBuilds) and its

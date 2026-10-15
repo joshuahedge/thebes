@@ -57,23 +57,27 @@ function reachBy(m, spot) {
 }
 
 describe('s47 hills', () => {
-  it('holds 2-5 clusters on Normal (scaled by area: 1-3 on Small, 3-8 on Large) on new-land maps, each of 4-14 tiles, and none on classic at Normal', () => {
+  it('holds up to 2-5 spines on Normal (scaled by area: 1-3 on Small, 3-8 on Large) on new-land maps, each of 6-50 tiles, nearly always the full draw, and none on classic at Normal', () => {
     const bad = [], seen = {};
+    let short = 0, total = 0;
     for (const { size, variant, seed, m } of maps()) {
       const cs = clusters(m), key = `${size} ${variant}`;
       (seen[key] = seen[key] || new Set()).add(cs.length);
       if (classicNormal(variant, size)) { if (cs.length || m.params.hills) bad.push(`${key} #${seed}: hills on classic 64`); continue; }
       const [lo, hi] = hillRange(size);
-      if (cs.length > hi || cs.length < lo) bad.push(`${key} #${seed}: ${cs.length} clusters, range ${lo}-${hi}`);
-      for (const c of cs) if (c.length < HILLS.size[0] || c.length > HILLS.size[1]) bad.push(`${key} #${seed}: a cluster of ${c.length} tiles`);
-      if (!m.params.hills || m.params.hills.length !== cs.length || m.params.hills.reduce((s, h) => s + h.n, 0) !== hillTiles(m).length) bad.push(`${key} #${seed}: params.hills`);
+      total++;
+      if (cs.length > hi) bad.push(`${key} #${seed}: ${cs.length} spines, at most ${hi}`);
+      if (cs.length < lo) short++;   // a Small map with a lake and a narrow rock range may have no belt long enough for a spine; the sweep says how often
+      for (const c of cs) if (c.length < HILLS.minTiles || c.length > 50) bad.push(`${key} #${seed}: a spine of ${c.length} tiles`);
+      if ((m.params.hills || []).length !== cs.length || (m.params.hills || []).reduce((s, h) => s + h.n, 0) !== hillTiles(m).length) bad.push(`${key} #${seed}: params.hills`);
     }
     expect(bad.slice(0, 8)).toEqual([]);
     expect([hillRange(48), hillRange(64), hillRange(80)]).toEqual([[1, 3], [2, 5], [3, 8]]);
-    expect([...seen['64 east']].sort()).toEqual([2, 3, 4, 5]);   // the seeded draw really varies
+    expect(short / total < 0.03).toBe(true);
+    expect([...seen['64 east']].every((n) => n >= 2 && n <= 5) && seen['64 east'].size >= 3).toBe(true);   // the seeded draw really varies
   });
 
-  it('keeps the plan\'s distances: 6 from any water, 11 from an oasis pool, off the start area, raider entries, the trade entry, the bridge spot and the start road', () => {
+  it('keeps the plan\'s distances: 7 from any water, 9 from an oasis pool, off the start area, raider entries, the trade entry, the bridge spot and the start road', () => {
     const bad = [];
     for (const { size, variant, seed, m } of maps()) {
       const hills = hillTiles(m);
@@ -155,7 +159,7 @@ describe('s47 hills', () => {
     const a = generateMap(7, 64, 'east'), b = generateMap(7, 64, 'east');
     expect(hillTiles(a)).toEqual(hillTiles(b));
     expect(hillTiles(a).length > 0).toBe(true);
-    expect([S47_SALT.hills, S47_SALT.hillShape, S47_SALT.hillSkirt, S47_SALT.hillLook]).toEqual([4701, 4702, 4703, 4713]);
+    expect([S47_SALT.hills, S47_SALT.hillShape, S47_SALT.hillSkirt, S47_SALT.hillLook, S47_SALT.belts]).toEqual([4701, 4702, 4703, 4713, 4714]);
     const w = createWorld({ seed: 7, mapVariant: 'east', size: 64 });
     expect(hasNewLand(w)).toBe(true);
     expect(w.terrain.filter((t) => t === T.HILLS).length).toBe(hillTiles(a).length);
