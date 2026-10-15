@@ -185,7 +185,7 @@ describe('mobile height budget: the Ground legend with hills (Stage 4.7)', () =>
   it('holds the budget with the hills key, and the key is inside the frame', async () => {
     const wrong = [];
     for (const [width, height] of PHONES) {
-      for (const textSize of TEXT_SIZES) {
+      for (const [textSize, banner] of TEXT_SIZES.flatMap((t) => [[t, false], [t, true]])) {   // each with the alert row clear, and under the scene's debt banner
         const r = await bootScene('s47-hills', width, height, 'skipTitle=1&seed=11&sample=1');
         try {
           const g = r.api.game();
@@ -193,10 +193,11 @@ describe('mobile height budget: the Ground legend with hills (Stage 4.7)', () =>
           await frame();
           const said = await devScene(r.api, 's47-hills', { quick: true });
           const g2 = r.api.game();                                  // the scene started a new city, so a new game
-          g2.ui.alerts.refresh();                                   // the scene's gold fixture leaves the fresh city's debt banner stale
+          if (!banner) g2.ui.alerts.refresh();                      // the scene's gold fixture leaves the fresh city's debt banner stale: cleared, or kept as the banner variant
           g2.ui.store.set({ overlay: 'ground' });
           await frame(); await frame();
-          const at = `${width}x${height} ${textSize}%`;
+          const at = `${width}x${height} ${textSize}%${banner ? ' under the debt banner' : ''}`;
+          expect([at, Boolean(r.root.querySelector('#banner .critical'))]).toEqual([at, banner]);   // the variant has the banner it names
           expect([at, said.includes('hills [{') ? 'hilly' : said]).toEqual([at, 'hilly']);                      // a hilly map
           const key = r.root.querySelector('#legend .ground-keys .key:last-of-type');
           expect([at, Boolean(key)]).toEqual([at, true]);

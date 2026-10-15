@@ -598,6 +598,8 @@ body[data-layout="compact"] #legend .strip.ground > .close { order: 3; margin-le
 body[data-layout="compact"] #legend .strip.ground .ground-keys { flex: 1 1 0; min-width: 0; padding-bottom: 0; }
 body[data-layout="compact"] #legend .strip.ground .ground-keys .room { flex-basis: auto; }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #legend .strip.ground .ground-keys .room { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Large text on a phone: the Ground title and the hills key's rule are for screen readers only (the strip's aria-label still says Ground), so the legend fits the budget under a banner (tests/ui/mobileBudget.test.js). */
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #legend .strip.ground > strong.text, body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #legend .strip.ground .hills-words { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body[data-layout="wide"] #legend .strip.ground { display: inline-flex; flex-wrap: wrap; gap: 0 12px; }
 body[data-layout="wide"] #legend .strip.ground > .close { order: 3; }
 body[data-layout="wide"] #legend .strip.ground .ground-keys { padding-bottom: 0; }

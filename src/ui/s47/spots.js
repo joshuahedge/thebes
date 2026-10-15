@@ -1,6 +1,6 @@
 // The next-house spots' interface (Stage 4.7, Task 4, ruling 465): when the spots are on, and the one-line legend for the guidance row (src/ui/overlayUi.js
 // puts it in #legend). The spots themselves are painted by src/render/spots.js from src/sim/spots.js.
-import { spotsUnlocked } from '../../sim/spots.js';
+import { spotsUnlocked, houseSpots } from '../../sim/spots.js';
 import { SPOT_HUE, SPOT_ALPHA, ICONS, iconPath } from '../../render/spots.js';
 import { S47_SPOTS_TEXT as W } from '../text.js';
 import { el } from '../components.js';
@@ -43,8 +43,12 @@ function swatch(kind) {
   return root;
 }
 
+// No tile is marked right now: the legend says so (and what would make a Good plot) instead of keying marks that are not on the map.
+export const spotsEmpty = (world) => houseSpots(world).list.length === 0;
+
 // The legend strip: the Good key and the Fair key, each with the swatch the map draws and its words (the sim's rules in words), as one group for screen readers.
-export function spotsLegend() {
+export function spotsLegend(world = null) {
+  if (world && spotsEmpty(world)) return el('div', { class: 'strip spots none', role: 'group', 'aria-label': W.group }, [el('span', { class: 'text small', text: W.none() })]);
   const key = (kind, head, words, label) => el('span', { class: 'key', 'aria-label': label, role: 'img' }, [swatch(kind), ' ', el('span', { class: 'text small', 'aria-hidden': 'true', text: `${head}: ${words}` })]);
   return el('div', { class: 'strip spots', role: 'group', 'aria-label': W.group }, [key('good', W.good, W.goodWords, W.goodLabel), key('fair', W.fair, W.fairWords, W.fairLabel)]);
 }

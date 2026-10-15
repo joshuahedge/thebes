@@ -2456,7 +2456,11 @@ export const S47_SPOTS_TEXT = {
   tip: 'While you place homes, bright plots have water and a bazaar in reach; hatched plots have one of them.',
   tipHelp: 'Placing homes: bright plots have water and a bazaar in reach, hatched plots have one of them. Done ends it.',
   done: 'Done', doneLabel: 'Done placing homes',
+  // No tile is marked (no road a working well or bazaar reaches has a free tile beside it): one true line, no keys to promise marks that are not there. Names from the data.
+  none: () => { const b = buildingName('bazaar').toLowerCase(), w = buildingName('well').toLowerCase(); return `No plot has water and a ${b} in reach yet: a ${w} and a ${b} beside a road make Good plots`; },
+  first: { head: 'A good spot', why: 'You laid a plot where a well and a bazaar both reach it along the roads: the best place for the next home.' },
 };
+FIRST_TEXT.first_good_spot = S47_SPOTS_TEXT.first;
 TIP_TEXT.house_spots = S47_SPOTS_TEXT.tip;
 TIP_HELP_TEXT.house_spots = S47_SPOTS_TEXT.tipHelp;
 // ── end s47 ──

@@ -80,3 +80,8 @@ export function plotNeeds(world, x, y) {
   const around = adjacentRoadTiles(world, { x, y, w: 1, d: 1 });
   return { road: around.length > 0, water: around.some((t) => water.has(t)), market: around.some((t) => market.has(t)) };
 }
+
+// Whether a plot laid at (x, y) now goes on a Good spot the player could see: the spots are unlocked (a plot has been laid or a home stands) and the tile is Good.
+export function onGoodSpot(world, x, y) {
+  return spotsUnlocked(world) && spotAt(world, x, y) === SPOT.good;
+}

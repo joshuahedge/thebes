@@ -24,7 +24,7 @@ export const S47_SALT = {
 // Tallies for Stage 4.7's firsts and summaries (world.tally; new and migrated cities start them at 0): buildings placed within 4 tiles
 // of an oasis (Task 2's first), cart trips finished and goods they brought home (Task 5), yearly quotas met and missed (Task 7). Until
 // Stage 4.7 is on main a task may add a key here (version 8 is not out yet); after that a new key needs version 9.
-export const S47_TALLY = ['oasisBuilds', 'cartTrips', 'cartGoods', 'quotasMet', 'quotasMissed', 'plotsLaid'];   // plotsLaid (Task 4): housing plots laid, which keeps the next-house spots on once the first is placed
+export const S47_TALLY = ['oasisBuilds', 'cartTrips', 'cartGoods', 'quotasMet', 'quotasMissed', 'plotsLaid', 'goodSpotPlots'];   // Task 4: plotsLaid, housing plots laid (keeps the next-house spots on once the first is placed); goodSpotPlots, plots laid on a Good spot (the spots' first)
 
 // New land (hills, oases, the grass band): generated maps carry mapParams.land = LAND_VERSION when they get it, which is every new map
 // but classic at Normal (64): that one draws exactly as before (rulings 332, 351). A saved city keeps its mapParams, so a city from
@@ -99,7 +99,8 @@ export const GRASS = {
 
 // Task 2: "An oasis in the desert" (the first, when a building first goes up within OASES.near tiles of an oasis: tally oasisBuilds) and its
 // tip (How to play lists every tip). Joined into FIRSTS (firsts.js) and TIPS (tips.js); the words are in src/ui/text.js (the s47 section).
-export const S47_FIRSTS = [{ id: 'first_oasis', check: { kind: 'tally', key: 'oasisBuilds', n: 1 } }];
+// Task 4: "A good spot", the first plot laid on a Good spot (tally goodSpotPlots).
+export const S47_FIRSTS = [{ id: 'first_oasis', check: { kind: 'tally', key: 'oasisBuilds', n: 1 } }, { id: 'first_good_spot', check: { kind: 'tally', key: 'goodSpotPlots', n: 1 } }];
 // Task 3: the hills tip fires the first time a placing check is refused for hills (src/ui/s46/map.js): words in text.js, listed in How to play.
 // Task 4: the next-house spots tip fires when the first plot is laid and the house tool stays on (src/ui/createUI.js afterCommand); it waits for the tool to end.
 export const S47_TIPS = [{ id: 'oasis_green', trigger: 'oasisBuilt', priority: false }, { id: 'hills_ground', trigger: 'hillsMet', priority: false }, { id: 'house_spots', trigger: 'houseSpots', priority: false }];
