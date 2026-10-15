@@ -17,6 +17,7 @@ import { idx } from '../sim/grid.js';
 import { hasNewLand, GRASS } from '../data/s47.js';
 import { landTrees, LAND_TREES, moistureAt } from './grass.js';
 import { hillsIn } from './hills.js';
+import { buildingsInRange } from './chunkIndex.js';
 
 // Draw-object ids: buildings use their own (small) ids, decor (trees) DECOR_ID_BASE + tile index, figures FIGURE_ID_BASE + walker id.
 const DECOR_ID_BASE = 1e6, FIGURE_ID_BASE = 2e6;
@@ -46,12 +47,11 @@ export function drawMapEdge(g, size) {
   for (const [width, alpha] of EDGE_FADE) g.poly(pts, 'none', { stroke: TERRAIN.edgeFade, strokeWidth: width, strokeAlpha: alpha });
 }
 
-const intersects = (b, r) => b.x <= r.x1 && b.x + b.w - 1 >= r.x0 && b.y <= r.y1 && b.y + b.d - 1 >= r.y0;
-
+// Version 5.0 (Task 0): the buildings in range come from the chunk index (src/render/chunkIndex.js), the same ones in the same order as a
+// pass over every building, so a large city draws only what is near the view.
 export function collectObjects(world, range, walkers = [], registry = ART) {
   const out = [];
-  for (const b of Object.values(world.buildings)) {
-    if (!intersects(b, range)) continue;
+  for (const b of buildingsInRange(world, range)) {
     const slot = slotFor(b, world);
     const def = registry[slot];
     if (!def || !(def.draw || def.png)) continue;

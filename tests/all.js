@@ -151,3 +151,5 @@ import './stage45/all.js';
 import './stage46/all.js';
 // Stage 4.7: one aggregator (tests/stage47/all.js); each task adds its files there, never here.
 import './stage47/all.js';
+// Version 5.0: one aggregator (tests/v50/all.js); each task adds its files there, never here.
+import './v50/all.js';

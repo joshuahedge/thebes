@@ -5,9 +5,8 @@ import { alertShowMe } from './threatFix.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
+import { causeFix as needFix, unmadeFix as simUnmadeFix } from '../sim/advice.js';
 import { desirabilityContributors } from '../sim/desirability.js';
-import { isUnlocked } from '../sim/progression.js';
-import { allBuildings } from '../sim/world.js';
 import { setPaused, setAccept } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { storeTotal, storeAccepts } from '../sim/production.js';
@@ -26,7 +25,7 @@ import { supplyNeeded } from '../sim/monuments.js';
 import { huntRest } from '../sim/wildlife.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 import { S47_PRESSURE_TEXT, buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
-  goodMakers, makerOf, storeFor, contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
+  contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
 import { el, button, iconButton, clear } from './components.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
@@ -34,51 +33,15 @@ const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: '
 const rankOf = (a) => { const i = CRITICAL_RANK.indexOf(a.code); return i < 0 ? CRITICAL_RANK.length : i; };
 export const criticalFirst = (list) => [...list].sort((a, b) => rankOf(a) - rankOf(b));
 
-// What each cause's button does. Show me opens a card and aims at the home or at the building the cause names (an
-// empty bazaar wants a granary beside it, an empty granary a farm beside it); View selects the building that is in
-// reach but not working, or near but without a road (its own sheet then says how to fix it). next_delivery needs
-// nothing from the player, so it has neither.
-const CAUSE_FIX = {
-  no_road: { category: 'roads', item: 'road', at: 'home' },
-  no_well: { category: 'services', item: 'well', at: 'home' },
-  no_bazaar: { category: 'services', item: 'bazaar', at: 'home' },
-  bazaar_empty: { category: 'food', item: 'granary', at: 'building' },
-  granary_empty: { category: 'food', item: 'farm_grain', at: 'building' },
-  no_temple: { category: 'services', item: 'temple', at: 'home' },
-  well_idle: { view: true },
-  granary_idle: { view: true },
-  bazaar_idle: { view: true },
-  temple_idle: { view: true },
-  well_no_road: { view: true },
-  bazaar_no_road: { view: true },
-  temple_no_road: { view: true },
-  no_booth: { category: 'services', item: 'booth', at: 'home' },
-  booth_idle: { view: true },
-  booth_no_road: { view: true },
-  low_desirability: { category: 'homes', item: 'garden', at: 'home' },
-  no_square: { category: 'homes', item: 'house', at: 'home' },
-  // No store for the good near the bazaar: Show me that store beside the bazaar. Nothing makes it there: Show me the
-  // first of its makers the city has none of (a clay pit, then a potter), else the workshop, beside the bazaar; a maker
-  // that needs fertile or rocky ground aims at the nearest free tile of it instead (at: 'terrain'), which can lie well
-  // beyond the ghost's search around the bazaar. Neither while the building, or any of the good's makers, is not
-  // unlocked yet (the words then name the milestone; a store would stay empty).
-  no_good: (cause, world) => {
-    const item = storeFor(cause.good);
-    const usable = item && isUnlocked(world, item) && goodMakers(cause.good).every((t) => isUnlocked(world, t));
-    return usable ? { category: categoryOfItem(item), item, at: 'building' } : null;
-  },
-  // Stage 4.7 (Task 7, ruling 471): the good is held only in a store beyond the bazaars' supply reach: Show me selects that store (its own
-  // sheet holds the Fetch control's source side), and the words name Fetch as the remedy.
-  good_far: { select: true },
-  good_unmade: (cause, world) => unmadeFix(cause, world),
-};
+// What each cause's button does (Version 5.0: the table is the sim's, src/sim/advice.js causeFix, so a house sheet's rows and its next step
+// and the city advice agree). Show me opens a card and aims at the home or at the building the cause names (an empty bazaar wants a granary
+// beside it, an empty granary a farm beside it); View selects the building that is in reach but not working, or near but without a road (its
+// own sheet then says how to fix it); select (a good held only in a far store) selects that store, whose sheet holds Fetch. next_delivery
+// needs nothing from the player, so it has neither; nor has a good whose store or makers are not unlocked yet (the words name the milestone).
+const withCategory = (f) => (f && f.item ? { ...f, category: categoryOfItem(f.item) } : f);
+const fixOf = (cause, world) => withCategory(needFix(world, cause));
 // The fix for a good nothing makes: its first maker the city has none of (else its last), or null while a maker is locked. The quota's Show me uses it too (src/ui/s47/pressure.js).
-export function unmadeFix(cause, world) {
-  const makers = goodMakers(cause.good);
-  if (!makers.length || makers.some((t) => !isUnlocked(world, t))) return null;
-  const item = makers.find((t) => !allBuildings(world).some((b) => b.type === t)) || makerOf(cause.good);
-  return { category: categoryOfItem(item), item, at: BUILDINGS[item].terrain ? 'terrain' : 'building' };
-}
+export const unmadeFix = (cause, world) => withCategory(simUnmadeFix(world, cause));
 // The alerts that carry a fix button in the list besides View (Show me opens the tool and aims at the place): many plots with no
 // road want the road tool (placement review P13). onFixAlert aims it, at the plot nearest the view.
 const ALERT_FIX = new Set(['plots_no_road']);
@@ -217,7 +180,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     const words = cause ? causeText(cause, world, c.need) : null;
     if (!words) return li;
     li.append(el('p', { class: 'cause small', text: words.cause }));
-    const fix = typeof CAUSE_FIX[cause.code] === 'function' ? CAUSE_FIX[cause.code](cause, world) : CAUSE_FIX[cause.code];
+    const fix = fixOf(cause, world);
     // Nothing to build or view (goods on their way, a building not unlocked yet): the fix's words alone, when it has any.
     if (!fix) { if (words.fix) li.append(el('div', { class: 'fix' }, [el('span', { class: 'small muted', text: words.fix })])); return li; }
     const building = cause.id !== null ? world.buildings[cause.id] : null;
