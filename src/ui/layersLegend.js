@@ -72,6 +72,9 @@ const swatch = (kids) => svg('svg', { class: 'layer-swatch', viewBox: '0 0 34 17
 // One key: its swatch, a short label (hidden from a screen reader: the words say it) and the words.
 const key = (sw, words, label) => el('span', { class: 'key', role: 'img', 'aria-label': words }, [sw, ' ', el('span', { class: 'text small', 'aria-hidden': 'true', text: label })]);
 
+// A key with no swatch: a short note on how the layer counts.
+const note = (words, label) => el('span', { class: 'key note', role: 'img', 'aria-label': words }, [el('span', { class: 'text small', 'aria-hidden': 'true', text: label })]);
+
 const KEYS = {
   progress: (hue) => [
     key(swatch([...tile(hue, PROGRESS_ALPHA.ready), disc(17, 8.5, 5.2, hue, { tick: true })]), W.ready.words, W.ready.label),
@@ -87,6 +90,7 @@ const KEYS = {
     key(swatch([...tile(hue, WORKERS_ALPHA.short), label(17, 8.5, '−3', hue, { person: true })]), W.short.words, W.short.label),
     key(swatch([...tile(hue, WORKERS_ALPHA.stopped, true)]), W.stopped.words, W.stopped.label),
     key(swatch([...tile(hue, JOBLESS_ALPHA[1]), label(17, 8.5, '5', hue, { person: true, outline: true })]), W.jobless.words, W.jobless.label),
+    note(W.newcomer.words, W.newcomer.label),
   ],
 };
 

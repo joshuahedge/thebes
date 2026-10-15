@@ -13,7 +13,7 @@ import { p, quad } from './iso.js';
 import { UI, INK } from './art/palette.js';
 import { makeDraw } from './art/ctx.js';
 import { LAYER_HUE, JOBLESS_BANDS } from '../data/layers.js';
-import { homeProgress, goodSupply, workersState } from '../sim/layers.js';
+import { homeProgress as simProgress, goodSupply as simSupply, workersState, statusWork } from '../sim/layers.js';
 import { T as TILE } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 import { tilePolys, mark } from './overlays.js';
@@ -138,6 +138,30 @@ const footOf = (m) => m.foot || (m.foot = quad(m.b.x, m.b.y, m.b.w, m.b.d, 0));
 
 const spot = (m) => m.q || (m.q = p(m.x, m.y));   // the entry's centre in art px, kept on it
 
+// ── Slicing the homes' status ──
+
+// Home progress and Goods supply need every home's houseStatus, about half a millisecond a home on a desktop and several times that on a phone, and they are worked out
+// again each game day. A frame never does it all: each draw asks the sim (src/sim/layers.js statuses) for a slice of homes, sized from how long the last slice took per
+// home so one slice stays near SLICE_MS whatever the device; the layer keeps drawing the list last completed (the first time, the homes worked out so far) until the new
+// one is whole. The clock lives here, in the render; the sim is only told how many homes.
+export const SLICE_MS = 6, SLICE_MIN = 2, SLICE_MAX = 64;
+export const sliceFor = (msPerHome) => Math.max(SLICE_MIN, Math.min(SLICE_MAX, Math.floor(SLICE_MS / Math.max(msPerHome, 0.01))));
+let slice = 8, perHome = 0, pinned = null;   // homes a frame; the smoothed ms a home took (0: not yet measured); pinned: a fixed slice, for the tests
+export const pinSlice = (n) => { pinned = n; };
+function sliced(run) {
+  const t0 = performance.now(), n0 = statusWork.calls;
+  const out = run(pinned || slice);
+  const n = statusWork.calls - n0;
+  if (n > 0) {
+    const each = (performance.now() - t0) / n;
+    perHome = perHome ? 0.5 * perHome + 0.5 * each : each;
+    slice = sliceFor(perHome);
+  }
+  return out;
+}
+const homeProgress = (world) => sliced((budget) => simProgress(world, budget));
+const goodSupply = (world, good) => sliced((budget) => simSupply(world, good, budget));
+
 // ── Home progress ──
 
 export function drawProgress(g, world, range) {
@@ -213,8 +237,7 @@ export function drawWorkers(g, world, range) {
   if (css < BADGE_MIN_CSS) return;
   const R = badgeRadius(css);
   for (const d of shown) {
-    const x = (Math.max(d.x0, r.x0) + Math.min(d.x1, r.x1) + 1) / 2, y = (Math.max(d.y0, r.y0) + Math.min(d.y1, r.y1) + 1) / 2;
-    const c = p(x, y);
+    const c = p((d.x0 + d.x1 + 1) / 2, (d.y0 + d.y1 + 1) / 2);   // the district's own centre, so the number stays put as the map is panned
     stamp(g, labelSprite(g, R, String(d.jobless), { hue, person: true, outline: true }), c[0], c[1]);
   }
   for (const m of shorts) {

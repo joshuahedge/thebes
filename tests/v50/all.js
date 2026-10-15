@@ -8,6 +8,7 @@ import './step/review.test.js';
 import './step/step.test.js';
 import './step/reasons.test.js';
 import './layers/sim.test.js';
+import './layers/slices.test.js';
 import './layers/draw.test.js';
 import './layers/budget.test.js';
 import './layers/ui.test.js';
