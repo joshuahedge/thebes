@@ -16,7 +16,8 @@ export const ROUTE_TEXT = {
   idleMouse: 'Click the start, then the end: the road finds its way',
   // The bridges a route would build, with their tiles and price (the sim's count and cost): "1 bridge (3 tiles, 75 gold)".
   bridges: (n, tiles, cost) => `${plural(n, 'bridge', 'bridges')} (${plural(tiles, 'tile', 'tiles')}, ${cost} gold)`,
-  gates: (n) => plural(n, 'gate', 'gates'),
+  // A gate laid in a standing wall or a breach: what it does is the sim's (a gate keeps the wall's hit points, and raiders path it as wall: defence.js, wallHpFor).
+  gates: (n) => (n === 1 ? '1 gate in your wall (raiders still treat it as wall)' : `${n} gates in your wall (raiders still treat them as wall)`),
   used: (n) => `${plural(n, 'tile', 'tiles')} of road already there`,
   // The route's line: "14 tiles · 1 bridge (3 tiles, 75 gold) · 6 tiles of road already there".
   summary(r) {
@@ -41,5 +42,11 @@ export const ROUTE_TEXT = {
   },
   // The refusals that have a place to show, and what Show me says it shows.
   showMeLabel: 'Show me where the way is blocked',
-  laid: (r) => (r.crossings ? `Road laid · ${plural(r.crossings, 'bridge', 'bridges')}` : 'Road laid'),
+  // Named as roadDoneText names a road's bridges and gates (the bridges built, then the gates laid in a wall): "Road laid · 1 bridge · 2 gates".
+  laid(r) {
+    const parts = ['Road laid'], gates = (r.gates || []).length;
+    if (r.crossings) parts.push(plural(r.crossings, 'bridge', 'bridges'));
+    if (gates) parts.push(plural(gates, 'gate', 'gates'));
+    return parts.join(' · ');
+  },
 };

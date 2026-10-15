@@ -73,6 +73,7 @@ const roadDoneText = (tool, result) => (tool.gate ? S45_TEXT.gateBuilt
     : result.ok && result.gates && result.gates.length ? S45_TEXT.roadLaidGates(result.gates.length) : T.roadLaid);
 const isLine = (tool) => Boolean(tool) && LINE_TOOLS.includes(tool.kind);
 // Version 5.0 (Task 5): the road tool in Route mode (tool.route; the Gate card never routes): two ends, and the cheapest way between them.
+const ROUTE_END_MS = 16;   // Version 5.0 (Task 6): the least time between two ends of a dragged route (one frame)
 const isRoute = (tool) => Boolean(tool) && tool.kind === 'road' && !tool.gate && Boolean(tool.route);
 
 // A touch plan (placement review P3, P5): what a finger or pen has drawn and tapped in a drawing tool since it started, stroke by
@@ -589,6 +590,22 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
   const lastSpacing = {};   // Version 5.0 (Task 4): the spacing last chosen for a garden or statue area, by type
   let lastRoad = 'straight';   // Version 5.0 (Task 5): the road bar's shape when no settings hold it (a test's stand-in): 'straight' or 'route'
   const roadShape = () => (roadMode ? roadMode.get() : lastRoad);
+  // Version 5.0 (Task 6): a routed road's end follows a drag, and each new end is a search (15-42 ms on a desktop, about four times that on a phone). So the end a drag
+  // reaches is only noted (pendingEnd), and applied when a frame's time has passed since the last one and twice what that last one cost (a drag never gives the search more than
+  // a third of the thread), at the next frame's settle() or on lift, always on the tile the finger lifts on. The line keeps its last end until then, so the preview is the
+  // last route found.
+  let pendingEnd = null, lastEndAt = -Infinity, endCost = 0;
+  const applyEnd = (x, y) => {
+    pendingEnd = null;
+    const s = store.get();
+    if (!s.line || (s.line.x1 === x && s.line.y1 === y)) return;
+    const began = now();
+    store.set({ line: { ...s.line, x1: x, y1: y } });    // the store's listeners ask for the preview here, and the search runs
+    lastEndAt = now(); endCost = lastEndAt - began;
+  };
+  const settle = () => { if (pendingEnd && now() - lastEndAt >= Math.max(ROUTE_END_MS, 2 * endCost)) applyEnd(pendingEnd[0], pendingEnd[1]); };
+  const followEnd = (x, y) => { pendingEnd = [x, y]; settle(); };
+  const dropEnd = () => { pendingEnd = null; lastEndAt = -Infinity; };
   let lastStyle = null;   // Stage 4.6: the style the player last picked for a monument, which the next monument's tool starts on
   const inMap = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < world.size && y < world.size;
   const drawingTool = (s) => Boolean(s.tool) && s.tool.kind !== 'building';
@@ -629,7 +646,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
     },
     start(tool, centre = null) {
       if (tool.kind === 'areas') { api.startArea(tool.type); if (tool.spacing) api.setSpacing(tool.spacing); return; }
-      stroke = null;
+      stroke = null; dropEnd();
       if (tool.kind === 'road' && !tool.gate && !tool.route && roadShape() === 'route') tool = { ...tool, route: true };   // Version 5.0 (Task 5): the road bar starts in the shape last chosen
       if (tool.kind === 'building' && BUILDINGS[tool.type].monument && !tool.style) tool = { ...tool, style: lastStyle || MONUMENT_STYLE_PICK_DEFAULT };
       // Stage 4 (spec 4.20, ruling 271): while a palace stands its card selects it (its sheet opens) instead of starting a tool.
@@ -657,6 +674,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (!s.tool) return;
       if (s.tool.kind === 'building') { api.moveGhost(x, y); return; }
       if (isLine(s.tool)) {
+        dropEnd();
         const l = s.line;
         store.set({ line: !l || l.x1 !== null ? { x0: x, y0: y, x1: null, y1: null, flip: false } : { ...l, x1: x, y1: y }, plan: null });
         return;
@@ -681,11 +699,15 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       const s = store.get();
       if (!drawingTool(s)) { stroke = null; return; }
       if (isRoute(s.tool)) {                                                 // Version 5.0 (Task 5): in Route a finger's drag is a mouse's: down is the start, where it is now the end
-        if (phase === 'start') { if (inMap(x, y)) { stroke = { was: s.line }; store.set({ line: { x0: x, y0: y, x1: null, y1: null, flip: false }, plan: null }); } return; }
+        if (phase === 'start') { if (inMap(x, y)) { dropEnd(); stroke = { was: s.line }; store.set({ line: { x0: x, y0: y, x1: null, y1: null, flip: false }, plan: null }); } return; }
         if (!stroke) return;
-        if (phase === 'cancel') { const { was } = stroke; stroke = null; store.set({ line: was || null }); return; }
-        if (inMap(x, y) && s.line && (s.line.x1 !== x || s.line.y1 !== y)) store.set({ line: { ...s.line, x1: x, y1: y } });
-        if (phase === 'end') stroke = null;
+        if (phase === 'cancel') { const { was } = stroke; stroke = null; dropEnd(); store.set({ line: was || null }); return; }
+        if (phase === 'end') {                                               // Task 6: the lift settles the route, on the tile the finger lifts on
+          stroke = null;
+          if (inMap(x, y)) applyEnd(x, y); else if (pendingEnd) applyEnd(pendingEnd[0], pendingEnd[1]);
+          return;
+        }
+        if (inMap(x, y) && s.line) followEnd(x, y);
         return;
       }
       if (phase === 'start') {
@@ -707,10 +729,13 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
     dragTo(x, y, phase) {
       const s = store.get();
       if (!s.tool || s.tool.kind === 'building') return;
-      if (phase === 'start') { store.set(isLine(s.tool) ? { line: { x0: x, y0: y, x1: null, y1: null, flip: false }, plan: null } : { area: { x0: x, y0: y, x1: null, y1: null }, plan: null }); return; }
-      if (isLine(s.tool) && s.line) store.set({ line: { ...s.line, x1: x, y1: y } });
+      if (phase === 'start') { dropEnd(); store.set(isLine(s.tool) ? { line: { x0: x, y0: y, x1: null, y1: null, flip: false }, plan: null } : { area: { x0: x, y0: y, x1: null, y1: null }, plan: null }); return; }
+      if (isRoute(s.tool) && s.line) { if (phase === 'end') applyEnd(x, y); else followEnd(x, y); }   // Version 5.0 (Task 6): the routed road's end is found once a frame, and on lift
+      else if (isLine(s.tool) && s.line) store.set({ line: { ...s.line, x1: x, y1: y } });
       else if (!isLine(s.tool) && s.area) store.set({ area: { ...s.area, x1: x, y1: y } });
     },
+    // Version 5.0 (Task 6): once a frame, the end a routed drag has reached since the last one (a frame's time and twice the last search's having passed). Nothing pending: nothing happens.
+    settle,
     flip() { const s = store.get(); if (s.line) store.set({ line: { ...s.line, flip: !s.line.flip } }); },
     // Version 5.0 (Task 5, rulings 560-569): the road bar's Route / Straight toggle. routeMode() is 'route', 'straight', or null for any tool that is not the road (the
     // Gate card has no shapes). setRoute(on) switches the road in hand and remembers the choice (settings, per device); the two ends carry over (a Straight plan's first and last
@@ -724,7 +749,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (!t || t.kind !== 'road' || t.gate) return false;
       on = Boolean(on);
       if (Boolean(t.route) === on) return true;
-      stroke = null;
+      stroke = null; dropEnd();
       lastRoad = on ? 'route' : 'straight';
       if (roadMode) roadMode.set(lastRoad);
       const { route, ...rest } = t;

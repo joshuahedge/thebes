@@ -130,6 +130,8 @@ function search(world, a, b, relax) {
 // Memo of one world's searches (the tile path or null, per pair of ends), valid while the roads, the buildings, the walls and the ground are as they were:
 // a preview asks again at every redraw, and the answer is a function of those alone (the treasury is judged afterwards, not here).
 const memo = new WeakMap();   // world -> { sig, map: Map(a * size^2 + b -> { path, reason, at, water, looked }) }
+// How many searches have run (an answer taken from the memo is not one): the tests count what a drag asks for.
+export const routeStats = { searches: 0 };
 export const ROUTE_MEMO_MAX = 200;
 const signature = (world) => `${world.roadVersion}|${buildingsVersion(world)}|${world.wallVersion}`;
 
@@ -176,6 +178,7 @@ function found(world, a, b) {
   const key = a * world.size * world.size + b;
   let r = m.map.get(key);
   if (r) return r;
+  routeStats.searches++;
   const s = search(world, a, b, {});
   if (s.path) r = { path: s.path, looked: s.looked };
   else if (s.capped) r = { path: null, reason: 'too_far', looked: s.looked };
