@@ -27,6 +27,7 @@ const days = (n) => plural(n, 'day', 'days');
 
 // The label that opens the line, and the words that follow it when there is nothing to build.
 export const STEP_LABELS = { next: 'Next step:', waiting: 'Waiting:', locked: 'Locked:', ready: 'Ready:', kept: 'Kept:', empty: 'Empty:' };
+const signed = (n) => (Math.round(n) < 0 ? `−${-Math.round(n)}` : String(Math.round(n)));
 export const STEP_TEXT = {
   kept: 'nothing more to do',
   empty: 'people move in as the city draws them',
@@ -37,7 +38,7 @@ export const STEP_TEXT = {
   // The price in the parentheses: "30 gold", "5 gold a tile", and when the treasury cannot pay it, how much it has (colour is never the only cue).
   // Version 5.0 (Task 7): where a decoration goes, what it does to the street, and a hunting lodge's place.
   spot: (dist) => (dist <= 1 ? 'beside this home' : `${dist} tiles from this home`),
-  lifts: (from, to, needs) => `raises its desirability from ${Math.round(from)} to ${Math.round(to)} (it needs ${needs})`,
+  lifts: (from, to, needs) => `raises its desirability from ${signed(from)} to ${signed(to)} (it needs ${needs})`,   // a score below zero reads with a minus sign, as the desirability row's does
   herd: 'by the nearest herd',
   price: (gold, unit, have, short) => `${gold} gold${unit ? ` a ${unit}` : ''}${short ? `, more than the ${have} you have` : ''}`,
 };

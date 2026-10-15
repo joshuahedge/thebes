@@ -73,7 +73,7 @@ export function leaveCap(house) {
 const foodOnHand = (house) => FOOD_GOODS.reduce((s, g) => s + (house.stock[g] || 0), 0);
 // How many kinds of food a home has in stock (Stage 4.6, ruling 363): two kinds meet the 'twoFoods' need, whichever two; Stage 4.7 (ruling
 // 471): three kinds meet the top two tiers' 'threeFoods'.
-const foodKinds = (house) => FOOD_GOODS.filter((g) => (house.stock[g] || 0) > 0).length;
+export const foodKinds = (house) => FOOD_GOODS.filter((g) => (house.stock[g] || 0) > 0).length;
 // The kinds of food a home's wants ask for: 3 (threeFoods), 2 (twoFoods) or 1.
 const kindsWanted = (wants) => (wants.includes('threeFoods') ? 3 : wants.includes('twoFoods') ? 2 : 1);
 // The tier a home is stocked and judged for: the next one (a home stocks for the tier it grows into), the top tier its own.

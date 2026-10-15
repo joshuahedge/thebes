@@ -181,7 +181,8 @@ describe('sim goals and rewards for Stage 2', () => {
       [() => { home(7); fine = home(7); }, ['fine_manors']],
       [() => { people(650); w.milestone = 'great_city'; }, ['great_city']],
       [() => build('farm_flax', 'weaver'), ['linen']],
-      [() => build('farm_grain', 'hunting_lodge'), ['third_food']],                   // figs (the beer goal's orchard), grain and game: three kinds
+      [() => build('farm_grain', 'hunting_lodge'), []],                                // makers alone are not a food: the home must hold it
+      [() => { fine.stock = { ...fine.stock, grain: 20, figs: 20, game: 20 }; }, ['third_food']],   // grain, figs and game in stock: three kinds
       [() => decorate(fine, 8), ['villa_street']],
       [() => { home(8); villa = home(8); }, ['villas']],
       [() => { people(1000); w.milestone = 'capital'; }, ['capital']],

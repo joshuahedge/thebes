@@ -77,6 +77,7 @@ export function unmadeFix(world, cause) {
   if (!makers.length || makers.some((t) => !isUnlocked(world, t))) return null;
   const missing = makers.find((t) => !allBuildings(world).some((b) => b.type === t));
   const more = missing ? { item: missing, near: inputHolder(world, missing) } : moreOf(world, cause.good);
+  if (!more) return null;   // a maker that stands cannot work: the workers item is the fix, not another maker
   const out = { item: more.item, at: BUILDINGS[more.item].terrain ? 'terrain' : 'building' };
   if (more.near !== null) out.near = more.near;
   return out;
@@ -95,8 +96,9 @@ export function inputHolder(world, type) {
 // Version 5.0 (Task 7): with every maker of a good standing, where its chain is stuck, read from the sim's own blocks (b.blocked): a maker with
 // nowhere to put what it makes ('no_storage', or its stores filled: 'storage_full') wants the good's store beside it; a workshop idle for want of its input ('no_input') wants a store
 // beside the input's producer when that one has nowhere to put it, else another workshop beside a store where the input lies unused (out of the
-// idle one's reach), else more of the input (another barley farm, not a brewery that would wait too). Otherwise another workshop (or the good's
-// only maker). { item, near: the id of the building it goes beside, or null }.
+// idle one's reach), else more of the input (another barley farm, not a brewery that would wait too). A maker that is paused, short of workers or (a
+// lodge) with no game to take is not stuck for want of another: null, the city's workers item (and the maker's own sheet) says why. Otherwise another
+// workshop (or the good's only maker). { item, near: the id of the building it goes beside, or null }, or null.
 export function moreOf(world, good) {
   const maker = makerOf(good);
   const all = allBuildings(world);
@@ -113,6 +115,7 @@ export function moreOf(world, good) {
     if (held !== null) return { item: maker, near: held };
     return { item: makerOf(input), near: idle.id };
   }
+  if (all.some((b) => b.type === maker && (b.paused || b.blocked === 'understaffed' || b.blocked === 'no_game'))) return null;
   return { item: maker, near: null };
 }
 
