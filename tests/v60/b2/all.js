@@ -5,3 +5,5 @@ import './units.test.js';
 import './fire.test.js';
 import './effects.test.js';
 import './moment.test.js';
+import './scenes.test.js';
+import './budget.test.js';
