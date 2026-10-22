@@ -27,6 +27,7 @@ import { drawMonument } from './monuments.js';
 import { LAYER_HUE } from '../data/layers.js';
 import { drawProgress, drawSupply, drawWorkers } from './layers.js';   // Version 5.0 (Task 3): a cycle (layers.js reads tilePolys and mark), safe: each is used only inside functions
 import { layerUnlocked } from '../sim/layers.js';
+import { drawPlague } from './plague.js';   // Version 6.0 (Track B1): the Health layer's plague marks
 
 // Version 5.0 (Task 3, rulings 540-549): Home progress, Goods supply and Workers (src/render/layers.js) join the table after Ground, so the order of the first eleven is unchanged.
 export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers'];
@@ -458,6 +459,7 @@ function drawHomeRisk(g, world, range, kind) {
   g.hatchPolys(byBand[2], hue, { fill: 0, line: 0.6, gap: 5 });
   if (byBand[3].length) g.polys(byBand[3], crossHatch(g, hue, 3));
   for (const m of marks) mark(g, m, hue);
+  if (kind === 'health') drawPlague(g, world, range);   // Version 6.0 (Track B1, ruling 686): a sick home's heavy ring, a quarantined district's dashed edge
 }
 
 // The placement preview's tint (spec 4.7): a teal wash on the tiles a building would make nicer, coral hatching on

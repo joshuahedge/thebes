@@ -11,6 +11,7 @@ import { advanceDays } from '../../../src/sim/clock.js';
 import { place, drawRoad, paintHouses, canPlace, previewRoad, previewHouses } from '../../../src/sim/commands.js';
 import { openRoute, setTradeOrder } from '../../../src/sim/trade.js';
 import { createWorld, population, allBuildings, isSite } from '../../../src/sim/world.js';
+import { noNewDangers } from '../../v60/b1/grace.js';
 import { milestoneIndex, isUnlocked } from '../../../src/sim/progression.js';
 import { costOf, routeCostOf } from '../../../src/sim/costs.js';
 import { T } from '../../../src/sim/terrain.js';
@@ -38,7 +39,7 @@ function capitalWorld(size = SIZE) {
   if (size > SIZE) for (let y = 25; y < 27; y++) for (let x = 52; x < 56; x++) terrain[idx(size, x, y)] = T.ROCKY;
   const raiderEntries = [{ x: 47, y: 24 }, { x: 24, y: 0 }];
   const map = { size, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries };
-  return createWorld({ seed: 5, size, map });
+  return noNewDangers(createWorld({ seed: 5, size, map }));   // Version 6.0: the run measures the game before the new dangers (tests/v60/b1/grace.js); Wave 4 measures it with them
 }
 
 // Each step: the milestone it waits for, what it costs now, and the command. A step that fails for any reason but gold

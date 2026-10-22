@@ -55,6 +55,11 @@
 // hit a wall in their band's way: a band with none of them left that meets a standing wall, or (with chariots) rocky ground, while
 // attacking turns back (retreat; active.turned counts the bands turned), and one leaving slips away. The report adds byArchers,
 // byChariots, towersLost (towers enemy archers brought down) and turned when there are any.
+// Version 6.0 (Track B1, rulings 681-683; src/sim/strikes.js, draws.js): once the grace is over (hazards.graceUntil) a strike may wreck a building
+// to rubble (active.wrecked, active.wreckedKinds; each rubble tile has was) and a storehouse's goods are looted (active.taken: { good: units }; a granary's
+// food joins it); a band of CHIEFTAIN.fromSize or more has a chieftain (warning.chiefs: the band numbers; active.chiefs: [{ id, band, fell?, left? }], the raider
+// carrying chief: true, more hit points, a harder hand), and raidSize adds bandGrowth. The report (raid.last) adds wrecked, wreckedKinds, taken, chiefs and
+// chiefsFell when there are any. Events: 'raid_wreck' { id, kind, to } and 'raid_loot' { id, goods } (Track B2 draws them).
 // A day of a raid (raidDay): combat (combat.js); the end when no raider is left; retreat once RAIDS.retreatShare of the
 // raiders (rounded up) have fallen; then, unless a raider is fighting, the band waits out a strike or takes one step: to
 // the target it is after (attack), back to its entry (leave, after RAIDS.strikes strikes; retreat), or stops before a
@@ -77,6 +82,8 @@ import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { removeResidents } from './housing.js';
 import { splitHouse } from './merge.js';
 import { STRIKES } from './strikes.js';
+import { dangerDraws, bandGrowth } from './draws.js';
+import { CHIEFTAIN } from '../data/hazards.js';
 import { flowField, tileCost } from './pathfinding.js';
 import { healWalls } from './defence.js';
 import { trainSoldiers, combatDay, soldiersHome } from './combat.js';
@@ -128,7 +135,8 @@ export function raidWealth(world) {
 export function raidSize(world) {
   if (world.raid.index === 0) return RAIDS.firstSize;
   // Stage 4.6 (ruling 336): favour's size step (src/sim/court.js, the Court track's); the Armies track keeps this call.
-  return favourRaidSize(world, baseRaidSize(world)) + wealthDraw(world);
+  // Version 6.0 (Track B1, ruling 683): and the years since the grace ended add raiders (bandGrowth: 0 until then).
+  return favourRaidSize(world, baseRaidSize(world)) + wealthDraw(world) + bandGrowth(world);
 }
 
 // The game year a day falls in (1 from the first day).
@@ -244,11 +252,21 @@ function raiseWarning(world, events) {
   if (wealth > 0) w.wealth = wealth;   // Stage 4.7 (ruling 470): the raiders the city's wealth drew, said in the warning
   if (second) w.second = second;
   else if (mix.boat > 0) w.second = { entry: { ...landing.bank }, dir: landing.dir, size: mix.boat, boat: true, from: { ...landing.from } };
+  const chiefs = chiefBands(world, w);
+  if (chiefs.length) w.chiefs = chiefs;
   r.warning = w;
   r.index = index + 1;
   if (first) setSpeed(world, 0);
   else if (world.speed > 1) setSpeed(world, 1);
-  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.wealth ? { wealth: w.wealth } : {}), ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}) });
+  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.wealth ? { wealth: w.wealth } : {}), ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}), ...(w.chiefs ? { chiefs: w.chiefs.slice() } : {}) });
+}
+
+// Version 6.0 (Track B1, ruling 683): the bands of a warned raid a chieftain leads, as band numbers (0, or 1 for a two-sided raid's second): every
+// band of CHIEFTAIN.fromSize raiders or more that goes on foot (a boat band has none), once the grace is over; [] otherwise (and never on Peaceful).
+function chiefBands(world, w) {
+  const d = dangerDraws(world);
+  if (!d.open || !d.raids) return [];
+  return warningBands(w).map((band, k) => (band.size >= CHIEFTAIN.fromSize && !band.boat ? k : -1)).filter((k) => k >= 0);
 }
 
 // The second band of a two-sided raid (ruling 317): an entry other than the first's, by hash2(seed, index, RAID_SALT.entry2),
@@ -396,6 +414,16 @@ function arrive(world, events) {
     struck: [], wait: 0, byTowers: 0, bySoldiers: 0, byArchers: 0, byChariots: 0, burned: 0, stolen: 0, shots: [], x: w.entry.x, y: w.entry.y, blocked: null, towerIds: [], fires: [], burnedKinds: [],
   };
   if (w.second) a.second = { entry: { ...w.second.entry }, dir: w.second.dir, x: w.second.entry.x, y: w.second.entry.y, phase: 'attack', targetId: null, struck: [], wait: 0, blocked: null, ...(w.second.boat ? { boat: true } : {}) };
+  // Version 6.0 (Track B1, ruling 683): the chieftain of each band the warning named is its first raider on foot: more hit points, a harder hand.
+  const chiefs = [];
+  for (const k of w.chiefs || []) {
+    const lead = raiders.find((u) => bandOf(u) === k && u.kind === 'foot');
+    if (!lead) continue;
+    lead.chief = true;
+    lead.hp = raiderHp('foot') * CHIEFTAIN.hpFactor;
+    chiefs.push({ id: lead.id, band: k });
+  }
+  if (chiefs.length) a.chiefs = chiefs;
   placeBand(a, 0);
   if (a.second) placeBand(a, 1);
   r.active = a;
@@ -509,6 +537,9 @@ function endRaid(world, events, won) {
     ...(a.byArchers ? { byArchers: a.byArchers } : {}), ...(a.byChariots ? { byChariots: a.byChariots } : {}), ...(a.towersLost ? { towersLost: a.towersLost } : {}), ...(a.turned ? { turned: a.turned } : {}),
     stolen: a.stolen, day: world.day, burnedKinds: a.burnedKinds.slice(), fires: a.fires.map((f) => ({ ...f })),
     ...(a.second ? { dirs: [a.dir, a.second.dir] } : {}), ...(a.foodStolen ? { foodStolen: a.foodStolen } : {}), ...(a.fled ? { fled: a.fled } : {}),
+    // Version 6.0 (Track B1): what the band wrecked and took, and its chieftains (how many led it and how many fell); absent when none.
+    ...(a.wrecked ? { wrecked: a.wrecked, wreckedKinds: a.wreckedKinds.slice() } : {}), ...(a.taken ? { taken: { ...a.taken } } : {}),
+    ...(a.chiefs ? { chiefs: a.chiefs.length, chiefsFell: a.chiefs.filter((c) => c.fell).length } : {}),
   };
   r.active = null;
   r.last = report;
@@ -535,6 +566,7 @@ function raidStep(world, events) {
     if (!a.second.struck) a.second.struck = [];
   }
   const { fightingBands } = combatDay(world, events);
+  fallenChiefs(a);
   if (!a.raiders.length) return endRaid(world, events, !a.left);
   if (a.size - a.raiders.length - (a.gone || 0) >= Math.ceil(a.size * RAIDS.retreatShare)) {
     for (const k of liveKs(a)) {
@@ -548,6 +580,21 @@ function raidStep(world, events) {
   for (const k of liveKs(a)) {
     if (world.raid.active !== a) return;                      // the last band has left: the raid is over
     if (!fightingBands.includes(k)) bandDay(world, a, k, events);
+  }
+}
+
+// Version 6.0 (Track B1, ruling 683): a chieftain no longer among the raiders and not gone with his band has fallen (counted once, c.fell): his band
+// loses heart and turns back (retreat), whatever it was doing. A band already leaving or retreating, or with no raider left, goes on as it was.
+function fallenChiefs(a) {
+  for (const c of a.chiefs || []) {
+    if (c.fell || c.left || a.raiders.some((u) => u.id === c.id)) continue;
+    c.fell = true;
+    const rec = bandRec(a, c.band);
+    if (a.raiders.some((u) => bandOf(u) === c.band) && rec.phase !== 'retreat' && rec.phase !== 'leave') {
+      rec.phase = 'retreat';
+      rec.targetId = null;
+      rec.wait = 0;
+    }
   }
 }
 
@@ -610,6 +657,7 @@ function reach(world, a, k, events) {
   const rec = bandRec(a, k);
   if (rec.phase === 'attack') return strike(world, a, k, world.buildings[rec.targetId], events);
   const n = crewOf(a, k).length;
+  for (const c of a.chiefs || []) if (c.band === k && !c.fell) c.left = true;   // a chieftain who leaves with his band has not fallen
   a.raiders = a.raiders.filter((u) => bandOf(u) !== k);
   a.gone = (a.gone || 0) + n;
   if (rec.phase === 'leave') a.left = true;

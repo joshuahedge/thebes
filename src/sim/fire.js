@@ -262,7 +262,13 @@ export function burnBuilding(world, id, events = null) {
   if (!b) return [];
   const kind = b.type === 'house' ? 'house' : 'rubble';   // a new house is an empty plot: tier 0, nobody living there
   removeBuilding(world, b.id);
-  const to = footprint(b.x, b.y, b.w, b.d).map(([x, y]) => insertBuilding(world, makeBuilding(world, kind, x, y)).id);
+  // Version 6.0 (Track B1, contract section 1): each rubble tile keeps what stood there (was), so it can be cleared and the building rebuilt.
+  const was = kind === 'rubble' ? { type: b.type, x: b.x, y: b.y, w: b.w, d: b.d, rot: b.rot, day: world.day, cause: 'fire' } : null;
+  const to = footprint(b.x, b.y, b.w, b.d).map(([x, y]) => {
+    const t = makeBuilding(world, kind, x, y);
+    if (was) t.was = { ...was };
+    return insertBuilding(world, t).id;
+  });
   world.tally.burned += 1;
   world.danger.burnDays.push(world.day);
   if (events) events.push({ type: 'burned', id: b.id, kind: b.type, to });
