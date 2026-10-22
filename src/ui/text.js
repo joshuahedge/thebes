@@ -2766,7 +2766,7 @@ export const LARGE_TEXT = {
   adviceWhy: `A small plot stops at ${lgTown}. ${lgManor}s and the grander homes grow only on a Large plot, which opens as ${lgAn(lgManor)} once its own needs are met`,
   adviceFix: `Lay a Large plot beside them`,
   // Home progress: the legend's note for an empty lot (the lot is washed like any home, and its missing need is the icon on it).
-  progress: { label: 'Large plot', words: `A Large plot with no people in it is shown like a home: the icon is the first need it waits on before people move in as ${lgAn(lgManor)}, a tick means it is ready` },
+  progress: { label: 'Large plot: what it waits on', words: `A Large plot with no people in it is shown like a home: the icon is the first need it waits on before people move in as ${lgAn(lgManor)}, a tick means it is ready` },
 };
 // The Estate trick (ruling 586, said by the advice since Version 6.0): a workshop (the weaver, the jeweller) with no room beside the store holding its input goes in the open with a
 // store of its own that Fetches the input. Two steps, each worded from the fix's `open` (src/sim/advice.js openWorkshop): the store (priced, with the workshop's price named), then the
