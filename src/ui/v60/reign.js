@@ -16,9 +16,12 @@ import { courtDemands, demandStatus, demandFavour, acceptDemand, declineDemand, 
 import { greatWorkStatus, offeringOf, siteProgress, isGreatWork } from '../../sim/monuments.js';
 import { MILESTONES } from '../../data/progression.js';
 import { GREAT_WORK } from '../../data/reign.js';
+import { QUOTA } from '../../data/s47.js';
+import { dueComing } from '../../sim/pressure.js';
+import { dateOfDay } from '../../sim/court.js';
 import { milestoneIndex, milestoneNeedsMet, isUnlocked, atLeast } from '../../sim/progression.js';
 import { population, allBuildings, isSite } from '../../sim/world.js';
-import { costOf, costScale } from '../../sim/costs.js';
+import { costOf, costScale, raidsOn } from '../../sim/costs.js';
 import { drawThumb, THUMB_W, THUMB_H } from '../thumbs.js';
 
 const line = (text, cls = 'small muted') => el('p', { class: cls, text });
@@ -46,7 +49,8 @@ export const createReignUi = (ctx) => {
   if (!ctx || !ctx.world) return seamBase();   // no city to speak for (the contract's empty-seam test makes one with no context)
   const world = ctx.world;
   const caption = (text) => { if (ctx.celebrations) ctx.celebrations.show({ tier: 'info', text }); };
-  const tip = (id) => { if (ctx.fireTip) ctx.fireTip(id); };
+  const tip = (id) => (ctx.fireTip ? ctx.fireTip(id) : false);
+  let dueTipShown = false;
   const open = (kind) => ctx.store.set(openSheet(ctx.store.get(), kind));
   const records = () => (ctx.hooks && ctx.hooks.records) || null;
   const clock = () => (typeof ctx.clock === 'function' ? ctx.clock() : Date.now());
@@ -93,7 +97,7 @@ export const createReignUi = (ctx) => {
       choices.push(choice({ label: R.giveUp, cls: 'give-up', consequence: R.failed(f), onPick: act(declineDemand, (events) => { close(); done(events, ''); }) }));
       wrap.append(el('div', { class: 'court-choices' }, choices));
     }
-    wrap.append(line(R.favourWhy, 'small muted favour-why'));
+    wrap.append(line(R.favourWhy(raidsOn(world)), 'small muted favour-why'));
     body.append(el('div', { class: 'actions letter-foot' }, [
       button(R.later, { class: 'later quiet', onClick: close }),
       button(R.openCourt, { class: 'open-court quiet', onClick: () => open('court') }),
@@ -136,9 +140,10 @@ export const createReignUi = (ctx) => {
   }
 
   // ── The closing scene (ruling 658): in a sheet, never over the map; still under every Motion level ──
+  // Opens it and marks it seen at once (never inside the render, which may run again), so it shows once however it is dismissed.
+  const showWon = () => { world.reign.closed = true; open('reignWon'); };
   function reignWonSheet(body, { close, setTitle }) {
-    setTitle(R.wonTitle);
-    world.reign.closed = true;
+    setTitle(R.wonTitle);                                    // a render changes nothing: showWon marks the scene seen when it opens it
     const seal = world.reign.seal;
     body.append(el('div', { class: 'reign-won' }, [
       picture(),
@@ -182,7 +187,7 @@ export const createReignUi = (ctx) => {
       else if (e.type === 'milestone' && milestoneIndex(e.id) >= milestoneIndex('capital')) tip(e.id === MILESTONES[MILESTONES.length - 1].id ? 'greatWorkUnlocked' : 'beyondCapital');
       else if (e.type === 'reign_won') {
         try { if (records() && e.seal) records().addSeal(world, e.seal, clock()); } catch (err) { /* records never stop the closing scene */ }
-        open('reignWon');
+        showWon();
       }
     }
   }
@@ -204,7 +209,12 @@ export const createReignUi = (ctx) => {
     sheetParts: { building: buildingPart, house: () => [], actions: () => [], summary },
     onEvents,
     // A reign won while the closing scene was never seen (a city saved on that day): it opens once nothing else is open.
-    refresh() { if (world.reign.won !== null && !world.reign.closed && !ctx.store.get().sheet) open('reignWon'); },
+    // The due's tip once for a city that meets the due without the warning's year (a v8 city loaded after year QUOTA.warnYear: the sim's
+    // quota_warning fires only at that year's start): tried at each command until it shows (a tip fires once a device).
+    refresh() {
+      if (world.reign.won !== null && !world.reign.closed && !ctx.store.get().sheet) showWon();
+      if (!dueTipShown && dueComing(world) && dateOfDay(world.day).year >= QUOTA.warnYear) dueTipShown = tip('dueWarned') === true;
+    },
     destroy() { if (ctx.root && ctx.root.removeEventListener) ctx.root.removeEventListener('click', intercept, true); },
   };
 };

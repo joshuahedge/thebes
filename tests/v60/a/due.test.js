@@ -1,5 +1,5 @@
 // Version 6.0, Track A (rulings 642, 643): the court's due. On the first day of each year from the yearly tribute's first year (the court open) the
-// court takes the rank's share of the treasury or of a year's taxes, whichever is more, times favour's factor and the difficulty's cost, halved
+// court takes the rank's share of the treasury or of a year's taxes, whichever is more, times favour's factor and the difficulty's cost, cut to a quarter
 // while the great temple rises; even past 0. The court sheet, the alert and Advice say it ahead.
 import { describe, it, expect } from '../../harness.js';
 import { addRaw } from '../../helpers/testWorld.js';
@@ -36,7 +36,7 @@ describe('v60 a due: what the court takes', () => {
     expect(courtDue(poor).gold).toBeLessThan(d2.gold);                            // a Town owes a smaller share
   });
 
-  it('doubles at low favour and falls at high favour, scales by difficulty, and is halved while the great temple rises', () => {
+  it('doubles at low favour and falls at high favour, scales by difficulty, and is cut to a quarter while the great temple rises', () => {
     const w = capitalCourt({ gold: 40000 });
     const steady = courtDue(w).gold;
     w.court.favour = FAVOUR.low;

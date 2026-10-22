@@ -2735,6 +2735,7 @@ import { FAVOUR as reignFavour } from '../data/court.js';
 import { QUOTA as reignQuota } from '../data/s47.js';
 const reignNum = (n) => ui4Gold(n);
 const reignPct = (share) => `${Math.round(share * 100)}%`;
+const reignShare = (share) => ({ 0.5: 'a half', 0.25: 'a quarter', 0.75: 'three quarters' }[share] || reignPct(share));   // a share of the whole, as the court says it
 const reignMonths = (n) => plural(n, 'month', 'months');
 const reignRank = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
 const reignAsk = (d) => (d.kind === 'gold' ? `${reignNum(d.amount)} gold` : d.kind === 'soldiers' ? `${d.amount} trained units`
@@ -2751,7 +2752,7 @@ export const V60_REIGN_TEXT = {
   reward: (d, f) => `Met: favour ${courtSigned(f.met)} and ${reignNum(d.reward)} gold.`,
   failed: (f) => `Failed (the deadline passes): favour ${courtSigned(f.failed)}.`,
   declined: (f) => `Declined: favour ${courtSigned(f.declined)}.`,
-  favourWhy: `Favour sets the court's due: ×${reignDue.favour.low} at ${reignFavour.low} or less, ×${reignDue.favour.high} at ${reignFavour.high} or more. Low favour also brings bigger raids.`,
+  favourWhy: (raids = true) => `Favour sets the court's due: ×${reignDue.favour.low} at ${reignFavour.low} or less, ×${reignDue.favour.high} at ${reignFavour.high} or more.${raids ? ' Low favour also brings bigger raids.' : ''}`,
   accept: 'Accept', decline: 'Decline', giveUp: 'Give up',
   acceptWhat: (d) => `The deadline starts: ${reignMonths(d.months)}.`,
   send: (d) => (d.kind === 'soldiers' ? `Send ${d.amount} units` : `Send ${reignAsk(d)}`),
@@ -2783,7 +2784,7 @@ export const V60_REIGN_TEXT = {
     due.by === 'treasury' ? `${reignPct(due.treasuryShare)} of ${reignNum(Math.max(0, gold))} in the treasury` : `${reignPct(due.taxesShare)} of ${reignNum(due.yearTaxes)} a year in taxes`,
     due.factor !== 1 ? `×${due.factor} for ${due.band} favour` : '',
     due.cost !== 1 ? `×${due.cost} for the difficulty` : '',
-    due.greatWork ? `halved while the great temple rises` : '',
+    due.greatWork ? `cut to ${reignShare(reignDue.greatWork)} while the great temple rises` : '',
   ].filter(Boolean).join(', '),
   dueShort: (due, have) => `The treasury holds ${reignNum(Math.max(0, have))}: the due takes it past 0 into debt.`,
   dueSummary: (due) => `About ${reignNum(due.gold)} gold in ${reignMonths(Math.max(1, due.monthsLeft))}`,
@@ -2792,7 +2793,7 @@ export const V60_REIGN_TEXT = {
   dueBefore: `From year ${reignQuota.fromYear} the court takes a yearly due in gold.`,
   // ── Costs that grow (rulings 640, 641) ──
   costsHead: 'Running costs',
-  costsLine: (scale) => `At this rank: upkeep ×${Math.round(scale.upkeep * 100) / 100}, wages ×${Math.round(scale.wages * 100) / 100}, monuments ×${Math.round(scale.monuments * 100) / 100}.`,
+  costsLine: (scale) => `At this rank, on average (each price is rounded to whole gold): upkeep ×${Math.round(scale.upkeep * 100) / 100}, wages ×${Math.round(scale.wages * 100) / 100}, monuments ×${Math.round(scale.monuments * 100) / 100}.`,
   // ── The reign: ranks beyond Capital and the great work (rulings 652-658) ──
   reignHead: 'The reign',
   nextRank: (m, people, met) => `Next: ${m.name}, at ${reignNum(m.population)} people (you have ${reignNum(people)})${m.needs && m.needs.tier ? ` and a ${TIERS[m.needs.tier].name} or grander (${met ? 'you have one' : 'none yet'})` : ''}.`,

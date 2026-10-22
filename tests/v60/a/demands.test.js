@@ -5,11 +5,13 @@ import { describe, it, expect } from '../../harness.js';
 import { addRaw } from '../../helpers/testWorld.js';
 import { courtWorld, YEAR, MONTH } from '../../stage46/court/courtHelpers.js';
 import {
-  courtDemands, demandMonth, demandDay, acceptDemand, declineDemand, meetDemand, demandStatus, demandFavour, demandAlerts, demandItems, demandsOn, demandBuilding,
+  courtDemands, demandMonth, demandDay, acceptDemand, declineDemand, meetDemand, demandStatus, demandFavour, demandAlerts, demandItems, demandsOn, demandBuilding, buildMonths,
 } from '../../../src/sim/demands.js';
 import { stockOf } from '../../../src/sim/court.js';
 import { allBuildings } from '../../../src/sim/world.js';
 import { DEMANDS, DEMAND_KINDS, newDemandState } from '../../../src/data/reign.js';
+import { MILESTONES } from '../../../src/data/progression.js';
+import { MONUMENTS } from '../../../src/data/monuments.js';
 import { GOOD_VALUE } from '../../../src/data/court.js';
 import { serialize, deserialize } from '../../../src/save/serialize.js';
 
@@ -199,5 +201,39 @@ describe('v60 a demands: said in the alert row and Advice', () => {
     expect([w.demands.open.length, w.demands.nextDay]).toEqual([0, 5 * YEAR + DEMANDS.firstMonths * MONTH]);
     months(w, DEMANDS.firstMonths);
     expect(w.demands.open.length).toBe(1);
+  });
+});
+
+describe('v60 a demands: a building demand can be met inside its deadline', () => {
+  it('never names a building whose build time plus slack passes the shortest building deadline, at any rank', () => {
+    const w = due();
+    const shortest = DEMANDS.deadlineMonths.building[0];
+    const named = new Set();
+    for (const m of MILESTONES) {
+      w.milestone = m.id;
+      const t = demandBuilding(w);
+      if (t === null) continue;
+      named.add(t);
+      expect([m.id, t, buildMonths(t) + DEMANDS.buildSlackMonths <= shortest]).toEqual([m.id, t, true]);
+    }
+    expect(named.has('obelisk_large')).toBe(true);
+    expect(named.has('colossus') || named.has('great_sphinx')).toBe(false);                    // 24 and 18 months of crews: they could not be met
+    expect(buildMonths('colossus') + DEMANDS.buildSlackMonths).toBeGreaterThan(DEMANDS.deadlineMonths.building[1]);
+    expect(buildMonths('temple')).toBe(0);
+    expect(buildMonths('obelisk_large')).toBe(MONUMENTS.obelisk_large.crewMonths / MONUMENTS.obelisk_large.crews);
+  });
+
+  it('draws only deadlines that fit: every building demand the court offers from a Great city on has months for its build time', () => {
+    let seen = 0;
+    for (let seed = 1; seed <= 80; seed++) {
+      const w = due({ seed });
+      w.milestone = 'great_city';
+      demandMonth(w);
+      const d = courtDemands(w)[0];
+      if (!d || d.kind !== 'building') continue;
+      seen++;
+      expect([seed, d.type, d.months >= buildMonths(d.type) + DEMANDS.buildSlackMonths]).toEqual([seed, d.type, true]);
+    }
+    expect(seen).toBeGreaterThan(0);
   });
 });

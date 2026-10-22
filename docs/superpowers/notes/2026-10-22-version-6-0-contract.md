@@ -95,6 +95,7 @@ A track edits only files it owns; a **shared** file only in its own marked part.
 - `src/ui/createUI.js`, `src/sim/clock.js`, `src/sim/alerts.js`: nobody (the hooks are wired); a track that truly needs a line asks the controller and records a ruling.
 - `src/data/releases.js`, `README.md`, `APP_VERSION`: wave 4 only, at the end.
 - `sw-files.js`: regenerated (`tools/sw-files.ps1`), never merged by hand.
+- Track A's edits outside its own files (recorded in review round 1; each tiny, one line or one hunk, merge with care): `src/ui/goalsList.js` (`thresholdFor`: no people bar toward a rank that has `needs`, ruling 659), `src/render/art/monuments.js` (a `MONUMENT_LOOK` row for `great_temple`, ruling 652) and `tests/v50/grand/grandRun.js` (exports `playMonth` and `sendTribute` and answers the court each month through `tests/v60/a/answer.js`, ruling 660: **Track C also edits this file**, so merge risk; take both changes). Neither is in a part a track owns.
 - Tests: each track only in `tests/v60/<track>/` and its `all.js`; it updates an older test only where its own change moves that test's number (with the reason in the commit).
 
 ## 10. Dev scenes

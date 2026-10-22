@@ -19,6 +19,7 @@ import { DEMANDS, DEMAND_KINDS, REIGN_SALT, GREAT_WORK, COURT_DUE } from '../dat
 import { GOOD_VALUE } from '../data/court.js';
 import { HOUSEHOLD_GOODS, RAW_GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { MONUMENTS } from '../data/monuments.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { hash2 } from './rng.js';
 import { allBuildings, isFinished } from './world.js';
@@ -59,9 +60,13 @@ export const demandsOn = (world) => atLeast(world, DEMANDS.from);
 export const demandGoods = (world) => [...HOUSEHOLD_GOODS, ...RAW_GOODS].filter((g) => outputPerMonth(world, g) > 0);
 const goldCap = (world) => { const A = DEMANDS.amounts.gold; return Math.floor((Math.max(0, world.gold) * A.reserve) / A.step) * A.step; };
 const countOf = (world, type) => allBuildings(world).filter((b) => b.type === type && (!BUILDINGS[type].monument || isFinished(b))).length;
-// The building it may name: the grandest of DEMANDS.buildings the city may build now (unlocked), or null.
+// The months a building takes to finish with its kind's most crews and full supply (a monument: crewMonths / crews; any other building is up the day it
+// is placed, so 0). A building demand's deadline never runs shorter than this plus DEMANDS.buildSlackMonths, so the court never asks the impossible.
+export const buildMonths = (type) => (MONUMENTS[type] ? MONUMENTS[type].crewMonths / MONUMENTS[type].crews : 0);
+export const buildFitsDeadline = (type) => buildMonths(type) + DEMANDS.buildSlackMonths <= DEMANDS.deadlineMonths.building[0];
+// The building it may name: the grandest of DEMANDS.buildings the city may build now (unlocked) that fits the shortest building deadline, or null.
 export function demandBuilding(world) {
-  const ok = DEMANDS.buildings.filter((t) => BUILDINGS[t] && isUnlocked(world, t));
+  const ok = DEMANDS.buildings.filter((t) => BUILDINGS[t] && buildFitsDeadline(t) && isUnlocked(world, t));
   return ok.length ? ok[ok.length - 1] : null;
 }
 // The kinds the court may ask now, in DEMAND_KINDS order.

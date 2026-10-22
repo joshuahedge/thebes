@@ -8,6 +8,7 @@
 import { MILESTONES } from '../data/progression.js';
 import { ADVICE } from '../data/advice.js';
 import { cityAdvice } from '../sim/advice.js';
+import { milestoneNeedsMet } from '../sim/progression.js';
 import { housesOf, population } from '../sim/world.js';
 import { T } from './text.js';
 import { ADVICE_TEXT, adviceWords } from './adviceText.js';
@@ -42,7 +43,7 @@ export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => 
     if (!top.length) {
       const next = nextMilestone(world);
       body.append(el('p', { class: 'advice-well', text: ADVICE_TEXT.allWell }));
-      body.append(el('p', { class: 'advice-next muted', text: next ? ADVICE_TEXT.next(next, Math.max(world.tally.peakPeople, population(world))) : ADVICE_TEXT.last(MILESTONES[MILESTONES.length - 1]) }));
+      body.append(el('p', { class: 'advice-next muted', text: next ? ADVICE_TEXT.next(next, Math.max(world.tally.peakPeople, population(world)), milestoneNeedsMet(world, next)) : ADVICE_TEXT.last(MILESTONES[MILESTONES.length - 1]) }));
       return;
     }
     body.append(el('p', { class: 'small muted advice-lead', text: T.adviceLead }));

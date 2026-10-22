@@ -221,10 +221,10 @@ export function pressureMonth(world, events = null) {
 // ── Version 6.0, Track A (rulings 642, 643): the court's due ──
 // On the first day of each year from QUOTA.fromYear (the court open), with the yearly tribute's goods, the court takes its due in gold: the
 // rank's share of the treasury or its share of a year's taxes at this month's rate, whichever is more (COURT_DUE), times favour's factor and
-// the difficulty's cost, halved while the great work is under way; rounded to COURT_DUE.step. It is taken even past 0 (the city goes into
+// the difficulty's cost, cut to COURT_DUE.greatWork (a quarter) while the great work is under way; rounded to COURT_DUE.step. It is taken even past 0 (the city goes into
 // debt), so the court sheet, the alert row and Advice say it COURT_DUE.warnMonths ahead.
 // courtDue(world) is what it would take now: { gold, treasuryShare, taxesShare, fromTreasury, fromTaxes, yearTaxes, by ('treasury' | 'taxes'),
-// band (favour's), factor, greatWork (halved), cost (the difficulty's), day (the day it is next taken, or null: the court is closed), monthsLeft }.
+// band (favour's), factor, greatWork (cut to a quarter), cost (the difficulty's), day (the day it is next taken, or null: the court is closed), monthsLeft }.
 const dueRank = (table, world) => table[world.milestone] || 0;
 export const greatWorkRising = (world) => allBuildings(world).some((b) => b.type === GREAT_WORK.type && isSite(b));
 export function courtDue(world) {

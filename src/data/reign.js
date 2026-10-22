@@ -31,7 +31,7 @@ export const COST_GROWTH = {
 // From the year the yearly tribute starts (QUOTA.fromYear, src/data/s47.js) the court takes its due in gold on the first day of each year,
 // with the tribute's goods: `treasury` of the gold in the treasury, or `taxes` of a year's taxes at this month's rate, whichever is more, by
 // rank; times favour's factor (`favour`: high, steady, low; ruling 643: low favour raises the yearly tribute) and the difficulty's cost;
-// halved (`greatWork`) while the great work is under way, the crown's own temple. Rounded to `step`. It is taken even when the treasury
+// cut to a quarter (`greatWork`: ruling 643) while the great work is under way, the crown's own temple. Rounded to `step`. It is taken even when the treasury
 // cannot pay (the city goes into debt): the court sheet, the alert row and Advice say it months ahead (`warnMonths`).
 export const COURT_DUE = {
   treasury: { village: 0, town: 0.1, market_town: 0.15, city: 0.2, great_city: 0.3, capital: 0.45, great_capital: 0.45, seat: 0.45 },
@@ -50,8 +50,10 @@ export const COURT_DUE = {
 // amounts: goods: [lo, hi] months of the city's output of a good it makes (household goods, foods, raw goods), x the court's scale and
 // the difficulty's cost, rounded to `step`, at least `min`; gold: [lo, hi] months of taxes likewise, never more than `reserve` of the treasury
 // (none offered when that is under `min`); soldiers: a share of the units at home, at least `min`, leaving one at home, away `months`.
-// building: the first of `buildings` (in order) the city may build now, has fewest of and whose card it shows; met once one more of it stands
-// (a monument finished) than when it was accepted. rewards: goods: `goods` share of the value (GOOD_VALUE, src/data/court.js); gold: `gold`
+// building: the last (grandest) of `buildings` the city may build now that can finish inside the shortest building deadline: a monument's
+// months with its most crews (crewMonths / crews, src/data/monuments.js) plus `buildSlackMonths` must fit `deadlineMonths.building[0]`, so
+// the great sphinx (18 months) and the colossus (24) are never asked: they could not be met. Met once one more of it stands (a monument
+// finished) than when it was accepted. rewards: goods: `goods` share of the value (GOOD_VALUE, src/data/court.js); gold: `gold`
 // share of the amount paid back; soldiers: `soldier` gold a unit; building: `building` share of its price; at least `min`, rounded to `step`.
 export const DEMANDS = {
   from: 'town', firstMonths: 10, gapMonths: [10, 14], offerMonths: 3,
@@ -62,7 +64,7 @@ export const DEMANDS = {
     gold: { months: [1, 2], min: 200, step: 50, reserve: 0.6 },
     soldiers: { share: [0.3, 0.5], min: 2, months: 6 },
   },
-  buildings: ['temple', 'statue', 'obelisk_small', 'obelisk_large', 'great_sphinx', 'colossus'],
+  buildings: ['temple', 'statue', 'obelisk_small', 'obelisk_large', 'great_sphinx', 'colossus'], buildSlackMonths: 3,
   rewards: { goods: [0.5, 0.8], gold: [0.25, 0.4], soldier: 60, building: [0.5, 0.8], min: 50, step: 10 },
   logMax: 12,
   // reminderMonths: an accepted demand not yet ready raises the 'demand_due' alert this many months before its deadline. advice: the
