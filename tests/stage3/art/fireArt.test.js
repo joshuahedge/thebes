@@ -52,8 +52,8 @@ describe('s3 art fire', () => {
     expect(roof).toEqual(U(p(11, 11), Math.round(ART[slotFor(blaze.b, blaze.w)].height * 0.62)));
     const a = frame(blaze.w, blaze.b, 1000, { reducedMotion: false });
     const b = frame(fire.w, fire.b, 1000, { reducedMotion: false });
-    expect([a.calls.path, a.calls.radial.length]).toEqual([2, BLAZE_SMOKE_PUFFS * 2]);   // one flame (its outer and inner shapes) and, Stage 4.5, a thinner column of smoke
-    expect([b.calls.path, b.calls.radial.length]).toEqual([6, SMOKE_PUFFS * 2]);   // three flames and the smoke column (a body and a pale top a puff)
+    expect([a.calls.path, a.calls.radial.length]).toEqual([2, BLAZE_SMOKE_PUFFS * 2 + 1]);   // one flame (its outer and inner shapes) and, Stage 4.5, a thinner column of smoke; Version 6.0: and soot charring the roof
+    expect([b.calls.path, b.calls.radial.length]).toEqual([6, SMOKE_PUFFS * 2 + 1]);   // three flames and the smoke column (a body and a pale top a puff), and the soot
     expect(look(b.c).n).toBeGreaterThan(look(a.c).n * 3);
   });
   it('changes a flame\'s shape at most twice a second, never its brightness, and never in red', () => {
@@ -86,13 +86,13 @@ describe('s3 art fire', () => {
       prev = alphas;
     }
   });
-  it('shows still flames and the word "Burning" under reduced motion, with no smoke', () => {
+  it('shows still flames and the word "Burning" under reduced motion, with a still smoke column (Version 6.0, ruling 720: it holds, it does not rise)', () => {
     expect(ART_TEXT.burning).toBe('Burning');
-    for (const fire of [BLAZE, FIRE]) {
+    for (const [fire, puffs] of [[BLAZE, BLAZE_SMOKE_PUFFS], [FIRE, SMOKE_PUFFS]]) {
       const { w, b } = burningPotter(fire);
       const shots = [0, 700, 2600, 4100].map((t) => frame(w, b, t, { reducedMotion: true }));
       expect(new Set(shots.map((s) => canvasHash(s.c))).size).toBe(1);
-      expect([shots[0].calls.text, shots[0].calls.radial.length]).toEqual([['Burning'], 0]);
+      expect([shots[0].calls.text, shots[0].calls.radial.length]).toEqual([['Burning'], puffs * 2 + 1]);   // the column's puffs (a body and a pale top each) and the roof's soot
     }
   });
   it('draws only the burning buildings in range, and nothing at all where nothing burns', () => {

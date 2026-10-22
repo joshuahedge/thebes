@@ -13,12 +13,23 @@
 // (no growing ring), the well's ripple one ring fading where it is (no widening), labels fade without rising, a first's
 // sparkle is the still ring, and there are no dust puffs and no rise. Still is Stage 3's reduced motion: no puffs, glows,
 // pulses, ripples or rises, labels fading in place and the still ring.
+//
+// Version 6.0 (Track B2, rulings 720-739): the sim's raid events draw their moments. raid_strike (a building struck): Full a burst of sparks and
+// dust on it, Gentle one ring fading in place, Still nothing (the fire and the building say it). raid_wreck (a building wrecked, its rubble in its
+// place): Full a dust cloud that lifts and settles over the footprint, Gentle a pale disc fading in place, Still none. raid_loot (goods carried off a
+// store): Full sacks lifting off it, Gentle the sacks fading in place, and at every level a label naming what was taken (the event's own goods).
 import { TIERS } from '../data/housing.js';
+import { GOODS } from '../data/goods.js';
+import { RAID_FX, SPARK } from '../data/battle.js';
 import { p, U, quad } from './iso.js';
 import { UI, GOLD, GOLDC, TERRAIN } from './art/palette.js';
 import { hauler } from './art/figures.js';
 
-export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900, sparkle: 1200, ripple: 800 };
+export const EFFECT_MS = { puff: 600, glow: 1200, pulse: 1200, label: 1400, rise: 900, sparkle: 1200, ripple: 800, strike: RAID_FX.strike, wreck: RAID_FX.wreck, loot: RAID_FX.loot };
+const SACK_COLOUR = '#C9A66B', SACK_SHADE = '#9C7A48', DUST = '#CDB894';
+// What a raid event's label says of the goods taken: the two largest, "−14 grain, −6 linen" (the event's own numbers).
+export const lootLabel = (goods) => Object.entries(goods || {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, 2)
+  .map(([g, n]) => `−${n} ${(GOODS[g] ? GOODS[g].name : g).toLowerCase()}`).join(', ');
 export const RISE_STEPS = 2;   // hauler steps per rise: about two a second
 
 export function prefersReducedMotion() {
@@ -59,8 +70,34 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
     },
     // How far (art px) a label has risen at progress t in 0..1. Still under Gentle and Still.
     labelLift(t) { return full() ? 10 * t : 0; },
+    // Version 6.0 (Track B2): what a raid does to a building, at the building's centre. Gentle's are drawn in place (e.still); Still has none.
+    strike(x, y, now) { if (level() !== 'still') add({ kind: 'strike', x, y, still: !full(), start: now }); },
+    wreck(x, y, w, d, now) { if (level() !== 'still') add({ kind: 'wreck', x, y, w, d, still: !full(), start: now }); },
+    loot(x, y, goods, now) {
+      const text = lootLabel(goods);
+      if (!text) return;
+      if (level() !== 'still') add({ kind: 'loot', x, y, still: !full(), n: Math.min(3, Math.max(1, Object.keys(goods).length)), start: now });
+      fx.label(x, y, text, UI.bad, now);
+    },
     fromEvents(world, events, now) {
+      const wrecked = new Map();             // a wrecked building's id -> the centre of its old footprint (the building itself is gone)
       for (const ev of events) {
+        if (ev.type !== 'raid_wreck') continue;
+        const r = (ev.to || []).map((id) => world.buildings[id]).find((b) => b && b.was);
+        if (r) wrecked.set(ev.id, { x: r.was.x + r.was.w / 2, y: r.was.y + r.was.d / 2, w: r.was.w, d: r.was.d });
+      }
+      for (const ev of events) {
+        if (ev.type === 'raid_strike') {
+          const b = world.buildings[ev.id];
+          if (b) fx.strike(b.x + b.w / 2, b.y + b.d / 2, now);
+          continue;
+        }
+        if (ev.type === 'raid_wreck') { const c = wrecked.get(ev.id); if (c) fx.wreck(c.x, c.y, c.w, c.d, now); continue; }
+        if (ev.type === 'raid_loot') {
+          const b = world.buildings[ev.id], c = b ? { x: b.x + b.w / 2, y: b.y + b.d / 2 } : wrecked.get(ev.id);
+          if (c) fx.loot(c.x, c.y, ev.goods, now);
+          continue;
+        }
         if (ev.type === 'milestone') { if (onMilestone) onMilestone(ev.id); continue; }
         if (ev.type !== 'upgrade' && ev.type !== 'downgrade') continue;
         const b = world.buildings[ev.id];
@@ -120,6 +157,35 @@ export function createEffects({ reducedMotion = prefersReducedMotion, motionLeve
               const d = [q[0] + Math.cos(a) * r, q[1] + Math.sin(a) * r * 0.6 - t * 4];
               g.poly([[d[0], d[1] - s], [d[0] + s * 0.6, d[1]], [d[0], d[1] + s], [d[0] - s * 0.6, d[1]]], e.color, { alpha: 1 - t, stroke: GOLDC[2], strokeWidth: 0.9, strokeAlpha: 1 - t });
             }
+          }
+        } else if (e.kind === 'strike') {
+          const q = U(c, 10);
+          if (e.still) g.circ(q, 8, 'none', { stroke: SPARK.edge, strokeWidth: 1.4, strokeAlpha: (1 - t) * 0.9 });
+          else {
+            for (let i = 0; i < 9; i++) {
+              const a = (i / 9) * Math.PI * 2 + e.x, r0 = 3 + t * 5, r1 = 6 + t * 13;
+              g.line([q[0] + Math.cos(a) * r0, q[1] + Math.sin(a) * r0 * 0.7], [q[0] + Math.cos(a) * r1, q[1] + Math.sin(a) * r1 * 0.7 - t * 3], i % 2 ? SPARK.edge : SPARK.colour, 0.8, 1 - t);
+            }
+            for (let i = 0; i < 3; i++) g.circ([c[0] + (i - 1) * 7 * (0.4 + t), c[1] - 2 - t * 8], 2.4 + t * 3, DUST, { alpha: (1 - t) * 0.55 });
+          }
+        } else if (e.kind === 'wreck') {
+          const k = Math.max(1, (e.w + e.d) / 2);
+          if (e.still) g.radial([c[0], c[1] - 3], 18 * k, 9 * k, DUST, (1 - t) * 0.6);
+          else {
+            for (let i = 0; i < 8; i++) {
+              const a = (i / 8) * Math.PI * 2 + e.y, r = (4 + t * 15) * k;
+              g.circ([c[0] + Math.cos(a) * r, c[1] - 2 + Math.sin(a) * r * 0.5 - t * 10], (4 + t * 4) * Math.min(1.5, k), DUST, { alpha: (1 - t) * (1 - t) * 0.65 });
+            }
+            g.radial([c[0], c[1] - 2], 14 * k, 7 * k, DUST, (1 - t) * 0.35);
+          }
+        } else if (e.kind === 'loot') {
+          for (let i = 0; i < e.n; i++) {
+            const lift = e.still ? 0 : t * 14, side = (i - (e.n - 1) / 2) * 6;
+            const s = [c[0] + side + (e.still ? 0 : t * 6), c[1] - 10 - lift - i * 1.5];
+            const a = e.still ? 1 - t : Math.min(1, (1 - t) * 1.6);
+            g.ell(s, 3, 2.5, SACK_COLOUR, { alpha: a, outline: true });
+            g.ell([s[0] + 0.5, s[1] + 0.9], 2.3, 1.3, SACK_SHADE, { alpha: a * 0.5 });
+            g.line([s[0] - 0.7, s[1] - 2.3], [s[0] + 0.8, s[1] - 3.1], '#6B4A3A', 0.7, a);
           }
         } else if (e.kind === 'label') {
           const q = U(c, 16 + fx.labelLift(t));

@@ -3131,6 +3131,30 @@ TIP_TEXT.merging_homes = `Lay a Large plot for ${lgAn(lgManor)}: a small plot st
 //
 // ── v60 b2 (Track B2, rulings 720-739: battles you can see) ──────────────────────────────────────────────────────────────
 // Add new lines just above the end marker.
+// The moment in the alert row when a raid ends (src/ui/v60/battle.js): its title and one line of the report's own numbers (raid.last: what stopped the
+// band, what it burned, wrecked, took and stole, and what became of its chieftain; words B1 wrote for the same report are reused).
+import { SMOULDER as b2Smoulder, MOMENT as b2Moment } from '../data/battle.js';
+
+const b2Stopped = (r) => (r.byTowers || 0) + (r.bySoldiers || 0) + (r.byArchers || 0) + (r.byChariots || 0);
+const b2Lost = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.wrecked ? `${B1_TEXT.wrecked(r.wreckedKinds || [])} wrecked` : '',
+  r.taken ? `${B1_TEXT.taken(r.taken)} taken` : '', r.stolen ? `${r.stolen} gold stolen` : '', r.fled ? `${plural(r.fled, 'resident', 'residents')} fled` : ''].filter(Boolean);
+export const B2_TEXT = {
+  moment: (r) => {
+    const stopped = b2Stopped(r), lost = b2Lost(r), chief = r.chiefs ? B1_TEXT.chiefLine(r) : '';
+    const stoppedLine = stopped ? `${stopped} of ${r.size} raiders stopped.` : '';
+    if (r.won) return { title: 'Raid beaten', detail: [stoppedLine || 'The band turned back.', chief, lost.length ? `Lost: ${lost.join(', ')}.` : ''].filter(Boolean).join(' ') };
+    const did = lost.length ? `${lost.join(', ')}.` : 'They struck and left.';
+    return { title: 'The raiders got through', detail: [did.charAt(0).toUpperCase() + did.slice(1), stoppedLine, chief].filter(Boolean).join(' ') };
+  },
+  report: 'Report', reportLabel: 'Open the raid report', dismissLabel: 'Dismiss the raid result',
+  tip: 'Towers shoot and soldiers fight. The banner marks the chieftain: when he falls, his band turns back.',
+  tipHelp: `Bands of ${b1Chief.fromSize} or more have a chieftain, ${b1Chief.hpFactor} times a raider's strength. When he falls, they turn back.`,
+};
+TIP_TEXT.chief_banner = B2_TEXT.tip;
+TIP_HELP_TEXT.chief_banner = B2_TEXT.tipHelp;
+V60_HELP.b2.push(
+  { head: 'Battles you can see', text: `A raid now plays out on the map. Your soldiers and the raiders square up and trade blows, towers and archers shoot in arcs, and a hit shows a spark. A band of ${b1Chief.fromSize} or more has a chieftain: a tall banner moves with his band, and when he falls his band turns back and his banner lies where he fell. A building the raiders struck burns and smokes; one they wrecked or burned down leaves a shell with its walls still standing, and its rubble smoulders (${b2Smoulder.fireDays} game days after a fire, ${b2Smoulder.wreckDays} after a wreck) before it goes quiet. When a raid ends the alert row says whether it was beaten or got through, with what the report says; Report opens the city summary, and the result clears itself after ${b2Moment.days} game days or when you dismiss it. Under Gentle motion the same things show with slow, still changes; under Still the poses, the smoke and the banner hold without moving.` },
+);
 // ── end v60 b2 ──
 
 //

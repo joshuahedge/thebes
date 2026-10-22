@@ -95,7 +95,9 @@ export const GRAND_TIP_TIER = 7;                 // Task 7: the grand homes tip 
 
 // ── v60 (Version 6.0) ── Tracks A, B1 and C add their tips in their own data files (src/data/v60.js V60_TIPS joins them). Tracks B2, D1
 // and D2 add theirs to their own list below, each a line of its own (append-only; never edit another track's list).
-const TIPS_V60_B2 = [];
+const TIPS_V60_B2 = [
+  { id: 'chief_banner', trigger: 'chiefBanner', priority: false },                // a raid with a chieftain began (src/ui/v60/battle.js): his banner, and what happens when he falls
+];
 const TIPS_V60_D1 = [];
 const TIPS_V60_D2 = [];
 // ── end v60 ──

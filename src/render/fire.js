@@ -20,10 +20,17 @@
 // still shapes (no sway, no embers), one change a second at most (GENTLE_FLAME_MS, the fade GENTLE_FADE_MS of it), with the
 // "Burning" label, and a fire's smoke fades in place, rising at most GENTLE_SMOKE_RISE_PX. Still: one still flame shape,
 // the label, no smoke.
+//
+// Version 6.0 (Track B2, rulings 720-739): a burning roof chars (soot on it, wider as a blaze grows into a fire); Still now holds a still smoke
+// column too (the same puffs where a Full column's would be at one instant, no rise), so a burning building reads as burning at every level; and rubble
+// that remembers what stood there (b.was, src/sim/strikes.js, fire.js burnBuilding) smoulders for a while: a thin smoke column for SMOULDER.fireDays
+// game days after a fire, a settling dust haze for SMOULDER.wreckDays after a wreck (one column a footprint, drawn at its origin tile), thinning
+// as it ages; Full lifts the puffs, Gentle fades them in place, Still holds them.
 import { ART, slotFor } from './art/registry.js';
 import { p, U, hs } from './iso.js';
 import { ART_TEXT } from '../ui/text.js';
 import { drawAmbientLate } from './ambient.js';
+import { SMOULDER, CHAR } from '../data/battle.js';
 
 export const FLAME_STEP_MS = 500;
 export const GENTLE_FLAME_MS = 1000;           // Gentle: a flame holds each of its two still shapes this long ...
@@ -35,7 +42,7 @@ export const SMOKE_PUFFS = 5;
 export const BLAZE_SMOKE_PUFFS = 3;            // Stage 4.5: a blaze's thinner column
 // Each smoke puff is a shaded grey body with a pale top, so the column reads at default zoom on a phone over pale sand
 // and dark loam alike (spec 5.4).
-export const FLAME = { outer: '#E07B39', mid: '#F2A93B', core: '#FCE6A6', ember: '#F6C05A', smoke: '#6F6470', smokeLight: '#E4DCE2' };
+export const FLAME = { outer: '#E07B39', mid: '#F2A93B', core: '#FCE6A6', ember: '#F6C05A', smoke: '#6F6470', smokeLight: '#E4DCE2', dust: '#A8957C', dustLight: '#EEE2CC' };
 const SMOKE_ALPHA = 0.7;                       // a puff's peak opacity (it fades in, then out as it rises)
 const LEAN = [-0.8, 0.5, 1, -0.3];            // the tip's sway at each of four steps, in art px per unit of size
 const LABEL = { fill: '#FFF8EA', text: '#3B2A14', size: 7, below: 9, gap: 1 };   // 7 art px is 14 CSS px at zoom 1 (spec 6.1's 12 px floor); below: art px from the roof point down to the pill's middle
@@ -100,16 +107,19 @@ function label(g, q, str, [w, h]) {
 // fading as it goes, spaced evenly in time and out of step with other buildings by id.
 // Under Gentle (inPlace) each puff fades where it is, rising GENTLE_SMOKE_RISE_PX at most, the column's puffs set one
 // above another.
-function smoke(g, q, now, id, inPlace = false, puffs = SMOKE_PUFFS, scale = 1) {
+function smoke(g, q, now, id, inPlace = false, puffs = SMOKE_PUFFS, scale = 1, { alpha = 1, still = false, lift = 16, dust = false } = {}) {
   const offset = ((id * 0.618) % 1);
+  const body = dust ? FLAME.dust : FLAME.smoke, top = dust ? FLAME.dustLight : FLAME.smokeLight;
   for (let i = 0; i < puffs; i++) {
-    const t = (now / SMOKE_RISE_MS + i / puffs + offset) % 1;
-    const a = SMOKE_ALPHA * Math.min(1, t / 0.15) * (1 - t * t);   // reaches 0 at the top, so no puff pops out
+    // Still (Version 6.0): the puffs stand where a rising column's would be at one instant, spaced up it, each at the strength it would have there.
+    const t = still ? (i + 0.5) / puffs * 0.85 : (now / SMOKE_RISE_MS + i / puffs + offset) % 1;
+    const a = SMOKE_ALPHA * Math.min(1, t / 0.15) * (1 - t * t) * alpha;   // reaches 0 at the top, so no puff pops out
     const r = (4 + t * 6) * scale;
     const k = (i + 0.5) / puffs;                                    // a Gentle puff's own height in the column
-    const c = inPlace ? [q[0] + 1.5 + k * 6 * scale, q[1] - 16 * scale - k * 28 * scale - t * GENTLE_SMOKE_RISE_PX] : [q[0] + 1.5 + t * 6 * scale, q[1] - 16 * scale - t * 28 * scale];
-    g.radial(c, r, r * 0.8, FLAME.smoke, a);
-    g.radial([c[0] - r * 0.25, c[1] - r * 0.3], r * 0.6, r * 0.45, FLAME.smokeLight, a * 0.8);
+    const c = still ? [q[0] + 1.5 + t * 6 * scale, q[1] - lift * scale - t * 28 * scale]
+      : inPlace ? [q[0] + 1.5 + k * 6 * scale, q[1] - lift * scale - k * 28 * scale - t * GENTLE_SMOKE_RISE_PX] : [q[0] + 1.5 + t * 6 * scale, q[1] - lift * scale - t * 28 * scale];
+    g.radial(c, r, r * 0.8, body, a);
+    g.radial([c[0] - r * 0.25, c[1] - r * 0.3], r * 0.6, r * 0.45, top, a * 0.8);
   }
 }
 
@@ -147,10 +157,18 @@ export function drawScorch(g, world, range) {
 export function drawFires(g, world, range, now, { reducedMotion = false, motion = null } = {}) {
   drawAmbientLate(g);                        // ambient life that shows over the buildings (render/ambient.js), this frame's
   const level = motion || (reducedMotion ? 'still' : 'full');
-  const burning = [];
+  const burning = [], smouldering = [];
   for (const id in world.buildings) {
     const b = world.buildings[id];
-    if (b.fire && inRange(b, range)) burning.push(b);
+    if (b.fire) { if (inRange(b, range)) burning.push(b); }
+    else if (b.type === 'rubble' && b.was && b.x === b.was.x && b.y === b.was.y && inRange(b, range)) {   // one column a footprint, at its origin tile
+      const left = 1 - (world.day - b.was.day) / (b.was.cause === 'wreck' ? SMOULDER.wreckDays : SMOULDER.fireDays);
+      if (left > 0 && left <= 1) smouldering.push({ b, left });
+    }
+  }
+  for (const { b, left } of smouldering) {
+    const w = b.was, q = U(p(w.x + w.w / 2, w.y + w.d / 2), 5), wreck = w.cause === 'wreck', k = Math.min(1.4, (w.w + w.d) / 3);
+    smoke(g, q, now, b.id, level === 'gentle', level === 'still' ? SMOULDER.still : SMOULDER.puffs, 0.5 * k, { alpha: 0.35 + 0.5 * left, still: level === 'still', lift: 4, dust: wreck });
   }
   burning.sort((a, c) => (a.x + a.w / 2 + a.y + a.d / 2) - (c.x + c.w / 2 + c.y + c.d / 2) || a.id - c.id);   // back to front
   // The labels' places: under the flames, stepping down where neighbours' pills would overlap (Gentle and Still).
@@ -162,7 +180,10 @@ export function drawFires(g, world, range, now, { reducedMotion = false, motion 
   }
   burning.forEach((b, n) => {
     const q = roofPoint(world, b), big = b.fire.stage === 'fire';
-    if (level !== 'still') smoke(g, q, now, b.id, level === 'gentle', big ? SMOKE_PUFFS : BLAZE_SMOKE_PUFFS, big ? 1 : 0.7);
+    // The roof chars: soot on it, a wider and darker patch for a fire than a blaze, in the building's own place (hash of its tile).
+    const kk = Math.min(1.6, (b.w + b.d) / 3);
+    g.radial([q[0] + (hs(b.x, b.y, 4) - 0.5) * 3, q[1] + 3.5], (big ? 11 : 7) * kk, (big ? 5.5 : 3.5) * kk, CHAR.soot, big ? CHAR.fire : CHAR.blaze);
+    smoke(g, q, now, b.id, level === 'gentle', big ? SMOKE_PUFFS : BLAZE_SMOKE_PUFFS, big ? 1 : 0.7, { still: level === 'still' });
     // Each flame: Full steps its shape (sway and embers); Gentle cross-fades two still shapes; Still holds one.
     const draw = (at, size, k) => {
       if (level === 'full') flame(g, at, size, Math.floor(now / FLAME_STEP_MS) + b.id + k);

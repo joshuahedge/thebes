@@ -4,7 +4,7 @@
 import { describe, it, expect } from '../../harness.js';
 import { createSettings, motionStatus, gentleTipDue, motionLevelOf } from '../../../src/ui/settings.js';
 import { createEffects, EFFECT_MS } from '../../../src/render/effects.js';
-import { drawFires, gentleShapes, GENTLE_FLAME_MS, GENTLE_SMOKE_RISE_PX, FLAME } from '../../../src/render/fire.js';
+import { drawFires, gentleShapes, GENTLE_FLAME_MS, GENTLE_SMOKE_RISE_PX, SMOKE_PUFFS, FLAME } from '../../../src/render/fire.js';
 import { createAmbient, drawAmbientLate, glintAt, riverRows, GENTLE_SMOKE_RISE_PX as AMBIENT_RISE_PX } from '../../../src/render/ambient.js';
 import { createBackdrop } from '../../../src/ui/titleCard.js';
 import { createCameraControl } from '../../../src/ui/cameraControl.js';
@@ -313,7 +313,8 @@ describe('s4 motion Gentle flames', () => {
     for (const [dx, dy] of spread('gentle')) expect([dx < 1e-9, dy <= GENTLE_SMOKE_RISE_PX + 1e-9]).toEqual([true, true]);
     expect(Math.max(...spread('full').map(([, dy]) => dy))).toBeGreaterThan(20);
     const still = calls(w, 1000, { motion: 'still' });
-    expect([still.filter((c) => c.k === 'radial').length, still.filter((c) => c.k === 'text').length]).toEqual([0, 1]);   // Stage 3's still flame
+    expect([still.filter((c) => c.k === 'radial').length, still.filter((c) => c.k === 'text').length]).toEqual([2 * SMOKE_PUFFS + 1, 1]);   // Stage 3's still flame; Version 6.0 (ruling 720): and a still smoke column (a body and a pale top a puff) over soot on the roof
+    expect(calls(w, 4321, { motion: 'still' }).filter((c) => c.k === 'radial').map((c) => c.a[0])).toEqual(still.filter((c) => c.k === 'radial').map((c) => c.a[0]));   // held: the same places at any time
     expect(calls(w, 1000, { reducedMotion: true }).filter((c) => c.k === 'text').length).toBe(1);   // Stage 3's option: Still
   });
 });
