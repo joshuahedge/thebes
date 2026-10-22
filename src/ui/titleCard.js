@@ -1,12 +1,14 @@
-// The title card (spec 4.1): Continue, New city with its difficulty under it (spec 4.18), Play with sound / Play muted
-// and Install over a paused, slowly drifting sample city. The backdrop only moves the camera; the sim behind it never ticks.
+// The title card (spec 4.1): Continue, New city with its difficulty and map size under it (spec 4.18), then Lesson, Settings and What's new
+// over a paused, slowly drifting sample city; Install and Bring your city only where offered. Version 6.0 (Track D1, rulings 740-747): "This
+// week's Nile" and "Play with sound / Play muted" are gone (sound is on by default, Settings mutes it), Settings opens on the card, and the
+// size picker has Huge. The backdrop only moves the camera; the sim behind it never ticks.
 import { TITLE_DRIFT_MS, TITLE_HOLD_MS } from '../data/ui.js';
 import { ART, slotFor } from '../render/art/registry.js';
 import { p, artToTile, ART_SCALE } from '../render/iso.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { el, button, clear } from './components.js';
-import { T, DIFFICULTY_NAMES, difficultyHint, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT } from './text.js';
-import { MAP_SIZES, MAP_SIZE_IDS } from '../data/map.js';
+import { T, DIFFICULTY_NAMES, difficultyHint, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT, D1_TEXT } from './text.js';
+import { MAP_SIZES, MAP_SIZE_IDS, MAP_SIZE_TABLE } from '../data/map.js';
 import { versionLine, renderWhatsNew } from './s46/whatsNew.js';   // Stage 4.6 (rulings 401-403): the version line and the What's new panel
 
 // Relaxed, Normal or Hard for the next new city: three pressed-state buttons with the chosen level's line under them.
@@ -28,40 +30,62 @@ function difficultyRow(initial, onChoose) {
 // Stage 4.6 (ruling 333): Small, Normal or Large for the next new city: three pressed-state buttons with the chosen size's line under them
 // ("Small: a quick city"). Choosing one tells onChoose (boot.js keeps it for the session; it starts as Normal, so a new city is Normal unless
 // the player picks), and the weekly seed and a shared link ignore it. initial is a size id ('small', 'normal' or 'large').
+// Version 6.0 (Track D1, rulings 740, 743): Huge is the fourth size, and a size the table marks bigScreen (Huge) says "Best on a tablet or computer" while it is
+// chosen on a phone (setPhone): under the hint, never blocking the choice, and in the button's name for assistive technology.
+const BIG_SCREEN_IDS = new Set(MAP_SIZE_TABLE.filter((r) => r.bigScreen).map((r) => r.id));
+export const PHONE_SHORT_SIDE = 600;   // CSS px: a screen whose shorter side is under this is a phone (a tablet's is 600 or more)
+export const isPhoneScreen = (v) => Boolean(v) && Math.min(v.width, v.height) > 0 && Math.min(v.width, v.height) < PHONE_SHORT_SIDE;
+
 function sizeRow(initial, onChoose) {
-  let id = MAP_SIZE_IDS.includes(initial) ? initial : 'normal';
+  let id = MAP_SIZE_IDS.includes(initial) ? initial : 'normal', phone = false;
   const hint = el('p', { class: 'difficulty-hint size-hint small muted', id: 'title-size-hint' });
-  const choices = MAP_SIZE_IDS.map((k) => button(S46_MAP_TEXT.sizeNames[k], { class: 'choice mapsize', dataset: { value: k }, 'aria-describedby': 'title-size-hint', 'aria-label': S46_MAP_TEXT.sizeWords(k, MAP_SIZES[k]) }));
-  const sync = () => { for (const b of choices) b.setAttribute('aria-pressed', String(b.dataset.value === id)); hint.textContent = S46_MAP_TEXT.sizeHints[id]; };
+  const note = el('p', { class: 'size-note small', id: 'title-size-note', role: 'status', hidden: true });
+  const nameOf = (k) => (phone && BIG_SCREEN_IDS.has(k) ? D1_TEXT.hugeWords(MAP_SIZES[k], true) : S46_MAP_TEXT.sizeWords(k, MAP_SIZES[k]));
+  const choices = MAP_SIZE_IDS.map((k) => button(S46_MAP_TEXT.sizeNames[k], { class: 'choice mapsize', dataset: { value: k }, 'aria-describedby': 'title-size-hint', 'aria-label': nameOf(k) }));
+  const sync = () => {
+    for (const b of choices) { b.setAttribute('aria-pressed', String(b.dataset.value === id)); b.setAttribute('aria-label', nameOf(b.dataset.value)); }
+    hint.textContent = S46_MAP_TEXT.sizeHints[id];
+    note.hidden = !(phone && BIG_SCREEN_IDS.has(id));
+    note.textContent = note.hidden ? '' : D1_TEXT.bigScreen;
+  };
   for (const b of choices) b.addEventListener('click', () => { id = b.dataset.value; sync(); onChoose(id); });
   sync();
-  return el('div', { class: 'title-size' }, [
+  const row = el('div', { class: 'title-size' }, [
     el('span', { class: 'label small', 'aria-hidden': 'true', text: S46_MAP_TEXT.sizeLabel }),
     el('div', { class: 'choices', role: 'group', 'aria-label': S46_MAP_TEXT.sizeGroup }, choices),
     hint,
+    note,
   ]);
+  row.setPhone = (flag) => { if (phone !== Boolean(flag)) { phone = Boolean(flag); sync(); } };
+  return row;
 }
 
 // decorate (Stage 3): called once with (element, { buttonBox, newCity }) after the card is built, so the score interface
-// adds the records, stamps, This week's Nile and a shared score (src/ui/scoreUi.js titleDecor) without editing this file.
-// onHowToPlay (Stage 4, Track G, spec 4.1): How to play, before Play with sound, shows the picture cards (boot.js passes
-// hooks.pictureCards); no button without it.
-export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, sound = false, difficulty = 'normal', message = null, onContinue, onNewCity, onSound, onDifficulty = () => {}, onInstall = () => {}, onBring = () => {}, decorate = null, onHowToPlay = null, mapSize = 'normal', onMapSize = () => {} }) {
-  let on = Boolean(sound);
-  const soundButton = button(on ? T.playMuted : T.playWithSound, { class: 'sound' });
-  soundButton.addEventListener('click', () => { on = !on; soundButton.textContent = on ? T.playMuted : T.playWithSound; onSound(on); });
+// adds the records, stamps and a shared score (src/ui/scoreUi.js titleDecor) without editing this file.
+// Version 6.0 (Track D1, rulings 742, 747): the third button is Lesson (onLesson, from the guided first city: Track D2) and, until that exists, How to play
+// (onHowToPlay, Stage 4 Track G, spec 4.1: boot.js passes hooks.pictureCards), the picture cards; no button without either. Settings (renderSettings(body),
+// the same rows as the game's Settings sheet) and What's new open as the card's one panel with Back. screen() is the screen's size in CSS px (a phone is
+// told Huge suits a tablet or computer).
+export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, onBring = () => {}, decorate = null, onHowToPlay = null, onLesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, screen = null }) {
   const install = button(T.install, { class: 'install', hidden: !canInstall, onClick: onInstall });
   const newCity = button(T.newCity, { class: hasSave ? 'new-city' : 'new-city primary', onClick: onNewCity });
   const buttons = [];
   if (hasSave) buttons.push(button(T.continueGame, { class: 'continue primary', onClick: onContinue }));
   buttons.push(newCity);
-  if (canBring) buttons.push(button(T.bringCity, { class: 'bring', onClick: onBring }));
-  if (typeof onHowToPlay === 'function') buttons.push(button(CARDS4_TEXT.howToPlay, { class: 'how-to-play', onClick: () => onHowToPlay() }));
-  buttons.push(soundButton, install);
-  buttons.push(button(S46_UX_TEXT.whatsNew, { class: 'whats-new-button', onClick: () => showWhatsNew() }));   // Stage 4.6 (ruling 402): one panel of releases, newest first
   const levels = difficultyRow(difficulty, onDifficulty);
-  levels.append(sizeRow(mapSize, onMapSize));   // Stage 4.6: the size sits with the difficulty under New city, so This week's Nile (placed after `levels`) comes below both
-  const buttonBox = el('div', { class: 'title-buttons' }, buttons.flatMap((b) => (b === newCity ? [b, levels] : [b])));   // the choice sits under New city
+  const sizes = sizeRow(mapSize, onMapSize);
+  levels.append(sizes);   // Stage 4.6: the size sits with the difficulty under New city
+  const more = [];
+  if (typeof onLesson === 'function') more.push(button(D1_TEXT.lesson, { class: 'lesson', onClick: () => onLesson() }));
+  else if (typeof onHowToPlay === 'function') more.push(button(CARDS4_TEXT.howToPlay, { class: 'how-to-play', onClick: () => onHowToPlay() }));
+  if (typeof renderSettings === 'function') more.push(button(T.settings, { class: 'title-settings', onClick: () => showSettings() }));
+  more.push(button(S46_UX_TEXT.whatsNew, { class: 'whats-new-button', onClick: () => showWhatsNew() }));   // Stage 4.6 (ruling 402): one panel of releases, newest first
+  const bring = canBring ? button(T.bringCity, { class: 'bring', onClick: onBring }) : null;
+  const buttonBox = el('div', { class: 'title-buttons' }, [
+    ...buttons.flatMap((b) => (b === newCity ? [b, levels] : [b])),   // the choice sits under New city
+    el('div', { class: 'title-more', role: 'group', 'aria-label': D1_TEXT.titleGroup }, more),
+    bring, install,
+  ]);
   const element = el('div', { class: 'title-card', role: 'dialog', 'aria-labelledby': 'title-name' }, [
     el('h1', { id: 'title-name', text: 'Thebes' }),
     el('p', { class: 'tagline muted', text: T.tagline }),
@@ -73,11 +97,29 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
   const showPanelNode = (children) => { guide = el('div', { class: 'guide' }, children); buttonBox.hidden = true; element.append(guide); };
   const showCard = () => { if (guide) { guide.remove(); guide = null; } buttonBox.hidden = false; buttons[0].focus(); };
   const showWhatsNew = () => { showCard(); const body = el('div', { class: 'guide-body' }); const { top } = renderWhatsNew(body, showCard); showPanelNode([body]); top.focus(); };
+  // Settings on the card (Version 6.0): the game's own rows (sound, music, text size, motion...), written to the device's settings at once, then Back.
+  const showSettings = () => {
+    showCard();
+    const body = el('div', { class: 'guide-body settings-body' });
+    renderSettings(body);
+    const back = button(T.back, { class: 'guide-back', onClick: showCard });
+    showPanelNode([el('h2', { class: 'settings-head', text: D1_TEXT.settingsPanel }), body, el('div', { class: 'actions' }, [back])]);
+    (body.querySelector('button') || back).focus();
+  };
   if (typeof decorate === 'function') decorate(element, { buttonBox, newCity });
   clear(container);
   container.append(element);
   container.hidden = false;
   buttons[0].focus();
+  // A phone is told Huge suits a bigger screen: judged from the screen the card fills now and whenever the window changes (a phone turned, a window resized).
+  const screenNow = () => {
+    if (typeof screen === 'function') return screen();
+    const r = container.getBoundingClientRect();
+    return r.width && r.height ? { width: r.width, height: r.height } : { width: window.innerWidth, height: window.innerHeight };
+  };
+  const checkPhone = () => sizes.setPhone(isPhoneScreen(screenNow()));
+  checkPhone();
+  window.addEventListener('resize', checkPhone);
   return {
     element,
     setCanInstall(flag) { install.hidden = !flag; },
@@ -107,7 +149,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
       node.hidden = !text;
     },
     showCard,
-    destroy() { clear(container); container.hidden = true; },
+    destroy() { window.removeEventListener('resize', checkPhone); clear(container); container.hidden = true; },
   };
 }
 

@@ -193,11 +193,11 @@ describe('v60 contract large plots', () => {
 });
 
 describe('v60 contract map sizes', () => {
-  it('knows Huge (112) in the table but does not offer it: the picker, links and records see Small, Normal and Large as before', () => {
+  it('knows Huge (112) in the table, offered since Track D1 (ruling 740): the picker, links and records see Small, Normal, Large and Huge', () => {
     expect(MAP_SIZE_TABLE.map((r) => [r.id, r.size, r.offered, r.bigScreen])).toEqual([
-      ['small', 48, true, false], ['normal', 64, true, false], ['large', 80, true, false], ['huge', 112, false, true],
+      ['small', 48, true, false], ['normal', 64, true, false], ['large', 80, true, false], ['huge', 112, true, true],
     ]);
-    expect([HUGE_MAP_SIZE, MAP_SIZES, isMapSize(112), isMapSize(80)]).toEqual([112, { small: 48, normal: 64, large: 80 }, false, true]);
+    expect([HUGE_MAP_SIZE, MAP_SIZES, isMapSize(112), isMapSize(80)]).toEqual([112, { small: 48, normal: 64, large: 80, huge: 112 }, true, true]);
     const w = createWorld({ seed: 11, size: HUGE_MAP_SIZE });
     expect([w.size, w.mapSize, w.terrain.length]).toEqual([112, 112, 112 * 112]);
   });

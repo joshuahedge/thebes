@@ -27,13 +27,13 @@ async function bootWith({ showPictureCards = undefined, storage = memory() } = {
 }
 
 describe('s4 cards how to play', () => {
-  it('offers How to play on the title card before Play with sound; a second call while the cards show joins them', async () => {
+  it('offers How to play on the title card (the third button until the lesson exists), before Settings; a second call while the cards show joins them', async () => {
     let shown = 0, held = null;
     const cards = ({ onDone }) => { shown++; held = onDone; return { close() {} }; };
     const b = await bootWith({ showPictureCards: cards });
     try {
       const how = b.root.querySelector('#title .how-to-play');
-      expect([how.textContent, how.nextElementSibling.classList.contains('sound')]).toEqual([CARDS4_TEXT.howToPlay, true]);
+      expect([how.textContent, how.nextElementSibling.classList.contains('title-settings')]).toEqual([CARDS4_TEXT.howToPlay, true]);
       fire(how, 'click');
       expect([shown, b.api.phase()]).toEqual([1, 'title']);
       let a = 0, z = 0;
@@ -140,7 +140,7 @@ describe('s4 cards how to play', () => {
         const box = card.getBoundingClientRect();
         const shown = [...card.querySelectorAll('.title-buttons button')].filter((b) => b.offsetParent !== null);
         const names = shown.map((b) => b.className.split(' ')[0]);
-        expect([w, h, names.includes('how-to-play'), names.includes('sound')]).toEqual([w, h, true, true]);
+        expect([w, h, names.includes('how-to-play'), names.includes('title-settings'), names.includes('whats-new-button')]).toEqual([w, h, true, true, true]);
         for (const b of shown) {
           const r = b.getBoundingClientRect();
           expect([w, h, b.className, r.top >= box.top - 0.5, r.bottom <= box.bottom + 0.5, r.height >= 44 - 0.5]).toEqual([w, h, b.className, true, true, true]);

@@ -13,6 +13,7 @@ import { createUI } from './ui/createUI.js';
 import { createSettings } from './ui/settings.js';
 import { createSfx } from './audio/sfx.js';
 import { createCameraControl } from './ui/cameraControl.js';
+import { createMenuSheets } from './ui/menu.js';
 import { createTitleCard, createBackdrop } from './ui/titleCard.js';
 import { createSaveStore } from './save/store.js';
 import { packSave, unpackSave } from './save/serialize.js';
@@ -209,7 +210,7 @@ export async function boot(doc, win, {
     stopGame();
     if (fromSave) setSpeed(world, 0);                   // the game always reopens paused (spec 4.17)
     if (!world.cityId) setCityId(world, newCityId(clock()));   // a city from before Stage 3 gets its records id at load
-    const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1 });   // the stress city fills the map: its middle
+    const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1, size: world.size });   // the stress city fills the map: its middle; size: the Huge map's zoom floor (ruling 741)
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings, hooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install(), onBring: () => hooks.importCity() }) }, ...uiOptions });
     const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: (f) => { ui.render(f); music.tick(f.now); }, allowFrame: ui.allowFrame, ...loopOptions });
@@ -268,13 +269,16 @@ export async function boot(doc, win, {
     root.classList.add('on-title');
     const guide = installGuide(flow, { hasCity: loaded.state === 'ok', onPrompt: () => flow.promptInstall(), onBring: () => hooks.importCity() });
     const card = createTitleCard({
-      container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), canBring: flow.canBring(), sound: settings.get().sound, message,
+      container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), canBring: flow.canBring(), message, screen: view,
       difficulty: settings.get().difficulty, onDifficulty: (level) => settings.set({ difficulty: level }),   // spec 4.18: freshWorld reads it
       onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
       onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(freshWorld({ size: newCitySize })))),
       mapSize: sizeIdOf(newCitySize), onMapSize: (id) => { newCitySize = MAP_SIZES[id]; },   // Stage 4.6 (ruling 333): the size picker
-      onSound: (on) => settings.set({ sound: on, music: on }),   // Stage 4: Play muted turns the music off too, and is remembered (ruling 269)
-      onHowToPlay: () => hooks.pictureCards(),                   // Stage 4, Track G: How to play shows the picture cards (spec 4.1)
+      // Version 6.0 (Track D1, rulings 742, 746): no Play with sound (sound and music are on by default; Settings, here and in the game, mutes them).
+      // The third button is Lesson once the guided first city gives hooks.lesson (Track D2), until then How to play, the picture cards (Stage 4, Track G, spec 4.1).
+      onLesson: typeof hooks.lesson === 'function' ? () => hooks.lesson() : null,
+      onHowToPlay: () => hooks.pictureCards(),
+      renderSettings: (body) => createMenuSheets({ store: { get: () => ({}), set() {}, subscribe: () => () => {} }, settings, toasts: { show() {} }, hooks }).settings(body),   // the game's Settings rows, with no city behind them
       onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); },
       onBring: () => hooks.importCity(),
       // Stage 3 (spec 4.19): records, stamps, This week's Nile and a shared score, from the score interface.

@@ -76,7 +76,7 @@ export const MAP_SIZE_TABLE = [
   { id: 'small', size: 48, offered: true, bigScreen: false },
   { id: 'normal', size: 64, offered: true, bigScreen: false },
   { id: 'large', size: 80, offered: true, bigScreen: false },
-  { id: 'huge', size: 112, offered: false, bigScreen: true },
+  { id: 'huge', size: 112, offered: true, bigScreen: true },
 ];
 export const HUGE_MAP_SIZE = 112;
 export const MAP_SIZES = Object.fromEntries(MAP_SIZE_TABLE.filter((r) => r.offered).map((r) => [r.id, r.size]));

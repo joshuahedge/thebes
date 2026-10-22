@@ -6,6 +6,7 @@ import { RESOURCES, resourceReach } from '../../../src/data/s47.js';
 import { resourceCounts, spotsFor, packed } from '../../../src/sim/resources.js';
 
 export const SEEDS = 200;
+export const seedsFor = (size) => (size > 80 ? 25 : SEEDS);   // Version 6.0: Huge (112) is 3 x the area of Normal, so its sweeps take 25 seeds a layout
 export const SIZES = Object.values(MAP_SIZES);
 export const LAYOUTS = MAP_VARIANTS;
 
@@ -28,7 +29,7 @@ export function measure(seed, size, variant) {
 }
 
 // Every seed of one size and layout.
-export const sweep = (size, variant, seeds = SEEDS) => Array.from({ length: seeds }, (_, i) => measure(i + 1, size, variant));
+export const sweep = (size, variant, seeds = seedsFor(size)) => Array.from({ length: seeds }, (_, i) => measure(i + 1, size, variant));
 
 const median = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 

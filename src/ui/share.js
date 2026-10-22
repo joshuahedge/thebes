@@ -1,4 +1,4 @@
-// Sharing a score (spec 4.19): the weekly seed, the share link and its check, the emoji row and the picture card. Opt-in
+// Sharing a score (spec 4.19): the share link and its check, the emoji row and the picture card. Opt-in
 // only, labelled "friends' honour". Stage 3 contract: Track 0 fixed the names; Track E implements them. The interface reads
 // the date; the sim never does.
 import { SHARE, SCORE_PARTS, SCORE_FACTOR } from '../data/scoring.js';
@@ -10,22 +10,7 @@ import { TERRAIN, UI } from '../render/art/palette.js';
 import { hasNewLand } from '../data/s47.js';
 import { SCORE_TEXT, SHARE_TEXT, medalText, DIFFICULTY_NAMES } from './text.js';
 
-// The ISO week of a local date: { year, week }, the week-year being the year of that week's Thursday.
-export function isoWeek(date) {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));                   // that week's Thursday
-  const jan4 = new Date(d.getFullYear(), 0, 4);
-  const thursday1 = new Date(jan4);
-  thursday1.setDate(jan4.getDate() + 3 - ((jan4.getDay() + 6) % 7));      // week 1's Thursday
-  return { year: d.getFullYear(), week: 1 + Math.round((d - thursday1) / (7 * 86400000)) };
-}
-
-// This week's Nile: ISO week-year x 100 + ISO week number of the local date (week 41 of 2026 is 202641).
-export function weeklySeed(date) {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return 0;
-  const { year, week } = isoWeek(date);
-  return year * 100 + week;
-}
+// (Version 6.0, Track D1, ruling 742: the weekly seed, This week's Nile, and its ISO-week helper are gone with the title's button.)
 
 // The link's check: 4 base-36 characters of the FNV-1a hash of everything before it. It catches typos, not cheats.
 export const shareCheck = (body) => (hashKey(body) % 36 ** SHARE.checkLength).toString(36).padStart(SHARE.checkLength, '0');

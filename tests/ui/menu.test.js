@@ -76,12 +76,12 @@ describe('ui menu', () => {
     expect(r.settings.get()).toEqual(DEFAULT_SETTINGS);
     const sound = r.body.querySelector('.switch.sound');
     expect(sound.getAttribute('role')).toBe('switch');
+    expect(sound.getAttribute('aria-checked')).toBe('true');                                   // Version 6.0 (ruling 746): sound starts on
+    expect(sound.textContent).toContain(T.on);
+    fire(sound, 'click');
+    expect(r.settings.get().sound).toBe(false);
     expect(sound.getAttribute('aria-checked')).toBe('false');
     expect(sound.textContent).toContain(T.off);
-    fire(sound, 'click');
-    expect(r.settings.get().sound).toBe(true);
-    expect(sound.getAttribute('aria-checked')).toBe('true');
-    expect(sound.textContent).toContain(T.on);
     fire(r.body.querySelector('.choice.textSize[data-value="150"]'), 'click');
     expect(r.settings.get().textSize).toBe(150);
     expect(r.root.dataset.textSize).toBe('150');

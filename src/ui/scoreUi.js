@@ -16,9 +16,8 @@ import { remarkFor, monumentCaptions } from './celebrate.js';
 import { isMonument, isSite } from '../sim/world.js';
 import { downloadFile } from '../save/exportImport.js';
 import { openSheet } from './modes.js';
-import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, weeklySeed, drawMapSquare, medalColour } from './share.js';
+import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, drawMapSquare, medalColour } from './share.js';
 import { generateMap } from '../sim/mapgen.js';
-import { DEFAULT_MAP_SIZE } from '../data/map.js';
 import { el, button, setText } from './components.js';
 import {
   SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
@@ -323,7 +322,7 @@ function stampFor(entry, dpr) {
 }
 
 // The title card's decoration (spec 4.1, 4.19): the three highest bests and a stamp per sealed reign under Continue (the
-// newest STAMP_MAX, then "+N more"), This week's Nile under the difficulty choice, and a shared score link's friend score
+// newest STAMP_MAX, then "+N more") and a shared score link's friend score
 // with "Beat N?" and Start this seed above the buttons. boot.js calls titleDecor once per title card and passes the result
 // to createTitleCard as decorate, which calls it with (element, { buttonBox, newCity }).
 // opts: { records (src/save/records.js), shared (the page's location hash, '' for none), startSeed(seed, variant, size) (starts a city on
@@ -348,14 +347,7 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
       if (cont) cont.after(box); else buttonBox.prepend(box);
     }
 
-    // This week's Nile: the seed of the device's ISO week, at the level chosen above it.
-    const seed = weeklySeed(new Date(clock()));
-    const levels = buttonBox.querySelector('.title-difficulty');
-    const weekly = el('div', { class: 'title-weekly' }, [
-      button(TITLE_SCORE_TEXT.weekly, { class: 'weekly', 'aria-describedby': 'title-weekly-hint', onClick: () => startSeed(seed, null, DEFAULT_MAP_SIZE) }),   // Stage 4.6 (ruling 333): This week's Nile stays Normal, whatever size the card is set to
-      el('p', { class: 'weekly-hint small muted', id: 'title-weekly-hint', text: TITLE_SCORE_TEXT.weeklyHint(seed) }),
-    ]);
-    if (levels) levels.after(weekly); else if (newCity) newCity.after(weekly); else buttonBox.append(weekly);
+    // (Version 6.0, Track D1, ruling 742: This week's Nile, the weekly seed button that stood here, is gone; a shared score link's Start this seed stays.)
 
     // A shared score link: the friend's score and parts beside the best on that seed and level, "Beat N?" and Start this
     // seed, which picks the link's level in the difficulty choice first. A bad or newer link says so; the card works as

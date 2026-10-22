@@ -286,7 +286,7 @@ describe('s4 cards music: the Settings rows', () => {
       const music = body.querySelector('.switch.music');
       expect([music.textContent.includes(CARDS4_TEXT.music), music.getAttribute('aria-checked'), music.textContent.includes(T.on)]).toEqual([true, 'true', true]);
       fire(music, 'click');
-      expect([settings.get().music, settings.get().sound, music.getAttribute('aria-checked')]).toEqual([false, false, 'false']);
+      expect([settings.get().music, settings.get().sound, music.getAttribute('aria-checked')]).toEqual([false, true, 'false']);
       const row = body.querySelector('.music-volume'), value = row.querySelector('.value');
       const quieter = row.querySelector('.quieter'), louder = row.querySelector('.louder');
       expect([quieter.getAttribute('aria-label'), louder.getAttribute('aria-label'), value.textContent]).toEqual([CARDS4_TEXT.quieter, CARDS4_TEXT.louder, '30']);
