@@ -51,7 +51,7 @@ import { FRAME_MARGIN_PX } from './cameraControl.js';
 import { cameraOf } from './minimap.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { el, button } from './components.js';
-import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT, ui4CauseText, S46_COURT_TEXT } from './text.js';
+import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT, ui4CauseText, S46_COURT_TEXT, V60_REIGN_TEXT } from './text.js';
 import { setViewClock } from '../render/overlays.js';
 import { ZOOM_STEP } from '../data/ui.js';
 
@@ -105,6 +105,11 @@ export function causeFix(world, b, reason, status = null) {
     const at = BUILDINGS[item].terrain ? nearestTerrainTile(world, BUILDINGS[item].terrain, c) || c : c;
     return { showMe: { category: 'monuments', item, x: at.x, y: at.y } };
   }
+  if (reason === 'waiting_offering') {                       // Version 6.0 (Track A): the great temple's offering: View the store holding most of the good
+    const o = monumentsSim.greatWorkStatus(world, b).offering;
+    const held = o ? allBuildings(world).filter((x) => (BUILDINGS[x.type].stores || []).includes(o.good) && (x.store[o.good] || 0) > 0).sort((p, q) => q.store[o.good] - p.store[o.good] || p.id - q.id)[0] : null;
+    return held ? { view: held.id } : null;
+  }
   if (reason === 'crew_short' || reason === 'crew_burning') {
     // The guild the crew plan sends here whose crew cannot work for this reason (site.crews holds only the working ones,
     // so it is empty here, and guildsNear skips every planned guild): the sim's own stalledGuild.
@@ -119,6 +124,10 @@ export function causeFix(world, b, reason, status = null) {
 // it whenever the course under way has none on site, a quarry's slow delivery included.
 export function causeText(world, b, reason, status = null) {
   if (!reason) return '';
+  if (reason === 'waiting_offering') {                       // Version 6.0 (Track A): what the stage's offering is and what the stores hold
+    const o = monumentsSim.greatWorkStatus(world, b).offering;
+    return o ? V60_REIGN_TEXT.causeOffering(o) : ui4CauseText(reason);
+  }
   if (reason === 'no_stone' || reason === 'no_bricks') {
     const m = (status || siteStatus(world, b)).materials[reason.slice(3)];
     return ui4CauseText(reason, 0, m ? { makers: m.makers.length, stores: m.stores.length } : null);
@@ -131,6 +140,7 @@ export function causeText(world, b, reason, status = null) {
 export function siteRows(world, b, s = siteStatus(world, b)) {
   const U = UI4_TEXT;
   const rows = [{ key: 'progress', text: U.progress(s.progress.course, s.progress.courses, s.progress.done), share: s.progress.done }];
+  if (monumentsSim.isGreatWork(b)) rows.push({ key: 'stage', text: V60_REIGN_TEXT.stageLine(monumentsSim.greatWorkStatus(world, b)) });   // Version 6.0: the great work's stage
   rows.push({ key: 'crews', text: U.crews(s.crews.guilds.length, s.crews.max) });
   const cause = causeText(world, b, s.reason, s);
   if (cause) rows.push({ key: 'cause', reason: s.reason, text: cause, fix: causeFix(world, b, s.reason, s) });

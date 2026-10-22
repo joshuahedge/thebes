@@ -308,7 +308,7 @@ describe('v50 advice the sheet', () => {
       r.ui.refresh();
       expect(itemsOf(r).length).toBe(1);
       expect(r.root.querySelector('#sheet .advice-well')).toBe(null);
-      w.milestone = 'capital';
+      w.milestone = 'seat';                                                       // Version 6.0 (Track A): the last rank is the Seat of the Two Lands
       well.paused = false;
       r.ui.refresh();
       expect(r.root.querySelector('#sheet .advice-next').textContent).toBe(ADVICE_TEXT.last(MILESTONES[MILESTONES.length - 1]));
