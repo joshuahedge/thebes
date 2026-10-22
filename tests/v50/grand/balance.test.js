@@ -25,7 +25,7 @@ describe('v50 grand balance', () => {
     expect(r.policies).toEqual({ clay: true, beer: true });
     expect(r.w.day).toBe(GRAND_YEARS * MONTHS_PER_YEAR * 30);
     expect(yearOf(r.first[7])).toBeLessThanOrEqual(7);
-    expect(yearOf(r.first[8])).toBeLessThanOrEqual(8);
+    expect(yearOf(r.first[8])).toBeLessThanOrEqual(9);                                // Version 6.0 (Track A): a Villa in month 98 (was 86): the court's due and the rank's costs leave less to build with
     expect(yearOf(r.first[9])).toBeLessThanOrEqual(9);
     const last = r.months[r.months.length - 1].tiers;
     expect(Object.keys(last).some((t) => Number(t) >= 8)).toBe(true);                // a grand home still stands at the end

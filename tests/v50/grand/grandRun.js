@@ -32,6 +32,7 @@ import { BUILDINGS } from '../../../src/data/buildings.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
 import { nearestFit } from '../../../src/ui/placement.js';
 import { nearestTerrainTile } from '../../../src/ui/goalsList.js';
+import { answerCourt } from '../../v60/a/answer.js';
 
 export const GRAND_YEARS = 10;
 export const GRAND_SIZE = 64;
@@ -167,7 +168,7 @@ function forDistrict(w, a) {
   return ids.some((id) => w.buildings[id] && w.buildings[id].type === 'house' && w.buildings[id].tier >= GRAND_TIER);
 }
 // One month end's play: the advice, top first, then each grand home's next step, until BUILDS_A_MONTH things are done or nothing more is.
-function playMonth(w, built) {
+export function playMonth(w, built) {   // exported for the great-work run (tests/v60/a/greatWorkRun.js)
   const tried = new Set();
   let n = 0;
   for (let again = true; again && n < BUILDS_A_MONTH;) {
@@ -187,7 +188,7 @@ function playMonth(w, built) {
   }
 }
 
-function sendTribute(w) {
+export function sendTribute(w) {
   const q = quotaOf(w);
   if (!q || q.result !== null) return;
   const st = quotaStatus(w);
@@ -213,6 +214,7 @@ export function runGrand({ years = GRAND_YEARS } = {}) {
     advanceDays(w, DAYS_PER_MONTH);
     lowestGold = Math.min(lowestGold, w.gold);
     sendTribute(w);
+    answerCourt(w, { reserve: RESERVE });   // Version 6.0 (Track A, ruling 660): the court's letters and demands, as the advice names them
     playMonth(w, built);
     const t = tiers(w);
     for (const tier of [7, 8, 9]) if (first[tier] === undefined && Object.keys(t).some((k) => Number(k) >= tier)) first[tier] = m;

@@ -53,7 +53,7 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     const t = sensible(w, a);
     expect([a.kind, a.data.need, a.count, a.fix.item, a.weight]).toEqual(['home_need', 'entertainment', 18, 'booth', 108]);
     expect(t.what).toBe('18 homes are held back by entertainment');
-    expect(items.map((x) => x.kind)).toEqual(['home_need', 'home_need', 'raid_towers', 'home_need']);
+    expect(items.map((x) => x.kind)).toEqual(['home_need', 'home_need', 'raid_towers', 'crime']);   // Version 6.0 (Track A): crime now fourth (the rank's costs)
     expect([items[1].data.need, items[1].fix.item]).toEqual(['desirability', 'sphinx']);
     expect(sensible(w, items[2]).what).toContain('needs 6 towers; 2 are working');
   });
@@ -77,7 +77,7 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     const { w } = lateRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.weight])).toEqual([['home_need', 'entertainment', 108], ['home_need', 'desirability', 100], ['illness', null, 42], ['crime', null, 34]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.weight])).toEqual([['home_need', 'entertainment', 108], ['home_need', 'desirability', 100], ['crime', null, 50], ['illness', null, 42]]);
     expect(cityAdvice(w).some((x) => x.kind === 'raid_towers')).toBe(false);
   });
 
@@ -85,6 +85,6 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     const { w } = grandRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['home_need', 'entertainment', 16, 96], ['crime', null, 25, 50], ['home_need', 'merge', 8, 48], ['raid_towers', null, 3, 30]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['home_need', 'entertainment', 16, 96], ['home_need', 'merge', 6, 36], ['stranded', null, 4, 28], ['home_need', 'pottery', 4, 21]]);
   });
 });

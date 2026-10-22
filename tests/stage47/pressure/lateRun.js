@@ -8,6 +8,9 @@
 //   - with defend (the default), it answers a raid warning its towers cannot meet (towersNeeded, the tribute sheet's own count) by building
 //     towers while the treasury keeps RESERVE (measured without it: the year-11 and year-14 raids, 25 raiders each with 6 drawn by wealth and
 //     from two sides, beat the city's two towers and burn them).
+//   - Version 6.0 (Track A, ruling 660): with answer (the default), it answers the court as a steady player (tests/v60/a/answer.js): letters read,
+//     requests sent when the stores or treasury hold them, demands accepted when it can meet them and sent when ready, declined otherwise. The
+//     careless run (tests/v60/a/careless.test.js) switches this off with the defence and the stocks.
 // It records, at the end of years 8, 10 and 15: gold, favour, people, homes by tier, towers, raids beaten and lost; and every raid warned (size,
 // wealth term, bands, won) and quota asked (goods, gift, result, favour, early).
 import { capitalRun } from '../../stage4/balance/capitalRun.js';
@@ -20,6 +23,7 @@ import { towersNeeded, workingTowers } from '../../../src/sim/raids.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { setFetch } from '../../../src/sim/carts.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
+import { answerCourt } from '../../v60/a/answer.js';
 
 export const LATE_YEARS = 15;
 const YEAR_DAYS = DAYS_PER_MONTH * MONTHS_PER_YEAR;
@@ -52,13 +56,13 @@ function meetWarning(w, built) {
   return n;
 }
 
-export function runLate({ defend = true, send = true, fetchClay = true } = {}) {
+export function runLate({ defend = true, send = true, fetchClay = true, answer = true } = {}) {
   const started = performance.now();
   const base = capitalRun();
   const w = deserialize(serialize(base.w));
   const main = allBuildings(w).find((b) => b.type === 'storehouse' && b.x === 22 && b.y === 18);
   const fetch = fetchClay && main ? setFetch(w, main.id, 'clay', 200) : null;
-  const months = [], raids = [], quotas = [], snapshots = {}, yearly = {}, built = [], insane = [];
+  const months = [], raids = [], quotas = [], snapshots = {}, yearly = {}, built = [], insane = [], court = [], dues = [];
   let lowestGold = w.gold;
   const snapRow = () => ({ gold: Math.round(w.gold), favour: w.court.favour, people: population(w), tiers: tiers(w), towers: workingTowers(w), raidsLost: w.tally.raidsLost, raidsBeaten: w.tally.raidsBeaten || 0 });
   const snap = (year) => { snapshots[year] = snapRow(); };
@@ -72,6 +76,7 @@ export function runLate({ defend = true, send = true, fetchClay = true } = {}) {
       if (e.type === 'raid_end') { const r = raids[raids.length - 1]; if (r) r.won = e.won; }
       if (e.type === 'court_quota' && e.result === 'asked') quotas.push({ year: e.quota.year, goods: e.quota.goods.map((g) => `${g.amount} ${g.good}`).join(', '), gift: e.quota.gift, result: null });
       if (e.type === 'court_quota' && e.result !== 'asked') { const q = quotas.find((x) => x.year === e.quota.year); if (q) Object.assign(q, { result: e.result, favour: e.favour, early: e.early }); }
+      if (e.type === 'court_due') dues.push({ year: Math.floor(w.day / YEAR_DAYS) + 1, gold: e.gold, by: e.by, band: e.band });   // Version 6.0: the court's due
     }
     if (!Number.isFinite(w.gold)) insane.push(`month ${m}: gold ${w.gold}`);
     lowestGold = Math.min(lowestGold, w.gold);
@@ -84,16 +89,17 @@ export function runLate({ defend = true, send = true, fetchClay = true } = {}) {
         if (r.met) { const rec = quotas.find((x) => x.year === q.year); if (rec) Object.assign(rec, { result: 'met', favour: r.favour, early: r.early }); }
       }
     }
+    if (answer) court.push(...answerCourt(w, { reserve: RESERVE }));
     if (defend) meetWarning(w, built);
     const unfed = housesOf(w).filter((h) => h.tier >= 3 && h.met && h.met.food === false).length;
-    months.push({ month: m, gold: w.gold, favour: w.court.favour, people: population(w), taxes: w.stats.lastMonth.taxes, unfed });
+    months.push({ month: m, gold: w.gold, favour: w.court.favour, people: population(w), taxes: w.stats.lastMonth.taxes, net: w.stats.lastMonth.net, monuments: w.stats.lastMonth.monuments || 0, unfed });
     const year = Math.floor(w.day / YEAR_DAYS) + 1;
     if (w.day % YEAR_DAYS === 0 && [9, 11].includes(year)) snap(year - 1);   // the end of years 8 and 10
     if (w.day % YEAR_DAYS === 0) yearly[year - 1] = snapRow();               // every year's end, for the record
   }
   snap(LATE_YEARS);
   yearly[LATE_YEARS] = snapRow();
-  return { w, fetch, months, raids, quotas, snapshots, yearly, built, lowestGold, insane, elapsed: performance.now() - started };
+  return { w, fetch, months, raids, quotas, snapshots, yearly, built, lowestGold, insane, court, dues, elapsed: performance.now() - started };
 }
 
 let shared = null;
