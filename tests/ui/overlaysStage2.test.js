@@ -81,10 +81,12 @@ describe('stage 2 overlays', () => {
     house.h.stock.pottery = 5;
     expect(houseMark(house.w, house.h, 'goods')).toEqual({ has: true, need: null });
     const town = street(5, { stock: { pottery: 5 } });
-    expect(houseMark(town.w, town.h, 'entertainment')).toEqual({ has: false, need: 'entertainment' });
+    expect(houseMark(town.w, town.h, 'entertainment')).toBe(null);           // Version 6.0: a Townhouse on a small plot grows no further, so it does not want it
+    const lot = addRaw(town.w, 'house', 20, 11, { tier: 0, w: 2, d: 2, large: true });   // an empty Large plot opens as a Manor, so it does
+    expect(houseMark(town.w, lot, 'entertainment')).toEqual({ has: false, need: 'entertainment' });
     addRaw(town.w, 'booth', 16, 9);
     staffAll(town.w);
-    expect(houseMark(town.w, town.h, 'entertainment')).toEqual({ has: true, need: 'entertainment' });
+    expect(houseMark(town.w, lot, 'entertainment')).toEqual({ has: true, need: 'entertainment' });
     expect(houseMark(plain.w, plain.h, 'entertainment')).toBe(null);         // only homes on the way to a Manor want it
     const s = scene(12, 11);
     addRaw(house.w, 'bazaar', 14, 8);

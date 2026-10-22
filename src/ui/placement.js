@@ -35,7 +35,9 @@ import { roadReach, adjacentRoadTiles, touchesRoad } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
-import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, goodName, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
+import { LARGE_PLOT } from '../data/largePlots.js';
+import { T as TILE } from '../sim/terrain.js';
+import { LARGE_TEXT, buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, goodName, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
 import { bridgeSpot } from '../sim/bridges.js';
 import { styleChoices } from './s46/wonders.js';
 
@@ -278,7 +280,8 @@ function basePreview(world, state) {
     // can burn (Stage 3); other buildings say nothing.
     const effect = tool.type === 'firehouse' ? DANGER_UI_TEXT.firehouseCovers(firehouseReachFrom(world, x, y))
       : def.reach ? effectText(tool.type, serviceHomesFrom(world, tool.type, x, y)) : '';
-    const text = !warn ? '' : c.warnings[0] === 'needs_road' && joins.length ? CONDITION_TEXT.roadHint : warningLine(world, tool.type, x, y, c.warnings[0]);
+    // Version 6.0 (Track C): a Large plot says what it will do before the tap: it opens as a Manor when its needs are met nearby (the sheet lists them).
+    const text = !warn ? (tool.type === LARGE_PLOT.type ? LARGE_TEXT.bar : '') : c.warnings[0] === 'needs_road' && joins.length ? CONDITION_TEXT.roadHint : warningLine(world, tool.type, x, y, c.warnings[0]);
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: c.warnings, text, effect, cost, count: 1, tiles: [], refund: 0, ...extra };
   }
   if (state.plan && state.plan.tiles.length) return planPreview(world, tool, state.plan.tiles);
@@ -396,17 +399,19 @@ export function areaPreviewOf(world, type, tiles, spacing) {
 function areaPreview(world, tool, tiles) {
   const r = areaPreviewOf(world, tool.type, tiles, tool.spacing);
   const skipped = r.skipped.map((k) => [k.x, k.y]);
+  const leftover = (r.leftover || []).map((k) => [k.x, k.y]);   // Version 6.0 (Track C): ground left over, too little for one more farm: marked, and said apart from the skipped ground
+  const leftText = leftover.length ? AREA_TEXT.leftover(tool.type, leftover.length) : '';
   const { w, d } = dimsOf(tool.type, 0);
   const boxes = r.positions.map(([x, y]) => ({ x, y, w, d }));
   const n = r.positions.length;
   const costText = n ? AREA_TEXT.costLine(tool.type, n, r.cost) : '';
-  if (r.reason === 'nothing_to_place') return { ...bad('nothing_to_place', 0, 0, [], AREA_TEXT.nothing(tool.type, r.skipped)), skipped, boxes: [] };
-  if (!r.ok && r.reason !== 'no_gold') return { ...bad(r.reason, 0, 0, tiles), skipped, boxes: [] };
+  if (r.reason === 'nothing_to_place') return { ...bad('nothing_to_place', 0, 0, [], [AREA_TEXT.nothing(tool.type, r.skipped), leftText].filter(Boolean).join(' · ')), skipped, leftover, boxes: [] };
+  if (!r.ok && r.reason !== 'no_gold') return { ...bad(r.reason, 0, 0, tiles), skipped, leftover, boxes: [] };
   const skipText = r.skipped.length ? AREA_TEXT.skipped(r.skipped) : '';
-  if (r.reason === 'no_gold') return { ...bad('no_gold', r.cost, n, r.positions, [AREA_TEXT.noGold(tool.type, r), skipText].filter(Boolean).join(' · ')), skipped, boxes, costText };
+  if (r.reason === 'no_gold') return { ...bad('no_gold', r.cost, n, r.positions, [AREA_TEXT.noGold(tool.type, r), skipText, leftText].filter(Boolean).join(' · ')), skipped, leftover, boxes, costText };
   const warn = r.warnings.length > 0;
-  const text = [warn ? warningText(r.warnings[0], tool.type) : '', skipText].filter(Boolean).join(' · ');
-  return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text, effect: '', cost: r.cost, count: n, tiles: r.positions, skipped, boxes, costText, refund: 0, conditions: [], footprint: [], joins: [] };
+  const text = [warn ? warningText(r.warnings[0], tool.type) : '', skipText, leftText].filter(Boolean).join(' · ');
+  return { state: warn ? 'warn' : 'ok', reason: null, warnings: r.warnings, text, effect: '', cost: r.cost, count: n, tiles: r.positions, skipped, leftover, boxes, costText, refund: 0, conditions: [], footprint: [], joins: [] };
 }
 
 // Stage 4 (ruling 250): the plaza tool's preview, a rectangle's or a plan's (tiles: the plan's, else the plazas'). Track C
@@ -450,7 +455,7 @@ export function toolPreview(world, state) {
   if (state.tool.kind === 'building' && isMonumentType(state.tool.type) && (p.state === 'ok' || p.state === 'warn')) {
     p.score = scoreLineFor(world, state.tool.type, state.ghost.x, state.ghost.y);
     p.line = [p.score, monumentLine(world, state.tool.type, state.ghost.x, state.ghost.y, rotOf(state.tool), styleOfTool(state.tool))].filter(Boolean).join(' · ');
-  } else if (state.tool.kind === 'building' && (p.state === 'ok' || p.state === 'warn')) {
+  } else if (state.tool.kind === 'building' && state.tool.type !== LARGE_PLOT.type && (p.state === 'ok' || p.state === 'warn')) {   // a Large plot is an empty lot: it changes no street and no score
     const d = nicerFor(world, state.tool.type, state.ghost.x, state.ghost.y);
     p.nicer = nicerText(d.better, d.worse);
     p.nicerTone = d.better && d.worse ? 'mixed' : d.better ? 'better' : d.worse ? 'worse' : '';
@@ -548,12 +553,20 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
   // Version 5.0 (Task 4): an area draws each building it would lay at its own size, and the tiles the ground refused as skipped (coral with a cross; the
   // first AREA_SKIP_DRAWN of them, the bar's words count them all).
   if (tool.kind === 'areas' && preview.boxes) {
-    return [...preview.boxes.map((b) => ({ ...b, state: visual })), ...(preview.skipped || []).slice(0, AREA_SKIP_DRAWN).map(([x, y]) => ({ x, y, w: 1, d: 1, state: 'bad' }))];
+    return [...preview.boxes.map((b) => ({ ...b, state: visual })), ...(preview.skipped || []).slice(0, AREA_SKIP_DRAWN).map(([x, y]) => ({ x, y, w: 1, d: 1, state: 'bad' })),
+      ...(preview.leftover || []).slice(0, AREA_SKIP_DRAWN).map(([x, y]) => ({ x, y, w: 1, d: 1, state: 'left' }))];   // Version 6.0 (Track C): left-over ground is hatched amber and dashed, not coral
   }
   // A touch plan's skipped tiles are coral with a cross (P5); the rest show the plan's state, a gate its own mark.
   const skipped = new Set((preview.skipped || []).map(tileKey));
   const gates = new Set(tool.kind === 'wall' || tool.kind === 'road' ? preview.gates || [] : []);
-  return preview.tiles.map(([x, y]) => ({ x, y, w: 1, d: 1, state: skipped.has(tileKey([x, y])) ? 'bad' : gates.has(y * world.size + x) ? 'gate' : visual }));
+  // Version 6.0 (Track C, the 5.0 loose end): a road tile over water is a bridge, drawn as one (planks and a wave mark, 'bridge') whether it is one the road would build (the
+  // preview's bridges, map indices) or one that already stands in the way a route takes; the bar's count and price of them are the sim's, as before.
+  const bridges = new Set(tool.kind === 'road' && !tool.gate ? preview.bridges || [] : []);
+  const bridged = (i) => tool.kind === 'road' && visual !== 'bad' && (bridges.has(i) || (world.road[i] && world.terrain[i] === TILE.WATER));
+  return preview.tiles.map(([x, y]) => {
+    const i = y * world.size + x;
+    return { x, y, w: 1, d: 1, state: skipped.has(tileKey([x, y])) ? 'bad' : gates.has(i) ? 'gate' : bridged(i) ? 'bridge' : visual };
+  });
 }
 
 // Stage 4.6 (ruling 331, 350): where Show me goes from a refused spot: a terrain or water building, the nearest origin where it fits on the

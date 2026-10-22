@@ -1,7 +1,8 @@
 // Version 5.0 Task 8 (rulings 600-609): what Advice puts first at the end of each balance run, judged sensible and pinned. Read on the same runs the balance tests keep
 // (the 10-year village at years 3, 6 and 10, the capital run, the late run to year 15, the grand district run), which this file never changes.
 //
-// Recorded on version-5-0 (cityAdvice(world)[0] and the three after it; weight in points: one home held back one tier from a Shack is 1):
+// Recorded on version-5-0 (cityAdvice(world)[0] and the three after it; weight in points: one home held back one tier from a Shack is 1). The capital, late and grand
+// lines below are 5.0's; Version 6.0 (Track C, ruling 705) re-recorded them in the tests: a Townhouse stops there, so its entertainment and its street left the list.
 //   village  year 3, 6, 10  home_need, 17 homes held back by pottery (85): no store for pottery near the bazaar, "Build a storehouse within 16 road tiles of them"
 //                           (the village makes no pottery; the store comes first and the price line sums the makers behind it); then jobless (10.75; year 10: a raid
 //                           needing 4 towers, 20), a raid short of towers (year 6: 10, year 10: 20), crime (10 -> 8)
@@ -19,6 +20,7 @@ import { grandRun } from '../grand/grandRun.js';
 import { cityAdvice } from '../../../src/sim/advice.js';
 import { adviceWords } from '../../../src/ui/adviceText.js';
 import { isUnlocked } from '../../../src/sim/progression.js';
+import { largePlotUnlocked } from '../../../src/sim/largePlots.js';
 import { advanceDays } from '../../../src/sim/clock.js';
 import { serialize, deserialize } from '../../../src/save/serialize.js';
 import { ADVICE } from '../../../src/data/advice.js';
@@ -30,7 +32,7 @@ function sensible(w, a) {
   const t = adviceWords(a, w);
   expect(t.what.length).toBeGreaterThan(0);
   expect(a.weight).toBeGreaterThan(0);
-  if (a.fix && a.fix.item) { expect(isUnlocked(w, a.fix.item)).toBe(true); expect(Number.isFinite(a.cost)).toBe(true); }
+  if (a.fix && a.fix.item) { expect(a.fix.item === 'large_plot' ? largePlotUnlocked(w) : isUnlocked(w, a.fix.item)).toBe(true); expect(Number.isFinite(a.cost)).toBe(true); }
   return t;
 }
 
@@ -46,19 +48,22 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     }
   });
 
-  it('the capital run names the homes held back by entertainment, a booth near them, and keeps the sphinx and the raid in view', () => {
+  // Version 6.0 (Track C, ruling 705): small plots stop at Townhouse, so the 18 homes held back by entertainment and the 16 by desirability (a Townhouse's next tier) are
+  // gone; the capital run's four Manors are Large plots, and the list opens with the raid (3 towers short of 5: the run has three), then the four Manors' street (a sphinx).
+  it('the capital run names the 3 towers a raid will need first, then the four Manors\' street (a sphinx), sickness and water', () => {
     const { w } = capitalRun();
     const items = top(w, 4);
     const [a] = items;
     const t = sensible(w, a);
-    expect([a.kind, a.data.need, a.count, a.fix.item, a.weight]).toEqual(['home_need', 'entertainment', 18, 'booth', 108]);
-    expect(t.what).toBe('18 homes are held back by entertainment');
-    expect(items.map((x) => x.kind)).toEqual(['home_need', 'home_need', 'raid_towers', 'home_need']);
-    expect([items[1].data.need, items[1].fix.item]).toEqual(['desirability', 'sphinx']);
-    expect(sensible(w, items[2]).what).toContain('needs 6 towers; 2 are working');
+    expect([a.kind, a.count, a.fix.item, a.weight]).toEqual(['raid_towers', 3, 'tower', 30]);
+    expect(t.what).toContain('needs 6 towers; 3 are working');
+    expect(items.map((x) => x.kind)).toEqual(['raid_towers', 'home_need', 'illness', 'home_need']);
+    expect([items[1].data.need, items[1].fix.item, items[1].count]).toEqual(['desirability', 'sphinx', 4]);   // the four Manors' street: a Fine manor wants 35
+    expect([items[3].data.need, items[3].fix.item]).toEqual(['water', 'well']);
   });
 
-  it('a raid that is warned and short of towers is first at the first warning (18 raiders, 2 of 6 towers) and at the second (24 raiders)', () => {
+  // Version 6.0 (Track C): the same 18 raiders at the first warning (3 of 6 towers now: the run builds a third), first again; the second warning is 23 raiders, 5 towers short.
+  it('a raid that is warned and short of towers is first at the first warning (18 raiders, 3 of 6 towers) and at the second (23 raiders)', () => {
     const w = deserialize(serialize(capitalRun().w));
     const seen = [];
     for (let m = 0; m < 80 && seen.length < 2; m++) {
@@ -67,24 +72,24 @@ describe('v50 balance advice: the top item at the end of each run', () => {
       if (events.some((e) => e.type === 'raid_warning')) { const items = top(w, 5); seen.push({ kinds: items.map((x) => x.kind), raid: items.find((x) => x.kind === 'raid_towers'), size: w.raid.warning && w.raid.warning.size }); }
     }
     expect(seen.length).toBe(2);
-    expect(seen[0].kinds[0]).toBe('raid_towers');                                      // ruling 600: ahead of the booth (108) and the sphinx (100)
-    expect([seen[0].size, seen[0].raid.data.need, seen[0].raid.data.have, seen[0].raid.count, seen[0].raid.weight]).toEqual([18, 6, 2, 4, 4 * ADVICE.tower * 3]);
-    expect(seen[1].kinds[0]).toBe('raid_towers');
+    expect(seen[0].kinds[0]).toBe('raid_towers');                                      // ruling 600: ahead of the Manors' street (28) and everything else
+    expect([seen[0].size, seen[0].raid.data.need, seen[0].raid.data.have, seen[0].raid.count, seen[0].raid.weight]).toEqual([18, 6, 3, 3, 3 * ADVICE.tower * 3]);
+    expect([seen[1].kinds[0], seen[1].size, seen[1].raid.count, seen[1].raid.weight]).toEqual(['raid_towers', 23, 5, 5 * ADVICE.tower * 3]);
     expect(ADVICE.towerWarned).toBe(3);
   });
 
-  it('the late run, at year 15, names the same two homes\' wants, then sickness and crime; its towers are enough, so no raid item', () => {
+  it('the late run, at year 15, names sickness in 13 homes, then the four Manors\' street, water and crime; its towers are enough, so no raid item', () => {
     const { w } = lateRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.weight])).toEqual([['home_need', 'entertainment', 108], ['home_need', 'desirability', 100], ['illness', null, 42], ['crime', null, 34]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.weight])).toEqual([['illness', null, 39], ['home_need', 'desirability', 28], ['home_need', 'water', 12], ['crime', null, 10]]);
     expect(cityAdvice(w).some((x) => x.kind === 'raid_towers')).toBe(false);
   });
 
-  it('the grand district run, at year 10, names the booth first, then crime, the room a manor needs, and the towers a raid lacks', () => {
+  it('the grand district run, at year 10, names the 4 towers a raid lacks first, then sickness in 8 homes, the 41 jobs no worker fills and water', () => {
     const { w } = grandRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['home_need', 'entertainment', 16, 96], ['crime', null, 25, 50], ['home_need', 'merge', 8, 48], ['raid_towers', null, 3, 30]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['raid_towers', null, 4, 40], ['illness', null, 8, 24], ['workers_short', null, 41, 20.5], ['home_need', 'water', 6, 12]]);
   });
 });

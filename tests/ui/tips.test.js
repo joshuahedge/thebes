@@ -111,7 +111,7 @@ describe('ui tips', () => {
     const r = rig();
     try {
       r.clock.t = TIP_FIRST_DELAY_MS;
-      expect(TIPS.filter((t) => t.waits === false).map((t) => t.id)).toEqual(['house_needs', 'overlay_keys']);
+      expect(TIPS.filter((t) => t.waits === false).map((t) => t.id)).toEqual(['house_needs', 'overlay_keys', 'large_plot_lot']);
       for (const key of ['houseSheet', 'overlayOn']) {
         expect(r.tips.trigger(key, { busy: true })).toBe(false);
         expect(r.tips.flush({ busy: false })).toBe(false);                     // nothing was held

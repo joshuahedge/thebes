@@ -7,13 +7,14 @@
 // with no store in reach gets the good's store beside it, and one that would still stand idle is taken back; a workshop with no room by its input
 // is built in the open with a store that Fetches the input. It keeps RESERVE in the treasury, builds no workplace the workforce cannot staff and
 // at most BUILDS_A_MONTH things a month, and sends the yearly tribute (the late run's rule). The Villa and the Estate come from the advice, with
-// the hand-play below (a player's own moves that no advice line or next step says; ruling 586 records the satellite):
+// the hand-play below (a player's own moves that no advice line or next step says):
 //   - the clay fetch and the beer ignore order, set on the first day (the capital run's own leftovers, below);
 //   - the road to each ghost that needs one, routed to the nearest road, and a step taken back (undo) when it would stand idle: what the confirm
-//     bar's "needs a road" and "no input in reach" say, but no advice names the route;
-//   - the satellite workshop (satellite below): a workshop (the second weaver, the jeweller) in the open with its own store that Fetches its input
-//     (flax, gems), when there is no room by the store holding it. No advice says that (moreOf names a workshop beside the store holding the input); without it the run
-//     reaches a Villa (month 92) but no Estate in ten years (measured when this was written).
+//     bar's "needs a road" and "no input in reach" say, but no advice names the route.
+// Version 6.0 (Track C): ruling 586's satellite workshop is now said by the advice. When no room is left beside the store holding a workshop's input, the advice names the Estate trick
+// (src/sim/advice.js openWorkshop): a store of its own in the open, then the workshop beside it, set to Fetch the input, and aims a plain workshop at the spot where it has its input
+// (roomFor). actOpen does those steps the way Show me and the words lead (tests/v60/c/estate.test.js proves the advice both ways). The old satellite below stays as the driver's
+// fallback for a workshop asked for before any store holds its input (the advice cannot name a place for it then: it is laid, found idle and taken back).
 import { runCapital, CAPITAL_YEARS } from '../../stage4/balance/capitalRun.js';
 import { advanceDays } from '../../../src/sim/clock.js';
 import { place, canPlace, tileReason } from '../../../src/sim/commands.js';
@@ -107,6 +108,28 @@ function satellite(w, type) {
   return { day: w.day, type, x: mg.x, y: mg.y, store: { type: st, x: sg.x, y: sg.y, fetch: input } };
 }
 
+// Version 6.0 (Track C, ruling 586): one step of the Estate trick the way the advice words it (src/sim/advice.js openWorkshop). Step 'store': the store of its own where Show me's
+// ghost lands beside the store holding the input, a road routed to it, and the Fetch order for the input (the words' last clause); step 'maker': the workshop where the ghost lands
+// beside that store, a road routed to it (its input comes by the Fetch order, so there is nothing to wait for). Undone when the road will not go. Returns the record, or null.
+function actOpen(w, fix, tried) {
+  const o = fix.open, type = fix.item, def = BUILDINGS[type];
+  const key = `open:${o.step}:${type}:${fix.near}`;
+  if (tried.has(key)) return null;
+  tried.add(key);
+  if (w.gold - costOf(w, type) < RESERVE) return null;
+  const L = w.labour;
+  if (def.workers && L.workforce - L.jobs < def.workers) return skip('no_workers');
+  const by = w.buildings[fix.near];
+  if (!by) return null;
+  const g = nearestFit(w, { kind: 'building', type }, by.x, by.y, null, w.size);
+  if (!canPlace(w, type, g.x, g.y, { roadLater: true }).ok) return skip('no_spot');
+  const undoBefore = w.undo.length;
+  const r = place(w, type, g.x, g.y, { roadLater: true });
+  if (!r.ok || !connectRoad(w, w.buildings[r.id])) { while (w.undo.length > undoBefore) undo(w); return skip('open_failed'); }
+  if (o.step === 'store' && !setFetch(w, r.id, o.input, 100).ok) { while (w.undo.length > undoBefore) undo(w); return skip('open_failed'); }
+  return { day: w.day, type, x: g.x, y: g.y, open: o.step, fetch: o.step === 'store' ? o.input : null };
+}
+
 // Does one fix the way its Show me would: a build where the ghost lands (refused or unaffordable: nothing), a far good's Fetch order. Returns
 // the record of what was done, or null.
 function act(w, fix, good, tried) {
@@ -120,6 +143,7 @@ function act(w, fix, good, tried) {
     return setFetch(w, fix.select, good, 100).ok ? { day: w.day, fetch: good, id: fix.select } : null;
   }
   if (!fix.item || fix.item === 'road' || fix.item === 'house' || !BUILDINGS[fix.item]) return null;
+  if (fix.open) return actOpen(w, fix, tried);                  // Version 6.0 (Track C): the advice now says the Estate trick, step by step
   const type = fix.item, def = BUILDINGS[type];
   const key = `${type}:${Math.round(fix.target.x)}:${Math.round(fix.target.y)}`;
   if (tried.has(key)) return null;
@@ -200,7 +224,8 @@ export function runGrand({ years = GRAND_YEARS } = {}) {
   skips = {};
   const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE });
   const w = base.w;
-  const built = [], months = [];
+  const atBase = { raids: w.tally.raids, beaten: w.tally.raidsBeaten, lost: w.tally.raidsLost, towers: allBuildings(w).filter((b) => b.type === 'tower').length, last: w.raid.last, soldiers: w.soldiers.length, gold: w.gold, day: w.day };   // the capital run's raids, before years 7-10
+  const built = [], months = [], raids = [];
   // Two choices a player makes on the day, the capital run's own leftovers (no rule changed): the late run's clay fetch (the potters' storehouse
   // Fetches the clay stranded in the works quarter: without it the potters make no more pottery than the homes use), and the beer the capital
   // run sells above 40 kept for the homes instead (its Manors want beer to grow, and a sell order empties the bazaar's store).
@@ -210,7 +235,12 @@ export function runGrand({ years = GRAND_YEARS } = {}) {
   let lowestGold = w.gold;
   const firstMonth = Math.round(w.day / DAYS_PER_MONTH) + 1;
   for (let m = firstMonth; m <= years * MONTHS_PER_YEAR; m++) {
-    advanceDays(w, DAYS_PER_MONTH);
+    const events = [];
+    advanceDays(w, DAYS_PER_MONTH, events);
+    for (const e of events) {   // Version 6.0 (Track C): every raid of the run, warned and ended, for the record
+      if (e.type === 'raid_warning') raids.push({ month: m, size: e.size, towersNeeded: e.towersNeeded, won: null });
+      if (e.type === 'raid_end') { if (raids.length) raids[raids.length - 1].won = e.won; raids.ends = (raids.ends || []).concat([{ month: m, won: e.won }]); }
+    }
     lowestGold = Math.min(lowestGold, w.gold);
     sendTribute(w);
     playMonth(w, built);
@@ -218,7 +248,7 @@ export function runGrand({ years = GRAND_YEARS } = {}) {
     for (const tier of [7, 8, 9]) if (first[tier] === undefined && Object.keys(t).some((k) => Number(k) >= tier)) first[tier] = m;
     months.push({ month: m, gold: Math.round(w.gold), people: population(w), tiers: t, taxes: w.stats.lastMonth.taxes });
   }
-  return { w, base, policies, built, months, first, lowestGold, skips, elapsed: performance.now() - started };
+  return { w, base, atBase, policies, built, months, raids, first, lowestGold, skips, elapsed: performance.now() - started };
 }
 
 let shared = null;

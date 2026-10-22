@@ -13,7 +13,7 @@ import { removeBuilding } from '../../src/sim/world.js';
 import { select, openSheet, back } from '../../src/ui/modes.js';
 import {
   T, NEED_NAMES, CAUSE_TEXT, FIRST_TEXT, ACHIEVEMENT_TEXT, DAILY_TEXT, CHAPTER_NAMES, TIP_TEXT,
-  causeText, desirabilityText, contributorText, keepWarningText, goodName,
+  causeText, desirabilityText, contributorText, keepWarningText, goodName, LARGE_TEXT,
 } from '../../src/ui/text.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { fire } from '../helpers/dom.js';
@@ -21,13 +21,14 @@ import { rigUI, runningUiWorld } from '../helpers/uiWorld.js';
 import { desirabilityFix } from '../../src/sim/advice.js';
 
 // A Town street along y = 10 with a home at (12, 9), a well, a temple and a bazaar in reach of it, and a granary.
-function street({ tier = 4, residents = 16, stock = { grain: 10 } } = {}) {
+// Version 6.0 (Track C): lot: true makes the home an empty Large plot at (12, 11) (its Manor needs are what a Townhouse's next tier's were), with the well and temple above the road.
+function street({ tier = 4, residents = 16, stock = { grain: 10 }, lot = false } = {}) {
   const w = makeTestWorld({ gold: 5000, clay: [[24, 20, 4, 4]] });   // Version 5.0: Show me says why when no ground takes the building, so a clay pit needs clay to stand on
   w.milestone = 'town';
   setRoad(w, 0, 10, 31, 10);
-  const home = addRaw(w, 'house', 12, 9, { tier, residents, stock: { ...stock }, stockedFor: residents });
-  addRaw(w, 'well', 12, 11);
-  addRaw(w, 'temple', 14, 11);
+  const home = lot ? addRaw(w, 'house', 12, 11, { tier: 0, w: 2, d: 2, large: true }) : addRaw(w, 'house', 12, 9, { tier, residents, stock: { ...stock }, stockedFor: residents });
+  addRaw(w, 'well', 12, lot ? 9 : 11);
+  addRaw(w, 'temple', 14, lot ? 8 : 11);
   const bazaar = addRaw(w, 'bazaar', 17, 11);
   addRaw(w, 'granary', 3, 11, { store: { grain: 100 } });
   staffAll(w);
@@ -143,7 +144,7 @@ describe('ui house sheet for the economy', () => {
     } finally { r.cleanup(); }
   });
   it('names a missing booth, an idle one and one with no road, each with its fix', async () => {
-    const { w, home } = street({ tier: 5, residents: 22, stock: { grain: 10, pottery: 5 } });
+    const { w, home } = street({ lot: true });   // Version 6.0: a Manor's entertainment is a Large plot's row (a Townhouse no longer asks for it)
     const r = await rigUI({ world: w });
     try {
       r.store.set(select(r.store.get(), home.id));
@@ -170,28 +171,28 @@ describe('ui house sheet for the economy', () => {
     const w = makeTestWorld({ gold: 5000 });
     w.milestone = 'town';
     setRoad(w, 0, 10, 31, 10);
-    const home = addRaw(w, 'house', 12, 9, { tier: 5, residents: 22, stock: { grain: 10, pottery: 5 }, stockedFor: 22 });
-    addRaw(w, 'temple', 14, 11);                                                      // 2 tiles away: +6
-    addRaw(w, 'garden', 12, 8);                                                       // touching: +3
-    addRaw(w, 'potter', 8, 11);                                                       // 3 tiles away: -2
+    const home = addRaw(w, 'house', 12, 11, { tier: 0, w: 2, d: 2, large: true });   // Version 6.0: an empty Large plot (the Manor's street row is the Townhouse's old one)
+    addRaw(w, 'temple', 15, 11);                                                      // 2 tiles away: +6
+    addRaw(w, 'garden', 11, 11);                                                      // touching: +3
+    addRaw(w, 'potter', 16, 13);                                                      // 3 tiles away: -2
     staffAll(w);
     const r = await rigUI({ world: w });
     try {
       r.store.set(select(r.store.get(), home.id));
       let row = rowOf(r, 'desirability');
       expect(row.querySelector('.name').textContent).toBe(NEED_NAMES.desirability);
-      expect(words(row, '.desirability')).toBe('7 of 20: +6 temple, +3 garden, −2 potter');        // spec 4.7's form
+      expect(words(row, '.desirability')).toBe('8 of 20: +6 temple, +2 garden');        // spec 4.7's form: the lot's best tile, which the garden touches only at its corner
       expect(words(row, '.cause')).toBe(CAUSE_TEXT.low_desirability.cause);
       fire(row.querySelector('.show-me'), 'click');
       expect(r.store.get().tool).toEqual({ kind: 'building', type: 'statue' });              // Version 5.0 (Task 7): the decoration desirabilityFix names (a statue lifts 7 most at Town)
       expect(desirabilityFix(w, home).item).toBe('statue');
-      addRaw(w, 'statue', 11, 9);
-      addRaw(w, 'statue', 13, 9);
+      addRaw(w, 'statue', 11, 12);
+      addRaw(w, 'statue', 14, 12);
       r.store.set(select(r.store.get(), home.id));
       row = rowOf(r, 'desirability');
       expect(row.classList.contains('met')).toBe(true);
-      expect(words(row, '.desirability')).toBe(desirabilityText(23, 20, desirabilityContributors(w, home, 3).map((d) => contributorText(d.value, d.type))));
-      expect(words(row, '.desirability')).toBe('23 of 20: +8 statue, +8 statue, +6 temple');
+      expect(words(row, '.desirability')).toBe(desirabilityText(22, 20, desirabilityContributors(w, home, 3).map((d) => contributorText(d.value, d.type))));
+      expect(words(row, '.desirability')).toBe('22 of 20: +8 statue, +6 temple, +6 statue');
       sheetTellsTheTruth(r);
     } finally { r.cleanup(); }
   });
@@ -214,27 +215,34 @@ describe('ui house sheet for the economy', () => {
       sheetTellsTheTruth(r);
     } finally { r.cleanup(); }
   });
-  it('asks a Townhouse for a 2×2 square of plots, with Show me on the plot tool, and says when the square is there', async () => {
-    const w = makeTestWorld({ gold: 5000 });
-    w.milestone = 'town';
-    setRoad(w, 0, 10, 31, 10);
-    const home = addRaw(w, 'house', 12, 9, { tier: 5, residents: 22 });
+  it('says an empty Large plot opens when its Manor rows are met, with Show me on each missing one, and a Townhouse that a Large plot is where a Manor grows (Version 6.0)', async () => {
+    const { w, home } = street({ lot: true });
     const r = await rigUI({ world: w });
     try {
       r.store.set(select(r.store.get(), home.id));
-      let merge = rowOf(r, 'merge');
-      expect(merge.querySelector('.name').textContent).toBe(`Room to become a ${TIERS[6].name}`);
-      expect(words(merge, '.cause')).toBe(CAUSE_TEXT.no_square.cause);
-      expect(words(merge, '.fix span')).toBe(`Make a square with three plots beside it, empty or ${TIERS[5].name}s`);
+      expect(r.root.querySelector('#sheet h2').textContent).toBe(LARGE_TEXT.title({ lot: true, tier: 0 }));
+      expect(r.root.querySelector('#sheet .opens-head').textContent).toBe(LARGE_TEXT.opensHead);
+      expect(r.root.querySelector('#sheet .opens-note').textContent).toBe(LARGE_TEXT.opensNote);
+      expect([...r.root.querySelectorAll('#sheet .opens-list li')].map((li) => li.dataset.need)).toEqual(['road', ...TIERS[6].needs, 'desirability']);
+      expect(r.root.querySelector('#sheet .step-line').dataset.reason).toBe('next');   // the first row the lot lacks has its step and its Show me
       sheetTellsTheTruth(r);
-      fire(merge.querySelector('.show-me'), 'click');
-      expect(r.store.get().tool).toEqual({ kind: 'houses' });
-      for (const [x, y] of [[11, 8], [12, 8], [11, 9]]) addRaw(w, 'house', x, y);   // three empty plots: the north-west square
-      r.store.set(select(r.store.get(), home.id));
-      merge = rowOf(r, 'merge');
-      expect([merge.classList.contains('met'), merge.querySelector('.status').textContent]).toEqual([true, T.hasIt]);
-      sheetTellsTheTruth(r);
+      const fun = rowOf(r, 'entertainment');
+      expect(words(fun, '.cause')).toBe('No booth within 8 road tiles');
+      fire(fun.querySelector('.show-me'), 'click');
+      expect(r.store.get().tool).toEqual({ kind: 'building', type: 'booth' });
     } finally { r.cleanup(); }
+    // A Townhouse with every need met has nothing left to grow into; its step names a Large plot and its price, and Show me starts the card.
+    const t = street({ tier: 5, residents: 22, stock: { grain: 10, pottery: 5 } });
+    const r2 = await rigUI({ world: t.w });
+    try {
+      r2.store.set(select(r2.store.get(), t.home.id));
+      const line = r2.root.querySelector('#sheet .step-line');
+      expect(line.textContent).toContain('a Large plot near here (20 gold)');
+      expect(r2.root.querySelector('#sheet h3.keep-head')).toBeTruthy();                // its own needs are all it has to keep
+      expect(r2.root.querySelector('#sheet .checklist li[data-need="merge"]')).toBe(null);
+      fire(line.querySelector('.show-me'), 'click');
+      expect(r2.store.get().tool).toEqual({ kind: 'building', type: 'large_plot' });
+    } finally { r2.cleanup(); }
   });
   it('sums up the economy: the difficulty, trade sales and purchases, food by kind and each good made against used last month', async () => {
     const r = await rigUI();
@@ -269,7 +277,7 @@ describe('ui house sheet for the economy', () => {
     const codes = new Set([...src.matchAll(/code: '([a-z_]+)'/g)].map((m) => m[1]));
     for (const m of src.matchAll(/code: `([^`]+)`/g)) for (const kind of providers) codes.add(m[1].replace('${kind}', kind));
     expect(codes.size).toBeGreaterThan(20);                                           // the scan found the codes; a booth's are among them
-    for (const code of ['booth_idle', 'no_booth', 'low_desirability', 'no_square', 'good_unmade']) expect(codes.has(code)).toBe(true);
+    for (const code of ['booth_idle', 'no_booth', 'low_desirability', 'good_unmade']) expect(codes.has(code)).toBe(true);
     const goodsCodes = ['no_good', 'good_unmade', 'next_delivery'];
     for (const code of codes) {
       const goods = goodsCodes.includes(code);

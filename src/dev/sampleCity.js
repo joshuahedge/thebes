@@ -5,6 +5,7 @@ import { advanceDays } from '../sim/clock.js';
 import { assignLabour } from '../sim/labour.js';
 import { housesOf, allBuildings } from '../sim/world.js';
 import { crewPlan } from '../sim/monuments.js';
+import { mergeSquare, mergeHouses } from '../sim/merge.js';
 import { atLeast } from '../sim/progression.js';
 import { canBurn } from '../sim/fire.js';
 import { roadReach, adjacentRoadTiles } from '../sim/reach.js';
@@ -128,6 +129,17 @@ function addStageTwo(world) {
   paintHouses(world, ex + 1, top - 2, ex + 4, top - 2);
   for (const x of [ex + 2, ex + 3]) place(world, 'statue', x, top - 1);
   for (const x of [ex + 1, ex + 4]) place(world, 'garden', x, top - 1);
+}
+
+// Version 6.0 (Track C, ruling 705): small plots stop at Townhouse and no longer merge, so the pleasant block above grows no Manor by itself. The backdrop still
+// shows one: the first Townhouse with a square beside it is merged with the three plots there, as a Manor merged under the old rule stands in a version 8 city (and
+// keeps working). A fixture, laid through the old merging functions, not a thing the game does any more.
+function mergeOneManor(world) {
+  for (const h of housesOf(world)) {
+    if (h.tier < 5) continue;
+    const origin = mergeSquare(world, h);
+    if (origin) { mergeHouses(world, h, origin); return; }
+  }
 }
 
 // The nearest spot to (cx, cy), in rings out to maxR tiles, where the building goes down with no warning (a road touches
@@ -263,6 +275,7 @@ export function buildSampleCity(world, { days = 360, stageTwoDays = 240 } = {}) 
     if (spent >= DEFENCE_RESERVE) addDefences(world);
     world.gold = spent;
     advanceDays(world, stageTwoDays);
+    mergeOneManor(world);
   }
   if (stageTwoDays > 0) {
     const spent = world.gold;

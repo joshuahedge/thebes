@@ -26,7 +26,7 @@ import { noteView } from '../render/overlays.js';
 import { supplyNeeded } from '../sim/monuments.js';
 import { huntRest } from '../sim/wildlife.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
-import { S47_PRESSURE_TEXT, buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
+import { LARGE_TEXT, S47_PRESSURE_TEXT, buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
   contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
 import { ANOTHER_TEXT } from './areaText.js';
 import { canCopy } from './another.js';
@@ -252,7 +252,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     const step = nextStep(world, h);
     const body = el('div', { class: 'body' });
     body.append(stepLine(h, step));
-    if (s.tier === 0 && step.reason !== 'empty') body.append(el('p', { class: 'muted', text: T.emptyPlot }));
+    if (s.tier === 0 && step.reason !== 'empty') body.append(el('p', { class: 'muted', text: s.lot ? LARGE_TEXT.waiting : T.emptyPlot }));   // Version 6.0 (Track C): an empty Large plot says what it waits on
     const share = s.capacity ? Math.min(1, s.residents / s.capacity) : 0;
     body.append(el('div', { class: 'row residents' }, [
       el('span', { class: 'muted', text: T.residents }),
@@ -263,8 +263,10 @@ export function createSheets({ container, store, world, placement, cameraControl
     ]));
     if (s.next) {
       const rows = withoutTwoFoods(s.merge.needed ? [...s.checklist, { need: 'merge', met: s.merge.ready }] : s.checklist);
-      body.append(el('h3', { text: `${T.nextTier} (${s.next.name})` }));
-      body.append(el('ul', { class: 'checklist' }, rows.map((c) => needRow(h, c))));
+      // Version 6.0 (Track C): an empty Large plot lists what it opens on ("Opens when"), the Manor's rows read from the same rules a home's are.
+      body.append(el('h3', { class: s.lot ? 'opens-head' : '', text: s.lot ? LARGE_TEXT.opensHead : `${T.nextTier} (${s.next.name})` }));
+      if (s.lot) body.append(el('p', { class: 'muted small opens-note', text: LARGE_TEXT.opensNote }));
+      body.append(el('ul', { class: s.lot ? 'checklist opens-list' : 'checklist' }, rows.map((c) => needRow(h, c))));
       if (s.tier >= 1 && rows.every((c) => c.met)) body.append(el('p', { class: 'teal', text: T.upgradesAtMonthEnd }));
     } else if (s.tier >= 1) {
       // Stage 4.7 (Task 7, ruling 471): the top tier has no next one, so its sheet lists what keeps it (its own needs, the street's "to keep"
@@ -278,7 +280,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     else if (s.missingNow.includes('desirability')) body.append(el('p', { class: 'coral keep-warning', text: keepWarningText(tierName(s.tier), s.downgradeIn) }));
     body.append(...extra('house', h));
     body.append(el('div', { class: 'actions' }, [anotherButton(h), button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(h.x, h.y); if (r.ok) close(); } })].filter(Boolean)), ...[anotherLine(h)].filter(Boolean));
-    return [head(tierName(s.tier)), body];
+    return [head(s.large ? LARGE_TEXT.title(s) : tierName(s.tier)), body];
   }
 
   function summarySheet() {

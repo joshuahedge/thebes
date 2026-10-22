@@ -245,8 +245,28 @@ const bigSlot = (t, height, draw) => ({
   shadows: [[0.1, 0.1, 1.2, 0.82, BIG[t].hA + 3], [1.25, 0.1, 0.65, 1.25, BIG[t].hB + 3]], draw,
 });
 
+// Version 6.0 (Track C): an empty Large plot, a 2x2 lot marked out for a grand home: a low pale plinth with a surveyor's cross on it, a gold cord round its edge
+// and a stake at each corner, the front one flying a red pennant. The shape says "empty lot" (a ring and a cross, nothing built); it never relies on colour.
+// Static: nothing moves, so it reads the same under Gentle and Still.
+const LOT = { slab: ['#EFE4C8', '#E2D2AC', '#BDB0B6'], cord: GOLD, cross: '#B79A62', stake: WOOD, flag: RED };
+export function LotPlot(g, x, y) {
+  const h = 0.7;
+  box(g, x + 0.04, y + 0.04, 1.92, 1.92, h, 0, LOT.slab, 0);
+  const a = [x + 0.14, y + 0.14], b = [x + 1.86, y + 0.14], c = [x + 1.86, y + 1.86], d = [x + 0.14, y + 1.86];
+  const at = (pt) => U(p(pt[0], pt[1]), h);
+  for (const [s, e] of [[a, b], [b, c], [c, d], [d, a]]) g.line(at(s), at(e), LOT.cord, 0.9);
+  g.line(at(a), at(c), LOT.cross, 0.6, 0.85);
+  g.line(at(b), at(d), LOT.cross, 0.6, 0.85);
+  for (const pt of [a, b, d, c]) {
+    const q = at(pt), top = U(q, 6);
+    g.line(q, top, LOT.stake, 0.8);
+    if (pt === c) g.poly([top, [top[0] + 4.2, top[1] + 1.4], [top[0], top[1] + 2.8]], LOT.flag);
+  }
+}
+
 // Shadow blocks are the mock-up's shd(...) calls, relative to the footprint origin.
 export const HOUSE_ART = {
+  'house.lot': { w: 2, d: 2, height: 9, bounds: boundsFor(2, 2, 9), shadows: [[0.04, 0.04, 1.92, 1.92, 1]], draw: LotPlot },
   'house.t1': { w: 1, d: 1, height: 12, bounds: boundsFor(1, 1, 12), shadows: [[0.22, 0.22, 0.56, 0.56, 9]], draw: H1 },
   'house.t2': { w: 1, d: 1, height: 8, bounds: boundsFor(1, 1, 8), shadows: [[0.14, 0.14, 0.66, 0.66, 10]], draw: H2 },
   'house.t3': { w: 1, d: 1, height: 9, bounds: boundsFor(1, 1, 9), shadows: [[0.1, 0.1, 0.65, 0.6, 12], [0.5, 0.52, 0.42, 0.4, 8]], draw: H3 },

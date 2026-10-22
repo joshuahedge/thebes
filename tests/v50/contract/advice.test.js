@@ -14,6 +14,7 @@ import { houseDesirability } from '../../../src/sim/desirability.js';
 import { costOf, roadCostOf } from '../../../src/sim/costs.js';
 import { canAfford } from '../../../src/sim/money.js';
 import { isUnlocked } from '../../../src/sim/progression.js';
+import { largePlotUnlocked } from '../../../src/sim/largePlots.js';
 import { monthForecast } from '../../../src/sim/economy.js';
 import { towersNeeded } from '../../../src/sim/raids.js';
 import { fallIll } from '../../../src/sim/health.js';
@@ -46,7 +47,7 @@ function checkItems(w, list) {
     expect(ADVICE_KINDS).toContain(a.kind);
     expect(a.weight).toBeGreaterThan(0);
     if (a.fix && a.fix.item) {
-      expect([a.key, a.fix.item === 'road' || isUnlocked(w, a.fix.item)]).toEqual([a.key, true]);
+      expect([a.key, a.fix.item === 'road' || (a.fix.item === 'large_plot' ? largePlotUnlocked(w) : isUnlocked(w, a.fix.item))]).toEqual([a.key, true]);   // Version 6.0: the Large plot card is unlocked by its first Townhouse, not a milestone
       expect([a.cost, a.afford]).toEqual([priceOf(w, a.fix), canAfford(w, a.cost)]);
       expect(['near', 'terrain']).toContain(a.fix.at);
     } else if (a.fix && a.fix.select !== undefined) {

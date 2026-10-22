@@ -3,7 +3,7 @@ import { TIERS } from '../../src/data/housing.js';
 import { monthlyHousing, houseStatus, needCause, desirabilityTarget, removeResidents } from '../../src/sim/housing.js';
 import { mergeSquare, mergeHouses, splitHouse, MERGE_TIER } from '../../src/sim/merge.js';
 import { houseDesirability } from '../../src/sim/desirability.js';
-import { departures } from '../../src/sim/immigration.js';
+import { departures, arrivalsBatch } from '../../src/sim/immigration.js';
 import { updateMood } from '../../src/sim/mood.js';
 import { buildingAt, housesOf, removeBuilding } from '../../src/sim/world.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
@@ -30,7 +30,7 @@ const plot = (w, x, y) => addRaw(w, 'house', x, y);
 const rows = (w, h) => houseStatus(w, h).checklist;
 
 describe('sim upper tiers and merges', () => {
-  it('turns a square of four Townhouses on a pleasant street with a booth into one Manor with everyone in it', () => {
+  it('leaves a square of four Townhouses on a pleasant street with a booth as it is: a small plot stops at Townhouse and nothing merges (Version 6.0)', () => {
     const w = makeTestWorld();
     setRoad(w, 0, 10, 31, 10);
     const a = townhouse(w, 12, 11, 20), b = townhouse(w, 13, 11, 21), c = townhouse(w, 12, 12, 22), d = townhouse(w, 13, 12, 19);
@@ -41,19 +41,12 @@ describe('sim upper tiers and merges', () => {
     addRaw(w, 'statue', 11, 12);
     staffAll(w);
     expect(houseDesirability(w, a)).toBeGreaterThanOrEqual(TIERS[6].desirability.rise);
-    const taxBefore = [a, b, c, d].reduce((n, h) => n + h.residents * TIERS[h.tier].tax, 0);
+    expect(mergeSquare(w, a) !== null).toBe(true);                         // the old rule's square is there, and the street is pleasant enough for a Manor
     const events = [];
     monthlyHousing(w, events);
-    expect(events).toEqual([{ type: 'merge', id: a.id }, { type: 'upgrade', id: a.id, from: 5, to: 6 }]);
-    const m = w.buildings[a.id];
-    expect([m.x, m.y, m.w, m.d, m.tier, m.residents]).toEqual([12, 11, 2, 2, 6, 82]);
-    for (const other of [b, c, d]) expect(w.buildings[other.id]).toBe(undefined);
-    for (const [x, y] of [[12, 11], [13, 11], [12, 12], [13, 12]]) expect(buildingAt(w, x, y)).toBe(m);
-    expect(housesOf(w).length).toBe(1);
-    expect([m.stock.grain, m.stock.pottery]).toEqual([17, 5]);              // the others' food and pottery came along (the first ate its own)
-    expect(w.tally.upgrades).toBe(1);
-    expect(m.residents * TIERS[6].tax).toBeGreaterThan(taxBefore);         // the same people pay more as a Manor
-    expect(TIERS[6].capacity / 4).toBeGreaterThanOrEqual(TIERS[5].capacity);   // and no tile holds fewer
+    expect(events).toEqual([]);
+    expect([a, b, c, d].map((h) => [h.w, h.d, h.tier, h.id === w.buildings[h.id].id])).toEqual([[1, 1, 5, true], [1, 1, 5, true], [1, 1, 5, true], [1, 1, 5, true]]);
+    expect([housesOf(w).length, w.tally.upgrades]).toEqual([4, 0]);
   });
   it('judges a merged Manor on the people its plots were stocked for, so newcomers do not make it look unfed', () => {
     const w = makeTestWorld();
@@ -68,12 +61,10 @@ describe('sim upper tiers and merges', () => {
     addRaw(w, 'statue', 11, 11);
     addRaw(w, 'statue', 11, 12);
     staffAll(w);
+    const m = mergeHouses(w, a, mergeSquare(w, a));                        // merged under the old rule (Version 6.0 no longer merges in the monthly check)
+    expect([m.tier, m.residents, m.stock.grain]).toEqual([6, 85, 25]);
     monthlyHousing(w);
-    const m = w.buildings[a.id];
-    expect([m.tier, m.residents, m.stock.grain]).toEqual([6, 85, 20]);   // grain for the 75 people the plots were stocked for
-    expect(rows(w, m).find((r) => r.need === 'food').met).toBe(true);
-    monthlyHousing(w);
-    expect(m.met.food).toBe(true);
+    expect([m.tier, m.residents, m.met.food]).toEqual([6, 85, true]);      // fed: judged on the 75 people the plots were stocked for, not the 85 living there
   });
   it('picks the square to the north-west first, then clockwise', () => {
     const w = makeTestWorld();
@@ -109,7 +100,7 @@ describe('sim upper tiers and merges', () => {
     expect(mergeHouses(low, null, { x: 30, y: 30 })).toBe(null);          // no square there
     expect(MERGE_TIER).toBe(6);
   });
-  it('keeps a Townhouse that is ready to grow but has no square to join, without a countdown', () => {
+  it('keeps a Townhouse on a small plot as it is, without a countdown: it has no next tier and no square to ask for (Version 6.0)', () => {
     const w = street();
     const h = townhouse(w, 12, 11, 20);
     addRaw(w, 'statue', 11, 12);
@@ -120,8 +111,8 @@ describe('sim upper tiers and merges', () => {
     monthlyHousing(w, events);
     expect(events).toEqual([]);
     expect([h.tier, h.downTimer]).toEqual([5, 0]);
-    expect(houseStatus(w, h).merge).toEqual({ needed: true, ready: false });
-    expect(needCause(w, h, 'merge')).toEqual({ code: 'no_square', id: null });
+    expect([houseStatus(w, h).next, houseStatus(w, h).merge]).toEqual([null, { needed: false, ready: false }]);
+    expect(needCause(w, h, 'merge')).toBe(null);
   });
   it('splits a Manor that drops below tier 6 back into four Townhouses, sharing out its residents', () => {
     const w = makeTestWorld();
@@ -184,23 +175,26 @@ describe('sim upper tiers and merges', () => {
     monthlyHousing(w, events);
     expect(events.map((e) => e.type)).toEqual(['downgrade', 'split']);
   });
-  it('grows a Townhouse into a Manor only once the street reaches "to rise"', () => {
+  it('opens an empty Large plot as a Manor only once the street reaches "to rise" (Version 6.0: it was a Townhouse merging with three plots)', () => {
     const w = street();
-    const h = townhouse(w, 12, 11, 20, 2);
-    for (const [x, y] of [[13, 11], [12, 12], [13, 12]]) plot(w, x, y);
-    addRaw(w, 'statue', 11, 12);
+    const bazaar = addRaw(w, 'bazaar', 9, 11, { store: { grain: 100, pottery: 100 } });
+    staffAll(w);
+    const h = addRaw(w, 'house', 12, 11, { tier: 0, w: 2, d: 2, large: true });
     addRaw(w, 'statue', 11, 13);
-    addRaw(w, 'garden', 14, 12);
-    expect(houseDesirability(w, h)).toBe(16);
+    addRaw(w, 'garden', 14, 13);
+    const low = houseDesirability(w, h);
+    expect(low).toBeLessThan(TIERS[6].desirability.rise);
     expect(rows(w, h).every((c) => c.met || c.need === 'desirability')).toBe(true);
-    monthlyHousing(w);
-    expect([h.tier, h.w, h.downTimer]).toEqual([5, 1, 0]);                 // below 20: it neither grows nor drops
-    addRaw(w, 'statue', 14, 13);
-    expect(houseDesirability(w, h)).toBe(22);
-    const events = [];
-    monthlyHousing(w, events);
-    expect(events).toEqual([{ type: 'merge', id: h.id }, { type: 'upgrade', id: h.id, from: 5, to: 6 }]);
-    expect([h.tier, h.w, h.d, h.residents]).toEqual([6, 2, 2, 20]);        // the empty plots add no one
+    w.mood = 80;
+    arrivalsBatch(w);
+    expect([h.tier, h.residents, h.w]).toEqual([0, 0, 2]);                 // below 20: nobody moves in, and the plot stays a lot
+    addRaw(w, 'statue', 11, 12);
+    addRaw(w, 'statue', 14, 12);
+    expect(houseDesirability(w, h)).toBeGreaterThanOrEqual(TIERS[6].desirability.rise);
+    expect(rows(w, h).every((c) => c.met)).toBe(true);
+    arrivalsBatch(w);
+    expect([h.tier, h.w, h.d, h.residents > 0]).toEqual([6, 2, 2, true]);  // the lot opened as a Manor, in place
+    expect(bazaar.store.grain).toBeLessThan(100);                          // stocked from the bazaar as it opened
   });
   it('turns a 2x2 home that empties into four empty plots, whether people leave or move out', () => {
     const w = makeTestWorld();
@@ -214,15 +208,17 @@ describe('sim upper tiers and merges', () => {
     monthlyHousing(v);
     expect(housesOf(v).map((p) => [p.w, p.tier, p.residents])).toEqual([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]);
   });
-  it('lists the next tier\'s needs, the desirability row and the merge line on the house sheet', () => {
+  it('lists the next tier\'s needs and the desirability row on the house sheet: an empty Large plot the Manor\'s, a Townhouse its own (Version 6.0)', () => {
     const w = street();
-    const h = townhouse(w, 12, 11, 20);
-    for (const [x, y] of [[13, 11], [12, 12], [13, 12]]) plot(w, x, y);
+    const h = addRaw(w, 'house', 12, 11, { tier: 0, w: 2, d: 2, large: true });
     const s = houseStatus(w, h);
     expect(s.checklist.map((c) => c.need)).toEqual(['road', ...TIERS[6].needs, 'desirability']);
     expect(s.checklist[s.checklist.length - 1]).toEqual({ need: 'desirability', met: false, value: 0, target: 20, keep: null });
-    expect(s.merge).toEqual({ needed: true, ready: true });
+    expect(s.merge).toEqual({ needed: false, ready: false });
     expect(needCause(w, h, 'merge')).toBe(null);
+    const town = townhouse(w, 20, 11, 20);
+    expect(rows(w, town).map((c) => c.need)).toEqual(['road', ...TIERS[5].needs]);      // a small plot's top: its own needs only, no desirability row and no square
+    expect(houseStatus(w, town).next).toBe(null);
     const house = addRaw(w, 'house', 2, 11, { tier: 4, residents: 16 });
     expect(rows(w, house).map((c) => c.need)).toEqual(['road', ...TIERS[5].needs]);   // no desirability before the Manor
     expect(houseStatus(w, house).merge).toEqual({ needed: false, ready: false });
@@ -291,12 +287,14 @@ describe('sim upper tiers and merges', () => {
     h.stock.figs = 1;
     expect(needCause(w, h, 'twoFoods')).toBe(null);
   });
-  it('blames a missing road for needs that come along roads, but not for desirability or a square', () => {
+  it('blames a missing road for needs that come along roads, but not for desirability', () => {
     const w = makeTestWorld();
-    const h = addRaw(w, 'house', 12, 20, { tier: 5, residents: 20 });   // nothing in stock
+    const h = addRaw(w, 'house', 12, 20, { tier: 6, w: 2, d: 2, residents: 90 });   // nothing in stock, no road
     for (const need of ['road', 'entertainment', 'pottery', 'twoFoods']) expect(needCause(w, h, need)).toEqual({ code: 'no_road', id: null });
     expect(needCause(w, h, 'desirability').code).toBe('low_desirability');
-    expect(needCause(w, h, 'merge')).toEqual({ code: 'no_square', id: null });
+    const lot = addRaw(w, 'house', 20, 20, { tier: 0, w: 2, d: 2, large: true });   // an empty Large plot with no road: the same causes for the Manor's rows
+    for (const need of ['road', 'water', 'food', 'religion', 'pottery', 'entertainment']) expect([need, needCause(w, lot, need)]).toEqual([need, { code: 'no_road', id: null }]);
+    expect(needCause(w, lot, 'desirability').code).toBe('low_desirability');
   });
   it('agrees with the checklist: no cause exactly when a row is met, for every need of tiers 5 to 9, through every state', () => {
     const w = makeTestWorld();

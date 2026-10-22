@@ -107,7 +107,7 @@ describe('v50 layers budget: the legend row', () => {
           g.world.milestone = 'village';
           g.ui.store.set({ layersOpen: true });
           await frame();
-          const shown = [...picker.querySelectorAll('button.layer')].filter((b) => !b.hidden).map((b) => b.dataset.layer);
+          const shown = [...picker.querySelectorAll('button.layer')].filter((b) => !b.hidden && !b.classList.contains('locked')).map((b) => b.dataset.layer);   // Version 6.0: a layer not reached is greyed with its rank, not offered
           if (!shown.includes('progress') || shown.includes('supply') || shown.includes('workers')) wrong.push(`${at}: at Village the picker shows ${shown.join()}`);
         } finally { r.cleanup(); }
       }

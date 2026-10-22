@@ -5,7 +5,9 @@ import { allBuildings, housesOf } from './world.js';
 import { touchesRoad, roadReach, reachDistance, buildingsInReach } from './reach.js';
 import { isWorking } from './labour.js';
 import { desirabilityField, houseDesirability } from './desirability.js';
-import { MERGE_TIER, mergeSquare, mergeHouses, splitHouse } from './merge.js';
+import { splitHouse } from './merge.js';
+import { LARGE_PLOT } from '../data/largePlots.js';
+import { isLargePlot, isLot, isSmallTop, noteLargePlotUnlock } from './largePlots.js';
 import { computeCoverage as computeCoverageByReach } from './coverage.js';
 import { bazaarsByHouse, topUpHouse, monthlyNeed } from './distribution.js';
 
@@ -49,6 +51,13 @@ export function homesServedFrom(world, type, x, y) {
   let n = 0;
   for (const h of housesOf(world)) if (reachDistance(reach, world, h) <= def.reach) n++;
   return n;
+}
+
+// How many people a home holds. Version 6.0 (Track C, ruling 704): a Large plot below a Manor holds as many as the four plots it stands in for would (a Manor that
+// falls back keeps its people, as one that split into four Townhouses did); an empty one is judged at the Manor it opens as, any other empty plot at a Hut.
+export function capacityOf(house) {
+  if (house.tier >= 1) return TIERS[house.tier].capacity * (isLargePlot(house) && house.tier < LARGE_PLOT.opensTier ? LARGE_PLOT.size * LARGE_PLOT.size : 1);
+  return isLot(house) ? TIERS[LARGE_PLOT.opensTier].capacity : TIERS[1].capacity;
 }
 
 export function removeResidents(house, n) {
@@ -113,11 +122,12 @@ function consumeGood(house, good) {
 }
 
 export function monthlyHousing(world, events = null) {
+  noteLargePlotUnlock(world);   // Version 6.0 (Track C): the Large plot card comes with the first Townhouse and stays
   const cov = computeCoverage(world);
   const bazaars = bazaarsByHouse(world);
   const field = desirabilityField(world);   // every home is judged on the street as it stood when the month ended
   for (const h of housesOf(world)) {
-    if (world.buildings[h.id] !== h) continue;   // merged into a neighbour's Manor earlier in this check
+    if (world.buildings[h.id] !== h) continue;   // split into plots earlier in this check
     h.leftThisMonth = 0;
     if (h.tier === 0) continue;
     const wants = wantedNeeds(h);
@@ -139,28 +149,21 @@ export function monthlyHousing(world, events = null) {
     // Tiers 6-9 also want a pleasant street (spec 4.6): rising needs the next tier's "to rise" desirability and
     // holding needs the tier's "to keep" value; between the two a home neither rises nor falls. Below "to keep"
     // starts the countdown like an unmet need. Read only for homes where a value applies, from the month's field.
+    // Version 6.0 (Track C, ruling 616): a small plot stops at Townhouse (isSmallTop): it rises no further and no longer merges with the plots beside it;
+    // a grand home grows on a Large plot, where a Manor opens (the lot, below) and climbs in place. Homes merged under the old rule rise and fall as before.
+    const capped = isSmallTop(h);
     const keep = keepOf(h.tier);
     const next = h.tier + 1;
     const rise = riseOf(next);
-    const value = keep !== null || rise !== null ? houseDesirability(world, h, field) : 0;
+    const value = keep !== null || (rise !== null && !capped) ? houseDesirability(world, h, field) : 0;
     const currentOk = met.road && needsOf(h.tier).every((n) => met[n]) && (keep === null || value >= keep);
     let home = h;
     if (currentOk) {
       h.downTimer = 0;
-      if (next <= MAX_TIER && needsOf(next).every((n) => (n in metNext ? metNext[n] : met[n])) && (rise === null || value >= rise)) {
-        if (TIERS[next].size > h.w) {
-          // A Townhouse becomes a Manor only by joining a 2x2 square (spec 4.6); with no square it waits.
-          const origin = mergeSquare(world, h);
-          if (origin) {
-            home = mergeHouses(world, h, origin);
-            if (events) events.push({ type: 'merge', id: home.id }, { type: 'upgrade', id: home.id, from: next - 1, to: next });
-            world.tally.upgrades += 1;
-          }
-        } else {
-          if (events) events.push({ type: 'upgrade', id: h.id, from: h.tier, to: next });
-          h.tier = next;
-          world.tally.upgrades += 1;
-        }
+      if (!capped && next <= MAX_TIER && needsOf(next).every((n) => (n in metNext ? metNext[n] : met[n])) && (rise === null || value >= rise)) {
+        if (events) events.push({ type: 'upgrade', id: h.id, from: h.tier, to: next });
+        h.tier = next;
+        world.tally.upgrades += 1;
       }
     } else {
       h.downTimer++;
@@ -168,8 +171,8 @@ export function monthlyHousing(world, events = null) {
         h.downTimer = 0;
         if (h.tier > 1) {
           if (events) events.push({ type: 'downgrade', id: h.id, from: h.tier, to: h.tier - 1 });
-          if (TIERS[h.tier - 1].size < h.w) {
-            // A Manor that drops a tier splits back into four Townhouses, residents shared out (spec 4.6).
+          if (!isLargePlot(h) && TIERS[h.tier - 1].size < h.w) {
+            // A merged Manor that drops a tier splits back into four Townhouses, residents shared out (spec 4.6). A Large plot never splits: it keeps its lot.
             splitHouse(world, h);
             if (events) events.push({ type: 'split', id: h.id });
             continue;
@@ -179,7 +182,7 @@ export function monthlyHousing(world, events = null) {
       }
     }
 
-    const cap = TIERS[home.tier].capacity;
+    const cap = capacityOf(home);
     let leave = met.road ? Math.max(0, home.residents - cap) : home.residents;
     leave = Math.min(leave, leaveCap(home));
     if (leave > 0) removeResidents(home, leave);
@@ -206,6 +209,7 @@ export function desirabilityTarget(tier) {
 // Stage 4.7 (ruling 471): household goods are judged at the use of the tier the checklist is for (the next tier; the top tier its own), so
 // a Fine manor's pottery row reads against a Villa's use; `now` judges them at the home's own tier (what it is missing now).
 function liveNeeds(world, house, { now = false } = {}) {
+  if (isLot(house)) return lotNeeds(world, house);
   const foodNeed = needToMeet(house, FOOD_GOODS[0]);
   const goodsTier = now ? house.tier : growingInto(house);
   const met = {
@@ -221,43 +225,88 @@ function liveNeeds(world, house, { now = false } = {}) {
     const n = needToMeet(house, good, goodsTier);
     met[good] = n > 0 && (house.stock[good] || 0) >= n;
   }
-  const target = desirabilityTarget(house.tier);
+  const target = desirabilityTargetFor(house);
   if (target !== null) met.desirability = houseDesirability(world, house) >= target;
-  met.merge = house.tier !== MERGE_TIER - 1 || mergeSquare(world, house) !== null;
   return met;
+}
+
+// Version 6.0 (Track C, ruling 702): an empty Large plot's "Opens when" list, judged live like a home's checklist but with no household to stock: the Manor's
+// needs (TIERS[LARGE_PLOT.opensTier]) met around the lot. A road touches it; water, a temple and entertainment reach it (coveredBy); food and pottery are
+// at hand when a working bazaar reaching it has some on its stall or can draw it from a store in its supply reach (the 'next_delivery' cause the checklist
+// already words); and its street is pleasant enough (the Manor's "to rise"). Every need reads from the rules a home's own row reads from, so the lot opens
+// when its row says it will.
+function lotNeeds(world, house) {
+  const met = { road: touchesRoad(world, house) };
+  for (const need of needsOf(LARGE_PLOT.opensTier)) {
+    if (PROVIDER_KIND[need]) met[need] = coveredBy(world, house, need);
+    else if (need === 'food') met.food = foodCause(world, house).code === 'next_delivery';
+    else met[need] = goodCause(world, house, need).code === 'next_delivery';
+  }
+  const target = desirabilityTargetFor(house);
+  if (target !== null) met.desirability = houseDesirability(world, house) >= target;
+  return met;
+}
+
+// A lot that has just opened (immigration.js sets its tier and residents): its first household is stocked from the bazaars reaching it at once, as the
+// month's check stocks every home ahead of the tier it grows into, so a Manor newly moved into is judged at the month's end on what it was stocked for
+// (stockedFor), not on an empty larder it never had a delivery for.
+export function stockLot(world, house) {
+  const wants = wantedNeeds(house);
+  topUpHouse(world, house, wantedGoods(house), bazaarsByHouse(world).get(house.id), { kinds: kindsWanted(wants), tier: growingInto(house) });
+  house.stockedFor = house.residents;
+}
+
+// Whether an empty Large plot may be moved into now: every row of its "Opens when" list met. (immigration.js lets arrivals move in as a Manor.)
+export function lotReady(world, house) {
+  if (!isLot(house)) return false;
+  const met = lotNeeds(world, house);
+  return Object.values(met).every(Boolean);
+}
+
+// The desirability a home's checklist row asks of it (and the home sheet's "to keep" list for a plot at its top): a lot, the Manor's "to rise"; a Townhouse on
+// a small plot, none (it grows no further, ruling 616); any other home, desirabilityTarget's own (the next tier's "to rise", the top tier's "to keep").
+export function desirabilityTargetFor(house) {
+  if (isLot(house)) return riseOf(LARGE_PLOT.opensTier);
+  if (isSmallTop(house)) return null;
+  return desirabilityTarget(house.tier);
 }
 
 // What the house sheet shows (spec 6.3): the next tier's checklist, with a desirability row { need: 'desirability',
 // met, value, target, keep } from the Townhouse up (keep is the home's own "to keep" value, null for a Townhouse);
-// what the home is missing now (with 'desirability' when it is below "to keep"); the countdown; and for a
-// Townhouse whether it needs a 2x2 square to grow and whether one can form.
+// what the home is missing now (with 'desirability' when it is below "to keep"); and the countdown.
+// Version 6.0 (Track C): a Townhouse on a small plot has no next tier (next null: ruling 616); an empty Large plot (lot: true) shows the Manor's checklist as
+// the list it opens on, and says so (large: true marks every Large plot, with or without people). merge is { needed: false, ready: false } for every home now.
 export function houseStatus(world, house) {
   const tier = house.tier;
+  const lot = isLot(house), small = isSmallTop(house);
   const info = tier >= 1 ? TIERS[tier] : null;
-  const next = tier + 1 <= MAX_TIER ? { tier: tier + 1, name: TIERS[tier + 1].name } : null;
+  const nextTier = lot ? LARGE_PLOT.opensTier : tier + 1;
+  const next = small || nextTier > MAX_TIER ? null : { tier: nextTier, name: TIERS[nextTier].name };
   const met = liveNeeds(world, house);
   const checklistNeeds = ['road', ...needsOf(next ? next.tier : tier)];
   const checklist = checklistNeeds.map((need) => ({ need, met: Boolean(met[need]) }));
-  const target = desirabilityTarget(tier);
+  const target = desirabilityTargetFor(house);
   const keep = keepOf(tier);
   const value = target !== null || keep !== null ? houseDesirability(world, house) : null;
   if (target !== null) checklist.push({ need: 'desirability', met: met.desirability, value, target, keep });
   const metNow = useOf(tier) === useOf(Math.min(tier + 1, MAX_TIER)) ? met : liveNeeds(world, house, { now: true });
   const missingNow = tier >= 1 ? ['road', ...needsOf(tier)].filter((n) => !metNow[n]) : [];
   if (keep !== null && value < keep) missingNow.push('desirability');
-  const mergeNeeded = tier === MERGE_TIER - 1;
   return {
     tier,
-    name: info ? info.name : 'Empty plot',
+    name: info ? info.name : lot ? LARGE_NAME : 'Empty plot',
+    large: isLargePlot(house),
+    lot,
     residents: house.residents,
-    capacity: info ? info.capacity : TIERS[1].capacity,
+    capacity: capacityOf(house),
     next,
     checklist,
     missingNow,
     downgradeIn: tier > 1 && house.downTimer > 0 ? DOWNGRADE_AFTER_MONTHS - house.downTimer : null,
-    merge: { needed: mergeNeeded, ready: mergeNeeded && met.merge },
+    merge: { needed: false, ready: false },
   };
 }
+const LARGE_NAME = 'Large plot';
 
 // Why a home lacks a need (early-game pass 2.10), judged by the same live rules as the checklist: null when it
 // has the need (or the need is unknown), else { code, id, ... }. A home that touches no road blames the road for
@@ -276,15 +325,14 @@ export function houseStatus(world, house) {
 // good or a store within its supply reach holds some (the bazaar restocks at the month's end); good_unmade { good,
 // id: bazaar } when stores for the good lie in that reach but none holds any; no_good { good, id: bazaar } when no
 // store for the good lies in that reach at all.
-// Desirability below the row's target is low_desirability { value, target }; a Townhouse with no 2x2 square to
-// join lacks 'merge' with no_square. Neither depends on the road.
+// Desirability below the row's target is low_desirability { value, target }; it does not depend on the road. (Version 6.0: a Townhouse has no square to
+// join, so 'merge' and no_square are gone; an empty Large plot's rows are judged by lotNeeds, with the same causes.)
 const PROVIDER_KIND = { water: 'well', religion: 'temple', entertainment: 'booth' };
 
 export function needCause(world, house, need) {
   const met = liveNeeds(world, house);
   if (!(need in met) || met[need]) return null;
-  if (need === 'desirability') return { code: 'low_desirability', id: null, value: houseDesirability(world, house), target: desirabilityTarget(house.tier) };
-  if (need === 'merge') return { code: 'no_square', id: null };
+  if (need === 'desirability') return { code: 'low_desirability', id: null, value: houseDesirability(world, house), target: desirabilityTargetFor(house) };
   if (!met.road) return { code: 'no_road', id: null };
   const kind = PROVIDER_KIND[need];
   if (kind) {
