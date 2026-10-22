@@ -4,3 +4,4 @@ import './art.test.js';
 import './units.test.js';
 import './fire.test.js';
 import './effects.test.js';
+import './moment.test.js';

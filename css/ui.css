@@ -1120,6 +1120,16 @@ body[data-layout="portrait"] .confirm.has-fit .conds, body[data-layout="portrait
 #banner .critical[data-code="court_letter"] .icon { display: none; }
 #banner .critical[data-code="court_letter"]::before { content: '\2709'; flex: none; color: var(--teal); font-size: calc(18px * var(--ui-scale)); line-height: 1; }
 /* ── end s46 court ── */
+/* Version 6.0, Track B2: the result of a raid in the alert row (src/ui/v60/battle.js). A raid beaten is teal with a tick, one that got through is the
+   coral warning with its triangle (the words and the icon say it, never the colour alone). On a phone it is the one-line alert row: the words clamp to two lines. */
+#banner .critical.moment[data-code="raid_beaten"] { background: var(--teal-soft); border-color: var(--teal); }
+#banner .critical.moment[data-code="raid_beaten"] .icon { color: var(--teal); }
+#banner .critical.moment.line .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+#banner .critical.moment.line strong { display: inline; -webkit-line-clamp: unset; line-clamp: unset; }
+#banner.moment-up .critical[data-code="court_letter"] { display: none; }   /* on a phone a letter waits behind the result for the one-line row */
+@keyframes moment-in { from { opacity: 0; } to { opacity: 1; } }
+#banner .critical.moment { animation: moment-in 0.3s ease-out; }
+/* ── end v60 b2 ── */
 
 /* ── s46 armies (Armies track) ── the Armies track's styles. Add new rules just above the end marker. */
 /* ── end s46 armies ── */
