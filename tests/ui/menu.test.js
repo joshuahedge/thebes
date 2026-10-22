@@ -106,7 +106,8 @@ describe('ui menu', () => {
     }
     expect(keyLabel('pause')).toBe('Space');
     expect(keyLabel('back')).toBe('Esc');
-    expect(keyLabel('speedUp')).toBe('+ or =');
+    expect(keyLabel('speedUp')).toBe('] or .');   // Version 6.0 (ruling 744): + and - zoom now
+    expect(keyLabel('zoomIn')).toBe('+ or =');
     expect(keyLabel('minimap')).toBe('M');
     expect(r.body.textContent).toContain('right-click');
     expect(r.body.textContent).toContain(T.goalsHelp);

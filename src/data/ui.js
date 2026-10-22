@@ -64,8 +64,12 @@ export const TRADE_KEEP_STEP = 10;
 // Spec 6.7. Letters are listed in both cases; `undo` needs Ctrl or Cmd.
 export const KEYS = {
   pause: [' '],
-  speedUp: ['+', '='],
-  speedDown: ['-', '_'],
+  // Version 6.0 (Track D1, ruling 744): + and - zoom the map (the desktop's own habit); the speed steps moved to ] and [ (and . and , beside them, the
+  // keys of > and <) so neither loses a key.
+  speedUp: [']', '.'],
+  speedDown: ['[', ','],
+  zoomIn: ['+', '='],
+  zoomOut: ['-', '_'],
   category: ['1', '2', '3', '4', '5', '6', '7'],
   panLeft: ['ArrowLeft', 'a', 'A'],
   panRight: ['ArrowRight', 'd', 'D'],

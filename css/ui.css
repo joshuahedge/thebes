@@ -1252,6 +1252,12 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
 @media (max-height: 480px) {
   .title-card .settings-body { max-height: 55vh; }
 }
+/* Polish 1 (How to play's key list): at 150% text a key such as "Arrows or WASD" or "Ctrl+Z or Cmd+Z" ran past the side panel's edge and the "Does" column went with it.
+   The keys may now wrap inside their column (a 40% share), and the words beside them wrap anywhere they must, so the table always fits the panel. */
+.shortcuts { table-layout: fixed; }
+.shortcuts th:first-child, .shortcuts td:first-child { width: 40%; }
+.shortcuts kbd { white-space: normal; overflow-wrap: anywhere; display: inline-block; }
+.shortcuts td, .shortcuts th { overflow-wrap: anywhere; }
 /* ── end v60 d1 ── */
 
 /* Stage 4.7 (Task 6, ruling 467): the Fetch control on a store's sheet (src/ui/s47/carts.js). One panel: a "Fetch goods" row that opens the list of goods the

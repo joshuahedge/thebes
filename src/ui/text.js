@@ -3148,6 +3148,10 @@ export const D1_TEXT = {
   settingsPanel: 'Settings',                                           // the title card's Settings panel's heading
   titleGroup: 'More',                                                  // the name of the row of Lesson, Settings and What's new for assistive technology
 };
+// The keys of a computer (rulings 744, 745): the zoom keys follow the pan row; the right button is in the list with the keys.
+HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'panLeft') + 1, 0, ['zoomIn', 'Zoom in'], ['zoomOut', 'Zoom out']);
+HELP_ROWS.push(['rightClick', 'Cancel the tool or step back, like Esc', 'Right-click']);
+V60_HELP.d1.push({ head: 'On a computer', text: 'Arrows or WASD move the view, + and − zoom, 1 to 7 pick a build category, [ and ] set the speed, Esc steps back and a right-click cancels. A text field or a slider keeps its own keys; you can switch the single keys off in Settings.' });
 V60_HELP.d1.push({ head: 'The Huge map', text: 'A Huge map is 112 tiles a side, a vast land for a long reign. It suits a tablet or computer; on a phone the buildings are small and the city takes more scrolling. The view cannot zoom out past where a Huge map costs more to draw than a Large one, which a very large screen may notice.' });
 // ── end v60 d1 ──
 
