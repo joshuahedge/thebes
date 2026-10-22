@@ -200,7 +200,8 @@ export function runGrand({ years = GRAND_YEARS } = {}) {
   skips = {};
   const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE });
   const w = base.w;
-  const built = [], months = [];
+  const atBase = { raids: w.tally.raids, beaten: w.tally.raidsBeaten, lost: w.tally.raidsLost, towers: allBuildings(w).filter((b) => b.type === 'tower').length, last: w.raid.last, soldiers: w.soldiers.length, gold: w.gold, day: w.day };   // the capital run's raids, before years 7-10
+  const built = [], months = [], raids = [];
   // Two choices a player makes on the day, the capital run's own leftovers (no rule changed): the late run's clay fetch (the potters' storehouse
   // Fetches the clay stranded in the works quarter: without it the potters make no more pottery than the homes use), and the beer the capital
   // run sells above 40 kept for the homes instead (its Manors want beer to grow, and a sell order empties the bazaar's store).
@@ -210,7 +211,12 @@ export function runGrand({ years = GRAND_YEARS } = {}) {
   let lowestGold = w.gold;
   const firstMonth = Math.round(w.day / DAYS_PER_MONTH) + 1;
   for (let m = firstMonth; m <= years * MONTHS_PER_YEAR; m++) {
-    advanceDays(w, DAYS_PER_MONTH);
+    const events = [];
+    advanceDays(w, DAYS_PER_MONTH, events);
+    for (const e of events) {   // Version 6.0 (Track C): every raid of the run, warned and ended, for the record
+      if (e.type === 'raid_warning') raids.push({ month: m, size: e.size, towersNeeded: e.towersNeeded, won: null });
+      if (e.type === 'raid_end') { if (raids.length) raids[raids.length - 1].won = e.won; raids.ends = (raids.ends || []).concat([{ month: m, won: e.won }]); }
+    }
     lowestGold = Math.min(lowestGold, w.gold);
     sendTribute(w);
     playMonth(w, built);
@@ -218,7 +224,7 @@ export function runGrand({ years = GRAND_YEARS } = {}) {
     for (const tier of [7, 8, 9]) if (first[tier] === undefined && Object.keys(t).some((k) => Number(k) >= tier)) first[tier] = m;
     months.push({ month: m, gold: Math.round(w.gold), people: population(w), tiers: t, taxes: w.stats.lastMonth.taxes });
   }
-  return { w, base, policies, built, months, first, lowestGold, skips, elapsed: performance.now() - started };
+  return { w, base, atBase, policies, built, months, raids, first, lowestGold, skips, elapsed: performance.now() - started };
 }
 
 let shared = null;

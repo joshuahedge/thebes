@@ -160,7 +160,7 @@ describe('v60 contract advice', () => {
 
   it('words a new kind from its track\'s V60_ADVICE_WORDS entry, and How to play\'s paragraphs come from V60_HELP in track order', () => {
     expect(Object.keys(V60_HELP)).toEqual(['a', 'b1', 'c', 'b2', 'd1', 'd2']);
-    for (const list of Object.values(V60_HELP)) expect(list).toEqual([]);
+    for (const list of Object.values(V60_HELP)) for (const p of list) expect([typeof p.head, typeof p.text]).toEqual(['string', 'string']);   // each track's paragraphs, from its own section
     const w = createWorld({ seed: 6 });
     const item = { key: 'demand:1', kind: 'demand', weight: 5, count: 1, id: null, data: {}, fix: null, cost: null, afford: null };
     expect(adviceWords(item, w).what).toBe('');
@@ -172,7 +172,7 @@ describe('v60 contract advice', () => {
 });
 
 describe('v60 contract large plots', () => {
-  it('tells a Large plot from a home merged under the old rule, and refuses every spot as locked until Track C fills it in', () => {
+  it('tells a Large plot from a home merged under the old rule, and refuses every spot as locked until the city has a home at Townhouse or above', () => {
     const w = makeTestWorld();
     const plot = addRaw(w, 'house', 2, 2);
     const merged = addRaw(w, 'house', 6, 6, { w: 2, d: 2, tier: 6 });
@@ -181,8 +181,10 @@ describe('v60 contract large plots', () => {
     expect([plot, merged, lot, well].map(isLargePlot)).toEqual([false, false, true, false]);
     expect([plot, merged, lot, well].map(isMergedHome)).toEqual([false, true, false, false]);
     expect([LARGE_PLOT.unlockTier, LARGE_PLOT.size]).toEqual([5, 2]);
-    w.milestone = 'capital';
-    expect([largePlotUnlocked(w), canPlaceLargePlot(w, 20, 20)]).toEqual([false, { ok: false, reason: 'locked', warnings: [] }]);
+    const bare = makeTestWorld();
+    bare.milestone = 'capital';
+    expect([largePlotUnlocked(bare), canPlaceLargePlot(bare, 20, 20)]).toEqual([false, { ok: false, reason: 'locked', warnings: [] }]);
+    expect(largePlotUnlocked(w)).toBe(true);                  // a Manor (merged under the old rule) is a home above Townhouse: the card is there
     expect(largePlotTiles(3, 4)).toEqual([[3, 4], [4, 4], [3, 5], [4, 5]]);
   });
 });

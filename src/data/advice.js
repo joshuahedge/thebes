@@ -14,7 +14,8 @@ export const ADVICE = {
   crime: 2,                // each home at High crime risk no staffed police post reaches (the 'crime_risk' alerts' homes)
   tower: 10,               // each tower short of what a raid this size needs
   towerWarned: 3,          // times this while a raid is warned (ruling 600: so the first warned raid, 4 towers short, outranks the booth, 120 to 108)
-  locked: 0.5,             // homes held back by a need whose fix is not unlocked yet: times this (the words name the milestone)
+  largePlot: 6,            // Version 6.0 (Track C): Townhouses with every need met and no Large plot in the city: one Large plot, the weight of the Manor it opens as
+  locked: 0.5,           // homes held back by a need whose fix is not unlocked yet: times this (the words name the milestone)
   // Task 7: the decorations a low street's fix chooses from (src/sim/advice.js desirabilityFix), each once it is unlocked: the cheapest that
   // lifts the home to its target alone, else the one that lifts it most, at the free tile where it lifts it most.
   decor: ['garden', 'statue', 'sphinx'],

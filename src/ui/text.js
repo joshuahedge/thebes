@@ -2742,6 +2742,44 @@ export const V60_ADVICE_WORDS = {};
 //
 // ── v60 c (Track C, rulings 700-719: the Large plot and the 5.0 loose ends) ─────────────────────────────────────────────
 // Add new lines just above the end marker.
+// The Large plot (src/data/largePlots.js, src/sim/largePlots.js): its card, its sheet's "Opens when" list, its next step and advice, its tips and How to play. Every number and
+// name here is the data's (TIERS, LARGE_PLOT, the card's price in cardInfo): the Manor it opens as, the Townhouse small plots stop at, the people a Manor holds.
+import { LARGE_PLOT as lgPlot } from '../data/largePlots.js';
+const lgManor = TIERS[lgPlot.opensTier].name, lgTown = TIERS[lgPlot.unlockTier].name;
+const lgAn = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
+export const LARGE_TEXT = {
+  name: 'Large plot',
+  // The sheet: an empty lot is a "Large plot", a home on one says so ("Manor on a Large plot").
+  title: (s) => (s.lot ? 'Large plot' : `${tierName(s.tier)} on a Large plot`),
+  opensHead: 'Opens when',
+  opensNote: `People move in as ${lgAn(lgManor)} once every row below is met nearby.`,
+  waiting: `An empty lot: nobody moves in until the list below is met`,
+  // The step line: an empty lot whose rows are all met, and a Townhouse that has gone as far as a small plot goes.
+  ready: `people move in as ${lgAn(lgManor)} as the city draws them`,
+  kept: `nothing more to do: a small plot stops at ${lgTown}, and ${lgManor}s grow on Large plots`,
+  next: (price) => `a Large plot near here (${price}) opens as ${lgAn(lgManor)}: a small plot stops at ${lgTown}`,
+  // The placing bar's line while the ghost can go, the card's tooltip and the build-another label.
+  bar: `Opens as ${lgAn(lgManor)} when its needs are met nearby, then climbs in place`,
+  cardTitle: `A 2×2 lot. Empty until its needs are met nearby, then people move in as ${lgAn(lgManor)} (${TIERS[lgPlot.opensTier].capacity} people), and it grows to an ${TIERS[TIERS.length - 1].name} in place.`,
+  // City advice: Townhouses with every need met and no Large plot yet.
+  adviceWhat: (n) => `${plural(n, 'Townhouse has', 'Townhouses have')} every need met and cannot grow further`,
+  adviceWhy: `A small plot stops at ${lgTown}. ${lgManor}s and the grander homes grow only on a Large plot, which opens as ${lgAn(lgManor)} once its own needs are met`,
+  adviceFix: `Lay a Large plot beside them`,
+  // Home progress: the legend's note for an empty lot (the lot is washed like any home, and its missing need is the icon on it).
+  progress: { label: 'Large plot', words: `A Large plot with no people in it is shown like a home: the icon is the first need it waits on before people move in as ${lgAn(lgManor)}, a tick means it is ready` },
+};
+V60_HELP.c.push(
+  { head: 'Large plots', text: `Small plots stop at ${lgTown}. For ${lgAn(lgManor)} and the grander homes lay a Large plot (a 2×2 lot, on the Homes cards from your first ${lgTown}). It stays empty and marked until its needs are met nearby: tap it to see "${LARGE_TEXT.opensHead}", and Show me for each missing one. Then people move in as ${lgAn(lgManor)} and it climbs to an ${TIERS[TIERS.length - 1].name} in place, never splitting. Homes merged under the old rule keep working.` },
+);
+Object.assign(FIRST_TEXT, {
+  first_large_plot: { head: 'First Large plot', why: `Marked out. ${lgAn(lgManor).replace(/^a/, 'A')} opens here once its needs are met nearby, and it climbs in place.` },
+  first_manor: { head: `First ${lgManor}`, why: `A Large plot opened. ${lgManor}s hold ${TIERS[lgPlot.opensTier].capacity} people.` },   // the old words said four homes became one
+});
+TIP_TEXT.large_plot_card = `New: a Large plot, in Homes. Small plots stop at ${lgTown}; ${lgManor}s grow on a Large plot.`;
+TIP_HELP_TEXT.large_plot_card = `Large plots (Homes, from your first ${lgTown}): 2×2 lots, empty until their needs are met, then ${lgAn(lgManor)}.`;
+TIP_TEXT.large_plot_lot = 'Read "Opens when": each missing need names its cause and a Show me. All met, people move in.';
+TIP_HELP_TEXT.large_plot_lot = 'An empty Large plot lists what it opens on; the same rows a home reads, with the same Show me.';
+TIP_TEXT.merging_homes = `Lay a Large plot for ${lgAn(lgManor)}: a small plot stops at ${lgTown}.`;   // the old tip said three plots beside a Townhouse merge
 // ── end v60 c ──
 
 //

@@ -12,6 +12,8 @@ import { costOf, roadCostOf } from '../sim/costs.js';
 import { monthlyBill } from '../sim/economy.js';
 import { canAfford } from '../sim/money.js';
 import { CATEGORIES } from '../data/ui.js';
+import { LARGE_PLOT } from '../data/largePlots.js';
+import { largePlotUnlocked } from '../sim/largePlots.js';
 import { buildingName, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT, S46_MAP_TEXT } from './text.js';
 import { MAP } from '../data/map.js';
 import { el, clear } from './components.js';
@@ -25,6 +27,7 @@ const deviceRatio = () => Math.min(3, (typeof window !== 'undefined' && window.d
 // Stage 4 (Track C, spec 4.14, ruling 243): a card that unlocks by prestige is a step of its own. The first (the small
 // pyramid) shows, greyed, once its milestone is the next one or reached; each later one once the one before it has unlocked.
 export function cardShown(world, item) {
+  if (item === LARGE_PLOT.type) return largePlotUnlocked(world);   // Version 6.0 (Track C): the Large plot card comes with the first Townhouse, and is not a teaser before it
   if (!BUILDINGS[item] || isUnlocked(world, item)) return true;
   const step = PRESTIGE_UNLOCKS.indexOf(item);
   if (step > 0) return isUnlocked(world, PRESTIGE_UNLOCKS[step - 1]);
@@ -57,11 +60,12 @@ export function cardInfo(world, item) {
   let cost = 0, suffix = '', costText;
   if (item === 'road') { cost = roadCostOf(world); suffix = ' per tile'; }
   else if (item === 'house') { cost = costOf(world, 'house'); suffix = ' per plot'; }
+  else if (item === LARGE_PLOT.type) { cost = costOf(world, item); suffix = ' per lot'; }
   else if (item !== 'demolish') cost = costOf(world, item);
   costText = item === 'demolish' ? 'Refunds a quarter' : `${cost} gold${suffix}`;
   // Stage 4 (spec 4.20): while a palace stands its card is a way to it, not a price (picking it selects the palace).
   if (item === 'palace' && palaceOf(world)) return { item, name: buildingName(item), cost: 0, costText: UI4_TEXT.palaceStands, affordable: true, locked: false, lockText: '', isNew: false, terrainText: '' };
-  const locked = Boolean(BUILDINGS[item]) && !isUnlocked(world, item);
+  const locked = item === LARGE_PLOT.type ? !largePlotUnlocked(world) : Boolean(BUILDINGS[item]) && !isUnlocked(world, item);
   const isNew = !locked && (world.newItems || []).includes(item);
   // terrainText: "Fertile land" or "Rocky ground" for a building that needs it (placement review P15), "Not on the fields" for a monument (ruling 299)
   // (spec 4.4), else ''.

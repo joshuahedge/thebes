@@ -8,7 +8,9 @@ import { FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { MILESTONES } from '../data/progression.js';
 import { ADVICE, ADVICE_KINDS } from '../data/advice.js';
 import { allBuildings, housesOf } from './world.js';
-import { houseStatus, needCause, needsOf, desirabilityTarget, goodStoresFor } from './housing.js';
+import { houseStatus, needCause, needsOf, desirabilityTargetFor, goodStoresFor } from './housing.js';
+import { LARGE_PLOT } from '../data/largePlots.js';
+import { isLargePlot, isLot, isSmallTop, largePlotUnlocked } from './largePlots.js';
 import { alertsFor } from './alerts.js';
 import { monthForecast, biggestCost } from './economy.js';
 import { isUnlocked } from './progression.js';
@@ -61,7 +63,6 @@ const CAUSE_FIX = {
   well_no_road: VIEW, bazaar_no_road: VIEW, temple_no_road: VIEW, booth_no_road: VIEW,
   no_booth: { item: 'booth', at: 'home' },
   low_desirability: { item: 'garden', at: 'home' },   // Version 5.0 (Task 7): nextStep and the rows name desirabilityFix's decoration and tile; this is the fallback when none helps
-  no_square: { item: 'house', at: 'home' },
   // No store for the good near the bazaar: that store beside the bazaar, while it and the good's makers are unlocked (a store would stay empty).
   no_good: (world, cause) => {
     const item = storeFor(cause.good);
@@ -137,7 +138,7 @@ export function fetchStoreFor(world, cause) {
 // it most (ties: the cheaper, then ADVICE.decor's order). Returns { item, at: 'near', target (the tile's centre), spot: { x, y }, dist (tiles
 // from the home, 1 = beside it), from, to, needs } or null when the street is high enough or nothing unlocked has a tile that lifts it.
 export function desirabilityFix(world, house) {
-  const needs = house.tier >= 1 ? desirabilityTarget(house.tier) : null;
+  const needs = house.tier >= 1 || isLot(house) ? desirabilityTargetFor(house) : null;   // Version 6.0: an empty Large plot's street (the Manor's "to rise") is a fix too
   if (needs === null) return null;
   const field = desirabilityField(world);
   const from = houseDesirability(world, house, field);
@@ -290,8 +291,23 @@ export function nextStep(world, house) {
   }
   if (held) return held;
   if (rows.some((c) => !c.met)) return { ...base, reason: 'waiting', days: daysToDelivery(world) };   // unmet with no cause: the month's check decides
+  // Version 6.0 (Track C, ruling 703): a Townhouse on a small plot grows no further. Where the city has no Large plot yet, the grand home is the remedy: a Large
+  // plot beside it (the placing rule's own price), with a Show me; once one stands (an empty lot waits on its own list), the Townhouse is simply kept.
+  if (isSmallTop(house) && !hasLargePlot(world)) {
+    const fix = largePlotFix(world, house);
+    if (fix) return { ...base, reason: null, need: 'large', cause: { code: 'no_large', id: null }, ...priced(world, fix) };
+  }
   if (!s.next) return { ...base, reason: 'kept' };
   return s.tier === 0 ? { ...base, reason: 'empty' } : { ...base, reason: 'ready', days: daysToDelivery(world) };
+}
+
+// Whether the city has a Large plot: an empty lot or a home on one.
+export const hasLargePlot = (world) => housesOf(world).some(isLargePlot);
+
+// The Large plot fix for a Townhouse: the card, beside the home (Show me finds the nearest tile where one fits), or null while the card is locked.
+export function largePlotFix(world, house) {
+  if (!largePlotUnlocked(world)) return null;
+  return { item: LARGE_PLOT.type, at: 'near', target: centreOf(house) };
 }
 
 // ── City advice (Task 1) ──
@@ -314,10 +330,11 @@ function homeItems(world, out) {
     let g = groups.get(key);
     if (!g) groups.set(key, (g = { key, kind: stranded ? 'stranded' : 'home_need', step, homes: [], points: 0 }));
     g.homes.push(h.id);
-    g.points += step.next ? step.next.tier : step.tier;
+    g.points += step.need === 'large' ? 0 : step.next ? step.next.tier : step.tier;
   }
   for (const g of groups.values()) {
     const { step } = g, c = step.cause;
+    if (step.need === 'large') g.points = ADVICE.largePlot;   // Version 6.0 (Track C): the Townhouses wait on one Large plot, not on one each: it weighs a Manor, whatever their count
     const data = { need: step.need, cause: c, homes: g.homes, points: g.points, locked: step.locked };
     if (g.kind === 'stranded') Object.assign(data, { good: c.good, store: c.id, bazaar: c.bazaar, len: c.len });
     out.push(item(g.key, g.kind, g.points * (step.reason === 'locked' ? ADVICE.locked : 1), g.homes.length, g.homes[0], data,

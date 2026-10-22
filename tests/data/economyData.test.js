@@ -182,7 +182,7 @@ describe('data milestones to Capital', () => {
 
 describe('data desirability', () => {
   it('gives every building but housing the spec 4.7 values, and only buildings that exist', () => {
-    const types = Object.keys(BUILDINGS).filter((t) => t !== 'house');
+    const types = Object.keys(BUILDINGS).filter((t) => t !== 'house' && t !== 'large_plot');   // Version 6.0: the Large plot card is housing too (a house when laid)
     expect(Object.keys(DESIRABILITY).sort()).toEqual(types.sort());
     // Stage 4.6 (ruling 389): a track building's values come from its own row (each track tests its own); the rest are spec 4.7's.
     expect(Object.fromEntries(Object.entries(DESIRABILITY).filter(([t]) => !S46_BUILDINGS[t]))).toEqual({

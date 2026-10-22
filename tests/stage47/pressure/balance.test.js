@@ -24,7 +24,7 @@ describe('s47 balance late', () => {
     const years = r.quotas.filter((q) => q.year <= LATE_YEARS);
     expect(years.map((q) => q.year)).toEqual([8, 9, 10, 11, 12, 13, 14, 15]);
     expect(years.map((q) => q.result)).toEqual(years.map(() => 'met'));
-    expect(years.filter((q) => q.early).length).toBeGreaterThanOrEqual(4);
+    expect(years.filter((q) => q.early).length).toBeGreaterThanOrEqual(3);   // Version 6.0 (Track C, ruling 705): years 8-10 early, 11-15 after month 6 (the four Manors are Large plots; it was years 8-13)
     expect(r.months.map((m) => m.unfed).filter((n) => n > 0)).toEqual([]);
     expect(r.lowestGold).toBeGreaterThan(0);
     const late = r.raids.filter((x) => x.year >= RAIDS_LATE.fromYear);

@@ -35,7 +35,8 @@ import { roadReach, adjacentRoadTiles, touchesRoad } from '../sim/reach.js';
 import { FIRE } from '../data/fire.js';
 import { ECONOMY } from '../data/economy.js';
 import { scoreLineFor } from './scoreUi.js';
-import { buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, goodName, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
+import { LARGE_PLOT } from '../data/largePlots.js';
+import { LARGE_TEXT, buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, goodName, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
 import { bridgeSpot } from '../sim/bridges.js';
 import { styleChoices } from './s46/wonders.js';
 
@@ -278,7 +279,8 @@ function basePreview(world, state) {
     // can burn (Stage 3); other buildings say nothing.
     const effect = tool.type === 'firehouse' ? DANGER_UI_TEXT.firehouseCovers(firehouseReachFrom(world, x, y))
       : def.reach ? effectText(tool.type, serviceHomesFrom(world, tool.type, x, y)) : '';
-    const text = !warn ? '' : c.warnings[0] === 'needs_road' && joins.length ? CONDITION_TEXT.roadHint : warningLine(world, tool.type, x, y, c.warnings[0]);
+    // Version 6.0 (Track C): a Large plot says what it will do before the tap: it opens as a Manor when its needs are met nearby (the sheet lists them).
+    const text = !warn ? (tool.type === LARGE_PLOT.type ? LARGE_TEXT.bar : '') : c.warnings[0] === 'needs_road' && joins.length ? CONDITION_TEXT.roadHint : warningLine(world, tool.type, x, y, c.warnings[0]);
     return { state: warn ? 'warn' : 'ok', reason: null, warnings: c.warnings, text, effect, cost, count: 1, tiles: [], refund: 0, ...extra };
   }
   if (state.plan && state.plan.tiles.length) return planPreview(world, tool, state.plan.tiles);
@@ -450,7 +452,7 @@ export function toolPreview(world, state) {
   if (state.tool.kind === 'building' && isMonumentType(state.tool.type) && (p.state === 'ok' || p.state === 'warn')) {
     p.score = scoreLineFor(world, state.tool.type, state.ghost.x, state.ghost.y);
     p.line = [p.score, monumentLine(world, state.tool.type, state.ghost.x, state.ghost.y, rotOf(state.tool), styleOfTool(state.tool))].filter(Boolean).join(' · ');
-  } else if (state.tool.kind === 'building' && (p.state === 'ok' || p.state === 'warn')) {
+  } else if (state.tool.kind === 'building' && state.tool.type !== LARGE_PLOT.type && (p.state === 'ok' || p.state === 'warn')) {   // a Large plot is an empty lot: it changes no street and no score
     const d = nicerFor(world, state.tool.type, state.ghost.x, state.ghost.y);
     p.nicer = nicerText(d.better, d.worse);
     p.nicerTone = d.better && d.worse ? 'mixed' : d.better ? 'better' : d.worse ? 'worse' : '';

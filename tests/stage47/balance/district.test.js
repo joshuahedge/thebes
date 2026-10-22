@@ -31,7 +31,7 @@ describe('s47 balance district', () => {
   it('shows homes upgrading once the near storehouse Fetches pottery, and none without the order', () => {
     const none = scene(false);
     const fetched = scene(true);
-    expect([none.before.five, fetched.before.five, none.before.waiting]).toEqual([1, 1, 29]);   // one manor above them, 29 homes waiting
+    expect([none.before.five, fetched.before.five, none.before.waiting]).toEqual([1, 1, 31]);   // one manor above them, 31 homes waiting (Version 6.0: the sample city's Manor is merged as a fixture, so two more plots stay apart; it was 29)
     expect(none.after.five).toBe(0);                                                            // no pottery near them: none rises, the manor falls back
     expect(none.after.tip.count).toBeGreaterThan(25);
     expect(none.w.tally.cartTrips).toBe(0);

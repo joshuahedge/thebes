@@ -9,7 +9,7 @@ import { createOverlayLegend } from '../../../src/ui/overlayUi.js';
 import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { OVERLAYS, LAYER_OVERLAYS, availableOverlays } from '../../../src/render/overlays.js';
-import { OVERLAY_NAMES, OVERLAY_LEGEND, TIP_TEXT, TIP_HELP_TEXT, V50_LAYERS_TEXT as W } from '../../../src/ui/text.js';
+import { OVERLAY_NAMES, OVERLAY_LEGEND, TIP_TEXT, TIP_HELP_TEXT, V50_LAYERS_TEXT as W, LARGE_TEXT } from '../../../src/ui/text.js';
 import { TIPS } from '../../../src/data/tips.js';
 import { SUPPLY_GOODS, JOBLESS_BANDS } from '../../../src/data/layers.js';
 import { MIN_STAFF_RATIO } from '../../../src/data/labour.js';
@@ -98,7 +98,7 @@ describe('v50 layers: the legend row', () => {
     return { root, store, legend, strip: () => root.querySelector('.strip'), cleanup };
   };
   it('Home progress and Workers: a strip with the name, its keys each carrying its words (Workers adds a note on when a count is taken), and an x that turns the layer off', () => {
-    for (const [kind, words] of [['progress', [W.ready, W.one, W.many]], ['workers', [W.short, W.stopped, W.jobless, W.newcomer]]]) {
+    for (const [kind, words] of [['progress', [W.ready, W.one, W.many, LARGE_TEXT.progress]], ['workers', [W.short, W.stopped, W.jobless, W.newcomer]]]) {
       const r = legendFor(kind, cityAt('town'));
       try {
         const strip = r.strip();
@@ -108,7 +108,7 @@ describe('v50 layers: the legend row', () => {
         expect([kind, keys.map((k) => k.getAttribute('aria-label'))]).toEqual([kind, words.map((x) => x.words)]);
         expect([kind, keys.map((k) => k.querySelector('.text').textContent)]).toEqual([kind, words.map((x) => x.label)]);   // the label is on screen, the words are for a screen reader
         expect([kind, keys.filter((k) => !k.classList.contains('note')).every((k) => k.querySelector('svg.layer-swatch'))]).toEqual([kind, true]);
-        expect([kind, keys.filter((k) => k.classList.contains('note')).length]).toEqual([kind, kind === 'workers' ? 1 : 0]);
+        expect([kind, keys.filter((k) => k.classList.contains('note')).length]).toEqual([kind, kind === 'workers' || kind === 'progress' ? 1 : 0]);   // Version 6.0: Home progress notes the Large plot too
         expect([kind, strip.querySelector('.goods-pick')]).toEqual([kind, null]);
         fire(strip.querySelector('.close'), 'click');
         expect([kind, r.store.get().overlay]).toEqual([kind, null]);

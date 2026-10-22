@@ -99,14 +99,15 @@ export function statuses(world, budget = Infinity) {
 //   state 'ready'  every need met (it grows at the month's end, or keeps its top tier)
 //         'one'    one need missing: `first` names it
 //         'many'   two or more missing: `first` is the first of them (the one nextStep names), `n` how many
-// An empty plot beside a road has nothing missing and nothing to show; a plot with no road is one need short (the road).
+// An empty plot beside a road has nothing missing and nothing to show; a plot with no road is one need short (the road). Version 6.0 (Track C): an empty
+// Large plot is shown like a home, its "Opens when" rows as the needs: an icon for the first it waits on (a number when more), a tick when it is ready.
 export function homeProgress(world, budget) {
   const { map, gen } = statuses(world, budget);
   return cached(world, 'progress', () => {
     const out = [];
     for (const { b, s, rows } of map.values()) {
       const missing = rows.filter((c) => !c.met).map((c) => c.need);
-      if (b.tier === 0 && !missing.length) continue;
+      if (b.tier === 0 && !missing.length && !s.lot) continue;   // an empty plot beside a road has nothing to show; an empty Large plot with every need met shows its tick (ready: people move in), Version 6.0
       const c = centreOf(b);
       out.push({ id: b.id, x: c.x, y: c.y, b, tier: s.tier, missing, n: missing.length, first: missing[0] || null, state: !missing.length ? 'ready' : missing.length === 1 ? 'one' : 'many' });
     }

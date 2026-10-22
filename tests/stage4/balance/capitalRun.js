@@ -15,6 +15,8 @@ import { milestoneIndex, isUnlocked } from '../../../src/sim/progression.js';
 import { costOf, routeCostOf } from '../../../src/sim/costs.js';
 import { T } from '../../../src/sim/terrain.js';
 import { idx } from '../../../src/sim/grid.js';
+import { LARGE_PLOT } from '../../../src/data/largePlots.js';
+import { largePlotUnlocked } from '../../../src/sim/largePlots.js';
 
 const SIZE = 48;
 const RESERVE = 400;
@@ -78,7 +80,8 @@ const CAPITAL_SCRIPT = [
     build('well', 17, 11), build('well', 25, 11), build('bazaar', 14, 10),
     plots(10, 13, 23, 13),
     ...once(40, build('temple', 19, 10), build('farm_grain', 27, 18)),
-    ...once(80, build('well', 33, 11), build('well', 38, 11), plots(25, 13, 30, 13), plots(32, 13, 39, 13)),
+    // Version 6.0 (Track C, ruling 705): small plots stop at Townhouse, so the Manor block (x 29-37) is four Large plots laid at Market town (below), not plots that merge.
+    ...once(80, build('well', 33, 11), build('well', 38, 11), plots(25, 13, 28, 13), plots(38, 13, 39, 13)),
     ...once(110, build('bazaar', 29, 10), build('temple', 34, 10), build('firehouse', 16, 11), build('firehouse', 32, 11),
       plots(10, 11, 39, 11), build('farm_grain', 18, 18)),
     ...once(140, build('farm_grain', 22, 21), build('farm_grain', 29, 18)),
@@ -89,14 +92,17 @@ const CAPITAL_SCRIPT = [
     // Two orchards, no more: homes eat grain before figs, so figs beyond what two-food homes need fill the shared
     // granaries and the grain farms stop with "no storage".
     build('farm_fig', 16, 18), build('farm_fig', 31, 18),
-    build('booth', 31, 13), plots(27, 14, 30, 14), plots(32, 14, 39, 14),
+    build('booth', 31, 13),
     build('statue', 29, 15), build('statue', 33, 15), build('statue', 37, 15),
     build('garden', 27, 15), build('garden', 31, 15), build('garden', 35, 15), build('garden', 39, 15),
     build('clay_pit', 14, 21), build('potter', 16, 21), build('granary', 25, 15), build('farm_grain', 24, 21),
   ),
   ...at('market_town',
+    // The four Large plots (2x2, rows 13-14, on the pleasant block where the Manors merged before 6.0), laid once a Townhouse has unlocked the card (a step that waits holds the
+    // ones after it, so they come after the Town's steps, with Market town's people already there).
+    ...[29, 32, 34, 36].map((x) => ({ ...build(LARGE_PLOT.type, x, 13), when: (w) => largePlotUnlocked(w) })),
     road(39, 20, 47, 20), build('trading_post', 36, 21), route('memphis'),
-    build('barracks', 8, 13), build('barracks', 38, 21), build('tower', 40, 19), build('tower', 25, 14),
+    build('barracks', 8, 13), build('barracks', 38, 21), build('tower', 40, 19), build('tower', 25, 14), build('tower', 23, 14),
     order('pottery', 'sell', 150),
     build('farm_grain', 26, 21), build('farm_grain', 33, 18), build('potter', 12, 21),
   ),

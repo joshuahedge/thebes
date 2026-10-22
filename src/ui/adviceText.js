@@ -11,7 +11,7 @@ import { GROUND, STEP_TEXT } from './nextStepText.js';
 import { costOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
 import {
-  NEED_NAMES, buildingName, goodName, plural, causeText, alertText, tierName, listText,
+  NEED_NAMES, LARGE_TEXT, buildingName, goodName, plural, causeText, alertText, tierName, listText,
   S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT, V60_ADVICE_WORDS,
 } from './text.js';
 
@@ -93,6 +93,12 @@ export function adviceWords(a, world) {
   const out = { what: '', why: '', fix: '', cost: '', short: false, action: null };
   switch (a.kind) {
     case 'home_need': {
+      if (d.need === 'large') {   // Version 6.0 (Track C): Townhouses with every need met and no Large plot yet: a Large plot is where a Manor grows
+        out.what = LARGE_TEXT.adviceWhat(a.count);
+        out.why = LARGE_TEXT.adviceWhy;
+        out.fix = a.fix ? LARGE_TEXT.adviceFix : '';
+        break;
+      }
       const n = a.count, c = causeText(d.cause, world, d.need) || { cause: '', fix: '' };
       out.what = `${homesText(n)} ${n === 1 ? 'is' : 'are'} held back by ${NEED_NAMES[d.need].toLowerCase()}`;
       out.why = forMany(c.cause, n);

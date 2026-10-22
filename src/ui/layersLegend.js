@@ -1,7 +1,7 @@
 // Version 5.0 (Task 3, rulings 540-549): the legend row of Home progress, Goods supply and Workers (src/ui/overlayUi.js puts it in #legend). Each key is a swatch drawn as the
 // map draws it (an inline SVG from the same icon paths and strengths as src/render/layers.js) with a short label, and the whole key has its full words for a screen reader.
 // Goods supply adds the good picker: one button per good the city can make (pottery from Town, beer, linen, jewellery as their makers unlock) and foods, each at least 44 px.
-import { OVERLAY_NAMES, V50_LAYERS_TEXT as W, T } from './text.js';
+import { OVERLAY_NAMES, V50_LAYERS_TEXT as W, LARGE_TEXT, T } from './text.js';
 import { OVERLAY_HUE } from '../render/overlays.js';
 import { NEED_ICONS, PROGRESS_ALPHA, SUPPLY_ALPHA, WORKERS_ALPHA, JOBLESS_ALPHA } from '../render/layers.js';
 import { iconPath } from '../render/spots.js';
@@ -80,6 +80,7 @@ const KEYS = {
     key(swatch([...tile(hue, PROGRESS_ALPHA.ready), disc(17, 8.5, 5.2, hue, { tick: true })]), W.ready.words, W.ready.label),
     key(swatch([...tile(hue, PROGRESS_ALPHA.one), disc(17, 8.5, 5.2, hue, { need: 'water' })]), W.one.words, W.one.label),
     key(swatch([...tile(hue, PROGRESS_ALPHA.many, true), disc(15.5, 8, 5.2, hue, { need: 'water', count: 2, heavy: true })]), W.many.words, W.many.label),
+    note(LARGE_TEXT.progress.words, LARGE_TEXT.progress.label),   // Version 6.0 (Track C): an empty Large plot is shown like a home, its Opens-when rows as the needs
   ],
   supply: (hue) => [
     key(swatch([...tile(hue, 0), svg('circle', { cx: 17, cy: 8.5, r: 4.8, fill: INK, 'fill-opacity': 0.6 }), svg('circle', { cx: 17, cy: 8.5, r: 4.2, fill: WHITE, 'fill-opacity': 0.9 }), svg('circle', { cx: 17, cy: 8.5, r: 3, fill: hue })]), W.has.words, W.has.label),

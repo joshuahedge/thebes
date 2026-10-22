@@ -16,6 +16,12 @@ import { bridgeVerdicts } from './bridges.js';
 import { tileBound, fitOf, fitReason } from './fit.js';
 import { noteBuilt } from './oases.js';
 import { onGoodSpot } from './spots.js';   // Stage 4.7 (Task 4): the spots' first; spots.js reads checkTiles from here, both only at call time
+import { LARGE_PLOT } from '../data/largePlots.js';
+import { largePlotUnlocked, makeLargePlot } from './largePlots.js';   // Version 6.0 (Track C): the Large plot card is laid as a house; largePlots.js reads canPlace from here, both only at call time
+// Version 6.0 (Track C): the card that lays a Large plot is a type of its own to the placing rules, and a home (a plot) to everything after the laying.
+const isLotCard = (type) => type === LARGE_PLOT.type;
+// A housing plot's rules: a road may come later, and it asks for none.
+const isPlotType = (type) => type === 'house' || isLotCard(type);
 // Stage 4.7 (Task 4): every housing plot laid counts (world.tally.plotsLaid), so the next-house spots (src/sim/spots.js) stay unlocked once the first is placed.
 // good: the plot went on a Good spot the player could see (the tool's mark, src/sim/spots.js), the tally of the first "A good spot" (goodSpotPlots).
 const notePlot = (world, b, good = false) => {
@@ -36,6 +42,10 @@ export const canPay = (world, type, cost) => (BUILDINGS[type].monument ? canPayN
 // Why a building cannot go at x, y before any tile is looked at, else null.
 function typeReason(world, type, x, y) {
   const def = BUILDINGS[type];
+  if (isLotCard(type)) {   // the Large plot card: not a milestone's card but the first Townhouse's (largePlotUnlocked)
+    if (!largePlotUnlocked(world)) return 'locked';
+    return isTile(x, y) ? null : 'out_of_bounds';
+  }
   if (!def || def.buildable === false) return 'unknown';   // rubble (and a gate) is never built
   if (!isUnlocked(world, type)) return 'locked';
   if (def.tile) return 'unknown';                          // walls are drawn as a line (drawWall, src/sim/defence.js), not placed
@@ -116,7 +126,7 @@ export function placementWarnings(world, type, x, y, roadLater = false, rot = 0)
   const { w, d } = dimsOf(type, rot);
   const warnings = [];
   // A plot can be placed off the road but no one moves in until one touches it; gardens and statues need none.
-  if (roadLater || (type === 'house' && !touchesRoad(world, { x, y, w, d }))) warnings.push('needs_road');
+  if (roadLater || (isPlotType(type) && !touchesRoad(world, { x, y, w, d }))) warnings.push('needs_road');
   const works = worksWarning(world, type, x, y, rot);
   if (works) warnings.push(works);
   const m = monumentChecks(world, type, x, y, rot);
@@ -183,10 +193,10 @@ export function conditionsFor(world, type, x, y, { roadLater = false, rot = 0, s
   if (def.water) Object.assign(ground, { water: def.water, wet: fitOf(world, type, x, y, rot).wet });
   if (def.monument) Object.assign(ground, { fertile: tiles.filter((t) => terrainAt(t) === TERRAIN_BY_NAME.fertile).length, of: tiles.length });
   conditions.push(ground);
-  if (def.needsRoad || type === 'house') {
+  if (def.needsRoad || isPlotType(type)) {
     const probe = { x, y, w, d };
     const touches = touchesRoad(world, probe);
-    const state = touches ? 'met' : (type === 'house' || roadLater ? 'later' : 'cant');
+    const state = touches ? 'met' : (isPlotType(type) || roadLater ? 'later' : 'cant');
     conditions.push({ key: 'road', state, reason: touches ? null : 'needs_road', joins: touches ? [] : roadJoins(world, probe) });
   }
   if (def.produces || def.sells) {
@@ -229,9 +239,11 @@ export function place(world, type, x, y, { roadLater = false, rot = 0, style = n
   if (!check.ok) return check;
   const cost = costOf(world, type, { style });
   const good = type === 'house' && onGoodSpot(world, x, y);   // judged before the plot takes the tile
-  const b = insertBuilding(world, makeBuilding(world, type, x, y, rot, { style }));
+  // Version 6.0 (Track C): the Large plot card lays a house of 2x2 carrying large: true (an empty marked lot); undo takes it back like a plot.
+  const b = insertBuilding(world, isLotCard(type) ? makeLargePlot(world, x, y) : makeBuilding(world, type, x, y, rot, { style }));
   noteBuilt(world, b);   // Stage 4.7: a building within 4 tiles of an oasis is the first's tally
   notePlot(world, b, good);
+  if (isLotCard(type)) world.tally.largePlots = (world.tally.largePlots || 0) + 1;
   spend(world, cost);
   // A tower on a standing wall tile gives the tile its 80 hit points (spec 4.13); undo puts the old value back.
   const walls = [];
