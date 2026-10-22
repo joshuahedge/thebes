@@ -62,8 +62,9 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     expect([items[3].data.need, items[3].fix.item]).toEqual(['water', 'well']);
   });
 
-  // Version 6.0 (Track C): the same 18 raiders at the first warning (3 of 6 towers now: the run builds a third), first again; the second warning is 23 raiders, 5 towers short.
-  it('a raid that is warned and short of towers is first at the first warning (18 raiders, 3 of 6 towers) and at the second (23 raiders)', () => {
+  // Version 6.0 (Track C): the same 18 raiders at the first warning (3 of 6 towers now: the run builds a third), first again. With Track A's costs and the court's due
+  // (merged), the second warning is 21 raiders, 4 towers short (Track C alone: 23, 5 short); first again.
+  it('a raid that is warned and short of towers is first at the first warning (18 raiders, 3 of 6 towers) and at the second (21 raiders)', () => {
     const w = deserialize(serialize(capitalRun().w));
     const seen = [];
     for (let m = 0; m < 80 && seen.length < 2; m++) {
@@ -74,22 +75,25 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     expect(seen.length).toBe(2);
     expect(seen[0].kinds[0]).toBe('raid_towers');                                      // ruling 600: ahead of the Manors' street (28) and everything else
     expect([seen[0].size, seen[0].raid.data.need, seen[0].raid.data.have, seen[0].raid.count, seen[0].raid.weight]).toEqual([18, 6, 3, 3, 3 * ADVICE.tower * 3]);
-    expect([seen[1].kinds[0], seen[1].size, seen[1].raid.count, seen[1].raid.weight]).toEqual(['raid_towers', 23, 5, 5 * ADVICE.tower * 3]);
+    expect([seen[1].kinds[0], seen[1].size, seen[1].raid.count, seen[1].raid.weight]).toEqual(['raid_towers', 21, 4, 4 * ADVICE.tower * 3]);
     expect(ADVICE.towerWarned).toBe(3);
   });
 
+  // Version 6.0 (Tracks A and C merged): crime 8 at the fourth (Track C alone: 10).
   it('the late run, at year 15, names sickness in 13 homes, then the four Manors\' street, water and crime; its towers are enough, so no raid item', () => {
     const { w } = lateRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.weight])).toEqual([['illness', null, 39], ['home_need', 'desirability', 28], ['home_need', 'water', 12], ['crime', null, 10]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.weight])).toEqual([['illness', null, 39], ['home_need', 'desirability', 28], ['home_need', 'water', 12], ['crime', null, 8]]);
     expect(cityAdvice(w).some((x) => x.kind === 'raid_towers')).toBe(false);
   });
 
-  it('the grand district run, at year 10, names the 4 towers a raid lacks first, then sickness in 8 homes, the 41 jobs no worker fills and water', () => {
+  // Version 6.0 (Tracks A and C merged; the grand run answers the court now): the raid lacks 2 towers, not 4, so sickness leads (Track C alone: the raid 40,
+  // sickness 24, 41 jobs unfilled 20.5, water 12).
+  it('the grand district run, at year 10, names sickness in 8 homes first, then the 2 towers a raid lacks, the 28 jobs no worker fills and crime', () => {
     const { w } = grandRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['raid_towers', null, 4, 40], ['illness', null, 8, 24], ['workers_short', null, 41, 20.5], ['home_need', 'water', 6, 12]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['illness', null, 8, 24], ['raid_towers', null, 2, 20], ['workers_short', null, 28, 14], ['crime', null, 6, 12]]);
   });
 });

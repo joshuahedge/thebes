@@ -14,7 +14,9 @@
 //   prestige    { courses, done }: the share earned course by course (rounded down, ruling 242) and on completion
 //   desirability  the finished monument's values by distance 1-6 (spec 4.7); a site under way gives SITE_DESIRABILITY
 //   unlock      { milestone } or { milestone, prestige }: the pyramids also need that much prestige (ruling 200)
-export const MONUMENT_KINDS = ['obelisk_small', 'obelisk_large', 'great_sphinx', 'colossus', 'mastaba_small', 'mastaba_large', 'sun_temple', 'pyramid_small', 'step_pyramid', 'pyramid_great'];
+// Version 6.0 (Track A, ruling 652): the great temple, the final great work, joins them last: one a city, unlocked at the last rank (Seat of
+// the Two Lands), its courses laid in stages that each take an offering of goods (GREAT_WORK in src/data/reign.js).
+export const MONUMENT_KINDS = ['obelisk_small', 'obelisk_large', 'great_sphinx', 'colossus', 'mastaba_small', 'mastaba_large', 'sun_temple', 'pyramid_small', 'step_pyramid', 'pyramid_great', 'great_temple'];
 
 // n courses of the same recipe.
 const even = (n, stone, bricks = 0) => Array.from({ length: n }, () => ({ stone, bricks }));
@@ -70,6 +72,13 @@ export const MONUMENTS = {
   pyramid_great: {
     name: 'Great pyramid', w: 7, d: 7, rotates: false, crews: 4, crewMonths: 720, courses: even(12, 1020, 180),
     founding: 6000, extra: { kind: 'capstone', gold: 5000 }, prestige: { courses: 135, done: 135 }, desirability: [24, 20, 16, 12, 10, 8], unlock: { milestone: 'capital', prestige: 300 },
+  },
+  // Version 6.0 (Track A, rulings 652-656): the great temple, a terraced temple of five stages (two courses each, GREAT_WORK.perStage), stone with
+  // a tenth in bricks for its ramps: 4,320 stone and 480 bricks, 60 months with its four crews. Each stage begins with an offering of goods
+  // (GREAT_WORK.offerings). Finishing it wins the reign. Drawn in the step family (src/render/art/monuments.js), five terraces and a shrine.
+  great_temple: {
+    name: 'Great temple', w: 5, d: 5, rotates: false, crews: 4, crewMonths: 300, courses: even(10, 540, 60),
+    founding: 8000, extra: null, prestige: { courses: 100, done: 100 }, desirability: [24, 20, 16, 12, 10, 8], unlock: { milestone: 'seat' },
   },
 };
 

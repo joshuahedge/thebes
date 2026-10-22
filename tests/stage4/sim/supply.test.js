@@ -2,7 +2,7 @@ import { describe, it, expect } from '../../harness.js';
 import { supplyNeeded, deliverySites, materialOf, guildsNear, monumentDay, hasMonumentWork } from '../../../src/sim/monuments.js';
 import { produceDay } from '../../../src/sim/production.js';
 import { assignLabour } from '../../../src/sim/labour.js';
-import { monthlyEconomy } from '../../../src/sim/economy.js';
+import { monthlyEconomy, monthlyBill } from '../../../src/sim/economy.js';
 import { advanceDays } from '../../../src/sim/clock.js';
 import { canPlace } from '../../../src/sim/commands.js';
 import { alertsFor } from '../../../src/sim/alerts.js';
@@ -99,12 +99,13 @@ describe('s4 sim idle supply buildings', () => {
     const quarry = addRaw(w, 'quarry', 16, 11), bw = addRaw(w, 'brickworks', 20, 11);
     assignLabour(w);
     monthlyEconomy(w);
-    expect([quarry.staff, bw.staff, w.labour.jobs, w.stats.lastMonth.wages, w.stats.lastMonth.upkeep]).toEqual([0, 0, 0, 0, 12]);
+    const upkeep = monthlyBill('quarry', w).upkeep + monthlyBill('brickworks', w).upkeep;   // 6 and 6 at the data's own; Version 6.0 (Track A): the rank's upkeep
+    expect([quarry.staff, bw.staff, w.labour.jobs, w.stats.lastMonth.wages, w.stats.lastMonth.upkeep]).toEqual([0, 0, 0, 0, upkeep]);
     expect([hasMonumentWork(w, quarry), hasMonumentWork(w, bw)]).toEqual([false, false]);
     addRaw(w, 'obelisk_small', 24, 9);                                            // wants stone, 8 road tiles from the quarry
     assignLabour(w);
     monthlyEconomy(w);
-    expect([quarry.staff, bw.staff, w.labour.jobs, w.stats.lastMonth.wages, w.stats.lastMonth.upkeep]).toEqual([10, 0, 10, 40, 12]);
+    expect([quarry.staff, bw.staff, w.labour.jobs, w.stats.lastMonth.wages, w.stats.lastMonth.upkeep]).toEqual([10, 0, 10, monthlyBill('quarry', w).wages, upkeep]);
   });
 });
 

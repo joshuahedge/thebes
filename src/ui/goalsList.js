@@ -157,7 +157,9 @@ function goalRow(world, goal, onShowMe) {
 export function thresholdFor(world) {
   const clamp = (v) => Math.max(0, Math.min(1, v));
   const i = milestoneIndex(world.milestone);
-  if (i < MILESTONES.length - 1) {
+  // Version 6.0 (Track A, ruling 659): a rank that needs more than people (beyond Capital) is not a count of people: from Capital the bar shows
+  // the next medal, as it did, and the goals and the reign's sheet say what each rank beyond needs.
+  if (i < MILESTONES.length - 1 && !MILESTONES[i + 1].needs) {
     const next = MILESTONES[i + 1], from = MILESTONES[i].population;
     const n = Math.min(next.population, Math.max(world.tally.peakPeople, population(world)));
     return { kind: 'milestone', text: thresholdMilestoneText(next.name, n, next.population), share: clamp((n - from) / (next.population - from)) };

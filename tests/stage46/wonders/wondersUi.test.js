@@ -182,7 +182,7 @@ describe('s46 wonders sheet row and tips', () => {
       const items = [...r.root.querySelectorAll('#sheet .tips-list li')].map((li) => li.textContent);
       for (const type of NEW_MONUMENT_KINDS) expect([type, items.includes(S46_WONDER_TEXT.kindHelp(type))]).toEqual([type, true]);
       expect(items.includes(S46_WONDER_TEXT.styleTip)).toBe(true);
-      expect(MONUMENT_KINDS.length).toBe(10);
+      expect(MONUMENT_KINDS.length).toBe(11);                                    // Version 6.0 (Track A): the great temple
       expect(MONUMENTS.great_sphinx.name).toBe('Great sphinx');
     } finally { r.cleanup(); }
   });

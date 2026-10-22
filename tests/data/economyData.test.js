@@ -154,6 +154,7 @@ describe('data milestones to Capital', () => {
     expect(MILESTONES.map((m) => [m.id, m.name, m.population])).toEqual([
       ['village', 'Village', 0], ['town', 'Town', 150], ['market_town', 'Market town', 250],
       ['city', 'City', 400], ['great_city', 'Great city', 650], ['capital', 'Capital', 1000],
+      ['great_capital', 'Great Capital', 1250], ['seat', 'Seat of the Two Lands', 1400],   // Version 6.0 (Track A), ruling 653: the ranks beyond Capital
     ]);
     expect(Object.fromEntries(MILESTONES.map((m) => [m.id, m.unlocks]))).toEqual({
       village: ['house', 'well', 'farm_grain', 'granary', 'bazaar', 'temple', 'garden', 'firehouse'],
@@ -162,6 +163,7 @@ describe('data milestones to Capital', () => {
       city: ['farm_barley', 'brewery', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'plaza'],
       great_city: ['farm_flax', 'weaver', 'colossus', 'mastaba_small', 'sphinx', 'great_sphinx'],   // Stage 4.6: the great sphinx
       capital: ['gem_mine', 'jeweller', 'mastaba_large', 'sun_temple', 'step_pyramid'],   // Stage 4.6: the sun temple and the step pyramid
+      great_capital: [], seat: ['great_temple'],                                      // Version 6.0 (Track A): the great temple comes with the Seat
     });
   });
   it('unlocks every building exactly once, and nothing that does not exist', () => {
@@ -198,6 +200,7 @@ describe('data desirability', () => {
       mastaba_large: [14, 12, 10, 8, 6, 4], pyramid_small: [16, 14, 12, 10, 8, 6], pyramid_great: [24, 20, 16, 12, 10, 8],
       // Stage 4.6 (Wonders, rulings 390-392): the great sphinx like the colossus, the sun temple's wide reach, the step pyramid between the pyramids
       great_sphinx: [12, 10, 8, 6, 4, 2], sun_temple: [15, 13, 11, 9, 7, 5], step_pyramid: [20, 17, 14, 11, 9, 7],
+      great_temple: [24, 20, 16, 12, 10, 8],                                          // Version 6.0 (Track A): the great temple, as the great pyramid
     });
   });
   it('gives homes values by tier, from an empty plot to an Estate', () => {

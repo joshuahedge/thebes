@@ -13,6 +13,10 @@ export const MILESTONES = [
   { id: 'city', name: 'City', population: 400, unlocks: ['farm_barley', 'brewery', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'plaza'] },
   { id: 'great_city', name: 'Great city', population: 650, unlocks: ['farm_flax', 'weaver', 'colossus', 'mastaba_small', 'sphinx'] },
   { id: 'capital', name: 'Capital', population: 1000, unlocks: ['gem_mine', 'jeweller', 'mastaba_large'] },
+  // Version 6.0, Track A (rulings 621, 653): two ranks beyond Capital, each with a need beyond its people (needs: { tier }: a home at that
+  // tier or above stands; src/sim/progression.js milestoneNeedsMet). The great temple, the final great work, comes with the last.
+  { id: 'great_capital', name: 'Great Capital', population: 1250, needs: { tier: 8 }, unlocks: [] },
+  { id: 'seat', name: 'Seat of the Two Lands', population: 1400, needs: { tier: 9 }, unlocks: ['great_temple'] },
 ];
 
 // Stage 4.6: each track's unlocks (src/data/s46.js S46_UNLOCKS: milestone id -> types) join their milestone's list, after its own.

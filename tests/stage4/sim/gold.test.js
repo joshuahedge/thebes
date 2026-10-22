@@ -3,7 +3,7 @@ import { monumentDay, monumentMonth } from '../../../src/sim/monuments.js';
 import { workGoldPerUnit, extraGoldOf } from '../../../src/sim/costs.js';
 import { MONUMENT } from '../../../src/data/monuments.js';
 import { canPlace } from '../../../src/sim/commands.js';
-import { monthlyEconomy } from '../../../src/sim/economy.js';
+import { monthlyEconomy, monthlyBill } from '../../../src/sim/economy.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 
 // A Capital with a road along y = 10 in the 32x32 test world (fertile land is x < 8; addRaw places anywhere).
@@ -110,7 +110,8 @@ describe('s4 sim monument gold in the books', () => {
     run(w, 30);
     monthlyEconomy(w);
     monumentMonth(w);
-    expect([w.stats.lastMonth.monuments, w.stats.lastMonth.net]).toEqual([1130, -74]);   // 1,000 gilding and 20 units at 6.5; net: the guild's 64 wages and 10 upkeep
-    expect(w.gold).toBe(5000 - 1130 - 74);
+    const bill = monthlyBill('builders_guild', w).bill;                            // the guild's 64 wages and 10 upkeep at the data's own (Version 6.0 (Track A): the rank's)
+    expect([w.stats.lastMonth.monuments, w.stats.lastMonth.net]).toEqual([1130, -bill]);   // 1,000 gilding and 20 units at 6.5; net: the guild's bill
+    expect(w.gold).toBe(5000 - 1130 - bill);
   });
 });

@@ -117,13 +117,15 @@ describe('s45 forecast (cards and the confirm bar)', () => {
   it('puts "Costs N a month · N workers" on every card that has a bill, from the sim, and nothing on roads, plots and monuments', () => {
     const w = city();
     w.milestone = 'capital';                                          // every card unlocked
-    expect(cardInfo(w, 'farm_grain').upkeepText).toBe('Costs 46 a month · 10 workers');
-    expect(cardInfo(w, 'well').upkeepText).toBe('Costs 3 a month');
-    expect(cardInfo(w, 'booth').upkeepText).toBe(`Costs ${monthlyBill('booth').bill} a month · 4 workers`);
+    // Version 6.0 (Track A) (ruling 640): a Capital's bills are its rank's (costScale), each rounded per building: the card says the sim's own bill.
+    expect(cardInfo(w, 'farm_grain').upkeepText).toBe(`Costs ${monthlyBill('farm_grain', w).bill} a month · 10 workers`);
+    expect(monthlyBill('farm_grain', w).bill).toBeGreaterThan(monthlyBill('farm_grain').bill);
+    expect(cardInfo(w, 'well').upkeepText).toBe(`Costs ${monthlyBill('well', w).bill} a month`);
+    expect(cardInfo(w, 'booth').upkeepText).toBe(`Costs ${monthlyBill('booth', w).bill} a month · 4 workers`);
     for (const t of ['road', 'house', 'demolish', 'statue', 'wall']) expect([t, cardInfo(w, t).upkeepText]).toEqual([t, '']);
     for (const category of ['homes', 'services', 'food', 'industry', 'defence', 'monuments']) {
       for (const item of shownItems(w, category)) {
-        const i = cardInfo(w, item), bill = BUILDINGS[item] && !i.locked ? monthlyBill(item) : null;
+        const i = cardInfo(w, item), bill = BUILDINGS[item] && !i.locked ? monthlyBill(item, w) : null;
         expect([item, i.upkeepText]).toEqual([item, bill && bill.bill > 0 ? S45_TEXT.upkeepLine(bill) : '']);
       }
     }

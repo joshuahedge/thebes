@@ -12,7 +12,7 @@ import { costOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
 import {
   NEED_NAMES, LARGE_TEXT, OPEN_TEXT, buildingName, goodName, plural, causeText, alertText, tierName, listText,
-  S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT, V60_ADVICE_WORDS,
+  S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT, V60_ADVICE_WORDS, V60_REIGN_TEXT,
 } from './text.js';
 
 const homesText = (n) => plural(n, 'home', 'homes');
@@ -26,7 +26,9 @@ const an = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
 export const ADVICE_TEXT = {
   allWell: 'All is well: nothing is holding your city back.',
   // The next milestone, in place of problems: "Next: Town, at 150 people (you have 112)". At the last one there is none.
-  next: (milestone, people) => `Next: ${milestone.name}, at ${plural(milestone.population, 'person', 'people')} (you have ${people})`,
+  // Version 6.0 (review): a rank that needs a home of a tier too says so (the reign sheet's words, V60_REIGN_TEXT.nextRank), as the sim's milestoneNeedsMet asks.
+  next: (milestone, people, met = true) => (milestone.needs ? V60_REIGN_TEXT.nextRank(milestone, people, met)
+    : `Next: ${milestone.name}, at ${plural(milestone.population, 'person', 'people')} (you have ${people})`),
   last: (milestone) => `You have reached ${milestone.name}, the last milestone.`,
   more: (n) => `${plural(n, 'more problem is', 'more problems are')} not shown: fix these first.`,
   show: 'Show me', view: 'View',

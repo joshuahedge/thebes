@@ -2728,6 +2728,131 @@ export const V60_ADVICE_WORDS = {};
 //
 // ── v60 a (Track A, rulings 640-679: costs, demands, ranks beyond Capital, the great work) ─────────────────────────────────
 // Add new lines just above the end marker: V60_HELP.a.push(...), V60_ADVICE_WORDS.demand = ..., ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ...
+// Every number on screen comes from the sim's own records and functions (src/sim/demands.js, src/sim/pressure.js courtDue, src/sim/monuments.js
+// greatWorkStatus) or from the data (src/data/reign.js), passed in by the interface (src/ui/v60/reign.js, src/ui/s46/court.js, src/ui/monumentSheet.js).
+import { COST_GROWTH as reignGrowth, COURT_DUE as reignDue, DEMANDS as reignDemands, GREAT_WORK as reignGreat } from '../data/reign.js';
+import { FAVOUR as reignFavour } from '../data/court.js';
+import { QUOTA as reignQuota } from '../data/s47.js';
+const reignNum = (n) => ui4Gold(n);
+const reignPct = (share) => `${Math.round(share * 100)}%`;
+const reignShare = (share) => ({ 0.5: 'a half', 0.25: 'a quarter', 0.75: 'three quarters' }[share] || reignPct(share));   // a share of the whole, as the court says it
+const reignMonths = (n) => plural(n, 'month', 'months');
+const reignRank = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
+const reignAsk = (d) => (d.kind === 'gold' ? `${reignNum(d.amount)} gold` : d.kind === 'soldiers' ? `${d.amount} trained units`
+  : d.kind === 'building' ? `a ${buildingName(d.type).toLowerCase()}${BUILDINGS[d.type].monument ? ', finished' : ''}` : `${reignNum(d.amount)} ${goodWord(d.good)}`);
+const reignStageNames = { foundations: 'the foundations', court: 'the court', hall: 'the hall of columns', sanctuary: 'the sanctuary', crown: 'the crown' };
+export const V60_REIGN_TEXT = {
+  // ── The court's demands (rulings 644-650) ──
+  demandHead: "The court's demand",
+  demandTitle: (d) => `The court demands ${reignAsk(d)}`,
+  offered: 'Offered: accept or decline it',
+  answerBy: (left) => `Answer within ${reignMonths(Math.max(1, left))}: left unanswered, it counts as declined.`,
+  deadlineIf: (d) => `If accepted: due ${reignMonths(d.months)} later.`,
+  dueIn: (d) => `Due in ${reignMonths(d.monthsLeft)} (${courtDate(d.due)}).`,
+  reward: (d, f) => `Met: favour ${courtSigned(f.met)} and ${reignNum(d.reward)} gold.`,
+  failed: (f) => `Failed (the deadline passes): favour ${courtSigned(f.failed)}.`,
+  declined: (f) => `Declined: favour ${courtSigned(f.declined)}.`,
+  favourWhy: (raids = true) => `Favour sets the court's due: ×${reignDue.favour.low} at ${reignFavour.low} or less, ×${reignDue.favour.high} at ${reignFavour.high} or more.${raids ? ' Low favour also brings bigger raids.' : ''}`,
+  accept: 'Accept', decline: 'Decline', giveUp: 'Give up',
+  acceptWhat: (d) => `The deadline starts: ${reignMonths(d.months)}.`,
+  send: (d) => (d.kind === 'soldiers' ? `Send ${d.amount} units` : `Send ${reignAsk(d)}`),
+  sendWhat: (d, f) => (d.kind === 'soldiers' ? `They are away ${reignMonths(reignDemands.amounts.soldiers.months)} and fight no raid. ` : '') + `Favour ${courtSigned(f.met)}, ${reignNum(d.reward)} gold back.`,
+  buildIt: (d) => `Build ${reignAsk(d)}: it counts the day one more stands than when you accepted.`,
+  have: (d, st) => (d.kind === 'gold' ? `In the treasury: ${reignNum(st.have)} of ${reignNum(st.need)}` : d.kind === 'soldiers' ? `At home: ${st.have} of ${st.need} units`
+    : d.kind === 'building' ? `Built since you accepted: ${st.have} of 1` : `In your stores: ${reignNum(st.have)} of ${reignNum(st.need)}`),
+  problem: (reason, st, d) => ({
+    short: `Your stores hold ${reignNum(st.have)} of ${reignNum(st.need)} ${d.good ? goodWord(d.good) : ''}`.trim(),
+    no_gold: `The treasury holds ${reignNum(st.have)} of ${reignNum(st.need)} gold`,
+    raid: 'Units cannot leave while raiders are in the city',
+    not_enough: `${st.have} of ${st.need} units are at home`,
+  })[reason] || '',
+  noDemand: 'No demand is open. The court asks about once a year.',
+  later: 'Later', openCourt: 'Open the court',
+  next: (months) => `The next demand comes in about ${reignMonths(Math.max(1, months))}.`,
+  open: 'Open demand',
+  captionOffered: (d) => `${V60_REIGN_TEXT.demandTitle(d)}: open the court to answer`,
+  captionAccepted: (d) => `Accepted: ${reignAsk(d)} within ${reignMonths(d.months)}`,
+  captionSettled: (e) => (e.result === 'met' ? `The court's demand met: favour ${courtSigned(e.favour)}, ${reignNum(e.gold)} gold`
+    : e.result === 'refused' ? `The court's demand declined: favour ${courtSigned(e.favour)}` : `The court's demand failed: favour ${courtSigned(e.favour)}`),
+  logLine: (e) => `${e.result === 'met' ? 'Met' : e.result === 'refused' ? 'Declined' : 'Failed'}: ${reignAsk(e)} (favour ${courtSigned(e.favour)}${e.gold > 0 ? `, ${reignNum(e.gold)} gold` : ''})`,
+  pastHead: 'Past demands',
+  // ── The court's due (rulings 642, 643) ──
+  dueHead: "The court's due",
+  dueRule: (due) => `${reignPct(due.treasuryShare)} of the treasury or ${reignPct(due.taxesShare)} of a year's taxes, whichever is more, on the first day of each year from year ${reignQuota.fromYear}.`,
+  dueNow: (due, year) => `Year ${year}: about ${reignNum(due.gold)} gold${due.monthsLeft ? ` in ${reignMonths(due.monthsLeft)}` : ''}.`,
+  dueParts: (due, gold) => [
+    due.by === 'treasury' ? `${reignPct(due.treasuryShare)} of ${reignNum(Math.max(0, gold))} in the treasury` : `${reignPct(due.taxesShare)} of ${reignNum(due.yearTaxes)} a year in taxes`,
+    due.factor !== 1 ? `×${due.factor} for ${due.band} favour` : '',
+    due.cost !== 1 ? `×${due.cost} for the difficulty` : '',
+    due.greatWork ? `cut to ${reignShare(reignDue.greatWork)} while the great temple rises` : '',
+  ].filter(Boolean).join(', '),
+  dueShort: (due, have) => `The treasury holds ${reignNum(Math.max(0, have))}: the due takes it past 0 into debt.`,
+  dueSummary: (due) => `About ${reignNum(due.gold)} gold in ${reignMonths(Math.max(1, due.monthsLeft))}`,
+  dueCaption: (e) => `The court took its due: ${reignNum(e.gold)} gold`,
+  dueLog: (e) => `The court's due: ${reignNum(e.gold)} gold`,
+  dueBefore: `From year ${reignQuota.fromYear} the court takes a yearly due in gold.`,
+  // ── Costs that grow (rulings 640, 641) ──
+  costsHead: 'Running costs',
+  costsLine: (scale) => `At this rank, on average (each price is rounded to whole gold): upkeep ×${Math.round(scale.upkeep * 100) / 100}, wages ×${Math.round(scale.wages * 100) / 100}, monuments ×${Math.round(scale.monuments * 100) / 100}.`,
+  // ── The reign: ranks beyond Capital and the great work (rulings 652-658) ──
+  reignHead: 'The reign',
+  nextRank: (m, people, met) => `Next: ${m.name}, at ${reignNum(m.population)} people (you have ${reignNum(people)})${m.needs && m.needs.tier ? ` and a ${TIERS[m.needs.tier].name} or grander (${met ? 'you have one' : 'none yet'})` : ''}.`,
+  greatHead: 'The great temple',
+  greatOpen: 'The great work',
+  greatLocked: `The great temple comes with the ${reignRank('seat')}: the final great work, and it wins the reign.`,
+  greatReady: 'Found the great temple: it wins the reign. Each stage asks an offering of goods.',
+  greatFound: 'Found it',
+  stageName: (i) => reignStageNames[reignGreat.stages[i]] || `stage ${i + 1}`,
+  stageLine: (s) => (s.stage >= s.stages ? `All ${s.stages} stages stand.` : `Stage ${s.stage + 1} of ${s.stages}: ${V60_REIGN_TEXT.stageName(s.stage)}.`),
+  offeringLine: (o) => `This stage's offering: ${reignNum(o.n)} ${goodWord(o.good)} (your stores hold ${reignNum(o.have)}). The crews wait for it.`,
+  offeringsList: (world, offeringOf) => reignGreat.stages.map((id, i) => { const o = offeringOf(world, i); return `${V60_REIGN_TEXT.stageName(i).replace(/^the /, (m) => m.charAt(0).toUpperCase() + m.slice(1))}: ${reignNum(o.n)} ${goodWord(o.good)}`; }),
+  offeringMade: (e) => `The great temple's offering: ${reignNum(e.n)} ${goodWord(e.good)} for ${V60_REIGN_TEXT.stageName(e.stage)}`,
+  greatCost: (gold, scale) => `${reignNum(gold)} gold to found; its work gold grows with the rank (×${Math.round(scale * 100) / 100} now).`,
+  // ── The closing scene (in a sheet: ruling 658) ──
+  wonTitle: 'The reign is won',
+  wonLead: (day) => `${courtDate(day)}: the great temple stands finished, and the Two Lands are yours.`,
+  wonSeal: (seal) => `Your score is sealed at ${score4Count(seal.score)}${seal.medal ? `, a ${medalText(seal.medal).toLowerCase()}` : ''}. It is in your chronicle.`,
+  wonOn: 'Play on: the city is yours to keep. The court, the dues and the dangers go on.',
+  playOn: 'Play on',
+  wonSummary: (day) => `Won in ${courtDate(day).toLowerCase()}`,
+  seeAgain: 'See the closing scene',
+  // Monument stall words for the great work (the site sheet, the alert list): the cause and its short form.
+  causeOffering: (o) => `Waiting for the stage's offering: ${reignNum(o.n)} ${goodWord(o.good)} (your stores hold ${reignNum(o.have)})`,
+};
+UI4_TEXT.cause.waiting_offering = "Waiting for the stage's offering of goods: its sheet says what";
+{
+  const short = UI4_TEXT.stallShort;
+  UI4_TEXT.stallShort = (reason) => (reason === 'waiting_offering' ? 'waiting for its offering' : short(reason));
+  const log = S46_COURT_TEXT.logLine;
+  S46_COURT_TEXT.logLine = (e) => (e.kind === 'due' ? V60_REIGN_TEXT.dueLog(e) : log(e));
+}
+// The alerts (warnings in the list, never the banner): an offer waiting, a demand nearly due, the due the treasury cannot pay.
+ALERT_TEXT.demand_offered = () => ({ title: 'The court makes a demand', fix: 'Open the court to accept or decline it' });
+ALERT_TEXT.demand_due = (a) => ({ title: `The court's demand is due in ${reignMonths(a.months)}`, fix: 'Open the court to send it, or build what it asks' });
+ALERT_TEXT.court_due = (a) => ({ title: `The court's due of ${reignNum(a.gold)} gold is more than the treasury`, fix: `It comes in ${reignMonths(Math.max(1, a.months))}: ${reignNum(a.short)} short` });
+// Advice (kind 'demand'): an offer, an accepted demand not yet ready, the due the treasury cannot pay.
+V60_ADVICE_WORDS.demand = (a) => {
+  const d = a.data;
+  if (d.due) return { what: `The court's due of ${reignNum(d.gold)} gold comes in ${reignMonths(Math.max(1, d.monthsLeft))}`, why: `The treasury holds ${reignNum(Math.max(0, d.have))}: it would go into debt.`, fix: 'Raise favour or trim costs before the year turns' };
+  if (!d.accepted) return { what: V60_REIGN_TEXT.demandTitle(d), why: `Answer within ${reignMonths(Math.max(1, d.monthsLeft))}, or it counts as declined.`, fix: 'Open the court to accept or decline it' };
+  return { what: `${V60_REIGN_TEXT.demandTitle(d)}: due in ${reignMonths(d.monthsLeft)}`, why: V60_REIGN_TEXT.have(d, d.status), fix: d.kind === 'building' ? V60_REIGN_TEXT.buildIt(d) : 'Send it from the court once you have it' };
+};
+// Tips (ruling 651) and How to play.
+TIP_TEXT.court_demands = 'The court makes a demand: open the court. Each says its reward and its cost before you accept.';
+TIP_HELP_TEXT.court_demands = 'From Town, about yearly, the court demands goods, gold, a building or soldiers. Met: favour and gold; failed: favour falls.';
+TIP_TEXT.court_due = `From year ${reignQuota.fromYear} the court takes a yearly due in gold: a share of your treasury or taxes.`;
+TIP_HELP_TEXT.court_due = `The court's due grows with your rank and falls with high favour. Gold piled up in the treasury pays most.`;
+TIP_TEXT.beyond_capital = `Beyond Capital: ${reignRank('great_capital')} and the ${reignRank('seat')}. Each needs more people and grander homes.`;
+TIP_HELP_TEXT.beyond_capital = `${reignRank('great_capital')} needs ${reignNum(MILESTONES.find((m) => m.id === 'great_capital').population)} people and a ${TIERS[8].name}; the ${reignRank('seat')} ${reignNum(MILESTONES.find((m) => m.id === 'seat').population)} and an ${TIERS[9].name}.`;
+TIP_TEXT.great_work = 'The great temple is unlocked: found it in Monuments. Finishing it wins the reign.';
+TIP_HELP_TEXT.great_work = 'The great temple rises in five stages, each with an offering of goods. Finished, it wins the reign.';
+CHAPTER_NAMES.reign = 'The reign';   // the goals beyond Capital (src/data/reign.js REIGN_GOALS)
+V60_HELP.a.push(
+  { head: 'Costs grow with the city', text: `From Market town each rank adds to upkeep and the court's asks; past Capital, to wages and monuments too (upkeep ×${reignGrowth.seat.upkeep} at the ${reignRank('seat')}). Easier levels grow less.` },
+  { head: "The court's due", text: `From year ${reignQuota.fromYear}, on each year's first day, the court takes gold: a share of the treasury or of a year's taxes, whichever is more, set by your rank. Low favour doubles it; high favour cuts it. The court sheet shows it ahead.` },
+  { head: "The court's demands", text: 'From Town, about once a year: goods, gold, a building or soldiers, with a deadline. The sheet says the reward and the cost of failing or declining before you choose.' },
+  { head: 'The reign', text: `Beyond Capital come ${reignRank('great_capital')} and the ${reignRank('seat')}. There the great temple can be founded: five stages over years, each with an offering of goods. Finishing it wins the reign and seals your score; then play on.` },
+);
 // ── end v60 a ──
 
 //

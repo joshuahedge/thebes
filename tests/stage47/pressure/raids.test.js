@@ -10,7 +10,7 @@ import { population } from '../../../src/sim/world.js';
 import { hash2 } from '../../../src/sim/rng.js';
 import { RAIDS, RAID_SALT } from '../../../src/data/raids.js';
 import { RAIDS_LATE } from '../../../src/data/s47.js';
-import { costOf } from '../../../src/sim/costs.js';
+import { costOf, costScale } from '../../../src/sim/costs.js';
 import { tributeSheet } from '../../../src/ui/dangerSheets.js';
 import { S47_PRESSURE_TEXT as P, TIP_HELP_TEXT } from '../../../src/ui/text.js';
 import { noNewDangers } from '../../v60/b1/grace.js';
@@ -58,7 +58,7 @@ describe('s47 raids wealth: the size', () => {
       const total = favourRaidSize(w, baseRaidSize(w)) + wealthDraw(w);
       expect([favour, raidSize(w)]).toEqual([favour, total]);
       expect(raidSize(w)).toBe(RAIDS.maxSize + RAIDS_LATE.cap.normal);
-      expect(tributeFor(w, raidSize(w))).toBe(Math.round(favourTributeFactor(w) * RAIDS.tributeShare * Math.ceil(raidSize(w) / RAIDS.raidersPerTower) * costOf(w, 'tower')));
+      expect(tributeFor(w, raidSize(w))).toBe(Math.round(favourTributeFactor(w) * RAIDS.tributeShare * Math.ceil(raidSize(w) / RAIDS.raidersPerTower) * costOf(w, 'tower') * costScale(w).court));   // Version 6.0 (Track A): x the court's scale
     }
   });
 

@@ -24,7 +24,8 @@ const STAGE2 = ['pottery', 'homes_townhouse', 'booth_gardens', 'manor', 'market_
   'great_city', 'linen', 'third_food', 'villa_street', 'villas', 'capital', 'jewellery', 'estate_street', 'estate'];   // Version 5.0 (Task 7): a third food and the two streets
 const DANGER = ['firehouse', 'physician', 'defences', 'police_post'];   // Stage 3's chain goals, after Town and after the trade route (tests/stage3/score/dangerGoals.test.js), and Stage 4.5's physician and police post (tests/stage45/threatsUi.test.js)
 const MONUMENTS4 = GOALS.filter((g) => g.chapter === 'monuments').map((g) => g.id);   // Stage 4's chain goals (tests/stage4/score/goals.test.js)
-const notDanger = (g) => !DANGER.includes(g.id) && !MONUMENTS4.includes(g.id);
+const REIGN = GOALS.filter((g) => g.chapter === 'reign').map((g) => g.id);   // Version 6.0 (Track A)'s goals beyond Capital (tests/v60/a)
+const notDanger = (g) => !DANGER.includes(g.id) && !MONUMENTS4.includes(g.id) && !REIGN.includes(g.id);
 const first = (id) => FIRSTS.find((f) => f.id === id);
 const achievement = (id) => ACHIEVEMENTS.find((a) => a.id === id);
 const pool = (id) => DAILY_POOL.find((d) => d.id === id);
@@ -63,10 +64,10 @@ describe('sim goals and rewards for Stage 2', () => {
   it('lists the chain only as far as the milestone the city has reached, so no later goal shows ahead of a waiting one', () => {
     const waiting = [['pottery', 'town'], ['homes_townhouse', 'town'], ['booth_gardens', 'town'], ['trade_route', 'market_town'], ['defences', 'market_town'], ['beer', 'city'],
       ['fine_manors', 'city'], ['linen', 'great_city'], ['third_food', 'great_city'], ['villa_street', 'great_city'], ['villas', 'great_city'], ['jewellery', 'capital'], ['estate_street', 'capital'], ['estate', 'capital']];
-    expect(GOALS.filter((g) => g.from && !MONUMENTS4.includes(g.id) && !DANGER.includes(g.id)).map((g) => [g.id, g.from])).toEqual(waiting.filter((x) => x[0] !== 'defences'));   // defences, like the physician and police post, is a danger goal (tests/stage3/score/dangerGoals.test.js)
+    expect(GOALS.filter((g) => g.from && !MONUMENTS4.includes(g.id) && !DANGER.includes(g.id) && !REIGN.includes(g.id)).map((g) => [g.id, g.from])).toEqual(waiting.filter((x) => x[0] !== 'defences'));   // defences, like the physician and police post, is a danger goal (tests/stage3/score/dangerGoals.test.js)
     const w = town();
-    const open = () => openGoals(w, Infinity).map((g) => g.id);
-    const endsAt = { village: 'pottery', town: 'trade_route', market_town: 'beer', city: 'linen', great_city: 'jewellery', capital: null };
+    const open = () => openGoals(w, Infinity).map((g) => g.id).filter((id) => !REIGN.includes(id));
+    const endsAt = { village: 'pottery', town: 'trade_route', market_town: 'beer', city: 'linen', great_city: 'jewellery', capital: null, great_capital: null, seat: null };
     for (const m of MILESTONES) {                                          // the list ends before the first goal whose milestone is not reached
       w.milestone = m.id;
       expect([m.id, open()]).toEqual([m.id, STAGE2.slice(0, endsAt[m.id] ? STAGE2.indexOf(endsAt[m.id]) : STAGE2.length)]);
@@ -196,7 +197,7 @@ describe('sim goals and rewards for Stage 2', () => {
       expect(settleGoals(w).map((g) => g.id)).toEqual(expected);
     }
     expect(w.goals.completed).toEqual([...STAGE1, ...DANGER, ...MONUMENTS4, ...STAGE2]);
-    expect(openGoals(w)).toEqual([]);
+    expect(openGoals(w).map((g) => g.id)).toEqual(['great_capital']);             // Version 6.0 (Track A): the reign's goals go on beyond Capital
     expect(w.gold).toBe(gold + STAGE2.length * GOAL_REWARD);
   });
   it('adds firsts for pottery made, the first caravan and each new tier, each shown where it happened', () => {

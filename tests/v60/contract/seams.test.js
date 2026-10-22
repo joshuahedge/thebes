@@ -56,18 +56,19 @@ function sample(difficulty = 'normal') {
 }
 
 describe('v60 contract cost scale', () => {
-  it('is 1 for everything at every level and rank until Track A fills it, so every cost is today\'s', () => {
+  it('is 1 for everything at every level at Village and Town (Track A grows it from Market town: tests/v60/a), so a young city\'s costs are today\'s', () => {
     expect(COST_SCALE_NONE).toEqual({ wages: 1, upkeep: 1, monuments: 1, court: 1 });
     expect(Object.isFrozen(COST_SCALE_NONE)).toBe(true);
     for (const d of DIFFICULTY_ORDER) {
       const w = createWorld({ seed: 2, difficulty: d });
-      for (const m of MILESTONES) { w.milestone = m.id; expect([d, m.id, costScale(w)]).toEqual([d, m.id, COST_SCALE_NONE]); }
+      for (const m of MILESTONES.slice(0, 2)) { w.milestone = m.id; expect([d, m.id, costScale(w)]).toEqual([d, m.id, COST_SCALE_NONE]); }
     }
   });
 
   it('leaves wages, upkeep, the bill, the balance, the biggest cost, monuments and tribute as the data and the old formulas give them', () => {
     for (const d of ['normal', 'hard']) {
       const w = sample(d);
+      w.milestone = 'town';                                   // Track A's costs grow from Market town (tests/v60/a): at Town they are the data's
       let wages = 0, upkeep = 0;
       for (const b of allBuildings(w)) if (!b.paused && !lacksRoad(w, b)) { upkeep += BUILDINGS[b.type].upkeep; wages += b.staff * ECONOMY.wagePerWorker; }
       const f = monthFigures(w);
@@ -155,7 +156,7 @@ describe('v60 contract advice', () => {
     for (const k of ['plague', 'drought', 'locusts', 'demand']) expect(ADVICE_KINDS).toContain(k);
     expect(new Set(ADVICE_KINDS).size).toBe(ADVICE_KINDS.length);
     const w = sample();
-    for (const a of cityAdvice(w)) expect([a.kind, OLD_KINDS.includes(a.kind)]).toEqual([a.kind, true]);
+    for (const a of cityAdvice(w)) expect([a.kind, OLD_KINDS.includes(a.kind) || a.kind === 'demand']).toEqual([a.kind, true]);   // Track A pushes 'demand' (tests/v60/a)
   });
 
   it('words a new kind from its track\'s V60_ADVICE_WORDS entry, and How to play\'s paragraphs come from V60_HELP in track order', () => {
@@ -163,11 +164,13 @@ describe('v60 contract advice', () => {
     for (const list of Object.values(V60_HELP)) for (const p of list) expect([typeof p.head, typeof p.text]).toEqual(['string', 'string']);   // each track's paragraphs, from its own section
     const w = createWorld({ seed: 6 });
     const item = { key: 'demand:1', kind: 'demand', weight: 5, count: 1, id: null, data: {}, fix: null, cost: null, afford: null };
-    expect(adviceWords(item, w).what).toBe('');
-    V60_ADVICE_WORDS.demand = (a) => ({ what: `The court asks (${a.key})`, why: 'Its deadline nears', fix: '' });
+    const trackA = V60_ADVICE_WORDS.demand;                   // Track A's words, put back after this check of the mechanism
+    delete V60_ADVICE_WORDS.demand;
     try {
+      expect(adviceWords(item, w).what).toBe('');
+      V60_ADVICE_WORDS.demand = (a) => ({ what: `The court asks (${a.key})`, why: 'Its deadline nears', fix: '' });
       expect(adviceWords(item, w)).toEqual({ what: 'The court asks (demand:1)', why: 'Its deadline nears', fix: '', cost: '', short: false, action: null });
-    } finally { delete V60_ADVICE_WORDS.demand; }
+    } finally { V60_ADVICE_WORDS.demand = trackA; }
   });
 });
 

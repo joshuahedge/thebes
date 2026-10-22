@@ -117,12 +117,13 @@ describe('v60 contract world v9', () => {
     expect([at(w, 2000).daysLeft, at(w, 2000 + GRACE_DAYS + 5).daysLeft]).toEqual([GRACE_DAYS, 0]);
     const fresh = createWorld({ seed: 4 });
     expect([at(fresh, 0).open, at(fresh, 3 * YEAR - 1).open, at(fresh, 3 * YEAR).open]).toEqual([false, false, true]);
-    // A day's play draws as before: the stubs leave every new record untouched (classic at Normal draws as today).
+    // A day's play draws as before: the stubs leave every new record untouched (classic at Normal draws as today). Track A has filled its
+    // seam, so the court's demands move (tests/v60/a); the reign (no great work) and the dangers stay as they were.
     const city = createWorld({ seed: 11 });
     buildSampleCity(city);
-    const records = JSON.stringify([city.reign, city.demands, city.hazards]);
+    const records = JSON.stringify([city.reign, city.hazards]);
     advanceDays(city, 65);
-    expect(JSON.stringify([city.reign, city.demands, city.hazards])).toBe(records);
+    expect(JSON.stringify([city.reign, city.hazards])).toBe(records);
   });
 
   it('reports a malformed version 8 save as corrupt, not as a failed migration', () => {

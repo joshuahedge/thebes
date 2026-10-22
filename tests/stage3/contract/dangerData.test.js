@@ -85,7 +85,7 @@ describe('s3 contract data', () => {
     expect(SCORE_FACTOR).toEqual({ peaceful: 0.7, relaxed: 0.8, normal: 1, hard: 1.25 });
     expect(Object.keys(SCORE_FACTOR).sort()).toEqual([...DIFFICULTY_ORDER].sort());
     expect(MEDALS).toEqual([{ id: 'bronze', at: 200 }, { id: 'silver', at: 300 }, { id: 'gold', at: 400 }]);
-    expect(SPLIT_MILESTONES).toEqual(MILESTONES.slice(1).map((m) => m.id));
+    expect(SPLIT_MILESTONES).toEqual(MILESTONES.slice(1, 6).map((m) => m.id));       // Version 6.0 (Track A): the ranks beyond Capital are not score splits
     expect([RECORDS_KEY, RECORDS_MAX]).toEqual(['thebes.records', 200]);
     expect([SHARE.base, SHARE.format, SHARE.difficulty, SHARE.checkLength]).toEqual(['https://joshuahedge.github.io/thebes/', 't2', { peaceful: 'p', relaxed: 'r', normal: 'n', hard: 'h' }, 4]);
     expect(FEATS.length).toBe(12);                                                   // Track E fills it, with its words (tests/stage3/score/feats.test.js); Stage 4 adds two
