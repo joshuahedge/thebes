@@ -28,8 +28,68 @@ import { atLeast } from './progression.js';
 import { isWorking, staffRatio } from './labour.js';
 import { storeAccepts, hasSpace } from './production.js';
 import { prestigeOf, prestigeOfBuilding, prestigeByKind, holdsPrestige, monumentMood, monumentsPart } from './prestige.js';
+import { GREAT_WORK } from '../data/reign.js';
+import { DIFFICULTIES } from '../data/difficulty.js';
 
 export { prestigeOf, prestigeOfBuilding, prestigeByKind, holdsPrestige, monumentMood, monumentsPart };
+
+// ── Version 6.0, Track A (rulings 652-656): the great work's stages and offerings ─────────────────────────────────────────
+// The great temple (GREAT_WORK.type) lays its courses in stages of GREAT_WORK.perStage. As a stage's first course begins, its offering
+// (GREAT_WORK.offerings[stage]: a good and a count, times the difficulty's cost) leaves the city's stores (every granary and storehouse,
+// lowest id first, as the court's requests take goods); while they hold less, every crew waits (reason 'waiting_offering'). How many
+// offerings the great work has had is world.reign.offered, kept for the building world.reign.greatWork names (a new site starts at 0).
+export const isGreatWork = (b) => Boolean(b) && b.type === GREAT_WORK.type;
+// The stage a course belongs to (0-based).
+export const stageOfCourse = (course) => Math.floor(course / GREAT_WORK.perStage);
+// The offerings the great work at b has had (0 for any other building, or a site the reign does not know yet).
+export const offeringsMade = (world, b) => (isGreatWork(b) && world.reign && world.reign.greatWork === b.id ? world.reign.offered || 0 : 0);
+// A stage's offering in this city: { good, n } (n times the difficulty's cost, rounded), or null past the last stage.
+export function offeringOf(world, stage) {
+  const o = GREAT_WORK.offerings[stage];
+  return o ? { good: o.good, n: Math.max(1, Math.round(o.n * DIFFICULTIES[world.difficulty].cost)) } : null;
+}
+const storesGood = (b, good) => (BUILDINGS[b.type].stores || []).includes(good);
+// Units of a good in the city's stores (every granary and storehouse).
+export const storedOf = (world, good) => allBuildings(world).reduce((n, b) => n + (storesGood(b, good) ? b.store[good] || 0 : 0), 0);
+function takeStored(world, good, n) {
+  let left = n;
+  for (const b of allBuildings(world)) {
+    if (left <= 0) break;
+    if (!storesGood(b, good) || !(b.store[good] > 0)) continue;
+    const k = Math.min(left, b.store[good]);
+    b.store[good] -= k;
+    if (b.store[good] <= 0) delete b.store[good];
+    left -= k;
+  }
+  return n - left;
+}
+// Whether the great work at b must have its stage's offering before course `course` can begin.
+function offeringDue(world, b, course = b.site.course) {
+  if (!isGreatWork(b) || course >= MONUMENTS[b.type].courses.length || course % GREAT_WORK.perStage !== 0) return false;
+  return offeringsMade(world, b) <= stageOfCourse(course);
+}
+// The great work's offering, as its stage begins: true when nothing is owed now, false while the stores hold less (the course waits).
+// Pushes { type: 'offering_made', id, stage, good, n }.
+function payOffering(world, b, events) {
+  if (!offeringDue(world, b)) return true;
+  const stage = stageOfCourse(b.site.course), o = offeringOf(world, stage);
+  if (storedOf(world, o.good) < o.n) return false;
+  takeStored(world, o.good, o.n);
+  world.reign.greatWork = b.id;
+  world.reign.offered = stage + 1;
+  if (events) events.push({ type: 'offering_made', id: b.id, stage, good: o.good, n: o.n });
+  return true;
+}
+// The great work's state for the sheets: { stage (the stage under way, 0-based; stages when finished), stages, offered (offerings made),
+// offering (the next offering owed now: { good, n, have } or null), waiting (the crews wait for it) }.
+export function greatWorkStatus(world, b) {
+  const m = MONUMENTS[b.type], stages = Math.ceil(m.courses.length / GREAT_WORK.perStage);
+  const finished = b.site && b.site.done !== null;
+  const stage = finished ? stages : stageOfCourse(b.site.course);
+  const due = !finished && offeringDue(world, b);
+  const o = due ? offeringOf(world, stage) : null;
+  return { stage, stages, offered: offeringsMade(world, b), offering: o ? { ...o, have: storedOf(world, o.good) } : null, waiting: due && b.site.reason === 'waiting_offering' };
+}
 
 // ── Pure helpers on one site (complete in the contract) ─────────────────────────────────────────────────────────
 
@@ -219,13 +279,15 @@ export function hasMonumentWork(world, b, plan = null) {
 // runs out (short: the first missing, in MATERIALS order) or the monument is finished. It stops at the start of the last
 // course while the kind's gilding or capstone is unpaid (ruling 241: monumentDay pays it as the course begins). st is the
 // site's course, laid and stock afterwards; courses how many it finished; by the units of each material laid.
-function planCrew(b, cap) {
+function planCrew(b, cap, offered = Infinity) {
   const m = MONUMENTS[b.type];
   const st = { course: b.site.course, laid: { ...b.site.laid }, stock: { ...b.site.stock } };
   const p = { units: 0, by: { stone: 0, bricks: 0 }, courses: 0, short: null, st };
   let left = cap;
   while (left > EPS && st.course < m.courses.length) {
     if (extraDue(b, st.course)) break;
+    // Version 6.0: the great work stops at a stage's first course until its offering is made (monumentDay's payOffering, the next day).
+    if (isGreatWork(b) && st.course % GREAT_WORK.perStage === 0 && stageOfCourse(st.course) >= offered) break;
     const c = m.courses[st.course];
     const total = c.stone + c.bricks;
     const rest = total - st.laid.stone - st.laid.bricks;
@@ -265,6 +327,7 @@ function commitCrew(world, b, p, events) {
     s.course += 1;
     s.laid = { stone: 0, bricks: 0 };
     world.tally.courses += 1;
+    if (isGreatWork(b) && s.course % GREAT_WORK.perStage === 0) world.tally.greatWorkStages += 1;   // Version 6.0: a stage of the great work finished
     if (!events) continue;
     const now = prestigeOf(world);
     events.push({ type: 'course_done', id: b.id, kind: b.type, course: s.course, prestige: now - before });
@@ -335,6 +398,7 @@ export function stalledGuild(world, b, reason, plan = null) {
 function stallReason(world, b, guilds, working, waiting, short) {
   if (!guilds.length) return 'no_crew';
   if (!working.length) return guilds.some((g) => guildShort(world, g)) ? 'crew_short' : 'crew_burning';
+  if (waiting === 'offering') return 'waiting_offering';             // Version 6.0: the great work's stage waits for its offering of goods
   if (!working.some((g) => canPayNoDebt(world, workPay(world, b, crewDayUnits(world, g)).pay))) return 'no_gold';
   if (waiting) return `waiting_${MONUMENTS[b.type].extra.kind}`;
   return short ? `no_${short}` : 'no_gold';
@@ -374,7 +438,8 @@ export function monumentDay(world, events = null) {
     for (const g of working) {
       if (!isSite(b)) break;
       if (!payExtra(world, b)) { waiting = true; break; }
-      const p = planCrew(b, crewDayUnits(world, g));
+      if (!payOffering(world, b, events)) { waiting = 'offering'; break; }
+      const p = planCrew(b, crewDayUnits(world, g), isGreatWork(b) ? offeringsMade(world, b) : Infinity);
       const { pay, carry } = workPay(world, b, p.units);
       if (p.units > EPS && !canPayNoDebt(world, pay)) continue;          // its day would cross 0: it does not work
       if (p.short) { s.month.starvedDays += 1; short = short || p.short; }

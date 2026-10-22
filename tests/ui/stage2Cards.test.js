@@ -48,7 +48,7 @@ describe('ui stage 2 cards', () => {
     w.milestone = 'capital';
     for (const c of CATEGORIES) {
       // Stage 4: the pyramids also need prestige; the small one shows locked with its count, the great one once that unlocks.
-      const items = c.items.filter((i) => i !== 'pyramid_great');
+      const items = c.items.filter((i) => i !== 'pyramid_great' && i !== 'great_temple');   // Version 6.0 (Track A): the great temple shows once the Seat is next
       expect([c.id, shownItems(w, c.id)]).toEqual([c.id, items]);
       for (const item of items) expect([item, cardInfo(w, item).locked]).toEqual([item, item === 'pyramid_small']);
     }

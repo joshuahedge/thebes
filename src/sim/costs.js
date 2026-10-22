@@ -13,7 +13,7 @@ import { MONUMENTS, MONUMENT } from '../data/monuments.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { UNIT_TYPES } from '../data/armies.js';
 import { MONUMENT_STYLES } from '../data/wonders.js';
-import { COST_SCALE_NONE } from '../data/reign.js';
+import { COST_SCALE_NONE, COST_GROWTH } from '../data/reign.js';
 
 const scaled = (world, base) => Math.max(1, Math.round(base * DIFFICULTIES[world.difficulty].cost));
 
@@ -21,8 +21,16 @@ const scaled = (world, base) => Math.max(1, Math.round(base * DIFFICULTIES[world
 // { wages, upkeep, monuments, court } (src/data/reign.js COST_SCALE_NONE: all 1). Already applied where each is paid, so no other track
 // touches a cost: wages and upkeep in src/sim/economy.js (monthFigures, monthlyBill with a world, balanceWith, biggestCost); monuments
 // here (a monument's founding in costOf, workGoldPerUnit, extraGoldOf); court in src/sim/raids.js tributeFor (Track A applies it to what
-// the court asks in its own files). STUB: today's costs, at every rank.
-export const costScale = (world) => COST_SCALE_NONE;
+// the court asks in its own files).
+// Track A (rulings 640, 641): the rank's row (COST_GROWTH, src/data/reign.js), each multiplier's growth over 1 times the difficulty's cost, so
+// Relaxed and Peaceful grow by four-fifths as much and Hard by a quarter more. Village and Town: today's costs (COST_SCALE_NONE itself).
+export function costScale(world) {
+  const row = COST_GROWTH[world.milestone];
+  if (!row || row === COST_SCALE_NONE) return COST_SCALE_NONE;
+  const k = DIFFICULTIES[world.difficulty].cost;
+  const grow = (v) => 1 + (v - 1) * k;
+  return { wages: grow(row.wages), upkeep: grow(row.upkeep), monuments: grow(row.monuments), court: grow(row.court) };
+}
 
 // Stage 4.6 (Wonders track, rulings 343, 394): a monument's style multiplies all the gold it takes (MONUMENT_STYLES[style].goldFactor: Gilded
 // 1.1): its founding here, its work gold (workGoldPerUnit) and its gilding or capstone (extraGoldOf). A style the data does not know, or no

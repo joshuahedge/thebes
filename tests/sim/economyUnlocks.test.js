@@ -29,6 +29,7 @@ describe('stage 2 unlocks', () => {
     const home = addRaw(w, 'house', 1, 1, { tier: 4, residents: 0 });
     for (let i = 1; i < MILESTONES.length; i++) {
       const m = MILESTONES[i];
+      if (m.needs) addRaw(w, 'house', 2 * i, 4, { w: 2, d: 2, tier: m.needs.tier, residents: 0 });   // Version 6.0 (Track A): a rank beyond Capital needs a grand home too
       home.residents = m.population - 1;
       expect([m.id, updateMilestone(w)]).toEqual([m.id, false]);
       home.residents = m.population;
@@ -36,7 +37,7 @@ describe('stage 2 unlocks', () => {
       for (const t of m.unlocks) expect([t, isUnlocked(w, t)]).toEqual([t, true]);
       for (const t of (MILESTONES[i + 1] || { unlocks: [] }).unlocks) expect([t, isUnlocked(w, t)]).toEqual([t, false]);
     }
-    expect(w.milestone).toBe('capital');
+    expect(w.milestone).toBe('seat');
   });
   it('jumps straight to the highest milestone a population has reached', () => {
     const w = street();

@@ -17,7 +17,8 @@ function buildDays(kind, crews) {
   w.milestone = 'capital';
   const site = addRaw(w, kind, 12, 10 - MONUMENTS[kind].d);
   for (let i = 0; i < crews; i++) addRaw(w, 'builders_guild', 2 + 2 * i, 11, { staff: 16 });
-  addRaw(w, 'storehouse', 24, 11, { store: { stone: 1e6, bricks: 1e6 } });
+  addRaw(w, 'storehouse', 24, 11, { store: { stone: 1e6, bricks: 1e6, clay: 1e6, linen: 1e6, flax: 1e6 } });
+  addRaw(w, 'granary', 27, 11, { store: { grain: 1e6 } });   // Version 6.0 (Track A): the great temple's offerings, so it waits for none
   const limit = 2 * 12 * DAYS_PER_MONTH * 30;
   while (site.site.done === null && w.day < limit) { monumentDay(w); w.day += 1; }
   return site.site.done + 1;
@@ -27,7 +28,7 @@ describe('s4 sim each kind\'s time', () => {
   it('builds each kind in its crew-months over its most crews (spec 4.16), within a day', () => {
     const got = MONUMENT_KINDS.map((k) => buildDays(k, MONUMENTS[k].crews));
     const want = MONUMENT_KINDS.map((k) => (MONUMENTS[k].crewMonths / MONUMENTS[k].crews) * DAYS_PER_MONTH);
-    expect(want).toEqual([90, 270, 540, 720, 1080, 1800, 2250, 2880, 4050, 5400]);   // 3 and 9 months; 2, 3, 5, 8 and 15 years (and Stage 4.6's 18 months, 75 and 135)
+    expect(want).toEqual([90, 270, 540, 720, 1080, 1800, 2250, 2880, 4050, 5400, 2250]);   // 3 and 9 months; 2, 3, 5, 8 and 15 years (and Stage 4.6's 18 months, 75 and 135)
     got.forEach((d, i) => {
       expect(d).toBeGreaterThanOrEqual(want[i]);
       expect(d).toBeLessThanOrEqual(want[i] + 1);

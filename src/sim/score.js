@@ -74,7 +74,9 @@ function peopleTerms(world, lived) {
   const i = milestoneIndex(world.milestone);
   const pop = population(world);
   let growth;
-  if (i >= MILESTONES.length - 1) growth = { value: 1, reason: null };
+  // Version 6.0 (Track A, ruling 659): the growth term is full at Capital (growthSteps milestones after Village) as before; the ranks beyond it
+  // add nothing to the score (the great temple's sealed score is the reign's prize).
+  if (i >= MILESTONES.length - 1 || i >= T.growthSteps) growth = { value: 1, reason: null };
   else {
     const from = MILESTONES[i].population, next = MILESTONES[i + 1];
     const frac = clamp01((pop - from) / (next.population - from));
@@ -308,9 +310,10 @@ export function scoreRow(world) {
 
 // The sealReign command (spec 4.19, 7.3): records the day and the score in the world; never refused, and repeatable.
 // The interface then writes the chronicle entry (src/save/records.js). { ok: true, warnings: [], seal }.
-export function sealReign(world) {
+// Version 6.0 (Track A, ruling 657): the great work finished seals the score once by itself (src/sim/demands.js), with extra { won: true }.
+export function sealReign(world, extra = {}) {
   const s = scoreOf(world);
-  const seal = { day: world.day, score: s.total, parts: { ...s.parts }, medal: s.medal, version: s.version };
+  const seal = { day: world.day, score: s.total, parts: { ...s.parts }, medal: s.medal, version: s.version, ...extra };
   world.seals.push(seal);
   return { ok: true, warnings: [], seal };
 }

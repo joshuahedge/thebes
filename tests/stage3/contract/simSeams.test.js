@@ -12,7 +12,7 @@ import {
   canPlace, place, previewRoad, drawRoad, demolishAt, demolishArea, previewDemolishArea, clearRubble, setCityId, demolishRefundFor,
 } from '../../../src/sim/commands.js';
 import { undo, pushUndo } from '../../../src/sim/undo.js';
-import { rubbleCostOf } from '../../../src/sim/costs.js';
+import { rubbleCostOf, costScale } from '../../../src/sim/costs.js';
 import {
   baseRiskOf, canBurn, fireStarted, fireRiskOf, fireBand, burning, fireCoverage, coverageOf, staffedCover, dailyRiskOf,
   fireDay, igniteBuilding, burnBuilding, fireAlerts, fireMood, rubbleClearCost, clearRubble as clearRubbleFromFire,
@@ -165,9 +165,9 @@ describe('s3 contract raid seams', () => {
   });
   it('quotes and takes a warned raid\'s tribute, never the first one and never below 0, and schedules the next warning', () => {
     const w = street(1000);
-    expect(tributeFor(w, 8)).toBe(360);                                               // 0.8 x 3 towers x 150
+    expect(tributeFor(w, 8)).toBe(Math.round(360 * costScale(w).court));              // 0.8 x 3 towers x 150 (Version 6.0 (Track A): x the court's scale for the rank)
     w.difficulty = 'hard';
-    expect(tributeFor(w, 4)).toBe(301);                                               // 0.8 x 2 x 188
+    expect(tributeFor(w, 4)).toBe(Math.round(0.8 * 2 * 188 * costScale(w).court));    // 0.8 x 2 x 188 (x the court's scale, Hard's growth a quarter more)
     w.difficulty = 'normal';
     w.raid.index = 2;
     w.raid.warning = { index: 1, entry: { x: 31, y: 16 }, dir: 'east', size: 8, tribute: 360, target: 'storehouse', day: 800, arrives: 890, first: false };

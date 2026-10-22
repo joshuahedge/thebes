@@ -6,9 +6,11 @@ import { soldiersPayOf, costScale } from './costs.js';
 import { lacksRoad } from './reach.js';
 
 // Version 6.0 (Track 0, ruling 622): a building's monthly upkeep and one worker's monthly wage in this city, after costScale's upkeep
-// and wages (src/sim/costs.js; 1 until Track A fills it in, so every figure is today's). Track A decides any rounding here.
-const upkeepIn = (scale, type) => BUILDINGS[type].upkeep * scale.upkeep;
+// and wages (src/sim/costs.js). Track A (ruling 640): money stays whole gold, so each building's upkeep and its staff's wages are rounded
+// per building (wagesOf), and the card's bill (monthlyBill) is exactly what that building is charged; at a scale of 1 nothing changes.
+const upkeepIn = (scale, type) => Math.round(BUILDINGS[type].upkeep * scale.upkeep);
 const wageIn = (scale) => ECONOMY.wagePerWorker * scale.wages;
+const wagesOf = (scale, staff) => Math.round(staff * wageIn(scale));
 
 // The month's figures as the city stands now: taxes from the homes' residents, wages for the staff in post, the buildings'
 // upkeep and the soldiers' pay. monthlyEconomy pays exactly these at the month's end, and monthForecast shows them ahead.
@@ -17,11 +19,11 @@ export function monthFigures(world) {
   for (const h of housesOf(world)) if (h.tier >= 1) taxes += h.residents * TIERS[h.tier].tax;
   let wages = 0;
   let upkeep = 0;
-  const scale = costScale(world), wage = wageIn(scale);
+  const scale = costScale(world);
   for (const b of allBuildings(world)) {
     if (b.paused || lacksRoad(world, b)) continue;     // ruling P11: a building no road touches does nothing and costs nothing
     upkeep += upkeepIn(scale, b.type);
-    wages += b.staff * wage;
+    wages += wagesOf(scale, b.staff);
   }
   const soldiers = soldiersPayOf(world);               // spec 4.11: every soldier, in peace too, a paused barracks' as well
   return { taxes, wages, upkeep, soldiers, net: taxes - wages - upkeep - soldiers };
@@ -52,7 +54,7 @@ export function monthForecast(world) {
 // the data's own (no caller in the game leaves it out).
 export function monthlyBill(type, world = null) {
   const def = BUILDINGS[type], scale = world ? costScale(world) : null;
-  const upkeep = scale ? upkeepIn(scale, type) : def.upkeep, wages = def.workers * (scale ? wageIn(scale) : ECONOMY.wagePerWorker);
+  const upkeep = scale ? upkeepIn(scale, type) : def.upkeep, wages = scale ? wagesOf(scale, def.workers) : def.workers * ECONOMY.wagePerWorker;
   return { upkeep, workers: def.workers, wages, bill: upkeep + wages };
 }
 
@@ -64,17 +66,17 @@ export function balanceWith(world, type, count = 1) {   // count: Version 5.0 (T
   const filled = (jobs) => Math.min(L.workforce, jobs);
   const more = filled(L.jobs + count * def.workers) - filled(L.jobs);
   const scale = costScale(world);
-  return f.net - count * upkeepIn(scale, type) - more * wageIn(scale);
+  return f.net - count * upkeepIn(scale, type) - wagesOf(scale, more);
 }
 
 // The building costing the most a month now (upkeep plus the wages of its staff): { id, type, cost }, the lowest id on a tie,
 // or null when none costs anything. Paused buildings and those no road touches cost nothing (monthFigures).
 export function biggestCost(world) {
   let best = null;
-  const scale = costScale(world), wage = wageIn(scale);
+  const scale = costScale(world);
   for (const b of allBuildings(world)) {
     if (b.paused || lacksRoad(world, b)) continue;
-    const cost = upkeepIn(scale, b.type) + b.staff * wage;
+    const cost = upkeepIn(scale, b.type) + wagesOf(scale, b.staff);
     if (cost > 0 && (!best || cost > best.cost)) best = { id: b.id, type: b.type, cost };
   }
   return best;

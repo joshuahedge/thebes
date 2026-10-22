@@ -149,7 +149,7 @@ describe('s4 ui the summary\'s Monuments section and Welcome back\'s site lines'
     w.prestigeUnlocks.pyramid_small = 5;
     expect(text()[2]).toBe('Prestige 67: the great pyramid unlocks at 300');
     w.prestigeUnlocks.pyramid_great = 9;
-    expect(text()[2]).toBe('Prestige 67 of 1080');   // Stage 4.6: the ten kinds' shares added (the seven made 700)
+    expect(text()[2]).toBe('Prestige 67 of 1280');   // Stage 4.6: the ten kinds' shares added (the seven made 700); Version 6.0 (Track A): the great temple's 200
   });
 
   it('adds the monument gold to the summary only once there is some (a version 4 save has none until a month ends)', async () => {

@@ -17,6 +17,11 @@ import { FOOD_SLOTS, FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { courtOpen, addFavour, favourChange, stockOf, takeGoods, outputPerMonth, monthsLeft, dateOfDay } from './court.js';
 import { raidsOn } from './costs.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
+import { COURT_DUE, GREAT_WORK } from '../data/reign.js';
+import { DIFFICULTIES } from '../data/difficulty.js';
+import { favourBand } from './court.js';
+import { monthFigures } from './economy.js';
+import { allBuildings, isSite } from './world.js';
 
 const DAYS_PER_YEAR = DAYS_PER_MONTH * MONTHS_PER_YEAR;
 const roundTo = (n, step, min = 0) => Math.max(min, Math.round(n / step) * step);
@@ -204,10 +209,49 @@ export function pressureMonth(world, events = null) {
   const c = world.court;
   const year = dateOfDay(world.day).year;
   const carry = endQuotaYear(world, events);
+  if (courtOpen(world) && year >= QUOTA.fromYear) takeDue(world, events);   // Version 6.0 (ruling 642): the court's due, after a missed tribute's favour
   if (courtOpen(world) && year >= QUOTA.fromYear) askQuota(world, carry, events);
   if (courtOpen(world)) { c.yearMade = { day: world.day, made: { ...(world.tally.made || {}) }, kept: {} }; keepStock(world); }   // a closed court keeps no record (it asks nothing)
   if (events && year === QUOTA.warnYear && courtOpen(world)) events.push({ type: 'quota_warning', year: QUOTA.fromYear });
   if (events && year === RAIDS_LATE.warnYear && raidsOn(world)) {
     events.push({ type: 'raids_grow', year: RAIDS_LATE.fromYear, cap: RAIDS_LATE.cap[world.difficulty] || 0, goldPer: RAIDS_LATE.goldPer, peoplePer: RAIDS_LATE.peoplePer });
   }
+}
+
+// ── Version 6.0, Track A (rulings 642, 643): the court's due ──
+// On the first day of each year from QUOTA.fromYear (the court open), with the yearly tribute's goods, the court takes its due in gold: the
+// rank's share of the treasury or its share of a year's taxes at this month's rate, whichever is more (COURT_DUE), times favour's factor and
+// the difficulty's cost, halved while the great work is under way; rounded to COURT_DUE.step. It is taken even past 0 (the city goes into
+// debt), so the court sheet, the alert row and Advice say it COURT_DUE.warnMonths ahead.
+// courtDue(world) is what it would take now: { gold, treasuryShare, taxesShare, fromTreasury, fromTaxes, yearTaxes, by ('treasury' | 'taxes'),
+// band (favour's), factor, greatWork (halved), cost (the difficulty's), day (the day it is next taken, or null: the court is closed), monthsLeft }.
+const dueRank = (table, world) => table[world.milestone] || 0;
+export const greatWorkRising = (world) => allBuildings(world).some((b) => b.type === GREAT_WORK.type && isSite(b));
+export function courtDue(world) {
+  const taxesShare = dueRank(COURT_DUE.taxes, world), treasuryShare = dueRank(COURT_DUE.treasury, world);
+  const yearTaxes = monthFigures(world).taxes * MONTHS_PER_YEAR;
+  const fromTreasury = treasuryShare * Math.max(0, world.gold), fromTaxes = taxesShare * yearTaxes;
+  const band = favourBand(world), factor = COURT_DUE.favour[band], cost = DIFFICULTIES[world.difficulty].cost;
+  const greatWork = greatWorkRising(world);
+  const base = Math.max(fromTreasury, fromTaxes);
+  const gold = roundTo(base * factor * cost * (greatWork ? COURT_DUE.greatWork : 1), COURT_DUE.step);
+  const day = nextQuotaDay(world);
+  return {
+    gold, treasuryShare, taxesShare, fromTreasury: Math.round(fromTreasury), fromTaxes: Math.round(fromTaxes), yearTaxes, by: fromTreasury >= fromTaxes ? 'treasury' : 'taxes',
+    band, factor, greatWork, cost, day, monthsLeft: day === null ? null : monthsLeft(world, day),
+  };
+}
+// Whether the due is coming: the court is open and the next year's start is in a year the due is taken.
+export const dueComing = (world) => courtOpen(world) && dateOfDay(nextQuotaDay(world)).year >= QUOTA.fromYear;
+// Takes the due (pressureMonth, at a year's start): logged in the court's letters and pushed as { type: 'court_due', gold, by, band, greatWork }.
+function takeDue(world, events) {
+  const d = courtDue(world);
+  if (d.gold <= 0) return;
+  world.gold -= d.gold;
+  const c = world.court;
+  if (Array.isArray(c.log)) {
+    c.log.push({ day: world.day, kind: 'due', gold: d.gold, by: d.by, band: d.band });
+    if (c.log.length > COURT.logMax) c.log.splice(0, c.log.length - COURT.logMax);
+  }
+  if (events) events.push({ type: 'court_due', gold: d.gold, by: d.by, band: d.band, greatWork: d.greatWork });
 }
