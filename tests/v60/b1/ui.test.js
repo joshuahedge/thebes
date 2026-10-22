@@ -20,6 +20,10 @@ import { BUILDINGS } from '../../../src/data/buildings.js';
 import { footMix } from '../../../src/data/armies.js';
 import { drawPlague, dashesOf, PLAGUE_HUE } from '../../../src/render/plague.js';
 import { districtOf, districtKey } from '../../../src/sim/plague.js';
+import { locustsMonth } from '../../../src/sim/crops.js';
+import { createWorld } from '../../../src/sim/world.js';
+import { buildSampleCity } from '../../../src/dev/sampleCity.js';
+import { fullestHome } from '../../../src/dev/v60/base.js';
 
 const OPEN = GRACE_DAYS + 30;
 const texts = (nodes) => nodes.map((n) => n.textContent);
@@ -200,12 +204,15 @@ describe('v60 b1 ui drought', () => {
     expect(alertText(a, w).fix).toBe('Farms will give about 50% of their crop for a year: fill your granaries');
     const item = cityAdvice(w).find((i) => i.kind === 'drought');
     const words = adviceWords(item, w);
-    expect(words.what).toBe(`The Nile will run low in ${DANGER_UI_TEXT.duration(from - w.day)}: for ${DROUGHT.months} months after the flood every farm gives 50% of its crop`);
-    expect(words.why).toBe(`The stores hold 100 food; the lean year needs ${60 * DROUGHT.months} more than the farms make (60 a month): short by ${60 * DROUGHT.months - 100}, about ${Math.ceil((60 * DROUGHT.months - 100) / 60)} months without food`);
-    expect(item.weight).toBe(HAZARD_ADVICE.droughtWarned + HAZARD_ADVICE.droughtShortMonth * Math.ceil((60 * DROUGHT.months - 100) / 60));
+    expect(words.what).toBe(`Low Nile in ${DANGER_UI_TEXT.duration(from - w.day)}: every farm then gives 50% of its crop for ${DROUGHT.months} months`);
+    expect(words.why).toBe(`The stores hold 100 food. The farms will fall short by 60 a month (${60 * DROUGHT.months} over ${DROUGHT.months} months): the city is short by ${60 * DROUGHT.months - 100}, about ${Math.ceil((60 * DROUGHT.months - 100) / 60)} months without food`);
+    // A warned danger goes first: its points on top of the heaviest ordinary item (the points are the data's: more when the stores will not carry the city).
+    const lead = () => Math.max(0, ...cityAdvice(w).filter((i) => i.kind !== 'drought').map((i) => i.weight));
+    expect(item.weight).toBe(lead() + HAZARD_ADVICE.droughtWarned + HAZARD_ADVICE.droughtShortMonth * Math.ceil((60 * DROUGHT.months - 100) / 60));
+    expect(cityAdvice(w)[0].kind).toBe('drought');
     granary.store.grain = 800;
     const calm = cityAdvice(w).find((i) => i.kind === 'drought');
-    expect([calm.weight, adviceWords(calm, w).why.includes('they carry the city')]).toEqual([HAZARD_ADVICE.droughtCovered, true]);
+    expect([calm.weight, adviceWords(calm, w).why.includes('the stores carry the city')]).toEqual([lead() + HAZARD_ADVICE.droughtCovered, true]);
     expect(months).toBeGreaterThan(0);
     expect(texts(dangerSummary(w))[0]).toBe('Dangers');
   });
@@ -317,5 +324,25 @@ describe('v60 b1 ui the health layer\'s plague marks', () => {
     expect(lines.length).toBe(dashes.length + 2);                                          // the dashes, and the cross inside the ring
     expect(dashes.length).toBeGreaterThan(8);
     expect(PLAGUE_HUE).toBe('#8E1B3A');
+  });
+});
+
+describe('v60 b1 ui the City advice', () => {
+  it('puts each warned danger in the top five of a busy city, over its ordinary worries, and leaves them out of a city with none', () => {
+    const w = buildSampleCity(createWorld({ seed: 11 }));
+    w.hazards.graceUntil = w.day;
+    const rank = (kind) => cityAdvice(w).findIndex((a) => a.kind === kind);
+    expect(['plague', 'drought', 'locusts'].map(rank)).toEqual([-1, -1, -1]);
+    w.hazards.locusts.nextDay = w.day;
+    locustsMonth(w, null);
+    expect(w.hazards.locusts.warning).toBeTruthy();
+    expect(['locusts', rank('locusts') < 5]).toEqual(['locusts', true]);
+    w.hazards.locusts.warning = null;
+    const home = fullestHome(w);
+    w.hazards.plague.warning = { day: w.day, strikes: w.day + 60, origin: home.id };
+    expect(['plague', rank('plague') < 5]).toEqual(['plague', true]);
+    w.hazards.plague.warning = null;
+    w.hazards.drought.warning = { day: w.day, strikes: w.day + 200, year: 5 };
+    expect(['drought', rank('drought'), rank('drought') < 5]).toEqual(['drought', rank('drought'), true]);
   });
 });

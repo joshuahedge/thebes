@@ -9,6 +9,7 @@ import { healthDay, isPlagueHome, healthAlerts } from '../../../src/sim/health.j
 import { PLAGUE, GRACE_DAYS } from '../../../src/data/hazards.js';
 import { HEALTH } from '../../../src/data/health.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
+import { serialize, deserialize, validateWorld } from '../../../src/save/serialize.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 
 const OPEN = GRACE_DAYS + 30;
@@ -297,5 +298,24 @@ describe('v60 b1 plague the hub', () => {
     hazardDay(w, []);
     expect(w.hazards.plague.active.origin).toBe(homes[0].id);
     expect(HEALTH.staffedAt).toBeGreaterThan(0);
+  });
+});
+
+describe('v60 b1 plague saving', () => {
+  it('keeps every danger\'s state in the save: a city reloaded mid-plague runs on exactly as the one that was not saved', () => {
+    const { w, homes } = town({ n: 12, residents: 25 });
+    startPlague(w, homes[0].id, []);
+    quarantineDistrict(w, homes[0].id);
+    run(w, 10);
+    w.hazards.drought.warning = { day: w.day, strikes: w.day + 200, year: 5 };
+    w.hazards.locusts.warning = { day: w.day, strikes: w.day + 30, kind: 'blight', farms: [], centre: { x: 3, y: 3 }, early: [] };
+    const text = serialize(w);
+    expect(validateWorld(JSON.parse(text))).toBe(true);
+    const again = deserialize(text);
+    expect(serialize(again)).toBe(text);
+    run(w, 60);
+    run(again, 60);
+    expect(serialize(again)).toBe(serialize(w));
+    expect(sickHomes(w).length > 0 || w.hazards.plague.last !== null).toBe(true);
   });
 });

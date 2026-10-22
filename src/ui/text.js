@@ -2740,7 +2740,6 @@ export const V60_ADVICE_WORDS = {};
 // (the sections share this module's scope).
 import { PLAGUE as b1Plague, DROUGHT as b1Drought, CROPS as b1Crops, HARVEST_NOW as b1Harvest, CHIEFTAIN as b1Chief, WRECK as b1Wreck } from '../data/hazards.js';
 import { ECONOMY as b1Economy } from '../data/economy.js';
-import { DAYS_PER_MONTH as b1Month } from '../sim/time.js';
 
 const b1Dur = (days) => DANGER_UI_TEXT.duration(Math.max(0, days));
 const b1Pct = (f) => `${Math.round(f * 100)}%`;
@@ -2773,7 +2772,6 @@ export const B1_TEXT = {
   // ── Plague ──
   plagueLabel: 'Plague',
   plagueSick: (i, covered) => `Sick with plague: ${plural(i.left, 'day', 'days')} left, ${i.lost} of up to ${i.cap} people lost. ${covered ? `A staffed physician reaches it: it mends ${b1Plague.coverFactor === 2 ? 'twice' : `${b1Plague.coverFactor} times`} as fast` : 'No staffed physician reaches it'}`,
-  plagueNear: (n) => `${plural(n, 'home is', 'homes are')} sick in this district`,
   plagueOrigin: (days) => `A plague is warned to start in this home in ${b1Dur(days)}. A physician and a well near it slow it, and so does room: fewer people in each home`,
   quarantineButton: (fee) => `Quarantine this district: ${fee} gold`,
   quarantineDoes: (q) => `Holds ${b1Months(q.months)}. The plague cannot cross the district's edge and spreads at ${b1Pct(b1Plague.quarantine.insideFactor)} of its pace inside it. ${q.workplaces ? `${plural(q.workplaces, 'farm or workshop', 'farms and workshops')} there stop${q.workplaces === 1 ? 's' : ''} work` : 'Work there stops'} until it ends. The fee is ${q.fee} gold.`,
@@ -2787,11 +2785,11 @@ export const B1_TEXT = {
   // ── Drought and the low Nile ──
   droughtRow: (a, now) => `Drought: this farm gives ${b1Pct(a.factor)} of its crop for ${b1Dur(a.until - now)} more`,
   droughtLine: (d) => (d.warned
-    ? `The Nile will run low in ${b1Dur(d.strikes - d.day)}: for ${b1Months(d.months)} after the flood every farm gives ${b1Pct(d.factor)} of its crop`
+    ? `Low Nile in ${b1Dur(d.strikes - d.day)}: every farm then gives ${b1Pct(d.factor)} of its crop for ${b1Months(d.months)}`
     : `The Nile ran low: every farm gives ${b1Pct(d.factor)} of its crop for ${b1Dur(d.until - d.day)} more`),
   droughtStores: (d) => (d.short <= 0 ? `The farms still keep up (they make ${d.made} food a month at the full crop, homes eat ${d.used}): nothing runs short`
-    : d.carries ? `The stores hold ${d.held} food; the lean year needs ${d.need} more than the farms make (${d.short} a month): they carry the city`
-      : `The stores hold ${d.held} food; the lean year needs ${d.need} more than the farms make (${d.short} a month): short by ${d.need - d.held}, about ${b1Months(d.monthsShort)} without food`),
+    : d.carries ? `The stores hold ${d.held} food. The farms will fall short by ${d.short} a month (${d.need} over ${b1Months(d.months)}): the stores carry the city`
+      : `The stores hold ${d.held} food. The farms will fall short by ${d.short} a month (${d.need} over ${b1Months(d.months)}): the city is short by ${d.need - d.held}, about ${b1Months(d.monthsShort)} without food`),
 
   // ── Locusts and blight ──
   cropRowWarned: (w, now) => `${b1CropKind(w.kind)} warned for this farm, due in ${b1Dur(w.strikes - now)}`,
@@ -2915,7 +2913,7 @@ Object.assign(FIRST_TEXT, {
 
 // ── How to play ──
 V60_HELP.b1.push(
-  { head: 'Raiders that wreck and loot', text: `From the fourth game year, raiders who get through may wreck a building instead of burning it (about ${b1Pct(b1Wreck.chance)} of strikes on Normal): it falls to rubble that remembers what stood there, and one tap on the rubble clears and rebuilds it for its price. They also carry off part of a storehouse's goods. A band of ${b1Chief.fromSize} or more has a chieftain: when he falls, his band turns back. The raid report lists what was burned, wrecked and taken.` },
+  { head: 'Raiders that wreck and loot', text: `Once the first three game years are past (an older city loaded into this version gets three years from the day it loads), raiders who get through may wreck a building instead of burning it (about ${b1Pct(b1Wreck.chance)} of strikes on Normal): it falls to rubble that remembers what stood there, and one tap on the rubble clears and rebuilds it for its price. They also carry off part of a storehouse's goods. A band of ${b1Chief.fromSize} or more has a chieftain: when he falls, his band turns back. The raid report lists what was burned, wrecked and taken.` },
   { head: 'Plague', text: `A plague is warned two months ahead and starts in a crowded home with no physician or well. It spreads day by day to the homes near a sick one; a physician, a well and room slow it. Sick homes lose people, and work stops near them where no physician reaches. Open a sick home to quarantine its district for ${b1Months(b1Plague.quarantine.months)}: the plague cannot cross its edge, but work in it stops. The Health layer marks sick homes with a heavy ring.` },
   { head: 'Drought and the low Nile', text: `The Nile reading warns months ahead of a low flood. For a year every farm then gives about ${b1Pct(1 - b1Drought.cut)} of its crop. Full granaries carry the city: the City advice says whether yours will, and how much is short.` },
   { head: 'Locusts and blight', text: `A month's warning names a band of farms. Locusts eat the crop of those farms for ${b1Dur(b1Crops.locusts.days)}; blight leaves part of it for ${b1Dur(b1Crops.blight.days)}. A named farm's sheet has Harvest now: ${b1Pct(b1Harvest.share)} of a month's crop into the stores at once, then the farm rests ${plural(b1Harvest.restDays, 'day', 'days')}.` },

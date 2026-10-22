@@ -55,6 +55,11 @@
 // hit a wall in their band's way: a band with none of them left that meets a standing wall, or (with chariots) rocky ground, while
 // attacking turns back (retreat; active.turned counts the bands turned), and one leaving slips away. The report adds byArchers,
 // byChariots, towersLost (towers enemy archers brought down) and turned when there are any.
+// Version 6.0 (Track B1, rulings 681-683; src/sim/strikes.js, draws.js): once the grace is over (hazards.graceUntil) a strike may wreck a building
+// to rubble (active.wrecked, active.wreckedKinds; each rubble tile has was) and a storehouse's goods are looted (active.taken: { good: units }; a granary's
+// food joins it); a band of CHIEFTAIN.fromSize or more has a chieftain (warning.chiefs: the band numbers; active.chiefs: [{ id, band, fell?, left? }], the raider
+// carrying chief: true, more hit points, a harder hand), and raidSize adds bandGrowth. The report (raid.last) adds wrecked, wreckedKinds, taken, chiefs and
+// chiefsFell when there are any. Events: 'raid_wreck' { id, kind, to } and 'raid_loot' { id, goods } (Track B2 draws them).
 // A day of a raid (raidDay): combat (combat.js); the end when no raider is left; retreat once RAIDS.retreatShare of the
 // raiders (rounded up) have fallen; then, unless a raider is fighting, the band waits out a strike or takes one step: to
 // the target it is after (attack), back to its entry (leave, after RAIDS.strikes strikes; retreat), or stops before a

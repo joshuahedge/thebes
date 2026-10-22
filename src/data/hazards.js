@@ -124,16 +124,17 @@ export const HARVEST_NOW = {
 export const CROP_KINDS = ['locusts', 'blight'];
 
 // ── Advice weights (src/sim/hazards.js hazardItems; points as ADVICE's) ──
-// A warned danger weighs about what a warned raid short of two towers does (ADVICE.tower x towerWarned = 30 a tower): it must reach the City advice's
-// top five over a city's ordinary worries, because the warning is the time to act. Under way, the weight follows the harm left to stop.
+// An urgent danger (one warned, a plague with sick homes no physician reaches, a low Nile the stores will not carry) is put first: its weight is these
+// points on top of the heaviest ordinary item, as a warned raid short of towers is (ruling 600), so the warning is read in the time left to act. A danger
+// that needs nothing more of the player weighs only its points.
 export const HAZARD_ADVICE = {
-  plagueWarned: 60,          // a plague warned
-  plagueHome: 15,            // each sick home no staffed physician reaches (a covered one weighs 1)
-  droughtWarned: 60,         // a low Nile warned or under way and the stores will not carry the city: + droughtShortMonth for each month short
-  droughtCovered: 30,        // ... and the stores will carry it (the warning is still the time to check)
-  droughtShortMonth: 10,
-  locustFarm: 15,            // each farm in a warned band
-  cropBlight: 3,             // each farm in a band under way
+  plagueWarned: 6,           // a plague warned
+  plagueHome: 4,             // each sick home no staffed physician reaches (a covered one weighs 1)
+  droughtWarned: 5,          // a low Nile warned or under way and the stores will not carry the city: + droughtShortMonth for each month short
+  droughtCovered: 1,         // ... and the stores will carry it (the warning is still on the sheet, low)
+  droughtShortMonth: 2,
+  locustFarm: 2,             // each farm in a warned band
+  cropBlight: 1,             // each farm in a band under way
 };
 
 // ── Track B1's rows in the Version 6.0 lists (src/data/v60.js joins them) ──

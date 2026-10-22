@@ -101,12 +101,15 @@ function droughtData(world) {
 // The dangers' advice items (src/sim/advice.js cityAdvice through v60Advice): onto `out`, kinds 'plague', 'drought' and 'locusts' (ADVICE_KINDS).
 export function hazardItems(world, alerts, out) {
   const h = world.hazards;
+  // An urgent danger goes first: its points (HAZARD_ADVICE) on top of the heaviest item so far (cityAdvice has pushed the ordinary ones), so the
+  // warning is read in the time left to act; the sort keeps two urgent ones in their kinds' order and by their own points.
+  const lead = out.reduce((m, i) => Math.max(m, i.weight), 0);
   // Plague: the warning names the home it will start in (the counter is a physician there, a well, room); once under way, the sick homes.
   if (h.plague.warning) {
     const w = h.plague.warning, home = world.buildings[w.origin];
     if (home) {
       const f = physicianFix(world, home);
-      out.push(item('plague:warned', 'plague', HAZARD_ADVICE.plagueWarned, 1, home.id, { warned: true, strikes: w.strikes, days: Math.max(0, w.strikes - world.day), cause: healthCause(world, home).cause }, f.fix ? f : { fix: { select: home.id, target: centreOf(home), why: 'plague' }, cost: null, afford: null }));
+      out.push(item('plague:warned', 'plague', lead + HAZARD_ADVICE.plagueWarned, 1, home.id, { warned: true, strikes: w.strikes, days: Math.max(0, w.strikes - world.day), cause: healthCause(world, home).cause }, f.fix ? f : { fix: { select: home.id, target: centreOf(home), why: 'plague' }, cost: null, afford: null }));
     }
   }
   if (h.plague.active) {
@@ -116,7 +119,7 @@ export function hazardItems(world, alerts, out) {
       const open = sick.filter((b) => (cover.get(b.id) || 0) < HEALTH.staffedAt);
       const first = open[0] || sick[0];
       const held = quarantines(world);
-      out.push(item('plague:active', 'plague', open.length * HAZARD_ADVICE.plagueHome + (sick.length - open.length), sick.length, first.id,
+      out.push(item('plague:active', 'plague', (open.length ? lead : 0) + open.length * HAZARD_ADVICE.plagueHome + (sick.length - open.length), sick.length, first.id,
         { warned: false, sick: sick.length, uncovered: open.length, lost: h.plague.active.lost, quarantined: held.size, cause: healthCause(world, first).cause },
         { fix: { select: first.id, target: centreOf(first), why: 'plague' }, cost: null, afford: null }));
     }
@@ -124,7 +127,8 @@ export function hazardItems(world, alerts, out) {
   // Drought: the Nile reading's warning, then the lean year; the stores either carry the city or do not.
   if (h.drought.warning || h.drought.active) {
     const d = droughtData(world);
-    const weight = d.carries ? HAZARD_ADVICE.droughtCovered : HAZARD_ADVICE.droughtWarned + HAZARD_ADVICE.droughtShortMonth * d.monthsShort;
+    const points = d.carries ? HAZARD_ADVICE.droughtCovered : HAZARD_ADVICE.droughtWarned + HAZARD_ADVICE.droughtShortMonth * d.monthsShort;
+    const weight = (d.warned || !d.carries ? lead : 0) + points;
     let fixed;
     if (!d.carries && isUnlocked(world, 'granary') && d.capacity > 0 && d.held >= 0.7 * d.capacity) {
       const cost = costOf(world, 'granary'), at = world.focus;
@@ -139,7 +143,7 @@ export function hazardItems(world, alerts, out) {
     if (farms.length) {
       const todo = farms.filter((id) => !(lw.early || []).includes(id));
       const first = world.buildings[todo[0] || farms[0]];
-      out.push(item('locusts:warned', 'locusts', farms.length * HAZARD_ADVICE.locustFarm, farms.length, first.id,
+      out.push(item('locusts:warned', 'locusts', (todo.length ? lead : 0) + farms.length * HAZARD_ADVICE.locustFarm, farms.length, first.id,
         { warned: true, kind: lw.kind, farms: farms.length, early: farms.length - todo.length, strikes: lw.strikes, days: Math.max(0, lw.strikes - world.day) },
         todo.length ? { fix: { select: first.id, target: centreOf(first), why: 'harvest' }, cost: null, afford: null } : undefined));
     }
