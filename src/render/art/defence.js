@@ -8,6 +8,7 @@ import {
   WASH, WASH2, MUD, MUD2, STONE, RED, RED_DARK, TEAL, GOLD, WOOD, DOOR, INK, SHADOW, TERRAIN,
 } from './palette.js';
 import { boundsFor } from '../iso.js';
+import { SHELL, SHELL_VARIANTS, shellHeightClass } from '../../data/battle.js';
 
 export const FIREHOUSE_EMBLEM = RED;      // spec 5.3: the firehouse's emblem matches its card (red)
 export const DEFENCE_EMBLEM = RED_DARK;   // the Defence category's tint (CATEGORY_TINT.defence in data/ui.js)
@@ -278,6 +279,57 @@ export function gateRun(g, x, y) {
   wallPiece(g, x + 1, y, { w: 1 });
 }
 
+// Version 6.0 (Track B2): the shell a burned or wrecked building leaves. Rubble that remembers what stood there (b.was) is drawn per tile of its
+// footprint, with broken wall stubs on the edges of the footprint that this tile lies on (mask bits 1 and 2: the back walls, 4 and 8: the front
+// walls, low), so a 2x2 reads as one ruin with its walls round it and a heap inside. A burned-out shell is charred: dark mudbrick, black beams,
+// a few embers; a wrecked one is pulled down: light brick, a toppled slab, bricks thrown wide, dust. The stubs stand as tall as the building
+// did (tall 0, 1, 2 from SHELL), broken in steps with a doorway gap in one. armies.js armySlot picks the slot (shellSlot below).
+const BURNT_WALL = ['#8A7468', '#66524B', '#463A3E'];
+const BURNT_HEAP = ['#8C7A6C', '#6E5C52', '#4E4040'];
+export function shell(g, x, y, cause, mask, tall, v = 0) {
+  const fire = cause !== 'wreck';
+  const H = [SHELL.low, SHELL.mid, SHELL.tall][tall] * (fire ? 1 : 0.6);
+  const C = fire ? BURNT_WALL : MUD2, HP = fire ? BURNT_HEAP : HEAP;
+  const P = (u, w2, z = 0) => U(p(x + u, y + w2), z);
+  const c = P(0.5, 0.52);
+  g.radial([c[0] + 1, c[1] + 0.8], 14, 7, fire ? '#2E2420' : '#9C8872', fire ? 0.5 : 0.3);     // soot, or dust, on the ground
+  const stub = (edge, i, low) => {                                                               // one broken segment of wall, a third of an edge
+    const gap = !low && i === 1 && hs(v, edge, 11) > 0.55;                                      // a doorway, in some
+    const h = (gap ? 0.14 : 0.45 + 0.55 * hs(v + 1, i + edge * 3, 7)) * (low ? 0.34 : 1) * H;
+    if (edge === 0) box(g, x, y + i / 3, 0.13, 1 / 3, h, 0, C, 0);
+    else if (edge === 1) box(g, x + i / 3, y, 1 / 3, 0.13, h, 0, C, 0);
+    else if (edge === 2) box(g, x + i / 3, y + 0.87, 1 / 3, 0.13, h, 0, C, 0);
+    else box(g, x + 0.87, y + i / 3, 0.13, 1 / 3, h, 0, C, 0);
+  };
+  for (const edge of [0, 1]) if (mask & (1 << edge)) for (let i = 0; i < 3; i++) stub(edge, i, false);   // the back walls first
+  const ring = [[0.2, 0.62], [0.3, 0.4], [0.52, 0.34], [0.74, 0.42], [0.84, 0.62], [0.68, 0.84], [0.4, 0.84]];
+  g.poly(ring.map(([u, w2]) => P(u, w2, 0)), HP[2], { outline: true });                           // the heap's footing in shade
+  g.poly(ring.map(([u, w2]) => { const d = Math.hypot(u - 0.52, w2 - 0.62); return P(u + (0.52 - u) * 0.18, w2 + (0.62 - w2) * 0.18, (fire ? 3.4 : 2.2) - d * 3); }), HP[1]);
+  g.poly([P(0.38, 0.54, 3.6), P(0.54, 0.48, 4.2), P(0.68, 0.56, 3.6), P(0.54, 0.68, 3)], HP[0]);
+  const chunks = [[0.3, 0.6, 0.14, 0.1, 1.5, 2.4], [0.5, 0.5, 0.12, 0.12, 1.8, 3], [0.62, 0.66, 0.1, 0.14, 1.3, 2], [0.42, 0.72, 0.12, 0.08, 1.1, 1.5]];
+  for (const [u, w2, w, d, h, z] of chunks) box(g, x + u, y + w2, w, d, h, z, fire ? BURNT_WALL : MUD, 0);
+  if (fire) {
+    g.line(P(0.22, 0.8, 1), P(0.62, 0.34, H * 0.95), '#2A2024', 1.1);                          // charred roof beams standing out of the heap
+    g.line(P(0.74, 0.78, 1), P(0.4, 0.4, H * 0.7), '#2A2024', 0.9);
+    for (const [u, w2] of [[0.46, 0.56], [0.6, 0.64], [0.36, 0.7]]) g.circ(P(u, w2, 3.4), 0.55, '#F2A93B', { alpha: 0.85 });   // embers
+  } else {
+    g.poly([P(0.12, 0.78, 0.4), P(0.44, 0.92, 0.4), P(0.5, 0.88, 2.4), P(0.2, 0.72, 3)], MUD2[1], { outline: true });   // a wall slab that fell outwards
+    g.line(P(0.18, 0.3, 1.2), P(0.8, 0.5, 1.8), '#7A5A46', 1.1);                                // a splintered beam lying across
+    const loose = [[0.08, 0.9], [0.9, 0.84], [0.92, 0.22], [0.66, 0.1], [0.1, 0.12], [0.78, 0.94]];
+    loose.forEach(([u, w2], i) => { const j = (hs(v, i, 5) - 0.5) * 0.08; box(g, x + u + j, y + w2 - j, 0.1, 0.1, 1.3, 0, MUD, 0); });
+  }
+  for (const edge of [2, 3]) if (mask & (1 << edge)) for (let i = 0; i < 3; i++) stub(edge, i, true);   // the front walls last, low
+}
+
+// The slot of a piece of rubble that remembers what stood there, or null: its shell by cause, edges and height. The edges are those of the
+// old footprint (was) that this tile lies on; the height class is the old building's (SHELL_CLASS in data/battle.js).
+export function shellSlot(b) {
+  const w = b.was;
+  if (!w || !(w.w >= 1) || !(w.d >= 1)) return null;
+  const mask = (b.x === w.x ? 1 : 0) | (b.y === w.y ? 2 : 0) | (b.y === w.y + w.d - 1 ? 4 : 0) | (b.x === w.x + w.w - 1 ? 8 : 0);
+  return `rubble.${w.cause === 'wreck' ? 'wreck' : 'fire'}.m${mask}.h${shellHeightClass(w)}.v${b.id % SHELL_VARIANTS}`;
+}
+
 export const RUBBLE_VARIANTS = 3;
 const RUBBLE_SLOT = { w: 1, d: 1, height: 5, bounds: boundsFor(1, 1, 5), shadows: [] };
 export const DEFENCE_ART = {
@@ -289,3 +341,8 @@ export const DEFENCE_ART = {
   rubble: { ...RUBBLE_SLOT, draw: (g, x, y) => rubble(g, x, y, 0) },
 };
 for (let v = 0; v < RUBBLE_VARIANTS; v++) DEFENCE_ART[`rubble.v${v}`] = { ...RUBBLE_SLOT, draw: (g, x, y) => rubble(g, x, y, v) };
+// Version 6.0 (Track B2): every shell, by cause, edges, height class and variant (drawn when first shown, like any slot).
+const SHELL_SLOT = { w: 1, d: 1, height: 14, bounds: boundsFor(1, 1, 14), shadows: [] };
+for (const cause of ['fire', 'wreck']) for (let mask = 0; mask < 16; mask++) for (let h = 0; h < 3; h++) for (let v = 0; v < SHELL_VARIANTS; v++) {
+  DEFENCE_ART[`rubble.${cause}.m${mask}.h${h}.v${v}`] = { ...SHELL_SLOT, draw: (g, x, y) => shell(g, x, y, cause, mask, h, v) };
+}
