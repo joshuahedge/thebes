@@ -86,10 +86,10 @@ describe('v50 balance advice: the top item at the end of each run', () => {
     expect(cityAdvice(w).some((x) => x.kind === 'raid_towers')).toBe(false);
   });
 
-  it('the grand district run, at year 10, names the 91 jobs no worker fills first, then the towers a raid lacks, sickness and water', () => {
+  it('the grand district run, at year 10, names the 4 towers a raid lacks first, then sickness in 8 homes, the 41 jobs no worker fills and water', () => {
     const { w } = grandRun();
     const items = top(w, 4);
     for (const a of items) sensible(w, a);
-    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['workers_short', null, 91, 45.5], ['raid_towers', null, 3, 30], ['illness', null, 8, 24], ['home_need', 'water', 6, 12]]);
+    expect(items.map((x) => [x.kind, x.kind === 'home_need' ? x.data.need : null, x.count, x.weight])).toEqual([['raid_towers', null, 4, 40], ['illness', null, 8, 24], ['workers_short', null, 41, 20.5], ['home_need', 'water', 6, 12]]);
   });
 });

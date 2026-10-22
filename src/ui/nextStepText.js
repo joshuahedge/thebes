@@ -8,8 +8,9 @@ import { TIERS } from '../data/housing.js';
 import { categoryOfItem } from '../data/ui.js';
 import { allBuildings } from '../sim/world.js';
 import { goodMakers } from '../sim/advice.js';
-import { NEED_NAMES, LARGE_TEXT, buildingName, goodName, plural, T, viewLabel, S47_PRESSURE_TEXT } from './text.js';
+import { NEED_NAMES, LARGE_TEXT, OPEN_TEXT, buildingName, goodName, plural, T, viewLabel, S47_PRESSURE_TEXT } from './text.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
+import { costOf } from '../sim/costs.js';
 import { isLot, isSmallTop } from '../sim/largePlots.js';
 import { nearestTerrainTile } from './goalsList.js';
 
@@ -104,7 +105,14 @@ export function stepWords(world, home, step) {
   if (f.item === 'road') rest = `a road beside this home ${price('tile')} gives it ${gives(step.need)}`;
   else if (f.item === 'house') rest = `house plots beside this home ${price('plot')} give it ${gives(step.need)}`;
   else if (f.item === LARGE_PLOT.type) rest = LARGE_TEXT.next(price().slice(1, -1));   // Version 6.0 (Track C): the Large plot where a grand home can grow
-  else if (f.from !== undefined) {
+  else if (f.open) {
+    // Version 6.0 (Track C, ruling 586): the Estate trick, a workshop in the open with a store of its own that Fetches its input (src/sim/advice.js openWorkshop): the first step the
+    // store, with the workshop's price said after it; the second the workshop beside the store laid. Both buildings named are priced (the line's price is the one built now).
+    const o = f.open;
+    rest = o.step === 'store'
+      ? OPEN_TEXT.stepStore(o, price(), costOf(world, o.maker), world.buildings[o.holder] ? world.buildings[o.holder].type : o.store)
+      : OPEN_TEXT.stepMaker(o, price(), world.buildings[o.by] ? world.buildings[o.by].type : o.store);
+  } else if (f.from !== undefined) {
     // Version 5.0 (Task 7): a low street's decoration, which and where (src/sim/advice.js desirabilityFix): "a statue beside this home (60 gold)
     // raises its desirability from 22 to 30 (it needs 35)".
     rest = `${an(buildingName(f.item).toLowerCase())} ${STEP_TEXT.spot(f.dist)} ${price()} ${STEP_TEXT.lifts(f.from, f.to, f.needs)}`;

@@ -2768,6 +2768,18 @@ export const LARGE_TEXT = {
   // Home progress: the legend's note for an empty lot (the lot is washed like any home, and its missing need is the icon on it).
   progress: { label: 'Large plot', words: `A Large plot with no people in it is shown like a home: the icon is the first need it waits on before people move in as ${lgAn(lgManor)}, a tick means it is ready` },
 };
+// The Estate trick (ruling 586, said by the advice since Version 6.0): a workshop (the weaver, the jeweller) with no room beside the store holding its input goes in the open with a
+// store of its own that Fetches the input. Two steps, each worded from the fix's `open` (src/sim/advice.js openWorkshop): the store (priced, with the workshop's price named), then the
+// workshop beside it; the Fetch order is the clause both end on. Names are the data's (buildingName, goodName).
+const ocName = (type) => buildingName(type).toLowerCase();
+export const OPEN_TEXT = {
+  // The step line's rest (after "Next step:"): `price` is the line's own "(70 gold)" (with how short the treasury is, when it is).
+  stepStore: (o, price, makerGold, holderType) => `${lgAn(ocName(o.store))} in the open ${price}, then ${lgAn(ocName(o.maker))} beside it (${makerGold} gold) and a Fetch order for ${goodName(o.input).toLowerCase()}: no room beside the ${ocName(holderType)} that holds it`,
+  stepMaker: (o, price, storeType) => `${lgAn(ocName(o.maker))} beside the ${ocName(storeType)} you laid ${price}, then set that ${ocName(storeType)} to Fetch ${goodName(o.input).toLowerCase()}`,
+  // The advice card's fix words (the cost line prices every building named here).
+  adviceStore: (o, holderType) => `${lgAn(ocName(o.store))} in the open, then ${lgAn(ocName(o.maker))} beside it, set to Fetch ${goodName(o.input).toLowerCase()}: no room beside the ${ocName(holderType)} that holds it`,
+  adviceMaker: (o, storeType) => `${lgAn(ocName(o.maker))} beside the ${ocName(storeType)} you laid, then set that ${ocName(storeType)} to Fetch ${goodName(o.input).toLowerCase()}`,
+};
 // The Layers picker's locked layers (the 5.0 loose end, ruling 706): greyed, with the rank that unlocks each (src/data/layers.js LAYER_UNLOCK) in words, never by grey alone.
 import { LAYER_UNLOCK as lgUnlock } from '../data/layers.js';
 // rank: the short words under the name ("From Town": the popover on a phone at 150% text has no room for more); words: the full sentence, for a screen reader and the tooltip.

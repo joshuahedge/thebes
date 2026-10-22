@@ -3,3 +3,4 @@
 import './lotRules.test.js';
 import './ui.test.js';
 import './loose.test.js';
+import './estate.test.js';

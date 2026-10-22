@@ -7,7 +7,7 @@ import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { MILESTONES } from '../data/progression.js';
 import { ADVICE, ADVICE_KINDS } from '../data/advice.js';
-import { allBuildings, housesOf } from './world.js';
+import { allBuildings, housesOf, buildingsVersion } from './world.js';
 import { houseStatus, needCause, needsOf, desirabilityTargetFor, goodStoresFor } from './housing.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { isLargePlot, isLot, isSmallTop, largePlotUnlocked } from './largePlots.js';
@@ -21,7 +21,7 @@ import { healthCause } from './health.js';
 import { crimeCause } from './crime.js';
 import { tributeQuote, towersNeeded, workingTowers, raidSize } from './raids.js';
 import { DAYS_PER_MONTH } from './time.js';
-import { buildingsInReach } from './reach.js';
+import { buildingsInReach, roadReach, reachDistance } from './reach.js';
 import { storeAccepts } from './production.js';
 import { isStore, canStaff, findSource } from './carts.js';
 import { desirabilityField, houseDesirability, scoreWith } from './desirability.js';
@@ -78,11 +78,82 @@ export function unmadeFix(world, cause) {
   const makers = goodMakers(cause.good);
   if (!makers.length || makers.some((t) => !isUnlocked(world, t))) return null;
   const missing = makers.find((t) => !allBuildings(world).some((b) => b.type === t));
-  const more = missing ? { item: missing, near: inputHolder(world, missing) } : moreOf(world, cause.good);
+  const holder = missing ? inputHolder(world, missing) : null;
+  // Version 6.0 (Track C, ruling 586): a workshop the city lacks goes beside the store holding its input, unless no room is left there: then the Estate trick (openWorkshop).
+  const trick = missing ? openWorkshop(world, missing, holder) : undefined;
+  const more = missing ? (trick === undefined ? { item: missing, near: holder } : trick) : moreOf(world, cause.good);
   if (!more) return null;   // a maker that stands cannot work: the workers item is the fix, not another maker
   const out = { item: more.item, at: BUILDINGS[more.item].terrain ? 'terrain' : 'building' };
   if (more.near !== null) out.near = more.near;
+  if (more.open) out.open = more.open;
   return out;
+}
+
+// ── The Estate trick (Version 6.0, Track C: ruling 586's piece of hand-play, said by the advice) ──
+// A workshop (the weaver, the jeweller) takes its input from a store within its producer reach by road. When the store holding the input has no room beside it for the workshop,
+// Show me's nearest spot lies beyond that reach and the workshop would stand idle. What works is the workshop in the open with a store of its own beside it that Fetches the input
+// (Stage 4.7's carts). The advice says it in two steps, read from the world: the store first (fix.item the store's type, near the holder), then the workshop beside that store
+// (fix.item the maker, near the store); the Fetch order is the words' last clause, and once a store beside the holder-less spot stands there is nothing more to build.
+// fix.open = { maker, input, store: the store's type, step: 'store' | 'maker', holder: the id of the store that holds the input, by: the satellite store's id (step 'maker') }.
+
+// The free spot nearest `holder` (straight distance between centres, then reading order) where a `type` (a workshop) could stand and take its input from it: { x, y } its origin, or null.
+// A tile the placing rule accepts with a road touching it (checkTiles) and whose road distance to the holder is within the workshop's producer reach. Read from the holder's own road
+// reach, so one walk answers every candidate. It is also where the plain fix aims Show me, so the ghost lands where the workshop has its input (fixFor).
+const roomMemo = new WeakMap();   // world -> { key, spots: Map 'type|holder id' -> spot }: one answer per place while nothing that decides it has changed
+export function roomFor(world, type, holder) {
+  const key = `${buildingsVersion(world)}|${world.roadVersion}|${world.wallVersion}|${world.milestone}`;
+  let m = roomMemo.get(world);
+  if (!m || m.key !== key) { m = { key, spots: new Map() }; roomMemo.set(world, m); }
+  const k = `${type}|${holder.id}|${holder.x},${holder.y}`;
+  if (!m.spots.has(k)) m.spots.set(k, searchRoom(world, type, holder));
+  return m.spots.get(k);
+}
+function searchRoom(world, type, holder) {
+  const def = BUILDINGS[type];
+  const reach = def.producerReach;
+  const rm = roadReach(world, holder, reach);
+  if (!rm.size) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const t of rm.keys()) { const tx = t % world.size, ty = (t - tx) / world.size; x0 = Math.min(x0, tx); y0 = Math.min(y0, ty); x1 = Math.max(x1, tx); y1 = Math.max(y1, ty); }
+  const { w, d } = dimsOf(type);
+  const cx = holder.x + holder.w / 2, cy = holder.y + holder.d / 2;
+  let best = null, bestD = Infinity;
+  for (let y = y0 - d; y <= y1 + 1; y++) {
+    for (let x = x0 - w; x <= x1 + 1; x++) {
+      const dd = (x + w / 2 - cx) ** 2 + (y + d / 2 - cy) ** 2;
+      if (dd >= bestD || checkTiles(world, type, x, y) !== null) continue;
+      if (reachDistance(rm, world, { x, y, w, d }) <= reach) { bestD = dd; best = { x, y }; }
+    }
+  }
+  return best;
+}
+export const roomBeside = (world, type, holder) => roomFor(world, type, holder) !== null;
+
+// The store the player has laid for the trick: a store of the input's kind, not the holder, holding none of the input, the nearest to the holder (ties: the lower id); or null.
+function satelliteOf(world, storeType, input, holder) {
+  let best = null, bestD = Infinity;
+  for (const b of allBuildings(world)) {
+    if (b.id === holder.id || b.type !== storeType || (b.store[input] || 0) > 0) continue;
+    const dd = (b.x - holder.x) ** 2 + (b.y - holder.y) ** 2;
+    if (dd < bestD) { bestD = dd; best = b; }
+  }
+  return best;
+}
+
+// The trick's next step for a workshop `maker` whose input lies in `holder` (a building, or its id): { item, near, open } for the step; undefined when the trick does not apply (no
+// holder, the store's kind not unlocked, or room beside the holder: the plain fix then); null when a store is laid and the workshop stands beside it (nothing more to build: the
+// Fetch order is the player's, and the words said so).
+export function openWorkshop(world, maker, holder) {
+  const h = typeof holder === 'number' ? world.buildings[holder] : holder;
+  const input = BUILDINGS[maker].consumes;
+  const storeType = input ? storeFor(input) : null;
+  if (!h || !storeType || !isUnlocked(world, storeType) || roomBeside(world, maker, h)) return undefined;
+  const sat = satelliteOf(world, storeType, input, h);
+  const open = { maker, input, store: storeType, holder: h.id };
+  if (!sat) return { item: storeType, near: h.id, open: { ...open, step: 'store' } };
+  const reach = BUILDINGS[maker].producerReach, rm = roadReach(world, sat, reach);
+  if (allBuildings(world).some((b) => b.type === maker && reachDistance(rm, world, b) <= reach)) return null;   // the workshop stands by it
+  return { item: maker, near: sat.id, open: { ...open, step: 'maker', by: sat.id } };
 }
 
 // Version 5.0 (Task 7): the store holding most of a workshop's input (a weaver goes beside the storehouse where the flax is, as it takes its input
@@ -114,7 +185,7 @@ export function moreOf(world, good) {
     const raw = storeBy(input, stuckAt(makerOf(input)));
     if (raw) return raw;
     const held = inputHolder(world, maker);
-    if (held !== null) return { item: maker, near: held };
+    if (held !== null) { const trick = openWorkshop(world, maker, held); return trick === undefined ? { item: maker, near: held } : trick; }   // Version 6.0: or the trick when no room is left beside the store that holds it (null: nothing more to build)
     return { item: makerOf(input), near: idle.id };
   }
   if (all.some((b) => b.type === maker && (b.paused || b.blocked === 'understaffed' || b.blocked === 'no_game'))) return null;
@@ -229,7 +300,13 @@ function fixFor(world, cause, home, need) {
   }
   if (f.item !== 'road' && !isUnlocked(world, f.item)) return { locked: { item: f.item, milestone: (milestoneOf(f.item) || { id: null }).id } };
   const by = f.near !== undefined ? world.buildings[f.near] || null : null;   // Task 7: the building the chain is stuck at (moreOf)
-  if (by) return { fix: { item: f.item, at: f.at === 'terrain' ? 'terrain' : 'near', target: centreOf(by), near: by.id } };
+  if (by) {
+    // Version 6.0 (Track C): a workshop goes beside the building holding its input, and Show me aims at the free spot where it has the input in its reach (roomFor), not at the holder
+    // (the nearest fit to which can lie beyond the reach); the Estate trick's step rides on the fix.
+    const room = BUILDINGS[f.item].consumes ? roomFor(world, f.item, by) : null;
+    const { w, d } = dimsOf(f.item);
+    return { fix: { item: f.item, at: f.at === 'terrain' ? 'terrain' : 'near', target: room ? { x: room.x + w / 2, y: room.y + d / 2 } : centreOf(by), near: by.id, ...(f.open ? { open: f.open } : {}) } };
+  }
   const near = centreOf(f.at !== 'home' && b ? b : home);
   if (BUILDINGS[f.item] && BUILDINGS[f.item].hunts) {   // Task 7: a hunting lodge goes by the herd nearest the bazaar, where its hunters find game
     const herd = herdNear(world, near);
@@ -367,7 +444,7 @@ function runningOutItems(world, out) {
     // Review fix: the fix goes beside the building the chain is stuck at (make.near: a store beside the maker with nowhere to put its goods) when unmadeFix names one.
     const by = make && make.near !== undefined ? world.buildings[make.near] || null : null;
     const fixed = make && isUnlocked(world, make.item)
-      ? priced(world, { item: make.item, at: BUILDINGS[make.item].terrain ? 'terrain' : 'near', target: centreOf(by || store), ...(by ? { near: by.id } : {}) })
+      ? priced(world, { item: make.item, at: BUILDINGS[make.item].terrain ? 'terrain' : 'near', target: centreOf(by || store), ...(by ? { near: by.id } : {}), ...(make.open ? { open: make.open } : {}) })
       : undefined;
     const data = { need, goods, held, used, made, monthsLeft: Math.round((held / drain) * 10) / 10, homes: homes.map((h) => h.id), store: store.id };
     out.push(item(`running_out:${need}`, 'running_out', homes.reduce((s, h) => s + h.tier, 0), homes.length, store.id, data, fixed));
