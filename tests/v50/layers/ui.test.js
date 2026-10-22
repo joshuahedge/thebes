@@ -16,7 +16,7 @@ import { MIN_STAFF_RATIO } from '../../../src/data/labour.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 import { mount } from '../../helpers/dom.js';
 
-const shownIn = (node) => [...node.querySelectorAll('button.layer')].filter((b) => !b.hidden).map((b) => b.dataset.layer);
+const shownIn = (node) => [...node.querySelectorAll('button.layer')].filter((b) => !b.hidden && !b.classList.contains('locked')).map((b) => b.dataset.layer);   // Version 6.0: a layer the city has not reached is greyed and not offered (its rank is said; tests/v60/c/loose.test.js)
 
 function pickerRig(world) {
   const { root, cleanup } = mount();

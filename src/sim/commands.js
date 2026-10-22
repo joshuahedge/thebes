@@ -3,7 +3,8 @@ import { ECONOMY } from '../data/economy.js';
 import { MONUMENTS } from '../data/monuments.js';
 import { footprint, idx, inBounds, ring } from './grid.js';
 import { T, TERRAIN_BY_NAME, buildable, groundRefusal } from './terrain.js';
-import { makeBuilding, insertBuilding, removeBuilding, buildingAt, allBuildings, isFinished, isSite, touchBuildings } from './world.js';
+import { makeBuilding, insertBuilding, removeBuilding, buildingAt, allBuildings, isFinished, isSite } from './world.js';
+import { touchLayers } from './layerVersion.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { canAfford, spend, refund } from './money.js';
 import { costOf, roadCostOf, rubbleCostOf, canPayNoDebt } from './costs.js';
@@ -322,7 +323,7 @@ export function setPaused(world, id, paused) {
   b.paused = Boolean(paused);
   if (b.paused) b.staff = 0;
   releaseHolds(world, b.id);
-  touchBuildings(world);   // the layers' caches (src/sim/layers.js) key on the buildings' version
+  touchLayers(world);   // the layers' caches (src/sim/layers.js) key on this counter; the chunk index and the roadless plots, which key on the footprints, are left alone (Version 6.0)
   return { ok: true, warnings: [] };
 }
 

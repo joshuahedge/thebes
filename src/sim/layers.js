@@ -9,6 +9,7 @@ import { CRIME } from '../data/crime.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
 import { LAYER_UNLOCK, SUPPLY_GOODS, JOBLESS_BANDS } from '../data/layers.js';
 import { allBuildings, housesOf, buildingsVersion, getBuilding } from './world.js';
+import { layersVersion } from './layerVersion.js';
 import { houseStatus } from './housing.js';
 import { atLeast, isUnlocked } from './progression.js';
 import { touchesRoad } from './reach.js';
@@ -30,10 +31,10 @@ export const supplyGoods = (world) => SUPPLY_GOODS.filter((g) => g === 'food' ||
 
 // ── The cache ──
 
-// One signature for every list: the buildings (placed or removed, or paused by the player: touchBuildings), the roads and the day (stocks, staff and tiers
+// One signature for every list: the buildings (placed or removed), a pause or resume (layersVersion: a change a layer must see at once that moves no footprint), the roads and the day (stocks, staff and tiers
 // change when a day passes).
 const caches = new WeakMap();   // world -> Map name -> { key, value }
-const structure = (world) => `${buildingsVersion(world)}|${world.roadVersion}`;
+const structure = (world) => `${buildingsVersion(world)}|${layersVersion(world)}|${world.roadVersion}`;
 function cached(world, name, build, also = '') {
   const key = `${structure(world)}|${world.day}|${also}`;
   let m = caches.get(world);

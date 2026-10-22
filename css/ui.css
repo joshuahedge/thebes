@@ -619,6 +619,12 @@ body[data-layout="wide"] #legend .strip.ground .ground-keys .room { flex-basis: 
 .layers-picker .layer .hue { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }   /* the overlay's own hue, as a stripe down the button's edge */
 .layers-picker .layer[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); box-shadow: none; }
 .layers-picker .layer.off { grid-column: 1 / -1; justify-content: center; }
+/* Version 6.0 (Track C): a layer the city has not reached yet is greyed (flat, dashed edge, soft ink) and says the rank that unlocks it under its name; the words carry it, not the grey */
+.layers-picker .layer .words { display: flex; flex-direction: column; }
+.layers-picker .layer .lock { font-size: calc(11px * var(--ui-scale)); line-height: 1.1; }
+.layers-picker .layer.locked { background: var(--parchment-2); color: var(--ink-soft); border-style: dashed; box-shadow: none; cursor: default; }
+.layers-picker .layer.locked .hue { opacity: 0.35; }
+.layers-picker .layer.locked .name { font-size: 0.85em; white-space: nowrap; }   /* one line for the name and one for its rank: a locked button is no taller than the others, so the popover stays inside the screen */
 body:is([data-text-size="125"], [data-text-size="150"]) .layers-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #corners .layers-picker { bottom: calc(100% + 8px); right: 8px; width: min(360px, calc(100% - 16px)); max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); }
 body[data-hand="left"] #corners .layers-picker { right: auto; left: 8px; }

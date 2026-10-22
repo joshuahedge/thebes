@@ -6,7 +6,7 @@
 //     let through with the 'needs_road' warning, as the player's placing is), packed row by row, or column by column when that packs more.
 //   gardens and statues ('spread'): a lattice from the tiles' top-left corner, one tile in every `spacing`, each that takes the building.
 //
-// positions: [[x, y], ...] the origins that get one (in order); skipped: [{ x, y, reason }] the tiles the ground refuses (water, hills, taken, not the
+// positions: [[x, y], ...] the origins that get one (in order); leftover (Version 6.0, farms only): [{ x, y }] the tiles the ground takes that no farm covers, too few left for one more; skipped: [{ x, y, reason }] the tiles the ground refuses (water, hills, taken, not the
 // right land; a farm's tiles count one by one), the reason being the sim's own tile reason; unit: the price of one; cost: n x unit; afford: how many
 // the treasury can pay for (the debt floor, the rule every purchase follows). Refused: 'unknown' (not an area building), 'locked', 'nothing_to_place'
 // (nothing fits) and 'no_gold' (the whole area crosses the debt floor: nothing is laid, as plots; afford says how many would have gone through).
@@ -53,17 +53,25 @@ function packFarms(world, type, tiles, byColumn) {
 
 export function previewAreaTiles(world, type, list, { spacing = AREA_SPACING_DEFAULT } = {}) {
   const kind = areaKindOf(type);
-  const base = { positions: [], skipped: [], warnings: [], unit: 0, cost: 0, afford: 0 };
+  const base = { positions: [], skipped: [], leftover: [], warnings: [], unit: 0, cost: 0, afford: 0 };
   if (!kind) return { ok: false, reason: 'unknown', ...base };
   if (!isUnlocked(world, type)) return { ok: false, reason: 'locked', ...base };
   const tiles = tileSet(world, list);
   const skipped = [];
   let positions;
+  let leftover = [];
   if (kind === 'farm') {
     const rows = packFarms(world, type, tiles, false), cols = packFarms(world, type, tiles, true);
     positions = cols.length > rows.length ? cols : rows;
     // Each tile the ground refuses, by the sim's own tile rule (a tile with a road or a building on it is refused as taken).
     for (const [x, y] of tiles.values()) { const reason = tileReason(world, type, x, y); if (reason) skipped.push({ x, y, reason }); }
+    // Version 6.0 (Track C, the 5.0 loose end): the tiles the ground takes that no farm of the packing covers, too few left for one more (a farm is 2x2): marked as left over, so the
+    // count of skipped tiles says only ground the sim refuses. Every tile of the area is in exactly one of: a farm's footprint, skipped, or leftover.
+    const { w, d } = dimsOf(type, 0);
+    const covered = new Set();
+    for (const [x, y] of positions) for (const [cx, cy] of footprint(x, y, w, d)) covered.add(keyOf(cx, cy));
+    const refused = new Set(skipped.map((s) => keyOf(s.x, s.y)));
+    leftover = [...tiles.values()].filter(([x, y]) => !covered.has(keyOf(x, y)) && !refused.has(keyOf(x, y))).map(([x, y]) => ({ x, y }));
   } else {
     const gap = AREA_SPACINGS.includes(spacing) ? spacing : AREA_SPACING_DEFAULT;
     positions = [];
@@ -79,15 +87,15 @@ export function previewAreaTiles(world, type, list, { spacing = AREA_SPACING_DEF
   const unit = costOf(world, type);
   const cost = positions.length * unit;
   const afford = unit > 0 ? Math.min(positions.length, Math.max(0, Math.floor((world.gold - ECONOMY.debtFloor) / unit))) : positions.length;   // the most the debt floor lets through
-  if (!positions.length) return { ok: false, reason: 'nothing_to_place', ...base, skipped, unit };
+  if (!positions.length) return { ok: false, reason: 'nothing_to_place', ...base, skipped, leftover, unit };
   // The warnings the player's placing carries (a road is still missing, a farm has no store in reach), each once, over every position.
   const warnings = [];
   for (const [x, y] of positions) {
     for (const code of placementWarnings(world, type, x, y, checkTiles(world, type, x, y) === 'needs_road')) if (!warnings.includes(code)) warnings.push(code);
     if (warnings.length >= 2) break;
   }
-  if (!canAfford(world, cost)) return { ok: false, reason: 'no_gold', positions, skipped, warnings, unit, cost, afford };
-  return { ok: true, reason: null, positions, skipped, warnings, unit, cost, afford: positions.length };
+  if (!canAfford(world, cost)) return { ok: false, reason: 'no_gold', positions, skipped, leftover, warnings, unit, cost, afford };
+  return { ok: true, reason: null, positions, skipped, leftover, warnings, unit, cost, afford: positions.length };
 }
 
 // Lays the preview's buildings: charged once, one undo entry for them all. { ok, ids, cost, warnings, skipped }, or the preview's refusal with ids [].

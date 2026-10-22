@@ -26,6 +26,8 @@ export const AREA_TEXT = {
     const top = [...by.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, 2).map(([code, n]) => `${n} ${whyOf(code)}`);
     return `${plural(skipped.length, 'tile', 'tiles')} skipped: ${top.join(', ')}${by.size > 2 ? ', other' : ''}`;
   },
+  // Version 6.0 (Track C): ground the area has but too little of for one more farm, marked and counted apart from the ground the sim refuses ("3 left over: too small for another farm").
+  leftover: (type, n) => { const word = (WORDS[type] || [buildingName(type).toLowerCase()])[0]; return `${n} left over, too small for ${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`; },
   nothing: (type, skipped) => `No ${buildingName(type).toLowerCase()} fits here${skipped.length ? `: ${AREA_TEXT.skipped(skipped).replace(/^\d+ tiles? skipped: /, '')}` : ''}`,
   // The treasury rule, as the sim applies it (previewAreaTiles 'no_gold'): the whole area is refused, and the bar says how many the treasury can pay for.
   noGold: (type, r) => `The treasury can pay for ${r.afford} of ${r.positions.length} (debt stops at ${-ECONOMY.debtFloor}): nothing is laid`,

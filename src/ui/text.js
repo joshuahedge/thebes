@@ -2768,6 +2768,26 @@ export const LARGE_TEXT = {
   // Home progress: the legend's note for an empty lot (the lot is washed like any home, and its missing need is the icon on it).
   progress: { label: 'Large plot', words: `A Large plot with no people in it is shown like a home: the icon is the first need it waits on before people move in as ${lgAn(lgManor)}, a tick means it is ready` },
 };
+// The Layers picker's locked layers (the 5.0 loose end, ruling 706): greyed, with the rank that unlocks each (src/data/layers.js LAYER_UNLOCK) in words, never by grey alone.
+import { LAYER_UNLOCK as lgUnlock } from '../data/layers.js';
+// rank: the short words under the name ("From Town": the popover on a phone at 150% text has no room for more); words: the full sentence, for a screen reader and the tooltip.
+export const LAYERS_LOCKED_TEXT = {
+  rank: (kind) => {
+    const u = lgUnlock[kind];
+    if (!u) return '';
+    if (u.home) return 'First home';
+    const m = MILESTONES.find((x) => x.id === u.milestone);
+    return `From ${m ? m.name : u.milestone}`;
+  },
+  words: (kind) => {
+    const u = lgUnlock[kind];
+    if (!u) return '';
+    if (u.home) return 'Unlocks with your first home';
+    const m = MILESTONES.find((x) => x.id === u.milestone);
+    return `Unlocks at ${m ? m.name : u.milestone}`;
+  },
+  aria: (name, kind) => `${name}, locked: ${LAYERS_LOCKED_TEXT.words(kind)}`,
+};
 V60_HELP.c.push(
   { head: 'Large plots', text: `Small plots stop at ${lgTown}. For ${lgAn(lgManor)} and the grander homes lay a Large plot (a 2×2 lot, on the Homes cards from your first ${lgTown}). It stays empty and marked until its needs are met nearby: tap it to see "${LARGE_TEXT.opensHead}", and Show me for each missing one. Then people move in as ${lgAn(lgManor)} and it climbs to an ${TIERS[TIERS.length - 1].name} in place, never splitting. Homes merged under the old rule keep working.` },
 );
