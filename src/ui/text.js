@@ -3146,7 +3146,7 @@ export const B2_TEXT = {
     const did = lost.length ? `${lost.join(', ')}.` : 'They struck and left.';
     return { title: 'The raiders got through', detail: [did.charAt(0).toUpperCase() + did.slice(1), stoppedLine, chief].filter(Boolean).join(' ') };
   },
-  report: 'Report', reportLabel: 'Open the raid report', dismiss: 'Dismiss', dismissLabel: 'Dismiss the raid result',
+  report: 'Report', reportLabel: 'Open the raid report', dismissLabel: 'Dismiss the raid result',
   tip: 'Towers shoot and soldiers fight. The banner marks the chieftain: when he falls, his band turns back.',
   tipHelp: `Bands of ${b1Chief.fromSize} or more have a chieftain, ${b1Chief.hpFactor} times a raider's strength. When he falls, they turn back.`,
 };

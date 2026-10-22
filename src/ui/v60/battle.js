@@ -17,7 +17,7 @@ import { MOMENT } from '../../data/battle.js';
 import { openSheet } from '../modes.js';
 import { POLITE } from '../alerts.js';
 import { B2_TEXT } from '../text.js';
-import { el, button, icon } from '../components.js';
+import { el, button, icon, iconButton } from '../components.js';
 
 export function createBattleUi(ctx) {
   const base = seamBase();
@@ -30,6 +30,10 @@ export function createBattleUi(ctx) {
   let observer = null, syncing = false;
 
   const phone = () => { const l = ctx.store.get().layout; return l === 'portrait' || l === 'compact'; };
+  // On a landscape phone only one row sits under the top bar (the mobile budget): the raid report's caption (danger.js, an info caption, shown first) has
+  // it while it is up, so the result waits for it to go.
+  const cheer = root && root.querySelector ? root.querySelector('#cheer') : null;
+  const captionUp = () => ctx.store.get().layout === 'compact' && Boolean(cheer) && Boolean(cheer.querySelector('.cheer'));
   // A critical alert has the row when it is one that urges (a fire, a raid warning, debt): a polite one (a letter from the court) gives way to the result.
   const criticalShowing = () => Boolean(banner) && [...banner.querySelectorAll('.critical:not(.moment)')].some((n) => !POLITE.has(n.dataset.code));
 
@@ -40,7 +44,7 @@ export function createBattleUi(ctx) {
       el('span', { class: 'text' }, [el('strong', { text: t.title }), ' ', el('span', { class: 'small', text: t.detail })]),
       el('span', { class: 'buttons' }, [
         button(B2_TEXT.report, { class: 'report', 'aria-label': B2_TEXT.reportLabel, onClick: () => ctx.store.set(openSheet(ctx.store.get(), 'summary')) }),
-        button(B2_TEXT.dismiss, { class: 'dismiss quiet', 'aria-label': B2_TEXT.dismissLabel, onClick: () => clearMoment() }),
+        iconButton(B2_TEXT.dismissLabel, '✕', { class: 'dismiss quiet', onClick: () => clearMoment() }),     // an icon, so the words keep the phone's one line
       ]),
     ]);
     return node;
@@ -53,7 +57,7 @@ export function createBattleUi(ctx) {
     try {
       if (moment && world.day - moment.day >= MOMENT.days) { moment.node.remove(); moment = null; }
       if (moment) moment.node.classList.toggle('line', phone());            // the phone's one-line alert row
-      const show = Boolean(moment) && !(phone() && criticalShowing());
+      const show = Boolean(moment) && !(phone() && criticalShowing()) && !captionUp();
       banner.classList.toggle('moment-up', show && phone());                // on a phone the result takes the one-line row: a letter waits behind it (CSS)
       if (show && moment.node.parentNode !== banner) banner.append(moment.node);
       else if (!show && moment && moment.node.parentNode === banner) moment.node.remove();
@@ -70,6 +74,7 @@ export function createBattleUi(ctx) {
   if (banner && typeof MutationObserver === 'function') {
     observer = new MutationObserver(() => { if (moment) sync(); });
     observer.observe(banner, { childList: true });
+    if (cheer) observer.observe(cheer, { childList: true });             // a caption coming or going may free the row
   }
 
   // The result is said once to a screen reader, politely (the alerts' own announcer, #live).

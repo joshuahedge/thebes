@@ -100,8 +100,9 @@ describe('v60 b2 moment in the alert row', () => {
       expect(rig.root.ownerDocument.body.classList.contains('has-banner')).toBe(true);
       expect(rig.root.querySelector('#live').textContent).toBe(`${t.title}. ${t.detail}`);
       const [report, dismiss] = [...row.querySelectorAll('button')];
-      expect([report.textContent, dismiss.textContent]).toEqual([B2_TEXT.report, B2_TEXT.dismiss]);
-      for (const b of [report, dismiss]) { const r = b.getBoundingClientRect(); expect([b.textContent, r.width >= 43.5, r.height >= 43.5, b.getAttribute('aria-label').length > 0]).toEqual([b.textContent, true, true, true]); }
+      expect([report.textContent, report.getAttribute('aria-label')]).toEqual([B2_TEXT.report, B2_TEXT.reportLabel]);
+      expect([dismiss.textContent, dismiss.getAttribute('aria-label')]).toEqual(['✕', B2_TEXT.dismissLabel]);                  // an icon with a name
+      for (const b of [report, dismiss]) { const r = b.getBoundingClientRect(); expect([b.getAttribute('aria-label'), r.width >= 43.5, r.height >= 43.5]).toEqual([b.getAttribute('aria-label'), true, true]); }
       expect(row.querySelector('.icon').getAttribute('aria-hidden')).toBe('true');
       expect(row.querySelector('.icon').textContent).toBe('⚠');                                       // the shape says it as the colour does
       rig.ui.onEvents([{ type: 'raid_end', won: true, report: WON }]);                                 // a later raid replaces it
@@ -238,17 +239,26 @@ describe('v60 b2 moment in the alert row', () => {
 describe('v60 b2 moment on a phone', () => {
   it('holds the height budget: the result is the alert row, one line, under the limit at each size and text size, with 44 px buttons', async () => {
     const wrong = [];
-    for (const [width, height] of [[375, 667], [390, 844]]) {
+    // the mobile budget's lines (tests/ui/mobileBudget.test.js): the rows end by 30% of the height in portrait at 100% text, 40% at 125% and more, 40% in
+    // landscape; at most two rows, and on a landscape phone at 125% or more the alert row alone
+    for (const [width, height] of [[375, 667], [390, 844], [844, 390], [667, 375]]) {
       for (const textSize of [100, 125, 150]) {
         const rig = await rigUI({ width, height });
         try {
           rig.ui.settings.set({ textSize, reducedMotion: 'on' });
           rig.ui.onEvents([{ type: 'raid_end', won: false, report: LOST }]);
           await tick(); await tick();
-          const m = measureRows(rig.root), at = `${width}x${height} ${textSize}%`;
-          const limit = textSize >= 125 ? 0.4 : 0.3;
-          if (!rowOf(rig)) { wrong.push(`${at}: no result shown (layout ${rig.store.get().layout}, banner: ${rig.root.querySelector('#banner').innerHTML.slice(0, 160)})`); continue; }
-          if (m.rows > 2) wrong.push(`${at}: ${m.rows} rows`);
+          const at = `${width}x${height} ${textSize}%`, portrait = rig.store.get().layout === 'portrait';
+          if (!portrait) {                                                                                 // a landscape phone has one row: the report's caption has it first
+            expect([at, Boolean(rig.root.querySelector('#cheer .cheer')), Boolean(rowOf(rig))]).toEqual([at, true, false]);
+            rig.ui.celebrations.clear();
+            await tick(); await tick();
+          }
+          rig.frame(1);                                                                                    // a frame: the guidance row sees the alert row's claim (syncGuidance runs each frame)
+          const m = measureRows(rig.root);
+          const limit = portrait && textSize < 125 ? 0.3 : 0.4, rowsAllowed = !portrait && textSize >= 125 ? 1 : 2;
+          if (!rowOf(rig)) { wrong.push(`${at}: no result shown`); continue; }
+          if (m.rows > rowsAllowed) wrong.push(`${at}: ${m.rows} rows (${Object.keys(m.layers).join('+')}), at most ${rowsAllowed}`);
           if (m.rowsEnd / m.height > limit + 0.005) wrong.push(`${at}: rows end at ${Math.round((m.rowsEnd / m.height) * 100)}%, limit ${Math.round(limit * 100)}%`);
           const r = rowOf(rig).getBoundingClientRect(), frame = rig.root.getBoundingClientRect();
           if (r.left < frame.left - 1 || r.right > frame.right + 1) wrong.push(`${at}: the row runs off the screen`);

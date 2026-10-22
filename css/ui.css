@@ -1121,11 +1121,14 @@ body[data-layout="portrait"] .confirm.has-fit .conds, body[data-layout="portrait
 #banner .critical[data-code="court_letter"]::before { content: '\2709'; flex: none; color: var(--teal); font-size: calc(18px * var(--ui-scale)); line-height: 1; }
 /* ── end s46 court ── */
 /* Version 6.0, Track B2: the result of a raid in the alert row (src/ui/v60/battle.js). A raid beaten is teal with a tick, one that got through is the
-   coral warning with its triangle (the words and the icon say it, never the colour alone). On a phone it is the one-line alert row: the words clamp to two lines. */
+   coral warning with its triangle (the words and the icon say it, never the colour alone). On a phone it is the alert row of two short lines: the headline, and one line of the report. */
 #banner .critical.moment[data-code="raid_beaten"] { background: var(--teal-soft); border-color: var(--teal); }
 #banner .critical.moment[data-code="raid_beaten"] .icon { color: var(--teal); }
-#banner .critical.moment.line .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-#banner .critical.moment.line strong { display: inline; -webkit-line-clamp: unset; line-clamp: unset; }
+#banner .critical.moment.line { width: 100%; box-sizing: border-box; }   /* the words are cut with an ellipsis, not allowed to widen the row past the screen */
+#banner .critical.moment.line .text { overflow: hidden; }
+#banner .critical.moment.line strong { display: block; -webkit-line-clamp: unset; line-clamp: unset; }   /* the headline on its own line, the report's words under it */
+#banner .critical.moment.line .small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* one line of them: Report opens the rest */
+body[data-text-size="150"] #banner .critical.moment.line .small, body[data-layout="compact"] #banner .critical.moment.line .small { display: none; }   /* at the largest text, and on a landscape phone, the headline alone: the height budget */
 #banner.moment-up .critical[data-code="court_letter"] { display: none; }   /* on a phone a letter waits behind the result for the one-line row */
 @keyframes moment-in { from { opacity: 0; } to { opacity: 1; } }
 #banner .critical.moment { animation: moment-in 0.3s ease-out; }
