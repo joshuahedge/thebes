@@ -104,7 +104,7 @@ export function produceDay(world) {
     if (material && !b.paused && touchesRoad(world, b) && !supplyNeeded(world, b)) { b.blocked = 'idle'; continue; }
     if (!isWorking(world, b)) { b.blocked = b.paused ? 'paused' : 'understaffed'; continue; }
     if (halted && halted.has(b.id)) { b.blocked = 'plague'; continue; }
-    if (b.restUntil > world.day) { b.blocked = 'resting'; continue; }
+    if (restDaysLeft(world, b) > 0) { b.blocked = 'resting'; continue; }
     const crop = cropFactor(world, b);
     if (crop <= 0) { b.blocked = world.hazards.locusts.active.kind; continue; }
     const { good, perMonth } = def.produces;
@@ -144,8 +144,12 @@ export function harvestFactor(world, b) {
   return drought < 1 ? Math.min(flood, drought) : flood;   // a good flood still feeds a farm when there is no drought
 }
 
+// The days a farm still rests after Harvest now: 0 before the rest begins (the day after the strike) and once it is over.
+export const restDaysLeft = (world, b) => (b.restUntil > world.day && world.day >= (b.restFrom || 0) ? b.restUntil - world.day : 0);
+
 // What Harvest now would do on a farm (the farm's sheet says these numbers): part of a month's crop, HARVEST_NOW.share of it at the farm's staffing
-// and the year's weather, into the stores that take it, at once; the farm then rests HARVEST_NOW.restDays days and makes nothing.
+// and the year's weather, into the stores that take it, at once. The farm works on until the strike, then rests HARVEST_NOW.restDays days
+// (from the day after it comes, under the swarm or blight) and makes nothing.
 //   { ok, reason, good, units (what fits in the stores now), want (the crop's share), restDays, kind (locusts or blight), strikes (the day it comes) }
 // reason when not ok: 'not_warned' (the farm is in no warned band: Harvest now is for a warning's farms), 'done' (already harvested for this
 // warning), 'idle' (a farm that is not working has nothing to harvest), 'no_room' (no store that takes the crop has room).
@@ -172,8 +176,11 @@ export function harvestNow(world, id) {
   const targets = outputStores(world, b, q.good);
   let got = 0;
   for (let n = 0; n < q.units; n++) { if (makeOne(world, q.good, null, [], targets)) break; got++; }
-  b.restUntil = world.day + HARVEST_NOW.restDays;
   const w = warnedBand(world, id);
+  // The rest starts the day after the strike, where the swarm or blight is already cutting the crop, so what the farm makes until then is kept
+  // and the grain taken now is a pure gain (a rest from the tap would cost up to 15 days of a full crop for 12 days of grain).
+  b.restFrom = Math.max(world.day, w.strikes) + 1;
+  b.restUntil = b.restFrom + HARVEST_NOW.restDays;
   (w.early = w.early || []).push(id);
   world.tally.harvestsEarly += 1;
   return { ...q, units: got };

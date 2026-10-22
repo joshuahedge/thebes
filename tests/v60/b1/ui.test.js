@@ -30,8 +30,9 @@ const texts = (nodes) => nodes.map((n) => n.textContent);
 const find = (nodes, cls) => nodes.flatMap((n) => [n, ...n.querySelectorAll('*')]).find((n) => n.classList && n.classList.contains(cls)) || null;
 
 function ctxOf(w) {
-  const log = { toasts: [], commands: [], shown: [] };
-  return { log, world: w, toasts: { show: (t) => log.toasts.push(t) }, afterCommand: (e) => log.commands.push(e), showMeAt: (t) => log.shown.push(t), celebrations: { show: (c) => log.toasts.push(c.text) }, fireTip: () => {} };
+  const log = { toasts: [], commands: [], shown: [], selected: [], viewed: [] };
+  return { log, world: w, toasts: { show: (t) => log.toasts.push(t) }, afterCommand: (e) => log.commands.push(e), showMeAt: (t) => log.shown.push(t), celebrations: { show: (c) => log.toasts.push(c.text) }, fireTip: () => {},
+    selectBuilding: (id) => { log.selected.push(id); return true; }, onView: (a) => log.viewed.push(a.code) };
 }
 
 function town({ n = 12, residents = 20, day = OPEN } = {}) {
@@ -82,7 +83,7 @@ describe('v60 b1 ui the raid report', () => {
     const warning = { index: 3, entry: { x: 31, y: 16 }, dir: 'east', size: 10, tribute: 300, target: 'storehouse', day: w.day, arrives: w.day + 90, first: false, mix: footMix(10) };
     expect(sheet(warning).includes(B1_TEXT.chiefWarning)).toBe(false);
     expect(sheet({ ...warning, chiefs: [0] }).includes(B1_TEXT.chiefWarning)).toBe(true);
-    expect(B1_TEXT.chiefWarning).toBe('A chieftain leads the band: he has 2 times a raider\'s strength, and when he falls the band turns back.');
+    expect(B1_TEXT.chiefWarning).toBe('A chieftain leads the band: he has 2 times a raider\'s strength and hits 1.5 times as hard, and when he falls the band turns back.');
   });
 });
 
@@ -115,6 +116,10 @@ describe('v60 b1 ui rubble and rebuilding', () => {
     const group = actionButtons(ctx, w.buildings[to[0]])[0];
     expect(find([group], 'rebuild').disabled).toBe(true);
     expect(group.textContent.includes('would put the treasury over 500 gold in debt')).toBe(true);
+    const costs = find([group], 'show-me');
+    expect(costs.getAttribute('aria-label')).toBe('Show me: what each month costs');
+    costs.click();
+    expect(ctx.log.viewed).toEqual(['no_gold']);
     expect(actionButtons(ctx, addRaw(w, 'rubble', 20, 20))).toEqual([]);                  // old rubble: only the Clear the danger interface gives
   });
 });
@@ -163,7 +168,7 @@ describe('v60 b1 ui plague', () => {
     expect(after[0]).toBe('Quarantined: ends in 2 months. Work in the district has stopped');
   });
 
-  it('says why the quarantine cannot be paid, and shows nothing on a home in a district with no sick home', () => {
+  it('says why the quarantine cannot be paid with a Show me to the month\'s costs, and on a home in a district with no sick home says so with a Show me to a sick one', () => {
     const { w, homes } = town();
     w.gold = -450;
     startPlague(w, homes[0].id, []);
@@ -171,9 +176,20 @@ describe('v60 b1 ui plague', () => {
     const parts = plagueParts(ctx, homes[1]);
     const go = find(parts, 'quarantine');
     expect(go.disabled).toBe(true);
-    expect(parts[parts.length - 1].textContent.endsWith('would put the treasury over 500 gold in debt')).toBe(true);
+    const group = parts[parts.length - 1];
+    expect(group.textContent.includes('would put the treasury over 500 gold in debt')).toBe(true);
+    const costs = find([group], 'show-me');
+    expect(costs.getAttribute('aria-label')).toBe('Show me: what each month costs');
+    costs.click();
+    expect(ctx.log.viewed).toEqual(['no_gold']);
     const far = addRaw(w, 'house', 26, 20, { tier: 3, residents: 10 });
-    expect(plagueParts(ctx, far)).toEqual([]);
+    const farParts = plagueParts(ctx, far);
+    expect(texts(farParts).slice(0, 1)).toEqual(['No home in this district is sick: there is nothing to quarantine']);
+    expect(find(farParts, 'quarantine')).toBe(null);
+    const sick = find(farParts, 'show-me');
+    expect(sick.getAttribute('aria-label')).toBe('Show me: a sick home to quarantine');
+    sick.click();
+    expect(ctx.log.selected).toEqual([homes[0].id]);
     expect(texts(dangerSummary(w))).toEqual(['Dangers', 'Plague: 1 home is sick, 0 people lost so far']);
   });
 
@@ -240,19 +256,22 @@ describe('v60 b1 ui locusts and blight', () => {
   it('names the band in the alert and the advice, and puts Harvest now on each farm\'s sheet with what it does before the tap', () => {
     const { w, list } = warned();
     const ctx = ctxOf(w);
-    expect(alertText(hazardAlerts(w)[0], w)).toEqual({ title: 'Locusts in 1 month: 3 farms named', fix: 'Open a named farm and Harvest now to save part of its crop' });
+    expect(alertText(hazardAlerts(w)[0], w)).toEqual({ title: 'Locusts in 1 month: 3 farms named', fix: 'Open a named farm and Harvest now for extra grain' });
     const item = cityAdvice(w).find((a) => a.kind === 'locusts');
     const words = adviceWords(item, w);
     expect([words.what, words.action.label, item.fix.select]).toEqual(['Locusts will fall on 3 farms in 1 month', 'View', list[0].id]);
-    expect(words.why).toBe(`Harvest now takes 40% of a month's crop at once; the farm then rests ${HARVEST_NOW.restDays} days`);
+    expect(words.why).toBe(`Harvest now takes 40% of a month's crop at once, extra to what the farm makes until it comes; the farm then rests ${HARVEST_NOW.restDays} days from the day after`);
     const rows = texts(cropRows(ctx, list[0]));
     const q = harvestQuote(w, list[0]);
-    expect(rows).toEqual(['Locusts warned for this farm, due in 1 month', `Takes ${q.units} grain into the stores today, then the farm rests 15 days and makes nothing. Locusts would eat the crop for 1 month: what you take now is safe`]);
+    expect(rows).toEqual(['Locusts warned for this farm, due in 1 month', `Takes ${q.units} grain into the stores today, extra to what the farm goes on making until the locusts come. It then rests 15 days from the day after, while the locusts eat the crop for 1 month: the rest costs less than the grain gives`]);
     const btn = find(actionButtons(ctx, list[0]), 'harvest');
     expect([btn.textContent, btn.disabled]).toEqual(['Harvest now', false]);
     btn.click();
-    expect([ctx.log.toasts, w.tally.harvestsEarly, list[0].restUntil]).toEqual([[`Harvested ${q.units} grain early`], 1, w.day + 15]);
-    expect(texts(cropRows(ctx, list[0]))).toEqual([`Resting after Harvest now: ${HARVEST_NOW.restDays} days left`, 'Locusts warned for this farm, due in 1 month', 'Harvested early already']);
+    expect([ctx.log.toasts, w.tally.harvestsEarly, list[0].restUntil]).toEqual([[`Harvested ${q.units} grain early`], 1, w.day + 30 + 1 + 15]);   // the rest begins the day after the strike
+    expect(texts(cropRows(ctx, list[0]))).toEqual(['Locusts warned for this farm, due in 1 month', 'Harvested early already: it rests when the danger comes']);
+    w.day += 31;                                                                          // the rest has begun
+    expect(texts(cropRows(ctx, list[0]))[0]).toBe(`Resting after Harvest now: ${HARVEST_NOW.restDays} days left`);
+    w.day -= 31;
     expect(find(actionButtons(ctx, list[0]), 'harvest').disabled).toBe(true);
     expect(actionButtons(ctx, list[3])).toEqual([]);                                     // a farm outside the band has none
   });
@@ -262,8 +281,12 @@ describe('v60 b1 ui locusts and blight', () => {
     const ctx = ctxOf(w);
     granary.store.grain = BUILDINGS.granary.capacity;
     const rows = texts(cropRows(ctx, list[0]));
-    expect(rows[rows.length - 1]).toBe('No granary or storehouse in reach has room for the crop: empty one or build another');
+    expect(rows[rows.length - 2]).toBe('No granary or storehouse in reach has room for the crop: empty one or build another');
     expect(find(actionButtons(ctx, list[0]), 'harvest').disabled).toBe(true);
+    const show = find(cropRows(ctx, list[0]), 'show-me');                                // a refusal says why and shows where
+    expect([show.textContent, show.getAttribute('aria-label')]).toEqual(['Show me', 'Show me: where to build a granary']);
+    show.click();
+    expect(ctx.log.shown).toEqual([{ item: 'granary', x: list[0].x + list[0].w / 2, y: list[0].y + list[0].d / 2 }]);
     granary.store.grain = 0;
     expect(texts(cropRows(ctx, list[0]))[0]).toBe('Blight warned for this farm, due in 1 month');
   });

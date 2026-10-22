@@ -4,12 +4,13 @@
 import { describe, it, expect } from '../../harness.js';
 import { droughtMonth, droughtDay, locustsMonth, locustsDay, pickBand, droughtFactor, cropFactor, foodOutlook, warnedBand } from '../../../src/sim/crops.js';
 import { hazardAlerts, hazardItems } from '../../../src/sim/hazards.js';
-import { produceDay, harvestQuote, harvestNow, harvestFactor } from '../../../src/sim/production.js';
+import { produceDay, harvestQuote, harvestNow, harvestFactor, restDaysLeft } from '../../../src/sim/production.js';
 import { levelOfYear, ensureYear, seasonDays } from '../../../src/sim/flood.js';
 import { DROUGHT, CROPS, HARVEST_NOW, GRACE_DAYS } from '../../../src/data/hazards.js';
 import { FLOOD } from '../../../src/data/river.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
+import { advanceDays } from '../../../src/sim/clock.js';
 
 const OPEN = GRACE_DAYS + 30;     // day 1110: game year 4, month 1
 
@@ -192,9 +193,13 @@ describe('v60 b1 crops harvest now', () => {
     const q = harvestQuote(w, farms[0]);
     const before = granary.store.grain;
     const r = harvestNow(w, farms[0].id);
-    expect([r.ok, r.units, granary.store.grain - before, farms[0].restUntil, w.tally.harvestsEarly, w.hazards.locusts.warning.early]).toEqual([true, q.units, q.units, w.day + HARVEST_NOW.restDays, 1, [farms[0].id]]);
+    expect([r.ok, r.units, granary.store.grain - before, farms[0].restUntil, w.tally.harvestsEarly, w.hazards.locusts.warning.early]).toEqual([true, q.units, q.units, q.strikes + 1 + HARVEST_NOW.restDays, 1, [farms[0].id]]);
     expect(harvestQuote(w, farms[0]).reason).toBe('done');
     expect(harvestNow(w, farms[0].id).ok).toBe(false);
+    produceDay(w);
+    expect(farms[0].blocked === 'resting').toBe(false);                                 // it works on until the strike: the rest starts the day after it
+    w.day = q.strikes + 1;
+    expect(restDaysLeft(w, farms[0])).toBe(HARVEST_NOW.restDays);
     produceDay(w);
     expect(farms[0].blocked).toBe('resting');
     w.day += HARVEST_NOW.restDays;
@@ -225,5 +230,75 @@ describe('v60 b1 crops harvest now', () => {
     const again = [];
     hazardItems(w, [], again);
     expect(again.find((i) => i.kind === 'locusts').id).toBe(farms[1].id);
+  });
+});
+
+// The advice says Harvest now takes extra grain, so the sim must pay for it: the grain over the warning, the strike and the rest is never less
+// with the harvest than without it, whenever in the warning it is tapped and whatever the danger and the difficulty.
+describe('v60 b1 crops harvest now pays', () => {
+  function grainOver({ kind, difficulty, tapAfter }) {
+    const { w, granary, farms } = farmland({ n: 3, difficulty });
+    granary.store.grain = 0;
+    const strikes = w.day + CROPS.warnDays;
+    w.hazards.locusts.warning = { day: w.day, strikes, kind, farms: farms.map((f) => f.id), centre: { x: 3, y: 15 }, early: [] };
+    const days = CROPS.warnDays + CROPS[kind].days + HARVEST_NOW.restDays + 2;
+    for (let d = 0; d < days; d++) {                                                   // the daily step's order: produce, then the dangers, then the day moves on
+      if (d === tapAfter) expect(harvestNow(w, farms[0].id).ok).toBe(true);
+      produceDay(w);
+      locustsDay(w, []);
+      w.day += 1;
+    }
+    return granary.store.grain;
+  }
+
+  it('gives more grain whether it is tapped on the warning\'s first day, in the middle or on the last, for locusts and blight on every difficulty', () => {
+    for (const kind of ['locusts', 'blight']) {
+      for (const difficulty of ['relaxed', 'normal', 'hard']) {
+        const without = grainOver({ kind, difficulty, tapAfter: -1 });
+        for (const tapAfter of [0, 15, CROPS.warnDays]) {
+          const withIt = grainOver({ kind, difficulty, tapAfter });
+          expect([kind, difficulty, tapAfter, withIt > without]).toEqual([kind, difficulty, tapAfter, true]);
+          expect(withIt - without).toBeLessThanOrEqual(Math.round(BUILDINGS.farm_grain.produces.perMonth * HARVEST_NOW.share));   // and no more than the share it names
+        }
+      }
+    }
+  });
+
+  it('gives the whole share when the swarm eats the crop anyway: a rest that starts at the strike costs locusts on Normal nothing', () => {
+    const without = grainOver({ kind: 'locusts', difficulty: 'normal', tapAfter: -1 });
+    const early = grainOver({ kind: 'locusts', difficulty: 'normal', tapAfter: 0 });
+    expect(early - without).toBe(Math.round(BUILDINGS.farm_grain.produces.perMonth * HARVEST_NOW.share));
+  });
+});
+
+// The dangers' long-run behaviour with them ON (the older balance runs use grace.js's noNewDangers; the Wave 4 balance pass measures the numbers):
+// a small farming town run for eight game years from the day the grace ends is deterministic, stays finite and standing, and meets the new dangers.
+describe('v60 b1 crops the dangers over eight years', () => {
+  function town8() {
+    const { w, farms } = farmland({ n: 6, day: GRACE_DAYS });
+    w.hazards.graceUntil = GRACE_DAYS;
+    for (let k = 0; k < 14; k++) addRaw(w, 'house', 10 + k, 14, { tier: 2, residents: 12 });
+    addRaw(w, 'well', 12, 12);
+    addRaw(w, 'physician', 16, 12, { staff: BUILDINGS.physician.workers });
+    return { w, farms };
+  }
+  const run = () => {
+    const { w } = town8();
+    const seen = new Set();
+    for (let m = 0; m < 8 * 12; m++) {
+      advanceDays(w, 30);
+      for (const k of ['swarms', 'blights', 'droughts']) if (w.tally[k]) seen.add(k);
+      if (w.hazards.plague.active) seen.add('plague');
+    }
+    return { w, seen: [...seen].sort() };
+  };
+
+  it('is deterministic, finite, and meets locusts or blight and a low Nile in eight years', () => {
+    const a = run(), b = run();
+    expect(JSON.stringify([a.w.day, a.w.gold, a.w.tally, a.seen])).toBe(JSON.stringify([b.w.day, b.w.gold, b.w.tally, b.seen]));
+    expect(Number.isFinite(a.w.gold)).toBe(true);
+    expect(Object.keys(a.w.buildings).length > 0).toBe(true);
+    expect(a.w.tally.swarms + a.w.tally.blights >= 1).toBe(true);
+    expect(a.w.tally.droughts >= 1).toBe(true);
   });
 });

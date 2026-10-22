@@ -12,7 +12,7 @@ import { seamBase } from '../s46/seam.js';
 import { isPlagueHome, healthCause } from '../../sim/health.js';
 import { sickHomes, quarantines, quarantineQuote, quarantineDistrict, haltReason, districtKey } from '../../sim/plague.js';
 import { isFarm, yieldCause, warnedBand, foodOutlook } from '../../sim/crops.js';
-import { harvestQuote, harvestNow } from '../../sim/production.js';
+import { harvestQuote, harvestNow, restDaysLeft } from '../../sim/production.js';
 import { rebuildQuote, rebuild } from '../../sim/strikes.js';
 import { isUnlocked } from '../../sim/progression.js';
 import { BUILDINGS } from '../../data/buildings.js';
@@ -23,6 +23,10 @@ import { B1_TEXT as B1, T } from '../text.js';
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
 const line = (text, cls = 'small muted') => el('p', { class: cls, text });
 const centre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
+// A refusal's Show me: a quiet button whose accessible name says where it goes.
+const showMe = (what, onClick) => el('div', { class: 'fix refusal-fix' }, [button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${what}`, onClick })]);
+// The refusals that name the treasury open the summary, where the month's costs and income are.
+const showCosts = (ctx) => (typeof ctx.onView === 'function' ? showMe(B1.showCosts, () => ctx.onView({ code: 'no_gold' })) : null);
 const real = (ctx, b) => Boolean(ctx.world && b && BUILDINGS[b.type] && ctx.world.buildings[b.id] === b);
 
 // ── Plague ──
@@ -41,7 +45,13 @@ export function plagueParts(ctx, h) {
   const q = quarantineQuote(world, h);
   const held = quarantines(world).get(q.key);
   if (held) { out.push(line(B1.quarantineHeld(held.until, world.day), 'small teal')); return out; }
-  if (!q.sick) return out;
+  if (!q.sick) {
+    // A district with no sick home has nothing to quarantine: say so, and show the nearest sick home that does.
+    const sick = sickHomes(world).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y) || a.id - b.id)[0];
+    out.push(line(B1.quarantineRefusal.none_sick, 'small muted'));
+    if (sick && typeof ctx.selectBuilding === 'function') out.push(showMe(B1.showSickHome, () => ctx.selectBuilding(sick.id)));
+    return out;
+  }
   const group = [line(B1.quarantineDoes(q))];
   const go = button(B1.quarantineButton(q.fee), {
     class: q.ok ? 'quarantine primary' : 'quarantine', disabled: !q.ok, 'aria-label': `${B1.quarantineButton(q.fee)}. ${B1.quarantineDoes(q)}`,
@@ -53,7 +63,10 @@ export function plagueParts(ctx, h) {
     },
   });
   group.unshift(go);
-  if (!q.ok) group.push(line(typeof B1.quarantineRefusal[q.reason] === 'function' ? B1.quarantineRefusal[q.reason](q) : B1.quarantineRefusal[q.reason], 'small coral'));
+  if (!q.ok) {
+    group.push(line(typeof B1.quarantineRefusal[q.reason] === 'function' ? B1.quarantineRefusal[q.reason](q) : B1.quarantineRefusal[q.reason], 'small coral'));
+    if (q.reason === 'no_gold') group.push(showCosts(ctx));
+  }
   out.push(el('div', { class: 'festival-group quarantine-group' }, group));
   return out;
 }
@@ -70,12 +83,14 @@ export function cropRows(ctx, b) {
   const cause = yieldCause(world, b), h = world.hazards;
   if (cause === 'drought') out.push(line(B1.droughtRow(h.drought.active, world.day), 'small coral'));
   else if (cause) out.push(line(B1.cropRowActive(h.locusts.active, world.day, cause), 'small coral'));
-  if (b.restUntil > world.day) out.push(line(B1.resting(b.restUntil - world.day), 'small'));
+  const resting = restDaysLeft(world, b);
+  if (resting > 0) out.push(line(B1.resting(resting), 'small'));
   const w = warnedBand(world, b.id);
   if (w) {
     out.push(line(B1.cropRowWarned(w, world.day), 'small coral'));
     const q = harvestQuote(world, b);
     out.push(line(q.ok ? B1.harvestDoes(q) : B1.harvestRefusal[q.reason], q.ok ? 'small' : 'small muted'));
+    if (q.reason === 'no_room' && isUnlocked(world, 'granary') && typeof ctx.showMeAt === 'function') out.push(showMe(B1.showGranary, () => ctx.showMeAt({ item: 'granary', ...centre(b) })));
   }
   return out;
 }
@@ -107,7 +122,7 @@ export function actionButtons(ctx, b) {
           ctx.afterCommand({ kind: 'rebuild', result: r, text: B1.rebuilt(r.type), undoable: false });
         },
       });
-      out.push(el('div', { class: 'festival-group rebuild-group' }, [go, line(B1.rebuildCosts(q)), q.ok ? null : line(B1.rebuildRefusal(q), 'small coral')]));
+      out.push(el('div', { class: 'festival-group rebuild-group' }, [go, line(B1.rebuildCosts(q)), q.ok ? null : line(B1.rebuildRefusal(q), 'small coral'), q.reason === 'no_gold' ? showCosts(ctx) : null]));
     }
   }
   return out;
