@@ -130,6 +130,26 @@ describe('v60 d1 title card: Settings on the card, and sound on by default', () 
   });
 });
 
+describe('v60 d1 title card: every Settings row works with no city behind it (fixer round 1)', () => {
+  it('builds the panel on an empty store and takes a tap on every button without a throw, and it has no Restart or Export row', () => {
+    const calls = [];
+    const store = { get: () => { calls.push('get'); return {}; }, set() { calls.push('set'); }, subscribe: () => () => {} };
+    const root = document.createElement('div');
+    const settings = createSettings({ storage: memory(), root, systemReducedMotion: () => false, watchSystem: () => () => {} });
+    const menus = createMenuSheets({ store, settings, toasts: { show() {} }, hooks: {} });
+    const body = document.createElement('div');
+    document.body.append(body);
+    try {
+      menus.settings(body);
+      const buttons = [...body.querySelectorAll('button')];
+      expect(buttons.length).toBeGreaterThan(10);
+      for (const b of buttons) fire(b, 'click');
+      expect(calls.includes('set')).toBe(false);                                        // no row writes to the city's store
+      expect(/restart|export|import/i.test(body.textContent)).toBe(false);
+    } finally { body.remove(); }
+  });
+});
+
 describe('v60 d1 title card: the Huge map in the picker, and the phone note', () => {
   it('offers every size the table offers, Huge last at 112 by 112, from the data', () => {
     const c = card();

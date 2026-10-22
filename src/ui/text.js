@@ -7,7 +7,7 @@ import { ACHIEVEMENTS } from '../data/achievements.js';
 import { FIRSTS } from '../data/firsts.js';
 import { GOODS, FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
-import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
+import { TRADE_KEEP_STEP, DESIRABILITY_STEPS, KEYS } from '../data/ui.js';
 import { ECONOMY, FORECAST } from '../data/economy.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { MAP } from '../data/map.js';
@@ -2397,8 +2397,9 @@ export const S46_UX_TEXT = {
   pausedWord: 'Paused',
   playingState: (speedLabel) => `Playing at ${speedLabel}`,   // ruling 419: the state while running, beside the action the button names
   speedStepLabel: (s) => (s === 0 ? 'Pause' : `Play at ${SPEED_LABELS[s]} speed`),
-  // keys: whether Keyboard shortcuts is on (Space, + and - only work then: src/ui/keyboard.js); off, the title names no key (final review).
-  speedStepTitle: (s, keys = true) => (s === 0 ? (keys ? 'Pause (Space)' : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ' (+ and - change it)' : ''}`),
+  // keys: whether Keyboard shortcuts is on (Space, ] and [ only work then: src/ui/keyboard.js); off, the title names no key (final review). The keys are
+  // read from KEYS (Version 6.0, Track D1, ruling 744: + and - zoom now, the speed steps are ] and [), so the words cannot drift from the keys.
+  speedStepTitle: (s, keys = true) => (s === 0 ? (keys ? `Pause (${KEYS.pause[0] === ' ' ? 'Space' : KEYS.pause[0]})` : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ` (${KEYS.speedUp[0]} and ${KEYS.speedDown[0]} change it)` : ''}`),
   // Rulings 401-403: the version and What's new on the title card. The notes themselves are src/data/releases.js.
   versionLine: (version, stamp = null) => `Version ${version}${stamp ? ` · build ${stamp}` : ''}`,
   whatsNew: 'What\'s new', whatsNewTitle: 'What\'s new in Thebes', newHead: 'New', fixedHead: 'Fixed', newestTag: 'newest',

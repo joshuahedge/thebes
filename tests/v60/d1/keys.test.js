@@ -2,7 +2,7 @@
 // the speed steps moved to ] and [; all listed in How to play from KEYS itself; and none of them fires while a text field has focus or a control needs the
 // key for its own job.
 import { describe, it, expect } from '../../harness.js';
-import { createKeyboard } from '../../../src/ui/keyboard.js';
+import { createKeyboard, matchKey } from '../../../src/ui/keyboard.js';
 import { createCamera, MIN_ZOOM, MAX_ZOOM } from '../../../src/render/camera.js';
 import { createCameraControl } from '../../../src/ui/cameraControl.js';
 import { createMenuSheets, keyLabel } from '../../../src/ui/menu.js';
@@ -278,6 +278,22 @@ describe('v60 d1 keys: How to play lists them, from the keys themselves', () => 
       }
       expect(done.filter(([, , acted]) => !acted)).toEqual([]);
       expect(done.some(([name]) => name === 'zoomIn') && done.some(([name]) => name === 'zoomOut')).toBe(true);
+    } finally { r.cleanup(); }
+  });
+});
+
+describe('v60 d1 keys: the speed buttons name the keys that really change the speed (fixer round 1)', () => {
+  it('names ] and [ with Keyboard shortcuts on, those keys do change the speed and + and - do not, and it names nothing with them off', async () => {
+    const [up, down] = [KEYS.speedUp[0], KEYS.speedDown[0]];
+    expect([up, down]).toEqual([']', '[']);
+    expect([matchKey({ key: up }), matchKey({ key: down }), matchKey({ key: '+' }), matchKey({ key: '-' })]).toEqual(['speedUp', 'speedDown', 'zoomIn', 'zoomOut']);
+    const r = await rigUI({ width: 1280, height: 800 });
+    const titles = () => [...r.root.querySelectorAll('#topbar .speed-bar .speed-step')].map((b) => b.title);
+    try {
+      r.ui.settings.set({ keyboardShortcuts: true });
+      expect(titles().slice(1).every((t) => t.includes(`(${up} and ${down} change it)`) && !t.includes('+'))).toBe(true);
+      r.ui.settings.set({ keyboardShortcuts: false });
+      expect(titles().some((t) => /Space|\+|\]|\[|change it/.test(t))).toBe(false);
     } finally { r.cleanup(); }
   });
 });
