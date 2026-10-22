@@ -1,8 +1,8 @@
-// Stage 4.6, Map track: map sizes (ruling 333). New city offers Small 48, Normal 64 (the default) and Large 80 with one line each; This week's Nile
-// stays Normal; share links, personal bests and the stamps carry the size, and Normal keeps today's links and keys.
+// Stage 4.6, Map track: map sizes (ruling 333). New city offers Small 48, Normal 64 (the default), Large 80 and (Version 6.0) Huge 112 with one line each;
+// share links, personal bests and the stamps carry the size, and Normal keeps today's links and keys.
 import { describe, it, expect } from '../../harness.js';
 import { MAP_SIZES, MAP_SIZE_IDS, DEFAULT_MAP_SIZE } from '../../../src/data/map.js';
-import { shareLink, parseShareLink, weeklySeed } from '../../../src/ui/share.js';
+import { shareLink, parseShareLink } from '../../../src/ui/share.js';
 import { titleDecor, stampMap } from '../../../src/ui/scoreUi.js';
 import { createTitleCard } from '../../../src/ui/titleCard.js';
 import { createRecords, normalizeRecords } from '../../../src/save/records.js';
@@ -25,19 +25,19 @@ describe('s46 map sizes: the picker on the title card (ruling 333)', () => {
   function card(extra = {}) {
     const m = mount('<div id="title" hidden></div>');
     const chosen = [];
-    createTitleCard({ container: m.root.querySelector('#title'), hasSave: false, onContinue() {}, onNewCity() {}, onSound() {}, onDifficulty() {}, onMapSize: (id) => chosen.push(id), ...extra });
+    createTitleCard({ container: m.root.querySelector('#title'), hasSave: false, onContinue() {}, onNewCity() {}, onSound() {}, onDifficulty() {}, onMapSize: (id) => chosen.push(id), screen: () => ({ width: 1280, height: 800 }), ...extra });
     return { root: m.root.querySelector('#title'), chosen, cleanup: m.cleanup };
   }
-  it('offers Small, Normal and Large, Normal pressed, with a line for each from the sim\'s sizes, and tells what is chosen', () => {
+  it('offers Small, Normal, Large and Huge, Normal pressed, with a line for each from the sim\'s sizes, and tells what is chosen', () => {
     const c = card();
     try {
       const buttons = [...c.root.querySelectorAll('.choice.mapsize')];
-      expect(buttons.map((b) => [b.textContent, b.dataset.value, b.getAttribute('aria-pressed')])).toEqual([['Small', 'small', 'false'], ['Normal', 'normal', 'true'], ['Large', 'large', 'false']]);
+      expect(buttons.map((b) => [b.textContent, b.dataset.value, b.getAttribute('aria-pressed')])).toEqual([['Small', 'small', 'false'], ['Normal', 'normal', 'true'], ['Large', 'large', 'false'], ['Huge', 'huge', 'false']]);
       expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(MAP_SIZE_IDS.map((id) => `${S46_MAP_TEXT.sizeNames[id]}, ${MAP_SIZES[id]} by ${MAP_SIZES[id]} tiles`));
       const hint = c.root.querySelector('#title-size-hint');
       expect(hint.textContent).toBe('Normal: the usual map');
       fire(buttons[0], 'click');
-      expect([hint.textContent, buttons.map((b) => b.getAttribute('aria-pressed'))]).toEqual(['Small: a quick city', ['true', 'false', 'false']]);
+      expect([hint.textContent, buttons.map((b) => b.getAttribute('aria-pressed'))]).toEqual(['Small: a quick city', ['true', 'false', 'false', 'false']]);
       fire(buttons[2], 'click');
       expect([hint.textContent, c.chosen]).toEqual(['Large: room for every monument', ['small', 'large']]);
       expect(Boolean(c.root.querySelector('.choice.difficulty'))).toBe(true);                  // the difficulty row is still there, with the size beneath it
@@ -59,7 +59,7 @@ describe('s46 map sizes: the picker on the title card (ruling 333)', () => {
   });
 });
 
-describe('s46 map sizes: a new city starts at the size chosen, and This week\'s Nile stays Normal', () => {
+describe('s46 map sizes: a new city starts at the size chosen', () => {
   const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true}' : null), setItem: () => {} };
   async function open(params = '') {
     const shell = await mountShell(1280, 800);
@@ -74,7 +74,7 @@ describe('s46 map sizes: a new city starts at the size chosen, and This week\'s 
     return { api, shell, close() { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title'); delete window.__thebes; } };
   }
   it('starts a city of the size chosen on the card, Normal when none is', async () => {
-    for (const [pick, want] of [[null, 64], ['small', 48], ['large', 80], ['normal', 64]]) {
+    for (const [pick, want] of [[null, 64], ['small', 48], ['large', 80], ['huge', 112], ['normal', 64]]) {
       const g = await open();
       try {
         if (pick) fire(g.shell.root.querySelector(`#title .choice.mapsize[data-value="${pick}"]`), 'click');
@@ -84,25 +84,16 @@ describe('s46 map sizes: a new city starts at the size chosen, and This week\'s 
       } finally { g.close(); }
     }
   });
-  it('keeps This week\'s Nile Normal whatever the card says, with its own seed', async () => {
-    const g = await open();
-    try {
-      fire(g.shell.root.querySelector('#title .choice.mapsize[data-value="large"]'), 'click');
-      fire(g.shell.root.querySelector('#title .weekly'), 'click');
-      const w = g.api.game().world;
-      expect([w.size, w.seed]).toEqual([64, weeklySeed(new Date(1760000000000))]);
-    } finally { g.close(); }
-  });
-  it('asks the title card to start the weekly seed at Normal, and a shared link\'s seed at the link\'s size', () => {
+  it('asks the title card to start a shared link\'s seed at the link\'s size (Version 6.0: the weekly seed button is gone)', () => {
     const m = mount('<div id="title" hidden></div>');
     const started = [];
     const link = (size) => hashOf(shareLink({ seed: 9, difficulty: 'normal', parts: PARTS, splits: {}, size }));
     try {
-      createTitleCard({ container: m.root.querySelector('#title'), hasSave: false, onContinue() {}, onNewCity() {}, onSound() {}, onDifficulty() {},
+      createTitleCard({ container: m.root.querySelector('#title'), hasSave: false, onContinue() {}, onNewCity() {}, onDifficulty() {},
         decorate: titleDecor({ records: null, shared: link(80), startSeed: (...a) => started.push(a), clock: () => 1760000000000, dpr: 1 }) });
-      fire(m.root.querySelector('.weekly'), 'click');
+      expect(m.root.querySelector('.weekly')).toBe(null);
       fire(m.root.querySelector('.start-seed'), 'click');
-      expect(started).toEqual([[weeklySeed(new Date(1760000000000)), null, DEFAULT_MAP_SIZE], [9, 'classic', 80]]);   // a link that names no size starts Normal (boot: size || DEFAULT)
+      expect(started).toEqual([[9, 'classic', 80]]);   // a link that names no size starts Normal (boot: size || DEFAULT)
     } finally { m.cleanup(); }
   });
 });

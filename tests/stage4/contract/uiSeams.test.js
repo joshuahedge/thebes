@@ -252,11 +252,14 @@ describe('s4 contract music and picture cards seams', () => {
       expect(calls.slice(-2)).toEqual(['stop', 'start']);
       b.frames(1000);                                                               // the title's loop
       expect(calls.includes('tick 1000')).toBe(true);
-      const sound = b.shell.root.querySelector('#title .sound');
-      fire(sound, 'click');                                                         // Play with sound: sound and music on
-      expect([storedSettings(storage).sound, storedSettings(storage).music, opts.enabled(), calls[calls.length - 1]]).toEqual([true, true, true, 'refresh']);
-      fire(sound, 'click');                                                         // Play muted: both off (ruling 269)
-      expect([storedSettings(storage).sound, storedSettings(storage).music, opts.enabled()]).toEqual([false, false, false]);
+      // Version 6.0 (ruling 746): sound and music are on by default and the title has no Play with sound; its Settings panel mutes them.
+      expect([b.shell.root.querySelector('#title .sound'), opts.enabled()]).toEqual([null, true]);
+      fire(b.shell.root.querySelector('#title .title-settings'), 'click');
+      fire(b.shell.root.querySelector('#title .switch.music'), 'click');           // Music off: the music follows at once
+      expect([storedSettings(storage).music, opts.enabled(), calls[calls.length - 1]]).toEqual([false, false, 'refresh']);
+      fire(b.shell.root.querySelector('#title .switch.sound'), 'click');           // Sound off too
+      expect([storedSettings(storage).sound, storedSettings(storage).music]).toEqual([false, false]);
+      fire(b.shell.root.querySelector('#title .guide-back'), 'click');
       fire(b.shell.root.querySelector('#title .new-city'), 'click');
       expect(b.api.phase()).toBe('game');
       expect(opts.seed()).toBe(b.api.game().world.seed);                            // the city's seed once it runs

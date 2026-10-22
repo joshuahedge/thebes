@@ -7,7 +7,7 @@ import { ACHIEVEMENTS } from '../data/achievements.js';
 import { FIRSTS } from '../data/firsts.js';
 import { GOODS, FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
-import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
+import { TRADE_KEEP_STEP, DESIRABILITY_STEPS, KEYS } from '../data/ui.js';
 import { ECONOMY, FORECAST } from '../data/economy.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { MAP } from '../data/map.js';
@@ -524,7 +524,7 @@ export const T = {
   difficultyForNewCities: 'Difficulty for new cities', difficultyNote: 'A city keeps the level it started with. This one changes the next new city.',
   guideHelp: 'While the guide runs, the card for the next step says Suggested and a ring marks the place. Skip guide turns it off: in the goals strip, or on a phone in the open goal or the goals list.',
   updateReady: 'Update ready', restart: 'Restart', updateSaveFailed: "Couldn't save, so the update will wait",
-  playWithSound: 'Play with sound', playMuted: 'Play muted', install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',
+  install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',
   installMenu: 'Install on this device', bringCity: 'Bring a city from Safari', bringCityHelp: 'If you saved a city in Safari, open the menu there and choose Export city. Then import that file here.', installWhy: 'Installed on the home screen, the game works offline and keeps your city safe.', installIosSteps: ['Tap Share (the square with an arrow)', 'Scroll down and tap Add to Home Screen', 'Tap Add'], installExportFirst: 'Export your city first: the installed app keeps its own storage. Then import the file from the home-screen app.', installNow: 'Install now', installNotOffered: 'Your browser did not offer to install. Look for Install app or Add to Home screen in its menu.', openInSafari: 'Open in Safari to keep your city', openInChrome: 'Open in Chrome to keep your city', saveNewer: 'This city was saved by a newer version of the game', saveUnreadable: "This save can't be read",
   exported: 'City file downloaded', exportFailed: "Couldn't export the city", exportFirst: 'Export first', replaceCityConfirm: 'Replace the current city with the imported one?', fileUnreadable: "Couldn't read that file",
   paused: 'Paused', resumed: 'Resumed', pausedHidden: 'Paused while you were away', placed: 'Placed', demolished: 'Demolished', roadLaid: 'Road laid',
@@ -1020,9 +1020,8 @@ export const SHARE_TEXT = {
 Object.assign(T, { sealReign: SCORE_TEXT.sealReign, shareScore: SCORE_TEXT.shareScore });   // the two sheets' headings
 // The title card (spec 4.1, 4.19): the device's bests and stamps, This week's Nile and a friend's shared score.
 export const TITLE_SCORE_TEXT = {
-  weekly: "This week's Nile", records: 'Your records', friend: "A friend's score", startSeed: 'Start this seed',
+  records: 'Your records', friend: "A friend's score", startSeed: 'Start this seed',
   badLink: "This score link can't be read", newerLink: 'This score link is from a newer version of Thebes',
-  weeklyHint: (seed) => `Seed ${seed}: the same river for everyone this week`,
   bestLine: (b) => `Best: ${b.score}${b.medal ? `, ${SCORE_TEXT.medals[b.medal].toLowerCase()}` : ''}, seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.mapSize && b.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(b.mapSize)}` : ''}${b.older ? ', older scoring' : ''}`,   // Stage 4.6 (ruling 333): a record from a Small or Large map says so; Normal says nothing, as before
   stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}${e.mapSize && e.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(e.mapSize)}` : ''}`,
   moreStamps: (n) => `+${n} more`,
@@ -2398,8 +2397,9 @@ export const S46_UX_TEXT = {
   pausedWord: 'Paused',
   playingState: (speedLabel) => `Playing at ${speedLabel}`,   // ruling 419: the state while running, beside the action the button names
   speedStepLabel: (s) => (s === 0 ? 'Pause' : `Play at ${SPEED_LABELS[s]} speed`),
-  // keys: whether Keyboard shortcuts is on (Space, + and - only work then: src/ui/keyboard.js); off, the title names no key (final review).
-  speedStepTitle: (s, keys = true) => (s === 0 ? (keys ? 'Pause (Space)' : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ' (+ and - change it)' : ''}`),
+  // keys: whether Keyboard shortcuts is on (Space, ] and [ only work then: src/ui/keyboard.js); off, the title names no key (final review). The keys are
+  // read from KEYS (Version 6.0, Track D1, ruling 744: + and - zoom now, the speed steps are ] and [), so the words cannot drift from the keys.
+  speedStepTitle: (s, keys = true) => (s === 0 ? (keys ? `Pause (${KEYS.pause[0] === ' ' ? 'Space' : KEYS.pause[0]})` : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ` (${KEYS.speedUp[0]} and ${KEYS.speedDown[0]} change it)` : ''}`),
   // Rulings 401-403: the version and What's new on the title card. The notes themselves are src/data/releases.js.
   versionLine: (version, stamp = null) => `Version ${version}${stamp ? ` · build ${stamp}` : ''}`,
   whatsNew: 'What\'s new', whatsNewTitle: 'What\'s new in Thebes', newHead: 'New', fixedHead: 'Fixed', newestTag: 'newest',
@@ -3162,6 +3162,22 @@ V60_HELP.b2.push(
 //
 // ── v60 d1 (Track D1, rulings 740-759: the title, the Huge map, desktop keys, polish) ───────────────────────────────────
 // Add new lines just above the end marker.
+
+// The Huge map (ruling 740): its name, its line under the picker and, on a phone, the note that it suits a bigger screen (ruling 743).
+S46_MAP_TEXT.sizeNames.huge = 'Huge';
+S46_MAP_TEXT.sizeHints.huge = 'Huge: a vast land for a long reign';
+export const D1_TEXT = {
+  bigScreen: 'Best on a tablet or computer',                           // a phone's note under the picker while Huge is chosen, and on its button's name
+  hugeWords: (size, phone) => `${S46_MAP_TEXT.sizeWords('huge', size)}${phone ? `, ${D1_TEXT.bigScreen.charAt(0).toLowerCase()}${D1_TEXT.bigScreen.slice(1)}` : ''}`,
+  lesson: 'Lesson',                                                    // the title's third button once the lesson exists (Track D2); until then How to play stands in
+  settingsPanel: 'Settings',                                           // the title card's Settings panel's heading
+  titleGroup: 'More',                                                  // the name of the row of Lesson, Settings and What's new for assistive technology
+};
+// The keys of a computer (rulings 744, 745): the zoom keys follow the pan row; the right button is in the list with the keys.
+HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'panLeft') + 1, 0, ['zoomIn', 'Zoom in'], ['zoomOut', 'Zoom out']);
+HELP_ROWS.push(['rightClick', 'Cancel the tool or step back, like Esc', 'Right-click']);
+V60_HELP.d1.push({ head: 'On a computer', text: 'Arrows or WASD move the view, + and − zoom, 1 to 7 pick a build category, [ and ] set the speed, Esc steps back and a right-click cancels. A text field or a slider keeps its own keys; you can switch the single keys off in Settings.' });
+V60_HELP.d1.push({ head: 'The Huge map', text: 'A Huge map is 112 tiles a side, a vast land for a long reign. It suits a tablet or computer; on a phone the buildings are small and the city takes more scrolling. The view cannot zoom out past where a Huge map costs more to draw than a Large one, which a very large screen may notice.' });
 // ── end v60 d1 ──
 
 //

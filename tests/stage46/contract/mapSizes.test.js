@@ -65,8 +65,8 @@ describe('s46 contract map sizes', () => {
     expect(LAYOUTS).toEqual(MAP_VARIANTS);
     for (const s of SEEDS) expect(generateMap(s, 64, 'classic').params).toEqual({});
   });
-  it('offers Small 48, Normal 64 (the default) and Large 80', () => {
-    expect(MAP_SIZES).toEqual({ small: 48, normal: 64, large: 80 });
+  it('offers Small 48, Normal 64 (the default), Large 80 and Huge 112', () => {
+    expect(MAP_SIZES).toEqual({ small: 48, normal: 64, large: 80, huge: 112 });   // Version 6.0 (ruling 740): Huge is offered
     expect([DEFAULT_MAP_SIZE, MAP.size, createWorld({ seed: 2 }).size, createWorld({ seed: 2 }).mapSize]).toEqual([64, 64, 64, 64]);
     expect([isMapSize(48), isMapSize(64), isMapSize(80), isMapSize(32), isMapSize('64')]).toEqual([true, true, true, false, false]);
   });

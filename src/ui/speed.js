@@ -32,7 +32,7 @@ export function speedPicture(speed) {
 let cornerCount = 0;                                                          // ids for the corner tags, one per mounted corner
 const cornerPicture = (running) => speedPicture(running ? 0 : 1);           // the corner button shows what a tap does: pause while running, play while paused
 
-// keys(): whether Keyboard shortcuts is on, so a step's title names Space, + and - only when they work (final review).
+// keys(): whether Keyboard shortcuts is on, so a step's title names Space, ] and [ only when they work (final review).
 export function createSpeedControl({ world, store, afterCommand = () => {}, onPausedHidden = () => {}, doc = document, keys = () => true }) {
   const mounted = [];     // render callbacks
   const api = {

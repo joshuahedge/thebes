@@ -765,17 +765,11 @@ body[data-layout="portrait"] #legend .fire-keys .never-burn { position: absolute
 .title-records { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 2px 0; }
 .title-records .best-line { margin: 0; }
 .title-records .stamps { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; margin-top: 4px; }
-.title-weekly { display: flex; flex-direction: column; gap: 2px; }
-.title-weekly .weekly-hint { margin: 0; }
-/* A phone held sideways (the height query the difficulty rules use): the week's seed line hides (the button still has it
-   as its description, through aria-describedby) and This week's Nile shares a line with Play with sound on a wider card,
-   so the card fits about 390 px of height at 100% text without scrolling. */
+/* A phone held sideways (the height query the difficulty rules use): the card is wider and its buttons share rows, so it fits about 390 px of height at 100% text without scrolling. */
 @media (max-height: 480px) {
   .title-card { width: min(440px, 100%); }
   .title-buttons { flex-direction: row; flex-wrap: wrap; }
   .title-buttons > * { flex: 1 1 100%; }
-  .title-buttons > .title-weekly, .title-buttons > .sound { flex: 1 1 40%; }
-  .title-weekly .weekly-hint { display: none; }
 }
 .shared-score { background: var(--parchment-2); border-radius: var(--radius); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
 .shared-score h2 { margin: 0; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
@@ -1069,7 +1063,8 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
   .title-size .size-hint { display: none; }
   /* The card is wider there, so the four buttons under it (This week's Nile, How to play, Play with sound, Install) share one row, which pays for the picker's row. */
   .title-card { width: min(680px, 100%); }
-  .title-buttons > .title-weekly, .title-buttons > .how-to-play, .title-buttons > .sound, .title-buttons > .install { flex: 1 1 22%; }
+  .title-buttons > .title-more { flex: 1 1 60%; }
+  .title-buttons > .bring, .title-buttons > .install { flex: 1 1 auto; }
 }
 /* Show me in the confirm bar (rulings 331, 350): a button 44px high across a row of its own, under the words, buttons and chips. */
 .confirm.has-fit { flex-wrap: wrap; row-gap: 6px; }
@@ -1228,14 +1223,10 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
 .title-card .release h4 { margin: 6px 0 2px; font-size: calc(12px * var(--ui-scale)); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
 .title-card .release ul.notes { margin: 0; padding-left: 20px; }
 .title-card .release ul.notes li { margin: 2px 0; }
-/* On a phone held upright How to play and What's new share one row (the DOM keeps How to play beside Play with sound, which tests pin; order lays
-   the pair above Play with sound and Install), so the new button costs the card no row and the sample city's showcase keeps its room. */
-.title-buttons > .how-to-play, .title-buttons > .whats-new-button { order: 5; }
-.title-buttons > .sound, .title-buttons > .install { order: 6; }
+/* The Lesson (or How to play), Settings and What's new buttons share one row (.title-more); Bring your city and Install come after it, only where offered. */
 @media (min-height: 481px) {
   .title-buttons { flex-flow: row wrap; }
   .title-buttons > * { flex: 1 1 100%; }
-  .title-buttons > .how-to-play, .title-buttons > .whats-new-button { flex: 1 1 calc(50% - 4px); }
 }
 /* A short phone held upright (360x640): the version line costs the card a line, which the sample city's showcase below it needed (the
    title scene's balance test); the card's own gaps give it back. */
@@ -1249,7 +1240,7 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
    they size by their words and share one row where they fit (they did in two rows of two before), so the card still ends inside 390 px. */
 @media (max-height: 480px) {
   .title-card .version { margin: -2px 0 -3px; line-height: 1.2; }
-  .title-buttons > .title-weekly, .title-buttons > .how-to-play, .title-buttons > .whats-new-button, .title-buttons > .sound, .title-buttons > .install { flex: 1 1 auto; }
+  .title-buttons > .title-more, .title-buttons > .bring, .title-buttons > .install { flex: 1 1 auto; }
   .title-card .whats-new { max-height: 60vh; }
 }
 /* At 667x375 the card has no spare line (the tagline is already gone): the version sits in the card's bottom padding instead of a row of its own. */
@@ -1258,6 +1249,29 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
   .title-card .version { position: absolute; left: 0; right: 0; bottom: 2px; margin: 0; line-height: 1.2; }
 }
 /* ── end s46 ux ── */
+
+/* ── v60 d1 (Version 6.0, Track D1) ── the title card's rows, the Huge note and the polish pass (docs/superpowers/notes/2026-10-22-v60-d1-polish.md lists each). ── */
+/* Lesson (or How to play), Settings and What's new: one row of three, each 44 px at least and wrapping by its words (so at 150% text two share a row and the third has its own). */
+.title-more { display: flex; flex-wrap: wrap; gap: 6px; }
+.title-more > button { flex: 1 1 calc(33.333% - 6px); min-width: max-content; padding: 0 4px; }   /* a word never clips: at large text the buttons wrap to a row each */
+/* The Huge map's note on a phone ("Best on a tablet or computer"): a line under the size's own, bold so it is not a colour alone. */
+.title-size .size-note { margin: 0; font-weight: 600; color: var(--ink); }
+/* Settings on the title card: the game's own rows (one panel with Back), scrolling inside the card like What's new. */
+.title-card .settings-head { font-family: var(--serif); font-size: calc(20px * var(--ui-scale)); margin: 0 0 4px; }
+.title-card .settings-body { max-height: max(260px, calc(100dvh - 250px)); overflow-y: auto; padding-right: 4px; }
+.title-card .settings-body .row { align-items: center; flex-wrap: wrap; }
+.title-card .settings-body .choices { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.title-card:has(> .guide .settings-body) > .tagline, .title-card:has(> .guide .settings-body) > .version { display: none; }   /* the rows take the card's room */
+@media (max-height: 480px) {
+  .title-card .settings-body { max-height: 55vh; }
+}
+/* Polish 1 (How to play's key list): at 150% text a key such as "Arrows or WASD" or "Ctrl+Z or Cmd+Z" ran past the side panel's edge and the "Does" column went with it.
+   The keys may now wrap inside their column (a 40% share), and the words beside them wrap anywhere they must, so the table always fits the panel. */
+.shortcuts { table-layout: fixed; }
+.shortcuts th:first-child, .shortcuts td:first-child { width: 40%; }
+.shortcuts kbd { white-space: normal; overflow-wrap: anywhere; display: inline-block; }
+.shortcuts td, .shortcuts th { overflow-wrap: anywhere; }
+/* ── end v60 d1 ── */
 
 /* Stage 4.7 (Task 6, ruling 467): the Fetch control on a store's sheet (src/ui/s47/carts.js). One panel: a "Fetch goods" row that opens the list of goods the
    store may hold, each a switch and a stepper (44 px targets, wrapping under the switch on a narrow phone), with the sim's words under it. Goods on the road are

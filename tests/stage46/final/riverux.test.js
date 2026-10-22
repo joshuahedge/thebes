@@ -146,13 +146,13 @@ describe('s46 final ui: the lodge and wharf sheets (ruling 456)', () => {
 });
 
 describe('s46 final ui: the speed steps name keys only when they work (ruling 457)', () => {
-  it('says Space, + and - with Keyboard shortcuts on, and no key with them off, at once', async () => {
+  it('says Space, ] and [ with Keyboard shortcuts on, and no key with them off, at once', async () => {
     expect([S46_UX_TEXT.speedStepTitle(0, false), S46_UX_TEXT.speedStepTitle(2, false).includes('+')]).toEqual(['Pause', false]);
     const r = await rigUI({ width: 1280, height: 800 });
     const titles = () => [...r.root.querySelectorAll('#topbar .speed-bar .speed-step')].map((b) => b.title);
     try {
       expect(titles()[0]).toBe('Pause (Space)');
-      expect(titles().slice(1).every((t) => t.includes('(+ and - change it)'))).toBe(true);
+      expect(titles().slice(1).every((t) => t.includes('(] and [ change it)'))).toBe(true);
       r.ui.settings.set({ keyboardShortcuts: false });
       expect(titles().some((t) => /Space|\+/.test(t))).toBe(false);
       r.ui.settings.set({ keyboardShortcuts: true });

@@ -3,40 +3,37 @@ import { createTitleCard, createBackdrop, driftPoints } from '../../src/ui/title
 import { createCameraControl } from '../../src/ui/cameraControl.js';
 import { createCamera } from '../../src/render/camera.js';
 import { createWorld } from '../../src/sim/world.js';
-import { T } from '../../src/ui/text.js';
+
 import { mount, fire } from '../helpers/dom.js';
 
 describe('ui title card', () => {
-  it('offers Continue only with a save, flips the sound label, and Install only where allowed', () => {
+  it('offers Continue only with a save, has no sound button (Version 6.0), and Install only where allowed', () => {
     const { root, cleanup } = mount('<div id="title" hidden></div>');
     const container = root.querySelector('#title');
     const log = [];
-    const card = createTitleCard({ container, hasSave: false, canInstall: false, sound: false, onContinue: () => log.push('continue'), onNewCity: () => log.push('new'), onSound: (on) => log.push(`sound:${on}`) });
+    const card = createTitleCard({ container, hasSave: false, canInstall: false, onContinue: () => log.push('continue'), onNewCity: () => log.push('new') });
     expect(container.hidden).toBe(false);
     expect(container.querySelector('.continue')).toBe(null);
     expect(container.querySelector('.install').hidden).toBe(true);
     expect(container.querySelector('.new-city').classList.contains('primary')).toBe(true);
     expect(document.activeElement).toBe(container.querySelector('.new-city'));
-    const sound = container.querySelector('.sound');
-    expect(sound.textContent).toBe(T.playWithSound);
-    fire(sound, 'click');
-    expect(sound.textContent).toBe(T.playMuted);
+    expect(container.querySelector('.sound')).toBe(null);                               // sound is on by default; Settings mutes it
+    expect(container.textContent.includes('Play with sound') || container.textContent.includes('Play muted')).toBe(false);
     fire(container.querySelector('.new-city'), 'click');
-    expect(log).toEqual(['sound:true', 'new']);
+    expect(log).toEqual(['new']);
     card.destroy();
     expect(container.hidden).toBe(true);
     expect(container.children.length).toBe(0);
-    const withSave = createTitleCard({ container, hasSave: true, canInstall: true, sound: true, message: 'hello', onContinue: () => log.push('continue'), onNewCity: () => {}, onSound: () => {}, onInstall: () => log.push('install') });
+    const withSave = createTitleCard({ container, hasSave: true, canInstall: true, message: 'hello', onContinue: () => log.push('continue'), onNewCity: () => {}, onInstall: () => log.push('install') });
     expect(withSave.element.querySelector('h1').textContent).toBe('Thebes');
     expect(container.querySelector('.continue').classList.contains('primary')).toBe(true);
     expect(container.querySelector('.new-city').classList.contains('primary')).toBe(false);
     expect(document.activeElement).toBe(container.querySelector('.continue'));
-    expect(container.querySelector('.sound').textContent).toBe(T.playMuted);
     expect(container.querySelector('.message').textContent).toBe('hello');
     expect(container.querySelector('.install').hidden).toBe(false);
     fire(container.querySelector('.install'), 'click');
     fire(container.querySelector('.continue'), 'click');
-    expect(log).toEqual(['sound:true', 'new', 'install', 'continue']);
+    expect(log).toEqual(['new', 'install', 'continue']);
     withSave.destroy();
     cleanup();
   });

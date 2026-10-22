@@ -32,7 +32,7 @@ describe('ui keyboard', () => {
   });
   it('routes every spec 6.7 shortcut', () => {
     const r = rig();
-    for (const k of [' ', '+', '-', '1', '7', 'r', 'M', 'o', 'Enter', 'Escape', '?']) key(r.target, k);
+    for (const k of [' ', ']', '[', '1', '7', 'r', 'M', 'o', 'Enter', 'Escape', '?']) key(r.target, k);
     key(r.target, 'z', { ctrlKey: true });
     expect(r.log).toEqual(['pause', 'speedUp', 'speedDown', 'category0', 'category6', 'rotate', 'minimap', 'overlay', 'confirm', 'back', 'help', 'undo']);
     const before = { x: r.cam.x, y: r.cam.y, zoom: r.cam.zoom };
@@ -40,7 +40,7 @@ describe('ui keyboard', () => {
     expect(r.cam.x < before.x && r.cam.y > before.y).toBe(true);
     key(r.target, 'd');
     expect(Math.abs(r.cam.x - before.x) < 1e-9 && Math.abs(r.cam.y - before.y) < 1e-9).toBe(true);
-    key(r.target, '=');
+    key(r.target, '.');
     expect(r.log.filter((e) => e === 'speedUp').length).toBe(2);
     r.kb.detach(); r.cleanup();
   });
