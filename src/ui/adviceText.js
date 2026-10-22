@@ -12,7 +12,7 @@ import { costOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
 import {
   NEED_NAMES, buildingName, goodName, plural, causeText, alertText, tierName, listText,
-  S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT,
+  S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT, V60_ADVICE_WORDS,
 } from './text.js';
 
 const homesText = (n) => plural(n, 'home', 'homes');
@@ -165,7 +165,12 @@ export function adviceWords(a, world) {
       out.fix = d.warned ? RAID_TEXT.towers(world) : `Build ${plural(d.buildN, 'tower', 'towers')} (≈ ${d.buildCost} gold)`;
       break;
     }
-    default: break;
+    default: {
+      // Version 6.0 (contract section 9): a new kind's words come from its track's V60_ADVICE_WORDS entry (src/ui/text.js).
+      const words = V60_ADVICE_WORDS[a.kind];
+      if (words) Object.assign(out, words(a, world));
+      break;
+    }
   }
   // The price of the fix, and the button.
   const f = a.fix;

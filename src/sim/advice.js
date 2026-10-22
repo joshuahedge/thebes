@@ -25,6 +25,7 @@ import { isStore, canStaff, findSource } from './carts.js';
 import { desirabilityField, houseDesirability, scoreWith } from './desirability.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { checkTiles } from './commands.js';
+import { v60Advice } from './v60.js';
 
 // ── The goods' makers (moved here from src/ui/text.js, which re-exports them) ──
 
@@ -446,5 +447,6 @@ export function cityAdvice(world) {
   treasuryItem(world, out);
   dangerItems(world, alerts, out);
   towerItem(world, out);
+  v60Advice(world, alerts, out);                       // Version 6.0: the court's demands and the dangers (Tracks A and B1, src/sim/v60.js)
   return out.sort(compareAdvice);
 }

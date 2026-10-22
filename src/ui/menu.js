@@ -5,7 +5,7 @@ import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
 import { FIRE_REACTIONS, MOTION_SETTINGS, motionStatus } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT } from './text.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT, V60_HELP } from './text.js';
 import { el, button, clear } from './components.js';
 
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
@@ -136,6 +136,8 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     ]));
     body.append(el('p', { class: 'small muted', text: T.shortcutsOff }));
     body.append(el('h3', { text: T.gestures }), el('p', { text: T.gesturesHelp }));
+    // Version 6.0 (contract section 9): each track's paragraphs, from its own src/ui/text.js section, in track order.
+    for (const p of Object.values(V60_HELP).flat()) body.append(el('h3', { text: p.head }), el('p', { text: p.text }));
     body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsHelp }), el('p', { class: 'muted', text: T.guideHelp }));
     if (canResumeGuide()) {
       body.append(el('div', { class: 'actions' }, [button(T.resumeGuide, { class: 'resume-guide primary', onClick: () => { onResumeGuide(); if (close) close(); } })]));

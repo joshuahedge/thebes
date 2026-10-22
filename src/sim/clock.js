@@ -28,6 +28,7 @@ import { palaceDay } from './palace.js';
 import { s46Day, s46Month } from './s46.js';
 import { cartDay } from './carts.js';
 import { pressureMonth } from './pressure.js';
+import { v60Day, v60Month } from './v60.js';
 
 const ARRIVAL_EVERY = DAYS_PER_MONTH / MOOD.arrivalBatchesPerMonth;
 
@@ -46,6 +47,7 @@ export function runMonth(world, events = null) {
   raidMonth(world, events);                            // Stage 3 (src/sim/raids.js)
   s46Month(world, events);                             // Stage 4.6: the flood, the herds, the army, the court (src/sim/s46.js)
   pressureMonth(world, events);                        // Stage 4.7 (Task 7): the yearly quota and the warnings a year ahead (src/sim/pressure.js)
+  v60Month(world, events);                             // Version 6.0: the court's demands, then the dangers (src/sim/v60.js)
   updateMood(world);
   const milestoneChanged = updateMilestone(world);
   if (milestoneChanged && events) events.push({ type: 'milestone', id: world.milestone });
@@ -72,6 +74,7 @@ export function tickDay(world, events = null) {
   healthDay(world, events);                            // Stage 4.5: disease and crime (src/sim/health.js, crime.js)
   crimeDay(world, events);
   s46Day(world, events);                               // Stage 4.6: the flood, the herds, the army, the court (src/sim/s46.js)
+  v60Day(world, events);                               // Version 6.0: the court's demands, then the dangers (src/sim/v60.js)
   world.day += 1;
   if (world.day % ARRIVAL_EVERY === 0) {
     const count = arrivalsBatch(world);

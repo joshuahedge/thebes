@@ -20,6 +20,7 @@ import { BUILDINGS } from './buildings.js';
 import { MONUMENTS } from './monuments.js';
 import { TIERS } from './housing.js';
 import { GOODS } from './goods.js';
+import { V60_GOALS, V60_EVENT_GOALS } from './v60.js';
 
 // Version 5.0 (Task 7): the street goals' one sentence (ruling 265's why).
 const STREET_WHY = 'Gardens, statues and sphinxes beside it raise it; workshops, farms and stores near it lower it. Its house sheet names the best one and where.';
@@ -88,6 +89,8 @@ export const GOALS = [
   { id: 'prestige_pyramids', chapter: 'monuments', from: 'capital', text: `Reach ${MONUMENTS.pyramid_small.unlock.prestige} prestige to unlock the small pyramid`, why: `The great pyramid unlocks at ${MONUMENTS.pyramid_great.unlock.prestige} prestige.`, reward: GOAL_REWARD, need: { kind: 'unlocked', type: 'pyramid_small' }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },
   { id: 'found_pyramid', chapter: 'monuments', from: 'capital', when: { kind: 'unlocked', type: 'pyramid_small' }, text: 'Found the small pyramid', reward: GOAL_REWARD, need: { kind: 'building', type: 'pyramid_small', n: 1 }, showMe: { category: 'monuments', item: 'pyramid_small', target: 'focus' } },
   { id: 'found_great_pyramid', chapter: 'monuments', from: 'capital', when: { kind: 'unlocked', type: 'pyramid_great' }, text: 'Found the great pyramid', reward: GOAL_REWARD, need: { kind: 'building', type: 'pyramid_great', n: 1 }, showMe: { category: 'monuments', item: 'pyramid_great', target: 'focus' } },
+  // Version 6.0 (src/data/v60.js V60_GOALS): Track A's and Track C's rows, from their own data files.
+  ...V60_GOALS,
 ];
 
 // The guided start (early-game pass 3.2) runs while any of these is open.
@@ -131,6 +134,8 @@ export const EVENT_GOALS = [
   // Stage 4.6 (ruling 371, Court track): the first time a letter from the court arrives (the guided one: the trading goal opens the court), it joins the
   // list at the front, and is met once that letter is answered (sent, refused or past its deadline; a card answered first counts too). Built as an event goal, not an opening-chain goal (ruling 380). Show me opens the summary, where the court's row is.
   { id: 'court_letter', trigger: 'court_letter', chapter: 'event', text: 'Answer the letter from the court', why: "Open it from the alert row or the summary. Sending what it asks earns the capital's favour.", reward: EVENT_REWARD, need: { kind: 'courtAnswered' }, showMe: null },
+  // Version 6.0 (src/data/v60.js V60_EVENT_GOALS): Track A's and Track B1's rows, from their own data files.
+  ...V60_EVENT_GOALS,
 ];
 
 // The opening chain (spec 4.1): Founded Thebes, already ticked when a city starts (an endowed start: it pays nothing and is

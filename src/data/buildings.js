@@ -1,6 +1,7 @@
 import { FOOD_GOODS, HOUSEHOLD_GOODS, RAW_GOODS, MATERIAL_GOODS } from './goods.js';
 import { MONUMENTS, MONUMENT_KINDS, MONUMENT } from './monuments.js';
 import { S46_BUILDINGS } from './s46.js';
+import { V60_BUILDINGS } from './v60.js';
 
 // w = footprint along x, d = footprint along y. reach values are in road tiles. A producer makes `perMonth` units
 // at full staff; one with `consumes` (a workshop) turns one unit of that good into one unit of its own.
@@ -133,6 +134,8 @@ export const BUILDINGS = {
     const m = MONUMENTS[k];
     return [k, { name: m.name, w: m.w, d: m.d, cost: m.founding, upkeep: 0, workers: 0, category: 'monuments', needsRoad: true, monument: true, rotates: m.rotates }];
   })),
+  // Version 6.0: Track A's and Track C's rows, if any (src/data/reign.js REIGN_BUILDINGS, largePlots.js LARGE_BUILDINGS), joined by src/data/v60.js.
+  ...V60_BUILDINGS,
 };
 
 // The size a type takes with a rotation (spec 7.3, ruling 234): rot 1 swaps w and d for a type that rotates; anything

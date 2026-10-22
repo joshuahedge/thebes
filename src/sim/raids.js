@@ -68,7 +68,7 @@ import { DANGER_MOOD } from '../data/mood.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, population } from './world.js';
 import { isWorking } from './labour.js';
-import { costOf, riskOf, raidsOn } from './costs.js';
+import { costOf, riskOf, raidsOn, costScale } from './costs.js';
 import { spend } from './money.js';
 import { hash2 } from './rng.js';
 import { setSpeed } from './commands.js';
@@ -76,7 +76,7 @@ import { idx, ring, inBounds } from './grid.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { removeResidents } from './housing.js';
 import { splitHouse } from './merge.js';
-import { igniteBuilding } from './fire.js';
+import { STRIKES } from './strikes.js';
 import { flowField, tileCost } from './pathfinding.js';
 import { healWalls } from './defence.js';
 import { trainSoldiers, combatDay, soldiersHome } from './combat.js';
@@ -182,7 +182,8 @@ export const warningDirs = (w) => (w.second ? [w.dir, w.second.dir] : [w.dir]);
 // the warning appears (warning.tribute; null for the first raid, which cannot be paid off).
 // Stage 4.6 (ruling 336): times favour's factor (src/sim/court.js, the Court track's); the Armies track keeps this call and prices the
 // total of a mixed raid.
-export const tributeFor = (world, size) => Math.round(favourTributeFactor(world) * RAIDS.tributeShare * towersNeeded(size) * costOf(world, 'tower'));
+// Version 6.0 (ruling 622): times costScale's court (src/sim/costs.js, Track A's; 1 until it is filled in).
+export const tributeFor = (world, size) => Math.round(favourTributeFactor(world) * RAIDS.tributeShare * towersNeeded(size) * costOf(world, 'tower') * costScale(world).court);
 
 // The day a later warning appears (spec 4.13): RAIDS.laterMin to RAIDS.laterMax days after fromDay (the last raid's
 // arrival day, or the day a cancelled raid would have arrived), drawn by hash2(seed, the next raid's index, salt).
@@ -439,16 +440,6 @@ function pickTarget(world, a, k) {
   return null;
 }
 
-// The food a granary strike takes: RAIDS.foodShare of each good it holds, rounded up. Returns the units taken.
-function takeFood(b) {
-  let n = 0;
-  for (const good of Object.keys(b.store)) {
-    const take = Math.min(b.store[good], Math.ceil(b.store[good] * RAIDS.foodShare));
-    if (take > 0) { b.store[good] -= take; n += take; }
-  }
-  return n;
-}
-
 // The residents a home strike drives out: RAIDS.fleeShare of them, at least 1 (removeResidents; an emptied 2x2 home
 // splits into plots as when people leave). Returns how many fled.
 function frighten(world, b) {
@@ -463,13 +454,17 @@ function frighten(world, b) {
 // building is followed while it burns, see trackFires), and each raider of the band steals RAIDS.stealShare of the
 // treasury, at least RAIDS.stealMin and at most RAIDS.stealMax, never taking it below 0 (a granary burns too, but its
 // raiders take food, not gold). The band stays RAIDS.strikeDays days, this one included.
+// Version 6.0 (ruling 625): the blaze, the wreck and the loot are src/sim/strikes.js STRIKES' hooks, run in STRIKE_KINDS order (Track B1
+// fills wreck and loot; until then a strike is exactly the old one).
 function strike(world, a, k, b, events) {
   const rec = bandRec(a, k);
   let stolen = 0, food = 0, fled = 0;
   if (b.type === 'house') fled = frighten(world, b);
   else {
-    if (igniteBuilding(world, b.id, events, 'raid')) a.fires.push({ id: b.id, type: b.type });
-    if (b.type === 'granary') food = takeFood(b);
+    STRIKES.burn(world, a, b, events);
+    STRIKES.wreck(world, a, b, events);
+    const taken = STRIKES.loot(world, a, b, events);
+    if (b.type === 'granary') food = taken;
     else {
       for (let n = 0; n < crewOf(a, k).length; n++) {
         const take = Math.min(Math.max(0, world.gold), Math.max(RAIDS.stealMin, Math.min(RAIDS.stealMax, Math.round(world.gold * RAIDS.stealShare))));

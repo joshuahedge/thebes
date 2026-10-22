@@ -9,11 +9,14 @@ import { newCourtState } from '../data/court.js';
 import { newArmyState } from '../data/armies.js';
 import { MONUMENT_STYLE_IDS, MONUMENT_STYLE_DEFAULT } from '../data/wonders.js';
 import { S47_TALLY } from '../data/s47.js';
+import { V60_TALLY } from '../data/v60.js';
+import { newReignState, newDemandState } from '../data/reign.js';
+import { newHazardState, GRACE_DAYS } from '../data/hazards.js';
 import { generateMap, variantFor } from './mapgen.js';
 import { floodplainOf } from './flood.js';
 import { idx, footprint } from './grid.js';
 
-export const WORLD_VERSION = 8;
+export const WORLD_VERSION = 9;
 export const HISTORY_MONTHS = 12;   // month-end rows kept for the Welcome back trends
 
 // The trade state a city starts with (Stage 2): no routes open, no orders, no price drift drawn, no quota used.
@@ -47,6 +50,8 @@ export const STAGE45_TALLY = ['illnesses', 'illnessesCured', 'thefts', 'theftGol
 export const STAGE46_TALLY = S46_TALLY;
 // Stage 4.7's (world version 8): src/data/s47.js S47_TALLY (an oasis's first, the carts, the yearly quota).
 export const STAGE47_TALLY = S47_TALLY;
+// Version 6.0's (world version 9): src/data/v60.js V60_TALLY, each wave-1 track's list from its own data file (reign.js, hazards.js, largePlots.js).
+export const STAGE60_TALLY = V60_TALLY;
 export const newTally = () => ({
   harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0, made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0,
   ...Object.fromEntries(STAGE3_TALLY.map((k) => [k, 0])),
@@ -54,6 +59,7 @@ export const newTally = () => ({
   ...Object.fromEntries(STAGE45_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE46_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE47_TALLY.map((k) => [k, 0])),
+  ...Object.fromEntries(STAGE60_TALLY.map((k) => [k, 0])),
 });
 
 // The prestige unlocks a city has reached (Stage 4, spec 4.14, ruling 243): monument type -> the day the city first had
@@ -151,6 +157,12 @@ export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, dif
     // Stage 4.7 (world version 8; src/data/s47.js has the shapes). New land (hills, oases, the grass band) is in terrain and mapParams.
     oases: (m.oases || []).map((o) => ({ ...o })),      // [{ x, y, r }]: the generator's oases (Task 2), for display and herds
     carts: [],                                          // the stores' carts on the road (Task 5): src/data/s47.js isCart
+    // Version 6.0 (world version 9; the contract note has the shapes). Each record starts from its owner's data file, as the v8 -> v9
+    // migration's does. Per building, two optional fields are new and never added to a save: a home's large (true on a Large plot,
+    // src/data/largePlots.js) and rubble's was (what stood there, src/data/hazards.js); absent means an old home or old rubble.
+    reign: newReignState(),                             // the great work and the reign's end (Track A, src/data/reign.js)
+    demands: newDemandState(),                          // the court's demands with deadlines (Track A)
+    hazards: newHazardState(GRACE_DAYS),                // plague, drought, locusts and the three-year grace (Track B1, src/data/hazards.js)
   };
   for (const [x, y] of m.startRoad) world.road[idx(world.size, x, y)] = 1;
   return world;

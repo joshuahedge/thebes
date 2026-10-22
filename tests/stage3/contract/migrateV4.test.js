@@ -73,11 +73,11 @@ describe('s3 contract migrate v3 to v4', () => {
   });
   it('runs through migrate, deserialize and unpackSave', () => {
     const v3 = v3City();
-    expect(CURRENT_VERSION).toBe(8);
-    expect(migrate(v3)).toEqual(MIGRATIONS[7](MIGRATIONS[6](MIGRATIONS[5](MIGRATIONS[4](MIGRATIONS[3](v3))))));
-    expect(deserialize(JSON.stringify(v3)).version).toBe(8);
+    expect(CURRENT_VERSION).toBe(9);
+    expect(migrate(v3)).toEqual(MIGRATIONS[8](MIGRATIONS[7](MIGRATIONS[6](MIGRATIONS[5](MIGRATIONS[4](MIGRATIONS[3](v3)))))));
+    expect(deserialize(JSON.stringify(v3)).version).toBe(9);
     const back = unpackSave(JSON.stringify({ version: 1, savedAt: 1760000000000, lastSpeed: 2, world: v3 }));
-    expect([back.savedAt, back.lastSpeed, back.world.version, back.world.gold]).toEqual([1760000000000, 2, 8, v3.gold]);
+    expect([back.savedAt, back.lastSpeed, back.world.version, back.world.gold]).toEqual([1760000000000, 2, 9, v3.gold]);
   });
   it('reports a malformed version 3 save as corrupt, not as a failed migration', () => {
     expect(code(() => deserialize(JSON.stringify({ version: 3 })))).toBe('corrupt_save');

@@ -459,14 +459,14 @@ export function toolPreview(world, state) {
   // Version 5.0 (Task 4): Build another's copied settings are said before the tick (ruling 505); an area says what its buildings cost a month together.
   p.copy = state.tool.kind === 'building' && state.tool.copy ? ANOTHER_TEXT.copy(settingsThatApply(state.tool.type, state.tool.copy), goodName) : '';   // only what applySettings would write
   if (state.tool.kind === 'areas' && p.count > 0 && (p.state === 'ok' || p.state === 'warn')) {
-    const bill = monthlyBill(state.tool.type);
+    const bill = monthlyBill(state.tool.type, world);
     if (bill.bill > 0) {
       p.upkeep = AREA_TEXT.upkeepFor(bill, p.count);
       if (!p.warnings.includes('needs_road')) { p.balanceNet = balanceWith(world, state.tool.type, p.count); p.balance = S45_TEXT.balanceLine(p.balanceNet); }
     }
   }
   if (state.tool.kind === 'building' && p.state !== 'idle') {
-    const bill = monthlyBill(state.tool.type);
+    const bill = monthlyBill(state.tool.type, world);
     if (bill.bill > 0) {
       p.upkeep = S45_TEXT.upkeepLine(bill);
       // A building no road touches costs nothing until one does (monthFigures), so its balance waits for the road; a spot that cannot

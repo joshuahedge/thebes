@@ -21,4 +21,6 @@ export const ADVICE = {
 };
 
 // The kinds of advice, in the order that breaks a tie of weight (most urgent first). See the contract, section 1.
-export const ADVICE_KINDS = ['raid_towers', 'fire', 'treasury', 'illness', 'crime', 'home_need', 'stranded', 'running_out', 'workers_short', 'jobless'];
+// Version 6.0 (Track 0): the new kinds take their places (plague, locusts and drought among the dangers, a court demand after the treasury);
+// the old kinds keep their order among themselves, so no city's list moves until a track pushes a new kind (src/sim/v60.js v60Advice).
+export const ADVICE_KINDS = ['raid_towers', 'plague', 'fire', 'locusts', 'drought', 'treasury', 'demand', 'illness', 'crime', 'home_need', 'stranded', 'running_out', 'workers_short', 'jobless'];

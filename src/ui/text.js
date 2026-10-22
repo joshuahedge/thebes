@@ -2713,3 +2713,54 @@ TIP_HELP_TEXT.road_route = 'Route finds the cheapest way between two points, wit
 TIP_TEXT.grand_homes = `A ${TIERS[7].name}! For a ${TIERS[8].name}: linen, a third food, desirability ${TIERS[8].desirability.rise}. Its next step names each.`;
 TIP_HELP_TEXT.grand_homes = `A ${TIERS[8].name} needs linen, three foods and desirability ${TIERS[8].desirability.rise}; an ${TIERS[9].name} adds jewellery and ${TIERS[9].desirability.rise}. Statues and sphinxes help most.`;
 // ── end v50 grand ──
+
+// ── v60 contract (Version 6.0, Track 0, rulings 620-639) ─────────────────────────────────────────────────────────────
+// Two tables the tracks fill from their own sections below (contract note, section 9), so menu.js and adviceText.js are never edited for them:
+// V60_HELP: How to play's Version 6.0 paragraphs, by track, each { head, text } (menu.js help() adds them after the gestures, in this key order);
+// V60_ADVICE_WORDS: kind -> (item, world) => { what, why, fix } for the new advice kinds (src/ui/adviceText.js adviceWords asks it for any kind
+// it does not word itself). A track writes only its own key of V60_HELP and only its own kinds.
+export const V60_HELP = { a: [], b1: [], c: [], b2: [], d1: [], d2: [] };
+export const V60_ADVICE_WORDS = {};
+// ── end v60 contract ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 a (Track A, rulings 640-679: costs, demands, ranks beyond Capital, the great work) ─────────────────────────────────
+// Add new lines just above the end marker: V60_HELP.a.push(...), V60_ADVICE_WORDS.demand = ..., ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ...
+// ── end v60 a ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 b1 (Track B1, rulings 680-699: raids that burn, wreck and loot; plague; drought; locusts and blight) ──────────────
+// Add new lines just above the end marker: V60_HELP.b1.push(...), V60_ADVICE_WORDS.plague = ..., ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ...
+// ── end v60 b1 ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 c (Track C, rulings 700-719: the Large plot and the 5.0 loose ends) ─────────────────────────────────────────────
+// Add new lines just above the end marker.
+// ── end v60 c ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 b2 (Track B2, rulings 720-739: battles you can see) ──────────────────────────────────────────────────────────────
+// Add new lines just above the end marker.
+// ── end v60 b2 ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 d1 (Track D1, rulings 740-759: the title, the Huge map, desktop keys, polish) ───────────────────────────────────
+// Add new lines just above the end marker.
+// ── end v60 d1 ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 d2 (Track D2, rulings 760-779: the guided first city, the picture cards) ────────────────────────────────────────
+// Add new lines just above the end marker.
+// ── end v60 d2 ──
