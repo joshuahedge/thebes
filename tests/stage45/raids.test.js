@@ -19,13 +19,14 @@ import { devScene, measureRows } from '../../src/dev/scenes.js';
 import { fakeIndexedDB } from '../helpers/fakeStorage.js';
 import { mountShell, fakeHistory, rigUI } from '../helpers/uiWorld.js';
 import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
+import { noNewDangers } from '../v60/b1/grace.js';
 
 const EAST = { x: 31, y: 16 }, NORTH = { x: 16, y: 0 }, WEST = { x: 0, y: 20 };
 const YEAR = 360;
 
-// A 32x32 Market town with a road along y = 13, `people` in one home, and the given raider entries.
+// A 32x32 Market town with a road along y = 13, `people` in one home, and the given raider entries. Version 6.0: the new dangers' grace never ends (the sizes here are the Stage 4.5 rules').
 function city({ people = 600, gold = 2000, entries = [EAST, NORTH, WEST] } = {}) {
-  const w = makeTestWorld({ gold, raiderEntries: entries });
+  const w = noNewDangers(makeTestWorld({ gold, raiderEntries: entries }));
   setRoad(w, 0, 13, 31, 13);
   w.milestone = 'market_town';
   addRaw(w, 'house', 2, 14, { tier: 4, residents: people });

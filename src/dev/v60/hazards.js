@@ -1,49 +1,122 @@
-// Version 6.0, Track B1's dev scenes (src/dev/v60/index.js joins them): plague, drought, locusts and a raid that burns. Track 0 left
-// minimal worlds (the sample city with the grace over and the danger's record set by hand); Track B1 owns this file and refines them with
-// its own sim calls. Open /?skipTitle=1&nosw=1&seed=11&sample=1 first.
+// Version 6.0, Track B1's dev scenes (src/dev/v60/index.js joins them): plague, drought, locusts and a raid that burns, wrecks and loots. Each
+// sets its danger up through the sim's own functions (a draw's warning, a plague started and left to spread, a raid run through raidDay), so what a
+// shot shows is what the game does. Open /?skipTitle=1&nosw=1&seed=11&sample=1 first. options: gold, quick (no waits), look (what to show; each
+// scene says which), zoom.
 import { dangerDraws } from '../../sim/hazards.js';
+import { startPlague, plagueDay, sickHomes, quarantineDistrict } from '../../sim/plague.js';
+import { droughtMonth, locustsMonth, isFarm } from '../../sim/crops.js';
+import { raidDay, entryDir, raidTargetKind } from '../../sim/raids.js';
+import { setPaused } from '../../sim/commands.js';
+import { allBuildings } from '../../sim/world.js';
+import { assignLabour } from '../../sim/labour.js';
+import { footMix } from '../../data/armies.js';
+import { openSheet, select } from '../../ui/modes.js';
 import { sampleCity, look, wait, endGrace, fullestHome } from './base.js';
 
-// Plague begun in the fullest home. options: gold, quick.
+// Selects a building so its sheet is open (the interface's own mode change).
+const show = (api, id) => { const ui = api.game().ui; ui.store.set(select(ui.store.get(), id)); };
+// Opens a sheet by its kind.
+const sheet = (api, kind) => { const ui = api.game().ui; ui.store.set(openSheet(ui.store.get(), kind)); };
+
+// Plague begun in the fullest home and left to spread through the sim's own days until five homes are sick (or a season has passed). options.look:
+// 'sheet' (default) the Health layer on, the sick home's sheet open with the quarantine choice; 'layer' the layer alone; 'quarantine' the same with
+// the district quarantined (its dashed edge).
 export async function plagueScene(api, options = {}) {
   const world = sampleCity(api, 'v60-plague', options);
   endGrace(world);
   const home = fullestHome(world);
-  world.hazards.plague.active = { day: world.day, origin: home.id, homes: [home.id] };
-  look(api, home.x + home.w / 2, home.y + home.d / 2, 1.2);
+  for (const b of allBuildings(world)) if (b.type === 'physician') setPaused(world, b.id, true);   // no physician reaches anyone (the scene's fixture, as the fire scenes pause their firehouses)
+  assignLabour(world);
+  startPlague(world, home.id);
+  for (let k = 0; k < 24 && sickHomes(world).length < 6; k++) { plagueDay(world); world.day += 1; }
+  const g = api.game();
+  g.ui.cameraControl.cancel();
+  if (options.look === 'quarantine') { world.gold = Math.max(world.gold, 5000); quarantineDistrict(world, home.id); }
+  g.ui.store.set({ overlay: 'health' });
+  g.ui.refresh();
+  look(api, home.x + home.w / 2, home.y + home.d / 2, options.zoom || 1.4);
+  if (options.look !== 'layer') show(api, home.id);
   if (!options.quick) await wait(300);
-  return `v60-plague: home ${home.id} (${home.residents} people), plague ${dangerDraws(world).plague ? 'may be drawn' : 'off'}`;
+  return `v60-plague: home ${home.id} (${home.residents} people), ${sickHomes(world).length} homes sick, plague ${dangerDraws(world).plague ? 'may be drawn' : 'off'}`;
 }
 
-// A low Nile warned three months ahead. options: gold, quick.
+// A low Nile warned by the draw (the Nile reading names the flood). options.look: 'alert' (default) the alert list; 'advice' the City advice sheet;
+// 'summary' the summary's Dangers section.
 export async function droughtScene(api, options = {}) {
   const world = sampleCity(api, 'v60-drought', options);
   endGrace(world);
-  world.hazards.drought.warning = { day: world.day, strikes: world.day + 90 };
-  look(api, world.focus.x, world.focus.y, 0.8);
+  // The draw warns the next flood at least three months ahead: when this year's is nearer, the scene lets the months pass (as the clock's month ends
+  // would) until the draw finds one.
+  for (let k = 0; k < 14 && !world.hazards.drought.warning; k++) {
+    world.hazards.drought.nextDay = world.day;
+    droughtMonth(world, null);
+    if (!world.hazards.drought.warning) world.day += 30;
+  }
+  const g = api.game();
+  g.ui.cameraControl.cancel();
+  g.ui.refresh();
+  look(api, world.focus.x, world.focus.y, options.zoom || 0.8);
+  const w = world.hazards.drought.warning;
+  if (w) sheet(api, options.look === 'advice' ? 'advice' : options.look === 'summary' ? 'summary' : 'minimap');
   if (!options.quick) await wait(300);
-  return `v60-drought: low Nile warned for day ${world.hazards.drought.warning.strikes}`;
+  return w ? `v60-drought: low Nile warned for day ${w.strikes}` : 'v60-drought: no low Nile could be warned (the city has no flood yet)';
 }
 
-// Locusts warned a month ahead over the first four farms (lowest ids). options: gold, quick.
+// Locusts or blight warned over a band of farms by the draw. options.look: 'sheet' (default) the first farm's sheet with Harvest now; 'alert' the
+// alert list; 'advice' the City advice sheet.
 export async function locustsScene(api, options = {}) {
   const world = sampleCity(api, 'v60-locusts', options);
   endGrace(world);
-  const farms = Object.values(world.buildings).filter((b) => b.type.startsWith('farm_')).slice(0, 4);
-  world.hazards.locusts.warning = { day: world.day, strikes: world.day + 30, kind: 'locusts', farms: farms.map((b) => b.id) };
+  world.hazards.locusts.nextDay = world.day;
+  locustsMonth(world, null);
+  const w = world.hazards.locusts.warning;
+  const farms = w ? w.farms.map((id) => world.buildings[id]).filter(Boolean) : allBuildings(world).filter((b) => isFarm(b.type)).slice(0, 4);
   const at = farms[0] || { x: world.focus.x, y: world.focus.y, w: 1, d: 1 };
-  look(api, at.x + at.w / 2, at.y + at.d / 2, 0.9);
+  const g = api.game();
+  g.ui.cameraControl.cancel();
+  g.ui.refresh();
+  look(api, at.x + at.w / 2, at.y + at.d / 2, options.zoom || 1.1);
+  if (w && (!options.look || options.look === 'sheet')) show(api, farms[0].id);
+  else if (w) sheet(api, options.look === 'advice' ? 'advice' : 'minimap');
   if (!options.quick) await wait(300);
-  return `v60-locusts: ${farms.length} farms warned for day ${world.hazards.locusts.warning.strikes}`;
+  return `v60-locusts: ${farms.length} farms warned for day ${w ? w.strikes : 'none'}`;
 }
 
-// The grace over, the camera at the first raider entry: Track B1 sets a raid on its way that burns, wrecks and loots. options: gold, quick.
+// A band of nine with a chieftain from the first raider entry, run through the real raid days (its defenders stood down, so it gets through) until
+// the report: what it burned, wrecked and took. In a full run a few starting days are tried (each on a copy of the world) for one on which
+// the draws wreck a building. options.look: 'report' (default) the summary sheet with the report; 'rubble' a wrecked building's rubble selected.
 export async function raidBurnScene(api, options = {}) {
   const world = sampleCity(api, 'v60-raid-burn', options);
   endGrace(world);
+  for (const b of allBuildings(world)) if (b.type === 'tower' || b.type === 'barracks') setPaused(world, b.id, true);
+  world.soldiers = [];
+  assignLabour(world);
   const e = world.raiderEntries[0] || world.focus;
-  look(api, e.x, e.y, 0.8);
+  const arrive = (w, offset) => {
+    w.day += offset;
+    w.raid.index = 3;
+    w.raid.warning = { index: 2, entry: { x: e.x, y: e.y }, dir: entryDir(w, e), size: 9, tribute: 300, target: raidTargetKind(w), day: w.day - 90, arrives: w.day, first: false, mix: footMix(9), chiefs: [0] };
+    raidDay(w, []);
+    for (let k = 0; k < 300 && w.raid.active; k++) { w.day += 1; raidDay(w, []); }
+    return w.raid.last;
+  };
+  let offset = 0;
+  if (!options.quick) {
+    for (let k = 0; k < 8; k++) {
+      const last = arrive(structuredClone(world), k * 7);
+      if (last && last.wrecked && last.taken) { offset = k * 7; break; }
+    }
+  }
+  arrive(world, offset);
+  const g = api.game();
+  g.ui.cameraControl.cancel();
+  g.ui.refresh();
+  const rubble = allBuildings(world).find((b) => b.type === 'rubble' && b.was && b.was.cause === 'wreck');
+  look(api, rubble ? rubble.x + 0.5 : e.x, rubble ? rubble.y + 0.5 : e.y, options.zoom || (rubble ? 1.4 : 0.8));
+  if (options.look === 'rubble' && rubble) show(api, rubble.id);
+  else sheet(api, 'summary');
   if (!options.quick) await wait(300);
   const s = dangerDraws(world).strikes;
-  return `v60-raid-burn: entry ${e.x},${e.y}; strikes burn ${s.burn}, wreck ${s.wreck}, loot ${s.loot}`;
+  const r = world.raid.last;
+  return `v60-raid-burn: entry ${e.x},${e.y}; report: burned ${r ? r.burned : 0}, wrecked ${r && r.wrecked ? r.wrecked : 0}, taken ${r && r.taken ? Object.values(r.taken).reduce((n, v) => n + v, 0) : 0}; strikes burn ${s.burn}, wreck ${s.wreck}, loot ${s.loot}`;
 }

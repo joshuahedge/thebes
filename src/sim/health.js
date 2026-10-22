@@ -59,7 +59,7 @@ export const healthCovered = (world, b) => healthCoverOf(world, b) >= HEALTH.sta
 export const healthCause = (world, b) => coverCause(world, b, 'physician', HEALTH.reach, HEALTH.staffedAt);
 
 // The homes a working well reaches: a Set of ids, one pass over the wells (the coveredBy rule: src/sim/housing.js).
-function wateredHomes(world) {
+export function wateredHomes(world) {
   const out = new Set();
   const homes = housesOf(world);
   for (const w of allBuildings(world)) {
@@ -124,12 +124,16 @@ export function fallIll(world, id, events = null, cause = 'risk') {
   return true;
 }
 
+// Version 6.0 (Track B1, ruling 684): a home the plague made sick (illness.plague) is src/sim/plague.js's, not this step's: it has its own spread,
+// loss and recovery. It is still an ill home for the layers, the sheet's health row, the mood row and the court's remedies.
+export const isPlagueHome = (b) => Boolean(b.illness && b.illness.plague);
+
 // The day's disease step, run by tickDay after the fire step (the order is in the header).
 export function healthDay(world, events = null) {
   if (!healthStarted(world)) return;
   const day = world.day;
   const homes = housesOf(world);
-  const ill = homes.filter((b) => b.illness);
+  const ill = homes.filter((b) => b.illness && !b.illness.plague);
   const cover = healthCoverage(world);
   for (const b of ill) {
     if (world.buildings[b.id] !== b || !b.illness) continue;
@@ -165,6 +169,7 @@ export function healthAlerts(world) {
   const groups = new Map();
   let cover = null;
   for (const b of illHomes(world)) {
+    if (isPlagueHome(b)) continue;                                           // Version 6.0: the plague's homes have the plague's alert (src/sim/hazards.js)
     if (((cover || (cover = healthCoverage(world))).get(b.id) || 0) >= HEALTH.staffedAt) continue;
     const key = `${Math.floor(b.x / CRIME.districtTiles)},${Math.floor(b.y / CRIME.districtTiles)}`;
     if (!groups.has(key)) groups.set(key, []);

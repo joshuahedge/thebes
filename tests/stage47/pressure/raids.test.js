@@ -13,6 +13,7 @@ import { RAIDS_LATE } from '../../../src/data/s47.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { tributeSheet } from '../../../src/ui/dangerSheets.js';
 import { S47_PRESSURE_TEXT as P, TIP_HELP_TEXT } from '../../../src/ui/text.js';
+import { noNewDangers } from '../../v60/b1/grace.js';
 
 const YEAR = 360;
 const LATE = (RAIDS_LATE.fromYear - 1) * YEAR;       // year 10's first day
@@ -20,7 +21,7 @@ const EAST = { x: 31, y: 16 }, NORTH = { x: 16, y: 0 }, WEST = { x: 0, y: 20 };
 
 // A 32x32 Market town with `people` in one home and three raider entries, its raid clock started at day 0 and `index` raids warned so far.
 function city({ people = 600, gold = 2000, difficulty = 'normal', day = LATE, index = 4 } = {}) {
-  const w = makeTestWorld({ gold, raiderEntries: [EAST, NORTH, WEST] });
+  const w = noNewDangers(makeTestWorld({ gold, raiderEntries: [EAST, NORTH, WEST] }));   // Version 6.0: the new dangers' grace never ends (the sizes here are Stage 4.7's)
   setRoad(w, 0, 13, 31, 13);
   w.milestone = 'market_town';
   w.difficulty = difficulty;

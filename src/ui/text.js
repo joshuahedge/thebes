@@ -2735,6 +2735,191 @@ export const V60_ADVICE_WORDS = {};
 //
 // ── v60 b1 (Track B1, rulings 680-699: raids that burn, wreck and loot; plague; drought; locusts and blight) ──────────────
 // Add new lines just above the end marker: V60_HELP.b1.push(...), V60_ADVICE_WORDS.plague = ..., ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ...
+// Every sentence below is computed from the sim's own numbers and rules (src/data/hazards.js, src/sim/plague.js, crops.js, strikes.js and the
+// raid record), so what a sheet, an alert or the advice says is what the sim does; the tests set the world up both ways. Names start with b1
+// (the sections share this module's scope).
+import { PLAGUE as b1Plague, DROUGHT as b1Drought, CROPS as b1Crops, HARVEST_NOW as b1Harvest, CHIEFTAIN as b1Chief, WRECK as b1Wreck } from '../data/hazards.js';
+import { ECONOMY as b1Economy } from '../data/economy.js';
+import { DAYS_PER_MONTH as b1Month } from '../sim/time.js';
+
+const b1Dur = (days) => DANGER_UI_TEXT.duration(Math.max(0, days));
+const b1Pct = (f) => `${Math.round(f * 100)}%`;
+const b1Months = (n) => plural(n, 'month', 'months');
+const b1A = (type) => anA(buildingName(type).toLowerCase());
+const b1Counted = (type, n) => (n === 1 ? b1A(type) : `${n} ${pluralName(type)}`);
+const b1HomeName = (b) => (b ? tierName(b.tier).toLowerCase() : 'home');
+const b1CropKind = (kind) => (kind === 'blight' ? 'Blight' : 'Locusts');
+
+export const B1_TEXT = {
+  // ── The raid report: what the band wrecked and took, and its chieftain ──
+  wrecked: (kinds) => {
+    const counts = new Map();
+    for (const k of kinds) counts.set(k, (counts.get(k) || 0) + 1);
+    return listText([...counts].map(([k, n]) => b1Counted(k, n)));
+  },
+  taken: (goods) => listText(Object.entries(goods).map(([g, n]) => `${n} ${goodName(g).toLowerCase()}`)),
+  chiefLine: (r) => {
+    const fell = r.chiefsFell || 0;
+    if (r.chiefs === 1) return fell ? 'The chieftain fell and his band turned back.' : 'The chieftain got away.';
+    return fell ? `${fell} of ${r.chiefs} chieftains fell.` : `${r.chiefs} chieftains got away.`;
+  },
+  chiefWarning: `A chieftain leads the band: he has ${b1Chief.hpFactor} times a raider's strength, and when he falls the band turns back.`,
+  rubbleWas: (was) => `Rubble of ${b1A(was.type)}, ${was.cause === 'wreck' ? 'wrecked by raiders' : 'burned down'}`,
+  rebuildLabel: (type, cost) => `Rebuild the ${buildingName(type).toLowerCase()}: ${cost} gold`,
+  rebuildCosts: (q) => `Clearing the rubble ${q.clear} gold, the ${buildingName(q.type).toLowerCase()} ${q.build} gold`,
+  rebuilt: (type) => `Rebuilt the ${buildingName(type).toLowerCase()}`,
+  rebuildRefusal: (q) => (q.reason === 'no_gold' ? `Rebuilding costs ${q.cost} gold: it would put the treasury over ${-b1Economy.debtFloor} gold in debt` : `Cannot rebuild here: ${reasonText(q.reason).toLowerCase()}`),
+
+  // ── Plague ──
+  plagueLabel: 'Plague',
+  plagueSick: (i, covered) => `Sick with plague: ${plural(i.left, 'day', 'days')} left, ${i.lost} of up to ${i.cap} people lost. ${covered ? `A staffed physician reaches it: it mends ${b1Plague.coverFactor === 2 ? 'twice' : `${b1Plague.coverFactor} times`} as fast` : 'No staffed physician reaches it'}`,
+  plagueNear: (n) => `${plural(n, 'home is', 'homes are')} sick in this district`,
+  plagueOrigin: (days) => `A plague is warned to start in this home in ${b1Dur(days)}. A physician and a well near it slow it, and so does room: fewer people in each home`,
+  quarantineButton: (fee) => `Quarantine this district: ${fee} gold`,
+  quarantineDoes: (q) => `Holds ${b1Months(q.months)}. The plague cannot cross the district's edge and spreads at ${b1Pct(b1Plague.quarantine.insideFactor)} of its pace inside it. ${q.workplaces ? `${plural(q.workplaces, 'farm or workshop', 'farms and workshops')} there stop${q.workplaces === 1 ? 's' : ''} work` : 'Work there stops'} until it ends. The fee is ${q.fee} gold.`,
+  quarantineHeld: (until, now) => `Quarantined: ends in ${b1Dur(until - now)}. Work in the district has stopped`,
+  quarantineRefusal: { none_sick: 'No home in this district is sick: there is nothing to quarantine', no_plague: 'There is no plague', no_gold: (q) => `The ${q.fee} gold fee would put the treasury over ${-b1Economy.debtFloor} gold in debt` },
+  quarantined: (fee) => `District quarantined for ${fee} gold`,
+  haltedPlague: 'Work has stopped here: a sick home near it has no physician. A staffed physician within reach would let work go on',
+  haltedQuarantine: (until, now) => `Work has stopped here: the district is quarantined for ${b1Dur(until - now)} more`,
+  physicianNote: 'Show me a physician',
+
+  // ── Drought and the low Nile ──
+  droughtRow: (a, now) => `Drought: this farm gives ${b1Pct(a.factor)} of its crop for ${b1Dur(a.until - now)} more`,
+  droughtLine: (d) => (d.warned
+    ? `The Nile will run low in ${b1Dur(d.strikes - d.day)}: for ${b1Months(d.months)} after the flood every farm gives ${b1Pct(d.factor)} of its crop`
+    : `The Nile ran low: every farm gives ${b1Pct(d.factor)} of its crop for ${b1Dur(d.until - d.day)} more`),
+  droughtStores: (d) => (d.short <= 0 ? `The farms still keep up (they make ${d.made} food a month at the full crop, homes eat ${d.used}): nothing runs short`
+    : d.carries ? `The stores hold ${d.held} food; the lean year needs ${d.need} more than the farms make (${d.short} a month): they carry the city`
+      : `The stores hold ${d.held} food; the lean year needs ${d.need} more than the farms make (${d.short} a month): short by ${d.need - d.held}, about ${b1Months(d.monthsShort)} without food`),
+
+  // ── Locusts and blight ──
+  cropRowWarned: (w, now) => `${b1CropKind(w.kind)} warned for this farm, due in ${b1Dur(w.strikes - now)}`,
+  harvestButton: 'Harvest now',
+  harvestDoes: (q) => `Takes ${q.units} ${goodName(q.good).toLowerCase()} into the stores today, then the farm rests ${plural(q.restDays, 'day', 'days')} and makes nothing. ${q.kind === 'blight' ? `Blight would cut the crop for ${b1Dur(b1Crops.blight.days)}: what you take now is safe` : `Locusts would eat the crop for ${b1Dur(b1Crops.locusts.days)}: what you take now is safe`}`,
+  harvestRefusal: { not_warned: 'This farm is in no warned band', done: 'Harvested early already', idle: 'The farm is not working: nothing to harvest', no_room: 'No granary or storehouse in reach has room for the crop: empty one or build another' },
+  harvested: (units, good) => `Harvested ${units} ${goodName(good).toLowerCase()} early`,
+  cropRowActive: (a, now, kind) => (a.factor <= 0 ? `${b1CropKind(kind)}: this farm makes nothing for ${b1Dur(a.until - now)} more` : `${b1CropKind(kind)}: this farm gives ${b1Pct(a.factor)} of its crop for ${b1Dur(a.until - now)} more`),
+  resting: (left) => `Resting after Harvest now: ${plural(left, 'day', 'days')} left`,
+  cropLine: (w, now) => `${b1CropKind(w.kind)} will fall on ${plural(w.farms.length, 'farm', 'farms')} in ${b1Dur(w.strikes - now)}`,
+
+  // ── The summary's "Dangers" section ──
+  summaryHead: 'Dangers',
+  plagueWarnedLine: (days) => `Plague warned: it starts in ${b1Dur(days)}`,
+  plagueLine: (sick, lost, held) => `Plague: ${plural(sick, 'home is', 'homes are')} sick, ${plural(lost, 'person', 'people')} lost so far${held ? `; ${plural(held, 'district is', 'districts are')} quarantined` : ''}`,
+  cropBandLine: (a, now) => `${b1CropKind(a.kind)} on ${plural(a.farms.length, 'farm', 'farms')}: ${a.factor <= 0 ? 'no crop' : `${b1Pct(a.factor)} of the crop`} for ${b1Dur(a.until - now)} more`,
+
+  // ── Captions (the caption row, one line) ──
+  captions: {
+    plague_warning: (b, days) => `A plague is warned: it starts in ${anA(b1HomeName(b))} in ${b1Dur(days)}`,
+    plague_start: (b) => `Plague has begun in ${anA(b1HomeName(b))}`,
+    plague_end: (e) => `The plague is over: ${plural(e.homes, 'home', 'homes')} were struck and ${plural(e.lost, 'person', 'people')} lost`,
+    quarantine_end: 'A quarantine has ended: work there starts again',
+    drought_warning: (e, now) => `The Nile will run low in ${b1Dur(e.strikes - now)}`,
+    drought_start: (e) => `The Nile ran low: farms give ${b1Pct(e.factor)} of their crop for a year`,
+    drought_end: 'The lean year is over: the farms yield in full again',
+    locusts_warning: (e) => `${b1CropKind(e.kind)} ${e.kind === 'blight' ? 'is' : 'are'} coming for ${plural(e.farms.length, 'farm', 'farms')} in ${b1Dur(b1Crops.warnDays)}`,
+    locusts_strike: (e) => `${b1CropKind(e.kind)} have fallen on ${plural(e.farms.length, 'farm', 'farms')}`,
+    locusts_end: (e) => `The ${e.kind === 'blight' ? 'blight' : 'locusts'} have passed`,
+    raid_wreck: (kind) => `Raiders wrecked ${b1A(kind)}`,
+  },
+};
+
+// The raid's report with what the band wrecked and took, and its chieftain (src/sim/strikes.js, raids.js endRaid): a report from before 6.0 has
+// none of them and reads as it always did. Taken goods include a granary's food, so the food line is the granary's own count here.
+const b1BaseRaidReport = DANGER_UI_TEXT.raidReport;
+function b1RaidReport(r) {
+  if (!r.wrecked && !r.taken && !r.chiefs) return b1BaseRaidReport(r);
+  const from = `Raid from ${duiFrom(r.dirs || r.dir)}`;
+  const lost = [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.wrecked ? `${B1_TEXT.wrecked(r.wreckedKinds || [])} wrecked` : '', r.towersLost ? plural(r.towersLost, 'tower fell', 'towers fell') : '',
+    r.stolen ? `${r.stolen} gold stolen` : '', r.taken ? `${B1_TEXT.taken(r.taken)} taken` : '', r.fled ? `${plural(r.fled, 'resident', 'residents')} fled` : ''].filter(Boolean);
+  const stopped = [r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : '', ...duiUnitsStopped(r)].filter(Boolean);
+  const chief = r.chiefs ? ` ${B1_TEXT.chiefLine(r)}` : '';
+  if (r.won) return `${from} beaten: ${stopped.length ? `${stopped.join(', ')}; ` : ''}${lost.join(', ') || 'nothing lost'}.${chief}`;
+  const did = lost.length ? `raiders left ${lost.join(', ')}` : 'the raiders struck and left';
+  // A lost raid says what stopped it as the report always has: "Towers stopped 2 of 9, soldiers stopped 1."
+  const stoppedLost = [r.byTowers ? `Towers stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `${r.byTowers ? 'soldiers' : 'Soldiers'} stopped ${r.bySoldiers}` : '', ...duiUnitsStopped(r)].filter(Boolean);
+  return `${from}: ${did}.${stoppedLost.length ? ` ${stoppedLost.join(', ')}.` : ''}${chief}`;
+}
+DANGER_UI_TEXT.raidReport = b1RaidReport;
+
+// ── Alerts (src/sim/hazards.js hazardAlerts): warnings, never criticals ──
+Object.assign(ALERT_TEXT, {
+  plague_warning: (alert, world, b) => ({
+    title: `Plague in ${b1Dur(alert.arrives - world.day)}, starting in ${anA(b1HomeName(b))}`,
+    fix: !b ? 'A physician and a well near the crowded homes slow it' : healthCauseOf(world, b).cause === 'covered' ? 'A staffed physician reaches it and will slow the plague' : HEALTH_TEXT.cause[healthCauseOf(world, b).cause],
+  }),
+  plague: (alert, world) => ({
+    title: `Plague in ${plural(alert.count || 1, 'home', 'homes')}`,
+    fix: `Open a sick home to quarantine its district, or put a physician near them`,
+  }),
+  drought_warning: (alert, world) => ({ title: `The Nile will run low in ${b1Dur(alert.arrives - world.day)}`, fix: `Farms will give about ${b1Pct(1 - b1Drought.cut)} of their crop for a year: fill your granaries` }),
+  drought: (alert, world) => ({ title: `Low Nile: farms give ${b1Pct(world.hazards.drought.active ? world.hazards.drought.active.factor : 1 - b1Drought.cut)} of their crop`, fix: `The lean year ends in ${b1Dur(alert.until - world.day)}: eat from the stores` }),
+  locusts_warning: (alert, world) => ({ title: `${b1CropKind(alert.kind)} in ${b1Dur(alert.arrives - world.day)}: ${plural((alert.ids || []).length, 'farm', 'farms')} named`, fix: 'Open a named farm and Harvest now to save part of its crop' }),
+  locusts: (alert, world) => ({ title: `${b1CropKind(alert.kind)} on ${plural((alert.ids || []).length, 'farm', 'farms')}`, fix: `They pass in ${b1Dur(alert.until - world.day)}` }),
+});
+
+// ── Advice (src/sim/hazards.js hazardItems): what, why, fix ──
+Object.assign(V60_ADVICE_WORDS, {
+  plague: (a, world) => {
+    const d = a.data, b = a.id !== null ? world.buildings[a.id] : null;
+    if (d.warned) {
+      return {
+        what: `A plague is warned: it starts in ${anA(b1HomeName(b))} in ${b1Dur(d.days)}`,
+        why: HEALTH_TEXT.cause[d.cause] || '',
+        fix: `A physician and a well near the crowded homes slow it. Once it starts you can quarantine a district for ${b1Months(b1Plague.quarantine.months)}`,
+      };
+    }
+    return {
+      what: `${plural(d.sick, 'home is', 'homes are')} sick with plague${d.uncovered ? `: ${d.uncovered} no staffed physician reaches` : ''}`,
+      why: `${plural(d.lost, 'person', 'people')} lost so far${d.quarantined ? `; ${plural(d.quarantined, 'district is', 'districts are')} quarantined` : ''}`,
+      fix: `Open a sick home to quarantine its district: it stops the plague crossing the district's edge, and work there stops for ${b1Months(b1Plague.quarantine.months)}`,
+    };
+  },
+  drought: (a, world) => {
+    const d = a.data;
+    return { what: B1_TEXT.droughtLine({ ...d, day: world.day }), why: B1_TEXT.droughtStores(d), fix: d.carries ? '' : (a.fix ? 'A granary gives room for more food before the water fails' : 'Keep the farms working and the stores full: nothing else makes food faster') };
+  },
+  locusts: (a, world) => {
+    const d = a.data;
+    if (d.warned) {
+      return {
+        what: `${b1CropKind(d.kind)} will fall on ${plural(d.farms, 'farm', 'farms')} in ${b1Dur(d.days)}`,
+        why: `Harvest now takes ${b1Pct(b1Harvest.share)} of a month's crop at once; the farm then rests ${plural(b1Harvest.restDays, 'day', 'days')}${d.early ? `. ${d.early} already harvested` : ''}`,
+        fix: a.fix ? 'Open a farm and Harvest now' : 'Every farm in the band has been harvested',
+      };
+    }
+    return { what: `${b1CropKind(d.kind)} on ${plural(d.farms, 'farm', 'farms')}: ${d.factor <= 0 ? 'no crop' : `${b1Pct(d.factor)} of the crop`} for ${b1Dur(d.days)} more`, why: '', fix: '' };
+  },
+});
+
+// ── Tips (src/data/hazards.js HAZARD_TIPS), at most 20 words each ──
+Object.assign(TIP_TEXT, {
+  plague_coming: 'A plague is warned for the marked home. A physician, a well and room slow it.',
+  quarantine_choice: 'Plague has begun. Open a sick home to quarantine its district: the plague stays in, and work there stops.',
+  low_nile: 'The Nile will run low. Farms will give about half for a year: keep your granaries full.',
+  locust_band: 'Locusts or blight are coming for some farms. Open one and Harvest now to save part of its crop.',
+  rebuild_wreck: 'Raiders wrecked a building. Tap its rubble to rebuild it for its price plus the clearing.',
+});
+Object.assign(TIP_HELP_TEXT, {
+  plague_coming: `Plague is warned two months ahead. Once it starts, a quarantine costs ${b1Plague.quarantine.feePerHome} gold a home.`,
+  low_nile: `Farms give about ${b1Pct(1 - b1Drought.cut)} for a year after a low Nile. Full granaries carry the city.`,
+});
+
+// ── Firsts ──
+Object.assign(FIRST_TEXT, {
+  first_quarantine: { head: 'First quarantine', why: `It holds ${b1Months(b1Plague.quarantine.months)}: the plague cannot cross the district's edge, and work there stops.` },
+  first_early_harvest: { head: 'First early harvest', why: `A part of a month's crop saved before the locusts or blight came, at the price of a ${b1Harvest.restDays}-day rest.` },
+  first_rebuilt: { head: 'First rebuilding', why: 'Raiders and fire leave rubble that remembers what stood there: clearing and rebuilding are one tap.' },
+});
+
+// ── How to play ──
+V60_HELP.b1.push(
+  { head: 'Raiders that wreck and loot', text: `From the fourth game year, raiders who get through may wreck a building instead of burning it (about ${b1Pct(b1Wreck.chance)} of strikes on Normal): it falls to rubble that remembers what stood there, and one tap on the rubble clears and rebuilds it for its price. They also carry off part of a storehouse's goods. A band of ${b1Chief.fromSize} or more has a chieftain: when he falls, his band turns back. The raid report lists what was burned, wrecked and taken.` },
+  { head: 'Plague', text: `A plague is warned two months ahead and starts in a crowded home with no physician or well. It spreads day by day to the homes near a sick one; a physician, a well and room slow it. Sick homes lose people, and work stops near them where no physician reaches. Open a sick home to quarantine its district for ${b1Months(b1Plague.quarantine.months)}: the plague cannot cross its edge, but work in it stops. The Health layer marks sick homes with a heavy ring.` },
+  { head: 'Drought and the low Nile', text: `The Nile reading warns months ahead of a low flood. For a year every farm then gives about ${b1Pct(1 - b1Drought.cut)} of its crop. Full granaries carry the city: the City advice says whether yours will, and how much is short.` },
+  { head: 'Locusts and blight', text: `A month's warning names a band of farms. Locusts eat the crop of those farms for ${b1Dur(b1Crops.locusts.days)}; blight leaves part of it for ${b1Dur(b1Crops.blight.days)}. A named farm's sheet has Harvest now: ${b1Pct(b1Harvest.share)} of a month's crop into the stores at once, then the farm rests ${plural(b1Harvest.restDays, 'day', 'days')}.` },
+);
 // ── end v60 b1 ──
 
 //

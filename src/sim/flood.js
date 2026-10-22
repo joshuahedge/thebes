@@ -67,6 +67,10 @@ export const floodsOn = (world) => atLeast(world, FLOOD.from);
 
 // The level of a year's flood: the seeded draw (FLOOD_LEVELS' chances in order), the same whenever it is asked.
 export function levelOfYear(world, year) {
+  // Version 6.0 (Track B1, ruling 687): a year the Nile reading warned a drought for (src/sim/crops.js) has a Low flood; read straight off the
+  // world's record (this file may not import the world or the dangers).
+  const drought = world.hazards && world.hazards.drought;
+  if (drought && ((drought.warning && drought.warning.year === year) || (drought.active && drought.active.year === year))) return 'low';
   const r = hash2(year, 0, (world.seed + RIVER_SALT.floodLevel) | 0);
   let acc = 0;
   for (const l of FLOOD_LEVELS) { acc += l.chance; if (r < acc) return l.id; }

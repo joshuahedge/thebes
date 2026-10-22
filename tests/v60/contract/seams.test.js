@@ -160,7 +160,8 @@ describe('v60 contract advice', () => {
 
   it('words a new kind from its track\'s V60_ADVICE_WORDS entry, and How to play\'s paragraphs come from V60_HELP in track order', () => {
     expect(Object.keys(V60_HELP)).toEqual(['a', 'b1', 'c', 'b2', 'd1', 'd2']);
-    for (const list of Object.values(V60_HELP)) expect(list).toEqual([]);
+    // Each track fills its own list as it lands (Track B1's came with its words): the lists are arrays of { head, text }, whoever has filled them.
+    for (const list of Object.values(V60_HELP)) for (const p of list) expect([typeof p.head, typeof p.text]).toEqual(['string', 'string']);
     const w = createWorld({ seed: 6 });
     const item = { key: 'demand:1', kind: 'demand', weight: 5, count: 1, id: null, data: {}, fix: null, cost: null, afford: null };
     expect(adviceWords(item, w).what).toBe('');
