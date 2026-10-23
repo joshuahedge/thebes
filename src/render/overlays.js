@@ -774,11 +774,11 @@ export function drawGhost(g, ghost) {
   }
   if (state === 'left') { hatchedLeft(g, x, y, w, d); return; }   // Version 6.0 (Track C): ground an area has but too little of for one more farm
   const color = state === 'warn' ? UI.warn : UI.ok;
-  g.poly(pts, color, { alpha: state === 'bridge' ? 0.32 : 0.15 });
+  g.poly(pts, color, { alpha: state === 'bridge' || state === 'ferry' ? 0.32 : 0.15 });
   g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
   g.poly(pts, 'none', { stroke: color, strokeWidth: 1.4 });
   if (state === 'bridge') bridgePlanks(g, x, y);
-  const mark = state === 'warn' ? '!' : state === 'gate' ? '∩' : state === 'bridge' ? '≈' : '✓';
+  const mark = state === 'warn' ? '!' : state === 'gate' ? '∩' : state === 'bridge' || state === 'ferry' ? '≈' : '✓';   // Version 7.1: a ferry's water squares carry the wave, with no planks
   if (badge) ghostBadge(g, centre, mark); else g.text(centre, mark, { size: 9, color });
 }
 

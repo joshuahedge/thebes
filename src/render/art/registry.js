@@ -17,6 +17,7 @@ import { granaryStage, storehouseStage, bazaarStage, farmStage, FARM_TYPES } fro
 import { S46_ART, s46Slot } from './s46.js';
 import { S47_ART } from './s47.js';
 import { V70_ART, v70Slot } from './v70.js';
+import { FERRY_ART } from './ferry.js';
 
 export { boundsFor } from '../iso.js';
 
@@ -26,6 +27,7 @@ export const ART = {
   ...S46_ART,                                         // Stage 4.6: the River and Armies tracks' buildings and figures (art/s46.js)
   ...S47_ART,                                         // Stage 4.7: the carts (art/s47.js)
   ...V70_ART,                                         // Version 7.0: Track T's Quay, boats and caravans, Track S's season states (art/v70.js)
+  ...FERRY_ART,                                       // Version 7.1: Track F's ferry landing and boat (art/ferry.js)
 };
 
 // The art slot a building shows: houses by tier, granaries, storehouses and bazaars by how full they are

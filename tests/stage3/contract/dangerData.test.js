@@ -26,7 +26,7 @@ describe('s3 contract data', () => {
     expect(pick(BUILDINGS.wall, [...KEYS.filter((k) => k !== 'priority'), 'tile'])).toEqual({ name: 'Wall', w: 1, d: 1, cost: 8, upkeep: 0, workers: 0, category: 'defence', needsRoad: false, tile: true });
     expect(pick(BUILDINGS.gate, ['name', 'cost', 'upkeep', 'tile', 'buildable'])).toEqual({ name: 'Gate', cost: 20, upkeep: 0, tile: true, buildable: false });
     expect(pick(BUILDINGS.rubble, ['name', 'w', 'd', 'cost', 'upkeep', 'workers', 'needsRoad', 'buildable'])).toEqual({ name: 'Rubble', w: 1, d: 1, cost: 0, upkeep: 0, workers: 0, needsRoad: false, buildable: false });
-    expect(BUILDABLE).toEqual(Object.keys(BUILDINGS).filter((t) => t !== 'gate' && t !== 'rubble' && t !== 'bridge' && t !== 'large_plot'));   // Version 6.0: the Large plot card lays a house, so it is not a type the world holds
+    expect(BUILDABLE).toEqual(Object.keys(BUILDINGS).filter((t) => t !== 'gate' && t !== 'rubble' && t !== 'bridge' && t !== 'large_plot' && t !== 'ferry_landing'));   // Version 6.0: the Large plot card lays a house, so it is not a type the world holds; Version 7.1: the ferry landing is laid two at a time by the Ferry tool, never a card
     expect(BUILDINGS.firehouse.reach).toBe(FIRE.reach);
   });
   it('unlocks the firehouse with the Village and the wall, tower and barracks with Market town, and gives each a card', () => {
@@ -51,6 +51,7 @@ describe('s3 contract data', () => {
       bazaar: 0.3, booth: 0.3, barracks: 0.3, farm_grain: 0.15, farm_fig: 0.15, farm_barley: 0.15, farm_flax: 0.15, clay_pit: 0.15, gem_mine: 0.15,
       temple: 0.1, firehouse: 0.1, quarry: 0.15, brickworks: 1.0, builders_guild: 0.3,   // Stage 4's three supply buildings
       hunting_lodge: 0.3, fishing_wharf: 0.3,   // Stage 4.6 (River track, ruling 365)
+      ferry_landing: 0.2,   // Version 7.1 (Track F, ruling 1042)
       quay: 0.3,   // Version 7.0 (Track T, ruling 871)
       archery_range: 0.3, stables: 0.5,   // Stage 4.6 (ruling 416): the range as the barracks, the stables higher for hay
     });

@@ -105,7 +105,8 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 #dock .cat { display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; min-width: var(--tap); padding: 2px 4px; font-size: calc(12px * var(--ui-scale)); border-radius: 8px; box-shadow: none; }
 #dock .cat[aria-pressed="true"] { color: var(--teal); font-weight: 600; box-shadow: none; }
 #dock .cat .icon { font-size: calc(20px * var(--ui-scale)); }
-#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 2px 12px 3px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; }
+#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 2px 12px 3px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; scrollbar-width: none; }   /* Version 7.1 (Track F): the Roads tray holds three cards, which scroll a little on a phone's width; a classic scrollbar there would add its own height to the tray and push it over the corner buttons (the edge fade and chevron say there is more) */
+#dock .tray::-webkit-scrollbar { display: none; }
 #dock .pill { align-self: center; margin: 6px 0 8px; }
 #dock[data-height="slim"] .tray, #dock[data-height="slim"] .pill { display: none; }
 #dock[data-height="tray"] .pill { display: none; }

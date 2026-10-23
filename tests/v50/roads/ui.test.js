@@ -12,6 +12,7 @@ import { previewRoad, previewRoadTiles, setGuide, setAccept } from '../../../src
 import { setFetch } from '../../../src/sim/carts.js';
 import { costOf, roadCostOf } from '../../../src/sim/costs.js';
 import { BRIDGE_MAX, bridgeSpot } from '../../../src/sim/bridges.js';
+import { ferrySpot } from '../../../src/sim/ferries.js';
 import { settingsThatApply, settingsOf, applySettings } from '../../../src/sim/another.js';
 import { T } from '../../../src/sim/terrain.js';
 import { idx } from '../../../src/sim/grid.js';
@@ -168,13 +169,14 @@ describe('v50 roads ui: refusals say why, with Show me', () => {
     const p = pl.preview();
     expect(p.state).toBe('bad');
     expect(p.reason).toBe('too_wide');
-    expect(p.text).toBe(`No way across: the water is too wide here (${BRIDGE_MAX + 1} tiles; a bridge spans up to ${BRIDGE_MAX})`);
+    expect(p.text).toBe(`No way across: the water is too wide here (${BRIDGE_MAX + 1} tiles; a bridge spans up to ${BRIDGE_MAX}): lay a ferry`);
     expect(toolPreview(world, store.get()).showFit).toBe(true);
     expect(routeRoad(world, 4, 20, 26, 20).water).toBe(BRIDGE_MAX + 1);
     const t = fitTarget(world, store.get());
-    const spot = bridgeSpot(world, { x: 4, y: 20 });
+    const spot = ferrySpot(world, { x: 4, y: 20 });                                  // Version 7.1 (Track F): water too wide to bridge shows where a ferry fits
     expect(t === null).toBe(spot === null);
-    if (spot) expect(t.kind).toBe('bridge');
+    if (spot) expect(t.kind).toBe('ferry');
+    expect(bridgeSpot(world, { x: 4, y: 20 })).toBe(null);                           // no bridge fits here: the river is too wide all the way down
   });
   it('buildings closing the end off: names the first in the way, and Show me goes to it', () => {
     const world = land();
@@ -256,24 +258,24 @@ describe('v50 roads ui: the confirm bar', () => {
     r.tap(2, 20, 'mouse'); r.tap(28, 20, 'mouse');
     expect(r.root.querySelector('#confirm .reason').textContent.startsWith('No way across')).toBe(true);
     expect(r.root.querySelector('#confirm .ok').disabled).toBe(true);
-    expect(r.root.querySelector('#confirm .show-fit').getAttribute('aria-label').includes('bridge')).toBe(true);
+    expect(r.root.querySelector('#confirm .show-fit').getAttribute('aria-label').includes('ferry')).toBe(true);   // Version 7.1 (Track F): water too wide to bridge shows where a ferry fits
+    fire(r.root.querySelector('#confirm .show-fit'), 'click');
+    expect(r.store.get().tool.kind).toBe('ferry');                                  // and Show me picks the Ferry tool
     r.cleanup();
   });
   it('Show me from a route\'s refusal keeps the start and the end the player set (it moves the view; it does not restart the road tool)', async () => {
     const world = city();
-    lay(world, T.WATER, 18, 0, 24, 31);
-    for (let x = 18; x <= 24; x++) world.road[idx(world.size, x, 10)] = 0;
-    world.roadVersion++;
+    for (let x = 13; x <= 15; x++) for (let y = 4; y <= 6; y++) if (x !== 14 || y !== 5) addRaw(world, 'well', x, y);   // buildings close the end off
     const r = await rigUI({ world });
     await pickRoad(r);
     fire(r.root.querySelectorAll('#confirm .route-pick')[0], 'click');
-    r.tap(2, 20, 'mouse'); r.tap(28, 20, 'mouse');
+    r.tap(2, 20, 'mouse'); r.tap(14, 5, 'mouse');
     const line = { ...r.store.get().line };
-    expect([line.x0, line.y0, line.x1, line.y1]).toEqual([2, 20, 28, 20]);
+    expect([line.x0, line.y0, line.x1, line.y1]).toEqual([2, 20, 14, 5]);
     fire(r.root.querySelector('#confirm .show-fit'), 'click');
     expect(r.store.get().line).toEqual(line);                                      // both ends still there
     expect([r.store.get().tool.kind, r.store.get().tool.route, r.store.get().mode]).toEqual(['road', true, 'drawing']);
-    expect(r.root.querySelector('#confirm .reason').textContent.startsWith('No way across')).toBe(true);   // and the bar still says why
+    expect(r.root.querySelector('#confirm .reason').textContent.startsWith('No way there')).toBe(true);   // and the bar still says why
     r.cleanup();
   });
 });

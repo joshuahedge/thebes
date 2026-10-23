@@ -88,7 +88,7 @@ describe('s45 bridges (the rule)', () => {
     expect(previewRoad(w, 11, 6, 11, 8).reason).toBe('bridge_shape');       // runs down the river, never crossing it
     expect(previewRoad(w, 9, 6, 9, 10).ok).toBe(true);                      // along the bank is plain road
     expect(reasonText('bridge_shape')).toBe('A bridge runs straight across, with land at both ends');
-    expect(reasonText('too_wide')).toBe('Too wide to bridge here');
+    expect(reasonText('too_wide')).toBe('Too wide for a bridge');
   });
   it('crosses a column of water as well as a row, and two rivers in one line each count on their own', () => {
     const w = rivered(2);
@@ -187,12 +187,12 @@ describe('s45 bridges (the words)', () => {
     const dry = toolPreview(w, store({ kind: 'road' }, { line: line(1, 1, 4, 1) }).get());
     expect(dry.text).toBe('4 tiles');                                         // no water crossed: no bridge note
   });
-  it('refuses with "Too wide to bridge here (6 tiles of water)", the run counted by the sim, for any width past the limit', () => {
+  it('refuses with "Too wide for a bridge (6 tiles of water): lay a ferry", the run counted by the sim, for any width past the limit', () => {
     for (const width of [5, 6, 8]) {
       const w = rivered(width);
       const p = toolPreview(w, store({ kind: 'road' }, { line: line(7, 8, 10 + width + 2, 8) }).get());
       expect([width, p.state, p.reason]).toEqual([width, 'bad', 'too_wide']);
-      expect(p.text).toBe(`Too wide to bridge here (${width} tiles of water)`);
+      expect(p.text).toBe(`Too wide for a bridge (${width} tiles of water): lay a ferry`);
       expect(p.text).toBe(S45_TEXT.tooWide(previewRoad(w, 7, 8, 10 + width + 2, 8).water));
     }
     const w = rivered(4);

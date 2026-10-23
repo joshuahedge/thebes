@@ -1,0 +1,2 @@
+// Version 7.1: one aggregator (tests/all.js imports this file once). Each track adds its own tests/v71/<track>/all.js and its one line here; describe names start with 'v71 <track>'.
+import './f/all.js';   // Track F: ferries

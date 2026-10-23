@@ -3,7 +3,7 @@ import { TIERS } from './housing.js';
 import { MONUMENT_KINDS } from './monuments.js';
 import { S46_DOCK } from './s46.js';
 export const CATEGORIES = [
-  { id: 'roads', items: ['road', 'demolish'] },
+  { id: 'roads', items: ['road', 'ferry', 'demolish'] },   // Version 7.1 (Track F): the Ferry tool, for water too wide for a bridge
   { id: 'homes', items: ['house', 'large_plot', 'garden', 'statue', 'plaza', 'sphinx'] },   // Version 6.0 (Track C): the Large plot card, shown from the first Townhouse (src/ui/cards.js)
   { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
   { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'quay'] },
@@ -27,6 +27,7 @@ export const visibleCategories = () => CATEGORIES.filter((c) => c.items.length >
 export function toolForItem(item) {
   if (item === 'road') return { kind: 'road' };
   if (item === 'wall') return { kind: 'wall' };       // drawn as a line, like a road (spec 6.4 Drawing mode)
+  if (item === 'ferry') return { kind: 'ferry' };   // Version 7.1 (Track F): drawn as a line like a road, but straight across the water; lays two landings
   if (item === 'gate') return { kind: 'road', gate: true };   // Stage 4.5 (ruling 309): the road tool, taking only wall tiles
   if (item === 'demolish') return { kind: 'demolish' };
   if (item === 'house') return { kind: 'houses' };

@@ -90,6 +90,9 @@ const isStage60 = (w) => isReignState(w.reign) && isDemandState(w.demands) && is
 // Version 7.0 (version 10; the owners' data files have the shapes and tighten their own checks): trade's switches and floors (Track T,
 // src/data/trade.js) and the city events' record (Track E, src/data/cityEvents.js).
 const isStage70 = (w) => isTradeSettings(w.trade) && isEventState(w.cityEvents);
+// Version 7.1 (Track F; no world version: the field is optional, as a Large plot's large, and no building before 7.1 has it): a ferry landing carries
+// ferry: { mate: the other landing's id, water: tiles of water between them, run: whether the crossing ran at the last labour step }; nothing else does.
+const isFerryBuilding = (b) => (b.type === 'ferry_landing' ? isRecord(b.ferry) && Number.isInteger(b.ferry.mate) && Number.isInteger(b.ferry.water) && typeof b.ferry.run === 'boolean' : b.ferry === undefined);
 const isStage47 = (w) => Array.isArray(w.oases) && w.oases.every(isOasis) && Array.isArray(w.carts) && w.carts.every(isCart)
   && Object.values(w.buildings).every(isStage47Building);
 
@@ -126,7 +129,7 @@ export function validateWorld(w) {
   if (!isStage46(w, cells)) return false;
   if (!isStage47(w)) return false;
   if (!isStage60(w)) return false;
-  if (!isStage70(w)) return false;
+  if (!isStage70(w) || !Object.values(w.buildings).every(isFerryBuilding)) return false;
   return true;
 }
 

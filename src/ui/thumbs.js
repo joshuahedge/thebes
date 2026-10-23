@@ -7,6 +7,8 @@ import { makeDraw } from '../render/art/ctx.js';
 import { p } from '../render/iso.js';
 import { TERRAIN, SHADOW, ROCK, RED, UI } from '../render/art/palette.js';
 import { plaza } from '../render/art/plaza.js';
+import { tile } from '../render/art/primitives.js';
+import { ferryLanding, ferryBoat } from '../render/art/ferry.js';
 
 export const THUMB_W = 104;   // CSS px; css/ui.css sizes .card .thumb to match
 export const THUMB_H = 52;
@@ -46,9 +48,24 @@ const PLAZA_ICON = {
   draw(g) { plaza(g, 0, 0, 6); plaza(g, 1, 0, 12); plaza(g, 0, 1, 3); plaza(g, 1, 1, 9); },
 };
 
+// Version 7.1 (Track F): the Ferry card shows a landing on each bank of a strip of water, the crossing dashed between them and a boat on it.
+const FERRY_ICON = {
+  bounds: [-24, -22, 96, 44],
+  draw(g) {
+    for (const x of [1, 2, 3]) tile(g, x, 0, TERRAIN.water, { stroke: TERRAIN.waterDeep, strokeWidth: 0.5, strokeAlpha: 0.4 });
+    ferryLanding(g, 0, 0);
+    ferryLanding(g, 4, 0);
+    g.ctx.setLineDash([3 * g.scale, 2.4 * g.scale]);
+    g.line(p(0.5, 0.5), p(4.5, 0.5), '#FFFFFF', 1.4, 0.95);
+    g.ctx.setLineDash([]);
+    ferryBoat(g, 2.5, 0.5, false);
+  },
+};
+
 // Only `draw`-based art slots get a picture; a slot that later points at a PNG would need handling here.
 function artFor(item) {
   if (item === 'road') return ROAD_ICON;
+  if (item === 'ferry') return FERRY_ICON;
   if (item === 'demolish') return DEMOLISH_ICON;
   if (item === 'plaza') return PLAZA_ICON;
   const def = ART[item === 'house' ? 'house.t1' : item === 'large_plot' ? 'house.lot' : item];      // a plot shows a Hut, the home it starts as; the Large plot card its marked lot (Version 6.0)
