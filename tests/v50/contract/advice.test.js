@@ -55,7 +55,7 @@ function checkItems(w, list) {
       expect([a.cost, a.afford]).toEqual([null, null]);
     } else if (a.fix) {
       expect([a.fix.view, a.fix.target]).toEqual(['summary', null]);
-      expect(['forecast', 'employment']).toContain(a.fix.section);
+      expect(['forecast', 'employment', 'events']).toContain(a.fix.section);   // Version 7.0 (Track E): the waiting event's item opens the summary's Events section (src/sim/cityEvents.js eventItems)
     }
   }
   for (let i = 1; i < list.length; i++) expect(compareAdvice(list[i - 1], list[i]) <= 0).toBe(true);

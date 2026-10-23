@@ -29,9 +29,10 @@ const stored = (storage) => JSON.parse(storage.data['thebes.settings'] || '{}');
 
 describe('v60 d2 picture cards: the thirteen', () => {
   it('are the seven intro cards and six more with a first moment each, in order, every one with words, an alt text and a mark kind', () => {
-    expect(TUTORIAL_CARDS.length).toBe(13);
+    expect(TUTORIAL_CARDS.length).toBe(14);                                                           // Version 7.0 (Track E) adds the first city event's card after the six (tests/v70/e)
     expect(INTRO_CARDS.map((c) => c.id)).toEqual(['road', 'homes', 'farm', 'food', 'gold', 'goals', 'ahead']);
-    expect(TUTORIAL_CARDS.slice(7).map((c) => [c.id, Boolean(c.first), Boolean(MOMENTS[c.first])])).toEqual(NEW_IDS.map((id) => [id, true, true]));
+    expect(TUTORIAL_CARDS.slice(7, 13).map((c) => [c.id, Boolean(c.first), Boolean(MOMENTS[c.first])])).toEqual(NEW_IDS.map((id) => [id, true, true]));
+    expect(TUTORIAL_CARDS.slice(13).map((c) => [c.id, c.first, Boolean(MOMENTS[c.first])])).toEqual([['event', 'cityEvent', true]]);
     for (const c of TUTORIAL_CARDS) {
       const w = CARDS4_TEXT.cards[c.id];
       expect([c.id, w.title.length > 0, w.words.length > 20, w.alt.length > 20, w.words.split('. ').length <= 3, c.mark === 'ring' || c.mark === 'arrow']).toEqual([c.id, true, true, true, true, true]);
@@ -220,7 +221,7 @@ describe('v60 d2 picture cards: in the page', () => {
     const s = await open();
     try {
       s.api.hooks.pictureCards();
-      expect(document.querySelector('.pc-count').textContent).toBe('1 of 13');
+      expect(document.querySelector('.pc-count').textContent).toBe('1 of 14');
       document.querySelector('.pc-close').click();
     } finally { s.cleanup(); }
     const f = await open({ settings: { cardsSeen: false } });

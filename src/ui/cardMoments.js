@@ -18,6 +18,7 @@ export const MOMENTS = {
   drought: (world) => warned(world.hazards && world.hazards.drought),
   locusts: (world) => warned(world.hazards && world.hazards.locusts),
   raid: (world) => Boolean(world.raid.warning || world.raid.active),
+  cityEvent: (world) => world.tally.eventsOffered > 0,   // Version 7.0 (Track E, ruling 910): the first city event has been offered
 };
 
 export const seenKey = (id) => `card:${id}`;

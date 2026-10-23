@@ -25,6 +25,7 @@ import { TUTORIAL_CARDS, TUTORIAL } from '../data/tutorial.js';
 import { largePlotScene } from './v60/largePlot.js';
 import { demandScene } from './v60/reign.js';
 import { plagueScene, droughtScene, locustsScene, raidBurnScene } from './v60/hazards.js';
+import { eventScene } from './v70/cityEvents.js';
 import { fullestHome } from './v60/base.js';
 
 // The phone the pictures are taken on, the square of it each picture is (scaled to TUTORIAL.size), and the city.
@@ -282,6 +283,21 @@ Object.assign(PICTURES, {
     putTileAt(h, (x0 + x1) / 2, (y0 + y1) / 2, 195, clip.y + 270, 1.5);
     await wait(80);
     return { clip, mark: tileRing(h, clip, (x0 + x1) / 2, (y0 + y1) / 2, 2.2) };
+  },
+});
+
+// Version 7.0 (Track E, ruling 910): the first event's picture, on the Version 7.0 dev scene of an event (src/dev/v70/cityEvents.js): an envoy at the gate, its card
+// open over the sample Capital: a ring on the choices, each with what it costs and does.
+Object.assign(PICTURES, {
+  async event(g, api) {
+    await eventScene(api, { kind: 'envoy', quick: true });
+    const h = api.game();
+    await wait(100);
+    const sheet = document.querySelector('#sheet'), fv = frameOf(h);
+    const clip = clipAt(Math.max(0, Math.round(sheet.getBoundingClientRect().top - fv.top - 8)));
+    const choices = sheet.querySelector('.event-choices');
+    if (!choices) throw new Error('devScene tutorial: the event card has no choices');
+    return { clip, mark: boxRing(h, clip, choices, { pad: 4, radius: 12, widen: 6 }) };
   },
 });
 
