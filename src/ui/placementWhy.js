@@ -20,19 +20,20 @@ function groundParts(c, def) {
   const of = c.tiles.length, count = (r) => c.tiles.filter((t) => t.reason === r).length;
   const out = [];
   const taken = count('occupied'), water = count('water'), hills = count('hills'), off = count('out_of_bounds');
+  // Each clause carries its kind (wave 3, ruling 992): the ground chip already says the terrain, field and whole-footprint water rules in its own words, so only the counts of squares that are taken, water, hills or off the map add anything to it.
   // The terrain rule counted as the sim counts it (conditionsFor's fit, of and need: every square for the fertile and rocky ground, fewer for the clay pit).
-  if (def.terrain && ground.terrain && ground.fit < (Number.isInteger(ground.need) ? ground.need : ground.of)) out.push(W.terrain(ground.terrain, ground.fit, ground.of, Number.isInteger(ground.need) ? ground.need : ground.of));
-  if (taken) out.push(W.taken(taken, of));
-  if (water) out.push(W.inWater(water, of));
-  if (hills) out.push(W.hills(hills, of));
-  if (off) out.push(W.offMap(off, of));
+  if (def.terrain && ground.terrain && ground.fit < (Number.isInteger(ground.need) ? ground.need : ground.of)) out.push({ kind: 'rule', text: W.terrain(ground.terrain, ground.fit, ground.of, Number.isInteger(ground.need) ? ground.need : ground.of) });
+  if (taken) out.push({ kind: 'squares', text: W.taken(taken, of) });
+  if (water) out.push({ kind: 'squares', text: W.inWater(water, of) });
+  if (hills) out.push({ kind: 'squares', text: W.hills(hills, of) });
+  if (off) out.push({ kind: 'squares', text: W.offMap(off, of) });
   const fields = count('not_on_fields');
-  if (fields) out.push(UI4_TEXT.notOnFields(ground.fertile, ground.of));
+  if (fields) out.push({ kind: 'rule', text: UI4_TEXT.notOnFields(ground.fertile, ground.of) });
   // The whole-footprint water rule, judged once every square is free.
-  if (!out.length && ground.reason === 'needs_river') out.push(W.water.river);
-  else if (!out.length && ground.reason === 'needs_water') out.push(W.water[ground.water] || S46_MAP_TEXT.water[ground.water]);
-  if (!out.length) out.push(S46_MAP_TEXT.refusalLine(ground.reason, ground, def) || '');
-  return out.filter(Boolean);
+  if (!out.length && ground.reason === 'needs_river') out.push({ kind: 'rule', text: W.water.river });
+  else if (!out.length && ground.reason === 'needs_water') out.push({ kind: 'rule', text: W.water[ground.water] || S46_MAP_TEXT.water[ground.water] });
+  if (!out.length) out.push({ kind: 'rule', text: S46_MAP_TEXT.refusalLine(ground.reason, ground, def) || '' });
+  return out.filter((o) => o.text);
 }
 
 // The road rule's clause (a plot's own words for it), with the way out when free squares beside it can take one.
@@ -48,21 +49,26 @@ export function placementWhy(c, type, chips = {}) {
   if (!c || !c.conditions || !c.conditions.length) return { state: c ? c.state : 'cant', lead: '', parts: [], text: '', needs: '' };
   const def = BUILDINGS[type] || {};
   const plot = type === 'house' || type === LARGE_PLOT.type;
+  // Wave 3 (ruling 992): while the bar shows the rules' chips, its line carries only what no chip says; with nothing left it is hidden, and the met-state Needs line stays.
+  const chipped = Object.keys(chips).length > 0;
   const parts = [];
   for (const k of c.conditions) {
     if (k.state === 'met') continue;
-    if (k.key === 'ground') for (const text of groundParts(c, def)) parts.push({ key: 'ground', state: k.state, text, short: text });
-    else if (k.key === 'road') parts.push({ key: 'road', state: k.state, text: roadPart(c, def, type, plot), short: roadPart(c, def, type, plot, true) });
-    else if (chips[k.key] && chips[k.key].text) parts.push({ key: k.key, state: k.state, text: chips[k.key].text, short: chips[k.key].text });
+    if (k.key === 'ground') for (const g of groundParts(c, def)) parts.push({ key: 'ground', state: k.state, text: g.text, short: g.text, said: g.kind === 'rule' });
+    else if (k.key === 'road') {
+      const near = Boolean(c.more && c.more.near), text = roadPart(c, def, type, plot);
+      parts.push({ key: 'road', state: k.state, text, short: chipped && near ? text : roadPart(c, def, type, plot, true), said: !near });   // the chip says "No road yet"; the aside about a road one tile off is the line's own, and stays whole after a refusal
+    } else if (chips[k.key] && chips[k.key].text) parts.push({ key: k.key, state: k.state, text: chips[k.key].text, short: chips[k.key].text, said: true });
   }
-  const cant = parts.filter((p) => p.state === 'cant'), later = parts.filter((p) => p.state === 'later');
+  const shown = chipped ? parts.filter((p) => !p.said) : parts;
+  const cant = shown.filter((p) => p.state === 'cant'), later = shown.filter((p) => p.state === 'later');
   const low = (s) => s.charAt(0).toLowerCase() + s.slice(1);                       // the lead and a colon come first: "Won't work yet: no granary within reach"
   const join = (list, field = 'text') => list.map((p) => low(p[field])).join(W.and);
   // A refusal says its broken rules first and names the rest after it in their short forms ("and no road touching a side"), so two lines of a phone's bar hold both.
   let text = '';
   if (cant.length) text = `${W.leadCant}: ${join(cant)}${later.length ? `${W.also} ${join(later, 'short')}` : ''}`;
   else if (later.length) text = `${W.leadLater}: ${join(later)}`;
-  return { state: c.state, lead: cant.length ? W.leadCant : later.length ? W.leadLater : '', parts, text, needs: text ? '' : needsLine(type, c) };
+  return { state: c.state, lead: cant.length ? W.leadCant : later.length ? W.leadLater : '', parts, text, needs: text || parts.length ? '' : needsLine(type, c) };   // a rule unmet but said by its chip: no Needs line either (it would say the chip a second time)
 }
 
 // What a building needs, from its own row: its terrain rule (every square, or at least some), its water rule, a road, and the store its work reaches. '' when it needs nothing.

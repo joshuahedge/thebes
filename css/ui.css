@@ -1475,6 +1475,8 @@ body:not(.reduce-motion) .lesson-lit { animation: lesson-lit 1.4s ease-in-out in
 .trade-goods .held { margin: 2px 0 0; font-weight: 600; }
 .trade-goods .stock { text-align: right; }
 #sheet .trade-row { align-items: center; }
+/* Wave 3: a route the city cannot open yet ("Open route, 1200 gold") reads as the event card's refused choice does: a flat, paler fill, ink-soft words at 4.5:1 or more and a dashed edge, not a see-through button. */
+#sheet .open-route:disabled, #sheet .open-route.primary:disabled { opacity: 1; background: var(--parchment-2); color: var(--ink-soft); border: 1px dashed var(--ink-line); box-shadow: none; cursor: not-allowed; }
 /* ── end v70 t ── */
 
 /* (separator) */
@@ -1504,10 +1506,16 @@ body:not(.reduce-motion) .lesson-lit { animation: lesson-lit 1.4s ease-in-out in
 /* A portrait phone at 100% or 125% text keeps the score chip at the lower right, absolute (line 743), under the date: the season stands on that line to the chip's left. */
 body[data-layout="portrait"]:not([data-text-size="150"]) #topbar .stats:not(.tight) .stat.date .season { position: absolute; right: calc(4px + var(--chip-w, 0px) + 8px); bottom: 6px; grid-area: auto; width: auto; direction: ltr; line-height: 1; }
 #topbar .stats.tight .stat.date .season { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+/* Wave 3 (ruling 994): a phone's numbers that overflow the bar at 100% or 125% text (a five-digit treasury; hud.js sets .iconic) use the 150% text's small pictures in place of their words, which stay for screen readers. */
+body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .stats.iconic .stat { gap: 2px; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .stats.iconic .stat .glyph { display: inline-block; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
+body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .stats.iconic .stat .glyph.coin { width: 0.8em; height: 0.8em; border-radius: 50%; background: var(--gold); box-shadow: inset 0 0 0 1px #B98A4A; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #topbar .stats.iconic .stat .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* Settings: the Sound switch's note and the Day and night note sit under their rows like the other notes; the Effects volume is the Music volume's row. */
 #sheet .sound-note, #sheet .daynight-note { margin: 2px 0 6px; }
-/* While Sound is Off the Music and Effects rows are dimmed (menu.js); they stay real controls, and the note says why. */
-#sheet .row.silenced { opacity: 0.55; }
+/* While Sound is Off the Music and Effects rows are dimmed (menu.js); they stay real controls, and the note says why. Wave 3 (ruling 998): in ink-soft words with a dashed edge, not opacity, which left live controls at 3.5:1. */
+#sheet .row.silenced { border-bottom: 1px dashed var(--ink-line); }
+#sheet .row.silenced :is(span, button) { color: var(--ink-soft); }
 /* ── end v70 s ── */
 
 /* (separator) */

@@ -376,7 +376,8 @@ describe('ui house sheet why', () => {
         r.ui.showMeAt({ category: 'services', item: 'well', x: 13, y: 9.5 });
         r.ui.cameraControl.tick(1e9);                                           // Version 5.0 (Task 6): the glide lands
         const centre = r.screenOf(13, 9.5), m = measureRows(r.root), portrait = height > width;
-        const bottom = portrait ? Math.min(height * 0.3, 240) : height - m.cornersTop, right = portrait ? 0 : 56 + 268;
+        // Wave 3 (ruling 993): held upright, the map the bar leaves free ends where the corner buttons on it begin (measured), never above the old estimate of 30% of the screen up to 240 px.
+        const bottom = portrait ? Math.max(Math.min(height * 0.3, 240), height - m.cornersTop) : height - m.cornersTop, right = portrait ? 0 : 56 + 268;
         const middle = { x: (width - right) / 2, y: (m.rowsEnd + height - bottom) / 2 };
         expect([width, height, text, m.rowsEnd > 48, bottom > 0]).toEqual([width, height, text, true, true]);   // the goals strip is up; corners or the bar below
         expect([width, height, text, Math.abs(centre.x - middle.x) < 1, Math.abs(centre.y - middle.y) < 1]).toEqual([width, height, text, true, true]);

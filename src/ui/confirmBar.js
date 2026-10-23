@@ -19,7 +19,7 @@ const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted'
 const NARROW_BAR = 365;   // px: a bar this narrow at 150% text can need a chip row for each condition (css/ui.css .conds.tall.narrow)
 const rotates = (tool) => tool.kind === 'building' && Boolean(BUILDINGS[tool.type].rotates);   // none in Stage 1 (mastabas come with monuments)
 
-export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo, keys = () => true, onArea = (type, on) => (on ? placement.startArea(type) : placement.start({ kind: 'building', type })) }) {
+export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo, keys = () => true, deleteUndoes = keys, onArea = (type, on) => (on ? placement.startArea(type) : placement.start({ kind: 'building', type })) }) {
   const element = el('div', { id: 'confirm', hidden: true });
   container.append(element);
 
@@ -68,7 +68,8 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const p = placement.preview();
     const demolish = s.tool.kind === 'demolish';
     // Version 7.0 (Track P): see the reason line below. While everything is met the line says what the building needs, unless the effect line has the room (a service's "Gives
-    // water to 6 homes"), so a met spot is never a taller bar than a refused one.
+    // water to 6 homes"), so a met spot is never a taller bar than a refused one. Wave 3 (ruling 992): while the chips show, a refused or partial spot's line carries only what no chip says
+    // (placementWhy), and is empty (hidden, with the older reason line) when the chips say it all.
     const why = s.tool.kind === 'building' ? (p.why || (p.effect || p.score ? '' : p.needs) || '') : '';
     // A demolish refunds, or (Stage 3) costs gold when it clears rubble: "Refund 7" or "20 gold", never a negative refund.
     const costText = demolish ? (p.refund > 0 ? `${T.refund} ${p.refund}` : p.refund < 0 ? DANGER_UI_TEXT.demolishCost(-p.refund) : '') : (p.costText || (p.cost ? `${p.cost} gold` : ''));
@@ -85,7 +86,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
         // stays in the bar for tests and tools but takes no room (hidden), so the bar stays under half the screen on a small phone (UX rule 2).
         // Version 7.0 (Track P, ruling 1008): a building's reason line is the why line below (every rule that fails, with the counts, led by what the colour means; while everything
         // is met, what the building needs). The older line stays in the page, hidden, as the first reason alone (tests and tools read it).
-        el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' || (p.skipped && p.skipped.length) ? 'amber' : 'muted'}`, text: p.text, hidden: Boolean(why) || (p.state === 'bad' && (p.conditions || []).some((c) => c.state === 'cant' && c.text === p.text)) }),
+        el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' || (p.skipped && p.skipped.length) ? 'amber' : 'muted'}`, text: p.text, hidden: Boolean(why) || Boolean(p.whyParts && p.whyParts.length) || (p.state === 'bad' && (p.conditions || []).some((c) => c.state === 'cant' && c.text === p.text)) }),
         why ? el('div', { class: `why small ${p.state === 'bad' ? 'coral' : p.state === 'warn' ? 'amber' : 'muted'}`, text: why }) : null,
         // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line. Homes
         // served read in teal; "no homes in reach yet" is not a gain, so it reads muted.
@@ -112,7 +113,9 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // On a phone Undo is a small icon and only when there is something to undo (the toast after a placement keeps the word);
     // the wide layout keeps the word button, greyed out when there is nothing to undo.
     // Version 7.0 (Track P): its tooltip and aria-keyshortcuts name Ctrl+Z, and Delete while the single keys are on.
-    const undoHint = { title: P_TEXT.undoTitle(keys()), 'aria-keyshortcuts': keys() ? 'Control+Z Meta+Z Delete Backspace' : 'Control+Z Meta+Z' };
+    // Wave 3 (ruling 986): Delete is named only while it would undo this: never when the last step was a demolish.
+    const del = deleteUndoes();
+    const undoHint = { title: P_TEXT.undoTitle(del), 'aria-keyshortcuts': del ? 'Control+Z Meta+Z Delete Backspace' : 'Control+Z Meta+Z' };
     if (s.layout === 'wide') controls.push(button(T.undo, { class: 'undo', ...undoHint, disabled: !placement.canUndo(), onClick: onUndo }));
     else if (placement.canUndo() || s.tool.kind === 'houses') controls.push(iconButton(T.undo, '↶', { class: 'undo', ...undoHint, disabled: !placement.canUndo(), onClick: onUndo }));   // Stage 4.7: the house tool stays on, so its Undo is always there (greyed with nothing to undo) and the bar does not widen when the first plot goes down
     // Stage 4.6 (ruling 400): Enter lays what is waiting and Esc takes it back whatever has focus (keyboard.js, createUI's placementPending), and where

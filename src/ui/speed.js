@@ -98,7 +98,7 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
     // speed "2×"), where the others are a picture alone, which keeps the whole row about as wide as the old four words were. data-state on the
     // bar says playing or paused, which the stylesheet uses to tell the two apart by more than the one step.
     mountBar(container) {
-      const buttons = [0, 1, 2, 3].map((s) => el('button', { type: 'button', class: `speed-step step-${s}`, 'aria-label': S46_UX_TEXT.speedStepLabel(s), title: S46_UX_TEXT.speedStepTitle(s, keys()), 'aria-pressed': String(world.speed === s), onClick: () => api.set(s) },
+      const buttons = [0, 1, 2, 3].map((s) => el('button', { type: 'button', class: `speed-step step-${s}`, 'aria-label': S46_UX_TEXT.speedStepLabel(s), title: S46_UX_TEXT.speedStepTitle(s, keys()), 'aria-pressed': String(world.speed === s), onClick: (ev) => { api.set(s); if (ev && ev.detail > 0) ev.currentTarget.blur(); } },   // ruling 991: a pointer click lets go of the step, so Space pauses afterwards (a keyboard press has detail 0 and keeps its focus)
         [speedPicture(s), el('span', { class: 'word', 'aria-hidden': 'true', text: s === 0 ? S46_UX_TEXT.pausedWord : SPEED_LABELS[s] })]));
       clear(container);
       container.setAttribute('role', 'group');

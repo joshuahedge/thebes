@@ -115,9 +115,22 @@ export function createHud({ world, store, container, speedBar = null, onOpenSumm
   let lastKey = '';
   function fitForecast(key) {
     if (key === lastKey) return;
-    const tops = new Set([...stats.querySelectorAll('.stat')].filter((st) => st.offsetParent !== null).map((st) => st.offsetTop));
-    lastKey = tops.size ? key : '';                    // not laid out yet (the bar is not on the page): measure again next time
-    if (tops.size) stats.classList.toggle('tight', tops.size > 1);
+    const shown = [...stats.querySelectorAll('.stat')].filter((st) => st.offsetParent !== null);
+    const rows = () => new Set(shown.map((st) => st.offsetTop)).size;
+    lastKey = rows() ? key : '';                       // not laid out yet (the bar is not on the page): measure again next time
+    if (!rows()) return;
+    // Version 7.0 (wave 3, ruling 994): numbers that overflow a phone's bar (at 100% text a five-digit treasury pushed the date out of the row: it wrapped, the forecast hid, the row sat
+    // low and the score chip landed on the date) wear the 150% text's small pictures in place of their words (css 'iconic'). Overflow is more rows than the size allows (one at 100% text,
+    // held upright; 125% keeps its two), the scroll width past the client width, or a number past the row's inner edge. It is measured with the words and the forecast showing, so the bar
+    // goes back to words when the numbers shrink again.
+    stats.classList.remove('iconic', 'tight');
+    const layout = store.get().layout;
+    if (layout !== 'wide') {
+      const edge = stats.getBoundingClientRect().right - (parseFloat(getComputedStyle(stats).paddingRight) || 0);
+      const wrapped = layout === 'portrait' && Number(document.body.dataset.textSize) < 125 && rows() > 1;
+      if (wrapped || stats.scrollWidth > stats.clientWidth + 1 || shown.some((st) => st.getBoundingClientRect().right > edge + 1)) stats.classList.add('iconic');
+    }
+    stats.classList.toggle('tight', rows() > 1);       // still two rows (even in pictures): no room for the forecast's line
   }
   const textOf = (n) => n.querySelector('.value').textContent;
   function render() {
