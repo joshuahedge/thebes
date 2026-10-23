@@ -3185,4 +3185,109 @@ V60_HELP.d1.push({ head: 'The Huge map', text: 'A Huge map is 112 tiles a side, 
 //
 // ── v60 d2 (Track D2, rulings 760-779: the guided first city, the picture cards) ────────────────────────────────────────
 // Add new lines just above the end marker.
+import { LESSON_STEPS as d2Steps } from '../data/lesson.js';
+import { LARGE_PLOT as d2Large } from '../data/largePlots.js';
+import { FIRE as d2Fire } from '../data/fire.js';
+import { RAIDS as d2Raids } from '../data/raids.js';
+import { GRACE_DAYS as d2Grace } from '../data/hazards.js';
+import { DAYS_PER_MONTH as d2MonthDays, MONTHS_PER_YEAR as d2YearMonths } from '../sim/time.js';
+
+// The guided first city (src/ui/lesson.js builds the facts each line is worded from; every number is the sim's own).
+// Each step is (f) => { text, why }: text is the one instruction in the guidance row (two or three lines on a phone), why the sentence that
+// follows it on a wide screen and when the row is opened in place. f: { paused, progress: { n, of } | null, warning: { dir, size, daysLeft, need, have } | null,
+// raidOn: { left } | null, missing: type | null, forecast: gold a month }.
+const d2Site = (type) => buildingName(type).toLowerCase();
+export const D2_TEXT = {
+  lessonLabel: (i, n) => `Lesson ${i} of ${n}`,
+  region: 'Lesson', show: T.showMe, leave: 'Leave the lesson', leaveShort: 'Leave', open: 'More', close: 'Less',
+  leaveConfirm: "Leave the lesson? Your place is kept: the Lesson button on the title screen continues from here. Nothing in your saved city changes.",
+  progress: (n, of) => `${n} of ${of}`,
+  progressLabel: (n, of, unit) => `${n} of ${of} ${unit}`,
+  gone: (type) => `The ${d2Site(type)} is gone: build it again first.`,
+  steps: {
+    road: () => ({ text: `Lay a road: drag it west from the road's end to the fertile land.`,
+      why: `Homes and workplaces work only when they touch a road. The lit line is ${d2Steps.find((s) => s.id === 'road').check.n} tiles of road.` }),
+    homes: () => ({ text: `Paint ${d2Steps.find((s) => s.id === 'homes').check.n} housing plots beside the road.`,
+      why: 'Plots off the road stay empty. People move in once a plot touches a road.' }),
+    well: () => ({ text: `Build a well within ${BUILDINGS.well.reach} road tiles of ${d2Steps.find((s) => s.id === 'well').check.homes} homes.`,
+      why: `A well gives water along the road for ${BUILDINGS.well.reach} tiles, so huts can grow into shacks.` }),
+    families: (f) => ({ text: `${f.paused ? 'Press Play: families move in. ' : 'Families are arriving. '}Wait for ${d2Steps.find((s) => s.id === 'families').check.n} people.`,
+      why: 'Nothing happens while the game is paused, so pause any time to plan.' }),
+    farm: () => ({ text: 'Build a farm on the fertile land. Layers → Ground shows it in green.',
+      why: 'Farms grow only on the fertile ground by the river, and each needs a road beside it.' }),
+    granary: () => ({ text: "Build a granary by the road: the farm's food is kept here.",
+      why: 'A farm fills a granary; a bazaar near homes sells its food.' }),
+    bazaar: () => ({ text: `Build a bazaar within ${BUILDINGS.bazaar.reach} road tiles of ${d2Steps.find((s) => s.id === 'bazaar').check.homes} homes.`,
+      why: 'A bazaar sells food to the homes it reaches along the roads, and homes that are fed can grow.' }),
+    workers: (f) => ({ text: `Your buildings want ${f.labour.jobs} workers and ${f.labour.workforce} people work: paint more homes until the bazaar works too.`,
+      why: `${cards4WorkShare()}, and a building short of workers works slowly or not at all. A farm wants ${BUILDINGS.farm_grain.workers} workers, a granary ${BUILDINGS.granary.workers}, a bazaar ${BUILDINGS.bazaar.workers}; food and housing come before services.` }),
+    month: (f) => ({ text: `Let ${d2Steps.find((s) => s.id === 'month').check.n} months pass and watch the gold chip.`,
+      why: `Homes pay taxes each month; every building costs upkeep and ${ECONOMY.wagePerWorker} gold for each worker. The chip shows the month's forecast${Number.isFinite(f.forecast) ? `: ${S45_TEXT.signed(f.forecast)} a month now` : ''}.` }),
+    largeplot: () => ({ text: `The Large plot card is open early for the lesson. Place one, ${d2Large.size} by ${d2Large.size}, beside the road.`,
+      why: `Small plots stop at Townhouse. A Large plot grows into a Manor and beyond once its needs are met nearby. A real city opens the card with its first Townhouse; a lot costs ${BUILDINGS[d2Large.type].cost} gold.` }),
+    firehouse: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : `Build a firehouse near the bazaar${f.paused ? ', then press Play so its crew can take their posts' : ' and let its crew take their posts'}.`,
+      why: `A firehouse works only with staff and a road, and covers ${BUILDINGS.firehouse.reach} road tiles. Fire risk starts once a city is a Town.` }),
+    fire: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : `A small fire started in the bazaar: the lesson lit it. ${f.paused ? 'Press Play and watch the crew put it out.' : 'Watch the crew put it out.'}`,
+      why: `A staffed firehouse that reaches a blaze puts it out in a day or two. Left alone it grows into a fire in ${d2Fire.blazeDays} days and the building burns down.` }),
+    tower: (f) => (f.warning
+      ? { text: `Raiders come from the ${f.warning.dir}: ${f.warning.size} of them, in ${plural(f.warning.daysLeft, 'day', 'days')}. Build ${f.warning.need - f.warning.have > 1 ? `${f.warning.need - f.warning.have} more towers` : 'a tower'} near the bazaar and let ${f.warning.need - f.warning.have > 1 ? 'their crews' : 'its crew'} take their posts.`,
+        why: `A staffed tower stops about ${d2Raids.raidersPerTower} raiders. A real city meets its first raid at ${d2Raids.clockPeople} people, with the warning ${d2Raids.warningDays} days ahead; the lesson brings the Market town's tower card early.` }
+      : { text: f.paused ? "Press Play: the lesson brings a raid warning. The Market town's tower card is open early." : 'A raid warning is on its way.',
+        why: `A real city meets its first raid at ${d2Raids.clockPeople} people, with the warning ${d2Raids.warningDays} days ahead.` }),
+    raid: (f) => (f.raidOn
+      ? { text: `The raiders are here: ${f.raidOn.left} on the map. Watch the towers stop them.`, why: 'Towers shoot the nearest raider in range, and a band turns back once half of it has fallen.' }
+      : { text: `${f.paused ? 'Press Play and watch the raiders come' : 'The raiders are on their way'}${f.warning ? `: ${plural(f.warning.daysLeft, 'day', 'days')} to go` : ''}.`,
+        why: 'Raids grow with a city\'s people and wealth, so build towers before the next warning.' }),
+  },
+  // The last card: "Your first city stands" (a sheet; its words come from the city's own numbers).
+  endTitle: 'Your first city stands',
+  endBody: ({ people, won }) => `${plural(people, 'person lives', 'people live')} here. Your farm, granary and bazaar feed them, a firehouse guards them and ${won ? 'your tower beat the raid' : 'the raid got through, which towers would have stopped'}. Now found a city of your own: its difficulty and map size are on the title screen.`,
+  endMore: 'Everything here is in How to play, and the picture cards show again the first time each new danger comes.',
+  endNew: 'New city', endStay: 'Keep looking around',
+  endRow: 'Your first city stands. Found your own when you are ready.',
+  // The title (the Lesson button; with no saved city and the lesson not done it is the only way in).
+  titleStart: 'Start the lesson', titleContinue: 'Continue the lesson', titleAgain: 'Start again',
+  titleHint: `A small first city of ${d2Steps.length} steps, about 10 to 15 minutes.`,
+  standsNote: 'Your first city stands. Found your own when you are ready.',
+  // The menu's rows.
+  menuLesson: 'Lesson', menuLessonConfirm: 'Leave this city for the lesson? It is saved first, and Continue on the title screen brings it back.',
+  menuLeave: 'Leave the lesson',
+};
+export const d2StepCount = d2Steps.length;
+
+// The six picture cards of the first moments (src/data/tutorial.js, src/ui/cardMoments.js): each says what the sim does, in the sim's own numbers.
+// Three sentences at most each (tests/stage4/cards holds it), and an alt text for the picture's ring.
+const d2Months = (days) => plural(Math.max(1, Math.round(days / d2MonthDays)), 'month', 'months');
+CARDS4_TEXT.cards.large = {
+  title: 'Large plots',
+  words: `Small plots stop at ${TIERS[d2Large.unlockTier].name}. A Large plot is ${d2Large.size} by ${d2Large.size} tiles and grows into a ${TIERS[d2Large.opensTier].name} and beyond once its needs are met nearby. Its card opens with your first ${TIERS[d2Large.unlockTier].name}.`,
+  alt: 'A Large plot, an empty marked lot of two by two tiles beside a road and homes, with a ring around it.',
+};
+CARDS4_TEXT.cards.demand = {
+  title: 'The court asks',
+  words: `From ${MILESTONES.find((m) => m.id === reignDemands.from).name} the court asks about once a year for goods, gold, a building or soldiers. Each demand names its reward and what failing costs before you accept it.`,
+  alt: "The court's demand sheet: the demand, what meeting it earns, what failing it costs, and Accept and Decline, with a ring around the lines for meeting and failing it.",
+};
+CARDS4_TEXT.cards.plague = {
+  title: 'Plague',
+  words: `A plague is warned ${d2Months(b1Plague.warnDays)} ahead, then passes from home to home and takes people from each it reaches. A physician and a well slow it, and a quarantine of ${d2Months(b1Plague.quarantine.months * d2MonthDays)}, for a fee, holds it to one district.`,
+  alt: 'The Health layer over a crowded district: sick homes are marked, with a ring around one of them.',
+};
+CARDS4_TEXT.cards.drought = {
+  title: 'A low Nile',
+  words: `A low Nile is warned months ahead. For a year after it every farm gives ${Math.round((1 - b1Drought.cut) * 100)}% of its crop on Normal, less on Hard. Full granaries carry the city, and City advice says whether yours will.`,
+  alt: 'City advice with its first item, the low Nile warned, and what it will cost the farms, inside a ring.',
+};
+CARDS4_TEXT.cards.locusts = {
+  title: 'Locusts and blight',
+  words: `Locusts or blight are warned ${plural(b1Crops.warnDays, 'day', 'days')} ahead over a band of farms. Harvest now on a farm in the band brings in ${Math.round(b1Harvest.share * 100)}% of a month's crop at once, then the farm rests ${plural(b1Harvest.restDays, 'day', 'days')}.`,
+  alt: "A farm's sheet with the locust warning for it inside a ring, and the farm on the map above it.",
+};
+CARDS4_TEXT.cards.raid = {
+  title: 'Raiders do damage',
+  words: `A raid is warned ${plural(d2Raids.warningDays, 'day', 'days')} ahead. Raiders burn what they reach and steal gold; once a city is ${d2Grace / (d2MonthDays * d2YearMonths)} years old they also wreck buildings to rubble and loot storehouses. Towers and soldiers stop them, and rubble can be cleared and built again.`,
+  alt: "A wrecked storehouse's rubble with a ring around it, below the alert for a raid from the east.",
+};
+V60_HELP.d2.push({ head: 'The lesson', text: `The lesson is a small first city of ${d2Steps.length} steps: a road, homes, a well, a farm, a granary and a bazaar, workers, a Large plot, a small fire and a raid. Each step lights what it asks for, dims the rest and moves on when the city shows it done. It runs on its own map and never touches a saved city. A new device starts with it; the Lesson button on the title screen and in the menu plays it again.` });
+V60_HELP.d2.push({ head: 'Picture cards', text: `The picture cards show once before your first city and again, one at a time, the first time a Large plot, a court demand, a plague, a low Nile, locusts or a raid with real losses comes. Show the picture cards, above, keeps every one. Dangers never come in the first ${d2Grace / (d2MonthDays * d2YearMonths)} game years of a city.` });
 // ── end v60 d2 ──

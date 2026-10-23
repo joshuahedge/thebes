@@ -120,7 +120,7 @@ describe('v60 d1 huge map: the zoom floor keeps the frame within 1.25 x Large\'s
 });
 
 describe('v60 d1 huge map: choosing it on the title starts a Huge city with its camera floor', () => {
-  const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true}' : null), setItem: () => {} };
+  const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true,"lessonDone":true}' : null), setItem: () => {} };   // Version 6.0 (Track D2): the picture cards were seen and the lesson done, so the title offers New city
   async function open(params = '', width = 1280, height = 800) {
     const shell = await mountShell(width, height);
     const history = fakeHistory();

@@ -13,7 +13,7 @@ import { openSheet } from '../../src/ui/modes.js';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 // Stage 4 (Track G): the picture cards were seen on this device, so New city starts the city at once.
-const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true}' : null), setItem: () => {} };
+const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true,"lessonDone":true}' : null), setItem: () => {} };   // Version 6.0 (Track D2): the picture cards were seen and the lesson done, so the title offers New city
 const until = async (cond) => { for (let i = 0; i < 50 && !cond(); i++) await flush(); };
 
 // The real page shell, a fake store and no animation frames: loops never run, so every frame is explicit.

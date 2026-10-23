@@ -14,7 +14,7 @@ import { ECONOMY, FORECAST } from '../../src/data/economy.js';
 import { TIERS } from '../../src/data/housing.js';
 import { DAILY_POOL } from '../../src/data/daily.js';
 import { GOALS } from '../../src/data/goals.js';
-import { TUTORIAL_CARDS } from '../../src/data/tutorial.js';
+import { INTRO_CARDS } from '../../src/data/tutorial.js';
 import { TIPS, TIP_FIRST_DELAY_MS } from '../../src/data/tips.js';
 import { cardInfo, shownItems } from '../../src/ui/cards.js';
 import { toolPreview } from '../../src/ui/placement.js';
@@ -367,7 +367,7 @@ describe('s45 forecast (the warning tip)', () => {
 
 describe('s45 gold card, goal and daily goals', () => {
   it('has a seventh picture card, Gold, after Food, with its words from the wage and its picture and mark made', async () => {
-    expect(TUTORIAL_CARDS.map((c) => c.id)).toEqual(['road', 'homes', 'farm', 'food', 'gold', 'goals', 'ahead']);
+    expect(INTRO_CARDS.map((c) => c.id)).toEqual(['road', 'homes', 'farm', 'food', 'gold', 'goals', 'ahead']);   // Version 6.0 (Track D2): the seven read before a first city; six more come at first moments
     const c = CARDS4_TEXT.cards.gold;
     expect(c.words).toBe(`Homes pay taxes every month; every building costs upkeep and ${ECONOMY.wagePerWorker} gold for each worker. Build homes before luxuries.`);
     expect(c.words.split('. ').length).toBeLessThanOrEqual(2);

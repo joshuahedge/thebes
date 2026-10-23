@@ -201,7 +201,7 @@ describe('s45 variants (new cities)', () => {
   });
   it('the interface starts New city with the seed\'s layout, and a ?seed= flag, the sample city and ?variant= stay as asked', async () => {
     const flush = () => new Promise((r) => setTimeout(r, 0));
-    const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true}' : null), setItem: () => {} };
+    const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true,"lessonDone":true}' : null), setItem: () => {} };   // Version 6.0 (Track D2): the picture cards were seen and the lesson done, so the title offers New city
     const open = async (params) => {
       const shell = await mountShell(1280, 800);
       const history = fakeHistory();

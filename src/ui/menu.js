@@ -5,7 +5,7 @@ import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
 import { FIRE_REACTIONS, MOTION_SETTINGS, motionStatus } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT, V60_HELP } from './text.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT, V60_HELP, D2_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
@@ -27,14 +27,20 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
   const hookOr = (name) => () => { if (typeof hooks[name] === 'function') hooks[name](); else toasts.show(T.notYet); };
 
   function menu(body, { close }) {
+    // Version 6.0 (Track D2): the lesson's menu has no New city, Export or Import (the lesson's city is never kept) and leaves the lesson instead; any other
+    // game's menu replays the lesson when the page offers it (hooks.lesson), saving the city first.
+    const inLesson = Boolean(hooks.lessonRun);
     body.append(el('div', { class: 'menu-list' }, [
       button(T.continueGame, { class: 'primary', onClick: close }),
-      button(T.newCity, { onClick: () => store.set({ confirmDialog: {
+      inLesson ? button(D2_TEXT.menuLeave, { class: 'leave-lesson', onClick: () => store.set({ confirmDialog: { text: D2_TEXT.leaveConfirm, confirmLabel: D2_TEXT.menuLeave, onConfirm: () => hooks.lessonRun.leave() } }) }) : null,
+      inLesson ? null : button(T.newCity, { onClick: () => store.set({ confirmDialog: {
         text: T.newCityConfirm, confirmLabel: T.newCity, onConfirm: onNewCity,
         extraLabel: typeof hooks.exportCity === 'function' ? T.exportFirst : null, onExtra: hookOr('exportCity'),
       } }) }),
-      button(T.exportCity, { onClick: hookOr('exportCity') }),
-      button(T.importCity, { onClick: hookOr('importCity') }),
+      !inLesson && typeof hooks.lesson === 'function' ? button(D2_TEXT.menuLesson, { class: 'menu-lesson', onClick: () => store.set({ confirmDialog: { text: D2_TEXT.menuLessonConfirm, confirmLabel: D2_TEXT.menuLesson,
+        onConfirm: async () => { try { if (typeof hooks.save === 'function') await hooks.save('lesson'); } catch (e) { /* the lesson starts either way */ } hooks.lesson(); } } }) }) : null,
+      inLesson ? null : button(T.exportCity, { onClick: hookOr('exportCity') }),
+      inLesson ? null : button(T.importCity, { onClick: hookOr('importCity') }),
       typeof hooks.install === 'function' && (typeof hooks.canInstall !== 'function' || hooks.canInstall()) ? button(T.installMenu, { class: 'install', onClick: () => hooks.install() }) : null,
       button(T.settings, { onClick: () => open('settings') }),
       button(T.howToPlay, { onClick: () => open('help') }),

@@ -7,7 +7,7 @@ import { ART, slotFor } from '../render/art/registry.js';
 import { p, artToTile, ART_SCALE } from '../render/iso.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { el, button, clear } from './components.js';
-import { T, DIFFICULTY_NAMES, difficultyHint, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT, D1_TEXT } from './text.js';
+import { T, DIFFICULTY_NAMES, difficultyHint, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT, D1_TEXT, D2_TEXT } from './text.js';
 import { MAP_SIZES, MAP_SIZE_IDS, MAP_SIZE_TABLE } from '../data/map.js';
 import { versionLine, renderWhatsNew } from './s46/whatsNew.js';   // Stage 4.6 (rulings 401-403): the version line and the What's new panel
 
@@ -66,23 +66,34 @@ function sizeRow(initial, onChoose) {
 // (onHowToPlay, Stage 4 Track G, spec 4.1: boot.js passes hooks.pictureCards), the picture cards; no button without either. Settings (renderSettings(body),
 // the same rows as the game's Settings sheet) and What's new open as the card's one panel with Back. screen() is the screen's size in CSS px (a phone is
 // told Huge suits a tablet or computer).
-export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, onBring = () => {}, decorate = null, onHowToPlay = null, onLesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, screen = null }) {
+export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, onBring = () => {}, decorate = null, onHowToPlay = null, onLesson = null, lesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, screen = null }) {
   const install = button(T.install, { class: 'install', hidden: !canInstall, onClick: onInstall });
   const newCity = button(T.newCity, { class: hasSave ? 'new-city' : 'new-city primary', onClick: onNewCity });
+  // Version 6.0 (Track D2, ruling 617): on a device that has not done the lesson and has no saved city (lesson.due) the card offers the lesson alone
+  // (Start the lesson, or Continue the lesson with Start again for one left part-way): no New city, difficulty or size until it has been played.
+  // Elsewhere the Lesson button plays it again (lesson.partWay says Continue).
+  const lessonOnly = Boolean(lesson && lesson.due && typeof onLesson === 'function');
   const buttons = [];
-  if (hasSave) buttons.push(button(T.continueGame, { class: 'continue primary', onClick: onContinue }));
-  buttons.push(newCity);
+  if (lessonOnly) {
+    buttons.push(button(lesson.partWay ? D2_TEXT.titleContinue : D2_TEXT.titleStart, { class: 'lesson-start primary', onClick: () => onLesson() }));
+  } else if (hasSave) buttons.push(button(T.continueGame, { class: 'continue primary', onClick: onContinue }));
+  if (!lessonOnly) buttons.push(newCity);
   const levels = difficultyRow(difficulty, onDifficulty);
   const sizes = sizeRow(mapSize, onMapSize);
   levels.append(sizes);   // Stage 4.6: the size sits with the difficulty under New city
+  const lessonExtras = lessonOnly ? [
+    el('p', { class: 'lesson-hint small muted', text: D2_TEXT.titleHint }),
+    lesson.partWay && typeof lesson.onAgain === 'function' ? button(D2_TEXT.titleAgain, { class: 'lesson-again quiet', onClick: () => lesson.onAgain() }) : null,
+  ] : [];
   const more = [];
-  if (typeof onLesson === 'function') more.push(button(D1_TEXT.lesson, { class: 'lesson', onClick: () => onLesson() }));
-  else if (typeof onHowToPlay === 'function') more.push(button(CARDS4_TEXT.howToPlay, { class: 'how-to-play', onClick: () => onHowToPlay() }));
+  if (typeof onLesson === 'function' && !lessonOnly) more.push(button(lesson && lesson.partWay ? D2_TEXT.titleContinue : D1_TEXT.lesson, { class: 'lesson', onClick: () => onLesson() }));
+  else if (typeof onHowToPlay === 'function' && !lessonOnly) more.push(button(CARDS4_TEXT.howToPlay, { class: 'how-to-play', onClick: () => onHowToPlay() }));
   if (typeof renderSettings === 'function') more.push(button(T.settings, { class: 'title-settings', onClick: () => showSettings() }));
   more.push(button(S46_UX_TEXT.whatsNew, { class: 'whats-new-button', onClick: () => showWhatsNew() }));   // Stage 4.6 (ruling 402): one panel of releases, newest first
   const bring = canBring ? button(T.bringCity, { class: 'bring', onClick: onBring }) : null;
   const buttonBox = el('div', { class: 'title-buttons' }, [
     ...buttons.flatMap((b) => (b === newCity ? [b, levels] : [b])),   // the choice sits under New city
+    ...lessonExtras,
     el('div', { class: 'title-more', role: 'group', 'aria-label': D1_TEXT.titleGroup }, more),
     bring, install,
   ]);
@@ -91,6 +102,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
     el('p', { class: 'tagline muted', text: T.tagline }),
     versionLine(),   // Stage 4.6 (ruling 401): "Version 4.6 · build 989a650", small
     message ? el('p', { class: 'message coral', text: message }) : null,
+    lesson && lesson.note ? el('p', { class: 'lesson-note teal', text: lesson.note }) : null,   // "Your first city stands": back on the title after the lesson
     buttonBox,
   ]);
   let guide = null;

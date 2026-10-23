@@ -34,6 +34,7 @@ function svgEl(tag, attrs = {}) {
   return n;
 }
 const round = (v) => Math.round(v * 10) / 10;
+const MAX_DOTS = 8;   // a set of more cards than this has no row of dots (Version 6.0, Track D2: How to play's thirteen)
 
 // The mark as SVG in picture px (TUTORIAL.size square, scaled with the picture): a white halo under a teal line, a
 // rounded ring around a box or an arrow to a point (src/data/tutorial.js gives the shapes). An empty SVG for no mark.
@@ -81,7 +82,7 @@ export function showPictureCards({
   root = null, doc = null, settings = null, onDone = () => {},
   cards = TUTORIAL_CARDS, marks = null, fetchMarks = undefined, history = defaultHistory(),
   addListener = (type, fn) => window.addEventListener(type, fn, true), removeListener = (type, fn) => window.removeEventListener(type, fn, true),
-  base = TUTORIAL.dir, difficulty = null,
+  base = TUTORIAL.dir, difficulty = null, finishLabel = null,
 } = {}) {
   const C = CARDS4_TEXT, n = cards.length;
   const host = root || document.body;
@@ -114,6 +115,9 @@ export function showPictureCards({
     el('div', { class: 'pc-nav' }, [back, next]),
   ]);
   const dialog = el('div', { class: 'picture-cards', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'pc-title', 'aria-describedby': 'pc-words', tabindex: '-1' }, [box]);
+  // Version 6.0 (Track D2): one card on its own (a first moment's) has nothing to count, skip back to or turn to: only the picture, its words and one button.
+  if (n === 1) for (const node of [count, skip, back, box.querySelector('.pc-dots')]) node.hidden = true;
+  else if (n > MAX_DOTS) box.querySelector('.pc-dots').hidden = true;   // thirteen 44 px dots would not fit a phone: the count, Next, Back, a swipe and the arrow keys move the cards
 
   function render(dir = null) {
     const card = cards[index], words4 = C.cards[card.id] || { title: card.id, words: '', alt: '' };
@@ -126,7 +130,7 @@ export function showPictureCards({
     text.scrollTop = 0;
     dots.forEach((d, i) => { if (i === index) d.setAttribute('aria-current', 'step'); else d.removeAttribute('aria-current'); });
     back.disabled = index === 0;
-    next.textContent = index === n - 1 ? C.start : C.next;
+    next.textContent = index === n - 1 ? (finishLabel || C.start) : C.next;
     // Under Full the new card slides in from the side it came from; under Gentle and Still it is simply there (spec 5.4).
     for (const node of [figure, text]) {
       node.classList.remove('pc-in-next', 'pc-in-back');
@@ -197,7 +201,7 @@ export function showPictureCards({
     else if (e.key === 'ArrowLeft') { e.preventDefault(); go(index - 1); }
     else if (e.key === 'Escape') { e.preventDefault(); finish(); }
     else if (e.key === 'Tab') {                            // focus stays inside
-      const stops = [...dialog.querySelectorAll('button')].filter((b) => !b.disabled);
+      const stops = [...dialog.querySelectorAll('button')].filter((b) => !b.disabled && !b.closest('[hidden]'));
       const at = stops.indexOf(doc4Active());
       const to = e.shiftKey ? (at <= 0 ? stops.length - 1 : at - 1) : (at < 0 || at === stops.length - 1 ? 0 : at + 1);
       e.preventDefault();

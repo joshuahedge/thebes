@@ -238,7 +238,7 @@ describe('s4 contract music and picture cards seams', () => {
         refresh: () => calls.push('refresh'), tick: (t) => calls.push(`tick ${t}`), destroy: () => calls.push('destroy'), playing: () => false,
       };
     };
-    const storage = memory();
+    const storage = memory({ 'thebes.settings': JSON.stringify({ lessonDone: true }) });   // Version 6.0 (Track D2): a device that has done the lesson, so its title offers New city
     const b = await bootWith({ createMusic: spy, showPictureCards: ({ onDone }) => { onDone(); return { close() {} }; }, storage });
     let destroyed = false;
     try {
@@ -272,7 +272,7 @@ describe('s4 contract music and picture cards seams', () => {
   it('shows the picture cards before the first new city on the device and starts the city only when they are done', async () => {
     let held = null, shown = 0, closed = 0;
     const cards = ({ onDone }) => { shown++; held = onDone; return { close: () => { closed++; } }; };
-    const storage = memory();
+    const storage = memory({ 'thebes.settings': JSON.stringify({ lessonDone: true }) });   // Version 6.0 (Track D2): a device that has done the lesson, so its title offers New city
     const b = await bootWith({ showPictureCards: cards, storage });
     let destroyed = false;
     try {

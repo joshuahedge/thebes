@@ -1,6 +1,7 @@
 # Makes the picture cards' pictures (spec 4.1, ruling 264): for each card of src/data/tutorial.js it opens the game on
 # the picture's city (src/dev/tutorialScenes.js TUTORIAL_SHOT: seed 7's fresh city on a 390x844 phone), runs the
-# picture's dev scene (tutorialPicture(window.__thebes, '<id>'), which devScene('tutorial', { picture }) runs too) and
+# picture's dev scene (devScene('tutorial', { picture: '<id>' }); Version 6.0: the seven intro cards use that city, the six
+# first moments' cards start the Version 6.0 dev scene of their danger on a city of their own) and
 # captures the square the scene names as a 600x600 WebP (the phone's pixel ratio is 600/390, so it is sharp) of at most
 # 60 KB (the quality steps down from -Quality until it fits), saved as assets/tutorial/<id>.webp. The marks the scenes
 # read off the page (a tile through the camera, a building's drawn box, a button's or a row's box) go to
@@ -118,7 +119,8 @@ try {
       for ($try = 1; $try -le 3 -and -not $scene; $try++) {
         try {
           Open-Page $info.shot.params ([int]$info.shot.width) ([int]$info.shot.height) $dpr
-          $scene = Invoke-Page "(async () => JSON.stringify(await (await import('./src/dev/tutorialScenes.js')).tutorialPicture(window.__thebes, '$id')))()" | ConvertFrom-Json
+          # Version 6.0 (Track D2): through devScene, which hands the scene boot's api (the six first moments' pictures start a city of their own).
+          $scene = Invoke-Page "(async () => JSON.stringify(await window.__thebes.devScene('tutorial', { picture: '$id' })))()" | ConvertFrom-Json
         } catch { if ($try -eq 3) { throw } else { Write-Output "Retrying $id ($($_.Exception.Message.Split([char]10)[0]))" } }
       }
       Start-Sleep -Milliseconds 700                   # a few frames with the scene drawn

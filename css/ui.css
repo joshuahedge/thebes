@@ -1394,3 +1394,49 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .copy-line {
 .confirm .route-choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .confirm .route-pick { flex: 1 1 auto; min-width: var(--tap); min-height: var(--tap); padding: 0 6px; font-size: calc(13px * min(var(--ui-scale), 1.15)); line-height: 1.2; white-space: nowrap; }
 .confirm .route-pick[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); font-weight: 600; }
+
+/* Version 6.0 (Track D2, rulings 760-779): the guided first city. The lesson's row is the one guidance row of a lesson game (the goals strip, the tips and the
+   captions stand aside; alerts stay), the step's target is lit (a ring on the map with the rest of the map dimmed round it; a ring on a control) and the
+   cards it asks for carry the guide's tag. On a phone the words are cut at three lines with More (as a tip's are), and on a landscape phone at large text the
+   alert row has the one row (ruling 172). Colour is never the only cue: the ring, the tag and the instruction's words all say it. */
+body.lesson-on #goals, body.lesson-on #tip, body.lesson-on #cheer { display: none !important; }
+#lesson { position: static; display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box; pointer-events: auto; background: var(--parchment); color: var(--ink); border: 1px solid var(--teal); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); --row-bg: var(--parchment); }
+body[data-layout="wide"] #lesson { max-width: 560px; }
+#lesson .body { position: relative; display: block; flex: 1 1 auto; min-width: 0; padding: 4px 0; }
+#lesson .label, #lesson .text, #lesson .chip { display: inline; }
+#lesson .label { margin-right: 6px; }
+#lesson .text { font-weight: 600; }
+#lesson .chip { margin-left: 4px; padding: 1px 8px; border-radius: 10px; background: var(--teal-soft); color: var(--ink); white-space: nowrap; }
+#lesson .why { display: block; margin-top: 2px; }
+#lesson .show-me, #lesson .leave { flex: none; }
+#lesson .lesson-new { flex: none; white-space: nowrap; }
+#lesson .more { position: absolute; right: 2px; bottom: 1px; min-width: 0; min-height: 0; margin: 0; padding: 0 2px 0 22px; border: none; border-radius: 0; box-shadow: none; background: linear-gradient(to right, transparent, var(--row-bg) 20px); color: var(--teal); font-size: calc(12px * var(--ui-scale)); font-weight: 600; line-height: 1.5; white-space: nowrap; }
+#lesson .more::before { content: ''; position: absolute; right: 0; bottom: -1px; width: max(100%, var(--tap)); height: max(calc(100% + 1px), var(--tap)); }
+#lesson .body:has(.more:not([hidden])) { cursor: pointer; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson .body { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+body[data-layout="compact"] #lesson .body { -webkit-line-clamp: 2; line-clamp: 2; padding: 0; }
+body[data-layout="compact"] #lesson { padding-top: 0; padding-bottom: 0; }   /* held sideways the rows are short of height: two lines (the goals strip's own) */
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson .leave { display: none; }   /* a phone's row keeps its width for the words: the menu has Leave the lesson */
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson .why { display: none; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson.open .body { display: block; overflow: visible; padding-bottom: 14px; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson.open .why { display: block; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson.open { max-height: calc(var(--guidance-max, 40vh)); overflow-y: auto; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson { padding: 0 2px 0 10px; gap: 4px; line-height: 1.25; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson .text { font-size: calc(14px * var(--ui-scale)); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson .body { padding: 2px 0; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson button { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
+body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]).has-banner #lesson { display: none; }
+/* The lit target: the map dimmed round a ring (both ignore taps), a control with a ring of its own; the ring pulses under Full motion only. */
+#ui > .lesson-scrim { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse var(--rx, 120px) var(--ry, 80px) at var(--cx, 50%) var(--cy, 50%), rgba(28, 22, 12, 0) 0%, rgba(28, 22, 12, 0) 72%, rgba(28, 22, 12, 0.46) 100%); }
+#ui > .lesson-ring { position: fixed; pointer-events: none; box-sizing: border-box; border: 3px solid var(--teal); border-radius: 50%; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85), inset 0 0 0 2px rgba(255, 255, 255, 0.55); }
+.lesson-lit { outline: 3px solid var(--teal); outline-offset: 2px; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.8); }
+body:not(.reduce-motion) #ui > .lesson-ring { animation: lesson-ring 1.6s ease-in-out infinite; }
+body:not(.reduce-motion) .lesson-lit { animation: lesson-lit 1.4s ease-in-out infinite; }
+@keyframes lesson-ring { 50% { box-shadow: 0 0 0 9px rgba(255, 255, 255, 0.45), inset 0 0 0 2px rgba(255, 255, 255, 0.55); } }
+@keyframes lesson-lit { 50% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.45); } }
+/* The end sheet, and the title's lesson-only card. */
+#sheet .lesson-end .lead { font-weight: 600; }
+.title-buttons .lesson-hint { margin: 0; text-align: center; }
+.title-buttons .lesson-again { align-self: center; }
+.title-card .lesson-note { margin: 0 0 6px; text-align: center; font-weight: 600; }
