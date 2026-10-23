@@ -23,10 +23,13 @@ import { assignLabour } from '../../../src/sim/labour.js';
 import { allBuildings, population, housesOf, isSite } from '../../../src/sim/world.js';
 import { towersNeeded, firstRaidTarget } from '../../../src/sim/raids.js';
 import { costOf } from '../../../src/sim/costs.js';
-import { greatWorkStatus, siteStatus } from '../../../src/sim/monuments.js';
+import { greatWorkStatus, siteStatus, offeringOf, offeringsMade } from '../../../src/sim/monuments.js';
+import { setKeepAtLeast } from '../../../src/sim/trade.js';
 import { GREAT_WORK } from '../../../src/data/reign.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
 import { nearestFit } from '../../../src/ui/placement.js';
+import { eventPlayer } from '../../v70/balance/events.js';
+import { releaseEvents } from '../../v70/e/hold.js';
 
 export const GREAT_YEARS = 20;
 const YEAR_DAYS = DAYS_PER_MONTH * MONTHS_PER_YEAR;
@@ -107,6 +110,20 @@ function foundTemple(w) {
   return { day: w.day, id: r.id, guilds, fire, paused };
 }
 
+// Version 7.0 (wave 3): the Trade sheet's "Keep at least" as a habit once the great temple stands: each good the offerings still ask for is kept at the most any stage still to come
+// needs of it (the sheet's command setKeepAtLeast: the floor, and the order's keep when the good has an order), so no caravan sells below what the temple is owed, and the floor goes
+// when the last offering is made. (The temple's waiting stage is held back by the sim whatever the floor says: tradeRules.js heldBack; the floor reaches the stages after it.)
+export function keepOfferings(w, gw) {
+  const made = offeringsMade(w, gw), want = {};
+  GREAT_WORK.offerings.forEach((o, stage) => {
+    if (stage < made) return;
+    const n = offeringOf(w, stage);
+    want[n.good] = Math.max(want[n.good] || 0, n.n);
+  });
+  for (const good of new Set(GREAT_WORK.offerings.map((o) => o.good))) setKeepAtLeast(w, good, want[good] || 0);
+  return want;
+}
+
 // Version 6.0.1 (the dangers-on run's habits, tests/v60/balance; test-script habits, not a game change; grandRun.js setHabits): workers moved to the crews. While the great
 // temple rises and the monuments' level stands short of workers (the Employment sheet: the guilds are staffed last), the player pauses every workplace that stands idle with
 // workers in it (grandRun.js freeIdle), so its workers go to the guilds; feedFirst puts them back to work when food runs low.
@@ -130,13 +147,15 @@ function followStall(w, gw, built) {
 // Version 6.0 (Wave 4, tests/v60/balance): base is another grand run to take on (the one with the new dangers on) and onMonth(w, events, month) a player's answers to them,
 // called after each month end's own play; both default to the run as it always was.
 // Version 6.0.1: habits the dangers-on run's player habits (grandRun.js setHabits, moveToCrews and followStall above; tests/v60/balance/dangerRuns.js), off as tuned.
-export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth = null, habits = false } = {}) {
+export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth = null, habits = false, events: eventsOpt = true } = {}) {
   const started = performance.now();
   const base = given || grandRun();
   setHabits(habits);
   const w = deserialize(serialize(base.w));
+  const player = eventsOpt === true ? eventPlayer() : eventsOpt || null;   // Version 7.0 (wave 3): true is a steady player of its own, a given one the base run's, false none (the events held)
+  if (player) releaseEvents(w);
   const built = [], yearly = {}, ranks = {}, offerings = [], dues = [], insane = [];
-  let street = null, temple = null, won = null, lowestGold = w.gold;
+  let street = null, temple = null, won = null, lowestGold = w.gold, foundedSave = null;
   const firstMonth = Math.round(w.day / DAYS_PER_MONTH) + 1;
   for (let m = firstMonth; m <= years * MONTHS_PER_YEAR; m++) {
     const events = [];
@@ -155,8 +174,10 @@ export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth 
     if (!street && w.gold > 2000) street = { day: w.day, laid: layStreet(w) };
     if (street && !street.north && w.gold > 3000) street.north = layNorthStreet(w);
     playMonth(w, built);
+    if (player) player.onMonth(w, events, m);   // Version 7.0 (wave 3): the city events, answered as a steady player does (tests/v70/balance/events.js)
     if (onMonth) onMonth(w, events, m);
-    if (!temple && w.milestone === 'seat') temple = foundTemple(w);
+    if (!temple && w.milestone === 'seat') { temple = foundTemple(w); if (temple) foundedSave = serialize(w); }   // Version 7.0 (wave 3): the city the day it was founded, for the floors test (tests/v70/balance)
+    if (temple && w.buildings[temple.id]) keepOfferings(w, w.buildings[temple.id]);   // Version 7.0 (wave 3): Keep at least for the offerings still owed
     if (habits) feedFirst(w);
     if (habits && temple && !won && w.buildings[temple.id] && w.buildings[temple.id].site) { followStall(w, w.buildings[temple.id], built); moveToCrews(w); }
     if (w.day % YEAR_DAYS === 0) {
@@ -164,7 +185,7 @@ export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth 
       yearly[w.day / YEAR_DAYS] = { gold: Math.round(w.gold), favour: w.court.favour, people: population(w), rank: w.milestone, course: gw ? gw.site.course : null, stage: gw ? greatWorkStatus(w, gw).stage : null, homes: housesOf(w).length, reason: gw ? gw.site.reason : null, crews: gw ? gw.site.crews.length : null, stock: gw ? { stone: Math.round(gw.site.stock.stone), bricks: Math.round(gw.site.stock.bricks) } : null, jobs: w.labour.jobs, workforce: w.labour.workforce, guilds: allBuildings(w).filter((b) => b.type === 'builders_guild').map((b) => b.staff).join('/'), burned: w.tally.buildingsBurned || 0, unfed: housesOf(w).filter((h) => h.met && h.met.food === false).length };
     }
   }
-  return { w, base, street, temple, won, ranks, offerings, dues, yearly, built, lowestGold, insane, elapsed: performance.now() - started };
+  return { w, eventRec: player ? player.rec : null, foundedSave, base, street, temple, won, ranks, offerings, dues, yearly, built, lowestGold, insane, elapsed: performance.now() - started };
 }
 
 let shared = null;
