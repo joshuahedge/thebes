@@ -183,17 +183,19 @@ export function plagueMonth(world, events = null) {
 // The buildings whose work stops now, a Set of ids, or null when no plague is under way: every workplace in a quarantined district, and every
 // workplace within PLAGUE.workReach tiles of a sick home no staffed physician reaches (a physician's cover keeps the work going). Houses and
 // services are not stopped: production (src/sim/production.js produceDay) reads this once a day.
-// Version 6.0 (Wave 4 fix): the answer is kept for the day while the buildings, the sick homes and the quarantines are as they were (production asks once a day, and the
-// sheets ask for every workplace they show), so a city of workplaces and sick homes is not walked once per question. Callers read the Set and never change it.
-const haltedMemo = new WeakMap();   // world -> { key, out }
+// Version 6.0 (Wave 4 fix): the answer is kept while the day, the buildings, the sick homes, the quarantines and the physicians' cover are as they were (production asks once a
+// day, and the sheets ask for every workplace they show), so a city of workplaces and sick homes is not walked once per question. The cover is judged by the identity of
+// healthCoverage's map, which serviceCover.js renews whenever a physician's staff, pause or fire stage or the roads change: a day's labour moving staff between the tick and
+// a sheet's question gives the same answer a run with no sheet open would. Callers read the Set and never change it.
+const haltedMemo = new WeakMap();   // world -> { key, cover, out }
 export function plagueHalted(world) {
   const a = world.hazards.plague.active;
   if (!a) return null;
   const held = quarantines(world), sick = sickHomes(world);
   const key = `${world.day}|${buildingsVersion(world)}|${[...held.keys()].join(';')}|${sick.map((b) => b.id).join(',')}`;
-  const memo = haltedMemo.get(world);
-  if (memo && memo.key === key) return memo.out;
   const cover = sick.length ? healthCoverage(world) : null;
+  const memo = haltedMemo.get(world);
+  if (memo && memo.key === key && memo.cover === cover) return memo.out;
   const out = new Set();
   const spots = sick.filter((b) => (cover.get(b.id) || 0) < HEALTH.staffedAt);
   if (held.size || spots.length) {
@@ -203,7 +205,7 @@ export function plagueHalted(world) {
       if (held.has(districtKey(b)) || spots.some((s) => b.x <= s.x + s.w - 1 + r && b.x + b.w - 1 >= s.x - r && b.y <= s.y + s.d - 1 + r && b.y + b.d - 1 >= s.y - r)) out.add(b.id);
     }
   }
-  haltedMemo.set(world, { key, out });
+  haltedMemo.set(world, { key, cover, out });
   return out;
 }
 // Why one building's work has stopped, or null: 'quarantine' (its district is shut) or 'plague' (a sick home near it no physician reaches).

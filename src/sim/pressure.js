@@ -233,6 +233,9 @@ export const greatWorkRising = (world) => allBuildings(world).some((b) => b.type
 // The first day a due may be taken (ruling 789): a city loaded from a version 8 save (hazards.graceUntil is its load day + GRACE_DAYS) owes its first due a year after
 // that load, so a save loaded a month before a year's start is not billed at once; 0 for a new city (and for a test world whose grace was moved to the future or
 // the past, which has no load day).
+// Coupling to know: the load day is inferred from graceUntil - GRACE_DAYS, not recorded, so anything that sets graceUntil another way reads as a load on that day: src/dev/v60/base.js
+// endGrace sets it to today, which gives a "load" GRACE_DAYS ago, and its year's wait is over already (GRACE_DAYS is longer than a year), so a scene is not held back. Record the load
+// day in the world (a migration field) if graceUntil is ever set to a day less than a year short of a day the due should be taken.
 export function dueFromDay(world) {
   const load = world.hazards.graceUntil - GRACE_DAYS;
   return load > 0 && load <= world.day ? load + DAYS_PER_YEAR : 0;

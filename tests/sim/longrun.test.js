@@ -13,6 +13,9 @@ import { noNewDangers } from '../v60/b1/grace.js';
 // meets raids where a real one would.
 const RAIDER_ENTRIES_48 = [{ x: 47, y: 24 }, { x: 24, y: 0 }];
 
+// Version 6.0 (ruling 689, kept visible): the runs below measure the game before the new dangers, so noNewDangers holds the grace open. That takes the unanswered village's
+// exposure to year-10 raids and plagues out of THIS test on purpose (a wrecked temple in year 10 ends it); the dangers-on unanswered city is held by the "careless" run in
+// tests/v60/balance/adviceRuns.js (no defence, tribute, stocks or court answers, Advice judged at years 8, 12 and 15).
 // A realistic Stage 1 village built from the real starting treasury.
 function realVillage() {
   const w = noNewDangers(makeTestWorld({ size: 48, fertile: [[0, 0, 8, 48]], gold: ECONOMY.startGold, raiderEntries: RAIDER_ENTRIES_48 }));   // Version 6.0: this run measures the game before the new dangers (tests/v60/b1/grace.js, ruling 689): a wrecked temple in year 10 ends the unanswered village

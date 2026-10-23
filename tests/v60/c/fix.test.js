@@ -1,5 +1,5 @@
-// Version 6.0, Wave 4 fix batch 1 (track C's part; ruling 792 and the review's minors): a burnt Large plot is one empty Large lot again, the lot's readiness is kept for the day while the
-// buildings stand as they are, the advice asks once whether a Large plot stands, a Large plot below a Manor counts four plots' room for the "full home" first, the Manor goal's Show me
+// Version 6.0, Wave 4 fix batch 1 (track C's part; ruling 792 and the review's minors): a burnt Large plot is one empty Large lot again, the lot's readiness is read afresh each time
+// (no answer kept across calls, so a sheet being open cannot change a day's draw), the advice asks once whether a Large plot stands, a Large plot below a Manor counts four plots' room for the "full home" first, the Manor goal's Show me
 // does not point at a card the dock hides, a locked layer says why on a tap, a warned road preview keeps its warning over a bridge, Home progress's tick says a Townhouse on a small plot
 // grows no further, and Show me for a tower leaves out a spot with no road while one with a road fits. Each set up both ways.
 import { describe, it, expect } from '../../harness.js';
@@ -16,7 +16,8 @@ import { hasLargePlot } from '../../../src/sim/advice.js';
 import { firstMet } from '../../../src/sim/firsts.js';
 import { FIRSTS } from '../../../src/data/firsts.js';
 import { nextItemFor, goalById } from '../../../src/sim/goals.js';
-import { housesOf, removeBuilding, buildingsVersion, touchBuildings } from '../../../src/sim/world.js';
+import { housesOf, removeBuilding } from '../../../src/sim/world.js';
+import { vacancies } from '../../../src/sim/immigration.js';
 import { createLayersPicker } from '../../../src/ui/layersPicker.js';
 import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 import { createPlacement, ghostsFor, toolPreview, nearestFit } from '../../../src/ui/placement.js';
@@ -79,25 +80,34 @@ describe('v60 c fix: a burnt Large plot is one empty Large lot (ruling 792)', ()
 });
 function BUILDINGS_FOOT(type) { const b = { storehouse: [2, 2] }[type]; return b[0] * b[1]; }
 
-describe('v60 c fix: a lot\'s readiness and the Large plot question are kept while the buildings stand as they are', () => {
-  it('answers a lot\'s readiness from one record in a day, and anew when a building goes (the version moves), a day passes or a lot is stocked', () => {
+describe('v60 c fix: a lot\'s readiness is read afresh, and the Large plot question is kept while the buildings stand as they are', () => {
+  it('answers a lot\'s readiness from the world as it stands at the moment of asking (no answer is kept across calls: ruling 445)', () => {
     const { w, parts } = served();
     const lot = lotAt(w);
     expect(lotReady(w, lot)).toBe(true);
-    parts.bazaar.store.pottery = 0;                                      // not a change the buildings' version sees: the day's answer stands
-    expect(lotReady(w, lot)).toBe(true);
-    w.day += 1;
-    expect(lotReady(w, lot)).toBe(false);                                // a new day re-reads the bazaar's stall
+    parts.bazaar.store.pottery = 0;                                      // stock moves inside a day, and a sheet asking between ticks must see what the tick sees
+    expect(lotReady(w, lot)).toBe(false);
     parts.bazaar.store.pottery = 100;
+    expect(lotReady(w, lot)).toBe(true);
+    parts.well.paused = true;                                            // a pause the buildings' version never sees
+    expect(lotReady(w, lot)).toBe(false);
+    parts.well.paused = false;
     removeBuilding(w, parts.statue1.id);
-    removeBuilding(w, parts.statue2.id);                                 // the buildings changed: asked again at once, and the street is plain now
+    removeBuilding(w, parts.statue2.id);                                 // the street is plain now
     expect(lotReady(w, lot)).toBe(false);
-    const before = buildingsVersion(w);
-    touchBuildings(w);
-    expect(buildingsVersion(w)).toBe(before + 1);
     expect(lotReady(w, lotAt(w, 20, 11))).toBe(false);                    // another lot: its own answer
-    stockLot(w, lot);                                                    // stocking a lot clears the record
+    stockLot(w, lot);
     expect(lotReady(w, lot)).toBe(false);
+  });
+  it('the tick and a sheet asking between ticks agree: a question asked before the stock moves does not hold the later answer', () => {
+    const run = (sheetFirst) => {
+      const { w, parts } = served();
+      const lot = lotAt(w);
+      if (sheetFirst) expect(vacancies(w).some((v) => v.h.id === lot.id)).toBe(true);   // the court's sheet asks at the day's start
+      parts.bazaar.store.pottery = 0;                                                    // the carts move stock inside the tick
+      return vacancies(w).some((v) => v.h.id === lot.id);                                // the deserters card's room() asks after
+    };
+    expect([run(false), run(true)]).toEqual([false, false]);
   });
 
   it('knows whether a Large plot stands: none until one is laid, one once it is, and none again when it goes', () => {

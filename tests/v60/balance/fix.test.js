@@ -67,4 +67,22 @@ describe('v60 balance fix: the building a band strikes first (ruling 787)', () =
     warn(bare, EAST);
     expect(towerItem(bare).fix.target).toEqual({ x: EAST.x + 0.5, y: EAST.y + 0.5 });           // nothing for the band to strike: beside the entry, as before
   });
+
+  it('puts a two-sided raid\'s tower by the band whose first strike has the fewer towers in range: the first band\'s while neither has one, the second\'s once the first is guarded', () => {
+    const w = city();
+    const east = addRaw(w, 'trading_post', 24, 14), west = addRaw(w, 'trading_post', 4, 14);
+    staffAll(w);
+    w.raid.clockDay = 0;
+    warn(w, EAST, { target: 'trading_post', size: 12, second: { entry: { ...WEST }, dir: 'west', size: 4 } });
+    expect(towersNeeded(12) > 1).toBe(true);
+    expect(towerItem(w).fix.target).toEqual(centre(east));                                      // neither band's strike is guarded: the first band's
+    addRaw(w, 'tower', 26, 15);
+    staffAll(w);
+    const a = towerItem(w);
+    expect(a.fix.target).toEqual(centre(west));                                                 // a tower now stands by the east strike: the west band's has none
+    expect(showMeRefusal(w, 'tower', a.fix.target)).toBe(null);
+    addRaw(w, 'tower', 6, 15);
+    staffAll(w);
+    expect(towerItem(w).fix.target).toEqual(centre(east));                                      // one each: back to the first band's
+  });
 });

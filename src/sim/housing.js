@@ -1,7 +1,7 @@
 import { TIERS, MAX_TIER, LEAVE_CAP, DOWNGRADE_AFTER_MONTHS, useOf } from '../data/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { FOOD_GOODS, FOOD_SLOTS, HOUSEHOLD_GOODS } from '../data/goods.js';
-import { allBuildings, housesOf, buildingsVersion } from './world.js';
+import { allBuildings, housesOf } from './world.js';
 import { touchesRoad, roadReach, reachDistance, buildingsInReach } from './reach.js';
 import { isWorking } from './labour.js';
 import { desirabilityField, houseDesirability } from './desirability.js';
@@ -251,23 +251,18 @@ function lotNeeds(world, house) {
 // month's check stocks every home ahead of the tier it grows into, so a Manor newly moved into is judged at the month's end on what it was stocked for
 // (stockedFor), not on an empty larder it never had a delivery for.
 export function stockLot(world, house) {
-  lotMemo.delete(world);
   const wants = wantedNeeds(house);
   topUpHouse(world, house, wantedGoods(house), bazaarsByHouse(world).get(house.id), { kinds: kindsWanted(wants), tier: growingInto(house) });
   house.stockedFor = house.residents;
 }
 
 // Whether an empty Large plot may be moved into now: every row of its "Opens when" list met. (immigration.js lets arrivals move in as a Manor.)
-// Version 6.0 (Wave 4 fix): memoised per lot for a day while the buildings and roads stand as they are (the needs read the bazaars' stalls and the stores, which move
-// only with the day's work, and a lot just stocked clears it), so a month's arrivals batches and the sheets do not walk every empty lot's reach again and again.
-const lotMemo = new WeakMap();   // world -> { key, ready: Map lot id -> boolean }
+// Version 6.0 (Wave 4 fix): asked afresh every time. The needs read the bazaars' stalls, the stores' stock and the providers' staff, which move inside a day (the deserters card's
+// draw asks mid-tick, after the carts have moved stock, and the court's sheet asks between ticks), so an answer kept across calls would let a sheet being open change the draw
+// (ruling 445). vacancies() asks once per lot in a pass, so nothing is walked twice.
 export function lotReady(world, house) {
   if (!isLot(house)) return false;
-  const key = `${buildingsVersion(world)}|${world.roadVersion}|${world.day}`;
-  let m = lotMemo.get(world);
-  if (!m || m.key !== key) { m = { key, ready: new Map() }; lotMemo.set(world, m); }
-  if (!m.ready.has(house.id)) m.ready.set(house.id, Object.values(lotNeeds(world, house)).every(Boolean));
-  return m.ready.get(house.id);
+  return Object.values(lotNeeds(world, house)).every(Boolean);
 }
 
 // The desirability a home's checklist row asks of it (and the home sheet's "to keep" list for a plot at its top): a lot, the Manor's "to rise"; a Townhouse on

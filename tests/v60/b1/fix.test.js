@@ -156,6 +156,18 @@ describe('v60 b1 fix: the plague\'s work stop is kept for the day', () => {
     sickHomes(w);
     const edge = plagueHalted(w);                                                               // a day on: re-judged, whatever changed in between
     expect(edge === covered).toBe(false);
+    // a physician's staff is a change too, one the buildings' version never sees: the labour at the day's start moves it, a sheet asks between ticks, and both read the same
+    const s = town({ n: 4, residents: 20 });
+    const doc = addRaw(s.w, 'physician', 2, 12, { staff: BUILDINGS.physician.workers });
+    const farm3 = addRaw(s.w, 'farm_grain', 3, 16, { staff: BUILDINGS.farm_grain.workers });
+    startPlague(s.w, s.homes[0].id, []);
+    const staffed = plagueHalted(s.w);
+    expect(staffed.has(farm3.id)).toBe(false);
+    doc.staff = 0;                                                                               // the physician loses the crew: same day, same buildings, same sick homes
+    const unstaffed = plagueHalted(s.w);
+    expect([unstaffed === staffed, unstaffed.has(farm3.id)]).toEqual([false, true]);
+    doc.staff = BUILDINGS.physician.workers;
+    expect(plagueHalted(s.w).has(farm3.id)).toBe(false);
     // a quarantine is a change too: the same day, the answer moves
     const q = town({ n: 4, residents: 20 });
     addRaw(q.w, 'physician', 2, 12);
