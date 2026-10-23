@@ -37,6 +37,7 @@ import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
 import { nearestFit } from '../../../src/ui/placement.js';
 import { nearestTerrainTile } from '../../../src/ui/goalsList.js';
 import { answerCourt } from '../../v60/a/answer.js';
+import { releaseEvents } from '../../v70/e/hold.js';
 
 export const GRAND_YEARS = 10;
 export const GRAND_SIZE = 64;
@@ -180,7 +181,8 @@ function actOpen(w, fix, tried) {
 
 // Version 7.0 (Track A, ruling 960): the advice's tower is on a tile a road touches in range of the building struck first, or the road to lay first. The balance runs are tuned scripts whose
 // player placed the tower where Show me's search lands from that building's centre (6.0's fix), and a tower a tile elsewhere is a different run (the recorded wins and the debts swing
-// with it), so by default this driver keeps that hand, through the item's guard (the building struck first), and wave 3 re-tunes the runs to the new advice. tests/v70/a turns it off.
+// with it), so by default this driver keeps that hand, through the item's guard (the building struck first). tests/v70/a turns it off. Wave 3 (ruling 978) tried the new advice in the grand and great-work runs and kept
+// the hand for them: the real tower advice held the grand run and the dangers-on seed-5 great-work run but sank the other great-work runs (docs/superpowers/notes/2026-10-23-version-7-0-balance.md).
 let legacyTowers = true;
 export const setLegacyTowers = (on) => { legacyTowers = Boolean(on); };
 
@@ -289,14 +291,15 @@ export function sendTribute(w) {
 // Version 6.0 (Wave 4, tests/v60/balance): dangers true plays the run with the new dangers on (the grace from day 0), onMonth(w, events, month) a player's answers to them
 // (called after each month end's own play, and through the capital run's years too); both default to the run as it always was.
 // Version 6.0.1: seed is the world's seed (the capital run's: 5 as tuned); habits the player's moving workers out of idle workplaces (setHabits, above).
-export function runGrand({ years = GRAND_YEARS, dangers = false, onMonth = null, seed = 5, habits: withHabits = false } = {}) {
+export function runGrand({ years = GRAND_YEARS, dangers = false, onMonth = null, seed = 5, habits: withHabits = false, events: eventsPlayer = null, eventsFrom = 'start' } = {}) {
   const started = performance.now();
   skips = {};
   setHabits(withHabits);
   idlePaused.clear();
   monumentsPaused.length = 0;
-  const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE, dangers, onMonth, seed });
+  const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE, dangers, onMonth, seed, events: eventsFrom === 'start' ? eventsPlayer : null });
   const w = base.w;
+  if (eventsPlayer && eventsFrom !== 'start') releaseEvents(w);   // Version 7.0 (wave 3): the city events come from the grand years (7 on) when the capital years were held
   const atBase = { raids: w.tally.raids, beaten: w.tally.raidsBeaten, lost: w.tally.raidsLost, towers: allBuildings(w).filter((b) => b.type === 'tower').length, last: w.raid.last, soldiers: w.soldiers.length, gold: w.gold, day: w.day };   // the capital run's raids, before years 7-10
   const built = [], months = [], raids = [];
   // Two choices a player makes on the day, the capital run's own leftovers (no rule changed): the late run's clay fetch (the potters' storehouse
@@ -318,6 +321,7 @@ export function runGrand({ years = GRAND_YEARS, dangers = false, onMonth = null,
     sendTribute(w);
     answerCourt(w, { reserve: RESERVE });   // Version 6.0 (Track A, ruling 660): the court's letters and demands, as the advice names them
     playMonth(w, built);
+    if (eventsPlayer) eventsPlayer.onMonth(w, events, m);   // Version 7.0 (wave 3): the city events, answered as a steady player does (tests/v70/balance/events.js)
     if (onMonth) onMonth(w, events, m);
     const t = tiers(w);
     for (const tier of [7, 8, 9]) if (first[tier] === undefined && Object.keys(t).some((k) => Number(k) >= tier)) first[tier] = m;

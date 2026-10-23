@@ -5,6 +5,9 @@
 //   village  y3 y6 y10 home_need (17 homes held back by pottery: a storehouse);   capital y6 raid_towers (3 short);   late y8 illness, y10 illness, y12 home_need (the four Manors' street:
 //   a sphinx), y15 illness;   careless y8 y12 y15 raid_towers (no defence, no tribute: the towers first, then crime, illness; in debt, so the fixes cost more than the treasury holds);
 //   grand y7 illness, y8 illness, y9 raid_towers, y10 illness;   great work y12 home_need (a bazaar), y14 y16 y18 y20 stranded (a far good: Fetch it; y14 was a storehouse before the Wave 4 fix, ruling 787 and the rest moved the run).
+// Version 7.0 (wave 3, ruling 980): the late, careless and great-work runs play with the city events on (tests/v70/balance/events.js), so three of these points moved with the city they read: careless y15 home_need
+// (12 homes held back by pottery, a storehouse, now weighs 60 against the five towers' 50: the careless city's events took their defaults), great work y14 and y16 home_need (the bazaar's 33 homes at 99, four points
+// ahead of the far good's 95 at y14, and ahead of crime's 66 at y16, where the far good has gone). Every other point is as recorded above.
 import { describe, it, expect } from '../../harness.js';
 import { adviceRecords } from './adviceRuns.js';
 import { lateDangerRun, grandDangerRun } from './dangerRuns.js';
@@ -14,9 +17,9 @@ const TOP = {
   village: { 3: 'home_need', 6: 'home_need', 10: 'home_need' },
   capital: { 6: 'raid_towers' },
   late: { 8: 'illness', 10: 'illness', 12: 'home_need', 15: 'illness' },
-  careless: { 8: 'raid_towers', 12: 'raid_towers', 15: 'raid_towers' },
+  careless: { 8: 'raid_towers', 12: 'raid_towers', 15: 'home_need' },
   grand: { 7: 'illness', 8: 'illness', 9: 'raid_towers', 10: 'illness' },
-  great: { 12: 'home_need', 14: 'stranded', 16: 'stranded', 18: 'stranded', 20: 'stranded' },
+  great: { 12: 'home_need', 14: 'home_need', 16: 'home_need', 18: 'stranded', 20: 'stranded' },
 };
 
 function sensible(label, rows) {
