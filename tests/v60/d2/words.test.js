@@ -10,7 +10,7 @@ import { ECONOMY } from '../../../src/data/economy.js';
 import { RAIDS } from '../../../src/data/raids.js';
 import { setSpeed, place, paintHouses } from '../../../src/sim/commands.js';
 import { tickDay } from '../../../src/sim/clock.js';
-import { towersNeeded } from '../../../src/sim/raids.js';
+import { towersNeeded, workingTowers } from '../../../src/sim/raids.js';
 
 const idx = (id) => LESSON_STEPS.findIndex((s) => s.id === id);
 const said = (w, id) => D2_TEXT.steps[id](lessonFacts(w, LESSON_STEPS[idx(id)]));
@@ -112,7 +112,9 @@ describe('v60 d2 the lesson\'s words are the sim\'s', () => {
     expect(said(w, 'raid').text).toContain(`${DANGER_UI_TEXT.duration(w.raid.warning.arrives - w.day)} to go`);
     for (let d = 0; d < 200 && !w.raid.active; d++) { tickDay(w); if (w.speed === 0) setSpeed(w, 1); }
     expect(w.raid.active.raiders.length).toBeGreaterThan(0);
-    expect(said(w, 'raid').text).toBe(`The raiders are here: ${w.raid.active.raiders.length} on the map. Watch the towers stop them.`);
+    // Version 6.0.1 (ruling 822): what to do first, and the towers only when staffed towers stand (the sim's own count).
+    const towers = workingTowers(w);
+    expect(said(w, 'raid').text).toBe(towers > 0 ? `Watch ${towers > 1 ? 'your towers' : 'your tower'} stop the raiders: ${w.raid.active.raiders.length} on the map.` : `Watch what the raiders do: ${w.raid.active.raiders.length} on the map, and no staffed tower to stop them.`);
   });
   it('the end names the people and says the raid\'s result as the sim has it', () => {
     expect(D2_TEXT.endBody({ people: 93, won: true })).toContain('93 people live here');

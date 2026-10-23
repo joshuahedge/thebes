@@ -113,10 +113,12 @@ export const STAGES = {
     world.tally.largeUnlocked = 1;
     if (!(world.tally.largePlots > 0) && !world.newItems.includes(LARGE_PLOT.type)) world.newItems.push(LARGE_PLOT.type);
   },
-  // A small blaze in the bazaar (a firehouse already reaches it: the step before asked for one), as a spark in a Town would start it.
+  // A small blaze in the bazaar (a firehouse already reaches it: the step before asked for one), as a spark in a Town would start it. Version 6.0.1
+  // (ruling 820): it is marked staged, so its outcome is the lesson's: it goes out in a day or two even if the firehouse is undone, demolished, paused or
+  // short of staff after it was lit (src/sim/fire.js blazeDay), so the step always ends and never turns into a month of fire with the game paused.
   fire(world) {
     const b = firstOf(world, 'bazaar');
-    if (b && world.tally.fires === 0) igniteBuilding(world, b.id);
+    if (b && world.tally.fires === 0 && igniteBuilding(world, b.id)) b.fire.staged = true;
   },
   // The Market town's cards (the tower comes with it, as updateMilestone gives them: "New" tags and all), and the raid clock started today so
   // the first warning is raised on the next day. A real city starts both at 250 people.

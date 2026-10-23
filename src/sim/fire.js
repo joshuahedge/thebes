@@ -178,10 +178,12 @@ export function fireDay(world, events = null) {
   forgetBurnDays(world);
 }
 
-// A blaze's day: fought when covered and staffed; out at need, a fire after FIRE.blazeDays.
+// A blaze's day: fought when covered and staffed; out at need, a fire after FIRE.blazeDays. Version 6.0.1 (ruling 820): a blaze the lesson staged
+// (f.staged, src/sim/lesson.js STAGES.fire; only the lesson's own city, never saved) is fought every day, so it always goes out in its need days and never
+// grows, spreads or pauses the game, whatever the player did to the firehouse after it was lit.
 function blazeDay(world, b, cover, day, events) {
   const f = b.fire;
-  const staffed = (cover.get(b.id) || 0) >= FIRE.staffedAt;
+  const staffed = Boolean(f.staged) || (cover.get(b.id) || 0) >= FIRE.staffedAt;
   f.days += 1;
   if (staffed) f.fought += 1;
   if (f.fought >= f.need) { putOut(world, b, events); return; }

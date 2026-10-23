@@ -77,6 +77,7 @@ export function createCelebrations({
   const queue = [];
   const recent = [];        // { tier, text, why, reward }: the last captions, newest first, in full
   let node = null;          // the caption on screen
+  let nodeItem = null;      // its item (drop() asks whether it is one to take down)
   let hideTimer = null;     // hides it after its tier's time
   let slotTimer = null;     // frees the row for the next caption; null while the row is free
   let more = null;          // the caption's More button
@@ -86,7 +87,7 @@ export function createCelebrations({
 
   function hide() {
     hideTimer = null;
-    if (node) { node.remove(); node = null; more = null; open = false; onChange(); }
+    if (node) { node.remove(); node = null; nodeItem = null; more = null; open = false; onChange(); }
   }
 
   function next() {
@@ -113,6 +114,7 @@ export function createCelebrations({
       more,
     ]);
     container.append(node);
+    nodeItem = item;
     shown = { at: now(), ms };
     hideTimer = setTimer(hide, ms);
     slotTimer = setTimer(next, Math.max(CHEER_GAP_MS, ms));
@@ -167,6 +169,18 @@ export function createCelebrations({
     },
     // Shows the next caption if the row is free and nothing holds it; cheap enough to call once a frame.
     resume() { if (slotTimer === null) next(); },
+    // Version 6.0.1: takes down only the captions test(item) picks ({ tier, text, lead, ... }): those waiting, and the one on screen, whose row then goes to
+    // the next caption waiting (as when a caption hides). Every other caption, showing or waiting, is left as it was, with its own timers. Recent keeps them all.
+    drop(test) {
+      for (let i = queue.length - 1; i >= 0; i--) if (test(queue[i])) queue.splice(i, 1);
+      if (!node || !nodeItem || !test(nodeItem)) return;
+      if (hideTimer !== null) clearTimer(hideTimer);
+      if (slotTimer !== null) clearTimer(slotTimer);
+      hideTimer = null;
+      slotTimer = null;
+      hide();
+      next();
+    },
     clear() {
       queue.length = 0;
       if (hideTimer !== null) clearTimer(hideTimer);
@@ -175,6 +189,7 @@ export function createCelebrations({
       slotTimer = null;
       const had = node !== null;
       node = null;
+      nodeItem = null;
       more = null;
       open = false;
       clear(container);

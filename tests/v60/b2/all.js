@@ -7,3 +7,4 @@ import './effects.test.js';
 import './moment.test.js';
 import './scenes.test.js';
 import './budget.test.js';
+import './caption.test.js';

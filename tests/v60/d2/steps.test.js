@@ -171,13 +171,14 @@ describe('v60 d2 steps: the wrong thing does not advance', () => {
     for (let d = 0; d < 6 && !done(w, 'fire'); d++) tickDay(w);
     expect([done(w, 'fire'), w.tally.blazesOut, bazaar.fire]).toEqual([true, 1, null]);
   });
-  it('fire: with the crew stood down the blaze grows and burns the bazaar down, and the step still ends (the lesson never traps)', () => {
+  it('fire: with the crew stood down the staged blaze still goes out in its days and the bazaar stands, so the step ends (Version 6.0.1, ruling 820: it used to grow and burn the bazaar down)', () => {
     const w = at('fire');
+    const bazaar = firstOf(w, 'bazaar'), need = bazaar.fire.need;
     for (const b of allBuildings(w)) if (b.type === 'firehouse') setPaused(w, b.id, true);
     setSpeed(w, 1);
     let days = 0;
     while (!done(w, 'fire') && days < 60) { tickDay(w); days++; }
-    expect([done(w, 'fire'), w.tally.blazesOut, burning(w).length, fireOver(w)]).toEqual([true, 0, 0, true]);
+    expect([done(w, 'fire'), days, w.tally.blazesOut, burning(w).length, fireOver(w), w.buildings[bazaar.id] === bazaar]).toEqual([true, need, 1, 0, true, true]);
   });
   it('tower: no warning is no step done; a warned raid needs staffed towers, and raiders that come end the step either way', () => {
     const w = at('tower');

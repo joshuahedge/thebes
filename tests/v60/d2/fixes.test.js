@@ -155,7 +155,7 @@ describe('v60 d2 the lesson\'s ring sits inside the free map', () => {
       await frame();
       const line = document.querySelector('#banner > .critical[data-code="raid_warning"]');
       expect([line !== null, line && getComputedStyle(line).display]).toEqual([true, 'none']);
-      expect(document.querySelector('#lesson .text').textContent.includes('Raiders come from')).toBe(true);
+      expect(document.querySelector('#lesson .text').textContent.includes('raiders come from')).toBe(true);
     } finally { s.cleanup(); }
     const before = await lessonAt('fire', [1280, 800]);
     try { expect(document.body.classList.contains('lesson-names-alert')).toBe(true); } finally { before.cleanup(); }
