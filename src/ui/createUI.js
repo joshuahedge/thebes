@@ -16,7 +16,7 @@ import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/ca
 import { walkersAt } from '../render/walkers.js';
 import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
-import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, LAYER_OVERLAYS } from '../render/overlays.js';
+import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, drawBankHint, LAYER_OVERLAYS } from '../render/overlays.js';
 import { LAYER_UNLOCK } from '../data/layers.js';
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
@@ -1019,6 +1019,7 @@ export function createUI({
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null, resolveSupplyGood(world, s.supplyGood));   // Ground brightens the tiles with room for the building being placed; Goods supply shows the picked good
         else if (spotsOn(s, world)) drawHouseSpots(g, world, r);                // Stage 4.7 (Task 4): the next house's Good and Fair spots, in this layer, while the house tool is on
+        if (s.mode === 'placing' && s.tool && s.tool.kind === 'building' && BUILDINGS[s.tool.type].water) drawBankHint(g, world, s.tool.type, r, s.tool.rot || 0);   // Version 7.0 (Track P): the banks a water-bound building can go on, lightly
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
         if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change
         const shapes = ghosts();                                                // refreshes the tint as well
@@ -1084,6 +1085,8 @@ export function createUI({
       confirmBar.element.remove();
       document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it, and the tabs' edge
       document.body.style.removeProperty('--panel-tabs-bottom');
+      document.body.style.removeProperty('--panel-sheet-top');   // Version 7.0 (Track P): and the sheet's place under the minimap
+      document.body.classList.remove('panel-sheet');
       delete root.dataset.mode;
       delete root.dataset.guidance;
       root.style.removeProperty('--guidance-max');

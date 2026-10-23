@@ -75,7 +75,7 @@ export function createCityEventsUi(ctx) {
       }),
       el('p', { class: 'small muted consequence', id: `${sid}-note`, text: note }),
       why ? el('p', { class: 'small coral why-not', id: `${sid}-why`, text: `${why}.` }) : null,
-      why && go ? el('div', { class: 'fix refusal-fix' }, [button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${why}`, onClick: go })]) : null,
+      why && go ? el('div', { class: 'fix refusal-fix' }, [button(T.showMe, { class: 'show-me', 'aria-label': `${T.showMe}: ${why}`, onClick: go })]) : null,
     ]);
   }
 

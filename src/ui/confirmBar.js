@@ -67,6 +67,9 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     element.hidden = false;
     const p = placement.preview();
     const demolish = s.tool.kind === 'demolish';
+    // Version 7.0 (Track P): see the reason line below. While everything is met the line says what the building needs, unless the effect line has the room (a service's "Gives
+    // water to 6 homes"), so a met spot is never a taller bar than a refused one.
+    const why = s.tool.kind === 'building' ? (p.why || (p.effect || p.score ? '' : p.needs) || '') : '';
     // A demolish refunds, or (Stage 3) costs gold when it clears rubble: "Refund 7" or "20 gold", never a negative refund.
     const costText = demolish ? (p.refund > 0 ? `${T.refund} ${p.refund}` : p.refund < 0 ? DANGER_UI_TEXT.demolishCost(-p.refund) : '') : (p.costText || (p.cost ? `${p.cost} gold` : ''));
     // The words are the title, then `lines` (the cost, balance, reason, effect, nicer and monument lines): a portrait terrain bar lets the title sit
@@ -80,7 +83,10 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
         // A touch plan that skips tiles says how many in amber (placement review P5): what it lays is fine, the rest is passed over.
         // A refusal the conditions row already says word for word (a terrain building's "Needs 2 of 4 tiles on clay") is not said twice: the line
         // stays in the bar for tests and tools but takes no room (hidden), so the bar stays under half the screen on a small phone (UX rule 2).
-        el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' || (p.skipped && p.skipped.length) ? 'amber' : 'muted'}`, text: p.text, hidden: p.state === 'bad' && (p.conditions || []).some((c) => c.state === 'cant' && c.text === p.text) }),
+        // Version 7.0 (Track P, ruling 1008): a building's reason line is the why line below (every rule that fails, with the counts, led by what the colour means; while everything
+        // is met, what the building needs). The older line stays in the page, hidden, as the first reason alone (tests and tools read it).
+        el('div', { class: `reason small ${p.state === 'bad' ? 'coral' : p.state === 'warn' || (p.skipped && p.skipped.length) ? 'amber' : 'muted'}`, text: p.text, hidden: Boolean(why) || (p.state === 'bad' && (p.conditions || []).some((c) => c.state === 'cant' && c.text === p.text)) }),
+        why ? el('div', { class: `why small ${p.state === 'bad' ? 'coral' : p.state === 'warn' ? 'amber' : 'muted'}`, text: why }) : null,
         // The effect takes the empty reason line when there is nothing to warn about, so the bar never grows a line. Homes
         // served read in teal; "no homes in reach yet" is not a gain, so it reads muted.
         // Stage 3: the score parts it would change ride on the same line ("Gives water to 6 homes · +3 Culture", spec 4.19).

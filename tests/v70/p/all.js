@@ -2,3 +2,6 @@
 // tests/run-tests.ps1 -Grep "v70 p" runs the track's tests.
 import './lessonCard.test.js';
 import './keys.test.js';
+import './desktop.test.js';
+import './placement.test.js';
+import './unbuilt.test.js';
