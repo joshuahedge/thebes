@@ -1,4 +1,5 @@
 import { describe, it, expect } from '../harness.js';
+import { seasonAt } from '../../src/sim/seasons.js';
 import { granaryStage, bazaarStage, farmStage, FARM_CYCLE_DAYS } from '../../src/render/art/stages.js';
 import { ART, slotFor } from '../../src/render/art/registry.js';
 import { granary, bazaar, farmGrain, PLAIN_STAGE } from '../../src/render/art/services.js';
@@ -70,7 +71,7 @@ describe('life art', () => {
     const world = { day: 3 };
     expect(slotFor({ type: 'granary', store: { grain: BUILDINGS.granary.capacity } })).toBe('granary.s3');
     expect(slotFor({ type: 'bazaar', store: {} }, world)).toBe('bazaar.s0');
-    expect(slotFor({ type: 'farm_grain', id: 1, staff: 10, paused: false, blocked: null }, world)).toBe('farm_grain.g2');
+    expect(slotFor({ type: 'farm_grain', id: 1, staff: 10, paused: false, blocked: null }, world)).toBe('farm_grain.g2.peret');   // Version 7.0 (Track S): and the season of day 3 (Peret)
     expect(slotFor({ type: 'farm_grain', id: 1, staff: 10, paused: false, blocked: null })).toBe('farm_grain');
     expect(slotFor({ type: 'house', tier: 2 }, world)).toBe('house.t2');
     expect(slotFor({ type: 'well' }, world)).toBe('well');
@@ -132,7 +133,7 @@ describe('life art', () => {
     renderer.renderFrame(w, createCamera({ x: 18, y: 14, zoom: 1 }), { view: { width: 400, height: 300 } });
     expect(asked).toContain('granary.s3');
     expect(asked).toContain('bazaar.s1');                                     // 50 of 300
-    expect(asked).toContain(`farm_grain.g${farmStage(w, farm)}`);
+    expect(asked).toContain(`farm_grain.g${farmStage(w, farm)}.${seasonAt(w).season}`);   // Version 7.0 (Track S): a farm also names its season
     expect(farmStage(w, farm)).toBeGreaterThan(0);                            // staffed, so growing
     expect(asked.includes('granary') || asked.includes('bazaar') || asked.includes('farm_grain')).toBe(false);
   });

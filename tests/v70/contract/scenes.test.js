@@ -48,7 +48,7 @@ describe('v70 contract dev scenes', () => {
       expect(said['v70-season-flood'].endsWith('akhet (blend 0)')).toBe(true);
       expect(said['v70-season-growing'].endsWith('peret (blend 0)')).toBe(true);
       expect(said['v70-season-harvest'].endsWith('shemu (blend 0)')).toBe(true);
-      expect(said['v70-night']).toBe('v70-night: light day (dark 0), day and night on');
+      expect(said['v70-night']).toBe('v70-night: light night (dark 1), lamps 1, day and night on');   // Track S: the scene holds the loop at the night's middle
       expect(said['v70-quay'].startsWith('v70-quay: river at ')).toBe(true);
       expect(said['v70-quay'].includes('none')).toBe(false);
     } finally { r.cleanup(); }

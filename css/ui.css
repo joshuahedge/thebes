@@ -1496,6 +1496,18 @@ body:not(.reduce-motion) .lesson-lit { animation: lesson-lit 1.4s ease-in-out in
 
 /* (separator) */
 /* ── v70 s (Track S) ── the season in the top bar, the Settings rows. ── */
+/* The season's name under the date (src/ui/hud.js): a second line, as the forecast is under the gold, that adds no width: the zero-width item sits at
+   the date's right edge and its words run left beneath the neighbouring numbers (direction: rtl), so a phone's numbers keep their one row at every
+   text size. Where the numbers have wrapped to two rows (.tight) it is hidden from the eye but still read with the date. */
+#topbar .stat.date { display: grid; grid-auto-flow: column; justify-content: start; align-items: center; column-gap: 3px; }
+#topbar .stat.date .season { grid-column: 1 / span 2; grid-row: 2; width: 0; overflow: visible; justify-self: end; direction: rtl; font-size: calc(12px * var(--ui-scale)); line-height: 1.2; color: var(--ink-soft); white-space: nowrap; }
+/* A portrait phone at 100% or 125% text keeps the score chip at the lower right, absolute (line 743), under the date: the season stands on that line to the chip's left. */
+body[data-layout="portrait"]:not([data-text-size="150"]) #topbar .stats:not(.tight) .stat.date .season { position: absolute; right: calc(4px + var(--chip-w, 0px) + 8px); bottom: 6px; grid-area: auto; width: auto; direction: ltr; line-height: 1; }
+#topbar .stats.tight .stat.date .season { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+/* Settings: the Sound switch's note and the Day and night note sit under their rows like the other notes; the Effects volume is the Music volume's row. */
+#sheet .sound-note, #sheet .daynight-note { margin: 2px 0 6px; }
+/* While Sound is Off the Music and Effects rows are dimmed (menu.js); they stay real controls, and the note says why. */
+#sheet .row.silenced { opacity: 0.55; }
 /* ── end v70 s ── */
 
 /* (separator) */

@@ -30,7 +30,10 @@ import { FIRSTS } from '../../../src/data/firsts.js';
 import { ACHIEVEMENTS } from '../../../src/data/achievements.js';
 import { GOALS, EVENT_GOALS } from '../../../src/data/goals.js';
 import { V70_TIPS, V70_FIRSTS, V70_ACHIEVEMENTS, V70_GOALS, V70_EVENT_GOALS, V70_BUILDINGS, V70_GOODS } from '../../../src/data/v70.js';
-import { lightAt, drawLight } from '../../../src/render/light.js';
+import { FARM_TYPES } from '../../../src/render/art/stages.js';
+import { makeCanvas } from '../../helpers/canvas.js';
+import { makeDraw } from '../../../src/render/art/ctx.js';
+import { lightAt } from '../../../src/render/light.js';
 import { v70Ground, v70Walkers, v70Light } from '../../../src/render/v70.js';
 import { createV70Seams } from '../../../src/ui/v70/index.js';
 import { DEFAULT_SETTINGS, MUSIC_VOLUMES, createSettings } from '../../../src/ui/settings.js';
@@ -127,14 +130,15 @@ describe('v70 contract city events', () => {
 });
 
 describe('v70 contract seasons and light', () => {
-  it('reads the month\'s season from the flood calendar with no blend yet, the same for the same day', () => {
+  it('reads the month\'s season from the flood calendar, the same for the same day (Track S added the blend over a season\'s last month: tests/v70/s/seasons.test.js)', () => {
     expect(SEASON_IDS).toEqual(['akhet', 'peret', 'shemu']);
     const w = createWorld({ seed: 2 });
     const seen = [];
     for (let m = 0; m < 24; m++) {
       w.day = m * 30 + 7;
       const s = seasonAt(w);
-      expect([m, s]).toEqual([m, { season: SEASONS[m % 12], next: SEASONS[m % 12], blend: 0 }]);
+      const last = SEASONS[(m + 1) % 12] !== SEASONS[m % 12];   // the month before a change: the land turns (blend 7/30 on this day)
+      expect([m, s]).toEqual([m, { season: SEASONS[m % 12], next: last ? SEASONS[(m + 1) % 12] : SEASONS[m % 12], blend: last ? 7 / 30 : 0 }]);
       expect(seasonAt(w)).toEqual(s);
       seen.push(s.season);
     }
@@ -143,16 +147,19 @@ describe('v70 contract seasons and light', () => {
     expect([...new Set(seen)].sort()).toEqual([...SEASON_IDS].sort());
   });
 
-  it('keeps full daylight on the real clock, with the loop\'s length and phases named for Track S', () => {
+  it('keeps the loop\'s length and phases named for Track S, begins each loop in daylight, and draws nothing in it (the light itself: tests/v70/s/light.test.js)', () => {
     expect([LIGHT.cycleMs, LIGHT_PHASES]).toEqual([360000, ['dawn', 'day', 'dusk', 'night']]);
-    for (const t of [0, 90000, 180000, 270000, 359999, 1e9]) expect([t, lightAt(t)]).toEqual([t, { phase: 'day', dark: 0, lamps: 0 }]);
+    for (const t of [0, 90000, 180000, 360000, 5 * 360000]) expect([t, lightAt(t).phase]).toEqual([t, "day"]);
+    expect(lightAt(0)).toEqual({ phase: 'day', dark: 0, warm: 0, lamps: 0 });
+    const w = sample();
+    const range = { x0: 0, y0: 0, x1: 10, y1: 10 };
     const calls = [];
     const g = new Proxy({}, { get: (o, k) => () => calls.push(k) });           // any draw call is recorded
-    const w = sample();
-    v70Ground(g, w, { x0: 0, y0: 0, x1: 10, y1: 10 }, 0, 'gentle');
-    v70Light(g, w, { x0: 0, y0: 0, x1: 10, y1: 10 }, { ctx: g, W: 100, H: 100, ox: 0, oy: 0, dpr: 1 }, 0, 'gentle', DEFAULT_SETTINGS);
-    drawLight(g, w);
-    expect(calls).toEqual([]);                                                  // nothing drawn yet
+    v70Light(g, w, range, { ctx: g, W: 100, H: 100, ox: 0, oy: 0, dpr: 1 }, 0, 'gentle', DEFAULT_SETTINGS);
+    expect(calls).toEqual([]);                                                  // by day the light draws nothing: no tint, no lamps
+    let threw = null;
+    try { v70Ground(makeDraw(makeCanvas(60, 60).getContext("2d"), 2, 2), w, range, 0, "gentle"); } catch (e) { threw = e.message; }
+    expect(threw).toBe(null);   // the season's wash (Track S) and the boats' wake (Track T)
     expect(v70Walkers(w, 0, { x0: 0, y0: 0, x1: 63, y1: 63 }, 'full')).toEqual([]);
   });
 
@@ -207,10 +214,12 @@ describe('v70 contract lists, seams and salts', () => {
     for (const g of V70_EVENT_GOALS) expect(EVENT_GOALS).toContain(g);
   });
 
-  it('joins the tracks\' art into the registry, and no building\'s slot moves while it is empty', () => {
+  it('joins the tracks\' art into the registry, and the only slots that move are the farms\' season states (Track S), each registered', () => {
     for (const [slot, entry] of Object.entries(V70_ART)) expect(ART[slot]).toBe(entry);
     const w = sample();
-    expect(allBuildings(w).filter((b) => v70Slot(b, w) !== null)).toEqual([]);
+    const moved = allBuildings(w).filter((b) => v70Slot(b, w) !== null);
+    expect(moved.length).toBeGreaterThan(0);
+    for (const b of moved) expect([b.type, FARM_TYPES.includes(b.type), Boolean(ART[v70Slot(b, w)])]).toEqual([b.type, true, true]);
   });
 
   it('makes the four interface seams in track order, each the seam\'s shape and empty', () => {

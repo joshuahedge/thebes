@@ -26,6 +26,8 @@ import { noteView } from '../render/overlays.js';
 import { supplyNeeded } from '../sim/monuments.js';
 import { huntRest } from '../sim/wildlife.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
+import { seasonAt } from '../sim/seasons.js';
+import { SEASON_TEXT, seasonMonths } from './text.js';
 import { LARGE_TEXT, S47_PRESSURE_TEXT, buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
   contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
 import { ANOTHER_TEXT } from './areaText.js';
@@ -293,6 +295,10 @@ export function createSheets({ container, store, world, placement, cameraControl
     const d = summaryData(world);
     const body = el('div', { class: 'body' });
     body.append(row(T.difficulty, DIFFICULTY_NAMES[d.difficulty] || d.difficulty));
+    // Version 7.0 (Track S, ruling 933): the season by name, with its months, here too: the top bar's line under the date hides where the numbers wrap
+    // (a phone with a big treasury), so the summary a tap on the bar opens always says it.
+    const season = seasonAt(world).season;
+    body.append(row(SEASON_TEXT.row, SEASON_TEXT.rowValue(SEASON_TEXT.names[season], seasonMonths(season))));
     // Version 5.0 (Task 1): the figures stay here; what holds the city back is its own sheet, one tap away (from the first home).
     if (adviceOn()) body.append(el('div', { class: 'actions advice-link' }, [button(T.advice, { class: 'open-advice', 'aria-label': `${T.advice}: ${T.adviceLead.toLowerCase()}`, onClick: () => onOpenAdvice() })]));
     // Stage 4.5 (Task 4b): the month ahead, as the city stands now (the sim's forecast): headed by what the balance is, so the gold

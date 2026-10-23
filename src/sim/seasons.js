@@ -6,8 +6,15 @@ import { SEASONS } from '../data/tips.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 
 // { season, next, blend }: season is the month's SEASONS id ('akhet' the flood, 'peret' the growing, 'shemu' the harvest); next the season
-// the land is turning to; blend how far it has turned, 0 (all season) to 1 (all next). Track 0's: next is season and blend 0.
+// the land is turning to; blend how far it has turned, 0 (all season) to 1 (all next). The land turns over a season's last month (ruling
+// 930): through it `blend` climbs a thirtieth a day from 0 to 29/30 and `next` is the season that follows, so at the month's end the new
+// season starts at 0 looking as the old one finished (no jump). In every other month next is the season itself and blend 0.
 export function seasonAt(world) {
-  const season = SEASONS[Math.floor(world.day / DAYS_PER_MONTH) % MONTHS_PER_YEAR];
-  return { season, next: season, blend: 0 };
+  const month = Math.floor(world.day / DAYS_PER_MONTH) % MONTHS_PER_YEAR;
+  const season = SEASONS[month], next = SEASONS[(month + 1) % MONTHS_PER_YEAR];
+  if (next === season) return { season, next: season, blend: 0 };
+  return { season, next, blend: (((world.day % DAYS_PER_MONTH) + DAYS_PER_MONTH) % DAYS_PER_MONTH) / DAYS_PER_MONTH };
 }
+
+// The season a day is in, for a caller that has only the day (the season the top bar and the music name).
+export const seasonOfDay = (day) => seasonAt({ day }).season;

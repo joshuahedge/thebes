@@ -13,7 +13,8 @@
 //   schedule notes a little ahead on that light timer;
 //   calls destroy() when the page goes.
 // The music reads everything else through its options when it needs it: enabled() (settings music), volume() (0-1),
-// seed() (the city's seed, or the title city's), mood() ('calm' or 'raid', musicMood of the city on screen).
+// seed() (the city's seed, or the title city's), mood() ('calm', 'tense' or 'raid', musicMood of the city on screen; Version 7.0 added tense) and,
+// from Version 7.0 (Track S), season() (the season the city's date is in, which colours the bars: SEASON_MUSIC).
 // It respects the iPhone silent switch as the effects do (navigator.audioSession.type = 'ambient', set by createSfx).
 //
 // How it is made (Track G). Everything is synthesised in the page: no files, no third-party code.
@@ -33,8 +34,22 @@
 //   scheduleOffline(ctx, ...) schedules bars on an OfflineAudioContext with the same code (the level test and
 //   tools/music.html, which plays and renders a sample to listen to).
 
-// The music's mood for a world: 'raid' while a raid warning or a raid is on (ruling 267), else 'calm'. Complete.
-export const musicMood = (world) => (world && world.raid && (world.raid.warning || world.raid.active) ? 'raid' : 'calm');
+// Version 7.0 (Track S, rulings 936-937): the season moods and the tense variant. The numbers are in src/data/seasons.js (a leaf).
+//   SEASON_MUSIC  a colour for each season (akhet, peret, shemu) laid over the bars the generator composes: how much of the pluck is kept, how
+//                 often the flute comes, the drones, the drum's teks, the pluck's level and brightness and the echo's.
+//   MOOD_TENSION  the tension each mood moves to: calm 0, tense 0.45, raid 1.
+import { SEASON_MUSIC, MOOD_TENSION } from '../data/seasons.js';
+
+// The music's mood for a world: 'raid' while a raid warning or a raid is on (ruling 267); Version 7.0 (ruling 937): 'tense' while another danger
+// is live (a plague, a drought or a locust swarm warned or under way, or a building on fire); else 'calm'.
+export function musicMood(world) {
+  if (!world) return 'calm';
+  if (world.raid && (world.raid.warning || world.raid.active)) return 'raid';
+  const h = world.hazards;
+  if (h && ['plague', 'drought', 'locusts'].some((k) => h[k] && (h[k].warning || h[k].active))) return 'tense';
+  if (world.buildings && Object.values(world.buildings).some((b) => b && b.fire)) return 'tense';
+  return 'calm';
+}
 
 // Every number of the music (ruling 266: a taste call, so all of it is here).
 export const MUSIC = {
@@ -103,9 +118,10 @@ const DRUMS = {
 
 // Whether phrase p (four bars) has a ney line in its second and third bars: every MUSIC.neyEvery phrases, from a phrase
 // the seed picks (never the first, so the music starts with the pluck).
-export function neyPhrase(seed, p) {
-  const offset = Math.floor(musicDraw(seed, 0, 7) * MUSIC.neyEvery);
-  return p > 0 && (p + offset) % MUSIC.neyEvery === 0;
+// Version 7.0: `every` is the season's own (SEASON_MUSIC.neyEvery), MUSIC.neyEvery without one.
+export function neyPhrase(seed, p, every = MUSIC.neyEvery) {
+  const offset = Math.floor(musicDraw(seed, 0, 7) * every);
+  return p > 0 && (p + offset) % every === 0;
 }
 
 // Keeps a motif's notes inside the pluck's range (A3 to E♭5) by moving the whole motif an octave.
@@ -117,14 +133,16 @@ function inRange(notes) {
 
 // One bar: { notes: [{ voice, at, len, midi, vel }] (at and len in beats from the bar's start; drums have no midi),
 // drone: { tonic, fifth, low } (0-1, times MUSIC.level.drone), tension }. Pure: the same seed, bar and tension always
-// give the same bar.
-export function composeBar(seed, bar, tension = 0) {
+// give the same bar. Version 7.0 (ruling 936): `season` ('akhet', 'peret', 'shemu' or null: none, the bar as it always was) colours the bar
+// by SEASON_MUSIC, and the bar then carries `look: { tone, wet }`, the pluck's filter and the echo's send the scheduler moves to.
+export function composeBar(seed, bar, tension = 0, season = null) {
   const t = Math.max(0, Math.min(1, tension));
+  const S = season ? SEASON_MUSIC[season] || null : null;
   const p = Math.floor(bar / 4), pos = bar % 4;
   const notes = [];
   const anchor = pick([7, 11], musicDraw(seed, p, 1));
   const goal = p % 2 === 0 ? 11 : 7;                                        // a question on A, the answer on D
-  const ney = t === 0 && neyPhrase(seed, p) && (pos === 1 || pos === 2);
+  const ney = t === 0 && neyPhrase(seed, p, S ? S.neyEvery : MUSIC.neyEvery) && (pos === 1 || pos === 2);
   // The pluck.
   let motif;
   if (ney) motif = pick(SPARSE, musicDraw(seed, bar, 6)).map(([at, d, len]) => [at, d + 7, len]);
@@ -144,7 +162,8 @@ export function composeBar(seed, bar, tension = 0) {
   }
   motif.forEach(([at, d, len], i) => {
     if (i > 0 && musicDraw(seed, bar * 16 + i, 9) < 0.45 * t) return;    // the raid mood thins the pluck
-    const vel = (i === 0 ? 0.95 : 0.6 + 0.3 * musicDraw(seed, bar * 16 + i, 8)) * (1 + 0.15 * t);
+    if (i > 0 && S && S.keep < 1 && musicDraw(seed, bar * 16 + i, 19) >= S.keep) return;   // and the flood's season a little
+    const vel = (i === 0 ? 0.95 : 0.6 + 0.3 * musicDraw(seed, bar * 16 + i, 8)) * (1 + 0.15 * t) * (S ? S.pluck : 1);
     notes.push({ voice: 'pluck', at: at / 2, len: len / 2, midi: midiOfDegree(d), vel: Math.min(1, vel) });
   });
   // The ney.
@@ -153,15 +172,23 @@ export function composeBar(seed, bar, tension = 0) {
     for (const [at, d, len] of line) notes.push({ voice: 'ney', at: at / 2, len: len / 2, midi: midiOfDegree(d), vel: 0.8 + 0.2 * musicDraw(seed, bar * 16 + at, 16) });
   }
   // The drum.
-  const pattern = t >= 0.5 ? DRUMS.raid : pos === 3 ? DRUMS.turn : DRUMS.calm;
+  let pattern = t >= 0.5 ? DRUMS.raid : pos === 3 ? DRUMS.turn : DRUMS.calm;
+  if (S && t < 0.5) {
+    // A season's drum: the flood's teks come and go (a share of them), the harvest's pattern gains a light tek on the off beats.
+    if (S.drum < 1) pattern = pattern.filter(([voice, at]) => voice !== 'tek' || musicDraw(seed, bar * 16 + at * 2, 21) < S.drum);
+    else if (S.drum > 1) pattern = [...pattern, ['tek', 1, 0.3 * S.drum], ['tek', 5, 0.3 * S.drum]];
+  }
   for (const [voice, at, vel] of pattern) notes.push({ voice, at: at / 2, len: voice === 'dum' ? 0.5 : 0.25, vel: Math.min(1, vel * (1 + 0.35 * t) * (0.9 + 0.1 * musicDraw(seed, bar * 16 + at * 2, 17))) });
   const swell = 0.6 + 0.4 * musicDraw(seed, bar, 11);
-  return { notes, drone: { tonic: swell * (1 + 0.2 * t), fifth: (0.6 + 0.4 * musicDraw(seed, bar, 18)) * (1 - t), low: swell * t }, tension: t };
+  const bed = { tonic: swell * (1 + 0.2 * t), fifth: (0.6 + 0.4 * musicDraw(seed, bar, 18)) * (1 - t), low: swell * t };
+  if (S) { bed.tonic *= S.drone[0]; bed.fifth *= S.drone[1]; }
+  return S ? { notes, drone: bed, tension: t, look: { tone: S.tone, wet: S.wet } } : { notes, drone: bed, tension: t };
 }
 
-// The next bar's tension: a quarter of the way per bar towards the mood (ruling 267: four bars to fade in or out).
+// The next bar's tension: a quarter of the way per bar towards the mood's (ruling 267: four bars to fade in or out; Version 7.0: calm 0, tense
+// 0.45, raid 1: MOOD_TENSION).
 export const nextTension = (tension, mood) => {
-  const step = 1 / MUSIC.moodBars, target = mood === 'raid' ? 1 : 0;
+  const step = 1 / MUSIC.moodBars, target = MOOD_TENSION[mood] || 0;
   return tension < target ? Math.min(target, tension + step) : Math.max(target, tension - step);
 };
 
@@ -376,10 +403,16 @@ const PLAYERS = { dum: playDum, ney: playNey, pluck: playPluck, tek: playTek };
 const ORDER = ['dum', 'ney', 'pluck', 'tek'];   // who keeps a voice when one must go
 
 // Schedules bar `bar` to start at t0 (the audio clock's seconds) at `tension`; returns the composed bar.
-function scheduleBar(g, bar, t0, seed, tension) {
-  const composed = composeBar(seed, bar, tension), beat = beatSeconds(), barLen = barSeconds();
+function scheduleBar(g, bar, t0, seed, tension, season = null) {
+  const composed = composeBar(seed, bar, tension, season), beat = beatSeconds(), barLen = barSeconds();
   const L = MUSIC.level;
   for (const [name, level] of Object.entries(composed.drone)) g.drones[name].gain.gain.setTargetAtTime(level * L.drone, t0, barLen / 3);
+  // Version 7.0: the season's pluck brightness and echo, moved to over the bar (the first bar of a season: a gentle turn, never a step).
+  if (composed.look) {
+    const to = (param, v) => { if (param && typeof param.setTargetAtTime === 'function') param.setTargetAtTime(v, t0, barLen / 2); };
+    to(g.pluckBus.frequency, composed.look.tone);
+    to(g.send.gain, L.wet * composed.look.wet);
+  }
   const notes = composed.notes.slice().sort((a, b) => (ORDER.indexOf(a.voice) - ORDER.indexOf(b.voice)) || (a.at - b.at));
   const plucks = composed.notes.filter((n) => n.voice === 'pluck').sort((a, b) => a.at - b.at);
   // Plucks are scheduled in time order (each cuts the one before), after the drum and the ney have their voices.
@@ -393,13 +426,13 @@ function scheduleBar(g, bar, t0, seed, tension) {
 // is scheduled when the render reaches the look-ahead before it (ctx.suspend), as tick() does live, so only a bar or two
 // of notes exist at a time (a render with every note made up front is many times slower). The level test and
 // tools/music.html render with it.
-export function scheduleOffline(ctx, { seed = 1, bars = 9, volume = 0.3, mood = () => 'calm' } = {}) {
+export function scheduleOffline(ctx, { seed = 1, bars = 9, volume = 0.3, mood = () => 'calm', season = () => null } = {}) {
   const g = buildGraph(ctx);
   g.master.gain.setValueAtTime(masterGain(volume), 0);
   let tension = 0;
   const one = (bar) => {
     tension = bar === 0 && mood(0) === 'raid' ? 1 : nextTension(tension, mood(bar));
-    scheduleBar(g, bar, bar * barSeconds() + 0.05, seed, tension);
+    scheduleBar(g, bar, bar * barSeconds() + 0.05, seed, tension, season(bar));
   };
   one(0);
   for (let bar = 1; bar < bars; bar++) ctx.suspend(bar * barSeconds() + 0.05 - MUSIC.lookahead).then(() => { one(bar); ctx.resume(); });
@@ -416,6 +449,7 @@ function defaultCreate() {
 // gesture; timer(fn, ms): how a fade-out's suspend waits (tests).
 export function createMusic({
   context = null, create = defaultCreate, enabled = () => false, volume = () => 0.3, seed = () => 1, mood = () => 'calm',
+  season = () => null,                                   // Version 7.0: the season on screen ('akhet', 'peret', 'shemu') or null (src/audio/music.js composeBar)
   timer = (fn, ms) => setTimeout(fn, ms), cancelTimer = (id) => clearTimeout(id),
 } = {}) {
   let ctx = context, g = null, hidden = false, destroyed = false, quieting = null;
@@ -479,7 +513,7 @@ export function createMusic({
       if (g.nextAt < now) g.nextAt = now + 0.05;
       while (g.nextAt < now + MUSIC.lookahead) {
         g.tension = nextTension(g.tension, mood());
-        scheduleBar(g, g.bar, g.nextAt, seed(), g.tension);
+        scheduleBar(g, g.bar, g.nextAt, seed(), g.tension, season());
         g.bar += 1;
         g.nextAt += barSeconds();
       }
