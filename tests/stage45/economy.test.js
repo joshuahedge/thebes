@@ -14,7 +14,7 @@ import { ECONOMY, FORECAST } from '../../src/data/economy.js';
 import { TIERS } from '../../src/data/housing.js';
 import { DAILY_POOL } from '../../src/data/daily.js';
 import { GOALS } from '../../src/data/goals.js';
-import { TUTORIAL_CARDS } from '../../src/data/tutorial.js';
+import { INTRO_CARDS } from '../../src/data/tutorial.js';
 import { TIPS, TIP_FIRST_DELAY_MS } from '../../src/data/tips.js';
 import { cardInfo, shownItems } from '../../src/ui/cards.js';
 import { toolPreview } from '../../src/ui/placement.js';
@@ -117,13 +117,15 @@ describe('s45 forecast (cards and the confirm bar)', () => {
   it('puts "Costs N a month · N workers" on every card that has a bill, from the sim, and nothing on roads, plots and monuments', () => {
     const w = city();
     w.milestone = 'capital';                                          // every card unlocked
-    expect(cardInfo(w, 'farm_grain').upkeepText).toBe('Costs 46 a month · 10 workers');
-    expect(cardInfo(w, 'well').upkeepText).toBe('Costs 3 a month');
-    expect(cardInfo(w, 'booth').upkeepText).toBe(`Costs ${monthlyBill('booth').bill} a month · 4 workers`);
+    // Version 6.0 (Track A) (ruling 640): a Capital's bills are its rank's (costScale), each rounded per building: the card says the sim's own bill.
+    expect(cardInfo(w, 'farm_grain').upkeepText).toBe(`Costs ${monthlyBill('farm_grain', w).bill} a month · 10 workers`);
+    expect(monthlyBill('farm_grain', w).bill).toBeGreaterThan(monthlyBill('farm_grain').bill);
+    expect(cardInfo(w, 'well').upkeepText).toBe(`Costs ${monthlyBill('well', w).bill} a month`);
+    expect(cardInfo(w, 'booth').upkeepText).toBe(`Costs ${monthlyBill('booth', w).bill} a month · 4 workers`);
     for (const t of ['road', 'house', 'demolish', 'statue', 'wall']) expect([t, cardInfo(w, t).upkeepText]).toEqual([t, '']);
     for (const category of ['homes', 'services', 'food', 'industry', 'defence', 'monuments']) {
       for (const item of shownItems(w, category)) {
-        const i = cardInfo(w, item), bill = BUILDINGS[item] && !i.locked ? monthlyBill(item) : null;
+        const i = cardInfo(w, item), bill = BUILDINGS[item] && !i.locked ? monthlyBill(item, w) : null;
         expect([item, i.upkeepText]).toEqual([item, bill && bill.bill > 0 ? S45_TEXT.upkeepLine(bill) : '']);
       }
     }
@@ -365,7 +367,7 @@ describe('s45 forecast (the warning tip)', () => {
 
 describe('s45 gold card, goal and daily goals', () => {
   it('has a seventh picture card, Gold, after Food, with its words from the wage and its picture and mark made', async () => {
-    expect(TUTORIAL_CARDS.map((c) => c.id)).toEqual(['road', 'homes', 'farm', 'food', 'gold', 'goals', 'ahead']);
+    expect(INTRO_CARDS.map((c) => c.id)).toEqual(['road', 'homes', 'farm', 'food', 'gold', 'goals', 'ahead']);   // Version 6.0 (Track D2): the seven read before a first city; six more come at first moments
     const c = CARDS4_TEXT.cards.gold;
     expect(c.words).toBe(`Homes pay taxes every month; every building costs upkeep and ${ECONOMY.wagePerWorker} gold for each worker. Build homes before luxuries.`);
     expect(c.words.split('. ').length).toBeLessThanOrEqual(2);
@@ -434,7 +436,7 @@ describe('s45 unemployment phase-in', () => {
     w.splits = {};
     expect(unemploymentPhase(w)).toEqual({ factor: 1, monthsLeft: 0 });
     expect(jobsPenalty(w).now).toBe(-85);
-    expect(WORLD_VERSION).toBe(8);                                    // world.splits.town is the start day, recorded since Stage 3 (versions 7 and 8 added nothing for it)
+    expect(WORLD_VERSION).toBe(9);                                    // world.splits.town is the start day, recorded since Stage 3 (versions 7 and 8 added nothing for it)
   });
   it('records the Town day when the city first becomes a Town, and the phase counts from it', () => {
     const w = makeTestWorld({ gold: 1000 });

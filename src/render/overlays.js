@@ -12,7 +12,7 @@ import { T as TILE, TERRAIN_BY_NAME, buildable } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 import { fitOf } from '../sim/fit.js';
 import { p, U, tileDiamond, quad } from './iso.js';
-import { UI, INK, TEAL_DARK } from './art/palette.js';
+import { UI, INK, TEAL_DARK, WOOD } from './art/palette.js';
 import { rgba, makeDraw } from './art/ctx.js';
 import { ART, slotFor } from './art/registry.js';
 import { GUIDE_PULSE_MS, DESIRABILITY_STEPS, VIEW_OUTLINE } from '../data/ui.js';
@@ -27,6 +27,7 @@ import { drawMonument } from './monuments.js';
 import { LAYER_HUE } from '../data/layers.js';
 import { drawProgress, drawSupply, drawWorkers } from './layers.js';   // Version 5.0 (Task 3): a cycle (layers.js reads tilePolys and mark), safe: each is used only inside functions
 import { layerUnlocked } from '../sim/layers.js';
+import { drawPlague } from './plague.js';   // Version 6.0 (Track B1): the Health layer's plague marks
 
 // Version 5.0 (Task 3, rulings 540-549): Home progress, Goods supply and Workers (src/render/layers.js) join the table after Ground, so the order of the first eleven is unchanged.
 export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers'];
@@ -458,6 +459,7 @@ function drawHomeRisk(g, world, range, kind) {
   g.hatchPolys(byBand[2], hue, { fill: 0, line: 0.6, gap: 5 });
   if (byBand[3].length) g.polys(byBand[3], crossHatch(g, hue, 3));
   for (const m of marks) mark(g, m, hue);
+  if (kind === 'health') drawPlague(g, world, range);   // Version 6.0 (Track B1, ruling 686): a sick home's heavy ring, a quarantined district's dashed edge
 }
 
 // The placement preview's tint (spec 4.7): a teal wash on the tiles a building would make nicer, coral hatching on
@@ -537,7 +539,7 @@ export function drawReachHighlight(g, world, b) {
   }
 }
 
-// ghost = { x, y, w, d, state: 'ok' | 'warn' | 'bad' | 'demolish' | 'gate' }. A gate (Stage 3, a wall tile drawn over a
+// ghost = { x, y, w, d, state: 'ok' | 'warn' | 'bad' | 'demolish' | 'gate' | 'bridge' (Version 6.0) }. A gate (Stage 3, a wall tile drawn over a
 // road) is an ok tile marked with an arch instead of a tick, so the wall tool shows where its gates will go.
 // A building's ghost adds (placement review P9, P10, P13):
 //   badge: true      its mark is a badge at least 20 screen px across at any zoom, not a glyph that shrinks with the map
@@ -572,6 +574,22 @@ function hatchedBad(g, x, y, w, d) {
   for (let k = left - (bottom - top); k < right; k += 4) g.line([k, bottom], [k + (bottom - top), top], UI.bad, 1, 0.8);
   g.restore();
   g.poly(pts, 'none', { stroke: UI.bad, strokeWidth: 1.4 });
+}
+
+// Version 6.0 (Track C, ghost state 'left'): ground in a dragged farm area that no farm covers, too little left for one more: amber hatching the other way to the coral's, and a
+// dashed amber outline on a white halo, so it reads from skipped ground (coral, crossed) by its pattern as well as its colour. Static.
+function hatchedLeft(g, x, y, w, d) {
+  const pts = quad(x, y, w, d, 0);
+  g.save();
+  g.clip(pts);
+  g.poly(pts, UI.warn, { alpha: 0.14 });
+  const left = p(x, y + d)[0], right = p(x + w, y)[0], top = p(x, y)[1], bottom = p(x + w, y + d)[1];
+  for (let k = left; k < right + (bottom - top); k += 4) g.line([k, top], [k - (bottom - top), bottom], UI.warn, 1, 0.8);
+  g.restore();
+  g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.4, strokeAlpha: 0.7 });
+  g.ctx.setLineDash([3 * g.scale, 2 * g.scale]);
+  g.poly(pts, 'none', { stroke: UI.warn, strokeWidth: 1.4 });
+  g.ctx.setLineDash([]);
 }
 
 // A tile's dashed amber outline on a white halo: the sign for a free tile where a road would join (with the road mark in it) and
@@ -629,6 +647,16 @@ function drawSilhouette(g, { world, b }) {
   ctx.restore();
 }
 
+// Version 6.0 (Track C): a bridge tile of a road's preview (ghost state 'bridge'): the usual blue tile with a deck of planks laid across it (three brown strokes on a pale halo),
+// and the wave mark in the middle; so a bridge reads from a road tile by its planks and its mark as well as by the water under it. Static: nothing moves.
+function bridgePlanks(g, x, y) {
+  for (const f of [0.22, 0.5, 0.78]) {
+    const a = p(x + 0.08, y + f), b = p(x + 0.92, y + f);
+    g.line(a, b, UI.halo, 2.4, 0.7);
+    g.line(a, b, WOOD, 1.2);
+  }
+}
+
 export function drawGhost(g, ghost) {
   const { x, y, w, d, state, tiles, joins, badge } = ghost;
   const pts = quad(x, y, w, d, 0);
@@ -656,11 +684,13 @@ export function drawGhost(g, ghost) {
     if (state === 'bad') { if (badge) ghostBadge(g, centre, '✕'); else g.text(centre, '✕', { size: 9, color: UI.bad }); }
     return;
   }
+  if (state === 'left') { hatchedLeft(g, x, y, w, d); return; }   // Version 6.0 (Track C): ground an area has but too little of for one more farm
   const color = state === 'warn' ? UI.warn : UI.ok;
-  g.poly(pts, color, { alpha: 0.15 });
+  g.poly(pts, color, { alpha: state === 'bridge' ? 0.32 : 0.15 });
   g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
   g.poly(pts, 'none', { stroke: color, strokeWidth: 1.4 });
-  const mark = state === 'warn' ? '!' : state === 'gate' ? '∩' : '✓';
+  if (state === 'bridge') bridgePlanks(g, x, y);
+  const mark = state === 'warn' ? '!' : state === 'gate' ? '∩' : state === 'bridge' ? '≈' : '✓';
   if (badge) ghostBadge(g, centre, mark); else g.text(centre, mark, { size: 9, color });
 }
 

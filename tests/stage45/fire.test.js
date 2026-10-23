@@ -74,11 +74,11 @@ describe('s45 fire flames', () => {
 });
 
 describe('s45 fire smoke', () => {
-  it('gives a blaze and a fire a smoke column under Full and Gentle, none under Still', () => {
+  it('gives a blaze and a fire a smoke column under Full and Gentle, and a still one under Still (Version 6.0, ruling 720: it holds, it does not rise)', () => {
     for (const [stage, puffs] of [['blaze', BLAZE_SMOKE_PUFFS], ['fire', SMOKE_PUFFS]]) {
       const { w } = oneBuilding(stage);
-      for (const motion of ['full', 'gentle']) expect([stage, motion, smokeCentres(calls(w, 1000, { motion })).length]).toEqual([stage, motion, puffs]);
-      expect([stage, smokeCentres(calls(w, 1000, { motion: 'still' })).length]).toEqual([stage, 0]);
+      for (const motion of ['full', 'gentle', 'still']) expect([stage, motion, smokeCentres(calls(w, 1000, { motion })).length]).toEqual([stage, motion, puffs]);
+      expect(smokeCentres(calls(w, 54321, { motion: 'still' }))).toEqual(smokeCentres(calls(w, 1000, { motion: 'still' })));   // the same puffs at any time
     }
   });
   it('fades the column in place under Gentle (no sideways drift, at most the rise limit up) and lets it rise under Full', () => {

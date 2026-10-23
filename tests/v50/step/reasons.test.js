@@ -29,11 +29,11 @@ import { showMeRefusal } from '../../../src/ui/adviceUi.js';
 const gold = (n) => `${n} gold`;
 const lineOf = (w, home) => { const step = nextStep(w, home); return { step, words: stepWords(w, home, step) }; };
 
-function street({ tier = 2, milestone = 'capital', homeAt = [12, 9], stock } = {}) {
+function street({ tier = 2, milestone = 'capital', homeAt = [12, 9], stock, large = false } = {}) {
   const w = makeTestWorld({ clay: [[24, 20, 4, 4]] });
   w.milestone = milestone;
   setRoad(w, 0, 10, 31, 10);
-  const home = addRaw(w, 'house', homeAt[0], homeAt[1], { tier, residents: tier ? TIERS[tier].capacity : 0, stockedFor: tier ? TIERS[tier].capacity : 0, stock: stock || {} });
+  const home = addRaw(w, 'house', homeAt[0], homeAt[1], { tier, residents: tier ? TIERS[tier].capacity : 0, stockedFor: tier ? TIERS[tier].capacity : 0, stock: stock || {}, ...(large ? { w: 2, d: 2, large: true } : {}) });
   return { w, home };
 }
 function pottery({ milestone = 'town' } = {}) {
@@ -245,13 +245,12 @@ describe('v50 step: the line on the house sheet', () => {
   });
 
   it('a checklist row whose fix is locked (a booth before Town) says the step line\'s Locked words and has no Show me; at Town it offers one', () => {
-    const townhouse = (milestone) => {
-      const { w, home } = street({ tier: 5, milestone, stock: {} });
+    const townhouse = (milestone) => {   // Version 6.0: an empty Large plot, whose Manor rows are what a Townhouse's next tier's were
+      const { w, home } = street({ tier: 0, milestone, homeAt: [12, 11], large: true });
       addRaw(w, 'well', 14, 11);
       addRaw(w, 'temple', 20, 11);
       const bazaar = addRaw(w, 'bazaar', 9, 11);
       bazaar.store = Object.fromEntries([['grain', 300], ...HOUSEHOLD_GOODS.map((g) => [g, 300])]);
-      home.stock = Object.fromEntries([['grain', 30], ...HOUSEHOLD_GOODS.map((g) => [g, Math.ceil(TIERS[5].capacity * GOODS[g].perResidentPerMonth * 2)])]);
       staffAll(w);
       return { w, home };
     };

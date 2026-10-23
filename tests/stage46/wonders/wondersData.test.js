@@ -24,7 +24,7 @@ const NEIGHBOURS = { great_sphinx: ['obelisk_large', 'colossus'], sun_temple: ['
 describe('s46 wonders data', () => {
   it('lists ten kinds in the order of their cost, the three new ones in their places (ruling 345: the great sphinx, not the statue)', () => {
     expect(NEW_MONUMENT_KINDS).toEqual(['great_sphinx', 'sun_temple', 'step_pyramid']);
-    expect(MONUMENT_KINDS).toEqual(['obelisk_small', 'obelisk_large', 'great_sphinx', 'colossus', 'mastaba_small', 'mastaba_large', 'sun_temple', 'pyramid_small', 'step_pyramid', 'pyramid_great']);
+    expect(MONUMENT_KINDS).toEqual(['obelisk_small', 'obelisk_large', 'great_sphinx', 'colossus', 'mastaba_small', 'mastaba_large', 'sun_temple', 'pyramid_small', 'step_pyramid', 'pyramid_great', 'great_temple']);   // Version 6.0 (Track A): the great temple, the dearest, last
     const gold = MONUMENT_KINDS.map((k) => MONUMENTS[k].founding);
     expect(gold).toEqual([...gold].sort((a, b) => a - b));
     expect(BUILDINGS.sphinx.w * BUILDINGS.sphinx.d).toBe(1);                       // the statue on the Homes card is untouched
@@ -83,7 +83,7 @@ describe('s46 wonders data', () => {
       expect([k, BUILDINGS[k].monument, BUILDINGS[k].needsRoad, BUILDINGS[k].cost, BUILDINGS[k].rotates, BUILDABLE.includes(k), ART[k].live, typeof ART[k].draw]).toEqual([k, true, true, MONUMENTS[k].founding, false, true, true, 'function']);
       expect(dimsOf(k, 1)).toEqual({ w: MONUMENTS[k].w, d: MONUMENTS[k].d, rot: 0 });
     }
-    expect(MONUMENT_KINDS.reduce((s, k) => s + prestige(k), 0)).toBe(PRESTIGE.scoreFull + NEW_MONUMENT_KINDS.reduce((s, k) => s + prestige(k), 0));   // the seven still make the score's 700
+    expect(MONUMENT_KINDS.filter((k) => k !== 'great_temple').reduce((s, k) => s + prestige(k), 0)).toBe(PRESTIGE.scoreFull + NEW_MONUMENT_KINDS.reduce((s, k) => s + prestige(k), 0));   // Version 6.0 (Track A): the great temple's share apart   // the seven still make the score's 700
   });
 
   it('brings each with one first, one tip and a How to play line, every number from the data (and says "seven of ten" for Seven wonders, ruling 396)', () => {

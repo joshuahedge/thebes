@@ -20,6 +20,7 @@ import { BUILDINGS } from './buildings.js';
 import { MONUMENTS } from './monuments.js';
 import { TIERS } from './housing.js';
 import { GOODS } from './goods.js';
+import { V60_GOALS, V60_EVENT_GOALS } from './v60.js';
 
 // Version 5.0 (Task 7): the street goals' one sentence (ruling 265's why).
 const STREET_WHY = 'Gardens, statues and sphinxes beside it raise it; workshops, farms and stores near it lower it. Its house sheet names the best one and where.';
@@ -52,7 +53,7 @@ export const GOALS = [
   { id: 'pottery', chapter: 'goods', from: 'town', text: 'Build a clay pit, storehouse and potter', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'clay_pit', n: 1 }, { kind: 'building', type: 'storehouse', n: 1 }, { kind: 'building', type: 'potter', n: 1 }] }, showMe: { category: 'industry', item: 'clay_pit', target: 'clay' } },
   { id: 'homes_townhouse', chapter: 'goods', from: 'town', text: 'Grow 8 homes to Townhouse or better', reward: GOAL_REWARD, need: { kind: 'tier', tier: 5, n: 8 }, showMe: { category: 'industry', item: 'potter', target: 'houses' } },
   { id: 'booth_gardens', chapter: 'goods', from: 'town', text: 'Build a booth and two gardens', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'booth', n: 1 }, { kind: 'building', type: 'garden', n: 2 }] }, showMe: { category: 'services', item: 'booth', target: 'houses' } },
-  { id: 'manor', chapter: 'goods', text: 'Grow a Manor from four Townhouses', reward: GOAL_REWARD, need: { kind: 'tier', tier: 6, n: 1 }, showMe: { category: 'homes', item: 'garden', target: 'houses' } },
+  { id: 'manor', chapter: 'goods', text: 'Grow a Manor on a Large plot', why: 'Small plots stop at Townhouse. A Large plot opens as a Manor once its needs are met nearby.', reward: GOAL_REWARD, need: { kind: 'tier', tier: 6, n: 1 }, showMe: { category: 'homes', item: 'large_plot', target: 'houses' } },   // Version 6.0 (Track C, ruling 701): a Manor no longer merges four plots
   { id: 'market_town', chapter: 'goods', text: 'Reach 250 people for a Market town', reward: GOAL_REWARD, need: { kind: 'people', n: 250 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },
   { id: 'trade_route', chapter: 'goods', from: 'market_town', text: 'Build a trading post and open a route', reward: GOAL_REWARD, need: { kind: 'all', of: [{ kind: 'building', type: 'trading_post', n: 1 }, { kind: 'routes', n: 1 }] }, showMe: { category: 'industry', item: 'trading_post', target: 'startRoad' } },
   // Stage 3: the raid clock starts at Market town; the defences come after the trade route (not on Peaceful).
@@ -88,6 +89,8 @@ export const GOALS = [
   { id: 'prestige_pyramids', chapter: 'monuments', from: 'capital', text: `Reach ${MONUMENTS.pyramid_small.unlock.prestige} prestige to unlock the small pyramid`, why: `The great pyramid unlocks at ${MONUMENTS.pyramid_great.unlock.prestige} prestige.`, reward: GOAL_REWARD, need: { kind: 'unlocked', type: 'pyramid_small' }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },
   { id: 'found_pyramid', chapter: 'monuments', from: 'capital', when: { kind: 'unlocked', type: 'pyramid_small' }, text: 'Found the small pyramid', reward: GOAL_REWARD, need: { kind: 'building', type: 'pyramid_small', n: 1 }, showMe: { category: 'monuments', item: 'pyramid_small', target: 'focus' } },
   { id: 'found_great_pyramid', chapter: 'monuments', from: 'capital', when: { kind: 'unlocked', type: 'pyramid_great' }, text: 'Found the great pyramid', reward: GOAL_REWARD, need: { kind: 'building', type: 'pyramid_great', n: 1 }, showMe: { category: 'monuments', item: 'pyramid_great', target: 'focus' } },
+  // Version 6.0 (src/data/v60.js V60_GOALS): Track A's and Track C's rows, from their own data files.
+  ...V60_GOALS,
 ];
 
 // The guided start (early-game pass 3.2) runs while any of these is open.
@@ -131,6 +134,8 @@ export const EVENT_GOALS = [
   // Stage 4.6 (ruling 371, Court track): the first time a letter from the court arrives (the guided one: the trading goal opens the court), it joins the
   // list at the front, and is met once that letter is answered (sent, refused or past its deadline; a card answered first counts too). Built as an event goal, not an opening-chain goal (ruling 380). Show me opens the summary, where the court's row is.
   { id: 'court_letter', trigger: 'court_letter', chapter: 'event', text: 'Answer the letter from the court', why: "Open it from the alert row or the summary. Sending what it asks earns the capital's favour.", reward: EVENT_REWARD, need: { kind: 'courtAnswered' }, showMe: null },
+  // Version 6.0 (src/data/v60.js V60_EVENT_GOALS): Track A's and Track B1's rows, from their own data files.
+  ...V60_EVENT_GOALS,
 ];
 
 // The opening chain (spec 4.1): Founded Thebes, already ticked when a city starts (an endowed start: it pays nothing and is

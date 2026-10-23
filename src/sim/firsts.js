@@ -2,14 +2,14 @@
 // interface can put a sparkle on the building. Pure checks against the world; data in src/data/firsts.js.
 import { FIRSTS, FIRST_REWARD } from '../data/firsts.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { TIERS } from '../data/housing.js';
+import { capacityOf } from './housing.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { allBuildings, housesOf, population, isFinished } from './world.js';
 import { lacksRoad } from './reach.js';
 import { builtNearOasis } from './oases.js';
 
 const centre = (b) => (b ? { x: b.x + b.w / 2, y: b.y + b.d / 2 } : { x: null, y: null });
-const isFull = (h) => h.tier >= 1 && h.residents >= TIERS[h.tier].capacity;
+const isFull = (h) => h.tier >= 1 && h.residents >= capacityOf(h);   // the home's own capacity (a Large plot below a Manor holds four plots' worth: housing.js capacityOf)
 const holdsFood = (b) => (BUILDINGS[b.type].stores || []).some((g) => FOOD_GOODS.includes(g) && (b.store[g] || 0) > 0);
 const holds = (good) => (b) => (BUILDINGS[b.type].stores || []).includes(good) && (b.store[good] || 0) > 0;
 const makes = (good) => (b) => Boolean(BUILDINGS[b.type].produces && BUILDINGS[b.type].produces.good === good);

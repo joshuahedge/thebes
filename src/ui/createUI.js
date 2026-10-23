@@ -65,6 +65,7 @@ import { el, setText, clear } from './components.js';
 import { createDanger } from './danger.js';
 import { createS46Seams } from './s46/index.js';
 import { createS47Seams } from './s47/index.js';
+import { createV60Seams } from './v60/index.js';
 import { s46Walkers, s46Ground } from '../render/s46.js';
 import { createScoreUi } from './scoreUi.js';
 import { createMonumentUi } from './monumentSheet.js';
@@ -242,7 +243,7 @@ export function createUI({
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
   monumentUi = createMonumentUi(seamCtx);
-  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams
+  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx), ...createV60Seams(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams; Version 6.0: each track's (src/ui/v60/index.js)
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},

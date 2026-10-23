@@ -44,6 +44,8 @@ export const MONUMENT_LOOK = {
   great_sphinx: { family: 'sphinx', height: 34, margin: 0.14 },
   sun_temple: { family: 'temple', height: 50, margin: 0.2 },
   step_pyramid: { family: 'step', height: 70, margin: 0.34 },
+  // Version 6.0 (Track A, ruling 652): the great temple, five broad terraces (a stage each) and the shrine on top: the step family, lower and wider.
+  great_temple: { family: 'step', height: 58, margin: 0.3 },
 };
 
 // ── the styles (Stage 4.6, ruling 343) ──

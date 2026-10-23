@@ -3,7 +3,9 @@ import { BUILDINGS } from '../data/buildings.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { PRESTIGE_UNLOCKS } from '../data/monuments.js';
-import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY } from '../sim/world.js';
+import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY } from '../sim/world.js';
+import { isReignState, isDemandState } from '../data/reign.js';
+import { isHazardState } from '../data/hazards.js';
 import { isOasis, isOrders, isCart, isQuota, isYearMade } from '../data/s47.js';
 import { MAP_VARIANTS } from '../data/map.js';
 import { isFloodState, isWildlifeState } from '../data/river.js';
@@ -22,9 +24,10 @@ export const REQUIRED = [
   'prestigeUnlocks', 'mapVariant',
   'mapSize', 'mapParams', 'flood', 'floodplain', 'wildlife', 'court', 'army',
   'oases', 'carts',
+  'reign', 'demands', 'hazards',
 ];
 
-export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY, ...STAGE45_TALLY, ...STAGE46_TALLY, ...STAGE47_TALLY];
+export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY, ...STAGE45_TALLY, ...STAGE46_TALLY, ...STAGE47_TALLY, ...STAGE60_TALLY];
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isCounts = (v) => isRecord(v) && Object.values(v).every(Number.isFinite);       // tally.made: good -> units
 const isStrings = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
@@ -76,6 +79,11 @@ function isStage46(w, cells) {
 
 // Stage 4.7 (version 8; src/data/s47.js has the shapes): the oases, the carts on the road, and every store's orders.
 const isStage47Building = (b) => !BUILDINGS[b.type].stores || isOrders(b.orders, BUILDINGS[b.type].stores);
+// Version 6.0 (version 9; the owners' data files have the shapes and tighten their own checks): the reign, the demands, the dangers;
+// per building the two optional fields, a home's large flag (a Large plot) and rubble's was (what stood there), absent on older ones.
+const isStage60Building = (b) => (b.large === undefined || (b.type === 'house' && typeof b.large === 'boolean'))
+  && (b.was === undefined || (b.type === 'rubble' && (b.was === null || isRecord(b.was))));
+const isStage60 = (w) => isReignState(w.reign) && isDemandState(w.demands) && isHazardState(w.hazards) && Object.values(w.buildings).every(isStage60Building);
 const isStage47 = (w) => Array.isArray(w.oases) && w.oases.every(isOasis) && Array.isArray(w.carts) && w.carts.every(isCart)
   && Object.values(w.buildings).every(isStage47Building);
 
@@ -111,6 +119,7 @@ export function validateWorld(w) {
   if (typeof w.mapVariant !== 'string' || !MAP_VARIANTS.includes(w.mapVariant) || !Object.values(w.buildings).every(isStage45Building)) return false;
   if (!isStage46(w, cells)) return false;
   if (!isStage47(w)) return false;
+  if (!isStage60(w)) return false;
   return true;
 }
 

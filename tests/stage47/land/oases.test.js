@@ -26,7 +26,7 @@ let cache = null;
 function maps() {
   if (cache) return cache;
   cache = [];
-  for (const size of SIZES) for (const variant of MAP_VARIANTS) for (let seed = 1; seed <= SEEDS; seed++) cache.push({ size, variant, seed, m: generateMap(seed, size, variant) });
+  for (const size of SIZES) for (const variant of MAP_VARIANTS) for (let seed = 1; seed <= (size > 80 ? 25 : SEEDS); seed++) cache.push({ size, variant, seed, m: generateMap(seed, size, variant) });
   return cache;
 }
 

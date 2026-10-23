@@ -6,6 +6,7 @@
 import { TIERS } from '../data/housing.js';
 import { buildingAt, makeBuilding, insertBuilding, removeBuilding } from './world.js';
 import { inBounds } from './grid.js';
+import { isLargePlot } from './largePlots.js';
 
 // The first tier whose homes are 2x2 (the Manor), and the tier a square's plots must have reached (the Townhouse).
 export const MERGE_TIER = TIERS.findIndex((t) => t && t.size === 2);
@@ -64,6 +65,9 @@ const shareOf = (n, k, i) => Math.floor(n / k) + (i < n % k ? 1 : 0);
 // is an empty plot, so a 2x2 home emptied of residents splits into four empty plots. Returns the four plots, NW, NE,
 // SW, SE.
 export function splitHouse(world, house) {
+  // Version 6.0 (Track C, ruling 616): a Large plot never splits. One emptied of people is a lot again (removeResidents already cleared its tier and
+  // stock), and one that drops below a Manor keeps its lot (housing.js); the callers' "an emptied 2x2 home splits" leaves it whole.
+  if (isLargePlot(house)) return [house];
   const { x, y, residents } = house;
   const stock = house.stock || {};
   const met = house.met || {};

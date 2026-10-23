@@ -55,6 +55,11 @@
 // hit a wall in their band's way: a band with none of them left that meets a standing wall, or (with chariots) rocky ground, while
 // attacking turns back (retreat; active.turned counts the bands turned), and one leaving slips away. The report adds byArchers,
 // byChariots, towersLost (towers enemy archers brought down) and turned when there are any.
+// Version 6.0 (Track B1, rulings 681-683; src/sim/strikes.js, draws.js): once the grace is over (hazards.graceUntil) a strike may wreck a building
+// to rubble (active.wrecked, active.wreckedKinds; each rubble tile has was) and a storehouse's goods are looted (active.taken: { good: units }; a granary's
+// food joins it); a band of CHIEFTAIN.fromSize or more has a chieftain (warning.chiefs: the band numbers; active.chiefs: [{ id, band, fell?, left? }], the raider
+// carrying chief: true, more hit points, a harder hand), and raidSize adds bandGrowth. The report (raid.last) adds wrecked, wreckedKinds, taken, chiefs and
+// chiefsFell when there are any. Events: 'raid_wreck' { id, kind, to } and 'raid_loot' { id, goods } (Track B2 draws them).
 // A day of a raid (raidDay): combat (combat.js); the end when no raider is left; retreat once RAIDS.retreatShare of the
 // raiders (rounded up) have fallen; then, unless a raider is fighting, the band waits out a strike or takes one step: to
 // the target it is after (attack), back to its entry (leave, after RAIDS.strikes strikes; retreat), or stops before a
@@ -68,7 +73,7 @@ import { DANGER_MOOD } from '../data/mood.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, population } from './world.js';
 import { isWorking } from './labour.js';
-import { costOf, riskOf, raidsOn } from './costs.js';
+import { costOf, riskOf, raidsOn, costScale } from './costs.js';
 import { spend } from './money.js';
 import { hash2 } from './rng.js';
 import { setSpeed } from './commands.js';
@@ -76,7 +81,9 @@ import { idx, ring, inBounds } from './grid.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { removeResidents } from './housing.js';
 import { splitHouse } from './merge.js';
-import { igniteBuilding } from './fire.js';
+import { STRIKES } from './strikes.js';
+import { dangerDraws, bandGrowth } from './draws.js';
+import { CHIEFTAIN } from '../data/hazards.js';
 import { flowField, tileCost } from './pathfinding.js';
 import { healWalls } from './defence.js';
 import { trainSoldiers, combatDay, soldiersHome } from './combat.js';
@@ -128,7 +135,8 @@ export function raidWealth(world) {
 export function raidSize(world) {
   if (world.raid.index === 0) return RAIDS.firstSize;
   // Stage 4.6 (ruling 336): favour's size step (src/sim/court.js, the Court track's); the Armies track keeps this call.
-  return favourRaidSize(world, baseRaidSize(world)) + wealthDraw(world);
+  // Version 6.0 (Track B1, ruling 683): and the years since the grace ended add raiders (bandGrowth: 0 until then).
+  return favourRaidSize(world, baseRaidSize(world)) + wealthDraw(world) + bandGrowth(world);
 }
 
 // The game year a day falls in (1 from the first day).
@@ -182,7 +190,8 @@ export const warningDirs = (w) => (w.second ? [w.dir, w.second.dir] : [w.dir]);
 // the warning appears (warning.tribute; null for the first raid, which cannot be paid off).
 // Stage 4.6 (ruling 336): times favour's factor (src/sim/court.js, the Court track's); the Armies track keeps this call and prices the
 // total of a mixed raid.
-export const tributeFor = (world, size) => Math.round(favourTributeFactor(world) * RAIDS.tributeShare * towersNeeded(size) * costOf(world, 'tower'));
+// Version 6.0 (ruling 622): times costScale's court (src/sim/costs.js, Track A's; 1 until it is filled in).
+export const tributeFor = (world, size) => Math.round(favourTributeFactor(world) * RAIDS.tributeShare * towersNeeded(size) * costOf(world, 'tower') * costScale(world).court);
 
 // The day a later warning appears (spec 4.13): RAIDS.laterMin to RAIDS.laterMax days after fromDay (the last raid's
 // arrival day, or the day a cancelled raid would have arrived), drawn by hash2(seed, the next raid's index, salt).
@@ -243,11 +252,21 @@ function raiseWarning(world, events) {
   if (wealth > 0) w.wealth = wealth;   // Stage 4.7 (ruling 470): the raiders the city's wealth drew, said in the warning
   if (second) w.second = second;
   else if (mix.boat > 0) w.second = { entry: { ...landing.bank }, dir: landing.dir, size: mix.boat, boat: true, from: { ...landing.from } };
+  const chiefs = chiefBands(world, w);
+  if (chiefs.length) w.chiefs = chiefs;
   r.warning = w;
   r.index = index + 1;
   if (first) setSpeed(world, 0);
   else if (world.speed > 1) setSpeed(world, 1);
-  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.wealth ? { wealth: w.wealth } : {}), ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}) });
+  if (events) events.push({ type: 'raid_warning', index, entry: { ...entry }, dir: w.dir, size, tribute: w.tribute, target: w.target, arrives: w.arrives, first, ...(w.wealth ? { wealth: w.wealth } : {}), ...(w.second ? { dirs: warningDirs(w), second: JSON.parse(JSON.stringify(w.second)) } : {}), ...(w.chiefs ? { chiefs: w.chiefs.slice() } : {}) });
+}
+
+// Version 6.0 (Track B1, ruling 683): the bands of a warned raid a chieftain leads, as band numbers (0, or 1 for a two-sided raid's second): every
+// band of CHIEFTAIN.fromSize raiders or more that goes on foot (a boat band has none), once the grace is over; [] otherwise (and never on Peaceful).
+function chiefBands(world, w) {
+  const d = dangerDraws(world);
+  if (!d.open || !d.raids) return [];
+  return warningBands(w).map((band, k) => (band.size >= CHIEFTAIN.fromSize && !band.boat ? k : -1)).filter((k) => k >= 0);
 }
 
 // The second band of a two-sided raid (ruling 317): an entry other than the first's, by hash2(seed, index, RAID_SALT.entry2),
@@ -395,6 +414,16 @@ function arrive(world, events) {
     struck: [], wait: 0, byTowers: 0, bySoldiers: 0, byArchers: 0, byChariots: 0, burned: 0, stolen: 0, shots: [], x: w.entry.x, y: w.entry.y, blocked: null, towerIds: [], fires: [], burnedKinds: [],
   };
   if (w.second) a.second = { entry: { ...w.second.entry }, dir: w.second.dir, x: w.second.entry.x, y: w.second.entry.y, phase: 'attack', targetId: null, struck: [], wait: 0, blocked: null, ...(w.second.boat ? { boat: true } : {}) };
+  // Version 6.0 (Track B1, ruling 683): the chieftain of each band the warning named is its first raider on foot: more hit points, a harder hand.
+  const chiefs = [];
+  for (const k of w.chiefs || []) {
+    const lead = raiders.find((u) => bandOf(u) === k && u.kind === 'foot');
+    if (!lead) continue;
+    lead.chief = true;
+    lead.hp = raiderHp('foot') * CHIEFTAIN.hpFactor;
+    chiefs.push({ id: lead.id, band: k });
+  }
+  if (chiefs.length) a.chiefs = chiefs;
   placeBand(a, 0);
   if (a.second) placeBand(a, 1);
   r.active = a;
@@ -415,8 +444,18 @@ function ringGoals(world, b) {
 // rubble, then a home; nearest first, ties to the lower id; one it can reach and neither band has struck.
 function pickTarget(world, a, k) {
   const rec = bandRec(a, k);
+  return chooseTarget(world, rec, a.target, rec.struck.length, (b) => bandKs(a).some((j) => bandRec(a, j).struck.includes(b.id)));
+}
+
+// Version 6.0 (Wave 4 fix, ruling 787): the building the band that enters at `entry` would strike first (strike number 0, the warned kind of a raid warned now:
+// raidTargetKind, or the kind a standing warning named), chosen exactly as pickTarget chooses it. Advice aims a tower here, not at the map's edge where the band
+// comes in; null when nothing can be reached.
+export function firstRaidTarget(world, entry, kind = raidTargetKind(world)) {
+  return chooseTarget(world, { x: entry.x, y: entry.y }, kind, 0, () => false);
+}
+
+function chooseTarget(world, rec, target, struckCount, taken) {
   const at = idx(world.size, rec.x, rec.y), here = { x: rec.x + 0.5, y: rec.y + 0.5 };
-  const taken = (b) => bandKs(a).some((j) => bandRec(a, j).struck.includes(b.id));
   const nearestOf = (match) => {
     const near = allBuildings(world).filter((b) => match(b) && !taken(b))
       .map((b) => ({ b, d: Math.hypot(b.x + b.w / 2 - here.x, b.y + b.d / 2 - here.y) }))
@@ -425,28 +464,18 @@ function pickTarget(world, a, k) {
     return null;
   };
   const lived = (b) => b.type === 'house' && b.residents > 0;
-  const want = RAIDS.pillage[rec.struck.length];
+  const want = RAIDS.pillage[struckCount];
   if (want) {
     const t = nearestOf((b) => (want === 'house' ? lived(b) : b.type === want));
     if (t) return t;
   }
-  const kinds = RAIDS.targets.includes(a.target) ? RAIDS.targets.slice(RAIDS.targets.indexOf(a.target)) : [];
+  const kinds = RAIDS.targets.includes(target) ? RAIDS.targets.slice(RAIDS.targets.indexOf(target)) : [];
   const groups = [...kinds.map((kind) => (b) => b.type === kind), (b) => b.type !== 'house' && b.type !== 'rubble' && !raidProof(b), lived];
   for (const match of groups) {
     const t = nearestOf(match);
     if (t) return t;
   }
   return null;
-}
-
-// The food a granary strike takes: RAIDS.foodShare of each good it holds, rounded up. Returns the units taken.
-function takeFood(b) {
-  let n = 0;
-  for (const good of Object.keys(b.store)) {
-    const take = Math.min(b.store[good], Math.ceil(b.store[good] * RAIDS.foodShare));
-    if (take > 0) { b.store[good] -= take; n += take; }
-  }
-  return n;
 }
 
 // The residents a home strike drives out: RAIDS.fleeShare of them, at least 1 (removeResidents; an emptied 2x2 home
@@ -463,13 +492,17 @@ function frighten(world, b) {
 // building is followed while it burns, see trackFires), and each raider of the band steals RAIDS.stealShare of the
 // treasury, at least RAIDS.stealMin and at most RAIDS.stealMax, never taking it below 0 (a granary burns too, but its
 // raiders take food, not gold). The band stays RAIDS.strikeDays days, this one included.
+// Version 6.0 (ruling 625): the blaze, the wreck and the loot are src/sim/strikes.js STRIKES' hooks, run in STRIKE_KINDS order (Track B1
+// fills wreck and loot; until then a strike is exactly the old one).
 function strike(world, a, k, b, events) {
   const rec = bandRec(a, k);
   let stolen = 0, food = 0, fled = 0;
   if (b.type === 'house') fled = frighten(world, b);
   else {
-    if (igniteBuilding(world, b.id, events, 'raid')) a.fires.push({ id: b.id, type: b.type });
-    if (b.type === 'granary') food = takeFood(b);
+    STRIKES.burn(world, a, b, events);
+    STRIKES.wreck(world, a, b, events);
+    const taken = STRIKES.loot(world, a, b, events);
+    if (b.type === 'granary') food = taken;
     else {
       for (let n = 0; n < crewOf(a, k).length; n++) {
         const take = Math.min(Math.max(0, world.gold), Math.max(RAIDS.stealMin, Math.min(RAIDS.stealMax, Math.round(world.gold * RAIDS.stealShare))));
@@ -514,6 +547,9 @@ function endRaid(world, events, won) {
     ...(a.byArchers ? { byArchers: a.byArchers } : {}), ...(a.byChariots ? { byChariots: a.byChariots } : {}), ...(a.towersLost ? { towersLost: a.towersLost } : {}), ...(a.turned ? { turned: a.turned } : {}),
     stolen: a.stolen, day: world.day, burnedKinds: a.burnedKinds.slice(), fires: a.fires.map((f) => ({ ...f })),
     ...(a.second ? { dirs: [a.dir, a.second.dir] } : {}), ...(a.foodStolen ? { foodStolen: a.foodStolen } : {}), ...(a.fled ? { fled: a.fled } : {}),
+    // Version 6.0 (Track B1): what the band wrecked and took, and its chieftains (how many led it and how many fell); absent when none.
+    ...(a.wrecked ? { wrecked: a.wrecked, wreckedKinds: a.wreckedKinds.slice() } : {}), ...(a.taken ? { taken: { ...a.taken } } : {}),
+    ...(a.chiefs ? { chiefs: a.chiefs.length, chiefsFell: a.chiefs.filter((c) => c.fell).length } : {}),
   };
   r.active = null;
   r.last = report;
@@ -540,6 +576,7 @@ function raidStep(world, events) {
     if (!a.second.struck) a.second.struck = [];
   }
   const { fightingBands } = combatDay(world, events);
+  fallenChiefs(a);
   if (!a.raiders.length) return endRaid(world, events, !a.left);
   if (a.size - a.raiders.length - (a.gone || 0) >= Math.ceil(a.size * RAIDS.retreatShare)) {
     for (const k of liveKs(a)) {
@@ -553,6 +590,21 @@ function raidStep(world, events) {
   for (const k of liveKs(a)) {
     if (world.raid.active !== a) return;                      // the last band has left: the raid is over
     if (!fightingBands.includes(k)) bandDay(world, a, k, events);
+  }
+}
+
+// Version 6.0 (Track B1, ruling 683): a chieftain no longer among the raiders and not gone with his band has fallen (counted once, c.fell): his band
+// loses heart and turns back (retreat), whatever it was doing. A band already leaving or retreating, or with no raider left, goes on as it was.
+function fallenChiefs(a) {
+  for (const c of a.chiefs || []) {
+    if (c.fell || c.left || a.raiders.some((u) => u.id === c.id)) continue;
+    c.fell = true;
+    const rec = bandRec(a, c.band);
+    if (a.raiders.some((u) => bandOf(u) === c.band) && rec.phase !== 'retreat' && rec.phase !== 'leave') {
+      rec.phase = 'retreat';
+      rec.targetId = null;
+      rec.wait = 0;
+    }
   }
 }
 
@@ -615,6 +667,7 @@ function reach(world, a, k, events) {
   const rec = bandRec(a, k);
   if (rec.phase === 'attack') return strike(world, a, k, world.buildings[rec.targetId], events);
   const n = crewOf(a, k).length;
+  for (const c of a.chiefs || []) if (c.band === k && !c.fell) c.left = true;   // a chieftain who leaves with his band has not fallen
   a.raiders = a.raiders.filter((u) => bandOf(u) !== k);
   a.gone = (a.gone || 0) + n;
   if (rec.phase === 'leave') a.left = true;

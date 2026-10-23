@@ -5,14 +5,14 @@
 import { MILESTONES } from '../data/progression.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings } from '../sim/world.js';
-import { goodMakers, moreOf, inputHolder, herdNear } from '../sim/advice.js';
+import { goodMakers, moreOf, inputHolder, herdNear, unmadeFix } from '../sim/advice.js';
 import { goodStoresFor } from '../sim/housing.js';
 import { GROUND, STEP_TEXT } from './nextStepText.js';
 import { costOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
 import {
-  NEED_NAMES, buildingName, goodName, plural, causeText, alertText, tierName, listText,
-  S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT,
+  NEED_NAMES, LARGE_TEXT, OPEN_TEXT, buildingName, goodName, plural, causeText, alertText, tierName, listText,
+  S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT, V60_ADVICE_WORDS, V60_REIGN_TEXT,
 } from './text.js';
 
 const homesText = (n) => plural(n, 'home', 'homes');
@@ -26,7 +26,9 @@ const an = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
 export const ADVICE_TEXT = {
   allWell: 'All is well: nothing is holding your city back.',
   // The next milestone, in place of problems: "Next: Town, at 150 people (you have 112)". At the last one there is none.
-  next: (milestone, people) => `Next: ${milestone.name}, at ${plural(milestone.population, 'person', 'people')} (you have ${people})`,
+  // Version 6.0 (review): a rank that needs a home of a tier too says so (the reign sheet's words, V60_REIGN_TEXT.nextRank), as the sim's milestoneNeedsMet asks.
+  next: (milestone, people, met = true) => (milestone.needs ? V60_REIGN_TEXT.nextRank(milestone, people, met)
+    : `Next: ${milestone.name}, at ${plural(milestone.population, 'person', 'people')} (you have ${people})`),
   last: (milestone) => `You have reached ${milestone.name}, the last milestone.`,
   more: (n) => `${plural(n, 'more problem is', 'more problems are')} not shown: fix these first.`,
   show: 'Show me', view: 'View',
@@ -56,6 +58,9 @@ const builds = (world, fix) => {
 // Version 5.0 (Task 3 review): each maker says where it goes, as the fix does: a maker bound to ground (the clay pit) on that ground, any other near the
 // building the cause names (the bazaar that would sell the good), never "near it" for the home.
 export function unmadeBuilds(world, good, cause = null) {
+  // Version 6.0 (Track C, ruling 586): no room beside the store that holds the input, so the Estate trick: the store of its own first (both buildings named and priced), then the workshop.
+  const trick = unmadeFix(world, { good });
+  if (trick && trick.open) return openBuilds(world, trick.open);
   const makers = goodMakers(good);
   const missing = makers.filter((t) => !allBuildings(world).some((b) => b.type === t));
   const at = cause && cause.id !== null && cause.id !== undefined ? world.buildings[cause.id] : null;
@@ -75,6 +80,10 @@ export function unmadeBuilds(world, good, cause = null) {
   const word = allBuildings(world).some((b) => b.type === more.item) ? `another ${name}` : an(name);
   return { types: [more.item], words: `${word}${BUILDINGS[more.item].terrain ? place(more.item) : by ? ` near the ${buildingName(by.type).toLowerCase()}` : place(more.item)}` };
 }
+// The Estate trick's buildings and words for a fix's `open` (src/sim/advice.js openWorkshop): step 'store' names and prices the store and the workshop, step 'maker' the workshop.
+const openBuilds = (world, o) => (o.step === 'store'
+  ? { types: [o.store, o.maker], words: OPEN_TEXT.adviceStore(o, world.buildings[o.holder] ? world.buildings[o.holder].type : o.store) }
+  : { types: [o.maker], words: OPEN_TEXT.adviceMaker(o, world.buildings[o.by] ? world.buildings[o.by].type : o.store) });
 // The price of a list of buildings (the sum of costOf; the placing rule's debt floor for the whole sum) and how it reads: "Clay pit and potter: 160 gold".
 const priceList = (world, types) => ({ gold: types.reduce((s, t) => s + costOf(world, t), 0), what: capitalised(listText(types.map((t) => buildingName(t).toLowerCase()))) });
 const capitalised = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -93,6 +102,12 @@ export function adviceWords(a, world) {
   const out = { what: '', why: '', fix: '', cost: '', short: false, action: null };
   switch (a.kind) {
     case 'home_need': {
+      if (d.need === 'large') {   // Version 6.0 (Track C): Townhouses with every need met and no Large plot yet: a Large plot is where a Manor grows
+        out.what = LARGE_TEXT.adviceWhat(a.count);
+        out.why = LARGE_TEXT.adviceWhy;
+        out.fix = a.fix ? LARGE_TEXT.adviceFix : '';
+        break;
+      }
       const n = a.count, c = causeText(d.cause, world, d.need) || { cause: '', fix: '' };
       out.what = `${homesText(n)} ${n === 1 ? 'is' : 'are'} held back by ${NEED_NAMES[d.need].toLowerCase()}`;
       out.why = forMany(c.cause, n);
@@ -119,9 +134,10 @@ export function adviceWords(a, world) {
       out.why = `The city holds ${d.held} ${goods}; ${drain} more ${drain === 1 ? 'was' : 'were'} used than made last month, and ${homesText(a.count)} need${a.count === 1 ? 's' : ''} it`;
       // A store makes nothing: when the fix is a store (the maker has nowhere to put what it makes) the words say it gives room, beside the maker it goes by.
       const by = a.fix && a.fix.near !== undefined ? world.buildings[a.fix.near] : null;
-      out.fix = !a.fix ? '' : BUILDINGS[a.fix.item].stores
-        ? `Build ${builds(world, a.fix)}${by ? ` near the ${buildingName(by.type).toLowerCase()}` : ''} so there is room to keep more`
-        : `Build ${builds(world, a.fix)} to make more`;
+      out.fix = !a.fix ? '' : a.fix.open ? `Make ${goodWord(d.need)}: ${openBuilds(world, a.fix.open).words}`   // Version 6.0: the Estate trick (both buildings named, both priced below)
+        : BUILDINGS[a.fix.item].stores
+          ? `Build ${builds(world, a.fix)}${by ? ` near the ${buildingName(by.type).toLowerCase()}` : ''} so there is room to keep more`
+          : `Build ${builds(world, a.fix)} to make more`;
       break;
     }
     case 'workers_short': {
@@ -165,7 +181,12 @@ export function adviceWords(a, world) {
       out.fix = d.warned ? RAID_TEXT.towers(world) : `Build ${plural(d.buildN, 'tower', 'towers')} (≈ ${d.buildCost} gold)`;
       break;
     }
-    default: break;
+    default: {
+      // Version 6.0 (contract section 9): a new kind's words come from its track's V60_ADVICE_WORDS entry (src/ui/text.js).
+      const words = V60_ADVICE_WORDS[a.kind];
+      if (words) Object.assign(out, words(a, world));
+      break;
+    }
   }
   // The price of the fix, and the button.
   const f = a.fix;
@@ -175,6 +196,10 @@ export function adviceWords(a, world) {
     let afford = a.afford;
     if (a.kind === 'home_need' && d.cause.code === 'good_unmade') {          // every maker the words name, priced (the sum)
       const p = priceList(world, unmadeBuilds(world, d.cause.good || d.need).types);
+      out.cost = ADVICE_TEXT.cost(p.what, p.gold);
+      afford = canAfford(world, p.gold);
+    } else if (a.kind === 'running_out' && f.open) {                          // Version 6.0: the Estate trick's buildings, priced together
+      const p = priceList(world, openBuilds(world, f.open).types);
       out.cost = ADVICE_TEXT.cost(p.what, p.gold);
       afford = canAfford(world, p.gold);
     }

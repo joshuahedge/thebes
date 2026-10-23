@@ -146,13 +146,13 @@ describe('s46 final ui: the lodge and wharf sheets (ruling 456)', () => {
 });
 
 describe('s46 final ui: the speed steps name keys only when they work (ruling 457)', () => {
-  it('says Space, + and - with Keyboard shortcuts on, and no key with them off, at once', async () => {
+  it('says Space, ] and [ with Keyboard shortcuts on, and no key with them off, at once', async () => {
     expect([S46_UX_TEXT.speedStepTitle(0, false), S46_UX_TEXT.speedStepTitle(2, false).includes('+')]).toEqual(['Pause', false]);
     const r = await rigUI({ width: 1280, height: 800 });
     const titles = () => [...r.root.querySelectorAll('#topbar .speed-bar .speed-step')].map((b) => b.title);
     try {
       expect(titles()[0]).toBe('Pause (Space)');
-      expect(titles().slice(1).every((t) => t.includes('(+ and - change it)'))).toBe(true);
+      expect(titles().slice(1).every((t) => t.includes('(] and [ change it)'))).toBe(true);
       r.ui.settings.set({ keyboardShortcuts: false });
       expect(titles().some((t) => /Space|\+/.test(t))).toBe(false);
       r.ui.settings.set({ keyboardShortcuts: true });
@@ -181,9 +181,10 @@ describe('s46 final releases: every version has its build (ruling 459)', () => {
     renderWhatsNew(host, () => {}, RELEASES, { stamp: 'abc1234' });
     const heads = [...host.querySelectorAll('.release h3')].map((h) => h.textContent);
     expect(heads[0].startsWith(S46_UX_TEXT.releaseHead(RELEASES[0].version, releaseDateText(RELEASES[0].date), 'abc1234'))).toBe(true);
-    expect(heads[1].startsWith(`Version 4.7 · ${releaseDateText(RELEASES[1].date)} · build eef5ccb`)).toBe(true);   // Version 5.0: 4.7 gets its merge commit
-    expect(heads[2].startsWith(`Version 4.6 · ${releaseDateText(RELEASES[2].date)} · build ed005c5`)).toBe(true);
-    expect(heads[3].startsWith(`Version 4.5 · ${releaseDateText(RELEASES[3].date)} · build b444b16`)).toBe(true);
+    expect(heads[1].startsWith(`Version 5.0 · ${releaseDateText(RELEASES[1].date)} · build 2653e92`)).toBe(true);   // Version 6.0: 5.0 gets its merge commit
+    expect(heads[2].startsWith(`Version 4.7 · ${releaseDateText(RELEASES[2].date)} · build eef5ccb`)).toBe(true);   // Version 5.0: 4.7 gets its merge commit
+    expect(heads[3].startsWith(`Version 4.6 · ${releaseDateText(RELEASES[3].date)} · build ed005c5`)).toBe(true);
+    expect(heads[4].startsWith(`Version 4.5 · ${releaseDateText(RELEASES[4].date)} · build b444b16`)).toBe(true);
     const later = document.createElement('div');                              // the stamp read a moment later
     renderWhatsNew(later, () => {}, RELEASES, { read: async () => 'def5678' });
     expect(later.querySelector('.release h3').textContent.includes('build')).toBe(false);

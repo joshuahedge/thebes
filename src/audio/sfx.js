@@ -1,4 +1,4 @@
-// Sound and haptics (spec 5.5): nine short synthesised effects (the raid horn and the coin tick from Stage 3), off by default, unlocked on the first user
+// Sound and haptics (spec 5.5): nine short synthesised effects (the raid horn and the coin tick from Stage 3), on by default (Version 6.0, ruling 746; mute in Settings), unlocked on the first user
 // gesture; an ambient audio session so the iPhone silent switch is respected; short vibration pulses.
 // No audio element and no silent-switch unlock hack: when the phone is muted, the game is quiet.
 export const SFX = {

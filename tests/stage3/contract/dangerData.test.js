@@ -26,7 +26,7 @@ describe('s3 contract data', () => {
     expect(pick(BUILDINGS.wall, [...KEYS.filter((k) => k !== 'priority'), 'tile'])).toEqual({ name: 'Wall', w: 1, d: 1, cost: 8, upkeep: 0, workers: 0, category: 'defence', needsRoad: false, tile: true });
     expect(pick(BUILDINGS.gate, ['name', 'cost', 'upkeep', 'tile', 'buildable'])).toEqual({ name: 'Gate', cost: 20, upkeep: 0, tile: true, buildable: false });
     expect(pick(BUILDINGS.rubble, ['name', 'w', 'd', 'cost', 'upkeep', 'workers', 'needsRoad', 'buildable'])).toEqual({ name: 'Rubble', w: 1, d: 1, cost: 0, upkeep: 0, workers: 0, needsRoad: false, buildable: false });
-    expect(BUILDABLE).toEqual(Object.keys(BUILDINGS).filter((t) => t !== 'gate' && t !== 'rubble' && t !== 'bridge'));
+    expect(BUILDABLE).toEqual(Object.keys(BUILDINGS).filter((t) => t !== 'gate' && t !== 'rubble' && t !== 'bridge' && t !== 'large_plot'));   // Version 6.0: the Large plot card lays a house, so it is not a type the world holds
     expect(BUILDINGS.firehouse.reach).toBe(FIRE.reach);
   });
   it('unlocks the firehouse with the Village and the wall, tower and barracks with Market town, and gives each a card', () => {
@@ -85,7 +85,7 @@ describe('s3 contract data', () => {
     expect(SCORE_FACTOR).toEqual({ peaceful: 0.7, relaxed: 0.8, normal: 1, hard: 1.25 });
     expect(Object.keys(SCORE_FACTOR).sort()).toEqual([...DIFFICULTY_ORDER].sort());
     expect(MEDALS).toEqual([{ id: 'bronze', at: 200 }, { id: 'silver', at: 300 }, { id: 'gold', at: 400 }]);
-    expect(SPLIT_MILESTONES).toEqual(MILESTONES.slice(1).map((m) => m.id));
+    expect(SPLIT_MILESTONES).toEqual(MILESTONES.slice(1, 6).map((m) => m.id));       // Version 6.0 (Track A): the ranks beyond Capital are not score splits
     expect([RECORDS_KEY, RECORDS_MAX]).toEqual(['thebes.records', 200]);
     expect([SHARE.base, SHARE.format, SHARE.difficulty, SHARE.checkLength]).toEqual(['https://joshuahedge.github.io/thebes/', 't2', { peaceful: 'p', relaxed: 'r', normal: 'n', hard: 'h' }, 4]);
     expect(FEATS.length).toBe(12);                                                   // Track E fills it, with its words (tests/stage3/score/feats.test.js); Stage 4 adds two

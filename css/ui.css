@@ -619,6 +619,12 @@ body[data-layout="wide"] #legend .strip.ground .ground-keys .room { flex-basis: 
 .layers-picker .layer .hue { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }   /* the overlay's own hue, as a stripe down the button's edge */
 .layers-picker .layer[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); box-shadow: none; }
 .layers-picker .layer.off { grid-column: 1 / -1; justify-content: center; }
+/* Version 6.0 (Track C): a layer the city has not reached yet is greyed (flat, dashed edge, soft ink) and says the rank that unlocks it under its name; the words carry it, not the grey */
+.layers-picker .layer .words { display: flex; flex-direction: column; }
+.layers-picker .layer .lock { font-size: calc(11px * var(--ui-scale)); line-height: 1.1; }
+.layers-picker .layer.locked { background: var(--parchment-2); color: var(--ink-soft); border-style: dashed; box-shadow: none; cursor: default; }
+.layers-picker .layer.locked .hue { opacity: 0.35; }
+.layers-picker .layer.locked .name { font-size: 0.85em; white-space: nowrap; }   /* one line for the name and one for its rank: a locked button is no taller than the others, so the popover stays inside the screen */
 body:is([data-text-size="125"], [data-text-size="150"]) .layers-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #corners .layers-picker { bottom: calc(100% + 8px); right: 8px; width: min(360px, calc(100% - 16px)); max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); }
 body[data-hand="left"] #corners .layers-picker { right: auto; left: 8px; }
@@ -759,17 +765,11 @@ body[data-layout="portrait"] #legend .fire-keys .never-burn { position: absolute
 .title-records { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 2px 0; }
 .title-records .best-line { margin: 0; }
 .title-records .stamps { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; margin-top: 4px; }
-.title-weekly { display: flex; flex-direction: column; gap: 2px; }
-.title-weekly .weekly-hint { margin: 0; }
-/* A phone held sideways (the height query the difficulty rules use): the week's seed line hides (the button still has it
-   as its description, through aria-describedby) and This week's Nile shares a line with Play with sound on a wider card,
-   so the card fits about 390 px of height at 100% text without scrolling. */
+/* A phone held sideways (the height query the difficulty rules use): the card is wider and its buttons share rows, so it fits about 390 px of height at 100% text without scrolling. */
 @media (max-height: 480px) {
   .title-card { width: min(440px, 100%); }
   .title-buttons { flex-direction: row; flex-wrap: wrap; }
   .title-buttons > * { flex: 1 1 100%; }
-  .title-buttons > .title-weekly, .title-buttons > .sound { flex: 1 1 40%; }
-  .title-weekly .weekly-hint { display: none; }
 }
 .shared-score { background: var(--parchment-2); border-radius: var(--radius); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
 .shared-score h2 { margin: 0; font-size: calc(12px * var(--ui-scale)); color: var(--ink-soft); }
@@ -1063,7 +1063,8 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
   .title-size .size-hint { display: none; }
   /* The card is wider there, so the four buttons under it (This week's Nile, How to play, Play with sound, Install) share one row, which pays for the picker's row. */
   .title-card { width: min(680px, 100%); }
-  .title-buttons > .title-weekly, .title-buttons > .how-to-play, .title-buttons > .sound, .title-buttons > .install { flex: 1 1 22%; }
+  .title-buttons > .title-more { flex: 1 1 60%; }
+  .title-buttons > .bring, .title-buttons > .install { flex: 1 1 auto; }
 }
 /* Show me in the confirm bar (rulings 331, 350): a button 44px high across a row of its own, under the words, buttons and chips. */
 .confirm.has-fit { flex-wrap: wrap; row-gap: 6px; }
@@ -1114,6 +1115,19 @@ body[data-layout="portrait"] .confirm.has-fit .conds, body[data-layout="portrait
 #banner .critical[data-code="court_letter"] .icon { display: none; }
 #banner .critical[data-code="court_letter"]::before { content: '\2709'; flex: none; color: var(--teal); font-size: calc(18px * var(--ui-scale)); line-height: 1; }
 /* ── end s46 court ── */
+/* Version 6.0, Track B2: the result of a raid in the alert row (src/ui/v60/battle.js). A raid beaten is teal with a tick, one that got through is the
+   coral warning with its triangle (the words and the icon say it, never the colour alone). On a phone it is the alert row of two short lines: the headline, and one line of the report. */
+#banner .critical.moment[data-code="raid_beaten"] { background: var(--teal-soft); border-color: var(--teal); }
+#banner .critical.moment[data-code="raid_beaten"] .icon { color: var(--teal); }
+#banner .critical.moment.line { width: 100%; box-sizing: border-box; }   /* the words are cut with an ellipsis, not allowed to widen the row past the screen */
+#banner .critical.moment.line .text { overflow: hidden; }
+#banner .critical.moment.line strong { display: block; -webkit-line-clamp: unset; line-clamp: unset; }   /* the headline on its own line, the report's words under it */
+#banner .critical.moment.line .small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* one line of them: Report opens the rest */
+body[data-text-size="150"] #banner .critical.moment.line .small, body[data-layout="compact"] #banner .critical.moment.line .small { display: none; }   /* at the largest text, and on a landscape phone, the headline alone: the height budget */
+#banner.moment-up .critical[data-code="court_letter"] { display: none; }   /* on a phone a letter waits behind the result for the one-line row */
+@keyframes moment-in { from { opacity: 0; } to { opacity: 1; } }
+#banner .critical.moment { animation: moment-in 0.3s ease-out; }
+/* ── end v60 b2 ── */
 
 /* ── s46 armies (Armies track) ── the Armies track's styles. Add new rules just above the end marker. */
 /* ── end s46 armies ── */
@@ -1209,14 +1223,10 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
 .title-card .release h4 { margin: 6px 0 2px; font-size: calc(12px * var(--ui-scale)); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
 .title-card .release ul.notes { margin: 0; padding-left: 20px; }
 .title-card .release ul.notes li { margin: 2px 0; }
-/* On a phone held upright How to play and What's new share one row (the DOM keeps How to play beside Play with sound, which tests pin; order lays
-   the pair above Play with sound and Install), so the new button costs the card no row and the sample city's showcase keeps its room. */
-.title-buttons > .how-to-play, .title-buttons > .whats-new-button { order: 5; }
-.title-buttons > .sound, .title-buttons > .install { order: 6; }
+/* The Lesson (or How to play), Settings and What's new buttons share one row (.title-more); Bring your city and Install come after it, only where offered. */
 @media (min-height: 481px) {
   .title-buttons { flex-flow: row wrap; }
   .title-buttons > * { flex: 1 1 100%; }
-  .title-buttons > .how-to-play, .title-buttons > .whats-new-button { flex: 1 1 calc(50% - 4px); }
 }
 /* A short phone held upright (360x640): the version line costs the card a line, which the sample city's showcase below it needed (the
    title scene's balance test); the card's own gaps give it back. */
@@ -1230,7 +1240,7 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
    they size by their words and share one row where they fit (they did in two rows of two before), so the card still ends inside 390 px. */
 @media (max-height: 480px) {
   .title-card .version { margin: -2px 0 -3px; line-height: 1.2; }
-  .title-buttons > .title-weekly, .title-buttons > .how-to-play, .title-buttons > .whats-new-button, .title-buttons > .sound, .title-buttons > .install { flex: 1 1 auto; }
+  .title-buttons > .title-more, .title-buttons > .bring, .title-buttons > .install { flex: 1 1 auto; }
   .title-card .whats-new { max-height: 60vh; }
 }
 /* At 667x375 the card has no spare line (the tagline is already gone): the version sits in the card's bottom padding instead of a row of its own. */
@@ -1239,6 +1249,32 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
   .title-card .version { position: absolute; left: 0; right: 0; bottom: 2px; margin: 0; line-height: 1.2; }
 }
 /* ── end s46 ux ── */
+
+/* ── v60 d1 (Version 6.0, Track D1) ── the title card's rows, the Huge note and the polish pass (docs/superpowers/notes/2026-10-22-v60-d1-polish.md lists each). ── */
+/* Lesson (or How to play), Settings and What's new: one row of three, each 44 px at least and wrapping by its words (so at 150% text two share a row and the third has its own). */
+.title-more { display: flex; flex-wrap: wrap; gap: 6px; }
+.title-more > button { flex: 1 1 calc(33.333% - 6px); min-width: max-content; padding: 0 4px; }   /* a word never clips: at large text the buttons wrap to a row each */
+/* The Huge map's note on a phone ("Best on a tablet or computer"): a line under the size's own, bold so it is not a colour alone. */
+.title-size .size-note { margin: 0; font-weight: 600; color: var(--ink); }
+/* Settings on the title card: the game's own rows (one panel with Back), scrolling inside the card like What's new. */
+.title-card .settings-head { font-family: var(--serif); font-size: calc(20px * var(--ui-scale)); margin: 0 0 4px; }
+.title-card .settings-body { max-height: max(260px, calc(100dvh - 250px)); overflow-y: auto; padding-right: 4px; border-top: 1px solid var(--parchment-3); }   /* a line above the rows as well as the Back bar's below: a row that scrolls under either edge reads as cut by it */
+.title-card .settings-body .row { align-items: center; flex-wrap: wrap; }
+.title-card .settings-body .choices { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+/* The Back bar under the rows is a bar of its own, opaque with a divider above it (and the rows' own edge a line above that), so the last row that scrolls under the
+   edge reads as cut by the bar and not as a half-hidden row (the 390 px review). */
+.title-card .guide:has(.settings-body) > .actions { position: relative; margin-top: 0; padding-top: 8px; border-top: 1px solid var(--parchment-3); background-color: var(--parchment); background-image: var(--look-fibre); }
+.title-card:has(> .guide .settings-body) > .tagline, .title-card:has(> .guide .settings-body) > .version { display: none; }   /* the rows take the card's room */
+@media (max-height: 480px) {
+  .title-card .settings-body { max-height: 55vh; }
+}
+/* Polish 1 (How to play's key list): at 150% text a key such as "Arrows or WASD" or "Ctrl+Z or Cmd+Z" ran past the side panel's edge and the "Does" column went with it.
+   The keys may now wrap inside their column (a 40% share), and the words beside them wrap anywhere they must, so the table always fits the panel. */
+.shortcuts { table-layout: fixed; }
+.shortcuts th:first-child, .shortcuts td:first-child { width: 40%; }
+.shortcuts kbd { white-space: normal; overflow-wrap: anywhere; display: inline-block; }
+.shortcuts td, .shortcuts th { overflow-wrap: anywhere; }
+/* ── end v60 d1 ── */
 
 /* Stage 4.7 (Task 6, ruling 467): the Fetch control on a store's sheet (src/ui/s47/carts.js). One panel: a "Fetch goods" row that opens the list of goods the
    store may hold, each a switch and a stepper (44 px targets, wrapping under the switch on a narrow phone), with the sim's words under it. Goods on the road are
@@ -1361,3 +1397,52 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .copy-line {
 .confirm .route-choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .confirm .route-pick { flex: 1 1 auto; min-width: var(--tap); min-height: var(--tap); padding: 0 6px; font-size: calc(13px * min(var(--ui-scale), 1.15)); line-height: 1.2; white-space: nowrap; }
 .confirm .route-pick[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); font-weight: 600; }
+
+/* Version 6.0 (Track D2, rulings 760-779): the guided first city. The lesson's row is the one guidance row of a lesson game (the goals strip, the tips and the
+   captions stand aside; alerts stay), the step's target is lit (a ring on the map with the rest of the map dimmed round it; a ring on a control) and the
+   cards it asks for carry the guide's tag. On a phone the words are cut at three lines with More (as a tip's are), and on a landscape phone at large text the
+   alert row has the one row (ruling 172). Colour is never the only cue: the ring, the tag and the instruction's words all say it. */
+body.lesson-on #goals, body.lesson-on #tip, body.lesson-on #cheer { display: none !important; }
+#lesson { position: static; display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box; pointer-events: auto; background: var(--parchment); color: var(--ink); border: 1px solid var(--teal); border-radius: var(--radius); padding: 2px 4px 2px 12px; box-shadow: var(--shadow); --row-bg: var(--parchment); }
+body[data-layout="wide"] #lesson { max-width: 560px; }
+#lesson .body { position: relative; display: block; flex: 1 1 auto; min-width: 0; padding: 4px 0; }
+#lesson .label, #lesson .text, #lesson .chip { display: inline; }
+#lesson .label { margin-right: 6px; }
+#lesson .text { font-weight: 600; }
+#lesson .chip { margin-left: 4px; padding: 1px 8px; border-radius: 10px; background: var(--teal-soft); color: var(--ink); white-space: nowrap; }
+#lesson .why { display: block; margin-top: 2px; }
+#lesson .show-me, #lesson .leave { flex: none; }
+#lesson .lesson-new { flex: none; white-space: nowrap; }
+#lesson .more { position: absolute; right: 2px; bottom: 1px; min-width: 0; min-height: 0; margin: 0; padding: 0 2px 0 22px; border: none; border-radius: 0; box-shadow: none; background: linear-gradient(to right, transparent, var(--row-bg) 20px); color: var(--teal); font-size: calc(12px * var(--ui-scale)); font-weight: 600; line-height: 1.5; white-space: nowrap; }
+#lesson .more::before { content: ''; position: absolute; right: 0; bottom: -1px; width: max(100%, var(--tap)); height: max(calc(100% + 1px), var(--tap)); }
+#lesson .body:has(.more:not([hidden])) { cursor: pointer; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson .body { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+body[data-layout="compact"] #lesson .body { -webkit-line-clamp: 2; line-clamp: 2; padding: 0; }
+body[data-layout="compact"] #lesson { padding-top: 0; padding-bottom: 0; }   /* held sideways the rows are short of height: two lines (the goals strip's own) */
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson .leave { display: none; }   /* a phone's row keeps its width for the words: the menu has Leave the lesson */
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson .why { display: none; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson.open .body { display: block; overflow: visible; padding-bottom: 14px; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson.open .why { display: block; }
+body:is([data-layout="portrait"], [data-layout="compact"]) #lesson.open { max-height: calc(var(--guidance-max, 40vh)); overflow-y: auto; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson { padding: 0 2px 0 10px; gap: 4px; line-height: 1.25; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson .text { font-size: calc(14px * var(--ui-scale)); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson .body { padding: 2px 0; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson button { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
+body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]).has-banner:not(.lesson-names-alert) #lesson { display: none; }   /* ruling 172: the alert has the one row... */
+/* ...unless the step is the alert's own (the fire, the raid warning, the raid): the row carries what the alert says (who, how many, how long, what to build), so the alert's
+   line goes, on every screen, and the row stays: one guidance panel at a time, never the row hidden in the steps that matter most (src/ui/v60/lesson.js NAMES_ALERT). */
+body.lesson-names-alert #banner > .critical:is([data-code="fire"], [data-code="raid_warning"], [data-code="raid"]) { display: none; }
+/* The lit target: the map dimmed round a ring (both ignore taps), a control with a ring of its own; the ring pulses under Full motion only. */
+#ui > .lesson-scrim { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse var(--rx, 120px) var(--ry, 80px) at var(--cx, 50%) var(--cy, 50%), rgba(28, 22, 12, 0) 0%, rgba(28, 22, 12, 0) 72%, rgba(28, 22, 12, 0.46) 100%); }
+#ui > .lesson-ring { position: fixed; pointer-events: none; box-sizing: border-box; border: 3px solid var(--teal); border-radius: 50%; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85), inset 0 0 0 2px rgba(255, 255, 255, 0.55); }
+.lesson-lit { outline: 3px solid var(--teal); outline-offset: 2px; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.8); }
+body:not(.reduce-motion) #ui > .lesson-ring { animation: lesson-ring 1.6s ease-in-out infinite; }
+body:not(.reduce-motion) .lesson-lit { animation: lesson-lit 1.4s ease-in-out infinite; }
+@keyframes lesson-ring { 50% { box-shadow: 0 0 0 9px rgba(255, 255, 255, 0.45), inset 0 0 0 2px rgba(255, 255, 255, 0.55); } }
+@keyframes lesson-lit { 50% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.45); } }
+/* The end sheet, and the title's lesson-only card. */
+#sheet .lesson-end .lead { font-weight: 600; }
+.title-buttons .lesson-hint { margin: 0; text-align: center; }
+.title-buttons .lesson-again { align-self: center; }
+.title-card .lesson-note { margin: 0 0 6px; text-align: center; font-weight: 600; }

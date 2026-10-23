@@ -51,7 +51,7 @@ function artFor(item) {
   if (item === 'road') return ROAD_ICON;
   if (item === 'demolish') return DEMOLISH_ICON;
   if (item === 'plaza') return PLAZA_ICON;
-  const def = ART[item === 'house' ? 'house.t1' : item];      // a plot shows a Hut, the home it starts as
+  const def = ART[item === 'house' ? 'house.t1' : item === 'large_plot' ? 'house.lot' : item];      // a plot shows a Hut, the home it starts as; the Large plot card its marked lot (Version 6.0)
   return def && def.draw ? def : null;
 }
 

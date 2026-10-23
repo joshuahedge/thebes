@@ -13,12 +13,13 @@ import { createUI } from './ui/createUI.js';
 import { createSettings } from './ui/settings.js';
 import { createSfx } from './audio/sfx.js';
 import { createCameraControl } from './ui/cameraControl.js';
+import { createMenuSheets } from './ui/menu.js';
 import { createTitleCard, createBackdrop } from './ui/titleCard.js';
 import { createSaveStore } from './save/store.js';
 import { packSave, unpackSave } from './save/serialize.js';
 import { TITLE_SEED } from './data/ui.js';
 import { exportSave, downloadFile, pickFile, importSaveFile } from './save/exportImport.js';
-import { T, importErrorText } from './ui/text.js';
+import { T, D2_TEXT, importErrorText } from './ui/text.js';
 import { el, button } from './ui/components.js';
 import { detectEnvironment, readEnvironment, createInstallFlow } from './save/installFlow.js';
 import { installGuide, noticeText, showNotice } from './ui/installUi.js';
@@ -30,6 +31,12 @@ import { devScene, setMotion } from './dev/scenes.js';
 import { createMusic, musicMood } from './audio/music.js';
 import { showPictureCards } from './ui/tutorial.js';
 import { drawMonument } from './render/monuments.js';
+// Version 6.0 (Track D2): the guided first city, and the picture cards' first moments.
+import { TUTORIAL_CARDS, INTRO_CARDS } from './data/tutorial.js';
+import { TIPS } from './data/tips.js';
+import { lessonDue, lessonStartStep, lessonPartWay } from './ui/lesson.js';
+import { lessonWorld, replayTo } from './sim/lesson.js';
+import { seenKey } from './ui/cardMoments.js';
 
 const HOUR = 3600 * 1000;
 
@@ -77,21 +84,24 @@ export async function boot(doc, win, {
   // One set of cards at a time: a second New city while they show is ignored, and an onDone run at once leaves cards null.
   // Track G: a second hooks.pictureCards(onDone) while they show joins them: its onDone runs when they close.
   let cards = null, joined = [];
-  function openCards(after, { join = false } = {}) {
-    if (cards) { if (join) joined.push(after); return; }
+  // Version 6.0 (Track D2): the cards read before a first city are the intro ones (INTRO_CARDS); How to play shows them all; a first moment's card
+  // (hooks.pictureCard) is one alone, and seen-or-skipped (cardsSeen) is about the intro set only. Returns false when other cards are already open.
+  function openCards(after, { join = false, set = null, finishLabel = null, single = false } = {}) {
+    if (cards) { if (join) joined.push(after); return false; }
     let done = false;
     // difficulty: the city's own level in a game, the level the next new city will start at on the title (the What lies ahead card's words).
-    const shown = showCards({ root, doc, settings, difficulty: current ? current.world.difficulty : settings.get().difficulty, onDone: () => {
-      done = true; cards = null; settings.set({ cardsSeen: true });
+    const shown = showCards({ root, doc, settings, difficulty: current ? current.world.difficulty : settings.get().difficulty, ...(set ? { cards: set, finishLabel } : {}), onDone: () => {
+      done = true; cards = null; if (!single) settings.set({ cardsSeen: true });
       const also = joined; joined = [];
       after();
       for (const fn of also) fn();
     } });
     if (!done) cards = shown;
+    return true;
   }
   function withCards(go) {
     if (settings.get().cardsSeen) { go(); return; }
-    openCards(go);
+    openCards(go, { set: INTRO_CARDS });
   }
   // The share sheet, the download and the file picker, replaceable by tests.
   const nav = win.navigator || {};
@@ -118,17 +128,17 @@ export async function boot(doc, win, {
 
   // A new city starts with the guide on only under Help: Guide and tips (early-game pass 3.1), and at the difficulty
   // the settings hold for new cities (spec 4.18). The sample and stress cities of the development flags never guide.
-  // seed: a chosen seed (This week's Nile, a shared score's Start this seed); otherwise the flag's or a random one. Each
+  // seed: a chosen seed (a shared score's Start this seed); otherwise the flag's or a random one. Each
   // new city gets its id for the records here (spec 4.19: the interface gives it, the sim never reads the clock).
-  // Stage 4.5 (ruling 313): the river layout comes from the seed ('auto'), for New city, This week's Nile and a shared score's
+  // Stage 4.5 (ruling 313): the river layout comes from the seed ('auto'), for New city and a shared score's
   // seed alike; a seed chosen with ?seed=, and the sample and stress cities, stay classic, so the dev flags and the shots do not
   // move, unless ?variant= names one.
   const variantParam = params.get('variant');
   // Stage 4.6 (ruling 333): the map's size. size: what New city's picker, a shared link or a record names (the Map track passes it);
   // else ?size=48|64|80 (the dev flag, for the shots and the Large measurement); else Normal.
   const sizeParam = Number(params.get('size'));
-  // The size the title card's picker last chose for the next new city (it starts as the dev flag's size, else Normal); a chosen seed (This
-  // week's Nile, a shared link) takes its own size, never this.
+  // The size the title card's picker last chose for the next new city (it starts as the dev flag's size, else Normal); a chosen seed (a
+  // shared link) takes its own size, never this.
   let newCitySize = isMapSize(sizeParam) ? sizeParam : DEFAULT_MAP_SIZE;
   const sizeIdOf = (n) => MAP_SIZE_IDS.find((k) => MAP_SIZES[k] === n) || 'normal';
   function freshWorld({ seed = null, variant = null, size = null } = {}) {
@@ -157,6 +167,7 @@ export async function boot(doc, win, {
       else current.ui.store.set(openSheet(s, 'install'));
     },
     async save() {
+      if (current && current.lesson) return true;       // Version 6.0 (Track D2, ruling 626): the lesson's city is never saved; a saved city is never written over by it
       if (!current || saveBlocked) return false;
       const text = packSave(current.world, { savedAt: clock(), lastSpeed: current.ui.store.get().lastSpeed });
       const r = await store.save(text);
@@ -167,15 +178,25 @@ export async function boot(doc, win, {
       }
       return r.ok;
     },
-    newCity() { withCards(() => startGame(freshWorld({ size: newCitySize }))); },   // Stage 4: the picture cards first, once a device
+    newCity() { if (current && current.lesson) return; withCards(() => startGame(freshWorld({ size: newCitySize }))); },   // Stage 4: the picture cards first, once a device
     // Stage 4 (spec 4.1): the picture cards any time (How to play on the title card and in the menu, Track G); onDone after.
     // Track G: the game behind them is paused (spec 4.1); the player presses Play again when ready.
     pictureCards(onDone = () => {}) {
       if (current && current.world.speed > 0) current.ui.speedControl.set(0);
       openCards(onDone, { join: true });
     },
+    // Version 6.0 (Track D2, rulings 760-779): one picture card on its own at its first moment (src/ui/cardMoments.js), the game paused behind it. false when
+    // other cards are already open (the moment is tried again), or the card is not one.
+    pictureCard(id) {
+      const card = TUTORIAL_CARDS.find((c) => c.id === id);
+      if (!card || cards) return false;
+      if (current && current.world.speed > 0) current.ui.speedControl.set(0);
+      return openCards(() => {}, { set: [card], finishLabel: T.gotIt, single: true });
+    },
+    // The guided first city (ruling 617): from the step a lesson left part-way reached, else the first. { step }: a given step (0 starts again).
+    lesson({ step = null } = {}) { startLesson(step === null ? lessonStartStep(settings.get()) : step); },
     async exportCity() {
-      if (!current) return;
+      if (!current || current.lesson) return;
       const { ui, world } = current;
       const text = packSave(world, { savedAt: clock(), lastSpeed: ui.store.get().lastSpeed, records: records.load() });   // spec 4.17: the export carries the records
       try {                                             // share first: the sheet needs the tap's activation window (iOS)
@@ -185,6 +206,7 @@ export async function boot(doc, win, {
       await ui.autosave('export');                      // then the slot is brought up to date
     },
     async importCity() {
+      if (current && current.lesson) return;
       const file = await io.pick();
       if (!file) return;
       let save;
@@ -204,22 +226,55 @@ export async function boot(doc, win, {
 
   function stopGame() { if (!current) return; current.loop.stop(); current.ui.destroy(); current = null; }
 
-  function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null, saveNow = !fromSave } = {}) {
+  // Version 6.0 (Track D2, ruling 626): the lesson's game keeps the device's settings as they are, but says every tip and picture card has been seen, so
+  // the lesson's own row is the one guidance (and its tips are still fresh for the first real city). Reads through to the real settings.
+  function lessonSettings() {
+    const seenAll = [...TIPS.map((t) => t.id), ...TUTORIAL_CARDS.map((c) => seenKey(c.id))];
+    let from = null, shown = null;
+    return { ...settings, get() { const v = settings.get(); if (v !== from) { from = v; shown = { ...v, seenTips: seenAll }; } return shown; } };
+  }
+
+  // startGame's `lesson` ({ step }): the guided first city. It is never saved (hooks.save says so, and the game's own hooks do too), has no New city,
+  // Export or Import in its menu, and ends back on the title (leaveLesson).
+  function startGame(world, { fromSave = false, savedAt = null, lastSpeed = 1, notice = null, saveNow = !fromSave, lesson = null } = {}) {
     leaveTitle();
     stopGame();
     if (fromSave) setSpeed(world, 0);                   // the game always reopens paused (spec 4.17)
     if (!world.cityId) setCityId(world, newCityId(clock()));   // a city from before Stage 3 gets its records id at load
-    const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1 });   // the stress city fills the map: its middle
-    const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings, hooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
+    const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1, size: world.size });   // the stress city fills the map: its middle; size: the Huge map's zoom floor (ruling 741)
+    const gameHooks = lesson
+      ? { ...hooks, save: async () => true, exportCity: undefined, importCity: undefined, install: undefined, newCity: undefined, lesson: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true) } }
+      : hooks;
+    const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install(), onBring: () => hooks.importCity() }) }, ...uiOptions });
     const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: (f) => { ui.render(f); music.tick(f.now); }, allowFrame: ui.allowFrame, ...loopOptions });
-    current = { world, ui, loop, cam };
+    current = { world, ui, loop, cam, lesson: Boolean(lesson) };
     if (notice) ui.toasts.show(notice);
     if (saveNow) ui.autosave(fromSave ? 'import' : 'new');   // the previous city becomes the backup at once
     loop.start();
     if (pendingUpdate) { ui.offerUpdate(pendingUpdate); pendingUpdate = null; }
     win.__thebes = { ...(win.__thebes || {}), world, cam, renderer, loop, ui };
     return current;
+  }
+
+  // The guided first city (Track D2): its own fixed map, from `step` (the steps before it laid by the scripted walk-through, src/sim/lesson.js replayTo; 0
+  // starts it again, and a lesson not yet done keeps its place in the settings from then on). Leaving it, or finishing it, is back to the title.
+  // A walk-through that fails (replayTo throws when a step does not finish) starts the lesson again from the first step and says so in a toast.
+  function startLesson(step = 0) {
+    let world = lessonWorld(), at = 0, notice = null;
+    if (step > 0) {
+      try { at = replayTo(world, step); } catch (e) {
+        console.warn('Thebes: the lesson could not be rebuilt to step', step, e && e.message);
+        world = lessonWorld(); at = 0; notice = D2_TEXT.resumeFailed;
+      }
+    }
+    if (at === 0 && !settings.get().lessonDone) settings.set({ lessonStep: 0 });
+    return startGame(world, { lesson: { step: at }, saveNow: false, notice });
+  }
+  async function leaveLesson(finished = false) {
+    if (!current || !current.lesson) return;
+    stopGame();
+    showTitle(await loadSave(store), { note: finished ? D2_TEXT.standsNote : null });
   }
 
   // A newer version's save in the slot must never be overwritten (spec 7.5), whichever way the game starts.
@@ -249,7 +304,7 @@ export async function boot(doc, win, {
     return { left: c.left - o.left, right: c.right - o.left, top: c.top - o.top, bottom: c.bottom - o.top };
   }
 
-  function showTitle(loaded) {
+  function showTitle(loaded, { note = null } = {}) {
     loadedOk = loaded.state === 'ok';
     const world = buildSampleCity(createWorld({ seed: TITLE_SEED }));
     const cam = createCamera({ x: world.tradeEntry.x, y: world.size - 22, zoom: 1 });
@@ -268,18 +323,26 @@ export async function boot(doc, win, {
     root.classList.add('on-title');
     const guide = installGuide(flow, { hasCity: loaded.state === 'ok', onPrompt: () => flow.promptInstall(), onBring: () => hooks.importCity() });
     const card = createTitleCard({
-      container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), canBring: flow.canBring(), sound: settings.get().sound, message,
+      container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), canBring: flow.canBring(), message, screen: view,
       difficulty: settings.get().difficulty, onDifficulty: (level) => settings.set({ difficulty: level }),   // spec 4.18: freshWorld reads it
       onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
       onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(freshWorld({ size: newCitySize })))),
       mapSize: sizeIdOf(newCitySize), onMapSize: (id) => { newCitySize = MAP_SIZES[id]; },   // Stage 4.6 (ruling 333): the size picker
-      onSound: (on) => settings.set({ sound: on, music: on }),   // Stage 4: Play muted turns the music off too, and is remembered (ruling 269)
-      onHowToPlay: () => hooks.pictureCards(),                   // Stage 4, Track G: How to play shows the picture cards (spec 4.1)
+      // Version 6.0 (Track D1, rulings 742, 746): no Play with sound (sound and music are on by default; Settings, here and in the game, mutes them).
+      // The third button is Lesson once the guided first city gives hooks.lesson (Track D2), until then How to play, the picture cards (Stage 4, Track G, spec 4.1).
+      // Version 6.0 (Track D2, ruling 617): on a device that has not done the lesson and has no saved city the card offers only the lesson (lesson.due); a slot
+      // holding something unreadable or from a newer version is not "no saved city" (the card keeps New city and its message).
+      onLesson: typeof hooks.lesson === 'function' ? () => hooks.lesson() : null,
+      lesson: { due: lessonDue(settings.get(), loaded.state !== 'none'), partWay: lessonPartWay(settings.get()), note, onAgain: () => hooks.lesson({ step: 0 }) },
+      onHowToPlay: () => hooks.pictureCards(),
+      renderSettings: (body) => createMenuSheets({ store: { get: () => ({}), set() {}, subscribe: () => () => {} }, settings, toasts: { show() {} }, hooks }).settings(body),   // the game's Settings rows, with no city behind them
       onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); },
       onBring: () => hooks.importCity(),
-      // Stage 3 (spec 4.19): records, stamps, This week's Nile and a shared score, from the score interface.
+      // Stage 3 (spec 4.19): records, stamps and a shared score, from the score interface. Version 6.0 (ruling 793): a shared score's Start this seed
+      // plays the link's level even on the lesson-only card (setDifficulty), and says where the lesson is while this device has not finished it.
       decorate: titleDecor({
         records, shared: (win.location && win.location.hash) || '', clock,
+        setDifficulty: (level) => settings.set({ difficulty: level }), lessonPending: settings.get().lessonDone !== true,
         startSeed: (seed, variant = null, size = null) => (loaded.state === 'ok' ? confirmNewCity(loaded, seed, variant, size || DEFAULT_MAP_SIZE) : withCards(() => startGame(freshWorld({ seed, variant, size: size || DEFAULT_MAP_SIZE })))),
       }),
     });

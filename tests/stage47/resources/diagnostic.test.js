@@ -9,11 +9,11 @@ import { spotsFor, packed, resourceCounts, RESOURCE_TYPES } from '../../../src/s
 import { fitOf } from '../../../src/sim/fit.js';
 import { idx } from '../../../src/sim/grid.js';
 import { T } from '../../../src/sim/terrain.js';
-import { SEEDS, SIZES, LAYOUTS, sweep, summarize, measure } from './sweep.js';
+import { SEEDS, SIZES, LAYOUTS, sweep, summarize, measure, seedsFor } from './sweep.js';
 
 describe('s47 resources diagnostic', () => {
-  it('scales the reach with the map: 20 tiles at Normal, 15 at Small, 25 at Large', () => {
-    expect(SIZES.map(resourceReach)).toEqual([15, 20, 25]);
+  it('scales the reach with the map: 20 tiles at Normal, 15 at Small, 25 at Large, 35 at Huge', () => {
+    expect(SIZES.map(resourceReach)).toEqual([15, 20, 25, 35]);
     expect(RESOURCES).toEqual({ reach: 20, clay: 2, mine: 1, farm: 6 });
   });
 
@@ -46,7 +46,7 @@ describe('s47 resources diagnostic', () => {
     for (const size of SIZES) {
       for (const variant of LAYOUTS) {
         const rows = sweep(size, variant);
-        expect(rows.length).toBe(SEEDS);
+        expect(rows.length).toBe(seedsFor(size));
         for (const r of rows) if (r.c.clay.all === 0) none.push(`${variant} ${size} #${r.seed}`);
         const s = summarize(rows);
         expect(s.why.none).toBe(0);

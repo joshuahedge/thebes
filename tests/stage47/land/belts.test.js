@@ -23,7 +23,7 @@ let cache = null;
 const maps = () => {
   if (cache) return cache;
   cache = [];
-  for (const size of SIZES) for (const variant of NEW) for (let seed = 1; seed <= SEEDS; seed++) if (!(variant === 'classic' && size === 64)) cache.push({ size, variant, seed, m: generateMap(seed, size, variant) });
+  for (const size of SIZES) for (const variant of NEW) for (let seed = 1; seed <= (size > 80 ? 12 : SEEDS); seed++) if (!(variant === 'classic' && size === 64)) cache.push({ size, variant, seed, m: generateMap(seed, size, variant) });
   return cache;
 };
 const rockish = (t) => t === T.ROCKY || t === T.HILLS;

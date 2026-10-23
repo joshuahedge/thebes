@@ -48,7 +48,8 @@ describe('ui stage 2 cards', () => {
     w.milestone = 'capital';
     for (const c of CATEGORIES) {
       // Stage 4: the pyramids also need prestige; the small one shows locked with its count, the great one once that unlocks.
-      const items = c.items.filter((i) => i !== 'pyramid_great');
+      // Version 6.0: the Large plot card shows from the first Townhouse, not with a milestone (Track C); the great temple shows once the Seat is next (Track A)
+      const items = c.items.filter((i) => i !== 'pyramid_great' && i !== 'large_plot' && i !== 'great_temple');
       expect([c.id, shownItems(w, c.id)]).toEqual([c.id, items]);
       for (const item of items) expect([item, cardInfo(w, item).locked]).toEqual([item, item === 'pyramid_small']);
     }

@@ -1,15 +1,18 @@
 import { MOOD } from '../data/mood.js';
-import { TIERS } from '../data/housing.js';
 import { housesOf, population } from './world.js';
 import { touchesRoad } from './reach.js';
-import { removeResidents, leaveCap } from './housing.js';
+import { removeResidents, leaveCap, lotReady, stockLot, capacityOf } from './housing.js';
 import { splitHouse } from './merge.js';
+import { LARGE_PLOT } from '../data/largePlots.js';
+import { isLot } from './largePlots.js';
 
 export function vacancies(world) {
   const out = [];
   for (const h of housesOf(world)) {
     if (!touchesRoad(world, h)) continue;
-    const cap = h.tier >= 1 ? TIERS[h.tier].capacity : TIERS[1].capacity;
+    // Version 6.0 (Track C, ruling 702): an empty Large plot takes nobody as a Hut: people move in as a Manor once its needs are met (lotReady), else it waits.
+    if (isLot(h) && !lotReady(world, h)) continue;
+    const cap = capacityOf(h);
     const free = cap - h.residents;
     if (free > 0) out.push({ h, free });
   }
@@ -29,8 +32,10 @@ export function arrivalsBatch(world) {
   for (const { h, free } of vacancies(world)) {
     if (n <= 0) break;
     const k = Math.min(n, free);
-    if (h.tier === 0) h.tier = 1;
+    const opens = isLot(h);
+    if (h.tier === 0) h.tier = opens ? LARGE_PLOT.opensTier : 1;   // a lot opens as a Manor, any other empty plot as a Hut
     h.residents += k;
+    if (opens) stockLot(world, h);
     n -= k;
     arrived += k;
   }

@@ -50,11 +50,12 @@ describe('ui install guide', () => {
     const { root, cleanup } = mount('<div id="title" hidden></div>');
     const container = root.querySelector('#title');
     const log = [];
-    const card = createTitleCard({ container, hasSave: false, canInstall: false, canBring: true, sound: false, onContinue: () => {}, onNewCity: () => {}, onSound: () => {}, onInstall: () => log.push('install'), onBring: () => log.push('bring') });
+    const card = createTitleCard({ container, hasSave: false, canInstall: false, canBring: true, onContinue: () => {}, onNewCity: () => {}, onInstall: () => log.push('install'), onBring: () => log.push('bring') });
     const bring = container.querySelector('.bring');
     expect(bring.textContent).toBe(T.bringCity);
-    expect(bring.previousElementSibling.classList.contains('title-difficulty')).toBe(true);                 // New city, its difficulty (spec 4.18), then Bring a city
-    expect(bring.previousElementSibling.previousElementSibling.classList.contains('new-city')).toBe(true);
+    expect(bring.previousElementSibling.classList.contains('title-more')).toBe(true);                        // New city, its difficulty (spec 4.18), the row of Settings and What's new (Version 6.0), then Bring a city
+    expect(bring.previousElementSibling.previousElementSibling.classList.contains('title-difficulty')).toBe(true);
+    expect(bring.previousElementSibling.previousElementSibling.previousElementSibling.classList.contains('new-city')).toBe(true);
     fire(bring, 'click');
     expect(log).toEqual(['bring']);
     const install = container.querySelector('.install');

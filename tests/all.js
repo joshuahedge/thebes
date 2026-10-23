@@ -153,3 +153,5 @@ import './stage46/all.js';
 import './stage47/all.js';
 // Version 5.0: one aggregator (tests/v50/all.js); each task adds its files there, never here.
 import './v50/all.js';
+// Version 6.0: one aggregator (tests/v60/all.js) for Track 0's contract and each track's own; nothing is added here.
+import './v60/all.js';

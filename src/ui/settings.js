@@ -22,11 +22,15 @@ export const FIRE_REACTIONS = ['pause', 'goto', 'inform'];
 export const MOTION_SETTINGS = ['system', 'full', 'gentle', 'still'];
 export const MOTION_LEVELS = ['full', 'gentle', 'still'];
 export const MUSIC_VOLUMES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+// Version 6.0 (Track D1, ruling 746): sound is on by default (the title's Play with sound is gone; Settings mutes it). A device that stored a choice keeps it.
 export const DEFAULT_SETTINGS = {
-  sound: false, vibration: true, textSize: 100, leftHanded: false, keyboardShortcuts: true, help: 'full', seenTips: [], difficulty: 'normal',
+  sound: true, vibration: true, textSize: 100, leftHanded: false, keyboardShortcuts: true, help: 'full', seenTips: [], difficulty: 'normal',
   fireReaction: 'inform', motion: 'system', music: true, musicVolume: 30, cardsSeen: false,
   adviceSeen: [],   // Version 5.0: the keys of the City advice items shown when its sheet was last open (the button's dot, src/ui/adviceSheet.js)
   roadMode: 'straight',   // Version 5.0 (Task 5): the road bar's shape, 'straight' (the L and the finger) or 'route' (the cheapest way between two points); per device
+  // Version 6.0 (Track 0 seam, Track D2 owns them; ruling 626): the lesson is the device's, never a city's. lessonDone: it has ended ("Your first city
+  // stands"); lessonStep: the step reached (0 before it starts), for a lesson left part-way. src/ui/lesson.js lessonDue reads them.
+  lessonDone: false, lessonStep: 0,
 };
 
 const isBool = (v) => typeof v === 'boolean';
@@ -37,6 +41,8 @@ const VALID = {
   seenTips: (v) => Array.isArray(v) && v.every((s) => typeof s === 'string'),
   adviceSeen: (v) => Array.isArray(v) && v.every((s) => typeof s === 'string'),
   roadMode: (v) => v === 'straight' || v === 'route',
+  lessonDone: isBool,
+  lessonStep: (v) => Number.isInteger(v) && v >= 0,
   difficulty: (v) => DIFFICULTY_ORDER.includes(v),
   fireReaction: (v) => FIRE_REACTIONS.includes(v),
   motion: (v) => MOTION_SETTINGS.includes(v),

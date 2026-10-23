@@ -11,10 +11,13 @@ import { advanceDays } from '../../../src/sim/clock.js';
 import { place, drawRoad, paintHouses, canPlace, previewRoad, previewHouses } from '../../../src/sim/commands.js';
 import { openRoute, setTradeOrder } from '../../../src/sim/trade.js';
 import { createWorld, population, allBuildings, isSite } from '../../../src/sim/world.js';
+import { noNewDangers } from '../../v60/b1/grace.js';
 import { milestoneIndex, isUnlocked } from '../../../src/sim/progression.js';
 import { costOf, routeCostOf } from '../../../src/sim/costs.js';
 import { T } from '../../../src/sim/terrain.js';
 import { idx } from '../../../src/sim/grid.js';
+import { LARGE_PLOT } from '../../../src/data/largePlots.js';
+import { largePlotUnlocked } from '../../../src/sim/largePlots.js';
 
 const SIZE = 48;
 const RESERVE = 400;
@@ -24,7 +27,7 @@ export const CAPITAL_YEARS = 6;
 // elsewhere. Stage 4: three rocky patches on the desert south of the fields for the quarries. The trade entry is the
 // east end of the farm street, which the script lays; the raider entries are the two mapgen gives a 48-tile map (the
 // middle of the east edge and of the north edge).
-function capitalWorld(size = SIZE) {
+function capitalWorld(size = SIZE, dangers = false) {
   const terrain = new Array(size * size).fill(T.DESERT);
   for (let y = 17; y < 24; y++) for (let x = 0; x < size; x++) terrain[idx(size, x, y)] = T.FERTILE;
   for (let y = 21; y < 23; y++) for (let x = 10; x < 14; x++) terrain[idx(size, x, y)] = T.ROCKY;
@@ -36,7 +39,9 @@ function capitalWorld(size = SIZE) {
   if (size > SIZE) for (let y = 25; y < 27; y++) for (let x = 52; x < 56; x++) terrain[idx(size, x, y)] = T.ROCKY;
   const raiderEntries = [{ x: 47, y: 24 }, { x: 24, y: 0 }];
   const map = { size, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries };
-  return createWorld({ seed: 5, size, map });
+  const world = createWorld({ seed: 5, size, map });
+  // Version 6.0: the run measures the game before the new dangers (tests/v60/b1/grace.js); the Wave 4 balance runs (tests/v60/balance) ask for them (dangers: the three-year grace from day 0).
+  return dangers ? world : noNewDangers(world);
 }
 
 // Each step: the milestone it waits for, what it costs now, and the command. A step that fails for any reason but gold
@@ -78,7 +83,8 @@ const CAPITAL_SCRIPT = [
     build('well', 17, 11), build('well', 25, 11), build('bazaar', 14, 10),
     plots(10, 13, 23, 13),
     ...once(40, build('temple', 19, 10), build('farm_grain', 27, 18)),
-    ...once(80, build('well', 33, 11), build('well', 38, 11), plots(25, 13, 30, 13), plots(32, 13, 39, 13)),
+    // Version 6.0 (Track C, ruling 705): small plots stop at Townhouse, so the Manor block (x 29-37) is four Large plots laid at Market town (below), not plots that merge.
+    ...once(80, build('well', 33, 11), build('well', 38, 11), plots(25, 13, 28, 13), plots(38, 13, 39, 13)),
     ...once(110, build('bazaar', 29, 10), build('temple', 34, 10), build('firehouse', 16, 11), build('firehouse', 32, 11),
       plots(10, 11, 39, 11), build('farm_grain', 18, 18)),
     ...once(140, build('farm_grain', 22, 21), build('farm_grain', 29, 18)),
@@ -89,14 +95,17 @@ const CAPITAL_SCRIPT = [
     // Two orchards, no more: homes eat grain before figs, so figs beyond what two-food homes need fill the shared
     // granaries and the grain farms stop with "no storage".
     build('farm_fig', 16, 18), build('farm_fig', 31, 18),
-    build('booth', 31, 13), plots(27, 14, 30, 14), plots(32, 14, 39, 14),
+    build('booth', 31, 13),
     build('statue', 29, 15), build('statue', 33, 15), build('statue', 37, 15),
     build('garden', 27, 15), build('garden', 31, 15), build('garden', 35, 15), build('garden', 39, 15),
     build('clay_pit', 14, 21), build('potter', 16, 21), build('granary', 25, 15), build('farm_grain', 24, 21),
   ),
   ...at('market_town',
+    // The four Large plots (2x2, rows 13-14, on the pleasant block where the Manors merged before 6.0), laid once a Townhouse has unlocked the card (a step that waits holds the
+    // ones after it, so they come after the Town's steps, with Market town's people already there).
+    ...[29, 32, 34, 36].map((x) => ({ ...build(LARGE_PLOT.type, x, 13), when: (w) => largePlotUnlocked(w) })),
     road(39, 20, 47, 20), build('trading_post', 36, 21), route('memphis'),
-    build('barracks', 8, 13), build('barracks', 38, 21), build('tower', 40, 19), build('tower', 25, 14),
+    build('barracks', 8, 13), build('barracks', 38, 21), build('tower', 40, 19), build('tower', 25, 14), build('tower', 23, 14),
     order('pottery', 'sell', 150),
     build('farm_grain', 26, 21), build('farm_grain', 33, 18), build('potter', 12, 21),
   ),
@@ -137,9 +146,11 @@ function insanity(w, m) {
 // Runs the script month by month: each month end, the next steps whose milestone, population, wait and price allow.
 // months: one row per month end, from the books (stats.lastMonth), the labour market (world.labour) and the crews at
 // work that day (every site's site.crews). insane: every month end's insanity (none, in a sound run).
-export function runCapital(monthsToRun, { size = SIZE } = {}) {
+// Version 6.0 (Wave 4): dangers true leaves the new dangers' grace as a new city has it; onMonth(w, events, month) is called after each month end's books, before the
+// script's next steps (a player's answers to the dangers: tests/v60/balance/respond.js). Both default to the run as it always was.
+export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth = null } = {}) {
   const started = performance.now();
-  const w = capitalWorld(size);
+  const w = capitalWorld(size, dangers);
   let next = 0, lowestGold = w.gold, net = 0, spent = 0, capitalMonth = null;
   const made = [], months = [], insane = [];
   const tryBuild = () => {
@@ -158,7 +169,8 @@ export function runCapital(monthsToRun, { size = SIZE } = {}) {
   };
   tryBuild();
   for (let m = 1; m <= monthsToRun; m++) {
-    advanceDays(w, 30);
+    const events = onMonth ? [] : null;
+    advanceDays(w, 30, events);
     insane.push(...insanity(w, m));
     lowestGold = Math.min(lowestGold, w.gold);
     net += w.stats.lastMonth.net;                    // taxes less wages and upkeep (monument gold is outside net)
@@ -166,6 +178,7 @@ export function runCapital(monthsToRun, { size = SIZE } = {}) {
     made.push({ ...w.tally.made });
     const crews = allBuildings(w).reduce((n, b) => n + (isSite(b) ? b.site.crews.length : 0), 0);
     months.push({ ...w.stats.lastMonth, workforce: w.labour.workforce, employed: w.labour.employed, crews, gold: w.gold });
+    if (onMonth) onMonth(w, events, m);
     tryBuild();
   }
   return { w, steps: next, lowestGold, net, spent, capitalMonth, made, months, insane, elapsed: performance.now() - started };

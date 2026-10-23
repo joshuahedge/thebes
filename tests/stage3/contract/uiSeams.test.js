@@ -12,7 +12,7 @@ import { createSettings, DEFAULT_SETTINGS, FIRE_REACTIONS } from '../../../src/u
 import { createTitleCard } from '../../../src/ui/titleCard.js';
 import { createDanger } from '../../../src/ui/danger.js';
 import { createScoreUi, scoreLineFor, titleDecor } from '../../../src/ui/scoreUi.js';
-import { weeklySeed, shareLink, parseShareLink, emojiRow, pictureCard } from '../../../src/ui/share.js';
+import { shareLink, parseShareLink, emojiRow, pictureCard } from '../../../src/ui/share.js';
 import { createRecords, emptyRecords, newCityId, mergeRecords } from '../../../src/save/records.js';
 import { devScene } from '../../../src/dev/scenes.js';
 import { toolForItem } from '../../../src/data/ui.js';
@@ -32,7 +32,7 @@ import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 // Stage 4 (Track G): the picture cards were seen on this device, so New city starts the city at once.
-const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true}' : null), setItem: () => {} };
+const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true,"lessonDone":true}' : null), setItem: () => {} };   // Version 6.0 (Track D2): the picture cards were seen and the lesson done, so the title offers New city
 const STUB_PARTS = ['building', 'house', 'actions', 'summary'];
 
 async function bootRig({ platform = {}, store = createSaveStore({ idb: fakeIndexedDB(), local: null }) } = {}) {
@@ -332,7 +332,6 @@ describe('s3 contract records, sharing and boot', () => {
     expect(Array.isArray(mergeRecords(emptyRecords(), emptyRecords()).cities)).toBe(true);
     expect(/^[0-9a-z]+-[0-9a-z]{4}$/.test(newCityId(1760000000000, () => 0.5))).toBe(true);
     expect(newCityId(1760000000000, () => 0.5)).toBe(newCityId(1760000000000, () => 0.5));
-    expect(Number.isInteger(weeklySeed(new Date(2026, 9, 11)))).toBe(true);
     expect([shareLink, parseShareLink, emojiRow, pictureCard].map((f) => typeof f)).toEqual(['function', 'function', 'function', 'function']);
   });
   it('shows the dev scene hook before the game, keeps it in the game, gives each city an id, and writes and carries records', async () => {

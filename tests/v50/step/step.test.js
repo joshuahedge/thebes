@@ -6,7 +6,7 @@ import { describe, it, expect } from '../../harness.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 import { mount, fire } from '../../helpers/dom.js';
 import { rigUI } from '../../helpers/uiWorld.js';
-import { nextStep, daysToDelivery } from '../../../src/sim/advice.js';
+import { nextStep, daysToDelivery, desirabilityFix } from '../../../src/sim/advice.js';
 import { houseStatus } from '../../../src/sim/housing.js';
 import { houseDesirability } from '../../../src/sim/desirability.js';
 import { costOf, roadCostOf } from '../../../src/sim/costs.js';
@@ -34,12 +34,31 @@ const lineOf = (w, home) => { const step = nextStep(w, home); return { step, wor
 const code = ({ step }) => (step.reason === null ? step.cause.code : step.reason);
 
 // A road along y = 10, a home beside it at (12, 9); size 32, fertile west strip, a patch of clay at (24, 20).
-function street({ tier = 2, milestone = 'capital', homeAt = [12, 9], stock } = {}) {
+function street({ tier = 2, milestone = 'capital', homeAt = [12, 9], stock, large = false } = {}) {
   const w = makeTestWorld({ clay: [[24, 20, 4, 4]] });
   w.milestone = milestone;
   setRoad(w, 0, 10, 31, 10);
-  const home = addRaw(w, 'house', homeAt[0], homeAt[1], { tier, residents: tier ? TIERS[tier].capacity : 0, stockedFor: tier ? TIERS[tier].capacity : 0, stock: stock || {} });
+  const home = addRaw(w, 'house', homeAt[0], homeAt[1], { tier, residents: tier ? TIERS[tier].capacity : 0, stockedFor: tier ? TIERS[tier].capacity : 0, stock: stock || {}, ...(large ? { w: 2, d: 2, large: true } : {}) });
   return { w, home };
+}
+
+// Version 6.0 (Track C): what a Townhouse's next tier used to ask for is an empty Large plot's list ("Opens when"): the same street as townhouse() with the lot at (12, 11)
+// (below the road, its well beside it): every need but entertainment, which the booth gives, then the street (statues) for the Manor's "to rise".
+function lot({ booth = false, statues = false } = {}) {
+  const { w, home } = street({ tier: 0, homeAt: [12, 11], large: true });
+  addRaw(w, 'well', 14, 11);
+  addRaw(w, 'temple', 20, 11);
+  const bazaar = addRaw(w, 'bazaar', 9, 11);
+  bazaar.store = Object.fromEntries([['grain', 300], ...HOUSEHOLD_GOODS.map((g) => [g, 300])]);
+  if (booth) addRaw(w, 'booth', 16, 11);
+  staffAll(w);
+  if (statues) {
+    for (const [x, y] of [[11, 13], [13, 13], [10, 13], [14, 13], [12, 13], [12, 14], [11, 14], [13, 14], [15, 13], [15, 14], [16, 13], [16, 14], [11, 15], [12, 15], [13, 15]]) {
+      if (houseDesirability(w, home) >= TIERS[6].desirability.rise) break;
+      addRaw(w, 'statue', x, y);
+    }
+  }
+  return { w, home, bazaar };
 }
 
 // Everything a Townhouse (tier 5) needs but entertainment: well, temple, a bazaar with every food and household good, its own stock; the next tier is a Manor.
@@ -86,14 +105,16 @@ const CAUSES = [
     text: (w) => `Next step: a grain farm near the granary (${gold(costOf(w, 'farm_grain'))}) gives this home food`, action: T.showMe, after: (w, h, r) => { r.granary.store.grain = 50; } },
   { code: 'no_temple', make: () => { const r = street({ tier: 3, stock: { grain: 30 } }); addRaw(r.w, 'well', 14, 11); const b = addRaw(r.w, 'bazaar', 9, 11); b.store.grain = 40; staffAll(r.w); return r; },
     text: (w) => `Next step: a temple near here (${gold(costOf(w, 'temple'))}) gives this home a temple in reach`, action: T.showMe, after: (w) => { addRaw(w, 'temple', 20, 11); staffAll(w); } },
-  { code: 'no_booth', make: () => townhouse(),
+  { code: 'no_booth', make: () => lot(),
     text: (w) => `Next step: a booth near here (${gold(costOf(w, 'booth'))}) gives this home entertainment`, action: T.showMe, after: (w) => { addRaw(w, 'booth', 16, 11); staffAll(w); } },
-  { code: 'low_desirability', make: () => townhouse({ booth: true }),
-    // Version 5.0 (Task 7): the decoration that lifts the street most, beside the home (a sphinx at Capital; tests/v50/grand prove the pick), with the score before and after.
-    text: (w) => `Next step: a sphinx beside this home (${gold(costOf(w, 'sphinx'))}) raises its desirability from −1 to 9 (it needs ${TIERS[6].desirability.rise})`, action: T.showMe, after: (w, h) => { for (let i = 0; i < 12 && houseDesirability(w, h) < TIERS[6].desirability.rise; i++) addRaw(w, 'statue', 8 + i, 8); } },
-  { code: 'no_square', make: () => townhouse({ booth: true, statues: true }),
-    text: (w) => `Next step: house plots beside this home (${gold(costOf(w, 'house'))} a plot) give it room to become a ${TIERS[6].name}`, action: T.showMe,
-    after: (w, h) => { for (const [x, y] of [[13, 9], [12, 8], [13, 8]]) addRaw(w, 'house', x, y, { tier: 0 }); } },
+  { code: 'low_desirability', make: () => lot({ booth: true }),
+    // Version 5.0 (Task 7): the decoration that lifts the street most, beside the home (tests/v50/grand prove the pick), with the score before and after, all from desirabilityFix.
+    text: (w, h) => { const f = desirabilityFix(w, h); return `Next step: a ${buildingName(f.item).toLowerCase()} ${f.dist <= 1 ? 'beside this home' : `${f.dist} tiles from this home`} (${gold(costOf(w, f.item))}) raises its desirability from ${f.from < 0 ? `−${-f.from}` : f.from} to ${f.to} (it needs ${TIERS[6].desirability.rise})`; },
+    action: T.showMe, after: (w, h) => { for (let i = 0; i < 12 && houseDesirability(w, h) < TIERS[6].desirability.rise; i++) addRaw(w, 'statue', 8 + i, 13); } },
+  // Version 6.0 (Track C): a Townhouse with every need met has no next tier (a small plot stops there); the Large plot is where a Manor grows. Once one stands, it is simply kept.
+  { code: 'no_large', make: () => townhouse(),
+    text: (w) => `Next step: a Large plot near here (${gold(costOf(w, 'large_plot'))}) opens as a ${TIERS[6].name}: a small plot stops at ${TIERS[5].name}`, action: T.showMe,
+    after: (w) => { addRaw(w, 'house', 20, 14, { tier: 0, w: 2, d: 2, large: true }); } },
   { code: 'no_good', make: () => pottery(),
     text: (w, h, r) => `Next step: a storehouse near the bazaar (${gold(costOf(w, 'storehouse'))}) gives this home pottery`, action: T.showMe, after: (w) => { addRaw(w, 'storehouse', 4, 8, { store: { pottery: 40 } }); staffAll(w); } },
   { code: 'good_unmade', make: () => { const r = pottery(); addRaw(r.w, 'storehouse', 4, 8); staffAll(r.w); return r; },
@@ -188,8 +209,8 @@ describe('v50 step: the providers in reach that do not serve the home are viewed
     expect(code(lineOf(w, home)) === 'temple_no_road').toBe(false);
   });
 
-  it('a booth that is idle or has no road, at a Townhouse that is otherwise ready', () => {
-    const { w, home } = townhouse();
+  it('a booth that is idle or has no road, at a Large plot that is otherwise ready', () => {
+    const { w, home } = lot();
     const booth = addRaw(w, 'booth', 16, 11);
     booth.staff = 0;
     let l = lineOf(w, home);
@@ -198,7 +219,7 @@ describe('v50 step: the providers in reach that do not serve the home are viewed
     booth.paused = true;
     l = lineOf(w, home);
     expect([code(l), l.words.text]).toEqual(['booth_idle', 'Next step: resume the booth in reach (it is paused)']);
-    const { w: w2, home: home2 } = townhouse();
+    const { w: w2, home: home2 } = lot();
     const roadless = addRaw(w2, 'booth', 12, 7);
     l = lineOf(w2, home2);
     expect([code(l), l.words.text, l.words.action.select]).toEqual(['booth_no_road', 'Next step: lay a road beside the booth', roadless.id]);

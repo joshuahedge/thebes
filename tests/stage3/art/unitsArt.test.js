@@ -1,5 +1,6 @@
 import { describe, it, expect } from '../../harness.js';
 import { unitsAt, drawUnitMarks, UNIT_ID_BASE, ARROW_MS, STILL_ARROW_MS, BAR, BAR_COLOUR } from '../../../src/render/units.js';
+import { SCRUM, FIGHT } from '../../../src/data/battle.js';
 import { fig, raider, soldier, FIGURE_KINDS, UNIT_KINDS, UNIT_SCALE } from '../../../src/render/art/figures.js';
 import { KIND_BY_TYPE, walkersAt } from '../../../src/render/walkers.js';
 import { ART } from '../../../src/render/art/registry.js';
@@ -70,7 +71,9 @@ describe('s3 art units', () => {
       { id: 9, barracks: bk.id, x: 12, y: 9, hp: 5, hit: true, task: 'out' }];
     const list = unitsAt(w, 0);
     expect(list.map((u) => [u.id, u.kind])).toEqual([[UNIT_ID_BASE + 1, 'raider'], [UNIT_ID_BASE + 2, 'raider'], [UNIT_ID_BASE + 7, 'soldier'], [UNIT_ID_BASE + 8, 'soldier'], [UNIT_ID_BASE + 9, 'soldier']]);
-    expect([list[0].x, list[0].y, list[4].x, list[4].y]).toEqual([20.5, 10.5, 12.5, 9.5]);   // tile centres
+    expect([list[0].x, list[0].y]).toEqual([20.5, 10.5]);   // tile centres
+    // Version 6.0 (ruling 721): a soldier out in the field stands where its id puts it in the company's spread, round the tile centre the sim has it on
+    expect([list[4].x, list[4].y].map((v) => Math.round(v * 1000))).toEqual([12.5 + SCRUM[9][0] * FIGHT.spread, 9.5 + SCRUM[9][1] * FIGHT.spread].map((v) => Math.round(v * 1000)));
     const yard = list.filter((u) => u.id === UNIT_ID_BASE + 7 || u.id === UNIT_ID_BASE + 8);
     for (const u of yard) expect(u.x + u.y).toBeGreaterThan(bk.x + bk.y + 2);   // drawn after the barracks (its depth key), in its yard
     expect(yard[1].x - yard[0].x).toBeGreaterThan(0.3);                          // side by side, not on one spot

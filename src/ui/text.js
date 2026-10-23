@@ -7,7 +7,7 @@ import { ACHIEVEMENTS } from '../data/achievements.js';
 import { FIRSTS } from '../data/firsts.js';
 import { GOODS, FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { PARTNERS } from '../data/trade.js';
-import { TRADE_KEEP_STEP, DESIRABILITY_STEPS } from '../data/ui.js';
+import { TRADE_KEEP_STEP, DESIRABILITY_STEPS, KEYS } from '../data/ui.js';
 import { ECONOMY, FORECAST } from '../data/economy.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { MAP } from '../data/map.js';
@@ -29,7 +29,7 @@ export function buildingName(type) {
 export const NEED_NAMES = {
   road: 'Road access', water: 'Water', food: 'Food', religion: 'Temple',
   pottery: 'Pottery', entertainment: 'Entertainment', beer: 'Beer', twoFoods: 'Two kinds of food', linen: 'Linen', jewellery: 'Jewellery',
-  desirability: 'Desirability', merge: `Room to become a ${TIERS[6].name}`,
+  desirability: 'Desirability',
 };
 
 // Goods' names come from the data (GOODS[good].name), as buildings' do; inside a sentence they are lower case.
@@ -122,7 +122,6 @@ export const CAUSE_TEXT = {
   booth_idle: idleWords('booth'),
   booth_no_road: roadlessWords('booth'),
   low_desirability: { cause: 'The street is not pleasant enough', fix: 'Place gardens or statues near it, or move workshops away' },
-  no_square: { cause: 'No 2×2 square of plots around it', fix: `Make a square with three plots beside it, empty or ${TIERS[5].name}s` },
 };
 
 const milestoneOf = (type) => MILESTONES.find((m) => m.unlocks.includes(type)) || null;
@@ -524,7 +523,7 @@ export const T = {
   difficultyForNewCities: 'Difficulty for new cities', difficultyNote: 'A city keeps the level it started with. This one changes the next new city.',
   guideHelp: 'While the guide runs, the card for the next step says Suggested and a ring marks the place. Skip guide turns it off: in the goals strip, or on a phone in the open goal or the goals list.',
   updateReady: 'Update ready', restart: 'Restart', updateSaveFailed: "Couldn't save, so the update will wait",
-  playWithSound: 'Play with sound', playMuted: 'Play muted', install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',
+  install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',
   installMenu: 'Install on this device', bringCity: 'Bring a city from Safari', bringCityHelp: 'If you saved a city in Safari, open the menu there and choose Export city. Then import that file here.', installWhy: 'Installed on the home screen, the game works offline and keeps your city safe.', installIosSteps: ['Tap Share (the square with an arrow)', 'Scroll down and tap Add to Home Screen', 'Tap Add'], installExportFirst: 'Export your city first: the installed app keeps its own storage. Then import the file from the home-screen app.', installNow: 'Install now', installNotOffered: 'Your browser did not offer to install. Look for Install app or Add to Home screen in its menu.', openInSafari: 'Open in Safari to keep your city', openInChrome: 'Open in Chrome to keep your city', saveNewer: 'This city was saved by a newer version of the game', saveUnreadable: "This save can't be read",
   exported: 'City file downloaded', exportFailed: "Couldn't export the city", exportFirst: 'Export first', replaceCityConfirm: 'Replace the current city with the imported one?', fileUnreadable: "Couldn't read that file",
   paused: 'Paused', resumed: 'Resumed', pausedHidden: 'Paused while you were away', placed: 'Placed', demolished: 'Demolished', roadLaid: 'Road laid',
@@ -653,7 +652,6 @@ export const TIP_TEXT = {
   nicer_streets: 'Place gardens and statues near homes: Manors and up need a pleasant street.',
   storehouse_choices: 'Tap a storehouse to refuse goods. If no store takes one, production stops.',
   trade_orders: 'Tap the trading post, open a route, then pick what to buy, sell and keep.',
-  merging_homes: 'Add three plots beside a Townhouse in a square: it can become a Manor.',
 };
 
 // Achievements on the summary and the Welcome back card (early-game pass 3.8, 3.9). Counts read as progressText does.
@@ -1020,9 +1018,8 @@ export const SHARE_TEXT = {
 Object.assign(T, { sealReign: SCORE_TEXT.sealReign, shareScore: SCORE_TEXT.shareScore });   // the two sheets' headings
 // The title card (spec 4.1, 4.19): the device's bests and stamps, This week's Nile and a friend's shared score.
 export const TITLE_SCORE_TEXT = {
-  weekly: "This week's Nile", records: 'Your records', friend: "A friend's score", startSeed: 'Start this seed',
+  records: 'Your records', friend: "A friend's score", startSeed: 'Start this seed',
   badLink: "This score link can't be read", newerLink: 'This score link is from a newer version of Thebes',
-  weeklyHint: (seed) => `Seed ${seed}: the same river for everyone this week`,
   bestLine: (b) => `Best: ${b.score}${b.medal ? `, ${SCORE_TEXT.medals[b.medal].toLowerCase()}` : ''}, seed ${b.seed}, ${DIFFICULTY_NAMES[b.difficulty] || b.difficulty}${b.mapSize && b.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(b.mapSize)}` : ''}${b.older ? ', older scoring' : ''}`,   // Stage 4.6 (ruling 333): a record from a Small or Large map says so; Normal says nothing, as before
   stampLabel: (e) => `Sealed reign: score ${e.score}${e.medal ? `, ${SCORE_TEXT.medals[e.medal].toLowerCase()}` : ''}, seed ${e.seed}${e.mapSize && e.mapSize !== MAP.size ? `, ${S46_MAP_TEXT.sizeNote(e.mapSize)}` : ''}`,
   moreStamps: (n) => `+${n} more`,
@@ -2398,8 +2395,9 @@ export const S46_UX_TEXT = {
   pausedWord: 'Paused',
   playingState: (speedLabel) => `Playing at ${speedLabel}`,   // ruling 419: the state while running, beside the action the button names
   speedStepLabel: (s) => (s === 0 ? 'Pause' : `Play at ${SPEED_LABELS[s]} speed`),
-  // keys: whether Keyboard shortcuts is on (Space, + and - only work then: src/ui/keyboard.js); off, the title names no key (final review).
-  speedStepTitle: (s, keys = true) => (s === 0 ? (keys ? 'Pause (Space)' : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ' (+ and - change it)' : ''}`),
+  // keys: whether Keyboard shortcuts is on (Space, ] and [ only work then: src/ui/keyboard.js); off, the title names no key (final review). The keys are
+  // read from KEYS (Version 6.0, Track D1, ruling 744: + and - zoom now, the speed steps are ] and [), so the words cannot drift from the keys.
+  speedStepTitle: (s, keys = true) => (s === 0 ? (keys ? `Pause (${KEYS.pause[0] === ' ' ? 'Space' : KEYS.pause[0]})` : 'Pause') : `Play at ${SPEED_LABELS[s]} speed${keys ? ` (${KEYS.speedUp[0]} and ${KEYS.speedDown[0]} change it)` : ''}`),
   // Rulings 401-403: the version and What's new on the title card. The notes themselves are src/data/releases.js.
   versionLine: (version, stamp = null) => `Version ${version}${stamp ? ` · build ${stamp}` : ''}`,
   whatsNew: 'What\'s new', whatsNewTitle: 'What\'s new in Thebes', newHead: 'New', fixedHead: 'Fixed', newestTag: 'newest',
@@ -2661,7 +2659,8 @@ const v50Bands = JOBLESS_BANDS.map((b, i) => (JOBLESS_BANDS[i + 1] ? `${b.from} 
 const v50Staff = `${Math.round(MIN_STAFF_RATIO * 100)}%`;
 export const V50_LAYERS_TEXT = {
   // Home progress: three keys, each a label and its words.
-  ready: { label: 'All met', words: 'Tick: every need met, so it grows at the month\'s end, or keeps its top tier' },
+  // Version 6.0 (Wave 4 fix): a Townhouse on a small plot has no tier above it (ruling 616), so its tick says it keeps its tier, not that it grows.
+  ready: { label: 'All met', words: `Tick: every need met, so it grows at the month's end, or keeps its top tier (a ${TIERS[lgPlot.unlockTier].name} on a small plot grows no further)` },
   one: { label: '1 missing', words: 'Icon: one need missing, the one the icon shows' },
   many: { label: '2+ missing', words: 'Hatched, with a number: two or more needs missing; the icon is the first, the number how many' },
   // Goods supply: the good picker and its keys.
@@ -2713,3 +2712,612 @@ TIP_HELP_TEXT.road_route = 'Route finds the cheapest way between two points, wit
 TIP_TEXT.grand_homes = `A ${TIERS[7].name}! For a ${TIERS[8].name}: linen, a third food, desirability ${TIERS[8].desirability.rise}. Its next step names each.`;
 TIP_HELP_TEXT.grand_homes = `A ${TIERS[8].name} needs linen, three foods and desirability ${TIERS[8].desirability.rise}; an ${TIERS[9].name} adds jewellery and ${TIERS[9].desirability.rise}. Statues and sphinxes help most.`;
 // ── end v50 grand ──
+
+// ── v60 contract (Version 6.0, Track 0, rulings 620-639) ─────────────────────────────────────────────────────────────
+// Two tables the tracks fill from their own sections below (contract note, section 9), so menu.js and adviceText.js are never edited for them:
+// V60_HELP: How to play's Version 6.0 paragraphs, by track, each { head, text } (menu.js help() adds them after the gestures, in this key order);
+// V60_ADVICE_WORDS: kind -> (item, world) => { what, why, fix } for the new advice kinds (src/ui/adviceText.js adviceWords asks it for any kind
+// it does not word itself). A track writes only its own key of V60_HELP and only its own kinds.
+export const V60_HELP = { a: [], b1: [], c: [], b2: [], d1: [], d2: [] };
+export const V60_ADVICE_WORDS = {};
+// ── end v60 contract ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 a (Track A, rulings 640-679: costs, demands, ranks beyond Capital, the great work) ─────────────────────────────────
+// Add new lines just above the end marker: V60_HELP.a.push(...), V60_ADVICE_WORDS.demand = ..., ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ...
+// Every number on screen comes from the sim's own records and functions (src/sim/demands.js, src/sim/pressure.js courtDue, src/sim/monuments.js
+// greatWorkStatus) or from the data (src/data/reign.js), passed in by the interface (src/ui/v60/reign.js, src/ui/s46/court.js, src/ui/monumentSheet.js).
+import { COST_GROWTH as reignGrowth, COURT_DUE as reignDue, DEMANDS as reignDemands, GREAT_WORK as reignGreat } from '../data/reign.js';
+import { FAVOUR as reignFavour } from '../data/court.js';
+import { QUOTA as reignQuota } from '../data/s47.js';
+const reignNum = (n) => ui4Gold(n);
+const reignPct = (share) => `${Math.round(share * 100)}%`;
+const reignShare = (share) => ({ 0.5: 'a half', 0.25: 'a quarter', 0.75: 'three quarters', 0.1: 'a tenth', 0.05: 'a twentieth' }[share] || reignPct(share));   // a share of the whole, as the court says it
+const reignMonths = (n) => plural(n, 'month', 'months');
+const reignRank = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
+const reignAsk = (d) => (d.kind === 'gold' ? `${reignNum(d.amount)} gold` : d.kind === 'soldiers' ? `${d.amount} trained units`
+  : d.kind === 'building' ? `a ${buildingName(d.type).toLowerCase()}${BUILDINGS[d.type].monument ? ', finished' : ''}` : `${reignNum(d.amount)} ${goodWord(d.good)}`);
+const reignStageNames = { foundations: 'the foundations', court: 'the court', hall: 'the hall of columns', sanctuary: 'the sanctuary', crown: 'the crown' };
+export const V60_REIGN_TEXT = {
+  // ── The court's demands (rulings 644-650) ──
+  demandHead: "The court's demand",
+  demandTitle: (d) => `The court demands ${reignAsk(d)}`,
+  offered: 'Offered: accept or decline it',
+  answerBy: (left) => `Answer within ${reignMonths(Math.max(1, left))}: left unanswered, it counts as declined.`,
+  deadlineIf: (d) => `If accepted: due ${reignMonths(d.months)} later.`,
+  dueIn: (d) => `Due in ${reignMonths(d.monthsLeft)} (${courtDate(d.due)}).`,
+  reward: (d, f) => `Met: favour ${courtSigned(f.met)} and ${reignNum(d.reward)} gold.`,
+  failed: (f) => `Failed (the deadline passes): favour ${courtSigned(f.failed)}.`,
+  declined: (f) => `Declined: favour ${courtSigned(f.declined)}.`,
+  favourWhy: (raids = true) => `Favour sets the court's due: ×${reignDue.favour.low} at ${reignFavour.low} or less, ×${reignDue.favour.high} at ${reignFavour.high} or more.${raids ? ' Low favour also brings bigger raids.' : ''}`,
+  accept: 'Accept', decline: 'Decline', giveUp: 'Give up',
+  giveUpWhat: (f) => `Given up: it counts as failed now, favour ${courtSigned(f.failed)}.`,   // declineDemand on an accepted demand fails it with its own favour
+  acceptWhat: (d) => `The deadline starts: ${reignMonths(d.months)}.`,
+  send: (d) => (d.kind === 'soldiers' ? `Send ${d.amount} units` : `Send ${reignAsk(d)}`),
+  sendWhat: (d, f) => (d.kind === 'soldiers' ? `They are away ${reignMonths(reignDemands.amounts.soldiers.months)} and fight no raid. ` : '') + `Favour ${courtSigned(f.met)}, ${reignNum(d.reward)} gold back.`,
+  // A monument is laid by builders' guild crews (MONUMENTS: crews, and crewMonths shared among them): the sheet and the Advice name how many and for how long.
+  buildIt: (d) => {
+    const m = score4Monuments[d.type];
+    const crews = m ? ` It is laid by ${plural(m.crews, 'builders\' guild crew', 'builders\' guild crews')}: ${reignMonths(Math.ceil(m.crewMonths / m.crews))} with all of them working.` : '';
+    return `Build ${reignAsk(d)}: it counts the day one more stands than when you accepted.${crews}`;
+  },
+  have: (d, st) => (d.kind === 'gold' ? `In the treasury: ${reignNum(st.have)} of ${reignNum(st.need)}` : d.kind === 'soldiers' ? `At home: ${st.have} of ${st.need} units`
+    : d.kind === 'building' ? `Built since you accepted: ${st.have} of 1` : `In your stores: ${reignNum(st.have)} of ${reignNum(st.need)}`),
+  problem: (reason, st, d) => ({
+    short: `Your stores hold ${reignNum(st.have)} of ${reignNum(st.need)} ${d.good ? goodWord(d.good) : ''}`.trim(),
+    no_gold: `The treasury holds ${reignNum(st.have)} of ${reignNum(st.need)} gold`,
+    raid: 'Units cannot leave while raiders are in the city',
+    not_enough: `${st.have} of ${st.need} units are at home`,
+  })[reason] || '',
+  noDemand: 'No demand is open. The court asks about once a year.',
+  later: 'Later', openCourt: 'Open the court',
+  next: (months) => `The next demand comes in about ${reignMonths(Math.max(1, months))}.`,
+  open: 'Open demand',
+  captionOffered: (d) => `${V60_REIGN_TEXT.demandTitle(d)}: open the court to answer`,
+  captionAccepted: (d) => `Accepted: ${reignAsk(d)} within ${reignMonths(d.months)}`,
+  captionSettled: (e) => (e.result === 'met' ? `The court's demand met: favour ${courtSigned(e.favour)}, ${reignNum(e.gold)} gold`
+    : e.result === 'refused' ? `The court's demand declined: favour ${courtSigned(e.favour)}` : `The court's demand failed: favour ${courtSigned(e.favour)}`),
+  logLine: (e) => `${e.result === 'met' ? 'Met' : e.result === 'refused' ? 'Declined' : 'Failed'}: ${reignAsk(e)} (favour ${courtSigned(e.favour)}${e.gold > 0 ? `, ${reignNum(e.gold)} gold` : ''})`,
+  // ── The court's due (rulings 642, 643, 788) ──
+  dueHead: "The court's due",
+  dueRule: (due) => `${reignPct(due.treasuryShare)} of the treasury or ${reignPct(due.taxesShare)} of a year's taxes, whichever is more, on the first day of each year from year ${reignQuota.fromYear}.`,
+  dueInDebt: 'while the great temple rises and the treasury is below 0',   // the court takes nothing then (COURT_DUE.inDebt)
+  dueNow: (due, year) => (due.inDebt ? `Year ${year}: nothing is taken ${V60_REIGN_TEXT.dueInDebt}.`
+    : `Year ${year}: about ${reignNum(due.gold)} gold${due.monthsLeft ? ` in ${reignMonths(due.monthsLeft)}` : ''}.`),
+  dueParts: (due, gold) => (due.inDebt ? '' : [
+    due.by === 'treasury' ? `${reignPct(due.treasuryShare)} of ${reignNum(Math.max(0, gold))} in the treasury` : `${reignPct(due.taxesShare)} of ${reignNum(due.yearTaxes)} a year in taxes`,
+    due.factor !== 1 ? `×${due.factor} for ${due.band} favour` : '',
+    due.cost !== 1 ? `×${due.cost} for the difficulty` : '',
+    due.greatWork ? `cut to ${reignShare(reignDue.greatWork)} while the great temple rises` : '',
+  ].filter(Boolean).join(', ')),
+  dueShort: (due, have) => `The treasury holds ${reignNum(Math.max(0, have))}: the due takes it past 0 into debt.`,
+  dueSummary: (due) => (due.inDebt ? `Nothing ${V60_REIGN_TEXT.dueInDebt}` : `About ${reignNum(due.gold)} gold in ${reignMonths(Math.max(1, due.monthsLeft))}`),
+  dueCaption: (e) => `The court took its due: ${reignNum(e.gold)} gold`,
+  dueLog: (e) => `The court's due: ${reignNum(e.gold)} gold`,
+  dueBefore: `From year ${reignQuota.fromYear} the court takes a yearly due in gold.`,
+  // ── Costs that grow (rulings 640, 641) ──
+  costsLine: (scale) => `At this rank, on average (each price is rounded to whole gold): upkeep ×${Math.round(scale.upkeep * 100) / 100}, wages ×${Math.round(scale.wages * 100) / 100}, monuments ×${Math.round(scale.monuments * 100) / 100}.`,
+  // ── The reign: ranks beyond Capital and the great work (rulings 652-658) ──
+  reignHead: 'The reign',
+  nextRank: (m, people, met) => `Next: ${m.name}, at ${reignNum(m.population)} people (you have ${reignNum(people)})${m.needs && m.needs.tier ? ` and a ${TIERS[m.needs.tier].name} or grander (${met ? 'you have one' : 'none yet'})` : ''}.`,
+  greatHead: 'The great temple',
+  greatOpen: 'The great work',
+  greatLocked: `The great temple comes with the ${reignRank('seat')}: the final great work, and it wins the reign.`,
+  greatReady: 'Found the great temple: it wins the reign. Each stage asks an offering of goods.',
+  greatFound: 'Found it',
+  stageName: (i) => reignStageNames[reignGreat.stages[i]] || `stage ${i + 1}`,
+  stageLine: (s) => (s.stage >= s.stages ? `All ${s.stages} stages stand.` : `Stage ${s.stage + 1} of ${s.stages}: ${V60_REIGN_TEXT.stageName(s.stage)}.`),
+  offeringLine: (o) => `This stage's offering: ${reignNum(o.n)} ${goodWord(o.good)} (your stores hold ${reignNum(o.have)}). The crews wait for it.`,
+  offeringsList: (world, offeringOf) => reignGreat.stages.map((id, i) => { const o = offeringOf(world, i); return `${V60_REIGN_TEXT.stageName(i).replace(/^the /, (m) => m.charAt(0).toUpperCase() + m.slice(1))}: ${reignNum(o.n)} ${goodWord(o.good)}`; }),
+  offeringMade: (e) => `The great temple's offering: ${reignNum(e.n)} ${goodWord(e.good)} for ${V60_REIGN_TEXT.stageName(e.stage)}`,
+  greatCost: (gold, scale) => `${reignNum(gold)} gold to found; its work gold grows with the rank (×${Math.round(scale * 100) / 100} now).`,
+  // ── The closing scene (in a sheet: ruling 658) ──
+  wonTitle: 'The reign is won',
+  wonLead: (day) => `${courtDate(day)}: the great temple stands finished, and the Two Lands are yours.`,
+  wonSeal: (seal) => `Your score is sealed at ${score4Count(seal.score)}${seal.medal ? `, a ${medalText(seal.medal).toLowerCase()}` : ''}. It is in your chronicle.`,
+  wonOn: 'Play on: the city is yours to keep. The court, the dues and the dangers go on.',
+  playOn: 'Play on',
+  wonSummary: (day) => `Won in ${courtDate(day).toLowerCase()}`,
+  seeAgain: 'See the closing scene',
+  // Monument stall words for the great work (the site sheet, the alert list): the cause and its short form.
+  causeOffering: (o) => `Waiting for the stage's offering: ${reignNum(o.n)} ${goodWord(o.good)} (your stores hold ${reignNum(o.have)})`,
+};
+UI4_TEXT.cause.waiting_offering = "Waiting for the stage's offering of goods: its sheet says what";
+{
+  const short = UI4_TEXT.stallShort;
+  UI4_TEXT.stallShort = (reason) => (reason === 'waiting_offering' ? 'waiting for its offering' : short(reason));
+  const log = S46_COURT_TEXT.logLine;
+  S46_COURT_TEXT.logLine = (e) => (e.kind === 'due' ? V60_REIGN_TEXT.dueLog(e) : log(e));
+}
+// The alerts (warnings in the list, never the banner): an offer waiting, a demand nearly due, the due the treasury cannot pay.
+ALERT_TEXT.demand_offered = () => ({ title: 'The court makes a demand', fix: 'Open the court to accept or decline it' });
+ALERT_TEXT.demand_due = (a) => ({ title: `The court's demand is due in ${reignMonths(a.months)}`, fix: 'Open the court to send it, or build what it asks' });
+ALERT_TEXT.court_due = (a) => ({ title: `The court's due of ${reignNum(a.gold)} gold is more than the treasury`, fix: `It comes in ${reignMonths(Math.max(1, a.months))}: ${reignNum(a.short)} short` });
+// Advice (kind 'demand'): an offer, an accepted demand not yet ready, the due the treasury cannot pay.
+V60_ADVICE_WORDS.demand = (a) => {
+  const d = a.data;
+  // Ruling 786: the great temple's next offering while the stores hold less than it asks. The fix is the sim's: the store holding most of the good (View), else the producer's card.
+  if (d.offering) {
+    const what = `The great temple's next offering is ${reignNum(d.n)} ${goodWord(d.good)}: your stores hold ${reignNum(d.have)}`;
+    const why = d.waiting ? 'The crews are waiting for it before they lay the next stage.' : `The next stage begins with it, and the crews wait for it if the stores hold less. ${reignStageNames[reignGreat.stages[d.stage]] ? `That is ${reignStageNames[reignGreat.stages[d.stage]]}.` : ''}`.trim();
+    const fix = a.fix && a.fix.select !== undefined ? `Keep more ${goodWord(d.good)} in the stores: the one holding most is shown`
+      : a.fix ? `No store holds any ${goodWord(d.good)}: build ${anA(buildingName(d.producer).toLowerCase())} to make it` : `Make more ${goodWord(d.good)} before the stage begins`;
+    return { what, why, fix };
+  }
+  if (d.due) return { what: `The court's due of ${reignNum(d.gold)} gold comes in ${reignMonths(Math.max(1, d.monthsLeft))}`, why: `The treasury holds ${reignNum(Math.max(0, d.have))}: it would go into debt.`, fix: 'Raise favour or trim costs before the year turns' };
+  if (!d.accepted) return { what: V60_REIGN_TEXT.demandTitle(d), why: `Answer within ${reignMonths(Math.max(1, d.monthsLeft))}, or it counts as declined.`, fix: 'Open the court to accept or decline it' };
+  return { what: `${V60_REIGN_TEXT.demandTitle(d)}: due in ${reignMonths(d.monthsLeft)}`, why: V60_REIGN_TEXT.have(d, d.status), fix: d.kind === 'building' ? V60_REIGN_TEXT.buildIt(d) : 'Send it from the court once you have it' };
+};
+// Tips (ruling 651) and How to play.
+TIP_TEXT.court_demands = 'The court makes a demand: open the court. Each says its reward and its cost before you accept.';
+TIP_HELP_TEXT.court_demands = 'From Town, about yearly, the court demands goods, gold, a building or soldiers. Met: favour and gold; failed: favour falls.';
+TIP_TEXT.court_due = `From year ${reignQuota.fromYear} the court takes a yearly due in gold: a share of your treasury or taxes.`;
+TIP_HELP_TEXT.court_due = `The court's due grows with your rank and falls with high favour. Gold piled up in the treasury pays most.`;
+TIP_TEXT.beyond_capital = `Beyond Capital: ${reignRank('great_capital')} and the ${reignRank('seat')}. Each needs more people and grander homes.`;
+TIP_HELP_TEXT.beyond_capital = `${reignRank('great_capital')} needs ${reignNum(MILESTONES.find((m) => m.id === 'great_capital').population)} people and a ${TIERS[8].name}; the ${reignRank('seat')} ${reignNum(MILESTONES.find((m) => m.id === 'seat').population)} and an ${TIERS[9].name}.`;
+TIP_TEXT.great_work = 'The great temple is unlocked: found it in Monuments. Finishing it wins the reign.';
+TIP_HELP_TEXT.great_work = 'The great temple rises in five stages, each with an offering of goods. Finished, it wins the reign.';
+CHAPTER_NAMES.reign = 'The reign';   // the goals beyond Capital (src/data/reign.js REIGN_GOALS)
+V60_HELP.a.push(
+  { head: 'Costs grow with the city', text: `From Market town each rank adds to upkeep and the court's asks; past Capital, to wages and monuments too (upkeep ×${reignGrowth.seat.upkeep} at the ${reignRank('seat')}). Easier levels grow less.` },
+  { head: "The court's due", text: `From year ${reignQuota.fromYear}, on each year's first day, the court takes gold: a share of the treasury or of a year's taxes, whichever is more, set by your rank. Low favour makes it ×${reignDue.favour.low}; high favour ×${reignDue.favour.high}. While the great temple rises it is cut to ${reignShare(reignDue.greatWork)}, and nothing is taken while the treasury is below 0. Otherwise it is taken even when that puts you into debt. A city loaded from an older save owes its first due a year after it loads. The court sheet shows it ahead.` },
+  { head: "The court's demands", text: 'From Town, about once a year: goods, gold, a building or soldiers, with a deadline. The sheet says the reward and the cost of failing or declining before you choose.' },
+  { head: 'The reign', text: `Beyond Capital come ${reignRank('great_capital')} and the ${reignRank('seat')}. There the great temple can be founded: five stages over years, each with an offering of goods. Finishing it wins the reign and seals your score; then play on.` },
+);
+// ── end v60 a ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 b1 (Track B1, rulings 680-699: raids that burn, wreck and loot; plague; drought; locusts and blight) ──────────────
+// Add new lines just above the end marker: V60_HELP.b1.push(...), V60_ADVICE_WORDS.plague = ..., ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ...
+// Every sentence below is computed from the sim's own numbers and rules (src/data/hazards.js, src/sim/plague.js, crops.js, strikes.js and the
+// raid record), so what a sheet, an alert or the advice says is what the sim does; the tests set the world up both ways. Names start with b1
+// (the sections share this module's scope).
+import { PLAGUE as b1Plague, DROUGHT as b1Drought, CROPS as b1Crops, HARVEST_NOW as b1Harvest, CHIEFTAIN as b1Chief, WRECK as b1Wreck, HAZARD_LEVELS as b1Levels } from '../data/hazards.js';
+import { ECONOMY as b1Economy } from '../data/economy.js';
+import { FIRE as b1Fire } from '../data/fire.js';
+import { foodOutlook as b1FoodOutlook } from '../sim/crops.js';
+
+const b1Dur = (days) => DANGER_UI_TEXT.duration(Math.max(0, days));
+const b1Pct = (f) => `${Math.round(f * 100)}%`;
+const b1Months = (n) => plural(n, 'month', 'months');
+const b1A = (type) => anA(buildingName(type).toLowerCase());
+const b1Counted = (type, n) => (n === 1 ? b1A(type) : `${n} ${pluralName(type)}`);
+const b1HomeName = (b) => (b ? tierName(b.tier).toLowerCase() : 'home');
+const b1CropKind = (kind) => (kind === 'blight' ? 'Blight' : 'Locusts');
+// The share of a crop a low Nile leaves on this city's level: the sim's own (crops.js foodOutlook, 1 - cut x the level's severity, never under the floor). Words with no city
+// to read (a tip, How to play) give the three levels' own shares from the same data.
+const b1DroughtShare = (world) => b1FoodOutlook(world).factor;
+const b1LevelShare = (id) => b1Pct(Math.max(b1Drought.floor, 1 - b1Drought.cut * b1Levels[id].severity));
+const b1DroughtLevels = () => `${b1LevelShare('normal')} on Normal, ${b1LevelShare('relaxed')} on Relaxed and Peaceful, ${b1LevelShare('hard')} on Hard`;
+const b1DroughtShort = () => `${b1LevelShare('normal')} (Normal), ${b1LevelShare('relaxed')} (Relaxed), ${b1LevelShare('hard')} (Hard)`;
+
+export const B1_TEXT = {
+  // ── The raid report: what the band wrecked and took, and its chieftain ──
+  wrecked: (kinds) => {
+    const counts = new Map();
+    for (const k of kinds) counts.set(k, (counts.get(k) || 0) + 1);
+    return listText([...counts].map(([k, n]) => b1Counted(k, n)));
+  },
+  taken: (goods) => listText(Object.entries(goods).map(([g, n]) => `${n} ${goodName(g).toLowerCase()}`)),
+  chiefLine: (r) => {
+    const fell = r.chiefsFell || 0;
+    if (r.chiefs === 1) return fell ? 'The chieftain fell and his band turned back.' : 'The chieftain got away.';
+    return fell ? `${fell} of ${r.chiefs} chieftains fell.` : `${r.chiefs} chieftains got away.`;
+  },
+  chiefWarning: `A chieftain leads the band: he has ${b1Chief.hpFactor} times a raider's strength and hits ${b1Chief.damageFactor} times as hard, and when he falls the band turns back.`,
+  rubbleWas: (was) => `Rubble of ${b1A(was.type)}, ${was.cause === 'wreck' ? 'wrecked by raiders' : 'burned down'}`,
+  rebuildLabel: (type, cost) => `Rebuild the ${buildingName(type).toLowerCase()}: ${cost} gold`,
+  rebuildCosts: (q) => `Clearing the rubble ${q.clear} gold, the ${buildingName(q.type).toLowerCase()} ${q.build} gold`,
+  rebuilt: (type) => `Rebuilt the ${buildingName(type).toLowerCase()}`,
+  rebuildRefusal: (q) => (q.reason === 'no_gold' ? `Rebuilding costs ${q.cost} gold: it would put the treasury over ${-b1Economy.debtFloor} gold in debt` : `Cannot rebuild here: ${reasonText(q.reason).toLowerCase()}`),
+
+  // ── Plague ──
+  plagueLabel: 'Plague',
+  plagueSick: (i, covered) => `Sick with plague: ${plural(i.left, 'day', 'days')} left, ${i.lost} of up to ${i.cap} people lost. ${covered ? `A staffed physician reaches it: it mends ${b1Plague.coverFactor === 2 ? 'twice' : `${b1Plague.coverFactor} times`} as fast` : 'No staffed physician reaches it'}`,
+  plagueOrigin: (days) => `A plague is warned to start in this home in ${b1Dur(days)}. A physician and a well near it slow it, and so does room: fewer people in each home`,
+  quarantineButton: (fee) => `Quarantine this district: ${fee} gold`,
+  quarantineDoes: (q) => `Holds ${b1Months(q.months)}. The plague cannot cross the district's edge and spreads at ${b1Pct(b1Plague.quarantine.insideFactor)} of its pace inside it. ${q.workplaces ? `${plural(q.workplaces, 'farm or workshop', 'farms and workshops')} there stop${q.workplaces === 1 ? 's' : ''} work` : 'Work there stops'} until it ends. The fee is ${q.fee} gold.`,
+  quarantineHeld: (until, now) => `Quarantined: ends in ${b1Dur(until - now)}. Work in the district has stopped`,
+  quarantineRefusal: { none_sick: 'No home in this district is sick: there is nothing to quarantine', no_plague: 'There is no plague', no_gold: (q) => `The ${q.fee} gold fee would put the treasury over ${-b1Economy.debtFloor} gold in debt` },
+  quarantined: (fee) => `District quarantined for ${fee} gold`,
+  haltedPlague: 'Work has stopped here: a sick home near it has no physician. A staffed physician within reach would let work go on',
+  haltedQuarantine: (until, now) => `Work has stopped here: the district is quarantined for ${b1Dur(until - now)} more`,
+  physicianNote: 'Show me a physician',
+  // The refusals' Show me: each opens what would clear the refusal (a sick home to quarantine, the summary's monthly costs, a granary with room).
+  showSickHome: 'a sick home to quarantine',
+  showCosts: 'what each month costs',
+  showGranary: 'where to build a granary',
+
+  // ── Drought and the low Nile ──
+  droughtRow: (a, now) => `Drought: this farm gives ${b1Pct(a.factor)} of its crop for ${b1Dur(a.until - now)} more`,
+  droughtLine: (d) => (d.warned
+    ? `Low Nile in ${b1Dur(d.strikes - d.day)}: every farm then gives ${b1Pct(d.factor)} of its crop for ${b1Months(d.months)}`
+    : `The Nile ran low: every farm gives ${b1Pct(d.factor)} of its crop for ${b1Dur(d.until - d.day)} more`),
+  droughtStores: (d) => (d.short <= 0 ? `The farms still keep up (they make ${d.made} food a month at the full crop, homes eat ${d.used}): nothing runs short`
+    : d.carries ? `The stores hold ${d.held} food. The farms will fall short by ${d.short} a month (${d.need} over ${b1Months(d.months)}): the stores carry the city`
+      : `The stores hold ${d.held} food. The farms will fall short by ${d.short} a month (${d.need} over ${b1Months(d.months)}): the city is short by ${d.need - d.held}, about ${b1Months(d.monthsShort)} without food`),
+
+  // ── Locusts and blight ──
+  cropRowWarned: (w, now) => `${b1CropKind(w.kind)} warned for this farm, due in ${b1Dur(w.strikes - now)}`,
+  harvestButton: 'Harvest now',
+  harvestDoes: (q) => `Takes ${q.units} ${goodName(q.good).toLowerCase()} into the stores today, extra to what the farm goes on making until the ${q.kind === 'blight' ? 'blight comes' : 'locusts come'}. It then rests ${plural(q.restDays, 'day', 'days')} from the day after, while ${q.kind === 'blight' ? `the blight cuts the crop for ${b1Dur(b1Crops.blight.days)}` : `the locusts eat the crop for ${b1Dur(b1Crops.locusts.days)}`}: the rest costs less than the grain gives`,
+  harvestRefusal: { not_warned: 'This farm is in no warned band', done: 'Harvested early already: it rests when the danger comes', idle: 'The farm is not working: nothing to harvest', no_room: 'No granary or storehouse in reach has room for the crop: empty one or build another' },
+  harvested: (units, good) => `Harvested ${units} ${goodName(good).toLowerCase()} early`,
+  cropRowActive: (a, now, kind) => (a.factor <= 0 ? `${b1CropKind(kind)}: this farm makes nothing for ${b1Dur(a.until - now)} more` : `${b1CropKind(kind)}: this farm gives ${b1Pct(a.factor)} of its crop for ${b1Dur(a.until - now)} more`),
+  resting: (left) => `Resting after Harvest now: ${plural(left, 'day', 'days')} left`,
+  cropLine: (w, now) => `${b1CropKind(w.kind)} will fall on ${plural(w.farms.length, 'farm', 'farms')} in ${b1Dur(w.strikes - now)}`,
+
+  // ── The summary's "Dangers" section ──
+  summaryHead: 'Dangers',
+  plagueWarnedLine: (days) => `Plague warned: it starts in ${b1Dur(days)}`,
+  plagueLine: (sick, lost, held) => `Plague: ${plural(sick, 'home is', 'homes are')} sick, ${plural(lost, 'person', 'people')} lost so far${held ? `; ${plural(held, 'district is', 'districts are')} quarantined` : ''}`,
+  cropBandLine: (a, now) => `${b1CropKind(a.kind)} on ${plural(a.farms.length, 'farm', 'farms')}: ${a.factor <= 0 ? 'no crop' : `${b1Pct(a.factor)} of the crop`} for ${b1Dur(a.until - now)} more`,
+
+  // ── Captions (the caption row, one line) ──
+  captions: {
+    plague_warning: (b, days) => `A plague is warned: it starts in ${anA(b1HomeName(b))} in ${b1Dur(days)}`,
+    plague_start: (b) => `Plague has begun in ${anA(b1HomeName(b))}`,
+    plague_end: (e) => `The plague is over: ${plural(e.homes, 'home', 'homes')} were struck and ${plural(e.lost, 'person', 'people')} lost`,
+    quarantine_end: 'A quarantine has ended: work there starts again',
+    drought_warning: (e, now) => `The Nile will run low in ${b1Dur(e.strikes - now)}`,
+    drought_start: (e) => `The Nile ran low: farms give ${b1Pct(e.factor)} of their crop for a year`,
+    drought_end: 'The lean year is over: the farms yield in full again',
+    locusts_warning: (e) => `${b1CropKind(e.kind)} ${e.kind === 'blight' ? 'is' : 'are'} coming for ${plural(e.farms.length, 'farm', 'farms')} in ${b1Dur(b1Crops.warnDays)}`,
+    locusts_strike: (e) => `${b1CropKind(e.kind)} have fallen on ${plural(e.farms.length, 'farm', 'farms')}`,
+    locusts_end: (e) => `The ${e.kind === 'blight' ? 'blight' : 'locusts'} have passed`,
+    raid_wreck: (kind) => `Raiders wrecked ${b1A(kind)}`,
+  },
+};
+
+// The raid's report with what the band wrecked and took, and its chieftain (src/sim/strikes.js, raids.js endRaid): a report from before 6.0 has
+// none of them and reads as it always did. Taken goods include a granary's food, so the food line is the granary's own count here.
+const b1BaseRaidReport = DANGER_UI_TEXT.raidReport;
+function b1RaidReport(r) {
+  if (!r.wrecked && !r.taken && !r.chiefs) return b1BaseRaidReport(r);
+  const from = `Raid from ${duiFrom(r.dirs || r.dir)}`;
+  const lost = [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.wrecked ? `${B1_TEXT.wrecked(r.wreckedKinds || [])} wrecked` : '', r.towersLost ? plural(r.towersLost, 'tower fell', 'towers fell') : '',
+    r.stolen ? `${r.stolen} gold stolen` : '', r.taken ? `${B1_TEXT.taken(r.taken)} taken` : '', r.fled ? `${plural(r.fled, 'resident', 'residents')} fled` : ''].filter(Boolean);
+  const stopped = [r.byTowers ? `${plural(r.towers, 'tower', 'towers')} stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `soldiers stopped ${r.bySoldiers}` : '', ...duiUnitsStopped(r)].filter(Boolean);
+  const chief = r.chiefs ? ` ${B1_TEXT.chiefLine(r)}` : '';
+  if (r.won) return `${from} beaten: ${stopped.length ? `${stopped.join(', ')}; ` : ''}${lost.join(', ') || 'nothing lost'}.${chief}`;
+  const did = lost.length ? `raiders left ${lost.join(', ')}` : 'the raiders struck and left';
+  // A lost raid says what stopped it as the report always has: "Towers stopped 2 of 9, soldiers stopped 1."
+  const stoppedLost = [r.byTowers ? `Towers stopped ${r.byTowers} of ${r.size}` : '', r.bySoldiers ? `${r.byTowers ? 'soldiers' : 'Soldiers'} stopped ${r.bySoldiers}` : '', ...duiUnitsStopped(r)].filter(Boolean);
+  return `${from}: ${did}.${stoppedLost.length ? ` ${stoppedLost.join(', ')}.` : ''}${chief}`;
+}
+DANGER_UI_TEXT.raidReport = b1RaidReport;
+
+// ── Alerts (src/sim/hazards.js hazardAlerts): warnings, never criticals ──
+Object.assign(ALERT_TEXT, {
+  plague_warning: (alert, world, b) => ({
+    title: `Plague in ${b1Dur(alert.arrives - world.day)}, starting in ${anA(b1HomeName(b))}`,
+    fix: !b ? 'A physician and a well near the crowded homes slow it' : healthCauseOf(world, b).cause === 'covered' ? 'A staffed physician reaches it and will slow the plague' : HEALTH_TEXT.cause[healthCauseOf(world, b).cause],
+  }),
+  plague: (alert, world) => ({
+    title: `Plague in ${plural(alert.count || 1, 'home', 'homes')}`,
+    fix: `Open a sick home to quarantine its district, or put a physician near them`,
+  }),
+  drought_warning: (alert, world) => ({ title: `The Nile will run low in ${b1Dur(alert.arrives - world.day)}`, fix: `Farms will give about ${b1Pct(b1DroughtShare(world))} of their crop for a year: fill your granaries` }),
+  drought: (alert, world) => ({ title: `Low Nile: farms give ${b1Pct(b1DroughtShare(world))} of their crop`, fix: `The lean year ends in ${b1Dur(alert.until - world.day)}: eat from the stores` }),
+  locusts_warning: (alert, world) => ({ title: `${b1CropKind(alert.kind)} in ${b1Dur(alert.arrives - world.day)}: ${plural((alert.ids || []).length, 'farm', 'farms')} named`, fix: 'Open a named farm and Harvest now for extra grain' }),
+  locusts: (alert, world) => ({ title: `${b1CropKind(alert.kind)} on ${plural((alert.ids || []).length, 'farm', 'farms')}`, fix: `They pass in ${b1Dur(alert.until - world.day)}` }),
+});
+
+// ── Advice (src/sim/hazards.js hazardItems): what, why, fix ──
+Object.assign(V60_ADVICE_WORDS, {
+  plague: (a, world) => {
+    const d = a.data, b = a.id !== null ? world.buildings[a.id] : null;
+    if (d.warned) {
+      return {
+        what: `A plague is warned: it starts in ${anA(b1HomeName(b))} in ${b1Dur(d.days)}`,
+        why: HEALTH_TEXT.cause[d.cause] || '',
+        fix: `A physician and a well near the crowded homes slow it. Once it starts you can quarantine a district for ${b1Months(b1Plague.quarantine.months)}`,
+      };
+    }
+    return {
+      what: `${plural(d.sick, 'home is', 'homes are')} sick with plague${d.uncovered ? `: ${d.uncovered} no staffed physician reaches` : ''}`,
+      why: `${plural(d.lost, 'person', 'people')} lost so far${d.quarantined ? `; ${plural(d.quarantined, 'district is', 'districts are')} quarantined` : ''}`,
+      fix: `Open a sick home to quarantine its district: it stops the plague crossing the district's edge, and work there stops for ${b1Months(b1Plague.quarantine.months)}`,
+    };
+  },
+  drought: (a, world) => {
+    const d = a.data;
+    return { what: B1_TEXT.droughtLine({ ...d, day: world.day }), why: B1_TEXT.droughtStores(d), fix: d.carries ? '' : (a.fix ? 'A granary gives room for more food before the water fails' : 'Keep the farms working and the stores full: nothing else makes food faster') };
+  },
+  locusts: (a, world) => {
+    const d = a.data;
+    if (d.warned) {
+      return {
+        what: `${b1CropKind(d.kind)} will fall on ${plural(d.farms, 'farm', 'farms')} in ${b1Dur(d.days)}`,
+        why: `Harvest now takes ${b1Pct(b1Harvest.share)} of a month's crop at once, extra to what the farm makes until it comes; the farm then rests ${plural(b1Harvest.restDays, 'day', 'days')} from the day after${d.early ? `. ${d.early} already harvested` : ''}`,
+        fix: a.fix ? 'Open a farm and Harvest now' : (d.stuck ? 'No named farm can take Harvest now: its stores are full or it stands idle' : 'Every farm in the band has been harvested'),
+      };
+    }
+    return { what: `${b1CropKind(d.kind)} on ${plural(d.farms, 'farm', 'farms')}: ${d.factor <= 0 ? 'no crop' : `${b1Pct(d.factor)} of the crop`} for ${b1Dur(d.days)} more`, why: '', fix: '' };
+  },
+});
+
+// ── Tips (src/data/hazards.js HAZARD_TIPS), at most 20 words each ──
+Object.assign(TIP_TEXT, {
+  plague_coming: 'A plague is warned for the marked home. A physician, a well and room slow it.',
+  quarantine_choice: 'Plague has begun. Open a sick home to quarantine its district: the plague stays in, and work there stops.',
+  low_nile: 'The Nile will run low. Farms will give much less for a year: keep your granaries full.',
+  locust_band: 'Locusts or blight are coming for some farms. Open one and Harvest now to take extra grain first.',
+  rebuild_wreck: 'Raiders wrecked a building. Tap its rubble to rebuild it for its price plus the clearing.',
+});
+Object.assign(TIP_HELP_TEXT, {
+  plague_coming: `Plague is warned two months ahead. A quarantine costs ${b1Plague.quarantine.feePerHome} gold a home (at least ${b1Plague.quarantine.feeMin}), scaled by difficulty.`,   // the sheet's button says the exact fee
+  low_nile: `A low Nile: farms give ${b1DroughtShort()} for a year. Granaries carry the city.`,
+});
+
+// ── Firsts ──
+Object.assign(FIRST_TEXT, {
+  first_quarantine: { head: 'First quarantine', why: `It holds ${b1Months(b1Plague.quarantine.months)}: the plague cannot cross the district's edge, and work there stops.` },
+  first_early_harvest: { head: 'First early harvest', why: `A part of a month's crop taken before the locusts or blight came, with a ${b1Harvest.restDays}-day rest once they had.` },
+  first_rebuilt: { head: 'First rebuilding', why: 'Raiders and fire leave rubble that remembers what stood there: clearing and rebuilding are one tap.' },
+});
+
+// ── How to play ──
+V60_HELP.b1.push(
+  { head: 'Raiders that wreck and loot', text: `Once the first three game years are past (an older city loaded into this version gets three years from the day it loads), raiders who get through may wreck a building instead of burning it (about ${b1Pct(b1Wreck.chance)} of strikes on Normal): it falls to rubble that remembers what stood there, and one tap on the rubble clears and rebuilds it for its price plus ${b1Fire.rubbleCost} gold for each tile of rubble cleared (on Normal). They also carry off part of a storehouse's goods. A band of ${b1Chief.fromSize} or more has a chieftain: when he falls, his band turns back. The raid report lists what was burned, wrecked and taken.` },
+  { head: 'Plague', text: `A plague is warned two months ahead and starts in a crowded home with no physician or well. It spreads day by day to the homes near a sick one; a physician, a well and room slow it. Sick homes lose people, and work stops near them where no physician reaches. Open a sick home to quarantine its district for ${b1Months(b1Plague.quarantine.months)}: the plague cannot cross its edge, but work in it stops. The Health layer marks sick homes with a heavy ring.` },
+  { head: 'Drought and the low Nile', text: `The Nile reading warns months ahead of a low flood. For a year every farm then gives about ${b1DroughtLevels()} of its crop. Full granaries carry the city: the City advice says whether yours will, and how much is short.` },
+  { head: 'Locusts and blight', text: `A month's warning names a band of farms. Locusts eat the crop of those farms for ${b1Dur(b1Crops.locusts.days)}; blight leaves part of it for ${b1Dur(b1Crops.blight.days)}. A named farm's sheet has Harvest now: ${b1Pct(b1Harvest.share)} of a month's crop into the stores at once, on top of what the farm goes on making until the warning ends. The farm then rests ${plural(b1Harvest.restDays, 'day', 'days')} from the day after the strike, when the crop is cut anyway, so the early grain is a gain.` },
+);
+// ── end v60 b1 ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 c (Track C, rulings 700-719: the Large plot and the 5.0 loose ends) ─────────────────────────────────────────────
+// Add new lines just above the end marker.
+// The Large plot (src/data/largePlots.js, src/sim/largePlots.js): its card, its sheet's "Opens when" list, its next step and advice, its tips and How to play. Every number and
+// name here is the data's (TIERS, LARGE_PLOT, the card's price in cardInfo): the Manor it opens as, the Townhouse small plots stop at, the people a Manor holds.
+import { LARGE_PLOT as lgPlot } from '../data/largePlots.js';
+const lgManor = TIERS[lgPlot.opensTier].name, lgTown = TIERS[lgPlot.unlockTier].name;
+const lgAn = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
+export const LARGE_TEXT = {
+  name: 'Large plot',
+  // The sheet: an empty lot is a "Large plot", a home on one says so ("Manor on a Large plot").
+  title: (s) => (s.lot ? 'Large plot' : `${tierName(s.tier)} on a Large plot`),
+  opensHead: 'Opens when',
+  opensNote: `People move in as ${lgAn(lgManor)} once every row below is met nearby.`,
+  waiting: `An empty lot: nobody moves in until the list below is met`,
+  // The step line: an empty lot whose rows are all met, and a Townhouse that has gone as far as a small plot goes.
+  ready: `people move in as ${lgAn(lgManor)} as the city draws them`,
+  kept: `nothing more to do: a small plot stops at ${lgTown}, and ${lgManor}s grow on Large plots`,
+  next: (price) => `a Large plot near here (${price}) opens as ${lgAn(lgManor)}: a small plot stops at ${lgTown}`,
+  // The placing bar's line while the ghost can go, the card's tooltip and the build-another label.
+  bar: `Opens as ${lgAn(lgManor)} when its needs are met nearby, then climbs in place`,
+  cardTitle: `A 2×2 lot. Empty until its needs are met nearby, then people move in as ${lgAn(lgManor)} (${TIERS[lgPlot.opensTier].capacity} people), and it grows to an ${TIERS[TIERS.length - 1].name} in place.`,
+  // City advice: Townhouses with every need met and no Large plot yet.
+  adviceWhat: (n) => `${plural(n, 'Townhouse has', 'Townhouses have')} every need met and cannot grow further`,
+  adviceWhy: `A small plot stops at ${lgTown}. ${lgManor}s and the grander homes grow only on a Large plot, which opens as ${lgAn(lgManor)} once its own needs are met`,
+  adviceFix: `Lay a Large plot beside them`,
+  // Home progress: the legend's note for an empty lot (the lot is washed like any home, and its missing need is the icon on it).
+  progress: { label: 'Large plot: what it waits on', words: `A Large plot with no people in it is shown like a home: the icon is the first need it waits on before people move in as ${lgAn(lgManor)}, a tick means it is ready` },
+};
+// The Estate trick (ruling 586, said by the advice since Version 6.0): a workshop (the weaver, the jeweller) with no room beside the store holding its input goes in the open with a
+// store of its own that Fetches the input. Two steps, each worded from the fix's `open` (src/sim/advice.js openWorkshop): the store (priced, with the workshop's price named), then the
+// workshop beside it; the Fetch order is the clause both end on. Names are the data's (buildingName, goodName).
+const ocName = (type) => buildingName(type).toLowerCase();
+export const OPEN_TEXT = {
+  // The step line's rest (after "Next step:"): `price` is the line's own "(70 gold)" (with how short the treasury is, when it is).
+  stepStore: (o, price, makerGold, holderType) => `${lgAn(ocName(o.store))} in the open ${price}, then ${lgAn(ocName(o.maker))} beside it (${makerGold} gold) and a Fetch order for ${goodName(o.input).toLowerCase()}: no room beside the ${ocName(holderType)} that holds it`,
+  stepMaker: (o, price, storeType) => `${lgAn(ocName(o.maker))} beside the ${ocName(storeType)} you laid ${price}, then set that ${ocName(storeType)} to Fetch ${goodName(o.input).toLowerCase()}`,
+  // The advice card's fix words (the cost line prices every building named here).
+  adviceStore: (o, holderType) => `${lgAn(ocName(o.store))} in the open, then ${lgAn(ocName(o.maker))} beside it, set to Fetch ${goodName(o.input).toLowerCase()}: no room beside the ${ocName(holderType)} that holds it`,
+  adviceMaker: (o, storeType) => `${lgAn(ocName(o.maker))} beside the ${ocName(storeType)} you laid, then set that ${ocName(storeType)} to Fetch ${goodName(o.input).toLowerCase()}`,
+};
+// The Layers picker's locked layers (the 5.0 loose end, ruling 706): greyed, with the rank that unlocks each (src/data/layers.js LAYER_UNLOCK) in words, never by grey alone.
+import { LAYER_UNLOCK as lgUnlock } from '../data/layers.js';
+// rank: the short words under the name ("From Town": the popover on a phone at 150% text has no room for more); words: the full sentence, for a screen reader and the tooltip.
+export const LAYERS_LOCKED_TEXT = {
+  rank: (kind) => {
+    const u = lgUnlock[kind];
+    if (!u) return '';
+    if (u.home) return 'First home';
+    const m = MILESTONES.find((x) => x.id === u.milestone);
+    return `From ${m ? m.name : u.milestone}`;
+  },
+  words: (kind) => {
+    const u = lgUnlock[kind];
+    if (!u) return '';
+    if (u.home) return 'Unlocks with your first home';
+    const m = MILESTONES.find((x) => x.id === u.milestone);
+    return `Unlocks at ${m ? m.name : u.milestone}`;
+  },
+  aria: (name, kind) => `${name}, locked: ${LAYERS_LOCKED_TEXT.words(kind)}`,
+};
+V60_HELP.c.push(
+  { head: 'Large plots', text: `Small plots stop at ${lgTown}. For ${lgAn(lgManor)} and the grander homes lay a Large plot (a 2×2 lot, on the Homes cards from your first ${lgTown}). It stays empty and marked until its needs are met nearby: tap it to see "${LARGE_TEXT.opensHead}", and Show me for each missing one. Then people move in as ${lgAn(lgManor)} and it climbs to an ${TIERS[TIERS.length - 1].name} in place, never splitting. Homes merged under the old rule keep working.` },
+);
+Object.assign(FIRST_TEXT, {
+  first_large_plot: { head: 'First Large plot', why: `Marked out. ${lgAn(lgManor).replace(/^a/, 'A')} opens here once its needs are met nearby, and it climbs in place.` },
+  first_manor: { head: `First ${lgManor}`, why: `A Large plot opened. ${lgManor}s hold ${TIERS[lgPlot.opensTier].capacity} people.` },   // the old words said four homes became one
+});
+TIP_TEXT.large_plot_card = `New: a Large plot, in Homes. Small plots stop at ${lgTown}; ${lgManor}s grow on a Large plot.`;
+TIP_HELP_TEXT.large_plot_card = `Large plots (Homes, from your first ${lgTown}): 2×2 lots, empty until their needs are met, then ${lgAn(lgManor)}.`;
+TIP_TEXT.large_plot_lot = 'Read "Opens when": each missing need names its cause and a Show me. All met, people move in.';
+TIP_HELP_TEXT.large_plot_lot = 'An empty Large plot lists what it opens on; the same rows a home reads, with the same Show me.';
+TIP_TEXT.merging_homes = `Lay a Large plot for ${lgAn(lgManor)}: a small plot stops at ${lgTown}.`;   // the old tip said three plots beside a Townhouse merge
+// ── end v60 c ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 b2 (Track B2, rulings 720-739: battles you can see) ──────────────────────────────────────────────────────────────
+// Add new lines just above the end marker.
+// The moment in the alert row when a raid ends (src/ui/v60/battle.js): its title and one line of the report's own numbers (raid.last: what stopped the
+// band, what it burned, wrecked, took and stole, and what became of its chieftain; words B1 wrote for the same report are reused).
+import { SMOULDER as b2Smoulder, MOMENT as b2Moment } from '../data/battle.js';
+
+const b2Stopped = (r) => (r.byTowers || 0) + (r.bySoldiers || 0) + (r.byArchers || 0) + (r.byChariots || 0);
+const b2Lost = (r) => [r.burned ? plural(r.burned, 'building burned', 'buildings burned') : '', r.wrecked ? `${B1_TEXT.wrecked(r.wreckedKinds || [])} wrecked` : '',
+  r.taken ? `${B1_TEXT.taken(r.taken)} taken` : '', r.stolen ? `${r.stolen} gold stolen` : '', r.fled ? `${plural(r.fled, 'resident', 'residents')} fled` : ''].filter(Boolean);
+export const B2_TEXT = {
+  moment: (r) => {
+    const stopped = b2Stopped(r), lost = b2Lost(r), chief = r.chiefs ? B1_TEXT.chiefLine(r) : '';
+    const stoppedLine = stopped ? `${stopped} of ${r.size} raiders stopped.` : '';
+    if (r.won) return { title: 'Raid beaten', detail: [stoppedLine || 'The band turned back.', chief, lost.length ? `Lost: ${lost.join(', ')}.` : ''].filter(Boolean).join(' ') };
+    const did = lost.length ? `${lost.join(', ')}.` : 'They struck and left.';
+    return { title: 'The raiders got through', detail: [did.charAt(0).toUpperCase() + did.slice(1), stoppedLine, chief].filter(Boolean).join(' ') };
+  },
+  report: 'Report', reportLabel: 'Open the raid report', dismissLabel: 'Dismiss the raid result',
+  tip: 'Towers shoot and soldiers fight. The banner marks the chieftain: when he falls, his band turns back.',
+  tipHelp: `Bands of ${b1Chief.fromSize} or more have a chieftain, ${b1Chief.hpFactor} times a raider's strength. When he falls, they turn back.`,
+};
+TIP_TEXT.chief_banner = B2_TEXT.tip;
+TIP_HELP_TEXT.chief_banner = B2_TEXT.tipHelp;
+V60_HELP.b2.push(
+  { head: 'Battles you can see', text: `A raid now plays out on the map. Your soldiers and the raiders square up and trade blows, towers and archers shoot in arcs, and a hit shows a spark. A band of ${b1Chief.fromSize} or more has a chieftain: a tall banner moves with his band, and when he falls his band turns back and his banner lies where he fell. A building the raiders struck burns and smokes; one they wrecked or burned down leaves a shell with its walls still standing, and its rubble smoulders (${b2Smoulder.fireDays} game days after a fire, ${b2Smoulder.wreckDays} after a wreck) before it goes quiet. When a raid ends the alert row says whether it was beaten or got through, with what the report says; Report opens the city summary, and the result clears itself after ${b2Moment.days} game days or when you dismiss it. Under Gentle motion the same things show with slow, still changes; under Still the poses, the smoke and the banner hold without moving.` },
+);
+// ── end v60 b2 ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 d1 (Track D1, rulings 740-759: the title, the Huge map, desktop keys, polish) ───────────────────────────────────
+// Add new lines just above the end marker.
+
+// The Huge map (ruling 740): its name, its line under the picker and, on a phone, the note that it suits a bigger screen (ruling 743).
+S46_MAP_TEXT.sizeNames.huge = 'Huge';
+S46_MAP_TEXT.sizeHints.huge = 'Huge: a vast land for a long reign';
+export const D1_TEXT = {
+  bigScreen: 'Best on a tablet or computer',                           // a phone's note under the picker while Huge is chosen, and on its button's name
+  hugeWords: (size, phone) => `${S46_MAP_TEXT.sizeWords('huge', size)}${phone ? `, ${D1_TEXT.bigScreen.charAt(0).toLowerCase()}${D1_TEXT.bigScreen.slice(1)}` : ''}`,
+  lesson: 'Lesson',                                                    // the title's third button once the lesson exists (Track D2); until then How to play stands in
+  settingsPanel: 'Settings',                                           // the title card's Settings panel's heading
+  titleGroup: 'More',                                                  // the name of the row of Lesson, Settings and What's new for assistive technology
+};
+// The keys of a computer (rulings 744, 745): the zoom keys follow the pan row; the right button is in the list with the keys.
+HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'panLeft') + 1, 0, ['zoomIn', 'Zoom in'], ['zoomOut', 'Zoom out']);
+HELP_ROWS.push(['rightClick', 'Cancel the tool or step back, like Esc', 'Right-click']);
+V60_HELP.d1.push({ head: 'On a computer', text: 'Arrows or WASD move the view (in an open sheet or dialog the arrows scroll it instead, and W, A, S and D still move the view), + and − zoom, 1 to 7 pick a build category, [ and ] set the speed, Esc steps back and a right-click cancels. A text field or a slider keeps its own keys; you can switch the single keys off in Settings.' });
+V60_HELP.d1.push({ head: 'The Huge map', text: 'A Huge map is 112 tiles a side, a vast land for a long reign. It suits a tablet or computer; on a phone the buildings are small and the city takes more scrolling. The view cannot zoom out past where a Huge map costs more to draw than a Large one, which a very large screen may notice.' });
+// ── end v60 d1 ──
+
+//
+// (A stable separator between the Version 6.0 sections: leave these lines as they are.)
+//
+// ── v60 d2 (Track D2, rulings 760-779: the guided first city, the picture cards) ────────────────────────────────────────
+// Add new lines just above the end marker.
+import { LESSON_STEPS as d2Steps } from '../data/lesson.js';
+import { LARGE_PLOT as d2Large } from '../data/largePlots.js';
+import { FIRE as d2Fire } from '../data/fire.js';
+import { RAIDS as d2Raids } from '../data/raids.js';
+import { GRACE_DAYS as d2Grace } from '../data/hazards.js';
+import { DAYS_PER_MONTH as d2MonthDays, MONTHS_PER_YEAR as d2YearMonths } from '../sim/time.js';
+
+// The guided first city (src/ui/lesson.js builds the facts each line is worded from; every number is the sim's own).
+// Each step is (f) => { text, why }: text is the one instruction in the guidance row (two or three lines on a phone), why the sentence that
+// follows it on a wide screen and when the row is opened in place. f: { paused, progress: { n, of } | null, warning: { dir, size, daysLeft, need, have } | null,
+// raidOn: { left } | null, missing: type | null, forecast: gold a month }.
+const d2Site = (type) => buildingName(type).toLowerCase();
+// Times in game months, as the alert's own words say them (DANGER_UI_TEXT.duration: "2 months 29 days"), so the row and the banner count alike.
+const d2Time = (days) => DANGER_UI_TEXT.duration(Math.max(0, days));
+// How a real city meets its first raid, from RAIDS: the clock starts when it first has clockPeople people (never on Peaceful), the first warning comes firstWarnAfter
+// days later and the raiders warningDays after it.
+const d2RaidClock = () => `In a real city the raid clock starts the day it first has ${d2Raids.clockPeople} people (never on Peaceful): the first warning comes ${d2Time(d2Raids.firstWarnAfter)} later and the raiders ${d2Time(d2Raids.warningDays)} after it`;
+export const D2_TEXT = {
+  lessonLabel: (i, n) => `Lesson ${i} of ${n}`,
+  region: 'Lesson', show: T.showMe, leave: 'Leave the lesson', leaveShort: 'Leave', open: 'More', close: 'Less',
+  leaveConfirm: "Leave the lesson? Your place is kept: Lesson or Continue the lesson on the title screen rebuilds the lesson's own city up to it. The streets you laid are not kept. Nothing in your saved city changes.",
+  resumeFailed: "The lesson could not rebuild your place, so it starts again from the first step.",
+  shareLessonLine: 'New here? The lesson is in the menu, under Lesson, once you are in a city.',
+  menuLessonNotSaved: "Couldn't save this city, so the lesson did not start. Free up some storage or export the city first.",
+  progress: (n, of) => `${n} of ${of}`,
+  progressLabel: (n, of, unit) => `${n} of ${of} ${unit}`,
+  gone: (type) => `The ${d2Site(type)} is gone: build it again first.`,
+  steps: {
+    road: () => ({ text: `Lay a road: drag it west from the road's end to the fertile land.`,
+      why: `Homes and workplaces work only when they touch a road. The lit line is ${d2Steps.find((s) => s.id === 'road').check.n} tiles of road.` }),
+    homes: () => ({ text: `Paint ${d2Steps.find((s) => s.id === 'homes').check.n} housing plots beside the road.`,
+      why: 'Plots off the road stay empty. People move in once a plot touches a road.' }),
+    well: () => ({ text: `Build a well within ${BUILDINGS.well.reach} road tiles of ${d2Steps.find((s) => s.id === 'well').check.homes} homes.`,
+      why: `A well gives water along the road for ${BUILDINGS.well.reach} tiles, so huts can grow into shacks.` }),
+    families: (f) => ({ text: `${f.paused ? 'Press Play: families move in. ' : 'Families are arriving. '}Wait for ${d2Steps.find((s) => s.id === 'families').check.n} people.`,
+      why: 'Nothing happens while the game is paused, so pause any time to plan.' }),
+    farm: () => ({ text: 'Build a farm on the fertile land. Layers → Ground shows it in green.',
+      why: 'Farms grow only on the fertile ground by the river, and each needs a road beside it.' }),
+    granary: () => ({ text: "Build a granary by the road: the farm's food is kept here.",
+      why: 'A farm fills a granary; a bazaar near homes sells its food.' }),
+    bazaar: () => ({ text: `Build a bazaar within ${BUILDINGS.bazaar.reach} road tiles of ${d2Steps.find((s) => s.id === 'bazaar').check.homes} homes.`,
+      why: 'A bazaar sells food to the homes it reaches along the roads, and homes that are fed can grow.' }),
+    workers: (f) => ({ text: `Your buildings want ${f.labour.jobs} workers and ${f.labour.workforce} people work: paint more homes until the bazaar works too.`,
+      why: `${cards4WorkShare()}, and a building short of workers works slowly or not at all. A farm wants ${BUILDINGS.farm_grain.workers} workers, a granary ${BUILDINGS.granary.workers}, a bazaar ${BUILDINGS.bazaar.workers}; food and housing come before services.` }),
+    month: (f) => ({ text: `Let ${d2Steps.find((s) => s.id === 'month').check.n} months pass and watch the gold chip.`,
+      why: `Homes pay taxes each month; every building costs upkeep and ${ECONOMY.wagePerWorker} gold for each worker. The chip shows the month's forecast${Number.isFinite(f.forecast) ? `: ${S45_TEXT.signed(f.forecast)} a month now` : ''}.` }),
+    largeplot: () => ({ text: `The Large plot card is open early for the lesson. Place one, ${d2Large.size} by ${d2Large.size}, beside the road.`,
+      why: `Small plots stop at Townhouse. A Large plot grows into a Manor and beyond once its needs are met nearby. A real city opens the card with its first Townhouse; a lot costs ${BUILDINGS[d2Large.type].cost} gold.` }),
+    firehouse: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : `Build a firehouse near the bazaar${f.paused ? ', then press Play so its crew can take their posts' : ' and let its crew take their posts'}.`,
+      why: `A firehouse works only with staff and a road, and covers ${BUILDINGS.firehouse.reach} road tiles. Fire risk starts once a city is a Town.` }),
+    fire: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : `A small fire started in the bazaar: the lesson lit it. ${f.paused ? 'Press Play and watch the crew put it out.' : 'Watch the crew put it out.'}`,
+      why: `A staffed firehouse that reaches a blaze puts it out in a day or two. Left alone it grows into a fire in ${d2Fire.blazeDays} days and the building burns down.` }),
+    tower: (f) => (f.warning
+      ? { text: `Raiders come from the ${f.warning.dir}: ${f.warning.size} of them, in ${d2Time(f.warning.daysLeft)}. Build ${f.warning.need - f.warning.have > 1 ? `${f.warning.need - f.warning.have} more towers` : 'a tower'} near the bazaar and let ${f.warning.need - f.warning.have > 1 ? 'their crews' : 'its crew'} take their posts.`,
+        why: `A staffed tower stops about ${d2Raids.raidersPerTower} raiders. ${d2RaidClock()}; the lesson brings the Market town's tower card early.` }
+      : { text: f.paused ? "Press Play: the lesson brings a raid warning. The Market town's tower card is open early." : 'A raid warning is on its way.',
+        why: `${d2RaidClock()}.` }),
+    raid: (f) => (f.raidOn
+      ? { text: `The raiders are here: ${f.raidOn.left} on the map. Watch the towers stop them.`, why: 'Towers shoot the nearest raider in range, and a band turns back once half of it has fallen.' }
+      : { text: `${f.paused ? 'Press Play and watch the raiders come' : 'The raiders are on their way'}${f.warning ? `: ${d2Time(f.warning.daysLeft)} to go` : ''}.`,
+        why: 'Raids grow with a city\'s people and wealth, so build towers before the next warning.' }),
+  },
+  // The last card: "Your first city stands" (a sheet; its words come from the city's own numbers).
+  endTitle: 'Your first city stands',
+  endBody: ({ people, won }) => `${plural(people, 'person lives', 'people live')} here. Your farm, granary and bazaar feed them, a firehouse guards them and ${won ? 'your tower beat the raid' : 'the raid got through, which towers would have stopped'}. Now found a city of your own: its difficulty and map size are on the title screen.`,
+  endMore: 'Everything here is in How to play, and the picture cards show again the first time each new danger comes.',
+  endNew: 'Go to the title', endStay: 'Keep looking around',
+  endRow: 'Your first city stands. Go to the title to found your own when you are ready.',
+  // The title (the Lesson button; with no saved city and the lesson not done it is the only way in).
+  titleStart: 'Start the lesson', titleContinue: 'Continue the lesson', titleAgain: 'Start again',
+  titleHint: `A small first city of ${d2Steps.length} steps, about 10 to 15 minutes.`,
+  titleContinueHint: `Continue rebuilds the lesson's own city up to your step, so the streets you laid are not kept. Start again begins at step 1.`,
+  standsNote: 'Your first city stands. Found your own when you are ready.',
+  // The menu's rows.
+  menuLesson: 'Lesson', menuLessonConfirm: 'Leave this city for the lesson? It is saved first, and Continue on the title screen brings it back.',
+  menuLeave: 'Leave the lesson',
+};
+export const d2StepCount = d2Steps.length;
+
+// The six picture cards of the first moments (src/data/tutorial.js, src/ui/cardMoments.js): each says what the sim does, in the sim's own numbers.
+// Three sentences at most each (tests/stage4/cards holds it), and an alt text for the picture's ring.
+const d2Months = (days) => plural(Math.max(1, Math.round(days / d2MonthDays)), 'month', 'months');
+CARDS4_TEXT.cards.large = {
+  title: 'Large plots',
+  words: `Small plots stop at ${TIERS[d2Large.unlockTier].name}. A Large plot is ${d2Large.size} by ${d2Large.size} tiles and grows into a ${TIERS[d2Large.opensTier].name} and beyond once its needs are met nearby. Its card opens with your first ${TIERS[d2Large.unlockTier].name}.`,
+  alt: 'A Large plot, an empty marked lot of two by two tiles beside a road and homes, with a ring around it.',
+};
+CARDS4_TEXT.cards.demand = {
+  title: 'The court asks',
+  words: `From ${MILESTONES.find((m) => m.id === reignDemands.from).name} the court asks about once a year for goods, gold, a building or soldiers. Each demand names its reward and what failing costs before you accept it.`,
+  alt: "The court's demand sheet: the demand, what meeting it earns, what failing it costs, and Accept and Decline, with a ring around the lines for meeting and failing it.",
+};
+CARDS4_TEXT.cards.plague = {
+  title: 'Plague',
+  words: `A plague is warned ${d2Months(b1Plague.warnDays)} ahead, then passes from home to home and takes people from each it reaches. A physician and a well slow it, and a quarantine of ${d2Months(b1Plague.quarantine.months * d2MonthDays)}, for a fee, holds it to one district.`,
+  alt: 'The Health layer over a crowded district: sick homes are marked, with a ring around one of them.',
+};
+CARDS4_TEXT.cards.drought = {
+  title: 'A low Nile',
+  words: `A low Nile is warned months ahead. For a year after it every farm gives ${Math.round((1 - b1Drought.cut) * 100)}% of its crop on Normal, less on Hard. Full granaries carry the city, and City advice says whether yours will.`,
+  alt: 'City advice with its first item, the low Nile warned, and what it will cost the farms, inside a ring.',
+};
+CARDS4_TEXT.cards.locusts = {
+  title: 'Locusts and blight',
+  words: `Locusts or blight are warned ${d2Time(b1Crops.warnDays)} ahead over a band of farms. Harvest now on a farm in the band brings in ${Math.round(b1Harvest.share * 100)}% of a month's crop at once, then the farm rests ${d2Time(b1Harvest.restDays)}.`,
+  alt: "A farm's sheet with the locust warning for it inside a ring, and the farm on the map above it.",
+};
+CARDS4_TEXT.cards.raid = {
+  title: 'Raiders do damage',
+  words: `A raid is warned ${d2Time(d2Raids.warningDays)} ahead. Raiders burn what they reach and steal gold; once a city is ${d2Grace / (d2MonthDays * d2YearMonths)} years old they also wreck buildings to rubble and loot storehouses. Towers and soldiers stop them, and rubble can be cleared and built again.`,
+  alt: "A wrecked storehouse's rubble with a ring around it, below the alert for a raid from the east.",
+};
+V60_HELP.d2.push({ head: 'The lesson', text: `The lesson is a small first city of ${d2Steps.length} steps: a road, homes, a well, a farm, a granary and a bazaar, workers, a Large plot, a small fire and a raid. Each step lights what it asks for, dims the rest and moves on when the city shows it done. It runs on its own map and never touches a saved city. A new device starts with it; the Lesson button on the title screen and in the menu plays it again. A lesson left part-way continues from its step on a city the lesson rebuilds, so the streets you laid are not kept.` });
+V60_HELP.d2.push({ head: 'Picture cards', text: `The picture cards show once before your first city and again, one at a time, the first time a Large plot, a court demand, a plague, a low Nile, locusts or a raid with real losses comes. Show the picture cards, above, keeps every one. The newest dangers wait ${d2Grace / (d2MonthDays * d2YearMonths)} game years from a city's start: no plague, low Nile or locusts, and a raid only burns, steals gold and takes a granary's food, without wrecking buildings or looting storehouses. Raids and fires themselves can come sooner.` });
+// ── end v60 d2 ──

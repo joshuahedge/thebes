@@ -36,7 +36,7 @@ export const ART = {
 export function slotFor(b, world = null) {
   const s46 = s46Slot(b, world);                       // Stage 4.6: a River or Armies building's own slot (art/s46.js), else on as before
   if (s46) return s46;
-  if (b.type === 'house') return `house.t${b.tier}`;
+  if (b.type === 'house') return b.large === true && b.tier === 0 ? 'house.lot' : `house.t${b.tier}`;   // Version 6.0 (Track C): an empty Large plot is drawn as a marked lot
   if (b.type === 'palace') return `palace.s${b.style || 0}${b.works ? '.w' : ''}`;   // spec 4.20; live monuments are their type
   if (SUPPLY_TYPES.includes(b.type)) return supplySlot(b);
   if (b.type === 'plaza') return world ? `plaza.e${plazaEdges(world, b)}` : 'plaza';

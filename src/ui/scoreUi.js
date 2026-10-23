@@ -1,6 +1,6 @@
 // The score interface (spec 4.1, 4.17, 4.19): the summary's score section with Seal this reign and Share score, the
 // score chip on the summary button, the next-threshold bar, the "+N" score preview in the confirm bar, feats, citizen
-// remarks, and the title card's records, stamps, weekly seed and shared score. Stage 3 contract: createUI makes one per
+// remarks, and the title card's records, stamps and shared score. Stage 3 contract: createUI makes one per
 // game exactly as it makes the danger interface (src/ui/danger.js: the same ctx, the same returned shape), and boot.js
 // decorates the title card through titleDecor.
 //
@@ -16,13 +16,12 @@ import { remarkFor, monumentCaptions } from './celebrate.js';
 import { isMonument, isSite } from '../sim/world.js';
 import { downloadFile } from '../save/exportImport.js';
 import { openSheet } from './modes.js';
-import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, weeklySeed, drawMapSquare, medalColour } from './share.js';
+import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, drawMapSquare, medalColour } from './share.js';
 import { generateMap } from '../sim/mapgen.js';
-import { DEFAULT_MAP_SIZE } from '../data/map.js';
 import { el, button, setText } from './components.js';
 import {
   SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
-  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel,
+  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT,
 } from './text.js';
 
 // Returns { sheets, sheetParts: { building, house, actions, summary }, onEvents, refresh, onAlertAction, onCommand,
@@ -323,12 +322,14 @@ function stampFor(entry, dpr) {
 }
 
 // The title card's decoration (spec 4.1, 4.19): the three highest bests and a stamp per sealed reign under Continue (the
-// newest STAMP_MAX, then "+N more"), This week's Nile under the difficulty choice, and a shared score link's friend score
+// newest STAMP_MAX, then "+N more") and a shared score link's friend score
 // with "Beat N?" and Start this seed above the buttons. boot.js calls titleDecor once per title card and passes the result
 // to createTitleCard as decorate, which calls it with (element, { buttonBox, newCity }).
 // opts: { records (src/save/records.js), shared (the page's location hash, '' for none), startSeed(seed, variant, size) (starts a city on
-// that seed, asking first when a city is saved, as New city does), clock, dpr (the stamps' pixel ratio) }.
-export function titleDecor({ records = null, shared = '', startSeed = () => {}, clock = () => Date.now(), dpr = (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1 } = {}) {
+// that seed, asking first when a city is saved, as New city does), clock, dpr (the stamps' pixel ratio),
+// setDifficulty(level) (Version 6.0, ruling 793: keeps the link's level as the device's, so Start this seed plays it even on the lesson-only card, which
+// has no difficulty choice to click), lessonPending (this device has not finished the lesson: the link's card says where it is) }.
+export function titleDecor({ records = null, shared = '', startSeed = () => {}, clock = () => Date.now(), dpr = (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1, setDifficulty = () => {}, lessonPending = false } = {}) {
   return (element, { buttonBox, newCity } = {}) => {
     if (!element || !buttonBox) return;
     const safe = (fn, fallback) => { try { return fn(); } catch (e) { return fallback; } };
@@ -348,14 +349,7 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
       if (cont) cont.after(box); else buttonBox.prepend(box);
     }
 
-    // This week's Nile: the seed of the device's ISO week, at the level chosen above it.
-    const seed = weeklySeed(new Date(clock()));
-    const levels = buttonBox.querySelector('.title-difficulty');
-    const weekly = el('div', { class: 'title-weekly' }, [
-      button(TITLE_SCORE_TEXT.weekly, { class: 'weekly', 'aria-describedby': 'title-weekly-hint', onClick: () => startSeed(seed, null, DEFAULT_MAP_SIZE) }),   // Stage 4.6 (ruling 333): This week's Nile stays Normal, whatever size the card is set to
-      el('p', { class: 'weekly-hint small muted', id: 'title-weekly-hint', text: TITLE_SCORE_TEXT.weeklyHint(seed) }),
-    ]);
-    if (levels) levels.after(weekly); else if (newCity) newCity.after(weekly); else buttonBox.append(weekly);
+    // (Version 6.0, Track D1, ruling 742: This week's Nile, the weekly seed button that stood here, is gone; a shared score link's Start this seed stays.)
 
     // A shared score link: the friend's score and parts beside the best on that seed and level, "Beat N?" and Start this
     // seed, which picks the link's level in the difficulty choice first. A bad or newer link says so; the card works as
@@ -372,6 +366,7 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
     const start = button(TITLE_SCORE_TEXT.startSeed, { class: 'start-seed primary', onClick: () => {
       const choice = buttonBox.querySelector(`.choice.difficulty[data-value="${link.difficulty}"]`);
       if (choice && choice.getAttribute('aria-pressed') !== 'true') choice.click();
+      setDifficulty(link.difficulty);   // the lesson-only card has no choice to click: the link's level is kept here
       startSeed(link.seed, link.variant, link.size);
     } });
     element.insertBefore(el('section', { class: 'shared-score', 'aria-labelledby': 'shared-score-heading' }, [
@@ -382,6 +377,7 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
       el('p', { class: 'your-best small', text: score4YourBest(best ? best.score : null, link.older) }),
       el('p', { class: 'beat', text: TITLE_SCORE_TEXT.beat(total) }),
       el('p', { class: 'start-on small muted', text: TITLE_SCORE_TEXT.startOn(link.difficulty) }),
+      lessonPending ? el('p', { class: 'friend-lesson small muted', text: D2_TEXT.shareLessonLine }) : null,
       start,
     ]), buttonBox);
   };

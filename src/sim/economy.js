@@ -2,8 +2,15 @@ import { ECONOMY, FORECAST } from '../data/economy.js';
 import { TIERS } from '../data/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings, housesOf } from './world.js';
-import { soldiersPayOf } from './costs.js';
+import { soldiersPayOf, costScale } from './costs.js';
 import { lacksRoad } from './reach.js';
+
+// Version 6.0 (Track 0, ruling 622): a building's monthly upkeep and one worker's monthly wage in this city, after costScale's upkeep
+// and wages (src/sim/costs.js). Track A (ruling 640): money stays whole gold, so each building's upkeep and its staff's wages are rounded
+// per building (wagesOf), and the card's bill (monthlyBill) is exactly what that building is charged; at a scale of 1 nothing changes.
+const upkeepIn = (scale, type) => Math.round(BUILDINGS[type].upkeep * scale.upkeep);
+const wageIn = (scale) => ECONOMY.wagePerWorker * scale.wages;
+const wagesOf = (scale, staff) => Math.round(staff * wageIn(scale));
 
 // The month's figures as the city stands now: taxes from the homes' residents, wages for the staff in post, the buildings'
 // upkeep and the soldiers' pay. monthlyEconomy pays exactly these at the month's end, and monthForecast shows them ahead.
@@ -12,10 +19,11 @@ export function monthFigures(world) {
   for (const h of housesOf(world)) if (h.tier >= 1) taxes += h.residents * TIERS[h.tier].tax;
   let wages = 0;
   let upkeep = 0;
+  const scale = costScale(world);
   for (const b of allBuildings(world)) {
     if (b.paused || lacksRoad(world, b)) continue;     // ruling P11: a building no road touches does nothing and costs nothing
-    upkeep += BUILDINGS[b.type].upkeep;
-    wages += b.staff * ECONOMY.wagePerWorker;
+    upkeep += upkeepIn(scale, b.type);
+    wages += wagesOf(scale, b.staff);
   }
   const soldiers = soldiersPayOf(world);               // spec 4.11: every soldier, in peace too, a paused barracks' as well
   return { taxes, wages, upkeep, soldiers, net: taxes - wages - upkeep - soldiers };
@@ -42,10 +50,12 @@ export function monthForecast(world) {
 }
 
 // What one building costs a month when it is fully staffed: its upkeep plus ECONOMY.wagePerWorker for each of its workers
-// (the card's "Costs 46 a month · 10 workers" for a farm).
-export function monthlyBill(type) {
-  const def = BUILDINGS[type];
-  return { upkeep: def.upkeep, workers: def.workers, wages: def.workers * ECONOMY.wagePerWorker, bill: def.upkeep + def.workers * ECONOMY.wagePerWorker };
+// (the card's "Costs 46 a month · 10 workers" for a farm). Version 6.0: with a world, in that city's costs (costScale); without one,
+// the data's own (no caller in the game leaves it out).
+export function monthlyBill(type, world = null) {
+  const def = BUILDINGS[type], scale = world ? costScale(world) : null;
+  const upkeep = scale ? upkeepIn(scale, type) : def.upkeep, wages = scale ? wagesOf(scale, def.workers) : def.workers * ECONOMY.wagePerWorker;
+  return { upkeep, workers: def.workers, wages, bill: upkeep + wages };
 }
 
 // The month's balance if a building of this type were added now: this month's net less its upkeep and the wages of the workers
@@ -55,16 +65,18 @@ export function balanceWith(world, type, count = 1) {   // count: Version 5.0 (T
   const def = BUILDINGS[type], L = world.labour;
   const filled = (jobs) => Math.min(L.workforce, jobs);
   const more = filled(L.jobs + count * def.workers) - filled(L.jobs);
-  return f.net - count * def.upkeep - more * ECONOMY.wagePerWorker;
+  const scale = costScale(world);
+  return f.net - count * upkeepIn(scale, type) - wagesOf(scale, more);
 }
 
 // The building costing the most a month now (upkeep plus the wages of its staff): { id, type, cost }, the lowest id on a tie,
 // or null when none costs anything. Paused buildings and those no road touches cost nothing (monthFigures).
 export function biggestCost(world) {
   let best = null;
+  const scale = costScale(world);
   for (const b of allBuildings(world)) {
     if (b.paused || lacksRoad(world, b)) continue;
-    const cost = BUILDINGS[b.type].upkeep + b.staff * ECONOMY.wagePerWorker;
+    const cost = upkeepIn(scale, b.type) + wagesOf(scale, b.staff);
     if (cost > 0 && (!best || cost > best.cost)) best = { id: b.id, type: b.type, cost };
   }
   return best;

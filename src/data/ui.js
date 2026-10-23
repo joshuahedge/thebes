@@ -4,7 +4,7 @@ import { MONUMENT_KINDS } from './monuments.js';
 import { S46_DOCK } from './s46.js';
 export const CATEGORIES = [
   { id: 'roads', items: ['road', 'demolish'] },
-  { id: 'homes', items: ['house', 'garden', 'statue', 'plaza', 'sphinx'] },
+  { id: 'homes', items: ['house', 'large_plot', 'garden', 'statue', 'plaza', 'sphinx'] },   // Version 6.0 (Track C): the Large plot card, shown from the first Townhouse (src/ui/cards.js)
   { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
   { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'] },
   { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'police_post', 'palace'] },
@@ -64,8 +64,12 @@ export const TRADE_KEEP_STEP = 10;
 // Spec 6.7. Letters are listed in both cases; `undo` needs Ctrl or Cmd.
 export const KEYS = {
   pause: [' '],
-  speedUp: ['+', '='],
-  speedDown: ['-', '_'],
+  // Version 6.0 (Track D1, ruling 744): + and - zoom the map (the desktop's own habit); the speed steps moved to ] and [ (and . and , beside them, the
+  // keys of > and <) so neither loses a key.
+  speedUp: [']', '.'],
+  speedDown: ['[', ','],
+  zoomIn: ['+', '='],
+  zoomOut: ['-', '_'],
   category: ['1', '2', '3', '4', '5', '6', '7'],
   panLeft: ['ArrowLeft', 'a', 'A'],
   panRight: ['ArrowRight', 'd', 'D'],
@@ -111,7 +115,7 @@ export const UNDO_TOAST_MS = 6000;
 export const GHOST_FINGER_OFFSET_PX = 48;
 
 // The version the about sheet shows.
-export const APP_VERSION = '5.0';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
+export const APP_VERSION = '6.0';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
 
 // The offline cache's worker (spec 7.1) and how long the "update ready" toast stays up (spec 6.3).
 export const SW_PATH = './sw.js';

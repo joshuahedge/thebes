@@ -20,7 +20,7 @@ describe('s47 resources guarantee', () => {
     const bad = [];
     for (const size of SIZES) {
       for (const variant of LAYOUTS) {
-        for (const r of sweep(size, variant, SEEDS)) {
+        for (const r of sweep(size, variant)) {
           const classicNormal = variant === 'classic' && size === 64;   // the mine repair is off there: it keeps its rock
           if (classicNormal ? r.c.clay.near < RESOURCES.clay || r.c.farm.near < RESOURCES.farm : !r.ok) bad.push(`${variant} ${size} #${r.seed}: clay ${r.c.clay.near} mine ${r.c.mine.near} farm ${r.c.farm.near}`);
         }
@@ -59,7 +59,7 @@ describe('s47 resources guarantee', () => {
 
   it('keeps what the generator promises while mending: rock off the water and clear of the start area, nothing on the start road or in the water', () => {
     const bad = [];
-    for (const size of SIZES) for (const variant of LAYOUTS) for (let seed = 1; seed <= 40; seed++) {
+    for (const size of SIZES) for (const variant of LAYOUTS) for (let seed = 1; seed <= (size > 80 ? 10 : 40); seed++) {
       const m = generateMap(seed, size, variant), tag = `${variant} ${size} #${seed}`, N = m.size;
       for (let i = 0; i < m.terrain.length; i++) {
         if (m.terrain[i] !== T.ROCKY) continue;
@@ -75,7 +75,7 @@ describe('s47 resources guarantee', () => {
     expect(S47_SALT.mineBlob).toBe(4711);
     expect(Object.values(S47_SALT).filter((s) => s === S47_SALT.mineBlob).length).toBe(1);
     const far = [];
-    const cases = [[48, 'island', 185], ...SIZES.flatMap((size) => LAYOUTS.flatMap((variant) => Array.from({ length: 60 }, (_, k) => [size, variant, k + 1])))];
+    const cases = [[48, 'island', 185], ...SIZES.flatMap((size) => LAYOUTS.flatMap((variant) => Array.from({ length: size > 80 ? 12 : 60 }, (_, k) => [size, variant, k + 1])))];
     for (const [size, variant, seed] of cases) {
       const m = generateMap(seed, size, variant), N = m.size;
       const wd = new Uint8Array(N * N).fill(255), queue = [];

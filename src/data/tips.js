@@ -7,6 +7,7 @@
 // the sheet or the overlay legend has the guidance row, spec 6.3) it is dropped unseen, so it can fire again next time.
 import { S46_TIPS } from './s46.js';
 import { S47_TIPS } from './s47.js';
+import { V60_TIPS } from './v60.js';
 import { FLOOD } from './river.js';
 
 const TIPS_BASE = [
@@ -92,8 +93,18 @@ const TIPS_V50 = [
 export const GRAND_TIP_TIER = 7;                 // Task 7: the grand homes tip comes with the first home to grow to this tier (a Fine manor)
 // ── end v50 ──
 
+// ── v60 (Version 6.0) ── Tracks A, B1 and C add their tips in their own data files (src/data/v60.js V60_TIPS joins them). Tracks B2, D1
+// and D2 add theirs to their own list below, each a line of its own (append-only; never edit another track's list).
+const TIPS_V60_B2 = [
+  { id: 'chief_banner', trigger: 'chiefBanner', priority: false },                // a raid with a chieftain began (src/ui/v60/battle.js): his banner, and what happens when he falls
+];
+const TIPS_V60_D1 = [];
+const TIPS_V60_D2 = [];
+// ── end v60 ──
+
 // Stage 4.6: each track's tips (src/data/s46.js S46_TIPS), with their words in the track's text.js section.
-export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE, ...TIPS_S45, ...S46_TIPS, ...S47_TIPS, ...TIPS_V50];
+export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE, ...TIPS_S45, ...S46_TIPS, ...S47_TIPS, ...TIPS_V50,
+  ...V60_TIPS, ...TIPS_V60_B2, ...TIPS_V60_D1, ...TIPS_V60_D2];
 
 export const TIP_GAP_MS = 180000;          // at least 3 minutes between two tips
 export const TIP_HOURLY_MAX = 5;           // and at most five in any hour

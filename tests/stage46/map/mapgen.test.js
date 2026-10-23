@@ -79,7 +79,7 @@ describe('s46 map generator (ruling 332, 333): every layout at every size keeps 
     for (const size of SIZES) {
       const area = areaScale(size);
       for (const v of MAP_VARIANTS) {
-        for (const seed of SEEDS) {
+        for (const seed of size > 80 ? SEEDS.slice(0, 12) : SEEDS) {
           const m = generateMap(seed, size, v), tag = `${v} ${size} seed ${seed}`;
           const fail = (what) => bad.push(`${tag}: ${what}`);
           // Stage 4.7 (Task 3b): a new map's rock lies in belts (BELTS.area a Normal map, scaled by area; hills stand on it and count); classic at Normal keeps its patches
@@ -96,7 +96,7 @@ describe('s46 map generator (ruling 332, 333): every layout at every size keeps 
           }
           if (nearFertile < 100 * area) fail(`fertile by the water ${nearFertile}`);
           if (minRock <= 4) fail(`rock ${minRock} tiles from water`);
-          const entries = size === 80 ? 3 : 2;
+          const entries = size >= 80 ? 3 : 2;   // Large and Huge (Version 6.0, ruling 740) have three: the extra entry scales once the area passes 1.25 x Normal
           if (m.raiderEntries.length !== entries) fail(`${m.raiderEntries.length} entries`);
           for (const e of m.raiderEntries) {
             const edge = e.x === 0 || e.y === 0 || e.x === size - 1 || e.y === size - 1;
@@ -143,7 +143,7 @@ describe('s46 map generator: the seeded shape choices (ruling 332)', () => {
   it('draws each choice inside its range, over 50 seeds of every layout and size', () => {
     const S = MAP.shapes, bad = [];
     const seen = { pools: 0, none: 0, wadis: 0, channels: 0, oxbows: 0, clusters: 0, groves: 0, dunes: 0 };
-    for (const size of SIZES) for (const v of MAP_VARIANTS) for (const seed of SEEDS) {
+    for (const size of SIZES) for (const v of MAP_VARIANTS) for (const seed of size > 80 ? SEEDS.slice(0, 12) : SEEDS) {
       if (v === 'classic' && size === 64) continue;
       const m = generateMap(seed, size, v), p = m.params, tag = `${v} ${size} ${seed}`;
       const w = createWorld({ seed, size, mapVariant: v });

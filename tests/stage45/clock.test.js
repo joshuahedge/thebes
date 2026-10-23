@@ -19,7 +19,7 @@ describe('s45 clock', () => {
     const minutes = (k, speed) => secondsAt(speed, (MONUMENTS[k].crewMonths / MONUMENTS[k].crews) * DAYS_PER_MONTH) / 60;
     expect([minutes('pyramid_great', 1), minutes('pyramid_great', 3)]).toEqual([90, 30]);
     expect(minutes('obelisk_small', 1) * 60).toBe(90);
-    expect(MONUMENT_KINDS.map((k) => Math.round(minutes(k, 1) * 10) / 10)).toEqual([1.5, 4.5, 9, 12, 18, 30, 37.5, 48, 67.5, 90]);   // Stage 4.6: the great sphinx, the sun temple and the step pyramid between
+    expect(MONUMENT_KINDS.map((k) => Math.round(minutes(k, 1) * 10) / 10)).toEqual([1.5, 4.5, 9, 12, 18, 30, 37.5, 48, 67.5, 90, 37.5]);   // Stage 4.6: the great sphinx, the sun temple and the step pyramid between
   });
   it('stretches the palace works: 30, 60, 90, 120 days are 30 s, 1 min, 1 min 30 s, 2 min at 1x', () => {
     expect(PALACE_STYLES.map((s) => secondsAt(1, s.days))).toEqual([0, 30, 60, 90, 120]);

@@ -12,6 +12,8 @@ import { costOf, roadCostOf } from '../sim/costs.js';
 import { monthlyBill } from '../sim/economy.js';
 import { canAfford } from '../sim/money.js';
 import { CATEGORIES } from '../data/ui.js';
+import { LARGE_PLOT } from '../data/largePlots.js';
+import { largePlotUnlocked } from '../sim/largePlots.js';
 import { buildingName, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT, S46_MAP_TEXT } from './text.js';
 import { MAP } from '../data/map.js';
 import { el, clear } from './components.js';
@@ -25,6 +27,7 @@ const deviceRatio = () => Math.min(3, (typeof window !== 'undefined' && window.d
 // Stage 4 (Track C, spec 4.14, ruling 243): a card that unlocks by prestige is a step of its own. The first (the small
 // pyramid) shows, greyed, once its milestone is the next one or reached; each later one once the one before it has unlocked.
 export function cardShown(world, item) {
+  if (item === LARGE_PLOT.type) return largePlotUnlocked(world);   // Version 6.0 (Track C): the Large plot card comes with the first Townhouse, and is not a teaser before it
   if (!BUILDINGS[item] || isUnlocked(world, item)) return true;
   const step = PRESTIGE_UNLOCKS.indexOf(item);
   if (step > 0) return isUnlocked(world, PRESTIGE_UNLOCKS[step - 1]);
@@ -57,16 +60,17 @@ export function cardInfo(world, item) {
   let cost = 0, suffix = '', costText;
   if (item === 'road') { cost = roadCostOf(world); suffix = ' per tile'; }
   else if (item === 'house') { cost = costOf(world, 'house'); suffix = ' per plot'; }
+  else if (item === LARGE_PLOT.type) { cost = costOf(world, item); suffix = ' per lot'; }
   else if (item !== 'demolish') cost = costOf(world, item);
   costText = item === 'demolish' ? 'Refunds a quarter' : `${cost} gold${suffix}`;
   // Stage 4 (spec 4.20): while a palace stands its card is a way to it, not a price (picking it selects the palace).
   if (item === 'palace' && palaceOf(world)) return { item, name: buildingName(item), cost: 0, costText: UI4_TEXT.palaceStands, affordable: true, locked: false, lockText: '', isNew: false, terrainText: '' };
-  const locked = Boolean(BUILDINGS[item]) && !isUnlocked(world, item);
+  const locked = item === LARGE_PLOT.type ? !largePlotUnlocked(world) : Boolean(BUILDINGS[item]) && !isUnlocked(world, item);
   const isNew = !locked && (world.newItems || []).includes(item);
   // terrainText: "Fertile land" or "Rocky ground" for a building that needs it (placement review P15), "Not on the fields" for a monument (ruling 299)
   // (spec 4.4), else ''.
   // Stage 4.5 (Task 4b): what the building costs a month when fully staffed, from the sim (monthlyBill): "Costs 46 a month · 10 workers".
-  const bill = BUILDINGS[item] && !locked ? monthlyBill(item) : null;
+  const bill = BUILDINGS[item] && !locked ? monthlyBill(item, world) : null;
   const upkeep = bill && bill.bill > 0 ? { text: S45_TEXT.upkeepLine(bill), title: S45_TEXT.upkeepTitle(bill) } : { text: '', title: '' };
   // Stage 4.6 (rulings 331, 350): a terrain card's tooltip says its rule from the sim's row ("Needs 2 of 4 tiles on clay. Clay ground, along the
   // riverbanks."), and the road card says a road crosses water on a bridge, at the sim's price (costOf(world, 'bridge')) and the rule's reach.
@@ -106,8 +110,8 @@ function costLine(info) {
 }
 
 // "Costs 46 a month" and, after it, " · 10 workers" in a span of its own (css hides that part from the eye at large text).
-function upkeepSpan(item, info) {
-  const bill = monthlyBill(item), crew = S45_TEXT.upkeepCrew(bill);
+function upkeepSpan(world, item, info) {
+  const bill = monthlyBill(item, world), crew = S45_TEXT.upkeepCrew(bill);
   return el('span', { class: 'upkeep', title: info.upkeepTitle }, [el('span', { class: 'bill', text: S45_TEXT.upkeepBill(bill) }), crew ? el('span', { class: 'crew', text: crew }) : null]);
 }
 
@@ -126,7 +130,7 @@ export function renderCards(container, { world, category, activeItem = null, onP
     const badge = info.isNew ? el('span', { class: 'new-badge', text: T.newBadge }) : null;
     // A monument's tooltip says where it stands (spec 4.4): "Small obelisk: on dry ground, not the fields".
     const b = el('button', { type: 'button', class: cls, dataset: { item }, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null, title: isMonumentItem(item) ? `${info.name}: ${UI4_TEXT.groundTip}` : null }, [
-      thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), info.upkeepText ? upkeepSpan(item, info) : null, info.terrainText ? el('span', { class: 'terrain', title: terrainTitleOf(world, item), text: info.terrainText }) : null, badge,
+      thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), info.upkeepText ? upkeepSpan(world, item, info) : null, info.terrainText ? el('span', { class: 'terrain', title: terrainTitleOf(world, item), text: info.terrainText }) : null, badge,
     ]);
     if (!info.locked) b.addEventListener('click', () => onPick(item));
     return b;

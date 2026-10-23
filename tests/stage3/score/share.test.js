@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../../harness.js';
-import { weeklySeed, isoWeek, shareLink, parseShareLink, shareCheck, sharedTotal, emojiRow, pictureCard } from '../../../src/ui/share.js';
+import { shareLink, parseShareLink, shareCheck, sharedTotal, emojiRow, pictureCard } from '../../../src/ui/share.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 
 const PARTS = { people: 72, prosperity: 65, culture: 58, safety: 40, monuments: 36 };   // Stage 4: score v2's five parts
@@ -8,16 +8,6 @@ const V1 = { people: 72, prosperity: 65, culture: 58, safety: 40 };
 const V1_SPLITS = { town: 14, market_town: 20, city: null, great_city: null, capital: null };
 
 describe('s3 score sharing', () => {
-  it('draws This week\'s Nile from the local date: ISO week-year x 100 + ISO week', () => {
-    expect(weeklySeed(new Date(2026, 9, 11))).toBe(202641);                   // the spec's example, a Sunday
-    expect(weeklySeed(new Date(2026, 9, 5))).toBe(202641);                    // that week's Monday
-    expect(weeklySeed(new Date(2026, 9, 12))).toBe(202642);
-    expect(weeklySeed(new Date(2026, 0, 1))).toBe(202601);                    // a Thursday: week 1
-    expect(weeklySeed(new Date(2027, 0, 1))).toBe(202653);                    // still 2026's last week
-    expect(weeklySeed(new Date(2024, 11, 30))).toBe(202501);                  // already 2025's first week
-    expect(isoWeek(new Date(2026, 2, 30))).toEqual({ year: 2026, week: 14 }); // the Monday after the clocks change
-    expect([weeklySeed(new Date('nonsense')), weeklySeed(null)]).toEqual([0, 0]);
-  });
   it('makes the t2 link with its check, and reads it back; a t1 link still opens as older scoring (Stage 4)', () => {
     const link = shareLink({ seed: 202641, difficulty: 'normal', parts: PARTS, splits: SPLITS });
     const body = 't2.202641.n.72-65-58-40-36.14-20-x-x-x-x-x';

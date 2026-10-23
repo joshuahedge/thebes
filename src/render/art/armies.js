@@ -6,10 +6,11 @@
 // raiders with a long oar and no shield. Units stand UNIT_SCALE times a citizen's size.
 import { box, crs, qd, door, parapet, p, U, quad, hs } from './primitives.js';
 import { pennant } from './services.js';
-import { DEFENCE_EMBLEM } from './defence.js';
+import { DEFENCE_EMBLEM, shellSlot } from './defence.js';
 import { UNIT_SCALE } from './figures.js';
-import { MUD2, STONE, TEAL, GOLD, WOOD, RED, SHADOW, TERRAIN, THATCH } from './palette.js';
+import { MUD2, STONE, TEAL, TEAL_DARK, GOLD, WOOD, RED, SHADOW, TERRAIN, THATCH } from './palette.js';
 import { boundsFor } from '../iso.js';
+import { FIGHTERS, POSES, FACES, CHIEF_SCALE, SACK } from '../../data/battle.js';
 
 const SKIN = '#A0663F', HAIR = '#1E150E', KILT = '#FAF6EC';
 const RAIDER = { body: '#3E3446', kilt: '#55465A', helm: '#6A5A4E', crest: '#8A2E26', rim: '#B39466' };
@@ -196,6 +197,106 @@ export function stables(g, X, Y) {
   pennant(g, U(p(X + 0.5, Y + 0.3), 10.5), 8, DEFENCE_EMBLEM);
 }
 
+// ── Version 6.0, Track B2: fighting poses, the chieftain and a raider with a sack ──
+// A soldier and a raider on foot, side on, facing the foe (render/units.js picks the slot by who stands beside whom): pose 'a' is the guard
+// (spear up, axe raised) and 'b' the blow (spear thrust, axe swung down with a pale slash). Drawn facing right; the left-facing slots are the
+// same drawing mirrored about the unit's feet. Shapes tell the sides apart (the soldier's spear and tall teal shield, the raider's axe and
+// round shield), never colour alone.
+const GOLD_TRIM = '#E2B13C';
+const aim = (a, b, len) => { const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1; return [dx / d * len, dy / d * len]; };
+
+function soldierPose(g, X, Y, s, pose) {
+  const b = pose === 'b', lean = (b ? 1.6 : 0.4) * s, hip = X + lean * 0.5;
+  g.ell([X + lean * 0.3, Y], 3.6 * s, 1.1 * s, SHADOW, { alpha: 0.25 });
+  g.line([X + (b ? 2.6 : 1.4) * s, Y], [hip + 0.6 * s, Y - 3.4 * s], SKIN, 1.1 * s);           // the front foot planted, the back foot braced
+  g.line([X - (b ? 2.4 : 1.2) * s, Y], [hip - 0.6 * s, Y - 3.4 * s], SKIN, 1.1 * s);
+  g.poly([[hip - 2 * s, Y - 2.6 * s], [hip + 2 * s, Y - 2.6 * s], [hip + 1.5 * s, Y - 5.7 * s], [hip - 1.5 * s, Y - 5.7 * s]], KILT, { outline: true });
+  g.poly([[hip - 1.5 * s, Y - 5.6 * s], [hip + 1.5 * s, Y - 5.6 * s], [X + 1.9 * s + lean, Y - 8.7 * s], [X - 1.5 * s + lean, Y - 8.7 * s]], SKIN);
+  g.line([X - 1.4 * s + lean, Y - 8.5 * s], [X + 1.6 * s + lean, Y - 8.5 * s], TEAL, 1 * s);
+  const hand = [X + 2.6 * s + lean, Y - 7 * s];
+  const rear = [hand[0] - (b ? 3.6 : 5.2) * s, hand[1] + (b ? 0.4 : 1.6) * s], tip = [hand[0] + (b ? 10.4 : 7.2) * s, hand[1] - (b ? 0.8 : 2.4) * s];
+  g.path([['M', [X + 0.8 * s + lean, Y - 1.2 * s]], ['L', [X + 0.8 * s + lean, Y - 7.4 * s]], ['Q', [X + 2.4 * s + lean, Y - 10.4 * s], [X + 4 * s + lean, Y - 7.4 * s]],
+    ['L', [X + 4 * s + lean, Y - 1.2 * s]], ['Z']], TEAL, { stroke: TEAL_DARK, strokeWidth: 0.5 * s });      // the tall shield, held in front
+  g.line([X + 2.4 * s + lean, Y - 2.2 * s], [X + 2.4 * s + lean, Y - 8.2 * s], '#F6ECD6', 0.4 * s, 0.7);
+  g.line([X + 1.4 * s + lean, Y - 8.4 * s], hand, SKIN, 0.9 * s);                                          // the spear arm
+  g.line(rear, tip, WOOD, 0.6 * s);
+  const u = aim(rear, tip, 1), n = [-u[1], u[0]];
+  g.poly([[tip[0] + u[0] * 2.8 * s, tip[1] + u[1] * 2.8 * s], [tip[0] + n[0] * 0.9 * s, tip[1] + n[1] * 0.9 * s], [tip[0] - n[0] * 0.9 * s, tip[1] - n[1] * 0.9 * s]], GOLD);
+  g.circ([X - 0.2 * s + lean, Y - 10.8 * s], 1.75 * s, HAIR);
+  g.circ([X + 0.35 * s + lean, Y - 10.3 * s], 1.4 * s, SKIN);
+  g.line([X - 1.6 * s + lean, Y - 11.4 * s], [X + 1.6 * s + lean, Y - 11.4 * s], KILT, 0.6 * s);
+}
+
+// A raider on foot in one of three poses: 'a' the axe raised to strike, 'b' the blow, 'walk' the axe at his side. chief: the band's leader, a
+// head taller crest with a gold band, a gold breastplate and a gold-ringed shield; sack: a sack of what was taken on his shoulder.
+function raiderPose(g, X, Y, s, pose, { chief = false, sack = false } = {}) {
+  const b = pose === 'b', walk = pose === 'walk', lean = (b ? 1.6 : walk ? 0 : 0.4) * s, hip = X + lean * 0.5;
+  g.ell([X + lean * 0.3, Y], 3.6 * s, 1.1 * s, SHADOW, { alpha: 0.3 });
+  const stride = walk ? 0.9 : b ? 2.4 : 1.3;
+  g.line([X + stride * s, Y], [hip + 0.8 * s, Y - 3.4 * s], RAIDER.body, 1.2 * s);
+  g.line([X - stride * s, Y], [hip - 0.8 * s, Y - 3.4 * s], RAIDER.body, 1.2 * s);
+  g.poly([[hip - 2 * s, Y - 2.6 * s], [hip + 2 * s, Y - 2.6 * s], [hip + 1.5 * s, Y - 5.7 * s], [hip - 1.5 * s, Y - 5.7 * s]], RAIDER.kilt);
+  if (chief) g.line([hip - 2 * s, Y - 2.7 * s], [hip + 2 * s, Y - 2.7 * s], GOLD_TRIM, 0.7 * s);
+  g.poly([[hip - 1.6 * s, Y - 5.6 * s], [hip + 1.6 * s, Y - 5.6 * s], [X + 1.9 * s + lean, Y - 8.8 * s], [X - 1.9 * s + lean, Y - 8.8 * s]], RAIDER.body);
+  if (chief) g.poly([[hip - 1.3 * s, Y - 5.8 * s], [hip + 1.3 * s, Y - 5.8 * s], [X + 1.6 * s + lean, Y - 8.4 * s], [X - 1.6 * s + lean, Y - 8.4 * s]], GOLD_TRIM, { alpha: 0.85 });   // the breastplate
+  const shoulder = [X + 1.6 * s + lean, Y - 8.4 * s];
+  if (walk) {
+    const hand = [X + 3 * s, Y - 6.2 * s];
+    g.line(shoulder, hand, RAIDER.body, 0.9 * s);
+    g.line(hand, [X + 4.2 * s, Y - 0.8 * s], WOOD, 0.6 * s);                                                // the axe carried low
+    g.poly([[X + 3.8 * s, Y - 1.4 * s], [X + 6 * s, Y - 0.4 * s], [X + 4.2 * s, Y + 0.8 * s]], STONE[2]);
+  } else if (b) {
+    const hand = [X + 3.2 * s + lean, Y - 9.4 * s], end = [X + 9.6 * s + lean, Y - 5 * s];
+    g.line(shoulder, hand, RAIDER.body, 0.9 * s);
+    g.stroke([['M', [X + 1.4 * s + lean, Y - 16.4 * s]], ['Q', [X + 9 * s + lean, Y - 14 * s], [X + 11.6 * s + lean, Y - 6.2 * s]]], '#F6ECD6', 0.7 * s, 0.75);   // the slash
+    g.line(hand, end, WOOD, 0.6 * s);
+    g.poly([[end[0] - 0.4 * s, end[1] - 2.8 * s], [end[0] + 2.4 * s, end[1] - 1.2 * s], [end[0] + 1.2 * s, end[1] + 1.4 * s], [end[0] - 0.8 * s, end[1] + 0.2 * s]], STONE[2], { outline: true });
+  } else {
+    const hand = [X + 2.6 * s + lean, Y - 12.6 * s], top = [X + 0.8 * s + lean, Y - 16.8 * s];
+    g.line(shoulder, hand, RAIDER.body, 0.9 * s);
+    g.line([X + 3.4 * s + lean, Y - 10.6 * s], top, WOOD, 0.6 * s);
+    g.poly([[top[0] - 0.4 * s, top[1] - 0.6 * s], [top[0] + 3.4 * s, top[1] + 0.4 * s], [top[0] + 2.4 * s, top[1] + 2.8 * s], [top[0] - 0.6 * s, top[1] + 1.6 * s]], STONE[2], { outline: true });
+  }
+  g.circ([X + 0.2 * s + lean, Y - 10.4 * s], 1.5 * s, RAIDER.body);                                         // the head and its crested helmet
+  g.path([['M', [X - 1.7 * s + lean, Y - 10.6 * s]], ['Q', [X + 0.2 * s + lean, Y - 13.6 * s], [X + 1.9 * s + lean, Y - 10.6 * s]], ['Z']], RAIDER.helm);
+  const crest = chief ? 20 : 16.2;
+  g.path([['M', [X - 2 * s + lean, Y - 11 * s]], ['Q', [X - 0.6 * s + lean, Y - crest * s], [X + 2.4 * s + lean, Y - 13.4 * s]], ['Q', [X + 0.4 * s + lean, Y - 13.4 * s], [X - 2 * s + lean, Y - 11 * s]], ['Z']], RAIDER.crest);
+  if (chief) g.line([X - 1.9 * s + lean, Y - 11.6 * s], [X + 1.9 * s + lean, Y - 12.4 * s], GOLD_TRIM, 0.7 * s);
+  if (sack) {
+    const q = [X - 1.8 * s, Y - 11.4 * s];
+    g.line([X - 1.2 * s, Y - 8.4 * s], [X - 1.6 * s, Y - 10.6 * s], RAIDER.body, 0.9 * s);
+    g.ell([q[0], q[1] - 0.4 * s], 2.8 * s, 2.3 * s, SACK.body, { outline: true });
+    g.ell([q[0] + 0.4 * s, q[1] + 0.8 * s], 2.2 * s, 1.2 * s, SACK.shade, { alpha: 0.55 });
+    g.line([q[0] - 0.6 * s, q[1] - 2.6 * s], [q[0] + 0.8 * s, q[1] - 3.4 * s], SACK.tie, 0.7 * s);
+  } else if (!walk) {
+    const sx = b ? 1.8 : 3.2;
+    g.circ([X + sx * s + lean, Y - 6.2 * s], 2.6 * s, RAIDER.shield, { stroke: RAIDER.rim, strokeWidth: 0.6 * s });   // the round shield
+    g.circ([X + sx * s + lean, Y - 6.2 * s], 0.7 * s, chief ? GOLD_TRIM : RAIDER.rim);
+  }
+  if (walk && !sack) {
+    g.circ([X - 2.4 * s, Y - 6.4 * s], 2.6 * s, RAIDER.shield, { stroke: RAIDER.rim, strokeWidth: 0.6 * s });         // the shield on his back arm
+    g.circ([X - 2.4 * s, Y - 6.4 * s], 0.7 * s, chief ? GOLD_TRIM : RAIDER.rim);
+  }
+}
+
+// A figure in a fighting pose at tile point (gx, gy): who 'soldier' | 'raider' | 'chief', pose 'a' | 'b', face 1 (right on screen) or -1 (left).
+export function fightFigure(gIn, gx, gy, who, pose, face = 1, z = 0, sc = UNIT_SCALE) {
+  const c = U(p(gx, gy), z), X = c[0], Y = c[1], g = face > 0 ? gIn : mirrored(gIn, X);
+  if (who === 'soldier') soldierPose(g, X, Y, sc, pose);
+  else raiderPose(g, X, Y, who === 'chief' ? sc * CHIEF_SCALE : sc, pose, { chief: who === 'chief' });
+}
+// A raider carrying a sack, and the band's chieftain standing (his banner is drawn live over him, render/units.js).
+export function raiderWithSack(g, gx, gy, z = 0, sc = UNIT_SCALE) { const c = U(p(gx, gy), z); raiderPose(g, c[0], c[1], sc, 'walk', { sack: true }); }
+export function chieftain(g, gx, gy, z = 0, sc = UNIT_SCALE) { const c = U(p(gx, gy), z); raiderPose(g, c[0], c[1], sc * CHIEF_SCALE, 'walk', { chief: true }); }
+
+const FIGHT_BOUNDS = [-32, -52, 32, 10];
+const FIGHT_ART = {};
+for (const who of FIGHTERS) for (const pose of POSES) for (const face of FACES) {
+  FIGHT_ART[`fig.${who}_${pose}_${face}`] = { w: 0, d: 0, height: 34, bounds: FIGHT_BOUNDS, shadows: [], draw: (g, x, y) => fightFigure(g, x, y, who, pose, face === 'r' ? 1 : -1) };
+}
+FIGHT_ART['fig.chief'] = { w: 0, d: 0, height: 34, bounds: FIGHT_BOUNDS, shadows: [], draw: (g, x, y) => chieftain(g, x, y) };
+FIGHT_ART['fig.raider_sack'] = { w: 0, d: 0, height: 28, bounds: [-24, -46, 24, 10], shadows: [], draw: (g, x, y) => raiderWithSack(g, x, y) };
+
 const UNIT_BOUNDS = [-21, -45, 21, 9];
 const CHARIOT_BOUNDS = [-30, -48, 30, 10];
 export const ARMY_ART = {
@@ -206,7 +307,9 @@ export const ARMY_ART = {
   'fig.raider_archer': { w: 0, d: 0, height: 26, bounds: UNIT_BOUNDS, shadows: [], draw: (g, x, y) => raiderArcher(g, x, y) },
   'fig.raider_chariot': { w: 0, d: 0, height: 26, bounds: CHARIOT_BOUNDS, shadows: [], draw: (g, x, y) => raiderChariot(g, x, y) },
   'fig.raider_boat': { w: 0, d: 0, height: 26, bounds: UNIT_BOUNDS, shadows: [], draw: (g, x, y) => raiderBoat(g, x, y) },
+  ...FIGHT_ART,                                    // Version 6.0 (Track B2): fighting poses, the chieftain, a raider with a sack
 };
 
-// The slot an Armies building shows when it is not just its type, else null.
-export const armySlot = (b, world) => null;
+// The slot an Armies building shows when it is not just its type, else null. Version 6.0 (Track B2): rubble that remembers what stood there
+// (b.was) shows that building's burned-out or wrecked shell (defence.js shellSlot); old rubble keeps its heap.
+export const armySlot = (b, world) => (b.type === 'rubble' && b.was ? shellSlot(b) : null);

@@ -113,12 +113,15 @@ describe('v50 layers: home progress', () => {
     setRoad(w, 24, 21, 25, 21);
     expect(homeProgress(w).some((x) => x.id === lone.id)).toBe(false);
   });
-  it('three kinds of food hides two, and a Townhouse\'s square is counted last (the rows nextStep walks)', () => {
+  it('three kinds of food hides two, and a Townhouse has no square to count any more (the rows nextStep walks)', () => {
     const { w } = street({ tier: 5 });
     const home = Object.values(w.buildings).find((b) => b.type === 'house');
     const m = homeProgress(w).find((x) => x.id === home.id);
-    expect(m.missing[m.missing.length - 1]).toBe('merge');               // the 2x2 square a Townhouse needs
-    expect(houseStatus(w, home).merge.needed).toBe(true);
+    expect(m.missing.includes('merge')).toBe(false);                     // Version 6.0: a small plot stops at Townhouse, so there is no 2x2 square to ask for
+    expect(houseStatus(w, home).merge.needed).toBe(false);
+    const lot = addRaw(w, 'house', 20, 11, { tier: 0, w: 2, d: 2, large: true });   // an empty Large plot is shown like a home, its Manor rows the needs
+    const l = homeProgress(w).find((x) => x.id === lot.id);
+    expect([l.tier, l.missing.includes('entertainment'), l.missing.includes('merge')]).toEqual([0, true, false]);
     const top = street({ tier: 9 });
     const villa = Object.values(top.w.buildings).find((b) => b.type === 'house');
     const t = homeProgress(top.w).find((x) => x.id === villa.id);

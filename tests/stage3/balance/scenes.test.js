@@ -3,7 +3,7 @@ import { boot } from '../../../src/boot.js';
 import { createSaveStore } from '../../../src/save/store.js';
 import { serialize, deserialize } from '../../../src/save/serialize.js';
 import { buildSampleCity } from '../../../src/dev/sampleCity.js';
-import { devScene, DEV_SCENES, STAGE46_SCENES, STAGE47_SCENES, VERSION50_SCENES } from '../../../src/dev/scenes.js';
+import { devScene, DEV_SCENES, STAGE46_SCENES, STAGE47_SCENES, VERSION50_SCENES, VERSION60_SCENES } from '../../../src/dev/scenes.js';
 import { createWorld, allBuildings } from '../../../src/sim/world.js';
 import { coverageOf } from '../../../src/sim/fire.js';
 import { tributeQuote } from '../../../src/sim/raids.js';
@@ -16,7 +16,7 @@ import { difficultyHint } from '../../../src/ui/text.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
 
-const noStorage = { getItem: () => null, setItem: () => {} };
+const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"lessonDone":true}' : null), setItem: () => {} };   // Version 6.0 (Track D2): the lesson done, so the title card has its difficulty choice
 
 async function bootRig(params = '', { width = 1280, height = 800 } = {}) {
   const shell = await mountShell(width, height);
@@ -53,7 +53,7 @@ describe('s3 balance dev scenes', () => {
       expect(error).toBe('devScene fire: no city is open (use ?skipTitle=1&sample=1)');
       error = null;
       try { await devScene(r.api, 'parade'); } catch (e) { error = e.message; }
-      expect(error).toBe(`devScene: no scene named parade (peaceful, fire, tribute, battle, score, ambient, early, plots, raid, raid-fire, raid-overlay, placing, farm, farm-raid, sheet, welcome, expanded, pyramid-placing, title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion, variant, bridge, clay, ${STAGE46_SCENES.join(', ')}, ${STAGE47_SCENES.join(', ')}, ${VERSION50_SCENES.join(', ')})`);
+      expect(error).toBe(`devScene: no scene named parade (peaceful, fire, tribute, battle, score, ambient, early, plots, raid, raid-fire, raid-overlay, placing, farm, farm-raid, sheet, welcome, expanded, pyramid-placing, title, tutorial, site, pyramid, capstone, procession, palace, sitesheet, motion, variant, bridge, clay, ${STAGE46_SCENES.join(', ')}, ${STAGE47_SCENES.join(', ')}, ${VERSION50_SCENES.join(', ')}, ${VERSION60_SCENES.join(', ')})`);
     } finally { r.cleanup(); }
   });
 

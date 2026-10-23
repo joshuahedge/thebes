@@ -23,6 +23,7 @@
 // Fields Track B adds to raid.active (raids.js): blocked (the tile index of the standing wall in the band's way, or
 // null) and towerIds (the towers that have shot during this raid, for the report's tower count).
 import { DEFENCE } from '../data/raids.js';
+import { CHIEFTAIN } from '../data/hazards.js';
 import { UNIT_TYPES, UNIT_OF_BUILDING, ENEMY_TYPES, ARMY, matchup } from '../data/armies.js';
 import { allBuildings, removeBuilding } from './world.js';
 import { isWorking, staffRatio } from './labour.js';
@@ -294,7 +295,7 @@ export function combatDay(world, events = null) {
     const live = world.soldiers.filter(alive);
     const foe = nearest(r, live.filter((s) => dist(r, s) <= BESIDE));
     if (foe) {
-      foe.hp -= e.damage;
+      foe.hp -= e.damage * (r.chief ? CHIEFTAIN.damageFactor : 1);   // Version 6.0 (Track B1, ruling 683): a chieftain hits harder
       foe.hit = true;
       fighting = true;
       fought.add(r.band ? 1 : 0);

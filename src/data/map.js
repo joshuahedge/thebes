@@ -65,10 +65,21 @@ MAP.shapes = {
   clay: { wideMin: 2, wideExtra: 2, cap: 24 },
 };
 
-// Map sizes (ruling 333): tiles a side. Normal is the default, the weekly seed's, and every city's from before Stage 4.6 (world.mapSize
-// 64); the title, sample and stress cities and the test fixtures stay Normal. createWorld takes any of them (and, for tests, any size
+// Map sizes (ruling 333): tiles a side. Normal is the default and every city's from before Stage 4.6 (world.mapSize
+// 64; the weekly seed, This week's Nile, was Normal too, until Version 6.0 dropped it); the title, sample and stress cities and the test fixtures stay Normal. createWorld takes any of them (and, for tests, any size
 // with a map passed in).
-export const MAP_SIZES = { small: 48, normal: 64, large: 80 };
+// Version 6.0 (Track 0 seam, Track D1 owns it; ruling 628): every size the game knows, in the picker's order. offered: in MAP_SIZES (the
+// title's picker, links, records, isMapSize, ?size=); bigScreen: the picker says it is best on a tablet or computer (phones). Huge is not
+// offered until Track D1 turns it on with its picker words, its zoom frame and the start guarantees at 112 (createWorld takes any size,
+// so a test or a dev scene can make one now).
+export const MAP_SIZE_TABLE = [
+  { id: 'small', size: 48, offered: true, bigScreen: false },
+  { id: 'normal', size: 64, offered: true, bigScreen: false },
+  { id: 'large', size: 80, offered: true, bigScreen: false },
+  { id: 'huge', size: 112, offered: true, bigScreen: true },
+];
+export const HUGE_MAP_SIZE = 112;
+export const MAP_SIZES = Object.fromEntries(MAP_SIZE_TABLE.filter((r) => r.offered).map((r) => [r.id, r.size]));
 export const MAP_SIZE_IDS = Object.keys(MAP_SIZES);
 export const DEFAULT_MAP_SIZE = MAP_SIZES.normal;
 export const isMapSize = (n) => Object.values(MAP_SIZES).includes(n);
@@ -79,6 +90,8 @@ export const MAP_SALT = {
   meander: 4601, channels: 4602, oxbow: 4603, outcrops: 4604, dunes: 4605, groves: 4606, wadis: 4607, clayWide: 4608,
   shapePick: 4609, spare1: 4610, spare2: 4611,
 };
+// Version 6.0, Track D1's salts (the Huge map's own draws, if it needs any), range 6071-6079; rename the spares as they are used.
+export const HUGE_SALT = { spare1: 6071, spare2: 6072 };
 // The Map track's rows in the Stage 4.6 lists (src/data/s46.js joins every track's): tallies, firsts, achievements, tips.
 export const MAP_TALLY = [];
 export const MAP_FIRSTS = [];

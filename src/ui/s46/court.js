@@ -24,6 +24,11 @@ import { seamBase } from './seam.js';
 import { quotaNodes } from '../s47/pressure.js';
 import { sendQuota, quotaStatus } from '../../sim/pressure.js';
 import { S47_PRESSURE_TEXT } from '../text.js';
+import { V60_REIGN_TEXT as R } from '../text.js';
+import { courtDemands, demandStatus, demandsOn } from '../../sim/demands.js';
+import { courtDue, dueComing } from '../../sim/pressure.js';
+import { costScale } from '../../sim/costs.js';
+import { dateOfDay } from '../../sim/court.js';
 
 const line = (text, cls = 'small muted') => el('p', { class: cls, text });
 const row = (label, value, cls = '') => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { class: cls, text: value })]);
@@ -46,6 +51,33 @@ const favourLine = (world) => {
 // The first building that holds some of a good (a store the player can View), or null.
 const storeOf = (world, good) => allBuildings(world).find((b) => (BUILDINGS[b.type].stores || []).includes(good) && (b.store[good] || 0) > 0) || null;
 const firstOf = (world, type) => allBuildings(world).find((b) => b.type === type) || null;
+
+// Version 6.0 (Track A, rulings 642, 643, 640): the court's due on the court sheet: what it takes now, how, and when; and the rank's running costs.
+export function dueNodes(world) {
+  const out = [el('h3', { text: R.dueHead })];
+  if (!dueComing(world)) { out.push(line(R.dueBefore)); return out; }
+  const due = courtDue(world);
+  const parts = R.dueParts(due, world.gold);
+  out.push(el('p', { class: 'due-now', text: `${R.dueNow(due, dateOfDay(due.day).year)}${parts ? ` ${parts}.` : ''}` }));
+  if (due.gold > 0 && due.gold > world.gold) out.push(line(R.dueShort(due, world.gold), 'small coral due-short'));
+  out.push(line(R.dueRule(due)), line(R.costsLine(costScale(world)), 'small muted costs-line'));
+  return out;
+}
+// Version 6.0 (Track A, rulings 644-650): the court's demand on the court sheet: what it asks, where it stands, and the way to its sheet.
+export function demandNodes(world, openDemand) {
+  const out = [el('h3', { text: R.demandHead })];
+  const d = courtDemands(world)[0];
+  if (!d) {
+    out.push(line(R.noDemand));
+    if (world.demands.nextDay !== null) out.push(line(R.next(Math.ceil((world.demands.nextDay - world.day) / 30)), 'small muted next-demand'));
+  } else {
+    const st = demandStatus(world, d);
+    out.push(el('p', { class: 'demand-line', text: `${R.demandTitle(d)}. ${d.accepted ? `${R.dueIn(d)} ${R.have(d, st)}.` : R.answerBy(d.monthsLeft)}` }));
+    out.push(el('div', { class: 'actions' }, [button(R.open, { class: 'open-demand primary', onClick: openDemand })]));
+  }
+  if (world.demands.log.length) out.push(el('ul', { class: 'demands-past' }, [...world.demands.log].reverse().slice(0, 4).map((e) => el('li', { class: 'small', text: R.logLine(e) }))));
+  return out;
+}
 
 export function createCourtUi(ctx) {
   if (!ctx || !ctx.world) return seamBase();   // no city to speak for (the contract's empty-seam test makes one with no context)
@@ -208,7 +240,9 @@ export function createCourtUi(ctx) {
   // ── The court sheet ──
   function courtSheet(body, { close }) {
     const c = world.court;
-    if (!courtOpen(world)) { body.append(line(C.closed(), 'muted')); return; }
+    const openDemand = () => ctx.store.set(openSheet(ctx.store.get(), 'demand'));
+    // Version 6.0: the demands come from Town, before the court's letters open (ruling 645): a closed court still shows them.
+    if (!courtOpen(world)) { body.append(line(C.closed(), 'muted')); if (demandsOn(world)) body.append(...demandNodes(world, openDemand)); return; }
     const band = favourBand(world);
     const raids = raidsOn(world);
     body.append(
@@ -245,6 +279,8 @@ export function createCourtUi(ctx) {
       select: (id) => ctx.selectBuilding(id),
       showMeAt: (target) => ctx.showMeAt(target),
     }));
+    // Version 6.0 (Track A, rulings 642-650): the court's due (what it would take now and when, and its rule) and the court's demand.
+    body.append(...dueNodes(world), ...demandNodes(world, openDemand));
     // Letters waiting, and the request open.
     body.append(el('h3', { text: C.waiting }));
     if (!c.letters.length) body.append(line(C.noLetters));
@@ -262,13 +298,23 @@ export function createCourtUi(ctx) {
 
   // ── The summary's row ──
   function summary() {
-    if (!courtOpen(world)) return [];
+    if (!courtOpen(world)) {
+      // Version 6.0 (ruling 645): a demand made before the court's letters open still has its row and its button.
+      const d = courtDemands(world)[0];
+      return d ? [el('h3', { text: C.courtHead, dataset: { section: 'court' } }), row(R.demandHead, R.demandTitle(d), 'demand-summary'),
+        el('div', { class: 'actions court-actions' }, [button(R.open, { class: 'open-demand primary', onClick: () => ctx.store.set(openSheet(ctx.store.get(), 'demand')) })])] : [];
+    }
     const c = world.court;
     const nodes = [el('h3', { text: C.courtHead, dataset: { section: 'court' } }), row(C.favour, favourLine(world))];
     // Stage 4.7 (Task 7, ruling 469): the yearly tribute while one is owed: what is sent and the months left (the court sheet has the rest).
     const qs = quotaStatus(world);
     if (qs && qs.result === null) nodes.push(row(S47_PRESSURE_TEXT.quotaHead, S47_PRESSURE_TEXT.summaryLine(qs), 'quota-summary'));
+    // Version 6.0: the court's demand (open) and the due when it comes within its warning.
+    const d = courtDemands(world)[0];
+    if (d) nodes.push(row(R.demandHead, d.accepted ? `${R.demandTitle(d)}: ${R.dueIn(d)}` : `${R.demandTitle(d)}: ${R.offered.toLowerCase()}`, 'demand-summary'));
+    if (dueComing(world)) { const due = courtDue(world); nodes.push(row(R.dueHead, R.dueSummary(due), due.gold > 0 && due.gold > world.gold ? 'coral due-summary' : 'due-summary')); }
     const actions = [];
+    if (d) actions.push(button(R.open, { class: 'open-demand', onClick: () => ctx.store.set(openSheet(ctx.store.get(), 'demand')) }));
     if (c.letters.length) {
       const unread = c.letters.some((l) => !l.read);
       nodes.push(line(unread ? `${plural(c.letters.length, 'letter waits', 'letters wait')} for you.` : `${plural(c.letters.length, 'letter is', 'letters are')} open.`, 'small'));

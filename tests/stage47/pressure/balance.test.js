@@ -11,6 +11,13 @@
 // Quotas (years 8-15): 135 pottery, 40 beer and 350-400 grain each year (12.5% of a year's output), gifts 370-380 gold; all met, years 8-13
 // by month 6 (+8 favour), 14 and 15 after it (+5). No home went hungry. Without the clay fetch every quota is missed; without the towers the
 // two late raids are lost and burn the towers. The run takes about 3.8 s on top of the shared 6-year run.
+//
+// Version 6.0 (Track A, rulings 611, 640-643, 660; docs/superpowers/notes/2026-10-22-v60-a-balance.md): the court's due takes a share of the
+// treasury (or of a year's taxes) each year from year 8, and the driver answers the court (letters, requests, demands). Measured on v60-a: the
+// treasury at each year's end 33,739 (7, after year 8's due), 22,646, 24,899, 21,157, 25,319, 25,219, 26,155, 24,226, 24,307 (15); favour 61-100
+// (high from year 10, so the due is cut by a quarter); every quota met, every raid beaten (18, 21 and 21 raiders: the wealth term is the people's
+// alone, 2, now that the treasury stays under one 40,000 step). The gold no longer climbs: the asserts that it grew year on year moved to the band
+// below (at most about two years of the city's profit before the due).
 import { describe, it, expect } from '../../harness.js';
 import { lateRun, LATE_YEARS } from './lateRun.js';
 import { QUOTA, RAIDS_LATE } from '../../../src/data/s47.js';
@@ -24,26 +31,30 @@ describe('s47 balance late', () => {
     const years = r.quotas.filter((q) => q.year <= LATE_YEARS);
     expect(years.map((q) => q.year)).toEqual([8, 9, 10, 11, 12, 13, 14, 15]);
     expect(years.map((q) => q.result)).toEqual(years.map(() => 'met'));
-    expect(years.filter((q) => q.early).length).toBeGreaterThanOrEqual(4);
+    expect(years.filter((q) => q.early).length).toBeGreaterThanOrEqual(3);   // Version 6.0 (Track C, ruling 705): years 8-10 early, 11-15 after month 6 (the four Manors are Large plots; it was years 8-13)
     expect(r.months.map((m) => m.unfed).filter((n) => n > 0)).toEqual([]);
     expect(r.lowestGold).toBeGreaterThan(0);
     const late = r.raids.filter((x) => x.year >= RAIDS_LATE.fromYear);
     expect(late.length).toBeGreaterThanOrEqual(1);
     expect(late.every((x) => x.wealth > 0 && x.wealth <= RAIDS_LATE.cap.normal)).toBe(true);
-    // The wealth term grows over the late game (ruling 478) instead of sitting at the cap from year 10: below it at the first late raid, higher at the last.
+    // The wealth term stays below the cap (ruling 478); since Version 6.0 the court's due holds the treasury under a gold step, so it no longer grows.
     expect(late[0].wealth).toBeLessThan(RAIDS_LATE.cap.normal);
-    expect(late[late.length - 1].wealth).toBeGreaterThan(late[0].wealth);
+    expect(late[late.length - 1].wealth).toBeGreaterThanOrEqual(late[0].wealth);
     expect(r.raids.map((x) => x.won)).toEqual(r.raids.map(() => true));
     expect(r.snapshots[LATE_YEARS].raidsLost).toBe(0);
     expect(r.elapsed).toBeLessThan(10000);
   });
 
-  it('keeps every year on record: homes, towers and treasury, the treasury growing through years 10-15 (the gold term of the wealth draw climbs with it)', () => {
+  it('keeps every year on record: homes, towers and treasury, the treasury held at one to two and a half years of profit from year 10, about two at year 15 (Version 6.0: the court\'s due)', () => {
     const r = lateRun();
     expect(Object.keys(r.yearly).map(Number)).toEqual([7, 8, 9, 10, 11, 12, 13, 14, 15]);
-    for (let y = 11; y <= 15; y++) expect([y, r.yearly[y].gold > r.yearly[y - 1].gold]).toEqual([y, true]);
+    // A year's profit before the court's due: the month ends' net less the monuments' work gold (paid daily, outside net) of that year.
+    const profit = (y) => r.months.filter((m) => Math.ceil(m.month / 12) === y).reduce((n, m) => n + m.net - m.monuments, 0);
+    const ratio = (y) => Math.round((r.yearly[y].gold / profit(y)) * 100) / 100;
+    for (let y = 10; y <= 15; y++) expect([y, ratio(y) >= 1, ratio(y) <= 2.5]).toEqual([y, true, true]);
+    expect(ratio(LATE_YEARS)).toBeLessThanOrEqual(2.3);                              // the plan's 'at most about two years of profit' at year 15 (2.23 measured)
     const term = (y) => Math.floor(r.yearly[y].gold / RAIDS_LATE.goldPer);
-    expect([term(10), term(15)]).toEqual([2, 4]);
+    expect([term(10), term(15)]).toEqual([0, 0]);
     expect(Object.values(r.yearly).every((s) => Object.keys(s.tiers).every((t) => Number(t) <= 6))).toBe(true);
   });
 

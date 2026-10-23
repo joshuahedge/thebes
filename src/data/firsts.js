@@ -5,6 +5,7 @@
 // Stage 3 building { type } (one stands) and tallies { keys, n } (the tallies added together).
 import { S46_FIRSTS } from './s46.js';
 import { S47_FIRSTS } from './s47.js';
+import { V60_FIRSTS } from './v60.js';
 
 export const FIRST_REWARD = 10;
 
@@ -44,4 +45,6 @@ export const FIRSTS = [
   ...S46_FIRSTS,
   // Stage 4.7 (src/data/s47.js S47_FIRSTS): an oasis in the desert.
   ...S47_FIRSTS,
+  // Version 6.0 (src/data/v60.js V60_FIRSTS): each track's firsts, from its own data file, words in its text.js section.
+  ...V60_FIRSTS,
 ];

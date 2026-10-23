@@ -1,4 +1,6 @@
-import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, newPrestigeUnlocks } from '../sim/world.js';
+import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY, newPrestigeUnlocks } from '../sim/world.js';
+import { newReignState, newDemandState } from '../data/reign.js';
+import { newHazardState, GRACE_DAYS } from '../data/hazards.js';
 import { addClay } from '../sim/mapgen.js';
 import { floodplainOf } from '../sim/flood.js';
 import { MILESTONES } from '../data/progression.js';
@@ -259,8 +261,25 @@ function v7ToV8(w) {
   };
 }
 
+// v8 -> v9 (Version 6.0, Track 0, ruling 620). The city keeps everything it had: its homes (2x2 homes merged under the old rule stay as
+// they are, with no large flag: src/data/largePlots.js), its milestone (the ranks beyond Capital are later MILESTONES rows, so a Capital
+// stays one until it earns the next), its treasury, its rubble (no was: drawn and cleared as before). The new records start as a new
+// city's do (no great work, no demands drawn), except the grace: no new danger acts until three game years after the load day (GRACE_DAYS,
+// ruling 623), wherever the city's year stands. The new tallies start at 0. A malformed save is left for validateWorld to report.
+function v8ToV9(w) {
+  const tally = isRec(w.tally) ? w.tally : {};
+  return {
+    ...w,
+    version: 9,
+    tally: { ...tally, ...Object.fromEntries(STAGE60_TALLY.map((k) => [k, 0])) },
+    reign: newReignState(),
+    demands: newDemandState(),
+    hazards: newHazardState((Number.isInteger(w.day) ? w.day : 0) + GRACE_DAYS),
+  };
+}
+
 // Each entry upgrades a world from version N to N + 1. Add one whenever WORLD_VERSION goes up.
-export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6, 6: v6ToV7, 7: v7ToV8 };
+export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6, 6: v6ToV7, 7: v7ToV8, 8: v8ToV9 };
 
 // table and target are parameters so tests can drive a synthetic chain; production calls use the defaults.
 export function migrate(obj, table = MIGRATIONS, target = CURRENT_VERSION) {

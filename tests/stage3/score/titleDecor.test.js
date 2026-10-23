@@ -61,15 +61,12 @@ describe('s3 score title card', () => {
       try { expect(c.container.querySelector('.title-records')).toBe(null); } finally { c.cleanup(); }
     }
   });
-  it('offers This week\'s Nile under the difficulty choice, on the seed of the device\'s week', () => {
+  it('no longer offers This week\'s Nile (Version 6.0, ruling 742): no weekly button, hint or seed on the card', () => {
     const c = card({ hasSave: false });
     try {
-      const weekly = c.container.querySelector('.weekly');
-      expect(weekly.textContent).toBe(TITLE_SCORE_TEXT.weekly);
-      expect(weekly.closest('.title-weekly').previousElementSibling.classList.contains('title-difficulty')).toBe(true);
-      expect(c.container.querySelector('.weekly-hint').textContent).toBe('Seed 202641: the same river for everyone this week');
-      fire(weekly, 'click');
-      expect(c.started).toEqual([202641]);
+      expect([c.container.querySelector('.weekly'), c.container.querySelector('.title-weekly'), c.container.querySelector('.weekly-hint')]).toEqual([null, null, null]);
+      expect(c.container.textContent.includes('This week')).toBe(false);
+      expect(c.started).toEqual([]);
     } finally { c.cleanup(); }
   });
   it('opens a shared score: the friend\'s score and parts, the best on that seed and level, Beat N? and Start this seed on its level', () => {
@@ -119,7 +116,7 @@ describe('s3 score title card', () => {
       expect(getComputedStyle(sec).display).toBe('flex');
     } finally { tc.destroy(); shell.cleanup(); }
   });
-  it('keeps the whole card reachable and every button 44 px on small phones, with a shared score, records and the weekly seed', async () => {
+  it('keeps the whole card reachable and every button 44 px on small phones, with a shared score and records', async () => {
     const link = new URL(shareLink({ seed: 202641, difficulty: 'normal', parts: PARTS, splits: {} })).hash;
     const records = createRecords({ storage: memory({ version: 1, cities: [row('a', 11, 'normal', 312, 'gold'), row('b', 7, 'hard', 250, 'bronze'), row('c', 9, 'relaxed', 120, null)], chronicle: [entry(1, 11, 247, 'silver')] }) });
     for (const [w, h, size] of [[360, 640, 100], [360, 640, 150], [844, 390, 100], [390, 844, 125]]) {

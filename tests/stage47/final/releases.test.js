@@ -6,15 +6,15 @@ import { FLOOD_LEVELS } from '../../../src/data/river.js';
 
 describe('s47 releases', () => {
   it('4.7 is the second entry with its merge commit, and 4.6 carries its own', () => {
-    expect([RELEASES[1].version, RELEASES[1].build, APP_VERSION]).toEqual(['4.7', 'eef5ccb', '5.0']);
-    expect([RELEASES[2].version, RELEASES[2].build]).toEqual(['4.6', 'ed005c5']);
+    expect([RELEASES[2].version, RELEASES[2].build, APP_VERSION]).toEqual(['4.7', 'eef5ccb', '6.0']);   // Version 6.0: two newer entries now
+    expect([RELEASES[3].version, RELEASES[3].build]).toEqual(['4.6', 'ed005c5']);
   });
   it('says the Fair flood as the data has it and names the old homes\' two months', () => {
     const fair = FLOOD_LEVELS.find((l) => l.id === 'fair').harvest;
     expect(fair).toBe(1);
-    const fixed = RELEASES[1].fixed.join(' ');
+    const fixed = RELEASES[2].fixed.join(' ');
     expect([fixed.includes('x1.0'), fixed.includes('two months')]).toEqual([true, true]);
-    const notes = RELEASES[1].new.join(' ');
+    const notes = RELEASES[2].new.join(' ');
     for (const word of ['Fetch', 'oases', 'tribute', 'year 8', 'year 10', 'third kind of food']) expect([word, notes.includes(word)]).toEqual([word, true]);
   });
 });

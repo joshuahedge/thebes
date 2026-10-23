@@ -14,8 +14,9 @@ import { houseDesirability } from '../../../src/sim/desirability.js';
 import { costOf, roadCostOf } from '../../../src/sim/costs.js';
 import { canAfford } from '../../../src/sim/money.js';
 import { isUnlocked } from '../../../src/sim/progression.js';
+import { largePlotUnlocked } from '../../../src/sim/largePlots.js';
 import { monthForecast } from '../../../src/sim/economy.js';
-import { towersNeeded } from '../../../src/sim/raids.js';
+import { towersNeeded, firstRaidTarget } from '../../../src/sim/raids.js';
 import { fallIll } from '../../../src/sim/health.js';
 import { createWorld, buildingAt, removeBuilding } from '../../../src/sim/world.js';
 import { advanceDays } from '../../../src/sim/clock.js';
@@ -46,7 +47,7 @@ function checkItems(w, list) {
     expect(ADVICE_KINDS).toContain(a.kind);
     expect(a.weight).toBeGreaterThan(0);
     if (a.fix && a.fix.item) {
-      expect([a.key, a.fix.item === 'road' || isUnlocked(w, a.fix.item)]).toEqual([a.key, true]);
+      expect([a.key, a.fix.item === 'road' || (a.fix.item === 'large_plot' ? largePlotUnlocked(w) : isUnlocked(w, a.fix.item))]).toEqual([a.key, true]);   // Version 6.0: the Large plot card is unlocked by its first Townhouse, not a milestone
       expect([a.cost, a.afford]).toEqual([priceOf(w, a.fix), canAfford(w, a.cost)]);
       expect(['near', 'terrain']).toContain(a.fix.at);
     } else if (a.fix && a.fix.select !== undefined) {
@@ -247,7 +248,11 @@ describe('v50 contract advice: the city', () => {
     expect([a.count, a.weight, a.data.need, a.data.have, a.data.warned, a.fix.item, a.fix.target, a.cost]).toEqual([need, need * ADVICE.tower, need, 0, false, 'tower', { x: w.focus.x + 0.5, y: w.focus.y + 0.5 }, costOf(w, 'tower')]);
     w.raid.warning = { size: 9, tribute: null, first: true, entry: { x: 0, y: 10 }, dir: 'W', arrives: 100 };
     [a] = ofKind(w, 'raid_towers');
-    expect([a.count, a.weight, a.data.warned, a.fix.target]).toEqual([towersNeeded(9), towersNeeded(9) * ADVICE.tower * ADVICE.towerWarned, true, { x: 0.5, y: 10.5 }]);
+    // Version 6.0 (Wave 4, ruling 787): the tower is aimed at the band's first strike (firstRaidTarget: the building it goes for first), not at the entry on the map's edge ({ x: 0.5, y: 10.5 }).
+    const first = firstRaidTarget(w, w.raid.warning.entry);
+    expect(first === null).toBe(false);
+    expect([a.count, a.weight, a.data.warned, a.fix.target]).toEqual([towersNeeded(9), towersNeeded(9) * ADVICE.tower * ADVICE.towerWarned, true, { x: first.x + first.w / 2, y: first.y + first.d / 2 }]);
+    expect(a.fix.target).toEqual({ x: 10, y: 9 });
     for (let i = 0; i < towersNeeded(9); i++) addRaw(w, 'tower', 30 + i, 11, { staff: BUILDINGS.tower.workers });
     expect(ofKind(w, 'raid_towers')).toEqual([]);
     w.raid.warning = null;

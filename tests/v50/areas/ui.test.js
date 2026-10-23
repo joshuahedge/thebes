@@ -59,7 +59,7 @@ describe('v50 areas ui: the farm area through the placement tool', () => {
     const g = ghostsFor(world, store.get());
     expect(g.filter((s) => s.w === 2 && s.d === 2).length).toBe(r.positions.length);
     expect(g.filter((s) => s.state === 'bad').length).toBe(4);
-    expect(p.upkeep).toBe(AREA_TEXT.upkeepFor(monthlyBill('farm_grain'), r.positions.length));
+    expect(p.upkeep).toBe(AREA_TEXT.upkeepFor(monthlyBill('farm_grain', world), r.positions.length));   // Version 6.0 (Track A): the city's own bill (its rank's costs)
     expect(p.balance).toBe('');                                                   // a farm no road touches costs nothing yet, so the balance waits for the road (as one farm's does)
     pl.cancel();                                                                 // the same area beside the road: no warning, and the balance is the sim's for that many
     pl.start({ kind: 'areas', type: 'farm_grain' });
