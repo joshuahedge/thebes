@@ -15,6 +15,7 @@ export const RELEASES = [
     ],
     fixed: [
       'When the great temple waits for an offering and the workshop or farm that makes the good already stands, the advice now says to wait for it, or why it stands idle, instead of asking for another. Show me for a missing one aims at its own ground nearest the temple.',
+      'The lesson\'s practice fire now always goes out and each step starts with a clear map, so the lesson can no longer leave you stuck on a dimmed, covered view; sideways on a phone the fire and raid steps now say what to do first, and a message waiting behind a raid report is no longer lost.',
     ],
   },
   {

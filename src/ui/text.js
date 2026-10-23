@@ -3220,7 +3220,7 @@ import { DAYS_PER_MONTH as d2MonthDays, MONTHS_PER_YEAR as d2YearMonths } from '
 // The guided first city (src/ui/lesson.js builds the facts each line is worded from; every number is the sim's own).
 // Each step is (f) => { text, why }: text is the one instruction in the guidance row (two or three lines on a phone), why the sentence that
 // follows it on a wide screen and when the row is opened in place. f: { paused, progress: { n, of } | null, warning: { dir, size, daysLeft, need, have } | null,
-// raidOn: { left } | null, missing: type | null, forecast: gold a month }.
+// raidOn: { left } | null, missing: type | null, forecast: gold a month, crew: a staffed firehouse reaches the bazaar (the fire step), towers: staffed towers (the raid step) }.
 const d2Site = (type) => buildingName(type).toLowerCase();
 // Times in game months, as the alert's own words say them (DANGER_UI_TEXT.duration: "2 months 29 days"), so the row and the banner count alike.
 const d2Time = (days) => DANGER_UI_TEXT.duration(Math.max(0, days));
@@ -3260,15 +3260,19 @@ export const D2_TEXT = {
       why: `Small plots stop at Townhouse. A Large plot grows into a Manor and beyond once its needs are met nearby. A real city opens the card with its first Townhouse; a lot costs ${BUILDINGS[d2Large.type].cost} gold.` }),
     firehouse: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : `Build a firehouse near the bazaar${f.paused ? ', then press Play so its crew can take their posts' : ' and let its crew take their posts'}.`,
       why: `A firehouse works only with staff and a road, and covers ${BUILDINGS.firehouse.reach} road tiles. Fire risk starts once a city is a Town.` }),
-    fire: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : `A small fire started in the bazaar: the lesson lit it. ${f.paused ? 'Press Play and watch the crew put it out.' : 'Watch the crew put it out.'}`,
-      why: `A staffed firehouse that reaches a blaze puts it out in a day or two. Left alone it grows into a fire in ${d2Fire.blazeDays} days and the building burns down.` }),
+    // Version 6.0.1 (rulings 820, 822): the instruction leads (a landscape phone cuts the row at two lines), and the words say who puts the staged blaze out: the
+    // crew while a staffed firehouse reaches the bazaar, else the lesson itself (src/sim/fire.js blazeDay: a staged blaze always goes out).
+    fire: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : f.crew === false
+      ? `${f.paused ? 'Press Play: the' : 'The'} lesson puts out the small fire it lit in the bazaar, though no staffed firehouse reaches it now.`
+      : `${f.paused ? 'Press Play and watch' : 'Watch'} the crew put out the small fire the lesson lit in the bazaar.`,
+      why: `A staffed firehouse that reaches a blaze puts it out in a day or two. In a real city a blaze left alone grows into a fire in ${d2Fire.blazeDays} days and the building burns down; the lesson's own always goes out.` }),
     tower: (f) => (f.warning
-      ? { text: `Raiders come from the ${f.warning.dir}: ${f.warning.size} of them, in ${d2Time(f.warning.daysLeft)}. Build ${f.warning.need - f.warning.have > 1 ? `${f.warning.need - f.warning.have} more towers` : 'a tower'} near the bazaar and let ${f.warning.need - f.warning.have > 1 ? 'their crews' : 'its crew'} take their posts.`,
+      ? { text: `Build ${f.warning.need - f.warning.have > 1 ? `${f.warning.need - f.warning.have} more towers` : 'a tower'} near the bazaar and let ${f.warning.need - f.warning.have > 1 ? 'their crews' : 'its crew'} take their posts: raiders come from the ${f.warning.dir}, ${f.warning.size} of them, in ${d2Time(f.warning.daysLeft)}.`,
         why: `A staffed tower stops about ${d2Raids.raidersPerTower} raiders. ${d2RaidClock()}; the lesson brings the Market town's tower card early.` }
       : { text: f.paused ? "Press Play: the lesson brings a raid warning. The Market town's tower card is open early." : 'A raid warning is on its way.',
         why: `${d2RaidClock()}.` }),
     raid: (f) => (f.raidOn
-      ? { text: `The raiders are here: ${f.raidOn.left} on the map. Watch the towers stop them.`, why: 'Towers shoot the nearest raider in range, and a band turns back once half of it has fallen.' }
+      ? { text: f.towers > 0 ? `Watch ${f.towers > 1 ? 'your towers' : 'your tower'} stop the raiders: ${f.raidOn.left} on the map.` : `Watch what the raiders do: ${f.raidOn.left} on the map, and no staffed tower to stop them.`, why:'Towers shoot the nearest raider in range, and a band turns back once half of it has fallen.' }
       : { text: `${f.paused ? 'Press Play and watch the raiders come' : 'The raiders are on their way'}${f.warning ? `: ${d2Time(f.warning.daysLeft)} to go` : ''}.`,
         why: 'Raids grow with a city\'s people and wealth, so build towers before the next warning.' }),
   },

@@ -5,6 +5,7 @@
 import { LESSON_STEPS } from '../data/lesson.js';
 import { LESSON_LENGTH, firstOf, warnedRaid, stepDone } from '../sim/lesson.js';
 import { towersNeeded, workingTowers } from '../sim/raids.js';
+import { staffedCover } from '../sim/fire.js';
 import { monthForecast } from '../sim/economy.js';
 import { population } from '../sim/world.js';
 
@@ -32,6 +33,10 @@ export function lessonFacts(world, step) {
   }
   if (a) f.raidOn = { left: a.raiders ? a.raiders.length : 0 };
   if (step && (step.id === 'firehouse' || step.id === 'fire') && !firstOf(world, 'bazaar')) f.missing = 'bazaar';
+  // Version 6.0.1 (ruling 820): whether a staffed firehouse still reaches the bazaar (its crew), so the fire step's words say who puts the staged blaze out.
+  if (step && step.id === 'fire' && firstOf(world, 'bazaar')) f.crew = staffedCover(world, firstOf(world, 'bazaar'));
+  // The raid step says whether staffed towers stand to stop the raiders (the sim's own count), never "watch the towers" with none.
+  if (step && step.id === 'raid') f.towers = workingTowers(world);
   const fc = monthForecast(world);
   f.forecast = fc && Number.isFinite(fc.net) ? fc.net : null;
   f.people = population(world);
