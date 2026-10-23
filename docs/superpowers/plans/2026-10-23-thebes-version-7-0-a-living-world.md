@@ -28,7 +28,7 @@ Agreed with Josh on 23 Oct 2026, after Version 6.0 went live and once 6.0.1 is m
 |---|---|---|
 | 0 | Track 0: contract (Opus) | main |
 | 1 | T: trade and the Quay (Opus) · E: city events (Sonnet) · S: seasons, light and sound (Sonnet) | Track 0 |
-| 2 | A: Advice fixes and the words (Sonnet) | wave 1 merged (Advice and How to play cover T and E) |
+| 2 | A: Advice fixes and the words (Sonnet) · P: playtest fixes (Sonnet; added in wave 2, below) | wave 1 merged (Advice and How to play cover T and E) |
 | 3 | Balance (Sonnet) → final review with the usability pass (Opus) → fix wave (Sonnet) → re-review (Sonnet) → docs, merge, suite on main | wave 2 merged |
 
 ## Rules for every track
@@ -93,6 +93,17 @@ The 6.0 UX rules apply unchanged: one panel at a time and nothing floating over 
 - Raid towers: `towerSpotsFor(world, firstRaidTarget(...))` returns only spots with a road and within tower range of the target; when none exists the fix names the step ("Lay a road to here, then build the tower") with Show me at the road's end. Re-record the advice pins with reasons.
 - Stranded goods: when a good is stored beyond a cart's sensible reach of the bazaar that needs it (a threshold from the cart's trip data, stated), Advice says "Build a storehouse near this bazaar" and Show me aims at a valid spot near it.
 - Advice items for T and E (a waiting event; a route blocked by a floor that starves the city's income; a Quay missing for an open river partner) and their How to play entries; the tips for the Quay, the Trade sheet and events.
+
+### Track P: playtest fixes (Sonnet; rulings 1000-1014)
+
+Added in wave 2, not in the plan Josh agreed: Josh played 6.0.1 for two minutes on 23 Oct and asked for four fixes, and the controller added a fifth from the wave 1 screenshots. P owns the lesson UI and its step flow, the placement preview and bar, and keyboard input; Track A keeps Advice, tips and How to play except P's own "Keyboard" and placement words (P appends in its own section of `text.js`).
+
+- **P1. Lesson steps come to the front.** A step that asks for something pauses the game and shows as a card in the middle of the screen (the step's words, a picture if it has one, one large button such as "Show me" or "Got it"), with the map lightly dimmed. This is the one allowed exception to "nothing floating over the middle of the map" (ruling 1002). The button, Enter, Space or Esc docks the step to its usual row and points at the target as Show me does; 6.0.1's rulings 820-823 hold once docked, and Leave the lesson stays reachable. When the step's action is done play resumes by itself at the speed the player had; a step that only waits on the game resumes when its card is dismissed. Placing and the tray must work while paused. The card fits without scrolling at 375x667, 390x844 and 667x375 at 100% and 150% text, and at 1280x800 and 1920x1080; the lesson tests and the v60 trap tests still prove every step can be completed and left.
+- **P2. Keyboard (desktop).** Delete or Backspace undoes the last placement while its Undo is offered, else demolishes the selected building with the button's own confirmation; never while typing. Audit the shortcuts that exist, add only the obvious missing ones, list every one in How to play ("Keyboard") and as tooltips and `aria-keyshortcuts`. Phones unchanged.
+- **P3. Placement shows each square and says why.** Each footprint square is coloured on its own (fits or does not), with a mark or pattern on a bad square so colour is never the only cue. A reason line in the placement bar names every failing rule in plain words with counts, taken from the sim's own placement check (never a second copy); when everything fits it says in one line what the building needs. The words say what yellow means against red. Buildings that need special ground (farms, the Quay's riverbank, quarries) lightly mark where they can go. Tests both ways for each rule (fits or not; a road touching or one tile away).
+- **P4. Placed but not yet built shows on the map.** Empty house plots and monument sites before work starts get a pegged-out marker in their footprint (not colour only, readable at every zoom including the Huge map's floor, under Gentle and Still); tapping opens the same sheet as before. Render only, inside the frame budget.
+- **P5. Desktop sheets get room.** At 1280x800 and 1920x1080 the Trade sheet and the event card were squeezed into the bottom of the side panel. While a sheet is open on a wide screen the build tray and Layers fold so the sheet fills the panel below the minimap; the event card's Show me becomes a visible 44x44 secondary button, and its disabled gold choice keeps readable contrast (4.5:1). Phones unchanged; `tests/ui/mobileBudget.test.js` stays green.
+- Screenshots: the lesson card at its first two steps and docked, and placing a farm (good and partly bad) and a Quay, at the five sizes, 100% and 150% text, Gentle (`v70-p-*.png`).
 
 ### Wave 3: balance, review, docs (rulings 975-999)
 
