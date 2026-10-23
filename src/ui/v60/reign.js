@@ -94,7 +94,7 @@ export const createReignUi = (ctx) => {
       } else {
         choices.push(choice({ label: R.send(d), primary: true, cls: 'send', consequence: R.sendWhat(d, f), problem: st.ok ? '' : R.problem(st.reason, st, d), onPick: act(meetDemand, (events) => { close(); done(events, ''); }) }));
       }
-      choices.push(choice({ label: R.giveUp, cls: 'give-up', consequence: R.failed(f), onPick: act(declineDemand, (events) => { close(); done(events, ''); }) }));
+      choices.push(choice({ label: R.giveUp, cls: 'give-up', consequence: R.giveUpWhat(f), onPick: act(declineDemand, (events) => { close(); done(events, ''); }) }));
       wrap.append(el('div', { class: 'court-choices' }, choices));
     }
     wrap.append(line(R.favourWhy(raidsOn(world)), 'small muted favour-why'));
@@ -197,8 +197,9 @@ export const createReignUi = (ctx) => {
   const intercept = (ev) => {
     const t = ev.target && ev.target.closest ? ev.target.closest('.advice-item[data-kind="demand"] button') : null;
     if (!t) return;
-    ev.stopPropagation();
     const item = t.closest('.advice-item');
+    if (item && item.dataset.key === 'great_offering') return;   // ruling 786: its own fix (the store, or the producer's card) is the tap
+    ev.stopPropagation();
     open(item && item.dataset.key === 'court_due' ? 'court' : 'demand');
   };
   if (ctx.root && ctx.root.addEventListener) ctx.root.addEventListener('click', intercept, true);

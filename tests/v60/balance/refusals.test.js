@@ -14,6 +14,10 @@ import { BUILDINGS } from '../../../src/data/buildings.js';
 import { ECONOMY } from '../../../src/data/economy.js';
 import { GRACE_DAYS } from '../../../src/data/hazards.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
+import { mount } from '../../helpers/dom.js';
+import { createPlacement } from '../../../src/ui/placement.js';
+import { createConfirmBar } from '../../../src/ui/confirmBar.js';
+import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 
 // A Town with a granary on a road and three staffed grain farms in a warned band (the older crops test's layout).
 function warnedBand() {
@@ -98,5 +102,43 @@ describe('v60 balance refusals show me in deep debt', () => {
       for (let y = 0; y < w.size; y++) for (let x = 0; x < w.size; x++) if (!w.occ[y * w.size + x]) addRaw(w, 'house', x, y);   // no free tile anywhere
       expect([gold, showMeRefusal(w, 'tower', around) !== null]).toEqual([gold, true]);
     }
+  });
+});
+
+// ── Ruling 782, end to end: the confirm bar where Show me's ghost lands in deep debt ──
+describe('v60 balance refusals the confirm bar in deep debt', () => {
+  function bar(gold) {
+    const w = makeTestWorld({ gold });
+    w.milestone = 'capital';
+    setRoad(w, 0, 20, 31, 20);
+    addRaw(w, 'house', 14, 14);
+    const { root, cleanup } = mount();
+    const store = createStore(INITIAL_UI_STATE);
+    const placement = createPlacement({ world: w, store });
+    createConfirmBar({ container: root, store, placement, onCancel() {}, onConfirm() {}, onUndo() {} });
+    return { w, root, store, placement, cleanup };
+  }
+
+  it('shows the ghost on the tile Show me found, with the price and the rule that refuses it, not "something is already here"; with the gold in hand the same tile is a plain fit', () => {
+    const r = bar(ECONOMY.debtFloor - 4000);
+    try {
+      const tool = { kind: 'building', type: 'tower' };
+      const spot = nearestFit(r.w, tool, 14, 14, null, r.w.size);
+      r.placement.start(tool, { x: spot.x, y: spot.y });
+      const p = r.placement.preview();
+      expect([p.state, p.reason, p.cost]).toEqual(['bad', 'no_gold', BUILDINGS.tower.cost]);
+      expect(r.store.get().ghost).toEqual({ x: spot.x, y: spot.y });
+      const text = r.root.querySelector('#confirm').textContent;
+      expect(text).toContain('Tower');
+      expect(text).toContain(String(BUILDINGS.tower.cost));
+      expect(text).toContain(`Not enough gold: ${BUILDINGS.tower.cost} needed, you have ${ECONOMY.debtFloor - 4000}`);   // what it costs and what the treasury holds, the sim's own numbers
+      expect(text.includes('Something is already here')).toBe(false);
+      const ok = r.root.querySelector('#confirm .tick, #confirm .confirm-ok, #confirm button.primary');
+      if (ok) expect(ok.disabled).toBe(true);                                                 // the tick is off: the price is not payable
+      r.w.gold = 5000;                                                                        // the gold in hand: the same spot is a fit (a road to come is a warning, not a refusal)
+      r.placement.moveGhost(spot.x, spot.y);
+      const funded = r.placement.preview();
+      expect([funded.state === 'bad', funded.reason]).toEqual([false, null]);
+    } finally { r.cleanup(); }
   });
 });

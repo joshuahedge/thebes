@@ -23,7 +23,8 @@ import { BUILDINGS } from '../data/buildings.js';
 import { igniteBuilding } from './fire.js';
 import { makeBuilding, insertBuilding, removeBuilding } from './world.js';
 import { dangerDraws, hazardDraw } from './draws.js';
-import { footprint } from './grid.js';
+import { footprint, idx } from './grid.js';
+import { fullWallHp } from './defence.js';
 import { costOf, rubbleCostOf } from './costs.js';
 import { canAfford, spend } from './money.js';
 import { place } from './commands.js';
@@ -66,6 +67,14 @@ export const STRIKES = {
       r.was = { ...was };
       return insertBuilding(world, r).id;
     });
+    if (b.type === 'tower') {   // the wall tile it stood on falls back from the tower's hit points to a plain wall's (as demolishing it does)
+      let changed = false;
+      for (const [x, y] of footprint(b.x, b.y, b.w, b.d)) {
+        const t = idx(world.size, x, y);
+        if (world.wall[t] > 0 && world.wall[t] > fullWallHp(world, t)) { world.wall[t] = fullWallHp(world, t); changed = true; }
+      }
+      if (changed) world.wallVersion++;
+    }
     if (active.fires) active.fires = active.fires.filter((f) => f.id !== b.id);
     active.wrecked = (active.wrecked || 0) + 1;
     (active.wreckedKinds = active.wreckedKinds || []).push(b.type);

@@ -19,6 +19,8 @@ import { foodKinds as homeFoodKinds } from './housing.js';
 import { TIERS } from '../data/housing.js';
 import { desirabilityField, houseDesirability } from './desirability.js';
 import { desirabilityFix } from './advice.js';
+import { LARGE_PLOT } from '../data/largePlots.js';
+import { largePlotUnlocked } from './largePlots.js';
 
 const SETTLE_MAX = 20;   // settleGoals stops after this many completions in one go
 
@@ -234,6 +236,9 @@ export function nextItemFor(world, goal) {
     const fix = s ? desirabilityFix(world, s.home) : null;
     if (fix) return fix.item;
   }
+  // Version 6.0 (Wave 4 fix): the Large plot card is hidden until the city has had a Townhouse (largePlotUnlocked), so the Manor goal's Show me points at the homes
+  // that grow into one (a plot) while it is, never at a card the dock does not show.
+  if (goal.showMe && goal.showMe.item === LARGE_PLOT.type && !largePlotUnlocked(world)) return 'house';
   return goal.showMe ? goal.showMe.item : null;
 }
 

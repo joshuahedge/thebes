@@ -44,7 +44,7 @@ import { setPaused, demolishRefundFor } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
 import { touchesRoad } from '../sim/reach.js';
 import { desirabilityContributors } from '../sim/desirability.js';
-import { milestoneIndex, atLeast } from '../sim/progression.js';
+import { milestoneIndex, atLeast, isUnlocked } from '../sim/progression.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../sim/time.js';
 import { unitsAwayFrom } from '../sim/armies.js';
 import { FRAME_MARGIN_PX } from './cameraControl.js';
@@ -53,7 +53,7 @@ import { nearestTerrainTile } from './goalsList.js';
 import { el, button } from './components.js';
 import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT, ui4CauseText, S46_COURT_TEXT, V60_REIGN_TEXT } from './text.js';
 import { setViewClock } from '../render/overlays.js';
-import { ZOOM_STEP } from '../data/ui.js';
+import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 
 // ── The pick's fit (Task C1) ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -107,8 +107,11 @@ export function causeFix(world, b, reason, status = null) {
   }
   if (reason === 'waiting_offering') {                       // Version 6.0 (Track A): the great temple's offering: View the store holding most of the good
     const o = monumentsSim.greatWorkStatus(world, b).offering;
-    const held = o ? allBuildings(world).filter((x) => (BUILDINGS[x.type].stores || []).includes(o.good) && (x.store[o.good] || 0) > 0).sort((p, q) => q.store[o.good] - p.store[o.good] || p.id - q.id)[0] : null;
-    return held ? { view: held.id } : null;
+    if (!o) return null;
+    // (Wave 4 fix, with the Advice item of ruling 786: the sim's own offeringSource) none holds any: Show me the card of what makes it, near the site.
+    const src = monumentsSim.offeringSource(world, o.good);
+    if (src.store !== null) return { view: src.store };
+    return src.producer && isUnlocked(world, src.producer) ? { showMe: { category: categoryOfItem(src.producer), item: src.producer, x: c.x, y: c.y } } : null;
   }
   if (reason === 'crew_short' || reason === 'crew_burning') {
     // The guild the crew plan sends here whose crew cannot work for this reason (site.crews holds only the working ones,

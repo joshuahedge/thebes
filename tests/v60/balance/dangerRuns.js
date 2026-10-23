@@ -4,7 +4,7 @@
 //     never ending (tests/v60/b1/grace.js: they measure the game before the dangers); this is the run that measures it with them.
 //   - grandDangerRun(): the grand district run (tests/v50/grand/grandRun.js) to year 10, dangers on, the player defending as the late run does (its tower spots) and answering.
 // Each returns the run and the danger player's record (strikes with their days, events with the month end they came in, the advice at each warning and at years' ends,
-// what the player did). Both are shared by the test files in this folder.
+// what the player did). Both are shared by the test files in this folder. (Wave 4 fix: Advice's tower fix now aims at the band's first strike, ruling 787, and still does not beat the grand run's third raid alone: see ./respond.js.)
 import { runCapital } from '../../stage4/balance/capitalRun.js';
 import { runLate } from '../../stage47/pressure/lateRun.js';
 import { runGrand } from '../../v50/grand/grandRun.js';

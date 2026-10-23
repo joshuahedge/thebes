@@ -4,7 +4,6 @@
 // names the first maker the city lacks (the one the price and Show me are for), never "a clay pit and a potter" beside the price of one.
 import { BUILDINGS } from '../data/buildings.js';
 import { MILESTONES } from '../data/progression.js';
-import { TIERS } from '../data/housing.js';
 import { categoryOfItem } from '../data/ui.js';
 import { allBuildings } from '../sim/world.js';
 import { goodMakers } from '../sim/advice.js';
@@ -20,7 +19,7 @@ export const GROUND = { fertile: 'fertile land', rocky: 'rocky ground', clay: 'c
 // What a need is, said as what the home gets ("gives this home water").
 const GIVES = {
   road: 'road access', water: 'water', food: 'food', religion: 'a temple in reach', pottery: 'pottery', entertainment: 'entertainment', beer: 'beer',
-  twoFoods: 'a second kind of food', threeFoods: 'a third kind of food', linen: 'linen', jewellery: 'jewellery', desirability: 'a pleasanter street', merge: `room to become a ${TIERS[6].name}`,
+  twoFoods: 'a second kind of food', threeFoods: 'a third kind of food', linen: 'linen', jewellery: 'jewellery', desirability: 'a pleasanter street',
 };
 const needWord = (need) => (NEED_NAMES[need] || need).toLowerCase();
 const gives = (need) => GIVES[need] || needWord(need);

@@ -4,7 +4,7 @@ import { BUILDINGS, dimsOf } from '../data/buildings.js';
 import { MONUMENTS, MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
 import { MONUMENT_STYLES, MONUMENT_STYLE_PICK_DEFAULT } from '../data/wonders.js';
 import {
-  canPlace, conditionsFor, place, previewRoad, drawRoad, roadPath, previewHouses, paintHouses, previewDemolishArea, demolishArea, demolishAt, rectTiles,
+  canPlace, checkTiles, placementWarnings, conditionsFor, place, previewRoad, drawRoad, roadPath, previewHouses, paintHouses, previewDemolishArea, demolishArea, demolishAt, rectTiles,
   previewRoadTiles, drawRoadTiles, previewHouseTiles, paintHouseTiles, previewDemolishTiles, demolishTiles, previewPlazaTiles, paintPlazaTiles,
 } from '../sim/commands.js';
 import { undo as undoCommand } from '../sim/undo.js';
@@ -149,7 +149,7 @@ function ringTiles(cx, cy, r) {
 // within maxR, 1 a fit with warnings within maxR (the fewest), 2 a clean fit further out, 3 a fit with warnings further out; r is its ring.
 // null when nothing fits.
 function fitSearch(world, tool, start, rot, maxR, farR) {
-  let warned = null;
+  let warned = null, roadless = null;
   const scan = (from, to, far) => {
     for (let r = from; r <= to; r++) {
       for (const [tx, ty] of ringTiles(start.x, start.y, r)) {
@@ -157,8 +157,14 @@ function fitSearch(world, tool, start, rot, maxR, farR) {
         // Version 6.0 (Wave 4, ruling 782): a price the treasury cannot pay (below the debt floor) is the confirm bar's to say, not a tile's fault: canPlace checks the ground
         // first, so 'no_gold' means the tile itself fits, and the ghost lands there; otherwise a city deep in debt had no fit anywhere and Show me said "Something is already here".
         if (!c.ok && c.reason !== 'no_gold') continue;
-        if (!c.warnings.length) return { x: tx, y: ty, tier: far ? 2 : 0, r, n: 0 };
-        if (!warned || c.warnings.length < warned.n) warned = { x: tx, y: ty, tier: far ? 3 : 1, r, n: c.warnings.length };
+        // A tile that lacks only the gold has no warnings of canPlace's: they are the ones the tile would carry with the gold in hand (a road to come, a store missing), so it
+        // is not taken for a clean fit when a tile with all its warnings met lies further out.
+        const warnings = c.ok ? c.warnings : placementWarnings(world, tool.type, tx, ty, checkTiles(world, tool.type, tx, ty, rot) === 'needs_road', rot);
+        // Version 6.0 (Wave 4 fix, ruling 787): a tower with no road has no workers and guards nothing, so Show me leaves such a spot out while any tile with a road beside it
+        // fits; with none in reach the nearest roadless one is the fit (the bar says "needs a road"), never no fit at all (Show me would say "Something is already here").
+        if (tool.type === 'tower' && warnings.includes('needs_road')) { if (!roadless) roadless = { x: tx, y: ty, tier: far ? 3 : 1, r, n: warnings.length }; continue; }
+        if (!warnings.length) return { x: tx, y: ty, tier: far ? 2 : 0, r, n: 0 };
+        if (!warned || warnings.length < warned.n) warned = { x: tx, y: ty, tier: far ? 3 : 1, r, n: warnings.length };
       }
     }
     return null;
@@ -166,7 +172,7 @@ function fitSearch(world, tool, start, rot, maxR, farR) {
   const clean = scan(0, maxR, false);
   if (clean) return clean;
   if (!warned && (BUILDINGS[tool.type].terrain || BUILDINGS[tool.type].water)) { const far = scan(maxR + 1, farR === null ? maxR * 3 : farR, true); if (far) return far; }   // farR (Stage 4.6, ruling 331): Show me and the pick look the whole map over, where the ground it needs may lie
-  return warned;
+  return warned || roadless;
 }
 
 // The nearest spot that fits: { x, y }, and rot for a building that turns. Ruling 424: a building that turns (a fishing wharf, a mastaba) is
@@ -564,7 +570,8 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
   // Version 6.0 (Track C, the 5.0 loose end): a road tile over water is a bridge, drawn as one (planks and a wave mark, 'bridge') whether it is one the road would build (the
   // preview's bridges, map indices) or one that already stands in the way a route takes; the bar's count and price of them are the sim's, as before.
   const bridges = new Set(tool.kind === 'road' && !tool.gate ? preview.bridges || [] : []);
-  const bridged = (i) => tool.kind === 'road' && visual !== 'bad' && (bridges.has(i) || (world.road[i] && world.terrain[i] === TILE.WATER));
+  // (Wave 4 fix) a warning is not hidden under the planks: only a clean preview draws bridges, so a warned one keeps its amber "!".
+  const bridged = (i) => tool.kind === 'road' && visual === 'ok' && (bridges.has(i) || (world.road[i] && world.terrain[i] === TILE.WATER));
   return preview.tiles.map(([x, y]) => {
     const i = y * world.size + x;
     return { x, y, w: 1, d: 1, state: skipped.has(tileKey([x, y])) ? 'bad' : gates.has(i) ? 'gate' : bridged(i) ? 'bridge' : visual };

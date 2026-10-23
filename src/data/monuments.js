@@ -74,7 +74,7 @@ export const MONUMENTS = {
     founding: 6000, extra: { kind: 'capstone', gold: 5000 }, prestige: { courses: 135, done: 135 }, desirability: [24, 20, 16, 12, 10, 8], unlock: { milestone: 'capital', prestige: 300 },
   },
   // Version 6.0 (Track A, rulings 652-656): the great temple, a terraced temple of five stages (two courses each, GREAT_WORK.perStage), stone with
-  // a tenth in bricks for its ramps: 4,320 stone and 480 bricks, 60 months with its four crews. Each stage begins with an offering of goods
+  // a ninth in bricks for its ramps (ten courses of 540 stone and 60 bricks): 5,400 stone and 600 bricks, 300 crew-months, 75 months with its four crews. Each stage begins with an offering of goods
   // (GREAT_WORK.offerings). Finishing it wins the reign. Drawn in the step family (src/render/art/monuments.js), five terraces and a shrine.
   great_temple: {
     name: 'Great temple', w: 5, d: 5, rotates: false, crews: 4, crewMonths: 300, courses: even(10, 540, 60),

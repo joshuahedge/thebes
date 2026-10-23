@@ -7,6 +7,7 @@ import { atLeast } from '../../src/sim/progression.js';
 import { canBurn, staffedCover } from '../../src/sim/fire.js';
 import { touchesRoad } from '../../src/sim/reach.js';
 import { makeTestWorld } from '../helpers/testWorld.js';
+import { noNewDangers } from '../v60/b1/grace.js';
 
 // The raider entries mapgen gives a 48-tile map (the middle of the east edge and of the north edge), so the village
 // meets raids where a real one would.
@@ -14,7 +15,7 @@ const RAIDER_ENTRIES_48 = [{ x: 47, y: 24 }, { x: 24, y: 0 }];
 
 // A realistic Stage 1 village built from the real starting treasury.
 function realVillage() {
-  const w = makeTestWorld({ size: 48, fertile: [[0, 0, 8, 48]], gold: ECONOMY.startGold, raiderEntries: RAIDER_ENTRIES_48 });
+  const w = noNewDangers(makeTestWorld({ size: 48, fertile: [[0, 0, 8, 48]], gold: ECONOMY.startGold, raiderEntries: RAIDER_ENTRIES_48 }));   // Version 6.0: this run measures the game before the new dangers (tests/v60/b1/grace.js, ruling 689): a wrecked temple in year 10 ends the unanswered village
   const steps = [
     () => drawRoad(w, 0, 12, 27, 12),
     () => paintHouses(w, 10, 13, 26, 13),

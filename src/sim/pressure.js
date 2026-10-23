@@ -18,6 +18,7 @@ import { courtOpen, addFavour, favourChange, stockOf, takeGoods, outputPerMonth,
 import { raidsOn } from './costs.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { COURT_DUE, GREAT_WORK } from '../data/reign.js';
+import { GRACE_DAYS } from '../data/hazards.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { favourBand } from './court.js';
 import { monthFigures } from './economy.js';
@@ -221,30 +222,45 @@ export function pressureMonth(world, events = null) {
 // ── Version 6.0, Track A (rulings 642, 643): the court's due ──
 // On the first day of each year from QUOTA.fromYear (the court open), with the yearly tribute's goods, the court takes its due in gold: the
 // rank's share of the treasury or its share of a year's taxes at this month's rate, whichever is more (COURT_DUE), times favour's factor and
-// the difficulty's cost, cut to COURT_DUE.greatWork (a quarter) while the great work is under way; rounded to COURT_DUE.step. It is taken even past 0 (the city goes into
-// debt), so the court sheet, the alert row and Advice say it COURT_DUE.warnMonths ahead.
+// the difficulty's cost, cut to COURT_DUE.greatWork (a twentieth) while the great work is under way and to COURT_DUE.inDebt (nothing: ruling 788) while it rises with the treasury
+// below 0; rounded to COURT_DUE.step. Otherwise it is taken even past 0 (the city goes into debt), so the court sheet, the alert row and Advice say it COURT_DUE.warnMonths
+// ahead. A city loaded from a version 8 save owes nothing before a year from its load day (ruling 789: dueFromDay).
 // courtDue(world) is what it would take now: { gold, treasuryShare, taxesShare, fromTreasury, fromTaxes, yearTaxes, by ('treasury' | 'taxes'),
-// band (favour's), factor, greatWork (cut to COURT_DUE.greatWork), cost (the difficulty's), day (the day it is next taken, or null: the court is closed), monthsLeft }.
+// band (favour's), factor, greatWork (cut to COURT_DUE.greatWork), inDebt (greatWork with the treasury below 0: nothing owed), cost (the difficulty's), day (the day it is next
+// taken, or null: the court is closed), monthsLeft }.
 const dueRank = (table, world) => table[world.milestone] || 0;
 export const greatWorkRising = (world) => allBuildings(world).some((b) => b.type === GREAT_WORK.type && isSite(b));
+// The first day a due may be taken (ruling 789): a city loaded from a version 8 save (hazards.graceUntil is its load day + GRACE_DAYS) owes its first due a year after
+// that load, so a save loaded a month before a year's start is not billed at once; 0 for a new city (and for a test world whose grace was moved to the future or
+// the past, which has no load day).
+export function dueFromDay(world) {
+  const load = world.hazards.graceUntil - GRACE_DAYS;
+  return load > 0 && load <= world.day ? load + DAYS_PER_YEAR : 0;
+}
+// The next day the due is taken: the next year's start, or the first one on or after dueFromDay; null while the court is closed.
+export function nextDueDay(world) {
+  const day = nextQuotaDay(world), from = dueFromDay(world);
+  return day === null || from <= day ? day : Math.ceil(from / DAYS_PER_YEAR) * DAYS_PER_YEAR;
+}
 export function courtDue(world) {
   const taxesShare = dueRank(COURT_DUE.taxes, world), treasuryShare = dueRank(COURT_DUE.treasury, world);
   const yearTaxes = monthFigures(world).taxes * MONTHS_PER_YEAR;
   const fromTreasury = treasuryShare * Math.max(0, world.gold), fromTaxes = taxesShare * yearTaxes;
   const band = favourBand(world), factor = COURT_DUE.favour[band], cost = DIFFICULTIES[world.difficulty].cost;
-  const greatWork = greatWorkRising(world);
+  const greatWork = greatWorkRising(world), inDebt = greatWork && world.gold < 0;
   const base = Math.max(fromTreasury, fromTaxes);
-  const gold = roundTo(base * factor * cost * (greatWork ? COURT_DUE.greatWork : 1), COURT_DUE.step);
-  const day = nextQuotaDay(world);
+  const gold = roundTo(base * factor * cost * (inDebt ? COURT_DUE.inDebt : greatWork ? COURT_DUE.greatWork : 1), COURT_DUE.step);
+  const day = nextDueDay(world);
   return {
     gold, treasuryShare, taxesShare, fromTreasury: Math.round(fromTreasury), fromTaxes: Math.round(fromTaxes), yearTaxes, by: fromTreasury >= fromTaxes ? 'treasury' : 'taxes',
-    band, factor, greatWork, cost, day, monthsLeft: day === null ? null : monthsLeft(world, day),
+    band, factor, greatWork, inDebt, cost, day, monthsLeft: day === null ? null : monthsLeft(world, day),
   };
 }
-// Whether the due is coming: the court is open and the next year's start is in a year the due is taken.
-export const dueComing = (world) => courtOpen(world) && dateOfDay(nextQuotaDay(world)).year >= QUOTA.fromYear;
+// Whether the due is coming: the court is open and the next day it is taken is in a year the due is taken.
+export const dueComing = (world) => courtOpen(world) && dateOfDay(nextDueDay(world)).year >= QUOTA.fromYear;
 // Takes the due (pressureMonth, at a year's start): logged in the court's letters and pushed as { type: 'court_due', gold, by, band, greatWork }.
 function takeDue(world, events) {
+  if (world.day < dueFromDay(world)) return;   // a v8 city's first year back (ruling 789)
   const d = courtDue(world);
   if (d.gold <= 0) return;
   world.gold -= d.gold;

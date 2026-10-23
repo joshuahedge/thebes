@@ -19,7 +19,7 @@ import { canAfford } from './money.js';
 import { fireCause } from './fire.js';
 import { healthCause } from './health.js';
 import { crimeCause } from './crime.js';
-import { tributeQuote, towersNeeded, workingTowers, raidSize } from './raids.js';
+import { tributeQuote, towersNeeded, workingTowers, raidSize, firstRaidTarget } from './raids.js';
 import { DAYS_PER_MONTH } from './time.js';
 import { buildingsInReach, roadReach, reachDistance } from './reach.js';
 import { storeAccepts } from './production.js';
@@ -378,8 +378,16 @@ export function nextStep(world, house) {
   return s.tier === 0 ? { ...base, reason: 'empty' } : { ...base, reason: 'ready', days: daysToDelivery(world) };
 }
 
-// Whether the city has a Large plot: an empty lot or a home on one.
-export const hasLargePlot = (world) => housesOf(world).some(isLargePlot);
+// Whether the city has a Large plot: an empty lot or a home on one. Asked once per Townhouse by the advice, so it is kept while the buildings stand as they are
+// (a plot is laid or goes only through insertBuilding and removeBuilding).
+const largeMemo = new WeakMap();   // world -> { version, has }
+export function hasLargePlot(world) {
+  const version = buildingsVersion(world), m = largeMemo.get(world);
+  if (m && m.version === version) return m.has;
+  const has = housesOf(world).some(isLargePlot);
+  largeMemo.set(world, { version, has });
+  return has;
+}
 
 // The Large plot fix for a Townhouse: the card, beside the home (Show me finds the nearest tile where one fits), or null while the card is locked.
 export function largePlotFix(world, house) {
@@ -508,7 +516,7 @@ function dangerItems(world, alerts, out) {
 
 // Towers short of what a raid needs: while one is warned, the raid card's own quote (tributeQuote: its size, towers needed and working);
 // otherwise, once the raid clock runs, a raid warned now (raidSize). Only when raids are on and the tower is unlocked; none while raiders
-// are on the map. The fix: a tower by the warned raid's entry, else by the city's start.
+// are on the map. The fix: a tower by the warned band's first strike (firstRaidTarget), else by its entry, else by the city's start.
 function towerItem(world, out) {
   if (!raidsOn(world) || !isUnlocked(world, 'tower') || world.raid.active) return;
   const q = tributeQuote(world);
@@ -517,8 +525,11 @@ function towerItem(world, out) {
   const need = q ? q.towersNeeded : towersNeeded(size), have = q ? q.towersHave : workingTowers(world);
   const buildN = Math.max(0, need - have);
   if (!buildN) return;
-  const at = q ? world.raid.warning.entry : world.focus;
-  const fixed = priced(world, { item: 'tower', at: 'near', target: { x: at.x + 0.5, y: at.y + 0.5 } });
+  // Version 6.0 (Wave 4 fix, ruling 787): a tower beside the entry on the map's edge has no road and no workers; the band's first strike is where a tower guards.
+  const w = q ? world.raid.warning : null;
+  const first = w ? firstRaidTarget(world, w.entry, w.target) : null;
+  const at = first ? { x: first.x + first.w / 2, y: first.y + first.d / 2 } : w ? { x: w.entry.x + 0.5, y: w.entry.y + 0.5 } : { x: world.focus.x + 0.5, y: world.focus.y + 0.5 };
+  const fixed = priced(world, { item: 'tower', at: 'near', target: at });
   out.push(item('raid_towers', 'raid_towers', buildN * ADVICE.tower * (q ? ADVICE.towerWarned : 1), buildN, null,
     { size, need, have, buildN, buildCost: buildN * fixed.cost, warned: Boolean(q), dirs: q ? q.dirs : null }, fixed));
 }

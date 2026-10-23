@@ -53,6 +53,7 @@ import { roadReach, adjacentRoadTiles } from './reach.js';
 import { isWorking, staffRatio } from './labour.js';
 import { hash2 } from './rng.js';
 import { setSpeed } from './commands.js';
+import { isLargePlot, makeLargePlot } from './largePlots.js';   // Version 6.0 (ruling 792); largePlots.js reads commands.js, both only at call time
 import { footprint, ring, idx, inBounds } from './grid.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 
@@ -253,7 +254,7 @@ export function igniteBuilding(world, id, events = null, cause = 'ignite') {
   return true;
 }
 
-// Burns the building down now: a home becomes empty plots on its tiles (four for a 2x2) and its residents leave the
+// Burns the building down now: a home becomes empty plots on its tiles (four for a 2x2; a Large plot, one empty Large lot) and its residents leave the
 // city; anything else becomes one rubble per footprint tile and loses its stock. Removes it and inserts the new
 // buildings under new ids (never a type change in place). Returns the new ids, or [] when there is no such building.
 // Counts tally.burned, adds the day to danger.burnDays and pushes { type: 'burned', id, kind, to }.
@@ -264,8 +265,11 @@ export function burnBuilding(world, id, events = null) {
   removeBuilding(world, b.id);
   // Version 6.0 (Track B1, contract section 1): each rubble tile keeps what stood there (was), so it can be cleared and the building rebuilt.
   const was = kind === 'rubble' ? { type: b.type, x: b.x, y: b.y, w: b.w, d: b.d, rot: b.rot, day: world.day, cause: 'fire' } : null;
-  const to = footprint(b.x, b.y, b.w, b.d).map(([x, y]) => {
-    const t = makeBuilding(world, kind, x, y);
+  // Version 6.0 (ruling 792): a Large plot burns down to one empty Large lot (still large, still 2x2), not four small plots; a home merged under the old rule
+  // (2x2 without the flag) is still four plots as ever.
+  const tiles = isLargePlot(b) ? [[b.x, b.y]] : footprint(b.x, b.y, b.w, b.d);
+  const to = tiles.map(([x, y]) => {
+    const t = isLargePlot(b) ? makeLargePlot(world, x, y) : makeBuilding(world, kind, x, y);
     if (was) t.was = { ...was };
     return insertBuilding(world, t).id;
   });

@@ -13,7 +13,7 @@ import { canPlace, place, demolishAt, conditionsFor } from '../../../src/sim/com
 import { undo } from '../../../src/sim/undo.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { houseDesirability } from '../../../src/sim/desirability.js';
-import { housesOf, buildingAt, removeBuilding } from '../../../src/sim/world.js';
+import { housesOf, buildingAt, removeBuilding, touchBuildings } from '../../../src/sim/world.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 
 // A street along y = 10 where a lot at (12, 11) has every need of a Manor met: a well, a temple and a booth in reach, a bazaar whose stall holds grain and
@@ -125,10 +125,10 @@ describe('v60 c the lot opens when its Opens-when list is met', () => {
       const { w, parts } = served();
       const lot = lotAt(w);
       expect([need, lotReady(w, lot)]).toEqual([need, true]);
-      off(parts);
+      off(parts); touchBuildings(w);                                  // a direct change to a building says so, as a pause through the sheet does (lotReady keeps its answer for a day while the buildings stand as they are)
       expect([need, lotReady(w, lot), metOf(w, lot)[need]]).toEqual([need, false, false]);
       expect([need, needCause(w, lot, need).code]).toEqual([need, code]);
-      on(parts);
+      on(parts); touchBuildings(w);
       expect([need, lotReady(w, lot), needCause(w, lot, need)]).toEqual([need, true, null]);
     }
   });
@@ -146,11 +146,11 @@ describe('v60 c the lot opens when its Opens-when list is met', () => {
   it('is never moved into as a Hut: arrivals wait while a need is missing, then open it as a stocked Manor', () => {
     const { w, parts } = served();
     const lot = lotAt(w);
-    parts.bazaar.store.pottery = 0;
+    parts.bazaar.store.pottery = 0; touchBuildings(w);
     expect(vacancies(w).map((v) => v.h.id).includes(lot.id)).toBe(false);   // the vacancy list leaves it out, however much room it has
     arrivalsBatch(w);                                               // whoever arrives goes to the Townhouse with room, not into the lot
     expect([lot.tier, lot.residents]).toEqual([0, 0]);
-    parts.bazaar.store.pottery = 100;
+    parts.bazaar.store.pottery = 100; touchBuildings(w);
     const entry = vacancies(w).find((v) => v.h.id === lot.id);
     expect(entry.free).toBe(TIERS[6].capacity);
     const townhouse = housesOf(w).find((h) => h.tier === 5);

@@ -31,20 +31,22 @@ export const COST_GROWTH = {
 // From the year the yearly tribute starts (QUOTA.fromYear, src/data/s47.js) the court takes its due in gold on the first day of each year,
 // with the tribute's goods: `treasury` of the gold in the treasury, or `taxes` of a year's taxes at this month's rate, whichever is more, by
 // rank; times favour's factor (`favour`: high, steady, low; ruling 643: low favour raises the yearly tribute) and the difficulty's cost;
-// cut to a tenth (`greatWork`: rulings 643, 791) while the great work is under way, the crown's own temple. Rounded to `step`. It is taken even when the treasury
-// cannot pay (the city goes into debt): the court sheet, the alert row and Advice say it months ahead (`warnMonths`).
+// cut to a twentieth (`greatWork`: rulings 643, 791, 795) while the great work is under way, the crown's own temple, and to `inDebt` (nothing: ruling 788) while it is under
+// way with the treasury below 0. Rounded to `step`. Otherwise it is taken even when the treasury cannot pay (the city goes into debt): the court sheet, the alert row
+// and Advice say it months ahead (`warnMonths`). A city loaded from a version 8 save owes its first due a year after the load (ruling 789).
 export const COURT_DUE = {
   treasury: { village: 0, town: 0.1, market_town: 0.15, city: 0.2, great_city: 0.3, capital: 0.45, great_capital: 0.45, seat: 0.45 },
   taxes: { village: 0, town: 0.05, market_town: 0.05, city: 0.08, great_city: 0.12, capital: 0.2, great_capital: 0.22, seat: 0.25 },
   favour: { high: 0.75, steady: 1, low: 2 },
-  greatWork: 0.1,
+  greatWork: 0.05,      // ruling 795 (first a quarter, then 0.1: ruling 791): the dangers-off great-work run keeps its win and its treasury once the court takes nothing in debt (788)
+  inDebt: 0,            // ruling 788: while the great temple rises and the treasury is below 0 the court takes nothing (the careless run, which builds no temple, still ends in debt)
   step: 10,
   warnMonths: 3,
 };
 
 // ── The court's demands (rulings 644-650, src/sim/demands.js) ──
 // From Town (`from`) about once a game year the court offers one demand: goods, gold, a building or soldiers. The first comes `firstMonths`
-// after the city became a Town (or after the load, for an old city), each next `gapMonths` after the last was settled. An offer waits
+// after the city became a Town (or after the load, for an old city), each next `gapMonths` after the last was offered (ruling 794: the clock starts at the offer, so a demand met or failed late can be followed at once). An offer waits
 // `offerMonths` for Accept or Decline, then lapses as declined. Declined: favour - favour.declined. Accepted: due `deadlineMonths` (by kind)
 // later; met: favour + favour.met and the reward; failed (the deadline passes): favour - favour.failed. Each draw is seeded (REIGN_SALT).
 // amounts: goods: [lo, hi] months of the city's output of a good it makes (household goods, foods, raw goods), x the court's scale and
@@ -69,9 +71,9 @@ export const DEMANDS = {
   logMax: 12,
   // reminderMonths: an accepted demand not yet ready raises the 'demand_due' alert this many months before its deadline. advice: the
   // weights of the 'demand' advice items (src/data/advice.js's points): an offer waiting; an accepted demand not ready (open, plus perMonth
-  // for each month inside the reminder); the court's due the treasury cannot pay.
+  // for each month inside the reminder); the court's due the treasury cannot pay; the great temple's offering waiting.
   reminderMonths: 2,
-  advice: { offered: 12, open: 8, perMonth: 4, due: 25 },
+  advice: { offered: 12, open: 8, perMonth: 4, due: 25, offering: 20 },   // offering (ruling 786): the great temple's next offering the stores cannot yet pay
 };
 
 // ── The great work (rulings 652-658: the Great temple, MONUMENTS.great_temple in src/data/monuments.js) ──

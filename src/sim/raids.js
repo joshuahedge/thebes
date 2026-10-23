@@ -444,8 +444,18 @@ function ringGoals(world, b) {
 // rubble, then a home; nearest first, ties to the lower id; one it can reach and neither band has struck.
 function pickTarget(world, a, k) {
   const rec = bandRec(a, k);
+  return chooseTarget(world, rec, a.target, rec.struck.length, (b) => bandKs(a).some((j) => bandRec(a, j).struck.includes(b.id)));
+}
+
+// Version 6.0 (Wave 4 fix, ruling 787): the building the band that enters at `entry` would strike first (strike number 0, the warned kind of a raid warned now:
+// raidTargetKind, or the kind a standing warning named), chosen exactly as pickTarget chooses it. Advice aims a tower here, not at the map's edge where the band
+// comes in; null when nothing can be reached.
+export function firstRaidTarget(world, entry, kind = raidTargetKind(world)) {
+  return chooseTarget(world, { x: entry.x, y: entry.y }, kind, 0, () => false);
+}
+
+function chooseTarget(world, rec, target, struckCount, taken) {
   const at = idx(world.size, rec.x, rec.y), here = { x: rec.x + 0.5, y: rec.y + 0.5 };
-  const taken = (b) => bandKs(a).some((j) => bandRec(a, j).struck.includes(b.id));
   const nearestOf = (match) => {
     const near = allBuildings(world).filter((b) => match(b) && !taken(b))
       .map((b) => ({ b, d: Math.hypot(b.x + b.w / 2 - here.x, b.y + b.d / 2 - here.y) }))
@@ -454,12 +464,12 @@ function pickTarget(world, a, k) {
     return null;
   };
   const lived = (b) => b.type === 'house' && b.residents > 0;
-  const want = RAIDS.pillage[rec.struck.length];
+  const want = RAIDS.pillage[struckCount];
   if (want) {
     const t = nearestOf((b) => (want === 'house' ? lived(b) : b.type === want));
     if (t) return t;
   }
-  const kinds = RAIDS.targets.includes(a.target) ? RAIDS.targets.slice(RAIDS.targets.indexOf(a.target)) : [];
+  const kinds = RAIDS.targets.includes(target) ? RAIDS.targets.slice(RAIDS.targets.indexOf(target)) : [];
   const groups = [...kinds.map((kind) => (b) => b.type === kind), (b) => b.type !== 'house' && b.type !== 'rubble' && !raidProof(b), lived];
   for (const match of groups) {
     const t = nearestOf(match);
