@@ -19,7 +19,7 @@ const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted'
 const NARROW_BAR = 365;   // px: a bar this narrow at 150% text can need a chip row for each condition (css/ui.css .conds.tall.narrow)
 const rotates = (tool) => tool.kind === 'building' && Boolean(BUILDINGS[tool.type].rotates);   // none in Stage 1 (mastabas come with monuments)
 
-export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo, keys = () => true, onArea =(type, on) => (on ? placement.startArea(type) : placement.start({ kind: 'building', type })) }) {
+export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo, keys = () => true, onArea = (type, on) => (on ? placement.startArea(type) : placement.start({ kind: 'building', type })) }) {
   const element = el('div', { id: 'confirm', hidden: true });
   container.append(element);
 

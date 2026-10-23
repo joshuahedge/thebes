@@ -28,15 +28,16 @@ const begun = (b) => b.site && (b.site.course > 0 || (b.site.laid && b.site.laid
 
 const memo = new WeakMap();   // world -> { key, list }
 // Every footprint placed but not built, as { id, kind: 'plot' | 'site', x, y, w, d }: an empty plot (a tier 0 home that is not a Large lot, which has its own marked-lot art) and a
-// monument site before work has begun. Kept while the buildings are as they were and the day is the same (a site's first block changes neither).
+// monument site before work has begun. Kept while the buildings are as they were and the day is the same, and while none of its listed sites has begun (a site's first block
+// changes neither the buildings nor the day, so the listed sites are checked each call: a handful, not a pass over every building).
 export function unbuiltList(world) {
   const key = `${buildingsVersion(world)}|${world.day}`;
   let m = memo.get(world);
-  if (!m || m.key !== key) {
-    const list = [];
+  if (!m || m.key !== key || m.sites.some(begun)) {
+    const list = [], sites = [];
     for (const h of housesOf(world)) if (h.tier === 0 && h.large !== true) list.push({ id: h.id, kind: 'plot', x: h.x, y: h.y, w: h.w, d: h.d });
-    for (const b of allBuildings(world)) if (isSite(b) && !begun(b)) list.push({ id: b.id, kind: 'site', x: b.x, y: b.y, w: b.w, d: b.d });
-    m = { key, list };
+    for (const b of allBuildings(world)) if (isSite(b) && !begun(b)) { list.push({ id: b.id, kind: 'site', x: b.x, y: b.y, w: b.w, d: b.d }); sites.push(b); }
+    m = { key, list, sites };
     memo.set(world, m);
   }
   return m.list;

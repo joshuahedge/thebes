@@ -35,8 +35,7 @@ describe('v70 p what is placed but not built, from the sim', () => {
     const w = city();
     const site = addRaw(w, 'mastaba_small', 20, 5);
     expect(unbuiltList(w).filter((u) => u.kind === 'site').map((u) => u.id)).toEqual([site.id]);
-    w.day += 1;                                                                                   // (the list is kept for the day)
-    site.site.laid.stone = 1;
+    site.site.laid.stone = 1;                                                                     // (same day, same buildings: the list still drops it the moment work begins)
     expect(unbuiltList(w).some((u) => u.kind === 'site')).toBe(false);
     site.site.laid.stone = 0;
     site.site.course = 1;

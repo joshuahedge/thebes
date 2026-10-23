@@ -1548,6 +1548,14 @@ body[data-layout="portrait"] .confirm .info .why { min-height: calc(2 * 1.4 * 12
 /* At large text a phone's bar has no line to spare (UX rule 2): one line, and the chips under it name each rule that fails. */
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) .confirm .info .why { -webkit-line-clamp: 1; line-clamp: 1; }
 body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) .confirm .info .why { min-height: calc(1.4 * 12px * var(--ui-scale)); }
+/* A phone held sideways at large text has no room for it at all: the drawer is as tall as the screen's column, and the name and cost line were cut off above it in the coral and
+   amber states (667x375 at 150%). The line stays in the page, hidden, as the older reason line does when a chip repeats it; the chips under the words name each rule that fails. */
+body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]) .confirm .info .why { display: none; }
+/* And the drawer never grows past its column (the same room the card drawer and a sheet have, from under the top bar down): a refused farm at 150% text (a three-line chip, two more
+   chips, Show me) is 428 px at 667x375, so the drawer's own body scrolls from its top, where the name, the cost and the buttons are. #confirm spans the column (its empty part
+   lets the map's taps through) and the bar sits at its foot, as tall as its words need up to that. */
+body[data-layout="compact"] #confirm { top: calc(var(--safe-top) + var(--topbar-h)); display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none; }
+body[data-layout="compact"] #confirm > .confirm { pointer-events: auto; flex: 0 1 auto; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
 /* The desktop's sheets get room (ruling 1005): while a sheet is open on a wide screen the build tray (tabs and cards), Layers and the hint fold away (sidePanel.js sets
    body.panel-sheet and --panel-sheet-top, the minimap's bottom edge), and the sheet starts under the minimap and runs down the panel instead of sharing 55% of it. */
 body.panel-sheet #panel :is(.layers-row, .tabs, .cards, .details) { display: none; }

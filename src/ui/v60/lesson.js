@@ -137,7 +137,7 @@ export function createLessonUi(ctx) {
     const mode = playWhen(world, step);
     holdForCard(building);
     const t = targetOf();
-    const words = D2_TEXT.steps[step.id]({ ...lessonFacts(world, step), paused: mode === 'card' });   // a waiting step says "Press Play": its button is Play; the others play on by themselves
+    const words = D2_TEXT.steps[step.id](lessonFacts(world, step));   // a waiting step says "Press Play" (the game is held, lessonFacts.paused): its button is Play; the others play on by themselves, as their docked row says too
     card.show({ label: D2_TEXT.lessonLabel(at + 1, LESSON_LENGTH), text: words.text, goLabel: mode === 'card' ? P_TEXT.card.play : t ? P_TEXT.card.showMe : P_TEXT.card.gotIt, picture: pictureOf(step) });
     announceNext = false;   // the dialog is read as it takes focus
   }

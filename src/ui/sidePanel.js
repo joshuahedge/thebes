@@ -59,10 +59,12 @@ export function createSidePanel({ container, store, world, onPick, minimapNode =
   function publishSheetTop(s) {
     const open = s.layout === 'wide' && !s.panelFolded && Boolean(s.sheet);
     document.body.classList.toggle('panel-sheet', open);
-    const key = `${open}|${document.body.dataset.textSize}`;
+    // While the sheet is open the measured edge is part of the key, so a minimap hidden or resized under it (a window resize, the fold) moves the sheet's top with it.
+    const top = open ? Math.ceil(minimap.getBoundingClientRect().bottom) : null;
+    const key = `${open}|${document.body.dataset.textSize}|${top}`;
     if (key === sheetKey) return;
     sheetKey = key;
-    if (open) document.body.style.setProperty('--panel-sheet-top', `${Math.ceil(minimap.getBoundingClientRect().bottom)}px`);
+    if (open) document.body.style.setProperty('--panel-sheet-top', `${top}px`);
     else document.body.style.removeProperty('--panel-sheet-top');
   }
 

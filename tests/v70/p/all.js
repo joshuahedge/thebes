@@ -5,3 +5,4 @@ import './keys.test.js';
 import './desktop.test.js';
 import './placement.test.js';
 import './unbuilt.test.js';
+import './confirmFit.test.js';

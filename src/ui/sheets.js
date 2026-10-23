@@ -62,7 +62,7 @@ export function createSheets({ container, store, world, placement, cameraControl
   const close = () => store.set(closeSheet(store.get()));
   // Version 7.0 (Track P, ruling 1001): Delete or Backspace presses this button (createUI removeByKey); the tooltip and aria-keyshortcuts say so while Keyboard shortcuts is on.
   const demolishButton = (onClick) => button(T.demolish, { class: 'demolish danger', title: keys() ? P_TEXT.demolishTitle : null, 'aria-keyshortcuts': keys() ? 'Delete Backspace' : null, onClick });
-  const extra =(kind, ...args) => parts.flatMap((p) => (p && typeof p[kind] === 'function' ? p[kind](...args) || [] : []));
+  const extra = (kind, ...args) => parts.flatMap((p) => (p && typeof p[kind] === 'function' ? p[kind](...args) || [] : []));
 
   // Build another (Version 5.0, Task 4, ruling 505): the button on a building's sheet. When the sim says no, the sheet says why under its buttons, with Show me where there is something to show;
   // the note belongs to the sheet it was said on (it goes with that sheet). When it says yes the tool starts and the sheet closes.
