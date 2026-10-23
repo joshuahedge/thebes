@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../../harness.js';
 import { showPictureCards, markSvg, loadMarks, forgetMarks } from '../../../src/ui/tutorial.js';
-import { TUTORIAL_CARDS, TUTORIAL } from '../../../src/data/tutorial.js';
+import { TUTORIAL_CARDS, INTRO_CARDS, TUTORIAL } from '../../../src/data/tutorial.js';
 import { CARDS4_TEXT, cards4Ahead } from '../../../src/ui/text.js';
 import { createSettings } from '../../../src/ui/settings.js';
 import { mountShell } from '../../helpers/uiWorld.js';
@@ -34,7 +34,7 @@ async function rig({ width = 390, height = 844, motion = 'still', text = 100, ma
   opener.focus();
   const history = fakeHistory(), l = fakeListeners();
   let done = 0;
-  const c = showPictureCards({ root: shell.root, doc: document, settings, marks, difficulty, history, addListener: l.add, removeListener: l.remove, onDone: () => { done++; } });
+  const c = showPictureCards({ root: shell.root, doc: document, settings, cards: INTRO_CARDS, marks, difficulty, history, addListener: l.add, removeListener: l.remove, onDone: () => { done++; } });
   const d = c.element;
   return {
     shell, settings, opener, history, l, c, d, q: (sel) => d.querySelector(sel), done: () => done,
@@ -48,7 +48,8 @@ const swipe = (node, dx, dy = 0) => {
 
 describe('s4 cards picture cards: the dialog', () => {
   it('gives every card a title, its words and its picture\'s alt text', () => {
-    expect(TUTORIAL_CARDS.map((c) => c.id)).toEqual(['road', 'homes', 'farm', 'food', 'gold', 'goals', 'ahead']);   // Stage 4.5 added Gold after Food
+    expect(INTRO_CARDS.map((c) => c.id)).toEqual(['road', 'homes', 'farm', 'food', 'gold', 'goals', 'ahead']);   // Stage 4.5 added Gold after Food; Version 6.0 (Track D2): these seven are read before a first city, six more follow at their first moments
+    expect(TUTORIAL_CARDS.slice(7).map((c) => c.id)).toEqual(['large', 'demand', 'plague', 'drought', 'locusts', 'raid']);
     for (const c of TUTORIAL_CARDS) {
       const w = CARDS4_TEXT.cards[c.id];
       expect([c.id, w.title.length > 0, w.words.length > 0, w.alt.length > 0, w.words.split('. ').length <= 3]).toEqual([c.id, true, true, true, true]);
@@ -217,7 +218,7 @@ describe('s4 cards picture cards: the dialog', () => {
           const wide = w >= 900 && h >= 600, sideways = !wide && w > h;
           if (wide) expect([at, box.width <= 560, Math.abs(box.left + box.width / 2 - (frame.left + w / 2)) < 1, box.height <= h]).toEqual([at, true, true, true]);
           else expect([at, Math.round(box.width), Math.round(box.height)]).toEqual([at, w, h]);   // a full-screen sheet
-          for (let i = 0; i < TUTORIAL_CARDS.length; i++) {
+          for (let i = 0; i < INTRO_CARDS.length; i++) {
             r.c.go(i);
             const fig = r.q('.pc-figure').getBoundingClientRect(), t = r.q('.pc-text'), tb = t.getBoundingClientRect();
             expect([at, i, Math.abs(fig.width - fig.height) < 1, fig.width >= 280, inside(fig)]).toEqual([at, i, true, true, true]);

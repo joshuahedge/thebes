@@ -60,7 +60,7 @@ describe('s46 map sizes: the picker on the title card (ruling 333)', () => {
 });
 
 describe('s46 map sizes: a new city starts at the size chosen', () => {
-  const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true}' : null), setItem: () => {} };
+  const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"cardsSeen":true,"lessonDone":true}' : null), setItem: () => {} };   // Version 6.0 (Track D2): the picture cards were seen and the lesson done, so the title offers New city
   async function open(params = '') {
     const shell = await mountShell(1280, 800);
     const history = fakeHistory();

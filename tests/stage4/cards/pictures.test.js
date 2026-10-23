@@ -3,7 +3,7 @@ import { boot } from '../../../src/boot.js';
 import { createSaveStore } from '../../../src/save/store.js';
 import { devScene } from '../../../src/dev/scenes.js';
 import { TUTORIAL_SHOT } from '../../../src/dev/tutorialScenes.js';
-import { TUTORIAL_CARDS, TUTORIAL } from '../../../src/data/tutorial.js';
+import { TUTORIAL_CARDS, INTRO_CARDS, TUTORIAL } from '../../../src/data/tutorial.js';
 import { alertsFor } from '../../../src/sim/alerts.js';
 import { idx } from '../../../src/sim/grid.js';
 import { T as TERRAIN } from '../../../src/sim/terrain.js';
@@ -52,7 +52,7 @@ describe('s4 cards pictures', () => {
   });
 
   it('sets each picture up with its mark on its thing, and nothing in the picture with a problem', async () => {
-    for (const card of TUTORIAL_CARDS) {
+    for (const card of INTRO_CARDS) {   // Version 6.0 (Track D2): the six first moments' pictures show a danger on purpose; tests/v60/d2/cards.test.js checks them
       const s = await bootShot(TUTORIAL_SHOT.params);
       try {
         const shot = await devScene(s.api, 'tutorial', { picture: card.id });
@@ -123,7 +123,7 @@ describe('s4 cards pictures', () => {
     try {
       expect(await devScene(s.api, 'tutorial', { card: 2 })).toBe('tutorial card 3');
       const d = document.querySelector('.picture-cards');
-      expect([d.querySelector('.pc-count').textContent, d.querySelector('#pc-title').textContent]).toEqual(['3 of 7', CARDS4_TEXT.cards.farm.title]);
+      expect([d.querySelector('.pc-count').textContent, d.querySelector('#pc-title').textContent]).toEqual([`3 of ${TUTORIAL_CARDS.length}`, CARDS4_TEXT.cards.farm.title]);   // How to play shows every card (Version 6.0: the seven intro ones and the six first moments')
     } finally { s.cleanup(); }
     expect(document.querySelector('.picture-cards')).toBe(null);
   });

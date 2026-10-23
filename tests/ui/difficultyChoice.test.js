@@ -16,7 +16,7 @@ import { mountShell, fakeHistory, rigUI } from '../helpers/uiWorld.js';
 import { mount, fire } from '../helpers/dom.js';
 
 function storageWith(value) {
-  const data = { 'thebes.settings': JSON.stringify({ cardsSeen: true, ...value }) };   // Stage 4 (Track G): the picture cards were seen
+  const data = { 'thebes.settings': JSON.stringify({ cardsSeen: true, lessonDone: true, ...value }) };   // Stage 4 (Track G): the picture cards were seen; Version 6.0 (Track D2): and the lesson done, so the title offers New city
   return { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, data };
 }
 

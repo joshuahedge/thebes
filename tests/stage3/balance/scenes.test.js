@@ -16,7 +16,7 @@ import { difficultyHint } from '../../../src/ui/text.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
 
-const noStorage = { getItem: () => null, setItem: () => {} };
+const noStorage = { getItem: (k) => (k === 'thebes.settings' ? '{"lessonDone":true}' : null), setItem: () => {} };   // Version 6.0 (Track D2): the lesson done, so the title card has its difficulty choice
 
 async function bootRig(params = '', { width = 1280, height = 800 } = {}) {
   const shell = await mountShell(width, height);
