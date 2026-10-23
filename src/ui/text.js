@@ -3410,9 +3410,6 @@ const s7Minutes = Math.round(s7Light.cycleMs / 60000);
 export const SEASON_TEXT = {
   // The seasons' names for the player (the ids akhet, peret and shemu are never shown: ruling 863). The top bar says one after the date.
   names: { akhet: 'Flood', peret: 'Growing', shemu: 'Harvest' },
-  // The summary's Season row (the sheet part src/ui/v70/seasons.js adds): the season, its months, and what it changes.
-  summaryHead: 'Season',
-  summary: (id) => `${SEASON_TEXT.names[id]} (months ${seasonMonths(id)}): the land looks different; farms work as before`,
   // Settings (src/ui/menu.js): the Day and night switch, the Effects volume and what the Sound switch is.
   dayNight: 'Day and night',
   dayNightNote: `The light turns from day to night every ${s7Minutes} minutes and holds while the game is paused. Motion: Still keeps daylight.`,

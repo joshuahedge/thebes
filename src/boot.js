@@ -29,6 +29,7 @@ import { createRecords, newCityId } from './save/records.js';
 import { titleDecor } from './ui/scoreUi.js';
 import { devScene, setMotion } from './dev/scenes.js';
 import { createMusic, musicMood } from './audio/music.js';
+import { seasonOfDay } from './sim/seasons.js';
 import { showPictureCards } from './ui/tutorial.js';
 import { drawMonument } from './render/monuments.js';
 // Version 6.0 (Track D2): the guided first city, and the picture cards' first moments.
@@ -66,12 +67,16 @@ export async function boot(doc, win, {
   let title = null;          // { card, loop, backdrop } while the title shows
   win.__thebes = { devScene: (name, options) => devScene(api, name, options), setMotion: (motion) => setMotion(settings, motion) };   // setMotion: tools/shots.ps1 -Stage4
   // One audio context for the whole page: every game (New city, import) shares it.
-  const sfx = createSfx({ enabled: () => settings.get().sound, canVibrate: () => settings.get().vibration });
+  // Version 7.0 (Track S, ruling 935): the Sound switch is the master of both the effects and the music; each has its own volume (Effects volume
+  // and Music volume in Settings; 100 effects is the loudness every effect had before 7.0).
+  const sfx = createSfx({ enabled: () => settings.get().sound, volume: () => settings.get().effectsVolume / 100, canVibrate: () => settings.get().vibration });
   // Stage 4 (spec 5.5): one music for the page (the title card plays too), unlocked by the first gesture, quiet while the
-  // page is hidden, following the settings; Track G implements src/audio/music.js.
+  // page is hidden, following the settings; Track G implements src/audio/music.js. Version 7.0: its colour follows the city's season, and its
+  // tense variant any live danger (musicMood).
   const music = makeMusic({
-    enabled: () => settings.get().music, volume: () => settings.get().musicVolume / 100,
+    enabled: () => settings.get().sound && settings.get().music, volume: () => settings.get().musicVolume / 100,
     seed: () => (current ? current.world.seed : TITLE_SEED), mood: () => musicMood(current ? current.world : null),
+    season: () => (current ? seasonOfDay(current.world.day) : null),
   });
   const MUSIC_GESTURES = ['pointerdown', 'pointerup', 'keydown'];
   const onMusicGesture = () => { if (music.unlock()) for (const t of MUSIC_GESTURES) root.removeEventListener(t, onMusicGesture); };
@@ -157,6 +162,7 @@ export async function boot(doc, win, {
   let persisted = false;
 
   const hooks = {
+    sfx,                                                // Version 7.0 (Track S): Settings' Effects volume plays one effect at each step (src/ui/menu.js)
     records,                                            // Stage 3: the device's records, for Seal this reign (src/ui/scoreUi.js)
     canInstall: () => flow.canInstall(),
     async install() {

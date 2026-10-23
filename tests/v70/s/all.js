@@ -4,3 +4,5 @@ import './seasons.test.js';
 import './light.test.js';
 import './night.test.js';
 import './budget.test.js';
+import './sound.test.js';
+import './ui.test.js';

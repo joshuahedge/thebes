@@ -70,7 +70,6 @@ describe('v70 s seasons: the words', () => {
       const covered = [];
       for (let m = a; ; m = (m % MONTHS_PER_YEAR) + 1) { covered.push(m); if (m === b) break; }
       expect([id, covered.sort((x, y) => x - y)]).toEqual([id, months]);
-      expect(SEASON_TEXT.summary(id)).toContain(`months ${seasonMonths(id)}`);
     }
     expect(seasonMonths('peret')).toBe('11 to 2');
   });
