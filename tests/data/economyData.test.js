@@ -15,10 +15,10 @@ const pick = (b, keys) => Object.fromEntries(keys.map((k) => [k, b[k]]));
 
 describe('data goods', () => {
   it('lists the ten goods with their kinds and household use', () => {
-    expect(Object.keys(GOODS)).toEqual(['grain', 'figs', 'pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'stone', 'bricks', 'game', 'fish']);   // Stage 4: the two materials; Stage 4.6: the River track's two foods
+    expect(Object.keys(GOODS)).toEqual(['grain', 'figs', 'pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'stone', 'bricks', 'game', 'fish', 'incense']);   // Stage 4: the two materials; Stage 4.6: the River track's two foods; Version 7.0: Punt's incense
     expect(FOOD_GOODS).toEqual(['grain', 'figs', 'game', 'fish']);
     expect(HOUSEHOLD_GOODS).toEqual(['pottery', 'beer', 'linen', 'jewellery']);
-    expect(RAW_GOODS).toEqual(['clay', 'barley', 'flax', 'gems']);
+    expect(RAW_GOODS).toEqual(['clay', 'barley', 'flax', 'gems', 'incense']);   // Version 7.0: incense, for festivals only
     expect(MATERIAL_GOODS).toEqual(['stone', 'bricks']);
     const use = Object.fromEntries([...FOOD_GOODS, ...HOUSEHOLD_GOODS].map((g) => [g, GOODS[g].perResidentPerMonth]));
     expect(use).toEqual({ grain: 0.25, figs: 0.25, game: 0.25, fish: 0.25, pottery: 0.05, beer: 0.05, linen: 0.04, jewellery: 0.03 });
@@ -90,7 +90,7 @@ describe('data buildings, Stage 2', () => {
   it('stores food in granaries and everything else in storehouses, and sells the six goods homes use', () => {
     expect(BUILDINGS.granary.stores).toEqual(['grain', 'figs', 'game', 'fish']);   // Stage 4.6 (ruling 363)
     expect(BUILDINGS.granary.capacity).toBe(600);
-    expect(BUILDINGS.storehouse.stores).toEqual(['pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'stone', 'bricks']);
+    expect(BUILDINGS.storehouse.stores).toEqual(['pottery', 'beer', 'linen', 'jewellery', 'clay', 'barley', 'flax', 'gems', 'incense', 'stone', 'bricks']);   // Version 7.0: incense is a raw good
     expect(BUILDINGS.storehouse.capacity).toBe(800);
     for (const g of Object.keys(GOODS)) {
       const homes = [BUILDINGS.granary, BUILDINGS.storehouse].filter((s) => s.stores.includes(g));
@@ -162,7 +162,7 @@ describe('data milestones to Capital', () => {
       market_town: ['trading_post', 'wall', 'tower', 'barracks', 'police_post', 'archery_range', 'stables'],   // Stage 4.6: the Armies track's (ruling 387)
       city: ['farm_barley', 'brewery', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'plaza'],
       great_city: ['farm_flax', 'weaver', 'colossus', 'mastaba_small', 'sphinx', 'great_sphinx'],   // Stage 4.6: the great sphinx
-      capital: ['gem_mine', 'jeweller', 'mastaba_large', 'sun_temple', 'step_pyramid'],   // Stage 4.6: the sun temple and the step pyramid
+      capital: ['gem_mine', 'jeweller', 'mastaba_large', 'quay', 'sun_temple', 'step_pyramid'],   // Stage 4.6: the sun temple and the step pyramid; Version 7.0: the Quay
       great_capital: [], seat: ['great_temple'],                                      // Version 6.0 (Track A): the great temple comes with the Seat
     });
   });
@@ -192,7 +192,7 @@ describe('data desirability', () => {
       bazaar: [-2, -1, 0, 1, 2, 3], well: [1], granary: [-8, -6, -4, -2], storehouse: [-6, -4, -2],
       farm_grain: [-2, -1], farm_fig: [-2, -1], farm_barley: [-2, -1], farm_flax: [-2, -1],
       clay_pit: [-6, -5, -4, -3, -2, -1], potter: [-4, -3, -2, -1], brewery: [-4, -3, -2, -1], weaver: [-4, -3, -2, -1],
-      jeweller: [-4, -3, -2, -1], gem_mine: [-8, -6, -4, -2], trading_post: [-3, -2, -1],
+      jeweller: [-4, -3, -2, -1], gem_mine: [-8, -6, -4, -2], trading_post: [-3, -2, -1], quay: [-2, -1],
       firehouse: [-1], physician: [], police_post: [], tower: [-2, -1], barracks: [-4, -2], rubble: [-3, -1], wall: [], gate: [], bridge: [],
       // Stage 4: the supply buildings, plaza, sphinx, the palace's first style and each monument's finished values
       builders_guild: [-4, -3, -2, -1], quarry: [-6, -5, -4, -3, -2, -1], brickworks: [-4, -3, -2, -1], plaza: [2, 1], sphinx: [10, 8, 6, 4, 2], palace: [4, 3, 2, 1],
@@ -216,8 +216,8 @@ describe('data desirability', () => {
 
 describe('data trade', () => {
   it('opens Memphis at Market town for 300 gold and Byblos at Great city for 600', () => {
-    expect(Object.keys(PARTNERS)).toEqual(['memphis', 'byblos']);
-    expect(Object.values(PARTNERS).map((p) => [p.name, p.milestone, p.routeCost])).toEqual([['Memphis', 'market_town', 300], ['Byblos', 'great_city', 600]]);
+    expect(Object.keys(PARTNERS)).toEqual(['memphis', 'byblos', 'nubia', 'punt']);   // Version 7.0: the two river partners (tests/v70/t)
+    expect(Object.values(PARTNERS).map((p) => [p.name, p.milestone, p.routeCost])).toEqual([['Memphis', 'market_town', 300], ['Byblos', 'great_city', 600], ['Nubia', 'capital', 800], ['Punt', 'great_capital', 1200]]);
     for (const p of Object.values(PARTNERS)) expect(MILESTONES.some((m) => m.id === p.milestone)).toBe(true);
     expect([CARAVAN_EVERY_MONTHS, PRICE_DRIFT, TRADE_REACH, ARBITRAGE_MARGIN]).toEqual([3, 0.1, 16, 1.25]);
   });

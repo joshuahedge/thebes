@@ -1453,6 +1453,28 @@ body:not(.reduce-motion) .lesson-lit { animation: lesson-lit 1.4s ease-in-out in
 
 /* (separator) */
 /* ── v70 t (Track T) ── the Trade sheet (phone accordion, desktop side panel), the Quay's sheet parts. ── */
+/* A route card: its head (a full-width button on a phone, aria-expanded; a plain heading on a wide screen) with the partner, how it comes and
+   one summary line; its body the ledger line and a switch per good, each a full-width 44 px row whose state is a word (On / Off). */
+#sheet .routes .route.open { display: block; padding: 0; }
+#sheet .route-head { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; width: 100%; min-height: var(--tap); padding: 6px 4px; text-align: left; border: none; border-radius: 8px; background: transparent; }
+#sheet button.route-head:hover { background: var(--parchment-2); }
+#sheet .route-head .name { font-weight: 600; }
+#sheet .route-head .summary { grid-column: 1; }
+#sheet .route-head .chevron { grid-row: 1 / span 2; grid-column: 2; font-size: calc(14px * var(--ui-scale)); }
+#sheet .route .by { font-weight: 400; }
+#sheet .route-body { padding: 0 4px 8px; }
+#sheet .route-body h4 { margin: 8px 0 2px; font-size: calc(14px * var(--ui-scale)); }
+#sheet .route-body .ledger { margin: 2px 0 2px; }
+#sheet .route-body .switch-help { margin: 0 0 4px; }
+#sheet .switches { list-style: none; padding-left: 0; margin: 0; }
+#sheet .trade-switch { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; text-align: left; margin: 2px 0; }
+#sheet .trade-switch .state { font-weight: 600; flex: none; min-width: 2.5em; text-align: right; }
+#sheet .trade-switch[aria-checked="false"] .state { color: var(--coral-text); }
+#sheet .trade-switch[aria-checked="false"] .good { text-decoration: line-through; text-decoration-thickness: 1px; }
+#sheet .routes .fix { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; }
+.trade-goods .held { margin: 2px 0 0; font-weight: 600; }
+.trade-goods .stock { text-align: right; }
+#sheet .trade-row { align-items: center; }
 /* ── end v70 t ── */
 
 /* (separator) */

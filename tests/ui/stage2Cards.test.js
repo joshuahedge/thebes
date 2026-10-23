@@ -256,9 +256,10 @@ describe('ui stage 2 cards', () => {
     }
   });
   it('gives every good its name and a line saying what makes it, what uses it and who trades it', () => {
-    expect(goodLine('pottery')).toBe('Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis and Byblos');
+    expect(goodLine('pottery')).toBe('Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis, Byblos and Punt');   // Version 7.0: the river partners
     expect(goodLine('clay')).toBe('Clay: made by clay pits; used by potters and brickworks; bought from Memphis');
-    expect(goodLine('grain')).toBe('Grain: made by grain farms; used by Cottages and up; sold to Memphis');
+    expect(goodLine('grain')).toBe('Grain: made by grain farms; used by Cottages and up; sold to Memphis and Nubia');
+    expect(goodLine('incense')).toBe('Incense: made by the resin gatherers of Punt; used by festivals; bought from Punt');
     expect(goodLine('beer')).toBe('Beer: made by breweries from barley; used by Fine manors and up; sold to Memphis; bought from Byblos');
     for (const g of Object.keys(GOODS)) {
       expect([g, goodName(g)]).toEqual([g, GOODS[g].name]);

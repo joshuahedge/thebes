@@ -6,7 +6,7 @@ export const CATEGORIES = [
   { id: 'roads', items: ['road', 'demolish'] },
   { id: 'homes', items: ['house', 'large_plot', 'garden', 'statue', 'plaza', 'sphinx'] },   // Version 6.0 (Track C): the Large plot card, shown from the first Townhouse (src/ui/cards.js)
   { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
-  { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'] },
+  { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'quay'] },
   { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'police_post', 'palace'] },
   { id: 'defence', items: ['wall', 'gate', 'tower', 'barracks'] },
   // Stage 4 (spec 4.14, ruling 207): everything a monument needs, in order, then the seven from the small obelisk up.
