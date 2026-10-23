@@ -154,7 +154,9 @@ function fitSearch(world, tool, start, rot, maxR, farR) {
     for (let r = from; r <= to; r++) {
       for (const [tx, ty] of ringTiles(start.x, start.y, r)) {
         const c = canPlace(world, tool.type, tx, ty, { roadLater: true, rot, style: styleOfTool(tool) });   // off-map origins fail here as out_of_bounds
-        if (!c.ok) continue;
+        // Version 6.0 (Wave 4, ruling 782): a price the treasury cannot pay (below the debt floor) is the confirm bar's to say, not a tile's fault: canPlace checks the ground
+        // first, so 'no_gold' means the tile itself fits, and the ghost lands there; otherwise a city deep in debt had no fit anywhere and Show me said "Something is already here".
+        if (!c.ok && c.reason !== 'no_gold') continue;
         if (!c.warnings.length) return { x: tx, y: ty, tier: far ? 2 : 0, r, n: 0 };
         if (!warned || c.warnings.length < warned.n) warned = { x: tx, y: ty, tier: far ? 3 : 1, r, n: c.warnings.length };
       }

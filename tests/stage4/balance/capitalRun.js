@@ -27,7 +27,7 @@ export const CAPITAL_YEARS = 6;
 // elsewhere. Stage 4: three rocky patches on the desert south of the fields for the quarries. The trade entry is the
 // east end of the farm street, which the script lays; the raider entries are the two mapgen gives a 48-tile map (the
 // middle of the east edge and of the north edge).
-function capitalWorld(size = SIZE) {
+function capitalWorld(size = SIZE, dangers = false) {
   const terrain = new Array(size * size).fill(T.DESERT);
   for (let y = 17; y < 24; y++) for (let x = 0; x < size; x++) terrain[idx(size, x, y)] = T.FERTILE;
   for (let y = 21; y < 23; y++) for (let x = 10; x < 14; x++) terrain[idx(size, x, y)] = T.ROCKY;
@@ -39,7 +39,9 @@ function capitalWorld(size = SIZE) {
   if (size > SIZE) for (let y = 25; y < 27; y++) for (let x = 52; x < 56; x++) terrain[idx(size, x, y)] = T.ROCKY;
   const raiderEntries = [{ x: 47, y: 24 }, { x: 24, y: 0 }];
   const map = { size, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries };
-  return noNewDangers(createWorld({ seed: 5, size, map }));   // Version 6.0: the run measures the game before the new dangers (tests/v60/b1/grace.js); Wave 4 measures it with them
+  const world = createWorld({ seed: 5, size, map });
+  // Version 6.0: the run measures the game before the new dangers (tests/v60/b1/grace.js); the Wave 4 balance runs (tests/v60/balance) ask for them (dangers: the three-year grace from day 0).
+  return dangers ? world : noNewDangers(world);
 }
 
 // Each step: the milestone it waits for, what it costs now, and the command. A step that fails for any reason but gold
@@ -144,9 +146,11 @@ function insanity(w, m) {
 // Runs the script month by month: each month end, the next steps whose milestone, population, wait and price allow.
 // months: one row per month end, from the books (stats.lastMonth), the labour market (world.labour) and the crews at
 // work that day (every site's site.crews). insane: every month end's insanity (none, in a sound run).
-export function runCapital(monthsToRun, { size = SIZE } = {}) {
+// Version 6.0 (Wave 4): dangers true leaves the new dangers' grace as a new city has it; onMonth(w, events, month) is called after each month end's books, before the
+// script's next steps (a player's answers to the dangers: tests/v60/balance/respond.js). Both default to the run as it always was.
+export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth = null } = {}) {
   const started = performance.now();
-  const w = capitalWorld(size);
+  const w = capitalWorld(size, dangers);
   let next = 0, lowestGold = w.gold, net = 0, spent = 0, capitalMonth = null;
   const made = [], months = [], insane = [];
   const tryBuild = () => {
@@ -165,7 +169,8 @@ export function runCapital(monthsToRun, { size = SIZE } = {}) {
   };
   tryBuild();
   for (let m = 1; m <= monthsToRun; m++) {
-    advanceDays(w, 30);
+    const events = onMonth ? [] : null;
+    advanceDays(w, 30, events);
     insane.push(...insanity(w, m));
     lowestGold = Math.min(lowestGold, w.gold);
     net += w.stats.lastMonth.net;                    // taxes less wages and upkeep (monument gold is outside net)
@@ -173,6 +178,7 @@ export function runCapital(monthsToRun, { size = SIZE } = {}) {
     made.push({ ...w.tally.made });
     const crews = allBuildings(w).reduce((n, b) => n + (isSite(b) ? b.site.crews.length : 0), 0);
     months.push({ ...w.stats.lastMonth, workforce: w.labour.workforce, employed: w.labour.employed, crews, gold: w.gold });
+    if (onMonth) onMonth(w, events, m);
     tryBuild();
   }
   return { w, steps: next, lowestGold, net, spent, capitalMonth, made, months, insane, elapsed: performance.now() - started };

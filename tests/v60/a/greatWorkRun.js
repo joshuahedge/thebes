@@ -85,9 +85,11 @@ function foundTemple(w) {
   return { day: w.day, id: r.id, guilds, fire, paused };
 }
 
-export function runGreatWork({ years = GREAT_YEARS } = {}) {
+// Version 6.0 (Wave 4, tests/v60/balance): base is another grand run to take on (the one with the new dangers on) and onMonth(w, events, month) a player's answers to them,
+// called after each month end's own play; both default to the run as it always was.
+export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth = null } = {}) {
   const started = performance.now();
-  const base = grandRun();
+  const base = given || grandRun();
   const w = deserialize(serialize(base.w));
   const built = [], yearly = {}, ranks = {}, offerings = [], dues = [], insane = [];
   let street = null, temple = null, won = null, lowestGold = w.gold;
@@ -109,6 +111,7 @@ export function runGreatWork({ years = GREAT_YEARS } = {}) {
     if (!street && w.gold > 2000) street = { day: w.day, laid: layStreet(w) };
     if (street && !street.north && w.gold > 3000) street.north = layNorthStreet(w);
     playMonth(w, built);
+    if (onMonth) onMonth(w, events, m);
     if (!temple && w.milestone === 'seat') temple = foundTemple(w);
     if (w.day % YEAR_DAYS === 0) {
       const gw = temple ? w.buildings[temple.id] : null;

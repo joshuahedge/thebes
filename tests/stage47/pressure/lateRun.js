@@ -41,7 +41,7 @@ function tiers(w) {
 
 // Builds towers until the warned raid's towers needed are standing (staffing is the city's), at the first free spots, while the treasury keeps
 // RESERVE. Returns how many it built.
-function meetWarning(w, built) {
+export function meetWarning(w, built) {   // exported for the Wave 4 danger player (tests/v60/balance/respond.js)
   const warn = w.raid.warning;
   if (!warn || warn.first) return 0;
   let n = 0;
@@ -56,9 +56,11 @@ function meetWarning(w, built) {
   return n;
 }
 
-export function runLate({ defend = true, send = true, fetchClay = true, answer = true } = {}) {
+// Version 6.0 (Wave 4, tests/v60/balance): base is another capital run to take on (the one with the new dangers on), onMonth(w, events, month) a player's answers to them,
+// called after each month end's own policies; both default to the run as it always was.
+export function runLate({ defend = true, send = true, fetchClay = true, answer = true, base: given = null, onMonth = null } = {}) {
   const started = performance.now();
-  const base = capitalRun();
+  const base = given || capitalRun();
   const w = deserialize(serialize(base.w));
   const main = allBuildings(w).find((b) => b.type === 'storehouse' && b.x === 22 && b.y === 18);
   const fetch = fetchClay && main ? setFetch(w, main.id, 'clay', 200) : null;
@@ -91,6 +93,7 @@ export function runLate({ defend = true, send = true, fetchClay = true, answer =
     }
     if (answer) court.push(...answerCourt(w, { reserve: RESERVE }));
     if (defend) meetWarning(w, built);
+    if (onMonth) onMonth(w, events, m);
     const unfed = housesOf(w).filter((h) => h.tier >= 3 && h.met && h.met.food === false).length;
     months.push({ month: m, gold: w.gold, favour: w.court.favour, people: population(w), taxes: w.stats.lastMonth.taxes, net: w.stats.lastMonth.net, monuments: w.stats.lastMonth.monuments || 0, unfed });
     const year = Math.floor(w.day / YEAR_DAYS) + 1;

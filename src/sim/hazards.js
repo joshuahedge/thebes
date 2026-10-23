@@ -24,6 +24,7 @@ import { droughtDay, droughtMonth, locustsDay, locustsMonth, foodOutlook } from 
 import { HEALTH } from '../data/health.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { monthsBetween } from './draws.js';
+import { harvestQuote } from './production.js';
 
 export { dangerDraws } from './draws.js';
 
@@ -141,10 +142,13 @@ export function hazardItems(world, alerts, out) {
   if (lw) {
     const farms = standing(world, lw.farms);
     if (farms.length) {
-      const todo = farms.filter((id) => !(lw.early || []).includes(id));
+      // Version 6.0 (Wave 4, ruling 780): Advice names only a farm Harvest now would take (harvestQuote ok): one whose stores have no room, or that stands idle, is
+      // refused by the sim, so it is counted as stuck, not offered. early: the farms already harvested; stuck: those left that cannot be.
+      const early = farms.filter((id) => (lw.early || []).includes(id));
+      const todo = farms.filter((id) => !early.includes(id) && harvestQuote(world, world.buildings[id]).ok);
       const first = world.buildings[todo[0] || farms[0]];
       out.push(item('locusts:warned', 'locusts', (todo.length ? lead : 0) + farms.length * HAZARD_ADVICE.locustFarm, farms.length, first.id,
-        { warned: true, kind: lw.kind, farms: farms.length, early: farms.length - todo.length, strikes: lw.strikes, days: Math.max(0, lw.strikes - world.day) },
+        { warned: true, kind: lw.kind, farms: farms.length, early: early.length, stuck: farms.length - early.length - todo.length, strikes: lw.strikes, days: Math.max(0, lw.strikes - world.day) },
         todo.length ? { fix: { select: first.id, target: centreOf(first), why: 'harvest' }, cost: null, afford: null } : undefined));
     }
   }
