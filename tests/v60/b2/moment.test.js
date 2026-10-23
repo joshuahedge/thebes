@@ -6,11 +6,11 @@ import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorl
 import { raidDay, entryDir } from '../../../src/sim/raids.js';
 import { footMix } from '../../../src/data/armies.js';
 import { MOMENT } from '../../../src/data/battle.js';
-import { B2_TEXT, B1_TEXT, TIP_TEXT, TIP_HELP_TEXT, V60_HELP } from '../../../src/ui/text.js';
+import { B2_TEXT, B1_TEXT, DANGER_UI_TEXT, TIP_TEXT, TIP_HELP_TEXT, V60_HELP } from '../../../src/ui/text.js';
 import { TIPS } from '../../../src/data/tips.js';
 import { CHIEFTAIN } from '../../../src/data/hazards.js';
 import { measureRows } from '../../../src/dev/scenes.js';
-import { createBattleUi } from '../../../src/ui/v60/battle.js';
+import { createBattleUi, momentWords } from '../../../src/ui/v60/battle.js';
 import { setBattleHooks, resetBattleHooks, unitsAt, heldAge } from '../../../src/render/units.js';
 import { FIGHT } from '../../../src/data/battle.js';
 
@@ -51,6 +51,23 @@ describe('v60 b2 moment words', () => {
     expect(B2_TEXT.moment({ ...LOST, burned: 0, burnedKinds: [], wrecked: 0, taken: null, stolen: 0, chiefs: 0 }).detail).toBe('They struck and left. 2 of 9 raiders stopped.');
     expect(B2_TEXT.moment({ ...WON, chiefs: 1, chiefsFell: 1, burned: 2, burnedKinds: ['potter', 'potter'] }).detail).toBe(`8 of 9 raiders stopped. ${B1_TEXT.chiefLine({ chiefs: 1, chiefsFell: 1 })} Lost: 2 buildings burned.`);
     expect(B2_TEXT.moment({ ...WON, byArchers: 1, byChariots: 2 }).detail).toBe('11 of 9 raiders stopped.'.replace('11', String(3 + 5 + 1 + 2)));   // every kind that stopped them counts
+  });
+
+  it('lists the towers the band brought down among what was lost, as the raid report does (the final review), and reads as B2_TEXT.moment says it when none fell', () => {
+    expect(momentWords(WON)).toEqual(B2_TEXT.moment(WON));
+    expect(momentWords(LOST)).toEqual(B2_TEXT.moment(LOST));
+    const won = momentWords({ ...WON, burned: 1, burnedKinds: ['potter'], towersLost: 2 });
+    expect([won.title, won.detail]).toEqual(['Raid beaten', '8 of 9 raiders stopped. Lost: 1 building burned, 2 towers fell.']);
+    expect(momentWords({ ...WON, towersLost: 1 }).detail).toBe('8 of 9 raiders stopped. Lost: 1 tower fell.');
+    const lost = momentWords({ ...LOST, towersLost: 1 });
+    expect(lost.detail).toBe(`1 building burned, ${B1_TEXT.wrecked(['storehouse'])} wrecked, 1 tower fell, ${B1_TEXT.taken({ pottery: 12 })} taken, 40 gold stolen. 2 of 9 raiders stopped. ${B1_TEXT.chiefLine(LOST)}`);
+    expect(momentWords({ ...LOST, burned: 0, burnedKinds: [], wrecked: 0, taken: null, stolen: 0, chiefs: 0, towersLost: 3 }).detail).toBe('3 towers fell. 2 of 9 raiders stopped.');
+    // a granary's food in the grace years is in foodStolen, not in taken: said once; after the grace taken lists it and foodStolen is not said again
+    expect(momentWords({ ...WON, foodStolen: 20 }).detail).toBe('8 of 9 raiders stopped. Lost: 20 food stolen.');
+    expect(momentWords({ ...LOST, taken: null, foodStolen: 20 }).detail).toBe(`1 building burned, ${B1_TEXT.wrecked(['storehouse'])} wrecked, 20 food stolen, 40 gold stolen. 2 of 9 raiders stopped. ${B1_TEXT.chiefLine(LOST)}`);
+    expect(momentWords({ ...LOST, foodStolen: 12 })).toEqual(B2_TEXT.moment(LOST));
+    // what the report itself lists (DANGER_UI_TEXT.raidReport) names the same tower line, so the row and the summary agree
+    expect(DANGER_UI_TEXT.raidReport({ ...LOST, towersLost: 1 })).toContain('1 tower fell');
   });
 
   it('words a real raid from its report: what stopped the band and what it cost, both ways', () => {
@@ -249,11 +266,8 @@ describe('v60 b2 moment on a phone', () => {
           rig.ui.onEvents([{ type: 'raid_end', won: false, report: LOST }]);
           await tick(); await tick();
           const at = `${width}x${height} ${textSize}%`, portrait = rig.store.get().layout === 'portrait';
-          if (!portrait) {                                                                                 // a landscape phone has one row: the report's caption has it first
-            expect([at, Boolean(rig.root.querySelector('#cheer .cheer')), Boolean(rowOf(rig))]).toEqual([at, true, false]);
-            rig.ui.celebrations.clear();
-            await tick(); await tick();
-          }
+          // the report's caption is dropped as the result goes up, on every phone (the final review: the two stood one over the other saying the same)
+          expect([at, Boolean(rig.root.querySelector('#cheer .cheer')), Boolean(rowOf(rig))]).toEqual([at, false, true]);
           rig.frame(1);                                                                                    // a frame: the guidance row sees the alert row's claim (syncGuidance runs each frame)
           const m = measureRows(rig.root);
           const limit = portrait && textSize < 125 ? 0.3 : 0.4, rowsAllowed = !portrait && textSize >= 125 ? 1 : 2;

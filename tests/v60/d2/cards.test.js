@@ -7,7 +7,7 @@ import { createSettings } from '../../../src/ui/settings.js';
 import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 import { showPictureCards } from '../../../src/ui/tutorial.js';
 import { TUTORIAL_CARDS, INTRO_CARDS, TUTORIAL } from '../../../src/data/tutorial.js';
-import { CARDS4_TEXT } from '../../../src/ui/text.js';
+import { CARDS4_TEXT, DANGER_UI_TEXT, V60_HELP, D2_TEXT } from '../../../src/ui/text.js';
 import { MOMENTS, dueCards, createCardMoments, seenKey } from '../../../src/ui/cardMoments.js';
 import { lessonWorld, STAGES } from '../../../src/sim/lesson.js';
 import { largePlotUnlocked } from '../../../src/sim/largePlots.js';
@@ -45,11 +45,24 @@ describe('v60 d2 picture cards: the thirteen', () => {
     expect(W('plague')).toContain(`${PLAGUE.warnDays / 30} months ahead`);
     expect(W('plague')).toContain(`${PLAGUE.quarantine.months} months`);
     expect(W('drought')).toContain(`${Math.round((1 - DROUGHT.cut) * 100)}%`);
-    expect(W('locusts')).toContain(`${CROPS.warnDays} days ahead`);
+    expect(W('locusts')).toContain(`${DANGER_UI_TEXT.duration(CROPS.warnDays)} ahead`);          // in game months, as the alert's own words say them (the final review)
     expect(W('locusts')).toContain(`${Math.round(HARVEST_NOW.share * 100)}%`);
-    expect(W('locusts')).toContain(`${HARVEST_NOW.restDays} days`);
-    expect(W('raid')).toContain(`${RAIDS.warningDays} days ahead`);
+    expect(W('locusts')).toContain(`${HARVEST_NOW.restDays} days`);                             // a rest is not a deadline, and half a month has no month words
+    expect(W('raid')).toContain(`${DANGER_UI_TEXT.duration(RAIDS.warningDays)} ahead`);
     expect(W('raid')).toContain(`${GRACE_DAYS / 360} years`);
+    expect([W('locusts').includes(`${CROPS.warnDays} days ahead`), W('raid').includes(`${RAIDS.warningDays} days ahead`)]).toEqual([false, false]);
+  });
+  it('says the first raid\'s clock as RAIDS has it, in months: it starts at the people, the warning comes later, the raiders after it; and names the dangers that wait', () => {
+    const [lesson, cards] = [D2_TEXT.steps.tower({ warning: null, paused: true }), V60_HELP.d2.find((h) => h.head === 'Picture cards').text];
+    for (const why of [lesson.why, D2_TEXT.steps.tower({ warning: { dir: 'east', size: 3, daysLeft: 89, need: 1, have: 0 }, paused: false }).why]) {
+      expect(why).toContain(`first has ${RAIDS.clockPeople} people`);
+      expect(why).toContain(`first warning comes ${DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)} later`);
+      expect(why).toContain(`raiders ${DANGER_UI_TEXT.duration(RAIDS.warningDays)} after it`);
+      expect(why.includes(`${RAIDS.warningDays} days ahead`)).toBe(false);                      // the old words ("at 250 people, the warning 90 days ahead") were wrong
+    }
+    expect(DANGER_UI_TEXT.duration(RAIDS.firstWarnAfter)).toBe('24 months');
+    for (const word of ['plague', 'low Nile', 'locusts', 'wrecking buildings', 'looting storehouses']) expect([word, cards.includes(word)]).toEqual([word, true]);
+    expect(cards.includes('Dangers never come')).toBe(false);                                   // raids and fires do come in the first years
   });
 });
 

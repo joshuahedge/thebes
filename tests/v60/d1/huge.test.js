@@ -12,7 +12,7 @@ import { resourceReach, RESOURCES } from '../../../src/data/s47.js';
 import { packSave, unpackSave } from '../../../src/save/serialize.js';
 import { createRecords } from '../../../src/save/records.js';
 import { shareLink, parseShareLink } from '../../../src/ui/share.js';
-import { createCamera, zoomAt, minZoomFor, frameTiles, zoomFloor, MIN_ZOOM, MAX_ZOOM, FRAME_RATIO_OVER_LARGE } from '../../../src/render/camera.js';
+import { createCamera, zoomAt, panBy, minZoomFor, frameTiles, zoomFloor, MIN_ZOOM, MAX_ZOOM, FRAME_RATIO_OVER_LARGE } from '../../../src/render/camera.js';
 import { createCameraControl } from '../../../src/ui/cameraControl.js';
 import { boot } from '../../../src/boot.js';
 import { createSaveStore } from '../../../src/save/store.js';
@@ -156,5 +156,23 @@ describe('v60 d1 huge map: choosing it on the title starts a Huge city with its 
       fire(laptop.shell.root.querySelector('#title .choice.mapsize[data-value="huge"]'), 'click');
       expect(laptop.shell.root.querySelector('#title .size-note').hidden).toBe(true);
     } finally { laptop.close(); }
+  });
+});
+
+describe('v60 d1 huge map: a pan stops at the map\'s edge (the final review: no screen of empty tan)', () => {
+  it('holds the middle of the view on the map for a camera that knows its size, in every direction and at the least zoom, and leaves one without a size free', () => {
+    const cam = createCamera({ x: 56, y: 56, zoom: MIN_ZOOM, size: HUGE_MAP_SIZE });
+    const seen = [];
+    for (const [dx, dy] of [[100000, 0], [-100000, 0], [0, 100000], [0, -100000], [100000, 100000], [-100000, -100000]]) {
+      panBy(cam, dx, dy);
+      seen.push([cam.x >= 0 && cam.x <= HUGE_MAP_SIZE, cam.y >= 0 && cam.y <= HUGE_MAP_SIZE]);
+    }
+    expect(seen.every(([a, b]) => a && b)).toBe(true);
+    const mid = createCamera({ x: 56, y: 56, zoom: 1, size: HUGE_MAP_SIZE });
+    panBy(mid, 64, 0);
+    expect([Math.round(mid.x * 100) / 100, Math.round(mid.y * 100) / 100]).toEqual([55, 57]);   // a pan inside the map is as it always was
+    const free = createCamera({ x: 5, y: 5, zoom: 1 });
+    panBy(free, 100000, 0);
+    expect(free.x < 0 || free.y < 0).toBe(true);                                                 // no size: the title's backdrop and tests pan freely
   });
 });

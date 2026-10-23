@@ -5,3 +5,4 @@ import './walkthrough.test.js';
 import './cards.test.js';
 import './budget.test.js';
 import './words.test.js';
+import './fixes.test.js';

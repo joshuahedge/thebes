@@ -82,7 +82,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
   const sizes = sizeRow(mapSize, onMapSize);
   levels.append(sizes);   // Stage 4.6: the size sits with the difficulty under New city
   const lessonExtras = lessonOnly ? [
-    el('p', { class: 'lesson-hint small muted', text: D2_TEXT.titleHint }),
+    el('p', { class: 'lesson-hint small muted', text: lesson.partWay ? D2_TEXT.titleContinueHint : D2_TEXT.titleHint }),
     lesson.partWay && typeof lesson.onAgain === 'function' ? button(D2_TEXT.titleAgain, { class: 'lesson-again quiet', onClick: () => lesson.onAgain() }) : null,
   ] : [];
   const more = [];
@@ -90,7 +90,9 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
   else if (typeof onHowToPlay === 'function' && !lessonOnly) more.push(button(CARDS4_TEXT.howToPlay, { class: 'how-to-play', onClick: () => onHowToPlay() }));
   if (typeof renderSettings === 'function') more.push(button(T.settings, { class: 'title-settings', onClick: () => showSettings() }));
   more.push(button(S46_UX_TEXT.whatsNew, { class: 'whats-new-button', onClick: () => showWhatsNew() }));   // Stage 4.6 (ruling 402): one panel of releases, newest first
-  const bring = canBring ? button(T.bringCity, { class: 'bring', onClick: onBring }) : null;
+  // Bring your city: where the page is installed with no city (flow.canBring), and always on the lesson-only card (a player with a city file from another
+  // device must not have to play the lesson first).
+  const bring = canBring || lessonOnly ? button(T.bringCity, { class: 'bring', onClick: onBring }) : null;
   const buttonBox = el('div', { class: 'title-buttons' }, [
     ...buttons.flatMap((b) => (b === newCity ? [b, levels] : [b])),   // the choice sits under New city
     ...lessonExtras,

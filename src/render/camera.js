@@ -55,11 +55,15 @@ export function screenToTileIndex(cam, view, sx, sy) {
   return { x: Math.floor(t.x), y: Math.floor(t.y) };
 }
 
+// A drag, a fling or a pinch may carry the middle of the view to the map's own edge and no further (Version 6.0, the final review: zoomed out on a Huge map a pan
+// could leave a screen of empty tan past the edge). A camera that knows its map's size (createCamera's size: every game's) is held to the map; one that does not
+// (the title's backdrop, a test's) pans freely as before.
 export function panBy(cam, dxPx, dyPx) {
   const k = pxPerArt(cam);
   const t = artToTile(dxPx / k, dyPx / k); // the projection is linear, so a delta converts the same way
   cam.x -= t.x;
   cam.y -= t.y;
+  if (cam.mapSize) { cam.x = Math.min(cam.mapSize, Math.max(0, cam.x)); cam.y = Math.min(cam.mapSize, Math.max(0, cam.y)); }
   return cam;
 }
 

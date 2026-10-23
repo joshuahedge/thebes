@@ -38,7 +38,12 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
         extraLabel: typeof hooks.exportCity === 'function' ? T.exportFirst : null, onExtra: hookOr('exportCity'),
       } }) }),
       !inLesson && typeof hooks.lesson === 'function' ? button(D2_TEXT.menuLesson, { class: 'menu-lesson', onClick: () => store.set({ confirmDialog: { text: D2_TEXT.menuLessonConfirm, confirmLabel: D2_TEXT.menuLesson,
-        onConfirm: async () => { try { if (typeof hooks.save === 'function') await hooks.save('lesson'); } catch (e) { /* the lesson starts either way */ } hooks.lesson(); } } }) }) : null,
+        // "It is saved first": a save that failed (storage full, a newer version's save in the slot) keeps the city and says so, rather than leaving it unsaved for the lesson.
+        onConfirm: async () => {
+          let saved = true;
+          try { if (typeof hooks.save === 'function') saved = (await hooks.save('lesson')) !== false; } catch (e) { saved = false; }
+          if (saved) hooks.lesson(); else toasts.show(D2_TEXT.menuLessonNotSaved);
+        } } }) }) : null,
       inLesson ? null : button(T.exportCity, { onClick: hookOr('exportCity') }),
       inLesson ? null : button(T.importCity, { onClick: hookOr('importCity') }),
       typeof hooks.install === 'function' && (typeof hooks.canInstall !== 'function' || hooks.canInstall()) ? button(T.installMenu, { class: 'install', onClick: () => hooks.install() }) : null,

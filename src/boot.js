@@ -128,17 +128,17 @@ export async function boot(doc, win, {
 
   // A new city starts with the guide on only under Help: Guide and tips (early-game pass 3.1), and at the difficulty
   // the settings hold for new cities (spec 4.18). The sample and stress cities of the development flags never guide.
-  // seed: a chosen seed (This week's Nile, a shared score's Start this seed); otherwise the flag's or a random one. Each
+  // seed: a chosen seed (a shared score's Start this seed); otherwise the flag's or a random one. Each
   // new city gets its id for the records here (spec 4.19: the interface gives it, the sim never reads the clock).
-  // Stage 4.5 (ruling 313): the river layout comes from the seed ('auto'), for New city, This week's Nile and a shared score's
+  // Stage 4.5 (ruling 313): the river layout comes from the seed ('auto'), for New city and a shared score's
   // seed alike; a seed chosen with ?seed=, and the sample and stress cities, stay classic, so the dev flags and the shots do not
   // move, unless ?variant= names one.
   const variantParam = params.get('variant');
   // Stage 4.6 (ruling 333): the map's size. size: what New city's picker, a shared link or a record names (the Map track passes it);
   // else ?size=48|64|80 (the dev flag, for the shots and the Large measurement); else Normal.
   const sizeParam = Number(params.get('size'));
-  // The size the title card's picker last chose for the next new city (it starts as the dev flag's size, else Normal); a chosen seed (This
-  // week's Nile, a shared link) takes its own size, never this.
+  // The size the title card's picker last chose for the next new city (it starts as the dev flag's size, else Normal); a chosen seed (a
+  // shared link) takes its own size, never this.
   let newCitySize = isMapSize(sizeParam) ? sizeParam : DEFAULT_MAP_SIZE;
   const sizeIdOf = (n) => MAP_SIZE_IDS.find((k) => MAP_SIZES[k] === n) || 'normal';
   function freshWorld({ seed = null, variant = null, size = null } = {}) {
@@ -259,11 +259,17 @@ export async function boot(doc, win, {
 
   // The guided first city (Track D2): its own fixed map, from `step` (the steps before it laid by the scripted walk-through, src/sim/lesson.js replayTo; 0
   // starts it again, and a lesson not yet done keeps its place in the settings from then on). Leaving it, or finishing it, is back to the title.
+  // A walk-through that fails (replayTo throws when a step does not finish) starts the lesson again from the first step and says so in a toast.
   function startLesson(step = 0) {
-    const world = lessonWorld();
-    const at = step > 0 ? replayTo(world, step) : 0;
+    let world = lessonWorld(), at = 0, notice = null;
+    if (step > 0) {
+      try { at = replayTo(world, step); } catch (e) {
+        console.warn('Thebes: the lesson could not be rebuilt to step', step, e && e.message);
+        world = lessonWorld(); at = 0; notice = D2_TEXT.resumeFailed;
+      }
+    }
     if (at === 0 && !settings.get().lessonDone) settings.set({ lessonStep: 0 });
-    return startGame(world, { lesson: { step: at }, saveNow: false });
+    return startGame(world, { lesson: { step: at }, saveNow: false, notice });
   }
   async function leaveLesson(finished = false) {
     if (!current || !current.lesson) return;
@@ -324,16 +330,19 @@ export async function boot(doc, win, {
       mapSize: sizeIdOf(newCitySize), onMapSize: (id) => { newCitySize = MAP_SIZES[id]; },   // Stage 4.6 (ruling 333): the size picker
       // Version 6.0 (Track D1, rulings 742, 746): no Play with sound (sound and music are on by default; Settings, here and in the game, mutes them).
       // The third button is Lesson once the guided first city gives hooks.lesson (Track D2), until then How to play, the picture cards (Stage 4, Track G, spec 4.1).
-      // Version 6.0 (Track D2, ruling 617): on a device that has not done the lesson and has no saved city the card offers only the lesson (lesson.due).
+      // Version 6.0 (Track D2, ruling 617): on a device that has not done the lesson and has no saved city the card offers only the lesson (lesson.due); a slot
+      // holding something unreadable or from a newer version is not "no saved city" (the card keeps New city and its message).
       onLesson: typeof hooks.lesson === 'function' ? () => hooks.lesson() : null,
-      lesson: { due: lessonDue(settings.get(), loaded.state === 'ok'), partWay: lessonPartWay(settings.get()), note, onAgain: () => hooks.lesson({ step: 0 }) },
+      lesson: { due: lessonDue(settings.get(), loaded.state !== 'none'), partWay: lessonPartWay(settings.get()), note, onAgain: () => hooks.lesson({ step: 0 }) },
       onHowToPlay: () => hooks.pictureCards(),
       renderSettings: (body) => createMenuSheets({ store: { get: () => ({}), set() {}, subscribe: () => () => {} }, settings, toasts: { show() {} }, hooks }).settings(body),   // the game's Settings rows, with no city behind them
       onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); },
       onBring: () => hooks.importCity(),
-      // Stage 3 (spec 4.19): records, stamps, This week's Nile and a shared score, from the score interface.
+      // Stage 3 (spec 4.19): records, stamps and a shared score, from the score interface. Version 6.0 (ruling 793): a shared score's Start this seed
+      // plays the link's level even on the lesson-only card (setDifficulty), and says where the lesson is while this device has not finished it.
       decorate: titleDecor({
         records, shared: (win.location && win.location.hash) || '', clock,
+        setDifficulty: (level) => settings.set({ difficulty: level }), lessonPending: settings.get().lessonDone !== true,
         startSeed: (seed, variant = null, size = null) => (loaded.state === 'ok' ? confirmNewCity(loaded, seed, variant, size || DEFAULT_MAP_SIZE) : withCards(() => startGame(freshWorld({ seed, variant, size: size || DEFAULT_MAP_SIZE })))),
       }),
     });

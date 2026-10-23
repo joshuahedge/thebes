@@ -13,7 +13,7 @@
 export const LESSON = { seed: 7, size: 48, variant: 'classic', difficulty: 'normal' };
 
 // Places on the lesson's map, in tiles ([x, y] is a building's north-west tile). Each one is checked against the sim's own placing rules by
-// tests/v60/d2/places.test.js.
+// tests/v60/d2/steps.test.js.
 export const LESSON_PLACES = {
   road: { from: [20, 39], to: [11, 39] },   // west from the start road's end to the fertile land: 9 new tiles
   homes: [19, 41, 19, 46],                   // x0, y0, x1, y1: six plots down the west side of the start road

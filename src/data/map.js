@@ -65,8 +65,8 @@ MAP.shapes = {
   clay: { wideMin: 2, wideExtra: 2, cap: 24 },
 };
 
-// Map sizes (ruling 333): tiles a side. Normal is the default, the weekly seed's, and every city's from before Stage 4.6 (world.mapSize
-// 64); the title, sample and stress cities and the test fixtures stay Normal. createWorld takes any of them (and, for tests, any size
+// Map sizes (ruling 333): tiles a side. Normal is the default and every city's from before Stage 4.6 (world.mapSize
+// 64; the weekly seed, This week's Nile, was Normal too, until Version 6.0 dropped it); the title, sample and stress cities and the test fixtures stay Normal. createWorld takes any of them (and, for tests, any size
 // with a map passed in).
 // Version 6.0 (Track 0 seam, Track D1 owns it; ruling 628): every size the game knows, in the picker's order. offered: in MAP_SIZES (the
 // title's picker, links, records, isMapSize, ?size=); bigScreen: the picker says it is best on a tablet or computer (phones). Huge is not

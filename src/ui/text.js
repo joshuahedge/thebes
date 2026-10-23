@@ -3218,10 +3218,18 @@ import { DAYS_PER_MONTH as d2MonthDays, MONTHS_PER_YEAR as d2YearMonths } from '
 // follows it on a wide screen and when the row is opened in place. f: { paused, progress: { n, of } | null, warning: { dir, size, daysLeft, need, have } | null,
 // raidOn: { left } | null, missing: type | null, forecast: gold a month }.
 const d2Site = (type) => buildingName(type).toLowerCase();
+// Times in game months, as the alert's own words say them (DANGER_UI_TEXT.duration: "2 months 29 days"), so the row and the banner count alike.
+const d2Time = (days) => DANGER_UI_TEXT.duration(Math.max(0, days));
+// How a real city meets its first raid, from RAIDS: the clock starts when it first has clockPeople people (never on Peaceful), the first warning comes firstWarnAfter
+// days later and the raiders warningDays after it.
+const d2RaidClock = () => `In a real city the raid clock starts the day it first has ${d2Raids.clockPeople} people (never on Peaceful): the first warning comes ${d2Time(d2Raids.firstWarnAfter)} later and the raiders ${d2Time(d2Raids.warningDays)} after it`;
 export const D2_TEXT = {
   lessonLabel: (i, n) => `Lesson ${i} of ${n}`,
   region: 'Lesson', show: T.showMe, leave: 'Leave the lesson', leaveShort: 'Leave', open: 'More', close: 'Less',
-  leaveConfirm: "Leave the lesson? Your place is kept: the Lesson button on the title screen continues from here. Nothing in your saved city changes.",
+  leaveConfirm: "Leave the lesson? Your place is kept: Lesson or Continue the lesson on the title screen rebuilds the lesson's own city up to it. The streets you laid are not kept. Nothing in your saved city changes.",
+  resumeFailed: "The lesson could not rebuild your place, so it starts again from the first step.",
+  shareLessonLine: 'New here? The lesson is in the menu, under Lesson, once you are in a city.',
+  menuLessonNotSaved: "Couldn't save this city, so the lesson did not start. Free up some storage or export the city first.",
   progress: (n, of) => `${n} of ${of}`,
   progressLabel: (n, of, unit) => `${n} of ${of} ${unit}`,
   gone: (type) => `The ${d2Site(type)} is gone: build it again first.`,
@@ -3251,24 +3259,25 @@ export const D2_TEXT = {
     fire: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : `A small fire started in the bazaar: the lesson lit it. ${f.paused ? 'Press Play and watch the crew put it out.' : 'Watch the crew put it out.'}`,
       why: `A staffed firehouse that reaches a blaze puts it out in a day or two. Left alone it grows into a fire in ${d2Fire.blazeDays} days and the building burns down.` }),
     tower: (f) => (f.warning
-      ? { text: `Raiders come from the ${f.warning.dir}: ${f.warning.size} of them, in ${plural(f.warning.daysLeft, 'day', 'days')}. Build ${f.warning.need - f.warning.have > 1 ? `${f.warning.need - f.warning.have} more towers` : 'a tower'} near the bazaar and let ${f.warning.need - f.warning.have > 1 ? 'their crews' : 'its crew'} take their posts.`,
-        why: `A staffed tower stops about ${d2Raids.raidersPerTower} raiders. A real city meets its first raid at ${d2Raids.clockPeople} people, with the warning ${d2Raids.warningDays} days ahead; the lesson brings the Market town's tower card early.` }
+      ? { text: `Raiders come from the ${f.warning.dir}: ${f.warning.size} of them, in ${d2Time(f.warning.daysLeft)}. Build ${f.warning.need - f.warning.have > 1 ? `${f.warning.need - f.warning.have} more towers` : 'a tower'} near the bazaar and let ${f.warning.need - f.warning.have > 1 ? 'their crews' : 'its crew'} take their posts.`,
+        why: `A staffed tower stops about ${d2Raids.raidersPerTower} raiders. ${d2RaidClock()}; the lesson brings the Market town's tower card early.` }
       : { text: f.paused ? "Press Play: the lesson brings a raid warning. The Market town's tower card is open early." : 'A raid warning is on its way.',
-        why: `A real city meets its first raid at ${d2Raids.clockPeople} people, with the warning ${d2Raids.warningDays} days ahead.` }),
+        why: `${d2RaidClock()}.` }),
     raid: (f) => (f.raidOn
       ? { text: `The raiders are here: ${f.raidOn.left} on the map. Watch the towers stop them.`, why: 'Towers shoot the nearest raider in range, and a band turns back once half of it has fallen.' }
-      : { text: `${f.paused ? 'Press Play and watch the raiders come' : 'The raiders are on their way'}${f.warning ? `: ${plural(f.warning.daysLeft, 'day', 'days')} to go` : ''}.`,
+      : { text: `${f.paused ? 'Press Play and watch the raiders come' : 'The raiders are on their way'}${f.warning ? `: ${d2Time(f.warning.daysLeft)} to go` : ''}.`,
         why: 'Raids grow with a city\'s people and wealth, so build towers before the next warning.' }),
   },
   // The last card: "Your first city stands" (a sheet; its words come from the city's own numbers).
   endTitle: 'Your first city stands',
   endBody: ({ people, won }) => `${plural(people, 'person lives', 'people live')} here. Your farm, granary and bazaar feed them, a firehouse guards them and ${won ? 'your tower beat the raid' : 'the raid got through, which towers would have stopped'}. Now found a city of your own: its difficulty and map size are on the title screen.`,
   endMore: 'Everything here is in How to play, and the picture cards show again the first time each new danger comes.',
-  endNew: 'New city', endStay: 'Keep looking around',
-  endRow: 'Your first city stands. Found your own when you are ready.',
+  endNew: 'Go to the title', endStay: 'Keep looking around',
+  endRow: 'Your first city stands. Go to the title to found your own when you are ready.',
   // The title (the Lesson button; with no saved city and the lesson not done it is the only way in).
   titleStart: 'Start the lesson', titleContinue: 'Continue the lesson', titleAgain: 'Start again',
   titleHint: `A small first city of ${d2Steps.length} steps, about 10 to 15 minutes.`,
+  titleContinueHint: `Continue rebuilds the lesson's own city up to your step, so the streets you laid are not kept. Start again begins at step 1.`,
   standsNote: 'Your first city stands. Found your own when you are ready.',
   // The menu's rows.
   menuLesson: 'Lesson', menuLessonConfirm: 'Leave this city for the lesson? It is saved first, and Continue on the title screen brings it back.',
@@ -3301,14 +3310,14 @@ CARDS4_TEXT.cards.drought = {
 };
 CARDS4_TEXT.cards.locusts = {
   title: 'Locusts and blight',
-  words: `Locusts or blight are warned ${plural(b1Crops.warnDays, 'day', 'days')} ahead over a band of farms. Harvest now on a farm in the band brings in ${Math.round(b1Harvest.share * 100)}% of a month's crop at once, then the farm rests ${plural(b1Harvest.restDays, 'day', 'days')}.`,
+  words: `Locusts or blight are warned ${d2Time(b1Crops.warnDays)} ahead over a band of farms. Harvest now on a farm in the band brings in ${Math.round(b1Harvest.share * 100)}% of a month's crop at once, then the farm rests ${d2Time(b1Harvest.restDays)}.`,
   alt: "A farm's sheet with the locust warning for it inside a ring, and the farm on the map above it.",
 };
 CARDS4_TEXT.cards.raid = {
   title: 'Raiders do damage',
-  words: `A raid is warned ${plural(d2Raids.warningDays, 'day', 'days')} ahead. Raiders burn what they reach and steal gold; once a city is ${d2Grace / (d2MonthDays * d2YearMonths)} years old they also wreck buildings to rubble and loot storehouses. Towers and soldiers stop them, and rubble can be cleared and built again.`,
+  words: `A raid is warned ${d2Time(d2Raids.warningDays)} ahead. Raiders burn what they reach and steal gold; once a city is ${d2Grace / (d2MonthDays * d2YearMonths)} years old they also wreck buildings to rubble and loot storehouses. Towers and soldiers stop them, and rubble can be cleared and built again.`,
   alt: "A wrecked storehouse's rubble with a ring around it, below the alert for a raid from the east.",
 };
-V60_HELP.d2.push({ head: 'The lesson', text: `The lesson is a small first city of ${d2Steps.length} steps: a road, homes, a well, a farm, a granary and a bazaar, workers, a Large plot, a small fire and a raid. Each step lights what it asks for, dims the rest and moves on when the city shows it done. It runs on its own map and never touches a saved city. A new device starts with it; the Lesson button on the title screen and in the menu plays it again.` });
-V60_HELP.d2.push({ head: 'Picture cards', text: `The picture cards show once before your first city and again, one at a time, the first time a Large plot, a court demand, a plague, a low Nile, locusts or a raid with real losses comes. Show the picture cards, above, keeps every one. Dangers never come in the first ${d2Grace / (d2MonthDays * d2YearMonths)} game years of a city.` });
+V60_HELP.d2.push({ head: 'The lesson', text: `The lesson is a small first city of ${d2Steps.length} steps: a road, homes, a well, a farm, a granary and a bazaar, workers, a Large plot, a small fire and a raid. Each step lights what it asks for, dims the rest and moves on when the city shows it done. It runs on its own map and never touches a saved city. A new device starts with it; the Lesson button on the title screen and in the menu plays it again. A lesson left part-way continues from its step on a city the lesson rebuilds, so the streets you laid are not kept.` });
+V60_HELP.d2.push({ head: 'Picture cards', text: `The picture cards show once before your first city and again, one at a time, the first time a Large plot, a court demand, a plague, a low Nile, locusts or a raid with real losses comes. Show the picture cards, above, keeps every one. The newest dangers wait ${d2Grace / (d2MonthDays * d2YearMonths)} game years from a city's start: no plague, low Nile or locusts, and a raid only burns, steals gold and takes a granary's food, without wrecking buildings or looting storehouses. Raids and fires themselves can come sooner.` });
 // ── end v60 d2 ──
