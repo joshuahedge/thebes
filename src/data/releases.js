@@ -19,7 +19,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '6.0', date: '2026-10-23', title: 'A harder Nile', build: '588116e',
+    version: '6.0', date: '2026-10-23', title: 'A harder Nile', build: '01da086',
     new: [
       'A harder, longer game: wages, upkeep and monuments cost more as your city rises, and from year 8 the court takes a yearly due from your treasury, so a rich city can no longer bank gold without end.',
       'Court demands: from Town the court now and then asks for goods, gold, a building or soldiers by a deadline. Each says its reward and what failing costs before you accept, and you may decline.',
@@ -40,7 +40,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '5.0', date: '2026-10-16', title: 'Know your city', build: '2653e92',
+    version: '5.0', date: '2026-10-16', title: 'Know your city', build: '486006a',
     new: [
       'A City advice button in the top bar opens a sheet that ranks what holds your city back: homes stuck for want of a good, a raid on its way, a street too plain, a shortage coming. Each item shows its cause, the fix, the price and a Show me. A dot says when the advice has changed.',
       'Every house sheet starts with the one next step for that home, with its price and a Show me, or says why there is nothing to do yet.',
@@ -60,7 +60,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '4.7', date: '2026-10-15', title: 'Land and logistics', build: 'eef5ccb',
+    version: '4.7', date: '2026-10-15', title: 'Land and logistics', build: 'b541f9e',
     new: [
       'After you place a house, the plots that suit the next one light up: Good where water and a bazaar are in reach, Fair where one of them is. Done ends the house tool.',
       'A storehouse or granary can Fetch a good from another store, by cart along the roads, at any distance. Set it from the store\'s sheet, which says what it will do before you tap and where the cart is after.',
@@ -80,7 +80,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '4.6', date: '2026-10-13', title: 'Living land, the court, armies and wonders', build: 'ed005c5',
+    version: '4.6', date: '2026-10-13', title: 'Living land, the court, armies and wonders', build: '5bb08e5',
     new: [
       'Choose a Small, Normal or Large map for a new city, and every new map is shaped a little differently.',
       'The Nile floods every year in its season: a rhythm to plan around, not a disaster. Fields it reaches grow more in a high flood and less in a low one; a Nilometer tells you ahead.',
@@ -103,7 +103,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '4.5', date: '2026-10-13', title: 'Polish and pressure', build: 'b444b16',
+    version: '4.5', date: '2026-10-13', title: 'Polish and pressure', build: 'b2a5757',
     new: [
       'A game month lasts 30 seconds at 1x (it was 20), and everything counted in days stretches with it.',
       'Six river layouts for new cities: the classic river, one in the east, one through the middle, wide bends, an island and an oasis.',
@@ -119,7 +119,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '4.0', date: '2026-10-12', title: 'Monuments', build: '7833292',
+    version: '4.0', date: '2026-10-12', title: 'Monuments', build: '1d8cf1d',
     new: [
       'A Monuments tab with the builders\' guild, the quarry and the brickworks, and the monuments themselves: obelisks, the colossus, mastabas and the pyramids, each rising course by course while you play.',
       'Prestige: one monument of each kind lifts the mood, opens the pyramids and counts toward your score.',
@@ -132,7 +132,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '3.2', date: '2026-10-12', title: 'Placing with a finger', build: 'b3f9781',
+    version: '3.2', date: '2026-10-12', title: 'Placing with a finger', build: 'fdebfda',
     new: [
       'Fertile and rocky ground can be shown on the map, from a new Layers picker.',
       'Roads, walls, plots and demolish can be drawn with a finger, or tapped tile by tile.',
@@ -144,7 +144,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '3.1', date: '2026-10-12', title: 'Made for phones', build: '1d5737a',
+    version: '3.1', date: '2026-10-12', title: 'Made for phones', build: '8123159',
     new: [
       'A phone shows at most two rows under the top bar: one alert row and one guidance row that the legend, a tip, a caption and the goal take in turn.',
       'A phone height budget with measured screenshots, so the rows stay clear of the middle of the map.',
@@ -155,7 +155,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '3.0', date: '2026-10-12', title: 'Danger and scoring', build: '2ff543f',
+    version: '3.0', date: '2026-10-12', title: 'Danger and scoring', build: '2478e19',
     new: [
       'Fire: buildings build fire risk, a firehouse keeps it low, and a blaze nobody reaches burns and spreads.',
       'Raids: a banner warns three months ahead; draw walls and gates, build towers and a barracks, or pay tribute. A temple can hold a festival.',
@@ -166,7 +166,7 @@ export const RELEASES = [
     fixed: [],
   },
   {
-    version: '2.0', date: '2026-10-11', title: 'The economy', build: 'ce5593b',
+    version: '2.0', date: '2026-10-11', title: 'The economy', build: '38dd2a4',
     new: [
       'Homes grow past House: Townhouses, Manors, Fine manors, Villas and Estates, each wanting more (pottery, beer, two foods, linen, jewellery).',
       'Chains of goods: a clay pit, barley farm, flax farm or gem mine fills a storehouse, a workshop turns it into pottery, beer, linen or jewellery, and bazaars sell it.',
@@ -179,7 +179,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '1.1', date: '2026-10-11', title: 'A gentler start', build: '9803214',
+    version: '1.1', date: '2026-10-11', title: 'A gentler start', build: 'fe78a79',
     new: [
       'A guided start: the goal under the top bar says what to do next, and Show me opens the right card and points at the place.',
       'Tips, captions for your firsts, daily goals and achievements, with a Help setting to turn it all down or off.',
@@ -193,7 +193,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '1.0', date: '2026-10-10', title: 'The first city', build: 'bb1adee',
+    version: '1.0', date: '2026-10-10', title: 'The first city', build: '012e9bf',
     new: [
       'A river town on a seeded map: roads, plots that grow from huts into houses as water, food and temples reach them, farms, granaries, bazaars and a monthly budget of taxes, wages and upkeep.',
       'Draw with a confirm bar and undo; play on a phone or a computer, with keys for the computer.',
