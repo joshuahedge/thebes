@@ -24,6 +24,10 @@ function v9City() {
   delete v9.trade.floors;
   for (const k of STAGE70_TALLY) delete v9.tally[k];
   v9.version = 9;
+  // Version 7.0 (Track E): the city events are live now, and a version 9 city meets none for a game year after its load, so the original is held the same
+  // way (no event for a year, its tallies at 0) for the comparison of the year they both play (the changed test's reason).
+  w.cityEvents = newEventState(w.day + EVENT_V9_WAIT);
+  for (const k of CITY_EVENT_TALLY) w.tally[k] = 0;
   return { w, v9 };
 }
 
@@ -40,7 +44,7 @@ describe('v70 contract world v10', () => {
     expect(TRADE_SIDES).toEqual(['buys', 'sells']);
     expect(w.cityEvents).toEqual({ nextDay: 0, cooldowns: {}, waiting: null });
     expect(w.cityEvents).toEqual(newEventState());
-    expect(EVENT_KINDS).toEqual([]);                                                  // Track E adds the kinds
+    expect(EVENT_KINDS.length).toBe(16);                                              // Track E added the kinds (it was [] in the contract)
     expect(STAGE70_TALLY).toEqual([...TRADE_TALLY, ...CITY_EVENT_TALLY]);
     expect(STAGE70_TALLY).toEqual(V70_TALLY);
     for (const k of V70_TALLY) { expect([k, w.tally[k]]).toEqual([k, 0]); expect(TALLY_KEYS).toContain(k); }
@@ -101,8 +105,8 @@ describe('v70 contract world v10', () => {
     const loaded = deserialize(JSON.stringify(v9));
     advanceDays(loaded, YEAR);
     advanceDays(w, YEAR);
-    expect([loaded.day, loaded.cityEvents]).toEqual([day + YEAR, { nextDay: day + YEAR, cooldowns: {}, waiting: null }]);   // the stubs drew nothing
-    expect(w.cityEvents).toEqual(newEventState());
+    expect([loaded.day, loaded.cityEvents]).toEqual([day + YEAR, { nextDay: day + YEAR, cooldowns: {}, waiting: null }]);   // no event drew in the year
+    expect(w.cityEvents).toEqual(newEventState(day + YEAR));
     const strip = (world) => { const o = JSON.parse(serialize(world)); delete o.cityEvents; return o; };
     expect(strip(loaded)).toEqual(strip(w));
     expect(validateWorld(JSON.parse(serialize(loaded)))).toBe(true);

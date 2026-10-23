@@ -3386,6 +3386,198 @@ export const V70_ADVICE_WORDS = {};
 // ── v70 e (Track E, rulings 900-929: city events) ──────────────────────────────────────────────────────────────────────
 // Add new lines just above the end marker: V70_HELP.e.push(...), V70_ADVICE_WORDS.event = ..., ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ...
 // Every cost and result on the card comes from src/sim/cityEvents.js eventChoices.
+import { CITY_EVENTS as cevRules, EVENT_DEFS as cevDefs, EVENT_NUMBERS as cevNum } from '../data/cityEvents.js';
+import { INCENSE_GOOD as cevIncense } from '../data/trade.js';
+import { FESTIVAL as cevFestival } from '../data/raids.js';
+import { HEALTH_MOOD as cevHealthMood } from '../data/health.js';
+import { CRIME_MOOD as cevCrimeMood } from '../data/crime.js';
+import { unrestMood as cevUnrestMood, thiefCovered as cevThiefCovered, eventChoices as cevChoices, waitingEvent as cevWaiting } from '../sim/cityEvents.js';
+import { favourChange as cevFavourChange, stockOf as cevStockOf } from '../sim/court.js';
+import { DAYS_PER_MONTH as cevMonthDays } from '../sim/time.js';
+
+const cevMonths = (n) => plural(n, 'month', 'months');
+const cevMonthsOf = (days) => cevMonths(Math.max(1, Math.round(days / cevMonthDays)));
+const cevGood = (good) => goodName(good).toLowerCase();
+const cevHasIncense = () => Boolean(GOODS[cevIncense]);
+const cevSigned = (n) => `${n < 0 ? '−' : '+'}${Math.abs(n)}`;
+const cevCap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const cevCovered = (f, world) => (world && f && world.buildings[f.store] ? cevThiefCovered(world, f) : false);
+
+// One effect as words (the sim's own list: src/sim/cityEvents.js): every number is the effect's, and favour says what really happens (it stays inside its range).
+function cevEffect(e, world) {
+  switch (e.kind) {
+    case 'gold': return e.n < 0 ? `costs ${-e.n} gold` : `${e.n} gold for the treasury`;
+    case 'goods': return e.n < 0 ? `takes ${-e.n} ${cevGood(e.good)} from the stores` : `puts ${e.n} ${cevGood(e.good)} in the stores`;
+    case 'lose': return `${e.n} ${cevGood(e.good)} lost from the stores`;
+    case 'favour': { const d = cevFavourChange(world, e.n); return d === 0 ? 'favour stays as it is' : `favour ${cevSigned(d)}`; }
+    case 'festival': return `mood +${e.n} for ${cevMonthsOf(e.days)}, and it counts as this year's festival`;
+    case 'pause': return `${plural(e.ids.length, 'workplace stops', 'workplaces stop')} work for ${cevMonthsOf(e.days)}`;
+    case 'people': return `${plural(e.n, 'person moves', 'people move')} in`;
+    case 'ill': return `${plural(e.ids.length, 'home falls', 'homes fall')} ill (mood ${cevSigned(cevHealthMood.each)} for each while ill, at most ${cevSigned(cevHealthMood.max)})`;
+    case 'cure': return `${plural(e.ids.length, 'ill home is', 'ill homes are')} cured`;
+    case 'unrest': { const d = cevUnrestMood(world, e.n); return d === 0 ? 'no further fall in mood' : `mood ${cevSigned(d)} for ${cevMonthsOf(cevCrimeMood.days)}`; }
+    default: return '';
+  }
+}
+// What a choice does, as one sentence from its effects, price first; "Nothing changes." for none.
+// keep: what a payment spares, as the kind's `keeps` says it ("the quarries keep working"): true because the default's losses are the only thing the payment replaces.
+const cevConsequence = (effects, world, keep = '') => {
+  const parts = effects.map((e) => cevEffect(e, world)).filter(Boolean);
+  if (!parts.length) return keep ? `${cevCap(keep)}.` : 'Nothing changes.';
+  return `${cevCap(parts.join(', '))}${keep ? `, and ${keep}` : ''}.`;
+};
+// Why a choice cannot be made, from its reason and the effect that failed (the sim's: eventChoices' reason and bad).
+function cevProblem(c, world) {
+  const bad = c.bad || {};
+  switch (c.reason) {
+    case 'no_gold': return `Not enough gold: you have ${world.gold}, it costs ${c.gold}`;
+    case 'short': return `Your stores hold ${cevStockOf(world, bad.good)} ${cevGood(bad.good)}; it takes ${-bad.n}`;
+    case 'no_room': return bad.kind === 'goods' ? `No store has room for ${cevGood(bad.good)}` : 'No home has room for them';
+    case 'too_soon': return 'A festival was held less than a year ago';
+    case 'none': return bad.kind === 'cure' ? 'No home is ill now' : 'There is nothing for it to do now';
+    default: return '';
+  }
+}
+
+// Each kind: its title (the sheet's heading and the alert row's words), its story with the figures it was offered with, and each choice's button.
+// Words never promise what the sim would not do: they read the offer's figures (f) and the city as it is (world).
+const cevKinds = {
+  opet: {
+    title: 'The Festival of Opet',
+    body: (f) => `The priests ask to hold the Festival of Opet. ${cevHasIncense() ? 'It takes beer and incense.' : 'No incense reaches the city yet, so it can only be a smaller festival, with beer alone.'} It lifts mood by ${cevFestival.mood} for ${cevMonthsOf(cevFestival.days)}.`,
+    labels: { full: 'Hold the full festival', small: () => (cevHasIncense() ? 'Hold a smaller festival, beer only' : 'Hold the smaller festival, beer only'), decline: 'Not this year' },
+  },
+  envoy: {
+    title: 'An envoy at the gate',
+    body: () => 'An envoy from another court asks to be received. A feast would please him; a plain greeting is polite enough.',
+    labels: { feast: 'Hold a feast for him', greet: 'Greet him at the gate' },
+  },
+  bumper: {
+    title: 'A bumper harvest',
+    body: (f) => `The Nile left rich silt and the farms have a surplus: ${f.n} grain beyond the month's. Store it, or sell it to the traders at ${cevNum.bumper.price} gold a unit.`,
+    labels: { sell: 'Sell it to the traders', store: 'Store the surplus' },
+  },
+  hoard: {
+    title: 'An old hoard',
+    body: (f) => `Diggers found an old hoard worth ${f.gold} gold. The treasury can keep it, or the priests can bless the city with it, and the gold goes to the temple.`,
+    labels: { bless: 'Give it to the temple', keep: 'Keep it' },
+  },
+  scribes: {
+    title: "The scribes' count",
+    body: (f) => `The scribes counted the city and found ${f.dues} gold in dues never paid. Collect it, or forgive it to please the court.`,
+    labels: { forgive: 'Forgive the dues', collect: 'Collect the dues' },
+  },
+  healer: {
+    title: 'A healer at the gate',
+    body: (f, world) => `A travelling healer offers to treat ${plural(f.ids.filter((id) => world.buildings[id] && world.buildings[id].illness).length, 'ill home', 'ill homes')} for a fee.`,
+    labels: { cure: 'Pay him to treat them', send_away: 'Send him on his way' },
+  },
+  craftsman: {
+    title: 'A craftsman asks to settle',
+    body: (f) => `A master craftsman asks to settle with his family: ${plural(f.n, 'person', 'people')} would come with him, for a fee of ${f.fee} gold.`,
+    labels: { settle: 'Pay his fee and settle him', pass: 'Wish him well' },
+  },
+  pilgrims: {
+    title: 'Pilgrims at the temple',
+    body: (f) => `A band of ${f.n} pilgrims reached the temple. Camped outside they leave ${f.offering} gold in offerings; lodged in the town for ${f.fee} gold they would stay.`,
+    labels: { lodge: 'Lodge them in the town', camp: 'Let them camp outside' },
+  },
+  sandstorm: {
+    title: 'A sandstorm',
+    body: (f) => `A sandstorm dusts the stores and spoils ${f.n} ${cevGood(f.good)}. Sweeping crews, if hired now, would save ${f.saved} of it.`,
+    labels: { sweep: 'Hire sweeping crews', weather: 'Let it blow over' },
+  },
+  fever: {
+    title: 'A fever at the gate',
+    body: (f) => `A traveller brings a fever. If he is let in, ${plural(f.ids.length, 'home', 'homes')} fall ill. The gate watch could keep him out, for a fee.`,
+    labels: { gate: 'Keep him at the gate', let_in: 'Let him in' }, keeps: { gate: 'no home falls ill' },
+  },
+  rumour: {
+    title: 'A rumour at court',
+    body: () => 'A rumour about your city reached the court. A gift would quiet it; ignored, it costs favour.',
+    labels: { gift: 'Send a gift to the court', ignore: 'Ignore it' }, keeps: { gift: 'favour does not fall' },
+  },
+  thief: {
+    title: 'A thief in the market',
+    body: (f, world) => `A thief has his eye on the ${cevGood(f.good)} at the ${world.buildings[f.store] ? buildingName(world.buildings[f.store].type).toLowerCase() : 'market'}. ${cevCovered(f, world) ? 'A staffed police post reaches it, so he can take only a little.' : 'No staffed police post reaches it.'}`,
+    labels: { watch: 'Post a watch', let_run: 'Let him take his chance' }, keeps: { watch: 'nothing is taken' },
+  },
+  feud: {
+    title: 'A feud between two streets',
+    body: () => 'Two streets quarrel and bad feeling spreads. A watch can keep the peace; left alone, it weighs on mood.',
+    labels: { send_watch: 'Send the watch', let_be: 'Let them settle it' }, keeps: { send_watch: 'mood does not fall' },
+  },
+  quarry_strike: {
+    title: 'A strike at the quarry',
+    body: (f) => `The quarry crews ask for better wages. Raise them, or ${plural(f.ids.length, 'quarry stops', 'quarries stop')} for ${cevMonthsOf(f.days)}.`,
+    labels: { raise_wages: 'Raise their wages', strike: 'Let the strike run' }, keeps: { raise_wages: 'the quarries keep working' },
+  },
+  workshop_quarrel: {
+    title: 'A quarrel in the workshops',
+    body: (f) => `The ${buildingName(f.type).toLowerCase()} crews quarrel over their shares. Settle it with a payment, or ${plural(f.ids.length, 'workshop stops', 'workshops stop')} for ${cevMonthsOf(f.days)}.`,
+    labels: { settle_it: 'Settle it with a payment', quarrel: 'Let it run' }, keeps: { settle_it: 'the workshops keep working' },
+  },
+  lost_caravan: {
+    title: 'A caravan lost',
+    body: (f) => `A caravan carrying ${f.n} ${cevGood(f.good)} from your stores is lost in the desert. A search party could bring it home, for a fee.`,
+    labels: { search: 'Send a search party', write_off: 'Write it off' }, keeps: { search: 'the goods come home' },
+  },
+};
+const cevLabel = (kind, id) => { const l = cevKinds[kind].labels[id]; return typeof l === 'function' ? l() : l; };
+
+export const CITY_EVENT_TEXT = {
+  title: (kind) => (cevKinds[kind] ? cevKinds[kind].title : 'A city event'),
+  body: (event, world) => cevKinds[event.kind].body(event.figs, world),
+  label: cevLabel,
+  consequence: (effects, world, kind = null, choice = null) => cevConsequence(effects, world, kind && cevKinds[kind].keeps && choice ? cevKinds[kind].keeps[choice] || '' : ''),
+  effect: cevEffect,
+  problem: cevProblem,
+  answerBy: (months) => `Answer within ${cevMonths(Math.max(1, months))}.`,
+  // The line under the choices: what is taken if nothing is chosen, from the default choice's own effects. It never costs gold.
+  defaultLine: (months, label, effects, world) => `If you wait ${cevMonths(Math.max(1, months))}, "${label}" is taken: ${cevConsequence(effects, world).replace(/^./, (c) => c.toLowerCase())}`,
+  none: 'No event is waiting. They come once or twice a year, and each says what its choices do before you choose.',
+  showCosts: "This month's money",
+  // The summary's section.
+  summaryHead: 'Events', waitingLabel: 'Waiting', read: 'Read it', readLabel: (title) => `Read the event: ${title}`,
+  // The alert row's words: the card's title and the time left in game months, and what to do.
+  alert: (a) => ({ title: `${CITY_EVENT_TEXT.title(a.kind)}: answer within ${cevMonths(Math.max(1, a.months))}`, fix: 'Open it to choose: each choice says what it does' }),
+  // Captions (the info tier, kept in Recent) for an offer and an outcome.
+  captionOffered: (kind, months) => `${CITY_EVENT_TEXT.title(kind)}: choose within ${cevMonths(months)}. Open it from the alert list`,
+  captionOutcome: (e, world) => `${CITY_EVENT_TEXT.title(e.kind)}: ${cevLabel(e.kind, e.choice).toLowerCase()}${e.result === 'default' ? ' (no answer in time)' : ''}. ${cevConsequence(e.effects, world)}`,
+  // The picture card of the first event.
+  later: 'Decide later',
+};
+ALERT_TEXT.city_event = (alert) => CITY_EVENT_TEXT.alert(alert);
+Object.assign(T, { cityEvent: 'City event' });
+
+// Advice (kind 'event'): the waiting event: what it is, the time left, and what is taken if it waits (the default, from the sim's own choices).
+V70_ADVICE_WORDS.event = (a, world) => {
+  const w = cevWaiting(world);
+  if (!w) return { what: 'A city event is waiting', why: '', fix: '' };
+  const def = cevChoices(world, w).find((c) => c.default);
+  return {
+    what: `${CITY_EVENT_TEXT.title(w.kind)}: waiting for your answer`,
+    why: `${CITY_EVENT_TEXT.answerBy(w.monthsLeft)} ${def ? CITY_EVENT_TEXT.defaultLine(w.monthsLeft, cevLabel(w.kind, def.id), def.effects, world) : ''}`.trim(),
+    fix: 'Open it and choose: each choice says what it costs and does',
+  };
+};
+
+Object.assign(FIRST_TEXT, {
+  first_event: { head: 'First event answered', why: 'Events come once or twice a year. Each says what every choice costs and does before you choose.' },
+});
+Object.assign(TIP_TEXT, {
+  city_events: 'An event waits: open it from the alert list. Each choice says what it does; waiting takes the default.',
+});
+TIP_HELP_TEXT.city_events = `From ${MILESTONES.find((m) => m.id === cevRules.from).name} an event comes once or twice a year. Its default, taken if you wait, never costs gold.`;
+CARDS4_TEXT.cards.event = {
+  title: 'City events',
+  words: `From ${MILESTONES.find((m) => m.id === cevRules.from).name} an event comes once or twice a year, good or bad. Its card says what each choice costs and does; wait, and the default is taken for you, and it never costs gold.`,
+  alt: "An event's card with its story, two choices each with what it costs and does, and the line saying what is taken if you wait, with a ring around the choices.",
+};
+V70_HELP.e.push({
+  head: 'City events',
+  text: `From ${MILESTONES.find((m) => m.id === cevRules.from).name}, an event comes about once or twice a year: ${cevDefs.filter((d) => d.welcome).length} welcome kinds (a festival, an envoy, a bumper harvest) and ${cevDefs.filter((d) => !d.welcome).length} troublesome ones (a strike, a fever, a sandstorm), the bigger ones as the city grows. An event shows in the alert list and in City advice, and its card lists at most three choices, each with exactly what it costs and does. You have ${cevDefs.map((d) => d.months).reduce((m, n) => Math.min(m, n))} or ${cevDefs.map((d) => d.months).reduce((m, n) => Math.max(m, n))} game months to choose; if you wait, the default is taken, and it never costs gold. A choice that costs gold is off, with the reason, while the treasury cannot pay it, and no event ever pushes the city deeper into debt. None comes while a raid is near or a plague, low Nile or locusts are under way, nor in the last month before a court deadline. The Festival of Opet takes beer and incense; where no incense is traded it offers a smaller festival with beer alone.`,
+});
 // ── end v70 e ──
 
 //

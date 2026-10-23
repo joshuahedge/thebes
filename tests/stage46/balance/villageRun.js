@@ -25,13 +25,14 @@ import { T } from '../../../src/sim/terrain.js';
 import { idx } from '../../../src/sim/grid.js';
 import { makeTestWorld } from '../../helpers/testWorld.js';
 import { noNewDangers } from '../../v60/b1/grace.js';
+import { noCityEvents } from '../../v70/e/hold.js';   // Version 7.0 (Track E, ruling 913): the run measures the game before the city events
 
 const RAIDER_ENTRIES_48 = [{ x: 47, y: 24 }, { x: 24, y: 0 }];
 // The channel: rows 6-7, x 0-13 (the fertile strip is x 0-7), so the farms' north row (y 10) is 3 tiles from the water.
 const CHANNEL = [0, 6, 14, 2];
 
 function village({ channel, farms }) {
-  const w = noNewDangers(makeTestWorld({ size: 48, fertile: [[0, 0, 8, 48]], gold: ECONOMY.startGold, raiderEntries: RAIDER_ENTRIES_48 }));   // Version 6.0: the run measures the game before the new dangers (tests/v60/b1/grace.js)
+  const w = noCityEvents(noNewDangers(makeTestWorld({ size: 48, fertile: [[0, 0, 8, 48]], gold: ECONOMY.startGold, raiderEntries: RAIDER_ENTRIES_48 })));   // Version 6.0: the run measures the game before the new dangers (tests/v60/b1/grace.js)
   if (channel) {
     const [cx, cy, cw, cd] = CHANNEL;
     for (let y = cy; y < cy + cd; y++) for (let x = cx; x < cx + cw; x++) w.terrain[idx(w.size, x, y)] = T.WATER;

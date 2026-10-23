@@ -12,6 +12,7 @@ import { place, drawRoad, paintHouses, canPlace, previewRoad, previewHouses } fr
 import { openRoute, setTradeOrder } from '../../../src/sim/trade.js';
 import { createWorld, population, allBuildings, isSite } from '../../../src/sim/world.js';
 import { noNewDangers } from '../../v60/b1/grace.js';
+import { noCityEvents } from '../../v70/e/hold.js';   // Version 7.0 (Track E, ruling 913): the run measures the game before the city events
 import { milestoneIndex, isUnlocked } from '../../../src/sim/progression.js';
 import { costOf, routeCostOf } from '../../../src/sim/costs.js';
 import { T } from '../../../src/sim/terrain.js';
@@ -41,7 +42,7 @@ function capitalWorld(size = SIZE, dangers = false, seed = 5) {
   const map = { size, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries };
   const world = createWorld({ seed, size, map });
   // Version 6.0: the run measures the game before the new dangers (tests/v60/b1/grace.js); the Wave 4 balance runs (tests/v60/balance) ask for them (dangers: the three-year grace from day 0).
-  return dangers ? world : noNewDangers(world);
+  return noCityEvents(dangers ? world : noNewDangers(world));
 }
 
 // Each step: the milestone it waits for, what it costs now, and the command. A step that fails for any reason but gold

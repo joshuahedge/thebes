@@ -14,7 +14,6 @@ import { tradeAllowed, heldBack, tradeAlerts } from '../../../src/sim/tradeRules
 import { drawEvent, eventChoices, applyChoice, eventAlerts } from '../../../src/sim/cityEvents.js';
 import { seasonAt } from '../../../src/sim/seasons.js';
 import { towerSpotsFor, strandedFix } from '../../../src/sim/adviceFixes.js';
-import { v70Alerts } from '../../../src/sim/v70.js';
 import { alertsFor } from '../../../src/sim/alerts.js';
 import { cityAdvice } from '../../../src/sim/advice.js';
 import { ADVICE_KINDS } from '../../../src/data/advice.js';
@@ -111,16 +110,18 @@ describe('v70 contract trade rules', () => {
 });
 
 describe('v70 contract city events', () => {
-  it('draws no event, offers no choice and applies none, so a year of play leaves the record as it was', () => {
+  // Version 7.0 (Track E) filled the stubs: the contract's "draws nothing" test is now this, that an event not waiting has no choices and takes no answer, and
+  // while none waits no alert is raised (what events do is tests/v70/e).
+  it('offers no choice for, and applies none to, an event that is not waiting, and raises no alert while none waits', () => {
     const w = sample();
     w.milestone = 'capital';
-    expect([drawEvent(w), eventChoices(w, { kind: 'envoy', day: 0, due: 60 })]).toEqual([null, []]);
+    w.cityEvents = { nextDay: w.day + 360, cooldowns: {}, waiting: null };
+    expect([eventChoices(w, { kind: 'envoy', day: 0, due: 60 }), drawEvent(w)]).toEqual([[], null]);
     expect(applyChoice(w, { kind: 'envoy', day: 0, due: 60 }, 'accept')).toEqual({ ok: false, reason: 'no_event', warnings: [] });
     expect(eventAlerts(w)).toEqual([]);
     const before = JSON.stringify(w.cityEvents);
-    advanceDays(w, 360);
+    advanceDays(w, 100);
     expect(JSON.stringify(w.cityEvents)).toBe(before);
-    expect(v70Alerts(w)).toEqual([]);
     expect(alertsFor(w).some((a) => /event/.test(a.code))).toBe(false);
   });
 });
@@ -177,7 +178,7 @@ describe('v70 contract advice', () => {
     expect(ADVICE_KINDS.slice(ADVICE_KINDS.indexOf('demand') + 1, ADVICE_KINDS.indexOf('demand') + 4)).toEqual(NEW_KINDS);
     const w = sample();
     advanceDays(w, 60);
-    for (const a of cityAdvice(w)) expect([a.kind, NEW_KINDS.includes(a.kind)]).toEqual([a.kind, false]);
+    for (const a of cityAdvice(w)) expect([a.kind, NEW_KINDS.filter((k) => k !== 'event').includes(a.kind)]).toEqual([a.kind, false]);   // Track E pushes 'event' now (tests/v70/e); trade's two come in wave 2
     expect([towerSpotsFor(w, null), strandedFix(w, 'pottery', null)]).toEqual([[], null]);
   });
 
