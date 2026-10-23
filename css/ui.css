@@ -1513,3 +1513,31 @@ body[data-layout="portrait"]:not([data-text-size="150"]) #topbar .stats:not(.tig
 /* (separator) */
 /* ── v70 a (Track A, wave 2) ── any Advice styles. ── */
 /* ── end v70 a ── */
+
+/* (separator) */
+/* ── v70 p (Track P, wave 2) ── the lesson's step card, the placement marks, the desktop sheets. ── */
+/* The lesson's step card (src/ui/lessonCard.js, ruling 1002): a light dim over the screen and one card in the middle. It sits above the page (z-index 12), under the toasts
+   and the confirm dialog (13) so Leave the lesson's question and the Undo toast stay on top. The row waits behind it. */
+.lesson-card-scrim { position: fixed; inset: 0; z-index: 12; display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; background: rgba(28, 22, 12, 0.34); }
+body.lesson-card-up #dialog, body.lesson-card-up #toasts { z-index: 13; }
+body.lesson-card-up #lesson { display: none; }
+.lesson-card { display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; width: min(100%, 420px); max-height: 100%; padding: 14px 16px; background: var(--parchment); background-image: var(--look-fibre); color: var(--ink); border: 2px solid var(--teal); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.lesson-card .lc-label { margin: 0; }
+.lesson-card .lc-pic { display: flex; justify-content: center; align-items: center; min-height: 0; }
+.lesson-card .lc-thumb { display: block; width: 156px; height: 78px; }
+.lesson-card .lc-pic .speed-picture { transform: scale(1.8); transform-origin: center; margin: 8px 0; }
+.lesson-card .lc-coin { display: block; width: 48px; height: 48px; }
+.lesson-card .lc-words { margin: 0; font-size: calc(18px * var(--ui-scale)); line-height: 1.3; font-weight: 600; overflow-wrap: anywhere; }
+.lesson-card .lc-actions { display: flex; flex-direction: column; gap: 6px; }
+.lesson-card .lc-go { width: 100%; min-height: 52px; font-size: calc(18px * var(--ui-scale)); }
+.lesson-card .lc-leave { align-self: center; }
+/* A phone held sideways (and any screen too short for the picture): the words on the left, the buttons on the right, no picture. */
+body[data-layout="compact"] .lesson-card { width: min(100%, 640px); display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; row-gap: 4px; align-items: center; }
+body[data-layout="compact"] .lesson-card .lc-label { grid-column: 1; grid-row: 1; }
+body[data-layout="compact"] .lesson-card .lc-words { grid-column: 1; grid-row: 2; }
+body[data-layout="compact"] .lesson-card .lc-actions { grid-column: 2; grid-row: 1 / span 2; min-width: 11em; }
+body[data-layout="compact"] .lesson-card .lc-pic { display: none; }
+body[data-layout="compact"] .lesson-card .lc-words { font-size: calc(16px * var(--ui-scale)); }
+body[data-layout="wide"] .lesson-card { width: min(100%, 460px); padding: 18px 20px; }
+body[data-layout="portrait"]:is([data-text-size="125"], [data-text-size="150"]) .lesson-card .lc-words { font-size: calc(16px * var(--ui-scale)); }
+/* ── end v70 p ── */

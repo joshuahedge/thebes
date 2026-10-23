@@ -9,7 +9,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
-import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT, S46_UX_TEXT, S47_SPOTS_TEXT } from './text.js';
+import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT, S46_UX_TEXT, S47_SPOTS_TEXT, P_TEXT } from './text.js';
 import { AREA_TEXT } from './areaText.js';
 import { ROUTE_TEXT } from './routeText.js';
 import { el, button, iconButton, clear } from './components.js';
@@ -19,7 +19,7 @@ const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted'
 const NARROW_BAR = 365;   // px: a bar this narrow at 150% text can need a chip row for each condition (css/ui.css .conds.tall.narrow)
 const rotates = (tool) => tool.kind === 'building' && Boolean(BUILDINGS[tool.type].rotates);   // none in Stage 1 (mastabas come with monuments)
 
-export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo, onArea = (type, on) => (on ? placement.startArea(type) : placement.start({ kind: 'building', type })) }) {
+export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo, keys = () => true, onArea =(type, on) => (on ? placement.startArea(type) : placement.start({ kind: 'building', type })) }) {
   const element = el('div', { id: 'confirm', hidden: true });
   container.append(element);
 
@@ -101,12 +101,14 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
       const on = s.tool.kind === 'areas';
       controls.push(iconButton(on ? AREA_TEXT.oneLabel(areaType) : AREA_TEXT.areaLabel(areaType), on ? '▢' : '▦', { class: 'area-toggle', 'aria-pressed': String(on), title: on ? AREA_TEXT.one : AREA_TEXT.area, onClick: () => onArea(areaType, !on) }));
     }
-    if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', onClick: () => placement.rotate() }));   // Stage 4: a mastaba turns (ruling 234)
+    if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', title: keys() ? `${T.rotate} (R)` : T.rotate, 'aria-keyshortcuts': keys() ? 'r R' : null, onClick: () => placement.rotate() }));   // Stage 4: a mastaba turns (ruling 234)
     if ((s.tool.kind === 'road' || s.tool.kind === 'wall') && !s.tool.route && s.line && s.line.x1 !== null) controls.push(button(T.flip, { class: 'flip', onClick: () => placement.flip() }));
     // On a phone Undo is a small icon and only when there is something to undo (the toast after a placement keeps the word);
     // the wide layout keeps the word button, greyed out when there is nothing to undo.
-    if (s.layout === 'wide') controls.push(button(T.undo, { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));
-    else if (placement.canUndo() || s.tool.kind === 'houses') controls.push(iconButton(T.undo, '↶', { class: 'undo', disabled: !placement.canUndo(), onClick: onUndo }));   // Stage 4.7: the house tool stays on, so its Undo is always there (greyed with nothing to undo) and the bar does not widen when the first plot goes down
+    // Version 7.0 (Track P): its tooltip and aria-keyshortcuts name Ctrl+Z, and Delete while the single keys are on.
+    const undoHint = { title: P_TEXT.undoTitle(keys()), 'aria-keyshortcuts': keys() ? 'Control+Z Meta+Z Delete Backspace' : 'Control+Z Meta+Z' };
+    if (s.layout === 'wide') controls.push(button(T.undo, { class: 'undo', ...undoHint, disabled: !placement.canUndo(), onClick: onUndo }));
+    else if (placement.canUndo() || s.tool.kind === 'houses') controls.push(iconButton(T.undo, '↶', { class: 'undo', ...undoHint, disabled: !placement.canUndo(), onClick: onUndo }));   // Stage 4.7: the house tool stays on, so its Undo is always there (greyed with nothing to undo) and the bar does not widen when the first plot goes down
     // Stage 4.6 (ruling 400): Enter lays what is waiting and Esc takes it back whatever has focus (keyboard.js, createUI's placementPending), and where
     // there is a keyboard the tick says so: a small "Enter" on it (css, body[data-keyboard]), and the keys in the buttons' tooltips and keyshortcuts.
     // Stage 4.7 (Task 4, ruling 465): the house tool stays on after a plot is laid (by touch too), so with nothing waiting to be laid the way out is a clear Done

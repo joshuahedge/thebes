@@ -3368,7 +3368,7 @@ V60_HELP.b1.push(V601_TEXT.help);
 // V70_HELP: How to play's Version 7.0 paragraphs, by track, each { head, text } (menu.js help() adds them after Version 6.0's, in this key order);
 // V70_ADVICE_WORDS: kind -> (item, world) => { what, why, fix } for the Version 7.0 advice kinds (src/ui/adviceText.js adviceWords asks it, after
 // V60_ADVICE_WORDS, for any kind it does not word itself). A track writes only its own key of V70_HELP and only its own kinds.
-export const V70_HELP = { t: [], e: [], s: [], a: [] };
+export const V70_HELP = { t: [], e: [], s: [], a: [], p: [] };   // p: Track P's, after A's (ruling 1000)
 export const V70_ADVICE_WORDS = {};
 // ── end v70 contract ──
 
@@ -3698,3 +3698,28 @@ TIP_TEXT.night_falls = 'Night falls and the lamps light. Nothing is hidden, and 
 // ── v70 a (Track A, wave 2, rulings 960-974: the Advice fixes and the words for trade and events) ──────────────────────
 // Add new lines just above the end marker: V70_HELP.a.push(...), V70_ADVICE_WORDS.quay = ..., V70_ADVICE_WORDS.trade_floor = ..., TIP_TEXT.<id> = ...
 // ── end v70 a ──
+
+//
+// (A stable separator between the Version 7.0 sections: leave these lines as they are.)
+//
+// ── v70 p (Track P, wave 2, rulings 1000-1014: playtest fixes) ───────────────────────────────────────────────────────────
+// The lesson's card, the keyboard, the placement bar's reasons, the marks for what is placed but not built, and the desktop sheets. Every sentence that states a rule,
+// a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+export const P_TEXT = {
+  // The lesson's step card (src/ui/lessonCard.js): the button names what it does (the game plays on, the card points at the place, or it is only read).
+  card: { region: 'Lesson step', play: T.play, showMe: T.showMe, gotIt: T.gotIt },
+  cardGoTitle: (label, keys = true) => (keys ? `${label} (Enter)` : label),
+  // Delete and Backspace (ruling 1001): the tooltips of the buttons they press.
+  undoTitle: (keys = true) => (keys ? 'Undo (Ctrl+Z or Delete)' : 'Undo (Ctrl+Z)'),
+  demolishTitle: 'Demolish (Delete)',
+  removeRow: 'Take back what you just placed while Undo is offered; otherwise demolish the building whose sheet is open',
+};
+// How to play's key table: Delete and Backspace, after Undo.
+HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'undo') + 1, 0, ['remove', P_TEXT.removeRow]);
+// The keys as a player reads them, from KEYS, so the words cannot drift from the keys.
+const pKey = (name) => [...new Set((KEYS[name] || []).map((k) => ({ ' ': 'Space', Escape: 'Esc' }[k] || (k.length === 1 ? k.toUpperCase() : k))))].join(' or ');
+V70_HELP.p.push({
+  head: 'Keyboard',
+  text: `On a computer: ${pKey('pause')} pauses and plays, ${pKey('speedUp')} and ${pKey('speedDown')} change the speed, ${pKey('zoomIn')} and ${pKey('zoomOut')} zoom, Arrows or WASD move the view, ${KEYS.category[0]} to ${KEYS.category[KEYS.category.length - 1]} pick a build category, ${pKey('rotate')} turns what can turn, ${pKey('minimap')} opens the minimap, ${pKey('overlay')} cycles the layers and ${pKey('help')} opens How to play. While you place, ${pKey('confirm')} places and ${pKey('back')} puts the tool away. Undo is Ctrl+Z (Cmd+Z on a Mac); ${pKey('remove')} does the same while the Undo of what you just placed is still on offer, and otherwise demolishes the building whose sheet is open, with the same question first when it asks one. A lesson step's card closes with Enter, Space or Esc. Settings → Keyboard shortcuts turns the single keys off; Esc, Enter and Ctrl+Z always work.`,
+});
+// ── end v70 p ──

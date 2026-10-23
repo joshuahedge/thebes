@@ -10,12 +10,18 @@
 //  - it asks the sim (src/sim/lesson.js lessonAt) after every command and every day, and moves on only when the sim shows the step done;
 //  - the lesson's end is a sheet, "Your first city stands", and the row's Go to the title button (live while the sheet is not open).
 // The step reached is kept in the device's settings (lessonStep), never in the world; the lesson's city is never saved (src/boot.js).
+// Version 7.0 (Track P, ruling 1002): a step opens as a card in the middle of the screen (src/ui/lessonCard.js) with the game paused behind it, and docks to the row when
+// it is dismissed. Dismissing a step that only waits on the game (src/data/lesson.js `play: 'card'`) plays again at the speed the player had before the card paused it
+// (normal speed if none); a step with a part of its own to do (`play: 'act'`) stays paused until that part is done (src/sim/lesson.js actionDone), then plays again by
+// itself; a step whose building ends it needs neither (the next card pauses again at once). Placing and the build tray work while paused.
 import { seamBase } from '../s46/seam.js';
 import { LESSON_STEPS, LESSON_PLACES } from '../../data/lesson.js';
-import { LESSON_LENGTH, lessonAt, stepSpot, stepProgress } from '../../sim/lesson.js';
+import { LESSON_LENGTH, lessonAt, stepSpot, stepProgress, playWhen, actionBase, actionDone } from '../../sim/lesson.js';
+import { setSpeed } from '../../sim/commands.js';
 import { lessonFacts } from '../lesson.js';
 import { createCardMoments } from '../cardMoments.js';
-import { D2_TEXT, T } from '../text.js';
+import { createLessonCard, pictureOf } from '../lessonCard.js';
+import { D2_TEXT, P_TEXT, T } from '../text.js';
 import { el, button, iconButton, setText } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
 import { tileToScreen } from '../../render/camera.js';
@@ -68,6 +74,9 @@ export function createLessonUi(ctx) {
 
   let at = lessonAt(world, run.step || 0);
   let facts = null, step = null, open = false, finished = false, needPause = false, announceNext = true, endShown = false, destroyed = false, key = '', litSel = null, shownAt = -1;
+  // The step card and the clock (ruling 1002): cardAt the step it was last shown for, held the speed the player had before it paused the game, actBase what an 'act' step
+  // counts its own part from, actResumed whether that part has already played the game on again.
+  let cardAt = -1, held = null, actBase = null, actResumed = false;
 
   const persist = () => { if (!settings.get().lessonDone) settings.set({ lessonStep: Math.min(at, LESSON_LENGTH) }); };
 
@@ -102,6 +111,47 @@ export function createLessonUi(ctx) {
 
   function askLeave() {
     store.set({ confirmDialog: { text: D2_TEXT.leaveConfirm, confirmLabel: D2_TEXT.leave, onConfirm: () => run.leave() } });
+  }
+
+  // ── the step card and the clock (ruling 1002) ──
+  const keysOn = () => settings.get().keyboardShortcuts !== false;
+  const card = createLessonCard({ root, doc, store, onGo: () => dismissCard(), onLeave: () => askLeave(), keys: keysOn });
+
+  // The card pauses the game, remembering the speed it was playing at (the player's own, kept through the cards that follow while it stays paused).
+  function holdForCard(building) {
+    if (world.speed > 0) held = world.speed;
+    if (world.speed === 0) return;
+    if (building || !ctx.speedControl) setSpeed(world, 0); else ctx.speedControl.set(0);   // building: the interface is still being made, so no command's afterCommand yet
+  }
+  // Plays again at the speed the player had before the lesson paused it, normal speed if none; only from a pause (a player who pressed Play already is left alone).
+  function resumePlay() {
+    if (world.speed !== 0 || destroyed) return;
+    const to = held || store.get().lastSpeed || 1;
+    if (ctx.speedControl) ctx.speedControl.set(to); else setSpeed(world, to);
+  }
+
+  // A step begins: its card says the step (a step that waits on the game asks for Play, the rest for Show me, or Got it with nothing to show), and the game waits behind it.
+  function showCard(building) {
+    if (!step || finished) return;
+    cardAt = at; actBase = actionBase(world); actResumed = false;
+    const mode = playWhen(world, step);
+    holdForCard(building);
+    const t = targetOf();
+    const words = D2_TEXT.steps[step.id]({ ...lessonFacts(world, step), paused: mode === 'card' });   // a waiting step says "Press Play": its button is Play; the others play on by themselves
+    card.show({ label: D2_TEXT.lessonLabel(at + 1, LESSON_LENGTH), text: words.text, goLabel: mode === 'card' ? P_TEXT.card.play : t ? P_TEXT.card.showMe : P_TEXT.card.gotIt, picture: pictureOf(step) });
+    announceNext = false;   // the dialog is read as it takes focus
+  }
+  // The card closes (its button, Enter, Space or Esc): the step docks to its row; a waiting step plays on, the others point at their place as Show me does.
+  function dismissCard() {
+    if (!card.isUp()) return;
+    card.hide();
+    if (playWhen(world, step) === 'card') resumePlay(); else doShowMe();
+    // Ruling 821's lesson, for the step's own Show me: held sideways at large text the card's tool leaves its overlay and legend over a row of the same height, with no map
+    // between (the firehouse's Fire risk), so the overlay stays off there; the player turns it on from Layers.
+    if (store.get().layout === 'compact' && Number(settings.get().textSize) >= 125 && store.get().overlay) store.set({ overlay: null });
+    paintOpen();
+    const focus = row.querySelector('.show-me:not([hidden])') || row.querySelector('.leave:not([hidden])');
+    if (focus && focus.offsetParent !== null) focus.focus();
   }
 
   // The dock's cards and categories, as the guided start marks them (src/ui/guide.js): the step's card ringed and tagged, the rest dimmed.
@@ -188,6 +238,10 @@ export function createLessonUi(ctx) {
     }
     if (needPause && !building && ctx.speedControl) { needPause = false; ctx.speedControl.set(0); }   // a command: not while the interface is still being built
     paint();
+    if (!finished && step && cardAt !== at) showCard(building);
+    else if (finished && card.isUp()) card.hide();
+    // The player's own part of a step that has one is done: the game plays again by itself (ruling 1002).
+    if (!card.isUp() && step && !finished && !actResumed && playWhen(world, step) === 'act' && actionDone(world, step, actBase)) { actResumed = true; resumePlay(); }
     if (announceNext) { announceNext = false; announce(); }
     // The end sheet opens once nothing else is open, and never while the interface is still being built (its sheets are made after its seams: a lesson begun
     // at the end, a dev scene's, opens it at the first refresh instead).
@@ -226,7 +280,7 @@ export function createLessonUi(ctx) {
 
   // Once a frame: the ring and the dimming follow the camera, and the control's ring follows its element (the top bar draws its controls afresh).
   function layout() {
-    const spot = step && !finished ? stepSpot(world, step) : null;
+    const spot = step && !finished && !card.isUp() ? stepSpot(world, step) : null;   // under the step card the map is dimmed by the card's own layer
     if (!spot || !run.cam) { scrim.hidden = true; ring.hidden = true; }
     else {
       const v = viewOf();
@@ -277,7 +331,7 @@ export function createLessonUi(ctx) {
       destroyed = true;
       stop();
       if (raf && win.cancelAnimationFrame) win.cancelAnimationFrame(raf);
-      row.remove(); scrim.remove(); ring.remove();
+      row.remove(); scrim.remove(); ring.remove(); card.destroy();
       for (const n of root.querySelectorAll('.lesson-lit')) n.classList.remove('lesson-lit');
       root.classList.remove('lesson-on', 'lesson-names-alert');
     },

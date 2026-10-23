@@ -190,7 +190,7 @@ describe('v70 contract advice', () => {
   });
 
   it('words a new kind from V70_ADVICE_WORDS, and How to play\'s paragraphs come from V70_HELP in track order', () => {
-    expect(Object.keys(V70_HELP)).toEqual(['t', 'e', 's', 'a']);
+    expect(Object.keys(V70_HELP)).toEqual(['t', 'e', 's', 'a', 'p']);   // Track P's playtest-fixes key joined after A's (ruling 1000)
     for (const list of Object.values(V70_HELP)) for (const p of list) expect([typeof p.head, typeof p.text]).toEqual(['string', 'string']);
     const w = createWorld({ seed: 6 });
     const item = { key: 'event:1', kind: 'event', weight: 5, count: 1, id: null, data: {}, fix: null, cost: null, afford: null };
