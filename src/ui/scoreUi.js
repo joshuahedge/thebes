@@ -1,6 +1,6 @@
 // The score interface (spec 4.1, 4.17, 4.19): the summary's score section with Seal this reign and Share score, the
 // score chip on the summary button, the next-threshold bar, the "+N" score preview in the confirm bar, feats, citizen
-// remarks, and the title card's records, stamps, weekly seed and shared score. Stage 3 contract: createUI makes one per
+// remarks, and the title card's records, stamps and shared score. Stage 3 contract: createUI makes one per
 // game exactly as it makes the danger interface (src/ui/danger.js: the same ctx, the same returned shape), and boot.js
 // decorates the title card through titleDecor.
 //
@@ -21,7 +21,7 @@ import { generateMap } from '../sim/mapgen.js';
 import { el, button, setText } from './components.js';
 import {
   SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
-  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel,
+  sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT,
 } from './text.js';
 
 // Returns { sheets, sheetParts: { building, house, actions, summary }, onEvents, refresh, onAlertAction, onCommand,
@@ -326,8 +326,10 @@ function stampFor(entry, dpr) {
 // with "Beat N?" and Start this seed above the buttons. boot.js calls titleDecor once per title card and passes the result
 // to createTitleCard as decorate, which calls it with (element, { buttonBox, newCity }).
 // opts: { records (src/save/records.js), shared (the page's location hash, '' for none), startSeed(seed, variant, size) (starts a city on
-// that seed, asking first when a city is saved, as New city does), clock, dpr (the stamps' pixel ratio) }.
-export function titleDecor({ records = null, shared = '', startSeed = () => {}, clock = () => Date.now(), dpr = (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1 } = {}) {
+// that seed, asking first when a city is saved, as New city does), clock, dpr (the stamps' pixel ratio),
+// setDifficulty(level) (Version 6.0, ruling 793: keeps the link's level as the device's, so Start this seed plays it even on the lesson-only card, which
+// has no difficulty choice to click), lessonPending (this device has not finished the lesson: the link's card says where it is) }.
+export function titleDecor({ records = null, shared = '', startSeed = () => {}, clock = () => Date.now(), dpr = (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1, setDifficulty = () => {}, lessonPending = false } = {}) {
   return (element, { buttonBox, newCity } = {}) => {
     if (!element || !buttonBox) return;
     const safe = (fn, fallback) => { try { return fn(); } catch (e) { return fallback; } };
@@ -364,6 +366,7 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
     const start = button(TITLE_SCORE_TEXT.startSeed, { class: 'start-seed primary', onClick: () => {
       const choice = buttonBox.querySelector(`.choice.difficulty[data-value="${link.difficulty}"]`);
       if (choice && choice.getAttribute('aria-pressed') !== 'true') choice.click();
+      setDifficulty(link.difficulty);   // the lesson-only card has no choice to click: the link's level is kept here
       startSeed(link.seed, link.variant, link.size);
     } });
     element.insertBefore(el('section', { class: 'shared-score', 'aria-labelledby': 'shared-score-heading' }, [
@@ -374,6 +377,7 @@ export function titleDecor({ records = null, shared = '', startSeed = () => {}, 
       el('p', { class: 'your-best small', text: score4YourBest(best ? best.score : null, link.older) }),
       el('p', { class: 'beat', text: TITLE_SCORE_TEXT.beat(total) }),
       el('p', { class: 'start-on small muted', text: TITLE_SCORE_TEXT.startOn(link.difficulty) }),
+      lessonPending ? el('p', { class: 'friend-lesson small muted', text: D2_TEXT.shareLessonLine }) : null,
       start,
     ]), buttonBox);
   };

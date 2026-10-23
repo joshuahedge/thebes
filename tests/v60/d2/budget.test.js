@@ -42,8 +42,11 @@ describe('v60 d2 the lesson\'s row fits a phone', () => {
             const r = row.getBoundingClientRect();
             const compact = w > h;
             const limit = compact ? 0.4 : text === 100 ? 0.3 : 0.4;
-            const hiddenForTheAlert = compact && text >= 125 && document.body.classList.contains('has-banner');   // ruling 172: the one row is the alert's
+            // ruling 172: the one row is the alert's; but not in the steps that are the alert's own (the tower step: the row carries the raid warning and its line goes, ruling 797)
+            const names = document.body.classList.contains('lesson-names-alert');
+            const hiddenForTheAlert = compact && text >= 125 && document.body.classList.contains('has-banner') && !names;
             if (hiddenForTheAlert) { expect([at, row.offsetParent]).toEqual([at, null]); continue; }
+            if (names) for (const line of s.root.querySelectorAll('#banner > .critical[data-code="raid_warning"]')) expect([at, 'the warning line gives way to the row', getComputedStyle(line).display]).toEqual([at, 'the warning line gives way to the row', 'none']);
             expect([at, r.width > 0, (r.bottom - s.frameBox.top) / h <= limit]).toEqual([at, true, true]);
             const banner = s.root.querySelector('#banner');
             if (banner && banner.offsetParent !== null && banner.children.length) { const b = banner.getBoundingClientRect(); expect([at, 'no overlap with the alert row', b.bottom <= r.top + 1 || r.bottom <= b.top + 1]).toEqual([at, 'no overlap with the alert row', true]); }

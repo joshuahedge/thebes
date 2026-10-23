@@ -8,7 +8,7 @@
 //  - the step's target is lit: the card it asks for and its category carry the guide's "Suggested" tag and ring and every other card is dimmed (still
 //    usable), a place on the map is ringed with the rest of the map dimmed round it, and a control (the speed buttons, the gold chip) gets a ring;
 //  - it asks the sim (src/sim/lesson.js lessonAt) after every command and every day, and moves on only when the sim shows the step done;
-//  - the lesson's end is a sheet, "Your first city stands", and the row's New city button.
+//  - the lesson's end is a sheet, "Your first city stands", and the row's Go to the title button (live while the sheet is not open).
 // The step reached is kept in the device's settings (lessonStep), never in the world; the lesson's city is never saved (src/boot.js).
 import { seamBase } from '../s46/seam.js';
 import { LESSON_STEPS, LESSON_PLACES } from '../../data/lesson.js';
@@ -20,11 +20,17 @@ import { el, button, iconButton, setText } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
 import { tileToScreen } from '../../render/camera.js';
 import { openSheet } from '../modes.js';
+import { TOPBAR_PX, freeTop } from '../layout.js';
 
 // The lit ring's reach round a footprint: the footprint's diamond (a tile is 64 px wide and 32 tall at zoom 1, so w + d tiles are (w + d) x 32 px wide and
 // (w + d) x 16 tall, and the ring's half-axes are half of that) with this much to spare, in px.
 const RING_PAD = 14;
 const RING_MIN = { x: 44, y: 30 };
+const ringHalf = (spot, k) => { const span = spot.w + spot.d; return { rx: Math.max(RING_MIN.x, span * 16 * k + RING_PAD), ry: Math.max(RING_MIN.y, span * 8 * k + RING_PAD) }; };
+
+// The steps whose alert the row itself carries (the fire, the raid warning and the raid: who, how many, how long, what to build), so the alert's banner does not
+// stand over the row saying it twice (css/ui.css body.lesson-names-alert).
+const NAMES_ALERT = new Set(['fire', 'tower', 'raid']);
 
 export function createLessonUi(ctx) {
   const base = seamBase();
@@ -123,7 +129,7 @@ export function createLessonUi(ctx) {
     facts = lessonFacts(world, step);
     if (!step) {
       setText(label, ''); setText(text, D2_TEXT.endRow); setText(why, ''); chip.hidden = true;
-      showMe.hidden = true; leave.hidden = true; newCity.hidden = false;
+      showMe.hidden = true; leave.hidden = true; paintEnd();
       row.dataset.step = 'end';
     } else {
       const words = D2_TEXT.steps[step.id](facts);
@@ -139,9 +145,15 @@ export function createLessonUi(ctx) {
       leave.hidden = false; newCity.hidden = true;
       row.dataset.step = step.id;
     }
+    root.classList.toggle('lesson-names-alert', Boolean(step) && NAMES_ALERT.has(step.id));
     dim();
     measure();
   }
+
+  // The row's way out at the end ("Go to the title") is live only while the end sheet is not open: under the sheet it would be a second button behind it (a tap
+  // through the sheet's edge, a Tab into it), and the sheet has the same button.
+  const endSheetOpen = () => { const s = store.get().sheet; return Boolean(s) && s.kind === 'lessonEnd'; };
+  function paintEnd() { newCity.hidden = !finished || endSheetOpen(); }
 
   // Where the sim says the lesson is: moves on through every step it shows done, stages what the next one stages, says so with a sound, and ends.
   function sync(building = false) {
@@ -169,17 +181,30 @@ export function createLessonUi(ctx) {
     ensureVisible();
   }
 
-  // A step's target is brought into the middle of the map once, when the step begins, if it is not already well inside the free band (the rows above and the dock
-  // below take about a quarter of a phone's height each): a glide, as Show me's is (a jump under Still).
+  // The map the interface leaves free, as insets from the screen's edges in px (createUI's sheetInsets is private to it, so the same parts are read here): a wide screen's
+  // top bar and side panel (320 px, 56 folded), a landscape phone's rows under the top bar (measured) and rail, a portrait phone's band between the rows above and the dock
+  // below (about a third of its height each way).
+  function freeInsets(v) {
+    const layout = store.get().layout;
+    if (layout === 'wide') { const p = root.querySelector('#panel'); return { top: TOPBAR_PX, right: p && p.offsetWidth ? p.offsetWidth : 320, bottom: 0, left: 0 }; }
+    if (layout === 'compact') { const r = root.querySelector('#rail'); return { top: freeTop(root, root.querySelector('#map'), layout), right: r && r.offsetWidth ? r.offsetWidth : 56, bottom: 0, left: 0 }; }
+    return { top: v.height * 0.3, right: 0, bottom: v.height * 0.34, left: 0 };
+  }
+
+  // A step's target is brought into the middle of the free map once, when the step begins, if its ring does not already sit well inside it (a ring wider than the
+  // free map only needs its centre): a glide, as Show me's is (a jump under Still).
   function ensureVisible() {
     if (finished || shownAt === at || !step || !ctx.cameraControl) return;
     const spot = stepSpot(world, step);
     shownAt = at;
     if (!spot || !run.cam) return;
-    const v = viewOf(), [sx, sy] = tileToScreen(run.cam, v, spot.x + spot.w / 2, spot.y + spot.d / 2);
-    if (sx < v.width * 0.15 || sx > v.width * 0.85 || sy < v.height * 0.3 || sy > v.height * 0.66) {
-      const cx = spot.x + spot.w / 2, cy = spot.y + spot.d / 2;
-      if (typeof ctx.cameraControl.glide === 'function') ctx.cameraControl.glide(() => ctx.cameraControl.panTo(cx, cy)); else ctx.cameraControl.panTo(cx, cy);
+    const v = viewOf(), cx = spot.x + spot.w / 2, cy = spot.y + spot.d / 2, [sx, sy] = tileToScreen(run.cam, v, cx, cy);
+    const { rx, ry } = ringHalf(spot, run.cam.zoom), i = freeInsets(v);
+    const fw = v.width - i.left - i.right, fh = v.height - i.top - i.bottom;
+    const ex = Math.min(rx + 8, fw / 2), ey = Math.min(ry + 8, fh / 2);
+    if (sx < i.left + ex || sx > v.width - i.right - ex || sy < i.top + ey || sy > v.height - i.bottom - ey) {
+      const go = () => ctx.cameraControl.frameKeeping(cx, cy, cx, cy, i);
+      if (typeof ctx.cameraControl.glide === 'function') ctx.cameraControl.glide(go); else go();
     }
   }
 
@@ -190,9 +215,9 @@ export function createLessonUi(ctx) {
     const spot = step && !finished ? stepSpot(world, step) : null;
     if (!spot || !run.cam) { scrim.hidden = true; ring.hidden = true; }
     else {
-      const v = viewOf(), k = run.cam.zoom, span = spot.w + spot.d;
+      const v = viewOf();
       const [sx, sy] = tileToScreen(run.cam, v, spot.x + spot.w / 2, spot.y + spot.d / 2);
-      const rx = Math.max(RING_MIN.x, span * 16 * k + RING_PAD), ry = Math.max(RING_MIN.y, span * 8 * k + RING_PAD);
+      const { rx, ry } = ringHalf(spot, run.cam.zoom);
       const k2 = [Math.round(sx), Math.round(sy), Math.round(rx), Math.round(ry)].join(',');
       if (k2 !== key || scrim.hidden) {
         key = k2;
@@ -226,7 +251,7 @@ export function createLessonUi(ctx) {
     ]));
   }
 
-  const stop = store.subscribe(() => { if (!destroyed) dim(); });
+  const stop = store.subscribe(() => { if (!destroyed) { dim(); if (finished) paintEnd(); } });
   sync(true);
   return {
     ...base,
@@ -240,7 +265,7 @@ export function createLessonUi(ctx) {
       if (raf && win.cancelAnimationFrame) win.cancelAnimationFrame(raf);
       row.remove(); scrim.remove(); ring.remove();
       for (const n of root.querySelectorAll('.lesson-lit')) n.classList.remove('lesson-lit');
-      root.classList.remove('lesson-on');
+      root.classList.remove('lesson-on', 'lesson-names-alert');
     },
   };
 }

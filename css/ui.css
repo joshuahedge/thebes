@@ -1258,9 +1258,12 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
 .title-size .size-note { margin: 0; font-weight: 600; color: var(--ink); }
 /* Settings on the title card: the game's own rows (one panel with Back), scrolling inside the card like What's new. */
 .title-card .settings-head { font-family: var(--serif); font-size: calc(20px * var(--ui-scale)); margin: 0 0 4px; }
-.title-card .settings-body { max-height: max(260px, calc(100dvh - 250px)); overflow-y: auto; padding-right: 4px; }
+.title-card .settings-body { max-height: max(260px, calc(100dvh - 250px)); overflow-y: auto; padding-right: 4px; border-top: 1px solid var(--parchment-3); }   /* a line above the rows as well as the Back bar's below: a row that scrolls under either edge reads as cut by it */
 .title-card .settings-body .row { align-items: center; flex-wrap: wrap; }
 .title-card .settings-body .choices { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+/* The Back bar under the rows is a bar of its own, opaque with a divider above it (and the rows' own edge a line above that), so the last row that scrolls under the
+   edge reads as cut by the bar and not as a half-hidden row (the 390 px review). */
+.title-card .guide:has(.settings-body) > .actions { position: relative; margin-top: 0; padding-top: 8px; border-top: 1px solid var(--parchment-3); background-color: var(--parchment); background-image: var(--look-fibre); }
 .title-card:has(> .guide .settings-body) > .tagline, .title-card:has(> .guide .settings-body) > .version { display: none; }   /* the rows take the card's room */
 @media (max-height: 480px) {
   .title-card .settings-body { max-height: 55vh; }
@@ -1426,7 +1429,10 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson .body { padding: 2px 0; }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson button { padding: 0 6px; font-size: calc(14px * var(--ui-scale)); }
-body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]).has-banner #lesson { display: none; }
+body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]).has-banner:not(.lesson-names-alert) #lesson { display: none; }   /* ruling 172: the alert has the one row... */
+/* ...unless the step is the alert's own (the fire, the raid warning, the raid): the row carries what the alert says (who, how many, how long, what to build), so the alert's
+   line goes, on every screen, and the row stays: one guidance panel at a time, never the row hidden in the steps that matter most (src/ui/v60/lesson.js NAMES_ALERT). */
+body.lesson-names-alert #banner > .critical:is([data-code="fire"], [data-code="raid_warning"], [data-code="raid"]) { display: none; }
 /* The lit target: the map dimmed round a ring (both ignore taps), a control with a ring of its own; the ring pulses under Full motion only. */
 #ui > .lesson-scrim { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse var(--rx, 120px) var(--ry, 80px) at var(--cx, 50%) var(--cy, 50%), rgba(28, 22, 12, 0) 0%, rgba(28, 22, 12, 0) 72%, rgba(28, 22, 12, 0.46) 100%); }
 #ui > .lesson-ring { position: fixed; pointer-events: none; box-sizing: border-box; border: 3px solid var(--teal); border-radius: 50%; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85), inset 0 0 0 2px rgba(255, 255, 255, 0.55); }

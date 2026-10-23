@@ -127,7 +127,12 @@ describe('v60 d2 the lesson played end to end', () => {
       expect([g.ui.store.get().sheet && g.ui.store.get().sheet.kind, s.settings().lessonDone, s.settings().lessonStep, s.settings().cardsSeen]).toEqual(['lessonEnd', true, LESSON_LENGTH, true]);
       expect(document.querySelector('#sheet').textContent.includes(D2_TEXT.endTitle)).toBe(true);
       expect(g.world.speed).toBe(0);
-      expect([row().dataset.step, row().querySelector('.lesson-new').hidden, document.querySelector('#lesson .text').textContent]).toEqual(['end', false, D2_TEXT.endRow]);
+      // The row's way out is not live under the end sheet (a second button behind it), and is back once the sheet is closed with Keep looking around.
+      expect([row().dataset.step, row().querySelector('.lesson-new').hidden, document.querySelector('#lesson .text').textContent]).toEqual(['end', true, D2_TEXT.endRow]);
+      expect([D2_TEXT.endNew, document.querySelector('#sheet .lesson-new-city').textContent]).toEqual(['Go to the title', 'Go to the title']);
+      document.querySelector('#sheet .lesson-stay').click();
+      expect([g.ui.store.get().sheet, row().querySelector('.lesson-new').hidden]).toEqual([null, false]);
+      g.ui.store.set(openSheet(g.ui.store.get(), 'lessonEnd'));
       document.querySelector('#sheet .lesson-new-city').click();
       expect(await waitFor(() => s.api.phase() === 'title')).toBe(true);
       expect(document.querySelector('.lesson-note').textContent).toBe(D2_TEXT.standsNote);
@@ -170,10 +175,12 @@ describe('v60 d2 the lesson played end to end', () => {
       expect([rowStep(), s.settings().lessonStep]).toEqual(['bazaar', 6]);
       row().querySelector('.leave').click();                                           // a question first, naming what is kept
       const dialog = document.querySelector('#dialog');
-      expect([dialog.hidden, dialog.textContent.includes('Your place is kept')]).toEqual([false, true]);
+      expect([dialog.hidden, dialog.textContent.includes('Your place is kept'), dialog.textContent.includes('streets you laid are not kept')]).toEqual([false, true, true]);   // ruling 764, said before the tap
       dialog.querySelector('.ok').click();
       expect(await waitFor(() => s.api.phase() === 'title')).toBe(true);
       expect(titleButtons().includes(D2_TEXT.titleContinue)).toBe(true);
+      expect(document.querySelector('.lesson-hint').textContent).toBe(D2_TEXT.titleContinueHint);   // Continue says the streets are not kept
+      expect(D2_TEXT.titleContinueHint.includes('not kept')).toBe(true);
       document.querySelector('.lesson-start').click();
       const h = s.api.game();
       expect([rowStep(), Object.values(h.world.buildings).some((b) => b.type === 'farm_grain'), h.world.speed, h.lesson]).toEqual(['bazaar', true, 0, true]);

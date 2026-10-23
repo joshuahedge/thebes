@@ -9,7 +9,7 @@
 // without calling onDone (a page torn down under them). Under Full motion the cards slide; under Gentle and Still they
 // change at once (settings.motionLevel()).
 //
-// The wiring (src/boot.js): New city and This week's Nile show them first when settings.get().cardsSeen is false, then
+// The wiring (src/boot.js): New city shows them first when settings.get().cardsSeen is false, then
 // set cardsSeen (seen or skipped, ruling 262) and start the city; hooks.pictureCards(onDone) shows them any time (the title
 // card's How to play button and the How to play sheet's "Show the picture cards", both Track G's).
 //

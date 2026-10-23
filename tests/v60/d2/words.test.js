@@ -4,7 +4,7 @@ import { describe, it, expect } from '../../harness.js';
 import { LESSON_STEPS } from '../../../src/data/lesson.js';
 import { lessonWorld, replayTo, LESSON_LENGTH } from '../../../src/sim/lesson.js';
 import { lessonDue, lessonStartStep, lessonPartWay, lessonFacts } from '../../../src/ui/lesson.js';
-import { D2_TEXT, cards4WorkShare } from '../../../src/ui/text.js';
+import { D2_TEXT, DANGER_UI_TEXT, cards4WorkShare } from '../../../src/ui/text.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
 import { ECONOMY } from '../../../src/data/economy.js';
 import { RAIDS } from '../../../src/data/raids.js';
@@ -93,7 +93,8 @@ describe('v60 d2 the lesson\'s words are the sim\'s', () => {
     expect([f.warning.size, f.warning.dir, f.warning.need, f.warning.have, f.warning.daysLeft]).toEqual([warn.size, warn.dir, towersNeeded(warn.size), 0, warn.arrives - w.day]);
     const text = said(w, 'tower').text;
     expect(text).toContain(`${warn.size} of them`);
-    expect(text).toContain(`in ${f.warning.daysLeft} days`);
+    expect(text).toContain(`in ${DANGER_UI_TEXT.duration(f.warning.daysLeft)}.`);                // game months, as the alert's own countdown says it ("2 months 29 days"), not "89 days"
+    expect(DANGER_UI_TEXT.arrivesIn(f.warning.daysLeft)).toContain(DANGER_UI_TEXT.duration(f.warning.daysLeft));
     expect(text).toContain(`from the ${warn.dir}`);
     expect(text).toContain('Build a tower');
     expect(said(w, 'tower').why).toContain(`${RAIDS.raidersPerTower} raiders`);
@@ -108,7 +109,7 @@ describe('v60 d2 the lesson\'s words are the sim\'s', () => {
     const w = at('raid');
     setSpeed(w, 1);
     for (let d = 0; d < 3 && !w.raid.warning; d++) tickDay(w);
-    expect(said(w, 'raid').text).toContain(`${w.raid.warning.arrives - w.day} days to go`);
+    expect(said(w, 'raid').text).toContain(`${DANGER_UI_TEXT.duration(w.raid.warning.arrives - w.day)} to go`);
     for (let d = 0; d < 200 && !w.raid.active; d++) { tickDay(w); if (w.speed === 0) setSpeed(w, 1); }
     expect(w.raid.active.raiders.length).toBeGreaterThan(0);
     expect(said(w, 'raid').text).toBe(`The raiders are here: ${w.raid.active.raiders.length} on the map. Watch the towers stop them.`);
