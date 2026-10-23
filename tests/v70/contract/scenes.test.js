@@ -43,7 +43,8 @@ describe('v70 contract dev scenes', () => {
         expect([name, said[name].startsWith(`${name}: `)]).toEqual([name, true]);
       }
       expect(said['v70-trade'].startsWith('v70-trade: capital, routes open ')).toBe(true);
-      expect(said['v70-event']).toBe('v70-event: capital, next 0, none waiting');
+      expect(said['v70-event'].startsWith('v70-event: capital, next ')).toBe(true);                 // Track E's scene: an event waiting (tests/v70/e), not Track 0's empty record
+      expect(said['v70-event'].includes(', waiting ')).toBe(true);
       expect(said['v70-season-flood'].endsWith('akhet (blend 0)')).toBe(true);
       expect(said['v70-season-growing'].endsWith('peret (blend 0)')).toBe(true);
       expect(said['v70-season-harvest'].endsWith('shemu (blend 0)')).toBe(true);

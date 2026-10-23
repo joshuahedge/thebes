@@ -1457,6 +1457,19 @@ body:not(.reduce-motion) .lesson-lit { animation: lesson-lit 1.4s ease-in-out in
 
 /* (separator) */
 /* ── v70 e (Track E) ── the event card. ── */
+/* The card: the story, then each choice as a button with what it costs and does under it (and why not, with Show me, when it is off), then what is taken
+   if nothing is chosen. It fits without scrolling at 390x844 and 100% text (tests/v70/e), so the gaps are tight and the choices come first. */
+#sheet .event-body { margin: 4px 0 8px; }
+#sheet .event-choices { display: grid; gap: 10px; margin: 6px 0; }
+#sheet .event-choice { display: flex; flex-direction: column; gap: 3px; }
+#sheet .event-choice > button { width: 100%; padding: 8px 12px; white-space: normal; }
+#sheet .event-choice > button:disabled { opacity: 0.55; }
+#sheet .event-choice p { margin: 0; }
+#sheet .event-choice .why-not { margin: 0; }
+#sheet .event-choice .refusal-fix { display: flex; justify-content: flex-start; }
+#sheet .event-default { margin: 6px 0 0; }
+#sheet .event-over { margin: 8px 0; }
+#sheet .event-actions { margin-top: 6px; }
 /* ── end v70 e ── */
 
 /* (separator) */

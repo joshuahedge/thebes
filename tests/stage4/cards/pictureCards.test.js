@@ -49,7 +49,7 @@ const swipe = (node, dx, dy = 0) => {
 describe('s4 cards picture cards: the dialog', () => {
   it('gives every card a title, its words and its picture\'s alt text', () => {
     expect(INTRO_CARDS.map((c) => c.id)).toEqual(['road', 'homes', 'farm', 'food', 'gold', 'goals', 'ahead']);   // Stage 4.5 added Gold after Food; Version 6.0 (Track D2): these seven are read before a first city, six more follow at their first moments
-    expect(TUTORIAL_CARDS.slice(7).map((c) => c.id)).toEqual(['large', 'demand', 'plague', 'drought', 'locusts', 'raid']);
+    expect(TUTORIAL_CARDS.slice(7).map((c) => c.id)).toEqual(['large', 'demand', 'plague', 'drought', 'locusts', 'raid', 'event']);   // Version 7.0 (Track E): the first city event's card follows
     for (const c of TUTORIAL_CARDS) {
       const w = CARDS4_TEXT.cards[c.id];
       expect([c.id, w.title.length > 0, w.words.length > 0, w.alt.length > 0, w.words.split('. ').length <= 3]).toEqual([c.id, true, true, true, true]);

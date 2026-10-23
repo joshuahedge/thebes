@@ -13,6 +13,7 @@
     "plague": { "mark": {"kind":"ring","x":300,"y":239.4,"w":275.7,"h":228.3} },
     "drought": { "mark": {"kind":"ring","x":300,"y":295.1,"w":566.8,"h":204.3,"pad":4,"radius":12} },
     "locusts": { "mark": {"kind":"ring","x":300,"y":489.8,"w":566.8,"h":25.8,"pad":3,"radius":10} },
-    "raid": { "mark": {"kind":"ring","x":300,"y":415.4,"w":324.9,"h":324.9} }
+    "raid": { "mark": {"kind":"ring","x":300,"y":415.4,"w":324.9,"h":324.9} },
+    "event": { "mark": {"kind":"ring","x":300,"y":434.5,"w":562.8,"h":211.7,"pad":4,"radius":12} }
   }
 }
