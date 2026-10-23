@@ -96,15 +96,16 @@ describe('v70 p the placing bar says why, from the sim', () => {
     const bare = rig({ road: false });
     const none = preview(bare, FARM, 2, 7);
     expect(none.whyParts.find((k) => k.key === 'road').text).toBe(`${W.road.none}: ${W.road.joins}`);   // nothing near: the marked squares are where it would go
-    expect(none.why.startsWith(`${W.leadLater}: ${W.road.none}: ${W.road.joins}`)).toBe(true);
+    expect(none.why).toBe('');                                                                     // wave 3 (ruling 992): the chip says "No road yet", so the line has nothing to add (only a road one tile off does)
     expect(none.joins.length).toBeGreaterThan(0);
   });
   it('ground rule both ways, counted as the sim counts it: 2 of 4 squares on fertile land refuses and says so, 4 of 4 does not, a house on a square is a square taken', () => {
     const r = rig();
     const half = preview(r, FARM, 7, 8);
     expect(half.state).toBe('bad');
-    expect(half.why).toBe(`${W.leadCant}: ${W.terrain('fertile', 2, 4, 4)}`);
-    expect(half.why).toBe("Can't place here: fertile land under 2 of 4 squares: all 4 needed");
+    expect(half.whyParts.map((x) => x.text)).toEqual([W.terrain('fertile', 2, 4, 4)]);              // the sim's count, in the line's own words ...
+    expect(half.whyParts[0].text).toBe('fertile land under 2 of 4 squares: all 4 needed');
+    expect(half.why).toBe('');                                                                     // ... which the bar leaves to the chip while chips show (wave 3, ruling 992)
     expect(states(half)).toEqual(['met', 'cant', 'met', 'cant']);
     expect(preview(r, FARM, 6, 8).why).toBe('');                                                  // all four on the fertile land: nothing to refuse
     addRaw(r.world, 'house', 5, 9);
@@ -112,18 +113,21 @@ describe('v70 p the placing bar says why, from the sim', () => {
     expect(taken.why).toBe(`${W.leadCant}: ${W.taken(1, 4)}`);
     expect(states(taken)).toEqual(['met', 'met', 'met', 'cant']);
     expect(taken.footprint[3].reason).toBe('occupied');
-    r.world.road.fill(0); r.world.roadVersion++;                                                  // a refusal that also lacks what is not met yet: the rest follows in its short form
+    r.world.road.fill(0); r.world.roadVersion++;                                                  // a refusal that also lacks what is not met yet: every unmet rule is a part, the chips say them
     const lacking = preview(r, FARM, 7, 8);
     expect(lacking.state).toBe('bad');
-    expect(lacking.why.startsWith(`${W.leadCant}: ${W.terrain('fertile', 2, 4, 4)}${W.also} ${W.road.none}`)).toBe(true);
     expect(lacking.whyParts.map((x) => x.key)).toEqual(['ground', 'road', 'works']);
+    expect(lacking.why).toBe('');
+    addRaw(r.world, 'well', 7, 9);                                                                // a square taken is not a chip's word: it is the line, and the rest still follows it in the short form
+    const both = preview(r, FARM, 7, 8);
+    expect(both.why).toBe(`${W.leadCant}: ${W.taken(1, 4)}`);
   });
   it('the clay pit counts 2 of its 4 squares: one clay square refuses ("clay under 1 of 4 squares: 2 needed") with the others off, two is met with the others plain', () => {
     const r = rig();
     layClay(r.world, 20, 5, 1, 1);
     const one = preview(r, CLAY, 20, 5);
-    expect([one.state, one.why.startsWith(`${W.leadCant}: ${W.terrain('clay', 1, 4, 2)}`)]).toEqual(['bad', true]);
-    expect(one.why.startsWith("Can't place here: clay under 1 of 4 squares: 2 needed")).toBe(true);
+    expect([one.state, one.whyParts[0].text.startsWith(W.terrain('clay', 1, 4, 2)), one.why]).toEqual(['bad', true, '']);   // (the chip says it; wave 3, ruling 992)
+    expect(one.whyParts[0].text).toBe('clay under 1 of 4 squares: 2 needed');
     expect(states(one)).toEqual(['met', 'off', 'off', 'off']);
     layClay(r.world, 21, 5, 1, 1);
     const two = preview(r, CLAY, 20, 5);
@@ -134,23 +138,25 @@ describe('v70 p the placing bar says why, from the sim', () => {
     const r = rig();
     for (let x = 0; x < r.world.size; x++) r.world.terrain[idx(r.world.size, x, 15)] = TILE.WATER;
     const off = preview(r, QUAY, 12, 20);
-    expect([off.state, off.why.startsWith(`${W.leadCant}: ${W.water.longSide}`), off.wet]).toEqual(['bad', true, []]);
+    expect([off.state, off.whyParts[0].text.startsWith(W.water.longSide), off.why, off.wet]).toEqual(['bad', true, '', []]);   // (the ground chip says the water rule; wave 3, ruling 992)
     const on = preview(r, QUAY, 12, 16);
     expect([on.wet.length, fitOf(r.world, QUAY_TYPE, 12, 16).wet, states(on)]).toEqual([2, 2, ['met', 'met']]);
-    expect(on.why).toContain(W.road.none);                                                         // the bank is right; no road yet is amber, not a refusal
+    expect(on.whyParts.find((k) => k.key === 'road').text).toContain(W.road.none);                // the bank is right; no road yet is amber, not a refusal (and the chip's word, so the line is empty)
     expect(on.state).toBe('warn');
     expect(ghostsFor(r.world, r.store.get())[0].wet).toEqual(on.wet);
   });
   it('leads with what the colour means: coral cannot be placed, amber will not work yet, and the bar shows the line in that colour with the older line kept hidden', async () => {
+    // Wave 3 (ruling 992): the line carries only what no chip says, so the colours' leads show with a road one tile off (amber) and a square taken (coral).
     const amber = rig({ granary: false });
-    const w = preview(amber, FARM, 2, 8);
-    expect([w.state, w.why.startsWith(`${W.leadLater}: `), w.why.includes('granary')]).toEqual(['warn', true, true]);
-    const bad = preview(rig(), FARM, 7, 8);
+    const w = preview(amber, FARM, 2, 7);
+    expect([w.state, w.why.startsWith(`${W.leadLater}: `), w.whyParts.some((k) => k.key === 'works')]).toEqual(['warn', true, true]);
+    addRaw(amber.world, 'well', 7, 21);
+    const bad = preview(amber, FARM, 7, 20);
     expect(bad.why.startsWith(`${W.leadCant}: `)).toBe(true);
     const r = await rigUI();
     try {
-      r.ui.placement.start(FARM, { x: 2, y: 3 });
-      r.ui.placement.moveGhost(2, 3);                                                              // fertile, no road touching, a granary beyond its reach
+      r.ui.placement.start(FARM, { x: 2, y: 7 });
+      r.ui.placement.moveGhost(2, 7);                                                              // fertile, a road one tile away (not touching)
       const pv = r.ui.placement.preview();
       const bar = r.root.querySelector('#confirm');
       const why = bar.querySelector('.why'), old = bar.querySelector('.reason');

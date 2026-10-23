@@ -3,8 +3,9 @@
 // lightly: the step's words, a picture or an icon, one large button (Show me, Play or Got it) and Leave the lesson. The button, Enter, Space or Esc docks the step
 // to its usual row (src/ui/v60/lesson.js decides what that does to the clock). This is the one card allowed over the middle of the map (ruling 1002).
 //
-// The card is a dialog that is not modal to assistive technology (the page behind stays readable); the dim layer takes the taps so nothing is placed or panned behind it,
-// and the keys: Enter, Space and Esc dismiss it (a focused button keeps its own Enter and Space), Tab stays on its two buttons, Delete and Backspace do nothing. A
+// The card is a modal dialog (aria-modal, wave 3: the page behind is dimmed and takes no taps or keys, Tab stays on its two buttons); closing it hands focus back to what had it,
+// or to the docked row's Show me. The dim layer takes the taps so nothing is placed or panned behind it,
+// and the keys: Enter, Space and Esc dismiss it (a focused button keeps its own Enter and Space), Delete and Backspace do nothing. A
 // confirmation opened from it (Leave the lesson) sits above it and keeps every key it needs.
 import { el, button, setText } from './components.js';
 import { drawThumb } from './thumbs.js';
@@ -43,11 +44,12 @@ export function createLessonCard({ root, doc = document, store, onGo, onLeave, k
   const words = el('p', { class: 'lc-words', id: 'lesson-card-words' });
   const go = button('', { class: 'lc-go primary', onClick: () => onGo() });
   const leave = button(D2_TEXT.leave, { class: 'lc-leave quiet', onClick: () => onLeave() });
-  const card = el('div', { class: 'lesson-card', role: 'dialog', 'aria-label': P_TEXT.card.region, 'aria-describedby': 'lesson-card-words' }, [label, pic, words, el('div', { class: 'lc-actions' }, [go, leave])]);
+  const card = el('div', { class: 'lesson-card', role: 'dialog', 'aria-modal': 'true', 'aria-label': P_TEXT.card.region, 'aria-describedby': 'lesson-card-words' }, [label, pic, words, el('div', { class: 'lc-actions' }, [go, leave])]);
   const scrim = el('div', { class: 'lesson-card-scrim', hidden: true }, [card]);
   const ui = root.querySelector('#ui') || root;
   ui.insertBefore(scrim, root.querySelector('#toasts') || null);   // above the page, under the toasts and the confirm dialog (which sit later in the page)
   let up = false;
+  let returnTo = null;   // wave 3: what had focus when the card came up, so closing it hands focus back (to the docked row's Show me when that is gone)
 
   function paintPicture(picture) {
     pic.replaceChildren();
@@ -70,6 +72,8 @@ export function createLessonCard({ root, doc = document, store, onGo, onLeave, k
     go.setAttribute('aria-keyshortcuts', 'Enter');
     paintPicture(picture);
     scrim.hidden = false;
+    const was = doc.activeElement;
+    if (!up && was && was !== doc.body && !card.contains(was)) returnTo = was;   // a step card that follows another keeps the first's place to return to
     up = true;
     root.classList.add('lesson-card-up');
     go.focus();
@@ -79,7 +83,14 @@ export function createLessonCard({ root, doc = document, store, onGo, onLeave, k
     up = false;
     scrim.hidden = true;
     root.classList.remove('lesson-card-up');
-    if (card.contains(doc.activeElement)) doc.activeElement.blur();
+    const back = returnTo;
+    returnTo = null;
+    if (!card.contains(doc.activeElement)) return;
+    doc.activeElement.blur();
+    const docked = root.querySelector('#lesson .show-me:not([hidden]), #lesson .leave:not([hidden])');
+    const live = (n) => Boolean(n) && n.isConnected && !n.disabled && n.getClientRects().length > 0;   // (a fixed-position button has no offsetParent, so it is measured)
+    const target = live(back) ? back : docked;
+    if (live(target)) target.focus();
   }
 
   // Captured first, so the game's own keys (Space pauses, Delete removes, Enter places) never act behind the card.
