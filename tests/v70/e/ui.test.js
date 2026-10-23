@@ -146,6 +146,7 @@ describe('v70 e ui: the card', () => {
     });
     expect(Boolean(GOODS[INCENSE_GOOD])).toBe(true);
     const w = city('opet');
+    w.trade.routes.punt = { since: 0, gifted: true };                               // incense reaches the city (ruling 988): Punt's route is open
     const r = await rig(w);
     open(r, 'cityEvent');
     expect(sheet(r).textContent).toContain('It takes beer and incense.');

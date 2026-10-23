@@ -120,7 +120,7 @@ export function towerFix(world, target) {
 
 // The building type that keeps a good: the first whose stores list holds it (src/sim/advice.js storeFor, without its import).
 const storeTypeOf = (good) => Object.keys(BUILDINGS).find((t) => (BUILDINGS[t].stores || []).includes(good)) || null;
-const makerTypeOf = (good) => Object.keys(BUILDINGS).find((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good) || null;
+export const makerTypeOf = (good) => Object.keys(BUILDINGS).find((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good) || null;
 
 // What one cart brings in a month from a store `len` road tiles away: CARTS.perTrip a trip, as many round trips as the month holds (the sim's own
 // trip days: src/sim/carts.js roundTripDays).
@@ -235,8 +235,9 @@ export function quaySpot(world) {
   return roadless;
 }
 
-// The goods a route would sell today if "Keep at least" were nothing, and the Keep at least level holds back instead: per good the partner paying most,
-// { good, partner, at: 'post' | 'quay', level, stock, blocked, price, gold }; only the player's own level counts (what the temple and the court are owed is
+// The goods a route would sell today if "Keep at least" were nothing, and the Keep at least level holds back instead: per good, over every open partner (the
+// largest named), { good, partner, at: 'post' | 'quay', level, stock, blocked, price, gold, partners }: blocked and gold are the sums over the partners it holds
+// back, price and stock the named partner's, partners how many; only the player's own level counts (what the temple and the court are owed is
 // held back in any case: heldBack). Read from the caravan's own numbers (src/sim/trade.js): its room, the stock near its landing and sellAbove.
 export function heldBackSales(world) {
   const out = [];
@@ -245,8 +246,11 @@ export function heldBackSales(world) {
     if (!order || order.mode !== 'sell') continue;
     const level = keepAtLeast(world, good);
     if (level <= 0) continue;
-    const held = heldBack(world, good), owed = held.temple + held.court;
-    let best = null;
+    const held = heldBack(world, good), owed = held.temple + held.court, above = sellAbove(world, good);
+    // The caravans come in PARTNERS order and each takes what the one before left (ruling 990): two running stocks, the one the caravans really see (over sellAbove) and
+    // the one they would see with only what is owed held back (the stores near the post and the Quay overlap, so what each has sold comes off whichever landing is next);
+    // a partner's blocked sales are the difference of what each would take.
+    let real = 0, free = 0, best = null, blocked = 0, gold = 0, partners = 0;
     for (const id of Object.keys(PARTNERS)) {
       if (!world.trade.routes[id] || !tradeAllowed(world, id, good, 'buys')) continue;
       const price = tradePrices(world, id).buys[good];
@@ -254,11 +258,18 @@ export function heldBackSales(world) {
       if (price === undefined || !site) continue;
       const quota = PARTNERS[id].buys[good].quota, used = (world.trade.used[id] || {})[good] || 0;
       const room = Math.max(0, Math.min(Math.floor(quota / 4), quota - used));
-      const stock = tradeStock(world, good, site);
-      const blocked = Math.min(room, Math.max(0, stock - owed)) - Math.min(room, Math.max(0, stock - sellAbove(world, good)));
-      if (blocked >= 1 && (!best || blocked * price > best.gold)) best = { good, partner: id, at: byRiver(id) ? 'quay' : 'post', level, stock, blocked, price, gold: blocked * price };
+      const here = tradeStock(world, good, site), stock = Math.max(0, here - real);
+      const sells = Math.min(room, Math.max(0, stock - above)), sellsFree = Math.min(room, Math.max(0, here - free - owed));
+      real += sells;
+      free += sellsFree;
+      const gap = sellsFree - sells;
+      if (gap < 1) continue;
+      blocked += gap;
+      gold += gap * price;
+      partners += 1;
+      if (!best || gap * price > best.gold) best = { good, partner: id, at: byRiver(id) ? 'quay' : 'post', level, stock, blocked: gap, price, gold: gap * price };
     }
-    if (best) out.push(best);
+    if (best) out.push({ ...best, blocked, gold, partners });
   }
   return out.sort((a, b) => b.gold - a.gold);
 }

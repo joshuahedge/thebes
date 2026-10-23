@@ -22,6 +22,7 @@ import { CRIME_MOOD } from '../../../src/data/crime.js';
 import { buildSampleCity } from '../../../src/dev/sampleCity.js';
 import { addRaw } from '../../helpers/testWorld.js';
 import { fallIll } from '../../../src/sim/health.js';
+import { setPaused } from '../../../src/sim/commands.js';
 
 const choice = (w, kind, id) => eventChoices(w, w.cityEvents.waiting).find((c) => c.id === id);
 
@@ -306,7 +307,10 @@ describe('v70 e sim: what each kind does', () => {
   it('the festival of Opet: beer alone without incense (a festival without favour), beer and incense with it, off with why when either is short', () => {
     // Track T's incense is in the game, a raw good the storehouse keeps: the full festival is offered beside the smaller one.
     expect([Boolean(GOODS[INCENSE_GOOD]), BUILDINGS.storehouse.stores.includes(INCENSE_GOOD)]).toEqual([true, true]);
+    // (Wave 3, ruling 988: the full festival is offered only when incense can reach the city: Punt's route is open or a store holds some.)
     const t = fresh('opet');
+    expect(eventChoices(t, t.cityEvents.waiting).map((c) => c.id)).toEqual(['small', 'decline']);
+    t.trade.routes.punt = { since: 0, gifted: true };
     expect(eventChoices(t, t.cityEvents.waiting).map((c) => c.id)).toEqual(['full', 'small', 'decline']);
     // A game without incense: the beer-only festival, without favour.
     withoutIncense(() => {
@@ -330,6 +334,7 @@ describe('v70 e sim: what each kind does', () => {
 
   it('with incense in the game: the full festival takes beer and incense and adds favour; off with its reason while the stores hold too little incense', () => {
     const w = fresh('opet');
+    w.trade.routes.punt = { since: 0, gifted: true };                           // incense reaches the city (ruling 988)
     expect(eventChoices(w, w.cityEvents.waiting).map((c) => c.id)).toEqual(['full', 'small', 'decline']);
     const full = choice(w, 'opet', 'full');
     expect([full.ok, full.reason, full.bad.good]).toEqual([false, 'short', INCENSE_GOOD]);
@@ -406,7 +411,7 @@ describe('v70 e sim: what each kind does', () => {
     expect([gone.ok, gone.reason]).toEqual([false, 'none']);
   });
 
-  it('the strike and the quarrel stop the workshops for their days, paid off with gold; the player\'s own resume takes them back', () => {
+  it('the strike and the quarrel stop the workshops for their days, paid off with gold; the player\'s own resume is refused until they end', () => {
     const w = fresh('quarry_strike', { milestone: 'city' });
     const strike = choice(w, 'quarry_strike', 'strike'), quarries = idsOf(w, 'quarry');
     expect([strike.default, strike.effects[0].kind, strike.effects[0].ids, strike.effects[0].days]).toEqual([true, 'pause', quarries, 60]);
@@ -430,18 +435,17 @@ describe('v70 e sim: what each kind does', () => {
     const p = fresh('quarry_strike', { milestone: 'city' });
     answer(p, 'raise_wages');
     expect(idsOf(p, 'quarry').every((id) => !p.buildings[id].paused)).toBe(true);
-    // the player's resume takes a building back at once: the effect lets go of it
+    // the player's Resume is refused while the hold lasts (ruling 987, wave 3: the card said the works stop for their days); a pause the player added stays theirs
     const q = fresh('workshop_quarrel');
     const ids = q.cityEvents.waiting.figs.ids;
     q.day = q.cityEvents.waiting.due;
     eventDay(q);
     expect(ids.every((id) => q.buildings[id].paused)).toBe(true);
-    q.buildings[ids[0]].paused = false;
-    q.court.effects.forEach((e) => { e.ids = e.ids.filter((x) => x !== ids[0]); });   // commands.js releaseHolds
-    q.buildings[ids[0]].paused = true;                                         // the player pauses it himself afterwards
+    expect(setPaused(q, ids[0], false)).toEqual({ ok: false, reason: 'event_hold', until: q.court.effects[0].until, warnings: [] });
+    expect(ids.every((id) => q.buildings[id].paused)).toBe(true);
     q.day += 60;
     eventDay(q);
-    expect([q.buildings[ids[0]].paused, ids.slice(1).every((id) => !q.buildings[id].paused)]).toEqual([true, true]);
+    expect(ids.every((id) => !q.buildings[id].paused)).toBe(true);
   });
 
   it('the sandstorm and the lost caravan take goods only up to what the stores hold; sweeping and searching cost gold and save them', () => {

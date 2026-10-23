@@ -2,3 +2,4 @@
 // tests/v70/all.js; describe names start with 'v70 e', so tests/run-tests.ps1 -Grep "v70 e" runs the track's tests.
 import './sim.test.js';
 import './ui.test.js';
+import './review.test.js';

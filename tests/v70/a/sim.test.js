@@ -195,12 +195,13 @@ describe('v70 a stranded: a store by the bazaar when a cart could not bring the 
     const far = strandedFix(w, 'pottery', bazaar);
     const t = adviceWords(a, w);
     expect(t.fix).toBe(ADVICE_FIX_TEXT.strandedFix({ ...a.fix.far, item: 'storehouse' }));
-    expect(t.fix).toBe(`Build a storehouse near this bazaar: one cart would bring only ${far.perMonth} a month from ${far.len} road tiles away, under the ${sensibleMonthly()} that one order asks`);
+    // (Wave 3, ruling 989: with no maker in reach the store fills only by a Fetch order over the same run, and the words say so.)
+    expect(t.fix).toBe(`Build a storehouse near this bazaar, then set a Fetch order on it: one cart brings about ${far.perMonth} a month from ${far.len} road tiles away, under the ${sensibleMonthly()} that one order asks; a maker in reach fills it faster`);
     expect([t.action.label, t.cost, t.short]).toEqual(['Show me', `Storehouse: ${costOf(w, 'storehouse')} gold`, false]);
     const step = nextStep(w, home);
     expect([step.reason, step.need, step.fix.item, step.fix.target, step.cost]).toEqual([null, 'pottery', 'storehouse', a.fix.target, costOf(w, 'storehouse')]);
     const words = stepWords(w, home, step);
-    expect(words.rest).toBe(`a storehouse near the bazaar (${costOf(w, 'storehouse')} gold) keeps pottery where the bazaar draws it: one cart would bring only ${far.perMonth} a month from the store ${far.len} road tiles away`);
+    expect(words.rest).toBe(`a storehouse near the bazaar (${costOf(w, 'storehouse')} gold) holds pottery where the bazaar draws it, then set a Fetch order on it: one cart brings about ${far.perMonth} a month from the store ${far.len} road tiles away; a potter in reach fills it faster`);
     expect(words.action.build).toEqual({ category: 'industry', item: 'storehouse', x: a.fix.target.x, y: a.fix.target.y });
   });
 
