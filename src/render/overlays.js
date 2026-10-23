@@ -11,6 +11,7 @@ import { desirabilityField } from '../sim/desirability.js';
 import { T as TILE, TERRAIN_BY_NAME, buildable } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 import { fitOf } from '../sim/fit.js';
+import { canPlace } from '../sim/commands.js';   // Version 7.0 (Track P): bankTiles asks the sim's own placing check
 import { p, U, tileDiamond, quad } from './iso.js';
 import { UI, INK, TEAL_DARK, WOOD } from './art/palette.js';
 import { rgba, makeDraw } from './art/ctx.js';
@@ -251,6 +252,44 @@ export function roomTiles(world, type, rot = 0) {
   }
   m.room.set(slot, room);
   return room;
+}
+
+// Version 7.0 (Track P, ruling 1008): where a building bound to water (the Quay, the wharf, the lodge, the nilometer) can go, as the Ground overlay's room is for the buildings
+// bound to fertile, rocky or clay ground: the tile indices of every free spot the sim's own canPlace accepts, with the road and the gold left to the bar. Worked out once, and
+// again when the buildings, roads or walls change (roomTiles' key). Empty for a building with no water rule.
+const bankMemo = new WeakMap();   // world -> { key, banks: Map `type|rot` -> Set of tile indices }
+export function bankTiles(world, type, rot = 0) {
+  const def = BUILDINGS[type];
+  if (!def || !def.water) return new Set();
+  const key = `${world.roadVersion}|${world.wallVersion}|${world.nextId}|${buildingSignature(world)}`;
+  let m = bankMemo.get(world);
+  if (!m || m.key !== key) { m = { key, banks: new Map() }; bankMemo.set(world, m); }
+  const slot = `${type}|${rot}`;
+  let out = m.banks.get(slot);
+  if (out) return out;
+  out = new Set();
+  const n = world.size, { w, d } = dimsOf(type, rot);
+  for (let y = 0; y + d <= n; y++) {
+    for (let x = 0; x + w <= n; x++) {
+      const c = canPlace(world, type, x, y, { roadLater: true, rot });
+      if (!c.ok && c.reason !== 'no_gold') continue;
+      for (let dy = 0; dy < d; dy++) for (let dx = 0; dx < w; dx++) out.add(idx(n, x + dx, y + dy));
+    }
+  }
+  m.banks.set(slot, out);
+  return out;
+}
+export const BANK_HUE = '#2F6FA8';   // the interface's blue (css --blue): a bank is where the river is
+// A light wash and fine hatching on the banks in view, under the ghost. Static.
+export function drawBankHint(g, world, type, range, rot = 0) {
+  const room = bankTiles(world, type, rot);
+  if (!room.size) return;
+  const tiles = [];
+  for (let y = Math.max(0, range.y0); y <= Math.min(world.size - 1, range.y1); y++) for (let x = Math.max(0, range.x0); x <= Math.min(world.size - 1, range.x1); x++) if (room.has(idx(world.size, x, y))) tiles.push([x, y]);
+  if (!tiles.length) return;
+  const polys = tilePolys(tiles);
+  g.polys(polys, BANK_HUE, { alpha: 0.16 });
+  g.hatchPolys(polys, BANK_HUE, { fill: 0, line: 0.5, gap: 6, width: 1.2 });
 }
 
 // Stage 4 (Track C): the rotation of the building being placed, which createUI's drawOverlay call does not pass (it passes the
@@ -657,12 +696,61 @@ function bridgePlanks(g, x, y) {
   }
 }
 
+// Version 7.0 (Track P, ruling 1008): a building's ghost square by square. Each footprint square shows its own verdict, so a farm half on the fields reads at a glance:
+//   met    blue, solid outline: the square is right (free dry ground, and on the terrain the building stands on)
+//   cant   coral hatching and a ✕: the square is wrong (taken, water, hills, off the map, not the terrain the building needs): the building cannot go here
+//   off    amber hatching, a dashed outline and a !: free ground, but not the terrain the building's rule counts, and the rule is not met
+//   plain  a faint dashed outline, no fill: free ground the rule does not count (the clay pit counts 2 of 4 squares) and does not need
+// The whole ghost's verdict is the heavier outline round it (blue, amber for "placed but will not work yet", coral for "cannot be placed") and the badge in its middle (✓ ! ✕);
+// the squares carry the pattern, so no verdict is colour alone. The water that counts for its water rule (≈) and the road that touches a side (═, solid; the free squares where
+// one would go are dashed amber, drawRoadJoins) are marked beside it.
+function plainSquare(g, x, y) {
+  const pts = quad(x, y, 1, 1, 0);
+  g.poly(pts, UI.ok, { alpha: 0.04 });
+  g.ctx.setLineDash([2 * g.scale, 2 * g.scale]);
+  g.poly(pts, 'none', { stroke: UI.ok, strokeWidth: 1, strokeAlpha: 0.7 });
+  g.ctx.setLineDash([]);
+}
+function markedTile(g, x, y, mark, color) {
+  const pts = quad(x, y, 1, 1, 0), css = cssScaleOf(g);
+  g.poly(pts, color, { alpha: 0.16 });
+  g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.4, strokeAlpha: 0.75 });
+  g.poly(pts, 'none', { stroke: color, strokeWidth: 1.4 });
+  g.text(p(x + 0.5, y + 0.5), mark, { size: Math.max(6, 12 / css), weight: '700', color: JOIN_INK });
+}
+function drawSquares(g, ghost) {
+  const { x, y, w, d, state, tiles, badge, wet, roadAt } = ghost;
+  for (const t of tiles) {
+    const centre = p(t.x + 0.5, t.y + 0.5);
+    if (t.state === 'cant') { hatchedBad(g, t.x, t.y, 1, 1); if (tiles.length > 1) ghostBadge(g, centre, '✕'); }
+    else if (t.state === 'off') { hatchedLeft(g, t.x, t.y, 1, 1); ghostBadge(g, centre, '!'); }
+    else if (t.state === 'plain') plainSquare(g, t.x, t.y);
+    else {
+      const tp = quad(t.x, t.y, 1, 1, 0);
+      g.poly(tp, UI.ok, { alpha: 0.15 });
+      g.poly(tp, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
+      g.poly(tp, 'none', { stroke: UI.ok, strokeWidth: 1.4 });
+    }
+  }
+  for (const [wx, wy] of wet || []) markedTile(g, wx, wy, '≈', UI.ok);
+  for (const [rx, ry] of roadAt || []) markedTile(g, rx, ry, '═', UI.ok);
+  const whole = state === 'bad' ? UI.bad : state === 'warn' ? UI.warn : UI.ok;
+  const pts = quad(x, y, w, d, 0), css = cssScaleOf(g);
+  g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 4.4 / css, strokeAlpha: 0.85 });
+  g.poly(pts, 'none', { stroke: whole, strokeWidth: 2.6 / css });
+  // The verdict's badge in the middle, unless the squares already carry it (a 1-square ghost's mark is that badge; a coral square has its own ✕).
+  const own = tiles.some((t) => (state === 'bad' ? t.state === 'cant' : false)) && tiles.length > 1;
+  if (!own && badge) ghostBadge(g, p(x + w / 2, y + d / 2), state === 'warn' ? '!' : state === 'bad' ? '✕' : '✓');
+}
+
 export function drawGhost(g, ghost) {
   const { x, y, w, d, state, tiles, joins, badge } = ghost;
   const pts = quad(x, y, w, d, 0);
   const centre = p(x + w / 2, y + d / 2);
   if (ghost.silhouette) drawSilhouette(g, ghost.silhouette);
   if (joins && joins.length) drawRoadJoins(g, joins);
+  // A building's ghost always has its squares (ghostsFor); a monument's, with its silhouette, keeps its one outline until a square is wrong.
+  if (badge && tiles && tiles.length && (!ghost.silhouette || tiles.some((t) => t.state === 'cant' || t.state === 'off'))) { drawSquares(g, ghost); return; }
   if (state === 'bad' && tiles && tiles.length) {
     // Part of the footprint is fine: each tile shows its own state, the good ones blue, the bad ones coral with a cross.
     for (const t of tiles) {

@@ -5,5 +5,6 @@ import './t/all.js';
 import './e/all.js';
 import './s/all.js';
 import './a/all.js';
+import './p/all.js';   // Track P's playtest fixes (wave 2, ruling 1000: the one line this file gains)
 import './balance/all.js';
 import './docs/all.js';

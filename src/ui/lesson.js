@@ -3,7 +3,7 @@
 // (src/ui/settings.js lessonDone, lessonStep), never the world's (ruling 626); its map and steps are src/data/lesson.js, its rules the sim's
 // (src/sim/lesson.js), its run in the game src/ui/v60/lesson.js, its start and end src/boot.js.
 import { LESSON_STEPS } from '../data/lesson.js';
-import { LESSON_LENGTH, firstOf, warnedRaid, stepDone } from '../sim/lesson.js';
+import { LESSON_LENGTH, firstOf, warnedRaid, stepDone, playWhen } from '../sim/lesson.js';
 import { towersNeeded, workingTowers } from '../sim/raids.js';
 import { staffedCover } from '../sim/fire.js';
 import { monthForecast } from '../sim/economy.js';
@@ -26,7 +26,9 @@ export const lessonPartWay = (settings) => Boolean(settings) && settings.lessonD
 // What each line of the lesson is worded from (src/ui/text.js D2_TEXT.steps), read from the sim now.
 export function lessonFacts(world, step) {
   const w = warnedRaid(world), a = world.raid.active;
-  const f = { paused: world.speed === 0, progress: null, warning: null, raidOn: null, missing: null, forecast: null, labour: { workforce: world.labour.workforce, jobs: world.labour.jobs } };
+  // Version 7.0 (Track P): "Press Play" is said only while the game is stopped AND the step is one that waits on it (play: 'card'). A step the player builds for ('act') plays again by
+  // itself once built, so the card and its docked row never ask for Play there (the card says it the same way: src/ui/v60/lesson.js showCard).
+  const f = { paused: world.speed === 0 && playWhen(world, step) === 'card', progress: null, warning: null, raidOn: null, missing: null, forecast: null, labour: { workforce: world.labour.workforce, jobs: world.labour.jobs } };
   if (w) {
     const need = towersNeeded(w.size);
     f.warning = { dir: w.dir, size: w.size, daysLeft: Math.max(0, w.arrives - world.day), need, have: workingTowers(world) };

@@ -52,6 +52,22 @@ export function createSidePanel({ container, store, world, onPick, minimapNode =
     else document.body.style.removeProperty('--panel-tabs-bottom');
   }
 
+  // Version 7.0 (Track P, ruling 1005): while a sheet is open on a wide screen the build tray (the tabs and the cards), Layers and the hint fold away, so the sheet
+  // fills the panel from under the minimap down (css/ui.css v70 p); closing the sheet brings them back. Its top is the minimap's bottom edge, measured when the sheet
+  // opens or the layout, the fold or the text size changes. Phones and a folded panel are unchanged.
+  let sheetKey = null;
+  function publishSheetTop(s) {
+    const open = s.layout === 'wide' && !s.panelFolded && Boolean(s.sheet);
+    document.body.classList.toggle('panel-sheet', open);
+    // While the sheet is open the measured edge is part of the key, so a minimap hidden or resized under it (a window resize, the fold) moves the sheet's top with it.
+    const top = open ? Math.ceil(minimap.getBoundingClientRect().bottom) : null;
+    const key = `${open}|${document.body.dataset.textSize}|${top}`;
+    if (key === sheetKey) return;
+    sheetKey = key;
+    if (open) document.body.style.setProperty('--panel-sheet-top', `${top}px`);
+    else document.body.style.removeProperty('--panel-sheet-top');
+  }
+
   let lastCards = null;
   function render() {
     buildTabs();
@@ -69,6 +85,7 @@ export function createSidePanel({ container, store, world, onPick, minimapNode =
       lastCards = key;
     }
     publishTabsBottom(s);
+    publishSheetTop(s);
   }
   render();
   store.subscribe(render);

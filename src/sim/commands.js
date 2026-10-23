@@ -14,7 +14,7 @@ import { storeAccepts } from './production.js';
 import { guildsNear, supplyNear, remainingNeed } from './monuments.js';
 import { DEFENCE } from '../data/raids.js';
 import { bridgeVerdicts } from './bridges.js';
-import { tileBound, fitOf, fitReason } from './fit.js';
+import { tileBound, fitOf, fitReason, waterTilesOf } from './fit.js';
 import { noteBuilt } from './oases.js';
 import { onGoodSpot } from './spots.js';   // Stage 4.7 (Task 4): the spots' first; spots.js reads checkTiles from here, both only at call time
 import { LARGE_PLOT } from '../data/largePlots.js';
@@ -220,7 +220,33 @@ export function conditionsFor(world, type, x, y, { roadLater = false, rot = 0, s
     state: refusal ? 'cant' : (later.length ? 'later' : 'ok'),
     conditions,
     tiles,
+    more: placementMarks(world, type, x, y, rot, tiles, w, d),
   };
+}
+
+// What the placing preview draws beyond the conditions' own lines (Version 7.0, Track P, ruling 1008), each from the rule the sim applies, so the marks and the words agree:
+//   on     per footprint tile (the tiles' order): whether it is the ground the building's terrain rule counts, null for a building with no terrain rule (the clay pit counts 2 of 4
+//          tiles, so the other two are free ground the rule does not count)
+//   wet    the water tiles that count for its water rule ([] without one); fitOf's `wet` is their number
+//   roadAt the road tiles that touch a side (what touchesRoad counts); near whether a road lies a corner or a tile off without touching (it does not count), asked only when none touches
+function placementMarks(world, type, x, y, rot, tiles, w, d) {
+  const def = BUILDINGS[type];
+  const want = def.terrain ? TERRAIN_BY_NAME[def.terrain] : null;
+  const on = tiles.map((t) => (want === null ? null : inBounds(world.size, t.x, t.y) && world.terrain[idx(world.size, t.x, t.y)] === want));
+  const probe = { x, y, w, d };
+  const roadAt = def.needsRoad || isPlotType(type) ? roadTouching(world, probe) : [];
+  return { on, wet: def.water ? waterTilesOf(world, type, x, y, rot) : [], roadAt, near: roadAt.length === 0 && (def.needsRoad || isPlotType(type)) ? roadNear(world, probe) : false };
+}
+
+// The road tiles that touch the footprint (a side, not a corner: the ring's own), as [x, y] pairs: what touchesRoad counts.
+function roadTouching(world, b) {
+  return ring(b.x, b.y, b.w, b.d).filter(([tx, ty]) => inBounds(world.size, tx, ty) && world.road[idx(world.size, tx, ty)]);
+}
+// Whether a road lies close without touching: on a corner of the footprint or one tile past a side. Only asked when none touches.
+function roadNear(world, b) {
+  const corners = [[b.x - 1, b.y - 1], [b.x + b.w, b.y - 1], [b.x - 1, b.y + b.d], [b.x + b.w, b.y + b.d]];
+  const outer = ring(b.x - 1, b.y - 1, b.w + 2, b.d + 2);
+  return [...corners, ...outer].some(([tx, ty]) => inBounds(world.size, tx, ty) && world.road[idx(world.size, tx, ty)]);
 }
 
 // The tiles beside a footprint where a road could be laid to touch it: on the map, dry, with no building or wall on them.

@@ -88,6 +88,7 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
         setText(tag, running ? S46_UX_TEXT.playingState(SPEED_LABELS[world.speed]) : S46_UX_TEXT.pausedWord);
         main.dataset.state = running ? 'playing' : 'paused';
         main.setAttribute('aria-label', running ? pauseSpeedText(world.speed) : T.play);
+        if (keys()) main.setAttribute('aria-keyshortcuts', 'Space'); else main.removeAttribute('aria-keyshortcuts');   // Version 7.0 (Track P)
       };
       paint();
       mounted.push(paint);
@@ -106,7 +107,11 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
       const paint = () => {
         container.dataset.state = world.speed === 0 ? 'paused' : 'playing';
         container.setAttribute('aria-description', world.speed === 0 ? S46_UX_TEXT.pausedWord : S46_UX_TEXT.playingState(SPEED_LABELS[world.speed]));   // ruling 419: the state, for a screen reader
-        buttons.forEach((b, s) => { b.setAttribute('aria-pressed', String(world.speed === s)); b.title = S46_UX_TEXT.speedStepTitle(s, keys()); });
+        buttons.forEach((b, s) => {
+          b.setAttribute('aria-pressed', String(world.speed === s)); b.title = S46_UX_TEXT.speedStepTitle(s, keys());
+          // Version 7.0 (Track P): Space pauses and resumes (keyboard.js), so the pause step says so to assistive technology; the speeds are ] and [ (their title says so).
+          if (s === 0) { if (keys()) b.setAttribute('aria-keyshortcuts', 'Space'); else b.removeAttribute('aria-keyshortcuts'); }
+        });
       };
       paint();
       mounted.push(paint);

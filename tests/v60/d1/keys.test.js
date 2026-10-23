@@ -13,7 +13,7 @@ import { mount, fire, key } from '../../helpers/dom.js';
 import { rigUI } from '../../helpers/uiWorld.js';
 import { openSheet } from '../../../src/ui/modes.js';
 
-const NAMES = ['pause', 'speedUp', 'speedDown', 'rotate', 'minimap', 'overlay', 'confirm', 'back', 'undo', 'help'];
+const NAMES = ['pause', 'speedUp', 'speedDown', 'rotate', 'minimap', 'overlay', 'confirm', 'back', 'undo', 'help', 'remove'];   // Version 7.0 (Track P): Delete and Backspace join the keys How to play lists
 
 function rig({ shortcuts = true, html = '', hidden = false } = {}) {
   const { root, cleanup } = mount(`<div id="t" tabindex="0">${html}<button id="b">Go</button></div>`);

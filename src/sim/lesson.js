@@ -97,6 +97,31 @@ export function stepProgress(world, step) {
   }
 }
 
+// Version 7.0 (Track P, ruling 1002): how a step and the game's clock go together (src/data/lesson.js `play`). 'card': the step only waits on the game, so its card
+// plays on; 'act': the player builds first and the game plays again once actionDone; null: the step is done the moment the player has built what it asks.
+// A 'warning' step (the tower) is a 'card' until the raid is warned, then an 'act'.
+export function playWhen(world, step) {
+  if (!step || !step.play) return null;
+  if (step.play === 'warning') return warnedRaid(world) ? 'act' : 'card';
+  return step.play;
+}
+
+// What an 'act' step measures its own part against: how many housing plots stand as the step begins (a plot painted after is the player's part of "paint more homes").
+export const actionBase = (world) => ({ homes: housesOf(world).length });
+
+// Whether the player's own part of an 'act' step is done (what lets the game play again by itself), from the sim alone: a plot painted since `base`, the building
+// the step asks for standing, or as many towers built as the raid warned needs (staffed or not: their crews come with time, which is what the playing is for).
+export function actionDone(world, step, base = actionBase(world)) {
+  const a = step && step.act;
+  if (!a) return false;
+  switch (a.kind) {
+    case 'plots': return housesOf(world).length > base.homes;
+    case 'building': return Boolean(firstOf(world, a.type));
+    case 'towers': { const w = warnedRaid(world); return Boolean(w) && allBuildings(world).filter((b) => b.type === 'tower').length >= towersNeeded(w.size); }
+    default: return false;
+  }
+}
+
 // What the map should light for a step, as a footprint { x, y, w, d } in tiles, or null: the step's own `at`, or the footprint of the
 // first building of the type it names.
 export function stepSpot(world, step) {

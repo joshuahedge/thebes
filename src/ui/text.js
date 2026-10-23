@@ -3368,7 +3368,7 @@ V60_HELP.b1.push(V601_TEXT.help);
 // V70_HELP: How to play's Version 7.0 paragraphs, by track, each { head, text } (menu.js help() adds them after Version 6.0's, in this key order);
 // V70_ADVICE_WORDS: kind -> (item, world) => { what, why, fix } for the Version 7.0 advice kinds (src/ui/adviceText.js adviceWords asks it, after
 // V60_ADVICE_WORDS, for any kind it does not word itself). A track writes only its own key of V70_HELP and only its own kinds.
-export const V70_HELP = { t: [], e: [], s: [], a: [] };
+export const V70_HELP = { t: [], e: [], s: [], a: [], p: [] };   // p: Track P's, after A's (ruling 1000)
 export const V70_ADVICE_WORDS = {};
 // ── end v70 contract ──
 
@@ -3779,3 +3779,59 @@ V70_HELP.a.push(
 TIP_TEXT.quay_boats = 'A Quay is where boats land: on the river, beside a road. Open a river route in Trade.';
 TIP_TEXT.trade_levels = 'A route is open. In Trade, switch off goods to leave alone, and set Keep at least for home.';
 // ── end v70 a ──
+
+//
+// (A stable separator between the Version 7.0 sections: leave these lines as they are.)
+//
+// ── v70 p (Track P, wave 2, rulings 1000-1014: playtest fixes) ───────────────────────────────────────────────────────────
+// The lesson's card, the keyboard, the placement bar's reasons, the marks for what is placed but not built, and the desktop sheets. Every sentence that states a rule,
+// a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+export const P_TEXT = {
+  // The lesson's step card (src/ui/lessonCard.js): the button names what it does (the game plays on, the card points at the place, or it is only read).
+  card: { region: 'Lesson step', play: T.play, showMe: T.showMe, gotIt: T.gotIt },
+  cardGoTitle: (label, keys = true) => (keys ? `${label} (Enter)` : label),
+  // Delete and Backspace (ruling 1001): the tooltips of the buttons they press.
+  undoTitle: (keys = true) => (keys ? 'Undo (Ctrl+Z or Delete)' : 'Undo (Ctrl+Z)'),
+  demolishTitle: 'Demolish (Delete)',
+  removeRow: 'Take back what you just placed while Undo is offered; otherwise demolish the building whose sheet is open',
+  // The placing bar's reason line (ruling 1008, src/ui/placementWhy.js): every rule that fails, in plain words and with the sim's own counts, led by what the colour means.
+  // Coral means it cannot be placed here; amber means it can, but will not work until the rest is met; blue means everything is met.
+  place: {
+    leadCant: "Can't place here",
+    leadLater: "Won't work yet",
+    // A square-count clause, short enough that two lines hold a phone's worst case: "2 of 4 squares are taken".
+    taken: (n, of) => `${n} of ${of} squares are taken`,
+    inWater: (n, of) => `${n} of ${of} squares are water`,
+    hills: (n, of) => `${n} of ${of} squares are hills`,
+    offMap: (n, of) => `${n} of ${of} squares are off the map`,
+    // The terrain rule, counted over the footprint as the sim counts it: "fertile land under 2 of 4 squares: all 4 needed" (a looser rule: "clay under 1 of 4 squares: 2 needed").
+    terrain: (terrain, fit, of, need) => `${S46_MAP_TEXT.ground[terrain]} under ${fit} of ${of} squares: ${need >= of ? `all ${of}` : need} needed`,
+    water: { longSide: 'no water along a long side', touch: 'no water beside it', river: 'no river beside it (an oasis pool does not count)' },
+    // The road rule: the sim counts a road tile on a side (never a corner), so a road one tile off, or on a corner, does not count.
+    road: { none: 'no road touching a side', near: 'no road touching a side (one tile away does not count)', joins: 'lay one on a marked square' },
+    roadPlot: { none: 'no road touching it yet', near: 'no road touching it (one tile away does not count)' },
+    and: ' · ', also: '. Also:',
+    // What a building needs, said while everything is met: "Needs fertile land under every square, a road touching one side and a granary within 12 road tiles".
+    needsHead: 'Needs',
+    needsTerrain: (terrain, need, of) => (need >= of ? `${S46_MAP_TEXT.ground[terrain]} under every square` : `${S46_MAP_TEXT.ground[terrain]} under at least ${need} of ${of} squares`),
+    needsWater: { longSide: 'water along a long side', touch: 'water beside it' },
+    needsRoad: 'a road touching one side',
+    needsStore: (store, reach) => `a ${store} within ${reach} road tiles`,
+    needsSupply: (store, reach) => `a ${store} within ${reach} road tiles to supply it`,
+    // The legend of the squares (screen readers get it with the ghost's name): a square is right, wrong, or not counted.
+    squareRight: 'right', squareWrong: 'wrong', squareOff: 'not on the ground it needs', squarePlain: 'free ground that does not count',
+  },
+};
+// How to play's key table: Delete and Backspace, after Undo.
+HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'undo') + 1, 0, ['remove', P_TEXT.removeRow]);
+// The keys as a player reads them, from KEYS, so the words cannot drift from the keys.
+const pKey = (name) => [...new Set((KEYS[name] || []).map((k) => ({ ' ': 'Space', Escape: 'Esc' }[k] || (k.length === 1 ? k.toUpperCase() : k))))].join(' or ');
+V70_HELP.p.push({
+  head: 'Keyboard',
+  text: `On a computer: ${pKey('pause')} pauses and plays, ${pKey('speedUp')} and ${pKey('speedDown')} change the speed, ${pKey('zoomIn')} and ${pKey('zoomOut')} zoom, Arrows or WASD move the view, ${KEYS.category[0]} to ${KEYS.category[KEYS.category.length - 1]} pick a build category, ${pKey('rotate')} turns what can turn, ${pKey('minimap')} opens the minimap, ${pKey('overlay')} cycles the layers and ${pKey('help')} opens How to play. While you place, ${pKey('confirm')} places and ${pKey('back')} puts the tool away. Undo is Ctrl+Z (Cmd+Z on a Mac); ${pKey('remove')} does the same while the Undo of what you just placed is still on offer, and otherwise demolishes the building whose sheet is open, with the same question first when it asks one. A lesson step's card closes with Enter, Space or Esc. Settings → Keyboard shortcuts turns the single keys off; Esc, Enter and Ctrl+Z always work.`,
+});
+V70_HELP.p.push({
+  head: 'Placing a building: the squares and the colours',
+  text: `While you place a building, each square of its footprint shows whether it is right: a blue square is right, a square with coral stripes and a cross is wrong (taken, water, hills, off the map, or not the ground the building stands on), and an amber striped square is free ground that is not the kind the building needs. The line round the whole ghost and the mark in its middle say what the building as a whole does. Blue: everything is met. Amber: "${P_TEXT.place.leadLater.toLowerCase()}": it can be placed, but something it needs is missing, such as a road touching one of its sides (a road one tile away does not count; the marked squares are where one would touch) or a store in reach. Coral: "${P_TEXT.place.leadCant.toLowerCase()}": at least one rule is broken, and the line under the name says each one with its count. While everything is met the line says what the building needs, and the ground it can go on is marked lightly on the map.`,
+});
+// ── end v70 p ──

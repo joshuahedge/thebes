@@ -82,6 +82,8 @@ export const KEYS = {
   back: ['Escape'],
   undo: ['z', 'Z'],
   help: ['?'],
+  // Version 7.0 (Track P, ruling 1001): Delete or Backspace takes back what was just placed while its Undo is offered, else removes the building whose sheet is open.
+  remove: ['Delete', 'Backspace'],
 };
 
 export const DRAG_THRESHOLD_PX = 8;

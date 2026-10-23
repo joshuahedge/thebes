@@ -20,10 +20,11 @@ export function createToasts({ container, max = MAX_TOASTS, setTimer = (fn, ms) 
   }
 
   return {
-    show(text, { action = null, onAction = null, ms = TOAST_MS, keep = false, close = null } = {}) {
+    // actionKeys (Version 7.0, Track P): { title, keys } for the action's tooltip and aria-keyshortcuts (the Undo's Ctrl+Z, and Delete while single keys are on).
+    show(text, { action = null, onAction = null, ms = TOAST_MS, keep = false, close = null, actionKeys = null } = {}) {
       const entry = { node: null, timer: null, keep };
       const parts = [el('span', { class: 'text', text })];
-      if (action) parts.push(button(action, { class: 'action', onClick: () => { remove(entry); if (onAction) onAction(); } }));
+      if (action) parts.push(button(action, { class: 'action', title: actionKeys && actionKeys.title, 'aria-keyshortcuts': actionKeys && actionKeys.keys, onClick: () => { remove(entry); if (onAction) onAction(); } }));
       if (keep && close) parts.push(iconButton(close, '✕', { class: 'close', onClick: () => remove(entry) }));
       entry.node = el('div', { class: 'toast' }, parts);
       const limit = typeof max === 'function' ? max() : max;

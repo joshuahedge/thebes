@@ -20,6 +20,7 @@ import { D2_TEXT } from '../../../src/ui/text.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
 import { fire as fireEvent } from '../../helpers/dom.js';
+import { dockPlain } from '../../helpers/lesson.js';
 
 const index = (id) => LESSON_STEPS.findIndex((s) => s.id === id);
 const step = (id) => LESSON_STEPS[index(id)];
@@ -94,6 +95,8 @@ async function lessonPage(stepId, { width, height, text = 100 }) {
   api.hooks.lesson({ step: index(stepId) });
   await frame();
   const g = api.game();
+  dockPlain(api);                                                                    // Version 7.0 (Track P): the step's card first; these tests look at the row and the map it docks to
+  await frame();
   return { api, g, root: shell.root, box: shell.root.getBoundingClientRect(), cleanup() { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title', 'lesson-on', 'lesson-names-alert'); delete window.__thebes; } };
 }
 
@@ -114,6 +117,9 @@ async function placeFirehouseByHand(s) {
   fireEvent(ok, 'pointerdown', { pointerType: 'touch' });
   fireEvent(ok, 'pointerup', { pointerType: 'touch', clientX: ok.getBoundingClientRect().left + 4, clientY: ok.getBoundingClientRect().top + 4 });
   ok.click();
+  await frame();
+  dockPlain(s.api);                                                                  // Version 7.0 (Track P): the fire step's card, dismissed (the game plays on); paused again, as the row was before the card
+  s.g.ui.speedControl.set(0);
   await frame();
 }
 
@@ -195,7 +201,7 @@ describe('v60 d2 the steps that carry an alert lead with what to do (ruling 822)
             await frame();
           }
           const at = `${id} at ${text}%: ${s.root.querySelector('#lesson .text').textContent}`;
-          const phrase = { tower: 'Build a tower near the bazaar', fire: 'watch the crew put out the small fire', raid: 'Watch your tower stop the raiders' }[id];
+          const phrase = { tower: 'Build a tower near the bazaar', fire: 'the crew put out the small fire', raid: 'Watch your tower stop the raiders' }[id];   // (the card's Play has the game running: "Watch the crew", not "Press Play and watch")
           expect([at, s.root.querySelector('#lesson').dataset.step, shown(s.root.querySelector('#lesson .text')), instructionShown(s, phrase)]).toEqual([at, id, true, true]);
         } finally { s.cleanup(); }
       }

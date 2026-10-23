@@ -16,7 +16,7 @@ import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/ca
 import { walkersAt } from '../render/walkers.js';
 import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
-import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, LAYER_OVERLAYS } from '../render/overlays.js';
+import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, drawBankHint, LAYER_OVERLAYS } from '../render/overlays.js';
 import { LAYER_UNLOCK } from '../data/layers.js';
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
@@ -77,7 +77,7 @@ import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
-import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, T } from './text.js';
 import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
 
@@ -105,6 +105,7 @@ export function createUI({
   let danger = null, scoreUi = null, monumentUi = null;   // Stage 4: the monuments interface (Track C, ui/monumentSheet.js)
   let s46 = [];                                          // Stage 4.6: the tracks' seams (src/ui/s46/index.js), in track order
   let toastLow = null;   // { dock, mode, sheet, layout } while the toast sits low after a touch tick (leavePlan, setToastLow)
+  let undoToast = null;  // Version 7.0 (Track P): the "placed · Undo" toast's node, so Delete knows whether that Undo is still offered
   const seams = () => [danger, scoreUi, monumentUi, ...s46].filter(Boolean);
   let markerLayout = [];                                 // Stage 4: this frame's problem markers on screen (render/markers.js)
   let saveFailed = false, destroyed = false;
@@ -213,7 +214,7 @@ export function createUI({
     shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150 || view().width < WIDE_LONG_DATE_PX,
   });
   const dock = createDock({ container: $('dock'), store, world, onPick: pick });
-  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo, onArea: (type, on) => (on ? placement.startArea(type) : pick(type)) });
+  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo, keys: () => settings.get().keyboardShortcuts !== false, onArea: (type, on) => (on ? placement.startArea(type) : pick(type)) });
   // The Layers picker (placement review P2): one popover for the corner button on a phone and one under the minimap on a wide
   // screen, sharing store.layersOpen; the layout's own host shows the one that counts. Closing it with focus inside hands focus
   // back to the Layers button that opened it.
@@ -279,7 +280,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)] });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)], keys: () => settings.get().keyboardShortcuts !== false });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -539,7 +540,7 @@ export function createUI({
     if (events.length) { effects.fromEvents(world, events, now()); onEvents(events); }
     syncDaily();
     // Celebrations from the same command are captions in #cheer, not toasts, so nothing pushes the command's Undo toast out.
-    if (e.undoable) toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
+    if (e.undoable) undoToast = toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS, actionKeys: undoKeys() });
     else if (e.kind === 'undo') toasts.show(T.undone);
     refresh();
   }
@@ -748,7 +749,21 @@ export function createUI({
     // as Back (spec 6.8).
     back: () => { const s = store.get(); if (s.guidanceOpen || s.layersOpen) goBack(); else if (phone() && tipOnScreen() && !s.sheet && !s.confirmDialog && !s.screenshot) tips.dismiss(); else goBack(); },
     undo, help: () => toggleSheet('help'),
+    remove: () => removeByKey(),
   };
+  // Version 7.0 (Track P, ruling 1001): Delete or Backspace. While a placement's Undo is offered (its toast is still up, or a tool's bar shows an Undo that works) it
+  // is that Undo, the same refund, and the toast goes with it so a second press cannot undo the placement before. Otherwise, with a building's sheet open, it presses the
+  // sheet's own Demolish button, so the same confirmation (a monument, a building with people in it) comes first. Nothing else, and nothing behind a dialog or a lesson card.
+  function undoKeys() { return settings.get().keyboardShortcuts === false ? { title: P_TEXT.undoTitle(false), keys: 'Control+Z Meta+Z' } : { title: P_TEXT.undoTitle(true), keys: 'Control+Z Meta+Z Delete Backspace' }; }
+  function removeByKey() {
+    const s = store.get();
+    if (s.confirmDialog || s.screenshot || root.classList.contains('lesson-card-up')) return;
+    const offered = placement.canUndo() && ((Boolean(undoToast) && undoToast.isConnected) || isToolMode(s.mode));
+    if (offered) { toasts.hide(undoToast); undoToast = null; undo(); return; }
+    if (s.mode !== 'selected' || !s.sheet || s.sheet.kind !== 'info') return;
+    const demolish = root.querySelector('#sheet .demolish');
+    if (demolish && !demolish.disabled) demolish.click();
+  }
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
   // Stage 4.6 (ruling 400): a placement waits for its Enter when a tool has something to lay (a ghost, a finished line or plan) and nothing
   // else holds the screen (a sheet, a dialog, the Layers picker). Then Enter lays it whichever card or corner button has focus, as a
@@ -1004,6 +1019,7 @@ export function createUI({
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null, resolveSupplyGood(world, s.supplyGood));   // Ground brightens the tiles with room for the building being placed; Goods supply shows the picked good
         else if (spotsOn(s, world)) drawHouseSpots(g, world, r);                // Stage 4.7 (Task 4): the next house's Good and Fair spots, in this layer, while the house tool is on
+        if (s.mode === 'placing' && s.tool && s.tool.kind === 'building' && BUILDINGS[s.tool.type].water) drawBankHint(g, world, s.tool.type, r, s.tool.rot || 0);   // Version 7.0 (Track P): the banks a water-bound building can go on, lightly
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
         if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change
         const shapes = ghosts();                                                // refreshes the tint as well
@@ -1069,6 +1085,8 @@ export function createUI({
       confirmBar.element.remove();
       document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it, and the tabs' edge
       document.body.style.removeProperty('--panel-tabs-bottom');
+      document.body.style.removeProperty('--panel-sheet-top');   // Version 7.0 (Track P): and the sheet's place under the minimap
+      document.body.classList.remove('panel-sheet');
       delete root.dataset.mode;
       delete root.dataset.guidance;
       root.style.removeProperty('--guidance-max');
