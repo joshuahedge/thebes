@@ -133,7 +133,7 @@ function actOpen(w, fix, tried) {
 
 // Does one fix the way its Show me would: a build where the ghost lands (refused or unaffordable: nothing), a far good's Fetch order. Returns
 // the record of what was done, or null.
-function act(w, fix, good, tried) {
+export function act(w, fix, good, tried) {   // exported for the Wave 4 danger player (tests/v60/balance/respond.js)
   if (!fix) return null;
   if (fix.select !== undefined) {
     if (!fix.fetch || !good) return null;
@@ -220,10 +220,12 @@ export function sendTribute(w) {
   if (st.completes || (monthOfYear >= 10 && st.shipNow > 0)) sendQuota(w);
 }
 
-export function runGrand({ years = GRAND_YEARS } = {}) {
+// Version 6.0 (Wave 4, tests/v60/balance): dangers true plays the run with the new dangers on (the grace from day 0), onMonth(w, events, month) a player's answers to them
+// (called after each month end's own play, and through the capital run's years too); both default to the run as it always was.
+export function runGrand({ years = GRAND_YEARS, dangers = false, onMonth = null } = {}) {
   const started = performance.now();
   skips = {};
-  const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE });
+  const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE, dangers, onMonth });
   const w = base.w;
   const atBase = { raids: w.tally.raids, beaten: w.tally.raidsBeaten, lost: w.tally.raidsLost, towers: allBuildings(w).filter((b) => b.type === 'tower').length, last: w.raid.last, soldiers: w.soldiers.length, gold: w.gold, day: w.day };   // the capital run's raids, before years 7-10
   const built = [], months = [], raids = [];
@@ -246,6 +248,7 @@ export function runGrand({ years = GRAND_YEARS } = {}) {
     sendTribute(w);
     answerCourt(w, { reserve: RESERVE });   // Version 6.0 (Track A, ruling 660): the court's letters and demands, as the advice names them
     playMonth(w, built);
+    if (onMonth) onMonth(w, events, m);
     const t = tiers(w);
     for (const tier of [7, 8, 9]) if (first[tier] === undefined && Object.keys(t).some((k) => Number(k) >= tier)) first[tier] = m;
     months.push({ month: m, gold: Math.round(w.gold), people: population(w), tiers: t, taxes: w.stats.lastMonth.taxes });

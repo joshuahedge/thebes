@@ -3013,7 +3013,7 @@ Object.assign(V60_ADVICE_WORDS, {
       return {
         what: `${b1CropKind(d.kind)} will fall on ${plural(d.farms, 'farm', 'farms')} in ${b1Dur(d.days)}`,
         why: `Harvest now takes ${b1Pct(b1Harvest.share)} of a month's crop at once, extra to what the farm makes until it comes; the farm then rests ${plural(b1Harvest.restDays, 'day', 'days')} from the day after${d.early ? `. ${d.early} already harvested` : ''}`,
-        fix: a.fix ? 'Open a farm and Harvest now' : 'Every farm in the band has been harvested',
+        fix: a.fix ? 'Open a farm and Harvest now' : (d.stuck ? 'No named farm can take Harvest now: its stores are full or it stands idle' : 'Every farm in the band has been harvested'),
       };
     }
     return { what: `${b1CropKind(d.kind)} on ${plural(d.farms, 'farm', 'farms')}: ${d.factor <= 0 ? 'no crop' : `${b1Pct(d.factor)} of the crop`} for ${b1Dur(d.days)} more`, why: '', fix: '' };
