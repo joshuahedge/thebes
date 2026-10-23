@@ -12,6 +12,7 @@ import { lessonWorld } from '../../../src/sim/lesson.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { adviceWords } from '../../../src/ui/adviceText.js';
 import { causeFix } from '../../../src/ui/monumentSheet.js';
+import { nearestTerrainTile } from '../../../src/ui/goalsList.js';
 import { dueNodes } from '../../../src/ui/s46/court.js';
 import { V60_REIGN_TEXT as R, V60_HELP } from '../../../src/ui/text.js';
 import { COURT_DUE, DEMANDS, GREAT_WORK } from '../../../src/data/reign.js';
@@ -47,7 +48,7 @@ describe('v60 a fix: Advice names the great temple\'s waiting offering (ruling 7
     expect(DEMANDS.advice.offering).toBe(20);
     expect(DEMANDS.advice.offered < DEMANDS.advice.offering && DEMANDS.advice.offering < DEMANDS.advice.due).toBe(true);
     const granary = Object.values(w.buildings).find((b) => b.type === 'granary');
-    expect(a.data).toEqual({ offering: true, good: first.good, n: first.n, have: first.n - 5, stage: 0, waiting: false, producer: 'farm_grain', held: true });
+    expect(a.data).toEqual({ offering: true, good: first.good, n: first.n, have: first.n - 5, stage: 0, waiting: false, producer: 'farm_grain', held: true, maker: null, makerIdle: null });
     expect(a.fix).toEqual({ select: granary.id, target: { x: granary.x + granary.w / 2, y: granary.y + granary.d / 2 }, why: 'great_offering' });
     expect([a.cost, a.afford]).toEqual([null, null]);
     const words = adviceWords(a, w);
@@ -80,7 +81,7 @@ describe('v60 a fix: Advice names the great temple\'s waiting offering (ruling 7
   it('names the producer\'s card when no store holds any of the good, and says so', () => {
     const { w } = seat();
     const a = offeringItem(w);
-    expect(offeringSource(w, 'grain')).toEqual({ store: null, producer: 'farm_grain' });
+    expect(offeringSource(w, 'grain')).toEqual({ store: null, producer: 'farm_grain', maker: null });   // (6.0.1, ruling 805: no grain farm stands, so the card is offered)
     expect([a.data.held, a.data.have]).toEqual([false, 0]);
     expect(a.fix).toEqual({ item: 'farm_grain', at: 'terrain', target: { x: 12.5, y: 17.5 } });
     expect([a.cost, a.afford]).toEqual([costOf(w, 'farm_grain'), true]);
@@ -281,14 +282,16 @@ describe('v60 a fix: words that say what the sim does', () => {
 
 // ── The great-work sheet's Show me (the review's A minor, with ruling 786's source of the good) ──
 describe('v60 a fix: the great temple\'s waiting row has a way to the good', () => {
-  it('views the store holding most of the good, and shows the producer\'s card near the site when none holds any', () => {
+  it('views the store holding most of the good, and shows the producer\'s card on its ground nearest the site when none holds any (6.0.1, ruling 805)', () => {
     const first = offeringOf(makeTestWorld(), 0);
     const held = seat({ grain: 30, reason: 'waiting_offering' });
     const view = causeFix(held.w, held.gw, 'waiting_offering');
     expect(view).toEqual({ view: Object.values(held.w.buildings).find((b) => b.type === 'granary').id });
     const none = seat({ reason: 'waiting_offering' });
     const c = { x: none.gw.x + none.gw.w / 2, y: none.gw.y + none.gw.d / 2 };
-    expect(causeFix(none.w, none.gw, 'waiting_offering')).toEqual({ showMe: { category: 'food', item: 'farm_grain', x: c.x, y: c.y } });
+    const ground = nearestTerrainTile(none.w, BUILDINGS.farm_grain.terrain, c);   // a grain farm needs fertile ground: the test world's strip at x 0-7
+    expect(ground.x < 8).toBe(true);
+    expect(causeFix(none.w, none.gw, 'waiting_offering')).toEqual({ showMe: { category: 'food', item: 'farm_grain', x: ground.x, y: ground.y } });
     expect(first.good).toBe('grain');
     none.gw.site.course = 9;                                                       // no offering owed now (past the last stage's start): nothing to point at
     none.w.reign.offered = GREAT_WORK.stages.length;

@@ -5,3 +5,4 @@ import './advice.test.js';
 import './great.test.js';
 import './refusals.test.js';
 import './fix.test.js';
+import './v601.test.js';

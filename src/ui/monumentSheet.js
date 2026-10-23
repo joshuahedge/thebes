@@ -108,10 +108,14 @@ export function causeFix(world, b, reason, status = null) {
   if (reason === 'waiting_offering') {                       // Version 6.0 (Track A): the great temple's offering: View the store holding most of the good
     const o = monumentsSim.greatWorkStatus(world, b).offering;
     if (!o) return null;
-    // (Wave 4 fix, with the Advice item of ruling 786: the sim's own offeringSource) none holds any: Show me the card of what makes it, near the site.
+    // (Wave 4 fix, with the Advice item of ruling 786: the sim's own offeringSource) none holds any: View the producer that stands (ruling 805), else Show me the card of
+    // what makes it, on its own ground nearest the site (as no_stone and no_bricks aim), or near the site.
     const src = monumentsSim.offeringSource(world, o.good);
     if (src.store !== null) return { view: src.store };
-    return src.producer && isUnlocked(world, src.producer) ? { showMe: { category: categoryOfItem(src.producer), item: src.producer, x: c.x, y: c.y } } : null;
+    if (src.maker !== null) return { view: src.maker };
+    if (!src.producer || !isUnlocked(world, src.producer)) return null;
+    const at = BUILDINGS[src.producer].terrain ? nearestTerrainTile(world, BUILDINGS[src.producer].terrain, c) || c : c;
+    return { showMe: { category: categoryOfItem(src.producer), item: src.producer, x: at.x, y: at.y } };
   }
   if (reason === 'crew_short' || reason === 'crew_burning') {
     // The guild the crew plan sends here whose crew cannot work for this reason (site.crews holds only the working ones,

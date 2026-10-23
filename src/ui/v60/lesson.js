@@ -150,6 +150,19 @@ export function createLessonUi(ctx) {
     measure();
   }
 
+  // Version 6.0.1 (ruling 821): a step begins on a clear map. The tool that finished the step before leaves things over the map: the overlay its card or Show me
+  // turned on (a firehouse's Fire risk, a well's Water) with its legend, a second panel under the top bar beside the lesson's row, and on a phone the build tray it
+  // was picked from. Held sideways at large text the two hid the whole map (the staged fire: the bazaar ringed, the rest dimmed, no map left to pan), so as a new
+  // step comes the overlay goes off, and a phone's tray folds when the step asks for no card (the fire, the months, the raid: steps that wait on the sim and want
+  // the map). A step with a card keeps the tray, since its Show me opens it anyway. The player can turn either back on at once.
+  function clearForStep() {
+    const s = store.get(), next = at < LESSON_LENGTH ? LESSON_STEPS[at] : null;
+    const patch = {};
+    if (s.overlay) patch.overlay = null;
+    if (phoneNow() && s.dock === 'tray' && !(next && next.show)) patch.dock = 'slim';
+    if (Object.keys(patch).length) store.set(patch);
+  }
+
   // The row's way out at the end ("Go to the title") is live only while the end sheet is not open: under the sheet it would be a second button behind it (a tap
   // through the sheet's edge, a Tab into it), and the sheet has the same button.
   const endSheetOpen = () => { const s = store.get().sheet; return Boolean(s) && s.kind === 'lessonEnd'; };
@@ -162,6 +175,7 @@ export function createLessonUi(ctx) {
     if (next !== at) {
       at = next;
       persist();
+      if (!building) clearForStep();
       if (ctx.sfx) { ctx.sfx.play('goal'); if (ctx.sfx.buzz) ctx.sfx.buzz(20); }
       open = false; paintOpen();
       shownAt = -1;

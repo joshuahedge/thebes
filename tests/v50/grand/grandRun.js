@@ -17,12 +17,14 @@
 // fallback for a workshop asked for before any store holds its input (the advice cannot name a place for it then: it is laid, found idle and taken back).
 import { runCapital, CAPITAL_YEARS } from '../../stage4/balance/capitalRun.js';
 import { advanceDays } from '../../../src/sim/clock.js';
-import { place, canPlace, tileReason } from '../../../src/sim/commands.js';
+import { place, canPlace, tileReason, setPaused } from '../../../src/sim/commands.js';
+import { assignLabour } from '../../../src/sim/labour.js';
 import { drawRoute } from '../../../src/sim/route.js';
 import { lacksRoad, buildingsInReach } from '../../../src/sim/reach.js';
 import { storeAccepts } from '../../../src/sim/production.js';
 import { undo } from '../../../src/sim/undo.js';
-import { housesOf, population, allBuildings } from '../../../src/sim/world.js';
+import { housesOf, population, allBuildings, isSite } from '../../../src/sim/world.js';
+import { foodOutlook } from '../../../src/sim/crops.js';
 import { setTradeOrder } from '../../../src/sim/trade.js';
 import { cityAdvice, nextStep, storeFor, inputHolder } from '../../../src/sim/advice.js';
 import { isUnlocked } from '../../../src/sim/progression.js';
@@ -30,6 +32,7 @@ import { quotaOf, quotaStatus, sendQuota } from '../../../src/sim/pressure.js';
 import { setFetch } from '../../../src/sim/carts.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
+import { GREAT_WORK } from '../../../src/data/reign.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
 import { nearestFit } from '../../../src/ui/placement.js';
 import { nearestTerrainTile } from '../../../src/ui/goalsList.js';
@@ -45,6 +48,52 @@ const REACH_TILES = 12;               // a maker or store named beside a buildin
 // Why the player passed a fix by, counted for the record (reset by each run): no_workers, no_spot, would_idle, satellite_failed and the placing rule's reasons.
 let skips = {};
 const skip = (why) => { skips[why] = (skips[why] || 0) + 1; return null; };
+
+// Version 6.0.1 (the dangers-on great-work run, tests/v60/balance; test-script habits, not a game change). With `habits` on (setHabits; off for the runs as tuned, as it
+// always was; each run sets it), the player finds workers:
+//   - for a grand home's own next step (the house sheet's, the way to the next rank) that wants a workplace the workers cannot staff, it pauses a monument under way (its
+//     sheet's Pause, as the great-work run does at the founding), one at a time until the workers suffice, so its guilds stand idle and their workers go to the step;
+//   - freeIdle (the great-work run's moveToCrews, when the temple's crews stand short): it pauses every workplace that stands idle with workers in it (the sheet's problem:
+//     no room in the stores, no input, nothing to do, no game; the Workers layer shows them), one at a time until `need` workers are free: nothing they make is lost. Never
+//     a monuments workplace, nor the maker of a good the great work uses (FEEDS_CREWS);
+//   - feedFirst: every workplace freeIdle paused goes back to work when food runs low (the stores hold under FOOD_MONTHS months of what the homes eat).
+const IDLE = ['no_storage', 'storage_full', 'no_input', 'idle', 'no_game'];
+const FOOD_MONTHS = 6;
+// Goods the great work uses: the crews' suppliers' input (the brickworks' clay), each stage's offering and what its maker consumes (barley for beer, flax for linen).
+const OFFERED = GREAT_WORK.offerings.map((o) => o.good);
+const FEEDS_CREWS = [...new Set([
+  ...Object.values(BUILDINGS).filter((d) => d.priority === 'monuments' && d.consumes).map((d) => d.consumes),
+  ...OFFERED, ...Object.values(BUILDINGS).filter((d) => d.produces && OFFERED.includes(d.produces.good) && d.consumes).map((d) => d.consumes),
+])];
+let habits = false, stepAsk = false;
+export const idlePaused = new Set();   // the workplaces the habit paused (ids; a world's copy keeps them): runGrand clears it
+export const setHabits = (on) => { habits = Boolean(on); };
+export function freeIdle(w, need) {
+  for (const b of allBuildings(w)) {
+    if (w.labour.workforce - w.labour.jobs >= need) break;
+    const def = BUILDINGS[b.type];
+    if (!(b.staff > 0) || b.paused || def.priority === 'monuments' || (def.produces && FEEDS_CREWS.includes(def.produces.good)) || !IDLE.includes(b.blocked)) continue;
+    if (setPaused(w, b.id, true).ok) { idlePaused.add(b.id); assignLabour(w); }
+  }
+}
+export function feedFirst(w) {
+  if (!idlePaused.size) return;
+  const o = foodOutlook(w);
+  if (o.held >= FOOD_MONTHS * o.used) return;
+  for (const id of idlePaused) if (w.buildings[id] && w.buildings[id].paused) setPaused(w, id, false);
+  idlePaused.clear();
+  assignLabour(w);
+}
+export const monumentsPaused = [];   // the record: each monument the first habit paused ({ day, type }); runGrand clears it
+function workerRoom(w, def) {
+  for (const b of habits && stepAsk && def.workers ? allBuildings(w).filter((s) => isSite(s) && !s.paused && s.type !== 'great_temple') : []) {
+    if (w.labour.workforce - w.labour.jobs >= def.workers) break;
+    setPaused(w, b.id, true);
+    assignLabour(w);
+    monumentsPaused.push({ day: w.day, type: b.type });
+  }
+  return w.labour.workforce - w.labour.jobs;
+}
 
 const tiers = (w) => {
   const out = {};
@@ -93,8 +142,7 @@ function satellite(w, type) {
   const def = BUILDINGS[type], input = def.consumes, holder = w.buildings[inputHolder(w, type)];
   const st = storeFor(input);
   if (!holder || !st || !isUnlocked(w, st) || w.gold - costOf(w, st) - costOf(w, type) < RESERVE) return null;
-  const L = w.labour;
-  if (L.workforce - L.jobs < def.workers + BUILDINGS[st].workers) return null;
+  if (workerRoom(w, def) < def.workers + BUILDINGS[st].workers) return null;
   const undoBefore = w.undo.length;
   const back = () => { while (w.undo.length > undoBefore) undo(w); return skip('satellite_failed'); };
   const sg = nearestFit(w, { kind: 'building', type: st }, holder.x, holder.y, null, w.size);
@@ -118,8 +166,7 @@ function actOpen(w, fix, tried) {
   if (tried.has(key)) return null;
   tried.add(key);
   if (w.gold - costOf(w, type) < RESERVE) return null;
-  const L = w.labour;
-  if (def.workers && L.workforce - L.jobs < def.workers) return skip('no_workers');
+  if (def.workers && workerRoom(w, def) < def.workers) { if (habits) tried.delete(key); return skip('no_workers'); }
   const by = w.buildings[fix.near];
   if (!by) return null;
   const g = nearestFit(w, { kind: 'building', type }, by.x, by.y, null, w.size);
@@ -151,8 +198,7 @@ export function act(w, fix, good, tried) {   // exported for the Wave 4 danger p
   tried.add(key);
   if (def.produces && allBuildings(w).some((b) => b.type === type && b.blocked === 'no_input') && fix.near === undefined) return null;   // one already stands idle for want of its input: another would too
   if (w.gold - costOf(w, type) < RESERVE) return null;
-  const L = w.labour;
-  if (def.workers && L.workforce - L.jobs < def.workers) return skip('no_workers');   // no workers to spare for it: the summary's jobs and workers say so
+  if (def.workers && workerRoom(w, def) < def.workers) { if (habits) tried.delete(key); return skip('no_workers'); }   // no workers to spare for it: the summary's jobs and workers say so (6.0.1: with the habits, a grand home's own step may still ask)
   const at = fix.at === 'terrain' && def.terrain ? nearestTerrainTile(w, def.terrain, fix.target) || fix.target : fix.target;
   const spot = spotFor(w, type, at, fix);
   if (!spot) return def.consumes ? satellite(w, type) : skip('no_spot');
@@ -199,10 +245,12 @@ export function playMonth(w, built) {   // exported for the great-work run (test
     again = false;
     const asks = [
       ...cityAdvice(w).filter((a) => forDistrict(w, a)).map((a) => ({ kind: a.kind, fix: a.fix, good: a.data && (a.data.good || (a.data.cause && a.data.cause.good)) })),
-      ...housesOf(w).filter((h) => h.tier >= GRAND_TIER).map((h) => nextStep(w, h)).filter((s) => s.reason === null).map((s) => ({ fix: s.fix, good: s.cause.good })),
+      ...housesOf(w).filter((h) => h.tier >= GRAND_TIER).map((h) => nextStep(w, h)).filter((s) => s.reason === null).map((s) => ({ fix: s.fix, good: s.cause.good, step: true })),
     ];
     for (const ask of asks) {
+      stepAsk = Boolean(ask.step);
       const done = act(w, ask.fix, ask.good, tried);
+      stepAsk = false;
       if (!done) continue;
       built.push(done);
       n++;
@@ -222,10 +270,14 @@ export function sendTribute(w) {
 
 // Version 6.0 (Wave 4, tests/v60/balance): dangers true plays the run with the new dangers on (the grace from day 0), onMonth(w, events, month) a player's answers to them
 // (called after each month end's own play, and through the capital run's years too); both default to the run as it always was.
-export function runGrand({ years = GRAND_YEARS, dangers = false, onMonth = null } = {}) {
+// Version 6.0.1: seed is the world's seed (the capital run's: 5 as tuned); habits the player's moving workers out of idle workplaces (setHabits, above).
+export function runGrand({ years = GRAND_YEARS, dangers = false, onMonth = null, seed = 5, habits: withHabits = false } = {}) {
   const started = performance.now();
   skips = {};
-  const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE, dangers, onMonth });
+  setHabits(withHabits);
+  idlePaused.clear();
+  monumentsPaused.length = 0;
+  const base = runCapital(CAPITAL_YEARS * MONTHS_PER_YEAR, { size: GRAND_SIZE, dangers, onMonth, seed });
   const w = base.w;
   const atBase = { raids: w.tally.raids, beaten: w.tally.raidsBeaten, lost: w.tally.raidsLost, towers: allBuildings(w).filter((b) => b.type === 'tower').length, last: w.raid.last, soldiers: w.soldiers.length, gold: w.gold, day: w.day };   // the capital run's raids, before years 7-10
   const built = [], months = [], raids = [];

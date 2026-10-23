@@ -19,6 +19,11 @@ import { DAYS_PER_MONTH } from './time.js';
 export const isFarm = (type) => type.startsWith('farm_');
 export const farmsOf = (world) => allBuildings(world).filter((b) => isFarm(b.type));
 
+// Version 6.0.1 (ruling 800): the share of its crop a farm keeps if a low Nile or a swarm (kind 'locusts' | 'blight') struck today: 1 - cut (or loss) x the
+// dangers' harm now (the level's severity, half while the great temple rises: dangerDraws), never under the floor (or 0). The strike fixes it; the words read it.
+export const lowNileShare = (world) => Math.max(DROUGHT.floor, 1 - DROUGHT.cut * dangerDraws(world).harm);
+export const cropShare = (world, kind) => Math.max(0, 1 - CROPS[kind].loss * dangerDraws(world).harm);
+
 // ── The yield a farm is given ──
 // The drought's share of a farm's crop: 1 outside a drought and for anything that is not a farm.
 export function droughtFactor(world, b) {
@@ -72,8 +77,8 @@ export function droughtMonth(world, events = null) {
 export function droughtDay(world, events = null) {
   const h = world.hazards.drought;
   if (h.warning && !h.active && world.day >= h.warning.strikes) {
-    const w = h.warning, sev = dangerDraws(world).severity;
-    h.active = { day: world.day, year: w.year, until: world.day + DROUGHT.months * DAYS_PER_MONTH, factor: Math.max(DROUGHT.floor, 1 - DROUGHT.cut * sev) };
+    const w = h.warning;
+    h.active = { day: world.day, year: w.year, until: world.day + DROUGHT.months * DAYS_PER_MONTH, factor: lowNileShare(world) };   // fixed for the year as the water fails
     h.warning = null;
     world.tally.droughts += 1;
     if (events) events.push({ type: 'drought_start', until: h.active.until, factor: h.active.factor });
@@ -92,7 +97,7 @@ export function droughtDay(world, events = null) {
 // they feed the city alone, at what is used less what is still made; Infinity when the farms still keep up) }.
 export function foodOutlook(world, factor = null) {
   const last = world.stats.lastMonth || {};
-  const f = factor !== null ? factor : (world.hazards.drought.active ? world.hazards.drought.active.factor : Math.max(DROUGHT.floor, 1 - DROUGHT.cut * dangerDraws(world).severity));
+  const f = factor !== null ? factor : (world.hazards.drought.active ? world.hazards.drought.active.factor : lowNileShare(world));
   let held = 0;
   for (const b of allBuildings(world)) {
     const def = BUILDINGS[b.type];
@@ -134,9 +139,9 @@ export function locustsMonth(world, events = null) {
 export function locustsDay(world, events = null) {
   const h = world.hazards.locusts;
   if (h.warning && !h.active && world.day >= h.warning.strikes) {
-    const w = h.warning, sev = dangerDraws(world).severity, row = CROPS[w.kind];
+    const w = h.warning, row = CROPS[w.kind];
     const farms = w.farms.filter((id) => world.buildings[id] && isFarm(world.buildings[id].type));
-    h.active = { day: world.day, kind: w.kind, farms, until: world.day + row.days, factor: Math.max(0, 1 - row.loss * sev), early: (w.early || []).slice() };
+    h.active = { day: world.day, kind: w.kind, farms, until: world.day + row.days, factor: cropShare(world, w.kind), early: (w.early || []).slice() };
     h.warning = null;
     world.tally[w.kind === 'blight' ? 'blights' : 'swarms'] += 1;
     if (events) events.push({ type: 'locusts_strike', kind: w.kind, farms: farms.slice(), until: h.active.until, factor: h.active.factor });

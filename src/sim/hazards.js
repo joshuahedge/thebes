@@ -12,7 +12,7 @@
 // { id, cause }, 'plague_end' { homes, lost }, 'quarantine_end' { key }, 'drought_warning' { strikes, year }, 'drought_start' { until, factor },
 // 'drought_end', 'locusts_warning' { kind, farms, strikes }, 'locusts_strike' { kind, farms, until, factor }, 'locusts_end' { kind }; and the
 // raid strikes' 'raid_wreck' and 'raid_loot' (src/sim/strikes.js).
-import { HAZARD_ADVICE, DROUGHT } from '../data/hazards.js';
+import { HAZARD_ADVICE, DROUGHT, HAZARD_KINDS } from '../data/hazards.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { allBuildings } from './world.js';
 import { healthCause, healthCoverage } from './health.js';
@@ -23,7 +23,7 @@ import { plagueDay, plagueMonth, sickHomes, quarantines } from './plague.js';
 import { droughtDay, droughtMonth, locustsDay, locustsMonth, foodOutlook } from './crops.js';
 import { HEALTH } from '../data/health.js';
 import { FOOD_GOODS } from '../data/goods.js';
-import { monthsBetween } from './draws.js';
+import { monthsBetween, dangerDraws } from './draws.js';
 import { harvestQuote } from './production.js';
 
 export { dangerDraws } from './draws.js';
@@ -31,9 +31,25 @@ export { dangerDraws } from './draws.js';
 // A day of the dangers, after the court's day (src/sim/v60.js v60Day): a warning that has come due strikes, a plague spreads and mends, a
 // drought or a swarm runs its course.
 export function hazardDay(world, events = null) {
+  spareWarned(world, events);
   plagueDay(world, events);
   droughtDay(world, events);
   locustsDay(world, events);
+}
+
+// Version 6.0.1 (ruling 800): while the great temple rises with the dangers at no strength (dangerDraws harm 0: GREAT_WORK_EASE.severity 0), a plague, low Nile, locusts or
+// blight warned before the founding will not strike: its warning lapses the next day ({ type: 'hazard_spared', kind }), so no alert or Advice item names it, and the kind's
+// next draw starts afresh once the temple is finished (nextDay null, as a new city's first). One already under way runs its course.
+function spareWarned(world, events) {
+  const h = world.hazards;
+  if (!HAZARD_KINDS.some((k) => h[k].warning && !h[k].active) || dangerDraws(world).harm > 0) return;
+  for (const kind of HAZARD_KINDS) {
+    const s = h[kind];
+    if (!s.warning || s.active) continue;
+    s.warning = null;
+    s.nextDay = null;
+    if (events) events.push({ type: 'hazard_spared', kind });
+  }
 }
 
 // The month's end (v60Month): the draws and their warnings (never before graceUntil: dangerDraws), the Nile reading's low flood.

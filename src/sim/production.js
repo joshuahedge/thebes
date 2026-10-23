@@ -9,7 +9,7 @@ import { HUNTING } from '../data/river.js';
 import { floodHarvestFactor, fishFactor } from './flood.js';
 import { huntHerd, takeGame } from './wildlife.js';
 import { HARVEST_NOW } from '../data/hazards.js';
-import { droughtFactor, cropFactor, warnedBand, isFarm } from './crops.js';
+import { droughtFactor, cropFactor, warnedBand, isFarm, cropShare } from './crops.js';
 import { plagueHalted } from './plague.js';
 
 export const storeTotal = (b) => Object.values(b.store).reduce((s, v) => s + v, 0);
@@ -156,7 +156,8 @@ export const restDaysLeft = (world, b) => (b.restUntil > world.day && world.day 
 export function harvestQuote(world, b) {
   const w = b && isFarm(b.type) ? warnedBand(world, b.id) : null;
   const def = b ? BUILDINGS[b.type] : null;
-  const base = { good: def && def.produces ? def.produces.good : null, units: 0, want: 0, restDays: HARVEST_NOW.restDays, kind: w ? w.kind : null, strikes: w ? w.strikes : null };
+  // share (Version 6.0.1, ruling 801): the part of its crop the band leaves a farm if it struck today (crops.js cropShare: more while the great temple rises), for the words.
+  const base = { good: def && def.produces ? def.produces.good : null, units: 0, want: 0, restDays: HARVEST_NOW.restDays, kind: w ? w.kind : null, strikes: w ? w.strikes : null, share: w ? cropShare(world, w.kind) : null };
   if (!w) return { ok: false, reason: 'not_warned', ...base };
   if ((w.early || []).includes(b.id)) return { ok: false, reason: 'done', ...base };
   if (!isWorking(world, b)) return { ok: false, reason: 'idle', ...base };

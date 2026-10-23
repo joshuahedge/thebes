@@ -47,12 +47,13 @@ export function createBattleUi(ctx) {
 
   const phone = () => { const l = ctx.store.get().layout; return l === 'portrait' || l === 'compact'; };
   // The raid report's caption (danger.js shows it on the same raid_end, an info caption with the report's longer words) is taken down when the result goes up:
-  // the result row says the same, and on a landscape phone only one row sits under the top bar (the mobile budget). Only that caption: another waiting
-  // or showing caption is not the report's, so it is left to its own timers.
-  const cheer = root && root.querySelector ? root.querySelector('#cheer') : null;
+  // the result row says the same, and on a landscape phone only one row sits under the top bar (the mobile budget). Only that caption, whether it is showing or
+  // still waiting behind another (celebrations.drop): every other caption, showing or waiting, is left with its own timers, and one waiting behind the report
+  // takes the row as it goes. Version 6.0.1: it used to empty the whole queue, and only when the report's caption was the one on screen.
   function dropReportCaption(report) {
-    const node = cheer ? cheer.querySelector('.cheer .text') : null;
-    if (node && ctx.celebrations && typeof ctx.celebrations.clear === 'function' && node.textContent.trim() === DANGER_UI_TEXT.raidReport(report)) ctx.celebrations.clear();
+    if (!ctx.celebrations || typeof ctx.celebrations.drop !== 'function') return;
+    const words = DANGER_UI_TEXT.raidReport(report);
+    ctx.celebrations.drop((c) => `${c.lead || ''}${c.text}`.trim() === words);
   }
   // A critical alert has the row when it is one that urges (a fire, a raid warning, debt): a polite one (a letter from the court) gives way to the result.
   const criticalShowing = () => Boolean(banner) && [...banner.querySelectorAll('.critical:not(.moment)')].some((n) => !POLITE.has(n.dataset.code));

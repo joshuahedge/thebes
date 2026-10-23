@@ -2842,8 +2842,12 @@ V60_ADVICE_WORDS.demand = (a) => {
   if (d.offering) {
     const what = `The great temple's next offering is ${reignNum(d.n)} ${goodWord(d.good)}: your stores hold ${reignNum(d.have)}`;
     const why = d.waiting ? 'The crews are waiting for it before they lay the next stage.' : `The next stage begins with it, and the crews wait for it if the stores hold less. ${reignStageNames[reignGreat.stages[d.stage]] ? `That is ${reignStageNames[reignGreat.stages[d.stage]]}.` : ''}`.trim();
-    const fix = a.fix && a.fix.select !== undefined ? `Keep more ${goodWord(d.good)} in the stores: the one holding most is shown`
-      : a.fix ? `No store holds any ${goodWord(d.good)}: build ${anA(buildingName(d.producer).toLowerCase())} to make it` : `Make more ${goodWord(d.good)} before the stage begins`;
+    // Version 6.0.1 (ruling 805): a producer that stands is waited for (or, idle, its sheet says why); another is offered only while none stands.
+    const maker = d.maker !== null && d.maker !== undefined ? buildingName(d.producer).toLowerCase() : null;
+    const fix = d.held && a.fix ? `Keep more ${goodWord(d.good)} in the stores: the one holding most is shown`
+      : maker && d.makerIdle ? `No store holds any ${goodWord(d.good)}: your ${maker} is not working. Its sheet says why`
+        : maker ? `No store holds any ${goodWord(d.good)} yet: your ${maker} makes it. Wait for ${reignNum(d.n - d.have)} to reach the stores`
+          : a.fix ? `No store holds any ${goodWord(d.good)}: build ${anA(buildingName(d.producer).toLowerCase())} to make it` : `Make more ${goodWord(d.good)} before the stage begins`;
     return { what, why, fix };
   }
   if (d.due) return { what: `The court's due of ${reignNum(d.gold)} gold comes in ${reignMonths(Math.max(1, d.monthsLeft))}`, why: `The treasury holds ${reignNum(Math.max(0, d.have))}: it would go into debt.`, fix: 'Raise favour or trim costs before the year turns' };
@@ -2944,7 +2948,7 @@ export const B1_TEXT = {
   // ── Locusts and blight ──
   cropRowWarned: (w, now) => `${b1CropKind(w.kind)} warned for this farm, due in ${b1Dur(w.strikes - now)}`,
   harvestButton: 'Harvest now',
-  harvestDoes: (q) => `Takes ${q.units} ${goodName(q.good).toLowerCase()} into the stores today, extra to what the farm goes on making until the ${q.kind === 'blight' ? 'blight comes' : 'locusts come'}. It then rests ${plural(q.restDays, 'day', 'days')} from the day after, while ${q.kind === 'blight' ? `the blight cuts the crop for ${b1Dur(b1Crops.blight.days)}` : `the locusts eat the crop for ${b1Dur(b1Crops.locusts.days)}`}: the rest costs less than the grain gives`,
+  harvestDoes: (q) => `Takes ${q.units} ${goodName(q.good).toLowerCase()} into the stores today, extra to what the farm goes on making until the ${q.kind === 'blight' ? 'blight comes' : 'locusts come'}. It then rests ${plural(q.restDays, 'day', 'days')} from the day after, while ${q.kind === 'blight' ? `the blight cuts the crop for ${b1Dur(b1Crops.blight.days)}` : q.share > 0 ? `the locusts eat ${b1Pct(1 - q.share)} of the crop for ${b1Dur(b1Crops.locusts.days)}` : `the locusts eat the crop for ${b1Dur(b1Crops.locusts.days)}`}: the rest costs less than the grain gives`,
   harvestRefusal: { not_warned: 'This farm is in no warned band', done: 'Harvested early already: it rests when the danger comes', idle: 'The farm is not working: nothing to harvest', no_room: 'No granary or storehouse in reach has room for the crop: empty one or build another' },
   harvested: (units, good) => `Harvested ${units} ${goodName(good).toLowerCase()} early`,
   cropRowActive: (a, now, kind) => (a.factor <= 0 ? `${b1CropKind(kind)}: this farm makes nothing for ${b1Dur(a.until - now)} more` : `${b1CropKind(kind)}: this farm gives ${b1Pct(a.factor)} of its crop for ${b1Dur(a.until - now)} more`),
@@ -3216,7 +3220,7 @@ import { DAYS_PER_MONTH as d2MonthDays, MONTHS_PER_YEAR as d2YearMonths } from '
 // The guided first city (src/ui/lesson.js builds the facts each line is worded from; every number is the sim's own).
 // Each step is (f) => { text, why }: text is the one instruction in the guidance row (two or three lines on a phone), why the sentence that
 // follows it on a wide screen and when the row is opened in place. f: { paused, progress: { n, of } | null, warning: { dir, size, daysLeft, need, have } | null,
-// raidOn: { left } | null, missing: type | null, forecast: gold a month }.
+// raidOn: { left } | null, missing: type | null, forecast: gold a month, crew: a staffed firehouse reaches the bazaar (the fire step), towers: staffed towers (the raid step) }.
 const d2Site = (type) => buildingName(type).toLowerCase();
 // Times in game months, as the alert's own words say them (DANGER_UI_TEXT.duration: "2 months 29 days"), so the row and the banner count alike.
 const d2Time = (days) => DANGER_UI_TEXT.duration(Math.max(0, days));
@@ -3256,15 +3260,19 @@ export const D2_TEXT = {
       why: `Small plots stop at Townhouse. A Large plot grows into a Manor and beyond once its needs are met nearby. A real city opens the card with its first Townhouse; a lot costs ${BUILDINGS[d2Large.type].cost} gold.` }),
     firehouse: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : `Build a firehouse near the bazaar${f.paused ? ', then press Play so its crew can take their posts' : ' and let its crew take their posts'}.`,
       why: `A firehouse works only with staff and a road, and covers ${BUILDINGS.firehouse.reach} road tiles. Fire risk starts once a city is a Town.` }),
-    fire: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : `A small fire started in the bazaar: the lesson lit it. ${f.paused ? 'Press Play and watch the crew put it out.' : 'Watch the crew put it out.'}`,
-      why: `A staffed firehouse that reaches a blaze puts it out in a day or two. Left alone it grows into a fire in ${d2Fire.blazeDays} days and the building burns down.` }),
+    // Version 6.0.1 (rulings 820, 822): the instruction leads (a landscape phone cuts the row at two lines), and the words say who puts the staged blaze out: the
+    // crew while a staffed firehouse reaches the bazaar, else the lesson itself (src/sim/fire.js blazeDay: a staged blaze always goes out).
+    fire: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : f.crew === false
+      ? `${f.paused ? 'Press Play: the' : 'The'} lesson puts out the small fire it lit in the bazaar, though no staffed firehouse reaches it now.`
+      : `${f.paused ? 'Press Play and watch' : 'Watch'} the crew put out the small fire the lesson lit in the bazaar.`,
+      why: `A staffed firehouse that reaches a blaze puts it out in a day or two. In a real city a blaze left alone grows into a fire in ${d2Fire.blazeDays} days and the building burns down; the lesson's own always goes out.` }),
     tower: (f) => (f.warning
-      ? { text: `Raiders come from the ${f.warning.dir}: ${f.warning.size} of them, in ${d2Time(f.warning.daysLeft)}. Build ${f.warning.need - f.warning.have > 1 ? `${f.warning.need - f.warning.have} more towers` : 'a tower'} near the bazaar and let ${f.warning.need - f.warning.have > 1 ? 'their crews' : 'its crew'} take their posts.`,
+      ? { text: `Build ${f.warning.need - f.warning.have > 1 ? `${f.warning.need - f.warning.have} more towers` : 'a tower'} near the bazaar and let ${f.warning.need - f.warning.have > 1 ? 'their crews' : 'its crew'} take their posts: raiders come from the ${f.warning.dir}, ${f.warning.size} of them, in ${d2Time(f.warning.daysLeft)}.`,
         why: `A staffed tower stops about ${d2Raids.raidersPerTower} raiders. ${d2RaidClock()}; the lesson brings the Market town's tower card early.` }
       : { text: f.paused ? "Press Play: the lesson brings a raid warning. The Market town's tower card is open early." : 'A raid warning is on its way.',
         why: `${d2RaidClock()}.` }),
     raid: (f) => (f.raidOn
-      ? { text: `The raiders are here: ${f.raidOn.left} on the map. Watch the towers stop them.`, why: 'Towers shoot the nearest raider in range, and a band turns back once half of it has fallen.' }
+      ? { text: f.towers > 0 ? `Watch ${f.towers > 1 ? 'your towers' : 'your tower'} stop the raiders: ${f.raidOn.left} on the map.` : `Watch what the raiders do: ${f.raidOn.left} on the map, and no staffed tower to stop them.`, why:'Towers shoot the nearest raider in range, and a band turns back once half of it has fallen.' }
       : { text: `${f.paused ? 'Press Play and watch the raiders come' : 'The raiders are on their way'}${f.warning ? `: ${d2Time(f.warning.daysLeft)} to go` : ''}.`,
         why: 'Raids grow with a city\'s people and wealth, so build towers before the next warning.' }),
   },
@@ -3321,3 +3329,36 @@ CARDS4_TEXT.cards.raid = {
 V60_HELP.d2.push({ head: 'The lesson', text: `The lesson is a small first city of ${d2Steps.length} steps: a road, homes, a well, a farm, a granary and a bazaar, workers, a Large plot, a small fire and a raid. Each step lights what it asks for, dims the rest and moves on when the city shows it done. It runs on its own map and never touches a saved city. A new device starts with it; the Lesson button on the title screen and in the menu plays it again. A lesson left part-way continues from its step on a city the lesson rebuilds, so the streets you laid are not kept.` });
 V60_HELP.d2.push({ head: 'Picture cards', text: `The picture cards show once before your first city and again, one at a time, the first time a Large plot, a court demand, a plague, a low Nile, locusts or a raid with real losses comes. Show the picture cards, above, keeps every one. The newest dangers wait ${d2Grace / (d2MonthDays * d2YearMonths)} game years from a city's start: no plague, low Nile or locusts, and a raid only burns, steals gold and takes a granary's food, without wrecking buildings or looting storehouses. Raids and fires themselves can come sooner.` });
 // ── end v60 d2 ──
+
+//
+// ── v601 (Version 6.0.1, rulings 800-809: the dangers ease while the great temple rises) ─────────────────────────────────────────
+// Every number below is the sim's own: GREAT_WORK_EASE (src/data/hazards.js) times the data the dangers strike with (PLAGUE, DROUGHT, CROPS) on Normal (HAZARD_LEVELS.normal),
+// the same sums as plague.js infect, crops.js lowNileShare and cropShare; whether the temple rises is dangerDraws(world).temple.
+import { GREAT_WORK_EASE as v601Ease } from '../data/hazards.js';
+const v601Sev = (eased) => b1Levels.normal.severity * (eased ? v601Ease.severity : 1);
+const v601Cap = (eased) => b1Pct(Math.min(b1Plague.lossMax, b1Plague.lossShare * v601Sev(eased)));
+const v601Nile = (eased) => b1Pct(Math.max(b1Drought.floor, 1 - b1Drought.cut * v601Sev(eased)));
+const v601Crop = (kind, eased) => b1Pct(Math.max(0, 1 - b1Crops[kind].loss * v601Sev(eased)));
+const v601Strength = () => (v601Ease.severity === 0.5 ? 'half their strength' : `${b1Pct(v601Ease.severity)} of their strength`);
+const v601Spread = () => (v601Ease.severity === 0.5 ? 'half as readily' : `at ${b1Pct(v601Ease.severity)} of the pace`);
+// At no strength (GREAT_WORK_EASE.severity 0: the sim draws and warns none of them, and a warning given before the founding lapses: hazards.js spareWarned), the words say so.
+const v601None = () => v601Ease.severity <= 0;
+export const V601_TEXT = {
+  // The great-work sheet's line (src/ui/v60/reign.js): before it is founded, the rule; while it rises (the sim's dangerDraws temple), that it holds now.
+  easeLine: (rising) => (v601None()
+    ? (rising
+      ? 'While it rises, no plague, low Nile, locusts or blight comes: none is warned until it is finished. Raids and fire do not ease.'
+      : 'Once it is founded, and until it is finished, no plague, low Nile, locusts or blight comes. Raids and fire do not ease.')
+    : (rising
+      ? `While it rises, plague, the low Nile, locusts and blight strike at ${v601Strength()}: they do now, until it is finished. Raids and fire do not ease.`
+      : `Once it is founded, and until it is finished, plague, the low Nile, locusts and blight strike at ${v601Strength()}. Raids and fire do not ease.`)),
+  help: v601None()
+    ? { head: 'While the great temple rises', text: 'From the day the great temple is founded until it is finished, no plague, low Nile, locusts or blight comes: none is warned, and one warned before the founding does not strike. One already under way runs its course. Once the temple is finished they come again as before. Raids and fire do not ease.' }
+    : { head: 'While the great temple rises', text: `From the day the great temple is founded until it is finished, plague, the low Nile, locusts and blight strike at ${v601Strength()}. On Normal a plague spreads ${v601Spread()} and takes at most ${v601Cap(true)} of a home's people (${v601Cap(false)} otherwise); a low Nile leaves the farms ${v601Nile(true)} of their crop (${v601Nile(false)}); locusts leave ${v601Crop('locusts', true)} of it (${v601Crop('locusts', false)}) and blight ${v601Crop('blight', true)} (${v601Crop('blight', false)}). They come as often, and are warned as before. A low Nile or a swarm already under way, and a home already sick, keep their strength. Raids and fire do not ease.` },
+  // The caption for a warning that lapses at the founding (hazards.js: { type: 'hazard_spared', kind }).
+  spared: (kind) => (kind === 'plague' ? 'The great temple rises: the warned plague will not come'
+    : kind === 'drought' ? 'The great temple rises: the low Nile will bring no lean year'
+      : 'The great temple rises: the warned locusts or blight will not come'),
+};
+V60_HELP.b1.push(V601_TEXT.help);
+// ── end v601 ──

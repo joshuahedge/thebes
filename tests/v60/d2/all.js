@@ -6,3 +6,4 @@ import './cards.test.js';
 import './budget.test.js';
 import './words.test.js';
 import './fixes.test.js';
+import './trap.test.js';
