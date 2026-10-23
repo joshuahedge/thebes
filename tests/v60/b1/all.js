@@ -4,3 +4,4 @@ import './strikes.test.js';
 import './plague.test.js';
 import './crops.test.js';
 import './ui.test.js';
+import './fix.test.js';

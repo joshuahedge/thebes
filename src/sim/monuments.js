@@ -63,6 +63,13 @@ function takeStored(world, good, n) {
   }
   return n - left;
 }
+// Version 6.0 (Wave 4 fix, rulings 786): where to look when the stores hold less of a good than a stage's offering asks: { store, producer }: store the id of the
+// store holding most of the good (ties: the lower id), or null when none holds any; producer the building type that makes it, or null.
+export function offeringSource(world, good) {
+  const held = allBuildings(world).filter((b) => storesGood(b, good) && (b.store[good] || 0) > 0).sort((p, q) => q.store[good] - p.store[good] || p.id - q.id)[0] || null;
+  const producer = Object.keys(BUILDINGS).find((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good) || null;
+  return { store: held ? held.id : null, producer };
+}
 // Whether the great work at b must have its stage's offering before course `course` can begin.
 function offeringDue(world, b, course = b.site.course) {
   if (!isGreatWork(b) || course >= MONUMENTS[b.type].courses.length || course % GREAT_WORK.perStage !== 0) return false;

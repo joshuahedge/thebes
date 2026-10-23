@@ -21,13 +21,19 @@ export function createLayersPicker({ store, world = null, restoreFocus = () => {
   const locks = OVERLAYS.map(() => el('span', { class: 'lock small', hidden: true }));
   OVERLAYS.forEach((kind, i) => { choices[i].append(swatch(OVERLAY_HUE[kind]), el('span', { class: 'words' }, [el('span', { class: 'name', text: OVERLAY_NAMES[kind] }), locks[i]])); });
   const off = button(T.layersOff, { class: 'layer off', dataset: { layer: 'off' }, 'aria-pressed': 'false' });
-  const node = el('div', { class: 'layers-picker', role: 'group', 'aria-label': T.layers, hidden: true }, [...choices, off]);
+  // (Wave 4 fix) A tap on a locked layer says why it cannot be picked, in the popover itself (a polite status line a screen reader reads out), never silently.
+  const note = el('p', { class: 'locked-note small muted', role: 'status', 'aria-live': 'polite', hidden: true, style: { gridColumn: '1 / -1', margin: '0' } });   // the popover is a three-column grid: the note takes the row (inline, css/ui.css is another track's)
+  const node = el('div', { class: 'layers-picker', role: 'group', 'aria-label': T.layers, hidden: true }, [...choices, off, note]);
 
   function pick(kind) {
     const s = store.get();
     store.set({ overlay: kind === null || kind === s.overlay ? null : kind, layersOpen: false });
   }
-  choices.forEach((b, i) => b.addEventListener('click', () => { if (!b.classList.contains('locked')) pick(OVERLAYS[i]); }));
+  choices.forEach((b, i) => b.addEventListener('click', () => {
+    if (!b.classList.contains('locked')) { pick(OVERLAYS[i]); return; }
+    note.textContent = `${OVERLAY_NAMES[OVERLAYS[i]]}: ${LAYERS_LOCKED_TEXT.words(OVERLAYS[i])}`;
+    note.hidden = false;
+  }));
   off.addEventListener('click', () => pick(null));
 
   let wasOpen = false;
@@ -44,6 +50,7 @@ export function createLayersPicker({ store, world = null, restoreFocus = () => {
     if (s.layersOpen && (s.sheet || s.confirmDialog || s.screenshot)) { store.set({ layersOpen: false }); return; }
     const open = s.layersOpen;
     node.hidden = !open;
+    if (!open) { note.hidden = true; note.textContent = ''; }
     choices.forEach((b, i) => {
       const locked = !offered(OVERLAYS[i], s.overlay);
       b.setAttribute('aria-pressed', String(s.overlay === OVERLAYS[i]));

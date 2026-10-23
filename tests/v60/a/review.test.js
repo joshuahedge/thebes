@@ -1,5 +1,5 @@
 // Version 6.0, Track A, review round 1: the words that disagreed with the sim, each set up both ways. The due's relief says what the sim does
-// (a tenth since ruling 791), the next rank in Advice says the home it needs (milestoneNeedsMet), favour's note says raids only where raids are on, the
+// (a twentieth since ruling 795), the next rank in Advice says the home it needs (milestoneNeedsMet), favour's note says raids only where raids are on, the
 // costs line says it is an average, the closing scene is marked seen when it opens (not while it renders) and a loaded city meets the due's tip.
 import { describe, it, expect } from '../../harness.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
@@ -37,7 +37,7 @@ const test = (name, fn) => it(name, async () => { try { await fn(); } finally { 
 const quietStore = { get: () => ({ sheet: null }), set() {} };
 
 describe('v60 a review: the court\'s due says what the sim does', () => {
-  it('says the great work cuts the due to a tenth (from COURT_DUE.greatWork), and only while it rises', () => {
+  it('says the great work cuts the due to a twentieth (from COURT_DUE.greatWork), and only while it rises', () => {
     const w = courtWorld({ open: true });
     w.milestone = 'capital';
     w.gold = 40000;
@@ -48,10 +48,10 @@ describe('v60 a review: the court\'s due says what the sim does', () => {
     addRaw(w, GREAT_WORK.type, 22, 12);
     const rising = courtDue(w);
     expect(rising.greatWork).toBe(true);
-    expect(COURT_DUE.greatWork).toBe(0.1);                       // ruling 791 (merged with Tracks C and B1): a tenth, first a quarter
+    expect(COURT_DUE.greatWork).toBe(0.05);                      // ruling 795: a twentieth (ruling 791: a tenth, first a quarter)
     expect(rising.gold).toBeLessThanOrEqual(plain.gold * COURT_DUE.greatWork + COURT_DUE.step);
     const words = R.dueParts(rising, w.gold);
-    expect(words).toContain('cut to 10% while the great temple rises');
+    expect(words).toContain('cut to a twentieth while the great temple rises');
     expect(words.includes('halved')).toBe(false);
   });
 

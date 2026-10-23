@@ -57,8 +57,9 @@ export function dueNodes(world) {
   const out = [el('h3', { text: R.dueHead })];
   if (!dueComing(world)) { out.push(line(R.dueBefore)); return out; }
   const due = courtDue(world);
-  out.push(el('p', { class: 'due-now', text: `${R.dueNow(due, dateOfDay(due.day).year)} ${R.dueParts(due, world.gold)}.` }));
-  if (due.gold > world.gold) out.push(line(R.dueShort(due, world.gold), 'small coral due-short'));
+  const parts = R.dueParts(due, world.gold);
+  out.push(el('p', { class: 'due-now', text: `${R.dueNow(due, dateOfDay(due.day).year)}${parts ? ` ${parts}.` : ''}` }));
+  if (due.gold > 0 && due.gold > world.gold) out.push(line(R.dueShort(due, world.gold), 'small coral due-short'));
   out.push(line(R.dueRule(due)), line(R.costsLine(costScale(world)), 'small muted costs-line'));
   return out;
 }
@@ -311,7 +312,7 @@ export function createCourtUi(ctx) {
     // Version 6.0: the court's demand (open) and the due when it comes within its warning.
     const d = courtDemands(world)[0];
     if (d) nodes.push(row(R.demandHead, d.accepted ? `${R.demandTitle(d)}: ${R.dueIn(d)}` : `${R.demandTitle(d)}: ${R.offered.toLowerCase()}`, 'demand-summary'));
-    if (dueComing(world)) { const due = courtDue(world); nodes.push(row(R.dueHead, R.dueSummary(due), due.gold > world.gold ? 'coral due-summary' : 'due-summary')); }
+    if (dueComing(world)) { const due = courtDue(world); nodes.push(row(R.dueHead, R.dueSummary(due), due.gold > 0 && due.gold > world.gold ? 'coral due-summary' : 'due-summary')); }
     const actions = [];
     if (d) actions.push(button(R.open, { class: 'open-demand', onClick: () => ctx.store.set(openSheet(ctx.store.get(), 'demand')) }));
     if (c.letters.length) {

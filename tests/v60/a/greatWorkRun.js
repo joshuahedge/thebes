@@ -18,7 +18,7 @@ import { advanceDays } from '../../../src/sim/clock.js';
 import { place, canPlace, drawRoad, paintHouses, setPaused } from '../../../src/sim/commands.js';
 import { assignLabour } from '../../../src/sim/labour.js';
 import { allBuildings, population, housesOf, isSite } from '../../../src/sim/world.js';
-import { towersNeeded } from '../../../src/sim/raids.js';
+import { towersNeeded, firstRaidTarget } from '../../../src/sim/raids.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { greatWorkStatus } from '../../../src/sim/monuments.js';
 import { GREAT_WORK } from '../../../src/data/reign.js';
@@ -56,14 +56,21 @@ function layNorthStreet(w) {
   return done;
 }
 
-// Towers to a warned raid's count, near its entry (as the late run's driver and the advice's tower item ask), keeping RESERVE.
+// Towers to a warned raid's count, near the building its first band would strike (as the advice's tower item asks since ruling 787: firstRaidTarget), else near the entry,
+// keeping RESERVE. Show me's search (nearestFit) leaves out the spots that have no road, so each tower stands where it can be staffed.
 function meetWarning(w, built) {
   const warn = w.raid.warning;
   if (!warn || warn.first) return;
   const standing = () => allBuildings(w).filter((b) => b.type === 'tower').length;
+  // A two-sided raid (warning.second) comes at a second entry too: the player reads both and puts the towers by each band's first strike in turn.
+  const aims = [warn.entry, ...(warn.second ? [warn.second.entry] : [])].map((entry) => {
+    const first = firstRaidTarget(w, entry, warn.target);
+    return first ? { x: first.x + first.w / 2, y: first.y + first.d / 2 } : { x: entry.x, y: entry.y };
+  });
   for (let tries = 0; tries < 6 && standing() < towersNeeded(warn.size); tries++) {
     if (w.gold - costOf(w, 'tower') < RESERVE) return;
-    const g = nearestFit(w, { kind: 'building', type: 'tower' }, warn.entry.x - 3 * tries, warn.entry.y + 2 * tries, null, w.size);
+    const aim = aims[tries % aims.length], round = Math.floor(tries / aims.length);
+    const g = nearestFit(w, { kind: 'building', type: 'tower' }, aim.x - 3 * round, aim.y + 2 * round, null, w.size);
     if (!canPlace(w, 'tower', g.x, g.y, { roadLater: true }).ok) continue;
     if (place(w, 'tower', g.x, g.y, { roadLater: true }).ok) built.push({ day: w.day, type: 'tower', x: g.x, y: g.y });
   }

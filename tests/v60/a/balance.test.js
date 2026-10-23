@@ -11,6 +11,8 @@
 // waited for ever: 0 flax held at each year's end) and the Seat's books ran near even (the treasury -3,649 in years 16-18, crews idle
 // for want of gold). The fourth offering is beer, and the due while the great temple rises is a tenth: the Seat on day 3,690, offerings on days
 // 3,720-6,300, the reign won on day 7,030 (year 20), the treasury never below 2,313.
+// Wave 4 fix batch 1 (rulings 787, 788, 795; the run's towers go where Advice puts them, by the first strike of each band, so all seven raids are beaten): the Seat on day 3,690, the offerings on
+// days 3,720, 4,260, 4,710, 5,760 and 6,270, the reign won on day 7,030 (year 20) again, the treasury never below 2,171 (the court's due while the temple rises is a twentieth).
 import { describe, it, expect } from '../../harness.js';
 import { runLate, LATE_YEARS } from '../../stage47/pressure/lateRun.js';
 import { villageRun46 } from '../../stage46/balance/villageRun.js';

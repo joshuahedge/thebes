@@ -7,3 +7,4 @@ import './greatWork.test.js';
 import './ui.test.js';
 import './balance.test.js';
 import './review.test.js';
+import './fix.test.js';

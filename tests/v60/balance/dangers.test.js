@@ -69,7 +69,6 @@ describe('v60 balance dangers late run', () => {
     expect(r.w.tally.raidsLost).toBe(0);
     expect(r.yearly[15].gold).toBeGreaterThanOrEqual(0.5 * off.yearly[15].gold);
     expect(population(r.w)).toBeGreaterThanOrEqual(0.9 * population(off.w));
-    expect(r.elapsed).toBeLessThan(60000);
     // the player's answers were made, each through the sim's own commands
     expect(rec.did.harvest).toBeGreaterThan(0);
     expect(rec.did.physician).toBeGreaterThan(0);

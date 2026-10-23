@@ -1,3 +1,5 @@
+// (Wave 4 fix batch 1, rulings 787, 788, 795: re-measured at a win on day 7,030 with 2,171 gold the lowest; the pin below is unchanged. The dangers-on runs of the same script do not win: the
+// balance note's "Wave 4 fix batch 1" says how they fall.)
 // Version 6.0, the balance pass (wave 4; ruling 785): the great-work run's margin, with the dangers off (the run the older assertions measure: tests/v60/a/balance.test.js holds the band,
 // years 18-20, and that the treasury never goes below 0). Ruling 791 left the win on day 7,030 of the run's 7,200 with 2,313 gold the lowest it ever held. This pins that margin as it was
 // measured, so a later change that eats it fails here first, and says what the wave-4 measurements found (docs/superpowers/notes/2026-10-22-v60-a-balance.md, "Wave 4", "The great work with the

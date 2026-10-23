@@ -7,8 +7,10 @@
 //   - a low Nile warned: the granary Advice names when the stores would not carry the city (the advice's own fix, if it has one);
 //   - rubble that remembers what stood there (burned or wrecked: `was`): rebuilt, at most REBUILDS a month, while the treasury keeps `reserve`.
 // A raid's towers are the run's own (the late run's meetWarning, the grand run's reading of Advice). With `defend` the player also builds them on the late run's tower spots (its
-// meetWarning): the grand district run has only Advice's tower fix, which Show me puts beside the raid's entry on the map's edge, where its road cannot be routed and no workers
-// reach (a tower there stands empty), so with the dangers on that run built its towers in the middle of the city and lost its raids. Fire's firehouses are the scripts'.
+// meetWarning): the grand district run has only Advice's tower fix. Wave 4 found Show me put it beside the raid's entry on the map's edge (no road, no workers: a tower there stands
+// empty), so that run built its towers in the middle of the city and lost its raids. Ruling 787 aims the fix at the building the band strikes first and leaves out a tower spot with no
+// road, which builds towers that work, but the nearest spot with a road is 13 tiles from the grand district's first target (the trading post), so 7 of its 8 towers stood out of the
+// band's way and the third raid was lost: `defend` (the late run's spots, beside it) is kept for that run. Fire's firehouses are the scripts'.
 // The record: the days each kind struck (from the world's own records, so exact), the events seen with the month end they came in, the Advice list at the month end
 // of each warning (is the warned danger's item in the top three?) and at the chosen years, and what the player did.
 import { act } from '../../v50/grand/grandRun.js';

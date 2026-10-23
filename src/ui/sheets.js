@@ -78,7 +78,10 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (!list.length) return el('p', { class: 'muted', text: T.noProblems });
     return el('ul', { class: 'problems' }, list.map((a) => {
       const t = alertText(a, world);
-      return el('li', { class: 'problem' }, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => { noteView(world, a.id); onView(a); } })]);
+      // (Wave 4 fix) The words in one block and View beside it, never wrapped across the line: the button stays one word on one line, under it when the words fill the row.
+      return el('li', { class: 'problem', style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 8px' } }, [
+        el('span', { class: 'problem-text', style: { flex: '1 1 12em', minWidth: '0' } }, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix })]),
+        button(T.view, { class: 'view quiet', style: { flex: 'none', whiteSpace: 'nowrap' }, 'aria-label': viewLabel(t.title), onClick: () => { noteView(world, a.id); onView(a); } })]);
     }));
   }
 
@@ -159,8 +162,11 @@ export function createSheets({ container, store, world, placement, cameraControl
     // A lodge's or wharf's reach is where it delivers, not where its crew goes (that is the River rows' straight-line tiles): said so (final review).
     if (reach) body.append(row(def.hunts || def.fishes ? T.storesWithin : T.reach, `${reach} road tiles`));
     body.append(...extra('building', b));
+    // (Wave 4 fix) Harvest now sits right under the rows that explain it, not at the foot of the sheet below the problems (below the fold on a phone's farm sheet).
+    const sheetActions = extra('actions', b), harvest = sheetActions.filter((n) => n && n.classList && n.classList.contains('harvest'));
+    if (harvest.length) body.append(el('div', { class: 'actions harvest-actions' }, harvest));
     body.append(el('h3', { text: T.problems }), problems(b.id));
-    const actions = el('div', { class: 'actions' }, extra('actions', b));
+    const actions = el('div', { class: 'actions' }, sheetActions.filter((n) => !harvest.includes(n)));
     // The trading post's routes and orders live on their own sheet (spec 4.15); Back comes back here.
     if (b.type === 'trading_post') actions.append(button(T.trade, { class: 'trade primary', onClick: () => store.set(openSheet(store.get(), 'trade', b.id)) }));
     if (def.workers || def.upkeep) {

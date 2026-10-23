@@ -16,7 +16,9 @@ import { HEALTH } from '../data/health.js';
 import { CRIME } from '../data/crime.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
-import { housesOf, allBuildings } from './world.js';
+import { housesOf, allBuildings, buildingsVersion } from './world.js';
+import { removeResidents } from './housing.js';
+import { splitHouse } from './merge.js';
 import { canFallIll, healthCoverage, healthFactors, wateredHomes, isPlagueHome } from './health.js';
 import { desirabilityField } from './desirability.js';
 import { canAfford, spend } from './money.js';
@@ -145,7 +147,8 @@ export function plagueDay(world, events = null) {
     const i = b.illness;
     if (i.lost < i.cap && b.residents > 0) {
       const k = Math.min(PLAGUE.lossPerDay, i.cap - i.lost, b.residents);
-      b.residents -= k; b.leftThisMonth += k; i.lost += k; a.lost += k;
+      removeResidents(b, k);   // as every other leaving (an emptied home is an empty plot: tier and stock cleared)
+      i.lost += k; a.lost += k;
     }
     for (const n of homesNear(world, b)) {
       if (n.illness || !canFallIll(n) || a.homes.includes(n.id)) continue;           // a home that has had this plague (mended, or still sick) does not catch it again
@@ -153,6 +156,7 @@ export function plagueDay(world, events = null) {
     }
     i.left -= (ctx.cover.get(b.id) || 0) >= HEALTH.staffedAt ? PLAGUE.coverFactor : 1;
     if (i.left <= 0 || b.residents <= 0) { b.illness = null; b.health = 0; }
+    if (b.residents === 0 && b.w > 1) splitHouse(world, b);   // an emptied 2x2 home becomes four empty plots (a Large plot stays whole: merge.js)
   }
   if (!sickHomes(world).length) {
     p.last = { day: a.day, end: world.day, origin: a.origin, homes: a.homes.length, lost: a.lost, quarantines: a.quarantines.length };
@@ -179,18 +183,29 @@ export function plagueMonth(world, events = null) {
 // The buildings whose work stops now, a Set of ids, or null when no plague is under way: every workplace in a quarantined district, and every
 // workplace within PLAGUE.workReach tiles of a sick home no staffed physician reaches (a physician's cover keeps the work going). Houses and
 // services are not stopped: production (src/sim/production.js produceDay) reads this once a day.
+// Version 6.0 (Wave 4 fix): the answer is kept while the day, the buildings, the sick homes, the quarantines and the physicians' cover are as they were (production asks once a
+// day, and the sheets ask for every workplace they show), so a city of workplaces and sick homes is not walked once per question. The cover is judged by the identity of
+// healthCoverage's map, which serviceCover.js renews whenever a physician's staff, pause or fire stage or the roads change: a day's labour moving staff between the tick and
+// a sheet's question gives the same answer a run with no sheet open would. Callers read the Set and never change it.
+const haltedMemo = new WeakMap();   // world -> { key, cover, out }
 export function plagueHalted(world) {
   const a = world.hazards.plague.active;
   if (!a) return null;
-  const held = quarantines(world), sick = sickHomes(world), cover = sick.length ? healthCoverage(world) : null;
+  const held = quarantines(world), sick = sickHomes(world);
+  const key = `${world.day}|${buildingsVersion(world)}|${[...held.keys()].join(';')}|${sick.map((b) => b.id).join(',')}`;
+  const cover = sick.length ? healthCoverage(world) : null;
+  const memo = haltedMemo.get(world);
+  if (memo && memo.key === key && memo.cover === cover) return memo.out;
   const out = new Set();
   const spots = sick.filter((b) => (cover.get(b.id) || 0) < HEALTH.staffedAt);
-  if (!held.size && !spots.length) return out;
-  const r = PLAGUE.workReach;
-  for (const b of allBuildings(world)) {
-    if (b.type === 'house' || !BUILDINGS[b.type].workers) continue;
-    if (held.has(districtKey(b)) || spots.some((s) => b.x <= s.x + s.w - 1 + r && b.x + b.w - 1 >= s.x - r && b.y <= s.y + s.d - 1 + r && b.y + b.d - 1 >= s.y - r)) out.add(b.id);
+  if (held.size || spots.length) {
+    const r = PLAGUE.workReach;
+    for (const b of allBuildings(world)) {
+      if (b.type === 'house' || !BUILDINGS[b.type].workers) continue;
+      if (held.has(districtKey(b)) || spots.some((s) => b.x <= s.x + s.w - 1 + r && b.x + b.w - 1 >= s.x - r && b.y <= s.y + s.d - 1 + r && b.y + b.d - 1 >= s.y - r)) out.add(b.id);
+    }
   }
+  haltedMemo.set(world, { key, cover, out });
   return out;
 }
 // Why one building's work has stopped, or null: 'quarantine' (its district is shut) or 'plague' (a sick home near it no physician reaches).

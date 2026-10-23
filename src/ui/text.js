@@ -29,7 +29,7 @@ export function buildingName(type) {
 export const NEED_NAMES = {
   road: 'Road access', water: 'Water', food: 'Food', religion: 'Temple',
   pottery: 'Pottery', entertainment: 'Entertainment', beer: 'Beer', twoFoods: 'Two kinds of food', linen: 'Linen', jewellery: 'Jewellery',
-  desirability: 'Desirability', merge: `Room to become a ${TIERS[6].name}`,
+  desirability: 'Desirability',
 };
 
 // Goods' names come from the data (GOODS[good].name), as buildings' do; inside a sentence they are lower case.
@@ -122,7 +122,6 @@ export const CAUSE_TEXT = {
   booth_idle: idleWords('booth'),
   booth_no_road: roadlessWords('booth'),
   low_desirability: { cause: 'The street is not pleasant enough', fix: 'Place gardens or statues near it, or move workshops away' },
-  no_square: { cause: 'No 2×2 square of plots around it', fix: `Make a square with three plots beside it, empty or ${TIERS[5].name}s` },
 };
 
 const milestoneOf = (type) => MILESTONES.find((m) => m.unlocks.includes(type)) || null;
@@ -653,7 +652,6 @@ export const TIP_TEXT = {
   nicer_streets: 'Place gardens and statues near homes: Manors and up need a pleasant street.',
   storehouse_choices: 'Tap a storehouse to refuse goods. If no store takes one, production stops.',
   trade_orders: 'Tap the trading post, open a route, then pick what to buy, sell and keep.',
-  merging_homes: 'Add three plots beside a Townhouse in a square: it can become a Manor.',
 };
 
 // Achievements on the summary and the Welcome back card (early-game pass 3.8, 3.9). Counts read as progressText does.
@@ -2661,7 +2659,8 @@ const v50Bands = JOBLESS_BANDS.map((b, i) => (JOBLESS_BANDS[i + 1] ? `${b.from} 
 const v50Staff = `${Math.round(MIN_STAFF_RATIO * 100)}%`;
 export const V50_LAYERS_TEXT = {
   // Home progress: three keys, each a label and its words.
-  ready: { label: 'All met', words: 'Tick: every need met, so it grows at the month\'s end, or keeps its top tier' },
+  // Version 6.0 (Wave 4 fix): a Townhouse on a small plot has no tier above it (ruling 616), so its tick says it keeps its tier, not that it grows.
+  ready: { label: 'All met', words: `Tick: every need met, so it grows at the month's end, or keeps its top tier (a ${TIERS[lgPlot.unlockTier].name} on a small plot grows no further)` },
   one: { label: '1 missing', words: 'Icon: one need missing, the one the icon shows' },
   many: { label: '2+ missing', words: 'Hatched, with a number: two or more needs missing; the icon is the first, the number how many' },
   // Goods supply: the good picker and its keys.
@@ -2735,7 +2734,7 @@ import { FAVOUR as reignFavour } from '../data/court.js';
 import { QUOTA as reignQuota } from '../data/s47.js';
 const reignNum = (n) => ui4Gold(n);
 const reignPct = (share) => `${Math.round(share * 100)}%`;
-const reignShare = (share) => ({ 0.5: 'a half', 0.25: 'a quarter', 0.75: 'three quarters' }[share] || reignPct(share));   // a share of the whole, as the court says it
+const reignShare = (share) => ({ 0.5: 'a half', 0.25: 'a quarter', 0.75: 'three quarters', 0.1: 'a tenth', 0.05: 'a twentieth' }[share] || reignPct(share));   // a share of the whole, as the court says it
 const reignMonths = (n) => plural(n, 'month', 'months');
 const reignRank = (id) => (MILESTONES.find((m) => m.id === id) || { name: id }).name;
 const reignAsk = (d) => (d.kind === 'gold' ? `${reignNum(d.amount)} gold` : d.kind === 'soldiers' ? `${d.amount} trained units`
@@ -2754,10 +2753,16 @@ export const V60_REIGN_TEXT = {
   declined: (f) => `Declined: favour ${courtSigned(f.declined)}.`,
   favourWhy: (raids = true) => `Favour sets the court's due: ×${reignDue.favour.low} at ${reignFavour.low} or less, ×${reignDue.favour.high} at ${reignFavour.high} or more.${raids ? ' Low favour also brings bigger raids.' : ''}`,
   accept: 'Accept', decline: 'Decline', giveUp: 'Give up',
+  giveUpWhat: (f) => `Given up: it counts as failed now, favour ${courtSigned(f.failed)}.`,   // declineDemand on an accepted demand fails it with its own favour
   acceptWhat: (d) => `The deadline starts: ${reignMonths(d.months)}.`,
   send: (d) => (d.kind === 'soldiers' ? `Send ${d.amount} units` : `Send ${reignAsk(d)}`),
   sendWhat: (d, f) => (d.kind === 'soldiers' ? `They are away ${reignMonths(reignDemands.amounts.soldiers.months)} and fight no raid. ` : '') + `Favour ${courtSigned(f.met)}, ${reignNum(d.reward)} gold back.`,
-  buildIt: (d) => `Build ${reignAsk(d)}: it counts the day one more stands than when you accepted.`,
+  // A monument is laid by builders' guild crews (MONUMENTS: crews, and crewMonths shared among them): the sheet and the Advice name how many and for how long.
+  buildIt: (d) => {
+    const m = score4Monuments[d.type];
+    const crews = m ? ` It is laid by ${plural(m.crews, 'builders\' guild crew', 'builders\' guild crews')}: ${reignMonths(Math.ceil(m.crewMonths / m.crews))} with all of them working.` : '';
+    return `Build ${reignAsk(d)}: it counts the day one more stands than when you accepted.${crews}`;
+  },
   have: (d, st) => (d.kind === 'gold' ? `In the treasury: ${reignNum(st.have)} of ${reignNum(st.need)}` : d.kind === 'soldiers' ? `At home: ${st.have} of ${st.need} units`
     : d.kind === 'building' ? `Built since you accepted: ${st.have} of 1` : `In your stores: ${reignNum(st.have)} of ${reignNum(st.need)}`),
   problem: (reason, st, d) => ({
@@ -2775,24 +2780,24 @@ export const V60_REIGN_TEXT = {
   captionSettled: (e) => (e.result === 'met' ? `The court's demand met: favour ${courtSigned(e.favour)}, ${reignNum(e.gold)} gold`
     : e.result === 'refused' ? `The court's demand declined: favour ${courtSigned(e.favour)}` : `The court's demand failed: favour ${courtSigned(e.favour)}`),
   logLine: (e) => `${e.result === 'met' ? 'Met' : e.result === 'refused' ? 'Declined' : 'Failed'}: ${reignAsk(e)} (favour ${courtSigned(e.favour)}${e.gold > 0 ? `, ${reignNum(e.gold)} gold` : ''})`,
-  pastHead: 'Past demands',
-  // ── The court's due (rulings 642, 643) ──
+  // ── The court's due (rulings 642, 643, 788) ──
   dueHead: "The court's due",
   dueRule: (due) => `${reignPct(due.treasuryShare)} of the treasury or ${reignPct(due.taxesShare)} of a year's taxes, whichever is more, on the first day of each year from year ${reignQuota.fromYear}.`,
-  dueNow: (due, year) => `Year ${year}: about ${reignNum(due.gold)} gold${due.monthsLeft ? ` in ${reignMonths(due.monthsLeft)}` : ''}.`,
-  dueParts: (due, gold) => [
+  dueInDebt: 'while the great temple rises and the treasury is below 0',   // the court takes nothing then (COURT_DUE.inDebt)
+  dueNow: (due, year) => (due.inDebt ? `Year ${year}: nothing is taken ${V60_REIGN_TEXT.dueInDebt}.`
+    : `Year ${year}: about ${reignNum(due.gold)} gold${due.monthsLeft ? ` in ${reignMonths(due.monthsLeft)}` : ''}.`),
+  dueParts: (due, gold) => (due.inDebt ? '' : [
     due.by === 'treasury' ? `${reignPct(due.treasuryShare)} of ${reignNum(Math.max(0, gold))} in the treasury` : `${reignPct(due.taxesShare)} of ${reignNum(due.yearTaxes)} a year in taxes`,
     due.factor !== 1 ? `×${due.factor} for ${due.band} favour` : '',
     due.cost !== 1 ? `×${due.cost} for the difficulty` : '',
     due.greatWork ? `cut to ${reignShare(reignDue.greatWork)} while the great temple rises` : '',
-  ].filter(Boolean).join(', '),
+  ].filter(Boolean).join(', ')),
   dueShort: (due, have) => `The treasury holds ${reignNum(Math.max(0, have))}: the due takes it past 0 into debt.`,
-  dueSummary: (due) => `About ${reignNum(due.gold)} gold in ${reignMonths(Math.max(1, due.monthsLeft))}`,
+  dueSummary: (due) => (due.inDebt ? `Nothing ${V60_REIGN_TEXT.dueInDebt}` : `About ${reignNum(due.gold)} gold in ${reignMonths(Math.max(1, due.monthsLeft))}`),
   dueCaption: (e) => `The court took its due: ${reignNum(e.gold)} gold`,
   dueLog: (e) => `The court's due: ${reignNum(e.gold)} gold`,
   dueBefore: `From year ${reignQuota.fromYear} the court takes a yearly due in gold.`,
   // ── Costs that grow (rulings 640, 641) ──
-  costsHead: 'Running costs',
   costsLine: (scale) => `At this rank, on average (each price is rounded to whole gold): upkeep ×${Math.round(scale.upkeep * 100) / 100}, wages ×${Math.round(scale.wages * 100) / 100}, monuments ×${Math.round(scale.monuments * 100) / 100}.`,
   // ── The reign: ranks beyond Capital and the great work (rulings 652-658) ──
   reignHead: 'The reign',
@@ -2833,6 +2838,14 @@ ALERT_TEXT.court_due = (a) => ({ title: `The court's due of ${reignNum(a.gold)} 
 // Advice (kind 'demand'): an offer, an accepted demand not yet ready, the due the treasury cannot pay.
 V60_ADVICE_WORDS.demand = (a) => {
   const d = a.data;
+  // Ruling 786: the great temple's next offering while the stores hold less than it asks. The fix is the sim's: the store holding most of the good (View), else the producer's card.
+  if (d.offering) {
+    const what = `The great temple's next offering is ${reignNum(d.n)} ${goodWord(d.good)}: your stores hold ${reignNum(d.have)}`;
+    const why = d.waiting ? 'The crews are waiting for it before they lay the next stage.' : `The next stage begins with it, and the crews wait for it if the stores hold less. ${reignStageNames[reignGreat.stages[d.stage]] ? `That is ${reignStageNames[reignGreat.stages[d.stage]]}.` : ''}`.trim();
+    const fix = a.fix && a.fix.select !== undefined ? `Keep more ${goodWord(d.good)} in the stores: the one holding most is shown`
+      : a.fix ? `No store holds any ${goodWord(d.good)}: build ${anA(buildingName(d.producer).toLowerCase())} to make it` : `Make more ${goodWord(d.good)} before the stage begins`;
+    return { what, why, fix };
+  }
   if (d.due) return { what: `The court's due of ${reignNum(d.gold)} gold comes in ${reignMonths(Math.max(1, d.monthsLeft))}`, why: `The treasury holds ${reignNum(Math.max(0, d.have))}: it would go into debt.`, fix: 'Raise favour or trim costs before the year turns' };
   if (!d.accepted) return { what: V60_REIGN_TEXT.demandTitle(d), why: `Answer within ${reignMonths(Math.max(1, d.monthsLeft))}, or it counts as declined.`, fix: 'Open the court to accept or decline it' };
   return { what: `${V60_REIGN_TEXT.demandTitle(d)}: due in ${reignMonths(d.monthsLeft)}`, why: V60_REIGN_TEXT.have(d, d.status), fix: d.kind === 'building' ? V60_REIGN_TEXT.buildIt(d) : 'Send it from the court once you have it' };
@@ -2849,7 +2862,7 @@ TIP_HELP_TEXT.great_work = 'The great temple rises in five stages, each with an 
 CHAPTER_NAMES.reign = 'The reign';   // the goals beyond Capital (src/data/reign.js REIGN_GOALS)
 V60_HELP.a.push(
   { head: 'Costs grow with the city', text: `From Market town each rank adds to upkeep and the court's asks; past Capital, to wages and monuments too (upkeep ×${reignGrowth.seat.upkeep} at the ${reignRank('seat')}). Easier levels grow less.` },
-  { head: "The court's due", text: `From year ${reignQuota.fromYear}, on each year's first day, the court takes gold: a share of the treasury or of a year's taxes, whichever is more, set by your rank. Low favour doubles it; high favour cuts it. The court sheet shows it ahead.` },
+  { head: "The court's due", text: `From year ${reignQuota.fromYear}, on each year's first day, the court takes gold: a share of the treasury or of a year's taxes, whichever is more, set by your rank. Low favour makes it ×${reignDue.favour.low}; high favour ×${reignDue.favour.high}. While the great temple rises it is cut to ${reignShare(reignDue.greatWork)}, and nothing is taken while the treasury is below 0. Otherwise it is taken even when that puts you into debt. A city loaded from an older save owes its first due a year after it loads. The court sheet shows it ahead.` },
   { head: "The court's demands", text: 'From Town, about once a year: goods, gold, a building or soldiers, with a deadline. The sheet says the reward and the cost of failing or declining before you choose.' },
   { head: 'The reign', text: `Beyond Capital come ${reignRank('great_capital')} and the ${reignRank('seat')}. There the great temple can be founded: five stages over years, each with an offering of goods. Finishing it wins the reign and seals your score; then play on.` },
 );
@@ -2863,8 +2876,10 @@ V60_HELP.a.push(
 // Every sentence below is computed from the sim's own numbers and rules (src/data/hazards.js, src/sim/plague.js, crops.js, strikes.js and the
 // raid record), so what a sheet, an alert or the advice says is what the sim does; the tests set the world up both ways. Names start with b1
 // (the sections share this module's scope).
-import { PLAGUE as b1Plague, DROUGHT as b1Drought, CROPS as b1Crops, HARVEST_NOW as b1Harvest, CHIEFTAIN as b1Chief, WRECK as b1Wreck } from '../data/hazards.js';
+import { PLAGUE as b1Plague, DROUGHT as b1Drought, CROPS as b1Crops, HARVEST_NOW as b1Harvest, CHIEFTAIN as b1Chief, WRECK as b1Wreck, HAZARD_LEVELS as b1Levels } from '../data/hazards.js';
 import { ECONOMY as b1Economy } from '../data/economy.js';
+import { FIRE as b1Fire } from '../data/fire.js';
+import { foodOutlook as b1FoodOutlook } from '../sim/crops.js';
 
 const b1Dur = (days) => DANGER_UI_TEXT.duration(Math.max(0, days));
 const b1Pct = (f) => `${Math.round(f * 100)}%`;
@@ -2873,6 +2888,12 @@ const b1A = (type) => anA(buildingName(type).toLowerCase());
 const b1Counted = (type, n) => (n === 1 ? b1A(type) : `${n} ${pluralName(type)}`);
 const b1HomeName = (b) => (b ? tierName(b.tier).toLowerCase() : 'home');
 const b1CropKind = (kind) => (kind === 'blight' ? 'Blight' : 'Locusts');
+// The share of a crop a low Nile leaves on this city's level: the sim's own (crops.js foodOutlook, 1 - cut x the level's severity, never under the floor). Words with no city
+// to read (a tip, How to play) give the three levels' own shares from the same data.
+const b1DroughtShare = (world) => b1FoodOutlook(world).factor;
+const b1LevelShare = (id) => b1Pct(Math.max(b1Drought.floor, 1 - b1Drought.cut * b1Levels[id].severity));
+const b1DroughtLevels = () => `${b1LevelShare('normal')} on Normal, ${b1LevelShare('relaxed')} on Relaxed and Peaceful, ${b1LevelShare('hard')} on Hard`;
+const b1DroughtShort = () => `${b1LevelShare('normal')} (Normal), ${b1LevelShare('relaxed')} (Relaxed), ${b1LevelShare('hard')} (Hard)`;
 
 export const B1_TEXT = {
   // ── The raid report: what the band wrecked and took, and its chieftain ──
@@ -2980,8 +3001,8 @@ Object.assign(ALERT_TEXT, {
     title: `Plague in ${plural(alert.count || 1, 'home', 'homes')}`,
     fix: `Open a sick home to quarantine its district, or put a physician near them`,
   }),
-  drought_warning: (alert, world) => ({ title: `The Nile will run low in ${b1Dur(alert.arrives - world.day)}`, fix: `Farms will give about ${b1Pct(1 - b1Drought.cut)} of their crop for a year: fill your granaries` }),
-  drought: (alert, world) => ({ title: `Low Nile: farms give ${b1Pct(world.hazards.drought.active ? world.hazards.drought.active.factor : 1 - b1Drought.cut)} of their crop`, fix: `The lean year ends in ${b1Dur(alert.until - world.day)}: eat from the stores` }),
+  drought_warning: (alert, world) => ({ title: `The Nile will run low in ${b1Dur(alert.arrives - world.day)}`, fix: `Farms will give about ${b1Pct(b1DroughtShare(world))} of their crop for a year: fill your granaries` }),
+  drought: (alert, world) => ({ title: `Low Nile: farms give ${b1Pct(b1DroughtShare(world))} of their crop`, fix: `The lean year ends in ${b1Dur(alert.until - world.day)}: eat from the stores` }),
   locusts_warning: (alert, world) => ({ title: `${b1CropKind(alert.kind)} in ${b1Dur(alert.arrives - world.day)}: ${plural((alert.ids || []).length, 'farm', 'farms')} named`, fix: 'Open a named farm and Harvest now for extra grain' }),
   locusts: (alert, world) => ({ title: `${b1CropKind(alert.kind)} on ${plural((alert.ids || []).length, 'farm', 'farms')}`, fix: `They pass in ${b1Dur(alert.until - world.day)}` }),
 });
@@ -3024,13 +3045,13 @@ Object.assign(V60_ADVICE_WORDS, {
 Object.assign(TIP_TEXT, {
   plague_coming: 'A plague is warned for the marked home. A physician, a well and room slow it.',
   quarantine_choice: 'Plague has begun. Open a sick home to quarantine its district: the plague stays in, and work there stops.',
-  low_nile: 'The Nile will run low. Farms will give about half for a year: keep your granaries full.',
+  low_nile: 'The Nile will run low. Farms will give much less for a year: keep your granaries full.',
   locust_band: 'Locusts or blight are coming for some farms. Open one and Harvest now to take extra grain first.',
   rebuild_wreck: 'Raiders wrecked a building. Tap its rubble to rebuild it for its price plus the clearing.',
 });
 Object.assign(TIP_HELP_TEXT, {
-  plague_coming: `Plague is warned two months ahead. Once it starts, a quarantine costs ${b1Plague.quarantine.feePerHome} gold a home.`,
-  low_nile: `Farms give about ${b1Pct(1 - b1Drought.cut)} for a year after a low Nile. Full granaries carry the city.`,
+  plague_coming: `Plague is warned two months ahead. A quarantine costs ${b1Plague.quarantine.feePerHome} gold a home (at least ${b1Plague.quarantine.feeMin}), scaled by difficulty.`,   // the sheet's button says the exact fee
+  low_nile: `A low Nile: farms give ${b1DroughtShort()} for a year. Granaries carry the city.`,
 });
 
 // ── Firsts ──
@@ -3042,9 +3063,9 @@ Object.assign(FIRST_TEXT, {
 
 // ── How to play ──
 V60_HELP.b1.push(
-  { head: 'Raiders that wreck and loot', text: `Once the first three game years are past (an older city loaded into this version gets three years from the day it loads), raiders who get through may wreck a building instead of burning it (about ${b1Pct(b1Wreck.chance)} of strikes on Normal): it falls to rubble that remembers what stood there, and one tap on the rubble clears and rebuilds it for its price. They also carry off part of a storehouse's goods. A band of ${b1Chief.fromSize} or more has a chieftain: when he falls, his band turns back. The raid report lists what was burned, wrecked and taken.` },
+  { head: 'Raiders that wreck and loot', text: `Once the first three game years are past (an older city loaded into this version gets three years from the day it loads), raiders who get through may wreck a building instead of burning it (about ${b1Pct(b1Wreck.chance)} of strikes on Normal): it falls to rubble that remembers what stood there, and one tap on the rubble clears and rebuilds it for its price plus ${b1Fire.rubbleCost} gold for each tile of rubble cleared (on Normal). They also carry off part of a storehouse's goods. A band of ${b1Chief.fromSize} or more has a chieftain: when he falls, his band turns back. The raid report lists what was burned, wrecked and taken.` },
   { head: 'Plague', text: `A plague is warned two months ahead and starts in a crowded home with no physician or well. It spreads day by day to the homes near a sick one; a physician, a well and room slow it. Sick homes lose people, and work stops near them where no physician reaches. Open a sick home to quarantine its district for ${b1Months(b1Plague.quarantine.months)}: the plague cannot cross its edge, but work in it stops. The Health layer marks sick homes with a heavy ring.` },
-  { head: 'Drought and the low Nile', text: `The Nile reading warns months ahead of a low flood. For a year every farm then gives about ${b1Pct(1 - b1Drought.cut)} of its crop. Full granaries carry the city: the City advice says whether yours will, and how much is short.` },
+  { head: 'Drought and the low Nile', text: `The Nile reading warns months ahead of a low flood. For a year every farm then gives about ${b1DroughtLevels()} of its crop. Full granaries carry the city: the City advice says whether yours will, and how much is short.` },
   { head: 'Locusts and blight', text: `A month's warning names a band of farms. Locusts eat the crop of those farms for ${b1Dur(b1Crops.locusts.days)}; blight leaves part of it for ${b1Dur(b1Crops.blight.days)}. A named farm's sheet has Harvest now: ${b1Pct(b1Harvest.share)} of a month's crop into the stores at once, on top of what the farm goes on making until the warning ends. The farm then rests ${plural(b1Harvest.restDays, 'day', 'days')} from the day after the strike, when the crop is cut anyway, so the early grain is a gain.` },
 );
 // ── end v60 b1 ──
@@ -3176,7 +3197,7 @@ export const D1_TEXT = {
 // The keys of a computer (rulings 744, 745): the zoom keys follow the pan row; the right button is in the list with the keys.
 HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'panLeft') + 1, 0, ['zoomIn', 'Zoom in'], ['zoomOut', 'Zoom out']);
 HELP_ROWS.push(['rightClick', 'Cancel the tool or step back, like Esc', 'Right-click']);
-V60_HELP.d1.push({ head: 'On a computer', text: 'Arrows or WASD move the view, + and − zoom, 1 to 7 pick a build category, [ and ] set the speed, Esc steps back and a right-click cancels. A text field or a slider keeps its own keys; you can switch the single keys off in Settings.' });
+V60_HELP.d1.push({ head: 'On a computer', text: 'Arrows or WASD move the view (in an open sheet or dialog the arrows scroll it instead, and W, A, S and D still move the view), + and − zoom, 1 to 7 pick a build category, [ and ] set the speed, Esc steps back and a right-click cancels. A text field or a slider keeps its own keys; you can switch the single keys off in Settings.' });
 V60_HELP.d1.push({ head: 'The Huge map', text: 'A Huge map is 112 tiles a side, a vast land for a long reign. It suits a tablet or computer; on a phone the buildings are small and the city takes more scrolling. The view cannot zoom out past where a Huge map costs more to draw than a Large one, which a very large screen may notice.' });
 // ── end v60 d1 ──
 

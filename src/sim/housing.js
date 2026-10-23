@@ -257,10 +257,12 @@ export function stockLot(world, house) {
 }
 
 // Whether an empty Large plot may be moved into now: every row of its "Opens when" list met. (immigration.js lets arrivals move in as a Manor.)
+// Version 6.0 (Wave 4 fix): asked afresh every time. The needs read the bazaars' stalls, the stores' stock and the providers' staff, which move inside a day (the deserters card's
+// draw asks mid-tick, after the carts have moved stock, and the court's sheet asks between ticks), so an answer kept across calls would let a sheet being open change the draw
+// (ruling 445). vacancies() asks once per lot in a pass, so nothing is walked twice.
 export function lotReady(world, house) {
   if (!isLot(house)) return false;
-  const met = lotNeeds(world, house);
-  return Object.values(met).every(Boolean);
+  return Object.values(lotNeeds(world, house)).every(Boolean);
 }
 
 // The desirability a home's checklist row asks of it (and the home sheet's "to keep" list for a plot at its top): a lot, the Manor's "to rise"; a Townhouse on

@@ -4,7 +4,7 @@
 //
 // State: world.demands = { open, nextDay, nextId, log } and world.reign = { greatWork, won, closed, seal, offered } (src/data/reign.js).
 //
-// The demands (rulings 644-650): from Town, about once a game year (DEMANDS.gapMonths after the last offer, the first DEMANDS.firstMonths
+// The demands (rulings 644-650): from Town, about once a game year (DEMANDS.gapMonths after the last offer, settled or not, the first DEMANDS.firstMonths
 // after the city's first month end at Town or later), the court offers one demand: goods, gold, a building or soldiers. Every number is on
 // the record from the moment it is offered (the amount, the deadline it would have, the reward and the favour won, lost or refused: ruling
 // 612), so the sheet says each before Accept. An offer waits DEMANDS.offerMonths, then lapses as declined. Accepted, it is met by Send
@@ -30,6 +30,8 @@ import { addFavour, favourChange, stockOf, takeGoods, outputPerMonth } from './c
 import { unitsAtHome, sendUnits } from './armies.js';
 import { courtDue, dueComing } from './pressure.js';
 import { sealReign } from './score.js';
+import { offeringsMade, offeringOf, storedOf, offeringSource } from './monuments.js';
+import { canAfford } from './money.js';
 
 
 const draw = (world, a, b, salt) => hash2(a, b, (world.seed + REIGN_SALT[salt]) | 0);
@@ -52,8 +54,8 @@ export const greatWorkOf = (world) => (world.reign.greatWork === null ? null : w
 // Whether the reign is won (the great work finished): the city plays on after.
 export const reignWon = (world) => world.reign.won !== null;
 
-// Whether the court makes demands of this city yet: from DEMANDS.from (Town).
-export const demandsOn = (world) => atLeast(world, DEMANDS.from);
+// Whether the court makes demands of this city yet: from DEMANDS.from (Town), never of the guided first city (world.lesson, src/sim/lesson.js).
+export const demandsOn = (world) => !world.lesson && atLeast(world, DEMANDS.from);
 
 // ── What a demand can ask ──
 // The goods it may name: household and raw goods the city makes (or trades for), as the court's goods requests.
@@ -225,7 +227,7 @@ export function demandMonth(world, events = null) {
   if (!d) { s.nextDay = world.day + DAYS_PER_MONTH; return; }   // nothing to ask yet: a month on
   s.nextId += 1;
   s.open.push(d);
-  s.nextDay = world.day + pick(DEMANDS.gapMonths, draw(world, d.id, world.day, 'demandGap')) * DAYS_PER_MONTH;
+  s.nextDay = world.day + pick(DEMANDS.gapMonths, draw(world, d.id, world.day, 'demandGap')) * DAYS_PER_MONTH;   // the next one's clock starts at this offer (ruling 794), not when it is settled
   if (events) events.push({ type: 'demand_offered', demand: copy(d) });
 }
 
@@ -246,7 +248,7 @@ export function demandAlerts(world) {
 export function dueWarning(world) {
   if (!dueComing(world)) return null;
   const d = courtDue(world);
-  return d.monthsLeft !== null && d.monthsLeft <= COURT_DUE.warnMonths && d.gold > world.gold ? d : null;
+  return d.monthsLeft !== null && d.monthsLeft <= COURT_DUE.warnMonths && d.gold > 0 && d.gold > world.gold ? d : null;   // nothing owed (ruling 788) is nothing to warn of
 }
 
 // The demands' advice items (cityAdvice through v60Advice), kind 'demand' (ADVICE_KINDS), weights DEMANDS.advice: an offer waiting for an
@@ -262,6 +264,24 @@ export function demandItems(world, alerts, out) {
   }
   const due = dueWarning(world);
   if (due) out.push({ key: 'court_due', kind: 'demand', weight: A.due, count: 1, id: null, data: { due: true, gold: due.gold, monthsLeft: due.monthsLeft, have: world.gold }, fix: { view: 'summary', section: 'forecast', target: null }, cost: null, afford: null });
+  offeringItem(world, out);
+}
+// Version 6.0 (Wave 4 fix, ruling 786): the great temple's next offering while the stores hold less than it asks, raised from the course before its stage begins (so the
+// player has the course's time to stock up) and while the crews wait. The fix selects the store holding most of the good, else (none holds any) builds the good's producer.
+function offeringItem(world, out) {
+  const gw = greatWorkOf(world);
+  if (!gw || !gw.site || gw.site.done !== null) return;
+  const stage = offeringsMade(world, gw), o = offeringOf(world, stage);
+  if (!o || gw.site.course < stage * GREAT_WORK.perStage - 1) return;
+  const have = storedOf(world, o.good);
+  if (have >= o.n) return;
+  const src = offeringSource(world, o.good), store = src.store === null ? null : world.buildings[src.store];
+  const buildable = src.producer && BUILDINGS[src.producer] && isUnlocked(world, src.producer);
+  const fix = store ? { select: store.id, target: { x: store.x + store.w / 2, y: store.y + store.d / 2 }, why: 'great_offering' }
+    : buildable ? { item: src.producer, at: BUILDINGS[src.producer].terrain ? 'terrain' : 'near', target: { x: gw.x + gw.w / 2, y: gw.y + gw.d / 2 } } : null;
+  const cost = fix && fix.item ? costOf(world, fix.item) : null;
+  out.push({ key: 'great_offering', kind: 'demand', weight: DEMANDS.advice.offering, count: 1, id: null,
+    data: { offering: true, good: o.good, n: o.n, have, stage, waiting: gw.site.reason === 'waiting_offering', producer: src.producer, held: store !== null }, fix, cost, afford: cost === null ? null : canAfford(world, cost) });
 }
 function item(world, key, weight, d, extra) {
   const anchor = d.kind === 'goods' ? allBuildings(world).find((b) => (BUILDINGS[b.type].stores || []).includes(d.good) && (b.store[d.good] || 0) > 0)
