@@ -39,7 +39,33 @@ export const MAP = {
 
 // The six river layouts (Stage 4.5, ruling 313). A new city's UI passes 'auto' and the seed picks one; everything else
 // (tests, the dev scenes, the sample, stress and title cities) asks for 'classic'.
-export const MAP_VARIANTS = ['classic', 'east', 'middle', 'wide-bends', 'island', 'oasis'];
+// Version 7.1 (Track M, ruling 1020): six more, appended (MAP.courses, drawn by src/sim/courses.js); the first six draw exactly as in 7.0.
+export const MAP_VARIANTS_70 = ['classic', 'east', 'middle', 'wide-bends', 'island', 'oasis'];
+export const MAP_VARIANTS_71 = ['delta', 'confluence', 'twin', 'wide-nile', 'cataract', 'lake-fed'];
+export const MAP_VARIANTS = [...MAP_VARIANTS_70, ...MAP_VARIANTS_71];
+for (const v of MAP_VARIANTS_71) MAP.variants[v] = { course: v };
+
+// Version 7.1 (Track M, rulings 1020-1039): the new layouts' tunables (src/sim/courses.js has the shapes). Positions across or down the map are
+// for 64 and scale with the size, as the older layouts' do; widths (hw: a half-width in tiles, so 3 is 6 tiles of water) and distances do not.
+//   newShare  of the picks 'auto' makes, the share that is one of the six new layouts (about two in three)
+//   axes      which ways the river may run: 'ns' (north-south, on the west or the east side) or 'ew' (east-west, north of the start)
+//   amp       the meander's swing; hw: the river's half-width, varying along it between the two
+//   roadGap   tiles from a north-south river's water to the trade road (classic's is about 13); ewFromStart: how far north of the start
+//             area's centre an east-west river's middle runs; ewRoad: how far either side of the middle the trade road may come in
+//   maxWater  the most of the map water may cover (the playability test holds it)
+MAP.courses = {
+  newShare: 2 / 3, roadGap: 13, focusOff: 4, ewFromStart: 14, ewRoad: 8, maxWater: 0.22, reach: 11.5, step: 0.5,
+  delta: { axes: ['ns', 'ew'], v: [12, 16], amp: [1, 2], hw: [1.8, 2.3], fork: [0.42, 0.58], arms: [2, 3], smallArms: 2, mouth: [3, 5], mouthLand: 3, armGap: [8, 11], forkHw: 1.6, sandbars: [1, 2], ewNorth: 0 },   // smallArms: the most a map smaller than Normal holds (its water stays under maxWater)
+  // confluence: the fork's point jx either side of the middle and jy north of the start area (both scaled); each arm bends round a point ctl
+  // tiles out and down from it and meets its side edge armEnd (scaled) north of the start area; stemSide: the share of stems that leave by
+  // the upper west or east edge (stemSideY down it) rather than the north edge
+  confluence: { axes: ['ns'], jx: 6, jy: [22, 28], amp: [0.8, 1.6], hw: [2.0, 2.6], armHw: [1.3, 1.8], ctl: [8, 10], armEnd: [4, 10], stemSide: 0.3, stemSideY: [8, 16] },
+  // twin: the small river runs `apart` tiles from the main one (north-south) or at v (scaled) from the north edge (east-west)
+  twin: { axes: ['ns', 'ew'], nsFrom: 64, v: [12, 15], amp: [1.5, 3], hw: [1.6, 2.2], small: { apart: [34, 40], v: [10, 14], amp: [1, 2], hw: [0.9, 1.2] } },
+  'wide-nile': { axes: ['ns', 'ew'], v: [16, 18], amp: [1, 2], hw: [3.0, 3.9], ewNorth: 1 },
+  cataract: { axes: ['ns', 'ew'], v: [11, 14], amp: [1.5, 3], hw: [1.6, 2.0], at: [0.2, 0.35], gorge: [10, 14], gorgeHw: 0.8, wall: [2, 1.5], rapids: [12, 16], rapidsHw: [3.0, 3.4], islets: [3, 4], isletGap: 4, ease: 3 },
+  'lake-fed': { axes: ['ns', 'ew'], v: [11, 14], amp: [1.5, 3], hw: [1.6, 2.1], lake: { r: [8, 11], ry: [5, 6.5], nsDeep: 0.8, wobble: 1.6, ewNorth: 1 } },   // r: the lake's radius along the river (and across it, north-south); ry: across an east-west one
+};
 
 // ── s46 map (Stage 4.6, Map track) ── map sizes, the shape choices' salts and the Map track's lists. Track 0 put the sizes here;
 // the Map track owns this file.
@@ -89,6 +115,7 @@ export const isMapSize = (n) => Object.values(MAP_SIZES).includes(n);
 export const MAP_SALT = {
   meander: 4601, channels: 4602, oxbow: 4603, outcrops: 4604, dunes: 4605, groves: 4606, wadis: 4607, clayWide: 4608,
   shapePick: 4609, spare1: 4610, spare2: 4611,
+  courses: 4612,   // Version 7.1 (Track M): the new layouts' own stream (src/sim/courses.js)
 };
 // Version 6.0, Track D1's salts (the Huge map's own draws, if it needs any), range 6071-6079; rename the spares as they are used.
 export const HUGE_SALT = { spare1: 6071, spare2: 6072 };

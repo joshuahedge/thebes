@@ -62,7 +62,7 @@ describe('s46 contract map sizes', () => {
     expect(now.classic).toEqual(BEFORE.classic);
     const { classic, ...others } = now;
     expect(others).toEqual(AFTER);
-    expect(LAYOUTS).toEqual(MAP_VARIANTS);
+    expect(LAYOUTS).toEqual(MAP_VARIANTS.slice(0, 6));   // Version 7.1: the new layouts follow these six
     for (const s of SEEDS) expect(generateMap(s, 64, 'classic').params).toEqual({});
   });
   it('offers Small 48, Normal 64 (the default), Large 80 and Huge 112', () => {
