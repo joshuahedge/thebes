@@ -31,6 +31,7 @@ import { DESIRABILITY } from '../data/desirability.js';
 import { checkTiles } from './commands.js';
 import { v60Advice } from './v60.js';
 import { v70Advice } from './v70.js';
+import { towerFix, strandedFix } from './adviceFixes.js';
 
 // ── The goods' makers (moved here from src/ui/text.js, which re-exports them) ──
 
@@ -293,6 +294,12 @@ function fixFor(world, cause, home, need) {
   if (!f) { const locked = lockedOf(world, cause, need); return locked ? { locked } : {}; }
   const b = cause.id !== null && cause.id !== undefined ? world.buildings[cause.id] || null : null;
   if (cause.code === 'good_far') {   // Show me opens the store that should set the Fetch order (near the bazaar) when there is one, else the store that holds the good
+    // Version 7.0 (Track A, ruling 960): beyond a cart's sensible reach (src/sim/adviceFixes.js strandedFix) no Fetch order helps: a store of its own by the bazaar, where one fits.
+    const far = strandedFix(world, cause.good, world.buildings[cause.bazaar]);
+    if (far) {
+      const { w, d } = dimsOf(far.item);
+      return { fix: { item: far.item, at: 'near', target: { x: far.x + w / 2, y: far.y + d / 2 }, near: cause.bazaar, far: { len: far.len, perMonth: far.perMonth, store: far.store, maker: far.maker } } };
+    }
     const near = fetchStoreFor(world, cause);
     if (near) return { fix: { select: near.id, target: centreOf(near), why: cause.code, fetch: true } };
   }
@@ -534,13 +541,24 @@ function towerItem(world, out) {
   const w = q ? world.raid.warning : null;
   const aims = w ? warningBands(w).map((b) => {
     const first = firstRaidTarget(world, b.entry, w.target);
-    return first ? { x: first.x + first.w / 2, y: first.y + first.d / 2 } : { x: b.entry.x + 0.5, y: b.entry.y + 0.5 };
+    return first ? { x: first.x + first.w / 2, y: first.y + first.d / 2, guard: first } : { x: b.entry.x + 0.5, y: b.entry.y + 0.5, guard: null };
   }) : [];
   const guarding = (p) => allBuildings(world).filter((b) => b.type === 'tower' && isWorking(world, b) && Math.hypot(b.x + b.w / 2 - p.x, b.y + b.d / 2 - p.y) <= DEFENCE.towerRange).length;
-  const at = aims.length ? aims.reduce((best, p) => (guarding(p) < guarding(best) ? p : best)) : { x: world.focus.x + 0.5, y: world.focus.y + 0.5 };
-  const fixed = priced(world, { item: 'tower', at: 'near', target: at });
-  out.push(item('raid_towers', 'raid_towers', buildN * ADVICE.tower * (q ? ADVICE.towerWarned : 1), buildN, null,
-    { size, need, have, buildN, buildCost: buildN * fixed.cost, warned: Boolean(q), dirs: q ? q.dirs : null }, fixed));
+  const aim = aims.length ? aims.reduce((best, p) => (guarding(p) < guarding(best) ? p : best)) : { x: world.focus.x + 0.5, y: world.focus.y + 0.5, guard: null };
+  const at = { x: aim.x, y: aim.y };
+  // Version 7.0 (Track A, ruling 960): the tower goes where it defends: a tile a road touches within DEFENCE.towerRange of the building the band strikes first, in the order Show me's
+  // own search finds them; with none, the road that would give one its road ("Lay a road to here, then build the tower"), Show me at the road's end. Before a warning no band has a
+  // first strike to defend (the city's start is only a guess), and a band with nothing to strike has nothing to defend: the tower goes by the start and the entry, as before.
+  const tf = aim.guard ? towerFix(world, at) : null;
+  const price = costOf(world, 'tower');
+  let fixed;
+  if (!aim.guard) fixed = priced(world, { item: 'tower', at: 'near', target: at });
+  else if (tf && tf.spot) fixed = priced(world, { item: 'tower', at: 'near', target: { x: tf.spot.x + 0.5, y: tf.spot.y + 0.5 }, guard: aim.guard.id });
+  else if (tf && tf.road) fixed = priced(world, { item: 'road', at: 'near', target: { x: tf.road.x + 0.5, y: tf.road.y + 0.5 }, then: 'tower', tiles: tf.road.tiles, from: tf.road.from, spot: tf.road.spot, guard: aim.guard.id });
+  else fixed = { fix: null, cost: null, afford: null };
+  const data = { size, need, have, buildN, buildCost: buildN * price, warned: Boolean(q), dirs: q ? q.dirs : null,
+    guard: aim.guard ? { id: aim.guard.id, type: aim.guard.type } : null, spot: tf && tf.spot ? tf.spot : null, road: tf && tf.road ? { x: tf.road.x, y: tf.road.y, tiles: tf.road.tiles } : null, noSpot: Boolean(aim.guard && tf === null) };
+  out.push(item('raid_towers', 'raid_towers', buildN * ADVICE.tower * (q ? ADVICE.towerWarned : 1), buildN, null, data, fixed));
 }
 
 const kindRank = (k) => ADVICE_KINDS.indexOf(k);

@@ -59,7 +59,7 @@ export function createCityEventsUi(ctx) {
     const events = [];
     // The effects shown go with the answer: if the city changed since the card was drawn, nothing happens and the card shows the new figures.
     const res = applyChoice(world, w, c.id, events, c.effects);
-    if (!res.ok) { if (res.reason === 'changed') caption('The city changed: the card shows the new figures'); ctx.refresh(); return; }
+    if (!res.ok) { if (res.reason === 'changed') caption(C.changed); ctx.refresh(); return; }
     onEvents(events);
     ctx.afterCommand({ kind: 'cityEvent', result: res, text: C.captionOutcome(events[0], world), undoable: false });
     close();

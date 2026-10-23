@@ -3,8 +3,8 @@
 //   v70-event      an event waiting, its card open. { kind } any of EVENT_KINDS (default: the quarry's strike); { poor: true } leaves the treasury unable to
 //                  pay the price (the choice that costs gold is off, with its reason and Show me); { open: false } leaves the card shut (the alert list's entry
 //                  and the Advice item show it); { sheet: 'minimap' | 'advice' | 'summary' } opens that sheet instead of the card
-//   v70-festival   the Festival of Opet offered. { incense: true } puts incense in a storehouse and, where Track T's incense is not in the game yet, in the
-//                  game's lists for this scene (the full festival, three choices); { incense: false } the smaller festival with beer alone
+//   v70-festival   the Festival of Opet offered. { incense: true } puts 40 incense (Track T's good) in a storehouse, so the full festival's choice can be
+//                  taken; without it the full festival is listed but off, short of incense, and the beer-only festival (without favour) is the one that can
 // Every scene takes { quick } (no settling wait). The sample Capital is given what a kind needs (a quarry, beer, a temple...) through the sim's own commands.
 import { allBuildings } from '../../sim/world.js';
 import { place, canPlace } from '../../sim/commands.js';
@@ -12,8 +12,6 @@ import { offerFor, waitingEvent } from '../../sim/cityEvents.js';
 import { stockOf } from '../../sim/court.js';
 import { CITY_EVENTS, EVENT_KINDS } from '../../data/cityEvents.js';
 import { INCENSE_GOOD } from '../../data/trade.js';
-import { GOODS } from '../../data/goods.js';
-import { BUILDINGS } from '../../data/buildings.js';
 import { openSheet } from '../../ui/modes.js';
 import { sampleCity, look, wait } from './base.js';
 
@@ -63,11 +61,10 @@ async function eventsScene(api, name, named, options) {
 const TROUBLE = ['quarry_strike', 'workshop_quarrel', 'sandstorm', 'lost_caravan', 'rumour'];
 export const eventScene = (api, options = {}) => eventsScene(api, 'v70-event', options.kind && EVENT_KINDS.includes(options.kind) ? options.kind : null, options);
 
-// The festival: with { incense: true } incense is put in a storehouse (and into the game's goods and that storehouse's list where Track T's has not yet).
+// The festival: with { incense: true } 40 incense is put in a storehouse (a raw good the storehouse keeps).
 export async function festivalScene(api, options = {}) {
   const world = sampleCity(api, 'v70-festival', options);
   if (options.incense === true) {
-    if (!GOODS[INCENSE_GOOD]) { GOODS[INCENSE_GOOD] = { name: 'Incense', kind: 'household' }; if (!BUILDINGS.storehouse.stores.includes(INCENSE_GOOD)) BUILDINGS.storehouse.stores.push(INCENSE_GOOD); }
     const store = storehouse(world);
     if (store) store.store[INCENSE_GOOD] = Math.max(store.store[INCENSE_GOOD] || 0, 40);
   }
@@ -83,5 +80,5 @@ export async function festivalScene(api, options = {}) {
   look(api, world.focus.x, world.focus.y, 0.9);
   if (!options.quick) await wait(300);
   const w = waitingEvent(world);
-  return `v70-festival: ${w.kind}, ${GOODS[INCENSE_GOOD] ? `incense ${stockOf(world, INCENSE_GOOD)}` : 'no incense in the game'}, ${CITY_EVENTS.from} on, ${recordSaid(world)}`;
+  return `v70-festival: ${w.kind}, incense ${stockOf(world, INCENSE_GOOD)}, ${CITY_EVENTS.from} on, ${recordSaid(world)}`;
 }

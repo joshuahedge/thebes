@@ -86,7 +86,7 @@ describe('v50 advice words: homes held back', () => {
   it('a good held only in a far store: the cause names the store and the distance; Show me opens the store near the bazaar that should Fetch it, else the far store', () => {
     const { w } = street({ milestone: 'town' });
     const near = addRaw(w, 'storehouse', 4, 8);
-    const far = addRaw(w, 'storehouse', 50, 8, { store: { pottery: 40 } });
+    const far = addRaw(w, 'storehouse', 30, 8, { store: { pottery: 40 } });   // Version 7.0 (Track A): within a cart's sensible reach (22 road tiles); beyond it the advice words a store by the bazaar (tests/v70/a)
     staffAll(w);
     let { a, t } = words(w, 'stranded');
     expect(t.what).toBe('1 home is held back by pottery kept too far away');

@@ -99,7 +99,7 @@ describe('v70 t trade sheet on a phone', () => {
       for (let i = 0; i < 3; i++) fire(more(), 'click');
       expect([w.trade.floors.linen, w.trade.orders.linen, keepAtLeast(w, 'linen'), sellAbove(w, 'linen')]).toEqual([30, { mode: 'sell', keep: 30 }, 30, 30]);
       expect(document.activeElement).toBe(more());
-      expect([row(r, 'linen').querySelector('.keep-value').textContent, row(r, 'linen').querySelector('.keep-help').textContent]).toEqual(['Keep at least 30', 'Sells only what is over 30 in storage']);
+      expect([row(r, 'linen').querySelector('.keep-value').textContent, row(r, 'linen').querySelector('.keep-help').textContent]).toEqual(['Keep at least 30', 'Sells only what is over 30 near the Quay']);   // Version 7.0 (Track A): the level is counted near the landing: only Nubia (by river) buys linen
       expect(row(r, 'linen').querySelector('.stock').textContent).toBe('300 near the trading post · 300 near the Quay');
       fire(row(r, 'linen').querySelector('.mode.ignore'), 'click');
       expect([w.trade.orders.linen, row(r, 'linen').querySelector('.keep')]).toEqual([{ mode: 'ignore', keep: 30 }, null]);
@@ -125,8 +125,8 @@ describe('v70 t trade sheet: held back, the ledger, a missing Quay', () => {
       } finally { r.cleanup(); }
     };
     const owed = Math.max(1, Math.round(GREAT_WORK.offerings[0].n * DIFFICULTIES.normal.cost));
-    expect(await run(0, true)).toEqual([`${owed} held for the temple`, '60 held for the court', `Sells only what is over ${owed} in storage`, owed]);
-    expect(await run(1, false)).toEqual([null, null, 'Sells only what is over 0 in storage', 0]);
+    expect(await run(0, true)).toEqual([`${owed} held for the temple`, '60 held for the court', `Sells only what is over ${owed} near the trading post or the Quay`, owed]);
+    expect(await run(1, false)).toEqual([null, null, 'Sells only what is over 0 near the trading post or the Quay', 0]);
   });
 
   it("says last year's profit per route from the sim's ledger, and none before a visit", async () => {

@@ -136,11 +136,11 @@ describe('ui trade sheet', () => {
       expect(w.trade.orders.pottery).toEqual({ mode: 'sell', keep: 20 });
       expect(document.activeElement).toBe(more());                                      // the rebuilt sheet keeps keyboard focus
       expect(good(r, 'pottery').querySelector('.keep-value').textContent).toBe('Keep at least 20');
-      expect(good(r, 'pottery').querySelector('.keep-help').textContent).toBe('Sells only what is over 20 in storage');
+      expect(good(r, 'pottery').querySelector('.keep-help').textContent).toBe('Sells only what is over 20 near the trading post');
       fire(less(), 'click');
       expect(w.trade.orders.pottery.keep).toBe(10);
       fire(good(r, 'clay').querySelector('.mode.buy'), 'click');
-      expect(good(r, 'clay').querySelector('.keep-help').textContent).toBe('Buys until 0 are in storage');
+      expect(good(r, 'clay').querySelector('.keep-help').textContent).toBe('Buys until 0 are near the trading post');
       fire(good(r, 'pottery').querySelector('.mode.ignore'), 'click');
       expect(w.trade.orders.pottery).toEqual({ mode: 'ignore', keep: 10 });             // the level is kept for next time
       expect(good(r, 'pottery').querySelector('.keep')).toBe(null);
@@ -271,7 +271,7 @@ describe('ui trade sheet', () => {
       expect(tradeStock(w, 'pottery')).toBe(40);
       expect(good(r, 'pottery').textContent).toContain('40 near the trading post');
       fire(good(r, 'pottery').querySelector('.mode.sell'), 'click');
-      expect(good(r, 'pottery').querySelector('.keep-help').textContent).toBe('Sells only what is over 0 in storage');
+      expect(good(r, 'pottery').querySelector('.keep-help').textContent).toBe('Sells only what is over 0 near the trading post');
     } finally { r.cleanup(); }
   });
   it('says in a caption exactly what a real caravan did to the treasury', () => {

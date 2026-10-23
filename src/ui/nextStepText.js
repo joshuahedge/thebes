@@ -7,7 +7,7 @@ import { MILESTONES } from '../data/progression.js';
 import { categoryOfItem } from '../data/ui.js';
 import { allBuildings } from '../sim/world.js';
 import { goodMakers } from '../sim/advice.js';
-import { NEED_NAMES, LARGE_TEXT, OPEN_TEXT, buildingName, goodName, plural, T, viewLabel, S47_PRESSURE_TEXT } from './text.js';
+import { NEED_NAMES, LARGE_TEXT, OPEN_TEXT, buildingName, goodName, plural, T, viewLabel, S47_PRESSURE_TEXT, ADVICE_FIX_TEXT } from './text.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { costOf } from '../sim/costs.js';
 import { isLot, isSmallTop } from '../sim/largePlots.js';
@@ -111,6 +111,9 @@ export function stepWords(world, home, step) {
     rest = o.step === 'store'
       ? OPEN_TEXT.stepStore(o, price(), costOf(world, o.maker), world.buildings[o.holder] ? world.buildings[o.holder].type : o.store)
       : OPEN_TEXT.stepMaker(o, price(), world.buildings[o.by] ? world.buildings[o.by].type : o.store);
+  } else if (f.far) {
+    // Version 7.0 (Track A, ruling 961): the good is held beyond a cart's sensible reach (src/sim/adviceFixes.js strandedFix): a store of its own by the bazaar.
+    rest = ADVICE_FIX_TEXT.strandedStep({ ...f.far, item: f.item }, price().slice(1, -1), goodName(c.good).toLowerCase());
   } else if (f.from !== undefined) {
     // Version 5.0 (Task 7): a low street's decoration, which and where (src/sim/advice.js desirabilityFix): "a statue beside this home (60 gold)
     // raises its desirability from 22 to 30 (it needs 35)".

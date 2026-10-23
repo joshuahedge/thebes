@@ -303,12 +303,12 @@ describe('v70 e sim: what each kind does', () => {
   const fresh = (kind, o = {}) => { const w = eventWorld({ gold: 5000, ...o }); w.day = 3 * YEAR; offer(w, kind); return w; };
   const answer = (w, id, events = null) => applyChoice(w, w.cityEvents.waiting, id, events);
 
-  it('the festival of Opet: beer alone without incense (a smaller festival), beer and incense with it, off with why when either is short', () => {
+  it('the festival of Opet: beer alone without incense (a festival without favour), beer and incense with it, off with why when either is short', () => {
     // Track T's incense is in the game, a raw good the storehouse keeps: the full festival is offered beside the smaller one.
     expect([Boolean(GOODS[INCENSE_GOOD]), BUILDINGS.storehouse.stores.includes(INCENSE_GOOD)]).toEqual([true, true]);
     const t = fresh('opet');
     expect(eventChoices(t, t.cityEvents.waiting).map((c) => c.id)).toEqual(['full', 'small', 'decline']);
-    // A game without incense: the smaller festival, with beer alone.
+    // A game without incense: the beer-only festival, without favour.
     withoutIncense(() => {
       const w = fresh('opet');
       expect(eventChoices(w, w.cityEvents.waiting).map((c) => c.id)).toEqual(['small', 'decline']);
