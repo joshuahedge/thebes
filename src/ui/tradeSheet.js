@@ -20,6 +20,7 @@ import { tradeAllowed, heldBack } from '../sim/tradeRules.js';
 import { routeCostOf } from '../sim/costs.js';
 import { T as TERRAIN } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
+import { inOasisPool } from '../sim/oases.js';
 import { el, button, clear } from './components.js';
 import {
   T, TRADE_MODE_NAMES, partnerName, goodName, showMeLabel, openRouteText, routeBlockText, noCaravanText, tradeChoiceLabel, tradeReasonText,
@@ -39,6 +40,14 @@ export function tradedGoods(world) {
   return Object.keys(GOODS).filter((g) => traded.has(g));
 }
 
+// Where a caravan or boat counts the stock when it trades this good on this side ('buys': the city sells it; 'sells': the city buys it): the trading post for an open
+// road route that lists it, the Quay for an open river one (src/sim/trade.js stockNear), the post first. The Keep at least words say "near" these.
+export function placesFor(world, good, side) {
+  const kinds = openPartners(world).filter((id) => tradePrices(world, id)[side][good] !== undefined).map((id) => (byRiver(id) ? 'quay' : 'post'));
+  const out = ['post', 'quay'].filter((k) => kinds.includes(k));
+  return out.length ? out : ['post'];
+}
+
 export const orderOf = (world, good) => world.trade.orders[good] || { mode: 'ignore', keep: 0 };
 
 // Why this route's next caravan or boat will not come, in words, or null when it will.
@@ -48,13 +57,14 @@ export const arrivalBlockText = (world, id) => {
   return byRiver(id) ? W.noBoat[b] : b === 'not_connected' ? T.postNotJoined : noCaravanText(b);
 };
 
-// Where Show me points for a missing Quay: the water tile nearest the trading post, else the middle of the map's start (the river by the city).
+// Where Show me points for a missing Quay: the river tile nearest the trading post (an oasis pool is water but not a river: the placing rule refuses a Quay
+// there, src/sim/fit.js), else the middle of the map's start (the river by the city).
 export function quayHint(world) {
   const post = tradePost(world);
   const from = post ? { x: post.x + 1, y: post.y + 1 } : world.focus || { x: world.size / 2, y: world.size / 2 };
   let best = null, bestD = Infinity;
   for (let y = 0; y < world.size; y++) for (let x = 0; x < world.size; x++) {
-    if (world.terrain[idx(world.size, x, y)] !== TERRAIN.WATER) continue;
+    if (world.terrain[idx(world.size, x, y)] !== TERRAIN.WATER || inOasisPool(world, x, y)) continue;
     const d = Math.hypot(x - from.x, y - from.y);
     if (d < bestD) { bestD = d; best = { x: x + 0.5, y: y + 0.5 }; }
   }
@@ -106,8 +116,9 @@ export function tradeSheet({ world, afterCommand = () => {}, onShowMe = () => {}
     const title = [el('span', { class: 'name' }, [partnerName(id), ' ', el('span', { class: 'by small muted', text: byRiver(id) ? W.byRiver : W.byRoad })]),
       el('span', { class: `summary small ${status ? 'coral' : 'muted'}`, text: summary })];
     const panelId = `trade-route-${id}`;
+    // aria-controls names the panel only while it is in the page: a closed head points at nothing.
     const head = accordion()
-      ? el('button', { type: 'button', class: 'route-head', 'aria-expanded': String(!shut), 'aria-controls': panelId, dataset: { partner: id } }, [...title, el('span', { class: 'chevron', 'aria-hidden': 'true', text: shut ? '▾' : '▴' })])
+      ? el('button', { type: 'button', class: 'route-head', 'aria-expanded': String(!shut), ...(shut ? {} : { 'aria-controls': panelId }), dataset: { partner: id } }, [...title, el('span', { class: 'chevron', 'aria-hidden': 'true', text: shut ? '▾' : '▴' })])
       : el('div', { class: 'route-head' }, title);
     if (accordion()) {
       head.addEventListener('click', () => {
@@ -156,7 +167,7 @@ export function tradeSheet({ world, afterCommand = () => {}, onShowMe = () => {}
       const more = button(`+${FLOOR_STEP}`, { class: 'keep-more', 'aria-label': W.keepLabel(1, name), onClick: () => set(level + FLOOR_STEP) });
       li.append(
         el('div', { class: 'keep' }, [less, el('span', { class: 'keep-value', text: W.keep(level) }), more]),
-        el('p', { class: 'keep-help small muted', text: order.mode === 'buy' ? W.buyHelp(order.keep) : W.sellHelp(sellAbove(world, good)) }),
+        el('p', { class: 'keep-help small muted', text: order.mode === 'buy' ? W.buyHelp(order.keep, placesFor(world, good, 'sells')) : W.sellHelp(sellAbove(world, good), placesFor(world, good, 'buys')) }),
       );
     }
     if (heldWords.length) li.append(el('p', { class: 'held small amber', text: heldWords.join(' · ') }));

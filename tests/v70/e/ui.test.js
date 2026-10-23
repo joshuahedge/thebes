@@ -134,13 +134,13 @@ describe('v70 e ui: the card', () => {
     }
   });
 
-  test('says the smaller festival when no incense is traded and the full one when it is, and a refusal for short incense with Show me', async () => {
-    // A game without Track T's incense: the smaller festival only, and the card says why.
+  test('says the festival without favour when no incense is traded and the full one when it is, and a refusal for short incense with Show me', async () => {
+    // A game without Track T's incense: the beer-only festival, without favour, only, and the card says why (Version 7.0 Track A: it gives the same mood as the full one, so it is not called smaller).
     await withoutIncense(async () => {
       const w = city('opet');
       const r = await rig(w);
       open(r, 'cityEvent');
-      expect(sheet(r).textContent).toContain('No incense reaches the city yet, so it can only be a smaller festival, with beer alone.');
+      expect(sheet(r).textContent).toContain('No incense reaches the city yet, so it can only be held without favour, with beer alone.');
       expect([...sheet(r).querySelectorAll('.event-choice')].map((n) => n.dataset.choice)).toEqual(['small', 'decline']);
       sweep();
     });
@@ -149,7 +149,7 @@ describe('v70 e ui: the card', () => {
     const r = await rig(w);
     open(r, 'cityEvent');
     expect(sheet(r).textContent).toContain('It takes beer and incense.');
-    expect(sheet(r).textContent.includes('smaller festival, with beer alone')).toBe(false);
+    expect(sheet(r).textContent.includes('without favour, with beer alone')).toBe(false);
     expect([...sheet(r).querySelectorAll('.event-choice')].map((n) => n.dataset.choice)).toEqual(['full', 'small', 'decline']);
     expect(new Set([...sheet(r).querySelectorAll('.event-choice > button')].map((b) => getComputedStyle(b).fontSize)).size).toBe(1);   // one type size: a choice's id is never a CSS class (a choice named small took .small's)
     expect(choiceBtn(r, 'full').disabled).toBe(true);

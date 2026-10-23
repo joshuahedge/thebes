@@ -3697,4 +3697,33 @@ TIP_TEXT.night_falls = 'Night falls and the lamps light. Nothing is hidden, and 
 //
 // ── v70 a (Track A, wave 2, rulings 960-974: the Advice fixes and the words for trade and events) ──────────────────────
 // Add new lines just above the end marker: V70_HELP.a.push(...), V70_ADVICE_WORDS.quay = ..., V70_ADVICE_WORDS.trade_floor = ..., TIP_TEXT.<id> = ...
+// An older sentence that turned out to say more than the sim does is worded again here, by reassignment, as 6.0's tracks did (wave 1's minors, rulings 964-966).
+import { QUAY_SIZE as a7QuaySize } from '../data/trade.js';
+
+// Wave 1's words, made exact (Version 7.0 Track A, rulings 963-966): the sheets said "storage" and "less than Memphis and Byblos" for what the sim does
+// per place and per good.
+{
+  // A caravan counts only the stores near the post it comes to and a boat only those near the Quay (src/sim/trade.js stockNear), so the level is a number
+  // "near" one place, or each of two.
+  const place = (kinds) => (kinds.length > 1 ? 'the trading post or the Quay' : kinds[0] === 'quay' ? 'the Quay' : 'the trading post');
+  V70_TRADE_TEXT.buyHelp = (n, kinds = ['post']) => `Buys until ${n} are near ${place(kinds)}`;
+  V70_TRADE_TEXT.sellHelp = (n, kinds = ['post']) => `Sells only what is over ${n} near ${place(kinds)}`;
+  // Nubia's stone and gems are cheaper than the road partners' of the same good, per good: stone than Memphis's, gems than Byblos's (never "than Memphis and
+  // Byblos": Memphis sells no gems and Byblos no stone). Read from the partners' own lists at their list prices (a year's drift moves each a little).
+  const cheaper = (id) => Object.entries(v7Partners[id].sells).map(([good, row]) => {
+    const dearer = Object.keys(v7Partners).filter((o) => o !== id && v7Partners[o].sells[good] && v7Partners[o].sells[good].price > row.price);
+    return dearer.length ? `${goodWord(good)} for less than ${listText(dearer.map(partnerName))}` : null;
+  }).filter(Boolean);
+  V70_TRADE_TEXT.help[0].text = `Once your city is a ${v7MilestoneName(v7Partners.nubia.milestone)}, ${v7Partners.nubia.name} trades by river: at list prices it sells ${listText(cheaper('nubia'))}, and buys grain and linen. Once it is a ${v7MilestoneName(v7Partners.punt.milestone)}, ${v7Partners.punt.name} sells incense, the one good only festivals use. A river route needs a Quay: a ${a7QuaySize.w} by ${a7QuaySize.d} landing with one long side on the river and a road beside it. Boats come on the same rhythm as caravans, every ${v7Every} months, and trade with the stores near the Quay.`;
+}
+// The Festival of Opet: the beer-only festival gives the same mood as the full one (src/sim/cityEvents.js CHOICES.opet: it adds no favour), so it is
+// "without favour", not a smaller festival (the beer it takes is smaller, and the card says how much).
+cevKinds.opet.body = () => `The priests ask to hold the Festival of Opet. ${cevHasIncense() ? 'It takes beer and incense.' : 'No incense reaches the city yet, so it can only be held without favour, with beer alone.'} It lifts mood by ${cevFestival.mood} for ${cevMonthsOf(cevFestival.days)}.`;
+cevKinds.opet.labels.small = () => 'Hold it without favour, beer only';
+{
+  const e = V70_HELP.e.find((p) => p.head === 'City events');
+  e.text = e.text.replace('where no incense is traded it offers a smaller festival with beer alone', 'where no incense is traded it offers the festival with beer alone, without favour');
+}
+// The card's refusal caption when the city changed under an answer (src/ui/v70/cityEvents.js answer).
+CITY_EVENT_TEXT.changed = 'The city changed: the card shows the new figures';
 // ── end v70 a ──

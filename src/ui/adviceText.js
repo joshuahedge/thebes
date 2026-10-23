@@ -212,7 +212,9 @@ export function adviceWords(a, world) {
     const far = f.why === 'good_far';
     out.action = far ? { label: ADVICE_TEXT.show, aria: S47_PRESSURE_TEXT.showFar(d.cause, world) } : { label: ADVICE_TEXT.view, aria: `${ADVICE_TEXT.view}: ${out.what}` };
   } else if (f && f.view) {
-    out.action = { label: ADVICE_TEXT.view, aria: `${ADVICE_TEXT.view}: ${f.section === 'forecast' ? ADVICE_TEXT.seeForecast : ADVICE_TEXT.seeEmployment}` };
+    // Version 7.0 (Track A, wave 1 minor): only the summary's money and employment sections have a name of their own; a View for anything else (a waiting event, the Trade sheet) is named by its item.
+    const section = f.section === 'forecast' ? ADVICE_TEXT.seeForecast : f.section === 'employment' ? ADVICE_TEXT.seeEmployment : out.what;
+    out.action = { label: ADVICE_TEXT.view, aria: `${ADVICE_TEXT.view}: ${section}` };
   } else if (d && d.locked) {
     out.fix = ADVICE_TEXT.locked(d.locked.item, d.locked.milestone);
   }
