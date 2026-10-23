@@ -95,9 +95,9 @@ describe('farms, orchard, garden, statue and booth art', () => {
     const world = { day: 3 };
     for (const type of FARM_TYPES) {
       const farm = { type, id: 1, staff: 8, paused: false, blocked: null };
-      expect(slotFor(farm, world)).toBe(`${type}.g${farmStage(world, farm)}`);
-      expect(slotFor(farm, world)).toBe(`${type}.g2`);                               // (3 + 17) % 60 = 20: growing
-      expect(slotFor({ ...farm, staff: 0 }, world)).toBe(`${type}.g0`);              // idle: fallow, or bare trees
+      expect(slotFor(farm, world)).toBe(`${type}.g${farmStage(world, farm)}.peret`);   // Version 7.0 (Track S): a farm also names the season its day is in (day 3: month 1, Peret)
+      expect(slotFor(farm, world)).toBe(`${type}.g2.peret`);                               // (3 + 17) % 60 = 20: growing
+      expect(slotFor({ ...farm, staff: 0 }, world)).toBe(`${type}.g0.peret`);              // idle: fallow, or bare trees
       expect(slotFor(farm)).toBe(type);
     }
     for (const type of ['garden', 'statue', 'booth']) expect(slotFor({ type })).toBe(type);

@@ -3393,6 +3393,38 @@ export const V70_ADVICE_WORDS = {};
 //
 // ── v70 s (Track S, rulings 930-959: seasons, day and night, sound) ───────────────────────────────────────────────────
 // Add new lines just above the end marker: V70_HELP.s.push(...), the season names, the Settings rows' words, TIP_TEXT.<id> = ...
+import { SEASONS as s7Seasons } from '../data/tips.js';
+import { LIGHT as s7Light } from '../data/seasons.js';
+import { MONTHS_PER_YEAR as s7YearMonths } from '../sim/time.js';
+
+// The months a season covers, as "7 to 10" (a season that runs over the year's end reads "11 to 2"): from the same SEASONS the land and the top
+// bar follow (src/data/tips.js, the flood's calendar), so the words and the sim agree.
+export function seasonMonths(id) {
+  const first = [...Array(s7YearMonths).keys()].find((m) => s7Seasons[m] === id && s7Seasons[(m + s7YearMonths - 1) % s7YearMonths] !== id);
+  const count = s7Seasons.filter((s) => s === id).length;
+  return `${first + 1} to ${((first + count - 1) % s7YearMonths) + 1}`;
+}
+// The light's loop in whole minutes, from the data (the real-time loop of src/data/seasons.js LIGHT).
+const s7Minutes = Math.round(s7Light.cycleMs / 60000);
+
+export const SEASON_TEXT = {
+  // The seasons' names for the player (the ids akhet, peret and shemu are never shown: ruling 863). The top bar says one after the date.
+  names: { akhet: 'Flood', peret: 'Growing', shemu: 'Harvest' },
+  // The summary's Season row (the sheet part src/ui/v70/seasons.js adds): the season, its months, and what it changes.
+  summaryHead: 'Season',
+  summary: (id) => `${SEASON_TEXT.names[id]} (months ${seasonMonths(id)}): the land looks different; farms work as before`,
+  // Settings (src/ui/menu.js): the Day and night switch, the Effects volume and what the Sound switch is.
+  dayNight: 'Day and night',
+  dayNightNote: `The light turns from day to night every ${s7Minutes} minutes and holds while the game is paused. Motion: Still keeps daylight.`,
+  effectsVolume: 'Effects volume', effectsQuieter: 'Quieter effects', effectsLouder: 'Louder effects',
+  soundNote: 'Sound is the master: Off silences the music and the effects.',
+};
+V70_HELP.s.push({
+  head: 'Seasons, day and night, and sound',
+  text: `The land follows the flood calendar: Flood (months ${seasonMonths('akhet')}), Growing (months ${seasonMonths('peret')}) and Harvest (months ${seasonMonths('shemu')}), named after the date at the top. Over the last month of a season the land turns to the next. It changes only how the land looks, never how farms work. Light moves from day to a short blue night every ${s7Minutes} minutes of real time, with lamps lit in the homes and along the streets; nothing is hidden, it holds while the game is paused, and Settings → Day and night, or Motion: Still, keeps daylight. The music has a mood for each season and turns tense while a raid or another danger is live. Settings has a Music and an Effects volume under the Sound switch, which silences both.`,
+});
+TIP_TEXT.season_turns = 'The land turns with the seasons: flood, growing, harvest. It changes only how it looks; farms work as before.';
+TIP_TEXT.night_falls = 'Night falls and the lamps light. Nothing is hidden, and Settings → Day and night turns it off.';
 // ── end v70 s ──
 
 //
