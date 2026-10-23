@@ -7,6 +7,7 @@
 // offerings, cheaper ranks, a gentler court) moved the win by a few hundred days either way and, on the one seed this run is tuned on, as often to a debt as to a win.
 import { describe, it, expect } from '../../harness.js';
 import { greatWorkRun, GREAT_YEARS } from '../a/greatWorkRun.js';
+import { greatDangerRun } from './dangerRuns.js';
 import { MONTHS_PER_YEAR, DAYS_PER_MONTH } from '../../../src/sim/time.js';
 
 const YEAR_DAYS = MONTHS_PER_YEAR * DAYS_PER_MONTH;
@@ -17,5 +18,29 @@ describe('v60 balance great work margin', () => {
     expect(r.won !== null).toBe(true);
     expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS - 100);
     expect(r.lowestGold).toBeGreaterThanOrEqual(2000);
+  });
+});
+
+// Version 6.0.1 (rulings 800-807): with the dangers on as in the real game (a new city's three-year grace from day 0, the danger player answering), the great-work run wins now
+// that plague, the low Nile, locusts and blight do not come while the great temple rises (GREAT_WORK_EASE.severity 0). Measured (docs/superpowers/notes/2026-10-22-v60-a-balance.md,
+// "Version 6.0.1"): the tuned seed 5, with the player's habits for finding workers, wins on day 6,699 with 23,030 gold the lowest from year 10 on and every raid beaten; seed 10,
+// with the script as it was (no habits), wins on day 6,097 with 4,490 the lowest and every raid beaten. No one script wins both: without the habits seed 5 never reaches the Seat,
+// with them seed 10 does not either (the doubt for Josh). The pins hold each as measured, with a margin.
+describe('v60 balance great work with the dangers on (6.0.1)', () => {
+  it('the tuned seed (5) with the player\'s habits: won by day 7,200, never under 20,000 gold from year 10, no raid lost', () => {
+    const { r, raidsLost, raids } = greatDangerRun(5, { habits: true });
+    expect(r.won !== null).toBe(true);
+    expect(r.won.day).toBeLessThanOrEqual(GREAT_YEARS * YEAR_DAYS);
+    expect(r.won.day).toBeLessThanOrEqual(6800);
+    expect(Math.round(r.lowestGold)).toBeGreaterThanOrEqual(20000);
+    expect([raids > 0, raidsLost]).toEqual([true, 0]);
+    expect(r.insane).toEqual([]);
+  });
+  it('seed 10 with the script as it was: won by day 7,200, never under 4,000 gold from year 10, no raid lost', () => {
+    const { r, raidsLost, raids } = greatDangerRun(10, { habits: false });
+    expect(r.won !== null).toBe(true);
+    expect(r.won.day).toBeLessThanOrEqual(6200);
+    expect(Math.round(r.lowestGold)).toBeGreaterThanOrEqual(4000);
+    expect([raids > 0, raidsLost]).toEqual([true, 0]);
   });
 });

@@ -9,7 +9,16 @@
 
 export const RELEASES = [
   {
-    version: '6.0', date: '2026-10-23', title: 'A harder Nile', build: 'live',
+    version: '6.0.1', date: '2026-10-23', title: 'A fairer finale', build: 'live',
+    new: [
+      'While the great temple rises, no plague, low Nile, locusts or blight comes: none is warned, and one warned before you found it does not strike, so a city at the Seat can finish the reign with the dangers on. Raids and fire do not ease. How to play and the great temple\'s sheet say so.',
+    ],
+    fixed: [
+      'When the great temple waits for an offering and the workshop or farm that makes the good already stands, the advice now says to wait for it, or why it stands idle, instead of asking for another. Show me for a missing one aims at its own ground nearest the temple.',
+    ],
+  },
+  {
+    version: '6.0', date: '2026-10-23', title: 'A harder Nile', build: '588116e',
     new: [
       'A harder, longer game: wages, upkeep and monuments cost more as your city rises, and from year 8 the court takes a yearly due from your treasury, so a rich city can no longer bank gold without end.',
       'Court demands: from Town the court now and then asks for goods, gold, a building or soldiers by a deadline. Each says its reward and what failing costs before you accept, and you may decline.',

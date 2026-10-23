@@ -27,7 +27,7 @@ export const CAPITAL_YEARS = 6;
 // elsewhere. Stage 4: three rocky patches on the desert south of the fields for the quarries. The trade entry is the
 // east end of the farm street, which the script lays; the raider entries are the two mapgen gives a 48-tile map (the
 // middle of the east edge and of the north edge).
-function capitalWorld(size = SIZE, dangers = false) {
+function capitalWorld(size = SIZE, dangers = false, seed = 5) {
   const terrain = new Array(size * size).fill(T.DESERT);
   for (let y = 17; y < 24; y++) for (let x = 0; x < size; x++) terrain[idx(size, x, y)] = T.FERTILE;
   for (let y = 21; y < 23; y++) for (let x = 10; x < 14; x++) terrain[idx(size, x, y)] = T.ROCKY;
@@ -39,7 +39,7 @@ function capitalWorld(size = SIZE, dangers = false) {
   if (size > SIZE) for (let y = 25; y < 27; y++) for (let x = 52; x < 56; x++) terrain[idx(size, x, y)] = T.ROCKY;
   const raiderEntries = [{ x: 47, y: 24 }, { x: 24, y: 0 }];
   const map = { size, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries };
-  const world = createWorld({ seed: 5, size, map });
+  const world = createWorld({ seed, size, map });
   // Version 6.0: the run measures the game before the new dangers (tests/v60/b1/grace.js); the Wave 4 balance runs (tests/v60/balance) ask for them (dangers: the three-year grace from day 0).
   return dangers ? world : noNewDangers(world);
 }
@@ -148,9 +148,10 @@ function insanity(w, m) {
 // work that day (every site's site.crews). insane: every month end's insanity (none, in a sound run).
 // Version 6.0 (Wave 4): dangers true leaves the new dangers' grace as a new city has it; onMonth(w, events, month) is called after each month end's books, before the
 // script's next steps (a player's answers to the dangers: tests/v60/balance/respond.js). Both default to the run as it always was.
-export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth = null } = {}) {
+// Version 6.0.1: seed is the world's seed (5, the run as tuned; tests/v60/balance measures the great work on another seed too).
+export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth = null, seed = 5 } = {}) {
   const started = performance.now();
-  const w = capitalWorld(size, dangers);
+  const w = capitalWorld(size, dangers, seed);
   let next = 0, lowestGold = w.gold, net = 0, spent = 0, capitalMonth = null;
   const made = [], months = [], insane = [];
   const tryBuild = () => {

@@ -317,7 +317,8 @@ describe('v60 b1 ui first, tips and how to play', () => {
       expect(FIRSTS).toContain(f);
       expect([f.id, typeof FIRST_TEXT[f.id].head, typeof FIRST_TEXT[f.id].why]).toEqual([f.id, 'string', 'string']);
     }
-    expect(V60_HELP.b1.map((p) => p.head)).toEqual(['Raiders that wreck and loot', 'Plague', 'Drought and the low Nile', 'Locusts and blight']);
+    // (Version 6.0.1, ruling 800: the dangers' ease while the great temple rises follows them: tests/v60/balance/v601.test.js.)
+    expect(V60_HELP.b1.map((p) => p.head)).toEqual(['Raiders that wreck and loot', 'Plague', 'Drought and the low Nile', 'Locusts and blight', 'While the great temple rises']);
     for (const kind of ['plague', 'drought', 'locusts']) expect(typeof V60_ADVICE_WORDS[kind]).toBe('function');
     expect(typeof TIP_HELP_TEXT.plague_coming).toBe('string');
   });

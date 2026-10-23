@@ -8,6 +8,7 @@
 import { runCapital } from '../../stage4/balance/capitalRun.js';
 import { runLate } from '../../stage47/pressure/lateRun.js';
 import { runGrand } from '../../v50/grand/grandRun.js';
+import { runGreatWork } from '../a/greatWorkRun.js';
 import { dangerPlayer } from './respond.js';
 
 export const SNAPSHOT_YEARS = [4, 6, 8, 10, 12, 15];
@@ -19,6 +20,21 @@ export function lateDangerRun() {
   const base = runCapital(72, { dangers: true, onMonth: player.onMonth });
   const r = runLate({ base, onMonth: player.onMonth });
   return (late = { r, rec: player.rec, base });
+}
+
+// Version 6.0.1 (rulings 800-807): the great-work run with the dangers on as in the real game: the grand district run from day 0 with a new city's three-year grace on `seed`,
+// the danger player answering throughout, then the great-work run (tests/v60/a/greatWorkRun.js) to year 20. habits: the player's habits for finding workers (pause a monument
+// for a grand home's step, idle workers to the crews, the site sheet's stall row: grandRun.js setHabits, greatWorkRun.js moveToCrews and followStall); off, the script as it was.
+const greatOn = new Map();
+export function greatDangerRun(seed = 5, { habits = true } = {}) {
+  const key = `${seed}:${habits}`;
+  if (greatOn.has(key)) return greatOn.get(key);
+  const player = dangerPlayer();
+  const base = runGrand({ dangers: true, onMonth: player.onMonth, seed, habits });
+  const r = runGreatWork({ base, onMonth: player.onMonth, habits });
+  const out = { r, rec: player.rec, raidsLost: player.rec.raids.filter((x) => !x.won).length, raids: player.rec.raids.length };
+  greatOn.set(key, out);
+  return out;
 }
 
 let grand = null;

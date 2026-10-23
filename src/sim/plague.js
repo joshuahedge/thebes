@@ -60,10 +60,10 @@ export function homesNear(world, b) {
   return [...ids].sort((p, q) => p - q).map((id) => world.buildings[id]).filter((n) => n && n.type === 'house');
 }
 
-// What the day's spread reads once: a staffed physician's coverage of each building, the homes a working well reaches, the level's severity and
-// the quarantines holding. Taken once by a caller judging many homes.
+// What the day's spread reads once: a staffed physician's coverage of each building, the homes a working well reaches, the level's severity (half while
+// the great temple rises: dangerDraws harm, ruling 800) and the quarantines holding. Taken once by a caller judging many homes.
 export function plagueContext(world) {
-  return { cover: healthCoverage(world), watered: wateredHomes(world), severity: dangerDraws(world).severity, held: quarantines(world) };
+  return { cover: healthCoverage(world), watered: wateredHomes(world), severity: dangerDraws(world).harm, held: quarantines(world) };
 }
 
 // The chance a day that a sick home `from` passes the plague to the home `to` near it: PLAGUE.spread x severity, cut by a staffed physician
@@ -104,7 +104,7 @@ export function pickOrigin(world) {
 
 // ── Infecting ──
 function infect(world, b, events, cause) {
-  const a = world.hazards.plague.active, sev = dangerDraws(world).severity;
+  const a = world.hazards.plague.active, sev = dangerDraws(world).harm;   // the most a home loses, fixed as it falls sick (ruling 800: half while the temple rises)
   const days = between(PLAGUE.days, hazardDraw(world, b.id, world.day, 'plagueLength'));
   const cap = Math.min(b.residents, Math.floor(b.residents * Math.min(PLAGUE.lossMax, PLAGUE.lossShare * sev)));
   b.illness = { start: world.day, days, left: days, lost: 0, cap, plague: true };
