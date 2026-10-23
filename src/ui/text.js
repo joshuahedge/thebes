@@ -3697,10 +3697,53 @@ TIP_TEXT.night_falls = 'Night falls and the lamps light. Nothing is hidden, and 
 //
 // ── v70 a (Track A, wave 2, rulings 960-974: the Advice fixes and the words for trade and events) ──────────────────────
 // Add new lines just above the end marker: V70_HELP.a.push(...), V70_ADVICE_WORDS.quay = ..., V70_ADVICE_WORDS.trade_floor = ..., TIP_TEXT.<id> = ...
-// An older sentence that turned out to say more than the sim does is worded again here, by reassignment, as 6.0's tracks did (wave 1's minors, rulings 964-966).
-import { QUAY_SIZE as a7QuaySize } from '../data/trade.js';
+// Every number comes from the sim's own function or data (src/sim/adviceFixes.js, the carts' trip days, the trade rules), and an older sentence that
+// turned out to say more than the sim does is worded again here, by reassignment, as 6.0's tracks did.
+import { DEFENCE as a7Defence } from '../data/raids.js';
+import { QUAY_TYPE as a7Quay, QUAY_SIZE as a7QuaySize, TRADE_REACH as a7Reach, TRADE_BUILDINGS as a7TradeBuildings, CARAVAN_EVERY_MONTHS as a7Every } from '../data/trade.js';
+import { sensibleMonthly as a7Sensible } from '../sim/adviceFixes.js';
 
-// Wave 1's words, made exact (Version 7.0 Track A, rulings 963-966): the sheets said "storage" and "less than Memphis and Byblos" for what the sim does
+const a7An = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
+const a7Name = (type) => buildingName(type).toLowerCase();
+const a7Where = (guard) => (guard ? `the ${a7Name(guard.type)} the raiders strike first` : 'where the city began');
+const a7Cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+export const ADVICE_FIX_TEXT = {
+  // Raid towers: where the first one goes, from the sim's towerFix (a tile a road touches, within the tower's range of what the band strikes first).
+  towerWhere: (guard) => `Show me puts the first within ${a7Defence.towerRange} tiles of ${a7Where(guard)}, beside a road so it can be staffed`,
+  roadFirst: (tiles, n, cost) => `Lay a road to here (${plural(tiles, 'tile', 'tiles')}), then build ${n > 1 ? plural(n, 'tower', 'towers') : 'the tower'} (≈ ${cost} gold)`,
+  towerNeedsRoad: (guard) => `No free tile beside a road lies within ${a7Defence.towerRange} tiles of ${a7Where(guard)}`,
+  towerNoRoom: (guard) => `No free tile lies within ${a7Defence.towerRange} tiles of ${a7Where(guard)}`,
+  towerNoRoomFix: 'Clear a tile near it, then a road beside the tile',
+  // Stranded goods: a store of its own by the bazaar, when one cart could not bring an order's worth a month from the store that holds the good.
+  strandedFix: (far) => `Build ${a7An(a7Name(far.item))} near this bazaar${far.maker !== null && far.maker !== undefined ? ', where what is made can reach it' : ''}: ${far.perMonth > 0 ? `one cart would bring only ${far.perMonth} a month` : 'one cart could not bring a load in a month'} from ${far.len} road tiles away, under the ${a7Sensible()} that one order asks`,
+  // The house sheet's next step for the same cause: "a storehouse near the bazaar (70 gold) keeps pottery where the bazaar draws it: ...".
+  strandedStep: (far, price, good) => `${a7An(a7Name(far.item))} near the bazaar (${price}) keeps ${good} where the bazaar draws it: one cart would bring ${far.perMonth > 0 ? `only ${far.perMonth}` : 'no load'} a month from the store ${far.len} road tiles away`,
+  // The Quay missing for an open river route.
+  quayWhat: (names) => `${listText(names)} ${names.length === 1 ? 'has an open route' : 'have open routes'} and no Quay for ${names.length === 1 ? 'its boats' : 'their boats'} to land at`,
+  quayWhy: `Boats land only at a Quay: ${a7QuaySize.w} by ${a7QuaySize.d}, a long side on the river and a road beside it. None comes until one stands`,
+  quayFix: 'Build a Quay on the riverbank',
+  quayNoRoom: 'No stretch of the riverbank has room for a Quay: clear the bank beside the river',
+  // A Keep at least level holding back sales while the treasury runs out.
+  floorWhat: (d) => {
+    const g = d.goods[0], more = d.goods.length - 1;
+    return `${goodName(g.good)}: Keep at least ${g.level} holds back ${g.blocked} the ${g.at === 'quay' ? 'boat' : 'caravan'} would sell${more ? ` (and ${plural(more, 'other good', 'other goods')})` : ''}`;
+  },
+  floorWhy: (d) => {
+    const g = d.goods[0];
+    return `${g.stock} in storage near the ${g.at === 'quay' ? 'Quay' : 'trading post'}; ${partnerName(g.partner)} would pay ${g.gold} gold for ${g.blocked}. ${d.have < 0 ? 'The treasury is below 0' : S45_TEXT.runsOutIn(d.monthsLeft)}`;
+  },
+  floorFix: (d) => `Open Trade and lower Keep at least for ${goodName(d.goods[0].good).toLowerCase()}`,
+};
+
+V70_ADVICE_WORDS.quay = (a) => ({
+  what: ADVICE_FIX_TEXT.quayWhat(a.data.partners.map(partnerName)),
+  why: ADVICE_FIX_TEXT.quayWhy,
+  fix: a.data.noSpot ? ADVICE_FIX_TEXT.quayNoRoom : ADVICE_FIX_TEXT.quayFix,
+});
+V70_ADVICE_WORDS.trade_floor = (a) => ({ what: ADVICE_FIX_TEXT.floorWhat(a.data), why: ADVICE_FIX_TEXT.floorWhy(a.data), fix: ADVICE_FIX_TEXT.floorFix(a.data) });
+
+// Wave 1's words, made exact (Version 7.0 Track A, rulings 964-966): the sheets said "storage" and "less than Memphis and Byblos" for what the sim does
 // per place and per good.
 {
   // A caravan counts only the stores near the post it comes to and a boat only those near the Quay (src/sim/trade.js stockNear), so the level is a number
@@ -3726,4 +3769,13 @@ cevKinds.opet.labels.small = () => 'Hold it without favour, beer only';
 }
 // The card's refusal caption when the city changed under an answer (src/ui/v70/cityEvents.js answer).
 CITY_EVENT_TEXT.changed = 'The city changed: the card shows the new figures';
+
+// How to play: what City advice says now, and the Quay.
+V70_HELP.a.push(
+  { head: 'The Quay', text: `A Quay is ${a7QuaySize.w} by ${a7QuaySize.d}: one long side on the river (an oasis pool does not count), a road beside it, and ${a7TradeBuildings[a7Quay].workers} workers. Boats from river partners land at the first Quay that works and has a road, and trade with the stores within ${a7Reach} road tiles of it, as caravans do at the trading post. If a river route is open and no Quay stands, City advice says so and Show me aims at a bank where one fits.` },
+  { head: 'Towers and storehouses in City advice', text: `When a raid needs more towers, Show me puts the first within ${a7Defence.towerRange} tiles of the building the raiders strike first, on a tile with a road beside it so it can be staffed; where no such tile exists it says to lay a road to there first. When a good is kept only in a store so far from the bazaar that one cart would bring less than ${a7Sensible()} a month (one Fetch order's size), Advice says to build a store beside the bazaar, and Show me finds the place; nearer than that a Fetch order does it.` },
+  { head: 'Trade and events in City advice', text: `City advice lists three more things: an event waiting for your answer, a river route open with no Quay to land at, and a Keep at least level that holds back sales while the treasury is running out. Each says what to do and opens the right place: the event's card, the riverbank, or the Trade sheet. Keep at least is also why a caravan or boat sells nothing: it counts only what is stored near its trading post or Quay.` },
+);
+TIP_TEXT.quay_boats = 'A Quay is where boats land: on the river, beside a road. Open a river route in Trade.';
+TIP_TEXT.trade_levels = 'A route is open. In Trade, switch off goods to leave alone, and set Keep at least for home.';
 // ── end v70 a ──

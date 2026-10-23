@@ -17,6 +17,7 @@ import { isUnlocked } from '../../../src/sim/progression.js';
 import { largePlotUnlocked } from '../../../src/sim/largePlots.js';
 import { monthForecast } from '../../../src/sim/economy.js';
 import { towersNeeded, firstRaidTarget } from '../../../src/sim/raids.js';
+import { towerSpotsFor } from '../../../src/sim/adviceFixes.js';
 import { fallIll } from '../../../src/sim/health.js';
 import { createWorld, buildingAt, removeBuilding } from '../../../src/sim/world.js';
 import { advanceDays } from '../../../src/sim/clock.js';
@@ -55,7 +56,7 @@ function checkItems(w, list) {
       expect([a.cost, a.afford]).toEqual([null, null]);
     } else if (a.fix) {
       expect([a.fix.view, a.fix.target]).toEqual(['summary', null]);
-      expect(['forecast', 'employment', 'events']).toContain(a.fix.section);   // Version 7.0 (Track E): the waiting event's item opens the summary's Events section (src/sim/cityEvents.js eventItems)
+      expect(['forecast', 'employment', 'events', 'trade']).toContain(a.fix.section);   // Version 7.0 (Track E): the waiting event's item opens the summary's Events section (src/sim/cityEvents.js eventItems); (Track A) the Keep at least item the Trade sheet's (src/sim/adviceFixes.js)
     }
   }
   for (let i = 1; i < list.length; i++) expect(compareAdvice(list[i - 1], list[i]) <= 0).toBe(true);
@@ -114,7 +115,7 @@ describe('v50 contract advice: homes held back', () => {
   it('a good held only in a far store is stranded: select the store near the bazaar that should Fetch it (else the far store); gone once a store in reach holds it', () => {
     const { w, bazaar, home } = street({ milestone: 'town' });
     const near = addRaw(w, 'storehouse', 4, 8);
-    const far = addRaw(w, 'storehouse', 50, 8, { store: { pottery: 40 } });
+    const far = addRaw(w, 'storehouse', 30, 8, { store: { pottery: 40 } });   // Version 7.0 (Track A): 22 road tiles, one cart brings a Fetch order's worth a month; beyond that Advice says a store by the bazaar (tests/v70/a)
     staffAll(w);
     const [a] = ofKind(w, 'stranded');
     expect([a.key, a.count, a.weight, a.data.good, a.data.store, a.data.bazaar]).toEqual([`stranded:pottery:${far.id}`, 1, 5, 'pottery', far.id, bazaar.id]);
@@ -245,14 +246,17 @@ describe('v50 contract advice: the city', () => {
     w.raid.clockDay = 0;
     const need = towersNeeded(3);                                  // the first raid's size
     let [a] = ofKind(w, 'raid_towers');
+    const spot = (p) => { const s = towerSpotsFor(w, p)[0]; return { x: s.x + 0.5, y: s.y + 0.5 }; };
     expect([a.count, a.weight, a.data.need, a.data.have, a.data.warned, a.fix.item, a.fix.target, a.cost]).toEqual([need, need * ADVICE.tower, need, 0, false, 'tower', { x: w.focus.x + 0.5, y: w.focus.y + 0.5 }, costOf(w, 'tower')]);
     w.raid.warning = { size: 9, tribute: null, first: true, entry: { x: 0, y: 10 }, dir: 'W', arrives: 100 };
     [a] = ofKind(w, 'raid_towers');
     // Version 6.0 (Wave 4, ruling 787): the tower is aimed at the band's first strike (firstRaidTarget: the building it goes for first), not at the entry on the map's edge ({ x: 0.5, y: 10.5 }).
     const first = firstRaidTarget(w, w.raid.warning.entry);
     expect(first === null).toBe(false);
-    expect([a.count, a.weight, a.data.warned, a.fix.target]).toEqual([towersNeeded(9), towersNeeded(9) * ADVICE.tower * ADVICE.towerWarned, true, { x: first.x + first.w / 2, y: first.y + first.d / 2 }]);
-    expect(a.fix.target).toEqual({ x: 10, y: 9 });
+    // Version 7.0 (Track A): and within the tower's range of that building, on the spot a road touches nearest it (not the building's own centre).
+    const aim = { x: first.x + first.w / 2, y: first.y + first.d / 2 };
+    expect([a.count, a.weight, a.data.warned, a.fix.target]).toEqual([towersNeeded(9), towersNeeded(9) * ADVICE.tower * ADVICE.towerWarned, true, spot(aim)]);
+    expect(aim).toEqual({ x: 10, y: 9 });
     for (let i = 0; i < towersNeeded(9); i++) addRaw(w, 'tower', 30 + i, 11, { staff: BUILDINGS.tower.workers });
     expect(ofKind(w, 'raid_towers')).toEqual([]);
     w.raid.warning = null;

@@ -12,7 +12,7 @@ import { costOf } from '../sim/costs.js';
 import { canAfford } from '../sim/money.js';
 import {
   NEED_NAMES, LARGE_TEXT, OPEN_TEXT, buildingName, goodName, plural, causeText, alertText, tierName, listText,
-  S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT, V60_ADVICE_WORDS, V70_ADVICE_WORDS, V60_REIGN_TEXT,
+  S45_TEXT, S47_PRESSURE_TEXT, FIRE_TEXT, HEALTH_TEXT, CRIME_TEXT, RAID_TEXT, V60_ADVICE_WORDS, V70_ADVICE_WORDS, V60_REIGN_TEXT, ADVICE_FIX_TEXT,
 } from './text.js';
 
 const homesText = (n) => plural(n, 'home', 'homes');
@@ -125,7 +125,7 @@ export function adviceWords(a, world) {
       const n = a.count, c = S47_PRESSURE_TEXT.goodFar(d.cause, world);
       out.what = `${homesText(n)} ${n === 1 ? 'is' : 'are'} held back by ${goodWord(d.good)} kept too far away`;
       out.why = c.cause;
-      out.fix = c.fix;
+      out.fix = a.fix && a.fix.far ? ADVICE_FIX_TEXT.strandedFix({ ...a.fix.far, item: a.fix.item }) : c.fix;   // Version 7.0 (Track A): beyond a cart's sensible reach, a store by the bazaar
       break;
     }
     case 'running_out': {
@@ -179,6 +179,10 @@ export function adviceWords(a, world) {
     case 'raid_towers': {
       out.what = `${d.warned ? `A raid of ${plural(d.size, 'raider', 'raiders')}` : `The next raid will be about ${plural(d.size, 'raider', 'raiders')} and`} needs ${plural(d.need, 'tower', 'towers')}; ${d.have} ${d.have === 1 ? 'is' : 'are'} working`;
       out.fix = d.warned ? RAID_TEXT.towers(world) : `Build ${plural(d.buildN, 'tower', 'towers')} (≈ ${d.buildCost} gold)`;
+      // Version 7.0 (Track A, ruling 960): where the first tower goes (a tile a road touches, in range of what the band strikes first), or the road to lay first, or why none can.
+      if (a.fix && a.fix.then) { out.why = ADVICE_FIX_TEXT.towerNeedsRoad(d.guard); out.fix = ADVICE_FIX_TEXT.roadFirst(d.road.tiles, d.buildN, d.buildCost); }
+      else if (a.fix && a.fix.item === 'tower' && d.spot) out.fix = `${out.fix}. ${ADVICE_FIX_TEXT.towerWhere(d.guard)}`;
+      else if (d.noSpot) { out.why = ADVICE_FIX_TEXT.towerNoRoom(d.guard); out.fix = ADVICE_FIX_TEXT.towerNoRoomFix; }
       break;
     }
     default: {
