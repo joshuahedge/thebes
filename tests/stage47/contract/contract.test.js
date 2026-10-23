@@ -57,7 +57,7 @@ function flatWorld() {
 describe('s47 contract world v8', () => {
   it('creates a version 8 world: no oases, no carts, the new tallies at 0, every store with empty orders', () => {
     const w = createWorld({ seed: 4 });
-    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([9, 9, 9]);
+    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([10, 10, 10]);
     expect(Object.keys(w).sort()).toEqual([...REQUIRED].sort());
     for (const k of NEW_KEYS) expect(REQUIRED).toContain(k);
     expect([w.oases, w.carts]).toEqual([[], []]);
@@ -104,7 +104,7 @@ describe('s47 contract world v8', () => {
     for (const k of STAGE46_TALLY) expect([k, v8.tally[k]]).toEqual([k, v7.tally[k]]);
     for (const b of Object.values(v8.buildings)) if (b.id !== granaryId) expect(b).toEqual(v7.buildings[b.id]);
     expect(validateWorld(v8)).toBe(true);
-    expect(deserialize(JSON.stringify(v7)).version).toBe(9);                          // loading runs the chain
+    expect(deserialize(JSON.stringify(v7)).version).toBe(10);                         // loading runs the chain
   });
 
   it('keeps an old city off the new land: a Stage 4.6 map of a varied layout migrates without the land key', () => {

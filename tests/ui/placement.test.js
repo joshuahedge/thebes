@@ -30,12 +30,13 @@ describe('ui placement', () => {
     expect(p.state).toBe('warn');                                    // no road touches it: it can be placed, in amber, and waits for one (P10)
     expect(p.warnings).toEqual(['needs_road']);
     expect(p.text).toBe(CONDITION_TEXT.roadHint);
-    expect(ghostsFor(world, store.get())).toEqual([{ x: 5, y: 20, w: 1, d: 1, state: 'warn', badge: true, joins: [[5, 19], [5, 21], [4, 20], [6, 20]] }]);
+    // Version 7.0 (Track P, ruling 1008): a building's ghost always carries its squares' own verdicts (before, only where it was part right and part wrong).
+    expect(ghostsFor(world, store.get())).toEqual([{ x: 5, y: 20, w: 1, d: 1, state: 'warn', badge: true, tiles: [{ x: 5, y: 20, state: 'met', reason: null }], joins: [[5, 19], [5, 21], [4, 20], [6, 20]] }]);
     pl.moveGhost(12, 10);                                            // on the road itself: the ground is taken, which no road will change
     p = pl.preview();
     expect(p.state).toBe('bad');
     expect(p.text).toBe(reasonText('occupied'));
-    expect(ghostsFor(world, store.get())).toEqual([{ x: 12, y: 10, w: 1, d: 1, state: 'bad', badge: true }]);
+    expect(ghostsFor(world, store.get())).toEqual([{ x: 12, y: 10, w: 1, d: 1, state: 'bad', badge: true, tiles: [{ x: 12, y: 10, state: 'cant', reason: 'occupied' }], roadAt: [[11, 10], [13, 10]] }]);
   });
   it('judges each condition of a building on its own, and marks each footprint tile on its own', () => {
     const { world, store, pl } = rig();
@@ -53,13 +54,13 @@ describe('ui placement', () => {
     expect(p.joins).toEqual([]);                                     // the road is already there, and the spot is not fit to build on
     const [ghost] = ghostsFor(world, store.get());
     expect(ghost.tiles.map((t) => `${t.x},${t.y}:${t.state}`).sort()).toEqual(['7,8:met', '7,9:met', '8,8:cant', '8,9:cant']);
-    pl.moveGhost(6, 8);                                              // all four tiles fertile: the whole ghost is one state again
-    expect(ghostsFor(world, store.get())[0].tiles).toBe(undefined);
+    pl.moveGhost(6, 8);                                              // all four tiles fertile: every square is right (Version 7.0: the squares are always said)
+    expect(ghostsFor(world, store.get())[0].tiles.map((t) => t.state)).toEqual(['met', 'met', 'met', 'met']);
     expect(pl.preview().conditions.map((c) => [c.key, c.state, c.text])).toEqual([
       ['ground', 'met', 'Fertile land'], ['road', 'met', 'Road beside it'], ['works', 'later', 'No granary near'],
     ]);
-    pl.moveGhost(20, 2);                                             // all sand and no road: every tile is wrong, so the whole ghost is
-    expect(ghostsFor(world, store.get())[0].tiles).toBe(undefined);
+    pl.moveGhost(20, 2);                                             // all sand and no road: every tile is wrong
+    expect(ghostsFor(world, store.get())[0].tiles.map((t) => t.state)).toEqual(['cant', 'cant', 'cant', 'cant']);
     expect(pl.preview().conditions.map((c) => [c.key, c.state])).toEqual([['ground', 'cant'], ['road', 'later'], ['works', 'later']]);
   });
   it('shows the gold chip only when the treasury is short, and the road chip with the tiles a road would join', () => {
@@ -83,7 +84,7 @@ describe('ui placement', () => {
     expect(p.state).toBe('warn');
     expect(p.warnings).toEqual(['no_storage']);
     expect(p.cost).toBe(BUILDINGS.farm_grain.cost);
-    expect(ghostsFor(world, store.get())[0]).toEqual({ x: 2, y: 8, w: 2, d: 2, state: 'warn', badge: true });
+    expect(ghostsFor(world, store.get())[0]).toEqual({ x: 2, y: 8, w: 2, d: 2, state: 'warn', badge: true, tiles: [8, 9].flatMap((y) => [2, 3].map((x) => ({ x, y, state: 'met', reason: null }))), roadAt: [[2, 10], [3, 10]] });   // (Version 7.0: its squares, and the road that touches)
     const gold = world.gold;
     expect(pl.confirm().ok).toBe(true);
     expect(allBuildings(world).some((b) => b.type === 'farm_grain' && b.x === 2 && b.y === 8)).toBe(true);

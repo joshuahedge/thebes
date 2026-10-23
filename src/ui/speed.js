@@ -88,6 +88,7 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
         setText(tag, running ? S46_UX_TEXT.playingState(SPEED_LABELS[world.speed]) : S46_UX_TEXT.pausedWord);
         main.dataset.state = running ? 'playing' : 'paused';
         main.setAttribute('aria-label', running ? pauseSpeedText(world.speed) : T.play);
+        if (keys()) main.setAttribute('aria-keyshortcuts', 'Space'); else main.removeAttribute('aria-keyshortcuts');   // Version 7.0 (Track P)
       };
       paint();
       mounted.push(paint);
@@ -97,7 +98,7 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
     // speed "2×"), where the others are a picture alone, which keeps the whole row about as wide as the old four words were. data-state on the
     // bar says playing or paused, which the stylesheet uses to tell the two apart by more than the one step.
     mountBar(container) {
-      const buttons = [0, 1, 2, 3].map((s) => el('button', { type: 'button', class: `speed-step step-${s}`, 'aria-label': S46_UX_TEXT.speedStepLabel(s), title: S46_UX_TEXT.speedStepTitle(s, keys()), 'aria-pressed': String(world.speed === s), onClick: () => api.set(s) },
+      const buttons = [0, 1, 2, 3].map((s) => el('button', { type: 'button', class: `speed-step step-${s}`, 'aria-label': S46_UX_TEXT.speedStepLabel(s), title: S46_UX_TEXT.speedStepTitle(s, keys()), 'aria-pressed': String(world.speed === s), onClick: (ev) => { api.set(s); if (ev && ev.detail > 0) ev.currentTarget.blur(); } },   // ruling 991: a pointer click lets go of the step, so Space pauses afterwards (a keyboard press has detail 0 and keeps its focus)
         [speedPicture(s), el('span', { class: 'word', 'aria-hidden': 'true', text: s === 0 ? S46_UX_TEXT.pausedWord : SPEED_LABELS[s] })]));
       clear(container);
       container.setAttribute('role', 'group');
@@ -106,7 +107,11 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
       const paint = () => {
         container.dataset.state = world.speed === 0 ? 'paused' : 'playing';
         container.setAttribute('aria-description', world.speed === 0 ? S46_UX_TEXT.pausedWord : S46_UX_TEXT.playingState(SPEED_LABELS[world.speed]));   // ruling 419: the state, for a screen reader
-        buttons.forEach((b, s) => { b.setAttribute('aria-pressed', String(world.speed === s)); b.title = S46_UX_TEXT.speedStepTitle(s, keys()); });
+        buttons.forEach((b, s) => {
+          b.setAttribute('aria-pressed', String(world.speed === s)); b.title = S46_UX_TEXT.speedStepTitle(s, keys());
+          // Version 7.0 (Track P): Space pauses and resumes (keyboard.js), so the pause step says so to assistive technology; the speeds are ] and [ (their title says so).
+          if (s === 0) { if (keys()) b.setAttribute('aria-keyshortcuts', 'Space'); else b.removeAttribute('aria-keyshortcuts'); }
+        });
       };
       paint();
       mounted.push(paint);

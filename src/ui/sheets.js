@@ -7,7 +7,7 @@ import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
 import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, lockedFixFor, priceOf } from '../sim/advice.js';
 import { desirabilityContributors } from '../sim/desirability.js';
-import { setPaused, setAccept } from '../sim/commands.js';
+import { setPaused, setAccept, eventHoldUntil } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { storeTotal, storeAccepts } from '../sim/production.js';
 import { roadGoods } from '../sim/carts.js';
@@ -26,6 +26,8 @@ import { noteView } from '../render/overlays.js';
 import { supplyNeeded } from '../sim/monuments.js';
 import { huntRest } from '../sim/wildlife.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
+import { seasonAt } from '../sim/seasons.js';
+import { SEASON_TEXT, seasonMonths, P_TEXT, CITY_EVENT_TEXT } from './text.js';
 import { LARGE_TEXT, S47_PRESSURE_TEXT, buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
   contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
 import { ANOTHER_TEXT } from './areaText.js';
@@ -56,8 +58,10 @@ const withoutTwoFoods = (rows) => (rows.some((c) => c.need === 'threeFoods') ? r
 
 // parts (Stage 3): the danger and score interfaces' sheet parts (src/ui/danger.js), each { building(b), house(h),
 // actions(b), summary() } returning arrays of nodes, added in the list's order at fixed places in the sheets below.
-export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [] }) {
+export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [], keys = () => true }) {
   const close = () => store.set(closeSheet(store.get()));
+  // Version 7.0 (Track P, ruling 1001): Delete or Backspace presses this button (createUI removeByKey); the tooltip and aria-keyshortcuts say so while Keyboard shortcuts is on.
+  const demolishButton = (onClick) => button(T.demolish, { class: 'demolish danger', title: keys() ? P_TEXT.demolishTitle : null, 'aria-keyshortcuts': keys() ? 'Delete Backspace' : null, onClick });
   const extra = (kind, ...args) => parts.flatMap((p) => (p && typeof p[kind] === 'function' ? p[kind](...args) || [] : []));
 
   // Build another (Version 5.0, Task 4, ruling 505): the button on a building's sheet. When the sim says no, the sheet says why under its buttons, with Show me where there is something to show;
@@ -115,7 +119,7 @@ export function createSheets({ container, store, world, placement, cameraControl
   function monumentSheet(b) {
     const body = el('div', { class: 'body monument' });
     body.append(...extra('building', b));
-    body.append(el('div', { class: 'actions' }, [...extra('actions', b), anotherButton(b), button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) })].filter(Boolean)), ...[anotherLine(b)].filter(Boolean));
+    body.append(el('div', { class: 'actions' }, [...extra('actions', b), anotherButton(b), demolishButton(() => demolishNow(b))].filter(Boolean)), ...[anotherLine(b)].filter(Boolean));
     return [head(buildingName(b.type)), body];
   }
 
@@ -169,15 +173,19 @@ export function createSheets({ container, store, world, placement, cameraControl
     const actions = el('div', { class: 'actions' }, sheetActions.filter((n) => !harvest.includes(n)));
     // The trading post's routes and orders live on their own sheet (spec 4.15); Back comes back here.
     if (b.type === 'trading_post') actions.append(button(T.trade, { class: 'trade primary', onClick: () => store.set(openSheet(store.get(), 'trade', b.id)) }));
+    let holdLine = null;
     if (def.workers || def.upkeep) {
-      actions.append(button(b.paused ? T.resume : T.pause, { class: 'pause', onClick: () => {
+      // A strike or quarrel a city event started holds until its day (ruling 987): Resume is off, with the reason and the day under it.
+      const hold = b.paused ? eventHoldUntil(world, b.id) : null;
+      actions.append(button(b.paused ? T.resume : T.pause, { class: 'pause', disabled: hold !== null, ...(hold !== null ? { 'aria-describedby': `hold-${b.id}` } : {}), onClick: () => {
         const r = setPaused(world, b.id, !b.paused);
         if (r.ok) { assignLabour(world); afterCommand({ kind: 'pause', result: r, text: b.paused ? T.paused : T.resumed, undoable: false }); render(); }
       } }));
+      if (hold !== null) holdLine = (el('p', { class: 'small coral event-hold', id: `hold-${b.id}`, text: `${CITY_EVENT_TEXT.hold(hold, b.type)}.` }));
     }
     // Rubble's Clear (Stage 3, src/ui/dangerSheets.js) is its demolish, with the price in its name.
-    if (b.type !== 'rubble') actions.append(...[anotherButton(b), button(T.demolish, { class: 'demolish danger', onClick: () => demolishNow(b) })].filter(Boolean));
-    body.append(actions, ...[anotherLine(b)].filter(Boolean));
+    if (b.type !== 'rubble') actions.append(...[anotherButton(b), demolishButton(() => demolishNow(b))].filter(Boolean));
+    body.append(actions, ...[holdLine, anotherLine(b)].filter(Boolean));
     return [head(buildingName(b.type)), body];
   }
 
@@ -285,7 +293,7 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (s.downgradeIn !== null && lost) body.append(el('p', { class: 'coral', text: `Loses ${NEED_NAMES[lost].toLowerCase()} in ${plural(s.downgradeIn, 'month', 'months')}` }));
     else if (s.missingNow.includes('desirability')) body.append(el('p', { class: 'coral keep-warning', text: keepWarningText(tierName(s.tier), s.downgradeIn) }));
     body.append(...extra('house', h));
-    body.append(el('div', { class: 'actions' }, [anotherButton(h), button(T.demolish, { class: 'demolish danger', onClick: () => { const r = placement.demolishOne(h.x, h.y); if (r.ok) close(); } })].filter(Boolean)), ...[anotherLine(h)].filter(Boolean));
+    body.append(el('div', { class: 'actions' }, [anotherButton(h), demolishButton(() => { const r = placement.demolishOne(h.x, h.y); if (r.ok) close(); })].filter(Boolean)), ...[anotherLine(h)].filter(Boolean));
     return [head(s.large ? LARGE_TEXT.title(s) : tierName(s.tier)), body];
   }
 
@@ -293,6 +301,10 @@ export function createSheets({ container, store, world, placement, cameraControl
     const d = summaryData(world);
     const body = el('div', { class: 'body' });
     body.append(row(T.difficulty, DIFFICULTY_NAMES[d.difficulty] || d.difficulty));
+    // Version 7.0 (Track S, ruling 933): the season by name, with its months, here too: the top bar's line under the date hides where the numbers wrap
+    // (a phone with a big treasury), so the summary a tap on the bar opens always says it.
+    const season = seasonAt(world).season;
+    body.append(row(SEASON_TEXT.row, SEASON_TEXT.rowValue(SEASON_TEXT.names[season], seasonMonths(season))));
     // Version 5.0 (Task 1): the figures stay here; what holds the city back is its own sheet, one tap away (from the first home).
     if (adviceOn()) body.append(el('div', { class: 'actions advice-link' }, [button(T.advice, { class: 'open-advice', 'aria-label': `${T.advice}: ${T.adviceLead.toLowerCase()}`, onClick: () => onOpenAdvice() })]));
     // Stage 4.5 (Task 4b): the month ahead, as the city stands now (the sim's forecast): headed by what the balance is, so the gold

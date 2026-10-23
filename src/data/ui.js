@@ -6,7 +6,7 @@ export const CATEGORIES = [
   { id: 'roads', items: ['road', 'demolish'] },
   { id: 'homes', items: ['house', 'large_plot', 'garden', 'statue', 'plaza', 'sphinx'] },   // Version 6.0 (Track C): the Large plot card, shown from the first Townhouse (src/ui/cards.js)
   { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
-  { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post'] },
+  { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'quay'] },
   { id: 'services', items: ['well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'police_post', 'palace'] },
   { id: 'defence', items: ['wall', 'gate', 'tower', 'barracks'] },
   // Stage 4 (spec 4.14, ruling 207): everything a monument needs, in order, then the seven from the small obelisk up.
@@ -82,6 +82,8 @@ export const KEYS = {
   back: ['Escape'],
   undo: ['z', 'Z'],
   help: ['?'],
+  // Version 7.0 (Track P, ruling 1001): Delete or Backspace takes back what was just placed while its Undo is offered, else removes the building whose sheet is open.
+  remove: ['Delete', 'Backspace'],
 };
 
 export const DRAG_THRESHOLD_PX = 8;
@@ -115,7 +117,7 @@ export const UNDO_TOAST_MS = 6000;
 export const GHOST_FINGER_OFFSET_PX = 48;
 
 // The version the about sheet shows.
-export const APP_VERSION = '6.0.1';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
+export const APP_VERSION = '7.0';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
 
 // The offline cache's worker (spec 7.1) and how long the "update ready" toast stays up (spec 6.3).
 export const SW_PATH = './sw.js';

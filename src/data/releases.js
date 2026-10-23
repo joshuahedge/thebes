@@ -9,7 +9,26 @@
 
 export const RELEASES = [
   {
-    version: '6.0.1', date: '2026-10-23', title: 'A fairer finale', build: 'live',
+    version: '7.0', date: '2026-10-23', title: 'A living world', build: 'live',
+    new: [
+      'Trade with Nubia (from Capital) and Punt (from Great Capital) by river: build a Quay on a riverbank with a road and boats sail in. Punt sells incense. Each route can be switched off by good, and Keep at least stops trade selling what your city needs.',
+      'A Trade sheet from the trading post, the Quay or the summary shows every route, last year\'s profit and what is held back for the great temple or the court. On a phone one route opens at a time.',
+      'City events: once or twice a year from Town, an envoy, a fever, a festival or a quarrel asks for a decision. Each choice says exactly what it does first, a choice you cannot afford says why, and an unanswered card takes the default, which never costs gold.',
+      'Seasons and a gentle day and night: the land and river change with flood, growing and harvest, and a six-minute loop darkens to lamp-lit evenings. Settings can turn Day and night off, and Still motion keeps daylight.',
+      'Sound polish: music that follows the season, a tense tune when danger is near, small sounds for placing, roads, fire, battle, caravans and boats, and separate Music and Effects volumes.',
+      'Advice now says where a raid tower will truly defend, or to lay the road first, and to build a storehouse near a bazaar whose goods are stranded far away. It also covers the Quay and trade.',
+      'The lesson card: each lesson step stops the game and sits in the middle of the screen; press Show me, Got it, Enter or Space and it docks, and play carries on by itself when you have done the step.',
+      'On a computer, Delete or Backspace takes back what you just placed or demolishes the building whose sheet is open. The full list of keys is in How to play under Keyboard.',
+      'Placing shows each square as right or wrong, with a mark and not only a colour, and a line says what is missing in plain words, such as a road one tile away not counting. Land that suits a farm or a quarry is lightly marked.',
+      'Empty house plots and building sites before work starts are pegged out on the map, so you can see what you placed. On a computer the Trade sheet and event card get the whole side panel.',
+    ],
+    fixed: [
+      'The top bar keeps its date clear of the score chip when gold has five digits, and Space pauses after you click a speed button.',
+      'On a phone held upright at large text, the building you are placing is framed above the placing bar and the Play and Speed buttons instead of landing behind them.',
+    ],
+  },
+  {
+    version: '6.0.1', date: '2026-10-23', title: 'A fairer finale', build: '4502f53',
     new: [
       'While the great temple rises, no plague, low Nile, locusts or blight comes: none is warned, and one warned before you found it does not strike, so a city at the Seat can finish the reign with the dangers on. Raids and fire do not ease. How to play and the great temple\'s sheet say so.',
     ],

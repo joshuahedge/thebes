@@ -5,7 +5,7 @@ import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
 import { FIRE_REACTIONS, MOTION_SETTINGS, motionStatus } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT, V60_HELP, D2_TEXT } from './text.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, SEASON_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
@@ -115,14 +115,43 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     ];
   }
 
+  // Version 7.0 (Track S, ruling 935): the Effects volume under the Music rows, the same stepper (0-100 in tens, a 44 px − and +, each disabled at its
+  // end; 100 is the loudness the effects had before 7.0). It shares the Music volume's styles (class music-volume) and plays one effect at each step,
+  // so the new level is heard; the Sound switch above stays the master of both.
+  function effectsRow(sfx) {
+    const S = SEASON_TEXT;
+    const value = el('span', { class: 'value' });
+    const quieter = button('−', { class: 'quieter', 'aria-label': S.effectsQuieter });
+    const louder = button('+', { class: 'louder', 'aria-label': S.effectsLouder });
+    const sync = () => {
+      const v = settings.get().effectsVolume;
+      value.textContent = String(v);
+      quieter.disabled = v <= 0;
+      louder.disabled = v >= 100;
+    };
+    const step = (d) => { settings.set({ effectsVolume: Math.max(0, Math.min(100, settings.get().effectsVolume + d)) }); sync(); if (sfx && typeof sfx.play === 'function') sfx.play('coin'); };
+    quieter.addEventListener('click', () => step(-10));
+    louder.addEventListener('click', () => step(10));
+    sync();
+    return el('div', { class: 'row music-volume effects-volume' }, [el('span', { text: S.effectsVolume }), el('span', { class: 'stepper', role: 'group', 'aria-label': S.effectsVolume }, [quieter, value, louder])]);
+  }
+
   function settingsSheet(body) {
     const D = DANGER_UI_TEXT;
     const motion = motionRow();
+    // Version 7.0 (Track S, ruling 935): while Sound is Off the Music and Effects rows are dimmed (class silenced: they still change, and take effect when Sound
+    // is back on); the note under them says why in words.
+    const soundRows = [...musicRows(), effectsRow(hooks.sfx)];
+    const dim = () => { for (const r of soundRows) r.classList.toggle('silenced', !settings.get().sound); };
+    dim();
+    const stopDim = settings.subscribe(() => { if (soundRows[0].isConnected) dim(); else stopDim(); });   // the sheet has closed: stop listening
     body.append(
-      switchRow(T.sound, 'sound'), ...musicRows(), switchRow(T.vibration, 'vibration'),
+      switchRow(T.sound, 'sound'), ...soundRows, el('p', { class: 'sound-note small muted', text: SEASON_TEXT.soundNote }), switchRow(T.vibration, 'vibration'),
       switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'),
       choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%']]),
       motion,
+      // Version 7.0 (Track S): Day and night on or off (Still keeps daylight whatever it says), after the Motion row it depends on.
+      switchRow(SEASON_TEXT.dayNight, 'dayNight'), el('p', { class: 'daynight-note small muted', text: SEASON_TEXT.dayNightNote }),
       // Spec 4.3: what a fire no staffed firehouse reaches does to the speed, after the city's first (which always pauses).
       choiceRow(D.onAFire, 'fireReaction', FIRE_REACTIONS.map((k) => [k, D.fireReactions[k]])),
       el('p', { class: 'fire-note small muted', text: D.onAFireNote }),
@@ -149,6 +178,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     body.append(el('h3', { text: T.gestures }), el('p', { text: T.gesturesHelp }));
     // Version 6.0 (contract section 9): each track's paragraphs, from its own src/ui/text.js section, in track order.
     for (const p of Object.values(V60_HELP).flat()) body.append(el('h3', { text: p.head }), el('p', { text: p.text }));
+    for (const p of Object.values(V70_HELP).flat()) body.append(el('h3', { text: p.head }), el('p', { text: p.text }));   // Version 7.0: the same, from V70_HELP
     body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsHelp }), el('p', { class: 'muted', text: T.guideHelp }));
     if (canResumeGuide()) {
       body.append(el('div', { class: 'actions' }, [button(T.resumeGuide, { class: 'resume-guide primary', onClick: () => { onResumeGuide(); if (close) close(); } })]));

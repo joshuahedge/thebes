@@ -3362,3 +3362,494 @@ export const V601_TEXT = {
 };
 V60_HELP.b1.push(V601_TEXT.help);
 // ── end v601 ──
+
+// ── v70 contract (Version 7.0, Track 0, rulings 858-869) ─────────────────────────────────────────────────────────────
+// Two tables the tracks fill from their own sections below (contract note, "Shared files"), so menu.js and adviceText.js are never edited for them:
+// V70_HELP: How to play's Version 7.0 paragraphs, by track, each { head, text } (menu.js help() adds them after Version 6.0's, in this key order);
+// V70_ADVICE_WORDS: kind -> (item, world) => { what, why, fix } for the Version 7.0 advice kinds (src/ui/adviceText.js adviceWords asks it, after
+// V60_ADVICE_WORDS, for any kind it does not word itself). A track writes only its own key of V70_HELP and only its own kinds.
+export const V70_HELP = { t: [], e: [], s: [], a: [], p: [] };   // p: Track P's, after A's (ruling 1000)
+export const V70_ADVICE_WORDS = {};
+// ── end v70 contract ──
+
+//
+// (A stable separator between the Version 7.0 sections: leave these lines as they are.)
+//
+// ── v70 t (Track T, rulings 870-899: trade by river, the Quay, the Trade sheet) ────────────────────────────────────────
+// Add new lines just above the end marker: V70_HELP.t.push(...), ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ..., FIRST_TEXT.<id> = ..., and an
+// exported object of the track's own words. Every number on screen comes from the sim's own functions (src/sim/trade.js, tradeRules.js).
+import { PARTNERS as v7Partners, FLOOR_STEP as v7FloorStep, QUAY_TYPE as v7Quay, CARAVAN_EVERY_MONTHS as v7Every } from '../data/trade.js';
+Object.assign(PARTNER_NAMES, { nubia: v7Partners.nubia.name, punt: v7Partners.punt.name });
+Object.assign(BUILDING_PLURALS, { [v7Quay]: 'quays' });
+const v7MilestoneName = (id) => { const m = MILESTONES.find((x) => x.id === id); return m ? m.name : id; };
+const v7Signed = (n) => (n > 0 ? `+${n} gold` : n < 0 ? `−${-n} gold` : '0 gold');
+const v7Visitor = (id) => (v7Partners[id] && v7Partners[id].by === 'river' ? 'boat' : 'caravan');
+export const V70_TRADE_TEXT = {
+  // The Trade sheet's route cards (phone: one open at a time; desktop: all of them).
+  byRiver: 'by river', byRoad: 'by road',
+  visitor: v7Visitor,
+  nextIn: (id, months) => `Next ${v7Visitor(id)} in ${plural(months, 'month', 'months')}`,
+  lastYear: (r) => (r ? `Last year ${v7Signed(r.profit)}` : 'Last year: no visit'),
+  lastYearLong: (r) => (r ? `Last year it paid you ${r.income} gold and you paid it ${r.spent} gold` : 'No visit last year yet'),
+  theyBuy: (id) => `${partnerName(id)} buys (you sell)`,
+  theySell: (id) => `${partnerName(id)} sells (you buy)`,
+  pays: (n) => `pays ${n} each`, asks: (n) => `asks ${n} each`,
+  on: 'On', off: 'Off',
+  switchLabel: (side, good, id, on) => `${side === 'buys' ? 'Sell' : 'Buy'} ${goodWord(good)} ${side === 'buys' ? 'to' : 'from'} ${partnerName(id)}: ${on ? 'on' : 'off'}`,
+  switchHelp: 'Off: this route leaves the good alone, whatever its row below says.',
+  showRoute: (id) => `${partnerName(id)}: show the route`,
+  // Why a route's caravan or boat will not come (src/sim/trade.js arrivalBlocker): a caravan's as 6.0 says it (noCaravanText), a boat's here.
+  noBoat: {
+    no_quay: 'No boat will come without a Quay on the river',
+    no_road: 'No boat will come: no road beside the Quay',
+    paused: 'No boat will come while the Quay is paused',
+    short_staffed: 'No boat will come while the Quay is short of workers',
+  },
+  needsQuay: 'Needs a Quay on the river',
+  buildQuay: 'Build a Quay on the riverbank',
+  // The Keep at least list under the cards.
+  keepHead: 'Keep at least',
+  keepHelp: 'Pick what each good does: Buy brings it up to the level, Sell takes only what is over it. Goods owed to the temple or the court are held back as well.',
+  keep: (n) => `Keep at least ${n}`,
+  keepLabel: (sign, name) => `${sign > 0 ? '+' : '−'}${v7FloorStep}: keep at least ${sign > 0 ? 'more' : 'less'} ${name.toLowerCase()}`,
+  near: (n, where) => `${n} near the ${where === 'quay' ? 'Quay' : 'trading post'}`,
+  heldTemple: (n) => `${n} held for the temple`,
+  heldCourt: (n) => `${n} held for the court`,
+  buyHelp: (n) => `Buys until ${n} are in storage`,
+  sellHelp: (n) => `Sells only what is over ${n} in storage`,
+  // The summary's Trade row and the Quay's sheet.
+  summaryHead: 'Trade',
+  summaryRow: (open) => (open ? `${plural(open, 'route', 'routes')} open` : 'No route open yet'),
+  openTrade: 'Trade routes',
+  quayLands: (names) => `Boats from ${listText(names)} land here`,
+  quayIdle: (partners) => `Boats from ${listText(partners.map(partnerName))} land here once their route is open`,
+  quayOpensAt: (id) => `${partnerName(id)} opens at ${v7MilestoneName(v7Partners[id].milestone)}`,
+  quayNotActive: 'Boats land at the first working Quay with a road',
+  // The first Quay and How to play.
+  first: { head: 'First Quay', why: `Boats from ${v7Partners.nubia.name} and ${v7Partners.punt.name} land here. Open their routes in Trade.` },
+  help: [
+    { head: 'Trade by river', text: `Once your city is a ${v7MilestoneName(v7Partners.nubia.milestone)}, ${v7Partners.nubia.name} trades by river: it sells stone and gems for less than Memphis and Byblos, and buys grain and linen. Once it is a ${v7MilestoneName(v7Partners.punt.milestone)}, ${v7Partners.punt.name} sells incense, the one good only festivals use. A river route needs a Quay: a 2 by 1 landing with one long side on the river and a road beside it. Boats come on the same rhythm as caravans, every ${v7Every} months, and trade with the stores near the Quay.` },
+    { head: 'The Trade sheet', text: 'Open it from the trading post, the Quay or the Trade row of the city summary. Each open route shows when its next caravan or boat comes, what it paid you last year, and a switch for every good it buys or sells. Below, Keep at least sets one level per good: Buy brings it up to that level, Sell takes only what is over it. Goods owed to the great temple\'s next offering or to an accepted court demand are held back too, and the row says so. On a phone one route is open at a time: tap a route to open it.' },
+  ],
+};
+FIRST_TEXT.first_quay = V70_TRADE_TEXT.first;
+V70_HELP.t.push(...V70_TRADE_TEXT.help);
+Object.assign(TRADE_REASONS, { no_quay: V70_TRADE_TEXT.buildQuay, unknown_partner: "Can't do that yet", bad_side: "Can't do that yet", bad_keep: "Can't do that yet" });
+{
+  // Incense's line (no building makes it or uses it): where it comes from and what it is for (ruling 853); every other good's as before.
+  const line = goodLine;
+  goodLine = (good) => (good === 'incense'
+    ? `${goodName(good)}: made by the resin gatherers of ${partnerName('punt')}; used by festivals; bought from ${partnerName('punt')}`
+    : line(good));
+  // A river route that cannot open for want of a Quay says so; every other reason as 6.0 words it.
+  const base = routeBlockText;
+  routeBlockText = (id, block) => (block === 'no_quay' ? V70_TRADE_TEXT.needsQuay : base(id, block));
+  // An arrival from a river partner is a boat, not a caravan (the same caption otherwise: what it bought and sold, any gift, the gold).
+  const caption = caravanText;
+  caravanText = (e) => {
+    const c = caption(e);
+    if (v7Visitor(e.partner) !== 'boat') return c;
+    return { ...c, text: c.text.replace(/^A caravan from/, 'A boat from'), why: c.why ? 'Set what to buy and sell in Trade, from the Quay.' : c.why };
+  };
+}
+// ── end v70 t ──
+
+//
+// (A stable separator between the Version 7.0 sections: leave these lines as they are.)
+//
+// ── v70 e (Track E, rulings 900-929: city events) ──────────────────────────────────────────────────────────────────────
+// Add new lines just above the end marker: V70_HELP.e.push(...), V70_ADVICE_WORDS.event = ..., ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ...
+// Every cost and result on the card comes from src/sim/cityEvents.js eventChoices.
+import { CITY_EVENTS as cevRules, EVENT_DEFS as cevDefs, EVENT_NUMBERS as cevNum } from '../data/cityEvents.js';
+import { FESTIVAL as cevFestival } from '../data/raids.js';
+import { HEALTH_MOOD as cevHealthMood } from '../data/health.js';
+import { CRIME_MOOD as cevCrimeMood } from '../data/crime.js';
+import { unrestMood as cevUnrestMood, thiefCovered as cevThiefCovered, eventChoices as cevChoices, waitingEvent as cevWaiting, incenseReaches as cevIncenseReaches } from '../sim/cityEvents.js';
+import { favourChange as cevFavourChange, stockOf as cevStockOf } from '../sim/court.js';
+import { DAYS_PER_MONTH as cevMonthDays } from '../sim/time.js';
+
+const cevMonths = (n) => plural(n, 'month', 'months');
+const cevMonthsOf = (days) => cevMonths(Math.max(1, Math.round(days / cevMonthDays)));
+const cevGood = (good) => goodName(good).toLowerCase();
+const cevSigned = (n) => `${n < 0 ? '−' : '+'}${Math.abs(n)}`;
+const cevCap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const cevCovered = (f, world) => (world && f && world.buildings[f.store] ? cevThiefCovered(world, f) : false);
+
+// One effect as words (the sim's own list: src/sim/cityEvents.js): every number is the effect's, and favour says what really happens (it stays inside its range).
+function cevEffect(e, world) {
+  switch (e.kind) {
+    case 'gold': return e.n < 0 ? `costs ${-e.n} gold` : `${e.n} gold for the treasury`;
+    case 'goods': return e.n < 0 ? `takes ${-e.n} ${cevGood(e.good)} from the stores` : `puts ${e.n} ${cevGood(e.good)} in the stores`;
+    case 'lose': return `${e.n} ${cevGood(e.good)} lost from the stores`;
+    case 'favour': { const d = cevFavourChange(world, e.n); return d === 0 ? 'favour stays as it is' : `favour ${cevSigned(d)}`; }
+    case 'festival': return `mood +${e.n} for ${cevMonthsOf(e.days)}, and it counts as this year's festival`;
+    case 'pause': return `${plural(e.ids.length, 'workplace stops', 'workplaces stop')} work for ${cevMonthsOf(e.days)}`;
+    case 'people': return `${plural(e.n, 'person moves', 'people move')} in`;
+    case 'ill': return `${plural(e.ids.length, 'home falls', 'homes fall')} ill (mood ${cevSigned(cevHealthMood.each)} for each while ill, at most ${cevSigned(cevHealthMood.max)})`;
+    case 'cure': return `${plural(e.ids.length, 'ill home is', 'ill homes are')} cured`;
+    case 'unrest': { const d = cevUnrestMood(world, e.n); return d === 0 ? 'no further fall in mood' : `mood ${cevSigned(d)} for ${cevMonthsOf(cevCrimeMood.days)}`; }
+    default: return '';
+  }
+}
+// What a choice does, as one sentence from its effects, price first; "Nothing changes." for none.
+// keep: what a payment spares, as the kind's `keeps` says it ("the quarries keep working"): true because the default's losses are the only thing the payment replaces.
+const cevConsequence = (effects, world, keep = '') => {
+  const parts = effects.map((e) => cevEffect(e, world)).filter(Boolean);
+  if (!parts.length) return keep ? `${cevCap(keep)}.` : 'Nothing changes.';
+  return `${cevCap(parts.join(', '))}${keep ? `, and ${keep}` : ''}.`;
+};
+// Why a choice cannot be made, from its reason and the effect that failed (the sim's: eventChoices' reason and bad).
+function cevProblem(c, world) {
+  const bad = c.bad || {};
+  switch (c.reason) {
+    case 'no_gold': return `Not enough gold: you have ${world.gold}, it costs ${c.gold}`;
+    case 'short': return `Your stores hold ${cevStockOf(world, bad.good)} ${cevGood(bad.good)}; it takes ${-bad.n}`;
+    case 'no_room': return bad.kind === 'goods' ? `No store has room for ${cevGood(bad.good)}` : 'No home has room for them';
+    case 'too_soon': return 'A festival was held less than a year ago';
+    case 'none': return bad.kind === 'cure' ? 'No home is ill now' : 'There is nothing for it to do now';
+    default: return '';
+  }
+}
+
+// Each kind: its title (the sheet's heading and the alert row's words), its story with the figures it was offered with, and each choice's button.
+// Words never promise what the sim would not do: they read the offer's figures (f) and the city as it is (world).
+const cevKinds = {
+  opet: {
+    title: 'The Festival of Opet',
+    // f.incense is whether incense can reach the city (CITY_EVENT_TEXT.body fills it from the sim's incenseReaches), not the offer's amount.
+    body: (f) => `The priests ask to hold the Festival of Opet. ${f.incense ? 'It takes beer and incense.' : 'No incense reaches the city yet, so it can only be a smaller festival, with beer alone.'} It lifts mood by ${cevFestival.mood} for ${cevMonthsOf(cevFestival.days)}.`,
+    labels: { full: 'Hold the full festival', small: 'Hold a smaller festival, beer only', decline: 'Not this year' },
+  },
+  envoy: {
+    title: 'An envoy at the gate',
+    body: () => 'An envoy from another court asks to be received. A feast would please him; a plain greeting is polite enough.',
+    labels: { feast: 'Hold a feast for him', greet: 'Greet him at the gate' },
+  },
+  bumper: {
+    title: 'A bumper harvest',
+    body: (f) => `The Nile left rich silt and the farms have a surplus: ${f.n} grain beyond the month's. Store it, or sell it to the traders at ${cevNum.bumper.price} gold a unit.`,
+    labels: { sell: 'Sell it to the traders', store: 'Store the surplus' },
+  },
+  hoard: {
+    title: 'An old hoard',
+    body: (f) => `Diggers found an old hoard worth ${f.gold} gold. The treasury can keep it, or the priests can bless the city with it, and the gold goes to the temple.`,
+    labels: { bless: 'Give it to the temple', keep: 'Keep it' },
+  },
+  scribes: {
+    title: "The scribes' count",
+    body: (f) => `The scribes counted the city and found ${f.dues} gold in dues never paid. Collect it, or forgive it to please the court.`,
+    labels: { forgive: 'Forgive the dues', collect: 'Collect the dues' },
+  },
+  healer: {
+    title: 'A healer at the gate',
+    body: (f, world) => `A travelling healer offers to treat ${plural(f.ids.filter((id) => world.buildings[id] && world.buildings[id].illness).length, 'ill home', 'ill homes')} for a fee.`,
+    labels: { cure: 'Pay him to treat them', send_away: 'Send him on his way' },
+  },
+  craftsman: {
+    title: 'A craftsman asks to settle',
+    body: (f) => `A master craftsman asks to settle with his family: ${plural(f.n, 'person', 'people')} would come with him, for a fee of ${f.fee} gold.`,
+    labels: { settle: 'Pay his fee and settle him', pass: 'Wish him well' },
+  },
+  pilgrims: {
+    title: 'Pilgrims at the temple',
+    body: (f) => `A band of ${f.n} pilgrims reached the temple. Camped outside they leave ${f.offering} gold in offerings; lodged in the town for ${f.fee} gold they would stay.`,
+    labels: { lodge: 'Lodge them in the town', camp: 'Let them camp outside' },
+  },
+  sandstorm: {
+    title: 'A sandstorm',
+    body: (f) => `A sandstorm dusts the stores and spoils ${f.n} ${cevGood(f.good)}. Sweeping crews, if hired now, would save ${f.saved} of it.`,
+    labels: { sweep: 'Hire sweeping crews', weather: 'Let it blow over' },
+  },
+  fever: {
+    title: 'A fever at the gate',
+    body: (f) => `A traveller brings a fever. If he is let in, ${plural(f.ids.length, 'home', 'homes')} fall ill. The gate watch could keep him out, for a fee.`,
+    labels: { gate: 'Keep him at the gate', let_in: 'Let him in' }, keeps: { gate: 'no home falls ill' },
+  },
+  rumour: {
+    title: 'A rumour at court',
+    body: () => 'A rumour about your city reached the court. A gift would quiet it; ignored, it costs favour.',
+    labels: { gift: 'Send a gift to the court', ignore: 'Ignore it' }, keeps: { gift: 'favour does not fall' },
+  },
+  thief: {
+    title: 'A thief in the market',
+    body: (f, world) => `A thief has his eye on the ${cevGood(f.good)} at the ${world.buildings[f.store] ? buildingName(world.buildings[f.store].type).toLowerCase() : 'market'}. ${cevCovered(f, world) ? 'A staffed police post reaches it, so he can take only a little.' : 'No staffed police post reaches it.'}`,
+    labels: { watch: 'Post a watch', let_run: 'Let him take his chance' }, keeps: { watch: 'nothing is taken' },
+  },
+  feud: {
+    title: 'A feud between two streets',
+    body: () => 'Two streets quarrel and bad feeling spreads. A watch can keep the peace; left alone, it weighs on mood.',
+    labels: { send_watch: 'Send the watch', let_be: 'Let them settle it' }, keeps: { send_watch: 'mood does not fall' },
+  },
+  quarry_strike: {
+    title: 'A strike at the quarry',
+    body: (f) => `The quarry crews ask for better wages. Raise them, or ${plural(f.ids.length, 'quarry stops', 'quarries stop')} for ${cevMonthsOf(f.days)}.`,
+    labels: { raise_wages: 'Raise their wages', strike: 'Let the strike run' }, keeps: { raise_wages: 'the quarries keep working' },
+  },
+  workshop_quarrel: {
+    title: 'A quarrel in the workshops',
+    body: (f) => `The ${buildingName(f.type).toLowerCase()} crews quarrel over their shares. Settle it with a payment, or ${plural(f.ids.length, 'workshop stops', 'workshops stop')} for ${cevMonthsOf(f.days)}.`,
+    labels: { settle_it: 'Settle it with a payment', quarrel: 'Let it run' }, keeps: { settle_it: 'the workshops keep working' },
+  },
+  lost_caravan: {
+    title: 'A caravan lost',
+    body: (f) => `A caravan carrying ${f.n} ${cevGood(f.good)} from your stores is lost in the desert. A search party could bring it home, for a fee.`,
+    labels: { search: 'Send a search party', write_off: 'Write it off' }, keeps: { search: 'the goods come home' },
+  },
+};
+const cevLabel = (kind, id) => { const l = cevKinds[kind].labels[id]; return typeof l === 'function' ? l() : l; };
+
+export const CITY_EVENT_TEXT = {
+  title: (kind) => (cevKinds[kind] ? cevKinds[kind].title : 'A city event'),
+  body: (event, world) => cevKinds[event.kind].body(event.kind === 'opet' ? { ...event.figs, incense: cevIncenseReaches(world) } : event.figs, world),
+  label: cevLabel,
+  consequence: (effects, world, kind = null, choice = null) => cevConsequence(effects, world, kind && cevKinds[kind].keeps && choice ? cevKinds[kind].keeps[choice] || '' : ''),
+  effect: cevEffect,
+  problem: cevProblem,
+  answerBy: (months) => `Answer within ${cevMonths(Math.max(1, months))}.`,
+  // The line under the choices: what is taken if nothing is chosen, from the default choice's own effects. It never costs gold.
+  defaultLine: (months, label, effects, world) => `If you wait ${cevMonths(Math.max(1, months))}, "${label}" is taken: ${cevConsequence(effects, world).replace(/^./, (c) => c.toLowerCase())}`,
+  none: 'No event is waiting. They come once or twice a year, and each says what its choices do before you choose.',
+  showCosts: "This month's money",
+  // The summary's section.
+  summaryHead: 'Events', waitingLabel: 'Waiting', read: 'Read it', readLabel: (title) => `Read the event: ${title}`,
+  // The alert row's words: the card's title and the time left in game months, and what to do.
+  alert: (a) => ({ title: `${CITY_EVENT_TEXT.title(a.kind)}: answer within ${cevMonths(Math.max(1, a.months))}`, fix: 'Open it to choose: each choice says what it does' }),
+  // Captions (the info tier, kept in Recent) for an offer and an outcome.
+  captionOffered: (kind, months) => `${CITY_EVENT_TEXT.title(kind)}: choose within ${cevMonths(months)}. Open it from the alert list`,
+  captionOutcome: (e, world) => `${CITY_EVENT_TEXT.title(e.kind)}: ${cevLabel(e.kind, e.choice).toLowerCase()}${e.result === 'default' ? ' (no answer in time)' : ''}. ${cevConsequence(e.effects, world)}`,
+  // The picture card of the first event.
+  later: 'Decide later',
+};
+ALERT_TEXT.city_event = (alert) => CITY_EVENT_TEXT.alert(alert);
+Object.assign(T, { cityEvent: 'City event' });
+
+// Advice (kind 'event'): the waiting event: what it is, the time left, and what is taken if it waits (the default, from the sim's own choices).
+V70_ADVICE_WORDS.event = (a, world) => {
+  const w = cevWaiting(world);
+  if (!w) return { what: 'A city event is waiting', why: '', fix: '' };
+  const def = cevChoices(world, w).find((c) => c.default);
+  return {
+    what: `${CITY_EVENT_TEXT.title(w.kind)}: waiting for your answer`,
+    why: `${CITY_EVENT_TEXT.answerBy(w.monthsLeft)} ${def ? CITY_EVENT_TEXT.defaultLine(w.monthsLeft, cevLabel(w.kind, def.id), def.effects, world) : ''}`.trim(),
+    fix: 'Open it and choose: each choice says what it costs and does',
+  };
+};
+
+Object.assign(FIRST_TEXT, {
+  first_event: { head: 'First event answered', why: 'Events come once or twice a year. Each says what every choice costs and does before you choose.' },
+});
+Object.assign(TIP_TEXT, {
+  city_events: 'An event waits: open it from the alert list. Each choice says what it does; waiting takes the default.',
+});
+TIP_HELP_TEXT.city_events = `From ${MILESTONES.find((m) => m.id === cevRules.from).name} an event comes once or twice a year. Its default, taken if you wait, never costs gold.`;
+CARDS4_TEXT.cards.event = {
+  title: 'City events',
+  words: `From ${MILESTONES.find((m) => m.id === cevRules.from).name} an event comes once or twice a year, good or bad. Its card says what each choice costs and does; wait, and the default is taken for you, and it never costs gold.`,
+  alt: "An event's card with its story, two choices each with what it costs and does, and the line saying what is taken if you wait, with a ring around the choices.",
+};
+V70_HELP.e.push({
+  head: 'City events',
+  text: `From ${MILESTONES.find((m) => m.id === cevRules.from).name}, an event comes about once or twice a year: ${cevDefs.filter((d) => d.welcome).length} welcome kinds (a festival, an envoy, a bumper harvest) and ${cevDefs.filter((d) => !d.welcome).length} troublesome ones (a strike, a fever, a sandstorm), the bigger ones as the city grows. An event shows in the alert list and in City advice, and its card lists at most three choices, each with exactly what it costs and does. You have ${cevDefs.map((d) => d.months).reduce((m, n) => Math.min(m, n))} or ${cevDefs.map((d) => d.months).reduce((m, n) => Math.max(m, n))} game months to choose; if you wait, the default is taken, and it never costs gold. A choice that costs gold is off, with the reason, while the treasury cannot pay it, and no event ever pushes the city deeper into debt. None comes while a raid is near or a plague, low Nile or locusts are under way, nor in the last month before a court deadline. The Festival of Opet takes beer and incense; where no incense is traded it offers a smaller festival with beer alone.`,
+});
+// ── end v70 e ──
+
+//
+// (A stable separator between the Version 7.0 sections: leave these lines as they are.)
+//
+// ── v70 s (Track S, rulings 930-959: seasons, day and night, sound) ───────────────────────────────────────────────────
+// Add new lines just above the end marker: V70_HELP.s.push(...), the season names, the Settings rows' words, TIP_TEXT.<id> = ...
+import { SEASONS as s7Seasons } from '../data/tips.js';
+import { LIGHT as s7Light } from '../data/seasons.js';
+import { MONTHS_PER_YEAR as s7YearMonths } from '../sim/time.js';
+
+// The months a season covers, as "7 to 10" (a season that runs over the year's end reads "11 to 2"): from the same SEASONS the land and the top
+// bar follow (src/data/tips.js, the flood's calendar), so the words and the sim agree.
+export function seasonMonths(id) {
+  const first = [...Array(s7YearMonths).keys()].find((m) => s7Seasons[m] === id && s7Seasons[(m + s7YearMonths - 1) % s7YearMonths] !== id);
+  const count = s7Seasons.filter((s) => s === id).length;
+  return `${first + 1} to ${((first + count - 1) % s7YearMonths) + 1}`;
+}
+// The light's loop in whole minutes, from the data (the real-time loop of src/data/seasons.js LIGHT).
+const s7Minutes = Math.round(s7Light.cycleMs / 60000);
+
+export const SEASON_TEXT = {
+  // The seasons' names for the player (the ids akhet, peret and shemu are never shown: ruling 863). The top bar says one after the date.
+  names: { akhet: 'Flood', peret: 'Growing', shemu: 'Harvest' },
+  // The summary's Season row (src/ui/sheets.js): "Harvest, months 9 to 12", where the top bar's line is hidden on a phone whose numbers wrap.
+  row: 'Season', rowValue: (name, months) => `${name}, months ${months}`,
+  // Settings (src/ui/menu.js): the Day and night switch, the Effects volume and what the Sound switch is.
+  dayNight: 'Day and night',
+  dayNightNote: `The light turns from day to night every ${s7Minutes} minutes and holds while the game is paused. Motion: Still keeps daylight.`,
+  effectsVolume: 'Effects volume', effectsQuieter: 'Quieter effects', effectsLouder: 'Louder effects',
+  soundNote: 'Sound is the master: Off silences the music and the effects.',
+};
+V70_HELP.s.push({
+  head: 'Seasons, day and night, and sound',
+  text: `The land follows the flood calendar: Flood (months ${seasonMonths('akhet')}), Growing (months ${seasonMonths('peret')}) and Harvest (months ${seasonMonths('shemu')}), named after the date at the top. Over the last month of a season the land turns to the next. It changes only how the land looks, never how farms work. Light moves from day to a short blue night every ${s7Minutes} minutes of real time, with lamps lit in the homes and along the streets; nothing is hidden, it holds while the game is paused, and Settings → Day and night, or Motion: Still, keeps daylight. The music has a mood for each season and turns tense while a raid or another danger is live. Settings has a Music and an Effects volume under the Sound switch, which silences both.`,
+});
+TIP_TEXT.season_turns = 'The land turns with the seasons: flood, growing, harvest. It changes only how it looks; farms work as before.';
+TIP_TEXT.night_falls = 'Night falls and the lamps light. Nothing is hidden, and Settings → Day and night turns it off.';
+// ── end v70 s ──
+
+//
+// (A stable separator between the Version 7.0 sections: leave these lines as they are.)
+//
+// ── v70 a (Track A, wave 2, rulings 960-974: the Advice fixes and the words for trade and events) ──────────────────────
+// Add new lines just above the end marker: V70_HELP.a.push(...), V70_ADVICE_WORDS.quay = ..., V70_ADVICE_WORDS.trade_floor = ..., TIP_TEXT.<id> = ...
+// Every number comes from the sim's own function or data (src/sim/adviceFixes.js, the carts' trip days, the trade rules), and an older sentence that
+// turned out to say more than the sim does is worded again here, by reassignment, as 6.0's tracks did.
+import { DEFENCE as a7Defence } from '../data/raids.js';
+import { QUAY_TYPE as a7Quay, QUAY_SIZE as a7QuaySize, TRADE_REACH as a7Reach, TRADE_BUILDINGS as a7TradeBuildings, CARAVAN_EVERY_MONTHS as a7Every } from '../data/trade.js';
+import { sensibleMonthly as a7Sensible, makerTypeOf as a7MakerType } from '../sim/adviceFixes.js';
+
+const a7An = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
+const a7Name = (type) => buildingName(type).toLowerCase();
+// The building that makes a good, as a lower-case word ("potter"); `good` is the good's id or its lower-case name (the step is handed the name), none known: "maker".
+const a7MakerWord = (good) => {
+  const id = !good ? null : GOODS[good] ? good : Object.keys(GOODS).find((g) => GOODS[g].name.toLowerCase() === good) || null;
+  const type = id ? a7MakerType(id) : null;
+  return type ? a7Name(type) : 'maker';
+};
+const a7Where = (guard) => (guard ? `the ${a7Name(guard.type)} the raiders strike first` : 'where the city began');
+const a7Cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+export const ADVICE_FIX_TEXT = {
+  // Raid towers: where the first one goes, from the sim's towerFix (a tile a road touches, within the tower's range of what the band strikes first).
+  towerWhere: (guard) => `Show me puts the first within ${a7Defence.towerRange} tiles of ${a7Where(guard)}, beside a road so it can be staffed`,
+  roadFirst: (tiles, n, cost) => `Lay a road to here (${plural(tiles, 'tile', 'tiles')}), then build ${n > 1 ? plural(n, 'tower', 'towers') : 'the tower'} (≈ ${cost} gold)`,
+  towerNeedsRoad: (guard) => `No free tile beside a road lies within ${a7Defence.towerRange} tiles of ${a7Where(guard)}`,
+  towerNoRoom: (guard) => `No free tile lies within ${a7Defence.towerRange} tiles of ${a7Where(guard)}`,
+  towerNoRoomFix: 'Clear a tile near it, then a road beside the tile',
+  // Stranded goods: a store of its own by the bazaar, when one cart could not bring an order's worth a month from the store that holds the good.
+  // With no maker in reach of the new store (far.maker null) it fills only by a Fetch order over the same slow run (ruling 989), and the words say so with the cart's real
+  // monthly amount; with a maker in reach the store fills from it. The card knows no good: it says "a maker"; the step names the maker the good comes from.
+  strandedFix: (far, good = null) => {
+    const maker = far.maker !== null && far.maker !== undefined, slow = far.perMonth > 0 ? `one cart brings about ${far.perMonth} a month` : 'one cart could not bring a load in a month';
+    if (!maker) return `Build ${a7An(a7Name(far.item))} near this bazaar, then set a Fetch order on it: ${slow} from ${far.len} road tiles away, under the ${a7Sensible()} that one order asks; ${a7An(a7MakerWord(good))} in reach fills it faster`;
+    return `Build ${a7An(a7Name(far.item))} near this bazaar, where what is made can reach it: ${far.perMonth > 0 ? `one cart would bring only ${far.perMonth} a month` : 'one cart could not bring a load in a month'} from ${far.len} road tiles away, under the ${a7Sensible()} that one order asks`;
+  },
+  // The house sheet's next step for the same cause: "a storehouse near the bazaar (70 gold) keeps pottery where the bazaar draws it: ...".
+  strandedStep: (far, price, good) => (far.maker !== null && far.maker !== undefined
+    ? `${a7An(a7Name(far.item))} near the bazaar (${price}) keeps ${good} where the bazaar draws it: one cart would bring ${far.perMonth > 0 ? `only ${far.perMonth}` : 'no load'} a month from the store ${far.len} road tiles away`
+    : `${a7An(a7Name(far.item))} near the bazaar (${price}) holds ${good} where the bazaar draws it, then set a Fetch order on it: ${far.perMonth > 0 ? `one cart brings about ${far.perMonth} a month` : 'one cart brings no load in a month'} from the store ${far.len} road tiles away; ${a7An(a7MakerWord(good))} in reach fills it faster`),
+  // The Quay missing for an open river route.
+  quayWhat: (names) => `${listText(names)} ${names.length === 1 ? 'has an open route' : 'have open routes'} and no Quay for ${names.length === 1 ? 'its boats' : 'their boats'} to land at`,
+  quayWhy: `Boats land only at a Quay: ${a7QuaySize.w} by ${a7QuaySize.d}, a long side on the river and a road beside it. None comes until one stands`,
+  quayFix: 'Build a Quay on the riverbank',
+  quayNoRoom: 'No stretch of the riverbank has room for a Quay: clear the bank beside the river',
+  // A Keep at least level holding back sales while the treasury runs out.
+  floorWhat: (d) => {
+    const g = d.goods[0], more = d.goods.length - 1;
+    return `${goodName(g.good)}: Keep at least ${g.level} holds back ${g.blocked} the ${g.at === 'quay' ? 'boat' : 'caravan'} would sell${more ? ` (and ${plural(more, 'other good', 'other goods')})` : ''}`;
+  },
+  floorWhy: (d) => {
+    const g = d.goods[0];
+    return `${g.stock} in storage near the ${g.at === 'quay' ? 'Quay' : 'trading post'}; ${partnerName(g.partner)}${g.partners > 1 ? ` and ${plural(g.partners - 1, 'other partner', 'other partners')}` : ''} would pay ${g.gold} gold for ${g.blocked}. ${d.have < 0 ? 'The treasury is below 0' : S45_TEXT.runsOutIn(d.monthsLeft)}`;
+  },
+  floorFix: (d) => `Open Trade and lower Keep at least for ${goodName(d.goods[0].good).toLowerCase()}`,
+};
+
+V70_ADVICE_WORDS.quay = (a) => ({
+  what: ADVICE_FIX_TEXT.quayWhat(a.data.partners.map(partnerName)),
+  why: ADVICE_FIX_TEXT.quayWhy,
+  fix: a.data.noSpot ? ADVICE_FIX_TEXT.quayNoRoom : ADVICE_FIX_TEXT.quayFix,
+});
+V70_ADVICE_WORDS.trade_floor = (a) => ({ what: ADVICE_FIX_TEXT.floorWhat(a.data), why: ADVICE_FIX_TEXT.floorWhy(a.data), fix: ADVICE_FIX_TEXT.floorFix(a.data) });
+
+// Wave 1's words, made exact (Version 7.0 Track A, rulings 964-966): the sheets said "storage" and "less than Memphis and Byblos" for what the sim does
+// per place and per good.
+{
+  // A caravan counts only the stores near the post it comes to and a boat only those near the Quay (src/sim/trade.js stockNear), so the level is a number
+  // "near" one place, or each of two.
+  const place = (kinds) => (kinds.length > 1 ? 'the trading post or the Quay' : kinds[0] === 'quay' ? 'the Quay' : 'the trading post');
+  V70_TRADE_TEXT.buyHelp = (n, kinds = ['post']) => `Buys until ${n} are near ${place(kinds)}`;
+  V70_TRADE_TEXT.sellHelp = (n, kinds = ['post']) => `Sells only what is over ${n} near ${place(kinds)}`;
+  // Nubia's stone and gems are cheaper than the road partners' of the same good, per good: stone than Memphis's, gems than Byblos's (never "than Memphis and
+  // Byblos": Memphis sells no gems and Byblos no stone). Read from the partners' own lists at their list prices (a year's drift moves each a little).
+  const cheaper = (id) => Object.entries(v7Partners[id].sells).map(([good, row]) => {
+    const dearer = Object.keys(v7Partners).filter((o) => o !== id && v7Partners[o].sells[good] && v7Partners[o].sells[good].price > row.price);
+    return dearer.length ? `${goodWord(good)} for less than ${listText(dearer.map(partnerName))}` : null;
+  }).filter(Boolean);
+  V70_TRADE_TEXT.help[0].text = `Once your city is a ${v7MilestoneName(v7Partners.nubia.milestone)}, ${v7Partners.nubia.name} trades by river: at list prices it sells ${listText(cheaper('nubia'))}, and buys grain and linen. Once it is a ${v7MilestoneName(v7Partners.punt.milestone)}, ${v7Partners.punt.name} sells incense, the one good only festivals use. A river route needs a Quay: a ${a7QuaySize.w} by ${a7QuaySize.d} landing with one long side on the river and a road beside it. Boats come on the same rhythm as caravans, every ${v7Every} months, and trade with the stores near the Quay.`;
+}
+// The Festival of Opet: the beer-only festival gives the same mood as the full one (src/sim/cityEvents.js CHOICES.opet: it adds no favour), so it is
+// "without favour", not a smaller festival (the beer it takes is smaller, and the card says how much).
+cevKinds.opet.body = (f) => `The priests ask to hold the Festival of Opet. ${f.incense ? 'It takes beer and incense.' : 'No incense reaches the city yet, so it can only be held without favour, with beer alone.'} It lifts mood by ${cevFestival.mood} for ${cevMonthsOf(cevFestival.days)}.`;
+cevKinds.opet.labels.small = () => 'Hold it without favour, beer only';
+{
+  const e = V70_HELP.e.find((p) => p.head === 'City events');
+  e.text = e.text.replace('where no incense is traded it offers a smaller festival with beer alone', 'where no incense is traded it offers the festival with beer alone, without favour');
+}
+// The card's refusal caption when the city changed under an answer (src/ui/v70/cityEvents.js answer).
+CITY_EVENT_TEXT.changed = 'The city changed: the card shows the new figures';
+// A strike or quarrel holds until its days are up (ruling 987, src/sim/commands.js setPaused): the building sheet's Resume is off, with this line under it.
+Object.assign(REASONS, { event_hold: "Held until the event ends: the event's choice" });
+CITY_EVENT_TEXT.hold = (until, type) => `${type === 'quarry' ? 'On strike' : 'Stopped by a quarrel'} until ${courtDate(until).toLowerCase()}: the event's choice`;
+
+// How to play: what City advice says now, and the Quay.
+V70_HELP.a.push(
+  { head: 'The Quay', text: `A Quay is ${a7QuaySize.w} by ${a7QuaySize.d}: one long side on the river (an oasis pool does not count), a road beside it, and ${a7TradeBuildings[a7Quay].workers} workers. Boats from river partners land at the first Quay that works and has a road, and trade with the stores within ${a7Reach} road tiles of it, as caravans do at the trading post. If a river route is open and no Quay stands, City advice says so and Show me aims at a bank where one fits.` },
+  { head: 'Towers and storehouses in City advice', text: `When a raid needs more towers, Show me puts the first within ${a7Defence.towerRange} tiles of the building the raiders strike first, on a tile with a road beside it so it can be staffed; where no such tile exists it says to lay a road to there first. When a good is kept only in a store so far from the bazaar that one cart would bring less than ${a7Sensible()} a month (one Fetch order's size), Advice says to build a store beside the bazaar, and Show me finds the place; nearer than that a Fetch order does it.` },
+  { head: 'Trade and events in City advice', text: `City advice lists three more things: an event waiting for your answer, a river route open with no Quay to land at, and a Keep at least level that holds back sales while the treasury is running out. Each says what to do and opens the right place: the event's card, the riverbank, or the Trade sheet. Keep at least is also why a caravan or boat sells nothing: it counts only what is stored near its trading post or Quay.` },
+);
+TIP_TEXT.quay_boats = 'A Quay is where boats land: on the river, beside a road. Open a river route in Trade.';
+// (Twenty words at most, as every tip: tests/ui/tips.test.js.)
+TIP_TEXT.trade_levels = 'In Trade, switch off goods to leave alone; set Keep at least so trade never sells what the city needs.';
+// ── end v70 a ──
+
+//
+// (A stable separator between the Version 7.0 sections: leave these lines as they are.)
+//
+// ── v70 p (Track P, wave 2, rulings 1000-1014: playtest fixes) ───────────────────────────────────────────────────────────
+// The lesson's card, the keyboard, the placement bar's reasons, the marks for what is placed but not built, and the desktop sheets. Every sentence that states a rule,
+// a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
+export const P_TEXT = {
+  // The lesson's step card (src/ui/lessonCard.js): the button names what it does (the game plays on, the card points at the place, or it is only read).
+  card: { region: 'Lesson step', play: T.play, showMe: T.showMe, gotIt: T.gotIt },
+  cardGoTitle: (label, keys = true) => (keys ? `${label} (Enter)` : label),
+  // Delete and Backspace (ruling 1001): the tooltips of the buttons they press.
+  undoTitle: (keys = true) => (keys ? 'Undo (Ctrl+Z or Delete)' : 'Undo (Ctrl+Z)'),
+  demolishTitle: 'Demolish (Delete)',
+  removeRow: 'Demolish the building whose sheet is open; with no sheet open, take back what you just placed while its Undo is offered',
+  // The placing bar's reason line (ruling 1008, src/ui/placementWhy.js): every rule that fails, in plain words and with the sim's own counts, led by what the colour means.
+  // Coral means it cannot be placed here; amber means it can, but will not work until the rest is met; blue means everything is met.
+  place: {
+    leadCant: "Can't place here",
+    leadLater: "Won't work yet",
+    // A square-count clause, short enough that two lines hold a phone's worst case: "2 of 4 squares are taken".
+    taken: (n, of) => `${n} of ${of} squares ${n === 1 ? 'is' : 'are'} taken`,
+    inWater: (n, of) => `${n} of ${of} squares ${n === 1 ? 'is' : 'are'} water`,
+    hills: (n, of) => `${n} of ${of} squares ${n === 1 ? 'is' : 'are'} hills`,
+    offMap: (n, of) => `${n} of ${of} squares ${n === 1 ? 'is' : 'are'} off the map`,
+    // The terrain rule, counted over the footprint as the sim counts it: "fertile land under 2 of 4 squares: all 4 needed" (a looser rule: "clay under 1 of 4 squares: 2 needed").
+    terrain: (terrain, fit, of, need) => `${S46_MAP_TEXT.ground[terrain]} under ${fit} of ${of} squares: ${need >= of ? `all ${of}` : need} needed`,
+    water: { longSide: 'no water along a long side', touch: 'no water beside it', river: 'no river beside it (an oasis pool does not count)' },
+    // The road rule: the sim counts a road tile on a side (never a corner), so a road one tile off, or on a corner, does not count.
+    road: { none: 'no road touching a side', near: 'no road touching a side (one tile away does not count)', joins: 'lay one on a marked square' },
+    roadPlot: { none: 'no road touching it yet', near: 'no road touching it (one tile away does not count)' },
+    and: ' · ', also: '. Also:',
+    // What a building needs, said while everything is met: "Needs fertile land under every square, a road touching one side and a granary within 12 road tiles".
+    needsHead: 'Needs',
+    needsTerrain: (terrain, need, of) => (need >= of ? `${S46_MAP_TEXT.ground[terrain]} under every square` : `${S46_MAP_TEXT.ground[terrain]} under at least ${need} of ${of} squares`),
+    needsWater: { longSide: 'water along a long side', touch: 'water beside it' },
+    needsRoad: 'a road touching one side',
+    needsStore: (store, reach) => `a ${store} within ${reach} road tiles`,
+    needsSupply: (store, reach) => `a ${store} within ${reach} road tiles to supply it`,
+    // The legend of the squares (screen readers get it with the ghost's name): a square is right, wrong, or not counted.
+    squareRight: 'right', squareWrong: 'wrong', squareOff: 'not on the ground it needs', squarePlain: 'free ground that does not count',
+  },
+};
+// How to play's key table: Delete and Backspace, after Undo.
+HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'undo') + 1, 0, ['remove', P_TEXT.removeRow]);
+// The keys as a player reads them, from KEYS, so the words cannot drift from the keys.
+// A one-character punctuation key is quoted ("]" or "."), so it is not lost in the sentence.
+const pKey = (name) => [...new Set((KEYS[name] || []).map((k) => ({ ' ': 'Space', Escape: 'Esc' }[k] || (k.length !== 1 ? k : /[a-z0-9]/i.test(k) ? k.toUpperCase() : `"${k}"`))))].join(' or ');
+V70_HELP.p.push({
+  head: 'Keyboard',
+  text: `On a computer: ${pKey('pause')} pauses and plays, ${pKey('speedUp')} and ${pKey('speedDown')} change the speed, ${pKey('zoomIn')} and ${pKey('zoomOut')} zoom, Arrows or WASD move the view, ${KEYS.category[0]} to ${KEYS.category[KEYS.category.length - 1]} pick a build category, ${pKey('rotate')} turns what can turn, ${pKey('minimap')} opens the minimap, ${pKey('overlay')} cycles the layers and ${pKey('help')} opens How to play. While you place, ${pKey('confirm')} places and ${pKey('back')} puts the tool away. Undo is Ctrl+Z (Cmd+Z on a Mac), which also takes back a demolish. ${pKey('remove')}: ${P_TEXT.removeRow.charAt(0).toLowerCase()}${P_TEXT.removeRow.slice(1)}; a demolish's sheet asks its question first, and nothing happens over a dialog or a lesson card. A lesson step's card closes with Enter, Space or Esc. Settings → Keyboard shortcuts turns the single keys off; Esc, Enter and Ctrl+Z always work, and Space closes a lesson card.`,
+});
+V70_HELP.p.push({
+  head: 'Placing a building: the squares and the colours',
+  text: `While you place a building, each square of its footprint shows whether it is right: a blue square is right, a square with coral stripes and a cross is wrong (taken, water, hills, off the map, or not the ground the building stands on), and an amber striped square is free ground that is not the kind the building needs; a faint dashed square is ${P_TEXT.place.squarePlain}. The line round the whole ghost and the mark in its middle say what the building as a whole does. Blue: everything is met. Amber: "${P_TEXT.place.leadLater.toLowerCase()}": it can be placed, but something it needs is missing, such as a road touching one of its sides (a road one tile away does not count; the marked squares are where one would touch) or a store in reach. Coral: "${P_TEXT.place.leadCant.toLowerCase()}": at least one rule is broken, and the line under the name says each one with its count. While everything is met the line says what the building needs, and the ground it can go on is marked lightly on the map.`,
+});
+// ── end v70 p ──

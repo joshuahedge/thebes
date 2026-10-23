@@ -13,6 +13,7 @@ import { raidAlerts } from './raids.js';
 import { monumentAlerts, hasMonumentWork } from './monuments.js';
 import { s46Alerts } from './s46.js';
 import { v60Alerts } from './v60.js';
+import { v70Alerts } from './v70.js';
 
 export function alertsFor(world) {
   const alerts = [];
@@ -38,6 +39,7 @@ export function alertsFor(world) {
   alerts.push(...monumentAlerts(world));                     // Stage 4: site_stalled (a warning, never a critical: ruling 211)
   alerts.push(...s46Alerts(world));                          // Stage 4.6: the tracks' alerts (src/sim/s46.js), e.g. the court's letters
   alerts.push(...v60Alerts(world));                          // Version 6.0: the demands' and the dangers' alerts (src/sim/v60.js)
+  alerts.push(...v70Alerts(world));                          // Version 7.0: trade's and the waiting event's alerts (src/sim/v70.js)
   for (const level of world.labour.shortLevels || []) alerts.push({ code: 'labour_shortage', level });
   const L = world.labour;
   if (atLeast(world, 'town') && L.workforce > 0 && (L.workforce - L.employed) / L.workforce > MOOD.unemploymentThreshold) {

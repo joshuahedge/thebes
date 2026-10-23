@@ -6,6 +6,7 @@
 //   warned   a day is run (the lesson's tower step stages the raid clock; the first warning is raised the next day), so the raid warning is up
 //   motion   'gentle' | 'full' | 'still'
 //   size     'phone' (default; nothing), or a note only
+//   card     'docked': the step's card is dismissed after it opens (Version 7.0, Track P); otherwise the card stays up, as a player first sees a step
 //   quick    no settling wait
 import { LESSON_STEPS } from '../../data/lesson.js';
 import { LESSON_LENGTH } from '../../sim/lesson.js';
@@ -38,6 +39,8 @@ export async function lessonScene(api, options = {}) {
     g.ui.refresh();
   }
   if (!options.quick) await wait(300);
+  // Version 7.0 (Track P): a step opens as a card with the game paused behind it; card: 'docked' dismisses it, as a player's first tap does (the row, the ring and Show me).
+  if (options.card === 'docked') { const go = document.querySelector('.lesson-card .lc-go'); if (go && !go.closest('[hidden]')) { go.click(); if (!options.quick) await wait(300); } }
   const s = g.ui.settings.get();
   const row = document.querySelector('#lesson');
   const at = row && row.dataset.step ? row.dataset.step : null;

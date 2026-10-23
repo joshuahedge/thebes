@@ -7,6 +7,7 @@ import { createSaveStore } from '../../../src/save/store.js';
 import { LESSON_STEPS } from '../../../src/data/lesson.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
+import { dockPlain } from '../../helpers/lesson.js';
 
 const memory = (data = {}) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, data });
 const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -24,6 +25,7 @@ async function lessonAt(step, { width, height, text = 100 }) {
   });
   api.hooks.lesson({ step: index(step) });
   const g = api.game();
+  dockPlain(api);                                                                    // Version 7.0 (Track P): the step's card first; this file measures the row it docks to
   if (step === 'tower') { g.world.speed = 1; const { tickDay } = await import('../../../src/sim/clock.js'); const ev = []; tickDay(g.world, ev); g.ui.onEvents(ev); g.ui.refresh(); }
   await frame();
   return { api, g, root: shell.root, frameBox: shell.root.getBoundingClientRect(), cleanup() { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title', 'lesson-on'); delete window.__thebes; } };

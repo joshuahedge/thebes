@@ -50,6 +50,7 @@ export const REQUEST_KINDS = ['goods', 'gold', 'food', 'soldiers'];
 // one). Every good that can be asked for needs a row (a test keeps them in step with GOODS, materials apart).
 export const GOOD_VALUE = {
   grain: 1, figs: 3, game: 3, fish: 3, pottery: 8, beer: 10, linen: 14, jewellery: 20, clay: 2, barley: 3, flax: 3, gems: 9,
+  incense: 12,   // Version 7.0 (Track T): Punt's price
 };
 
 // ── Gifts at high favour (ruling 336) ──

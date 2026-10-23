@@ -30,7 +30,7 @@ describe('ui card pictures', () => {
   it('draws a picture for every card, sized for the screen', () => {
     const items = visibleCategories().flatMap((c) => c.items);
     expect(items).toEqual(['road', 'demolish', 'house', 'large_plot', 'garden', 'statue', 'plaza', 'sphinx', 'farm_grain', 'farm_fig', 'granary', 'hunting_lodge', 'fishing_wharf', 'clay_pit', 'potter', 'farm_barley', 'brewery',
-      'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'police_post', 'palace', 'nilometer',
+      'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'quay', 'well', 'bazaar', 'temple', 'booth', 'firehouse', 'physician', 'police_post', 'palace', 'nilometer',
       'wall', 'gate', 'tower', 'barracks', 'archery_range', 'stables', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'great_sphinx', 'colossus', 'mastaba_small',
       'mastaba_large', 'sun_temple', 'pyramid_small', 'step_pyramid', 'pyramid_great', 'great_temple']);   // Version 6.0 (Track A): the great temple   // Stage 4: the plaza, sphinx, palace and the Monuments tab; Stage 4.6: the archery range and stables, the River track's three and the Wonders track's three
     for (const item of items) {

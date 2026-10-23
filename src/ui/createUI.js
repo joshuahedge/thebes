@@ -16,7 +16,7 @@ import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/ca
 import { walkersAt } from '../render/walkers.js';
 import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
-import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, LAYER_OVERLAYS } from '../render/overlays.js';
+import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, drawBankHint, LAYER_OVERLAYS } from '../render/overlays.js';
 import { LAYER_UNLOCK } from '../data/layers.js';
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
@@ -66,7 +66,9 @@ import { createDanger } from './danger.js';
 import { createS46Seams } from './s46/index.js';
 import { createS47Seams } from './s47/index.js';
 import { createV60Seams } from './v60/index.js';
+import { createV70Seams } from './v70/index.js';
 import { s46Walkers, s46Ground } from '../render/s46.js';
+import { v70Ground, v70Walkers, v70Light } from '../render/v70.js';
 import { createScoreUi } from './scoreUi.js';
 import { createMonumentUi } from './monumentSheet.js';
 import { drawMonument } from '../render/monuments.js';
@@ -75,7 +77,7 @@ import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
-import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, T } from './text.js';
 import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
 
@@ -83,7 +85,8 @@ const WIDE_LONG_DATE_PX = 1000;       // the wide top bar shows the long date fr
 const PANEL_PX = 320, RAIL_PX = 56, DRAWER_PX = 268;   // --panel-w, --rail-w, --drawer-w
 const OPEN_ROW_FRACTION = 0.4;         // an open guidance row may reach this share of the screen's height (spec 6.1's limit for the rows under the top bar)
 const OPEN_ROW_MIN_PX = 44;            // ...and is never shorter than one button, however far down the rows begin
-const LEAVE_MARGIN_PX = 8;           // the margin a new building keeps inside the phone's narrow free band when the tool ends (the camera's usual 48 is wider than the band at 150% text)
+const MIN_FREE_MAP_PX = 120;         // wave 3 (ruling 993): the map a placing tool's insets always leave free on a phone
+const LEAVE_MARGIN_PX = 8;          // the margin a new building keeps inside the phone's narrow free band when the tool ends (the camera's usual 48 is wider than the band at 150% text)
 
 export function createUI({
   world, canvas, cam, renderer,
@@ -103,6 +106,7 @@ export function createUI({
   let danger = null, scoreUi = null, monumentUi = null;   // Stage 4: the monuments interface (Track C, ui/monumentSheet.js)
   let s46 = [];                                          // Stage 4.6: the tracks' seams (src/ui/s46/index.js), in track order
   let toastLow = null;   // { dock, mode, sheet, layout } while the toast sits low after a touch tick (leavePlan, setToastLow)
+  let undoToast = null;  // Version 7.0 (Track P): the "placed · Undo" toast's node, so Delete knows whether that Undo is still offered
   const seams = () => [danger, scoreUi, monumentUi, ...s46].filter(Boolean);
   let markerLayout = [];                                 // Stage 4: this frame's problem markers on screen (render/markers.js)
   let saveFailed = false, destroyed = false;
@@ -211,7 +215,7 @@ export function createUI({
     shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150 || view().width < WIDE_LONG_DATE_PX,
   });
   const dock = createDock({ container: $('dock'), store, world, onPick: pick });
-  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo, onArea: (type, on) => (on ? placement.startArea(type) : pick(type)) });
+  const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo, keys: () => settings.get().keyboardShortcuts !== false, deleteUndoes: () => settings.get().keyboardShortcuts !== false && topUndoKind() !== 'demolish', onArea: (type, on) => (on ? placement.startArea(type) : pick(type)) });
   // The Layers picker (placement review P2): one popover for the corner button on a phone and one under the minimap on a wide
   // screen, sharing store.layersOpen; the layout's own host shows the one that counts. Closing it with focus inside hands focus
   // back to the Layers button that opened it.
@@ -243,7 +247,7 @@ export function createUI({
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
   monumentUi = createMonumentUi(seamCtx);
-  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx), ...createV60Seams(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams; Version 6.0: each track's (src/ui/v60/index.js)
+  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx), ...createV60Seams(seamCtx), ...createV70Seams(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams; Version 6.0 and 7.0: each track's (src/ui/v60/index.js, v70/index.js)
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
@@ -277,7 +281,7 @@ export function createUI({
     });
   }
   Object.assign(customSheets, extraSheets);
-  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)] });
+  const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)], keys: () => settings.get().keyboardShortcuts !== false });
   createDialog({ container: $('dialog'), store });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
@@ -316,9 +320,12 @@ export function createUI({
       // Stage 4 (ruling 231): a monument's pick may also zoom out once to fit its footprint and silhouette (Track C's pickFit).
       const fit = BUILDINGS[tool.type].monument ? monumentUi.pickFit(tool.type, g, placingInsets(store.get())) : null;
       if (fit) cameraControl.keepVisible(g.x + w / 2, g.y + d / 2, placingInsets(store.get()), undefined, undefined, fit.extent || null, fit.zoom === undefined ? null : Math.min(fit.zoom, cam.zoom));   // out only, never in
+      else if (!BUILDINGS[tool.type].monument && store.get().layout === 'portrait') { const ins = placingInsets(store.get()); cameraControl.keepVisible(g.x + w / 2, g.y + d / 2, ins, ins.margin, undefined, ghostReach({ w, d })); }   // ruling 993: the whole ghost above the bar and corners
       else cameraControl.keepVisible(g.x + w / 2, g.y + d / 2, placingInsets(store.get()));
     }
   }
+  // How far a footprint's diamond reaches above and below its middle (4 art px a tile of w + d, the same measure the finished building is kept by below) and to each side (twice that).
+  function ghostReach({ w, d }) { return { up: 4 * (w + d), down: 4 * (w + d), side: 8 * (w + d) }; }
   const closeAnySheet = () => { const s = store.get(); if (s.sheet) store.set(closeSheet(s)); };
   // Show me (spec 4.1, early-game pass 2.6 and 2.10): close any sheet, open the right card, start its tool, pan to
   // the place and pulse it. A building's ghost lands on the nearest tile where it fits around the place, so it
@@ -342,13 +349,16 @@ export function createUI({
     // Stage 4 (ruling 231): a monument's ghost asks Track C's pickFit as pick() does, and the move takes its zoom (out only,
     // never in; an instant cut under Gentle and Still, as every camera move) and keeps its silhouette's extent in view.
     const fit = g && def.monument ? monumentUi.pickFit(tool.type, g, insets) : null;
-    const extent = fit ? fit.extent || null : null;
+    // Wave 3 (ruling 993): held upright, a building's whole ghost (not just its middle) is framed inside the band the bar and corner buttons leave, with the small margin that band can afford.
+    const whole = !fit && g && !def.monument && store.get().layout === 'portrait';
+    const extent = fit ? fit.extent || null : whole ? ghostReach(dims) : null;
+    const margin = whole ? insets.margin : undefined;
     const zoom = fit && fit.zoom !== undefined ? Math.min(fit.zoom, cam.zoom) : null;
     // Version 5.0 (Task 6): Show me glides there (a short glide under Gentle, a jump under Still) and frames the place: when the view is further out than SHOW_ME_MIN_ZOOM and
     // no monument's fit asks for a zoom, it comes in to that (Still too: a change of scale, not a movement).
     const framed = zoom === null && cam.zoom < SHOW_ME_MIN_ZOOM ? SHOW_ME_MIN_ZOOM : zoom;
     cameraControl.glide(() => {
-      if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, framed);
+      if (store.get().layout !== 'wide') cameraControl.frameKeeping(x, y, keep.x, keep.y, insets, margin, undefined, extent, framed);
       else if (g) cameraControl.panToKeeping(x, y, keep.x, keep.y, insets, undefined, undefined, extent, framed);
       else if (framed !== null) cameraControl.panToKeeping(x, y, x, y, insets, undefined, undefined, null, framed);
       else cameraControl.panTo(x, y);
@@ -457,10 +467,12 @@ export function createUI({
   store.subscribe((s) => {
     if (toastLow && (s.dock !== toastLow.dock || s.mode !== toastLow.mode || s.sheet !== toastLow.sheet || s.layout !== toastLow.layout)) setToastLow(null);
   });
+  // Version 7.0 (wave 3, ruling 986 and the review's minor): the placement's Undo toast goes only when the undo really runs, so a Cancel on the occupied-plot question leaves it up.
   function undo() {
     if (!placement.canUndo()) return;
-    if (placement.undoNeedsConfirm()) store.set({ confirmDialog: { text: T.undoOccupiedConfirm, confirmLabel: T.undo, onConfirm: () => placement.undo() } });
-    else placement.undo();
+    const run = () => { if (undoToast) { toasts.hide(undoToast); undoToast = null; } placement.undo(); };
+    if (placement.undoNeedsConfirm()) store.set({ confirmDialog: { text: T.undoOccupiedConfirm, confirmLabel: T.undo, onConfirm: run } });
+    else run();
   }
   // Skip guide (spec 3.2): one tap, no confirm. Resume guide in How to play brings it back.
   function skipGuide() { setGuide(world, false); refresh(); }
@@ -537,7 +549,7 @@ export function createUI({
     if (events.length) { effects.fromEvents(world, events, now()); onEvents(events); }
     syncDaily();
     // Celebrations from the same command are captions in #cheer, not toasts, so nothing pushes the command's Undo toast out.
-    if (e.undoable) toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS });
+    if (e.undoable) undoToast = toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS, actionKeys: undoKeys(e.kind !== 'demolish') });   // ruling 986: Delete names itself only after a placement
     else if (e.kind === 'undo') toasts.show(T.undone);
     refresh();
   }
@@ -746,7 +758,31 @@ export function createUI({
     // as Back (spec 6.8).
     back: () => { const s = store.get(); if (s.guidanceOpen || s.layersOpen) goBack(); else if (phone() && tipOnScreen() && !s.sheet && !s.confirmDialog && !s.screenshot) tips.dismiss(); else goBack(); },
     undo, help: () => toggleSheet('help'),
+    remove: () => removeByKey(),
   };
+  // Version 7.0 (Track P, ruling 1001; wave 3, rulings 985 and 986): Delete or Backspace acts on what the player is looking at. Over a dialog, a lesson card, a text field or in
+  // screenshot mode it does nothing. With a building's sheet open it presses that sheet's own Demolish (the same question first: a monument, a building with people in it), even
+  // with an Undo toast up. Behind any other sheet (Settings, Trade, the event card, Advice) it does nothing. With no sheet open it takes the Undo of a placement that is on offer
+  // (its toast is still up, or a tool's bar shows an Undo that works), the same refund. It never undoes a demolish: Ctrl+Z and the Undo buttons still do.
+  function topUndoKind() { const e = world.undo && world.undo[world.undo.length - 1]; return e ? e.kind : null; }
+  function undoKeys(withDelete = true) {
+    const del = withDelete && settings.get().keyboardShortcuts !== false;
+    return { title: P_TEXT.undoTitle(del), keys: del ? 'Control+Z Meta+Z Delete Backspace' : 'Control+Z Meta+Z' };
+  }
+  function removeByKey() {
+    const s = store.get();
+    if (s.confirmDialog || s.screenshot || root.classList.contains('lesson-card-up')) return;
+    const f = doc.activeElement;
+    if (f && (f.tagName === 'INPUT' || f.tagName === 'TEXTAREA' || f.tagName === 'SELECT' || f.isContentEditable)) return;
+    if (s.sheet) {
+      if (s.mode !== 'selected' || s.sheet.kind !== 'info') return;
+      const demolish = root.querySelector('#sheet .demolish');
+      if (demolish && !demolish.disabled) demolish.click();
+      return;
+    }
+    const offered = placement.canUndo() && topUndoKind() !== 'demolish' && ((Boolean(undoToast) && undoToast.isConnected) || isToolMode(s.mode));
+    if (offered) undo();
+  }
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
   // Stage 4.6 (ruling 400): a placement waits for its Enter when a tool has something to lay (a ghost, a finished line or plan) and nothing
   // else holds the screen (a sheet, a dialog, the Layers picker). Then Enter lays it whichever card or corner button has focus, as a
@@ -770,15 +806,34 @@ export function createUI({
   }
   // The map a tool leaves free: in portrait the confirm bar and the corner buttons on it cover the bottom (allowed for,
   // not measured: a card is picked while the tray is open and the corners still ride above it).
+  // Version 7.0 (wave 3, ruling 993): once the bar is up the bottom is what it and the corner buttons on it really cover (measured: --confirm-h, and where the corner buttons
+  // reach, which already stand on the bar), never less than the estimate and leaving at least 120 px of map free (or the ghost's own height, when that is less: a farm's is 64 px at
+  // zoom 1, and at 375x667 and 150% text the rows above and the corner buttons leave only 67), so the ghost is framed above Play, Speed and Map at large text.
   function placingInsets(s) {
     if (s.layout !== 'portrait') return sheetInsets(s);
-    return phoneInsets(s, { right: 0, bottom: Math.min(view().height * 0.3, 240), left: 0 });
+    const h = view().height;
+    const estimate = Math.min(h * 0.3, 240);
+    const bar = parseFloat(document.body.style.getPropertyValue('--confirm-h')) || 0;
+    let bottom = estimate;
+    if (bar > 0 && isToolMode(s.mode)) {
+      const measured = Math.max(bar, cornersHeight(root, canvas, h));
+      const top = Math.max(TOPBAR_PX, freeTop(root, canvas, s.layout));
+      const reach = s.tool && s.tool.kind === 'building' && !BUILDINGS[s.tool.type].monument && s.ghost ? ghostReach(dimsOf(s.tool.type, s.tool.rot || 0)) : null;
+      const room = reach ? Math.min(MIN_FREE_MAP_PX, Math.ceil(2 * reach.down * pxPerArt(cam))) : MIN_FREE_MAP_PX;
+      bottom = Math.max(estimate, Math.min(measured, h - top - room));
+      if (reach) {
+        // A whole ghost is framed in the band with the usual margin where the band has room for it, and with what is left over where it has not (pick, showMeAt read it as .margin).
+        const margin = Math.max(0, Math.min(FRAME_MARGIN_PX, Math.floor((h - bottom - top - 2 * reach.down * pxPerArt(cam)) / 2)));
+        return { ...phoneInsets(s, { right: 0, bottom, left: 0 }, margin), margin };
+      }
+    }
+    return phoneInsets(s, { right: 0, bottom, left: 0 });
   }
   // A phone's free map starts below the rows under the top bar, measured (ruling 168). At large text they can reach far
   // down; the top then stops twice the camera's margin above the sheet or bar, so what is framed stays clear of that
   // panel even where the rows would cover it.
-  function phoneInsets(s, sides) {
-    const room = view().height - sides.bottom - 2 * FRAME_MARGIN_PX;
+  function phoneInsets(s, sides, margin = FRAME_MARGIN_PX) {
+    const room = view().height - sides.bottom - 2 * margin;
     return { top: Math.max(TOPBAR_PX, Math.min(freeTop(root, canvas, s.layout), room)), ...sides };
   }
   // The middle of the map the insets leave free, in screen px.
@@ -992,15 +1047,17 @@ export function createUI({
     renderer.renderFrame(world, cam, {
       live: (g, o) => drawMonument(g, world, o.b, { now: t, timeDays, motion, ghost: ghostBox, selectedId: s.selectedId }),
       // Stage 4.6: the tracks' figures (src/render/s46.js: the River track's animals) join the walkers, depth-sorted with them.
-      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion), ...cartsAt(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
+      view: v, walkers: [...walkersAt(world, timeDays, range), ...unitsAt(world, timeDays, range), ...newcomersAt(world, timeDays, range, motion), ...s46Walkers(world, timeDays, range, motion), ...cartsAt(world, timeDays, range, motion), ...v70Walkers(world, timeDays, range, motion)], effects, now: t, rising: effects.risingIds(t, world), grid: isToolMode(s.mode),
       treeSlot: (o) => ambient.treeSlot(world, o.x, o.y, o.slot, t),            // Stage 3: the swaying palm or acacia slot (render/ambient.js)
-      ambient: (g, r) => { s46Ground(g, world, r, t, motion); ambient.draw(g, world, r, t); },   // Stage 4.6: the tracks' ground layer (the flood's water) under Stage 3's ambient life (render/ambient.js, fire.js, units.js)
+      ambient: (g, r) => { s46Ground(g, world, r, t, motion); v70Ground(g, world, r, t, motion); ambient.draw(g, world, r, t); },   // Stage 4.6: the tracks' ground layer (the flood's water), then Version 7.0's (the season, a boat's wake: render/v70.js), under Stage 3's ambient life (render/ambient.js, fire.js, units.js)
+      light: (g, r, frame) => v70Light(g, world, r, frame, t, motion, settings.get()),   // Version 7.0: night's tint and the lamps (render/v70.js, Track S)
       scorch: (g, r) => drawScorch(g, world, r),                                // Stage 4.5 (ruling 310): the ground under a fire, at every motion level
       fire: (g, r) => { drawFires(g, world, r, t, still); drawIllness(g, world, r); },   // Stage 4.5: and the cloth over an ill home's door (render/illness.js)
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),
       drawOverlay: (g, r) => {
         if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null, resolveSupplyGood(world, s.supplyGood));   // Ground brightens the tiles with room for the building being placed; Goods supply shows the picked good
         else if (spotsOn(s, world)) drawHouseSpots(g, world, r);                // Stage 4.7 (Task 4): the next house's Good and Fair spots, in this layer, while the house tool is on
+        if (s.mode === 'placing' && s.tool && s.tool.kind === 'building' && BUILDINGS[s.tool.type].water) drawBankHint(g, world, s.tool.type, r, s.tool.rot || 0);   // Version 7.0 (Track P): the banks a water-bound building can go on, lightly
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
         if (ring) drawGuideMarker(g, ring.x, ring.y, ring.pulsing, ring.age);  // under the ghost, so the ghost stays readable; pulses from the step change
         const shapes = ghosts();                                                // refreshes the tint as well
@@ -1066,6 +1123,8 @@ export function createUI({
       confirmBar.element.remove();
       document.body.style.removeProperty('--confirm-h');   // the bar's published height goes with it, and the tabs' edge
       document.body.style.removeProperty('--panel-tabs-bottom');
+      document.body.style.removeProperty('--panel-sheet-top');   // Version 7.0 (Track P): and the sheet's place under the minimap
+      document.body.classList.remove('panel-sheet');
       delete root.dataset.mode;
       delete root.dataset.guidance;
       root.style.removeProperty('--guidance-max');

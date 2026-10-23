@@ -66,6 +66,7 @@ export function createKeyboard({ target = window, settings = null, cam, cameraCo
     const viewKey = name.startsWith('pan') || name.startsWith('zoom');
     if (viewKey && hasOwnKeys(ev.target)) return;
     if (name.startsWith('pan') && ev.key.startsWith('Arrow') && inScrollingPanel(ev.target)) return;
+    if (name === 'remove' && hasOwnKeys(ev.target)) return;                              // Version 7.0 (Track P): a list or a slider may use Delete for itself
     if (ev.repeat && !viewKey) return;                                                  // held keys fire toggles once; the view keeps moving
     const placing = name === 'confirm' && pending(ev.target);                             // a placement waits: Enter lays it, whatever has focus
     if (isActivatable(ev.target) && (name === 'confirm' || name === 'pause') && !placing) return;   // leave the button its Enter and Space

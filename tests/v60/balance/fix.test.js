@@ -4,6 +4,7 @@ import { describe, it, expect } from '../../harness.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 import { firstRaidTarget, raidTargetKind, towersNeeded } from '../../../src/sim/raids.js';
 import { cityAdvice } from '../../../src/sim/advice.js';
+import { towerSpotsFor } from '../../../src/sim/adviceFixes.js';
 import { adviceWords } from '../../../src/ui/adviceText.js';
 import { showMeRefusal } from '../../../src/ui/adviceUi.js';
 import { RAIDS } from '../../../src/data/raids.js';
@@ -20,6 +21,9 @@ function city(entries = [EAST, WEST]) {
 const warn = (w, entry, extra = {}) => { w.raid.warning = { index: 1, size: 9, tribute: null, first: true, entry: { ...entry }, dir: entry.x > 15 ? 'east' : 'west', arrives: w.day + 100, ...extra }; };
 const centre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.d / 2 });
 const towerItem = (w) => cityAdvice(w).find((a) => a.kind === 'raid_towers');
+// Version 7.0 (Track A, ruling 960): the tower's target is the tile where it defends (nearest the building struck first, a road beside it, within DEFENCE.towerRange: towerSpotsFor),
+// not the building's own centre, which a tower could not stand on. Re-recorded: the pins named the centre; they name the spot of the same centre.
+const spotAt = (w, p) => { const s = towerSpotsFor(w, p)[0]; return { x: s.x + 0.5, y: s.y + 0.5 }; };
 
 describe('v60 balance fix: the building a band strikes first (ruling 787)', () => {
   it('is the nearest reachable building of the warned kind from the band\'s own entry, so the two sides of a city have their own first targets', () => {
@@ -59,7 +63,7 @@ describe('v60 balance fix: the building a band strikes first (ruling 787)', () =
     expect([calm.data.warned, calm.fix.target]).toEqual([false, { x: w.focus.x + 0.5, y: w.focus.y + 0.5 }]);
     warn(w, EAST, { target: 'trading_post' });
     const a = towerItem(w);
-    expect([a.data.warned, a.data.buildN, a.fix.item, a.fix.at, a.fix.target]).toEqual([true, towersNeeded(9), 'tower', 'near', centre(post)]);
+    expect([a.data.warned, a.data.buildN, a.fix.item, a.fix.at, a.fix.target]).toEqual([true, towersNeeded(9), 'tower', 'near', spotAt(w, centre(post))]);
     expect([a.fix.target.x === EAST.x + 0.5 && a.fix.target.y === EAST.y + 0.5]).toEqual([false]);
     expect(adviceWords(a, w).fix).toContain('tower');
     expect(showMeRefusal(w, 'tower', a.fix.target)).toBe(null);                                  // and Show me is not refused there
@@ -75,14 +79,14 @@ describe('v60 balance fix: the building a band strikes first (ruling 787)', () =
     w.raid.clockDay = 0;
     warn(w, EAST, { target: 'trading_post', size: 12, second: { entry: { ...WEST }, dir: 'west', size: 4 } });
     expect(towersNeeded(12) > 1).toBe(true);
-    expect(towerItem(w).fix.target).toEqual(centre(east));                                      // neither band's strike is guarded: the first band's
+    expect(towerItem(w).fix.target).toEqual(spotAt(w, centre(east)));                           // neither band's strike is guarded: the first band's
     addRaw(w, 'tower', 26, 15);
     staffAll(w);
     const a = towerItem(w);
-    expect(a.fix.target).toEqual(centre(west));                                                 // a tower now stands by the east strike: the west band's has none
+    expect(a.fix.target).toEqual(spotAt(w, centre(west)));                                     // a tower now stands by the east strike: the west band's has none
     expect(showMeRefusal(w, 'tower', a.fix.target)).toBe(null);
     addRaw(w, 'tower', 6, 15);
     staffAll(w);
-    expect(towerItem(w).fix.target).toEqual(centre(east));                                      // one each: back to the first band's
+    expect(towerItem(w).fix.target).toEqual(spotAt(w, centre(east)));                           // one each: back to the first band's
   });
 });

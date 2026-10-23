@@ -8,7 +8,8 @@ import { wantedGoods } from '../sim/housing.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { el, iconButton, setText } from './components.js';
-import { T, S45_TEXT, dateText, shortDateText } from './text.js';
+import { seasonAt } from '../sim/seasons.js';
+import { T, S45_TEXT, SEASON_TEXT, dateText, shortDateText } from './text.js';
 
 export function summaryData(world) {
   const last = world.stats.lastMonth || { taxes: 0, wages: 0, upkeep: 0, net: 0 };
@@ -45,6 +46,10 @@ const stat = (label, cls) => {
 // wide layout under 1000 px wide or at 150% text, where the long date would push the numbers onto another row.
 export function createHud({ world, store, container, speedBar = null, onOpenSummary = (section) => {}, onOpenMenu = () => {}, onOpenAdvice = () => {}, advice = () => ({ shown: false, dot: false }), shortDate = () => store.get().layout !== 'wide' }) {
   const gold = stat(T.gold, 'gold'), people = stat(T.people, 'people'), mood = stat(T.mood, 'mood'), date = stat(T.date, 'date');
+  // Version 7.0 (Track S, ruling 933): the season's name after the date, "Harvest", as a second line under it that runs left beneath the other numbers
+  // (css v70 s: it adds no width, as the forecast under the gold adds none). It is a word, never a colour alone, and a screen reader reads it with the date.
+  const season = el('span', { class: 'season', 'data-season': '' });
+  date.append(season);
   const income = stat(T.income, 'income wide-only'), jobless = stat(T.jobless, 'jobless wide-only'), food = stat(T.food, 'food wide-only');
   // Stage 3 (spec 4.19): the score chip, a small "Score 247" on the summary button. It starts empty and hidden; the score
   // interface fills it after every command and game day (src/ui/scoreUi.js), so the top bar's numbers are unchanged.
@@ -58,6 +63,9 @@ export function createHud({ world, store, container, speedBar = null, onOpenSumm
   gold.append(forecast);
   // No aria-label here: it would replace the visible numbers as the accessible name (spec 6.8). The hint is read as part of the name.
   const stats = el('button', { type: 'button', class: 'stats quiet', title: T.summary, onClick: (ev) => onOpenSummary(ev && ev.target && ev.target.closest && ev.target.closest('.forecast') ? 'forecast' : null) }, [gold, people, mood, date, income, jobless, food, scoreChip, el('span', { class: 'sr-only', text: T.openSummary })]);
+  // On a phone at 100% or 125% text the score chip sits at the bar's lower right, where the season's line would be: the chip's width goes to the
+  // stylesheet (--chip-w on the numbers) so the season stands to its left (css v70 s). Observed, so it follows the chip as the score changes.
+  if (typeof ResizeObserver === 'function') new ResizeObserver(() => stats.style.setProperty('--chip-w', `${scoreChip.hidden ? 0 : scoreChip.offsetWidth}px`)).observe(scoreChip);
   const menu = iconButton(T.menu, '☰', { class: 'menu' });
   menu.addEventListener('click', onOpenMenu);
   const bar = el('div', { class: 'speed wide-only' });
@@ -89,7 +97,10 @@ export function createHud({ world, store, container, speedBar = null, onOpenSumm
     }
     setText(people.lastChild, String(d.people));
     setText(mood.lastChild, String(d.mood));
-    setText(date.lastChild, shortDate() ? shortDateText(d.date) : dateText(d.date));
+    setText(date.querySelector('.value'), shortDate() ? shortDateText(d.date) : dateText(d.date));
+    const now = seasonAt(world).season;
+    setText(season, SEASON_TEXT.names[now]);
+    if (season.dataset.season !== now) season.dataset.season = now;
     setText(income.lastChild, (d.net >= 0 ? '+' : '') + String(d.net));
     setText(jobless.lastChild, String(d.jobless));
     setText(food.lastChild, d.monthsOfFood === null ? '–' : `${d.monthsOfFood} mo`);
@@ -104,9 +115,22 @@ export function createHud({ world, store, container, speedBar = null, onOpenSumm
   let lastKey = '';
   function fitForecast(key) {
     if (key === lastKey) return;
-    const tops = new Set([...stats.querySelectorAll('.stat')].filter((st) => st.offsetParent !== null).map((st) => st.offsetTop));
-    lastKey = tops.size ? key : '';                    // not laid out yet (the bar is not on the page): measure again next time
-    if (tops.size) stats.classList.toggle('tight', tops.size > 1);
+    const shown = [...stats.querySelectorAll('.stat')].filter((st) => st.offsetParent !== null);
+    const rows = () => new Set(shown.map((st) => st.offsetTop)).size;
+    lastKey = rows() ? key : '';                       // not laid out yet (the bar is not on the page): measure again next time
+    if (!rows()) return;
+    // Version 7.0 (wave 3, ruling 994): numbers that overflow a phone's bar (at 100% text a five-digit treasury pushed the date out of the row: it wrapped, the forecast hid, the row sat
+    // low and the score chip landed on the date) wear the 150% text's small pictures in place of their words (css 'iconic'). Overflow is more rows than the size allows (one at 100% text,
+    // held upright; 125% keeps its two), the scroll width past the client width, or a number past the row's inner edge. It is measured with the words and the forecast showing, so the bar
+    // goes back to words when the numbers shrink again.
+    stats.classList.remove('iconic', 'tight');
+    const layout = store.get().layout;
+    if (layout !== 'wide') {
+      const edge = stats.getBoundingClientRect().right - (parseFloat(getComputedStyle(stats).paddingRight) || 0);
+      const wrapped = layout === 'portrait' && Number(document.body.dataset.textSize) < 125 && rows() > 1;
+      if (wrapped || stats.scrollWidth > stats.clientWidth + 1 || shown.some((st) => st.getBoundingClientRect().right > edge + 1)) stats.classList.add('iconic');
+    }
+    stats.classList.toggle('tight', rows() > 1);       // still two rows (even in pictures): no room for the forecast's line
   }
   const textOf = (n) => n.querySelector('.value').textContent;
   function render() {

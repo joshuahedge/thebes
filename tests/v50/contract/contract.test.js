@@ -85,8 +85,8 @@ describe('v50 contract chunk index', () => {
 });
 
 describe('v50 contract world', () => {
-  it('keeps the buildings\' version beside the world (5.0 needed no world version; 6.0 is 9), never saved, and a loaded city starts its own', () => {
-    expect([WORLD_VERSION, CURRENT_VERSION]).toEqual([9, 9]);
+  it('keeps the buildings\' version beside the world (5.0 needed no world version; 6.0 is 9, 7.0 is 10), never saved, and a loaded city starts its own', () => {
+    expect([WORLD_VERSION, CURRENT_VERSION]).toEqual([10, 10]);
     const w = createWorld({ seed: 4 });
     insertBuilding(w, makeBuilding(w, 'well', 3, 3));
     expect(buildingsVersion(w)).toBe(1);

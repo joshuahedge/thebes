@@ -55,6 +55,7 @@ export const SHELL_CLASS = {
   well: 1, farm_grain: 0, granary: 2, bazaar: 1, temple: 2, garden: 1, statue: 2, farm_fig: 0, clay_pit: 0, potter: 2, storehouse: 1, booth: 1, trading_post: 2,
   farm_barley: 0, brewery: 1, farm_flax: 0, weaver: 0, gem_mine: 1, jeweller: 1, firehouse: 1, physician: 1, police_post: 2, tower: 2, barracks: 1, wall: 0,
   gate: 1, builders_guild: 1, quarry: 1, brickworks: 1, sphinx: 1, nilometer: 2, hunting_lodge: 1, fishing_wharf: 1, archery_range: 1, stables: 1, plaza: 0,
+  quay: 1,   // Version 7.0 (Track T): the Quay's storehouse
 };
 // The height class (0 low, 1 mid, 2 tall) of the shell of what stood there (a rubble's was): the table, else by footprint.
 export const shellHeightClass = (was) => (was.type in SHELL_CLASS ? SHELL_CLASS[was.type] : was.w * was.d >= 6 ? 2 : was.w * was.d >= 2 ? 1 : 0);

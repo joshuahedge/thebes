@@ -1,4 +1,5 @@
 import { S46_GOODS } from './s46.js';
+import { V70_GOODS } from './v70.js';
 
 // Goods (spec 4.10). kind: 'food' (homes eat it: grain from tier 3, figs as the second food from tier 7),
 // (Stage 4.6: game and fish are foods too, and any two foods meet the second-food need.) 'household' (homes use it from the tier that needs it), 'raw' (only workshops use it), and from Stage 4 'material'
@@ -20,6 +21,8 @@ export const GOODS = {
   bricks: { name: 'Bricks', kind: 'material' },
   // Stage 4.6: the River track's game and fish (src/data/river.js RIVER_GOODS), joined by src/data/s46.js.
   ...S46_GOODS,
+  // Version 7.0: Track T's incense (src/data/trade.js TRADE_GOODS), joined by src/data/v70.js.
+  ...V70_GOODS,
 };
 
 const ofKind = (kind) => Object.keys(GOODS).filter((k) => GOODS[k].kind === kind);

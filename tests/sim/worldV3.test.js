@@ -1,14 +1,14 @@
 import { describe, it, expect } from '../harness.js';
-import { createWorld, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY } from '../../src/sim/world.js';
+import { createWorld, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY, STAGE70_TALLY } from '../../src/sim/world.js';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../../src/data/difficulty.js';
 
 describe('world v3', () => {
   it('creates a world with a difficulty, no trade, no new items and the new tallies at zero', () => {
     const w = createWorld({ seed: 4 });
     expect(w.difficulty).toBe('normal');
-    expect(w.trade).toEqual({ routes: {}, orders: {}, drift: {}, used: {}, year: 1 });
+    expect(w.trade).toEqual({ routes: {}, orders: {}, drift: {}, used: {}, year: 1, switches: {}, floors: {} });   // Version 7.0 (world version 10): the switches and floors
     expect(w.newItems).toEqual([]);
-    const stage2 = Object.fromEntries(Object.entries(w.tally).filter(([k]) => !STAGE3_TALLY.includes(k) && !STAGE4_TALLY.includes(k) && !STAGE45_TALLY.includes(k) && !STAGE46_TALLY.includes(k) && !STAGE47_TALLY.includes(k) && !STAGE60_TALLY.includes(k)));   // Stage 3's: tests/sim/worldV4.test.js
+    const stage2 = Object.fromEntries(Object.entries(w.tally).filter(([k]) => !STAGE3_TALLY.includes(k) && !STAGE4_TALLY.includes(k) && !STAGE45_TALLY.includes(k) && !STAGE46_TALLY.includes(k) && !STAGE47_TALLY.includes(k) && !STAGE60_TALLY.includes(k) && !STAGE70_TALLY.includes(k)));   // Version 7.0 (Track E: the city events' three tallies)   // Stage 3's: tests/sim/worldV4.test.js
     expect(stage2).toEqual({
       harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0,
       made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0,

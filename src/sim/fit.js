@@ -27,12 +27,17 @@ export const tileBound = (type) => {
 const water = (world, x, y, riverOnly = false) => inBounds(world.size, x, y) && world.terrain[idx(world.size, x, y)] === T.WATER && !(riverOnly && inOasisPool(world, x, y));
 
 // The water tiles along a side of the footprint: the row above (n) or below (s), the column left (w) or right (e).
-function sideWater(world, x, y, w, d, side, riverOnly = false) {
-  let n = 0;
-  if (side === 'n' || side === 's') { const ty = side === 'n' ? y - 1 : y + d; for (let tx = x; tx < x + w; tx++) if (water(world, tx, ty, riverOnly)) n++; }
-  else { const tx = side === 'w' ? x - 1 : x + w; for (let ty = y; ty < y + d; ty++) if (water(world, tx, ty, riverOnly)) n++; }
-  return n;
+// Version 7.0 (Track P, ruling 1008): the tiles themselves, so the placing preview can mark the ones that count (waterTilesOf); sideWater is their number.
+function sideWaterTiles(world, x, y, w, d, side, riverOnly = false) {
+  const out = [];
+  if (side === 'n' || side === 's') { const ty = side === 'n' ? y - 1 : y + d; for (let tx = x; tx < x + w; tx++) if (water(world, tx, ty, riverOnly)) out.push([tx, ty]); }
+  else { const tx = side === 'w' ? x - 1 : x + w; for (let ty = y; ty < y + d; ty++) if (water(world, tx, ty, riverOnly)) out.push([tx, ty]); }
+  return out;
 }
+const sideWater = (world, x, y, w, d, side, riverOnly = false) => sideWaterTiles(world, x, y, w, d, side, riverOnly).length;
+
+// The water sides a rule looks along: a long side for 'longSide' (either side of a square footprint), every side for 'touch'.
+const sidesOf = (def, w, d) => (def.water === 'longSide' ? (w > d ? ['n', 's'] : d > w ? ['w', 'e'] : ['n', 's', 'w', 'e']) : ['n', 's', 'w', 'e']);
 
 // The building's fit at (x, y) with rotation rot: { terrain, fit, of, need, water, wet, ok, reason }.
 //   terrain, fit, of, need: its ground, how many footprint tiles are that ground, out of how many, and how many it needs (null,
@@ -52,13 +57,25 @@ export function fitOf(world, type, x, y, rot = 0) {
     if (out.fit < out.need) { out.ok = false; out.reason = `needs_${def.terrain}`; }
   }
   if (def.water) {
-    const sides = def.water === 'longSide' ? (w > d ? ['n', 's'] : d > w ? ['w', 'e'] : ['n', 's', 'w', 'e']) : ['n', 's', 'w', 'e'];
+    const sides = sidesOf(def, w, d);
     const count = (riverOnly) => (def.water === 'longSide' ? Math.max(...sides.map((s) => sideWater(world, x, y, w, d, s, riverOnly))) : sides.reduce((n, s) => n + sideWater(world, x, y, w, d, s, riverOnly), 0));
     out.wet = count(Boolean(def.fishes || def.riverOnly));
     // Stage 4.7 (ruling 463): a wharf beside only an oasis pool says so: "Must touch the river" (needs_river), not "Must touch water".
     if (!out.wet && out.ok) { out.ok = false; out.reason = (def.fishes || def.riverOnly) && count(false) ? 'needs_river' : 'needs_water'; }
   }
   return out;
+}
+
+// Version 7.0 (Track P, ruling 1008): the water tiles that count for the building's water rule at (x, y), as [x, y] pairs: along the best long side for 'longSide' (the
+// first side with the most), beside every side for 'touch'. Their number is fitOf's `wet`; [] without a water rule. The placing preview marks them.
+export function waterTilesOf(world, type, x, y, rot = 0) {
+  const def = BUILDINGS[type];
+  if (!def || !def.water) return [];
+  const { w, d } = dimsOf(type, rot);
+  const riverOnly = Boolean(def.fishes || def.riverOnly);
+  const lists = sidesOf(def, w, d).map((s) => sideWaterTiles(world, x, y, w, d, s, riverOnly));
+  if (def.water !== 'longSide') return lists.flat();
+  return lists.reduce((best, l) => (l.length > best.length ? l : best), []);
 }
 
 // The footprint-level refusal commands.js adds after the tiles: null for a building with no rule, or one whose terrain rule is

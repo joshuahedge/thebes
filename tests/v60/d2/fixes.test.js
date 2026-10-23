@@ -14,6 +14,7 @@ import { tickDay } from '../../../src/sim/clock.js';
 import { createWorld } from '../../../src/sim/world.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
+import { dockPlain } from '../../helpers/lesson.js';
 
 const PARTS = { people: 72, prosperity: 65, culture: 58, safety: 40, monuments: 36 };
 const memory = (data = {}) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, data });
@@ -128,6 +129,8 @@ describe('v60 d2 the lesson\'s ring sits inside the free map', () => {
   async function lessonAt(stepId, [width, height], settings = {}) {
     const s = await open({ size: [width, height], settings: { lessonDone: true, cardsSeen: true, motion: 'still', ...settings } });
     s.api.hooks.lesson({ step: LESSON_STEPS.findIndex((x) => x.id === stepId) });
+    await frame();
+    dockPlain(s.api);                                                                // Version 7.0 (Track P): the step's card first; these look at the ring it docks to
     await frame();
     return s;
   }

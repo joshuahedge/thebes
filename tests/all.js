@@ -155,3 +155,5 @@ import './stage47/all.js';
 import './v50/all.js';
 // Version 6.0: one aggregator (tests/v60/all.js) for Track 0's contract and each track's own; nothing is added here.
 import './v60/all.js';
+// Version 7.0: one aggregator (tests/v70/all.js) for Track 0's contract and each track's own; nothing is added here.
+import './v70/all.js';

@@ -51,17 +51,17 @@ describe('migrate v1 to v2', () => {
     expect(v2.goals.completed === v1.goals.completed).toBe(false); // a copy, not the same array
     for (const k of Object.keys(v1)) if (k !== 'version' && k !== 'goals') expect([k, v2[k]]).toEqual([k, v1[k]]);
     expect(Object.keys(v2).sort()).toEqual(REQUIRED.filter((k) => !V3_KEYS.includes(k) && !V4_KEYS.includes(k)).sort());
-    expect(validateWorld(MIGRATIONS[8](MIGRATIONS[7](MIGRATIONS[6](MIGRATIONS[5](MIGRATIONS[4](MIGRATIONS[3](MIGRATIONS[2](v2))))))))).toBe(true);     // valid once versions 3 to 9 add their fields
+    expect(validateWorld(MIGRATIONS[9](MIGRATIONS[8](MIGRATIONS[7](MIGRATIONS[6](MIGRATIONS[5](MIGRATIONS[4](MIGRATIONS[3](MIGRATIONS[2](v2)))))))))).toBe(true);     // valid once versions 3 to 10 add their fields
   });
   it('runs through migrate, deserialize and unpackSave', () => {
     const v1 = v1City();
-    expect(CURRENT_VERSION).toBe(9);
-    expect(migrate(v1)).toEqual(MIGRATIONS[8](MIGRATIONS[7](MIGRATIONS[6](MIGRATIONS[5](MIGRATIONS[4](MIGRATIONS[3](MIGRATIONS[2](MIGRATIONS[1](v1)))))))));
-    expect(deserialize(JSON.stringify(v1)).version).toBe(9);
+    expect(CURRENT_VERSION).toBe(10);
+    expect(migrate(v1)).toEqual(MIGRATIONS[9](MIGRATIONS[8](MIGRATIONS[7](MIGRATIONS[6](MIGRATIONS[5](MIGRATIONS[4](MIGRATIONS[3](MIGRATIONS[2](MIGRATIONS[1](v1))))))))));
+    expect(deserialize(JSON.stringify(v1)).version).toBe(10);
     const back = unpackSave(JSON.stringify({ version: 1, savedAt: 1760000000000, lastSpeed: 2, world: v1 }));
     expect(back.savedAt).toBe(1760000000000);
     expect(back.lastSpeed).toBe(2);
-    expect(back.world.version).toBe(9);
+    expect(back.world.version).toBe(10);
     expect(back.world.guide.on).toBe(false);
     expect(back.world.tally.peakPeople).toBe(population(v1));
     expect(Object.keys(back.world.buildings)).toEqual(Object.keys(v1.buildings));

@@ -12,6 +12,7 @@ import { place, drawRoad, paintHouses, canPlace, previewRoad, previewHouses } fr
 import { openRoute, setTradeOrder } from '../../../src/sim/trade.js';
 import { createWorld, population, allBuildings, isSite } from '../../../src/sim/world.js';
 import { noNewDangers } from '../../v60/b1/grace.js';
+import { noCityEvents } from '../../v70/e/hold.js';   // Version 7.0 (Track E, ruling 913): the run measures the game before the city events
 import { milestoneIndex, isUnlocked } from '../../../src/sim/progression.js';
 import { costOf, routeCostOf } from '../../../src/sim/costs.js';
 import { T } from '../../../src/sim/terrain.js';
@@ -27,7 +28,7 @@ export const CAPITAL_YEARS = 6;
 // elsewhere. Stage 4: three rocky patches on the desert south of the fields for the quarries. The trade entry is the
 // east end of the farm street, which the script lays; the raider entries are the two mapgen gives a 48-tile map (the
 // middle of the east edge and of the north edge).
-function capitalWorld(size = SIZE, dangers = false, seed = 5) {
+function capitalWorld(size = SIZE, dangers = false, seed = 5, events = false) {
   const terrain = new Array(size * size).fill(T.DESERT);
   for (let y = 17; y < 24; y++) for (let x = 0; x < size; x++) terrain[idx(size, x, y)] = T.FERTILE;
   for (let y = 21; y < 23; y++) for (let x = 10; x < 14; x++) terrain[idx(size, x, y)] = T.ROCKY;
@@ -41,7 +42,9 @@ function capitalWorld(size = SIZE, dangers = false, seed = 5) {
   const map = { size, terrain, tradeEntry: { x: 47, y: 20 }, startRoad: [], focus: { x: 24, y: 16 }, raiderEntries };
   const world = createWorld({ seed, size, map });
   // Version 6.0: the run measures the game before the new dangers (tests/v60/b1/grace.js); the Wave 4 balance runs (tests/v60/balance) ask for them (dangers: the three-year grace from day 0).
-  return dangers ? world : noNewDangers(world);
+  // Version 7.0 (wave 3): `events` is a run's player of the city events (tests/v70/balance/events.js): a run that has one plays with the events on from day 0, as a new city has them.
+  const graced = dangers ? world : noNewDangers(world);
+  return events ? graced : noCityEvents(graced);
 }
 
 // Each step: the milestone it waits for, what it costs now, and the command. A step that fails for any reason but gold
@@ -149,9 +152,10 @@ function insanity(w, m) {
 // Version 6.0 (Wave 4): dangers true leaves the new dangers' grace as a new city has it; onMonth(w, events, month) is called after each month end's books, before the
 // script's next steps (a player's answers to the dangers: tests/v60/balance/respond.js). Both default to the run as it always was.
 // Version 6.0.1: seed is the world's seed (5, the run as tuned; tests/v60/balance measures the great work on another seed too).
-export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth = null, seed = 5 } = {}) {
+// Version 7.0 (wave 3): events the city events' player (tests/v70/balance/events.js eventPlayer), called after each month end's books like onMonth; with none the events are held off as before.
+export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth = null, seed = 5, events: eventsPlayer = null } = {}) {
   const started = performance.now();
-  const w = capitalWorld(size, dangers, seed);
+  const w = capitalWorld(size, dangers, seed, Boolean(eventsPlayer));
   let next = 0, lowestGold = w.gold, net = 0, spent = 0, capitalMonth = null;
   const made = [], months = [], insane = [];
   const tryBuild = () => {
@@ -170,7 +174,7 @@ export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth 
   };
   tryBuild();
   for (let m = 1; m <= monthsToRun; m++) {
-    const events = onMonth ? [] : null;
+    const events = onMonth || eventsPlayer ? [] : null;
     advanceDays(w, 30, events);
     insane.push(...insanity(w, m));
     lowestGold = Math.min(lowestGold, w.gold);
@@ -179,6 +183,7 @@ export function runCapital(monthsToRun, { size = SIZE, dangers = false, onMonth 
     made.push({ ...w.tally.made });
     const crews = allBuildings(w).reduce((n, b) => n + (isSite(b) ? b.site.crews.length : 0), 0);
     months.push({ ...w.stats.lastMonth, workforce: w.labour.workforce, employed: w.labour.employed, crews, gold: w.gold });
+    if (eventsPlayer) eventsPlayer.onMonth(w, events, m);
     if (onMonth) onMonth(w, events, m);
     tryBuild();
   }

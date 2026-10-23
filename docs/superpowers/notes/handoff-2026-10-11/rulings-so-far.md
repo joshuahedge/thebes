@@ -962,3 +962,124 @@ Branch `gw-balance`, cut from main at 588116e. Josh's decision on the open balan
 821. Each lesson step starts with any overlay turned off and, on a phone, the build tray folded when the step asks for no card, so at least half the map stays free (667x375 at 150% text). — Cost if wrong: an overlay the player wanted needs one more tap.
 822. The fire, tower and raid alert rows lead with the instruction; the raid row names towers only when staffed ones stand. Clearing the raid result removes only that report's own caption, shown or queued. — Cost if wrong: none.
 823. Every lesson step is tested for free map, pan, zoom, Play, the menu and Leave the lesson at 390x844 and 667x375 at 150% text. — Cost if wrong: a future panel under the top bar fails it.
+
+## Part 18: Version 7.0 (23 Oct 2026)
+
+Branch `version-7-0`, cut from main at fdc4708 (the rewritten history, 6.0.1 live) and built in four waves: Track 0 (the contract), wave 1 (T trade, E events, S seasons and sound), wave 2 (A Advice, P playtest fixes), wave 3 (balance, the final review, two fix batches); the branch stood at 07dd22c before the docs pass. Sources: the plan's proposed rulings 850-857 and each track's report, in number order. Numbers in a track's range that were never used are skipped (880-899, 907-912, 914-929, 941-959, 970-974, 982-984, 1004, 1006, 1007, 1012-1014). Where a later ruling replaced an earlier one, the earlier one says so. Measurements: the balance note `2026-10-23-version-7-0-balance.md`; the contract: `2026-10-23-version-7-0-contract.md`; what is still open: `2026-10-23-version-7-0-followups.md`.
+
+### Plan rulings
+850. 7.0 is one release built on 6.0.1 and the rewritten history; nothing in it needs the network after load. — Cost if wrong: store work later finds a web-only dependency.
+851. Seasons change looks only; farms work as in 6.0. — Cost if wrong: the seasons feel cosmetic.
+852. Day and night run on a six-minute real-time loop in the render layer, never in the sim or the save. — Cost if wrong: the light does not match the date.
+853. Incense is a festival good only; no growth or rank needs it. — Cost if wrong: Punt feels optional.
+854. Trade never sells below a floor, and offerings and accepted demands are held back automatically. — Cost if wrong: a player who wants to sell everything must lower floors first.
+855. Events never push a city in debt deeper; a default never costs gold. — Cost if wrong: troublesome events feel soft for a broke city.
+856. A v9 city sees no event for a year after load. — Cost if wrong: none for new cities.
+857. Opus for Track 0, Track T, hard merges and the final review; Sonnet for the rest (Josh: no Fable). — Cost if wrong: a Sonnet track needs an Opus fix round.
+
+### Track 0: the contract (Opus 5.5, a53ebc9)
+858. The record is `world.cityEvents`, not the plan's `world.events`: `events` is every sim function's per-tick list, and an old test bans an "events" key in saves. — Cost if wrong: a name only.
+859. The Quay's building row and incense's goods row belong to Track T; Track 0 reserves the ids and wires the joins (so the plan's "Quay as a building kind, and the incense good" were met by T, not literally by Track 0). — Cost if wrong: none.
+860. A trade switch is stored only when off, per route and side; floors are per good. — Cost if wrong: T adds a field.
+861. The caravan sells only above the larger of the order's keep and `heldBack.units`. — Cost if wrong: T changes it in its own files.
+862. `cityEvents.nextDay` is 0 for a new city (a v9 city: load day + 360). — Cost if wrong: E changes the default.
+863. Season ids are akhet, peret and shemu. — Cost if wrong: a rename.
+864. The light pass draws under fire, effects and overlays. — Cost if wrong: one renderer line.
+865. `dayNight` defaults to true and `effectsVolume` to 100. — Cost if wrong: none.
+866. The waiting-event Advice item is Track E's (the plan gave it to A); kinds `event`, `quay` and `trade_floor` are reserved. — Cost if wrong: A rewords E's item.
+867. Salts are 6101-6169, each inside its track's range. — Cost if wrong: none.
+868. File ownership is as the contract note says. — Cost if wrong: a track asks the controller.
+869. Merge order is T, then E, then S, then A. — Cost if wrong: a one-line conflict.
+
+### Track T: trade and the Quay (Opus 5.5, 8b267c1)
+870. Nubia (Capital, 800 gold) and Punt (Great Capital, 1,200 gold; the only seller of incense) trade by river. They come last in the partner list, so Memphis's and Byblos's price drift is drawn exactly as before. — Cost if wrong: retune prices.
+871. The Quay is 2x1, needs river water along a long side and a road, costs 200 gold, needs 4 workers and unlocks at Capital. — Cost if wrong: one data row.
+872. A river route needs a Quay, not a trading post. Boats land at the first working Quay with a road. — Cost if wrong: words and one check.
+873. Trade holds back the floor, plus the great temple's whole owed offering, plus accepted court goods demands. — Cost if wrong: great-work trade sells less.
+874. "Keep at least" is one number per good; the sheet writes it as both the floor and the order's keep. The ledger (last year's profit) starts at the first visit. — Cost if wrong: one more stepper.
+875. Only switches turned off are stored. — Cost if wrong: none.
+876. Arrivals (boats and caravans) are render only. Gentle moves as Full does; Still shows only the caravan or boat at rest. — Cost if wrong: one condition.
+877. The seam re-registers the 'trade' sheet with no edit to `createUI`. On phones (portrait and compact) one route is open at a time; on wide screens every route is open. — Cost if wrong: tests.
+878. `createTradeUi(null)` returns an empty seam, because a Track 0 contract test requires it. — Cost if wrong: none.
+879. Incense is a raw good. Its line says "used by festivals" before Track E lands. — Cost if wrong: one sentence.
+
+### Track E: city events (Sonnet, 6f4e593)
+900. Events from Town: the first 6-10 months after the Town day, then 5-9 months after each offer; one at a time; none near a danger or a court deadline. — Cost if wrong: tune `CITY_EVENTS`.
+901. Effects only through existing sim functions (court favour, goods and festival, `fallIll`, the thefts mood row, court pause); no output boost, so the craftsman settles people. — Cost if wrong: weaker than the design's example.
+902. Defaults never cost gold, losses clamp, prices scale with taxes. — Cost if wrong: not recorded.
+903. Stops live in `world.court.effects` (`event: true`); `eventDay` ends them. — Cost if wrong: not recorded.
+904. The event is a warning-tier alert (list, caption, Advice, summary), opened by a root click, not the banner row (`CRITICAL_RANK` is not E's; three tests pin it). — Cost if wrong: on a phone it sits among the alerts; one line plus three pins.
+905. The Advice fix opens summary section 'events'; its aria still said "See who works where" until Track A named it (ruling 966). — Cost if wrong: not recorded.
+906. One line in `cardMoments.js` (not E's file) adds the 14th picture card; three older pins moved. — Cost if wrong: not recorded.
+913. The old balance runs hold events off (`tests/v70/e/hold.js`). With events on, even the welcome kinds alone turned the seed-5 great-work run from a win (day 6,699) into no win. Wave 3 sets the hold off and retunes (replaced by 975 and 976). — Cost if wrong: not recorded.
+
+### Track S: seasons, light and sound (Sonnet, e6f3a7d and 2b34e3f)
+930. The season blend runs over a season's last month. — Cost if wrong: a jump at the boundaries.
+931. Night is a soft-blue multiply; marks, labels and overlays draw after it. — Cost if wrong: the readability test fails.
+932. Season looks: a land wash, a river tint, field slots and palm marks. — Cost if wrong: the looks are too subtle.
+933. The season name is a zero-width second line under the date, hidden from the eye when the numbers wrap (the summary's Season row, ruling 995, covers it). — Cost if wrong: not visible on tight bars.
+934. The 2 ms budget is measured on drawing time, plus a software-raster cap of 14 ms. — Cost if wrong: the cap is arbitrary.
+935. Sound is the master of music and effects (tested all four ways with a stub `createMusic`). — Cost if wrong: a device with Sound off and Music on loses its music.
+936. Season moods in the music. — Cost if wrong: not recorded.
+937. A 'tense' mood below the raid threshold for plague, drought, locusts or fire. — Cost if wrong: not recorded.
+938. Five oscillator-only effects with cooldowns. — Cost if wrong: not recorded.
+939. The light clock runs only while the game runs, at most 250 ms a frame. — Cost if wrong: not recorded.
+940. Far-zoom lamps are strided dots and the glow pools are capped at 260. — Cost if wrong: not recorded.
+
+### Track A: Advice fixes and the words (Sonnet, 672d18a and b42ff32)
+960. A warned raid's tower goes on a road-touching tile in range of the first-struck building, in Show me's own search order; else "Lay a road to here (N tiles), then build the tower" (the road tool's Route) with Show me at the road's end; else no fix. Unwarned and no-target raids are unchanged. — Cost if wrong: one Show me lands elsewhere (`ADVICE_FIX` numbers).
+961. Stranded goods: a store by the bazaar only when none stands there and one cart brings under one Fetch order a month (about 25 or more road tiles); else Fetch as before. — Cost if wrong: the threshold (in data).
+962. The 'quay' Advice item fires only with no Quay at all, weight 6. — Cost if wrong: not recorded (a roadless or paused Quay still gets no Advice item; deferred, see the follow-ups).
+963. The 'trade_floor' item fires only while the treasury runs out; View opens Trade. — Cost if wrong: not recorded.
+964. The Keep-at-least lines name where stock is counted ("near the trading post / the Quay"). — Cost if wrong: not recorded.
+965. Opet's smaller festival reads "without favour"; Nubia's help is worded per good. — Cost if wrong: not recorded.
+966. The event Advice item's View button is named for the event. — Cost if wrong: not recorded.
+967. Tip triggers `quayPlaced` and `routeOpened`. — Cost if wrong: not recorded.
+968. The seasons, events and trade How to play entries already exist from T, E and S; A adds the Quay, the fixes, trade and events in Advice. — Cost if wrong: not recorded.
+969. The balance runs' driver keeps 6.0's tower hand by default (`setLegacyTowers`): the new spot moved the great-work runs (wins lost); wave 3 was to re-tune them (see 978). — Cost if wrong: not recorded (see 978).
+
+### Wave 3: balance (Sonnet, 78ac720)
+975. The late run (from year 6), the careless run (every event takes its default) and the great-work run (from year 10) play with the city events on; village, capital and the dangers-off grand run keep the hold. — Cost if wrong: those runs say nothing about events, and the capital's years 2 to 6 meet events only in the dangers-on late run.
+976. In the dangers-on runs the late run has events from day 0, the grand-district run from year 7, and the great-work runs from year 10. Events from day 0 sink the seed-5 great-work run (third raid lost), seed 10 (never finishes) and the grand-district run's wreck and loot assertions. — Cost if wrong: the great-work runs' grand years (Estate, Seat) rest on the 6.0.1 coin.
+977. The scripted player pays a price only when it is at most a tenth of the treasury beyond a spare of 800 (a quarter for a strike or a quarrel), keeps 15,000 from the great temple's founding until it is finished, and spends goods only above what trade holds back. — Cost if wrong: it pays less than a keen player, so the lean last years are measured with fewer paid answers.
+978. The 6.0 tower hand (`setLegacyTowers`, ruling 969) stays for the grand and great-work runs. Four configurations of the real advice with extra habits sank; one great-work run and the grand run held. — Cost if wrong: the 7.0 tower advice is proven by `tests/v70/a` and the late run's raids, but no driver lives with it for ten years.
+979. The great-work run keeps the offerings with the Trade sheet's Keep at least from the founding (`keepOfferings`); no run sells those goods, so a test puts them on sale both ways. — Cost if wrong: the floor never binds in the run itself.
+980. Three Advice pins are re-recorded with reasons: careless y15 home_need, great work y14 and y16 home_need. — Cost if wrong: the pins say less about the 6.0 city and more about the 7.0 one.
+981. No `src/data` number changed. — Cost if wrong: a keen player who answers everything meets the great-work run's thin treasury sooner than the script.
+
+### Wave 3: the final review and fix batches (Opus 5.5 decisions; Sonnet fixes 454693a and 50ecab0)
+985. Delete and Backspace act on what the player is looking at. Nothing happens over a dialog, the lesson card, a text field or screenshot mode. With a building's sheet open, Delete presses that sheet's Demolish (with its own question) even when an Undo toast is up. With no sheet open it takes the offered Undo of a placement. Behind any other sheet it does nothing. This replaces ruling 1001. — Cost if wrong: a player who wanted Undo behind a sheet presses the toast's Undo or Ctrl+Z.
+986. Delete never undoes a demolish; Ctrl+Z and the toast's Undo still do, and the toast and the placing bar name Delete only after a placement. — Cost if wrong: one other key to undo a demolish.
+987. Strike and quarrel holds hold: Resume is refused (`event_hold`) until they end, with words on the sheet ("Stopped by a quarrel until year Y, month N"; quarry: "On strike"). Ruling 423 still covers court cards and scares. — Cost if wrong: a player waits two months for a quarry; the fallback is rewording the cards and dropping the paid choice.
+988. Opet offers the full festival only when incense can reach the city (`incenseReaches`: Punt's route is open or a store holds incense). — Cost if wrong: players never see the full festival before Great Capital.
+989. Stranded advice with no maker in reach names the Fetch order and its real monthly amount (the step names the maker, the card says "a maker in reach"). — Cost if wrong: one longer line.
+990. `heldBackSales` walks the partners in the caravans' order with one running pair of stocks (the post and the Quay share stores), sums the gold and names the largest partner ("Byblos and 1 other partner would pay..."). — Cost if wrong: none beyond code.
+991. A pointer click on a speed step blurs it, so Space pauses afterwards; keyboard focus keeps Space. — Cost if wrong: mouse users lose an invisible focus.
+992. While chips show, the placing bar's why line carries only what no chip says; the older `reason` line is hidden whenever why parts exist. — Cost if wrong: one rule is read in two places, as before.
+993. While placing on a phone, the ghost is framed above the measured bar and the corner buttons (the larger of the two, not their sum, since the corner buttons stand on the bar; the free-map cap is the smaller of 120 px and the ghost's height). — Cost if wrong: the camera moves a little more for every portrait ghost.
+994. A phone top bar whose numbers wrap or overflow uses the 150% icon labels (`.iconic`), after clearing a stale 'tight' before measuring. — Cost if wrong: icons instead of words when gold has five digits.
+995. Track S's four-line Season row in `sheets.js` (cd8619e) is accepted after the fact. — Cost if wrong: none.
+996. The waiting event's low Advice weight stays: its own alert row with View always shows it, and weights are balance's. — Cost if wrong: an event hidden in Advice only.
+997. The event card may scroll at 375x667 at 150% text and at 667x375; the rule is no scroll at 390x844 at 100%, and that holds. — Cost if wrong: a scroll at large text.
+998. Dimmed sound rows use ink-soft words at 4.5:1 or better, not opacity; Punt's disabled Open route takes the event card's disabled style. — Cost if wrong: none.
+999. The score chip over the date at five-digit gold is fixed by 994, not deferred as 6.0 behaviour: a real player reaches five-digit gold. — Cost if wrong: one class and one CSS rule.
+
+### Track P: Josh's playtest fixes (Sonnet, 1b778ba, 4125cb2, 9b66886)
+Josh's 23 Oct playtest of 6.0.1 added this track in wave 2 (the plan's "Track P" section). Its numbers ran from 1000; 1004, 1006 and 1007 were not used.
+1000. `V70_HELP` gains key `p` (after `a`); `p/all.js` is one line in `tests/v70/all.js`. — Cost if wrong: a rename.
+1001. Delete or Backspace is Undo while its toast or a tool's Undo is offered, else presses the open sheet's Demolish (same confirm); never in a field, behind a dialog or card, or with single keys off. Superseded by 985 and 986 after the final review found it undid placements behind other sheets. — Cost if wrong: change one function.
+1002. The lesson card (the one exception to "nothing over the map's middle") opens for every step, pauses the game and docks on Show me, Play, Got it, Enter, Space or Esc. 'card' steps replay at the prior speed on dismissal, 'act' steps replay once the player's part is done, 'warning' is the tower step. Placing and the build tray work while paused (tested). — Cost if wrong: data flags.
+1003. After the card's Show me on a landscape phone at 125% text or more, the overlay goes off, so the map is not lost. — Cost if wrong: not recorded.
+1005. While a sheet is open on a wide screen the build tray and Layers fold, and the sheet starts under the minimap. — Cost if wrong: not recorded.
+1008. Placing: `conditionsFor` gains a separate `more` field (no existing shape changed) and `fit.js` gains `waterTilesOf`. The reason line is clamped to two lines (one at 125% text or more) on phones; the chips name the rest. At a compact layout and 125% text or more it is hidden and the drawer is capped to its column and scrolls from the top, so the name and cost stay on screen. — Cost if wrong: a refused drawer at large landscape text scrolls to reach Show me.
+1009. P4 covers exactly two states: empty house plots and monument sites before work. It is render only and hooked in `drawMarkers`. — Cost if wrong: not recorded.
+1010. Banks are hinted only for water-bound buildings; terrain-bound ones use the Ground overlay. — Cost if wrong: not recorded.
+1011. Keys audit: nothing added beyond Delete and Backspace (Esc, Space, ] [ and + - already existed; number keys stay categories). — Cost if wrong: not recorded.
+
+### Edits outside a track's files
+- Track S edited `sheets.js` (the summary's Season row, ruling 995) and Track 0's `seams.test.js` and `scenes.test.js` (filling its stubs); Track E edited `cardMoments.js` (906); Track A's wave 1 minors touched T's `tradeSheet.js` and E's `cityEvents.js` files and tests; Track P edited E's `cityEvents.js` (one class for the 44 px Show me), `sheets.js`, Track 0's `seams.test.js` and `tests/v70/all.js` (1000). Each was minimal and reviewed.
+- Wave 1 integration fixes (10ffdee): E's festival tests assumed incense was not yet in the game; they now check T's real incense and run the beer-only branch inside `withoutIncense`.
+- Commit 2b34e3f (Track S) first carried a Sonnet trailer; every commit on the branch now ends with the one required Opus 5.5 line.
+- Items the final review deferred or dropped, with one-line reasons, are in the follow-ups note (`2026-10-23-version-7-0-followups.md`).
+- This docs pass: `tests/stage46/ux/releases.test.js`, `tests/stage46/final/riverux.test.js`, `tests/stage47/final/releases.test.js`, `tests/v50/docs/releases.test.js` and `tests/v60/docs/releases.test.js` moved to the 7.0 entry (6.0.1 takes its merge commit 4502f53); new `tests/v70/docs/releases.test.js`.
+EOF

@@ -40,6 +40,7 @@ import { T as TILE } from '../sim/terrain.js';
 import { LARGE_TEXT, buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, goodName, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
 import { bridgeSpot } from '../sim/bridges.js';
 import { styleChoices } from './s46/wonders.js';
+import { placementWhy } from './placementWhy.js';
 
 // A building tool's footprint in its rotation (Stage 4: tool.rot 1 turns a mastaba a quarter, dimsOf; ruling 234).
 const footprintOf = (tool) => (tool.kind === 'building' ? dimsOf(tool.type, tool.rot || 0) : { w: 1, d: 1 });
@@ -280,7 +281,14 @@ function basePreview(world, state) {
     const ground = c.conditions.find((k) => k.key === 'ground');
     // The tiles where a road would join are shown only while the spot itself is fine: a footprint on water has no use for them.
     const joins = road && road.state === 'later' && ground.state === 'met' ? road.joins : [];
-    const extra = { conditions: chips, footprint: c.tiles.map(({ x: tx, y: ty, state: st }) => ({ x: tx, y: ty, state: st })), joins };
+    // Version 7.0 (Track P, ruling 1008): each square's own verdict and the reason line, from the same conditionsFor the chips come from. A square the building's terrain rule
+    // does not count (the clay pit counts 2 of 4) is 'plain' while the rule holds and 'off' while it fails; wet and roadAt are the water and the road that count.
+    const marks = c.more || { on: [], wet: [], roadAt: [], near: false };
+    const groundMet = Boolean(ground) && ground.state === 'met';
+    const squares = c.tiles.map(({ x: tx, y: ty, state: st, reason }, i) => ({ x: tx, y: ty, state: st === 'met' && marks.on[i] === false ? (groundMet ? 'plain' : 'off') : st, reason }));
+    // A monument keeps its own line and chips (crew, stone, founding): its refusals and waits are worded there (ui4ConditionText), so the bar takes no second line for it.
+    const why = def.monument ? { text: '', needs: '', parts: [] } : placementWhy(c, tool.type, Object.fromEntries(chips.map((k) => [k.key, k])));
+    const extra = { conditions: chips, footprint: squares, joins, why: why.text, needs: why.needs, whyParts: why.parts, wet: marks.wet, roadAt: marks.roadAt };
     // Stage 4.6 (ruling 331): a ground or water refusal says why in the rule's own numbers ("Needs 2 of 4 tiles on clay (this spot has 1)") and offers Show me.
     if (!c.ok) { const line = S46_MAP_TEXT.refusalLine(c.reason, ground, def); return { ...bad(c.reason, cost, 1, [], line || reasonText(c.reason)), showFit: Boolean(line) || groundBoundRefusal(def, c.reason), ...extra }; }
     const warn = c.warnings.length > 0;
@@ -544,10 +552,13 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
     if (!state.ghost) return [];
     const { w, d } = footprintOf(tool);
     const shape = { x: state.ghost.x, y: state.ghost.y, w, d, state: visual, badge: true };   // a building's mark is a fixed-size badge (P13)
-    // Where the footprint is part right, part wrong (the loam's edge), each tile shows its own state (P9).
+    // Each square shows its own verdict (P9; Version 7.0, Track P, ruling 1008: always, not only where the footprint is part right and part wrong), the whole ghost's colour is
+    // its outline and its badge, and the water and the road that count are marked beside it.
     const foot = preview.footprint || [];
-    if (foot.some((t) => t.state === 'cant') && foot.some((t) => t.state === 'met')) shape.tiles = foot;
+    if (foot.length) shape.tiles = foot;
     if (preview.joins && preview.joins.length) shape.joins = preview.joins;
+    if (preview.wet && preview.wet.length) shape.wet = preview.wet;
+    if (preview.roadAt && preview.roadAt.length) shape.roadAt = preview.roadAt;
     // Stage 4 (spec 6.5): a monument's ghost also shows the finished monument's silhouette at MONUMENT_PLACING.silhouetteAlpha,
     // so the player sees its eventual size (drawGhost draws it through render/monuments.js drawMonument).
     if (isMonumentType(tool.type)) shape.silhouette = { world, b: finishedGhost(tool, state.ghost, w, d) };

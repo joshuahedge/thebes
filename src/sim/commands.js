@@ -14,7 +14,7 @@ import { storeAccepts } from './production.js';
 import { guildsNear, supplyNear, remainingNeed } from './monuments.js';
 import { DEFENCE } from '../data/raids.js';
 import { bridgeVerdicts } from './bridges.js';
-import { tileBound, fitOf, fitReason } from './fit.js';
+import { tileBound, fitOf, fitReason, waterTilesOf } from './fit.js';
 import { noteBuilt } from './oases.js';
 import { onGoodSpot } from './spots.js';   // Stage 4.7 (Task 4): the spots' first; spots.js reads checkTiles from here, both only at call time
 import { LARGE_PLOT } from '../data/largePlots.js';
@@ -220,7 +220,33 @@ export function conditionsFor(world, type, x, y, { roadLater = false, rot = 0, s
     state: refusal ? 'cant' : (later.length ? 'later' : 'ok'),
     conditions,
     tiles,
+    more: placementMarks(world, type, x, y, rot, tiles, w, d),
   };
+}
+
+// What the placing preview draws beyond the conditions' own lines (Version 7.0, Track P, ruling 1008), each from the rule the sim applies, so the marks and the words agree:
+//   on     per footprint tile (the tiles' order): whether it is the ground the building's terrain rule counts, null for a building with no terrain rule (the clay pit counts 2 of 4
+//          tiles, so the other two are free ground the rule does not count)
+//   wet    the water tiles that count for its water rule ([] without one); fitOf's `wet` is their number
+//   roadAt the road tiles that touch a side (what touchesRoad counts); near whether a road lies a corner or a tile off without touching (it does not count), asked only when none touches
+function placementMarks(world, type, x, y, rot, tiles, w, d) {
+  const def = BUILDINGS[type];
+  const want = def.terrain ? TERRAIN_BY_NAME[def.terrain] : null;
+  const on = tiles.map((t) => (want === null ? null : inBounds(world.size, t.x, t.y) && world.terrain[idx(world.size, t.x, t.y)] === want));
+  const probe = { x, y, w, d };
+  const roadAt = def.needsRoad || isPlotType(type) ? roadTouching(world, probe) : [];
+  return { on, wet: def.water ? waterTilesOf(world, type, x, y, rot) : [], roadAt, near: roadAt.length === 0 && (def.needsRoad || isPlotType(type)) ? roadNear(world, probe) : false };
+}
+
+// The road tiles that touch the footprint (a side, not a corner: the ring's own), as [x, y] pairs: what touchesRoad counts.
+function roadTouching(world, b) {
+  return ring(b.x, b.y, b.w, b.d).filter(([tx, ty]) => inBounds(world.size, tx, ty) && world.road[idx(world.size, tx, ty)]);
+}
+// Whether a road lies close without touching: on a corner of the footprint or one tile past a side. Only asked when none touches.
+function roadNear(world, b) {
+  const corners = [[b.x - 1, b.y - 1], [b.x + b.w, b.y - 1], [b.x - 1, b.y + b.d], [b.x + b.w, b.y + b.d]];
+  const outer = ring(b.x - 1, b.y - 1, b.w + 2, b.d + 2);
+  return [...corners, ...outer].some(([tx, ty]) => inBounds(world.size, tx, ty) && world.road[idx(world.size, tx, ty)]);
 }
 
 // The tiles beside a footprint where a road could be laid to touch it: on the map, dry, with no building or wall on them.
@@ -320,6 +346,9 @@ export function setPaused(world, id, paused) {
   const def = BUILDINGS[b.type];
   if (isFinished(b)) return fail('finished');
   if (!def.workers && !def.upkeep && !def.monument) return fail('not_pausable');
+  // Ruling 987: a strike or quarrel (a city event's pause) holds until its day; Resume is refused, and the card's paid choice is the way out.
+  const until = eventHoldUntil(world, b.id);
+  if (!paused && until !== null) return fail('event_hold', { until });
   b.paused = Boolean(paused);
   if (b.paused) b.staff = 0;
   releaseHolds(world, b.id);
@@ -327,14 +356,25 @@ export function setPaused(world, id, paused) {
   return { ok: true, warnings: [] };
 }
 
+// The day a city event's strike or quarrel (src/sim/cityEvents.js, a court effect marked event: true) still holds this building, or null when none does
+// (ruling 987). The sheet reads it for its Resume's reason.
+export function eventHoldUntil(world, id) {
+  const c = world.court;
+  if (!c || !Array.isArray(c.effects)) return null;
+  let until = null;
+  for (const e of c.effects) if (e.event === true && e.kind === 'pause' && Array.isArray(e.ids) && e.ids.includes(id) && e.until > world.day) until = Math.max(until === null ? 0 : until, e.until);
+  return until;
+}
+
 // Ruling 423: the player's own pause or resume takes a building back from whatever paused it for a while: a crocodile scare (world.wildlife.scares)
 // and a court card's pause (a quarantine or a strike, world.court.effects). Neither lifts a pause afterwards that it did not set, so a workplace
 // the player pauses during a scare (resume, then pause, even within one game day) stays paused when the scare's days are up.
+// Ruling 987: a city event's strike or quarrel (event: true) is not let go here while it lasts (setPaused refuses the resume); one whose days are up is.
 function releaseHolds(world, id) {
   const w = world.wildlife;
   if (w && Array.isArray(w.scares) && w.scares.some((s) => s.id === id)) w.scares = w.scares.filter((s) => s.id !== id);
   const c = world.court;
-  if (c && Array.isArray(c.effects)) for (const e of c.effects) if (e.kind === 'pause' && Array.isArray(e.ids)) e.ids = e.ids.filter((x) => x !== id);
+  if (c && Array.isArray(c.effects)) for (const e of c.effects) if (e.kind === 'pause' && Array.isArray(e.ids) && !(e.event === true && e.until > world.day)) e.ids = e.ids.filter((x) => x !== id);
 }
 
 export function setSpeed(world, speed) {

@@ -24,6 +24,8 @@ import { costOf } from '../../../src/sim/costs.js';
 import { setFetch } from '../../../src/sim/carts.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
 import { answerCourt } from '../../v60/a/answer.js';
+import { eventPlayer } from '../../v70/balance/events.js';   // Version 7.0 (wave 3): the run plays with the city events on
+import { releaseEvents } from '../../v70/e/hold.js';
 
 export const LATE_YEARS = 15;
 const YEAR_DAYS = DAYS_PER_MONTH * MONTHS_PER_YEAR;
@@ -58,10 +60,14 @@ export function meetWarning(w, built) {   // exported for the Wave 4 danger play
 
 // Version 6.0 (Wave 4, tests/v60/balance): base is another capital run to take on (the one with the new dangers on), onMonth(w, events, month) a player's answers to them,
 // called after each month end's own policies; both default to the run as it always was.
-export function runLate({ defend = true, send = true, fetchClay = true, answer = true, base: given = null, onMonth = null } = {}) {
+export function runLate({ defend = true, send = true, fetchClay = true, answer = true, base: given = null, onMonth = null, events: eventsOpt = true } = {}) {
   const started = performance.now();
   const base = given || capitalRun();
   const w = deserialize(serialize(base.w));
+  // Version 7.0 (wave 3): events true is a player of its own (it answers as a steady player does, or only writes the events down when `answer` is off: the careless run), a given player
+  // is the one the base run's years used too (the dangers-on run), false holds them off. The shared 6-year run was made under the hold: the events come from here.
+  const player = eventsOpt === true ? eventPlayer({ answer }) : eventsOpt || null;
+  if (player) releaseEvents(w);
   const main = allBuildings(w).find((b) => b.type === 'storehouse' && b.x === 22 && b.y === 18);
   const fetch = fetchClay && main ? setFetch(w, main.id, 'clay', 200) : null;
   const months = [], raids = [], quotas = [], snapshots = {}, yearly = {}, built = [], insane = [], court = [], dues = [];
@@ -93,6 +99,7 @@ export function runLate({ defend = true, send = true, fetchClay = true, answer =
     }
     if (answer) court.push(...answerCourt(w, { reserve: RESERVE }));
     if (defend) meetWarning(w, built);
+    if (player) player.onMonth(w, events, m);   // Version 7.0 (wave 3): the city events, answered as a steady player does (tests/v70/balance/events.js)
     if (onMonth) onMonth(w, events, m);
     const unfed = housesOf(w).filter((h) => h.tier >= 3 && h.met && h.met.food === false).length;
     months.push({ month: m, gold: w.gold, favour: w.court.favour, people: population(w), taxes: w.stats.lastMonth.taxes, net: w.stats.lastMonth.net, monuments: w.stats.lastMonth.monuments || 0, unfed });
@@ -102,7 +109,7 @@ export function runLate({ defend = true, send = true, fetchClay = true, answer =
   }
   snap(LATE_YEARS);
   yearly[LATE_YEARS] = snapRow();
-  return { w, fetch, months, raids, quotas, snapshots, yearly, built, lowestGold, insane, court, dues, elapsed: performance.now() - started };
+  return { w, eventRec: player ? player.rec : null, fetch, months, raids, quotas, snapshots, yearly, built, lowestGold, insane, court, dues, elapsed: performance.now() - started };
 }
 
 let shared = null;

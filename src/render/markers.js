@@ -26,6 +26,7 @@ import { UI, INK } from './art/palette.js';
 import { p, U, quad, depthKey, ART_SCALE } from './iso.js';
 import { MONUMENT_LOOK } from './art/monuments.js';
 import { monumentTop } from './monuments.js';
+import { drawUnbuilt } from './unbuilt.js';
 
 // The 44 px tap area round a badge and its stem (ruling 281): the half-width either side of the stem and the badge.
 export const MARKER_TAP_PX = 22;
@@ -140,6 +141,7 @@ function dashedAmberTile(g, x, y) {
 // Draws the layout: the road-less plots' dashed outlines, then each marker's footprint rings (in art px, on the map),
 // then its stem, roof dot and badge (in CSS px, so they keep their size at any zoom), back to front.
 export function drawMarkers(g, world, alerts, range, layout = []) {
+  drawUnbuilt(g, world, range);                                                   // Version 7.0 (Track P, ruling 1009): what is placed but not built, pegged out under the rest
   // Version 5.0 (Task 6): the plots off the canvas are not drawn, and a crowd of them seen from far out (more than CROWD.plots on screen at CROWD.zoom or less, as a Large map
   // zoomed out can hold: its stress city has about a thousand) is left to the road badges that already say "road" over each connected group (roadlessPlotBadges), as the
   // tile outlines there are smaller than a finger and cost a frame's time over; at any nearer zoom, or with fewer, every plot has its dashed outline as ever.
