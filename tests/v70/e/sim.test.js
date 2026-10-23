@@ -3,7 +3,7 @@
 // is off with its reason while the treasury cannot pay it, that a default is taken when the time is up and never costs gold, the festival with and
 // without incense, a version 9 city's quiet year, and the record in a save. Each set up both ways.
 import { describe, it, expect } from '../../harness.js';
-import { eventWorld, offer, days, storehouseOf, idsOf, MONTH, YEAR } from './helpers.js';
+import { eventWorld, offer, days, storehouseOf, idsOf, withoutIncense, MONTH, YEAR } from './helpers.js';
 import { drawEvent, eventChoices, applyChoice, eventDay, eventAlerts, eventItems, waitingEvent, firstEventDay, dangerStriking, courtSoon, unrestMood } from '../../../src/sim/cityEvents.js';
 import { EVENT_DEFS, EVENT_KINDS, EVENT_NUMBERS, CITY_EVENTS, EVENT_V9_WAIT, newEventState, isEventState } from '../../../src/data/cityEvents.js';
 import { stockOf } from '../../../src/sim/court.js';
@@ -304,43 +304,42 @@ describe('v70 e sim: what each kind does', () => {
   const answer = (w, id, events = null) => applyChoice(w, w.cityEvents.waiting, id, events);
 
   it('the festival of Opet: beer alone without incense (a smaller festival), beer and incense with it, off with why when either is short', () => {
-    const w = fresh('opet');
-    expect(Boolean(GOODS[INCENSE_GOOD])).toBe(false);                          // until Track T lands: no incense in the game
-    expect(eventChoices(w, w.cityEvents.waiting).map((c) => c.id)).toEqual(['small', 'decline']);
-    const small = choice(w, 'opet', 'small');
-    expect(small.effects.map((e) => e.kind)).toEqual(['goods', 'festival']);
-    const beer = stockOf(w, 'beer');
-    expect(answer(w, 'small').ok).toBe(true);
-    expect([stockOf(w, 'beer'), w.danger.festivalDay, w.tally.festivals]).toEqual([beer + small.effects[0].n, w.day, 1]);
-    // the mood bonus is the temple festival's own: festival.js festivalMood, FESTIVAL.days long
-    updateMood(w);
-    expect(w.moodBreakdown.festival).toBe(FESTIVAL.mood);
-    // a festival within a year: Opet is not offered
-    expect(offer(w, 'opet')).toBe(null);
-    w.day += FESTIVAL.every;
-    expect(offer(w, 'opet') !== null).toBe(true);
+    // Track T's incense is in the game, a raw good the storehouse keeps: the full festival is offered beside the smaller one.
+    expect([Boolean(GOODS[INCENSE_GOOD]), BUILDINGS.storehouse.stores.includes(INCENSE_GOOD)]).toEqual([true, true]);
+    const t = fresh('opet');
+    expect(eventChoices(t, t.cityEvents.waiting).map((c) => c.id)).toEqual(['full', 'small', 'decline']);
+    // A game without incense: the smaller festival, with beer alone.
+    withoutIncense(() => {
+      const w = fresh('opet');
+      expect(eventChoices(w, w.cityEvents.waiting).map((c) => c.id)).toEqual(['small', 'decline']);
+      const small = choice(w, 'opet', 'small');
+      expect(small.effects.map((e) => e.kind)).toEqual(['goods', 'festival']);
+      const beer = stockOf(w, 'beer');
+      expect(answer(w, 'small').ok).toBe(true);
+      expect([stockOf(w, 'beer'), w.danger.festivalDay, w.tally.festivals]).toEqual([beer + small.effects[0].n, w.day, 1]);
+      // the mood bonus is the temple festival's own: festival.js festivalMood, FESTIVAL.days long
+      updateMood(w);
+      expect(w.moodBreakdown.festival).toBe(FESTIVAL.mood);
+      // a festival within a year: Opet is not offered
+      expect(offer(w, 'opet')).toBe(null);
+      w.day += FESTIVAL.every;
+      expect(offer(w, 'opet') !== null).toBe(true);
+    });
+    expect([Boolean(GOODS[INCENSE_GOOD]), BUILDINGS.storehouse.stores.includes(INCENSE_GOOD)]).toEqual([true, true]);   // and back
   });
 
   it('with incense in the game: the full festival takes beer and incense and adds favour; off with its reason while the stores hold too little incense', () => {
-    GOODS[INCENSE_GOOD] = { name: 'Incense', kind: 'household' };
-    BUILDINGS.storehouse.stores.push(INCENSE_GOOD);
-    try {
-      const w = fresh('opet');
-      expect(eventChoices(w, w.cityEvents.waiting).map((c) => c.id)).toEqual(['full', 'small', 'decline']);
-      const full = choice(w, 'opet', 'full');
-      expect([full.ok, full.reason, full.bad.good]).toEqual([false, 'short', INCENSE_GOOD]);
-      storehouseOf(w).store[INCENSE_GOOD] = 12;
-      const ok = choice(w, 'opet', 'full');
-      expect([ok.ok, ok.effects.map((e) => e.kind)]).toEqual([true, ['goods', 'goods', 'festival', 'favour']]);
-      const fav = w.court.favour, beer = stockOf(w, 'beer');
-      expect(answer(w, 'full').ok).toBe(true);
-      expect([stockOf(w, INCENSE_GOOD), stockOf(w, 'beer'), w.court.favour]).toEqual([2, beer + ok.effects[0].n, fav + EVENT_NUMBERS.opet.favour]);
-      expect(w.danger.festivalDay).toBe(w.day);
-    } finally {
-      delete GOODS[INCENSE_GOOD];
-      BUILDINGS.storehouse.stores.pop();
-    }
-    expect(Boolean(GOODS[INCENSE_GOOD])).toBe(false);
+    const w = fresh('opet');
+    expect(eventChoices(w, w.cityEvents.waiting).map((c) => c.id)).toEqual(['full', 'small', 'decline']);
+    const full = choice(w, 'opet', 'full');
+    expect([full.ok, full.reason, full.bad.good]).toEqual([false, 'short', INCENSE_GOOD]);
+    storehouseOf(w).store[INCENSE_GOOD] = 12;
+    const ok = choice(w, 'opet', 'full');
+    expect([ok.ok, ok.effects.map((e) => e.kind)]).toEqual([true, ['goods', 'goods', 'festival', 'favour']]);
+    const fav = w.court.favour, beer = stockOf(w, 'beer');
+    expect(answer(w, 'full').ok).toBe(true);
+    expect([stockOf(w, INCENSE_GOOD), stockOf(w, 'beer'), w.court.favour]).toEqual([2, beer + ok.effects[0].n, fav + EVENT_NUMBERS.opet.favour]);
+    expect(w.danger.festivalDay).toBe(w.day);
   });
 
   it('the envoy, the hoard, the scribes and the harvest move the treasury, favour, the festival and the stores as their cards say', () => {

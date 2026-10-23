@@ -6,6 +6,9 @@ import { allBuildings } from '../../../src/sim/world.js';
 import { drawEvent, eventDay } from '../../../src/sim/cityEvents.js';
 import { EVENT_DEFS } from '../../../src/data/cityEvents.js';
 import { fallIll } from '../../../src/sim/health.js';
+import { GOODS } from '../../../src/data/goods.js';
+import { BUILDINGS } from '../../../src/data/buildings.js';
+import { INCENSE_GOOD } from '../../../src/data/trade.js';
 
 export { MONTH, YEAR };
 
@@ -39,6 +42,20 @@ export function eventWorld({ open = true, milestone = 'capital', gold = 3000, se
   w.cityEvents.nextDay = 0;
   for (const h of homes.slice(2, 2 + ill)) fallIll(w, h.id);                    // `ill` homes down with a fever (a healer is offered from two)
   return w;
+}
+
+// Runs fn (sync or async) in a game without Track T's incense (its GOODS row and the storehouse's place for it gone), then puts both back as they
+// were, even when fn throws: the Festival of Opet's beer-only branch. GOODS and the storehouse's list are shared by every later test.
+export function withoutIncense(fn) {
+  const row = GOODS[INCENSE_GOOD], stores = BUILDINGS.storehouse.stores, at = stores.indexOf(INCENSE_GOOD);
+  delete GOODS[INCENSE_GOOD];
+  if (at >= 0) stores.splice(at, 1);
+  const back = () => { GOODS[INCENSE_GOOD] = row; if (at >= 0) stores.splice(at, 0, INCENSE_GOOD); };
+  let out;
+  try { out = fn(); } catch (e) { back(); throw e; }
+  if (out && typeof out.then === 'function') return out.finally(back);
+  back();
+  return out;
 }
 
 export const storehouseOf = (w) => allBuildings(w).find((b) => b.type === 'storehouse');

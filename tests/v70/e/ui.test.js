@@ -5,14 +5,13 @@
 import { describe, it, expect } from '../../harness.js';
 import { rigUI } from '../../helpers/uiWorld.js';
 import { fire, key } from '../../helpers/dom.js';
-import { eventWorld, offer, days, storehouseOf, YEAR } from './helpers.js';
+import { eventWorld, offer, days, storehouseOf, withoutIncense, YEAR } from './helpers.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { eventChoices, waitingEvent, eventDay } from '../../../src/sim/cityEvents.js';
 import { EVENT_DEFS } from '../../../src/data/cityEvents.js';
 import { CITY_EVENT_TEXT as C, alertText, TIP_TEXT, TIP_HELP_TEXT, V70_HELP, ALERT_TEXT, CARDS4_TEXT } from '../../../src/ui/text.js';
 import { TIPS } from '../../../src/data/tips.js';
 import { GOODS } from '../../../src/data/goods.js';
-import { BUILDINGS } from '../../../src/data/buildings.js';
 import { INCENSE_GOOD } from '../../../src/data/trade.js';
 import { TUTORIAL_CARDS, TUTORIAL } from '../../../src/data/tutorial.js';
 import { dueCards, seenKey } from '../../../src/ui/cardMoments.js';
@@ -120,54 +119,45 @@ describe('v70 e ui: the card', () => {
     const w = eventWorld({ gold: 100000, ill: 3 });
     w.day = 3 * YEAR;
     w.speed = 0;
-    GOODS[INCENSE_GOOD] = { name: 'Incense', kind: 'household' };
-    BUILDINGS.storehouse.stores.push(INCENSE_GOOD);
-    try {
-      const r = await rig(w, { width: 390, height: 844 });
-      for (const def of EVENT_DEFS) {
-        offer(w, def.id);
-        r.ui.refresh();
-        open(r, 'cityEvent');
-        r.ui.refresh();
-        const s = sheet(r);
-        expect([def.id, s.hidden, s.scrollHeight <= Math.floor(844 * 0.6) ? 'fits' : `too tall: ${s.scrollHeight}px of ${Math.floor(844 * 0.6)}`]).toEqual([def.id, false, 'fits']);
-        // the buttons are all in the card
-        const n = eventChoices(w, w.cityEvents.waiting).length;
-        expect([def.id, s.querySelectorAll('.event-choice > button').length]).toEqual([def.id, n]);
-      }
-    } finally {
-      delete GOODS[INCENSE_GOOD];
-      BUILDINGS.storehouse.stores.pop();
+    expect(Boolean(GOODS[INCENSE_GOOD])).toBe(true);                             // Track T's incense: the festival's card has its three choices
+    const r = await rig(w, { width: 390, height: 844 });
+    for (const def of EVENT_DEFS) {
+      offer(w, def.id);
+      r.ui.refresh();
+      open(r, 'cityEvent');
+      r.ui.refresh();
+      const s = sheet(r);
+      expect([def.id, s.hidden, s.scrollHeight <= Math.floor(844 * 0.6) ? 'fits' : `too tall: ${s.scrollHeight}px of ${Math.floor(844 * 0.6)}`]).toEqual([def.id, false, 'fits']);
+      // the buttons are all in the card
+      const n = eventChoices(w, w.cityEvents.waiting).length;
+      expect([def.id, s.querySelectorAll('.event-choice > button').length]).toEqual([def.id, n]);
     }
   });
 
   test('says the smaller festival when no incense is traded and the full one when it is, and a refusal for short incense with Show me', async () => {
-    let w = city('opet');
-    let r = await rig(w);
-    open(r, 'cityEvent');
-    expect(sheet(r).textContent).toContain('No incense reaches the city yet, so it can only be a smaller festival, with beer alone.');
-    expect([...sheet(r).querySelectorAll('.event-choice')].map((n) => n.dataset.choice)).toEqual(['small', 'decline']);
-    sweep();
-    GOODS[INCENSE_GOOD] = { name: 'Incense', kind: 'household' };
-    BUILDINGS.storehouse.stores.push(INCENSE_GOOD);
-    try {
-      w = city('opet');
-      r = await rig(w);
+    // A game without Track T's incense: the smaller festival only, and the card says why.
+    await withoutIncense(async () => {
+      const w = city('opet');
+      const r = await rig(w);
       open(r, 'cityEvent');
-      expect(sheet(r).textContent).toContain('It takes beer and incense.');
-      expect(sheet(r).textContent.includes('smaller festival, with beer alone')).toBe(false);
-      expect([...sheet(r).querySelectorAll('.event-choice')].map((n) => n.dataset.choice)).toEqual(['full', 'small', 'decline']);
-      expect(new Set([...sheet(r).querySelectorAll('.event-choice > button')].map((b) => getComputedStyle(b).fontSize)).size).toBe(1);   // one type size: a choice's id is never a CSS class (a choice named small took .small's)
-      expect(choiceBtn(r, 'full').disabled).toBe(true);
-      expect(sheet(r).querySelector('.event-choice[data-choice="full"] .why-not').textContent).toBe('Your stores hold 0 incense; it takes 10.');
-      expect(Boolean(sheet(r).querySelector('.event-choice[data-choice="full"] .show-me'))).toBe(false);   // no store holds any: nothing to show
-      storehouseOf(w).store[INCENSE_GOOD] = 20;
-      r.ui.refresh();
-      expect(choiceBtn(r, 'full').disabled).toBe(false);
-    } finally {
-      delete GOODS[INCENSE_GOOD];
-      BUILDINGS.storehouse.stores.pop();
-    }
+      expect(sheet(r).textContent).toContain('No incense reaches the city yet, so it can only be a smaller festival, with beer alone.');
+      expect([...sheet(r).querySelectorAll('.event-choice')].map((n) => n.dataset.choice)).toEqual(['small', 'decline']);
+      sweep();
+    });
+    expect(Boolean(GOODS[INCENSE_GOOD])).toBe(true);
+    const w = city('opet');
+    const r = await rig(w);
+    open(r, 'cityEvent');
+    expect(sheet(r).textContent).toContain('It takes beer and incense.');
+    expect(sheet(r).textContent.includes('smaller festival, with beer alone')).toBe(false);
+    expect([...sheet(r).querySelectorAll('.event-choice')].map((n) => n.dataset.choice)).toEqual(['full', 'small', 'decline']);
+    expect(new Set([...sheet(r).querySelectorAll('.event-choice > button')].map((b) => getComputedStyle(b).fontSize)).size).toBe(1);   // one type size: a choice's id is never a CSS class (a choice named small took .small's)
+    expect(choiceBtn(r, 'full').disabled).toBe(true);
+    expect(sheet(r).querySelector('.event-choice[data-choice="full"] .why-not').textContent).toBe('Your stores hold 0 incense; it takes 10.');
+    expect(Boolean(sheet(r).querySelector('.event-choice[data-choice="full"] .show-me'))).toBe(false);   // no store holds any: nothing to show
+    storehouseOf(w).store[INCENSE_GOOD] = 20;
+    r.ui.refresh();
+    expect(choiceBtn(r, 'full').disabled).toBe(false);
   });
 
   test('answers: the choice is carried out as the card said, the card closes, and the outcome is a caption kept in Recent', async () => {
