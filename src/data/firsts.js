@@ -6,6 +6,7 @@
 import { S46_FIRSTS } from './s46.js';
 import { S47_FIRSTS } from './s47.js';
 import { V60_FIRSTS } from './v60.js';
+import { V70_FIRSTS } from './v70.js';
 
 export const FIRST_REWARD = 10;
 
@@ -47,4 +48,6 @@ export const FIRSTS = [
   ...S47_FIRSTS,
   // Version 6.0 (src/data/v60.js V60_FIRSTS): each track's firsts, from its own data file, words in its text.js section.
   ...V60_FIRSTS,
+  // Version 7.0 (src/data/v70.js V70_FIRSTS): Track T's and Track E's, from their own data files, words in their text.js sections.
+  ...V70_FIRSTS,
 ];

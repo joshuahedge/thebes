@@ -17,6 +17,7 @@
 // raids: true marks an achievement about raids, which a Peaceful city (no raids, spec 4.18) never earns or lists.
 import { S46_ACHIEVEMENTS } from './s46.js';
 import { V60_ACHIEVEMENTS } from './v60.js';
+import { V70_ACHIEVEMENTS } from './v70.js';
 
 export const ACHIEVEMENTS = [
   { id: 'way_in', measure: { kind: 'roads', n: 10 } },
@@ -69,4 +70,6 @@ export const ACHIEVEMENTS = [
   ...S46_ACHIEVEMENTS,
   // Version 6.0 (src/data/v60.js V60_ACHIEVEMENTS): each track's achievements, from its own data file, names in its text.js section.
   ...V60_ACHIEVEMENTS,
+  // Version 7.0 (src/data/v70.js V70_ACHIEVEMENTS): Track T's and Track E's, from their own data files, names in their text.js sections.
+  ...V70_ACHIEVEMENTS,
 ];

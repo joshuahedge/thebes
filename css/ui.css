@@ -1446,3 +1446,23 @@ body:not(.reduce-motion) .lesson-lit { animation: lesson-lit 1.4s ease-in-out in
 .title-buttons .lesson-hint { margin: 0; text-align: center; }
 .title-buttons .lesson-again { align-self: center; }
 .title-card .lesson-note { margin: 0 0 6px; text-align: center; font-weight: 600; }
+
+/* ── v70 contract (Version 7.0, Track 0) ── one section per track below (docs/superpowers/notes/2026-10-23-version-7-0-contract.md, "Shared
+   files"). A track adds rules only in its own section, just above its end marker; the stable separators stay as they are. ── */
+/* ── end v70 contract ── */
+
+/* (separator) */
+/* ── v70 t (Track T) ── the Trade sheet (phone accordion, desktop side panel), the Quay's sheet parts. ── */
+/* ── end v70 t ── */
+
+/* (separator) */
+/* ── v70 e (Track E) ── the event card. ── */
+/* ── end v70 e ── */
+
+/* (separator) */
+/* ── v70 s (Track S) ── the season in the top bar, the Settings rows. ── */
+/* ── end v70 s ── */
+
+/* (separator) */
+/* ── v70 a (Track A, wave 2) ── any Advice styles. ── */
+/* ── end v70 a ── */

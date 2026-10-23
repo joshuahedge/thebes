@@ -69,6 +69,9 @@ import { V50_SCENES, VERSION50_SCENES } from './v50/index.js';
 import { V60_SCENES, VERSION60_SCENES } from './v60/index.js';
 export { VERSION50_SCENES };
 export { VERSION60_SCENES };
+// Version 7.0: the 'v70-...' scenes (src/dev/v70/index.js; each track fills its own).
+import { V70_SCENES, VERSION70_SCENES } from './v70/index.js';
+export { VERSION70_SCENES };
 
 export const DEV_SCENES = ['peaceful', 'fire', 'tribute', 'battle', 'score', 'ambient'];
 
@@ -1023,11 +1026,12 @@ const SCENES = {
   ...S47_SCENES,
   ...V50_SCENES,
   ...V60_SCENES,
+  ...V70_SCENES,
 };
 
 export async function devScene(api, name, options = {}) {
   const scene = SCENES[name];
-  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES, ...STAGE4_SCENES, ...STAGE45_SCENES, ...STAGE46_SCENES, ...STAGE47_SCENES, ...VERSION50_SCENES, ...VERSION60_SCENES].join(', ')})`);
+  if (!scene) throw new Error(`devScene: no scene named ${name} (${[...DEV_SCENES, ...MOBILE_SCENES, ...STAGE4_SCENES, ...STAGE45_SCENES, ...STAGE46_SCENES, ...STAGE47_SCENES, ...VERSION50_SCENES, ...VERSION60_SCENES, ...VERSION70_SCENES].join(', ')})`);
   return scene(api, options);
 }
 

@@ -12,11 +12,14 @@ import { S47_TALLY } from '../data/s47.js';
 import { V60_TALLY } from '../data/v60.js';
 import { newReignState, newDemandState } from '../data/reign.js';
 import { newHazardState, GRACE_DAYS } from '../data/hazards.js';
+import { V70_TALLY } from '../data/v70.js';
+import { newTradeSettings } from '../data/trade.js';
+import { newEventState } from '../data/cityEvents.js';
 import { generateMap, variantFor } from './mapgen.js';
 import { floodplainOf } from './flood.js';
 import { idx, footprint } from './grid.js';
 
-export const WORLD_VERSION = 9;
+export const WORLD_VERSION = 10;
 export const HISTORY_MONTHS = 12;   // month-end rows kept for the Welcome back trends
 
 // The trade state a city starts with (Stage 2): no routes open, no orders, no price drift drawn, no quota used.
@@ -52,6 +55,8 @@ export const STAGE46_TALLY = S46_TALLY;
 export const STAGE47_TALLY = S47_TALLY;
 // Version 6.0's (world version 9): src/data/v60.js V60_TALLY, each wave-1 track's list from its own data file (reign.js, hazards.js, largePlots.js).
 export const STAGE60_TALLY = V60_TALLY;
+// Version 7.0's (world version 10): src/data/v70.js V70_TALLY, Track T's and Track E's lists from their own data files (trade.js, cityEvents.js).
+export const STAGE70_TALLY = V70_TALLY;
 export const newTally = () => ({
   harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0, made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0,
   ...Object.fromEntries(STAGE3_TALLY.map((k) => [k, 0])),
@@ -60,6 +65,7 @@ export const newTally = () => ({
   ...Object.fromEntries(STAGE46_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE47_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE60_TALLY.map((k) => [k, 0])),
+  ...Object.fromEntries(STAGE70_TALLY.map((k) => [k, 0])),
 });
 
 // The prestige unlocks a city has reached (Stage 4, spec 4.14, ruling 243): monument type -> the day the city first had
@@ -129,7 +135,9 @@ export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, dif
     // Running counts for firsts, achievements, daily goals, feats, the score and the summary; made: units produced, by good.
     tally: newTally(),
     difficulty: Object.hasOwn(DIFFICULTIES, difficulty) ? difficulty : 'normal',
-    trade: newTradeState(),                             // open routes, orders, price drift and quota used this year
+    // Open routes, orders, price drift and quota used this year; Version 7.0 (world version 10): the per-route switches and the "Keep at least"
+    // floors (Track T, src/data/trade.js newTradeSettings), as the v9 -> v10 migration adds them.
+    trade: { ...newTradeState(), ...newTradeSettings() },
     newItems: [],                                       // build items a milestone unlocked and nothing has placed yet ("New")
     // Stage 3 (world version 4).
     wall: new Array(n).fill(0),                         // per tile: 0 none, > 0 a standing wall's hit points, -1 a breach (broken stone)
@@ -163,6 +171,8 @@ export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, dif
     reign: newReignState(),                             // the great work and the reign's end (Track A, src/data/reign.js)
     demands: newDemandState(),                          // the court's demands with deadlines (Track A)
     hazards: newHazardState(GRACE_DAYS),                // plague, drought, locusts and the three-year grace (Track B1, src/data/hazards.js)
+    // Version 7.0 (world version 10; the contract note has the shapes). trade's switches and floors are above, in world.trade.
+    cityEvents: newEventState(),                        // the city events: when the next may come, each kind's cooldown, the one waiting (Track E, src/data/cityEvents.js)
   };
   for (const [x, y] of m.startRoad) world.road[idx(world.size, x, y)] = 1;
   return world;

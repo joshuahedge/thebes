@@ -251,6 +251,11 @@ export function createRenderer({
       sprites++;
     }
 
+    // 3b. Version 7.0 (Track 0 seam; Track S fills it, render/light.js): the light over the city (night's tint, the lamps), in art px with the art
+    // origin set, above the sprites and under fire, the units' marks, effects and overlays, so nothing a player reads is dimmed.
+    ctx.setTransform(1, 0, 0, 1, ox, oy);
+    if (opts.light) opts.light(g, range, { ctx, W, H, ox, oy, dpr });
+
     // 4. Fire and the units' marks (Stage 3: render/fire.js, render/units.js), effects, overlays and the placement grid,
     // back in art px.
     ctx.setTransform(1, 0, 0, 1, ox, oy);

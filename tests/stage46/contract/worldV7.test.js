@@ -43,7 +43,7 @@ function v6City() {
 describe('s46 contract world v7', () => {
   it('creates a version 7 world with every Stage 4.6 field, each track record from its own function', () => {
     const w = createWorld({ seed: 4 });
-    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([9, 9, 9]);
+    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([10, 10, 10]);
     expect(Object.keys(w).sort()).toEqual([...REQUIRED].sort());
     for (const k of NEW_KEYS) expect(REQUIRED).toContain(k);
     expect([w.mapSize, w.mapParams]).toEqual([64, {}]);
@@ -136,8 +136,8 @@ describe('s46 contract world v7', () => {
     v6.raid.warning = null; v6.raid.active = null; v6.raid.last = null;
     const v7 = migrate(v6);
     expect([v7.raid.warning, v7.raid.active, v7.raid.last]).toEqual([null, null, null]);
-    expect(deserialize(JSON.stringify(v6)).version).toBe(9);
-    expect(migrate(v6)).toEqual(MIGRATIONS[8](MIGRATIONS[7](MIGRATIONS[6](v6))));
+    expect(deserialize(JSON.stringify(v6)).version).toBe(10);
+    expect(migrate(v6)).toEqual(MIGRATIONS[9](MIGRATIONS[8](MIGRATIONS[7](MIGRATIONS[6](v6)))));
     let msg = null;
     try { deserialize(JSON.stringify({ version: 6 })); } catch (e) { msg = e.message; }
     expect(msg).toBe('corrupt_save');

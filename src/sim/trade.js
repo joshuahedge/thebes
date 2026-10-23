@@ -21,6 +21,7 @@ import { storeAccepts, storeTotal } from './production.js';
 import { createRng, hash2 } from './rng.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
+import { tradeAllowed, heldBack } from './tradeRules.js';
 
 export const TRADE_MODES = ['buy', 'sell', 'ignore'];
 
@@ -197,7 +198,9 @@ function caravan(world, partnerId, post, events) {
   for (const good of Object.keys(p.buys)) {
     const order = world.trade.orders[good];
     if (!order || order.mode !== 'sell') continue;
-    const n = takeNear(world, post, good, Math.min(room(good, 'buys'), Math.max(0, stockNear(world, post, good) - order.keep)));
+    if (!tradeAllowed(world, partnerId, good, 'buys')) continue;      // Version 7.0 (Track 0 seam, src/sim/tradeRules.js): the route's switch
+    const keep = Math.max(order.keep, heldBack(world, good).units);   // and what trade must leave: the floor (Track T adds the temple's and the court's)
+    const n = takeNear(world, post, good, Math.min(room(good, 'buys'), Math.max(0, stockNear(world, post, good) - keep)));
     if (n <= 0) continue;
     sold[good] = n;
     used[good] = (used[good] || 0) + n;
@@ -207,6 +210,7 @@ function caravan(world, partnerId, post, events) {
   for (const good of Object.keys(prices.sells)) {   // Stage 4: only the goods listed now (a good with from waits for its milestone)
     const order = world.trade.orders[good];
     if (!order || order.mode !== 'buy') continue;
+    if (!tradeAllowed(world, partnerId, good, 'sells')) continue;     // Version 7.0 (Track 0 seam): the route's switch
     const price = prices.sells[good];
     const want = Math.min(room(good, 'sells'), Math.max(0, order.keep - stockNear(world, post, good)), roomNear(world, post, good), Math.floor(Math.max(0, world.gold) / price));
     const n = want > 0 ? putNear(world, post, good, want) : 0;

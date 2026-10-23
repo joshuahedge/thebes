@@ -30,6 +30,7 @@ import { desirabilityField, houseDesirability, scoreWith } from './desirability.
 import { DESIRABILITY } from '../data/desirability.js';
 import { checkTiles } from './commands.js';
 import { v60Advice } from './v60.js';
+import { v70Advice } from './v70.js';
 
 // ── The goods' makers (moved here from src/ui/text.js, which re-exports them) ──
 
@@ -561,5 +562,6 @@ export function cityAdvice(world) {
   dangerItems(world, alerts, out);
   towerItem(world, out);
   v60Advice(world, alerts, out);                       // Version 6.0: the court's demands and the dangers (Tracks A and B1, src/sim/v60.js)
+  v70Advice(world, alerts, out);                       // Version 7.0: the waiting event (Track E) and trade's items (Track A) (src/sim/v70.js)
   return out.sort(compareAdvice);
 }

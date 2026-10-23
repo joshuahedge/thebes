@@ -3,7 +3,9 @@ import { BUILDINGS } from '../data/buildings.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { PRESTIGE_UNLOCKS } from '../data/monuments.js';
-import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY } from '../sim/world.js';
+import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY, STAGE70_TALLY } from '../sim/world.js';
+import { isTradeSettings } from '../data/trade.js';
+import { isEventState } from '../data/cityEvents.js';
 import { isReignState, isDemandState } from '../data/reign.js';
 import { isHazardState } from '../data/hazards.js';
 import { isOasis, isOrders, isCart, isQuota, isYearMade } from '../data/s47.js';
@@ -25,9 +27,10 @@ export const REQUIRED = [
   'mapSize', 'mapParams', 'flood', 'floodplain', 'wildlife', 'court', 'army',
   'oases', 'carts',
   'reign', 'demands', 'hazards',
+  'cityEvents',
 ];
 
-export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY, ...STAGE45_TALLY, ...STAGE46_TALLY, ...STAGE47_TALLY, ...STAGE60_TALLY];
+export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY, ...STAGE45_TALLY, ...STAGE46_TALLY, ...STAGE47_TALLY, ...STAGE60_TALLY, ...STAGE70_TALLY];
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isCounts = (v) => isRecord(v) && Object.values(v).every(Number.isFinite);       // tally.made: good -> units
 const isStrings = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
@@ -84,6 +87,9 @@ const isStage47Building = (b) => !BUILDINGS[b.type].stores || isOrders(b.orders,
 const isStage60Building = (b) => (b.large === undefined || (b.type === 'house' && typeof b.large === 'boolean'))
   && (b.was === undefined || (b.type === 'rubble' && (b.was === null || isRecord(b.was))));
 const isStage60 = (w) => isReignState(w.reign) && isDemandState(w.demands) && isHazardState(w.hazards) && Object.values(w.buildings).every(isStage60Building);
+// Version 7.0 (version 10; the owners' data files have the shapes and tighten their own checks): trade's switches and floors (Track T,
+// src/data/trade.js) and the city events' record (Track E, src/data/cityEvents.js).
+const isStage70 = (w) => isTradeSettings(w.trade) && isEventState(w.cityEvents);
 const isStage47 = (w) => Array.isArray(w.oases) && w.oases.every(isOasis) && Array.isArray(w.carts) && w.carts.every(isCart)
   && Object.values(w.buildings).every(isStage47Building);
 
@@ -120,6 +126,7 @@ export function validateWorld(w) {
   if (!isStage46(w, cells)) return false;
   if (!isStage47(w)) return false;
   if (!isStage60(w)) return false;
+  if (!isStage70(w)) return false;
   return true;
 }
 

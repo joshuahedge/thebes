@@ -1,4 +1,6 @@
-import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY, newPrestigeUnlocks } from '../sim/world.js';
+import { WORLD_VERSION, newTradeState, newRaidState, newDangerState, STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY, STAGE70_TALLY, newPrestigeUnlocks } from '../sim/world.js';
+import { newTradeSettings } from '../data/trade.js';
+import { newEventState, EVENT_V9_WAIT } from '../data/cityEvents.js';
 import { newReignState, newDemandState } from '../data/reign.js';
 import { newHazardState, GRACE_DAYS } from '../data/hazards.js';
 import { addClay } from '../sim/mapgen.js';
@@ -278,8 +280,23 @@ function v8ToV9(w) {
   };
 }
 
+// v9 -> v10 (Version 7.0, Track 0, ruling 858). The city keeps everything it had: its routes, orders, drift and quota used, its buildings
+// and its tallies. Trade gains the switches and floors empty: every switch on and no floor (src/data/trade.js newTradeSettings). The city
+// events' record (cityEvents) starts with no event waiting and none drawn for a game year from the load day (EVENT_V9_WAIT, ruling 856), wherever the city's
+// year stands. The new tallies start at 0. A malformed save is left for validateWorld to report.
+function v9ToV10(w) {
+  const tally = isRec(w.tally) ? w.tally : {};
+  return {
+    ...w,
+    version: 10,
+    tally: { ...tally, ...Object.fromEntries(STAGE70_TALLY.map((k) => [k, 0])) },
+    trade: isRec(w.trade) ? { ...w.trade, ...newTradeSettings() } : w.trade,
+    cityEvents: newEventState((Number.isInteger(w.day) ? w.day : 0) + EVENT_V9_WAIT),
+  };
+}
+
 // Each entry upgrades a world from version N to N + 1. Add one whenever WORLD_VERSION goes up.
-export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6, 6: v6ToV7, 7: v7ToV8, 8: v8ToV9 };
+export const MIGRATIONS = { 1: v1ToV2, 2: v2ToV3, 3: v3ToV4, 4: v4ToV5, 5: v5ToV6, 6: v6ToV7, 7: v7ToV8, 8: v8ToV9, 9: v9ToV10 };
 
 // table and target are parameters so tests can drive a synthetic chain; production calls use the defaults.
 export function migrate(obj, table = MIGRATIONS, target = CURRENT_VERSION) {

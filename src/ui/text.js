@@ -3362,3 +3362,42 @@ export const V601_TEXT = {
 };
 V60_HELP.b1.push(V601_TEXT.help);
 // ── end v601 ──
+
+// ── v70 contract (Version 7.0, Track 0, rulings 858-869) ─────────────────────────────────────────────────────────────
+// Two tables the tracks fill from their own sections below (contract note, "Shared files"), so menu.js and adviceText.js are never edited for them:
+// V70_HELP: How to play's Version 7.0 paragraphs, by track, each { head, text } (menu.js help() adds them after Version 6.0's, in this key order);
+// V70_ADVICE_WORDS: kind -> (item, world) => { what, why, fix } for the Version 7.0 advice kinds (src/ui/adviceText.js adviceWords asks it, after
+// V60_ADVICE_WORDS, for any kind it does not word itself). A track writes only its own key of V70_HELP and only its own kinds.
+export const V70_HELP = { t: [], e: [], s: [], a: [] };
+export const V70_ADVICE_WORDS = {};
+// ── end v70 contract ──
+
+//
+// (A stable separator between the Version 7.0 sections: leave these lines as they are.)
+//
+// ── v70 t (Track T, rulings 870-899: trade by river, the Quay, the Trade sheet) ────────────────────────────────────────
+// Add new lines just above the end marker: V70_HELP.t.push(...), ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ..., FIRST_TEXT.<id> = ..., and an
+// exported object of the track's own words. Every number on screen comes from the sim's own functions (src/sim/trade.js, tradeRules.js).
+// ── end v70 t ──
+
+//
+// (A stable separator between the Version 7.0 sections: leave these lines as they are.)
+//
+// ── v70 e (Track E, rulings 900-929: city events) ──────────────────────────────────────────────────────────────────────
+// Add new lines just above the end marker: V70_HELP.e.push(...), V70_ADVICE_WORDS.event = ..., ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ...
+// Every cost and result on the card comes from src/sim/cityEvents.js eventChoices.
+// ── end v70 e ──
+
+//
+// (A stable separator between the Version 7.0 sections: leave these lines as they are.)
+//
+// ── v70 s (Track S, rulings 930-959: seasons, day and night, sound) ───────────────────────────────────────────────────
+// Add new lines just above the end marker: V70_HELP.s.push(...), the season names, the Settings rows' words, TIP_TEXT.<id> = ...
+// ── end v70 s ──
+
+//
+// (A stable separator between the Version 7.0 sections: leave these lines as they are.)
+//
+// ── v70 a (Track A, wave 2, rulings 960-974: the Advice fixes and the words for trade and events) ──────────────────────
+// Add new lines just above the end marker: V70_HELP.a.push(...), V70_ADVICE_WORDS.quay = ..., V70_ADVICE_WORDS.trade_floor = ..., TIP_TEXT.<id> = ...
+// ── end v70 a ──

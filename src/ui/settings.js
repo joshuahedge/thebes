@@ -31,6 +31,9 @@ export const DEFAULT_SETTINGS = {
   // Version 6.0 (Track 0 seam, Track D2 owns them; ruling 626): the lesson is the device's, never a city's. lessonDone: it has ended ("Your first city
   // stands"); lessonStep: the step reached (0 before it starts), for a lesson left part-way. src/ui/lesson.js lessonDue reads them.
   lessonDone: false, lessonStep: 0,
+  // Version 7.0 (Track 0 seam, Track S owns them): dayNight, the Settings switch "Day and night" (on: the six-minute light loop, unless Motion is
+  // Still); effectsVolume, the effects' volume beside musicVolume (MUSIC_VOLUMES steps; 100 is today's loudness), both under the Sound master.
+  dayNight: true, effectsVolume: 100,
 };
 
 const isBool = (v) => typeof v === 'boolean';
@@ -49,6 +52,8 @@ const VALID = {
   music: isBool,
   musicVolume: (v) => MUSIC_VOLUMES.includes(v),
   cardsSeen: isBool,
+  dayNight: isBool,
+  effectsVolume: (v) => MUSIC_VOLUMES.includes(v),
 };
 // Lists are copied on the way in and out of storage, so no caller can change the defaults or the stored copy.
 const copy = (v) => (Array.isArray(v) ? v.slice() : v);

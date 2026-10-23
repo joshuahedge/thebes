@@ -21,6 +21,7 @@ import { MONUMENTS } from './monuments.js';
 import { TIERS } from './housing.js';
 import { GOODS } from './goods.js';
 import { V60_GOALS, V60_EVENT_GOALS } from './v60.js';
+import { V70_GOALS, V70_EVENT_GOALS } from './v70.js';
 
 // Version 5.0 (Task 7): the street goals' one sentence (ruling 265's why).
 const STREET_WHY = 'Gardens, statues and sphinxes beside it raise it; workshops, farms and stores near it lower it. Its house sheet names the best one and where.';
@@ -91,6 +92,8 @@ export const GOALS = [
   { id: 'found_great_pyramid', chapter: 'monuments', from: 'capital', when: { kind: 'unlocked', type: 'pyramid_great' }, text: 'Found the great pyramid', reward: GOAL_REWARD, need: { kind: 'building', type: 'pyramid_great', n: 1 }, showMe: { category: 'monuments', item: 'pyramid_great', target: 'focus' } },
   // Version 6.0 (src/data/v60.js V60_GOALS): Track A's and Track C's rows, from their own data files.
   ...V60_GOALS,
+  // Version 7.0 (src/data/v70.js V70_GOALS): Track T's rows, from its own data file.
+  ...V70_GOALS,
 ];
 
 // The guided start (early-game pass 3.2) runs while any of these is open.
@@ -136,6 +139,8 @@ export const EVENT_GOALS = [
   { id: 'court_letter', trigger: 'court_letter', chapter: 'event', text: 'Answer the letter from the court', why: "Open it from the alert row or the summary. Sending what it asks earns the capital's favour.", reward: EVENT_REWARD, need: { kind: 'courtAnswered' }, showMe: null },
   // Version 6.0 (src/data/v60.js V60_EVENT_GOALS): Track A's and Track B1's rows, from their own data files.
   ...V60_EVENT_GOALS,
+  // Version 7.0 (src/data/v70.js V70_EVENT_GOALS): Track T's rows, from its own data file.
+  ...V70_EVENT_GOALS,
 ];
 
 // The opening chain (spec 4.1): Founded Thebes, already ticked when a city starts (an endowed start: it pays nothing and is

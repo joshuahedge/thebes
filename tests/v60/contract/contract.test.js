@@ -38,7 +38,7 @@ function v8City() {
 describe('v60 contract world v9', () => {
   it('creates a version 9 world: no great work, no demands, every danger quiet, the grace three game years, the new tallies at 0', () => {
     const w = createWorld({ seed: 4 });
-    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([9, 9, 9]);
+    expect([WORLD_VERSION, w.version, CURRENT_VERSION]).toEqual([10, 10, 10]);   // Version 7.0 made it 10 (tests/v70/contract)
     expect(Object.keys(w).sort()).toEqual([...REQUIRED].sort());
     for (const k of NEW_KEYS) expect(REQUIRED).toContain(k);
     expect([w.reign, w.demands, w.hazards]).toEqual([newReignState(), newDemandState(), newHazardState(GRACE_DAYS)]);
@@ -102,11 +102,11 @@ describe('v60 contract world v9', () => {
     for (const k of V60_TALLY) expect([k, v9.tally[k]]).toEqual([k, 0]);
     for (const k of STAGE47_TALLY) expect([k, v9.tally[k]]).toEqual([k, v8.tally[k]]);
     expect(validateWorld(v9)).toBe(true);
-    expect(migrate(v8)).toEqual(v9);
+    expect(migrate(v8)).toEqual(MIGRATIONS[9](v9));                                    // Version 7.0: the chain goes on to 10
     const back = deserialize(JSON.stringify(v8));                                       // loading runs the chain
-    expect([back.version, back.gold, back.milestone, back.buildings[manorId].w]).toEqual([9, 12345, 'capital', 2]);
+    expect([back.version, back.gold, back.milestone, back.buildings[manorId].w]).toEqual([10, 12345, 'capital', 2]);
     const packed = unpackSave(packSave(v8, { savedAt: 1760000000000, lastSpeed: 2 }));
-    expect([packed.world.version, packed.world.hazards.graceUntil]).toEqual([9, 2000 + GRACE_DAYS]);
+    expect([packed.world.version, packed.world.hazards.graceUntil]).toEqual([10, 2000 + GRACE_DAYS]);
   });
 
   it('keeps the new dangers away for three game years from the load, and from a new city\'s start', () => {
