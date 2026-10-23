@@ -28,7 +28,7 @@ import { hash2 } from './rng.js';
 import { DAYS_PER_MONTH } from './time.js';
 import { CITY_EVENTS, EVENT_DEFS, EVENT_NUMBERS, EVENT_SALT } from '../data/cityEvents.js';
 import { INCENSE_GOOD } from '../data/trade.js';
-import { GOODS, FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
+import { FOOD_GOODS, HOUSEHOLD_GOODS } from '../data/goods.js';
 import { GOOD_VALUE } from '../data/court.js';
 import { FESTIVAL } from '../data/raids.js';
 import { CRIME, CRIME_MOOD } from '../data/crime.js';
@@ -94,7 +94,9 @@ const feeOf = (world, row, extra = 0) => roundTo((Math.max(row.min, taxesOf(worl
 // A gain: the same, never scaled by the difficulty.
 const gainOf = (world, row) => roundTo(Math.max(row.min, taxesOf(world) * row.share), row.step, row.step);
 const workingOf = (world, types) => allBuildings(world).filter((b) => types.includes(b.type) && isWorking(world, b));
-const hasIncense = () => Boolean(GOODS[INCENSE_GOOD]);
+// Whether incense can reach the city (ruling 988): Punt's route is open (incense comes only from Punt) or a store already holds some. The full Opet festival is
+// offered only then; the card's words read this too.
+export const incenseReaches = (world) => Boolean(world.trade.routes.punt) || stockOf(world, INCENSE_GOOD) > 0;
 const festivalTooSoon = (world) => world.danger.festivalDay !== null && world.day - world.danger.festivalDay < FESTIVAL.every;
 const roomForPeople = (world) => vacancies(world).reduce((n, v) => n + v.free, 0);
 // The stocked good worth most gold in the stores among the goods homes use, with its stock: { good, stock, value } or null.
@@ -121,7 +123,7 @@ export const unrestMood = (world, n) => theftMood(theftCount(world) + n) - theft
 //   { kind: 'lose', good, n[, from] } goods lost (up to n, from the stores or the one store `from`): a loss is never refused
 //   { kind: 'favour', n }            the court's favour (n is the change asked: favourChange says what really happens)
 //   { kind: 'festival', n, days }    the temple festival's mood bonus for its days: it counts as the year's festival
-//   { kind: 'pause', ids, days }     those workplaces stop for the days (the player's own resume takes them back)
+//   { kind: 'pause', ids, days }     those workplaces stop for the days (the player's Resume is refused until they are up: ruling 987, commands.js setPaused)
 //   { kind: 'people', n }            n people settle into homes with room
 //   { kind: 'ill', ids }, { kind: 'cure', ids }   those homes fall ill, or those ill homes are cured
 //   { kind: 'unrest', n }            n thefts' worth of bad feeling on the mood row for CRIME_MOOD.days
@@ -177,7 +179,7 @@ function applyEffect(world, e, events) {
       const ids = e.ids.filter((id) => world.buildings[id] && !world.buildings[id].paused);
       for (const id of ids) world.buildings[id].paused = true;
       if (!Array.isArray(c.effects)) c.effects = [];
-      c.effects.push({ kind: 'pause', ids, until: world.day + e.days, event: true });   // in the court's list, so the player's own resume (commands.js releaseHolds) takes a building back
+      c.effects.push({ kind: 'pause', ids, until: world.day + e.days, event: true });   // in the court's list, ended by its days (commands.js eventHoldUntil: the player's Resume is refused until then)
       break;
     }
     case 'people': applyEffects(world, [{ kind: 'people', n: e.n }]); break;
@@ -192,8 +194,8 @@ function applyEffect(world, e, events) {
   }
 }
 
-// A pause the events started that the court is not awake to end (the court ends its own list from Market town on): its days are up, or the player took the
-// building back, so it is let go as the court would (src/sim/court.js endEffects).
+// A pause the events started that the court is not awake to end (the court ends its own list from Market town on): its days are up, or the building is gone,
+// so it is let go as the court would (src/sim/court.js endEffects).
 function endEventPauses(world) {
   const c = world.court;
   if (!c || !Array.isArray(c.effects) || !c.effects.some((e) => e.event === true)) return;
@@ -306,7 +308,7 @@ const CHOICES = {
   opet(world, f) {
     const out = { decline: [] };
     out.small = [goodsPay('beer', f.small), festival()];
-    if (hasIncense()) out.full = [goodsPay('beer', f.beer), goodsPay(INCENSE_GOOD, f.incense), festival(), favour(f.favour)];
+    if (incenseReaches(world)) out.full = [goodsPay('beer', f.beer), goodsPay(INCENSE_GOOD, f.incense), festival(), favour(f.favour)];
     return out;
   },
   envoy: (world, f) => ({ feast: [gold(-f.fee), favour(EVENT_NUMBERS.envoy.feast)], greet: [favour(EVENT_NUMBERS.envoy.greet)] }),

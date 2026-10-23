@@ -77,6 +77,7 @@ describe('v70 a words: wave 1 made exact', () => {
     w.day = 3 * YEAR;
     w.speed = 0;
     offer(w, 'opet');
+    w.trade.routes.punt = { since: 0, gifted: true };                                                                // incense reaches the city, so the full festival is offered (wave 3, ruling 988)
     const r = await rigUI({ world: w });
     try {
       r.ui.refresh();

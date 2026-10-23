@@ -3,3 +3,4 @@
 import './words.test.js';
 import './sim.test.js';
 import './ui.test.js';
+import './review.test.js';

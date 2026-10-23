@@ -3461,18 +3461,16 @@ Object.assign(TRADE_REASONS, { no_quay: V70_TRADE_TEXT.buildQuay, unknown_partne
 // Add new lines just above the end marker: V70_HELP.e.push(...), V70_ADVICE_WORDS.event = ..., ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ...
 // Every cost and result on the card comes from src/sim/cityEvents.js eventChoices.
 import { CITY_EVENTS as cevRules, EVENT_DEFS as cevDefs, EVENT_NUMBERS as cevNum } from '../data/cityEvents.js';
-import { INCENSE_GOOD as cevIncense } from '../data/trade.js';
 import { FESTIVAL as cevFestival } from '../data/raids.js';
 import { HEALTH_MOOD as cevHealthMood } from '../data/health.js';
 import { CRIME_MOOD as cevCrimeMood } from '../data/crime.js';
-import { unrestMood as cevUnrestMood, thiefCovered as cevThiefCovered, eventChoices as cevChoices, waitingEvent as cevWaiting } from '../sim/cityEvents.js';
+import { unrestMood as cevUnrestMood, thiefCovered as cevThiefCovered, eventChoices as cevChoices, waitingEvent as cevWaiting, incenseReaches as cevIncenseReaches } from '../sim/cityEvents.js';
 import { favourChange as cevFavourChange, stockOf as cevStockOf } from '../sim/court.js';
 import { DAYS_PER_MONTH as cevMonthDays } from '../sim/time.js';
 
 const cevMonths = (n) => plural(n, 'month', 'months');
 const cevMonthsOf = (days) => cevMonths(Math.max(1, Math.round(days / cevMonthDays)));
 const cevGood = (good) => goodName(good).toLowerCase();
-const cevHasIncense = () => Boolean(GOODS[cevIncense]);
 const cevSigned = (n) => `${n < 0 ? '−' : '+'}${Math.abs(n)}`;
 const cevCap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const cevCovered = (f, world) => (world && f && world.buildings[f.store] ? cevThiefCovered(world, f) : false);
@@ -3518,8 +3516,9 @@ function cevProblem(c, world) {
 const cevKinds = {
   opet: {
     title: 'The Festival of Opet',
-    body: (f) => `The priests ask to hold the Festival of Opet. ${cevHasIncense() ? 'It takes beer and incense.' : 'No incense reaches the city yet, so it can only be a smaller festival, with beer alone.'} It lifts mood by ${cevFestival.mood} for ${cevMonthsOf(cevFestival.days)}.`,
-    labels: { full: 'Hold the full festival', small: () => (cevHasIncense() ? 'Hold a smaller festival, beer only' : 'Hold the smaller festival, beer only'), decline: 'Not this year' },
+    // f.incense is whether incense can reach the city (CITY_EVENT_TEXT.body fills it from the sim's incenseReaches), not the offer's amount.
+    body: (f) => `The priests ask to hold the Festival of Opet. ${f.incense ? 'It takes beer and incense.' : 'No incense reaches the city yet, so it can only be a smaller festival, with beer alone.'} It lifts mood by ${cevFestival.mood} for ${cevMonthsOf(cevFestival.days)}.`,
+    labels: { full: 'Hold the full festival', small: 'Hold a smaller festival, beer only', decline: 'Not this year' },
   },
   envoy: {
     title: 'An envoy at the gate',
@@ -3601,7 +3600,7 @@ const cevLabel = (kind, id) => { const l = cevKinds[kind].labels[id]; return typ
 
 export const CITY_EVENT_TEXT = {
   title: (kind) => (cevKinds[kind] ? cevKinds[kind].title : 'A city event'),
-  body: (event, world) => cevKinds[event.kind].body(event.figs, world),
+  body: (event, world) => cevKinds[event.kind].body(event.kind === 'opet' ? { ...event.figs, incense: cevIncenseReaches(world) } : event.figs, world),
   label: cevLabel,
   consequence: (effects, world, kind = null, choice = null) => cevConsequence(effects, world, kind && cevKinds[kind].keeps && choice ? cevKinds[kind].keeps[choice] || '' : ''),
   effect: cevEffect,
@@ -3701,10 +3700,16 @@ TIP_TEXT.night_falls = 'Night falls and the lamps light. Nothing is hidden, and 
 // turned out to say more than the sim does is worded again here, by reassignment, as 6.0's tracks did.
 import { DEFENCE as a7Defence } from '../data/raids.js';
 import { QUAY_TYPE as a7Quay, QUAY_SIZE as a7QuaySize, TRADE_REACH as a7Reach, TRADE_BUILDINGS as a7TradeBuildings, CARAVAN_EVERY_MONTHS as a7Every } from '../data/trade.js';
-import { sensibleMonthly as a7Sensible } from '../sim/adviceFixes.js';
+import { sensibleMonthly as a7Sensible, makerTypeOf as a7MakerType } from '../sim/adviceFixes.js';
 
 const a7An = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
 const a7Name = (type) => buildingName(type).toLowerCase();
+// The building that makes a good, as a lower-case word ("potter"); `good` is the good's id or its lower-case name (the step is handed the name), none known: "maker".
+const a7MakerWord = (good) => {
+  const id = !good ? null : GOODS[good] ? good : Object.keys(GOODS).find((g) => GOODS[g].name.toLowerCase() === good) || null;
+  const type = id ? a7MakerType(id) : null;
+  return type ? a7Name(type) : 'maker';
+};
 const a7Where = (guard) => (guard ? `the ${a7Name(guard.type)} the raiders strike first` : 'where the city began');
 const a7Cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -3716,9 +3721,17 @@ export const ADVICE_FIX_TEXT = {
   towerNoRoom: (guard) => `No free tile lies within ${a7Defence.towerRange} tiles of ${a7Where(guard)}`,
   towerNoRoomFix: 'Clear a tile near it, then a road beside the tile',
   // Stranded goods: a store of its own by the bazaar, when one cart could not bring an order's worth a month from the store that holds the good.
-  strandedFix: (far) => `Build ${a7An(a7Name(far.item))} near this bazaar${far.maker !== null && far.maker !== undefined ? ', where what is made can reach it' : ''}: ${far.perMonth > 0 ? `one cart would bring only ${far.perMonth} a month` : 'one cart could not bring a load in a month'} from ${far.len} road tiles away, under the ${a7Sensible()} that one order asks`,
+  // With no maker in reach of the new store (far.maker null) it fills only by a Fetch order over the same slow run (ruling 989), and the words say so with the cart's real
+  // monthly amount; with a maker in reach the store fills from it. The card knows no good: it says "a maker"; the step names the maker the good comes from.
+  strandedFix: (far, good = null) => {
+    const maker = far.maker !== null && far.maker !== undefined, slow = far.perMonth > 0 ? `one cart brings about ${far.perMonth} a month` : 'one cart could not bring a load in a month';
+    if (!maker) return `Build ${a7An(a7Name(far.item))} near this bazaar, then set a Fetch order on it: ${slow} from ${far.len} road tiles away, under the ${a7Sensible()} that one order asks; ${a7An(a7MakerWord(good))} in reach fills it faster`;
+    return `Build ${a7An(a7Name(far.item))} near this bazaar, where what is made can reach it: ${far.perMonth > 0 ? `one cart would bring only ${far.perMonth} a month` : 'one cart could not bring a load in a month'} from ${far.len} road tiles away, under the ${a7Sensible()} that one order asks`;
+  },
   // The house sheet's next step for the same cause: "a storehouse near the bazaar (70 gold) keeps pottery where the bazaar draws it: ...".
-  strandedStep: (far, price, good) => `${a7An(a7Name(far.item))} near the bazaar (${price}) keeps ${good} where the bazaar draws it: one cart would bring ${far.perMonth > 0 ? `only ${far.perMonth}` : 'no load'} a month from the store ${far.len} road tiles away`,
+  strandedStep: (far, price, good) => (far.maker !== null && far.maker !== undefined
+    ? `${a7An(a7Name(far.item))} near the bazaar (${price}) keeps ${good} where the bazaar draws it: one cart would bring ${far.perMonth > 0 ? `only ${far.perMonth}` : 'no load'} a month from the store ${far.len} road tiles away`
+    : `${a7An(a7Name(far.item))} near the bazaar (${price}) holds ${good} where the bazaar draws it, then set a Fetch order on it: ${far.perMonth > 0 ? `one cart brings about ${far.perMonth} a month` : 'one cart brings no load in a month'} from the store ${far.len} road tiles away; ${a7An(a7MakerWord(good))} in reach fills it faster`),
   // The Quay missing for an open river route.
   quayWhat: (names) => `${listText(names)} ${names.length === 1 ? 'has an open route' : 'have open routes'} and no Quay for ${names.length === 1 ? 'its boats' : 'their boats'} to land at`,
   quayWhy: `Boats land only at a Quay: ${a7QuaySize.w} by ${a7QuaySize.d}, a long side on the river and a road beside it. None comes until one stands`,
@@ -3731,7 +3744,7 @@ export const ADVICE_FIX_TEXT = {
   },
   floorWhy: (d) => {
     const g = d.goods[0];
-    return `${g.stock} in storage near the ${g.at === 'quay' ? 'Quay' : 'trading post'}; ${partnerName(g.partner)} would pay ${g.gold} gold for ${g.blocked}. ${d.have < 0 ? 'The treasury is below 0' : S45_TEXT.runsOutIn(d.monthsLeft)}`;
+    return `${g.stock} in storage near the ${g.at === 'quay' ? 'Quay' : 'trading post'}; ${partnerName(g.partner)}${g.partners > 1 ? ` and ${plural(g.partners - 1, 'other partner', 'other partners')}` : ''} would pay ${g.gold} gold for ${g.blocked}. ${d.have < 0 ? 'The treasury is below 0' : S45_TEXT.runsOutIn(d.monthsLeft)}`;
   },
   floorFix: (d) => `Open Trade and lower Keep at least for ${goodName(d.goods[0].good).toLowerCase()}`,
 };
@@ -3761,7 +3774,7 @@ V70_ADVICE_WORDS.trade_floor = (a) => ({ what: ADVICE_FIX_TEXT.floorWhat(a.data)
 }
 // The Festival of Opet: the beer-only festival gives the same mood as the full one (src/sim/cityEvents.js CHOICES.opet: it adds no favour), so it is
 // "without favour", not a smaller festival (the beer it takes is smaller, and the card says how much).
-cevKinds.opet.body = () => `The priests ask to hold the Festival of Opet. ${cevHasIncense() ? 'It takes beer and incense.' : 'No incense reaches the city yet, so it can only be held without favour, with beer alone.'} It lifts mood by ${cevFestival.mood} for ${cevMonthsOf(cevFestival.days)}.`;
+cevKinds.opet.body = (f) => `The priests ask to hold the Festival of Opet. ${f.incense ? 'It takes beer and incense.' : 'No incense reaches the city yet, so it can only be held without favour, with beer alone.'} It lifts mood by ${cevFestival.mood} for ${cevMonthsOf(cevFestival.days)}.`;
 cevKinds.opet.labels.small = () => 'Hold it without favour, beer only';
 {
   const e = V70_HELP.e.find((p) => p.head === 'City events');
@@ -3769,6 +3782,9 @@ cevKinds.opet.labels.small = () => 'Hold it without favour, beer only';
 }
 // The card's refusal caption when the city changed under an answer (src/ui/v70/cityEvents.js answer).
 CITY_EVENT_TEXT.changed = 'The city changed: the card shows the new figures';
+// A strike or quarrel holds until its days are up (ruling 987, src/sim/commands.js setPaused): the building sheet's Resume is off, with this line under it.
+Object.assign(REASONS, { event_hold: "Held until the event ends: the event's choice" });
+CITY_EVENT_TEXT.hold = (until, type) => `${type === 'quarry' ? 'On strike' : 'Stopped by a quarrel'} until ${courtDate(until).toLowerCase()}: the event's choice`;
 
 // How to play: what City advice says now, and the Quay.
 V70_HELP.a.push(
@@ -3777,7 +3793,8 @@ V70_HELP.a.push(
   { head: 'Trade and events in City advice', text: `City advice lists three more things: an event waiting for your answer, a river route open with no Quay to land at, and a Keep at least level that holds back sales while the treasury is running out. Each says what to do and opens the right place: the event's card, the riverbank, or the Trade sheet. Keep at least is also why a caravan or boat sells nothing: it counts only what is stored near its trading post or Quay.` },
 );
 TIP_TEXT.quay_boats = 'A Quay is where boats land: on the river, beside a road. Open a river route in Trade.';
-TIP_TEXT.trade_levels = 'A route is open. In Trade, switch off goods to leave alone, and set Keep at least for home.';
+// (Twenty words at most, as every tip: tests/ui/tips.test.js.)
+TIP_TEXT.trade_levels = 'In Trade, switch off goods to leave alone; set Keep at least so trade never sells what the city needs.';
 // ── end v70 a ──
 
 //
@@ -3793,17 +3810,17 @@ export const P_TEXT = {
   // Delete and Backspace (ruling 1001): the tooltips of the buttons they press.
   undoTitle: (keys = true) => (keys ? 'Undo (Ctrl+Z or Delete)' : 'Undo (Ctrl+Z)'),
   demolishTitle: 'Demolish (Delete)',
-  removeRow: 'Take back what you just placed while Undo is offered; otherwise demolish the building whose sheet is open',
+  removeRow: 'Demolish the building whose sheet is open; with no sheet open, take back what you just placed while its Undo is offered',
   // The placing bar's reason line (ruling 1008, src/ui/placementWhy.js): every rule that fails, in plain words and with the sim's own counts, led by what the colour means.
   // Coral means it cannot be placed here; amber means it can, but will not work until the rest is met; blue means everything is met.
   place: {
     leadCant: "Can't place here",
     leadLater: "Won't work yet",
     // A square-count clause, short enough that two lines hold a phone's worst case: "2 of 4 squares are taken".
-    taken: (n, of) => `${n} of ${of} squares are taken`,
-    inWater: (n, of) => `${n} of ${of} squares are water`,
-    hills: (n, of) => `${n} of ${of} squares are hills`,
-    offMap: (n, of) => `${n} of ${of} squares are off the map`,
+    taken: (n, of) => `${n} of ${of} squares ${n === 1 ? 'is' : 'are'} taken`,
+    inWater: (n, of) => `${n} of ${of} squares ${n === 1 ? 'is' : 'are'} water`,
+    hills: (n, of) => `${n} of ${of} squares ${n === 1 ? 'is' : 'are'} hills`,
+    offMap: (n, of) => `${n} of ${of} squares ${n === 1 ? 'is' : 'are'} off the map`,
     // The terrain rule, counted over the footprint as the sim counts it: "fertile land under 2 of 4 squares: all 4 needed" (a looser rule: "clay under 1 of 4 squares: 2 needed").
     terrain: (terrain, fit, of, need) => `${S46_MAP_TEXT.ground[terrain]} under ${fit} of ${of} squares: ${need >= of ? `all ${of}` : need} needed`,
     water: { longSide: 'no water along a long side', touch: 'no water beside it', river: 'no river beside it (an oasis pool does not count)' },
@@ -3825,13 +3842,14 @@ export const P_TEXT = {
 // How to play's key table: Delete and Backspace, after Undo.
 HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'undo') + 1, 0, ['remove', P_TEXT.removeRow]);
 // The keys as a player reads them, from KEYS, so the words cannot drift from the keys.
-const pKey = (name) => [...new Set((KEYS[name] || []).map((k) => ({ ' ': 'Space', Escape: 'Esc' }[k] || (k.length === 1 ? k.toUpperCase() : k))))].join(' or ');
+// A one-character punctuation key is quoted ("]" or "."), so it is not lost in the sentence.
+const pKey = (name) => [...new Set((KEYS[name] || []).map((k) => ({ ' ': 'Space', Escape: 'Esc' }[k] || (k.length !== 1 ? k : /[a-z0-9]/i.test(k) ? k.toUpperCase() : `"${k}"`))))].join(' or ');
 V70_HELP.p.push({
   head: 'Keyboard',
-  text: `On a computer: ${pKey('pause')} pauses and plays, ${pKey('speedUp')} and ${pKey('speedDown')} change the speed, ${pKey('zoomIn')} and ${pKey('zoomOut')} zoom, Arrows or WASD move the view, ${KEYS.category[0]} to ${KEYS.category[KEYS.category.length - 1]} pick a build category, ${pKey('rotate')} turns what can turn, ${pKey('minimap')} opens the minimap, ${pKey('overlay')} cycles the layers and ${pKey('help')} opens How to play. While you place, ${pKey('confirm')} places and ${pKey('back')} puts the tool away. Undo is Ctrl+Z (Cmd+Z on a Mac); ${pKey('remove')} does the same while the Undo of what you just placed is still on offer, and otherwise demolishes the building whose sheet is open, with the same question first when it asks one. A lesson step's card closes with Enter, Space or Esc. Settings → Keyboard shortcuts turns the single keys off; Esc, Enter and Ctrl+Z always work.`,
+  text: `On a computer: ${pKey('pause')} pauses and plays, ${pKey('speedUp')} and ${pKey('speedDown')} change the speed, ${pKey('zoomIn')} and ${pKey('zoomOut')} zoom, Arrows or WASD move the view, ${KEYS.category[0]} to ${KEYS.category[KEYS.category.length - 1]} pick a build category, ${pKey('rotate')} turns what can turn, ${pKey('minimap')} opens the minimap, ${pKey('overlay')} cycles the layers and ${pKey('help')} opens How to play. While you place, ${pKey('confirm')} places and ${pKey('back')} puts the tool away. Undo is Ctrl+Z (Cmd+Z on a Mac), which also takes back a demolish. ${pKey('remove')}: ${P_TEXT.removeRow.charAt(0).toLowerCase()}${P_TEXT.removeRow.slice(1)}; a demolish's sheet asks its question first, and nothing happens over a dialog or a lesson card. A lesson step's card closes with Enter, Space or Esc. Settings → Keyboard shortcuts turns the single keys off; Esc, Enter and Ctrl+Z always work, and Space closes a lesson card.`,
 });
 V70_HELP.p.push({
   head: 'Placing a building: the squares and the colours',
-  text: `While you place a building, each square of its footprint shows whether it is right: a blue square is right, a square with coral stripes and a cross is wrong (taken, water, hills, off the map, or not the ground the building stands on), and an amber striped square is free ground that is not the kind the building needs. The line round the whole ghost and the mark in its middle say what the building as a whole does. Blue: everything is met. Amber: "${P_TEXT.place.leadLater.toLowerCase()}": it can be placed, but something it needs is missing, such as a road touching one of its sides (a road one tile away does not count; the marked squares are where one would touch) or a store in reach. Coral: "${P_TEXT.place.leadCant.toLowerCase()}": at least one rule is broken, and the line under the name says each one with its count. While everything is met the line says what the building needs, and the ground it can go on is marked lightly on the map.`,
+  text: `While you place a building, each square of its footprint shows whether it is right: a blue square is right, a square with coral stripes and a cross is wrong (taken, water, hills, off the map, or not the ground the building stands on), and an amber striped square is free ground that is not the kind the building needs; a faint dashed square is ${P_TEXT.place.squarePlain}. The line round the whole ghost and the mark in its middle say what the building as a whole does. Blue: everything is met. Amber: "${P_TEXT.place.leadLater.toLowerCase()}": it can be placed, but something it needs is missing, such as a road touching one of its sides (a road one tile away does not count; the marked squares are where one would touch) or a store in reach. Coral: "${P_TEXT.place.leadCant.toLowerCase()}": at least one rule is broken, and the line under the name says each one with its count. While everything is met the line says what the building needs, and the ground it can go on is marked lightly on the map.`,
 });
 // ── end v70 p ──

@@ -7,7 +7,7 @@ import { GOODS, FOOD_GOODS } from '../data/goods.js';
 import { houseStatus, needCause } from '../sim/housing.js';
 import { causeFix as needFix, unmadeFix as simUnmadeFix, nextStep, fetchStoreFor, buildFixFor, lockedFixFor, priceOf } from '../sim/advice.js';
 import { desirabilityContributors } from '../sim/desirability.js';
-import { setPaused, setAccept } from '../sim/commands.js';
+import { setPaused, setAccept, eventHoldUntil } from '../sim/commands.js';
 import { assignLabour, isWorking } from '../sim/labour.js';
 import { storeTotal, storeAccepts } from '../sim/production.js';
 import { roadGoods } from '../sim/carts.js';
@@ -27,7 +27,7 @@ import { supplyNeeded } from '../sim/monuments.js';
 import { huntRest } from '../sim/wildlife.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 import { seasonAt } from '../sim/seasons.js';
-import { SEASON_TEXT, seasonMonths, P_TEXT } from './text.js';
+import { SEASON_TEXT, seasonMonths, P_TEXT, CITY_EVENT_TEXT } from './text.js';
 import { LARGE_TEXT, S47_PRESSURE_TEXT, buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
   contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
 import { ANOTHER_TEXT } from './areaText.js';
@@ -173,15 +173,19 @@ export function createSheets({ container, store, world, placement, cameraControl
     const actions = el('div', { class: 'actions' }, sheetActions.filter((n) => !harvest.includes(n)));
     // The trading post's routes and orders live on their own sheet (spec 4.15); Back comes back here.
     if (b.type === 'trading_post') actions.append(button(T.trade, { class: 'trade primary', onClick: () => store.set(openSheet(store.get(), 'trade', b.id)) }));
+    let holdLine = null;
     if (def.workers || def.upkeep) {
-      actions.append(button(b.paused ? T.resume : T.pause, { class: 'pause', onClick: () => {
+      // A strike or quarrel a city event started holds until its day (ruling 987): Resume is off, with the reason and the day under it.
+      const hold = b.paused ? eventHoldUntil(world, b.id) : null;
+      actions.append(button(b.paused ? T.resume : T.pause, { class: 'pause', disabled: hold !== null, ...(hold !== null ? { 'aria-describedby': `hold-${b.id}` } : {}), onClick: () => {
         const r = setPaused(world, b.id, !b.paused);
         if (r.ok) { assignLabour(world); afterCommand({ kind: 'pause', result: r, text: b.paused ? T.paused : T.resumed, undoable: false }); render(); }
       } }));
+      if (hold !== null) holdLine = (el('p', { class: 'small coral event-hold', id: `hold-${b.id}`, text: `${CITY_EVENT_TEXT.hold(hold, b.type)}.` }));
     }
     // Rubble's Clear (Stage 3, src/ui/dangerSheets.js) is its demolish, with the price in its name.
     if (b.type !== 'rubble') actions.append(...[anotherButton(b), demolishButton(() => demolishNow(b))].filter(Boolean));
-    body.append(actions, ...[anotherLine(b)].filter(Boolean));
+    body.append(actions, ...[holdLine, anotherLine(b)].filter(Boolean));
     return [head(buildingName(b.type)), body];
   }
 
