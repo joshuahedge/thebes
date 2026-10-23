@@ -271,6 +271,9 @@ Object.assign(PICTURES, {
   async raid(g, api) {
     await raidBurnScene(api, { look: 'ruins', quick: true, zoom: 1.5, hold: 100 });
     const h = api.game();
+    // The goals row under the alert (a court letter to answer) is the game's own, not the card's thing: the picture shows the alert and the rubble alone.
+    const goals = document.querySelector('#goals');
+    if (goals) goals.style.display = 'none';
     const rubble = Object.values(h.world.buildings).filter((b) => b.type === 'rubble' && b.was && b.was.cause === 'wreck');
     if (!rubble.length) throw new Error('devScene tutorial: the raid wrecked nothing');
     const x0 = Math.min(...rubble.map((b) => b.x)), y0 = Math.min(...rubble.map((b) => b.y));
