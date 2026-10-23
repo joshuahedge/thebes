@@ -1,8 +1,10 @@
 // Version 6.0, Track B1: what the new dangers may do now, and the seeded draws they share (src/sim/hazards.js re-exports dangerDraws, which
 // the contract named there). Pure: nothing here reads the clock or Math.random; every draw is hash2(a, b, (world.seed + HAZARD_SALT.x) | 0).
 // plague.js, crops.js, strikes.js and raids.js import this file (not hazards.js, which imports them), so no module cycles through the hub.
-import { HAZARD_LEVELS, HAZARD_SALT, BAND_GROWTH } from '../data/hazards.js';
+import { HAZARD_LEVELS, HAZARD_SALT, BAND_GROWTH, GREAT_WORK_EASE } from '../data/hazards.js';
+import { GREAT_WORK } from '../data/reign.js';
 import { raidsOn, threatsOn } from './costs.js';
+import { allBuildings, isSite } from './world.js';
 import { hash2 } from './rng.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 
@@ -16,18 +18,27 @@ import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 //   raids       whether the city has raids at all (Peaceful has none: DIFFICULTIES[..].raids)
 //   plague, drought, locusts  whether that danger may be drawn now (open, and for the plague, a level that has disease: never Peaceful)
 //   strikes     { burn, wreck, loot }: the strike hooks that may act now (src/sim/strikes.js); burn always (today's strike)
+//   temple      Version 6.0.1 (ruling 800): the great temple rises (founded, not finished)
+//   harm        how hard plague, the low Nile, locusts and blight strike now: severity, times GREAT_WORK_EASE.severity while the temple rises (raids
+//               and fire keep `severity`); at 0 they are not drawn (plague, drought and locusts false) and a warning given lapses (hazards.js)
 export function dangerDraws(world) {
   const level = HAZARD_LEVELS[world.difficulty] || HAZARD_LEVELS.normal;
   const graceUntil = world.hazards.graceUntil;
   const open = world.day >= graceUntil;
   const raids = raidsOn(world);
+  const temple = templeRising(world), harm = level.severity * (temple ? GREAT_WORK_EASE.severity : 1);
+  // With no strength left (harm 0) none of the three is drawn or warned while the temple rises, as in the grace (hazards.js spareWarned lets one warned before it lapse).
+  const eased = open && harm > 0;
   return {
     open, graceUntil, daysLeft: Math.max(0, graceUntil - world.day),
-    chance: level.chance, severity: level.severity, raids,
-    plague: open && level.plague && threatsOn(world), drought: open, locusts: open,
+    chance: level.chance, severity: level.severity, raids, temple, harm,
+    plague: eased && level.plague && threatsOn(world), drought: eased, locusts: eased,
     strikes: { burn: true, wreck: open && raids, loot: open && raids },
   };
 }
+
+// Whether the great temple rises: founded and not finished (the same question as pressure.js greatWorkRising, asked here so the draws need no court module).
+export const templeRising = (world) => allBuildings(world).some((b) => b.type === GREAT_WORK.type && isSite(b));
 
 // A seeded draw in [0, 1): hash2(a, b, seed + HAZARD_SALT[salt]).
 export const hazardDraw = (world, a, b, salt) => hash2(a, b, (world.seed + HAZARD_SALT[salt]) | 0);

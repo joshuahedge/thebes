@@ -181,10 +181,11 @@ describe('s46 final releases: every version has its build (ruling 459)', () => {
     renderWhatsNew(host, () => {}, RELEASES, { stamp: 'abc1234' });
     const heads = [...host.querySelectorAll('.release h3')].map((h) => h.textContent);
     expect(heads[0].startsWith(S46_UX_TEXT.releaseHead(RELEASES[0].version, releaseDateText(RELEASES[0].date), 'abc1234'))).toBe(true);
-    expect(heads[1].startsWith(`Version 5.0 · ${releaseDateText(RELEASES[1].date)} · build 2653e92`)).toBe(true);   // Version 6.0: 5.0 gets its merge commit
-    expect(heads[2].startsWith(`Version 4.7 · ${releaseDateText(RELEASES[2].date)} · build eef5ccb`)).toBe(true);   // Version 5.0: 4.7 gets its merge commit
-    expect(heads[3].startsWith(`Version 4.6 · ${releaseDateText(RELEASES[3].date)} · build ed005c5`)).toBe(true);
-    expect(heads[4].startsWith(`Version 4.5 · ${releaseDateText(RELEASES[4].date)} · build b444b16`)).toBe(true);
+    expect(heads[1].startsWith(`Version 6.0 · ${releaseDateText(RELEASES[1].date)} · build 588116e`)).toBe(true);   // Version 6.0.1: 6.0 gets its merge commit
+    expect(heads[2].startsWith(`Version 5.0 · ${releaseDateText(RELEASES[2].date)} · build 2653e92`)).toBe(true);   // Version 6.0: 5.0 gets its merge commit
+    expect(heads[3].startsWith(`Version 4.7 · ${releaseDateText(RELEASES[3].date)} · build eef5ccb`)).toBe(true);   // Version 5.0: 4.7 gets its merge commit
+    expect(heads[4].startsWith(`Version 4.6 · ${releaseDateText(RELEASES[4].date)} · build ed005c5`)).toBe(true);
+    expect(heads[5].startsWith(`Version 4.5 · ${releaseDateText(RELEASES[5].date)} · build b444b16`)).toBe(true);
     const later = document.createElement('div');                              // the stamp read a moment later
     renderWhatsNew(later, () => {}, RELEASES, { read: async () => 'def5678' });
     expect(later.querySelector('.release h3').textContent.includes('build')).toBe(false);

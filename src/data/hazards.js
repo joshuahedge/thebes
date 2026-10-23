@@ -37,6 +37,14 @@ export const HAZARD_LEVELS = {
   hard: { chance: 1.25, severity: 1.25, plague: true },
 };
 
+// ── The great temple's ease (Version 6.0.1, rulings 800-801; src/sim/draws.js dangerDraws `harm`) ──
+// While the great temple rises (founded and not finished), plague, the low Nile, locusts and blight strike at `severity` of their strength on the city's
+// level: a plague's spread and the people it takes, the low Nile's cut and the swarm's or the blight's loss (a low Nile or a swarm that struck before the
+// founding keeps its strength). Raids and fire are unchanged. The finale is a build and defend test. At 0 none of the four is drawn or warned while it
+// rises, and one warned before the founding lapses (src/sim/hazards.js spareWarned); above 0 they come and are warned as often as ever. Ruling 801: half
+// (0.5) was measured first and won seed 10 but not the tuned seed 5 (course 8 of 10 by day 7,200), so it is 0.
+export const GREAT_WORK_EASE = { severity: 0 };
+
 // ── Raid strikes (src/sim/strikes.js) ──
 // The three things a band does to a building it reaches (ruling 625): burn (a blaze through the fire rules; today's strike), wreck (part
 // of it falls to rubble, which keeps what stood there: see the contract, rubble's `was`) and loot (goods and food taken from a granary or

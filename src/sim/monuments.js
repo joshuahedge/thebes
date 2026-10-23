@@ -65,10 +65,12 @@ function takeStored(world, good, n) {
 }
 // Version 6.0 (Wave 4 fix, rulings 786): where to look when the stores hold less of a good than a stage's offering asks: { store, producer }: store the id of the
 // store holding most of the good (ties: the lower id), or null when none holds any; producer the building type that makes it, or null.
+// Version 6.0.1 (ruling 805): maker the id of a producer of it that stands (one at work first, then the lower id), or null: while one stands the words say to wait for it, not to build another.
 export function offeringSource(world, good) {
   const held = allBuildings(world).filter((b) => storesGood(b, good) && (b.store[good] || 0) > 0).sort((p, q) => q.store[good] - p.store[good] || p.id - q.id)[0] || null;
   const producer = Object.keys(BUILDINGS).find((t) => BUILDINGS[t].produces && BUILDINGS[t].produces.good === good) || null;
-  return { store: held ? held.id : null, producer };
+  const maker = producer === null ? null : allBuildings(world).filter((b) => b.type === producer).sort((p, q) => Number(Boolean(p.blocked)) - Number(Boolean(q.blocked)) || p.id - q.id)[0] || null;
+  return { store: held ? held.id : null, producer, maker: maker ? maker.id : null };
 }
 // Whether the great work at b must have its stage's offering before course `course` can begin.
 function offeringDue(world, b, course = b.site.course) {

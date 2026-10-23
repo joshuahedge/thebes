@@ -18,7 +18,7 @@ import { isUnlocked } from '../../sim/progression.js';
 import { BUILDINGS } from '../../data/buildings.js';
 import { DROUGHT } from '../../data/hazards.js';
 import { el, button } from '../components.js';
-import { B1_TEXT as B1, T } from '../text.js';
+import { B1_TEXT as B1, V601_TEXT, T } from '../text.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
 const line = (text, cls = 'small muted') => el('p', { class: cls, text });
@@ -174,6 +174,7 @@ export function createHazardsUi(ctx) {
         else if (e.type === 'locusts_strike') caption(C.locusts_strike(e));
         else if (e.type === 'locusts_end') caption(C.locusts_end(e));
         else if (e.type === 'raid_wreck') { caption(C.raid_wreck(e.kind)); tip('rubbleWrecked'); }
+        else if (e.type === 'hazard_spared') caption(V601_TEXT.spared(e.kind));   // Version 6.0.1 (ruling 800): a warning lapses as the great temple rises
       }
     },
   };

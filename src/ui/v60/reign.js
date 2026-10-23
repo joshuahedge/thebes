@@ -11,7 +11,8 @@
 import { seamBase } from '../s46/seam.js';
 import { el, button } from '../components.js';
 import { openSheet, closeSheet } from '../modes.js';
-import { V60_REIGN_TEXT as R, buildingName, viewLabel, T } from '../text.js';
+import { V60_REIGN_TEXT as R, V601_TEXT, buildingName, viewLabel, T } from '../text.js';
+import { dangerDraws } from '../../sim/draws.js';
 import { courtDemands, demandStatus, demandFavour, acceptDemand, declineDemand, meetDemand, greatWorkOf } from '../../sim/demands.js';
 import { greatWorkStatus, offeringOf, siteProgress, isGreatWork } from '../../sim/monuments.js';
 import { MILESTONES } from '../../data/progression.js';
@@ -115,6 +116,7 @@ export const createReignUi = (ctx) => {
     if (state === 'ready') {
       body.append(line(R.greatReady, 'great-ready'), line(R.greatCost(costOf(world, GREAT_WORK.type), costScale(world).monuments), 'great-cost'));
       body.append(el('ol', { class: 'offerings' }, R.offeringsList(world, offeringOf).map((t) => el('li', { class: 'small', text: t }))));
+      body.append(line(V601_TEXT.easeLine(dangerDraws(world).temple), 'small great-ease'));   // Version 6.0.1 (ruling 800): the dangers ease while it rises
       body.append(el('div', { class: 'actions' }, [button(R.greatFound, { class: 'found primary', 'aria-label': `${R.greatFound}: ${buildingName(GREAT_WORK.type)}`, onClick: () => ctx.showMeAt({ category: 'monuments', item: GREAT_WORK.type, x: world.focus.x, y: world.focus.y }) })]));
     }
     if (state === 'rising') {
@@ -124,6 +126,7 @@ export const createReignUi = (ctx) => {
         el('span', { class: 'fill', style: { width: `${Math.floor(p.done * 100)}%` } })]));
       if (s.offering) body.append(line(R.offeringLine(s.offering), s.offering.have >= s.offering.n ? 'small offering' : 'small coral offering'));
       body.append(el('ol', { class: 'offerings' }, R.offeringsList(world, offeringOf).map((t, i) => el('li', { class: i < s.offered ? 'small muted done' : 'small', text: `${t}${i < s.offered ? ' ✓' : ''}` }))));
+      body.append(line(V601_TEXT.easeLine(dangerDraws(world).temple), 'small great-ease'));
       body.append(el('div', { class: 'actions' }, [button(T.view, { class: 'view', 'aria-label': viewLabel(buildingName(gw.type)), onClick: () => ctx.selectBuilding(gw.id) })]));
     }
     if (state === 'won') {

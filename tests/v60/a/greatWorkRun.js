@@ -11,16 +11,19 @@
 //     sheets' Pause), so their guilds' workers go to it. Its offerings leave the stores by themselves as each stage begins.
 // It records each year's end (gold, favour, people, rank, the great temple's course and stage), the day each rank was reached, the founding, each
 // offering, and the day the reign is won.
-import { grandRun, playMonth, sendTribute, GRAND_YEARS } from '../../v50/grand/grandRun.js';
+import { grandRun, playMonth, sendTribute, setHabits, freeIdle, feedFirst, act, GRAND_YEARS } from '../../v50/grand/grandRun.js';
+import { causeFix } from '../../../src/ui/monumentSheet.js';
 import { answerCourt } from './answer.js';
 import { serialize, deserialize } from '../../../src/save/serialize.js';
 import { advanceDays } from '../../../src/sim/clock.js';
+import { drawRoute } from '../../../src/sim/route.js';
+import { undo } from '../../../src/sim/undo.js';
 import { place, canPlace, drawRoad, paintHouses, setPaused } from '../../../src/sim/commands.js';
 import { assignLabour } from '../../../src/sim/labour.js';
 import { allBuildings, population, housesOf, isSite } from '../../../src/sim/world.js';
 import { towersNeeded, firstRaidTarget } from '../../../src/sim/raids.js';
 import { costOf } from '../../../src/sim/costs.js';
-import { greatWorkStatus } from '../../../src/sim/monuments.js';
+import { greatWorkStatus, siteStatus } from '../../../src/sim/monuments.js';
 import { GREAT_WORK } from '../../../src/data/reign.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../../../src/sim/time.js';
 import { nearestFit } from '../../../src/ui/placement.js';
@@ -79,8 +82,20 @@ function meetWarning(w, built) {
 // The great temple and its guilds, once the city is the Seat and the treasury holds the founding with RESERVE to spare.
 function foundTemple(w) {
   if (w.gold - costOf(w, GREAT_WORK.type) - 4 * costOf(w, 'builders_guild') < RESERVE) return null;
-  if (!drawRoad(w, 34, 26, 40, 26).ok || !drawRoad(w, 40, 26, 40, 32).ok || !drawRoad(w, 33, 32, 40, 32).ok) return null;   // round three sides of it
-  const r = place(w, GREAT_WORK.type, TEMPLE.x, TEMPLE.y);
+  // Round three sides of it. Version 6.0.1: when something already stands on the north side's road (the dangers-on run's towers and granaries, placed by Show me), the temple is
+  // laid first (its placing rule's "needs a road") and the works road is taken down its west side instead (x 33, straight from the works road's end), else round what stands
+  // with the road tool's Route (src/sim/route.js), so the stone comes along it within a quarry's reach; then the east and south sides. All of it is taken back (undo, refunded)
+  // if a road will not go. The tuned run lays the three sides straight, as it always has.
+  let r;
+  if (drawRoad(w, 34, 26, 40, 26).ok) {
+    if (!drawRoad(w, 40, 26, 40, 32).ok || !drawRoad(w, 33, 32, 40, 32).ok) return null;
+    r = place(w, GREAT_WORK.type, TEMPLE.x, TEMPLE.y);
+  } else {
+    const before = w.undo.length;
+    r = place(w, GREAT_WORK.type, TEMPLE.x, TEMPLE.y, { roadLater: true });
+    const west = () => drawRoad(w, 33, 26, 33, 32).ok || drawRoute(w, 33, 26, 40, 26).ok;
+    if (r.ok && !(west() && drawRoad(w, 40, 26, 40, 32).ok && drawRoad(w, 33, 32, 40, 32).ok)) { while (w.undo.length > before) undo(w); return null; }
+  }
   if (!r.ok) return null;
   const guilds = GUILDS.filter(([x, y]) => canPlace(w, 'builders_guild', x, y).ok && place(w, 'builders_guild', x, y).ok).length;
   // A firehouse at the road's corner: the guilds stand beyond the works quarter's firehouses (the fire layer would show them uncovered).
@@ -92,11 +107,33 @@ function foundTemple(w) {
   return { day: w.day, id: r.id, guilds, fire, paused };
 }
 
+// Version 6.0.1 (the dangers-on run's habits, tests/v60/balance; test-script habits, not a game change; grandRun.js setHabits): workers moved to the crews. While the great
+// temple rises and the monuments' level stands short of workers (the Employment sheet: the guilds are staffed last), the player pauses every workplace that stands idle with
+// workers in it (grandRun.js freeIdle), so its workers go to the guilds; feedFirst puts them back to work when food runs low.
+function moveToCrews(w) {
+  if ((w.labour.shortLevels || []).includes('monuments')) freeIdle(w, Infinity);
+}
+
+// The same habit reads the site sheet's stall row: with no stone or bricks and no maker in reach of the site (siteStatus), it does what the row's Show me leads to (causeFix:
+// a quarry or brickworks on the nearest ground for it), the way the grand run's player acts on a Show me (grandRun.js act: the ghost, a road routed to it).
+function followStall(w, gw, built) {
+  const reason = gw.site.reason;
+  if (reason !== 'no_stone' && reason !== 'no_bricks') return;
+  const m = siteStatus(w, gw).materials[reason.slice(3)];
+  if (!m || m.makers.length) return;
+  const f = causeFix(w, gw, reason);
+  if (!f || !f.showMe) return;
+  const done = act(w, { item: f.showMe.item, at: 'near', target: { x: f.showMe.x, y: f.showMe.y } }, null, new Set());
+  if (done) built.push(done);
+}
+
 // Version 6.0 (Wave 4, tests/v60/balance): base is another grand run to take on (the one with the new dangers on) and onMonth(w, events, month) a player's answers to them,
 // called after each month end's own play; both default to the run as it always was.
-export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth = null } = {}) {
+// Version 6.0.1: habits the dangers-on run's player habits (grandRun.js setHabits, moveToCrews and followStall above; tests/v60/balance/dangerRuns.js), off as tuned.
+export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth = null, habits = false } = {}) {
   const started = performance.now();
   const base = given || grandRun();
+  setHabits(habits);
   const w = deserialize(serialize(base.w));
   const built = [], yearly = {}, ranks = {}, offerings = [], dues = [], insane = [];
   let street = null, temple = null, won = null, lowestGold = w.gold;
@@ -120,6 +157,8 @@ export function runGreatWork({ years = GREAT_YEARS, base: given = null, onMonth 
     playMonth(w, built);
     if (onMonth) onMonth(w, events, m);
     if (!temple && w.milestone === 'seat') temple = foundTemple(w);
+    if (habits) feedFirst(w);
+    if (habits && temple && !won && w.buildings[temple.id] && w.buildings[temple.id].site) { followStall(w, w.buildings[temple.id], built); moveToCrews(w); }
     if (w.day % YEAR_DAYS === 0) {
       const gw = temple ? w.buildings[temple.id] : null;
       yearly[w.day / YEAR_DAYS] = { gold: Math.round(w.gold), favour: w.court.favour, people: population(w), rank: w.milestone, course: gw ? gw.site.course : null, stage: gw ? greatWorkStatus(w, gw).stage : null, homes: housesOf(w).length, reason: gw ? gw.site.reason : null, crews: gw ? gw.site.crews.length : null, stock: gw ? { stone: Math.round(gw.site.stock.stone), bricks: Math.round(gw.site.stock.bricks) } : null, jobs: w.labour.jobs, workforce: w.labour.workforce, guilds: allBuildings(w).filter((b) => b.type === 'builders_guild').map((b) => b.staff).join('/'), burned: w.tally.buildingsBurned || 0, unfed: housesOf(w).filter((h) => h.met && h.met.food === false).length };

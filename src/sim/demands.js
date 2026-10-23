@@ -276,12 +276,16 @@ function offeringItem(world, out) {
   const have = storedOf(world, o.good);
   if (have >= o.n) return;
   const src = offeringSource(world, o.good), store = src.store === null ? null : world.buildings[src.store];
+  // Version 6.0.1 (ruling 805): with no store holding any, a producer that stands is the fix (View: wait for it, or its sheet says what holds it up); another is offered only while none stands.
+  const maker = store || src.maker === null ? null : world.buildings[src.maker];
   const buildable = src.producer && BUILDINGS[src.producer] && isUnlocked(world, src.producer);
-  const fix = store ? { select: store.id, target: { x: store.x + store.w / 2, y: store.y + store.d / 2 }, why: 'great_offering' }
+  const at = store || maker;
+  const fix = at ? { select: at.id, target: { x: at.x + at.w / 2, y: at.y + at.d / 2 }, why: 'great_offering' }
     : buildable ? { item: src.producer, at: BUILDINGS[src.producer].terrain ? 'terrain' : 'near', target: { x: gw.x + gw.w / 2, y: gw.y + gw.d / 2 } } : null;
   const cost = fix && fix.item ? costOf(world, fix.item) : null;
   out.push({ key: 'great_offering', kind: 'demand', weight: DEMANDS.advice.offering, count: 1, id: null,
-    data: { offering: true, good: o.good, n: o.n, have, stage, waiting: gw.site.reason === 'waiting_offering', producer: src.producer, held: store !== null }, fix, cost, afford: cost === null ? null : canAfford(world, cost) });
+    data: { offering: true, good: o.good, n: o.n, have, stage, waiting: gw.site.reason === 'waiting_offering', producer: src.producer, held: store !== null,
+      maker: maker ? maker.id : null, makerIdle: maker ? Boolean(maker.blocked) : null }, fix, cost, afford: cost === null ? null : canAfford(world, cost) });
 }
 function item(world, key, weight, d, extra) {
   const anchor = d.kind === 'goods' ? allBuildings(world).find((b) => (BUILDINGS[b.type].stores || []).includes(d.good) && (b.store[d.good] || 0) > 0)
