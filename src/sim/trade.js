@@ -8,7 +8,13 @@
 // world.trade: routes { partnerId: { since: day, gifted, giftLanded } } (giftLanded: gift units stored so far, set
 // by the first caravan), orders { good: { mode, keep } }, drift { partnerId: { good: fraction } } (no entry means no
 // drift), used { partnerId: { good: units this year } }, year (the year the quota and drift belong to).
-import { PARTNERS, CARAVAN_EVERY_MONTHS, PRICE_DRIFT, TRADE_REACH } from '../data/trade.js';
+//
+// Version 7.0, Track T (rulings 870-899): Nubia and Punt come by river (PARTNERS[id].by === 'river'): their route needs a Quay to open,
+// and their boats land at the first working Quay (activeQuay) and trade with the stores within TRADE_REACH of it, as a caravan does at the
+// trading post, on the same day and quota rules. Every caravan and boat obeys the route's switches and what trade holds back
+// (src/sim/tradeRules.js), and writes what it paid and was paid into world.trade.ledger (src/data/trade.js), which the Trade sheet reads
+// for last year's profit. setTradeSwitch and setKeepAtLeast are the Trade sheet's commands.
+import { PARTNERS, CARAVAN_EVERY_MONTHS, PRICE_DRIFT, TRADE_REACH, QUAY_TYPE, TRADE_SIDES, partnerBy } from '../data/trade.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS } from '../data/goods.js';
 import { allBuildings } from './world.js';
@@ -66,6 +72,28 @@ export const postConnected = (world) => posts(world).some((p) => joinsEntry(worl
 // The post caravans come to: the first (lowest id) trading post that works and is joined to the trade entry.
 export const activePost = (world) => posts(world).find((p) => isWorking(world, p) && joinsEntry(world, p)) || null;
 
+// ── Version 7.0 (Track T): the Quay, where river partners' boats land (ruling 872) ──
+export const quays = (world) => allBuildings(world).filter((b) => b.type === QUAY_TYPE);
+const quayRoad = (world, q) => adjacentRoadTiles(world, q).length > 0;
+// The Quay boats come to: the first (lowest id) that works and has a road beside it (its goods go by road to the stores), or null.
+export const activeQuay = (world) => quays(world).find((q) => isWorking(world, q) && quayRoad(world, q)) || null;
+// Why no boat will land, or null when one will (exactly when activeQuay finds one): 'no_quay', 'no_road' (no Quay has a road beside it),
+// 'paused' (every Quay with a road is paused) or 'short_staffed' (one is not paused but has under a quarter of its workers).
+export function quayBlocker(world) {
+  const all = quays(world);
+  if (!all.length) return 'no_quay';
+  const roaded = all.filter((q) => quayRoad(world, q));
+  if (!roaded.length) return 'no_road';
+  if (roaded.some((q) => isWorking(world, q))) return null;
+  return roaded.some((q) => !q.paused) ? 'short_staffed' : 'paused';
+}
+// Whether a partner comes by river (a boat to the Quay) rather than by road (a caravan to the trading post).
+export const byRiver = (partnerId) => partnerBy(partnerId) === 'river';
+// Why this partner's next caravan or boat will not come, or null when it will: caravanBlocker for a road partner, quayBlocker for a river one.
+export const arrivalBlocker = (world, partnerId) => (byRiver(partnerId) ? quayBlocker(world) : caravanBlocker(world));
+// Where this partner trades: the active trading post (road) or the active Quay (river), or null.
+export const arrivalAt = (world, partnerId) => (byRiver(partnerId) ? activeQuay(world) : activePost(world));
+
 // Why no caravan will come, or null when one will (exactly when activePost finds a post): 'no_post', 'not_connected'
 // (no post is joined by road to the trade entry), 'paused' (every joined post is paused) or 'short_staffed' (a joined
 // post is not paused but has under a quarter of its workers).
@@ -108,12 +136,14 @@ export function drawDrift(seed, year) {
 
 // Why a route cannot be opened now, or null when it can: the one rule openRoute follows and the trade sheet reads.
 // The partner exists and is not open yet, its milestone is reached, a trading post stands, and the cost (scaled by
-// difficulty) is affordable (the treasury may go as far into debt as every other purchase allows).
+// difficulty) is affordable (the treasury may go as far into debt as every other purchase allows). Version 7.0 (ruling 872): a river
+// partner needs a Quay standing instead of a trading post ('no_quay').
 export function routeBlocker(world, partnerId) {
   if (!PARTNERS[partnerId]) return 'unknown_partner';
   if (world.trade.routes[partnerId]) return 'already_open';
   if (!partnerUnlocked(world, partnerId)) return 'locked';
-  if (!posts(world).length) return 'no_post';
+  if (byRiver(partnerId)) { if (!quays(world).length) return 'no_quay'; }
+  else if (!posts(world).length) return 'no_post';
   if (!canAfford(world, routeCostOf(world, partnerId))) return 'no_gold';
   return null;
 }
@@ -126,8 +156,76 @@ export function openRoute(world, partnerId) {
   const cost = routeCostOf(world, partnerId);
   spend(world, cost);
   world.trade.routes[partnerId] = { since: world.day, gifted: false };
-  return { ok: true, cost, warnings: postConnected(world) ? [] : ['not_connected'] };
+  return { ok: true, cost, warnings: byRiver(partnerId) || postConnected(world) ? [] : ['not_connected'] };
 }
+
+// ── Version 7.0 (Track T): the Trade sheet's commands (rulings 874, 875) ──
+// Turns one good on one side of one route on or off (side as PARTNERS lists it: 'buys', the city sells; 'sells', the city buys). Only an
+// off switch is stored (src/data/trade.js); turning it on again removes it, and an empty route or side goes with it.
+export function setTradeSwitch(world, partnerId, side, good, on) {
+  const p = PARTNERS[partnerId];
+  if (!p) return fail('unknown_partner');
+  if (!TRADE_SIDES.includes(side)) return fail('bad_side');
+  if (!p[side][good]) return fail('unknown_good');
+  const all = world.trade.switches;
+  if (on) {
+    if (all[partnerId] && all[partnerId][side]) {
+      delete all[partnerId][side][good];
+      if (!Object.keys(all[partnerId][side]).length) delete all[partnerId][side];
+      if (!Object.keys(all[partnerId]).length) delete all[partnerId];
+    }
+  } else {
+    const route = all[partnerId] || (all[partnerId] = {});
+    (route[side] || (route[side] = {}))[good] = false;
+  }
+  return { ok: true, warnings: [] };
+}
+
+// A good's "Keep at least": the one level the Trade sheet shows (ruling 874), the larger of the 6.0 order's keep and the 7.0 floor. The
+// sheet's command writes both, so caravans buy up to it (the order) and never sell below it (the order and the floor) alike.
+export const keepAtLeast = (world, good) => Math.max(world.trade.orders[good] ? world.trade.orders[good].keep : 0, world.trade.floors[good] || 0);
+
+// The level a caravan or boat sells a good only above (the caravan's own rule, which the Trade sheet words): the larger of the order's
+// keep and what trade holds back (the floor plus what the temple and the court are owed).
+export const sellAbove = (world, good) => Math.max(world.trade.orders[good] ? world.trade.orders[good].keep : 0, heldBack(world, good).units);
+
+// Sets a good's Keep at least to n whole units: the floor (absent at 0) and the order's keep, when the good has an order.
+export function setKeepAtLeast(world, good, n) {
+  if (!GOODS[good]) return fail('unknown_good');
+  if (!Number.isInteger(n) || n < 0) return fail('bad_keep');
+  if (n > 0) world.trade.floors[good] = n;
+  else delete world.trade.floors[good];
+  if (world.trade.orders[good]) world.trade.orders[good].keep = n;
+  return { ok: true, warnings: [] };
+}
+
+// ── Version 7.0 (Track T): the ledger, what each route paid and was paid by year (ruling 874) ──
+const emptyBook = () => ({ income: 0, spent: 0 });
+function ledgerOf(world) {
+  const t = world.trade;
+  if (!t.ledger) t.ledger = { year: t.year, now: {}, last: {} };
+  return t.ledger;
+}
+// A new trade year: this year's book becomes last year's (an empty one when the ledger skipped a year).
+function rollLedger(t, year) {
+  if (!t.ledger || t.ledger.year === year) return;
+  t.ledger = { year, now: {}, last: t.ledger.year === year - 1 ? t.ledger.now : {} };
+}
+// What a route's caravans or boats did for the treasury last trade year, { income, spent, profit }, or null when none came that year.
+export function lastYearOf(world, partnerId) {
+  const l = world.trade.ledger;
+  const r = l && l.last[partnerId];
+  return r ? { income: r.income, spent: r.spent, profit: r.income - r.spent } : null;
+}
+// The same for the year under way so far (null before its first visit).
+export function thisYearOf(world, partnerId) {
+  const l = world.trade.ledger;
+  const r = l && l.year === world.trade.year ? l.now[partnerId] : null;
+  return r ? { income: r.income, spent: r.spent, profit: r.income - r.spent } : null;
+}
+
+// Whole game months until the next caravan or boat (at least 1: one due today has already come at the month's end).
+export const monthsToNextArrival = (world) => Math.max(1, Math.ceil((nextCaravanDay(world) - world.day) / DAYS_PER_MONTH));
 
 // What caravans do with one good: 'buy' (the city buys it up to keep), 'sell' (the city sells it above keep) or
 // 'ignore'. keep is a whole number of units, 0 or more.
@@ -179,7 +277,7 @@ function putNear(world, post, good, n) {
   return n - left;
 }
 
-// One caravan from an open route, at the given post. Returns the gold the city paid it.
+// One caravan (or, from a river partner, one boat) from an open route, at the given post (or Quay). Returns the gold the city paid it.
 function caravan(world, partnerId, post, events) {
   const p = PARTNERS[partnerId];
   const route = world.trade.routes[partnerId];
@@ -199,7 +297,7 @@ function caravan(world, partnerId, post, events) {
     const order = world.trade.orders[good];
     if (!order || order.mode !== 'sell') continue;
     if (!tradeAllowed(world, partnerId, good, 'buys')) continue;      // Version 7.0 (Track 0 seam, src/sim/tradeRules.js): the route's switch
-    const keep = Math.max(order.keep, heldBack(world, good).units);   // and what trade must leave: the floor (Track T adds the temple's and the court's)
+    const keep = sellAbove(world, good);                               // and what trade must leave: the floor, the temple's offering, the court's demands
     const n = takeNear(world, post, good, Math.min(room(good, 'buys'), Math.max(0, stockNear(world, post, good) - keep)));
     if (n <= 0) continue;
     sold[good] = n;
@@ -225,13 +323,17 @@ function caravan(world, partnerId, post, events) {
   t.bought += Object.values(bought).reduce((a, b) => a + b, 0);
   t.tradeIncome += income;
   t.caravans += 1;
+  const book = ledgerOf(world).now, rec = book[partnerId] || (book[partnerId] = emptyBook());   // Version 7.0: the route's ledger
+  rec.income += income;
+  rec.spent += spent;
   if (events) events.push({ type: 'caravan', partner: partnerId, sold, bought, income, spent, gift });
   return spent;
 }
 
 // The month-end trade step (runMonth): a new year resets the quotas used and redraws the drift; on a caravan
 // month every open route sends a caravan, in PARTNERS order, if a working trading post is joined to the trade entry.
-// Returns the gold the city paid caravans this month (the summary's purchases).
+// Returns the gold the city paid caravans this month (the summary's purchases). Version 7.0: a river route's boat lands at the
+// active Quay instead (arrivalAt), and the new year turns the ledger's page.
 export function tradeMonth(world, events = null) {
   const t = world.trade;
   const year = yearOf(world.day);
@@ -239,11 +341,13 @@ export function tradeMonth(world, events = null) {
     t.year = year;
     t.used = {};
     t.drift = drawDrift(world.seed, year);
+    rollLedger(t, year);
   }
   if (world.day % CARAVAN_DAYS !== 0) return 0;
   const open = Object.keys(PARTNERS).filter((id) => t.routes[id]);
   if (!open.length) return 0;
-  const post = activePost(world);
-  if (!post) return 0;
-  return open.reduce((spent, id) => spent + caravan(world, id, post, events), 0);
+  return open.reduce((spent, id) => {
+    const at = arrivalAt(world, id);
+    return at ? spent + caravan(world, id, at, events) : spent;
+  }, 0);
 }

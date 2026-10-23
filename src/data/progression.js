@@ -12,7 +12,7 @@ export const MILESTONES = [
   { id: 'market_town', name: 'Market town', population: 250, unlocks: ['trading_post', 'wall', 'tower', 'barracks', 'police_post'] },
   { id: 'city', name: 'City', population: 400, unlocks: ['farm_barley', 'brewery', 'builders_guild', 'quarry', 'brickworks', 'obelisk_small', 'obelisk_large', 'plaza'] },
   { id: 'great_city', name: 'Great city', population: 650, unlocks: ['farm_flax', 'weaver', 'colossus', 'mastaba_small', 'sphinx'] },
-  { id: 'capital', name: 'Capital', population: 1000, unlocks: ['gem_mine', 'jeweller', 'mastaba_large'] },
+  { id: 'capital', name: 'Capital', population: 1000, unlocks: ['gem_mine', 'jeweller', 'mastaba_large', 'quay'] },
   // Version 6.0, Track A (rulings 621, 653): two ranks beyond Capital, each with a need beyond its people (needs: { tier }: a home at that
   // tier or above stands; src/sim/progression.js milestoneNeedsMet). The great temple, the final great work, comes with the last.
   { id: 'great_capital', name: 'Great Capital', population: 1250, needs: { tier: 8 }, unlocks: [] },

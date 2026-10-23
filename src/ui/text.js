@@ -3378,6 +3378,80 @@ export const V70_ADVICE_WORDS = {};
 // ── v70 t (Track T, rulings 870-899: trade by river, the Quay, the Trade sheet) ────────────────────────────────────────
 // Add new lines just above the end marker: V70_HELP.t.push(...), ALERT_TEXT.<code> = ..., TIP_TEXT.<id> = ..., FIRST_TEXT.<id> = ..., and an
 // exported object of the track's own words. Every number on screen comes from the sim's own functions (src/sim/trade.js, tradeRules.js).
+import { PARTNERS as v7Partners, FLOOR_STEP as v7FloorStep, QUAY_TYPE as v7Quay, CARAVAN_EVERY_MONTHS as v7Every } from '../data/trade.js';
+Object.assign(PARTNER_NAMES, { nubia: v7Partners.nubia.name, punt: v7Partners.punt.name });
+Object.assign(BUILDING_PLURALS, { [v7Quay]: 'quays' });
+const v7MilestoneName = (id) => { const m = MILESTONES.find((x) => x.id === id); return m ? m.name : id; };
+const v7Signed = (n) => (n > 0 ? `+${n} gold` : n < 0 ? `−${-n} gold` : '0 gold');
+const v7Visitor = (id) => (v7Partners[id] && v7Partners[id].by === 'river' ? 'boat' : 'caravan');
+export const V70_TRADE_TEXT = {
+  // The Trade sheet's route cards (phone: one open at a time; desktop: all of them).
+  byRiver: 'by river', byRoad: 'by road',
+  visitor: v7Visitor,
+  nextIn: (id, months) => `Next ${v7Visitor(id)} in ${plural(months, 'month', 'months')}`,
+  lastYear: (r) => (r ? `Last year ${v7Signed(r.profit)}` : 'Last year: no visit'),
+  lastYearLong: (r) => (r ? `Last year it paid you ${r.income} gold and you paid it ${r.spent} gold` : 'No visit last year yet'),
+  theyBuy: (id) => `${partnerName(id)} buys (you sell)`,
+  theySell: (id) => `${partnerName(id)} sells (you buy)`,
+  pays: (n) => `pays ${n} each`, asks: (n) => `asks ${n} each`,
+  on: 'On', off: 'Off',
+  switchLabel: (side, good, id, on) => `${side === 'buys' ? 'Sell' : 'Buy'} ${goodWord(good)} ${side === 'buys' ? 'to' : 'from'} ${partnerName(id)}: ${on ? 'on' : 'off'}`,
+  switchHelp: 'Off: this route leaves the good alone, whatever its row below says.',
+  showRoute: (id) => `${partnerName(id)}: show the route`,
+  // Why a route's caravan or boat will not come (src/sim/trade.js arrivalBlocker): a caravan's as 6.0 says it (noCaravanText), a boat's here.
+  noBoat: {
+    no_quay: 'No boat will come without a Quay on the river',
+    no_road: 'No boat will come: no road beside the Quay',
+    paused: 'No boat will come while the Quay is paused',
+    short_staffed: 'No boat will come while the Quay is short of workers',
+  },
+  needsQuay: 'Needs a Quay on the river',
+  buildQuay: 'Build a Quay on the riverbank',
+  // The Keep at least list under the cards.
+  keepHead: 'Keep at least',
+  keepHelp: 'Pick what each good does: Buy brings it up to the level, Sell takes only what is over it. Goods owed to the temple or the court are held back as well.',
+  keep: (n) => `Keep at least ${n}`,
+  keepLabel: (sign, name) => `${sign > 0 ? '+' : '−'}${v7FloorStep}: keep at least ${sign > 0 ? 'more' : 'less'} ${name.toLowerCase()}`,
+  near: (n, where) => `${n} near the ${where === 'quay' ? 'Quay' : 'trading post'}`,
+  heldTemple: (n) => `${n} held for the temple`,
+  heldCourt: (n) => `${n} held for the court`,
+  buyHelp: (n) => `Buys until ${n} are in storage`,
+  sellHelp: (n) => `Sells only what is over ${n} in storage`,
+  // The summary's Trade row and the Quay's sheet.
+  summaryHead: 'Trade',
+  summaryRow: (open) => (open ? `${plural(open, 'route', 'routes')} open` : 'No route open yet'),
+  openTrade: 'Trade routes',
+  quayLands: (names) => `Boats from ${listText(names)} land here`,
+  quayIdle: (partners) => `Boats from ${listText(partners.map(partnerName))} land here once their route is open`,
+  quayOpensAt: (id) => `${partnerName(id)} opens at ${v7MilestoneName(v7Partners[id].milestone)}`,
+  quayNotActive: 'Boats land at the first working Quay with a road',
+  // The first Quay and How to play.
+  first: { head: 'First Quay', why: `Boats from ${v7Partners.nubia.name} and ${v7Partners.punt.name} land here. Open their routes in Trade.` },
+  help: [
+    { head: 'Trade by river', text: `Once your city is a ${v7MilestoneName(v7Partners.nubia.milestone)}, ${v7Partners.nubia.name} trades by river: it sells stone and gems for less than Memphis and Byblos, and buys grain and linen. Once it is a ${v7MilestoneName(v7Partners.punt.milestone)}, ${v7Partners.punt.name} sells incense, the one good only festivals use. A river route needs a Quay: a 2 by 1 landing with one long side on the river and a road beside it. Boats come on the same rhythm as caravans, every ${v7Every} months, and trade with the stores near the Quay.` },
+    { head: 'The Trade sheet', text: 'Open it from the trading post, the Quay or the Trade row of the city summary. Each open route shows when its next caravan or boat comes, what it paid you last year, and a switch for every good it buys or sells. Below, Keep at least sets one level per good: Buy brings it up to that level, Sell takes only what is over it. Goods owed to the great temple\'s next offering or to an accepted court demand are held back too, and the row says so. On a phone one route is open at a time: tap a route to open it.' },
+  ],
+};
+FIRST_TEXT.first_quay = V70_TRADE_TEXT.first;
+V70_HELP.t.push(...V70_TRADE_TEXT.help);
+Object.assign(TRADE_REASONS, { no_quay: V70_TRADE_TEXT.buildQuay, unknown_partner: "Can't do that yet", bad_side: "Can't do that yet", bad_keep: "Can't do that yet" });
+{
+  // Incense's line (no building makes it or uses it): where it comes from and what it is for (ruling 853); every other good's as before.
+  const line = goodLine;
+  goodLine = (good) => (good === 'incense'
+    ? `${goodName(good)}: made by the resin gatherers of ${partnerName('punt')}; used by festivals; bought from ${partnerName('punt')}`
+    : line(good));
+  // A river route that cannot open for want of a Quay says so; every other reason as 6.0 words it.
+  const base = routeBlockText;
+  routeBlockText = (id, block) => (block === 'no_quay' ? V70_TRADE_TEXT.needsQuay : base(id, block));
+  // An arrival from a river partner is a boat, not a caravan (the same caption otherwise: what it bought and sold, any gift, the gold).
+  const caption = caravanText;
+  caravanText = (e) => {
+    const c = caption(e);
+    if (v7Visitor(e.partner) !== 'boat') return c;
+    return { ...c, text: c.text.replace(/^A caravan from/, 'A boat from'), why: c.why ? 'Set what to buy and sell in Trade, from the Quay.' : c.why };
+  };
+}
 // ── end v70 t ──
 
 //

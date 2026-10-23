@@ -17,6 +17,7 @@ export const CART_LOADS = {
   stone: ['#BDB4BF', 'blocks'], bricks: ['#C98A5E', 'blocks'],
   clay: ['#A06E48', 'heap'],
   fish: ['#7DB3C8', 'fish'],
+  incense: ['#C7B79A', 'sack'],   // Version 7.0 (Track T): pale resin in sacks
   empty: ['#000000', 'none'],   // a cart whose goods went back to the shelf
 };
 const FALLBACK = ['#A89AA8', 'heap'];
