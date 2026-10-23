@@ -788,3 +788,160 @@ Plan rulings 501-509 (see the plan) accepted as written. Task rulings below; "Co
 600. A warned raid weighs 3 per tower short (controller ruling, changed from the proposed 2), so the first warned raid (2 of 6 towers) ranks first. — A cheap booth fix shows second while a raid is 75 days out.
 601. The crowd rule has hysteresis: hide above 150, show at 120 or fewer. — Outlines reappear a little late.
 602. The terrain ring is baked one chunk per idle frame within the baker's capacity of 32. — The ring cannot cover a very wide view.
+
+## Part 16: Version 6.0 (22-23 Oct 2026)
+
+Plan rulings 610-619 (see the plan) accepted as written, except 619, which Josh changed mid-run (below). Track 0 made 620-630 (contract note), each track took its own range (A 640-679, B1 680-699, C 700-719, B2 720-739, D1 740-759, D2 760-779), the balance pass 780-785, the integrator 790-791, the final review's controller rulings 786-789, 792 and 793, and the fix wave 794-799. "Cost if wrong" after the dash; where a track did not state one it says "none stated" or names the data number to retune.
+
+### Plan rulings
+
+610. 6.0 is one release; the store builds are out of scope and nothing in 6.0 may need the network after load. — Store work later finds a web-only dependency.
+611. Costs grow with rank above Town, and the late run banks at most about two years of profit. — The late game feels stingy; the numbers are data.
+612. Court demands come about once a year from Town, each stating reward and failure cost before acceptance. — One more thing to track.
+613. Two ranks beyond Capital and a final great work that wins the reign, then play on. — A long last stretch.
+614. Raiders burn, wreck and loot; they do not take people. — Raids may still feel light in a rich city.
+615. Plague, drought and low Nile, and locusts and blight arrive with warnings and counters, never in the first three game years, milder on Relaxed. — An early city never sees them.
+616. Large plots replace merging for new grand homes; small plots stop at Townhouse; merged homes keep working. — Players who liked merging lose it.
+617. The lesson is mandatory once per device for a player with no saved city, replayable from the menu. — An experienced player on a new device sits through 10-15 minutes.
+618. Sound is on by default; "This week's Nile" is removed; Huge (112) joins the map sizes. — A muted-by-habit player hears music on the first tap.
+619. Fable for the contract, Track A, hard merges and the final review; Sonnet for the rest. — SUPERSEDED: Josh said mid-run (22 Oct) to use no Fable and switch every Fable role to Opus 5.5 to save tokens. Track 0 (stopped before any edit), Track A, the hard merges and the final review all ran on Opus 5.5; the other tracks and the reviewers stayed on Sonnet. Cost if wrong: none found; the Sonnet fix waves still caught what the review found.
+
+### Track 0: the contract (Opus 5.5, 4b58dc0)
+
+620. World version 9 adds three records (`reign`, `demands`, `hazards`) and two optional per-building fields (`large`, `was`); the migration adds no building field. — A track that wanted every house flagged adds the flag in its own code path.
+621. The ranks beyond Capital are `MILESTONES` rows, not a world field. — Track A needs a field after all, a v10 migration.
+622. `costScale` is one stub in `costs.js`, already applied to wages, upkeep, monuments and the raid tribute. — Track A finds another place to scale and edits a shared file.
+623. The grace is a day (`hazards.graceUntil`): three game years from day 0, or from the load day for a v8 city, whatever its year. — An old city's dangers start sooner or later than a player expects.
+624. Difficulty factors: Relaxed and Peaceful chance and severity 0.5, Hard 1.25; Peaceful has no plague but does have drought and locusts. — A Peaceful player meets a lean year.
+625. A raid strike is three hooks (burn, wreck, loot) run in that order; today's strike moved into them unchanged. — B1 reorders them in its own file.
+626. The lesson's state is two settings keys, never the world's. — A lesson left part-way cannot rebuild its city exactly.
+627. Wrecking and looting a storehouse are new dangers and wait out the grace; burning and a granary's food do not. — An old city's first raid after loading is as harsh as before, not harsher.
+628. Huge (112) is in a size table but not offered until Track D1 turns it on. — None (one flag).
+629. A Large plot is a `house` with `large: true`, not a new building type. — Code that keys on `w > 1` alone treats a Large plot as merged; use `isMergedHome`.
+630. Demands live in `world.demands`, apart from the Stage 4.6 requests in `world.court`. — Track A folds requests into demands and clears the old record itself.
+
+### Track A: a harder later game (Opus 5.5)
+
+640. Costs grow little up to Capital (the capital run's band binds) and more beyond it; bills are rounded per building so the card's bill is what the building pays. — The mid-game stays easy.
+641. Easier levels grow by the difficulty's cost (0.8 Relaxed and Peaceful, 1.25 Hard). — Hard players pay more and easy players less: one factor.
+642. The court's due is the rank's share of the treasury or of a year's taxes, whichever is more, taken on the first day of each year from year 8, even into debt (the treasury share holds the late bank near two years of profit; the taxes floor puts a low-favour city in debt). — Saving feels taxed. Debt was later softened for the great work (788).
+643. The due is doubled at low favour, cut to 0.75 at high favour and cut while the great temple rises (a quarter here; a tenth by 791; a twentieth by 795). — The multipliers are data in `src/data/reign.js`.
+644-650. Demands: one at a time, from Town (before the court's letters open), separate from the Stage 4.6 requests; the first about 10 months after Town, then every 10-14 months; an offer waits 3 months and lapses as declined (-5 favour); deadlines goods 8-12 months, gold 4-6, a building 12-18, soldiers 4-6; amounts and rewards scale with the city's output, taxes, scale and difficulty; favour met +8-12, failed -15-20. — One more thing to track; every number is in `DEMANDS`.
+651. Tips (progressive disclosure): the first demand offered, and the court's due a year before it starts. — A late tip.
+652. The great temple is a monument kind, one per city, unlocked at the last rank; its art row lives in `render/art/monuments.js`. — None (a monument kind).
+653. Great Capital needs 1,250 people and a Villa; the Seat of the Two Lands 1,400 people and an Estate. — The grand district never becomes the Seat on its own.
+654-656. The great temple is 5x5, four crews, 300 crew-months in ten courses (540 stone and 60 bricks each), founding 8,000, with an offering as each stage begins: grain 400, clay 300, linen 200, flax 300, grain 500 (the fourth became beer 300 in 790). Goods that stay in a late city's stores, since homes eat pottery and jewellery as they are made. — The great work is too long or short; the numbers are data.
+657. The great work finished seals the score once by itself. — None stated.
+658. The closing scene is a sheet, never over the map, and reads under every Motion level. — None stated.
+659. From Capital the threshold bar shows medals, since a rank beyond needs a grand home, not only people. — The bar is edited in the unowned `goalsList.js`.
+660. The run drivers answer the court (accept what they can meet). — `grandRun.js` is shared with Track C: merge risk.
+
+### Track B1: danger sim (Sonnet)
+
+680. One new warning at a time, after the grace. — Dangers feel sparse or clustered.
+681. A strike wrecks 35% x severity instead of burning; one tap rebuilds. — Fires matter less.
+682. Storehouses lose 30% of each good. — Late raids too harsh or mild.
+683. Bands of 8 or more get a chieftain (2x hit points, 1.5x blows; his fall turns the band); +1 raider a year, at most +4. — Late raids shift.
+684. Plague reaches homes within 2 tiles, slowed by a physician, a well and room; mended homes are immune. — Too mild or deadly.
+685. Quarantine: a 12-tile district, 25 gold a home (at least 100), 2 months; nothing crosses and work stops. The fee can be off. — The price or length is wrong.
+686. Work stops near sick homes no physician reaches (producers only); services are unaffected. — Production stalls feel unfair.
+687. A low Nile is warned 3-12 months ahead; that flood is Low and farms yield x0.5 for 12 months. — Too harsh for stocked cities.
+688. Blight and locusts hit the 3-8 nearest farms; Harvest now takes 40% of a month's crop with a 15-day rest that starts the day after the strike (fix round 1: tapped early, it is a pure gain). — Harvest now is free or useless.
+689. Older balance runs and rule tests run with the grace never ending (`tests/v60/b1/grace.js`); a `rebuilt` tally was added. — An older run's number silently excludes the dangers; wave 4 measures with them on (783).
+690. Urgent dangers go first in Advice. — They crowd out ordinary worries.
+691. The Health legend's words are unchanged (old tests pin them); plague is shown by rings and dashes. — Wording only.
+
+### Track C: housing and loose ends (Sonnet)
+
+700. The Large plot card is a BUILDINGS row `large_plot`, 20 gold; placing lays a house. — Generic data tests needed two exclusions.
+701. The `manor` goal's words and Show me changed in `goals.js` (not on the track's list). — None stated.
+702. A lot takes arrivals only as a stocked Manor once its Manor rows are met. — Fills slower than merging.
+703. A Townhouse has no next tier; one advice item (weight 6) names a Large plot while none exists. — No later nudges.
+704. A Large plot below Manor holds four plots' worth and never splits. — None stated.
+705. The capital run lays four Large plots and a third tower (otherwise raid 2 is lost); balance records re-recorded (Villa month 89, Estate 98). — Wave 4 retunes.
+706. Locked layers show greyed with "From Town" (reverses 541). — The picker is tight in landscape at 150% text.
+707. Pausing bumps `layerVersion`, not `buildingsVersion`. — None stated.
+708. Farm-area leftovers are marked and counted apart. — None stated.
+709. Bridge tiles are drawn with planks and a wave mark. — None stated.
+710. The Estate trick in Advice: a store in the open, then the workshop, then Fetch (words; there is no state for the Fetch step). — The advice cannot tell when the Fetch step is done.
+711. A plain workshop fix aims at the `roomFor` spot. — None stated.
+
+### Track B2: battles you can see (Sonnet)
+
+720. Still holds a smoke column on burning buildings (the old Stage 4.5 ruling gave none); three older tests updated. — One constant to retune.
+721. A company in the field is drawn spread by unit id; fights are judged on the sim's own spots. — Soldiers drawn up to 0.9 tile off.
+722. A fight pose when a soldier and a raider are within 1.25 tiles: 450 ms Full, 1200 ms Gentle, Still holds the guard. — One constant to retune.
+723. The chieftain is a live-drawn banner that lies where he fell for 9 s; his health bar reads his own hit points. — One constant to retune.
+724. Shells come through `armySlot` (192 lazy slots, height table checked against the art). — Sprite memory.
+725. Rubble smoulders 45 game days after a fire, 12 after a wreck. — One constant to retune.
+726. Blows, falls and sacks are inferred from the sim state; no new sim events. — A drawn blow can differ from the sim's own moment.
+727. The raid result is a row inside the alert banner. On a phone it takes the row from a court letter and waits for a fire, a raid warning or a debt; on a landscape phone it waits for the report caption; it clears after 6 game days. — One rule to retune.
+728. The dev-scene "hold" hook is cleared on every new game and on destroy. — None.
+729. B2 edited B1's `src/dev/v60/hazards.js` (raid-burn looks) and put a CSS block mid-file in `css/ui.css`, after the court rules. — Merge risk, low (bounded by an end marker).
+
+### Track D1: title, Huge map, desktop keys, polish (Sonnet)
+
+740. Huge is offered in the size picker; its three raid entries are as Large's. — Raids come from the same entries over longer walks.
+741. The Huge zoom floor keeps its frame within 1.25x Large's: 0.5 up to 1920x1080 and higher on 4K. — A big monitor cannot zoom out as far.
+742. The weekly seed code is removed. — A few lines to bring back.
+743. A phone is a screen whose short side is under 600 px; it is told "Best on a tablet or computer", never blocked. — A small tablet gets the note.
+744. + and - zoom; speed moves to ] and [ (also . and ,). — Players used to + for faster must relearn it.
+745. View keys leave controls that need keys (`data-own-keys`, roles, text fields) and leave the arrows to scrolling panels. — How to play says "Arrows or WASD" slightly more than holds in a scrolling panel.
+746. Sound is on by default; devices that stored a choice keep it, so a returning player with a stored false stays silent. — None.
+747. The title's Lesson button waits for `hooks.lesson` (D2). — None.
+748. No tips for keys or Huge. — A player may not find them.
+
+### Track D2: guided first city and picture cards (Sonnet)
+
+760. 14 steps on a fixed 48-tile Normal map; only the sim advances them; a step done is never re-asked. — An undone step is not revisited.
+761. Three staged things (the Large plot card, a blaze in the bazaar, the Market town's tower and raid clock), each said in its words. — A player thinks raiders come at 60 people.
+762. Never saved: two guards and a settings view that leaves the device's tips alone. — A new hook must check `current.lesson`.
+763. A fresh device's title is the lesson alone, plus Settings, What's new, Install and Bring your city. — An expert sits 10-15 minutes or imports.
+764. A part-way resume replays the scripted walk-through; the player's streets are not kept (words say so after the final review). — A player expects their streets.
+765. The ending is a sheet, then the title with New city; no city is auto-started. — One more tap.
+766. A lit target; a phone's row has no x (the menu leaves). — Players look in the menu.
+767. Seven intro cards, six first-moment cards (once, on loop events, never mid-tool), 13 in How to play, no dots above 8 cards. — None stated.
+768. The workers step asks for more homes (six cannot staff the bazaar). — None stated.
+
+### Wave 4: balance pass (Sonnet)
+
+780. Advice names a farm for Harvest now only when the sim takes it (`harvestQuote` ok); farms refused (idle, no room) are counted stuck, and the item has no fix when none can. — A warned band whose stores are full shows an item with no button.
+781. No danger rate, severity, rank cost, due, demand reward or great-work number is changed: none of a dozen variants makes the scripted great-work player survive the dangers. — A real player meets the dangers at the numbers set before measuring.
+782. Show me counts a tile that fits the ground and lacks only the gold (below the debt floor) as a fit, so the ghost lands there and the bar names the price. — A ghost can land on a tile a later change makes illegal; the bar says so.
+783. The dangers-on measurements are two new runs (the late run from day 0 with a new city's grace, the grand district run to year 10); the older runs keep 689's endless grace. — An older run's number silently excludes the dangers.
+784. Advice is judged at points on every run (words, a weight, a known kind, no fix the sim refuses) and the top item's kind is pinned. — A later tuning that reorders the list fails the pin and wants a re-record.
+785. The great-work run's margin is pinned as measured: a win by day 7,100 of 7,200, never under 2,000 gold, with the dangers OFF. — A tuning that costs the lucky run a few days fails here first.
+
+### Integrator and final review (Opus 5.5)
+
+786. Advice names a waiting great-work offering (`great_offering`, kind demand, weight 20) from the course before the stage whenever the stores hold less than n; its fix selects the store holding most of the good, else the producer; the great-work sheet's waiting row has the same Show me. — One more Advice row late in the game.
+787. Raid-tower Advice aims at the band's first strike (`firstRaidTarget`); Show me drops a tower spot with no road while one with a road is in reach (10 rings), else takes the nearest roadless one. — The tower guards the first target's road side, not the road in; the grand district still needs the run script's `defend`.
+788. The court takes no due from a treasury below 0 while the great work rises (`COURT_DUE.inDebt: 0`). — A debt-ridden finale is slightly kinder, and it does not save it.
+789. A v8 city's first due waits a year from its load (`dueFromDay`: load day + 360). — None for new cities.
+790. The great temple's fourth offering is beer 300, not flax: merged stores held 0 flax from year 11 to 20. — A city with no brewery waits at stage 4; Advice names it (786).
+791. The due while the great temple rises is a tenth, not a quarter (the Seat's books ran near even). — Little margin: won day 7,030, gold at least 2,313. Superseded by 795.
+792. A burnt Large plot re-lays as one empty Large lot, not four 1x1 plots. — None.
+793. A friend's share link plays the link's seed at the link's difficulty; on a device with no finished lesson the card adds one line saying the lesson is in the menu. — A newcomer from a share link skips the lesson.
+
+### Fix wave
+
+794. The next demand's clock stays at the offer, not the settlement; the words say so. — A demand can follow a late one at the next month end.
+795. The due while the great temple rises is a twentieth (was a tenth, 791). — The Seat's court asks little while the temple rises (300-700 gold a year); the dangers-off pin needs it.
+796. The guided first city (`world.lesson`) gets no court demand. — None.
+797. In the fire, tower and raid steps of the lesson the row carries the alert, and the alert's own line (fire, raid warning, raid) is hidden on every screen. — One fewer banner in the lesson; the minimap and Advice still show it.
+798. The lesson's camera reads the free map from the DOM, because `createUI`'s `sheetInsets` is private. — A layout whose panel width differs frames a ring slightly off.
+799. The pan bound applies to every camera that knows its map size, not only Huge. — You cannot park the view past a map edge.
+
+The balance pass's wave-4 doubt is not a ruling: see the follow-ups note, "Open balance decision".
+
+### Edits outside a track's files
+
+- Track A: `src/ui/goalsList.js` (the threshold bar), `src/render/art/monuments.js` (the great temple's art row) and `tests/v50/grand/grandRun.js` (shared with Track C, a merge risk).
+- Track B1: the Health branch of `overlays.js` and `tests/v60/contract/seams.test.js` (one line, also edited by A and C).
+- Track C: `src/data/goals.js` (the manor goal's words and Show me) and the same seams test line.
+- Track B2: a block in `css/ui.css` and B1's `src/dev/v60/hazards.js` (raid-burn looks).
+- Track D1: `src/data/ui.js` KEYS (the speed rebind), `speedStepTitle` in `src/ui/text.js`, and the old menu and river-UX tests (`tests/ui/menu.test.js`, `tests/stage46/final/riverux.test.js`) that pinned the old keys.
+- Track D2: `titleCard.js`, `menu.js`, `css/ui.css`, `tutorial.js` and `boot.js`; about 16 older tests now give the device a finished lesson or count the seven intro cards.
+- Balance pass: B1's `src/sim/hazards.js` and its section of `text.js`, C's `placement.js`, and the stage4, stage47, v50 and v60/a run scripts (optional parameters only; defaults unchanged).
+- Fix wave: a comment in `src/data/map.js` (map.js:68) and `tests/sim/longrun.test.js`, which now runs with `noNewDangers` and says why.
+- This docs pass: `tests/stage46/ux/releases.test.js`, `tests/stage46/final/riverux.test.js`, `tests/stage47/final/releases.test.js` and `tests/v50/docs/releases.test.js` moved to the 6.0 entry; new `tests/v60/docs/`.

@@ -8,3 +8,4 @@ import './b2/all.js';
 import './d1/all.js';
 import './d2/all.js';
 import './balance/all.js';
+import './docs/all.js';

@@ -9,7 +9,28 @@
 
 export const RELEASES = [
   {
-    version: '5.0', date: '2026-10-16', title: 'Know your city', build: 'live',
+    version: '6.0', date: '2026-10-23', title: 'A harder Nile', build: 'live',
+    new: [
+      'A harder, longer game: wages, upkeep and monuments cost more as your city rises, and from year 8 the court takes a yearly due from your treasury, so a rich city can no longer bank gold without end.',
+      'Court demands: from Town the court now and then asks for goods, gold, a building or soldiers by a deadline. Each says its reward and what failing costs before you accept, and you may decline.',
+      'Two new ranks, Great Capital and the Seat of the Two Lands, and a last great work: a temple built in five stages with crews, stone and offerings. Finish it to win the reign, then play on.',
+      'Raiders now wreck buildings and loot storehouses, and a chieftain leads the big bands. Rubble can be cleared and rebuilt in one tap.',
+      'Plague (quarantine a district), drought and a low Nile, locusts and blight (Harvest now): each comes with a warning, a counter and an Advice item. None in your first three years, and milder on Relaxed.',
+      'Raids you can watch: soldiers and raiders fight with visible blows, arrows arc from towers, and burned and wrecked buildings leave shells and smouldering rubble. The result shows in the alert row.',
+      'Large plots: a 2x2 plot replaces merging for new grand homes, and people move in as a Manor once its needs are met. Small plots stop at Townhouse; homes you already merged keep working.',
+      'A guided first city: on a new device the title offers a short lesson on a small map, from the first road to a fire and a raid warning, with picture cards for the new rules. Replay it from the menu.',
+      'A Huge map, 112 tiles across, for tablets and computers; a phone is told it is best on a bigger screen.',
+      'Desktop keys: arrows or WASD move the view, + and - zoom, ] and [ change the speed. They are listed in How to play.',
+      'Sound is on by default and starts on your first tap; turn it off in Settings. This week\'s Nile is gone.',
+    ],
+    fixed: [
+      'A Route preview draws bridge tiles as bridges, locked layers show greyed with the rank that opens them, and farm-area leftovers are marked and counted.',
+      'The advice now names the Estate trick: a store in the open, then a workshop beside it, then a Fetch order.',
+      'Pausing no longer rebuilds the map layers for nothing.',
+    ],
+  },
+  {
+    version: '5.0', date: '2026-10-16', title: 'Know your city', build: '2653e92',
     new: [
       'A City advice button in the top bar opens a sheet that ranks what holds your city back: homes stuck for want of a good, a raid on its way, a street too plain, a shortage coming. Each item shows its cause, the fix, the price and a Show me. A dot says when the advice has changed.',
       'Every house sheet starts with the one next step for that home, with its price and a Show me, or says why there is nothing to do yet.',
