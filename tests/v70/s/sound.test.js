@@ -7,7 +7,11 @@ import { createSfx, SFX } from '../../../src/audio/sfx.js';
 import { SEASON_MUSIC, MOOD_TENSION, SEASON_IDS, MARKET_SOUND } from '../../../src/data/seasons.js';
 import { PARTNERS } from '../../../src/data/trade.js';
 import { makeTestWorld, addRaw } from '../../helpers/testWorld.js';
-import { rigUI } from '../../helpers/uiWorld.js';
+import { rigUI, mountShell, fakeHistory, fakeDoc } from '../../helpers/uiWorld.js';
+import { fire } from '../../helpers/dom.js';
+import { boot } from '../../../src/boot.js';
+import { createSaveStore } from '../../../src/save/store.js';
+import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { marketDay, bazaarInView } from '../../../src/ui/v70/seasons.js';
 
 // A stand-in audio context that records the music's graph: every source, every gain and filter with its automation.
@@ -262,5 +266,36 @@ describe('v70 s sound: the cues', () => {
       w.day = d4; r.ui.refresh();
       expect(bustle()).toBe(2);
     } finally { r.cleanup(); }
+  });
+});
+
+// Ruling 935: Sound Off silences the music too (Settings' note and How to play say so); the only thing that makes it true is boot's enabled().
+describe('v70 s sound: the Sound switch as the music\'s master', () => {
+  it('gives the music enabled() true only when Sound and Music are both on, and leaves the Music setting as it was when Sound goes off', async () => {
+    const data = { 'thebes.settings': JSON.stringify({ lessonDone: true }) };
+    const storage = { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } };
+    const saved = () => JSON.parse(data['thebes.settings']);
+    const shell = await mountShell(1280, 800);
+    const history = fakeHistory();
+    let opts = null;
+    const spy = (o) => { opts = o; return { unlock: () => true, start() {}, stop() {}, refresh() {}, tick() {}, destroy() {}, playing: () => false }; };
+    const api = await boot(fakeDoc(), window, {
+      root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams(''), now: () => 0, clock: () => 1760000000000, storage,
+      envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,
+      uiOptions: { getSize: () => ({ width: 1280, height: 800 }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage },
+      loopOptions: { raf: () => 1, caf: () => {} },
+      createMusic: spy, showPictureCards: ({ onDone }) => { onDone(); return { close() {} }; },
+    });
+    try {
+      const click = (sel) => fire(shell.root.querySelector(sel), 'click');
+      expect(opts.enabled()).toBe(true);                                             // Sound on + Music on: it plays
+      click('#title .title-settings');
+      click('#title .switch.sound');                                                 // Sound off, Music still on: silent
+      expect([saved().sound, saved().music === undefined ? true : saved().music, opts.enabled()]).toEqual([false, true, false]);
+      click('#title .switch.sound');                                                 // Sound back on: the music's own setting is as it was
+      expect([saved().sound, opts.enabled()]).toEqual([true, true]);
+      click('#title .switch.music');                                                 // Sound on, Music off: silent
+      expect([saved().sound, saved().music, opts.enabled()]).toEqual([true, false, false]);
+    } finally { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title'); delete window.__thebes; }
   });
 });

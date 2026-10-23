@@ -8,7 +8,7 @@ import { openSheet } from '../../../src/ui/modes.js';
 import { createMenuSheets } from '../../../src/ui/menu.js';
 import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 import { createSettings } from '../../../src/ui/settings.js';
-import { SEASON_TEXT, V70_HELP, TIP_TEXT, T } from '../../../src/ui/text.js';
+import { SEASON_TEXT, V70_HELP, TIP_TEXT, T, seasonMonths } from '../../../src/ui/text.js';
 import { SEASON_IDS, LIGHT, SEASON_TIPS } from '../../../src/data/seasons.js';
 import { TIPS, SEASONS } from '../../../src/data/tips.js';
 import { dayIn } from '../../../src/dev/v70/seasons.js';
@@ -90,6 +90,20 @@ describe('v70 s ui: the top bar names the season', () => {
       expect(stats.textContent).toContain(season.textContent);                        // read with the date
     } finally { r.cleanup(); }
   });
+  it('says the season and its months in the summary a tap on the bar opens, in each season, for the phone whose numbers wrap', async () => {
+    const r = await rigUI({ width: 360, height: 640 });
+    try {
+      r.ui.settings.set({ textSize: 150 });
+      r.world.gold = 123456;
+      for (const id of SEASON_IDS) {
+        r.world.day = dayIn(r.world, id);
+        r.ui.refresh();
+        r.store.set(openSheet(r.store.get(), 'summary'));
+        const rows = [...r.root.querySelectorAll('#sheet .row')].map((x) => x.textContent);
+        expect([id, rows.some((t) => t.includes(SEASON_TEXT.row) && t.includes(SEASON_TEXT.rowValue(SEASON_TEXT.names[id], seasonMonths(id))))]).toEqual([id, true]);
+      }
+    } finally { r.cleanup(); }
+  });
 });
 
 describe('v70 s ui: the Settings rows', () => {
@@ -125,6 +139,18 @@ describe('v70 s ui: the Settings rows', () => {
       expect([r.settings.get().effectsVolume, louder.disabled]).toEqual([100, true]);
       expect(r.settings.get().musicVolume).toBe(30);                                    // the Music volume is its own
       expect(r.body.querySelector('.music-volume .value').textContent).toBe('30');
+    } finally { r.cleanup(); }
+  });
+  it('dims the Music and Effects rows while Sound is Off and brings them back when it is on, the controls staying real', async () => {
+    const r = await settingsRig();
+    try {
+      const rows = () => [r.body.querySelector('.switch.music').closest('.row'), r.body.querySelector('.music-volume:not(.effects-volume)'), r.body.querySelector('.effects-volume')];
+      expect(rows().map((x) => x.classList.contains('silenced'))).toEqual([false, false, false]);
+      fire(r.body.querySelector('.switch.sound'), 'click');
+      expect(rows().map((x) => x.classList.contains('silenced'))).toEqual([true, true, true]);
+      expect([r.settings.get().music, r.body.querySelector('.effects-volume .louder').tagName]).toEqual([true, 'BUTTON']);
+      fire(r.body.querySelector('.switch.sound'), 'click');
+      expect(rows().map((x) => x.classList.contains('silenced'))).toEqual([false, false, false]);
     } finally { r.cleanup(); }
   });
   it('has Day and night as a switch after Motion: named, 44 px, on by default, and it says what it does and that Still keeps daylight', async () => {

@@ -3410,6 +3410,8 @@ const s7Minutes = Math.round(s7Light.cycleMs / 60000);
 export const SEASON_TEXT = {
   // The seasons' names for the player (the ids akhet, peret and shemu are never shown: ruling 863). The top bar says one after the date.
   names: { akhet: 'Flood', peret: 'Growing', shemu: 'Harvest' },
+  // The summary's Season row (src/ui/sheets.js): "Harvest, months 9 to 12", where the top bar's line is hidden on a phone whose numbers wrap.
+  row: 'Season', rowValue: (name, months) => `${name}, months ${months}`,
   // Settings (src/ui/menu.js): the Day and night switch, the Effects volume and what the Sound switch is.
   dayNight: 'Day and night',
   dayNightNote: `The light turns from day to night every ${s7Minutes} minutes and holds while the game is paused. Motion: Still keeps daylight.`,

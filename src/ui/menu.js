@@ -139,8 +139,14 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
   function settingsSheet(body) {
     const D = DANGER_UI_TEXT;
     const motion = motionRow();
+    // Version 7.0 (Track S, ruling 935): while Sound is Off the Music and Effects rows are dimmed (class silenced: they still change, and take effect when Sound
+    // is back on); the note under them says why in words.
+    const soundRows = [...musicRows(), effectsRow(hooks.sfx)];
+    const dim = () => { for (const r of soundRows) r.classList.toggle('silenced', !settings.get().sound); };
+    dim();
+    const stopDim = settings.subscribe(() => { if (soundRows[0].isConnected) dim(); else stopDim(); });   // the sheet has closed: stop listening
     body.append(
-      switchRow(T.sound, 'sound'), ...musicRows(), effectsRow(hooks.sfx), el('p', { class: 'sound-note small muted', text: SEASON_TEXT.soundNote }), switchRow(T.vibration, 'vibration'),
+      switchRow(T.sound, 'sound'), ...soundRows, el('p', { class: 'sound-note small muted', text: SEASON_TEXT.soundNote }), switchRow(T.vibration, 'vibration'),
       switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'),
       choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%']]),
       motion,

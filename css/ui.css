@@ -1471,6 +1471,8 @@ body[data-layout="portrait"]:not([data-text-size="150"]) #topbar .stats:not(.tig
 #topbar .stats.tight .stat.date .season { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 /* Settings: the Sound switch's note and the Day and night note sit under their rows like the other notes; the Effects volume is the Music volume's row. */
 #sheet .sound-note, #sheet .daynight-note { margin: 2px 0 6px; }
+/* While Sound is Off the Music and Effects rows are dimmed (menu.js); they stay real controls, and the note says why. */
+#sheet .row.silenced { opacity: 0.55; }
 /* ── end v70 s ── */
 
 /* (separator) */
