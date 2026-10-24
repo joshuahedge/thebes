@@ -28,6 +28,7 @@ import './procession.js';                                     // the festival te
 import { isWorking } from '../sim/labour.js';
 import { idx, inBounds, NEIGHBOURS4 } from '../sim/grid.js';
 import { hash2 } from '../sim/rng.js';
+import { ferryEdges } from '../sim/ferries.js';
 
 export const WALKER_CAP = 40;
 export const TILES_PER_DAY = 2;   // at 1x a day lasts a second, so a tile takes half a second
@@ -49,20 +50,26 @@ export function walkerLoop(world, b, maxDist) {
 // lowest tile index at each step; then the loop out along it and back.
 export function pathBack(world, reach, from) {
   const path = [from];
+  const links = ferryEdges(world);   // Version 7.1: a running ferry is a step too, as in sim/carts.js cartPath (a hop costs crossingTiles(water) of distance)
   let cur = from, d = reach.get(from);
   while (d > 1) {
     const x = cur % world.size, y = (cur - x) / world.size;
-    let next = -1;
+    let next = -1, hop = 1;
     for (const [dx, dy] of NEIGHBOURS4) {
       const nx = x + dx, ny = y + dy;
       if (!inBounds(world.size, nx, ny)) continue;
       const nt = idx(world.size, nx, ny);
       if (reach.get(nt) === d - 1 && (next < 0 || nt < next)) next = nt;
     }
+    if (next < 0) {
+      for (const e of links.get(cur) || []) {
+        if (reach.get(e.to) === d - e.cost && (next < 0 || e.to < next)) { next = e.to; hop = e.cost; }
+      }
+    }
     if (next < 0) break;
     path.push(next);
     cur = next;
-    d--;
+    d -= hop;
   }
   return path.reverse();
 }

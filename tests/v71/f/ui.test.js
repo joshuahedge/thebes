@@ -23,13 +23,13 @@ const across = (width) => line(RIVER_X - 2, ROW, RIVER_X + width + 1, ROW);
 const sized = (b) => { const box = b.getBoundingClientRect(); return [box.width >= 44, box.height >= 44]; };
 
 describe('v71 f ui: the bar\'s words', () => {
-  it('says what a crossing is from the sim: the water, the two ferrymen\'s monthly bill, what it counts as, and the price', () => {
+  it('says what a crossing is from the sim: the water, the two ferrymen\'s monthly bill, and the price', () => {
     for (const width of [5, 7, 12]) {
       const w = ferryWorld(width);
       const p = toolPreview(w, store({ kind: 'ferry' }, { line: across(width) }).get());
       const bill = monthlyBill('ferry_landing', w);
       expect([width, p.state, p.cost, p.count]).toEqual([width, 'ok', ferryCost(w), 2]);
-      expect(p.text).toBe(`${width} tiles of water · Costs ${2 * bill.bill} a month · 2 workers · counts as ${crossingTiles(width)} road tiles`);
+      expect(p.text).toBe(`${width} tiles of water · Costs ${2 * bill.bill} a month`);   // one short line (fix batch G, ruling 1086): what it counts as is in the landing's sheet
     }
     const hard = ferryWorld(7);
     hard.difficulty = 'hard';

@@ -3836,6 +3836,7 @@ export const P_TEXT = {
   undoTitle: (keys = true) => (keys ? 'Undo (Ctrl+Z or Delete)' : 'Undo (Ctrl+Z)'),
   demolishTitle: 'Demolish (Delete)',
   removeRow: 'Demolish the building whose sheet is open; with no sheet open, take back what you just placed while its Undo is offered',
+  lessonKeys: 'Over a lesson card every game key waits until the card is closed (Enter, Space or Esc closes it).',   // Version 7.1 (ruling 1081): Ctrl+Z too
   // The placing bar's reason line (ruling 1008, src/ui/placementWhy.js): every rule that fails, in plain words and with the sim's own counts, led by what the colour means.
   // Coral means it cannot be placed here; amber means it can, but will not work until the rest is met; blue means everything is met.
   place: {
@@ -3871,7 +3872,7 @@ HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'undo') + 1, 0, ['remove', 
 const pKey = (name) => [...new Set((KEYS[name] || []).map((k) => ({ ' ': 'Space', Escape: 'Esc' }[k] || (k.length !== 1 ? k : /[a-z0-9]/i.test(k) ? k.toUpperCase() : `"${k}"`))))].join(' or ');
 V70_HELP.p.push({
   head: 'Keyboard',
-  text: `On a computer: ${pKey('pause')} pauses and plays, ${pKey('speedUp')} and ${pKey('speedDown')} change the speed, ${pKey('zoomIn')} and ${pKey('zoomOut')} zoom, Arrows or WASD move the view, ${KEYS.category[0]} to ${KEYS.category[KEYS.category.length - 1]} pick a build category, ${pKey('rotate')} turns what can turn, ${pKey('minimap')} opens the minimap, ${pKey('overlay')} cycles the layers and ${pKey('help')} opens How to play. While you place, ${pKey('confirm')} places and ${pKey('back')} puts the tool away. Undo is Ctrl+Z (Cmd+Z on a Mac), which also takes back a demolish. ${pKey('remove')}: ${P_TEXT.removeRow.charAt(0).toLowerCase()}${P_TEXT.removeRow.slice(1)}; a demolish's sheet asks its question first, and nothing happens over a dialog or a lesson card. A lesson step's card closes with Enter, Space or Esc. Settings → Keyboard shortcuts turns the single keys off; Esc, Enter and Ctrl+Z always work, and Space closes a lesson card.`,
+  text: `On a computer: ${pKey('pause')} pauses and plays, ${pKey('speedUp')} and ${pKey('speedDown')} change the speed, ${pKey('zoomIn')} and ${pKey('zoomOut')} zoom, Arrows or WASD move the view, ${KEYS.category[0]} to ${KEYS.category[KEYS.category.length - 1]} pick a build category, ${pKey('rotate')} turns what can turn, ${pKey('minimap')} opens the minimap, ${pKey('overlay')} cycles the layers and ${pKey('help')} opens How to play. While you place, ${pKey('confirm')} places and ${pKey('back')} puts the tool away. Undo is Ctrl+Z (Cmd+Z on a Mac), which also takes back a demolish. ${pKey('remove')}: ${P_TEXT.removeRow.charAt(0).toLowerCase()}${P_TEXT.removeRow.slice(1)}; a demolish's sheet asks its question first, and nothing happens over a dialog. ${P_TEXT.lessonKeys} Settings → Keyboard shortcuts turns the single keys off; Esc, Enter and Ctrl+Z always work (except over a lesson card), and Space closes a lesson card.`,
 });
 V70_HELP.p.push({
   head: 'Placing a building: the squares and the colours',

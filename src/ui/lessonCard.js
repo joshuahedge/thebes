@@ -111,6 +111,8 @@ export function createLessonCard({ root, doc = document, store, onGo, onLeave, k
     if (k === 'Delete' || k === 'Backspace') { ev.preventDefault(); ev.stopPropagation(); return; }
     // Version 7.1 (ruling 1060): every other game key stops here too (the clock, the minimap, Help, the layers, the categories, the pan keys), so the card is modal to the
     // keyboard as it is to the tap; the default is kept (a browser chord such as F5 still works), and Ctrl, Cmd and Alt chords go on to the page untouched.
+    // Version 7.1 (ruling 1080): except Undo and Redo (Ctrl or Cmd with Z or Y, Shift+Z too), which would take back a placement behind the dimmed card.
+    if ((ev.ctrlKey || ev.metaKey) && (k === 'z' || k === 'Z' || k === 'y' || k === 'Y')) { ev.stopPropagation(); return; }
     if (!ev.ctrlKey && !ev.metaKey && !ev.altKey) ev.stopPropagation();
   }
   doc.addEventListener('keydown', onKey, true);

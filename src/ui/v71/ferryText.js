@@ -5,7 +5,6 @@
 import { plural, S45_TEXT, TIP_TEXT, TIP_HELP_TEXT } from '../text.js';
 import { FERRY, FERRY_LANDING } from '../../data/ferries.js';
 import { BRIDGE_MAX } from '../../sim/bridges.js';
-import { crossingTiles } from '../../sim/ferries.js';
 import { monthlyBill } from '../../sim/economy.js';
 
 const DIRECTION = { north: 'north', north_east: 'north-east', east: 'east', south_east: 'south-east', south: 'south', south_west: 'south-west', west: 'west', north_west: 'north-west' };
@@ -16,15 +15,18 @@ const crossingBill = (world) => { const b = monthlyBill(FERRY_LANDING, world); r
 export const FERRY_TEXT = {
   name: 'Ferry',
   // The bar before a line is drawn: how to draw one, and what a ferry is for.
-  idleTouch: 'Drag straight across the water, bank to bank · two fingers move the map',
-  idleMouse: 'Click one bank, then the other, straight across the water',
-  note: `For water a bridge cannot span: straight across ${FERRY.min} to ${FERRY.max} tiles, a landing on each bank with a road beside it`,
+  idleTouch: 'Drag across the water · two fingers move the map',   // ruling 1086: the idle bar is held at its tallest, so these three lines are short to keep a phone's bar low
+  idleMouse: 'Click one bank, then the other',
+  note: `Wide water: ${FERRY.min} to ${FERRY.max} tiles across`,
   // The Roads tray's card: its ground line and tooltip (the price is the sim's, ferryCost).
   card: `Across ${FERRY.min} to ${FERRY.max} tiles of water`,
   cardUnit: ' per crossing',
   cardTitle: (cost) => `A ferry crosses water too wide for a bridge (more than ${BRIDGE_MAX} tiles): straight across ${FERRY.min} to ${FERRY.max} tiles of water, a landing on each bank with a road beside it. ${cost} gold for the crossing, and a ferryman at each landing.`,
-  // The bar's line for a crossing the sim accepts: the water, the landings, what it counts as for walkers and carts, and what it costs a month.
-  summary: (world, r) => `${plural(r.water, 'tile', 'tiles')} of water · ${S45_TEXT.upkeepLine(crossingBill(world))} · counts as ${plural(crossingTiles(r.water), 'road tile', 'road tiles')}`,
+  // The bar's line for a crossing the sim accepts: one short line, the water and what the two ferrymen cost a month (ruling 1086: on a phone a longer line wrapped to seven lines beside the
+  // four buttons). What it counts as for walkers and carts is in the landing's sheet (sheet.runs) and How to play.
+  summary: (world, r) => `${plural(r.water, 'tile', 'tiles')} of water · ${S45_TEXT.upkeepBill(crossingBill(world))}`,
+  // What Show me is named for: a ferry, or (after a ferry_bridge refusal) a bridge, which is where it goes.
+  showFitWhat: { ferry: 'a ferry', bridge: 'a bridge' },
   // A refusal says why, with the number that decided it.
   refusal(r) {
     switch (r.reason) {
@@ -59,7 +61,7 @@ export const FERRY_TEXT = {
     otherLabel: 'Show the other landing of this ferry on the map',
   },
   // How to play's entry and the tip.
-  help: { head: 'Ferries', text: `A bridge crosses up to ${BRIDGE_MAX} tiles of water. Wider water, from ${FERRY.min} up to ${FERRY.max} tiles, takes a ferry: pick Ferry in the Roads tray and drag straight across, bank to bank. It lays a landing on each bank, each with a road beside it, and costs gold for the crossing and a monthly bill for its two ferrymen. Once both have a ferryman, walkers and carts cross as if it were a few road tiles, and a small boat goes to and fro. A landing's sheet says why a crossing is not running. Raiders and armies never use a ferry.` },
+  help: { head: 'Ferries', text: `A bridge crosses up to ${BRIDGE_MAX} tiles of water. Wider water, from ${FERRY.min} up to ${FERRY.max} tiles, takes a ferry: pick Ferry in the Roads tray and drag straight across, bank to bank. It lays a landing on each bank, each with a road beside it, and costs gold for the crossing and a monthly bill for its two ferrymen. Once both have a ferryman, walkers and carts cross as if it were a few road tiles (a landing's sheet says how many), and a small boat shows on the crossing: it goes to and fro under Full motion and rests at a landing under Gentle. A landing's sheet says why a crossing is not running. Raiders and armies never use a ferry.` },
   tip: `Water too wide for a bridge? Pick Ferry in the Roads tray and drag across: ${FERRY.min} to ${FERRY.max} tiles.`,
 };
 
