@@ -1,30 +1,29 @@
-// The title card (spec 4.1): Continue, New city with its difficulty and map size under it (spec 4.18), then Lesson, Settings and What's new
-// over a paused, slowly drifting sample city; Install and Bring your city only where offered. Version 6.0 (Track D1, rulings 740-747): "This
-// week's Nile" and "Play with sound / Play muted" are gone (sound is on by default, Settings mutes it), Settings opens on the card, and the
-// size picker has Huge. The backdrop only moves the camera; the sim behind it never ticks.
+// The title card (spec 4.1). Version 8.0 (Track U, rulings 1148-1153): one main button (Continue with a saved city, else Play), then the quieter ones
+// (New city, I've played before, Lesson), Options and What's new, over a paused, slowly drifting sample city; Install only where offered. The version
+// number moved to the foot of Options. New city is a card of its own: difficulty as large tiles, with map size and layout under More choices.
+// Version 6.0 (Track D1, rulings 740-747): "This week's Nile" and "Play with sound / Play muted" are gone (sound is on by default, Options mutes it),
+// Options opens on the card, and the size picker has Huge. The backdrop only moves the camera; the sim behind it never ticks.
 import { TITLE_DRIFT_MS, TITLE_HOLD_MS } from '../data/ui.js';
 import { ART, slotFor } from '../render/art/registry.js';
 import { p, artToTile, ART_SCALE } from '../render/iso.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { el, button, clear } from './components.js';
-import { T, DIFFICULTY_NAMES, difficultyHint, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT, D1_TEXT, D2_TEXT, V711_TEXT } from './text.js';
-import { MAP_SIZES, MAP_SIZE_IDS, MAP_SIZE_TABLE } from '../data/map.js';
-import { versionLine, renderWhatsNew } from './s46/whatsNew.js';   // Stage 4.6 (rulings 401-403): the version line and the What's new panel
+import { T, DIFFICULTY_NAMES, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT, D1_TEXT, D2_TEXT, V711_TEXT, V80_U_TEXT } from './text.js';
+import { MAP_SIZES, MAP_SIZE_IDS, MAP_SIZE_TABLE, MAP_VARIANTS } from '../data/map.js';
+import { renderWhatsNew } from './s46/whatsNew.js';   // Stage 4.6 (rulings 401-403): the What's new panel
 
-// Relaxed, Normal or Hard for the next new city: three pressed-state buttons with the chosen level's line under them.
-// Choosing one tells onChoose (boot.js keeps it in settings.difficulty), so the last one used is chosen next time.
-function difficultyRow(initial, onChoose) {
+// The difficulty tiles of the new-city card (Version 8.0): one large pressed-state button per level, its name and one line from the sim's own data
+// (V80_U_TEXT.difficultyLine). Choosing one tells onChoose (boot.js keeps it in settings.difficulty), so the last one used is chosen next time.
+function difficultyTiles(initial, onChoose) {
   let level = DIFFICULTY_ORDER.includes(initial) ? initial : 'normal';
-  const hint = el('p', { class: 'difficulty-hint small muted', id: 'title-difficulty-hint' });
-  const choices = DIFFICULTY_ORDER.map((d) => button(DIFFICULTY_NAMES[d], { class: 'choice difficulty', dataset: { value: d }, 'aria-describedby': 'title-difficulty-hint' }));
-  const sync = () => { for (const b of choices) b.setAttribute('aria-pressed', String(b.dataset.value === level)); hint.textContent = difficultyHint(level); };
+  const choices = DIFFICULTY_ORDER.map((d) => el('button', { type: 'button', class: 'choice difficulty tile', dataset: { value: d } }, [
+    el('span', { class: 'tile-name', text: DIFFICULTY_NAMES[d] }),
+    el('span', { class: 'tile-line small', text: V80_U_TEXT.difficultyLine(d) }),
+  ]));
+  const sync = () => { for (const b of choices) b.setAttribute('aria-pressed', String(b.dataset.value === level)); };
   for (const b of choices) b.addEventListener('click', () => { level = b.dataset.value; sync(); onChoose(level); });
   sync();
-  return el('div', { class: 'title-difficulty' }, [
-    el('span', { class: 'label small', 'aria-hidden': 'true', text: T.difficulty }),
-    el('div', { class: 'choices', role: 'group', 'aria-label': T.difficultyForNewCities }, choices),
-    hint,
-  ]);
+  return el('div', { class: 'title-difficulty tiles', role: 'group', 'aria-label': T.difficultyForNewCities }, choices);
 }
 
 // Stage 4.6 (ruling 333): Small, Normal or Large for the next new city: three pressed-state buttons with the chosen size's line under them
@@ -60,62 +59,75 @@ function sizeRow(initial, onChoose) {
   return row;
 }
 
+// The layout picker of More choices (Version 8.0): Surprise me (the seed picks, 'auto') or one of the twelve river layouts by name. A native select: a 44 px
+// control with a label, and the keyboard's own arrows. Choosing one tells onChoose (boot.js keeps it for the session, as it keeps the size).
+function layoutRow(initial, onChoose) {
+  const ids = ['auto', ...MAP_VARIANTS];
+  const value = ids.includes(initial) ? initial : 'auto';
+  const select = el('select', { class: 'layout-select', id: 'title-layout' }, ids.map((id) => el('option', { value: id, text: V80_U_TEXT.layoutName(id) })));
+  select.value = value;
+  select.addEventListener('change', () => onChoose(select.value));
+  return el('div', { class: 'title-layout' }, [
+    el('label', { class: 'label small', for: 'title-layout', text: V80_U_TEXT.layoutLabel }),
+    select,
+  ]);
+}
+
 // decorate (Stage 3): called once with (element, { buttonBox, newCity }) after the card is built, so the score interface
 // adds the records, stamps and a shared score (src/ui/scoreUi.js titleDecor) without editing this file.
-// Version 6.0 (Track D1, rulings 742, 747): the third button is Lesson (onLesson, from the guided first city: Track D2) and, until that exists, How to play
-// (onHowToPlay, Stage 4 Track G, spec 4.1: boot.js passes hooks.pictureCards), the picture cards; no button without either. Settings (renderSettings(body),
-// the same rows as the game's Settings sheet) and What's new open as the card's one panel with Back. screen() is the screen's size in CSS px (a phone is
+// Version 6.0 (Track D1, rulings 742, 747): the Lesson button (onLesson, from the guided first city: Track D2) and, until that exists, How to play
+// (onHowToPlay, Stage 4 Track G, spec 4.1: boot.js passes hooks.pictureCards), the picture cards; no button without either. Options (renderSettings(body),
+// the same rows as the game's Options sheet) and What's new open as the card's one panel with Back. screen() is the screen's size in CSS px (a phone is
 // told Huge suits a tablet or computer).
-export function createTitleCard({ container, hasSave, canInstall = false, canBring = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, onBring = () => {}, decorate = null, onHowToPlay = null, onLesson = null, lesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, screen = null }) {
+// Version 8.0 (Track U, rulings 1148-1153): the main button is Continue with a saved city, else Play. On a device that has not done the lesson and has no
+// saved city, Play starts the lesson (the lesson alone, as ruling 617 had it, with I've played before under it); with the lesson done and no city, Play opens
+// the new-city card; with a saved city, New city does. difficulty is a level or a function that gives the device's level now; mapSize a size id and layout
+// a layout id ('auto' is Surprise me), both kept here once chosen so the card shows them when it opens again.
+export function createTitleCard({ container, hasSave, canInstall = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, decorate = null, onHowToPlay = null, onLesson = null, lesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, layout = 'auto', onLayout = () => {}, screen = null }) {
   const install = button(T.install, { class: 'install', hidden: !canInstall, onClick: onInstall });
-  const newCity = button(T.newCity, { class: hasSave ? 'new-city' : 'new-city primary', onClick: onNewCity });
-  // Version 6.0 (Track D2, ruling 617): on a device that has not done the lesson and has no saved city (lesson.due) the card offers the lesson alone
-  // (Start the lesson, or Continue the lesson with Start again for one left part-way): no New city, difficulty or size until it has been played.
-  // Elsewhere the Lesson button plays it again (lesson.partWay says Continue).
   const lessonOnly = Boolean(lesson && lesson.due && typeof onLesson === 'function');
+  const primaryNew = !hasSave && !lessonOnly;
+  const newCity = button(primaryNew ? V80_U_TEXT.play : T.newCity, { class: primaryNew ? 'new-city primary' : 'new-city', onClick: () => showNewCity() });
+  const levelNow = () => (typeof difficulty === 'function' ? difficulty() : difficulty);
+  let sizeNow = mapSize, layoutNow = layout, sizes = null;
   const buttons = [];
   if (lessonOnly) {
     buttons.push(button(lesson.partWay ? D2_TEXT.titleContinue : D2_TEXT.titleStart, { class: 'lesson-start primary', onClick: () => onLesson() }));
-  } else if (hasSave) buttons.push(button(T.continueGame, { class: 'continue primary', onClick: onContinue }));
-  if (!lessonOnly) buttons.push(newCity);
-  const levels = difficultyRow(difficulty, onDifficulty);
-  const sizes = sizeRow(mapSize, onMapSize);
-  levels.append(sizes);   // Stage 4.6: the size sits with the difficulty under New city
+  } else {
+    if (hasSave) buttons.push(button(T.continueGame, { class: 'continue primary', onClick: onContinue }));
+    buttons.push(newCity);
+  }
   const lessonExtras = lessonOnly ? [
     el('p', { class: 'lesson-hint small muted', text: lesson.partWay ? D2_TEXT.titleContinueHint : D2_TEXT.titleHint }),
     lesson.partWay && typeof lesson.onAgain === 'function' ? button(D2_TEXT.titleAgain, { class: 'lesson-again quiet', onClick: () => lesson.onAgain() }) : null,
     // Version 7.1.1 (ruling 1111, over ruling 617): a secondary button under the lesson's own: a player who has played before marks the lesson done and gets the usual
-    // New city card (difficulty, map size) at once.
+    // New city card (difficulty, map size) at once. Version 8.0: it is called I've played before.
     typeof lesson.onSkip === 'function' ? button(V711_TEXT.skip, { class: 'lesson-skip', onClick: () => lesson.onSkip() }) : null,
   ] : [];
   const more = [];
-  if (typeof onLesson === 'function' && !lessonOnly) more.push(button(lesson && lesson.partWay ? D2_TEXT.titleContinue : D1_TEXT.lesson, { class: 'lesson', onClick: () => onLesson() }));
+  if (typeof onLesson === 'function' && !lessonOnly) more.push(button(lesson && lesson.partWay ? V80_U_TEXT.resumeLesson : D1_TEXT.lesson, { class: 'lesson', onClick: () => onLesson() }));
   else if (typeof onHowToPlay === 'function' && !lessonOnly) more.push(button(CARDS4_TEXT.howToPlay, { class: 'how-to-play', onClick: () => onHowToPlay() }));
   if (typeof renderSettings === 'function') more.push(button(T.settings, { class: 'title-settings', onClick: () => showSettings() }));
   more.push(button(S46_UX_TEXT.whatsNew, { class: 'whats-new-button', onClick: () => showWhatsNew() }));   // Stage 4.6 (ruling 402): one panel of releases, newest first
-  // Bring your city: where the page is installed with no city (flow.canBring), and always on the lesson-only card (a player with a city file from another
-  // device must not have to play the lesson first).
-  const bring = canBring || lessonOnly ? button(T.bringCity, { class: 'bring', onClick: onBring }) : null;
   const buttonBox = el('div', { class: 'title-buttons' }, [
-    ...buttons.flatMap((b) => (b === newCity ? [b, levels] : [b])),   // the choice sits under New city
+    ...buttons,
     ...lessonExtras,
     el('div', { class: 'title-more', role: 'group', 'aria-label': D1_TEXT.titleGroup }, more),
-    bring, install,
+    install,
   ]);
   const element = el('div', { class: 'title-card', role: 'dialog', 'aria-labelledby': 'title-name' }, [
     el('h1', { id: 'title-name', text: 'Thebes' }),
     el('p', { class: 'tagline muted', text: T.tagline }),
     el('p', { class: 'goal-line', text: V711_TEXT.goal() }),   // Version 7.1.1 (ruling 1110): what the game is for, up front
-    versionLine(),   // Stage 4.6 (ruling 401): "Version 4.6 · build 989a650", small
     message ? el('p', { class: 'message coral', text: message }) : null,
     lesson && lesson.note ? el('p', { class: 'lesson-note teal', text: lesson.note }) : null,   // "Your first city stands": back on the title after the lesson
     buttonBox,
   ]);
   let guide = null;
   const showPanelNode = (children) => { guide = el('div', { class: 'guide' }, children); buttonBox.hidden = true; element.append(guide); };
-  const showCard = () => { if (guide) { guide.remove(); guide = null; } buttonBox.hidden = false; buttons[0].focus(); };
+  const showCard = () => { sizes = null; if (guide) { guide.remove(); guide = null; } buttonBox.hidden = false; buttons[0].focus(); };
   const showWhatsNew = () => { showCard(); const body = el('div', { class: 'guide-body' }); const { top } = renderWhatsNew(body, showCard); showPanelNode([body]); top.focus(); };
-  // Settings on the card (Version 6.0): the game's own rows (sound, music, text size, motion...), written to the device's settings at once, then Back.
+  // Options on the card (Version 6.0): the game's own rows, written to the device's settings at once, then Back.
   const showSettings = () => {
     showCard();
     const body = el('div', { class: 'guide-body settings-body' });
@@ -123,6 +135,36 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
     const back = button(T.back, { class: 'guide-back', onClick: showCard });
     showPanelNode([el('h2', { class: 'settings-head', text: D1_TEXT.settingsPanel }), body, el('div', { class: 'actions' }, [back])]);
     (body.querySelector('button') || back).focus();
+  };
+  // The new-city card (Version 8.0): the difficulty tiles, More choices (map size and layout, closed at first, with a line saying what is chosen), a note when
+  // a saved city would be replaced, then Start and Back. Start is onNewCity (boot.js: the replace question first when a city is saved, then the picture cards).
+  const showNewCity = () => {
+    showCard();
+    const levels = difficultyTiles(levelNow(), onDifficulty);
+    sizes = sizeRow(sizeNow, (id) => { sizeNow = id; onMapSize(id); sync(); });
+    const picker = layoutRow(layoutNow, (id) => { layoutNow = id; onLayout(id); sync(); });
+    const region = el('div', { class: 'more-choices-body', id: 'more-choices-body', hidden: true }, [sizes, picker]);
+    const summary = el('p', { class: 'more-summary small muted' });
+    const toggle = el('button', { type: 'button', class: 'more-choices-toggle', 'aria-expanded': 'false', 'aria-controls': 'more-choices-body' });
+    const sync = () => {
+      const open = !region.hidden;
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.textContent = open ? V80_U_TEXT.fewerChoices : V80_U_TEXT.moreChoices;
+      summary.textContent = V80_U_TEXT.moreSummary(S46_MAP_TEXT.sizeNames[sizeNow] || sizeNow, layoutNow);
+      summary.hidden = open;
+    };
+    toggle.addEventListener('click', () => { region.hidden = !region.hidden; sync(); });
+    sync();
+    const start = button(V80_U_TEXT.start, { class: 'start-city primary', onClick: () => onNewCity() });
+    const back = button(T.back, { class: 'guide-back', onClick: showCard });
+    showPanelNode([el('div', { class: 'guide-body new-city-body' }, [
+      el('h2', { class: 'new-city-head', text: V80_U_TEXT.newCityHead }),
+      levels, toggle, summary, region,
+      hasSave ? el('p', { class: 'replace-note small muted', text: V80_U_TEXT.replaceNote }) : null,
+      el('div', { class: 'actions' }, [start, back]),
+    ])]);
+    checkPhone();
+    (levels.querySelector('[aria-pressed="true"]') || start).focus();
   };
   if (typeof decorate === 'function') decorate(element, { buttonBox, newCity });
   clear(container);
@@ -135,8 +177,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
     const r = container.getBoundingClientRect();
     return r.width && r.height ? { width: r.width, height: r.height } : { width: window.innerWidth, height: window.innerHeight };
   };
-  const checkPhone = () => sizes.setPhone(isPhoneScreen(screenNow()));
-  checkPhone();
+  const checkPhone = () => { if (sizes) sizes.setPhone(isPhoneScreen(screenNow())); };
   window.addEventListener('resize', checkPhone);
   return {
     element,
@@ -159,7 +200,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
       const first = body.querySelector('button');
       if (first) first.focus();
     },
-    // The line under the tagline: save and import problems the player needs to see on the title.
+    // The line under the tagline: save problems the player needs to see on the title.
     setMessage(text) {
       let node = element.querySelector('.message');
       if (!node) { node = el('p', { class: 'message coral' }); element.insertBefore(node, buttonBox); }
@@ -167,6 +208,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
       node.hidden = !text;
     },
     showCard,
+    showNewCity,
     destroy() { window.removeEventListener('resize', checkPhone); clear(container); container.hidden = true; },
   };
 }

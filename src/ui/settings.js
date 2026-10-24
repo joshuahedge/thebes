@@ -12,6 +12,12 @@
 // A change of the device's own setting moves the level at once and tells every subscriber, as set() does, so the Settings
 // row's words and anything else that reads the level follow it (spec 5.4). music (on by default) and musicVolume (0-100
 // in tens, 30 by default) are separate from sound; cardsSeen is the device's "picture cards seen or skipped" flag.
+//
+// Version 8.0 (Track U, ruling 1147, Josh's call): every player gets full motion. The Motion row is gone from Options, the game no longer reads the
+// phone's Reduce motion (systemReducedMotion defaults to "never asks" and nothing watches the device, unless the test rig sets window.__thebesRigDevice), and a
+// Motion level left in a device's storage by 7.x is not read back (only a blob marked motionRig: true is, the tests' own), so nobody is stuck on Gentle or Still with
+// no row to change it. What stays is the test rig's switch: that flag, createSettings' systemReducedMotion and watchSystem arguments, and set({ motion })
+// (window.__thebes.setMotion), which move the level for this session only.
 import { prefersReducedMotion } from '../render/effects.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 
@@ -34,6 +40,9 @@ export const DEFAULT_SETTINGS = {
   // Version 7.0 (Track 0 seam, Track S owns them): dayNight, the Settings switch "Day and night" (on: the six-minute light loop, unless Motion is
   // Still); effectsVolume, the effects' volume beside musicVolume (MUSIC_VOLUMES steps; 100 is today's loudness), both under the Sound master.
   dayNight: true, effectsVolume: 100,
+  // Version 8.0 (Track U, ruling 1147): the test rig's mark. A stored Motion level is read back only from a blob that also says motionRig: true (the tests' and shot tools'
+  // pre-seeded storage); the game never writes it true, so a Motion choice 7.x left on a device is ignored and everyone moves in full.
+  motionRig: false,
 };
 
 const isBool = (v) => typeof v === 'boolean';
@@ -54,6 +63,7 @@ const VALID = {
   cardsSeen: isBool,
   dayNight: isBool,
   effectsVolume: (v) => MUSIC_VOLUMES.includes(v),
+  motionRig: isBool,
 };
 // Lists are copied on the way in and out of storage, so no caller can change the defaults or the stored copy.
 const copy = (v) => (Array.isArray(v) ? v.slice() : v);
@@ -85,11 +95,16 @@ function defaultStorage() {
   try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch (e) { return null; }
 }
 
-// Calls cb whenever the device's reduced-motion preference changes; returns the unwatch. Nothing where matchMedia or the
-// query's change event is not offered (older browsers have only addListener, used when there).
-export function watchReducedMotion(cb) {
+// The game's answer to "does the device ask for less motion": never (Version 8.0). The test rig is the one exception: the test page and the screenshot tool set
+// window.__thebesRigDevice = true before the game loads, and the stand-in then follows the browser's own Reduce motion as 7.x did (headless Edge asks for less,
+// so the rig runs under Gentle, which every existing test and shot expects). A player's page never sets it.
+const rigFollowsDevice = () => typeof window !== 'undefined' && window.__thebesRigDevice === true;
+const deviceAsks = () => rigFollowsDevice() && prefersReducedMotion();
+// Calls cb whenever the browser's reduced-motion preference changes (the rig only); returns the unwatch.
+function watchDevice(cb) {
+  if (!rigFollowsDevice()) return () => {};
   try {
-    const q = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    const q = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
     if (!q) return () => {};
     if (q.addEventListener) { q.addEventListener('change', cb); return () => q.removeEventListener('change', cb); }
     if (q.addListener) { q.addListener(cb); return () => q.removeListener(cb); }
@@ -97,11 +112,11 @@ export function watchReducedMotion(cb) {
   return () => {};
 }
 
-// watchSystem(cb) -> unwatch: how the device's preference is watched, so root's data-motion and reduce-motion follow it at
-// once under 'system' (spec 5.4); tests inject it. destroy() stops the watch.
+// systemReducedMotion() and watchSystem(cb) -> unwatch: the test rig's stand-in for the device's preference, so root's data-motion and
+// reduce-motion follow it at once under 'system' (spec 5.4); tests inject both. destroy() stops the watch.
 export function createSettings({
   storage = defaultStorage(), key = 'thebes.settings',
-  root = document.body, systemReducedMotion = prefersReducedMotion, watchSystem = watchReducedMotion,
+  root = document.body, systemReducedMotion = deviceAsks, watchSystem = watchDevice,
 } = {}) {
   const subs = new Set();
 
@@ -110,8 +125,8 @@ export function createSettings({
       const raw = storage && storage.getItem(key);
       const obj = raw ? JSON.parse(raw) : {};
       const out = {};
-      for (const k of Object.keys(DEFAULT_SETTINGS)) if (obj && VALID[k](obj[k])) out[k] = copy(obj[k]);
-      if (obj && !('motion' in out)) { const m = motionFromLegacy(obj); if (m) out.motion = m; }   // a Stage 3 device's choice is kept
+      const rig = Boolean(obj) && obj.motionRig === true;   // Version 8.0: a stored Motion choice is read back only from the test rig's blob
+      for (const k of Object.keys(DEFAULT_SETTINGS)) if ((k !== 'motion' || rig) && obj && VALID[k](obj[k])) out[k] = copy(obj[k]);
       return out;
     } catch (e) { return {}; }
   }

@@ -23,7 +23,9 @@ function heightsWithout(root, sels) {
 const heights = (root, sels) => sels.map((s) => root.querySelector(s).getBoundingClientRect().height);
 
 describe('s4 look frieze and cartouches', () => {
-  it('runs a 4 px frieze of lapis, gold, terracotta and turquoise along the top bar and each sheet\'s head, inside their heights', async () => {
+  // Version 8.0 (Track V, ruling 1130): the band is 6 px (it was 4). The top bar keeps it on its lower edge, still inside the bar's height; a sheet's head wears it on its top edge as a
+  // background layer (the head grows 2 px of padding for it), so the box's radius clips it and a scrolling sheet keeps it. tests/v80/v/band.test.js holds the rest of the new look.
+  it('runs a 6 px frieze of lapis, gold, terracotta and turquoise along the top bar and across each sheet\'s head, the bar keeping its height', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       for (const [w, h] of SIZES) {
@@ -32,13 +34,15 @@ describe('s4 look frieze and cartouches', () => {
           r.ui.settings.set({ textSize: ts });
           r.store.set(openSheet(r.store.get(), 'summary'));
           const at = `${w}x${h} ${ts}%`;
-          for (const sel of ['#topbar', '#sheet .head']) {
-            const box = r.root.querySelector(sel), f = pseudo(box, '::after');
-            expect([at, sel, f.content, f.height, f.bottom, getComputedStyle(box).borderBottomWidth, f.zIndex]).toEqual([at, sel, '""', '4px', '-1px', '1px', '-1']);
-            const colours = [LOOK_TOKENS.lapis, TOKENS.gold, LOOK_TOKENS.terracotta, LOOK_TOKENS.turquoise, TOKENS.ink].map((c) => f.backgroundImage.includes(cssRgb(c)));
+          const bar = r.root.querySelector('#topbar'), f = pseudo(bar, '::after');
+          expect([at, f.content, f.height, f.bottom, getComputedStyle(bar).borderBottomWidth, f.zIndex]).toEqual([at, '""', '6px', '-1px', '1px', '-1']);
+          const head = getComputedStyle(r.root.querySelector('#sheet .head'));
+          expect([at, head.backgroundSize.startsWith('100% 1px, 100% 6px')]).toEqual([at, true]);
+          for (const [sel, image] of [['#topbar', f.backgroundImage], ['#sheet .head', head.backgroundImage]]) {
+            const colours = [LOOK_TOKENS.lapis, TOKENS.gold, LOOK_TOKENS.terracotta, LOOK_TOKENS.turquoise, TOKENS.ink].map((c) => image.includes(cssRgb(c)));
             expect([at, sel, colours]).toEqual([at, sel, [true, true, true, true, true]]);
           }
-          const sels = ['#topbar', '#sheet .head', '#under-bar'];
+          const sels = ['#topbar', '#under-bar'];
           expect([at, heights(r.root, sels)]).toEqual([at, heightsWithout(r.root, sels)]);
           const top = r.root.querySelector('#under-bar').getBoundingClientRect().top;
           r.store.set(openSheet(r.store.get(), 'menu'));
@@ -78,7 +82,7 @@ describe('s4 look frieze and cartouches', () => {
       const container = r.root.querySelector('#title');
       const card = createTitleCard({ container, hasSave: false, onContinue: () => {}, onNewCity: () => {}, onSound: () => {} });
       const h1 = card.element.querySelector('h1');
-      expect([h1.textContent, getComputedStyle(h1).fontFamily, pseudo(card.element, '::before').height]).toEqual(['Thebes', SERIF, '4px']);
+      expect([h1.textContent, getComputedStyle(h1).fontFamily, getComputedStyle(card.element).backgroundSize.startsWith('100% 1px, 100% 6px')]).toEqual(['Thebes', SERIF, true]);   // Version 8.0: the card's band is a 6 px background layer
       expect(pseudo(h1, '::after').content).toBe('none');                                    // no tie after the name (ruling 450): it read as a caret
       const glyph = pseudo(h1, '::before');
       expect([glyph.content, glyph.backgroundImage.startsWith('url("data:image/svg+xml'), parseFloat(glyph.width) > 0]).toEqual(['""', true, true]);

@@ -3,7 +3,8 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $rel = { param($path) $path.Substring($root.Length + 1) -replace '\\', '/' }
-$files = @('index.html', 'manifest.webmanifest', 'css/ui.css') +
+$files = @('index.html', 'manifest.webmanifest') +
+  @(Get-ChildItem -Path (Join-Path $root 'css') -Filter *.css | ForEach-Object { 'css/' + $_.Name }) +   # Version 8.0: every stylesheet in css/, so a new one is cached without editing this line
   @(Get-ChildItem -Path (Join-Path $root 'src') -Recurse -Filter *.js | ForEach-Object { & $rel $_.FullName }) +
   @(Get-ChildItem -Path (Join-Path $root 'icons') -Filter *.png | ForEach-Object { 'icons/' + $_.Name }) +
   @(Get-ChildItem -Path (Join-Path $root 'assets/tutorial') -File -ErrorAction SilentlyContinue | ForEach-Object { 'assets/tutorial/' + $_.Name })   # Stage 4: the picture cards (tools/tutorial.ps1)

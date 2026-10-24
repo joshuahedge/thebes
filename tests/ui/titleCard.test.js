@@ -4,7 +4,7 @@ import { createCameraControl } from '../../src/ui/cameraControl.js';
 import { createCamera } from '../../src/render/camera.js';
 import { createWorld } from '../../src/sim/world.js';
 
-import { mount, fire } from '../helpers/dom.js';
+import { mount, fire, startNewCity } from '../helpers/dom.js';
 
 describe('ui title card', () => {
   it('offers Continue only with a save, has no sound button (Version 6.0), and Install only where allowed', () => {
@@ -19,7 +19,7 @@ describe('ui title card', () => {
     expect(document.activeElement).toBe(container.querySelector('.new-city'));
     expect(container.querySelector('.sound')).toBe(null);                               // sound is on by default; Settings mutes it
     expect(container.textContent.includes('Play with sound') || container.textContent.includes('Play muted')).toBe(false);
-    fire(container.querySelector('.new-city'), 'click');
+    startNewCity(container);
     expect(log).toEqual(['new']);
     card.destroy();
     expect(container.hidden).toBe(true);

@@ -25,13 +25,13 @@ describe('v711 buttons: dialogs and cards', () => {
     }
   });
 
-  it('the lesson card\'s buttons are centred: Show me full width, Skip and Leave the lesson in the middle', async () => {
+  it('the lesson card\'s buttons are centred: Show me full width, Skip in the middle (Version 8.0: Leave the lesson is in the menu)', async () => {
     const s = await pageAt('road', { width: 390, height: 844 });
     try {
       const card = cardOf(s);
-      const go = card.querySelector('.lc-go'), skip = card.querySelector('.lc-skip'), leave = card.querySelector('.lc-leave');
+      const go = card.querySelector('.lc-go'), skip = card.querySelector('.lc-skip');
       expect(skip.hidden).toBe(false);
-      for (const b of [go, skip, leave]) expect([b.textContent, near(mid(rect(b)), mid(rect(card)))]).toEqual([b.textContent, true]);
+      for (const b of [go, skip]) expect([b.textContent, near(mid(rect(b)), mid(rect(card)))]).toEqual([b.textContent, true]);
       expect(rect(go).width > rect(card).width * 0.8).toBe(true);
     } finally { s.cleanup(); }
   });

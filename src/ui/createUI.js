@@ -42,13 +42,14 @@ import { createRail } from './rail.js';
 import { createCorners } from './corners.js';
 import { createSheets } from './sheets.js';
 import { createMinimap } from './minimap.js';
-import { createAlerts, mapSummaryText, nearestOf } from './alerts.js';
+import { createAlerts, mapSummaryText, nearestOf, isPointAlert } from './alerts.js';
 import { createOverlayLegend } from './overlayUi.js';
 import { spotsOn } from './s47/spots.js';
 import { drawHouseSpots } from '../render/spots.js';
 import { createLayersPicker } from './layersPicker.js';
 import { resolveSupplyGood } from '../sim/layers.js';
 import { createToasts, MAX_TOASTS, MAX_TOASTS_PHONE } from './toasts.js';
+import { createTray, PINNED_CODES } from './tray.js';
 import { createCelebrations } from './celebrate.js';
 import { createTips } from './tips.js';
 import { createNudge, nudgeLineText, NUDGE_MAX_STEP_MS } from './nudge.js';
@@ -78,7 +79,7 @@ import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
-import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER_UI_TEXT, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T } from './text.js';
 import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
 
@@ -134,7 +135,9 @@ export function createUI({
   // (placement review P3).
   const fine = Boolean(win.matchMedia && win.matchMedia('(pointer: fine)').matches);
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), inputType: fine ? 'mouse' : 'touch', ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
-  const toasts = createToasts({ container: $('toasts'), max: () => (store.get().layout === 'wide' ? MAX_TOASTS : MAX_TOASTS_PHONE), held: () => root.classList.contains('lesson-card-up') });   // Version 7.1.1 (ruling 1100): none over a lesson card
+  // Version 8.0 (Track N, ruling 1160): every toast and caption is also kept in the message tray behind the scroll button at the top right (src/ui/tray.js); trayModel (below) is what its sheet shows.
+  const tray = createTray();
+  const toasts = createToasts({ container: $('toasts'), max: () => (store.get().layout === 'wide' ? MAX_TOASTS : MAX_TOASTS_PHONE), held: () => root.classList.contains('lesson-card-up'), record: (text, o) => tray.add(text, o), forget: (id) => tray.drop(id) });   // Version 7.1.1 (ruling 1100): none over a lesson card
   // Stage 4 (spec 5.4): the Motion level in use, 'full' | 'gentle' | 'still' (a test's stand-in settings may only have reducedMotion).
   const motionLevel = () => (typeof settings.motionLevel === 'function' ? settings.motionLevel() : (settings.reducedMotion() ? 'still' : 'full'));
   const effects = createEffects({ reducedMotion: settings.reducedMotion, motionLevel });   // Stage 4: Gentle's fades in place (Track E)
@@ -164,7 +167,9 @@ export function createUI({
   // captions show (the rest are in the Goals sheet's Recent list).
   const holdCaptions = () => { const s = store.get(); return phone() && Boolean(s.sheet || s.overlay || spotsOn(s, world) || tips.current() || alertHasRow()); };
   const skipCaption = (item) => phone() && item.tier !== 'info' && root.classList.contains('has-banner');
-  const celebrations = createCelebrations({ container: $('cheer'), hold: holdCaptions, skip: skipCaption, dropHeld: () => Boolean(store.get().sheet) || alertHasRow(), now, onChange: () => guidanceChanged(), onToggle: () => toggleGuidance() });
+  const shownCelebrations = createCelebrations({ container: $('cheer'), hold: holdCaptions, skip: skipCaption, dropHeld: () => Boolean(store.get().sheet) || alertHasRow(), now, onChange: () => guidanceChanged(), onToggle: () => toggleGuidance() });
+  // Version 8.0 (ruling 1160): a caption (goal done, a first, caravan, rank, a warning's words) is a message too: it goes into the tray as it is shown, with its place when it has one (item.at).
+  const celebrations = { ...shownCelebrations, show(item) { tray.add(`${item.lead || ''}${item.text}`, { at: item.at, why: item.why, kind: item.tier }); return shownCelebrations.show(item); } };
   const nudge = createNudge({ now: () => frameNow });
   const nudgeLine = el('p', { class: 'nudge-line', hidden: true });
   const nudgeRegion = el('div', { class: 'nudge', role: 'status', 'aria-live': 'polite' }, [nudgeLine]);   // stays rendered, so the line is announced when it appears
@@ -208,9 +213,16 @@ export function createUI({
   const speedBar = el('div', { class: 'speed-bar' });
   speedControl.mountBar(speedBar);
   // Version 5.0 (Task 1): City advice. Read at a command and every fifth game day (refreshChrome), shown by the top-bar button, the summary's link and a tip.
-  const advice = createAdviceUi({ world, settings, showMeAt, selectBuilding, openSummary, toast: (text) => toasts.show(text) });
+  const advice = createAdviceUi({ world, settings, showMeAt, selectBuilding, openSummary, toast: (text) => toasts.show(text), tray: trayModel });
+  // Version 8.0 (Track N, rulings 1160-1161): the scroll button also carries the message tray. It shows while there is a message or something pinned, and its number is the messages not
+  // read yet plus what is pinned (a raid, a fire, a letter, an event waiting: they need you until they are dealt with).
+  const pinnedAlerts = () => alerts.list().filter((a) => PINNED_CODES.has(a.code));
+  const scrollState = () => {
+    const a = advice.state(), pinned = pinnedAlerts().length;
+    return { shown: a.shown || pinned > 0 || tray.list().length > 0, dot: a.dot, count: tray.unread() + pinned };
+  };
   const hud = createHud({
-    world, store, container: $('topbar'), speedBar, onOpenSummary: openSummary, onOpenMenu: () => toggleSheet('menu'), onOpenAdvice: () => toggleSheet('advice'), advice: advice.state,
+    world, store, container: $('topbar'), speedBar, onOpenSummary: openSummary, onOpenMenu: () => toggleSheet('menu'), onOpenAdvice: () => toggleSheet('advice'), advice: scrollState,
     // The long date ("Year 2, month 1, day 1") only where the wide top bar has room for it beside a real city's numbers:
     // 1000 px and wider, below 150% text. Narrower, it would push the last number onto a second row.
     shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150 || view().width < WIDE_LONG_DATE_PX,
@@ -289,6 +301,12 @@ export function createUI({
   Object.assign(customSheets, extraSheets);
   const sheets = createSheets({ container: $('sheet'), store, world, placement, cameraControl, minimap: sheetMinimap, getAlerts: () => alerts.list(), onView: viewAlert, onShowMe: showMeAt, onShowMeBuild: advice.showMe, onFixAlert: fixAlert, onSelect: selectBuilding, onBuildAnother: buildAnother, onAnotherFix: (fix) => advice.fix({ fix }), onOpenAdvice: () => toggleSheet('advice'), adviceOn: advice.on, afterCommand, custom: customSheets, parts: [scoreUi.sheetParts, danger.sheetParts, monumentUi.sheetParts, ...s46.map((s) => s.sheetParts)], keys: () => settings.get().keyboardShortcuts !== false });
   createDialog({ container: $('dialog'), store });
+  // Version 8.0 (ruling 1160): the number on the scroll button follows the tray, and an open tray sheet shows a message the moment it arrives (unless focus is inside it: a rebuild would drop it).
+  const stopTray = tray.subscribe((why) => {
+    hud.render();
+    const s = store.get();
+    if (why !== 'read' && s.sheet && s.sheet.kind === 'advice' && !$('sheet').contains(doc.activeElement)) sheets.render();
+  });
   const backStack = createBackStack({ store, history, addListener, removeListener });
   backStack.start();
   const stopLayout = watchLayout({ root, getSize: view, subscribe: subscribeResize, onChange: (layout) => store.set({ layout }) });
@@ -476,7 +494,7 @@ export function createUI({
   // Version 7.0 (wave 3, ruling 986 and the review's minor): the placement's Undo toast goes only when the undo really runs, so a Cancel on the occupied-plot question leaves it up.
   function undo() {
     if (!placement.canUndo()) return;
-    const run = () => { if (undoToast) { toasts.hide(undoToast); undoToast = null; } placement.undo(); };
+    const run = () => { if (undoToast) { toasts.hide(undoToast, true); undoToast = null; } placement.undo(); };   // Version 8.0: what was placed and is now taken back is no longer news in the tray
     if (placement.undoNeedsConfirm()) store.set({ confirmDialog: { text: T.undoOccupiedConfirm, confirmLabel: T.undo, onConfirm: run } });
     else run();
   }
@@ -511,6 +529,32 @@ export function createUI({
     if (alert.code === 'save_failed') { store.set(openSheet(store.get(), 'menu')); return; }
     if (alert.code === 'plots_no_road') { const b = nearestPlot(alert); if (b && selectBuilding(b.id)) return; }
     if (!(alert.id && selectBuilding(alert.id))) store.set(openSheet(store.get(), 'summary'));
+  }
+  // Version 8.0 (Track N, rulings 1160-1161): the message tray's sheet. Pinned: one row for each kind of alert that needs the player (the fires roll into one row, as the banner's do), opened the way the
+  // banner's own button opens it. Messages: the last 30, newest first; one with a place closes the sheet and takes the view there with the map's own ring (the pulse Show me uses).
+  const OPENS_A_SHEET = new Set(['city_event', 'court_letter', 'raid_warning', 'debt', 'save_failed']);
+  function openPinned(a) {
+    if (a.code === 'city_event') store.set(openSheet(store.get(), 'cityEvent'));
+    else if (a.code === 'court_letter') store.set(openSheet(store.get(), 'letter'));
+    else if (a.code === 'raid_warning') alerts.action(a, 'warning');
+    else if (isPointAlert(a)) alerts.action(a, 'view');
+    else viewAlert(a);
+  }
+  function viewPlace(at) {
+    closeAnySheet();
+    cameraControl.glide(() => cameraControl.panTo(at.x, at.y));
+    const t = now();
+    for (let i = 0; i < SHOW_ME_PULSES; i++) effects.pulse(at.x, at.y, t + i * SHOW_ME_PULSE_MS);
+  }
+  function trayModel() {
+    const rows = [];
+    for (const a of pinnedAlerts()) {
+      if (rows.some((r) => r.code === a.code)) continue;
+      const group = pinnedAlerts().filter((x) => x.code === a.code);
+      const w = group.length > 1 && a.code === 'fire' ? { title: DANGER_UI_TEXT.firesTitle(group.length), fix: DANGER_UI_TEXT.firesFix } : alertText(a, world);
+      rows.push({ code: a.code, title: w.title, fix: w.fix || '', open: OPENS_A_SHEET.has(a.code), act: () => openPinned(a) });
+    }
+    return { pinned: rows, items: tray.list().map((m) => ({ text: m.text, why: m.why, read: m.read, act: m.at ? () => viewPlace(m.at) : null })), read: () => tray.markRead() };
   }
   // Select a building: its sheet opens and the view centres on it, then moves the least that keeps it in the map
   // the sheet leaves free (spec 6.3), so a tall portrait sheet never covers it. On a phone it is framed in the middle
@@ -555,7 +599,11 @@ export function createUI({
     if (events.length) { effects.fromEvents(world, events, now()); onEvents(events); }
     syncDaily();
     // Celebrations from the same command are captions in #cheer, not toasts, so nothing pushes the command's Undo toast out.
-    if (e.undoable) undoToast = toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS, closable: true, close: V711_TEXT.closeToast, actionKeys: undoKeys(e.kind !== 'demolish') });   // ruling 986: Delete names itself only after a placement
+    // Version 8.0 (ruling 1165): Undo takes back the last action only, so the Undo of an earlier action's toast goes as the next action comes (a wide screen shows two toasts, and the older one's button would take the newer one back).
+    if (e.undoable) {
+      if (undoToast) { toasts.hide(undoToast); undoToast = null; }
+      undoToast = toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS, closable: true, close: V711_TEXT.closeToast, actionKeys: undoKeys(e.kind !== 'demolish'), at: e.at });   // ruling 986: Delete names itself only after a placement
+    }
     else if (e.kind === 'undo') toasts.show(T.undone);
     refresh();
   }
@@ -572,6 +620,7 @@ export function createUI({
     if (sheet && !sheet.contains(doc.activeElement)) sheets.render();
   }
   function refreshChrome() {
+    if (undoToast && !placement.canUndo()) { toasts.hide(undoToast); undoToast = null; }   // Version 8.0 (ruling 1165): the month ended (or the step was taken back): its Undo is no longer offered
     alerts.refresh();
     advice.refresh();
     hud.render(); dock.render(); sidePanel.render(); rail.render(); guide.render(); confirmBar.render(); corners.render(); legend.render(); goalsStrip.render();
@@ -645,7 +694,7 @@ export function createUI({
     if (e.type === 'first') {
       if (!FIRST_TEXT[e.id]) return null;
       const at = Number.isFinite(e.x) && Number.isFinite(e.y) ? { x: e.x, y: e.y } : null;
-      return { tier: 'first', text: FIRST_TEXT[e.id].head, why: FIRST_TEXT[e.id].why, reward: e.reward, onShow: () => { cheerSound(); if (at) effects.sparkle(at.x, at.y, GOLD, now()); } };
+      return { tier: 'first', text: FIRST_TEXT[e.id].head, why: FIRST_TEXT[e.id].why, reward: e.reward, at, onShow: () => { cheerSound(); if (at) effects.sparkle(at.x, at.y, GOLD, now()); } };
     }
     if (e.type === 'achievement') {
       if (guideActive(world) || !ACHIEVEMENT_NAMES[e.id]) return null;
@@ -653,7 +702,10 @@ export function createUI({
     }
     if (e.type === 'daily') return DAILY_TEXT[e.id] ? { tier: 'first', text: `${T.dailyDone}: ${DAILY_TEXT[e.id]}`, reward: e.reward, onShow: cheerSound } : null;
     if (e.type === 'guide_done') return { tier: 'first', text: T.guideDone, reward: e.reward, onShow: cheerSound };
-    if (e.type === 'caravan') { const c = caravanText(e); return { tier: 'first', text: c.text, why: c.why, onShow: cheerSound }; }
+    if (e.type === 'caravan') {   // the caravan's message opens the trading post it came to (Version 8.0, ruling 1160)
+      const c = caravanText(e), post = allBuildings(world).find((b) => b.type === 'trading_post');
+      return { tier: 'first', text: c.text, why: c.why, at: post ? { x: post.x + post.w / 2, y: post.y + post.d / 2 } : null, onShow: cheerSound };
+    }
     if (e.type === 'cartLost') return { tier: 'info', text: S47_CARTS_TEXT.lost(e) };   // Stage 4.7 (Task 5): goods a cart could not put down anywhere
     return null;
   }
@@ -682,6 +734,18 @@ export function createUI({
   const onVisibility = () => { if (doc.hidden) autosave('hidden'); };
   doc.addEventListener('visibilitychange', onVisibility);
 
+  // Version 8.0 (Track N, ruling 1167): one plot. draw() puts a single tile down (a tap's, as a one-tile plan or a one-tile rectangle); when the sim's own preview says it can be laid ('ok', or 'warn':
+  // it lays, the bar says what is missing) it is laid at once, as the tick would. A tile it cannot lay stays drawn, so the bar says why, and the next tap replaces it (refusedLonePlot).
+  const isLone = (s) => (s.plan ? s.plan.tiles.length === 1 : Boolean(s.area) && s.area.x1 !== null && s.area.x0 === s.area.x1 && s.area.y0 === s.area.y1);
+  const refusedLonePlot = (s) => isLone(s) && placement.preview().state === 'bad';
+  function layLonePlot(draw) {
+    const s = store.get();
+    if (s.plan || s.area) store.set({ plan: null, area: null });
+    draw();
+    const p = placement.preview();
+    if (p && (p.state === 'ok' || p.state === 'warn')) confirm();
+  }
+  let strokeLone = false;   // the stroke on the map began with nothing drawn in the Housing plot tool: if it ends on one tile it is one plot, laid at once
   const actions = {
     tap({ x, y, type }) {
       const s = store.get();
@@ -689,6 +753,9 @@ export function createUI({
       if (s.guidanceOpen) setGuidanceOpen(false);                       // a tap on the map closes the guidance row opened in place (P8); the tap still does its own work
       const t = tileUnder(x, y);
       if (isToolMode(s.mode)) {
+        // Version 8.0 (Track N, ruling 1167): with the Housing plot tool and nothing drawn yet, one tap or click is one plot, laid at once with the usual toast and Undo (a friend took the plot that
+        // waited for the tick for a tap that did nothing). A drag still draws a rectangle that waits for the tick, and taps once a plan or a rectangle is drawn keep adding to it.
+        if (s.tool.kind === 'houses' && (!s.plan && !s.area || refusedLonePlot(s))) { layLonePlot(type === 'mouse' ? () => { placement.pointAt(t.x, t.y); placement.pointAt(t.x, t.y); } : () => placement.toggleTile(t.x, t.y)); return; }
         if (s.tool.kind === 'building' && type === 'mouse') { placement.moveGhost(t.x, t.y); confirm(); }   // a click places (spec 6.5)
         else if (s.tool.kind !== 'building' && type !== 'mouse') placement.toggleTile(t.x, t.y);             // a finger or pen adds or takes off one tile (placement review P3)
         else placement.pointAt(t.x, t.y);                                                                      // a tap moves the ghost or sets a point
@@ -735,9 +802,20 @@ export function createUI({
     },
     ghostDrag({ x, y }) { const t = tileUnder(x, y); placement.moveGhost(t.x, t.y); },
     ghostDragEnd() {},
-    drawDrag({ x, y, phase }) { const t = tileUnder(x, y); placement.dragTo(t.x, t.y, phase); },
+    drawDrag({ x, y, phase }) {
+      const t = tileUnder(x, y);
+      if (phase === 'start') { const s = store.get(); strokeLone = Boolean(s.tool) && s.tool.kind === 'houses' && !s.plan && !s.area; }
+      placement.dragTo(t.x, t.y, phase);
+      if (phase === 'end' && strokeLone) { strokeLone = false; const s = store.get(); if (isLone(s)) { const p = placement.preview(); if (p && (p.state === 'ok' || p.state === 'warn')) confirm(); } }   // a one-tile drag is one plot (ruling 1167)
+    },
     // A finger's or pen's stroke in a drawing tool (placement review P3); 'cancel' takes it back.
-    strokeDrag({ x, y, phase }) { if (phase === 'cancel') { placement.stroke(null, null, 'cancel'); return; } const t = tileUnder(x, y); placement.stroke(t.x, t.y, phase); },
+    strokeDrag({ x, y, phase }) {
+      if (phase === 'cancel') { strokeLone = false; placement.stroke(null, null, 'cancel'); return; }
+      const t = tileUnder(x, y);
+      if (phase === 'start') { const s = store.get(); strokeLone = Boolean(s.tool) && s.tool.kind === 'houses' && !s.plan; }
+      placement.stroke(t.x, t.y, phase);
+      if (phase === 'end' && strokeLone) { strokeLone = false; const s = store.get(); if (isLone(s)) { const p = placement.preview(); if (p && (p.state === 'ok' || p.state === 'warn')) confirm(); } }   // a one-tile drag is one plot (ruling 1167)
+    },
     panStarted() {                                     // panning tucks the dock (spec 6.3); the confirm bar never tucks
       const s = store.get();
       if (s.layout === 'portrait' && !isToolMode(s.mode) && s.dock !== 'tucked') store.set(setDock(s, 'tucked'));
@@ -1106,7 +1184,7 @@ export function createUI({
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
   return {
-    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
+    store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, tray, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
     danger, scoreUi, ambient, screenshotMode, frameGate, setGuidanceOpen,
     monumentUi, motionLevel, markers: () => markerLayout,   // Stage 4
     allowFrame: (t) => frameGate.allow(t, world.speed === 0),
@@ -1122,7 +1200,7 @@ export function createUI({
       for (const t of INPUTS) root.removeEventListener(t, onInput);
       root.removeEventListener('click', onPress);
       root.removeEventListener('focusin', onFocusIn);
-      mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); toasts.clear(); celebrations.clear();
+      mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); stopTray(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'tip', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));
       $('goals').hidden = false;                       // the strip hides its row when no goal is open; the next UI decides again

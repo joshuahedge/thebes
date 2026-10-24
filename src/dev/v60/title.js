@@ -14,11 +14,16 @@ const click = (selector) => {
 };
 
 // The title card as it stands: its buttons, in order. Open /?nosw=1 (no skipTitle) first. options: size ('small' | 'normal' | 'large' |
-// 'huge': chosen on the picker, so a phone shows the Huge note), level ('peaceful' | 'relaxed' | 'normal' | 'hard'), panel ('settings' opens
+// 'huge': chosen on the picker, so a phone shows the Huge note), level ('peaceful' | 'relaxed' | 'normal' | 'hard'), panel (settings opens
 // the card's Settings panel, 'whatsnew' its What's new), quick (no wait). The text says the buttons, the size chosen and the note under it.
 export async function titleScene(api, options = {}) {
   if (api.phase() !== 'title') throw new Error('devScene v60-title: open the title card (/?nosw=1)');
   if (!options.quick) await wait(300);
+  // Version 8.0: the level and size live on the new-city card (More choices), so they open it first; panel 'newcity' opens it alone, 'more' with More choices open.
+  if (options.level || options.size || options.panel === 'newcity' || options.panel === 'more') {
+    click('#title .new-city');
+    if (options.size || options.panel === 'more') click('#title .more-choices-toggle');
+  }
   if (options.level) click(`#title .choice.difficulty[data-value="${options.level}"]`);
   if (options.size) click(`#title .choice.mapsize[data-value="${options.size}"]`);
   if (options.panel === 'settings') click('#title .title-settings');

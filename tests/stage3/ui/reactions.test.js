@@ -179,7 +179,7 @@ describe('s3 ui settings rows', () => {
     return { body, settings, cleanup };
   }
 
-  it('adds On a fire (Pause, Go to it, Just tell me) and, from Stage 4, the Motion row', () => {
+  it('adds On a fire (Pause, Go to it, Just tell me) and, from Version 8.0, no Motion row', () => {
     const r = rig(false);
     try {
       const choices = [...r.body.querySelectorAll('.choice.fireReaction')];
@@ -188,13 +188,12 @@ describe('s3 ui settings rows', () => {
       fire(choices[1], 'click');
       expect(r.settings.get().fireReaction).toBe('goto');
       expect(r.body.querySelector('.fire-note').textContent).toBe(D.onAFireNote);
-      // Stage 4: one Motion row replaces Reduce motion and Ambient motion (spec 5.4; tests/stage4 for its words).
-      const motion = [...r.body.querySelectorAll('.choice.motion')];
-      expect(motion.map((b) => [b.dataset.value, b.getAttribute('aria-pressed')])).toEqual([['system', 'true'], ['full', 'false'], ['gentle', 'false'], ['still', 'false']]);
-      fire(motion[3], 'click');
+      // Version 8.0: the Motion row is gone (Josh: always full motion); the rig's own switch is set() and the level follows it.
+      expect(r.body.querySelectorAll('.choice.motion').length).toBe(0);
+      r.settings.set({ motion: 'still' });
       expect([r.settings.get().motion, r.settings.motionLevel()]).toEqual(['still', 'still']);
-      fire(motion[1], 'click');
-      expect([r.settings.get().motion, r.settings.motionLevel(), motion[1].getAttribute('aria-pressed')]).toEqual(['full', 'full', 'true']);
+      r.settings.set({ motion: 'full' });
+      expect([r.settings.get().motion, r.settings.motionLevel()]).toEqual(['full', 'full']);
     } finally { r.cleanup(); }
   });
 

@@ -292,12 +292,15 @@ describe('s47 house spots: the house tool stays, with Done', () => {
     try {
       expect(r.root.querySelector('#confirm .done') !== null).toBe(true);          // nothing waiting: Done in place of the x
       expect(r.root.querySelector('#confirm .cancel')).toBe(null);
-      r.tap(14, 9);                                                           // a finger tap puts the tile in the plan
-      expect(r.store.get().plan.tiles.length).toBe(1);
+      r.tap(14, 9);                                                           // Version 8.0 (ruling 1167): one finger tap lays one plot at once; the tool stays, with Done
+      expect([buildingAt(r.world, 14, 9).type, r.store.get().plan, r.root.querySelector('#confirm .done') !== null]).toEqual(['house', null, true]);
+      const at = (x, y) => r.screenOf(x + 0.5, y + 0.5);                      // a drag draws a rectangle that waits for the tick
+      for (const [phase, x] of [['start', 16], ['move', 17], ['end', 17]]) r.ui.actions.strokeDrag({ ...at(x, 9), phase });
+      expect(r.store.get().plan.tiles.length).toBe(2);
       expect(r.root.querySelector('#confirm .cancel') !== null).toBe(true);        // something waiting: the x takes it back
       expect(r.root.querySelector('#confirm .done')).toBe(null);
       touchTick(r);
-      expect(buildingAt(r.world, 14, 9).type).toBe('house');
+      expect([buildingAt(r.world, 16, 9).type, buildingAt(r.world, 17, 9).type]).toEqual(['house', 'house']);
       const s = r.store.get();
       expect([s.mode, s.tool && s.tool.kind, s.plan]).toEqual(['drawing', 'houses', null]);   // the tool stays after a touch tick (the drawing tools' mode)
       const done = r.root.querySelector('#confirm .done');

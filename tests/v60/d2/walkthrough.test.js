@@ -81,8 +81,8 @@ describe('v60 d2 the title offers the lesson', () => {
     const s = await open({ settings: { lessonDone: true, lessonStep: LESSON_LENGTH } });
     try {
       const b = titleButtons();
-      expect([b.includes(T.newCity), b.includes('Lesson'), b.includes(D2_TEXT.titleStart)]).toEqual([true, true, false]);
-      expect(document.querySelector('.new-city').classList.contains('primary')).toBe(true);
+      expect([document.querySelector('.new-city') !== null, b.includes('Lesson'), document.querySelector('.lesson-start')]).toEqual([true, true, null]);   // Version 8.0: Play, the main button, opens the new-city card
+      expect([document.querySelector('.new-city').classList.contains('primary'), document.querySelector('.new-city').textContent]).toEqual([true, 'Play']);
     } finally { s.cleanup(); }
   });
   it('after a lesson left part-way says Continue the lesson, with Start again beside it', async () => {
@@ -129,7 +129,7 @@ describe('v60 d2 the lesson played end to end', () => {
       expect(g.world.speed).toBe(0);
       // The row's way out is not live under the end sheet (a second button behind it), and is back once the sheet is closed with Keep looking around.
       expect([row().dataset.step, row().querySelector('.lesson-new').hidden, document.querySelector('#lesson .text').textContent]).toEqual(['end', true, D2_TEXT.endRow]);
-      expect([D2_TEXT.endNew, document.querySelector('#sheet .lesson-new-city').textContent]).toEqual(['Go to the title', 'Go to the title']);
+      expect([D2_TEXT.endNew, document.querySelector('#sheet .lesson-new-city').textContent]).toEqual(['Title screen', 'Title screen']);
       document.querySelector('#sheet .lesson-stay').click();
       expect([g.ui.store.get().sheet, row().querySelector('.lesson-new').hidden]).toEqual([null, false]);
       g.ui.store.set(openSheet(g.ui.store.get(), 'lessonEnd'));
@@ -160,7 +160,7 @@ describe('v60 d2 the lesson played end to end', () => {
       // Its menu has no New city, Export or Import, and leaves the lesson instead.
       g.ui.store.set(openSheet(g.ui.store.get(), 'menu'));
       const labels = [...document.querySelectorAll('#sheet .menu-list button')].map((b) => b.textContent.trim());
-      expect([labels.includes(T.newCity), labels.includes(T.exportCity), labels.includes(T.importCity), labels.includes(D2_TEXT.menuLeave)]).toEqual([false, false, false, true]);
+      expect([labels.includes(T.newCity), labels.includes(T.exportCity), labels.some((t) => /import/i.test(t)), labels.includes(D2_TEXT.menuLeave)]).toEqual([false, false, false, true]);
     } finally { s.cleanup(); }
   });
 
@@ -173,7 +173,7 @@ describe('v60 d2 the lesson played end to end', () => {
       for (const id of ['road', 'homes', 'well', 'families', 'farm', 'granary']) LESSON_SCRIPT[id](g.world, lessonIo);
       await frame();
       expect([rowStep(), s.settings().lessonStep]).toEqual(['bazaar', 6]);
-      row().querySelector('.leave').click();                                           // a question first, naming what is kept
+      { document.querySelector('#topbar .menu').click(); document.querySelector('#sheet .leave-lesson').click(); }   // Version 8.0: Leave the lesson is in the menu                                           // a question first, naming what is kept
       const dialog = document.querySelector('#dialog');
       expect([dialog.hidden, dialog.textContent.includes('Your place is kept'), dialog.textContent.includes('streets you laid are not kept')]).toEqual([false, true, true]);   // ruling 764, said before the tap
       dialog.querySelector('.ok').click();
@@ -186,7 +186,7 @@ describe('v60 d2 the lesson played end to end', () => {
       expect([rowStep(), Object.values(h.world.buildings).some((b) => b.type === 'farm_grain'), h.world.speed, h.lesson]).toEqual(['bazaar', true, 0, true]);
       expect(s.settings().lessonDone === true).toBe(false);
       // Start again begins at the first step.
-      row().querySelector('.leave').click();
+      { document.querySelector('#topbar .menu').click(); document.querySelector('#sheet .leave-lesson').click(); }   // Version 8.0: Leave the lesson is in the menu
       document.querySelector('#dialog .ok').click();
       expect(await waitFor(() => s.api.phase() === 'title')).toBe(true);
       document.querySelector('.lesson-again').click();

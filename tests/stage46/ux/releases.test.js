@@ -16,10 +16,10 @@ const newerThan = (a, b) => { const x = versionParts(a), y = versionParts(b); fo
 describe('s46 ux releases', () => {
   it('the newest release is the build the game says it is (ruling 401)', () => {
     expect(RELEASES[0].version).toBe(APP_VERSION);
-    expect(APP_VERSION).toBe('7.1.1');
+    expect(APP_VERSION).toBe('8.0');
   });
   it('lists every build, newest first, with a date and plain notes (ruling 403)', () => {
-    expect(RELEASES.map((r) => r.version)).toEqual(['7.1.1', '7.1', '7.0', '6.0.1', '6.0', '5.0', '4.7', '4.6', '4.5', '4.0', '3.2', '3.1', '3.0', '2.0', '1.1', '1.0']);
+    expect(RELEASES.map((r) => r.version)).toEqual(['8.0', '7.1.1', '7.1', '7.0', '6.0.1', '6.0', '5.0', '4.7', '4.6', '4.5', '4.0', '3.2', '3.1', '3.0', '2.0', '1.1', '1.0']);
     for (let i = 1; i < RELEASES.length; i++) {
       expect([RELEASES[i - 1].version, newerThan(RELEASES[i - 1].version, RELEASES[i].version)]).toEqual([RELEASES[i - 1].version, true]);
       expect(RELEASES[i - 1].date >= RELEASES[i].date).toBe(true);           // dates never go backwards as versions go up
@@ -45,14 +45,12 @@ describe('s46 ux releases', () => {
     expect(await readBuildStamp(async () => { throw new Error('offline'); })).toBe(null);
     expect(await readBuildStamp(async () => ({ ok: false }))).toBe(null);
   });
-  it('the title card shows the version small, and a What\'s new button that opens one panel with Back (ruling 402)', async () => {
+  it('the title card has no version line (Version 8.0: it is at the foot of Options), and a What\'s new button that opens one panel with Back (ruling 402)', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       const container = r.root.querySelector('#title');
       const card = createTitleCard({ container, hasSave: false, onContinue: () => {}, onNewCity: () => {}, onSound: () => {} });
-      const line = card.element.querySelector('.version');
-      expect(line.textContent.startsWith(S46_UX_TEXT.versionLine(APP_VERSION))).toBe(true);
-      expect(line.classList.contains('small')).toBe(true);
+      expect(card.element.querySelector('.version')).toBe(null);
       const button = card.element.querySelector('.whats-new-button');
       expect(button.textContent).toBe(S46_UX_TEXT.whatsNew);
       expect(button.getBoundingClientRect().height >= 43.5).toBe(true);

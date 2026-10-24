@@ -9,7 +9,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { FOOD_GOODS } from '../data/goods.js';
 import { el, iconButton, setText } from './components.js';
 import { seasonAt } from '../sim/seasons.js';
-import { T, S45_TEXT, SEASON_TEXT, dateText, shortDateText } from './text.js';
+import { T, S45_TEXT, SEASON_TEXT, TRAY_TEXT, dateText, shortDateText } from './text.js';
 
 export function summaryData(world) {
   const last = world.stats.lastMonth || { taxes: 0, wages: 0, upkeep: 0, net: 0 };
@@ -81,7 +81,10 @@ export function createHud({ world, store, container, speedBar = null, onOpenSumm
     scroll.append(path);
   }
   const adviceDot = el('span', { class: 'advice-dot', 'aria-hidden': 'true', hidden: true });
-  const adviceButton = el('button', { type: 'button', class: 'advice', 'aria-label': T.advice, title: T.advice, hidden: true, onClick: () => onOpenAdvice() }, [scroll, adviceDot]);
+  // Version 8.0 (Track N, ruling 1160): the message tray lives behind this same button, so it also shows how many messages have not been read (advice(): { shown, dot, count }); the number is a shape
+  // and the name says it too. With nothing unread the button is as it was.
+  const adviceCount = el('span', { class: 'advice-count', 'aria-hidden': 'true', hidden: true });
+  const adviceButton = el('button', { type: 'button', class: 'advice', 'aria-label': T.advice, title: T.advice, hidden: true, onClick: () => onOpenAdvice() }, [scroll, adviceDot, adviceCount]);
   container.append(stats, el('span', { class: 'spacer' }), bar, adviceButton, menu);
 
   function renderNumbers() {
@@ -107,7 +110,10 @@ export function createHud({ world, store, container, speedBar = null, onOpenSumm
     const adv = advice();
     if (adviceButton.hidden === adv.shown) adviceButton.hidden = !adv.shown;
     if (adviceDot.hidden === adv.dot) adviceDot.hidden = !adv.dot;
-    const name = adv.dot ? T.adviceNew : T.advice;
+    const count = adv.count || 0;
+    if (adviceCount.hidden === count > 0) adviceCount.hidden = count <= 0;
+    if (count > 0) setText(adviceCount, count > 9 ? '9+' : String(count));
+    const name = count > 0 ? TRAY_TEXT.buttonName(count, adv.dot) : adv.dot ? T.adviceNew : T.advice;
     if (adviceButton.title !== name) { adviceButton.title = name; adviceButton.setAttribute('aria-label', name); }
   }
   // The forecast is a second line under the gold; where the numbers have already wrapped to two rows the bar has no room for a third

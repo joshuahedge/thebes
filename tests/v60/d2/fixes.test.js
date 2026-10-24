@@ -15,6 +15,7 @@ import { createWorld } from '../../../src/sim/world.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
 import { dockPlain } from '../../helpers/lesson.js';
+import { startNewCity } from '../../helpers/dom.js';
 
 const PARTS = { people: 72, prosperity: 65, culture: 58, safety: 40, monuments: 36 };
 const memory = (data = {}) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, data });
@@ -48,16 +49,16 @@ describe('v60 d2 the title with a slot that is not empty', () => {
     const s = await open({ junk: true });
     try {
       const b = titleButtons();
-      expect([b.includes(T.newCity), b.includes(D2_TEXT.titleStart), document.querySelector('.title-card .message') !== null]).toEqual([true, false, true]);
+      expect([document.querySelector('.title-card .new-city') !== null, document.querySelector('.title-card .lesson-start') !== null, document.querySelector('.title-card .message') !== null]).toEqual([true, false, true]);   // Version 8.0: New city is the main button, called Play with no saved city
     } finally { s.cleanup(); }
   });
-  it('offers Bring your city on the lesson-only card (a city file from another device), not only where the page is installed', async () => {
+  it('has no Bring your city on the lesson-only card or the usual one (Version 8.0: the import is gone)', async () => {
     const s = await open();
     try {
-      expect([titleButtons().includes(D2_TEXT.titleStart), titleButtons().includes(T.bringCity)]).toEqual([true, true]);
+      expect([document.querySelector('.title-card .lesson-start') !== null, document.querySelector('.title-card .bring'), titleButtons().some((t) => /bring|safari/i.test(t))]).toEqual([true, null, false]);
     } finally { s.cleanup(); }
     const done = await open({ settings: { lessonDone: true } });
-    try { expect([titleButtons().includes(T.newCity), titleButtons().includes(T.bringCity)]).toEqual([true, false]); } finally { done.cleanup(); }   // elsewhere as before: only where installed
+    try { expect([document.querySelector('.title-card .new-city') !== null, document.querySelector('.title-card .bring'), titleButtons().some((t) => /bring|safari/i.test(t))]).toEqual([true, null, false]); } finally { done.cleanup(); }
   });
 });
 
@@ -89,7 +90,7 @@ describe('v60 d2 the menu\'s Lesson keeps a city it could not save', () => {
   it('says so in a toast and stays in the city when the save fails; leaves for the lesson when it works', async () => {
     const s = await open({ settings: { lessonDone: true, cardsSeen: true } });
     try {
-      document.querySelector('.new-city').click();
+      startNewCity(document);
       await waitFor(() => s.api.phase() === 'game');
       const g = s.api.game();
       const menuLesson = () => { g.ui.store.set(openSheet(g.ui.store.get(), 'menu')); document.querySelector('#sheet .menu-lesson').click(); document.querySelector('#dialog .ok').click(); };
@@ -127,7 +128,7 @@ describe('v60 d2 a picture card waits for a tip', () => {
 
 describe('v60 d2 the lesson\'s ring sits inside the free map', () => {
   async function lessonAt(stepId, [width, height], settings = {}) {
-    const s = await open({ size: [width, height], settings: { lessonDone: true, cardsSeen: true, motion: 'still', ...settings } });
+    const s = await open({ size: [width, height], settings: { lessonDone: true, cardsSeen: true, motion: 'still', motionRig: true, ...settings } });
     s.api.hooks.lesson({ step: LESSON_STEPS.findIndex((x) => x.id === stepId) });
     await frame();
     dockPlain(s.api);                                                                // Version 7.0 (Track P): the step's card first; these look at the ring it docks to
@@ -173,7 +174,7 @@ describe('v60 d2 a lesson left part-way, and one only opened', () => {
     try {
       document.querySelector('.lesson-start').click();
       await frame();
-      document.querySelector('#lesson .leave').click();
+      { document.querySelector('#topbar .menu').click(); document.querySelector('#sheet .leave-lesson').click(); }   // Version 8.0: Leave the lesson is in the menu
       document.querySelector('#dialog .ok').click();
       expect(await waitFor(() => s.api.phase() === 'title')).toBe(true);
       expect([titleButtons().includes(D2_TEXT.titleStart), titleButtons().includes(D2_TEXT.titleContinue), s.settings().lessonStep || 0]).toEqual([true, false, 0]);
@@ -186,7 +187,7 @@ describe('v60 d2 a lesson left part-way, and one only opened', () => {
       LESSON_SCRIPT.road(g.world, { tick() { const events = []; tickDay(g.world, events); g.ui.onEvents(events); g.ui.refresh(); }, did() { g.ui.afterCommand({ kind: 'lesson-test', text: '' }); } });
       await frame();
       expect(part.settings().lessonStep).toBe(1);
-      document.querySelector('#lesson .leave').click();
+      { document.querySelector('#topbar .menu').click(); document.querySelector('#sheet .leave-lesson').click(); }   // Version 8.0: Leave the lesson is in the menu
       document.querySelector('#dialog .ok').click();
       expect(await waitFor(() => part.api.phase() === 'title')).toBe(true);
       expect([titleButtons().includes(D2_TEXT.titleContinue), titleButtons().includes(D2_TEXT.titleStart)]).toEqual([true, false]);

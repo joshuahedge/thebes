@@ -3,7 +3,7 @@
 // In a normal game it does only one thing: the picture cards' first moments (src/ui/cardMoments.js). In the lesson (src/boot.js gives the game
 // hooks.lessonRun: its starting step, its camera, how to leave and how to finish) it runs the guided first city:
 //  - one row in the guidance place under the top bar says the step, its instruction (two or three lines on a phone, with More for the rest and the
-//    reason), how far the step has got (a count the sim's own), Show me and Leave. The goals strip, tips and captions are out of the way (css/ui.css
+//    reason), how far the step has got (a count the sim's own) and Show me (Version 8.0: Leave the lesson is in the ☰ menu, ruling 1171). The goals strip, tips and captions are out of the way (css/ui.css
 //    body.lesson-on); alerts stay;
 //  - the step's target is lit: the card it asks for and its category carry the guide's "Suggested" tag and ring and every other card is dimmed (still
 //    usable), a place on the map is ringed with the rest of the map dimmed round it, and a control (the speed buttons, the gold chip) gets a ring;
@@ -22,7 +22,7 @@ import { lessonFacts } from '../lesson.js';
 import { createCardMoments } from '../cardMoments.js';
 import { createLessonCard, pictureOf } from '../lessonCard.js';
 import { D2_TEXT, P_TEXT, V711_TEXT, T } from '../text.js';
-import { el, button, iconButton, setText } from '../components.js';
+import { el, button, setText } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
 import { tileToScreen } from '../../render/camera.js';
 import { openSheet, isToolMode } from '../modes.js';
@@ -59,8 +59,7 @@ export function createLessonUi(ctx) {
   const body = el('span', { class: 'body', onClick: () => { if (!more.hidden) toggleOpen(); } }, [label, text, ' ', chip, why, more]);
   const showMe = button(T.showMe, { class: 'show-me quiet', onClick: () => doShowMe() });
   const newCity = button(D2_TEXT.endNew, { class: 'lesson-new primary', hidden: true, onClick: () => run.finish() });
-  const leave = iconButton(D2_TEXT.leave, '✕', { class: 'leave quiet', onClick: () => askLeave() });
-  const row = el('div', { id: 'lesson', class: 'lesson-row', role: 'region', 'aria-label': D2_TEXT.region }, [body, showMe, newCity, leave]);
+  const row = el('div', { id: 'lesson', class: 'lesson-row', role: 'region', 'aria-label': D2_TEXT.region }, [body, showMe, newCity]);
   const before = underBar ? underBar.querySelector('#goals') : null;
   if (underBar) underBar.insertBefore(row, before);
   root.classList.add('lesson-on');
@@ -121,19 +120,16 @@ export function createLessonUi(ctx) {
     ctx.showMeAt({ category: t.category, item: t.item, x: t.spot.x + t.spot.w / 2, y: t.spot.y + t.spot.d / 2 });
   }
 
-  function askLeave() {
-    store.set({ confirmDialog: { text: D2_TEXT.leaveConfirm, confirmLabel: D2_TEXT.leave, onConfirm: () => run.leave() } });
-  }
   // Version 7.1.1 (ruling 1112): the first card's "Skip, I've played before" asks its own question (like Leave the lesson) and then marks the lesson done and goes on to a city of
   // the player's own (src/boot.js skipLesson); it names the title instead when a saved city is there, which a fresh city would take the place of.
   function askSkip() {
     const toTitle = typeof run.skipTo === 'function' && run.skipTo() === 'title';
-    store.set({ confirmDialog: { text: toTitle ? V711_TEXT.skipConfirmTitle : V711_TEXT.skipConfirm, confirmLabel: V711_TEXT.skip, onConfirm: () => run.skip() } });
+    store.set({ confirmDialog: { text: toTitle ? V711_TEXT.skipConfirmTitle : V711_TEXT.skipConfirm, confirmLabel: V711_TEXT.skip, destructive: false, onConfirm: () => run.skip() } });   // nothing is lost: primary, not coral (Version 8.0, ruling 1176)
   }
 
   // ── the step card and the clock (ruling 1002) ──
   const keysOn = () => settings.get().keyboardShortcuts !== false;
-  const card = createLessonCard({ root, doc, store, onGo: () => dismissCard(), onLeave: () => askLeave(), onSkip: () => askSkip(), keys: keysOn });
+  const card = createLessonCard({ root, doc, store, onGo: () => dismissCard(), onSkip: () => askSkip(), keys: keysOn });
 
   // The card pauses the game, remembering the speed it was playing at (the player's own, kept through the cards that follow while it stays paused).
   function holdForCard(building) {
@@ -175,7 +171,7 @@ export function createLessonUi(ctx) {
     // between (the firehouse's Fire risk), so the overlay stays off there; the player turns it on from Layers.
     if (store.get().layout === 'compact' && Number(settings.get().textSize) >= 125 && store.get().overlay) store.set({ overlay: null });
     paintOpen();
-    const focus = row.querySelector('.show-me:not([hidden])') || row.querySelector('.leave:not([hidden])');
+    const focus = row.querySelector('.show-me:not([hidden])') || root.querySelector('#topbar .menu');
     if (focus && focus.offsetParent !== null) focus.focus();
   }
 
@@ -186,6 +182,7 @@ export function createLessonUi(ctx) {
     for (const card of root.querySelectorAll('.card[data-item]')) {
       const on = Boolean(item) && card.dataset.item === item;
       card.classList.toggle('suggested', on);
+      card.classList.toggle('lesson-pulse', on);   // Version 8.0 (ruling 1171): the same ring the map's target wears, pulsing under Full motion (css/ui.css, 8.0 N)
       card.classList.toggle('dimmed', Boolean(item) && !on);
       const tag = card.querySelector('.tag');
       if (on && !tag) card.append(el('span', { class: 'tag', text: T.suggested }));
@@ -194,6 +191,7 @@ export function createLessonUi(ctx) {
     for (const b of root.querySelectorAll('.cat[data-category], .tab[data-category]')) {
       const on = Boolean(category) && b.dataset.category === category;
       b.classList.toggle('suggested', on);
+      b.classList.toggle('lesson-pulse', on);
       b.classList.toggle('dimmed', Boolean(category) && !on);
     }
   }
@@ -204,7 +202,7 @@ export function createLessonUi(ctx) {
     facts = lessonFacts(world, step);
     if (!step) {
       setText(label, ''); setText(text, D2_TEXT.endRow); setText(why, ''); chip.hidden = true;
-      showMe.hidden = true; leave.hidden = true; paintEnd();
+      showMe.hidden = true; paintEnd();
       row.dataset.step = 'end';
     } else {
       const words = D2_TEXT.steps[step.id](facts);
@@ -217,7 +215,7 @@ export function createLessonUi(ctx) {
       const t = targetOf();
       showMe.hidden = !t;
       if (t) showMe.setAttribute('aria-label', `${T.showMe}: ${words.text}`);
-      leave.hidden = false; newCity.hidden = true;
+      newCity.hidden = true;
       row.dataset.step = step.id;
     }
     root.classList.toggle('lesson-names-alert', Boolean(step) && NAMES_ALERT.has(step.id));
@@ -287,19 +285,17 @@ export function createLessonUi(ctx) {
 
   // A step's target is brought into the middle of the free map once, when the step begins, if its ring does not already sit well inside it (a ring wider than the
   // free map only needs its centre): a glide, as Show me's is (a jump under Still).
+  // Version 8.0 (Track N, ruling 1170): the view follows each step's own target. 7.1.1 moved it only when the target was off the free map, so the tower step (its tile is four tiles from the bazaar,
+  // which the fire and raid steps aim at) left the view where the bazaar had put it, the ring somewhere else. Now every step that points at a place frames that place in the middle of the free map
+  // as it begins, as Show me does (a step about the whole city leaves the view alone).
   function ensureVisible() {
     if (finished || shownAt === at || !step || !ctx.cameraControl) return;
     const spot = stepSpot(world, step);
     shownAt = at;
     if (!spot || !run.cam) return;
-    const v = viewOf(), cx = spot.x + spot.w / 2, cy = spot.y + spot.d / 2, [sx, sy] = tileToScreen(run.cam, v, cx, cy);
-    const { rx, ry } = ringHalf(spot, run.cam.zoom), i = freeInsets(v);
-    const fw = v.width - i.left - i.right, fh = v.height - i.top - i.bottom;
-    const ex = Math.min(rx + 8, fw / 2), ey = Math.min(ry + 8, fh / 2);
-    if (sx < i.left + ex || sx > v.width - i.right - ex || sy < i.top + ey || sy > v.height - i.bottom - ey) {
-      const go = () => ctx.cameraControl.frameKeeping(cx, cy, cx, cy, i);
-      if (typeof ctx.cameraControl.glide === 'function') ctx.cameraControl.glide(go); else go();
-    }
+    const v = viewOf(), cx = spot.x + spot.w / 2, cy = spot.y + spot.d / 2, i = freeInsets(v);
+    const go = () => ctx.cameraControl.frameKeeping(cx, cy, cx, cy, i);
+    if (typeof ctx.cameraControl.glide === 'function') ctx.cameraControl.glide(go); else go();
   }
 
   const viewOf = () => { const c = ctx.cameraControl.centre(); return { width: c.x * 2, height: c.y * 2 }; };
@@ -360,7 +356,7 @@ export function createLessonUi(ctx) {
       if (raf && win.cancelAnimationFrame) win.cancelAnimationFrame(raf);
       doc.removeEventListener('pointerdown', onDown, true); doc.removeEventListener('pointerup', onUp, true); doc.removeEventListener('pointercancel', onUp, true);
       row.remove(); scrim.remove(); ring.remove(); card.destroy();
-      for (const n of root.querySelectorAll('.lesson-lit')) n.classList.remove('lesson-lit');
+      for (const n of root.querySelectorAll('.lesson-lit, .lesson-pulse')) n.classList.remove('lesson-lit', 'lesson-pulse');
       root.classList.remove('lesson-on', 'lesson-names-alert');
     },
   };

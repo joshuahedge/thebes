@@ -7,7 +7,7 @@
 # "MEASURE <value>" (tools/shots.ps1 -Mobile measures the rows under the top bar). -Dpr sets the device pixel ratio.
 # -MaxSeconds is a hard limit: whatever hangs (a DevTools reply that never comes on a loaded machine, a crashed page),
 # a reaper stops this script, its Edge and its server after that many seconds, so a caller never waits forever.
-param([string]$Url = '/', [string]$Out = 'shot.png', [int]$Width = 1280, [int]$Height = 800, [int]$BudgetMs = 1500, [string]$Eval = '', [double]$Dpr = 1, [string]$Measure = '', [int]$MaxSeconds = 150)
+param([string]$Url = '/', [string]$Out = 'shot.png', [int]$Width = 1280, [int]$Height = 800, [int]$BudgetMs = 1500, [string]$Eval = '', [double]$Dpr = 1, [string]$Measure = '', [int]$MaxSeconds = 150, [bool]$RigDevice = $true)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") |
@@ -81,6 +81,8 @@ try {
   # frames coming.
   Invoke-Cdp 'Emulation.setFocusEmulationEnabled' @{ enabled = $true } | Out-Null
   Invoke-Cdp 'Emulation.setDeviceMetricsOverride' @{ width = $Width; height = $Height; deviceScaleFactor = $Dpr; mobile = $false } | Out-Null
+  # Version 8.0: the game ignores the browser's Reduce motion; the rig opts back in (src/ui/settings.js), so headless Edge keeps the shots under Gentle as before. -RigDevice $false shows what a player sees (full motion).
+  if ($RigDevice) { Invoke-Cdp 'Page.addScriptToEvaluateOnNewDocument' @{ source = 'window.__thebesRigDevice = true;' } | Out-Null }
   Invoke-Cdp 'Page.navigate' @{ url = "http://127.0.0.1:$port$Url" } | Out-Null
   $loaded = $false
   for ($i = 0; $i -lt 120 -and -not $loaded; $i++) {

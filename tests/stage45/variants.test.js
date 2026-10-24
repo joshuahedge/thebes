@@ -13,7 +13,7 @@ import { STAGE45_SCENES, devScene } from '../../src/dev/scenes.js';
 import { createSaveStore } from '../../src/save/store.js';
 import { fakeIndexedDB } from '../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../helpers/uiWorld.js';
-import { fire } from '../helpers/dom.js';
+import { fire, startNewCity } from '../helpers/dom.js';
 
 const SEEDS = Array.from({ length: 30 }, (_, k) => k + 1);
 const NEW_VARIANTS = MAP_VARIANTS_70.filter((v) => v !== 'classic');   // Version 7.1: the six 7.0 layouts (tests/v71/m holds the new ones' own promises)
@@ -212,7 +212,7 @@ describe('s45 variants (new cities)', () => {
         loopOptions: { raf: () => 0, caf: () => {} },
       });
       await flush();
-      fire(shell.root.querySelector('#title .new-city'), 'click');
+      startNewCity(shell.root);
       const world = api.game().world;
       api.destroy(); shell.cleanup(); document.body.classList.remove('on-title'); delete window.__thebes;
       return world;

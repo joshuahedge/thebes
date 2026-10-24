@@ -12,7 +12,7 @@ import { idx } from '../../../src/sim/grid.js';
 import { T as TERRAIN } from '../../../src/sim/terrain.js';
 import { tileToScreen } from '../../../src/render/camera.js';
 import { DEFENCE, UNITS } from '../../../src/data/raids.js';
-import { difficultyHint } from '../../../src/ui/text.js';
+import { V80_U_TEXT } from '../../../src/ui/text.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
 
@@ -47,7 +47,7 @@ describe('s3 balance dev scenes', () => {
       expect(await window.__thebes.devScene('peaceful')).toBe('peaceful');
       const chosen = r.root.querySelector('#title .choice.difficulty[aria-pressed="true"]');
       expect(chosen.dataset.value).toBe('peaceful');
-      expect(r.root.querySelector('#title .difficulty-hint').textContent).toBe(difficultyHint('peaceful'));
+      expect(r.root.querySelector('#title .choice.difficulty[data-value="peaceful"] .tile-line').textContent).toBe(V80_U_TEXT.difficultyLine('peaceful'));   // Version 8.0: the tile's own line, on the new-city card the scene opens
       let error = null;
       try { await devScene(r.api, 'fire'); } catch (e) { error = e.message; }
       expect(error).toBe('devScene fire: no city is open (use ?skipTitle=1&sample=1)');

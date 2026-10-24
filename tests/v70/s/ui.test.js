@@ -121,7 +121,7 @@ describe('v70 s ui: the Settings rows', () => {
     const played = [];
     const r = await settingsRig({ sfx: { play: (n) => { played.push(n); return true; } } });
     try {
-      const rows = [...r.body.children];
+      const rows = [...r.body.querySelector('.options-group.sound').children];   // Version 8.0: the Sound group's rows, after its heading
       const sound = rows.findIndex((x) => x.querySelector('.switch.sound'));
       expect([rows[sound + 1].querySelector('.switch.music') !== null, rows[sound + 2].classList.contains('music-volume'), rows[sound + 3].classList.contains('effects-volume')]).toEqual([true, true, true]);
       expect(rows[sound + 4].textContent).toBe(SEASON_TEXT.soundNote);
@@ -153,7 +153,7 @@ describe('v70 s ui: the Settings rows', () => {
       expect(rows().map((x) => x.classList.contains('silenced'))).toEqual([false, false, false]);
     } finally { r.cleanup(); }
   });
-  it('has Day and night as a switch after Motion: named, 44 px, on by default, and it says what it does and that Still keeps daylight', async () => {
+  it('has Day and night as a switch under Display: named, 44 px, on by default, and it says what it does and that Still keeps daylight', async () => {
     const r = await settingsRig();
     try {
       const sw = r.body.querySelector('.switch.dayNight');
@@ -164,19 +164,18 @@ describe('v70 s ui: the Settings rows', () => {
       expect([r.settings.get().dayNight, sw.getAttribute('aria-checked'), sw.textContent.includes(T.off)]).toEqual([false, 'false', true]);
       fire(sw, 'click');
       expect(r.settings.get().dayNight).toBe(true);
-      const rows = [...r.body.children];
-      expect(rows.findIndex((x) => x.querySelector('.switch.dayNight')) > rows.findIndex((x) => x.classList.contains('motion-row'))).toBe(true);
+      expect(sw.closest('.options-group').classList.contains('display')).toBe(true);   // Version 8.0: under Display, with no Motion row before it
       expect(r.body.querySelector('.daynight-note').textContent).toBe(SEASON_TEXT.dayNightNote);
-      expect(SEASON_TEXT.dayNightNote).toContain('Still');
+      expect(SEASON_TEXT.dayNightNote.includes('Still')).toBe(false);                  // Version 8.0: the Motion setting is gone, so its Still no longer comes into it
       expect(SEASON_TEXT.dayNightNote).toContain(String(LIGHT.cycleMs / 60000));
     } finally { r.cleanup(); }
   });
-  it('puts the new controls in a sensible Tab order, all real buttons: Sound, Music, Music volume, Effects volume, Vibration ... Motion, Day and night', async () => {
+  it('puts the new controls in a sensible Tab order, all real buttons: Sound, Music, Music volume, Effects volume, Text size, Day and night, Vibration', async () => {
     const r = await settingsRig();
     try {
       const order = [...r.body.querySelectorAll('button')];
       const at = (sel) => order.indexOf(r.body.querySelector(sel));
-      const seq = ['.switch.sound', '.switch.music', '.music-volume:not(.effects-volume) .quieter', '.music-volume:not(.effects-volume) .louder', '.effects-volume .quieter', '.effects-volume .louder', '.switch.vibration', '.choice.motion', '.switch.dayNight'].map(at);
+      const seq = ['.switch.sound', '.switch.music', '.music-volume:not(.effects-volume) .quieter', '.music-volume:not(.effects-volume) .louder', '.effects-volume .quieter', '.effects-volume .louder', '.choice.textSize', '.switch.dayNight', '.switch.vibration'].map(at);   // Version 8.0: Sound, then Display, then Controls
       expect(seq.every((i) => i >= 0)).toBe(true);
       expect([...seq].sort((a, b) => a - b)).toEqual(seq);
       for (const b of order) expect([b.className, b.tabIndex >= 0, b.getAttribute('type')]).toEqual([b.className, true, 'button']);   // native buttons: Enter and Space press them

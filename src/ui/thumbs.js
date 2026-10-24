@@ -114,6 +114,9 @@ function paint(canvas, art, dpr) {
   ctx.restore();
 }
 
+// Whether an item has a picture to draw (Version 8.0, Track N: the placing bar leads with the picture of what is in hand, and shows none for the few tools that have no art, such as the wall).
+export const hasThumb = (item) => Boolean(artFor(item));
+
 const painted = new Map();   // `${item}@${dpr}` -> canvas
 
 export function drawThumb(canvas, item, dpr = 1) {

@@ -18,8 +18,8 @@ import { createTitleCard, createBackdrop } from './ui/titleCard.js';
 import { createSaveStore } from './save/store.js';
 import { packSave, unpackSave } from './save/serialize.js';
 import { TITLE_SEED } from './data/ui.js';
-import { exportSave, downloadFile, pickFile, importSaveFile } from './save/exportImport.js';
-import { T, D2_TEXT, V711_TEXT, importErrorText } from './ui/text.js';
+import { exportSave, downloadFile } from './save/exportImport.js';
+import { T, D2_TEXT, V711_TEXT } from './ui/text.js';
 import { el, button } from './ui/components.js';
 import { detectEnvironment, readEnvironment, createInstallFlow } from './save/installFlow.js';
 import { installGuide, noticeText, showNotice } from './ui/installUi.js';
@@ -108,13 +108,12 @@ export async function boot(doc, win, {
     if (settings.get().cardsSeen) { go(); return; }
     openCards(go, { set: INTRO_CARDS });
   }
-  // The share sheet, the download and the file picker, replaceable by tests.
+  // The share sheet and the download, replaceable by tests. Version 8.0 (Track U): no file picker, the import is gone.
   const nav = win.navigator || {};
   const io = {
     share: typeof nav.share === 'function' ? (d) => nav.share(d) : null,
     canShare: typeof nav.canShare === 'function' ? (d) => nav.canShare(d) : null,
     download: (file) => downloadFile(file, doc),
-    pick: () => pickFile(doc),
     reload: () => win.location.reload(),
     ...platform,
   };
@@ -145,6 +144,10 @@ export async function boot(doc, win, {
   // The size the title card's picker last chose for the next new city (it starts as the dev flag's size, else Normal); a chosen seed (a
   // shared link) takes its own size, never this.
   let newCitySize = isMapSize(sizeParam) ? sizeParam : DEFAULT_MAP_SIZE;
+  // Version 8.0 (Track U, ruling 1151): the layout the new-city card's More choices last chose, 'auto' (Surprise me: the seed picks) until the player picks one; like the
+  // size it is for New city only (a shared link names its own, and ?variant= still works while nothing is picked).
+  let newCityLayout = 'auto';
+  const newCityPick = () => ({ size: newCitySize, variant: newCityLayout === 'auto' ? null : newCityLayout });
   const sizeIdOf = (n) => MAP_SIZE_IDS.find((k) => MAP_SIZES[k] === n) || 'normal';
   function freshWorld({ seed = null, variant = null, size = null } = {}) {
     const chosen = !Number.isInteger(seed) && params.has('seed');
@@ -184,7 +187,7 @@ export async function boot(doc, win, {
       }
       return r.ok;
     },
-    newCity() { if (current && current.lesson) return; withCards(() => startGame(freshWorld({ size: newCitySize }))); },   // Stage 4: the picture cards first, once a device
+    newCity() { if (current && current.lesson) return; withCards(() => startGame(freshWorld(newCityPick()))); },   // Stage 4: the picture cards first, once a device
     // Stage 4 (spec 4.1): the picture cards any time (How to play on the title card and in the menu, Track G); onDone after.
     // Track G: the game behind them is paused (spec 4.1); the player presses Play again when ready.
     pictureCards(onDone = () => {}) {
@@ -211,23 +214,6 @@ export async function boot(doc, win, {
       } catch (e) { ui.toasts.show(T.exportFailed); }
       await ui.autosave('export');                      // then the slot is brought up to date
     },
-    async importCity() {
-      if (current && current.lesson) return;
-      const file = await io.pick();
-      if (!file) return;
-      let save;
-      try { save = await importSaveFile(file); } catch (e) {
-        const text = importErrorText(e && e.message);
-        if (current) current.ui.toasts.show(text); else if (title) title.card.setMessage(text);   // toasts are hidden on the title
-        return;
-      }
-      const go = () => {
-        if (save.records) { try { records.merge(save.records); } catch (e) { /* a bad records block never stops an import */ } }   // spec 4.17
-        startGame(save.world, { fromSave: true, savedAt: save.savedAt, lastSpeed: save.lastSpeed, saveNow: true });
-      };
-      if (current) current.ui.store.set({ confirmDialog: { text: T.replaceCityConfirm, confirmLabel: T.importCity, onConfirm: go } });
-      else go();                                        // the title phase has no city to replace
-    },
   };
 
   function stopGame() { if (!current) return; current.loop.stop(); current.ui.destroy(); current = null; }
@@ -249,10 +235,10 @@ export async function boot(doc, win, {
     if (!world.cityId) setCityId(world, newCityId(clock()));   // a city from before Stage 3 gets its records id at load
     const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1, size: world.size });   // the stress city fills the map: its middle; size: the Huge map's zoom floor (ruling 741)
     const gameHooks = lesson
-      ? { ...hooks, save: async () => true, exportCity: undefined, importCity: undefined, install: undefined, newCity: undefined, lesson: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city') } }
+      ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city') } }
       : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
-      sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install(), onBring: () => hooks.importCity() }) }, ...uiOptions });
+      sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }) }, ...uiOptions });
     const loop = createGameLoop({ world, onEvents: (events) => { ui.effects.fromEvents(world, events, now()); ui.onEvents(events); }, render: (f) => { ui.render(f); music.tick(f.now); }, allowFrame: ui.allowFrame, ...loopOptions });
     current = { world, ui, loop, cam, lesson: Boolean(lesson) };
     if (notice) ui.toasts.show(notice);
@@ -287,7 +273,7 @@ export async function boot(doc, win, {
     if (!current || !current.lesson) return;
     markLessonDone();
     if (hasSavedCity()) { stopGame(); showTitle(await loadSave(store)); return; }
-    withCards(() => startGame(freshWorld({ size: newCitySize })));
+    withCards(() => startGame(freshWorld(newCityPick())));
   }
   async function leaveLesson(finished = false) {
     if (!current || !current.lesson) return;
@@ -298,17 +284,20 @@ export async function boot(doc, win, {
   // A newer version's save in the slot must never be overwritten (spec 7.5), whichever way the game starts.
   function blockIfNewer(loaded) { saveBlocked = loaded.state === 'error' && loaded.code === 'newer_version'; }
 
+  // The saved city, exported as the title shows it (the New city question's Export first, and Options > Saves on the title); the result is said on the card.
+  async function exportLoaded(loaded) {
+    try {
+      const r = await exportSave(loaded.text, { share: io.share, canShare: io.canShare, download: io.download, date: new Date(clock()) });
+      if (r === 'downloaded' && title) title.card.setMessage(T.exported);
+    } catch (e) { if (title) title.card.setMessage(T.exportFailed); }
+  }
+
   // Spec 4.17: with a saved city, a new one asks first and offers to export the old one. seed: a chosen seed (spec 4.19).
   function confirmNewCity(loaded, seed = null, variant = null, size = null) {
     if (!title) return;
     title.card.showPanel((body, back) => {
-      const exportFirst = button(T.exportFirst, { class: 'export-first', onClick: async () => {
-        try {
-          const r = await exportSave(loaded.text, { share: io.share, canShare: io.canShare, download: io.download, date: new Date(clock()) });
-          if (r === 'downloaded' && title) title.card.setMessage(T.exported);
-        } catch (e) { if (title) title.card.setMessage(T.exportFailed); }
-      } });
-      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => withCards(() => startGame(freshWorld({ seed, variant, size: seed === null ? newCitySize : size }))) });
+      const exportFirst = button(T.exportFirst, { class: 'export-first', onClick: () => exportLoaded(loaded) });
+      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => withCards(() => startGame(freshWorld(seed === null ? newCityPick() : { seed, variant, size }))) });
       body.append(el('p', { text: T.newCityConfirm }), el('div', { class: 'actions' }, [exportFirst, start, button(T.back, { class: 'panel-back', onClick: back })]));
     });
   }
@@ -339,13 +328,14 @@ export async function boot(doc, win, {
       console.warn('Thebes: the saved city was not loaded:', loaded.code);
     }
     root.classList.add('on-title');
-    const guide = installGuide(flow, { hasCity: loaded.state === 'ok', onPrompt: () => flow.promptInstall(), onBring: () => hooks.importCity() });
+    const guide = installGuide(flow, { hasCity: loaded.state === 'ok', onPrompt: () => flow.promptInstall() });
     const card = createTitleCard({
-      container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), canBring: flow.canBring(), message, screen: view,
-      difficulty: settings.get().difficulty, onDifficulty: (level) => settings.set({ difficulty: level }),   // spec 4.18: freshWorld reads it
+      container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), message, screen: view,
+      difficulty: () => settings.get().difficulty, onDifficulty: (level) => settings.set({ difficulty: level }),   // spec 4.18: freshWorld reads it
       onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
-      onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(freshWorld({ size: newCitySize })))),
-      mapSize: sizeIdOf(newCitySize), onMapSize: (id) => { newCitySize = MAP_SIZES[id]; },   // Stage 4.6 (ruling 333): the size picker
+      onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(freshWorld(newCityPick())))),
+      mapSize: sizeIdOf(newCitySize), onMapSize: (id) => { newCitySize = MAP_SIZES[id]; },   // Stage 4.6 (ruling 333): the size picker (under More choices from Version 8.0)
+      layout: newCityLayout, onLayout: (id) => { newCityLayout = id; },   // Version 8.0 (ruling 1151): the layout picker, Surprise me ('auto') until one is picked
       // Version 6.0 (Track D1, rulings 742, 746): no Play with sound (sound and music are on by default; Settings, here and in the game, mutes them).
       // The third button is Lesson once the guided first city gives hooks.lesson (Track D2), until then How to play, the picture cards (Stage 4, Track G, spec 4.1).
       // Version 6.0 (Track D2, ruling 617): on a device that has not done the lesson and has no saved city the card offers only the lesson (lesson.due); a slot
@@ -354,9 +344,9 @@ export async function boot(doc, win, {
       lesson: { due: lessonDue(settings.get(), loaded.state !== 'none'), partWay: lessonPartWay(settings.get()), note, onAgain: () => hooks.lesson({ step: 0 }),
         onSkip: () => { markLessonDone(); leaveTitle(); showTitle(loaded, { note: V711_TEXT.skippedNote }); } },   // ruling 1111: the title again, now with New city and its choices
       onHowToPlay: () => hooks.pictureCards(),
-      renderSettings: (body) => createMenuSheets({ store: { get: () => ({}), set() {}, subscribe: () => () => {} }, settings, toasts: { show() {} }, hooks }).settings(body),   // the game's Settings rows, with no city behind them
+      // The game's Options rows with no city behind them; Saves > Export city exports the city in the slot (none: no button).
+      renderSettings: (body) => createMenuSheets({ store: { get: () => ({}), set() {}, subscribe: () => () => {} }, settings, toasts: { show() {} }, hooks: { ...hooks, exportCity: loaded.state === 'ok' ? () => exportLoaded(loaded) : undefined } }).settings(body),
       onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); },
-      onBring: () => hooks.importCity(),
       // Stage 3 (spec 4.19): records, stamps and a shared score, from the score interface. Version 6.0 (ruling 793): a shared score's Start this seed
       // plays the link's level even on the lesson-only card (setDifficulty), and says where the lesson is while this device has not finished it.
       decorate: titleDecor({

@@ -46,11 +46,16 @@ const BODY_KEYS = ['layout', 'mode', 'input', 'dock', 'hand', 'textSize'];
 // block for the shell's position: fixed chrome, so the top bar, dock and sheets lay out inside it.
 export async function mountShell(width = 390, height = 844) {
   if (!cssLoaded) {
-    cssLoaded = new Promise((resolve, reject) => {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet'; link.href = '/css/ui.css'; link.onload = resolve; link.onerror = reject;
-      document.head.append(link);
-    });
+    // Version 8.0: every stylesheet index.html links (ui.css, then Track U's v80-u.css), in order, so the shell's layout is the page's.
+    cssLoaded = (async () => {
+      for (const href of ['/css/ui.css', '/css/v80-u.css']) {
+        await new Promise((resolve, reject) => {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet'; link.href = href; link.onload = resolve; link.onerror = reject;
+          document.head.append(link);
+        });
+      }
+    })();
   }
   await cssLoaded;
   const html = await (await fetch('/index.html')).text();

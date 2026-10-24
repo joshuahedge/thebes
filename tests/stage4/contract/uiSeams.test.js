@@ -15,7 +15,7 @@ import { createSaveStore } from '../../../src/save/store.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 import { makeCanvas } from '../../helpers/canvas.js';
-import { mount, fire } from '../../helpers/dom.js';
+import { mount, fire, startNewCity } from '../../helpers/dom.js';
 import { rigUI, mountShell, fakeHistory, fakeDoc } from '../../helpers/uiWorld.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 
@@ -57,13 +57,13 @@ describe('s4 contract settings: Motion, music and the picture cards flag', () =>
       expect(root.dataset.motion).toBe('full');
     } finally { cleanup(); }
   });
-  it('moves a Stage 3 device\'s choice to Motion once (ruling 249), and still reads the two old keys when they are set', () => {
+  it('maps the two old keys onto Motion when they are written (ruling 249), and since Version 8.0 reads none of them back from storage unless the rig marks it', () => {
     const { root, cleanup } = mount();
     try {
       const load = (obj) => createSettings({ storage: stored(obj), root, systemReducedMotion: () => true }).get().motion;
       expect([load({ reducedMotion: 'on' }), load({ ambient: false }), load({ reducedMotion: 'off', ambient: false }), load({ reducedMotion: 'off' }), load({ reducedMotion: 'system' }), load({})])
-        .toEqual(['still', 'still', 'still', 'full', 'system', 'system']);
-      expect(load({ reducedMotion: 'on', motion: 'full' })).toBe('full');             // a Stage 4 choice wins
+        .toEqual(['system', 'system', 'system', 'system', 'system', 'system']);      // Version 8.0: a Motion choice a device stored is not read back (everyone moves in full)
+      expect([load({ reducedMotion: 'on', motion: 'full' }), load({ motion: 'still', motionRig: true }), load({ motion: 'still' })]).toEqual(['system', 'still', 'system']);   // only the rig's marked blob is
       expect([motionFromLegacy({ reducedMotion: 'off', ambient: true }), motionFromLegacy({ ambient: true })]).toEqual(['full', null]);
       const s = createSettings({ storage: memory(), root, systemReducedMotion: () => true });
       s.set({ reducedMotion: 'off', ambient: true });                                // a Stage 1-3 test's write
@@ -260,7 +260,7 @@ describe('s4 contract music and picture cards seams', () => {
       fire(b.shell.root.querySelector('#title .switch.sound'), 'click');           // Sound off too
       expect([storedSettings(storage).sound, storedSettings(storage).music]).toEqual([false, false]);
       fire(b.shell.root.querySelector('#title .guide-back'), 'click');
-      fire(b.shell.root.querySelector('#title .new-city'), 'click');
+      startNewCity(b.shell.root);
       expect(b.api.phase()).toBe('game');
       expect(opts.seed()).toBe(b.api.game().world.seed);                            // the city's seed once it runs
       b.frames(2000);                                                               // the game's loop
@@ -276,9 +276,9 @@ describe('s4 contract music and picture cards seams', () => {
     const b = await bootWith({ showPictureCards: cards, storage });
     let destroyed = false;
     try {
-      fire(b.shell.root.querySelector('#title .new-city'), 'click');
+      startNewCity(b.shell.root);
       expect([b.api.phase(), shown, storedSettings(storage).cardsSeen === true]).toEqual(['title', 1, false]);   // the cards first
-      fire(b.shell.root.querySelector('#title .new-city'), 'click');
+      startNewCity(b.shell.root);
       expect(shown).toBe(1);                                                        // a second New city while they show: ignored
       held();
       expect([b.api.phase(), b.api.game().ui.settings.get().cardsSeen, storedSettings(storage).cardsSeen]).toEqual(['game', true, true]);

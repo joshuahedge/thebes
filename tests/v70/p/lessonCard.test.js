@@ -29,7 +29,7 @@ const frame = () => new Promise((resolve) => requestAnimationFrame(() => request
 async function lessonPage(stepId, { width = 390, height = 844, text = 100, motion = 'still' } = {}) {
   const shell = await mountShell(width, height);
   const history = fakeHistory();
-  const storage = memory({ 'thebes.settings': JSON.stringify({ lessonDone: true, cardsSeen: true, textSize: text, motion }) });
+  const storage = memory({ 'thebes.settings': JSON.stringify({ lessonDone: true, cardsSeen: true, textSize: text, motion, motionRig: true }) });
   const api = await boot(document, window, {
     root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams('nosw=1'), now: () => performance.now(), clock: () => 1760000000000, storage,
     envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,
@@ -48,7 +48,9 @@ async function lessonPage(stepId, { width = 390, height = 844, text = 100, motio
 
 const rowOf = (s) => s.root.querySelector('#lesson');
 const goOf = (s) => s.root.querySelector('.lesson-card .lc-go');
-const leaveOf = (s) => s.root.querySelector('.lesson-card .lc-leave');
+// Version 8.0 (ruling 1171): Leave the lesson is in the menu while a lesson runs, no longer on the card.
+const leaveViaMenu = (s) => { s.root.querySelector('#topbar .menu').click(); s.root.querySelector('#sheet .leave-lesson').click(); };
+const skipOf = (s) => s.root.querySelector('.lesson-card .lc-skip');
 const shown = (n) => Boolean(n) && n.offsetParent !== null && n.getBoundingClientRect().height > 0;
 
 describe('v70 p the lesson\'s clock, from the sim', () => {
@@ -97,7 +99,7 @@ describe('v70 p the lesson\'s step card in the page', () => {
       const card = stepCard(s.root), words = card.querySelector('.lc-words');
       const facts = lessonFacts(s.g.world, step('road'));
       expect([Boolean(card), s.g.world.speed, document.body.classList.contains('lesson-card-up')]).toEqual([true, 0, true]);
-      expect([words.textContent, card.querySelector('.lc-label').textContent, goOf(s).textContent, leaveOf(s).textContent]).toEqual([`${V711_TEXT.goal()} ${D2_TEXT.steps.road(facts).text}`, D2_TEXT.lessonLabel(1, LESSON_LENGTH), P_TEXT.card.showMe, D2_TEXT.leave]);
+      expect([words.textContent, card.querySelector('.lc-label').textContent, goOf(s).textContent]).toEqual([`${V711_TEXT.goal()} ${D2_TEXT.steps.road(facts).text}`, D2_TEXT.lessonLabel(1, LESSON_LENGTH), P_TEXT.card.showMe]);
       const r = card.getBoundingClientRect(), v = s.box;
       expect([Math.abs((r.left + r.right) / 2 - (v.left + v.right) / 2) < 2, Math.abs((r.top + r.bottom) / 2 - (v.top + v.bottom) / 2) < 2]).toEqual([true, true]);
       expect([card.getAttribute('role'), shown(rowOf(s)), s.root.querySelector('.lesson-ring').hidden, document.activeElement === goOf(s)]).toEqual(['dialog', false, true, true]);
@@ -128,28 +130,28 @@ describe('v70 p the lesson\'s step card in the page', () => {
       } finally { s.cleanup(); }
     }
   });
-  it('keeps Tab on its buttons (Version 7.1.1: the first card has Skip between the two), and a focused Leave keeps its own Enter', async () => {
+  it('keeps Tab on its buttons (Version 8.0: the first card has Go and Skip), and a focused Skip keeps its own Enter', async () => {
     const s = await lessonPage('road');
     try {
       expect(document.activeElement).toBe(goOf(s));
       key(document.activeElement, 'Tab');                                              // a real Tab is aimed at the focused control
-      expect(document.activeElement).toBe(s.root.querySelector('.lesson-card .lc-skip'));
-      key(document.activeElement, 'Tab');
-      expect(document.activeElement).toBe(leaveOf(s));
+      expect(document.activeElement).toBe(skipOf(s));
       key(document.activeElement, 'Tab');
       expect(document.activeElement).toBe(goOf(s));
       key(document.activeElement, 'Tab', { shiftKey: true });
-      expect(document.activeElement).toBe(leaveOf(s));
+      expect(document.activeElement).toBe(skipOf(s));
       key(document.activeElement, 'Enter');                                            // left to the button itself: the card is still up (a real Enter would click it)
       expect(Boolean(stepCard(s.root))).toBe(true);
     } finally { s.cleanup(); }
   });
-  it('Leave the lesson is in the card at every step, 44 px tall and named, and asks its question over the card (Esc closes the question, not the card)', async () => {
+  it('Leave the lesson is not on the card: it is in the menu at every step, 44 px tall and named, and asks its question (Esc closes the question, not the lesson)', async () => {
     const s = await lessonPage('road');
     try {
-      const b = leaveOf(s).getBoundingClientRect();
-      expect([b.height >= 44, b.width >= 44, leaveOf(s).textContent]).toEqual([true, true, D2_TEXT.leave]);
-      leaveOf(s).click();
+      expect(s.root.querySelector('.lesson-card .lc-leave')).toBe(null);
+      s.root.querySelector('#topbar .menu').click();
+      const b = s.root.querySelector('#sheet .leave-lesson').getBoundingClientRect();
+      expect([b.height >= 44, b.width >= 44, s.root.querySelector('#sheet .leave-lesson').textContent]).toEqual([true, true, D2_TEXT.menuLeave]);
+      s.root.querySelector('#sheet .leave-lesson').click();
       const dialog = s.root.querySelector('#dialog');
       expect([dialog.hidden, Boolean(stepCard(s.root))]).toEqual([false, true]);
       expect(Number(getComputedStyle(dialog).zIndex) > Number(getComputedStyle(s.root.querySelector('.lesson-card-scrim')).zIndex)).toBe(true);
@@ -234,7 +236,7 @@ describe('v70 p the card fits and can always be left', () => {
   const EVERY = new Set(['375x667@150', '667x375@150', '1280x800@100']);
   const LONGEST = ['road', 'workers', 'largeplot', 'tower', 'fire'];
   for (const [w, h, text] of SIZES) {
-    it(`at ${w}x${h} and ${text}% text the card fits without scrolling, with a 44 px named button and Leave the lesson inside the screen`, async () => {
+    it(`at ${w}x${h} and ${text}% text the card fits without scrolling, with a 44 px named button inside the screen`, async () => {
       const wrong = [];
       for (const st of LESSON_STEPS.filter((x) => EVERY.has(`${w}x${h}@${text}`) || LONGEST.includes(x.id))) {
         const s = await lessonPage(st.id, { width: w, height: h, text });
@@ -247,7 +249,7 @@ describe('v70 p the card fits and can always be left', () => {
           if (r.left < v.left - 0.5 || r.right > v.right + 0.5 || r.top < v.top - 0.5 || r.bottom > v.bottom + 0.5) wrong.push(`${at}: the card leaves the screen`);
           const words = card.querySelector('.lc-words').getBoundingClientRect();
           if (words.bottom > r.bottom + 0.5) wrong.push(`${at}: the words are cut`);
-          for (const b of [goOf(s), leaveOf(s)]) {
+          for (const b of [goOf(s)]) {
             const bb = b.getBoundingClientRect();
             if (bb.width < 44 || bb.height < 44 || !b.textContent.trim()) wrong.push(`${at}: ${b.className} is ${Math.round(bb.width)}x${Math.round(bb.height)}`);
             if (bb.bottom > v.bottom + 0.5 || bb.top < v.top - 0.5) wrong.push(`${at}: ${b.className} is off the screen`);
@@ -265,7 +267,6 @@ describe('v70 p the card fits and can always be left', () => {
         const card = stepCard(s.root);
         expect([i, Boolean(card), rowOf(s).dataset.step]).toEqual([i, true, st.id]);
         expect([i, s.g.world.speed, card.querySelector('.lc-label').textContent]).toEqual([i, 0, D2_TEXT.lessonLabel(i + 1, LESSON_LENGTH)]);
-        expect([i, leaveOf(s).getBoundingClientRect().height >= 44]).toEqual([i, true]);
         dockCard(s.root);
         await frame();
         s.g.ui.placement.cancel();
@@ -279,7 +280,7 @@ describe('v70 p the card fits and can always be left', () => {
   it('Leave the lesson from the card goes back to the title', async () => {
     const s = await lessonPage('farm', { width: 390, height: 844 });
     try {
-      leaveOf(s).click();
+      leaveViaMenu(s);
       s.root.querySelector('#dialog .ok').click();
       for (let i = 0; i < 80 && s.api.phase() !== 'title'; i++) await new Promise((r) => setTimeout(r, 25));
       expect([s.api.phase(), document.querySelector('.lesson-card-scrim')]).toEqual(['title', null]);

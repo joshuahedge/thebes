@@ -403,7 +403,8 @@ describe('v50 mobile height budget: the City advice sheet and button', () => {
           await frame(); await frame();
           const at = `${width}x${height} ${textSize}%`;
           const btn = r.root.querySelector('#topbar .advice'), bar = r.root.querySelector('#topbar').getBoundingClientRect(), b = btn.getBoundingClientRect();
-          expect([at, btn.hidden, btn.querySelector('.advice-dot').hidden, btn.getAttribute('aria-label')]).toEqual([at, false, false, 'City advice: something new']);
+          const label = btn.getAttribute('aria-label');   // Version 8.0: with messages in the tray behind the button the name also counts them
+          expect([at, btn.hidden, btn.querySelector('.advice-dot').hidden, label === 'City advice: something new' || (label.startsWith('Messages and advice') && label.endsWith('new advice'))]).toEqual([at, false, false, true]);
           if (b.width < 44 - 0.5 || b.height < 44 - 0.5) wrong.push(`${at}: the button is ${Math.round(b.width)}x${Math.round(b.height)}, under 44x44`);
           if (b.left < bar.left || b.right > bar.right + 0.5 || b.top < bar.top - 0.5 || b.bottom > bar.bottom + 0.5) wrong.push(`${at}: the button is outside the bar`);
           const stats = r.root.querySelector('#topbar .stats');

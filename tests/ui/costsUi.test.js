@@ -12,7 +12,7 @@ import { boot } from '../../src/boot.js';
 import { createSaveStore } from '../../src/save/store.js';
 import { place } from '../../src/sim/commands.js';
 import { makeTestWorld, setRoad, addRaw } from '../helpers/testWorld.js';
-import { mount, fire } from '../helpers/dom.js';
+import { mount, fire, startNewCity } from '../helpers/dom.js';
 import { fakeIndexedDB } from '../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../helpers/uiWorld.js';
 
@@ -122,7 +122,7 @@ describe('ui difficulty setting', () => {
     r = await bootWith({ storage: storageWith({ difficulty: 'relaxed' }) });
     try {
       expect(r.api.phase()).toBe('title');
-      fire(r.root.querySelector('#title .new-city'), 'click');
+      startNewCity(r.root);
       expect(r.api.game().world.difficulty).toBe('relaxed');
     } finally { r.cleanup(); }
     r = await bootWith({ storage: storageWith(null), params: 'skipTitle=1&seed=8' });

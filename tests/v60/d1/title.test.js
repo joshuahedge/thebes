@@ -6,13 +6,15 @@ import { createTitleCard, isPhoneScreen, PHONE_SHORT_SIDE } from '../../../src/u
 import { createSettings, DEFAULT_SETTINGS } from '../../../src/ui/settings.js';
 import { createMenuSheets } from '../../../src/ui/menu.js';
 import { MAP_SIZE_TABLE, MAP_SIZES, MAP_SIZE_IDS } from '../../../src/data/map.js';
-import { D1_TEXT, CARDS4_TEXT, S46_UX_TEXT, S46_MAP_TEXT, T } from '../../../src/ui/text.js';
+import { D1_TEXT, CARDS4_TEXT, S46_UX_TEXT, S46_MAP_TEXT, T, V80_U_TEXT } from '../../../src/ui/text.js';
 import { mount, fire } from '../../helpers/dom.js';
 import { mountShell } from '../../helpers/uiWorld.js';
 
 const BIG = () => ({ width: 1280, height: 800 });
 const PHONE = () => ({ width: 390, height: 844 });
 const memory = (data = {}) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, data });
+// Version 8.0: the size picker is on the new-city card, under More choices: open both.
+const openMore = (container) => { fire(container.querySelector('.new-city'), 'click'); fire(container.querySelector('.more-choices-toggle'), 'click'); };
 const shown = (container) => [...container.querySelectorAll('.title-buttons button')].filter((b) => !b.hidden && !b.closest('.title-difficulty')).map((b) => b.textContent.trim());
 
 function card(props = {}) {
@@ -24,15 +26,18 @@ function card(props = {}) {
 }
 
 describe('v60 d1 title card: the buttons', () => {
-  it('lists New city, How to play, Settings and What\'s new on a fresh device, with the difficulty and the size under New city', () => {
+  it('lists Play, How to play, Options and What\'s new on a fresh device, with the difficulty and the size on the card Play opens (Version 8.0)', () => {
     const c = card({ renderSettings: () => {}, canInstall: false });
     try {
-      expect(shown(c.container)).toEqual([T.newCity, CARDS4_TEXT.howToPlay, T.settings, S46_UX_TEXT.whatsNew]);
+      expect(shown(c.container)).toEqual([V80_U_TEXT.play, CARDS4_TEXT.howToPlay, T.settings, S46_UX_TEXT.whatsNew]);
       const box = c.container.querySelector('.title-buttons');
-      const order = [...box.children].map((n) => (n.classList.contains('title-difficulty') ? 'levels' : n.classList.contains('title-more') ? 'more' : n.classList.contains('new-city') ? 'new' : n.className));
-      expect(order.slice(0, 3)).toEqual(['new', 'levels', 'more']);
-      expect(c.container.querySelector('.title-difficulty .title-size')).toBeTruthy();   // the size sits with the difficulty, under New city
+      const order = [...box.children].map((n) => (n.classList.contains('title-more') ? 'more' : n.classList.contains('new-city') ? 'new' : n.className));
+      expect(order.slice(0, 2)).toEqual(['new', 'more']);
+      expect(c.container.querySelector('.title-difficulty, .title-size')).toBe(null);   // not on the title itself
       expect(c.container.querySelector('.new-city').classList.contains('primary')).toBe(true);
+      fire(c.container.querySelector('.new-city'), 'click');
+      expect(c.container.querySelector('.new-city-body .title-difficulty')).toBeTruthy();
+      expect(c.container.querySelector('.more-choices-body .title-size')).toBeTruthy();   // the size waits under More choices
     } finally { c.cleanup(); }
   });
   it('puts Continue first and primary with a saved city, New city second', () => {
@@ -56,7 +61,7 @@ describe('v60 d1 title card: the buttons', () => {
     const log = [];
     const c = card({ onLesson: () => log.push('lesson'), renderSettings: () => {} });
     try {
-      expect(shown(c.container)).toEqual([T.newCity, D1_TEXT.lesson, T.settings, S46_UX_TEXT.whatsNew]);
+      expect(shown(c.container)).toEqual([V80_U_TEXT.play, D1_TEXT.lesson, T.settings, S46_UX_TEXT.whatsNew]);
       expect(c.container.querySelector('.how-to-play')).toBe(null);
       fire(c.container.querySelector('.lesson'), 'click');
       expect(log).toEqual(['lesson']);
@@ -64,13 +69,14 @@ describe('v60 d1 title card: the buttons', () => {
   });
   it('has no third button at all when neither the lesson nor How to play is wired, and no Settings without its rows', () => {
     const c = card({ onHowToPlay: null });
-    try { expect(shown(c.container)).toEqual([T.newCity, S46_UX_TEXT.whatsNew]); } finally { c.cleanup(); }
+    try { expect(shown(c.container)).toEqual([V80_U_TEXT.play, S46_UX_TEXT.whatsNew]); } finally { c.cleanup(); }
   });
-  it('keeps Bring your city and Install after the row, only where offered', () => {
-    const c = card({ canBring: true, canInstall: true, renderSettings: () => {} });
+  it('keeps Install after the row, only where offered, and has no Bring your city (Version 8.0)', () => {
+    const c = card({ canInstall: true, renderSettings: () => {} });
     try {
       const last = [...c.container.querySelector('.title-buttons').children].map((n) => n.className.split(' ')[0]);
-      expect(last.slice(-3)).toEqual(['title-more', 'bring', 'install']);
+      expect(last.slice(-2)).toEqual(['title-more', 'install']);
+      expect(c.container.querySelector('.bring')).toBe(null);
     } finally { c.cleanup(); }
   });
 });
@@ -106,7 +112,7 @@ describe('v60 d1 title card: Settings on the card, and sound on by default', () 
       expect(JSON.parse(r.storage.data['thebes.settings']).sound).toBe(false);
       fire(r.container.querySelector('.switch.music'), 'click');
       expect(r.settings.get().music).toBe(false);
-      for (const sel of ['.choice.textSize', '.choice.motion', '.switch.vibration', '.switch.keyboardShortcuts', '.choice.difficulty']) expect([sel, Boolean(r.container.querySelector(`.guide ${sel}`))]).toEqual([sel, true]);
+      for (const sel of ['.choice.textSize', '.options-group.saves', '.switch.vibration', '.switch.keyboardShortcuts', '.choice.difficulty']) expect([sel, Boolean(r.container.querySelector(`.guide ${sel}`))]).toEqual([sel, true]);
       fire(r.container.querySelector('.guide-back'), 'click');
       expect([buttons.hidden, r.container.querySelector('.guide')]).toEqual([false, null]);
       expect(document.activeElement).toBe(r.container.querySelector('.continue'));
@@ -154,6 +160,7 @@ describe('v60 d1 title card: the Huge map in the picker, and the phone note', ()
   it('offers every size the table offers, Huge last at 112 by 112, from the data', () => {
     const c = card();
     try {
+      openMore(c.container);
       const ids = [...c.container.querySelectorAll('.choice.mapsize')].map((b) => b.dataset.value);
       expect(ids).toEqual(MAP_SIZE_TABLE.filter((r) => r.offered).map((r) => r.id));
       expect(ids).toEqual(MAP_SIZE_IDS);
@@ -169,6 +176,7 @@ describe('v60 d1 title card: the Huge map in the picker, and the phone note', ()
     const chosen = [];
     const c = card({ screen: PHONE, onMapSize: (id) => chosen.push(id) });
     try {
+      openMore(c.container);
       const note = c.container.querySelector('#title-size-note');
       expect(note.hidden).toBe(true);                                                    // Normal: nothing to say
       const huge = c.container.querySelector('.choice.mapsize[data-value="huge"]');
@@ -185,6 +193,7 @@ describe('v60 d1 title card: the Huge map in the picker, and the phone note', ()
     let size = { width: 1280, height: 800 };
     const c = card({ screen: () => size });
     try {
+      openMore(c.container);
       const note = c.container.querySelector('#title-size-note');
       fire(c.container.querySelector('.choice.mapsize[data-value="huge"]'), 'click');
       expect(note.hidden).toBe(true);
@@ -210,7 +219,7 @@ describe('v60 d1 title card: nothing clipped and every button 44 px, on a phone 
       const shell = await mountShell(w, h);
       document.body.dataset.textSize = String(size);
       const container = shell.root.querySelector('#title');
-      const tc = createTitleCard({ container, hasSave: true, canInstall: true, canBring: true, onContinue() {}, onNewCity() {}, onHowToPlay() {}, renderSettings() {}, screen: () => ({ width: w, height: h }) });
+      const tc = createTitleCard({ container, hasSave: true, canInstall: true, onContinue() {}, onNewCity() {}, onHowToPlay() {}, renderSettings() {}, screen: () => ({ width: w, height: h }) });
       try {
         const at = `${w}x${h} at ${size}%`;
         const cardEl = shell.root.querySelector('.title-card');
@@ -218,10 +227,16 @@ describe('v60 d1 title card: nothing clipped and every button 44 px, on a phone 
         expect([at, box.top >= outer.top - 0.5, box.bottom <= outer.bottom + 0.5, box.left >= outer.left - 0.5, box.right <= outer.right + 0.5]).toEqual([at, true, true, true, true]);
         expect([at, cardEl.scrollHeight <= cardEl.clientHeight + 1 || getComputedStyle(cardEl).overflowY === 'auto']).toEqual([at, true]);
         expect([at, cardEl.scrollWidth <= cardEl.clientWidth + 1]).toEqual([at, true]);   // no sideways overflow
-        for (const b of cardEl.querySelectorAll('button:not([hidden])')) {
-          const r = b.getBoundingClientRect();
-          expect([at, b.textContent, r.width >= 44 - 0.5, r.height >= 44 - 0.5]).toEqual([at, b.textContent, true, true]);
-          expect([at, b.textContent, b.scrollWidth <= b.clientWidth + 1]).toEqual([at, b.textContent, true]);   // the words fit their button
+        for (const step of ['title', 'new city', 'more choices']) {   // Version 8.0: the title, the new-city card, and the card with More choices open
+          if (step === 'new city') fire(cardEl.querySelector('.new-city'), 'click');
+          if (step === 'more choices') fire(cardEl.querySelector('.more-choices-toggle'), 'click');
+          expect([at, step, cardEl.scrollWidth <= cardEl.clientWidth + 1]).toEqual([at, step, true]);
+          for (const b of cardEl.querySelectorAll('button:not([hidden]), select')) {
+            if (b.closest('[hidden]')) continue;
+            const r = b.getBoundingClientRect();
+            expect([at, step, b.textContent, r.width >= 44 - 0.5, r.height >= 44 - 0.5]).toEqual([at, step, b.textContent, true, true]);
+            expect([at, step, b.textContent, b.scrollWidth <= b.clientWidth + 1]).toEqual([at, step, b.textContent, true]);   // the words fit their button
+          }
         }
       } finally { tc.destroy(); shell.cleanup(); delete document.body.dataset.textSize; }
     }

@@ -248,6 +248,8 @@ Object.assign(PICTURES, {
   async drought(g, api) {
     await droughtScene(api, { look: 'advice', quick: true });
     const h = api.game();
+    // Version 8.0: the sheet also lists the message tray (the scene's own captions, a court letter waiting) above the advice; the picture is of the advice item alone.
+    for (const n of document.querySelectorAll('#sheet .tray, #sheet .advice-head')) n.hidden = true;
     await wait(100);
     const sheet = document.querySelector('#sheet'), fv = frameOf(h);
     const clip = clipAt(Math.max(0, Math.round(sheet.getBoundingClientRect().top - fv.top - 8)));

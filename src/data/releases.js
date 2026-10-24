@@ -9,7 +9,27 @@
 
 export const RELEASES = [
   {
-    version: '7.1.1', date: '2026-10-24', title: 'Clearer first steps', build: 'live',
+    version: '8.0', date: '2026-10-24', title: 'Clear and calm', build: 'live',
+    new: [
+      'One look all through the game: a thicker patterned band and the same teal, ochre and lapis weighting on every panel and pop-up, with red kept for what you cannot do.',
+      'A calmer title screen: one main button, Play (or Continue once you have a city), then Options and What\'s new. The version number now sits at the foot of Options.',
+      'New city is one big choice, the difficulty, each level in a large tile with a line on what it means. Map size and layout wait under More choices, and the layout starts as Surprise me.',
+      'Options is shorter and in four groups, Sound, Display, Controls and Saves, and buttons across the game use fewer words ("Place" and "Lay" instead of "Paint").',
+      'Messages show for a few seconds and then fold into a tray behind the scroll icon, which keeps the last 30 and shows you the place each one is about. Raids, fires and anything that needs an answer stay at the top until you deal with them.',
+      'Placing is clearer: the bar shows the picture and name of what you are placing, the card you picked stays lit in the tray, and the one filled button is the one that builds. Flip, Undo and Cancel stay plain.',
+      'Leave the lesson now lives in the menu, and the lesson card keeps one main button, with "Skip, I\'ve played before" as a quiet link on its first card.',
+      'The game always moves at full motion, so the Motion row is gone from Options; Bring a city from Safari is gone as well (Export city stays under Saves).',
+    ],
+    fixed: [
+      'Placing a single house plot now works with one tap.',
+      'The lesson\'s view and glow follow the step you are on, instead of staying on the bazaar.',
+      'Reach is drawn as covered ground in teal, fire risk and homes a building would make less pleasant are amber, and red now means only that something cannot be done.',
+      'Undo takes back only your last action, and only until the next month starts.',
+      'Pop-up questions use the coral button only when something is lost, such as Demolish.',
+    ],
+  },
+  {
+    version: '7.1.1', date: '2026-10-24', title: 'Clearer first steps', build: 'a6eae26',
     new: [
       'The game now says what it is for: grow a village on the Nile into the Seat of the Two Lands, and win your reign by finishing the great temple. You see it on the title card, at the start of the first lesson card, and at the top of How to play.',
       "Been here before? Skip, I've played before, under Start the lesson on the title card or on the lesson's first card, marks the lesson done and takes you to a city of your own.",

@@ -8,10 +8,10 @@ import { LESSON_LENGTH } from '../../../src/sim/lesson.js';
 import { V711_TEXT } from '../../../src/ui/text.js';
 import { DIFFICULTY_ORDER } from '../../../src/data/difficulty.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
-import { fire, key } from '../../helpers/dom.js';
+import { fire, key, startNewCity } from '../../helpers/dom.js';
 import { pageAt, cardOf, rect, frame } from '../lessonPage.js';
 
-const SKIP = "Skip, I've played before";
+const SKIP = "I've played before";   // Version 8.0 (Track U): it lost its "Skip,"; the button and its behaviour are as 7.1.1 had them
 const saved = (s) => JSON.parse(s.storage.data['thebes.settings']);
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -42,10 +42,13 @@ describe('v711 skip: the title card', () => {
       expect(saved(s)).toEqual({ ...saved(s), lessonDone: true, lessonStep: LESSON_LENGTH, cardsSeen: true });
       expect(s.api.phase()).toBe('title');
       const now = s.root.querySelector('#title');
-      expect([Boolean(now.querySelector('.new-city')), now.querySelectorAll('.title-difficulty .choice.difficulty').length, now.querySelectorAll('.title-size .choice.mapsize').length]).toEqual([true, DIFFICULTY_ORDER.length, 4]);
+      expect([Boolean(now.querySelector('.new-city')), now.querySelector('.new-city').textContent]).toEqual([true, 'Play']);   // Version 8.0: Play opens the new-city card with its level tiles and, under More choices, its sizes
+      fire(now.querySelector('.new-city'), 'click');
+      expect([now.querySelectorAll('.title-difficulty .choice.difficulty').length, now.querySelectorAll('.title-size .choice.mapsize').length]).toEqual([DIFFICULTY_ORDER.length, 4]);
+      fire(now.querySelector('.guide-back'), 'click');
       expect([now.querySelector('.lesson-skip'), Boolean(now.querySelector('.lesson')), now.querySelector('.lesson-note').textContent]).toEqual([null, true, V711_TEXT.skippedNote]);
       expect(s.root.querySelector('#title .goal-line').textContent).toBe(V711_TEXT.goal());
-      fire(now.querySelector('.new-city'), 'click');
+      startNewCity(now);
       expect([s.api.phase(), s.g().lesson]).toEqual(['game', false]);                     // New city starts at once: the picture cards are marked seen
     } finally { s.cleanup(); }
   });
@@ -60,18 +63,16 @@ describe('v711 skip: the title card', () => {
 });
 
 describe('v711 skip: the lesson\'s first card', () => {
-  it('shows it on the first step\'s card only, named, 44 px, reachable by Tab between Show me and Leave the lesson', async () => {
+  it('shows it on the first step\'s card only, named, 44 px, reachable by Tab after Show me (Version 8.0: Leave the lesson is in the menu)', async () => {
     const s = await pageAt('road');
     try {
       const card = cardOf(s), skip = card.querySelector('.lc-skip');
       expect([skip.hidden, skip.textContent, skip.getAttribute('aria-label'), rect(skip).height >= 44]).toEqual([false, SKIP, null, true]);
-      const go = card.querySelector('.lc-go'), leave = card.querySelector('.lc-leave');
+      const go = card.querySelector('.lc-go');
       go.focus();
       key(go, 'Tab');
       expect(document.activeElement).toBe(skip);
       key(skip, 'Tab');
-      expect(document.activeElement).toBe(leave);
-      key(leave, 'Tab');
       expect(document.activeElement).toBe(go);
     } finally { s.cleanup(); }
     const t = await pageAt('homes');

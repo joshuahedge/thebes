@@ -10,7 +10,8 @@ import { ADVICE } from '../data/advice.js';
 import { cityAdvice } from '../sim/advice.js';
 import { milestoneNeedsMet } from '../sim/progression.js';
 import { housesOf, population } from '../sim/world.js';
-import { T } from './text.js';
+import { T, TRAY_TEXT } from './text.js';
+import { TRAY_MAX } from './tray.js';
 import { ADVICE_TEXT, adviceWords } from './adviceText.js';
 import { el, button } from './components.js';
 
@@ -33,13 +34,24 @@ export function nextMilestone(world) {
 
 // The custom sheet 'advice' (createUI registers it): onFix(item) does the item's Show me or View. Opening it, and every redraw of it, marks what it
 // shows as seen.
-export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => {} }) {
-  return (body) => {
+// Version 8.0 (Track N, ruling 1160): the same sheet holds the message tray (src/ui/tray.js) above the advice. tray() answers { pinned, items, read } (createUI trayModel): pinned are the alerts that
+// need a decision ({ code, title, fix, act }), items the kept messages, newest first ({ text, why, act: a function when the message has a place, else null }), and read() marks them read.
+// With no message and nothing pinned the sheet is the City advice it was.
+export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => {}, tray = null }) {
+  return (body, ctx = {}) => {
+    const model = tray ? tray() : null;
+    const hasTray = Boolean(model) && (model.pinned.length > 0 || model.items.length > 0);
+    if (hasTray) {
+      if (typeof ctx.setTitle === 'function') ctx.setTitle(TRAY_TEXT.sheetTitle);
+      body.append(traySection(model));
+    }
     const list = cityAdvice(world);
     const top = list.slice(0, ADVICE.top);
     const keys = top.map((a) => a.key);
     if (!sameKeys(keys, settings.get().adviceSeen || [])) settings.set({ adviceSeen: keys });
     onRead(keys);
+    if (model) model.read();   // after the advice is marked seen, so the button's number and its dot both clear together
+    if (hasTray) body.append(el('h3', { class: 'advice-head', text: TRAY_TEXT.adviceHead }));
     if (!top.length) {
       const next = nextMilestone(world);
       body.append(el('p', { class: 'advice-well', text: ADVICE_TEXT.allWell }));
@@ -50,6 +62,26 @@ export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => 
     body.append(el('ol', { class: 'advice-list' }, top.map((a) => item(a))));
     if (list.length > top.length) body.append(el('p', { class: 'small muted advice-more', text: ADVICE_TEXT.more(list.length - top.length) }));
   };
+
+  // The tray: what needs you first (pinned, each with a mark in words, so colour is never the cue), then the kept messages, newest first. A message with a place has a Show button
+  // (44 px, named for its message) that closes the sheet and takes the view there; one without has nothing to press.
+  function traySection(model) {
+    // Show is tertiary (a plain link on every row); Open, on a pinned row that needs an answer, is the secondary that stands out (Version 8.0, ruling 1177).
+    const go = (label, ariaLabel, act, weight = 'tertiary') => button(label, { class: `tray-go ${weight}`, 'aria-label': ariaLabel, onClick: act });
+    const pinned = model.pinned.map((p) => el('li', { class: 'tray-item pinned', dataset: { code: p.code } }, [
+      el('div', { class: 'text' }, [el('span', { class: 'pin small', text: `⚑ ${TRAY_TEXT.pinnedMark}` }), ' ', el('strong', { text: p.title }), p.fix ? el('span', { class: 'why small muted', text: p.fix }) : null]),
+      go(p.open ? TRAY_TEXT.open : TRAY_TEXT.showMe, p.open ? TRAY_TEXT.openLabel(p.title) : TRAY_TEXT.showLabel(p.title), p.act, p.open ? 'secondary' : 'tertiary'),
+    ]));
+    const rows = model.items.map((m) => el('li', { class: m.read ? 'tray-item' : 'tray-item unread' }, [
+      el('div', { class: 'text' }, [el('span', { text: m.text }), m.why ? el('span', { class: 'why small muted', text: m.why }) : null]),
+      m.act ? go(TRAY_TEXT.showMe, TRAY_TEXT.showLabel(m.text), m.act) : null,
+    ]));
+    return el('section', { class: 'tray', 'aria-label': TRAY_TEXT.head }, [
+      el('h3', { class: 'tray-head', text: TRAY_TEXT.head }),
+      el('ul', { class: 'tray-list' }, [...pinned, ...rows]),
+      model.items.length >= TRAY_MAX ? el('p', { class: 'small muted tray-keeps', text: TRAY_TEXT.keeps }) : null,
+    ]);
+  }
 
   function item(a) {
     const w = adviceWords(a, world);
