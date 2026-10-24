@@ -13,7 +13,10 @@ import { p } from './iso.js';
 import { TERRAIN } from './art/palette.js';
 
 export const RAPIDS_LAYOUT = 'cataract';
-const REACH = 3;            // tiles from an island's tile that still read as rapids
+const REACH_DOWN = 4;     // tiles downstream of a rock that still read as rapids
+const REACH_UP = 2;       // and upstream or beside it
+const REACH_GORGE = 2.5;  // from a rocky wall of the gorge
+const GORGE_SHARE = 0.7;  // the gorge's walls throw less white than an island
 const MAX_ISLAND = 60;      // a piece of enclosed land this small or smaller is an island
 const DRIFT_TILES_PER_S = 0.45;
 const CYCLE_MS = 3200;
@@ -47,7 +50,7 @@ function islands(world) {
   return out;
 }
 
-// The rapids of a world: the water tiles near an island, each with w (1 beside the island, falling towards REACH) and shore (it touches an island tile),
+// The rapids of a world: the water tiles near an island, each with w (1 just downstream of a rock, falling to 0 away from it) and shore (it touches an island tile),
 // in row order, and the unit vector the river runs in. Empty on any layout but the cataract.
 export function rapidsOf(world) {
   let r = cache.get(world);
@@ -55,23 +58,30 @@ export function rapidsOf(world) {
   const n = world.size, course = (world.mapParams && world.mapParams.course) || {};
   const flow = course.axis === 'ew' ? [course.side === 'west' ? -1 : 1, 0] : [0, 1];
   const best = new Map();
-  if (world.mapVariant === RAPIDS_LAYOUT) {
-    for (const comp of islands(world)) {
-      for (const t of comp) {
-        const cx = t % n, cy = (t - cx) / n;
-        for (let y = cy - REACH; y <= cy + REACH; y++) {
-          for (let x = cx - REACH; x <= cx + REACH; x++) {
-            if (!inBounds(n, x, y) || world.terrain[idx(n, x, y)] !== T.WATER) continue;
-            const d = Math.hypot(x - cx, y - cy);
-            if (d > REACH) continue;
-            const i = idx(n, x, y), w = 1 - (0.75 * Math.max(0, d - 1)) / (REACH - 1), tile = best.get(i) || { x, y, w: 0, shore: false };
-            tile.w = Math.max(tile.w, w);
-            tile.shore = tile.shore || d <= 1.5;
-            best.set(i, tile);
-          }
-        }
+  // Rock makes the white water: each island tile and each rocky tile of the gorge's walls throws it, thickest in the first tiles downstream and thinning
+  // to nothing within REACH_DOWN (REACH_UP upstream, REACH_GORGE from a gorge wall), so open water between the rocks stays clear.
+  const spread = (cx, cy, scale, down, up, shoreD) => {
+    const R = Math.ceil(down);
+    for (let y = cy - R; y <= cy + R; y++) {
+      for (let x = cx - R; x <= cx + R; x++) {
+        if (!inBounds(n, x, y) || world.terrain[idx(n, x, y)] !== T.WATER) continue;
+        const d = Math.hypot(x - cx, y - cy), after = (x - cx) * flow[0] + (y - cy) * flow[1];
+        const reach = after > 0.5 ? down : up;
+        if (d > reach) continue;
+        const w = scale * (after > 0.5 ? 1 : 0.5) * Math.max(0, 1 - Math.max(0, d - 1) / (reach - 1)) ** 1.5;
+        const i = idx(n, x, y), tile = best.get(i) || { x, y, w: 0, shore: false };
+        tile.w = Math.max(tile.w, w);
+        tile.shore = tile.shore || d <= shoreD;
+        best.set(i, tile);
       }
     }
+  };
+  if (world.mapVariant === RAPIDS_LAYOUT) {
+    const rock = new Set();
+    for (const comp of islands(world)) {
+      for (const t of comp) { rock.add(t); spread(t % n, (t - (t % n)) / n, 1, REACH_DOWN, REACH_UP, 1.5); }
+    }
+    for (let i = 0; i < n * n; i++) if (world.terrain[i] === T.ROCKY && !rock.has(i)) spread(i % n, (i - (i % n)) / n, GORGE_SHARE, REACH_GORGE, REACH_GORGE, 0);
   }
   r = { tiles: [...best.values()].sort((a, b) => a.y - b.y || a.x - b.x), flow };
   cache.set(world, r);
@@ -82,7 +92,7 @@ export function rapidsOf(world) {
 // it stands at the middle of its cycle, at full strength.
 export function fleckAt(world, tile, k, now, moving) {
   const { x, y, w } = tile;
-  if (hash2(x, y, SALT + k) > 0.18 + 0.82 * w) return null;
+  if (hash2(x, y, SALT + k) > 0.6 * w * w + 0.04 * w) return null;   // thick beside a rock, almost none away from it
   const bx = x + 0.12 + hash2(x, y, SALT + 10 + k) * 0.76, by = y + 0.12 + hash2(x, y, SALT + 20 + k) * 0.76;
   if (!moving) return { x: bx, y: by, a: 1 };
   const flow = rapidsOf(world).flow, cycle = CYCLE_MS * (0.8 + 0.4 * hash2(x, y, SALT + 30 + k));

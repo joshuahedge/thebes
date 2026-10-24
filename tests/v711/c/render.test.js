@@ -7,7 +7,7 @@ import { idx } from '../../../src/sim/grid.js';
 import { MAP_VARIANTS } from '../../../src/data/map.js';
 import { SEASON_LOOK } from '../../../src/data/seasons.js';
 import { seasonAt } from '../../../src/sim/seasons.js';
-import { drawRapids, rapidsOf, fleckAt } from '../../../src/render/rapids.js';
+import { drawRapids, rapidsOf, fleckAt, FLECKS } from '../../../src/render/rapids.js';
 import { drawSeasonGround } from '../../../src/render/seasons.js';
 import { createAmbient, glintAt } from '../../../src/render/ambient.js';
 import { cartsAt, cartsOnFerries, pointOnPath } from '../../../src/render/carts.js';
@@ -45,6 +45,20 @@ describe('v711 c rapids: white broken water round the cataract\'s islands', () =
       const w = world(v, 3), g = recorder();
       drawRapids(g, w, WHOLE, 1000, 'full');
       expect([v, rapidsOf(w).tiles.length, g.calls.length]).toEqual([v, 0, 0]);
+    }
+  });
+
+  it('gathers round rock: open water has no flecks, the thin edge of the rapids few, and the water just downstream of a rock the most', () => {
+    for (const seed of [3, 7, 11]) {
+      const w = world('cataract', seed), n = w.size, { tiles } = rapidsOf(w), listed = new Set(tiles.map((t) => t.x + t.y * n));
+      const flecks = (t) => { let c = 0; for (let k = 0; k < FLECKS; k++) if (fleckAt(w, t, k, 0, false)) c++; return c; };
+      let water = 0;
+      for (let i = 0; i < n * n; i++) if (w.terrain[i] === T.WATER) water++;
+      const mean = (list) => list.reduce((a, t) => a + flecks(t), 0) / Math.max(1, list.length);
+      const thin = tiles.filter((t) => t.w < 0.15), thick = tiles.filter((t) => t.w > 0.8);
+      expect([seed, water - listed.size > 100, thin.length > 0, thick.length > 0]).toEqual([seed, true, true, true]);   // most of the river is open water, outside the list
+      expect([seed, mean(thin) < 0.35, mean(thick) > 1.2]).toEqual([seed, true, true]);
+      expect(mean(tiles) < FLECKS / 2).toBe(true);                                                                   // about half as many as an even scatter would give
     }
   });
 
