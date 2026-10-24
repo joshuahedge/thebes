@@ -10,16 +10,16 @@ import { rigUI } from '../../helpers/uiWorld.js';
 import { fire } from '../../helpers/dom.js';
 
 const versionParts = (v) => v.split('.').map(Number);
-// (Version 6.0.1: a third part, a fix release; a missing part counts as 0. Version 7.0: the newest entry now.)
+// (Version 6.0.1: a third part, a fix release; a missing part counts as 0. Version 7.1: the newest entry now.)
 const newerThan = (a, b) => { const x = versionParts(a), y = versionParts(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 
 describe('s46 ux releases', () => {
   it('the newest release is the build the game says it is (ruling 401)', () => {
     expect(RELEASES[0].version).toBe(APP_VERSION);
-    expect(APP_VERSION).toBe('7.0');
+    expect(APP_VERSION).toBe('7.1');
   });
   it('lists every build, newest first, with a date and plain notes (ruling 403)', () => {
-    expect(RELEASES.map((r) => r.version)).toEqual(['7.0', '6.0.1', '6.0', '5.0', '4.7', '4.6', '4.5', '4.0', '3.2', '3.1', '3.0', '2.0', '1.1', '1.0']);
+    expect(RELEASES.map((r) => r.version)).toEqual(['7.1', '7.0', '6.0.1', '6.0', '5.0', '4.7', '4.6', '4.5', '4.0', '3.2', '3.1', '3.0', '2.0', '1.1', '1.0']);
     for (let i = 1; i < RELEASES.length; i++) {
       expect([RELEASES[i - 1].version, newerThan(RELEASES[i - 1].version, RELEASES[i].version)]).toEqual([RELEASES[i - 1].version, true]);
       expect(RELEASES[i - 1].date >= RELEASES[i].date).toBe(true);           // dates never go backwards as versions go up

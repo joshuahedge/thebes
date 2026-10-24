@@ -9,7 +9,22 @@
 
 export const RELEASES = [
   {
-    version: '7.0', date: '2026-10-23', title: 'A living world', build: 'live',
+    version: '7.1', date: '2026-10-24', title: 'Rivers of the world', build: 'live',
+    new: [
+      'Six new kinds of map: a delta that splits into arms, a confluence of two rivers in a Y, twin rivers, a wide Nile, a cataract with a rocky gorge, and a river flowing out of a lake. Each map draws its own direction for the river, and about two new cities in three now come up on one of them. Saved cities keep their own map.',
+      'Ferries: where water is too wide to bridge (5 to 12 tiles), the road tool now says so and points you to the Ferry tool in the Roads tray. One drag lays a landing on each bank, each with a road beside it and a ferryman, and then walkers and carts cross. Raiders cannot use a ferry.',
+    ],
+    fixed: [
+      'A fever card that stuck after you let a stranger in now closes, and the lesson card no longer lets the game run behind it or lets keys such as the map, the clock or the arrows act through it.',
+      'Paid event choices that would spare nothing, because the workshops or stores were already gone, now say so instead of taking your gold, and the strike and quarrel lines say work starts again by itself.',
+      'Trade: Buy at Keep at least 0 now says it buys nothing yet, the line follows the route switches, and Keep at least steps by 50 from 100 up.',
+      'How to play folds into sections you open with a tap or Enter, and a sheet opened with the keyboard moves focus into it.',
+      'Settings says when Sound Off silences the music and effects, in words, and the volumes speak their level.',
+      'Delta maps no longer merge two arms into one, and walkers and carts cross a running ferry as a short road.',
+    ],
+  },
+  {
+    version: '7.0', date: '2026-10-23', title: 'A living world', build: '16cda04',
     new: [
       'Trade with Nubia (from Capital) and Punt (from Great Capital) by river: build a Quay on a riverbank with a road and boats sail in. Punt sells incense. Each route can be switched off by good, and Keep at least stops trade selling what your city needs.',
       'A Trade sheet from the trading post, the Quay or the summary shows every route, last year\'s profit and what is held back for the great temple or the court. On a phone one route opens at a time.',

@@ -1082,4 +1082,63 @@ Josh's 23 Oct playtest of 6.0.1 added this track in wave 2 (the plan's "Track P"
 - Commit 2b34e3f (Track S) first carried a Sonnet trailer; every commit on the branch now ends with the one required Opus 5.5 line.
 - Items the final review deferred or dropped, with one-line reasons, are in the follow-ups note (`2026-10-23-version-7-0-followups.md`).
 - This docs pass: `tests/stage46/ux/releases.test.js`, `tests/stage46/final/riverux.test.js`, `tests/stage47/final/releases.test.js`, `tests/v50/docs/releases.test.js` and `tests/v60/docs/releases.test.js` moved to the 7.0 entry (6.0.1 takes its merge commit 4502f53); new `tests/v70/docs/releases.test.js`.
-EOF
+
+## Part 19: Version 7.1 (24 Oct 2026)
+
+Branch `version-7-1`, cut from main at 16cda04 (7.0, live). Built in two parallel tracks, M (six new river layouts) and F (ferries), alongside a read-only bug review of 7.0 (logic and UX); then three fix batches, A (events and the lesson card), B (Trade sheet, Settings, How to play, sheets and keys) and C (maps and ferries follow-ups); the branch stood at 0cc83ee before the docs pass. Sources: Track M's and Track F's reports, the bug review's findings and each fix batch's report, in number order. Numbers in a track's range that were never used are skipped (1029-1039, 1049-1059, 1071-1073). The design: `docs/superpowers/specs/2026-10-24-thebes-version-7-1-design.md`; what is still open: `2026-10-24-version-7-1-followups.md`. The final fix batch's rulings (1080 onwards) follow below; the controller appends them.
+
+### Track M: new river layouts (bfaee2d)
+1020. About two in three 'auto' picks are a new layout (delta, confluence, twin, wide Nile, cataract, lake-fed). — Cost if wrong: fresh cities on 'auto' get a different layout than in 7.0 (saved cities, share links and records keep their own).
+1021. The trade road stays on the south edge on every new layout. — Cost if wrong: no river ever comes in at the south edge.
+1022. Raider entries for the new layouts sit on the start's own land, at least 0.4 of the map's side from the start. Relaxed in practice by 1076. — Cost if wrong: raids may arrive sooner than on Classic.
+1023. Resources are counted and mended on the start's side of the river only. — Cost if wrong: more mending of the land.
+1024. The new layouts' water is drawn the way the oasis pools are. — Cost if wrong: no flood-season wash or water glints on these maps.
+1025. A delta's mouths are at least 3 tiles apart, and a Small map gets at most 2 arms. — Cost if wrong: less delta variety.
+1026. The older map tests (variants, bridges, hills, rock belts, oases, the resource sweep) now cover only the 7.0 six; a new sweep in `tests/v71/m` covers the new ones. — Cost if wrong: the new layouts miss those checks.
+1027. The wide Nile cannot be bridged; its far bank's farmland needs Track F's ferries. — Cost if wrong: not recorded.
+1028. The Maps note is an import plus one line in `menu.js`, not a new key in the shared How to play list, because an existing test fixes that list's keys. — Cost if wrong: not recorded.
+
+### Track F: ferries (a2db809)
+1040. A ferry is two 1x1 landings (80 gold each, 4 upkeep, one ferryman each, "services" priority), not a card. — Cost if wrong: only if a later change needs world state beyond the optional field, which means a v11 migration.
+1041. The two landings together are the price of a crossing. — Cost if wrong: retune `data/ferries.js`.
+1042. Fire risk 0.2, desirability -1, shell class 1. — Cost if wrong: one-line data edits.
+1043. The road tool says "Too wide for a bridge (N tiles of water): lay a ferry", and Show me picks the Ferry tool at the nearest fit. — Cost if wrong: some wording and Show me tests.
+1044. A crossing counts as 3 + ceil(water/3) road tiles. — Cost if wrong: one constant.
+1045. Whether a crossing runs is saved on the landings and settled after each labour step, which bumps roadVersion. — Cost if wrong: a stale cache for up to a day (closed for razing, undoing and burning by 1074).
+1046. A landing needs any road beside it, and its own tile must be free of road. — Cost if wrong: the refusal wording.
+1047. The Ferry card always shows, with no milestone gate. — Cost if wrong: add a gate in `cards.js`.
+1048. Under Gentle the boat sits one tile off a bank; under Full it crosses. — Cost if wrong: render only.
+
+### The bug review's fix batches (A, B, C)
+The two review agents read the live 7.0 build in a browser: the logic review found one critical bug (the fever card's "Let him in" threw and left a card with dead buttons) and three important ones; the UX review found three important (the lesson card let keys through, Buy at Keep at least 0 bought nothing, the Keep at least line ignored route switches) and eleven minors. Their deferred 7.0 items were ruled in or out in the same pass.
+
+#### Fix batch A: events and the lesson card (31bf467)
+1060. The lesson card swallows every key except Ctrl, Cmd and Alt chords, so Ctrl+Z still undoes behind it. — Cost if wrong: undo can fire behind the card.
+1061. Marker effects (empty ids, or n 0) refuse paid choices that spare nothing; the sandstorm sweep is also refused when it would save zero. — Cost if wrong: a rare legitimate paid choice is wrongly refused.
+1062. `owned` is a new optional field on `court.effects` entries (a player's own pause during a hold), so no save version bump. — Cost if wrong: a later code path ignores it.
+1063. The strike and quarrel hold wording says work starts again by itself. — Cost if wrong: only the text.
+1064. A Show me is skipped only when no building of the kind stands at all. — Cost if wrong: not recorded.
+1065. The event card's default line sits before the choices. At 375x667 and 150% text the test shell's sheet is 292 px, so the line sits 5 px short even on the shortest card; the test asserts it starts in view with at least 24 px under it, and it is fully visible on the real page and on desktop. — Cost if wrong: not recorded.
+1066. Dismissing the lesson card resumes play when the step's part is already done. — Cost if wrong: the game plays on straight after dismissal.
+
+#### Fix batch B: Trade sheet, Settings, How to play, sheets and keys (f7293b6)
+1067. Buy at Keep at least 0 shows an amber line saying it buys nothing yet, and a route-less row wins over it. — Cost if wrong: a player sees the "no route" line where "raise Keep" would also apply.
+1068. A sheet opened by key (a keydown, or a click with detail 0, within the same task) focuses its title, except from the guidance row. — Cost if wrong: a sheet opened by key stops its daily rebuild until a command.
+1069. The Keep at least step is 50 from 100 up, and down steps are 50 above 100, so 100, 150, 100, 90. — Cost if wrong: an odd grid near 100.
+1070. The "silenced" wording lives in `menu.js`, not `text.js`. — Cost if wrong: the word moves when `text.js` is reorganised.
+
+#### Fix batch C: maps and ferries follow-ups (851a6e7)
+1074. `world.js` is outside this batch's file list, but removing a building with a ferry now bumps roadVersion (one line in `removeBuilding`, the only place all removals pass through). — Cost if wrong: a reviewer asks to revert that line, and a `ferries.js` cache key on buildingsVersion would do the link part only.
+1075. Delta mouths get 3.5 tiles of extra land between them (`MOUTH_SWAY` in `courses.js`), so new delta maps shift slightly. — Cost if wrong: delta layouts look different from the first 7.1 build, though no saved city changes.
+1076. The raider distance is asserted as at least 0.25 for the first two entries, and 0.4 on over 95% of maps, not 0.4 everywhere. — Cost if wrong: ruling 1022 is not enforced as strictly as written.
+
+### Edits outside a track's files
+- Track F edited `buildings.js`, `tips.js`, `ui.js`, `createUI.js`, `menu.js`, `v70.js`, `overlays.js`, `thumbs.js`, `serialize.js`, `scenes.js` and the road card and bar code in `placement.js`; `#dock .tray` gained `scrollbar-width: none` so three Roads cards no longer push the tray over the corner buttons; the old "too wide" text, the card, fire and desirability lists, the scene list and the Show me tests moved to the new behaviour.
+- Fix batch A changed `tests/v70/e/ui.test.js` and `tests/v70/e/review.test.js` (the quarry noun, the hold wording, Show me with no holder).
+- Fix batch B changed `tests/ui/tradeSheet.test.js`, `tests/v70/a/sim.test.js`, `tests/v70/a/ui.test.js` and `tests/ui/createUI.test.js` (View is now a pointer click, because a keyboard open focuses the title); it also folded the key table, Touch, Goals and Tips into How to play sections, and left the Keyboard paragraph's repeated key list in batch A's part of `text.js`.
+- Fix batch C added one line to `world.js` (ruling 1074).
+- `tests/v71/all.js` takes one line from each track and fix batch.
+- The commit trailers all carry the one required Opus 5.5 line.
+- This docs pass: the 7.0 build in `src/data/releases.js` is its merge commit 16cda04; `tests/stage46/ux/releases.test.js`, `tests/stage46/final/riverux.test.js`, `tests/stage47/final/releases.test.js`, `tests/v50/docs/releases.test.js`, `tests/v60/docs/releases.test.js` and `tests/v70/docs/releases.test.js` moved to the 7.1 entry; new `tests/v71/docs/releases.test.js`.
+
+The final fix batch's rulings (1080 onwards) follow below.
