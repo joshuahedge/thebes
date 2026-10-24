@@ -37,6 +37,10 @@ function waterPieces(world) {
   return { piece, river };
 }
 
+// Whether the map's water is drawn as tile blobs (riverPools) and not as the river's row spans: the six 7.1 layouts (ruling 1024). The season wash and the glints
+// (render/seasons.js, render/ambient.js) draw such water by its tiles, as the river's by its rows.
+export const blobWater = (world) => MAP_VARIANTS_71.includes(world.mapVariant);
+
 function riverData(world) {
   let data = spanCache.get(world);
   if (data) return data;
@@ -44,7 +48,7 @@ function riverData(world) {
   const spans = [], pools = [], isle = [];
   // Version 7.1 (Track M, ruling 1024): a new layout's water (a delta's arms, two rivers, an east-west river, a lake) is no one span a
   // row, so all of it is drawn as pools are: tile blobs that union into any shape. The six older layouts draw as before.
-  if (MAP_VARIANTS_71.includes(world.mapVariant)) {
+  if (blobWater(world)) {
     for (let i = 0; i < n * n; i++) if (piece[i] >= 0) pools.push([i % n, (i - (i % n)) / n]);
     data = { spans: new Array(n).fill(null), minWidth: Infinity, pools, isle };
     spanCache.set(world, data);

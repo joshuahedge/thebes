@@ -29,6 +29,7 @@ import { isWorking } from '../sim/labour.js';
 import { idx, inBounds, NEIGHBOURS4 } from '../sim/grid.js';
 import { hash2 } from '../sim/rng.js';
 import { ferryEdges } from '../sim/ferries.js';
+import { hopCum, stepAt } from './ferryPace.js';
 
 export const WALKER_CAP = 40;
 export const TILES_PER_DAY = 2;   // at 1x a day lasts a second, so a tile takes half a second
@@ -95,15 +96,22 @@ function loopFor(world, b, maxDist) {
   return loop;
 }
 
-function positionOn(loop, timeDays, id, kind) {
+function positionOn(world, loop, timeDays, id, kind) {
   if (!loop.length) return null;
-  const phase = hash2(id, 0, 1) * loop.length;
-  return positionAt(loop, timeDays * TILES_PER_DAY + phase, id, kind);
+  const cum = loopCum(world, loop), phase = hash2(id, 0, 1) * (cum ? cum[loop.length] : loop.length);
+  return positionAt(loop, timeDays * TILES_PER_DAY + phase, id, kind, cum);
 }
-// The walker at distance s (tiles) along the loop, which it walks round and round.
-function positionAt(loop, s, id, kind) {
+// Version 7.1.1: the loop's cumulative road-tile cost when a running ferry is one of its steps (render/ferryPace.js), else null.
+const loopCum = (world, loop) => (loop.length > 1 ? hopCum(world, loop, (t) => t.x + t.y * world.size, true) : null);
+// The walker at distance s (tiles) along the loop, which it walks round and round. With cum, a ferry step takes the crossing's time (crossingTiles of road).
+function positionAt(loop, s, id, kind, cum = null) {
   if (!loop.length) return null;
   if (loop.length === 1) return { id, kind, x: loop[0].x + 0.5, y: loop[0].y + 0.5, dir: 2 };
+  if (cum) {
+    const total = cum[loop.length], at = stepAt(cum, ((s % total) + total) % total), a = loop[at.i], b = loop[(at.i + 1) % loop.length];
+    const dir = b.x > a.x ? 1 : b.x < a.x ? 3 : b.y > a.y ? 2 : 0;
+    return { id, kind, x: a.x + (b.x - a.x) * at.k + 0.5, y: a.y + (b.y - a.y) * at.k + 0.5, dir };
+  }
   s = ((s % loop.length) + loop.length) % loop.length;
   const i = Math.floor(s), f = s - i;
   const a = loop[i], b = loop[(i + 1) % loop.length];
@@ -127,7 +135,7 @@ function fill(world, timeDays, range, cands, out) {
   }
   for (const c of cands) {
     if (out.length >= WALKER_CAP) break;
-    const w = positionOn(loopFor(world, c.b, c.maxDist), timeDays, c.b.id, c.kind);
+    const w = positionOn(world, loopFor(world, c.b, c.maxDist), timeDays, c.b.id, c.kind);
     if (w) out.push(w);
   }
 }
@@ -217,14 +225,14 @@ export const figureKind = (kind) => (ART[`fig.${kind}`] ? kind : 'priest');
 
 // One procession's figures on a loop, setting out on day `from`: the first leads, the rest follow PROCESSION.spacing
 // apart, each showing once it is out.
-function figuresOn(loop, timeDays, from, n, idBase) {
+function figuresOn(world, loop, timeDays, from, n, idBase) {
   const out = [];
   if (!loop.length) return out;
   const lead = (timeDays - from) * PROCESSION.tilesPerDay;
   for (let i = 0; i < n; i++) {
     const s = lead - i * PROCESSION.spacing;
     if (s < 0) break;
-    const w = positionAt(loop, s, idBase + i, figureKind(PROCESSION.order[i % PROCESSION.order.length]));
+    const w = positionAt(loop, s, idBase + i, figureKind(PROCESSION.order[i % PROCESSION.order.length]), loopCum(world, loop));
     if (w) out.push(w);
   }
   return out;
@@ -253,12 +261,12 @@ export function processionsAt(world, timeDays, range = null) {
   for (const h of hosts.slice(0, PROCESSION.maxOnScreen)) {
     const b = h.b;
     if (h.kind === 'festival') {
-      out.push(...figuresOn(loopFor(world, b, BUILDINGS.temple.reach), timeDays, world.danger.festivalDay, size, PROCESSION_ID_BASE + b.id * 16));
+      out.push(...figuresOn(world, loopFor(world, b, BUILDINGS.temple.reach), timeDays, world.danger.festivalDay, size, PROCESSION_ID_BASE + b.id * 16));
       const kind = flutter ? 'streamer2' : 'streamer';
       out.push({ id: STREAMER_ID_BASE + b.id * 2, kind, x: b.x + 0.12, y: b.y + b.d - 0.12, dir: 2 });
       out.push({ id: STREAMER_ID_BASE + b.id * 2 + 1, kind, x: b.x + b.w - 0.12, y: b.y + 0.12, dir: 2 });
     } else {
-      out.push(...figuresOn(dedicationLoop(world, b), timeDays, b.site.done, Math.min(PROCESSION.dedicationFigures, size), DEDICATION_ID_BASE + b.id * 16));
+      out.push(...figuresOn(world, dedicationLoop(world, b), timeDays, b.site.done, Math.min(PROCESSION.dedicationFigures, size), DEDICATION_ID_BASE + b.id * 16));
     }
   }
   return out;

@@ -18,7 +18,7 @@ export const LAYOUT_LINES = {
   confluence: 'two rivers meet in a Y, and your city starts in the fork between them',
   twin: 'a second, smaller river crosses the map beside the main one, and never joins it',
   'wide-nile': `one river ${tiles(C['wide-nile'].hw)} wide all the way, too wide for any bridge: its far bank has farmland of its own`,
-  cataract: 'the river squeezes through a rocky gorge, with stone on both banks, then spreads wide round a chain of small rocky islands',
+  cataract: 'the river squeezes through a rocky gorge, with stone on both banks, then spreads wide in white rapids round a chain of small rocky islands',
   'lake-fed': 'the river flows out of a large lake on one edge of the map',
 };
 

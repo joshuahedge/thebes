@@ -5,6 +5,7 @@
 // Under Full motion the boat goes back and forth on the game's days; under Gentle (and Still) it sits at a landing, so the crossing reads either way.
 import { p } from './iso.js';
 import { ferryLinks, landingsOf, mateOf } from '../sim/ferries.js';
+import { cartsOnFerries } from './carts.js';
 
 export const FERRY_ID_BASE = 4100000;   // after the trade figures (4000000 +): base + the lower landing's id
 
@@ -42,9 +43,24 @@ export function boatFraction(water, timeDays, id) {
   return t < 1 ? t : 2 - t;
 }
 
+export const RIDE_ID_BASE = 4600000;   // a boat that carries a cart: base + the cart's store id
+
+// Version 7.1.1: a cart crossing a running ferry rides on a boat of its own, a little behind it on screen so the cart is drawn on top, and the crossing's
+// own boat (the one that plies back and forth, or sits at a landing) is left out while a cart is on it. `rides` is cartsOnFerries.
+const beside = (b, tile, size) => Math.max(Math.abs((tile % size) - b.x), Math.abs(Math.floor(tile / size) - b.y)) <= 1;
+const carries = (world, l, r) => {
+  const [s, t] = r.hop, n = world.size;
+  return (beside(l.a, s, n) && beside(l.b, t, n)) || (beside(l.b, s, n) && beside(l.a, t, n));
+};
+
 export function ferryWalkers(world, timeDays, range = null, motion = 'full') {
   const out = [];
-  for (const l of ferryLinks(world)) {
+  const links = ferryLinks(world), rides = links.length ? cartsOnFerries(world, timeDays, range, motion) : [];
+  for (const r of rides) {
+    out.push({ id: RIDE_ID_BASE + r.id, kind: r.left ? 'ferry_boat_l' : 'ferry_boat', x: r.x - 0.1, y: r.y - 0.1, dir: r.left ? 3 : 1 });
+  }
+  for (const l of links) {
+    if (rides.some((r) => carries(world, l, r))) continue;
     const [ax, ay] = centre(l.a), [bx, by] = centre(l.b);
     const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1;
     const sit = motion !== 'full';

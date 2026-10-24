@@ -269,7 +269,7 @@ describe('v71 m layouts (each is what its name says)', () => {
     }
   });
   it('cataract: the stretch the words call wide has the river 6 or more tiles across, with 3 or more small islands in it, and no sim for rapids (still water to a boat)', () => {
-    // the words say "spreads wide round a chain of small rocky islands", not rapids: nothing in the sim or the render treats it as anything but water
+    // the words say "white rapids round a chain of small rocky islands" (7.1.1 draws them: render only, src/render/rapids.js); the sim treats the water as water
     const wide = Math.round(MAP.courses.cataract.rapidsHw[0] * 2);
     for (const s of seeds) {
       const m = generateMap(s, 64, 'cataract'), c = m.params.course;
@@ -277,7 +277,7 @@ describe('v71 m layouts (each is what its name says)', () => {
       for (let k = 0; k < 64; k++) { let n = 0; for (let j = 0; j < 64; j++) if ((c.axis === 'ns' ? at(m, j, k) : at(m, k, j)) === T.WATER) n++; widest = Math.max(widest, n); }
       expect([s, widest >= wide, islets(m) >= 3]).toEqual([s, true, true]);
     }
-    expect(LAYOUT_LINES.cataract.includes('rapids')).toBe(false);
+    expect(LAYOUT_LINES.cataract.includes('rapids')).toBe(true);
   });
   it('lake-fed: a lake (water 3 tiles deep every way, which no river here is) on an edge, the river running out of it to the far edge', () => {
     for (const s of seeds) {

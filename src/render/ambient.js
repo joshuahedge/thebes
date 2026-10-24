@@ -24,7 +24,8 @@ import { hash2 } from '../sim/rng.js';
 import { idx, inBounds } from '../sim/grid.js';
 import { isWorking } from '../sim/labour.js';
 import { p, U } from './iso.js';
-import { riverSpans, riverBanks, smoothPath } from './terrainWater.js';
+import { riverSpans, riverBanks, smoothPath, blobWater } from './terrainWater.js';
+import { T } from '../sim/terrain.js';
 import { ART, slotFor } from './art/registry.js';
 import { BIG } from './art/housing.js';
 import { TERRAIN, WOOD, SHADOW } from './art/palette.js';
@@ -85,12 +86,18 @@ export function riverRows(world, y0, y1) {
 // River tile (x, y)'s glint at time now (most tiles have one): { x, y } in tiles and its alpha, or null. Each glint lives
 // 4-7 s, drifting downstream (+y) at AMBIENT.glintDriftTilesPerSecond and fading in and out, then starts again. With
 // drift false (Gentle) it fades in and out where it starts.
+// With rows null (Version 7.1.1: a 7.1 layout's water, drawn as tile blobs) the glint stays on water tiles: it is dropped where it would drift onto land.
 export function glintAt(world, x, y, now, rows, drift = true) {
   const seed = world.seed | 0, h = unit(x, y, seed + SALT.glint);
   if (h > AMBIENT.glintShare) return null;
   const life = between(AMBIENT.glintFadeMs, unit(y, x, seed + SALT.glint));
   const t = ((now + h * life * 7) % life) / life;
   const gy = y + 0.2 + unit(x + 7, y, seed) * 0.6 + (drift ? AMBIENT.glintDriftTilesPerSecond * (t * life) / 1000 : 0);
+  if (!rows) {
+    const gx = x + 0.2 + unit(x, y + 7, seed) * 0.6;
+    if (!inBounds(world.size, x, Math.floor(gy)) || world.terrain[idx(world.size, x, Math.floor(gy))] !== T.WATER) return null;
+    return { x: gx, y: gy, alpha: AMBIENT.glintAlpha * Math.sin(Math.PI * t) };
+  }
   const row = rows.get(Math.floor(gy));
   if (!row) return null;
   const gx = Math.min(row.right - 0.35, Math.max(row.left + 0.35, x + 0.2 + unit(x, y + 7, seed) * 0.6));
@@ -103,9 +110,10 @@ export const GLINT_STEPS = 12;
 function drawGlints(g, world, range, now, rows, drift = true) {
   const spans = riverSpans(world), buckets = [];
   for (let y = Math.max(0, range.y0); y <= Math.min(world.size - 1, range.y1); y++) {
-    const s = spans[y];
+    const s = rows ? spans[y] : [0, world.size - 1];   // rows null: a blob-water layout, every tile in range that is water (glintAt checks)
     if (!s) continue;
     for (let x = Math.max(s[0], range.x0); x <= Math.min(s[1], range.x1); x++) {
+      if (!rows && world.terrain[idx(world.size, x, y)] !== T.WATER) continue;
       const gl = glintAt(world, x, y, now, rows, drift);
       if (!gl) continue;
       const k = Math.round((gl.alpha / AMBIENT.glintAlpha) * GLINT_STEPS);
@@ -327,6 +335,7 @@ export function createAmbient({ enabled = () => true, level = () => 'full', cloc
     if (!moving) for (const k of ['sway', 'rare']) off.add(k);
     const rows = riverRows(world, range.y0 - 2, range.y1 + 2);
     const wind = windOf(world);
+    if (!rows.size && blobWater(world)) drawGlints(g, world, range, now, null, moving);   // Version 7.1.1 (ruling 1024 mended): glints on a 7.1 layout's water
     if (rows.size) {
       drawGlints(g, world, range, now, rows, moving);
       drawRipples(g, rows, now, moving);
