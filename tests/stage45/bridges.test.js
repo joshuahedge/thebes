@@ -9,7 +9,7 @@ import { costOf, roadCostOf } from '../../src/sim/costs.js';
 import { flowField, tileCost } from '../../src/sim/pathfinding.js';
 import { roadReach } from '../../src/sim/reach.js';
 import { createWorld } from '../../src/sim/world.js';
-import { MAP_VARIANTS } from '../../src/data/map.js';
+import { MAP_VARIANTS_70 as MAP_VARIANTS } from '../../src/data/map.js';   // Version 7.1: the 7.0 layouts (a wide Nile has no bridge spot by design)
 import { T } from '../../src/sim/terrain.js';
 import { idx } from '../../src/sim/grid.js';
 import { toolPreview, ghostsFor } from '../../src/ui/placement.js';

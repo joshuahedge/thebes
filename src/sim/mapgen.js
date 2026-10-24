@@ -1,13 +1,14 @@
 import { createRng, valueNoise, hash2 } from './rng.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
 import { T } from './terrain.js';
-import { MAP, MAP_VARIANTS, MAP_SALT, areaScale } from '../data/map.js';
+import { MAP, MAP_VARIANTS, MAP_VARIANTS_70, MAP_VARIANTS_71, MAP_SALT, areaScale } from '../data/map.js';
 import { LAND_VERSION, GRASS, newLandFor } from '../data/s47.js';
 import { repairResources } from './resources.js';
 import { placeOases } from './oases.js';
 import { placeHills } from './hills.js';
 import { placeBelts } from './belts.js';
 import { moistureField } from './moisture.js';
+import { drawCourse, landEntries, repairOwnLand } from './courses.js';
 
 // Clay (Stage 4.5, ruling 312): the bank tiles are chained along the water, so a stretch is a walk of 4-10 of them from a
 // seeded start, 8-neighbour steps in a fixed order; some stretches are two tiles deep, taking the dry land tile beside each
@@ -78,7 +79,12 @@ export function addClay(terrain, size, seed, free = () => true, { salt = 0, targ
 }
 
 // The variant a seed picks when a city is started with 'auto' (ruling 313): one draw, hash2 keyed by the seed with a salt.
-export const variantFor = (seed) => MAP_VARIANTS[Math.floor(hash2(seed, 0, MAP.variantSalt) * MAP_VARIANTS.length)];
+// Version 7.1 (Track M, ruling 1020): the same draw, split so one of the six new layouts comes up MAP.courses.newShare of the time (about two in
+// three) and one of the six older ones the rest; share links and saves carry the layout itself, so this moves no city or link.
+export const variantFor = (seed) => {
+  const h = hash2(seed, 0, MAP.variantSalt), old = 1 - MAP.courses.newShare;
+  return h < old ? MAP_VARIANTS_70[Math.floor((h / old) * MAP_VARIANTS_70.length)] : MAP_VARIANTS_71[Math.min(MAP_VARIANTS_71.length - 1, Math.floor(((h - old) / MAP.courses.newShare) * MAP_VARIANTS_71.length))];
+};
 
 // The map. variant picks the river's layout (ruling 313, MAP.variants); 'classic' is the original generator, draw for draw,
 // so every fixture, dev scene and old seed keeps its map. The others share its terrain rules (water, a one-tile bank, the
@@ -95,6 +101,10 @@ export const variantFor = (seed) => MAP_VARIANTS[Math.floor(hash2(seed, 0, MAP.v
 // long the river meanders, 0-2 side channels or oxbow lakes (pools of water of their own), 2-5 rocky outcrop clusters, 1-3 palm groves,
 // dune fields and 0-2 dry wadis (decor on desert), and clay patches 2-3 tiles across; they are returned in params (world.mapParams) and
 // drawn from the seed, the size and the layout alone, so a link, a stamp and a replay draw the same map.
+//
+// Version 7.1 (Track M): the six new layouts (MAP_VARIANTS_71: delta, confluence, twin, wide-nile, cataract, lake-fed) draw their water,
+// the start area and the trade road's column in src/sim/courses.js, their raider entries on the start's own land (landEntries) and mend
+// the resource guarantee there (repairOwnLand); everything else below is shared. The older six take none of those paths and never move.
 export function generateMap(seed, size = MAP.size, variant = 'classic') {
   const v = MAP_VARIANTS.includes(variant) ? variant : 'classic';
   const spec = MAP.variants[v];
@@ -132,7 +142,11 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
     return t * t * (3 - 2 * t);
   };
 
-  for (let y = 0; y < size; y++) {
+  // Version 7.1 (Track M, ruling 1021): a new layout draws its own water, banks and fertile band (src/sim/courses.js), and says where the
+  // trade road, the start area and the rock belts go; the river below is the older layouts' only.
+  const course = spec.course ? drawCourse(terrain, size, seed, v) : null;
+  if (course) params.course = course.course;
+  if (!course) for (let y = 0; y < size; y++) {
     const cx = riverX(y);
     const f = islandEase(y);
     const wl = f ? (1 - f) * (cx - hw) + f * (isl.ix - isl.lx - spec.island.mainBank) : 0;
@@ -181,15 +195,15 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   // measured at its farthest swing over the last rows, so the first homes never land on it.
   let nearEdge = riverX(size - 1);
   if (spec.clearStart || varied) for (let y = size - MAP.clearStartRows; y < size; y++) nearEdge = spec.mirror ? Math.min(nearEdge, riverX(y)) : Math.max(nearEdge, riverX(y));
-  const ex = Math.round(nearEdge) + (spec.mirror ? -MAP.tradeRoadOffsetX : MAP.tradeRoadOffsetX);
-  const focus = { x: ex + (spec.mirror ? -MAP.focusOffset.x : MAP.focusOffset.x), y: size + MAP.focusOffset.y };
+  const ex = course ? course.ex : Math.round(nearEdge) + (spec.mirror ? -MAP.tradeRoadOffsetX : MAP.tradeRoadOffsetX);
+  const focus = course ? course.focus : { x: ex + (spec.mirror ? -MAP.focusOffset.x : MAP.focusOffset.x), y: size + MAP.focusOffset.y };
   const rp = MAP.rockPatches;
-  const rockRanges = (spec.rocks ? spec.rocks.ranges : [[rp.minX, rp.minX + MAP.size - rp.marginX - 1]]).map(([x0, x1]) => [at(x0), at(x1)]);   // the x ranges rock sits in (classic's is its patches' box)
+  const rockRanges = course ? course.ranges : (spec.rocks ? spec.rocks.ranges : [[rp.minX, rp.minX + MAP.size - rp.marginX - 1]]).map(([x0, x1]) => [at(x0), at(x1)]);   // the x ranges rock sits in (classic's is its patches' box)
   let placedBelts = { belts: [], made: 0 };   // laid after the oases, below
   if (varied) {
     // Stage 4.7 (Task 3b): a new map (every one but classic at Normal) has no outcrop clusters and no groves: its rock lies in long belts (src/sim/belts.js, laid after the
     // oases) and its meadow follows the water (the moisture field, below). params.outcrops counts the belts; the side channels and oxbow lakes are as before.
-    addPools(terrain, size, seed, riverX, focus, ex, params);
+    if (!course) addPools(terrain, size, seed, riverX, focus, ex, params);   // Version 7.1: a new layout's water is its own (no side channels or oxbows)
   } else if (v === 'classic') {
     const patches = rp.min + rng.int(rp.extra);
     for (let p = 0; p < patches; p++) {
@@ -215,7 +229,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   // Stage 4.7 (Task 2, ruling 463): desert oases on a map with new land, drawn from S47_SALT (src/sim/oases.js). They are terrain edits, so they run
   // BEFORE the resource repair below (which stays the last edit); the entries are read first so no oasis lies near one (an oasis keeps >= 8 tiles from
   // every edge, so it never changes where an entry slides to). Task 3's hills must run before the repair too.
-  const raiderEntries = entriesFor(terrain, size, spec, at);
+  const raiderEntries = course ? landEntries(terrain, size, focus, tradeEntry) : entriesFor(terrain, size, spec, at);   // Version 7.1: on the start's own land
   const placed = newLandFor(v, size) ? placeOases(terrain, size, seed, { focus, targets: [...raiderEntries, tradeEntry] }) : { oases: [], clay: 0 };
   const oases = placed.oases;
   // Stage 4.7 (Task 3, ruling 464): hills on a map with new land, after the oases (they keep 11 tiles from a pool) and before the repair; each with its rocky skirt.
@@ -234,7 +248,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   // Stage 4.7 (Task 1, ruling 461): every map holds, within reach of the start area, 2 clay-pit fits, a gem-mine fit and 6 grain-farm fits.
   // A draw that missed is mended here, deterministically (src/sim/resources.js, S47_SALT.resources); a map that already holds them is
   // untouched, so classic at Normal stays as it was except for the seeds that failed.
-  const repaired = repairResources({ size, terrain, focus, startRoad }, seed, rockRanges, { mine: newLand, avoid: oases, belt: newLand });   // classic at Normal keeps its rock (controller ruling: weekly seeds, links and records stay put); its clay and farms are mended
+  const repaired = (course ? repairOwnLand : repairResources)({ size, terrain, focus, startRoad }, seed, rockRanges, { mine: newLand, avoid: oases, belt: newLand });   // Version 7.1: a new layout counts and mends the start's own bank only (ruling 1023)   // classic at Normal keeps its rock (controller ruling: weekly seeds, links and records stay put); its clay and farms are mended
   // params (Stage 4.6, world.mapParams): the seeded shape choices (ruling 332), for display and replays: the meander's strength and length,
   // the outcrop clusters placed, the side channels and oxbow lakes (pools), palm groves, dune fields and wadis (the last two are only drawn).
   if (varied) addDunesAndWadis(terrain, size, seed, focus, ex, params);

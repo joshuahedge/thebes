@@ -8,6 +8,7 @@ import { T } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 import { TERRAIN } from './art/palette.js';
 import { reeds } from './art/nature.js';
+import { MAP_VARIANTS_71 } from '../data/map.js';
 
 const spanCache = new WeakMap(); // world -> { spans, minWidth, pools, isle }; terrain never changes after the map is made
 export const SHALLOWS_TILES = 0.25; // the shallows strip's width inside each bank, in tiles (a quarter tile across on screen)
@@ -41,6 +42,14 @@ function riverData(world) {
   if (data) return data;
   const n = world.size, { piece, river } = waterPieces(world);
   const spans = [], pools = [], isle = [];
+  // Version 7.1 (Track M, ruling 1024): a new layout's water (a delta's arms, two rivers, an east-west river, a lake) is no one span a
+  // row, so all of it is drawn as pools are: tile blobs that union into any shape. The six older layouts draw as before.
+  if (MAP_VARIANTS_71.includes(world.mapVariant)) {
+    for (let i = 0; i < n * n; i++) if (piece[i] >= 0) pools.push([i % n, (i - (i % n)) / n]);
+    data = { spans: new Array(n).fill(null), minWidth: Infinity, pools, isle };
+    spanCache.set(world, data);
+    return data;
+  }
   for (let y = 0; y < n; y++) {
     let a = -1, b = -1;
     for (let x = 0; x < n; x++) {

@@ -1,14 +1,14 @@
 // Task 1 (ruling 461): the sweep behind the resource diagnostic and the guarantee tests. For every map size and layout it generates the
 // maps of seeds 1..SEEDS and measures what lies near the start area (src/sim/resources.js), so one pass feeds both.
 import { generateMap } from '../../../src/sim/mapgen.js';
-import { MAP_VARIANTS, MAP_SIZES } from '../../../src/data/map.js';
+import { MAP_VARIANTS_70, MAP_SIZES } from '../../../src/data/map.js';
 import { RESOURCES, resourceReach } from '../../../src/data/s47.js';
 import { resourceCounts, spotsFor, packed } from '../../../src/sim/resources.js';
 
 export const SEEDS = 200;
 export const seedsFor = (size) => (size > 80 ? 25 : SEEDS);   // Version 6.0: Huge (112) is 3 x the area of Normal, so its sweeps take 25 seeds a layout
 export const SIZES = Object.values(MAP_SIZES);
-export const LAYOUTS = MAP_VARIANTS;
+export const LAYOUTS = MAP_VARIANTS_70;   // Version 7.1: the new layouts' stricter sweep (fits on the start's own land) is tests/v71/m's
 
 // Why a map has too little clay near the start: 'none' (no clay-pit spot anywhere on the map: a generator gap), 'far' (spots exist, but
 // fewer than the guarantee lie within reach), 'thin' (the nearest is within reach but the packed spots there are too few), or null.
