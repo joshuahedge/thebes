@@ -53,9 +53,10 @@ export function createMapUi(ctx) {
       if (key === lastKey) return;
       lastKey = key;
       const p = toolPreview(world, s);
+      // Version 7.1 (Track F, ruling 1083): a too-wide refusal fires the ferries tip first, so the bridges tip does not take the 3-minute slot ahead of it
+      if (road && p.state === 'bad' && p.reason === 'too_wide') ctx.fireTip('roadTooWide');
       if (road && ((p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) || (p.bridges && p.bridges.length))) ctx.fireTip('roadMeetsWater');
       if (hasHills && p.state === 'bad' && p.reason === 'hills') ctx.fireTip('hillsMet');
-      if (road && p.state === 'bad' && p.reason === 'too_wide') ctx.fireTip('roadTooWide');   // Version 7.1 (Track F): the ferries tip
       if (road && !s.tool.route && p.state === 'bad' && ROUTE_TIP_REFUSALS.includes(p.reason)) ctx.fireTip('roadRoute');   // Version 5.0 (Task 5): the straight road met something Route goes round
     };
     if (ctx.store.subscribe) { const un = ctx.store.subscribe(watch); if (typeof un === 'function') off.push(un); }

@@ -53,3 +53,5 @@ Dropped as not real or not reproduced: the two-row top bar overlap with the aler
 - **Words against the sim stayed the rule that finds most.** The paid choices that spared nothing, the strike line that pointed at a choice already gone, and Buy at 0 that read as active were all words saying more than the sim did.
 - **A sweep at every size found what the first run missed.** Seed 185 on a Small map merged a delta's two arms into one wide mouth; the fix batch found it by sweeping every seed and size.
 - **One full suite at a time**, and every batch that needs the full run is better batched; one timing test failed once under load and passed alone.
+
+- From the final fix batch: a walker on a ferry glides across the water in one step, so it moves faster there than the crossing time the sim uses (cosmetic, like the cart).

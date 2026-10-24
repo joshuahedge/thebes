@@ -1142,3 +1142,11 @@ The two review agents read the live 7.0 build in a browser: the logic review fou
 - This docs pass: the 7.0 build in `src/data/releases.js` is its merge commit 16cda04; `tests/stage46/ux/releases.test.js`, `tests/stage46/final/riverux.test.js`, `tests/stage47/final/releases.test.js`, `tests/v50/docs/releases.test.js`, `tests/v60/docs/releases.test.js` and `tests/v70/docs/releases.test.js` moved to the 7.1 entry; new `tests/v71/docs/releases.test.js`.
 
 The final fix batch's rulings (1080 onwards) follow below.
+
+### Final fix batch (after the final review; 1082 and 1084 were not used)
+
+1080. Ctrl/Cmd+Z and Ctrl+Y (and Shift+Z) stop at the lesson card, so nothing is undone behind it. This replaces the Ctrl+Z part of 1060. — Cost if wrong: a browser chord on those keys is blocked while the card is up.
+1081. The Keyboard help says every game key waits while a lesson card is up (P_TEXT.lessonKeys), and the Ctrl+Z line says "except over a lesson card". — Cost if wrong: wording only.
+1083. A too-wide refusal fires the ferries tip before the bridges tip. — Cost if wrong: the bridges tip is held back on a too-wide refusal.
+1085. After a ferry_bridge refusal (4 tiles of water or fewer), Show me names a bridge (ferryText.js showFitWhat). — Cost if wrong: a label only.
+1086. The ferry bar's summary, idle note and idle lines are short ("7 tiles of water · Costs 16 a month"), so the accepted bar is 151 px at 375x667 and 150% text (was 227). — Cost if wrong: less hint text before a line is drawn.
