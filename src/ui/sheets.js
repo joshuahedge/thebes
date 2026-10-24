@@ -58,6 +58,18 @@ const withoutTwoFoods = (rows) => (rows.some((c) => c.need === 'threeFoods') ? r
 
 // parts (Stage 3): the danger and score interfaces' sheet parts (src/ui/danger.js), each { building(b), house(h),
 // actions(b), summary() } returning arrays of nodes, added in the list's order at fixed places in the sheets below.
+// Version 7.1 (fix batch B): whether the thing happening right now came from the keyboard (a key, or a click with detail 0, which is what Enter and Space on a button send),
+// so a sheet that opens from it can take keyboard focus at its title. The flag lasts until the event's own work is done (the next task), so a sheet the game opens by itself
+// never steals focus. One pair of listeners for the page, however many sheets are made.
+let byKeyboard = false;
+if (typeof document !== 'undefined' && !globalThis.__thebesSheetInput) {
+  globalThis.__thebesSheetInput = true;
+  const mark = (v) => { byKeyboard = v; if (v) setTimeout(() => { byKeyboard = false; }, 0); };
+  document.addEventListener('keydown', () => mark(true), true);
+  document.addEventListener('click', (e) => mark(e.detail === 0), true);
+  document.addEventListener('pointerdown', () => mark(false), true);
+}
+
 export function createSheets({ container, store, world, placement, cameraControl, minimap, getAlerts = () => [], onView = () => {}, onShowMe = () => {}, onShowMeBuild = onShowMe, onFixAlert = () => {}, onSelect = () => {}, onBuildAnother = () => ({ ok: true }), onAnotherFix = () => {}, onOpenAdvice = () => {}, adviceOn = () => false, afterCommand = () => {}, custom = {}, parts = [], keys = () => true }) {
   const close = () => store.set(closeSheet(store.get()));
   // Version 7.0 (Track P, ruling 1001): Delete or Backspace presses this button (createUI removeByKey); the tooltip and aria-keyshortcuts say so while Keyboard shortcuts is on.
@@ -390,8 +402,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     const body = el('div', { class: 'body' });
     const canvas = minimap.canvas;
     canvas.onclick = (ev) => { const r = canvas.getBoundingClientRect(); const t = minimap.tileFromPoint(ev.clientX - r.left, ev.clientY - r.top); cameraControl.panTo(t.x + 0.5, t.y + 0.5); };
-    const zoomIn = iconButton(T.zoomIn, '+', { class: 'zoom-in', onClick: () => cameraControl.zoomStep(ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
-    const zoomOut = iconButton(T.zoomOut, '−', { class: 'zoom-out', onClick: () => cameraControl.zoomStep(1 / ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
+    const zoomIn = iconButton(T.zoomIn, '+', { class: 'zoom-in', 'aria-keyshortcuts': keys() ? '+' : null, onClick: () => cameraControl.zoomStep(ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
+    const zoomOut = iconButton(T.zoomOut, '−', { class: 'zoom-out', 'aria-keyshortcuts': keys() ? '-' : null, onClick: () => cameraControl.zoomStep(1 / ZOOM_STEP, cameraControl.centre().x, cameraControl.centre().y) });
     const map = [el('div', { class: 'minimap-wrap' }, [canvas]), el('div', { class: 'actions' }, [zoomIn, zoomOut])];
     const phone = store.get().layout !== 'wide';
     const list = phone ? criticalFirst(getAlerts()) : getAlerts();
@@ -439,7 +451,11 @@ export function createSheets({ container, store, world, placement, cameraControl
     if (anotherNote && anotherNote.sheet !== s.sheet) anotherNote = null;   // Build another's refusal goes with the sheet it was said on
     // A rebuild drops keyboard focus: put it back on the button at the same position when its class matches (spec 6.8).
     const buttons = [...container.querySelectorAll('button')];
-    const focusIndex = buttons.indexOf(document.activeElement);
+    // An opener in the guidance row (the goal's All goals, a tip's button) already has its focus handed into the sheet by createUI's guidance code, so it is left to that.
+    const fromRow = Boolean(document.activeElement && document.activeElement.closest && document.activeElement.closest('#goals, #tip, #cheer, #legend'));
+    const opened = store.get().sheet !== scrolledFor;
+    const toTitle = opened && byKeyboard && !fromRow;
+    const focusIndex = toTitle ? -1 : buttons.indexOf(document.activeElement);   // a sheet just opened by the keyboard takes focus at its title instead
     const focusClass = focusIndex >= 0 ? buttons[focusIndex].className : null;
     clear(container);
     if (!s.sheet) { container.hidden = true; return; }
@@ -460,6 +476,10 @@ export function createSheets({ container, store, world, placement, cameraControl
     else { container.hidden = true; return; }
     container.hidden = false;
     container.append(...parts);
+    // The sheet's own title names it (index.html's "Details" is only the fallback), and a sheet opened from the keyboard puts focus on that title, so a screen reader reads it first.
+    const title = container.querySelector('.head h2');
+    if (title) container.setAttribute('aria-label', title.textContent); else container.setAttribute('aria-label', 'Details');
+    if (toTitle && title) { title.tabIndex = -1; title.focus(); }
     // The gold chip's tap opens the summary at its forecast section (once per opening, so a later redraw leaves the scroll alone).
     if (s.sheet !== scrolledFor) {
       scrolledFor = s.sheet;

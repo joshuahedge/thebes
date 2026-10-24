@@ -3413,8 +3413,10 @@ export const V70_TRADE_TEXT = {
   keepHead: 'Keep at least',
   keepHelp: 'Pick what each good does: Buy brings it up to the level, Sell takes only what is over it. Goods owed to the temple or the court are held back as well.',
   keep: (n) => `Keep at least ${n}`,
-  keepLabel: (sign, name) => `${sign > 0 ? '+' : '−'}${v7FloorStep}: keep at least ${sign > 0 ? 'more' : 'less'} ${name.toLowerCase()}`,
+  keepLabel: (sign, name, step = v7FloorStep) => `${sign > 0 ? '+' : '−'}${step}: keep at least ${sign > 0 ? 'more' : 'less'} ${name.toLowerCase()}`,   // 7.1: the step is 50 from 100 up
   near: (n, where) => `${n} near the ${where === 'quay' ? 'Quay' : 'trading post'}`,
+  buyNothing: 'Buys nothing yet: raise Keep at least',   // 7.1: Buy at 0 asks the caravan for nothing (src/sim/trade.js wants the level less the stock)
+  noOpenRoute: 'No open route takes it: its switches are Off',
   heldTemple: (n) => `${n} held for the temple`,
   heldCourt: (n) => `${n} held for the court`,
   buyHelp: (n) => `Buys until ${n} are in storage`,
@@ -3738,7 +3740,7 @@ const a7Cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 export const ADVICE_FIX_TEXT = {
   // Raid towers: where the first one goes, from the sim's towerFix (a tile a road touches, within the tower's range of what the band strikes first).
   towerWhere: (guard) => `Show me puts the first within ${a7Defence.towerRange} tiles of ${a7Where(guard)}, beside a road so it can be staffed`,
-  roadFirst: (tiles, n, cost) => `Lay a road to here (${plural(tiles, 'tile', 'tiles')}), then build ${n > 1 ? plural(n, 'tower', 'towers') : 'the tower'} (≈ ${cost} gold)`,
+  roadFirst: (tiles, n, cost) => `Lay a road to the spot Show me marks (${plural(tiles, 'tile', 'tiles')}), then build ${n > 1 ? plural(n, 'tower', 'towers') : 'the tower'} (≈ ${cost} gold)`,
   towerNeedsRoad: (guard) => `No free tile beside a road lies within ${a7Defence.towerRange} tiles of ${a7Where(guard)}`,
   towerNoRoom: (guard) => `No free tile lies within ${a7Defence.towerRange} tiles of ${a7Where(guard)}`,
   towerNoRoomFix: 'Clear a tile near it, then a road beside the tile',

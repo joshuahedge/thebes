@@ -43,7 +43,7 @@ describe('v70 a ui: Show me for the fixes', () => {
       openAdvice(r2);
       const a = ofKind(far.w, 'raid_towers')[0];
       const li = r2.root.querySelector('#sheet .advice-item[data-kind="raid_towers"]');
-      expect(li.querySelector('.fix-words').textContent.startsWith(`Lay a road to here (${a.data.road.tiles} tiles), then build`)).toBe(true);
+      expect(li.querySelector('.fix-words').textContent.startsWith(`Lay a road to the spot Show me marks (${a.data.road.tiles} tiles), then build`)).toBe(true);
       expect(li.querySelector('.cost').textContent).toBe(`Road: ${a.cost} gold a tile`);
       fire(li.querySelector('button'), 'click');
       expect([r2.store.get().sheet, r2.store.get().tool.kind]).toEqual([null, 'road']);

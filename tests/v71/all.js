@@ -2,3 +2,5 @@
 import './m/all.js';   // Track M: new river layouts
 import './f/all.js';   // Track F: ferries
 import './fa/all.js';  // Fix batch A: events and the lesson card
+import './fb/all.js';  // Fix batch B: Trade sheet, Settings, How to play, sheets and keys
+import './fc/all.js';  // Fix batch C: maps and ferries follow-ups
