@@ -1158,7 +1158,6 @@ body[data-text-size="150"] #banner .critical.moment.line .small, body[data-layou
 /* Ruling 420: each button starts at its own words' width and the row shares out what is left, so "✓ Whitewashed" (the widest, bold when in force)
    is never cut to "Whitewashe" in the wide layout's 320 px side panel; where the three cannot fit one row they wrap to a second, never clip. */
 .confirm .style-pick { flex: 1 1 auto; min-width: var(--tap); min-height: var(--tap); padding: 0 6px; font-size: calc(13px * min(var(--ui-scale), 1.15)); line-height: 1.2; white-space: nowrap; }   /* the text size is capped here, so the three keep one row on a 375 px phone at 150% */
-.confirm .style-pick[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); font-weight: 600; }
 .confirm .style-line { color: var(--ink); font-size: calc(12px * var(--ui-scale)); }
 .style-row-text { margin: 4px 0; }
 /* ── end s46 wonders ── */
@@ -1275,13 +1274,13 @@ body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-im
 .title-size .size-note { margin: 0; font-weight: 600; color: var(--ink); }
 /* Settings on the title card: the game's own rows (one panel with Back), scrolling inside the card like What's new. */
 .title-card .settings-head { font-family: var(--serif); font-size: calc(20px * var(--ui-scale)); margin: 0 0 4px; }
-.title-card .settings-body { max-height: max(260px, calc(100dvh - 250px)); overflow-y: auto; padding-right: 4px; border-top: 1px solid var(--parchment-3); }   /* a line above the rows as well as the Back bar's below: a row that scrolls under either edge reads as cut by it */
+.title-card .settings-body { max-height: max(260px, calc(100dvh - 290px)); overflow-y: auto; padding-right: 4px; border-top: 1px solid var(--parchment-3); }   /* a line above the rows as well as the Back bar's below: a row that scrolls under either edge reads as cut by it */
 .title-card .settings-body .row { align-items: center; flex-wrap: wrap; }
 .title-card .settings-body .choices { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 /* The Back bar under the rows is a bar of its own, opaque with a divider above it (and the rows' own edge a line above that), so the last row that scrolls under the
    edge reads as cut by the bar and not as a half-hidden row (the 390 px review). */
 .title-card .guide:has(.settings-body) > .actions { position: relative; margin-top: 0; padding-top: 8px; border-top: 1px solid var(--parchment-3); background-color: var(--parchment); background-image: var(--look-fibre); }
-.title-card:has(> .guide .settings-body) > .tagline, .title-card:has(> .guide .settings-body) > .version { display: none; }   /* the rows take the card's room */
+.title-card:has(> .guide .settings-body) > :is(.tagline, .version, .goal-line) { display: none; }   /* the rows take the card's room (8.0 integration, ruling 1178: the goal line went too, so Back is no longer clipped at 1280x800) */
 @media (max-height: 480px) {
   .title-card .settings-body { max-height: 55vh; }
 }
@@ -1401,8 +1400,6 @@ body[data-layout="compact"] #legend .strip.layer.supply .goods-pick { flex: 1 1 
 .confirm .area-row { flex: 1 0 100%; order: 11; display: flex; flex-direction: column; gap: 4px; }
 .confirm .area-choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .confirm .area-pick { flex: 1 1 auto; min-width: var(--tap); min-height: var(--tap); padding: 0 6px; font-size: calc(13px * min(var(--ui-scale), 1.15)); line-height: 1.2; white-space: nowrap; }
-.confirm .area-pick[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); font-weight: 600; }
-.confirm .area-toggle[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); }
 .confirm .copy-line { font-size: calc(12px * var(--ui-scale)); }
 body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .copy-line { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 #sheet .another-note { margin: 6px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
@@ -1413,7 +1410,6 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .copy-line {
 .confirm .route-row { flex: 1 0 100%; order: 12; display: flex; flex-direction: column; gap: 4px; }
 .confirm .route-choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .confirm .route-pick { flex: 1 1 auto; min-width: var(--tap); min-height: var(--tap); padding: 0 6px; font-size: calc(13px * min(var(--ui-scale), 1.15)); line-height: 1.2; white-space: nowrap; }
-.confirm .route-pick[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); font-weight: 600; }
 
 /* Version 6.0 (Track D2, rulings 760-779): the guided first city. The lesson's row is the one guidance row of a lesson game (the goals strip, the tips and the
    captions stand aside; alerts stay), the step's target is lit (a ring on the map with the rest of the map dimmed round it; a ring on a control) and the
@@ -1630,8 +1626,10 @@ button.secondary[disabled], button.tertiary[disabled] { opacity: 0.5; }
 .title-card .guide-back, #dialog .cancel, #dialog .extra, .lesson-card .lc-leave { background: transparent; color: var(--lapis); border: 2px solid var(--lapis); }
 .lesson-card .lc-skip { background: transparent; color: var(--lapis); border-color: transparent; text-decoration: underline; text-underline-offset: 3px; }
 /* A dialog's OK is coral only when it destroys something (menu.js marks the others .primary); the placing bar's tick is the one filled button of the bar, so its chips (a style, a spacing,
-   a route, one or an area) show they are chosen by a soft teal fill, a ring and weight, never a solid one: Straight can no longer outweigh the tick. */
-.confirm :is(.style-pick, .area-pick, .area-toggle, .route-pick)[aria-pressed="true"] { background: var(--teal-soft); color: var(--ink); border-color: var(--teal); box-shadow: inset 0 0 0 2px var(--teal); font-weight: 600; }
+   a route, one or an area) show they are chosen by a quiet teal ring on the plain parchment button, no fill and no extra weight (their ✓ in words is the cue that is not colour), so Straight can
+   never outweigh the tick (8.0 integration, ruling 1175). Route and Straight are icon-sized: as wide as their words and a 44 px tap, not stretched across the bar. */
+.confirm :is(.style-pick, .area-pick, .area-toggle, .route-pick)[aria-pressed="true"] { background: var(--parchment); color: var(--ink); border: 1px solid var(--teal); box-shadow: inset 0 0 0 2px var(--teal); font-weight: inherit; }
+.confirm .route-pick { flex: 0 0 auto; padding: 0 14px; }
 .confirm .flip, .confirm .undo, .confirm .cancel, .confirm .rotate { background: var(--parchment); color: var(--ink); border: 1px solid var(--ink-line); box-shadow: none; }
 
 /* Colours mean one thing (ruling 1135): teal or blue is covered, amber works-but-missing, coral only cannot. What was coral and is not a refusal: */
@@ -1673,20 +1671,27 @@ button.secondary[disabled], button.tertiary[disabled] { opacity: 0.5; }
 #sheet .tray-item .text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
 #sheet .tray-item.pinned { border: 2px solid var(--amber-text); background-color: var(--amber-soft); }
 #sheet .tray-item .pin { font-weight: 700; color: var(--amber-text); }
-#sheet .tray-item .tray-go, #sheet .tray-item .tray-go.secondary { flex: none; min-width: var(--tap); min-height: var(--tap); background: transparent; color: var(--lapis); border: 2px solid var(--lapis); font-weight: 600; box-shadow: none; }
+/* A row's Show is tertiary (plain lapis words, underlined); the Open of a pinned row that needs an answer is the outlined secondary that stands out (8.0 integration, ruling 1177). */
+#sheet .tray-item .tray-go { flex: none; min-width: var(--tap); min-height: var(--tap); background: transparent; color: var(--lapis); box-shadow: none; }
+#sheet .tray-item .tray-go.tertiary { border: 2px solid transparent; text-decoration: underline; text-underline-offset: 3px; }
+#sheet .tray-item .tray-go.secondary { border: 2px solid var(--lapis); font-weight: 600; }
 /* The placing bar leads with the picture and the name of what is in hand, large (src/ui/confirmBar.js); picking another item flashes the bar with a lit lapis and gold ring that a timer takes off, so it reads with
    css animations off (Gentle and Still) too. */
 .confirm .info .title { display: flex; align-items: center; gap: 8px; font-size: calc(20px * min(var(--ui-scale), 1.15)); font-weight: 700; line-height: 1.15; }
 .confirm .info .title .thumb { flex: none; width: 60px; height: 30px; }
 .confirm .info .title .name { min-width: 0; overflow-wrap: anywhere; }
 .confirm.flash { box-shadow: inset 0 0 0 4px var(--lapis), inset 0 0 0 5px var(--lapis-ink); transition: box-shadow 0.45s ease-out; }
-/* One primary in every bar: the tick is the only filled, coloured button. What is in force among Route / Straight, a monument's styles, an area's spacing and the area toggle is an outlined button with a bold
-   name (the ✓ in its words and the border are the cue, so colour is never alone), never a teal fill that outweighs the tick. */
-.confirm .route-pick[aria-pressed="true"], .confirm .style-pick[aria-pressed="true"], .confirm .area-pick[aria-pressed="true"], .confirm .area-toggle[aria-pressed="true"] { background-color: var(--parchment); color: var(--lapis); border: 2px solid var(--lapis); box-shadow: none; font-weight: 700; }
-/* The chosen card stays lit in the tray (wide and sideways layouts show the tray while a tool is in hand): a lapis ring, a tint and a tick after its name. */
-.card[aria-pressed="true"] { background-color: var(--teal-soft); border-color: var(--lapis); box-shadow: inset 0 0 0 3px var(--lapis); }
-.card[aria-pressed="true"] .name::after { content: " ✓"; }
+/* One primary in every bar: the tick is the only filled, coloured button; what is in force among Route / Straight, a monument's styles, an area's spacing and the area toggle is the quiet teal ring
+   in the Version 8.0 button rules above (8.0 integration, ruling 1175). */
+/* The chosen card stays lit in the tray (wide and sideways layouts show the tray while a tool is in hand): a lapis ring, a tint and a tick after its name. Scoped to the build tray's .cards
+   (the dock, the side panel and the rail's drawer) so it can never restyle another surface's cards (8.0 integration, ruling 1175). */
+.cards .card[aria-pressed="true"] { background-color: var(--teal-soft); border-color: var(--lapis); box-shadow: inset 0 0 0 3px var(--lapis); }
+.cards .card[aria-pressed="true"] .name::after { content: " ✓"; }
 /* The lesson's step asks for a card and a category in the tray with the same ring the map's target wears (src/ui/v60/lesson.js dim); it pulses under Full motion only. */
 .lesson-pulse, .card.lesson-pulse, .cat.lesson-pulse, .tab.lesson-pulse { outline: 3px solid var(--teal); outline-offset: 2px; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.8); }
 body:not(.reduce-motion) .lesson-pulse { animation: lesson-lit 1.4s ease-in-out infinite; }
 /* ── end 8.0 N ── */
+/* 8.0 G (integration, rulings 1175-1179): the pieces that only show once the three tracks are together. */
+/* V's thicker band and N's picture-and-name title together left a monument's bar at 375x667 and 150% text 1 px over its budget (tests/stage46/wonders: 58% of the screen); the rows of a bar with a
+   style picker sit 3 px closer on a phone, which gives the budget back with room to spare. */
+body[data-layout="portrait"] .confirm.has-style:not(.has-fit) { row-gap: 3px; }

@@ -42,7 +42,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
         text: T.newCityConfirm, confirmLabel: T.newCity, onConfirm: onNewCity,
         extraLabel: typeof hooks.exportCity === 'function' ? T.exportFirst : null, onExtra: hookOr('exportCity'),
       } }) }),
-      !inLesson && typeof hooks.lesson === 'function' ? button(D2_TEXT.menuLesson, { class: 'menu-lesson', onClick: () => store.set({ confirmDialog: { text: D2_TEXT.menuLessonConfirm, confirmLabel: D2_TEXT.menuLesson,
+      !inLesson && typeof hooks.lesson === 'function' ? button(D2_TEXT.menuLesson, { class: 'menu-lesson', onClick: () => store.set({ confirmDialog: { text: D2_TEXT.menuLessonConfirm, confirmLabel: D2_TEXT.menuLesson, destructive: false,   // the city is saved first, nothing is lost: primary, not coral (Version 8.0, ruling 1176)
         // "It is saved first": a save that failed (storage full, a newer version's save in the slot) keeps the city and says so, rather than leaving it unsaved for the lesson.
         onConfirm: async () => {
           let saved = true;

@@ -53,14 +53,14 @@ describe('v80 v the four button weights', () => {
     } finally { r.cleanup(); }
   });
 
-  it('draws the lesson card\'s Leave outlined and its Skip a plain link, under the one filled Go', async () => {
+  it('draws the lesson card\'s Skip a plain link under the one filled Go (Leave moved to the menu in 8.0, ruling 1171)', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       const card = createLessonCard({ root: r.root, store: r.store, onGo() {}, onLeave() {}, onSkip() {} });
       card.show({ label: 'Step 1 of 14', words: 'Lay a road from the gate.', goLabel: 'Show me', picture: null, skipOffered: true });
       const q = (s) => r.root.querySelector(`.lesson-card ${s}`);
       expect(style(q('.lc-go')).bg).toBe(LAPIS);
-      expect([style(q('.lc-leave')).bg, style(q('.lc-leave')).border]).toEqual([TRANSPARENT, `2px ${LAPIS}`]);
+      expect(q('.lc-leave')).toBe(null);
       expect([style(q('.lc-skip')).bg, style(q('.lc-skip')).underline]).toEqual([TRANSPARENT, 'underline']);
       card.destroy();
     } finally { r.cleanup(); }
@@ -92,7 +92,7 @@ describe('v80 v the four button weights', () => {
       const solid = buttons.filter(filled).map((b) => b.className);
       expect(solid).toEqual(['ok primary']);
       for (const b of [flip, rotate, bar.querySelector('.cancel'), bar.querySelector('.undo')].filter(Boolean)) expect([b.className, style(b).bg]).toEqual([b.className, PARCHMENT]);
-      for (const c of chips) expect([c.className, style(c).bg]).toEqual([c.className, cssRgb(TOKENS.tealSoft)]);
+      for (const c of chips) expect([c.className, style(c).bg, getComputedStyle(c).boxShadow.includes(cssRgb(TOKENS.teal))]).toEqual([c.className, PARCHMENT, true]);   // a quiet teal ring on the linen (8.0 integration, ruling 1175)
       for (const c of chips) expect(contrastIn(c, c) >= 4.5).toBe(true);
       for (const b of [flip, rotate, ...chips]) b.remove();
       r.ui.placement.cancel();
