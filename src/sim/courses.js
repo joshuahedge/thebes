@@ -25,6 +25,7 @@ import { T } from './terrain.js';
 import { MAP, MAP_SALT, MAP_VARIANTS_71, areaScale } from '../data/map.js';
 import { repairResources } from './resources.js';
 
+const MOUTH_SWAY = 3.5;   // tiles of extra land between two delta mouths, for the arms' sway (fix C: seed 185 at 48 tiles had two arms meet at the edge)
 const smooth = (t) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c); };
 const lerp = (a, b, t) => a + (b - a) * t;
 const bezier = (a, c, b) => (t) => [lerp(lerp(a[0], c[0], t), lerp(c[0], b[0], t), t), lerp(lerp(a[1], c[1], t), lerp(c[1], b[1], t), t)];
@@ -85,7 +86,8 @@ export function drawCourse(terrain, size, seed, layout) {
     // (and, at worst, narrowed) to fit: off the map's edges, and for an east-west delta far enough north of the start area
     const lo = at(5), hi = axis === 'ns' ? S - at(5) : fy - 3 - 6 - L.mouth[1];
     let wides = Array.from({ length: n }, () => pick(L.mouth));
-    let steps = wides.slice(1).map((w, k) => Math.max(gap, wides[k] + w + L.mouthLand));
+    // two neighbouring arms each sway about 1.7 tiles (waveOf([0.5, 1.2]) and its second wave), so their land keeps its width only with this much more between them
+    let steps = wides.slice(1).map((w, k) => Math.max(gap, wides[k] + w + L.mouthLand + MOUTH_SWAY));
     const span = steps.reduce((a, b) => a + b, 0);
     if (span > hi - lo) { const f = (hi - lo) / span; steps = steps.map((s) => s * f); wides = wides.map((w) => w * f); }
     let mouths = [vF - steps.reduce((a, b) => a + b, 0) / 2];

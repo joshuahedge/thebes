@@ -18,7 +18,11 @@ import { CHUNK } from '../../../src/render/camera.js';
 import { chunkPixel } from '../../helpers/renderWorld.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { rigUI } from '../../helpers/uiWorld.js';
-import { MAPS_HELP, LAYOUT_NAMES } from '../../../src/ui/v71/mapsText.js';
+import { MAPS_HELP, LAYOUT_NAMES, LAYOUT_LINES } from '../../../src/ui/v71/mapsText.js';
+import { createMinimap } from '../../../src/ui/minimap.js';
+import { createCamera } from '../../../src/render/camera.js';
+import { TERRAIN } from '../../../src/render/art/palette.js';
+import { pixelAt } from '../../helpers/canvas.js';
 import { playability, ownLand, riverWater, quaySite } from './check.js';
 
 const SIZES = Object.values(MAP_SIZES);
@@ -127,6 +131,48 @@ describe('v71 m layouts (playable on 200 seeds at every size)', () => {
     expect(quaySite(dry, ownLand(dry), riverWater(dry))).toBe(null);
     const wet = { ...m, terrain: m.terrain.map((t, i) => (i % 64 < 20 ? T.WATER : t)) };
     expect(playability(wet).bad.some((b) => b.startsWith('water'))).toBe(true);
+    const near = { ...m, raiderEntries: [{ x: m.focus.x, y: 63 }, { x: m.focus.x - 3, y: 63 }] };   // raiders arriving at the south edge, a few tiles from the start
+    expect(playability(near).bad.some((b) => b.includes('of the side from the start'))).toBe(true);
+    expect(playability(m).bad.some((b) => b.includes('of the side from the start'))).toBe(false);
+  });
+  it('the Maps note\'s "your start, the trade road and the raiders\' way in share one stretch of land" holds for the 7.0 six as well, at every size', () => {
+    // fix C: the sweeps above cover the six new layouts; this is the same check on the older six (a map's land entries all on the start's own piece)
+    for (const v of MAP_VARIANTS_70) for (const size of SIZES) for (let seed = 1; seed <= seedsFor(size); seed++) {
+      const m = generateMap(seed, size, v), own = ownLand(m);
+      const ok = own[idx(size, m.tradeEntry.x, m.tradeEntry.y)] && m.raiderEntries.every((e) => own[idx(size, e.x, e.y)]);
+      expect([v, size, seed, Boolean(ok)]).toEqual([v, size, seed, true]);
+    }
+  });
+  it('the raiders\' way in is 0.4 of the side from the start on all but a few maps (where the land allows), and never under 0.25 for the first two entries', () => {
+    let near = 0, total = 0;
+    for (const v of MAP_VARIANTS_71) for (const size of SIZES) for (let seed = 1; seed <= seedsFor(size); seed++) {
+      const m = generateMap(seed, size, v);
+      m.raiderEntries.slice(0, 2).forEach((e) => {
+        const away = Math.hypot(e.x - m.focus.x, e.y - m.focus.y) / size;
+        total++;
+        if (away >= 0.4) near++;
+        expect([v, size, seed, away >= 0.25]).toEqual([v, size, seed, true]);
+      });
+    }
+    expect(near / total).toBeGreaterThan(0.95);
+  });
+  it('the minimap draws a new layout\'s water, fertile land and sand in their own colours (it reads terrain, not a layout)', () => {
+    const hex = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+    for (const v of MAP_VARIANTS_71) {
+      const w = createWorld({ seed: 3, mapVariant: v }), n = w.size;
+      const mm = createMinimap({ world: w, cam: createCamera({ x: 0, y: 0, zoom: 1 }), view: () => ({ width: 40, height: 40 }), size: n, dpr: 1 });
+      mm.render([]);
+      const seen = new Set();
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const t = w.terrain[idx(n, x, y)], i = idx(n, x, y);
+        if (x + y < 24 || w.road[i] || w.occ[i]) continue;   // the view's outline is drawn near the corner the camera looks at
+        const want = t === T.WATER ? TERRAIN.water : t === T.FERTILE ? TERRAIN.fertile : t === T.DESERT ? TERRAIN.sand : null;
+        if (!want) continue;
+        seen.add(t);
+        expect([v, x, y, pixelAt(mm.canvas, x, y).slice(0, 3)]).toEqual([v, x, y, hex(want)]);
+      }
+      expect([v, seen.has(T.WATER), seen.has(T.FERTILE), seen.has(T.DESERT)]).toEqual([v, true, true, true]);
+    }
   });
   it('a Quay fits by the game\'s own rule on a fresh city of every new layout, its water joined to the map\'s edge', () => {
     for (const v of MAP_VARIANTS_71) for (const seed of [1, 2, 3]) {
@@ -148,16 +194,19 @@ describe('v71 m layouts (each is what its name says)', () => {
     }
     expect(generateMap(1, 64, 'classic').params.course).toBe(undefined);
   });
-  it('delta: 2 or 3 arms (2 on a Small map) reach one edge, the widest mouth 6 tiles or more, with sandbars in the wide ones', () => {
+  it('delta: 2 or 3 arms (2 on a Small map) reach one edge, each as an open mouth of 6 to 10 tiles with land between, with sandbars in the wide ones', () => {
+    // fix C: on 200 seeds at every size (25 on Huge), every arm keeps its own mouth: none merges with its neighbour (seed 185 on a Small map once did)
+    const C = MAP.courses.delta, lo = Math.round(C.mouth[0] * 2), hi = Math.round(C.mouth[1] * 2);
     let bars = 0;
-    for (const size of [48, 64]) for (const s of seeds) {
+    for (const size of SIZES) for (let s = 1; s <= seedsFor(size); s++) {
       const m = generateMap(s, size, 'delta'), c = m.params.course;
       const edge = c.axis === 'ns' ? 'north' : c.side;
       const runs = edgeRuns(m, edge);
-      expect([size, s, runs.length >= 2 && runs.length <= (size < 64 ? 2 : 3) + 2, Math.max(...runs) >= 6]).toEqual([size, s, true, true]);
-      if (islets(m) > 0) bars++;
+      const most = size < MAP.size ? C.smallArms : C.arms[1];
+      expect([size, s, runs.length >= C.arms[0] && runs.length <= most, Math.min(...runs) >= lo, Math.max(...runs) <= hi + 1]).toEqual([size, s, true, true, true]);
+      if (size <= 64 && islets(m) > 0) bars++;
     }
-    expect(bars > 20).toBe(true);
+    expect(bars > 100).toBe(true);
   });
   it('confluence: the river meets the west and the east edges and the start lies in the fork, its land never touching the north edge', () => {
     for (const s of seeds) {
@@ -196,6 +245,39 @@ describe('v71 m layouts (each is what its name says)', () => {
       for (let i = 0; i < m.terrain.length; i++) if (m.terrain[i] === T.ROCKY && near(m, i, T.WATER)) wall++;
       expect([s, wall >= 8, bridgeAcross(m, 3), islets(m) >= 3]).toEqual([s, true, true, true]);
     }
+  });
+  it('cataract: stone on both banks of the gorge (rock at each end of the water, along 8 or more rows of the river), at every size', () => {
+    // fix C: the words say "stone on both banks", so each bank is counted apart
+    for (const size of SIZES) for (let s = 1; s <= seedsFor(size); s++) {
+      const m = generateMap(s, size, 'cataract'), c = m.params.course;
+      let both = 0, west = 0, east = 0;
+      for (let k = 0; k < size; k++) {
+        const cell = (j) => (c.axis === 'ns' ? at(m, j, k) : at(m, k, j));
+        for (let j = 0; j < size; j++) {
+          if (cell(j) !== T.WATER) continue;
+          let e = j;
+          while (e + 1 < size && cell(e + 1) === T.WATER) e++;
+          if (e - j + 1 > MAP.bridgeMax) { j = e; continue; }   // only the gorge's own narrow water, not a wide stretch or an island's shore
+          const a = j > 0 && cell(j - 1) === T.ROCKY, b = e < size - 1 && cell(e + 1) === T.ROCKY;
+          if (a) west++;
+          if (b) east++;
+          if (a && b) both++;
+          j = e;
+        }
+      }
+      expect([size, s, both >= 8, west >= 8, east >= 8]).toEqual([size, s, true, true, true]);
+    }
+  });
+  it('cataract: the stretch the words call wide has the river 6 or more tiles across, with 3 or more small islands in it, and no sim for rapids (still water to a boat)', () => {
+    // the words say "spreads wide round a chain of small rocky islands", not rapids: nothing in the sim or the render treats it as anything but water
+    const wide = Math.round(MAP.courses.cataract.rapidsHw[0] * 2);
+    for (const s of seeds) {
+      const m = generateMap(s, 64, 'cataract'), c = m.params.course;
+      let widest = 0;
+      for (let k = 0; k < 64; k++) { let n = 0; for (let j = 0; j < 64; j++) if ((c.axis === 'ns' ? at(m, j, k) : at(m, k, j)) === T.WATER) n++; widest = Math.max(widest, n); }
+      expect([s, widest >= wide, islets(m) >= 3]).toEqual([s, true, true]);
+    }
+    expect(LAYOUT_LINES.cataract.includes('rapids')).toBe(false);
   });
   it('lake-fed: a lake (water 3 tiles deep every way, which no river here is) on an edge, the river running out of it to the far edge', () => {
     for (const s of seeds) {
@@ -261,6 +343,7 @@ describe('v71 m layouts (the render and the words)', () => {
     expect(note.text).toContain(`at most ${MAP.bridgeMax} tiles of water`);
     expect(note.text).toContain(`${Math.round(C['wide-nile'].hw[0] * 2)} to ${Math.round(C['wide-nile'].hw[1] * 2)} tiles wide`);
     expect(note.text).toContain(`widen to ${Math.round(C.delta.mouth[0] * 2)} to ${Math.round(C.delta.mouth[1] * 2)} tiles`);
+    expect(note.text).toContain(`splits into ${C.delta.arms[0]} or ${C.delta.arms[1]} arms (${C.delta.smallArms} on a Small map)`);   // fix C: the most a Small map holds, as the generator says
     for (const v of MAP_VARIANTS_71) expect(note.text).toContain(`${LAYOUT_NAMES[v]}:`);
     const r = await rigUI({});
     try {
