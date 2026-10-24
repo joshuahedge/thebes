@@ -9,7 +9,18 @@
 
 export const RELEASES = [
   {
-    version: '7.1', date: '2026-10-24', title: 'Rivers of the world', build: 'live',
+    version: '7.1.1', date: '2026-10-24', title: 'Clearer first steps', build: 'live',
+    new: [
+      'The game now says what it is for: grow a village on the Nile into the Seat of the Two Lands, and win your reign by finishing the great temple. You see it on the title card, at the start of the first lesson card, and at the top of How to play.',
+      "Been here before? Skip, I've played before, under Start the lesson on the title card or on the lesson's first card, marks the lesson done and takes you to a city of your own.",
+    ],
+    fixed: [
+      'In the lesson, the Undo message after a placement no longer sits on top of the next lesson card, and a lesson card now waits until you have finished a road or plots you are drawing. The step you have just completed does not offer Undo.',
+      'Every Undo message now has a close button (the cross), and buttons on cards, dialogs and sheets sit in the middle of their row instead of at one side.',
+    ],
+  },
+  {
+    version: '7.1', date: '2026-10-24', title: 'Rivers of the world', build: 'e032f2c',
     new: [
       'Six new kinds of map: a delta that splits into arms, a confluence of two rivers in a Y, twin rivers, a wide Nile, a cataract with a rocky gorge, and a river flowing out of a lake. Each map draws its own direction for the river, and about two new cities in three now come up on one of them. Saved cities keep their own map.',
       'Ferries: where water is too wide to bridge (5 to 12 tiles), the road tool now says so and points you to the Ferry tool in the Roads tray. One drag lays a landing on each bank, each with a road beside it and a ferryman, and then walkers and carts cross. Raiders cannot use a ferry.',

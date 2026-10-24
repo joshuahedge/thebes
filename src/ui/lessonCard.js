@@ -11,7 +11,7 @@
 import { el, button, setText } from './components.js';
 import { drawThumb } from './thumbs.js';
 import { speedPicture } from './speed.js';
-import { P_TEXT, D2_TEXT } from './text.js';
+import { P_TEXT, D2_TEXT, V711_TEXT } from './text.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const THUMB_SCALE = 1.5;   // the card shows the card's own picture 1.5 times as large (css/ui.css .lesson-card .lc-thumb)
@@ -38,14 +38,17 @@ export const CARD_PICTURES = { families: { speed: 2 }, month: { coin: true }, fi
 export const pictureOf = (step) => (step && (step.show ? { item: step.show.item } : CARD_PICTURES[step.id])) || null;
 
 // createLessonCard({ root, doc, store, onGo, onLeave }) -> { show({ label, words, goLabel, picture }), hide(), isUp(), element, go, leave, destroy() }
-export function createLessonCard({ root, doc = document, store, onGo, onLeave, keys = () => true }) {
+export function createLessonCard({ root, doc = document, store, onGo, onLeave, onSkip = () => {}, keys = () => true }) {
   const win = doc.defaultView || window;
   const label = el('p', { class: 'lc-label small muted' });
   const pic = el('div', { class: 'lc-pic', 'aria-hidden': 'true' });
   const words = el('p', { class: 'lc-words', id: 'lesson-card-words' });
   const go = button('', { class: 'lc-go primary', onClick: () => onGo() });
-  const leave = button(D2_TEXT.leave, { class: 'lc-leave quiet', onClick: () => onLeave() });
-  const card = el('div', { class: 'lesson-card', role: 'dialog', 'aria-modal': 'true', 'aria-label': P_TEXT.card.region, 'aria-describedby': 'lesson-card-words' }, [label, pic, words, el('div', { class: 'lc-actions' }, [go, leave])]);
+  let asker = null;   // the button whose question is open, so answering No puts focus back on it
+  const leave = button(D2_TEXT.leave, { class: 'lc-leave quiet', onClick: () => { asker = leave; onLeave(); } });
+  // Version 7.1.1 (ruling 1112): the first step's card also offers "Skip, I've played before" (shown only while show() is given skipOffered).
+  const skip = button(V711_TEXT.skip, { class: 'lc-skip quiet', hidden: true, onClick: () => { asker = skip; onSkip(); } });
+  const card = el('div', { class: 'lesson-card', role: 'dialog', 'aria-modal': 'true', 'aria-label': P_TEXT.card.region, 'aria-describedby': 'lesson-card-words' }, [label, pic, words, el('div', { class: 'lc-actions' }, [go, skip, leave])]);
   const scrim = el('div', { class: 'lesson-card-scrim', hidden: true }, [card]);
   const ui = root.querySelector('#ui') || root;
   ui.insertBefore(scrim, root.querySelector('#toasts') || null);   // above the page, under the toasts and the confirm dialog (which sit later in the page)
@@ -65,10 +68,11 @@ export function createLessonCard({ root, doc = document, store, onGo, onLeave, k
   }
 
   // goLabel: the button's name (what it does); picture: pictureOf's answer.
-  function show({ label: head, text, goLabel, picture }) {
+  function show({ label: head, text, goLabel, picture, skipOffered = false }) {
     setText(label, head);
     setText(words, text);
     go.textContent = goLabel;
+    skip.hidden = !skipOffered;
     go.title = P_TEXT.cardGoTitle(goLabel, keys());
     go.setAttribute('aria-keyshortcuts', 'Enter');
     paintPicture(picture);
@@ -101,12 +105,12 @@ export function createLessonCard({ root, doc = document, store, onGo, onLeave, k
     if (s.confirmDialog) return;                                           // Leave the lesson's question has the keys now
     const k = ev.key, on = ev.target;
     if (k === 'Tab') {
-      const order = [go, leave], i = order.indexOf(on);
+      const order = skip.hidden ? [go, leave] : [go, skip, leave], i = order.indexOf(on);
       const next = i < 0 ? go : order[(i + (ev.shiftKey ? order.length - 1 : 1)) % order.length];
       ev.preventDefault(); ev.stopPropagation(); next.focus();
       return;
     }
-    if ((k === 'Enter' || k === ' ') && (on === go || on === leave)) return;   // a focused button keeps its own Enter and Space
+    if ((k === 'Enter' || k === ' ') && (on === go || on === leave || on === skip)) return;   // a focused button keeps its own Enter and Space
     if (k === 'Enter' || k === ' ' || k === 'Escape') { ev.preventDefault(); ev.stopPropagation(); onGo(); return; }
     if (k === 'Delete' || k === 'Backspace') { ev.preventDefault(); ev.stopPropagation(); return; }
     // Version 7.1 (ruling 1060): every other game key stops here too (the clock, the minimap, Help, the layers, the categories, the pan keys), so the card is modal to the
@@ -124,11 +128,11 @@ export function createLessonCard({ root, doc = document, store, onGo, onLeave, k
     const open = Boolean(store.get().confirmDialog);
     if (open === questioned) return;
     questioned = open;
-    if (!open && up && !card.contains(doc.activeElement)) leave.focus();
+    if (!open && up && !card.contains(doc.activeElement)) (asker || leave).focus();
   }) : () => {};
 
   return {
-    show, hide, isUp: () => up, element: scrim, card, go, leave,
+    show, hide, isUp: () => up, element: scrim, card, go, leave, skip,
     destroy() { stop(); doc.removeEventListener('keydown', onKey, true); root.classList.remove('lesson-card-up'); scrim.remove(); up = false; },
   };
 }

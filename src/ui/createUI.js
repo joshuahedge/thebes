@@ -78,7 +78,7 @@ import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
-import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T } from './text.js';
 import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
 
@@ -134,7 +134,7 @@ export function createUI({
   // (placement review P3).
   const fine = Boolean(win.matchMedia && win.matchMedia('(pointer: fine)').matches);
   const store = createStore({ ...INITIAL_UI_STATE, layout: pickLayout(view().width, view().height), inputType: fine ? 'mouse' : 'touch', ...(welcome ? { lastSpeed: welcome.lastSpeed } : {}) });
-  const toasts = createToasts({ container: $('toasts'), max: () => (store.get().layout === 'wide' ? MAX_TOASTS : MAX_TOASTS_PHONE) });
+  const toasts = createToasts({ container: $('toasts'), max: () => (store.get().layout === 'wide' ? MAX_TOASTS : MAX_TOASTS_PHONE), held: () => root.classList.contains('lesson-card-up') });   // Version 7.1.1 (ruling 1100): none over a lesson card
   // Stage 4 (spec 5.4): the Motion level in use, 'full' | 'gentle' | 'still' (a test's stand-in settings may only have reducedMotion).
   const motionLevel = () => (typeof settings.motionLevel === 'function' ? settings.motionLevel() : (settings.reducedMotion() ? 'still' : 'full'));
   const effects = createEffects({ reducedMotion: settings.reducedMotion, motionLevel });   // Stage 4: Gentle's fades in place (Track E)
@@ -554,7 +554,7 @@ export function createUI({
     if (events.length) { effects.fromEvents(world, events, now()); onEvents(events); }
     syncDaily();
     // Celebrations from the same command are captions in #cheer, not toasts, so nothing pushes the command's Undo toast out.
-    if (e.undoable) undoToast = toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS, actionKeys: undoKeys(e.kind !== 'demolish') });   // ruling 986: Delete names itself only after a placement
+    if (e.undoable) undoToast = toasts.show(e.text, { action: T.undo, onAction: undo, ms: UNDO_TOAST_MS, closable: true, close: V711_TEXT.closeToast, actionKeys: undoKeys(e.kind !== 'demolish') });   // ruling 986: Delete names itself only after a placement
     else if (e.kind === 'undo') toasts.show(T.undone);
     refresh();
   }

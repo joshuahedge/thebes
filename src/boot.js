@@ -19,7 +19,7 @@ import { createSaveStore } from './save/store.js';
 import { packSave, unpackSave } from './save/serialize.js';
 import { TITLE_SEED } from './data/ui.js';
 import { exportSave, downloadFile, pickFile, importSaveFile } from './save/exportImport.js';
-import { T, D2_TEXT, importErrorText } from './ui/text.js';
+import { T, D2_TEXT, V711_TEXT, importErrorText } from './ui/text.js';
 import { el, button } from './ui/components.js';
 import { detectEnvironment, readEnvironment, createInstallFlow } from './save/installFlow.js';
 import { installGuide, noticeText, showNotice } from './ui/installUi.js';
@@ -36,7 +36,7 @@ import { drawMonument } from './render/monuments.js';
 import { TUTORIAL_CARDS, INTRO_CARDS } from './data/tutorial.js';
 import { TIPS } from './data/tips.js';
 import { lessonDue, lessonStartStep, lessonPartWay } from './ui/lesson.js';
-import { lessonWorld, replayTo } from './sim/lesson.js';
+import { lessonWorld, replayTo, LESSON_LENGTH } from './sim/lesson.js';
 import { seenKey } from './ui/cardMoments.js';
 
 const HOUR = 3600 * 1000;
@@ -249,7 +249,7 @@ export async function boot(doc, win, {
     if (!world.cityId) setCityId(world, newCityId(clock()));   // a city from before Stage 3 gets its records id at load
     const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1, size: world.size });   // the stress city fills the map: its middle; size: the Huge map's zoom floor (ruling 741)
     const gameHooks = lesson
-      ? { ...hooks, save: async () => true, exportCity: undefined, importCity: undefined, install: undefined, newCity: undefined, lesson: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true) } }
+      ? { ...hooks, save: async () => true, exportCity: undefined, importCity: undefined, install: undefined, newCity: undefined, lesson: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city') } }
       : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install(), onBring: () => hooks.importCity() }) }, ...uiOptions });
@@ -276,6 +276,18 @@ export async function boot(doc, win, {
     }
     if (at === 0 && !settings.get().lessonDone) settings.set({ lessonStep: 0 });
     return startGame(world, { lesson: { step: at }, saveNow: false, notice });
+  }
+  // Version 7.1.1 (ruling 1111): what finishing the lesson marks on the device (the lesson done, the picture cards seen: src/ui/v60/lesson.js sets the same three keys at its end),
+  // so skipping it, from the title or from the first card, leaves the device exactly as a finished lesson does. Tips are not marked: the lesson's own city never spends them.
+  const markLessonDone = () => settings.set({ lessonDone: true, lessonStep: LESSON_LENGTH, cardsSeen: true });
+  const hasSavedCity = () => loadedOk || persisted;   // a city is in the slot (read by the title) or was saved this session
+  // The first card's Skip, I've played before (after its own question): straight to a new city of the player's own at the chosen level and size, or to the title when a saved
+  // city is there (a fresh city would take its place: the title's New city asks that question first).
+  async function skipLesson() {
+    if (!current || !current.lesson) return;
+    markLessonDone();
+    if (hasSavedCity()) { stopGame(); showTitle(await loadSave(store)); return; }
+    withCards(() => startGame(freshWorld({ size: newCitySize })));
   }
   async function leaveLesson(finished = false) {
     if (!current || !current.lesson) return;
@@ -339,7 +351,8 @@ export async function boot(doc, win, {
       // Version 6.0 (Track D2, ruling 617): on a device that has not done the lesson and has no saved city the card offers only the lesson (lesson.due); a slot
       // holding something unreadable or from a newer version is not "no saved city" (the card keeps New city and its message).
       onLesson: typeof hooks.lesson === 'function' ? () => hooks.lesson() : null,
-      lesson: { due: lessonDue(settings.get(), loaded.state !== 'none'), partWay: lessonPartWay(settings.get()), note, onAgain: () => hooks.lesson({ step: 0 }) },
+      lesson: { due: lessonDue(settings.get(), loaded.state !== 'none'), partWay: lessonPartWay(settings.get()), note, onAgain: () => hooks.lesson({ step: 0 }),
+        onSkip: () => { markLessonDone(); leaveTitle(); showTitle(loaded, { note: V711_TEXT.skippedNote }); } },   // ruling 1111: the title again, now with New city and its choices
       onHowToPlay: () => hooks.pictureCards(),
       renderSettings: (body) => createMenuSheets({ store: { get: () => ({}), set() {}, subscribe: () => () => {} }, settings, toasts: { show() {} }, hooks }).settings(body),   // the game's Settings rows, with no city behind them
       onInstall: async () => { if ((await flow.promptInstall()) === 'guide' && title) title.card.showGuide(guide); },

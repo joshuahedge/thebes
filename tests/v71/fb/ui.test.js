@@ -67,11 +67,11 @@ describe('v71 fb how to play: closed sections', () => {
       const sheet = r.root.querySelector('#sheet');
       const sections = [...sheet.querySelectorAll('details.help-section')];
       const entries = [...Object.values(V60_HELP).flat(), ...Object.values(V70_HELP).flat(), ...MAPS_HELP, ...Object.values(V71_HELP).flat()];
-      expect(sections.map((d) => d.querySelector('summary h3').textContent)).toEqual([T.shortcuts, T.gestures, ...entries.map((p) => p.head), T.goals, T.tips]);   // every entry, 7.1's Maps and Ferries included, in order
+      expect(sections.map((d) => d.querySelector('summary h3').textContent)).toEqual(['What the game is for', T.shortcuts, T.gestures, ...entries.map((p) => p.head), T.goals, T.tips]);   // Version 7.1.1: the goal is the first entry   // every entry, 7.1's Maps and Ferries included, in order
       expect(sections.length).toBeGreaterThan(25);
-      expect(sections.every((d) => !d.open)).toBe(true);
+      expect([sections[0].open, sections.slice(1).every((d) => !d.open)]).toEqual([true, true]);   // the goal stands open (7.1.1), every other section is closed
       expect(sections.map((d) => Math.round(d.querySelector('summary').getBoundingClientRect().height)).filter((h) => h < 44)).toEqual([]);
-      expect(sections.filter((d) => d.getBoundingClientRect().height > d.querySelector('summary').getBoundingClientRect().height + 1).length).toBe(0);   // a closed section is its summary and no more
+      expect(sections.slice(1).filter((d) => d.getBoundingClientRect().height > d.querySelector('summary').getBoundingClientRect().height + 1).length).toBe(0);   // a closed section is its summary and no more
       expect([sheet.scrollHeight < 4 * 667, sheet.scrollHeight]).toEqual([true, sheet.scrollHeight]);
       const trade = sections.find((d) => d.querySelector('h3').textContent === 'The Trade sheet');
       const summary = trade.querySelector('summary');

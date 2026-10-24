@@ -159,3 +159,5 @@ import './v60/all.js';
 import './v70/all.js';
 // Version 7.1: one aggregator (tests/v71/all.js) for each track's own; nothing is added here.
 import './v71/all.js';
+// Version 7.1.1: one aggregator (tests/v711/all.js); nothing is added here.
+import './v711/all.js';

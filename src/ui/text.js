@@ -3879,3 +3879,19 @@ V70_HELP.p.push({
   text: `While you place a building, each square of its footprint shows whether it is right: a blue square is right, a square with coral stripes and a cross is wrong (taken, water, hills, off the map, or not the ground the building stands on), and an amber striped square is free ground that is not the kind the building needs; a faint dashed square is ${P_TEXT.place.squarePlain}. The line round the whole ghost and the mark in its middle say what the building as a whole does. Blue: everything is met. Amber: "${P_TEXT.place.leadLater.toLowerCase()}": it can be placed, but something it needs is missing, such as a road touching one of its sides (a road one tile away does not count; the marked squares are where one would touch) or a store in reach. Coral: "${P_TEXT.place.leadCant.toLowerCase()}": at least one rule is broken, and the line under the name says each one with its count. While everything is met the line says what the building needs, and the ground it can go on is marked lightly on the map.`,
 });
 // ── end v70 p ──
+// ── v711 (Version 7.1.1, "Clearer first steps", rulings 1100-1119) ──
+// The goal of the game in one sentence, from the sim's own data: the first and the last rank (MILESTONES, src/data/progression.js), and the final great work that wins the reign
+// (GREAT_WORK.type, src/data/reign.js; the reign's win is src/sim/reign.js). It is the title card's line, the first words of the lesson's first card and How to play's first entry.
+const goalFirstRank = () => MILESTONES[0].name.toLowerCase();
+const goalLastRank = () => MILESTONES[MILESTONES.length - 1].name;
+const goalGreatWork = () => buildingName(reignGreat.type).toLowerCase();
+export const V711_TEXT = {
+  goal: () => `Grow a ${goalFirstRank()} on the Nile into the ${goalLastRank()}, and win your reign by finishing the ${goalGreatWork()}.`,
+  helpGoalHead: 'What the game is for',
+  helpGoal: () => `${V711_TEXT.goal()} You climb one rank at a time as your people grow: ${MILESTONES.map((m) => m.name).join(', ')}.`,
+  closeToast: 'Close this message',
+  skip: "Skip, I've played before",
+  skipConfirm: "Skip the lesson? It counts as done, so you go straight to a city of your own. Lesson on the title screen plays it any time.",
+  skipConfirmTitle: "Skip the lesson? It counts as done and you go to the title screen, where your saved city waits and New city starts a fresh one. Lesson there plays it any time.",
+  skippedNote: 'Lesson skipped. Pick a level and a map size, then New city.',
+};

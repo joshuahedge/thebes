@@ -5,7 +5,7 @@ import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
 import { FIRE_REACTIONS, MOTION_SETTINGS, motionStatus } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, SEASON_TEXT } from './text.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, SEASON_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 import { MAPS_HELP } from './v71/mapsText.js';   // Version 7.1 (Track M): How to play's Maps note
 import { V71_HELP } from './v71/ferryText.js';   // Version 7.1 (Track F): How to play's Ferries entry (and importing it registers the ferries tip)
@@ -187,6 +187,8 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     // Version 7.1 (fix batch B): every heading below is a closed section whose summary is the heading (44 px tall; Enter or Space opens it), so a player can find Trade, Events or
     // Seasons without a 70-screen scroll (the keys table, the tips and the paragraphs were 27,000 px at 375 px and 150% text).
     const section = (head, ...kids) => el('details', { class: 'help-section' }, [el('summary', {}, [el('h3', { text: head })]), ...kids]);
+    // Version 7.1.1 (ruling 1110): the first entry says what the game is for (V711_TEXT.goal: the ranks and the great temple, from the sim's data); it stands open.
+    body.append(el('details', { class: 'help-section help-goal', open: true }, [el('summary', {}, [el('h3', { text: V711_TEXT.helpGoalHead })]), el('p', { text: V711_TEXT.helpGoal() })]));
     body.append(section(T.shortcuts,
       el('table', { class: 'shortcuts' }, [
         el('thead', {}, [el('tr', {}, [el('th', { text: T.keyHead }), el('th', { text: T.doesHead })])]),
