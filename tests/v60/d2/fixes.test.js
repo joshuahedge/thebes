@@ -174,7 +174,7 @@ describe('v60 d2 a lesson left part-way, and one only opened', () => {
     try {
       document.querySelector('.lesson-start').click();
       await frame();
-      document.querySelector('#lesson .leave').click();
+      { document.querySelector('#topbar .menu').click(); document.querySelector('#sheet .leave-lesson').click(); }   // Version 8.0: Leave the lesson is in the menu
       document.querySelector('#dialog .ok').click();
       expect(await waitFor(() => s.api.phase() === 'title')).toBe(true);
       expect([titleButtons().includes(D2_TEXT.titleStart), titleButtons().includes(D2_TEXT.titleContinue), s.settings().lessonStep || 0]).toEqual([true, false, 0]);
@@ -187,7 +187,7 @@ describe('v60 d2 a lesson left part-way, and one only opened', () => {
       LESSON_SCRIPT.road(g.world, { tick() { const events = []; tickDay(g.world, events); g.ui.onEvents(events); g.ui.refresh(); }, did() { g.ui.afterCommand({ kind: 'lesson-test', text: '' }); } });
       await frame();
       expect(part.settings().lessonStep).toBe(1);
-      document.querySelector('#lesson .leave').click();
+      { document.querySelector('#topbar .menu').click(); document.querySelector('#sheet .leave-lesson').click(); }   // Version 8.0: Leave the lesson is in the menu
       document.querySelector('#dialog .ok').click();
       expect(await waitFor(() => part.api.phase() === 'title')).toBe(true);
       expect([titleButtons().includes(D2_TEXT.titleContinue), titleButtons().includes(D2_TEXT.titleStart)]).toEqual([true, false]);

@@ -1,17 +1,17 @@
 // Version 7.0, Track P (ruling 1002): the lesson step's card. Josh played 6.0.1 for two minutes and found the lesson's instructions easy to ignore: they sat in a
 // row under the top bar while the game ran. A step now opens as a card in the middle of the screen, the game paused behind it and the rest of the screen dimmed
-// lightly: the step's words, a picture or an icon, one large button (Show me, Play or Got it) and Leave the lesson. The button, Enter, Space or Esc docks the step
+// lightly: the step's words, a picture or an icon, one large button (Show me, Play or Got it) and, on the first step, Skip (Version 8.0: Leave the lesson is in the menu). The button, Enter, Space or Esc docks the step
 // to its usual row (src/ui/v60/lesson.js decides what that does to the clock). This is the one card allowed over the middle of the map (ruling 1002).
 //
 // The card is a modal dialog (aria-modal, wave 3: the page behind is dimmed and takes no taps or keys, Tab stays on its two buttons); closing it hands focus back to what had it,
 // or to the docked row's Show me. The dim layer takes the taps so nothing is placed or panned behind it,
 // and the keys: Enter, Space and Esc dismiss it (a focused button keeps its own Enter and Space), Delete and Backspace do nothing, and so does every other key
 // the game knows (7.1, ruling 1060: Ctrl, Cmd and Alt chords aside). A
-// confirmation opened from it (Leave the lesson) sits above it and keeps every key it needs.
+// confirmation opened from it (Skip) sits above it and keeps every key it needs.
 import { el, button, setText } from './components.js';
 import { drawThumb } from './thumbs.js';
 import { speedPicture } from './speed.js';
-import { P_TEXT, D2_TEXT, V711_TEXT } from './text.js';
+import { P_TEXT, V711_TEXT } from './text.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const THUMB_SCALE = 1.5;   // the card shows the card's own picture 1.5 times as large (css/ui.css .lesson-card .lc-thumb)
@@ -37,18 +37,18 @@ function coinPicture() {
 export const CARD_PICTURES = { families: { speed: 2 }, month: { coin: true }, fire: { item: 'firehouse' }, raid: { item: 'tower' } };
 export const pictureOf = (step) => (step && (step.show ? { item: step.show.item } : CARD_PICTURES[step.id])) || null;
 
-// createLessonCard({ root, doc, store, onGo, onLeave }) -> { show({ label, words, goLabel, picture }), hide(), isUp(), element, go, leave, destroy() }
-export function createLessonCard({ root, doc = document, store, onGo, onLeave, onSkip = () => {}, keys = () => true }) {
+// createLessonCard({ root, doc, store, onGo, onSkip }) -> { show({ label, words, goLabel, picture }), hide(), isUp(), element, go, skip, destroy() }
+export function createLessonCard({ root, doc = document, store, onGo, onSkip = () => {}, keys = () => true }) {
   const win = doc.defaultView || window;
   const label = el('p', { class: 'lc-label small muted' });
   const pic = el('div', { class: 'lc-pic', 'aria-hidden': 'true' });
   const words = el('p', { class: 'lc-words', id: 'lesson-card-words' });
   const go = button('', { class: 'lc-go primary', onClick: () => onGo() });
   let asker = null;   // the button whose question is open, so answering No puts focus back on it
-  const leave = button(D2_TEXT.leave, { class: 'lc-leave quiet', onClick: () => { asker = leave; onLeave(); } });
-  // Version 7.1.1 (ruling 1112): the first step's card also offers "Skip, I've played before" (shown only while show() is given skipOffered).
-  const skip = button(V711_TEXT.skip, { class: 'lc-skip quiet', hidden: true, onClick: () => { asker = skip; onSkip(); } });
-  const card = el('div', { class: 'lesson-card', role: 'dialog', 'aria-modal': 'true', 'aria-label': P_TEXT.card.region, 'aria-describedby': 'lesson-card-words' }, [label, pic, words, el('div', { class: 'lc-actions' }, [go, skip, leave])]);
+  // Version 8.0 (Track N, ruling 1171): Leave the lesson is no longer on the card or the docked row; it is in the menu while a lesson runs (src/ui/menu.js), so the card has one button to press.
+  // Version 7.1.1 (ruling 1112): the first step's card also offers "Skip, I've played before" (shown only while show() is given skipOffered), now a tertiary text button under the one primary (Version 8.0).
+  const skip = button(V711_TEXT.skip, { class: 'lc-skip quiet tertiary', hidden: true, onClick: () => { asker = skip; onSkip(); } });
+  const card = el('div', { class: 'lesson-card', role: 'dialog', 'aria-modal': 'true', 'aria-label': P_TEXT.card.region, 'aria-describedby': 'lesson-card-words' }, [label, pic, words, el('div', { class: 'lc-actions' }, [go, skip])]);
   const scrim = el('div', { class: 'lesson-card-scrim', hidden: true }, [card]);
   const ui = root.querySelector('#ui') || root;
   ui.insertBefore(scrim, root.querySelector('#toasts') || null);   // above the page, under the toasts and the confirm dialog (which sit later in the page)
@@ -92,7 +92,7 @@ export function createLessonCard({ root, doc = document, store, onGo, onLeave, o
     returnTo = null;
     if (!card.contains(doc.activeElement)) return;
     doc.activeElement.blur();
-    const docked = root.querySelector('#lesson .show-me:not([hidden]), #lesson .leave:not([hidden])');
+    const docked = root.querySelector('#lesson .show-me:not([hidden])');
     const live = (n) => Boolean(n) && n.isConnected && !n.disabled && n.getClientRects().length > 0;   // (a fixed-position button has no offsetParent, so it is measured)
     const target = live(back) ? back : docked;
     if (live(target)) target.focus();
@@ -105,12 +105,12 @@ export function createLessonCard({ root, doc = document, store, onGo, onLeave, o
     if (s.confirmDialog) return;                                           // Leave the lesson's question has the keys now
     const k = ev.key, on = ev.target;
     if (k === 'Tab') {
-      const order = skip.hidden ? [go, leave] : [go, skip, leave], i = order.indexOf(on);
+      const order = skip.hidden ? [go] : [go, skip], i = order.indexOf(on);
       const next = i < 0 ? go : order[(i + (ev.shiftKey ? order.length - 1 : 1)) % order.length];
       ev.preventDefault(); ev.stopPropagation(); next.focus();
       return;
     }
-    if ((k === 'Enter' || k === ' ') && (on === go || on === leave || on === skip)) return;   // a focused button keeps its own Enter and Space
+    if ((k === 'Enter' || k === ' ') && (on === go || on === skip)) return;   // a focused button keeps its own Enter and Space
     if (k === 'Enter' || k === ' ' || k === 'Escape') { ev.preventDefault(); ev.stopPropagation(); onGo(); return; }
     if (k === 'Delete' || k === 'Backspace') { ev.preventDefault(); ev.stopPropagation(); return; }
     // Version 7.1 (ruling 1060): every other game key stops here too (the clock, the minimap, Help, the layers, the categories, the pan keys), so the card is modal to the
@@ -128,11 +128,11 @@ export function createLessonCard({ root, doc = document, store, onGo, onLeave, o
     const open = Boolean(store.get().confirmDialog);
     if (open === questioned) return;
     questioned = open;
-    if (!open && up && !card.contains(doc.activeElement)) (asker || leave).focus();
+    if (!open && up && !card.contains(doc.activeElement)) (asker || go).focus();
   }) : () => {};
 
   return {
-    show, hide, isUp: () => up, element: scrim, card, go, leave, skip,
+    show, hide, isUp: () => up, element: scrim, card, go, skip,
     destroy() { stop(); doc.removeEventListener('keydown', onKey, true); root.classList.remove('lesson-card-up'); scrim.remove(); up = false; },
   };
 }

@@ -1661,3 +1661,32 @@ button.secondary[disabled], button.tertiary[disabled] { opacity: 0.5; }
   .title-buttons .lesson-hint { display: none; }
 }
 /* ── end v711 ── */
+/* 8.0 N: messages, placing and the lesson fixes (Track N, rulings 1160-1174). Everything Track N adds to this file is in this block, at the very end. */
+/* The scroll button's number: the messages not read yet and what is pinned (src/ui/hud.js). Lapis with gold, so it is not the red of "cannot"; the name says it too. With a number up, the advice dot moves down. */
+#topbar .advice .advice-count { position: absolute; top: 1px; right: 1px; min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box; border-radius: 9px; background: var(--lapis); color: var(--lapis-ink); font-size: calc(12px * min(var(--ui-scale), 1.15)); font-weight: 700; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--parchment); }
+#topbar .advice:has(.advice-count:not([hidden])) .advice-dot { top: auto; bottom: 4px; }
+/* The tray in the scroll button's sheet (src/ui/adviceSheet.js): what needs you first, in amber with its mark in words, then the kept messages; a message with a place has a 44 px Show. */
+#sheet .tray-head, #sheet .advice-head { margin: 0 0 6px; font-size: calc(15px * var(--ui-scale)); }
+#sheet .advice-head { margin-top: 4px; }
+#sheet .tray-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+#sheet .tray-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--parchment-3); border-radius: 10px; }
+#sheet .tray-item .text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+#sheet .tray-item.pinned { border: 2px solid var(--amber-text); background-color: var(--amber-soft); }
+#sheet .tray-item .pin { font-weight: 700; color: var(--amber-text); }
+#sheet .tray-item .tray-go, #sheet .tray-item .tray-go.secondary { flex: none; min-width: var(--tap); min-height: var(--tap); background: transparent; color: var(--lapis); border: 2px solid var(--lapis); font-weight: 600; box-shadow: none; }
+/* The placing bar leads with the picture and the name of what is in hand, large (src/ui/confirmBar.js); picking another item flashes the bar with a lit lapis and gold ring that a timer takes off, so it reads with
+   css animations off (Gentle and Still) too. */
+.confirm .info .title { display: flex; align-items: center; gap: 8px; font-size: calc(20px * min(var(--ui-scale), 1.15)); font-weight: 700; line-height: 1.15; }
+.confirm .info .title .thumb { flex: none; width: 60px; height: 30px; }
+.confirm .info .title .name { min-width: 0; overflow-wrap: anywhere; }
+.confirm.flash { box-shadow: inset 0 0 0 4px var(--lapis), inset 0 0 0 5px var(--lapis-ink); transition: box-shadow 0.45s ease-out; }
+/* One primary in every bar: the tick is the only filled, coloured button. What is in force among Route / Straight, a monument's styles, an area's spacing and the area toggle is an outlined button with a bold
+   name (the ✓ in its words and the border are the cue, so colour is never alone), never a teal fill that outweighs the tick. */
+.confirm .route-pick[aria-pressed="true"], .confirm .style-pick[aria-pressed="true"], .confirm .area-pick[aria-pressed="true"], .confirm .area-toggle[aria-pressed="true"] { background-color: var(--parchment); color: var(--lapis); border: 2px solid var(--lapis); box-shadow: none; font-weight: 700; }
+/* The chosen card stays lit in the tray (wide and sideways layouts show the tray while a tool is in hand): a lapis ring, a tint and a tick after its name. */
+.card[aria-pressed="true"] { background-color: var(--teal-soft); border-color: var(--lapis); box-shadow: inset 0 0 0 3px var(--lapis); }
+.card[aria-pressed="true"] .name::after { content: " ✓"; }
+/* The lesson's step asks for a card and a category in the tray with the same ring the map's target wears (src/ui/v60/lesson.js dim); it pulses under Full motion only. */
+.lesson-pulse, .card.lesson-pulse, .cat.lesson-pulse, .tab.lesson-pulse { outline: 3px solid var(--teal); outline-offset: 2px; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.8); }
+body:not(.reduce-motion) .lesson-pulse { animation: lesson-lit 1.4s ease-in-out infinite; }
+/* ── end 8.0 N ── */

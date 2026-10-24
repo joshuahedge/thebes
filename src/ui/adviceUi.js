@@ -26,7 +26,7 @@ export function showMeRefusal(world, item, at) {
   return def.terrain ? `no ${GROUND[def.terrain] || 'ground'} with room for it` : reasonText(r.reason);
 }
 
-export function createAdviceUi({ world, settings, showMeAt, selectBuilding, openSummary, toast }) {
+export function createAdviceUi({ world, settings, showMeAt, selectBuilding, openSummary, toast, tray = null }) {
   let shown = false, keys = [], day = null, stale = true;
   const seen = () => settings.get().adviceSeen || [];
 
@@ -64,7 +64,7 @@ export function createAdviceUi({ world, settings, showMeAt, selectBuilding, open
     markStale: () => { stale = true; },
     state: () => ({ shown, dot: shown && adviceHasNew(keys, seen()) }),
     // Opening or redrawing the sheet reads the advice afresh: the button's cached keys become the ones the sheet just marked seen.
-    sheet: adviceSheet({ world, settings, onFix: fix, onRead: (k) => { keys = k; stale = false; day = world.day; } }),
+    sheet: adviceSheet({ world, settings, onFix: fix, tray, onRead: (k) => { keys = k; stale = false; day = world.day; } }),
     on: () => shown,
     fix,
   };

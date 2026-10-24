@@ -63,18 +63,16 @@ describe('v711 skip: the title card', () => {
 });
 
 describe('v711 skip: the lesson\'s first card', () => {
-  it('shows it on the first step\'s card only, named, 44 px, reachable by Tab between Show me and Leave the lesson', async () => {
+  it('shows it on the first step\'s card only, named, 44 px, reachable by Tab after Show me (Version 8.0: Leave the lesson is in the menu)', async () => {
     const s = await pageAt('road');
     try {
       const card = cardOf(s), skip = card.querySelector('.lc-skip');
       expect([skip.hidden, skip.textContent, skip.getAttribute('aria-label'), rect(skip).height >= 44]).toEqual([false, SKIP, null, true]);
-      const go = card.querySelector('.lc-go'), leave = card.querySelector('.lc-leave');
+      const go = card.querySelector('.lc-go');
       go.focus();
       key(go, 'Tab');
       expect(document.activeElement).toBe(skip);
       key(skip, 'Tab');
-      expect(document.activeElement).toBe(leave);
-      key(leave, 'Tab');
       expect(document.activeElement).toBe(go);
     } finally { s.cleanup(); }
     const t = await pageAt('homes');

@@ -70,3 +70,13 @@ export function undo(world) {
   }
   return { ok: true, kind: e.kind };
 }
+
+// Version 8.0 (Track N, ruling 1165): the player's Undo is a safety net for the last action, not a time machine. It takes that step back, and then whatever is older is no longer
+// offered: undone, refused or dropped, the stack ends empty, so a second press never walks back through earlier progress. The month's end already clears the stack (src/sim/clock.js),
+// so the step also lapses when the next month starts. The toast's Undo, the bar's Undo, Ctrl+Z and Delete all reach this through placement.undo(); undo() above stays the one-step
+// primitive that scripts (the balance runs' roll-backs) use.
+export function undoLast(world) {
+  const r = undo(world);
+  clearUndo(world);
+  return r;
+}

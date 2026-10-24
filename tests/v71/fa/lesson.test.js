@@ -38,7 +38,8 @@ async function lessonPage(stepId, { width = 1280, height = 800 } = {}) {
 }
 const rowOf = (s) => s.root.querySelector('#lesson');
 const goOf = (s) => s.root.querySelector('.lesson-card .lc-go');
-const leaveOf = (s) => s.root.querySelector('.lesson-card .lc-leave');
+// Version 8.0 (ruling 1171): Leave the lesson is in the menu while a lesson runs; its question, answered No, hands focus back to the card's one button.
+const leaveViaMenu = (s) => { s.root.querySelector('#topbar .menu').click(); s.root.querySelector('#sheet .leave-lesson').click(); };
 
 describe('v71 fa lesson: a step\'s card holds the game even when its own part is already done', () => {
   it('a firehouse built before its step: the card for the firehouse step is up with the game paused, stays paused through a day, and plays on at the speed he had when it is dismissed', async () => {
@@ -97,16 +98,16 @@ describe('v71 fa lesson: the card takes every game key', () => {
 
 describe('v71 fa lesson: focus after Leave the lesson\'s question', () => {
   for (const how of ['Cancel', 'Escape']) {
-    it(`${how}: the card is still the modal, and focus is back inside it (on Leave, the button that asked)`, async () => {
+    it(`${how}: the card is still the modal, and focus is back inside it (on the card's one button)`, async () => {
       const s = await lessonPage('road');
       try {
-        leaveOf(s).click();
+        leaveViaMenu(s);
         expect(s.root.querySelector('#dialog').hidden).toBe(false);
         if (how === 'Cancel') s.root.querySelector('#dialog .cancel').click(); else key(s.root, 'Escape');
         expect(s.root.querySelector('#dialog').hidden).toBe(true);
         expect(Boolean(stepCard(s.root))).toBe(true);
         const card = s.root.querySelector('.lesson-card');
-        expect([how, card.contains(document.activeElement), document.activeElement === leaveOf(s)]).toEqual([how, true, true]);
+        expect([how, card.contains(document.activeElement), document.activeElement === goOf(s)]).toEqual([how, true, true]);
       } finally { s.cleanup(); }
     });
   }

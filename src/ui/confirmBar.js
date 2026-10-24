@@ -9,7 +9,9 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
-import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT, S46_UX_TEXT, S47_SPOTS_TEXT, P_TEXT } from './text.js';
+import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT, S46_UX_TEXT, S47_SPOTS_TEXT, P_TEXT, PLACING_TEXT } from './text.js';
+import { drawThumb, hasThumb } from './thumbs.js';
+import { activeItemOf } from './cards.js';
 import { AREA_TEXT } from './areaText.js';
 import { FERRY_TEXT } from './v71/ferryText.js';
 import { ROUTE_TEXT } from './routeText.js';
@@ -19,6 +21,10 @@ const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : 
 const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted' };
 const NARROW_BAR = 365;   // px: a bar this narrow at 150% text can need a chip row for each condition (css/ui.css .conds.tall.narrow)
 const rotates = (tool) => tool.kind === 'building' && Boolean(BUILDINGS[tool.type].rotates);   // none in Stage 1 (mastabas come with monuments)
+// Version 8.0 (Track N, ruling 1162): picking a different item flashes the bar for this long (a lit ring and tint, css .confirm.flash; a timer takes the class off, so it reads under Gentle and Still too, where css animations are off).
+export const FLASH_MS = 900;
+const toolKeyOf = (tool) => `${tool.kind}|${tool.type || ''}|${tool.gate ? 'gate' : ''}`;
+const deviceRatio = () => Math.min(3, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
 
 export function createConfirmBar({ container, store, placement, onCancel, onConfirm, onUndo, keys = () => true, deleteUndoes = keys, onArea = (type, on) => (on ? placement.startArea(type) : placement.start({ kind: 'building', type })) }) {
   const element = el('div', { id: 'confirm', hidden: true });
@@ -30,6 +36,17 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
   // warning to more lines, and "Housing plots" to two), so it and the corner buttons on it never bob back down as the
   // ghost moves. A new tool, layout or text size starts afresh.
   let heldKey = null, tallest = 0;
+  // The flash (ruling 1162): the key of the item last in hand, when its flash ends, and the timer that takes the class off the bar that is up then (a rebuild in between keeps it).
+  let toolKey = null, flashUntil = 0, flashTimer = null;
+  const flashing = () => performance.now() < flashUntil;
+  function noteTool(tool) {
+    const key = toolKeyOf(tool);
+    if (key === toolKey) return;
+    toolKey = key;
+    flashUntil = performance.now() + FLASH_MS;
+    if (flashTimer !== null) clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => { flashTimer = null; const b = element.querySelector('.confirm'); if (b) b.classList.remove('flash'); }, FLASH_MS);
+  }
   function keepTallest(bar, s) {
     const key = `${s.layout}|${document.body.dataset.textSize}|${s.tool.kind}|${s.tool.type || ''}`;
     if (key !== heldKey) { heldKey = key; tallest = 0; }
@@ -64,8 +81,9 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const focusedStyle = element.contains(document.activeElement) ? document.activeElement.dataset.style || null : null;   // Stage 4.6: the style button that had focus
     const focusedShape = element.contains(document.activeElement) ? document.activeElement.dataset.shape || null : null;   // Version 5.0 (Task 5): the road shape button that had focus
     clear(element);
-    if (!isToolMode(s.mode) || !s.tool) { element.hidden = true; heldKey = null; publishHeight(); return; }
+    if (!isToolMode(s.mode) || !s.tool) { element.hidden = true; heldKey = null; toolKey = null; publishHeight(); return; }
     element.hidden = false;
+    noteTool(s.tool);
     const p = placement.preview();
     const demolish = s.tool.kind === 'demolish';
     // Version 7.0 (Track P): see the reason line below. While everything is met the line says what the building needs, unless the effect line has the room (a service's "Gives
@@ -76,8 +94,11 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const costText = demolish ? (p.refund > 0 ? `${T.refund} ${p.refund}` : p.refund < 0 ? DANGER_UI_TEXT.demolishCost(-p.refund) : '') : (p.costText || (p.cost ? `${p.cost} gold` : ''));
     // The words are the title, then `lines` (the cost, balance, reason, effect, nicer and monument lines): a portrait terrain bar lets the title sit
     // beside the buttons and the lines run the whole width under them (css/ui.css .has-fit), keeping the room three lines need.
-    const info = el('div', { class: 'info' }, [
-      el('div', { class: 'title', text: titleOf(s.tool) }),
+    // Version 8.0 (ruling 1162): the bar leads with the picture and the name of what is in hand, large, so a well can no longer be taken for a house. The picture is the card's own drawing (none for
+    // the few tools that have none); the name is the whole of the title's text, and the group's name says it is the one chosen, so the picture and the lit bar are never the only cue.
+    const name = titleOf(s.tool), item = activeItemOf(s.tool);
+    const info = el('div', { class: 'info', role: 'group', 'aria-label': PLACING_TEXT.lit(name) }, [
+      el('div', { class: 'title' }, [item && hasThumb(item) ? drawThumb(el('canvas', { class: 'thumb', 'aria-hidden': 'true' }), item, deviceRatio()) : null, el('span', { class: 'name', text: name })]),
       el('div', { class: 'lines' }, [
         el('div', { class: 'cost small muted', text: [costText, p.upkeep, p.note].filter(Boolean).join(' · ') }),   // Stage 4.6 (ruling 350): the road tool's note on bridges, while nothing is drawn yet
         // Stage 4.5 (Task 4b): what the month's balance becomes with it, from the sim's forecast (coral when it is below 0).
@@ -110,7 +131,8 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
       controls.push(iconButton(on ? AREA_TEXT.oneLabel(areaType) : AREA_TEXT.areaLabel(areaType), on ? '▢' : '▦', { class: 'area-toggle', 'aria-pressed': String(on), title: on ? AREA_TEXT.one : AREA_TEXT.area, onClick: () => onArea(areaType, !on) }));
     }
     if (rotates(s.tool)) controls.push(iconButton(T.rotate, '⟳', { class: 'rotate', title: keys() ? `${T.rotate} (R)` : T.rotate, 'aria-keyshortcuts': keys() ? 'r R' : null, onClick: () => placement.rotate() }));   // Stage 4: a mastaba turns (ruling 234)
-    if ((s.tool.kind === 'road' || s.tool.kind === 'wall') && !s.tool.route && s.line && s.line.x1 !== null) controls.push(button(T.flip, { class: 'flip', onClick: () => placement.flip() }));
+    // Version 8.0 (ruling 1163): Flip is a neutral icon, never heavier than the tick (the friend found the road bar's Straight and Flip outweighed it).
+    if ((s.tool.kind === 'road' || s.tool.kind === 'wall') && !s.tool.route && s.line && s.line.x1 !== null) controls.push(iconButton(T.flip, '⇄', { class: 'flip', onClick: () => placement.flip() }));
     // On a phone Undo is a small icon and only when there is something to undo (the toast after a placement keeps the word);
     // the wide layout keeps the word button, greyed out when there is nothing to undo.
     // Version 7.0 (Track P): its tooltip and aria-keyshortcuts name Ctrl+Z, and Delete while the single keys are on.
@@ -164,7 +186,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const routeRow = shape ? el('div', { class: 'route-row' }, [el('div', { class: 'route-choices', role: 'group', 'aria-label': ROUTE_TEXT.group }, [['route', ROUTE_TEXT.route, ROUTE_TEXT.routeLabel], ['straight', ROUTE_TEXT.straight, ROUTE_TEXT.straightLabel]].map(([id, name, label]) => button(shape === id ? `✓ ${name}` : name, {
       class: `route-pick${shape === id ? ' on' : ''}`, 'aria-pressed': String(shape === id), 'aria-label': label, dataset: { shape: id }, onClick: () => placement.setRoute(id === 'route'),
     })))]) : null;
-    const bar = el('div', { class: `confirm${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}${styleRow ? ' has-style' : ''}${spacingRow ? ' has-area' : ''}${routeRow ? ' has-route' : ''}` }, [info, ...controls, chips, showFit, fitRoom, styleRow, spacingRow, routeRow]);
+    const bar = el('div', { class: `confirm${flashing() ? ' flash' : ''}${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}${styleRow ? ' has-style' : ''}${spacingRow ? ' has-area' : ''}${routeRow ? ' has-route' : ''}` }, [info, ...controls, chips, showFit, fitRoom, styleRow, spacingRow, routeRow]);
     element.append(bar);
     keepTallest(bar, s);
     publishHeight();
