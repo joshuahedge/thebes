@@ -346,11 +346,11 @@ export function setPaused(world, id, paused) {
   const def = BUILDINGS[b.type];
   if (isFinished(b)) return fail('finished');
   if (!def.workers && !def.upkeep && !def.monument) return fail('not_pausable');
-  // Ruling 987: a strike or quarrel (a city event's pause) holds until its day; Resume is refused, and the card's paid choice is the way out.
+  // Ruling 987: a strike or quarrel (a city event's pause) holds until its day; Resume is refused (the event is over by then: it lifts by itself on its day).
   const until = eventHoldUntil(world, b.id);
   if (!paused && until !== null) return fail('event_hold', { until });
   b.paused = Boolean(paused);
-  if (b.paused) b.staff = 0;
+  if (b.paused) { b.staff = 0; ownEventHold(world, b.id); }
   releaseHolds(world, b.id);
   touchLayers(world);   // the layers' caches (src/sim/layers.js) key on this counter; the chunk index and the roadless plots, which key on the footprints, are left alone (Version 6.0)
   return { ok: true, warnings: [] };
@@ -362,8 +362,21 @@ export function eventHoldUntil(world, id) {
   const c = world.court;
   if (!c || !Array.isArray(c.effects)) return null;
   let until = null;
-  for (const e of c.effects) if (e.event === true && e.kind === 'pause' && Array.isArray(e.ids) && e.ids.includes(id) && e.until > world.day) until = Math.max(until === null ? 0 : until, e.until);
+  for (const e of c.effects) if (e.event === true && e.kind === 'pause' && (heldBy(e, id)) && e.until > world.day) until = Math.max(until === null ? 0 : until, e.until);
   return until;
+}
+const heldBy = (e, id) => (Array.isArray(e.ids) && e.ids.includes(id)) || (Array.isArray(e.owned) && e.owned.includes(id));
+
+// Version 7.1 (ruling 1062): the player's own pause of a building a strike or quarrel holds is his, so it outlives the event (ruling 423): the id moves from the entry's ids (which the
+// event's end, and the court's own endEffects, let go of) to its `owned` list, which still counts for the hold (Resume stays refused until the day) and is never let go.
+function ownEventHold(world, id) {
+  const c = world.court;
+  if (!c || !Array.isArray(c.effects)) return;
+  for (const e of c.effects) {
+    if (e.event !== true || e.kind !== 'pause' || !(e.until > world.day) || !Array.isArray(e.ids) || !e.ids.includes(id)) continue;
+    e.ids = e.ids.filter((x) => x !== id);
+    e.owned = [...(e.owned || []), id];
+  }
 }
 
 // Ruling 423: the player's own pause or resume takes a building back from whatever paused it for a while: a crocodile scare (world.wildlife.scares)

@@ -3466,7 +3466,7 @@ import { CITY_EVENTS as cevRules, EVENT_DEFS as cevDefs, EVENT_NUMBERS as cevNum
 import { FESTIVAL as cevFestival } from '../data/raids.js';
 import { HEALTH_MOOD as cevHealthMood } from '../data/health.js';
 import { CRIME_MOOD as cevCrimeMood } from '../data/crime.js';
-import { unrestMood as cevUnrestMood, thiefCovered as cevThiefCovered, eventChoices as cevChoices, waitingEvent as cevWaiting, incenseReaches as cevIncenseReaches } from '../sim/cityEvents.js';
+import { unrestMood as cevUnrestMood, thiefCovered as cevThiefCovered, eventChoices as cevChoices, strikable as cevStrikable, waitingEvent as cevWaiting, incenseReaches as cevIncenseReaches } from '../sim/cityEvents.js';
 import { favourChange as cevFavourChange, stockOf as cevStockOf } from '../sim/court.js';
 import { DAYS_PER_MONTH as cevMonthDays } from '../sim/time.js';
 
@@ -3478,14 +3478,16 @@ const cevCap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const cevCovered = (f, world) => (world && f && world.buildings[f.store] ? cevThiefCovered(world, f) : false);
 
 // One effect as words (the sim's own list: src/sim/cityEvents.js): every number is the effect's, and favour says what really happens (it stays inside its range).
-function cevEffect(e, world) {
+// stops: the noun of a strike's or quarrel's pause ('quarries stop work'), so the story and the line under a choice say the same thing (ruling 1065); workplaces when not said.
+const cevStops = { quarry_strike: ['quarry stops work', 'quarries stop work'], workshop_quarrel: ['workshop stops work', 'workshops stop work'] };
+function cevEffect(e, world, kind = null) {
   switch (e.kind) {
     case 'gold': return e.n < 0 ? `costs ${-e.n} gold` : `${e.n} gold for the treasury`;
     case 'goods': return e.n < 0 ? `takes ${-e.n} ${cevGood(e.good)} from the stores` : `puts ${e.n} ${cevGood(e.good)} in the stores`;
     case 'lose': return `${e.n} ${cevGood(e.good)} lost from the stores`;
     case 'favour': { const d = cevFavourChange(world, e.n); return d === 0 ? 'favour stays as it is' : `favour ${cevSigned(d)}`; }
     case 'festival': return `mood +${e.n} for ${cevMonthsOf(e.days)}, and it counts as this year's festival`;
-    case 'pause': return `${plural(e.ids.length, 'workplace stops', 'workplaces stop')} work for ${cevMonthsOf(e.days)}`;
+    case 'pause': { const [one, many] = cevStops[kind] || ['workplace stops work', 'workplaces stop work']; return `${plural(e.ids.length, one, many)} for ${cevMonthsOf(e.days)}`; }
     case 'people': return `${plural(e.n, 'person moves', 'people move')} in`;
     case 'ill': return `${plural(e.ids.length, 'home falls', 'homes fall')} ill (mood ${cevSigned(cevHealthMood.each)} for each while ill, at most ${cevSigned(cevHealthMood.max)})`;
     case 'cure': return `${plural(e.ids.length, 'ill home is', 'ill homes are')} cured`;
@@ -3495,8 +3497,12 @@ function cevEffect(e, world) {
 }
 // What a choice does, as one sentence from its effects, price first; "Nothing changes." for none.
 // keep: what a payment spares, as the kind's `keeps` says it ("the quarries keep working"): true because the default's losses are the only thing the payment replaces.
-const cevConsequence = (effects, world, keep = '') => {
-  const parts = effects.map((e) => cevEffect(e, world)).filter(Boolean);
+// A marker effect (src/sim/cityEvents.js sparing: no ids, or n 0) is a price for nothing: it is left out of the words, and so is what the payment would spare, since it spares none.
+const cevMarker = (e) => (['pause', 'ill'].includes(e.kind) && e.ids.length === 0) || (e.kind === 'lose' && !(e.n > 0));
+const cevConsequence = (effects, world, keep = '', kind = null) => {
+  const spares = !effects.some(cevMarker);
+  const parts = effects.filter((e) => !cevMarker(e)).map((e) => cevEffect(e, world, kind)).filter(Boolean);
+  if (!spares) keep = '';
   if (!parts.length) return keep ? `${cevCap(keep)}.` : 'Nothing changes.';
   return `${cevCap(parts.join(', '))}${keep ? `, and ${keep}` : ''}.`;
 };
@@ -3508,9 +3514,23 @@ function cevProblem(c, world) {
     case 'short': return `Your stores hold ${cevStockOf(world, bad.good)} ${cevGood(bad.good)}; it takes ${-bad.n}`;
     case 'no_room': return bad.kind === 'goods' ? `No store has room for ${cevGood(bad.good)}` : 'No home has room for them';
     case 'too_soon': return 'A festival was held less than a year ago';
-    case 'none': return bad.kind === 'cure' ? 'No home is ill now' : 'There is nothing for it to do now';
+    case 'none':   // (a paid choice's marker, src/sim/cityEvents.js sparing: what it would spare is gone)
+      if (bad.kind === 'cure') return 'No home is ill now';
+      if (bad.kind === 'pause') return 'No workplace is left for it to keep working';
+      if (bad.kind === 'ill') return 'No home is left to keep from falling ill';
+      if (bad.kind === 'lose') return `There is no ${cevGood(bad.good)} left for it to save`;
+      return 'There is nothing for it to do now';
     default: return '';
   }
+}
+
+// A strike's or quarrel's last sentence: what it stops, counted as the sim counts it now (the workplaces still standing and working: src/sim/cityEvents.js strikable, which the
+// choices' pause reads too), in the same words as the line under the choices (cevStops). With none left it says so, not "0 quarries stop". `pay`: the paid choice's opening.
+function cevStrikeBody(f, world, kind, pay) {
+  const n = world ? cevStrikable(world, f.ids).length : f.ids.length;
+  if (!n) return `Nothing is left to stop now, so there is nothing to pay for.`;
+  const [one, many] = cevStops[kind];
+  return `${pay}, or ${plural(n, one, many)} for ${cevMonthsOf(f.days)}.`;
 }
 
 // Each kind: its title (the sheet's heading and the alert row's words), its story with the figures it was offered with, and each choice's button.
@@ -3584,12 +3604,12 @@ const cevKinds = {
   },
   quarry_strike: {
     title: 'A strike at the quarry',
-    body: (f) => `The quarry crews ask for better wages. Raise them, or ${plural(f.ids.length, 'quarry stops', 'quarries stop')} for ${cevMonthsOf(f.days)}.`,
+    body: (f, world) => `The quarry crews ask for better wages. ${cevStrikeBody(f, world, 'quarry_strike', 'Raise them')}`,
     labels: { raise_wages: 'Raise their wages', strike: 'Let the strike run' }, keeps: { raise_wages: 'the quarries keep working' },
   },
   workshop_quarrel: {
     title: 'A quarrel in the workshops',
-    body: (f) => `The ${buildingName(f.type).toLowerCase()} crews quarrel over their shares. Settle it with a payment, or ${plural(f.ids.length, 'workshop stops', 'workshops stop')} for ${cevMonthsOf(f.days)}.`,
+    body: (f, world) => `The ${buildingName(f.type).toLowerCase()} crews quarrel over their shares. ${cevStrikeBody(f, world, 'workshop_quarrel', 'Settle it with a payment')}`,
     labels: { settle_it: 'Settle it with a payment', quarrel: 'Let it run' }, keeps: { settle_it: 'the workshops keep working' },
   },
   lost_caravan: {
@@ -3604,12 +3624,12 @@ export const CITY_EVENT_TEXT = {
   title: (kind) => (cevKinds[kind] ? cevKinds[kind].title : 'A city event'),
   body: (event, world) => cevKinds[event.kind].body(event.kind === 'opet' ? { ...event.figs, incense: cevIncenseReaches(world) } : event.figs, world),
   label: cevLabel,
-  consequence: (effects, world, kind = null, choice = null) => cevConsequence(effects, world, kind && cevKinds[kind].keeps && choice ? cevKinds[kind].keeps[choice] || '' : ''),
+  consequence: (effects, world, kind = null, choice = null) => cevConsequence(effects, world, kind && cevKinds[kind].keeps && choice ? cevKinds[kind].keeps[choice] || '' : '', kind),
   effect: cevEffect,
   problem: cevProblem,
   answerBy: (months) => `Answer within ${cevMonths(Math.max(1, months))}.`,
   // The line under the choices: what is taken if nothing is chosen, from the default choice's own effects. It never costs gold.
-  defaultLine: (months, label, effects, world) => `If you wait ${cevMonths(Math.max(1, months))}, "${label}" is taken: ${cevConsequence(effects, world).replace(/^./, (c) => c.toLowerCase())}`,
+  defaultLine: (months, label, effects, world, kind = null) => `If you wait ${cevMonths(Math.max(1, months))}, "${label}" is taken: ${cevConsequence(effects, world, '', kind).replace(/^./, (c) => c.toLowerCase())}`,
   none: 'No event is waiting. They come once or twice a year, and each says what its choices do before you choose.',
   showCosts: "This month's money",
   // The summary's section.
@@ -3618,7 +3638,7 @@ export const CITY_EVENT_TEXT = {
   alert: (a) => ({ title: `${CITY_EVENT_TEXT.title(a.kind)}: answer within ${cevMonths(Math.max(1, a.months))}`, fix: 'Open it to choose: each choice says what it does' }),
   // Captions (the info tier, kept in Recent) for an offer and an outcome.
   captionOffered: (kind, months) => `${CITY_EVENT_TEXT.title(kind)}: choose within ${cevMonths(months)}. Open it from the alert list`,
-  captionOutcome: (e, world) => `${CITY_EVENT_TEXT.title(e.kind)}: ${cevLabel(e.kind, e.choice).toLowerCase()}${e.result === 'default' ? ' (no answer in time)' : ''}. ${cevConsequence(e.effects, world)}`,
+  captionOutcome: (e, world) => `${CITY_EVENT_TEXT.title(e.kind)}: ${cevLabel(e.kind, e.choice).toLowerCase()}${e.result === 'default' ? ' (no answer in time)' : ''}. ${cevConsequence(e.effects, world, '', e.kind)}`,
   // The picture card of the first event.
   later: 'Decide later',
 };
@@ -3632,7 +3652,7 @@ V70_ADVICE_WORDS.event = (a, world) => {
   const def = cevChoices(world, w).find((c) => c.default);
   return {
     what: `${CITY_EVENT_TEXT.title(w.kind)}: waiting for your answer`,
-    why: `${CITY_EVENT_TEXT.answerBy(w.monthsLeft)} ${def ? CITY_EVENT_TEXT.defaultLine(w.monthsLeft, cevLabel(w.kind, def.id), def.effects, world) : ''}`.trim(),
+    why: `${CITY_EVENT_TEXT.answerBy(w.monthsLeft)} ${def ? CITY_EVENT_TEXT.defaultLine(w.monthsLeft, cevLabel(w.kind, def.id), def.effects, world, w.kind) : ''}`.trim(),
     fix: 'Open it and choose: each choice says what it costs and does',
   };
 };
@@ -3785,8 +3805,9 @@ cevKinds.opet.labels.small = () => 'Hold it without favour, beer only';
 // The card's refusal caption when the city changed under an answer (src/ui/v70/cityEvents.js answer).
 CITY_EVENT_TEXT.changed = 'The city changed: the card shows the new figures';
 // A strike or quarrel holds until its days are up (ruling 987, src/sim/commands.js setPaused): the building sheet's Resume is off, with this line under it.
-Object.assign(REASONS, { event_hold: "Held until the event ends: the event's choice" });
-CITY_EVENT_TEXT.hold = (until, type) => `${type === 'quarry' ? 'On strike' : 'Stopped by a quarrel'} until ${courtDate(until).toLowerCase()}: the event's choice`;
+// By then the event is over and has no choice left to make (Version 7.1, ruling 1063): the words say it lifts by itself.
+Object.assign(REASONS, { event_hold: 'Held until the event ends; work starts again by itself' });
+CITY_EVENT_TEXT.hold = (until, type) => `${type === 'quarry' ? 'On strike' : 'Stopped by a quarrel'} until ${courtDate(until).toLowerCase()}; work starts again by itself`;
 
 // How to play: what City advice says now, and the Quay.
 V70_HELP.a.push(

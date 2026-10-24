@@ -20,7 +20,7 @@
 //   drawEvent(world)                   -> null, or the event to offer today (pure: eventDay stores it)
 //   eventChoices(world, event)         -> at most three choices { id, gold (its cost, 0 for none), ok, reason (why not, or null), default (on exactly one,
 //                                         which never costs gold), effects (what it would do now), cost: the gold it asks }
-//   applyChoice(world, event, choiceId, events, shown) -> { ok, reason, warnings, effects }: shown (the effects the card showed) makes it fail with
+//   applyChoice(world, event, choiceId, events, shown) -> { ok, reason, warnings, effects, event (the 'city_event' record, when ok) }: shown (the effects the card showed) makes it fail with
 //                                         'changed' when the city has moved on since, doing nothing, so what is carried out is what was read
 // Events pushed (never saved): { type: 'city_event_offered', kind, id, welcome, months }, { type: 'city_event', kind, choice, result: 'answered' |
 // 'default', effects }.
@@ -139,10 +139,17 @@ const lose = (world, good, n, from = null) => {
   const k = Math.min(n, have);
   return k > 0 ? [{ kind: 'lose', good, n: k, ...(from === null ? {} : { from }) }] : [];
 };
+// The workplaces of `ids` a strike or quarrel would stop now (standing, working, not paused): for pauseOf and the card's story.
+export const strikable = (world, ids) => ids.filter((id) => world.buildings[id] && !world.buildings[id].paused && isWorking(world, world.buildings[id]));
 const pauseOf = (world, ids, days) => {
-  const live = ids.filter((id) => world.buildings[id] && !world.buildings[id].paused && isWorking(world, world.buildings[id]));
+  const live = strikable(world, ids);
   return live.length ? [{ kind: 'pause', ids: live, days }] : [];
 };
+// Version 7.1 (ruling 1061): a paid choice that only spares what the free choice would cost (the strike, the loss, the fever) is a price for nothing once there is nothing to
+// spare (the quarries are gone or paused, the store is empty). `sparing` leaves the paid list as it is while it spares something, and adds a marker that does nothing
+// (no ids, n 0) when it does not, so effectProblem refuses the paid choice with 'none' and the card says why; the words leave the marker out (src/ui/text.js cevConsequence).
+const sparing = (spares, paid, marker) => (spares ? paid : [...paid, marker]);
+const lostOf = (list) => list.reduce((n, e) => n + (e.kind === 'lose' ? e.n : 0), 0);
 // people and cure stay in the list even when empty (n 0, no ids): a choice that would do nothing is refused with its reason, not sold for a price.
 const peopleOf = (world, n) => [{ kind: 'people', n: Math.min(n, roomForPeople(world)) }];
 const illOf = (world, ids) => { const live = ids.filter((id) => { const b = world.buildings[id]; return b && canFallIll(b) && !b.illness; }); return live.length ? [{ kind: 'ill', ids: live }] : []; };
@@ -157,6 +164,7 @@ export function effectProblem(world, e) {
     case 'festival': return festivalTooSoon(world) ? 'too_soon' : null;
     case 'people': return e.n < 1 || roomForPeople(world) < e.n ? 'no_room' : null;
     case 'cure': case 'ill': case 'pause': return e.ids.length ? null : 'none';
+    case 'lose': return e.n > 0 ? null : 'none';   // (only a paid choice's marker has n 0: see sparing)
     default: return null;
   }
 }
@@ -202,8 +210,9 @@ function endEventPauses(world) {
   c.effects = c.effects.filter((e) => {
     if (e.kind !== 'pause' || e.event !== true) return true;
     e.ids = e.ids.filter((id) => world.buildings[id] && world.buildings[id].paused);
+    if (e.owned) e.owned = e.owned.filter((id) => world.buildings[id]);
     if (world.day < e.until) return true;
-    for (const id of e.ids) world.buildings[id].paused = false;
+    for (const id of e.ids) world.buildings[id].paused = false;   // (e.owned: the player's own pause during the hold, commands.js setPaused: it is not let go)
     return false;
   });
 }
@@ -321,18 +330,34 @@ const CHOICES = {
   healer: (world, f) => ({ send_away: [], cure: [gold(-f.fee), ...cureOf(world, f.ids)] }),
   craftsman: (world, f) => ({ pass: [], settle: [gold(-f.fee), ...peopleOf(world, f.n)] }),
   pilgrims: (world, f) => ({ camp: [gold(f.offering)], lodge: [gold(-f.fee), ...peopleOf(world, f.n)] }),
-  sandstorm: (world, f) => ({ weather: lose(world, f.good, f.n), sweep: [gold(-f.fee), ...lose(world, f.good, f.n - f.saved)] }),
-  fever: (world, f) => ({ let_in: illOf(world, f.ids), gate: [gold(-f.fee)] }),
+  sandstorm(world, f) {
+    const weather = lose(world, f.good, f.n), swept = lose(world, f.good, f.n - f.saved);
+    return { weather, sweep: sparing(lostOf(swept) < lostOf(weather), [gold(-f.fee), ...swept], { kind: 'lose', good: f.good, n: 0 }) };
+  },
+  fever(world, f) {
+    const ill = illOf(world, f.ids);
+    return { let_in: ill, gate: sparing(ill.length > 0, [gold(-f.fee)], { kind: 'ill', ids: [] }) };
+  },
   rumour: (world, f) => ({ ignore: [favour(-EVENT_NUMBERS.rumour.favour)], gift: [gold(-f.fee)] }),
   thief(world, f) {
     const covered = (crimeCoverage(world).get(f.store) || 0) >= CRIME.staffedAt;
     const n = covered ? Math.max(EVENT_NUMBERS.thief.step, roundTo(f.n * EVENT_NUMBERS.thief.coveredShare, EVENT_NUMBERS.thief.step)) : f.n;
-    return { let_run: lose(world, f.good, n, f.store), watch: [gold(-f.fee)] };
+    const taken = lose(world, f.good, n, f.store);
+    return { let_run: taken, watch: sparing(taken.length > 0, [gold(-f.fee)], { kind: 'lose', good: f.good, n: 0, from: f.store }) };
   },
   feud: (world, f) => ({ let_be: [unrest(f.thefts)], send_watch: [gold(-f.fee)] }),
-  quarry_strike: (world, f) => ({ strike: pauseOf(world, f.ids, f.days), raise_wages: [gold(-f.fee)] }),
-  workshop_quarrel: (world, f) => ({ quarrel: pauseOf(world, f.ids, f.days), settle_it: [gold(-f.fee)] }),
-  lost_caravan: (world, f) => ({ write_off: lose(world, f.good, f.n), search: [gold(-f.fee)] }),
+  quarry_strike(world, f) {
+    const strike = pauseOf(world, f.ids, f.days);
+    return { strike, raise_wages: sparing(strike.length > 0, [gold(-f.fee)], { kind: 'pause', ids: [], days: f.days }) };
+  },
+  workshop_quarrel(world, f) {
+    const quarrel = pauseOf(world, f.ids, f.days);
+    return { quarrel, settle_it: sparing(quarrel.length > 0, [gold(-f.fee)], { kind: 'pause', ids: [], days: f.days }) };
+  },
+  lost_caravan(world, f) {
+    const lost = lose(world, f.good, f.n);
+    return { write_off: lost, search: sparing(lost.length > 0, [gold(-f.fee)], { kind: 'lose', good: f.good, n: 0 }) };
+  },
 };
 
 // Whether a staffed police post reaches the store a thief's offer is about (the loss halves when one does): for the card's words.
@@ -349,7 +374,8 @@ export function eventChoices(world, event) {
   return def.choices.filter((id) => table[id] !== undefined).map((id) => {
     const effects = table[id];
     const isDefault = id === def.default;
-    const bad = isDefault ? undefined : effects.find((e) => effectProblem(world, e));
+    // 'none' first: a price for nothing is refused for that, whatever the treasury holds (ruling 1061), so the card does not say "not enough gold" and then, once there is, nothing.
+    const bad = isDefault ? undefined : effects.find((e) => effectProblem(world, e) === 'none') || effects.find((e) => effectProblem(world, e));
     const reason = bad ? effectProblem(world, bad) : null;
     return { id, gold: effects.reduce((s, e) => s + (e.kind === 'gold' && e.n < 0 ? -e.n : 0), 0), ok: reason === null, reason, bad: bad || null, default: isDefault, effects };
   });
@@ -375,8 +401,9 @@ function resolve(world, w, choice, result, events) {
   for (const e of choice.effects) applyEffect(world, e, events);
   world.cityEvents.waiting = null;
   if (result === 'answered') world.tally.eventsAnswered += 1; else world.tally.eventsLapsed += 1;
-  if (events) events.push({ type: 'city_event', kind: w.kind, choice: choice.id, result, effects: copy(choice.effects) });
-  return { ok: true, reason: null, warnings: [], effects: choice.effects };
+  const done = { type: 'city_event', kind: w.kind, choice: choice.id, result, effects: copy(choice.effects) };
+  if (events) events.push(done);
+  return { ok: true, reason: null, warnings: [], effects: choice.effects, event: done };   // event: the outcome's record, whatever else the effects pushed first (a fever's illnesses)
 }
 
 // ── The draw ──
