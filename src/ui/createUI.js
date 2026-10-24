@@ -67,6 +67,7 @@ import { createS46Seams } from './s46/index.js';
 import { createS47Seams } from './s47/index.js';
 import { createV60Seams } from './v60/index.js';
 import { createV70Seams } from './v70/index.js';
+import { createFerryUi } from './v71/ferries.js';
 import { s46Walkers, s46Ground } from '../render/s46.js';
 import { v70Ground, v70Walkers, v70Light } from '../render/v70.js';
 import { createScoreUi } from './scoreUi.js';
@@ -247,7 +248,7 @@ export function createUI({
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
   monumentUi = createMonumentUi(seamCtx);
-  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx), ...createV60Seams(seamCtx), ...createV70Seams(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams; Version 6.0 and 7.0: each track's (src/ui/v60/index.js, v70/index.js)
+  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx), ...createV60Seams(seamCtx), ...createV70Seams(seamCtx), createFerryUi(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams; Version 6.0 and 7.0: each track's (src/ui/v60/index.js, v70/index.js)
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},

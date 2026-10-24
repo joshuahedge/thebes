@@ -11,6 +11,7 @@ import { TRADE_KEEP_STEP, DESIRABILITY_STEPS, KEYS } from '../data/ui.js';
 import { ECONOMY, FORECAST } from '../data/economy.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { MAP } from '../data/map.js';
+import { FERRY } from '../data/ferries.js';
 import { roadCostOf } from '../sim/costs.js';
 import { producerRefused } from '../sim/production.js';
 import { isUnlocked } from '../sim/progression.js';
@@ -23,6 +24,7 @@ export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', in
 export function buildingName(type) {
   if (type === 'road') return 'Road';
   if (type === 'demolish') return 'Demolish';
+  if (type === 'ferry') return 'Ferry';   // Version 7.1 (Track F): the Roads tray's Ferry tool, which lays two landings
   return BUILDINGS[type] ? BUILDINGS[type].name : type;
 }
 
@@ -1627,7 +1629,7 @@ export const S45_TEXT = {
   // Bridges (ruling 314): the bar's note "Bridge: 4 tiles, 100 gold" (the tiles of water crossed and what they cost together), the
   // refusal for a crossing past the limit, and the toast. Their numbers come from the road tool's preview (src/sim/commands.js).
   bridgeNote: (n, cost) => `Bridge: ${plural(n, 'tile', 'tiles')}, ${cost} gold`,
-  tooWide: (n) => `Too wide to bridge here (${plural(n, 'tile', 'tiles')} of water)`,
+  tooWide: (n) => `Too wide for a bridge (${plural(n, 'tile', 'tiles')} of water)${n <= FERRY.max ? ': lay a ferry' : ` or a ferry (the most is ${FERRY.max})`}`,   // Version 7.1 (Track F, ruling 1043): the way on is the Ferry tool
   roadLaidBridge: (n) => `Road laid · bridge, ${plural(n, 'tile', 'tiles')}`,
   // The month's forecast (Task 4b, ruling 316). Every number is the sim's (src/sim/economy.js monthForecast, monthlyBill,
   // balanceWith, biggestCost), and a minus is a real minus sign. The top bar's gold chip says "+120 a month"; it adds the runway when the
@@ -1654,7 +1656,7 @@ export const S45_TEXT = {
 };
 Object.assign(TIP_TEXT, { treasury_low: 'The treasury is heading below 0: tap the numbers in the top bar to see what each month costs.' });
 TIP_HELP_TEXT.treasury_low = S45_TEXT.warnTipHelp;
-Object.assign(REASONS, { not_wall: 'A gate goes on a wall', too_wide: 'Too wide to bridge here', bridge_shape: 'A bridge runs straight across, with land at both ends' });
+Object.assign(REASONS, { not_wall: 'A gate goes on a wall', too_wide: 'Too wide for a bridge', bridge_shape: 'A bridge runs straight across, with land at both ends' });
 // ── end s45 ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
 // ── s45 threats (Task 5b-5d: disease and crime) ──────────────────────────────────────────────────────────────────────

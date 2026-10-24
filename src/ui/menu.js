@@ -8,6 +8,7 @@ import { FIRE_REACTIONS, MOTION_SETTINGS, motionStatus } from './settings.js';
 import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, SEASON_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
 import { MAPS_HELP } from './v71/mapsText.js';   // Version 7.1 (Track M): How to play's Maps note
+import { V71_HELP } from './v71/ferryText.js';   // Version 7.1 (Track F): How to play's Ferries entry (and importing it registers the ferries tip)
 
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
 
@@ -181,6 +182,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     for (const p of Object.values(V60_HELP).flat()) body.append(el('h3', { text: p.head }), el('p', { text: p.text }));
     for (const p of Object.values(V70_HELP).flat()) body.append(el('h3', { text: p.head }), el('p', { text: p.text }));   // Version 7.0: the same, from V70_HELP
     for (const p of MAPS_HELP) body.append(el('h3', { text: p.head }), el('p', { text: p.text }));   // Version 7.1 (Track M)
+    for (const p of Object.values(V71_HELP).flat()) body.append(el('h3', { text: p.head }), el('p', { text: p.text }));   // Version 7.1 (Track F): the same, from V71_HELP
     body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsHelp }), el('p', { class: 'muted', text: T.guideHelp }));
     if (canResumeGuide()) {
       body.append(el('div', { class: 'actions' }, [button(T.resumeGuide, { class: 'resume-guide primary', onClick: () => { onResumeGuide(); if (close) close(); } })]));

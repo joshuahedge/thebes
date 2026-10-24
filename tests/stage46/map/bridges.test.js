@@ -133,7 +133,7 @@ describe('s46 map seam: the tip fires when a road meets water, Show me finds a c
       expect(s.fired.length).toBe(2);
       const wide = riverWorld(10, 10 + BRIDGE_MAX + 2);
       const t = seam(wide);
-      try { t.pl.start({ kind: 'road' }); t.pl.pointAt(9, 7); t.pl.pointAt(10 + BRIDGE_MAX + 3, 7); expect(t.fired).toEqual(['roadMeetsWater']); } finally { t.cleanup(); }   // too_wide
+      try { t.pl.start({ kind: 'road' }); t.pl.pointAt(9, 7); t.pl.pointAt(10 + BRIDGE_MAX + 3, 7); expect(t.fired).toEqual(['roadMeetsWater', 'roadTooWide']); } finally { t.cleanup(); }   // too_wide: and (Version 7.1, Track F) the ferries tip
       s.ui.onCommand({ kind: 'road', result: { ok: true, bridges: [] }, undoable: true });
       expect(s.fired.length).toBe(2);
       s.ui.onCommand({ kind: 'road', result: { ok: true, bridges: [idx(32, 11, 4)] }, undoable: true });

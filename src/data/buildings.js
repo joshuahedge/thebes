@@ -3,6 +3,7 @@ import { MONUMENTS, MONUMENT_KINDS, MONUMENT } from './monuments.js';
 import { S46_BUILDINGS } from './s46.js';
 import { V60_BUILDINGS } from './v60.js';
 import { V70_BUILDINGS } from './v70.js';
+import { FERRY_BUILDINGS } from './ferries.js';
 
 // w = footprint along x, d = footprint along y. reach values are in road tiles. A producer makes `perMonth` units
 // at full staff; one with `consumes` (a workshop) turns one unit of that good into one unit of its own.
@@ -139,6 +140,8 @@ export const BUILDINGS = {
   ...V60_BUILDINGS,
   // Version 7.0: Track T's Quay (src/data/trade.js TRADE_BUILDINGS), joined by src/data/v70.js.
   ...V70_BUILDINGS,
+  // Version 7.1: Track F's ferry landing (src/data/ferries.js), laid two at a time by the Ferry tool, never a card of its own.
+  ...FERRY_BUILDINGS,
 };
 
 // The size a type takes with a rotation (spec 7.3, ruling 234): rot 1 swaps w and d for a type that rotates; anything

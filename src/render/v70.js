@@ -10,13 +10,15 @@
 import { drawSeasonGround } from './seasons.js';
 import { drawTradeGround, tradeWalkers } from './trade.js';
 import { drawLight } from './light.js';
+import { ferryGround, ferryWalkers } from './ferries.js';
 
 export function v70Ground(g, world, range, now, motion) {
   drawSeasonGround(g, world, range, now, motion);
   drawTradeGround(g, world, range, now, motion);
+  ferryGround(g, world, range);   // Version 7.1 (Track F): a crossing's dashed line over the water
 }
 
-export const v70Walkers = (world, timeDays, range, motion) => tradeWalkers(world, timeDays, range, motion);
+export const v70Walkers = (world, timeDays, range, motion) => [...tradeWalkers(world, timeDays, range, motion), ...ferryWalkers(world, timeDays, range, motion)];   // Version 7.1: and each running ferry's boat
 
 export function v70Light(g, world, range, frame, now, motion, settings) {
   drawLight(g, world, range, frame, now, motion, settings);

@@ -1,6 +1,7 @@
 // Version 5.0 (Task 5, rulings 560-569): the words of the routed road. Every number is the sim's: the tiles, the price and the bridges come from routeRoad
 // (src/sim/route.js, whose cost is previewRoadTiles' own), the reach of a bridge from BRIDGE_MAX, and a refusal's reason and place from the search that failed.
 import { BRIDGE_MAX } from '../sim/bridges.js';
+import { FERRY } from '../data/ferries.js';
 import { buildingName, plural, reasonText } from './text.js';
 
 export const ROUTE_MODES = ['route', 'straight'];
@@ -30,7 +31,7 @@ export const ROUTE_TEXT = {
   },
   // Why there is no way, in the search's own findings (route.js explain): the water's width against what a bridge spans, the first building in the way.
   refusal(world, r) {
-    if (r.reason === 'too_wide') return `No way across: the water is too wide here (${plural(r.water, 'tile', 'tiles')}; a bridge spans up to ${BRIDGE_MAX})`;
+    if (r.reason === 'too_wide') return `No way across: the water is too wide here (${plural(r.water, 'tile', 'tiles')}; a bridge spans up to ${BRIDGE_MAX})${r.water <= FERRY.max ? ': lay a ferry' : ''}`;   // Version 7.1 (Track F): up to a ferry's width the way on is the Ferry tool
     if (r.reason === 'boxed_in') {
       const b = r.at ? world.buildings[world.occ[r.at[1] * world.size + r.at[0]]] : null;
       return `No way there: buildings close it off${b ? ` (${buildingName(b.type).toLowerCase()} in the way)` : ''}`;
