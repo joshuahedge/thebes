@@ -7,6 +7,7 @@
 // day it is due ends.
 import { GOODS } from '../data/goods.js';
 import { cartPath, cartFraction } from '../sim/carts.js';
+import { hopCum, stepAt } from './ferryPace.js';
 
 // The last road path a cart was drawn on, kept per cart object: a cart whose road has just been cut (it turns round) is still drawn where it was going,
 // along the route it took, though no road joins its stores now. Render-only; a cart not yet drawn when the road breaks (a reload) is not drawn.
@@ -28,10 +29,19 @@ const loaded = (c) => !(c.state === 'return' && c.dest === 'home');
 const outward = (c) => c.state === 'out' || (c.state === 'return' && c.dest === 'source');
 
 // Where a cart stands on its route at a fraction (0 home, 1 source): the point in tiles and the direction of travel (dx, dy) of the leg it is on.
+// Version 7.1.1: a running ferry is one step of the path that takes the crossing's own time (crossingTiles of road, render/ferryPace.js), so the cart
+// moves along the water as long as the sim counts; the point then carries `hop: [from tile, to tile]` (tile indices of the two road tiles it crosses
+// between). A path with no ferry step is divided in equal steps, as before.
 export function pointOnPath(world, path, f) {
   const n = path.length;
   const tile = (t) => ({ x: (t % world.size) + 0.5, y: Math.floor(t / world.size) + 0.5 });
   if (n === 1) return { ...tile(path[0]), dx: 1, dy: 0 };
+  const cum = hopCum(world, path, (t) => t);
+  if (cum) {
+    const at = stepAt(cum, Math.min(1, Math.max(0, f)) * cum[n - 1]), a = tile(path[at.i]), b = tile(path[at.i + 1]);
+    const hop = cum[at.i + 1] - cum[at.i] > 1 ? [path[at.i], path[at.i + 1]] : null;
+    return { x: a.x + (b.x - a.x) * at.k, y: a.y + (b.y - a.y) * at.k, dx: b.x - a.x, dy: b.y - a.y, ...(hop && at.k > 0 && at.k < 1 ? { hop } : {}) };
+  }
   const s = Math.min(n - 1, Math.max(0, f * (n - 1))), i = Math.min(n - 2, Math.floor(s)), k = s - i;
   const a = tile(path[i]), b = tile(path[i + 1]);
   return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, dx: b.x - a.x, dy: b.y - a.y };
@@ -39,6 +49,17 @@ export function pointOnPath(world, path, f) {
 
 // The carts in view as walker entries [{ id, kind, x, y, dir }], at most CART_CAP, nearest the middle of the view first (ties by store id).
 export function cartsAt(world, timeDays, range = null, motion = 'full') {
+  return placedCarts(world, timeDays, range, motion).map(({ entry }) => entry);
+}
+
+// The carts now over a running ferry's water, for the ferry boat that carries each (src/render/ferries.js): [{ id, x, y, left, hop }], one per cart
+// drawn, hop being the two road tiles it crosses between (tile indices). Not under Still (a cart stands at its store's door).
+export function cartsOnFerries(world, timeDays, range = null, motion = 'full') {
+  if (motion === 'still') return [];
+  return placedCarts(world, timeDays, range, motion).filter(({ at }) => at.hop).map(({ c, at, entry }) => ({ id: c.id, x: at.x, y: at.y, left: entry.dir === 3, hop: at.hop }));
+}
+
+function placedCarts(world, timeDays, range, motion) {
   const carts = world.carts;
   if (!carts || !carts.length) return [];
   const mid = range ? { x: (range.x0 + range.x1) / 2, y: (range.y0 + range.y1) / 2 } : null;
@@ -54,6 +75,6 @@ export function cartsAt(world, timeDays, range = null, motion = 'full') {
   return found.slice(0, CART_CAP).map(({ c, at }) => {
     const sign = outward(c) ? 1 : -1;
     const left = still ? false : (at.dx - at.dy) * sign < 0;                 // the screen's x runs with x - y: a cart heading down-left or up-left faces left
-    return { id: CART_ID_BASE + c.id, kind: cartKind(loaded(c) ? c.good : null, left), x: at.x, y: at.y, dir: left ? 3 : 1, cart: true };
+    return { c, at, entry: { id: CART_ID_BASE + c.id, kind: cartKind(loaded(c) ? c.good : null, left), x: at.x, y: at.y, dir: left ? 3 : 1, cart: true } };
   });
 }

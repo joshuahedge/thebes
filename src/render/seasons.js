@@ -11,7 +11,10 @@ import { SEASON_LOOK, SEASON_MARKS, SEASON_SALT } from '../data/seasons.js';
 import { seasonAt } from '../sim/seasons.js';
 import { hash2 } from '../sim/rng.js';
 import { p } from './iso.js';
-import { riverBanks, smoothPath } from './terrainWater.js';
+import { riverBanks, smoothPath, blobWater } from './terrainWater.js';
+import { blobFor } from './terrainBaker.js';
+import { T } from '../sim/terrain.js';
+import { idx } from '../sim/grid.js';
 import { decorAt } from './renderer.js';
 
 // The looks to lay down, as [season id, weight]: the season, and over its last month the next one as the blend rises (Still: the season only).
@@ -70,12 +73,34 @@ function riverWash(g, world, range, looks) {
   for (const [id, w] of looks) { const [colour, alpha] = SEASON_LOOK[id].water; if (alpha * w > 0.004) g.path(shape, colour, { alpha: alpha * w }); }
 }
 
+// Version 7.1.1 (ruling 1024 mended): a 7.1 layout's water has no banks to follow (it is drawn as tile blobs, terrainWater.js riverPools), so the same wash is laid
+// over each water tile's blob, the shape the baked water pass uses, all of a look as one path (no seams, no doubled alpha). The blobs are kept per world.
+const blobCache = new WeakMap();   // world -> Map(tile index -> polygon); the terrain never changes after the map is made
+function blobWash(g, world, range, looks) {
+  let blobs = blobCache.get(world);
+  if (!blobs) blobCache.set(world, blobs = new Map());
+  const n = world.size, list = [];
+  for (let y = Math.max(0, range.y0 - 1); y <= Math.min(n - 1, range.y1 + 1); y++) {
+    let x0 = Math.max(0, range.x0 - 1), x1 = Math.min(n - 1, range.x1 + 1);
+    if (g.cull) { const [a, b] = g.cull.row(y, 24); if (a > x0) x0 = a; if (b < x1) x1 = b; }
+    for (let x = x0; x <= x1; x++) {
+      const i = idx(n, x, y);
+      if (world.terrain[i] !== T.WATER) continue;
+      let pts = blobs.get(i);
+      if (!pts) blobs.set(i, pts = blobFor(world, x, y, T.WATER, 3, -0.1));
+      list.push(pts);
+    }
+  }
+  if (!list.length) return;
+  for (const [id, w] of looks) { const [colour, alpha] = SEASON_LOOK[id].water; if (alpha * w > 0.004) g.polys(list, colour, { alpha: alpha * w }); }
+}
+
 export function drawSeasonGround(g, world, range, now, motion) {
   const looks = seasonLooks(world, motion), n = world.size;
   const x0 = Math.max(0, range.x0), y0 = Math.max(0, range.y0), x1 = Math.min(n, range.x1 + 1), y1 = Math.min(n, range.y1 + 1);
   if (x1 <= x0 || y1 <= y0) return;
   const land = [p(x0, y0), p(x1, y0), p(x1, y1), p(x0, y1)];
   for (const [id, w] of looks) { const [colour, alpha] = SEASON_LOOK[id].wash; if (alpha * w > 0.004) g.poly(land, colour, { alpha: alpha * w }); }
-  riverWash(g, world, range, looks);
+  if (blobWater(world)) blobWash(g, world, range, looks); else riverWash(g, world, range, looks);
   palmMarks(g, world, range, leadOf(looks));
 }

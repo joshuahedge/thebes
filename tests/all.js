@@ -161,3 +161,5 @@ import './v70/all.js';
 import './v71/all.js';
 // Version 7.1.1: one aggregator (tests/v711/all.js); nothing is added here.
 import './v711/all.js';
+// Version 7.1.1 (fix batch C): render-only gaps.
+import './v711c.js';

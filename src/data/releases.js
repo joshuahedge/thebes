@@ -18,6 +18,7 @@ export const RELEASES = [
       'In the lesson, the Undo message after a placement no longer sits on top of the next lesson card, and a lesson card now waits until you have finished a road or plots you are drawing. The step you have just completed does not offer Undo.',
       'Every Undo message now has a close button (the cross), and buttons on cards, dialogs and sheets sit in the middle of their row instead of at one side.',
       "The last button of What's new and of the install guide now says Continue, and a lesson card puts away a placing tool that was still on behind it.",
+      "The cataract has white rapids round its rocks, the new maps' rivers take the flood season's colour and the shimmer, and carts and walkers cross a ferry at the crossing's real pace, a cart on a boat of its own.",
     ],
   },
   {
