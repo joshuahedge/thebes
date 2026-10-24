@@ -22,8 +22,8 @@ function card({ hasSave = true, records = null, shared = '', root = null } = {})
   const m = root ? { root, cleanup() {} } : mount('<div id="title" hidden></div>');
   const container = m.root.querySelector('#title');
   const started = [], levels = [];
-  createTitleCard({ container, hasSave, onContinue() {}, onNewCity() {}, onSound() {}, onDifficulty: (l) => levels.push(l),
-    decorate: titleDecor({ records, shared, startSeed: (s) => started.push(s), clock: () => OCT_11_2026, dpr: 1 }) });
+  createTitleCard({ container, hasSave, onContinue() {}, onNewCity() {}, onSound() {},
+    decorate: titleDecor({ records, shared, startSeed: (s) => started.push(s), setDifficulty: (l) => levels.push(l), clock: () => OCT_11_2026, dpr: 1 }) });   // Version 8.0: the level tiles are on the new-city card, so Start this seed keeps the link's level through setDifficulty alone
   return { container, started, levels, cleanup: m.cleanup };
 }
 
@@ -84,7 +84,6 @@ describe('s3 score title card', () => {
       expect(total).toBe(Math.round(271 * 1.25));
       fire(sec.querySelector('.start-seed'), 'click');
       expect([c.levels, c.started]).toEqual([['hard'], [202641]]);
-      expect(c.container.querySelector('.choice.difficulty[data-value="hard"]').getAttribute('aria-pressed')).toBe('true');
     } finally { c.cleanup(); }
     const none = card({ shared: new URL(link).hash });
     try { expect(none.container.querySelector('.your-best').textContent).toBe(TITLE_SCORE_TEXT.yourBest(null)); } finally { none.cleanup(); }

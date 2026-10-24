@@ -23,3 +23,15 @@ export function fire(target, type, init = {}) {
 export const key = (target, k, init = {}) => fire(target, 'keydown', { key: k, ...init });
 
 export const flush = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+// Version 8.0 (Track U): the title's New city (or Play) opens the new-city card, and its Start begins the city. scope: any node holding the title (a test root, the
+// title container, or document). openNewCity leaves the card open for a test that picks a level or a size first.
+export function openNewCity(scope = document) {
+  const open = scope.querySelector('#title .new-city') || scope.querySelector('.new-city');
+  fire(open, 'click');
+  return open;
+}
+export function startNewCity(scope = document) {
+  openNewCity(scope);
+  fire(scope.querySelector('#title .start-city') || scope.querySelector('.start-city'), 'click');
+}

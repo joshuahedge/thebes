@@ -25,14 +25,13 @@ describe('install flow', () => {
     expect(readEnvironment({ navigator: { userAgent: DESKTOP }, matchMedia: () => ({ matches: true }), onbeforeinstallprompt: null })).toEqual({ ua: DESKTOP, standalone: true, hasBeforeInstallPrompt: true });
     expect(readEnvironment({ navigator: { userAgent: DESKTOP }, matchMedia: () => { throw new Error('x'); } }).standalone).toBe(false);
   });
-  it('decides the guide, the install button, Bring a city and the notice from the environment', () => {
+  it('decides the guide, the install button and the notice from the environment (no Bring a city: Version 8.0)', () => {
     const flow = (input, hasSave = false, prompt = null) => createInstallFlow({ env: detectEnvironment(input), hasSave: () => hasSave, getPrompt: () => prompt });
     const ios = flow({ ua: IOS });
-    expect([ios.shouldShowGuide(), ios.canInstall(), ios.canBring(), ios.notice()]).toEqual([true, true, false, null]);
+    expect([ios.shouldShowGuide(), ios.canInstall(), typeof ios.canBring, ios.notice()]).toEqual([true, true, 'undefined', null]);
     expect(flow({ ua: IOS }, true).shouldShowGuide()).toBe(false);
     const home = flow({ ua: IOS, standalone: true });
-    expect([home.shouldShowGuide(), home.canInstall(), home.canBring()]).toEqual([false, false, true]);
-    expect(flow({ ua: IOS, standalone: true }, true).canBring()).toBe(false);
+    expect([home.shouldShowGuide(), home.canInstall()]).toEqual([false, false]);
     const inApp = flow({ ua: IN_APP_IOS });
     expect([inApp.shouldShowGuide(), inApp.canInstall(), inApp.notice()]).toEqual([false, false, 'safari']);
     expect(flow({ ua: INSTAGRAM }).notice()).toBe('chrome');
@@ -40,7 +39,6 @@ describe('install flow', () => {
     expect(flow({ ua: ANDROID }, false, { prompt() {} }).canInstall()).toBe(true);     // the event arrived later
     expect(flow({ ua: DESKTOP, hasBeforeInstallPrompt: true }).canInstall()).toBe(true);
     expect(flow({ ua: DESKTOP }).shouldShowGuide()).toBe(false);
-    expect(flow({ ua: DESKTOP, standalone: true }).canBring()).toBe(true);
   });
   it('prompts through the captured event, else falls back to the guide', async () => {
     const calls = [];

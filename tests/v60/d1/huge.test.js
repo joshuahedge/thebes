@@ -18,7 +18,7 @@ import { boot } from '../../../src/boot.js';
 import { createSaveStore } from '../../../src/save/store.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
-import { fire } from '../../helpers/dom.js';
+import { fire, startNewCity, openNewCity } from '../../helpers/dom.js';
 
 const PARTS = { people: 72, prosperity: 65, culture: 58, safety: 40, monuments: 36 };
 const memory = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
@@ -135,8 +135,9 @@ describe('v60 d1 huge map: choosing it on the title starts a Huge city with its 
   it('starts a 112 city from the picker, with a camera that knows the size, and from ?size=112', async () => {
     const g = await open();
     try {
+      openNewCity(g.shell.root);                                                        // Version 8.0: the size is on the new-city card, under More choices
       fire(g.shell.root.querySelector('#title .choice.mapsize[data-value="huge"]'), 'click');
-      fire(g.shell.root.querySelector('#title .new-city'), 'click');
+      fire(g.shell.root.querySelector('#title .start-city'), 'click');
       const game = g.api.game();
       expect([game.world.size, game.world.mapSize, game.cam.mapSize]).toEqual([112, 112, 112]);
     } finally { g.close(); }
@@ -148,11 +149,13 @@ describe('v60 d1 huge map: choosing it on the title starts a Huge city with its 
   it('tells a phone "Best on a tablet or computer" on the real title and a laptop nothing', async () => {
     const phone = await open('', 390, 844);
     try {
+      openNewCity(phone.shell.root);
       fire(phone.shell.root.querySelector('#title .choice.mapsize[data-value="huge"]'), 'click');
       expect(phone.shell.root.querySelector('#title .size-note').textContent).toBe('Best on a tablet or computer');
     } finally { phone.close(); }
     const laptop = await open('', 1280, 800);
     try {
+      openNewCity(laptop.shell.root);
       fire(laptop.shell.root.querySelector('#title .choice.mapsize[data-value="huge"]'), 'click');
       expect(laptop.shell.root.querySelector('#title .size-note').hidden).toBe(true);
     } finally { laptop.close(); }

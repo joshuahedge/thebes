@@ -14,7 +14,7 @@ import { boot } from '../../../src/boot.js';
 import { createSaveStore } from '../../../src/save/store.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
-import { mount, fire } from '../../helpers/dom.js';
+import { mount, fire, startNewCity, openNewCity } from '../../helpers/dom.js';
 
 const PARTS = { people: 72, prosperity: 65, culture: 58, safety: 40, monuments: 36 };
 const memory = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
@@ -26,6 +26,7 @@ describe('s46 map sizes: the picker on the title card (ruling 333)', () => {
     const m = mount('<div id="title" hidden></div>');
     const chosen = [];
     createTitleCard({ container: m.root.querySelector('#title'), hasSave: false, onContinue() {}, onNewCity() {}, onSound() {}, onDifficulty() {}, onMapSize: (id) => chosen.push(id), screen: () => ({ width: 1280, height: 800 }), ...extra });
+    openNewCity(m.root);   // Version 8.0: the size picker is on the new-city card, under More choices
     return { root: m.root.querySelector('#title'), chosen, cleanup: m.cleanup };
   }
   it('offers Small, Normal, Large and Huge, Normal pressed, with a line for each from the sim\'s sizes, and tells what is chosen', () => {
@@ -77,8 +78,9 @@ describe('s46 map sizes: a new city starts at the size chosen', () => {
     for (const [pick, want] of [[null, 64], ['small', 48], ['large', 80], ['huge', 112], ['normal', 64]]) {
       const g = await open();
       try {
+        openNewCity(g.shell.root);
         if (pick) fire(g.shell.root.querySelector(`#title .choice.mapsize[data-value="${pick}"]`), 'click');
-        fire(g.shell.root.querySelector('#title .new-city'), 'click');
+        fire(g.shell.root.querySelector('#title .start-city'), 'click');
         const w = g.api.game().world;
         expect([pick, w.size, w.mapSize, w.terrain.length]).toEqual([pick, want, want, want * want]);
       } finally { g.close(); }

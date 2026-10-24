@@ -6,19 +6,19 @@ import { APP_VERSION } from '../../../src/data/ui.js';
 
 describe('v60 docs releases', () => {
   it('6.0.1, 6.0 and 5.0 carry their merge commits (Versions 7.0, 7.1 and 7.1.1 are newer)', () => {
-    expect([RELEASES[0].version, RELEASES[0].build, APP_VERSION]).toEqual(['7.1.1', 'live', '7.1.1']);
-    expect([RELEASES[3].version, RELEASES[3].build]).toEqual(['6.0.1', '4502f53']);
-    expect([RELEASES[4].version, RELEASES[4].title, RELEASES[4].build]).toEqual(['6.0', 'A harder Nile', '01da086']);
-    expect([RELEASES[5].version, RELEASES[5].build]).toEqual(['5.0', '486006a']);
+    expect([RELEASES[0].version, RELEASES[0].build, APP_VERSION]).toEqual(['8.0', 'live', '8.0']);
+    expect([RELEASES[4].version, RELEASES[4].build]).toEqual(['6.0.1', '4502f53']);
+    expect([RELEASES[5].version, RELEASES[5].title, RELEASES[5].build]).toEqual(['6.0', 'A harder Nile', '01da086']);
+    expect([RELEASES[6].version, RELEASES[6].build]).toEqual(['5.0', '486006a']);
   });
   it('names the features of the version', () => {
-    const notes = RELEASES[4].new.join(' ');
+    const notes = RELEASES[5].new.join(' ');
     for (const word of ['court', 'demands', 'Great Capital', 'great work', 'chieftain', 'Plague', 'low Nile', 'warning', 'Large plots', 'guided first city', 'Huge', 'Desktop keys', 'Sound is on']) {
       expect([word, notes.includes(word)]).toEqual([word, true]);
     }
   });
   it('6.0.1 says the dangers ease while the great temple rises, and the offering fix', () => {
-    const notes = [...RELEASES[3].new, ...RELEASES[3].fixed].join(' ');
+    const notes = [...RELEASES[4].new, ...RELEASES[4].fixed].join(' ');
     for (const word of ['great temple rises', 'no plague, low Nile, locusts or blight', 'Raids and fire', 'offering']) expect([word, notes.includes(word)]).toEqual([word, true]);
   });
 });

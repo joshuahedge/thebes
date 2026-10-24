@@ -77,7 +77,7 @@ describe('s4 motion settings and the Motion row', () => {
       s.destroy();
     } finally { cleanup(); }
   });
-  it('shows the four choices, the status line and what the level moves, following a change of the device at once', () => {
+  it('has no Motion row in Options (Version 8.0), while the rig\'s device stand-in still moves the level', () => {
     const { root, cleanup } = mount('<div id="body"></div>');
     try {
       let asks = true;
@@ -85,21 +85,11 @@ describe('s4 motion settings and the Motion row', () => {
       const menus = createMenuSheets({ store: createStore(INITIAL_UI_STATE), settings: s, toasts: { show() {} } });
       const body = root.querySelector('#body');
       menus.settings(body, { close() {} });
-      const status = body.querySelector('.motion-status'), line = body.querySelector('.motion-line');
-      const choices = [...body.querySelectorAll('.choice.motion')];
-      expect(choices.map((b) => [b.dataset.value, b.textContent, b.getAttribute('aria-pressed')])).toEqual([
-        ['system', 'Follow the device', 'true'], ['full', 'Full', 'false'], ['gentle', 'Gentle', 'false'], ['still', 'Still', 'false']]);
-      expect([status.textContent, line.textContent, status.getAttribute('aria-live')]).toEqual([MOTION4_TEXT.status(motionStatus(s)), MOTION4_TEXT.levelLines.gentle, 'polite']);
-      expect(status.textContent).toBe('Motion: Gentle (your device asks for less motion)');
+      expect([body.querySelectorAll('.choice.motion, .motion-status, .motion-line, .motion-row').length, body.textContent.includes('Motion')]).toEqual([0, false]);
+      expect(s.motionLevel()).toBe('gentle');                                      // the rig forces Gentle, as every old test and screenshot expects
       asks = false;
-      watch.changed();                                                             // the device's setting changed: the words follow it
-      expect([status.textContent, line.textContent]).toEqual(["Motion: Full (your device's setting)", MOTION4_TEXT.levelLines.full]);
-      fire(choices[3], 'click');
-      expect([status.textContent, line.textContent, choices[3].getAttribute('aria-pressed'), choices[0].getAttribute('aria-pressed')])
-        .toEqual(['Motion: Still', MOTION4_TEXT.levelLines.still, 'true', 'false']);
-      body.remove();                                                               // the sheet closed: the row stops listening
-      s.set({ motion: 'full' });
-      expect(status.textContent).toBe('Motion: Still');
+      watch.changed();
+      expect([s.motionLevel(), root.dataset.motion]).toEqual(['full', 'full']);
       s.destroy();
     } finally { cleanup(); }
   });
@@ -131,13 +121,13 @@ describe('s4 motion Gentle tip', () => {
   const settingsAsking = (asks) => createSettings({ storage: noStorage, root: document.body, systemReducedMotion: () => asks, watchSystem: () => () => {} });
   it('has its words and its own trigger, short enough for a tip', () => {
     const tip = TIPS.find((t) => t.id === 'gentle_motion');
-    expect([tip.trigger, tip.priority, TIP_TEXT.gentle_motion]).toEqual(['gentleMotion', false, 'Your device asks for less motion, so the city moves gently. Settings → Motion changes it.']);
+    expect([tip.trigger, tip.priority, TIP_TEXT.gentle_motion]).toEqual(['gentleMotion', false, 'Your device asks for less motion, so the city moves gently.']);   // Version 8.0: no Motion row to point at
     expect(TIP_TEXT.gentle_motion.split(/\s+/).length).toBeLessThanOrEqual(20);
   });
   // M7 (final review): How to play lists every tip on every device, so the Gentle tip's line there must be true on any device
   // and at any level: it states motionLevelOf's rule, checked both ways.
   it('lists the Gentle tip in How to play by its rule, true whether or not the device asks and at any level', () => {
-    expect(TIP_HELP_TEXT.gentle_motion).toBe('While Settings → Motion follows the device, a device that asks for less motion moves the city gently.');
+    expect(TIP_HELP_TEXT.gentle_motion).toBe('A device that asks for less motion moves the city gently.');
     expect([motionLevelOf('system', true), motionLevelOf('system', false), motionLevelOf('full', true), motionLevelOf('still', true)]).toEqual(['gentle', 'full', 'full', 'still']);
     for (const asks of [true, false]) {
       const { root, cleanup } = mount('<div id="body"></div>');
@@ -145,7 +135,7 @@ describe('s4 motion Gentle tip', () => {
       try {
         createMenuSheets({ store: createStore(INITIAL_UI_STATE), settings, toasts: { show() {} } }).help(root.querySelector('#body'), { close() {} });
         const items = [...root.querySelectorAll('.tips-list li')].map((li) => li.textContent);
-        expect([asks, items.includes(TIP_HELP_TEXT.gentle_motion), items.includes(TIP_TEXT.gentle_motion), items.length]).toEqual([asks, true, false, TIPS.length]);
+        expect([asks, items.includes(TIP_HELP_TEXT.gentle_motion), items.includes(TIP_TEXT.gentle_motion), items.length]).toEqual([asks, false, false, TIPS.length - 1]);   // Version 8.0: a player always has full motion, so How to play leaves the Gentle tip out
       } finally { cleanup(); settings.destroy(); }
     }
   });

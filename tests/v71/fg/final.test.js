@@ -79,7 +79,7 @@ describe('v71 fg lesson card: Ctrl+Z', () => {
   it('with the card up Ctrl+Z, Cmd+Z, Ctrl+Y and Ctrl+Shift+Z leave the undo list alone; with the card gone Ctrl+Z undoes', async () => {
     const shell = await mountShell(1280, 800);
     const history = fakeHistory();
-    const storage = memory({ 'thebes.settings': JSON.stringify({ lessonDone: true, cardsSeen: true, textSize: 100, motion: 'still' }) });
+    const storage = memory({ 'thebes.settings': JSON.stringify({ lessonDone: true, cardsSeen: true, textSize: 100, motion: 'still', motionRig: true }) });
     const api = await boot(document, window, {
       root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams('nosw=1'), now: () => performance.now(), clock: () => 1760000000000, storage,
       envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,

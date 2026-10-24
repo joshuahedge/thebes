@@ -26,7 +26,7 @@ import { T, reasonText, alertText, ALERT_TEXT, FIRE_TEXT, RAID_TEXT, ART_TEXT, D
 import { el } from '../../../src/ui/components.js';
 import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
 import { makeCanvas } from '../../helpers/canvas.js';
-import { mount, fire } from '../../helpers/dom.js';
+import { mount, fire, startNewCity } from '../../helpers/dom.js';
 import { rigUI, mountShell, fakeHistory } from '../../helpers/uiWorld.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 
@@ -343,7 +343,7 @@ describe('s3 contract records, sharing and boot', () => {
       expect(r.api.hooks.records).toBe(r.api.records);                                 // for Seal this reign
       const noted = [];
       r.api.records.noteCity = (world) => noted.push(world.cityId);
-      fire(r.root.querySelector('#title .new-city'), 'click');
+      startNewCity(r.root);
       const g = r.api.game();
       expect(typeof g.world.cityId).toBe('string');
       expect([window.__thebes.world, typeof window.__thebes.devScene]).toEqual([g.world, 'function']);
@@ -354,15 +354,15 @@ describe('s3 contract records, sharing and boot', () => {
       expect(JSON.parse(text).records).toEqual(emptyRecords());
     } finally { r.cleanup(); }
   });
-  it('gives a loaded city without an id its own, and merges an imported file\'s records', async () => {
+  it('gives a loaded city without an id its own (Version 8.0: there is no import to merge records through any more)', async () => {
     const old = createWorld({ seed: 6 });
-    const file = new File([packSave(old, { savedAt: 1, lastSpeed: 1, records: { ...emptyRecords(), cities: [{ id: 'z' }] } })], 'c.json', { type: 'application/json' });
-    const r = await bootRig({ platform: { pick: async () => file } });
+    old.cityId = null;                                                                // a city from before Stage 3
+    const store = createSaveStore({ idb: fakeIndexedDB(), local: null });
+    await store.save(packSave(old, { savedAt: 1, lastSpeed: 1 }));
+    const r = await bootRig({ store });
     try {
-      const merged = [];
-      r.api.records.merge = (other) => merged.push(other.cities.map((c) => c.id));
-      await r.api.hooks.importCity();
-      expect(merged).toEqual([['z']]);
+      expect(typeof r.api.hooks.importCity).toBe('undefined');
+      fire(r.root.querySelector('#title .continue'), 'click');
       expect(typeof r.api.game().world.cityId).toBe('string');
     } finally { r.cleanup(); }
   });

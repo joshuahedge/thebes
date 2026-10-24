@@ -21,7 +21,7 @@ import { TUTORIAL_SHOT } from '../../../src/dev/tutorialScenes.js';
 import { tileToScreen } from '../../../src/render/camera.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
-import { fire } from '../../helpers/dom.js';
+import { fire, startNewCity } from '../../helpers/dom.js';
 
 const memory = (data = {}) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, data });
 const NEW_IDS = ['large', 'demand', 'plague', 'drought', 'locusts', 'raid'];
@@ -202,7 +202,7 @@ describe('v60 d2 picture cards: in the page', () => {
   it('shows one card alone for a first moment (no count, dots, Skip or Back; one Got it), pauses the game, and leaves the intro flag and the rest alone', async () => {
     const s = await open();
     try {
-      fire(document.querySelector('#title .new-city'), 'click');
+      startNewCity(document);
       const g = s.api.game();
       g.ui.speedControl.set(2);
       expect(s.api.hooks.pictureCard('large')).toBe(true);
@@ -226,14 +226,14 @@ describe('v60 d2 picture cards: in the page', () => {
     } finally { s.cleanup(); }
     const f = await open({ settings: { cardsSeen: false } });
     try {
-      fire(document.querySelector('#title .new-city'), 'click');
+      startNewCity(document);
       expect(document.querySelector('.pc-count').textContent).toBe('1 of 7');
     } finally { f.cleanup(); }
   });
   it('opens the card by itself in a real game when its moment comes in the events the loop reports, once', async () => {
     const s = await open();
     try {
-      fire(document.querySelector('#title .new-city'), 'click');
+      startNewCity(document);
       const g = s.api.game();
       g.ui.speedControl.set(2);
       const home = insertBuilding(g.world, makeBuilding(g.world, 'house', g.world.focus.x + 4, g.world.focus.y - 4));

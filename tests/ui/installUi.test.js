@@ -10,7 +10,7 @@ const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chr
 const flowFor = (input, hasSave = false) => createInstallFlow({ env: detectEnvironment(input), hasSave: () => hasSave, getPrompt: () => ({ prompt() {} }) });
 
 describe('ui install guide', () => {
-  it('renders the iOS steps, the Android button, the export-first warning and Bring a city', () => {
+  it('renders the iOS steps, the Android button and the new-storage warning (no Bring a city any more)', () => {
     const { root, cleanup } = mount();
     const log = [];
     installGuide(flowFor({ ua: IOS }), {})(root);
@@ -29,10 +29,9 @@ describe('ui install guide', () => {
     expect(log).toEqual(['prompt']);
     expect(root.textContent).toContain(T.installNotOffered);
     root.innerHTML = '';
-    installGuide(flowFor({ ua: IOS, standalone: true }), { onBring: () => log.push('bring') })(root);
-    expect(root.textContent).toContain(T.bringCityHelp);
-    fire(root.querySelector('.bring'), 'click');
-    expect(log).toEqual(['prompt', 'bring']);
+    installGuide(flowFor({ ua: IOS, standalone: true }), {})(root);
+    expect([root.querySelector('.bring'), root.textContent.includes('Safari')]).toEqual([null, false]);   // Version 8.0: Bring a city from Safari is gone, in the app as anywhere
+    expect(root.textContent).toContain(T.installWhy);
     expect(noticeText('safari')).toBe(T.openInSafari);
     expect(noticeText('chrome')).toBe(T.openInChrome);
     expect(noticeText(null)).toBe(null);
@@ -46,24 +45,20 @@ describe('ui install guide', () => {
     expect(notice.children.length).toBe(0);
     cleanup();
   });
-  it('title card: Bring a city, a late Install button, and the guide in place of the buttons', () => {
+  it('title card: a late Install button, and the guide in place of the buttons', () => {
     const { root, cleanup } = mount('<div id="title" hidden></div>');
     const container = root.querySelector('#title');
     const log = [];
-    const card = createTitleCard({ container, hasSave: false, canInstall: false, canBring: true, onContinue: () => {}, onNewCity: () => {}, onInstall: () => log.push('install'), onBring: () => log.push('bring') });
-    const bring = container.querySelector('.bring');
-    expect(bring.textContent).toBe(T.bringCity);
-    expect(bring.previousElementSibling.classList.contains('title-more')).toBe(true);                        // New city, its difficulty (spec 4.18), the row of Settings and What's new (Version 6.0), then Bring a city
-    expect(bring.previousElementSibling.previousElementSibling.classList.contains('title-difficulty')).toBe(true);
-    expect(bring.previousElementSibling.previousElementSibling.previousElementSibling.classList.contains('new-city')).toBe(true);
-    fire(bring, 'click');
-    expect(log).toEqual(['bring']);
+    const card = createTitleCard({ container, hasSave: false, canInstall: false, onContinue: () => {}, onNewCity: () => {}, onInstall: () => log.push('install') });
+    expect(container.querySelector('.bring')).toBe(null);                                                   // Version 8.0: no Bring a city, on any card
     const install = container.querySelector('.install');
+    expect(install.previousElementSibling.classList.contains('title-more')).toBe(true);                     // Play, the row of Options and What's new, then Install where offered
+    expect(install.previousElementSibling.previousElementSibling.classList.contains('new-city')).toBe(true);
     expect(install.hidden).toBe(true);
     card.setCanInstall(true);
     expect(install.hidden).toBe(false);
     fire(install, 'click');
-    expect(log).toEqual(['bring', 'install']);
+    expect(log).toEqual(['install']);
     card.showGuide((body) => body.append(Object.assign(document.createElement('p'), { textContent: 'guide here', className: 'probe' })));
     expect(container.querySelector('.title-buttons').hidden).toBe(true);
     expect(container.querySelector('.guide .probe').textContent).toBe('guide here');

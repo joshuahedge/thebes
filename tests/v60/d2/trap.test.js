@@ -85,7 +85,7 @@ describe('v60 d2 the staged fire always goes out (ruling 820)', () => {
 async function lessonPage(stepId, { width, height, text = 100 }) {
   const shell = await mountShell(width, height);
   const history = fakeHistory();
-  const storage = memory({ 'thebes.settings': JSON.stringify({ lessonDone: true, cardsSeen: true, textSize: text, motion: 'still' }) });
+  const storage = memory({ 'thebes.settings': JSON.stringify({ lessonDone: true, cardsSeen: true, textSize: text, motion: 'still', motionRig: true }) });
   const api = await boot(document, window, {
     root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams('nosw=1'), now: () => performance.now(), clock: () => 1760000000000, storage,
     envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,

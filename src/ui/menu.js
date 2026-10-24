@@ -4,9 +4,10 @@ import { KEYS, APP_VERSION } from '../data/ui.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { TIPS } from '../data/tips.js';
 import { openSheet } from './modes.js';
-import { FIRE_REACTIONS, MOTION_SETTINGS, motionStatus } from './settings.js';
-import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, SEASON_TEXT } from './text.js';
+import { FIRE_REACTIONS } from './settings.js';
+import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, V711_TEXT, V80_U_TEXT, SEASON_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
+import { versionLine } from './s46/whatsNew.js';   // Version 8.0: the version and build moved from the title to the foot of Options
 import { MAPS_HELP } from './v71/mapsText.js';   // Version 7.1 (Track M): How to play's Maps note
 import { V71_HELP } from './v71/ferryText.js';   // Version 7.1 (Track F): How to play's Ferries entry (and importing it registers the ferries tip)
 
@@ -30,8 +31,9 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
   const hookOr = (name) => () => { if (typeof hooks[name] === 'function') hooks[name](); else toasts.show(T.notYet); };
 
   function menu(body, { close }) {
-    // Version 6.0 (Track D2): the lesson's menu has no New city, Export or Import (the lesson's city is never kept) and leaves the lesson instead; any other
-    // game's menu replays the lesson when the page offers it (hooks.lesson), saving the city first.
+    // Version 6.0 (Track D2): the lesson's menu has no New city (the lesson's city is never kept) and leaves the lesson instead; any other
+    // game's menu replays the lesson when the page offers it (hooks.lesson), saving the city first. Version 8.0 (Track U): Export city moved to Options >
+    // Saves, and Import city is gone with Bring a city from Safari.
     const inLesson = Boolean(hooks.lessonRun);
     body.append(el('div', { class: 'menu-list' }, [
       button(T.continueGame, { class: 'primary', onClick: close }),
@@ -47,8 +49,6 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
           try { if (typeof hooks.save === 'function') saved = (await hooks.save('lesson')) !== false; } catch (e) { saved = false; }
           if (saved) hooks.lesson(); else toasts.show(D2_TEXT.menuLessonNotSaved);
         } } }) }) : null,
-      inLesson ? null : button(T.exportCity, { onClick: hookOr('exportCity') }),
-      inLesson ? null : button(T.importCity, { onClick: hookOr('importCity') }),
       typeof hooks.install === 'function' && (typeof hooks.canInstall !== 'function' || hooks.canInstall()) ? button(T.installMenu, { class: 'install', onClick: () => hooks.install() }) : null,
       button(T.settings, { onClick: () => open('settings') }),
       button(T.howToPlay, { class: 'how-to-play-row', 'aria-keyshortcuts': settings.get().keyboardShortcuts !== false ? '?' : null, onClick: () => open('help') }),
@@ -103,26 +103,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     return el('div', { class: 'row' }, [el('span', { text: label }), el('span', { class: 'choices', role: 'group', 'aria-label': label }, buttons)]);
   }
 
-  // Stage 4 (spec 5.4, ruling 216, Track E): one Motion row replaces Stage 3's Reduce motion and Ambient motion rows. Under
-  // it, a status line says what it is doing ("Motion: Gentle (your device asks for less motion)", settings.js motionStatus)
-  // and a line says what that level moves. Both follow every change at once, a change of the device's own setting
-  // included (settings tell their subscribers), until the sheet closes. Track G adds Music and its volume.
-  function motionRow() {
-    const M = MOTION4_TEXT;
-    const row = choiceRow(M.motion, 'motion', MOTION_SETTINGS.map((m) => [m, M.choices[m]]));
-    const status = el('p', { class: 'motion-status small', 'aria-live': 'polite' });
-    const line = el('p', { class: 'motion-line small muted' });
-    const buttons = [...row.querySelectorAll('.choice.motion')];
-    const sync = () => {
-      const s = motionStatus(settings);
-      status.textContent = M.status(s);
-      line.textContent = M.levelLines[s.level];
-      for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.value === s.setting));
-    };
-    sync();
-    const stop = settings.subscribe(() => { if (status.isConnected) sync(); else stop(); });   // the sheet has closed: stop listening
-    return el('div', { class: 'motion-row' }, [row, status, line]);
-  }
+  // Version 8.0 (Track U, ruling 1147): the Motion row is gone; the game always moves in full (settings.js says how the test rig still forces Gentle).
 
   // Stage 4, Track G (spec 5.5, ruling 269): Music On / Off and its volume, 0-100 in tens with a 44 px − and + (each
   // disabled at its end), beside Sound and separate from it.
@@ -144,8 +125,10 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
   }
 
   function settingsSheet(body) {
-    const D = DANGER_UI_TEXT;
-    const motion = motionRow();
+    const D = DANGER_UI_TEXT, G = V80_U_TEXT.groups;
+    // Version 8.0 (Track U, ruling 1149): the rows sit under four small headings, Sound, Display, Controls and Saves (each a labelled group), so the sheet reads as
+    // four short lists instead of one long one.
+    const group = (key, name, ...rows) => el('section', { class: `options-group ${key}`, 'aria-labelledby': `options-${key}` }, [el('h3', { id: `options-${key}`, text: name }), ...rows]);
     // Version 7.0 (Track S, ruling 935): while Sound is Off the Music and Effects rows are dimmed (class silenced: they still change, and take effect when Sound
     // is back on); the note under them says why in words.
     const soundRows = [...musicRows(), effectsRow(hooks.sfx)];
@@ -160,20 +143,26 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     };
     dim();
     const stopDim = settings.subscribe(() => { if (soundRows[0].isConnected) dim(); else stopDim(); });   // the sheet has closed: stop listening
-    body.append(
-      switchRow(T.sound, 'sound'), ...soundRows, el('p', { class: 'sound-note small muted', text: SEASON_TEXT.soundNote }), switchRow(T.vibration, 'vibration'),
-      switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'),
-      choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%']]),
-      motion,
-      // Version 7.0 (Track S): Day and night on or off (Still keeps daylight whatever it says), after the Motion row it depends on.
-      switchRow(SEASON_TEXT.dayNight, 'dayNight'), el('p', { class: 'daynight-note small muted', text: SEASON_TEXT.dayNightNote }),
-      // Spec 4.3: what a fire no staffed firehouse reaches does to the speed, after the city's first (which always pauses).
-      choiceRow(D.onAFire, 'fireReaction', FIRE_REACTIONS.map((k) => [k, D.fireReactions[k]])),
-      el('p', { class: 'fire-note small muted', text: D.onAFireNote }),
-      choiceRow(T.helpLevel, 'help', [['full', HELP_NAMES.full], ['tips', HELP_NAMES.tips], ['off', HELP_NAMES.off]]),
-      // Spec 4.18: the level the next new city starts at; the city being played keeps its own (the summary names it).
-      choiceRow(T.difficultyForNewCities, 'difficulty', DIFFICULTY_ORDER.map((d) => [d, DIFFICULTY_NAMES[d]])),
+    // Saves: Export city, a file copy of the city being played (no import: Version 8.0 ruling 1146), where there is a city to export (not the lesson's, which is
+    // never kept); and the level the next new city starts at (spec 4.18), which the in-game New city has no card to pick.
+    const canExport = typeof hooks.exportCity === 'function' && !hooks.lessonRun;
+    const saves = [
+      canExport ? el('div', { class: 'row export-row' }, [button(T.exportCity, { class: 'export-city', onClick: () => hooks.exportCity() }), el('p', { class: 'export-note small muted', text: V80_U_TEXT.exportNote })]) : null,
+      choiceRow(V80_U_TEXT.newCityLevel, 'difficulty', DIFFICULTY_ORDER.map((d) => [d, DIFFICULTY_NAMES[d]])),
       el('p', { class: 'difficulty-note small muted', text: T.difficultyNote }),
+    ];
+    body.append(
+      group('sound', G.sound, switchRow(T.sound, 'sound'), ...soundRows, el('p', { class: 'sound-note small muted', text: SEASON_TEXT.soundNote })),
+      // Version 7.0 (Track S): Day and night on or off.
+      group('display', G.display, choiceRow(T.textSize, 'textSize', [[100, '100%'], [125, '125%'], [150, '150%']]),
+        switchRow(SEASON_TEXT.dayNight, 'dayNight'), el('p', { class: 'daynight-note small muted', text: SEASON_TEXT.dayNightNote })),
+      group('controls', G.controls, switchRow(T.keyboardShortcuts, 'keyboardShortcuts'), switchRow(T.leftHanded, 'leftHanded'), switchRow(T.vibration, 'vibration'),
+        // Spec 4.3: what a fire no staffed firehouse reaches does to the speed, after the city's first (which always pauses).
+        choiceRow(D.onAFire, 'fireReaction', FIRE_REACTIONS.map((k) => [k, D.fireReactions[k]])),
+        el('p', { class: 'fire-note small muted', text: D.onAFireNote }),
+        choiceRow(T.helpLevel, 'help', [['full', HELP_NAMES.full], ['tips', HELP_NAMES.tips], ['off', HELP_NAMES.off]])),
+      group('saves', G.saves, ...saves),
+      el('div', { class: 'options-version' }, [versionLine({ version })]),   // the version and build, small and muted, at the foot (it left the title card in 8.0)
     );
   }
 
@@ -206,7 +195,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     if (canResumeGuide()) {
       body.append(el('div', { class: 'actions' }, [button(T.resumeGuide, { class: 'resume-guide primary', onClick: () => { onResumeGuide(); if (close) close(); } })]));
     }
-    body.append(section(T.tips, el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.map((tip) => el('li', { text: TIP_HELP_TEXT[tip.id] || TIP_TEXT[tip.id] })))));   // Stage 4: a tip true only where it fires has its help words
+    body.append(section(T.tips, el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.filter((tip) => tip.id !== 'gentle_motion').map((tip) => el('li', { text: TIP_HELP_TEXT[tip.id] || TIP_TEXT[tip.id] })))));   // Stage 4: a tip true only where it fires has its help words
   }
 
   function about(body) {

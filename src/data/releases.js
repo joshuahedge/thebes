@@ -9,7 +9,25 @@
 
 export const RELEASES = [
   {
-    version: '7.1.1', date: '2026-10-24', title: 'Clearer first steps', build: 'live',
+    version: '8.0', date: '2026-10-24', title: 'Clear and calm', build: 'live',
+    new: [
+      'One look all through the game: a thicker patterned band and the same teal, ochre and lapis weighting on every panel and pop-up, with red kept for what you cannot do.',
+      'A calmer title screen: one main button, Play (or Continue once you have a city), then Options and What\'s new. The version number now sits at the foot of Options.',
+      'New city is one big choice, the difficulty, each level in a large tile with a line on what it means. Map size and layout wait under More choices, and the layout starts as Surprise me.',
+      'Options is shorter and in four groups, Sound, Display, Controls and Saves, and buttons across the game use fewer words ("Place" and "Lay" instead of "Paint").',
+      'Messages show for a few seconds and then fold into a tray behind the scroll icon, so the map stays clear; only what needs a decision stays put.',
+      'Placing is clearer: the bar says what you are placing, and the one filled button is the one that builds.',
+      'The game always moves at full motion, so the Motion row is gone from Options; Bring a city from Safari is gone as well (Export city stays under Saves).',
+    ],
+    fixed: [
+      'Placing a single house plot now works with one tap.',
+      'The lesson\'s view and glow follow the step you are on, instead of staying on the bazaar.',
+      'Reach is drawn as covered ground, and red now means only that something cannot be done.',
+      'Undo takes back only your last action, and only until the next month starts.',
+    ],
+  },
+  {
+    version: '7.1.1', date: '2026-10-24', title: 'Clearer first steps', build: 'a6eae26',
     new: [
       'The game now says what it is for: grow a village on the Nile into the Seat of the Two Lands, and win your reign by finishing the great temple. You see it on the title card, at the start of the first lesson card, and at the top of How to play.',
       "Been here before? Skip, I've played before, under Start the lesson on the title card or on the lesson's first card, marks the lesson done and takes you to a city of your own.",
