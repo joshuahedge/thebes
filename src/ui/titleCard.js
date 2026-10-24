@@ -7,7 +7,7 @@ import { ART, slotFor } from '../render/art/registry.js';
 import { p, artToTile, ART_SCALE } from '../render/iso.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { el, button, clear } from './components.js';
-import { T, DIFFICULTY_NAMES, difficultyHint, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT, D1_TEXT, D2_TEXT } from './text.js';
+import { T, DIFFICULTY_NAMES, difficultyHint, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT, D1_TEXT, D2_TEXT, V711_TEXT } from './text.js';
 import { MAP_SIZES, MAP_SIZE_IDS, MAP_SIZE_TABLE } from '../data/map.js';
 import { versionLine, renderWhatsNew } from './s46/whatsNew.js';   // Stage 4.6 (rulings 401-403): the version line and the What's new panel
 
@@ -84,6 +84,9 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
   const lessonExtras = lessonOnly ? [
     el('p', { class: 'lesson-hint small muted', text: lesson.partWay ? D2_TEXT.titleContinueHint : D2_TEXT.titleHint }),
     lesson.partWay && typeof lesson.onAgain === 'function' ? button(D2_TEXT.titleAgain, { class: 'lesson-again quiet', onClick: () => lesson.onAgain() }) : null,
+    // Version 7.1.1 (ruling 1111, over ruling 617): a secondary button under the lesson's own: a player who has played before marks the lesson done and gets the usual
+    // New city card (difficulty, map size) at once.
+    typeof lesson.onSkip === 'function' ? button(V711_TEXT.skip, { class: 'lesson-skip', onClick: () => lesson.onSkip() }) : null,
   ] : [];
   const more = [];
   if (typeof onLesson === 'function' && !lessonOnly) more.push(button(lesson && lesson.partWay ? D2_TEXT.titleContinue : D1_TEXT.lesson, { class: 'lesson', onClick: () => onLesson() }));
@@ -102,6 +105,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
   const element = el('div', { class: 'title-card', role: 'dialog', 'aria-labelledby': 'title-name' }, [
     el('h1', { id: 'title-name', text: 'Thebes' }),
     el('p', { class: 'tagline muted', text: T.tagline }),
+    el('p', { class: 'goal-line', text: V711_TEXT.goal() }),   // Version 7.1.1 (ruling 1110): what the game is for, up front
     versionLine(),   // Stage 4.6 (ruling 401): "Version 4.6 · build 989a650", small
     message ? el('p', { class: 'message coral', text: message }) : null,
     lesson && lesson.note ? el('p', { class: 'lesson-note teal', text: lesson.note }) : null,   // "Your first city stands": back on the title after the lesson
@@ -142,7 +146,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
       showCard();
       const body = el('div', { class: 'guide-body' });
       render(body);
-      const back = button(T.back, { class: 'guide-back', onClick: showCard });
+      const back = button(V711_TEXT.continueLabel, { class: 'guide-back', onClick: showCard });   // Version 7.1.1 (ruling 1106): the install guide is read through, then Continue
       showPanelNode([body, el('div', { class: 'actions' }, [back])]);
       back.focus();
     },

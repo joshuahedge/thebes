@@ -199,9 +199,9 @@ describe('v71 fg ferry bar: on a phone', () => {
 // ── 8. the boat line in help is true under every Motion level ──
 
 describe('v71 fg help: the boat', () => {
-  it('says the boat goes to and fro under Full motion and rests at a landing under Gentle, and the renderer does both', () => {
+  it('says a small boat carries people and carts across and waits at a landing with motion still (7.1.1), and the renderer does both', () => {
     const text = FERRY_TEXT.help.text;
-    expect(text.includes('it goes to and fro under Full motion and rests at a landing under Gentle')).toBe(true);
+    expect(text.includes('a small boat carries people and carts across; with motion still it waits at a landing')).toBe(true);
     expect(text.includes('and a small boat goes to and fro.')).toBe(false);
     const { w } = wellsAndFerry();
     const at = (t, motion) => ferryWalkers(w, t, null, motion).map((f) => [f.x, f.y]);

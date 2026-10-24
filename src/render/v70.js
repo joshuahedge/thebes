@@ -8,12 +8,14 @@
 //                                                        overlays: night's tint and the lamps (S, render/light.js)
 // motion is 'full' | 'gentle' | 'still' (motionLevel); now is the real clock (ms); settings is the device's (settings.get()).
 import { drawSeasonGround } from './seasons.js';
+import { drawRapids } from './rapids.js';
 import { drawTradeGround, tradeWalkers } from './trade.js';
 import { drawLight } from './light.js';
 import { ferryGround, ferryWalkers } from './ferries.js';
 
 export function v70Ground(g, world, range, now, motion) {
   drawSeasonGround(g, world, range, now, motion);
+  drawRapids(g, world, range, now, motion);   // Version 7.1.1: white water round the cataract's islands
   drawTradeGround(g, world, range, now, motion);
   ferryGround(g, world, range);   // Version 7.1 (Track F): a crossing's dashed line over the water
 }

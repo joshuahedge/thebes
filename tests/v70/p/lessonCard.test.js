@@ -13,7 +13,7 @@ import { pictureOf } from '../../../src/ui/lessonCard.js';
 import { paintHouses, place, setSpeed } from '../../../src/sim/commands.js';
 import { tickDay } from '../../../src/sim/clock.js';
 import { towersNeeded } from '../../../src/sim/raids.js';
-import { D2_TEXT, P_TEXT } from '../../../src/ui/text.js';
+import { D2_TEXT, P_TEXT, V711_TEXT } from '../../../src/ui/text.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
 import { fire as fireEvent, key } from '../../helpers/dom.js';
@@ -97,7 +97,7 @@ describe('v70 p the lesson\'s step card in the page', () => {
       const card = stepCard(s.root), words = card.querySelector('.lc-words');
       const facts = lessonFacts(s.g.world, step('road'));
       expect([Boolean(card), s.g.world.speed, document.body.classList.contains('lesson-card-up')]).toEqual([true, 0, true]);
-      expect([words.textContent, card.querySelector('.lc-label').textContent, goOf(s).textContent, leaveOf(s).textContent]).toEqual([D2_TEXT.steps.road(facts).text, D2_TEXT.lessonLabel(1, LESSON_LENGTH), P_TEXT.card.showMe, D2_TEXT.leave]);
+      expect([words.textContent, card.querySelector('.lc-label').textContent, goOf(s).textContent, leaveOf(s).textContent]).toEqual([`${V711_TEXT.goal()} ${D2_TEXT.steps.road(facts).text}`, D2_TEXT.lessonLabel(1, LESSON_LENGTH), P_TEXT.card.showMe, D2_TEXT.leave]);
       const r = card.getBoundingClientRect(), v = s.box;
       expect([Math.abs((r.left + r.right) / 2 - (v.left + v.right) / 2) < 2, Math.abs((r.top + r.bottom) / 2 - (v.top + v.bottom) / 2) < 2]).toEqual([true, true]);
       expect([card.getAttribute('role'), shown(rowOf(s)), s.root.querySelector('.lesson-ring').hidden, document.activeElement === goOf(s)]).toEqual(['dialog', false, true, true]);
@@ -128,11 +128,13 @@ describe('v70 p the lesson\'s step card in the page', () => {
       } finally { s.cleanup(); }
     }
   });
-  it('keeps Tab on its two buttons, and a focused Leave keeps its own Enter', async () => {
+  it('keeps Tab on its buttons (Version 7.1.1: the first card has Skip between the two), and a focused Leave keeps its own Enter', async () => {
     const s = await lessonPage('road');
     try {
       expect(document.activeElement).toBe(goOf(s));
       key(document.activeElement, 'Tab');                                              // a real Tab is aimed at the focused control
+      expect(document.activeElement).toBe(s.root.querySelector('.lesson-card .lc-skip'));
+      key(document.activeElement, 'Tab');
       expect(document.activeElement).toBe(leaveOf(s));
       key(document.activeElement, 'Tab');
       expect(document.activeElement).toBe(goOf(s));

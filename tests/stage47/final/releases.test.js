@@ -7,7 +7,7 @@ import { FLOOD_LEVELS } from '../../../src/data/river.js';
 describe('s47 releases', () => {
   it('4.7 is the second entry with its merge commit, and 4.6 carries its own', () => {
     const at = RELEASES.findIndex((r) => r.version === '4.7');
-    expect([at, RELEASES[at].build, APP_VERSION]).toEqual([5, 'b541f9e', '7.1']);   // Version 7.1: five newer entries now
+    expect([at, RELEASES[at].build, APP_VERSION]).toEqual([6, 'b541f9e', '7.1.1']);   // Version 7.1.1: six newer entries now
     expect([RELEASES[at + 1].version, RELEASES[at + 1].build]).toEqual(['4.6', '5bb08e5']);
   });
   it('says the Fair flood as the data has it and names the old homes\' two months', () => {

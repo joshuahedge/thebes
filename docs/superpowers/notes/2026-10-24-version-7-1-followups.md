@@ -12,9 +12,9 @@ Nothing in 7.1 was tried on a real device; every screen was read in headless Edg
 - **Sound Off wording in Settings.** With Sound off, the Music switch reads "On, silenced" and the volume rows say so in words, not only a dimmer colour; the volume readouts speak to a screen reader.
 
 ## What was cut or left
-- **Rapids have no animation.** The cataract is a gorge with stone on each bank and a wide stretch round small rocky islands; nothing moves white. Its Maps line no longer says "rapids".
-- **No season wash or glints on the new layouts' water** (ruling 1024): the water is drawn the way the oasis pools are, so flood season does not tint it and the glints are missing.
-- **The cart is drawn crossing the water in one segment.** The sim's timing is right (3 + ceil(water/3) road tiles, ruling 1044); only the picture jumps.
+- (Fixed in 7.1.1, ruling 1120) **Rapids have no animation.** The cataract is a gorge with stone on each bank and a wide stretch round small rocky islands; nothing moves white. Its Maps line no longer says "rapids".
+- (Fixed in 7.1.1, ruling 1120) **No season wash or glints on the new layouts' water** (ruling 1024): the water is drawn the way the oasis pools are, so flood season does not tint it and the glints are missing.
+- (Fixed in 7.1.1, ruling 1120) **The cart is drawn crossing the water in one segment.** The sim's timing is right (3 + ceil(water/3) road tiles, ruling 1044); only the picture jumps.
 - **Shops, goals and achievements do not name the ferry, and there is no "first ferry".** The Ferry card, tip and How to play entry exist; the lists that mention buildings were left alone.
 - **Raider distance is enforced at 0.25, not 0.4** (ruling 1076): a confluence map at Normal size can put the first entry at 0.35 of the side from the start. A test asserts 0.4 on over 95% of maps; a raid can arrive sooner than on Classic on the rest.
 - **Confluence runs north to south only, and so does twin from Normal size up** (the spec said any edge); the trade road always enters from the south edge (ruling 1021).
@@ -54,4 +54,8 @@ Dropped as not real or not reproduced: the two-row top bar overlap with the aler
 - **A sweep at every size found what the first run missed.** Seed 185 on a Small map merged a delta's two arms into one wide mouth; the fix batch found it by sweeping every seed and size.
 - **One full suite at a time**, and every batch that needs the full run is better batched; one timing test failed once under load and passed alone.
 
-- From the final fix batch: a walker on a ferry glides across the water in one step, so it moves faster there than the crossing time the sim uses (cosmetic, like the cart).
+- (Fixed in 7.1.1, ruling 1120) From the final fix batch: a walker on a ferry glides across the water in one step, so it moves faster there than the crossing time the sim uses (cosmetic, like the cart).
+
+## 7.1.1
+- **Done:** the lesson card and the placement toast no longer meet (no timed toast while a card is up, the card waits for a stroke or a finger on the map, every Undo toast has a ✕, the step's own placement offers no Undo); action rows, dialogs and the picture cards' Back and Next are centred; the goal sentence is on the title card, the first lesson card and How to play; "Skip, I've played before" is on the title card and the first lesson card (ruling 1111 overrides 617). Rulings 1100 to 1114 are in Part 20.
+- **Left:** Back is Continue at the foot of What's new and the install guide only (ruling 1106); if Josh wants more, it is a one-line change per button. The step the friend called "Lesson 11" is the firehouse card (the large plot is Lesson 10). A kept toast (Update ready) is hidden, not moved, while a card is up. The title card has two more rows (the goal, Skip); it was measured to fit 375x667 at 150% text and 667x375 at 100% and 150% (at 667x375 Start and Skip share a row and the size line goes). Real-phone check of the skip, the dialog and the ✕ is still undone.

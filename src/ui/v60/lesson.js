@@ -21,11 +21,11 @@ import { setSpeed } from '../../sim/commands.js';
 import { lessonFacts } from '../lesson.js';
 import { createCardMoments } from '../cardMoments.js';
 import { createLessonCard, pictureOf } from '../lessonCard.js';
-import { D2_TEXT, P_TEXT, T } from '../text.js';
+import { D2_TEXT, P_TEXT, V711_TEXT, T } from '../text.js';
 import { el, button, iconButton, setText } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
 import { tileToScreen } from '../../render/camera.js';
-import { openSheet } from '../modes.js';
+import { openSheet, isToolMode } from '../modes.js';
 import { TOPBAR_PX, freeTop } from '../layout.js';
 
 // The lit ring's reach round a footprint: the footprint's diamond (a tile is 64 px wide and 32 tall at zoom 1, so w + d tiles are (w + d) x 32 px wide and
@@ -78,6 +78,16 @@ export function createLessonUi(ctx) {
   // counts its own part from, actResumed whether that part has already played the game on again.
   // Version 7.1 (ruling 1066): showing is true while a step's card is being brought up: holdForCard's pause runs afterCommand and onCommand, which calls sync() again before the card is up,
   // and that nested sync must not take a step whose part is already done for one that has been played through (it would play the game on behind the card).
+  // Version 7.1.1 (ruling 1102): a card never comes up while the player is in the middle of a step's action: a finger down on the map, or a road, plots or a demolish stroke drawn and not
+  // yet laid. cardWaits: the card of the step the city is at is waiting for that to end (the row shows the step meanwhile); the frame and the store's changes bring it up.
+  let touching = false, cardWaits = false;
+  const midAction = () => { const s = store.get(); return touching || Boolean(s.line || s.area || s.plan); };
+  const mapOf = (ev) => Boolean(ev.target && typeof ev.target.closest === 'function' && ev.target.closest('#map'));
+  const onDown = (ev) => { if (mapOf(ev)) touching = true; };
+  const onUp = () => { touching = false; };
+  doc.addEventListener('pointerdown', onDown, true);
+  doc.addEventListener('pointerup', onUp, true);
+  doc.addEventListener('pointercancel', onUp, true);
   let cardAt = -1, held = null, actBase = null, actResumed = false, showing = false;
 
   const persist = () => { if (!settings.get().lessonDone) settings.set({ lessonStep: Math.min(at, LESSON_LENGTH) }); };
@@ -114,10 +124,16 @@ export function createLessonUi(ctx) {
   function askLeave() {
     store.set({ confirmDialog: { text: D2_TEXT.leaveConfirm, confirmLabel: D2_TEXT.leave, onConfirm: () => run.leave() } });
   }
+  // Version 7.1.1 (ruling 1112): the first card's "Skip, I've played before" asks its own question (like Leave the lesson) and then marks the lesson done and goes on to a city of
+  // the player's own (src/boot.js skipLesson); it names the title instead when a saved city is there, which a fresh city would take the place of.
+  function askSkip() {
+    const toTitle = typeof run.skipTo === 'function' && run.skipTo() === 'title';
+    store.set({ confirmDialog: { text: toTitle ? V711_TEXT.skipConfirmTitle : V711_TEXT.skipConfirm, confirmLabel: V711_TEXT.skip, onConfirm: () => run.skip() } });
+  }
 
   // ── the step card and the clock (ruling 1002) ──
   const keysOn = () => settings.get().keyboardShortcuts !== false;
-  const card = createLessonCard({ root, doc, store, onGo: () => dismissCard(), onLeave: () => askLeave(), keys: keysOn });
+  const card = createLessonCard({ root, doc, store, onGo: () => dismissCard(), onLeave: () => askLeave(), onSkip: () => askSkip(), keys: keysOn });
 
   // The card pauses the game, remembering the speed it was playing at (the player's own, kept through the cards that follow while it stays paused).
   function holdForCard(building) {
@@ -141,7 +157,12 @@ export function createLessonUi(ctx) {
     try { holdForCard(building); } finally { showing = false; }
     const t = targetOf();
     const words = D2_TEXT.steps[step.id](lessonFacts(world, step));   // a waiting step says "Press Play" (the game is held, lessonFacts.paused): its button is Play; the others play on by themselves, as their docked row says too
-    card.show({ label: D2_TEXT.lessonLabel(at + 1, LESSON_LENGTH), text: words.text, goLabel: mode === 'card' ? P_TEXT.card.play : t ? P_TEXT.card.showMe : P_TEXT.card.gotIt, picture: pictureOf(step) });
+    // Ruling 1115: a placing, road or demolish tool still on from the step just done (it stays on after a placement) is put away as Cancel does, so the bar behind the card never shows a
+    // refusal for the plot just laid; the step's own Show me starts its tool afresh.
+    if (isToolMode(store.get().mode) && typeof ctx.cancelPlacing === 'function') ctx.cancelPlacing();
+    if (ctx.toasts && typeof ctx.toasts.dropLoose === 'function') ctx.toasts.dropLoose();   // ruling 1100: no timed toast stays up under a card
+    const first = at === 0;   // ruling 1110: the first card opens with the game's goal, and offers Skip, I've played before
+    card.show({ label: D2_TEXT.lessonLabel(at + 1, LESSON_LENGTH), text: first ? `${V711_TEXT.goal()} ${words.text}` : words.text, skipOffered: first && typeof run.skip === 'function', goLabel: mode === 'card' ? P_TEXT.card.play : t ? P_TEXT.card.showMe : P_TEXT.card.gotIt, picture: pictureOf(step) });
     announceNext = false;   // the dialog is read as it takes focus
   }
   // The card closes (its button, Enter, Space or Esc): the step docks to its row; a waiting step plays on, the others point at their place as Show me does.
@@ -242,7 +263,8 @@ export function createLessonUi(ctx) {
     }
     if (needPause && !building && ctx.speedControl) { needPause = false; ctx.speedControl.set(0); }   // a command: not while the interface is still being built
     paint();
-    if (!finished && step && cardAt !== at) showCard(building);
+    cardWaits = false;
+    if (!finished && step && cardAt !== at) { if (midAction()) cardWaits = true; else showCard(building); }
     else if (finished && card.isUp()) card.hide();
     // The player's own part of a step that has one is done: the game plays again by itself (ruling 1002).
     if (!card.isUp() && !showing && step && !finished && !actResumed && playWhen(world, step) === 'act' && actionDone(world, step, actBase)) { actResumed = true; resumePlay(); }
@@ -304,6 +326,7 @@ export function createLessonUi(ctx) {
     if (sel) for (const n of root.querySelectorAll(sel)) if (!n.classList.contains('lesson-lit')) n.classList.add('lesson-lit');
     const v = viewOf(), mk = `${v.width}x${v.height}|${settings.get().textSize}|${store.get().layout}|${at}`;
     if (mk !== layout.mk) { layout.mk = mk; measure(); }
+    if (cardWaits && !midAction() && !destroyed) sync();
   }
   let raf = win.requestAnimationFrame ? win.requestAnimationFrame(function frame() { raf = win.requestAnimationFrame(frame); layout(); }) : 0;
 
@@ -323,7 +346,7 @@ export function createLessonUi(ctx) {
     ]));
   }
 
-  const stop = store.subscribe(() => { if (!destroyed) { dim(); if (finished) paintEnd(); } });
+  const stop = store.subscribe(() => { if (!destroyed) { dim(); if (finished) paintEnd(); if (cardWaits && !midAction()) sync(); } });
   sync(true);
   return {
     ...base,
@@ -335,6 +358,7 @@ export function createLessonUi(ctx) {
       destroyed = true;
       stop();
       if (raf && win.cancelAnimationFrame) win.cancelAnimationFrame(raf);
+      doc.removeEventListener('pointerdown', onDown, true); doc.removeEventListener('pointerup', onUp, true); doc.removeEventListener('pointercancel', onUp, true);
       row.remove(); scrim.remove(); ring.remove(); card.destroy();
       for (const n of root.querySelectorAll('.lesson-lit')) n.classList.remove('lesson-lit');
       root.classList.remove('lesson-on', 'lesson-names-alert');

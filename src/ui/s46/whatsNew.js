@@ -4,7 +4,7 @@
 import { APP_VERSION } from '../../data/ui.js';
 import { RELEASES, releaseDateText } from '../../data/releases.js';
 import { el, button } from '../components.js';
-import { T, S46_UX_TEXT } from '../text.js';
+import { T, S46_UX_TEXT, V711_TEXT } from '../text.js';
 
 // The short build stamp: the first seven characters of the cache's build (sw-files.js, which tools/sw-files.ps1 writes and the offline cache
 // is named by), or null when the text holds none.
@@ -43,7 +43,7 @@ const notes = (head, list) => (list && list.length
 // read like the version line's (stamp, or read() a moment later; none when it cannot be read).
 export function renderWhatsNew(body, back, releases = RELEASES, { stamp = null, read = readBuildStamp } = {}) {
   const top = button(T.back, { class: 'guide-back whats-new-back', onClick: back });
-  const foot = button(T.back, { class: 'guide-back whats-new-back', onClick: back });
+  const foot = button(V711_TEXT.continueLabel, { class: 'guide-back whats-new-back', onClick: back });   // Version 7.1.1 (ruling 1106): the foot of a page read through says Continue
   const live = [];
   const headText = (r, s) => S46_UX_TEXT.releaseHead(r.version, releaseDateText(r.date), r.build === 'live' ? s : r.build || null);
   const head = (r) => {

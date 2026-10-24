@@ -61,7 +61,7 @@ export const FERRY_TEXT = {
     otherLabel: 'Show the other landing of this ferry on the map',
   },
   // How to play's entry and the tip.
-  help: { head: 'Ferries', text: `A bridge crosses up to ${BRIDGE_MAX} tiles of water. Wider water, from ${FERRY.min} up to ${FERRY.max} tiles, takes a ferry: pick Ferry in the Roads tray and drag straight across, bank to bank. It lays a landing on each bank, each with a road beside it, and costs gold for the crossing and a monthly bill for its two ferrymen. Once both have a ferryman, walkers and carts cross as if it were a few road tiles (a landing's sheet says how many), and a small boat shows on the crossing: it goes to and fro under Full motion and rests at a landing under Gentle. A landing's sheet says why a crossing is not running. Raiders and armies never use a ferry.` },
+  help: { head: 'Ferries', text: `A bridge crosses up to ${BRIDGE_MAX} tiles of water. Wider water, from ${FERRY.min} up to ${FERRY.max} tiles, takes a ferry: pick Ferry in the Roads tray and drag straight across, bank to bank. It lays a landing on each bank, each with a road beside it, and costs gold for the crossing and a monthly bill for its two ferrymen. Once both have a ferryman, walkers and carts cross as if it were a few road tiles (a landing's sheet says how many), and a small boat carries people and carts across; with motion still it waits at a landing. A landing's sheet says why a crossing is not running. Raiders and armies never use a ferry.` },
   tip: `Water too wide for a bridge? Pick Ferry in the Roads tray and drag across: ${FERRY.min} to ${FERRY.max} tiles.`,
 };
 
