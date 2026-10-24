@@ -25,7 +25,10 @@
 [data-text-size="125"] { --ui-scale: 1.25; }
 [data-text-size="150"] { --ui-scale: 1.5; }
 /* Derived sizes live on body, where --ui-scale is set, so they scale with the text-size setting. */
-body { --topbar-h: calc(48px * var(--ui-scale)); --dock-slim: calc(76px * var(--ui-scale)); --dock-tray: calc(232px * var(--ui-scale)); }
+body { --topbar-h: calc(48px * var(--ui-scale) + var(--band-foot)); --dock-slim: calc(76px * var(--ui-scale)); --dock-tray: calc(232px * var(--ui-scale)); }
+/* Version 8.0 (ruling 1143): the gap under the top bar is the old 6 px less the band's 3 px foot at 100% text, so the rows under the bar sit where they did and every height budget holds; at larger text the bar is taller than its token (its content sets it), so the full 6 px stays. */
+body { --under-gap: calc(6px - var(--band-foot)); }
+body[data-text-size="125"], body[data-text-size="150"] { --under-gap: 6px; }
 
 html, body { margin: 0; height: 100%; background: var(--parchment-3); color: var(--ink); overflow: hidden; overscroll-behavior: none; -webkit-text-size-adjust: 100%; }
 body { font: calc(16px * var(--ui-scale)) / 1.4 var(--font); }
@@ -57,7 +60,7 @@ h2, h3 { margin: 0; }
 .noscript { margin: 24px; }
 
 /* Top bar: things you read sit at the top. */
-#topbar { position: fixed; top: 0; left: 0; right: 0; padding: var(--safe-top) max(8px, var(--safe-right)) 0 max(8px, var(--safe-left)); min-height: var(--topbar-h); background: var(--parchment); border-bottom: 1px solid var(--parchment-3); box-shadow: var(--shadow); display: flex; align-items: center; gap: 6px; }
+#topbar { position: fixed; top: 0; left: 0; right: 0; padding: var(--safe-top) max(8px, var(--safe-right)) var(--band-foot) max(8px, var(--safe-left)); min-height: calc(var(--topbar-h) - var(--band-foot)); background: var(--parchment); border-bottom: 1px solid var(--parchment-3); box-shadow: var(--shadow); display: flex; align-items: center; gap: 6px; }
 #topbar .stat { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
 /* The numbers keep to one row wherever they fit (every layout at 100% text, with tight 8 px gaps and 4 px ends); only
    where they would otherwise be cut off (a narrow phone at large text, or very large numbers) do they wrap to a second row, inside the bar's
@@ -68,10 +71,10 @@ h2, h3 { margin: 0; }
 #topbar .speed { display: flex; gap: 4px; }
 #topbar button { min-height: var(--tap); }
 body[data-layout="portrait"] .wide-only, body[data-layout="compact"] .wide-only { display: none !important; }
-body[data-layout="compact"] { --topbar-h: calc(40px * var(--ui-scale)); }
+body[data-layout="compact"] { --band-foot: 2px; --topbar-h: calc(40px * var(--ui-scale) + var(--band-foot)); }   /* a landscape phone has the least height: 1 px less foot than elsewhere (ruling 1143) */
 
 /* Critical banner, overlay legend and goals strip stack under the top bar in one column, so nothing overlaps whatever the text size. On a phone only the alert row and one guidance row show (the guidance row rules below). */
-#under-bar { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + var(--topbar-h) + 6px); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
+#under-bar { position: fixed; left: max(8px, var(--safe-left)); right: max(8px, var(--safe-right)); top: calc(var(--safe-top) + var(--topbar-h) + var(--under-gap)); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
 #banner, #legend { position: static; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; max-width: 100%; }
 #under-bar > :empty { display: none; }
 #banner > *, #legend > * { pointer-events: auto; }
@@ -480,7 +483,7 @@ body.reduce-motion .goal-strip.one-row.open, body.reduce-motion #tip .tip-row.op
    banner and the legend keep 2 px above and below their 44 px buttons. At 125% and 150% only one row shows (createUI's
    guidance rule). The rows stop at the left edge of the column beside the rail while a sheet or the card drawer holds
    it, as the corner buttons do. */
-body[data-layout="compact"] #under-bar { gap: 4px; }
+body[data-layout="compact"] #under-bar { gap: 4px; top: calc(var(--safe-top) + var(--topbar-h) + 5px); }     /* Version 8.0: 1 px less gap under the bar, so with the 2 px foot the band costs a landscape phone 1 px (ruling 1143) */
 body[data-layout="compact"] #banner .critical, body[data-layout="compact"] #legend .strip { padding-top: 2px; padding-bottom: 2px; }
 body[data-layout="compact"]:has(#sheet:not([hidden])) #under-bar { right: calc(var(--rail-w) + var(--drawer-w) + var(--safe-right) + 8px); }
 body[data-layout="compact"]:has(#rail .drawer:not([hidden])) #under-bar { right: calc(var(--rail-w) + var(--drawer-w) + 17px + var(--safe-right) + 8px); }
@@ -968,16 +971,22 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
 /* The frieze (spec 6.9): blocks of lapis, gold, terracotta and turquoise parted by ink, on an ink line; 4 px in all. The
    title card's one glyph: an ankh in lapis. */
 :root {
-  --look-frieze: linear-gradient(var(--ink), var(--ink)) 0 100% / 100% 1px no-repeat,
-    repeating-linear-gradient(90deg, var(--lapis) 0 11px, var(--ink) 11px 12px, var(--gold) 12px 23px, var(--ink) 23px 24px, var(--terracotta) 24px 35px, var(--ink) 35px 36px, var(--turquoise) 36px 47px, var(--ink) 47px 48px);
+  /* Version 8.0 (Track V, ruling 1130): the band is 6 px, one and a half times the 4 px it was, and its colour weighs more: the blocks are 15 px of colour parted by a 1 px ink line
+     (they were 11 and 1), so colour is 94% of the band's face, not 92%, over a 5 px body, not a 3 px one. As a token it is a background shorthand whose sizes are its own, so any box takes it
+     as `background: var(--look-frieze), var(--parchment)` (a box's radius clips it) or as a pseudo-element var(--band-h) tall. */
+  --band-h: 6px;
+  --band-foot: 3px;   /* what the top bar adds under its buttons so the whole band shows beneath them (they are 44 px in a 48 px bar): --topbar-h grows by it, so every panel still starts flush */
+  --band-line: linear-gradient(var(--ink), var(--ink));
+  --band-blocks: repeating-linear-gradient(90deg, var(--lapis) 0 15px, var(--ink) 15px 16px, var(--gold) 16px 31px, var(--ink) 31px 32px, var(--terracotta) 32px 47px, var(--ink) 47px 48px, var(--turquoise) 48px 63px, var(--ink) 63px 64px);
+  --look-frieze: var(--band-line) 0 calc(var(--band-h) - 1px) / 100% 1px no-repeat, var(--band-blocks) 0 0 / 100% var(--band-h) no-repeat;
   --look-ankh: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 24'%3E%3Cg fill='none' stroke='%231C3768' stroke-width='2.4' stroke-linecap='round'%3E%3Cellipse cx='8' cy='6' rx='3.6' ry='4.6'/%3E%3Cpath d='M1.5 12.5h13M8 11v11.5'/%3E%3C/g%3E%3C/svg%3E");
 }
 /* Along the top bar's lower edge and each sheet's head: over the 1 px border and 3 px inside it, so neither grows. Both
    boxes make their own stacking context (fixed; sticky with a z-index), so z-index -1 lays the frieze over their papyrus
    and under their buttons: a 44 px button that reaches the edge keeps its own outline. */
-#topbar::after, #sheet .head::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; z-index: -1; background: var(--look-frieze); pointer-events: none; }
+#topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: var(--band-h); z-index: -1; background: var(--look-frieze); pointer-events: none; }   /* Version 8.0: a sheet's head wears the band on its top edge instead (the v80 v block) */
 .title-card { position: relative; }
-.title-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--look-frieze); pointer-events: none; }   /* in the card's top padding */
+/* (The title card's band is a background layer now, with every other framed box's: the v80 v block.) */
 /* Cartouches (spec 6.9; the controller's ruling 18): a sheet's title and the city's name, and only those, sit in a
    cartouche in the serif display face: an outline of soft ink, round at the start and drawn in at the tie's end, where
    the tie (a bar across the end, flush inside it, no taller) closes it, so the two read as one shape. Body text
@@ -1210,7 +1219,7 @@ body[data-text-size="125"] #dock .cat, body[data-text-size="150"] #dock .cat { f
 body[data-text-size="150"][data-layout="portrait"] #dock .cats { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
 
 /* Ruling 407, finding F5: the score chip sat on the frieze under the bar; lifted clear of it. */
-#topbar .score-chip { bottom: 6px; }
+#topbar .score-chip { bottom: 6px; }   /* Version 8.0: unchanged (the bar grew by the band's foot, so the chip sits 3 px lower against the numbers and still clears the 6 px band by 1 px) */
 /* Ruling 405, finding F4: the cartouche's tie was a 4 px bar flush against a square end, with a round end opposite: heavy on one side, it read
    as a glitch in the sheet's heading. Both ends are round now and the tie is a thin bar set in from the right end, inside the outline, so the
    heading still reads as a cartouche (a loop with a tie) and nothing sits heavier than the line itself. */
@@ -1584,6 +1593,55 @@ body[data-layout="wide"].panel-sheet #sheet { top: var(--panel-sheet-top, 0px); 
 #sheet .event-choice .show-me { padding: 0 14px; }
 #sheet .event-choice > button:disabled, #sheet .event-choice > button.primary:disabled { opacity: 1; background: var(--parchment-2); color: var(--ink-soft); border: 1px dashed var(--ink-line); box-shadow: none; cursor: not-allowed; }
 /* ── end v70 p ── */
+
+/* ── v80 v (Version 8.0, Track V: the look, rulings 1130-1144) ── */
+/* The frame (ruling 1131): the band on a box's top edge, the linen body under it, a cartouche head where there is a title. The band is a pair of background layers (the ink line, then the
+   colour blocks) over the box's own fibre and colour, so the box's radius clips it and a scrolling box keeps it at its top. Every framed surface is in this list; a new one takes the class
+   .frame-band (and pads its top by var(--band-h) less what it has already). The toast has no fibre; its third layer is empty. */
+.frame-band, .title-card, #dialog .box, .confirm, .lesson-card, #sheet .head, .toast {
+  background-image: var(--band-line), var(--band-blocks), var(--look-fibre);
+  background-position: 0 calc(var(--band-h) - 1px), 0 0, 0 0;
+  background-size: 100% 1px, 100% var(--band-h), auto;
+  background-repeat: no-repeat, no-repeat, repeat;
+}
+.toast { background-image: var(--band-line), var(--band-blocks); }
+/* Room under the band: each box's top padding was 6 to 24 px; the band takes 6 of it, and a box that had less than 12 gets back to 12 less the band's share, so no text touches it. */
+#sheet .head { padding-top: 10px; }
+#dialog .box { padding-top: 22px; }
+.lesson-card { padding-top: 20px; border: 1px solid var(--ink-line); }
+.confirm { padding-top: 12px; border-top: none; }
+body[data-layout="wide"] .confirm, body[data-layout="compact"] .confirm { border-radius: 0; }
+.toast { padding-top: 10px; }
+/* The cartouche header (ruling 1132) on every panel that has a title: a sheet's h2 already wears it; the title card's panels (Options, What's new, the new-city card, How to play) and
+   anything marked .frame-title take the same outline, in the serif, hugging its words. */
+.title-card h2:not(.small), .frame-title { position: relative; display: inline-block; align-self: center; margin: 0 auto 4px; padding: 0 14px; border-radius: 0.75em; box-shadow: inset 0 0 0 1.5px var(--ink-soft); font-family: var(--serif); letter-spacing: 0.02em; }
+.title-card .whats-new-head h2 { margin: 0; }
+
+/* Button weights (ruling 1133, design rule 1): one filled style (.primary, above), an outlined one, a plain-text one, and coral only for a destructive confirm (.danger, above). A button
+   with none of them is the neutral one: parchment, ink outline (an icon button's). Colour and fill belong to the primary action alone. */
+button.secondary { background: transparent; color: var(--lapis); border: 2px solid var(--lapis); box-shadow: none; }
+button.tertiary { background: transparent; color: var(--lapis); border-color: transparent; box-shadow: none; text-decoration: underline; text-underline-offset: 3px; }
+button.quiet { color: var(--lapis); }
+button.secondary[disabled], button.tertiary[disabled] { opacity: 0.5; }
+#sheet li button.primary { border-width: 2px; }
+/* Existing buttons given their weight from here, so no markup changes: the title's other actions are outlined, its skip and back-to-first links plain, a dialog's Cancel outlined. */
+.title-buttons :is(.new-city, .lesson, .how-to-play, .title-settings, .whats-new-button, .install):not(.primary) { background: transparent; color: var(--lapis); border: 2px solid var(--lapis); }
+.title-buttons :is(.lesson-skip, .lesson-again, .bring) { background: transparent; color: var(--lapis); border-color: transparent; text-decoration: underline; text-underline-offset: 3px; }
+.title-card .guide-back, #dialog .cancel, #dialog .extra, .lesson-card .lc-leave { background: transparent; color: var(--lapis); border: 2px solid var(--lapis); }
+.lesson-card .lc-skip { background: transparent; color: var(--lapis); border-color: transparent; text-decoration: underline; text-underline-offset: 3px; }
+/* A dialog's OK is coral only when it destroys something (menu.js marks the others .primary); the placing bar's tick is the one filled button of the bar, so its chips (a style, a spacing,
+   a route, one or an area) show they are chosen by a soft teal fill, a ring and weight, never a solid one: Straight can no longer outweigh the tick. */
+.confirm :is(.style-pick, .area-pick, .area-toggle, .route-pick)[aria-pressed="true"] { background: var(--teal-soft); color: var(--ink); border-color: var(--teal); box-shadow: inset 0 0 0 2px var(--teal); font-weight: 600; }
+.confirm .flip, .confirm .undo, .confirm .cancel, .confirm .rotate { background: var(--parchment); color: var(--ink); border: 1px solid var(--ink-line); box-shadow: none; }
+
+/* Colours mean one thing (ruling 1135): teal or blue is covered, amber works-but-missing, coral only cannot. What was coral and is not a refusal: */
+#topbar .advice .advice-dot { background: var(--teal); }                              /* Advice has something to say: not a fault */
+.trends .trend.down { color: var(--amber-text); }                                      /* a falling number is a caution, not a refusal */
+.store-goods .switch[aria-checked="false"] .state, #sheet .trade-switch[aria-checked="false"] .state { color: var(--ink-soft); }   /* a switch that is off is a state */
+#sheet .favour-head.low .favour-mark, #sheet .favour-head.low .favour-band { color: var(--amber-text); }
+#sheet .favour-meter.low .fill { background: var(--amber); }
+.confirm .nicer.coral { color: var(--amber-text); }                                    /* "Makes 2 homes less pleasant" works; it is not refused */
+/* ── end v80 v ── */
 
 /* ── v711 (Version 7.1.1, "Clearer first steps", rulings 1100-1119) ── */
 /* Buttons in the middle (ruling 1105): the main action of a blocking card or dialog never sits at one side of its row. Every action row (a sheet's, the title's panels, the end,

@@ -37,7 +37,7 @@ const GRADED = {
     band: desirabilityBand,
     hatched: (k) => k < 0,
     swatch: (k) => (k < 0
-      ? { backgroundImage: `repeating-linear-gradient(135deg, ${UI.bad} 0 1.5px, ${TERRAIN.sand} 1.5px 4px)` }
+      ? { backgroundImage: `repeating-linear-gradient(135deg, ${UI.warn} 0 1.5px, ${TERRAIN.sand} 1.5px 4px)` }
       : { backgroundImage: tint(rgba(OVERLAY_HUE.desirability, DESIRABILITY_ALPHA[k])), backgroundColor: TERRAIN.sand }),
   },
   fire: {

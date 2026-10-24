@@ -32,8 +32,8 @@ import { drawPlague } from './plague.js';   // Version 6.0 (Track B1): the Healt
 
 // Version 5.0 (Task 3, rulings 540-549): Home progress, Goods supply and Workers (src/render/layers.js) join the table after Ground, so the order of the first eleven is unchanged.
 export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers'];
-// Fire risk (Stage 3, Track D) is one deep ember red, light to dark by band; no other overlay uses a red.
-export const FIRE_HUE = '#9C2A1C';
+// Fire risk (Stage 3, Track D) is one hue, light to dark by band. Version 8.0 (ruling 1136): a burnt amber, the flames' own family, not the deep ember red it was: red is the interface's "cannot" and nothing else (design rule 5).
+export const FIRE_HUE = '#B86A00';
 // Stage 4.5 (rulings 318, 319): Health in an olive green and Crime in a deep violet, each graded like fire risk (light to dark by band).
 export const HEALTH_HUE = '#6F8F1F';
 export const CRIME_HUE = '#5E3A8C';
@@ -47,6 +47,9 @@ export const OVERLAY_HUE = {
   ground: GROUND_HUE.fertile,
   progress: LAYER_HUE.progress, supply: LAYER_HUE.supply, workers: LAYER_HUE.workers,
 };
+// Version 8.0 (ruling 1135): what a service reaches is "covered", and covered is blue or teal whichever service it is (the water's own blue, teal for the rest); the dots and rings keep the
+// overlay's hue to tell the overlays apart. The food overlay's gold wash read as amber, "works but something is missing".
+export const COVER_HUE = { water: UI.water, other: UI.housing };
 export const SERVICE_TYPES = { water: ['well'], food: ['bazaar'], religion: ['temple'], goods: ['bazaar'], entertainment: ['booth'], housing: [] };
 // Overlays that draw a graded scale over the ground instead of dots and rings (spec 6.3); their legend is a scale too.
 export const GRADED_OVERLAYS = ['desirability', 'fire', 'health', 'crime'];
@@ -148,7 +151,7 @@ export function drawOverlay(g, world, kind, range, placing = null, good = 'potte
   for (const t of tiles) {
     const x = t % world.size, y = (t - x) / world.size;
     if (range && (x < range.x0 || x > range.x1 || y < range.y0 || y > range.y1)) continue;
-    g.poly(tileDiamond(x, y), color, { alpha: 0.16 });
+    g.poly(tileDiamond(x, y), COVER_HUE[kind] || COVER_HUE.other, { alpha: 0.16 });
   }
   for (const m of overlayMarks(world, kind, range)) mark(g, m, color);
 }
@@ -413,7 +416,7 @@ export function desirabilityBands(world, range = null) {
 function drawDesirability(g, world, range) {
   const { below, steps } = desirabilityBands(world, range);
   steps.forEach((tiles, k) => g.polys(tilePolys(tiles), OVERLAY_HUE.desirability, { alpha: DESIRABILITY_ALPHA[k] }));
-  hatchTiles(g, below, UI.bad, { fill: 0.1, line: 0.75 });
+  hatchTiles(g, below, UI.warn, { fill: 0.1, line: 0.75 });   // Version 8.0 (ruling 1136): amber, not coral: unpleasant ground is a caution, not a refusal
 }
 
 // The fire-risk overlay (spec 4.12, 6.3): every building that can burn, tinted by its band in one ember hue light to dark
@@ -507,7 +510,7 @@ export function drawDesirabilityTint(g, tiles) {
   const better = [], worse = [];
   for (const t of tiles || []) if (t.v > 0) better.push([t.x, t.y]); else if (t.v < 0) worse.push([t.x, t.y]);
   g.polys(tilePolys(better), UI.nicer, { alpha: 0.28 });
-  hatchTiles(g, worse, UI.bad, { fill: 0.1, line: 0.85 });
+  hatchTiles(g, worse, UI.warn, { fill: 0.1, line: 0.85 });   // Version 8.0 (ruling 1136): amber hatching, not coral. The friend read a granary's coral hatching (the homes it would make less pleasant) as "should not be here"; the building is allowed, so it is a caution
 }
 
 // Stage 3 (Track D, spec 4.5, 6.3): a tower's range and a barracks' patrol are straight-line tiles from its centre, not road

@@ -3,7 +3,7 @@
 // corner buttons' words beside the card drawer at larger text (css/ui.css).
 export const NARROW_PX = 700;
 
-export const TOPBAR_PX = 48;           // --topbar-h at 100% text size
+export const TOPBAR_PX = 51;           // --topbar-h at 100% text size (48 and the 3 px under the buttons that the band, 6 px since 8.0, shows in)
 
 export function pickLayout(width, height) {
   if (height > width && width < 900) return 'portrait';
