@@ -30,6 +30,7 @@ export const DESIRABILITY = {
   jeweller: WORKSHOP,
   gem_mine: [-8, -6, -4, -2],
   trading_post: [-3, -2, -1],
+  ferry_landing: [-1],  // Version 7.1 (Track F, ruling 1042): a jetty and a ferryman's shed; a little noise, less than the quay
   quay: [-2, -1],       // Version 7.0 (Track T, ruling 871): bales, rope and porters, less than the trading post's yard
   // Stage 3 (spec 4.7). Rubble is 1x1, so each tile of a burned building's rubble counts on its own. Walls and gates
   // change nothing.

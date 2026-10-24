@@ -5,7 +5,7 @@ import { generateMap, variantFor } from '../../src/sim/mapgen.js';
 import { createWorld } from '../../src/sim/world.js';
 import { T } from '../../src/sim/terrain.js';
 import { idx, inBounds } from '../../src/sim/grid.js';
-import { MAP_VARIANTS } from '../../src/data/map.js';
+import { MAP_VARIANTS, MAP_VARIANTS_70 } from '../../src/data/map.js';
 import { riverSpans, riverIsle, riverPools } from '../../src/render/terrainWater.js';
 import { buildSampleCity } from '../../src/dev/sampleCity.js';
 import { boot } from '../../src/boot.js';
@@ -16,7 +16,7 @@ import { mountShell, fakeHistory } from '../helpers/uiWorld.js';
 import { fire } from '../helpers/dom.js';
 
 const SEEDS = Array.from({ length: 30 }, (_, k) => k + 1);
-const NEW_VARIANTS = MAP_VARIANTS.filter((v) => v !== 'classic');
+const NEW_VARIANTS = MAP_VARIANTS_70.filter((v) => v !== 'classic');   // Version 7.1: the six 7.0 layouts (tests/v71/m holds the new ones' own promises)
 const count = (m, t) => m.terrain.filter((v) => v === t).length;
 const at = (m, x, y) => m.terrain[idx(m.size, x, y)];
 
@@ -67,9 +67,9 @@ function hasNarrowSpot(m) {
 
 describe('s45 variants (the six layouts)', () => {
   it('names six variants, picks one from the seed alone, and reaches all of them', () => {
-    expect(MAP_VARIANTS).toEqual(['classic', 'east', 'middle', 'wide-bends', 'island', 'oasis']);
+    expect(MAP_VARIANTS.slice(0, 6)).toEqual(['classic', 'east', 'middle', 'wide-bends', 'island', 'oasis']);   // Version 7.1: six more follow
     const seen = new Set();
-    for (let seed = 1; seed <= 60; seed++) { expect(variantFor(seed)).toBe(variantFor(seed)); seen.add(variantFor(seed)); }
+    for (let seed = 1; seed <= 200; seed++) { expect(variantFor(seed)).toBe(variantFor(seed)); seen.add(variantFor(seed)); }
     expect([...seen].sort()).toEqual([...MAP_VARIANTS].sort());
     expect(generateMap(5, 64, 'east').variant).toBe('east');
     expect(generateMap(5).variant).toBe('classic');
@@ -78,10 +78,10 @@ describe('s45 variants (the six layouts)', () => {
   it('is deterministic for a seed and a variant, and the variants differ from one another', () => {
     for (const v of MAP_VARIANTS) expect(generateMap(8, 64, v).terrain).toEqual(generateMap(8, 64, v).terrain);
     const terrains = MAP_VARIANTS.map((v) => JSON.stringify(generateMap(8, 64, v).terrain));
-    expect(new Set(terrains).size).toBe(6);
+    expect(new Set(terrains).size).toBe(MAP_VARIANTS.length);
   });
   it('keeps fertile banks, 100-520 rocky tiles off the river (rock belts and the hills on them; classic keeps its patches), land raider entries and a buildable start, for 30 seeds of every variant', () => {
-    for (const v of MAP_VARIANTS) {
+    for (const v of MAP_VARIANTS_70) {
       for (const seed of SEEDS) {
         const m = generateMap(seed, 64, v), tag = `${v} ${seed}`;
         const rocky = count(m, T.ROCKY) + count(m, T.HILLS) - m.repaired.mine;   // Stage 4.7: the resource repair's rock (ruling 461) is on top of what the patches or belts drew; Task 3b: hills stand on the belts, so they count

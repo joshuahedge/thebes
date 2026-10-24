@@ -78,7 +78,7 @@ describe('v70 e ui: the card', () => {
     const raise = choiceBtn(r, 'raise_wages');
     expect([raise.disabled, words(raise).includes(`Not possible: Not enough gold: you have ${fee - 1}, it costs ${fee}.`)]).toEqual([true, true]);
     expect(sheet(r).querySelector('.event-choice[data-choice="raise_wages"] .consequence').textContent).toBe(`Costs ${fee} gold, and the quarries keep working.`);
-    expect(sheet(r).querySelector('.event-choice[data-choice="strike"] .consequence').textContent).toBe(C.consequence(eventChoices(w, waitingEvent(w)).find((c) => c.id === 'strike').effects, w));
+    expect(sheet(r).querySelector('.event-choice[data-choice="strike"] .consequence').textContent).toBe(C.consequence(eventChoices(w, waitingEvent(w)).find((c) => c.id === 'strike').effects, w, 'quarry_strike', 'strike'));   // (7.1, ruling 1065: the quarries are named as quarries)
     fire(raise, 'click');
     expect([w.gold, w.cityEvents.waiting !== null, r.store.get().sheet.kind]).toEqual([fee - 1, true, 'cityEvent']);
     const show = sheet(r).querySelector('.event-choice[data-choice="raise_wages"] .show-me');
@@ -155,7 +155,7 @@ describe('v70 e ui: the card', () => {
     expect(new Set([...sheet(r).querySelectorAll('.event-choice > button')].map((b) => getComputedStyle(b).fontSize)).size).toBe(1);   // one type size: a choice's id is never a CSS class (a choice named small took .small's)
     expect(choiceBtn(r, 'full').disabled).toBe(true);
     expect(sheet(r).querySelector('.event-choice[data-choice="full"] .why-not').textContent).toBe('Your stores hold 0 incense; it takes 10.');
-    expect(Boolean(sheet(r).querySelector('.event-choice[data-choice="full"] .show-me'))).toBe(false);   // no store holds any: nothing to show
+    expect(Boolean(sheet(r).querySelector('.event-choice[data-choice="full"] .show-me'))).toBe(true);    // no store holds any: Show me goes to the store that would keep it (7.1, ruling 1064)
     storehouseOf(w).store[INCENSE_GOOD] = 20;
     r.ui.refresh();
     expect(choiceBtn(r, 'full').disabled).toBe(false);

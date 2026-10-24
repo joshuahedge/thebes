@@ -7,7 +7,10 @@ import { openSheet } from './modes.js';
 import { FIRE_REACTIONS, MOTION_SETTINGS, motionStatus } from './settings.js';
 import { HELP_ROWS, HELP_NAMES, TIP_TEXT, TIP_HELP_TEXT, DIFFICULTY_NAMES, T, DANGER_UI_TEXT, CONTRACT4_TEXT, MOTION4_TEXT, CARDS4_TEXT, V60_HELP, V70_HELP, D2_TEXT, SEASON_TEXT } from './text.js';
 import { el, button, clear } from './components.js';
+import { MAPS_HELP } from './v71/mapsText.js';   // Version 7.1 (Track M): How to play's Maps note
+import { V71_HELP } from './v71/ferryText.js';   // Version 7.1 (Track F): How to play's Ferries entry (and importing it registers the ferries tip)
 
+const SILENCED = 'silenced';   // Version 7.1: what Sound Off does to the Music and Effects rows, in a word
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
 
 export function keyLabel(name) {
@@ -48,19 +51,48 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       inLesson ? null : button(T.importCity, { onClick: hookOr('importCity') }),
       typeof hooks.install === 'function' && (typeof hooks.canInstall !== 'function' || hooks.canInstall()) ? button(T.installMenu, { class: 'install', onClick: () => hooks.install() }) : null,
       button(T.settings, { onClick: () => open('settings') }),
-      button(T.howToPlay, { onClick: () => open('help') }),
+      button(T.howToPlay, { class: 'how-to-play-row', 'aria-keyshortcuts': settings.get().keyboardShortcuts !== false ? '?' : null, onClick: () => open('help') }),
       typeof onScreenshot === 'function' ? button(T.screenshotMode, { class: 'screenshot-mode', onClick: onScreenshot }) : null,
       button(T.about, { onClick: () => open('about') }),
     ]));
   }
 
-  function switchRow(label, key) {
+  // silenceable (Version 7.1, fix batch B): a switch the Sound switch is the master of reads "On, silenced" while Sound is Off, so the cue is in words and not
+  // only the softer text and dashed border.
+  function switchRow(label, key, { silenceable = false } = {}) {
     const state = el('span', { class: 'state small muted' });
     const b = el('button', { type: 'button', role: 'switch', class: `switch ${key}` }, [el('span', { text: label }), ' ', state]);
-    const sync = () => { const on = Boolean(settings.get()[key]); b.setAttribute('aria-checked', String(on)); state.textContent = on ? T.on : T.off; };
+    const sync = () => {
+      const on = Boolean(settings.get()[key]);
+      b.setAttribute('aria-checked', String(on));
+      state.textContent = on ? (silenceable && !settings.get().sound ? `${T.on}, ${SILENCED}` : T.on) : T.off;
+    };
     b.addEventListener('click', () => { settings.set({ [key]: !settings.get()[key] }); sync(); });
     sync();
+    if (silenceable) { const stop = settings.subscribe(() => { if (b.isConnected) sync(); else stop(); }); }   // the sheet has closed: stop listening
     return el('div', { class: 'row' }, [b]);
+  }
+
+  // A volume stepper, 0-100 in tens: a 44 px − and + (each disabled at its end), and a value the screen reader hears change (role status, polite, named "30 out of 100").
+  // The button that has just disabled itself hands keyboard focus to its sibling, so a held-down Louder never strands focus on a dead button.
+  function volumeStepper(key, names, onStep = () => {}) {
+    const value = el('span', { class: 'value', role: 'status', 'aria-live': 'polite' });
+    const quieter = button('−', { class: 'quieter', 'aria-label': names.quieter });
+    const louder = button('+', { class: 'louder', 'aria-label': names.louder });
+    const sync = () => {
+      const v = settings.get()[key];
+      value.textContent = String(v);
+      value.setAttribute('aria-label', `${v} out of 100`);
+      for (const [b, off, other] of [[quieter, v <= 0, louder], [louder, v >= 100, quieter]]) {
+        if (off && !b.disabled && document.activeElement === b) other.focus();
+        b.disabled = off;
+      }
+    };
+    const step = (d) => { settings.set({ [key]: Math.max(0, Math.min(100, settings.get()[key] + d)) }); sync(); onStep(); };
+    quieter.addEventListener('click', () => step(-10));
+    louder.addEventListener('click', () => step(10));
+    sync();
+    return el('span', { class: 'stepper', role: 'group', 'aria-label': names.group, dataset: { label: names.group } }, [quieter, value, louder]);
   }
 
   function choiceRow(label, key, options) {
@@ -96,22 +128,9 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
   // disabled at its end), beside Sound and separate from it.
   function musicRows() {
     const C = CARDS4_TEXT;
-    const value = el('span', { class: 'value' });
-    const quieter = button('−', { class: 'quieter', 'aria-label': C.quieter });
-    const louder = button('+', { class: 'louder', 'aria-label': C.louder });
-    const sync = () => {
-      const v = settings.get().musicVolume;
-      value.textContent = String(v);
-      quieter.disabled = v <= 0;
-      louder.disabled = v >= 100;
-    };
-    const step = (d) => { settings.set({ musicVolume: Math.max(0, Math.min(100, settings.get().musicVolume + d)) }); sync(); };
-    quieter.addEventListener('click', () => step(-10));
-    louder.addEventListener('click', () => step(10));
-    sync();
     return [
-      switchRow(C.music, 'music'),
-      el('div', { class: 'row music-volume' }, [el('span', { text: C.musicVolume }), el('span', { class: 'stepper', role: 'group', 'aria-label': C.musicVolume }, [quieter, value, louder])]),
+      switchRow(C.music, 'music', { silenceable: true }),
+      el('div', { class: 'row music-volume' }, [el('span', { text: C.musicVolume }), volumeStepper('musicVolume', { quieter: C.quieter, louder: C.louder, group: C.musicVolume })]),
     ];
   }
 
@@ -120,20 +139,8 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
   // so the new level is heard; the Sound switch above stays the master of both.
   function effectsRow(sfx) {
     const S = SEASON_TEXT;
-    const value = el('span', { class: 'value' });
-    const quieter = button('−', { class: 'quieter', 'aria-label': S.effectsQuieter });
-    const louder = button('+', { class: 'louder', 'aria-label': S.effectsLouder });
-    const sync = () => {
-      const v = settings.get().effectsVolume;
-      value.textContent = String(v);
-      quieter.disabled = v <= 0;
-      louder.disabled = v >= 100;
-    };
-    const step = (d) => { settings.set({ effectsVolume: Math.max(0, Math.min(100, settings.get().effectsVolume + d)) }); sync(); if (sfx && typeof sfx.play === 'function') sfx.play('coin'); };
-    quieter.addEventListener('click', () => step(-10));
-    louder.addEventListener('click', () => step(10));
-    sync();
-    return el('div', { class: 'row music-volume effects-volume' }, [el('span', { text: S.effectsVolume }), el('span', { class: 'stepper', role: 'group', 'aria-label': S.effectsVolume }, [quieter, value, louder])]);
+    const stepper = volumeStepper('effectsVolume', { quieter: S.effectsQuieter, louder: S.effectsLouder, group: S.effectsVolume }, () => { if (sfx && typeof sfx.play === 'function') sfx.play('coin'); });
+    return el('div', { class: 'row music-volume effects-volume' }, [el('span', { text: S.effectsVolume }), stepper]);
   }
 
   function settingsSheet(body) {
@@ -142,7 +149,15 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     // Version 7.0 (Track S, ruling 935): while Sound is Off the Music and Effects rows are dimmed (class silenced: they still change, and take effect when Sound
     // is back on); the note under them says why in words.
     const soundRows = [...musicRows(), effectsRow(hooks.sfx)];
-    const dim = () => { for (const r of soundRows) r.classList.toggle('silenced', !settings.get().sound); };
+    // Version 7.1: the volume groups' aria-labels carry the same word, so a screen reader hears it too.
+    const dim = () => {
+      const silenced = !settings.get().sound;
+      for (const r of soundRows) {
+        r.classList.toggle('silenced', silenced);
+        const group = r.querySelector('.stepper');
+        if (group) group.setAttribute('aria-label', silenced ? `${group.dataset.label}, ${SILENCED}` : group.dataset.label);
+      }
+    };
     dim();
     const stopDim = settings.subscribe(() => { if (soundRows[0].isConnected) dim(); else stopDim(); });   // the sheet has closed: stop listening
     body.append(
@@ -169,21 +184,27 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       body.append(el('div', { class: 'actions show-cards' }, [button(CARDS4_TEXT.showCards, { class: 'show-cards primary', onClick: () => hooks.pictureCards() })]));
     }
     body.append(el('p', { text: T.leaveMode }));
-    body.append(el('h3', { text: T.shortcuts }));
-    body.append(el('table', { class: 'shortcuts' }, [
-      el('thead', {}, [el('tr', {}, [el('th', { text: T.keyHead }), el('th', { text: T.doesHead })])]),
-      el('tbody', {}, HELP_ROWS.map(([name, text, keys]) => el('tr', {}, [el('td', {}, [el('kbd', { text: keys || keyLabel(name) })]), el('td', { text })]))),
-    ]));
-    body.append(el('p', { class: 'small muted', text: T.shortcutsOff }));
-    body.append(el('h3', { text: T.gestures }), el('p', { text: T.gesturesHelp }));
+    // Version 7.1 (fix batch B): every heading below is a closed section whose summary is the heading (44 px tall; Enter or Space opens it), so a player can find Trade, Events or
+    // Seasons without a 70-screen scroll (the keys table, the tips and the paragraphs were 27,000 px at 375 px and 150% text).
+    const section = (head, ...kids) => el('details', { class: 'help-section' }, [el('summary', {}, [el('h3', { text: head })]), ...kids]);
+    body.append(section(T.shortcuts,
+      el('table', { class: 'shortcuts' }, [
+        el('thead', {}, [el('tr', {}, [el('th', { text: T.keyHead }), el('th', { text: T.doesHead })])]),
+        el('tbody', {}, HELP_ROWS.map(([name, text, keys]) => el('tr', {}, [el('td', {}, [el('kbd', { text: keys || keyLabel(name) })]), el('td', { text })]))),
+      ]),
+      el('p', { class: 'small muted', text: T.shortcutsOff })));
+    body.append(section(T.gestures, el('p', { text: T.gesturesHelp })));
     // Version 6.0 (contract section 9): each track's paragraphs, from its own src/ui/text.js section, in track order.
-    for (const p of Object.values(V60_HELP).flat()) body.append(el('h3', { text: p.head }), el('p', { text: p.text }));
-    for (const p of Object.values(V70_HELP).flat()) body.append(el('h3', { text: p.head }), el('p', { text: p.text }));   // Version 7.0: the same, from V70_HELP
-    body.append(el('h3', { text: T.goals }), el('p', { class: 'muted', text: T.goalsHelp }), el('p', { class: 'muted', text: T.guideHelp }));
+    const paragraph = (p) => body.append(section(p.head, el('p', { text: p.text })));
+    for (const p of Object.values(V60_HELP).flat()) paragraph(p);
+    for (const p of Object.values(V70_HELP).flat()) paragraph(p);   // Version 7.0: the same, from V70_HELP
+    for (const p of MAPS_HELP) paragraph(p);   // Version 7.1 (Track M)
+    for (const p of Object.values(V71_HELP).flat()) paragraph(p);   // Version 7.1 (Track F): the same, from V71_HELP
+    body.append(section(T.goals, el('p', { class: 'muted', text: T.goalsHelp }), el('p', { class: 'muted', text: T.guideHelp })));
     if (canResumeGuide()) {
       body.append(el('div', { class: 'actions' }, [button(T.resumeGuide, { class: 'resume-guide primary', onClick: () => { onResumeGuide(); if (close) close(); } })]));
     }
-    body.append(el('h3', { text: T.tips }), el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.map((tip) => el('li', { text: TIP_HELP_TEXT[tip.id] || TIP_TEXT[tip.id] }))));   // Stage 4: a tip true only where it fires has its help words
+    body.append(section(T.tips, el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.map((tip) => el('li', { text: TIP_HELP_TEXT[tip.id] || TIP_TEXT[tip.id] })))));   // Stage 4: a tip true only where it fires has its help words
   }
 
   function about(body) {

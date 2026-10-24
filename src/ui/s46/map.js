@@ -18,6 +18,7 @@ import { T as T47 } from '../../sim/terrain.js';
 import { S46_MAP_TEXT, TIP_TEXT, T, buildingName } from '../text.js';
 import { button } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
+import { FERRY_TEXT } from '../v71/ferryText.js';
 
 const WATER_REFUSALS = ['water', 'too_wide', 'bridge_shape'];
 const ROUTE_TIP_REFUSALS = ['blocked', 'hills', 'water', 'too_wide', 'bridge_shape'];
@@ -31,10 +32,12 @@ export function createMapUi(ctx) {
       const state = ctx.store.get();
       const target = fitTarget(world, state);
       if (!target) {
-        ctx.toasts.show(state.tool && state.tool.kind === 'road' ? S46_MAP_TEXT.noBridge : S46_MAP_TEXT.noFit(`a ${buildingName(state.tool.type).toLowerCase()}`));
+        const ferryTool = state.tool && state.tool.kind === 'ferry';   // Version 7.1 (Track F): the Ferry tool's, or a road's too-wide refusal, has no crossing to show
+        const tooWide = state.tool && state.tool.kind === 'road' && toolPreview(world, state).reason === 'too_wide';
+        ctx.toasts.show(ferryTool || tooWide ? FERRY_TEXT.noFit : state.tool && state.tool.kind === 'road' ? S46_MAP_TEXT.noBridge : S46_MAP_TEXT.noFit(`a ${buildingName(state.tool.type).toLowerCase()}`));
         return;
       }
-      ctx.showMeAt({ category: target.kind === 'building' ? undefined : 'roads', item: target.kind === 'building' ? target.item : 'road', x: target.x, y: target.y });   // a bridge's place, or (Version 5.0, Task 5) the spot a routed road is blocked at
+      ctx.showMeAt({ category: target.kind === 'building' ? undefined : 'roads', item: target.kind === 'building' ? target.item : target.kind === 'ferry' ? 'ferry' : 'road', x: target.x, y: target.y });   // a bridge's place, a ferry's (Version 7.1, Track F), or (Version 5.0, Task 5) the spot a routed road is blocked at
     };
     const host = ctx.root || (ctx.doc && ctx.doc.body);
     if (host && host.addEventListener) { host.addEventListener('thebes:show-fit', onShowFit); off.push(() => host.removeEventListener('thebes:show-fit', onShowFit)); }
@@ -50,6 +53,8 @@ export function createMapUi(ctx) {
       if (key === lastKey) return;
       lastKey = key;
       const p = toolPreview(world, s);
+      // Version 7.1 (Track F, ruling 1083): a too-wide refusal fires the ferries tip first, so the bridges tip does not take the 3-minute slot ahead of it
+      if (road && p.state === 'bad' && p.reason === 'too_wide') ctx.fireTip('roadTooWide');
       if (road && ((p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) || (p.bridges && p.bridges.length))) ctx.fireTip('roadMeetsWater');
       if (hasHills && p.state === 'bad' && p.reason === 'hills') ctx.fireTip('hillsMet');
       if (road && !s.tool.route && p.state === 'bad' && ROUTE_TIP_REFUSALS.includes(p.reason)) ctx.fireTip('roadRoute');   // Version 5.0 (Task 5): the straight road met something Route goes round

@@ -17,6 +17,7 @@ import { isWorking } from './labour.js';
 import { bazaarsByHouse, monthlyNeed } from './distribution.js';
 import { wantedNeeds } from './housing.js';
 import { NEIGHBOURS4 } from './grid.js';
+import { ferryEdges } from './ferries.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 
@@ -234,6 +235,7 @@ export function cartPath(world, cart) {
   if (best !== null) {
     path = [best];
     let t = best, d = bestD;
+    const links = ferryEdges(world);   // Version 7.1 (Track F): a running ferry is a step of crossingTiles(water) distance, from a road tile on one bank to one on the other
     while (d > 1) {
       const x = t % world.size, y = (t - x) / world.size;
       let next = null;
@@ -243,6 +245,7 @@ export function cartPath(world, cart) {
         const nt = nx + ny * world.size;
         if (dist.get(nt) === d - 1) { next = nt; break; }
       }
+      if (next === null) for (const e of links.get(t) || []) if (dist.get(e.to) === d - e.cost) { next = e.to; d -= e.cost - 1; break; }
       if (next === null) { path = null; break; }
       path.push(next); t = next; d--;
     }

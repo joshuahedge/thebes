@@ -96,7 +96,7 @@ describe('v70 a towers: where a tower defends (ruling 960)', () => {
     expect(showMeRefusal(w, 'road', a.fix.target)).toBe(null);                              // Show me starts the road tool
     const t = adviceWords(a, w);
     expect(t.fix).toBe(ADVICE_FIX_TEXT.roadFirst(road.tiles, a.data.buildN, a.data.buildCost));
-    expect(t.fix.startsWith(`Lay a road to here (${road.tiles} tiles), then build ${a.data.buildN} towers`)).toBe(true);
+    expect(t.fix.startsWith(`Lay a road to the spot Show me marks (${road.tiles} tiles), then build ${a.data.buildN} towers`)).toBe(true);
     expect(t.why).toBe(ADVICE_FIX_TEXT.towerNeedsRoad({ type: 'trading_post' }));
     expect([t.action.label, t.cost]).toEqual(['Show me', `Road: ${roadCostOf(w)} gold a tile`]);
     // Lay it as the road tool's Route would: exactly the tiles the item said, and the item is the tower's now.

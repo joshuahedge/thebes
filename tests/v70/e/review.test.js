@@ -74,9 +74,9 @@ describe('v70 e review: a strike or quarrel holds for its days (ruling 987)', ()
     const why = r.root.querySelector('#sheet .event-hold');
     const type = w.buildings[ids[0]].type;
     expect(why.textContent).toBe(`${C.hold(until, type)}.`);
-    expect(/^Stopped by a quarrel until year \d+, month \d+: the event's choice\.$/.test(why.textContent)).toBe(true);
+    expect(/^Stopped by a quarrel until year \d+, month \d+; work starts again by itself\.$/.test(why.textContent)).toBe(true);   // (7.1, ruling 1063: no choice is left to make by then)
     expect(pause().getAttribute('aria-describedby')).toBe(why.id);
-    expect(reasonText('event_hold')).toBe("Held until the event ends: the event's choice");
+    expect(reasonText('event_hold')).toBe('Held until the event ends; work starts again by itself');
     // the hold over: Resume is on and the line is gone
     w.day = until;
     r.ui.refresh();
@@ -89,8 +89,8 @@ describe('v70 e review: a strike or quarrel holds for its days (ruling 987)', ()
   });
 
   it('words a quarry\'s strike as a strike', () => {
-    expect(C.hold(90, 'quarry')).toBe('On strike until year 1, month 4: the event\'s choice');
-    expect(C.hold(90, 'potter')).toBe('Stopped by a quarrel until year 1, month 4: the event\'s choice');
+    expect(C.hold(90, 'quarry')).toBe('On strike until year 1, month 4; work starts again by itself');
+    expect(C.hold(90, 'potter')).toBe('Stopped by a quarrel until year 1, month 4; work starts again by itself');
   });
 });
 

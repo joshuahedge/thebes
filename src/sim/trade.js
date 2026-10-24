@@ -26,6 +26,7 @@ import { routeCostOf } from './costs.js';
 import { storeAccepts, storeTotal } from './production.js';
 import { createRng, hash2 } from './rng.js';
 import { idx, inBounds, NEIGHBOURS4 } from './grid.js';
+import { ferryEdges } from './ferries.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { tradeAllowed, heldBack } from './tradeRules.js';
 
@@ -49,9 +50,11 @@ function joinsEntry(world, b) {
   if (!world.road[goal]) return false;
   const seen = new Set(adjacentRoadTiles(world, b));
   const queue = [...seen];
+  const links = ferryEdges(world);   // Version 7.1 (Track F): a running ferry joins the roads on its two banks
   for (let qi = 0; qi < queue.length; qi++) {
     const t = queue[qi];
     if (t === goal) return true;
+    for (const e of links.get(t) || []) if (!seen.has(e.to)) { seen.add(e.to); queue.push(e.to); }
     const x = t % world.size, y = (t - x) / world.size;
     for (const [dx, dy] of NEIGHBOURS4) {
       const nx = x + dx, ny = y + dy;

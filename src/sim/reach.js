@@ -1,5 +1,6 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { ring, idx, inBounds, NEIGHBOURS4 } from './grid.js';
+import { ferryEdges } from './ferries.js';
 
 const cache = new WeakMap(); // world -> { version, map }; kept outside the world so saves stay pure data
 
@@ -46,6 +47,8 @@ export function reachCacheSize(world) {
 
 // Road tile -> road distance from the footprint, breadth first along the roads, up to maxDist.
 function walkRoads(world, b, maxDist) {
+  const links = ferryEdges(world);
+  if (links.size) return walkRoadsAndFerries(world, b, maxDist, links);
   const dist = new Map();
   const queue = [];
   for (const t of adjacentRoadTiles(world, b)) {
@@ -61,6 +64,42 @@ function walkRoads(world, b, maxDist) {
       if (!inBounds(world.size, nx, ny)) continue;
       const nt = idx(world.size, nx, ny);
       if (world.road[nt] && !dist.has(nt)) { dist.set(nt, d + 1); queue.push(nt); }
+    }
+  }
+  return dist;
+}
+
+// Version 7.1 (Track F, ruling 1040): the same walk where a running ferry (src/sim/ferries.js ferryEdges) joins the roads on two banks as a link of
+// crossingTiles(water) road tiles. Distances are not all one step apart now, so tiles are taken in order of distance (one list a distance); with no
+// running ferry walkRoads is the plain breadth-first walk above and this is never called.
+function walkRoadsAndFerries(world, b, maxDist, links) {
+  const dist = new Map(), byDist = new Map();
+  let pending = 0;
+  const reach = (t, d) => {
+    if (d > maxDist) return;
+    const had = dist.get(t);
+    if (had !== undefined && had <= d) return;
+    dist.set(t, d);
+    if (!byDist.has(d)) byDist.set(d, []);
+    byDist.get(d).push(t);
+    pending++;
+  };
+  for (const t of adjacentRoadTiles(world, b)) reach(t, 1);
+  for (let d = 1; pending > 0; d++) {
+    const list = byDist.get(d);
+    if (!list) continue;
+    byDist.delete(d);
+    for (const t of list) {
+      pending--;
+      if (dist.get(t) !== d) continue;   // reached sooner by another way since
+      const x = t % world.size, y = (t - x) / world.size;
+      for (const [dx, dy] of NEIGHBOURS4) {
+        const nx = x + dx, ny = y + dy;
+        if (!inBounds(world.size, nx, ny)) continue;
+        const nt = idx(world.size, nx, ny);
+        if (world.road[nt]) reach(nt, d + 1);
+      }
+      for (const e of links.get(t) || []) reach(e.to, d + e.cost);
     }
   }
   return dist;

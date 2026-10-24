@@ -9,7 +9,7 @@ import { settle } from '../../src/sim/settle.js';
 import { housesOf } from '../../src/sim/world.js';
 import { routeBlock, tradedGoods } from '../../src/ui/tradeSheet.js';
 import { select, openSheet } from '../../src/ui/modes.js';
-import { T, TIP_TEXT, caravanText, partnerName, plural } from '../../src/ui/text.js';
+import { T, TIP_TEXT, caravanText, partnerName, plural, V70_TRADE_TEXT as W } from '../../src/ui/text.js';
 import { setRoad, addRaw, staffAll } from '../helpers/testWorld.js';
 import { fire, key } from '../helpers/dom.js';
 import { rigUI, uiWorld, runningUiWorld } from '../helpers/uiWorld.js';
@@ -140,7 +140,7 @@ describe('ui trade sheet', () => {
       fire(less(), 'click');
       expect(w.trade.orders.pottery.keep).toBe(10);
       fire(good(r, 'clay').querySelector('.mode.buy'), 'click');
-      expect(good(r, 'clay').querySelector('.keep-help').textContent).toBe('Buys until 0 are near the trading post');
+      expect(good(r, 'clay').querySelector('.keep-help').textContent).toBe(W.buyNothing);
       fire(good(r, 'pottery').querySelector('.mode.ignore'), 'click');
       expect(w.trade.orders.pottery).toEqual({ mode: 'ignore', keep: 10 });             // the level is kept for next time
       expect(good(r, 'pottery').querySelector('.keep')).toBe(null);

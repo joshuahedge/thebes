@@ -11,10 +11,11 @@ import { DESIRABILITY } from '../data/desirability.js';
 import { isToolMode } from './modes.js';
 import { buildingName, T, DANGER_UI_TEXT, CONDITION_TEXT, S46_MAP_TEXT, S46_WONDER_TEXT, S46_UX_TEXT, S47_SPOTS_TEXT, P_TEXT } from './text.js';
 import { AREA_TEXT } from './areaText.js';
+import { FERRY_TEXT } from './v71/ferryText.js';
 import { ROUTE_TEXT } from './routeText.js';
 import { el, button, iconButton, clear } from './components.js';
 
-const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' && tool.gate ? buildingName('gate') : tool.kind === 'road' || tool.kind === 'wall' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : tool.kind === 'plazas' ? buildingName('plaza') : tool.kind === 'areas' ? AREA_TEXT.title(tool.type) : T.demolish);
+const titleOf = (tool) => (tool.kind === 'building' ? buildingName(tool.type) : tool.kind === 'road' && tool.gate ? buildingName('gate') : tool.kind === 'road' || tool.kind === 'wall' || tool.kind === 'ferry' ? buildingName(tool.kind) : tool.kind === 'houses' ? T.housingPlots : tool.kind === 'plazas' ? buildingName('plaza') : tool.kind === 'areas' ? AREA_TEXT.title(tool.type) : T.demolish);
 const NICER_TONE = { better: 'teal', worse: 'coral', mixed: 'muted', '': 'muted' };
 const NARROW_BAR = 365;   // px: a bar this narrow at 150% text can need a chip row for each condition (css/ui.css .conds.tall.narrow)
 const rotates = (tool) => tool.kind === 'building' && Boolean(BUILDINGS[tool.type].rotates);   // none in Stage 1 (mastabas come with monuments)
@@ -138,7 +139,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     // Stage 4.6 (rulings 331, 350): a refused terrain or water spot, and a road that meets water too wide or crooked to bridge, offer Show me on a row of
     // its own under the bar's words and buttons (css/ui.css .show-fit): it asks the Map seam (src/ui/s46/map.js, on the 'thebes:show-fit' event) to go to
     // the nearest place that fits.
-    const showFit = p.showFit ? button(S46_MAP_TEXT.showFit, { class: 'show-fit', 'aria-label': S46_MAP_TEXT.showFitLabel(s.tool.kind === 'road' ? 'a bridge' : `a ${titleOf(s.tool).toLowerCase()}`), onClick: () => element.dispatchEvent(new CustomEvent('thebes:show-fit', { bubbles: true })) }) : null;
+    const showFit = p.showFit ? button(S46_MAP_TEXT.showFit, { class: 'show-fit', 'aria-label': S46_MAP_TEXT.showFitLabel(p.reason === 'ferry_bridge' ? FERRY_TEXT.showFitWhat.bridge : p.reason === 'too_wide' || s.tool.kind === 'ferry' ? FERRY_TEXT.showFitWhat.ferry : s.tool.kind === 'road' ? 'a bridge' : `a ${titleOf(s.tool).toLowerCase()}`), onClick: () => element.dispatchEvent(new CustomEvent('thebes:show-fit', { bubbles: true })) }) : null;
     if (showFit && p.routed && p.at && p.reason !== 'too_wide') showFit.setAttribute('aria-label', ROUTE_TEXT.showMeLabel);   // Version 5.0 (Task 5): a routed road's refusal shows what is in the way, not a bridge
     // A building bound to its ground keeps the Show me row's room from the start (as its chips row does), empty until a refusal fills it, so the
     // bar keeps one height as the ghost moves onto a refused spot and the corner buttons on it do not jump (ruling 352).

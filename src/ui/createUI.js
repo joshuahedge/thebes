@@ -67,6 +67,7 @@ import { createS46Seams } from './s46/index.js';
 import { createS47Seams } from './s47/index.js';
 import { createV60Seams } from './v60/index.js';
 import { createV70Seams } from './v70/index.js';
+import { createFerryUi } from './v71/ferries.js';
 import { s46Walkers, s46Ground } from '../render/s46.js';
 import { v70Ground, v70Walkers, v70Light } from '../render/v70.js';
 import { createScoreUi } from './scoreUi.js';
@@ -228,6 +229,9 @@ export function createUI({
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
   const legend = createOverlayLegend({ container: $('legend'), store, world });
   const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: toggleLayers, pickerNode: cornerPicker.node, alertCount: () => alerts.count(), viewHeight: () => view().height });
+  // Version 7.1 (fix batch B): the Map button names its key (M) while single-key shortcuts are on, as the speed steps name Space (corners.js is another track's file, so it is set here).
+  const mapKeyHint = () => { const b = $('corners').querySelector('.minimap-button'); if (b) { if (settings.get().keyboardShortcuts !== false) b.setAttribute('aria-keyshortcuts', 'M'); else b.removeAttribute('aria-keyshortcuts'); } };
+  mapKeyHint();
   // The next-threshold bar (spec 4.1): on a phone only in calm portrait play, outside the guide (a tip, a caption or a
   // sheet already takes the whole guidance row; a banner or a tool keeps the bar away too).
   const barAllowed = () => {
@@ -247,7 +251,7 @@ export function createUI({
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
   monumentUi = createMonumentUi(seamCtx);
-  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx), ...createV60Seams(seamCtx), ...createV70Seams(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams; Version 6.0 and 7.0: each track's (src/ui/v60/index.js, v70/index.js)
+  s46 = [...createS46Seams(seamCtx), ...createS47Seams(seamCtx), ...createV60Seams(seamCtx), ...createV70Seams(seamCtx), createFerryUi(seamCtx)];   // Stage 4.7 (Task 6): the store sheet's Fetch control joins the tracks' seams; Version 6.0 and 7.0: each track's (src/ui/v60/index.js, v70/index.js)
   const ambient = createAmbient({ enabled: () => motionLevel() !== 'still', level: motionLevel });   // Stage 4: Gentle's glints and smoke in place (Track E)
   const menus = createMenuSheets({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
@@ -261,6 +265,7 @@ export function createUI({
   const stopSettingsWatch = settings.subscribe((v) => {
     sidePanel.render();
     speedControl.render();                               // Keyboard shortcuts on or off: the speed steps' titles name the keys only when on
+    mapKeyHint();
     corners.render();                                    // a new text size moves the tray's top edge: the corners may need to step away from it (or back)
     if (v.help === lastHelp) return;
     lastHelp = v.help;
@@ -744,6 +749,7 @@ export function createUI({
       const c = CATEGORIES[i];
       if (!c || !shownItems(world, c.id).length) return;
       const s = store.get();
+      if (s.sheet && s.layout === 'wide') return;      // Version 7.1: the wide tray is folded behind an open sheet, so a change would be unseen and wrong when the sheet closes
       store.set(s.layout === 'wide' ? { category: c.id } : { category: c.id, dock: 'tray' });
     },
     rotate: () => { if (typeof placement.rotate === 'function') placement.rotate(); },   // Stage 4: R turns a mastaba's ghost (Track C's placement.rotate, ruling 234)

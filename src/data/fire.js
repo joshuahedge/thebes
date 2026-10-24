@@ -32,6 +32,7 @@ export const FIRE_RISK = {
   temple: 0.1, firehouse: 0.1,
   quarry: FARMS, brickworks: 1.0, builders_guild: 0.3,   // Stage 4: the quarry as the gem mine, the brickworks a kiln, the guild timber and rope
   hunting_lodge: 0.3, fishing_wharf: 0.3,                // Stage 4.6 (River track, ruling 365): reed, hides and planks burn as the booth and bazaar do; the Nilometer is stone
+  ferry_landing: 0.2,                                    // Version 7.1 (Track F, ruling 1042): a timber jetty and reed shed, less than the quay
   quay: 0.3,                                             // Version 7.0 (Track T, ruling 871): bales and planks, as the wharf
   archery_range: 0.3, stables: 0.5,                      // Stage 4.6 (ruling 416): the range like the barracks (timber and bowstrings), the stables higher (hay and straw)
 };

@@ -3,7 +3,7 @@
 import { describe, it, expect } from '../../harness.js';
 import { generateMap } from '../../../src/sim/mapgen.js';
 import { createWorld } from '../../../src/sim/world.js';
-import { MAP_VARIANTS, MAP_SIZES } from '../../../src/data/map.js';
+import { MAP_VARIANTS_70 as MAP_VARIANTS, MAP_SIZES } from '../../../src/data/map.js';   // Version 7.1: the 7.0 layouts (a wide Nile's nearest bridge spot may lie wholly on the far bank; tests/v71/m sweeps the new ones)
 import { HILLS, S47_SALT, hasNewLand } from '../../../src/data/s47.js';
 import { T, passable, buildable } from '../../../src/sim/terrain.js';
 import { idx, inBounds, NEIGHBOURS4 } from '../../../src/sim/grid.js';

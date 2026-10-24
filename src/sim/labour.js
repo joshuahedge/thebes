@@ -4,6 +4,7 @@ import { PRIORITY_LEVELS, MIN_STAFF_RATIO } from '../data/labour.js';
 import { population, allBuildings } from './world.js';
 import { touchesRoad } from './reach.js';
 import { crewPlan, hasMonumentWork } from './monuments.js';
+import { syncFerries } from './ferries.js';
 
 export function assignLabour(world) {
   const workforce = Math.floor(population(world) * ECONOMY.workerShare);
@@ -44,6 +45,7 @@ export function assignLabour(world) {
     employed += give;
   }
   world.labour = { workforce, employed, jobs, shortLevels };
+  syncFerries(world);   // Version 7.1 (Track F): a crossing opens or closes with its two ferrymen; the roads' version moves when it does
 }
 
 export function staffRatio(world, b) {

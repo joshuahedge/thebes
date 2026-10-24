@@ -44,7 +44,7 @@ describe('s45 world v6', () => {
     expect(['well', 'farm_grain'].map((t) => ['health' in makeBuilding(w, t, 3, 3), 'crime' in makeBuilding(w, t, 3, 3), 'illness' in makeBuilding(w, t, 3, 3)])).toEqual([[false, false, false], [false, false, false]]);
   });
   it('keeps the six variant names, and only a known one validates', () => {
-    expect(MAP_VARIANTS).toEqual(['classic', 'east', 'middle', 'wide-bends', 'island', 'oasis']);
+    expect(MAP_VARIANTS.slice(0, 6)).toEqual(['classic', 'east', 'middle', 'wide-bends', 'island', 'oasis']);   // Version 7.1 appends six
     const bad = (v) => { const w = JSON.parse(serialize(createWorld({ seed: 3 }))); w.mapVariant = v; return validateWorld(w); };
     expect(bad('classic')).toBe(true);
     expect([bad('swamp'), bad(null), bad(3)]).toEqual([false, false, false]);

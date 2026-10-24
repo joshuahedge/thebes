@@ -2,7 +2,7 @@
 // Every layout at every size holds its invariants over 50 seeds, so a layout that breaks one fails by name (layout, size, seed).
 import { describe, it, expect } from '../../harness.js';
 import { generateMap, addClay } from '../../../src/sim/mapgen.js';
-import { MAP, MAP_SIZES, MAP_VARIANTS, MAP_SALT, areaScale } from '../../../src/data/map.js';
+import { MAP, MAP_SIZES, MAP_VARIANTS, MAP_VARIANTS_70, MAP_SALT, areaScale } from '../../../src/data/map.js';
 import { T } from '../../../src/sim/terrain.js';
 import { idx, inBounds } from '../../../src/sim/grid.js';
 import { bridgeSpot } from '../../../src/sim/bridges.js';
@@ -78,7 +78,7 @@ describe('s46 map generator (ruling 332, 333): every layout at every size keeps 
     const bad = [];
     for (const size of SIZES) {
       const area = areaScale(size);
-      for (const v of MAP_VARIANTS) {
+      for (const v of MAP_VARIANTS_70) {   // Version 7.1: the 7.0 layouts; the new ones keep their own promises (tests/v71/m)
         for (const seed of size > 80 ? SEEDS.slice(0, 12) : SEEDS) {
           const m = generateMap(seed, size, v), tag = `${v} ${size} seed ${seed}`;
           const fail = (what) => bad.push(`${tag}: ${what}`);
@@ -143,7 +143,7 @@ describe('s46 map generator: the seeded shape choices (ruling 332)', () => {
   it('draws each choice inside its range, over 50 seeds of every layout and size', () => {
     const S = MAP.shapes, bad = [];
     const seen = { pools: 0, none: 0, wadis: 0, channels: 0, oxbows: 0, clusters: 0, groves: 0, dunes: 0 };
-    for (const size of SIZES) for (const v of MAP_VARIANTS) for (const seed of size > 80 ? SEEDS.slice(0, 12) : SEEDS) {
+    for (const size of SIZES) for (const v of MAP_VARIANTS_70) for (const seed of size > 80 ? SEEDS.slice(0, 12) : SEEDS) {
       if (v === 'classic' && size === 64) continue;
       const m = generateMap(seed, size, v), p = m.params, tag = `${v} ${size} ${seed}`;
       const w = createWorld({ seed, size, mapVariant: v });

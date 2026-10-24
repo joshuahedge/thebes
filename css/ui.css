@@ -105,7 +105,8 @@ body[data-hand="left"] #corners { flex-direction: row-reverse; }
 #dock .cat { display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; min-width: var(--tap); padding: 2px 4px; font-size: calc(12px * var(--ui-scale)); border-radius: 8px; box-shadow: none; }
 #dock .cat[aria-pressed="true"] { color: var(--teal); font-weight: 600; box-shadow: none; }
 #dock .cat .icon { font-size: calc(20px * var(--ui-scale)); }
-#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 2px 12px 3px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; }
+#dock .tray { display: flex; gap: 8px; overflow-x: auto; padding: 2px 12px 3px; scroll-snap-type: x proximity; scroll-padding-inline: 12px; scrollbar-width: none; }   /* Version 7.1 (Track F): the Roads tray holds three cards, which scroll a little on a phone's width; a classic scrollbar there would add its own height to the tray and push it over the corner buttons (the edge fade and chevron say there is more) */
+#dock .tray::-webkit-scrollbar { display: none; }
 #dock .pill { align-self: center; margin: 6px 0 8px; }
 #dock[data-height="slim"] .tray, #dock[data-height="slim"] .pill { display: none; }
 #dock[data-height="tray"] .pill { display: none; }
@@ -996,6 +997,13 @@ body:is([data-layout="portrait"], [data-layout="compact"]) .confirm .monument-li
    from its words to the end of the row, no cartouche. It gains 14 px of margin (10 above, 4 below). */
 #sheet h3 { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; font-family: var(--serif); font-weight: 400; font-size: calc(17px * var(--ui-scale)); letter-spacing: 0.02em; }
 #sheet h3::after { content: ''; flex: 1 1 0; min-width: 24px; height: 1px; background: var(--ink-line); pointer-events: none; }
+/* How to play's sections (Version 7.1, fix batch B): a closed <details> per paragraph, its summary the heading at 44 px; the chevron is a shape, and the state is the
+   element's own (expanded or not), not colour. */
+#sheet .help-section > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; list-style: none; }
+#sheet .help-section > summary::-webkit-details-marker { display: none; }
+#sheet .help-section > summary::before { content: '▸'; flex: none; width: 1em; text-align: center; }
+#sheet .help-section[open] > summary::before { content: '▾'; }
+#sheet .help-section > summary h3 { flex: 1 1 auto; margin: 0; }
 /* The title card's one glyph, inside the cartouche before the name: empty generated content, so a screen reader meets only
    "Thebes"; a sheet's head has none (at most one, spec 6.9). */
 .title-card h1::before { content: ''; flex: none; width: 0.5em; height: 0.75em; background: var(--look-ankh) center / contain no-repeat; }

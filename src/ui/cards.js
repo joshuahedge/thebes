@@ -18,6 +18,8 @@ import { buildingName, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT, S46_MA
 import { MAP } from '../data/map.js';
 import { el, clear } from './components.js';
 import { drawThumb } from './thumbs.js';
+import { ferryCost } from '../sim/ferries.js';
+import { FERRY_TEXT } from './v71/ferryText.js';
 
 const deviceRatio = () => Math.min(3, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
 
@@ -61,6 +63,7 @@ export function cardInfo(world, item) {
   if (item === 'road') { cost = roadCostOf(world); suffix = ' per tile'; }
   else if (item === 'house') { cost = costOf(world, 'house'); suffix = ' per plot'; }
   else if (item === LARGE_PLOT.type) { cost = costOf(world, item); suffix = ' per lot'; }
+  else if (item === 'ferry') { cost = ferryCost(world); suffix = FERRY_TEXT.cardUnit; }   // Version 7.1 (Track F): the price of a whole crossing, two landings (src/sim/ferries.js)
   else if (item !== 'demolish') cost = costOf(world, item);
   costText = item === 'demolish' ? 'Refunds a quarter' : `${cost} gold${suffix}`;
   // Stage 4 (spec 4.20): while a palace stands its card is a way to it, not a price (picking it selects the palace).
@@ -74,7 +77,7 @@ export function cardInfo(world, item) {
   const upkeep = bill && bill.bill > 0 ? { text: S45_TEXT.upkeepLine(bill), title: S45_TEXT.upkeepTitle(bill) } : { text: '', title: '' };
   // Stage 4.6 (rulings 331, 350): a terrain card's tooltip says its rule from the sim's row ("Needs 2 of 4 tiles on clay. Clay ground, along the
   // riverbanks."), and the road card says a road crosses water on a bridge, at the sim's price (costOf(world, 'bridge')) and the rule's reach.
-  const terrainText = item === 'road' ? S46_MAP_TEXT.bridgeCard(costOf(world, 'bridge')) : isMonumentItem(item) ? UI4_TEXT.groundCard : CONDITION_TEXT.terrainLine(item, true);
+  const terrainText = item === 'road' ? S46_MAP_TEXT.bridgeCard(costOf(world, 'bridge')) : item === 'ferry' ? FERRY_TEXT.card : isMonumentItem(item) ? UI4_TEXT.groundCard : CONDITION_TEXT.terrainLine(item, true);
   return { item, name: buildingName(item), cost, costText, affordable: canAfford(world, cost), locked, lockText: locked ? lockTextOf(world, item) : '', isNew, terrainText, upkeepText: upkeep.text, upkeepTitle: upkeep.title };
 }
 
@@ -100,7 +103,7 @@ export function cardsKey(world, category, activeItem) {
 }
 
 // The tooltip of a card's ground line (Stage 4.6, rulings 331, 350): the rule in full, from the sim's own row and price.
-const terrainTitleOf = (world, item) => (item === 'road' ? S46_MAP_TEXT.bridgeCardTitle(costOf(world, 'bridge'), MAP.bridgeMax) : S46_MAP_TEXT.cardTitle(item));
+const terrainTitleOf = (world, item) => (item === 'road' ? S46_MAP_TEXT.bridgeCardTitle(costOf(world, 'bridge'), MAP.bridgeMax) : item === 'ferry' ? FERRY_TEXT.cardTitle(ferryCost(world)) : S46_MAP_TEXT.cardTitle(item));
 
 // Locked and unaffordable cards keep their words and marks; an affordable cost gets a coin (decoration only).
 function costLine(info) {
