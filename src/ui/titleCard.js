@@ -146,7 +146,7 @@ export function createTitleCard({ container, hasSave, canInstall = false, canBri
       showCard();
       const body = el('div', { class: 'guide-body' });
       render(body);
-      const back = button(T.back, { class: 'guide-back', onClick: showCard });
+      const back = button(V711_TEXT.continueLabel, { class: 'guide-back', onClick: showCard });   // Version 7.1.1 (ruling 1106): the install guide is read through, then Continue
       showPanelNode([body, el('div', { class: 'actions' }, [back])]);
       back.focus();
     },

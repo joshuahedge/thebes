@@ -66,3 +66,19 @@ describe('v711 buttons: dialogs and cards', () => {
     } finally { cleanup(); }
   });
 });
+
+describe('v711 buttons: Continue at the foot of a page read through, Back where it steps back', () => {
+  it('What\'s new: the top button says Back and the foot button Continue, and both return to the title card; Settings keeps Back', async () => {
+    const s = await pageAt(null, { width: 390, height: 844, settings: { lessonDone: true } });
+    try {
+      const title = s.root.querySelector('#title');
+      fire(title.querySelector('.whats-new-button'), 'click');
+      const backs = [...title.querySelectorAll('.whats-new-back')].map((b) => b.textContent);
+      expect(backs).toEqual(['Back', 'Continue']);
+      fire(title.querySelectorAll('.whats-new-back')[1], 'click');
+      expect(Boolean(title.querySelector('.title-buttons:not([hidden])'))).toBe(true);
+      fire(title.querySelector('.title-settings'), 'click');
+      expect(title.querySelector('.guide .actions .guide-back').textContent).toBe('Back');
+    } finally { s.cleanup(); }
+  });
+});

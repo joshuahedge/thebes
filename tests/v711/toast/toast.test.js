@@ -155,3 +155,25 @@ describe('v711 toast: a card waits while the player is in the middle of the step
     } finally { s.cleanup(); }
   });
 });
+
+describe('v711 toast: a lesson card puts the placing tool away', () => {
+  it('after the large plot is laid (its Show me tool still on), the firehouse card opens with no tool mode and no confirm bar, so no refusal shows behind it', async () => {
+    const s = await pageAt('largeplot');
+    try {
+      s.root.querySelector('.lesson-card .lc-go').click();                                  // Show me: the large plot tool comes on at its place
+      await frame();
+      expect(s.g().ui.store.get().mode).toBe('placing');
+      place(s.g().world, 'large_plot', ...LESSON_PLACES.largePlot);
+      s.g().ui.afterCommand({ kind: 'building', result: { ok: true }, text: 'Large plot placed', undoable: true });
+      await frame();
+      expect(Boolean(cardOf(s))).toBe(true);
+      const st = s.g().ui.store.get();
+      expect([st.mode, st.tool, st.ghost]).toEqual(['browse', null, null]);
+      const bar = s.root.querySelector('#confirm');
+      expect([bar.hidden || bar.offsetParent === null || bar.getClientRects().length === 0, /Can't place/.test(bar.textContent) && bar.getClientRects().length > 0]).toEqual([true, false]);
+      s.root.querySelector('.lesson-card .lc-go').click();                                  // the next step's Show me starts its own tool afresh
+      await frame();
+      expect(s.g().ui.store.get().mode).toBe('placing');
+    } finally { s.cleanup(); }
+  });
+});

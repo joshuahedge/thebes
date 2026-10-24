@@ -3890,6 +3890,7 @@ export const V711_TEXT = {
   helpGoalHead: 'What the game is for',
   helpGoal: () => `${V711_TEXT.goal()} You climb one rank at a time as your people grow: ${MILESTONES.map((m) => m.name).join(', ')}.`,
   closeToast: 'Close this message',
+  continueLabel: 'Continue',   // the foot button of a page read through and then left (What's new, the install guide); Back stays where it means a step back
   skip: "Skip, I've played before",
   skipConfirm: "Skip the lesson? It counts as done, so you go straight to a city of your own. Lesson on the title screen plays it any time.",
   skipConfirmTitle: "Skip the lesson? It counts as done and you go to the title screen, where your saved city waits and New city starts a fresh one. Lesson there plays it any time.",

@@ -25,7 +25,7 @@ import { D2_TEXT, P_TEXT, V711_TEXT, T } from '../text.js';
 import { el, button, iconButton, setText } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
 import { tileToScreen } from '../../render/camera.js';
-import { openSheet } from '../modes.js';
+import { openSheet, isToolMode } from '../modes.js';
 import { TOPBAR_PX, freeTop } from '../layout.js';
 
 // The lit ring's reach round a footprint: the footprint's diamond (a tile is 64 px wide and 32 tall at zoom 1, so w + d tiles are (w + d) x 32 px wide and
@@ -157,6 +157,9 @@ export function createLessonUi(ctx) {
     try { holdForCard(building); } finally { showing = false; }
     const t = targetOf();
     const words = D2_TEXT.steps[step.id](lessonFacts(world, step));   // a waiting step says "Press Play" (the game is held, lessonFacts.paused): its button is Play; the others play on by themselves, as their docked row says too
+    // Ruling 1115: a placing, road or demolish tool still on from the step just done (it stays on after a placement) is put away as Cancel does, so the bar behind the card never shows a
+    // refusal for the plot just laid; the step's own Show me starts its tool afresh.
+    if (isToolMode(store.get().mode) && typeof ctx.cancelPlacing === 'function') ctx.cancelPlacing();
     if (ctx.toasts && typeof ctx.toasts.dropLoose === 'function') ctx.toasts.dropLoose();   // ruling 1100: no timed toast stays up under a card
     const first = at === 0;   // ruling 1110: the first card opens with the game's goal, and offers Skip, I've played before
     card.show({ label: D2_TEXT.lessonLabel(at + 1, LESSON_LENGTH), text: first ? `${V711_TEXT.goal()} ${words.text}` : words.text, skipOffered: first && typeof run.skip === 'function', goLabel: mode === 'card' ? P_TEXT.card.play : t ? P_TEXT.card.showMe : P_TEXT.card.gotIt, picture: pictureOf(step) });

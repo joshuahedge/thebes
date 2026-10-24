@@ -247,6 +247,7 @@ export function createUI({
   const seamCtx = {
     world, store, settings, sfx, toasts, celebrations, effects, cameraControl, speedControl, alerts, root, doc, now, clock, hooks,
     afterCommand, refresh, onView: viewAlert, showMeAt, selectBuilding, screenshotMode, fireTip,
+    cancelPlacing: () => placement.cancel(),   // Version 7.1.1 (ruling 1115): the lesson card puts away a tool that is still on
   };
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
