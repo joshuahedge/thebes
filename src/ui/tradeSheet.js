@@ -42,11 +42,16 @@ export function tradedGoods(world) {
 
 // Where a caravan or boat counts the stock when it trades this good on this side ('buys': the city sells it; 'sells': the city buys it): the trading post for an open
 // road route that lists it, the Quay for an open river one (src/sim/trade.js stockNear), the post first. The Keep at least words say "near" these.
+// Version 7.1 (fix batch B): only routes whose switch for the good is On count (tradeAllowed, the caravan's own test); none left gives [] and the row says so.
 export function placesFor(world, good, side) {
-  const kinds = openPartners(world).filter((id) => tradePrices(world, id)[side][good] !== undefined).map((id) => (byRiver(id) ? 'quay' : 'post'));
-  const out = ['post', 'quay'].filter((k) => kinds.includes(k));
-  return out.length ? out : ['post'];
+  const kinds = openPartners(world).filter((id) => tradePrices(world, id)[side][good] !== undefined && tradeAllowed(world, id, good, side)).map((id) => (byRiver(id) ? 'quay' : 'post'));
+  return ['post', 'quay'].filter((k) => kinds.includes(k));
 }
+
+// Keep at least moves 10 a tap below 100 and 50 a tap from 100 up (the sim takes any whole number); down steps the same way, so 100 -> 150 -> 100 -> 90.
+export const keepStepUp = (level) => (level >= KEEP_BIG_FROM ? KEEP_BIG_STEP : FLOOR_STEP);
+export const keepStepDown = (level) => (level > KEEP_BIG_FROM ? KEEP_BIG_STEP : FLOOR_STEP);
+const KEEP_BIG_FROM = 100, KEEP_BIG_STEP = 50;
 
 export const orderOf = (world, good) => world.trade.orders[good] || { mode: 'ignore', keep: 0 };
 
@@ -163,14 +168,19 @@ export function tradeSheet({ world, afterCommand = () => {}, onShowMe = () => {}
     const heldWords = [held.temple ? W.heldTemple(held.temple) : null, held.court ? W.heldCourt(held.court) : null].filter(Boolean);
     if (order.mode !== 'ignore') {
       const set = (n) => done(setKeepAtLeast(world, good, n), 'trade');
-      const less = button(`−${FLOOR_STEP}`, { class: 'keep-less', 'aria-label': W.keepLabel(-1, name), disabled: level <= 0, onClick: () => set(Math.max(0, level - FLOOR_STEP)) });
-      const more = button(`+${FLOOR_STEP}`, { class: 'keep-more', 'aria-label': W.keepLabel(1, name), onClick: () => set(level + FLOOR_STEP) });
+      const up = keepStepUp(level), down = keepStepDown(level);
+      const less = button(`−${down}`, { class: 'keep-less', 'aria-label': W.keepLabel(-1, name, down), disabled: level <= 0, onClick: () => set(Math.max(0, level - down)) });
+      const more = button(`+${up}`, { class: 'keep-more', 'aria-label': W.keepLabel(1, name, up), onClick: () => set(level + up) });
+      // The words are what the caravan will do: a Buy at 0 buys nothing (src/sim/trade.js wants keep less stock), and a row no open, switched-on route takes trades nothing.
+      const places = placesFor(world, good, order.mode === 'buy' ? 'sells' : 'buys');
+      const [help, tone] = !places.length ? [W.noOpenRoute, 'amber'] : order.mode === 'buy' && order.keep === 0 ? [W.buyNothing, 'amber']
+        : [order.mode === 'buy' ? W.buyHelp(order.keep, places) : W.sellHelp(sellAbove(world, good), places), 'muted'];
       li.append(
         el('div', { class: 'keep' }, [less, el('span', { class: 'keep-value', text: W.keep(level) }), more]),
-        el('p', { class: 'keep-help small muted', text: order.mode === 'buy' ? W.buyHelp(order.keep, placesFor(world, good, 'sells')) : W.sellHelp(sellAbove(world, good), placesFor(world, good, 'buys')) }),
+        el('p', { class: `keep-help small ${tone}`, text: help }),
       );
+      if (order.mode === 'sell' && heldWords.length) li.append(el('p', { class: 'held small amber', text: heldWords.join(' · ') }));   // trade holds goods back only when it sells (sellAbove)
     }
-    if (heldWords.length) li.append(el('p', { class: 'held small amber', text: heldWords.join(' · ') }));
     return li;
   }
 

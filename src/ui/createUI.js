@@ -229,6 +229,9 @@ export function createUI({
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
   const legend = createOverlayLegend({ container: $('legend'), store, world });
   const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: toggleLayers, pickerNode: cornerPicker.node, alertCount: () => alerts.count(), viewHeight: () => view().height });
+  // Version 7.1 (fix batch B): the Map button names its key (M) while single-key shortcuts are on, as the speed steps name Space (corners.js is another track's file, so it is set here).
+  const mapKeyHint = () => { const b = $('corners').querySelector('.minimap-button'); if (b) { if (settings.get().keyboardShortcuts !== false) b.setAttribute('aria-keyshortcuts', 'M'); else b.removeAttribute('aria-keyshortcuts'); } };
+  mapKeyHint();
   // The next-threshold bar (spec 4.1): on a phone only in calm portrait play, outside the guide (a tip, a caption or a
   // sheet already takes the whole guidance row; a banner or a tool keeps the bar away too).
   const barAllowed = () => {
@@ -262,6 +265,7 @@ export function createUI({
   const stopSettingsWatch = settings.subscribe((v) => {
     sidePanel.render();
     speedControl.render();                               // Keyboard shortcuts on or off: the speed steps' titles name the keys only when on
+    mapKeyHint();
     corners.render();                                    // a new text size moves the tray's top edge: the corners may need to step away from it (or back)
     if (v.help === lastHelp) return;
     lastHelp = v.help;
@@ -745,6 +749,7 @@ export function createUI({
       const c = CATEGORIES[i];
       if (!c || !shownItems(world, c.id).length) return;
       const s = store.get();
+      if (s.sheet && s.layout === 'wide') return;      // Version 7.1: the wide tray is folded behind an open sheet, so a change would be unseen and wrong when the sheet closes
       store.set(s.layout === 'wide' ? { category: c.id } : { category: c.id, dock: 'tray' });
     },
     rotate: () => { if (typeof placement.rotate === 'function') placement.rotate(); },   // Stage 4: R turns a mastaba's ghost (Track C's placement.rotate, ruling 234)
