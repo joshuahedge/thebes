@@ -76,7 +76,9 @@ export function createLessonUi(ctx) {
   let facts = null, step = null, open = false, finished = false, needPause = false, announceNext = true, endShown = false, destroyed = false, key = '', litSel = null, shownAt = -1;
   // The step card and the clock (ruling 1002): cardAt the step it was last shown for, held the speed the player had before it paused the game, actBase what an 'act' step
   // counts its own part from, actResumed whether that part has already played the game on again.
-  let cardAt = -1, held = null, actBase = null, actResumed = false;
+  // Version 7.1 (ruling 1066): showing is true while a step's card is being brought up: holdForCard's pause runs afterCommand and onCommand, which calls sync() again before the card is up,
+  // and that nested sync must not take a step whose part is already done for one that has been played through (it would play the game on behind the card).
+  let cardAt = -1, held = null, actBase = null, actResumed = false, showing = false;
 
   const persist = () => { if (!settings.get().lessonDone) settings.set({ lessonStep: Math.min(at, LESSON_LENGTH) }); };
 
@@ -135,7 +137,8 @@ export function createLessonUi(ctx) {
     if (!step || finished) return;
     cardAt = at; actBase = actionBase(world); actResumed = false;
     const mode = playWhen(world, step);
-    holdForCard(building);
+    showing = true;
+    try { holdForCard(building); } finally { showing = false; }
     const t = targetOf();
     const words = D2_TEXT.steps[step.id](lessonFacts(world, step));   // a waiting step says "Press Play" (the game is held, lessonFacts.paused): its button is Play; the others play on by themselves, as their docked row says too
     card.show({ label: D2_TEXT.lessonLabel(at + 1, LESSON_LENGTH), text: words.text, goLabel: mode === 'card' ? P_TEXT.card.play : t ? P_TEXT.card.showMe : P_TEXT.card.gotIt, picture: pictureOf(step) });
@@ -146,6 +149,7 @@ export function createLessonUi(ctx) {
     if (!card.isUp()) return;
     card.hide();
     if (playWhen(world, step) === 'card') resumePlay(); else doShowMe();
+    if (step && !finished && !actResumed && playWhen(world, step) === 'act' && actionDone(world, step, actBase)) { actResumed = true; resumePlay(); }   // its own part was already done when the card came up (a firehouse built early): it plays on now the card is gone (ruling 1066)
     // Ruling 821's lesson, for the step's own Show me: held sideways at large text the card's tool leaves its overlay and legend over a row of the same height, with no map
     // between (the firehouse's Fire risk), so the overlay stays off there; the player turns it on from Layers.
     if (store.get().layout === 'compact' && Number(settings.get().textSize) >= 125 && store.get().overlay) store.set({ overlay: null });
@@ -241,7 +245,7 @@ export function createLessonUi(ctx) {
     if (!finished && step && cardAt !== at) showCard(building);
     else if (finished && card.isUp()) card.hide();
     // The player's own part of a step that has one is done: the game plays again by itself (ruling 1002).
-    if (!card.isUp() && step && !finished && !actResumed && playWhen(world, step) === 'act' && actionDone(world, step, actBase)) { actResumed = true; resumePlay(); }
+    if (!card.isUp() && !showing && step && !finished && !actResumed && playWhen(world, step) === 'act' && actionDone(world, step, actBase)) { actResumed = true; resumePlay(); }
     if (announceNext) { announceNext = false; announce(); }
     // The end sheet opens once nothing else is open, and never while the interface is still being built (its sheets are made after its seams: a lesson begun
     // at the end, a dev scene's, opens it at the first refresh instead).

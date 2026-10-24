@@ -34,12 +34,33 @@ export function createCityEventsUi(ctx) {
     for (const b of allBuildings(world)) if ((BUILDINGS[b.type].stores || []).includes(good) && (b.store[good] || 0) > (best ? best.store[good] : 0)) best = b;
     return best;
   };
-  // A refusal's Show me: where the reason can be looked at (the money, the store that holds the good, the temple of the year's festival), or null.
-  function showMeFor(c) {
+  // A store that keeps a good, held or not: the one holding most of it, else a working one, else any (a refusal about a good has somewhere to look even when nothing is stocked).
+  const storeFor = (good) => {
+    const keeps = allBuildings(world).filter((b) => (BUILDINGS[b.type].stores || []).includes(good));
+    return storeOf(good) || keeps.find((b) => isWorking(world, b)) || keeps[0] || null;
+  };
+  // The home with the most people in it, or any home, or null (where "no home has room" can be looked at).
+  const fullestHome = () => allBuildings(world).filter((b) => b.type === 'house').reduce((best, b) => (!best || (b.residents || 0) > (best.residents || 0) ? b : best), null);
+  // The building a paid choice that would do nothing is about: what the event named (its workplaces, homes or store) if one stands, else the store of its good, else a building
+  // of its kind, else a home.
+  function concerned(w) {
+    const figs = w.figs || {};
+    const ids = [...(figs.ids || []), ...(figs.store !== undefined ? [figs.store] : [])];
+    const named = ids.map((id) => world.buildings[id]).find(Boolean);
+    if (named) return named;
+    const type = figs.type || (w.kind === 'quarry_strike' ? 'quarry' : null);
+    return (figs.good ? storeFor(figs.good) : null) || (type ? allBuildings(world).find((b) => b.type === type) : null) || fullestHome();
+  }
+  // A refusal's Show me: where the reason can be looked at (the money, the store that holds the good or would keep it, the home with no room, the temple of the year's festival, the
+  // building a choice that would do nothing is about), or null when nothing of the kind stands at all. Every refusal has one that can (Version 7.1, ruling 1064).
+  function showMeFor(c, w) {
     const bad = c.bad || {};
+    const at = (b) => (b ? () => ctx.selectBuilding(b.id) : null);
     if (c.reason === 'no_gold') return () => ctx.onView({ code: 'no_gold' });
-    if (c.reason === 'short') { const s = storeOf(bad.good); return s ? () => ctx.selectBuilding(s.id) : null; }   // the store that holds most of it; none holds any: nothing to show
-    if (c.reason === 'too_soon') { const t = allBuildings(world).find((b) => b.type === 'temple' && isWorking(world, b)); return t ? () => ctx.selectBuilding(t.id) : null; }
+    if (c.reason === 'short') return at(storeFor(bad.good));
+    if (c.reason === 'no_room') return at(bad.kind === 'goods' ? storeFor(bad.good) : fullestHome());
+    if (c.reason === 'none') return at(concerned(w));
+    if (c.reason === 'too_soon') return at(allBuildings(world).find((b) => b.type === 'temple' && isWorking(world, b)));
     return null;
   }
 
@@ -61,13 +82,13 @@ export function createCityEventsUi(ctx) {
     const res = applyChoice(world, w, c.id, events, c.effects);
     if (!res.ok) { if (res.reason === 'changed') caption(C.changed); ctx.refresh(); return; }
     onEvents(events);
-    ctx.afterCommand({ kind: 'cityEvent', result: res, text: C.captionOutcome(events[0], world), undoable: false });
+    ctx.afterCommand({ kind: 'cityEvent', result: res, text: C.captionOutcome(res.event, world), undoable: false });   // (res.event: the outcome, not events[0], which a fever's illnesses come before)
     close();
   }
 
   function choiceNode(w, c, i, close) {
     const label = C.label(w.kind, c.id), note = C.consequence(c.effects, world, w.kind, c.id), why = c.ok ? '' : C.problem(c, world), sid = `event-${c.id}`;
-    const go = showMeFor(c);
+    const go = showMeFor(c, w);
     return el('div', { class: `event-choice${c.default ? ' is-default' : ''}`, dataset: { choice: c.id } }, [   // (the id is data, never a class: a choice named "small" would take .small's type size)
       button(label, {
         class: i === 0 ? 'primary' : '', disabled: !c.ok, 'aria-describedby': why ? `${sid}-note ${sid}-why` : `${sid}-note`,
@@ -93,8 +114,9 @@ export function createCityEventsUi(ctx) {
     const def = choices.find((c) => c.default);
     body.append(
       el('p', { class: 'event-body', text: C.body(w, world) }),
+      // What is taken if the player waits comes straight after the story, before the choices (Version 7.1, ruling 1065): at 375x667 and 150% text the card scrolls, and this is the line to read first.
+      def ? line(C.defaultLine(w.monthsLeft, C.label(w.kind, def.id), def.effects, world, w.kind), 'small muted event-default') : null,
       el('div', { class: 'event-choices' }, choices.map((c, i) => choiceNode(w, c, i, close))),
-      def ? line(C.defaultLine(w.monthsLeft, C.label(w.kind, def.id), def.effects, world), 'small muted event-default') : null,
     );
   }
 
