@@ -9,7 +9,9 @@
 .title-difficulty.tiles .choice.tile { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; width: 100%; min-height: calc(64px * var(--ui-scale)); padding: 8px 14px; text-align: left; border-width: 2px; }
 .choice.tile .tile-name { font-family: var(--serif); font-weight: 700; font-size: calc(18px * var(--ui-scale)); line-height: 1.2; }
 .choice.tile .tile-line { color: var(--ink-soft); line-height: 1.3; }
-.choice.tile[aria-pressed="true"] .tile-line { color: inherit; }   /* white on the teal tile: the pressed state is the colour and the weight, not the colour alone */
+/* The chosen level is a quiet teal ring on a soft tint, not a solid teal fill, so Start stays the one filled button on the card (8.0 integration, ruling 1175); its tick says it too, so it is not colour alone. */
+.choice.tile[aria-pressed="true"] { background: var(--teal-soft); color: var(--ink); border-color: var(--teal); box-shadow: inset 0 0 0 2px var(--teal); }
+.choice.tile[aria-pressed="true"] .tile-line { color: var(--ink); }
 .choice.tile[aria-pressed="true"] .tile-name::after { content: " \2713"; }   /* a tick as well, so the chosen level reads without colour */
 @media (min-width: 560px) { .title-difficulty.tiles { grid-template-columns: 1fr 1fr; } }
 

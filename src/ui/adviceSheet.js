@@ -66,10 +66,11 @@ export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => 
   // The tray: what needs you first (pinned, each with a mark in words, so colour is never the cue), then the kept messages, newest first. A message with a place has a Show button
   // (44 px, named for its message) that closes the sheet and takes the view there; one without has nothing to press.
   function traySection(model) {
-    const go = (label, ariaLabel, act) => button(label, { class: 'tray-go secondary', 'aria-label': ariaLabel, onClick: act });
+    // Show is tertiary (a plain link on every row); Open, on a pinned row that needs an answer, is the secondary that stands out (Version 8.0, ruling 1177).
+    const go = (label, ariaLabel, act, weight = 'tertiary') => button(label, { class: `tray-go ${weight}`, 'aria-label': ariaLabel, onClick: act });
     const pinned = model.pinned.map((p) => el('li', { class: 'tray-item pinned', dataset: { code: p.code } }, [
       el('div', { class: 'text' }, [el('span', { class: 'pin small', text: `⚑ ${TRAY_TEXT.pinnedMark}` }), ' ', el('strong', { text: p.title }), p.fix ? el('span', { class: 'why small muted', text: p.fix }) : null]),
-      go(p.open ? TRAY_TEXT.open : TRAY_TEXT.showMe, p.open ? TRAY_TEXT.openLabel(p.title) : TRAY_TEXT.showLabel(p.title), p.act),
+      go(p.open ? TRAY_TEXT.open : TRAY_TEXT.showMe, p.open ? TRAY_TEXT.openLabel(p.title) : TRAY_TEXT.showLabel(p.title), p.act, p.open ? 'secondary' : 'tertiary'),
     ]));
     const rows = model.items.map((m) => el('li', { class: m.read ? 'tray-item' : 'tray-item unread' }, [
       el('div', { class: 'text' }, [el('span', { text: m.text }), m.why ? el('span', { class: 'why small muted', text: m.why }) : null]),

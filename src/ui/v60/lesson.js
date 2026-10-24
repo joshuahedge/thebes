@@ -124,7 +124,7 @@ export function createLessonUi(ctx) {
   // the player's own (src/boot.js skipLesson); it names the title instead when a saved city is there, which a fresh city would take the place of.
   function askSkip() {
     const toTitle = typeof run.skipTo === 'function' && run.skipTo() === 'title';
-    store.set({ confirmDialog: { text: toTitle ? V711_TEXT.skipConfirmTitle : V711_TEXT.skipConfirm, confirmLabel: V711_TEXT.skip, onConfirm: () => run.skip() } });
+    store.set({ confirmDialog: { text: toTitle ? V711_TEXT.skipConfirmTitle : V711_TEXT.skipConfirm, confirmLabel: V711_TEXT.skip, destructive: false, onConfirm: () => run.skip() } });   // nothing is lost: primary, not coral (Version 8.0, ruling 1176)
   }
 
   // ── the step card and the clock (ruling 1002) ──

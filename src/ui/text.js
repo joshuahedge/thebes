@@ -535,7 +535,7 @@ export const T = {
   noWorkersNeeded: 'No workers needed', help: 'How to play',
   on: 'On', off: 'Off', version: 'Version', keyHead: 'Key', doesHead: 'Does', gestures: 'Touch',
   leaveMode: 'To leave any mode: ✕, Back, Esc or right-click.',
-  shortcutsOff: 'Single-key shortcuts can be turned off in settings. Esc, Enter and Ctrl+Z always work.',
+  shortcutsOff: 'Single-key shortcuts can be turned off in Options. Esc, Enter and Ctrl+Z always work.',
   gesturesHelp: 'One finger pans (a quick swipe carries on and slows to a stop; touch the map to stop it), and two fingers pan or zoom, the map staying under them. Tap to select, or to move the ghost. Double-tap zooms in when no tool is open; tapping twice with two fingers zooms out. Show me glides to the place. With a road, wall, plots or Demolish, drag one finger over tiles or tap them one by one (tap again to take one off), then tick.',
   aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
   undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
@@ -3202,7 +3202,7 @@ export const D1_TEXT = {
 // The keys of a computer (rulings 744, 745): the zoom keys follow the pan row; the right button is in the list with the keys.
 HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'panLeft') + 1, 0, ['zoomIn', 'Zoom in'], ['zoomOut', 'Zoom out']);
 HELP_ROWS.push(['rightClick', 'Cancel the tool or step back, like Esc', 'Right-click']);
-V60_HELP.d1.push({ head: 'On a computer', text: 'Arrows or WASD move the view (in an open sheet or dialog the arrows scroll it instead, and W, A, S and D still move the view), + and − zoom, 1 to 7 pick a build category, [ and ] set the speed, Esc steps back and a right-click cancels. A text field or a slider keeps its own keys; you can switch the single keys off in Settings.' });
+V60_HELP.d1.push({ head: 'On a computer', text: 'Arrows or WASD move the view (in an open sheet or dialog the arrows scroll it instead, and W, A, S and D still move the view), + and − zoom, 1 to 7 pick a build category, [ and ] set the speed, Esc steps back and a right-click cancels. A text field or a slider keeps its own keys; you can switch the single keys off in Options.' });
 V60_HELP.d1.push({ head: 'The Huge map', text: 'A Huge map is 112 tiles a side, a vast land for a long reign. It suits a tablet or computer; on a phone the buildings are small and the city takes more scrolling. The view cannot zoom out past where a Huge map costs more to draw than a Large one, which a very large screen may notice.' });
 // ── end v60 d1 ──
 

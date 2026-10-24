@@ -96,7 +96,7 @@ describe('v80 n placing: one primary in every bar', () => {
       }
       const straight = r.root.querySelector('#confirm .route-pick[aria-pressed="true"]');
       expect([straight.dataset.shape, straight.textContent.startsWith('✓')]).toEqual(['straight', true]);   // the tick in its words and its outline: the cue is never colour alone
-      expect([rgb(straight), parseFloat(getComputedStyle(straight).borderTopWidth) >= 2]).toEqual([PARCHMENT, true]);
+      expect([rgb(straight), rgb(straight, 'boxShadow').includes('rgb(31, 111, 102)')]).toEqual([PARCHMENT, true]);   // the quiet teal ring (8.0 integration, ruling 1175)
       for (const b of [...neutral, ok]) { const q = b.getBoundingClientRect(); expect([b.className, q.width >= 44 - 0.5, q.height >= 44 - 0.5]).toEqual([b.className, true, true]); }
       expect(r.root.querySelector('#confirm .flip').getAttribute('aria-label')).toBe(T.flip);
     } finally { r.cleanup(); }

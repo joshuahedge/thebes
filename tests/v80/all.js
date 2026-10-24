@@ -3,3 +3,4 @@
 import './v/all.js';   // Track V: the look
 import './u/all.js';   // Track U: menus, words and settings
 import './n/all.js';   // Track N: messages, placing and the lesson fixes
+import './g/all.js';   // Integration: where the three tracks meet
