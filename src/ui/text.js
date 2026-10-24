@@ -3896,3 +3896,26 @@ export const V711_TEXT = {
   skipConfirmTitle: "Skip the lesson? It counts as done and you go to the title screen, where your saved city waits and New city starts a fresh one. Lesson there plays it any time.",
   skippedNote: 'Lesson skipped. Pick a level and a map size, then New city.',
 };
+// ── v80 n (Version 8.0 "Clear and calm", Track N: messages, placing and the lesson fixes, rulings 1160-1174) ──
+// The message tray behind the scroll button at the top right (src/ui/tray.js, src/ui/adviceSheet.js): every toast and caption is kept there, newest first, and what needs a decision is pinned.
+import { TRAY_MAX } from './tray.js';
+export const TRAY_TEXT = {
+  sheetTitle: 'Messages and advice',
+  head: 'Messages',
+  pinnedMark: 'Needs you',
+  showMe: 'Show',
+  showLabel: (text) => `Show on the map: ${text}`,
+  openLabel: (text) => `Open: ${text}`,
+  open: 'Open',
+  adviceHead: 'City advice',
+  // The top-bar button's name while messages wait: its words say what its number says, so the number is never the only cue.
+  buttonName: (n, dot) => `Messages and advice: ${plural(n, 'new message', 'new messages')}${dot ? ', and new advice' : ''}`,
+  none: 'No messages yet.',
+  keeps: `The tray keeps the last ${TRAY_MAX} messages.`,
+};
+// The placing bar's name line (src/ui/confirmBar.js): the picture and the name of what is in hand, large; the line a screen reader hears when the choice changes.
+export const PLACING_TEXT = {
+  picked: (name) => `${name} chosen`,
+  lit: (name) => `${name}: chosen`,
+};
+// ── end v80 n ──

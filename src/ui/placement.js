@@ -7,7 +7,7 @@ import {
   canPlace, checkTiles, placementWarnings, conditionsFor, place, previewRoad, drawRoad, roadPath, previewHouses, paintHouses, previewDemolishArea, demolishArea, demolishAt, rectTiles,
   previewRoadTiles, drawRoadTiles, previewHouseTiles, paintHouseTiles, previewDemolishTiles, demolishTiles, previewPlazaTiles, paintPlazaTiles,
 } from '../sim/commands.js';
-import { undo as undoCommand } from '../sim/undo.js';
+import { undoLast as undoCommand } from '../sim/undo.js';   // Version 8.0 (ruling 1165): the last step only
 import { previewAreaTiles, paintAreaTiles } from '../sim/areas.js';
 import { routeRoad, drawRoute } from '../sim/route.js';
 import { ROUTE_TEXT } from './routeText.js';
@@ -930,12 +930,12 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (s.plan) store.set({ plan: null });
       else if (isLine(t)) store.set({ line: null });
       else if (t.kind !== 'building') store.set({ area: null });
-      afterCommand({ kind: t.kind, result, text, undoable: true });
+      afterCommand({ kind: t.kind, result, text, undoable: true, at: { x: cx, y: cy } });   // Version 8.0 (ruling 1160): where it was placed, for the message tray's Show
       return result;
     },
     demolishOne(x, y) {
       const r = demolishAt(world, x, y);
-      if (r.ok) { assignLabour(world); afterCommand({ kind: 'demolish', result: r, text: T.demolished, undoable: true }); }
+      if (r.ok) { assignLabour(world); afterCommand({ kind: 'demolish', result: r, text: T.demolished, undoable: true, at: { x: x + 0.5, y: y + 0.5 } }); }
       return r;
     },
     canUndo: () => world.undo.length > 0,

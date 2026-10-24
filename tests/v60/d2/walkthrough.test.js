@@ -173,7 +173,7 @@ describe('v60 d2 the lesson played end to end', () => {
       for (const id of ['road', 'homes', 'well', 'families', 'farm', 'granary']) LESSON_SCRIPT[id](g.world, lessonIo);
       await frame();
       expect([rowStep(), s.settings().lessonStep]).toEqual(['bazaar', 6]);
-      row().querySelector('.leave').click();                                           // a question first, naming what is kept
+      { document.querySelector('#topbar .menu').click(); document.querySelector('#sheet .leave-lesson').click(); }   // Version 8.0: Leave the lesson is in the menu                                           // a question first, naming what is kept
       const dialog = document.querySelector('#dialog');
       expect([dialog.hidden, dialog.textContent.includes('Your place is kept'), dialog.textContent.includes('streets you laid are not kept')]).toEqual([false, true, true]);   // ruling 764, said before the tap
       dialog.querySelector('.ok').click();
@@ -186,7 +186,7 @@ describe('v60 d2 the lesson played end to end', () => {
       expect([rowStep(), Object.values(h.world.buildings).some((b) => b.type === 'farm_grain'), h.world.speed, h.lesson]).toEqual(['bazaar', true, 0, true]);
       expect(s.settings().lessonDone === true).toBe(false);
       // Start again begins at the first step.
-      row().querySelector('.leave').click();
+      { document.querySelector('#topbar .menu').click(); document.querySelector('#sheet .leave-lesson').click(); }   // Version 8.0: Leave the lesson is in the menu
       document.querySelector('#dialog .ok').click();
       expect(await waitFor(() => s.api.phase() === 'title')).toBe(true);
       document.querySelector('.lesson-again').click();

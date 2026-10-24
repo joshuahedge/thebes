@@ -362,7 +362,8 @@ describe('v50 advice the button', () => {
       home.risk = 100000;                                                              // a problem appears (fire risk)
       r.ui.afterCommand({ kind: 'speed', undoable: false });                           // any command: the advice is read again
       expect(adviceTopKeys(w)).toEqual(['fire']);
-      expect([dot(), btn.getAttribute('aria-label')]).toEqual([true, T.adviceNew]);    // the name says it too: the dot is never the only cue
+      const label = btn.getAttribute('aria-label');                                    // the name says it too: the dot is never the only cue (Version 8.0: with messages in the tray behind the button it also counts them)
+      expect([dot(), label === T.adviceNew || (label.startsWith('Messages and advice') && label.endsWith('new advice'))]).toEqual([true, true]);
       click(btn);
       expect(r.store.get().sheet.kind).toBe('advice');
       expect(r.ui.settings.get().adviceSeen).toEqual(['fire']);
