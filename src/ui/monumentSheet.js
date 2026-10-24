@@ -330,7 +330,7 @@ export function createMonumentUi(ctx) {
   }
 
   function enlarge(b, m) {
-    store.set({ confirmDialog: { text: UI4_TEXT.enlargeAsk(m.next.to, m.quote.price), confirmLabel: UI4_TEXT.enlargeOk, onConfirm: () => {
+    store.set({ confirmDialog: { text: UI4_TEXT.enlargeAsk(m.next.to, m.quote.price), confirmLabel: UI4_TEXT.enlargeOk, destructive: false, onConfirm: () => {
       const r = enlargePalace(world, b.id);
       if (!r.ok) return;
       if (ctx.toasts) ctx.toasts.show(UI4_TEXT.enlarged(m.next.to, r.days));
