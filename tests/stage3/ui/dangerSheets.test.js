@@ -204,7 +204,7 @@ describe('s3 ui danger buildings', () => {
       w.milestone = 'town';
       settleGoals(r);
       const hold = sheet.querySelector('.actions .festival');
-      expect([hold.textContent, hold.disabled, festivalStatus(w).can]).toEqual(['Hold a festival, 200 gold', false, true]);
+      expect([hold.textContent, hold.disabled, festivalStatus(w).can]).toEqual(['Festival, 200 gold', false, true]);
       expect(texts(sheet, '.festival-group p')).toEqual(['+6 mood for 3 months; the next can follow 12 months later']);
       const gold = w.gold;
       click(hold);

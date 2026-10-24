@@ -273,7 +273,7 @@ describe('ui tips', () => {
     try {
       r.store.set(openSheet(r.store.get(), 'help'));
       const items = [...r.root.querySelectorAll('#sheet .tips-list li')].map((li) => li.textContent);
-      expect(items).toEqual(TIPS.map((t) => TIP_HELP_TEXT[t.id] || TIP_TEXT[t.id]));   // Stage 4: a tip true only where it fires has help words
+      expect(items).toEqual(TIPS.filter((t) => t.id !== 'gentle_motion').map((t) => TIP_HELP_TEXT[t.id] || TIP_TEXT[t.id]));   // Stage 4: a tip true only where it fires has help words; Version 8.0: the Gentle tip never fires for a player, so How to play leaves it out
       for (const words of Object.values(TIP_HELP_TEXT)) expect(words.split(/\s+/).length).toBeLessThanOrEqual(20);
       expect([...r.root.querySelectorAll('#sheet h3')].some((h) => h.textContent === T.tips)).toBe(true);
     } finally { r.cleanup(); }

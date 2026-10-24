@@ -160,7 +160,7 @@ describe('v60 b1 ui plague', () => {
     const group = parts[1];
     expect(group.querySelector('p').textContent).toBe(`Holds 2 months. The plague cannot cross the district's edge and spreads at 25% of its pace inside it. 1 farm or workshop there stops work until it ends. The fee is ${fee} gold.`);
     const go = find(parts, 'quarantine');
-    expect([go.textContent, go.disabled, go.getAttribute('aria-label').startsWith(go.textContent)]).toEqual([`Quarantine this district: ${fee} gold`, false, true]);
+    expect([go.textContent, go.disabled, go.getAttribute('aria-label').startsWith(go.textContent)]).toEqual([`Quarantine, ${fee} gold`, false, true]);
     go.click();
     expect([w.gold, quarantines(w).size, ctx.log.toasts, ctx.log.commands.map((c) => c.kind)]).toEqual([1000 - fee, 1, [`District quarantined for ${fee} gold`], ['quarantine']]);
     const after = texts(plagueParts(ctx, homes[1]));

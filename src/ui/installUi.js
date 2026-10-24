@@ -1,14 +1,10 @@
-// The install guide (a sheet in the game, a panel on the title card), the Bring-a-city offer and the
-// in-app browser notice (spec 4.17). Decisions come from src/save/installFlow.js; this file only draws them.
+// The install guide (a sheet in the game, a panel on the title card) and the in-app browser notice (spec 4.17). Decisions come from
+// src/save/installFlow.js; this file only draws them. Version 8.0 (Track U, ruling 1146): the Bring-a-city offer is gone.
 import { el, button, clear } from './components.js';
 import { T } from './text.js';
 
-export function installGuide(flow, { hasCity = false, onPrompt = () => {}, onBring = () => {} } = {}) {
+export function installGuide(flow, { hasCity = false, onPrompt = () => {} } = {}) {
   return (body) => {
-    if (flow.canBring()) {
-      body.append(el('p', { text: T.bringCityHelp }), el('div', { class: 'actions' }, [button(T.bringCity, { class: 'bring primary', onClick: onBring })]));
-      return;
-    }
     body.append(el('p', { text: T.installWhy }));
     if (flow.env.platform === 'ios') {
       if (hasCity) body.append(el('p', { class: 'amber', text: T.installExportFirst }));

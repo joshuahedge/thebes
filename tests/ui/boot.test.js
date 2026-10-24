@@ -8,7 +8,7 @@ import { ECONOMY } from '../../src/data/economy.js';
 import { T } from '../../src/ui/text.js';
 import { fakeIndexedDB } from '../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../helpers/uiWorld.js';
-import { fire } from '../helpers/dom.js';
+import { fire, startNewCity } from '../helpers/dom.js';
 import { openSheet } from '../../src/ui/modes.js';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -39,7 +39,7 @@ describe('ui boot', () => {
     expect(title.hidden).toBe(false);
     expect(title.querySelector('.continue')).toBe(null);
     expect(getComputedStyle(r.root.querySelector('#topbar')).display).toBe('none');
-    fire(title.querySelector('.new-city'), 'click');
+    startNewCity(title);
     expect(r.api.phase()).toBe('game');
     expect(document.body.classList.contains('on-title')).toBe(false);
     expect(title.hidden).toBe(true);
@@ -95,7 +95,7 @@ describe('ui boot', () => {
     let title = r.root.querySelector('#title');
     expect(title.querySelector('.continue')).toBe(null);
     expect(title.querySelector('.message').textContent).toBe(T.saveNewer);
-    fire(title.querySelector('.new-city'), 'click');
+    startNewCity(title);
     await r.api.game().ui.autosave('month');
     expect(idb.records.get('current')).toBe(newer);                            // nothing overwritten
     expect(document.body.classList.contains('has-banner')).toBe(true);        // and the game says saving is off
@@ -138,15 +138,16 @@ describe('ui boot', () => {
     expect(r.root.querySelectorAll('#confirm').length).toBe(0);
     r.cleanup();
   });
-  it('exports after saving, imports a file after confirming, and offers Export first before a new city', async () => {
+  it('exports after saving (Options > Saves), has no import (Version 8.0), and offers Export first before a new city', async () => {
     const store = createSaveStore({ idb: fakeIndexedDB(), local: null });
     const shared = [], downloaded = [];
-    let nextFile = null, canShare = true;
-    const platform = { share: async (d) => { shared.push(d); }, canShare: () => canShare, download: (f) => downloaded.push(f), pick: async () => nextFile };
+    let canShare = true;
+    const platform = { share: async (d) => { shared.push(d); }, canShare: () => canShare, download: (f) => downloaded.push(f) };
     const r = await bootRig({ store, params: 'skipTitle=1&seed=8', platform });
     const g = r.api.game();
     const menuButton = (text) => [...r.root.querySelectorAll('#sheet button')].find((b) => b.textContent.trim() === text);
-    g.ui.store.set(openSheet(g.ui.store.get(), 'menu'));
+    g.ui.store.set(openSheet(g.ui.store.get(), 'settings'));
+    expect(r.root.querySelector('#sheet .options-group.saves .export-city')).toBeTruthy();   // Version 8.0: Export city lives under Saves
     fire(menuButton(T.exportCity), 'click');
     await flush(); await flush();
     expect(shared.length).toBe(1);
@@ -157,27 +158,10 @@ describe('ui boot', () => {
     await flush(); await flush();
     expect(downloaded.length).toBe(1);
     expect(r.root.querySelector('#toasts .toast').textContent).toContain(T.exported);
-    const w = createWorld({ seed: 9 });
-    nextFile = new File([packSave(w, { savedAt: 1, lastSpeed: 2 })], 'c.json', { type: 'application/json' });
-    fire(menuButton(T.importCity), 'click');
-    await flush(); await flush();
-    await until(() => g.ui.store.get().confirmDialog);                         // reading the file takes a few ticks
-    expect(g.ui.store.get().confirmDialog.text).toBe(T.replaceCityConfirm);
-    fire(r.root.querySelector('#dialog .ok'), 'click');
-    const g2 = r.api.game();
-    expect(g2 === g).toBe(false);                                              // a fresh game around the imported world
-    expect(g2.world.seed).toBe(9);
-    expect(g2.world.speed).toBe(0);
-    expect(g2.ui.store.get().sheet.kind).toBe('welcome');
-    await flush(); await flush();
-    expect((await loadSave(store)).world.seed).toBe(9);                        // an imported city is saved at once
-    nextFile = new File(['{nope'], 'x.json');
+    expect([typeof r.api.hooks.importCity, [...r.root.querySelectorAll('#sheet button')].some((b) => /import/i.test(b.textContent))]).toEqual(['undefined', false]);   // no import hook, no Import row
+    const g2 = g;
     g2.ui.store.set(openSheet(g2.ui.store.get(), 'menu'));
-    fire(menuButton(T.importCity), 'click');
-    await flush(); await flush();
-    expect(r.api.game()).toBe(g2);
-    await until(() => r.root.querySelector('#toasts').textContent.includes(T.saveUnreadable));
-    expect(r.root.querySelector('#toasts .toast').textContent).toContain(T.saveUnreadable);
+    expect(menuButton(T.exportCity)).toBe(undefined);                          // the menu no longer lists Export (it is under Options > Saves)
     fire(menuButton(T.newCity), 'click');
     const extra = r.root.querySelector('#dialog .extra');
     expect(extra.textContent).toBe(T.exportFirst);
@@ -209,7 +193,7 @@ describe('ui boot', () => {
     expect(r.root.querySelector('#notice').hidden).toBe(false);
     expect(r.root.querySelector('#notice').textContent).toContain(T.openInSafari);
     expect(getComputedStyle(r.root.querySelector('#notice')).display === 'none').toBe(false);   // visible over the title
-    fire(title.querySelector('.new-city'), 'click');
+    startNewCity(title);
     const gi = r.api.game();
     const notice = r.root.querySelector('#notice');
     expect(getComputedStyle(notice).display === 'none').toBe(false);                    // and during play, under the top bar
@@ -228,7 +212,7 @@ describe('ui boot', () => {
     await flush();
     expect(prompts).toEqual(['prompt']);
     expect(title.querySelector('.guide')).toBe(null);                                    // the browser's own sheet did the work
-    fire(title.querySelector('.new-city'), 'click');
+    startNewCity(title);
     const g = r.api.game();
     g.ui.store.set(openSheet(g.ui.store.get(), 'menu'));
     const installItem = [...r.root.querySelectorAll('#sheet button')].find((b) => b.textContent.trim() === T.installMenu);
@@ -237,18 +221,10 @@ describe('ui boot', () => {
     await flush();
     expect(prompts).toEqual(['prompt', 'prompt']);
     r.cleanup();
-    const w = createWorld({ seed: 12 });
-    const platform = { pick: async () => new File([packSave(w, { savedAt: 1, lastSpeed: 1 })], 'c.json', { type: 'application/json' }) };
-    r = await bootRig({ envInput: { ua: IOS, standalone: true }, platform });
+    r = await bootRig({ envInput: { ua: IOS, standalone: true } });
     title = r.root.querySelector('#title');
     expect(title.querySelector('.install').hidden).toBe(true);
-    const bring = title.querySelector('.bring');
-    expect(bring.textContent).toBe(T.bringCity);
-    fire(bring, 'click');
-    await until(() => r.api.phase() === 'game');
-    expect(r.api.phase()).toBe('game');
-    expect(r.api.game().world.seed).toBe(12);
-    expect(r.api.game().ui.store.get().sheet.kind).toBe('welcome');
+    expect(title.querySelector('.bring')).toBe(null);                                   // Version 8.0: the home-screen app offers no Bring a city
     r.cleanup();
     r = await bootRig({ envInput: { ua: ANDROID } });                                   // no prompt yet
     title = r.root.querySelector('#title');
@@ -292,7 +268,7 @@ describe('ui boot, final review', () => {
     const downloaded = [];
     const r = await bootRig({ store, platform: { share: null, canShare: null, download: (f) => downloaded.push(f) } });
     const title = r.root.querySelector('#title');
-    fire(title.querySelector('.new-city'), 'click');
+    startNewCity(title);
     await flush(); await flush();
     expect(r.api.phase()).toBe('title');                                       // nothing started, nothing demoted
     expect(title.querySelector('.guide').textContent).toContain(T.newCityConfirm);
@@ -300,7 +276,7 @@ describe('ui boot, final review', () => {
     fire(title.querySelector('.panel-back'), 'click');
     expect(title.querySelector('.guide')).toBe(null);
     expect(title.querySelector('.title-buttons').hidden).toBe(false);
-    fire(title.querySelector('.new-city'), 'click');
+    startNewCity(title);
     fire(title.querySelector('.export-first'), 'click');
     await flush(); await flush();
     expect(downloaded.length).toBe(1);
@@ -345,20 +321,19 @@ describe('ui boot, final review', () => {
     expect(r.api.game().ui.sfx).toBe(first);
     r.cleanup();
   });
-  it('shows a failed import on the title card, and the export-first note in the install guide when a city is saved', async () => {
+  it('says the installed app starts without the city in the install guide when a city is saved, and the title exports it from Options > Saves', async () => {
     const IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1';
-    let r = await bootRig({ envInput: { ua: IOS, standalone: true }, platform: { pick: async () => new File(['{nope'], 'x.json') } });
-    fire(r.root.querySelector('#title .bring'), 'click');
-    await until(() => r.root.querySelector('#title .message'));
-    expect(r.api.phase()).toBe('title');
-    expect(r.root.querySelector('#title .message').textContent).toBe(T.saveUnreadable);
-    r.cleanup();
+    let r;
     const store = createSaveStore({ idb: fakeIndexedDB(), local: null });
     await store.save(packSave(createWorld({ seed: 4 })));
     r = await bootRig({ store, envInput: { ua: IOS } });
     const title = r.root.querySelector('#title');
     if (!title.querySelector('.guide')) { fire(title.querySelector('.install'), 'click'); await flush(); }
     expect(title.querySelector('.guide').textContent).toContain(T.installExportFirst);
+    fire(title.querySelector('.guide-back'), 'click');
+    // Options on the title, with a city saved: Saves > Export city exports the city in the slot (Version 8.0).
+    fire(title.querySelector('.title-settings'), 'click');
+    expect(title.querySelector('.options-group.saves .export-city')).toBeTruthy();
     r.cleanup();
   });
   it('keeps the update waiting and says so when the restart cannot save', async () => {

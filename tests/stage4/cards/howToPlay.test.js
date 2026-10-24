@@ -6,7 +6,7 @@ import { CARDS4_TEXT, cards4Ahead } from '../../../src/ui/text.js';
 import { TUTORIAL_CARDS } from '../../../src/data/tutorial.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory, fakeDoc } from '../../helpers/uiWorld.js';
-import { fire, key } from '../../helpers/dom.js';
+import { fire, key, startNewCity } from '../../helpers/dom.js';
 
 const memory = (data = {}) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } });
 const storedSettings = (storage) => JSON.parse(storage.getItem('thebes.settings') || '{}');
@@ -40,11 +40,11 @@ describe('s4 cards how to play', () => {
       let a = 0, z = 0;
       b.api.hooks.pictureCards(() => { a++; });
       b.api.hooks.pictureCards(() => { z++; });
-      fire(b.root.querySelector('#title .new-city'), 'click');                 // New city while they show: ignored
+      startNewCity(b.root);                 // New city while they show: ignored
       expect([shown, a, z, b.api.phase()]).toEqual([1, 0, 0, 'title']);
       held();
       expect([a, z, storedSettings(b.storage).cardsSeen, b.api.phase()]).toEqual([1, 1, true, 'title']);   // seen; the title stays
-      fire(b.root.querySelector('#title .new-city'), 'click');
+      startNewCity(b.root);
       expect([b.api.phase(), shown]).toEqual(['game', 1]);                      // seen once: New city starts at once
     } finally { b.cleanup(); }
   });
@@ -52,7 +52,7 @@ describe('s4 cards how to play', () => {
   it('puts Show the picture cards at the top of How to play in the game, pauses the game behind them, and leaves the sheet open', async () => {
     const b = await bootWith({ storage: memory({ 'thebes.settings': JSON.stringify({ lessonDone: true, cardsSeen: true }) }) });
     try {
-      fire(b.root.querySelector('#title .new-city'), 'click');
+      startNewCity(b.root);
       const g = b.api.game();
       g.ui.speedControl.set(2);
       g.ui.store.set(openSheet(g.ui.store.get(), 'help'));
@@ -70,7 +70,7 @@ describe('s4 cards how to play', () => {
   it('keeps the game\'s keys from acting behind the real cards even when focus is not on them', async () => {
     const b = await bootWith({ storage: memory({ 'thebes.settings': JSON.stringify({ lessonDone: true, cardsSeen: true }) }) });
     try {
-      fire(b.root.querySelector('#title .new-city'), 'click');
+      startNewCity(b.root);
       const g = b.api.game();
       g.ui.speedControl.set(2);
       b.api.hooks.pictureCards();
@@ -93,12 +93,12 @@ describe('s4 cards how to play', () => {
     for (const level of ['peaceful', 'normal']) {
       const b = await bootWith({ storage: memory({ 'thebes.settings': JSON.stringify({ lessonDone: true, difficulty: level }) }) });
       try {
-        fire(b.root.querySelector('#title .new-city'), 'click');                  // the first city on a device: the cards on the title
+        startNewCity(b.root);                  // the first city on a device: the cards on the title
         expect([level, lastCard()]).toEqual([level, cards4Ahead(level !== 'peaceful')]);
       } finally { b.cleanup(); }
       const c = await bootWith({ storage: memory({ 'thebes.settings': JSON.stringify({ lessonDone: true, difficulty: level, cardsSeen: true }) }) });
       try {
-        fire(c.root.querySelector('#title .new-city'), 'click');
+        startNewCity(c.root);
         expect(c.api.game().world.difficulty).toBe(level);
         c.api.hooks.pictureCards();
         expect([level, lastCard()]).toEqual([level, cards4Ahead(level !== 'peaceful')]);
@@ -109,7 +109,7 @@ describe('s4 cards how to play', () => {
   it('shows the real cards over the title before the first city on a device, and starts the city from Start building', async () => {
     const b = await bootWith();
     try {
-      fire(b.root.querySelector('#title .new-city'), 'click');
+      startNewCity(b.root);
       const d = document.querySelector('.picture-cards');
       expect([b.api.phase(), Boolean(d), document.activeElement === d.querySelector('.pc-next'), storedSettings(b.storage).cardsSeen === true]).toEqual(['title', true, true, false]);
       for (let i = 0; i < 7; i++) fire(d.querySelector('.pc-next'), 'click');   // six Nexts to the last card, then Start building
@@ -119,7 +119,7 @@ describe('s4 cards how to play', () => {
 
   it('closes the real cards with the page, without starting a city', async () => {
     const b = await bootWith();
-    fire(b.root.querySelector('#title .new-city'), 'click');
+    startNewCity(b.root);
     expect(Boolean(document.querySelector('.picture-cards'))).toBe(true);
     b.cleanup();
     expect([document.querySelector('.picture-cards'), b.api.game()]).toEqual([null, null]);

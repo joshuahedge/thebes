@@ -518,16 +518,16 @@ export const T = {
   residents: 'Residents', nextTier: 'To grow it needs', upgradesAtMonthEnd: 'Grows at the end of the month', emptyPlot: 'Waiting for people to move in',
   hasIt: 'Has it', missing: 'Missing',
   alerts: 'Alerts', noAlerts: 'All quiet', zoomIn: 'Zoom in', zoomOut: 'Zoom out', jumpTo: 'Jump to',
-  newCity: 'New city', continueGame: 'Continue', exportCity: 'Export city', importCity: 'Import city', settings: 'Settings', howToPlay: 'How to play', about: 'About',
+  newCity: 'New city', continueGame: 'Continue', exportCity: 'Export city', settings: 'Options', howToPlay: 'How to play', about: 'About',
   startNewCity: 'Start new city', newCityConfirm: 'Start a new city? The current one will be lost.', notYet: 'Not available yet', comingLater: 'Coming later',
-  sound: 'Sound', vibration: 'Vibration', textSize: 'Text size', leftHanded: 'Left-handed controls', keyboardShortcuts: 'Keyboard shortcuts', reducedMotion: 'Reduce motion', followSystem: 'Follow the system',
+  sound: 'Sound', vibration: 'Vibration', textSize: 'Text size', leftHanded: 'Left-handed controls', keyboardShortcuts: 'Single keys', reducedMotion: 'Reduce motion', followSystem: 'Follow the system',
   helpLevel: 'Help', suggested: 'Suggested', resumeGuide: 'Resume guide',
   difficultyForNewCities: 'Difficulty for new cities', difficultyNote: 'A city keeps the level it started with. This one changes the next new city.',
   guideHelp: 'While the guide runs, the card for the next step says Suggested and a ring marks the place. Skip guide turns it off: in the goals strip, or on a phone in the open goal or the goals list.',
   updateReady: 'Update ready', restart: 'Restart', updateSaveFailed: "Couldn't save, so the update will wait",
   install: 'Install', tagline: 'Build a city on the Nile', restoredBackup: 'Restored the previous autosave',
-  installMenu: 'Install on this device', bringCity: 'Bring a city from Safari', bringCityHelp: 'If you saved a city in Safari, open the menu there and choose Export city. Then import that file here.', installWhy: 'Installed on the home screen, the game works offline and keeps your city safe.', installIosSteps: ['Tap Share (the square with an arrow)', 'Scroll down and tap Add to Home Screen', 'Tap Add'], installExportFirst: 'Export your city first: the installed app keeps its own storage. Then import the file from the home-screen app.', installNow: 'Install now', installNotOffered: 'Your browser did not offer to install. Look for Install app or Add to Home screen in its menu.', openInSafari: 'Open in Safari to keep your city', openInChrome: 'Open in Chrome to keep your city', saveNewer: 'This city was saved by a newer version of the game', saveUnreadable: "This save can't be read",
-  exported: 'City file downloaded', exportFailed: "Couldn't export the city", exportFirst: 'Export first', replaceCityConfirm: 'Replace the current city with the imported one?', fileUnreadable: "Couldn't read that file",
+  installMenu: 'Install', installWhy: 'Installed on the home screen, the game works offline and keeps your city safe.', installIosSteps: ['Tap Share (the square with an arrow)', 'Scroll down and tap Add to Home Screen', 'Tap Add'], installExportFirst: 'The installed app keeps its own storage, so it starts without the city you have here.', installNow: 'Install now', installNotOffered: 'Your browser did not offer to install. Look for Install app or Add to Home screen in its menu.', openInSafari: 'Open in Safari to keep your city', openInChrome: 'Open in Chrome to keep your city', saveNewer: 'This city was saved by a newer version of the game', saveUnreadable: "This save can't be read",
+  exported: 'City file downloaded', exportFailed: "Couldn't export the city", exportFirst: 'Export first',
   paused: 'Paused', resumed: 'Resumed', pausedHidden: 'Paused while you were away', placed: 'Placed', demolished: 'Demolished', roadLaid: 'Road laid',
   tapStart: 'Tap where it starts', tapEnd: 'Tap where it ends', tapCorner: 'Tap the far corner', refund: 'Refund',
   shortcuts: 'Keyboard shortcuts', openSummary: 'Open the city summary', overlayOff: 'Turn the overlay off',
@@ -536,14 +536,14 @@ export const T = {
   on: 'On', off: 'Off', version: 'Version', keyHead: 'Key', doesHead: 'Does', gestures: 'Touch',
   leaveMode: 'To leave any mode: ✕, Back, Esc or right-click.',
   shortcutsOff: 'Single-key shortcuts can be turned off in settings. Esc, Enter and Ctrl+Z always work.',
-  gesturesHelp: 'One finger pans (a quick swipe carries on and slows to a stop; touch the map to stop it, and under Motion: Still it stays put), and two fingers pan or zoom, the map staying under them. Tap to select, or to move the ghost. Double-tap zooms in when no tool is open; tapping twice with two fingers zooms out. Show me glides to the place. With a road, wall, plots or Demolish, drag one finger over tiles or tap them one by one (tap again to take one off), then tick.',
+  gesturesHelp: 'One finger pans (a quick swipe carries on and slows to a stop; touch the map to stop it), and two fingers pan or zoom, the map staying under them. Tap to select, or to move the ghost. Double-tap zooms in when no tool is open; tapping twice with two fingers zooms out. Show me glides to the place. With a road, wall, plots or Demolish, drag one finger over tiles or tap them one by one (tap again to take one off), then tick.',
   aboutText: 'A city builder for phone and desktop browsers, inspired by the classic Egyptian city builders. A personal hobby project with original, code-drawn art.',
   undoOccupiedConfirm: 'Undo this? People who moved in will leave.', undone: 'Undone',
   hoverHint: 'Hover a building or pick a card',
   play: 'Play', mapButton: 'Map', layers: 'Layers', layersOff: 'Off',
   noHomesInReach: 'No homes in reach yet',
   achievement: 'Achievement', dailyDone: 'Daily goal done', guideDone: "You've got the basics",
-  tip: 'Tip', gotIt: 'Got it', more: 'More', less: 'Less', allGoals: 'All goals', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals or, on a phone, in their place. Help in Settings turns them off.', next: 'Next',
+  tip: 'Tip', gotIt: 'Got it', more: 'More', less: 'Less', allGoals: 'All goals', tips: 'Tips', tipsHelp: 'Each tip shows once, under the goals or, on a phone, in their place. Help in Options turns them off.', next: 'Next',
   achievements: 'Achievements', achievementsLater: 'Achievements show here once the guide is done.', notYetMet: 'Not yet', closestAchievement: 'Closest achievement',
   newBadge: 'New', stored: 'Stored', accepted: 'Accepted', refused: 'Refused', notWorking: 'Not working',
   acceptHelp: 'Tap a good to accept or refuse it here. A refused good goes to other storage, or production stops.',
@@ -554,7 +554,6 @@ export const T = {
   difficulty: 'Difficulty', tradeLastMonth: 'Trade last month', tradeSales: 'Sold to caravans', tradeBought: 'Bought from caravans', goodsLastMonth: 'Goods last month', noGoodsYet: 'Nothing made yet', bothFoodsComing: 'The next delivery brings both kinds of food',
 };
 
-export const importErrorText = (code) => (code === 'newer_version' ? T.saveNewer : code === 'read_failed' ? T.fileUnreadable : T.saveUnreadable);
 
 // The help sheet's shortcut table: [KEYS name, what it does, optional display override].
 export const HELP_ROWS = [
@@ -905,7 +904,7 @@ Object.assign(DANGER_UI_TEXT, {
   lastRaidSoldiers: (r) => `Last raid: soldiers stopped ${r.bySoldiers} of ${r.size}`,
   rubbleRow: (cost) => `Rubble: clear it for ${cost} gold a tile`, rubbleDrag: 'Drag Demolish over rubble to clear many at once',
   clearFor: (cost) => `Clear, ${cost} gold`, cleared: 'Rubble cleared',
-  holdFestival: (cost) => `Hold a festival, ${cost} gold`, festivalHeld: 'Festival held',
+  holdFestival: (cost) => `Festival, ${cost} gold`, festivalHeld: 'Festival held',
   festivalDoes: (mood, days, every) => `+${mood} mood for ${duiDuration(days)}; the next can follow ${duiDuration(every)} later`,
   festivalOn: (mood, days) => `Festival: +${mood} mood for ${duiDuration(days)} more`,
   nextFestival: (days) => `Next festival in ${duiDuration(days)}`,
@@ -1527,11 +1526,11 @@ export const MOTION4_TEXT = {
   },
 };
 Object.assign(TIP_TEXT, {
-  gentle_motion: 'Your device asks for less motion, so the city moves gently. Settings → Motion changes it.',
+  gentle_motion: 'Your device asks for less motion, so the city moves gently.',   // Version 8.0 (Track U): never fires for a player (the game always moves in full); the test rig's forced Gentle can show it
 });
 // How to play lists every tip; a tip whose words hold only where it fires says there what is true on any device.
 export const TIP_HELP_TEXT = {
-  gentle_motion: 'While Settings → Motion follows the device, a device that asks for less motion moves the city gently.',
+  gentle_motion: 'A device that asks for less motion moves the city gently.',
 };
 // ── end s4 motion ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -1552,7 +1551,7 @@ export const CARDS4_TEXT = {
   // The Settings sheet's Music rows (spec 5.5, ruling 269).
   music: 'Music', musicVolume: 'Music volume', quieter: 'Quieter music', louder: 'Louder music',
   // The picture cards (spec 4.1, rulings 261-264): How to play on the title card and at the top of the How to play sheet.
-  howToPlay: 'How to play', showCards: 'Show the picture cards',
+  howToPlay: 'How to play', showCards: 'Picture cards',
   count: (i, n) => `${i} of ${n}`, dots: 'Cards', dot: (i, n) => `Card ${i} of ${n}`,
   next: 'Next', back: 'Back', skip: 'Skip', close: 'Close', start: 'Start building',
   // Each card's title, words and picture's alt text, by its id in src/data/tutorial.js (spec 4.1's table).
@@ -1564,7 +1563,7 @@ export const CARDS4_TEXT = {
     },
     homes: {
       title: 'Homes grow when served',
-      words: 'Paint housing plots beside a road and people move in. A well near them, then food, lets them grow.',
+      words: 'Place housing plots beside a road and people move in. A well near them, then food, lets them grow.',
       alt: 'Housing plots along a road and a well beside them, with a ring around the well.',
     },
     farm: {
@@ -2574,7 +2573,7 @@ export const S47_PRESSURE_TEXT = {
     : `favour ${courtSigned(st.favour)} and ${st.gift} gold`),
   ifMissed: 'If missed',
   ifMissedText: (st) => `favour ${courtSigned(st.missFavour)}${Object.keys(st.carry).length ? `, and ${s47Carry(st.carry)} carries into next year's tribute` : ''}`,
-  sendLabel: (st) => (st.completes ? 'Send the tribute' : 'Send what the stores hold'),
+  sendLabel: (st) => (st.completes ? 'Send the tribute' : 'Send what we have'),
   sendConsequence: (st) => {
     if (!st.shipNow) return 'Nothing to ship yet: the stores hold none of what is owed';
     const ships = s47Goods(st.goods, 'ship');
@@ -2822,7 +2821,7 @@ export const V60_REIGN_TEXT = {
   wonOn: 'Play on: the city is yours to keep. The court, the dues and the dangers go on.',
   playOn: 'Play on',
   wonSummary: (day) => `Won in ${courtDate(day).toLowerCase()}`,
-  seeAgain: 'See the closing scene',
+  seeAgain: 'Closing scene',
   // Monument stall words for the great work (the site sheet, the alert list): the cause and its short form.
   causeOffering: (o) => `Waiting for the stage's offering: ${reignNum(o.n)} ${goodWord(o.good)} (your stores hold ${reignNum(o.have)})`,
 };
@@ -2925,7 +2924,7 @@ export const B1_TEXT = {
   plagueLabel: 'Plague',
   plagueSick: (i, covered) => `Sick with plague: ${plural(i.left, 'day', 'days')} left, ${i.lost} of up to ${i.cap} people lost. ${covered ? `A staffed physician reaches it: it mends ${b1Plague.coverFactor === 2 ? 'twice' : `${b1Plague.coverFactor} times`} as fast` : 'No staffed physician reaches it'}`,
   plagueOrigin: (days) => `A plague is warned to start in this home in ${b1Dur(days)}. A physician and a well near it slow it, and so does room: fewer people in each home`,
-  quarantineButton: (fee) => `Quarantine this district: ${fee} gold`,
+  quarantineButton: (fee) => `Quarantine, ${fee} gold`,
   quarantineDoes: (q) => `Holds ${b1Months(q.months)}. The plague cannot cross the district's edge and spreads at ${b1Pct(b1Plague.quarantine.insideFactor)} of its pace inside it. ${q.workplaces ? `${plural(q.workplaces, 'farm or workshop', 'farms and workshops')} there stop${q.workplaces === 1 ? 's' : ''} work` : 'Work there stops'} until it ends. The fee is ${q.fee} gold.`,
   quarantineHeld: (until, now) => `Quarantined: ends in ${b1Dur(until - now)}. Work in the district has stopped`,
   quarantineRefusal: { none_sick: 'No home in this district is sick: there is nothing to quarantine', no_plague: 'There is no plague', no_gold: (q) => `The ${q.fee} gold fee would put the treasury over ${-b1Economy.debtFloor} gold in debt` },
@@ -3197,7 +3196,7 @@ export const D1_TEXT = {
   bigScreen: 'Best on a tablet or computer',                           // a phone's note under the picker while Huge is chosen, and on its button's name
   hugeWords: (size, phone) => `${S46_MAP_TEXT.sizeWords('huge', size)}${phone ? `, ${D1_TEXT.bigScreen.charAt(0).toLowerCase()}${D1_TEXT.bigScreen.slice(1)}` : ''}`,
   lesson: 'Lesson',                                                    // the title's third button once the lesson exists (Track D2); until then How to play stands in
-  settingsPanel: 'Settings',                                           // the title card's Settings panel's heading
+  settingsPanel: 'Options',                                            // the title card's Options panel's heading (Version 8.0: Settings became Options)
   titleGroup: 'More',                                                  // the name of the row of Lesson, Settings and What's new for assistive technology
 };
 // The keys of a computer (rulings 744, 745): the zoom keys follow the pan row; the right button is in the list with the keys.
@@ -3242,7 +3241,7 @@ export const D2_TEXT = {
   steps: {
     road: () => ({ text: `Lay a road: drag it west from the road's end to the fertile land.`,
       why: `Homes and workplaces work only when they touch a road. The lit line is ${d2Steps.find((s) => s.id === 'road').check.n} tiles of road.` }),
-    homes: () => ({ text: `Paint ${d2Steps.find((s) => s.id === 'homes').check.n} housing plots beside the road.`,
+    homes: () => ({ text: `Place ${d2Steps.find((s) => s.id === 'homes').check.n} housing plots beside the road.`,
       why: 'Plots off the road stay empty. People move in once a plot touches a road.' }),
     well: () => ({ text: `Build a well within ${BUILDINGS.well.reach} road tiles of ${d2Steps.find((s) => s.id === 'well').check.homes} homes.`,
       why: `A well gives water along the road for ${BUILDINGS.well.reach} tiles, so huts can grow into shacks.` }),
@@ -3254,7 +3253,7 @@ export const D2_TEXT = {
       why: 'A farm fills a granary; a bazaar near homes sells its food.' }),
     bazaar: () => ({ text: `Build a bazaar within ${BUILDINGS.bazaar.reach} road tiles of ${d2Steps.find((s) => s.id === 'bazaar').check.homes} homes.`,
       why: 'A bazaar sells food to the homes it reaches along the roads, and homes that are fed can grow.' }),
-    workers: (f) => ({ text: `Your buildings want ${f.labour.jobs} workers and ${f.labour.workforce} people work: paint more homes until the bazaar works too.`,
+    workers: (f) => ({ text: `Your buildings want ${f.labour.jobs} workers and ${f.labour.workforce} people work: place more homes until the bazaar works too.`,
       why: `${cards4WorkShare()}, and a building short of workers works slowly or not at all. A farm wants ${BUILDINGS.farm_grain.workers} workers, a granary ${BUILDINGS.granary.workers}, a bazaar ${BUILDINGS.bazaar.workers}; food and housing come before services.` }),
     month: (f) => ({ text: `Let ${d2Steps.find((s) => s.id === 'month').check.n} months pass and watch the gold chip.`,
       why: `Homes pay taxes each month; every building costs upkeep and ${ECONOMY.wagePerWorker} gold for each worker. The chip shows the month's forecast${Number.isFinite(f.forecast) ? `: ${S45_TEXT.signed(f.forecast)} a month now` : ''}.` }),
@@ -3282,10 +3281,10 @@ export const D2_TEXT = {
   endTitle: 'Your first city stands',
   endBody: ({ people, won }) => `${plural(people, 'person lives', 'people live')} here. Your farm, granary and bazaar feed them, a firehouse guards them and ${won ? 'your tower beat the raid' : 'the raid got through, which towers would have stopped'}. Now found a city of your own: its difficulty and map size are on the title screen.`,
   endMore: 'Everything here is in How to play, and the picture cards show again the first time each new danger comes.',
-  endNew: 'Go to the title', endStay: 'Keep looking around',
+  endNew: 'Title screen', endStay: 'Look around',
   endRow: 'Your first city stands. Go to the title to found your own when you are ready.',
   // The title (the Lesson button; with no saved city and the lesson not done it is the only way in).
-  titleStart: 'Start the lesson', titleContinue: 'Continue the lesson', titleAgain: 'Start again',
+  titleStart: 'Play', titleContinue: 'Continue', titleAgain: 'Start again',   // Version 8.0 (Track U): the title's main button is one word; the lesson's own hint line sits under it
   titleHint: `A small first city of ${d2Steps.length} steps, about 10 to 15 minutes.`,
   titleContinueHint: `Continue rebuilds the lesson's own city up to your step, so the streets you laid are not kept. Start again begins at step 1.`,
   standsNote: 'Your first city stands. Found your own when you are ready.',
@@ -3703,16 +3702,16 @@ export const SEASON_TEXT = {
   row: 'Season', rowValue: (name, months) => `${name}, months ${months}`,
   // Settings (src/ui/menu.js): the Day and night switch, the Effects volume and what the Sound switch is.
   dayNight: 'Day and night',
-  dayNightNote: `The light turns from day to night every ${s7Minutes} minutes and holds while the game is paused. Motion: Still keeps daylight.`,
+  dayNightNote: `The light turns from day to night every ${s7Minutes} minutes and holds while the game is paused.`,
   effectsVolume: 'Effects volume', effectsQuieter: 'Quieter effects', effectsLouder: 'Louder effects',
   soundNote: 'Sound is the master: Off silences the music and the effects.',
 };
 V70_HELP.s.push({
   head: 'Seasons, day and night, and sound',
-  text: `The land follows the flood calendar: Flood (months ${seasonMonths('akhet')}), Growing (months ${seasonMonths('peret')}) and Harvest (months ${seasonMonths('shemu')}), named after the date at the top. Over the last month of a season the land turns to the next. It changes only how the land looks, never how farms work. Light moves from day to a short blue night every ${s7Minutes} minutes of real time, with lamps lit in the homes and along the streets; nothing is hidden, it holds while the game is paused, and Settings → Day and night, or Motion: Still, keeps daylight. The music has a mood for each season and turns tense while a raid or another danger is live. Settings has a Music and an Effects volume under the Sound switch, which silences both.`,
+  text: `The land follows the flood calendar: Flood (months ${seasonMonths('akhet')}), Growing (months ${seasonMonths('peret')}) and Harvest (months ${seasonMonths('shemu')}), named after the date at the top. Over the last month of a season the land turns to the next. It changes only how the land looks, never how farms work. Light moves from day to a short blue night every ${s7Minutes} minutes of real time, with lamps lit in the homes and along the streets; nothing is hidden, it holds while the game is paused, and Options → Day and night keeps daylight. The music has a mood for each season and turns tense while a raid or another danger is live. Options has a Music and an Effects volume under the Sound switch, which silences both.`,
 });
 TIP_TEXT.season_turns = 'The land turns with the seasons: flood, growing, harvest. It changes only how it looks; farms work as before.';
-TIP_TEXT.night_falls = 'Night falls and the lamps light. Nothing is hidden, and Settings → Day and night turns it off.';
+TIP_TEXT.night_falls = 'Night falls and the lamps light. Nothing is hidden, and Options → Day and night turns it off.';
 // ── end v70 s ──
 
 //
@@ -3872,13 +3871,38 @@ HELP_ROWS.splice(HELP_ROWS.findIndex((r) => r[0] === 'undo') + 1, 0, ['remove', 
 const pKey = (name) => [...new Set((KEYS[name] || []).map((k) => ({ ' ': 'Space', Escape: 'Esc' }[k] || (k.length !== 1 ? k : /[a-z0-9]/i.test(k) ? k.toUpperCase() : `"${k}"`))))].join(' or ');
 V70_HELP.p.push({
   head: 'Keyboard',
-  text: `On a computer: ${pKey('pause')} pauses and plays, ${pKey('speedUp')} and ${pKey('speedDown')} change the speed, ${pKey('zoomIn')} and ${pKey('zoomOut')} zoom, Arrows or WASD move the view, ${KEYS.category[0]} to ${KEYS.category[KEYS.category.length - 1]} pick a build category, ${pKey('rotate')} turns what can turn, ${pKey('minimap')} opens the minimap, ${pKey('overlay')} cycles the layers and ${pKey('help')} opens How to play. While you place, ${pKey('confirm')} places and ${pKey('back')} puts the tool away. Undo is Ctrl+Z (Cmd+Z on a Mac), which also takes back a demolish. ${pKey('remove')}: ${P_TEXT.removeRow.charAt(0).toLowerCase()}${P_TEXT.removeRow.slice(1)}; a demolish's sheet asks its question first, and nothing happens over a dialog. ${P_TEXT.lessonKeys} Settings → Keyboard shortcuts turns the single keys off; Esc, Enter and Ctrl+Z always work (except over a lesson card), and Space closes a lesson card.`,
+  text: `On a computer: ${pKey('pause')} pauses and plays, ${pKey('speedUp')} and ${pKey('speedDown')} change the speed, ${pKey('zoomIn')} and ${pKey('zoomOut')} zoom, Arrows or WASD move the view, ${KEYS.category[0]} to ${KEYS.category[KEYS.category.length - 1]} pick a build category, ${pKey('rotate')} turns what can turn, ${pKey('minimap')} opens the minimap, ${pKey('overlay')} cycles the layers and ${pKey('help')} opens How to play. While you place, ${pKey('confirm')} places and ${pKey('back')} puts the tool away. Undo is Ctrl+Z (Cmd+Z on a Mac), which also takes back a demolish. ${pKey('remove')}: ${P_TEXT.removeRow.charAt(0).toLowerCase()}${P_TEXT.removeRow.slice(1)}; a demolish's sheet asks its question first, and nothing happens over a dialog. ${P_TEXT.lessonKeys} Options → Single keys turns them off; Esc, Enter and Ctrl+Z always work (except over a lesson card), and Space closes a lesson card.`,
 });
 V70_HELP.p.push({
   head: 'Placing a building: the squares and the colours',
   text: `While you place a building, each square of its footprint shows whether it is right: a blue square is right, a square with coral stripes and a cross is wrong (taken, water, hills, off the map, or not the ground the building stands on), and an amber striped square is free ground that is not the kind the building needs; a faint dashed square is ${P_TEXT.place.squarePlain}. The line round the whole ghost and the mark in its middle say what the building as a whole does. Blue: everything is met. Amber: "${P_TEXT.place.leadLater.toLowerCase()}": it can be placed, but something it needs is missing, such as a road touching one of its sides (a road one tile away does not count; the marked squares are where one would touch) or a store in reach. Coral: "${P_TEXT.place.leadCant.toLowerCase()}": at least one rule is broken, and the line under the name says each one with its count. While everything is met the line says what the building needs, and the ground it can go on is marked lightly on the map.`,
 });
 // ── end v70 p ──
+// ── v80 u (Version 8.0 "Clear and calm", Track U: menus, words and settings, rulings 1145-1159) ──
+import { LAYOUT_NAMES as u80Layouts } from './v71/mapsText.js';
+const u80Pct = (f) => Math.abs(Math.round((f - 1) * 100));
+export const V80_U_TEXT = {
+  groups: { sound: 'Sound', display: 'Display', controls: 'Controls', saves: 'Saves' },
+  play: 'Play',   // the title's main button where there is no saved city: it opens the new-city card (or, on a device that has not done the lesson, starts the lesson: D2_TEXT.titleStart)
+  singleKeys: 'Single keys',
+  exportNote: 'Saves a copy of this city as a file on this device.',
+  newCityLevel: 'New cities start at',
+  resumeLesson: 'Resume lesson',   // the title's quieter Lesson button for a lesson left part-way (the main button is Continue: the saved city)
+  // The new-city card (Version 8.0): difficulty is the one big choice, each level with one line from the sim's own difficulty data (DIFFICULTIES: the same
+  // multipliers difficultyHint spells out in full); map size and layout sit under More choices.
+  newCityHead: 'New city', start: 'Start', moreChoices: 'More choices', fewerChoices: 'Fewer choices',
+  layoutLabel: 'Map layout', surprise: 'Surprise me', layoutGroup: 'Map layout for new cities',
+  layoutName: (id) => (id === 'auto' ? V80_U_TEXT.surprise : u80Layouts[id] || id),
+  moreSummary: (sizeName, layout) => `${sizeName} map, ${layout === 'auto' ? V80_U_TEXT.surprise.toLowerCase() : `${V80_U_TEXT.layoutName(layout).toLowerCase()} layout`}`,
+  replaceNote: 'Starting a new city replaces your saved one.',
+  difficultyLine(level) {
+    const { cost, risk, raids } = DIFFICULTIES[level];
+    const price = cost === 1 ? 'buildings at full price' : `buildings ${u80Pct(cost)}% ${cost < 1 ? 'cheaper' : 'dearer'}`;
+    if (raids === false) return `No raids, sickness or thefts; ${price}.`;
+    return `${risk === 1 ? 'Raids and fire as designed' : `Later raids ${u80Pct(risk)}% ${risk < 1 ? 'smaller' : 'bigger'}`}; ${price}.`;
+  },
+};
+// ── end v80 u ──
 // ── v711 (Version 7.1.1, "Clearer first steps", rulings 1100-1119) ──
 // The goal of the game in one sentence, from the sim's own data: the first and the last rank (MILESTONES, src/data/progression.js), and the final great work that wins the reign
 // (GREAT_WORK.type, src/data/reign.js; the reign's win is src/sim/reign.js). It is the title card's line, the first words of the lesson's first card and How to play's first entry.
@@ -3891,8 +3915,8 @@ export const V711_TEXT = {
   helpGoal: () => `${V711_TEXT.goal()} You climb one rank at a time as your people grow: ${MILESTONES.map((m) => m.name).join(', ')}.`,
   closeToast: 'Close this message',
   continueLabel: 'Continue',   // the foot button of a page read through and then left (What's new, the install guide); Back stays where it means a step back
-  skip: "Skip, I've played before",
+  skip: "I've played before",
   skipConfirm: "Skip the lesson? It counts as done, so you go straight to a city of your own. Lesson on the title screen plays it any time.",
   skipConfirmTitle: "Skip the lesson? It counts as done and you go to the title screen, where your saved city waits and New city starts a fresh one. Lesson there plays it any time.",
-  skippedNote: 'Lesson skipped. Pick a level and a map size, then New city.',
+  skippedNote: 'Lesson skipped. Play starts your own city.',
 };

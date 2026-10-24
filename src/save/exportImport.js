@@ -1,6 +1,5 @@
-// Export and import (spec 4.17): export shares the save as a .json file where the share sheet takes files,
-// else downloads it; import reads a chosen file back into an envelope. Nothing here touches the live world.
-import { unpackSave } from './serialize.js';
+// Export (spec 4.17): shares the save as a .json file where the share sheet takes files, else downloads it. Nothing here touches the live world.
+// Version 8.0 (Track U, ruling 1146): the import half (pick a file, read it back) is gone with "Bring a city from Safari"; the export stays as a file copy.
 
 export const exportFileName = (date = new Date()) => `thebes-city-${date.toISOString().slice(0, 10)}.json`;
 
@@ -26,32 +25,4 @@ export function downloadFile(file, doc = document, urls = URL) {
   a.click();
   a.remove();
   setTimeout(() => urls.revokeObjectURL(url), 1000);
-}
-
-export function pickFile(doc = document) {
-  return new Promise((resolve) => {
-    const input = doc.createElement('input');
-    input.type = 'file'; input.accept = 'application/json,.json'; input.hidden = true;
-    const done = (file) => { input.remove(); resolve(file); };
-    input.addEventListener('change', () => done((input.files && input.files[0]) || null));
-    input.addEventListener('cancel', () => done(null));
-    doc.body.append(input);
-    input.click();
-  });
-}
-
-export function readFileText(file) {
-  if (file && typeof file.text === 'function') return file.text();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('read_failed'));
-    reader.readAsText(file);
-  });
-}
-
-export async function importSaveFile(file) {
-  let text;
-  try { text = await readFileText(file); } catch (e) { throw new Error('read_failed'); }
-  return unpackSave(text);
 }

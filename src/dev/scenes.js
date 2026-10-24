@@ -116,9 +116,10 @@ function northRoadEnd(world) {
 
 const freeLand = (world, x, y) => inBounds(world.size, x, y) && !world.occ[idx(world.size, x, y)] && buildable(world, idx(world.size, x, y));
 
-// The title card with Peaceful chosen (spec 4.18): its hint names what the level changes.
+// The title card with Peaceful chosen (spec 4.18): its tile names what the level changes. Version 8.0: the tiles are on the new-city card, which this opens first.
 async function peaceful(api) {
   if (api.phase() !== 'title') throw new Error('devScene peaceful: open the title card (/?nosw=1)');
+  if (!document.querySelector('#title .choice.difficulty')) { const open = document.querySelector('#title .new-city'); if (open) open.click(); }
   const choice = document.querySelector('#title .choice.difficulty[data-value="peaceful"]');
   if (!choice) throw new Error('devScene peaceful: no Peaceful choice on the title card');
   choice.click();
@@ -720,9 +721,9 @@ async function motion(api) {
   ui.store.set(openSheet(s.sheet ? closeSheet(s) : s, 'settings'));
   await wait(150);
   const sheet = document.querySelector('#sheet');
-  const choice = sheet && sheet.querySelector('.choice.motion');
-  if (!choice) throw new Error('devScene motion: no Motion row in the Settings sheet');
-  const row = choice.closest('.row'), head = sheet.querySelector('.head');
+  // Version 8.0: the Motion row is gone (always full motion); the scene frames the Display group, whose Day and night row the level still touches.
+  const row = sheet && sheet.querySelector('.options-group.display'), head = sheet && sheet.querySelector('.head');
+  if (!row) throw new Error('devScene motion: no Display group in the Options sheet');
   sheet.scrollTop += row.getBoundingClientRect().top - (head ? head.getBoundingClientRect().bottom : sheet.getBoundingClientRect().top) - 8;
   await wait(100);
   return `motion ${ui.settings.get().motion} level ${ui.settings.motionLevel()}`;

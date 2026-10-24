@@ -35,8 +35,8 @@ describe('ui menu', () => {
     fire(r.dialogNode.querySelector('.ok'), 'click');
     expect(r.log).toEqual(['close', 'new']);
     expect(r.store.get().confirmDialog).toBe(null);
-    fire(buttonNamed(r.body, T.exportCity), 'click');
-    expect(r.shown).toEqual([T.notYet]);
+    expect([buttonNamed(r.body, T.exportCity), [...r.body.querySelectorAll('button')].some((b) => /import/i.test(b.textContent))]).toEqual([undefined, false]);   // Version 8.0: Export moved to Options > Saves, Import is gone
+    expect(T.settings).toBe('Options');                                                       // Version 8.0: Settings became Options
     fire(buttonNamed(r.body, T.settings), 'click');
     expect(r.store.get().sheet).toEqual({ kind: 'settings', id: null });
     fire(buttonNamed(r.body, T.howToPlay), 'click');
@@ -44,13 +44,17 @@ describe('ui menu', () => {
     fire(buttonNamed(r.body, T.about), 'click');
     expect(r.store.get().sheet.kind).toBe('about');
     r.cleanup();
-    const hooked = rig({ exportCity: () => hooked.log.push('export'), importCity: () => hooked.log.push('import') });
-    hooked.menus.menu(hooked.body, { close: hooked.close });
-    fire(buttonNamed(hooked.body, T.exportCity), 'click');
-    fire(buttonNamed(hooked.body, T.importCity), 'click');
-    expect(hooked.log).toEqual(['export', 'import']);
+    const hooked = rig({ exportCity: () => hooked.log.push('export') });
+    hooked.menus.settings(hooked.body, { close: hooked.close });
+    fire(buttonNamed(hooked.body, T.exportCity), 'click');                                    // Options > Saves > Export city
+    expect(hooked.log).toEqual(['export']);
+    expect(hooked.body.querySelector('.options-group.saves .export-city')).toBeTruthy();
     expect(hooked.shown).toEqual([]);
     hooked.cleanup();
+    const none = rig();
+    none.menus.settings(none.body, { close: none.close });
+    expect(buttonNamed(none.body, T.exportCity)).toBe(undefined);                             // no city to export: no button
+    none.cleanup();
   });
   it('new city offers Export first when a hook can export, and the dialog runs the extra action', () => {
     const plain = rig();
@@ -87,7 +91,9 @@ describe('ui menu', () => {
     expect(r.root.dataset.textSize).toBe('150');
     expect(r.body.querySelector('.choice.textSize[data-value="150"]').getAttribute('aria-pressed')).toBe('true');
     expect(r.body.querySelector('.choice.textSize[data-value="100"]').getAttribute('aria-pressed')).toBe('false');
-    fire(r.body.querySelector('.choice.motion[data-value="still"]'), 'click');                 // Stage 4: one Motion row (spec 5.4)
+    expect(r.body.querySelector('.choice.motion')).toBe(null);                                 // Version 8.0: no Motion row; the rig's own switch still works
+    expect([r.settings.motionLevel(), r.root.dataset.motion]).toEqual(['full', 'full']);
+    r.settings.set({ motion: 'still' });
     expect([r.settings.get().motion, r.settings.motionLevel(), r.settings.reducedMotion(), r.root.dataset.motion]).toEqual(['still', 'still', true, 'still']);
     fire(r.body.querySelector('.switch.leftHanded'), 'click');
     expect(r.root.dataset.hand).toBe('left');

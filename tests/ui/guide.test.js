@@ -264,31 +264,29 @@ describe('ui guide', () => {
       check('bazaar', 'services');                                   // the dot moves from Food to Services
     } finally { r.cleanup(); }
   });
-  it('turns the guide off for a city imported under Help: Off, though it was exported mid-guide', async () => {
+  it('turns the guide off for a city continued under Help: Off, though it was saved mid-guide', async () => {
+    // Version 8.0: there is no import any more; the same rule holds for a saved city that Continue loads (its saved guide.on gives way to this device's Help).
     const shell = await mountShell(1280, 800);
     const history = fakeHistory();
     let stored = { help: 'full' };
     const storage = { getItem: () => JSON.stringify(stored), setItem: (k, v) => { stored = JSON.parse(v); } };
-    let shared = null;
-    const platform = { share: async (d) => { shared = d.files[0]; }, canShare: () => true, pick: async () => shared };
-    const api = await boot(document, window, {
-      root: document.body, store: createSaveStore({ idb: fakeIndexedDB(), local: null }), params: new URLSearchParams('skipTitle=1&seed=8'),
-      now: () => 0, clock: () => 1760000000000, storage, platform, envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,
+    const store = createSaveStore({ idb: fakeIndexedDB(), local: null });
+    const rig = (params) => boot(document, window, {
+      root: document.body, store, params: new URLSearchParams(params),
+      now: () => 0, clock: () => 1760000000000, storage, envInput: { ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/124.0' }, sw: null,
       uiOptions: { getSize: () => ({ width: 1280, height: 800 }), subscribeResize: () => () => {}, history, addListener: history.addListener, removeListener: history.removeListener, keyTarget: shell.root, storage },
       loopOptions: { raf: () => 0, caf: () => {} },
     });
-    const tick = () => new Promise((res) => setTimeout(res, 0));
+    let api = await rig('skipTitle=1&seed=8');
     try {
       expect(api.game().world.guide.on).toBe(true);                  // a new city under Guide and tips, mid-guide
-      await api.hooks.exportCity();
-      expect(shared === null).toBe(false);
-      api.game().ui.settings.set({ help: 'off' });                   // this device then turns Help off
-      expect(api.game().world.guide.on).toBe(false);
-      await api.hooks.importCity();
-      for (let i = 0; i < 50 && !api.game().ui.store.get().confirmDialog; i++) await tick();
-      fire(shell.root.querySelector('#dialog .ok'), 'click');
+      await api.game().ui.autosave('test');
+      api.destroy(); delete window.__thebes;
+      stored = { help: 'off', cardsSeen: true, lessonDone: true };    // this device then turns Help off
+      api = await rig('');
+      fire(shell.root.querySelector('#title .continue'), 'click');
       const g = api.game();
-      expect(g.ui.store.get().sheet.kind).toBe('welcome');           // the imported city
+      expect(g.ui.store.get().sheet.kind).toBe('welcome');           // the saved city
       expect(g.world.guide.on).toBe(false);                          // its saved guide.on gave way to this device's Help
       expect(document.body.classList.contains('guide-on')).toBe(false);
       expect(document.querySelectorAll('.suggested, .dimmed').length).toBe(0);

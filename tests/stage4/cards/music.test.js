@@ -280,7 +280,7 @@ describe('s4 cards music: the Settings rows', () => {
       const settings = createSettings({ storage: { getItem: () => null, setItem: () => {} }, root, systemReducedMotion: () => false });
       const body = root.querySelector('#body');
       createMenuSheets({ store, settings, toasts: { show() {} } }).settings(body, { close() {} });
-      const rows = [...body.children];
+      const rows = [...body.querySelector('.options-group.sound').children];   // Version 8.0: the Sound group's rows, after its heading
       const sound = rows.findIndex((r) => r.querySelector('.switch.sound'));
       expect([rows[sound + 1].querySelector('.switch.music') !== null, rows[sound + 2].classList.contains('music-volume')]).toEqual([true, true]);
       const music = body.querySelector('.switch.music');
