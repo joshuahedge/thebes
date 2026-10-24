@@ -151,7 +151,7 @@ export function ferryInfo(world, b) {
 }
 
 // The running crossings, each once (lower id first): [{ a, b, water }]. Kept per roadVersion and next building id: a crossing opens or closes only
-// through syncFerries (which bumps the version) and a landing changes only by being built (a new id) or razed (the next sync closes it).
+// through syncFerries (which bumps the version) and a landing changes only by being built (a new id) or removed (removeBuilding bumps the version, so a razed, undone or burnt landing drops its link at once).
 const linkCache = new WeakMap();   // world -> { key, links, edges }
 function linksOf(world) {
   const key = `${world.roadVersion}|${world.nextId}`;

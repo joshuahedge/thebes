@@ -14,11 +14,11 @@ const tiles = ([lo, hi]) => `${Math.round(lo * 2)} to ${Math.round(hi * 2)} tile
 
 // One line for each new layout, in MAP_VARIANTS_71's order.
 export const LAYOUT_LINES = {
-  delta: `the river splits into ${range(C.delta.arms)} arms that widen to ${tiles(C.delta.mouth)} at the map's edge, with sandbars and farmland between them`,
+  delta: `the river splits into ${range(C.delta.arms)} arms (${C.delta.smallArms} on a Small map) that each widen to ${tiles(C.delta.mouth)} at the map's edge, with farmland between them and sandbars in the wider arms`,
   confluence: 'two rivers meet in a Y, and your city starts in the fork between them',
   twin: 'a second, smaller river crosses the map beside the main one, and never joins it',
   'wide-nile': `one river ${tiles(C['wide-nile'].hw)} wide all the way, too wide for any bridge: its far bank has farmland of its own`,
-  cataract: 'the river squeezes through a rocky gorge, with stone on both banks, then runs over rapids round a chain of small islands',
+  cataract: 'the river squeezes through a rocky gorge, with stone on both banks, then spreads wide round a chain of small rocky islands',
   'lake-fed': 'the river flows out of a large lake on one edge of the map',
 };
 

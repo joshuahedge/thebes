@@ -242,5 +242,6 @@ export function removeBuilding(world, id) {
   bumpBuildings(world);
   for (const [x, y] of footprint(b.x, b.y, b.w, b.d)) world.occ[idx(world.size, x, y)] = 0;
   delete world.buildings[id];
+  if (b.ferry) world.roadVersion++;   // Version 7.1 (fix C): a ferry landing's crossing is a road link, so razing, undoing or burning one drops the link at once (src/sim/ferries.js)
   return b;
 }

@@ -67,6 +67,9 @@ export function playability(m) {
   const want = Math.round(2 * areaScale(n)) > 2 ? 3 : 2;
   if (m.raiderEntries.length !== want) bad.push(`${m.raiderEntries.length} raider entries`);
   for (const e of m.raiderEntries) if (!onEdge(m, idx(n, e.x, e.y)) || !own[idx(n, e.x, e.y)]) bad.push(`raider entry ${e.x},${e.y}`);
+  // the raiders' way in keeps its distance (landEntries' ladder: 0.4 of the side from the start where the land allows it, the first two never under 0.25, a third never under 0.1)
+  const away = (e) => Math.hypot(e.x - m.focus.x, e.y - m.focus.y) / n;
+  m.raiderEntries.forEach((e, k) => { if (away(e) < (k < 2 ? 0.25 : 0.1)) bad.push(`raider entry ${e.x},${e.y} only ${away(e).toFixed(2)} of the side from the start`); });
   const fits = ownFits(m, own);
   if (fits.clay < RESOURCES.clay || fits.mine < RESOURCES.mine || fits.farm < RESOURCES.farm) bad.push(`fits on own land: clay ${fits.clay} mine ${fits.mine} farm ${fits.farm}`);
   if (!(m.params.outcrops >= 1)) bad.push('no rock belt');
