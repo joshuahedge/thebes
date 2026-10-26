@@ -117,28 +117,29 @@ describe('v70 s sound: the season moods', () => {
       expect([s, n.vel > 0 && n.vel <= 1]).toEqual([s, true]);
     }
   });
-  it('plays the season on the page\'s music: the pluck\'s brightness and the echo move to the season\'s over the bar, and never more than eight voices sound at once', () => {
+  // Version 8.2 (Track M): the season colours each piece as it starts (the accent pluck's brightness, the echo's send) and leans which
+  // piece comes (tests/v82/m); there is no loop to move bar by bar any more.
+  it('plays the season on the page\'s music: each piece takes the season\'s pluck brightness and echo, and never more than eight voices sound at once', () => {
     for (const s of SEASON_IDS) {
       const ctx = fakeAudio();
       const m = createMusic({ context: ctx, enabled: () => true, seed: () => 7, season: () => s, mood: () => 'calm' });
       m.unlock();
-      for (let i = 0; i < 6; i++) { m.tick(); ctx.currentTime += barSeconds(); }
-      const tones = ctx.filters.flatMap((f) => f.frequency.events.filter((e) => e[0] === 'setTargetAtTime').map((e) => e[1]));
+      for (let i = 0; i < 8; i++) { m.tick(); ctx.currentTime += barSeconds(); }
+      const tones = ctx.filters.map((f) => f.frequency.value);
       expect([s, tones.includes(SEASON_MUSIC[s].tone)]).toEqual([s, true]);
       const wets = ctx.gains.flatMap((g) => g.gain.events.filter((e) => e[0] === 'setTargetAtTime').map((e) => Math.round(e[1] * 1000) / 1000));
       expect([s, wets.includes(Math.round(MUSIC.level.wet * SEASON_MUSIC[s].wet * 1000) / 1000)]).toEqual([s, true]);
       m.destroy();
     }
     const ctx = fakeAudio();
-    let which = 0;
-    const m = createMusic({ context: ctx, enabled: () => true, seed: () => 5, season: () => SEASON_IDS[which % 3], mood: () => 'calm' });
+    const m = createMusic({ context: ctx, enabled: () => true, seed: () => 5, season: () => SEASON_IDS[Math.floor(ctx.currentTime / 150) % 3], mood: () => 'calm', plan: { gap: () => 2 } });
     m.unlock();
-    while (m.state().bar < 240) { which = Math.floor(m.state().bar / 40); m.tick(); ctx.currentTime += 0.5; }
+    while (ctx.currentTime < 900) { m.tick(); ctx.currentTime += 0.5; }
     const notes = ctx.sources.filter((s) => s.stopped !== Infinity);
     const marks = notes.flatMap((s) => [[s.started, 1], [s.stopped, -1]]).sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
     let n = 0, most = 0;
     for (const [, d] of marks) { n += d; most = Math.max(most, n); }
-    expect(most + MUSIC.droneVoices).toBeLessThanOrEqual(MUSIC.maxVoices);
+    expect(most).toBeLessThanOrEqual(MUSIC.maxVoices);                         // Version 8.2: no drones in the calm; the pieces' notes are the eight
   });
   it('keeps no season in the music\'s save or the sim: the music reads the city\'s date through its option, and with none (the title) plays the plain bars', () => {
     const ctx = fakeAudio();

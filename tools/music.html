@@ -5,40 +5,72 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Thebes music</title>
 <style>
-  body { font: 15px/1.5 system-ui, sans-serif; margin: 16px; max-width: 640px; }
-  button, input { font: inherit; min-height: 44px; margin: 4px 4px 4px 0; padding: 0 12px; }
+  body { font: 15px/1.5 system-ui, sans-serif; margin: 16px; max-width: 680px; }
+  button, input, select { font: inherit; min-height: 44px; margin: 4px 4px 4px 0; padding: 0 12px; }
   pre { background: #f3ead6; padding: 8px; white-space: pre-wrap; }
+  .pieces td { padding: 2px 8px 2px 0; vertical-align: top; }
 </style>
 </head>
 <body>
 <h1>Thebes music</h1>
-<p>The game's music (src/audio/music.js) to listen to: play it live, or render a minute offline, hear it and save it as a WAV.
+<p>The game's music (src/audio/music.js, the pieces in src/data/pieces.js) to listen to. Pick a piece and render it (you hear it,
+see its levels and can save it as a WAV), or play it live; or play the music as in the game, with the gaps of silence shortened to 5 s.
 Serve the repo (python tests/serve.py 8000 .) and open http://127.0.0.1:8000/tools/music.html.</p>
 <p>
   <label>Seed <input id="seed" type="number" value="11" style="width: 9em"></label>
+  <label>Play count <input id="play" type="number" min="0" value="0" style="width: 5em"></label>
   <label>Volume <input id="volume" type="number" min="0" max="100" step="10" value="30" style="width: 5em"></label>
+  <label>Season <select id="season"><option value="">none (title)</option><option>akhet</option><option>peret</option><option>shemu</option></select></label>
 </p>
 <p>
-  <button id="play">Play live</button> <button id="mood">Mood: calm</button> <button id="halt">Stop</button>
+  <label>Piece <select id="piece"></select></label>
+  <button id="render">Render this piece</button> <button id="live">Play it live</button>
+  <a id="save" hidden download="thebes-piece.wav">Save the WAV</a>
 </p>
-<p><button id="render">Render 60 s (calm, raid from 30 s)</button> <a id="save" hidden download="thebes-music.wav">Save the WAV</a></p>
+<p>
+  <button id="game">Play as in game (gaps 5 s)</button> <button id="mood">Mood: calm</button> <button id="halt">Stop</button>
+</p>
 <pre id="log">Ready.</pre>
+<table class="pieces" id="list"></table>
 <script type="module">
-  import { createMusic, scheduleOffline, barSeconds, masterGain } from '../src/audio/music.js';
+  import { createMusic, scheduleOffline, composePiece, masterGain, pieceById } from '../src/audio/music.js';
+  import { PIECES } from '../src/data/pieces.js';
   const $ = (id) => document.getElementById(id);
   const log = (text) => { $('log').textContent = text; };
+  const MOODS = ['calm', 'tense', 'raid'];
   let mood = 'calm', music = null, raf = null, player = null;
-  const seed = () => Number($('seed').value) || 1, volume = () => Math.max(0, Math.min(100, Number($('volume').value))) / 100;
-  $('mood').onclick = () => { mood = mood === 'calm' ? 'raid' : 'calm'; $('mood').textContent = `Mood: ${mood}`; };
-  $('play').onclick = () => {
-    if (!music) {
-      music = createMusic({ enabled: () => true, volume, seed, mood: () => mood });
-      const loop = (t) => { music.tick(t); const s = music.state(); if (s) log(`Live: bar ${s.bar}, tension ${s.tension}, ${music.playing() ? 'playing' : 'waiting'}`); raf = requestAnimationFrame(loop); };
+  const seed = () => Number($('seed').value) || 1, play = () => Math.max(0, Number($('play').value) | 0);
+  const volume = () => Math.max(0, Math.min(100, Number($('volume').value))) / 100, season = () => $('season').value || null;
+  for (const p of PIECES) {
+    $('piece').append(new Option(`${p.name} (${p.id})`, p.id));
+    const row = $('list').insertRow();
+    row.insertCell().textContent = p.name;
+    row.insertCell().textContent = `${p.mood}. ${p.mode} on MIDI ${p.tonic}, ${p.bpm} bpm in ${p.beats}; ${p.voices.tune} tune, ${p.voices.arp} accompaniment${p.seasons.length ? `; heard more in ${p.seasons.join(', ')}` : ''}.`;
+  }
+  $('mood').onclick = () => { mood = MOODS[(MOODS.indexOf(mood) + 1) % MOODS.length]; $('mood').textContent = `Mood: ${mood}`; };
+  function halt() {
+    if (music) { cancelAnimationFrame(raf); music.destroy(); music = null; }
+    if (player) { try { player.stop(); } catch (e) { /* ended */ } player = null; }
+  }
+  $('halt').onclick = () => { halt(); log('Stopped.'); };
+  // Live: one piece over and over (no gap to speak of), or the game's programme with 5 s gaps.
+  function live(plan, label) {
+    halt();
+    music = createMusic({ enabled: () => true, volume, seed, mood: () => mood, season, plan });
+    const loop = (t) => {
+      music.tick(t);
+      const s = music.state();
+      if (s) {
+        const what = s.phase === 'piece' ? `playing ${pieceById(s.piece).name}` : s.phase === 'danger' ? `danger tune, tension ${s.tension}` : `silence for ${Math.max(0, s.until - music.context.currentTime).toFixed(1)} s`;
+        log(`${label}: ${what}; pieces begun ${s.played}.`);
+      }
       raf = requestAnimationFrame(loop);
-    }
+    };
+    raf = requestAnimationFrame(loop);
     music.unlock(); music.refresh();
-  };
-  $('halt').onclick = () => { if (music) { cancelAnimationFrame(raf); music.destroy(); music = null; } if (player) { player.stop(); player = null; } log('Stopped.'); };
+  }
+  $('live').onclick = () => { const id = $('piece').value; live({ choose: () => id, firstWait: () => 0.3, gap: () => 3 }, 'Live'); };
+  $('game').onclick = () => live({ firstWait: () => 1, gap: () => 5 }, 'As in game');
   // A mono 16-bit WAV of the rendered samples.
   function wav(d, sr) {
     const out = new DataView(new ArrayBuffer(44 + d.length * 2));
@@ -50,21 +82,28 @@ Serve the repo (python tests/serve.py 8000 .) and open http://127.0.0.1:8000/too
     return new Blob([out], { type: 'audio/wav' });
   }
   $('render').onclick = async () => {
-    log('Rendering...');
-    const sr = 44100, bars = Math.ceil(60 / barSeconds()), raidFrom = Math.floor(30 / barSeconds());
-    const ctx = new OfflineAudioContext(1, Math.ceil(sr * (bars * barSeconds() + 1)), sr);
-    scheduleOffline(ctx, { seed: seed(), bars, volume: volume(), mood: (bar) => (bar >= raidFrom ? 'raid' : 'calm') });
+    halt();
+    const id = $('piece').value, piece = composePiece(id, seed(), play());
+    log(`Rendering ${piece.name} (${piece.seconds.toFixed(1)} s)...`);
+    const sr = 44100, seconds = piece.seconds + 1;
+    const ctx = new OfflineAudioContext(1, Math.ceil(sr * seconds), sr);
+    scheduleOffline(ctx, { seed: seed(), play: play(), seconds, volume: volume(), season, plan: { choose: () => id, firstWait: () => 0.05, gap: () => 600 } });
     const buffer = await ctx.startRendering(), d = buffer.getChannelData(0);
-    let peak = 0, sum = 0;
+    let peak = 0, sum = 0, loud = 0;
+    const w = 3 * sr;
     for (const x of d) { peak = Math.max(peak, Math.abs(x)); sum += x * x; }
+    for (let s = 0; s + w <= d.length; s += sr) { let e = 0; for (let i = s; i < s + w; i++) e += d[i] * d[i]; loud = Math.max(loud, Math.sqrt(e / w)); }
     const db = (v) => (20 * Math.log10(v)).toFixed(1);
-    log(`Rendered ${(d.length / sr).toFixed(1)} s at volume ${Math.round(volume() * 100)} (master ${masterGain(volume()).toFixed(2)}): peak ${peak.toFixed(3)} (${db(peak)} dBFS), RMS ${db(Math.sqrt(sum / d.length))} dBFS.`);
+    log(`${piece.name}, play ${play()}: ${piece.seconds.toFixed(1)} s, ${piece.bars} bars at ${piece.bpm.toFixed(1)} bpm, ${piece.notes.length} notes `
+      + `(${piece.notes.filter((n) => n.voice === 'accent').length} high-pluck accents). At volume ${Math.round(volume() * 100)} (master ${masterGain(volume()).toFixed(2)}): `
+      + `peak ${peak.toFixed(3)} (${db(peak)} dBFS), RMS ${db(Math.sqrt(sum / d.length))} dBFS, loudest 3 s ${db(loud)} dBFS. Playing it now.`);
     $('save').href = URL.createObjectURL(wav(d, sr));
+    $('save').download = `thebes-${id}-${seed()}-${play()}.wav`;
     $('save').hidden = false;
-    const live = new AudioContext();
-    player = live.createBufferSource();
+    const out = new AudioContext();
+    player = out.createBufferSource();
     player.buffer = buffer;
-    player.connect(live.destination);
+    player.connect(out.destination);
     player.start();
   };
 </script>
