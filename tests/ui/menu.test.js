@@ -16,6 +16,13 @@ function rig(hooks = {}) {
   const dialog = createDialog({ container: root.querySelector('#dialog'), store });
   return { root, body: root.querySelector('#body'), dialogNode: root.querySelector('#dialog'), store, settings, menus, dialog, shown, log, close: () => log.push('close'), cleanup };
 }
+// Version 8.2 (ruling 1308): the game's New city opens the new-city card as a sheet; its Start asks the replace question.
+function startFromCard(r) {
+  const card = document.createElement('div');
+  r.root.append(card);
+  r.menus.newCity(card, { close: r.close });
+  fire(card.querySelector('.start-city'), 'click');
+}
 const buttonNamed = (node, text) => [...node.querySelectorAll('button')].find((b) => b.textContent.trim() === text);
 
 describe('ui menu', () => {
@@ -25,13 +32,15 @@ describe('ui menu', () => {
     fire(buttonNamed(r.body, T.continueGame), 'click');
     expect(r.log).toEqual(['close']);
     fire(buttonNamed(r.body, T.newCity), 'click');
+    expect(r.store.get().sheet.kind).toBe('newCity');                                         // Version 8.2 (ruling 1308): the new-city card first, its Start asks
+    startFromCard(r);
     expect(r.store.get().confirmDialog.text).toBe(T.newCityConfirm);
     expect(r.dialogNode.hidden).toBe(false);
     expect(r.dialogNode.querySelector('.box').textContent).toContain(T.newCityConfirm);
     fire(r.dialogNode.querySelector('.cancel'), 'click');
     expect(r.store.get().confirmDialog).toBe(null);
     expect(r.dialogNode.hidden).toBe(true);
-    fire(buttonNamed(r.body, T.newCity), 'click');
+    startFromCard(r);
     fire(r.dialogNode.querySelector('.ok'), 'click');
     expect(r.log).toEqual(['close', 'new']);
     expect(r.store.get().confirmDialog).toBe(null);
@@ -58,13 +67,11 @@ describe('ui menu', () => {
   });
   it('new city offers Export first when a hook can export, and the dialog runs the extra action', () => {
     const plain = rig();
-    plain.menus.menu(plain.body, { close: plain.close });
-    fire(buttonNamed(plain.body, T.newCity), 'click');
+    startFromCard(plain);
     expect(plain.dialogNode.querySelector('.extra')).toBe(null);
     plain.cleanup();
     const r = rig({ exportCity: () => r.log.push('export') });
-    r.menus.menu(r.body, { close: r.close });
-    fire(buttonNamed(r.body, T.newCity), 'click');
+    startFromCard(r);
     const extra = r.dialogNode.querySelector('.extra');
     expect(extra.textContent).toBe(T.exportFirst);
     expect([...r.dialogNode.querySelectorAll('button')].map((b) => b.className.split(' ')[0])).toEqual(['cancel', 'extra', 'ok']);

@@ -13,6 +13,7 @@ import { pushUndo } from './undo.js';
 import { storeAccepts } from './production.js';
 import { guildsNear, supplyNear, remainingNeed } from './monuments.js';
 import { DEFENCE } from '../data/raids.js';
+import { hasRiver } from '../data/map.js';
 import { bridgeVerdicts } from './bridges.js';
 import { tileBound, fitOf, fitReason, waterTilesOf } from './fit.js';
 import { noteBuilt } from './oases.js';
@@ -48,6 +49,7 @@ function typeReason(world, type, x, y) {
     return isTile(x, y) ? null : 'out_of_bounds';
   }
   if (!def || def.buildable === false) return 'unknown';   // rubble (and a gate) is never built
+  if (def.riverMap && !hasRiver(world.mapVariant)) return 'no_river';   // Version 8.2 (Track G, ruling 1306): the Quay on a map with no river (the Great oasis)
   if (!isUnlocked(world, type)) return 'locked';
   if (def.tile) return 'unknown';                          // walls are drawn as a line (drawWall, src/sim/defence.js), not placed
   if (def.oneOnly && allBuildings(world).some((b) => b.type === type)) return 'one_only';   // Stage 4: one palace a city (ruling 271)

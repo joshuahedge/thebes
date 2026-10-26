@@ -16,6 +16,7 @@
 // for last year's profit. setTradeSwitch and setKeepAtLeast are the Trade sheet's commands.
 import { PARTNERS, CARAVAN_EVERY_MONTHS, PRICE_DRIFT, TRADE_REACH, QUAY_TYPE, TRADE_SIDES, partnerBy } from '../data/trade.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { hasRiver } from '../data/map.js';
 import { GOODS } from '../data/goods.js';
 import { allBuildings } from './world.js';
 import { adjacentRoadTiles, buildingsInReach } from './reach.js';
@@ -144,6 +145,7 @@ export function drawDrift(seed, year) {
 export function routeBlocker(world, partnerId) {
   if (!PARTNERS[partnerId]) return 'unknown_partner';
   if (world.trade.routes[partnerId]) return 'already_open';
+  if (byRiver(partnerId) && !hasRiver(world.mapVariant)) return 'no_river';   // Version 8.2 (Track G, ruling 1306): no river reaches the Great oasis: no boat comes
   if (!partnerUnlocked(world, partnerId)) return 'locked';
   if (byRiver(partnerId)) { if (!quays(world).length) return 'no_quay'; }
   else if (!posts(world).length) return 'no_post';

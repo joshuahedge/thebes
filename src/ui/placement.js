@@ -44,6 +44,7 @@ import { drawFerry } from '../sim/ferryLay.js';
 import { FERRY_TEXT } from './v71/ferryText.js';
 import { styleChoices } from './s46/wonders.js';
 import { placementWhy } from './placementWhy.js';
+import { forMap, riverless } from './v82/oasisText.js';   // Version 8.2 (Track G): the words per map
 
 // A building tool's footprint in its rotation (Stage 4: tool.rot 1 turns a mastaba a quarter, dimsOf; ruling 234).
 const footprintOf = (tool) => (tool.kind === 'building' ? dimsOf(tool.type, tool.rot || 0) : { w: 1, d: 1 });
@@ -73,7 +74,7 @@ function roadText(world, r) {
   if (bridges) parts.push(S45_TEXT.bridgeNote(bridges, r.bridgeCost));
   return parts.join(' · ');
 }
-const roadRefusalText = (r) => (r.reason === 'too_wide' ? S45_TEXT.tooWide(r.water) : reasonText(r.reason));
+const roadRefusalText = (world, r) => (r.reason === 'too_wide' ? S45_TEXT.tooWide(r.water, !riverless(world)) : reasonText(r.reason));   // Version 8.2 (ruling 1333): no ferry on a map with no river
 const roadDoneText = (tool, result) => (tool.gate ? S45_TEXT.gateBuilt
   : result.ok && result.bridges && result.bridges.length ? S45_TEXT.roadLaidBridge(result.bridges.length)
     : result.ok && result.gates && result.gates.length ? S45_TEXT.roadLaidGates(result.gates.length) : T.roadLaid);
@@ -322,7 +323,7 @@ function basePreview(world, state) {
     if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
     const tiles = roadPath(l.x0, l.y0, l.x1, l.y1, l.flip);
     const r = tool.kind === 'road' ? previewRoad(world, l.x0, l.y0, l.x1, l.y1, l.flip, roadOptions(tool)) : previewWall(world, l.x0, l.y0, l.x1, l.y1, l.flip);
-    if (!r.ok) return bad(r.reason, r.cost, r.tiles.length, tiles, roadRefusalText(r));
+    if (!r.ok) return bad(r.reason, r.cost, r.tiles.length, tiles, roadRefusalText(world, r));
     if (!r.tiles.length) return bad('nothing_to_place', 0, 0, tiles);
     if (tool.kind === 'wall') {
       // Stage 3 (spec 4.13, 6.4): only the tiles that get wall (standing wall is skipped), the gates among them marked, and
@@ -480,6 +481,12 @@ function demolishPreview(r, tiles, world = null) {
 export function toolPreview(world, state) {
   const p = basePreview(world, state);
   if (!p) return p;
+  // Version 8.2 (ruling 1307): on the Great oasis a refusal or rule that says the river says the great lake (src/ui/v82/oasisText.js)
+  if (riverless(world)) {
+    for (const k of ['text', 'why']) if (typeof p[k] === 'string') p[k] = forMap(world, p[k]);
+    if (Array.isArray(p.conditions)) p.conditions = p.conditions.map((c) => ({ ...c, text: forMap(world, c.text), label: forMap(world, c.label) }));
+    if (Array.isArray(p.whyParts)) p.whyParts = p.whyParts.map((w) => (w && typeof w.text === 'string' ? { ...w, text: forMap(world, w.text) } : w));
+  }
   if (state.tool.kind === 'road' && !state.tool.gate && p.state === 'bad' && (WATER_REFUSALS.includes(p.reason) || (p.routed && p.at))) p.showFit = true;   // Stage 4.6 (ruling 350): Show me finds a crossing; Version 5.0 (Task 5): a routed road's refusal shows what is in the way
   if (state.tool.kind === 'ferry' && p.state === 'bad' && p.ferry && p.reason !== 'no_gold') p.showFit = true;   // Version 7.1 (Track F): every refusal of the ferry's line has a place to show (the nearest crossing, or a bridge's for a narrow one)
   p.note = p.state === 'idle' ? bridgeNote(world, state.tool) : '';
@@ -640,7 +647,7 @@ export function fitTarget(world, state) {
     // Version 7.1 (Track F, ruling 1043): water too wide for a bridge has a ferry's place to show, and the Ferry tool starts there.
     if ((l && l.x1 !== null) || tiles.length) {
       const p = toolPreview(world, state);
-      if (p.state === 'bad' && p.reason === 'too_wide') {
+      if (p.state === 'bad' && p.reason === 'too_wide' && !riverless(world)) {   // Version 8.2 (ruling 1333): a map with no river shows the nearest bridge's place instead
         const f = ferrySpot(world, from);
         return f ? { kind: 'ferry', x: f.x + 0.5, y: f.y + 0.5, spot: f } : null;
       }

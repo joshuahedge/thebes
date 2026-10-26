@@ -33,7 +33,7 @@ export const LESSON_PLACES = {
 //          months { n }, tally { key, n }, tallyAny { keys, n }, covered { type } (a staffed firehouse reaches the building of that type), towers (enough
 //          staffed towers for the raid warned, or the raiders have come), raidOver.
 //   at     what the map lights and dims the rest round, in tiles: { x, y, w, d } (a footprint) or { of: type } (the first building of the type, whose own
-//          footprint it is). Nothing for a step about the whole city.
+//          footprint it is), or { of: 'raidTarget' } (the building the warned raid is after, Version 8.2). Nothing for a step about the whole city. Whatever a step lights, its words name (tests/v82/l/targets.test.js).
 //   dom    a selector for the control the step points at (the speed control, the gold chip), lit with a ring.
 //   show   Show me's card: { category, item }; it opens the card and puts the ghost where it fits round `at`.
 //   stage  what the lesson sets up when the step begins (src/sim/lesson.js STAGES): 'largePlot' (the card, which a Townhouse opens in a real city),
@@ -62,8 +62,21 @@ export const LESSON_STEPS = [
   { id: 'firehouse', check: { kind: 'covered', type: 'bazaar' }, at: { x: 21, y: 45, w: 1, d: 1 }, show: { category: 'services', item: 'firehouse' }, play: 'act', act: { kind: 'building', type: 'firehouse' } },
   { id: 'fire', stage: 'fire', check: { kind: 'tallyAny', keys: ['blazesOut', 'firesOut'], n: 1 }, at: { of: 'bazaar' }, play: 'card' },
   { id: 'tower', stage: 'raid', check: { kind: 'towers' }, at: { x: 21, y: 39, w: 1, d: 1 }, show: { category: 'defence', item: 'tower' }, play: 'warning', act: { kind: 'towers' } },
-  { id: 'raid', check: { kind: 'raidOver' }, at: { of: 'bazaar' }, play: 'card' },
+  { id: 'raid', check: { kind: 'raidOver' }, at: { of: 'raidTarget' }, play: 'card' },   // Version 8.2 (Track L, ruling 1320): the building the raid is after (src/sim/lesson.js raidTarget), named in the step's words
 ];
+
+// Version 8.2 (integration, ruling 1331): the build category a step opens on the wide panel and the phone's tray as it begins: its own card's (show.category), else that of
+// the step before it in its chapter that has one (the raid: the tower's Defence; the months: the homes the workers wanted; the fire: the firehouse's Services). Never Roads
+// by default.
+export function stepCategory(i) {
+  const step = LESSON_STEPS[i];
+  if (!step) return null;
+  if (step.show) return step.show.category;
+  const chapter = LESSON_CHAPTERS.find((c) => c.steps.includes(step.id));
+  const before = chapter.steps.slice(0, chapter.steps.indexOf(step.id)).reverse().map((id) => LESSON_STEPS.find((s) => s.id === id));
+  const own = before.find((s) => s.show);
+  return own ? own.show.category : null;
+}
 
 // Version 8.1 "The vizier" (Track T, rulings 1202-1203): the lesson in chapters, one idea each (design 7b): roads, homes, water, food, work and trade, fire, defence.
 // A chapter opens with its card in the middle of the screen, the game paused behind it; the steps inside it (micro-steps) are said by Ipi in the docked bubble and

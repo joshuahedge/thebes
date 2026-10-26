@@ -138,6 +138,7 @@ describe('v80 g confirms: coral only when something is lost', () => {
       expect([g.store.get().confirmDialog.text, g.store.get().confirmDialog.destructive, ok().classList.contains('primary'), cs(ok()).backgroundColor]).toEqual([D2_TEXT.menuLessonConfirm, false, true, LAPIS]);
       g.store.set({ confirmDialog: null });
       fire(g.root.querySelector('#sheet .menu-list button:nth-child(2)'), 'click');       // New city: it replaces the saved one
+      fire(g.root.querySelector('#sheet .start-city'), 'click');                          // Version 8.2 (ruling 1308): the new-city card first; its Start asks
       expect([ok().classList.contains('danger'), cs(ok()).backgroundColor]).toEqual([true, CORAL]);
       g.store.set({ confirmDialog: null });
     } finally { g.cleanup(); }
@@ -206,7 +207,7 @@ describe('v80 g options: Back is not clipped at the foot', () => {
 describe('v80 g what\'s new: the 8.0 entry says what was built', () => {
   it('mentions the tray, the lit card, Leave in the menu, the quiet Skip, amber and the coral rule, and nothing that was not built', async () => {
     const { RELEASES } = await import('../../../src/data/releases.js');
-    const text = [...RELEASES[1].new, ...RELEASES[1].fixed].join(' ').toLowerCase();
+    const text = [...RELEASES[2].new, ...RELEASES[2].fixed].join(' ').toLowerCase();
     for (const word of ['last 30', 'lit in the tray', 'leave the lesson', 'skip, i\'ve played before', 'amber', 'coral button', 'demolish']) expect([word, text.includes(word)]).toEqual([word, true]);
     for (const word of ['drag', 'scribe', 'ipi', 'music', 'chapter']) expect([word, text.includes(word)]).toEqual([word, false]);   // 8.1 and 8.2 things
   });

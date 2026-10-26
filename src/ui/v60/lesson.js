@@ -24,9 +24,9 @@
 //  - The end: the lesson's city becomes the player's own (run.adopt, src/boot.js): Ipi hands over and the first real goal shows (ruling 1208). A device with a saved city
 //    keeps the end sheet, since the lesson's city must not take that city's place (ruling 1209).
 import { seamBase } from '../s46/seam.js';
-import { LESSON_STEPS, LESSON_PLACES } from '../../data/lesson.js';
+import { LESSON_STEPS, LESSON_PLACES, stepCategory } from '../../data/lesson.js';
 import { MILESTONES } from '../../data/progression.js';
-import { LESSON_LENGTH, LESSON_CHAPTER_COUNT, chapterAt, lessonAt, stepSpot, stepProgress, playWhen, actionBase, actionDone, homesOnRoad, homesReached, workingTypes, gateRoadTiles } from '../../sim/lesson.js';
+import { LESSON_LENGTH, LESSON_CHAPTER_COUNT, chapterAt, lessonAt, stepSpot, stepFrame, stepProgress, playWhen, actionBase, actionDone, homesOnRoad, homesReached, workingTypes, gateRoadTiles } from '../../sim/lesson.js';
 import { population } from '../../sim/world.js';
 import { monthIndex } from '../../sim/clock.js';
 import { workingTowers } from '../../sim/raids.js';
@@ -47,6 +47,7 @@ import { TOPBAR_PX, freeTop } from '../layout.js';
 // The lit ring's reach round a footprint: the footprint's diamond (a tile is 64 px wide and 32 tall at zoom 1, so w + d tiles are (w + d) x 32 px wide and
 // (w + d) x 16 tall, and the ring's half-axes are half of that) with this much to spare, in px.
 const RING_PAD = 14;
+const RING_ROOM_PX = 90;   // Version 8.2 (Track L): the margin a framed raid view keeps round the target's point, about the ring's radius on a phone
 const RING_MIN = { x: 44, y: 30 };
 const ringHalf = (spot, k) => { const span = spot.w + spot.d; return { rx: Math.max(RING_MIN.x, span * 16 * k + RING_PAD), ry: Math.max(RING_MIN.y, span * 8 * k + RING_PAD) }; };
 
@@ -108,11 +109,12 @@ export function createLessonUi(ctx) {
   const label = el('span', { class: 'label small muted' });
   const ipiWhy = el('span', { class: 'ipi-why' });
   const text = el('span', { class: 'text' });
-  const why = el('span', { class: 'why small muted' });
   const chip = el('span', { class: 'chip small', role: 'img' });
   const more = el('button', { type: 'button', class: 'more quiet', 'aria-expanded': 'false', hidden: true });
   const beatLine = el('span', { class: 'beat-line' });   // Ipi's reaction to the step just done takes the why's place for its beat (ruling 1206); the next step's do stays in sight
-  const body = el('span', { class: 'body', onClick: () => { if (!more.hidden) toggleOpen(); } }, [label, beatLine, text, ' ', chip, ' ', ipiWhy, why, more]);   // the do leads (ruling 822: a phone cuts the row at three lines), then Ipi's why
+  const body = el('span', { class: 'body', onClick: () => { if (!more.hidden) toggleOpen(); } }, [label, beatLine, text, ' ', chip, ' ', ipiWhy, more]);   // the do leads (ruling 822: a phone cuts the row at three lines), then Ipi's why
+  // Version 8.2 (integration, ruling 1330): the bubble is Ipi's two short lines and nothing more. The 7.0 detail line that followed them repeated the why at full size (the
+  // farm: "the green land by the river" twice); it is gone from the bubble, and what it added lives in the step's card, Show me and How to play.
   const showMe = button(T.showMe, { class: 'show-me quiet', onClick: () => doShowMe() });
   const newCity = button(D2_TEXT.endNew, { class: 'lesson-new primary', hidden: true, onClick: () => run.finish() });
   const face = portrait(36);
@@ -165,7 +167,7 @@ export function createLessonUi(ctx) {
     measure();
   }
   // "More ▾" shows while a phone cuts the words (css/ui.css cuts the label, the words and the count together at three lines), "Less ▴" while open; measured with the control hidden, so it never decides its own need.
-  // Version 8.1: Ipi's why and do lead the row; the long reason (the lesson's 7.0 words, with the sim's numbers) follows them on a wide screen and behind More on a phone.
+  // Version 8.1: Ipi's why and do lead the row (8.2, ruling 1330: and are all of it; More shows only while a phone cuts them).
   function measure() {
     more.hidden = true;
     const cut = !open && isCut(body);
@@ -344,12 +346,22 @@ export function createLessonUi(ctx) {
     if (b.top < a.top) box.scrollTop -= a.top - b.top + pad; else if (b.bottom > a.bottom) box.scrollTop += b.bottom - a.bottom + pad;
   }
 
+  // Version 8.2 (integration, ruling 1331): as a step begins, the wide panel and the phone's tray open on the category of the step's own card (stepCategory: the raid's is the
+  // tower's Defence), once; the player's own choice of tab is left alone until the next step.
+  let catAt = -1;
+  function openCategory() {
+    if (finished || !step || catAt === at) return;
+    catAt = at;
+    const t = targetOf(), category = t ? t.category : stepCategory(at);
+    if (category && store.get().category !== category) store.set({ category });
+  }
+
   // The words, the count and the buttons for the step the city is at.
   function paint() {
     step = at < LESSON_LENGTH ? LESSON_STEPS[at] : null;
     facts = lessonFacts(world, step);
     if (!step) {
-      setText(label, ''); setText(ipiWhy, ''); setText(text, D2_TEXT.endRow); setText(why, ''); chip.hidden = true;
+      setText(label, ''); setText(ipiWhy, ''); setText(text, D2_TEXT.endRow); chip.hidden = true;
       showMe.hidden = true; paintEnd();
       row.dataset.step = 'end';
     } else {
@@ -359,7 +371,6 @@ export function createLessonUi(ctx) {
       setText(label, V81T_TEXT.stepLabel(V81T_TEXT.chapters[ch.id].name, ch.k, ch.of));
       setText(ipiWhy, words.why);
       setText(text, words.do);
-      setText(why, D2_TEXT.steps[step.id](facts).why);
       chip.hidden = !p;
       if (p) { setText(chip, D2_TEXT.progress(p.n, p.of)); chip.setAttribute('aria-label', D2_TEXT.progress(p.n, p.of)); }
       const t = targetOf();
@@ -421,6 +432,7 @@ export function createLessonUi(ctx) {
     if (needPause && !building && ctx.speedControl) { needPause = false; ctx.speedControl.set(0); }   // a command: not while the interface is still being built
     paint();
     applyLock();
+    openCategory();
     cardWaits = false;
     if (!finished && step && cardAt !== at) {
       const ch = chapterAt(at);
@@ -457,8 +469,11 @@ export function createLessonUi(ctx) {
     const spot = stepSpot(world, step);
     shownAt = at;
     if (!spot || !run.cam) return;
-    const v = viewOf(), cx = spot.x + spot.w / 2, cy = spot.y + spot.d / 2, i = freeInsets(v);
-    const go = () => ctx.cameraControl.frameKeeping(cx, cy, cx, cy, i);
+    // Version 8.2 (Track L, ruling 1321): a step with a frame of its own (the raid: the target, the towers and the side the raiders come from) centres that box, and the target's own point is what
+    // is kept in view, so the ring stays on the screen whatever the box.
+    const fr = stepFrame(world, step) || spot;
+    const v = viewOf(), tx = spot.x + spot.w / 2, ty = spot.y + spot.d / 2, cx = fr.x + fr.w / 2, cy = fr.y + fr.d / 2, i = freeInsets(v);
+    const go = () => ctx.cameraControl.frameKeeping(cx, cy, tx, ty, i, fr === spot ? undefined : RING_ROOM_PX);   // a framed box keeps the whole ring in view, not just its middle
     if (typeof ctx.cameraControl.glide === 'function') ctx.cameraControl.glide(go); else go();
   }
 

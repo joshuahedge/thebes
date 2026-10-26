@@ -19,6 +19,19 @@ function drawMonumentMark(ctx, b, scale) {
 
 const COLOURS = { [TER.DESERT]: TERRAIN.sand, [TER.FERTILE]: TERRAIN.fertile, [TER.ROCKY]: TERRAIN.rocky, [TER.WATER]: TERRAIN.water, [TER.BANK]: TERRAIN.bank, [TER.MEADOW]: TERRAIN.grass, [TER.CLAY]: TERRAIN.clay, [TER.HILLS]: TERRAIN.hills };
 
+// The ground, one square of its colour per tile, `scale` canvas px a tile. world: anything with size, terrain and mapParams (a world, or a map from
+// generateMap with its params as mapParams: the new-city card's preview, Version 8.2).
+export function drawGround(gctx, world, scale) {
+  const land = hasNewLand(world);
+  for (let y = 0; y < world.size; y++) {
+    for (let x = 0; x < world.size; x++) {
+      const t = world.terrain[y * world.size + x];
+      gctx.fillStyle = (land && t === TER.ROCKY ? TERRAIN.beltRock : COLOURS[t]) || TERRAIN.sand;   // Task 3b: a new map's rock is drawn in the belt's body colour
+      gctx.fillRect(x * scale, y * scale, Math.ceil(scale), Math.ceil(scale));
+    }
+  }
+}
+
 const INTO = { east: [-1, 0], west: [1, 0], north: [0, 1], south: [0, -1] };
 
 // A map point's pin: its tile's centre, with the unit arrow into the map (from its dir, else towards the map's middle).
@@ -67,14 +80,7 @@ export function createMinimap({ world, cam, view, size = 160, dpr = 1 }) {
   // Terrain never changes in Stage 1, so it is baked once.
   const ground = document.createElement('canvas');
   ground.width = canvas.width; ground.height = canvas.height;
-  const gctx = ground.getContext('2d'), land = hasNewLand(world);
-  for (let y = 0; y < world.size; y++) {
-    for (let x = 0; x < world.size; x++) {
-      const t = world.terrain[y * world.size + x];
-      gctx.fillStyle = (land && t === TER.ROCKY ? TERRAIN.beltRock : COLOURS[t]) || TERRAIN.sand;   // Task 3b: a new map's rock is drawn in the belt's body colour
-      gctx.fillRect(x * scale, y * scale, Math.ceil(scale), Math.ceil(scale));
-    }
-  }
+  drawGround(ground.getContext('2d'), world, scale);
 
   function render(alerts = []) {
     ctx.drawImage(ground, 0, 0);

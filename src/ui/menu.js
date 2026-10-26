@@ -10,6 +10,11 @@ import { el, button, clear } from './components.js';
 import { versionLine } from './s46/whatsNew.js';   // Version 8.0: the version and build moved from the title to the foot of Options
 import { MAPS_HELP } from './v71/mapsText.js';   // Version 7.1 (Track M): How to play's Maps note
 import { V71_HELP } from './v71/ferryText.js';   // Version 7.1 (Track F): How to play's Ferries entry (and importing it registers the ferries tip)
+import { renderNewCityCard } from './titleCard.js';   // Version 8.2 (Track G): the new-city card in the game's menu
+import { MAP_WORDS_AS_WRITTEN } from './v82/mapWords.js';
+
+// The game's new-city card's picture: 120 px on a short screen, else 160 (ruling 1311).
+const newCityPreviewPx = () => (typeof window !== 'undefined' && window.innerHeight < 700 ? 120 : 160);
 
 const SILENCED = 'silenced';   // Version 7.1: what Sound Off does to the Music and Effects rows, in a word
 const KEY_NAMES = { ' ': 'Space', Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
@@ -26,7 +31,10 @@ export function keyLabel(name) {
 // canResumeGuide / onResumeGuide come from createUI: How to play offers "Resume guide" while the guide is off
 // and one of its steps is open, under Help: Guide and tips only (early-game pass 3.2).
 // onScreenshot (Stage 3, spec 6.3): the menu's Screenshot mode; createUI enters the mode.
-export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCity = () => {}, version = APP_VERSION, canResumeGuide = () => false, onResumeGuide = () => {}, onScreenshot = null }) {
+// Version 8.2 (Track G): onPause pauses the game (the new-city card opens over a paused game); words(text) says a text as this city's map should (the Great oasis:
+// src/ui/v82/oasisText.js forMap), and mapHelp is How to play's paragraph about this map, or null.
+const RIVER_ONLY_TIPS = ['quay_boats', 'ferries'];   // Version 8.2 (ruling 1335): tips a map with no river never fires, left out of its How to play
+export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCity = () => {}, version = APP_VERSION, canResumeGuide = () => false, onResumeGuide = () => {}, onScreenshot = null, onPause = () => {}, words = (s) => s, mapHelp = null }) {
   const open = (kind) => store.set(openSheet(store.get(), kind));
   const hookOr = (name) => () => { if (typeof hooks[name] === 'function') hooks[name](); else toasts.show(T.notYet); };
 
@@ -38,10 +46,8 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     body.append(el('div', { class: 'menu-list' }, [
       button(T.continueGame, { class: 'primary', onClick: close }),
       inLesson ? button(D2_TEXT.menuLeave, { class: 'leave-lesson', onClick: () => store.set({ confirmDialog: { text: D2_TEXT.leaveConfirm, confirmLabel: D2_TEXT.menuLeave, onConfirm: () => hooks.lessonRun.leave() } }) }) : null,
-      inLesson ? null : button(T.newCity, { onClick: () => store.set({ confirmDialog: {
-        text: T.newCityConfirm, confirmLabel: T.newCity, onConfirm: onNewCity,
-        extraLabel: typeof hooks.exportCity === 'function' ? T.exportFirst : null, onExtra: hookOr('exportCity'),
-      } }) }),
+      // Version 8.2 (Track G, ruling 1308): New city opens the new-city card (the title's own) as this one sheet; its Start asks the replace question.
+      inLesson ? null : button(T.newCity, { class: 'menu-new-city', onClick: () => { onPause(); open('newCity'); } }),
       !inLesson && typeof hooks.lesson === 'function' ? button(D2_TEXT.menuLesson, { class: 'menu-lesson', onClick: () => store.set({ confirmDialog: { text: D2_TEXT.menuLessonConfirm, confirmLabel: D2_TEXT.menuLesson, destructive: false,   // the city is saved first, nothing is lost: primary, not coral (Version 8.0, ruling 1176)
         // "It is saved first": a save that failed (storage full, a newer version's save in the slot) keeps the city and says so, rather than leaving it unsaved for the lesson.
         onConfirm: async () => {
@@ -178,6 +184,8 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     const section = (head, ...kids) => el('details', { class: 'help-section' }, [el('summary', {}, [el('h3', { text: head })]), ...kids]);
     // Version 7.1.1 (ruling 1110): the first entry says what the game is for (V711_TEXT.goal: the ranks and the great temple, from the sim's data); it stands open.
     body.append(el('details', { class: 'help-section help-goal', open: true }, [el('summary', {}, [el('h3', { text: V711_TEXT.helpGoalHead })]), el('p', { text: V711_TEXT.helpGoal() })]));
+    // Version 8.2 (Track G, ruling 1307): a city with no river (the Great oasis) says so first, open, and every paragraph below says the great lake where it says the river.
+    if (mapHelp) body.append(el('details', { class: 'help-section help-map', open: true }, [el('summary', {}, [el('h3', { text: mapHelp.head })]), el('p', { text: mapHelp.text })]));
     body.append(section(T.shortcuts,
       el('table', { class: 'shortcuts' }, [
         el('thead', {}, [el('tr', {}, [el('th', { text: T.keyHead }), el('th', { text: T.doesHead })])]),
@@ -186,23 +194,47 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       el('p', { class: 'small muted', text: T.shortcutsOff })));
     body.append(section(T.gestures, el('p', { text: T.gesturesHelp })));
     // Version 6.0 (contract section 9): each track's paragraphs, from its own src/ui/text.js section, in track order.
-    const paragraph = (p) => body.append(section(p.head, el('p', { text: p.text })));
+    // Version 8.2 (integration, ruling 1335): a city with no river (mapHelp is said only there) leaves out what its map cannot have: trade by river, the Quay, the ferries and their tips.
+    const riverOnly = mapHelp ? new Set([V70_HELP.t[0], V70_HELP.a[0], ...V71_HELP.f].filter(Boolean).map((p) => p.head)) : new Set();
+    const paragraph = (p) => { if (!riverOnly.has(p.head)) body.append(section(p.head, el('p', { text: words(p.text) }))); };
     for (const p of Object.values(V60_HELP).flat()) paragraph(p);
     for (const p of Object.values(V70_HELP).flat()) paragraph(p);   // Version 7.0: the same, from V70_HELP
-    for (const p of MAPS_HELP) paragraph(p);   // Version 7.1 (Track M)
+    for (const p of MAPS_HELP) { const s = section(p.head, el('p', { text: p.text })); s.setAttribute(MAP_WORDS_AS_WRITTEN, ''); body.append(s); }   // Version 7.1 (Track M); 8.2 (ruling 1335): it names every map's river, as written
     for (const p of Object.values(V71_HELP).flat()) paragraph(p);   // Version 7.1 (Track F): the same, from V71_HELP
     body.append(section(T.goals, el('p', { class: 'muted', text: T.goalsHelp }), el('p', { class: 'muted', text: T.guideHelp })));
     if (canResumeGuide()) {
       body.append(el('div', { class: 'actions' }, [button(T.resumeGuide, { class: 'resume-guide primary', onClick: () => { onResumeGuide(); if (close) close(); } })]));
     }
-    body.append(section(T.tips, el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.filter((tip) => tip.id !== 'gentle_motion').map((tip) => el('li', { text: TIP_HELP_TEXT[tip.id] || TIP_TEXT[tip.id] })))));   // Stage 4: a tip true only where it fires has its help words
+    body.append(section(T.tips, el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.filter((tip) => tip.id !== 'gentle_motion' && !(mapHelp && RIVER_ONLY_TIPS.includes(tip.id))).map((tip) => el('li', { text: words(TIP_HELP_TEXT[tip.id] || TIP_TEXT[tip.id]) })))));   // Stage 4: a tip true only where it fires has its help words
   }
 
   function about(body) {
     body.append(el('h3', { text: 'Thebes' }), el('p', { text: `${T.version} ${version}` }), el('p', { text: T.aboutText }));
   }
 
-  return { menu, settings: settingsSheet, help, about };
+  // Version 8.2 (Track G, rulings 1308-1310): the new-city card, the title's own (difficulty, the map preview, More choices), over the paused game. Its choices are
+  // kept by boot (hooks.newCityChoices) and the difficulty is the device's setting, the one Options > Saves shows. Back closes it and the city is as it was; Start
+  // asks the replace question (the city is lost unless exported: Export first), and only its confirm starts the new city (onNewCity).
+  let moreOpen = false;
+  function newCity(body, { close } = {}) {
+    const C = hooks.newCityChoices || { get: () => ({}), setSize() {}, setLayout() {}, setSeed() {} };
+    const now = C.get();
+    const card = renderNewCityCard({
+      difficulty: settings.get().difficulty, onDifficulty: (level) => settings.set({ difficulty: level }),
+      mapSize: now.mapSize, onMapSize: C.setSize, layout: now.layout || 'auto', onLayout: C.setLayout, seed: now.seed, onSeed: C.setSeed,
+      hasSave: true, head: false, previewPx: newCityPreviewPx(), moreOpen, onMore: (open) => { moreOpen = open; },   // the sheet may be drawn again: More choices stays as it was
+      onBack: () => { if (close) close(); },
+      onStart: () => store.set({ confirmDialog: {
+        text: T.newCityConfirm, confirmLabel: T.newCity, onConfirm: onNewCity,
+        extraLabel: typeof hooks.exportCity === 'function' ? T.exportFirst : null, onExtra: hookOr('exportCity'),
+      } }),
+    });
+    card.element.setAttribute(MAP_WORDS_AS_WRITTEN, '');   // Version 8.2 (ruling 1335): the card names the maps to come, river and all, from a city of any map
+    body.append(card.element);
+    queueMicrotask(() => { if (card.element.isConnected) card.focus(); });
+  }
+
+  return { menu, settings: settingsSheet, help, about, newCity };
 }
 
 // The confirm dialog: store.confirmDialog = { text, confirmLabel, onConfirm, extraLabel?, onExtra? } shows it; null hides it.

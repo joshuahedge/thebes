@@ -19,6 +19,7 @@ import { S46_MAP_TEXT, TIP_TEXT, T, buildingName } from '../text.js';
 import { button } from '../components.js';
 import { isCut, writeMore } from '../expand.js';
 import { FERRY_TEXT } from '../v71/ferryText.js';
+import { riverless } from '../v82/oasisText.js';
 
 const WATER_REFUSALS = ['water', 'too_wide', 'bridge_shape'];
 const ROUTE_TIP_REFUSALS = ['blocked', 'hills', 'water', 'too_wide', 'bridge_shape'];
@@ -33,7 +34,7 @@ export function createMapUi(ctx) {
       const target = fitTarget(world, state);
       if (!target) {
         const ferryTool = state.tool && state.tool.kind === 'ferry';   // Version 7.1 (Track F): the Ferry tool's, or a road's too-wide refusal, has no crossing to show
-        const tooWide = state.tool && state.tool.kind === 'road' && toolPreview(world, state).reason === 'too_wide';
+        const tooWide = !riverless(world) && state.tool && state.tool.kind === 'road' && toolPreview(world, state).reason === 'too_wide';   // Version 8.2 (ruling 1333): no ferry words with no river
         ctx.toasts.show(ferryTool || tooWide ? FERRY_TEXT.noFit : state.tool && state.tool.kind === 'road' ? S46_MAP_TEXT.noBridge : S46_MAP_TEXT.noFit(`a ${buildingName(state.tool.type).toLowerCase()}`));
         return;
       }
@@ -54,7 +55,7 @@ export function createMapUi(ctx) {
       lastKey = key;
       const p = toolPreview(world, s);
       // Version 7.1 (Track F, ruling 1083): a too-wide refusal fires the ferries tip first, so the bridges tip does not take the 3-minute slot ahead of it
-      if (road && p.state === 'bad' && p.reason === 'too_wide') ctx.fireTip('roadTooWide');
+      if (road && p.state === 'bad' && p.reason === 'too_wide' && !riverless(world)) ctx.fireTip('roadTooWide');   // Version 8.2 (ruling 1333): the ferries tip is for maps with a river
       if (road && ((p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) || (p.bridges && p.bridges.length))) ctx.fireTip('roadMeetsWater');
       if (hasHills && p.state === 'bad' && p.reason === 'hills') ctx.fireTip('hillsMet');
       if (road && !s.tool.route && p.state === 'bad' && ROUTE_TIP_REFUSALS.includes(p.reason)) ctx.fireTip('roadRoute');   // Version 5.0 (Task 5): the straight road met something Route goes round

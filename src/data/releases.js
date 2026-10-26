@@ -9,7 +9,26 @@
 
 export const RELEASES = [
   {
-    version: '8.1', date: '2026-10-26', title: 'The vizier', build: 'live',
+    version: '8.2', date: '2026-10-26', title: 'Song of the Nile', build: 'live',
+    new: [
+      'The music is now seven short pieces instead of one endless tune: first light, the low reed, a lullaby, the river\'s turning, black earth, a harvest song and night on the west bank, played on a harp, a low flute, a warm pad and a low plucked string.',
+      'Between the pieces the music rests for one to four minutes, so you hear the city itself; the first piece starts a few seconds after you begin.',
+      'Each piece is played a little differently every time, and the season leans which ones you hear: the flood, the growing and the harvest each have their own.',
+      'The danger music for raids, fires and other trouble is softer and lower, fades in over a few seconds, and gives way to quiet when the danger passes.',
+      'A new map, the Oasis, with no river: one great lake ringed by palms and farmland, with spring pools and a dry wadi. The lake rises with the yearly flood, and trade comes by caravan.',
+      'The new-city card shows a small picture of the map you will get. Press Another to draw a different one.',
+    ],
+    fixed: [
+      'The high plucked note that repeated all through the music is now a rare touch, a few notes in a piece.',
+      'New city in the game\'s menu now lets you choose the difficulty, map size and layout first.',
+      'On a tablet or computer, the title screen, What\'s new, Options and the new-city card open in a wide, readable panel; on a phone every title panel scrolls inside its card.',
+      'The lesson\'s raid step now says what the raiders are after, the build panel opens on what each step needs, and Ipi keeps to two short lines.',
+      'The build list on the desktop panel and on phones shows every building and scrolls, with no More button, and every long sheet and the confirm box scroll by finger without moving the map behind.',
+      'A new city on a phone now opens with its first road in view.',
+    ],
+  },
+  {
+    version: '8.1', date: '2026-10-26', title: 'The vizier', build: 'ad57f92',
     new: [
       'You are the king\'s new vizier, sent to the village at Thebes: make it worthy of the court, and crown your service with the great temple.',
       'Meet Ipi, the king\'s scribe, who talks you through the lesson, points out what the city needs, and says a word when you rise in rank or something new unlocks.',

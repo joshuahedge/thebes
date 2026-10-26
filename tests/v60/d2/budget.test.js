@@ -72,7 +72,7 @@ describe('v60 d2 the lesson\'s row fits a phone', () => {
       expect([more.getAttribute('aria-expanded'), row.classList.contains('open')]).toEqual(['false', false]);
       more.click();
       const body = row.querySelector('.body');
-      expect([more.getAttribute('aria-expanded'), row.classList.contains('open'), body.scrollHeight <= body.clientHeight + 1, getComputedStyle(row.querySelector('.why')).display]).toEqual(['true', true, true, 'block']);
+      expect([more.getAttribute('aria-expanded'), row.classList.contains('open'), body.scrollHeight <= body.clientHeight + 1, row.querySelector('.why')]).toEqual(['true', true, true, null]);   // Version 8.2 (ruling 1330): no detail line
       row.querySelector('.body').click();
       expect([row.classList.contains('open'), more.getAttribute('aria-expanded')]).toEqual([false, 'false']);
     } finally { s.cleanup(); }
@@ -80,7 +80,7 @@ describe('v60 d2 the lesson\'s row fits a phone', () => {
     try {
       const row = w.root.querySelector('#lesson'), text = row.querySelector('.text');
       const body = row.querySelector('.body');
-      expect([body.scrollHeight <= body.clientHeight + 1, getComputedStyle(row.querySelector('.why')).display, row.querySelector('.more').hidden]).toEqual([true, 'block', true]);   // the reason shows under the words
+      expect([body.scrollHeight <= body.clientHeight + 1, row.querySelector('.why'), row.querySelector('.more').hidden]).toEqual([true, null, true]);   // Version 8.2 (ruling 1330): Ipi's two lines, no detail under them
     } finally { w.cleanup(); }
   });
   it('lays the row, the ring and the dimming out on a laptop and a 1920 x 1080 screen, with the ring and dimming taking no taps', async () => {

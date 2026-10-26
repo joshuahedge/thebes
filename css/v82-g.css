@@ -1,0 +1,44 @@
+/* Version 8.2, Track G (rulings 1308-1312): the new-city card's map preview, the card in the game's menu, and the title on a tablet or a computer. Loaded after
+   the 8.0 and 8.1 sheets; it only adds. The phone's title is untouched: everything wide hangs on .title-card.wide, which src/ui/titleCard.js sets only on a screen
+   at least 768 px wide and taller than a phone held sideways. */
+
+/* The map preview: the map in the minimap's colours, a soft sand square while it is drawn, its name under it, Another beside it. */
+.map-preview-block { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.map-preview { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.map-preview-canvas { width: var(--preview-px, 160px); height: var(--preview-px, 160px); max-width: 100%; border-radius: 10px; border: 2px solid var(--ink-line); background: var(--parchment-2); image-rendering: pixelated; box-sizing: border-box; }
+.map-preview.pending .map-preview-canvas { opacity: 0.55; }
+.map-preview-name { margin: 0; text-align: center; font-weight: 600; }
+.map-preview-block .another-map { min-width: 8em; background: transparent; }
+.more-col { display: flex; flex-direction: column; gap: 8px; }
+
+/* Every title panel scrolls by finger inside the card (Josh: "scrolling on mobile on the panel"), ruling 1315: the card is the one scroller on a phone (What's new
+   keeps its own list scroll inside it), the page never moves (overscroll stays in the card), and the panel's own Back rides at the foot of the card while
+   its body scrolls, so it is always one tap away. */
+.title-card, .title-card .whats-new { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.title-card:not(.wide) > .guide .guide-body ~ .actions, .title-card:not(.wide) > .guide .new-city-body > .actions,
+.title-card:not(.wide) > .guide > .guide-body > .actions:last-child { position: sticky; bottom: -24px; z-index: 1; margin: 0 -24px -24px; padding: 8px 24px 24px; background: var(--parchment); box-shadow: 0 -6px 8px -6px rgba(43, 31, 14, 0.25); }
+
+/* The card in the game's menu: the same blocks as on the title, in the sheet's own column. */
+#sheet .new-city-body { display: flex; flex-direction: column; gap: 8px; }
+
+/* The title on a tablet or a computer (ruling 1312): at rest the card stays the column the city beside it frames; a panel (What's new, Options, How to play's
+   cards, the new-city card, the install guide) opens beside the buttons, and the card grows into two parts, so the panel's lines are a readable width. */
+.title-card.wide:not(.panel-open) { width: min(440px, 100%); padding: 28px 32px; }
+.title-card.wide.panel-open {
+  width: min(880px, 100%); display: grid; grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); grid-auto-rows: min-content;
+  column-gap: 28px; row-gap: 8px; align-items: start; text-align: left;
+}
+.title-card.wide.panel-open > :not(.guide) { grid-column: 1; }
+.title-card.wide.panel-open > h1 { justify-self: start; }
+.title-card.wide.panel-open > .guide { grid-column: 2; grid-row: 1 / span 40; min-width: 0; padding-left: 20px; margin-left: -1px; border-left: 1px solid var(--parchment-3); }
+.title-card.wide.panel-open > .title-buttons { position: sticky; top: 0; }
+.title-card.wide.panel-open .whats-new { max-height: calc(100dvh - 120px); }
+.title-card.wide.panel-open .guide-body { font-size: calc(15px * var(--ui-scale)); line-height: 1.5; }
+
+/* The new-city card, wide: the four levels two by two, the larger picture with More choices beside it, Start and Back side by side. */
+.new-city-body.wide { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px 20px; align-items: start; }
+.new-city-body.wide > .new-city-head, .new-city-body.wide > .title-difficulty, .new-city-body.wide > .replace-note, .new-city-body.wide > .actions { grid-column: 1 / -1; }
+.new-city-body.wide > .title-difficulty.tiles { grid-template-columns: 1fr 1fr; }
+.new-city-body.wide > .more-col { align-self: stretch; }
+.new-city-body.wide > .actions { flex-direction: row; }
+.new-city-body.wide > .actions > button { width: auto; flex: 1 1 0; }

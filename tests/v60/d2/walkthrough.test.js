@@ -109,7 +109,7 @@ describe('v60 d2 the lesson played end to end', () => {
         const ch = chapterAt(i);                                                      // Version 8.1 (ruling 1202): the row names the chapter and says Ipi's why and do
         expect(row().querySelector('.label').textContent).toBe(V81T_TEXT.stepLabel(V81T_TEXT.chapters[ch.id].name, ch.k, ch.of));
         expect(rowText()).toBe(V81T_TEXT.steps[step.id](lessonFacts(g.world, step)).do);   // the words are worked out from the sim as it stands
-        expect(row().querySelector('.why').textContent).toBe(D2_TEXT.steps[step.id](lessonFacts(g.world, step)).why);   // the long reason, behind More
+        expect([i, row().querySelector('.why'), row().querySelector('.ipi-why').textContent]).toEqual([i, null, V81T_TEXT.steps[step.id](lessonFacts(g.world, step)).why]);   // Version 8.2 (ruling 1330): Ipi's why, and no detail line
         const p = stepProgress(g.world, step);
         const chip = row().querySelector('.chip');
         expect([i, chip.hidden, !chip.hidden && chip.textContent]).toEqual([i, !p, p ? D2_TEXT.progress(p.n, p.of) : false]);

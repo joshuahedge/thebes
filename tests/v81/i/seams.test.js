@@ -280,19 +280,5 @@ describe('v81 i reviewers\' minors', () => {
       }
     } finally { r.cleanup(); }
   });
-
-  it('on the wide panel More stays in sight at the grid\'s foot while the cards overflow (ruling 1269)', async () => {
-    const w = uiWorld(); w.milestone = 'capital';
-    const r = await rigUI({ world: w, width: 1280, height: 600, hooks: { flatTray: false } });
-    try {
-      const cat = CATEGORIES.find((c) => unlockedItems(w, c.id).length > 6);
-      r.store.set({ category: cat.id });
-      r.frame();
-      fire(r.root.querySelector('#panel .more-card'), 'click');                           // open: every card, and Fewer at the end
-      r.frame();
-      const grid = r.root.querySelector('#panel .cards'), more = r.root.querySelector('#panel .more-card');
-      const g = grid.getBoundingClientRect(), m = more.getBoundingClientRect();
-      expect([grid.scrollHeight > grid.clientHeight, m.top >= g.top - 1, m.bottom <= g.bottom + 1]).toEqual([true, true, true]);
-    } finally { r.cleanup(); }
-  });
+  // Ruling 1269 (More pinned at the wide panel's foot) went in 8.2: the wide panel lists every card and scrolls (tests/v82/l/panel.test.js).
 });

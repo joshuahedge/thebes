@@ -1,4 +1,4 @@
-// Version 8.1 "The vizier", Track T (rulings 1200-1219): the story's and Ipi's words. The king has named the player vizier and sent them to the village at Thebes; Ipi, the king's
+// Version 8.1 "The vizier", Track T (rulings 1200-1219; the raid step names its target, Version 8.2 rulings 1320-1323): the story's and Ipi's words. The king has named the player vizier and sent them to the village at Thebes; Ipi, the king's
 // scribe, goes with them and speaks: the lesson's chapters and steps, the reaction after each step, the line for a dimmed control, the hand-over, the rank-ups and the
 // Advice sheet ("Ipi suggests"). Every line Ipi says is at most two short sentences (tests/v81/t/words.test.js), and every number in it is the sim's own.
 import { BUILDINGS } from '../../data/buildings.js';
@@ -11,7 +11,9 @@ import { plural, buildingName, DANGER_UI_TEXT } from '../text.js';
 const stepOf = (id) => LESSON_STEPS.find((s) => s.id === id);
 const time = (days) => DANGER_UI_TEXT.duration(Math.max(0, days));
 const site = (type) => buildingName(type).toLowerCase();
-const LAST_RANK = () => MILESTONES[MILESTONES.length - 1];
+// What the raid is after, as the words name it: the warned kind's own name (the bazaar), or the city when the raid warned no kind of its own ('building').
+const aim = (kind) => (kind && kind !== 'building' ? site(kind) : 'city');
+const LAST_RANK =() => MILESTONES[MILESTONES.length - 1];
 
 export const SCRIBE_NAME = 'Ipi';
 
@@ -48,11 +50,14 @@ export const V81T_TEXT = {
     fire: (f) => (f.missing ? { why: `The ${site(f.missing)} is gone.`, do: 'Build it again first.' }
       : { why: 'I lit a small fire in the bazaar, for practice.', do: f.crew === false ? `${f.paused ? 'Press Play: it' : 'It'} goes out by itself this time.` : `${f.paused ? 'Press Play and watch' : 'Watch'} the crew put it out.` }),
     tower: (f) => (f.warning
-      ? { why: `${f.warning.size} raiders come from the ${f.warning.dir} in ${time(f.warning.daysLeft)}.`, do: `Build ${f.warning.need - f.warning.have > 1 ? `${f.warning.need - f.warning.have} towers` : 'a tower'} near the bazaar.` }
+      ? { why: `${f.warning.size} raiders come from the ${f.warning.dir} in ${time(f.warning.daysLeft)}.`, do: `Build ${f.warning.need - f.warning.have > 1 ? `${f.warning.need - f.warning.have} towers` : 'a tower'} near the ${aim(f.target)}.` }
       : { why: 'Raiders are coming; I opened the tower card early.', do: f.paused ? 'Press Play to hear the warning.' : 'Wait for the warning.' }),
+    // Version 8.2 (Track L, ruling 1320): the step's ring is on the building the raid is after, so the words name it (f.target, the warning's own kind) and who stands in the way.
     raid: (f) => (f.raidOn
-      ? { why: `${plural(f.raidOn.left, 'raider is', 'raiders are')} on the map.`, do: f.towers > 0 ? `Watch your ${f.towers > 1 ? 'towers' : 'tower'} stop them.` : 'Watch what they do.' }
-      : { why: 'The raiders are on their way.', do: f.paused ? 'Press Play and watch them come.' : f.warning ? `They arrive in ${time(f.warning.daysLeft)}.` : 'Watch them come.' }),
+      ? { why: `${plural(f.raidOn.left, 'raider is', 'raiders are')} on the map, making for your ${aim(f.target)}.`, do: f.towers > 0 ? `Watch your ${f.towers > 1 ? 'towers' : 'tower'} stop them.` : 'Watch what they do.' }
+      : { why: `The raiders are making for your ${aim(f.target)}, the first place they strike.`,
+        do: f.paused ? (f.warning ? `Press Play: they arrive in ${time(f.warning.daysLeft)}.` : 'Press Play and watch them come.')
+          : f.warning ? `They arrive in ${time(f.warning.daysLeft)}; ${f.towers > 0 ? `your ${f.towers > 1 ? 'towers stand' : 'tower stands'}` : 'no staffed tower stands'} in their way.` : 'Watch them come.' }),
   },
   // The reaction after a step, naming what was done (r: src/ui/v60/lesson.js beatFacts, the sim's own counts). One sentence.
   beats: {

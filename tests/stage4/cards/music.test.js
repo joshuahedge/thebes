@@ -1,6 +1,6 @@
 import { describe, it, expect } from '../../harness.js';
 import {
-  createMusic, composeBar, nextTension, neyPhrase, masterGain, barSeconds, pluckSamples, scheduleOffline, MUSIC,
+  createMusic, composeBar, nextTension, masterGain, barSeconds, pluckSamples, scheduleOffline, MUSIC,
 } from '../../../src/audio/music.js';
 import { createMenuSheets } from '../../../src/ui/menu.js';
 import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
@@ -50,9 +50,12 @@ function mostAtOnce(sources) {
 const HIJAZ = [2, 3, 6, 7, 9, 10, 0];                       // D E♭ F♯ G A B♭ C as pitch classes
 const pitched = (bar) => bar.notes.filter((n) => n.midi !== undefined);
 
+// Version 8.2 (Track M): composeBar no longer plays as a loop; only its bars at a danger's tension are heard, softened, as the danger
+// tune (composeDanger, at 60 beats a minute). The tests of the calm loop (never the same minute twice, the ney once a minute) went with
+// it; the pieces that replace it are tested in tests/v82/m.
 describe('s4 cards music: the bars', () => {
-  it('plays hijaz on D at 72 beats a minute, the same bars for the same city and other bars for another', () => {
-    expect(Math.abs(barSeconds() - 4 * 60 / 72) < 1e-9).toBe(true);
+  it('plays hijaz on D (the danger tune at 60 beats a minute since Version 8.2), the same bars for the same city and other bars for another', () => {
+    expect(Math.abs(barSeconds() - 4 * 60 / 60) < 1e-9).toBe(true);
     for (const t of [0, 0.5, 1]) {
       for (let bar = 0; bar < 400; bar++) {
         const b = composeBar(11, bar, t);
@@ -68,33 +71,6 @@ describe('s4 cards music: the bars', () => {
     let same = 0;
     for (let bar = 0; bar < 100; bar++) if (JSON.stringify(composeBar(11, bar)) === JSON.stringify(composeBar(12, bar))) same++;
     expect(same).toBeLessThan(20);
-  });
-
-  it('never plays the same minute twice in half an hour, and varies inside a minute', () => {
-    const minute = Math.round(60 / barSeconds());                                                   // 18 bars
-    const sig = (seed, bar) => composeBar(seed, bar, 0).notes.filter((n) => n.voice === 'pluck' || n.voice === 'ney').map((n) => `${n.voice}${n.at}:${n.midi}`).join(',');
-    for (const seed of [1, 11, 123456789]) {
-      const bars = [...Array(30 * minute).keys()].map((b) => sig(seed, b));
-      const windows = new Set();
-      for (let s = 0; s + minute <= bars.length; s++) windows.add(bars.slice(s, s + minute).join('|'));
-      expect(windows.size).toBe(bars.length - minute + 1);
-      expect(new Set(bars.slice(0, minute)).size).toBeGreaterThanOrEqual(10);
-    }
-  });
-
-  it('brings the ney in about once a minute, for two bars, and never in the raid mood', () => {
-    for (const seed of [1, 11, 99]) {
-      const hour = Math.round(3600 / barSeconds());
-      const ney = (bar) => composeBar(seed, bar, 0).notes.some((n) => n.voice === 'ney');
-      const starts = [];
-      for (let bar = 0; bar < hour; bar++) if (ney(bar) && !ney(bar - 1)) starts.push(bar);
-      for (const b of starts) expect([ney(b + 1), ney(b + 2), neyPhrase(seed, Math.floor(b / 4))]).toEqual([true, false, true]);
-      expect(starts[0] * barSeconds()).toBeLessThan(90);
-      const gaps = starts.slice(1).map((b, i) => (b - starts[i]) * barSeconds());
-      expect([Math.min(...gaps) >= 50, Math.max(...gaps) <= 90]).toEqual([true, true]);
-      expect(starts.length).toBeGreaterThanOrEqual(45);
-    }
-    for (const t of [0.25, 0.5, 1]) for (let bar = 0; bar < 400; bar++) expect(composeBar(11, bar, t).notes.some((n) => n.voice === 'ney')).toBe(false);
   });
 
   it('fades the raid mood in over four bars and out again: a firmer, quicker drum, a lower drone, a sparser pluck', () => {
@@ -125,7 +101,8 @@ describe('s4 cards music: the bars', () => {
 });
 
 describe('s4 cards music: the player', () => {
-  it('is silent until the music is on and a gesture unlocks it, then schedules each bar a moment ahead', () => {
+  // Version 8.2: the first piece comes after a short wait, then pieces with silence between them (tests/v82/m has the programme in full).
+  it('is silent until the music is on and a gesture unlocks it, waits a moment, then schedules the piece a moment ahead', () => {
     let on = false, created = 0;
     const ctx = fakeAudio();
     const m = createMusic({ create: () => { created++; return ctx; }, enabled: () => on, volume: () => 0.3, seed: () => 11 });
@@ -133,77 +110,81 @@ describe('s4 cards music: the player', () => {
     expect([m.unlock(), created, m.playing()]).toEqual([false, 0, false]);
     on = true;
     expect(m.unlock()).toBe(false);                                   // made and asked to resume: not running yet
-    expect([created, ctx.resumed, ctx.sources.length]).toEqual([1, 1, 3]);   // the three drones
+    expect([created, ctx.resumed, ctx.sources.length]).toEqual([1, 1, 0]);   // no drones: silence until the first piece
     expect([m.unlock(), m.playing()]).toEqual([true, true]);
     expect(lastTarget(ctx.gains[0])).toBe(masterGain(0.3));          // the master fades in to the volume
+    const until = m.state().until;
+    expect([until >= 5, until <= 20]).toEqual([true, true]);
     m.tick(0);
-    expect(m.state().bar).toBe(1);                                    // bar 0 at 0.1 s; bar 1 (3.43 s) is not within 1.5 s yet
+    expect([m.state().phase, ctx.sources.length]).toEqual(['rest', 0]);
+    ctx.currentTime = until - 1;
+    m.tick();
     const n = ctx.sources.length;
-    expect(n).toBeGreaterThan(3);
-    expect(Math.min(...ctx.sources.slice(3).map((s) => s.started))).toBeGreaterThanOrEqual(0.1);
-    m.tick(16);
+    expect([m.state().phase, n > 0]).toEqual(['piece', true]);
+    expect(Math.min(...ctx.sources.map((s) => s.started))).toBeGreaterThanOrEqual(until - 1e-9);
+    expect(Math.max(...ctx.sources.map((s) => s.started))).toBeLessThan(until - 1 + MUSIC.lookahead);
+    m.tick();
     expect(ctx.sources.length).toBe(n);                              // nothing is scheduled twice
-    ctx.currentTime = 2;
-    m.tick(2000);
-    expect(m.state().bar).toBe(2);
-    expect(Math.max(...ctx.sources.slice(3).map((s) => s.started))).toBeLessThan(0.1 + 2 * barSeconds());
     m.destroy();
     expect([ctx.closed, m.playing(), m.unlock()]).toEqual([1, false, false]);
   });
 
-  it('follows the city\'s mood a bar at a time', () => {
+  it('plays the danger tune while the city\'s mood is a raid, its tension a bar at a time, and leaves it when calm', () => {
     let mood = 'calm';
     const ctx = fakeAudio({ state: 'running' });
-    const m = createMusic({ context: ctx, enabled: () => true, mood: () => mood });
+    const m = createMusic({ context: ctx, enabled: () => true, mood: () => mood, plan: { firstWait: () => 60 } });
     m.unlock();
     const tensions = [];
     for (let i = 0; i < 12; i++) {
       if (i === 2) mood = 'raid';
-      if (i === 7) mood = 'calm';
+      if (i === 5) mood = 'tense';
+      if (i === 9) mood = 'calm';
       ctx.currentTime = i * barSeconds();
       m.tick();
-      tensions.push(m.state().tension);
+      tensions.push([m.state().phase, m.state().tension]);
     }
-    expect(tensions).toEqual([0, 0, 0.25, 0.5, 0.75, 1, 1, 0.75, 0.5, 0.25, 0, 0]);
+    expect(tensions).toEqual([['rest', 0], ['rest', 0], ['danger', 1], ['danger', 1], ['danger', 1], ['danger', 0.75], ['danger', 0.5],
+      ['danger', 0.45], ['danger', 0.45], ['rest', 0], ['rest', 0], ['rest', 0]]);
   });
 
-  it('never sounds more than eight voices at once, the three drones among them', () => {
+  it('never sounds more than eight voices at once, the danger\'s three drones among them', () => {
     const ctx = fakeAudio({ state: 'running' });
-    let m = null;
-    m = createMusic({ context: ctx, enabled: () => true, seed: () => 7, mood: () => (Math.floor(m.state().bar / 30) % 2 ? 'raid' : 'calm') });
+    let mood = 'calm';
+    const m = createMusic({ context: ctx, enabled: () => true, seed: () => 7, mood: () => mood, plan: { gap: () => 3, firstWait: () => 1 } });
     m.unlock();
-    while (m.state().bar < 300) { m.tick(); ctx.currentTime += 0.5; }
-    const drones = ctx.sources.filter((s) => s.stopped === Infinity);
-    expect([drones.length, drones.every((s) => s.kind === 'osc')]).toEqual([MUSIC.droneVoices, true]);
-    const notes = ctx.sources.filter((s) => s.stopped !== Infinity);
-    expect(notes.length).toBeGreaterThan(2000);
-    expect(mostAtOnce(notes) + MUSIC.droneVoices).toBeLessThanOrEqual(MUSIC.maxVoices);
-    expect(notes.every((s) => s.stopped > s.started)).toBe(true);
+    while (ctx.currentTime < 1800) { mood = Math.floor(ctx.currentTime / 200) % 3 === 2 ? 'raid' : 'calm'; m.tick(); ctx.currentTime += 0.5; }
+    const drones = ctx.sources.filter((s) => s.kind === 'osc' && s.stopped - s.started > 30);
+    expect(drones.length).toBeGreaterThanOrEqual(MUSIC.droneVoices * 2);   // the drones come and go with each danger
+    expect(ctx.sources.length).toBeGreaterThan(2000);
+    expect(mostAtOnce(ctx.sources.filter((s) => s.stopped > s.started)) + 0).toBeLessThanOrEqual(MUSIC.maxVoices);
+    expect(ctx.sources.every((s) => s.stopped >= s.started)).toBe(true);
     // A note's gain starts silent (a source can sound a frame before its gain's first event).
-    expect(ctx.gains.filter((g) => g.gain.value !== 0 && g.gain.events.some((e) => e[0] === 'setValueAtTime')).length).toBe(0);
+    expect(ctx.gains.filter((g) => g.gain.value !== 0 && g.gain.value !== 1 && g.gain.events.some((e) => e[0] === 'setValueAtTime')).length).toBe(0);
   });
 
   it('goes quiet while hidden or off, comes back without catching up and at the new volume', () => {
     let on = true, vol = 0.3;
     const timers = [];
     const ctx = fakeAudio({ state: 'running', lazy: false });
-    const m = createMusic({ context: ctx, enabled: () => on, volume: () => vol, timer: (fn) => { timers.push(fn); return timers.length; }, cancelTimer: () => {} });
+    const m = createMusic({ context: ctx, enabled: () => on, volume: () => vol, timer: (fn) => { timers.push(fn); return timers.length; }, cancelTimer: () => {}, plan: { firstWait: () => 0.1 } });
     m.unlock(); m.tick();
+    expect(m.state().phase).toBe('piece');
     const master = ctx.gains[0];
     m.stop();                                                          // the page is hidden
     expect([m.playing(), lastTarget(master)]).toEqual([false, 0]);
     timers.shift()();                                                  // the fade's end
     expect(ctx.state).toBe('suspended');
     const n = ctx.sources.length;
-    ctx.currentTime = 100;
+    ctx.currentTime = 30;
     m.tick();
     expect(ctx.sources.length).toBe(n);                                // nothing while hidden
     m.start();
     m.tick();
+    ctx.currentTime = 33;
+    m.tick();
     expect([ctx.state, m.playing(), lastTarget(master)]).toEqual(['running', true, masterGain(0.3)]);
     const fresh = ctx.sources.slice(n);
-    expect(Math.min(...fresh.map((s) => s.started))).toBeGreaterThanOrEqual(100);   // no catching up on the bars missed
-    expect(m.state().bar).toBe(2);
+    expect(fresh.length > 0 && Math.min(...fresh.map((s) => s.started)) >= 30).toBe(true);   // no catching up on the notes missed
     vol = 0.6;
     m.refresh();
     expect(lastTarget(master)).toBe(masterGain(0.6));
@@ -228,13 +209,13 @@ describe('s4 cards music: the player', () => {
 });
 
 describe('s4 cards music: the sound', () => {
-  // Renders 12 bars (40 s) offline at volume 1 and measures: the peak, the RMS level, a "mean frequency" from the first
-  // difference (a sine at f gives f), the largest second difference (a click stands out there), the offset and the
-  // quietest half second after the first two.
+  // Renders 40 s offline at volume 1 (Version 8.2: a piece from the first moment, or the danger tune) and measures: the peak, the RMS
+  // level, a "mean frequency" from the first difference (a sine at f gives f), the largest second difference (a click stands out
+  // there), the offset and the quietest half second after the first six (the danger tune's fade-in).
   async function render(mood) {
-    const sr = 22050, bars = 12;
-    const ctx = new OfflineAudioContext(1, Math.ceil(sr * (bars * barSeconds() + 1)), sr);
-    scheduleOffline(ctx, { seed: 11, bars, volume: 1, mood: () => mood });
+    const sr = 22050, seconds = 40;
+    const ctx = new OfflineAudioContext(1, Math.ceil(sr * seconds), sr);
+    scheduleOffline(ctx, { seed: 11, seconds, volume: 1, mood: () => mood, plan: { firstWait: () => 0.05 } });
     const d = (await ctx.startRendering()).getChannelData(0);
     let peak = 0, sum = 0, dsum = 0, bend = 0, dc = 0;
     for (let i = 0; i < d.length; i++) {
@@ -245,7 +226,7 @@ describe('s4 cards music: the sound', () => {
     }
     let quietest = Infinity;
     const w = Math.floor(sr / 2);
-    for (let s = 2 * sr; s + w <= d.length - sr; s += w) {
+    for (let s = 6 * sr; s + w <= d.length - sr; s += w) {
       let e = 0;
       for (let i = s; i < s + w; i++) e += d[i] * d[i];
       quietest = Math.min(quietest, Math.sqrt(e / w));
@@ -254,18 +235,17 @@ describe('s4 cards music: the sound', () => {
     return { peak, rmsDb: db(Math.sqrt(sum / d.length)), meanHz: Math.asin(Math.sqrt(dsum / sum) / 2) * sr / Math.PI, bend, dc: dc / d.length, quietestDb: db(quietest) };
   }
 
-  it('renders forty seconds offline that never clip or click, sit quietly at volume 30, stay soft and never drop out', async () => {
+  it('renders forty seconds offline that never clip or click, sit quietly at volume 30 and stay soft', async () => {
     const calm = await render('calm'), raid = await render('raid');
     for (const m of [calm, raid]) {
       expect(m.peak).toBeLessThan(0.85);                               // at full volume: headroom, never clipping
       expect(m.bend).toBeLessThan(0.25);                               // no clicks (a one-frame step shows above 0.3)
       expect(Math.abs(m.dc)).toBeLessThan(0.002);
       expect(m.meanHz).toBeLessThan(900);                              // soft: the sound sits low, nothing shrill
-      expect(m.quietestDb).toBeGreaterThan(-40);                       // the drone holds: never a silence
     }
+    expect(raid.quietestDb).toBeGreaterThan(-40);                      // the danger tune's drones hold: never a dropout
     const atDefault = calm.rmsDb + 20 * Math.log10(masterGain(0.3));
-    expect([atDefault > -36, atDefault < -28]).toEqual([true, true]); // quiet behind the game at the default volume
-    expect(raid.rmsDb).toBeGreaterThan(calm.rmsDb);                    // the raid mood is firmer
+    expect([atDefault > -40, atDefault < -28]).toEqual([true, true]); // quiet behind the game at the default volume (Version 8.2: softer)
   });
 });
 
