@@ -105,13 +105,11 @@ describe('v81 d layers: the tray on the page', () => {
       expect([moreOf(r).getAttribute('aria-expanded'), moreOf(r).getAttribute('aria-label')]).toEqual(['true', TRAY_V81_TEXT.fewerName(CATEGORY_NAMES.industry)]);
       fire(moreOf(r), 'click');
       expect(cardsOf(r)).toEqual(plan.items);
-      // The same view in the wide panel and the rail's drawer (they share the store's More).
+      // Version 8.2 (Track L, ruling 1325): the wide panel has no More: it lists every unlocked card (it scrolls), whatever state the dock's More is in.
       r.store.set({ category: 'industry' });
-      expect(cardsOf(r, '#panel .cards')).toEqual(plan.items);
-      expect(moreOf(r, '#panel .cards').dataset.lock).toBe('tray-more-industry');
-      fire(moreOf(r, '#panel .cards'), 'click');
-      expect(cardsOf(r, '#panel .cards')).toEqual(unlockedItems(w, 'industry'));
-      expect(cardsOf(r)).toEqual(unlockedItems(w, 'industry'));                           // one state: the dock's tray opened with it
+      expect(cardsOf(r, '#panel .cards').slice().sort()).toEqual(unlockedItems(w, 'industry').slice().sort());
+      expect(moreOf(r, '#panel .cards')).toBe(null);
+      expect(cardsOf(r)).toEqual(plan.items);                                              // the dock's tray keeps its layers
       r.store.set({ category: 'roads', trayMore: {} });
       expect(r.root.querySelectorAll('#dock .tray .more-card').length).toBe(0);           // a small category has no More
     } finally { r.cleanup(); }

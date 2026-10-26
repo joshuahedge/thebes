@@ -26,7 +26,7 @@
 import { seamBase } from '../s46/seam.js';
 import { LESSON_STEPS, LESSON_PLACES } from '../../data/lesson.js';
 import { MILESTONES } from '../../data/progression.js';
-import { LESSON_LENGTH, LESSON_CHAPTER_COUNT, chapterAt, lessonAt, stepSpot, stepProgress, playWhen, actionBase, actionDone, homesOnRoad, homesReached, workingTypes, gateRoadTiles } from '../../sim/lesson.js';
+import { LESSON_LENGTH, LESSON_CHAPTER_COUNT, chapterAt, lessonAt, stepSpot, stepFrame, stepProgress, playWhen, actionBase, actionDone, homesOnRoad, homesReached, workingTypes, gateRoadTiles } from '../../sim/lesson.js';
 import { population } from '../../sim/world.js';
 import { monthIndex } from '../../sim/clock.js';
 import { workingTowers } from '../../sim/raids.js';
@@ -47,6 +47,7 @@ import { TOPBAR_PX, freeTop } from '../layout.js';
 // The lit ring's reach round a footprint: the footprint's diamond (a tile is 64 px wide and 32 tall at zoom 1, so w + d tiles are (w + d) x 32 px wide and
 // (w + d) x 16 tall, and the ring's half-axes are half of that) with this much to spare, in px.
 const RING_PAD = 14;
+const RING_ROOM_PX = 90;   // Version 8.2 (Track L): the margin a framed raid view keeps round the target's point, about the ring's radius on a phone
 const RING_MIN = { x: 44, y: 30 };
 const ringHalf = (spot, k) => { const span = spot.w + spot.d; return { rx: Math.max(RING_MIN.x, span * 16 * k + RING_PAD), ry: Math.max(RING_MIN.y, span * 8 * k + RING_PAD) }; };
 
@@ -457,8 +458,11 @@ export function createLessonUi(ctx) {
     const spot = stepSpot(world, step);
     shownAt = at;
     if (!spot || !run.cam) return;
-    const v = viewOf(), cx = spot.x + spot.w / 2, cy = spot.y + spot.d / 2, i = freeInsets(v);
-    const go = () => ctx.cameraControl.frameKeeping(cx, cy, cx, cy, i);
+    // Version 8.2 (Track L, ruling 1321): a step with a frame of its own (the raid: the target, the towers and the side the raiders come from) centres that box, and the target's own point is what
+    // is kept in view, so the ring stays on the screen whatever the box.
+    const fr = stepFrame(world, step) || spot;
+    const v = viewOf(), tx = spot.x + spot.w / 2, ty = spot.y + spot.d / 2, cx = fr.x + fr.w / 2, cy = fr.y + fr.d / 2, i = freeInsets(v);
+    const go = () => ctx.cameraControl.frameKeeping(cx, cy, tx, ty, i, fr === spot ? undefined : RING_ROOM_PX);   // a framed box keeps the whole ring in view, not just its middle
     if (typeof ctx.cameraControl.glide === 'function') ctx.cameraControl.glide(go); else go();
   }
 

@@ -34,7 +34,11 @@ export function layerPlan(world, category, ctx = {}) {
   const all = unlockedItems(world, category);
   const advised = ctx.advised && all.includes(ctx.advised) ? ctx.advised : null;
   const base = { advised, total: all.length };
-  if (ctx.all || all.length <= LAYER_MAX) return { ...base, items: all, hidden: 0, open: false, more: false };
+  if (ctx.all || all.length <= LAYER_MAX) {
+    // Version 8.2 (Track L, ruling 1325): the wide panel shows every card, the suggested one first and the rest in the category's own order (ctx.advisedFirst).
+    const items = ctx.advisedFirst && advised ? [advised, ...all.filter((item) => item !== advised)] : all;
+    return { ...base, items, hidden: 0, open: false, more: false };
+  }
   const needed = new Set(ctx.needed || []), fresh = new Set(world.newItems || []);
   const tier = (item) => (item === advised ? 0 : fresh.has(item) ? 1 : needed.has(item) ? 2 : !isBuilt(world, item) ? 3 : 4);
   const ranked = all.map((item, i) => ({ item, i, t: tier(item) })).sort((a, b) => a.t - b.t || a.i - b.i);
@@ -114,6 +118,13 @@ export function createTrayLayers({ world, store, suggestion = () => null, needed
       if (!primed || speaking()) lastAdvised = next ? next.item : null;
       primed = true;
     },
+  };
+  // Version 8.2 (Track L, ruling 1325): the wide panel's own face of the same tray: no More or Fewer (its list scrolls instead), every unlocked card, the suggested one first (not in the lesson,
+  // whose order is the category's own). The phone's dock and the rail keep view() and the layered More.
+  api.wide = {
+    ...api,
+    view: (category, activeItem = null) => layerPlan(world, category, { advised: advisedNow && advisedNow.item, needed: neededNow, pinned: pinned(), active: activeItem, all: true, advisedFirst: layered() }),
+    toggle() {},
   };
   return api;
 }
