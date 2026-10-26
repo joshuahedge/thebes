@@ -63,7 +63,9 @@ import { welcomeSheet } from './welcomeBack.js';
 import { tradeSheet } from './tradeSheet.js';
 import { createGuide, canResumeGuide, guideState } from './guide.js';
 import { createTrayLayers } from './v81/trayLayers.js';
+import { createCardDrag, createDragHost } from './v81/cardDrag.js';
 import { installNoZoom } from './v81/noZoom.js';
+import { palaceOf } from '../sim/palace.js';
 import { el, setText, clear } from './components.js';
 import { createDanger } from './danger.js';
 import { createS46Seams } from './s46/index.js';
@@ -880,6 +882,12 @@ export function createUI({
     if (offered) undo();
   }
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
+  // Version 8.1 (Track D, rulings 1241-1245): drag to build. A card pressed and dragged onto the map builds on release (src/ui/v81/cardDrag.js); the pointer side lives there, and the game side
+  // here borrows the map's own stroke wiring (actions) and the tick (confirm), so a dragged build is the same build, with the same toast and Undo, as a tapped one.
+  const cardDrag = createCardDrag({
+    root: $('ui'), doc: root.ownerDocument || document, canvas, store,
+    host: createDragHost({ store, placement, actions, tileUnder, confirm: (type) => confirm(type), toolForItem, standing: (item) => item === 'palace' && Boolean(palaceOf(world)) }),
+  });
   // No page zoom on the interface (ruling 1251): iOS's gesture events and a double-tap guard, beside the viewport meta and touch-action.
   const noZoom = installNoZoom({ doc: root.ownerDocument || document, now });
   // Stage 4.6 (ruling 400): a placement waits for its Enter when a tool has something to lay (a ghost, a finished line or plan) and nothing
@@ -1213,7 +1221,7 @@ export function createUI({
       for (const t of INPUTS) root.removeEventListener(t, onInput);
       root.removeEventListener('click', onPress);
       root.removeEventListener('focusin', onFocusIn);
-      noZoom.detach();
+      cardDrag.detach(); noZoom.detach();
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); stopTray(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'tip', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));

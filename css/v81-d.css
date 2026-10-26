@@ -1,7 +1,7 @@
-/* Version 8.1 (Track D): the build tray. The layered tray's More card and the suggested card's ring, and no page zoom on the interface. */
+/* Version 8.1 (Track D): the build tray. The layered tray's More card and the suggested card's ring, a card dragged onto the map, and no page zoom on the interface. */
 
 /* No page zoom on the interface (ruling 1251): the chrome takes taps, scrolls and nothing else (no pinch, no double-tap zoom); the map (#map: touch-action none) keeps its own pinch. The tray's cards
-   keep the scroll their own tray has, so a finger moving the other way is left to the page. */
+   keep the scroll their own tray has, so a finger moving the other way is free to carry a card onto the map (ruling 1241). */
 #ui, #topbar, #under-bar, #dock, #panel, #rail, #corners, #sheet, #dialog, #title, #toasts, #confirm { touch-action: pan-x pan-y; }
 #dock .card { touch-action: pan-x; }
 #panel .card, #rail .card { touch-action: pan-y; }
@@ -22,3 +22,7 @@ body:not(.reduce-motion) .card.advised { animation: advised-ring 1.6s ease-in-ou
 .card.more-card .cost { font-size: calc(18px * var(--ui-scale)); font-weight: 700; }
 /* In the wide panel's grid and the rail's drawer the More card is a slim bar across the whole row, so it takes the least of the small panel's height. */
 .cards.grid .card.more-card { grid-column: 1 / -1; flex-direction: row; justify-content: center; align-items: center; gap: 10px; min-height: var(--tap); }
+
+/* A card dragged onto the map (ruling 1245): a clear layer over the page keeps the drag with the finger over the map and the bars; nothing shows on it. */
+.card-drag-surface { position: fixed; inset: 0; z-index: 60; background: transparent; touch-action: none; cursor: grabbing; }
+body.card-dragging, body.card-dragging * { -webkit-user-select: none; user-select: none; cursor: grabbing; }
