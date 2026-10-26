@@ -11,6 +11,7 @@ import { cityAdvice } from '../sim/advice.js';
 import { milestoneNeedsMet } from '../sim/progression.js';
 import { housesOf, population } from '../sim/world.js';
 import { T, TRAY_TEXT } from './text.js';
+import { portrait } from './v81/scribe.js';
 import { TRAY_MAX } from './tray.js';
 import { ADVICE_TEXT, adviceWords } from './adviceText.js';
 import { el, button } from './components.js';
@@ -58,7 +59,7 @@ export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => 
       body.append(el('p', { class: 'advice-next muted', text: next ? ADVICE_TEXT.next(next, Math.max(world.tally.peakPeople, population(world)), milestoneNeedsMet(world, next)) : ADVICE_TEXT.last(MILESTONES[MILESTONES.length - 1]) }));
       return;
     }
-    body.append(el('p', { class: 'small muted advice-lead', text: T.adviceLead }));
+    body.append(el('p', { class: 'small muted advice-lead ipi-lead' }, [portrait(32), el('span', { text: T.adviceLead })]));   // Version 8.1 (ruling 1211): Ipi suggests
     body.append(el('ol', { class: 'advice-list' }, top.map((a) => item(a))));
     if (list.length > top.length) body.append(el('p', { class: 'small muted advice-more', text: ADVICE_TEXT.more(list.length - top.length) }));
   };

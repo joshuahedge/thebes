@@ -9,7 +9,8 @@ import { createWorld } from '../../../src/sim/world.js';
 import { buildSampleCity } from '../../../src/dev/sampleCity.js';
 import { tickDay } from '../../../src/sim/clock.js';
 import { LESSON_STEPS } from '../../../src/data/lesson.js';
-import { LESSON_SCRIPT, LESSON_LENGTH, stepProgress, stepDone } from '../../../src/sim/lesson.js';
+import { LESSON_SCRIPT, LESSON_LENGTH, stepProgress, stepDone, chapterAt } from '../../../src/sim/lesson.js';
+import { V81T_TEXT } from '../../../src/ui/v81/lessonText.js';
 import { lessonFacts } from '../../../src/ui/lesson.js';
 import { D2_TEXT, T } from '../../../src/ui/text.js';
 import { openSheet } from '../../../src/ui/modes.js';
@@ -105,8 +106,10 @@ describe('v60 d2 the lesson played end to end', () => {
       for (let i = 0; i < LESSON_LENGTH; i++) {
         const step = LESSON_STEPS[i];
         expect([i, rowStep(), s.settings().lessonStep || 0]).toEqual([i, step.id, i]);
-        expect(row().querySelector('.label').textContent).toBe(D2_TEXT.lessonLabel(i + 1, LESSON_LENGTH));
-        expect(rowText()).toBe(D2_TEXT.steps[step.id](lessonFacts(g.world, step)).text);   // the words are worked out from the sim as it stands
+        const ch = chapterAt(i);                                                      // Version 8.1 (ruling 1202): the row names the chapter and says Ipi's why and do
+        expect(row().querySelector('.label').textContent).toBe(V81T_TEXT.stepLabel(V81T_TEXT.chapters[ch.id].name, ch.k, ch.of));
+        expect(rowText()).toBe(V81T_TEXT.steps[step.id](lessonFacts(g.world, step)).do);   // the words are worked out from the sim as it stands
+        expect(row().querySelector('.why').textContent).toBe(D2_TEXT.steps[step.id](lessonFacts(g.world, step)).why);   // the long reason, behind More
         const p = stepProgress(g.world, step);
         const chip = row().querySelector('.chip');
         expect([i, chip.hidden, !chip.hidden && chip.textContent]).toEqual([i, !p, p ? D2_TEXT.progress(p.n, p.of) : false]);
@@ -170,9 +173,9 @@ describe('v60 d2 the lesson played end to end', () => {
       document.querySelector('.lesson-start').click();
       const g = s.api.game();
       const lessonIo = io(g);
-      for (const id of ['road', 'homes', 'well', 'families', 'farm', 'granary']) LESSON_SCRIPT[id](g.world, lessonIo);
+      for (const id of ['road', 'homes', 'largeplot', 'well', 'families', 'farm', 'granary']) LESSON_SCRIPT[id](g.world, lessonIo);
       await frame();
-      expect([rowStep(), s.settings().lessonStep]).toEqual(['bazaar', 6]);
+      expect([rowStep(), s.settings().lessonStep]).toEqual(['bazaar', 7]);
       { document.querySelector('#topbar .menu').click(); document.querySelector('#sheet .leave-lesson').click(); }   // Version 8.0: Leave the lesson is in the menu                                           // a question first, naming what is kept
       const dialog = document.querySelector('#dialog');
       expect([dialog.hidden, dialog.textContent.includes('Your place is kept'), dialog.textContent.includes('streets you laid are not kept')]).toEqual([false, true, true]);   // ruling 764, said before the tap
@@ -196,7 +199,7 @@ describe('v60 d2 the lesson played end to end', () => {
   });
 
   it('opens on the finished lesson (a dev scene, or a resume past the last step) with the end sheet, once the interface is built', async () => {
-    const s = await open();
+    const s = await open({ saved: true });                                            // Version 8.1 (ruling 1209): the end sheet is a saved device's; a fresh one is handed the city
     try {
       s.api.hooks.lesson({ step: LESSON_LENGTH });
       const g = s.api.game();

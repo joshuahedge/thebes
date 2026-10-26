@@ -5,6 +5,7 @@ import { MILESTONES } from '../../../src/data/progression.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
 import { GREAT_WORK } from '../../../src/data/reign.js';
 import { V711_TEXT, D2_TEXT } from '../../../src/ui/text.js';
+import { V81T_TEXT } from '../../../src/ui/v81/lessonText.js';
 import { openSheet } from '../../../src/ui/modes.js';
 import { rigUI } from '../../helpers/uiWorld.js';
 import { pageAt, cardOf, rect } from '../lessonPage.js';
@@ -13,13 +14,13 @@ describe('v711 goal: the sentence', () => {
   it('names the first and the last rank and the great temple, from the data', () => {
     const goal = V711_TEXT.goal();
     expect([goal.includes(MILESTONES[0].name.toLowerCase()), goal.includes(MILESTONES[MILESTONES.length - 1].name), goal.includes(BUILDINGS[GREAT_WORK.type].name.toLowerCase())]).toEqual([true, true, true]);
-    expect(goal).toBe('Grow a village on the Nile into the Seat of the Two Lands, and win your reign by finishing the great temple.');
+    expect(goal).toBe('The king has made you vizier of the village at Thebes. Make it a city fit to be named the Seat of the Two Lands, and crown your service with the great temple.');   // Version 8.1 (ruling 1205): the story
   });
   it('follows the data: rename the ranks or the great work and the sentence changes with them', () => {
     const first = MILESTONES[0].name, last = MILESTONES[MILESTONES.length - 1].name, temple = BUILDINGS[GREAT_WORK.type].name;
     try {
       MILESTONES[0].name = 'Hamlet'; MILESTONES[MILESTONES.length - 1].name = 'Throne'; BUILDINGS[GREAT_WORK.type].name = 'Grand shrine';
-      expect(V711_TEXT.goal()).toBe('Grow a hamlet on the Nile into the Throne, and win your reign by finishing the grand shrine.');
+      expect(V711_TEXT.goal()).toBe('The king has made you vizier of the hamlet at Thebes. Make it a city fit to be named the Throne, and crown your service with the grand shrine.');
       expect(V711_TEXT.helpGoal().includes('Hamlet') && V711_TEXT.helpGoal().includes('Throne')).toBe(true);
     } finally { MILESTONES[0].name = first; MILESTONES[MILESTONES.length - 1].name = last; BUILDINGS[GREAT_WORK.type].name = temple; }
   });
@@ -55,7 +56,7 @@ describe('v711 goal: where it is shown', () => {
     try {
       const words = cardOf(s).querySelector('.lc-words').textContent;
       expect(words.startsWith(`${V711_TEXT.goal()} `)).toBe(true);
-      expect(words.endsWith(D2_TEXT.steps.road().text)).toBe(true);
+      expect(words.endsWith(V81T_TEXT.steps.road().do)).toBe(true);                       // Version 8.1: Ipi's do line
       s.root.querySelector('.lesson-card .lc-go').click();
     } finally { s.cleanup(); }
     const t = await pageAt('homes');

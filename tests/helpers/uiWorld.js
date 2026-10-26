@@ -48,7 +48,7 @@ export async function mountShell(width = 390, height = 844) {
   if (!cssLoaded) {
     // Version 8.0: every stylesheet index.html links (ui.css, then Track U's v80-u.css), in order, so the shell's layout is the page's.
     cssLoaded = (async () => {
-      for (const href of ['/css/ui.css', '/css/v80-u.css']) {
+      for (const href of ['/css/ui.css', '/css/v80-u.css', '/css/v81-t.css']) {
         await new Promise((resolve, reject) => {
           const link = document.createElement('link');
           link.rel = 'stylesheet'; link.href = href; link.onload = resolve; link.onerror = reject;

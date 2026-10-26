@@ -20,6 +20,7 @@ import { TIPS, TIP_GAP_MS, TIP_HOURLY_MAX, TIP_FIRST_DELAY_MS, TIP_HELD_MAX_MS }
 import { el, button, clear } from './components.js';
 import { isCut, writeMore } from './expand.js';
 import { TIP_TEXT, T } from './text.js';
+import { portrait } from './v81/scribe.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -57,7 +58,8 @@ export function createTips({ container, settings, now = () => performance.now(),
     // Stage 4.5 (Task 4b): a tip may carry a Show me (showMeFor(id) gives its action, or null), which does it and closes the tip.
     const act = showMeFor(showing);
     const showMe = act ? button(T.showMe, { class: 'tip-show-me quiet', 'aria-label': `${T.showMe}: ${showingText}`, onClick: () => { api.dismiss(); act(); } }) : null;
-    row = el('div', { class: 'tip-row' }, [body, showMe, button(T.gotIt, { class: 'got-it quiet', onClick: () => api.dismiss() })]);
+    // Version 8.1 (Track T, ruling 1212): the first-time tips are Ipi's: the scribe's portrait leads the row (decoration; the words are the same).
+    row = el('div', { class: 'tip-row ipi-voice' }, [portrait(32), body, showMe, button(T.gotIt, { class: 'got-it quiet', onClick: () => api.dismiss() })]);
     container.append(row);
     paintOpen();
   }

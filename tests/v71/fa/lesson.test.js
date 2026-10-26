@@ -43,15 +43,15 @@ const leaveViaMenu = (s) => { s.root.querySelector('#topbar .menu').click(); s.r
 
 describe('v71 fa lesson: a step\'s card holds the game even when its own part is already done', () => {
   it('a firehouse built before its step: the card for the firehouse step is up with the game paused, stays paused through a day, and plays on at the speed he had when it is dismissed', async () => {
-    const s = await lessonPage('largeplot');
+    const s = await lessonPage('month');                                                 // Version 8.1 (ruling 1202): the months end the Work chapter; the firehouse opens the Fire chapter
     try {
-      goOf(s).click();                                                                   // the large-plot step docked, the game paused
+      goOf(s).click();                                                                   // the months step docked: it plays on
       await frame();
-      place(s.g.world, 'firehouse', ...LESSON_PLACES.firehouse);                         // the player builds ahead: the firehouse step's part is done before the step comes
-      s.io.did();
+      expect(place(s.g.world, 'firehouse', 12, 38).ok).toBe(true);                         // the player builds ahead: the firehouse step's part (a firehouse) is done before the step comes,
+      s.io.did();                                                                        // one too far from the bazaar to end the step (Version 8.1: its crew comes in a day)
       s.g.ui.speedControl.set(2);
-      expect([s.g.world.speed, rowOf(s).dataset.step]).toEqual([2, 'largeplot']);
-      LESSON_SCRIPT.largeplot(s.g.world, s.io);                                          // the large plot is laid: the next step begins
+      expect([s.g.world.speed, rowOf(s).dataset.step]).toEqual([2, 'month']);
+      for (let d = 0; d < 80 && rowOf(s).dataset.step === 'month'; d++) s.io.tick();      // the months pass: the next step begins
       await frame();
       expect(rowOf(s).dataset.step).toBe('firehouse');
       expect([Boolean(stepCard(s.root)), s.g.world.speed]).toEqual([true, 0]);           // the card is up, the game is held behind it (it was playing on behind it)
@@ -74,11 +74,13 @@ describe('v71 fa lesson: the card takes every game key', () => {
       expect([now.sheet, now.overlay, now.category, s.g.world.speed]).toEqual([st.sheet, st.overlay, st.category, 0]);
       expect([s.g.cam.x, s.g.cam.y, s.g.cam.zoom]).toEqual([cam.x, cam.y, cam.zoom]);
       expect(Boolean(stepCard(s.root))).toBe(true);
-      // the control: with no card, the same key acts (so the test would catch the card not stopping it)
+      // the control: with no card, the same key acts (so the test would catch the card not stopping it). Version 8.1: the view's keys (the minimap is dimmed in the road step, ruling 1200)
       goOf(s).click();
       expect(Boolean(stepCard(s.root))).toBe(false);
-      key(s.root, 'm');
-      expect(s.g.ui.store.get().sheet !== st.sheet).toBe(true);
+      s.g.ui.cameraControl.cancel();
+      const was = { ...s.g.cam };
+      key(s.root, 'ArrowLeft');
+      expect(s.g.cam.x !== was.x || s.g.cam.y !== was.y).toBe(true);
     } finally { s.cleanup(); }
   });
 

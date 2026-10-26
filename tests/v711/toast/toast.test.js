@@ -72,7 +72,7 @@ describe('v711 toast: the Undo toast has a close button', () => {
 
 describe('v711 toast: the lesson card and the placement toast never meet', () => {
   for (const [w, h, size] of SIZES) {
-    it(`${w}x${h} at ${size}% text: laying the large plot opens the firehouse card with no toast over it and no Undo offered for the step's own placement`, async () => {
+    it(`${w}x${h} at ${size}% text: laying the large plot opens the next chapter's card (Water: the well) with no toast over it and no Undo offered for the step's own placement`, async () => {
       const s = await pageAt('largeplot', { width: w, height: h, textSize: size });
       try {
         expect(Boolean(cardOf(s))).toBe(true);
@@ -81,7 +81,7 @@ describe('v711 toast: the lesson card and the placement toast never meet', () =>
         place(s.g().world, 'large_plot', ...LESSON_PLACES.largePlot);
         s.g().ui.afterCommand({ kind: 'building', result: { ok: true }, text: 'Large plot placed', undoable: true });   // what the placing bar's Place does (src/ui/placement.js confirm)
         await frame();
-        expect(s.root.querySelector('#lesson').dataset.step).toBe('firehouse');
+        expect(s.root.querySelector('#lesson').dataset.step).toBe('well');                    // Version 8.1 (ruling 1202): the Large plot ends the Homes chapter
         const card = cardOf(s);
         expect(Boolean(card)).toBe(true);
         const toasts = [...s.root.querySelectorAll('#toasts .toast')];
@@ -130,7 +130,7 @@ describe('v711 toast: a card waits while the player is in the middle of the step
       s.g().ui.store.set({ line: { x0: 15, y0: 36, x1: 16, y1: 36, flip: false } });          // a stroke drawn, not yet laid
       LESSON_SCRIPT.largeplot(s.g().world, s.io);                                           // the step is finished meanwhile
       await frame();
-      expect([s.root.querySelector('#lesson').dataset.step, Boolean(cardOf(s))]).toEqual(['firehouse', false]);   // the row shows the step; no card over the stroke
+      expect([s.root.querySelector('#lesson').dataset.step, Boolean(cardOf(s))]).toEqual(['well', false]);   // the row shows the step; no card over the stroke
       s.g().ui.store.set({ line: null });
       await frame();
       expect(Boolean(cardOf(s))).toBe(true);
