@@ -5,7 +5,7 @@ import { rigUI } from '../../helpers/uiWorld.js';
 import { FLOOD, FLOOD_LEVELS, HUNTING, WILDLIFE, floodLevelRow } from '../../../src/data/river.js';
 import { CITIZEN_REMARKS, S46_RIVER_TEXT as R } from '../../../src/ui/text.js';
 import { riverRows, riverSummary } from '../../../src/ui/s46/river.js';
-import { floodLook, floodOutlook, seasonDays } from '../../../src/sim/flood.js';
+import { floodLook, floodOutlook, seasonDays, nextFlood, levelOfYear } from '../../../src/sim/flood.js';
 import { huntRest } from '../../../src/sim/wildlife.js';
 import { produceDay } from '../../../src/sim/production.js';
 import { select } from '../../../src/ui/modes.js';
@@ -29,8 +29,10 @@ function lodgeWorld() {
   return { w, lodge };
 }
 
+// Version 8.1 (Track B, ruling 1222): a staffed Nilometer names the next flood all year (nextFlood), so the "known from month 4" wait is gone for it: outside the
+// water's months its row is the next flood's; in them it names this flood (now, or the last) and adds the next as its own row.
 describe('s46 river fix 1: the Nilometer names the flood it reads', () => {
-  it('says "Next flood" with a level only before the rise, then the flood now, the last flood, and "known from month 4" for the next', () => {
+  it('says "Next flood" with a level before the rise, then the flood now and the last flood with the next beside them, and the next year\'s after', () => {
     const w = riverWorld();
     const n = addRaw(w, 'nilometer', 19, 12);
     n.staff = 2;
@@ -39,21 +41,20 @@ describe('s46 river fix 1: the Nilometer names the flood it reads', () => {
     const level = w.flood.level;
     const known = R.nilometerKnown(level);
     expect([floodLook(w).phase, text(riverRows(w, n)).includes(`${R.nilometerLabel}${known}`)]).toEqual(['forecast', true]);
-    // The water rises (month 7), is high (8-9), drains (10): the row names this flood, never "Next flood" with its level.
+    // The water rises (month 7), is high (8-9), drains (10): the row names this flood, and the next flood (next year's) has its own row.
     w.day = dayOf(2, 7);
     stepRiver(w, 1);
     expect(w.flood.risen).toBe(true);
     for (const [day, label] of [[dayOf(2, 7) + 1, R.nilometerLabelNow], [dayOf(2, 8) + 5, R.nilometerLabelNow], [dayOf(2, 10) + 3, R.nilometerLabelLast]]) {
       w.day = day;
       const t = text(riverRows(w, n));
-      expect([day, floodLook(w).phase !== 'forecast', t.includes(`${label}${known}`), t.includes(`${R.nilometerLabel}`)]).toEqual([day, true, true, false]);
+      expect([day, floodLook(w).phase !== 'forecast', t.includes(`${label}${known}`), t.includes(`${R.nilometerLabel}${R.nilometerNext(nextFlood(w))}`), nextFlood(w).year]).toEqual([day, true, true, true, 3]);
     }
-    // Months 11-12 of the same year: the next flood is 7+ months away and unknown until month 4.
+    // Months 11-12 of the same year: the next flood is next year's, named now (no wait for month 4).
     for (const month of [11, 12]) {
       w.day = dayOf(2, month) + 2;
       const t = text(riverRows(w, n));
-      expect([month, t.includes(`${R.nilometerLabel}${R.nilometerWaiting(FLOOD.months[0] - month + 12)}`), t.includes(known), t.includes(pct(level))]).toEqual([month, true, false, false]);
-      expect(t).toContain(`Known from month ${FLOOD.months[0] - FLOOD.forecastMonths}`);
+      expect([month, t.includes(`${R.nilometerLabel}${R.nilometerNext(nextFlood(w))}`), nextFlood(w).level.id, t.includes('Known from month')]).toEqual([month, true, levelOfYear(w, 3), false]);
     }
   });
   it('says it for every level', () => {
@@ -64,7 +65,7 @@ describe('s46 river fix 1: the Nilometer names the flood it reads', () => {
       w.day = dayOf(2, 11);
       setFlood(w, l.id);
       const t = text(riverRows(w, n));
-      expect([l.id, t.includes(lvlName(l.id)), t.includes(pct(l.id))]).toEqual([l.id, false, false]);
+      expect([l.id, t.includes(`${R.nilometerLabel}${R.nilometerNext(nextFlood(w))}`), nextFlood(w).level.id]).toEqual([l.id, true, levelOfYear(w, 3)]);
     }
   });
 });

@@ -76,7 +76,8 @@ describe('v80 n tray: behind the scroll button', () => {
       lay(r, 20, 9);
       const buttons = [...bar(r).querySelectorAll(':scope > button, :scope > .speed button')].filter((b) => !b.hidden).map((b) => b.className.split(' ')[0]);
       expect(buttons.filter((c) => c === 'advice').length).toBe(1);
-      expect(bar(r).querySelectorAll(':scope > button').length).toBe(3);                    // stats, advice, menu (the speed buttons sit in their own box)
+      // Version 8.1 (Track B): the numbers are a group of their own buttons (one per stat), so the bar's own buttons are the scroll and the menu.
+      expect([bar(r).querySelectorAll(':scope > button').length, bar(r).querySelectorAll(':scope > .stats > button.stat').length]).toEqual([2, 5]);
     } finally { r.cleanup(); }
   });
 

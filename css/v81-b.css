@@ -1,0 +1,82 @@
+/* Version 8.1 "The vizier", Track B (rulings 1220-1239): the top bar's stats as drawn pictures with states and one size of number; the explainer pinned
+   under a stat; the Messages | City tabs and the City page's trends. Loaded after css/ui.css, so these rules replace the bar's older mixed sizes. */
+
+/* ── The stats: one row, a picture and a number each, one size and weight ── */
+body {
+  --stat-num: calc(11px + 4px * var(--ui-scale));         /* 15 px at 100% text, 16 at 125%, 17 at 150%: one size for every number */
+  --stat-icon: calc(16px + 2px * var(--ui-scale));        /* 18, 18.5, 19 px */
+}
+#topbar .stats { display: flex; flex-wrap: nowrap; align-items: center; align-content: center; gap: 0; flex: 1; min-width: 0; overflow: hidden; padding: 0; line-height: 1; position: static; }
+#topbar .stats .stat { display: inline-flex; align-items: center; justify-content: center; gap: 2px; flex: none; min-width: var(--tap); min-height: var(--tap); padding: 0 3px; margin: 0;
+  background: transparent; border: 0 solid transparent; border-radius: 10px; color: var(--ink); font: 600 var(--stat-num) / 1 var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
+body:is([data-layout="portrait"], [data-layout="compact"])[data-text-size="150"] #topbar .stats .stat { padding: 0 1px; }   /* a phone at 150% text: the room goes to the numbers */
+#topbar .stats .stat:hover { background: var(--parchment-2); }
+#topbar .stats .stat[aria-expanded="true"] { background: var(--parchment-2); box-shadow: inset 0 0 0 1px var(--ink-line), inset 0 -3px 0 var(--lapis); }   /* open: a lapis underline, not colour alone */
+#topbar .stats .stat .glyph { display: inline-flex; width: var(--stat-icon); height: var(--stat-icon); flex: none; }
+#topbar .stats .stat .glyph svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#topbar .stats .stat .value { display: inline-block; }
+#topbar .stats .stat[hidden] { display: none; }
+/* The squeezed bar (hud.js: a phone whose numbers would not fit): the stats' own padding goes, then the score keeps its picture alone (its name and its
+   explainer still say the number). */
+body[data-layout] #topbar .stats.squeeze .stat { padding: 0; gap: 1px; }
+#topbar .stats.squeeze-more .stat.score .value { display: none; }
+#topbar .stats.squeeze-most .stat.score { display: none; }
+
+/* The pictures: ink lines on the parchment, each state a shape as well as a colour. */
+.stat-icon { fill: none; stroke: var(--ink); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.stat-icon.gold .coin { fill: var(--gold); }
+.stat-icon.gold .coin-edge { fill: #B98A22; }
+.stat-icon.gold.falling .coin { fill: var(--amber-soft); stroke: var(--amber-text); }
+.stat-icon.gold.falling .coin-edge { fill: var(--amber); stroke: var(--amber-text); }
+.stat-icon.gold .mark { stroke: var(--amber-text); stroke-width: 1.8; }
+#topbar .stats .stat.gold.falling .value { color: var(--amber-text); }
+.stat-icon.people .figure { fill: var(--terracotta); stroke: var(--ink); stroke-width: 1; }
+.stat-icon.mood .face { fill: var(--amber-soft); }
+.stat-icon.mood .eye { fill: var(--ink); stroke: none; }
+.stat-icon.mood .mouth { stroke-width: 1.5; }
+.stat-icon.mood .mouth.open { fill: var(--terracotta); }
+.stat-icon.mood[data-state="leaving"] .face { fill: var(--coral-soft); }
+.stat-icon.mood[data-state="joyful"] .face { fill: var(--gold); }
+.stat-icon.date .sun { fill: var(--gold); }
+.stat-icon.date .ray { stroke: var(--amber-text); }
+.stat-icon.date .river { fill: var(--turquoise); stroke: var(--lapis); stroke-width: 1; }
+.stat-icon.date .sprout { stroke: var(--teal); stroke-width: 1.4; }
+.stat-icon.date .step { fill: var(--parchment); stroke: var(--ink-line); stroke-width: 0.8; }
+.stat-icon.date .step.on { fill: var(--lapis); stroke: var(--lapis); }
+.stat-icon.score .ring { stroke: var(--ink); stroke-width: 1.5; fill: var(--parchment-2); }
+.stat-icon.score path.ring { fill: none; }
+.stat-icon.score .disc { fill: var(--terracotta); stroke: none; }
+
+/* ── The explainer: a small card pinned under the bar, beside its stat (never over the middle of the map) ── */
+#topbar .stat-explainer { position: absolute; top: calc(100% - var(--band-foot, 0px) + 4px); left: 8px; z-index: 30; width: min(320px, calc(100vw - 16px)); max-height: min(60vh, 420px); overflow-y: auto;
+  box-sizing: border-box; padding: 6px 12px 10px; background: var(--parchment); background-image: var(--look-fibre); color: var(--ink); border: 1px solid var(--ink-line); border-radius: var(--radius); box-shadow: var(--shadow);
+  font-size: calc(14px * var(--ui-scale)); line-height: 1.35; }
+#topbar .stat-explainer[hidden] { display: none; }
+#topbar:has(.stat-explainer:not([hidden])) { z-index: 5; }   /* open, the bar and its card lie over the rows under it (the alert row, the goal) */
+.stat-explainer .explainer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.stat-explainer h2 { margin: 0; font: 600 calc(16px * var(--ui-scale)) / 1.2 var(--serif); }
+.stat-explainer h3 { margin: 8px 0 2px; font-size: calc(13px * var(--ui-scale)); color: var(--ink-soft); font-weight: 600; }
+.stat-explainer .explainer-close { flex: none; font-size: calc(20px * var(--ui-scale)); padding: 0; }
+.stat-explainer p { margin: 6px 0 0; }
+.stat-explainer .explainer-what { color: var(--ink-soft); margin-top: 0; }
+.stat-explainer .explainer-lines { margin: 2px 0 0; }
+.stat-explainer .explainer-lines .row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; border-bottom: 1px dotted var(--parchment-3); }
+.stat-explainer .explainer-lines dt, .stat-explainer .explainer-lines dd { margin: 0; }
+.stat-explainer .explainer-lines dd { font-variant-numeric: tabular-nums; font-weight: 600; }
+.stat-explainer .explainer-do { font-weight: 600; }
+.stat-explainer .explainer-actions { display: flex; justify-content: flex-start; margin-top: 8px; }
+.stat-explainer .explainer-action { min-height: var(--tap); }
+
+/* ── The papyrus's tabs: Messages | City ── */
+.sheet-tabs { display: flex; gap: 4px; margin: 0 0 8px; border-bottom: 1px solid var(--parchment-3); }
+.sheet-tabs[hidden] { display: none; }
+.sheet-tabs .sheet-tab { flex: 1; border: none; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; color: var(--ink-soft); font-weight: 600; }
+.sheet-tabs .sheet-tab.active { color: var(--ink); border-bottom-color: var(--lapis); box-shadow: none; }
+
+/* ── The City page's year ── */
+.trend-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.trend-list .trend { display: grid; grid-template-columns: 5em 96px 1fr; align-items: center; gap: 8px; padding: 3px 0; }
+.trend-list .sparkline { color: var(--lapis); }
+.trend-list .spark-line { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.trend-list .spark-dot { fill: var(--terracotta); }
+.trend-list .trend-words { color: var(--ink-soft); font-variant-numeric: tabular-nums; }

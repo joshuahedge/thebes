@@ -226,6 +226,8 @@ export function createUI({
     // The long date ("Year 2, month 1, day 1") only where the wide top bar has room for it beside a real city's numbers:
     // 1000 px and wider, below 150% text. Narrower, it would push the last number onto a second row.
     shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150 || view().width < WIDE_LONG_DATE_PX,
+    // Version 8.1 (Track B): the stats' explainers act through the city advice's own Show me and View, the summary (the City page) and a building's sheet.
+    explain: { advice: { fix: (a) => advice.fix(a), showMe: (t) => advice.showMe(t) }, selectBuilding: (id) => selectBuilding(id) },
   });
   const dock = createDock({ container: $('dock'), store, world, onPick: pick });
   const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo, keys: () => settings.get().keyboardShortcuts !== false, deleteUndoes: () => settings.get().keyboardShortcuts !== false && topUndoKind() !== 'demolish', onArea: (type, on) => (on ? placement.startArea(type) : pick(type)) });
@@ -1192,7 +1194,7 @@ export function createUI({
       if (destroyed) return;
       destroyed = true;
       for (const s of seams()) s.destroy();
-      cornerPicker.destroy(); panelPicker.destroy();
+      cornerPicker.destroy(); panelPicker.destroy(); hud.destroy();
       guide.destroy(); stopSettingsWatch();            // the guide's store subscription and the shared settings' watch
       if (!givenSettings) settings.destroy();          // settings made here: stop its device-motion watch
       doc.removeEventListener('visibilitychange', onVisibility);

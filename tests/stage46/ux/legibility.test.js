@@ -70,13 +70,14 @@ describe('s46 ux legibility', () => {
       expect(tie.content).toBe('none');
     } finally { r.cleanup(); }
   });
-  it('F5: the score chip sits clear of the frieze under the top bar', async () => {
+  // Version 8.1 (Track B): the chip is the score stat, a cartouche and its number; its picture and number sit clear of the frieze.
+  it('F5: the score sits clear of the frieze under the top bar', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
-      const chip = r.root.querySelector('#topbar .score-chip');
-      chip.hidden = false; chip.textContent = 'Score 100';
-      const bar = r.root.querySelector('#topbar').getBoundingClientRect(), box = chip.getBoundingClientRect();
-      expect(box.bottom <= bar.bottom - 4).toBe(true);                       // the frieze takes the bar's last 4 px
+      r.ui.refresh();
+      const score = r.root.querySelector('#topbar .stat.score');
+      const bar = r.root.querySelector('#topbar').getBoundingClientRect();
+      for (const part of [score.querySelector('.glyph'), score.querySelector('.value')]) expect(part.getBoundingClientRect().bottom <= bar.bottom - 4).toBe(true);   // the frieze takes the bar's last 4 px
     } finally { r.cleanup(); }
   });
   it('F6: an enemy chariot flies a banner on a pole, which no friendly unit does, so the two differ in outline and not only in colour', () => {

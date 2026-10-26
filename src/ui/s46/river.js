@@ -10,7 +10,8 @@
 // (S46_RIVER_TEXT). Nothing floats over the map: new things arrive through the caption row and the sheets (UX rule 1).
 import { seamBase } from './seam.js';
 import { BUILDINGS } from '../../data/buildings.js';
-import { floodLook, floodOutlook, isFloodFarm, onFloodplain, isFloodSeason } from '../../sim/flood.js';
+import { floodLook, floodOutlook, isFloodFarm, onFloodplain, isFloodSeason, nextFlood, preparedFor } from '../../sim/flood.js';
+import { floodLevelRow } from '../../data/river.js';
 import { huntingOutlook, huntRest, crocsNear, scareable, scareOf } from '../../sim/wildlife.js';
 import { isWorking } from '../../sim/labour.js';
 import { el } from '../components.js';
@@ -25,13 +26,17 @@ export function riverRows(world, b) {
   const look = floodLook(world);
   if (isFloodFarm(b.type)) {
     if (look.on && onFloodplain(world, b)) {
-      out.push(row(R.floodRowLabel, look.applied ? `${Math.round(look.applied.harvest * 100)}%` : '100%'), line(R.farmRow(look)));
-      if (look.known && look.level && (look.phase === 'forecast')) out.push(line(R.farmRowNext(look.level.id)));
+      out.push(row(R.floodRowLabel, look.applied ? `${Math.round(look.factor * 100)}%` : '100%'), line(R.farmRow(look)));   // Version 8.1: as the farm grows it (prepared, ruling 1221)
+      if (look.known && look.level && (look.phase === 'forecast')) out.push(line(R.farmRowNext(look.level.id, look.levelPrepared)));
     } else if (look.on) out.push(line(R.farmOff));
   }
   if (b.type === 'nilometer') {
-    const r = R.nilometerRow(look, isWorking(world, b));            // the level reads as the next flood's only before the rise (floodLook's phase)
-    out.push(row(r.label, r.value), line(R.nilometerNote));
+    // Version 8.1 (ruling 1222): staffed, it names the next flood all year (nextFlood); while the water is up or draining that is a row of its own under this flood's.
+    const working = isWorking(world, b), next = working ? nextFlood(world) : null;
+    const r = R.nilometerRow(look, working, next);
+    out.push(row(r.label, r.value));
+    if (next && next.level && r.label !== R.nilometerLabel) out.push(row(R.nilometerLabel, R.nilometerNext(next)));
+    out.push(line(R.nilometerNote));
   }
   if (b.type === 'hunting_lodge') {
     const o = huntingOutlook(world, b);
@@ -78,9 +83,9 @@ export function createRiverUi(ctx) {
     sheetParts: { ...base.sheetParts, building: (b) => (b && world.buildings[b.id] === b ? riverRows(world, b) : []), summary: () => riverSummary(world) },
     onEvents(events) {
       for (const e of events || []) {
-        if (e.type === 'flood_forecast') tell(R.forecastCaption(e.level), e.level);
+        if (e.type === 'flood_forecast') tell(R.forecastCaption(e.level, preparedFor(world, floodLevelRow(e.level))), e.level);   // Version 8.1: prepared (ruling 1221)
         else if (e.type === 'flood_rise') {
-          tell(R.riseCaption(e.level), e.level);
+          tell(R.riseCaption(e.level, preparedFor(world, floodLevelRow(e.level))), e.level);
           tip('floodRose');
         } else if (e.type === 'croc_scare') caption(R.scareCaption(nameOf(e.id), e.days));
         else if (e.type === 'herd_arrived') caption(R.herdCaption(e.kind, e.size));

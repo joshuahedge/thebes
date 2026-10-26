@@ -10,6 +10,7 @@ import { adviceWords, ADVICE_TEXT } from '../../../src/ui/adviceText.js';
 import { adviceUnlocked, adviceTopKeys, adviceHasNew, nextMilestone } from '../../../src/ui/adviceSheet.js';
 import { showMeRefusal } from '../../../src/ui/adviceUi.js';
 import { causeText, plural, T, TIP_TEXT, TIP_HELP_TEXT, buildingName } from '../../../src/ui/text.js';
+import { V81_B_TEXT } from '../../../src/ui/v81/bText.js';
 import { TIPS } from '../../../src/data/tips.js';
 import { ADVICE } from '../../../src/data/advice.js';
 import { BUILDINGS } from '../../../src/data/buildings.js';
@@ -423,21 +424,22 @@ describe('v50 advice the button', () => {
     const { w } = street({ tier: 3 });
     const r = await rigUI({ world: w });
     try {
+      // Version 8.1 (Track B, ruling 1226): the link is the Messages tab beside the City tab (the summary is the City page).
       r.store.set(openSheet(r.store.get(), 'summary'));
-      const link = r.root.querySelector('#sheet .open-advice');
-      expect([link.textContent, Boolean(r.root.querySelector('#sheet .row'))]).toEqual([T.advice, true]);
+      const link = r.root.querySelector('#sheet .sheet-tab[data-tab="messages"]');
+      expect([link.textContent, Boolean(r.root.querySelector('#sheet .row'))]).toEqual([V81_B_TEXT.tabMessages, true]);
       expect(r.root.querySelector('#sheet').textContent).toContain(T.incomeVsSpending);
       click(link);
       expect(r.store.get().sheet.kind).toBe('advice');
       expect(r.root.querySelector('#sheet h2').textContent).toBe(T.advice);
       expect(r.root.querySelectorAll('#sheet').length).toBe(1);
-      click(r.root.querySelector('#topbar .stats'));                                   // the numbers open the summary: it replaces the advice
+      click(r.root.querySelector('#sheet .sheet-tab[data-tab="city"]'));               // the City tab opens the summary: it replaces the advice
       expect(r.store.get().sheet.kind).toBe('summary');
     } finally { r.cleanup(); }
-    const none = await rigUI({ world: makeTestWorld({ gold: 500 }) });                  // no home yet: no link
+    const none = await rigUI({ world: makeTestWorld({ gold: 500 }) });                  // no home yet: no tabs
     try {
       none.store.set(openSheet(none.store.get(), 'summary'));
-      expect(none.root.querySelector('#sheet .open-advice')).toBe(null);
+      expect(none.root.querySelector('#sheet .sheet-tabs')).toBe(null);
     } finally { none.cleanup(); }
   });
 });

@@ -92,30 +92,26 @@ describe('ui hud', () => {
         }
       }
     }
-    expect((await topBar(360, 640, 150, BIG)).rows).toBe(2);                    // the narrowest phone at the largest text, six-figure gold: two rows, not a cut-off
+    expect((await topBar(360, 640, 150, BIG)).rows).toBe(1);   // Version 8.1 (ruling 1227): it squeezes instead of wrapping;                 // the narrowest phone at the largest text, six-figure gold: two rows, not a cut-off
     const wide = await topBar(900, 560, 150, TYPICAL);                          // the narrowest wide screen at the largest text
     expect([wide.rows <= 2, wide.clear]).toEqual([true, true]);
   });
-  // Mobile UX review, section 4 item 8: at 150% text a phone's four numbers wear a small picture each in place of the word
-  // (the gold coin, an ankh for people, a smile for mood, the sun for the date), so a real city's numbers keep to one row.
-  // The words stay in the button for screen readers (the pictures are hidden from them), and every other size keeps them.
-  it("on a phone at 150% text shows a small picture in place of each number's word, keeping the words for screen readers, so the numbers keep to one row", async () => {
+  // Version 8.1 (Track B, ruling 1223): every number wears its picture at every size now (the coin pile, the people, the face, the sun over the river, the
+  // cartouche), and the words are the button's name for screen readers, never set beside the number; a real city's numbers keep to one row on a phone.
+  it('shows a drawn picture with every number at every size, its word in the name for screen readers, so the numbers keep to one row', async () => {
     for (const [w, h] of [[360, 640], [375, 667], [390, 844], [667, 375], [844, 390], [1280, 800]]) {
       for (const size of [100, 125, 150]) {
         const r = await rigUI({ width: w, height: h });
         try {
           r.ui.settings.set({ textSize: size });
           r.ui.refresh();
-          const small = r.store.get().layout !== 'wide' && size === 150;
           const stats = r.root.querySelector('#topbar .stats');
           const at = `${w}x${h} at ${size}%`;
-          for (const st of [...stats.querySelectorAll('.stat')].filter((x) => getComputedStyle(x).display !== 'none')) {
-            const label = st.querySelector('.label').getBoundingClientRect(), glyph = st.querySelector('.glyph');
-            const glyphShown = Boolean(glyph) && glyph.getBoundingClientRect().width > 1;
-            expect([at, st.className, label.width > 1, glyphShown]).toEqual([at, st.className, !small, small]);
-            if (glyph) expect(glyph.getAttribute('aria-hidden')).toBe('true');
+          for (const st of [...stats.querySelectorAll('.stat')].filter((x) => !x.hidden && getComputedStyle(x).display !== 'none')) {
+            const pic = st.querySelector('.glyph svg');
+            expect([at, st.className, Boolean(pic) && pic.getBoundingClientRect().width > 1, pic.getAttribute('aria-hidden'), Boolean(st.querySelector('.label'))]).toEqual([at, st.className, true, 'true', false]);
           }
-          for (const word of [T.gold, T.people, T.mood, T.date]) expect(stats.textContent).toContain(word);
+          for (const word of [T.gold, T.people, T.mood, T.date]) expect([at, word, [...stats.querySelectorAll('.stat')].some((st) => st.getAttribute('aria-label').startsWith(word))]).toEqual([at, word, true]);
         } finally { r.cleanup(); }
       }
     }
@@ -153,7 +149,8 @@ describe('ui hud', () => {
       expect(shortDateText({ year: 2, month: 1 })).toBe('Y2 M1');
     } finally { cleanup(); }
   });
-  it('renders the bar, refreshes numbers and opens the summary and the menu', () => {
+  // Version 8.1 (Track B, ruling 1225): a tap on a number opens its explainer (the summary is the City page now, the papyrus's second tab); the menu as before.
+  it('renders the bar, refreshes numbers, and opens a number\'s explainer and the menu', () => {
     const { root, cleanup } = mount();
     const w = town({ gold: 2000 });
     const store = createStore({ ...INITIAL_UI_STATE, layout: 'wide' });
@@ -162,19 +159,19 @@ describe('ui hud', () => {
     const hud = createHud({ world: w, store, container: root, speedBar, onOpenSummary: () => opened.push('summary'), onOpenMenu: () => opened.push('menu') });
     expect(root.textContent).toContain('2000');
     expect(root.textContent).toContain('12');
-    const statsBtn = root.querySelector('.stats');
-    expect(statsBtn.hasAttribute('aria-label')).toBe(false);
-    expect(statsBtn.textContent).toContain('2000');
-    expect(statsBtn.textContent).toContain(T.openSummary);
+    const gold = root.querySelector('.stat.gold');
+    expect([gold.getAttribute('aria-label').startsWith(`${T.gold} 2000`), root.querySelector('.stats').getAttribute('role')]).toEqual([true, 'group']);
     expect(root.querySelectorAll('.wide-only').length).toBeGreaterThan(0);
     expect(root.contains(speedBar)).toBe(true);
     w.gold = 1234;
     hud.render();
     expect(root.textContent).toContain('1234');
-    fire(root.querySelector('.stats'), 'click');
+    fire(gold, 'click', { detail: 1 });
+    expect([root.querySelector('.stat-explainer').hidden, gold.getAttribute('aria-expanded')]).toEqual([false, 'true']);
     fire(root.querySelector('.menu'), 'click');
-    expect(opened).toEqual(['summary', 'menu']);
+    expect(opened).toEqual(['menu']);
     expect(root.querySelector('.menu').getAttribute('aria-label').length).toBeGreaterThan(0);
+    hud.destroy();
     cleanup();
   });
 });

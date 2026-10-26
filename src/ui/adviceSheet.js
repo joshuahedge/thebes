@@ -15,6 +15,7 @@ import { portrait } from './v81/scribe.js';
 import { TRAY_MAX } from './tray.js';
 import { ADVICE_TEXT, adviceWords } from './adviceText.js';
 import { el, button } from './components.js';
+import { cityTabs } from './v81/stats.js';
 
 // The button comes with the first house (or plot) placed: the first home is what a problem can hold back.
 export const adviceUnlocked = (world) => housesOf(world).length > 0;
@@ -38,8 +39,10 @@ export function nextMilestone(world) {
 // Version 8.0 (Track N, ruling 1160): the same sheet holds the message tray (src/ui/tray.js) above the advice. tray() answers { pinned, items, read } (createUI trayModel): pinned are the alerts that
 // need a decision ({ code, title, fix, act }), items the kept messages, newest first ({ text, why, act: a function when the message has a place, else null }), and read() marks them read.
 // With no message and nothing pinned the sheet is the City advice it was.
-export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => {}, tray = null }) {
+// Version 8.1 (Track B, ruling 1226): with onCity the sheet opens on its tabs, Messages (this) and City (the city summary: onCity opens it).
+export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => {}, tray = null, onCity = null }) {
   return (body, ctx = {}) => {
+    if (onCity) body.append(cityTabs('messages', { onMessages: () => {}, onCity }));
     const model = tray ? tray() : null;
     const hasTray = Boolean(model) && (model.pinned.length > 0 || model.items.length > 0);
     if (hasTray) {

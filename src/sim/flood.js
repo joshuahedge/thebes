@@ -12,7 +12,7 @@
 // unaffected.
 import { BUILDINGS } from '../data/buildings.js';
 import { FOOD_GOODS } from '../data/goods.js';
-import { FLOOD, FLOOD_LEVELS, FISHING, floodLevelRow, RIVER_SALT } from '../data/river.js';
+import { FLOOD, FLOOD_LEVELS, FISHING, floodLevelRow, preparedHarvest, RIVER_SALT } from '../data/river.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from './time.js';
 import { hash2 } from './rng.js';
 import { idx } from './grid.js';
@@ -136,11 +136,17 @@ export function floodFairOrBetter(world) {
 // The level now scaling the floodplain harvest (the last flood that rose), or null before the first.
 export const appliedLevel = (world) => (world.flood.applied ? floodLevelRow(world.flood.applied) : null);
 
-// The harvest multiplier for a farm now: the applied level's on a floodplain farm, else 1.
+// Version 8.1 (Track B, ruling 1221): a level's harvest as this city's floodplain farms get it now: a loss (Low) is cut by NILOMETER.lossCut while a working
+// Nilometer stands (the farms were warned and prepared); any other level is its own. The Nilometer is asked only for a loss, so a plain year costs nothing.
+export const levelHarvest = (world, l) => (l ? preparedHarvest(l.harvest, l.harvest < 1 && nilometerWorking(world)) : 1);
+// Whether the farms are prepared for this level now: a loss and a working Nilometer.
+export const preparedFor = (world, l) => Boolean(l) && l.harvest < 1 && nilometerWorking(world);
+
+// The harvest multiplier for a farm now: the applied level's on a floodplain farm (prepared, ruling 1221), else 1.
 export function floodHarvestFactor(world, b) {
   const l = appliedLevel(world);
   if (!l || !isFloodFarm(b.type) || !onFloodplain(world, b)) return 1;
-  return l.harvest;
+  return levelHarvest(world, l);
 }
 
 // Whether the water is up today (the flood season: months 7-9 of a year that has had its rise).
@@ -191,7 +197,28 @@ export function floodLook(world) {
   }
   if (monthsTo === null && phase === 'quiet') monthsTo = month < FLOOD.months[0] ? FLOOD.months[0] - month : MONTHS_PER_YEAR - month + FLOOD.months[0];
   const level = record && f.forecast ? floodLevelRow(f.forecast) : null;
-  return { on: true, phase, level, known: Boolean(level), applied, factor: applied ? applied.harvest : 1, monthsTo };
+  // Version 8.1 (ruling 1221): factor is what the floodplain farms grow now, prepared; prepared says the Nilometer cut the applied level's loss.
+  return { on: true, phase, level, known: Boolean(level), applied, factor: levelHarvest(world, applied), prepared: preparedFor(world, applied), levelPrepared: preparedFor(world, level), monthsTo };
+}
+
+// Version 8.1 (Track B, ruling 1222): the next flood as the top bar's flood icon shows it, all year. With a working Nilometer the level of the next rise
+// is read at once (this year's before its rise, next year's after it: levelOfYear, which a Nile reading's drought warning turns Low as it does a forecast);
+// without one only what the city already knows (a forecast bought from the priests, or this year's own level once the water is up) shows.
+// { on, year, level (a FLOOD_LEVELS row, or null when not known), monthsTo, nilometer (a working one stands), harvest (what the floodplain farms would
+// grow at that level now, prepared), prepared }. on is false before the river floods in the city (a Town).
+export function nextFlood(world) {
+  if (!floodsOn(world)) return { on: false, year: null, level: null, monthsTo: null, nilometer: false, harvest: 1, prepared: false };
+  const f = world.flood, { year, month } = partsOf(world.day);
+  const thisYear = f.year === year ? !f.risen : month < FLOOD.months[0];
+  const target = thisYear ? year : year + 1;
+  const monthsTo = thisYear ? Math.max(0, FLOOD.months[0] - month) : MONTHS_PER_YEAR - month + FLOOD.months[0];
+  const nilometer = nilometerWorking(world);
+  let id = null;
+  if (nilometer) id = f.year === target && f.level ? f.level : levelOfYear(world, target);
+  else if (f.year === target && f.forecast) id = f.forecast;
+  const level = id ? floodLevelRow(id) : null;
+  const prepared = Boolean(level) && nilometer && level.harvest < 1;
+  return { on: true, year: target, level, monthsTo, nilometer, harvest: level ? preparedHarvest(level.harvest, prepared) : 1, prepared };
 }
 
 // The floodplain farms' monthly food, for the summary's forecast: working farms of food (grain, figs: FOOD_GOODS) on the floodplain (barley
@@ -199,6 +226,7 @@ export function floodLook(world) {
 // level ({ plain }), so the difference is the flood's.
 export function floodOutlook(world, level = null) {
   const l = level || appliedLevel(world);
+  const harvest = levelHarvest(world, l);   // Version 8.1 (ruling 1221): as the farms grow it, prepared
   let farms = 0, now = 0, plain = 0;
   for (const b of Object.values(world.buildings)) {
     const def = BUILDINGS[b.type];
@@ -207,7 +235,7 @@ export function floodOutlook(world, level = null) {
     const monthly = def.produces.perMonth * staffRatio(b);
     farms += 1;
     plain += monthly;
-    now += monthly * (l ? l.harvest : 1);
+    now += monthly * harvest;
   }
   return { farms, plain: Math.round(plain), now: Math.round(now), level: l };
 }
