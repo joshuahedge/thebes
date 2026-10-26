@@ -59,6 +59,8 @@ describe('v60 d2 each step advances only when the sim sees it done', () => {
   it('passes a step the city already shows done (a well laid before it was asked for is not asked for again)', () => {
     const w = lessonWorld();
     LESSON_SCRIPT.road(w, io(w)); LESSON_SCRIPT.homes(w, io(w)); LESSON_SCRIPT.well(w, io(w));
+    expect(lessonAt(w, 0)).toBe(index('largeplot'));                                 // Version 8.1 (ruling 1202): the Large plot comes between the homes and the well
+    LESSON_SCRIPT.largeplot(w, io(w));
     expect(lessonAt(w, 0)).toBe(index('families'));
     expect(lessonAt(w, index('families'))).toBe(index('families'));
   });
@@ -118,7 +120,7 @@ describe('v60 d2 steps: the wrong thing does not advance', () => {
   it('bazaar: one too far along the road from the homes does not count; one within its reach does', () => {
     const w = at('bazaar');
     expect(place(w, 'bazaar', 11, 37).ok).toBe(true);
-    expect([homesReached(w, 'bazaar'), done(w, 'bazaar')]).toEqual([0, false]);
+    expect([homesReached(w, 'bazaar') < step('bazaar').check.homes, done(w, 'bazaar')]).toEqual([true, false]);   // Version 8.1: the Large plot by the road is the one home it reaches
     expect(place(w, 'bazaar', ...P.bazaar).ok).toBe(true);
     expect([homesReached(w, 'bazaar') >= 3, done(w, 'bazaar')]).toEqual([true, true]);
   });
@@ -143,7 +145,7 @@ describe('v60 d2 steps: the wrong thing does not advance', () => {
     expect(monthIndex(w)).toBeGreaterThanOrEqual(2);
   });
   it('largeplot: the card opens when the step begins (a real city opens it with a Townhouse), and the step waits for a lot to be laid', () => {
-    const before = at('month');                                                      // the step before
+    const before = at('homes');                                                      // the step before (Version 8.1, ruling 1202: the homes)
     expect([largePlotUnlocked(before), canPlace(before, 'large_plot', ...P.largePlot).ok, canPlace(before, 'large_plot', ...P.largePlot).reason]).toEqual([false, false, 'locked']);
     const w = at('largeplot');
     expect([largePlotUnlocked(w), canPlaceLargePlot(w, ...P.largePlot).ok, w.newItems.includes('large_plot')]).toEqual([true, true, true]);

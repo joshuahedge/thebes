@@ -7,7 +7,8 @@ import { describe, it, expect } from '../../harness.js';
 import { boot } from '../../../src/boot.js';
 import { createSaveStore } from '../../../src/save/store.js';
 import { LESSON_STEPS, LESSON_PLACES } from '../../../src/data/lesson.js';
-import { lessonWorld, replayTo, playWhen, actionBase, actionDone, firstOf, stepDone, LESSON_SCRIPT, LESSON_LENGTH } from '../../../src/sim/lesson.js';
+import { lessonWorld, replayTo, playWhen, actionBase, actionDone, firstOf, stepDone, LESSON_SCRIPT, LESSON_LENGTH, chapterAt, LESSON_CHAPTER_COUNT } from '../../../src/sim/lesson.js';
+import { V81T_TEXT } from '../../../src/ui/v81/lessonText.js';
 import { lessonFacts } from '../../../src/ui/lesson.js';
 import { pictureOf } from '../../../src/ui/lessonCard.js';
 import { paintHouses, place, setSpeed } from '../../../src/sim/commands.js';
@@ -99,7 +100,7 @@ describe('v70 p the lesson\'s step card in the page', () => {
       const card = stepCard(s.root), words = card.querySelector('.lc-words');
       const facts = lessonFacts(s.g.world, step('road'));
       expect([Boolean(card), s.g.world.speed, document.body.classList.contains('lesson-card-up')]).toEqual([true, 0, true]);
-      expect([words.textContent, card.querySelector('.lc-label').textContent, goOf(s).textContent]).toEqual([`${V711_TEXT.goal()} ${D2_TEXT.steps.road(facts).text}`, D2_TEXT.lessonLabel(1, LESSON_LENGTH), P_TEXT.card.showMe]);
+      expect([words.textContent, card.querySelector('.lc-label').textContent, goOf(s).textContent]).toEqual([`${V711_TEXT.goal()} ${V81T_TEXT.steps.road(facts).do}`, V81T_TEXT.chapterLabel(1, LESSON_CHAPTER_COUNT, V81T_TEXT.chapters.roads.name), P_TEXT.card.showMe]);   // Version 8.1: the chapter's card
       const r = card.getBoundingClientRect(), v = s.box;
       expect([Math.abs((r.left + r.right) / 2 - (v.left + v.right) / 2) < 2, Math.abs((r.top + r.bottom) / 2 - (v.top + v.bottom) / 2) < 2]).toEqual([true, true]);
       expect([card.getAttribute('role'), shown(rowOf(s)), s.root.querySelector('.lesson-ring').hidden, document.activeElement === goOf(s)]).toEqual(['dialog', false, true, true]);
@@ -168,10 +169,7 @@ describe('v70 p the lesson\'s step card in the page', () => {
       s.g.ui.speedControl.set(2);                                                      // the player plays at double speed while he builds
       LESSON_SCRIPT.well(s.g.world, s.io);
       await frame();
-      expect([rowOf(s).dataset.step, Boolean(stepCard(s.root)), s.g.world.speed]).toEqual(['families', true, 0]);   // the next step's card paused it
-      expect(goOf(s).textContent).toBe(P_TEXT.card.play);
-      goOf(s).click();
-      expect([stepCard(s.root), s.g.world.speed]).toEqual([null, 2]);                  // and plays again at 2x
+      expect([rowOf(s).dataset.step, Boolean(stepCard(s.root)), s.g.world.speed]).toEqual(['families', false, 2]);   // Version 8.1 (ruling 1202): a step inside its chapter has no card and does not pause
     } finally { s.cleanup(); }
     const none = await lessonPage('families', { width: 1280, height: 800 });
     try {
@@ -225,7 +223,8 @@ describe('v70 p the lesson\'s step card in the page', () => {
       ok.click();
       await frame();
       expect([firstOf(s.g.world, 'well') !== null, s.g.world.speed, rowOf(s).dataset.step]).toEqual([true, 0, 'families']);
-      expect(Boolean(stepCard(s.root))).toBe(true);
+      expect(Boolean(stepCard(s.root))).toBe(false);                                   // Version 8.1: the families step is inside the Water chapter: no card; its row asks for Play
+      expect(rowOf(s).querySelector('.text').textContent.startsWith('Press Play')).toBe(true);
     } finally { s.cleanup(); }
   });
 });
@@ -264,9 +263,9 @@ describe('v70 p the card fits and can always be left', () => {
     try {
       for (let i = 0; i < LESSON_LENGTH; i++) {
         const st = LESSON_STEPS[i];
-        const card = stepCard(s.root);
-        expect([i, Boolean(card), rowOf(s).dataset.step]).toEqual([i, true, st.id]);
-        expect([i, s.g.world.speed, card.querySelector('.lc-label').textContent]).toEqual([i, 0, D2_TEXT.lessonLabel(i + 1, LESSON_LENGTH)]);
+        const card = stepCard(s.root), ch = chapterAt(i);                               // Version 8.1 (ruling 1202): a card opens each chapter; the steps inside it have none
+        expect([i, Boolean(card), rowOf(s).dataset.step]).toEqual([i, ch.first, st.id]);
+        if (card) expect([i, s.g.world.speed, card.querySelector('.lc-label').textContent]).toEqual([i, 0, V81T_TEXT.chapterLabel(ch.index + 1, LESSON_CHAPTER_COUNT, V81T_TEXT.chapters[ch.id].name)]);
         dockCard(s.root);
         await frame();
         s.g.ui.placement.cancel();

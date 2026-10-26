@@ -45,19 +45,35 @@ export const LESSON_PLACES = {
 //          step is done the moment the player has built what it asks (the next step's card then pauses again).
 //   act    what the player's own part of an 'act' step is (src/sim/lesson.js actionDone): plots { more } painted since the step began, building { type } stands,
 //          towers (as many as the raid warned needs, built: their crews come with time).
+//   lock   Version 8.1 (Track T, ruling 1204): the controls the step leaves live besides its own card and category (src/ui/v81/lessonLock.js ids): the speed control for a step
+//          about time (every step with a `play`), the gold for the months. Everything else is dimmed while the step runs.
+// Version 8.1 (Track T, ruling 1202): the Large plot comes straight after the homes, in the Homes chapter, where its idea belongs (it was after the months).
 export const LESSON_STEPS = [
   { id: 'road', check: { kind: 'roadTiles', n: 9 }, at: { x: 11, y: 39, w: 9, d: 1 }, show: { category: 'roads', item: 'road' } },
   { id: 'homes', check: { kind: 'homesOnRoad', n: 6 }, at: { x: 19, y: 41, w: 1, d: 6 }, show: { category: 'homes', item: 'house' } },
+  { id: 'largeplot', stage: 'largePlot', check: { kind: 'tally', key: 'largePlots', n: 1 }, at: { x: 17, y: 37, w: 2, d: 2 }, show: { category: 'homes', item: 'large_plot' } },
   { id: 'well', check: { kind: 'served', type: 'well', homes: 3 }, at: { x: 19, y: 40, w: 1, d: 1 }, show: { category: 'services', item: 'well' } },
   { id: 'families', check: { kind: 'people', n: 12 }, dom: '#topbar .speed-bar', play: 'card' },
   { id: 'farm', check: { kind: 'building', type: 'farm_grain' }, at: { x: 11, y: 40, w: 2, d: 2 }, show: { category: 'food', item: 'farm_grain' } },
   { id: 'granary', check: { kind: 'building', type: 'granary' }, at: { x: 14, y: 40, w: 2, d: 2 }, show: { category: 'food', item: 'granary' } },
   { id: 'bazaar', check: { kind: 'served', type: 'bazaar', homes: 3 }, at: { x: 21, y: 43, w: 2, d: 2 }, show: { category: 'services', item: 'bazaar' } },
   { id: 'workers', check: { kind: 'working', types: ['farm_grain', 'granary', 'bazaar'] }, at: { x: 21, y: 40, w: 1, d: 3 }, show: { category: 'homes', item: 'house' }, play: 'act', act: { kind: 'plots' } },
-  { id: 'month', check: { kind: 'months', n: 2 }, dom: '#topbar .forecast', play: 'card' },
-  { id: 'largeplot', stage: 'largePlot', check: { kind: 'tally', key: 'largePlots', n: 1 }, at: { x: 17, y: 37, w: 2, d: 2 }, show: { category: 'homes', item: 'large_plot' } },
+  { id: 'month', check: { kind: 'months', n: 2 }, dom: '#topbar .forecast', play: 'card', lock: ['stat-gold'] },
   { id: 'firehouse', check: { kind: 'covered', type: 'bazaar' }, at: { x: 21, y: 45, w: 1, d: 1 }, show: { category: 'services', item: 'firehouse' }, play: 'act', act: { kind: 'building', type: 'firehouse' } },
   { id: 'fire', stage: 'fire', check: { kind: 'tallyAny', keys: ['blazesOut', 'firesOut'], n: 1 }, at: { of: 'bazaar' }, play: 'card' },
   { id: 'tower', stage: 'raid', check: { kind: 'towers' }, at: { x: 21, y: 39, w: 1, d: 1 }, show: { category: 'defence', item: 'tower' }, play: 'warning', act: { kind: 'towers' } },
   { id: 'raid', check: { kind: 'raidOver' }, at: { of: 'bazaar' }, play: 'card' },
+];
+
+// Version 8.1 "The vizier" (Track T, rulings 1202-1203): the lesson in chapters, one idea each (design 7b): roads, homes, water, food, work and trade, fire, defence.
+// A chapter opens with its card in the middle of the screen, the game paused behind it; the steps inside it (micro-steps) are said by Ipi in the docked bubble and
+// do not pause. Each chapter is a run of LESSON_STEPS in order (tests/v81/t holds it), so the steps, their checks and the walk-through are unchanged.
+export const LESSON_CHAPTERS = [
+  { id: 'roads', steps: ['road'] },
+  { id: 'homes', steps: ['homes', 'largeplot'] },
+  { id: 'water', steps: ['well', 'families'] },
+  { id: 'food', steps: ['farm', 'granary'] },
+  { id: 'work', steps: ['bazaar', 'workers', 'month'] },
+  { id: 'fire', steps: ['firehouse', 'fire'] },
+  { id: 'defence', steps: ['tower', 'raid'] },
 ];

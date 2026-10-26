@@ -8,6 +8,8 @@ import { towersNeeded, workingTowers } from '../sim/raids.js';
 import { staffedCover } from '../sim/fire.js';
 import { monthForecast } from '../sim/economy.js';
 import { population } from '../sim/world.js';
+import { say } from './v81/scribe.js';
+import { V81T_TEXT } from './v81/lessonText.js';
 
 // Whether the title should offer only "Start the lesson" (ruling 617): on a device that has not finished the lesson and has no saved city.
 // settings: the settings' value (settings.get()); hasSavedCity: the title's loaded save is a city (boot's loaded.state === 'ok').
@@ -47,3 +49,8 @@ export function lessonFacts(world, step) {
 
 // The step's check, with a name for tests and the row (which step the city is at is the interface's own count, src/ui/v60/lesson.js).
 export const stepIsDone = (world, id) => stepDone(world, LESSON_STEPS.find((s) => s.id === id));
+
+// Version 8.1 (Track T, ruling 1208): the hand-over, once the lesson's city has become the player's own (src/boot.js adoptLesson). Ipi says it in the docked bubble, right
+// above the goals strip, which now shows the city's first real goal; it stays a little longer than a reaction, since it is the last thing the lesson says.
+export const HANDOVER_MS = 8000;
+export function sayHandOver() { return say(V81T_TEXT.handover, { ms: HANDOVER_MS }); }

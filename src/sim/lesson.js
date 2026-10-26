@@ -6,13 +6,14 @@
 // The lesson's city is a city like any other (the same sim, the same rules), on a fixed map, and is never saved (src/boot.js). Three
 // steps stage something a city this young would not have, and each says so in its words: the Large plot card (a Townhouse opens it in a real
 // city), a small blaze in the bazaar, and the Market town's tower with the raid clock (a real city meets raiders at 250 people).
-import { LESSON, LESSON_STEPS, LESSON_PLACES } from '../data/lesson.js';
+import { LESSON, LESSON_STEPS, LESSON_PLACES, LESSON_CHAPTERS } from '../data/lesson.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { MILESTONES } from '../data/progression.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { createWorld, housesOf, population, allBuildings } from './world.js';
 import { drawRoad, paintHouses, place, setGuide, setSpeed } from './commands.js';
-import { laidRoadTiles, goalMet } from './goals.js';
+import { goalMet } from './goals.js';
+import { idx } from './grid.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { isWorking } from './labour.js';
 import { igniteBuilding, staffedCover, burning } from './fire.js';
@@ -22,6 +23,18 @@ import { milestoneIndex } from './progression.js';
 
 export const LESSON_LENGTH = LESSON_STEPS.length;
 
+// Version 8.1 (Track T, ruling 1202): the chapter a step belongs to, by the step's place in LESSON_STEPS: { index, id, first (the chapter's first step: its card opens it),
+// k (the step's place in the chapter, from 1), of (the chapter's steps) }, or null past the end.
+export const LESSON_CHAPTER_COUNT = LESSON_CHAPTERS.length;
+export function chapterAt(at) {
+  const step = LESSON_STEPS[at];
+  if (!step) return null;
+  const index = LESSON_CHAPTERS.findIndex((c) => c.steps.includes(step.id));
+  if (index < 0) return null;
+  const c = LESSON_CHAPTERS[index], k = c.steps.indexOf(step.id) + 1;
+  return { index, id: c.id, first: k === 1, k, of: c.steps.length };
+}
+
 // The lesson's city: the fixed map, the guide off (the lesson is the guide), nothing built. world.lesson marks it (never saved): the court makes no demand of it
 // (src/sim/demands.js demandsOn), since the lesson's one row is the only guidance and a demand's tip and alert would be a second.
 export function lessonWorld() {
@@ -29,6 +42,26 @@ export function lessonWorld() {
   setGuide(world, false);
   world.lesson = true;
   return world;
+}
+
+// Version 8.1 (Track T, ruling 1210): the road the first step asks for is road joined to the village gate: the tiles laid beyond the start road that a cart can reach from it
+// along the roads. A stray piece laid while tapping around (and not taken back) is no part of it, so the step reads the road as it stands, never the order of the taps.
+export function gateRoadTiles(world) {
+  const n = world.size, start = new Set(world.startRoad.map(([x, y]) => idx(n, x, y)));
+  const seen = new Set(), queue = [...start].filter((i) => world.road[i]);
+  for (const i of queue) seen.add(i);
+  let laid = 0;
+  while (queue.length) {
+    const i = queue.pop(), x = i % n, y = (i - x) / n;
+    if (!start.has(i)) laid++;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
+      const j = idx(n, nx, ny);
+      if (world.road[j] && !seen.has(j)) { seen.add(j); queue.push(j); }
+    }
+  }
+  return laid;
 }
 
 // The first building of a type, or null.
@@ -57,7 +90,7 @@ export const warnedRaid = (world) => world.raid.warning || null;
 export function stepDone(world, step) {
   const c = step.check;
   switch (c.kind) {
-    case 'roadTiles': return laidRoadTiles(world) >= c.n;
+    case 'roadTiles': return gateRoadTiles(world) >= c.n;
     case 'homesOnRoad': return homesOnRoad(world) >= c.n;
     case 'served': return homesReached(world, c.type) >= c.homes;
     case 'people': return goalMet(world, { kind: 'people', n: c.n });
@@ -87,7 +120,7 @@ export function stepProgress(world, step) {
   const c = step.check;
   const clip = (n, of) => ({ n: Math.max(0, Math.min(n, of)), of });
   switch (c.kind) {
-    case 'roadTiles': return clip(laidRoadTiles(world), c.n);
+    case 'roadTiles': return clip(gateRoadTiles(world), c.n);
     case 'homesOnRoad': return clip(homesOnRoad(world), c.n);
     case 'served': return clip(homesReached(world, c.type), c.homes);
     case 'people': return clip(population(world), c.n);

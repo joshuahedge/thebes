@@ -2646,7 +2646,7 @@ Object.assign(TIP_HELP_TEXT, { tribute_quota: S47_PRESSURE_TEXT.tipHelp, raids_w
 // src/ui/adviceText.js. The tip fires when the first home is laid; How to play lists it with the others.
 T.advice = 'City advice';
 T.adviceNew = 'City advice: something new';
-T.adviceLead = 'What holds your city back, worst first.';
+T.adviceLead = 'What I would see to first, the most pressing at the top.';   // Version 8.1 (Track T, ruling 1211): Ipi says it
 TIP_TEXT.city_advice = 'The scroll button at the top shows what holds your city back, and what each fix costs.';
 TIP_HELP_TEXT.city_advice = 'The scroll button opens City advice: what holds your city back, with costs and Show me. A dot marks news.';
 // ── end v50 advice ──
@@ -3211,7 +3211,7 @@ V60_HELP.d1.push({ head: 'The Huge map', text: 'A Huge map is 112 tiles a side, 
 //
 // ── v60 d2 (Track D2, rulings 760-779: the guided first city, the picture cards) ────────────────────────────────────────
 // Add new lines just above the end marker.
-import { LESSON_STEPS as d2Steps } from '../data/lesson.js';
+import { LESSON_STEPS as d2Steps, LESSON_CHAPTERS as d2Chapters } from '../data/lesson.js';
 import { LARGE_PLOT as d2Large } from '../data/largePlots.js';
 import { FIRE as d2Fire } from '../data/fire.js';
 import { RAIDS as d2Raids } from '../data/raids.js';
@@ -3285,7 +3285,7 @@ export const D2_TEXT = {
   endRow: 'Your first city stands. Go to the title to found your own when you are ready.',
   // The title (the Lesson button; with no saved city and the lesson not done it is the only way in).
   titleStart: 'Play', titleContinue: 'Continue', titleAgain: 'Start again',   // Version 8.0 (Track U): the title's main button is one word; the lesson's own hint line sits under it
-  titleHint: `A small first city of ${d2Steps.length} steps, about 10 to 15 minutes.`,
+  titleHint: `A small first city in ${d2Chapters.length} short chapters, about 10 to 15 minutes.`,   // Version 8.1 (Track T, ruling 1202)
   titleContinueHint: `Continue rebuilds the lesson's own city up to your step, so the streets you laid are not kept. Start again begins at step 1.`,
   standsNote: 'Your first city stands. Found your own when you are ready.',
   // The menu's rows.
@@ -3327,7 +3327,7 @@ CARDS4_TEXT.cards.raid = {
   words: `A raid is warned ${d2Time(d2Raids.warningDays)} ahead. Raiders burn what they reach and steal gold; once a city is ${d2Grace / (d2MonthDays * d2YearMonths)} years old they also wreck buildings to rubble and loot storehouses. Towers and soldiers stop them, and rubble can be cleared and built again.`,
   alt: "A wrecked storehouse's rubble with a ring around it, below the alert for a raid from the east.",
 };
-V60_HELP.d2.push({ head: 'The lesson', text: `The lesson is a small first city of ${d2Steps.length} steps: a road, homes, a well, a farm, a granary and a bazaar, workers, a Large plot, a small fire and a raid. Each step lights what it asks for, dims the rest and moves on when the city shows it done. It runs on its own map and never touches a saved city. A new device starts with it; the Lesson button on the title screen and in the menu plays it again. A lesson left part-way continues from its step on a city the lesson rebuilds, so the streets you laid are not kept.` });
+V60_HELP.d2.push({ head: 'The lesson', text: `The lesson is a small first city in ${d2Chapters.length} short chapters, one idea each: roads, homes, water, food, work and trade, fire and defence. Ipi, the king's scribe, says each step and why; only what the step needs can be tapped, and the step moves on when the city shows it done. On a device with no saved city the lesson's city becomes yours when it ends; it never touches a saved city. A new device starts with it; the Lesson button on the title screen and in the menu plays it again. A lesson left part-way continues from its step on a city the lesson rebuilds, so the streets you laid are not kept.` });
 V60_HELP.d2.push({ head: 'Picture cards', text: `The picture cards show once before your first city and again, one at a time, the first time a Large plot, a court demand, a plague, a low Nile, locusts or a raid with real losses comes. Show the picture cards, above, keeps every one. The newest dangers wait ${d2Grace / (d2MonthDays * d2YearMonths)} game years from a city's start: no plague, low Nile or locusts, and a raid only burns, steals gold and takes a granary's food, without wrecking buildings or looting storehouses. Raids and fires themselves can come sooner.` });
 // ── end v60 d2 ──
 
@@ -3910,7 +3910,8 @@ const goalFirstRank = () => MILESTONES[0].name.toLowerCase();
 const goalLastRank = () => MILESTONES[MILESTONES.length - 1].name;
 const goalGreatWork = () => buildingName(reignGreat.type).toLowerCase();
 export const V711_TEXT = {
-  goal: () => `Grow a ${goalFirstRank()} on the Nile into the ${goalLastRank()}, and win your reign by finishing the ${goalGreatWork()}.`,
+  // Version 8.1 (Track T, ruling 1205): the story's goal, said the same way everywhere this sentence shows (the title, the lesson's first card, How to play).
+  goal: () => `The king has made you vizier of the ${goalFirstRank()} at Thebes. Make it a city fit to be named the ${goalLastRank()}, and crown your service with the ${goalGreatWork()}.`,
   helpGoalHead: 'What the game is for',
   helpGoal: () => `${V711_TEXT.goal()} You climb one rank at a time as your people grow: ${MILESTONES.map((m) => m.name).join(', ')}.`,
   closeToast: 'Close this message',
@@ -3931,7 +3932,7 @@ export const TRAY_TEXT = {
   showLabel: (text) => `Show on the map: ${text}`,
   openLabel: (text) => `Open: ${text}`,
   open: 'Open',
-  adviceHead: 'City advice',
+  adviceHead: 'Ipi suggests',   // Version 8.1 (Track T, ruling 1211): the Advice engine's list in the scribe's voice
   // The top-bar button's name while messages wait: its words say what its number says, so the number is never the only cue.
   buttonName: (n, dot) => `Messages and advice: ${plural(n, 'new message', 'new messages')}${dot ? ', and new advice' : ''}`,
   none: 'No messages yet.',
