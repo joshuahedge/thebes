@@ -74,7 +74,7 @@ function roadText(world, r) {
   if (bridges) parts.push(S45_TEXT.bridgeNote(bridges, r.bridgeCost));
   return parts.join(' · ');
 }
-const roadRefusalText = (r) => (r.reason === 'too_wide' ? S45_TEXT.tooWide(r.water) : reasonText(r.reason));
+const roadRefusalText = (world, r) => (r.reason === 'too_wide' ? S45_TEXT.tooWide(r.water, !riverless(world)) : reasonText(r.reason));   // Version 8.2 (ruling 1333): no ferry on a map with no river
 const roadDoneText = (tool, result) => (tool.gate ? S45_TEXT.gateBuilt
   : result.ok && result.bridges && result.bridges.length ? S45_TEXT.roadLaidBridge(result.bridges.length)
     : result.ok && result.gates && result.gates.length ? S45_TEXT.roadLaidGates(result.gates.length) : T.roadLaid);
@@ -323,7 +323,7 @@ function basePreview(world, state) {
     if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
     const tiles = roadPath(l.x0, l.y0, l.x1, l.y1, l.flip);
     const r = tool.kind === 'road' ? previewRoad(world, l.x0, l.y0, l.x1, l.y1, l.flip, roadOptions(tool)) : previewWall(world, l.x0, l.y0, l.x1, l.y1, l.flip);
-    if (!r.ok) return bad(r.reason, r.cost, r.tiles.length, tiles, roadRefusalText(r));
+    if (!r.ok) return bad(r.reason, r.cost, r.tiles.length, tiles, roadRefusalText(world, r));
     if (!r.tiles.length) return bad('nothing_to_place', 0, 0, tiles);
     if (tool.kind === 'wall') {
       // Stage 3 (spec 4.13, 6.4): only the tiles that get wall (standing wall is skipped), the gates among them marked, and
@@ -647,7 +647,7 @@ export function fitTarget(world, state) {
     // Version 7.1 (Track F, ruling 1043): water too wide for a bridge has a ferry's place to show, and the Ferry tool starts there.
     if ((l && l.x1 !== null) || tiles.length) {
       const p = toolPreview(world, state);
-      if (p.state === 'bad' && p.reason === 'too_wide') {
+      if (p.state === 'bad' && p.reason === 'too_wide' && !riverless(world)) {   // Version 8.2 (ruling 1333): a map with no river shows the nearest bridge's place instead
         const f = ferrySpot(world, from);
         return f ? { kind: 'ferry', x: f.x + 0.5, y: f.y + 0.5, spot: f } : null;
       }

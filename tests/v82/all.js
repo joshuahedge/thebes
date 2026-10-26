@@ -3,3 +3,4 @@
 import './m/all.js';   // Track M: the music
 import './l/all.js';   // Track L: the lesson's words and camera, the bubble's type, the wide panel's tray
 import './g/all.js';   // Track G: the Great oasis, the map preview, and New city from the game
+import './i/all.js';   // Integration: the seams between the three

@@ -11,6 +11,10 @@ export const RIVER_SWAPS = [
   ['no river beside it (an oasis pool does not count)', 'no great lake beside it (a spring pool does not count)'],
   ['on the river bank', "on the great lake's bank"],
   ['The Nile is rising', 'The great lake is rising'],
+  // Version 8.2 integration (ruling 1335): the words joined to "river" go first, or "the riverbank" would read "the great lakebank".
+  ['the riverbanks', "the lake's banks"],
+  ['the riverbank', "the lake's bank"],
+  ['the river mud', "the lake's mud"],
   ['The river', 'The great lake'],
   ['the river', 'the great lake'],
 ];

@@ -11,7 +11,7 @@ import { canPlace } from '../../../src/sim/commands.js';
 import { routeBlocker, openRoute } from '../../../src/sim/trade.js';
 import { cityAdvice } from '../../../src/sim/advice.js';
 import { inOasisPool } from '../../../src/sim/oases.js';
-import { S46_RIVER_TEXT as R, S47_OASIS_TEXT, P_TEXT, routeBlockText, tradeReasonText } from '../../../src/ui/text.js';
+import { S46_RIVER_TEXT as R, S47_OASIS_TEXT, P_TEXT, routeBlockText, tradeReasonText, S46_MAP_TEXT, V70_TRADE_TEXT, CITIZEN_REMARKS } from '../../../src/ui/text.js';
 import { V81_B_TEXT as B } from '../../../src/ui/v81/bText.js';
 import { RIVER_SWAPS, forMap, OASIS_TEXT } from '../../../src/ui/v82/oasisText.js';
 import { riverRows } from '../../../src/ui/s46/river.js';
@@ -84,7 +84,8 @@ describe('v82 g great oasis: trade by caravan only (ruling 1306)', () => {
 describe('v82 g great oasis: the words per map (ruling 1307)', () => {
   it('every phrase the list swaps still occurs in the river words, and is swapped on the Great oasis only', () => {
     const sources = [R.nilometerIdle, R.summaryHead, R.catchRule, R.riseCaption('fair'), S47_OASIS_TEXT.needsRiver, B.nilometerBuild(80), P_TEXT.place.water.river,
-      R.floodLine({ phase: 'rising', level: FLOOD_LEVELS[1], applied: FLOOD_LEVELS[1], factor: 1, prepared: false })].join(' | ');
+      R.floodLine({ phase: 'rising', level: FLOOD_LEVELS[1], applied: FLOOD_LEVELS[1], factor: 1, prepared: false }),
+      S46_MAP_TEXT.clayWhere, V70_TRADE_TEXT.buildQuay, ...CITIZEN_REMARKS.map((r) => r.text)].join(' | ');   // Version 8.2 integration (ruling 1335): the banks and the gossip's river mud
     for (const [from, to] of RIVER_SWAPS) expect([from, sources.includes(from)]).toEqual([from, true]);
     const w = oasis(3), r = river(3);
     for (const [from, to] of RIVER_SWAPS) expect([forMap(w, from), forMap(r, from)]).toEqual([to, from]);

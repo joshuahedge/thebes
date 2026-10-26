@@ -18,7 +18,7 @@ describe('v82 m release: Version 8.2 "Song of the Nile"', () => {
     expect([PIECES.length, MUSIC.gap[0], MUSIC.gap[1]]).toEqual([7, 60, 240]);
     for (const p of PIECES) expect([p.name, text.includes(p.name.toLowerCase().replace('lullaby for the workers\' village', 'lullaby'))]).toEqual([p.name, true]);
     for (const line of notes) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
-    expect([RELEASES[0].new.length, RELEASES[0].fixed.length]).toEqual([4, 1]);
+    expect([RELEASES[0].new.length, RELEASES[0].fixed.length]).toEqual([6, 6]);   // the integration added the Oasis, the preview and the fixes (tests/v82/i/release.test.js)
   });
   it('says nothing about rulings or tracks', () => {
     const text = [...RELEASES[0].new, ...RELEASES[0].fixed].join(' ').toLowerCase();

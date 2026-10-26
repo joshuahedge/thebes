@@ -56,6 +56,7 @@ import { createNudge, nudgeLineText, NUDGE_MAX_STEP_MS } from './nudge.js';
 import { TIP_AUTO_CLOSE_MS, GRAND_TIP_TIER } from '../data/tips.js';
 import { createMenuSheets, createDialog } from './menu.js';
 import { forMap, riverless, OASIS_TEXT } from './v82/oasisText.js';   // Version 8.2 (Track G): the words per map
+import { watchMapWords } from './v82/mapWords.js';
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { createAdviceUi } from './adviceUi.js';
 import { anotherFor, canCopy } from './another.js';
@@ -188,6 +189,14 @@ export function createUI({
   const tipsBusy = (s) => isToolMode(s.mode) || (phone() && Boolean(s.sheet || s.overlay || alertHasRow() || world.speed === 0));
   const fireTip = (key) => tips.trigger(key, { busy: tipsBusy(store.get()) });
   const cameraControl = createCameraControl({ cam, view, reducedMotion: settings.reducedMotion, motionLevel, now });   // Version 5.0 (Task 6): the level, for Show me's glide and the fling
+  // Version 8.2 (integration, ruling 1334): a city opens centred on its start area, nudged the least that also keeps the start road's end in sight (a narrow phone cut it off
+  // whenever the start area lies east of the road: the Great oasis and seven river layouts, by seed). A view that already holds both does not move. The margin keeps the
+  // whole ringed tile and a little of the road in sight (a tile is 64 px wide at the opening zoom).
+  const OPEN_ROAD_MARGIN_PX = 96;
+  if (world.focus && Array.isArray(world.startRoad) && world.startRoad.length && cam.x === world.focus.x && cam.y === world.focus.y) {
+    const f = world.focus, end = world.startRoad.reduce((a, t) => (Math.hypot(t[0] - f.x, t[1] - f.y) < Math.hypot(a[0] - f.x, a[1] - f.y) ? t : a));
+    cameraControl.keepVisible(end[0] + 0.5, end[1] + 0.5, undefined, OPEN_ROAD_MARGIN_PX, 0);
+  }
   const placement = createPlacement({ world, store, afterCommand, effects, now, roadMode: { get: () => settings.get().roadMode, set: (v) => settings.set({ roadMode: v }) } });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc, keys: () => settings.get().keyboardShortcuts !== false });
   const alerts = createAlerts({
@@ -1211,6 +1220,7 @@ export function createUI({
   syncDaily();
   refreshDaily();
   if (welcome) store.set(openSheet(store.get(), 'welcome'));
+  const unwatchWords = watchMapWords(world, root);   // Version 8.2 (integration, ruling 1335): a city with no river says the great lake in every word it draws
   return {
     store, settings, sfx, placement, showMeAt, cameraControl, alerts, toasts, tray, celebrations, tips, effects, guide, speedControl, actions, render, afterCommand, refresh, onEvents, offerUpdate, autosave, setSaveFailed,
     danger, scoreUi, ambient, screenshotMode, frameGate, setGuidanceOpen,
@@ -1219,6 +1229,7 @@ export function createUI({
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      unwatchWords();
       for (const s of seams()) s.destroy();
       cornerPicker.destroy(); panelPicker.destroy(); hud.destroy();
       guide.destroy(); stopSettingsWatch();            // the guide's store subscription and the shared settings' watch

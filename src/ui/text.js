@@ -1628,7 +1628,8 @@ export const S45_TEXT = {
   // Bridges (ruling 314): the bar's note "Bridge: 4 tiles, 100 gold" (the tiles of water crossed and what they cost together), the
   // refusal for a crossing past the limit, and the toast. Their numbers come from the road tool's preview (src/sim/commands.js).
   bridgeNote: (n, cost) => `Bridge: ${plural(n, 'tile', 'tiles')}, ${cost} gold`,
-  tooWide: (n) => `Too wide for a bridge (${plural(n, 'tile', 'tiles')} of water)${n <= FERRY.max ? ': lay a ferry' : ` or a ferry (the most is ${FERRY.max})`}`,   // Version 7.1 (Track F, ruling 1043): the way on is the Ferry tool
+  tooWide: (n, ferry = true) => (ferry ? `Too wide for a bridge (${plural(n, 'tile', 'tiles')} of water)${n <= FERRY.max ? ': lay a ferry' : ` or a ferry (the most is ${FERRY.max})`}`   // Version 7.1 (Track F, ruling 1043): the way on is the Ferry tool
+    : `Too wide for a bridge (${plural(n, 'tile', 'tiles')} of water; the most is ${MAP.bridgeMax})`),   // Version 8.2 (ruling 1333): a map with no river has no Ferry to offer
   roadLaidBridge: (n) => `Road laid · bridge, ${plural(n, 'tile', 'tiles')}`,
   // The month's forecast (Task 4b, ruling 316). Every number is the sim's (src/sim/economy.js monthForecast, monthlyBill,
   // balanceWith, biggestCost), and a minus is a real minus sign. The top bar's gold chip says "+120 a month"; it adds the runway when the

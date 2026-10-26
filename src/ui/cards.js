@@ -15,7 +15,7 @@ import { CATEGORIES } from '../data/ui.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { largePlotUnlocked } from '../sim/largePlots.js';
 import { buildingName, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT, S46_MAP_TEXT } from './text.js';
-import { MAP } from '../data/map.js';
+import { MAP, hasRiver } from '../data/map.js';
 import { el, clear } from './components.js';
 import { drawThumb } from './thumbs.js';
 import { ferryCost } from '../sim/ferries.js';
@@ -31,6 +31,7 @@ const deviceRatio = () => Math.min(3, (typeof window !== 'undefined' && window.d
 // pyramid) shows, greyed, once its milestone is the next one or reached; each later one once the one before it has unlocked.
 export function cardShown(world, item) {
   if (item === LARGE_PLOT.type) return largePlotUnlocked(world);   // Version 6.0 (Track C): the Large plot card comes with the first Townhouse, and is not a teaser before it
+  if (item === 'ferry') return hasRiver(world.mapVariant);         // Version 8.2 (integration, ruling 1333): a map with no river offers no Ferry (bridges cross its pools and bays)
   if (!BUILDINGS[item] || isUnlocked(world, item)) return true;
   const step = PRESTIGE_UNLOCKS.indexOf(item);
   if (step > 0) return isUnlocked(world, PRESTIGE_UNLOCKS[step - 1]);

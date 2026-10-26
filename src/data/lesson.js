@@ -65,6 +65,19 @@ export const LESSON_STEPS = [
   { id: 'raid', check: { kind: 'raidOver' }, at: { of: 'raidTarget' }, play: 'card' },   // Version 8.2 (Track L, ruling 1320): the building the raid is after (src/sim/lesson.js raidTarget), named in the step's words
 ];
 
+// Version 8.2 (integration, ruling 1331): the build category a step opens on the wide panel and the phone's tray as it begins: its own card's (show.category), else that of
+// the step before it in its chapter that has one (the raid: the tower's Defence; the months: the homes the workers wanted; the fire: the firehouse's Services). Never Roads
+// by default.
+export function stepCategory(i) {
+  const step = LESSON_STEPS[i];
+  if (!step) return null;
+  if (step.show) return step.show.category;
+  const chapter = LESSON_CHAPTERS.find((c) => c.steps.includes(step.id));
+  const before = chapter.steps.slice(0, chapter.steps.indexOf(step.id)).reverse().map((id) => LESSON_STEPS.find((s) => s.id === id));
+  const own = before.find((s) => s.show);
+  return own ? own.show.category : null;
+}
+
 // Version 8.1 "The vizier" (Track T, rulings 1202-1203): the lesson in chapters, one idea each (design 7b): roads, homes, water, food, work and trade, fire, defence.
 // A chapter opens with its card in the middle of the screen, the game paused behind it; the steps inside it (micro-steps) are said by Ipi in the docked bubble and
 // do not pause. Each chapter is a run of LESSON_STEPS in order (tests/v81/t holds it), so the steps, their checks and the walk-through are unchanged.

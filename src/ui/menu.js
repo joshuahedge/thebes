@@ -11,6 +11,7 @@ import { versionLine } from './s46/whatsNew.js';   // Version 8.0: the version a
 import { MAPS_HELP } from './v71/mapsText.js';   // Version 7.1 (Track M): How to play's Maps note
 import { V71_HELP } from './v71/ferryText.js';   // Version 7.1 (Track F): How to play's Ferries entry (and importing it registers the ferries tip)
 import { renderNewCityCard } from './titleCard.js';   // Version 8.2 (Track G): the new-city card in the game's menu
+import { MAP_WORDS_AS_WRITTEN } from './v82/mapWords.js';
 
 // The game's new-city card's picture: 120 px on a short screen, else 160 (ruling 1311).
 const newCityPreviewPx = () => (typeof window !== 'undefined' && window.innerHeight < 700 ? 120 : 160);
@@ -32,6 +33,7 @@ export function keyLabel(name) {
 // onScreenshot (Stage 3, spec 6.3): the menu's Screenshot mode; createUI enters the mode.
 // Version 8.2 (Track G): onPause pauses the game (the new-city card opens over a paused game); words(text) says a text as this city's map should (the Great oasis:
 // src/ui/v82/oasisText.js forMap), and mapHelp is How to play's paragraph about this map, or null.
+const RIVER_ONLY_TIPS = ['quay_boats', 'ferries'];   // Version 8.2 (ruling 1335): tips a map with no river never fires, left out of its How to play
 export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCity = () => {}, version = APP_VERSION, canResumeGuide = () => false, onResumeGuide = () => {}, onScreenshot = null, onPause = () => {}, words = (s) => s, mapHelp = null }) {
   const open = (kind) => store.set(openSheet(store.get(), kind));
   const hookOr = (name) => () => { if (typeof hooks[name] === 'function') hooks[name](); else toasts.show(T.notYet); };
@@ -192,16 +194,18 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
       el('p', { class: 'small muted', text: T.shortcutsOff })));
     body.append(section(T.gestures, el('p', { text: T.gesturesHelp })));
     // Version 6.0 (contract section 9): each track's paragraphs, from its own src/ui/text.js section, in track order.
-    const paragraph = (p) => body.append(section(p.head, el('p', { text: words(p.text) })));
+    // Version 8.2 (integration, ruling 1335): a city with no river (mapHelp is said only there) leaves out what its map cannot have: trade by river, the Quay, the ferries and their tips.
+    const riverOnly = mapHelp ? new Set([V70_HELP.t[0], V70_HELP.a[0], ...V71_HELP.f].filter(Boolean).map((p) => p.head)) : new Set();
+    const paragraph = (p) => { if (!riverOnly.has(p.head)) body.append(section(p.head, el('p', { text: words(p.text) }))); };
     for (const p of Object.values(V60_HELP).flat()) paragraph(p);
     for (const p of Object.values(V70_HELP).flat()) paragraph(p);   // Version 7.0: the same, from V70_HELP
-    for (const p of MAPS_HELP) paragraph(p);   // Version 7.1 (Track M)
+    for (const p of MAPS_HELP) { const s = section(p.head, el('p', { text: p.text })); s.setAttribute(MAP_WORDS_AS_WRITTEN, ''); body.append(s); }   // Version 7.1 (Track M); 8.2 (ruling 1335): it names every map's river, as written
     for (const p of Object.values(V71_HELP).flat()) paragraph(p);   // Version 7.1 (Track F): the same, from V71_HELP
     body.append(section(T.goals, el('p', { class: 'muted', text: T.goalsHelp }), el('p', { class: 'muted', text: T.guideHelp })));
     if (canResumeGuide()) {
       body.append(el('div', { class: 'actions' }, [button(T.resumeGuide, { class: 'resume-guide primary', onClick: () => { onResumeGuide(); if (close) close(); } })]));
     }
-    body.append(section(T.tips, el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.filter((tip) => tip.id !== 'gentle_motion').map((tip) => el('li', { text: words(TIP_HELP_TEXT[tip.id] || TIP_TEXT[tip.id]) })))));   // Stage 4: a tip true only where it fires has its help words
+    body.append(section(T.tips, el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.filter((tip) => tip.id !== 'gentle_motion' && !(mapHelp && RIVER_ONLY_TIPS.includes(tip.id))).map((tip) => el('li', { text: words(TIP_HELP_TEXT[tip.id] || TIP_TEXT[tip.id]) })))));   // Stage 4: a tip true only where it fires has its help words
   }
 
   function about(body) {
@@ -225,6 +229,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
         extraLabel: typeof hooks.exportCity === 'function' ? T.exportFirst : null, onExtra: hookOr('exportCity'),
       } }),
     });
+    card.element.setAttribute(MAP_WORDS_AS_WRITTEN, '');   // Version 8.2 (ruling 1335): the card names the maps to come, river and all, from a city of any map
     body.append(card.element);
     queueMicrotask(() => { if (card.element.isConnected) card.focus(); });
   }
