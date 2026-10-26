@@ -1,5 +1,5 @@
 // The score interface (spec 4.1, 4.17, 4.19): the summary's score section with Seal this reign and Share score, the
-// score chip on the summary button, the next-threshold bar, the "+N" score preview in the confirm bar, feats, citizen
+// top bar's score (drawn by src/ui/hud.js since Version 8.1), the next-threshold bar, the "+N" score preview in the confirm bar, feats, citizen
 // remarks, and the title card's records, stamps and shared score. Stage 3 contract: createUI makes one per
 // game exactly as it makes the danger interface (src/ui/danger.js: the same ctx, the same returned shape), and boot.js
 // decorates the title card through titleDecor.
@@ -11,16 +11,15 @@ import { SCORE_PARTS, SPLITS, STAMP_GLYPHS_MAX } from '../data/scoring.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { scoreOf, scorePreview, monumentPreview, sealReign, splitMonths } from '../sim/score.js';
 import { featsFor, featStatus } from '../sim/feats.js';
-import { population } from '../sim/world.js';
 import { remarkFor, monumentCaptions } from './celebrate.js';
 import { isMonument, isSite } from '../sim/world.js';
 import { downloadFile } from '../save/exportImport.js';
 import { openSheet } from './modes.js';
 import { shareLink, parseShareLink, sharedTotal, emojiRow, pictureCard, drawMapSquare, medalColour } from './share.js';
 import { generateMap } from '../sim/mapgen.js';
-import { el, button, setText } from './components.js';
+import { el, button } from './components.js';
 import {
-  SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, scoreChipText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
+  SCORE_TEXT, SHARE_TEXT, TITLE_SCORE_TEXT, FEAT_TEXT, featsHeading, sealFeatsText, scoreReasonText, medalText, nextMedalText, partBarLabel, factorText, scoreLineText, splitCompareText,
   sealQuestion, sealedText, T, SCORE4_TEXT, score4ReasonText, score4MonumentLine, score4SplitText, score4YourBest, score4StampLabel, D2_TEXT,
 } from './text.js';
 
@@ -177,7 +176,7 @@ export function createScoreUi(ctx) {
   function summarySection() {
     const s = current();
     return el('section', { class: 'score-section' }, [
-      el('h3', { text: SCORE_TEXT.cityScore }),
+      el('h3', { text: SCORE_TEXT.cityScore, dataset: { section: 'score' } }),   // Version 8.1: the score's explainer opens the City page here
       el('p', { class: 'score-total' }, [
         el('strong', { class: 'score-number', text: String(s.total) }), ' ',
         el('span', { class: `medal ${s.medal || 'none'}`, text: medalText(s.medal) }),
@@ -237,21 +236,14 @@ export function createScoreUi(ctx) {
   }
   const allBuildingsOf = (type) => Object.values(world.buildings).filter((b) => b.type === type);
 
-  // The chip on the summary button (hud.js makes the empty node): the live total, refreshed with the chrome. It stays
-  // hidden while nobody lives in the city (mobile UX review, section 4 item 9): a new city has no score to show yet.
-  function renderChip() {
-    const chip = root.querySelector('#topbar .score-chip');
-    if (!chip) return;
-    setText(chip, scoreChipText(current().total));
-    chip.hidden = population(world) === 0;
-  }
-
+  // Version 8.1 (Track B): the top bar's score is its own stat now, drawn by src/ui/hud.js (hidden while nobody lives in the city), so the chip this file
+  // filled is gone.
   return {
     sheets: { sealReign: sealSheet, shareScore: shareSheet },
     // Made without a world (the contract's shape test), it has no parts.
     sheetParts: { building: () => [], house: () => [], actions: () => [], summary: () => (world ? [summarySection(), featsSection()] : []) },
     onEvents(events) { if (!events.length) return; version++; if (world) { featCaptions(events); monumentCheers(events); tipsFor(events); remark(events); } },
-    refresh() { if (world) { version++; renderChip(); } },
+    refresh() { if (world) version++; },
     onAlertAction() {},
     onCommand(e) { version++; if (world && e) tipsForCommand(e); },
     destroy() { picture = null; cached = null; },       // a picture still being made never touches a later interface's sheet

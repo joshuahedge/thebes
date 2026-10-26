@@ -4,7 +4,10 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { toolForItem, categoryOfItem } from '../data/ui.js';
 import { canPlace } from '../sim/commands.js';
-import { adviceSheet, adviceUnlocked, adviceTopKeys, adviceHasNew } from './adviceSheet.js';
+import { adviceSheet, adviceUnlocked, adviceHasNew } from './adviceSheet.js';
+import { ADVICE } from '../data/advice.js';
+import { cityAdvice } from '../sim/advice.js';
+import { buildSuggestion } from './v81/trayLayers.js';
 import { ADVICE_TEXT } from './adviceText.js';
 import { nearestFit } from './placement.js';
 import { nearestTerrainTile } from './goalsList.js';
@@ -27,15 +30,19 @@ export function showMeRefusal(world, item, at) {
 }
 
 export function createAdviceUi({ world, settings, showMeAt, selectBuilding, openSummary, toast, tray = null }) {
-  let shown = false, keys = [], day = null, stale = true;
+  let shown = false, keys = [], day = null, stale = true, build = null;
   const seen = () => settings.get().adviceSeen || [];
 
   // Reads the top items when something changed (a command) or ADVICE_EVERY_DAYS game days have passed; the button reads the result every frame.
+  // Version 8.1 (Track D, ruling 1250): the same read finds the top build suggestion the tray's card glows for (buildSuggestion), so the tray never asks the advice engine itself.
   function refresh() {
     if (!shown) shown = adviceUnlocked(world);
-    if (!shown) { keys = []; return; }
+    if (!shown) { keys = []; build = null; return; }
     if (!stale && day !== null && world.day >= day && world.day - day < ADVICE_EVERY_DAYS) return;
-    stale = false; day = world.day; keys = adviceTopKeys(world);
+    stale = false; day = world.day;
+    const list = cityAdvice(world);
+    keys = list.slice(0, ADVICE.top).map((a) => a.key);
+    build = buildSuggestion(world, list, ADVICE.top);
   }
 
   // The item's Show me or View: a building to select, a summary section, or a build card with its ghost near the fix's target (the nearest free tile of
@@ -63,8 +70,9 @@ export function createAdviceUi({ world, settings, showMeAt, selectBuilding, open
     showMe,
     markStale: () => { stale = true; },
     state: () => ({ shown, dot: shown && adviceHasNew(keys, seen()) }),
+    suggestion: () => build,
     // Opening or redrawing the sheet reads the advice afresh: the button's cached keys become the ones the sheet just marked seen.
-    sheet: adviceSheet({ world, settings, onFix: fix, tray, onRead: (k) => { keys = k; stale = false; day = world.day; } }),
+    sheet: adviceSheet({ world, settings, onFix: fix, tray, onRead: (k) => { keys = k; stale = false; day = world.day; }, onCity: () => openSummary(null) }),
     on: () => shown,
     fix,
   };

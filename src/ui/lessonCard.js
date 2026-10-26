@@ -12,6 +12,7 @@ import { el, button, setText } from './components.js';
 import { drawThumb } from './thumbs.js';
 import { speedPicture } from './speed.js';
 import { P_TEXT, V711_TEXT } from './text.js';
+import { portrait } from './v81/scribe.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const THUMB_SCALE = 1.5;   // the card shows the card's own picture 1.5 times as large (css/ui.css .lesson-card .lc-thumb)
@@ -41,6 +42,9 @@ export const pictureOf = (step) => (step && (step.show ? { item: step.show.item 
 export function createLessonCard({ root, doc = document, store, onGo, onSkip = () => {}, keys = () => true }) {
   const win = doc.defaultView || window;
   const label = el('p', { class: 'lc-label small muted' });
+  // Version 8.1 (Track T, rulings 1206-1207): the card is Ipi speaking (the scribe's portrait beside the chapter's name), and the reaction to the chapter just finished leads it.
+  const head = el('div', { class: 'lc-head' }, [portrait(48), label]);
+  const beat = el('p', { class: 'lc-beat', hidden: true });
   const pic = el('div', { class: 'lc-pic', 'aria-hidden': 'true' });
   const words = el('p', { class: 'lc-words', id: 'lesson-card-words' });
   const go = button('', { class: 'lc-go primary', onClick: () => onGo() });
@@ -48,7 +52,7 @@ export function createLessonCard({ root, doc = document, store, onGo, onSkip = (
   // Version 8.0 (Track N, ruling 1171): Leave the lesson is no longer on the card or the docked row; it is in the menu while a lesson runs (src/ui/menu.js), so the card has one button to press.
   // Version 7.1.1 (ruling 1112): the first step's card also offers "Skip, I've played before" (shown only while show() is given skipOffered), now a tertiary text button under the one primary (Version 8.0).
   const skip = button(V711_TEXT.skip, { class: 'lc-skip quiet tertiary', hidden: true, onClick: () => { asker = skip; onSkip(); } });
-  const card = el('div', { class: 'lesson-card', role: 'dialog', 'aria-modal': 'true', 'aria-label': P_TEXT.card.region, 'aria-describedby': 'lesson-card-words' }, [label, pic, words, el('div', { class: 'lc-actions' }, [go, skip])]);
+  const card = el('div', { class: 'lesson-card', role: 'dialog', 'aria-modal': 'true', 'aria-label': P_TEXT.card.region, 'aria-describedby': 'lesson-card-words' }, [head, beat, pic, words, el('div', { class: 'lc-actions' }, [go, skip])]);
   const scrim = el('div', { class: 'lesson-card-scrim', hidden: true }, [card]);
   const ui = root.querySelector('#ui') || root;
   ui.insertBefore(scrim, root.querySelector('#toasts') || null);   // above the page, under the toasts and the confirm dialog (which sit later in the page)
@@ -68,8 +72,10 @@ export function createLessonCard({ root, doc = document, store, onGo, onSkip = (
   }
 
   // goLabel: the button's name (what it does); picture: pictureOf's answer.
-  function show({ label: head, text, goLabel, picture, skipOffered = false }) {
-    setText(label, head);
+  function show({ label: heading, text, goLabel, picture, skipOffered = false, beat: lead = '' }) {
+    setText(label, heading);
+    setText(beat, lead || '');
+    beat.hidden = !lead;
     setText(words, text);
     go.textContent = goLabel;
     skip.hidden = !skipOffered;

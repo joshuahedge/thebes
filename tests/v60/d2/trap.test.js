@@ -201,7 +201,7 @@ describe('v60 d2 the steps that carry an alert lead with what to do (ruling 822)
             await frame();
           }
           const at = `${id} at ${text}%: ${s.root.querySelector('#lesson .text').textContent}`;
-          const phrase = { tower: 'Build a tower near the bazaar', fire: 'the crew put out the small fire', raid: 'Watch your tower stop the raiders' }[id];   // (the card's Play has the game running: "Watch the crew", not "Press Play and watch")
+          const phrase = { tower: 'Build a tower near the bazaar', fire: 'the crew put it out', raid: 'Watch your tower stop them' }[id];   // Version 8.1: Ipi's do lines (src/ui/v81/lessonText.js)   // (the card's Play has the game running: "Watch the crew", not "Press Play and watch")
           expect([at, s.root.querySelector('#lesson').dataset.step, shown(s.root.querySelector('#lesson .text')), instructionShown(s, phrase)]).toEqual([at, id, true, true]);
         } finally { s.cleanup(); }
       }

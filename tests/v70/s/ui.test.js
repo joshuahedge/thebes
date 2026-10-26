@@ -21,33 +21,27 @@ const NIGHT_MS = (LIGHT.day + LIGHT.dusk + LIGHT.night / 2) * LIGHT.cycleMs;
 const within = (inner, outer, slack = 0.5) => inner.left >= outer.left - slack && inner.right <= outer.right + slack && inner.top >= outer.top - slack && inner.bottom <= outer.bottom + slack;
 const textBox = (node) => { const range = document.createRange(); range.selectNodeContents(node); return range.getBoundingClientRect(); };
 
+// Version 8.1 (Track B, ruling 1223): the season is no longer a line of words under the date; it is the date's picture (the sun over the river: high water in the flood
+// season, a sprout in the growing season, a big sun and a low river at harvest), and the date's name says it in words.
 describe('v70 s ui: the top bar names the season', () => {
   const SIZES = [[375, 667], [390, 844], [667, 375], [844, 390], [1280, 800], [1920, 1080]];
-  it('shows Flood, Growing or Harvest under the date, the date\'s own season, in every layout at 100%, 125% and 150% text, whole inside the bar', async () => {
+  it('draws Flood, Growing or Harvest on the date\'s picture, the date\'s own season, and says it in the date\'s name, in every layout at every text size, whole inside the bar', async () => {
     for (const [w, h] of SIZES) {
       for (const size of [100, 125, 150]) {
         const r = await rigUI({ width: w, height: h });
         try {
           r.ui.settings.set({ textSize: size });
           const bar = r.root.querySelector('#topbar').getBoundingClientRect();
+          const rivers = new Set();
           for (const id of SEASON_IDS) {
             r.world.day = dayIn(r.world, id);
             r.ui.refresh();
-            const season = r.root.querySelector('#topbar .stat.date .season');
+            const date = r.root.querySelector('#topbar .stat.date'), pic = date.querySelector('svg');
             const at = `${w}x${h} at ${size}%, ${id}`;
-            expect([at, season.textContent, season.dataset.season]).toEqual([at, SEASON_TEXT.names[id], id]);
-            const stats = r.root.querySelector('#topbar .stats');
-            if (!stats.classList.contains('tight')) {
-              await flush(); await flush();                                             // the chip's width reaches the stylesheet in the frame after the one that draws it
-              const box = textBox(season), date = r.root.querySelector('#topbar .stat.date').getBoundingClientRect();
-              const chip = r.root.querySelector('#topbar .score-chip'), chipBox = chip.hidden ? null : chip.getBoundingClientRect();
-              expect([at, 'inside the bar', within(box, bar)]).toEqual([at, 'inside the bar', true]);
-              expect([at, 'on the date\'s second line', box.top >= date.top, box.top < date.top + 2 * date.height]).toEqual([at, 'on the date\'s second line', true, true]);
-              const clear = !chipBox || box.right <= chipBox.left + 1 || box.left >= chipBox.right - 1 || box.bottom <= chipBox.top + 1 || box.top >= chipBox.bottom - 1;
-              expect([at, 'clear of the score chip', clear]).toEqual([at, 'clear of the score chip', true]);
-              expect([at, 'adds no width', season.getBoundingClientRect().width <= 1 || season.style.position === '' && getComputedStyle(season).position === 'absolute']).toEqual([at, 'adds no width', true]);
-            }
+            expect([at, pic.dataset.state.split('-')[0], date.getAttribute('aria-label').includes(SEASON_TEXT.names[id]), within(pic.getBoundingClientRect(), bar)]).toEqual([at, id, true, true]);
+            rivers.add(pic.querySelector('.river').getAttribute('d') + (pic.querySelector('.sprout') ? 'sprout' : ''));
           }
+          expect(rivers.size).toBe(SEASON_IDS.length);                                   // each season a different shape, not a colour alone
         } finally { r.cleanup(); }
       }
     }
@@ -59,38 +53,12 @@ describe('v70 s ui: the top bar names the season', () => {
       for (const d of [0, 14, 29]) {
         r.world.day = m * DAYS_PER_MONTH + d;
         r.ui.refresh();
-        expect([d, r.root.querySelector('#topbar .season').textContent]).toEqual([d, SEASON_TEXT.names[SEASONS[m]]]);
+        expect([d, r.root.querySelector('#topbar .stat.date').getAttribute('aria-label').includes(SEASON_TEXT.names[SEASONS[m]])]).toEqual([d, true]);
         expect(seasonAt(r.world).next === undefined).toBe(false);
       }
     } finally { r.cleanup(); }
   });
-  it('keeps the phone\'s numbers on one row at 375 px and 150% text with the season there, a real city\'s numbers', async () => {
-    const r = await rigUI({ width: 375, height: 667 });
-    try {
-      r.ui.settings.set({ textSize: 150 });
-      r.world.gold = 2493; r.world.day = 360 + 3 * 30 + 7;
-      r.ui.refresh();
-      const stats = r.root.querySelector('#topbar .stats'), box = stats.getBoundingClientRect();
-      const shown = [...stats.querySelectorAll('.stat')].filter((st) => getComputedStyle(st).display !== 'none');
-      expect(new Set(shown.map((st) => Math.round(st.getBoundingClientRect().top))).size).toBe(1);
-      for (const st of shown) expect([st.className, within(st.getBoundingClientRect(), box)]).toEqual([st.className, true]);
-      expect(stats.scrollWidth > stats.clientWidth).toBe(false);
-      expect(r.root.querySelector('#topbar .season').getBoundingClientRect().height > 0).toBe(true);   // the line is there (not tight)
-    } finally { r.cleanup(); }
-  });
-  it('keeps the season for a screen reader when the numbers have wrapped to two rows and the line is hidden from the eye', async () => {
-    const r = await rigUI({ width: 360, height: 640 });
-    try {
-      r.ui.settings.set({ textSize: 150 });
-      r.world.gold = 123456; r.world.day = 11 * 360 + 300;
-      r.ui.refresh();
-      const stats = r.root.querySelector('#topbar .stats'), season = r.root.querySelector('#topbar .season');
-      expect(stats.classList.contains('tight')).toBe(true);
-      expect([season.textContent !== '', getComputedStyle(season).display !== 'none', season.getBoundingClientRect().width <= 1]).toEqual([true, true, true]);
-      expect(stats.textContent).toContain(season.textContent);                        // read with the date
-    } finally { r.cleanup(); }
-  });
-  it('says the season and its months in the summary a tap on the bar opens, in each season, for the phone whose numbers wrap', async () => {
+  it('says the season and its months in the summary, in each season, for the narrowest phone', async () => {
     const r = await rigUI({ width: 360, height: 640 });
     try {
       r.ui.settings.set({ textSize: 150 });

@@ -79,7 +79,9 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
       for (const s of [1, 2, 3]) options.append(button(SPEED_LABELS[s], { onClick: () => { api.set(s); options.hidden = true; chevron.setAttribute('aria-expanded', 'false'); } }));
       main.addEventListener('click', () => api.toggle());
       chevron.addEventListener('click', () => { options.hidden = !options.hidden; chevron.setAttribute('aria-expanded', String(!options.hidden)); });
-      container.append(el('div', { class: 'speed-corner group' }, [main, chevron, options]));
+      // Version 8.1 (Track B, ruling 1220): the lesson's lock dims and refuses the speed control by data-lock="speed", on each button and on the group.
+      for (const b of [main, chevron, ...options.children]) b.dataset.lock = 'speed';
+      container.append(el('div', { class: 'speed-corner group', dataset: { lock: 'speed' } }, [main, chevron, options]));
       let shown = null;
       const paint = () => {
         const running = world.speed > 0;
@@ -101,6 +103,8 @@ export function createSpeedControl({ world, store, afterCommand = () => {}, onPa
       const buttons = [0, 1, 2, 3].map((s) => el('button', { type: 'button', class: `speed-step step-${s}`, 'aria-label': S46_UX_TEXT.speedStepLabel(s), title: S46_UX_TEXT.speedStepTitle(s, keys()), 'aria-pressed': String(world.speed === s), onClick: (ev) => { api.set(s); if (ev && ev.detail > 0) ev.currentTarget.blur(); } },   // ruling 991: a pointer click lets go of the step, so Space pauses afterwards (a keyboard press has detail 0 and keeps its focus)
         [speedPicture(s), el('span', { class: 'word', 'aria-hidden': 'true', text: s === 0 ? S46_UX_TEXT.pausedWord : SPEED_LABELS[s] })]));
       clear(container);
+      for (const b of buttons) b.dataset.lock = 'speed';    // Version 8.1 (ruling 1220): the lesson's lock id
+      container.dataset.lock = 'speed';
       container.setAttribute('role', 'group');
       container.setAttribute('aria-label', S46_UX_TEXT.speedGroup);
       container.append(...buttons);

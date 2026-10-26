@@ -184,56 +184,61 @@ describe('s45 forecast (cards and the confirm bar)', () => {
   });
 });
 
-// The top bar's gold chip, on the real shell.
+// The top bar's gold, on the real shell. Version 8.1 (Track B, rulings 1224-1225): the chip's second line under the gold is gone; the month's forecast is the
+// gold's explainer (a tap on the gold), and the gold's picture turns amber with a falling mark while the month is negative (Josh, 26 Oct). Its name says the rest.
 describe('s45 forecast (the gold chip)', () => {
-  const chip = (root) => root.querySelector('#topbar .forecast');
-  const number = (root) => chip(root).firstElementChild.firstElementChild.textContent;
-  it('shows "+120 a month" from the sim in every layout, hidden while there is nothing to forecast', async () => {
+  const gold = (root) => root.querySelector('#topbar .stat.gold');
+  const pop = (root) => root.querySelector('#topbar .stat-explainer');
+  it('shows the month from the sim in the gold\'s explainer in every layout, and says there is nothing to forecast in a bare city', async () => {
     for (const [w, h] of [[390, 844], [844, 390], [1280, 800]]) {
       const r = await rigUI({ width: w, height: h });
       try {
         r.ui.refresh();
         const f = monthForecast(r.world);
-        expect([w, chip(r.root).hidden, number(r.root)]).toEqual([w, false, S45_TEXT.signed(f.net)]);
-        expect(chip(r.root).querySelector('.sr-only').textContent).toBe(S45_TEXT.chipLabel(f));
-        expect(chip(r.root).querySelector('.long').textContent + chip(r.root).querySelector('.short').textContent).toBe(' a month/mo');
+        fire(gold(r.root), 'click', { detail: 1 });
+        const rows = [...pop(r.root).querySelectorAll('.explainer-lines .row')].map((x) => [x.querySelector('dt').textContent, x.querySelector('dd').textContent]);
+        expect([w, pop(r.root).hidden, rows[rows.length - 1]]).toEqual([w, false, [S45_TEXT.monthlyBalance, S45_TEXT.signed(f.net)]]);
       } finally { r.cleanup(); }
     }
     const bare = await rigUI({ world: makeTestWorld({ gold: 1000 }) });
-    try { bare.ui.refresh(); expect(chip(bare.root).hidden).toBe(true); } finally { bare.cleanup(); }
+    try {
+      bare.ui.refresh();
+      fire(gold(bare.root), 'click', { detail: 1 });
+      expect([pop(bare.root).querySelectorAll('.explainer-lines .row').length, monthForecast(bare.world).active]).toEqual([0, false]);
+    } finally { bare.cleanup(); }
   });
-  it('turns amber (with a mark and its words) only when the sim says the treasury runs out within 6 months, not whenever the month is negative', async () => {
+  it('turns the gold amber with a falling mark whenever the month is negative, and its name says when the treasury runs out', async () => {
     const r = await rigUI({ width: 1280, height: 800 });
     try {
       const net = monthFigures(r.world).net;
       expect(net).toBeLessThan(0);
-      r.world.gold = Math.floor(-net * 12);                           // a year of bills in the bank: negative, not amber
+      r.world.gold = Math.floor(-net * 12);                           // a year of bills in the bank: falling, not yet running out
       r.ui.refresh();
-      expect([chip(r.root).classList.contains('warn'), number(r.root).includes('⚠')]).toEqual([false, false]);
-      expect(chip(r.root).querySelector('.sr-only').textContent).toBe(S45_TEXT.chipLabel(monthForecast(r.world)));
-      r.world.gold = Math.floor(-net * 4);                            // four months left: amber
+      expect([gold(r.root).classList.contains('falling'), Boolean(gold(r.root).querySelector('svg .mark')), gold(r.root).getAttribute('aria-label').includes('spending more than taxes bring in')]).toEqual([true, true, true]);
+      r.world.gold = Math.floor(-net * 4);                            // four months left: the name says so
       r.ui.refresh();
       const f = monthForecast(r.world);
-      expect([f.runsOut, chip(r.root).classList.contains('warn'), number(r.root)]).toEqual([true, true, `⚠ ${S45_TEXT.signed(f.net)}`]);
-      expect(chip(r.root).querySelector('.sr-only').textContent).toBe(`Forecast minus ${-f.net} a month; the treasury runs out in about ${Math.ceil(f.monthsLeft)} months`);
-      expect(getComputedStyle(chip(r.root)).color === getComputedStyle(r.root.querySelector('#topbar .stat.people .label')).color).toBe(false);
+      expect([f.runsOut, gold(r.root).getAttribute('aria-label').includes(`the treasury runs out in about ${Math.ceil(f.monthsLeft)} months`)]).toEqual([true, true]);
+      expect(getComputedStyle(gold(r.root).querySelector('.value')).color === getComputedStyle(r.root.querySelector('#topbar .stat.people .value')).color).toBe(false);
       r.world.gold = -10;
       r.ui.refresh();
-      expect(chip(r.root).querySelector('.sr-only').textContent).toContain('the treasury is below 0');
+      expect(gold(r.root).getAttribute('aria-label')).toContain('the treasury is below 0');
+      addRaw(r.world, 'house', 14, 9, { tier: 3, residents: 400 });   // taxes now outrun the bills: not falling
+      assignLabour(r.world);
+      r.world.gold = 5000;
+      r.ui.refresh();
+      expect([monthForecast(r.world).net > 0, gold(r.root).classList.contains('falling')]).toEqual([true, false]);
     } finally { r.cleanup(); }
   });
-  it('opens the summary at the forecast section from a tap on the chip, and at the top from a tap on the numbers', async () => {
+  it('opens the City page at the forecast section from the gold\'s explainer, and the tap on the gold itself opens no sheet', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       r.ui.refresh();
-      fire(chip(r.root).firstElementChild, 'click');
-      expect(r.store.get().sheet).toEqual({ kind: 'summary', id: 'forecast' });
+      fire(gold(r.root), 'click', { detail: 1 });
+      expect([r.store.get().sheet, pop(r.root).hidden]).toEqual([null, false]);
+      r.store.set(openSheet(r.store.get(), 'summary', 'forecast'));        // what the explainer's City page does when the city has no advice for the gold
       const head = r.root.querySelector('#sheet [data-section="forecast"]');
-      expect(head && head.textContent).toBe(monthForecast(r.world).net < 0 ? S45_TEXT.forecastHeadShort : S45_TEXT.forecastHeadOk);
-      fire(chip(r.root).firstElementChild, 'click');                  // the same tap again closes it
-      expect(r.store.get().sheet).toBe(null);
-      fire(r.root.querySelector('#topbar .stat.gold .value'), 'click');
-      expect(r.store.get().sheet).toEqual({ kind: 'summary', id: null });
+      expect([head && head.textContent, pop(r.root).hidden]).toEqual([monthForecast(r.world).net < 0 ? S45_TEXT.forecastHeadShort : S45_TEXT.forecastHeadOk, true]);
     } finally { r.cleanup(); }
   });
   it('heads the summary section by what the balance is, and states the runway, both ways', async () => {
@@ -256,7 +261,7 @@ describe('s45 forecast (the gold chip)', () => {
 });
 
 describe('s45 forecast (the phone top bar)', () => {
-  it('keeps the gold chip\'s forecast inside the bar, under the gold, at 100% and 150% text on every phone', async () => {
+  it('keeps the gold and its falling state on one row inside the bar at 100% and 150% text on every phone (the forecast is the explainer, not a line)', async () => {
     for (const [w, h] of [[360, 640], [375, 667], [390, 844], [844, 390], [667, 375]]) {
       for (const size of [100, 150]) {
         for (const amber of [false, true]) {
@@ -267,33 +272,13 @@ describe('s45 forecast (the phone top bar)', () => {
             world.gold = amber ? Math.floor(-monthFigures(world).net * 3) : 5000;
             r.ui.refresh();
             const at = `${w}x${h} at ${size}% ${amber ? 'amber' : 'plain'}`;
-            const bar = r.root.querySelector('#topbar').getBoundingClientRect(), stats = r.root.querySelector('#topbar .stats').getBoundingClientRect();
-            const words = r.root.querySelector('#topbar .forecast').firstElementChild.getBoundingClientRect();
-            const gold = r.root.querySelector('#topbar .stat.gold .value').getBoundingClientRect();
-            const rows = new Set([...r.root.querySelectorAll('#topbar .stat')].filter((s) => s.offsetParent !== null).map((s) => Math.round(s.getBoundingClientRect().top))).size;
-            expect([at, words.width > 0, words.left >= stats.left - 0.5, words.right <= stats.right + 0.5, words.top >= gold.bottom - 1, words.bottom <= bar.bottom + 0.5, bar.bottom <= r.root.querySelector('#under-bar').getBoundingClientRect().top + 0.5, rows])
-              .toEqual([at, true, true, true, true, true, true, 1]);
-            expect([at, r.root.querySelector('#topbar .forecast .short').offsetParent !== null, r.root.querySelector('#topbar .forecast .long').offsetParent === null]).toEqual([at, true, true]);   // "/mo" on a phone
+            const bar = r.root.querySelector('#topbar').getBoundingClientRect(), g = r.root.querySelector('#topbar .stat.gold').getBoundingClientRect();
+            const rows = new Set([...r.root.querySelectorAll('#topbar .stat')].filter((s) => !s.hidden).map((s) => Math.round(s.getBoundingClientRect().top))).size;
+            expect([at, g.top >= bar.top - 0.5, g.bottom <= bar.bottom + 0.5, bar.bottom <= r.root.querySelector('#under-bar').getBoundingClientRect().top + 0.5, rows, r.root.querySelector('#topbar .forecast')]).toEqual([at, true, true, true, 1, null]);
           } finally { r.cleanup(); }
         }
       }
     }
-  });
-  it('hides the forecast where the numbers have already wrapped to two rows (six-figure gold on the narrowest phone), so the bar never grows a third line', async () => {
-    const world = uiWorld();
-    const r = await rigUI({ width: 360, height: 640, world });
-    try {
-      r.ui.settings.set({ textSize: 150 });
-      world.gold = 123456;
-      for (const b of Object.values(world.buildings)) if (b.type === 'house') b.residents = 300;
-      world.day = 11 * 360 + 300;
-      r.ui.refresh();
-      const bar = r.root.querySelector('#topbar').getBoundingClientRect();
-      const tops = new Set([...r.root.querySelectorAll('#topbar .stat')].filter((s) => s.offsetParent !== null).map((s) => Math.round(s.getBoundingClientRect().top)));
-      expect(tops.size).toBe(2);
-      expect([r.root.querySelector('#topbar .stats').classList.contains('tight'), r.root.querySelector('#topbar .forecast').offsetParent]).toEqual([true, null]);
-      expect(bar.bottom <= r.root.querySelector('#under-bar').getBoundingClientRect().top + 0.5).toBe(true);
-    } finally { r.cleanup(); }
   });
 });
 

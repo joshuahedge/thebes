@@ -14,6 +14,7 @@ import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 import { tileToScreen } from '../../../src/render/camera.js';
 import { dimsOf } from '../../../src/data/buildings.js';
 import { P_TEXT } from '../../../src/ui/text.js';
+import { compact } from '../../../src/ui/v81/stats.js';
 
 const W = P_TEXT.place;
 const wellCard = (r) => { fire(r.root.querySelector('#dock .cat[data-category="services"]'), 'click'); fire(r.root.querySelectorAll('#dock .tray .card')[0], 'click'); r.frame(0); };
@@ -301,9 +302,11 @@ describe('v70 p review: the lesson card hands focus back (aria-modal)', () => {
   });
 });
 
+// Version 8.1 (Track B, ruling 1227): the small pictures are always there now, so a bar that would overflow squeezes instead: the stats lose their padding, then the score
+// keeps its picture alone. A treasury past four digits reads short ("19.3k"); its name says it whole.
 describe('v70 p review: a phone\'s top bar that overflows wears the small pictures (ruling 994)', () => {
   for (const gold of [19322, 99999]) {
-    it(`at 375x667 and 100% text with ${gold} gold, the date is not clipped, clear of the score chip and left of the Advice button`, async () => {
+    it(`at 375x667 and 100% text with ${gold} gold, the date is not clipped, clear of the score and left of the Advice button`, async () => {
       const w = uiWorld();
       w.milestone = 'capital';
       w.gold = gold;
@@ -315,18 +318,18 @@ describe('v70 p review: a phone\'s top bar that overflows wears the small pictur
         r.world.gold = gold;                                                           // (the start's goals may have paid a little more)
         r.ui.refresh();
         const stats = r.root.querySelector('#topbar .stats'), date = r.root.querySelector('#topbar .stat.date .value').getBoundingClientRect();
-        const chip = r.root.querySelector('#topbar .score-chip'), advice = r.root.querySelector('#topbar .advice');
+        const score = r.root.querySelector('#topbar .stat.score'), advice = r.root.querySelector('#topbar .advice');
         const seen = (n) => Boolean(n) && !n.hidden && n.getBoundingClientRect().width > 0;
         const rows = new Set([...stats.querySelectorAll('.stat')].filter((st) => st.offsetParent !== null).map((st) => st.offsetTop));
-        expect([rows.size, stats.scrollWidth <= stats.clientWidth + 1, r.root.querySelector('#topbar .stat.gold .value').textContent]).toEqual([1, true, String(gold)]);
+        expect([rows.size, stats.scrollWidth <= stats.clientWidth + 1, r.root.querySelector('#topbar .stat.gold .value').textContent, r.root.querySelector('#topbar .stat.gold').getAttribute('aria-label').includes(String(gold))]).toEqual([1, true, compact(gold), true]);
         expect(date.right <= stats.getBoundingClientRect().right + 0.5).toBe(true);
-        if (seen(chip)) { const c = chip.getBoundingClientRect(); expect(date.right <= c.left || date.left >= c.right || date.bottom <= c.top || date.top >= c.bottom).toBe(true); }
+        if (seen(score)) { const c = score.getBoundingClientRect(); expect(date.right <= c.left + 0.5).toBe(true); }
         if (seen(advice)) expect(date.right <= advice.getBoundingClientRect().left + 0.5).toBe(true);
-        expect([seen(chip), seen(advice)]).toEqual([true, true]);                      // (both are on the bar, so the two checks above ran)
+        expect([seen(score), seen(advice)]).toEqual([true, true]);                      // (both are on the bar, so the two checks above ran)
       } finally { r.cleanup(); }
     });
   }
-  it('goes back to words when the numbers shrink again, and a short number never wears the pictures', async () => {
+  it('goes back to its padding when the numbers shrink again, and a short number never squeezes', async () => {
     const w = uiWorld();
     w.milestone = 'capital';
     w.gold = 99999;
@@ -336,10 +339,11 @@ describe('v70 p review: a phone\'s top bar that overflows wears the small pictur
       const stats = r.root.querySelector('#topbar .stats');
       w.gold = 120;
       r.ui.refresh();
-      expect(stats.classList.contains('iconic')).toBe(false);
+      expect(stats.classList.contains('squeeze')).toBe(false);
     } finally { r.cleanup(); }
   });
 });
+
 
 describe('v70 p review: words that stay readable on dimmed and refused controls (rulings 998)', () => {
   it('with Sound Off the Music label is ink-soft at 4.5:1 or more, with no opacity, and the row has a dashed edge', async () => {

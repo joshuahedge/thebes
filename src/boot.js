@@ -35,7 +35,7 @@ import { drawMonument } from './render/monuments.js';
 // Version 6.0 (Track D2): the guided first city, and the picture cards' first moments.
 import { TUTORIAL_CARDS, INTRO_CARDS } from './data/tutorial.js';
 import { TIPS } from './data/tips.js';
-import { lessonDue, lessonStartStep, lessonPartWay } from './ui/lesson.js';
+import { lessonDue, lessonStartStep, lessonPartWay, sayHandOver } from './ui/lesson.js';
 import { lessonWorld, replayTo, LESSON_LENGTH } from './sim/lesson.js';
 import { seenKey } from './ui/cardMoments.js';
 
@@ -235,7 +235,7 @@ export async function boot(doc, win, {
     if (!world.cityId) setCityId(world, newCityId(clock()));   // a city from before Stage 3 gets its records id at load
     const cam = createCamera({ x: stress ? world.size / 2 : world.focus.x, y: stress ? world.size / 2 : world.focus.y, zoom: 1, size: world.size });   // the stress city fills the map: its middle; size: the Huge map's zoom floor (ruling 741)
     const gameHooks = lesson
-      ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city') } }
+      ? { ...hooks, save: async () => true, exportCity: undefined, install: undefined, newCity: undefined, lesson: undefined, lessonRun: { step: lesson.step, cam, leave: () => leaveLesson(), finish: () => leaveLesson(true), skip: () => skipLesson(), skipTo: () => (hasSavedCity() ? 'title' : 'city'), adopt: () => adoptLesson(), canAdopt: () => !hasSavedCity() } }
       : hooks;
     const ui = createUI({ world, canvas, cam, renderer, root, doc, win, settings: lesson ? lessonSettings() : settings, hooks: gameHooks, now, clock, welcome: fromSave ? { savedAt, lastSpeed } : null,
       sfx, extraSheets: { install: installGuide(flow, { hasCity: true, onPrompt: () => hooks.install() }) }, ...uiOptions });
@@ -274,6 +274,18 @@ export async function boot(doc, win, {
     markLessonDone();
     if (hasSavedCity()) { stopGame(); showTitle(await loadSave(store)); return; }
     withCards(() => startGame(freshWorld(newCityPick())));
+  }
+  // Version 8.1 (Track T, ruling 1208): the lesson's end is no stop: its city becomes the player's own. It is no longer the lesson's (world.lesson goes, so it saves and the court
+  // writes to it), the guide follows Help as a new city's does, the device counts the lesson done, and the game goes on in a normal interface with Ipi's hand-over. Only on a
+  // device with no saved city (ruling 1209: the one slot is never written over by the lesson).
+  function adoptLesson() {
+    if (!current || !current.lesson || hasSavedCity()) return;
+    const { world } = current;
+    delete world.lesson;
+    setGuide(world, settings.get().help === 'full');
+    markLessonDone();
+    startGame(world, { lastSpeed: world.speed || 1 });
+    sayHandOver();
   }
   async function leaveLesson(finished = false) {
     if (!current || !current.lesson) return;

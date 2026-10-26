@@ -11,9 +11,11 @@ import { cityAdvice } from '../sim/advice.js';
 import { milestoneNeedsMet } from '../sim/progression.js';
 import { housesOf, population } from '../sim/world.js';
 import { T, TRAY_TEXT } from './text.js';
+import { portrait } from './v81/scribe.js';
 import { TRAY_MAX } from './tray.js';
 import { ADVICE_TEXT, adviceWords } from './adviceText.js';
 import { el, button } from './components.js';
+import { cityTabs, markTabPanel } from './v81/stats.js';
 
 // The button comes with the first house (or plot) placed: the first home is what a problem can hold back.
 export const adviceUnlocked = (world) => housesOf(world).length > 0;
@@ -37,8 +39,12 @@ export function nextMilestone(world) {
 // Version 8.0 (Track N, ruling 1160): the same sheet holds the message tray (src/ui/tray.js) above the advice. tray() answers { pinned, items, read } (createUI trayModel): pinned are the alerts that
 // need a decision ({ code, title, fix, act }), items the kept messages, newest first ({ text, why, act: a function when the message has a place, else null }), and read() marks them read.
 // With no message and nothing pinned the sheet is the City advice it was.
-export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => {}, tray = null }) {
+// Version 8.1 (Track B, ruling 1226): with onCity the sheet opens on its tabs, Messages (this) and City (the city summary: onCity opens it).
+export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => {}, tray = null, onCity = null }) {
   return (body, ctx = {}) => {
+    // Integration (ruling 1268): the tabs go above the body (ctx.tabs), which is the Messages tab's panel; a host without that slot gets them at the body's top, as before.
+    if (onCity && typeof ctx.tabs === 'function') { ctx.tabs(cityTabs('messages', { onMessages: () => {}, onCity })); markTabPanel(body, 'messages'); }
+    else if (onCity) body.append(cityTabs('messages', { onMessages: () => {}, onCity }));
     const model = tray ? tray() : null;
     const hasTray = Boolean(model) && (model.pinned.length > 0 || model.items.length > 0);
     if (hasTray) {
@@ -58,7 +64,7 @@ export function adviceSheet({ world, settings, onFix = () => {}, onRead = () => 
       body.append(el('p', { class: 'advice-next muted', text: next ? ADVICE_TEXT.next(next, Math.max(world.tally.peakPeople, population(world)), milestoneNeedsMet(world, next)) : ADVICE_TEXT.last(MILESTONES[MILESTONES.length - 1]) }));
       return;
     }
-    body.append(el('p', { class: 'small muted advice-lead', text: T.adviceLead }));
+    body.append(el('p', { class: 'small muted advice-lead ipi-lead' }, [portrait(32), el('span', { text: T.adviceLead })]));   // Version 8.1 (ruling 1211): Ipi suggests
     body.append(el('ol', { class: 'advice-list' }, top.map((a) => item(a))));
     if (list.length > top.length) body.append(el('p', { class: 'small muted advice-more', text: ADVICE_TEXT.more(list.length - top.length) }));
   };

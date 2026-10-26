@@ -69,7 +69,7 @@ describe('s4 look tokens and base', () => {
       }
       // ✕ is an ordinary button; a quiet one (the top bar's numbers) stays without an edge; Demolish stays coral.
       expect(getComputedStyle(r.root.querySelector('#sheet .close')).borderTopColor).toBe(cssRgb(LOOK_TOKENS.inkLine));
-      expect(getComputedStyle(r.root.querySelector('#topbar .stats')).borderTopColor).toBe('rgba(0, 0, 0, 0)');
+      expect(getComputedStyle(r.root.querySelector('#topbar .stat.gold')).borderTopColor).toBe('rgba(0, 0, 0, 0)');   // Version 8.1: each number is its own quiet button
       const danger = document.createElement('button');
       danger.className = 'danger';
       danger.textContent = 'Demolish';
