@@ -9,6 +9,7 @@ import { placeHills } from './hills.js';
 import { placeBelts } from './belts.js';
 import { moistureField } from './moisture.js';
 import { drawCourse, landEntries, repairOwnLand } from './courses.js';
+import { drawGreatOasis } from './greatOasis.js';
 
 // Clay (Stage 4.5, ruling 312): the bank tiles are chained along the water, so a stretch is a walk of 4-10 of them from a
 // seeded start, 8-neighbour steps in a fixed order; some stretches are two tiles deep, taking the dry land tile beside each
@@ -81,9 +82,15 @@ export function addClay(terrain, size, seed, free = () => true, { salt = 0, targ
 // The variant a seed picks when a city is started with 'auto' (ruling 313): one draw, hash2 keyed by the seed with a salt.
 // Version 7.1 (Track M, ruling 1020): the same draw, split so one of the six new layouts comes up MAP.courses.newShare of the time (about two in
 // three) and one of the six older ones the rest; share links and saves carry the layout itself, so this moves no city or link.
+// Version 8.2 (Track G, ruling 1301): the same draw again: below MAP.greatOasis.share (one in nine) it is the Great oasis; the rest, stretched back
+// over 0-1, splits as 7.1's did over the other eleven (the older five, without the old oasis, a third of it; the 7.1 six two thirds). The old
+// 'oasis' is never picked (it is no longer offered either), though every city and link that names it still draws it.
+const AUTO_70 = MAP_VARIANTS_70.filter((v) => v !== 'oasis');
 export const variantFor = (seed) => {
-  const h = hash2(seed, 0, MAP.variantSalt), old = 1 - MAP.courses.newShare;
-  return h < old ? MAP_VARIANTS_70[Math.floor((h / old) * MAP_VARIANTS_70.length)] : MAP_VARIANTS_71[Math.min(MAP_VARIANTS_71.length - 1, Math.floor(((h - old) / MAP.courses.newShare) * MAP_VARIANTS_71.length))];
+  const g = MAP.greatOasis.share, raw = hash2(seed, 0, MAP.variantSalt);
+  if (raw < g) return 'great-oasis';
+  const h = (raw - g) / (1 - g), old = 1 - MAP.courses.newShare;
+  return h < old ? AUTO_70[Math.min(AUTO_70.length - 1, Math.floor((h / old) * AUTO_70.length))] : MAP_VARIANTS_71[Math.min(MAP_VARIANTS_71.length - 1, Math.floor(((h - old) / MAP.courses.newShare) * MAP_VARIANTS_71.length))];
 };
 
 // The map. variant picks the river's layout (ruling 313, MAP.variants); 'classic' is the original generator, draw for draw,
@@ -144,7 +151,8 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
 
   // Version 7.1 (Track M, ruling 1021): a new layout draws its own water, banks and fertile band (src/sim/courses.js), and says where the
   // trade road, the start area and the rock belts go; the river below is the older layouts' only.
-  const course = spec.course ? drawCourse(terrain, size, seed, v) : null;
+  // Version 8.2 (Track G): the Great oasis draws its lake and springs the same way (src/sim/greatOasis.js), and takes every 7.1 path below.
+  const course = spec.course ? (v === 'great-oasis' ? drawGreatOasis(terrain, size, seed) : drawCourse(terrain, size, seed, v)) : null;
   if (course) params.course = course.course;
   if (!course) for (let y = 0; y < size; y++) {
     const cx = riverX(y);
@@ -217,7 +225,9 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
     }
   }
 
-  addClay(terrain, size, seed, undefined, varied ? { wide: true } : {});
+  // Version 8.2 (Track G, ruling 1302): the Great oasis's only banks are the lake's and the springs', so it takes half the clay target (MAP.greatOasis.clayShare),
+  // or the lake would be ringed in red; the resource repair below still makes sure of the clay pits.
+  addClay(terrain, size, seed, undefined, varied ? { wide: true, ...(v === 'great-oasis' ? { target: Math.round(MAP.clay.targetMin * areaScale(size) * MAP.greatOasis.clayShare) } : {}) } : {});
 
   const tradeEntry = { x: ex, y: size - 1 };
   const startRoad = [];
@@ -231,7 +241,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   // every edge, so it never changes where an entry slides to). Task 3's hills must run before the repair too.
   const raiderEntries = course ? landEntries(terrain, size, focus, tradeEntry) : entriesFor(terrain, size, spec, at);   // Version 7.1: on the start's own land
   const placed = newLandFor(v, size) ? placeOases(terrain, size, seed, { focus, targets: [...raiderEntries, tradeEntry] }) : { oases: [], clay: 0 };
-  const oases = placed.oases;
+  const oases = course && course.springs ? [...course.springs, ...placed.oases] : placed.oases;   // Version 8.2: the Great oasis's spring pools are oases too (ruling 1303)
   // Stage 4.7 (Task 3, ruling 464): hills on a map with new land, after the oases (they keep 11 tiles from a pool) and before the repair; each with its rocky skirt.
   if (newLand) { placedBelts = placeBelts(terrain, size, seed, { focus, ranges: rockRanges, oases, startRoad }); params.outcrops = placedBelts.belts.length; }
   const placedHills = newLand ? placeHills(terrain, size, seed, { focus, targets: [...raiderEntries, tradeEntry], startRoad, oases, belts: placedBelts.belts }) : { hills: [], skirt: 0 };   // Task 3b: the spines of the rock belts
@@ -251,7 +261,7 @@ export function generateMap(seed, size = MAP.size, variant = 'classic') {
   const repaired = (course ? repairOwnLand : repairResources)({ size, terrain, focus, startRoad }, seed, rockRanges, { mine: newLand, avoid: oases, belt: newLand });   // Version 7.1: a new layout counts and mends the start's own bank only (ruling 1023)   // classic at Normal keeps its rock (controller ruling: weekly seeds, links and records stay put); its clay and farms are mended
   // params (Stage 4.6, world.mapParams): the seeded shape choices (ruling 332), for display and replays: the meander's strength and length,
   // the outcrop clusters placed, the side channels and oxbow lakes (pools), palm groves, dune fields and wadis (the last two are only drawn).
-  if (varied) addDunesAndWadis(terrain, size, seed, focus, ex, params);
+  if (varied) addDunesAndWadis(terrain, size, seed, focus, ex, params, v === 'great-oasis' ? 1 : 0);   // Version 8.2: a Great oasis has at least one wadi (ruling 1304)
   // Stage 4.7 (Task 0 contract): every map but classic at Normal gets the new land (hills, oases, the grass band; Tasks 1-3 fill them
   // in, each drawing from S47_SALT, never the rng stream above). land marks it in world.mapParams; oases: [{ x, y, r }] (world.oases).
   if (newLandFor(v, size)) params.land = LAND_VERSION;
@@ -347,7 +357,7 @@ function addPools(terrain, size, seed, riverX, focus, ex, params) {
 // Dune fields and dry wadis: decor on buildable desert (the ground stays desert; src/render/terrainBaker.js draws them from the params).
 // Dunes: 1-3 ellipses on far desert. Wadis: 0-2 dry riverbeds, each a walk of 12-30 desert tiles from far desert down the slope towards the
 // water (some sideways wander), ending before the bank. Writes params.dunes and params.wadis.
-function addDunesAndWadis(terrain, size, seed, focus, ex, params) {
+function addDunesAndWadis(terrain, size, seed, focus, ex, params, minWadis = 0) {
   const D = MAP.shapes.dunes, W = MAP.shapes.wadis;
   const wd = waterDistance(terrain, size, size);
   const far = (x, y, d) => terrain[idx(size, x, y)] === T.DESERT && wd[idx(size, x, y)] >= d && Math.hypot(x - focus.x, y - focus.y) >= 10;
@@ -363,7 +373,7 @@ function addDunesAndWadis(terrain, size, seed, focus, ex, params) {
   }
   if (dunes.length) params.dunes = dunes;
   const wrng = createRng((seed ^ MAP_SALT.wadis) >>> 0);
-  const wadis = [], m = wrng.int(W.max + 1);
+  const wadis = [], m = Math.max(minWadis, wrng.int(W.max + 1));
   for (let k = 0; k < m; k++) {
     for (let t = 0; t < W.tries; t++) {
       let x = wrng.int(size), y = wrng.int(size);

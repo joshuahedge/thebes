@@ -102,7 +102,7 @@ describe('v60 d1 title card: Settings on the card, and sound on by default', () 
     try {
       const buttons = r.container.querySelector('.title-buttons');
       fire(r.container.querySelector('.title-settings'), 'click');
-      expect(buttons.hidden).toBe(true);                                                // one panel at a time
+      expect(buttons.hidden).toBe(!r.container.querySelector('.title-card').classList.contains('wide'));   // one panel at a time (Version 8.2, ruling 1312: beside the buttons on a wide screen)
       expect(r.container.querySelectorAll('.guide').length).toBe(1);
       expect(r.container.querySelector('.settings-head').textContent).toBe(D1_TEXT.settingsPanel);
       const sound = r.container.querySelector('.switch.sound');

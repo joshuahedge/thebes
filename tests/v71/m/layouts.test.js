@@ -6,7 +6,7 @@
 import { describe, it, expect } from '../../harness.js';
 import { generateMap, variantFor } from '../../../src/sim/mapgen.js';
 import { createWorld } from '../../../src/sim/world.js';
-import { MAP, MAP_VARIANTS, MAP_VARIANTS_70, MAP_VARIANTS_71, MAP_SIZES } from '../../../src/data/map.js';
+import { MAP, MAP_VARIANTS, MAP_VARIANTS_70, MAP_VARIANTS_71, MAP_VARIANTS_OFFERED, MAP_SIZES } from '../../../src/data/map.js';
 import { T } from '../../../src/sim/terrain.js';
 import { idx, inBounds } from '../../../src/sim/grid.js';
 import { fitOf } from '../../../src/sim/fit.js';
@@ -80,7 +80,7 @@ function bridgeAcross(m, max) {
 
 describe('v71 m layouts (the list and the pick)', () => {
   it('appends six layouts after the 7.0 six, each drawn by the course generator, and validates, links and saves them', () => {
-    expect(MAP_VARIANTS).toEqual([...MAP_VARIANTS_70, ...MAP_VARIANTS_71]);
+    expect(MAP_VARIANTS).toEqual([...MAP_VARIANTS_70, ...MAP_VARIANTS_71, 'great-oasis']);   // Version 8.2 (ruling 1300): the Great oasis after them
     expect(MAP_VARIANTS_71).toEqual(['delta', 'confluence', 'twin', 'wide-nile', 'cataract', 'lake-fed']);
     for (const v of MAP_VARIANTS_71) expect([v, MAP.variants[v].course, generateMap(3, 64, v).variant]).toEqual([v, v, v]);
     for (const v of MAP_VARIANTS_70) expect([v, MAP.variants[v].course]).toEqual([v, undefined]);
@@ -94,9 +94,11 @@ describe('v71 m layouts (the list and the pick)', () => {
   it("'auto' draws the new layouts about two times in three, every layout from the seed alone", () => {
     let fresh = 0;
     const seen = new Set();
-    for (let seed = 1; seed <= 3000; seed++) { const v = variantFor(seed); seen.add(v); if (MAP_VARIANTS_71.includes(v)) fresh++; }
-    expect([fresh / 3000 > 0.62, fresh / 3000 < 0.71]).toEqual([true, true]);
-    expect([...seen].sort()).toEqual([...MAP_VARIANTS].sort());
+    // Version 8.2 (ruling 1301): of the picks that are not the Great oasis (one in nine), still about two in three; the old oasis is no longer picked
+    let rivers = 0;
+    for (let seed = 1; seed <= 3000; seed++) { const v = variantFor(seed); seen.add(v); if (v !== 'great-oasis') rivers++; if (MAP_VARIANTS_71.includes(v)) fresh++; }
+    expect([fresh / rivers > 0.62, fresh / rivers < 0.71]).toEqual([true, true]);
+    expect([...seen].sort()).toEqual([...MAP_VARIANTS_OFFERED].sort());
     const w = createWorld({ seed: 77, mapVariant: 'auto' });
     expect(w.mapVariant).toBe(variantFor(77));
     expect(w.terrain).toEqual(generateMap(77, 64, variantFor(77)).terrain);
@@ -339,7 +341,7 @@ describe('v71 m layouts (the render and the words)', () => {
   it('How to play has a Maps note whose numbers are the generator\'s: the count of layouts, the bridge limit, a wide Nile\'s and a delta mouth\'s width', async () => {
     const [note] = MAPS_HELP, C = MAP.courses;
     expect(note.head).toBe('Maps');
-    expect(note.text).toContain(`one of ${MAP_VARIANTS.length} layouts`);
+    expect(note.text).toContain(`one of ${MAP_VARIANTS_OFFERED.length} layouts`);   // Version 8.2: the layouts a new city may get
     expect(note.text).toContain(`at most ${MAP.bridgeMax} tiles of water`);
     expect(note.text).toContain(`${Math.round(C['wide-nile'].hw[0] * 2)} to ${Math.round(C['wide-nile'].hw[1] * 2)} tiles wide`);
     expect(note.text).toContain(`widen to ${Math.round(C.delta.mouth[0] * 2)} to ${Math.round(C.delta.mouth[1] * 2)} tiles`);

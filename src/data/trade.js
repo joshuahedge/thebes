@@ -91,6 +91,7 @@ export const TRADE_BUILDINGS = {
   [QUAY_TYPE]: {
     name: 'Quay', w: QUAY_SIZE.w, d: QUAY_SIZE.d, cost: 200, upkeep: 8, workers: 4, priority: 'industry', category: 'industry',
     needsRoad: true, water: 'longSide', riverOnly: true, rotates: true,
+    riverMap: true,   // Version 8.2 (Track G, ruling 1306): never on a map with no river (src/sim/commands.js typeReason 'no_river')
   },
 };
 // Incense (ruling 853): a raw good, so storehouses keep it; no workshop uses it and no home needs it: only festivals (Track E).

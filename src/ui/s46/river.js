@@ -16,6 +16,7 @@ import { huntingOutlook, huntRest, crocsNear, scareable, scareOf } from '../../s
 import { isWorking } from '../../sim/labour.js';
 import { el } from '../components.js';
 import { S46_RIVER_TEXT as R, buildingName } from '../text.js';
+import { forMap, forMapNodes } from '../v82/oasisText.js';
 
 const row = (label, value) => el('div', { class: 'row' }, [el('span', { class: 'muted', text: label }), el('span', { text: value })]);
 const line = (text, cls = 'small muted') => el('p', { class: cls, text });
@@ -51,7 +52,7 @@ export function riverRows(world, b) {
   if (BUILDINGS[b.type].workers && scareable(world, b) && crocsNear(world, b).length) {
     out.push(scareOf(world, b) ? line(R.crocNow, 'small coral') : line(R.crocNear));
   }
-  return out;
+  return forMapNodes(world, out);   // Version 8.2 (ruling 1307): on the Great oasis, "the great lake" where the river words say the river
 }
 
 // The summary's section: the flood, the floodplain farms' food forecast, the herds. Empty until the river floods in the city (Town).
@@ -65,14 +66,14 @@ export function riverSummary(world) {
   const herds = world.wildlife.herds;
   const hasRiver = Object.values(world.buildings).some((b) => b.type === 'hunting_lodge');
   if (herds.length || hasRiver) nodes.push(line(R.herdsLine2(herds.length, herds.reduce((s, h) => s + h.size, 0), world.tally.hunted), 'small'));
-  return nodes;
+  return forMapNodes(world, nodes);
 }
 
 export function createRiverUi(ctx) {
   const base = seamBase();
   if (!ctx || !ctx.world) return base;
   const world = ctx.world;
-  const caption = (text) => ctx.celebrations.show({ tier: 'info', text });
+  const caption = (text) => ctx.celebrations.show({ tier: 'info', text: forMap(world, text) });
   const tip = (trigger) => { if (typeof ctx.fireTip === 'function') ctx.fireTip(trigger); };
   // What the city has been told of the flood: this year's record and the level it knew. A saved city opens with it already told.
   let told = { year: world.flood.year, level: world.flood.forecast };

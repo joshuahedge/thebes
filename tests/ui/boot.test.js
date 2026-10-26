@@ -163,6 +163,7 @@ describe('ui boot', () => {
     g2.ui.store.set(openSheet(g2.ui.store.get(), 'menu'));
     expect(menuButton(T.exportCity)).toBe(undefined);                          // the menu no longer lists Export (it is under Options > Saves)
     fire(menuButton(T.newCity), 'click');
+    fire(r.root.querySelector('#sheet .start-city'), 'click');                 // Version 8.2 (ruling 1308): the new-city card first; its Start asks
     const extra = r.root.querySelector('#dialog .extra');
     expect(extra.textContent).toBe(T.exportFirst);
     fire(extra, 'click');
@@ -272,7 +273,7 @@ describe('ui boot, final review', () => {
     await flush(); await flush();
     expect(r.api.phase()).toBe('title');                                       // nothing started, nothing demoted
     expect(title.querySelector('.guide').textContent).toContain(T.newCityConfirm);
-    expect(title.querySelector('.title-buttons').hidden).toBe(true);
+    expect(title.querySelector('.title-buttons').hidden).toBe(false);          // Version 8.2 (ruling 1312): on a computer the panel opens beside the buttons (a phone's give way)
     fire(title.querySelector('.panel-back'), 'click');
     expect(title.querySelector('.guide')).toBe(null);
     expect(title.querySelector('.title-buttons').hidden).toBe(false);

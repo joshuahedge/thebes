@@ -9,7 +9,7 @@ import { createWorld } from '../../../src/sim/world.js';
 import { createInstallFlow, detectEnvironment } from '../../../src/save/installFlow.js';
 import { installGuide } from '../../../src/ui/installUi.js';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../../../src/data/difficulty.js';
-import { MAP_VARIANTS, MAP_SIZES } from '../../../src/data/map.js';
+import { MAP_VARIANTS, MAP_VARIANTS_OFFERED, MAP_SIZES } from '../../../src/data/map.js';
 import { T, V80_U_TEXT, V711_TEXT, D2_TEXT, S46_UX_TEXT, DIFFICULTY_NAMES } from '../../../src/ui/text.js';
 import { fakeIndexedDB } from '../../helpers/fakeStorage.js';
 import { mountShell, fakeHistory } from '../../helpers/uiWorld.js';
@@ -116,7 +116,7 @@ describe('v80 u new-city card: difficulty tiles, More choices, Surprise me', () 
       expect([toggle.textContent.trim(), toggle.getAttribute('aria-expanded'), region.hidden, c.container.querySelector('.more-summary').hidden]).toEqual(['Fewer choices', 'true', false, true]);
       expect(region.querySelector('.title-size')).toBeTruthy();
       const select = region.querySelector('.layout-select');
-      expect([select.value, [...select.options].map((o) => o.value)]).toEqual(['auto', ['auto', ...MAP_VARIANTS]]);
+      expect([select.value, [...select.options].map((o) => o.value)]).toEqual(['auto', ['auto', ...MAP_VARIANTS_OFFERED]]);   // Version 8.2 (ruling 1300): the offered layouts
       expect(select.options[0].textContent).toBe('Surprise me');
       select.value = 'delta'; fire(select, 'change');
       fire(region.querySelector('.choice.mapsize[data-value="large"]'), 'click');

@@ -147,7 +147,12 @@ export async function boot(doc, win, {
   // Version 8.0 (Track U, ruling 1151): the layout the new-city card's More choices last chose, 'auto' (Surprise me: the seed picks) until the player picks one; like the
   // size it is for New city only (a shared link names its own, and ?variant= still works while nothing is picked).
   let newCityLayout = 'auto';
-  const newCityPick = () => ({ size: newCitySize, variant: newCityLayout === 'auto' ? null : newCityLayout });
+  // Version 8.2 (Track G, ruling 1310): the seed the new-city card's map preview shows (null until the card draws one), kept through Back and size or layout
+  // changes until Another draws a new one or a city starts with it; the city that starts is that seed's map, at that size and layout.
+  let newCitySeed = null;
+  const newCityPick = () => ({ seed: newCitySeed, size: newCitySize, variant: newCityLayout === 'auto' ? null : newCityLayout });
+  // A ?seed= flag (development) keeps its own seed and its classic map, as the flags always did; only then may the preview differ from the city.
+  const startPicked = () => { const pick = newCityPick(); newCitySeed = null; return freshWorld(params.has('seed') ? { ...pick, seed: null } : pick); };
   const sizeIdOf = (n) => MAP_SIZE_IDS.find((k) => MAP_SIZES[k] === n) || 'normal';
   function freshWorld({ seed = null, variant = null, size = null } = {}) {
     const chosen = !Number.isInteger(seed) && params.has('seed');
@@ -187,7 +192,15 @@ export async function boot(doc, win, {
       }
       return r.ok;
     },
-    newCity() { if (current && current.lesson) return; withCards(() => startGame(freshWorld(newCityPick()))); },   // Stage 4: the picture cards first, once a device
+    newCity() { if (current && current.lesson) return; withCards(() => startGame(startPicked())); },   // Stage 4: the picture cards first, once a device
+    // Version 8.2 (Track G, rulings 1308-1310): the game menu's New city card keeps its choices here, as the title's does (size, layout, the preview's seed);
+    // the difficulty is the device's setting (settings.difficulty), the same one Options > Saves shows.
+    newCityChoices: {
+      get: () => ({ mapSize: sizeIdOf(newCitySize), layout: newCityLayout, seed: newCitySeed }),
+      setSize: (id) => { newCitySize = MAP_SIZES[id] || newCitySize; },
+      setLayout: (id) => { newCityLayout = id; },
+      setSeed: (s) => { newCitySeed = s; },
+    },
     // Stage 4 (spec 4.1): the picture cards any time (How to play on the title card and in the menu, Track G); onDone after.
     // Track G: the game behind them is paused (spec 4.1); the player presses Play again when ready.
     pictureCards(onDone = () => {}) {
@@ -273,7 +286,7 @@ export async function boot(doc, win, {
     if (!current || !current.lesson) return;
     markLessonDone();
     if (hasSavedCity()) { stopGame(); showTitle(await loadSave(store)); return; }
-    withCards(() => startGame(freshWorld(newCityPick())));
+    withCards(() => startGame(startPicked()));
   }
   // Version 8.1 (Track T, ruling 1208): the lesson's end is no stop: its city becomes the player's own. It is no longer the lesson's (world.lesson goes, so it saves and the court
   // writes to it), the guide follows Help as a new city's does, the device counts the lesson done, and the game goes on in a normal interface with Ipi's hand-over. Only on a
@@ -309,7 +322,7 @@ export async function boot(doc, win, {
     if (!title) return;
     title.card.showPanel((body, back) => {
       const exportFirst = button(T.exportFirst, { class: 'export-first', onClick: () => exportLoaded(loaded) });
-      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => withCards(() => startGame(freshWorld(seed === null ? newCityPick() : { seed, variant, size }))) });
+      const start = button(T.startNewCity, { class: 'start-new danger', onClick: () => withCards(() => startGame(seed === null ? startPicked() : freshWorld({ seed, variant, size }))) });
       body.append(el('p', { text: T.newCityConfirm }), el('div', { class: 'actions' }, [exportFirst, start, button(T.back, { class: 'panel-back', onClick: back })]));
     });
   }
@@ -345,8 +358,9 @@ export async function boot(doc, win, {
       container: root.querySelector('#title'), hasSave: loaded.state === 'ok', canInstall: flow.canInstall(), message, screen: view,
       difficulty: () => settings.get().difficulty, onDifficulty: (level) => settings.set({ difficulty: level }),   // spec 4.18: freshWorld reads it
       onContinue: () => startGame(loaded.world, { fromSave: true, savedAt: loaded.savedAt, lastSpeed: loaded.lastSpeed, notice: loaded.usedBackup ? T.restoredBackup : null }),
-      onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(freshWorld(newCityPick())))),
+      onNewCity: () => (loaded.state === 'ok' ? confirmNewCity(loaded) : withCards(() => startGame(startPicked()))),
       mapSize: sizeIdOf(newCitySize), onMapSize: (id) => { newCitySize = MAP_SIZES[id]; },   // Stage 4.6 (ruling 333): the size picker (under More choices from Version 8.0)
+      seed: newCitySeed, onSeed: (s) => { newCitySeed = s; },   // Version 8.2 (ruling 1310): the preview's seed
       layout: newCityLayout, onLayout: (id) => { newCityLayout = id; },   // Version 8.0 (ruling 1151): the layout picker, Surprise me ('auto') until one is picked
       // Version 6.0 (Track D1, rulings 742, 746): no Play with sound (sound and music are on by default; Settings, here and in the game, mutes them).
       // The third button is Lesson once the guided first city gives hooks.lesson (Track D2), until then How to play, the picture cards (Stage 4, Track G, spec 4.1).

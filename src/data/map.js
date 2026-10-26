@@ -42,8 +42,33 @@ export const MAP = {
 // Version 7.1 (Track M, ruling 1020): six more, appended (MAP.courses, drawn by src/sim/courses.js); the first six draw exactly as in 7.0.
 export const MAP_VARIANTS_70 = ['classic', 'east', 'middle', 'wide-bends', 'island', 'oasis'];
 export const MAP_VARIANTS_71 = ['delta', 'confluence', 'twin', 'wide-nile', 'cataract', 'lake-fed'];
-export const MAP_VARIANTS = [...MAP_VARIANTS_70, ...MAP_VARIANTS_71];
+// Version 8.2 (Track G, rulings 1300-1305): the Great oasis, appended after the twelve: no river at all, one great lake in the desert
+// (src/sim/greatOasis.js draws it). The old 'oasis' (the classic river with a small lake) still draws as in 7.1.1 for every city, link and
+// fixture that names it, but the new-city card no longer offers it (MAP_VARIANTS_OFFERED) and 'auto' never picks it (variantFor).
+export const MAP_VARIANTS_82 = ['great-oasis'];
+export const MAP_VARIANTS = [...MAP_VARIANTS_70, ...MAP_VARIANTS_71, ...MAP_VARIANTS_82];
+export const MAP_VARIANTS_OFFERED = MAP_VARIANTS.filter((v) => v !== 'oasis');
 for (const v of MAP_VARIANTS_71) MAP.variants[v] = { course: v };
+// noRiver: the map has no river (no Quay, no river partner: src/sim/trade.js, src/sim/fit.js; the words say "the great lake": src/ui/v82/oasisText.js).
+MAP.variants['great-oasis'] = { course: 'great-oasis', noRiver: true };
+export const hasRiver = (variant) => !(MAP.variants[variant] && MAP.variants[variant].noRiver);
+
+// Version 8.2 (Track G, rulings 1301-1304): the Great oasis's tunables. Positions across or down the map are for 64 and scale with the size;
+// the lake's radius grows with the square root of the side (so it is about 3 x the 7.0 oasis pond's area at Normal, and stays the map's
+// centrepiece on a Huge one); other widths and distances do not scale.
+//   share    of the picks 'auto' makes, the share that is the Great oasis (one in nine; the rest split as in 7.1 over the other eleven)
+//   r        the lake's mean radius at Normal; aspect: its width over its height; wobble: how far the noise moves its edge (tiles)
+//   gap      tiles of land from the lake's south edge to the start area's row (its fertile ring reaches the start area)
+//   dx       how far either side of the middle its centre may lie (scaled)
+//   inlets   1-2 lobes of water on its edge (radius `inletR`), never on the start's side, so the shore has bays and points
+//   springs  2-4 small spring pools of 2-5 tiles, springFrom tiles beyond the lake's edge, each with a bank and a fertile ring; they are
+//            listed as oases (world.oases), so a wharf, a Nilometer or a Quay may not use them (ruling 463)
+//   edge     tiles every water tile keeps from the map's edge (no boat reaches the lake: no boat raids)
+MAP.greatOasis = {
+  share: 1 / 9, r: [5.0, 6.2], aspect: [0.8, 1.25], wobble: 1.6, gap: [5, 7], dx: 8,
+  inlets: [1, 2], inletR: [1.6, 2.3], springs: [2, 4], springFrom: [5, 10], springTiles: [2, 5], edge: 6,
+  clayShare: 0.5,   // of MAP.clay.targetMin (scaled by the area): the clay laid on the lake's and springs' banks (20 tiles at Normal)
+};
 
 // Version 7.1 (Track M, rulings 1020-1039): the new layouts' tunables (src/sim/courses.js has the shapes). Positions across or down the map are
 // for 64 and scale with the size, as the older layouts' do; widths (hw: a half-width in tiles, so 3 is 6 tiles of water) and distances do not.
@@ -114,7 +139,7 @@ export const isMapSize = (n) => Object.values(MAP_SIZES).includes(n);
 // Registered by Track 0 (unique across the game: tests/stage46/contract/salts.test.js).
 export const MAP_SALT = {
   meander: 4601, channels: 4602, oxbow: 4603, outcrops: 4604, dunes: 4605, groves: 4606, wadis: 4607, clayWide: 4608,
-  shapePick: 4609, spare1: 4610, spare2: 4611,
+  shapePick: 4609, greatOasis: 4610, spare2: 4611,   // greatOasis: Version 8.2 (Track G), the Great oasis's own stream (src/sim/greatOasis.js)
   courses: 4612,   // Version 7.1 (Track M): the new layouts' own stream (src/sim/courses.js)
 };
 // Version 6.0, Track D1's salts (the Huge map's own draws, if it needs any), range 6071-6079; rename the spares as they are used.
