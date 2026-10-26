@@ -55,6 +55,7 @@ import { createTips } from './tips.js';
 import { createNudge, nudgeLineText, NUDGE_MAX_STEP_MS } from './nudge.js';
 import { TIP_AUTO_CLOSE_MS, GRAND_TIP_TIER } from '../data/tips.js';
 import { createMenuSheets, createDialog } from './menu.js';
+import { forMap, riverless, OASIS_TEXT } from './v82/oasisText.js';   // Version 8.2 (Track G): the words per map
 import { createGoalsStrip, goalsSheet, showMeTarget, dateKeyOf } from './goalsList.js';
 import { createAdviceUi } from './adviceUi.js';
 import { anotherFor, canCopy } from './another.js';
@@ -285,6 +286,9 @@ export function createUI({
     store, settings, toasts, hooks, onNewCity: typeof hooks.newCity === 'function' ? hooks.newCity : () => {},
     canResumeGuide: () => canResumeGuide(world, settings.get().help), onResumeGuide: () => { setGuide(world, true); refresh(); },
     onScreenshot: screenshotMode,
+    // Version 8.2 (Track G): the new-city card opens over a paused game; How to play says this map's words (the Great oasis: no river)
+    onPause: () => { if (world.speed > 0) speedControl.set(0); },
+    words: (s) => forMap(world, s), mapHelp: riverless(world) ? { head: OASIS_TEXT.helpHead, text: OASIS_TEXT.help } : null,
   });
   // Choosing Tips only or Off turns a running guide off at once (spec 3.1: all of it can be switched off).
   // Choosing Guide and tips again does not restart it; Resume guide in How to play does. A new text size can wrap the

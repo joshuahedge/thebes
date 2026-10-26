@@ -167,3 +167,5 @@ import './v711c.js';
 import './v80/all.js';
 // Version 8.1 "The vizier": one aggregator (tests/v81/all.js); nothing is added here.
 import './v81/all.js';
+// Version 8.2 "Song of the Nile": one aggregator (tests/v82/all.js); nothing is added here.
+import './v82/all.js';

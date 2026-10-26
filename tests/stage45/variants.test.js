@@ -5,7 +5,7 @@ import { generateMap, variantFor } from '../../src/sim/mapgen.js';
 import { createWorld } from '../../src/sim/world.js';
 import { T } from '../../src/sim/terrain.js';
 import { idx, inBounds } from '../../src/sim/grid.js';
-import { MAP_VARIANTS, MAP_VARIANTS_70 } from '../../src/data/map.js';
+import { MAP_VARIANTS, MAP_VARIANTS_70, MAP_VARIANTS_OFFERED } from '../../src/data/map.js';
 import { riverSpans, riverIsle, riverPools } from '../../src/render/terrainWater.js';
 import { buildSampleCity } from '../../src/dev/sampleCity.js';
 import { boot } from '../../src/boot.js';
@@ -70,7 +70,7 @@ describe('s45 variants (the six layouts)', () => {
     expect(MAP_VARIANTS.slice(0, 6)).toEqual(['classic', 'east', 'middle', 'wide-bends', 'island', 'oasis']);   // Version 7.1: six more follow
     const seen = new Set();
     for (let seed = 1; seed <= 200; seed++) { expect(variantFor(seed)).toBe(variantFor(seed)); seen.add(variantFor(seed)); }
-    expect([...seen].sort()).toEqual([...MAP_VARIANTS].sort());
+    expect([...seen].sort()).toEqual([...MAP_VARIANTS_OFFERED].sort());   // Version 8.2 (ruling 1301): 'auto' no longer picks the old oasis
     expect(generateMap(5, 64, 'east').variant).toBe('east');
     expect(generateMap(5).variant).toBe('classic');
     expect(generateMap(5, 64, 'swamp').variant).toBe('classic');                 // an unknown name is classic

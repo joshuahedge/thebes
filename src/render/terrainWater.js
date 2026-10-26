@@ -8,7 +8,7 @@ import { T } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
 import { TERRAIN } from './art/palette.js';
 import { reeds } from './art/nature.js';
-import { MAP_VARIANTS_71 } from '../data/map.js';
+import { MAP, MAP_VARIANTS_71 } from '../data/map.js';
 
 const spanCache = new WeakMap(); // world -> { spans, minWidth, pools, isle }; terrain never changes after the map is made
 export const SHALLOWS_TILES = 0.25; // the shallows strip's width inside each bank, in tiles (a quarter tile across on screen)
@@ -39,7 +39,8 @@ function waterPieces(world) {
 
 // Whether the map's water is drawn as tile blobs (riverPools) and not as the river's row spans: the six 7.1 layouts (ruling 1024). The season wash and the glints
 // (render/seasons.js, render/ambient.js) draw such water by its tiles, as the river's by its rows.
-export const blobWater = (world) => MAP_VARIANTS_71.includes(world.mapVariant);
+// Version 8.2 (Track G): the Great oasis's lake and springs too (every layout drawn by a course: MAP.variants[v].course).
+export const blobWater = (world) => MAP_VARIANTS_71.includes(world.mapVariant) || Boolean(MAP.variants[world.mapVariant] && MAP.variants[world.mapVariant].course);
 
 function riverData(world) {
   let data = spanCache.get(world);

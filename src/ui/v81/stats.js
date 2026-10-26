@@ -24,6 +24,7 @@ import { el, button, clear } from '../components.js';
 import { MOOD_NAMES, SCORE_TEXT, SEASON_TEXT, buildingName, dateText, shortDateText, score4ReasonText, T } from '../text.js';
 import { V81_B_TEXT as B, moodFace } from './bText.js';
 import { goldPile, peopleCrowd } from './statIcons.js';
+import { forMap } from '../v82/oasisText.js';
 
 export const STAT_KINDS = ['gold', 'people', 'mood', 'date', 'score'];
 
@@ -147,7 +148,7 @@ export function explainStat(world, kind, deps = {}) {
         if (deps.selectBuilding) out.action = { label: B.nilometerIdleFix, aria: B.nilometerIdleFix, run: () => deps.selectBuilding(idle.id), kind: 'select' };
       } else if (!standing.length && isUnlocked(world, 'nilometer') && deps.advice) {
         const at = nearestWater(world, world.focus) || world.focus;
-        const label = B.nilometerBuild(costOf(world, 'nilometer'));
+        const label = forMap(world, B.nilometerBuild(costOf(world, 'nilometer')));   // Version 8.2: "on the great lake's bank" on the Great oasis
         out.action = { label, aria: label, run: () => deps.advice.showMe({ category: categoryOfItem('nilometer'), item: 'nilometer', x: at.x, y: at.y }), kind: 'build' };
       }
     }

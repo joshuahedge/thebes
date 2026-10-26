@@ -9,7 +9,9 @@ import { p, artToTile, ART_SCALE } from '../render/iso.js';
 import { DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { el, button, clear } from './components.js';
 import { T, DIFFICULTY_NAMES, CARDS4_TEXT, S46_MAP_TEXT, S46_UX_TEXT, D1_TEXT, D2_TEXT, V711_TEXT, V80_U_TEXT } from './text.js';
-import { MAP_SIZES, MAP_SIZE_IDS, MAP_SIZE_TABLE, MAP_VARIANTS } from '../data/map.js';
+import { MAP_SIZES, MAP_SIZE_IDS, MAP_SIZE_TABLE, MAP_VARIANTS_OFFERED } from '../data/map.js';
+import { createMapPreview, rollSeed } from './v82/mapPreview.js';   // Version 8.2 (Track G): the new-city card's map preview
+import { PREVIEW_TEXT } from './v82/oasisText.js';
 import { renderWhatsNew } from './s46/whatsNew.js';   // Stage 4.6 (rulings 401-403): the What's new panel
 
 // The difficulty tiles of the new-city card (Version 8.0): one large pressed-state button per level, its name and one line from the sim's own data
@@ -61,8 +63,9 @@ function sizeRow(initial, onChoose) {
 
 // The layout picker of More choices (Version 8.0): Surprise me (the seed picks, 'auto') or one of the twelve river layouts by name. A native select: a 44 px
 // control with a label, and the keyboard's own arrows. Choosing one tells onChoose (boot.js keeps it for the session, as it keeps the size).
+// Version 8.2 (Track G, ruling 1300): the offered layouts only (the old river oasis is no longer one; "Oasis" is the Great oasis).
 function layoutRow(initial, onChoose) {
-  const ids = ['auto', ...MAP_VARIANTS];
+  const ids = ['auto', ...MAP_VARIANTS_OFFERED];
   const value = ids.includes(initial) ? initial : 'auto';
   const select = el('select', { class: 'layout-select', id: 'title-layout' }, ids.map((id) => el('option', { value: id, text: V80_U_TEXT.layoutName(id) })));
   select.value = value;
@@ -72,6 +75,50 @@ function layoutRow(initial, onChoose) {
     select,
   ]);
 }
+
+// Version 8.2 (Track G, rulings 1308-1311): the new-city card on its own, so the title and the game's menu show the same one. The difficulty tiles, the map
+// preview (the map the city will get, drawn from the seed, the size and the layout, with Another to draw a new seed), More choices (map size and layout, closed
+// at first, with a line saying what is chosen), a note when a saved city would be replaced, then Start and Back. Each choice is told at once (onDifficulty,
+// onMapSize, onLayout, onSeed) to whoever keeps it; seed: the card's seed (null draws one, and onSeed is told). wide: the desktop and tablet layout (tiles
+// two by two, a larger picture with More choices beside it); previewPx: the picture's side. Returns { element, focus(), setPhone(flag), preview }.
+export function renderNewCityCard({ difficulty = 'normal', onDifficulty = () => {}, mapSize = 'normal', onMapSize = () => {}, layout = 'auto', onLayout = () => {}, seed = null, onSeed = () => {}, hasSave = false, onStart = () => {}, onBack = () => {}, head = true, wide = false, previewPx = 160, defer, moreOpen = false, onMore = () => {} } = {}) {
+  let sizeNow = MAP_SIZE_IDS.includes(mapSize) ? mapSize : 'normal', layoutNow = layout, seedNow = Number.isInteger(seed) ? seed : null;
+  if (seedNow === null) { seedNow = rollSeed(); onSeed(seedNow); }
+  const levels = difficultyTiles(difficulty, onDifficulty);
+  const preview = createMapPreview({ px: previewPx, ...(defer ? { defer } : {}) });
+  const redraw = () => preview.show({ seed: seedNow, size: MAP_SIZES[sizeNow], layout: layoutNow });
+  const another = button(PREVIEW_TEXT.another, { class: 'another-map', 'aria-label': PREVIEW_TEXT.anotherLabel, 'aria-describedby': 'map-preview-name', onClick: () => { seedNow = rollSeed(); onSeed(seedNow); redraw(); } });
+  const sizes = sizeRow(sizeNow, (id) => { sizeNow = id; onMapSize(id); sync(); redraw(); });
+  const picker = layoutRow(layoutNow, (id) => { layoutNow = id; onLayout(id); sync(); redraw(); });
+  const region = el('div', { class: 'more-choices-body', id: 'more-choices-body', hidden: !moreOpen }, [sizes, picker]);
+  const summary = el('p', { class: 'more-summary small muted' });
+  const toggle = el('button', { type: 'button', class: 'more-choices-toggle', 'aria-expanded': 'false', 'aria-controls': 'more-choices-body' });
+  const sync = () => {
+    const open = !region.hidden;
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.textContent = open ? V80_U_TEXT.fewerChoices : V80_U_TEXT.moreChoices;
+    summary.textContent = V80_U_TEXT.moreSummary(S46_MAP_TEXT.sizeNames[sizeNow] || sizeNow, layoutNow);
+    summary.hidden = open;
+  };
+  toggle.addEventListener('click', () => { region.hidden = !region.hidden; onMore(!region.hidden); sync(); });
+  sync();
+  redraw();
+  const start = button(V80_U_TEXT.start, { class: 'start-city primary', onClick: () => onStart({ seed: seedNow, size: MAP_SIZES[sizeNow], layout: layoutNow }) });
+  const back = button(T.back, { class: 'guide-back', onClick: onBack });
+  const element = el('div', { class: `guide-body new-city-body${wide ? ' wide' : ''}` }, [
+    head ? el('h2', { class: 'new-city-head', text: V80_U_TEXT.newCityHead }) : null,
+    levels,
+    el('div', { class: 'map-preview-block' }, [preview.element, another]),
+    el('div', { class: 'more-col' }, [toggle, summary, region]),
+    hasSave ? el('p', { class: 'replace-note small muted', text: V80_U_TEXT.replaceNote }) : null,
+    el('div', { class: 'actions' }, [start, back]),
+  ]);
+  return { element, preview, focus: () => (levels.querySelector('[aria-pressed="true"]') || start).focus(), setPhone: (flag) => sizes.setPhone(flag) };
+}
+
+// The wide title (Version 8.2, Track G, ruling 1312): a screen at least WIDE_TITLE px wide and taller than a phone held sideways.
+export const WIDE_TITLE = 768;
+export const isWideTitle = (v) => Boolean(v) && v.width >= WIDE_TITLE && v.height > 480;
 
 // decorate (Stage 3): called once with (element, { buttonBox, newCity }) after the card is built, so the score interface
 // adds the records, stamps and a shared score (src/ui/scoreUi.js titleDecor) without editing this file.
@@ -83,13 +130,13 @@ function layoutRow(initial, onChoose) {
 // saved city, Play starts the lesson (the lesson alone, as ruling 617 had it, with I've played before under it); with the lesson done and no city, Play opens
 // the new-city card; with a saved city, New city does. difficulty is a level or a function that gives the device's level now; mapSize a size id and layout
 // a layout id ('auto' is Surprise me), both kept here once chosen so the card shows them when it opens again.
-export function createTitleCard({ container, hasSave, canInstall = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, decorate = null, onHowToPlay = null, onLesson = null, lesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, layout = 'auto', onLayout = () => {}, screen = null }) {
+export function createTitleCard({ container, hasSave, canInstall = false, difficulty = 'normal', message = null, onContinue, onNewCity, onDifficulty = () => {}, onInstall = () => {}, decorate = null, onHowToPlay = null, onLesson = null, lesson = null, renderSettings = null, mapSize = 'normal', onMapSize = () => {}, layout = 'auto', onLayout = () => {}, screen = null, seed = null, onSeed = () => {} }) {
   const install = button(T.install, { class: 'install', hidden: !canInstall, onClick: onInstall });
   const lessonOnly = Boolean(lesson && lesson.due && typeof onLesson === 'function');
   const primaryNew = !hasSave && !lessonOnly;
   const newCity = button(primaryNew ? V80_U_TEXT.play : T.newCity, { class: primaryNew ? 'new-city primary' : 'new-city', onClick: () => showNewCity() });
   const levelNow = () => (typeof difficulty === 'function' ? difficulty() : difficulty);
-  let sizeNow = mapSize, layoutNow = layout, sizes = null;
+  let sizeNow = mapSize, layoutNow = layout, sizes = null, seedNow = Number.isInteger(seed) ? seed : null;
   const buttons = [];
   if (lessonOnly) {
     buttons.push(button(lesson.partWay ? D2_TEXT.titleContinue : D2_TEXT.titleStart, { class: 'lesson-start primary', onClick: () => onLesson() }));
@@ -124,8 +171,18 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
     buttonBox,
   ]);
   let guide = null;
-  const showPanelNode = (children) => { guide = el('div', { class: 'guide' }, children); buttonBox.hidden = true; element.append(guide); };
-  const showCard = () => { sizes = null; if (guide) { guide.remove(); guide = null; } buttonBox.hidden = false; buttons[0].focus(); };
+  // Version 8.2 (Track G, ruling 1312): on a wide screen (isWideTitle) a panel opens beside the buttons, which stay (the card grows into two parts); on a phone
+  // it takes the buttons' place, as before. Esc closes a panel either way.
+  const showPanelNode = (children) => {
+    guide = el('div', { class: 'guide' }, children);
+    const wide = isWideTitle(screenNow());
+    element.classList.toggle('wide', wide);
+    element.classList.add('panel-open');
+    buttonBox.hidden = !wide;
+    element.append(guide);
+  };
+  const showCard = () => { sizes = null; if (guide) { guide.remove(); guide = null; } element.classList.remove('panel-open'); buttonBox.hidden = false; buttons[0].focus(); };
+  element.addEventListener('keydown', (e) => { if (e.key === 'Escape' && guide) { e.preventDefault(); e.stopPropagation(); showCard(); } });
   const showWhatsNew = () => { showCard(); const body = el('div', { class: 'guide-body' }); const { top } = renderWhatsNew(body, showCard); showPanelNode([body]); top.focus(); };
   // Options on the card (Version 6.0): the game's own rows, written to the device's settings at once, then Back.
   const showSettings = () => {
@@ -138,33 +195,20 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
   };
   // The new-city card (Version 8.0): the difficulty tiles, More choices (map size and layout, closed at first, with a line saying what is chosen), a note when
   // a saved city would be replaced, then Start and Back. Start is onNewCity (boot.js: the replace question first when a city is saved, then the picture cards).
+  // Version 8.2 (Track G): the card itself is renderNewCityCard (the game's menu shows the same one), with the map preview; Start passes the pick (seed, size,
+  // layout) to onNewCity, so the city that starts is the map shown.
   const showNewCity = () => {
     showCard();
-    const levels = difficultyTiles(levelNow(), onDifficulty);
-    sizes = sizeRow(sizeNow, (id) => { sizeNow = id; onMapSize(id); sync(); });
-    const picker = layoutRow(layoutNow, (id) => { layoutNow = id; onLayout(id); sync(); });
-    const region = el('div', { class: 'more-choices-body', id: 'more-choices-body', hidden: true }, [sizes, picker]);
-    const summary = el('p', { class: 'more-summary small muted' });
-    const toggle = el('button', { type: 'button', class: 'more-choices-toggle', 'aria-expanded': 'false', 'aria-controls': 'more-choices-body' });
-    const sync = () => {
-      const open = !region.hidden;
-      toggle.setAttribute('aria-expanded', String(open));
-      toggle.textContent = open ? V80_U_TEXT.fewerChoices : V80_U_TEXT.moreChoices;
-      summary.textContent = V80_U_TEXT.moreSummary(S46_MAP_TEXT.sizeNames[sizeNow] || sizeNow, layoutNow);
-      summary.hidden = open;
-    };
-    toggle.addEventListener('click', () => { region.hidden = !region.hidden; sync(); });
-    sync();
-    const start = button(V80_U_TEXT.start, { class: 'start-city primary', onClick: () => onNewCity() });
-    const back = button(T.back, { class: 'guide-back', onClick: showCard });
-    showPanelNode([el('div', { class: 'guide-body new-city-body' }, [
-      el('h2', { class: 'new-city-head', text: V80_U_TEXT.newCityHead }),
-      levels, toggle, summary, region,
-      hasSave ? el('p', { class: 'replace-note small muted', text: V80_U_TEXT.replaceNote }) : null,
-      el('div', { class: 'actions' }, [start, back]),
-    ])]);
+    const v = screenNow(), wide = isWideTitle(v);
+    const card = renderNewCityCard({
+      difficulty: levelNow(), onDifficulty, mapSize: sizeNow, onMapSize: (id) => { sizeNow = id; onMapSize(id); },
+      layout: layoutNow, onLayout: (id) => { layoutNow = id; onLayout(id); }, seed: seedNow, onSeed: (s) => { seedNow = s; onSeed(s); },
+      hasSave, onStart: (pick) => onNewCity(pick), onBack: showCard, wide, previewPx: wide ? (v.width >= 1000 ? 280 : 220) : v && v.height < 700 ? 120 : 160,
+    });
+    sizes = card;
+    showPanelNode([card.element]);
     checkPhone();
-    (levels.querySelector('[aria-pressed="true"]') || start).focus();
+    card.focus();
   };
   if (typeof decorate === 'function') decorate(element, { buttonBox, newCity });
   clear(container);
@@ -177,7 +221,9 @@ export function createTitleCard({ container, hasSave, canInstall = false, diffic
     const r = container.getBoundingClientRect();
     return r.width && r.height ? { width: r.width, height: r.height } : { width: window.innerWidth, height: window.innerHeight };
   };
-  const checkPhone = () => { if (sizes) sizes.setPhone(isPhoneScreen(screenNow())); };
+  // Version 8.2 (ruling 1312): the card knows it is on a wide screen (a little larger at rest; a panel opens beside the buttons) as the window changes too.
+  const checkPhone = () => { if (sizes) sizes.setPhone(isPhoneScreen(screenNow())); if (!guide) element.classList.toggle('wide', isWideTitle(screenNow())); };
+  element.classList.toggle('wide', isWideTitle(screenNow()));
   window.addEventListener('resize', checkPhone);
   return {
     element,

@@ -3956,3 +3956,13 @@ export const PLACING_TEXT = {
   lit: (name) => `${name}: chosen`,
 };
 // ── end v80 n ──
+// ── v82 g (Version 8.2, Track G: the Great oasis, rulings 1300-1311; the words are in src/ui/v82/oasisText.js) ──
+import { OASIS_TEXT as g82Oasis } from './v82/oasisText.js';
+// Ruling 1306: a river partner on a map with no river, and the Quay placed there, say why in one line.
+Object.assign(TRADE_REASONS, { no_river: g82Oasis.noRiver });
+Object.assign(REASONS, { no_river: g82Oasis.noQuay });
+{
+  const base = routeBlockText;
+  routeBlockText = (id, block) => (block === 'no_river' ? g82Oasis.noRiverRoute(id, partnerName(id)) : base(id, block));
+}
+// ── end v82 g ──

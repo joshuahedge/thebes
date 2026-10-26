@@ -138,6 +138,7 @@ describe('v80 g confirms: coral only when something is lost', () => {
       expect([g.store.get().confirmDialog.text, g.store.get().confirmDialog.destructive, ok().classList.contains('primary'), cs(ok()).backgroundColor]).toEqual([D2_TEXT.menuLessonConfirm, false, true, LAPIS]);
       g.store.set({ confirmDialog: null });
       fire(g.root.querySelector('#sheet .menu-list button:nth-child(2)'), 'click');       // New city: it replaces the saved one
+      fire(g.root.querySelector('#sheet .start-city'), 'click');                          // Version 8.2 (ruling 1308): the new-city card first; its Start asks
       expect([ok().classList.contains('danger'), cs(ok()).backgroundColor]).toEqual([true, CORAL]);
       g.store.set({ confirmDialog: null });
     } finally { g.cleanup(); }

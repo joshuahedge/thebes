@@ -1,11 +1,14 @@
 // Version 7.1, Track M (rulings 1020-1039): the words for the new river layouts. How to play shows MAPS_HELP after Version 7.0's
 // paragraphs (src/ui/menu.js). Every number comes from the map's own data (src/data/map.js), so the words follow the generator.
-import { MAP, MAP_VARIANTS, MAP_VARIANTS_71 } from '../../data/map.js';
+import { MAP, MAP_VARIANTS_OFFERED, MAP_VARIANTS_71 } from '../../data/map.js';
+import { OASIS_TEXT } from '../v82/oasisText.js';
 
-// Each layout's name, as a player reads it (the six older ones first).
+// Each layout's name, as a player reads it (the six older ones first). Version 8.2 (Track G, ruling 1300): "Oasis" now names the Great oasis; the old
+// layout (a river with a small lake, no longer offered) is the River oasis wherever an older city or link still names it.
 export const LAYOUT_NAMES = {
-  classic: 'Classic', east: 'East bank', middle: 'Middle', 'wide-bends': 'Wide bends', island: 'Island', oasis: 'Oasis',
+  classic: 'Classic', east: 'East bank', middle: 'Middle', 'wide-bends': 'Wide bends', island: 'Island', oasis: 'River oasis',
   delta: 'Delta', confluence: 'Confluence', twin: 'Twin rivers', 'wide-nile': 'Wide Nile', cataract: 'Cataract', 'lake-fed': 'Lake-fed',
+  'great-oasis': 'Oasis',
 };
 
 const C = MAP.courses;
@@ -24,8 +27,9 @@ export const LAYOUT_LINES = {
 
 export const MAPS_HELP = [{
   head: 'Maps',
-  text: `A new city's river comes from its seed, in one of ${MAP_VARIANTS.length} layouts. The river may run north to south or east to west. `
+  text: `A new city's map comes from its seed, in one of ${MAP_VARIANTS_OFFERED.length} layouts. The river may run north to south or east to west. `
     + MAP_VARIANTS_71.map((v) => `${LAYOUT_NAMES[v]}: ${LAYOUT_LINES[v]}.`).join(' ')
+    + ` ${LAYOUT_NAMES['great-oasis']}: ${OASIS_TEXT.layoutLine}.`   // Version 8.2 (Track G)
     + ` On every map your start, the trade road and the raiders' way in share one stretch of land, with clay and farmland near the start.`
     + ` A bridge crosses at most ${MAP.bridgeMax} tiles of water in a straight line.`,
 }];

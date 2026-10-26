@@ -44,6 +44,7 @@ import { drawFerry } from '../sim/ferryLay.js';
 import { FERRY_TEXT } from './v71/ferryText.js';
 import { styleChoices } from './s46/wonders.js';
 import { placementWhy } from './placementWhy.js';
+import { forMap, riverless } from './v82/oasisText.js';   // Version 8.2 (Track G): the words per map
 
 // A building tool's footprint in its rotation (Stage 4: tool.rot 1 turns a mastaba a quarter, dimsOf; ruling 234).
 const footprintOf = (tool) => (tool.kind === 'building' ? dimsOf(tool.type, tool.rot || 0) : { w: 1, d: 1 });
@@ -480,6 +481,12 @@ function demolishPreview(r, tiles, world = null) {
 export function toolPreview(world, state) {
   const p = basePreview(world, state);
   if (!p) return p;
+  // Version 8.2 (ruling 1307): on the Great oasis a refusal or rule that says the river says the great lake (src/ui/v82/oasisText.js)
+  if (riverless(world)) {
+    for (const k of ['text', 'why']) if (typeof p[k] === 'string') p[k] = forMap(world, p[k]);
+    if (Array.isArray(p.conditions)) p.conditions = p.conditions.map((c) => ({ ...c, text: forMap(world, c.text), label: forMap(world, c.label) }));
+    if (Array.isArray(p.whyParts)) p.whyParts = p.whyParts.map((w) => (w && typeof w.text === 'string' ? { ...w, text: forMap(world, w.text) } : w));
+  }
   if (state.tool.kind === 'road' && !state.tool.gate && p.state === 'bad' && (WATER_REFUSALS.includes(p.reason) || (p.routed && p.at))) p.showFit = true;   // Stage 4.6 (ruling 350): Show me finds a crossing; Version 5.0 (Task 5): a routed road's refusal shows what is in the way
   if (state.tool.kind === 'ferry' && p.state === 'bad' && p.ferry && p.reason !== 'no_gold') p.showFit = true;   // Version 7.1 (Track F): every refusal of the ferry's line has a place to show (the nearest crossing, or a bridge's for a narrow one)
   p.note = p.state === 'idle' ? bridgeNote(world, state.tool) : '';
