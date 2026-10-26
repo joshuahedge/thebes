@@ -64,7 +64,7 @@ export function createAdviceUi({ world, settings, showMeAt, selectBuilding, open
     markStale: () => { stale = true; },
     state: () => ({ shown, dot: shown && adviceHasNew(keys, seen()) }),
     // Opening or redrawing the sheet reads the advice afresh: the button's cached keys become the ones the sheet just marked seen.
-    sheet: adviceSheet({ world, settings, onFix: fix, tray, onRead: (k) => { keys = k; stale = false; day = world.day; } }),
+    sheet: adviceSheet({ world, settings, onFix: fix, tray, onRead: (k) => { keys = k; stale = false; day = world.day; }, onCity: () => openSummary(null) }),
     on: () => shown,
     fix,
   };

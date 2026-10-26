@@ -1584,7 +1584,7 @@ export const CARDS4_TEXT = {
     gold: {
       title: 'Where gold comes from',
       words: `Homes pay taxes every month; every building costs upkeep and ${ECONOMY.wagePerWorker} gold for each worker. Build homes before luxuries.`,
-      alt: 'The top bar with the gold chip showing a monthly forecast, a ring around it, above a village of homes, a well and a farm.',
+      alt: 'The top bar with the gold, its coin pile and number, a ring around it, above a village of homes, a well and a farm.',
     },
     ahead: {
       title: 'What lies ahead',
@@ -1859,9 +1859,14 @@ TIP_HELP_TEXT.bridges = S46_MAP_TEXT.bridgeHelp(MAP.bridgeMax);
 // The River track's words, and only the River track's: its own object below, and Object.assign into the shared tables (ALERT_TEXT,
 // FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, TIP_TEXT, TIP_HELP_TEXT, REASONS, T, MOOD_NAMES, OVERLAY_NAMES, ...). Every sentence that
 // states a rule, a number or a consequence is built from the sim's own function or data. Add new lines just above the end marker.
-import { FLOOD as rvFlood, FLOOD_LEVELS as rvLevels, HUNTING as rvHunting, FISHING as rvFishing, WILDLIFE as rvWildlife, floodLevelRow as rvLevelRow } from '../data/river.js';
+import { FLOOD as rvFlood, FLOOD_LEVELS as rvLevels, HUNTING as rvHunting, FISHING as rvFishing, WILDLIFE as rvWildlife, floodLevelRow as rvLevelRow, preparedHarvest as rvPrepared, NILOMETER as rvNilometer } from '../data/river.js';
 const rvName = (id) => capitalised(id);
-const rvPct = (id) => `${Math.round(rvLevelRow(id).harvest * 100)}%`;
+// Version 8.1 (Track B, ruling 1221): prepared, the harvest a working Nilometer leaves after a Low flood (the sim's preparedHarvest); a level with no loss is its own.
+const rvPct = (id, prepared = false) => `${Math.round(rvPrepared(rvLevelRow(id).harvest, prepared) * 100)}%`;
+const rvCut = Math.abs(rvNilometer.lossCut - 1 / 3) < 1e-9 ? 'a third' : Math.abs(rvNilometer.lossCut - 0.5) < 1e-9 ? 'half' : `${Math.round(rvNilometer.lossCut * 100)}%`;
+const rvPrepNote = (id, prepared) => (prepared && rvLevelRow(id).harvest < 1 ? ` (the Nilometer's warning cut the loss by ${rvCut})` : '');
+// The rule in one clause, for the Nilometer's sheet, its first and How to play: "a Low flood's loss is cut by a third (60% becomes 73%)".
+const rvPrepRule = `a Low flood's loss is cut by ${rvCut} (${rvPct('low')} becomes ${rvPct('low', true)})`;
 const rvMonths = (n) => plural(n, 'month', 'months');
 const rvRegrow = rvWildlife.regrowMonths === 1 ? 'a month' : `every ${rvMonths(rvWildlife.regrowMonths)}`;   // how fast a herd regrows (ruling 460)
 const rvHerdName = { gazelle: ['gazelle', 'gazelles'], ostrich: ['ostrich', 'ostriches'] };
@@ -1872,37 +1877,42 @@ export const S46_RIVER_TEXT = {
   // The levels, as the sim draws them: "Low 60%, Fair 100%, Good 110%, High 125%".
   levelsLine: rvLevels.map((l) => `${rvName(l.id)} ${rvPct(l.id)}`).join(', '),
   // Captions (a celebration of tier info) when the forecast or the water arrives (ruling 334).
-  forecastCaption: (id) => `The flood will be ${rvName(id)}: farms on the floodplain grow ${rvPct(id)}`,
-  riseCaption: (id) => `The Nile is rising: a ${rvName(id)} flood. Farms on the floodplain grow ${rvPct(id)}`,
+  forecastCaption: (id, prepared = false) => `The flood will be ${rvName(id)}: farms on the floodplain grow ${rvPct(id, prepared)}${rvPrepNote(id, prepared)}`,
+  riseCaption: (id, prepared = false) => `The Nile is rising: a ${rvName(id)} flood. Farms on the floodplain grow ${rvPct(id, prepared)}${rvPrepNote(id, prepared)}`,
   scareCaption: (name, days) => `A crocodile scares the workers at the ${name.toLowerCase()}: they are back to work in ${plural(days, 'day', 'days')}`,
   herdCaption: (kind, size) => `A herd of ${size} ${(rvHerdName[kind] || [kind, kind])[size === 1 ? 0 : 1]} wanders in from the edge of the map`,
   // The farm sheet's floodplain row (ruling 334): "Floodplain: this year's flood gives 110%".
   floodRowLabel: 'Floodplain',
   // The level holds twelve months, from the rise (ruling 360): it is "this year's" only from the rise to the year's end, the last flood's before.
   farmRow: (look) => {
-    if (look.applied) return `${look.phase === 'wait' || look.phase === 'forecast' ? 'The last flood' : "This year's flood"} (${rvName(look.applied.id)}) gives ${Math.round(look.applied.harvest * 100)}%, until the next flood in month ${rvFirstMonth}`;
+    if (look.applied) return `${look.phase === 'wait' || look.phase === 'forecast' ? 'The last flood' : "This year's flood"} (${rvName(look.applied.id)}) gives ${Math.round((Number.isFinite(look.factor) ? look.factor : look.applied.harvest) * 100)}%${rvPrepNote(look.applied.id, look.prepared)}, until the next flood in month ${rvFirstMonth}`;
     return `The flood decides this farm's harvest, from ${Math.round(Math.min(...rvLevels.map((l) => l.harvest)) * 100)}% to ${Math.round(Math.max(...rvLevels.map((l) => l.harvest)) * 100)}%; the first flood comes in month ${rvFirstMonth}`;
   },
   farmOff: 'Off the floodplain: the flood does not change its harvest',
-  farmRowNext: (id) => `${rvName(id)} flood coming: ${rvPct(id)} from month ${rvFirstMonth}`,
+  farmRowNext: (id, prepared = false) => `${rvName(id)} flood coming: ${rvPct(id, prepared)} from month ${rvFirstMonth}`,
   // The Nilometer's sheet.
   nilometerLabel: 'Next flood',
   nilometerLabelNow: 'The flood now',
   nilometerLabelLast: 'Last flood',
-  nilometerNote: `Reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead (from month ${rvFirstMonth - rvFlood.forecastMonths})`,
-  nilometerKnown: (id) => `${rvName(id)}: floodplain farms ${rvPct(id)}`,
+  // Version 8.1 (ruling 1221-1222): what a staffed Nilometer does, from the data: the forecast on the top bar all year, and the prepared Low harvest.
+  nilometerNote: `While staffed, it shows the next flood on the top bar's date all year, and floodplain farms prepare: ${rvPrepRule}`,
+  nilometerKnown: (id) => `${rvName(id)}: floodplain farms ${rvPct(id, true)}`,   // shown only while it is staffed, so prepared
   nilometerWaiting: (monthsLeft) => (monthsLeft > 0 ? `Known from month ${rvFirstMonth - rvFlood.forecastMonths}` : 'Known when the water rises'),
   nilometerIdle: 'It needs workers to read the river',
   nilometerNone: 'The first flood has not come yet',
   // The Nilometer's row (floodLook's phase tells which flood is meant): the level it reads is the next flood's only before the rise; once the
   // water is up it is this flood's, after it the last's, and the next one is unknown until month 4 (ruling 360).
-  nilometerRow: (look, working) => {
+  // Version 8.1 (ruling 1222): with nextFlood (src/sim/flood.js) a staffed Nilometer names the next flood all year, so outside the water's months the row is that
+  // flood's ("Good: floodplain farms 110%, in 8 months"); in them the row names the flood now or the last one, and the sheet adds the next as its own row.
+  nilometerNext: (n) => `${S46_RIVER_TEXT.nilometerKnown(n.level.id)}${n.monthsTo > 0 ? `, in ${rvMonths(n.monthsTo)}` : ''}`,
+  nilometerRow: (look, working, nextFlood = null) => {
     const next = (value) => ({ label: S46_RIVER_TEXT.nilometerLabel, value });
     if (!working) return next(S46_RIVER_TEXT.nilometerIdle);
     if (!look.on) return next(S46_RIVER_TEXT.nilometerNone);
-    if (look.phase === 'forecast' && look.level) return next(S46_RIVER_TEXT.nilometerKnown(look.level.id));
     if ((look.phase === 'rising' || look.phase === 'high') && look.applied) return { label: S46_RIVER_TEXT.nilometerLabelNow, value: S46_RIVER_TEXT.nilometerKnown(look.applied.id) };
     if (look.phase === 'draining' && look.applied) return { label: S46_RIVER_TEXT.nilometerLabelLast, value: S46_RIVER_TEXT.nilometerKnown(look.applied.id) };
+    if (nextFlood && nextFlood.level) return next(S46_RIVER_TEXT.nilometerNext(nextFlood));
+    if (look.phase === 'forecast' && look.level) return next(S46_RIVER_TEXT.nilometerKnown(look.level.id));
     return next(S46_RIVER_TEXT.nilometerWaiting(look.monthsTo === null ? 0 : look.monthsTo));
   },
   // The hunting lodge's sheet.
@@ -1935,10 +1945,12 @@ export const S46_RIVER_TEXT = {
   floodLine: (look) => {
     const lvl = look.level ? rvName(look.level.id) : null;
     if (look.phase === 'wait') return `Next flood: month ${rvFirstMonth}, in ${rvMonths(look.monthsTo)}. Its level is not known yet; a Nilometer reads it ${rvMonths(rvFlood.forecastMonths)} ahead`;
-    if (look.phase === 'forecast') return `Next flood: ${lvl}, month ${rvFirstMonth}, in ${rvMonths(look.monthsTo)}. Floodplain farms will grow ${rvPct(look.level.id)}`;
-    if (look.phase === 'rising' || look.phase === 'high') return `The river is up: a ${lvl || rvName(look.applied.id)} flood. Floodplain farms grow ${Math.round(look.applied.harvest * 100)}% until the next flood`;
-    if (look.phase === 'draining') return `The water is draining: a ${rvName(look.applied.id)} flood. Floodplain farms grow ${Math.round(look.applied.harvest * 100)}% until the next flood`;
-    return look.applied ? `Last flood: ${rvName(look.applied.id)}. Floodplain farms grow ${Math.round(look.applied.harvest * 100)}% until the next flood, in ${rvMonths(look.monthsTo)}` : `The first flood comes in month ${rvFirstMonth}`;
+    // Version 8.1 (ruling 1221): the harvest as the farms grow it (look.factor, prepared by a working Nilometer), and the level's as they would.
+    const grows = look.applied ? `${Math.round(look.factor * 100)}%${rvPrepNote(look.applied.id, look.prepared)}` : '';
+    if (look.phase === 'forecast') return `Next flood: ${lvl}, month ${rvFirstMonth}, in ${rvMonths(look.monthsTo)}. Floodplain farms will grow ${rvPct(look.level.id, look.levelPrepared)}${rvPrepNote(look.level.id, look.levelPrepared)}`;
+    if (look.phase === 'rising' || look.phase === 'high') return `The river is up: a ${lvl || rvName(look.applied.id)} flood. Floodplain farms grow ${grows} until the next flood`;
+    if (look.phase === 'draining') return `The water is draining: a ${rvName(look.applied.id)} flood. Floodplain farms grow ${grows} until the next flood`;
+    return look.applied ? `Last flood: ${rvName(look.applied.id)}. Floodplain farms grow ${grows} until the next flood, in ${rvMonths(look.monthsTo)}` : `The first flood comes in month ${rvFirstMonth}`;
   },
   // Food from the floodplain: working floodplain farms' monthly food as they stand and without the flood (floodOutlook's plain: the farms at 100%).
   outlookLine: (o, coming) => `${coming ? 'When the flood comes' : 'Now'}, ${plural(o.farms, 'floodplain farm makes', 'floodplain farms make')} about ${o.now} food a month (${o.plain} without the flood)`,   // final review: 'a plain year' named no level; since Stage 4.7 (ruling 473) a Fair flood gives 100%, so it still says without the flood
@@ -1947,7 +1959,7 @@ export const S46_RIVER_TEXT = {
 // The firsts, the tips (How to play lists them) and the building plurals.
 Object.assign(BUILDING_PLURALS, { hunting_lodge: 'hunting lodges', fishing_wharf: 'fishing wharves', nilometer: 'nilometers' });
 Object.assign(FIRST_TEXT, {
-  first_nilometer: { head: 'First Nilometer', why: `Staffed, it reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead, before the water rises.` },
+  first_nilometer: { head: 'First Nilometer', why: `Staffed, it shows the next flood on the top bar's date all year, and floodplain farms prepare: ${rvPrepRule}.` },
   first_hunting_lodge: { head: 'First hunting lodge', why: `Its hunters bring game from herds within ${rvHunting.reach} tiles in a straight line: game is a food.` },
   first_fishing_wharf: { head: 'First fishing wharf', why: `Its boat lands ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood months: fish is a food.` },
   first_flood: { head: 'First flood', why: `The Nile rose for the first time. Farms on the floodplain follow its level: ${rvLevels.map((l) => `${rvName(l.id)} ${rvPct(l.id)}`).join(', ')}.` },
@@ -1955,13 +1967,13 @@ Object.assign(FIRST_TEXT, {
   first_fish: { head: 'First fish', why: 'Fish reached a granary. Homes count it as a second kind of food.' },
 });
 Object.assign(TIP_TEXT, {
-  nilometer_forecast: `A staffed Nilometer reads the flood ${rvMonths(rvFlood.forecastMonths)} ahead: stock grain before a Low year.`,
+  nilometer_forecast: `Staffed, a Nilometer shows the next flood on the top bar and cuts a Low flood's loss by ${rvCut}.`,
   hunters_range: `Hunters reach herds within ${rvHunting.reach} tiles in a straight line, walking round water and hills.`,
   wharf_floods: `A wharf lands ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood. Its long side must touch water; Rotate turns it.`,
   flood_rhythm: `The flood comes every year, months ${rvFirstMonth} to ${rvLastMonth}. It does no harm: floodplain farms grow more or less.`,
 });
 Object.assign(TIP_HELP_TEXT, {
-  nilometer_forecast: `The Nilometer reads the coming flood ${rvMonths(rvFlood.forecastMonths)} ahead.`,
+  nilometer_forecast: `Staffed Nilometer: the next flood on the top bar all year; a Low flood gives floodplain farms ${rvPct('low', true)}, not ${rvPct('low')}.`,
   hunters_range: `Hunting lodges: herds within ${rvHunting.reach} tiles in a straight line count; hunters walk round water and hills.`,
   wharf_floods: `Fishing wharves land ${rvFishing.perMonth} fish a month, ${rvFishing.floodPerMonth} in the flood.`,
   flood_rhythm: `The Nile floods in months ${rvFirstMonth} to ${rvLastMonth}: ${S46_RIVER_TEXT.levelsLine} for floodplain farms.`,
@@ -3255,8 +3267,8 @@ export const D2_TEXT = {
       why: 'A bazaar sells food to the homes it reaches along the roads, and homes that are fed can grow.' }),
     workers: (f) => ({ text: `Your buildings want ${f.labour.jobs} workers and ${f.labour.workforce} people work: place more homes until the bazaar works too.`,
       why: `${cards4WorkShare()}, and a building short of workers works slowly or not at all. A farm wants ${BUILDINGS.farm_grain.workers} workers, a granary ${BUILDINGS.granary.workers}, a bazaar ${BUILDINGS.bazaar.workers}; food and housing come before services.` }),
-    month: (f) => ({ text: `Let ${d2Steps.find((s) => s.id === 'month').check.n} months pass and watch the gold chip.`,
-      why: `Homes pay taxes each month; every building costs upkeep and ${ECONOMY.wagePerWorker} gold for each worker. The chip shows the month's forecast${Number.isFinite(f.forecast) ? `: ${S45_TEXT.signed(f.forecast)} a month now` : ''}.` }),
+    month: (f) => ({ text: `Let ${d2Steps.find((s) => s.id === 'month').check.n} months pass and watch the gold.`,
+      why: `Homes pay taxes each month; every building costs upkeep and ${ECONOMY.wagePerWorker} gold for each worker. Tap the gold for the month's forecast${Number.isFinite(f.forecast) ? `: ${S45_TEXT.signed(f.forecast)} a month now` : ''}.` }),
     largeplot: () => ({ text: `The Large plot card is open early for the lesson. Place one, ${d2Large.size} by ${d2Large.size}, beside the road.`,
       why: `Small plots stop at Townhouse. A Large plot grows into a Manor and beyond once its needs are met nearby. A real city opens the card with its first Townhouse; a lot costs ${BUILDINGS[d2Large.type].cost} gold.` }),
     firehouse: (f) => ({ text: f.missing ? D2_TEXT.gone(f.missing) : `Build a firehouse near the bazaar${f.paused ? ', then press Play so its crew can take their posts' : ' and let its crew take their posts'}.`,

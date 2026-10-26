@@ -17,7 +17,7 @@ import { cardInfo, shownItems } from '../../../src/ui/cards.js';
 import { openSheet, select } from '../../../src/ui/modes.js';
 import { canPlace } from '../../../src/sim/commands.js';
 import { fitOf } from '../../../src/sim/fit.js';
-import { floodLook, floodOutlook, seasonDays, buyForecast } from '../../../src/sim/flood.js';
+import { floodLook, floodOutlook, seasonDays, buyForecast, nextFlood, levelOfYear } from '../../../src/sim/flood.js';
 import { huntingOutlook, crocSpots, crocsNear, herdArrives } from '../../../src/sim/wildlife.js';
 import { eligibleCards, cardChoices, answerCard, courtDay, RIVER_HOOKS } from '../../../src/sim/court.js';
 import { isUnlocked } from '../../../src/sim/progression.js';
@@ -86,8 +86,9 @@ describe('s46 river ui: the Nilometer, the lodge and the wharf', () => {
     n.staff = 2;
     w.day = dayOf(2, 2);
     stepRiver(w, 1);
-    expect(text(riverRows(w, n))).toContain(R.nilometerWaiting(5));
-    expect(text(riverRows(w, n))).toContain(`from month ${FLOOD.months[0] - FLOOD.forecastMonths}`);
+    // Version 8.1 (ruling 1222): staffed, it names the next flood all year; before month 4 too.
+    expect(text(riverRows(w, n))).toContain(R.nilometerNext(nextFlood(w)));
+    expect([nextFlood(w).level.id, nextFlood(w).monthsTo]).toEqual([levelOfYear(w, 2), 5]);
     w.day = dayOf(2, 4);
     stepRiver(w, 2);
     const level = w.flood.level;

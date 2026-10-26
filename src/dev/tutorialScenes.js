@@ -162,16 +162,16 @@ const PICTURES = {
     await wait(50);
     return { clip, mark: boxRing(g, clip, row, { radius: 12, widen: 10 }) };
   },
-  // Stage 4.5 (Task 4b): the top bar's gold chip with its monthly forecast ("+N a month") over the village: a ring on the forecast.
+  // Stage 4.5 (Task 4b): the top bar's gold over the village: a ring on it. Version 8.1 (Track B): the gold is a picture with its number, and a tap on it
+  // gives the month's forecast (the chip's second line is gone).
   async gold(g) {
     const v = village(g);
-    const chip = document.querySelector('#topbar .forecast');
-    for (let t = 0; chip && chip.hidden && t < 20; t++) await wait(50);   // the top bar draws it on the next frame
-    if (!chip || chip.hidden) throw new Error('devScene tutorial: no forecast in the gold chip');
+    const gold = document.querySelector('#topbar .stat.gold');
+    if (!gold || gold.hidden) throw new Error('devScene tutorial: no gold in the top bar');
     const clip = clipAt(0);
     putTileAt(g, v.start.x - 6, v.start.y + 0.5, 195, clip.y + 250, 0.9);
     await wait(50);
-    return { clip, mark: boxRing(g, clip, chip.firstElementChild || chip, { pad: 4, radius: 10, widen: 6 }) };   // the words' own box: the chip itself is 0 wide (css), its text runs on
+    return { clip, mark: boxRing(g, clip, gold, { pad: 2, radius: 10, widen: 6 }) };
   },
   // The goals strip, the start road below it: a ring on Show me.
   async goals(g) {
@@ -249,7 +249,8 @@ Object.assign(PICTURES, {
     await droughtScene(api, { look: 'advice', quick: true });
     const h = api.game();
     // Version 8.0: the sheet also lists the message tray (the scene's own captions, a court letter waiting) above the advice; the picture is of the advice item alone.
-    for (const n of document.querySelectorAll('#sheet .tray, #sheet .advice-head')) n.hidden = true;
+    // Version 8.1: and the Messages | City tabs above both.
+    for (const n of document.querySelectorAll('#sheet .tray, #sheet .advice-head, #sheet .sheet-tabs')) n.hidden = true;
     await wait(100);
     const sheet = document.querySelector('#sheet'), fv = frameOf(h);
     const clip = clipAt(Math.max(0, Math.round(sheet.getBoundingClientRect().top - fv.top - 8)));

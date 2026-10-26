@@ -22,6 +22,11 @@ export const FLOOD_LEVELS = [
 ];
 export const FLOOD_LEVEL_IDS = FLOOD_LEVELS.map((l) => l.id);
 export const floodLevelRow = (id) => FLOOD_LEVELS.find((l) => l.id === id) || null;
+// Version 8.1 (Track B, ruling 1221, Josh's option (a)): farms prepare. While a staffed Nilometer stands, a flood that costs the floodplain farms
+// part of their harvest (a level whose harvest is under 1: Low) costs them lossCut less of that loss: Low's 60% becomes 1 - 0.4 x 2/3, about 73%.
+// A flood that gives more than a plain year (Fair, Good, High) has no loss to cut and is unchanged. src/sim/flood.js applies it; the words read it here.
+export const NILOMETER = { lossCut: 1 / 3 };
+export const preparedHarvest = (harvest, prepared) => (prepared && harvest < 1 ? 1 - (1 - harvest) * (1 - NILOMETER.lossCut) : harvest);
 
 // world.flood: this year's flood. year: the game year (1, 2, ...) the record is for, or null before the first draw; level: a
 // FLOOD_LEVEL_IDS id once drawn (null before); forecast: the level as the city knows it ahead of the water (a Nilometer, or the Flood

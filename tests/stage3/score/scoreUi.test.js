@@ -98,53 +98,37 @@ describe('s3 score summary and chip', () => {
       expect([...sec.querySelectorAll('.split')].map((li) => li.textContent)).toEqual([splitDateText('town', 400), splitDateText('market_town', 700)]);
     } finally { r.cleanup(); }
   });
-  it('keeps the live total in a chip on the summary button, refreshed after a command and a game day', async () => {
+  // Version 8.1 (Track B, ruling 1223): the chip is now the top bar's score stat, a cartouche with the number (tests/v81/b/topbar.test.js keeps it in the row).
+  it('keeps the live total in the top bar\'s score, refreshed after a command and a game day', async () => {
     const r = await rigUI();
     try {
-      const chip = r.root.querySelector('#topbar .stats .score-chip');
-      expect([chip.hidden, chip.textContent]).toEqual([false, scoreChipText(scoreOf(r.world).total)]);
+      const stat = r.root.querySelector('#topbar .stats .stat.score'), value = () => stat.querySelector('.value').textContent;
+      expect([stat.hidden, value()]).toEqual([false, String(scoreOf(r.world).total)]);
       place(r.world, 'temple', 8, 11);
       assignLabour(r.world);
       r.ui.afterCommand({ kind: 'building', result: { ok: true }, undoable: false });
-      expect(chip.textContent).toBe(scoreChipText(scoreOf(r.world).total));
+      expect(value()).toBe(String(scoreOf(r.world).total));
       for (const h of housesOf(r.world)) h.residents = 0;
       r.world.day += 1;
       r.frame(1);
-      expect([chip.hidden, chip.textContent]).toEqual([true, scoreChipText(scoreOf(r.world).total)]);   // nobody lives here: no score to show yet
+      expect(stat.hidden).toBe(true);                                                     // nobody lives here: no score to show yet
       for (const h of housesOf(r.world)) h.residents = 4;
       r.world.day += 1;
       r.frame(2);
-      expect([chip.hidden, chip.textContent]).toEqual([false, scoreChipText(scoreOf(r.world).total)]);
+      expect([stat.hidden, value(), stat.getAttribute('aria-label').includes(String(scoreOf(r.world).total))]).toEqual([false, String(scoreOf(r.world).total), true]);
     } finally { r.cleanup(); }
   });
-  it('hides the chip in a new city until somebody lives there', async () => {
+  it('hides the score in a new city until somebody lives there', async () => {
     const world = uiWorld();
     for (const h of housesOf(world)) h.residents = 0;
     const r = await rigUI({ world });
     try {
-      expect(r.root.querySelector('#topbar .score-chip').hidden).toBe(true);
+      expect(r.root.querySelector('#topbar .stat.score').hidden).toBe(true);
     } finally { r.cleanup(); }
   });
-  it("puts the chip in the numbers' flow on a landscape phone and on a phone at 150% text, right after the date, not out at the bar's far end", async () => {
-    for (const [w, h, size] of [[844, 390, 100], [844, 390, 125], [844, 390, 150], [667, 375, 100], [667, 375, 150], [375, 667, 150], [390, 844, 150]]) {
-      const r = await rigUI({ width: w, height: h });
-      try {
-        r.ui.settings.set({ textSize: size });
-        r.world.gold = 2493;
-        r.ui.refresh();
-        const chip = r.root.querySelector('#topbar .score-chip').getBoundingClientRect();
-        const date = r.root.querySelector('#topbar .stat.date').getBoundingClientRect();
-        const bar = r.root.querySelector('#topbar').getBoundingClientRect();
-        const at = `${w}x${h} at ${size}%`;
-        const sameRow = chip.top < date.bottom && date.top < chip.bottom;
-        // after the date on its row, or (a narrow phone) at the start of the next row
-        const placed = sameRow ? chip.left >= date.right && chip.left - date.right <= 16 : chip.top >= date.bottom - 1 && chip.left <= date.left + 1;
-        expect([at, placed, chip.bottom <= bar.bottom]).toEqual([at, true, true]);
-      } finally { r.cleanup(); }
-    }
-  });
-  it('keeps the chip inside the top bar and off the numbers, on a phone and a laptop, at every text size', async () => {
-    for (const [w, h] of [[360, 640], [390, 844], [844, 390], [1280, 800]]) {
+  // Version 8.1 (ruling 1223): the score is the last stat in the row, right after the date, on every screen and text size; it never sits on the numbers.
+  it('puts the score right after the date in the row of stats, inside the top bar, on a phone and a laptop, at every text size', async () => {
+    for (const [w, h] of [[360, 640], [390, 844], [844, 390], [667, 375], [1280, 800]]) {
       for (const size of [100, 125, 150]) {
         const r = await rigUI({ width: w, height: h });
         try {
@@ -152,13 +136,9 @@ describe('s3 score summary and chip', () => {
           r.world.gold = 2493;
           r.ui.refresh();
           const bar = r.root.querySelector('#topbar').getBoundingClientRect();
-          const chip = r.root.querySelector('#topbar .score-chip').getBoundingClientRect();
-          const hits = [...r.root.querySelectorAll('#topbar .stat')].filter((st) => getComputedStyle(st).display !== 'none').filter((st) => {
-            const q = st.getBoundingClientRect();
-            return q.left < chip.right && chip.left < q.right && q.top < chip.bottom && chip.top < q.bottom;
-          }).map((st) => st.className);
+          const score = r.root.querySelector('#topbar .stat.score').getBoundingClientRect(), date = r.root.querySelector('#topbar .stat.date').getBoundingClientRect();
           const at = `${w}x${h} at ${size}%`;
-          expect([at, chip.top >= bar.top, chip.bottom <= bar.bottom, hits]).toEqual([at, true, true, []]);
+          expect([at, score.left >= date.right - 0.5, Math.abs(score.top - date.top) < 1, score.top >= bar.top, score.bottom <= bar.bottom]).toEqual([at, true, true, true, true]);
         } finally { r.cleanup(); }
       }
     }

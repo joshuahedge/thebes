@@ -165,3 +165,5 @@ import './v711/all.js';
 import './v711c.js';
 // Version 8.0 "Clear and calm": one aggregator (tests/v80/all.js); nothing is added here.
 import './v80/all.js';
+// Version 8.1 "The vizier": one aggregator (tests/v81/all.js); nothing is added here.
+import './v81/all.js';

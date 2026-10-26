@@ -54,7 +54,7 @@ export const LESSON_STEPS = [
   { id: 'granary', check: { kind: 'building', type: 'granary' }, at: { x: 14, y: 40, w: 2, d: 2 }, show: { category: 'food', item: 'granary' } },
   { id: 'bazaar', check: { kind: 'served', type: 'bazaar', homes: 3 }, at: { x: 21, y: 43, w: 2, d: 2 }, show: { category: 'services', item: 'bazaar' } },
   { id: 'workers', check: { kind: 'working', types: ['farm_grain', 'granary', 'bazaar'] }, at: { x: 21, y: 40, w: 1, d: 3 }, show: { category: 'homes', item: 'house' }, play: 'act', act: { kind: 'plots' } },
-  { id: 'month', check: { kind: 'months', n: 2 }, dom: '#topbar .forecast', play: 'card' },
+  { id: 'month', check: { kind: 'months', n: 2 }, dom: '#topbar .stat.gold', play: 'card' },   // Version 8.1 (Track B): the gold itself (its forecast is its explainer)
   { id: 'largeplot', stage: 'largePlot', check: { kind: 'tally', key: 'largePlots', n: 1 }, at: { x: 17, y: 37, w: 2, d: 2 }, show: { category: 'homes', item: 'large_plot' } },
   { id: 'firehouse', check: { kind: 'covered', type: 'bazaar' }, at: { x: 21, y: 45, w: 1, d: 1 }, show: { category: 'services', item: 'firehouse' }, play: 'act', act: { kind: 'building', type: 'firehouse' } },
   { id: 'fire', stage: 'fire', check: { kind: 'tallyAny', keys: ['blazesOut', 'firesOut'], n: 1 }, at: { of: 'bazaar' }, play: 'card' },

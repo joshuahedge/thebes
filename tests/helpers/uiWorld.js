@@ -47,8 +47,11 @@ const BODY_KEYS = ['layout', 'mode', 'input', 'dock', 'hand', 'textSize'];
 export async function mountShell(width = 390, height = 844) {
   if (!cssLoaded) {
     // Version 8.0: every stylesheet index.html links (ui.css, then Track U's v80-u.css), in order, so the shell's layout is the page's.
+    // Version 8.1 (Track B): read from index.html itself, so a track's new stylesheet (css/v81-*.css) is loaded as the page loads it.
     cssLoaded = (async () => {
-      for (const href of ['/css/ui.css', '/css/v80-u.css']) {
+      const page = new DOMParser().parseFromString(await (await fetch('/index.html')).text(), 'text/html');
+      const hrefs = [...page.querySelectorAll('link[rel="stylesheet"]')].map((l) => l.getAttribute('href')).filter((h) => /^\.?\/?css\//.test(h)).map((h) => `/${h.replace(/^\.?\//, '')}`);
+      for (const href of hrefs) {
         await new Promise((resolve, reject) => {
           const link = document.createElement('link');
           link.rel = 'stylesheet'; link.href = href; link.onload = resolve; link.onerror = reject;

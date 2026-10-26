@@ -16,6 +16,7 @@ import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
 import { CRITICAL_RANK } from './alerts.js';
 import { summaryData } from './hud.js';
+import { cityTabs, trendSection } from './v81/stats.js';
 import { monthForecast } from '../sim/economy.js';
 import { jobsPenalty } from '../sim/mood.js';
 import { nearestTerrainTile } from './goalsList.js';
@@ -318,7 +319,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     const season = seasonAt(world).season;
     body.append(row(SEASON_TEXT.row, SEASON_TEXT.rowValue(SEASON_TEXT.names[season], seasonMonths(season))));
     // Version 5.0 (Task 1): the figures stay here; what holds the city back is its own sheet, one tap away (from the first home).
-    if (adviceOn()) body.append(el('div', { class: 'actions advice-link' }, [button(T.advice, { class: 'open-advice', 'aria-label': `${T.advice}: ${T.adviceLead.toLowerCase()}`, onClick: () => onOpenAdvice() })]));
+    // Version 8.1 (Track B, ruling 1226): this is the City page, the second tab of the papyrus's sheet: the tabs come with the papyrus (the first home).
+    if (adviceOn()) body.prepend(cityTabs('city', { onMessages: () => onOpenAdvice(), onCity: () => {} }));
     // Stage 4.5 (Task 4b): the month ahead, as the city stands now (the sim's forecast): headed by what the balance is, so the gold
     // chip's tap lands on "Spending more than taxes bring in" when the treasury is shrinking.
     const f = monthForecast(world);
@@ -346,11 +348,12 @@ export function createSheets({ container, store, world, placement, cameraControl
     const moved = Object.keys(GOODS).filter((g) => d.made[g] || d.used[g]);
     body.append(el('h3', { text: T.goodsLastMonth }), ...(moved.length ? moved.map((g) => row(goodName(g), madeUsedText(d.made[g] || 0, d.used[g] || 0))) : [el('p', { class: 'muted', text: T.noGoodsYet })]));
     body.append(el('h3', { text: T.employment, dataset: { section: 'employment' } }), row(T.working, `${d.working} of ${d.workforce}`), row(T.jobless, `${d.jobless}`), row(T.jobs, `${d.jobs}`));
-    body.append(el('h3', { text: T.moodBreakdown }), row(T.mood, `${d.mood}`));
+    body.append(el('h3', { text: T.moodBreakdown, dataset: { section: 'mood' } }), row(T.mood, `${d.mood}`));
     // The starting mood is a level, the rest are swings from it (early-game pass 2.10: plain English rows).
     // Stage 4.5 (ruling 325): while the Town unemployment penalty is being phased in, the Jobs row says what comes at the end of it.
     const jobs = jobsPenalty(world);
     for (const [k, v] of Object.entries(d.moodBreakdown || {})) body.append(row(k === 'jobs' && jobs.monthsLeft > 0 && jobs.full < v ? S45_TEXT.jobsPhasing(jobs.full, jobs.monthsLeft) : MOOD_NAMES[k] || k, k === 'base' ? String(v) : (v >= 0 ? '+' : '') + v));
+    body.append(...trendSection(world));                  // Version 8.1 (ruling 1226): gold, people and mood over the last year
     body.append(el('h3', { text: T.goals }));
     const open = openGoals(world, 3);
     body.append(open.length ? el('ul', { class: 'goals' }, open.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
@@ -483,7 +486,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     // The gold chip's tap opens the summary at its forecast section (once per opening, so a later redraw leaves the scroll alone).
     if (s.sheet !== scrolledFor) {
       scrolledFor = s.sheet;
-      const target = s.sheet.kind === 'summary' && (s.sheet.id === 'forecast' || s.sheet.id === 'employment') ? container.querySelector(`[data-section="${s.sheet.id}"]`) : null;
+      // Version 8.1: any section a stat's explainer names (forecast, employment, mood, river, score).
+      const target = s.sheet.kind === 'summary' && typeof s.sheet.id === 'string' && /^[a-z]+$/.test(s.sheet.id) ? container.querySelector(`[data-section="${s.sheet.id}"]`) : null;
       if (target && target.scrollIntoView) target.scrollIntoView({ block: 'start' });
     }
     if (focusIndex >= 0) {
