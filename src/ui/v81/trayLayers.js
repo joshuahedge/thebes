@@ -72,23 +72,19 @@ export function createTrayLayers({ world, store, suggestion = () => null, needed
   loadScribe();
   let advisedNow = null, neededNow = [], known = unlockedNow(world), told = new Set(), lastAdvised = null, primed = false;
   const pinned = () => (store.get().trayPins || []);
-  const openOf = (category) => Boolean((store.get().trayMore || {})[category]);
 
   const api = {
     // What a category shows. Cheap enough for every store change: the plan is a few hundred item tests at most.
+    // Version 8.2 (Track L, rulings 1325, 1327): no More or Fewer in any tray (the wide panel, the phone's dock and the rail's drawer): every unlocked card shows and the list scrolls, the suggested card
+    // first (not in the lesson, whose order is the category's own). layerPlan's layering stays as the pure function it was, for a tray that must ever be short again.
     view(category, activeItem = null) {
-      return layerPlan(world, category, { advised: advisedNow && advisedNow.item, needed: neededNow, pinned: pinned(), active: activeItem, open: openOf(category), all: !layered() });
+      return layerPlan(world, category, { advised: advisedNow && advisedNow.item, needed: neededNow, pinned: pinned(), active: activeItem, all: true, advisedFirst: layered() });
     },
     // The categories the tray's buttons show: those with a card in hand to pick (the locked are hidden, ruling 1248).
     categories: () => CATEGORIES.filter((c) => unlockedItems(world, c.id).length > 0),
     advised: () => advisedNow,
     // The category whose button carries the suggestion's dot: the suggested card's own.
     advisedCategory: () => (advisedNow ? advisedNow.category : null),
-    toggle(category) {
-      const more = { ...(store.get().trayMore || {}) };
-      if (more[category]) delete more[category]; else more[category] = true;
-      store.set({ trayMore: more });
-    },
     // Reads the world again: after a command, at the day's turn. The suggestion and the needs are asked of the cached advice and the goals (never a fresh search here).
     refresh() {
       neededNow = needed();
@@ -118,13 +114,6 @@ export function createTrayLayers({ world, store, suggestion = () => null, needed
       if (!primed || speaking()) lastAdvised = next ? next.item : null;
       primed = true;
     },
-  };
-  // Version 8.2 (Track L, ruling 1325): the wide panel's own face of the same tray: no More or Fewer (its list scrolls instead), every unlocked card, the suggested one first (not in the lesson,
-  // whose order is the category's own). The phone's dock and the rail keep view() and the layered More.
-  api.wide = {
-    ...api,
-    view: (category, activeItem = null) => layerPlan(world, category, { advised: advisedNow && advisedNow.item, needed: neededNow, pinned: pinned(), active: activeItem, all: true, advisedFirst: layered() }),
-    toggle() {},
   };
   return api;
 }

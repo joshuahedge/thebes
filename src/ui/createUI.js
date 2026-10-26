@@ -251,7 +251,7 @@ export function createUI({
   const restoreLayersFocus = () => { const b = store.get().layout === 'wide' ? sidePanel.layersButton : corners.layersButton; if (b && b.offsetParent !== null) b.focus({ preventScroll: true }); };
   const cornerPicker = createLayersPicker({ store, world, restoreFocus: restoreLayersFocus, doc });
   const panelPicker = createLayersPicker({ store, world, restoreFocus: restoreLayersFocus, doc });
-  const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas, onLayers: toggleLayers, pickerNode: panelPicker.node, layers: trayLayers.wide });
+  const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas, onLayers: toggleLayers, pickerNode: panelPicker.node, layers: trayLayers });
   const rail = createRail({ container: $('rail'), store, world, onPick: pick, layers: trayLayers });
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
   const legend = createOverlayLegend({ container: $('legend'), store, world });

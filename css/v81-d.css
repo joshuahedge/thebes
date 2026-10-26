@@ -16,15 +16,11 @@ body:not(.reduce-motion) .card.advised { animation: advised-ring 1.6s ease-in-ou
 .cat.advised::after, .tab.advised::after { content: ""; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 2px var(--parchment); }
 #panel .tab[aria-pressed="true"].advised::after { background: var(--teal-ink); box-shadow: 0 0 0 2px var(--teal); }
 
-/* More and Fewer end a layered tray: a card-sized button, dashed so it reads as a door and not a building. */
-.card.more-card { justify-content: center; align-items: center; text-align: center; border-style: dashed; }
-.card.more-card .name { font-weight: 700; }
-.card.more-card .cost { font-size: calc(18px * var(--ui-scale)); font-weight: 700; }
-/* In the wide panel's grid and the rail's drawer the More card is a slim bar across the whole row, so it takes the least of the small panel's height. */
-.cards.grid .card.more-card { grid-column: 1 / -1; flex-direction: row; justify-content: center; align-items: center; gap: 10px; min-height: var(--tap); }
-/* Version 8.2 (Track L, ruling 1325): the wide panel has no More (every unlocked card is listed and the list scrolls under the fixed minimap, Layers and categories), so 8.1's sticky More
-   (ruling 1269) is gone; only the phone's tray and the rail's drawer keep the layered More. The list's scrollbar is thin and always drawn, so the player can see there is more below. */
-#panel .cards { scrollbar-width: thin; scrollbar-color: var(--teal) transparent; overscroll-behavior: contain; }
+/* Version 8.2 (Track L, rulings 1325-1327): no tray has a More or Fewer card (8.1's, and its sticky bar on the wide panel, ruling 1269): every unlocked card is listed and the tray scrolls under the
+   fixed category row. The wide panel's and the rail's lists scroll up and down with a thin scrollbar that is always drawn, so the player can see there is more; the phone's row scrolls sideways by
+   finger with momentum (its edge fade and chevron say there is more), and none of them passes its scroll on to the page behind. */
+#panel .cards, #rail .drawer { scrollbar-width: thin; scrollbar-color: var(--teal) transparent; overscroll-behavior: contain; }
+#dock .tray { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 
 /* Integration: on a phone at the normal text size the first three cards fit the tray's width exactly, so no name ("Police post") sits half under the tray's edge fade and arrow. A card's name
    wraps inside it, and a word too long for its card breaks instead of running out of it (larger text keeps the 124 px card, which scrolls). */

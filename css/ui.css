@@ -1695,3 +1695,7 @@ body:not(.reduce-motion) .lesson-pulse { animation: lesson-lit 1.4s ease-in-out 
 /* V's thicker band and N's picture-and-name title together left a monument's bar at 375x667 and 150% text 1 px over its budget (tests/stage46/wonders: 58% of the screen); the rows of a bar with a
    style picker sit 3 px closer on a phone, which gives the budget back with room to spare. */
 body[data-layout="portrait"] .confirm.has-style:not(.has-fit) { row-gap: 3px; }
+/* Version 8.2 (Track L, ruling 1328): everything that can overflow on a phone scrolls by finger and keeps its scroll to itself (the page behind never moves): the sheets (their heading is sticky), the
+   confirm dialog, the chapter card, the opened guidance rows. tests/v82/l/scroll.test.js fills each with long content at 375x667 and 150% text. */
+#sheet, .lesson-card, .picture-cards .pc-text, #lesson.open, .goal-strip.one-row.open, #tip .tip-row.open, #cheer .cheer.open { overscroll-behavior: contain; }
+#dialog .box { max-height: calc(100% - 72px); overflow-y: auto; overscroll-behavior: contain; }   /* content box: its own padding (16 + 22) and a margin to the screen's edge */

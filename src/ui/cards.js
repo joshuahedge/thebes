@@ -14,7 +14,7 @@ import { canAfford } from '../sim/money.js';
 import { CATEGORIES } from '../data/ui.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { largePlotUnlocked } from '../sim/largePlots.js';
-import { buildingName, CATEGORY_NAMES, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT, S46_MAP_TEXT } from './text.js';
+import { buildingName, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT, S46_MAP_TEXT } from './text.js';
 import { MAP } from '../data/map.js';
 import { el, clear } from './components.js';
 import { drawThumb } from './thumbs.js';
@@ -130,22 +130,13 @@ function upkeepSpan(world, item, info) {
   return el('span', { class: 'upkeep', title: info.upkeepTitle }, [el('span', { class: 'bill', text: S45_TEXT.upkeepBill(bill) }), crew ? el('span', { class: 'crew', text: crew }) : null]);
 }
 
-// The More card that ends a layered tray, and Fewer once it is open: a card-sized button that opens or folds the rest of the category.
-function moreCard(category, view, layers) {
-  const name = CATEGORY_NAMES[category];
-  const b = el('button', { type: 'button', class: 'card more-card', 'data-lock': `tray-more-${category}`, 'aria-expanded': String(view.open), 'aria-label': view.open ? TRAY_V81_TEXT.fewerName(name) : TRAY_V81_TEXT.moreName(view.hidden, name) }, [
-    el('span', { class: 'name', 'aria-hidden': 'true', text: view.open ? TRAY_V81_TEXT.fewer : TRAY_V81_TEXT.more }),
-    el('span', { class: 'cost', 'aria-hidden': 'true', text: view.open ? '‹' : TRAY_V81_TEXT.moreCount(view.hidden) }),
-  ]);
-  b.addEventListener('click', () => layers.toggle(category));
-  return b;
-}
-
-// Version 8.1 (Track D): with `layers` (src/ui/v81/trayLayers.js) the tray is layered (ruling 1246): the main cards, the one the Advice engine suggests glowing and tagged, and a More card at the end
-// that opens the rest. Every card and the More card carry their data-lock id (ruling 1240).
+// Version 8.1 (Track D): with `layers` (src/ui/v81/trayLayers.js) the one the Advice engine suggests glows and is tagged. Version 8.2 (Track L, ruling 1327): every unlocked card shows, the suggested
+// one first, and the tray scrolls (8.1's More and Fewer card is gone). Every card carries its data-lock id (ruling 1240).
 export function renderCards(container, { world, category, activeItem = null, onPick, grid = false, layers = null }) {
   const focusedItem = container.contains(document.activeElement) && document.activeElement.dataset ? document.activeElement.dataset.item : null;
-  const focusedMore = container.contains(document.activeElement) && document.activeElement.classList && document.activeElement.classList.contains('more-card');
+  // A tray redrawn for a change in its cards (a price, the suggestion) keeps the place the player had scrolled to, as long as it is the same category.
+  const sameCategory = container.dataset.shown === category, kept = { left: container.scrollLeft, top: container.scrollTop };
+  container.dataset.shown = category;
   clear(container);
   container.classList.toggle('grid', grid);
   const view = layers ? layers.view(category, activeItem) : null;
@@ -166,9 +157,8 @@ export function renderCards(container, { world, category, activeItem = null, onP
     if (!info.locked) b.addEventListener('click', () => onPick(item));
     return b;
   });
-  const extra = view && view.more ? [moreCard(category, view, layers)] : [];
-  container.append(...buttons, ...extra);
+  container.append(...buttons);
+  if (sameCategory) { container.scrollLeft = kept.left; container.scrollTop = kept.top; }
   if (focusedItem) { const again = buttons.find((b) => b.dataset.item === focusedItem); if (again) again.focus(); }
-  else if (focusedMore && extra.length) extra[0].focus();
   return buttons;
 }
