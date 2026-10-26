@@ -17,7 +17,7 @@ import { idx } from './grid.js';
 import { touchesRoad, buildingsInReach } from './reach.js';
 import { isWorking } from './labour.js';
 import { igniteBuilding, staffedCover, burning } from './fire.js';
-import { workingTowers, towersNeeded } from './raids.js';
+import { workingTowers, towersNeeded, raidTargetKind, firstRaidTarget } from './raids.js';
 import { tickDay, monthIndex } from './clock.js';
 import { milestoneIndex } from './progression.js';
 
@@ -160,8 +160,40 @@ export function actionDone(world, step, base = actionBase(world)) {
 export function stepSpot(world, step) {
   const at = step.at;
   if (!at) return null;
+  if (at.of === 'raidTarget') { const t = raidTarget(world); return t.building ? { x: t.building.x, y: t.building.y, w: t.building.w, d: t.building.d } : null; }
   if (at.of) { const b = firstOf(world, at.of); return b ? { x: b.x, y: b.y, w: b.w, d: b.d } : null; }
   return { x: at.x, y: at.y, w: at.w, d: at.d };
+}
+
+// Version 8.2 (Track L, ruling 1320): what the raid is after, from the sim's own raid: { kind, building, entry }. kind is the warning's own target (RAIDS.targets' kind, or 'building'), else the raid under
+// way's, else what a warning raised now would name; building is the one the band strikes first (src/sim/raids.js firstRaidTarget, chosen as the band chooses it; the band's own while it is on the map), null
+// when none can be reached; entry is where it comes in, or null. The lesson's raid step lights this building and says its kind, so the ring is never a surprise.
+export function raidTarget(world) {
+  const w = world.raid.warning, a = world.raid.active;
+  const kind = w ? w.target : a ? a.target : raidTargetKind(world), entry = w ? w.entry : a ? a.entry : null;
+  let building = a && !w && a.targetId ? world.buildings[a.targetId] || null : null;
+  if (!building && entry) building = firstRaidTarget(world, entry, kind);
+  if (!building && kind !== 'building') building = firstOf(world, kind);
+  return { kind, building, entry };
+}
+
+// Version 8.2 (Track L, ruling 1321): the box the camera frames for a step, { x, y, w, d } in tiles, or null for a step that frames its own spot: the raid step frames the target, the towers that stand
+// and the side the raiders come from (a point up to RAID_FRAME_REACH tiles from the target towards their entry), so what is under attack, what defends it and where the danger comes from are in
+// one view. The ring stays on the target (src/ui/v60/lesson.js ensureVisible keeps it in view).
+export const RAID_FRAME_REACH = 6;
+export function stepFrame(world, step) {
+  if (!step.at || step.at.of !== 'raidTarget') return null;
+  const t = raidTarget(world);
+  if (!t.building) return null;
+  const b = t.building, cx = b.x + b.w / 2, cy = b.y + b.d / 2;
+  const pts = [[b.x, b.y], [b.x + b.w, b.y + b.d]];
+  for (const tw of allBuildings(world)) if (tw.type === 'tower') pts.push([tw.x, tw.y], [tw.x + tw.w, tw.y + tw.d]);
+  if (t.entry) {
+    const dx = t.entry.x - cx, dy = t.entry.y - cy, len = Math.hypot(dx, dy) || 1, k = Math.min(RAID_FRAME_REACH, len) / len;
+    pts.push([cx + dx * k, cy + dy * k]);
+  }
+  const x0 = Math.min(...pts.map((p) => p[0])), y0 = Math.min(...pts.map((p) => p[1])), x1 = Math.max(...pts.map((p) => p[0])), y1 = Math.max(...pts.map((p) => p[1]));
+  return { x: x0, y: y0, w: x1 - x0, d: y1 - y0 };
 }
 
 // Sets up what a step stages (each idempotent, so entering a step twice does no harm). The lesson's own city is changed, never a player's.

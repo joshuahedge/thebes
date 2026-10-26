@@ -38,7 +38,10 @@ body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="1
 /* Integration (ruling 1264): an upright phone at 100% text reads Ipi's whole why and do without More (four lines, inside the 30% height budget); larger text keeps 7.1.1's three
    lines and More. The row has two type sizes: the words (the do, Ipi's why and a reaction in one size) and the small label, count and More. */
 body[data-layout="portrait"][data-text-size="100"] #lesson .body, body[data-layout="portrait"]:not([data-text-size]) #lesson .body { -webkit-line-clamp: 4; line-clamp: 4; }
-body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson :is(.ipi-why, .beat-line) { font-size: calc(14px * var(--ui-scale)); }
+body:is([data-layout="portrait"], [data-layout="compact"]):is([data-text-size="125"], [data-text-size="150"]) #lesson :is(.ipi-why, .beat-line, .why) { font-size: calc(14px * var(--ui-scale)); }
+/* Version 8.2 (Track L, ruling 1324): the bubble has two type sizes on every screen: the body size for everything Ipi says (the do in bold, the why and the longer detail muted and plain), and the
+   small size only for the label, the count and More. The detail was a third, smaller line of words (Josh, 26 Oct: it "looks very AI/sloppy"); weight and colour carry the order now, not size. */
+#lesson .why { font-size: inherit; color: var(--ink-soft); }
 
 /* The reaction's glow (ruling 1206): the ring turns gold on what was just done, for the beat; the map is not dimmed round it. */
 #ui > .lesson-ring.beat { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85), 0 0 18px 6px rgba(226, 177, 60, 0.75); }

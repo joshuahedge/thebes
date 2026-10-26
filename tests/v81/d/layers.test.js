@@ -4,7 +4,7 @@ import { describe, it, expect } from '../../harness.js';
 import { layerPlan, buildSuggestion, createTrayLayers, LAYER_SHOW, LAYER_MAX, LAYER_MIN_HIDDEN } from '../../../src/ui/v81/trayLayers.js';
 import { setSay } from '../../../src/ui/v81/ipiSays.js';
 import { TRAY_V81_TEXT } from '../../../src/ui/v81/trayText.js';
-import { unlockedItems, isCardLocked, cardInfo } from '../../../src/ui/cards.js';
+import { unlockedItems, isCardLocked, cardInfo, renderCards } from '../../../src/ui/cards.js';
 import { CATEGORIES } from '../../../src/data/ui.js';
 import { MILESTONES } from '../../../src/data/progression.js';
 import { cityAdvice } from '../../../src/sim/advice.js';
@@ -18,7 +18,7 @@ import { fire } from '../../helpers/dom.js';
 const capital = () => { const w = uiWorld(); w.milestone = 'capital'; return w; };
 const layered = { hooks: { flatTray: false } };
 const cardsOf = (r, sel = '#dock .tray') => [...r.root.querySelectorAll(`${sel} .card[data-item]`)].map((c) => c.dataset.item);
-const moreOf = (r, sel = '#dock .tray') => r.root.querySelector(`${sel} .more-card`);
+
 const openCategory = (r, id) => fire(r.root.querySelector(`#dock .cat[data-category="${id}"]`), 'click');
 
 describe('v81 d layers: what a category shows', () => {
@@ -90,46 +90,40 @@ describe('v81 d layers: what a category shows', () => {
 });
 
 describe('v81 d layers: the tray on the page', () => {
-  it('shows the main cards and a More card that opens the rest and a Fewer card that folds them, in the dock, the panel and the rail', async () => {
+  // Version 8.2 (Track L, ruling 1327): no tray has a More or Fewer card; every unlocked card is listed and the tray scrolls, the suggested first (replaces 8.1's More tests).
+  it('lists every unlocked card of the category in the dock, the panel and the rail, with no More or Fewer', async () => {
     const w = capital();
     const r = await rigUI({ world: w, ...layered });
     try {
       openCategory(r, 'industry');
-      const plan = layerPlan(w, 'industry');
-      expect(cardsOf(r)).toEqual(plan.items);
-      const more = moreOf(r);
-      expect([more.tagName, more.getAttribute('aria-expanded'), more.getAttribute('aria-label'), more.dataset.lock]).toEqual(['BUTTON', 'false', TRAY_V81_TEXT.moreName(plan.hidden, CATEGORY_NAMES.industry), 'tray-more-industry']);
-      expect(more.textContent).toContain(TRAY_V81_TEXT.moreCount(plan.hidden));
-      fire(more, 'click');
       expect(cardsOf(r)).toEqual(unlockedItems(w, 'industry'));
-      expect([moreOf(r).getAttribute('aria-expanded'), moreOf(r).getAttribute('aria-label')]).toEqual(['true', TRAY_V81_TEXT.fewerName(CATEGORY_NAMES.industry)]);
-      fire(moreOf(r), 'click');
-      expect(cardsOf(r)).toEqual(plan.items);
-      // The same view in the wide panel and the rail's drawer (they share the store's More).
+      expect(r.root.querySelectorAll('.more-card').length).toBe(0);
       r.store.set({ category: 'industry' });
-      expect(cardsOf(r, '#panel .cards')).toEqual(plan.items);
-      expect(moreOf(r, '#panel .cards').dataset.lock).toBe('tray-more-industry');
-      fire(moreOf(r, '#panel .cards'), 'click');
       expect(cardsOf(r, '#panel .cards')).toEqual(unlockedItems(w, 'industry'));
-      expect(cardsOf(r)).toEqual(unlockedItems(w, 'industry'));                           // one state: the dock's tray opened with it
-      r.store.set({ category: 'roads', trayMore: {} });
-      expect(r.root.querySelectorAll('#dock .tray .more-card').length).toBe(0);           // a small category has no More
+      r.store.set({ category: 'roads' });
+      expect(cardsOf(r)).toEqual(unlockedItems(w, 'roads'));
     } finally { r.cleanup(); }
+    const c = await rigUI({ world: capital(), width: 844, height: 390, ...layered });
+    try {
+      fire(c.root.querySelector('#rail .cat[data-category="industry"]'), 'click');
+      expect(cardsOf(c, '#rail .drawer')).toEqual(unlockedItems(c.world, 'industry'));
+    } finally { c.cleanup(); }
   });
 
-  it('gives the More card an accessible name, a 44 px target and a keyboard path, and keeps focus on it when it opens', async () => {
-    const r = await rigUI({ world: capital(), ...layered });
+  it('scrolls the phone\'s tray sideways by finger without passing the scroll on, and keeps the place a redraw finds it at', async () => {
+    const w = capital();
+    const r = await rigUI({ world: w, ...layered });
     try {
       openCategory(r, 'industry');
-      const more = moreOf(r);
-      const box = more.getBoundingClientRect();
-      expect([box.width >= 44, box.height >= 44, more.tabIndex >= 0, more.disabled]).toEqual([true, true, true, false]);
-      more.focus();
-      expect(document.activeElement).toBe(more);
-      fire(more, 'click');                                                                  // Enter and Space on a button are this click
-      expect(document.activeElement.classList.contains('more-card')).toBe(true);           // focus stays on the control that was used
-      const fewer = moreOf(r).getBoundingClientRect();
-      expect([fewer.width >= 44, fewer.height >= 44]).toEqual([true, true]);
+      const tray = r.root.querySelector('#dock .tray'), cs = getComputedStyle(tray);
+      expect([cs.overflowX, cs.overscrollBehaviorX, tray.scrollWidth > tray.clientWidth]).toEqual(['auto', 'contain', true]);
+      const card = tray.querySelector('.card[data-item]');
+      expect(getComputedStyle(card).touchAction).toBe('pan-x');                              // a sideways swipe on a card is the tray's; the drag to build is an upward one (cardDrag.js dragIntent)
+      tray.scrollLeft = 120;
+      const at = tray.scrollLeft;                                                            // (the tray snaps to a card)
+      expect(at).toBeGreaterThan(0);
+      renderCards(tray, { world: w, category: 'industry', onPick: () => {} });               // a redraw of the same category (a price moved, the suggestion changed)
+      expect(tray.scrollLeft).toBe(at);
     } finally { r.cleanup(); }
   });
 
@@ -157,15 +151,14 @@ describe('v81 d layers: the tray on the page', () => {
     const p = await rigUI({ world: capital(), ...layered });
     try {
       openCategory(p, 'industry');
-      const hidden = unlockedItems(p.world, 'industry').filter((i) => !cardsOf(p).includes(i))[0];
-      p.store.set({ trayPins: [hidden] });
-      expect(cardsOf(p).includes(hidden)).toBe(true);
+      p.store.set({ trayPins: [unlockedItems(p.world, 'industry')[5]] });                    // a pin shows, as every card does now
+      expect(cardsOf(p)).toEqual(unlockedItems(p.world, 'industry'));
     } finally { p.cleanup(); }
   });
 });
 
 describe('v81 d layers: the lock ids', () => {
-  it('puts data-lock on every category button, card, More card, handle, pill, Layers and Map, in the phone layout', async () => {
+  it('puts data-lock on every category button, card, handle, pill, Layers and Map, in the phone layout', async () => {
     const r = await rigUI({ world: capital(), ...layered });
     try {
       for (const c of r.root.querySelectorAll('#dock .cat')) expect([c.dataset.category, c.dataset.lock]).toEqual([c.dataset.category, `tray-cat-${c.dataset.category}`]);
@@ -175,8 +168,6 @@ describe('v81 d layers: the lock ids', () => {
         openCategory(r, id);
         for (const card of r.root.querySelectorAll('#dock .tray .card[data-item]')) expect([id, card.dataset.item, card.dataset.lock]).toEqual([id, card.dataset.item, `tray-item-${card.dataset.item}`]);
       }
-      openCategory(r, 'industry');
-      expect(moreOf(r).dataset.lock).toBe('tray-more-industry');
       r.store.set({ category: 'roads' });
       expect(r.root.querySelector('#dock .tray .card[data-item="road"]').dataset.lock).toBe('tray-item-road');
     } finally { r.cleanup(); }

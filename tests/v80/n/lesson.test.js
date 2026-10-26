@@ -3,7 +3,7 @@
 // card as a tertiary text button.
 import { describe, it, expect } from '../../harness.js';
 import { LESSON_STEPS } from '../../../src/data/lesson.js';
-import { LESSON_SCRIPT, stepSpot } from '../../../src/sim/lesson.js';
+import { LESSON_SCRIPT, stepSpot, stepFrame } from '../../../src/sim/lesson.js';
 import { tileToScreen } from '../../../src/render/camera.js';
 import { V711_TEXT, D2_TEXT } from '../../../src/ui/text.js';
 import { fire } from '../../helpers/dom.js';
@@ -23,6 +23,7 @@ describe('v80 n lesson: the view follows each step\'s own target', () => {
         const g = s.g();
         const spot = stepSpot(g.world, step);
         if (!spot) continue;
+        if (stepFrame(g.world, step)) continue;   // Version 8.2 (Track L): the raid step frames the target with the towers and the raiders' side instead (tests/v82/l/targets.test.js)
         const c = centreOf(spot);
         const [sx, sy] = tileToScreen(g.cam, { width: W, height: H }, c.x, c.y);
         if (Math.abs(sx - FREE.x) > 2 || Math.abs(sy - FREE.y) > 2) wrong.push(`${step.id}: at ${Math.round(sx)},${Math.round(sy)} not ${FREE.x},${Math.round(FREE.y)}`);

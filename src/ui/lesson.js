@@ -4,7 +4,7 @@
 // (src/sim/lesson.js), its run in the game src/ui/v60/lesson.js, its start and end src/boot.js.
 import { LESSON_STEPS } from '../data/lesson.js';
 import { LESSON_LENGTH, firstOf, warnedRaid, stepDone, playWhen } from '../sim/lesson.js';
-import { towersNeeded, workingTowers } from '../sim/raids.js';
+import { towersNeeded, workingTowers, raidTargetKind } from '../sim/raids.js';
 import { staffedCover } from '../sim/fire.js';
 import { monthForecast } from '../sim/economy.js';
 import { population } from '../sim/world.js';
@@ -36,6 +36,8 @@ export function lessonFacts(world, step) {
     f.warning = { dir: w.dir, size: w.size, daysLeft: Math.max(0, w.arrives - world.day), need, have: workingTowers(world) };
   }
   if (a) f.raidOn = { left: a.raiders ? a.raiders.length : 0 };
+  // Version 8.2 (Track L, ruling 1320): the kind of building the raid is after (the warning's own, else the raid under way's), which the ring on the raid step lights and the words name.
+  f.target = w ? w.target : a ? a.target : raidTargetKind(world);
   if (step && (step.id === 'firehouse' || step.id === 'fire') && !firstOf(world, 'bazaar')) f.missing = 'bazaar';
   // Version 6.0.1 (ruling 820): whether a staffed firehouse still reaches the bazaar (its crew), so the fire step's words say who puts the staged blaze out.
   if (step && step.id === 'fire' && firstOf(world, 'bazaar')) f.crew = staffedCover(world, firstOf(world, 'bazaar'));
