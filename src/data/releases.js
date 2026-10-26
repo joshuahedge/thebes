@@ -9,7 +9,24 @@
 
 export const RELEASES = [
   {
-    version: '8.0', date: '2026-10-24', title: 'Clear and calm', build: 'live',
+    version: '8.1', date: '2026-10-26', title: 'The vizier', build: 'live',
+    new: [
+      'You are the king\'s new vizier, sent to the village at Thebes: make it worthy of the court, and crown your service with the great temple.',
+      'Meet Ipi, the king\'s scribe, who talks you through the lesson, points out what the city needs, and says a word when you rise in rank or something new unlocks.',
+      'The lesson now comes in seven short chapters, one idea each (roads, homes, water, food, work and trade, fire, defence). Everything you do not need yet is dimmed, Ipi says how you did after each step, and the city you build becomes your own city when it ends.',
+      'The top bar is now pictures: gold, people, mood, the season and flood, and your score, each changing with the city. Tap one to see what it means, why it is moving, and what to do about it.',
+      'The scroll icon opens Messages and a new City page: income and spending, people and jobs, what moves the mood, stores, and a year of gold, people and mood.',
+      'Drag a card from the build tray onto the map and let go to build it. Roads and plots keep drawing as you drag.',
+      'Each build group shows the few things that matter now, with More for the rest; things you have not unlocked yet stay out of the way, and the build Ipi suggests glows.',
+    ],
+    fixed: [
+      'The Nilometer now does something: with one staffed, the next flood shows on the top bar all year, and farms prepare, so a low flood costs a third less harvest.',
+      'Pinching or double-tapping the build tray, bars and panels no longer zooms the whole page.',
+      'In the lesson, cancelling a road and laying it again moves the lesson on; each step checks what is on the map, not the order of your taps.',
+    ],
+  },
+  {
+    version: '8.0', date: '2026-10-24', title: 'Clear and calm', build: '702481b',
     new: [
       'One look all through the game: a thicker patterned band and the same teal, ochre and lapis weighting on every panel and pop-up, with red kept for what you cannot do.',
       'A calmer title screen: one main button, Play (or Continue once you have a city), then Options and What\'s new. The version number now sits at the foot of Options.',

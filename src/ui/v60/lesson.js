@@ -255,7 +255,9 @@ export function createLessonUi(ctx) {
     // between (the firehouse's Fire risk), so the overlay stays off there; the player turns it on from Layers.
     if (store.get().layout === 'compact' && Number(settings.get().textSize) >= 125 && store.get().overlay) store.set({ overlay: null });
     paintOpen();
-    const focus = row.querySelector('.show-me:not([hidden])') || root.querySelector('#topbar .menu');
+    // Focus goes to Show me, else to the step's own target when that is a button (the month's gold), never to the menu beside the bar's stats (8.1 integration).
+    const own = step && step.dom ? root.querySelector(step.dom) : null;
+    const focus = row.querySelector('.show-me:not([hidden])') || (own && own.tagName === 'BUTTON' ? own : null);
     if (focus && focus.offsetParent !== null) focus.focus();
   }
 

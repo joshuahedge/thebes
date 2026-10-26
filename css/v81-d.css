@@ -25,6 +25,11 @@ body:not(.reduce-motion) .card.advised { animation: advised-ring 1.6s ease-in-ou
 /* Integration (ruling 1269): on the wide panel, whose grid scrolls, More stays pinned at the grid's foot, in sight without scrolling while the cards overflow. */
 #panel .cards.grid .card.more-card { position: sticky; bottom: 0; z-index: 1; background: var(--parchment); box-shadow: 0 -6px 8px -4px rgba(43, 31, 14, 0.18); }
 
+/* Integration: on a phone at the normal text size the first three cards fit the tray's width exactly, so no name ("Police post") sits half under the tray's edge fade and arrow. A card's name
+   wraps inside it, and a word too long for its card breaks instead of running out of it (larger text keeps the 124 px card, which scrolls). */
+body:not([data-text-size="125"]):not([data-text-size="150"]) #dock .tray .card { width: clamp(108px, calc((100vw - 40px) / 3), 124px); }
+.card .name { overflow-wrap: anywhere; }
+
 /* A card dragged onto the map (ruling 1245): a clear layer over the page keeps the drag with the finger over the map and the bars; nothing shows on it. */
 .card-drag-surface { position: fixed; inset: 0; z-index: 60; background: transparent; touch-action: none; cursor: grabbing; }
 body.card-dragging, body.card-dragging * { -webkit-user-select: none; user-select: none; cursor: grabbing; }

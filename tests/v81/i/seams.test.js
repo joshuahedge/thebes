@@ -141,6 +141,26 @@ describe('v81 i lesson: the month step lights the top bar\'s gold', () => {
   });
 });
 
+describe('v81 i lesson: after the month card, keyboard focus goes to the gold, not the menu', () => {
+  it('the card\'s button docks the step and focus lands on the gold stat (its own target); the menu button never takes it', async () => {
+    const s = await pageAt('month', { width: 390, height: 844 });
+    try {
+      const gold = s.root.querySelector('#topbar .stat.gold');
+      expect(dockCard(s.root)).toBe(true);
+      await frame();
+      expect([document.activeElement === gold, document.activeElement === s.root.querySelector('#topbar .menu')]).toEqual([true, false]);
+    } finally { s.cleanup(); }
+  });
+  it('a step whose target is no button (the speed bar) leaves focus off the menu too', async () => {
+    const s = await pageAt('families', { width: 390, height: 844 });
+    try {
+      expect(dockCard(s.root)).toBe(true);
+      await frame();
+      expect(document.activeElement === s.root.querySelector('#topbar .menu')).toBe(false);
+    } finally { s.cleanup(); }
+  });
+});
+
 describe('v81 i Ipi: one place at a time, read whole', () => {
   it('a tap on a dimmed control while a line of Ipi\'s floats: the floating line goes and the refusal takes the docked bubble, then the why comes back', async () => {
     const s = await pageAt('homes', { width: 390, height: 844 });
