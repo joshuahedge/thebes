@@ -6,6 +6,12 @@
 - Delete "Bring a city from Safari" entirely.
 - He asked whether the visual design (the colour elements) is part of this; see section 8.
 
+**Josh's calls (26 Oct):**
+- Nilometer: option (a), the forecast on the top bar and farms that prepare.
+- The stats page: confirmed. Tapping a stat shows a short explainer; the papyrus opens Messages with a City tab.
+- Build 8.1 and 8.2, and push each one when it is tested.
+- The scribe's name stays Ipi (the default).
+
 Source: a friend's longer playtest notes (24 Oct 2026), relayed by Josh, who asked to "consider and further refine across the broader game". Each note is read as a symptom of a wider rule. Section 1 states the rules; sections 2 to 7 apply them across the game. Everything marked **Josh** is a call for him to make.
 
 ## 1. The rules behind the notes
@@ -109,6 +115,38 @@ Source: a friend's longer playtest notes (24 Oct 2026), relayed by Josh, who ask
   - Cartouche-style headers and one corner ornament.
   - The same teal / ochre / coral weighting on every button state (rule 1).
   - The scribe's portrait and speech bubble share the frame.
+
+## 7b. Josh's further notes (26 Oct, after 8.0 went live), folded into 8.1
+
+**Tutorial, made foolproof.** This replaces the first half of section 3's card-and-bubble plan.
+- **One concept at a time.** Each chapter teaches one idea: roads, then homes, water, food, work, fire, defence. Only that idea's controls are visible and selectable.
+- **Lock and dim the rest.** While a step runs:
+  - Everything not needed for it is dimmed and refuses taps: other tray categories and cards, layers, the minimap, speed (unless the step is about time), and the top-bar stats (unless the step is about them).
+  - A tap on a dimmed control gets one short line from the scribe ("First the road; the rest comes soon.").
+  - The map stays pannable and zoomable. Only placing is limited, to what the step teaches.
+- **Robust steps.** Bug: if you tap around and cancel the first road, laying the road afterwards does not move the lesson on. Each step checks the world's real state (is there a road of 9 tiles from the gate?), never the order of taps. Cancelling, undoing or redoing is always safe. Test every step by doing it, undoing it, cancelling midway and doing it again.
+
+**Top bar: icons, not a row of mixed text.** Today it mixes several font sizes and reads as sloppy.
+- **Icons with states.** Each global stat becomes a drawn icon with its number in one type size:
+  - Gold: the coin pile grows and shrinks, and turns amber when income is negative.
+  - People: house figures.
+  - Mood: a face with 3 to 4 states.
+  - Date and flood: a sun and river glyph with the season.
+  - Score: a cartouche.
+  - One font size, one weight, and numbers aligned to the icons.
+- **Tap a stat** to get a small explainer pinned under it: what it is, why it is going up or down (from the sim's own breakdown: income lines, mood causes), and one thing to do about it with Show me. A second tap or a tap elsewhere closes it.
+- **The stats page.** A fuller page of city statistics (income and spending, population and jobs, mood causes, food and goods, trends over the last year). It is reached as a second state of the papyrus (scroll) icon: the papyrus opens Messages, with a "City" tab beside it. No new top-bar button. (Interpretation of Josh's "stats page locked behind an alternate state behind the papyrus icon"; to confirm.)
+
+**Bugs.**
+- **The build tray zooms in the installed web app.** Pinch or double-tap on the bottom tray zooms the whole page, and it is clunky to get back. Fix:
+  - stop page zoom on all UI chrome (touch-action, and iOS gesture events on the tray, bars and sheets);
+  - keep the game's own map zoom;
+  - check that the installed iPhone app cannot get stuck zoomed;
+  - if it ever is, a "fit" reset restores it.
+- **The nilometer seems to do nothing.** Today it only shows the next flood's forecast on its sheet, which nobody reads. Its fix is an open call; option (a) is recommended:
+  - **(a)** With a nilometer standing, the flood forecast shows on the top bar's flood icon all year, and farms prepare: a low flood costs a third less harvest, and a high flood's damage is halved.
+  - **(b)** In the old Egyptian way, the nilometer's reading sets the harvest tax: good floods bring extra gold.
+  - **(c)** Both.
 
 ## 8. Order, size and usage
 
