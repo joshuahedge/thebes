@@ -1,0 +1,24 @@
+/* Version 8.1 (Track D): the build tray. The layered tray's More card and the suggested card's ring, and no page zoom on the interface. */
+
+/* No page zoom on the interface (ruling 1251): the chrome takes taps, scrolls and nothing else (no pinch, no double-tap zoom); the map (#map: touch-action none) keeps its own pinch. The tray's cards
+   keep the scroll their own tray has, so a finger moving the other way is left to the page. */
+#ui, #topbar, #under-bar, #dock, #panel, #rail, #corners, #sheet, #dialog, #title, #toasts, #confirm { touch-action: pan-x pan-y; }
+#dock .card { touch-action: pan-x; }
+#panel .card, #rail .card { touch-action: pan-y; }
+.card { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+/* The card the Advice engine suggests: the map's ring (a teal line inside a white halo, as the lesson's ring) drawn inside the card's edge, which the tray's scroll cannot clip, pulsing three times
+   and then still; the tag says it in words as well. The category it sits in carries the dot the guide's suggested category does. */
+.card.advised { border-color: var(--teal); box-shadow: inset 0 0 0 3px var(--teal), inset 0 0 0 5px rgba(255, 255, 255, 0.85); }
+body:not(.reduce-motion) .card.advised { animation: advised-ring 1.6s ease-in-out 3; }
+@keyframes advised-ring { 50% { box-shadow: inset 0 0 0 3px var(--teal), inset 0 0 0 8px rgba(255, 255, 255, 0.5); } }
+.card .hint { position: absolute; top: 4px; right: 4px; background: var(--teal); color: var(--teal-ink); border-radius: 8px; padding: 0 6px; font-size: calc(12px * var(--ui-scale)); line-height: 1.6; font-weight: 600; pointer-events: none; }
+.cat.advised::after, .tab.advised::after { content: ""; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 2px var(--parchment); }
+#panel .tab[aria-pressed="true"].advised::after { background: var(--teal-ink); box-shadow: 0 0 0 2px var(--teal); }
+
+/* More and Fewer end a layered tray: a card-sized button, dashed so it reads as a door and not a building. */
+.card.more-card { justify-content: center; align-items: center; text-align: center; border-style: dashed; }
+.card.more-card .name { font-weight: 700; }
+.card.more-card .cost { font-size: calc(18px * var(--ui-scale)); font-weight: 700; }
+/* In the wide panel's grid and the rail's drawer the More card is a slim bar across the whole row, so it takes the least of the small panel's height. */
+.cards.grid .card.more-card { grid-column: 1 / -1; flex-direction: row; justify-content: center; align-items: center; gap: 10px; min-height: var(--tap); }

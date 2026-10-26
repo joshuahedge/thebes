@@ -24,7 +24,7 @@ const inkBox = (c) => {
   return x1 < 0 ? null : { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 };
 };
 const ids = (nodes) => [...nodes].map((n) => n.dataset.category);
-const SHOWN = ['roads', 'homes', 'food', 'industry', 'services'];
+const SHOWN = ['roads', 'homes', 'food', 'services'];   // Version 8.1 (ruling 1248): what is locked is hidden, so Industry (its Town cards, locked) is not shown at Village
 
 describe('ui card pictures', () => {
   it('draws a picture for every card, sized for the screen', () => {
@@ -104,7 +104,7 @@ describe('ui card pictures', () => {
     } finally { cleanup(); }
   });
   it('shows only the categories with something to build, each with its colour band', async () => {
-    expect(visibleCategories().map((c) => c.id)).toEqual([...SHOWN, 'defence', 'monuments']);   // Defence has cards from Stage 3, shown from Town (locked); Monuments from Stage 4, shown from Market town
+    expect(visibleCategories().map((c) => c.id)).toEqual(['roads', 'homes', 'food', 'industry', 'services', 'defence', 'monuments']);   // the data's categories; the tray shows the ones with a card unlocked
     expect(Object.keys(CATEGORY_TINT).sort()).toEqual(CATEGORIES.map((c) => c.id).sort());
     expect(HELP_ROWS.find((row) => row[0] === 'category')[2]).toBe('1 to 7');
     const r = await rigUI({ width: 390, height: 844 });
@@ -131,12 +131,12 @@ describe('ui card pictures', () => {
       expect(r.store.get().dock).toBe('tray');
       key(r.root, '3');
       expect(r.store.get().category).toBe('food');
-      key(r.root, '4');                                                           // Industry shows at Village: its Town cards, locked
-      expect(r.store.get().category).toBe('industry');
+      key(r.root, '4');                                                           // Industry has only Town cards, locked, at Village: hidden (Version 8.1, ruling 1248), so ignored
+      expect(r.store.get().category).toBe('food');
       key(r.root, '6');                                                           // Defence has nothing to show in Stage 2: ignored
-      expect(r.store.get().category).toBe('industry');
+      expect(r.store.get().category).toBe('food');
       key(r.root, '7');                                                           // Monuments too
-      expect(r.store.get().category).toBe('industry');
+      expect(r.store.get().category).toBe('food');
     } finally { r.cleanup(); }
   });
   it('fits every tray of picture cards under the corner buttons at 100% and 150% text', async () => {
@@ -175,7 +175,7 @@ describe('ui card pictures', () => {
       try {
         fire(r.root.querySelector(`${width === 844 ? '#rail' : '#panel'} ${width === 844 ? '.cat' : '.tab'}[data-category="services"]`), 'click');
         const cards = [...r.root.querySelectorAll(`${host} .card`)];
-        expect([width, cards.length]).toEqual([width, 8]);
+        expect([width, cards.length]).toEqual([width, 4]);   // Version 8.1: the four Services cards unlocked at Village (the four of the next milestone are hidden, ruling 1248)
         for (const c of cards) {
           const box = c.getBoundingClientRect();
           const pic = c.querySelector('.thumb').getBoundingClientRect();

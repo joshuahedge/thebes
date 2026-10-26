@@ -46,9 +46,10 @@ const BODY_KEYS = ['layout', 'mode', 'input', 'dock', 'hand', 'textSize'];
 // block for the shell's position: fixed chrome, so the top bar, dock and sheets lay out inside it.
 export async function mountShell(width = 390, height = 844) {
   if (!cssLoaded) {
-    // Version 8.0: every stylesheet index.html links (ui.css, then Track U's v80-u.css), in order, so the shell's layout is the page's.
+    // Version 8.0: every stylesheet index.html links, in order, so the shell's layout is the page's (Version 8.1: read from index.html itself, so a track's new stylesheet needs no line here).
     cssLoaded = (async () => {
-      for (const href of ['/css/ui.css', '/css/v80-u.css']) {
+      const page = new DOMParser().parseFromString(await (await fetch('/index.html')).text(), 'text/html');
+      for (const href of [...page.querySelectorAll('link[rel="stylesheet"]')].map((l) => new URL(l.getAttribute('href'), `${location.origin}/`).pathname)) {
         await new Promise((resolve, reject) => {
           const link = document.createElement('link');
           link.rel = 'stylesheet'; link.href = href; link.onload = resolve; link.onerror = reject;
@@ -104,7 +105,8 @@ export async function rigUI({ width = 390, height = 844, hooks = {}, doc = fakeD
     world, canvas, cam, renderer, root: document.body, getSize: () => size,
     subscribeResize: (fn) => { resizeListeners.push(fn); return () => resizeListeners.splice(resizeListeners.indexOf(fn), 1); },
     history, addListener: history.addListener, removeListener: history.removeListener,
-    keyTarget: shell.root, storage: { getItem: () => null, setItem: () => {} }, now, hooks, doc, welcome, sfx, clock, settings,   // undefined clock: createUI's Date.now
+    // Version 8.1: the layered tray (More) is off in the rig unless a test turns it on with hooks.flatTray = false; what is locked is hidden either way.
+    keyTarget: shell.root, storage: { getItem: () => null, setItem: () => {} }, now, hooks: { flatTray: true, ...hooks }, doc, welcome, sfx, clock, settings,   // undefined clock: createUI's Date.now
   });
   const at = (x, y) => { const r = canvas.getBoundingClientRect(); return { clientX: r.left + x, clientY: r.top + y }; };
   const screenOf = (tx, ty) => { const [sx, sy] = tileToScreen(cam, size, tx, ty); return { x: sx, y: sy }; };

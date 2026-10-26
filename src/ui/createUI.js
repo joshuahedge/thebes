@@ -34,7 +34,7 @@ import { pickBuilding } from './pick.js';
 import { createPlacement, snapGhost } from './placement.js';
 import { createHud } from './hud.js';
 import { createSpeedControl } from './speed.js';
-import { cardInfo, activeItemOf, shownItems } from './cards.js';
+import { cardInfo, activeItemOf, unlockedItems } from './cards.js';
 import { createDock } from './dock.js';
 import { createConfirmBar } from './confirmBar.js';
 import { createSidePanel } from './sidePanel.js';
@@ -61,7 +61,9 @@ import { anotherFor, canCopy } from './another.js';
 import { areaKindOf } from '../data/areas.js';
 import { welcomeSheet } from './welcomeBack.js';
 import { tradeSheet } from './tradeSheet.js';
-import { createGuide, canResumeGuide } from './guide.js';
+import { createGuide, canResumeGuide, guideState } from './guide.js';
+import { createTrayLayers } from './v81/trayLayers.js';
+import { installNoZoom } from './v81/noZoom.js';
 import { el, setText, clear } from './components.js';
 import { createDanger } from './danger.js';
 import { createS46Seams } from './s46/index.js';
@@ -227,7 +229,15 @@ export function createUI({
     // 1000 px and wider, below 150% text. Narrower, it would push the last number onto a second row.
     shortDate: () => store.get().layout !== 'wide' || settings.get().textSize >= 150 || view().width < WIDE_LONG_DATE_PX,
   });
-  const dock = createDock({ container: $('dock'), store, world, onPick: pick });
+  // Version 8.1 (Track D, rulings 1246-1250): the layered tray. The Advice engine's cached top build glows on its card and Ipi says it; what is locked stays hidden until it unlocks (and Ipi says
+  // that); an open goal's card and the guide's always show. In the lesson the tray shows everything unlocked and the lesson's lock decides what is live (ruling 1248).
+  const trayLayers = createTrayLayers({
+    world, store, suggestion: () => advice.suggestion(),
+    needed: () => [...openGoals(world, 3).map((g) => nextItemFor(world, g) || (g.showMe && g.showMe.item)), guideState(world).item].filter(Boolean),
+    layered: () => !hooks.lessonRun && !hooks.flatTray,
+    speaking: () => !hooks.lessonRun && !guideActive(world) && !root.classList.contains('lesson-card-up'),
+  });
+  const dock = createDock({ container: $('dock'), store, world, onPick: pick, layers: trayLayers });
   const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo, keys: () => settings.get().keyboardShortcuts !== false, deleteUndoes: () => settings.get().keyboardShortcuts !== false && topUndoKind() !== 'demolish', onArea: (type, on) => (on ? placement.startArea(type) : pick(type)) });
   // The Layers picker (placement review P2): one popover for the corner button on a phone and one under the minimap on a wide
   // screen, sharing store.layersOpen; the layout's own host shows the one that counts. Closing it with focus inside hands focus
@@ -236,8 +246,8 @@ export function createUI({
   const restoreLayersFocus = () => { const b = store.get().layout === 'wide' ? sidePanel.layersButton : corners.layersButton; if (b && b.offsetParent !== null) b.focus({ preventScroll: true }); };
   const cornerPicker = createLayersPicker({ store, world, restoreFocus: restoreLayersFocus, doc });
   const panelPicker = createLayersPicker({ store, world, restoreFocus: restoreLayersFocus, doc });
-  const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas, onLayers: toggleLayers, pickerNode: panelPicker.node });
-  const rail = createRail({ container: $('rail'), store, world, onPick: pick });
+  const sidePanel = createSidePanel({ container: $('panel'), store, world, onPick: pick, minimapNode: panelMinimap.canvas, onLayers: toggleLayers, pickerNode: panelPicker.node, layers: trayLayers });
+  const rail = createRail({ container: $('rail'), store, world, onPick: pick, layers: trayLayers });
   const guide = createGuide({ world, store, root, reducedMotion: settings.reducedMotion });   // after the dock, panel and rail, so its store subscription runs after theirs
   const legend = createOverlayLegend({ container: $('legend'), store, world });
   const corners = createCorners({ container: $('corners'), store, speedControl, onMinimap: () => toggleSheet('minimap'), onOverlay: toggleLayers, pickerNode: cornerPicker.node, alertCount: () => alerts.count(), viewHeight: () => view().height });
@@ -623,6 +633,7 @@ export function createUI({
     if (undoToast && !placement.canUndo()) { toasts.hide(undoToast); undoToast = null; }   // Version 8.0 (ruling 1165): the month ended (or the step was taken back): its Undo is no longer offered
     alerts.refresh();
     advice.refresh();
+    trayLayers.refresh();                              // Version 8.1 (Track D): what the tray shows and says follows the advice just read
     hud.render(); dock.render(); sidePanel.render(); rail.render(); guide.render(); confirmBar.render(); corners.render(); legend.render(); goalsStrip.render();
     measureKey = '';                                   // a goal's words may have changed: "More ▾" is measured again next frame
     setText($('map-summary'), mapSummaryText(world, alerts.list()));
@@ -826,7 +837,7 @@ export function createUI({
     pause: () => speedControl.toggle(), speedUp: () => speedControl.faster(), speedDown: () => speedControl.slower(),
     category: (i) => {                                 // keys 1-7 keep their categories; one with no card to show does nothing (early-game pass 2.5, spec 4.14)
       const c = CATEGORIES[i];
-      if (!c || !shownItems(world, c.id).length) return;
+      if (!c || !unlockedItems(world, c.id).length) return;
       const s = store.get();
       if (s.sheet && s.layout === 'wide') return;      // Version 7.1: the wide tray is folded behind an open sheet, so a change would be unseen and wrong when the sheet closes
       store.set(s.layout === 'wide' ? { category: c.id } : { category: c.id, dock: 'tray' });
@@ -869,6 +880,8 @@ export function createUI({
     if (offered) undo();
   }
   const mapInput = createMapInput({ canvas, cam, view, cameraControl, store, actions, root });
+  // No page zoom on the interface (ruling 1251): iOS's gesture events and a double-tap guard, beside the viewport meta and touch-action.
+  const noZoom = installNoZoom({ doc: root.ownerDocument || document, now });
   // Stage 4.6 (ruling 400): a placement waits for its Enter when a tool has something to lay (a ghost, a finished line or plan) and nothing
   // else holds the screen (a sheet, a dialog, the Layers picker). Then Enter lays it whichever card or corner button has focus, as a
   // click on the map leaves the card that started the tool focused; the bar's own buttons, the toast's Undo and the alert, tip and
@@ -1200,6 +1213,7 @@ export function createUI({
       for (const t of INPUTS) root.removeEventListener(t, onInput);
       root.removeEventListener('click', onPress);
       root.removeEventListener('focusin', onFocusIn);
+      noZoom.detach();
       mapInput.detach(); keyboard.detach(); backStack.stop(); stopLayout(); stopVisibility(); stopTray(); toasts.clear(); celebrations.clear();
       // The shell's containers outlive this UI (a new city builds another one on the same page): leave them empty.
       for (const id of ['topbar', 'dock', 'panel', 'rail', 'corners', 'goals', 'tip', 'cheer', 'banner', 'legend', 'live', 'map-summary']) clear($(id));

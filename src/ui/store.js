@@ -22,6 +22,8 @@ export const INITIAL_UI_STATE = {
   screenshot: false,     // Stage 3: screenshot mode hides the whole interface until the next tap, click, Esc or Back
   layersOpen: false,     // the Layers picker popover is open (placement review P2, ui/layersPicker.js); Back, Esc, a tap outside or a sheet closes it
   guidanceOpen: false,   // a phone's goal, tip or caption is open in place (placement review P8); Back, Esc, a map tap or a sheet closes it
+  trayMore: {},          // Version 8.1 (Track D, ruling 1247): the categories whose More is open, { category: true }
+  trayPins: [],          // Version 8.1 (Track D, ruling 1248): items the layered tray must show whatever its layers say (a lesson step's card)
 };
 
 export function createStore(initial) {

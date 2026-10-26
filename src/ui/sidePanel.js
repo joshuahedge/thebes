@@ -4,27 +4,27 @@ import { renderCards, activeItemOf, cardsKey, shownCategories } from './cards.js
 import { CATEGORY_NAMES, T, layersText } from './text.js';
 import { el, button, iconButton, clear, setText } from './components.js';
 
-export function createSidePanel({ container, store, world, onPick, minimapNode = null, detailsNode = null, onLayers = () => {}, pickerNode = null }) {
+export function createSidePanel({ container, store, world, onPick, minimapNode = null, detailsNode = null, onLayers = () => {}, pickerNode = null, layers: layered = null }) {
   const fold = iconButton(T.fold, '‹', { class: 'fold' });
   const foldbar = el('div', { class: 'foldbar' }, [fold]);
-  const minimap = el('div', { class: 'minimap' });
+  const minimap = el('div', { class: 'minimap', 'data-lock': 'minimap' });
   if (minimapNode) minimap.append(minimapNode);
   // The Layers button under the minimap (placement review P2): the wide layout has no corner buttons, so this is where the
   // overlays are chosen from (the O key still cycles them). Its popover (ui/layersPicker.js) opens over the tabs.
-  const layers = button(T.layers, { class: 'layers-button', 'aria-pressed': 'false', 'aria-expanded': 'false', onClick: onLayers });
+  const layers = button(T.layers, { class: 'layers-button', 'aria-pressed': 'false', 'aria-expanded': 'false', 'data-lock': 'layers', onClick: onLayers });
   const layersRow = el('div', { class: 'layers-row' }, [layers, pickerNode]);
   const tabs = el('div', { class: 'tabs' });
   // A tab per category with a card to show (spec 4.14), rebuilt when that set changes at a milestone.
   let shown = [], shownKey = null, tabButtons = [];
   function buildTabs() {
-    const next = shownCategories(world);
+    const next = layered ? layered.categories() : shownCategories(world);
     const key = next.map((c) => c.id).join(',');
     if (key === shownKey) return;
     const focused = tabs.contains(document.activeElement) ? document.activeElement.dataset.category : null;
     shownKey = key;
     shown = next;
     tabButtons = shown.map((c) => {
-      const b = button(CATEGORY_NAMES[c.id], { class: 'tab', dataset: { category: c.id }, 'aria-pressed': 'false', onClick: () => store.set({ category: c.id }) });
+      const b = button(CATEGORY_NAMES[c.id], { class: 'tab', dataset: { category: c.id }, 'data-lock': `tray-cat-${c.id}`, 'aria-pressed': 'false', onClick: () => store.set({ category: c.id }) });
       b.style.setProperty('--tint', CATEGORY_TINT[c.id]);
       return b;
     });
@@ -78,10 +78,11 @@ export function createSidePanel({ container, store, world, onPick, minimapNode =
     setText(layers, s.overlay ? layersText(s.overlay) : T.layers);
     layers.setAttribute('aria-pressed', String(Boolean(s.overlay)));
     layers.setAttribute('aria-expanded', String(s.layersOpen));
-    tabButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(s.category === shown[i].id)));
-    const key = cardsKey(world, s.category, activeItemOf(s.tool));
+    const advisedCat = layered ? layered.advisedCategory() : null;
+    tabButtons.forEach((b, i) => { b.setAttribute('aria-pressed', String(s.category === shown[i].id)); b.classList.toggle('advised', shown[i].id === advisedCat); });
+    const key = cardsKey(world, s.category, activeItemOf(s.tool), layered);
     if (key !== lastCards) {
-      renderCards(cards, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick, grid: true });
+      renderCards(cards, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick, grid: true, layers: layered });
       lastCards = key;
     }
     publishTabsBottom(s);

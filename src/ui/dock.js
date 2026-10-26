@@ -8,11 +8,12 @@ import { el, button, icon, clear } from './components.js';
 
 const SWIPE_PX = 30;
 
-export function createDock({ container, store, world, onPick }) {
-  const handle = el('button', { type: 'button', class: 'handle', 'aria-label': T.buildTray, 'aria-expanded': 'false' });
+// Version 8.1 (Track D): `layers` (src/ui/v81/trayLayers.js) makes the tray layered (the main cards, More, the suggested card glowing) and hides what is locked; without it the tray is 8.0's.
+export function createDock({ container, store, world, onPick, layers = null }) {
+  const handle = el('button', { type: 'button', class: 'handle', 'aria-label': T.buildTray, 'aria-expanded': 'false', 'data-lock': 'tray-handle' });
   const cats = el('div', { class: 'cats' });
   const tray = el('div', { class: 'tray cards' });
-  const pill = button(T.build, { class: 'pill primary' });
+  const pill = button(T.build, { class: 'pill primary', 'data-lock': 'tray-pill' });
   // Ruling 300: a tray with more cards than the phone shows (the Monuments tray holds ten) says so: an edge fade with a
   // chevron over its right end while there is more to see that way, gone at the end. It sits over the cards (no height of
   // its own, so the mobile budget is untouched), lets taps through, and does not move (css/ui.css, s4 ui).
@@ -21,14 +22,14 @@ export function createDock({ container, store, world, onPick }) {
   // rebuilt when it changes, keeping keyboard focus on the same category.
   let shown = [], shownKey = null, catButtons = [];
   function buildCats() {
-    const next = shownCategories(world);
+    const next = layers ? layers.categories() : shownCategories(world);
     const key = next.map((c) => c.id).join(',');
     if (key === shownKey) return;
     const focused = cats.contains(document.activeElement) ? document.activeElement.dataset.category : null;
     shownKey = key;
     shown = next;
     catButtons = shown.map((c) => {
-      const b = el('button', { type: 'button', class: 'cat', dataset: { category: c.id }, 'aria-pressed': 'false' }, [icon(CATEGORY_ICONS[c.id]), el('span', { text: CATEGORY_NAMES[c.id] })]);
+      const b = el('button', { type: 'button', class: 'cat', dataset: { category: c.id }, 'data-lock': `tray-cat-${c.id}`, 'aria-pressed': 'false' }, [icon(CATEGORY_ICONS[c.id]), el('span', { text: CATEGORY_NAMES[c.id] })]);
       b.style.setProperty('--tint', CATEGORY_TINT[c.id]);
       b.addEventListener('click', () => {
         const s = store.get();
@@ -78,10 +79,11 @@ export function createDock({ container, store, world, onPick }) {
     container.dataset.height = s.dock;
     document.body.dataset.dock = s.dock;
     handle.setAttribute('aria-expanded', String(s.dock === 'tray'));
-    catButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(s.dock === 'tray' && s.category === shown[i].id)));
-    const key = cardsKey(world, s.category, activeItemOf(s.tool));
+    const advisedCat = layers ? layers.advisedCategory() : null;
+    catButtons.forEach((b, i) => { b.setAttribute('aria-pressed', String(s.dock === 'tray' && s.category === shown[i].id)); b.classList.toggle('advised', shown[i].id === advisedCat); });
+    const key = cardsKey(world, s.category, activeItemOf(s.tool), layers);
     if (s.dock === 'tray' && key !== lastCards) {
-      renderCards(tray, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick });
+      renderCards(tray, { world, category: s.category, activeItem: activeItemOf(s.tool), onPick, layers });
       lastCards = key;
     }
     updateMore();

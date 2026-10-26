@@ -46,13 +46,13 @@ describe('ui panels', () => {
     expect([button.textContent, button.getAttribute('aria-pressed'), button.getAttribute('aria-expanded')]).toEqual(['Layers: Ground', 'true', 'true']);
     cleanup();
   });
-  it('side panel: five tabs on one row at 100% text, and an open sheet below the tabs at any text size', async () => {
+  it('side panel: four tabs on one row at 100% text, and an open sheet below the tabs at any text size', async () => {
     for (const [width, height] of [[1024, 768], [1280, 800]]) {
       const r = await rigUI({ width, height });
       try {
         expect(r.store.get().layout).toBe('wide');
         const tabs = () => [...r.root.querySelectorAll('#panel .tab')].map((t) => t.getBoundingClientRect());
-        expect(tabs().length).toBe(5);
+        expect(tabs().length).toBe(4);   // Version 8.1 (ruling 1248): Industry's Town cards are locked, so its tab waits
         expect([width, new Set(tabs().map((t) => t.top)).size]).toEqual([width, 1]);   // one row
         for (const size of [100, 125, 150]) {
           r.ui.settings.set({ textSize: size });

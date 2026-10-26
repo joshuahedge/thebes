@@ -24,12 +24,14 @@ import { contrastIn } from '../helpers/contrast.js';
 
 const ids = (list) => list.map((c) => c.id);
 const catsOf = (r, sel) => [...r.root.querySelectorAll(sel)].map((b) => b.dataset.category);
-const SHOWN = ['roads', 'homes', 'food', 'industry', 'services'];
+const SHOWN = ['roads', 'homes', 'food', 'services'];   // the tray's buttons at Village: Industry's cards are all locked, so hidden (Version 8.1, ruling 1248); shownCategories (8.0, with the next milestone's cards) keeps its own list
+const SHOWN_TOWN = ['roads', 'homes', 'food', 'industry', 'services'];
+const SHOWN_8_0 = ['roads', 'homes', 'food', 'industry', 'services'];
 
 describe('ui stage 2 cards', () => {
   it('shows what is unlocked and what the next milestone brings, locked, and hides the rest', () => {
     const w = makeTestWorld();
-    expect(ids(shownCategories(w))).toEqual(SHOWN);                                 // Industry shows at Village: its Town cards, locked
+    expect(ids(shownCategories(w))).toEqual(SHOWN_8_0);                             // Industry shows at Village: its Town cards, locked (the sim-facing rule; the tray hides them, ruling 1248)
     expect(shownItems(w, 'homes')).toEqual(['house', 'garden', 'statue']);
     expect(shownItems(w, 'food')).toEqual(['farm_grain', 'farm_fig', 'granary', 'hunting_lodge', 'fishing_wharf']);   // Stage 4.6: the River track's two, locked until Town
     expect(shownItems(w, 'industry')).toEqual(['clay_pit', 'potter', 'storehouse']);
@@ -70,13 +72,18 @@ describe('ui stage 2 cards', () => {
       for (const sel of ['#dock .cat', '#rail .cat', '#panel .tab']) expect([sel, catsOf(r, sel)]).toEqual([sel, SHOWN]);
       key(r.root, '6');
       expect(r.store.get().category).toBe('roads');                                  // nothing to show there yet: ignored
-      r.world.milestone = 'town';                                                    // Market town is next: its card shows, locked
+      r.world.milestone = 'town';                                                    // Town: Industry's cards unlock, so its button comes; Market town's card is still locked, so Defence waits (Version 8.1, ruling 1248)
       r.ui.refresh();
-      for (const sel of ['#dock .cat', '#rail .cat', '#panel .tab']) expect([sel, catsOf(r, sel)]).toEqual([sel, [...SHOWN, 'defence']]);
+      for (const sel of ['#dock .cat', '#rail .cat', '#panel .tab']) expect([sel, catsOf(r, sel)]).toEqual([sel, ['roads', 'homes', 'food', 'industry', 'services']]);
+      key(r.root, '6');
+      expect(r.store.get().category).toBe('roads');
+      r.world.milestone = 'market_town';                                             // the card unlocks: the category's button comes with it
+      r.ui.refresh();
+      for (const sel of ['#dock .cat', '#rail .cat', '#panel .tab']) expect([sel, catsOf(r, sel)]).toEqual([sel, [...SHOWN_TOWN, 'defence']]);
       expect(r.root.querySelector('#rail .drawer').previousElementSibling.dataset.category).toBe('defence');   // the rail's categories come before its drawer
       key(r.root, '6');
       expect(r.store.get().category).toBe('defence');
-      expect(r.root.querySelector('#dock .tray [data-item="trading_post"]').getAttribute('aria-disabled')).toBe('true');
+      expect(r.root.querySelector('#dock .tray [data-item="trading_post"]').getAttribute('aria-disabled')).toBe(null);
     } finally { defence.items.pop(); r.cleanup(); }
   });
   it("marks a milestone's new buildings New, in words, until one is placed", async () => {
@@ -89,7 +96,7 @@ describe('ui stage 2 cards', () => {
       const card = (item) => r.root.querySelector(`#dock .tray [data-item="${item}"]`);
       expect(card('clay_pit').querySelector('.new-badge').textContent).toBe(T.newBadge);
       expect(card('clay_pit').textContent).toContain(T.newBadge);                    // part of the card's name, so not colour alone
-      expect(card('trading_post').querySelector('.new-badge')).toBe(null);           // locked: next milestone, not new
+      expect(card('trading_post')).toBe(null);                                       // locked: the next milestone's, hidden until it unlocks (Version 8.1, ruling 1248)
       expect(cardInfo(r.world, 'potter').isNew).toBe(true);
       layClay(r.world, 17, 11);
       r.ui.placement.start({ kind: 'building', type: 'clay_pit' }, { x: 17, y: 11 });
@@ -240,20 +247,27 @@ describe('ui stage 2 cards', () => {
     expect(T.acceptHelp).toContain('or production stops');
     expect(TIP_TEXT.storehouse_choices).toContain('production stops');
   });
-  it('keeps a locked card readable: only its picture fades, its words stay at 4.5:1 in the panel and the rail drawer', async () => {
-    for (const [width, height] of [[1280, 800], [844, 390]]) {
+  it('hides what is locked in the dock, the panel and the rail drawer (Version 8.1, ruling 1248); a locked card drawn on its own keeps its words readable: only its picture fades, 4.5:1', async () => {
+    for (const [width, height] of [[1280, 800], [844, 390], [390, 844]]) {
       const r = await rigUI({ width, height });
       try {
         if (width === 1280) r.store.set({ category: 'industry' });
-        else fire(r.root.querySelector('#rail .cat[data-category="industry"]'), 'click');
-        const card = r.root.querySelector(`${width === 1280 ? '#panel' : '#rail .drawer'} .card[data-item="potter"]`);
-        expect([width, card.classList.contains('locked'), card.getAttribute('aria-disabled')]).toEqual([width, true, 'true']);
-        expect(card.querySelector('.cost').textContent).toContain('Unlocks at Town');           // the lock says it in words
-        expect([width, getComputedStyle(card).opacity]).toEqual([width, '1']);
-        expect(Number(getComputedStyle(card.querySelector('.thumb')).opacity)).toBeLessThan(1);
-        for (const sel of ['.name', '.cost']) expect([width, sel, contrastIn(card.querySelector(sel), card) >= 4.5]).toEqual([width, sel, true]);
+        else if (width === 844) fire(r.root.querySelector('#rail .cat[data-category="food"]'), 'click');
+        else fire(r.root.querySelector('#dock .cat[data-category="food"]'), 'click');
+        expect([width, r.root.querySelectorAll(`#dock .card.locked, #panel .card.locked, #rail .card.locked`).length]).toEqual([width, 0]);
+        expect([width, r.root.querySelectorAll('.cat[data-category="industry"], .tab[data-category="industry"]').length]).toEqual([width, 0]);   // Industry's cards all unlock at Town
       } finally { r.cleanup(); }
     }
+    const { root, cleanup } = mount();
+    try {
+      renderCards(root, { world: makeTestWorld(), category: 'industry', onPick: () => {} });   // without the layered tray's view, the 8.0 cards: the next milestone's, locked
+      const card = root.querySelector('[data-item="potter"]');
+      expect([card.classList.contains('locked'), card.getAttribute('aria-disabled')]).toEqual([true, 'true']);
+      expect(card.querySelector('.cost').textContent).toContain('Unlocks at Town');           // the lock says it in words
+      expect(getComputedStyle(card).opacity).toBe('1');
+      expect(Number(getComputedStyle(card.querySelector('.thumb')).opacity)).toBeLessThan(1);
+      for (const sel of ['.name', '.cost']) expect([sel, contrastIn(card.querySelector(sel), card) >= 4.5]).toEqual([sel, true]);
+    } finally { cleanup(); }
   });
   it('gives every good its name and a line saying what makes it, what uses it and who trades it', () => {
     expect(goodLine('pottery')).toBe('Pottery: made by potters from clay; used by Townhouses and up; sold to Memphis, Byblos and Punt');   // Version 7.0: the river partners

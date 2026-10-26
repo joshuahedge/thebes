@@ -211,7 +211,7 @@ describe('ui createUI', () => {
     expect(document.body.dataset.layout).toBe('wide');
     expect([shown('dock'), shown('panel'), shown('rail')]).toEqual([false, true, false]);
     expect(r.root.querySelectorAll('#topbar .speed button').length).toBe(4);
-    expect(r.root.querySelectorAll('#panel .cards .card').length).toBe(8);    // the services grid, the booth, the physician and the palace locked until Town
+    expect(r.root.querySelectorAll('#panel .cards .card').length).toBe(4);    // the services grid: the four unlocked at Village (the booth, the physician, the palace and the nilometer wait, hidden until Town: Version 8.1, ruling 1248)
     expect(r.root.querySelector('#panel .minimap canvas')).toBeTruthy();
     r.cleanup();
   });
