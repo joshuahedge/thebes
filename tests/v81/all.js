@@ -3,3 +3,4 @@
 import './t/all.js';   // Track T: the story, Ipi and the tutorial
 import './b/all.js';   // Track B: the top bar, explainers and the City page
 import './d/all.js';   // Track D: building: drag to build, the layered tray, no page zoom
+import './i/all.js';   // integration: the seams between the three tracks

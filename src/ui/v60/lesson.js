@@ -64,7 +64,7 @@ const REFUSED_MS = 2600;
 export function lockFor(step) {
   if (!step) return [];
   const ids = ['menu', 'papyrus'];
-  if (step.show) ids.push(`tray-cat-${step.show.category}`, `tray-item-${step.show.item}`);
+  if (step.show) ids.push(`tray-cat-${step.show.category}`, `tray-item-${step.show.item}`, 'tray-handle', 'tray-pill');   // ruling 1261: the tray that holds the step's card opens and folds
   if (step.play) ids.push('speed');
   if (step.lock) ids.push(...step.lock);
   return ids;
@@ -268,6 +268,7 @@ export function createLessonUi(ctx) {
     clearTimeout(beatTimer);
     setText(beatLine, words);
     row.classList.add('beat-on');
+    row.classList.remove('refused');
     beatSpot = stepSpot(world, done);
     announce(V81T_TEXT.scribeSays(words));
     announceNext = false;
@@ -276,16 +277,26 @@ export function createLessonUi(ctx) {
   function endBeat(speak) {
     clearTimeout(beatTimer); beatTimer = 0;
     if (!row.classList.contains('beat-on')) return;
-    row.classList.remove('beat-on');
+    row.classList.remove('beat-on', 'refused');
     beatSpot = null;
     if (speak && !destroyed && !finished) announce();
   }
   const beating = () => row.classList.contains('beat-on');
 
   // ── the lock (ruling 1200) ──
+  // Integration (ruling 1263): Ipi speaks in one place at a time. The line for a dimmed control takes the why's place in the docked bubble for REFUSED_MS, as a reaction does
+  // (the step's do stays in sight), then the why comes back; only where the row is not on screen does the line go to a bubble of its own beside the control.
   function onRefused(id, node) {
     const ch = chapterAt(Math.min(at, LESSON_LENGTH - 1));
-    say(V81T_TEXT.refused(ch ? ch.id : ''), { anchor: node && node.isConnected ? node : null, ms: REFUSED_MS });
+    const words = V81T_TEXT.refused(ch ? ch.id : '');
+    if (row.offsetParent === null || card.isUp()) { say(words, { anchor: node && node.isConnected ? node : null, ms: REFUSED_MS }); return; }
+    hush();
+    clearTimeout(beatTimer);
+    setText(beatLine, words);
+    row.classList.add('beat-on', 'refused');
+    beatSpot = null;
+    announce(V81T_TEXT.scribeSays(words));
+    beatTimer = setTimeout(() => endBeat(false), REFUSED_MS);
   }
   function applyLock() {
     if (finished || destroyed || !step) { unlock(); return; }
@@ -311,6 +322,24 @@ export function createLessonUi(ctx) {
       b.classList.toggle('lesson-pulse', on);
       b.classList.toggle('dimmed', Boolean(category) && !on);
     }
+  }
+  // Integration (ruling 1261): the ringed card is scrolled into its tray's sight once each time the step, the category or the tray's state changes (a tray of all a city has
+  // unlocked can hold it past the edge: the tower behind the walls), so the player sees the ring without hunting; between those the player's own scrolling is left alone.
+  // Run from the frame, after the tray has drawn its cards.
+  function cardInSight() {
+    const t = finished ? null : targetOf(), item = t ? t.item : null;
+    const s = store.get(), seen = `${at}|${item}|${s.category}|${s.dock}|${s.layout}|${s.mode}`;
+    if (!item || seen === cardInSight.seen) return;
+    const card = [...root.querySelectorAll(`.card.lesson-pulse[data-item="${item}"]`)].find((c) => c.getClientRects().length > 0);
+    if (card) { cardInSight.seen = seen; bringIntoView(card); }
+  }
+  function bringIntoView(card) {
+    const box = card.closest('#dock .tray, #panel .cards, #rail .drawer');
+    if (!box) return;
+    const a = box.getBoundingClientRect(), b = card.getBoundingClientRect(), pad = 8;
+    // The phone's tray snaps each card's start to its scroll padding (css/ui.css #dock .tray): a card out of sight is brought to that place, which the snap keeps.
+    if (b.left < a.left || b.right > a.right) box.scrollLeft += b.left - a.left - (parseFloat(win.getComputedStyle(box).scrollPaddingLeft) || 0);
+    if (b.top < a.top) box.scrollTop -= a.top - b.top + pad; else if (b.bottom > a.bottom) box.scrollTop += b.bottom - a.bottom + pad;
   }
 
   // The words, the count and the buttons for the step the city is at.
@@ -393,7 +422,9 @@ export function createLessonUi(ctx) {
     cardWaits = false;
     if (!finished && step && cardAt !== at) {
       const ch = chapterAt(at);
-      if (!ch.first && !building) enterMicro();   // ruling 1213: a lesson opened (or continued) at a step inside a chapter opens with that chapter's card all the same
+      // A step inside a chapter, reached by playing, starts in the docked bubble with no card (design 7b). A chapter's first step gets its card, and so does any step while
+      // the interface is being built (a lesson opened or continued there opens with its chapter's card all the same, ruling 1213); a card waits for a stroke or press to end.
+      if (!ch.first && !building) enterMicro();
       else if (midAction()) cardWaits = true;
       else showCard(building);
     } else if (finished && card.isUp()) card.hide();
@@ -456,6 +487,7 @@ export function createLessonUi(ctx) {
     if (sel) for (const n of root.querySelectorAll(sel)) if (!n.classList.contains('lesson-lit')) n.classList.add('lesson-lit');
     const v = viewOf(), mk = `${v.width}x${v.height}|${settings.get().textSize}|${store.get().layout}|${at}`;
     if (mk !== layout.mk) { layout.mk = mk; measure(); }
+    cardInSight();
     if (cardWaits && !midAction() && !destroyed) sync();
   }
   let raf = win.requestAnimationFrame ? win.requestAnimationFrame(function frame() { raf = win.requestAnimationFrame(frame); layout(); }) : 0;

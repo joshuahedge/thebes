@@ -22,6 +22,8 @@ body:not(.reduce-motion) .card.advised { animation: advised-ring 1.6s ease-in-ou
 .card.more-card .cost { font-size: calc(18px * var(--ui-scale)); font-weight: 700; }
 /* In the wide panel's grid and the rail's drawer the More card is a slim bar across the whole row, so it takes the least of the small panel's height. */
 .cards.grid .card.more-card { grid-column: 1 / -1; flex-direction: row; justify-content: center; align-items: center; gap: 10px; min-height: var(--tap); }
+/* Integration (ruling 1269): on the wide panel, whose grid scrolls, More stays pinned at the grid's foot, in sight without scrolling while the cards overflow. */
+#panel .cards.grid .card.more-card { position: sticky; bottom: 0; z-index: 1; background: var(--parchment); box-shadow: 0 -6px 8px -4px rgba(43, 31, 14, 0.18); }
 
 /* A card dragged onto the map (ruling 1245): a clear layer over the page keeps the drag with the finger over the map and the bars; nothing shows on it. */
 .card-drag-surface { position: fixed; inset: 0; z-index: 60; background: transparent; touch-action: none; cursor: grabbing; }

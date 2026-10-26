@@ -100,7 +100,7 @@ describe('v81 t words: every step\'s why and do', () => {
     setSpeed(fam, 1);
     expect(V81T_TEXT.steps.families(lessonFacts(fam, LESSON_STEPS[index('families')])).do.startsWith('Press Play')).toBe(false);
     const wk = atStep('workers'), wf = lessonFacts(wk, LESSON_STEPS[index('workers')]);
-    expect(V81T_TEXT.steps.workers(wf).why).toBe(`Your buildings want ${wk.labour.jobs} workers, and ${wk.labour.workforce} people can work.`);
+    expect(V81T_TEXT.steps.workers(wf).why).toBe(`Buildings want ${wk.labour.jobs} workers; ${wk.labour.workforce} can work.`);
     const tw = atStep('tower');
     setSpeed(tw, 1);
     for (let d = 0; d < 60 && !tw.raid.warning; d++) tickDay(tw);

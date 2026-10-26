@@ -239,7 +239,8 @@ export function createUI({
     world, store, suggestion: () => advice.suggestion(),
     needed: () => [...openGoals(world, 3).map((g) => nextItemFor(world, g) || (g.showMe && g.showMe.item)), guideState(world).item].filter(Boolean),
     layered: () => !hooks.lessonRun && !hooks.flatTray,
-    speaking: () => !hooks.lessonRun && !guideActive(world) && !root.classList.contains('lesson-card-up'),
+    // Integration (ruling 1262): and only with no tool in hand or sheet open: the line docks under the top bar, and a phone placing has no row to spare there.
+    speaking: () => !hooks.lessonRun && !guideActive(world) && !root.classList.contains('lesson-card-up') && store.get().mode === 'browse',
   });
   const dock = createDock({ container: $('dock'), store, world, onPick: pick, layers: trayLayers });
   const confirmBar = createConfirmBar({ container: $('ui'), store, placement, onCancel: () => placement.cancel(), onConfirm: (type) => confirm(type), onUndo: undo, keys: () => settings.get().keyboardShortcuts !== false, deleteUndoes: () => settings.get().keyboardShortcuts !== false && topUndoKind() !== 'demolish', onArea: (type, on) => (on ? placement.startArea(type) : pick(type)) });

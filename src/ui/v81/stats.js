@@ -21,7 +21,7 @@ import { adviceWords } from '../adviceText.js';
 import { T as TILE } from '../../sim/terrain.js';
 import { closeSheet } from '../modes.js';
 import { el, button, clear } from '../components.js';
-import { MOOD_NAMES, SCORE_TEXT, SEASON_TEXT, buildingName, dateText, shortDateText, score4ReasonText } from '../text.js';
+import { MOOD_NAMES, SCORE_TEXT, SEASON_TEXT, buildingName, dateText, shortDateText, score4ReasonText, T } from '../text.js';
 import { V81_B_TEXT as B, moodFace } from './bText.js';
 import { goldPile, peopleCrowd } from './statIcons.js';
 
@@ -40,7 +40,8 @@ export function createScoreReader(world) {
 
 // The advice kinds each explainer may offer as its one action (src/data/advice.js ADVICE_KINDS), the city's own ranking deciding among them. Mood takes the
 // city's top problem of any kind: every one of them is a reason homes are unhappy or leave.
-const ADVICE_FOR = { gold: ['treasury', 'trade_floor', 'quay', 'demand'], people: ['workers_short', 'jobless', 'home_need', 'stranded'], mood: null };
+// Gold's are the fixes that earn it (a trade floor, a quay), never the court's letter (integration, ruling 1267).
+const ADVICE_FOR = { gold: ['trade_floor', 'quay'], people: ['workers_short', 'jobless', 'home_need', 'stranded'], mood: null };
 // The City page's section each explainer opens when the city has no advice for it (data-section in src/ui/sheets.js and the score's own section).
 export const CITY_SECTION = { gold: 'forecast', people: 'employment', mood: 'mood', date: 'river', score: 'score' };
 
@@ -111,9 +112,12 @@ export function explainStat(world, kind, deps = {}) {
       out.lines.push([B.gold.net, B.signed(f.net)]);
       out.notes.push(f.gold < 0 && f.net < 0 ? B.gold.below : f.monthsLeft !== null ? B.gold.runsOut(f.monthsLeft) : f.net < 0 ? `${B.gold.short}.` : `${B.gold.ok}.`);
     }
-    out.action = adviceAction(world, ADVICE_FOR.gold, deps);
-    const big = !out.action && f.active && f.net < 0 ? biggestCost(world) : null;
-    if (big && deps.selectBuilding) out.action = { label: B.showCostliest(buildingName(big.type)), aria: B.showCostliest(buildingName(big.type)), line: B.gold.costliest(buildingName(big.type), big.cost), run: () => deps.selectBuilding(big.id), kind: 'select' };
+    // The one action is about gold and says Show me (ruling 1267): the costliest building while the month runs at a loss, else a fix that earns gold (the city's top
+    // trade floor or quay advice that builds), else the costliest building all the same; the City page's forecast when there is none of these.
+    const big = f.active && deps.selectBuilding ? biggestCost(world) : null;
+    const costliest = big ? { label: T.showMe, aria: B.showCostliest(buildingName(big.type)), line: B.gold.costliest(buildingName(big.type), big.cost), run: () => deps.selectBuilding(big.id), kind: 'select' } : null;
+    const earn = adviceAction(world, ADVICE_FOR.gold, deps);
+    out.action = costliest && f.net < 0 ? costliest : earn && earn.label === T.showMe ? earn : costliest;
   } else if (kind === 'people') {
     Object.assign(out, { title: `${name} ${d.people}`, what: B.people.what });
     out.lines.push([B.people.homes, String(housesOf(world).length)], [B.people.workforce, String(d.workforce)], [B.people.working, B.people.workingOf(d.working, d.workforce)], [B.people.jobless, String(d.jobless)], [B.people.jobs, String(d.jobs)]);
@@ -229,9 +233,17 @@ export function createExplainer({ host, store, explain, doc = document }) {
 }
 
 // The tabs at the top of the papyrus's sheets: Messages (the advice sheet) and City (the city summary). active: 'messages' or 'city'.
+// Integration (ruling 1268): the tabs sit above the sheet's body, and the active tab controls it: markTabPanel makes the body its tabpanel, labelled by the tab. The other tab
+// opens the other sheet.
 export function cityTabs(active, { onMessages, onCity }) {
-  const tab = (id, label, run) => button(label, { class: `sheet-tab${active === id ? ' active' : ''}`, role: 'tab', 'aria-selected': String(active === id), dataset: { tab: id }, onClick: () => { if (active !== id) run(); } });
+  const tab = (id, label, run) => button(label, { class: `sheet-tab${active === id ? ' active' : ''}`, id: `sheet-tab-${id}`, role: 'tab', 'aria-selected': String(active === id), 'aria-controls': active === id ? `sheet-panel-${id}` : null, dataset: { tab: id }, onClick: () => { if (active !== id) run(); } });
   return el('div', { class: 'sheet-tabs', role: 'tablist', 'aria-label': B.tabs }, [tab('messages', B.tabMessages, onMessages), tab('city', B.tabCity, onCity)]);
+}
+export function markTabPanel(body, active) {
+  body.id = `sheet-panel-${active}`;
+  body.setAttribute('role', 'tabpanel');
+  body.setAttribute('aria-labelledby', `sheet-tab-${active}`);
+  return body;
 }
 
 // A sparkline of values (the oldest first), 96 x 24, its line in currentColor and a dot on the last: decoration, its words beside it.

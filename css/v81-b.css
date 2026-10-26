@@ -4,7 +4,7 @@
 /* ── The stats: one row, a picture and a number each, one size and weight ── */
 body {
   --stat-num: calc(11px + 4px * var(--ui-scale));         /* 15 px at 100% text, 16 at 125%, 17 at 150%: one size for every number */
-  --stat-icon: calc(16px + 2px * var(--ui-scale));        /* 18, 18.5, 19 px */
+  --stat-icon: 20px;                                       /* integration (ruling 1266): the pictures at their drawn 20 px at every text size, so the flood gauge and the cartouche read at a glance */
 }
 #topbar .stats { display: flex; flex-wrap: nowrap; align-items: center; align-content: center; gap: 0; flex: 1; min-width: 0; overflow: hidden; padding: 0; line-height: 1; position: static; }
 #topbar .stats .stat { display: inline-flex; align-items: center; justify-content: center; gap: 2px; flex: none; min-width: var(--tap); min-height: var(--tap); padding: 0 3px; margin: 0;
@@ -70,6 +70,7 @@ body[data-layout] #topbar .stats.squeeze .stat { padding: 0; gap: 1px; }
 /* ── The papyrus's tabs: Messages | City ── */
 .sheet-tabs { display: flex; gap: 4px; margin: 0 0 8px; border-bottom: 1px solid var(--parchment-3); }
 .sheet-tabs[hidden] { display: none; }
+#sheet > .sheet-tabs { flex: none; margin: 0 16px; }   /* integration (ruling 1268): above the body, which is the active tab's panel */
 .sheet-tabs .sheet-tab { flex: 1; border: none; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; color: var(--ink-soft); font-weight: 600; }
 .sheet-tabs .sheet-tab.active { color: var(--ink); border-bottom-color: var(--lapis); box-shadow: none; }
 

@@ -16,7 +16,7 @@ import { achievementProgress, achievementsFor } from '../sim/achievements.js';
 import { closeSheet, openSheet } from './modes.js';
 import { CRITICAL_RANK } from './alerts.js';
 import { summaryData } from './hud.js';
-import { cityTabs, trendSection } from './v81/stats.js';
+import { cityTabs, markTabPanel, trendSection } from './v81/stats.js';
 import { monthForecast } from '../sim/economy.js';
 import { jobsPenalty } from '../sim/mood.js';
 import { nearestTerrainTile } from './goalsList.js';
@@ -320,7 +320,6 @@ export function createSheets({ container, store, world, placement, cameraControl
     body.append(row(SEASON_TEXT.row, SEASON_TEXT.rowValue(SEASON_TEXT.names[season], seasonMonths(season))));
     // Version 5.0 (Task 1): the figures stay here; what holds the city back is its own sheet, one tap away (from the first home).
     // Version 8.1 (Track B, ruling 1226): this is the City page, the second tab of the papyrus's sheet: the tabs come with the papyrus (the first home).
-    if (adviceOn()) body.prepend(cityTabs('city', { onMessages: () => onOpenAdvice(), onCity: () => {} }));
     // Stage 4.5 (Task 4b): the month ahead, as the city stands now (the sim's forecast): headed by what the balance is, so the gold
     // chip's tap lands on "Spending more than taxes bring in" when the treasury is shrinking.
     const f = monthForecast(world);
@@ -359,6 +358,8 @@ export function createSheets({ container, store, world, placement, cameraControl
     body.append(open.length ? el('ul', { class: 'goals' }, open.map((g) => el('li', { class: 'goal', text: g.text }))) : el('p', { class: 'muted', text: T.goalsNone }));
     body.append(...extra('summary'));
     body.append(...achievementsSection());
+    // Integration (ruling 1268): the tabs sit above the body, which is the City tab's panel.
+    if (adviceOn()) return [head(T.summary), cityTabs('city', { onMessages: () => onOpenAdvice(), onCity: () => {} }), markTabPanel(body, 'city')];
     return [head(T.summary), body];
   }
 
@@ -472,9 +473,9 @@ export function createSheets({ container, store, world, placement, cameraControl
     else if (custom[s.sheet.kind]) {
       // A custom sheet is headed T[kind] unless it names its own heading for what it shows (setTitle: the raid sheet).
       const body = el('div', { class: 'body' });
-      let title = T[s.sheet.kind] || s.sheet.kind;
-      custom[s.sheet.kind](body, { close, setTitle: (t) => { title = t; } });
-      parts = [head(title), body];
+      let title = T[s.sheet.kind] || s.sheet.kind, tabs = null;
+      custom[s.sheet.kind](body, { close, setTitle: (t) => { title = t; }, tabs: (node) => { tabs = node; } });   // tabs: a row above the body (the papyrus's Messages | City, ruling 1268)
+      parts = tabs ? [head(title), tabs, body] : [head(title), body];
     }
     else { container.hidden = true; return; }
     container.hidden = false;

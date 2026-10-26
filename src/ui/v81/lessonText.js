@@ -41,7 +41,7 @@ export const V81T_TEXT = {
     farm: () => ({ why: 'Farms grow only on the green land by the river.', do: 'Build a farm there, touching the road.' }),
     granary: () => ({ why: "A granary keeps the farm's grain.", do: 'Build a granary beside the road.' }),
     bazaar: () => ({ why: `A bazaar sells food to homes within ${BUILDINGS.bazaar.reach} road tiles.`, do: `Build one that reaches ${stepOf('bazaar').check.homes} homes.` }),
-    workers: (f) => ({ why: `Your buildings want ${f.labour.jobs} workers, and ${f.labour.workforce} people can work.`, do: 'Place more homes until all three work.' }),
+    workers: (f) => ({ why: `Buildings want ${f.labour.jobs} workers; ${f.labour.workforce} can work.`, do: 'Place more homes until all three work.' }),
     month: (f) => ({ why: 'Homes pay taxes each month, and buildings cost upkeep.', do: `${f.paused ? 'Press Play and let' : 'Let'} ${stepOf('month').check.n} months pass, and watch your gold.` }),
     firehouse: (f) => (f.missing ? { why: `The ${site(f.missing)} is gone.`, do: 'Build it again first.' }
       : { why: `A firehouse with a crew guards ${BUILDINGS.firehouse.reach} road tiles around it.`, do: 'Build a firehouse near the bazaar.' }),

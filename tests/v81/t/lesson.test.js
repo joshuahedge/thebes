@@ -1,6 +1,6 @@
 // Version 8.1 Track T (rulings 1202-1213): the lesson made foolproof, in the page. A chapter opens with its card and pauses; a step inside it is Ipi's docked bubble and does not;
 // after each step Ipi reacts in one line with a gold glow, which fades by itself (or leads the next chapter's card); only the step's own controls are live and a tap on a dimmed
-// one gets Ipi's line beside it, while the map still pans; each step reads the city, never the taps (Josh's road: tapped around, cancelled, laid, and the lesson moved on); every
+// one gets Ipi's line in the docked bubble (ruling 1263), while the map still pans; each step reads the city, never the taps (Josh's road: tapped around, cancelled, laid, and the lesson moved on); every
 // step can be done, undone and done again; and the lesson ends by handing its city over, so the title's main button is Continue.
 import { describe, it, expect } from '../../harness.js';
 import { LESSON_STEPS, LESSON_PLACES } from '../../../src/data/lesson.js';
@@ -104,14 +104,14 @@ describe('v81 t lesson: only the step\'s own controls are live', () => {
       await frame();
       const at = (sel) => s.root.querySelector(sel);
       expect([locked(at('#dock .cat[data-category="homes"]')), locked(at('#dock .card[data-item="house"]')), locked(at('#dock .cat[data-category="roads"]')), locked(at('#dock .cat[data-category="services"]'))]).toEqual([false, false, true, true]);
-      expect([locked(at('#topbar .stats')), locked(at('#corners .overlay-button')), locked(at('#corners .minimap-button')), locked(at('#corners .speed-corner')), locked(at('#topbar .menu'))]).toEqual([true, true, true, true, false]);
-      expect(lockFor(step('homes'))).toEqual(['menu', 'papyrus', 'tray-cat-homes', 'tray-item-house']);
+      expect([locked(at('#topbar .stat.gold')), locked(at('#corners .overlay-button')), locked(at('#corners .minimap-button')), locked(at('#corners .speed-corner')), locked(at('#topbar .menu'))]).toEqual([true, true, true, true, false]);
+      expect(lockFor(step('homes'))).toEqual(['menu', 'papyrus', 'tray-cat-homes', 'tray-item-house', 'tray-handle', 'tray-pill']);
       expect(lockFor(step('families')).includes('speed') && lockFor(step('month')).includes('stat-gold')).toBe(true);
       expect(getComputedStyle(at('#dock .cat[data-category="roads"]')).opacity < 0.5).toBe(true);
     } finally { s.cleanup(); }
   });
 
-  it('a tap on a dimmed control does nothing but bring Ipi\'s line, pinned beside it; a dimmed key does nothing either; the map still pans', async () => {
+  it('a tap on a dimmed control does nothing but bring Ipi\'s line, in the docked bubble (one place at a time); a dimmed key does nothing either; the map still pans', async () => {
     const s = await pageAt('homes', { width: 390, height: 844 });
     try {
       const g = s.g();
@@ -124,9 +124,8 @@ describe('v81 t lesson: only the step\'s own controls are live', () => {
       fire(roads, 'pointerdown', { pointerType: 'touch' });
       fire(roads, 'click');
       await frame();
-      const b = bubbleOf(), br = b.getBoundingClientRect(), rr = roads.getBoundingClientRect();
-      expect([g.ui.store.get().category, b.hidden, b.textContent, b.classList.contains('pinned')]).toEqual(['homes', false, V81T_TEXT.refused('homes'), true]);
-      expect(br.bottom <= rr.top + 0.5 || br.top >= rr.bottom - 0.5).toBe(true);
+      const r = row(s), b = bubbleOf();                                                        // one place at a time (ruling 1263): the line takes the why's place in the docked bubble
+      expect([g.ui.store.get().category, b.hidden, r.classList.contains('refused'), r.querySelector('.beat-line').textContent, shown(r.querySelector('.text'))]).toEqual(['homes', true, true, V81T_TEXT.refused('homes'), true]);
       const sheet = g.ui.store.get().sheet;
       key(s.root, 'm');
       expect(g.ui.store.get().sheet).toBe(sheet);                                                   // the minimap is dimmed: its key does nothing

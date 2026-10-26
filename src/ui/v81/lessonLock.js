@@ -2,30 +2,18 @@
 // dimmed is, and refuses taps, so the player can only do what the step teaches (design 7b, "Tutorial, made foolproof"). The map is never locked: it pans and zooms.
 //
 // The contract: lockTo(allowed, { root, onRefused }) and unlock(). A control that can be dimmed carries data-lock="<id>" (one id, or several separated by spaces): the
-// top bar's stat-gold, stat-people, stat-mood, stat-date, stat-score, papyrus and speed (Track B); the build tray's tray-cat-<category> and tray-item-<type>, and
-// layers, minimap and menu (Track D). A control none of whose ids is allowed gets data-locked and aria-disabled; css/v81-t.css dims it, and one capture listener on the
+// top bar's stat-gold, stat-people, stat-mood, stat-date, stat-score, papyrus, speed and menu (Track B, ruling 1220); the build tray's tray-cat-<category>,
+// tray-item-<type>, tray-more-<category>, tray-handle and tray-pill, and layers and minimap (Track D, ruling 1240). A control none of whose ids is allowed gets data-locked and aria-disabled; css/v81-t.css dims it, and one capture listener on the
 // document refuses a press, a click or Enter/Space on it or inside it, and calls onRefused(id, element). A control with no data-lock is never touched.
 //
-// Until Tracks B and D put data-lock on their controls, BRIDGE gives today's controls their ids (the same ids), so the lesson locks the 8.0 interface as it stands;
-// an element that carries its own data-lock is read from that alone.
+// Every control in the contract carries its own data-lock since the three tracks were merged (the integration's ruling 1260), so ruling 1215's bridge, which gave the 8.0
+// controls their ids from their classes, is gone.
 import { matchKey } from '../keyboard.js';
 import { CATEGORIES, KEYS } from '../../data/ui.js';
 
-const BRIDGE = [
-  ['#dock .cat[data-category], #rail .cat[data-category], #panel .cat[data-category], .tab[data-category]', (n) => `tray-cat-${n.dataset.category}`],
-  ['.card[data-item]', (n) => `tray-item-${n.dataset.item}`],
-  ['#topbar .stats', () => 'stat-gold stat-people stat-mood stat-date stat-score'],
-  ['#topbar .advice', () => 'papyrus'],
-  ['.speed-bar, .speed-corner', () => 'speed'],
-  ['#corners .overlay-button', () => 'layers'],
-  ['#corners .minimap-button, #panel .minimap', () => 'minimap'],
-  ['#topbar .menu', () => 'menu'],
-];
-const BRIDGED = 'data-lock-bridge';
-
 let state = null;   // { root, doc, allowed: Set, onRefused, observer, onEvent }
 
-export const lockIdsOf = (node) => (node.getAttribute('data-lock') || node.getAttribute(BRIDGED) || '').split(/\s+/).filter(Boolean);
+export const lockIdsOf = (node) => (node.getAttribute('data-lock') || '').split(/\s+/).filter(Boolean);
 export const isLocked = () => Boolean(state);
 export const allowedNow = () => (state ? [...state.allowed] : null);
 
@@ -34,8 +22,7 @@ function apply() {
   if (!state) return;
   const { root } = state;
   if (state.observer) state.observer.disconnect();
-  for (const [sel, idOf] of BRIDGE) for (const n of root.querySelectorAll(sel)) if (!n.hasAttribute('data-lock')) { const id = idOf(n); if (n.getAttribute(BRIDGED) !== id) n.setAttribute(BRIDGED, id); }
-  for (const n of root.querySelectorAll('[data-lock], [data-lock-bridge]')) {
+  for (const n of root.querySelectorAll('[data-lock]')) {
     const ids = lockIdsOf(n);
     const locked = ids.length > 0 && !ids.some((id) => state.allowed.has(id));
     if (locked && !n.hasAttribute('data-locked')) { n.setAttribute('data-locked', ''); n.setAttribute('aria-disabled', 'true'); }
@@ -64,7 +51,7 @@ function keyLockId(ev) {
   return null;
 }
 const allowedId = (id) => state.allowed.has(id);
-const elementFor = (id) => [...state.root.querySelectorAll('[data-lock], [data-lock-bridge]')].find((n) => lockIdsOf(n).includes(id) && n.getClientRects().length > 0) || null;
+const elementFor = (id) => [...state.root.querySelectorAll('[data-lock]')].find((n) => lockIdsOf(n).includes(id) && n.getClientRects().length > 0) || null;
 
 function refuse(ev, id, n) {
   ev.preventDefault();
@@ -115,6 +102,5 @@ export function unlock() {
   if (state.observer) state.observer.disconnect();
   for (const t of EVENTS) doc.removeEventListener(t, onEvent, true);
   for (const n of root.querySelectorAll('[data-locked]')) { n.removeAttribute('data-locked'); n.removeAttribute('aria-disabled'); }
-  for (const n of root.querySelectorAll(`[${BRIDGED}]`)) n.removeAttribute(BRIDGED);
   state = null;
 }

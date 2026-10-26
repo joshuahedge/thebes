@@ -150,7 +150,7 @@ describe('v81 d layers: the tray on the page', () => {
     const w = capital();
     const r = await rigUI({ world: w, hooks: { lessonRun: { step: 0 }, flatTray: false } });
     try {
-      openCategory(r, 'industry');
+      r.store.set({ dock: 'tray', category: 'industry' });                                   // the lesson's lock refuses a tap on a category its step does not use (ruling 1200)
       expect(cardsOf(r)).toEqual(unlockedItems(w, 'industry'));
       expect(r.root.querySelectorAll('#dock .tray .more-card').length).toBe(0);
     } finally { r.cleanup(); }
@@ -280,7 +280,7 @@ describe('v81 d layers: the suggested card and Ipi', () => {
     expect(said.length).toBe(1);
     const names = unlockedItems(w, 'industry').concat(['farm_fig', 'booth', 'statue', 'palace', 'physician']).map(buildingName);
     expect(names.some((n) => said[0][0].includes(n))).toBe(true);
-    expect(said[0][0]).toContain('Pharaoh grants you');                                    // several at once: one line for all of them
+    expect(said[0][0]).toContain('The king grants you');                                   // several at once: one line for all of them (the king: ruling 1216's copy rule)
     w.milestone = 'market_town';
     layers.refresh();
     expect(said.length).toBe(2);

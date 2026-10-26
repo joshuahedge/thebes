@@ -1,6 +1,6 @@
 // Version 8.1 Track T (ruling 1200): the lesson's lock and dim, the contract Tracks B and D build against. A control carries data-lock="<id>"; lockTo(allowed) dims every other one
 // (data-locked, aria-disabled), refuses a press, a click, Enter or Space on it (and a game key for it), and says which through onRefused; a re-drawn control is marked at once;
-// unlock() clears it all. Until B and D land, today's controls are given the same ids (the bridge), so the 8.0 interface locks as it stands.
+// unlock() clears it all. In the merged game every control carries its own id (ruling 1260: the bridge of ruling 1215 is gone).
 import { describe, it, expect } from '../../harness.js';
 import { lockTo, unlock, isLocked, lockIdsOf } from '../../../src/ui/v81/lessonLock.js';
 import { mount, fire, key } from '../../helpers/dom.js';
@@ -80,25 +80,24 @@ describe('v81 t lock: dims and refuses what the step does not use', () => {
     } finally { unlock(); m.cleanup(); }
   });
 
-  it('gives today\'s top bar, tray, corners and menu their ids until Tracks B and D carry their own (the bridge), and a control\'s own data-lock wins', async () => {
+  it('locks the merged game by its controls\' own ids: each stat alone, the corners, the tray; the menu stays (ruling 1215\'s bridge is gone, ruling 1260)', async () => {
     const r = await rigUI({ width: 390, height: 844 });
     try {
       r.store.set({ dock: 'tray', category: 'homes' });
       r.frame();
-      lockTo(['menu', 'tray-cat-homes', 'tray-item-house'], { root: document.body });
+      lockTo(['menu', 'stat-gold', 'tray-cat-homes', 'tray-item-house'], { root: document.body });
       const at = (sel) => r.root.querySelector(sel);
       const ids = (sel) => lockIdsOf(at(sel));
-      expect([ids('#dock .cat[data-category="roads"]'), ids('#topbar .menu'), ids('#corners .overlay-button'), ids('#corners .minimap-button')]).toEqual([['tray-cat-roads'], ['menu'], ['layers'], ['minimap']]);
+      expect([ids('#dock .cat[data-category="roads"]'), ids('#topbar .menu'), ids('#corners .overlay-button'), ids('#corners .minimap-button'), ids('#topbar .stat.mood')]).toEqual([['tray-cat-roads'], ['menu'], ['layers'], ['minimap'], ['stat-mood']]);
       expect([at('#dock .cat[data-category="roads"]').hasAttribute('data-locked'), at('#dock .cat[data-category="homes"]').hasAttribute('data-locked'), at('#topbar .menu').hasAttribute('data-locked')]).toEqual([true, false, false]);
-      expect([at('#topbar .stats').hasAttribute('data-locked'), at('#corners .overlay-button').hasAttribute('data-locked')]).toEqual([true, true]);
-      const house = at('#dock .card[data-item="house"]');
-      if (house) expect(house.hasAttribute('data-locked')).toBe(false);
-      at('#topbar .menu').setAttribute('data-lock', 'stat-gold');                             // a control that carries its own id is read from it alone
+      expect([at('#topbar .stat.gold').hasAttribute('data-locked'), at('#topbar .stat.mood').hasAttribute('data-locked'), at('#corners .overlay-button').hasAttribute('data-locked')]).toEqual([false, true, true]);
+      expect(at('#dock .card[data-item="house"]').hasAttribute('data-locked')).toBe(false);
+      at('#topbar .menu').setAttribute('data-lock', 'stat-people');                           // a control is read from its own data-lock alone
       await settle();
-      expect([ids('#topbar .menu'), at('#topbar .menu').hasAttribute('data-locked')]).toEqual([['stat-gold'], true]);
-      at('#topbar .menu').removeAttribute('data-lock');
+      expect([ids('#topbar .menu'), at('#topbar .menu').hasAttribute('data-locked')]).toEqual([['stat-people'], true]);
+      at('#topbar .menu').setAttribute('data-lock', 'menu');
       unlock();
-      expect(r.root.querySelectorAll('[data-lock-bridge], [data-locked]').length).toBe(0);
+      expect(r.root.querySelectorAll('[data-locked]').length).toBe(0);
     } finally { unlock(); r.cleanup(); }
   });
 });

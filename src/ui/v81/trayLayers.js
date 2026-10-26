@@ -97,7 +97,7 @@ export function createTrayLayers({ world, store, suggestion = () => null, needed
       if (fresh.length && speaking()) {
         const names = fresh.map((item) => buildingName(item));
         const line = fresh.length === 1 ? lines.unlockedOne(names[0], CATEGORY_NAMES[categoryOfItem(fresh[0])]) : lines.unlockedMany(names.length > 3 ? `${names.slice(0, 3).join(', ')} and more` : names.length === 3 ? `${names[0]}, ${names[1]} and ${names[2]}` : names.join(' and '));
-        say(line, { anchor: 'tray', ms: 6000 });
+        say(line, { ms: 6000 });   // no anchor: docked under the top bar, Ipi's one place outside the lesson (integration, ruling 1262)
         return;
       }
       // The suggestion's moment (ruling 1250): a different item at the top says its name and the sim's sentence about what holds the city back, once for each (item, problem). The first look
@@ -107,11 +107,12 @@ export function createTrayLayers({ world, store, suggestion = () => null, needed
         if (!told.has(key)) {
           told.add(key);
           const what = wording(next.advice, world);
-          if (what) say(lines.suggestLine(buildingName(next.item), what), { anchor: 'tray', ms: 6000 });
+          if (what) say(lines.suggestLine(buildingName(next.item), what), { ms: 6000 });
         }
       }
+      // While Ipi must stay quiet (a tool in hand, the guide, a card) the last suggestion said is kept, so a change made meanwhile is said once Ipi may speak (ruling 1262).
+      if (!primed || speaking()) lastAdvised = next ? next.item : null;
       primed = true;
-      lastAdvised = next ? next.item : null;
     },
   };
   return api;
