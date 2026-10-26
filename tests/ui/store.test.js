@@ -25,6 +25,6 @@ describe('ui store', () => {
   });
   it('has every field the conventions list', () => {
     const keys = Object.keys(INITIAL_UI_STATE).sort();
-    expect(keys).toEqual(['area', 'category', 'confirmDialog', 'dock', 'ghost', 'guidanceOpen', 'hoverId', 'inputType', 'lastSpeed', 'layersOpen', 'layout', 'line', 'mode', 'overlay', 'panelFolded', 'plan', 'screenshot', 'selectedId', 'sheet', 'supplyGood', 'tool']);
+    expect(keys).toEqual(['area', 'category', 'confirmDialog', 'dock', 'ghost', 'guidanceOpen', 'hoverId', 'inputType', 'lastSpeed', 'layersOpen', 'layout', 'line', 'mode', 'overlay', 'panelFolded', 'plan', 'screenshot', 'selectedId', 'sheet', 'supplyGood', 'tool', 'trayMore', 'trayPins']);
   });
 });

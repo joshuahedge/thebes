@@ -22,10 +22,10 @@ function labelled(label, glyph, props) {
 export function createCorners({ container, store, speedControl, onMinimap, onOverlay, pickerNode = null, alertCount = () => 0, viewHeight = () => 0 }) {
   const left = el('div', { class: 'group left' });
   speedControl.mountCorner(left);
-  const map = labelled(T.mapButton, '▣', { class: 'minimap-button has-badge', onClick: onMinimap });
+  const map = labelled(T.mapButton, '▣', { class: 'minimap-button has-badge', 'data-lock': 'minimap', onClick: onMinimap });
   const badge = el('span', { class: 'badge', hidden: true });
   map.b.append(badge);
-  const layers = labelled(T.layers, '◑', { class: 'overlay-button', 'aria-pressed': 'false', onClick: onOverlay });
+  const layers = labelled(T.layers, '◑', { class: 'overlay-button', 'aria-pressed': 'false', 'data-lock': 'layers', onClick: onOverlay });
   layers.b.setAttribute('aria-expanded', 'false');
   // The Layers picker's popover (ui/layersPicker.js) rides on this group, above the Layers button.
   const right = el('div', { class: 'group right' }, [map.b, layers.b, pickerNode]);

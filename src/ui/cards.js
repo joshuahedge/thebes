@@ -14,12 +14,13 @@ import { canAfford } from '../sim/money.js';
 import { CATEGORIES } from '../data/ui.js';
 import { LARGE_PLOT } from '../data/largePlots.js';
 import { largePlotUnlocked } from '../sim/largePlots.js';
-import { buildingName, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT, S46_MAP_TEXT } from './text.js';
+import { buildingName, CATEGORY_NAMES, unlockText, CONDITION_TEXT, T, UI4_TEXT, S45_TEXT, S46_MAP_TEXT } from './text.js';
 import { MAP } from '../data/map.js';
 import { el, clear } from './components.js';
 import { drawThumb } from './thumbs.js';
 import { ferryCost } from '../sim/ferries.js';
 import { FERRY_TEXT } from './v71/ferryText.js';
+import { TRAY_V81_TEXT } from './v81/trayText.js';
 
 const deviceRatio = () => Math.min(3, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
 
@@ -55,6 +56,15 @@ export function shownItems(world, category) {
 // A category shows when it has a card to show: one of its buildings is unlocked or comes with the next milestone.
 export const shownCategories = (world) => CATEGORIES.filter((c) => shownItems(world, c.id).length > 0);
 
+// Version 8.1 (Track D, ruling 1248): the tray hides what is locked until it unlocks. isCardLocked is the one test of "locked" (cardInfo's too); unlockedItems the cards a category can
+// put in hand; trayCategories the categories with at least one. shownItems and cardShown keep the 8.0 rule (a next-milestone teaser), which the sim-facing tests and the Show me
+// searches read; the dock, the panel and the rail read these.
+export function isCardLocked(world, item) {
+  return item === LARGE_PLOT.type ? !largePlotUnlocked(world) : Boolean(BUILDINGS[item]) && !isUnlocked(world, item) && !(item === 'palace' && palaceOf(world));
+}
+export const unlockedItems = (world, category) => shownItems(world, category).filter((item) => !isCardLocked(world, item));
+export const trayCategories = (world) => CATEGORIES.filter((c) => unlockedItems(world, c.id).length > 0);
+
 const isMonumentItem = (item) => Boolean(BUILDINGS[item] && BUILDINGS[item].monument);
 
 // Costs are this city's (difficulty included: spec 4.18), the same the commands charge.
@@ -68,7 +78,7 @@ export function cardInfo(world, item) {
   costText = item === 'demolish' ? 'Refunds a quarter' : `${cost} gold${suffix}`;
   // Stage 4 (spec 4.20): while a palace stands its card is a way to it, not a price (picking it selects the palace).
   if (item === 'palace' && palaceOf(world)) return { item, name: buildingName(item), cost: 0, costText: UI4_TEXT.palaceStands, affordable: true, locked: false, lockText: '', isNew: false, terrainText: '' };
-  const locked = item === LARGE_PLOT.type ? !largePlotUnlocked(world) : Boolean(BUILDINGS[item]) && !isUnlocked(world, item);
+  const locked = isCardLocked(world, item);
   const isNew = !locked && (world.newItems || []).includes(item);
   // terrainText: "Fertile land" or "Rocky ground" for a building that needs it (placement review P15), "Not on the fields" for a monument (ruling 299)
   // (spec 4.4), else ''.
@@ -94,12 +104,14 @@ export function activeItemOf(tool) {
 // What a tray of cards shows: its category, the active card and each shown card's affordable, locked and new state.
 // The dock, the side panel and the rail rebuild their cards (and so their pictures) only when this key changes, so
 // a command that spends a little gold but leaves every card as it was rebuilds nothing.
-export function cardsKey(world, category, activeItem) {
-  const states = shownItems(world, category).map((item) => {
+// Version 8.1 (Track D): with `layers` (src/ui/v81/trayLayers.js) the cards are the layered tray's (the main ones, or all after More), and the key holds its state too.
+export function cardsKey(world, category, activeItem, layers = null) {
+  const view = layers ? layers.view(category, activeItem) : null;
+  const states = (view ? view.items : shownItems(world, category)).map((item) => {
     const i = cardInfo(world, item);
-    return `${item}:${i.affordable ? 'a' : 'u'}${i.locked ? 'l' : 'o'}${i.isNew ? 'n' : ''}${i.lockText}${i.costText}`;   // a prestige count moving, or a palace standing, rebuilds it
+    return `${item}:${i.affordable ? 'a' : 'u'}${i.locked ? 'l' : 'o'}${i.isNew ? 'n' : ''}${view && view.advised === item ? 's' : ''}${i.lockText}${i.costText}`;   // a prestige count moving, or a palace standing, rebuilds it
   });
-  return `${category}|${activeItem}|${states.join(',')}`;
+  return `${category}|${activeItem}|${states.join(',')}${view ? `|${view.hidden}${view.open ? 'o' : ''}` : ''}`;
 }
 
 // The tooltip of a card's ground line (Stage 4.6, rulings 331, 350): the rule in full, from the sim's own row and price.
@@ -118,27 +130,45 @@ function upkeepSpan(world, item, info) {
   return el('span', { class: 'upkeep', title: info.upkeepTitle }, [el('span', { class: 'bill', text: S45_TEXT.upkeepBill(bill) }), crew ? el('span', { class: 'crew', text: crew }) : null]);
 }
 
-export function renderCards(container, { world, category, activeItem = null, onPick, grid = false }) {
+// The More card that ends a layered tray, and Fewer once it is open: a card-sized button that opens or folds the rest of the category.
+function moreCard(category, view, layers) {
+  const name = CATEGORY_NAMES[category];
+  const b = el('button', { type: 'button', class: 'card more-card', 'data-lock': `tray-more-${category}`, 'aria-expanded': String(view.open), 'aria-label': view.open ? TRAY_V81_TEXT.fewerName(name) : TRAY_V81_TEXT.moreName(view.hidden, name) }, [
+    el('span', { class: 'name', 'aria-hidden': 'true', text: view.open ? TRAY_V81_TEXT.fewer : TRAY_V81_TEXT.more }),
+    el('span', { class: 'cost', 'aria-hidden': 'true', text: view.open ? '‹' : TRAY_V81_TEXT.moreCount(view.hidden) }),
+  ]);
+  b.addEventListener('click', () => layers.toggle(category));
+  return b;
+}
+
+// Version 8.1 (Track D): with `layers` (src/ui/v81/trayLayers.js) the tray is layered (ruling 1246): the main cards, the one the Advice engine suggests glowing and tagged, and a More card at the end
+// that opens the rest. Every card and the More card carry their data-lock id (ruling 1240).
+export function renderCards(container, { world, category, activeItem = null, onPick, grid = false, layers = null }) {
   const focusedItem = container.contains(document.activeElement) && document.activeElement.dataset ? document.activeElement.dataset.item : null;
+  const focusedMore = container.contains(document.activeElement) && document.activeElement.classList && document.activeElement.classList.contains('more-card');
   clear(container);
   container.classList.toggle('grid', grid);
-  const items = shownItems(world, category);
+  const view = layers ? layers.view(category, activeItem) : null;
+  const items = view ? view.items : shownItems(world, category);
   if (!items.length) { container.append(el('p', { class: 'empty', text: T.comingLater })); return []; }
   const dpr = deviceRatio();
   const buttons = items.map((item) => {
     const info = cardInfo(world, item);
-    const cls = ['card', info.affordable ? '' : 'unaffordable', info.locked ? 'locked' : '', info.isNew ? 'new' : ''].filter(Boolean).join(' ');
+    const advised = Boolean(view) && view.advised === item && !info.locked;
+    const cls = ['card', info.affordable ? '' : 'unaffordable', info.locked ? 'locked' : '', info.isNew ? 'new' : '', advised ? 'advised' : ''].filter(Boolean).join(' ');
     const thumb = drawThumb(el('canvas', { class: 'thumb', 'aria-hidden': 'true' }), item, dpr);
     // The badge is a word, part of the card's name for screen readers, so the colour never says it alone.
     const badge = info.isNew ? el('span', { class: 'new-badge', text: T.newBadge }) : null;
     // A monument's tooltip says where it stands (spec 4.4): "Small obelisk: on dry ground, not the fields".
-    const b = el('button', { type: 'button', class: cls, dataset: { item }, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null, title: isMonumentItem(item) ? `${info.name}: ${UI4_TEXT.groundTip}` : null }, [
-      thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), info.upkeepText ? upkeepSpan(world, item, info) : null, info.terrainText ? el('span', { class: 'terrain', title: terrainTitleOf(world, item), text: info.terrainText }) : null, badge,
+    const b = el('button', { type: 'button', class: cls, dataset: { item }, 'data-lock': `tray-item-${item}`, 'aria-pressed': String(activeItem === item), 'aria-disabled': info.locked ? 'true' : null, title: isMonumentItem(item) ? `${info.name}: ${UI4_TEXT.groundTip}` : null }, [
+      thumb, el('span', { class: 'name', text: info.name }), el('span', { class: 'cost' }, costLine(info)), info.upkeepText ? upkeepSpan(world, item, info) : null, info.terrainText ? el('span', { class: 'terrain', title: terrainTitleOf(world, item), text: info.terrainText }) : null, badge, advised ? el('span', { class: 'hint', text: TRAY_V81_TEXT.advised }) : null,
     ]);
     if (!info.locked) b.addEventListener('click', () => onPick(item));
     return b;
   });
-  container.append(...buttons);
+  const extra = view && view.more ? [moreCard(category, view, layers)] : [];
+  container.append(...buttons, ...extra);
   if (focusedItem) { const again = buttons.find((b) => b.dataset.item === focusedItem); if (again) again.focus(); }
+  else if (focusedMore && extra.length) extra[0].focus();
   return buttons;
 }

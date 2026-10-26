@@ -2,3 +2,4 @@
 // start with 'v81 <track>', so tests/run-tests.ps1 -Grep "v81" runs them all.
 import './t/all.js';   // Track T: the story, Ipi and the tutorial
 import './b/all.js';   // Track B: the top bar, explainers and the City page
+import './d/all.js';   // Track D: building: drag to build, the layered tray, no page zoom
