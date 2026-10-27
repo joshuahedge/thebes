@@ -207,7 +207,7 @@ describe('s4 ui the site sheet', () => {
       r.store.set(openSheet(r.store.get(), 'info', b.id));
       const sheet = r.root.querySelector('#sheet');
       expect(sheet.querySelector('h2').textContent).toBe('Small pyramid');
-      expect([...sheet.querySelectorAll('.s4-rows.site li')].map((li) => li.dataset.row)).toEqual(['progress', 'crews', 'cause', 'material-stone', 'keep-stone', 'material-bricks', 'keep-bricks', 'pace', 'gold', 'prestige']);
+      expect([...sheet.querySelectorAll('.s4-rows.site li')].map((li) => li.dataset.row)).toEqual(['progress', 'crews', 'cause', 'material-stone', 'material-bricks', 'keep-stocked', 'pace', 'gold', 'prestige']);
       expect(sheet.querySelector('.s4-rows .meter').getAttribute('aria-valuenow')).toBe('0');
       expect(sheet.textContent.includes('Workers')).toBe(false);
       expect([...sheet.querySelectorAll('.actions button')].map((x) => x.textContent)).toEqual(['Pause', 'View', 'Build another', 'Demolish']);   // Version 5.0 (Task 4): Build another on every building sheet

@@ -40,7 +40,7 @@ describe('v83 c the site sheet\'s crew lines', () => {
     s.site.camp = true;
     const far = siteCrews(w, s).find((c) => c.walk < 1);
     expect(far.speed).toBe(1);
-    expect(text(far.id)).toBe(`Crew from the guild ${far.dist} road tiles away: works at full speed (the workers' camp)`);
+    expect(text(far.id)).toBe(`Crew from the guild ${far.dist} road tiles away: works at full speed`);
     expect(siteCrews(w, s).every((c) => c.speed === 1)).toBe(true);
   });
 
@@ -107,7 +107,7 @@ describe('v83 c the camp\'s offer', () => {
       expect(s.site.camp).toBe(true);                                             // (the gold itself is the sim test's: a goal's reward lands in the same settle)
       expect(camp()).toBe(null);                                                  // no button once it is set up: the row says so
       expect(sheet().querySelector('.row-camp .text').textContent).toBe("Workers' camp: crews at full speed");
-      expect(sheet().querySelector(`.row-crew-${g.id} .text`).textContent).toBe("Crew from the guild 58 road tiles away: works at full speed (the workers' camp)");
+      expect(sheet().querySelector(`.row-crew-${g.id} .text`).textContent).toBe("Crew from the guild 58 road tiles away: works at full speed");
     } finally { r.cleanup(); }
   });
 });
@@ -118,11 +118,12 @@ describe('v83 c "keep a storehouse stocked" on the site sheet', () => {
     const s = addRaw(w, 'pyramid_small', 60, 6);                                  // 4 x 4: its tiles are y 6 to 9, beside the road
     w.prestigeUnlocks.pyramid_small = 0;
     const rows = rowsOf(w, s);
-    expect(rows['keep-stone'].text).toBe('Keep a storehouse within 16 road tiles stocked with stone');
-    expect(rows['keep-bricks'].text).toBe('Keep a storehouse within 16 road tiles stocked with bricks');
-    addRaw(w, 'quarry', 70, 11);                                                  // a quarry reaches it: stone is covered
-    const after = rowsOf(w, s);
-    expect([after['keep-stone'], after['keep-bricks'] !== undefined]).toEqual([undefined, true]);
+    expect(rows['keep-stocked'].text).toBe('Keep a storehouse within 16 road tiles stocked with stone and bricks');   // short of both: one line, one fix
+    expect(rows['keep-stocked'].fix).toEqual(keepStockedFix(w, s));
+    addRaw(w, 'quarry', 70, 11);                                                  // a quarry reaches it: stone is covered, bricks are not
+    expect(rowsOf(w, s)['keep-stocked'].text).toBe('Keep a storehouse within 16 road tiles stocked with bricks');
+    addRaw(w, 'brickworks', 56, 11);                                              // and now both are
+    expect(rowsOf(w, s)['keep-stocked']).toBe(undefined);
   });
 
   it('aims Show me at a storehouse already within 16 road tiles of the site, nearest first, and opens its sheet', () => {
@@ -172,7 +173,7 @@ describe('v83 c "keep a storehouse stocked" on the site sheet', () => {
     w.wallVersion = (w.wallVersion || 0) + 1;
     expect(storehouseSpotFor(w, s)).toBe(null);
     expect(keepStockedFix(w, s)).toBe(null);
-    expect(rowsOf(w, s)['keep-stone'].fix).toBe(null);
+    expect(rowsOf(w, s)['keep-stocked'].fix).toBe(null);
   });
 
   it('shows the Show me button on the sheet, and it aims at the storehouse card or opens the storehouse\'s sheet (390 x 844)', async () => {
@@ -181,7 +182,7 @@ describe('v83 c "keep a storehouse stocked" on the site sheet', () => {
     const r = await rigUI({ width: 390, height: 844, world: w });
     try {
       r.store.set(openSheet(r.store.get(), 'info', s.id));
-      const keep = () => r.root.querySelector('#sheet .row-keep-stone');
+      const keep = () => r.root.querySelector('#sheet .row-keep-stocked');
       expect(keep().querySelector('.text').textContent).toBe('Keep a storehouse within 16 road tiles stocked with stone');
       expect(keep().querySelector('.show-me').getAttribute('aria-label')).toBe('Show me: Keep a storehouse within 16 road tiles stocked with stone');
       fire(keep().querySelector('.show-me'), 'click');
@@ -198,8 +199,8 @@ describe('v83 c "keep a storehouse stocked" on the site sheet', () => {
 
 describe('v83 c the placing chip and the guild\'s own line', () => {
   it('words the chip as "Builders\' guild: 40 road tiles (80%)" or "No builders\' guild yet", from the sim\'s cond', () => {
-    const met = { key: 'crew', state: 'met', reason: null, n: 2, dist: 37, speed: crewSpeed(37) };
-    expect(ui4ConditionText(met, 'colossus')).toBe("Builders' guild: 37 road tiles (70%)");
+    const met = { key: 'crew', state: 'met', reason: null, n: 2, dist: 40, speed: crewSpeed(40) };
+    expect(ui4ConditionText(met, 'colossus')).toBe("Builders' guild: 40 road tiles (80%)");
     expect(ui4ConditionText({ ...met, dist: 1, speed: 1 }, 'colossus')).toBe("Builders' guild: 1 road tile (100%)");
     expect(ui4ConditionText({ key: 'crew', state: 'later', reason: 'no_crew', n: 0 }, 'colossus')).toBe("No builders' guild yet");
   });
@@ -240,5 +241,24 @@ describe('v83 c the far-crew tip', () => {
     expect(tipFor(far)).toEqual([]);                                              // the camp is already set up
     expect(TIPS.find((t) => t.id === 'far_crew').trigger).toBe('farCrew');
     expect(TIP_TEXT.far_crew.split(/\s+/).length).toBeLessThanOrEqual(20);        // a tip keeps to 20 words
+  });
+});
+
+describe('v83 c the camp\'s tap', () => {
+  it('judges and prices the camp again when the question is answered: a refusal says why, and the price is the one then', () => {
+    const w = longCity(1000);
+    guildAt(w, 2);
+    const s = addRaw(w, 'obelisk_small', 60, 9);
+    const asked = {}, shown = [];
+    const ui = createMonumentUi({ world: w, store: { set: (v) => Object.assign(asked, v), get: () => ({}) }, toasts: { show: (t) => shown.push(t) } });
+    fire(ui.sheetParts.building(s)[0].querySelector('.camp'), 'click');
+    expect(asked.confirmDialog.text.includes('for 15 gold?')).toBe(true);
+    w.gold = 0;                                                                   // the treasury emptied while the question was open
+    asked.confirmDialog.onConfirm();
+    expect([s.site.camp, shown]).toEqual([undefined, ["Not enough gold for the workers' camp: it can't put the treasury below 0"]]);
+    w.gold = 1000;
+    w.milestone = 'great_capital';                                                // and the city grew: monuments cost 10% more, so the camp is 17
+    asked.confirmDialog.onConfirm();
+    expect([s.site.camp, w.gold, shown[1]]).toEqual([true, 983, "Workers' camp set up at the small obelisk: 17 gold"]);
   });
 });

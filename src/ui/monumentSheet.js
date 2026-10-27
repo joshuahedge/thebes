@@ -190,7 +190,7 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
   rows.push({ key: 'crews', text: U.crews(s.crews.guilds.length, s.crews.max) });
   if (!s.finished) {
     const crews = siteCrews(world, b);
-    for (const c of crews) rows.push({ key: `crew-${c.id}`, text: V83_C_TEXT.crewLine(c, Boolean(b.site.camp)) });
+    for (const c of crews) rows.push({ key: `crew-${c.id}`, text: V83_C_TEXT.crewLine(c) });
     // The camp's offer sits right under the crews it speeds up (ruling 1436): a button while it can be paid, else its words (the price, and why not).
     const camp = campModel(world, b, crews);
     if (camp.show) rows.push({ key: 'camp', text: camp.text, camp: camp.ok ? camp : null });
@@ -201,9 +201,11 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
     const m = s.materials[g];
     if (!m) continue;
     rows.push({ key: `material-${g}`, text: U.material(g, m.onSite, m.makers.length, m.stores.length) });
-    // Nothing reaches the site with this material and it still needs some: a storehouse by the site, kept stocked from a store that holds it.
-    if (!s.finished && m.need > 0 && !m.makers.length && !m.stores.length && isUnlocked(world, 'storehouse')) rows.push({ key: `keep-${g}`, text: V83_C_TEXT.keepStocked(g, MONUMENT.supplyReach), fix: keepStockedFix(world, b) });
   }
+  // What the site is short of (still needs some, and no quarry, brickworks or storehouse holding some reaches it): one line naming it, or both, with one fix:
+  // a storehouse by the site, kept stocked from a store that holds them.
+  const short = MATERIALS.filter((g) => s.materials[g] && s.materials[g].need > 0 && !s.materials[g].makers.length && !s.materials[g].stores.length);
+  if (!s.finished && short.length && isUnlocked(world, 'storehouse')) rows.push({ key: 'keep-stocked', text: V83_C_TEXT.keepStocked(short, MONUMENT.supplyReach), fix: keepStockedFix(world, b) });
   if (!s.paused && s.road) {
     let pace = U.paceLater;
     if (s.stalled && s.reason) pace = U.notProgressing(s.reason);                         // stalled now: last month's pace is not what it is doing
@@ -394,8 +396,9 @@ export function createMonumentUi(ctx) {
   // The workers' camp (Version 8.3, ruling 1436): asks first, with the price and the effect; not undoable.
   function camp(b, m) {
     store.set({ confirmDialog: { text: V83_C_TEXT.campAsk(b.type, m.quote.price), confirmLabel: V83_C_TEXT.campOk, destructive: false, onConfirm: () => {
+      // The command judges and prices it again now (the city may have changed while the question was open): a refusal says why.
       const r = setCamp(world, b.id);
-      if (!r.ok) return;
+      if (!r.ok) { if (ctx.toasts) ctx.toasts.show(V83_C_TEXT.campRefused(r.reason)); return; }
       if (ctx.toasts) ctx.toasts.show(V83_C_TEXT.campSet(b.type, r.price));
       after({ kind: 'camp', result: r, undoable: false });
     } } });

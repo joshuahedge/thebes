@@ -249,7 +249,7 @@ function dust(g, edge, t) {
   }
 }
 
-// ── The workers' camp (Version 8.3, ruling 1438): render only, no tiles taken, nothing animated (so it reads the same under Full, Gentle and Still) ──
+// ── The workers' camp (Version 8.3, ruling 1441): render only, no tiles taken, nothing animated (so it reads the same under Full, Gentle and Still) ──
 const CANVAS = ['#F2E6C9', '#E3D3AB', '#BFAA86'];   // a tent's top, lit face and shaded face: undyed linen, a shade off the sand round it
 
 // The camp's tents for a site: small tents in a row along the front edge's right part, inside the footprint (the sleds use the left part, the stockpile

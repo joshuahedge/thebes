@@ -184,11 +184,11 @@ export const crewsFor = (world, b) => ({ guilds: b.site ? b.site.crews.slice() :
 export const roadLinked = (world, b, filter) => buildingsInReach(world, b, Infinity, filter).filter((r) => Number.isFinite(r.dist));
 
 // The speed a crew works at on a site `dist` road tiles from its guild (Version 8.3, ruling 1431): 1 up to MONUMENT.crewReach, then MONUMENT.crewLoss
-// less for every further MONUMENT.crewStep tiles begun, never below MONUMENT.crewFloor (13 to 24 tiles: 0.9, 25 to 36: 0.8, 100: 0.5). 1 with the
-// workers' camp (camp true). dist Infinity (no way) is the floor; the plan never sends a crew without one.
+// less for every further MONUMENT.crewStep tiles completed, never below MONUMENT.crewFloor (up to 23 tiles: 1, 24 to 35: 0.9, 36 to 47: 0.8, 40: 0.8,
+// 72 and more: 0.5). 1 with the workers' camp (camp true). dist Infinity (no way) is the floor; the plan never sends a crew without one.
 export function crewSpeed(dist, camp = false) {
   if (camp || !(dist > MONUMENT.crewReach)) return 1;
-  const steps = Math.ceil((dist - MONUMENT.crewReach) / MONUMENT.crewStep - 1e-9);
+  const steps = Math.floor((dist - MONUMENT.crewReach) / MONUMENT.crewStep + 1e-9);
   return Math.max(MONUMENT.crewFloor, Math.round((1 - MONUMENT.crewLoss * steps) * 100) / 100);
 }
 

@@ -3999,10 +3999,9 @@ Object.assign(REASONS, { no_river: g82Oasis.noQuay });
 // MONUMENT); the chips' and the idle guild's words are edited in place above (UI4_TEXT crewMet, crewLater, guildIdle, cause.no_crew).
 const v83cTiles = (n) => plural(n, 'road tile', 'road tiles');
 export const V83_C_TEXT = {
-  // One crew's line on the site sheet: how far its guild is and what it works at. camp: the site's workers' camp lifts it to full speed.
-  crewLine: ({ dist, speed, walk }, camp) => {
+  // One crew's line on the site sheet: how far its guild is and what it works at (speed is full once the site has its camp: the camp row says so).
+  crewLine: ({ dist, speed }) => {
     const from = `Crew from the guild ${v83cTiles(dist)} away`;
-    if (camp && walk < 1) return `${from}: works at full speed (the workers' camp)`;
     return speed < 1 ? `${from}: works at ${Math.round(speed * 100)}% (the walk)` : `${from}: works at full speed`;
   },
   // The guild's own line while its crew works a site: the crew's walk, only when it slows it.
@@ -4015,7 +4014,8 @@ export const V83_C_TEXT = {
   campOk: 'Set up the camp',
   campSet: (type, price) => `Workers' camp set up at the ${ui4Lower(type)}: ${ui4Gold(price)} gold`,
   // The site sheet's "no stone near" line (ruling 1440): a storehouse by the site, kept stocked from a store that holds the good.
-  keepStocked: (good, reach) => `Keep a storehouse within ${reach} road tiles stocked with ${goodName(good).toLowerCase()}`,
+  keepStocked: (goods, reach) => `Keep a storehouse within ${reach} road tiles stocked with ${[].concat(goods).map((g) => goodName(g).toLowerCase()).join(' and ')}`,
+  campRefused: (reason) => (reason === 'no_gold' ? "Not enough gold for the workers' camp: it can't put the treasury below 0" : reason === 'has_camp' ? "The workers' camp is already set up" : "The workers' camp is not possible now"),
 };
 // The tip for a far crew (ruling 1442; How to play lists it as every tip is listed): 19 words.
 Object.assign(TIP_TEXT, { far_crew: "A far crew works slower. On the site's sheet, a workers' camp puts every crew there at full speed." });

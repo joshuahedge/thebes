@@ -1,5 +1,5 @@
 // Version 8.3, Track C (rulings 1430-1444): crews at any distance. A builders' guild works any open site its roads reach, a running ferry included, nearest
-// first; a far crew works at crewSpeed of its walk (full within 12 road tiles, then 10% less for each further 12 begun, never below 50%); the sheet's and the
+// first; a far crew works at crewSpeed of its walk (full within 12 road tiles, then 10% less for each further 12 completed, never below 50%); the sheet's and the
 // chip's numbers are the sim's own.
 import { describe, it, expect } from '../../harness.js';
 import { crewSpeed, crewSpeedAt, crewDistance, crewDayUnits, crewPlan, guildsNear, siteCrews, monumentDay, hasMonumentWork, roadLinked } from '../../../src/sim/monuments.js';
@@ -25,15 +25,16 @@ const guildAt = (w, x, extra = {}) => addRaw(w, 'builders_guild', x, 11, { staff
 const obeliskAt = (w, g, dist) => addRaw(w, 'obelisk_small', g.x + dist, 9);
 
 describe('v83 c the walk and the speed', () => {
-  it('is full speed within 12 road tiles, then 10% less for each further 12 begun, never below 50%: 12, 13, 24, 25, 48, 60 and 100', () => {
+  it('is full speed within 12 road tiles, then 10% less for each further 12 completed, never below 50%: 12, 13, 24, 25, 36, 40, 48, 60 and 100', () => {
     expect([MONUMENT.crewReach, MONUMENT.crewStep, MONUMENT.crewLoss, MONUMENT.crewFloor]).toEqual([12, 12, 0.1, 0.5]);
     const at = (d) => crewSpeed(d);
     expect([1, 12].map(at)).toEqual([1, 1]);
-    expect([13, 24].map(at)).toEqual([0.9, 0.9]);
-    expect([25, 36].map(at)).toEqual([0.8, 0.8]);
-    expect([37, 48].map(at)).toEqual([0.7, 0.7]);
-    expect([49, 60].map(at)).toEqual([0.6, 0.6]);
-    expect([61, 72, 100, 500].map(at)).toEqual([0.5, 0.5, 0.5, 0.5]);
+    expect([13, 23].map(at)).toEqual([1, 1]);                                    // a step counts only when it is complete
+    expect([24, 25, 35].map(at)).toEqual([0.9, 0.9, 0.9]);
+    expect([36, 40, 47].map(at)).toEqual([0.8, 0.8, 0.8]);                      // the design's example: 40 road tiles, 80%
+    expect([48, 59].map(at)).toEqual([0.7, 0.7]);
+    expect([60, 71].map(at)).toEqual([0.6, 0.6]);
+    expect([72, 100, 500].map(at)).toEqual([0.5, 0.5, 0.5]);
     expect(crewSpeed(Infinity)).toBe(0.5);                                       // never asked for in play: the plan sends no crew without a way
   });
 
@@ -42,7 +43,7 @@ describe('v83 c the walk and the speed', () => {
   });
 
   it('measures the walk in road tiles and gives the crew the speed of that walk, in a real city (12, 13, 24, 25, 48, 60, 100)', () => {
-    const want = { 12: 1, 13: 0.9, 24: 0.9, 25: 0.8, 48: 0.7, 60: 0.6, 100: 0.5 };
+    const want = { 12: 1, 13: 1, 24: 0.9, 25: 0.9, 36: 0.8, 40: 0.8, 48: 0.7, 60: 0.6, 100: 0.5 };
     for (const [d, speed] of Object.entries(want)) {
       const w = longCity();
       const g = guildAt(w, 2), s = obeliskAt(w, g, Number(d));
@@ -52,7 +53,7 @@ describe('v83 c the walk and the speed', () => {
     }
   });
 
-  it('lays a far crew\'s day at its speed: 13 tiles lay 0.9 of a near crew\'s, 100 lay half, and the camp restores them', () => {
+  it('lays a far crew\'s day at its speed: 24 tiles lay 0.9 of a near crew\'s, 100 lay half, and the camp restores them', () => {
     const lay = (d, camp = false) => {
       const w = longCity();
       const g = guildAt(w, 2), s = obeliskAt(w, g, d);
@@ -64,10 +65,10 @@ describe('v83 c the walk and the speed', () => {
     };
     const full = lay(5);
     expect(near(full, 2 / 3)).toBe(true);
-    expect(near(lay(13), (2 / 3) * 0.9)).toBe(true);
+    expect(near(lay(24), (2 / 3) * 0.9)).toBe(true);
     expect(near(lay(100), (2 / 3) * 0.5)).toBe(true);
     expect(near(lay(100, true), full)).toBe(true);                               // the camp: every crew at 100%
-    expect(near(lay(13, true), full)).toBe(true);
+    expect(near(lay(24, true), full)).toBe(true);
   });
 
   it('keeps crewDayUnits the same for a guild with no site, and asks the crew plan for the site when none is given', () => {
@@ -161,12 +162,12 @@ describe('v83 c the placing chip\'s guild', () => {
     expect(guildsNear(w, probe)).toEqual([]);
     const g = guildAt(w, 2);
     const near1 = guildsNear(w, probe);
-    expect(near1.map((r) => [r.id, r.dist, r.speed])).toEqual([[g.id, 54, 0.6]]);        // 54 tiles: 4 further 12 begun
+    expect(near1.map((r) => [r.id, r.dist, r.speed])).toEqual([[g.id, 54, 0.7]]);        // 54 tiles: 3 further 12 complete
     const c = conditionsFor(w, 'obelisk_small', 56, 9).conditions.find((x) => x.key === 'crew');
-    expect([c.state, c.n, c.dist, c.speed]).toEqual(['met', 1, 54, 0.6]);
+    expect([c.state, c.n, c.dist, c.speed]).toEqual(['met', 1, 54, 0.7]);
     const nearer = guildAt(w, 40);
-    expect(guildsNear(w, probe).map((r) => [r.id, r.dist, r.speed])).toEqual([[nearer.id, 16, 0.9], [g.id, 54, 0.6]]);   // nearest first
-    expect(conditionsFor(w, 'obelisk_small', 56, 9).conditions.find((x) => x.key === 'crew')).toEqual({ key: 'crew', state: 'met', reason: null, n: 2, dist: 16, speed: 0.9 });
+    expect(guildsNear(w, probe).map((r) => [r.id, r.dist, r.speed])).toEqual([[nearer.id, 16, 1], [g.id, 54, 0.7]]);   // nearest first
+    expect(conditionsFor(w, 'obelisk_small', 56, 9).conditions.find((x) => x.key === 'crew')).toEqual({ key: 'crew', state: 'met', reason: null, n: 2, dist: 16, speed: 1 });
   });
 
   it('has no walk or speed, and says no guild, when none is free', () => {
