@@ -10,6 +10,8 @@
 import { createWorld, makeBuilding, insertBuilding } from '../../sim/world.js';
 import { T } from '../../sim/terrain.js';
 import { idx } from '../../sim/grid.js';
+import { ferrySpot } from '../../sim/ferries.js';   // Version 8.2.1: v71-ferry-shown
+import { drawRoute } from '../../sim/route.js';
 import { setGuide } from '../../sim/commands.js';
 import { assignLabour } from '../../sim/labour.js';
 import { drawFerry } from '../../sim/ferryLay.js';
@@ -93,4 +95,30 @@ export async function ferryWorkingScene(api, options = {}) {
   if (options.sheet) g.ui.store.set(select(g.ui.store.get(), r.ids[0]));
   if (!options.quick) await wait(300);
   return `v71-ferry-working: ${width} tiles of water, landings ${r.ids.join(' and ')}, ${world.buildings[r.ids[0]].ferry.run ? 'running' : 'not running'}`;
+}
+
+// Version 8.2.1 (rulings 1340-1359): v71-ferry-shown, a real city (options: variant, default 'wide-nile'; seed, default 1) whose road is routed from the start road to the bank
+// nearest it, with the Ferry tool picked there: the crossings it shows. pick: true picks the first (the bar leads with it); built: true builds it (its stubs show).
+export async function ferryShownScene(api, options = {}) {
+  inGame(api, 'v71-ferry-shown');
+  const world = createWorld({ seed: options.seed || 1, mapVariant: options.variant || 'wide-nile' });
+  world.gold = 20000;
+  setGuide(world, false);
+  const st = world.startRoad[world.startRoad.length - 1];
+  const s = ferrySpot(world, { x: st[0], y: st[1] });
+  const d = (t) => Math.abs(t[0] - st[0]) + Math.abs(t[1] - st[1]);
+  const [l, o] = d(s.from) <= d(s.to) ? [s.from, s.to] : [s.to, s.from];
+  const away = s.vertical ? [0, Math.sign(l[1] - o[1])] : [Math.sign(l[0] - o[0]), 0];
+  drawRoute(world, st[0], st[1], l[0] + 2 * away[0], l[1] + 2 * away[1]);
+  api.startGame(world, { saveNow: false });
+  const g = api.game();
+  const at = { x: s.x + 0.5, y: s.y + 0.5 };
+  look(api, at.x, at.y, options.zoom || (window.innerWidth < 600 ? 1.0 : 1.3));
+  const pl = g.ui.placement;
+  pl.start({ kind: 'ferry' }, at);
+  const shown = pl.ferryChoices() || [];
+  if ((options.pick || options.built) && shown.length) pl.pickCrossing(shown[0].key);
+  if (options.built && shown.length) { pl.confirm(); assignLabour(world); }
+  if (!options.quick) await wait(300);
+  return `v71-ferry-shown: ${shown.length} crossings shown${options.built ? ', the first built' : options.pick ? ', the first picked' : ''}`;
 }

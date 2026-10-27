@@ -750,6 +750,15 @@ function drawSquares(g, ghost) {
 // Version 8.2.1 (rulings 1345, 1348): the Ferry tool's crossings. A crossing it shows ('shown') is a dashed, barely filled outline on each of its tiles, with the road
 // its stubs would lay marked '═' ('stub'; faint while only shown); the last square of each carries its boat: the dashed line from landing to landing, a ferry boat
 // on the water's middle (the real one's drawing, so the ghost reads as a ferry by its shape) and its price on a pale label above it. Static: nothing moves.
+// A shown crossing's landing: a light blue wash and a dashed blue outline on a white halo, so the two banks it joins read before it is picked.
+function shownLanding(g, x, y) {
+  const pts = quad(x, y, 1, 1, 0);
+  g.poly(pts, UI.ok, { alpha: 0.14 });
+  g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.4, strokeAlpha: 0.75 });
+  g.ctx.setLineDash([3 * g.scale, 2 * g.scale]);
+  g.poly(pts, 'none', { stroke: UI.ok, strokeWidth: 1.4 });
+  g.ctx.setLineDash([]);
+}
 function drawCrossingBoat(g, { from, to, label }) {
   const css = cssScaleOf(g);
   const a = p(from[0] + 0.5, from[1] + 0.5), b = p(to[0] + 0.5, to[1] + 0.5);
@@ -768,7 +777,8 @@ function drawCrossingBoat(g, { from, to, label }) {
 }
 
 export function drawGhost(g, ghost) {
-  if (ghost.state === 'shown') plainSquare(g, ghost.x, ghost.y);
+  if (ghost.state === 'shown' && ghost.landing) shownLanding(g, ghost.x, ghost.y);
+  else if (ghost.state === 'shown') plainSquare(g, ghost.x, ghost.y);
   else if (ghost.state === 'stub') { if (ghost.faint) { plainSquare(g, ghost.x, ghost.y); g.text(p(ghost.x + 0.5, ghost.y + 0.5), '═', { size: Math.max(6, 10 / cssScaleOf(g)), weight: '700', color: UI.ok }); } else markedTile(g, ghost.x, ghost.y, '═', UI.ok); }
   else drawGhostSquare(g, ghost);
   if (ghost.boat) drawCrossingBoat(g, ghost.boat);

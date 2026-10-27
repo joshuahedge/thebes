@@ -151,6 +151,16 @@ describe('v821 f sim: the road a crossing brings', () => {
     expect([landingsOf(w).length, c.roads.some(([x, y]) => w.road[at(w, x, y)]), w.gold]).toEqual([0, false, gold]);
   });
 
+  it('a crossing is not offered right beside a ferry already laid (ruling 1352)', () => {
+    const w = westOnly();
+    setRoad(w, RIVER_X - 2, 0, RIVER_X - 2, w.size - 1);
+    const c = ferryChoices(w, FROM)[0];
+    buildCrossing(w, c);
+    const near = (k) => Math.max(Math.abs(k.mid[0] - c.mid[0]), Math.abs(k.mid[1] - c.mid[1])) < FERRY_FIND.apart;
+    const after = ferryChoices(w, FROM);
+    expect([after.length > 0, after.some(near)]).toEqual([true, false]);
+  });
+
   it('the 7.1 crossing between two roads lays no road and costs its two landings, as before', () => {
     const w = ferryWorld(7);
     const p = previewFerry(w, dragLine(7));

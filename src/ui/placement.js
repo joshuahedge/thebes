@@ -667,8 +667,8 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
 // picked: whether it is the one in hand }). state: the preview's visual ('ok' or 'bad'), or 'shown' for a crossing the tool offers.
 function crossingShapes(c, state) {
   const shown = state === 'shown';
-  const square = ([x, y], s) => ({ x, y, w: 1, d: 1, state: s });
-  const shapes = [square(c.landings[0], state), ...crossingWater(c).map((t) => square(t, shown ? 'shown' : state === 'bad' ? 'bad' : 'ferry')), square(c.landings[1], state),
+  const square = ([x, y], s, landing = false) => ({ x, y, w: 1, d: 1, state: s, ...(landing ? { landing: true } : {}) });
+  const shapes = [square(c.landings[0], state, shown),...crossingWater(c).map((t) => square(t, shown ? 'shown' : state === 'bad' ? 'bad' : 'ferry')), square(c.landings[1], state, shown),
     ...[...c.stubs[0], ...c.stubs[1]].map((t) => ({ ...square(t, state === 'bad' ? 'bad' : 'stub'), faint: shown }))];
   shapes[shapes.length - 1].boat = { from: c.landings[0], to: c.landings[1], label: FERRY_TEXT.mapLabel(c.cost), picked: !shown };
   return shapes;

@@ -258,7 +258,8 @@ export function judgeCrossing(world, plan, extra = {}) {
 
 // The crossings the Ferry tool shows (ruling 1344, 1345): those whose near landing joins the road network, narrowest water first; then the nearest to
 // `from` ({ x, y }: where the player was looking when the tool was picked), counted in bands of FERRY_FIND.band tiles; within a band the one that lays
-// less road (it costs less), then the one that opens more good ground; then the nearer; then the map's order. At most FERRY_FIND.shown, each at least FERRY_FIND.apart tiles from the ones before it. Each is
+// less road (it costs less), then the one that opens more good ground; then the nearer; then the map's order. At most FERRY_FIND.shown, each at least FERRY_FIND.apart tiles from the ones before it and from
+// every ferry already laid (ruling 1352). Each is
 // judgeCrossing's verdict (with the price) plus mid and opens. [] when the roads reach no water a ferry can cross.
 export function ferryChoices(world, from) {
   const f = from || world.focus || { x: world.size / 2, y: world.size / 2 };
@@ -267,8 +268,14 @@ export function ferryChoices(world, from) {
     return { c, d, band: Math.floor(d / FERRY_FIND.band) };
   });
   ranked.sort((p, q) => p.c.water - q.c.water || p.band - q.band || p.c.roads.length - q.c.roads.length || q.c.opens - p.c.opens || p.d - q.d || (p.c.key < q.c.key ? -1 : p.c.key > q.c.key ? 1 : 0));
-  const shown = [];
+  // A ferry already laid counts as shown (ruling 1352): no crossing is offered right beside one (its water's middle within FERRY_FIND.apart tiles of the laid one's).
+  const shown = [], laid = [];
+  for (const a of Object.values(world.buildings)) {
+    const b = a.type === FERRY_LANDING && a.ferry ? world.buildings[a.ferry.mate] : null;
+    if (b && a.id < b.id) laid.push({ mid: [Math.floor((a.x + b.x) / 2), Math.floor((a.y + b.y) / 2)] });
+  }
   for (const { c } of ranked) {
+    if (laid.some((s) => Math.max(Math.abs(s.mid[0] - c.mid[0]), Math.abs(s.mid[1] - c.mid[1])) < FERRY_FIND.apart)) continue;
     if (shown.length >= FERRY_FIND.shown) break;
     if (shown.some((s) => Math.max(Math.abs(s.mid[0] - c.mid[0]), Math.abs(s.mid[1] - c.mid[1])) < FERRY_FIND.apart)) continue;
     shown.push({ ...judgeCrossing(world, c), mid: c.mid, opens: c.opens });
