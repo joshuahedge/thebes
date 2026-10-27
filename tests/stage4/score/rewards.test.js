@@ -54,7 +54,7 @@ describe('s4 score firsts and achievements', () => {
   });
   it('words each first as the monument rules have it', () => {
     for (const f of FIRSTS.slice(20, 25)) expect([f.id, FIRST_TEXT[f.id].head.length < 30, FIRST_TEXT[f.id].why.length > 20]).toEqual([f.id, true, true]);
-    expect(FIRST_TEXT.first_guild.why).toBe(`Its crew builds a monument site up to ${MONUMENT.crewReach} road tiles away.`);
+    expect(FIRST_TEXT.first_guild.why).toBe(`Its crew builds any monument site its roads reach: full speed within ${MONUMENT.crewReach} road tiles, slower beyond.`);
     for (const k of MONUMENT_KINDS) expect([k, MONUMENTS[k].prestige.courses]).toEqual([k, MONUMENTS[k].prestige.done]);   // "Half ... half"
     const w = city();
     finish(w, 'mastaba_large', 12, 11);                                // 110 prestige: +1 mood for every 70

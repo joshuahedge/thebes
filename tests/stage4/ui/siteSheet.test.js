@@ -53,7 +53,7 @@ describe('s4 ui the site sheet', () => {
     const cause = () => siteRows(w, b).find((r) => r.key === 'cause') || null;
     expect(cause()).toBe(null);
     b.site.reason = 'no_crew';
-    expect([cause().text, cause().fix]).toEqual(["No crew: build a builders' guild within 12 road tiles", { showMe: { category: 'monuments', item: 'builders_guild', x: 14, y: 13 } }]);
+    expect([cause().text, cause().fix]).toEqual(["No crew: build a builders' guild on a road that reaches this site", { showMe: { category: 'monuments', item: 'builders_guild', x: 14, y: 13 } }]);
     b.site.reason = 'no_bricks';
     expect([cause().text, cause().fix.showMe.item]).toEqual(['Waiting for bricks: no brickworks or storehouse with bricks within reach', 'brickworks']);
     b.site.reason = 'no_stone';
@@ -74,7 +74,7 @@ describe('s4 ui the site sheet', () => {
     let cause = day();
     expect([b.site.reason, b.site.crews, crewPlan(w).get(a.id), crewPlan(w).has(free.id)]).toEqual(['crew_short', [], b.id, false]);
     expect([cause.text, cause.fix, stalledGuild(w, b, 'crew_short')]).toEqual(["The builders' guild is short of workers", { view: a.id }, a.id]);
-    expect(guildsNear(w, b)).toEqual([free.id]);                                    // what the old aim took
+    expect(guildsNear(w, b).map((r) => r.id)).toEqual([free.id]);                   // what the old aim took
     a.fire = { stage: 'blaze', days: 0, need: 3, fought: 0 };                       // a blaze is not burning: still short
     expect([day().fix, b.site.reason, supplyLine(w, a)]).toEqual([{ view: a.id }, 'crew_short', UI4_TEXT.crewShort('obelisk_small')]);   // M9: the sim's burning rule
     Object.assign(a, { staff: 16, fire: { stage: 'fire', days: 0, left: 10 } });
@@ -207,7 +207,7 @@ describe('s4 ui the site sheet', () => {
       r.store.set(openSheet(r.store.get(), 'info', b.id));
       const sheet = r.root.querySelector('#sheet');
       expect(sheet.querySelector('h2').textContent).toBe('Small pyramid');
-      expect([...sheet.querySelectorAll('.s4-rows.site li')].map((li) => li.dataset.row)).toEqual(['progress', 'crews', 'cause', 'material-stone', 'material-bricks', 'pace', 'gold', 'prestige']);
+      expect([...sheet.querySelectorAll('.s4-rows.site li')].map((li) => li.dataset.row)).toEqual(['progress', 'crews', 'cause', 'material-stone', 'material-bricks', 'keep-stocked', 'pace', 'gold', 'prestige']);
       expect(sheet.querySelector('.s4-rows .meter').getAttribute('aria-valuenow')).toBe('0');
       expect(sheet.textContent.includes('Workers')).toBe(false);
       expect([...sheet.querySelectorAll('.actions button')].map((x) => x.textContent)).toEqual(['Pause', 'View', 'Build another', 'Demolish']);   // Version 5.0 (Task 4): Build another on every building sheet

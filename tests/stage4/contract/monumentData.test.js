@@ -57,7 +57,7 @@ describe('s4 contract monument data', () => {
     expect(PRESTIGE).toEqual({ moodPer: 70, moodMax: 10, scoreFull: 700 });
   });
   it('keeps the shared rules: 20 units a crew-month, 6.5 gold a unit as Track F tuned it, the reaches, the stockpile, the stall, the big-footprint fit', () => {
-    expect(MONUMENT).toEqual({ unitsPerCrewMonth: 20, goldPerUnit: 6.5, crewReach: 12, producerReach: 12, supplyReach: 16, stockPerCrew: 40, stallDays: 3, demolishRefund: 0.25 });
+    expect(MONUMENT).toEqual({ unitsPerCrewMonth: 20, goldPerUnit: 6.5, crewReach: 12, crewStep: 12, crewLoss: 0.1, crewFloor: 0.5, campShare: 0.1, producerReach: 12, supplyReach: 16, stockPerCrew: 40, stallDays: 3, demolishRefund: 0.25 });
     expect(MONUMENT_PLACING).toEqual({ fitRadius: 16, bigArea: 9, silhouetteAlpha: 0.35, fadeBehind: 0.4 });
     expect(SITE_DESIRABILITY).toEqual([-3, -2, -1]);
   });

@@ -91,7 +91,11 @@ export const MONUMENT = {
   goldPerUnit: 6.5,        // work gold: 6.5 a unit laid (130 a full crew-month) x the difficulty's cost, whole gold, fraction carried
                            // (Track F: the spec's first value was 5; at 5 the capital run held 64,909 gold at year 6, over its
                            // 60,000; at 6.5 it spends 67.5-68.4% of its taxes with four crews: tests/stage4/balance/capital.test.js)
-  crewReach: 12,           // a builders' guild works the nearest unpaused, unfinished site with room within this many road tiles
+  crewReach: 12,           // a builders' guild's crew works at full speed on a site within this many road tiles (Version 8.3: it works any road-linked site, slower further out)
+  crewStep: 12,            // Version 8.3 (ruling 1431): every further crewStep road tiles completed past crewReach costs the crew crewLoss of its speed ...
+  crewLoss: 0.1,
+  crewFloor: 0.5,          // ... and never below crewFloor
+  campShare: 0.1,          // Version 8.3 (ruling 1436): a workers' camp costs this share of the site's founding price as the city pays it; it lifts every crew there to full speed
   producerReach: 12,       // a quarry or brickworks delivers to a site within its producer reach (BUILDINGS[..].producerReach)
   supplyReach: 16,         // a site also draws from storehouses within this many road tiles
   stockPerCrew: 40,        // a site's stockpile holds at most this x its kind's most crews, never more of one than its courses need

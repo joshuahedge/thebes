@@ -1237,8 +1237,9 @@ export const UI4_TEXT = {
   groundMet: 'Dry ground, not the fields',
   notOnFields: (fertile, of) => `Not on the fields: ${fertile} of ${of} tiles are fertile`,
   roadLater: (type) => `No road yet: ${ui4ByRoad(type)} come by road`,
-  crewMet: (n) => `Crew: ${plural(n, "builders' guild", "builders' guilds")} near`,
-  crewLater: "No builders' guild near",
+  // Version 8.3 (ruling 1435): the nearest free guild's walk and what its crew would work at, the sim's own crewSpeed.
+  crewMet: (n, dist, speed) => `Builders' guild: ${plural(dist, 'road tile', 'road tiles')} (${Math.round(speed * 100)}%)`,
+  crewLater: "No builders' guild yet",
   supplyMet: (goods) => `${ui4Cap(listText(goods.map((g) => goodName(g).toLowerCase())))} near`,
   // Every material the recipe takes that has no maker or storehouse near (ruling 300): "No bricks or stone near".
   supplyLater: (goods) => `No ${[].concat(goods).map((g) => goodName(g).toLowerCase()).join(' or ')} near`,
@@ -1265,7 +1266,7 @@ export function ui4ConditionText(cond, type) {
     return conditionText(cond, type);
   }
   if (cond.key === 'road') return cond.state === 'met' ? CONDITION_TEXT.roadMet : cond.state === 'later' ? U.roadLater(type) : CONDITION_TEXT.roadCant;
-  if (cond.key === 'crew') return cond.state === 'met' ? U.crewMet(cond.n) : U.crewLater;
+  if (cond.key === 'crew') return cond.state === 'met' ? U.crewMet(cond.n, cond.dist, cond.speed) : U.crewLater;
   if (cond.key === 'supply') return cond.state === 'met' ? U.supplyMet(cond.goods || []) : U.supplyLater(cond.missing || [cond.good]);
   if (cond.key === 'gold') return U.founding(cond.cost, cond.have);
   return conditionText(cond, type);
@@ -1292,7 +1293,7 @@ Object.assign(UI4_TEXT, {
   cause: {
     no_road: (type) => UI4_TEXT.roadLater(type),
     paused: 'Paused: no work and no work gold until you resume it',
-    no_crew: (reach) => `No crew: build a builders' guild within ${reach} road tiles`,
+    no_crew: () => "No crew: build a builders' guild on a road that reaches this site",   // Version 8.3 (ruling 1430): at any distance
     crew_short: "The builders' guild is short of workers",
     crew_burning: "The builders' guild is on fire",
     no_gold: 'No gold for the crews: a crew works a day only when its pay leaves the treasury at 0 or more',
@@ -1327,7 +1328,7 @@ Object.assign(UI4_TEXT, {
   crewAt: (type) => `Crew at work on the ${ui4Lower(type)}`,
   crewShort: (type) => `Short of workers: the crew for the ${ui4Lower(type)} cannot start`,
   crewBurning: (type) => `On fire: the crew for the ${ui4Lower(type)} cannot work`,
-  guildIdle: (reach) => `Idle: no monument site within ${reach} road tiles has room for a crew`,
+  guildIdle: () => 'Idle: no monument site its roads reach has room for a crew',
   sends: (good, type) => `Sends ${goodName(good).toLowerCase()} to the ${ui4Lower(type)}`,
   supplyIdle: (good) => `Idle: no monument site needs ${goodName(good).toLowerCase()} within reach`,
   cuttingStone: 'Cutting stone',
@@ -1467,7 +1468,7 @@ import { DAYS_PER_MONTH as score4MonthDays, MONTHS_PER_YEAR as score4YearMonths 
 const score4Achievement = (id) => ACHIEVEMENTS.find((a) => a.id === id).measure;
 const score4Count = (n) => n.toLocaleString('en-GB');
 Object.assign(FIRST_TEXT, {
-  first_guild: { head: "First builders' guild", why: `Its crew builds a monument site up to ${score4Monument.crewReach} road tiles away.` },
+  first_guild: { head: "First builders' guild", why: `Its crew builds any monument site its roads reach: full speed within ${score4Monument.crewReach} road tiles, slower beyond.` },
   first_course: { head: 'First course laid', why: "Half a monument's prestige comes course by course, half when it is finished." },
   first_monument: { head: 'First monument finished', why: `Prestige lifts the mood, +1 for every ${score4Prestige.moodPer}, and the Monuments score.` },
   pyramids_unlocked: { head: 'The small pyramid is unlocked', why: `A ${score4Milestone(score4Monuments.pyramid_small.unlock.milestone)} with ${score4Monuments.pyramid_small.unlock.prestige} prestige can found the small pyramid.` },
@@ -4104,3 +4105,28 @@ V70_ADVICE_WORDS.keep_stocked = (a, world) => {
   return { what, why: `${from}; a storehouse within ${reach} supplies the site`, fix: `Keep the storehouse by the site stocked with ${g} from the nearest store that can spare it` };
 };
 // ── end v83 k ──
+// Version 8.3, Track C: crews at any distance and the workers' camp (rulings 1430-1444). Every number is the sim's own (crewSpeed, siteCrews, campQuote,
+// MONUMENT); the chips' and the idle guild's words are edited in place above (UI4_TEXT crewMet, crewLater, guildIdle, cause.no_crew).
+const v83cTiles = (n) => plural(n, 'road tile', 'road tiles');
+export const V83_C_TEXT = {
+  // One crew's line on the site sheet: how far its guild is and what it works at (speed is full once the site has its camp: the camp row says so).
+  crewLine: ({ dist, speed }) => {
+    const from = `Crew from the guild ${v83cTiles(dist)} away`;
+    return speed < 1 ? `${from}: works at ${Math.round(speed * 100)}% (the walk)` : `${from}: works at full speed`;
+  },
+  // The guild's own line while its crew works a site: the crew's walk, only when it slows it.
+  guildWalk: ({ dist, speed }) => `: ${v83cTiles(dist)} away, works at ${Math.round(speed * 100)}%`,
+  // The camp's button, its question and its answer: the price and the effect are said before the tap.
+  campButton: (price) => `Set up a workers' camp: ${ui4Gold(price)} gold. Far crews work at full speed`,
+  campNoGold: (price, have) => `Workers' camp: ${ui4Gold(price)} gold. You have ${ui4Gold(have)} gold: it can't put the treasury below 0`,
+  campDone: "Workers' camp: crews at full speed",
+  campAsk: (type, price) => `Set up a workers' camp at the ${ui4Lower(type)} for ${ui4Gold(price)} gold? Every crew there works at full speed until it is finished. It is paid at once and cannot be undone.`,
+  campOk: 'Set up the camp',
+  campSet: (type, price) => `Workers' camp set up at the ${ui4Lower(type)}: ${ui4Gold(price)} gold`,
+  // The site sheet's "no stone near" line (ruling 1440): a storehouse by the site, kept stocked from a store that holds the good.
+  keepStocked: (goods, reach) => `Keep a storehouse within ${reach} road tiles stocked with ${[].concat(goods).map((g) => goodName(g).toLowerCase()).join(' and ')}`,
+  campRefused: (reason) => (reason === 'no_gold' ? "Not enough gold for the workers' camp: it can't put the treasury below 0" : reason === 'has_camp' ? "The workers' camp is already set up" : "The workers' camp is not possible now"),
+};
+// The tip for a far crew (ruling 1442; How to play lists it as every tip is listed): 19 words.
+Object.assign(TIP_TEXT, { far_crew: "A far crew works slower. On the site's sheet, a workers' camp puts every crew there at full speed." });
+// ── end v83 c ──
