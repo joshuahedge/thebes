@@ -40,7 +40,8 @@ import { T as TILE } from '../sim/terrain.js';
 import { LARGE_TEXT, buildingName, reasonText, warningText, effectText, plural, nicerText, conditionText, plotsPlacedText, goodName, CONDITION_MARKS, CONDITION_STATE_WORDS, CONDITION_TEXT, DRAW_TEXT, T, DANGER_UI_TEXT, UI4_TEXT, ui4ConditionText, S45_TEXT, S46_MAP_TEXT, S46_COURT_TEXT } from './text.js';
 import { bridgeSpot } from '../sim/bridges.js';
 import { previewFerry, ferrySpot } from '../sim/ferries.js';   // Version 7.1 (Track F)
-import { drawFerry } from '../sim/ferryLay.js';
+import { drawFerry, buildCrossing } from '../sim/ferryLay.js';
+import { ferryChoices, crossingWater } from '../sim/ferryFind.js';   // Version 8.2.1 (rulings 1340-1359): the crossings the Ferry tool shows
 import { FERRY_TEXT } from './v71/ferryText.js';
 import { styleChoices } from './s46/wonders.js';
 import { placementWhy } from './placementWhy.js';
@@ -315,7 +316,7 @@ function basePreview(world, state) {
       return routePreview(world, l);
     }
     if (tool.kind === 'ferry') {                                                                  // Version 7.1 (Track F): the Ferry tool, straight across the water
-      if (!l) return idle(touch ? FERRY_TEXT.idleTouch : FERRY_TEXT.idleMouse);
+      if (!l) return ferryIdle(world, tool, touch);                                               // Version 8.2.1: the crossings it shows, or the one picked
       if (l.x1 === null) return idle(T.tapEnd, [[l.x0, l.y0]]);
       return ferryPreview(world, roadPath(l.x0, l.y0, l.x1, l.y1, l.flip));
     }
@@ -352,13 +353,47 @@ function basePreview(world, state) {
 // Version 7.1 (Track F, rulings 1040-1059): the Ferry tool's preview of a dragged line (previewFerry, src/sim/ferries.js: the rule, the price and the landings). Accepted, its tiles
 // are the way from one landing to the other (the ghost draws the landings and the water between), its words the water, the monthly bill and what the crossing counts as; refused,
 // the whole line shows coral with the reason and the number that decided it, and Show me (the ferry tool's) goes to the nearest place a ferry fits.
+// Version 8.2.1 (ruling 1347): a drag snaps to the nearest crossing that works, so an accepted (or only too dear) line's tiles are that crossing's, landing to
+// landing, not the dragged ones; a refusal keeps the dragged line, coral.
 function ferryPreview(world, tiles) {
   const r = previewFerry(world, tiles);
-  if (!r.ok) return { ...bad(r.reason, r.cost, 0, tiles, FERRY_TEXT.refusal(r) || reasonText(r.reason)), water: r.water, at: r.at, ferry: r };
-  const same = (a, b) => a[0] === b[0] && a[1] === b[1];
-  const i = tiles.findIndex((t) => same(t, r.landings[0])), j = tiles.findIndex((t) => same(t, r.landings[1]));
-  const way = tiles.slice(Math.min(i, j), Math.max(i, j) + 1);
-  return { state: 'ok', reason: null, warnings: [], text: FERRY_TEXT.summary(world, r), effect: '', cost: r.cost, count: 2, tiles: way, landings: r.landings, refund: 0, water: r.water, ferry: r };
+  if (r.ok || (r.reason === 'no_gold' && r.landings.length === 2)) return crossingPreview(world, r);
+  return { ...bad(r.reason, r.cost, 0, tiles, FERRY_TEXT.refusal(r) || reasonText(r.reason)), water: r.water, at: r.at, ferry: r };
+}
+
+// Version 8.2.1 (rulings 1340-1359): a crossing's preview, a picked one's or a drag's (judgeCrossing's verdict: ok, or too dear): its tiles are the landings and the
+// water between, its words the water, the road it lays and the ferrymen's monthly bill, its price the landings and the road (the sim's crossingCost).
+function crossingPreview(world, r) {
+  const tiles = [r.landings[0], ...crossingWater(r), r.landings[1]];
+  const base = { water: r.water, landings: r.landings, stubs: r.stubs, roads: r.roads, key: r.key, ferry: r, at: r.at };
+  if (!r.ok) return { ...bad(r.reason, r.cost, 2, tiles, FERRY_TEXT.refusal(r) || reasonText(r.reason)), ...base };
+  return { state: 'ok', reason: null, warnings: [], text: FERRY_TEXT.summary(world, r), effect: '', cost: r.cost, count: 2, tiles, refund: 0, ...base };
+}
+
+// The crossings the Ferry tool shows (ruling 1344), ranked from where the player was looking when it was picked (tool.from), and the one picked (tool.pick, its key).
+const shownCrossings = (world, tool) => ferryChoices(world, tool.from || world.focus);
+const pickedCrossing = (world, tool) => (tool.pick ? shownCrossings(world, tool).find((c) => c.key === tool.pick) || null : null);
+// Every tile a crossing marks on the map: its landings, its water and its stubs.
+const crossingTilesOf = (c) => [c.landings[0], ...crossingWater(c), c.landings[1], ...c.stubs[0], ...c.stubs[1]];
+// The shown crossing a tap at (x, y) means: the one with a tile within `slack` tiles of it (a finger's tap may land beside the ghost), the nearest first, then the
+// better ranked; null when none.
+export function crossingAt(world, tool, x, y, slack = 0) {
+  let best = null;
+  for (const c of shownCrossings(world, tool)) {
+    const d = Math.min(...crossingTilesOf(c).map(([tx, ty]) => Math.max(Math.abs(tx - x), Math.abs(ty - y))));
+    if (d <= slack && (!best || d < best.d)) best = { c, d };
+  }
+  return best ? best.c : null;
+}
+
+// Version 8.2.1 (rulings 1348, 1349): the Ferry tool before anything is drawn. A picked crossing is its own preview (✓ builds it); otherwise the bar says how to pick
+// one, or, when the roads reach no water a ferry can cross, says so with Show me (the nearest place a ferry could go). choices: the crossings shown.
+function ferryIdle(world, tool, touch) {
+  const shown = shownCrossings(world, tool);
+  const picked = pickedCrossing(world, tool);
+  if (picked) return { ...crossingPreview(world, picked), choices: shown };
+  if (!shown.length) return { ...bad('ferry_none_near', 0, 0, [], FERRY_TEXT.noneNear), choices: [] };
+  return { ...idle(touch ? FERRY_TEXT.idleTouch : FERRY_TEXT.idleMouse), choices: shown };
 }
 
 // Version 5.0 (Task 5, rulings 560-569): the routed road's preview between two ends (routeRoad, src/sim/route.js: its cost is previewRoadTiles' own for the tiles it
@@ -488,8 +523,8 @@ export function toolPreview(world, state) {
     if (Array.isArray(p.whyParts)) p.whyParts = p.whyParts.map((w) => (w && typeof w.text === 'string' ? { ...w, text: forMap(world, w.text) } : w));
   }
   if (state.tool.kind === 'road' && !state.tool.gate && p.state === 'bad' && (WATER_REFUSALS.includes(p.reason) || (p.routed && p.at))) p.showFit = true;   // Stage 4.6 (ruling 350): Show me finds a crossing; Version 5.0 (Task 5): a routed road's refusal shows what is in the way
-  if (state.tool.kind === 'ferry' && p.state === 'bad' && p.ferry && p.reason !== 'no_gold') p.showFit = true;   // Version 7.1 (Track F): every refusal of the ferry's line has a place to show (the nearest crossing, or a bridge's for a narrow one)
-  p.note = p.state === 'idle' ? bridgeNote(world, state.tool) : '';
+  if (state.tool.kind === 'ferry' && p.state === 'bad' && ((p.ferry && p.reason !== 'no_gold') || p.reason === 'ferry_none_near')) p.showFit = true;   // Version 7.1 (Track F): every refusal of the ferry's line has a place to show (the nearest crossing, or a bridge's for a narrow one); 8.2.1: and "none near your roads"
+  p.note = p.state === 'idle' && !(p.choices && p.choices.length) ? bridgeNote(world, state.tool) : '';   // Version 8.2.1: with crossings shown, their row says it (and the phone's bar keeps its height)
   p.nicer = '';
   p.nicerTone = '';
   p.score = '';                                         // Stage 3: the parts it would change, "+3 Culture" (scoreUi.js)
@@ -605,9 +640,14 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
       ...(preview.leftover || []).slice(0, AREA_SKIP_DRAWN).map(([x, y]) => ({ x, y, w: 1, d: 1, state: 'left' }))];   // Version 6.0 (Track C): left-over ground is hatched amber and dashed, not coral
   }
   // Version 7.1 (Track F): an accepted ferry draws its two landings as accepted squares and the water between them as 'ferry' squares (a wave mark, never planks).
-  if (tool.kind === 'ferry' && preview.landings && visual !== 'bad') {
-    const land = new Set(preview.landings.map(tileKey));
-    return preview.tiles.map(([x, y]) => ({ x, y, w: 1, d: 1, state: land.has(tileKey([x, y])) ? visual : 'ferry' }));
+  // Version 8.2.1 (rulings 1345, 1348): and the road its stubs lay ('stub' squares, the road mark), and its boat with its price (the last square's boat); before
+  // anything is drawn the crossings the tool shows are ghosts of their own ('shown': dashed, each with its boat and price), the picked one drawn as accepted.
+  if (tool.kind === 'ferry') {
+    const drawn = Boolean(state.line || (state.plan && state.plan.tiles.length));
+    const out = [];
+    if (!drawn) for (const c of preview.choices || []) if (c.key !== tool.pick) out.push(...crossingShapes(c, 'shown'));
+    if (preview.landings && preview.landings.length === 2 && (visual !== 'bad' || preview.reason === 'no_gold')) return [...out, ...crossingShapes(preview, visual)];
+    if (!drawn) return out;
   }
   // A touch plan's skipped tiles are coral with a cross (P5); the rest show the plan's state, a gate its own mark.
   const skipped = new Set((preview.skipped || []).map(tileKey));
@@ -621,6 +661,17 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
     const i = y * world.size + x;
     return { x, y, w: 1, d: 1, state: skipped.has(tileKey([x, y])) ? 'bad' : gates.has(i) ? 'gate' : bridged(i) ? 'bridge' : visual };
   });
+}
+
+// Version 8.2.1: a crossing's squares, in the order landing, water, landing, stubs; the last carries its boat ({ from, to: the landings, label: the price,
+// picked: whether it is the one in hand }). state: the preview's visual ('ok' or 'bad'), or 'shown' for a crossing the tool offers.
+function crossingShapes(c, state) {
+  const shown = state === 'shown';
+  const square = ([x, y], s, landing = false) => ({ x, y, w: 1, d: 1, state: s, ...(landing ? { landing: true } : {}) });
+  const shapes = [square(c.landings[0], state, shown),...crossingWater(c).map((t) => square(t, shown ? 'shown' : state === 'bad' ? 'bad' : 'ferry')), square(c.landings[1], state, shown),
+    ...[...c.stubs[0], ...c.stubs[1]].map((t) => ({ ...square(t, state === 'bad' ? 'bad' : 'stub'), faint: shown }))];
+  shapes[shapes.length - 1].boat = { from: c.landings[0], to: c.landings[1], label: FERRY_TEXT.mapLabel(c.cost), picked: !shown };
+  return shapes;
 }
 
 // Stage 4.6 (ruling 331, 350): where Show me goes from a refused spot: a terrain or water building, the nearest origin where it fits on the
@@ -647,29 +698,39 @@ export function fitTarget(world, state) {
     // Version 7.1 (Track F, ruling 1043): water too wide for a bridge has a ferry's place to show, and the Ferry tool starts there.
     if ((l && l.x1 !== null) || tiles.length) {
       const p = toolPreview(world, state);
-      if (p.state === 'bad' && p.reason === 'too_wide' && !riverless(world)) {   // Version 8.2 (ruling 1333): a map with no river shows the nearest bridge's place instead
-        const f = ferrySpot(world, from);
-        return f ? { kind: 'ferry', x: f.x + 0.5, y: f.y + 0.5, spot: f } : null;
-      }
+      if (p.state === 'bad' && p.reason === 'too_wide' && !riverless(world)) return ferryTarget(world, from);   // Version 8.2 (ruling 1333): a map with no river shows the nearest bridge's place instead
     }
     const spot = bridgeSpot(world, from);
     return spot ? { kind: 'bridge', x: spot.x + 0.5, y: spot.y + 0.5, spot } : null;
   }
   if (tool.kind === 'ferry') {                                                                  // Version 7.1 (Track F): the nearest crossing a ferry fits; a line of 4 tiles or fewer of water goes to a bridge's place
     const l = state.line, tiles = state.plan ? state.plan.tiles : [];
-    const from = tiles.length ? { x: tiles[tiles.length - 1][0], y: tiles[tiles.length - 1][1] } : l ? { x: l.x0, y: l.y0 } : world.focus;
+    const from = tiles.length ? { x: tiles[tiles.length - 1][0], y: tiles[tiles.length - 1][1] } : l ? { x: l.x0, y: l.y0 } : tool.from || world.focus;   // 8.2.1: nothing drawn, from where the tool ranks its crossings
     const p = toolPreview(world, state);
     if (p.state === 'bad' && p.reason === 'ferry_bridge') {
       const spot = bridgeSpot(world, from);
       return spot ? { kind: 'bridge', x: spot.x + 0.5, y: spot.y + 0.5, spot } : null;
     }
-    const f = ferrySpot(world, from);
-    return f ? { kind: 'ferry', x: f.x + 0.5, y: f.y + 0.5, spot: f } : null;
+    return ferryTarget(world, from);
   }
   return null;
 }
 
-export function createPlacement({ world, store, afterCommand = () => {}, effects = null, now = () => performance.now(), roadMode = null }) {
+// Version 8.2.1 (ruling 1349): where a ferry's Show me goes from a point: the nearest of the crossings the Ferry tool would show from there (the Ferry tool then
+// opens with them, ranked from that point: createUI's showMeAt), else, with none near the roads, the nearest place on the map a ferry could cross (ferrySpot).
+function ferryTarget(world, from) {
+  const shown = ferryChoices(world, from);
+  if (shown.length) {
+    const d = (c) => (c.mid[0] + 0.5 - from.x) ** 2 + (c.mid[1] + 0.5 - from.y) ** 2;
+    const c = shown.reduce((a, b) => (d(b) < d(a) ? b : a));
+    return { kind: 'ferry', x: c.mid[0] + 0.5, y: c.mid[1] + 0.5, crossing: c };
+  }
+  const f = ferrySpot(world, from);
+  return f ? { kind: 'ferry', x: f.x + 0.5, y: f.y + 0.5, spot: f } : null;
+}
+
+// look (Version 8.2.1): where the player is looking, { x, y } in tiles (the camera's middle), or null; the Ferry tool ranks its crossings from it when picked.
+export function createPlacement({ world, store, afterCommand = () => {}, effects = null, now = () => performance.now(), roadMode = null, look = () => null }) {
   // The stroke a finger is drawing: the plan before it (base), where it went down (x0, y0), the tiles it has followed (path, roads
   // and walls) and the tile it is on (at). Gone when the finger lifts, or with the tool.
   let stroke = null;
@@ -699,7 +760,31 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
   const somethingAt = (x, y) => { const i = y * world.size + x; return Boolean(world.occ[i] || world.road[i] || world.wall[i]); };
   // The tiles of a stroke the plan takes: all of them, except that demolish takes only a tile with something on it, as a tap does.
   const marked = (tool, tiles) => (tool.kind === 'demolish' ? tiles.filter(([x, y]) => somethingAt(x, y)) : tiles);
+  // Version 8.2.1: the store patch that lets the Ferry tool's picked crossing go ({} when nothing is picked).
+  const unpick = (s) => (s.tool && s.tool.kind === 'ferry' && s.tool.pick ? { tool: { ...s.tool, pick: null } } : {});
   const api = {
+    // Version 8.2.1 (rulings 1344-1349): the Ferry tool's shown crossings. ferryChoices() lists them for the bar ([{ key, water, cost, active, name, label }], in
+    // their rank; null for any other tool, or while a line is drawn); pickCrossing(key) picks one (null lets the pick go; false for a key not shown); pickAt(x, y,
+    // slack) picks the shown crossing a tap at that tile means (crossingAt), and says whether there was one.
+    ferryChoices() {
+      const s = store.get(), t = s.tool;
+      if (!t || t.kind !== 'ferry' || s.line || (s.plan && s.plan.tiles.length)) return null;
+      return shownCrossings(world, t).map((c) => ({ key: c.key, water: c.water, cost: c.cost, active: c.key === t.pick, name: FERRY_TEXT.choiceName(c.water, c.cost), label: FERRY_TEXT.choiceLabel(c.water, c.cost, c.roads.length) }));
+    },
+    pickCrossing(key) {
+      const s = store.get(), t = s.tool;
+      if (!t || t.kind !== 'ferry') return false;
+      if (key !== null && !shownCrossings(world, t).some((c) => c.key === key)) return false;
+      stroke = null; dropEnd();
+      store.set({ tool: { ...t, pick: key }, line: null, plan: null });
+      return true;
+    },
+    pickAt(x, y, slack = 0) {
+      const s = store.get();
+      if (!s.tool || s.tool.kind !== 'ferry') return false;
+      const c = crossingAt(world, s.tool, x, y, slack);
+      return c ? api.pickCrossing(c.key) : false;
+    },
     // Version 5.0 (Task 4, rulings 550-559): the area tool for a farm, garden or statue (tool { kind: 'areas', type, spacing }): dragged like plots, laid as one
     // undo step. The spacing is the last one chosen for the type (gardens and statues; a farm's is the building's own size). false for any other type.
     startArea(type) {
@@ -734,6 +819,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (tool.kind === 'areas') { api.startArea(tool.type); if (tool.spacing) api.setSpacing(tool.spacing); return; }
       stroke = null; dropEnd();
       if (tool.kind === 'road' && !tool.gate && !tool.route && roadShape() === 'route') tool = { ...tool, route: true };   // Version 5.0 (Task 5): the road bar starts in the shape last chosen
+      if (tool.kind === 'ferry') { const at = centre || look() || world.focus; tool = { ...tool, from: { x: at.x, y: at.y }, pick: null }; }   // Version 8.2.1 (ruling 1344): ranked from here while the tool is in hand
       if (tool.kind === 'building' && BUILDINGS[tool.type].monument && !tool.style) tool = { ...tool, style: lastStyle || MONUMENT_STYLE_PICK_DEFAULT };
       // Stage 4 (spec 4.20, ruling 271): while a palace stands its card selects it (its sheet opens) instead of starting a tool.
       const palace = tool.kind === 'building' && tool.type === 'palace' ? palaceOf(world) : null;
@@ -762,7 +848,9 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (isLine(s.tool)) {
         dropEnd();
         const l = s.line;
-        store.set({ line: !l || l.x1 !== null ? { x0: x, y0: y, x1: null, y1: null, flip: false } : { ...l, x1: x, y1: y }, plan: null });
+        // Version 8.2.1 (ruling 1348): a click on a shown crossing picks it; anywhere else it starts (or ends) a line as before, and the pick is let go.
+        if (s.tool.kind === 'ferry' && (!l || l.x1 !== null) && api.pickAt(x, y, 0)) return;
+        store.set({ line: !l || l.x1 !== null ? { x0: x, y0: y, x1: null, y1: null, flip: false } : { ...l, x1: x, y1: y }, plan: null, ...unpick(s) });
         return;
       }
       const a = s.area;
@@ -774,6 +862,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       const s = store.get();
       if (!drawingTool(s) || !inMap(x, y)) return;
       if (isRoute(s.tool)) { api.pointAt(x, y); return; }                    // Version 5.0 (Task 5): in Route a tap sets the start, then the end
+      if (s.tool.kind === 'ferry') { if (!api.pickAt(x, y, 1)) store.set({ plan: null, line: null, ...unpick(s) }); return; }   // Version 8.2.1 (ruling 1348): a finger's tap picks a shown crossing (or lets the pick go)
       const tiles = s.plan ? s.plan.tiles : [];
       const has = tiles.some((t) => sameTile(t, [x, y]));
       if (!has && s.tool.kind === 'demolish' && !somethingAt(x, y)) return;
@@ -799,6 +888,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
       if (phase === 'start') {
         if (!inMap(x, y)) return;
         stroke = { base: s.plan ? s.plan.tiles : [], x0: x, y0: y, path: [[x, y]], at: [x, y] };
+        if (s.tool.pick) store.set(unpick(s));                               // Version 8.2.1: a drag lets the picked crossing go
         setPlan(joinTiles(stroke.base, marked(s.tool, stroke.path)));
         return;
       }
@@ -809,13 +899,18 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         else { stroke.at = [x, y]; stroke.path = rectTiles(stroke.x0, stroke.y0, x, y, world.size); }
         setPlan(joinTiles(stroke.base, marked(s.tool, stroke.path)));
       }
-      if (phase === 'end') stroke = null;
+      if (phase === 'end') {
+        // Version 8.2.1 (ruling 1348): a Ferry stroke that never left its tile (a card dropped on the map, a tap read as a drag) is a tap: it picks a shown crossing there.
+        const lone = s.tool.kind === 'ferry' && stroke.path.length === 1 && !stroke.base.length ? stroke.path[0] : null;
+        stroke = null;
+        if (lone) { setPlan([]); api.pickAt(lone[0], lone[1], 1); }
+      }
     },
     // A mouse drag: 'start' sets the start, 'move' and 'end' set the end.
     dragTo(x, y, phase) {
       const s = store.get();
       if (!s.tool || s.tool.kind === 'building') return;
-      if (phase === 'start') { dropEnd(); store.set(isLine(s.tool) ? { line: { x0: x, y0: y, x1: null, y1: null, flip: false }, plan: null } : { area: { x0: x, y0: y, x1: null, y1: null }, plan: null }); return; }
+      if (phase === 'start') { dropEnd(); store.set(isLine(s.tool) ? { line: { x0: x, y0: y, x1: null, y1: null, flip: false }, plan: null, ...unpick(s) } : { area: { x0: x, y0: y, x1: null, y1: null }, plan: null }); return; }
       if (isRoute(s.tool) && s.line) { if (phase === 'end') applyEnd(x, y); else followEnd(x, y); }   // Version 5.0 (Task 6): the routed road's end is found once a frame, and on lift
       else if (isLine(s.tool) && s.line) store.set({ line: { ...s.line, x1: x, y1: y } });
       else if (!isLine(s.tool) && s.area) store.set({ area: { ...s.area, x1: x, y1: y } });
@@ -911,6 +1006,11 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         // Stage 4 (ruling 233): a monument is founded, "Small obelisk founded · Undo" ("· needs a road" with none).
         text = isMonumentType(t.type) ? UI4_TEXT.founded(t.type) : `${buildingName(t.type)} ${T.placed.toLowerCase()}`;
         if (result.ok && t.type !== 'house' && result.warnings.includes('needs_road')) text += ` · ${CONDITION_TEXT.placedNoRoad}`;
+      } else if (t.kind === 'ferry' && !s.line && t.pick) {                                              // Version 8.2.1 (ruling 1348): the picked crossing, with its road
+        const c = pickedCrossing(world, t);
+        result = c ? buildCrossing(world, c) : { ok: false, reason: 'nothing_to_place' };
+        if (c) { cx = (c.landings[0][0] + c.landings[1][0]) / 2 + 0.5; cy = (c.landings[0][1] + c.landings[1][1]) / 2 + 0.5; }
+        text = FERRY_TEXT.laid;
       } else if (isLine(t)) {
         result = isRoute(t) ? drawRoute(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1)                    // Version 5.0 (Task 5): the route the bar showed, laid as one command
           : t.kind === 'road' ? drawRoad(world, s.line.x0, s.line.y0, s.line.x1, s.line.y1, s.line.flip, roadOptions(t))
@@ -935,7 +1035,7 @@ export function createPlacement({ world, store, afterCommand = () => {}, effects
         if (t.kind === 'building') { const f = footprintOf(t); effects.rise(result.id, s.ghost.x, s.ghost.y, f.w, f.d, at); }   // the work-gang settle
       }
       if (s.plan) store.set({ plan: null });
-      else if (isLine(t)) store.set({ line: null });
+      else if (isLine(t)) store.set({ line: null, ...unpick(store.get()) });
       else if (t.kind !== 'building') store.set({ area: null });
       afterCommand({ kind: t.kind, result, text, undoable: true, at: { x: cx, y: cy } });   // Version 8.0 (ruling 1160): where it was placed, for the message tray's Show
       return result;

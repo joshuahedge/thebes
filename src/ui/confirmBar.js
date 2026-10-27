@@ -80,6 +80,7 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const focusedClass = element.contains(document.activeElement) ? [...document.activeElement.classList].find((c) => ['rotate', 'flip', 'undo', 'cancel', 'done', 'ok', 'show-fit', 'area-toggle'].includes(c)) : null;
     const focusedStyle = element.contains(document.activeElement) ? document.activeElement.dataset.style || null : null;   // Stage 4.6: the style button that had focus
     const focusedShape = element.contains(document.activeElement) ? document.activeElement.dataset.shape || null : null;   // Version 5.0 (Task 5): the road shape button that had focus
+    const focusedCrossing = element.contains(document.activeElement) ? document.activeElement.dataset.crossing || null : null;   // Version 8.2.1: the crossing button that had focus
     clear(element);
     if (!isToolMode(s.mode) || !s.tool) { element.hidden = true; heldKey = null; toolKey = null; publishHeight(); return; }
     element.hidden = false;
@@ -186,7 +187,26 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
     const routeRow = shape ? el('div', { class: 'route-row' }, [el('div', { class: 'route-choices', role: 'group', 'aria-label': ROUTE_TEXT.group }, [['route', ROUTE_TEXT.route, ROUTE_TEXT.routeLabel], ['straight', ROUTE_TEXT.straight, ROUTE_TEXT.straightLabel]].map(([id, name, label]) => button(shape === id ? `✓ ${name}` : name, {
       class: `route-pick${shape === id ? ' on' : ''}`, 'aria-pressed': String(shape === id), 'aria-label': label, dataset: { shape: id }, onClick: () => placement.setRoute(id === 'route'),
     })))]) : null;
-    const bar = el('div', { class: `confirm${flashing() ? ' flash' : ''}${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}${styleRow ? ' has-style' : ''}${spacingRow ? ' has-area' : ''}${routeRow ? ' has-route' : ''}` }, [info, ...controls, chips, showFit, fitRoom, styleRow, spacingRow, routeRow]);
+    // Version 8.2.1 (rulings 1348, 1351): the Ferry tool's shown crossings, one 44 px button each in their rank (the picked one ticked and aria-pressed, so never colour
+    // alone), each named for its water and price. A tap or click picks one (as a tap on its ghost does); Tab or the arrow keys move along them and pick the one they
+    // reach, and Enter on the picked one builds it (the ✓'s own path, with the usual Undo).
+    const crossings = s.tool.kind === 'ferry' && typeof placement.ferryChoices === 'function' ? placement.ferryChoices() : null;
+    const crossingRow = crossings && crossings.length ? el('div', { class: 'crossing-row' }, [el('div', { class: 'crossing-choices', role: 'group', 'aria-label': FERRY_TEXT.choicesGroup, dataset: { ownKeys: '' } }, crossings.map((c, i) => button(c.active ? `✓ ${c.name}` : c.name, {
+      class: `crossing-pick${c.active ? ' on' : ''}`, 'aria-pressed': String(c.active), 'aria-label': c.label, title: c.label, dataset: { crossing: c.key },
+      onClick: () => placement.pickCrossing(c.key),
+      onFocus: () => { if (!c.active) placement.pickCrossing(c.key); },
+      onKeyDown: (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); if (!c.active) placement.pickCrossing(c.key); pressType = null; onConfirm('keyboard'); return; }
+        const step = ev.key === 'ArrowRight' || ev.key === 'ArrowDown' ? 1 : ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' ? -1 : 0;
+        if (!step) return;
+        ev.preventDefault();
+        const next = crossings[(i + step + crossings.length) % crossings.length];
+        placement.pickCrossing(next.key);
+        const again = element.querySelector(`[data-crossing="${next.key}"]`);
+        if (again) again.focus();
+      },
+    })))]) : null;
+    const bar = el('div', { class: `confirm${flashing() ? ' flash' : ''}${demolish ? ' demolish' : ''}${desire ? ' desire' : ''}${chips ? ' has-conds' : ''}${p.upkeep ? ' bal' : ''}${showFit || fitRoom ? ' has-fit' : ''}${styleRow ? ' has-style' : ''}${spacingRow ? ' has-area' : ''}${routeRow ? ' has-route' : ''}${crossingRow ? ' has-crossings' : ''}` }, [info, ...controls, chips, showFit, fitRoom, styleRow, spacingRow, routeRow, crossingRow]);
     element.append(bar);
     keepTallest(bar, s);
     publishHeight();
@@ -198,6 +218,9 @@ export function createConfirmBar({ container, store, placement, onCancel, onConf
       if (again) again.focus();
     } else if (focusedShape) {
       const again = element.querySelector(`[data-shape="${focusedShape}"]`);
+      if (again) again.focus();
+    } else if (focusedCrossing) {
+      const again = element.querySelector(`[data-crossing="${focusedCrossing}"]`);
       if (again) again.focus();
     }
   }

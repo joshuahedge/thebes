@@ -169,3 +169,5 @@ import './v80/all.js';
 import './v81/all.js';
 // Version 8.2 "Song of the Nile": one aggregator (tests/v82/all.js); nothing is added here.
 import './v82/all.js';
+// Version 8.2.1 "Easier ferries": one aggregator (tests/v821/all.js); nothing is added here.
+import './v821/all.js';

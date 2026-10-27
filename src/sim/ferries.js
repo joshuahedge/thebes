@@ -12,9 +12,7 @@ import { FERRY, FERRY_LANDING, FERRY_BUILDINGS } from '../data/ferries.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
 import { ring, idx, inBounds } from './grid.js';
 import { T, buildable } from './terrain.js';
-import { bridgeRuns, BRIDGE_MAX } from './bridges.js';
 import { costOf } from './costs.js';
-import { canAfford } from './money.js';
 
 export { FERRY, FERRY_LANDING };
 
@@ -24,43 +22,12 @@ export const crossingTiles = (water) => FERRY.wait + Math.ceil(water / FERRY.wat
 // What a whole crossing costs: its two landings.
 export const ferryCost = (world) => 2 * costOf(world, FERRY_LANDING);
 
-const tileOf = (t) => [t[0], t[1]];
-const sameLine = (tiles) => tiles.every((t) => t[0] === tiles[0][0]) || tiles.every((t) => t[1] === tiles[0][1]);
 const roadBeside = (world, x, y) => ring(x, y, 1, 1).some(([rx, ry]) => inBounds(world.size, rx, ry) && world.road[idx(world.size, rx, ry)]);
 
-// Why a drag cannot lay a ferry, else null with the crossing. tiles is the dragged line, each tile once, in order. The verdict is
-// { ok, reason, water, landings: [[x, y], [x, y]], vertical, at, cost } (water: the tiles of water on the line, 0 when it has none; at: the tile a
-// refusal is about, for Show me). The reasons, in the order they are judged:
-//   'ferry_no_water'  the line has no water on it
-//   'ferry_bent'      the line is not one straight row or column, or crosses more than one stretch of water
-//   'ferry_bridge'    4 tiles of water or fewer: a bridge does it (the road tool)
-//   'ferry_too_wide'  more than FERRY.max tiles of water
-//   'ferry_no_land'   the line starts or ends in water, or the tile where the boat lands is not free dry land (a building, a road, a wall, hills)
-//   'ferry_no_road'   a landing would have no road beside it (the drag may go on into the road)
-//   'no_gold'         the treasury cannot pay the two landings
-export function previewFerry(world, tiles) {
-  const refuse = (reason, extra = {}) => ({ ok: false, reason, water: 0, landings: [], vertical: false, at: null, cost: 0, ...extra });
-  const list = [];
-  for (const t of tiles) if (!list.length || list[list.length - 1][0] !== t[0] || list[list.length - 1][1] !== t[1]) list.push(tileOf(t));
-  const runs = bridgeRuns(world, list);
-  if (!runs.length) return refuse('ferry_no_water');
-  const run = runs[0];
-  const water = run.n;
-  if (runs.length > 1 || !sameLine(list)) return refuse('ferry_bent', { water, at: list[run.from] });
-  if (water <= BRIDGE_MAX) return refuse('ferry_bridge', { water, at: list[run.from] });
-  if (water > FERRY.max) return refuse('ferry_too_wide', { water, at: list[run.from] });
-  if (!run.bounded) return refuse('ferry_no_land', { water, at: list[run.from > 0 ? run.to : run.from] });
-  const landings = [list[run.from - 1], list[run.to + 1]];
-  const vertical = list[0][0] === list[list.length - 1][0] && list.length > 1;
-  for (const [x, y] of landings) {
-    const i = idx(world.size, x, y);
-    if (!buildable(world, i) || world.occ[i] || world.road[i] || world.wall[i]) return refuse('ferry_no_land', { water, landings, vertical, at: [x, y] });
-  }
-  for (const [x, y] of landings) if (!roadBeside(world, x, y)) return refuse('ferry_no_road', { water, landings, vertical, at: [x, y] });
-  const cost = ferryCost(world);
-  if (!canAfford(world, cost)) return refuse('no_gold', { water, landings, vertical, cost, at: null });
-  return { ok: true, reason: null, water, landings, vertical, at: null, cost };
-}
+// Why a drag cannot lay a ferry, else the crossing it lays: Version 8.2.1 "Easier ferries" (rulings 1340-1359) moved the rule to src/sim/ferryFind.js,
+// where a drag snaps to the nearest crossing that works and a landing with no road beside it gets a short road with it (7.1 refused a bent line, a
+// line that began or ended in the water, and a landing with no road beside it).
+export { previewFerry } from './ferryFind.js';
 
 // The nearest place a ferry could cross: a straight run of FERRY.min to FERRY.max tiles of water along a row or a column with free dry land at each
 // end (no building, road or wall on it), no ferry standing on it yet, judged without the roads (the bar says when a landing needs one) or the gold.

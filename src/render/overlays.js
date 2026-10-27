@@ -25,6 +25,7 @@ import { CRIME } from '../data/crime.js';
 import { crimeBand, crimeRiskOf, crimeCoverage, canCommitCrime, crimeStarted } from '../sim/crime.js';
 import { MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
 import { drawMonument } from './monuments.js';
+import { ferryBoat } from './art/ferry.js';   // Version 8.2.1: the shown crossings' ghost boats
 import { LAYER_HUE } from '../data/layers.js';
 import { drawProgress, drawSupply, drawWorkers } from './layers.js';   // Version 5.0 (Task 3): a cycle (layers.js reads tilePolys and mark), safe: each is used only inside functions
 import { layerUnlocked } from '../sim/layers.js';
@@ -746,7 +747,44 @@ function drawSquares(g, ghost) {
   if (!own && badge) ghostBadge(g, p(x + w / 2, y + d / 2), state === 'warn' ? '!' : state === 'bad' ? '✕' : '✓');
 }
 
+// Version 8.2.1 (rulings 1345, 1348): the Ferry tool's crossings. A crossing it shows ('shown') is a dashed, barely filled outline on each of its tiles, with the road
+// its stubs would lay marked '═' ('stub'; faint while only shown); the last square of each carries its boat: the dashed line from landing to landing, a ferry boat
+// on the water's middle (the real one's drawing, so the ghost reads as a ferry by its shape) and its price on a pale label above it. Static: nothing moves.
+// A shown crossing's landing: a light blue wash and a dashed blue outline on a white halo, so the two banks it joins read before it is picked.
+function shownLanding(g, x, y) {
+  const pts = quad(x, y, 1, 1, 0);
+  g.poly(pts, UI.ok, { alpha: 0.14 });
+  g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.4, strokeAlpha: 0.75 });
+  g.ctx.setLineDash([3 * g.scale, 2 * g.scale]);
+  g.poly(pts, 'none', { stroke: UI.ok, strokeWidth: 1.4 });
+  g.ctx.setLineDash([]);
+}
+function drawCrossingBoat(g, { from, to, label }) {
+  const css = cssScaleOf(g);
+  const a = p(from[0] + 0.5, from[1] + 0.5), b = p(to[0] + 0.5, to[1] + 0.5);
+  g.line(a, b, '#1E3A5F', 3.2, 0.25);
+  g.ctx.setLineDash([4 * g.scale, 3 * g.scale]);
+  g.line(a, b, '#FFFFFF', 1.6, 0.9);
+  g.ctx.setLineDash([]);
+  const mx = (from[0] + to[0]) / 2 + 0.5, my = (from[1] + to[1]) / 2 + 0.5;
+  ferryBoat(g, mx, my, (to[0] - from[0]) - (to[1] - from[1]) < 0);
+  const size = Math.max(6, 11 / css), c = p(mx, my), top = c[1] - 14 - size;
+  const half = (label.length * size * 0.56) / 2 + 3 / css;
+  const box = [[c[0] - half, top - size * 0.75], [c[0] + half, top - size * 0.75], [c[0] + half, top + size * 0.75], [c[0] - half, top + size * 0.75]];
+  g.poly(box, UI.halo, { alpha: 0.92 });
+  g.poly(box, 'none', { stroke: INK, strokeWidth: 0.8 / css, strokeAlpha: 0.6 });
+  g.text([c[0], top], label, { size, weight: '700', color: INK });
+}
+
 export function drawGhost(g, ghost) {
+  if (ghost.state === 'shown' && ghost.landing) shownLanding(g, ghost.x, ghost.y);
+  else if (ghost.state === 'shown') plainSquare(g, ghost.x, ghost.y);
+  else if (ghost.state === 'stub') { if (ghost.faint) { plainSquare(g, ghost.x, ghost.y); g.text(p(ghost.x + 0.5, ghost.y + 0.5), '═', { size: Math.max(6, 10 / cssScaleOf(g)), weight: '700', color: UI.ok }); } else markedTile(g, ghost.x, ghost.y, '═', UI.ok); }
+  else drawGhostSquare(g, ghost);
+  if (ghost.boat) drawCrossingBoat(g, ghost.boat);
+}
+
+function drawGhostSquare(g, ghost) {
   const { x, y, w, d, state, tiles, joins, badge } = ghost;
   const pts = quad(x, y, w, d, 0);
   const centre = p(x + w / 2, y + d / 2);

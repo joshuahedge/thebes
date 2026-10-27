@@ -50,48 +50,49 @@ describe('v71 f sim: the rule', () => {
     expect([back.ok, back.landings]).toEqual([true, [[RIVER_X + 7, ROW], [RIVER_X - 1, ROW]]]);
   });
 
-  it('refuses a bent line, and a line over more than one stretch of water', () => {
+  it('a bent line is read along the way it went furthest, and a line over two stretches of water crosses the first (8.2.1: no longer refused)', () => {
     const w = ferryWorld(7);
     const bent = [...dragLine(7).slice(0, 6), [RIVER_X + 3, ROW + 1], [RIVER_X + 3, ROW + 2]];
-    expect(previewFerry(w, bent).reason).toBe('ferry_bent');
+    expect([previewFerry(w, bent).ok, previewFerry(w, bent).water]).toEqual([true, 7]);
     // an L: across on row 10 then down the far bank
     const el = [...dragLine(7), [RIVER_X + 8, ROW + 1], [RIVER_X + 8, ROW + 2]];
-    expect(previewFerry(w, el).reason).toBe('ferry_bent');
-    // two stretches of water with an island between: not one crossing
+    expect(previewFerry(w, el).landings).toEqual([[RIVER_X - 1, ROW], [RIVER_X + 7, ROW]]);
+    // two stretches of water with an island between: the first, to the island (its stub runs along the island, the way on being water)
     const isle = ferryWorld(12);
     for (let y = 0; y < isle.size; y++) isle.terrain[at(isle, RIVER_X + 6, y)] = T.DESERT;
-    expect(previewFerry(isle, dragLine(12)).reason).toBe('ferry_bent');
+    expect([previewFerry(isle, dragLine(12)).ok, previewFerry(isle, dragLine(12)).water]).toEqual([true, 6]);
     // and the same straight line without the island is fine
     expect(previewFerry(ferryWorld(12), dragLine(12)).ok).toBe(true);
     expect(previewFerry(w, [[3, 3], [4, 3], [5, 3]]).reason).toBe('ferry_no_water');
   });
 
-  it('needs free dry land at each end: not in the water, not on a building, a road or a wall', () => {
+  it('lands on free dry land at each end: a line that stops in the water slides to the bank, and a taken landing tile snaps to the next row (8.2.1)', () => {
     const w = ferryWorld(7);
-    expect(previewFerry(w, dragLine(7).slice(0, 9)).reason).toBe('ferry_no_land');          // the line stops in the water
-    expect(previewFerry(w, dragLine(7).slice(2)).reason).toBe('ferry_no_land');             // and begins in it
+    expect(previewFerry(w, dragLine(7).slice(0, 9)).landings).toEqual([[RIVER_X - 1, ROW], [RIVER_X + 7, ROW]]);   // the line stops in the water
+    expect(previewFerry(w, dragLine(7).slice(2)).landings).toEqual([[RIVER_X - 1, ROW], [RIVER_X + 7, ROW]]);      // and begins in it
+    const snapped = (world) => { const p = previewFerry(world, dragLine(7)); return [p.ok, p.snapped, p.landings[0][1] !== ROW]; };
     const house = ferryWorld(7);
     addRaw(house, 'house', RIVER_X + 7, ROW);
-    expect(previewFerry(house, dragLine(7)).reason).toBe('ferry_no_land');                 // a plot on the far landing's tile
+    expect(snapped(house)).toEqual([true, true, true]);                                     // a plot on the far landing's tile
     const road = ferryWorld(7);
     road.road[at(road, RIVER_X - 1, ROW)] = 1;
-    expect(previewFerry(road, dragLine(7)).reason).toBe('ferry_no_land');                  // road already there: nothing to land on
+    expect(snapped(road)).toEqual([true, true, true]);                                      // road already there: nothing to land on
     const hills = ferryWorld(7);
     hills.terrain[at(hills, RIVER_X + 7, ROW)] = T.HILLS;
-    expect(previewFerry(hills, dragLine(7)).reason).toBe('ferry_no_land');
+    expect(snapped(hills)).toEqual([true, true, true]);
     const wall = ferryWorld(7);
     wall.wall[at(wall, RIVER_X - 1, ROW)] = 80;
-    expect(previewFerry(wall, dragLine(7)).reason).toBe('ferry_no_land');
+    expect(snapped(wall)).toEqual([true, true, true]);
     expect(previewFerry(ferryWorld(7), dragLine(7)).ok).toBe(true);
   });
 
-  it('needs a road beside each landing, and the drag may go on into the road', () => {
+  it('needs a road beside each landing, and the drag may go on into the road; 8.2.1: a landing with none gets a short road with it', () => {
     const none = ferryWorld(7, { roads: false });
     expect(previewFerry(none, dragLine(7)).reason).toBe('ferry_no_road');
     const west = ferryWorld(7, { roads: false });
-    for (let x = RIVER_X + 8; x < 26; x++) west.road[at(west, x, ROW)] = 1;               // a road on the east bank only
+    for (let x = RIVER_X + 8; x < 26; x++) west.road[at(west, x, ROW)] = 1;               // a road on the east bank only: the west landing gets a stub
     const r = previewFerry(west, dragLine(7));
-    expect([r.reason, r.at]).toEqual(['ferry_no_road', [RIVER_X - 1, ROW]]);
+    expect([r.ok, r.stubs[0]]).toEqual([true, [[RIVER_X - 2, ROW], [RIVER_X - 3, ROW], [RIVER_X - 4, ROW]]]);
     // a road beside the landing that is not on the line (a street running along the bank) counts too
     const side = ferryWorld(7, { roads: false });
     for (let x = RIVER_X + 8; x < 26; x++) side.road[at(side, x, ROW)] = 1;
