@@ -171,3 +171,5 @@ import './v81/all.js';
 import './v82/all.js';
 // Version 8.2.1: one aggregator (tests/v821/all.js); nothing is added here.
 import './v821/all.js';
+// Version 8.3 "Lines": one aggregator (tests/v83/all.js); nothing is added here.
+import './v83/all.js';
