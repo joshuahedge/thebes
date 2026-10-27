@@ -24,13 +24,15 @@ const open = async (w, home) => {
   r.store.set(select(r.store.get(), home.id));
   return r;
 };
-const head = (r) => r.root.querySelector('#sheet .fetch-head');
+// Version 8.3 (ruling 1420): Keeps stocked is open; with an order the other goods fold under .fetch-more, which expand unfolds. The stepper's value is the number
+// ("up to" is the row's word before it), so the drafts below read W.upTo's number.
+const more = (r) => r.root.querySelector('#sheet .fetch-more');
 const row = (r, good) => r.root.querySelector(`#sheet .fetch-good[data-good="${good}"]`);
 const lineOf = (li, cls) => { const n = li.querySelector(cls); return n ? n.textContent : null; };
-const expand = (r) => { if (head(r).getAttribute('aria-expanded') !== 'true') click(head(r)); };
-const sw = (r, good) => row(r, good).querySelector('.fetch-switch');
-const stepper = (r, good, cls) => row(r, good).querySelector(`.stepper .${cls}`);
-const value = (r, good) => row(r, good).querySelector('.stepper .value').textContent;
+const expand = (r) => { const m = more(r); if (m && m.getAttribute('aria-expanded') !== 'true') click(m); };
+const sw = (r, good) => { expand(r); return row(r, good).querySelector('.fetch-switch'); };
+const stepper = (r, good, cls) => { expand(r); return row(r, good).querySelector(`.stepper .${cls}`); };
+const value = (r, good) => { expand(r); return W.upTo(row(r, good).querySelector('.stepper .value').textContent); };
 
 describe('s47 carts ui review: fewer words per row', () => {
   it('shows the help only while the store has no order (How to play keeps it)', async () => {
@@ -93,7 +95,7 @@ describe('s47 carts ui review: the line before the tap respects what the store h
       const pv = fetchPreview(w, home.id, 'pottery', 100);
       expect([pv.state, pv.held]).toEqual(['full', 100]);
       expect(lineOf(row(r, 'pottery'), '.fetch-consequence')).toBe('100 held of 100, no cart needed');
-      expect(W.consequence(pv)).toBe('Fetch pottery up to 100: 100 held of 100, no cart needed');
+      expect(W.consequence(pv)).toBe('Keep pottery stocked up to 100: 100 held of 100, no cart needed');
       click(sw(r, 'pottery'));
       const st = fetchStatus(w, home.id, 'pottery');
       expect(st.state).toBe('full');
@@ -114,10 +116,10 @@ describe('s47 carts ui review: the line before the tap respects what the store h
       const pv = fetchPreview(w, home.id, 'pottery', 100);
       expect(pv.state).toBe('no_room');
       expect(lineOf(row(r, 'pottery'), '.fetch-consequence')).toBe('No cart goes, the store is full');
-      expect(W.consequence(pv)).toBe('Fetch pottery up to 100: no cart goes, the store is full');
+      expect(W.consequence(pv)).toBe('Keep pottery stocked up to 100: no cart goes, the store is full');
       click(sw(r, 'pottery'));
       expect(fetchStatus(w, home.id, 'pottery').state).toBe('no_room');
-      expect(lineOf(row(r, 'pottery'), '.fetch-status')).toBe('Fetching pottery: no cart goes, the store is full');
+      expect(lineOf(row(r, 'pottery'), '.fetch-status')).toBe('No cart goes, the store is full');
     } finally { r.cleanup(); }
   });
 });

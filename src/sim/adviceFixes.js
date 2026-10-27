@@ -25,7 +25,11 @@ import { checkTiles } from './commands.js';
 import { routeRoad } from './route.js';
 import { isUnlocked } from './progression.js';
 import { roadReach, reachDistance } from './reach.js';
-import { roundTripDays } from './carts.js';
+import { roundTripDays, storesOf, surplusOf, roadLen, canStaff, orderOf } from './carts.js';
+import { buildingsInReach } from './reach.js';
+import { storeAccepts } from './production.js';
+import { MONUMENT } from '../data/monuments.js';
+import { KEEP_ADVICE } from '../data/s47.js';
 import { costOf } from './costs.js';
 import { canAfford } from './money.js';
 import { inBounds, idx } from './grid.js';
@@ -307,4 +311,98 @@ function floorItem(world, out) {
 export function adviceFixItems(world, alerts, out) {
   quayItem(world, out);
   floorItem(world, out);
+  keepStockedAdvice(world, alerts, out);   // Version 8.3 (Track K): the two Keep stocked fixes
+}
+
+// ── Keep stocked (Version 8.3, Track K, rulings 1423-1425) ──
+// Two Advice items of kind 'keep_stocked', each with Show me opening a store's sheet at Keeps stocked (fix.select with fix.keep: { good, from }):
+//   a bazaar's granary runs low ('bazaar_empty' alert, reason 'granary_low') while a store outside the bazaar's reach can spare food (bazaarFood.js spare);
+//   a monument site is stalled for stone or bricks ('site_stalled', 'no_stone' or 'no_bricks') while a store holds some to spare: a storehouse within
+//   MONUMENT.supplyReach of the site that could keep it stocked (siteKeepFix), or, with no storehouse in reach, a storehouse to build there, at a spot the
+//   placing rule accepts beside a road within that reach.
+// Advice never suggests what the sim would refuse: the store named takes the good in (storeAccepts), can send its cart (canStaff), has no order for it yet
+// (a set order is already the answer), and a source can spare one (setFetch then finds one and sets it; setSource then accepts that source).
+const SITE_GOOD = { no_stone: 'stone', no_bricks: 'bricks' };
+export function keepStockedAdvice(world, alerts, out) {
+  for (const a of alerts) {
+    if (a.code === 'bazaar_empty' && a.reason === 'granary_low' && a.spare && world.buildings[a.store]) {
+      const s = world.buildings[a.store];
+      out.push({
+        key: `keep_stocked:bazaar:${s.id}`, kind: 'keep_stocked', weight: KEEP_ADVICE.bazaar, count: 1, id: s.id,
+        data: { case: 'bazaar', store: s.id, bazaar: a.id, good: a.spare.good, from: a.spare.id, len: a.spare.len, spare: a.spare.spare },
+        fix: { select: s.id, target: centreOfBuilding(s), why: 'keep_stocked', keep: { good: a.spare.good, from: a.spare.id } }, cost: null, afford: null,
+      });
+    }
+    if (a.code === 'site_stalled' && SITE_GOOD[a.reason] && world.buildings[a.id]) {
+      const site = world.buildings[a.id], good = SITE_GOOD[a.reason];
+      const f = siteKeepFix(world, site, good);
+      if (!f) continue;
+      const data = { case: 'site', site: site.id, good, from: f.from, len: f.len, spare: f.spare, store: f.store === undefined ? null : f.store, build: Boolean(f.build) };
+      const base = { key: `keep_stocked:site:${site.id}:${good}`, kind: 'keep_stocked', weight: KEEP_ADVICE.site, count: 1, id: site.id, data };
+      if (f.build) {
+        const cost = costOf(world, 'storehouse');
+        out.push({ ...base, fix: { item: 'storehouse', at: 'near', target: f.build }, cost, afford: canAfford(world, cost) });
+      } else {
+        out.push({ ...base, fix: { select: f.store, target: centreOfBuilding(world.buildings[f.store]), why: 'keep_stocked', keep: { good, from: f.from } }, cost: null, afford: null });
+      }
+    }
+  }
+}
+
+// The nearest store (by road from `to`) other than those in `skip` that can spare `good`: { id, len, spare } or null. Ties: the lower id.
+export function spareFor(world, to, good, skip = new Set()) {
+  let best = null;
+  for (const o of storesOf(world)) {
+    if (o.id === to.id || skip.has(o.id) || !BUILDINGS[o.type].stores.includes(good) || (o.fire && o.fire.stage === 'fire')) continue;
+    const spare = surplusOf(o, good);
+    if (spare < 1) continue;
+    const len = roadLen(world, to, o);
+    if (!Number.isFinite(len)) continue;
+    if (!best || len < best.len || (len === best.len && o.id < best.id)) best = { id: o.id, len, spare };
+  }
+  return best;
+}
+// Whether `store` could be set to keep `good` stocked now, as the player would: it takes the good in, can send its cart, and has no order for it yet.
+export const canKeep = (world, store, good) => BUILDINGS[store.type].stores.includes(good) && storeAccepts(store, good) && canStaff(world, store) && !orderOf(store, good);
+
+// A stalled site's fix for a material (ruling 1424): { store, from, len, spare } (a storehouse within MONUMENT.supplyReach of it that could keep the good
+// stocked, nearest the site first, and the store it would draw on), or { build: { x, y }, from, len, spare } (no storehouse stands in reach: one goes at
+// the spot given, the store that would fill it named from the site), or null (a storehouse in reach that cannot take the order, no store with any to
+// spare, or no room for a storehouse in reach).
+export function siteKeepFix(world, site, good) {
+  const near = buildingsInReach(world, site, MONUMENT.supplyReach, (o) => o.type === 'storehouse');
+  if (near.length) {
+    const reach = new Set(near.map((r) => r.b.id));
+    for (const { b } of near) {
+      if (!canKeep(world, b, good)) continue;
+      const src = spareFor(world, b, good, reach);
+      if (src) return { store: b.id, from: src.id, len: src.len, spare: src.spare };
+    }
+    return null;
+  }
+  if (!isUnlocked(world, 'storehouse')) return null;
+  const src = spareFor(world, site, good);
+  if (!src) return null;
+  const spot = siteStoreSpot(world, site);
+  return spot ? { build: spot, from: src.id, len: src.len, spare: src.spare } : null;
+}
+// The storehouse's spot nearest the site's centre that the placing rule accepts with a road beside it, within MONUMENT.supplyReach road tiles of the site
+// (searchStoreSpot's search, for a site). { x, y } is the footprint's centre, Show me's target; null when there is none.
+function siteStoreSpot(world, site) {
+  const reach = MONUMENT.supplyReach, rm = roadReach(world, site, reach);
+  if (!rm.size) return null;
+  const { w, d } = dimsOf('storehouse');
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const t of rm.keys()) { const tx = t % world.size, ty = (t - tx) / world.size; x0 = Math.min(x0, tx); y0 = Math.min(y0, ty); x1 = Math.max(x1, tx); y1 = Math.max(y1, ty); }
+  const cx = site.x + site.w / 2, cy = site.y + site.d / 2;
+  let best = null;
+  for (let y = y0 - d; y <= y1 + 1; y++) {
+    for (let x = x0 - w; x <= x1 + 1; x++) {
+      if (checkTiles(world, 'storehouse', x, y) !== null) continue;
+      if (reachDistance(rm, world, { x, y, w, d }) > reach) continue;
+      const key = [(x + w / 2 - cx) ** 2 + (y + d / 2 - cy) ** 2, y, x];
+      if (!best || before(key, best.key)) best = { x, y, key };
+    }
+  }
+  return best ? { x: best.x + w / 2, y: best.y + d / 2 } : null;
 }

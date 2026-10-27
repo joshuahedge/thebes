@@ -157,7 +157,7 @@ describe('ui stage 2 cards', () => {
       r.store.set(select(r.store.get(), sh.id));
       const switches = [...r.root.querySelectorAll('#sheet .store-goods .switch')];
       expect(switches.map((s) => s.dataset.good)).toEqual(BUILDINGS.storehouse.stores);
-      const pottery = r.root.querySelector('#sheet .switch[data-good="pottery"]');
+      const pottery = r.root.querySelector('#sheet .switch.accept[data-good="pottery"]');   // Version 8.3: the Takes in switch (Keeps stocked above has its own)
       expect([pottery.getAttribute('role'), pottery.getAttribute('aria-checked'), pottery.querySelector('.state').textContent]).toEqual(['switch', 'true', T.accepted]);
       expect(pottery.textContent.startsWith(`${goodName('pottery')} 12`)).toBe(true);
       expect(pottery.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
@@ -166,7 +166,7 @@ describe('ui stage 2 cards', () => {
       pottery.focus();
       fire(pottery, 'click');
       expect(sh.accepts.pottery).toBe(false);
-      const again = r.root.querySelector('#sheet .switch[data-good="pottery"]');
+      const again = r.root.querySelector('#sheet .switch.accept[data-good="pottery"]');
       expect([again.getAttribute('aria-checked'), again.querySelector('.state').textContent]).toEqual(['false', T.refused]);
       expect(document.activeElement).toBe(again);                                    // the rebuilt sheet keeps keyboard focus
       fire(again, 'click');

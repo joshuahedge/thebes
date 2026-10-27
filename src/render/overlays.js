@@ -27,12 +27,13 @@ import { MONUMENT, MONUMENT_PLACING } from '../data/monuments.js';
 import { drawMonument } from './monuments.js';
 import { ferryBoat } from './art/ferry.js';   // Version 8.2.1: the shown crossings' ghost boats
 import { LAYER_HUE } from '../data/layers.js';
-import { drawProgress, drawSupply, drawWorkers } from './layers.js';   // Version 5.0 (Task 3): a cycle (layers.js reads tilePolys and mark), safe: each is used only inside functions
+import { drawProgress, drawSupply, drawWorkers, drawSupplyLines } from './layers.js';   // Version 5.0 (Task 3): a cycle (layers.js reads tilePolys and mark), safe: each is used only inside functions
 import { layerUnlocked } from '../sim/layers.js';
 import { drawPlague } from './plague.js';   // Version 6.0 (Track B1): the Health layer's plague marks
 
 // Version 5.0 (Task 3, rulings 540-549): Home progress, Goods supply and Workers (src/render/layers.js) join the table after Ground, so the order of the first eleven is unchanged.
-export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers'];
+// Version 8.3 (Track K, ruling 1416): Supply lines last, beside Goods supply in the picker's grid.
+export const OVERLAYS = ['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers', 'lines'];
 // Fire risk (Stage 3, Track D) is one hue, light to dark by band. Version 8.0 (ruling 1136): a burnt amber, the flames' own family, not the deep ember red it was: red is the interface's "cannot" and nothing else (design rule 5).
 export const FIRE_HUE = '#B86A00';
 // Stage 4.5 (rulings 318, 319): Health in an olive green and Crime in a deep violet, each graded like fire risk (light to dark by band).
@@ -46,7 +47,7 @@ export const GROUND_HUE = { fertile: '#27934A', rocky: '#5F5A54', clay: '#C2552B
 export const OVERLAY_HUE = {
   water: UI.water, food: UI.food, religion: UI.religion, goods: UI.goods, entertainment: UI.entertainment, desirability: UI.desirability, fire: FIRE_HUE, health: HEALTH_HUE, crime: CRIME_HUE, housing: UI.housing,
   ground: GROUND_HUE.fertile,
-  progress: LAYER_HUE.progress, supply: LAYER_HUE.supply, workers: LAYER_HUE.workers,
+  progress: LAYER_HUE.progress, supply: LAYER_HUE.supply, workers: LAYER_HUE.workers, lines: LAYER_HUE.lines,
 };
 // Version 8.0 (ruling 1135): what a service reaches is "covered", and covered is blue or teal whichever service it is (the water's own blue, teal for the rest); the dots and rings keep the
 // overlay's hue to tell the overlays apart. The food overlay's gold wash read as amber, "works but something is missing".
@@ -55,7 +56,7 @@ export const SERVICE_TYPES = { water: ['well'], food: ['bazaar'], religion: ['te
 // Overlays that draw a graded scale over the ground instead of dots and rings (spec 6.3); their legend is a scale too.
 export const GRADED_OVERLAYS = ['desirability', 'fire', 'health', 'crime'];
 // The three Version 5.0 layers (their legends, keys and picker are their own: src/ui/overlayUi.js), and the ones the Layers picker and the O key offer now.
-export const LAYER_OVERLAYS = ['progress', 'supply', 'workers'];
+export const LAYER_OVERLAYS = ['progress', 'supply', 'workers', 'lines'];   // Version 8.3 (Track K): Supply lines
 export const availableOverlays = (world) => OVERLAYS.filter((k) => !world || !LAYER_OVERLAYS.includes(k) || layerUnlocked(world, k));
 
 export function houseMark(world, house, kind) {
@@ -133,8 +134,9 @@ export function mark(g, m, color) {
 }
 
 // `placing` is the type of the building being placed, if any: the Ground overlay brightens the tiles that have room for it. `good` is the good the Goods supply
-// layer shows (pottery, beer, linen, jewellery or food).
-export function drawOverlay(g, world, kind, range, placing = null, good = 'pottery') {
+// layer shows (pottery, beer, linen, jewellery or food). Version 8.3: `frame` is { now, still } for Supply lines' moving dashes.
+export function drawOverlay(g, world, kind, range, placing = null, good = 'pottery', frame = {}) {
+  if (kind === 'lines') { drawSupplyLines(g, world, range, frame.now || 0, Boolean(frame.still)); return; }
   if (kind === 'progress') { drawProgress(g, world, range); return; }
   if (kind === 'supply') { drawSupply(g, world, range, good); return; }
   if (kind === 'workers') { drawWorkers(g, world, range); return; }

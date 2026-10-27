@@ -22,7 +22,10 @@ import { LAYER_UNLOCK } from '../data/layers.js';
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
 import { createStore, INITIAL_UI_STATE } from './store.js';
-import { select, deselect, cancelTool, back, openSheet, closeSheet, setDock, isToolMode, pickCategory, enterScreenshot } from './modes.js';
+import { select, deselect, cancelTool, back, openSheet, closeSheet, setDock, isToolMode, pickCategory, enterScreenshot, isPicking } from './modes.js';
+import { createSourcePick } from './s47/sourcePick.js';   // Version 8.3 (Track K): the pick of a Keep stocked order's source
+import { aimKeepStocked } from './s47/carts.js';
+import { supplyLineAt } from '../render/layers.js';      // Version 8.3 (Track K): a tap on a supply line
 import { pickLayout, watchLayout, freeTop, cornersHeight, cornersBottom, TOPBAR_PX } from './layout.js';
 import { createBackStack } from './backstack.js';
 import { createSettings, gentleTipDue } from './settings.js';
@@ -86,7 +89,7 @@ import { unitsAt, drawUnitMarks } from '../render/units.js';
 import { drawFires, drawScorch } from '../render/fire.js';
 import { drawIllness } from '../render/illness.js';
 import { createAmbient, createFrameGate } from '../render/ambient.js';
-import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER_UI_TEXT, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T } from './text.js';
+import { buildingName, reasonText, milestoneText, caravanText, alertText, DANGER_UI_TEXT, FIRST_TEXT, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, DAILY_TEXT, CONDITION_TEXT, S45_TEXT, S47_CARTS_TEXT, TIP_TEXT, P_TEXT, V711_TEXT, T, KEEP_TEXT } from './text.js';
 import { farGoodTip } from '../sim/carts.js';
 import { monthForecast, biggestCost } from '../sim/economy.js';
 
@@ -282,10 +285,13 @@ export function createUI({
   // (Track E, ui/scoreUi.js) plug in here, each as one object with its own sheets, sheet parts, event, refresh and
   // alert-action hooks. Screenshot mode (spec 4.19) is the interface's own; both may enter it through the context.
   const screenshotMode = () => store.set(enterScreenshot(store.get()));
+  // Version 8.3 (Track K, ruling 1413): the pick of a Keep stocked order's source: the map with a bar (src/ui/s47/sourcePick.js); the store sheet's "from" starts it.
+  const sourcePick = createSourcePick({ world, store, container: $('ui'), cameraControl, afterCommand: (e) => afterCommand(e), pickAt: (x, y) => pickBuilding(world, cam, view(), x, y), camera: () => ({ cam, view: view() }) });
   const seamCtx = {
     world, store, settings, sfx, toasts, celebrations, effects, cameraControl, speedControl, alerts, root, doc, now, clock, hooks,
     afterCommand, refresh, onView: viewAlert, showMeAt, selectBuilding, screenshotMode, fireTip,
     cancelPlacing: () => placement.cancel(),   // Version 7.1.1 (ruling 1115): the lesson card puts away a tool that is still on
+    pickSource: (id, good) => sourcePick.start(id, good),
   };
   danger = createDanger(seamCtx);
   scoreUi = createScoreUi(seamCtx);
@@ -442,7 +448,7 @@ export function createUI({
     if (goal.id === 'fix_bazaar') {
       const a = alertsFor(world).find((x) => x.code === 'bazaar_empty' && world.buildings[x.id]);
       const food = a ? bazaarFix(world, a) : null;
-      if (food && food.view && world.buildings[food.view]) { noteView(world, food.view); selectBuilding(food.view); return; }
+      if (food && food.view && world.buildings[food.view]) { noteView(world, food.view); if (food.keep) aimKeepStocked(food.view, food.keep.good); selectBuilding(food.view); return; }
       if (food && food.showMe) { showMeAt(food.showMe); return; }
     }
     const item = nextItemFor(world, goal) || goal.showMe.item;
@@ -745,6 +751,7 @@ export function createUI({
       return { tier: 'first', text: c.text, why: c.why, at: post ? { x: post.x + post.w / 2, y: post.y + post.d / 2 } : null, onShow: cheerSound };
     }
     if (e.type === 'cartLost') return { tier: 'info', text: S47_CARTS_TEXT.lost(e) };   // Stage 4.7 (Task 5): goods a cart could not put down anywhere
+    if (e.type === 'sourceGone') { const h = world.buildings[e.id]; return { tier: 'info', text: KEEP_TEXT.goneMessage(e, world), at: h ? { x: h.x + h.w / 2, y: h.y + h.d / 2 } : null }; }   // Version 8.3 (ruling 1414): once, in Recent
     return null;
   }
   // The "update ready" toast (spec 6.3) waits until no tool is active; Restart saves, then reloads (boot.js). On a phone
@@ -789,6 +796,11 @@ export function createUI({
       const s = store.get();
       if (s.screenshot) { store.set({ screenshot: false }); return; }   // a tap or click brings the interface back (spec 6.4)
       if (s.guidanceOpen) setGuidanceOpen(false);                       // a tap on the map closes the guidance row opened in place (P8); the tap still does its own work
+      if (isPicking(s)) { sourcePick.tap(x, y); return; }               // Version 8.3 (ruling 1413): a tap picks the store an order draws on
+      if (s.overlay === 'lines' && !isToolMode(s.mode)) {                // Version 8.3 (ruling 1418): a tap on a supply line opens the store it keeps stocked
+        const at = screenToTile(cam, view(), x, y), line = supplyLineAt(world, at.x, at.y);
+        if (line && world.buildings[line.home]) { selectBuilding(line.home); return; }
+      }
       const t = tileUnder(x, y);
       if (isToolMode(s.mode)) {
         // Version 8.0 (Track N, ruling 1167): with the Housing plot tool and nothing drawn yet, one tap or click is one plot, laid at once with the usual toast and Undo (a friend took the plot that
@@ -1186,7 +1198,8 @@ export function createUI({
       fire: (g, r) => { drawFires(g, world, r, t, still); drawIllness(g, world, r); },   // Stage 4.5: and the cloth over an ill home's door (render/illness.js)
       units: (g, r) => drawUnitMarks(g, world, r, timeDays, t, still),
       drawOverlay: (g, r) => {
-        if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null, resolveSupplyGood(world, s.supplyGood));   // Ground brightens the tiles with room for the building being placed; Goods supply shows the picked good
+        if (s.overlay) drawOverlay(g, world, s.overlay, r, s.tool && s.tool.kind === 'building' ? s.tool.type : null, resolveSupplyGood(world, s.supplyGood), { now: t, still: motion === 'still' });   // Ground brightens the tiles with room for the building being placed; Goods supply shows the picked good; Supply lines move with the clock
+        if (isPicking(s)) sourcePick.draw(g);                                   // Version 8.3 (ruling 1413): the stores the pick lights, over any layer
         else if (spotsOn(s, world)) drawHouseSpots(g, world, r);                // Stage 4.7 (Task 4): the next house's Good and Fair spots, in this layer, while the house tool is on
         if (s.mode === 'placing' && s.tool && s.tool.kind === 'building' && BUILDINGS[s.tool.type].water) drawBankHint(g, world, s.tool.type, r, s.tool.rot || 0);   // Version 7.0 (Track P): the banks a water-bound building can go on, lightly
         if (selected) drawReachHighlight(g, world, selected);                  // spec 4.5: tapping a building shows its reach
@@ -1240,7 +1253,7 @@ export function createUI({
       destroyed = true;
       unwatchWords();
       for (const s of seams()) s.destroy();
-      cornerPicker.destroy(); panelPicker.destroy(); hud.destroy();
+      cornerPicker.destroy(); panelPicker.destroy(); hud.destroy(); sourcePick.destroy();
       guide.destroy(); stopSettingsWatch();            // the guide's store subscription and the shared settings' watch
       if (!givenSettings) settings.destroy();          // settings made here: stop its device-motion watch
       doc.removeEventListener('visibilitychange', onVisibility);

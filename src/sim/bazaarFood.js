@@ -9,6 +9,7 @@ import { isWorking } from './labour.js';
 import { storeAccepts } from './production.js';
 import { bazaarsByHouse, monthlyNeed } from './distribution.js';
 import { graneriesFor, storesApart, wantedNeeds, foodShort } from './housing.js';
+import { canKeep, spareFor } from './adviceFixes.js';   // Version 8.3 (Track K): the granary_low cause's Keep stocked fix
 
 // What is wrong with a working bazaar that has no food on its shelf, for its alert; null when nothing is.
 // The homes take their month the moment the bazaar restocks (runMonth: restockBazaars, then monthlyHousing), so a bazaar whose homes eat all it
@@ -39,13 +40,28 @@ export function bazaarFoodProblem(world, bz, served = () => bazaarsByHouse(world
     if (stock >= need) return null;
     if (foods.some((g) => def.stock[g] > 0 && held(g) >= def.stock[g])) return { code: 'bazaar_sold_out', id: bz.id, need, stock };
     const store = stores.find((o) => isWorking(world, o)) || stores[0];
-    return { code: 'bazaar_empty', id: bz.id, reason: 'granary_low', store: store.id, ...fillOf(world, store) };
+    const spare = spareFood(world, store, stores);
+    return { code: 'bazaar_empty', id: bz.id, reason: 'granary_low', store: store.id, ...fillOf(world, store), ...(spare ? { spare } : {}) };
   }
   const live = stores.find((o) => isWorking(world, o));
   if (live) return { code: 'bazaar_empty', id: bz.id, reason: 'granary_empty', store: live.id, ...fillOf(world, live) };
   if (stores.length) return { code: 'bazaar_empty', id: bz.id, reason: 'granary_idle', store: stores[0].id };
   const [apart] = storesApart(world, bz);
   return apart ? { code: 'bazaar_empty', id: bz.id, reason: 'granary_apart', store: apart.id } : { code: 'bazaar_empty', id: bz.id };
+}
+
+// Version 8.3 (Track K, ruling 1423): a store beyond the bazaar's own stores that could keep its low granary stocked with a food: { id, good, len, spare }, the
+// nearest by road over every food the granary could be set to keep stocked now (canKeep: it takes the food in, can send its cart, has no order for it yet),
+// ties to the goods' order then the lower id; null when none. The alert's fix says it, and City advice's Show me opens the granary at Keeps stocked.
+function spareFood(world, store, near) {
+  const skip = new Set(near.map((o) => o.id));
+  let best = null;
+  for (const g of FOOD_GOODS) {
+    if (!canKeep(world, store, g)) continue;
+    const s = spareFor(world, store, g, skip);
+    if (s && (!best || s.len < best.len || (s.len === best.len && s.id < best.id))) best = { id: s.id, good: g, len: s.len, spare: s.spare };
+  }
+  return best;
 }
 
 // What fills a food store (bazaarFoodProblem's maker): a food maker whose made goods would go into it (produceDay's outputStores, from the maker's

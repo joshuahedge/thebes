@@ -1,7 +1,7 @@
 // Version 5.0 (Task 4, ruling 505): Build another. anotherOf(world, b) says whether a building like `b` (its type, style, turn and settings) can be built
 // now, by the sim's own rules (the placing rule's: unlocked, only one of a kind, the price the treasury can pay); the UI adds the one thing it cannot
 // know here, a tile where it fits (src/ui/another.js). A refusal carries what its words need. Settings a copy takes with it (settingsOf):
-//   fetch   a store's Fetch orders, [{ good, fetch }] (src/sim/carts.js ordersOf)
+//   fetch   a store's Keep stocked orders, [{ good, fetch, from? }] (src/sim/carts.js ordersOf; Version 8.3, ruling 1419: a chosen source goes with its order)
 //   refuses a storehouse's switches that are off, [good, ...] (b.accepts)
 // applySettings(world, id, copy) writes them on the new building once it stands. An order is written as the player's own Fetch would be, but without
 // setFetch's check for a store holding the good (the new store has no road yet when it is placed): until one does, the order waits, as a set order does.
@@ -45,7 +45,7 @@ function writeSettings(b, copy) {
   }
   for (const o of copy.fetch || []) {
     if (!stores.includes(o.good) || !b.orders || !storeAccepts(b, o.good)) continue;   // a refused good is never fetched (setFetch's own 'refuses')
-    b.orders[o.good] = { fetch: o.fetch };
+    b.orders[o.good] = { fetch: o.fetch, ...(Number.isInteger(o.from) ? { from: o.from } : {}) };   // the copy draws on the same chosen store (a gone one reads as Nearest)
     done.fetch.push(o);
   }
   return done;

@@ -16,6 +16,8 @@ export function bazaarFix(world, alert) {
   const store = alert.store ? world.buildings[alert.store] : null;
   if (!alert.reason || !store) return { showMe: { category: 'food', item: 'granary', ...at(b) } };
   if (alert.reason === 'granary_idle' || alert.reason === 'granary_apart') return { view: store.id };
+  // Version 8.3 (Track K, ruling 1423): a low granary another store can keep stocked: its sheet, at Keeps stocked for that food (the words say so: text.js alertText).
+  if (alert.reason === 'granary_low' && alert.spare && world.buildings[alert.spare.id]) return { view: store.id, keep: { good: alert.spare.good, from: alert.spare.id } };
   if (alert.maker === 'idle') return { view: alert.makerId };
   return { showMe: { category: 'food', item: 'farm_grain', ...at(store) } };
 }

@@ -53,7 +53,7 @@ const homesOf = (w, ids) => ids.map((id) => w.buildings[id]);
 
 describe('s45 health and crime overlays', () => {
   it('joins the overlays as two banded ones with a name, a hue and the words for the dot and the ring, in the Layers list', () => {
-    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers']);
+    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers', 'lines']);   // Version 8.3 (Track K): Supply lines
     expect(GRADED_OVERLAYS).toEqual(['desirability', 'fire', 'health', 'crime']);
     expect([OVERLAY_NAMES.health, OVERLAY_NAMES.crime]).toEqual(['Health', 'Crime']);
     expect(OVERLAY_LEGEND.health).toEqual(['A staffed physician reaches it', 'No staffed physician reaches it']);

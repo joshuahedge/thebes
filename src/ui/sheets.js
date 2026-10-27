@@ -30,8 +30,9 @@ import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 import { seasonAt } from '../sim/seasons.js';
 import { SEASON_TEXT, seasonMonths, P_TEXT, CITY_EVENT_TEXT } from './text.js';
 import { LARGE_TEXT, S47_PRESSURE_TEXT, buildingName, tierName, NEED_NAMES, MOOD_NAMES, ACHIEVEMENT_NAMES, ACHIEVEMENT_TEXT, causeText, alertText, plural, progressText, achievementsHeading, achievementBarLabel, viewLabel, goodName, goodLine, workingText, waitingText,
-  contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W } from './text.js';
+  contributorText, desirabilityText, keepWarningText, madeUsedText, DIFFICULTY_NAMES, T, UI4_TEXT , S45_TEXT, S47_CARTS_TEXT as CART_W, KEEP_TEXT } from './text.js';
 import { ANOTHER_TEXT } from './areaText.js';
+import { aimKeepStocked } from './s47/carts.js';   // Version 8.3 (Track K): a Keep stocked fix opens the store at that good's row
 import { canCopy } from './another.js';
 import { el, button, iconButton, clear } from './components.js';
 
@@ -143,8 +144,9 @@ export function createSheets({ container, store, world, placement, cameraControl
     const def = BUILDINGS[b.type];
     const switches = b.type === 'storehouse';
     // Stage 4.7 (Task 6): the Fetch control (src/ui/s47/carts.js, the seam's `store` part) sits right under how full the store is, so it is not buried under the stock rows.
-    const out = [row(T.stored, progressText(storeTotal(b), def.capacity)), ...extra('store', b), el('h3', { text: T.stock })];
-    if (switches) out.push(el('p', { class: 'small muted', text: T.acceptHelp }));
+    // Version 8.3 (Track K, ruling 1420): a storehouse's switches are its Takes in part, apart from Keeps stocked above (what carts bring), so the two ideas never share a list.
+    const out = [row(T.stored, progressText(storeTotal(b), def.capacity)), ...extra('store', b), el('h3', { class: switches ? 'takes-in-head' : null, text: switches ? KEEP_TEXT.takesIn : T.stock })];
+    if (switches) out.push(el('p', { class: 'small muted', text: KEEP_TEXT.takesInHelp }));
     // Stage 4.7 (Task 6): goods a cart has taken out of this store, or is bringing to it, are said under their row so they never seem to vanish.
     const road = roadGoods(world, b.id);
     const onRoad = (good) => [...road.leaving.filter((r) => r.good === good).map((r) => CART_W.road(r, 'leaving')), ...road.arriving.filter((r) => r.good === good).map((r) => CART_W.road(r, 'arriving'))]
@@ -421,7 +423,7 @@ export function createSheets({ container, store, world, placement, cameraControl
       const food = bazaarFix(world, a);   // Version 8.2.1 (ruling 1366): the bazaar's food alerts, aimed by their cause
       const fix = ALERT_FIX.has(a.code) ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onFixAlert(a) })]
         : stall && stall.showMe ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onShowMe(stall.showMe) })]
-        : food ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => { if (food.view) { noteView(world, food.view); onSelect(food.view); } else onShowMe(food.showMe); } })]
+        : food ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => { if (food.view) { noteView(world, food.view); if (food.keep) aimKeepStocked(food.view, food.keep.good); onSelect(food.view); } else onShowMe(food.showMe); } })]
         : threat ? [' ', button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${t.fix}`, onClick: () => onShowMe(threat) })] : [];   // Stage 4.5: an illness or crime alert with no physician or police post in reach
       return el('li', {}, [el('strong', { text: t.title }), ' ', el('span', { class: 'muted', text: t.fix }), ' ', button(T.view, { class: 'view quiet', 'aria-label': viewLabel(t.title), onClick: () => viewInList(a) }), ...fix]);
     })));

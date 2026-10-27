@@ -48,7 +48,7 @@ function street(tier = 4) {
 
 describe('v50 layers: the map', () => {
   it('the table lists them after Ground, each with its own hue, and every need has an icon (an unknown one a dot, never nothing)', () => {
-    expect(OVERLAYS.slice(-3)).toEqual(['progress', 'supply', 'workers']);
+    expect(OVERLAYS.slice(-4)).toEqual(['progress', 'supply', 'workers', 'lines']);   // Version 8.3 (Track K): Supply lines after Workers
     expect(['progress', 'supply', 'workers'].map((k) => OVERLAY_HUE[k])).toEqual([LAYER_HUE.progress, LAYER_HUE.supply, LAYER_HUE.workers]);
     expect(new Set(OVERLAYS.map((k) => OVERLAY_HUE[k])).size).toBe(OVERLAYS.length);
     for (const need of Object.keys(NEED_NAMES)) expect([need, Boolean(NEED_ICONS[need])]).toEqual([need, true]);   // every need a checklist can name

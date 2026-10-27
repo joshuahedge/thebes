@@ -130,7 +130,7 @@ describe('s47 upper tiers: the house sheet', () => {
     const cause = needCause(w, home, 'pottery');
     expect([cause.code, cause.id, cause.good, cause.bazaar, cause.len > BUILDINGS.bazaar.supplyReach]).toEqual(['good_far', far.id, 'pottery', bazaar.id, true]);
     const words = causeText(cause, w, 'pottery');
-    expect(words).toEqual({ cause: `Pottery is held only in a storehouse ${cause.len} road tiles from the bazaar`, fix: 'The storehouse near the bazaar can Fetch it by cart' });
+    expect(words).toEqual({ cause: `Pottery is held only in a storehouse ${cause.len} road tiles from the bazaar`, fix: 'The storehouse near the bazaar can keep it stocked by cart' });   // Version 8.3: Keep stocked
     const r = await rigUI({ world: w });
     try {
       r.store.set(select(r.store.get(), home.id));

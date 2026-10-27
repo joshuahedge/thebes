@@ -269,11 +269,12 @@ describe('mobile height budget: the store sheet with Fetch open (Stage 4.7)', ()
           expect([at, g.ui.store.get().sheet.kind]).toEqual([at, 'info']);
           const sheet = r.root.querySelector('#sheet'), panel = sheet.querySelector('.fetch-panel');
           if (!panel) { wrong.push(`${at}: no Fetch panel`); continue; }
-          expect([at, panel.querySelector('.fetch-head').getAttribute('aria-expanded')]).toEqual([at, 'true']);
+          // Version 8.3 (Track K): Keeps stocked is open; the scene unfolds the other goods (Keep another good stocked), and the order's row has its "from" button too.
+          expect([at, panel.querySelector('.fetch-more').getAttribute('aria-expanded')]).toEqual([at, 'true']);
           const box = r.root.getBoundingClientRect();
           if (sheet.scrollWidth > sheet.clientWidth + 1) wrong.push(`${at}: the sheet scrolls sideways (${sheet.scrollWidth} of ${sheet.clientWidth})`);
           const rows = [...panel.querySelectorAll('.fetch-good')];
-          const controls = [panel.querySelector('.fetch-head'), ...[rows[0], rows[rows.length - 1]].flatMap((li) => [...li.querySelectorAll('button')])];
+          const controls = [panel.querySelector('.fetch-more'), ...[rows[0], rows[rows.length - 1]].flatMap((li) => [...li.querySelectorAll('button')])];
           for (const n of controls) {
             n.scrollIntoView({ block: 'nearest' });
             const b = n.getBoundingClientRect();
