@@ -99,8 +99,7 @@ describe('s47 final: the Fetch refusal on an existing order', () => {
     const r = await rigUI({ world: w, width: 390, height: 844 });
     try {
       r.store.set(select(r.store.get(), home.id));
-      click(r.root.querySelector('#sheet .fetch-head'));
-      const row = r.root.querySelector('#sheet .fetch-good[data-good="pottery"]');
+      const row = r.root.querySelector('#sheet .fetch-good[data-good="pottery"]');   // Version 8.3: Keeps stocked is open, an order's row always shown
       click(row.querySelector('.step.more'));
       const line = r.root.querySelector('#sheet .fetch-good[data-good="pottery"] .fetch-refusal');
       expect(line === null).toBe(false);

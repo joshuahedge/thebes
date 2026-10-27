@@ -89,8 +89,8 @@ export function stepWords(world, home, step) {
       out.action = { label: T.showMe, aria: S47_PRESSURE_TEXT.showFar(c, world), select: f.select };
       const good = goodName(c.good).toLowerCase(), held = world.buildings[c.id], at = plural(c.len, 'road tile', 'road tiles');
       return done(STEP_LABELS.next, f.fetch
-        ? `have the ${buildingName(world.buildings[f.select].type).toLowerCase()} near the bazaar fetch ${good} by cart (it is held ${at} from the bazaar)`
-        : `${good} is held only in a ${buildingName(held ? held.type : 'storehouse').toLowerCase()} ${at} from the bazaar, and no store near the bazaar can fetch it yet`);
+        ? `have the ${buildingName(world.buildings[f.select].type).toLowerCase()} near the bazaar keep ${good} stocked by cart (it is held ${at} from the bazaar)`   // Version 8.3: Keep stocked, not Fetch
+        : `${good} is held only in a ${buildingName(held ? held.type : 'storehouse').toLowerCase()} ${at} from the bazaar, and no store near the bazaar can keep it stocked yet`);
     }
     out.action = { label: T.view, aria: viewLabel(buildingName(b ? b.type : 'building')), select: f.select };
     const rest = /no_road$/.test(c.code) ? `lay a road beside the ${n}`

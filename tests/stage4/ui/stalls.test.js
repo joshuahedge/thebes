@@ -44,7 +44,7 @@ describe('s4 ui the stall warning', () => {
     expect(alerts).toEqual([{ code: 'site_stalled', id: b.id, reason: 'no_crew' }]);
     const t = triage(w, alerts);
     expect([t.critical.length, t.ordinary.length, bannerModel(w, t.critical)]).toEqual([0, 1, null]);
-    expect(alertText(alerts[0], w)).toEqual({ title: 'Small pyramid is not progressing', fix: "No crew: build a builders' guild within 12 road tiles" });
+    expect(alertText(alerts[0], w)).toEqual({ title: 'Small pyramid is not progressing', fix: "No crew: build a builders' guild on a road that reaches this site" });
     for (const reason of ['no_bricks', 'no_gold', 'crew_short', 'waiting_capstone']) {
       expect(alertText({ code: 'site_stalled', id: b.id, reason }, w).fix).toBe(causeText(w, b, reason));
     }

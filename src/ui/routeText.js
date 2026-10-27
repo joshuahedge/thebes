@@ -31,7 +31,7 @@ export const ROUTE_TEXT = {
   },
   // Why there is no way, in the search's own findings (route.js explain): the water's width against what a bridge spans, the first building in the way.
   refusal(world, r) {
-    if (r.reason === 'too_wide') return `No way across: the water is too wide here (${plural(r.water, 'tile', 'tiles')}; a bridge spans up to ${BRIDGE_MAX})${r.water <= FERRY.max ? ': lay a ferry' : ''}`;   // Version 7.1 (Track F): up to a ferry's width the way on is the Ferry tool
+    if (r.reason === 'too_wide') return `No way across: the water is too wide here (${plural(r.water, 'tile', 'tiles')}; a bridge spans up to ${BRIDGE_MAX})${r.water <= FERRY.max ? ': lay a ferry with the Crossing card' : ''}`;   // Version 7.1 (Track F): up to a ferry's width the way on is the Ferry tool; 8.3 (ruling 1403): the Crossing card (Route lays bridges only)
     if (r.reason === 'boxed_in') {
       const b = r.at ? world.buildings[world.occ[r.at[1] * world.size + r.at[0]]] : null;
       return `No way there: buildings close it off${b ? ` (${buildingName(b.type).toLowerCase()} in the way)` : ''}`;

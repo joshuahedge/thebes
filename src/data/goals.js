@@ -67,7 +67,7 @@ export const GOALS = [
   // Stage 4 (spec 4.19): the Monuments chapter. From City the small obelisk and its supply; a "Found a" goal counts a
   // site once a road touches it (ruling 226), as every "Build a" goal does.
   { id: 'found_obelisk', chapter: 'monuments', from: 'city', text: 'Found a small obelisk', reward: GOAL_REWARD, need: { kind: 'building', type: 'obelisk_small', n: 1 }, showMe: { category: 'monuments', item: 'obelisk_small', target: 'focus' } },
-  { id: 'guild_near', chapter: 'monuments', from: 'city', text: "Build a builders' guild near it", reward: GOAL_REWARD, need: { kind: 'crewNear' }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },
+  { id: 'guild_near', chapter: 'monuments', from: 'city', text: "Build a builders' guild on a road to it", reward: GOAL_REWARD, need: { kind: 'crewNear' }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },
   { id: 'quarry', chapter: 'monuments', from: 'city', text: 'Build a quarry on rocky ground', reward: GOAL_REWARD, need: { kind: 'building', type: 'quarry', n: 1 }, showMe: { category: 'monuments', item: 'quarry', target: 'rocky' } },
   { id: 'finish_obelisk', chapter: 'monuments', from: 'city', text: 'Finish the small obelisk', reward: GOAL_REWARD, need: { kind: 'finished', type: 'obelisk_small', n: 1 }, showMe: { category: 'monuments', item: 'builders_guild', target: 'site' } },
   { id: 'great_city', chapter: 'grand', text: 'Reach 650 people for a Great city', reward: GOAL_REWARD, need: { kind: 'people', n: 650 }, showMe: { category: 'homes', item: 'house', target: 'houses' } },

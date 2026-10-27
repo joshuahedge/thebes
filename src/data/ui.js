@@ -3,7 +3,7 @@ import { TIERS } from './housing.js';
 import { MONUMENT_KINDS } from './monuments.js';
 import { S46_DOCK } from './s46.js';
 export const CATEGORIES = [
-  { id: 'roads', items: ['road', 'ferry', 'demolish'] },   // Version 7.1 (Track F): the Ferry tool, for water too wide for a bridge
+  { id: 'roads', items: ['road', 'ferry', 'demolish'] },   // Version 7.1 (Track F): the Ferry tool; Version 8.3 (Track X): named Crossing, it shows bridges and ferries (its id stays 'ferry', for saves and keys)
   { id: 'homes', items: ['house', 'large_plot', 'garden', 'statue', 'plaza', 'sphinx'] },   // Version 6.0 (Track C): the Large plot card, shown from the first Townhouse (src/ui/cards.js)
   { id: 'food', items: ['farm_grain', 'farm_fig', 'granary'] },
   { id: 'industry', items: ['clay_pit', 'potter', 'farm_barley', 'brewery', 'farm_flax', 'weaver', 'gem_mine', 'jeweller', 'storehouse', 'trading_post', 'quay'] },
@@ -27,7 +27,7 @@ export const visibleCategories = () => CATEGORIES.filter((c) => c.items.length >
 export function toolForItem(item) {
   if (item === 'road') return { kind: 'road' };
   if (item === 'wall') return { kind: 'wall' };       // drawn as a line, like a road (spec 6.4 Drawing mode)
-  if (item === 'ferry') return { kind: 'ferry' };   // Version 7.1 (Track F): drawn as a line like a road, but straight across the water; lays two landings
+  if (item === 'ferry') return { kind: 'ferry' };   // Version 7.1 (Track F): drawn as a line like a road, but straight across the water; lays two landings (8.3: or a bridge, the Crossing card)
   if (item === 'gate') return { kind: 'road', gate: true };   // Stage 4.5 (ruling 309): the road tool, taking only wall tiles
   if (item === 'demolish') return { kind: 'demolish' };
   if (item === 'house') return { kind: 'houses' };
@@ -118,7 +118,7 @@ export const UNDO_TOAST_MS = 6000;
 export const GHOST_FINGER_OFFSET_PX = 48;
 
 // The version the about sheet shows.
-export const APP_VERSION = '8.2.1';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
+export const APP_VERSION = '8.3';   // the version follows the stages (ruling 401): the one constant; the newest entry of RELEASES (src/data/releases.js) must match
 
 // The offline cache's worker (spec 7.1) and how long the "update ready" toast stays up (spec 6.3).
 export const SW_PATH = './sw.js';

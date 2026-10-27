@@ -85,10 +85,15 @@ describe('s46 map bridges in words: the card, the bar and the tip say it from th
     const pl = createPlacement({ world: w, store });
     pl.start({ kind: 'road' });
     const p = pl.preview();
-    expect([p.state, p.note]).toEqual(['idle', S46_MAP_TEXT.bridgeBar(costOf(w, 'bridge'))]);
-    expect(p.note).toBe('Water: a bridge, 25 gold a tile');
+    // Version 8.3 (Track X, ruling 1395): where a river runs the note says both limits; a map with no river keeps the bridge's words
+    expect(p.state).toBe('idle');
+    expect(p.note).toBe('Water: bridge up to 4 tiles (25 a tile), ferry 5 to 12');
     w.difficulty = 'hard';
-    expect(pl.preview().note).toBe(`Water: a bridge, ${costOf(w, 'bridge')} gold a tile`);
+    expect(pl.preview().note).toBe(`Water: bridge up to 4 tiles (${costOf(w, 'bridge')} a tile), ferry 5 to 12`);
+    const variant = w.mapVariant;
+    w.mapVariant = 'great-oasis';
+    expect(pl.preview().note).toBe(S46_MAP_TEXT.bridgeBar(costOf(w, 'bridge')));
+    w.mapVariant = variant;
     w.difficulty = 'normal';
     pl.pointAt(3, 3); pl.pointAt(8, 3);
     expect(pl.preview().note).toBe('');                                                      // a road is drawn: the bar speaks of it
@@ -122,10 +127,11 @@ describe('s46 map seam: the tip fires when a road meets water, Show me finds a c
       s.pl.start({ kind: 'road' });
       s.pl.pointAt(2, 5); s.pl.pointAt(6, 5);                                                // dry land only
       expect(s.fired).toEqual([]);
+      // Version 8.3 (Track X, ruling 1401): the crossings tip ('roadCrossing') fires first for any water the line meets, on a map with a river
       s.pl.pointAt(9, 7); s.pl.pointAt(13, 7);                                               // across 3 tiles of water: a bridge would be laid
-      expect(s.fired).toEqual(['roadMeetsWater']);
-      s.pl.pointAt(9, 9); s.pl.pointAt(11, 9);                                               // stops in the water: bridge_shape
-      expect(s.fired.length).toBe(2);
+      expect(s.fired).toEqual(['roadCrossing']);                                             // 8.3 (ruling 1450): one crossing tip on a map with a river, not the bridges tip beside it
+      s.pl.pointAt(9, 9); s.pl.pointAt(11, 9);                                               // stops in the water: 8.3, on its way across (the crossings tip again, no refusal)
+      expect(s.fired).toEqual(['roadCrossing', 'roadCrossing']);
       s.pl.start({ kind: 'road', gate: true });
       s.pl.pointAt(9, 11); s.pl.pointAt(13, 11);
       expect(s.fired.length).toBe(2);                                                        // the gate tool is not a road
@@ -133,19 +139,30 @@ describe('s46 map seam: the tip fires when a road meets water, Show me finds a c
       expect(s.fired.length).toBe(2);
       const wide = riverWorld(10, 10 + BRIDGE_MAX + 2);
       const t = seam(wide);
-      try { t.pl.start({ kind: 'road' }); t.pl.pointAt(9, 7); t.pl.pointAt(10 + BRIDGE_MAX + 3, 7); expect(t.fired).toEqual(['roadTooWide', 'roadMeetsWater']); } finally { t.cleanup(); }   // too_wide: and (Version 7.1, Track F) the ferries tip
+      try { t.pl.start({ kind: 'road' }); t.pl.pointAt(9, 7); t.pl.pointAt(10 + BRIDGE_MAX + 3, 7); expect(t.fired).toEqual(['roadCrossing']); } finally { t.cleanup(); }   // 8.3: a ferry with no road to its landings: the crossings tip, not the bridges tip
       s.ui.onCommand({ kind: 'road', result: { ok: true, bridges: [] }, undoable: true });
       expect(s.fired.length).toBe(2);
       s.ui.onCommand({ kind: 'road', result: { ok: true, bridges: [idx(32, 11, 4)] }, undoable: true });
-      expect(s.fired.length).toBe(3);                                                        // a bridge laid by a command
+      expect(s.fired).toEqual(['roadCrossing', 'roadCrossing', 'roadCrossing']);             // a bridge laid by a command
     } finally { s.cleanup(); }
+    // A map with no river keeps the bridges tip, and only it (its pools and bays have no ferry to speak of).
+    const dry = riverWorld(10, 12);
+    dry.mapVariant = 'great-oasis';
+    const d = seam(dry);
+    try {
+      d.pl.start({ kind: 'road' });
+      d.pl.pointAt(9, 7); d.pl.pointAt(13, 7);
+      expect(d.fired).toEqual(['roadMeetsWater']);
+      d.ui.onCommand({ kind: 'road', result: { ok: true, bridges: [idx(32, 11, 4)] }, undoable: true });
+      expect(d.fired).toEqual(['roadMeetsWater', 'roadMeetsWater']);
+    } finally { d.cleanup(); }
   });
   it('Show me from a road the rule refuses goes to the nearest crossing, and says so when the map has none', () => {
     const w = riverWorld(10, 12);
     const s = seam(w);
     try {
       s.pl.start({ kind: 'road' });
-      s.pl.pointAt(9, 20); s.pl.pointAt(11, 20);                                             // ends in the water
+      s.pl.pointAt(9, 20); s.pl.pointAt(11, 22);                                             // bends in the water (8.3: a line ending in it is on its way across)
       expect(s.pl.preview().showFit).toBe(true);
       s.root.dispatchEvent(new CustomEvent('thebes:show-fit', { bubbles: true }));
       const spot = bridgeSpot(w, { x: 9, y: 20 });
@@ -189,18 +206,18 @@ describe('s46 map bridges in the game: the confirm bar offers Show me to a refus
       r.ui.placement.start({ kind: 'road' });
       r.frame(1);
       const bar = r.root.querySelector('#confirm');
-      expect(bar.querySelector('.cost').textContent).toBe('Water: a bridge, 25 gold a tile');
+      expect(bar.querySelector('.cost').textContent).toBe('Water: bridge up to 4 tiles (25 a tile), ferry 5 to 12');   // Version 8.3 (Track X, ruling 1395): both limits
       expect(bar.querySelector('.show-fit')).toBe(null);
-      r.ui.placement.pointAt(18, 5); r.ui.placement.pointAt(21, 5);
+      r.ui.placement.pointAt(18, 5); r.ui.placement.pointAt(21, 7);                         // 8.3: a line that stops in the water is on its way across; this one bends in it
       r.frame(2);
-      expect(bar.querySelector('.reason').textContent).toBe('A bridge runs straight across, with land at both ends');
+      expect(bar.querySelector('.reason').textContent).toBe('A crossing must go straight across');
       const show = bar.querySelector('.show-fit');
       expect([Boolean(show), show && show.getAttribute('aria-label')]).toEqual([true, 'Show me where a bridge fits']);
       fire(show, 'click');
-      expect([r.ui.store.get().tool.kind, r.ui.store.get().line]).toEqual(['road', { x0: 18, y0: 5, x1: 21, y1: 5, flip: false }]);   // Version 5.0 (final review): the road tool stays as it is, the player's start and end kept; the view moves to the crossing
+      expect([r.ui.store.get().tool.kind, r.ui.store.get().line]).toEqual(['road', { x0: 18, y0: 5, x1: 21, y1: 7, flip: false }]);   // Version 5.0 (final review): the road tool stays as it is, the player's start and end kept; the view moves to the crossing
       r.ui.placement.pointAt(19, 5); r.ui.placement.pointAt(23, 5);
       r.frame(3);
-      expect(bar.querySelector('.reason').textContent).toBe('2 tiles · Bridge: 3 tiles, 75 gold');
+      expect(bar.querySelector('.reason').textContent).toBe('Bridge: 3 tiles of water · 2 road tiles');
       expect(bar.querySelector('.show-fit')).toBe(null);
     } finally { r.cleanup(); }
   });

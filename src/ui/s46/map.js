@@ -7,7 +7,7 @@
 //    terrain or water building fits on the whole map, or, for a road that meets water it cannot bridge, the nearest crossing (bridgeSpot),
 //    through createUI's showMeAt (the ghost lands there, the view follows it, the place pulses). With nowhere to go it says so in a toast.
 //  - The bridge tip: the first time the road tool meets water (a refusal of water, too_wide or bridge_shape, or a preview that lays a
-//    bridge, or a command that did) it fires 'roadMeetsWater' (MAP_TIPS), whose words are TIP_TEXT.bridges. The tip row carries a Show me to the
+//    bridge, or a command that did) it fires 'roadMeetsWater' (MAP_TIPS), whose words are TIP_TEXT.bridges, on a map with no river; one with a river fires the crossings tip instead (ruling 1450). The tip row carries a Show me to the
 //    nearest crossing (bridgeSpot from the tile under the middle of the view, worked out when it is pressed) while that tip is showing: createUI gives a Show me to one tip only (the treasury's),
 //    so the seam adds this one to the row when it renders (a MutationObserver on #tip), and does nothing on a map with no crossing.
 import { seamBase } from './seam.js';
@@ -55,8 +55,12 @@ export function createMapUi(ctx) {
       lastKey = key;
       const p = toolPreview(world, s);
       // Version 7.1 (Track F, ruling 1083): a too-wide refusal fires the ferries tip first, so the bridges tip does not take the 3-minute slot ahead of it
-      if (road && p.state === 'bad' && p.reason === 'too_wide' && !riverless(world)) ctx.fireTip('roadTooWide');   // Version 8.2 (ruling 1333): the ferries tip is for maps with a river
-      if (road && ((p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) || (p.bridges && p.bridges.length))) ctx.fireTip('roadMeetsWater');
+      // Version 8.3 (Track X, ruling 1401): it is the crossings tip, fired the first time the road's line meets any water (p.waterRuns), still first
+      // Version 8.3 (ruling 1450): one crossing tip a map. A map with a river says the crossings tip for any water, a refusal of it or a bridge laid; a map with none
+      // (bridges cross its pools and bays) keeps the bridges tip, so How to play and the tip row never carry two tips for one rule.
+      const meets = road && ((p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) || (p.bridges && p.bridges.length));
+      if (!riverless(world)) { if (road && ((p.waterRuns && p.waterRuns.length) || meets)) ctx.fireTip('roadCrossing'); }   // Version 8.2 (ruling 1333): the ferries tip is for maps with a river
+      else if (meets) ctx.fireTip('roadMeetsWater');
       if (hasHills && p.state === 'bad' && p.reason === 'hills') ctx.fireTip('hillsMet');
       if (road && !s.tool.route && p.state === 'bad' && ROUTE_TIP_REFUSALS.includes(p.reason)) ctx.fireTip('roadRoute');   // Version 5.0 (Task 5): the straight road met something Route goes round
     };
@@ -105,7 +109,7 @@ export function createMapUi(ctx) {
     // A road command that laid a bridge: the tip too, for a road drawn some other way (the keyboard, a test).
     // Stage 4.7 (Task 2): the first building within reach of an oasis fires the oasis tip (the first itself is the sim's, src/sim/firsts.js).
     onCommand(e) {
-      if (e && e.kind === 'road' && e.result && e.result.ok && e.result.bridges && e.result.bridges.length) ctx.fireTip('roadMeetsWater');
+      if (e && e.kind === 'road' && e.result && e.result.ok && e.result.bridges && e.result.bridges.length) ctx.fireTip(riverless(world) ? 'roadMeetsWater' : 'roadCrossing');
       // a building, or the plots and plazas of one drawing (houses and plazas come back as a list of ids), as the sim's own tally counts them
       const ids = e && e.result && e.result.ok && ctx.world ? (e.kind === 'building' ? [e.result.id] : e.kind === 'houses' || e.kind === 'plazas' || e.kind === 'areas' ? e.result.ids || [] : []) : [];
       if (ids.some((id) => ctx.world.buildings[id] && builtNearOasis(ctx.world, ctx.world.buildings[id]))) ctx.fireTip('oasisBuilt');

@@ -86,10 +86,12 @@ async function bridge(api, options = {}) {
     return `bridge tip ${g.ui.tips.current()} at ${spot.x},${spot.y}`;
   }
   const [x0, y0] = spot.from, [x1, y1] = spot.to;
-  // 'refused': the line stops in the middle of the water, so no bridge ends on land (the sim's own bridge_shape refusal, with Show me in the bar).
-  const end = view === 'refused' ? [spot.x, spot.y] : [x1, y1];
+  // 'refused': the line bends in the middle of the water (the sim's own bridge_shape refusal, with Show me in the bar).
+  // Version 8.3 (Track X): a line that stops in the water is on its way across (the bar names what lies ahead), so 'refused' bends in the water instead.
+  const end = view === 'refused' ? (spot.vertical ? [spot.x + 1, spot.y] : [spot.x, spot.y + 1]) : [x1, y1];
   g.ui.placement.pointAt(x0, y0);
   g.ui.placement.pointAt(end[0], end[1]);
+  if (view === 'refused' && spot.vertical) g.ui.placement.flip();
   await wait(300);
   const p = g.ui.placement.preview();
   return `bridge ${view} from ${x0},${y0} to ${end[0]},${end[1]} water ${spot.water}: ${p.state} ${p.text}`;

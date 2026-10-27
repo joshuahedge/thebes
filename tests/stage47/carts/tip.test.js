@@ -32,7 +32,7 @@ describe('s47 carts: the far-store tip', () => {
       expect(farGoodTip(w).far).toBe(far.id);
       r.ui.onEvents([{ type: 'month' }]);
       expect(r.ui.tips.current()).toBe('fetch_far');
-      expect(r.root.querySelector('#tip .text').textContent).toBe('Set a storehouse near these homes to Fetch pottery');
+      expect(r.root.querySelector('#tip .text').textContent).toBe('Set a storehouse near these homes to keep pottery stocked');   // Version 8.3: Keep stocked
       const show = r.root.querySelector('#tip .tip-show-me');
       expect(show.textContent).toBe('Show me');
       fire(show, 'click');
@@ -55,7 +55,7 @@ describe('s47 carts: the far-store tip', () => {
     try {
       r.ui.onEvents([{ type: 'cartLost', id: 5, good: 'pottery', amount: 20 }]);
       expect(r.root.querySelector('#cheer').textContent).toContain(W.lost({ good: 'pottery', amount: 20 }));
-      expect(TIP_TEXT.fetch_far).toContain('Fetch');
+      expect(TIP_TEXT.fetch_far).toContain('keep it stocked');   // Version 8.3: no tip says Fetch any more
     } finally { r.cleanup(); }
   });
 });

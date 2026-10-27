@@ -79,7 +79,7 @@ describe('s4 score Monuments goals', () => {
     guild.paused = true;
     expect(goalMet(w, goalById('guild_near').need)).toBe(true);        // the goal asks for a guild in reach, not a free one
   });
-  it('lists the City goals from City, counts a site only once a road touches it, and a guild only within its crew reach', () => {
+  it('lists the City goals from City, counts a site only once a road touches it, and a guild only if a road reaches the site (Version 8.3: at any distance)', () => {
     const w = city('market_town');
     expect(ids(openGoals(w, 9))).toEqual([]);                          // they wait for City
     w.milestone = 'city';
@@ -88,9 +88,9 @@ describe('s4 score Monuments goals', () => {
     expect(goalMet(w, goalById('found_obelisk').need)).toBe(false);     // no road touches it yet (ruling 226)
     setRoad(w, 30, 11, 30, 11);
     expect(goalMet(w, goalById('found_obelisk').need)).toBe(true);
-    addRaw(w, 'builders_guild', 8, 11);                                // 21 road tiles from the site's road: beyond its crew reach
+    addRaw(w, 'builders_guild', 8, 4);                                 // no road beside it: no way to the site
     expect(goalMet(w, goalById('guild_near').need)).toBe(false);
-    addRaw(w, 'builders_guild', 24, 11);                               // 5 road tiles along: within MONUMENT.crewReach
+    addRaw(w, 'builders_guild', 8, 11);                                // 21 road tiles from the site's road: once beyond its crew reach, now a slower crew's
     expect(goalMet(w, goalById('guild_near').need)).toBe(true);
     expect(goalProgress(w, goalById('finish_obelisk'))).toEqual({ n: 0, of: 1 });
     Object.assign(site.site, { course: 3, done: 90 });

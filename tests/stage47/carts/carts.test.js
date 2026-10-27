@@ -219,7 +219,7 @@ describe('s47 carts: a trip', () => {
     step(w, 3);
     expect(w.carts.length).toBe(0);
     expect(fetchStatus(w, home.id, 'pottery').state).toBe('unstaffed');
-    expect(W.status(fetchStatus(w, home.id, 'pottery'))).toBe('Fetching pottery: no cart goes while this store is short of workers (0 of 6) or off the road');
+    expect(W.status(fetchStatus(w, home.id, 'pottery'))).toBe('No cart goes while this store is short of workers (0 of 6) or off the road');   // Version 8.3: the row names the good, so the line no longer says "Fetching pottery"
     home.staff = 1;                                                                   // 1 of 6 is under the quarter a workplace needs
     expect(fetchStatus(w, home.id, 'pottery').state).toBe('unstaffed');
     home.staff = 2;                                                                   // 2 of 6 works
@@ -458,13 +458,13 @@ describe('s47 carts: status, consequence and words from the sim', () => {
     setFetch(w, home.id, 'pottery');
     let st = fetchStatus(w, home.id, 'pottery');
     expect(st.state).toBe('ready');
-    expect(W.status(st)).toBe('Fetching pottery: a cart sets out next for 20, from the storehouse 28 road tiles east');
+    expect(W.status(st)).toBe('A cart sets out next for 20, from the storehouse 28 road tiles east');   // Version 8.3: the row names the good
     step(w);
     st = fetchStatus(w, home.id, 'pottery');
-    expect(st).toEqual({ good: 'pottery', fetch: 100, held: 0, state: 'out', amount: 20, days: 6, source: { id: far.id, type: 'storehouse', len: 28, dir: 'east' }, staff: 6, workers: 6 });
-    expect(W.status(st)).toBe('Fetching pottery: 20 on the way, back in 6 days, from the storehouse 28 road tiles east');
+    expect(st).toEqual({ good: 'pottery', fetch: 100, held: 0, state: 'out', amount: 20, days: 6, source: { id: far.id, type: 'storehouse', len: 28, dir: 'east' }, staff: 6, workers: 6, chosen: null, why: null, gone: false });
+    expect(W.status(st)).toBe('20 on the way, back in 6 days, from the storehouse 28 road tiles east');
     step(w, 5);
-    expect(W.status(fetchStatus(w, home.id, 'pottery'))).toBe('Fetching pottery: 20 on the way, back in 1 day, from the storehouse 28 road tiles east');
+    expect(W.status(fetchStatus(w, home.id, 'pottery'))).toBe('20 on the way, back in 1 day, from the storehouse 28 road tiles east');
     expect(fetchStatus(w, home.id, 'linen')).toBe(null);                              // no order for it
   });
 
@@ -474,10 +474,10 @@ describe('s47 carts: status, consequence and words from the sim', () => {
     store(w, 'storehouse', 30, { pottery: 50 });
     const pv = fetchPreview(w, home.id, 'pottery', 100);
     expect(pv.source).toEqual({ id: w.nextId - 1, type: 'storehouse', len: 28, days: 4, roundTrip: 7, dir: 'east', spare: 50, keeps: 0 });
-    expect(W.consequence(pv)).toBe('Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 28 road tiles (a round trip takes 7 days)');
-    expect(W.consequence(fetchPreview(w, home.id, 'linen', 100))).toBe('Fetch linen: no store with linen to spare is linked by road');
+    expect(W.consequence(pv)).toBe('Keep pottery stocked up to 100: one cart, 20 a trip, from the nearest store with pottery, 28 road tiles (a round trip takes 7 days)');   // Version 8.3: Keep stocked
+    expect(W.consequence(fetchPreview(w, home.id, 'linen', 100))).toBe('Keep linen stocked: no store with linen to spare is linked by road');
     home.staff = 0;
-    expect(W.consequence(fetchPreview(w, home.id, 'pottery', 100))).toBe('Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 28 road tiles (a round trip takes 7 days). No cart goes until this store has its workers and a road');
+    expect(W.consequence(fetchPreview(w, home.id, 'pottery', 100))).toBe('Keep pottery stocked up to 100: one cart, 20 a trip, from the nearest store with pottery, 28 road tiles (a round trip takes 7 days). No cart goes until this store has its workers and a road');
   });
 
   it('the live statuses of an order with no cart: full, refused, unstaffed, no room, no source', () => {
@@ -487,14 +487,14 @@ describe('s47 carts: status, consequence and words from the sim', () => {
     setFetch(w, home.id, 'pottery', 30);
     home.store.pottery = 30;
     expect(fetchStatus(w, home.id, 'pottery').state).toBe('full');
-    expect(W.status(fetchStatus(w, home.id, 'pottery'))).toBe('Fetching pottery: 30 held of 30, no cart needed');
+    expect(W.status(fetchStatus(w, home.id, 'pottery'))).toBe('30 held of 30, no cart needed');
     home.store.pottery = 0;
     setAccept(w, home.id, 'pottery', false);
     expect(fetchStatus(w, home.id, 'pottery').state).toBe('refused');
     setAccept(w, home.id, 'pottery', true);
     far.store.pottery = 0;
     expect(fetchStatus(w, home.id, 'pottery').state).toBe('no_source');
-    expect(W.status(fetchStatus(w, home.id, 'pottery'))).toBe('Fetching pottery: no store with pottery to spare is linked by road');
+    expect(W.status(fetchStatus(w, home.id, 'pottery'))).toBe('No store with pottery to spare is linked by road');
   });
 
   it('names eight directions from the vector between the stores (y grows south)', () => {
@@ -523,7 +523,7 @@ describe('s47 carts: status, consequence and words from the sim', () => {
     expect(FIRSTS.some((f) => f.id === 'first_cart_trip')).toBe(true);
     expect(FIRST_TEXT.first_cart_trip.head).toBe('The first cart home');
     expect(W.help).toContain(`${CARTS.perTrip} a trip`);
-    expect(W.tipFor({ good: 'pottery' })).toBe('Set a storehouse near these homes to Fetch pottery');
+    expect(W.tipFor({ good: 'pottery' })).toBe('Set a storehouse near these homes to keep pottery stocked');   // Version 8.3: Keep stocked
   });
 
   it('"The first cart home" fires on the first trip home, where the order is', () => {
@@ -649,7 +649,7 @@ describe('s47 carts: homes waiting on a good only a far store holds (the tip)', 
     expect(tip.count).toBe(2);
     expect(tip.far).toBe(s.id);
     expect(tip.len).toBeGreaterThan(BUILDINGS.bazaar.supplyReach);
-    expect(W.tipFor(tip)).toBe('Set a storehouse near these homes to Fetch pottery');
+    expect(W.tipFor(tip)).toBe('Set a storehouse near these homes to keep pottery stocked');
   });
 
   it('no tip when a store with pottery is within the bazaar\'s supply reach, or the stall already holds it', () => {

@@ -155,7 +155,7 @@ describe('s47 carts review: the words tell what the sim does', () => {
     const home = store(w, 'storehouse', 2), far = store(w, 'storehouse', 30, { pottery: 50 });
     far.orders = { pottery: { fetch: 50 } };                                          // holds 50, wants 50: nothing to spare
     expect(W.refusal(setFetch(w, home.id, 'pottery'))).toBe('No store with pottery to spare is linked by road');
-    expect(W.consequence(fetchPreview(w, home.id, 'pottery', 100))).toBe('Fetch pottery: no store with pottery to spare is linked by road');
+    expect(W.consequence(fetchPreview(w, home.id, 'pottery', 100))).toBe('Keep pottery stocked: no store with pottery to spare is linked by road');   // Version 8.3: Keep stocked
     far.orders = {};
     expect(setFetch(w, home.id, 'pottery').ok).toBe(true);
   });
@@ -190,9 +190,9 @@ describe('s47 carts review: the words tell what the sim does', () => {
     expect(nextTrip(w, home).good).toBe('linen');
     const sl = fetchStatus(w, home.id, 'linen'), sp = fetchStatus(w, home.id, 'pottery');
     expect(sl.state).toBe('ready');
-    expect(W.status(sl)).toContain('a cart sets out next');
+    expect(W.status(sl)).toContain('A cart sets out next');
     expect(sp.state).toBe('other');
-    expect(W.status(sp)).toBe('Fetching pottery: the cart serves another good first');
+    expect(W.status(sp)).toBe('The cart serves another good first');   // Version 8.3: the row names the good
     step(w);                                                                          // linen's cart is out; pottery still waits
     expect(cartOf(w, home.id).good).toBe('linen');
     expect(fetchStatus(w, home.id, 'pottery').state).toBe('other');

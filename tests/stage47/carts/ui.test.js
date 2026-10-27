@@ -31,42 +31,45 @@ const open = async (w, home) => {
   r.store.set(select(r.store.get(), home.id));
   return r;
 };
+// Version 8.3 (Track K, ruling 1420): Keeps stocked is open, headed (keeps-head) with the order count; with an order the other goods fold under .fetch-more.
 const panel = (r) => r.root.querySelector('#sheet .fetch-panel');
-const head = (r) => r.root.querySelector('#sheet .fetch-head');
+const head = (r) => r.root.querySelector('#sheet .fetch-panel .keeps-head');
+const more = (r) => r.root.querySelector('#sheet .fetch-more');
 const row = (r, good) => r.root.querySelector(`#sheet .fetch-good[data-good="${good}"]`);
 const lineOf = (li, cls) => { const n = li.querySelector(cls); return n ? n.textContent : null; };
-const expand = (r) => { if (head(r).getAttribute('aria-expanded') !== 'true') click(head(r)); };
+const expand = (r) => { const m = more(r); if (m && m.getAttribute('aria-expanded') !== 'true') click(m); };
 
-describe('s47 carts ui: the Fetch row', () => {
-  it('is one collapsed row under "Stored", with the order count, and opens to a row for each good the store may hold', async () => {
+describe('s47 carts ui: the Keep stocked row', () => {
+  it('is open under "Stored", headed Keeps stocked with the order count, with a row for each good the store may hold while it keeps none stocked', async () => {
     const { w, home } = world();
     const r = await open(w, home);
     try {
       expect(panel(r) === null).toBe(false);
-      expect(head(r).getAttribute('aria-expanded')).toBe('false');
       expect(head(r).textContent).toContain(W.head);
       expect(head(r).textContent).toContain(W.none);
-      expect(r.root.querySelector('#sheet .fetch-goods')).toBe(null);
+      expect(more(r)).toBe(null);                                                         // nothing folded: no order yet
       const body = r.root.querySelector('#sheet .body');
       const stored = [...body.children].findIndex((n) => n.textContent.startsWith('Stored'));
       expect([...body.children][stored + 1]).toBe(panel(r));                             // right under how full the store is, not under the stock rows
-      expand(r);
-      expect(head(r).getAttribute('aria-expanded')).toBe('true');
       const goods = [...r.root.querySelectorAll('#sheet .fetch-good')].map((li) => li.dataset.good);
       expect(goods).toEqual(BUILDINGS.storehouse.stores);
       expect(r.root.querySelector('#sheet .fetch-help').textContent).toBe(W.help);
     } finally { r.cleanup(); }
   });
 
-  it('stays open for a store while the player looks at another store and comes back', async () => {
+  it('with an order the other goods fold under one button, and stay unfolded for a store while the player looks at another and comes back', async () => {
     const { w, home, far } = world();
+    setFetch(w, home.id, 'pottery');
     const r = await open(w, home);
     try {
+      expect([...r.root.querySelectorAll('#sheet .fetch-good')].map((li) => li.dataset.good)).toEqual(['pottery']);
+      expect(more(r).getAttribute('aria-expanded')).toBe('false');
       expand(r);
+      expect([...r.root.querySelectorAll('#sheet .fetch-good')].map((li) => li.dataset.good)).toEqual(['pottery', ...BUILDINGS.storehouse.stores.filter((g) => g !== 'pottery')]);
       r.store.set(select(r.store.get(), far.id));
-      expect(head(r).getAttribute('aria-expanded')).toBe('false');                       // each store has its own
+      expect(more(r)).toBe(null);                                                         // the far store keeps nothing stocked: all its goods are listed
       r.store.set(select(r.store.get(), home.id));
-      expect(head(r).getAttribute('aria-expanded')).toBe('true');
+      expect(more(r).getAttribute('aria-expanded')).toBe('true');                         // each store has its own
     } finally { r.cleanup(); }
   });
 
@@ -102,7 +105,7 @@ describe('s47 carts ui: the toggle and the stepper call the sim', () => {
     try {
       expand(r);
       let sw = row(r, 'pottery').querySelector('.fetch-switch');
-      expect([sw.getAttribute('role'), sw.getAttribute('aria-checked'), sw.getAttribute('aria-label')]).toEqual(['switch', 'false', 'Fetch pottery']);
+      expect([sw.getAttribute('role'), sw.getAttribute('aria-checked'), sw.getAttribute('aria-label')]).toEqual(['switch', 'false', 'Keep pottery stocked']);
       expect(sw.textContent).toContain(W.off);
       click(sw);
       expect(home.orders).toEqual({ pottery: { fetch: CARTS.defaultFetch } });
@@ -122,20 +125,20 @@ describe('s47 carts ui: the toggle and the stepper call the sim', () => {
     try {
       expand(r);
       const btn = (cls) => row(r, 'pottery').querySelector(`.stepper .${cls}`);
-      const value = () => row(r, 'pottery').querySelector('.stepper .value').textContent;
-      expect(value()).toBe(W.upTo(100));
+      const value = () => row(r, 'pottery').querySelector('.stepper .value').textContent;   // Version 8.3: "up to" is the row's word before the stepper; the value is the number
+      expect(value()).toBe('100');
       click(btn('more'));
-      expect(value()).toBe(W.upTo(100 + CARTS.perTrip));
+      expect(value()).toBe(String(100 + CARTS.perTrip));
       expect(home.orders || {}).toEqual({});                                             // nothing is set by a draft
       click(btn('more')); click(btn('less'));
-      expect(value()).toBe(W.upTo(120));
+      expect(value()).toBe('120');
       click(row(r, 'pottery').querySelector('.fetch-switch'));
       expect(home.orders.pottery.fetch).toBe(120);
       click(btn('more'));
       expect(home.orders.pottery.fetch).toBe(140);                                       // with an order the stepper changes it at once (setFetch)
       click(btn('less')); click(btn('less'));
       expect(home.orders.pottery.fetch).toBe(100);
-      expect(value()).toBe(W.upTo(100));
+      expect(value()).toBe('100');
       for (let i = 0; i < 6; i++) click(btn('less'));
       expect(home.orders.pottery.fetch).toBe(CARTS.perTrip);                              // not below one load
       expect(btn('less').disabled).toBe(true);
@@ -170,7 +173,7 @@ describe('s47 carts ui: the toggle and the stepper call the sim', () => {
         expect(li.querySelector('.stepper .more').getAttribute('aria-label')).toBe(W.more(good));
         expect(g.length).toBeGreaterThan(2);
       }
-      expect(head(r).getAttribute('aria-expanded')).toBe('true');
+      expect(more(r)).toBe(null);                                                         // no order: every good is listed, nothing folded
     } finally { r.cleanup(); }
   });
 });
@@ -196,7 +199,7 @@ describe('s47 carts ui: the words are the sim\'s', () => {
       // the amount in the consequence follows the stepper
       click(row(r, 'linen').querySelector('.stepper .more'));
       expect(lineOf(row(r, 'linen'), '.fetch-consequence')).toBe(W.consequenceRow(fetchPreview(w, home.id, 'linen', 120)));
-      expect(row(r, 'linen').querySelector('.stepper .value').textContent).toBe('up to 120');
+      expect(row(r, 'linen').querySelector('.stepper .value').textContent).toBe('120');
     } finally { r.cleanup(); }
   });
 
@@ -207,7 +210,7 @@ describe('s47 carts ui: the words are the sim\'s', () => {
     try {
       expand(r);
       expect(lineOf(row(r, 'pottery'), '.fetch-status')).toBe(W.status(fetchStatus(w, home.id, 'pottery')));
-      expect(lineOf(row(r, 'pottery'), '.fetch-status')).toContain('a cart sets out next for 20');
+      expect(lineOf(row(r, 'pottery'), '.fetch-status')).toContain('A cart sets out next for 20');
       step(w);                                                                          // a cart sets out
       r.store.set(select(r.store.get(), home.id));
       const st = fetchStatus(w, home.id, 'pottery');
@@ -302,7 +305,7 @@ describe('s47 carts ui: a refusal says why, with Show me where there is somewher
     try {
       expand(r);
       click(row(r, 'pottery').querySelector('.fetch-switch'));
-      expect(lineOf(row(r, 'pottery'), '.fetch-refusal')).toBe('This store refuses pottery: let it accept pottery first');
+      expect(lineOf(row(r, 'pottery'), '.fetch-refusal')).toBe('This store does not take in pottery: switch pottery on under Takes in first');   // Version 8.3: Takes in
       const show = row(r, 'pottery').querySelector('.accept-show');
       expect(Boolean(show)).toBe(true);
       click(show);
@@ -320,7 +323,7 @@ describe('s47 carts ui: a refusal says why, with Show me where there is somewher
       expect(row(r, 'beer').querySelector('.fetch-refusal') === null).toBe(false);
       w.day += 1;
       r.store.set(select(r.store.get(), home.id));
-      click(head(r)); click(head(r));                                                    // a rebuild of the sheet
+      r.ui.refresh();                                                                    // a rebuild of the sheet
       expect(row(r, 'beer').querySelector('.fetch-refusal')).toBe(null);
     } finally { r.cleanup(); }
   });
@@ -437,7 +440,7 @@ describe('s47 carts ui: the carts on screen with the whole interface, and the de
       const g = api.game();
       expect(g.ui.store.get().sheet.kind).toBe('info');
       const p = document.querySelector('#sheet .fetch-panel');
-      expect(p.querySelector('.fetch-head').getAttribute('aria-expanded')).toBe('true');
+      expect(p.querySelector('.fetch-more').getAttribute('aria-expanded')).toBe('true');   // Version 8.3: the scene unfolds the other goods (fetchOpen)
       expect(p.querySelector('.fetch-good[data-good="pottery"] .fetch-switch').getAttribute('aria-checked')).toBe('true');
       expect(cartsAt(g.world, g.world.day + 0.5, null, 'full').length).toBe(1);
       expect(document.querySelector('#sheet .store-goods li[data-good="pottery"] .road-line').textContent).toBe('20 pottery on the road to here');

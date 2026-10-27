@@ -214,7 +214,9 @@ export function adviceWords(a, world) {
   } else if (f && f.select !== undefined) {
     // Show me for the far store (Fetch is set up there); View for a provider that is idle, roadless or short, and for the danger services.
     const far = f.why === 'good_far';
-    out.action = far ? { label: ADVICE_TEXT.show, aria: S47_PRESSURE_TEXT.showFar(d.cause, world) } : { label: ADVICE_TEXT.view, aria: `${ADVICE_TEXT.view}: ${out.what}` };
+    // Version 8.3 (Track K): a Keep stocked fix is Show me too: it opens the store at the row where it is set up.
+    out.action = far ? { label: ADVICE_TEXT.show, aria: S47_PRESSURE_TEXT.showFar(d.cause, world) }
+      : f.keep ? { label: ADVICE_TEXT.show, aria: `${ADVICE_TEXT.show}: ${out.fix}` } : { label: ADVICE_TEXT.view, aria: `${ADVICE_TEXT.view}: ${out.what}` };
   } else if (f && f.view) {
     // Version 7.0 (Track A, wave 1 minor): only the summary's money and employment sections have a name of their own; a View for anything else (a waiting event, the Trade sheet) is named by its item.
     const section = f.section === 'forecast' ? ADVICE_TEXT.seeForecast : f.section === 'employment' ? ADVICE_TEXT.seeEmployment : out.what;

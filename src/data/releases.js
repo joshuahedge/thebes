@@ -9,7 +9,22 @@
 
 export const RELEASES = [
   {
-    version: '8.2.1', date: '2026-10-27', title: 'Easier ferries', build: 'live',
+    version: '8.3', date: '2026-10-27', title: 'Lines', build: 'live',
+    new: [
+      'The road now crosses water by itself: drag it straight across and it lays a bridge over up to 4 tiles of water, or a ferry over 5 to 12. When it can\'t, the bar says why, with Show me.',
+      'The Ferry card is now the Crossing card: it shows the best bridges and ferries near your roads, each with its water and price.',
+      'Fetch is now Keep stocked, and a store can draw from one store you pick on the map. If that store runs dry the line turns amber and waits for you; it never takes from another store on its own. The delivery switches are now Takes in.',
+      'A new map layer, Supply lines, draws the carts\' lines between stores: thicker for more carried last month, moving toward the store they feed, and amber and dashed when a line is stuck.',
+      'Builders\' guilds now work far sites, slower with distance: full speed within 12 road tiles, 10% slower for each further 12, down to half speed. A site\'s sheet says how each crew is doing.',
+      'A workers\' camp costs a tenth of a monument\'s founding price and puts every crew on that site at full speed. It can\'t be undone, and it goes when the monument is finished.',
+    ],
+    fixed: [
+      'When a bazaar\'s food runs low and another store has some to spare, City advice and its Show me now point at setting a store to keep it stocked, before suggesting another farm.',
+      'A monument stalled for stone or bricks now says which store to keep stocked, or where to build one, and its Show me goes straight there.',
+    ],
+  },
+  {
+    version: '8.2.1', date: '2026-10-27', title: 'Easier ferries', build: '87b5ec3',
     new: [
       'Pick Ferry and the map shows the best crossings near your roads, each with its boat and price: tap one, then ✓.',
       'A ferry now brings a short road to any landing that has none, so the far bank no longer needs a road first; the price includes it.',

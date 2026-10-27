@@ -1,9 +1,11 @@
 // Version 5.0 (Task 3, rulings 540-549): the legend row of Home progress, Goods supply and Workers (src/ui/overlayUi.js puts it in #legend). Each key is a swatch drawn as the
 // map draws it (an inline SVG from the same icon paths and strengths as src/render/layers.js) with a short label, and the whole key has its full words for a screen reader.
 // Goods supply adds the good picker: one button per good the city can make (pottery from Town, beer, linen, jewellery as their makers unlock) and foods, each at least 44 px.
-import { OVERLAY_NAMES, V50_LAYERS_TEXT as W, LARGE_TEXT, T } from './text.js';
+// Version 8.3 (Track K, ruling 1416): Supply lines' keys: a moving line (dashes and a chevron, in its navy), a stuck one (amber, long dashes) and how to open a line's store.
+import { OVERLAY_NAMES, V50_LAYERS_TEXT as W, LARGE_TEXT, T, LINES_TEXT } from './text.js';
 import { OVERLAY_HUE } from '../render/overlays.js';
-import { NEED_ICONS, PROGRESS_ALPHA, SUPPLY_ALPHA, WORKERS_ALPHA, JOBLESS_ALPHA } from '../render/layers.js';
+import { NEED_ICONS, PROGRESS_ALPHA, SUPPLY_ALPHA, WORKERS_ALPHA, JOBLESS_ALPHA, STUCK_HUE } from '../render/layers.js';
+import { LINES } from '../data/layers.js';
 import { iconPath } from '../render/spots.js';
 import { supplyGoods, resolveSupplyGood } from '../sim/layers.js';
 import { el, iconButton, button } from './components.js';
@@ -93,7 +95,21 @@ const KEYS = {
     key(swatch([...tile(hue, JOBLESS_ALPHA[1]), label(17, 8.5, '5', hue, { person: true, outline: true })]), W.jobless.words, W.jobless.label),
     note(W.newcomer.words, W.newcomer.label),
   ],
+  lines: (hue) => [
+    key(swatch(lineSwatch(hue, [LINES.dash, LINES.gap])), LINES_TEXT.moving.words, LINES_TEXT.moving.label),
+    key(swatch(lineSwatch(STUCK_HUE, [LINES.stuckDash, LINES.stuckGap])), LINES_TEXT.stuck.words, LINES_TEXT.stuck.label),
+    note(LINES_TEXT.tap.words, LINES_TEXT.tap.label),
+  ],
 };
+// A supply line on its tile: a white halo, the dashed line and the chevron at its store's end.
+function lineSwatch(hue, dash) {
+  const d = 'M3 13 L17 6 L30 9';
+  return [
+    svg('path', { d, fill: 'none', stroke: WHITE, 'stroke-width': 4.2, 'stroke-opacity': 0.8 }),
+    svg('path', { d, fill: 'none', stroke: hue, 'stroke-width': 2.4, 'stroke-dasharray': dash.join(' ') }),
+    svg('path', { d: 'M26 6 L30 9 L26.4 12.4', fill: 'none', stroke: hue, 'stroke-width': 1.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  ];
+}
 
 // The good picker: a group of buttons, the picked one pressed, each 44 px tall at least (css/ui.css .goods-pick).
 function goodsPicker(store, world) {

@@ -37,12 +37,14 @@ import { pxPerArt, MIN_ZOOM } from '../render/camera.js';
 import { GOLD } from '../render/art/palette.js';
 import { allBuildings, housesOf, isSite, isFinished, isMonument } from '../sim/world.js';
 import * as monumentsSim from '../sim/monuments.js';
-import { siteStatus, guildSite, supplyNeeded, prestigeOf, prestigeOfBuilding, holdsPrestige, stalledGuild, guildBurning } from '../sim/monuments.js';
+import { siteStatus, siteCrews, campQuote, setCamp, crewSpeedAt, crewDistance, guildSite, supplyNeeded, prestigeOf, prestigeOfBuilding, holdsPrestige, stalledGuild, guildBurning } from '../sim/monuments.js';
 import { palaceQuote, enlargePalace, palaceMood } from '../sim/palace.js';
 import { workGoldPerUnit, extraGoldOf } from '../sim/costs.js';
 import { setPaused, demolishRefundFor } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
 import { touchesRoad } from '../sim/reach.js';
+import { siteKeepFix } from '../sim/adviceFixes.js';
+import { aimKeepStocked } from './s47/carts.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { milestoneIndex, atLeast, isUnlocked } from '../sim/progression.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../sim/time.js';
@@ -51,7 +53,7 @@ import { FRAME_MARGIN_PX } from './cameraControl.js';
 import { cameraOf } from './minimap.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { el, button } from './components.js';
-import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT, ui4CauseText, S46_COURT_TEXT, V60_REIGN_TEXT } from './text.js';
+import { buildingName, viewLabel, T, UI4_TEXT, UI4_PALACE_TEXT, ui4CauseText, S46_COURT_TEXT, V60_REIGN_TEXT, V83_C_TEXT } from './text.js';
 import { setViewClock } from '../render/overlays.js';
 import { ZOOM_STEP, categoryOfItem } from '../data/ui.js';
 
@@ -142,19 +144,66 @@ export function causeText(world, b, reason, status = null) {
   return ui4CauseText(reason, extraGoldOf(world, b.type, b.style), null, b.type);
 }
 
-// The site sheet's rows (spec 6.3), from siteStatus: [{ key, text, share?, fix? }] in the spec's order: progress, crews, the
-// cause of the last day without work (with its fix), each material, pace, gold, prestige.
+// The site sheet's keep rows (Version 8.3, rulings 1440, 1446, 1447): for each material the site is short of (still needs some, and no quarry, brickworks or
+// storehouse holding some reaches it), what Track K's Advice would do (siteKeepFix, the sim's own): keep a storehouse in reach stocked from a store that can spare
+// the good, or build one near the site first. A good with no fix (no store anywhere can spare it, no room, the storehouse locked) gets no row. Goods whose fix is
+// the same store (or both a new storehouse) share a row: [{ key, goods, text, fix }], the first keyed 'keep-stocked'. The fix is { select, keep: { good } } (Show
+// me aims the store's Keeps stocked at the good, then selects it, as Advice does) or { showMe } (the card and ghost of the storehouse to build).
+export function keepRows(world, b, s = siteStatus(world, b)) {
+  if (s.finished) return [];
+  const short = MATERIALS.filter((g) => s.materials[g] && s.materials[g].need > 0 && !s.materials[g].makers.length && !s.materials[g].stores.length);
+  const groups = [];
+  for (const good of short) {
+    const f = siteKeepFix(world, b, good);
+    if (!f) continue;
+    const id = f.build ? 'build' : f.store;
+    let g = groups.find((o) => o.id === id);
+    if (!g) groups.push(g = { id, goods: [], fix: f.build
+      ? { showMe: { category: categoryOfItem('storehouse'), item: 'storehouse', x: f.build.x, y: f.build.y } }
+      : { select: f.store, keep: { good } } });
+    g.goods.push(good);
+  }
+  return groups.map((g, i) => ({
+    key: i ? `keep-stocked-${g.goods[0]}` : 'keep-stocked', goods: g.goods, fix: g.fix,
+    text: g.fix.showMe ? V83_C_TEXT.keepBuild(g.goods) : V83_C_TEXT.keepStocked(g.goods, MONUMENT.supplyReach),
+  }));
+}
+
+// The workers' camp's offer on a site's sheet (ruling 1436): { show, ok, text, quote }. It shows once a crew walks far enough to be slowed, and stays,
+// as a done line, once set up; the price and the effect are in its words.
+export function campModel(world, b, crews = siteCrews(world, b)) {
+  const quote = campQuote(world, b.id), W = V83_C_TEXT;
+  if (b.site && b.site.camp) return { show: true, ok: false, done: true, text: W.campDone, quote };
+  if (!crews.some((c) => c.walk < 1)) return { show: false, ok: false, text: '', quote };
+  return { show: true, ok: quote.ok, text: quote.ok ? W.campButton(quote.price) : W.campNoGold(quote.price, world.gold), quote };
+}
+
+// The site sheet's rows (spec 6.3), from siteStatus: [{ key, text, share?, fix? }] in the spec's order: progress, crews (and the walk and speed
+// of each slowed crew, Version 8.3), the cause of the last day without work (with its fix), each material (with the keep rows Advice's fix gives), pace, gold, prestige.
 export function siteRows(world, b, s = siteStatus(world, b)) {
   const U = UI4_TEXT;
   const rows = [{ key: 'progress', text: U.progress(s.progress.course, s.progress.courses, s.progress.done), share: s.progress.done }];
   if (monumentsSim.isGreatWork(b)) rows.push({ key: 'stage', text: V60_REIGN_TEXT.stageLine(monumentsSim.greatWorkStatus(world, b)) });   // Version 6.0: the great work's stage
   rows.push({ key: 'crews', text: U.crews(s.crews.guilds.length, s.crews.max) });
+  if (!s.finished) {
+    const crews = siteCrews(world, b);
+    for (const c of crews) if (c.speed < 1) rows.push({ key: `crew-${c.id}`, text: V83_C_TEXT.crewLine(c) });   // a crew at full speed is in the "Crews: n of m" line (ruling 1448)
+    // The camp's offer sits right under the crews it speeds up (ruling 1436): a button while it can be paid, else its words (the price, and why not).
+    const camp = campModel(world, b, crews);
+    if (camp.show) rows.push({ key: 'camp', text: camp.text, camp: camp.ok ? camp : null });
+  }
+  const keep = keepRows(world, b, s);
   const cause = causeText(world, b, s.reason, s);
-  if (cause) rows.push({ key: 'cause', reason: s.reason, text: cause, fix: causeFix(world, b, s.reason, s) });
+  // One stall shows one Show me (ruling 1449): a stall for stone or bricks that a keep row has a fix for leaves its Show me to that row (the fix Advice gives).
+  const stalledGood = s.reason === 'no_stone' || s.reason === 'no_bricks' ? s.reason.slice(3) : null;
+  const merged = stalledGood !== null && keep.some((k) => k.goods.includes(stalledGood));
+  if (cause) rows.push({ key: 'cause', reason: s.reason, text: cause, fix: merged ? null : causeFix(world, b, s.reason, s) });
   for (const g of MATERIALS) {
     const m = s.materials[g];
-    if (m) rows.push({ key: `material-${g}`, text: U.material(g, m.onSite, m.makers.length, m.stores.length) });
+    if (!m) continue;
+    rows.push({ key: `material-${g}`, text: U.material(g, m.onSite, m.makers.length, m.stores.length) });
   }
+  rows.push(...keep);   // what the site is short of and a store can spare: a storehouse kept stocked (Advice's own fix)
   if (!s.paused && s.road) {
     let pace = U.paceLater;
     if (s.stalled && s.reason) pace = U.notProgressing(s.reason);                         // stalled now: last month's pace is not what it is doing
@@ -202,7 +251,10 @@ export function supplyLine(world, b, sim = SUPPLY_SIM) {
     const id = sim.crewPlan(world).get(b.id);
     if (id === undefined || !world.buildings[id]) return U.guildIdle(MONUMENT.crewReach);
     const type = world.buildings[id].type;
-    if (sim.guildSite(world, b) === id) return U.crewAt(type);
+    if (sim.guildSite(world, b) === id) {                                  // Version 8.3: a crew that walks far says how far and how slowly it works
+      const speed = crewSpeedAt(world, b, world.buildings[id]);
+      return U.crewAt(type) + (speed < 1 ? V83_C_TEXT.guildWalk({ dist: crewDistance(world, b, world.buildings[id]), speed }) : '');
+    }
     return guildBurning(b) ? U.crewBurning(type) : U.crewShort(type);   // the sim's burning: the fire stage, not a blaze
   }
   const good = BUILDINGS[b.type].produces && BUILDINGS[b.type].produces.good;
@@ -311,10 +363,11 @@ export function createMonumentUi(ctx) {
     const f = row.fix;
     if (!f) return null;
     if (f.showMe) return button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${row.text}`, onClick: () => ctx.showMeAt(f.showMe) });
+    if (f.select !== undefined) return button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${row.text}`, onClick: () => { aimKeepStocked(f.select, f.keep.good); ctx.selectBuilding(f.select); } });   // Version 8.3: as Advice's Show me: the store's sheet at that good's row
     const g = world.buildings[f.view];
     return button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(g.type)), onClick: () => ctx.selectBuilding(f.view) });
   }
-  const rowList = (cls, rows) => el('ul', { class: `s4-rows ${cls}` }, rows.map((r) => el('li', { class: `row-${r.key}`, dataset: { row: r.key } }, [
+  const rowList = (cls, rows, site = null) => el('ul', { class: `s4-rows ${cls}` }, rows.map((r) => el('li', { class: `row-${r.key}`, dataset: { row: r.key } }, r.camp ? [button(r.text, { class: 'camp primary', style: { flex: '1 1 100%' }, onClick: () => camp(site, r.camp) })] : [
     el('span', { class: 'text', text: r.text }),
     Number.isFinite(r.share) ? el('span', { class: 'meter', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.floor(r.share * 100)), 'aria-label': r.text }, [
       el('span', { class: 'fill', style: { width: `${Math.floor(r.share * 100)}%` } })]) : null,
@@ -322,7 +375,7 @@ export function createMonumentUi(ctx) {
   ])));
 
   function buildingPart(b) {
-    if (isSite(b)) return [rowList('site', siteRows(world, b))];
+    if (isSite(b)) return [rowList('site', siteRows(world, b), b)];
     if (isFinished(b)) return [rowList('finished', finishedRows(world, b))];
     if (b.type === 'palace') return [rowList('palace', palaceRows(world, b))];
     const line = ['builders_guild', 'quarry', 'brickworks'].includes(b.type) ? supplyLine(world, b) : '';
@@ -335,6 +388,17 @@ export function createMonumentUi(ctx) {
       if (!r.ok) return;
       if (ctx.toasts) ctx.toasts.show(UI4_TEXT.enlarged(m.next.to, r.days));
       after({ kind: 'enlarge', result: r, undoable: false });
+    } } });
+  }
+
+  // The workers' camp (Version 8.3, ruling 1436): asks first, with the price and the effect; not undoable.
+  function camp(b, m) {
+    store.set({ confirmDialog: { text: V83_C_TEXT.campAsk(b.type, m.quote.price), confirmLabel: V83_C_TEXT.campOk, destructive: false, onConfirm: () => {
+      // The command judges and prices it again now (the city may have changed while the question was open): a refusal says why.
+      const r = setCamp(world, b.id);
+      if (!r.ok) { if (ctx.toasts) ctx.toasts.show(V83_C_TEXT.campRefused(r.reason)); return; }
+      if (ctx.toasts) ctx.toasts.show(V83_C_TEXT.campSet(b.type, r.price));
+      after({ kind: 'camp', result: r, undoable: false });
     } } });
   }
 
@@ -376,6 +440,9 @@ export function createMonumentUi(ctx) {
       if (!world || typeof ctx.fireTip !== 'function') return;
       const palace = allBuildings(world).find((b) => b.type === 'palace');
       if (palace && palaceQuote(world, palace.id).ok) ctx.fireTip('palaceCanGrow');
+      // Version 8.3 (ruling 1442): the first time a crew walks far enough to be slowed on a site with no camp, the tip says what the camp is.
+      const sites = allBuildings(world).filter((b) => isSite(b) && !b.site.camp);
+      if (sites.length) { const plan = monumentsSim.crewPlan(world); if (sites.some((b) => siteCrews(world, b, plan).some((c) => c.walk < 1))) ctx.fireTip('farCrew'); }
     },
     onAlertAction(alert, action) {},
     // Undo refused once work has begun on a site (ruling 236): its own words, naming the site (placement.js passes it on).

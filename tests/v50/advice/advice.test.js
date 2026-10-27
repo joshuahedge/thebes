@@ -92,15 +92,15 @@ describe('v50 advice words: homes held back', () => {
     let { a, t } = words(w, 'stranded');
     expect(t.what).toBe('1 home is held back by pottery kept too far away');
     expect(t.why).toBe(`Pottery is held only in a storehouse ${a.data.len} road tiles from the bazaar`);
-    expect(t.fix).toBe('The storehouse near the bazaar can Fetch it by cart');
-    expect(t.action).toEqual({ label: 'Show me', aria: 'Show me the storehouse near the bazaar that can Fetch pottery' });
+    expect(t.fix).toBe('The storehouse near the bazaar can keep it stocked by cart');   // Version 8.3: Keep stocked
+    expect(t.action).toEqual({ label: 'Show me', aria: 'Show me the storehouse near the bazaar that can keep pottery stocked' });   // Version 8.3: Keep stocked
     expect([a.fix.select, a.fix.fetch]).toEqual([near.id, true]);              // the store that sets the Fetch order, not the one that holds the pottery
     near.paused = true;                                                        // a paused store could not send a cart: not the one to name
     ({ a, t } = words(w, 'stranded'));
-    expect([a.fix.select, a.fix.fetch, t.fix, t.action.aria]).toEqual([far.id, undefined, 'No store near the bazaar can Fetch it yet; Show me the one that holds it', 'Show me the storehouse that holds pottery']);
+    expect([a.fix.select, a.fix.fetch, t.fix, t.action.aria]).toEqual([far.id, undefined, 'No store near the bazaar can keep it stocked yet; Show me the one that holds it', 'Show me the storehouse that holds pottery']);
     removeBuilding(w, near.id);                                                // no store near the bazaar at all
     ({ a, t } = words(w, 'stranded'));
-    expect([a.fix.select, t.fix, t.action.aria]).toEqual([far.id, 'No store near the bazaar can Fetch it yet; Show me the one that holds it', 'Show me the storehouse that holds pottery']);
+    expect([a.fix.select, t.fix, t.action.aria]).toEqual([far.id, 'No store near the bazaar can keep it stocked yet; Show me the one that holds it', 'Show me the storehouse that holds pottery']);
   });
 });
 

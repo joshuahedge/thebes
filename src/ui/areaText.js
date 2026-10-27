@@ -58,11 +58,12 @@ export const ANOTHER_TEXT = {
     return `${head}: ${lower(reasonText(r.reason))}`;
   },
   noRoomWhy: (type, reason) => (BUILDINGS[type].terrain ? `no ${GROUND[BUILDINGS[type].terrain] || 'ground'} with room for it` : lower(reasonText(reason))),
-  // What the copy takes along, one short line: "Copies Fetch: pottery 100, linen 40 · refuses beer".
+  // What the copy takes along, one short line: "Copies Keep stocked: pottery 100, linen 40 · refuses beer". Version 8.3 (Track K, ruling 1419): an order with a
+  // chosen source says so ("pottery 100 from the same store").
   copy(copy, goodName) {
     if (!copy) return '';
     const parts = [];
-    if (copy.fetch && copy.fetch.length) parts.push(`Copies Fetch: ${copy.fetch.map((o) => `${goodName(o.good)} ${o.fetch}`).join(', ')}`);
+    if (copy.fetch && copy.fetch.length) parts.push(`Copies Keep stocked: ${copy.fetch.map((o) => `${goodName(o.good)} ${o.fetch}${Number.isInteger(o.from) ? ' from the same store' : ''}`).join(', ')}`);
     if (copy.refuses && copy.refuses.length) parts.push(`${parts.length ? '' : 'Copies settings: '}refuses ${copy.refuses.map((g) => goodName(g).toLowerCase()).join(', ')}`);
     return parts.join(' · ');
   },

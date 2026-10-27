@@ -21,15 +21,15 @@ function run(w, days, events = null) {
 }
 
 describe('s4 sim crews to sites', () => {
-  it('sends each guild\'s crew to the nearest open site within 12 road tiles with room, the nearer guild first', () => {
+  it('sends each guild\'s crew to the nearest open road-linked site with room (Version 8.3: at any distance), the nearer guild first', () => {
     const w = city();
     const g1 = guild(w, 12), g2 = guild(w, 16), g3 = guild(w, 0);
     const obelisk = addRaw(w, 'obelisk_small', 20, 9);    // 1 crew; road (20, 10): 8 road tiles from g1, 4 from g2
     const colossus = addRaw(w, 'colossus', 9, 8);         // 2 crews; road (9..10, 10): 3 from g1, 7 from g2, 9 from g3
-    const far = addRaw(w, 'obelisk_small', 29, 9);        // 17 from g1, 13 from g2: out of reach of both
+    const far = addRaw(w, 'obelisk_small', 29, 9);        // 17 from g1, 13 from g2: once out of reach of both (Version 8.3: a far site, a slower crew)
     expect([...crewPlan(w)]).toEqual([[g1.id, colossus.id], [g2.id, obelisk.id], [g3.id, colossus.id]]);
     const g4 = guild(w, 22);                              // 3 from the obelisk: it takes the obelisk's one place from g2
-    expect([...crewPlan(w)]).toEqual([[g1.id, colossus.id], [g4.id, obelisk.id], [g2.id, colossus.id]]);   // g3: the colossus is full
+    expect([...crewPlan(w)]).toEqual([[g1.id, colossus.id], [g4.id, obelisk.id], [g2.id, colossus.id], [g3.id, far.id]]);   // g3: the colossus is full, so it walks to the far site
     obelisk.paused = true;                                // pausing moves its crew: g4 to the far one, 7 away
     expect([...crewPlan(w)]).toEqual([[g1.id, colossus.id], [g2.id, colossus.id], [g4.id, far.id]]);
     obelisk.paused = false;

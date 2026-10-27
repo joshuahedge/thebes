@@ -29,6 +29,7 @@ export const FERRY_BUILDINGS = {
   },
 };
 
-// The ferries tip (How to play lists every tip): the first time a road meets water too wide for a bridge in the road tool, fired by the Map seam
-// (src/ui/s46/map.js) as 'roadTooWide'; its words are TIP_TEXT.ferries and TIP_HELP_TEXT.ferries (src/ui/v71/ferryText.js).
-export const FERRY_TIPS = [{ id: 'ferries', trigger: 'roadTooWide', priority: false }];
+// The ferries tip (How to play lists every tip). Version 8.3 (Track X, ruling 1401): it is the crossings tip, fired by the Map seam (src/ui/s46/map.js) as
+// 'roadCrossing' the first time the road tool's line meets water on a map with a river; it says both limits in one line. Its words are TIP_TEXT.ferries
+// and TIP_HELP_TEXT.ferries (src/ui/v71/ferryText.js). Its id stays 'ferries', so a player who has seen it is not told twice.
+export const FERRY_TIPS = [{ id: 'ferries', trigger: 'roadCrossing', priority: false }];

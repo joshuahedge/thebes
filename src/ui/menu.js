@@ -33,6 +33,7 @@ export function keyLabel(name) {
 // onScreenshot (Stage 3, spec 6.3): the menu's Screenshot mode; createUI enters the mode.
 // Version 8.2 (Track G): onPause pauses the game (the new-city card opens over a paused game); words(text) says a text as this city's map should (the Great oasis:
 // src/ui/v82/oasisText.js forMap), and mapHelp is How to play's paragraph about this map, or null.
+const BRIDGE_ONLY_TIPS = ['bridges'];   // Version 8.3 (ruling 1450): the crossings tip says the rule on a map with a river, so its How to play lists one crossing tip, not two
 const RIVER_ONLY_TIPS = ['quay_boats', 'ferries'];   // Version 8.2 (ruling 1335): tips a map with no river never fires, left out of its How to play
 export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCity = () => {}, version = APP_VERSION, canResumeGuide = () => false, onResumeGuide = () => {}, onScreenshot = null, onPause = () => {}, words = (s) => s, mapHelp = null }) {
   const open = (kind) => store.set(openSheet(store.get(), kind));
@@ -205,7 +206,7 @@ export function createMenuSheets({ store, settings, toasts, hooks = {}, onNewCit
     if (canResumeGuide()) {
       body.append(el('div', { class: 'actions' }, [button(T.resumeGuide, { class: 'resume-guide primary', onClick: () => { onResumeGuide(); if (close) close(); } })]));
     }
-    body.append(section(T.tips, el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.filter((tip) => tip.id !== 'gentle_motion' && !(mapHelp && RIVER_ONLY_TIPS.includes(tip.id))).map((tip) => el('li', { text: words(TIP_HELP_TEXT[tip.id] || TIP_TEXT[tip.id]) })))));   // Stage 4: a tip true only where it fires has its help words
+    body.append(section(T.tips, el('p', { class: 'muted', text: T.tipsHelp }), el('ul', { class: 'tips-list' }, TIPS.filter((tip) => tip.id !== 'gentle_motion' && !(mapHelp ? RIVER_ONLY_TIPS : BRIDGE_ONLY_TIPS).includes(tip.id)).map((tip) => el('li', { text: words(TIP_HELP_TEXT[tip.id] || TIP_TEXT[tip.id]) })))));   // Stage 4: a tip true only where it fires has its help words
   }
 
   function about(body) {

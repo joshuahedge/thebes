@@ -11,10 +11,10 @@ import { atLeast, milestoneIndex } from './progression.js';
 import { openRoutes } from './trade.js';
 import { raidsOn } from './costs.js';
 import { raidDirs } from './raids.js';
-import { MONUMENTS, MONUMENT } from '../data/monuments.js';
+import { MONUMENTS } from '../data/monuments.js';
 import { isMonument, isFinished } from './world.js';
-import { touchesRoad, buildingsInReach } from './reach.js';
-import { prestigeOf, monumentAlerts } from './monuments.js';
+import { touchesRoad } from './reach.js';
+import { prestigeOf, monumentAlerts, roadLinked } from './monuments.js';
 import { foodKinds as homeFoodKinds } from './housing.js';
 import { TIERS } from '../data/housing.js';
 import { desirabilityField, houseDesirability } from './desirability.js';
@@ -31,10 +31,10 @@ const countOf = (world, type) => allBuildings(world).filter((b) => b.type === ty
 const homesAtTier = (world, tier) => housesOf(world).filter((h) => h.tier >= tier).length;
 const hasAlert = (world, code) => alertsFor(world).some((a) => a.code === code);
 // Stage 4: monuments of a type finished (a finished monument needs no road, ruling 228), and whether a monument on a road
-// has a builders' guild within its crew reach. Reach alone is tested, not guildsNear: that skips a guild already on today's crew
-// plan, and a guild near the only open site is planned to it, so the goal would never be met.
+// has a builders' guild its roads reach (Version 8.3, ruling 1430: at any distance, a running ferry included, as crewPlan sends crews). Reach alone is
+// tested, not guildsNear: that skips a guild already on today's crew plan, and a guild near the only open site is planned to it, so the goal would never be met.
 const finishedOf = (world, type) => allBuildings(world).filter((b) => b.type === type && isFinished(b)).length;
-const crewNear = (world) => allBuildings(world).some((b) => isMonument(b) && touchesRoad(world, b) && buildingsInReach(world, b, MONUMENT.crewReach, (o) => o.type === 'builders_guild').length > 0);
+const crewNear = (world) => allBuildings(world).some((b) => isMonument(b) && touchesRoad(world, b) && roadLinked(world, b, (o) => o.type === 'builders_guild').length > 0);
 
 // Version 5.0 (Task 7): the most kinds of food any home holds in stock: what the home check counts for a third food (housing.js foodKinds), so a lodge
 // with no herd, or a store no bazaar draws from, does not meet the goal; the homes' own stock does.
