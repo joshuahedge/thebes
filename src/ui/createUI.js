@@ -197,7 +197,7 @@ export function createUI({
     const f = world.focus, end = world.startRoad.reduce((a, t) => (Math.hypot(t[0] - f.x, t[1] - f.y) < Math.hypot(a[0] - f.x, a[1] - f.y) ? t : a));
     cameraControl.keepVisible(end[0] + 0.5, end[1] + 0.5, undefined, OPEN_ROAD_MARGIN_PX, 0);
   }
-  const placement = createPlacement({ world, store, afterCommand, effects, now, roadMode: { get: () => settings.get().roadMode, set: (v) => settings.set({ roadMode: v }) } });
+  const placement = createPlacement({ world, store, afterCommand, effects, now, look: () => ({ x: cam.x, y: cam.y }), roadMode: { get: () => settings.get().roadMode, set: (v) => settings.set({ roadMode: v }) } });
   const speedControl = createSpeedControl({ world, store, afterCommand, onPausedHidden: () => toasts.show(T.pausedHidden), doc, keys: () => settings.get().keyboardShortcuts !== false });
   const alerts = createAlerts({
     world, banner: $('banner'), live: $('live'), onView: viewAlert, onNewCritical: () => sfx.play('alert'), root,
@@ -393,7 +393,7 @@ export function createUI({
     // (or plan) stay; starting it again would clear them. Any other tool, or a gate card, starts as before.
     const open = store.get().tool;
     const keepRoad = tool.kind === 'road' && !tool.gate && open && open.kind === 'road' && !open.gate;
-    if (!keepRoad) placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : null);   // road, plot and demolish tools ignore the point
+    if (!keepRoad) placement.start(tool, def ? { x: x - def.w / 2, y: y - def.d / 2 } : tool.kind === 'ferry' ? { x, y } : null);   // road, plot and demolish tools ignore the point; the Ferry tool ranks its crossings from it (Version 8.2.1)
     const g = def ? store.get().ghost : null;
     const dims = g ? dimsOf(tool.type, store.get().tool.rot || 0) : null;
     const keep = g ? { x: g.x + dims.w / 2, y: g.y + dims.d / 2 } : { x, y };

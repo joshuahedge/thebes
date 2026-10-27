@@ -43,6 +43,12 @@ export function undo(world) {
       world.wallVersion++;
     }
     refund(world, e.ids.length ? Math.round((e.cost * standing) / e.ids.length) : 0);
+    // Version 8.2.1 (ruling 1341): a ferry crossing's entry carries the road its stubs laid (roads: tile indices, roadCost): taken off and refunded with it.
+    if (e.roads && e.roads.length) {
+      for (const t of e.roads) world.road[t] = 0;
+      world.roadVersion++;
+      refund(world, e.roadCost || 0);
+    }
   } else if (e.kind === 'road') {
     for (const t of e.tiles) world.road[t] = 0;
     world.roadVersion++;

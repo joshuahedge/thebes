@@ -10,6 +10,17 @@ export const FERRY = { min: 5, max: 12, wait: 3, waterPerTile: 3 };
 
 export const FERRY_LANDING = 'ferry_landing';
 
+// Version 8.2.1 "Easier ferries" (rulings 1340-1359): the Ferry tool shows the best crossings near the roads and lays the roads a crossing needs
+// (src/sim/ferryFind.js is the rule):
+//   nearStub   the most road tiles laid from the near landing to the road network, when no road is beside it (ruling 1342)
+//   farStub    the road laid on from a landing that has no road beside it, away from the water, so buildings can join it (ruling 1343)
+//   shown      how many crossings the map shows at once (ruling 1345)
+//   apart      shown crossings are at least this many tiles apart (their middles, either way), so they are not one place twice (ruling 1345)
+//   band       nearness counts in bands of this many tiles, so what a crossing opens can tell two about as near apart (ruling 1344)
+//   opensR     the good ground a crossing opens: free fertile, clay and rocky tiles this many tiles about its far landing (ruling 1344)
+//   snap       a dragged line snaps to a crossing whose water lies at most this many tiles from the water it was dragged over (ruling 1347)
+export const FERRY_FIND = { nearStub: 3, farStub: 3, shown: 3, apart: 4, band: 8, opensR: 4, snap: 3 };
+
 // The landing's row. A crossing's price is two landings (ruling 1041): the card and the bar read it through costOf like any building.
 // Never a card of its own (buildable: false: the Ferry tool in the Roads tray lays both); one ferryman a landing, who must reach it by road.
 export const FERRY_BUILDINGS = {
