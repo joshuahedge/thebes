@@ -2508,25 +2508,32 @@ const cartTiles = (n) => plural(n, 'road tile', 'road tiles');
 const cartDays = (n) => plural(n, 'day', 'days');
 // "from the storehouse 34 road tiles east": the store the goods come from, how far along the roads and which way it lies.
 const cartWhere = (src) => `from the ${cartStore(src.type)} ${cartTiles(src.len)}${src.dir ? ` ${cartDir[src.dir]}` : ''}`;
+// Version 8.3 (Track K, rulings 1383 and 1428): "Fetch" is Keep stocked in every word, edited here in place.
+const k83Store = (type) => buildingName(type).toLowerCase();
+// Why a chosen store gives nothing now (src/sim/carts.js dryWhy), as the end of a sentence about that store.
+const k83Why = { empty: (g) => `has no ${g} to spare`, kept: (g) => `keeps its ${g} for its own order`, unlinked: () => 'is not joined to this store by road now', burning: () => 'is on fire' };
+// A dry chosen source (fetchStatus 'dry'): "The storehouse 31 road tiles north has no linen to spare, so the cart waits".
+const k83Dry = (st) => `The ${k83Store(st.source.type)}${Number.isFinite(st.source.len) ? ` ${cartTiles(st.source.len)}` : ''}${st.source.dir ? ` ${cartDir[st.source.dir]}` : ''}`
+  + ` ${(k83Why[st.why] || k83Why.empty)(cartGood(st.good))}, so the cart waits`;
 export const S47_CARTS_TEXT = {
-  group: 'Fetch', add: 'Fetch a good', clear: 'Stop fetching', set: 'Fetch', change: 'Change', showSource: 'Show the store',
-  amountLabel: (good) => `${goodName(good)}: fetch up to`,
-  setLabel: (good) => `Fetch ${cartGood(good)}`, clearLabel: (good) => `Stop fetching ${cartGood(good)}`,
-  help: `A ${cartStore('storehouse')} or ${cartStore('granary')} can Fetch a good from other stores by road: one cart, ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day each way. It never takes a store below what that store fetches for itself.`,
-  // The consequence of an order before the tap: Fetch pottery up to 100: one cart, 20 a trip, from the nearest store with pottery, 34 road tiles (a round trip takes 9 days).
-  consequence: (pv) => (!pv.source ? `Fetch ${cartGood(pv.good)}: no store with ${cartGood(pv.good)} to spare is linked by road`
-    : pv.state === 'full' ? `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: ${pv.held} held of ${pv.fetch}, no cart needed`
-    : pv.state === 'no_room' ? `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: no cart goes, the store is full`
-    : `Fetch ${cartGood(pv.good)} up to ${pv.fetch}: one cart, ${pv.perTrip} a trip, from the nearest store with ${cartGood(pv.good)}, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`),
+  group: 'Keep stocked', add: 'Keep a good stocked', clear: 'Stop keeping it stocked', set: 'Keep stocked', change: 'Change', showSource: 'Show the store',
+  amountLabel: (good) => `${goodName(good)}: keep stocked up to`,
+  setLabel: (good) => `Keep ${cartGood(good)} stocked`, clearLabel: (good) => `Stop keeping ${cartGood(good)} stocked`,
+  help: `A ${cartStore('storehouse')} or ${cartStore('granary')} can keep a good stocked from other stores by road: one cart, ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day each way. It never takes a store below what that store keeps for itself.`,
+  // The consequence of an order before the tap: "Keep pottery stocked up to 100: one cart, 20 a trip, from the nearest store with pottery, 34 road tiles (a round trip takes 9 days)".
+  consequence: (pv) => (!pv.source ? `Keep ${cartGood(pv.good)} stocked: no store with ${cartGood(pv.good)} to spare is linked by road`
+    : pv.state === 'full' ? `Keep ${cartGood(pv.good)} stocked up to ${pv.fetch}: ${pv.held} held of ${pv.fetch}, no cart needed`
+    : pv.state === 'no_room' ? `Keep ${cartGood(pv.good)} stocked up to ${pv.fetch}: no cart goes, the store is full`
+    : `Keep ${cartGood(pv.good)} stocked up to ${pv.fetch}: one cart, ${pv.perTrip} a trip, from the nearest store with ${cartGood(pv.good)}, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`),
   // The same, short, for a row of the store sheet (the good and the amount are in the row's own switch and stepper).
   consequenceRow: (pv) => (!pv.source ? `No store with ${cartGood(pv.good)} to spare is linked by road`
     : pv.state === 'full' ? `${pv.held} held of ${pv.fetch}, no cart needed`
     : pv.state === 'no_room' ? 'No cart goes, the store is full'
     : `One cart, ${pv.perTrip} a trip, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`),
   where: cartWhere,
-  // The Fetch control on a store's sheet (src/ui/s47/carts.js). Every number it shows comes from fetchPreview, fetchStatus, roadGoods and holderOf.
-  head: 'Fetch goods', none: 'No orders', count: (n) => plural(n, 'order', 'orders'), on: 'Fetching', off: 'Off',
-  less: (good) => `Fetch less ${cartGood(good)}`, more: (good) => `Fetch more ${cartGood(good)}`, upTo: (n) => `up to ${n}`,
+  // Keeps stocked on a store's sheet (src/ui/s47/carts.js). Every number it shows comes from fetchPreview, fetchStatus, roadGoods and holderOf.
+  head: 'Keeps stocked', none: 'No orders', count: (n) => plural(n, 'order', 'orders'), on: 'On', off: 'Off', switchWord: 'Keep stocked',
+  less: (good) => `Keep less ${cartGood(good)}`, more: (good) => `Keep more ${cartGood(good)}`, upTo: (n) => `up to ${n}`, upToWord: 'up to',
   showMe: 'Show me', showSourceLabel: (good, type) => `Show me the ${cartStore(type)} the ${cartGood(good)} comes from`, showHolderLabel: (good, type) => `Show me the ${cartStore(type)} that holds ${cartGood(good)}`,
   // What the source gives: a store with no order for the good of its own can be emptied; one with an order keeps it and gives only the rest.
   sourceNote: (good, src) => (src.keeps > 0
@@ -2538,40 +2545,44 @@ export const S47_CARTS_TEXT = {
   road: (r, kind) => (kind === 'leaving'
     ? `${r.amount} ${cartGood(r.good)} on the road${r.type ? ` to the ${cartStore(r.type)}` : ''}`
     : `${r.amount} ${cartGood(r.good)} on the road ${r.back ? 'back here' : 'to here'}`),
-  // The order's live line: "Fetching pottery: 40 on the way, back in 3 days, from the storehouse 34 road tiles east".
+  // The order's live line under its row (the row names the good): "40 on the way, back in 3 days, from the storehouse 34 road tiles east".
   status: (st) => {
-    const g = cartGood(st.good), head = `Fetching ${g}`;
+    const g = cartGood(st.good);
     switch (st.state) {
-      case 'out': case 'back': return `${head}: ${st.amount} on the way, ${st.days ? `back in ${cartDays(st.days)}` : 'back today'}${st.source ? `, ${cartWhere(st.source)}` : ''}`;
-      case 'return': return `${head}: the road is cut, so the cart turned round${st.days ? ` (${cartDays(st.days)} to go)` : ''}`;
-      case 'other': return `${head}: the cart serves another good first`;
-      case 'full': return `${head}: ${st.held} held of ${st.fetch}, no cart needed`;
-      case 'refused': return `${head}: this store refuses ${g}, so no cart goes`;
-      case 'unstaffed': return `${head}: no cart goes while this store is short of workers (${st.staff} of ${st.workers}) or off the road`;
-      case 'no_room': return `${head}: no cart goes, the store is full`;
-      case 'no_source': return `${head}: no store with ${g} to spare is linked by road`;
-      default: return `${head}: a cart sets out next for ${st.amount}, ${cartWhere(st.source)}`;
+      case 'out': case 'back': return `${st.amount} on the way, ${st.days ? `back in ${cartDays(st.days)}` : 'back today'}${st.source ? `, ${cartWhere(st.source)}` : ''}`;
+      case 'return': return `The road is cut, so the cart turned round${st.days ? ` (${cartDays(st.days)} to go)` : ''}`;
+      case 'other': return 'The cart serves another good first';
+      case 'full': return `${st.held} held of ${st.fetch}, no cart needed`;
+      case 'refused': return `This store does not take in ${g}, so no cart goes`;
+      case 'unstaffed': return `No cart goes while this store is short of workers (${st.staff} of ${st.workers}) or off the road`;
+      case 'no_room': return 'No cart goes, the store is full';
+      case 'no_source': return `No store with ${g} to spare is linked by road`;
+      case 'dry': return k83Dry(st);
+      default: return `A cart sets out next for ${st.amount}, ${cartWhere(st.source)}`;
     }
   },
-  // Refusals (setFetch's result): each says why.
+  // Refusals (setFetch's and setSource's results): each says why.
   refusal: (r) => {
     const g = r.good ? cartGood(r.good) : 'that';
     switch (r.reason) {
-      case 'not_storage': return 'Only a storehouse or a granary can fetch goods';
+      case 'not_storage': return 'Only a storehouse or a granary can keep goods stocked';
       case 'cannot_store': return `This store cannot hold ${g}`;
-      case 'refuses': return `This store refuses ${g}: let it accept ${g} first`;
+      case 'refuses': return `This store does not take in ${g}: switch ${g} on under Takes in first`;
       case 'bad_amount': return `Choose a whole number from 1 to ${r.max}`;
       case 'no_source': return `No store with ${g} to spare is linked by road`;
-      case 'no_order': return `This store is not fetching ${g}`;
+      case 'no_order': return `This store does not keep ${g} stocked`;
+      case 'same_store': return 'A store cannot keep itself stocked: pick another store';
+      case 'not_holder': return `${r.type ? `A ${k83Store(r.type)}` : 'That'} cannot hold ${g}: pick a lit store`;
+      case 'unlinked': return `No road joins that ${r.type ? k83Store(r.type) : 'store'} to this one`;
       default: return 'Nothing is here';
     }
   },
   lost: (e) => `A cart lost ${e.amount} ${cartGood(e.good)}: no store had room for them`,
   first: { head: 'The first cart home', why: `A cart brought goods from another store along the roads: ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day each way.` },
-  tip: 'Some homes wait on a good only a far store holds. Set a storehouse near them to Fetch it.',
-  tipHelp: `Open a store to Fetch goods from other stores by cart: ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day.`,
-  // The tip with the city's own good (farGoodTip): "Set a storehouse near these homes to Fetch pottery".
-  tipFor: (tip) => `Set a ${cartStore('storehouse')} near these homes to Fetch ${cartGood(tip.good)}`,
+  tip: 'Some homes wait on a good only a far store holds. Set a storehouse near them to keep it stocked.',
+  tipHelp: `Open a store to keep goods stocked from other stores by cart: ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day.`,
+  // The tip with the city's own good (farGoodTip): "Set a storehouse near these homes to keep pottery stocked".
+  tipFor: (tip) => `Set a ${cartStore('storehouse')} near these homes to keep ${cartGood(tip.good)} stocked`,
 };
 FIRST_TEXT.first_cart_trip = S47_CARTS_TEXT.first;
 TIP_TEXT.fetch_far = S47_CARTS_TEXT.tip;
@@ -2665,11 +2676,11 @@ export const S47_PRESSURE_TEXT = {
     // there, the far store that holds the good.
     const near = fetchStoreFor(world, cause);
     return { cause: `${goodName(cause.good)} is held only in a ${cartStore(s ? s.type : 'storehouse')} ${cartTiles(cause.len)} from the bazaar`,
-      fix: near ? `The ${cartStore(near.type)} near the bazaar can Fetch it by cart` : 'No store near the bazaar can Fetch it yet; Show me the one that holds it' };
+      fix: near ? `The ${cartStore(near.type)} near the bazaar can keep it stocked by cart` : 'No store near the bazaar can keep it stocked yet; Show me the one that holds it' };
   },
   showFar: (cause, world) => {
     const near = fetchStoreFor(world, cause), s = world.buildings[cause.id];
-    return near ? `Show me the ${cartStore(near.type)} near the bazaar that can Fetch ${cartGood(cause.good)}` : `Show me the ${cartStore(s ? s.type : 'storehouse')} that holds ${cartGood(cause.good)}`;
+    return near ? `Show me the ${cartStore(near.type)} near the bazaar that can keep ${cartGood(cause.good)} stocked` : `Show me the ${cartStore(s ? s.type : 'storehouse')} that holds ${cartGood(cause.good)}`;
   },
 };
 FIRST_TEXT.first_quota_met = S47_PRESSURE_TEXT.first;
@@ -3147,16 +3158,16 @@ export const LARGE_TEXT = {
   progress: { label: 'Large plot: what it waits on', words: `A Large plot with no people in it is shown like a home: the icon is the first need it waits on before people move in as ${lgAn(lgManor)}, a tick means it is ready` },
 };
 // The Estate trick (ruling 586, said by the advice since Version 6.0): a workshop (the weaver, the jeweller) with no room beside the store holding its input goes in the open with a
-// store of its own that Fetches the input. Two steps, each worded from the fix's `open` (src/sim/advice.js openWorkshop): the store (priced, with the workshop's price named), then the
-// workshop beside it; the Fetch order is the clause both end on. Names are the data's (buildingName, goodName).
+// store of its own that keeps the input stocked. Two steps, each worded from the fix's `open` (src/sim/advice.js openWorkshop): the store (priced, with the workshop's price named),
+// then the workshop beside it; keeping the input stocked is the clause both end on (Version 8.3, ruling 1428: no longer "Fetch"). Names are the data's (buildingName, goodName).
 const ocName = (type) => buildingName(type).toLowerCase();
 export const OPEN_TEXT = {
   // The step line's rest (after "Next step:"): `price` is the line's own "(70 gold)" (with how short the treasury is, when it is).
-  stepStore: (o, price, makerGold, holderType) => `${lgAn(ocName(o.store))} in the open ${price}, then ${lgAn(ocName(o.maker))} beside it (${makerGold} gold) and a Fetch order for ${goodName(o.input).toLowerCase()}: no room beside the ${ocName(holderType)} that holds it`,
-  stepMaker: (o, price, storeType) => `${lgAn(ocName(o.maker))} beside the ${ocName(storeType)} you laid ${price}, then set that ${ocName(storeType)} to Fetch ${goodName(o.input).toLowerCase()}`,
+  stepStore: (o, price, makerGold, holderType) => `${lgAn(ocName(o.store))} in the open ${price}, then ${lgAn(ocName(o.maker))} beside it (${makerGold} gold), with the ${ocName(o.store)} set to keep ${goodName(o.input).toLowerCase()} stocked: no room beside the ${ocName(holderType)} that holds it`,
+  stepMaker: (o, price, storeType) => `${lgAn(ocName(o.maker))} beside the ${ocName(storeType)} you laid ${price}, then set that ${ocName(storeType)} to keep ${goodName(o.input).toLowerCase()} stocked`,
   // The advice card's fix words (the cost line prices every building named here).
-  adviceStore: (o, holderType) => `${lgAn(ocName(o.store))} in the open, then ${lgAn(ocName(o.maker))} beside it, set to Fetch ${goodName(o.input).toLowerCase()}: no room beside the ${ocName(holderType)} that holds it`,
-  adviceMaker: (o, storeType) => `${lgAn(ocName(o.maker))} beside the ${ocName(storeType)} you laid, then set that ${ocName(storeType)} to Fetch ${goodName(o.input).toLowerCase()}`,
+  adviceStore: (o, holderType) => `${lgAn(ocName(o.store))} in the open, then ${lgAn(ocName(o.maker))} beside it, the ${ocName(o.store)} set to keep ${goodName(o.input).toLowerCase()} stocked: no room beside the ${ocName(holderType)} that holds it`,
+  adviceMaker: (o, storeType) => `${lgAn(ocName(o.maker))} beside the ${ocName(storeType)} you laid, then set that ${ocName(storeType)} to keep ${goodName(o.input).toLowerCase()} stocked`,
 };
 // The Layers picker's locked layers (the 5.0 loose end, ruling 706): greyed, with the rank that unlocks each (src/data/layers.js LAYER_UNLOCK) in words, never by grey alone.
 import { LAYER_UNLOCK as lgUnlock } from '../data/layers.js';
@@ -3784,17 +3795,17 @@ export const ADVICE_FIX_TEXT = {
   towerNoRoom: (guard) => `No free tile lies within ${a7Defence.towerRange} tiles of ${a7Where(guard)}`,
   towerNoRoomFix: 'Clear a tile near it, then a road beside the tile',
   // Stranded goods: a store of its own by the bazaar, when one cart could not bring an order's worth a month from the store that holds the good.
-  // With no maker in reach of the new store (far.maker null) it fills only by a Fetch order over the same slow run (ruling 989), and the words say so with the cart's real
+  // With no maker in reach of the new store (far.maker null) it fills only by an order to keep the good stocked over the same slow run (ruling 989), and the words say so with the cart's real
   // monthly amount; with a maker in reach the store fills from it. The card knows no good: it says "a maker"; the step names the maker the good comes from.
   strandedFix: (far, good = null) => {
     const maker = far.maker !== null && far.maker !== undefined, slow = far.perMonth > 0 ? `one cart brings about ${far.perMonth} a month` : 'one cart could not bring a load in a month';
-    if (!maker) return `Build ${a7An(a7Name(far.item))} near this bazaar, then set a Fetch order on it: ${slow} from ${far.len} road tiles away, under the ${a7Sensible()} that one order asks; ${a7An(a7MakerWord(good))} in reach fills it faster`;
+    if (!maker) return `Build ${a7An(a7Name(far.item))} near this bazaar, then set it to keep the good stocked: ${slow} from ${far.len} road tiles away, under the ${a7Sensible()} that one order asks; ${a7An(a7MakerWord(good))} in reach fills it faster`;
     return `Build ${a7An(a7Name(far.item))} near this bazaar, where what is made can reach it: ${far.perMonth > 0 ? `one cart would bring only ${far.perMonth} a month` : 'one cart could not bring a load in a month'} from ${far.len} road tiles away, under the ${a7Sensible()} that one order asks`;
   },
   // The house sheet's next step for the same cause: "a storehouse near the bazaar (70 gold) keeps pottery where the bazaar draws it: ...".
   strandedStep: (far, price, good) => (far.maker !== null && far.maker !== undefined
     ? `${a7An(a7Name(far.item))} near the bazaar (${price}) keeps ${good} where the bazaar draws it: one cart would bring ${far.perMonth > 0 ? `only ${far.perMonth}` : 'no load'} a month from the store ${far.len} road tiles away`
-    : `${a7An(a7Name(far.item))} near the bazaar (${price}) holds ${good} where the bazaar draws it, then set a Fetch order on it: ${far.perMonth > 0 ? `one cart brings about ${far.perMonth} a month` : 'one cart brings no load in a month'} from the store ${far.len} road tiles away; ${a7An(a7MakerWord(good))} in reach fills it faster`),
+    : `${a7An(a7Name(far.item))} near the bazaar (${price}) holds ${good} where the bazaar draws it, then set it to keep ${good} stocked: ${far.perMonth > 0 ? `one cart brings about ${far.perMonth} a month` : 'one cart brings no load in a month'} from the store ${far.len} road tiles away; ${a7An(a7MakerWord(good))} in reach fills it faster`),
   // The Quay missing for an open river route.
   quayWhat: (names) => `${listText(names)} ${names.length === 1 ? 'has an open route' : 'have open routes'} and no Quay for ${names.length === 1 ? 'its boats' : 'their boats'} to land at`,
   quayWhy: `Boats land only at a Quay: ${a7QuaySize.w} by ${a7QuaySize.d}, a long side on the river and a road beside it. None comes until one stands`,
@@ -3853,7 +3864,7 @@ CITY_EVENT_TEXT.hold = (until, type) => `${type === 'quarry' ? 'On strike' : 'St
 // How to play: what City advice says now, and the Quay.
 V70_HELP.a.push(
   { head: 'The Quay', text: `A Quay is ${a7QuaySize.w} by ${a7QuaySize.d}: one long side on the river (an oasis pool does not count), a road beside it, and ${a7TradeBuildings[a7Quay].workers} workers. Boats from river partners land at the first Quay that works and has a road, and trade with the stores within ${a7Reach} road tiles of it, as caravans do at the trading post. If a river route is open and no Quay stands, City advice says so and Show me aims at a bank where one fits.` },
-  { head: 'Towers and storehouses in City advice', text: `When a raid needs more towers, Show me puts the first within ${a7Defence.towerRange} tiles of the building the raiders strike first, on a tile with a road beside it so it can be staffed; where no such tile exists it says to lay a road to there first. When a good is kept only in a store so far from the bazaar that one cart would bring less than ${a7Sensible()} a month (one Fetch order's size), Advice says to build a store beside the bazaar, and Show me finds the place; nearer than that a Fetch order does it.` },
+  { head: 'Towers and storehouses in City advice', text: `When a raid needs more towers, Show me puts the first within ${a7Defence.towerRange} tiles of the building the raiders strike first, on a tile with a road beside it so it can be staffed; where no such tile exists it says to lay a road to there first. When a good is kept only in a store so far from the bazaar that one cart would bring less than ${a7Sensible()} a month (what one order to keep a good stocked asks), Advice says to build a store beside the bazaar, and Show me finds the place; nearer than that, a store set to keep the good stocked does it.` },
   { head: 'Trade and events in City advice', text: `City advice lists three more things: an event waiting for your answer, a river route open with no Quay to land at, and a Keep at least level that holds back sales while the treasury is running out. Each says what to do and opens the right place: the event's card, the riverbank, or the Trade sheet. Keep at least is also why a caravan or boat sells nothing: it counts only what is stored near its trading post or Quay.` },
 );
 TIP_TEXT.quay_boats = 'A Quay is where boats land: on the river, beside a road. Open a river route in Trade.';
@@ -3999,75 +4010,9 @@ Object.assign(REASONS, { no_river: g82Oasis.noQuay });
 // Supply lines layer's legend (src/ui/layersLegend.js), the tips, How to play, Recent and City advice. Every number comes from the sim (src/sim/carts.js
 // fetchPreview, fetchStatus, orderSource, sourceChoices; src/sim/adviceFixes.js keepStockedAdvice) or its data (CARTS, MONUMENT).
 import { MONUMENT as k83Monument } from '../data/monuments.js';
-const k83Store = (type) => buildingName(type).toLowerCase();
 const k83Cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const k83Tiles = (n) => plural(n, 'tile', 'tiles');
-// Why a chosen store gives nothing now (src/sim/carts.js dryWhy), as the end of a sentence about that store.
-const k83Why = { empty: (g) => `has no ${g} to spare`, kept: (g) => `keeps its ${g} for its own order`, unlinked: () => 'is not joined to this store by road now', burning: () => 'is on fire' };
-const k83Dry = (st) => `The ${k83Store(st.source.type)}${Number.isFinite(st.source.len) ? ` ${cartTiles(st.source.len)}` : ''}${st.source.dir ? ` ${cartDir[st.source.dir]}` : ''}`
-  + ` ${(k83Why[st.why] || k83Why.empty)(cartGood(st.good))}, so the cart waits`;
-// The older words that said Fetch, said again in this release's words (the sentences are otherwise as they were).
-// A sentence, or each sentence of a { cause, fix } record.
-const k83Reword = (s) => {
-  if (s && typeof s === 'object') return Object.fromEntries(Object.entries(s).map(([k, v]) => [k, k83Reword(v)]));
-  return typeof s !== 'string' ? s : s
-    .replace(/\bFetch orders?\b/g, (m) => (m.endsWith('s') ? 'Keep stocked orders' : 'Keep stocked order'))
-    .replace(/\bFetch it\b/g, 'keep it stocked')
-    .replace(/\bFetch (\w+)/g, 'keep $1 stocked');
-};
-const k83Wrap = (obj, keys) => { for (const k of keys) { const f = obj[k]; obj[k] = typeof f === 'function' ? (...a) => k83Reword(f(...a)) : k83Reword(f); } };
-Object.assign(S47_CARTS_TEXT, {
-  group: 'Keep stocked', add: 'Keep a good stocked', clear: 'Stop keeping it stocked', set: 'Keep stocked',
-  amountLabel: (good) => `${goodName(good)}: keep stocked up to`,
-  setLabel: (good) => `Keep ${cartGood(good)} stocked`, clearLabel: (good) => `Stop keeping ${cartGood(good)} stocked`,
-  help: `A ${cartStore('storehouse')} or ${cartStore('granary')} can keep a good stocked from other stores by road: one cart, ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day each way. It never takes a store below what that store keeps for itself.`,
-  consequence: (pv) => (!pv.source ? `Keep ${cartGood(pv.good)} stocked: no store with ${cartGood(pv.good)} to spare is linked by road`
-    : pv.state === 'full' ? `Keep ${cartGood(pv.good)} stocked up to ${pv.fetch}: ${pv.held} held of ${pv.fetch}, no cart needed`
-    : pv.state === 'no_room' ? `Keep ${cartGood(pv.good)} stocked up to ${pv.fetch}: no cart goes, the store is full`
-    : `Keep ${cartGood(pv.good)} stocked up to ${pv.fetch}: one cart, ${pv.perTrip} a trip, from the nearest store with ${cartGood(pv.good)}, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`),
-  head: 'Keeps stocked', on: 'On', off: 'Off', switchWord: 'Keep stocked',
-  less: (good) => `Keep less ${cartGood(good)}`, more: (good) => `Keep more ${cartGood(good)}`, upTo: (n) => `up to ${n}`, upToWord: 'up to',
-  // The live line under an order's row (the row names the good): "40 on the way, back in 3 days, from the storehouse 34 road tiles east".
-  status: (st) => {
-    const g = cartGood(st.good);
-    switch (st.state) {
-      case 'out': case 'back': return `${st.amount} on the way, ${st.days ? `back in ${cartDays(st.days)}` : 'back today'}${st.source ? `, ${cartWhere(st.source)}` : ''}`;
-      case 'return': return `The road is cut, so the cart turned round${st.days ? ` (${cartDays(st.days)} to go)` : ''}`;
-      case 'other': return 'The cart serves another good first';
-      case 'full': return `${st.held} held of ${st.fetch}, no cart needed`;
-      case 'refused': return `This store does not take in ${g}, so no cart goes`;
-      case 'unstaffed': return `No cart goes while this store is short of workers (${st.staff} of ${st.workers}) or off the road`;
-      case 'no_room': return 'No cart goes, the store is full';
-      case 'no_source': return `No store with ${g} to spare is linked by road`;
-      case 'dry': return k83Dry(st);
-      default: return `A cart sets out next for ${st.amount}, ${cartWhere(st.source)}`;
-    }
-  },
-  refusal: (r) => {
-    const g = r.good ? cartGood(r.good) : 'that';
-    switch (r.reason) {
-      case 'not_storage': return 'Only a storehouse or a granary can keep goods stocked';
-      case 'cannot_store': return `This store cannot hold ${g}`;
-      case 'refuses': return `This store does not take in ${g}: switch ${g} on under Takes in first`;
-      case 'bad_amount': return `Choose a whole number from 1 to ${r.max}`;
-      case 'no_source': return `No store with ${g} to spare is linked by road`;
-      case 'no_order': return `This store does not keep ${g} stocked`;
-      case 'same_store': return 'A store cannot keep itself stocked: pick another store';
-      case 'not_holder': return `${r.type ? `A ${k83Store(r.type)}` : 'That'} cannot hold ${g}: pick a lit store`;
-      case 'unlinked': return `No road joins that ${r.type ? k83Store(r.type) : 'store'} to this one`;
-      default: return 'Nothing is here';
-    }
-  },
-  tip: 'Some homes wait on a good only a far store holds. Set a storehouse near them to keep it stocked.',
-  tipHelp: `Open a store to keep goods stocked from other stores by cart: ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day.`,
-  tipFor: (tip) => `Set a ${cartStore('storehouse')} near these homes to keep ${cartGood(tip.good)} stocked`,
-});
-TIP_TEXT.fetch_far = S47_CARTS_TEXT.tip;
-TIP_HELP_TEXT.fetch_far = S47_CARTS_TEXT.tipHelp;
-k83Wrap(S47_PRESSURE_TEXT, ['goodFar', 'showFar']);
-k83Wrap(OPEN_TEXT, ['stepStore', 'stepMaker', 'adviceStore', 'adviceMaker']);
-k83Wrap(ADVICE_FIX_TEXT, ['strandedFix', 'strandedStep']);
-for (const p of [...Object.values(V60_HELP).flat(), ...Object.values(V70_HELP).flat()]) p.text = k83Reword(p.text);
+// The S47_CARTS_TEXT words, the older advice, Estate and How to play sentences that said Fetch are edited in place where they stand (ruling 1428).
 
 // The store sheet's two parts and an order's row (src/ui/s47/carts.js): Takes in (a storehouse's switches for what producers may deliver) and Keeps stocked.
 export const KEEP_TEXT = {
@@ -4093,7 +4038,10 @@ export const KEEP_TEXT = {
 // The pick on the map (src/ui/s47/sourcePick.js): the bar's words, each lit store's line (sourceChoices) and why a tap there does not pick it.
 const k83Not = { empty: () => 'none held', kept: () => 'keeps all for its own order', unlinked: () => 'no road', burning: () => 'on fire' };
 export const PICK_TEXT = {
-  head: (good) => `Pick the store to bring ${cartGood(good)} from`,
+  // Whom the pick is for: the store being set, marked "To here" on the map while in sight, else where it lies from the middle of the view (sourcePick homeWhere).
+  head: (good, home) => `Pick the store to bring ${cartGood(good)} from, ${!home ? 'for this store'
+    : home.off ? `for the ${k83Store(home.type)} ${k83Tiles(home.off.tiles)} ${cartDir[home.off.dir]} of the view` : `for this ${k83Store(home.type)} (${PICK_TEXT.homeLabel})`}`,
+  homeLabel: 'To here',
   hint: 'Tap a lit store on the map, or pick one here.',
   nearest: 'Nearest', nearestAria: (good) => `Keep ${cartGood(good)} stocked from the nearest store that can spare it`,
   cancel: 'Cancel', cancelAria: 'Cancel the pick and go back to the store',
@@ -4129,7 +4077,7 @@ V70_HELP.p.push({ head: 'Keep stocked and supply lines', text: `A storehouse or 
     const t = base(alert, world);
     const s = alert && alert.code === 'bazaar_empty' && alert.reason === 'granary_low' && alert.spare ? world.buildings[alert.spare.id] : null;
     const home = s && alert.store ? world.buildings[alert.store] : null;
-    return s && home ? { ...t, fix: `The ${k83Store(s.type)} ${cartTiles(alert.spare.len)} away can spare ${alert.spare.spare} ${cartGood(alert.spare.good)}: keep the ${k83Store(home.type)} stocked from it` } : t;
+    return s && home ? { ...t, fix: `The ${k83Store(s.type)} ${cartTiles(alert.spare.len)} away can spare ${alert.spare.spare} ${cartGood(alert.spare.good)}: keep the ${k83Store(home.type)} stocked with ${cartGood(alert.spare.good)} from the nearest store that can spare it` } : t;
   };
 }
 
@@ -4140,10 +4088,10 @@ V70_ADVICE_WORDS.keep_stocked = (a, world) => {
   const from = src ? `The ${k83Store(src.type)} ${cartTiles(d.len)} away can spare ${d.spare} ${g}` : '';
   if (d.case === 'bazaar') {
     const store = world.buildings[d.store], name = store ? k83Store(store.type) : 'granary';
-    return { what: `The ${name} by the bazaar runs low on food`, why: from, fix: `Keep the ${name} stocked with ${g} from it` };
+    return { what: `The ${name} by the bazaar runs low on food`, why: from, fix: `Keep the ${name} stocked with ${g} from the nearest store that can spare it` };   // what setFetch does: Nearest (the "from" pick names that store if the player wants it)
   }
   const site = world.buildings[d.site], what = `The ${site ? k83Store(site.type) : 'monument'} site is short of ${g}`, reach = cartTiles(k83Monument.supplyReach);
   if (d.build) return { what, why: `${from}, and no storehouse stands within ${reach} of the site`, fix: `Build a storehouse near the site, then keep it stocked with ${g}` };
-  return { what, why: `${from}; a storehouse within ${reach} supplies the site`, fix: `Keep the storehouse by the site stocked with ${g} from it` };
+  return { what, why: `${from}; a storehouse within ${reach} supplies the site`, fix: `Keep the storehouse by the site stocked with ${g} from the nearest store that can spare it` };
 };
 // ── end v83 k ──

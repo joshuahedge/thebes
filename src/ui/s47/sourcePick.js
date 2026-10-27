@@ -2,22 +2,24 @@
 // the sheet steps aside (src/ui/modes.js startPick) and the map takes the screen with one bar at its foot (UX rule 1's exception: the map itself, with a bar).
 //   On the map   every other store that can hold the good is lit with what it can spare, or dimmed with the reason (src/sim/carts.js sourceChoices), each with
 //                its road route from the order's store (src/render/layers.js drawPickChoices). Pan and zoom work as ever.
-//   The bar      "Pick the store to bring grain from"; a button for each store the map lights (the keyboard's path: Tab, Enter or Space), Nearest and Cancel,
+//   The bar      "Pick the store to bring grain from, for this granary (To here)", or with the map panned away from it "..., for the granary 31 tiles
+//                south of the view"; a button for each store the map lights (the keyboard's path: Tab, Enter or Space), Nearest and Cancel,
 //                and a status line that says why a tap did not pick (a building that cannot hold the good, the store itself, no road).
 //   A pick       setSource: the order keeps that store until the player changes it (ruling 1384); Nearest sets it back to today's rule. Either one, Cancel,
 //                Back or Esc ends the pick on the store's sheet.
-import { setSource, sourceChoices, isStore, orderOf } from '../../sim/carts.js';
+import { setSource, sourceChoices, isStore, orderOf, compass } from '../../sim/carts.js';
+import { tileToScreen, screenToTile, MIN_ZOOM } from '../../render/camera.js';
 import { drawPickChoices } from '../../render/layers.js';
 import { isPicking, startPick, endPick } from '../modes.js';
 import { el, button } from '../components.js';
 import { PICK_TEXT as W, S47_CARTS_TEXT } from '../text.js';
 import { ART_SCALE } from '../../render/iso.js';
-import { MIN_ZOOM } from '../../render/camera.js';
 
 const TOP_ROWS_PX = 104;   // the top bar and one row under it (a goal or a notice) that the framing keeps clear of
 const FRAME_MARGIN = 24, FRAME_CHOICES = 3;
 
-export function createSourcePick({ world, store, container, cameraControl = null, afterCommand = () => {}, pickAt = () => null }) {
+// camera: () => ({ cam, view }) for the head's words about where the store being set lies (omitted: the head never says it is off the map).
+export function createSourcePick({ world, store, container, cameraControl = null, afterCommand = () => {}, pickAt = () => null, camera = null }) {
   const head = el('p', { class: 'pick-head', id: 'source-pick-head' });
   const status = el('p', { class: 'pick-status small muted', role: 'status', 'aria-live': 'polite' });
   const list = el('ul', { class: 'pick-choices' });
@@ -41,8 +43,8 @@ export function createSourcePick({ world, store, container, cameraControl = null
     sig = next;
     const active = document.activeElement;   // the page's own (createUI's doc may be a test's stand-in with no focus)
     const had = active && list.contains(active) ? Number(active.dataset.id) : null;
-    list.replaceChildren(...choices.map((c) => el('li', {}, [button(W.choice(c, good), {
-      class: `pick-choice${c.why ? ' dim' : ''}`, dataset: { id: c.id }, 'aria-label': W.choiceAria(c, good), 'aria-pressed': String(c.chosen),
+    list.replaceChildren(...choices.map((c) => el('li', {}, [button(W.choice(c, good), {   // a one-shot pick, so no pressed state: the words say which is chosen
+      class: `pick-choice${c.why ? ' dim' : ''}${c.chosen ? ' chosen' : ''}`, dataset: { id: c.id }, 'aria-label': W.choiceAria(c, good),
       onClick: () => choose(c.id), onFocus: () => aim(c.id), onBlur: () => { if (focusId === c.id) focusId = null; },
     })])));
     if (!choices.length) list.append(el('li', { class: 'pick-none small muted', text: W.none(good) }));
@@ -83,6 +85,20 @@ export function createSourcePick({ world, store, container, cameraControl = null
     cameraControl.frameKeeping(q.x, q.y, q.x, q.y, at, FRAME_MARGIN, undefined, { up: 40, down: 24, side: 40 }, Math.max(MIN_ZOOM, Math.min(1, fit * 2)));
   }
 
+  // Where the store being set lies from the map the bar leaves free: { type, off: null } while it is in sight, else off: { tiles, dir } (straight tiles from the
+  // middle of the free map to the store's middle, and the compass word the sim uses for directions, src/sim/carts.js compass).
+  function homeWhere(b) {
+    const out = { type: b.type, off: null };
+    const c = camera ? camera() : null;
+    if (!c) return out;
+    const { at } = insets(), v = c.view, x = b.x + b.w / 2, y = b.y + b.d / 2;
+    const [sx, sy] = tileToScreen(c.cam, v, x, y);
+    if (sx >= at.left && sx <= v.width - at.right && sy >= at.top && sy <= v.height - at.bottom) return out;
+    const mid = screenToTile(c.cam, v, at.left + (v.width - at.left - at.right) / 2, at.top + (v.height - at.top - at.bottom) / 2);
+    const dx = x - mid.x, dy = y - mid.y, dir = compass(dx, dy);
+    return dir ? { ...out, off: { tiles: Math.round(Math.hypot(dx, dy)), dir } } : out;
+  }
+
   function choose(id) {
     const p = pick();
     if (!p) return;
@@ -110,7 +126,7 @@ export function createSourcePick({ world, store, container, cameraControl = null
     if (!isStore(b) || !orderOf(b, good)) { leave(); return; }   // the store or its order went while the bar was up
     const key = `${home}|${good}`;
     const fresh = key !== at;
-    if (fresh) { at = key; sig = ''; say(W.hint); head.textContent = W.head(good); nearest.setAttribute('aria-label', W.nearestAria(good)); }
+    if (fresh) { at = key; sig = ''; say(W.hint); head.textContent = W.head(good, { type: b.type, off: null }); nearest.setAttribute('aria-label', W.nearestAria(good)); }
     fill(home, good);
     node.hidden = false;
     if (fresh) {
@@ -143,12 +159,15 @@ export function createSourcePick({ world, store, container, cameraControl = null
       if (choices.some((c) => c.id === b.id)) { choose(b.id); return; }
       say(W.notStore(b.type, p.good));
     },
-    // The map's part, once a frame (createUI's overlay layer): the choices as they stand (a day's stocks change them), the bar following.
+    // The map's part, once a frame (createUI's overlay layer): the choices as they stand (a day's stocks change them), the bar following, and the head saying
+    // where the store being set is when the map has been panned away from it.
     draw(g) {
       const p = pick();
       if (!p || !world.buildings[p.home]) return;
       fill(p.home, p.good);
-      drawPickChoices(g, world, p.home, choices, (c) => W.label(c), focusId);
+      drawPickChoices(g, world, p.home, choices, (c) => W.label(c), focusId, W.homeLabel);
+      const text = W.head(p.good, homeWhere(world.buildings[p.home]));
+      if (head.textContent !== text) head.textContent = text;
     },
     choices: () => choices,
     destroy() { stop(); node.remove(); },

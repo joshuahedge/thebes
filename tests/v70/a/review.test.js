@@ -12,7 +12,8 @@ import { TIP_TEXT } from '../../../src/ui/text.js';
 import { PARTNERS, QUAY_TYPE } from '../../../src/data/trade.js';
 
 const ofKind = (w, kind) => cityAdvice(w).filter((a) => a.kind === kind);
-const FETCH = 'then set a Keep stocked order on it: one cart brings about';   // Version 8.3: Keep stocked
+// Version 8.3 (ruling 1426): the order is to keep the good stocked; the card knows no good ("the good"), the step names it.
+const FETCH = 'then set it to keep the good stocked: one cart brings about', FETCH_STEP = 'then set it to keep pottery stocked: one cart brings about';
 
 describe('v70 a review: stranded advice names the Fetch order when no maker is in reach (ruling 989)', () => {
   it('with no maker the card and the step both add the Fetch clause with the cart\'s real monthly amount (cartMonthly) and name the maker', () => {
@@ -27,7 +28,7 @@ describe('v70 a review: stranded advice names the Fetch order when no maker is i
     expect(card.endsWith('a maker in reach fills it faster')).toBe(true);
     expect(card.includes('where what is made')).toBe(false);
     const step = stepWords(w, home, nextStep(w, home)).rest;
-    expect(step).toContain(`${FETCH} ${perMonth} a month from the store ${far.len} road tiles away`);
+    expect(step).toContain(`${FETCH_STEP} ${perMonth} a month from the store ${far.len} road tiles away`);
     expect(step.endsWith('; a potter in reach fills it faster')).toBe(true);                  // the step knows the good, so it names the maker
     expect(step.includes('keeps pottery where the bazaar draws it')).toBe(false);             // the store fills only by that order: it is not said to keep the good
   });
@@ -36,9 +37,9 @@ describe('v70 a review: stranded advice names the Fetch order when no maker is i
     const { w, bazaar, home, maker } = street({ potter: true });
     expect(strandedFix(w, 'pottery', bazaar).maker).toBe(maker.id);
     const card = adviceWords(ofKind(w, 'stranded')[0], w).fix;
-    expect([card.includes('Keep stocked order'), card.includes('fills it faster'), card.includes(', where what is made can reach it:')]).toEqual([false, false, true]);   // Version 8.3: the order is Keep stocked
+    expect([card.includes('to keep the good stocked'), card.includes('fills it faster'), card.includes(', where what is made can reach it:')]).toEqual([false, false, true]);   // Version 8.3: no order clause
     const step = stepWords(w, home, nextStep(w, home)).rest;
-    expect([step.includes('Keep stocked order'), step.includes('fills it faster'), step.includes('keeps pottery where the bazaar draws it')]).toEqual([false, false, true]);
+    expect([step.includes('stocked:'), step.includes('fills it faster'), step.includes('keeps pottery where the bazaar draws it')]).toEqual([false, false, true]);
   });
 });
 

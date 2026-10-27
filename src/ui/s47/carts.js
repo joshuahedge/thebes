@@ -45,7 +45,18 @@ export function goodIcon(good) {
 // Version 8.3 (ruling 1421): Advice's and an alert's Show me for a Keep stocked fix open a store's sheet at Keeps stocked for one good. The caller names the
 // store and the good here, then selects the store; the sheet's next build unfolds that good's row and focuses its switch. One aim at a time.
 let pendingAim = null;
-export function aimKeepStocked(id, good) { pendingAim = id === null || id === undefined ? null : { id, good }; }
+export function aimKeepStocked(id, good) {
+  pendingAim = id === null || id === undefined ? null : { id, good };
+  // The caller selects the store right after this, which rebuilds the sheet and spends the aim. When nothing was rebuilt (that sheet was open already) the aim
+  // ends here all the same, so no later rebuild jumps to it: the row already on screen, if there is one, is focused instead.
+  const mine = pendingAim;
+  if (mine) queueMicrotask(() => {
+    if (pendingAim !== mine) return;
+    pendingAim = null;
+    const row = document.querySelector(`#sheet .fetch-panel .fetch-good[data-good="${good}"]`);
+    if (row) { row.scrollIntoView({ block: 'nearest' }); const sw = row.querySelector('.fetch-switch'); if (sw) sw.focus({ preventScroll: true }); }
+  });
+}
 
 export function createCartsUi(ctx) {
   const { world } = ctx;

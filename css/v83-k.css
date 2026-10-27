@@ -24,10 +24,6 @@
 #sheet .fetch-more { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
 #sheet .takes-in-head { margin-top: 16px; }
 
-/* The Layers popover has a sixteenth choice (Supply lines). On a phone held sideways at large text it is three columns, so six rows: it may come down over
-   the corner buttons it opened from (a tap outside, Esc or Back still closes it), so every choice and Off stay in sight with no scroll (ruling 1427). */
-body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]) #corners .layers-picker { bottom: 0; }
-
 /* The pick on the map: one bar at the foot of the map (or in the side column on a wide or landscape screen), as the placing bar stands. The dock and the
    corner buttons step aside while it is up: the map and its bar are all there is. */
 #source-pick { position: fixed; z-index: 3; box-sizing: border-box; background: var(--parchment); border-top: 1px solid var(--parchment-3); padding: 8px 12px calc(8px + var(--safe-bottom, 0px));
@@ -41,7 +37,7 @@ body[data-mode="picking"] #dock, body[data-mode="picking"] #corners { display: n
 #source-pick .pick-choices { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; flex: 0 1 auto; }
 body[data-layout="portrait"] #source-pick .pick-choices { max-height: calc(3 * (var(--tap) + 4px)); }
 #source-pick .pick-choice { width: 100%; text-align: left; border-color: #23407A; }
-#source-pick .pick-choice[aria-pressed="true"] { border-width: 2px; font-weight: 600; }
+#source-pick .pick-choice.chosen { border-width: 2px; font-weight: 600; }
 #source-pick .pick-choice.dim { border-style: dashed; border-color: var(--ink-line); color: var(--ink-soft, inherit); background: var(--parchment-2); }
 #source-pick .pick-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 #source-pick .pick-status { flex: 1 1 10em; margin: 0; min-width: 0; }

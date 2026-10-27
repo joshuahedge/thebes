@@ -156,22 +156,28 @@ describe('ui layers picker in the interface', () => {
     expect([box.left >= root.left, box.right <= root.right, box.top >= root.top]).toEqual([true, true, true]);   // on the screen at the biggest text
     r.cleanup();
   });
-  it('stays on the screen held sideways at 150% text with a farm placed: beside the confirm bar, under the top bar, every choice inside it', async () => {
+  // Version 8.3 (Track K, ruling 1427): with Supply lines the popover holds sixteen choices, six rows of three at this size, more than the screen held sideways
+  // has room for: it scrolls inside the room it has (the stylesheet's max-height, 100dvh less the top bar and the corner buttons), above the corner buttons, and
+  // every choice is a scroll away. The rig's shell is the screen, but dvh is the test page's window, so the rule is applied here with the shell's height.
+  it('stays on the screen held sideways at 150% text with a farm placed: beside the confirm bar, under the top bar, every choice reachable inside it', async () => {
     const r = await rigUI({ width: 667, height: 375 });
-    r.ui.settings.set({ textSize: 150, reducedMotion: 'on' });
-    r.ui.showMeAt({ category: 'food', item: 'farm_grain', x: r.world.focus.x, y: r.world.focus.y });
-    expect([r.store.get().layout, r.store.get().mode, r.store.get().overlay, r.root.querySelector('#confirm').hidden]).toEqual(['compact', 'placing', 'ground', false]);
-    fire(r.root.querySelector('#corners .overlay-button'), 'click');
-    const picker = r.root.querySelector('#corners .layers-picker'), root = r.root.getBoundingClientRect();
-    const box = picker.getBoundingClientRect(), bar = r.root.querySelector('#confirm').getBoundingClientRect(), top = r.root.querySelector('#topbar').getBoundingClientRect();
-    expect([box.left >= root.left, box.right <= bar.left + 1, box.top >= top.bottom - 1]).toEqual([true, true, true]);   // not cut at the left edge, not over the bar, not under the top bar
-    for (const b of [...picker.querySelectorAll('button.layer')].filter((x) => !x.hidden)) {
-      const q = b.getBoundingClientRect();
-      expect([b.dataset.layer, q.left >= box.left - 1, q.right <= box.right + 1, q.top >= box.top - 1, q.bottom <= box.bottom + 1]).toEqual([b.dataset.layer, true, true, true, true]);
-      expect(q.height).toBeGreaterThanOrEqual(44);
-    }
-    expect(picker.scrollHeight).toBeLessThanOrEqual(picker.clientHeight + 1);          // nothing hides below a scroll: Ground and Off are in sight
-    r.cleanup();
+    try {
+      r.ui.settings.set({ textSize: 150, reducedMotion: 'on' });
+      r.ui.showMeAt({ category: 'food', item: 'farm_grain', x: r.world.focus.x, y: r.world.focus.y });
+      expect([r.store.get().layout, r.store.get().mode, r.store.get().overlay, r.root.querySelector('#confirm').hidden]).toEqual(['compact', 'placing', 'ground', false]);
+      fire(r.root.querySelector('#corners .overlay-button'), 'click');
+      const picker = r.root.querySelector('#corners .layers-picker'), root = r.root.getBoundingClientRect();
+      picker.style.maxHeight = 'calc(375px - var(--topbar-h) - var(--safe-top) - var(--safe-bottom) - 76px)';
+      const box = picker.getBoundingClientRect(), bar = r.root.querySelector('#confirm').getBoundingClientRect(), top = r.root.querySelector('#topbar').getBoundingClientRect();
+      const corners = r.root.querySelector('#corners .overlay-button').getBoundingClientRect();
+      expect([box.left >= root.left, box.right <= bar.left + 1, box.top >= top.bottom - 1, box.bottom <= corners.top + 1]).toEqual([true, true, true, true]);   // not cut, not over the bar, not under the top bar, never over the Layers button
+      for (const b of [...picker.querySelectorAll('button.layer')].filter((x) => !x.hidden)) {
+        b.scrollIntoView({ block: 'nearest' });
+        const q = b.getBoundingClientRect(), now = picker.getBoundingClientRect();
+        expect([b.dataset.layer, q.left >= now.left - 1, q.right <= now.right + 1, q.top >= now.top - 1, q.bottom <= now.bottom + 1]).toEqual([b.dataset.layer, true, true, true, true]);
+        expect(q.height).toBeGreaterThanOrEqual(44);
+      }
+    } finally { r.cleanup(); }
   });
   it('scrolls the current choice into view when it opens in a popover that scrolls', () => {
     const r = rig();

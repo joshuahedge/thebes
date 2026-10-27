@@ -90,7 +90,7 @@ describe('v60 c the Estate trick: the fix and its words', () => {
     const cost = priceOf(w, fix);
     expect(cost).toBe(costOf(w, 'storehouse'));
     const words = stepWords(w, home, { reason: null, need: 'linen', cause, fix, cost, afford: canAfford(w, cost) });
-    expect(words.rest).toBe(`a storehouse in the open (${costOf(w, 'storehouse')} gold), then a weaver beside it (${costOf(w, 'weaver')} gold) and a Keep stocked order for flax: no room beside the storehouse that holds it`);   // Version 8.3: Keep stocked
+    expect(words.rest).toBe(`a storehouse in the open (${costOf(w, 'storehouse')} gold), then a weaver beside it (${costOf(w, 'weaver')} gold), with the storehouse set to keep flax stocked: no room beside the storehouse that holds it`);   // Version 8.3: Keep stocked
     expect(words.rest).toBe(OPEN_TEXT.stepStore(fix.open, `(${cost} gold)`, costOf(w, 'weaver'), 'storehouse'));
     expect([words.action.label, words.action.build.item]).toEqual(['Show me', 'storehouse']);   // Show me starts the store's card, the first thing to build
     const laid = w.buildings[place(w, 'storehouse', 30, 11, { roadLater: true }).id];
@@ -107,7 +107,7 @@ describe('v60 c the Estate trick: the fix and its words', () => {
     const item = { key: 'home_need:linen:good_unmade:' + bazaar.id, kind: 'home_need', weight: 7, count: 1, id: home.id, data: { need: 'linen', cause, homes: [home.id], points: 7, locked: null }, fix, cost: priceOf(w, fix), afford: true };
     const t = adviceWords(item, w);
     expect(t.fix).toBe(`Make linen: ${OPEN_TEXT.adviceStore(fix.open, 'storehouse')}`);
-    expect(t.fix).toBe('Make linen: a storehouse in the open, then a weaver beside it, set to keep flax stocked: no room beside the storehouse that holds it');   // Version 8.3: Keep stocked
+    expect(t.fix).toBe('Make linen: a storehouse in the open, then a weaver beside it, the storehouse set to keep flax stocked: no room beside the storehouse that holds it');   // Version 8.3: Keep stocked
     expect(t.cost).toBe(`Storehouse and weaver: ${costOf(w, 'storehouse') + costOf(w, 'weaver')} gold`);   // both named, both priced
     expect(t.action.label).toBe('Show me');
     w.gold = -400;                                                                        // the placing rule's debt floor: the sum is more than the treasury can take

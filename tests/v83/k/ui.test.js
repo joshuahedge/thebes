@@ -26,6 +26,9 @@ import { S47_CARTS_TEXT as W, KEEP_TEXT as K, PICK_TEXT as P, LINES_TEXT, OVERLA
 import { adviceWords } from '../../../src/ui/adviceText.js';
 import { V60_HELP, V70_HELP, OPEN_TEXT, ADVICE_FIX_TEXT } from '../../../src/ui/text.js';
 import { ANOTHER_TEXT } from '../../../src/ui/areaText.js';
+import * as TEXT from '../../../src/ui/text.js';
+import { findSource } from '../../../src/sim/carts.js';
+import { setAccept } from '../../../src/sim/commands.js';
 import { bazaarFix } from '../../../src/ui/threatFix.js';
 
 const click = (node) => node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
@@ -146,10 +149,21 @@ describe('v83 k ui: the pick on the map', () => {
       expect([s.mode, s.sheet, isPicking(s), s.pick]).toEqual(['picking', null, true, { home: home.id, good: 'pottery' }]);
       expect(r.root.querySelector('#sheet').hidden).toBe(true);                         // one panel: the map and its bar
       expect(bar(r).hidden).toBe(false);
-      expect(bar(r).querySelector('.pick-head').textContent).toBe(P.head('pottery'));
+      expect(bar(r).querySelector('.pick-head').textContent).toBe(P.head('pottery', { type: 'storehouse', off: null }));
+      expect(bar(r).querySelector('.pick-head').textContent).toBe('Pick the store to bring pottery from, for this storehouse (To here)');
       const choices = sourceChoices(w, home.id, 'pottery');
       expect([...bar(r).querySelectorAll('.pick-choice')].map((b) => b.textContent)).toEqual(choices.map((c) => P.choice(c, 'pottery')));
-      r.frame();                                                                         // the map draws the lit stores and their routes
+      expect(bar(r).querySelectorAll('[aria-pressed]').length).toBe(0);                 // one-shot picks, not toggles
+      r.frame();                                                                         // the map draws the lit stores, their routes and the store being set
+      // panned away from the store being set, the head says where it lies, in words (no floating marker)
+      const cam = { x: r.cam.x, y: r.cam.y };
+      r.cam.x = home.x + 0.5 + 30; r.cam.y = home.y + 1;
+      r.frame();
+      const said = bar(r).querySelector('.pick-head').textContent;
+      expect([said, /^Pick the store to bring pottery from, for the storehouse \d+ tiles (west|north-west|south-west) of the view$/.test(said)]).toEqual([said, true]);
+      Object.assign(r.cam, cam);
+      r.frame();
+      expect(bar(r).querySelector('.pick-head').textContent.endsWith('(To here)')).toBe(true);
       r.tap(farm.x, farm.y, 'mouse');
       expect(bar(r).querySelector('.pick-status').textContent).toBe(P.notStore('farm_grain', 'pottery'));
       r.tap(home.x, home.y, 'mouse');
@@ -260,6 +274,8 @@ describe('v83 k ui: the Supply lines layer', () => {
       const mid = line.path[Math.floor(line.path.length / 2)], mx = mid % w.size, my = (mid - mx) / w.size;
       expect(supplyLineAt(w, mx + 0.5, my + 0.5).home).toBe(home.id);
       expect(supplyLineAt(w, mx + 0.5, my + 4.5)).toBe(null);
+      expect(supplyLineAt(w, home.x + 1.5, home.y + 0.1)).toBe(null);                     // on a building's footprint the building wins, though the line is within reach
+      expect(supplyLineAt(w, home.x + 1.5, home.y - 0.1).home).toBe(home.id);            // on the road beside it, the line
       r.tap(mx, my, 'mouse');
       expect(r.store.get().selectedId).toBe(home.id);
     } finally { r.cleanup(); }
@@ -275,6 +291,36 @@ describe('v83 k ui: the words', () => {
       ADVICE_FIX_TEXT.strandedFix({ item: 'storehouse', maker: null, perMonth: 40, len: 60 }, 'pottery'), ANOTHER_TEXT.copy({ fetch: [{ good: 'pottery', fetch: 100, from: 3 }], refuses: [] }, (g) => g)];
     expect(said.filter((s) => typeof s === 'string' && fetchWord.test(s))).toEqual([]);
     expect(ANOTHER_TEXT.copy({ fetch: [{ good: 'pottery', fetch: 100, from: 3 }], refuses: [] }, (g) => g)).toBe('Copies Keep stocked: pottery 100 from the same store');
+  });
+
+  it('walks every exported text object (its strings, and each family that said Fetch, called) and finds no "fetch" (ruling 1426)', () => {
+    const fetchWord = /\bfetch(es|ing)?\b/i, found = [];
+    const walk = (v, path, depth = 0) => {
+      if (typeof v === 'string') { if (fetchWord.test(v)) found.push(`${path}: ${v}`); return; }
+      if (!v || typeof v !== 'object' || depth > 4) return;
+      for (const [k, x] of Object.entries(v)) walk(x, `${path}.${k}`, depth + 1);
+    };
+    for (const [name, v] of Object.entries(TEXT)) walk(v, name);
+    // the sentence families that said Fetch, each with sample inputs (both ways where it branches)
+    const w = makeTestWorld({ size: 40 });
+    setRoad(w, 0, 10, 39, 10);
+    const bz = addRaw(w, 'bazaar', 4, 11), far = addRaw(w, 'storehouse', 30, 11, { staff: 6, store: { pottery: 50 } });
+    const cause = { code: 'good_far', good: 'pottery', id: far.id, len: 26, bazaar: bz.id };
+    const open = { store: 'storehouse', maker: 'weaver', input: 'flax' };
+    const called = [
+      TEXT.S47_PRESSURE_TEXT.goodFar(cause, w), TEXT.S47_PRESSURE_TEXT.showFar(cause, w),
+      TEXT.OPEN_TEXT.stepStore(open, '(70 gold)', 110, 'storehouse'), TEXT.OPEN_TEXT.stepMaker(open, '(110 gold)', 'storehouse'),
+      TEXT.OPEN_TEXT.adviceStore(open, 'storehouse'), TEXT.OPEN_TEXT.adviceMaker(open, 'storehouse'),
+      TEXT.ADVICE_FIX_TEXT.strandedFix({ item: 'storehouse', maker: null, perMonth: 40, len: 60 }, 'pottery'), TEXT.ADVICE_FIX_TEXT.strandedFix({ item: 'storehouse', maker: 7, perMonth: 40, len: 60 }, 'pottery'),
+      TEXT.ADVICE_FIX_TEXT.strandedStep({ item: 'storehouse', maker: null, perMonth: 40, len: 60 }, '(70 gold)', 'pottery'), TEXT.ADVICE_FIX_TEXT.strandedStep({ item: 'storehouse', maker: 7, perMonth: 40, len: 60 }, '(70 gold)', 'pottery'),
+      ...['out', 'return', 'other', 'full', 'refused', 'unstaffed', 'no_room', 'no_source', 'ready'].map((state) => W.status({ good: 'pottery', state, amount: 20, days: 3, held: 10, fetch: 100, staff: 2, workers: 6, source: { type: 'storehouse', len: 30, dir: 'north' } })),
+      ...['not_storage', 'cannot_store', 'refuses', 'bad_amount', 'no_source', 'no_order', 'same_store', 'not_holder', 'unlinked'].map((reason) => W.refusal({ reason, good: 'pottery', max: 800, type: 'farm_grain' })),
+      W.consequence({ good: 'pottery', fetch: 100, perTrip: 20, held: 0, state: null, source: { len: 30, roundTrip: 8 }, staffed: true }), W.help, W.tip, W.tipHelp, W.tipFor({ good: 'pottery' }),
+    ];
+    walk(called, 'called');
+    expect(found).toEqual([]);
+    expect(TEXT.S47_PRESSURE_TEXT.goodFar(cause, w).fix).toBe('No store near the bazaar can keep it stocked yet; Show me the one that holds it');
+    expect(TEXT.OPEN_TEXT.stepStore(open, '(70 gold)', 110, 'storehouse')).toBe('a storehouse in the open (70 gold), then a weaver beside it (110 gold), with the storehouse set to keep flax stocked: no room beside the storehouse that holds it');
   });
 });
 
@@ -323,12 +369,14 @@ describe('v83 k ui: the two Advice fixes', () => {
     const a = bazaarFoodProblem(w, bazaar);
     const len = a.spare.len;
     expect(a).toEqual({ code: 'bazaar_empty', id: bazaar.id, reason: 'granary_low', store: store.id, maker: 'none', spare: { id: farGranary.id, good: 'grain', len, spare: 500 } });
-    expect(alertText(a, w).fix).toBe(`The granary ${len} road tiles away can spare 500 grain: keep the granary stocked from it`);
+    expect(alertText(a, w).fix).toBe(`The granary ${len} road tiles away can spare 500 grain: keep the granary stocked with grain from the nearest store that can spare it`);
     expect(bazaarFix(w, a)).toEqual({ view: store.id, keep: { good: 'grain', from: farGranary.id } });
     const item = cityAdvice(w).find((x) => x.kind === 'keep_stocked');
     expect([item.fix.select, item.fix.keep]).toEqual([store.id, { good: 'grain', from: farGranary.id }]);
     const words = adviceWords(item, w);
-    expect([words.what, words.why, words.fix, words.action.label]).toEqual(['The granary by the bazaar runs low on food', `The granary ${len} road tiles away can spare 500 grain`, 'Keep the granary stocked with grain from it', 'Show me']);
+    expect([words.what, words.why, words.fix, words.action.label]).toEqual(['The granary by the bazaar runs low on food', `The granary ${len} road tiles away can spare 500 grain`, 'Keep the granary stocked with grain from the nearest store that can spare it', 'Show me']);
+    // the words say what the sim does: set as the player would (Nearest), the cart draws on the nearest store that can spare grain, which is this one
+    expect(findSource(w, store, 'grain').b.id).toBe(farGranary.id);
     // what the fix says works: the granary can be set to keep grain stocked from that store
     expect(setFetch(w, store.id, 'grain', 100).ok).toBe(true);
     expect(setSource(w, store.id, 'grain', farGranary.id).ok).toBe(true);
@@ -377,10 +425,18 @@ describe('v83 k ui: the two Advice fixes', () => {
     out = [];
     keepStockedAdvice(w, alerts, out);
     expect([out[0].fix.select, out[0].fix.keep]).toEqual([by.id, { good: 'stone', from: holder.id }]);
-    expect(adviceWords(out[0], w).fix).toBe('Keep the storehouse by the site stocked with stone from it');
+    expect(adviceWords(out[0], w).fix).toBe('Keep the storehouse by the site stocked with stone from the nearest store that can spare it');
     expect(adviceWords(out[0], w).action.label).toBe('Show me');
+    // the storehouse in reach refuses stone (Takes in off): setFetch would refuse it, so the fix never names it, and no storehouse is to be built either
+    expect(setAccept(w, by.id, 'stone', false).ok).toBe(true);
+    expect(setFetch(w, by.id, 'stone', 100).reason).toBe('refuses');
+    expect(siteKeepFix(w, site, 'stone')).toBe(null);
+    out = [];
+    keepStockedAdvice(w, alerts, out);
+    expect(out).toEqual([]);
+    expect(setAccept(w, by.id, 'stone', true).ok).toBe(true);
     expect(setFetch(w, by.id, 'stone', 100).ok).toBe(true);                                // the sim takes what Advice says
-    // with the order set, or the storehouse refusing stone, or nothing to spare: no item
+    // with the order set, or nothing to spare: no item
     expect(siteKeepFix(w, site, 'stone')).toBe(null);
     delete by.orders.stone;
     holder.store.stone = 0;

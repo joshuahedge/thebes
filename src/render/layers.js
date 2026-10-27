@@ -15,7 +15,7 @@ import { makeDraw } from './art/ctx.js';
 import { LAYER_HUE, JOBLESS_BANDS, LINES } from '../data/layers.js';
 import { homeProgress as simProgress, goodSupply as simSupply, workersState, statusWork, supplyLines } from '../sim/layers.js';
 import { cartPath } from '../sim/carts.js';
-import { buildingsVersion } from '../sim/world.js';
+import { buildingsVersion, buildingAt } from '../sim/world.js';
 import { layersVersion } from '../sim/layerVersion.js';
 import { T as TILE } from '../sim/terrain.js';
 import { idx } from '../sim/grid.js';
@@ -365,6 +365,8 @@ export function drawSupplyLines(g, world, range, now = 0, still = false) {
 // The line under a point on the map (fractional tile coordinates), or null: the nearest line within `reach` tiles of the point, measured to its route's
 // segments. Tapping a line opens its home store's sheet (createUI). Lines without a route are their store's ring: the store itself takes the tap.
 export function supplyLineAt(world, tx, ty, reach = 0.75) {
+  const fx = Math.floor(tx), fy = Math.floor(ty);
+  if (fx >= 0 && fy >= 0 && fx < world.size && fy < world.size && buildingAt(world, fx, fy)) return null;   // a building's own footprint is that building's tap, not a line's
   let best = null, bestD = reach;
   for (const l of linesFor(world)) {
     if (!l.path) continue;
@@ -385,8 +387,9 @@ export function supplyLineAt(world, tx, ty, reach = 0.75) {
 // ── The pick of a source (Version 8.3, ruling 1413): src/ui/s47/sourcePick.js ──
 // Every store that can hold the good (sourceChoices): lit with a wash and a label of what it can spare, or dimmed (hatched grey) with the reason in a word;
 // the road route from the order's store to each linked one drawn dashed; the order's own store outlined in ink. label(c): the words on a store's label
-// (the UI's, so the render says nothing of its own); focus: the store the bar's focused button names, outlined heavier.
-export function drawPickChoices(g, world, home, choices, label, focus = null) {
+// (the UI's, so the render says nothing of its own); focus: the store the bar's focused button names, outlined heavier; homeLabel: the words on the order's
+// own store, the destination, lit in ink (the bar's head names it too).
+export function drawPickChoices(g, world, home, choices, label, focus = null, homeLabel = null) {
   const hue = LAYER_HUE.lines, grey = '#6B6257';
   const h = world.buildings[home];
   if (!h) return;
@@ -406,8 +409,9 @@ export function drawPickChoices(g, world, home, choices, label, focus = null) {
     else g.poly(foot, hue, { alpha: 0.22, stroke: hue, strokeWidth: c.id === focus ? 2.6 : 1.4, strokeAlpha: 0.95 });
     if (c.id === focus) g.poly(foot, 'none', { stroke: INK, strokeWidth: 2.2, strokeAlpha: 0.9 });
   }
-  g.poly(quad(h.x - 0.15, h.y - 0.15, h.w + 0.3, h.d + 0.3, 0), 'none', { stroke: INK, strokeWidth: 2, strokeAlpha: 0.95 });
+  g.poly(quad(h.x - 0.15, h.y - 0.15, h.w + 0.3, h.d + 0.3, 0), INK, { alpha: 0.16, stroke: INK, strokeWidth: 2, strokeAlpha: 0.95 });
   const R = badgeRadius(cssOf(g));
+  if (homeLabel) { const at = p(h.x + h.w / 2, h.y + h.d / 2); stamp(g, labelSprite(g, R, homeLabel, { hue: INK }), at[0], at[1] - LIFT - R); }
   for (const c of choices) {
     const b = world.buildings[c.id];
     if (!b) continue;
