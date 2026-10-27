@@ -167,7 +167,7 @@ describe('v83 c the placing chip\'s guild', () => {
     expect([c.state, c.n, c.dist, c.speed]).toEqual(['met', 1, 54, 0.7]);
     const nearer = guildAt(w, 40);
     expect(guildsNear(w, probe).map((r) => [r.id, r.dist, r.speed])).toEqual([[nearer.id, 16, 1], [g.id, 54, 0.7]]);   // nearest first
-    expect(conditionsFor(w, 'obelisk_small', 56, 9).conditions.find((x) => x.key === 'crew')).toEqual({ key: 'crew', state: 'met', reason: null, n: 2, dist: 16, speed: 1 });
+    expect(conditionsFor(w, 'obelisk_small', 56, 9).conditions.find((x) => x.key === 'crew')).toEqual({ key: 'crew', state: 'met', reason: null, n: 2, busy: 0, dist: 16, speed: 1 });
   });
 
   it('has no walk or speed, and says no guild, when none is free', () => {

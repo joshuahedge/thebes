@@ -196,15 +196,23 @@ export function crewSpeed(dist, camp = false) {
 // 1430): unpaused, and not already at work on a site in today's crew plan. [{ id, dist, speed }], speed as crewSpeed gives it without a camp (a camp is
 // the site's, set up once it stands). probe: { x, y, w, d }. The walk is not cached: a ghost visits a new footprint at every hover.
 export function guildsNear(world, probe) {
+  return guildsReaching(world, probe).free;
+}
+// guildsNear's list (free) and how many unpaused guilds the roads reach that are busy, in today's crew plan (busy): the placing chip says "No free builders'
+// guild" when every guild is busy, and "No builders' guild yet" when there is none (Version 8.3, ruling 1446).
+export function guildsReaching(world, probe) {
   const plan = crewPlan(world);
   const rm = roadReach(world, { id: -1, ...probe }, Infinity, { cache: false });
-  const out = [];
+  const free = [];
+  let busy = 0;
   for (const o of allBuildings(world)) {
-    if (o.type !== 'builders_guild' || o.paused || plan.has(o.id)) continue;
+    if (o.type !== 'builders_guild' || o.paused) continue;
     const dist = reachDistance(rm, world, o);
-    if (Number.isFinite(dist)) out.push({ id: o.id, dist, speed: crewSpeed(dist) });
+    if (!Number.isFinite(dist)) continue;
+    if (plan.has(o.id)) busy++;
+    else free.push({ id: o.id, dist, speed: crewSpeed(dist) });
   }
-  return out.sort((p, q) => p.dist - q.dist || p.id - q.id);
+  return { free: free.sort((p, q) => p.dist - q.dist || p.id - q.id), busy };
 }
 
 // Whether anything could bring this material to a footprint: a maker of it within its producer reach, or a storehouse

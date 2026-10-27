@@ -11,7 +11,7 @@ import { costOf, roadCostOf, rubbleCostOf, canPayNoDebt } from './costs.js';
 import { isUnlocked } from './progression.js';
 import { pushUndo } from './undo.js';
 import { storeAccepts } from './production.js';
-import { guildsNear, supplyNear, remainingNeed } from './monuments.js';
+import { guildsReaching, supplyNear, remainingNeed } from './monuments.js';
 import { DEFENCE } from '../data/raids.js';
 import { hasRiver } from '../data/map.js';
 import { bridgeVerdicts, roadWouldTouch, liftsRoad } from './bridges.js';
@@ -105,7 +105,7 @@ function worksWarning(world, type, x, y, rot = 0) {
 }
 
 // Stage 4 (ruling 230, spec 6.5): a monument's crew and supply, judged only once a road touches the footprint (both come by
-// road). crew: { n, dist, speed } the guilds its roads reach with room for a crew (guildsNear; Version 8.3: at any distance), the nearest's walk and speed, reason 'no_crew' when none; supply: the first course's
+// road). crew: { n, busy, dist, speed } the guilds its roads reach with room for a crew (guildsNear; busy: those at work already; Version 8.3: at any distance), the nearest's walk and speed, reason 'no_crew' when none; supply: the first course's
 // materials: every material its recipe takes (goods: the first course's first, then the later courses'), each needing a maker
 // in producer reach or a storehouse holding some in supply reach; missing: those with neither (ruling 300: the chip names
 // every one), reason 'no_stone' or 'no_bricks' (the first missing, good names it). null for a type that is not a monument or
@@ -114,7 +114,7 @@ function monumentChecks(world, type, x, y, rot = 0) {
   if (!BUILDINGS[type].monument) return null;
   const probe = { x, y, ...dimsOf(type, rot) };
   if (!touchesRoad(world, probe)) return null;
-  const guilds = guildsNear(world, probe);
+  const { free: guilds, busy } = guildsReaching(world, probe);
   const { courses } = MONUMENTS[type];
   const goods = ['stone', 'bricks'].filter((g) => courses[0][g] > 0);
   for (const g of ['stone', 'bricks']) if (!goods.includes(g) && courses.some((c) => c[g] > 0)) goods.push(g);
@@ -122,7 +122,7 @@ function monumentChecks(world, type, x, y, rot = 0) {
   const first = missing[0] || null;
   return {
     // Version 8.3 (ruling 1435): dist and speed are the nearest free guild's walk and what its crew would work at (crewSpeed); absent with none.
-    crew: { key: 'crew', state: guilds.length ? 'met' : 'later', reason: guilds.length ? null : 'no_crew', n: guilds.length, ...(guilds.length ? { dist: guilds[0].dist, speed: guilds[0].speed } : {}) },
+    crew: { key: 'crew', state: guilds.length ? 'met' : 'later', reason: guilds.length ? null : 'no_crew', n: guilds.length, busy, ...(guilds.length ? { dist: guilds[0].dist, speed: guilds[0].speed } : {}) },
     supply: { key: 'supply', state: first ? 'later' : 'met', reason: first ? `no_${first}` : null, good: first, goods, missing },
   };
 }
