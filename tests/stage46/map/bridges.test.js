@@ -129,22 +129,33 @@ describe('s46 map seam: the tip fires when a road meets water, Show me finds a c
       expect(s.fired).toEqual([]);
       // Version 8.3 (Track X, ruling 1401): the crossings tip ('roadCrossing') fires first for any water the line meets, on a map with a river
       s.pl.pointAt(9, 7); s.pl.pointAt(13, 7);                                               // across 3 tiles of water: a bridge would be laid
-      expect(s.fired).toEqual(['roadCrossing', 'roadMeetsWater']);
+      expect(s.fired).toEqual(['roadCrossing']);                                             // 8.3 (ruling 1450): one crossing tip on a map with a river, not the bridges tip beside it
       s.pl.pointAt(9, 9); s.pl.pointAt(11, 9);                                               // stops in the water: 8.3, on its way across (the crossings tip again, no refusal)
-      expect(s.fired).toEqual(['roadCrossing', 'roadMeetsWater', 'roadCrossing']);
+      expect(s.fired).toEqual(['roadCrossing', 'roadCrossing']);
       s.pl.start({ kind: 'road', gate: true });
       s.pl.pointAt(9, 11); s.pl.pointAt(13, 11);
-      expect(s.fired.length).toBe(3);                                                        // the gate tool is not a road
+      expect(s.fired.length).toBe(2);                                                        // the gate tool is not a road
       s.pl.start({ kind: 'building', type: 'well' }, { x: 11, y: 5 });
-      expect(s.fired.length).toBe(3);
+      expect(s.fired.length).toBe(2);
       const wide = riverWorld(10, 10 + BRIDGE_MAX + 2);
       const t = seam(wide);
       try { t.pl.start({ kind: 'road' }); t.pl.pointAt(9, 7); t.pl.pointAt(10 + BRIDGE_MAX + 3, 7); expect(t.fired).toEqual(['roadCrossing']); } finally { t.cleanup(); }   // 8.3: a ferry with no road to its landings: the crossings tip, not the bridges tip
       s.ui.onCommand({ kind: 'road', result: { ok: true, bridges: [] }, undoable: true });
-      expect(s.fired.length).toBe(3);
+      expect(s.fired.length).toBe(2);
       s.ui.onCommand({ kind: 'road', result: { ok: true, bridges: [idx(32, 11, 4)] }, undoable: true });
-      expect(s.fired.length).toBe(4);                                                        // a bridge laid by a command
+      expect(s.fired).toEqual(['roadCrossing', 'roadCrossing', 'roadCrossing']);             // a bridge laid by a command
     } finally { s.cleanup(); }
+    // A map with no river keeps the bridges tip, and only it (its pools and bays have no ferry to speak of).
+    const dry = riverWorld(10, 12);
+    dry.mapVariant = 'great-oasis';
+    const d = seam(dry);
+    try {
+      d.pl.start({ kind: 'road' });
+      d.pl.pointAt(9, 7); d.pl.pointAt(13, 7);
+      expect(d.fired).toEqual(['roadMeetsWater']);
+      d.ui.onCommand({ kind: 'road', result: { ok: true, bridges: [idx(32, 11, 4)] }, undoable: true });
+      expect(d.fired).toEqual(['roadMeetsWater', 'roadMeetsWater']);
+    } finally { d.cleanup(); }
   });
   it('Show me from a road the rule refuses goes to the nearest crossing, and says so when the map has none', () => {
     const w = riverWorld(10, 12);

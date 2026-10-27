@@ -15,11 +15,13 @@ import { el, button } from '../components.js';
 import { PICK_TEXT as W, S47_CARTS_TEXT } from '../text.js';
 import { ART_SCALE } from '../../render/iso.js';
 
-const TOP_ROWS_PX = 104;   // the top bar and one row under it (a goal or a notice) that the framing keeps clear of
+const TOP_ROWS_PX = 104;   // the top bar and one row under it, for a stand-in with no measure of its own (createUI passes the real one)
 const FRAME_MARGIN = 24, FRAME_CHOICES = 3;
 
 // camera: () => ({ cam, view }) for the head's words about where the store being set lies (omitted: the head never says it is off the map).
-export function createSourcePick({ world, store, container, cameraControl = null, afterCommand = () => {}, pickAt = () => null, camera = null }) {
+// freeTop: () => px, the top of the map the top bar and the rows under it leave free (layout.js freeTop: at large text the court notice and the goal row
+// reach far down a phone, ruling 1451); omitted: TOP_ROWS_PX.
+export function createSourcePick({ world, store, container, cameraControl = null, afterCommand = () => {}, pickAt = () => null, camera = null, freeTop = () => TOP_ROWS_PX }) {
   const head = el('p', { class: 'pick-head', id: 'source-pick-head' });
   const status = el('p', { class: 'pick-status small muted', role: 'status', 'aria-live': 'polite' });
   const list = el('ul', { class: 'pick-choices' });
@@ -57,7 +59,10 @@ export function createSourcePick({ world, store, container, cameraControl = null
     const r = node.getBoundingClientRect(), box = container.getBoundingClientRect();
     const vw = box.width || document.documentElement.clientWidth || 0;
     const side = r.width < vw * 0.6;   // the bar stands in the side column (wide and landscape layouts) rather than across the foot
-    return { view: { width: vw, height: box.height || document.documentElement.clientHeight || 0 }, at: side ? { top: TOP_ROWS_PX, left: 0, bottom: 0, right: r.width } : { top: TOP_ROWS_PX, left: 0, right: 0, bottom: r.height } };
+    const vh = box.height || document.documentElement.clientHeight || 0;
+    const bottom = side ? 0 : r.height;
+    const top = Math.max(0, Math.min(freeTop(), vh - bottom - 2 * FRAME_MARGIN));   // never so far down that the frame has no room left over the bar
+    return { view: { width: vw, height: vh }, at: side ? { top, left: 0, bottom, right: r.width } : { top, left: 0, right: 0, bottom } };
   }
   // A button focused by the keyboard: the map outlines its store and keeps it in sight beside the bar.
   function aim(id) {

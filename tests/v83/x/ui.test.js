@@ -18,6 +18,9 @@ import { crossingChoices } from '../../../src/sim/ferryFind.js';
 import { landingsOf, ferryCost } from '../../../src/sim/ferries.js';
 import { costOf } from '../../../src/sim/costs.js';
 import { TIPS } from '../../../src/data/tips.js';
+import { createMenuSheets } from '../../../src/ui/menu.js';
+import { createSettings } from '../../../src/ui/settings.js';
+import { mount } from '../../helpers/dom.js';
 import { idx } from '../../../src/sim/grid.js';
 import { T } from '../../../src/sim/terrain.js';
 
@@ -201,7 +204,7 @@ describe('v83 x ui: the Crossing card', () => {
 });
 
 describe('v83 x ui: the crossings tip and How to play', () => {
-  it('fires the first time the road meets any water on a map with a river, ahead of the bridges tip, and says both limits in one line', () => {
+  it('fires the first time the road meets any water on a map with a river, with no bridges tip beside it, and says both limits in one line', () => {
     const tip = TIPS.find((t) => t.id === 'ferries');
     expect([tip.trigger, TIP_TEXT.ferries, TIP_HELP_TEXT.ferries]).toEqual(['roadCrossing', 'Roads cross water: a bridge up to 4 tiles, a ferry 5 to 12. Drag straight across, bank to bank.', TIP_TEXT.ferries]);
     const w = ferryWorld(3);
@@ -215,8 +218,22 @@ describe('v83 x ui: the crossings tip and How to play', () => {
       pl.pointAt(2, 5); pl.pointAt(6, 5);
       expect(fired).toEqual([]);
       pl.pointAt(RIVER_X - 2, 5); pl.pointAt(RIVER_X + 4, 5);
-      expect(fired).toEqual(['roadCrossing', 'roadMeetsWater']);
+      expect(fired).toEqual(['roadCrossing']);                                           // ruling 1450: the one crossing tip on this map
     } finally { ui.destroy(); root.remove(); }
+  });
+
+  it('How to play lists one crossing tip: the crossings tip where a river runs, the bridges tip on a map with none', () => {
+    const list = (mapHelp) => {
+      const { root, cleanup } = mount('<div id="body"></div>');
+      const settings = createSettings({ storage: { getItem: () => null, setItem: () => {} }, root: document.body, systemReducedMotion: () => false, watchSystem: () => () => {} });
+      try {
+        createMenuSheets({ store: createStore(INITIAL_UI_STATE), settings, toasts: { show() {} }, mapHelp }).help(root.querySelector('#body'), { close() {} });
+        return [...root.querySelectorAll('.tips-list li')].map((li) => li.textContent);
+      } finally { cleanup(); settings.destroy(); }
+    };
+    const river = list(null), dry = list({ head: 'This map', text: 'No river.' });
+    expect([river.includes(TIP_HELP_TEXT.ferries), river.includes(TIP_HELP_TEXT.bridges)]).toEqual([true, false]);
+    expect([dry.includes(TIP_HELP_TEXT.ferries), dry.includes(TIP_HELP_TEXT.bridges)]).toEqual([false, true]);
   });
 
   it('How to play\'s Crossings entry says both limits, the tints and the Crossing card', () => {

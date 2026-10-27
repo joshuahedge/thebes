@@ -31,8 +31,8 @@
 #source-pick[hidden] { display: none; }
 body[data-layout="portrait"] #source-pick { left: 0; right: 0; bottom: 0; border-radius: 16px 16px 0 0; max-height: 46vh; }
 body[data-layout="wide"] #source-pick { right: 0; bottom: 0; width: var(--panel-w); max-height: 60vh; }
-body[data-layout="compact"] #source-pick { right: calc(var(--rail-w, 0px) + var(--safe-right, 0px)); bottom: 0; width: var(--drawer-w); max-height: 78vh; border-radius: 16px 0 0 0; }
-body[data-mode="picking"] #dock, body[data-mode="picking"] #corners { display: none; }
+body[data-layout="compact"] #source-pick { right: var(--safe-right, 0px); bottom: 0; width: var(--drawer-w); max-height: 78vh; border-radius: 16px 0 0 0; }   /* the rail is away (below), so the bar takes its place at the edge */
+body[data-mode="picking"] #dock, body[data-mode="picking"] #corners, body[data-mode="picking"] #rail { display: none; }   /* #rail: a phone held sideways keeps its category rail up otherwise (ruling 1452) */
 #source-pick .pick-head { margin: 0; font-weight: 600; }
 #source-pick .pick-choices { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; flex: 0 1 auto; }
 body[data-layout="portrait"] #source-pick .pick-choices { max-height: calc(3 * (var(--tap) + 4px)); }
