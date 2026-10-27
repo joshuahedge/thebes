@@ -4,6 +4,22 @@
 import { healthCause } from '../sim/health.js';
 import { crimeCause } from '../sim/crime.js';
 
+// Version 8.2.1 (ruling 1366): Show me on the bazaar's food alerts, aimed by the sim's reason (src/sim/housing.js bazaarFoodProblem): { view: id }
+// selects the building to fix (a granary that is paused, short of workers or not joined by road; a farm that fills it and is not working), and
+// { showMe } opens the card it needs: a granary by the bazaar (no store near it), a farm by the granary (nothing fills it, or too little), a second
+// bazaar (it sells out). null for any other alert.
+export function bazaarFix(world, alert) {
+  const b = world.buildings[alert.id];
+  if (!b || (alert.code !== 'bazaar_empty' && alert.code !== 'bazaar_sold_out')) return null;
+  const at = (o) => ({ x: o.x + o.w / 2, y: o.y + o.d / 2 });
+  if (alert.code === 'bazaar_sold_out') return { showMe: { category: 'services', item: 'bazaar', ...at(b) } };
+  const store = alert.store ? world.buildings[alert.store] : null;
+  if (!alert.reason || !store) return { showMe: { category: 'food', item: 'granary', ...at(b) } };
+  if (alert.reason === 'granary_idle' || alert.reason === 'granary_apart') return { view: store.id };
+  if (alert.maker === 'idle') return { view: alert.makerId };
+  return { showMe: { category: 'food', item: 'farm_grain', ...at(store) } };
+}
+
 // { category, item, x, y } for createUI's showMeAt, or null.
 export function alertShowMe(world, alert) {
   if (alert.code !== 'illness' && alert.code !== 'crime_risk') return null;

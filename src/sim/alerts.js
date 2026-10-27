@@ -1,6 +1,7 @@
 import { BUILDINGS } from '../data/buildings.js';
-import { FOOD_GOODS } from '../data/goods.js';
 import { MOOD } from '../data/mood.js';
+import { bazaarFoodProblem } from './bazaarFood.js';
+import { bazaarsByHouse } from './distribution.js';
 import { allBuildings, housesOf, isFinished } from './world.js';
 import { touchesRoad } from './reach.js';
 import { atLeast } from './progression.js';
@@ -17,6 +18,8 @@ import { v70Alerts } from './v70.js';
 
 export function alertsFor(world) {
   const alerts = [];
+  let byHouse = null;
+  const served = () => byHouse || (byHouse = bazaarsByHouse(world));   // asked at most once a call, and only for a bazaar with food in reach
   for (const b of allBuildings(world)) {
     const def = BUILDINGS[b.type];
     if (b.type === 'house') continue;
@@ -27,7 +30,8 @@ export function alertsFor(world) {
     if (b.blocked === 'no_input') alerts.push({ code: 'no_input', id: b.id });
     if (def.stores && storeTotal(b) >= def.capacity) alerts.push({ code: 'storage_full', id: b.id });   // any full store
     if (def.workers && road && !b.paused && !(b.fire && b.fire.stage === 'fire') && hasMonumentWork(world, b) && !isWorking(world, b)) alerts.push({ code: 'understaffed', id: b.id });
-    if (def.sells && isWorking(world, b) && FOOD_GOODS.every((g) => !((b.store[g] || 0) > 0))) alerts.push({ code: 'bazaar_empty', id: b.id });   // no food in stock
+    // No food on the shelf (Version 8.2.1, rulings 1360-1364): an alert only when it is trouble, worded by its cause (bazaarFoodProblem).
+    if (def.sells) { const food = bazaarFoodProblem(world, b, served); if (food) alerts.push(food); }
   }
   // Homes and plots with no road beside them (placement review P13): one warning for the lot, not one per plot (a hundred
   // plots painted away from the road would bury the list). ids is every one of them, in id order, so View can pan to the

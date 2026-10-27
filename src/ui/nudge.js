@@ -53,7 +53,10 @@ const FIX_COST = {
   no_storage: (w, a) => (refusedByStore(w, a) ? -Infinity : costOf(w, storeOf(w, a))),
   storage_full: (w, a) => costOf(w, storeOf(w, a)),
   no_input: (w, a) => inputMakerCost(w, a),
-  bazaar_empty: (w) => costOf(w, 'granary'),
+  // Version 8.2.1 (ruling 1366): by the alert's reason, as its words say: a granary, a road to the one near it, a home's workers or a farm.
+  bazaar_empty: (w, a) => (!a.reason ? costOf(w, 'granary') : a.reason === 'granary_apart' ? roadCostOf(w)
+    : a.reason === 'granary_idle' || a.maker === 'idle' ? costOf(w, 'house') : costOf(w, 'farm_grain')),
+  bazaar_sold_out: (w) => costOf(w, 'bazaar'),
   understaffed: (w) => costOf(w, 'house'),
   labour_shortage: (w) => costOf(w, 'house'),
   unemployment: (w) => Math.min(costOf(w, 'farm_grain'), costOf(w, 'bazaar')),

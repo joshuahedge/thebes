@@ -321,7 +321,8 @@ const LARGE_NAME = 'Large plot';
 // For food, a working bazaar in reach decides: one holding food, or able to draw on a granary that holds some,
 // means next_delivery (id the bazaar); else granary_empty (id the nearest working granary in its supply reach,
 // which holds nothing), granary_idle (the same, but every such granary is paused or short of workers; id the
-// nearest) or bazaar_empty (id the bazaar, no granary in reach at all).
+// nearest) or bazaar_empty (id the bazaar, no granary in reach at all; Version 8.2.1: granary_apart, id the granary, when one stands within the
+// bazaar's supply reach in a straight line but the roads do not bring it within that reach).
 // For a household good (pottery, beer, linen, jewellery) and for two kinds of food (traced through the first food
 // the home has none of), the same bazaar steps, then: next_delivery { good } when a working bazaar in reach has the
 // good or a store within its supply reach holds some (the bazaar restocks at the month's end); good_unmade { good,
@@ -376,7 +377,29 @@ function foodCause(world, house) {
   if (live) return { code: 'granary_empty', id: supply.get(live.id).find((o) => isWorking(world, o)).id };
   const bare = working.find((bz) => supply.get(bz.id).length);
   if (bare) return { code: 'granary_idle', id: supply.get(bare.id)[0].id };
+  // Version 8.2.1 (ruling 1365): a granary near the bazaar that the roads do not bring within its supply reach needs a road, not a twin.
+  const apart = working.map((bz) => storesApart(world, bz)[0]).find(Boolean);
+  if (apart) return { code: 'granary_apart', id: apart.id };
   return { code: 'bazaar_empty', id: working[0].id };
+}
+
+// Version 8.2.1 (src/sim/bazaarFood.js): whether a home holds less food than it eats at the month's end (consumeFood's rule).
+export const foodShort = (house) => foodOnHand(house) < foodNeedToMeet(house);
+
+// The food stores within a bazaar's supply reach of it in a straight line (the gap between the footprints) that the roads do not bring within
+// that reach (graneriesFor), nearest first: no road beside them, a road of their own, or a long way round (Version 8.2.1, ruling 1365).
+export function storesApart(world, bz) {
+  const def = BUILDINGS[bz.type];
+  const foods = def.sells.filter((g) => FOOD_GOODS.includes(g));
+  const near = new Set(graneriesFor(world, bz).map((o) => o.id));
+  const out = [];
+  for (const o of allBuildings(world)) {
+    if (near.has(o.id) || !(BUILDINGS[o.type].stores || []).some((g) => foods.includes(g))) continue;
+    const dist = footprintGap(o, bz);
+    if (dist <= def.supplyReach) out.push({ b: o, dist });
+  }
+  out.sort((p, q) => p.dist - q.dist || p.b.id - q.b.id);
+  return out.map((e) => e.b);
 }
 
 // The second food a home lacks (Stage 4.6, ruling 363): of the foods it has none of (in FOOD_SLOTS order: grain, figs, game, fish), the first
@@ -464,7 +487,7 @@ function footprintGap(a, b) {
 
 // The stores a bazaar draws its food from (restockBazaars' rule): any store of a food it sells within its supply
 // reach, nearest first, holding food or not. A storehouse holds no food, so it is never named for an empty granary.
-function graneriesFor(world, bazaar) {
+export function graneriesFor(world, bazaar) {
   const def = BUILDINGS[bazaar.type];
   const foods = def.sells.filter((g) => FOOD_GOODS.includes(g));
   return buildingsInReach(world, bazaar, def.supplyReach, (o) => (BUILDINGS[o.type].stores || []).some((g) => foods.includes(g))).map((e) => e.b);
