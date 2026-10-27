@@ -78,20 +78,23 @@ export const crossMax = (world) => (hasRiver(world.mapVariant) ? FERRY.max : BRI
 // The crossing n tiles of straight water take: 'bridge', 'ferry', or null when it is too wide.
 export const crossingKind = (world, n) => (n <= BRIDGE_MAX ? 'bridge' : n <= crossMax(world) ? 'ferry' : null);
 
-// Why a ferry cannot land on a bank tile, else null (ruling 1393): 'built', 'road', 'wall' or 'ground' (hills, or off the map).
+// Why a ferry cannot land on a bank tile, else null (ruling 1393): 'built', 'wall' (a wall, or a gate: a road through one) or 'ground' (hills, or off
+// the map). Ruling 1406: a plain road of the player's there is no bar: the landing takes its tile (liftsRoad), and Undo puts it back.
 export function landingBlock(world, [x, y]) {
   if (!inBounds(world.size, x, y)) return 'ground';
   const i = idx(world.size, x, y);
   if (world.occ[i]) return 'built';
-  if (world.road[i]) return 'road';
   if (world.wall[i]) return 'wall';
   return buildable(world, i) ? null : 'ground';
 }
+// Whether a ferry's landing tile holds a plain road the landing takes up (ruling 1406).
+export const liftsRoad = (world, [x, y]) => inBounds(world.size, x, y) && Boolean(world.road[idx(world.size, x, y)]) && !landingBlock(world, [x, y]);
 
 // Each run of water in an ordered list of tiles, judged: bridgeRuns' fields, and
 //   kind      'bridge', 'ferry', 'laid' (every tile a bridge already: nothing to judge), or null when refused
 //   reason    null, or the refusal: 'too_wide', 'bridge_shape' (bent, or no dry land at one end; see open), 'landing_taken' (a ferry's bank tile is
-//             not free land, or another crossing of the list has it: block says which of landingBlock's, or 'taken')
+//             built on, walled or hills, or another crossing of the list has it: block says which of landingBlock's, or 'taken'); a bank tile with a
+//             plain road on it is no refusal: the landing takes it up (ruling 1406)
 //   water     how many tiles of water; tiles: their [x, y]; landings: a ferry's two bank tiles, in the list's order; at: the tile a refusal is about
 //   open      the list ends in this water, straight on from the dry land before it (a drag on its way across): { ahead: the tiles of water from the bank
 //             to the far bank along the line, kind: what they take ('bridge', 'ferry' or null), edge: true when the water runs on to the map's edge }
@@ -132,11 +135,12 @@ export function crossingRuns(world, tiles) {
   });
 }
 
-// Whether a road stands beside a tile once `laid` (map indices given road) is laid: a landing's ferryman's way in (ruling 1394).
-export const roadWouldTouch = (world, [x, y], laid) => NEIGHBOURS4.some(([dx, dy]) => {
+// Whether a road stands beside a tile once `laid` (map indices given road) is laid and `lifted` (map indices whose road a landing takes up, ruling
+// 1406) is taken up: a landing's ferryman's way in (ruling 1394).
+export const roadWouldTouch = (world, [x, y], laid, lifted = new Set()) => NEIGHBOURS4.some(([dx, dy]) => {
   if (!inBounds(world.size, x + dx, y + dy)) return false;
   const i = idx(world.size, x + dx, y + dy);
-  return Boolean(world.road[i]) || laid.has(i);
+  return (Boolean(world.road[i]) && !lifted.has(i)) || laid.has(i);
 });
 
 // Stage 4.6 (ruling 350): the nearest place a road can cross the water: a straight run of 1 to BRIDGE_MAX water tiles along a row or a

@@ -130,8 +130,8 @@ describe('v71 f ui: the road tool says "lay a ferry"', () => {
   });
 
   it('the routed road\'s refusal names the ferry too', () => {
-    expect(ROUTE_TEXT.refusal(ferryWorld(7), { reason: 'too_wide', water: 7 }).endsWith(': lay a ferry')).toBe(true);
-    expect(ROUTE_TEXT.refusal(ferryWorld(13), { reason: 'too_wide', water: 13 }).endsWith(': lay a ferry')).toBe(false);
+    expect(ROUTE_TEXT.refusal(ferryWorld(7), { reason: 'too_wide', water: 7 }).endsWith(': lay a ferry with the Crossing card')).toBe(true);
+    expect(ROUTE_TEXT.refusal(ferryWorld(13), { reason: 'too_wide', water: 13 }).includes('lay a ferry')).toBe(false);
   });
 });
 

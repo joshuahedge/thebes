@@ -64,6 +64,10 @@ export function undo(world) {
       for (const id of e.ids) if (removeBuilding(world, id)) standing++;
       back = e.cost - (e.landingCost || 0) + Math.round(((e.landingCost || 0) * standing) / e.ids.length);
     }
+    // Ruling 1406: a landing that took up a plain road's tile gives it back, where nothing stands on that tile now.
+    const lifted = (e.lifted || []).filter((t) => !world.occ[t]);
+    for (const t of lifted) world.road[t] = 1;
+    if (lifted.length) world.roadVersion++;
     refund(world, back);
   } else if (e.kind === 'demolish') {
     const walls = e.walls || [];

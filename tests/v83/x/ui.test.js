@@ -5,6 +5,7 @@ import { describe, it, expect } from '../../harness.js';
 import { rigUI } from '../../helpers/uiWorld.js';
 import { fire } from '../../helpers/dom.js';
 import { ferryWorld, dragLine, RIVER_X, ROW } from '../../v71/f/helpers.js';
+import { addRaw, setRoad } from '../../helpers/testWorld.js';
 import { mixedWorld, FROM } from './card.test.js';
 import { toolPreview, ghostsFor, fitTarget, createPlacement } from '../../../src/ui/placement.js';
 import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
@@ -63,24 +64,52 @@ describe('v83 x ui: the road bar names the crossing, and the water is tinted to 
     expect(toolPreview(oasis, road(across(7)).get()).text).toBe('Too wide: 7 tiles (a bridge crosses up to 4)');
   });
 
-  it('a drag on its way across names what lies ahead and tints it, with ✓ waiting for the far bank; too wide ahead is refused at once', () => {
+  it('a touch drag that stops in the water names what lies ahead and tints it, and ✓ lays the road to the bank; reaching the far bank, ✓ lays the crossing', async () => {
     const w = ferryWorld(7);
     const mid = [[RIVER_X - 2, ROW], [RIVER_X - 1, ROW], [RIVER_X, ROW], [RIVER_X + 1, ROW], [RIVER_X + 2, ROW]];
     const s = store({ kind: 'road' }, { plan: { tiles: mid }, inputType: 'touch' });
     const p = toolPreview(w, s.get());
-    expect([p.state, p.text, p.note]).toEqual(['idle', 'Ferry: 7 tiles of water · drag on to the far bank', '']);
+    expect([p.state, p.text, p.cost]).toEqual(['ok', 'Ferry: 7 tiles of water · drag on to the far bank, or ✓ lays the road to the bank · 1 tile', previewRoadTiles(w, mid, { skipBlocked: true }).cost]);
     expect(ghostsFor(w, s.get()).filter((q) => q.x >= RIVER_X).map((q) => q.state)).toEqual(['ferry', 'ferry', 'ferry']);
     const narrow = toolPreview(ferryWorld(3), store({ kind: 'road' }, { plan: { tiles: mid.slice(0, 3) } }).get());
-    expect([narrow.state, narrow.text]).toEqual(['idle', 'Bridge: 3 tiles of water · drag on to the far bank']);
+    expect([narrow.state, narrow.text]).toEqual(['ok', 'Bridge: 3 tiles of water · drag on to the far bank, or ✓ lays the road to the bank · 1 tile']);
+    // with nothing dry to lay, ✓ waits for the far bank
+    const bare = ferryWorld(7);
+    bare.road[idx(bare.size, RIVER_X - 1, ROW)] = 1;
+    expect([toolPreview(bare, store({ kind: 'road' }, { plan: { tiles: mid } }).get()).state, toolPreview(bare, store({ kind: 'road' }, { plan: { tiles: mid } }).get()).text]).toEqual(['idle', 'Ferry: 7 tiles of water · drag on to the far bank']);
+    // too wide ahead: the dry part is still laid, and the bar says why, with Show me
     const wide = toolPreview(ferryWorld(14, { roads: false }), store({ kind: 'road' }, { plan: { tiles: mid } }).get());
-    expect([wide.state, wide.reason, wide.text, wide.showFit]).toEqual(['bad', 'too_wide', CROSSING_TEXT.tooWide(14), true]);
+    expect([wide.state, wide.text.includes(CROSSING_TEXT.tooWide(14)), wide.showFit]).toEqual(['ok', true, true]);
+    // through the bar: ✓ on the stopped drag lays the road to the bank; a drag on to the far bank lays the ferry
+    const r = await rigUI({ world: ferryWorld(7, { roads: false }) });
+    try {
+      const pl = r.ui.placement, world = r.world;
+      setRoad(world, 4, ROW, RIVER_X - 3, ROW);
+      pl.start({ kind: 'road' }); pl.setRoute(false);
+      pl.stroke(RIVER_X - 3, ROW, 'start'); for (let x = RIVER_X - 2; x <= RIVER_X + 2; x++) pl.stroke(x, ROW, 'move'); pl.stroke(RIVER_X + 2, ROW, 'end');
+      r.frame(0);
+      expect(r.root.querySelector('#confirm .ok').disabled).toBe(false);
+      fire(r.root.querySelector('#confirm .ok'), 'click');
+      expect([world.road[idx(world.size, RIVER_X - 1, ROW)], world.road[idx(world.size, RIVER_X, ROW)], landingsOf(world).length]).toEqual([1, 0, 0]);
+      pl.start({ kind: 'road' }); pl.setRoute(false);
+      pl.stroke(RIVER_X - 2, ROW + 4, 'start'); for (let x = RIVER_X - 1; x <= RIVER_X + 8; x++) pl.stroke(x, ROW + 4, 'move'); pl.stroke(RIVER_X + 8, ROW + 4, 'end');
+      setRoad(world, RIVER_X - 2, ROW + 1, RIVER_X - 2, ROW + 4);
+      r.frame(0);
+      fire(r.root.querySelector('#confirm .ok'), 'click');
+      expect(landingsOf(world).map((l) => [l.x, l.y])).toEqual([[RIVER_X - 1, ROW + 4], [RIVER_X + 7, ROW + 4]]);
+    } finally { r.cleanup(); }
   });
 
-  it('a busy bank says why, with Show me: a landing\'s tile with a road on it, and a landing no road would reach', () => {
+  it('a busy bank says why, with Show me: a landing\'s tile built on, and a landing no road would reach; a plain road there is taken up (ruling 1406)', () => {
     const w = ferryWorld(7);
-    w.road[idx(w.size, RIVER_X - 1, ROW)] = 1;
+    addRaw(w, 'well', RIVER_X - 1, ROW);
     const p = toolPreview(w, road(across(7)).get());
-    expect([p.state, p.reason, p.text, p.showFit]).toEqual(['bad', 'landing_taken', 'A ferry lands on a free bank tile: this one has a road on it', true]);
+    expect([p.state, p.reason, p.text, p.showFit, p.fitWhat]).toEqual(['bad', 'landing_taken', 'A ferry lands on a free bank tile: this one is built on', true, 'a crossing']);
+    const paved = ferryWorld(7);
+    paved.road[idx(paved.size, RIVER_X - 1, ROW)] = 1;
+    const q = toolPreview(paved, road(across(7)).get());
+    expect([q.state, q.text]).toEqual(['ok', `${CROSSING_TEXT.ferry(7)} · the landing takes 1 road tile at the bank · ${S45_TEXT.upkeepBill(crossingBill(paved))}`]);
+    expect(CROSSING_TEXT.landingTaken('taken')).toBe('A ferry needs a bank tile of its own: this strip of land is too narrow to share between two crossings');
     const bare = toolPreview(ferryWorld(7, { roads: false }), road({ x0: RIVER_X - 1, y0: ROW, x1: RIVER_X + 7, y1: ROW }).get());
     expect([bare.reason, bare.text, bare.showFit]).toEqual(['landing_no_road', CROSSING_TEXT.landingNoRoad, true]);
     expect([reasonText('landing_taken'), reasonText('landing_no_road')]).toEqual(['A ferry landing needs a free bank tile', 'A ferry landing needs a road beside it']);

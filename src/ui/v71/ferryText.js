@@ -86,9 +86,13 @@ export const CROSSING_TEXT = {
   bent: 'A crossing must go straight across',
   // A drag still on its way across: what the water ahead takes, and that it must reach the far bank.
   ahead: (kind, n) => `${kind === 'bridge' ? 'Bridge' : 'Ferry'}: ${plural(n, 'tile', 'tiles')} of water · drag on to the far bank`,
+  // A touch plan that stops in the water: ✓ still lays its dry part, as in 8.2.1, and the bar says so.
+  aheadOrLay: (kind, n) => `${kind === 'bridge' ? 'Bridge' : 'Ferry'}: ${plural(n, 'tile', 'tiles')} of water · drag on to the far bank, or ✓ lays the road to the bank`,
   noFarBank: 'No far bank: the water runs on to the map\'s edge',
-  // A ferry's landing tile (ruling 1393): why it cannot take one.
-  landingTaken: (block) => `A ferry lands on a free bank tile: this one ${{ road: 'has a road on it', built: 'is built on', wall: 'has a wall on it', ground: 'is not open ground', taken: 'belongs to another crossing' }[block] || 'is taken'}`,
+  // A ferry's landing tile (ruling 1393): why it cannot take one. A plain road there is no bar (ruling 1406): the landing takes its tile (lifted).
+  landingTaken: (block) => (block === 'taken' ? 'A ferry needs a bank tile of its own: this strip of land is too narrow to share between two crossings'
+    : `A ferry lands on a free bank tile: this one ${{ built: 'is built on', wall: 'has a wall or a gate on it', ground: 'is not open ground' }[block] || 'is taken'}`),
+  lifted: (n) => `the landing takes ${plural(n, 'road tile', 'road tiles')} at the bank`,
   landingNoRoad: 'A ferry landing needs a road beside it: carry the road on past the bank',
   // The bar's line for a stroke that lays a ferry: the crossing, the road it lays and the ferrymen's bill.
   bill: (world, n) => S45_TEXT.upkeepBill(crossingBill(world, n)),

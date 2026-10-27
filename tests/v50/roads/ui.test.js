@@ -169,7 +169,7 @@ describe('v50 roads ui: refusals say why, with Show me', () => {
     const p = pl.preview();
     expect(p.state).toBe('bad');
     expect(p.reason).toBe('too_wide');
-    expect(p.text).toBe(`No way across: the water is too wide here (${BRIDGE_MAX + 1} tiles; a bridge spans up to ${BRIDGE_MAX}): lay a ferry`);
+    expect(p.text).toBe(`No way across: the water is too wide here (${BRIDGE_MAX + 1} tiles; a bridge spans up to ${BRIDGE_MAX}): lay a ferry with the Crossing card`);
     expect(toolPreview(world, store.get()).showFit).toBe(true);
     expect(routeRoad(world, 4, 20, 26, 20).water).toBe(BRIDGE_MAX + 1);
     const t = fitTarget(world, store.get());

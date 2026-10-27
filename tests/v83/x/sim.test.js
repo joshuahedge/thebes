@@ -78,18 +78,18 @@ describe('v83 x sim: the road judges each run of water', () => {
 });
 
 describe('v83 x sim: a busy bank', () => {
-  it('a bank tile with a building, a road or a wall on it cannot take a landing: refused with why and where; a free one can', () => {
+  it('a bank tile with a building, a wall or a gate on it cannot take a landing: refused with why and where; a free one can', () => {
     const built = ferryWorld(7);
     addRaw(built, 'well', RIVER_X + 7, ROW);
     const b = previewRoadTiles(built, dragLine(7));
     expect([b.ok, b.reason, b.block, b.at]).toEqual([false, 'landing_taken', 'built', east(7)]);
-    const road = ferryWorld(7);
-    setRoad(road, RIVER_X - 1, ROW, RIVER_X - 1, ROW);                          // the road already runs to the water's edge
-    const r = previewRoadTiles(road, dragLine(7));
-    expect([r.ok, r.reason, r.block, r.at]).toEqual([false, 'landing_taken', 'road', west()]);
     const wall = ferryWorld(7);
     wall.wall[at(wall, RIVER_X - 1, ROW)] = 100;
     expect(previewRoadTiles(wall, dragLine(7)).block).toBe('wall');
+    const gate = ferryWorld(7);                                                 // a gate: a road through a wall
+    gate.wall[at(gate, RIVER_X - 1, ROW)] = 100;
+    setRoad(gate, RIVER_X - 1, ROW, RIVER_X - 1, ROW);
+    expect([previewRoadTiles(gate, dragLine(7)).reason, previewRoadTiles(gate, dragLine(7)).block]).toEqual(['landing_taken', 'wall']);
     expect(previewRoadTiles(ferryWorld(7), dragLine(7)).ok).toBe(true);
     // a touch plan lays the rest and skips the crossing's tiles, with the reason
     const plan = previewRoadTiles(built, dragLine(7), { skipBlocked: true });
@@ -122,6 +122,37 @@ describe('v83 x sim: a busy bank', () => {
     const both = [];
     for (let x = RIVER_X - 2; x <= RIVER_X + 9; x++) both.push([x, ROW]);
     expect(crossingRuns(b, both).map((r) => [r.kind, r.reason])).toEqual([[null, 'landing_taken'], ['bridge', null]]);
+  });
+});
+
+describe('v83 x sim: a road already at the water\'s edge (ruling 1406)', () => {
+  it('a plain road on the bank tile becomes the landing: its tile is taken up, the road behind it reaches the landing, and one Undo puts it all back', () => {
+    const w = ferryWorld(7);
+    setRoad(w, RIVER_X - 1, ROW, RIVER_X - 1, ROW);                             // the road already runs to the water's edge
+    const bank = at(w, RIVER_X - 1, ROW);
+    const p = previewRoadTiles(w, dragLine(7));
+    expect([p.ok, p.ferries.length, p.lifted, p.cost]).toEqual([true, 1, [bank], 2 * landing()]);
+    const gold = w.gold;
+    const r = drawRoadTiles(w, dragLine(7));
+    expect([r.ok, w.road[bank], w.occ[bank] === r.ids[0], w.undo[w.undo.length - 1].lifted]).toEqual([true, 0, true, [bank]]);
+    settle(w);
+    expect(landingsOf(w).every((l) => l.ferry.run)).toBe(true);                 // the road behind it (x = RIVER_X - 2) brings its ferryman
+    expect(undoLast(w).ok).toBe(true);
+    expect([landingsOf(w).length, w.road[bank], w.gold]).toEqual([0, 1, gold]);
+  });
+
+  it('the road behind the landing must reach it: a road that only ran onto the bank tile itself leaves the landing with none', () => {
+    const w = ferryWorld(7, { roads: false });
+    setRoad(w, RIVER_X - 1, ROW - 3, RIVER_X - 1, ROW);                         // a road down the bank, ending on the landing's tile
+    setRoad(w, RIVER_X + 8, ROW, RIVER_X + 10, ROW);
+    const line = [];
+    for (let x = RIVER_X - 1; x <= RIVER_X + 8; x++) line.push([x, ROW]);
+    expect(previewRoadTiles(w, line).ok).toBe(true);                             // (RIVER_X - 1, ROW - 1) is still road beside it
+    w.road[at(w, RIVER_X - 1, ROW - 1)] = 0;
+    w.road[at(w, RIVER_X - 1, ROW - 2)] = 0;
+    w.road[at(w, RIVER_X - 1, ROW - 3)] = 0;
+    const p = previewRoadTiles(w, line);
+    expect([p.ok, p.reason, p.at]).toEqual([false, 'landing_no_road', west()]);   // its own tile, taken up, is no road beside it
   });
 });
 

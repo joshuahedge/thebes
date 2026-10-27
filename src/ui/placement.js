@@ -79,6 +79,7 @@ function roadText(world, r, runs = []) {
       else if (run.kind === 'ferry' && laidFerry.has(tileKey(run.landings[0]))) parts.push(CROSSING_TEXT.ferry(run.water));
     }
     if (roads) parts.push(CROSSING_TEXT.roadTiles(roads));
+    if (r.lifted && r.lifted.length) parts.push(CROSSING_TEXT.lifted(r.lifted.length));   // ruling 1406: a landing on a plain road takes its tile
   } else if (roads) parts.push(plural(roads, 'tile', 'tiles'));
   if (gates) parts.push(S45_TEXT.gateNote(gates, costOf(world, 'gate')));
   if (ferries) parts.push(CROSSING_TEXT.bill(world, ferries));
@@ -472,22 +473,29 @@ function planPreview(world, tool, tiles) {
   if (tool.kind === 'ferry') return ferryPreview(world, tiles);                                    // Version 7.1 (Track F): one line, judged whole (a plan's skipped tiles do not apply)
   if (tool.kind === 'road' || tool.kind === 'wall') {
     const wall = tool.kind === 'wall';
-    // Version 8.3 (Track X): the water the plan crosses, judged; a plan whose last stroke is still on its way across names what lies ahead.
+    // Version 8.3 (Track X): the water the plan crosses, judged. A plan whose last stroke stops in the water, on its way across, names what lies ahead, and
+    // ✓ still lays its dry part with the water passed over, as in 8.2.1 (fix round 1); with nothing dry to lay it waits for the far bank.
     const runs = wall ? [] : waterRunsOf(world, tool, tiles);
-    if (runs.length && runs[runs.length - 1].open) return openPreview(world, runs[runs.length - 1], tiles);
+    const last = runs.length ? runs[runs.length - 1] : null;
+    const ahead = last && last.open && last.open.kind ? last : null;
     const r = (wall ? previewWallTiles : previewRoadTiles)(world, tiles, wall ? { skipBlocked: true } : { skipBlocked: true, ...roadOptions(tool) });
     // Water the plan passes over says why in the crossing's own words (the first such run's), with Show me; other skipped tiles keep the count's words.
     const waterSkip = (r.skipped || []).filter((k) => WATER_REFUSALS.includes(k.reason));
-    const refused = runs.find((run) => run.reason) || null;
+    const refused = runs.find((run) => run.reason && run !== ahead) || null;
     const noRoad = waterSkip.find((k) => k.reason === 'landing_no_road');
     const why = refused ? roadRefusalText(world, refused) : noRoad ? CROSSING_TEXT.landingNoRoad : '';
-    const water = why ? { waterRefused: true, waterReason: refused ? refused.reason : 'landing_no_road', at: refused ? refused.at : [noRoad.x, noRoad.y], water: refused ? refused.water : 0 } : {};
-    if (r.reason === 'nothing_to_place' || (r.ok && !r.tiles.length && !(r.ferries && r.ferries.length))) { const n = nothing(r); return why ? { ...n, text: why, waterRuns: runs, ...water } : n; }
+    const refusedWhy = refused && refused.open ? (refused.open.edge ? 'bridge_shape' : 'too_wide') : refused ? refused.reason : 'landing_no_road';   // what Show me treats it as
+    const water = why ? { waterRefused: true, waterReason: refusedWhy, at: refused ? refused.at : [noRoad.x, noRoad.y], water: refused ? (refused.open ? refused.open.ahead : refused.water) : 0 } : {};
+    if (r.reason === 'nothing_to_place' || (r.ok && !r.tiles.length && !(r.ferries && r.ferries.length))) {
+      if (ahead) return openPreview(world, ahead, tiles);
+      const n = nothing(r);
+      return why ? { ...n, text: why, waterRuns: runs, ...water } : n;
+    }
     if (!r.ok) return { ...bad(r.reason, r.cost, r.tiles.length, tiles), skipped: skippedOf(r) };
     const gates = r.gates || [];
     const others = (r.skipped || []).filter((k) => !WATER_REFUSALS.includes(k.reason));
     const text = wall ? withSkips(DANGER_UI_TEXT.wallCount(r.tiles.length, gates.length), r)
-      : [roadText(world, r, runs), why, others.length ? DRAW_TEXT.skipped(others) : (!why && r.skipped.length ? DRAW_TEXT.skipped(r.skipped) : '')].filter(Boolean).join(' · ');
+      : [ahead ? CROSSING_TEXT.aheadOrLay(ahead.open.kind, ahead.open.ahead) : '', roadText(world, r, runs), why, others.length ? DRAW_TEXT.skipped(others) : (!why && !ahead && r.skipped.length ? DRAW_TEXT.skipped(r.skipped) : '')].filter(Boolean).join(' · ');
     return { state: 'ok', reason: null, warnings: [], text, effect: '', cost: r.cost, count: r.tiles.length, tiles, gates, bridges: r.bridges || [], ferries: r.ferries || [], waterRuns: runs, skipped: skippedOf(r), refund: 0, ...water };
   }
   if (tool.kind === 'houses') {
@@ -724,13 +732,13 @@ export function ghostsFor(world, state, preview = toolPreview(world, state)) {
   // its water as what lies ahead. A refused stroke is coral throughout, as before.
   const tint = new Map();
   for (const run of visual === 'bad' ? [] : preview.waterRuns || []) {
-    const kind = run.open ? run.open.kind : run.reason ? null : run.kind;
+    const kind = run.open ? run.open.kind : run.reason || skipped.has(tileKey(run.tiles[0])) ? null : run.kind;   // a crossing a plan passes over is coral
     for (const t of run.tiles) tint.set(tileKey(t), kind === 'bridge' ? 'bridge' : kind === 'ferry' ? 'ferry' : 'bad');
   }
   const shapes = preview.tiles.map(([x, y]) => {
     const i = y * world.size + x;
     const k = tileKey([x, y]);
-    return { x, y, w: 1, d: 1, state: skipped.has(k) ? 'bad' : tint.has(k) ? tint.get(k) : gates.has(i) ? 'gate' : bridged(i) ? 'bridge' : visual };
+    return { x, y, w: 1, d: 1, state: tint.has(k) ? tint.get(k) : skipped.has(k) ? 'bad' : gates.has(i) ? 'gate' : bridged(i) ? 'bridge' : visual };
   });
   // A ferry the stroke lays carries the Ferry tool's boat and its price (two landings), so it reads as a ferry by its shape as well as its colour.
   for (const f of visual === 'bad' ? [] : preview.ferries || []) {

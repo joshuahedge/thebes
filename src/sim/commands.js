@@ -14,7 +14,7 @@ import { storeAccepts } from './production.js';
 import { guildsNear, supplyNear, remainingNeed } from './monuments.js';
 import { DEFENCE } from '../data/raids.js';
 import { hasRiver } from '../data/map.js';
-import { bridgeVerdicts, roadWouldTouch } from './bridges.js';
+import { bridgeVerdicts, roadWouldTouch, liftsRoad } from './bridges.js';
 import { FERRY_LANDING } from '../data/ferries.js';
 import { layLandings } from './ferryLay.js';   // Version 8.3 (Track X): a road stroke lays a ferry's landings as the Ferry tool does (ferryLay.js reads nothing from here)
 import { tileBound, fitOf, fitReason, waterTilesOf } from './fit.js';
@@ -497,19 +497,27 @@ export function previewRoadTiles(world, list, { skipBlocked = false, gateOnly = 
     if (wall < 0 || (wall > 0 && !world.road[i])) { tiles.push(i); gates.push(i); }
     else if (!wall && !world.road[i]) { tiles.push(i); if (onWater) bridges.push(i); }
   }
-  // Ruling 1394: a landing needs a road beside it for its ferryman, one already there or one this stroke lays.
-  const laid = new Set(tiles);
+  // Ruling 1394: a landing needs a road beside it for its ferryman, one already there or one this stroke lays. Ruling 1406: a landing on a plain road
+  // takes that tile up (lifted: map indices), so the road beside it must be another: the one behind it, or the one the stroke lays.
+  const laid = new Set(tiles), lifting = new Set();
+  for (const run of crossing) for (const l of run.landings) if (liftsRoad(world, l)) lifting.add(idx(world.size, l[0], l[1]));
+  const lifted = [];
   for (const run of crossing) {
-    const bare = run.landings.find((l) => !roadWouldTouch(world, l, laid));
-    if (!bare) { ferries.push({ landings: run.landings, water: run.water }); continue; }
+    const bare = run.landings.find((l) => !roadWouldTouch(world, l, laid, lifting));
+    if (!bare) {
+      ferries.push({ landings: run.landings, water: run.water });
+      for (const [x, y] of run.landings) if (lifting.has(idx(world.size, x, y))) lifted.push(idx(world.size, x, y));
+      continue;
+    }
     if (!skipBlocked) return fail('landing_no_road', { ...none, water: run.water, at: bare });
     for (const [x, y] of [run.landings[0], ...run.tiles, run.landings[1]]) skipped.push({ x, y, reason: 'landing_no_road' });
   }
   const bridgeCost = bridges.length * costOf(world, 'bridge');
   const ferryCost = ferries.length * 2 * costOf(world, FERRY_LANDING);
   const cost = (tiles.length - gates.length - bridges.length) * roadCostOf(world) + gates.length * costOf(world, 'gate') + bridgeCost + ferryCost;
-  if (!canAfford(world, cost)) return fail('no_gold', { tiles, gates, bridges, bridgeCost, ferries, ferryCost, cost, skipped });
-  return { ok: true, warnings: [], tiles, gates, bridges, bridgeCost, ferries, ferryCost, cost, skipped };
+  const more = lifted.length ? { lifted } : {};
+  if (!canAfford(world, cost)) return fail('no_gold', { tiles, gates, bridges, bridgeCost, ferries, ferryCost, cost, skipped, ...more });
+  return { ok: true, warnings: [], tiles, gates, bridges, bridgeCost, ferries, ferryCost, cost, skipped, ...more };
 }
 
 // Lays the preview's tiles, charges for them and pushes one undo entry for the whole list. A gate tile gets its road and its
@@ -518,7 +526,8 @@ export function previewRoadTiles(world, list, { skipBlocked = false, gateOnly = 
 // A bridge tile (ruling 314) is a tile of the list that is water: its road is set like any other, and undo takes it off again.
 // Version 8.3 (Track X, rulings 1391, 1392): then each ferry's landings, through layLandings (src/sim/ferryLay.js), so a road-laid ferry is the Ferry tool's
 // pair exactly; the one undo entry carries their ids and landingCost (the landings' share of cost), and undo takes them away with the road. Returns the
-// preview with ids: the landings laid, two per ferry in its order.
+// preview with ids: the landings laid, two per ferry in its order. Ruling 1406: a landing on a plain road takes that road tile up first (the entry's
+// lifted), and undo puts it back once the landing is gone.
 export function drawRoadTiles(world, list, options = {}) {
   const p = previewRoadTiles(world, list, options);
   if (!p.ok || (p.tiles.length === 0 && !p.ferries.length)) return p;
@@ -527,12 +536,14 @@ export function drawRoadTiles(world, list, options = {}) {
   const laid = p.tiles.filter((t) => !world.road[t]);
   for (const t of p.tiles) world.road[t] = 1;
   for (const t of gates) world.wall[t] = DEFENCE.gateHp;
+  const lifted = p.lifted || [];
+  for (const t of lifted) world.road[t] = 0;
   world.roadVersion++;
   if (gates.size) world.wallVersion++;
   const ids = [];
   for (const f of p.ferries) ids.push(...layLandings(world, f.landings, f.water));
   spend(world, p.cost);
-  pushUndo(world, { kind: 'road', tiles: laid, cost: p.cost, walls, ...(ids.length ? { ids, landingCost: p.ferryCost } : {}) });
+  pushUndo(world, { kind: 'road', tiles: laid, cost: p.cost, walls, ...(ids.length ? { ids, landingCost: p.ferryCost } : {}), ...(lifted.length ? { lifted } : {}) });
   return ids.length ? { ...p, ids } : p;
 }
 
