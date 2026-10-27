@@ -1,4 +1,6 @@
-# Version 8.3 "Lines": rulings 1410-1428 (Track K, keep stocked and supply lines)
+# Version 8.3 "Lines": rulings 1410-1428 and 1451-1452 (Track K, keep stocked and supply lines)
+
+(Rulings 1451 and 1452, how the pick frames the map and the rail stepping aside, were made in the integration round and sit at the end, outside Track K's range of 1410-1428.)
 
 The rule is src/sim/carts.js (setSource, findSource, orderSource, sourceChoices) and src/sim/layers.js (supplyLines); the sheet src/ui/s47/carts.js, the pick src/ui/s47/sourcePick.js with src/ui/modes.js, the layer src/render/layers.js and src/ui/layersLegend.js, the Advice fixes src/sim/adviceFixes.js and src/sim/bazaarFood.js, the words Track K's section at the end of src/ui/text.js. Tests: tests/v83/k/.
 

@@ -4111,7 +4111,7 @@ V70_ADVICE_WORDS.keep_stocked = (a, world) => {
 const v83cTiles = (n) => plural(n, 'road tile', 'road tiles');
 export const V83_C_TEXT = {
   // One slowed crew's line on the site sheet: how far its guild is and what it works at. A crew at full speed has none (the "Crews: n of m" line says it, and
-  // the camp row once it is set up; ruling 1447).
+  // the camp row once it is set up; ruling 1448).
   crewLine: ({ dist, speed }) => `Crew from the guild ${v83cTiles(dist)} away: works at ${Math.round(speed * 100)}% (the walk)`,
   // The guild's own line while its crew works a site: the crew's walk, only when it slows it.
   guildWalk: ({ dist, speed }) => `: ${v83cTiles(dist)} away, works at ${Math.round(speed * 100)}%`,

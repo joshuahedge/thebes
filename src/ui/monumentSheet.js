@@ -187,14 +187,14 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
   rows.push({ key: 'crews', text: U.crews(s.crews.guilds.length, s.crews.max) });
   if (!s.finished) {
     const crews = siteCrews(world, b);
-    for (const c of crews) if (c.speed < 1) rows.push({ key: `crew-${c.id}`, text: V83_C_TEXT.crewLine(c) });   // a crew at full speed is in the "Crews: n of m" line (ruling 1447)
+    for (const c of crews) if (c.speed < 1) rows.push({ key: `crew-${c.id}`, text: V83_C_TEXT.crewLine(c) });   // a crew at full speed is in the "Crews: n of m" line (ruling 1448)
     // The camp's offer sits right under the crews it speeds up (ruling 1436): a button while it can be paid, else its words (the price, and why not).
     const camp = campModel(world, b, crews);
     if (camp.show) rows.push({ key: 'camp', text: camp.text, camp: camp.ok ? camp : null });
   }
   const keep = keepRows(world, b, s);
   const cause = causeText(world, b, s.reason, s);
-  // One stall shows one Show me (ruling 1447): a stall for stone or bricks that a keep row has a fix for leaves its Show me to that row (the fix Advice gives).
+  // One stall shows one Show me (ruling 1449): a stall for stone or bricks that a keep row has a fix for leaves its Show me to that row (the fix Advice gives).
   const stalledGood = s.reason === 'no_stone' || s.reason === 'no_bricks' ? s.reason.slice(3) : null;
   const merged = stalledGood !== null && keep.some((k) => k.goods.includes(stalledGood));
   if (cause) rows.push({ key: 'cause', reason: s.reason, text: cause, fix: merged ? null : causeFix(world, b, s.reason, s) });

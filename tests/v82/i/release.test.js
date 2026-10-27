@@ -11,11 +11,11 @@ import { createWorld } from '../../../src/sim/world.js';
 
 describe('v82 i release: What\'s new for 8.2', () => {
   it('names the Oasis and the preview as the game does, and lists the fixes', () => {
-    const r = RELEASES[1], text = [...r.new, ...r.fixed].join(' ');
-    expect([APP_VERSION, r.version, r.build, RELEASES[2].version, RELEASES[2].build]).toEqual(['8.2.1', '8.2', 'c4bff18', '8.1', 'ad57f92']);   // Version 8.2.1: one newer entry
+    const r = RELEASES[2], text = [...r.new, ...r.fixed].join(' ');
+    expect([APP_VERSION, r.version, r.build, RELEASES[3].version, RELEASES[3].build]).toEqual(['8.3', '8.2', 'c4bff18', '8.1', 'ad57f92']);   // Version 8.3: two newer entries
     expect([LAYOUT_NAMES['great-oasis'], MAP_VARIANTS_OFFERED.includes('great-oasis'), hasRiver('great-oasis'), text.includes(`the ${LAYOUT_NAMES['great-oasis']}, with no river`)]).toEqual(['Oasis', true, false, true]);
     expect([text.includes(`Press ${PREVIEW_TEXT.another}`), shownItems(createWorld({ seed: 3, mapVariant: 'great-oasis' }), 'roads').includes('ferry')]).toEqual([true, false]);
     for (const words of ['caravan', 'New city in the game\'s menu', 'wide, readable panel', 'what the raiders are after', 'no More button', 'first road in view']) expect([words, text.includes(words)]).toEqual([words, true]);
-    expect(RELEASES[2].new.some((l) => l.includes('with More for the rest'))).toBe(true);   // 8.1's history stands as it was
+    expect(RELEASES[3].new.some((l) => l.includes('with More for the rest'))).toBe(true);   // 8.1's history stands as it was
   });
 });

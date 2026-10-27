@@ -181,18 +181,19 @@ describe('s46 final releases: every version has its build (ruling 459)', () => {
     renderWhatsNew(host, () => {}, RELEASES, { stamp: 'abc1234' });
     const heads = [...host.querySelectorAll('.release h3')].map((h) => h.textContent);
     expect(heads[0].startsWith(S46_UX_TEXT.releaseHead(RELEASES[0].version, releaseDateText(RELEASES[0].date), 'abc1234'))).toBe(true);
-    expect(heads[1].startsWith(`Version 8.2 · ${releaseDateText(RELEASES[1].date)} · build c4bff18`)).toBe(true);   // Version 8.2.1: 8.2 gets its merge commit
-    expect(heads[2].startsWith(`Version 8.1 · ${releaseDateText(RELEASES[2].date)} · build ad57f92`)).toBe(true);   // Version 8.2: 8.1 gets its merge commit
-    expect(heads[3].startsWith(`Version 8.0 · ${releaseDateText(RELEASES[3].date)} · build 702481b`)).toBe(true);   // Version 8.1: 8.0 gets its merge commit
-    expect(heads[4].startsWith(`Version 7.1.1 · ${releaseDateText(RELEASES[4].date)} · build a6eae26`)).toBe(true);   // Version 8.0: 7.1.1 gets its merge commit
-    expect(heads[5].startsWith(`Version 7.1 · ${releaseDateText(RELEASES[5].date)} · build e032f2c`)).toBe(true);   // Version 7.1.1: 7.1 gets its merge commit
-    expect(heads[6].startsWith(`Version 7.0 · ${releaseDateText(RELEASES[6].date)} · build 16cda04`)).toBe(true);   // Version 7.1: 7.0 gets its merge commit
-    expect(heads[7].startsWith(`Version 6.0.1 · ${releaseDateText(RELEASES[7].date)} · build 4502f53`)).toBe(true);   // Version 7.0: 6.0.1 gets its merge commit
-    expect(heads[8].startsWith(`Version 6.0 · ${releaseDateText(RELEASES[8].date)} · build 01da086`)).toBe(true);   // Version 6.0.1: 6.0 gets its merge commit
-    expect(heads[9].startsWith(`Version 5.0 · ${releaseDateText(RELEASES[9].date)} · build 486006a`)).toBe(true);   // Version 6.0: 5.0 gets its merge commit
-    expect(heads[10].startsWith(`Version 4.7 · ${releaseDateText(RELEASES[10].date)} · build b541f9e`)).toBe(true);   // Version 5.0: 4.7 gets its merge commit
-    expect(heads[11].startsWith(`Version 4.6 · ${releaseDateText(RELEASES[11].date)} · build 5bb08e5`)).toBe(true);
-    expect(heads[12].startsWith(`Version 4.5 · ${releaseDateText(RELEASES[12].date)} · build b2a5757`)).toBe(true);
+    expect(heads[1].startsWith(`Version 8.2.1 · ${releaseDateText(RELEASES[1].date)} · build 87b5ec3`)).toBe(true);   // Version 8.3: 8.2.1 gets its merge commit
+    expect(heads[2].startsWith(`Version 8.2 · ${releaseDateText(RELEASES[2].date)} · build c4bff18`)).toBe(true);   // Version 8.2.1: 8.2 gets its merge commit
+    expect(heads[3].startsWith(`Version 8.1 · ${releaseDateText(RELEASES[3].date)} · build ad57f92`)).toBe(true);   // Version 8.2: 8.1 gets its merge commit
+    expect(heads[4].startsWith(`Version 8.0 · ${releaseDateText(RELEASES[4].date)} · build 702481b`)).toBe(true);   // Version 8.1: 8.0 gets its merge commit
+    expect(heads[5].startsWith(`Version 7.1.1 · ${releaseDateText(RELEASES[5].date)} · build a6eae26`)).toBe(true);   // Version 8.0: 7.1.1 gets its merge commit
+    expect(heads[6].startsWith(`Version 7.1 · ${releaseDateText(RELEASES[6].date)} · build e032f2c`)).toBe(true);   // Version 7.1.1: 7.1 gets its merge commit
+    expect(heads[7].startsWith(`Version 7.0 · ${releaseDateText(RELEASES[7].date)} · build 16cda04`)).toBe(true);   // Version 7.1: 7.0 gets its merge commit
+    expect(heads[8].startsWith(`Version 6.0.1 · ${releaseDateText(RELEASES[8].date)} · build 4502f53`)).toBe(true);   // Version 7.0: 6.0.1 gets its merge commit
+    expect(heads[9].startsWith(`Version 6.0 · ${releaseDateText(RELEASES[9].date)} · build 01da086`)).toBe(true);   // Version 6.0.1: 6.0 gets its merge commit
+    expect(heads[10].startsWith(`Version 5.0 · ${releaseDateText(RELEASES[10].date)} · build 486006a`)).toBe(true);   // Version 6.0: 5.0 gets its merge commit
+    expect(heads[11].startsWith(`Version 4.7 · ${releaseDateText(RELEASES[11].date)} · build b541f9e`)).toBe(true);   // Version 5.0: 4.7 gets its merge commit
+    expect(heads[12].startsWith(`Version 4.6 · ${releaseDateText(RELEASES[12].date)} · build 5bb08e5`)).toBe(true);
+    expect(heads[13].startsWith(`Version 4.5 · ${releaseDateText(RELEASES[13].date)} · build b2a5757`)).toBe(true);
     const later = document.createElement('div');                              // the stamp read a moment later
     renderWhatsNew(later, () => {}, RELEASES, { read: async () => 'def5678' });
     expect(later.querySelector('.release h3').textContent.includes('build')).toBe(false);

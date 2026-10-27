@@ -1,4 +1,6 @@
-# Version 8.3 "Lines": rulings 1390-1409 (Track X, crossings)
+# Version 8.3 "Lines": rulings 1390-1409 and 1450 (Track X, crossings)
+
+(Ruling 1450, the one crossing tip a map, was made in the integration round and sits at the end, outside Track X's range of 1390-1409.)
 
 The road tool lays a bridge or a ferry, and the Ferry card is the Crossing card. The rule is src/sim/bridges.js (crossingRuns) and src/sim/commands.js (previewRoadTiles, drawRoadTiles); the landings src/sim/ferryLay.js (layLandings); the undo src/sim/undo.js; the card src/sim/ferryFind.js (crossingChoices, previewCrossing); the tool src/ui/placement.js, the bar src/ui/confirmBar.js, the words src/ui/v71/ferryText.js (CROSSING_TEXT). Tests: tests/v83/x/.
 

@@ -39,7 +39,7 @@ describe('v83 c the site sheet\'s crew lines', () => {
     expect([g1.id, g2.id].sort()).toEqual([a.id, b.id].sort());
     const nearOne = guildAt(w, 52);
     const lines = () => siteRows(w, s).filter((r) => r.key.startsWith('crew-')).map((r) => r.key);
-    expect(lines().includes(`crew-${nearOne.id}`)).toBe(false);                   // a crew at full speed has no line of its own (ruling 1447)
+    expect(lines().includes(`crew-${nearOne.id}`)).toBe(false);                   // a crew at full speed has no line of its own (ruling 1448)
     expect(lines().length).toBe(siteCrews(w, s).filter((c) => c.speed < 1).length);
     s.site.camp = true;
     const far = siteCrews(w, s).find((c) => c.walk < 1);
