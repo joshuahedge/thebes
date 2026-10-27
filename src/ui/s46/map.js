@@ -55,7 +55,8 @@ export function createMapUi(ctx) {
       lastKey = key;
       const p = toolPreview(world, s);
       // Version 7.1 (Track F, ruling 1083): a too-wide refusal fires the ferries tip first, so the bridges tip does not take the 3-minute slot ahead of it
-      if (road && p.state === 'bad' && p.reason === 'too_wide' && !riverless(world)) ctx.fireTip('roadTooWide');   // Version 8.2 (ruling 1333): the ferries tip is for maps with a river
+      // Version 8.3 (Track X, ruling 1401): it is the crossings tip, fired the first time the road's line meets any water (p.waterRuns), still first
+      if (road && p.waterRuns && p.waterRuns.length && !riverless(world)) ctx.fireTip('roadCrossing');   // Version 8.2 (ruling 1333): the ferries tip is for maps with a river
       if (road && ((p.state === 'bad' && WATER_REFUSALS.includes(p.reason)) || (p.bridges && p.bridges.length))) ctx.fireTip('roadMeetsWater');
       if (hasHills && p.state === 'bad' && p.reason === 'hills') ctx.fireTip('hillsMet');
       if (road && !s.tool.route && p.state === 'bad' && ROUTE_TIP_REFUSALS.includes(p.reason)) ctx.fireTip('roadRoute');   // Version 5.0 (Task 5): the straight road met something Route goes round

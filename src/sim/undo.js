@@ -56,7 +56,19 @@ export function undo(world) {
     const walls = e.walls || [];
     for (const [t, v] of walls) world.wall[t] = v;
     if (walls.length) world.wallVersion++;
-    refund(world, e.cost);
+    // Version 8.3 (Track X, ruling 1392): a road stroke that laid a ferry carries its landings (ids, landingCost: their share of cost). They are taken away
+    // as a 'place' entry's are, and refund only what still stands; the road's share comes back whole, as before.
+    let back = e.cost;
+    if (e.ids && e.ids.length) {
+      let standing = 0;
+      for (const id of e.ids) if (removeBuilding(world, id)) standing++;
+      back = e.cost - (e.landingCost || 0) + Math.round(((e.landingCost || 0) * standing) / e.ids.length);
+    }
+    // Ruling 1406: a landing that took up a plain road's tile gives it back, where nothing stands on that tile now.
+    const lifted = (e.lifted || []).filter((t) => !world.occ[t]);
+    for (const t of lifted) world.road[t] = 1;
+    if (lifted.length) world.roadVersion++;
+    refund(world, back);
   } else if (e.kind === 'demolish') {
     const walls = e.walls || [];
     if (!e.buildings.every((snap) => footprintFree(world, snap)) || e.roads.some((t) => world.occ[t])) return { ok: false, reason: 'occupied' };

@@ -4,6 +4,7 @@ import { describe, it, expect } from '../../harness.js';
 import { rigUI } from '../../helpers/uiWorld.js';
 import { fire, key } from '../../helpers/dom.js';
 import { ferryWorld, dragLine, settle, RIVER_X, ROW } from './helpers.js';
+import { addRaw } from '../../helpers/testWorld.js';
 import { toolPreview, ghostsFor, fitTarget } from '../../../src/ui/placement.js';
 import { createStore, INITIAL_UI_STATE } from '../../../src/ui/store.js';
 import { select, openSheet } from '../../../src/ui/modes.js';
@@ -29,7 +30,7 @@ describe('v71 f ui: the bar\'s words', () => {
       const p = toolPreview(w, store({ kind: 'ferry' }, { line: across(width) }).get());
       const bill = monthlyBill('ferry_landing', w);
       expect([width, p.state, p.cost, p.count]).toEqual([width, 'ok', ferryCost(w), 2]);
-      expect(p.text).toBe(`${width} tiles of water · Costs ${2 * bill.bill} a month`);   // one short line (fix batch G, ruling 1086): what it counts as is in the landing's sheet
+      expect(p.text).toBe(`Ferry: ${width} tiles of water · Costs ${2 * bill.bill} a month`);   // one short line (fix batch G, ruling 1086): what it counts as is in the landing's sheet; 8.3: led by its kind
     }
     const hard = ferryWorld(7);
     hard.difficulty = 'hard';
@@ -39,12 +40,12 @@ describe('v71 f ui: the bar\'s words', () => {
 
   it('says why a line is refused, with the number that decided it, for each reason', () => {
     const say = (w, l) => { const p = toolPreview(w, store({ kind: 'ferry' }, { line: l }).get()); return [p.state, p.reason, p.text]; };
-    expect(say(ferryWorld(4), across(4))).toEqual(['bad', 'ferry_bridge', `Only 4 tiles of water: a bridge does this (the road tool)`]);
-    expect(say(ferryWorld(13), across(13))).toEqual(['bad', 'ferry_too_wide', `Too wide for a ferry (13 tiles of water; the most is ${FERRY.max})`]);
+    expect(say(ferryWorld(4), across(4))).toEqual(['ok', null, 'Bridge: 4 tiles of water · 2 road tiles']);   // Version 8.3 (Track X): the Crossing card lays a bridge over narrow water
+    expect(say(ferryWorld(13), across(13))).toEqual(['bad', 'ferry_too_wide', `Too wide: 13 tiles (a bridge crosses up to 4, a ferry up to ${FERRY.max})`]);
     expect(say(ferryWorld(7), line(RIVER_X - 2, ROW, RIVER_X + 8, ROW + 2))[0]).toBe('ok');   // 8.2.1 (ruling 1347): a bent line snaps to the straight crossing
-    expect(say(ferryWorld(7), line(3, 3, 8, 3))).toEqual(['bad', 'ferry_no_water', 'No water on this line: a ferry crosses water']);
+    expect(say(ferryWorld(7), line(3, 3, 8, 3))).toEqual(['bad', 'ferry_no_water', 'No water on this line: a crossing crosses water']);
     expect(say(ferryWorld(7), line(RIVER_X - 2, ROW, RIVER_X + 5, ROW))[0]).toBe('ok');      // 8.2.1: and one that stops in the water slides to the bank
-    expect(say(ferryWorld(7, { roads: false }), across(7))).toEqual(['bad', 'ferry_no_road', 'No road can reach a landing here: lay a road within 3 tiles of the bank']);
+    expect(say(ferryWorld(7, { roads: false }), across(7))).toEqual(['bad', 'ferry_no_road', 'No road can reach this crossing: lay a road within 3 tiles of the bank']);
     expect(say(ferryWorld(7), across(7))[0]).toBe('ok');
     const poor = ferryWorld(7);
     poor.gold = -9999;
@@ -83,52 +84,54 @@ describe('v71 f ui: the bar\'s words', () => {
 
 describe('v71 f ui: the road tool says "lay a ferry"', () => {
   it('refuses water past a bridge with the width and the way on, up to a ferry\'s width, and says when even a ferry cannot', () => {
+    // Version 8.3 (Track X): the road lays the ferry itself up to a ferry's width, and names it
     for (const width of [5, 7, 12]) {
       const p = toolPreview(ferryWorld(width), store({ kind: 'road' }, { line: line(RIVER_X - 4, ROW, RIVER_X + width + 3, ROW) }).get());
-      expect([width, p.state, p.reason, p.text]).toEqual([width, 'bad', 'too_wide', `Too wide for a bridge (${width} tiles of water): lay a ferry`]);
-      expect(p.text).toBe(S45_TEXT.tooWide(width));
+      expect([width, p.state, p.reason, p.text.startsWith(`Ferry: ${width} tiles of water, walkers wait at the bank`)]).toEqual([width, 'ok', null, true]);
     }
     const wide = toolPreview(ferryWorld(13), store({ kind: 'road' }, { line: line(RIVER_X - 4, ROW, RIVER_X + 16, ROW) }).get());
-    expect(wide.text).toBe(`Too wide for a bridge (13 tiles of water) or a ferry (the most is ${FERRY.max})`);
+    expect(wide.text).toBe(`Too wide: 13 tiles (a bridge crosses up to 4, a ferry up to ${FERRY.max})`);
     // 4 tiles still bridge
     expect(toolPreview(ferryWorld(4), store({ kind: 'road' }, { line: line(RIVER_X - 4, ROW, RIVER_X + 7, ROW) }).get()).state).toBe('ok');
     expect(BRIDGE_MAX).toBe(4);
   });
 
   it('its Show me goes to the nearest place a ferry fits, and starts the Ferry tool there; with no such place it says so', async () => {
-    const w = ferryWorld(7);
+    // Version 8.3 (Track X, ruling 1402): the road lays a ferry across 7 itself; a far bank built on is refused, and its Show me opens the Crossing card
+    const busy = () => { const b = ferryWorld(7); addRaw(b, 'well', RIVER_X + 7, 4); return b; };
+    const w = busy();
     const s = store({ kind: 'road' }, { line: line(RIVER_X - 4, 4, RIVER_X + 10, 4) });
     const p = toolPreview(w, s.get());
-    expect([p.state, p.reason, p.showFit]).toEqual(['bad', 'too_wide', true]);
+    expect([p.state, p.reason, p.showFit]).toEqual(['bad', 'landing_taken', true]);
     const t = fitTarget(w, s.get());
     // 8.2.1 (ruling 1349): to the nearest of the crossings the Ferry tool shows from there (near the roads on row 10), not the nearest water a ferry spans
     expect([t.kind, t.crossing.water, t.crossing.landings[0][0], t.crossing.landings[1][0], t.crossing.landings[0][1] === t.crossing.landings[1][1]]).toEqual(['ferry', 7, RIVER_X - 1, RIVER_X + 7, true]);
-    const r = await rigUI({ world: ferryWorld(7) });
+    const r = await rigUI({ world: busy() });
     try {
       const pl = r.ui.placement;
       pl.start({ kind: 'road' });
       pl.pointAt(RIVER_X - 4, 4); pl.pointAt(RIVER_X + 10, 4);
       r.frame(0);
       const btn = r.root.querySelector('#confirm .show-fit');
-      expect([btn.textContent, btn.getAttribute('aria-label').includes('a ferry'), ...sized(btn)]).toEqual(['Show me', true, true, true]);
+      expect([btn.textContent, btn.getAttribute('aria-label').includes('a crossing'), ...sized(btn)]).toEqual(['Show me', true, true, true]);
       fire(btn, 'click');
       expect(r.store.get().tool.kind).toBe('ferry');
     } finally { r.cleanup(); }
   });
 
   it('the Ferry tool\'s own Show me goes to a bridge for water a bridge crosses, else to a ferry\'s place; none where the map has none', () => {
+    // Version 8.3 (Track X, ruling 1399): the Crossing card lays the bridge itself over narrow water, so it has nothing to show
     const w = ferryWorld(4);
     const s = store({ kind: 'ferry' }, { line: across(4) });
-    expect(toolPreview(w, s.get()).showFit).toBe(true);
-    expect(fitTarget(w, s.get()).kind).toBe('bridge');
+    expect([toolPreview(w, s.get()).state, toolPreview(w, s.get()).showFit]).toEqual(['ok', undefined]);
     const none = ferryWorld(13);
     expect(fitTarget(none, store({ kind: 'ferry' }, { line: across(13) }).get())).toBe(null);
     expect(fitTarget(ferryWorld(7), store({ kind: 'ferry' }, { line: line(3, 3, 8, 3) }).get()).kind).toBe('ferry');
   });
 
   it('the routed road\'s refusal names the ferry too', () => {
-    expect(ROUTE_TEXT.refusal(ferryWorld(7), { reason: 'too_wide', water: 7 }).endsWith(': lay a ferry')).toBe(true);
-    expect(ROUTE_TEXT.refusal(ferryWorld(13), { reason: 'too_wide', water: 13 }).endsWith(': lay a ferry')).toBe(false);
+    expect(ROUTE_TEXT.refusal(ferryWorld(7), { reason: 'too_wide', water: 7 }).endsWith(': lay a ferry with the Crossing card')).toBe(true);
+    expect(ROUTE_TEXT.refusal(ferryWorld(13), { reason: 'too_wide', water: 13 }).includes('lay a ferry')).toBe(false);
   });
 });
 
@@ -137,13 +140,13 @@ describe('v71 f ui: the card, the sheet, How to play and the keys', () => {
     const w = ferryWorld(7);
     expect(shownItems(w, 'roads')).toEqual(['road', 'ferry', 'demolish']);
     const info = cardInfo(w, 'ferry');
-    expect([info.name, info.cost, info.costText, info.locked, info.terrainText]).toEqual(['Ferry', ferryCost(w), `${ferryCost(w)} gold per crossing`, false, FERRY_TEXT.card]);
-    expect(buildingName('ferry')).toBe('Ferry');
+    expect([info.name, info.cost, info.costText, info.locked, info.terrainText]).toEqual(['Crossing', ferryCost(w), `${ferryCost(w)} gold a ferry`, false, FERRY_TEXT.card]);   // Version 8.3 (ruling 1396): the Crossing card
+    expect(buildingName('ferry')).toBe('Crossing');
     const r = await rigUI({ world: w });
     try {
       fire(r.root.querySelector('#dock .cat[data-category="roads"]'), 'click');
       const card = [...r.root.querySelectorAll('#dock .tray .card')].find((c) => c.dataset.item === 'ferry');
-      expect([card.tagName, card.querySelector('.name').textContent, card.querySelector('.cost').textContent.includes(`${ferryCost(w)} gold per crossing`), ...sized(card)]).toEqual(['BUTTON', 'Ferry', true, true, true]);
+      expect([card.tagName, card.querySelector('.name').textContent, card.querySelector('.cost').textContent.includes(`${ferryCost(w)} gold a ferry`), ...sized(card)]).toEqual(['BUTTON', 'Crossing', true, true, true]);
       expect(card.querySelector('.thumb').tagName).toBe('CANVAS');
       fire(card, 'click');
       expect([r.store.get().tool.kind, r.store.get().tool.pick]).toEqual(['ferry', null]);   // 8.2.1: with where it ranks its crossings from (tool.from)
@@ -193,16 +196,17 @@ describe('v71 f ui: the card, the sheet, How to play and the keys', () => {
   });
 
   it('How to play has a Ferries entry and the tips list has the ferries tip, fired when a road meets water too wide to bridge', async () => {
-    expect(V71_HELP.f[0].head).toBe('Ferries');
-    expect(V71_HELP.f[0].text.includes(`${FERRY.min} up to ${FERRY.max} tiles`)).toBe(true);
+    // Version 8.3 (Track X, ruling 1401): the entry is Crossings, and the tip is the crossings tip, fired when a road meets any water
+    expect(V71_HELP.f[0].head).toBe('Crossings');
+    expect(V71_HELP.f[0].text.includes(`${FERRY.min} to ${FERRY.max} tiles`)).toBe(true);
     const tip = TIPS.find((t) => t.id === 'ferries');
-    expect([tip.trigger, Boolean(TIP_TEXT.ferries), TIP_HELP_TEXT.ferries]).toEqual(['roadTooWide', true, TIP_TEXT.ferries]);
+    expect([tip.trigger, Boolean(TIP_TEXT.ferries), TIP_HELP_TEXT.ferries]).toEqual(['roadCrossing', true, TIP_TEXT.ferries]);
     const r = await rigUI({ world: ferryWorld(7) });
     try {
       r.store.set(openSheet(r.store.get(), 'help'));
       r.ui.refresh();
       const heads = [...r.root.querySelectorAll('#sheet h3')].map((h) => h.textContent);
-      expect(heads.includes('Ferries')).toBe(true);
+      expect(heads.includes('Crossings')).toBe(true);
       expect([...r.root.querySelectorAll('#sheet .tips-list li')].some((li) => li.textContent === TIP_HELP_TEXT.ferries)).toBe(true);
     } finally { r.cleanup(); }
   });

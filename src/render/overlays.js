@@ -759,15 +759,19 @@ function shownLanding(g, x, y) {
   g.poly(pts, 'none', { stroke: UI.ok, strokeWidth: 1.4 });
   g.ctx.setLineDash([]);
 }
-function drawCrossingBoat(g, { from, to, label }) {
+const BRIDGE_TEAL = '#1F6F66';   // Version 8.3 (Track X): css --teal, a bridge's tint on the water (darker than the river's own teal, so it reads on it)
+// Version 8.3 (Track X): a bridge the Crossing card offers (bridge: true) has its price label and no boat or dashed line: its ghost is a road over the water.
+function drawCrossingBoat(g, { from, to, label, bridge }) {
   const css = cssScaleOf(g);
   const a = p(from[0] + 0.5, from[1] + 0.5), b = p(to[0] + 0.5, to[1] + 0.5);
-  g.line(a, b, '#1E3A5F', 3.2, 0.25);
-  g.ctx.setLineDash([4 * g.scale, 3 * g.scale]);
-  g.line(a, b, '#FFFFFF', 1.6, 0.9);
-  g.ctx.setLineDash([]);
   const mx = (from[0] + to[0]) / 2 + 0.5, my = (from[1] + to[1]) / 2 + 0.5;
-  ferryBoat(g, mx, my, (to[0] - from[0]) - (to[1] - from[1]) < 0);
+  if (!bridge) {
+    g.line(a, b, '#1E3A5F', 3.2, 0.25);
+    g.ctx.setLineDash([4 * g.scale, 3 * g.scale]);
+    g.line(a, b, '#FFFFFF', 1.6, 0.9);
+    g.ctx.setLineDash([]);
+    ferryBoat(g, mx, my, (to[0] - from[0]) - (to[1] - from[1]) < 0);
+  }
   const size = Math.max(6, 11 / css), c = p(mx, my), top = c[1] - 14 - size;
   const half = (label.length * size * 0.56) / 2 + 3 / css;
   const box = [[c[0] - half, top - size * 0.75], [c[0] + half, top - size * 0.75], [c[0] + half, top + size * 0.75], [c[0] - half, top + size * 0.75]];
@@ -814,8 +818,8 @@ function drawGhostSquare(g, ghost) {
     return;
   }
   if (state === 'left') { hatchedLeft(g, x, y, w, d); return; }   // Version 6.0 (Track C): ground an area has but too little of for one more farm
-  const color = state === 'warn' ? UI.warn : UI.ok;
-  g.poly(pts, color, { alpha: state === 'bridge' || state === 'ferry' ? 0.32 : 0.15 });
+  const color = state === 'warn' ? UI.warn : state === 'bridge' ? BRIDGE_TEAL : UI.ok;   // Version 8.3 (Track X): a bridge is teal, a ferry blue, a refusal coral (the bar names each)
+  g.poly(pts, color, { alpha: state === 'bridge' ? 0.45 : state === 'ferry' ? 0.32 : 0.15 });
   g.poly(pts, 'none', { stroke: UI.halo, strokeWidth: 2.6, strokeAlpha: 0.8 });
   g.poly(pts, 'none', { stroke: color, strokeWidth: 1.4 });
   if (state === 'bridge') bridgePlanks(g, x, y);

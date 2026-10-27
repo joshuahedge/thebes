@@ -15,6 +15,7 @@ import { idx } from '../../src/sim/grid.js';
 import { toolPreview, ghostsFor } from '../../src/ui/placement.js';
 import { createStore, INITIAL_UI_STATE } from '../../src/ui/store.js';
 import { S45_TEXT, reasonText } from '../../src/ui/text.js';
+import { CROSSING_TEXT } from '../../src/ui/v71/ferryText.js';
 import { isBridgeTile, bridgeTiles } from '../../src/render/terrainBridges.js';
 import { makeTestWorld, addRaw } from '../helpers/testWorld.js';
 
@@ -69,7 +70,7 @@ describe('s45 bridges (the rule)', () => {
     expect(w.gold).toBe(gold);
   });
   it('refuses a crossing of 5 or more tiles of water with the count, and lays nothing', () => {
-    for (const width of [5, 6, 9]) {
+    for (const width of [13, 14, 18]) {                                       // Version 8.3 (Track X): 5 to 12 is a ferry now; past FERRY.max it is too wide
       const w = rivered(width);
       const gold = w.gold;
       const p = previewRoad(w, 7, 8, 10 + width + 2, 8);
@@ -135,12 +136,14 @@ describe('s45 bridges (the rule)', () => {
   });
   it('lays what a touch plan can and skips a stroke too wide to cross, saying why', () => {
     const w = rivered(3);
-    for (let x = 20; x < 26; x++) for (let y = 0; y < 3; y++) w.terrain[at(w, x, y)] = T.WATER;   // a 6-wide pond in the corner
+    for (let x = 15; x < 28; x++) for (let y = 0; y < 3; y++) w.terrain[at(w, x, y)] = T.WATER;   // a 13-wide pond in the corner (Version 8.3: 5 to 12 is a ferry's)
     const ok = previewRoadTiles(w, [[8, 8], [9, 8], [10, 8], [11, 8], [12, 8], [13, 8]], { skipBlocked: true });
     expect([ok.ok, ok.bridges.length, ok.skipped.length]).toEqual([true, 3, 0]);
-    const wide = previewRoadTiles(w, [[18, 1], [19, 1], [20, 1], [21, 1], [22, 1], [23, 1], [24, 1], [25, 1], [26, 1], [27, 1]], { skipBlocked: true });
+    const wideLine = [];
+    for (let x = 13; x <= 29; x++) wideLine.push([x, 1]);
+    const wide = previewRoadTiles(w, wideLine, { skipBlocked: true });
     expect(wide.bridges.length).toBe(0);
-    expect(wide.skipped.map((s) => s.reason)).toEqual(Array(6).fill('too_wide'));
+    expect(wide.skipped.map((s) => s.reason)).toEqual(Array(13).fill('too_wide'));
     expect(wide.tiles.length).toBe(4);
     const laid = drawRoadTiles(w, [[8, 8], [9, 8], [10, 8], [11, 8], [12, 8], [13, 8]], { skipBlocked: true });
     expect([laid.ok, w.road[at(w, 11, 8)]]).toEqual([true, 1]);
@@ -173,39 +176,42 @@ describe('s45 bridges (the words)', () => {
     const w = rivered(4);
     const p = toolPreview(w, store({ kind: 'road' }, { line: line(8, 8, 17, 8) }).get());
     expect(p.state).toBe('ok');
-    expect(p.text).toBe(`6 tiles · Bridge: 4 tiles, ${4 * costOf(w, 'bridge')} gold`);
-    expect(p.text).toBe(`6 tiles · ${S45_TEXT.bridgeNote(4, 100)}`);
+    // Version 8.3 (Track X, ruling 1395): the crossing leads ("Bridge: 4 tiles of water"), then the road tiles; the price is the cost line's
+    expect(p.text).toBe(`${CROSSING_TEXT.bridge(4)} · ${CROSSING_TEXT.roadTiles(6)}`);
+    expect(p.text).toBe('Bridge: 4 tiles of water · 6 road tiles');
     expect(p.cost).toBe(6 * roadCostOf(w) + 4 * costOf(w, 'bridge'));
     expect(p.bridges.length).toBe(4);
     const alone = toolPreview(w, store({ kind: 'road' }, { line: line(9, 8, 14, 8) }).get());
-    expect(alone.text).toBe('2 tiles · Bridge: 4 tiles, 100 gold');
+    expect(alone.text).toBe('Bridge: 4 tiles of water · 2 road tiles');
     w.difficulty = 'hard';
-    expect(toolPreview(w, store({ kind: 'road' }, { line: line(8, 8, 17, 8) }).get()).text).toBe(`6 tiles · Bridge: 4 tiles, ${4 * costOf(w, 'bridge')} gold`);
+    expect(toolPreview(w, store({ kind: 'road' }, { line: line(8, 8, 17, 8) }).get()).cost).toBe(6 * roadCostOf(w) + 4 * costOf(w, 'bridge'));
     expect(costOf(w, 'bridge')).toBe(31);
     w.difficulty = 'relaxed';
-    expect(toolPreview(w, store({ kind: 'road' }, { line: line(9, 8, 14, 8) }).get()).text).toBe(`2 tiles · ${S45_TEXT.bridgeNote(4, 4 * costOf(w, 'bridge'))}`);
+    expect(toolPreview(w, store({ kind: 'road' }, { line: line(9, 8, 14, 8) }).get()).cost).toBe(2 * roadCostOf(w) + 4 * costOf(w, 'bridge'));
     const dry = toolPreview(w, store({ kind: 'road' }, { line: line(1, 1, 4, 1) }).get());
     expect(dry.text).toBe('4 tiles');                                         // no water crossed: no bridge note
   });
   it('refuses with "Too wide for a bridge (6 tiles of water): lay a ferry", the run counted by the sim, for any width past the limit', () => {
-    for (const width of [5, 6, 8]) {
+    for (const width of [13, 14, 18]) {                                       // Version 8.3 (Track X): past a ferry's width; both limits named
       const w = rivered(width);
       const p = toolPreview(w, store({ kind: 'road' }, { line: line(7, 8, 10 + width + 2, 8) }).get());
       expect([width, p.state, p.reason]).toEqual([width, 'bad', 'too_wide']);
-      expect(p.text).toBe(`Too wide for a bridge (${width} tiles of water): lay a ferry`);
-      expect(p.text).toBe(S45_TEXT.tooWide(previewRoad(w, 7, 8, 10 + width + 2, 8).water));
+      expect(p.text).toBe(`Too wide: ${width} tiles (a bridge crosses up to 4, a ferry up to 12)`);
+      expect(p.text).toBe(CROSSING_TEXT.tooWide(previewRoad(w, 7, 8, 10 + width + 2, 8).water));
     }
     const w = rivered(4);
     expect(toolPreview(w, store({ kind: 'road' }, { line: line(7, 8, 16, 8) }).get()).state).toBe('ok');   // 4 is the most
     const bend = toolPreview(w, store({ kind: 'road' }, { line: line(8, 8, 11, 9) }).get());
-    expect([bend.state, bend.text]).toEqual(['bad', reasonText('bridge_shape')]);
+    expect([bend.state, bend.text]).toEqual(['bad', CROSSING_TEXT.bent]);
   });
   it('words a touch plan\'s skipped bridge, and marks the toast for a road that made a bridge', () => {
-    const w = rivered(7);
-    const plan = toolPreview(w, store({ kind: 'road' }, { plan: { tiles: [[8, 8], [9, 8], [10, 8], [11, 8], [12, 8], [13, 8], [14, 8], [15, 8], [16, 8], [17, 8], [18, 8]] } }).get());
+    const w = rivered(13);                                                    // Version 8.3: past a ferry's width; the crossing's own words, with Show me
+    const tiles = [];
+    for (let x = 8; x <= 24; x++) tiles.push([x, 8]);
+    const plan = toolPreview(w, store({ kind: 'road' }, { plan: { tiles } }).get());
     expect(plan.state).toBe('ok');
-    expect(plan.skipped.length).toBe(7);
-    expect(plan.text).toContain(`${plan.skipped.length} skipped: ${reasonText('too_wide').charAt(0).toLowerCase()}${reasonText('too_wide').slice(1)}`);
+    expect(plan.skipped.length).toBe(13);
+    expect([plan.text.includes(CROSSING_TEXT.tooWide(13)), plan.showFit]).toEqual([true, true]);
     expect(S45_TEXT.roadLaidBridge(3)).toBe('Road laid · bridge, 3 tiles');
     expect(ghostsFor(w, store({ kind: 'road' }, { line: line(7, 8, 19, 8) }).get()).length).toBeGreaterThan(0);
   });

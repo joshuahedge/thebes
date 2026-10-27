@@ -38,9 +38,9 @@ describe('s46 map dev scenes', () => {
       const g = api.game(), at = g.ui.store.get().ghost;
       expect([clay.startsWith('clay pit ghost'), g.ui.store.get().overlay, g.ui.store.get().tool.type, canPlace(g.world, 'clay_pit', at.x, at.y, { roadLater: true }).ok]).toEqual([true, 'ground', 'clay_pit', true]);
       const refused = await devScene(api, 's46-bridge', { view: 'refused' });
-      expect(refused.includes('bad A bridge runs straight across, with land at both ends')).toBe(true);
+      expect(refused.includes('bad A crossing must go straight across')).toBe(true);   // Version 8.3 (Track X): the scene bends the line in the water
       const ok = await devScene(api, 's46-bridge', { view: 'bridge' });
-      expect(/ok \d+ tiles? · Bridge: \d+ tiles?, \d+ gold$/.test(ok)).toBe(true);
+      expect(/ok Bridge: \d+ tiles? of water( · \d+ road tiles?)?$/.test(ok)).toBe(true);   // Version 8.3 (Track X): the crossing leads the bar's words
     } finally { api.destroy(); shell.cleanup(); document.body.classList.remove('on-title'); delete window.__thebes; }
   });
 });

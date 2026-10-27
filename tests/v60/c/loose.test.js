@@ -95,7 +95,7 @@ describe('v60 c route preview draws bridges', () => {
     expect(canvasHash(a.c) === canvasHash(b.c)).toBe(false);
     expect(canvasHash(a.c)).toBe(canvasHash(c.c));
     expect([countNear(a.c, WOOD) > 20, countNear(b.c, WOOD)]).toEqual([true, 0]);        // planks are on the bridge, never on the road tile
-    expect(countNear(a.c, UI.ok) > 20).toBe(true);                                        // and it is still the blue ghost of a thing that can be placed
+    expect(countNear(a.c, '#1F6F66') > 20).toBe(true);                                   // and it is the ghost of a thing that can be placed: Version 8.3 (Track X, ruling 1395), teal for a bridge (css --teal)
   });
 });
 

@@ -129,7 +129,8 @@ describe('v71 fg tips: a too-wide refusal', () => {
       const pl = r.ui.placement;
       pl.start({ kind: 'road' });
       pl.pointAt(RIVER_X - 4, ROW); pl.pointAt(RIVER_X + 10, ROW);                       // while a tool is on, a tip is held: the first one held keeps the slot
-      expect([toolPreview(r.world, r.store.get()).reason, r.ui.tips.current()]).toEqual(['too_wide', null]);
+      // Version 8.3 (Track X, ruling 1401): the road lays this ferry itself, and the ferries tip is the crossings tip, fired first when a road meets any water
+      expect([toolPreview(r.world, r.store.get()).ferries.length, r.ui.tips.current()]).toEqual([1, null]);
       pl.cancel();                                                                       // the tool ends: the held tip shows
       r.frame(0);
       expect(r.ui.tips.current()).toBe('ferries');
@@ -151,12 +152,14 @@ const ferryBar = async (width, line, { textSize = null, tool = 'ferry', w = ferr
 
 describe('v71 fg ferry bar: Show me is named for where it goes', () => {
   it('after a ferry_bridge refusal it is named for a bridge; after the other refusals for a ferry; a road\'s refusals keep theirs', async () => {
+    // Version 8.3 (Track X, ruling 1402): the Crossing card lays a bridge over narrow water (no ferry_bridge refusal there); its refusals and the road's
+    // too wide open the Crossing card, so their Show me is named for a crossing; a bent road still shows a bridge's place
     const cases = [
-      ['ferry_bridge', 4, 'ferry', 'a bridge'], ['ferry_too_wide', 13, 'ferry', 'a ferry'], ['too_wide', 7, 'road', 'a ferry'], ['bridge_shape', 7, 'road', 'a bridge'],
+      ['ferry_too_wide', 13, 'ferry', 'a crossing'], ['too_wide', 13, 'road', 'a crossing'], ['bridge_shape', 7, 'road', 'a bridge'],
     ];
     for (const [reason, width, tool, what] of cases) {
       const w = ferryWorld(width);
-      const line = reason === 'bridge_shape' ? [RIVER_X - 3, ROW, RIVER_X + 1, ROW] : [RIVER_X - 2, ROW, RIVER_X + width + 1, ROW];
+      const line = reason === 'bridge_shape' ? [RIVER_X - 2, ROW, RIVER_X + 3, ROW + 2] : [RIVER_X - 2, ROW, RIVER_X + width + 1, ROW];
       const r = await ferryBar(1000, line, { tool, w, height: 700 });
       try {
         const p = toolPreview(r.world, r.store.get());
@@ -164,7 +167,7 @@ describe('v71 fg ferry bar: Show me is named for where it goes', () => {
         expect([reason, p.reason, Boolean(btn) && btn.getAttribute('aria-label')]).toEqual([reason, reason, S46_MAP_TEXT.showFitLabel(what)]);
       } finally { r.cleanup(); }
     }
-    expect(FERRY_TEXT.showFitWhat).toEqual({ ferry: 'a ferry', bridge: 'a bridge' });
+    expect(FERRY_TEXT.showFitWhat).toEqual({ ferry: 'a ferry', bridge: 'a bridge', crossing: 'a crossing' });
   });
 });
 
