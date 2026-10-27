@@ -146,7 +146,7 @@ describe('v821 f ui: Show me and the words', () => {
     const wide = ferryWorld(13);
     const p = toolPreview(wide, store(ferry(), { line: { x0: RIVER_X - 2, y0: ROW, x1: RIVER_X + 14, y1: ROW, flip: false } }).get());
     expect([p.state, p.reason, p.showFit]).toEqual(['bad', 'ferry_too_wide', true]);
-    expect([FERRY_TEXT.card.startsWith('Pick a crossing'), FERRY_TEXT.cardTitle(160).includes('Pick one of the crossings the map shows'), FERRY_TEXT.help.text.includes('tap one, then ✓'), FERRY_TEXT.tip.includes('tap one of the crossings')]).toEqual([true, true, true, true]);
+    expect([FERRY_TEXT.card.startsWith('Pick a crossing'), FERRY_TEXT.cardTitle(160).includes('Pick one of the crossings the map shows'), FERRY_TEXT.help.text.includes('tap one, then ✓'), FERRY_TEXT.tip.includes('tap a crossing')]).toEqual([true, true, true, true]);
     expect(FERRY_TEXT.idleMouse).toBe('Click a crossing, then ✓ · or click both banks');
   });
 });

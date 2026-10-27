@@ -207,7 +207,7 @@ describe('v80 g options: Back is not clipped at the foot', () => {
 describe('v80 g what\'s new: the 8.0 entry says what was built', () => {
   it('mentions the tray, the lit card, Leave in the menu, the quiet Skip, amber and the coral rule, and nothing that was not built', async () => {
     const { RELEASES } = await import('../../../src/data/releases.js');
-    const text = [...RELEASES[2].new, ...RELEASES[2].fixed].join(' ').toLowerCase();
+    const text = [...RELEASES[3].new, ...RELEASES[3].fixed].join(' ').toLowerCase();
     for (const word of ['last 30', 'lit in the tray', 'leave the lesson', 'skip, i\'ve played before', 'amber', 'coral button', 'demolish']) expect([word, text.includes(word)]).toEqual([word, true]);
     for (const word of ['drag', 'scribe', 'ipi', 'music', 'chapter']) expect([word, text.includes(word)]).toEqual([word, false]);   // 8.1 and 8.2 things
   });

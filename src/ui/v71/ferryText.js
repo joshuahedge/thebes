@@ -70,7 +70,7 @@ export const FERRY_TEXT = {
   },
   // How to play's entry and the tip.
   help: { head: 'Ferries', text: `A bridge crosses up to ${BRIDGE_MAX} tiles of water. Wider water, from ${FERRY.min} up to ${FERRY.max} tiles, takes a ferry: pick Ferry in the Roads tray, and the map shows the best crossings near your roads: tap one, then ✓ (or drag across the water). It lays a landing on each bank, and a short road to any landing that has none, and costs gold for the crossing and a monthly bill for its two ferrymen. Once both have a ferryman, walkers and carts cross as if it were a few road tiles (a landing's sheet says how many), and a small boat carries people and carts across; with motion still it waits at a landing. A landing's sheet says why a crossing is not running. Raiders and armies never use a ferry.` },
-  tip: `Water too wide for a bridge? Pick Ferry in the Roads tray and tap one of the crossings it shows: ${FERRY.min} to ${FERRY.max} tiles.`,
+  tip: `Water too wide for a bridge? Pick Ferry in the Roads tray and tap a crossing: ${FERRY.min} to ${FERRY.max} tiles.`,
 };
 
 // Registered where How to play and the tips list read them: menu.js lists V71_HELP's paragraphs, and the tip joins TIP_TEXT and TIP_HELP_TEXT.
