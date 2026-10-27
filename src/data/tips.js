@@ -41,6 +41,7 @@ const TIPS_BASE = [
 // ── s4 ui (Track C) ── the palace's "Your palace can grow" (ruling 275), and any sheet or placing tip
 const TIPS_S4_UI = [
   { id: 'palace_grows', trigger: 'palaceCanGrow', priority: false },          // the city first could enlarge its palace (ruling 275)
+  { id: 'far_crew', trigger: 'farCrew', priority: false },                    // Version 8.3 (ruling 1442): a crew walks far enough to work slower, on a site with no camp
 ];
 // ── end s4 ui ──
 // ── s4 score (Track D) ── the Monuments tips of spec 4.19 (last for workers, straight to the site, a storehouse bridges,

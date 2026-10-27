@@ -29,7 +29,7 @@ import { makeDraw } from './art/ctx.js';
 import { siteLook, drawSite, drawFinished, builtHeight, bodyOf, courseTop, workSpots, MONUMENT_LOOK, CASING, CORE } from './art/monuments.js';
 import { gang } from './art/figures.js';
 import { box } from './art/primitives.js';
-import { GOLD, GOLDC, UI, STONE } from './art/palette.js';
+import { GOLD, GOLDC, UI, STONE, WOOD } from './art/palette.js';
 import { p, U, depthKey } from './iso.js';
 import { MONUMENT_PLACING } from '../data/monuments.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -249,6 +249,34 @@ function dust(g, edge, t) {
   }
 }
 
+// ── The workers' camp (Version 8.3, ruling 1438): render only, no tiles taken, nothing animated (so it reads the same under Full, Gentle and Still) ──
+const CANVAS = ['#F2E6C9', '#E3D3AB', '#BFAA86'];   // a tent's top, lit face and shaded face: undyed linen, a shade off the sand round it
+
+// The camp's tents for a site: small tents in a row along the front edge's right part, inside the footprint (the sleds use the left part, the stockpile
+// the right side): [{ x, y, w, d, h }], tiles from the map's origin (h in art px). 2 to 5 of them, by the room along the edge; pure and the same every frame.
+export function campTents(b) {
+  const margin = MONUMENT_LOOK[b.type] ? MONUMENT_LOOK[b.type].margin : 0.2;
+  const from = b.x + 0.62 * b.w, len = b.x + b.w - 0.08 - from;
+  const n = Math.max(2, Math.min(5, Math.round(len / 0.42)));
+  const tw = (len / n) * 0.84, td = Math.min(0.26, margin + 0.06), h = Math.max(3.4, Math.min(7, tw * 17));
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ x: from + (i + 0.08) * (len / n), y: b.y + b.d - td - 0.04, w: tw, d: td, h });
+  return out;
+}
+
+// One tent: a four-sided canvas roof to a point, its lit face with a dark door.
+function tent(g, { x, y, w, d, h }) {
+  const apex = U(p(x + w / 2, y + d / 2), h);
+  g.poly([p(x, y + d), p(x + w, y + d), apex], CANVAS[1], { outline: true });
+  g.poly([p(x + w, y), p(x + w, y + d), apex], CANVAS[2], { outline: true });
+  const mid = x + w / 2, door = w * 0.16;
+  g.poly([p(mid - door, y + d), p(mid + door, y + d), U(p(mid, y + d), h * 0.55)], WOOD);
+}
+
+function drawCamp(g, b) {
+  for (const t of campTents(b)) tent(g, t);
+}
+
 // The scene of one monument, without the see-through fade.
 function drawScene(g, world, b, look, { now, timeDays, motion }) {
   const m = siteMemo(world, b, look, now);
@@ -268,6 +296,7 @@ function drawScene(g, world, b, look, { now, timeDays, motion }) {
     if (motion === 'full' && age < DUST_MS) dust(g, edge, age / DUST_MS);
     else if (motion !== 'full' && age < OUTLINE_MS) outlineEdge(g, edge);
   }
+  if (b.site && b.site.camp) drawCamp(g, b);                                  // Version 8.3: a site under way with its workers' camp
   drawGangs(g, gangLayout(b, look, ramp, timeDays));
   return { look, memo: m, ramp };
 }

@@ -20,10 +20,11 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { MONUMENTS, MONUMENT, MATERIALS, PRESTIGE_UNLOCKS } from '../data/monuments.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
-import { workGoldPerUnit, extraGoldOf, canPayNoDebt } from './costs.js';
+import { workGoldPerUnit, extraGoldOf, canPayNoDebt, costOf } from './costs.js';
+import { spend } from './money.js';
 import { DAYS_PER_MONTH } from './time.js';
-import { allBuildings, isSite, isFinished } from './world.js';
-import { touchesRoad, buildingsInReach } from './reach.js';
+import { allBuildings, isSite, isFinished, isMonument } from './world.js';
+import { touchesRoad, buildingsInReach, roadReach, reachDistance } from './reach.js';
 import { atLeast } from './progression.js';
 import { isWorking, staffRatio } from './labour.js';
 import { storeAccepts, hasSpace } from './production.js';
@@ -178,12 +179,32 @@ export function paceOf(world, b) {
 // takes: { guilds: [ids], max }. Complete from state; Track A keeps site.crews true.
 export const crewsFor = (world, b) => ({ guilds: b.site ? b.site.crews.slice() : [], max: MONUMENTS[b.type] ? MONUMENTS[b.type].crews : 0 });
 
-// The guild ids within a footprint's crew reach that have room for a crew, nearest first (the placing chip's "builders'
-// guild near"; ruling 230): unpaused, and not already at work on a site in today's crew plan. probe: { x, y, w, d }.
+// The buildings its roads reach from b at any distance, a running ferry's crossing included (buildingsInReach with Infinity, which also lists a
+// building no road reaches, at distance Infinity: those are left out here), nearest first: [{ b, dist }]. Version 8.3, ruling 1430.
+export const roadLinked = (world, b, filter) => buildingsInReach(world, b, Infinity, filter).filter((r) => Number.isFinite(r.dist));
+
+// The speed a crew works at on a site `dist` road tiles from its guild (Version 8.3, ruling 1431): 1 up to MONUMENT.crewReach, then MONUMENT.crewLoss
+// less for every further MONUMENT.crewStep tiles begun, never below MONUMENT.crewFloor (13 to 24 tiles: 0.9, 25 to 36: 0.8, 100: 0.5). 1 with the
+// workers' camp (camp true). dist Infinity (no way) is the floor; the plan never sends a crew without one.
+export function crewSpeed(dist, camp = false) {
+  if (camp || !(dist > MONUMENT.crewReach)) return 1;
+  const steps = Math.ceil((dist - MONUMENT.crewReach) / MONUMENT.crewStep - 1e-9);
+  return Math.max(MONUMENT.crewFloor, Math.round((1 - MONUMENT.crewLoss * steps) * 100) / 100);
+}
+
+// The guilds that have room for a crew, nearest first by road at any distance (the placing chip's "Builders' guild: 40 road tiles (80%)"; rulings 230,
+// 1430): unpaused, and not already at work on a site in today's crew plan. [{ id, dist, speed }], speed as crewSpeed gives it without a camp (a camp is
+// the site's, set up once it stands). probe: { x, y, w, d }. The walk is not cached: a ghost visits a new footprint at every hover.
 export function guildsNear(world, probe) {
   const plan = crewPlan(world);
-  const free = (o) => o.type === 'builders_guild' && !o.paused && !plan.has(o.id);
-  return buildingsInReach(world, { id: -1, ...probe }, MONUMENT.crewReach, free).map((r) => r.b.id);
+  const rm = roadReach(world, { id: -1, ...probe }, Infinity, { cache: false });
+  const out = [];
+  for (const o of allBuildings(world)) {
+    if (o.type !== 'builders_guild' || o.paused || plan.has(o.id)) continue;
+    const dist = reachDistance(rm, world, o);
+    if (Number.isFinite(dist)) out.push({ id: o.id, dist, speed: crewSpeed(dist) });
+  }
+  return out.sort((p, q) => p.dist - q.dist || p.id - q.id);
 }
 
 // Whether anything could bring this material to a footprint: a maker of it within its producer reach, or a storehouse
@@ -240,14 +261,26 @@ const snap = (v) => (Math.abs(v - Math.round(v)) < EPS ? Math.round(v) : v);
 
 // The units one builders' guild's crew lays in a day: MONUMENT.unitsPerCrewMonth a month at full staff, in proportion to
 // its staffing like any producer's (spec 4.16). Whether it works at all is isWorking's (MIN_STAFF_RATIO, not burning).
-export const crewDayUnits = (world, g) => (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH) * staffRatio(world, g);
+// Version 8.3 (ruling 1431): times the speed it walks at to the site it works (crewSpeedAt: `site`, or the one today's crew plan gives the guild;
+// a guild with no site works at 1).
+export const crewDayUnits = (world, g, site = undefined) => (MONUMENT.unitsPerCrewMonth / DAYS_PER_MONTH) * staffRatio(world, g) * crewSpeedAt(world, g, site);
+
+// The road tiles from a guild to a site (the walk its crew makes), Infinity when no road or ferry joins them.
+export const crewDistance = (world, g, site) => reachDistance(roadReach(world, g, Infinity), world, site);
+
+// The speed the crew of guild g works at on `site` (a building): crewSpeed of the walk, 1 with the site's workers' camp. site undefined: the site
+// today's crew plan gives g, if any; null: none, so 1.
+export function crewSpeedAt(world, g, site = undefined) {
+  const s = site === undefined ? world.buildings[crewPlan(world).get(g.id)] || null : site;
+  return s && s.site ? crewSpeed(crewDistance(world, g, s), Boolean(s.site.camp)) : 1;
+}
 
 // A site a crew can work: unfinished, unpaused and touching a road (spec 4.16, ruling 226).
 const openSite = (world, b) => isSite(b) && !b.paused && touchesRoad(world, b);
 
 // Which site each builders' guild's crew goes to today (spec 4.16, ruling 184): guild id -> site id, in the order the
-// crews took their sites. Every guild that is unpaused and touches a road may work any open site within
-// MONUMENT.crewReach road tiles; the pairs are taken nearest first (ties to the older guild, then the older site), each
+// crews took their sites. Every guild that is unpaused and touches a road may work any open site its roads reach (Version 8.3,
+// ruling 1430: at any distance, a running ferry included; a far crew works slower, crewSpeed); the pairs are taken nearest first (ties to the older guild, then the older site), each
 // guild taking one site and each site at most its kind's crews. So each guild works the nearest open site that still
 // had room when its turn came, and where two guilds want a site's last place the nearer one gets it. A guild short of
 // workers or burning still holds its place (the site then names it as the cause, ruling 245); a paused guild, or one
@@ -261,7 +294,7 @@ export function crewPlan(world) {
   const pairs = [];
   for (const g of allBuildings(world)) {
     if (g.type !== 'builders_guild' || g.paused || !touchesRoad(world, g)) continue;
-    for (const r of buildingsInReach(world, g, MONUMENT.crewReach, (o) => open.has(o.id))) pairs.push({ g: g.id, s: r.b, d: r.dist });
+    for (const r of roadLinked(world, g, (o) => open.has(o.id))) pairs.push({ g: g.id, s: r.b, d: r.dist });
   }
   pairs.sort((p, q) => p.d - q.d || p.g - q.g || p.s.id - q.s.id);
   const taken = new Map();
@@ -280,6 +313,49 @@ export function hasMonumentWork(world, b, plan = null) {
   if (b.type === 'builders_guild') return (plan || crewPlan(world)).has(b.id);
   if (materialOf(b)) return supplyNeeded(world, b);
   return true;
+}
+
+// The crews today's plan sends to site b, in the order they took it (nearest first): [{ id (the guild), dist (road tiles), speed (what it works at now:
+// 1 with the camp), walk (what the walk alone would give it), working }]. For the sheet's crew lines (Version 8.3, ruling 1434).
+export function siteCrews(world, b, plan = null) {
+  if (!isSite(b)) return [];
+  const out = [];
+  for (const [gid, sid] of plan || crewPlan(world)) {
+    const g = world.buildings[gid];
+    if (sid !== b.id || !g) continue;
+    const dist = crewDistance(world, g, b), walk = crewSpeed(dist);
+    out.push({ id: gid, dist, walk, speed: b.site.camp ? 1 : walk, working: b.site.crews.includes(gid) });
+  }
+  return out;
+}
+
+// ── The workers' camp (Version 8.3, rulings 1436-1439) ─────────────────────────────────────────────────────────────
+
+// What a workers' camp at site `id` would do now: { price, ok, reason }. price: round(MONUMENT.campShare x the site's founding price as this city
+// pays it now: its difficulty, rank and style), at least 1, 0 for what is no site. reason, the first that applies: 'not_site', 'finished', 'has_camp',
+// 'no_gold' (paying would take the treasury below 0, as every monument's gold).
+export function campQuote(world, id) {
+  const b = world.buildings[id];
+  if (!isMonument(b) || !b.site) return { price: 0, ok: false, reason: 'not_site' };
+  const price = Math.max(1, Math.round(MONUMENT.campShare * costOf(world, b.type, { style: b.style })));
+  let reason = null;
+  if (b.site.done !== null) reason = 'finished';
+  else if (b.site.camp) reason = 'has_camp';
+  else if (!canPayNoDebt(world, price)) reason = 'no_gold';
+  return { price, ok: reason === null, reason };
+}
+
+// The setCamp command: pays campQuote's price and sets site.camp, so every crew there works at full speed (crewSpeed) until the monument is finished
+// (commitCrew clears it). Not undoable; and, as enlarging the palace does, it drops the site's own 'place' entry from the undo stack, so Undo cannot take
+// the site away with the camp's gold. { ok: true, price } or { ok: false, reason } (campQuote's).
+export function setCamp(world, id) {
+  const q = campQuote(world, id);
+  if (!q.ok) return { ok: false, reason: q.reason, price: q.price };
+  const stack = world.undo || [];
+  for (let i = stack.length - 1; i >= 0; i--) if (stack[i].kind === 'place' && (stack[i].ids || []).includes(id)) stack.splice(i, 1);
+  spend(world, q.price);
+  world.buildings[id].site.camp = true;
+  return { ok: true, price: q.price };
 }
 
 // What one crew would lay today with `cap` units of work (pure: the site is not touched). It lays the course under way
@@ -349,6 +425,7 @@ function commitCrew(world, b, p, events) {
   if (s.course < courses) return;
   s.done = world.day;
   s.crews = [];
+  delete s.camp;                                                            // Version 8.3 (ruling 1438): the camp clears itself and leaves nothing behind
   world.tally.monumentsDone += 1;
   if (events) events.push({ type: 'monument_done', id: b.id, kind: b.type, prestige: prestigeOf(world) - before });
 }
@@ -408,7 +485,7 @@ function stallReason(world, b, guilds, working, waiting, short) {
   if (!guilds.length) return 'no_crew';
   if (!working.length) return guilds.some((g) => guildShort(world, g)) ? 'crew_short' : 'crew_burning';
   if (waiting === 'offering') return 'waiting_offering';             // Version 6.0: the great work's stage waits for its offering of goods
-  if (!working.some((g) => canPayNoDebt(world, workPay(world, b, crewDayUnits(world, g)).pay))) return 'no_gold';
+  if (!working.some((g) => canPayNoDebt(world, workPay(world, b, crewDayUnits(world, g, b)).pay))) return 'no_gold';
   if (waiting) return `waiting_${MONUMENTS[b.type].extra.kind}`;
   return short ? `no_${short}` : 'no_gold';
 }
@@ -448,7 +525,7 @@ export function monumentDay(world, events = null) {
       if (!isSite(b)) break;
       if (!payExtra(world, b)) { waiting = true; break; }
       if (!payOffering(world, b, events)) { waiting = 'offering'; break; }
-      const p = planCrew(b, crewDayUnits(world, g), isGreatWork(b) ? offeringsMade(world, b) : Infinity);
+      const p = planCrew(b, crewDayUnits(world, g, b), isGreatWork(b) ? offeringsMade(world, b) : Infinity);
       const { pay, carry } = workPay(world, b, p.units);
       if (p.units > EPS && !canPayNoDebt(world, pay)) continue;          // its day would cross 0: it does not work
       if (p.short) { s.month.starvedDays += 1; short = short || p.short; }

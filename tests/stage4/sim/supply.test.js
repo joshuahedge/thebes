@@ -130,12 +130,12 @@ describe('s4 sim stone from Memphis and guilds near', () => {
     const w = city();
     const g = addRaw(w, 'builders_guild', 16, 11);
     const probe = { x: 22, y: 9, w: 1, d: 1 };
-    expect(guildsNear(w, probe)).toEqual([g.id]);
+    expect(guildsNear(w, probe).map((r) => r.id)).toEqual([g.id]);
     addRaw(w, 'obelisk_small', 20, 9);                                            // g's crew goes there
     expect(guildsNear(w, probe)).toEqual([]);
     expect(canPlace(w, 'obelisk_small', 22, 9).warnings).toContain('no_crew');
     const g2 = addRaw(w, 'builders_guild', 12, 11);                               // the obelisk is full: g2 is free
-    expect(guildsNear(w, probe)).toEqual([g2.id]);
+    expect(guildsNear(w, probe).map((r) => r.id)).toEqual([g2.id]);
     g2.paused = true;
     expect(guildsNear(w, probe)).toEqual([]);
   });

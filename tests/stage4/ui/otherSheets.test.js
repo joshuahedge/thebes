@@ -45,7 +45,7 @@ describe('s4 ui the supply buildings\' sheets', () => {
     const site = addRaw(w, 'mastaba_small', 12, 11);
     // The sim comes in through the argument in Track A's contract shapes, so the line does not depend on which crewPlan this branch has.
     const sim = (plan, at) => ({ crewPlan: planOf(plan), guildSite: () => at });
-    expect(supplyLine(w, g, sim([], null))).toBe("Idle: no monument site within 12 road tiles has room for a crew");
+    expect(supplyLine(w, g, sim([], null))).toBe("Idle: no monument site its roads reach has room for a crew");
     expect(supplyLine(w, g, sim([[g.id, site.id]], site.id))).toBe('Crew at work on the small mastaba');
     g.paused = true;
     expect(supplyLine(w, g, sim([[g.id, site.id]], site.id))).toBe('');
@@ -60,7 +60,7 @@ describe('s4 ui the supply buildings\' sheets', () => {
     g.fire = { stage: 'fire', days: 1 };
     expect(supplyLine(w, g, sim([[g.id, site.id]]))).toBe('On fire: the crew for the small mastaba cannot work');
     g.fire = null;
-    expect(supplyLine(w, g, sim([]))).toBe("Idle: no monument site within 12 road tiles has room for a crew");     // not in the plan
+    expect(supplyLine(w, g, sim([]))).toBe("Idle: no monument site its roads reach has room for a crew");     // not in the plan
     expect(supplyLine(w, g, { crewPlan: planOf([[g.id, site.id]]), guildSite: () => site.id })).toBe('Crew at work on the small mastaba');
   });
 

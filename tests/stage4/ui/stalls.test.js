@@ -44,7 +44,7 @@ describe('s4 ui the stall warning', () => {
     expect(alerts).toEqual([{ code: 'site_stalled', id: b.id, reason: 'no_crew' }]);
     const t = triage(w, alerts);
     expect([t.critical.length, t.ordinary.length, bannerModel(w, t.critical)]).toEqual([0, 1, null]);
-    expect(alertText(alerts[0], w)).toEqual({ title: 'Small pyramid is not progressing', fix: "No crew: build a builders' guild within 12 road tiles" });
+    expect(alertText(alerts[0], w)).toEqual({ title: 'Small pyramid is not progressing', fix: "No crew: build a builders' guild on a road that reaches this site" });
     for (const reason of ['no_bricks', 'no_gold', 'crew_short', 'waiting_capstone']) {
       expect(alertText({ code: 'site_stalled', id: b.id, reason }, w).fix).toBe(causeText(w, b, reason));
     }
@@ -259,7 +259,7 @@ describe('s4 ui the minimap, the palace\'s tip and the scenes', () => {
         const g = api.game(), b = g.world.buildings[g.ui.store.get().selectedId];
         const rows = [...shell.root.querySelectorAll('#sheet .s4-rows li')].map((li) => li.dataset.row);
         if (name === 'sitesheet') {
-          expect([b.type, b.site.course, rows]).toEqual(['pyramid_small', 3, ['progress', 'crews', 'cause', 'material-stone', 'material-bricks', 'pace', 'gold', 'prestige']]);
+          expect([b.type, b.site.course, rows]).toEqual(['pyramid_small', 3, ['progress', 'crews', 'crew-172', 'crew-171', 'cause', 'material-stone', 'keep-stone', 'material-bricks', 'keep-bricks', 'pace', 'gold', 'prestige']]);
           expect(shell.root.querySelector('#sheet .row-crews').textContent).toBe("Crews: 2 of 4. 2 builders' guilds work here.");
         } else {
           expect([b.type, b.style, rows.slice(0, 3)]).toEqual(['palace', 4, ['style', 'nicer', 'mood']]);

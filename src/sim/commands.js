@@ -103,7 +103,7 @@ function worksWarning(world, type, x, y, rot = 0) {
 }
 
 // Stage 4 (ruling 230, spec 6.5): a monument's crew and supply, judged only once a road touches the footprint (both come by
-// road). crew: { n } guilds within MONUMENT.crewReach (guildsNear), reason 'no_crew' when none; supply: the first course's
+// road). crew: { n, dist, speed } the guilds its roads reach with room for a crew (guildsNear; Version 8.3: at any distance), the nearest's walk and speed, reason 'no_crew' when none; supply: the first course's
 // materials: every material its recipe takes (goods: the first course's first, then the later courses'), each needing a maker
 // in producer reach or a storehouse holding some in supply reach; missing: those with neither (ruling 300: the chip names
 // every one), reason 'no_stone' or 'no_bricks' (the first missing, good names it). null for a type that is not a monument or
@@ -119,7 +119,8 @@ function monumentChecks(world, type, x, y, rot = 0) {
   const missing = goods.filter((g) => !supplyNear(world, probe, g));
   const first = missing[0] || null;
   return {
-    crew: { key: 'crew', state: guilds.length ? 'met' : 'later', reason: guilds.length ? null : 'no_crew', n: guilds.length },
+    // Version 8.3 (ruling 1435): dist and speed are the nearest free guild's walk and what its crew would work at (crewSpeed); absent with none.
+    crew: { key: 'crew', state: guilds.length ? 'met' : 'later', reason: guilds.length ? null : 'no_crew', n: guilds.length, ...(guilds.length ? { dist: guilds[0].dist, speed: guilds[0].speed } : {}) },
     supply: { key: 'supply', state: first ? 'later' : 'met', reason: first ? `no_${first}` : null, good: first, goods, missing },
   };
 }

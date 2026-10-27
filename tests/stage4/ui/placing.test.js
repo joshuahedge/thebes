@@ -61,12 +61,12 @@ describe('s4 ui monument chips', () => {
     expect(chips(preview(w, 'mastaba_small', 20, 14)).road).toBe('! No road yet: crews, stone and bricks come by road');
     expect(chips(preview(w, 'pyramid_small', 20, 14)).road).toBe('! No road yet: crews, stone and bricks come by road');
     const near = preview(w, 'colossus', 20, 11);
-    expect(chips(near)).toEqual({ ground: '✓ Dry ground, not the fields', road: '✓ Road beside it', crew: "! No builders' guild near", supply: '! No stone near' });
+    expect(chips(near)).toEqual({ ground: '✓ Dry ground, not the fields', road: '✓ Road beside it', crew: "! No builders' guild yet", supply: '! No stone near' });
     addRaw(w, 'builders_guild', 24, 11);
     addRaw(w, 'quarry', 27, 11);
-    expect(chips(preview(w, 'colossus', 20, 11))).toEqual({ ground: '✓ Dry ground, not the fields', road: '✓ Road beside it', crew: "✓ Crew: 1 builders' guild near", supply: '✓ Stone near' });
+    expect(chips(preview(w, 'colossus', 20, 11))).toEqual({ ground: '✓ Dry ground, not the fields', road: '✓ Road beside it', crew: "✓ Builders' guild: 4 road tiles (100%)", supply: '✓ Stone near' });
     addRaw(w, 'builders_guild', 14, 11);
-    expect(chips(preview(w, 'colossus', 20, 11)).crew).toBe("✓ Crew: 2 builders' guilds near");
+    expect(chips(preview(w, 'colossus', 20, 11)).crew).toBe("✓ Builders' guild: 4 road tiles (100%)");     // the nearest free one, whatever others stand
   });
 
   it('names every material the recipe takes, and every one missing (ruling 300): bricks then stone for a mastaba, both for a pyramid', () => {
