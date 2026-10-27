@@ -1,4 +1,13 @@
-# Thebes 8.3 "Lines": design draft (for Josh's approval)
+# Thebes 8.3 "Lines": design (approved by Josh, 27 Oct)
+
+**Approved 27 Oct, with every recommended answer:**
+- The 4- and 12-tile limits stay.
+- Today's order controls are taken to have failed on the word "Fetch", the mix with the delivery switches, and the hidden source.
+- A chosen source never falls back to Nearest by itself; it waits and asks.
+- Far crews lose 10% per 12 road tiles past the first 12, down to 50%, as a first value.
+- A workers' camp costs 10% of the monument's founding price, not a flat 100 gold.
+
+The **Josh** marks below are kept as the record of each call.
 
 **Josh's calls (27 Oct):** 8.3 is the first of v9's four releases (`2026-10-27-thebes-v9-roadmap-design.md`). It covers three of his notes:
 - Ferries and bridges are unclear.
@@ -94,7 +103,7 @@
 
   The site sheet says it plainly: "Crew from the guild 40 road tiles away: works at 80% (the walk)".
 - **The workers' camp.** A button on the site's sheet:
-  - **What it says:** "Set up a workers' camp: far crews work at full speed. 100 gold."
+  - **What it says:** "Set up a workers' camp: far crews work at full speed", with its price: 10% of the monument's founding price (Josh, 27 Oct).
   - **What it does:** tents are drawn along the site's own edge, so no tiles are taken and no placing is needed. All crews at that site then work at 100%.
   - **When it goes:** the camp clears itself when the monument is finished, and leaves nothing behind. This is historically right, too: the Giza builders had their own village.
 - **Materials.** The guild stays the only change. Quarries and brickworks keep their 12-tile delivery. A storehouse within 16 tiles of the site, kept stocked with stone from a far store, already supplies the site, so supply lines (3) are the answer for far quarries. The site sheet's "no stone near" line gains that fix with Show me.
