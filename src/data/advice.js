@@ -28,4 +28,5 @@ export const ADVICE = {
 // an open river partner and a floor that starves the city's income (Track A pushes those in wave 2 and may rename or move them, as it owns this
 // file then). No item of theirs exists until a track pushes one, so no city's list moves. Wave 2 (Track A, src/sim/adviceFixes.js) pushes the last two and keeps
 // the places the contract gave all three.
-export const ADVICE_KINDS = ['raid_towers', 'plague', 'fire', 'locusts', 'drought', 'treasury', 'demand', 'event', 'quay', 'trade_floor', 'illness', 'crime', 'home_need', 'stranded', 'running_out', 'workers_short', 'jobless'];
+// Version 8.3 (Track K): 'keep_stocked' (a store to keep stocked for a bazaar or a monument site) after 'stranded', its nearest kin.
+export const ADVICE_KINDS = ['raid_towers', 'plague', 'fire', 'locusts', 'drought', 'treasury', 'demand', 'event', 'quay', 'trade_floor', 'illness', 'crime', 'home_need', 'stranded', 'keep_stocked', 'running_out', 'workers_short', 'jobless'];

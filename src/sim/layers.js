@@ -15,6 +15,7 @@ import { atLeast, isUnlocked } from './progression.js';
 import { touchesRoad } from './reach.js';
 import { crewPlan, hasMonumentWork } from './monuments.js';
 import { makerOf } from './advice.js';
+import { storesOf, ordersOf, cartOf, storeById, orderSource, lastMonthOf, cartPath } from './carts.js';   // Version 8.3 (Track K): the Supply lines layer
 
 // ── When a layer is offered ──
 
@@ -204,4 +205,32 @@ function joblessDistricts(world, jobless) {
 export function resolveSupplyGood(world, picked) {
   const goods = supplyGoods(world);
   return goods.includes(picked) ? picked : goods[0] || 'food';
+}
+
+// ── Supply lines (Version 8.3, Track K, rulings 1416-1418) ──
+
+// Every Keep stocked order as a line along the roads from its source to its store, for the Supply lines layer:
+// [{ home, source, good, path, lastMonth, state, chosen }], the stores by id and each store's orders in the order of its goods.
+//   source     the store the goods come from: the cart's while one is on the road for the order, else the chosen store, else the nearest that can spare it
+//   path       the cart's road route (cartPath: tile indices, home first), or null when no road joins them (or there is no source)
+//   lastMonth  what the order brought home last month (lastMonthOf), the line's thickness
+//   state      'moving' (a cart of the order is on the road), 'waiting' (a source can spare it; no cart of this order is out now), 'dry' (the chosen
+//              source cannot spare it: the cart waits, ruling 1384) or 'none' (no store can spare it)
+// Not kept between calls: the orders, the stores' stocks and the carts all change it (the render keeps what it draws for a frame's signature).
+export function supplyLines(world) {
+  const out = [];
+  for (const home of storesOf(world).sort((p, q) => p.id - q.id)) {
+    for (const { good } of ordersOf(home)) {
+      const cart = cartOf(world, home.id);
+      let source = null, state;
+      const src = orderSource(world, home.id, good);
+      if (cart && cart.good === good && storeById(world, cart.from)) { source = cart.from; state = 'moving'; }
+      else if (src.chosen && src.why) { source = src.store.id; state = 'dry'; }
+      else if (src.store) { source = src.store.id; state = 'waiting'; }
+      else state = 'none';
+      const path = source !== null ? cartPath(world, { to: home.id, from: source }) : null;
+      out.push({ home: home.id, source, good, path: path && path.length ? path : null, lastMonth: lastMonthOf(home, good), state, chosen: src.chosen });
+    }
+  }
+  return out;
 }

@@ -71,7 +71,7 @@ export const cartsScene = async (api, options = {}) => {
   if (o.sheet && near) {
     g.ui.store.set(select(g.ui.store.get(), near.id));
     await wait(200);
-    const head = document.querySelector('#sheet .fetch-head');
+    const head = document.querySelector('#sheet .fetch-more');   // Version 8.3: Keeps stocked is open; with an order the other goods fold under this button
     if (head && o.fetchOpen !== false && head.getAttribute('aria-expanded') !== 'true') head.click();
     const panel = document.querySelector('#sheet .fetch-panel');
     if (panel && o.fetchOpen !== false) panel.scrollIntoView({ block: 'start' });

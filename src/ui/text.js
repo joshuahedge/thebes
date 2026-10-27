@@ -3994,3 +3994,156 @@ Object.assign(REASONS, { no_river: g82Oasis.noQuay });
   routeBlockText = (id, block) => (block === 'no_river' ? g82Oasis.noRiverRoute(id, partnerName(id)) : base(id, block));
 }
 // ── end v82 g ──
+// Version 8.3, Track K (keep stocked and supply lines, rulings 1410-1429) ──
+// "Fetch" is Keep stocked in every word (ruling 1383): the store sheet's rows (src/ui/s47/carts.js), the pick on the map (src/ui/s47/sourcePick.js), the
+// Supply lines layer's legend (src/ui/layersLegend.js), the tips, How to play, Recent and City advice. Every number comes from the sim (src/sim/carts.js
+// fetchPreview, fetchStatus, orderSource, sourceChoices; src/sim/adviceFixes.js keepStockedAdvice) or its data (CARTS, MONUMENT).
+import { MONUMENT as k83Monument } from '../data/monuments.js';
+const k83Store = (type) => buildingName(type).toLowerCase();
+const k83Cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const k83Tiles = (n) => plural(n, 'tile', 'tiles');
+// Why a chosen store gives nothing now (src/sim/carts.js dryWhy), as the end of a sentence about that store.
+const k83Why = { empty: (g) => `has no ${g} to spare`, kept: (g) => `keeps its ${g} for its own order`, unlinked: () => 'is not joined to this store by road now', burning: () => 'is on fire' };
+const k83Dry = (st) => `The ${k83Store(st.source.type)}${Number.isFinite(st.source.len) ? ` ${cartTiles(st.source.len)}` : ''}${st.source.dir ? ` ${cartDir[st.source.dir]}` : ''}`
+  + ` ${(k83Why[st.why] || k83Why.empty)(cartGood(st.good))}, so the cart waits`;
+// The older words that said Fetch, said again in this release's words (the sentences are otherwise as they were).
+// A sentence, or each sentence of a { cause, fix } record.
+const k83Reword = (s) => {
+  if (s && typeof s === 'object') return Object.fromEntries(Object.entries(s).map(([k, v]) => [k, k83Reword(v)]));
+  return typeof s !== 'string' ? s : s
+    .replace(/\bFetch orders?\b/g, (m) => (m.endsWith('s') ? 'Keep stocked orders' : 'Keep stocked order'))
+    .replace(/\bFetch it\b/g, 'keep it stocked')
+    .replace(/\bFetch (\w+)/g, 'keep $1 stocked');
+};
+const k83Wrap = (obj, keys) => { for (const k of keys) { const f = obj[k]; obj[k] = typeof f === 'function' ? (...a) => k83Reword(f(...a)) : k83Reword(f); } };
+Object.assign(S47_CARTS_TEXT, {
+  group: 'Keep stocked', add: 'Keep a good stocked', clear: 'Stop keeping it stocked', set: 'Keep stocked',
+  amountLabel: (good) => `${goodName(good)}: keep stocked up to`,
+  setLabel: (good) => `Keep ${cartGood(good)} stocked`, clearLabel: (good) => `Stop keeping ${cartGood(good)} stocked`,
+  help: `A ${cartStore('storehouse')} or ${cartStore('granary')} can keep a good stocked from other stores by road: one cart, ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day each way. It never takes a store below what that store keeps for itself.`,
+  consequence: (pv) => (!pv.source ? `Keep ${cartGood(pv.good)} stocked: no store with ${cartGood(pv.good)} to spare is linked by road`
+    : pv.state === 'full' ? `Keep ${cartGood(pv.good)} stocked up to ${pv.fetch}: ${pv.held} held of ${pv.fetch}, no cart needed`
+    : pv.state === 'no_room' ? `Keep ${cartGood(pv.good)} stocked up to ${pv.fetch}: no cart goes, the store is full`
+    : `Keep ${cartGood(pv.good)} stocked up to ${pv.fetch}: one cart, ${pv.perTrip} a trip, from the nearest store with ${cartGood(pv.good)}, ${cartTiles(pv.source.len)} (a round trip takes ${cartDays(pv.source.roundTrip)})${pv.staffed ? '' : '. No cart goes until this store has its workers and a road'}`),
+  head: 'Keeps stocked', on: 'On', off: 'Off', switchWord: 'Keep stocked',
+  less: (good) => `Keep less ${cartGood(good)}`, more: (good) => `Keep more ${cartGood(good)}`, upTo: (n) => `up to ${n}`, upToWord: 'up to',
+  // The live line under an order's row (the row names the good): "40 on the way, back in 3 days, from the storehouse 34 road tiles east".
+  status: (st) => {
+    const g = cartGood(st.good);
+    switch (st.state) {
+      case 'out': case 'back': return `${st.amount} on the way, ${st.days ? `back in ${cartDays(st.days)}` : 'back today'}${st.source ? `, ${cartWhere(st.source)}` : ''}`;
+      case 'return': return `The road is cut, so the cart turned round${st.days ? ` (${cartDays(st.days)} to go)` : ''}`;
+      case 'other': return 'The cart serves another good first';
+      case 'full': return `${st.held} held of ${st.fetch}, no cart needed`;
+      case 'refused': return `This store does not take in ${g}, so no cart goes`;
+      case 'unstaffed': return `No cart goes while this store is short of workers (${st.staff} of ${st.workers}) or off the road`;
+      case 'no_room': return 'No cart goes, the store is full';
+      case 'no_source': return `No store with ${g} to spare is linked by road`;
+      case 'dry': return k83Dry(st);
+      default: return `A cart sets out next for ${st.amount}, ${cartWhere(st.source)}`;
+    }
+  },
+  refusal: (r) => {
+    const g = r.good ? cartGood(r.good) : 'that';
+    switch (r.reason) {
+      case 'not_storage': return 'Only a storehouse or a granary can keep goods stocked';
+      case 'cannot_store': return `This store cannot hold ${g}`;
+      case 'refuses': return `This store does not take in ${g}: switch ${g} on under Takes in first`;
+      case 'bad_amount': return `Choose a whole number from 1 to ${r.max}`;
+      case 'no_source': return `No store with ${g} to spare is linked by road`;
+      case 'no_order': return `This store does not keep ${g} stocked`;
+      case 'same_store': return 'A store cannot keep itself stocked: pick another store';
+      case 'not_holder': return `${r.type ? `A ${k83Store(r.type)}` : 'That'} cannot hold ${g}: pick a lit store`;
+      case 'unlinked': return `No road joins that ${r.type ? k83Store(r.type) : 'store'} to this one`;
+      default: return 'Nothing is here';
+    }
+  },
+  tip: 'Some homes wait on a good only a far store holds. Set a storehouse near them to keep it stocked.',
+  tipHelp: `Open a store to keep goods stocked from other stores by cart: ${s47Carts.perTrip} a trip, ${s47Carts.speed} road tiles a day.`,
+  tipFor: (tip) => `Set a ${cartStore('storehouse')} near these homes to keep ${cartGood(tip.good)} stocked`,
+});
+TIP_TEXT.fetch_far = S47_CARTS_TEXT.tip;
+TIP_HELP_TEXT.fetch_far = S47_CARTS_TEXT.tipHelp;
+k83Wrap(S47_PRESSURE_TEXT, ['goodFar', 'showFar']);
+k83Wrap(OPEN_TEXT, ['stepStore', 'stepMaker', 'adviceStore', 'adviceMaker']);
+k83Wrap(ADVICE_FIX_TEXT, ['strandedFix', 'strandedStep']);
+for (const p of [...Object.values(V60_HELP).flat(), ...Object.values(V70_HELP).flat()]) p.text = k83Reword(p.text);
+
+// The store sheet's two parts and an order's row (src/ui/s47/carts.js): Takes in (a storehouse's switches for what producers may deliver) and Keeps stocked.
+export const KEEP_TEXT = {
+  takesIn: 'Takes in',
+  takesInHelp: 'What producers may deliver here. Tap a good to take it in or refuse it; a refused good goes to other storage, or production stops.',
+  // "from [Nearest granary, 34 tiles ▸]": the order's source now (orderSource), its button's words and name.
+  fromWord: 'from',
+  fromLabel: (src) => (!src.store ? 'Nearest: none to spare'
+    : src.chosen ? `${k83Cap(k83Store(src.store.type))}, ${Number.isFinite(src.store.len) ? k83Tiles(src.store.len) : 'no road'}`
+    : `Nearest ${k83Store(src.store.type)}, ${k83Tiles(src.store.len)}`),
+  fromAria: (good, src) => `Keep ${cartGood(good)} stocked from: ${KEEP_TEXT.fromLabel(src)}. Pick another store on the map`,
+  nearestInstead: 'Nearest instead?',
+  nearestInsteadAria: (good) => `Keep ${cartGood(good)} stocked from the nearest store that can spare it instead`,
+  gone: 'The chosen store is gone: Nearest again',
+  more: (n) => `Keep another good stocked (${n})`,
+  // Recent: the sim's sourceGone event, once.
+  goneMessage: (e, world) => {
+    const b = world.buildings[e.id];
+    return `The store a ${b ? k83Store(b.type) : 'store'} kept ${cartGood(e.good)} stocked from is gone: it takes from the nearest again`;
+  },
+};
+
+// The pick on the map (src/ui/s47/sourcePick.js): the bar's words, each lit store's line (sourceChoices) and why a tap there does not pick it.
+const k83Not = { empty: () => 'none held', kept: () => 'keeps all for its own order', unlinked: () => 'no road', burning: () => 'on fire' };
+export const PICK_TEXT = {
+  head: (good) => `Pick the store to bring ${cartGood(good)} from`,
+  hint: 'Tap a lit store on the map, or pick one here.',
+  nearest: 'Nearest', nearestAria: (good) => `Keep ${cartGood(good)} stocked from the nearest store that can spare it`,
+  cancel: 'Cancel', cancelAria: 'Cancel the pick and go back to the store',
+  // A lit store's button: "Granary, 34 tiles: 120 to spare" or, dimmed, "Storehouse, 12 tiles: keeps all for its own order".
+  choice: (c, good) => `${k83Cap(k83Store(c.type))}, ${Number.isFinite(c.len) ? k83Tiles(c.len) : 'no road'}: ${c.why ? (k83Not[c.why] || k83Not.empty)() : `${c.spare} to spare`}${c.chosen ? ' (chosen)' : c.nearest ? ' (nearest)' : ''}`,
+  choiceAria: (c, good) => `Bring ${cartGood(good)} from the ${PICK_TEXT.choice(c, good).charAt(0).toLowerCase()}${PICK_TEXT.choice(c, good).slice(1)}`,
+  // The map's label on a lit store: what it can spare, or why not, in a word.
+  label: (c) => (c.why ? (k83Not[c.why] || k83Not.empty)() : `${c.spare} to spare`),
+  none: (good) => `No other store can hold ${cartGood(good)} yet: build one, or keep Nearest`,
+  notStore: (type, good) => `A ${k83Store(type)} cannot hold ${cartGood(good)}: pick a lit store`,
+  picked: (c, good) => `Now kept stocked from the ${k83Store(c.type)}${c.why ? `, which ${(k83Why[c.why] || k83Why.empty)(cartGood(good))} for now: the cart waits` : ''}`,
+  toNearest: (good) => `Now kept stocked from the nearest store with ${cartGood(good)} to spare`,
+};
+
+// The Supply lines layer (src/render/layers.js drawSupplyLines, its legend src/ui/layersLegend.js): every order as a line along its road route.
+Object.assign(OVERLAY_NAMES, { lines: 'Supply lines' });
+export const LINES_TEXT = {
+  moving: { label: 'Moving', words: 'Moving dashes: goods on their way along the roads to the store that keeps them stocked; the line is thicker for more brought last month' },
+  stuck: { label: 'Stuck', words: 'Amber with long dashes that stand still: the chosen store has none to spare, or no store can spare the good' },
+  tap: { label: 'Tap a line: its store', words: 'Tap or click a line to open the sheet of the store it keeps stocked' },
+};
+Object.assign(OVERLAY_LEGEND, { lines: [LINES_TEXT.moving.words, LINES_TEXT.stuck.words, LINES_TEXT.tap.words] });
+
+// The tip (src/data/tips.js TIPS_V83_K): the first time the city has two stores. Twenty words at most, as every tip.
+TIP_TEXT.keep_stocked = 'Stores can keep each other stocked. Open a store and pick Keep stocked.';
+TIP_HELP_TEXT.keep_stocked = 'A store can keep a good stocked from a store you pick; the Supply lines layer shows every line.';
+V70_HELP.p.push({ head: 'Keep stocked and supply lines', text: `A storehouse or granary can keep a good stocked from other stores: open it, switch Keep stocked on for the good and set how much to hold. One cart brings ${s47Carts.perTrip} a trip at ${s47Carts.speed} road tiles a day, from the nearest store that can spare some, or from the store you pick with "from" on the map. A store you pick is kept even when a nearer one is built; when it has none to spare the cart waits and the row says so in amber, with Nearest instead. Takes in, on a storehouse, is what producers may deliver there. The Supply lines layer (from Town) draws every order along its roads: thicker for more brought last month, amber with long dashes when stuck.` });
+
+// The bazaar's food alert (Version 8.2.1, ruling 1366) when its granary runs low and another store can spare food (src/sim/bazaarFood.js spare): the fix says so.
+{
+  const base = alertText;
+  alertText = (alert, world) => {
+    const t = base(alert, world);
+    const s = alert && alert.code === 'bazaar_empty' && alert.reason === 'granary_low' && alert.spare ? world.buildings[alert.spare.id] : null;
+    const home = s && alert.store ? world.buildings[alert.store] : null;
+    return s && home ? { ...t, fix: `The ${k83Store(s.type)} ${cartTiles(alert.spare.len)} away can spare ${alert.spare.spare} ${cartGood(alert.spare.good)}: keep the ${k83Store(home.type)} stocked from it` } : t;
+  };
+}
+
+// City advice's Keep stocked fixes (src/sim/adviceFixes.js keepStockedAdvice, kind 'keep_stocked'): a bazaar's granary running low while another store can spare food,
+// and a monument site short of stone or bricks that a storehouse within MONUMENT.supplyReach could keep stocked (or, with none in reach, a storehouse to build).
+V70_ADVICE_WORDS.keep_stocked = (a, world) => {
+  const d = a.data, g = cartGood(d.good), src = world.buildings[d.from];
+  const from = src ? `The ${k83Store(src.type)} ${cartTiles(d.len)} away can spare ${d.spare} ${g}` : '';
+  if (d.case === 'bazaar') {
+    const store = world.buildings[d.store], name = store ? k83Store(store.type) : 'granary';
+    return { what: `The ${name} by the bazaar runs low on food`, why: from, fix: `Keep the ${name} stocked with ${g} from it` };
+  }
+  const site = world.buildings[d.site], what = `The ${site ? k83Store(site.type) : 'monument'} site is short of ${g}`, reach = cartTiles(k83Monument.supplyReach);
+  if (d.build) return { what, why: `${from}, and no storehouse stands within ${reach} of the site`, fix: `Build a storehouse near the site, then keep it stocked with ${g}` };
+  return { what, why: `${from}; a storehouse within ${reach} supplies the site`, fix: `Keep the storehouse by the site stocked with ${g} from it` };
+};
+// ── end v83 k ──

@@ -342,7 +342,7 @@ describe('v50 areas ui: Build another on the building sheets', () => {
     const line = r.root.querySelector('#confirm .copy-line');
     const copy = anotherOf(world, a).copy;
     expect(line.textContent).toBe(ANOTHER_TEXT.copy(copy, goodName));
-    expect(line.textContent).toBe('Copies Fetch: Pottery 100, Linen 40 · refuses beer');
+    expect(line.textContent).toBe('Copies Keep stocked: Pottery 100, Linen 40 · refuses beer');   // Version 8.3: Keep stocked
     const ok = r.root.querySelector('#confirm .ok');
     fire(ok, 'pointerdown', { pointerType: 'mouse' }); fire(ok, 'click');
     const made = allBuildings(world).filter((b) => b.type === 'storehouse' && b.id !== a.id && b.x !== 20).pop();

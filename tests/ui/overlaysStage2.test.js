@@ -57,7 +57,7 @@ function street(tier, extra = {}) {
 
 describe('stage 2 overlays', () => {
   it('lists the fourteen overlays in order, with a name, a hue and a legend each, and shows the new ones on placing', () => {
-    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers']);   // Stage 3: fire risk; the placement review: Ground
+    expect(OVERLAYS).toEqual(['water', 'food', 'religion', 'goods', 'entertainment', 'desirability', 'fire', 'health', 'crime', 'housing', 'ground', 'progress', 'supply', 'workers', 'lines']);   // Stage 3: fire risk; the placement review: Ground; Version 8.3: Supply lines
     for (const o of OVERLAYS) {
       expect([o, typeof OVERLAY_NAMES[o], typeof OVERLAY_HUE[o]]).toEqual([o, 'string', 'string']);
       if (!GRADED_OVERLAYS.includes(o)) expect([o, OVERLAY_LEGEND[o].length]).toEqual([o, o === 'ground' || LAYER_OVERLAYS.includes(o) ? 3 : 2]);   // Ground: fertile, rocky and (Stage 4.5) clay

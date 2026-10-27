@@ -42,11 +42,24 @@ export function enterScreenshot(state) {
   return { ...CLEAR_TOOL, mode: 'browse', selectedId: null, sheet: null, confirmDialog: null, screenshot: true };
 }
 
+// Version 8.3 (Track K, ruling 1413): the pick of a Keep stocked order's source. The map with a bar, and nothing else: the store's sheet steps aside while
+// the player taps a lit store (src/ui/s47/sourcePick.js), and Back, Esc or Cancel brings it back. pick: { home, good }. Only mode 'picking' means a pick is
+// under way (a stale pick left by another transition is never read).
+export const isPicking = (state) => state.mode === 'picking' && Boolean(state.pick);
+export function startPick(state, home, good) {
+  return { ...CLEAR_TOOL, mode: 'picking', pick: { home, good }, selectedId: null, sheet: null, layersOpen: false, guidanceOpen: false };
+}
+export function endPick(state) {
+  const home = state.pick ? state.pick.home : null;
+  return home !== null ? { mode: 'selected', pick: null, selectedId: home, sheet: { kind: 'info', id: home } } : { mode: 'browse', pick: null };
+}
+
 export function back(state) {
   if (state.screenshot) return { screenshot: false };
   if (state.confirmDialog) return { confirmDialog: null };
   if (state.layersOpen) return { layersOpen: false };         // the Layers popover is the newest thing open: it closes first
   if (state.guidanceOpen) return { guidanceOpen: false };   // the guidance row opened in place is the newest thing open: it closes first
+  if (isPicking(state)) return endPick(state);              // Version 8.3: Back or Esc leaves the pick for the store's sheet
   if (state.sheet && state.sheet.kind !== 'info') return afterPanel(state);
   if (isToolMode(state.mode)) return cancelTool(state);
   if (state.mode === 'selected') return { mode: 'browse', selectedId: null, sheet: null };

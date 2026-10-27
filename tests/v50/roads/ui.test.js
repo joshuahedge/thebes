@@ -306,7 +306,7 @@ describe('v50 roads ui: Task 4 review minors', () => {
     const made = addRaw(w, 'storehouse', 12, 14);
     const done = applySettings(w, made.id, odd);
     expect(done).toEqual(kept);                                                  // what the bar says is what is written
-    expect(ANOTHER_TEXT.copy(kept, goodName)).toBe(`Copies Fetch: ${goodName('pottery')} 100 · refuses ${goodName('beer').toLowerCase()}`);
+    expect(ANOTHER_TEXT.copy(kept, goodName)).toBe(`Copies Keep stocked: ${goodName('pottery')} 100 · refuses ${goodName('beer').toLowerCase()}`);   // Version 8.3: Keep stocked
     expect(settingsThatApply('storehouse', copy)).toEqual(copy);                  // a real copy keeps everything
     expect(settingsThatApply('well', odd)).toBe(null);                           // a well holds nothing: no line at all
     expect(ANOTHER_TEXT.copy(settingsThatApply('well', odd), goodName)).toBe('');

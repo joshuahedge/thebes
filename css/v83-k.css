@@ -1,0 +1,48 @@
+/* Version 8.3, Track K (rulings 1410-1429): Keep stocked on a store's sheet, the pick of a source on the map, and the store sheet's Takes in. Loaded after
+   the 8.0-8.2 sheets; it only adds. Every control is at least 44 px (--tap). */
+
+/* Keeps stocked: its heading, an order's two rows (the switch; then up to [− n +] and from [store ▸]), and the amber line of a dry source. */
+#sheet .fetch-panel .keeps-head { display: flex; align-items: baseline; gap: 8px; margin: 12px 0 4px; }
+#sheet .fetch-panel .keeps-head .label { flex: 1 1 auto; }
+#sheet .fetch-panel .keeps-head .summary { font-weight: 400; }
+#sheet .fetch-switch .good { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+#sheet .fetch-switch .good .name { overflow-wrap: anywhere; }
+#sheet .good-icon { flex: none; width: calc(18px * var(--ui-scale)); height: calc(18px * var(--ui-scale)); }
+#sheet .fetch-switch .state .word { font-weight: 400; }
+#sheet .fetch-row.fetch-second { margin-top: 4px; }
+#sheet .fetch-row.fetch-second .stepper { margin-left: 0; }
+#sheet .fetch-row.fetch-second .word { flex: none; }
+#sheet .fetch-row .from-group { display: flex; align-items: center; gap: 6px; flex: 1 1 12em; min-width: 0; }
+#sheet .from-pick { flex: 1 1 auto; min-width: 0; text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+#sheet .from-pick .label { min-width: 0; overflow-wrap: anywhere; }
+#sheet .from-pick.chosen { border-color: var(--lapis); border-width: 2px; }
+#sheet .fetch-good.order { padding: 8px 0; }
+#sheet .amber-text { color: var(--amber-text); font-weight: 600; }
+#sheet .fetch-dry { background: var(--amber-soft); border: 1px dashed var(--amber-text); border-radius: var(--radius); padding: 4px 4px 4px 8px; margin-top: 4px; flex-wrap: wrap; }
+#sheet .fetch-dry .fetch-line { flex: 1 1 12em; }   /* on a narrow sheet the words take the row and the button goes under them */
+#sheet .nearest-instead { flex: none; border-color: var(--amber-text); font-weight: 600; margin-left: auto; }
+#sheet .fetch-more { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+#sheet .takes-in-head { margin-top: 16px; }
+
+/* The Layers popover has a sixteenth choice (Supply lines). On a phone held sideways at large text it is three columns, so six rows: it may come down over
+   the corner buttons it opened from (a tap outside, Esc or Back still closes it), so every choice and Off stay in sight with no scroll (ruling 1427). */
+body[data-layout="compact"]:is([data-text-size="125"], [data-text-size="150"]) #corners .layers-picker { bottom: 0; }
+
+/* The pick on the map: one bar at the foot of the map (or in the side column on a wide or landscape screen), as the placing bar stands. The dock and the
+   corner buttons step aside while it is up: the map and its bar are all there is. */
+#source-pick { position: fixed; z-index: 3; box-sizing: border-box; background: var(--parchment); border-top: 1px solid var(--parchment-3); padding: 8px 12px calc(8px + var(--safe-bottom, 0px));
+  display: flex; flex-direction: column; gap: 6px; box-shadow: 0 -4px 12px rgba(43, 31, 14, 0.18); }
+#source-pick[hidden] { display: none; }
+body[data-layout="portrait"] #source-pick { left: 0; right: 0; bottom: 0; border-radius: 16px 16px 0 0; max-height: 46vh; }
+body[data-layout="wide"] #source-pick { right: 0; bottom: 0; width: var(--panel-w); max-height: 60vh; }
+body[data-layout="compact"] #source-pick { right: calc(var(--rail-w, 0px) + var(--safe-right, 0px)); bottom: 0; width: var(--drawer-w); max-height: 78vh; border-radius: 16px 0 0 0; }
+body[data-mode="picking"] #dock, body[data-mode="picking"] #corners { display: none; }
+#source-pick .pick-head { margin: 0; font-weight: 600; }
+#source-pick .pick-choices { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; flex: 0 1 auto; }
+body[data-layout="portrait"] #source-pick .pick-choices { max-height: calc(3 * (var(--tap) + 4px)); }
+#source-pick .pick-choice { width: 100%; text-align: left; border-color: #23407A; }
+#source-pick .pick-choice[aria-pressed="true"] { border-width: 2px; font-weight: 600; }
+#source-pick .pick-choice.dim { border-style: dashed; border-color: var(--ink-line); color: var(--ink-soft, inherit); background: var(--parchment-2); }
+#source-pick .pick-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#source-pick .pick-status { flex: 1 1 10em; margin: 0; min-width: 0; }
+#source-pick .pick-actions { display: flex; gap: 8px; flex: none; margin-left: auto; }

@@ -41,7 +41,7 @@ const givePottery = ({ w, home, bazaar }) => {
 
 describe('v50 layers: when each is offered', () => {
   it('Home progress comes with the first home, Goods supply and Workers at Town, as the data says', () => {
-    expect(LAYER_UNLOCK).toEqual({ progress: { home: true }, supply: { milestone: 'town' }, workers: { milestone: 'town' } });
+    expect(LAYER_UNLOCK).toEqual({ progress: { home: true }, supply: { milestone: 'town' }, workers: { milestone: 'town' }, lines: { milestone: 'town' } });   // Version 8.3: Supply lines at Town too
     const empty = makeTestWorld();
     expect(['progress', 'supply', 'workers'].map((k) => layerUnlocked(empty, k))).toEqual([false, false, false]);
     const { w } = street({ milestone: 'village' });

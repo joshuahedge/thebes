@@ -25,7 +25,7 @@ describe('ui layers picker (placement review P2)', () => {
     expect(r.picker.node.hidden).toBe(false);
     const buttons = [...r.picker.node.querySelectorAll('button.layer')];
     expect(buttons.map((b) => b.textContent)).toEqual([...OVERLAYS.map((k) => OVERLAY_NAMES[k]), T.layersOff]);
-    expect(buttons.length).toBe(15);                                        // fourteen overlays (Version 5.0: Home progress, Goods supply and Workers) and Off; with no world the picker offers all
+    expect(buttons.length).toBe(16);                                        // fifteen overlays (Version 5.0: Home progress, Goods supply and Workers; 8.3: Supply lines) and Off; with no world the picker offers all
     expect(buttons.map((b) => b.getAttribute('aria-pressed') === 'true')).toEqual(buttons.map((b) => b.dataset.layer === 'fire'));
     r.cleanup();
   });

@@ -104,10 +104,17 @@ const TIPS_V60_D1 = [];
 const TIPS_V60_D2 = [];
 // ── end v60 ──
 
+// ── v83 k (Version 8.3, Track K) ── stores keep each other stocked: the first time the city has two stores (src/ui/s47/carts.js fires it after a command)
+const TIPS_V83_K = [
+  { id: 'keep_stocked', trigger: 'twoStores', priority: false },
+];
+// ── end v83 k ──
+
 // Stage 4.6: each track's tips (src/data/s46.js S46_TIPS), with their words in the track's text.js section.
 export const TIPS = [...TIPS_BASE, ...TIPS_S4_UI, ...TIPS_S4_SCORE, ...TIPS_S4_MOTION, ...TIPS_S4_CARDS, ...TIPS_S4_BALANCE, ...TIPS_S45, ...S46_TIPS, ...S47_TIPS, ...TIPS_V50,
   ...V60_TIPS, ...TIPS_V60_B2, ...TIPS_V60_D1, ...TIPS_V60_D2,
-  ...V70_TIPS, ...FERRY_TIPS];   // Version 7.0: each track's tips from its own data file (src/data/v70.js V70_TIPS), words in its text.js section
+  ...V70_TIPS, ...FERRY_TIPS,   // Version 7.0: each track's tips from its own data file (src/data/v70.js V70_TIPS), words in its text.js section
+  ...TIPS_V83_K];
 
 export const TIP_GAP_MS = 180000;          // at least 3 minutes between two tips
 export const TIP_HOURLY_MAX = 5;           // and at most five in any hour

@@ -12,6 +12,7 @@ import { ADVICE_TEXT } from './adviceText.js';
 import { nearestFit } from './placement.js';
 import { nearestTerrainTile } from './goalsList.js';
 import { reasonText } from './text.js';
+import { aimKeepStocked } from './s47/carts.js';
 import { GROUND } from './nextStepText.js';       // what a building bound to ground needs when no tile of it has room (the sim's own refusal for a tile says "Needs fertile land")
 
 export const ADVICE_EVERY_DAYS = 5;
@@ -50,7 +51,7 @@ export function createAdviceUi({ world, settings, showMeAt, selectBuilding, open
   function fix(a) {
     const f = a.fix;
     if (!f) return;
-    if (f.select !== undefined) { selectBuilding(f.select); return; }
+    if (f.select !== undefined) { if (f.keep) aimKeepStocked(f.select, f.keep.good); selectBuilding(f.select); return; }   // Version 8.3: a Keep stocked fix opens the store at that good's row
     if (f.view) { openSummary(f.section); return; }
     const def = BUILDINGS[f.item];
     const at = f.at === 'terrain' && def && def.terrain ? nearestTerrainTile(world, def.terrain, f.target) || f.target : f.target;

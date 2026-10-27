@@ -42,8 +42,12 @@ export const isOasis = (o) => isRec(o) && Number.isInteger(o.x) && Number.isInte
 
 // A store's orders (each granary and storehouse: b.orders): { [good]: { fetch } }, fetch the amount it fetches up to (Task 5 may add
 // fields inside an order). stores: the goods the store may hold (BUILDINGS[type].stores).
+// Version 8.3 (Track K, ruling 1388): an order may also carry from (the chosen source's id), moved and lastMonth (amounts) and gone (a flag), each
+// optional: absent is today's order, so an 8.2.1 save loads as it is.
+const optNum = (v) => v === undefined || isNum(v);
 export const isOrders = (orders, stores) => isRec(orders)
-  && Object.entries(orders).every(([good, o]) => stores.includes(good) && isRec(o) && isNum(o.fetch));
+  && Object.entries(orders).every(([good, o]) => stores.includes(good) && isRec(o) && isNum(o.fetch)
+    && (o.from === undefined || Number.isInteger(o.from)) && optNum(o.moved) && optNum(o.lastMonth) && (o.gone === undefined || typeof o.gone === 'boolean'));
 
 // world.carts: one per fetching store at most, on its way out or back (Task 5 owns the rules, Task 6 the drawing).
 //   id      integer: the fetching store's id (one cart per store, so ids never clash and need no counter)
@@ -67,6 +71,10 @@ export const isCart = (c) => isRec(c) && ['id', 'from', 'to', 'left', 'turn', 'd
 // Task 5 (ruling 466): the carts' numbers, all tunable here. perTrip: the most a cart carries a trip; speed: road tiles a game day each
 // way; defaultFetch: the amount a new order fetches up to. A trip's days are worked out in src/sim/carts.js tripTimes.
 export const CARTS = { perTrip: 20, speed: 8, defaultFetch: 100 };
+// Version 8.3 (Track K, ruling 1425): what City advice's Keep stocked items weigh, in its points (src/data/advice.js ADVICE: one point is one home held back one
+// tier): a bazaar's granary running low that another store could keep stocked, and a monument site stalled for a material a store could keep near it. Each
+// weighs a Manor's tier, as the Quay and the Large plot do (src/sim/adviceFixes.js keepStockedAdvice).
+export const KEEP_ADVICE = { bazaar: 6, site: 6 };
 
 // Task 1 (ruling 461): what every new map holds near the start area. reach: tiles from the start area's centre (map.focus) at Normal
 // (64), scaled linearly with the map's size; then, within that reach, at least `clay` clay-pit fits, `mine` gem-mine fits on rocky

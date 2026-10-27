@@ -38,7 +38,7 @@ describe('v50 layers: the Layers picker', () => {
     for (const [what, world, want] of [
       ['no home yet', cityAt('village', { homes: false }), []],
       ['a first home', cityAt('village'), ['progress']],
-      ['Town', cityAt('town'), ['progress', 'supply', 'workers']],
+      ['Town', cityAt('town'), ['progress', 'supply', 'workers', 'lines']],   // Version 8.3 (Track K): and Supply lines
     ]) {
       const r = pickerRig(world);
       try {
