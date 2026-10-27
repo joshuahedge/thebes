@@ -135,7 +135,7 @@ describe('s4 motion Gentle tip', () => {
       try {
         createMenuSheets({ store: createStore(INITIAL_UI_STATE), settings, toasts: { show() {} } }).help(root.querySelector('#body'), { close() {} });
         const items = [...root.querySelectorAll('.tips-list li')].map((li) => li.textContent);
-        expect([asks, items.includes(TIP_HELP_TEXT.gentle_motion), items.includes(TIP_TEXT.gentle_motion), items.length]).toEqual([asks, false, false, TIPS.length - 1]);   // Version 8.0: a player always has full motion, so How to play leaves the Gentle tip out
+        expect([asks, items.includes(TIP_HELP_TEXT.gentle_motion), items.includes(TIP_TEXT.gentle_motion), items.length]).toEqual([asks, false, false, TIPS.length - 2]);   // Version 8.0: a player always has full motion, so How to play leaves the Gentle tip out; 8.3 (ruling 1450): and, with a river, the bridges tip (the crossings tip says the rule)
       } finally { cleanup(); settings.destroy(); }
     }
   });

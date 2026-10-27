@@ -4,6 +4,7 @@ import { describe, it, expect } from '../../harness.js';
 import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
 import { rigUI } from '../../helpers/uiWorld.js';
 import { fire } from '../../helpers/dom.js';
+import { freeTop } from '../../../src/ui/layout.js';
 import { select, startPick, endPick, back, isPicking } from '../../../src/ui/modes.js';
 import { setFetch, setSource, fetchStatus, orderSource, sourceChoices, cartDay } from '../../../src/sim/carts.js';
 import { demolishAt } from '../../../src/sim/commands.js';
@@ -228,6 +229,44 @@ describe('v83 k ui: the pick on the map', () => {
       }
     }
     expect(wrong).toEqual([]);
+  });
+
+  it('the framing keeps the store clear of the rows under the top bar and of the bar: at 375x667 and 150% text with a tall notice up, the store lands inside the free map (ruling 1451)', async () => {
+    const wrong = [];
+    for (const [width, height, textSize, notice] of [[375, 667, 150, 200], [375, 667, 150, 0], [390, 844, 100, 0]]) {
+      const { w, home, near } = world();
+      setFetch(w, home.id, 'pottery', 60);
+      const r = await open(w, home.id, [width, height]);
+      try {
+        r.ui.settings.set({ textSize });                                                 // (the framing's own: the nearest store it could draw on is always in the band; the order's store too where the two fit together)
+        if (notice) r.root.querySelector('#under-bar').append(Object.assign(document.createElement('div'), { id: 'test-notice', textContent: 'A notice', style: `width:300px;height:${notice}px` }));
+        click(row(r, 'pottery').querySelector('.from-pick'));
+        r.ui.cameraControl.tick(1e6);                                                    // the framing's glide, run to its end
+        const at = `${width}x${height} ${textSize}% notice ${notice}`;
+        const top = freeTop(document.body, r.canvas, r.store.get().layout), foot = height - bar(r).getBoundingClientRect().height;
+        if (notice && top < notice) wrong.push(`${at}: the free top is ${Math.round(top)}`);
+        for (const [name, b] of height > 700 ? [['order store', home], ['nearest store', near]] : [['nearest store', near]]) {
+          const p = r.screenOf(b.x + b.w / 2, b.y + b.d / 2);
+          if (p.y < top || p.y > foot) wrong.push(`${at}: the ${name} is at y ${Math.round(p.y)}, free map ${Math.round(top)} to ${Math.round(foot)}`);
+        }
+      } finally { r.cleanup(); }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('on a phone held sideways the category rail, the dock and the corner buttons all step aside, and the bar stands at the screen\'s edge (ruling 1452)', async () => {
+    const { w, home } = world();
+    setFetch(w, home.id, 'pottery', 60);
+    const r = await open(w, home.id, [667, 375]);
+    try {
+      const shown = (sel) => { const n = r.root.querySelector(sel); return n ? getComputedStyle(n).display !== 'none' : false; };
+      expect([r.store.get().layout, shown('#rail')]).toEqual(['compact', true]);          // up before the pick (the sheet is open, as it is when from is tapped)
+      click(row(r, 'pottery').querySelector('.from-pick'));
+      expect(['#rail', '#dock', '#corners'].map(shown)).toEqual([false, false, false]);
+      expect(Math.abs(bar(r).getBoundingClientRect().right - r.root.getBoundingClientRect().right)).toBeLessThan(1.5);
+      click(bar(r).querySelector('.pick-cancel'));
+      expect(shown('#rail')).toBe(true);
+    } finally { r.cleanup(); }
   });
 
   it('the transitions: Back leaves the pick for the store\'s sheet; Cancel does too', async () => {

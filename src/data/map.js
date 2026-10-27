@@ -149,6 +149,6 @@ export const MAP_TALLY = [];
 export const MAP_FIRSTS = [];
 export const MAP_ACHIEVEMENTS = [];
 // The bridge tip (ruling 350): the first time a road meets water in the road tool (refused, or a bridge would be laid), fired by the Map seam
-// (src/ui/s46/map.js) as 'roadMeetsWater'; its words are TIP_TEXT.bridges and TIP_HELP_TEXT.bridges (src/ui/text.js).
+// (src/ui/s46/map.js) as 'roadMeetsWater', on a map with no river only (ruling 1450: a map with one has the crossings tip, FERRY_TIPS); its words are TIP_TEXT.bridges and TIP_HELP_TEXT.bridges (src/ui/text.js).
 export const MAP_TIPS = [{ id: 'bridges', trigger: 'roadMeetsWater', priority: false }];
 // ── end s46 map ──

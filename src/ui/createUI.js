@@ -286,7 +286,7 @@ export function createUI({
   // alert-action hooks. Screenshot mode (spec 4.19) is the interface's own; both may enter it through the context.
   const screenshotMode = () => store.set(enterScreenshot(store.get()));
   // Version 8.3 (Track K, ruling 1413): the pick of a Keep stocked order's source: the map with a bar (src/ui/s47/sourcePick.js); the store sheet's "from" starts it.
-  const sourcePick = createSourcePick({ world, store, container: $('ui'), cameraControl, afterCommand: (e) => afterCommand(e), pickAt: (x, y) => pickBuilding(world, cam, view(), x, y), camera: () => ({ cam, view: view() }) });
+  const sourcePick = createSourcePick({ world, store, container: $('ui'), cameraControl, afterCommand: (e) => afterCommand(e), pickAt: (x, y) => pickBuilding(world, cam, view(), x, y), camera: () => ({ cam, view: view() }), freeTop: () => Math.max(TOPBAR_PX, freeTop(root, canvas, store.get().layout)) });
   const seamCtx = {
     world, store, settings, sfx, toasts, celebrations, effects, cameraControl, speedControl, alerts, root, doc, now, clock, hooks,
     afterCommand, refresh, onView: viewAlert, showMeAt, selectBuilding, screenshotMode, fireTip,
