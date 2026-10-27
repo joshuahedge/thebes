@@ -16,7 +16,8 @@ import { screenToTile, visibleTileRange, pxPerArt, MIN_ZOOM } from '../render/ca
 import { walkersAt } from '../render/walkers.js';
 import { cartsAt } from '../render/carts.js';
 import { newcomersAt } from '../render/newcomers.js';
-import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, drawBankHint, LAYER_OVERLAYS } from '../render/overlays.js';
+import { drawOverlay, drawReachHighlight, drawGhost, drawProblemMarkers, drawGuideMarker, drawDesirabilityTint, drawBankHint, LAYER_OVERLAYS, noteView } from '../render/overlays.js';
+import { bazaarFix } from './threatFix.js';
 import { LAYER_UNLOCK } from '../data/layers.js';
 import { createEffects } from '../render/effects.js';
 import { GOLD } from '../render/art/palette.js';
@@ -436,6 +437,14 @@ export function createUI({
       if (post) { selectBuilding(post.id); store.set(openSheet(store.get(), 'trade', post.id)); return; }
     }
     if (!goal.showMe) { closeAnySheet(); store.set(openSheet(store.get(), 'summary')); return; }
+    // Version 8.2.1 (ruling 1370): "Get food to the bazaar" follows its alert's cause, as the alert list's Show me does: select the granary or farm to fix, or open
+    // the card the words name (a granary by the bazaar, a farm by the granary).
+    if (goal.id === 'fix_bazaar') {
+      const a = alertsFor(world).find((x) => x.code === 'bazaar_empty' && world.buildings[x.id]);
+      const food = a ? bazaarFix(world, a) : null;
+      if (food && food.view && world.buildings[food.view]) { noteView(world, food.view); selectBuilding(food.view); return; }
+      if (food && food.showMe) { showMeAt(food.showMe); return; }
+    }
     const item = nextItemFor(world, goal) || goal.showMe.item;
     const t = showMeTarget(world, goal);
     showMeAt({ category: categoryOfItem(item) || goal.showMe.category, item, x: t.x, y: t.y });

@@ -24,6 +24,7 @@ import { nearestFit } from './placement.js';
 import { canPlace } from '../sim/commands.js';
 import { el, button, clear, setText } from './components.js';
 import { isCut, writeMore } from './expand.js';
+import { bazaarFix } from './threatFix.js';
 import { T, CHAPTER_NAMES, DAILY_TEXT, goalsProgressText, rewardText, cheerReward, progressText, progressLabel, dailyDoneText, swapLabel, showMeLabel, goalWordsLabel, thresholdMilestoneText, thresholdMedalText } from './text.js';
 
 const FOCUS_CLASSES = ['show-me', 'open-goals', 'skip-guide', 'all-goals'];
@@ -66,6 +67,10 @@ export function showMeTarget(world, goal, alerts = null) {
     const codes = [].concat(show.code);
     const a = (alerts || alertsFor(world)).find((x) => codes.includes(x.code) && x.id && world.buildings[x.id]);
     if (a) {
+      // Version 8.2.1 (ruling 1370): the bazaar goal aims where its alert's Show me does (bazaarFix: the granary or farm to fix, or the card's place).
+      const food = a.code === 'bazaar_empty' ? bazaarFix(world, a) : null;
+      if (food && food.view && world.buildings[food.view]) { const o = world.buildings[food.view]; return { x: o.x + o.w / 2, y: o.y + o.d / 2 }; }
+      if (food && food.showMe) return { x: food.showMe.x, y: food.showMe.y };
       let b = world.buildings[a.id];
       // Stage 4: a stall goal aimed at the guild (show.guild) aims at the guild the stall names (the sim's stalledGuild:
       // the planned guild that is burning or short of workers), not the site; the site when there is none.

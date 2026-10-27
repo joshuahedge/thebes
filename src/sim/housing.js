@@ -10,6 +10,7 @@ import { LARGE_PLOT } from '../data/largePlots.js';
 import { isLargePlot, isLot, isSmallTop, noteLargePlotUnlock } from './largePlots.js';
 import { computeCoverage as computeCoverageByReach } from './coverage.js';
 import { bazaarsByHouse, topUpHouse, monthlyNeed } from './distribution.js';
+import { bazaarFoodProblem } from './bazaarFood.js';
 
 export const needsOf = (tier) => (tier >= 1 && tier <= MAX_TIER ? TIERS[tier].needs : []);
 
@@ -239,7 +240,7 @@ function lotNeeds(world, house) {
   const met = { road: touchesRoad(world, house) };
   for (const need of needsOf(LARGE_PLOT.opensTier)) {
     if (PROVIDER_KIND[need]) met[need] = coveredBy(world, house, need);
-    else if (need === 'food') met.food = foodCause(world, house).code === 'next_delivery';
+    else if (need === 'food') met.food = ['next_delivery', 'bazaar_sold_out'].includes(foodCause(world, house).code);   // food on the shelf (ruling 1369: sold out is still food at hand)
     else met[need] = goodCause(world, house, need).code === 'next_delivery';
   }
   const target = desirabilityTargetFor(house);
@@ -370,6 +371,10 @@ function foodCause(world, house) {
   const supply = new Map(working.map((bz) => [bz.id, graneriesFor(world, bz)]));
   const holds = (b) => FOOD_GOODS.some((g) => (b.store[g] || 0) > 0);
   const coming = working.find((bz) => holds(bz) || supply.get(bz.id).some(holds));
+  // Version 8.2.1 (ruling 1369): a home left short because its bazaar sells out (bazaarFoodProblem's bazaar_sold_out) wants a second bazaar, not a wait. Asked only
+  // when that bazaar's shelf is empty, the one case it can be.
+  const soldOut = coming && !holds(coming) ? bazaarFoodProblem(world, coming) : null;
+  if (soldOut && soldOut.code === 'bazaar_sold_out') return { code: 'bazaar_sold_out', id: coming.id };
   if (coming) return { code: 'next_delivery', id: coming.id };
   // Farms only fill working storage (storageFor), so an empty store that is paused or short of workers needs
   // resuming or staff, not a farm: granary_empty only when one of the bazaar's stores works.

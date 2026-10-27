@@ -62,6 +62,7 @@ const CAUSE_FIX = {
   no_bazaar: { item: 'bazaar', at: 'home' },
   bazaar_empty: { item: 'granary', at: 'building' },
   granary_empty: { item: 'farm_grain', at: 'building' },
+  bazaar_sold_out: { item: 'bazaar', at: 'home' },   // Version 8.2.1 (ruling 1369): a second bazaar by the homes it leaves short
   no_temple: { item: 'temple', at: 'home' },
   well_idle: VIEW, granary_idle: VIEW, bazaar_idle: VIEW, temple_idle: VIEW, booth_idle: VIEW,
   well_no_road: VIEW, bazaar_no_road: VIEW, temple_no_road: VIEW, booth_no_road: VIEW,

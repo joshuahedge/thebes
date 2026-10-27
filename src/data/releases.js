@@ -17,7 +17,7 @@ export const RELEASES = [
     fixed: [
       'Dragging a ferry across the water no longer has to follow one exact row: a crooked drag, or one that starts or ends in the water, snaps to the nearest crossing that works.',
       'When no crossing is near your roads, the Ferry bar says so and Show me finds the nearest place a ferry could go.',
-      'The bazaar no longer says it has no food when its homes are fed. When food really is short, it says why: the granary is empty, paused, not joined by road, or the bazaar sells out.',
+      'The bazaar no longer says it has no food when its homes are fed. When food really is short, it says why: the granary is empty, paused, not joined by road, or the bazaar sells out. A home it leaves short asks for a second bazaar, and the "Get food to the bazaar" goal\'s Show me goes to the fix.',
     ],
   },
   {

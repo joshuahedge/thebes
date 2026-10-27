@@ -113,6 +113,7 @@ export const CAUSE_TEXT = {
   bazaar_empty: { cause: 'The bazaar has no food', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles of it` },
   granary_empty: { cause: 'Its granary is empty', get fix() { return `${capitalised(foodMakersText())} fill granaries`; } },   // a getter: the plurals are set further down
   next_delivery: { cause: 'Food arrives at the next delivery', fix: '' },
+  bazaar_sold_out: { cause: 'Its bazaar sells out before every home is fed', fix: 'Build a second bazaar near these homes' },   // Version 8.2.1 (ruling 1369)
   no_temple: { cause: `No temple within ${BUILDINGS.temple.reach} road tiles`, fix: 'Build a temple near it' },
   well_idle: idleWords('well'),
   granary_idle: idleWords('granary'),
