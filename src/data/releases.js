@@ -9,7 +9,18 @@
 
 export const RELEASES = [
   {
-    version: '8.2', date: '2026-10-26', title: 'Song of the Nile', build: 'live',
+    version: '8.2.1', date: '2026-10-27', title: 'Easier ferries', build: 'live',
+    new: [
+      'Pick Ferry and the map shows the best crossings near your roads, each with its boat and price: tap one, then ✓.',
+      'A ferry now brings a short road to any landing that has none, so the far bank no longer needs a road first; the price includes it.',
+    ],
+    fixed: [
+      'Dragging a ferry across the water no longer has to follow one exact row: a crooked drag, or one that starts or ends in the water, snaps to the nearest crossing that works.',
+      'When no crossing is near your roads, the Ferry bar says so and Show me finds the nearest place a ferry could go.',
+    ],
+  },
+  {
+    version: '8.2', date: '2026-10-26', title: 'Song of the Nile', build: 'c4bff18',
     new: [
       'The music is now seven short pieces instead of one endless tune: first light, the low reed, a lullaby, the river\'s turning, black earth, a harvest song and night on the west bank, played on a harp, a low flute, a warm pad and a low plucked string.',
       'Between the pieces the music rests for one to four minutes, so you hear the city itself; the first piece starts a few seconds after you begin.',

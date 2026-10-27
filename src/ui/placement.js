@@ -705,7 +705,7 @@ export function fitTarget(world, state) {
   }
   if (tool.kind === 'ferry') {                                                                  // Version 7.1 (Track F): the nearest crossing a ferry fits; a line of 4 tiles or fewer of water goes to a bridge's place
     const l = state.line, tiles = state.plan ? state.plan.tiles : [];
-    const from = tiles.length ? { x: tiles[tiles.length - 1][0], y: tiles[tiles.length - 1][1] } : l ? { x: l.x0, y: l.y0 } : world.focus;
+    const from = tiles.length ? { x: tiles[tiles.length - 1][0], y: tiles[tiles.length - 1][1] } : l ? { x: l.x0, y: l.y0 } : tool.from || world.focus;   // 8.2.1: nothing drawn, from where the tool ranks its crossings
     const p = toolPreview(world, state);
     if (p.state === 'bad' && p.reason === 'ferry_bridge') {
       const spot = bridgeSpot(world, from);

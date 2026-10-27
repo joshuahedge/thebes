@@ -95,6 +95,7 @@ export const KEPT_PATHS = [
   /^TEXT\.V70_HELP\.(t|a)\.0\./,      // How to play's Trade by river and The Quay: left out on a map with no river (tested below)
   /^TEXT\.TIP_TEXT\.quay_boats$/,     // fires when a Quay is placed, which a map with no river refuses; left out of its How to play
   /^TEXT\.S46_ARMY_TEXT\.counters/,   // raiders by boat: no boat reaches the Great oasis's lake (ruling 1302)
+  /^FERRY_TEXT\.FERRY_TEXT\.noneNear$/,   // Version 8.2.1: the Ferry tool's "no river narrow enough" line; the Oasis offers no Ferry (ruling 1333)
 ];
 const sentences = (s) => s.split(/(?<=[.!?;])\s+|\n+/).filter(Boolean);
 describe('v82 i oasis: the words on a map with no river', () => {

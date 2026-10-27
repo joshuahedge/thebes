@@ -6,22 +6,22 @@ import { APP_VERSION } from '../../../src/data/ui.js';
 
 describe('v71 docs releases', () => {
   it('7.1 carries its merge commit (7.1.1 is newest), and 7.0 carries its own', () => {
-    expect([RELEASES[4].version, RELEASES[4].date, RELEASES[4].title, RELEASES[4].build, APP_VERSION]).toEqual(['7.1', '2026-10-24', 'Rivers of the world', 'e032f2c', '8.2']);
-    expect([RELEASES[5].version, RELEASES[5].build]).toEqual(['7.0', '16cda04']);
+    expect([RELEASES[5].version, RELEASES[5].date, RELEASES[5].title, RELEASES[5].build, APP_VERSION]).toEqual(['7.1', '2026-10-24', 'Rivers of the world', 'e032f2c', '8.2.1']);
+    expect([RELEASES[6].version, RELEASES[6].build]).toEqual(['7.0', '16cda04']);
   });
   it('names the features of the version', () => {
-    const notes = RELEASES[4].new.join(' ').toLowerCase();
+    const notes = RELEASES[5].new.join(' ').toLowerCase();
     for (const word of ['delta', 'confluence', 'twin rivers', 'wide nile', 'cataract', 'lake', 'two new cities in three', 'ferry', '5 to 12 tiles', 'road tool', 'saved cities']) {
       expect([word, notes.includes(word)]).toEqual([word, true]);
     }
   });
   it('lists what the bug review fixed', () => {
-    const fixed = RELEASES[4].fixed.join(' ').toLowerCase();
+    const fixed = RELEASES[5].fixed.join(' ').toLowerCase();
     for (const word of ['fever', 'lesson card', 'paid event choices', 'strike', 'buy', 'keep at least', 'by 50', 'how to play', 'focus', 'sound off', 'delta maps', 'ferry']) {
       expect([word, fixed.includes(word)]).toEqual([word, true]);
     }
   });
   it('every note is one plain sentence of a sensible length', () => {
-    for (const line of [...RELEASES[4].new, ...RELEASES[4].fixed]) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
+    for (const line of [...RELEASES[5].new, ...RELEASES[5].fixed]) expect([line.slice(0, 30), line.length > 10 && line.length < 330]).toEqual([line.slice(0, 30), true]);
   });
 });
