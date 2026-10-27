@@ -3994,3 +3994,12 @@ Object.assign(REASONS, { no_river: g82Oasis.noQuay });
   routeBlockText = (id, block) => (block === 'no_river' ? g82Oasis.noRiverRoute(id, partnerName(id)) : base(id, block));
 }
 // ── end v82 g ──
+// Version 8.3, Track X (crossings, rulings 1390-1409; the crossing words are in src/ui/v71/ferryText.js, CROSSING_TEXT and FERRY_TEXT)
+// Ruling 1396: the Roads tray's Ferry card is the Crossing card (its item id and tool kind stay 'ferry', so saves and keys are unchanged).
+{
+  const base = buildingName;
+  buildingName = (type) => (type === 'ferry' ? 'Crossing' : base(type));
+}
+// A plan's skipped tiles say why in the generic words (DRAW_TEXT.skipped): a ferry's bank that cannot take a landing, or a landing no road would reach.
+Object.assign(REASONS, { landing_taken: 'A ferry landing needs a free bank tile', landing_no_road: 'A ferry landing needs a road beside it' });
+// ── end v83 x ──

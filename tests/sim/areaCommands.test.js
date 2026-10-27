@@ -34,8 +34,8 @@ describe('commands: roads', () => {
     setRoad(w, 0, 10, 31, 10);
     place(w, 'temple', 12, 8);
     expect(previewRoad(w, 10, 9, 15, 9).reason).toBe('blocked');
-    for (let x = 20; x <= 24; x++) w.terrain[idx(w.size, x, 20)] = 3;
-    expect(previewRoad(w, 18, 20, 26, 20).reason).toBe('too_wide');          // Stage 4.5 (ruling 314): up to 4 tiles of water bridge; 5 do not
+    for (let x = 16; x <= 28; x++) w.terrain[idx(w.size, x, 20)] = 3;
+    expect(previewRoad(w, 15, 20, 29, 20).reason).toBe('too_wide');          // Stage 4.5 (ruling 314): up to 4 tiles of water bridge; Version 8.3: 5 to 12 a ferry, 13 do not
     w.terrain[idx(w.size, 12, 20)] = 3;
     expect(previewRoad(w, 10, 20, 14, 20).bridges).toEqual([idx(w.size, 12, 20)]);
   });
@@ -179,9 +179,9 @@ describe('commands: tile lists (placement review P3, P5)', () => {
     const w = makeTestWorld({ gold: 1000 });
     setRoad(w, 0, 10, 31, 10);
     place(w, 'temple', 12, 8);
-    expect(previewRoad(w, 10, 9, 15, 9)).toEqual({ ok: false, reason: 'blocked', warnings: [], tiles: [], gates: [], bridges: [], cost: 0 });
-    expect(previewRoad(w, 0, 5, 2, 5)).toEqual({ ok: true, warnings: [], tiles: [0, 1, 2].map((x) => idx(w.size, x, 5)), gates: [], bridges: [], bridgeCost: 0, cost: 6 });   // Stage 4.5: gates, the wall tiles a road makes gates; bridges, the water tiles it bridges
-    expect(Object.keys(drawRoad(w, 0, 5, 2, 5)).sort()).toEqual(['bridgeCost', 'bridges', 'cost', 'gates', 'ok', 'tiles', 'warnings']);
+    expect(previewRoad(w, 10, 9, 15, 9)).toEqual({ ok: false, reason: 'blocked', warnings: [], tiles: [], gates: [], bridges: [], ferries: [], cost: 0 });   // Version 8.3: ferries, the crossings a road lays as a ferry
+    expect(previewRoad(w, 0, 5, 2, 5)).toEqual({ ok: true, warnings: [], tiles: [0, 1, 2].map((x) => idx(w.size, x, 5)), gates: [], bridges: [], bridgeCost: 0, ferries: [], ferryCost: 0, cost: 6 });   // Stage 4.5: gates, the wall tiles a road makes gates; bridges, the water tiles it bridges
+    expect(Object.keys(drawRoad(w, 0, 5, 2, 5)).sort()).toEqual(['bridgeCost', 'bridges', 'cost', 'ferries', 'ferryCost', 'gates', 'ok', 'tiles', 'warnings']);
     expect(Object.keys(previewHouses(w, 20, 20, 21, 20)).sort()).toEqual(['cost', 'ok', 'positions', 'warnings']);
   });
   it('paints plots on a list of tiles and counts the ones it skips', () => {

@@ -14,7 +14,9 @@ import { storeAccepts } from './production.js';
 import { guildsNear, supplyNear, remainingNeed } from './monuments.js';
 import { DEFENCE } from '../data/raids.js';
 import { hasRiver } from '../data/map.js';
-import { bridgeVerdicts } from './bridges.js';
+import { bridgeVerdicts, roadWouldTouch } from './bridges.js';
+import { FERRY_LANDING } from '../data/ferries.js';
+import { layLandings } from './ferryLay.js';   // Version 8.3 (Track X): a road stroke lays a ferry's landings as the Ferry tool does (ferryLay.js reads nothing from here)
 import { tileBound, fitOf, fitReason, waterTilesOf } from './fit.js';
 import { noteBuilt } from './oases.js';
 import { onGoodSpot } from './spots.js';   // Stage 4.7 (Task 4): the spots' first; spots.js reads checkTiles from here, both only at call time
@@ -468,17 +470,25 @@ function roadTileReason(world, x, y, gateOnly = false, bridgeOk = false) {
 // skipBlocked (a touch plan) such tiles are skipped and the rest is laid. With gateOnly (the Gate card) only wall and breach
 // tiles are accepted ('not_wall' for the rest). Fails with 'no_gold' when the cost would cross the debt floor, keeping
 // tiles, gates, cost and skipped.
+// Version 8.3 "Lines", Track X (rulings 1390-1394): a straight run of FERRY.min to FERRY.max tiles of water with land at both ends is a ferry: its two
+// bank tiles become landings (no road on them, none on the water) and ferries lists { landings: [[x, y], [x, y]] in the list's order, water }; each
+// costs 2 x costOf(world, FERRY_LANDING) (ferryCost: the landings' share of cost). 'too_wide' now means wider than FERRY.max (BRIDGE_MAX on a map with
+// no river). A ferry's bank tile that is not free land refuses with 'landing_taken' (block: why, at: the tile), and a landing that would have no road
+// beside it once the stroke is laid with 'landing_no_road' (at: the landing); a plan skips the crossing's tiles with that reason instead. A refusal of
+// 'bridge_shape' for a line that ends in the water on its way across carries open ({ ahead, kind, edge }: crossingRuns, src/sim/bridges.js).
 export function previewRoadTiles(world, list, { skipBlocked = false, gateOnly = false } = {}) {
-  const tiles = [], gates = [], bridges = [], skipped = [];
+  const tiles = [], gates = [], bridges = [], skipped = [], ferries = [], crossing = [];
   const ordered = uniqueTiles(list);
   const verdicts = gateOnly ? [] : bridgeVerdicts(world, ordered);
+  const none = { tiles: [], gates: [], bridges: [], ferries: [], cost: 0, skipped: [] };
   for (let k = 0; k < ordered.length; k++) {
     const [x, y] = ordered[k];
     const v = verdicts[k];
+    if (v && (v.ferry || v.landing)) { if (v.landing && !crossing.includes(v.landing)) crossing.push(v.landing); continue; }   // a ferry's tiles take no road
     const onWater = inBounds(world.size, x, y) && world.terrain[idx(world.size, x, y)] === T.WATER && !gateOnly;
     const reason = v ? v.reason : roadTileReason(world, x, y, gateOnly, onWater);
     if (reason) {
-      if (!skipBlocked) return fail(reason, { tiles: [], gates: [], bridges: [], cost: 0, skipped: [], ...(v ? { water: v.water } : {}) });
+      if (!skipBlocked) return fail(reason, { ...none, ...(v ? { water: v.water, at: v.at, ...(v.open ? { open: v.open } : {}), ...(v.block ? { block: v.block } : {}) } : {}) });
       skipped.push({ x, y, reason });
       continue;
     }
@@ -487,19 +497,31 @@ export function previewRoadTiles(world, list, { skipBlocked = false, gateOnly = 
     if (wall < 0 || (wall > 0 && !world.road[i])) { tiles.push(i); gates.push(i); }
     else if (!wall && !world.road[i]) { tiles.push(i); if (onWater) bridges.push(i); }
   }
+  // Ruling 1394: a landing needs a road beside it for its ferryman, one already there or one this stroke lays.
+  const laid = new Set(tiles);
+  for (const run of crossing) {
+    const bare = run.landings.find((l) => !roadWouldTouch(world, l, laid));
+    if (!bare) { ferries.push({ landings: run.landings, water: run.water }); continue; }
+    if (!skipBlocked) return fail('landing_no_road', { ...none, water: run.water, at: bare });
+    for (const [x, y] of [run.landings[0], ...run.tiles, run.landings[1]]) skipped.push({ x, y, reason: 'landing_no_road' });
+  }
   const bridgeCost = bridges.length * costOf(world, 'bridge');
-  const cost = (tiles.length - gates.length - bridges.length) * roadCostOf(world) + gates.length * costOf(world, 'gate') + bridgeCost;
-  if (!canAfford(world, cost)) return fail('no_gold', { tiles, gates, bridges, bridgeCost, cost, skipped });
-  return { ok: true, warnings: [], tiles, gates, bridges, bridgeCost, cost, skipped };
+  const ferryCost = ferries.length * 2 * costOf(world, FERRY_LANDING);
+  const cost = (tiles.length - gates.length - bridges.length) * roadCostOf(world) + gates.length * costOf(world, 'gate') + bridgeCost + ferryCost;
+  if (!canAfford(world, cost)) return fail('no_gold', { tiles, gates, bridges, bridgeCost, ferries, ferryCost, cost, skipped });
+  return { ok: true, warnings: [], tiles, gates, bridges, bridgeCost, ferries, ferryCost, cost, skipped };
 }
 
 // Lays the preview's tiles, charges for them and pushes one undo entry for the whole list. A gate tile gets its road and its
 // wall's full gate hit points; the entry { kind: 'road', tiles: the tiles that were given road, cost, walls: [[tile index,
 // the wall's value before]] } lets undo take the road off again and put each wall (or breach) back.
 // A bridge tile (ruling 314) is a tile of the list that is water: its road is set like any other, and undo takes it off again.
+// Version 8.3 (Track X, rulings 1391, 1392): then each ferry's landings, through layLandings (src/sim/ferryLay.js), so a road-laid ferry is the Ferry tool's
+// pair exactly; the one undo entry carries their ids and landingCost (the landings' share of cost), and undo takes them away with the road. Returns the
+// preview with ids: the landings laid, two per ferry in its order.
 export function drawRoadTiles(world, list, options = {}) {
   const p = previewRoadTiles(world, list, options);
-  if (!p.ok || p.tiles.length === 0) return p;
+  if (!p.ok || (p.tiles.length === 0 && !p.ferries.length)) return p;
   const gates = new Set(p.gates);
   const walls = p.gates.map((t) => [t, world.wall[t]]);
   const laid = p.tiles.filter((t) => !world.road[t]);
@@ -507,9 +529,11 @@ export function drawRoadTiles(world, list, options = {}) {
   for (const t of gates) world.wall[t] = DEFENCE.gateHp;
   world.roadVersion++;
   if (gates.size) world.wallVersion++;
+  const ids = [];
+  for (const f of p.ferries) ids.push(...layLandings(world, f.landings, f.water));
   spend(world, p.cost);
-  pushUndo(world, { kind: 'road', tiles: laid, cost: p.cost, walls });
-  return p;
+  pushUndo(world, { kind: 'road', tiles: laid, cost: p.cost, walls, ...(ids.length ? { ids, landingCost: p.ferryCost } : {}) });
+  return ids.length ? { ...p, ids } : p;
 }
 
 // The L from a start to an end (the mouse's road), or null when an end is fractional, NaN or off the map (lineInto would

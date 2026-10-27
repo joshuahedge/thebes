@@ -111,7 +111,7 @@ describe('v50 roads: bridges', () => {
     expect(r.at).toEqual([14, 0 + r.at[1]]);
     expect(r.path).toEqual([]);
     expect(r.cost).toBe(0);
-    expect(previewRoad(w, 8, 10, 28, 12).reason).toBe('too_wide');      // as the L is refused
+    expect(previewRoad(w, 8, 10, 28, 12).ferries.length).toBe(1);         // Version 8.3 (Track X): the straight L lays a ferry; Route lays bridges only (ruling 1403)
     const ford = river(BRIDGE_MAX + 1);
     ford.terrain[idx(ford.size, 16, 20)] = T.DESERT;                    // a ford: two bridges of two tiles each, round a dry stone in the middle
     expect(routeRoad(ford, 8, 10, 28, 12).ok).toBe(true);

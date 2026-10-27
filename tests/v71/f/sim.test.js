@@ -32,9 +32,10 @@ describe('v71 f sim: the rule', () => {
     expect(verdict(12)).toEqual([12, true, null, 12]);
     expect(verdict(13)).toEqual([13, false, 'ferry_too_wide', 13]);
     expect(verdict(20)).toEqual([20, false, 'ferry_too_wide', 20]);
-    // the road tool's own verdict on the same water is the mirror: 4 bridges, 5 is too wide
+    // the road tool's own verdict on the same water: 4 bridges; Version 8.3 (Track X): 5 is a ferry, 13 too wide
     expect(previewRoad(ferryWorld(4), 10, ROW, 10 + 4 + 3, ROW).ok).toBe(true);
-    expect(previewRoad(ferryWorld(5), 10, ROW, 10 + 5 + 3, ROW).reason).toBe('too_wide');
+    expect(previewRoad(ferryWorld(5), 10, ROW, 10 + 5 + 3, ROW).ferries.length).toBe(1);
+    expect(previewRoad(ferryWorld(13), 10, ROW, 10 + 13 + 3, ROW).reason).toBe('too_wide');
   });
 
   it('puts a landing on the free dry tile at each end of the water, and prices the two together', () => {

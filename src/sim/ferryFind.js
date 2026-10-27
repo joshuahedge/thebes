@@ -6,6 +6,8 @@
 //   previewFerry(world, tiles)   a dragged line's verdict: it snaps to the nearest crossing that works (ruling 1347), and refuses only what no snap can mend
 //   judgeCrossing(world, plan)   a crossing's verdict as previewFerry gives it: its price (the two landings and the road it lays) and whether the treasury can pay
 //   crossingCost(world, plan)    that price
+//   crossingChoices(world, from) Version 8.3 (Track X): the Crossing card's: bridges and ferries together, ranked by the same rule
+//   previewCrossing(world, tiles) the Crossing card's drag: a bridge over narrow water, a ferry over wide
 //
 // A crossing is a straight run of FERRY.min to FERRY.max tiles of water along a row or a column, with a landing on the free dry tile at each end. Each
 // landing must have a road beside it, as in 7.1, so its ferryman can come; what is new is that the crossing brings that road (ruling 1341):
@@ -22,18 +24,20 @@ import { FERRY, FERRY_LANDING, FERRY_FIND } from '../data/ferries.js';
 import { hasRiver } from '../data/map.js';
 import { NEIGHBOURS4, idx, inBounds } from './grid.js';
 import { T, buildable } from './terrain.js';
-import { bridgeRuns, BRIDGE_MAX } from './bridges.js';
+import { bridgeRuns, BRIDGE_MAX, freeLand } from './bridges.js';
 import { costOf, roadCostOf } from './costs.js';
 import { canAfford } from './money.js';
+
+export { freeLand };   // free dry land: a tile a landing or a stub may take (Version 8.3: src/sim/bridges.js, which the road's verdict reads too)
 
 const tileKey = (t) => `${t[0]},${t[1]}`;
 const hasRoad = (world, x, y) => inBounds(world.size, x, y) && Boolean(world.road[idx(world.size, x, y)]);
 const isWater = (world, x, y) => inBounds(world.size, x, y) && world.terrain[idx(world.size, x, y)] === T.WATER;
-// Free dry land: a tile a landing or a stub may take (open ground, nothing built, no road, no wall).
-export const freeLand = (world, x, y) => {
+// Version 8.3 (Track X): a bridge's bank: open dry land with nothing built and no wall; a road may be there already (the bridge carries it on).
+const bankLand = (world, x, y) => {
   if (!inBounds(world.size, x, y)) return false;
   const i = idx(world.size, x, y);
-  return buildable(world, i) && !world.occ[i] && !world.road[i] && !world.wall[i];
+  return buildable(world, i) && !world.occ[i] && !world.wall[i];
 };
 const roadBeside = (world, [x, y]) => NEIGHBOURS4.some(([dx, dy]) => hasRoad(world, x + dx, y + dy));
 const netBeside = (world, net, [x, y]) => NEIGHBOURS4.some(([dx, dy]) => inBounds(world.size, x + dx, y + dy) && net[idx(world.size, x + dx, y + dy)] === 1);
@@ -152,18 +156,28 @@ function farStubOf(world, landing, away, avoid) {
 // The crossing between two landing tiles (ends, in the order given), with its stubs, or null when one landing can have no road. near is the landing that
 // is reached from the roads (0 or 1); joins says whether that is the network itself (a crossing the finder may show) or only a road beside it (a drag's,
 // as in 7.1). Of the two ways round, the one that joins the network wins, then the one with fewer stub tiles, then the drag's own order.
-function planCrossing(world, net, ends, vertical, water) {
+// Version 8.3 (Track X, ruling 1398): a bridge plans the same way, with its two bank tiles for ends. A bank with a road on it needs no stub (the bridge
+// carries that road on; it joins the network when the road is part of it), and the bank tiles themselves get road: the plan is then { kind: 'bridge', ends,
+// water, vertical, stubs, roads: every dry tile it gives road (stubs and bare banks), tiles: the whole line in order from the near side's stub through the
+// water to the far side's (what drawRoadTiles lays), near, joins }.
+function planCrossing(world, net, ends, vertical, water, bridge = false) {
   const unit = (from, to) => [Math.sign(to[0] - from[0]), Math.sign(to[1] - from[1])];
   const away = [unit(ends[1], ends[0]), unit(ends[0], ends[1])];
+  const roadOn = (t) => bridge && hasRoad(world, t[0], t[1]);
   const options = [];
   for (const near of [0, 1]) {
     const far = 1 - near;
     const avoid = new Set(ends.map(tileKey));
-    let nearStub = nearStubOf(world, net, ends[near], avoid), joins = nearStub !== null;
-    if (!nearStub && roadBeside(world, ends[near])) nearStub = [];
+    let nearStub, joins;
+    if (roadOn(ends[near])) { nearStub = []; joins = net[idx(world.size, ends[near][0], ends[near][1])] === 1; }
+    else {
+      nearStub = nearStubOf(world, net, ends[near], avoid);
+      joins = nearStub !== null;
+      if (!nearStub && roadBeside(world, ends[near])) nearStub = [];
+    }
     if (!nearStub) continue;
     for (const t of nearStub) avoid.add(tileKey(t));
-    const farStub = roadBeside(world, ends[far]) ? [] : farStubOf(world, ends[far], away[far], avoid);
+    const farStub = roadOn(ends[far]) || roadBeside(world, ends[far]) ? [] : farStubOf(world, ends[far], away[far], avoid);
     if (!farStub) continue;
     const stubs = near === 0 ? [nearStub, farStub] : [farStub, nearStub];
     options.push({ near, joins, stubs, n: nearStub.length + farStub.length });
@@ -171,7 +185,14 @@ function planCrossing(world, net, ends, vertical, water) {
   if (!options.length) return null;
   options.sort((p, q) => Number(q.joins) - Number(p.joins) || p.n - q.n || p.near - q.near);
   const { near, joins, stubs } = options[0];
-  return { landings: ends.map((t) => [t[0], t[1]]), water, vertical, stubs, roads: [...stubs[0], ...stubs[1]], near, joins };
+  const landings = ends.map((t) => [t[0], t[1]]);
+  if (!bridge) return { landings, water, vertical, stubs, roads: [...stubs[0], ...stubs[1]], near, joins };
+  // The bridge's line, near side first: the near stub from the network to the bank (nearStubOf lists it from the bank out), the bank, the water, the far bank, the far stub.
+  const [a, b] = near === 0 ? [landings[0], landings[1]] : [landings[1], landings[0]];
+  const water1 = crossingWater({ ends: [a, b] });
+  const tiles = [...stubs[near].slice().reverse(), a, ...water1, b, ...stubs[1 - near]];
+  const roads = [...stubs[0], ...stubs[1], ...landings.filter((t) => !hasRoad(world, t[0], t[1]))];
+  return { kind: 'bridge', ends: landings, water, vertical, stubs, roads, tiles, near, joins };
 }
 
 // ── The candidates, kept per world (ruling 1346) ──
@@ -207,15 +228,17 @@ function opensOf(world, [lx, ly]) {
   return n;
 }
 
-const memo = new WeakMap();   // world -> { fp, net, list }
+const memo = new WeakMap();   // world -> { fp, net, list, bridges }
 // Every crossing the map has room for today, each with its stubs ({ landings (low end first along the axis), water, vertical, stubs, roads, near, joins,
-// mid: the water's middle tile, key, opens }), and the network.
+// mid: the water's middle tile, key, opens }), and the network. Version 8.3 (Track X): bridges too, in `bridges` (the bridge plans of planCrossing, with
+// mid, key 'bridge:x0,y0,x1,y1' and opens): every straight run of 1 to BRIDGE_MAX tiles of water with a bank at each end and no bridge on it yet; and
+// `laidBridges`, the middles of the bridges standing (runs whose tiles all carry road), which no shown crossing sits beside (ruling 1352's rule).
 function candidatesOf(world) {
   const fp = fingerprint(world);
   const m = memo.get(world);
   if (m && m.fp === fp) return m;
-  const net = networkOf(world), list = [], n = world.size;
-  // Version 8.2 (ruling 1333): a map with no river (the Oasis) has no ferries: its pools and bays are bridged.
+  const net = networkOf(world), list = [], bridges = [], laidBridges = [], n = world.size;
+  // Version 8.2 (ruling 1333): a map with no river (the Oasis) has no ferries: its pools and bays are bridged (and it has no Crossing card).
   for (let a = 0; a < (hasRiver(world.mapVariant) ? n : 0); a++) {
     for (const vertical of [false, true]) {
       const cell = (b) => (vertical ? [a, b] : [b, a]);
@@ -226,8 +249,19 @@ function candidatesOf(world) {
         if (wet || start < 0) continue;
         const b0 = start, b1 = b - 1, water = b1 - b0 + 1;
         start = -1;
-        if (water < FERRY.min || water > FERRY.max) continue;
         const e0 = cell(b0 - 1), e1 = cell(b1 + 1);
+        if (water <= BRIDGE_MAX) {
+          let laid = true;
+          for (let k = b0; k <= b1; k++) if (!hasRoad(world, ...cell(k))) laid = false;
+          const mid = cell(b0 + Math.floor(water / 2));
+          if (laid) { laidBridges.push(mid); continue; }
+          if (!bankLand(world, ...e0) || !bankLand(world, ...e1)) continue;
+          const plan = planCrossing(world, net, [e0, e1], vertical, water, true);
+          if (!plan) continue;
+          bridges.push({ ...plan, mid, key: `bridge:${e0[0]},${e0[1]},${e1[0]},${e1[1]}`, opens: plan.joins ? opensOf(world, plan.ends[1 - plan.near]) : 0 });
+          continue;
+        }
+        if (water < FERRY.min || water > FERRY.max) continue;
         if (!freeLand(world, ...e0) || !freeLand(world, ...e1)) continue;
         const plan = planCrossing(world, net, [e0, e1], vertical, water);
         if (!plan) continue;
@@ -236,59 +270,83 @@ function candidatesOf(world) {
       }
     }
   }
-  const out = { fp, net, list };
+  const out = { fp, net, list, bridges, laidBridges };
   memo.set(world, out);
   return out;
 }
 
 // ── What the tool and the tests read ──
 
-// A crossing's price (ruling 1341): its two landings and every road tile its stubs lay.
-export const crossingCost = (world, plan) => 2 * costOf(world, FERRY_LANDING) + plan.roads.length * roadCostOf(world);
+// A crossing's price (ruling 1341): its two landings and every road tile its stubs lay. Version 8.3 (Track X): a bridge plan's is its road, as drawRoadTiles
+// charges it (src/sim/commands.js previewRoadTiles: the dry tiles at the road price, the water at the bridge price; its tiles cross no wall).
+export const crossingCost = (world, plan) => (plan.kind === 'bridge'
+  ? plan.roads.length * roadCostOf(world) + plan.water * costOf(world, 'bridge')
+  : 2 * costOf(world, FERRY_LANDING) + plan.roads.length * roadCostOf(world));
 
 // A crossing's verdict, as previewFerry gives one: { ok, reason (null or 'no_gold'), water, landings, vertical, stubs, roads, near, joins, cost, at, key }.
+// Version 8.3 (Track X): and kind ('ferry' or 'bridge') and ends (a ferry's landings; a bridge's two bank tiles); a bridge's also carries tiles (its line) and
+// no landings.
 export function judgeCrossing(world, plan, extra = {}) {
   const cost = crossingCost(world, plan);
+  const ends = plan.ends || plan.landings;
   const v = {
-    water: plan.water, landings: plan.landings, vertical: plan.vertical, stubs: plan.stubs, roads: plan.roads, near: plan.near, joins: plan.joins,
-    cost, at: null, key: plan.key || `${plan.landings[0][0]},${plan.landings[0][1]},${plan.landings[1][0]},${plan.landings[1][1]}`, ...extra,
+    kind: plan.kind || 'ferry', water: plan.water, ends, ...(plan.landings ? { landings: plan.landings } : {}), ...(plan.tiles ? { tiles: plan.tiles } : {}),
+    vertical: plan.vertical, stubs: plan.stubs, roads: plan.roads, near: plan.near, joins: plan.joins,
+    cost, at: null, key: plan.key || `${ends[0][0]},${ends[0][1]},${ends[1][0]},${ends[1][1]}`, ...extra,
   };
   return canAfford(world, cost) ? { ok: true, reason: null, ...v } : { ok: false, reason: 'no_gold', ...v };
 }
 
-// The crossings the Ferry tool shows (ruling 1344, 1345): those whose near landing joins the road network, narrowest water first; then the nearest to
+// The shown crossings among `candidates` (ruling 1344, 1345): those whose near end joins the road network, narrowest water first; then the nearest to
 // `from` ({ x, y }: where the player was looking when the tool was picked), counted in bands of FERRY_FIND.band tiles; within a band the one that lays
-// less road (it costs less), then the one that opens more good ground; then the nearer; then the map's order. At most FERRY_FIND.shown, each at least FERRY_FIND.apart tiles from the ones before it and from
-// every ferry already laid (ruling 1352). Each is
-// judgeCrossing's verdict (with the price) plus mid and opens. [] when the roads reach no water a ferry can cross.
-export function ferryChoices(world, from) {
+// less road (it costs less), then the one that opens more good ground; then the nearer; then the map's order. At most FERRY_FIND.shown, each at least
+// FERRY_FIND.apart tiles from the ones before it and from every crossing already laid (`laid`: their water's middles; ruling 1352). Each is judgeCrossing's
+// verdict (with the price) plus mid and opens.
+function rankCrossings(world, candidates, laid, from) {
   const f = from || world.focus || { x: world.size / 2, y: world.size / 2 };
-  const ranked = candidatesOf(world).list.filter((c) => c.joins).map((c) => {
+  const ranked = candidates.filter((c) => c.joins).map((c) => {
     const d = Math.hypot(c.mid[0] + 0.5 - f.x, c.mid[1] + 0.5 - f.y);
     return { c, d, band: Math.floor(d / FERRY_FIND.band) };
   });
   ranked.sort((p, q) => p.c.water - q.c.water || p.band - q.band || p.c.roads.length - q.c.roads.length || q.c.opens - p.c.opens || p.d - q.d || (p.c.key < q.c.key ? -1 : p.c.key > q.c.key ? 1 : 0));
-  // A ferry already laid counts as shown (ruling 1352): no crossing is offered right beside one (its water's middle within FERRY_FIND.apart tiles of the laid one's).
-  const shown = [], laid = [];
-  for (const a of Object.values(world.buildings)) {
-    const b = a.type === FERRY_LANDING && a.ferry ? world.buildings[a.ferry.mate] : null;
-    if (b && a.id < b.id) laid.push({ mid: [Math.floor((a.x + b.x) / 2), Math.floor((a.y + b.y) / 2)] });
-  }
+  const near = (a, b) => Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])) < FERRY_FIND.apart;
+  const shown = [];
   for (const { c } of ranked) {
-    if (laid.some((s) => Math.max(Math.abs(s.mid[0] - c.mid[0]), Math.abs(s.mid[1] - c.mid[1])) < FERRY_FIND.apart)) continue;
+    if (laid.some((mid) => near(mid, c.mid))) continue;
     if (shown.length >= FERRY_FIND.shown) break;
-    if (shown.some((s) => Math.max(Math.abs(s.mid[0] - c.mid[0]), Math.abs(s.mid[1] - c.mid[1])) < FERRY_FIND.apart)) continue;
+    if (shown.some((s) => near(s.mid, c.mid))) continue;
     shown.push({ ...judgeCrossing(world, c), mid: c.mid, opens: c.opens });
   }
   return shown;
 }
 
+// The middles of the ferries laid (ruling 1352: a ferry already laid counts as shown, so no crossing is offered right beside one).
+function laidFerries(world) {
+  const laid = [];
+  for (const a of Object.values(world.buildings)) {
+    const b = a.type === FERRY_LANDING && a.ferry ? world.buildings[a.ferry.mate] : null;
+    if (b && a.id < b.id) laid.push([Math.floor((a.x + b.x) / 2), Math.floor((a.y + b.y) / 2)]);
+  }
+  return laid;
+}
+
+// The crossings the 8.2.1 Ferry tool showed: ferries only (rankCrossings' rule). [] when the roads reach no water a ferry can cross.
+export const ferryChoices = (world, from) => rankCrossings(world, candidatesOf(world).list, laidFerries(world), from);
+
+// Version 8.3 (Track X, rulings 1397-1399): the crossings the Crossing card shows: bridges and ferries together, ranked by the same rule (so a bridge, over
+// narrower water, comes before a ferry), none beside a ferry laid or a bridge standing. A bridge is { kind: 'bridge', ends, tiles, roads, water, ... },
+// laid by drawRoadTiles over its tiles (buildCrossing does it); a ferry is ferryChoices'. [] when the roads reach no water either can cross.
+export function crossingChoices(world, from) {
+  const c = candidatesOf(world);
+  return rankCrossings(world, [...c.bridges, ...c.list], [...laidFerries(world), ...c.laidBridges], from);
+}
+
 // Whether the map has any crossing near the roads: ferryChoices(world, from).length > 0, without the ranking.
 export const anyCrossingNearRoads = (world) => candidatesOf(world).list.some((c) => c.joins);
 
-// The water a crossing crosses: its tiles from one landing to the other, landings out.
+// The water a crossing crosses: its tiles from one end to the other, ends out (a ferry's landings, a bridge's banks).
 export function crossingWater(plan) {
-  const [[x0, y0], [x1, y1]] = plan.landings;
+  const [[x0, y0], [x1, y1]] = plan.ends || plan.landings;
   const out = [];
   const sx = Math.sign(x1 - x0), sy = Math.sign(y1 - y0);
   for (let x = x0 + sx, y = y0 + sy; x !== x1 || y !== y1; x += sx, y += sy) out.push([x, y]);
@@ -307,7 +365,10 @@ export function crossingWater(plan) {
 //   'ferry_no_road'   a landing could have no road: none beside either and the network out of a stub's reach, or no room for the far stub
 //   'no_gold'         the treasury cannot pay the landings and the road
 // ('ferry_bent' is 7.1's and is no longer given: a bent line is read along the way it went furthest.)
-export function previewFerry(world, tiles) {
+// Version 8.3 (Track X, ruling 1399): with bridges (the Crossing card's drag, previewCrossing) water of BRIDGE_MAX tiles or fewer is a bridge instead of
+// 'ferry_bridge': its plan when both banks are open land and a road can reach it, else the nearest bridge within FERRY_FIND.snap, else 'ferry_no_land' or
+// 'ferry_no_road' as for a ferry. ends is the crossing's two end tiles in the drag's direction, either kind.
+export function previewFerry(world, tiles, { bridges = false } = {}) {
   const refuse = (reason, extra = {}) => ({ ok: false, reason, water: 0, landings: [], vertical: false, stubs: [[], []], roads: [], at: null, cost: 0, snapped: false, ...extra });
   const list = [];
   for (const t of tiles) if (!list.length || list[list.length - 1][0] !== t[0] || list[list.length - 1][1] !== t[1]) list.push([t[0], t[1]]);
@@ -324,7 +385,8 @@ export function previewFerry(world, tiles) {
   while (isWater(world, ...cell(lo - 1))) lo--;
   while (isWater(world, ...cell(hi + 1))) hi++;
   const water = hi - lo + 1;
-  if (water <= BRIDGE_MAX) return refuse('ferry_bridge', { water, at: cell(lo) });
+  const bridge = bridges && water <= BRIDGE_MAX && hasRiver(world.mapVariant);
+  if (water <= BRIDGE_MAX && !bridge) return refuse('ferry_bridge', { water, at: cell(lo) });
   if (water > FERRY.max) return refuse('ferry_too_wide', { water, at: cell(lo) });
   const e0 = cell(lo - 1), e1 = cell(hi + 1);
   if (!inBounds(world.size, ...e0) || !inBounds(world.size, ...e1)) return refuse('ferry_no_land', { water, at: inBounds(world.size, ...e0) ? cell(hi) : cell(lo) });
@@ -333,12 +395,17 @@ export function previewFerry(world, tiles) {
   const orient = (plan) => {
     const backwards = dirOf(plan.vertical ? 1 : 0) < 0;
     if (!backwards) return plan;
-    return { ...plan, landings: [plan.landings[1], plan.landings[0]], stubs: [plan.stubs[1], plan.stubs[0]], near: 1 - plan.near };
+    const flipped = { ...plan, stubs: [plan.stubs[1], plan.stubs[0]], near: 1 - plan.near };
+    if (plan.landings) flipped.landings = [plan.landings[1], plan.landings[0]];
+    if (plan.ends) flipped.ends = [plan.ends[1], plan.ends[0]];
+    return flipped;
   };
   const ends = dirOf(along) < 0 ? [e1, e0] : [e0, e1];
-  const { net, list: candidates } = candidatesOf(world);
-  if (freeLand(world, ...e0) && freeLand(world, ...e1)) {
-    const plan = planCrossing(world, net, ends, vertical, water);
+  const { net, list: ferryList, bridges: bridgeList } = candidatesOf(world);
+  const candidates = bridge ? bridgeList : ferryList;
+  const open = bridge ? bankLand : freeLand;
+  if (open(world, ...e0) && open(world, ...e1)) {
+    const plan = planCrossing(world, net, ends, vertical, water, bridge);
     if (plan) return judgeCrossing(world, plan, { snapped: false });
   }
   // Snap (ruling 1347): the nearest crossing the map has room for whose water lies within FERRY_FIND.snap tiles of the anchor; the drag's own axis wins
@@ -355,7 +422,10 @@ export function previewFerry(world, tiles) {
     if (better) best = { c, rank };
   }
   if (best) return judgeCrossing(world, orient(best.c), { snapped: true });
-  const taken = ends.find((t) => !freeLand(world, ...t));
-  if (taken) return refuse('ferry_no_land', { water, landings: ends, vertical, at: taken });
-  return refuse('ferry_no_road', { water, landings: ends, vertical, at: ends[0] });
+  const taken = ends.find((t) => !open(world, ...t));
+  if (taken) return refuse('ferry_no_land', { water, landings: ends, vertical, at: taken, ...(bridge ? { kind: 'bridge' } : {}) });
+  return refuse('ferry_no_road', { water, landings: ends, vertical, at: ends[0], ...(bridge ? { kind: 'bridge' } : {}) });
 }
+
+// Version 8.3 (Track X, ruling 1399): the Crossing card's drag: a bridge over narrow water, a ferry over wide (previewFerry with bridges).
+export const previewCrossing = (world, tiles) => previewFerry(world, tiles, { bridges: true });

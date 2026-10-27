@@ -2,9 +2,10 @@
 // of water, with land at both ends; a bridge tile is a road tile on a water tile (world.road set on terrain WATER) and costs
 // costOf(world, 'bridge') a tile. These functions are the rule: the road tool's preview and command, the bar's words and the
 // tests all read them.
-import { idx, inBounds } from './grid.js';
+import { NEIGHBOURS4, idx, inBounds } from './grid.js';
 import { T, buildable } from './terrain.js';
-import { MAP } from '../data/map.js';
+import { MAP, hasRiver } from '../data/map.js';
+import { FERRY } from '../data/ferries.js';
 
 export const BRIDGE_MAX = MAP.bridgeMax;
 
@@ -42,16 +43,101 @@ export function runReason({ n, straight, bounded }) {
 // One verdict per tile of the list: null for a dry tile or a water tile in a run that can be bridged, else { reason, water } with
 // the run's refusal and how many tiles of water it holds. A run whose tiles all carry road already (a standing bridge) is let
 // through: nothing is laid on it, so its shape is not judged again.
+// Version 8.3 (Track X): the runs are crossingRuns'. A ferry's water tiles are { ferry: run } and its two bank tiles { landing: run } (neither gets road),
+// and a refusal carries the run's open look-ahead, the landing's block and the tile it is about as well.
 export function bridgeVerdicts(world, tiles) {
   const out = new Array(tiles.length).fill(null);
-  for (const run of bridgeRuns(world, tiles)) {
-    let laid = true;
-    for (let j = run.from; j <= run.to; j++) if (!world.road[idx(world.size, tiles[j][0], tiles[j][1])]) laid = false;
-    const reason = laid ? null : runReason(run);
-    if (reason) for (let j = run.from; j <= run.to; j++) out[j] = { reason, water: run.n };
+  for (const run of crossingRuns(world, tiles)) {
+    if (run.kind === 'ferry') {
+      for (let j = run.from; j <= run.to; j++) out[j] = { ferry: run };
+      out[run.from - 1] = { landing: run };
+      out[run.to + 1] = { landing: run };
+    } else if (run.reason) {
+      const v = { reason: run.reason, water: run.n, at: run.at, ...(run.open ? { open: run.open } : {}), ...(run.block ? { block: run.block } : {}) };
+      for (let j = run.from; j <= run.to; j++) out[j] = v;
+      if (run.reason === 'landing_taken') { out[run.from - 1] = v; out[run.to + 1] = v; }   // the bank says why first, not 'blocked' (ruling 1393)
+    }
   }
   return out;
 }
+
+// ── Version 8.3 "Lines", Track X (rulings 1390-1409): the road tool lays a bridge or a ferry ──
+// A run of water a road crosses is judged as a whole: 1 to BRIDGE_MAX tiles straight across with land at both ends is a bridge (as before); FERRY.min to
+// FERRY.max is a ferry, whose two bank tiles become its landings (no road on them or on the water; ruling 1390); wider is 'too_wide'. A map with no river
+// has no ferries (ruling 1333), so there everything past BRIDGE_MAX stays too wide. Route (src/sim/route.js) still reads runReason: it lays bridges only.
+
+// Free dry land: a tile a landing or a stub may take (open ground, nothing built, no road, no wall). src/sim/ferryFind.js re-exports it.
+export const freeLand = (world, x, y) => {
+  if (!inBounds(world.size, x, y)) return false;
+  const i = idx(world.size, x, y);
+  return buildable(world, i) && !world.occ[i] && !world.road[i] && !world.wall[i];
+};
+
+// The most water a road may cross on this map: a ferry's on a map with a river, a bridge's on one without.
+export const crossMax = (world) => (hasRiver(world.mapVariant) ? FERRY.max : BRIDGE_MAX);
+// The crossing n tiles of straight water take: 'bridge', 'ferry', or null when it is too wide.
+export const crossingKind = (world, n) => (n <= BRIDGE_MAX ? 'bridge' : n <= crossMax(world) ? 'ferry' : null);
+
+// Why a ferry cannot land on a bank tile, else null (ruling 1393): 'built', 'road', 'wall' or 'ground' (hills, or off the map).
+export function landingBlock(world, [x, y]) {
+  if (!inBounds(world.size, x, y)) return 'ground';
+  const i = idx(world.size, x, y);
+  if (world.occ[i]) return 'built';
+  if (world.road[i]) return 'road';
+  if (world.wall[i]) return 'wall';
+  return buildable(world, i) ? null : 'ground';
+}
+
+// Each run of water in an ordered list of tiles, judged: bridgeRuns' fields, and
+//   kind      'bridge', 'ferry', 'laid' (every tile a bridge already: nothing to judge), or null when refused
+//   reason    null, or the refusal: 'too_wide', 'bridge_shape' (bent, or no dry land at one end; see open), 'landing_taken' (a ferry's bank tile is
+//             not free land, or another crossing of the list has it: block says which of landingBlock's, or 'taken')
+//   water     how many tiles of water; tiles: their [x, y]; landings: a ferry's two bank tiles, in the list's order; at: the tile a refusal is about
+//   open      the list ends in this water, straight on from the dry land before it (a drag on its way across): { ahead: the tiles of water from the bank
+//             to the far bank along the line, kind: what they take ('bridge', 'ferry' or null), edge: true when the water runs on to the map's edge }
+export function crossingRuns(world, tiles) {
+  const wet = (t) => Boolean(t) && isWater(world, t);
+  const claimed = new Set();
+  return bridgeRuns(world, tiles).map((run) => {
+    const own = tiles.slice(run.from, run.to + 1);
+    const out = { ...run, kind: null, reason: null, water: run.n, tiles: own, landings: null, open: null, block: null, at: own[0] };
+    if (own.every((t) => world.road[idx(world.size, t[0], t[1])])) return { ...out, kind: 'laid' };
+    const before = run.from > 0 ? tiles[run.from - 1] : null, after = run.to + 1 < tiles.length ? tiles[run.to + 1] : null;
+    if (!run.straight) return { ...out, reason: 'bridge_shape' };
+    if (!run.bounded) {
+      // The list ends in this water, on in a line from dry land beside it: look along the line to the far bank.
+      if (run.to !== tiles.length - 1 || !before || !touching(before, own[0]) || wet(before)) return { ...out, reason: 'bridge_shape' };
+      const dx = own[0][0] - before[0], dy = own[0][1] - before[1];
+      if (!own.every((t, k) => t[0] === own[0][0] + dx * k && t[1] === own[0][1] + dy * k)) return { ...out, reason: 'bridge_shape' };
+      let ahead = 0, x = own[0][0], y = own[0][1];
+      while (wet([x, y])) { ahead++; x += dx; y += dy; }
+      const edge = !inBounds(world.size, x, y);
+      return { ...out, reason: 'bridge_shape', open: { ahead, kind: edge ? null : crossingKind(world, ahead), edge } };
+    }
+    const kind = crossingKind(world, run.n);
+    if (!kind) return { ...out, reason: 'too_wide' };
+    if (kind === 'bridge') return { ...out, kind };
+    // A ferry runs straight on from bank to bank: its bank tiles are in line with its water (a bridge may be come at from the side).
+    const ax = Math.sign(own[1][0] - own[0][0]), ay = Math.sign(own[1][1] - own[0][1]), last = own[own.length - 1];
+    if (before[0] !== own[0][0] - ax || before[1] !== own[0][1] - ay || after[0] !== last[0] + ax || after[1] !== last[1] + ay) return { ...out, reason: 'bridge_shape' };
+    const landings = [[before[0], before[1]], [after[0], after[1]]];
+    // A bank tile between this water and another run of the list (a strip of land one tile wide), or one another crossing of the list has, is taken.
+    const between = [wet(tiles[run.from - 2]) && touching(tiles[run.from - 2], before), wet(tiles[run.to + 2]) && touching(after, tiles[run.to + 2])];
+    for (let k = 0; k < 2; k++) {
+      const block = landingBlock(world, landings[k]) || (between[k] || claimed.has(`${landings[k][0]},${landings[k][1]}`) ? 'taken' : null);
+      if (block) return { ...out, reason: 'landing_taken', block, at: landings[k], landings };
+    }
+    for (const l of landings) claimed.add(`${l[0]},${l[1]}`);
+    return { ...out, kind: 'ferry', landings };
+  });
+}
+
+// Whether a road stands beside a tile once `laid` (map indices given road) is laid: a landing's ferryman's way in (ruling 1394).
+export const roadWouldTouch = (world, [x, y], laid) => NEIGHBOURS4.some(([dx, dy]) => {
+  if (!inBounds(world.size, x + dx, y + dy)) return false;
+  const i = idx(world.size, x + dx, y + dy);
+  return Boolean(world.road[i]) || laid.has(i);
+});
 
 // Stage 4.6 (ruling 350): the nearest place a road can cross the water: a straight run of 1 to BRIDGE_MAX water tiles along a row or a
 // column, with a free land tile at each end (no building on it; the road's own tiles may be there already) and no bridge standing on it

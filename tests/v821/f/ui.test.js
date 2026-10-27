@@ -44,7 +44,7 @@ describe('v821 f ui: the crossings the Ferry tool shows', () => {
     const [a, b] = ferryChoices(w, FROM);
     const s = store(ferry({ pick: a.key }));
     const p = toolPreview(w, s.get());
-    expect([p.state, p.cost, p.text]).toEqual(['ok', a.cost, `7 tiles of water · ${a.roads.length} road tiles · ${p.text.split(' · ')[2]}`]);
+    expect([p.state, p.cost, p.text]).toEqual(['ok', a.cost, `Ferry: 7 tiles of water · ${a.roads.length} road tiles · ${p.text.split(' · ')[2]}`]);   // Version 8.3: led by its kind
     const g = ghostsFor(w, s.get());
     const picked = g.filter((x) => x.boat && x.boat.picked);
     expect([picked.length, picked[0].boat.label, g.filter((x) => x.boat).length]).toEqual([1, `${a.cost} gold`, ferryChoices(w, FROM).length]);
@@ -58,7 +58,7 @@ describe('v821 f ui: the crossings the Ferry tool shows', () => {
     const s = store(ferry());
     const p = toolPreview(w, s.get());
     expect([p.state, p.reason, p.text, p.showFit]).toEqual(['bad', 'ferry_none_near', FERRY_TEXT.noneNear, true]);
-    expect(FERRY_TEXT.noneNear).toBe('No river here is narrow enough for a ferry near your roads: extend a road along the bank');
+    expect(FERRY_TEXT.noneNear).toBe('No water near your roads that a bridge or a ferry can cross: extend a road along the bank');   // Version 8.3: the Crossing card
     const t = fitTarget(w, s.get()), spot = ferrySpot(w, FROM);
     expect([t.kind, t.x, t.y]).toEqual(['ferry', spot.x + 0.5, spot.y + 0.5]);
     expect(ghostsFor(w, s.get())).toEqual([]);
@@ -80,7 +80,7 @@ describe('v821 f ui: tap one, then ✓', () => {
       expect(r.store.get().tool.pick).toBe(b.key);
       r.frame(0);
       const bar = r.root.querySelector('#confirm .confirm');
-      expect([bar.querySelector('.name').textContent, bar.querySelector('.cost').textContent.startsWith(`${b.cost} gold`), bar.querySelector('.reason').textContent.startsWith('7 tiles of water')]).toEqual(['Ferry', true, true]);
+      expect([bar.querySelector('.name').textContent, bar.querySelector('.cost').textContent.startsWith(`${b.cost} gold`), bar.querySelector('.reason').textContent.startsWith('Ferry: 7 tiles of water')]).toEqual(['Crossing', true, true]);   // Version 8.3: the Crossing card
       const gold = w.gold;
       fire(r.root.querySelector('#confirm .ok'), 'click');
       const e = w.undo[w.undo.length - 1];
@@ -130,6 +130,7 @@ describe('v821 f ui: Show me and the words', () => {
     try {
       const pl = r.ui.placement;
       pl.start({ kind: 'road' });
+      addRaw(w, 'well', RIVER_X + 7, 20);                                       // Version 8.3: the road lays a ferry itself; a far bank built on is refused, with Show me
       pl.pointAt(RIVER_X - 2, 20); pl.pointAt(RIVER_X + 10, 20);
       r.frame(0);
       const t = fitTarget(w, r.store.get());
@@ -146,7 +147,8 @@ describe('v821 f ui: Show me and the words', () => {
     const wide = ferryWorld(13);
     const p = toolPreview(wide, store(ferry(), { line: { x0: RIVER_X - 2, y0: ROW, x1: RIVER_X + 14, y1: ROW, flip: false } }).get());
     expect([p.state, p.reason, p.showFit]).toEqual(['bad', 'ferry_too_wide', true]);
-    expect([FERRY_TEXT.card.startsWith('Pick a crossing'), FERRY_TEXT.cardTitle(160).includes('Pick one of the crossings the map shows'), FERRY_TEXT.help.text.includes('tap one, then ✓'), FERRY_TEXT.tip.includes('tap a crossing')]).toEqual([true, true, true, true]);
+    // Version 8.3 (Track X): the Crossing card's line says both limits, and the tip is the crossings tip
+    expect([FERRY_TEXT.card.startsWith('Cross water'), FERRY_TEXT.cardTitle(160).includes('Pick one of the crossings the map shows'), FERRY_TEXT.help.text.includes('tap one, then ✓'), FERRY_TEXT.tip.includes('a ferry 5 to 12')]).toEqual([true, true, true, true]);
     expect(FERRY_TEXT.idleMouse).toBe('Click a crossing, then ✓ · or click both banks');
   });
 });
