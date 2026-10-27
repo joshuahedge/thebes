@@ -1,14 +1,17 @@
 // Version 8.3, Track C (rulings 1434-1441): the site sheet's crew lines, the camp's button and its question, the "keep a storehouse stocked" line and its
 // Show me, the placing chip, and the guild's own line. Every number on screen is the sim's own, set up both ways.
 import { describe, it, expect } from '../../harness.js';
-import { siteRows, campModel, keepStockedFix, storehouseSpotFor, supplyLine } from '../../../src/ui/monumentSheet.js';
+import { siteRows, keepRows, campModel, supplyLine } from '../../../src/ui/monumentSheet.js';
 import { siteCrews, crewSpeed, crewDistance, campQuote, siteStatus, monumentDay } from '../../../src/sim/monuments.js';
-import { checkTiles } from '../../../src/sim/commands.js';
+import { checkTiles, setAccept, conditionsFor } from '../../../src/sim/commands.js';
+import { siteKeepFix } from '../../../src/sim/adviceFixes.js';
+import { newSite } from '../../../src/sim/world.js';
 import { roadReach, reachDistance } from '../../../src/sim/reach.js';
 import { MONUMENT } from '../../../src/data/monuments.js';
 import { UI4_TEXT, V83_C_TEXT, ui4ConditionText } from '../../../src/ui/text.js';
 import { openSheet } from '../../../src/ui/modes.js';
-import { makeTestWorld, setRoad, addRaw } from '../../helpers/testWorld.js';
+import { makeTestWorld, setRoad, addRaw, staffAll } from '../../helpers/testWorld.js';
+import { categoryOfItem } from '../../../src/data/ui.js';
 import { rigUI } from '../../helpers/uiWorld.js';
 import { fire } from '../../helpers/dom.js';
 import { createMonumentUi } from '../../../src/ui/monumentSheet.js';
@@ -35,23 +38,26 @@ describe('v83 c the site sheet\'s crew lines', () => {
     expect([a.dist, a.speed, b.dist, b.speed]).toEqual([crewDistance(w, w.buildings[a.id], s), crewSpeed(a.dist), crewDistance(w, w.buildings[b.id], s), crewSpeed(b.dist)]);
     expect([g1.id, g2.id].sort()).toEqual([a.id, b.id].sort());
     const nearOne = guildAt(w, 52);
-    const text = (id) => siteRows(w, s).find((r) => r.key === `crew-${id}`).text;
-    expect(/^Crew from the guild \d+ road tiles away: works at (full speed|\d+% \(the walk\))$/.test(text(nearOne.id))).toBe(true);
+    const lines = () => siteRows(w, s).filter((r) => r.key.startsWith('crew-')).map((r) => r.key);
+    expect(lines().includes(`crew-${nearOne.id}`)).toBe(false);                   // a crew at full speed has no line of its own (ruling 1447)
+    expect(lines().length).toBe(siteCrews(w, s).filter((c) => c.speed < 1).length);
     s.site.camp = true;
     const far = siteCrews(w, s).find((c) => c.walk < 1);
     expect(far.speed).toBe(1);
-    expect(text(far.id)).toBe(`Crew from the guild ${far.dist} road tiles away: works at full speed`);
     expect(siteCrews(w, s).every((c) => c.speed === 1)).toBe(true);
+    expect(lines()).toEqual([]);                                                  // with the camp every crew is at full speed: the camp's row says so
   });
 
-  it('words a near crew as full speed, one tile as "1 road tile", and gives a site with no crew no crew line', () => {
+  it('gives a near crew and a site with no crew no crew line: "Crews: n of m" says it, and a slowed crew\'s line is "1 road tile" for one tile', () => {
     const w = longCity();
     const s = addRaw(w, 'obelisk_small', 60, 9);
     expect(Object.keys(rowsOf(w, s)).filter((k) => k.startsWith('crew-'))).toEqual([]);
     const g = guildAt(w, 58);                                                    // its tiles (58, 10) and (59, 10): beside the site's ring
-    const d = crewDistance(w, g, s);
-    expect(d).toBeLessThanOrEqual(12);
-    expect(rowsOf(w, s)[`crew-${g.id}`].text).toBe(`Crew from the guild ${d === 1 ? '1 road tile' : `${d} road tiles`} away: works at full speed`);
+    expect(crewDistance(w, g, s)).toBeLessThanOrEqual(12);
+    expect(Object.keys(rowsOf(w, s)).filter((k) => k.startsWith('crew-'))).toEqual([]);
+    const st = siteStatus(w, s);
+    expect(rowsOf(w, s).crews.text).toBe(UI4_TEXT.crews(st.crews.guilds.length, st.crews.max));
+    expect(V83_C_TEXT.crewLine({ dist: 1, speed: 0.9 })).toBe('Crew from the guild 1 road tile away: works at 90% (the walk)');
   });
 
   it('does not list a crew line on a finished monument', () => {
@@ -107,46 +113,62 @@ describe('v83 c the camp\'s offer', () => {
       expect(s.site.camp).toBe(true);                                             // (the gold itself is the sim test's: a goal's reward lands in the same settle)
       expect(camp()).toBe(null);                                                  // no button once it is set up: the row says so
       expect(sheet().querySelector('.row-camp .text').textContent).toBe("Workers' camp: crews at full speed");
-      expect(sheet().querySelector(`.row-crew-${g.id} .text`).textContent).toBe("Crew from the guild 58 road tiles away: works at full speed");
+      expect(sheet().querySelector(`.row-crew-${g.id}`)).toBe(null);               // at full speed with the camp: no crew line, the camp's row says so
     } finally { r.cleanup(); }
   });
 });
 
+// A storehouse far from the site (beyond 16 road tiles) holding something to spare: what a site short of it is supplied from (Advice's own fix, siteKeepFix).
+const holderAt = (w, store = { stone: 90 }) => addRaw(w, 'storehouse', 110, 11, { staff: 6, store });
+const keepKeys = (w, s) => siteRows(w, s).map((r) => r.key).filter((k) => k.startsWith('keep-'));
+
 describe('v83 c "keep a storehouse stocked" on the site sheet', () => {
-  it('adds the line, with Show me, where nothing reaches the site with a material it needs, and not where something does', () => {
+  it('shows a row only for the goods the sim\'s Advice fix (siteKeepFix) names, and none where no store can spare one', () => {
     const w = longCity();
     const s = addRaw(w, 'pyramid_small', 60, 6);                                  // 4 x 4: its tiles are y 6 to 9, beside the road
     w.prestigeUnlocks.pyramid_small = 0;
-    const rows = rowsOf(w, s);
-    expect(rows['keep-stocked'].text).toBe('Keep a storehouse within 16 road tiles stocked with stone and bricks');   // short of both: one line, one fix
-    expect(rows['keep-stocked'].fix).toEqual(keepStockedFix(w, s));
+    expect(keepKeys(w, s)).toEqual([]);                                           // short of stone and bricks, but no store anywhere has any: no row, no Show me
+    const h = holderAt(w);                                                        // a store can spare stone: its row, for stone only
+    staffAll(w);
+    let rows = keepRows(w, s);
+    expect(rows.map((r) => [r.key, r.goods, r.text])).toEqual([['keep-stocked', ['stone'], 'Build a storehouse near the site, then keep it stocked with stone']]);
+    const f = siteKeepFix(w, s, 'stone');
+    expect([f.from, Boolean(f.build)]).toEqual([h.id, true]);
+    expect(rows[0].fix).toEqual({ showMe: { category: categoryOfItem('storehouse'), item: 'storehouse', x: f.build.x, y: f.build.y } });
+    expect(siteKeepFix(w, s, 'bricks')).toBe(null);
+    h.store.bricks = 60;                                                          // and bricks too: one row for both, as both are one storehouse to build
+    rows = keepRows(w, s);
+    expect(rows.map((r) => [r.key, r.goods, r.text])).toEqual([['keep-stocked', ['stone', 'bricks'], 'Build a storehouse near the site, then keep it stocked with stone and bricks']]);
     addRaw(w, 'quarry', 70, 11);                                                  // a quarry reaches it: stone is covered, bricks are not
-    expect(rowsOf(w, s)['keep-stocked'].text).toBe('Keep a storehouse within 16 road tiles stocked with bricks');
+    expect(keepRows(w, s).map((r) => [r.goods, r.text])).toEqual([[['bricks'], 'Build a storehouse near the site, then keep it stocked with bricks']]);
     addRaw(w, 'brickworks', 56, 11);                                              // and now both are
-    expect(rowsOf(w, s)['keep-stocked']).toBe(undefined);
+    expect(keepKeys(w, s)).toEqual([]);
   });
 
-  it('aims Show me at a storehouse already within 16 road tiles of the site, nearest first, and opens its sheet', () => {
+  it('aims Show me at the nearest storehouse within 16 road tiles that can keep the good, as Advice does, and none when none can', () => {
     const w = longCity();
     const s = addRaw(w, 'obelisk_small', 60, 9);
-    const far = addRaw(w, 'storehouse', 100, 11);                                 // beyond 16 road tiles: not the answer
-    const mid = addRaw(w, 'storehouse', 70, 11);
-    const nearer = addRaw(w, 'storehouse', 62, 11);
-    expect(keepStockedFix(w, s)).toEqual({ open: nearer.id });
-    nearer.x = 0;                                                                // (kept for the id): take it out of play
-    delete w.buildings[nearer.id];
-    expect(keepStockedFix(w, s)).toEqual({ open: mid.id });
-    delete w.buildings[mid.id];
-    const spot = keepStockedFix(w, s);
-    expect(spot.open).toBe(undefined);
-    expect(spot.showMe.item).toBe('storehouse');
-    expect(far.id).toBeGreaterThan(0);
+    holderAt(w);
+    addRaw(w, 'storehouse', 100, 11, { staff: 6, store: {} });                    // beyond 16 road tiles: not the answer
+    const mid = addRaw(w, 'storehouse', 70, 11, { staff: 6, store: {} });
+    const nearer = addRaw(w, 'storehouse', 62, 11, { staff: 6, store: {} });
+    staffAll(w);
+    let row = keepRows(w, s)[0];
+    expect([row.text, row.fix]).toEqual(['Keep a storehouse within 16 road tiles stocked with stone', { select: nearer.id, keep: { good: 'stone' } }]);
+    expect(siteKeepFix(w, s, 'stone').store).toBe(nearer.id);                     // the row is the Advice fix
+    expect(setAccept(w, nearer.id, 'stone', false).ok).toBe(true);                // the sim would refuse a stone order there: the next one is named
+    row = keepRows(w, s)[0];
+    expect([row.fix.select, siteKeepFix(w, s, 'stone').store]).toEqual([mid.id, mid.id]);
+    expect(setAccept(w, mid.id, 'stone', false).ok).toBe(true);                   // none can keep it: no row at all
+    expect([siteKeepFix(w, s, 'stone'), keepRows(w, s), keepKeys(w, s)]).toEqual([null, [], []]);
   });
 
   it('aims at a free spot the placing rule accepts and a site can draw from (within 16 road tiles), the nearest to the site', () => {
     const w = longCity();
     const s = addRaw(w, 'obelisk_small', 60, 9);
-    const spot = storehouseSpotFor(w, s);
+    holderAt(w);
+    staffAll(w);
+    const spot = keepRows(w, s)[0].fix.showMe;
     const x = spot.x - 1, y = spot.y - 1;                                         // the 2x2 storehouse's origin, from its middle
     expect(checkTiles(w, 'storehouse', x, y)).toBe(null);
     expect(reachDistance(roadReach(w, s, MONUMENT.supplyReach), w, { x, y, w: 2, d: 2 })).toBeLessThanOrEqual(MONUMENT.supplyReach);
@@ -163,34 +185,52 @@ describe('v83 c "keep a storehouse stocked" on the site sheet', () => {
     expect(s.site.stock.stone > 0).toBe(true);                                    // and drew stone from it
   });
 
-  it('has no Show me when there is no free spot, and no line at all while the storehouse is locked', () => {
+  it('has no row while the storehouse is locked, or when there is no free spot, or no store has any to spare', () => {
     const w = longCity();
     w.milestone = 'village';
     const s = addRaw(w, 'obelisk_small', 60, 9);
-    expect(Object.keys(rowsOf(w, s)).some((k) => k.startsWith('keep-'))).toBe(false);
+    holderAt(w);
+    expect(keepKeys(w, s)).toEqual([]);                                           // locked
     w.milestone = 'capital';
+    expect(keepKeys(w, s)).toEqual(['keep-stocked']);
     for (let x = 40; x < 90; x++) for (let y = 0; y < 128; y++) if (y !== 10 && !(x >= 60 && x < 61 && y >= 9 && y < 10)) w.wall[y * w.size + x] = 1;   // walled in: nothing is free
     w.wallVersion = (w.wallVersion || 0) + 1;
-    expect(storehouseSpotFor(w, s)).toBe(null);
-    expect(keepStockedFix(w, s)).toBe(null);
-    expect(rowsOf(w, s)['keep-stocked'].fix).toBe(null);
+    expect([siteKeepFix(w, s, 'stone'), keepKeys(w, s)]).toEqual([null, []]);
+  });
+
+  it('leaves a stall\'s Show me to the keep row (one stall, one Show me), and keeps the cause\'s own where there is no keep row', () => {
+    const w = longCity();
+    const s = addRaw(w, 'obelisk_small', 60, 9, { site: { ...newSite(), idle: MONUMENT.stallDays, reason: 'no_stone' } });
+    const cause = () => siteRows(w, s).find((r) => r.key === 'cause');
+    expect(cause().reason).toBe('no_stone');
+    expect(cause().fix.showMe.item).toBe('quarry');                               // no store has stone to spare: the cause's own fix stays
+    holderAt(w);
+    staffAll(w);
+    expect([cause().fix, keepKeys(w, s)]).toEqual([null, ['keep-stocked']]);      // a store can: the keep row carries it
+    expect(siteRows(w, s).filter((r) => r.fix).map((r) => r.key)).toEqual(['keep-stocked']);
   });
 
   it('shows the Show me button on the sheet, and it aims at the storehouse card or opens the storehouse\'s sheet (390 x 844)', async () => {
     const w = longCity();
-    const s = addRaw(w, 'obelisk_small', 60, 9);
+    const s = addRaw(w, 'obelisk_small', 60, 9, { site: { ...newSite(), idle: MONUMENT.stallDays, reason: 'no_stone' } });
+    holderAt(w);
+    staffAll(w);
     const r = await rigUI({ width: 390, height: 844, world: w });
     try {
       r.store.set(openSheet(r.store.get(), 'info', s.id));
       const keep = () => r.root.querySelector('#sheet .row-keep-stocked');
-      expect(keep().querySelector('.text').textContent).toBe('Keep a storehouse within 16 road tiles stocked with stone');
-      expect(keep().querySelector('.show-me').getAttribute('aria-label')).toBe('Show me: Keep a storehouse within 16 road tiles stocked with stone');
+      const words = 'Build a storehouse near the site, then keep it stocked with stone';
+      expect(keep().querySelector('.text').textContent).toBe(words);
+      expect(keep().querySelector('.show-me').getAttribute('aria-label')).toBe(`Show me: ${words}`);
+      expect(r.root.querySelectorAll('#sheet .s4-rows.site .show-me').length).toBe(1);   // the stall has one Show me, not two
       fire(keep().querySelector('.show-me'), 'click');
       expect([r.store.get().mode, r.store.get().tool.type]).toEqual(['placing', 'storehouse']);
       r.store.set({ tool: null, mode: 'browse', ghost: null });
-      const house = addRaw(w, 'storehouse', 66, 11);
+      const house = addRaw(w, 'storehouse', 66, 11, { staff: 6, store: {} });
+      staffAll(w);
       r.store.set(openSheet(r.store.get(), 'info', s.id));
       r.ui.refresh();
+      expect(keep().querySelector('.text').textContent).toBe('Keep a storehouse within 16 road tiles stocked with stone');
       fire(keep().querySelector('.show-me'), 'click');
       expect(r.store.get().selectedId).toBe(house.id);
     } finally { r.cleanup(); }
@@ -203,6 +243,19 @@ describe('v83 c the placing chip and the guild\'s own line', () => {
     expect(ui4ConditionText(met, 'colossus')).toBe("Builders' guild: 40 road tiles (80%)");
     expect(ui4ConditionText({ ...met, dist: 1, speed: 1 }, 'colossus')).toBe("Builders' guild: 1 road tile (100%)");
     expect(ui4ConditionText({ key: 'crew', state: 'later', reason: 'no_crew', n: 0 }, 'colossus')).toBe("No builders' guild yet");
+    expect(ui4ConditionText({ key: 'crew', state: 'later', reason: 'no_crew', n: 0, busy: 0 }, 'colossus')).toBe("No builders' guild yet");
+    expect(ui4ConditionText({ key: 'crew', state: 'later', reason: 'no_crew', n: 0, busy: 2 }, 'colossus')).toBe("No free builders' guild");
+  });
+
+  it('says "No free builders\' guild" when every guild its roads reach is at work, and "No builders\' guild yet" when there is none, from the sim', () => {
+    const w = longCity();
+    const chip = (x) => ui4ConditionText(conditionsFor(w, 'obelisk_small', x, 9).conditions.find((c) => c.key === 'crew'), 'obelisk_small');
+    expect(chip(90)).toBe("No builders' guild yet");                               // none stands
+    guildAt(w, 58);
+    expect(chip(90).startsWith("Builders' guild: ")).toBe(true);                    // one, free: its walk and speed
+    addRaw(w, 'obelisk_small', 60, 9);                                             // the guild's crew goes to this site
+    const cond = conditionsFor(w, 'obelisk_small', 90, 9).conditions.find((c) => c.key === 'crew');
+    expect([cond.n, cond.busy, chip(90)]).toEqual([0, 1, "No free builders' guild"]);
   });
 
   it('says on a guild\'s sheet where its far crew works and how fast, and nothing extra for a near one', () => {

@@ -40,9 +40,11 @@ import * as monumentsSim from '../sim/monuments.js';
 import { siteStatus, siteCrews, campQuote, setCamp, crewSpeedAt, crewDistance, guildSite, supplyNeeded, prestigeOf, prestigeOfBuilding, holdsPrestige, stalledGuild, guildBurning } from '../sim/monuments.js';
 import { palaceQuote, enlargePalace, palaceMood } from '../sim/palace.js';
 import { workGoldPerUnit, extraGoldOf } from '../sim/costs.js';
-import { setPaused, demolishRefundFor, checkTiles } from '../sim/commands.js';
+import { setPaused, demolishRefundFor } from '../sim/commands.js';
 import { assignLabour } from '../sim/labour.js';
-import { touchesRoad, roadReach, reachDistance, buildingsInReach } from '../sim/reach.js';
+import { touchesRoad } from '../sim/reach.js';
+import { siteKeepFix } from '../sim/adviceFixes.js';
+import { aimKeepStocked } from './s47/carts.js';
 import { desirabilityContributors } from '../sim/desirability.js';
 import { milestoneIndex, atLeast, isUnlocked } from '../sim/progression.js';
 import { DAYS_PER_MONTH, MONTHS_PER_YEAR } from '../sim/time.js';
@@ -142,34 +144,29 @@ export function causeText(world, b, reason, status = null) {
   return ui4CauseText(reason, extraGoldOf(world, b.type, b.style), null, b.type);
 }
 
-// Version 8.3 (ruling 1440): a free spot for a storehouse that a site would draw from, the placing rule's own (checkTiles: free, with a road beside it) within
-// MONUMENT.supplyReach road tiles of the site (the distance drawFromStores reads), the nearest to the site's middle first (then reading order): { x, y } (the
-// footprint's middle, as Show me takes it), or null when no tile qualifies.
-export function storehouseSpotFor(world, b) {
-  const rm = roadReach(world, b, MONUMENT.supplyReach);
-  if (!rm.size) return null;
-  const { w, d } = dimsOf('storehouse');
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const t of rm.keys()) { const tx = t % world.size, ty = (t - tx) / world.size; x0 = Math.min(x0, tx); y0 = Math.min(y0, ty); x1 = Math.max(x1, tx); y1 = Math.max(y1, ty); }
-  const c = centreOf(b);
-  let best = null;
-  for (let y = y0 - d; y <= y1 + 1; y++) {
-    for (let x = x0 - w; x <= x1 + 1; x++) {
-      if (checkTiles(world, 'storehouse', x, y) !== null || reachDistance(rm, world, { x, y, w, d }) > MONUMENT.supplyReach) continue;
-      const near = (x + w / 2 - c.x) ** 2 + (y + d / 2 - c.y) ** 2;
-      if (!best || near < best.near || (near === best.near && (y < best.y || (y === best.y && x < best.x)))) best = { x, y, near };
-    }
+// The site sheet's keep rows (Version 8.3, rulings 1440, 1446, 1447): for each material the site is short of (still needs some, and no quarry, brickworks or
+// storehouse holding some reaches it), what Track K's Advice would do (siteKeepFix, the sim's own): keep a storehouse in reach stocked from a store that can spare
+// the good, or build one near the site first. A good with no fix (no store anywhere can spare it, no room, the storehouse locked) gets no row. Goods whose fix is
+// the same store (or both a new storehouse) share a row: [{ key, goods, text, fix }], the first keyed 'keep-stocked'. The fix is { select, keep: { good } } (Show
+// me aims the store's Keeps stocked at the good, then selects it, as Advice does) or { showMe } (the card and ghost of the storehouse to build).
+export function keepRows(world, b, s = siteStatus(world, b)) {
+  if (s.finished) return [];
+  const short = MATERIALS.filter((g) => s.materials[g] && s.materials[g].need > 0 && !s.materials[g].makers.length && !s.materials[g].stores.length);
+  const groups = [];
+  for (const good of short) {
+    const f = siteKeepFix(world, b, good);
+    if (!f) continue;
+    const id = f.build ? 'build' : f.store;
+    let g = groups.find((o) => o.id === id);
+    if (!g) groups.push(g = { id, goods: [], fix: f.build
+      ? { showMe: { category: categoryOfItem('storehouse'), item: 'storehouse', x: f.build.x, y: f.build.y } }
+      : { select: f.store, keep: { good } } });
+    g.goods.push(good);
   }
-  return best ? { x: best.x + w / 2, y: best.y + d / 2 } : null;
-}
-
-// The fix for a site's material that no maker or store reaches (ruling 1440): "Keep a storehouse within 16 road tiles stocked with stone". Show me opens the
-// sheet of the nearest storehouse already within MONUMENT.supplyReach of the site ({ open: id }), else aims at a free spot for one ({ showMe }), else none.
-export function keepStockedFix(world, b) {
-  const near = buildingsInReach(world, b, MONUMENT.supplyReach, (o) => o.type === 'storehouse')[0];
-  if (near) return { open: near.b.id };
-  const spot = storehouseSpotFor(world, b);
-  return spot ? { showMe: { category: categoryOfItem('storehouse'), item: 'storehouse', x: spot.x, y: spot.y } } : null;
+  return groups.map((g, i) => ({
+    key: i ? `keep-stocked-${g.goods[0]}` : 'keep-stocked', goods: g.goods, fix: g.fix,
+    text: g.fix.showMe ? V83_C_TEXT.keepBuild(g.goods) : V83_C_TEXT.keepStocked(g.goods, MONUMENT.supplyReach),
+  }));
 }
 
 // The workers' camp's offer on a site's sheet (ruling 1436): { show, ok, text, quote }. It shows once a crew walks far enough to be slowed, and stays,
@@ -181,8 +178,8 @@ export function campModel(world, b, crews = siteCrews(world, b)) {
   return { show: true, ok: quote.ok, text: quote.ok ? W.campButton(quote.price) : W.campNoGold(quote.price, world.gold), quote };
 }
 
-// The site sheet's rows (spec 6.3), from siteStatus: [{ key, text, share?, fix? }] in the spec's order: progress, crews (and each crew's walk and
-// speed, Version 8.3), the cause of the last day without work (with its fix), each material (with the storehouse line where nothing reaches it), pace, gold, prestige.
+// The site sheet's rows (spec 6.3), from siteStatus: [{ key, text, share?, fix? }] in the spec's order: progress, crews (and the walk and speed
+// of each slowed crew, Version 8.3), the cause of the last day without work (with its fix), each material (with the keep rows Advice's fix gives), pace, gold, prestige.
 export function siteRows(world, b, s = siteStatus(world, b)) {
   const U = UI4_TEXT;
   const rows = [{ key: 'progress', text: U.progress(s.progress.course, s.progress.courses, s.progress.done), share: s.progress.done }];
@@ -190,22 +187,23 @@ export function siteRows(world, b, s = siteStatus(world, b)) {
   rows.push({ key: 'crews', text: U.crews(s.crews.guilds.length, s.crews.max) });
   if (!s.finished) {
     const crews = siteCrews(world, b);
-    for (const c of crews) rows.push({ key: `crew-${c.id}`, text: V83_C_TEXT.crewLine(c) });
+    for (const c of crews) if (c.speed < 1) rows.push({ key: `crew-${c.id}`, text: V83_C_TEXT.crewLine(c) });   // a crew at full speed is in the "Crews: n of m" line (ruling 1447)
     // The camp's offer sits right under the crews it speeds up (ruling 1436): a button while it can be paid, else its words (the price, and why not).
     const camp = campModel(world, b, crews);
     if (camp.show) rows.push({ key: 'camp', text: camp.text, camp: camp.ok ? camp : null });
   }
+  const keep = keepRows(world, b, s);
   const cause = causeText(world, b, s.reason, s);
-  if (cause) rows.push({ key: 'cause', reason: s.reason, text: cause, fix: causeFix(world, b, s.reason, s) });
+  // One stall shows one Show me (ruling 1447): a stall for stone or bricks that a keep row has a fix for leaves its Show me to that row (the fix Advice gives).
+  const stalledGood = s.reason === 'no_stone' || s.reason === 'no_bricks' ? s.reason.slice(3) : null;
+  const merged = stalledGood !== null && keep.some((k) => k.goods.includes(stalledGood));
+  if (cause) rows.push({ key: 'cause', reason: s.reason, text: cause, fix: merged ? null : causeFix(world, b, s.reason, s) });
   for (const g of MATERIALS) {
     const m = s.materials[g];
     if (!m) continue;
     rows.push({ key: `material-${g}`, text: U.material(g, m.onSite, m.makers.length, m.stores.length) });
   }
-  // What the site is short of (still needs some, and no quarry, brickworks or storehouse holding some reaches it): one line naming it, or both, with one fix:
-  // a storehouse by the site, kept stocked from a store that holds them.
-  const short = MATERIALS.filter((g) => s.materials[g] && s.materials[g].need > 0 && !s.materials[g].makers.length && !s.materials[g].stores.length);
-  if (!s.finished && short.length && isUnlocked(world, 'storehouse')) rows.push({ key: 'keep-stocked', text: V83_C_TEXT.keepStocked(short, MONUMENT.supplyReach), fix: keepStockedFix(world, b) });
+  rows.push(...keep);   // what the site is short of and a store can spare: a storehouse kept stocked (Advice's own fix)
   if (!s.paused && s.road) {
     let pace = U.paceLater;
     if (s.stalled && s.reason) pace = U.notProgressing(s.reason);                         // stalled now: last month's pace is not what it is doing
@@ -365,7 +363,7 @@ export function createMonumentUi(ctx) {
     const f = row.fix;
     if (!f) return null;
     if (f.showMe) return button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${row.text}`, onClick: () => ctx.showMeAt(f.showMe) });
-    if (f.open) return button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${row.text}`, onClick: () => ctx.selectBuilding(f.open) });   // Version 8.3: Show me opens that building's sheet
+    if (f.select !== undefined) return button(T.showMe, { class: 'show-me quiet', 'aria-label': `${T.showMe}: ${row.text}`, onClick: () => { aimKeepStocked(f.select, f.keep.good); ctx.selectBuilding(f.select); } });   // Version 8.3: as Advice's Show me: the store's sheet at that good's row
     const g = world.buildings[f.view];
     return button(T.view, { class: 'view quiet', 'aria-label': viewLabel(buildingName(g.type)), onClick: () => ctx.selectBuilding(f.view) });
   }

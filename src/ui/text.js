@@ -1240,6 +1240,7 @@ export const UI4_TEXT = {
   // Version 8.3 (ruling 1435): the nearest free guild's walk and what its crew would work at, the sim's own crewSpeed.
   crewMet: (n, dist, speed) => `Builders' guild: ${plural(dist, 'road tile', 'road tiles')} (${Math.round(speed * 100)}%)`,
   crewLater: "No builders' guild yet",
+  crewBusy: "No free builders' guild",   // Version 8.3 (ruling 1446): guilds reach the site, every one already at work
   supplyMet: (goods) => `${ui4Cap(listText(goods.map((g) => goodName(g).toLowerCase())))} near`,
   // Every material the recipe takes that has no maker or storehouse near (ruling 300): "No bricks or stone near".
   supplyLater: (goods) => `No ${[].concat(goods).map((g) => goodName(g).toLowerCase()).join(' or ')} near`,
@@ -1266,7 +1267,7 @@ export function ui4ConditionText(cond, type) {
     return conditionText(cond, type);
   }
   if (cond.key === 'road') return cond.state === 'met' ? CONDITION_TEXT.roadMet : cond.state === 'later' ? U.roadLater(type) : CONDITION_TEXT.roadCant;
-  if (cond.key === 'crew') return cond.state === 'met' ? U.crewMet(cond.n, cond.dist, cond.speed) : U.crewLater;
+  if (cond.key === 'crew') return cond.state === 'met' ? U.crewMet(cond.n, cond.dist, cond.speed) : cond.busy > 0 ? U.crewBusy : U.crewLater;
   if (cond.key === 'supply') return cond.state === 'met' ? U.supplyMet(cond.goods || []) : U.supplyLater(cond.missing || [cond.good]);
   if (cond.key === 'gold') return U.founding(cond.cost, cond.have);
   return conditionText(cond, type);
@@ -4109,11 +4110,9 @@ V70_ADVICE_WORDS.keep_stocked = (a, world) => {
 // MONUMENT); the chips' and the idle guild's words are edited in place above (UI4_TEXT crewMet, crewLater, guildIdle, cause.no_crew).
 const v83cTiles = (n) => plural(n, 'road tile', 'road tiles');
 export const V83_C_TEXT = {
-  // One crew's line on the site sheet: how far its guild is and what it works at (speed is full once the site has its camp: the camp row says so).
-  crewLine: ({ dist, speed }) => {
-    const from = `Crew from the guild ${v83cTiles(dist)} away`;
-    return speed < 1 ? `${from}: works at ${Math.round(speed * 100)}% (the walk)` : `${from}: works at full speed`;
-  },
+  // One slowed crew's line on the site sheet: how far its guild is and what it works at. A crew at full speed has none (the "Crews: n of m" line says it, and
+  // the camp row once it is set up; ruling 1447).
+  crewLine: ({ dist, speed }) => `Crew from the guild ${v83cTiles(dist)} away: works at ${Math.round(speed * 100)}% (the walk)`,
   // The guild's own line while its crew works a site: the crew's walk, only when it slows it.
   guildWalk: ({ dist, speed }) => `: ${v83cTiles(dist)} away, works at ${Math.round(speed * 100)}%`,
   // The camp's button, its question and its answer: the price and the effect are said before the tap.
@@ -4125,6 +4124,8 @@ export const V83_C_TEXT = {
   campSet: (type, price) => `Workers' camp set up at the ${ui4Lower(type)}: ${ui4Gold(price)} gold`,
   // The site sheet's "no stone near" line (ruling 1440): a storehouse by the site, kept stocked from a store that holds the good.
   keepStocked: (goods, reach) => `Keep a storehouse within ${reach} road tiles stocked with ${[].concat(goods).map((g) => goodName(g).toLowerCase()).join(' and ')}`,
+  // Where no storehouse stands in reach: the same fix Advice gives (Build a storehouse near the site, then keep it stocked), for the goods a store can spare.
+  keepBuild: (goods) => `Build a storehouse near the site, then keep it stocked with ${[].concat(goods).map((g) => goodName(g).toLowerCase()).join(' and ')}`,
   campRefused: (reason) => (reason === 'no_gold' ? "Not enough gold for the workers' camp: it can't put the treasury below 0" : reason === 'has_camp' ? "The workers' camp is already set up" : "The workers' camp is not possible now"),
 };
 // The tip for a far crew (ruling 1442; How to play lists it as every tip is listed): 19 words.
