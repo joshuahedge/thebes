@@ -18,6 +18,7 @@ import { isUnlocked } from '../sim/progression.js';
 import { makerOf, storeFor, goodMakers, fetchStoreFor } from '../sim/advice.js';
 import { JOBLESS_BANDS } from '../data/layers.js';
 import { MIN_STAFF_RATIO } from '../data/labour.js';
+import { isWorking } from '../sim/labour.js';
 
 export const CATEGORY_NAMES = { roads: 'Roads', homes: 'Homes', food: 'Food', industry: 'Industry', services: 'Services', defence: 'Defence', monuments: 'Monuments' };
 
@@ -115,6 +116,7 @@ export const CAUSE_TEXT = {
   no_temple: { cause: `No temple within ${BUILDINGS.temple.reach} road tiles`, fix: 'Build a temple near it' },
   well_idle: idleWords('well'),
   granary_idle: idleWords('granary'),
+  granary_apart: { cause: 'The granary near its bazaar is not joined to it by road', fix: 'Lay a road between them' },   // Version 8.2.1 (ruling 1365)
   bazaar_idle: idleWords('bazaar'),
   temple_idle: idleWords('temple'),
   well_no_road: roadlessWords('well'),
@@ -319,6 +321,29 @@ function plotsNoRoadWords(alert, world) {
   return { title: `${plural(n, one, many)} ${n === 1 ? 'has' : 'have'} no road`, fix: n === 1 ? 'Draw a road beside it' : 'Draw a road beside them' };
 }
 
+// Version 8.2.1 (rulings 1360-1364): the bazaar's food alert, by the reason the sim gives it (src/sim/housing.js bazaarFoodProblem). No reason (no
+// store near the bazaar at all) keeps 8.2's words. A store's state and what fills it are read from the buildings, as the house sheet's idle causes are.
+const FILL_REACH = BUILDINGS.farm_grain.producerReach;
+function fillWords(alert, world) {
+  if (alert.maker === 'slow') return `What fills it cannot keep up: build another farm within ${FILL_REACH} road tiles of it`;
+  const m = alert.maker === 'idle' ? world.buildings[alert.makerId] : null;
+  if (!m) return `Nothing fills it: build a farm within ${FILL_REACH} road tiles of it`;
+  const name = `The ${buildingName(m.type).toLowerCase()} that fills it`;
+  if (m.paused) return `${name} is paused: resume it`;
+  return isWorking(world, m) ? `${name} is not working: its sheet says why` : `${name} is short of workers: more homes bring more workers`;
+}
+function bazaarEmptyWords(alert, world) {
+  const s = alert.store ? world.buildings[alert.store] : null;
+  if (!alert.reason || !s) return { title: 'Bazaar has no food', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles: ${foodMakersText()} fill it` };
+  const store = buildingName(s.type).toLowerCase();
+  if (alert.reason === 'granary_apart') return { title: `The ${store} near the bazaar is not joined to it by road`, fix: `Lay a road between them, ${BUILDINGS.bazaar.supplyReach} road tiles at most` };
+  if (alert.reason === 'granary_idle') {
+    const words = idleWords(s.type)[s.paused ? 'paused' : 'short'];
+    return { title: `The ${store} by the bazaar ${s.paused ? 'is paused' : 'is short of workers'}`, fix: words.fix };
+  }
+  return { title: `The ${store} by the bazaar ${alert.reason === 'granary_low' ? 'runs low' : 'is empty'}`, fix: fillWords(alert, world) };
+}
+
 // Every problem names the cause and the fix (spec 6.3).
 export function alertText(alert, world) {
   const b = alert.id ? world.buildings[alert.id] : null;
@@ -352,7 +377,8 @@ export function alertText(alert, world) {
       };
     }
     case 'understaffed': return { title: `${name} is short of workers`, fix: 'More homes bring more workers' };
-    case 'bazaar_empty': return { title: 'Bazaar has no food', fix: `Build a granary within ${BUILDINGS.bazaar.supplyReach} road tiles: ${foodMakersText()} fill it` };
+    case 'bazaar_empty': return bazaarEmptyWords(alert, world);
+    case 'bazaar_sold_out': return { title: 'Bazaar sells out before its homes are fed', fix: `Its homes eat ${alert.need} food a month and it stocks ${alert.stock}: build a second bazaar near them` };
     case 'labour_shortage': return { title: `Not enough workers for ${LEVEL_NAMES[alert.level] || alert.level}`, fix: "More homes, or pause buildings you don't need" };
     case 'unemployment': return { title: 'Too many people have no work', fix: 'Build farms, granaries, bazaars or temples' };
     case 'debt': return { title: 'The treasury is in debt', fix: "Pause buildings you don't need; taxes rise as homes grow" };

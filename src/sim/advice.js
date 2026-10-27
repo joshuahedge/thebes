@@ -65,6 +65,7 @@ const CAUSE_FIX = {
   no_temple: { item: 'temple', at: 'home' },
   well_idle: VIEW, granary_idle: VIEW, bazaar_idle: VIEW, temple_idle: VIEW, booth_idle: VIEW,
   well_no_road: VIEW, bazaar_no_road: VIEW, temple_no_road: VIEW, booth_no_road: VIEW,
+  granary_apart: VIEW,   // Version 8.2.1 (ruling 1365): a granary near the bazaar the roads do not join to it: View it (it needs a road, not a twin)
   no_booth: { item: 'booth', at: 'home' },
   low_desirability: { item: 'garden', at: 'home' },   // Version 5.0 (Task 7): nextStep and the rows name desirabilityFix's decoration and tile; this is the fallback when none helps
   // No store for the good near the bazaar: that store beside the bazaar, while it and the good's makers are unlocked (a store would stay empty).

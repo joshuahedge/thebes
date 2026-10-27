@@ -14,7 +14,7 @@ function town() {
   const w = makeTestWorld();
   setRoad(w, 0, 10, 31, 10);
   const bazaar = addRaw(w, 'bazaar', 9, 11);                                          // staffed, nothing to sell: bazaar_empty
-  addRaw(w, 'granary', 6, 11, { store: { grain: 100 } });
+  addRaw(w, 'granary', 6, 11, { store: {} });                                         // empty (8.2.1, ruling 1361: a granary with food in it is no alarm)
   addRaw(w, 'well', 15, 11);
   const shack = addRaw(w, 'house', 12, 9, { tier: 2, residents: 6, downTimer: 1 });   // counting down to lose a tier
   addRaw(w, 'house', 13, 9, { tier: 1, residents: 4, downTimer: 1 });                // a hut has no tier to lose
