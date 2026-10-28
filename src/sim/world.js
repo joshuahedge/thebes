@@ -13,13 +13,14 @@ import { V60_TALLY } from '../data/v60.js';
 import { newReignState, newDemandState } from '../data/reign.js';
 import { newHazardState, GRACE_DAYS } from '../data/hazards.js';
 import { V70_TALLY } from '../data/v70.js';
+import { V84_TALLY } from '../data/v84.js';
 import { newTradeSettings } from '../data/trade.js';
 import { newEventState } from '../data/cityEvents.js';
 import { generateMap, variantFor } from './mapgen.js';
 import { floodplainOf } from './flood.js';
 import { idx, footprint } from './grid.js';
 
-export const WORLD_VERSION = 10;
+export const WORLD_VERSION = 11;
 export const HISTORY_MONTHS = 12;   // month-end rows kept for the Welcome back trends
 
 // The trade state a city starts with (Stage 2): no routes open, no orders, no price drift drawn, no quota used.
@@ -57,6 +58,8 @@ export const STAGE47_TALLY = S47_TALLY;
 export const STAGE60_TALLY = V60_TALLY;
 // Version 7.0's (world version 10): src/data/v70.js V70_TALLY, Track T's and Track E's lists from their own data files (trade.js, cityEvents.js).
 export const STAGE70_TALLY = V70_TALLY;
+// Version 8.4's (world version 11): src/data/v84.js V84_TALLY, every track's counts in one wave-0 list.
+export const STAGE84_TALLY = V84_TALLY;
 export const newTally = () => ({
   harvested: 0, profitMonths: 0, peakPeople: 0, upgrades: 0, dailyDone: 0, made: {}, sold: 0, bought: 0, tradeIncome: 0, caravans: 0,
   ...Object.fromEntries(STAGE3_TALLY.map((k) => [k, 0])),
@@ -66,6 +69,7 @@ export const newTally = () => ({
   ...Object.fromEntries(STAGE47_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE60_TALLY.map((k) => [k, 0])),
   ...Object.fromEntries(STAGE70_TALLY.map((k) => [k, 0])),
+  ...Object.fromEntries(STAGE84_TALLY.map((k) => [k, 0])),
 });
 
 // The prestige unlocks a city has reached (Stage 4, spec 4.14, ruling 243): monument type -> the day the city first had
@@ -173,6 +177,8 @@ export function createWorld({ seed = 1, size = DEFAULT_MAP_SIZE, map = null, dif
     hazards: newHazardState(GRACE_DAYS),                // plague, drought, locusts and the three-year grace (Track B1, src/data/hazards.js)
     // Version 7.0 (world version 10; the contract note has the shapes). trade's switches and floors are above, in world.trade.
     cityEvents: newEventState(),                        // the city events: when the next may come, each kind's cooldown, the one waiting (Track E, src/data/cityEvents.js)
+    // Version 8.4 (world version 11, ruling 1460): the day a Villa's or Estate's luxury need starts to count (0 here; the load day + 360 for a v10 city).
+    luxuryFrom: 0,
   };
   for (const [x, y] of m.startRoad) world.road[idx(world.size, x, y)] = 1;
   return world;

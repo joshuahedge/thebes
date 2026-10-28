@@ -77,7 +77,7 @@ describe('v70 t trade sheet on a phone', () => {
         .toEqual(['switch', 'true', 'On', 'Sell grain to Nubia: on', true, true]);
       expect(sw().querySelector('.price').textContent).toBe(`pays ${p.buys.grain} each`);
       const sells = [...card(r, 'nubia').querySelectorAll('.trade-switch[data-side="sells"]')].map((b) => [b.dataset.good, b.getAttribute('aria-label')]);
-      expect(sells).toEqual([['stone', 'Buy stone from Nubia: on'], ['gems', 'Buy gems from Nubia: on']]);
+      expect(sells).toEqual([['stone', 'Buy stone from Nubia: on'], ['gems', 'Buy gems from Nubia: on'], ['ivory', 'Buy ivory from Nubia: on']]);   // Version 8.4: ivory (ruling 1469)
       fire(sw(), 'click');
       expect([tradeAllowed(w, 'nubia', 'grain', 'buys'), w.trade.switches]).toEqual([false, { nubia: { buys: { grain: false } } }]);
       expect([sw().getAttribute('aria-checked'), sw().querySelector('.state').textContent, sw().getAttribute('aria-label')]).toEqual(['false', 'Off', 'Sell grain to Nubia: off']);

@@ -3,7 +3,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { PALACE_STYLES } from '../data/palace.js';
 import { PRESTIGE_UNLOCKS } from '../data/monuments.js';
-import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY, STAGE70_TALLY } from '../sim/world.js';
+import { STAGE3_TALLY, STAGE4_TALLY, STAGE45_TALLY, STAGE46_TALLY, STAGE47_TALLY, STAGE60_TALLY, STAGE70_TALLY, STAGE84_TALLY } from '../sim/world.js';
 import { isTradeSettings } from '../data/trade.js';
 import { isEventState } from '../data/cityEvents.js';
 import { isReignState, isDemandState } from '../data/reign.js';
@@ -28,9 +28,10 @@ export const REQUIRED = [
   'oases', 'carts',
   'reign', 'demands', 'hazards',
   'cityEvents',
+  'luxuryFrom',
 ];
 
-export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY, ...STAGE45_TALLY, ...STAGE46_TALLY, ...STAGE47_TALLY, ...STAGE60_TALLY, ...STAGE70_TALLY];
+export const TALLY_KEYS = ['harvested', 'profitMonths', 'peakPeople', 'upgrades', 'dailyDone', 'sold', 'bought', 'tradeIncome', 'caravans', ...STAGE3_TALLY, ...STAGE4_TALLY, ...STAGE45_TALLY, ...STAGE46_TALLY, ...STAGE47_TALLY, ...STAGE60_TALLY, ...STAGE70_TALLY, ...STAGE84_TALLY];
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isCounts = (v) => isRecord(v) && Object.values(v).every(Number.isFinite);       // tally.made: good -> units
 const isStrings = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
@@ -90,6 +91,8 @@ const isStage60 = (w) => isReignState(w.reign) && isDemandState(w.demands) && is
 // Version 7.0 (version 10; the owners' data files have the shapes and tighten their own checks): trade's switches and floors (Track T,
 // src/data/trade.js) and the city events' record (Track E, src/data/cityEvents.js).
 const isStage70 = (w) => isTradeSettings(w.trade) && isEventState(w.cityEvents);
+// Version 8.4 (version 11, ruling 1460): the day the luxury need starts to count, a whole day. The tallies are checked with TALLY_KEYS.
+const isStage84 = (w) => Number.isInteger(w.luxuryFrom) && w.luxuryFrom >= 0;
 // Version 7.1 (Track F; no world version: the field is optional, as a Large plot's large, and no building before 7.1 has it): a ferry landing carries
 // ferry: { mate: the other landing's id, water: tiles of water between them, run: whether the crossing ran at the last labour step }; nothing else does.
 const isFerryBuilding = (b) => (b.type === 'ferry_landing' ? isRecord(b.ferry) && Number.isInteger(b.ferry.mate) && Number.isInteger(b.ferry.water) && typeof b.ferry.run === 'boolean' : b.ferry === undefined);
@@ -130,6 +133,7 @@ export function validateWorld(w) {
   if (!isStage47(w)) return false;
   if (!isStage60(w)) return false;
   if (!isStage70(w) || !Object.values(w.buildings).every(isFerryBuilding)) return false;
+  if (!isStage84(w)) return false;
   return true;
 }
 

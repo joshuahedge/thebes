@@ -17,7 +17,7 @@
 import { DAYS_PER_MONTH } from './time.js';
 import { DEMANDS, DEMAND_KINDS, REIGN_SALT, GREAT_WORK, COURT_DUE } from '../data/reign.js';
 import { GOOD_VALUE } from '../data/court.js';
-import { HOUSEHOLD_GOODS, RAW_GOODS } from '../data/goods.js';
+import { ASKABLE_GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { MONUMENTS } from '../data/monuments.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
@@ -59,7 +59,7 @@ export const demandsOn = (world) => !world.lesson && atLeast(world, DEMANDS.from
 
 // ── What a demand can ask ──
 // The goods it may name: household and raw goods the city makes (or trades for), as the court's goods requests.
-export const demandGoods = (world) => [...HOUSEHOLD_GOODS, ...RAW_GOODS].filter((g) => outputPerMonth(world, g) > 0);
+export const demandGoods = (world) => ASKABLE_GOODS.filter((g) => outputPerMonth(world, g) > 0);
 const goldCap = (world) => { const A = DEMANDS.amounts.gold; return Math.floor((Math.max(0, world.gold) * A.reserve) / A.step) * A.step; };
 const countOf = (world, type) => allBuildings(world).filter((b) => b.type === type && (!BUILDINGS[type].monument || isFinished(b))).length;
 // The months a building takes to finish with its kind's most crews and full supply (a monument: crewMonths / crews; any other building is up the day it

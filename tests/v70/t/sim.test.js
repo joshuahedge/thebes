@@ -58,7 +58,7 @@ describe('v70 t partners and the Quay', () => {
   });
 
   it('makes incense a raw good storehouses keep that no workshop, home or rank needs (ruling 853)', () => {
-    expect(GOODS[INCENSE_GOOD]).toEqual({ name: 'Incense', kind: 'raw' });
+    expect(GOODS[INCENSE_GOOD]).toEqual({ name: 'Incense', kind: 'raw', luxury: true, perResidentPerMonth: 0.01 });   // Version 8.4: a luxury too (ruling 1461)
     expect(RAW_GOODS.includes(INCENSE_GOOD)).toBe(true);
     expect(BUILDINGS.storehouse.stores.includes(INCENSE_GOOD)).toBe(true);
     expect(Object.values(BUILDINGS).filter((b) => b.consumes === INCENSE_GOOD || (b.produces && b.produces.good === INCENSE_GOOD))).toEqual([]);

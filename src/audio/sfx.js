@@ -35,6 +35,9 @@ export const SFX = {
     { f: 150, type: 'sine', t: 0, d: 0.16, g: 0.1, slide: 90 }, { f: 420, type: 'triangle', t: 0.02, d: 0.12, g: 0.03, slide: 250 },
     { f: 150, type: 'sine', t: 0.5, d: 0.16, g: 0.1, slide: 90 }, { f: 420, type: 'triangle', t: 0.52, d: 0.12, g: 0.03, slide: 250 },
   ],
+  // Version 8.4 (wave 0): two names with no notes yet, so playing them is silent. trumpet: "War elephants!" (Track E); fanfare: a beaten raid (Track R).
+  trumpet: [],
+  fanfare: [],
 };
 
 const ATTACK = 0.01, TAIL = 0.02, SILENT = 0.0001;

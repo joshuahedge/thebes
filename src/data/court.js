@@ -51,6 +51,7 @@ export const REQUEST_KINDS = ['goods', 'gold', 'food', 'soldiers'];
 export const GOOD_VALUE = {
   grain: 1, figs: 3, game: 3, fish: 3, pottery: 8, beer: 10, linen: 14, jewellery: 20, clay: 2, barley: 3, flax: 3, gems: 9,
   incense: 12,   // Version 7.0 (Track T): Punt's price
+  cedar: 45, ivory: 50,   // Version 8.4 (ruling 1461): Byblos's cedar price; ivory between what Byblos pays (40) and Nubia asks (60)
 };
 
 // ── Gifts at high favour (ruling 336) ──

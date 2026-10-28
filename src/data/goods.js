@@ -23,6 +23,12 @@ export const GOODS = {
   ...S46_GOODS,
   // Version 7.0: Track T's incense (src/data/trade.js TRADE_GOODS), joined by src/data/v70.js.
   ...V70_GOODS,
+  // Version 8.4 (wave 0, ruling 1461): the luxuries Villas and Estates want, one of any kind (Track G). Raw goods, so storehouses keep them;
+  // bought from partners (cedar from Byblos, ivory from Nubia) and ivory from a fallen war elephant (Track E). Incense, Punt's festival good
+  // since 7.0, is one too (it keeps its place in GOODS order).
+  incense: { ...V70_GOODS.incense, luxury: true, perResidentPerMonth: 0.01 },
+  cedar: { name: 'Cedar', kind: 'raw', luxury: true, perResidentPerMonth: 0.01 },
+  ivory: { name: 'Ivory', kind: 'raw', luxury: true, perResidentPerMonth: 0.01 },
 };
 
 const ofKind = (kind) => Object.keys(GOODS).filter((k) => GOODS[k].kind === kind);
@@ -33,3 +39,8 @@ export const FOOD_SLOTS = ['grain', 'figs', 'game', 'fish'];
 export const HOUSEHOLD_GOODS = ofKind('household');
 export const RAW_GOODS = ofKind('raw');
 export const MATERIAL_GOODS = ofKind('material');    // Stage 4: stone, bricks (src/data/monuments.js MATERIALS)
+// Version 8.4 (ruling 1461): the luxuries, in GOODS order (incense, cedar, ivory).
+export const LUXURY_GOODS = Object.keys(GOODS).filter((k) => GOODS[k].luxury);
+// The goods the court's requests and the city's demands may name: household and raw goods less the two new in 8.4, which are bought, never made
+// (ruling 1461). Incense stays askable as in 7.0, so no letter or demand of an 8.3 city changes.
+export const ASKABLE_GOODS = [...HOUSEHOLD_GOODS, ...RAW_GOODS].filter((g) => g !== 'cedar' && g !== 'ivory');

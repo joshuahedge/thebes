@@ -14,7 +14,7 @@
 // trading post, on the same day and quota rules. Every caravan and boat obeys the route's switches and what trade holds back
 // (src/sim/tradeRules.js), and writes what it paid and was paid into world.trade.ledger (src/data/trade.js), which the Trade sheet reads
 // for last year's profit. setTradeSwitch and setKeepAtLeast are the Trade sheet's commands.
-import { PARTNERS, CARAVAN_EVERY_MONTHS, PRICE_DRIFT, TRADE_REACH, QUAY_TYPE, TRADE_SIDES, partnerBy } from '../data/trade.js';
+import { PARTNERS, CARAVAN_EVERY_MONTHS, PRICE_DRIFT, TRADE_REACH, QUAY_TYPE, TRADE_SIDES, partnerBy, DRIFT_LAST } from '../data/trade.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { hasRiver } from '../data/map.js';
 import { GOODS } from '../data/goods.js';
@@ -127,14 +127,18 @@ export function tradePrices(world, partnerId) {
 // The day of the next caravan month end: caravans come at the end of every CARAVAN_EVERY_MONTHS-th month.
 export const nextCaravanDay = (world) => (Math.floor(world.day / CARAVAN_DAYS) + 1) * CARAVAN_DAYS;
 
-// This year's drift for every partner and good, from the city's seed and the year alone.
+// This year's drift for every partner and good, from the city's seed and the year alone. Version 8.4 (ruling 1462): the goods in
+// DRIFT_LAST are drawn after every other partner's goods, so each 8.3 price draws exactly as it did.
 export function drawDrift(seed, year) {
   const rng = createRng(Math.floor(hash2(seed, year, 7349) * 4294967296));
   const drift = {};
+  const draw = (id, good) => { drift[id][good] = Math.round(rng.range(-PRICE_DRIFT, PRICE_DRIFT) * 1000) / 1000; };
+  const goodsOf = (p) => [...Object.keys(p.buys), ...Object.keys(p.sells)];
   for (const [id, p] of Object.entries(PARTNERS)) {
     drift[id] = {};
-    for (const good of [...Object.keys(p.buys), ...Object.keys(p.sells)]) drift[id][good] = Math.round(rng.range(-PRICE_DRIFT, PRICE_DRIFT) * 1000) / 1000;
+    for (const good of goodsOf(p)) if (!DRIFT_LAST.includes(good)) draw(id, good);
   }
+  for (const [id, p] of Object.entries(PARTNERS)) for (const good of goodsOf(p)) if (DRIFT_LAST.includes(good)) draw(id, good);
   return drift;
 }
 

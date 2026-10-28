@@ -92,6 +92,8 @@ import { footMix, ENEMY_TYPES } from '../data/armies.js';
 import { drawMix, boatLanding, raiderKinds, landable, enemyMayCome } from './armies.js';
 import { raiderHp } from './combat.js';
 import { T } from './terrain.js';
+import { raidSpoils } from './spoils.js';
+import { raidReportExtras } from './elephants.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, warnings: [], ...extra });
 
@@ -235,11 +237,18 @@ export function payTribute(world) {
 // RAID_SALT.entry) among world.raiderEntries (a map without any has no raids), its direction, its size and tribute fixed
 // now, the target kind now, arriving RAIDS.warningDays later. The first warning pauses the game; later ones drop 2x or 3x
 // to 1x (setSpeed). index then counts it, so laterWarnDay draws the next raid's gap.
+// Version 8.4 (wave 0 seam): the entry the raid at this index comes in by, a copy of one of world.raiderEntries (which must not be empty).
+// Track E owns the body (elephants come in from upriver); Track R's scouts call it to stand where the next raid will enter.
+export function nextRaidEntry(world, index) {
+  const entries = world.raiderEntries;
+  return { ...entries[Math.floor(hash2(world.seed, index, RAID_SALT.entry) * entries.length)] };
+}
+
 function raiseWarning(world, events) {
   const r = world.raid, entries = world.raiderEntries;
   if (!entries.length) return;
   const index = r.index, first = index === 0;
-  const entry = { ...entries[Math.floor(hash2(world.seed, index, RAID_SALT.entry) * entries.length)] };
+  const entry = nextRaidEntry(world, index);
   const single = raidSize(world);
   const second = !first && index >= RAIDS.twoSidedFrom && entries.length > 1 && hash2(world.seed, index, RAID_SALT.two) < twoSidedChance(world)
     ? secondBand(world, index, entry, single + 1) : null;
@@ -550,6 +559,8 @@ function endRaid(world, events, won) {
     // Version 6.0 (Track B1): what the band wrecked and took, and its chieftains (how many led it and how many fell); absent when none.
     ...(a.wrecked ? { wrecked: a.wrecked, wreckedKinds: a.wreckedKinds.slice() } : {}), ...(a.taken ? { taken: { ...a.taken } } : {}),
     ...(a.chiefs ? { chiefs: a.chiefs.length, chiefsFell: a.chiefs.filter((c) => c.fell).length } : {}),
+    // Version 8.4 (wave 0 seam, Track E): what the elephants did (ivory, stampedes); nothing when none came.
+    ...raidReportExtras(a),
   };
   r.active = null;
   r.last = report;
@@ -558,6 +569,7 @@ function endRaid(world, events, won) {
   r.nextWarnDay = laterWarnDay(world, a.day);
   healWalls(world);
   for (const s of world.soldiers) if (s.task === 'out') s.task = 'back';
+  raidSpoils(world, report, won, events);   // Version 8.4 (wave 0 seam, Track R): the captured weapons of a beaten raid
   if (events) events.push({ type: 'raid_end', won, report: JSON.parse(JSON.stringify(report)) });
 }
 

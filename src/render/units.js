@@ -31,6 +31,7 @@ import { FIGHT, SCRUM, SPARK, FALL, ARROWS, BANNER } from '../data/battle.js';
 import { ART } from './art/registry.js';
 import { p, U } from './iso.js';
 import { gentleShapes } from './fire.js';
+import { scoutWalkers } from './scouts.js';
 
 // Unit ids in the walkers list are UNIT_ID_BASE + the unit's id, so they never meet a walker's (a building id).
 export const UNIT_ID_BASE = 100000;
@@ -189,6 +190,7 @@ export function unitsAt(world, timeDays, range = null, options = {}) {
   const { poses } = fighting(list, levelOf(options), now);
   const out = [];
   for (const s of list) if (inRange(s.x, s.y, range)) out.push({ id: UNIT_ID_BASE + s.u.id, kind: poses.get(s.u.id) || s.kind, x: s.x + s.ox, y: s.y + s.oy, dir: s.dir });
+  out.push(...scoutWalkers(world, timeDays, range));   // Version 8.4 (wave 0 seam): the scouts before a warning (Track R, src/render/scouts.js)
   return out;
 }
 

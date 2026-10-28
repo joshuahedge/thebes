@@ -173,3 +173,5 @@ import './v82/all.js';
 import './v821/all.js';
 // Version 8.3 "Lines": one aggregator (tests/v83/all.js); nothing is added here.
 import './v83/all.js';
+// Version 8.4 "Gold and war": one aggregator (tests/v84/all.js); nothing is added here.
+import './v84/all.js';

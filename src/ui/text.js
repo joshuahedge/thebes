@@ -4131,3 +4131,23 @@ export const V83_C_TEXT = {
 // The tip for a far crew (ruling 1442; How to play lists it as every tip is listed): 19 words.
 Object.assign(TIP_TEXT, { far_crew: "A far crew works slower. On the site's sheet, a workers' camp puts every crew there at full speed." });
 // ── end v83 c ──
+
+// Version 8.4, wave 0 (ruling 1461): the two new goods' lines, where they come from and what they are for (no building makes or uses them). Track G
+// owns these words from here on, and may reassign goodLine again from its own section.
+{
+  const line = goodLine;
+  goodLine = (good) => (good === 'cedar'
+    ? `${goodName(good)}: made by the foresters of ${partnerName('byblos')}; used by Villas and Estates, as a luxury; bought from ${partnerName('byblos')}`
+    : good === 'ivory'
+      ? `${goodName(good)}: made by the hunters of ${partnerName('nubia')}, and left by a fallen war elephant; used by Villas and Estates, as a luxury; bought from ${partnerName('nubia')}; sold to ${partnerName('byblos')}`
+      : line(good));
+}
+
+// Version 8.4, Track G (gold: the tax rate, Rush a course, luxury imports; rulings 1465-1484). Track G writes only between this header and its end line.
+// ── end v84 g ──
+
+// Version 8.4, Track R (raids: the clock, the scouts, the low-Nile lean, captured weapons, the celebration; rulings 1485-1499). Track R writes only here.
+// ── end v84 r ──
+
+// Version 8.4, Track E (war elephants and ivory; rulings 1500-1519). Track E writes only between this header and its end line.
+// ── end v84 e ──
